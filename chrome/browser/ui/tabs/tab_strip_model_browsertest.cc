@@ -130,8 +130,8 @@ IN_PROC_BROWSER_TEST_F(TabStripModelPreventCloseTest,
 
   TabStripModel* const tab_strip_model = browser->tab_strip_model();
   EXPECT_EQ(1, tab_strip_model->count());
-  EXPECT_EQ(!kShouldPreventClose, tab_strip_model->IsTabClosable(
-                                      tab_strip_model->GetActiveWebContents()));
+  EXPECT_EQ(!kShouldPreventClose,
+            tab_strip_model->IsTabClosable(tab_strip_model->GetActiveTab()));
 
   EXPECT_CALL(*this, OnTabCloseCancelled(_)).Times(kShouldPreventClose ? 1 : 0);
 
@@ -140,8 +140,8 @@ IN_PROC_BROWSER_TEST_F(TabStripModelPreventCloseTest,
 
   if (kShouldPreventClose) {
     ClearWebAppSettings();
-    EXPECT_TRUE(tab_strip_model->IsTabClosable(
-        tab_strip_model->GetActiveWebContents()));
+    EXPECT_TRUE(
+        tab_strip_model->IsTabClosable(tab_strip_model->GetActiveTab()));
 
     tab_strip_model->CloseAllTabs();
     EXPECT_EQ(0, tab_strip_model->count());
@@ -171,8 +171,7 @@ IN_PROC_BROWSER_TEST_F(
 
   TabStripModel* const tab_strip_model = browser->tab_strip_model();
   EXPECT_NE(0, tab_strip_model->count());
-  EXPECT_TRUE(
-      tab_strip_model->IsTabClosable(tab_strip_model->GetActiveWebContents()));
+  EXPECT_TRUE(tab_strip_model->IsTabClosable(tab_strip_model->GetActiveTab()));
 
   EXPECT_CALL(*this, OnTabCloseCancelled(_)).Times(0);
 

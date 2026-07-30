@@ -768,8 +768,8 @@ void UpdateServiceImplImpl::RegisterApp(
     return;
   }
 
-  if (request.app_id.empty()) {
-    VLOG(1) << "Refusing to register an empty app ID.";
+  if (!IsValidAppId(request.app_id)) {
+    VLOG(1) << "Refusing to register an invalid app ID: " << request.app_id;
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback), kRegistrationError));
     return;
@@ -1002,6 +1002,14 @@ void UpdateServiceImplImpl::CheckForUpdate(
   VLOG(1) << __func__ << ": " << app_id;
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
+  if (!IsValidAppId(app_id)) {
+    VLOG(1) << "Refusing to check update for an invalid app ID: " << app_id;
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(std::move(callback), Result::kInvalidArgument));
+    return;
+  }
+
   base::MakeRefCounted<HandleInconsistentAppsTask>(config_, GetUpdaterScope())
       ->Run(base::BindOnce(
           &UpdateServiceImplImpl::FetchPolicies, this,
@@ -1056,6 +1064,14 @@ void UpdateServiceImplImpl::Update(
     base::OnceCallback<void(Result)> callback) {
   VLOG(1) << __func__;
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  if (!IsValidAppId(app_id)) {
+    VLOG(1) << "Refusing to update an invalid app ID: " << app_id;
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(std::move(callback), Result::kInvalidArgument));
+    return;
+  }
 
   std::unique_ptr<UpdateEndEvent> event =
       std::make_unique<UpdateEndEvent>(UpdateStartEvent()
@@ -1222,6 +1238,14 @@ void UpdateServiceImplImpl::Install(
   VLOG(1) << __func__;
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
+  if (!IsValidAppId(registration.app_id)) {
+    VLOG(1) << "Refusing to install an invalid app ID: " << registration.app_id;
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(std::move(callback), Result::kInvalidArgument));
+    return;
+  }
+
   std::unique_ptr<InstallEndEvent> event =
       std::make_unique<InstallEndEvent>(InstallStartEvent()
                                             .SetAppId(registration.app_id)
@@ -1337,6 +1361,11 @@ void UpdateServiceImplImpl::InstallImpl(
 void UpdateServiceImplImpl::CancelInstalls(const std::string& app_id) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   VLOG(1) << __func__;
+
+  if (!IsValidAppId(app_id)) {
+    VLOG(1) << "Refusing to cancel installs for an invalid app ID: " << app_id;
+    return;
+  }
   auto [first, last] = cancellation_callbacks_.equal_range(app_id);
   std::ranges::for_each(first, last, [](const auto& i) { i.second.Run(); });
 }
@@ -1353,6 +1382,14 @@ void UpdateServiceImplImpl::RunInstaller(
   VLOG(1) << __func__ << ": " << app_id << ": " << installer_path << ": "
           << install_args << ": " << install_data << ": " << install_settings;
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  if (!IsValidAppId(app_id)) {
+    VLOG(1) << "Refusing to run installer for an invalid app ID: " << app_id;
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(std::move(callback), Result::kInvalidArgument));
+    return;
+  }
 
   base::MakeRefCounted<HandleInconsistentAppsTask>(config_, GetUpdaterScope())
       ->Run(base::BindOnce(

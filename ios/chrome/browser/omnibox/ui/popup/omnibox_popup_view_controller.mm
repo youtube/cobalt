@@ -177,9 +177,13 @@ const CGFloat kCloseButtonPadding = 16.0f;
 // Sets the additional vertical content inset for the suggestion list.
 - (void)setAdditionalVerticalContentInset:
     (UIEdgeInsets)additionalVerticalContentInset {
+  CGFloat bottomInset = additionalVerticalContentInset.bottom;
+  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
+    bottomInset += kBottomPadding;
+  }
   self.tableView.contentInset = UIEdgeInsetsMake(
       kOmniboxPopupTopPadding + additionalVerticalContentInset.top, 0,
-      additionalVerticalContentInset.bottom, 0);
+      bottomInset, 0);
   [self.tableView
       setContentOffset:CGPointMake(0, -self.tableView.contentInset.top)
               animated:YES];
@@ -951,7 +955,11 @@ const CGFloat kCloseButtonPadding = 16.0f;
 #pragma mark - SelfSizingTableViewDelegate
 
 - (void)tableViewContentSizeDidChange:(CGSize)contentSize {
-  self.preferredContentSize = contentSize;
+  CGFloat height = contentSize.height;
+  if (IsComposeboxIpadEnabled()) {
+    height = self.tableView.intrinsicContentSize.height;
+  }
+  self.preferredContentSize = CGSizeMake(contentSize.width, height);
 }
 
 #pragma mark - OmniboxPopupCarouselCellDelegate

@@ -4,6 +4,7 @@
 
 #include "ui/ozone/platform/wayland/host/wayland_data_device_base.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "base/logging.h"
@@ -41,8 +42,13 @@ const std::vector<std::string>& WaylandDataDeviceBase::GetAvailableMimeTypes()
 
 PlatformClipboard::Data WaylandDataDeviceBase::ReadSelectionData(
     const std::string& mime_type) {
-  if (!data_offer_)
+  if (!data_offer_) {
     return {};
+  }
+
+  if (!std::ranges::contains(GetAvailableMimeTypes(), mime_type)) {
+    return {};
+  }
 
   base::ScopedFD fd = data_offer_->Receive(mime_type);
   connection_->Flush();
@@ -64,6 +70,11 @@ void WaylandDataDeviceBase::RequestSelectionData(
     const std::string& mime_type,
     PlatformClipboard::RequestDataClosure callback) {
   if (!data_offer_) {
+    std::move(callback).Run({});
+    return;
+  }
+
+  if (!std::ranges::contains(GetAvailableMimeTypes(), mime_type)) {
     std::move(callback).Run({});
     return;
   }

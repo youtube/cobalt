@@ -80,5 +80,68 @@ TEST(MFHelpersTest, CreateSampleFromTextureDoesNotLeakUninitializedMemory) {
   EXPECT_EQ(output_desc.Height, static_cast<UINT>(visible_rect.height()));
 }
 
+class MFHelpersAlignmentTest
+    : public ::testing::TestWithParam<VideoPixelFormat> {};
+
+TEST_P(MFHelpersAlignmentTest,
+       CreateSampleFromTextureRejectsUnalignedVisibleRect) {
+  Microsoft::WRL::ComPtr<ID3D11Device> device;
+  Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;
+  HRESULT hr =
+      D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0, nullptr,
+                        0, D3D11_SDK_VERSION, &device, nullptr, &context);
+  if (FAILED(hr)) {
+    // Fallback to WARP if hardware is not available.
+    hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_WARP, nullptr, 0, nullptr,
+                           0, D3D11_SDK_VERSION, &device, nullptr, &context);
+    if (FAILED(hr)) {
+      GTEST_SKIP() << "D3D11 device creation failed";
+    }
+  }
+
+  D3D11_TEXTURE2D_DESC desc = {};
+  desc.Width = 1920;
+  desc.Height = 1088;
+  desc.MipLevels = 1;
+  desc.ArraySize = 1;
+  desc.Format = DXGI_FORMAT_NV12;
+  desc.SampleDesc.Count = 1;
+  desc.Usage = D3D11_USAGE_DEFAULT;
+  desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+
+  Microsoft::WRL::ComPtr<ID3D11Texture2D> input_texture;
+  hr = device->CreateTexture2D(&desc, nullptr, &input_texture);
+  ASSERT_TRUE(SUCCEEDED(hr));
+
+  // Create a video frame with an unaligned visible rect.
+  gfx::Size coded_size(1922, 1082);
+  gfx::Rect visible_rect(1, 1, 1920, 1080);
+  gfx::Size natural_size(1920, 1080);
+  VideoPixelFormat format = GetParam();
+  scoped_refptr<VideoFrame> frame = VideoFrame::CreateFrame(
+      format, coded_size, visible_rect, natural_size, base::TimeDelta());
+
+  if (!frame) {
+    // VideoFrame::CreateFrame natively validates alignment for some formats
+    // (e.g., I420) and might return null, in which case we safely skip.
+    GTEST_SKIP() << "Cannot create unaligned frame natively for format "
+                 << format;
+  }
+
+  // Create the sample and perform the copy.
+  Microsoft::WRL::ComPtr<IMFSample> sample = CreateSampleFromTexture(
+      device, frame, input_texture, /*need_perform_copy=*/true);
+
+  // Because the visible_rect is unaligned, CreateSampleFromTexture should fail.
+  EXPECT_FALSE(sample);
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         MFHelpersAlignmentTest,
+                         ::testing::Values(PIXEL_FORMAT_NV12,
+                                           PIXEL_FORMAT_I420,
+                                           PIXEL_FORMAT_YV12,
+                                           PIXEL_FORMAT_NV21));
+
 }  // namespace
 }  // namespace media

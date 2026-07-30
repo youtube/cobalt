@@ -134,17 +134,17 @@ bool IsHttpSuccess(int response_code) {
 
 void LogServerRequestFailed(MultistepFilterLogRouter* log_router,
                             int64_t navigation_id,
-                            std::string_view domain,
+                            std::string_view host,
                             std::string_view failure_reason) {
   MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                       LogEventType::kServerRequestFailed, domain)
+                       LogEventType::kServerRequestFailed, host)
       << LogDetail("failure_reason", std::string(failure_reason));
 }
 
 void LogGetTaskExecutionStrategiesRequestSent(
     MultistepFilterLogRouter* log_router,
     int64_t navigation_id,
-    std::string_view domain,
+    std::string_view host,
     std::string_view request_url,
     const GURL& url,
     base::span<const FilterAnnotation> filter_annotations) {
@@ -157,7 +157,7 @@ void LogGetTaskExecutionStrategiesRequestSent(
       base::StrCat({"[", base::JoinString(annotation_strings, ", "), "]"});
 
   MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                       LogEventType::kServerRequestSent, domain)
+                       LogEventType::kServerRequestSent, host)
       << LogDetail("request_url", std::string(request_url))
       << LogDetail("current_url", url.spec())
       << LogDetail("execution_candidate_count",
@@ -167,31 +167,31 @@ void LogGetTaskExecutionStrategiesRequestSent(
 
 void LogGetSupportedTasksRequestSent(MultistepFilterLogRouter* log_router,
                                      int64_t navigation_id,
-                                     std::string_view domain,
+                                     std::string_view host,
                                      std::string_view request_url) {
   MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                       LogEventType::kServerRequestSent, domain)
+                       LogEventType::kServerRequestSent, host)
       << LogDetail("request_url", std::string(request_url));
 }
 
 void LogExtractTaskAttributesRequestSent(MultistepFilterLogRouter* log_router,
                                          int64_t navigation_id,
-                                         std::string_view domain,
+                                         std::string_view host,
                                          std::string_view request_url,
                                          const GURL& url) {
   MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                       LogEventType::kServerRequestSent, domain)
+                       LogEventType::kServerRequestSent, host)
       << LogDetail("request_url", std::string(request_url))
       << LogDetail("source_raw_url", url.spec());
 }
 
 void LogServerResponseReceived(MultistepFilterLogRouter* log_router,
                                int64_t navigation_id,
-                               std::string_view domain,
+                               std::string_view host,
                                int response_code,
                                bool is_success) {
   MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                       LogEventType::kServerResponseReceived, domain)
+                       LogEventType::kServerResponseReceived, host)
       << LogDetail("is_success", is_success)
       << LogDetail("response_code", response_code);
 }
@@ -199,7 +199,7 @@ void LogServerResponseReceived(MultistepFilterLogRouter* log_router,
 void LogResponseObjectsReceived(
     MultistepFilterLogRouter* log_router,
     int64_t navigation_id,
-    std::string_view domain,
+    std::string_view host,
     int response_code,
     bool is_success,
     const std::optional<std::vector<FilterSuggestionCandidate>>& result) {
@@ -215,7 +215,7 @@ void LogResponseObjectsReceived(
   }
 
   MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                       LogEventType::kServerResponseReceived, domain)
+                       LogEventType::kServerResponseReceived, host)
       << LogDetail("is_success", is_success)
       << LogDetail("response_code", response_code)
       << LogDetail("filter_suggestion_candidates_count",
@@ -226,7 +226,7 @@ void LogResponseObjectsReceived(
 void LogResponseObjectsReceived(
     MultistepFilterLogRouter* log_router,
     int64_t navigation_id,
-    std::string_view domain,
+    std::string_view host,
     int response_code,
     bool is_success,
     const std::optional<std::vector<std::string>>& result) {
@@ -236,7 +236,7 @@ void LogResponseObjectsReceived(
   }
 
   MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                       LogEventType::kServerResponseReceived, domain)
+                       LogEventType::kServerResponseReceived, host)
       << LogDetail("is_success", is_success)
       << LogDetail("response_code", response_code)
       << LogDetail("supported_tasks_count",
@@ -246,14 +246,14 @@ void LogResponseObjectsReceived(
 
 void LogResponseObjectsReceived(MultistepFilterLogRouter* log_router,
                                 int64_t navigation_id,
-                                std::string_view domain,
+                                std::string_view host,
                                 int response_code,
                                 bool is_success,
                                 const std::optional<FilterAnnotation>& result) {
   std::string annotation_str = result.has_value() ? result->ToString() : "";
 
   MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                       LogEventType::kServerResponseReceived, domain)
+                       LogEventType::kServerResponseReceived, host)
       << LogDetail("is_success", is_success)
       << LogDetail("response_code", response_code)
       << LogDetail("extracted_attributes_count",
@@ -265,10 +265,10 @@ void LogResponseObjectsReceived(MultistepFilterLogRouter* log_router,
 
 void LogServerResponseMalformed(MultistepFilterLogRouter* log_router,
                                 int64_t navigation_id,
-                                std::string_view domain,
+                                std::string_view host,
                                 std::string_view failure_reason) {
   MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                       LogEventType::kServerResponseMalformed, domain)
+                       LogEventType::kServerResponseMalformed, host)
       << LogDetail("failure_reason", std::string(failure_reason));
 }
 
@@ -278,22 +278,22 @@ base::OnceCallback<void(std::optional<std::string>, int)> BindParseAndConvert(
     base::OnceCallback<ReturnType(const ProtoType&)> convert_callback,
     MultistepFilterLogRouter* log_router,
     int64_t navigation_id,
-    std::string domain) {
+    std::string host) {
   return base::BindOnce(
       [](base::OnceCallback<void(std::optional<ResultType>)> callback,
          base::OnceCallback<ReturnType(const ProtoType&)> conv,
          MultistepFilterLogRouter* log_router, int64_t navigation_id,
-         std::string domain, std::optional<std::string> response_body,
+         std::string host, std::optional<std::string> response_body,
          int response_code) {
         std::optional<ResultType> result;
         if (response_body) {
           if (ProtoType proto; proto.ParseFromString(*response_body)) {
             result = std::move(conv).Run(proto);
-            LogResponseObjectsReceived(log_router, navigation_id, domain,
+            LogResponseObjectsReceived(log_router, navigation_id, host,
                                        response_code, /*is_success=*/true,
                                        result);
           } else {
-            LogServerResponseMalformed(log_router, navigation_id, domain,
+            LogServerResponseMalformed(log_router, navigation_id, host,
                                        "parsing_failed");
           }
         }
@@ -305,7 +305,7 @@ base::OnceCallback<void(std::optional<std::string>, int)> BindParseAndConvert(
       // which outlives `AnnotationIndexClientImpl`, and all pending loaders
       // are canceled instantly on destruction of the
       // `AnnotationIndexClientImpl`, preventing this callback from running.
-      base::Unretained(log_router), navigation_id, std::move(domain));
+      base::Unretained(log_router), navigation_id, std::move(host));
 }
 
 std::unique_ptr<network::ResourceRequest> CreatePostResourceRequest(
@@ -348,10 +348,9 @@ void AnnotationIndexClientImpl::GetFilterSuggestionCandidates(
     base::OnceCallback<
         void(std::optional<std::vector<FilterSuggestionCandidate>>)> callback,
     int64_t navigation_id) {
-  const std::string domain = GetEtldPlusOne(url);
   GURL api_base_url = GetIndexServerApiBaseUrl();
   if (!api_base_url.is_valid()) {
-    LogServerRequestFailed(log_router_, navigation_id, domain,
+    LogServerRequestFailed(log_router_, navigation_id, url.GetHost(),
                            "invalid_api_base_url");
     std::move(callback).Run(std::nullopt);
     return;
@@ -360,7 +359,7 @@ void AnnotationIndexClientImpl::GetFilterSuggestionCandidates(
   GetTaskExecutionStrategiesRequest proto =
       ToGetTaskExecutionStrategiesRequest(url, filter_annotations);
   LogGetTaskExecutionStrategiesRequestSent(
-      log_router_, navigation_id, domain,
+      log_router_, navigation_id, url.GetHost(),
       api_base_url.Resolve(kGetTaskExecutionStrategiesEndpoint).spec(), url,
       filter_annotations);
 
@@ -370,17 +369,16 @@ void AnnotationIndexClientImpl::GetFilterSuggestionCandidates(
       proto.SerializeAsString(),
       BindParseAndConvert(std::move(callback),
                           base::BindOnce(&ToFilterSuggestionCandidates),
-                          log_router_, navigation_id, domain),
-      navigation_id, domain);
+                          log_router_, navigation_id, url.GetHost()),
+      navigation_id, url.GetHost());
 }
 
 void AnnotationIndexClientImpl::GetSupportedTasks(
     const GURL& url,
     base::OnceCallback<void(std::vector<std::string>)> callback,
     int64_t navigation_id) {
-  const std::string domain = GetEtldPlusOne(url);
   if (!multistep_filter::IsUrlAllowed(url)) {
-    LogServerRequestFailed(log_router_, navigation_id, domain,
+    LogServerRequestFailed(log_router_, navigation_id, url.GetHost(),
                            "domain_not_allowed");
     std::move(callback).Run(std::vector<std::string>());
     return;
@@ -388,15 +386,15 @@ void AnnotationIndexClientImpl::GetSupportedTasks(
 
   GURL api_base_url = GetIndexServerApiBaseUrl();
   if (!api_base_url.is_valid()) {
-    LogServerRequestFailed(log_router_, navigation_id, domain,
+    LogServerRequestFailed(log_router_, navigation_id, url.GetHost(),
                            "invalid_api_base_url");
     std::move(callback).Run(std::vector<std::string>());
     return;
   }
 
-  GetSupportedTasksRequest proto = ToGetSupportedTasksRequest(domain);
+  GetSupportedTasksRequest proto = ToGetSupportedTasksRequest(GetEtldPlusOne(url));
   LogGetSupportedTasksRequestSent(
-      log_router_, navigation_id, domain,
+      log_router_, navigation_id, url.GetHost(),
       api_base_url.Resolve(kGetSupportedTasksEndpoint).spec());
 
   ExecuteRequest(
@@ -411,18 +409,17 @@ void AnnotationIndexClientImpl::GetSupportedTasks(
               },
               std::move(callback)),
           base::BindOnce(&ToSupportedTasks), log_router_, navigation_id,
-          domain),
-      navigation_id, domain);
+          url.GetHost()),
+      navigation_id, url.GetHost());
 }
 
 void AnnotationIndexClientImpl::ExtractFilterAnnotation(
     const GURL& url,
     base::OnceCallback<void(std::optional<FilterAnnotation>)> callback,
     int64_t navigation_id) {
-  std::string domain = GetEtldPlusOne(url);
   GURL api_base_url = GetIndexServerApiBaseUrl();
   if (!api_base_url.is_valid()) {
-    LogServerRequestFailed(log_router_, navigation_id, domain,
+    LogServerRequestFailed(log_router_, navigation_id, url.GetHost(),
                            "invalid_api_base_url");
     std::move(callback).Run(std::nullopt);
     return;
@@ -430,7 +427,7 @@ void AnnotationIndexClientImpl::ExtractFilterAnnotation(
 
   ExtractTaskAttributesRequest proto = ToExtractTaskAttributesRequest(url);
   LogExtractTaskAttributesRequestSent(
-      log_router_, navigation_id, domain,
+      log_router_, navigation_id, url.GetHost(),
       api_base_url.Resolve(kExtractTaskAttributesEndpoint).spec(), url);
 
   ExecuteRequest(
@@ -438,8 +435,8 @@ void AnnotationIndexClientImpl::ExtractFilterAnnotation(
       proto.SerializeAsString(),
       BindParseAndConvert(std::move(callback),
                           base::BindOnce(&ToFilterAnnotation, url),
-                          log_router_, navigation_id, domain),
-      navigation_id, domain);
+                          log_router_, navigation_id, url.GetHost()),
+      navigation_id, url.GetHost());
 }
 
 void AnnotationIndexClientImpl::ExecuteRequest(
@@ -447,16 +444,16 @@ void AnnotationIndexClientImpl::ExecuteRequest(
     std::string request_body,
     base::OnceCallback<void(std::optional<std::string>, int)> callback,
     int64_t navigation_id,
-    std::string_view domain) {
+    std::string host) {
   if (!request->url.SchemeIs(url::kHttpsScheme) ||
       !google_util::IsGoogleAssociatedDomainUrl(request->url)) {
     StartLoader(std::move(request), std::move(request_body),
-                std::move(callback), navigation_id, domain);
+                std::move(callback), navigation_id, std::move(host));
     return;
   }
 
   if (!identity_manager_) {
-    LogServerRequestFailed(log_router_, navigation_id, domain,
+    LogServerRequestFailed(log_router_, navigation_id, host,
                            "no_identity_manager");
     std::move(callback).Run(std::nullopt, -1);
     return;
@@ -465,7 +462,7 @@ void AnnotationIndexClientImpl::ExecuteRequest(
   const CoreAccountId account_id =
       identity_manager_->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
   if (account_id.empty()) {
-    LogServerRequestFailed(log_router_, navigation_id, domain,
+    LogServerRequestFailed(log_router_, navigation_id, host,
                            "user_not_signed_in");
     std::move(callback).Run(std::nullopt, -1);
     return;
@@ -485,7 +482,7 @@ void AnnotationIndexClientImpl::ExecuteRequest(
                  std::string request_body,
                  base::OnceCallback<void(std::optional<std::string>, int)>
                      callback,
-                 int64_t navigation_id, std::string domain,
+                 int64_t navigation_id, std::string host,
                  GoogleServiceAuthError error,
                  signin::AccessTokenInfo access_token_info) {
                 fin->data = true;
@@ -493,12 +490,12 @@ void AnnotationIndexClientImpl::ExecuteRequest(
                   client->OnAccessTokenFetched(
                       fetcher_id, std::move(request), std::move(request_body),
                       std::move(callback), error, access_token_info,
-                      navigation_id, std::move(domain));
+                      navigation_id, std::move(host));
                 }
               },
               finished, weak_ptr_factory_.GetWeakPtr(), fetcher_id,
               std::move(request), std::move(request_body), std::move(callback),
-              navigation_id, std::string(domain)),
+              navigation_id, std::move(host)),
           signin::AccessTokenFetcher::Mode::kImmediate);
 
   if (!finished->data) {
@@ -514,11 +511,11 @@ void AnnotationIndexClientImpl::OnAccessTokenFetched(
     GoogleServiceAuthError error,
     signin::AccessTokenInfo access_token_info,
     int64_t navigation_id,
-    std::string_view domain) {
+    std::string host) {
   active_fetchers_.erase(fetcher_id);
 
   if (error.state() != GoogleServiceAuthError::NONE) {
-    LogServerRequestFailed(log_router_, navigation_id, domain,
+    LogServerRequestFailed(log_router_, navigation_id, host,
                            "oauth_fetch_failed");
     std::move(callback).Run(std::nullopt, -1);
     return;
@@ -530,7 +527,7 @@ void AnnotationIndexClientImpl::OnAccessTokenFetched(
   request->headers.SetHeader(net::HttpRequestHeaders::kAuthorization,
                              "Bearer " + access_token_info.token);
   StartLoader(std::move(request), std::move(request_body), std::move(callback),
-              navigation_id, domain);
+              navigation_id, std::move(host));
 }
 
 void AnnotationIndexClientImpl::StartLoader(
@@ -538,7 +535,7 @@ void AnnotationIndexClientImpl::StartLoader(
     std::string request_body,
     base::OnceCallback<void(std::optional<std::string>, int)> callback,
     int64_t navigation_id,
-    std::string_view domain) {
+    std::string host) {
   active_url_loaders_.push_back(network::SimpleURLLoader::Create(
       std::move(request), kMultiStepFilterServerRequestsTrafficAnnotation));
   auto loader_it = std::prev(active_url_loaders_.end());
@@ -552,7 +549,7 @@ void AnnotationIndexClientImpl::StartLoader(
       url_loader_factory_.get(),
       base::BindOnce(&AnnotationIndexClientImpl::OnSimpleURLLoaderComplete,
                      weak_ptr_factory_.GetWeakPtr(), loader_it,
-                     std::move(callback), navigation_id, std::string(domain)),
+                     std::move(callback), navigation_id, std::move(host)),
       kMaxDownloadSize);
 }
 
@@ -560,7 +557,7 @@ void AnnotationIndexClientImpl::OnSimpleURLLoaderComplete(
     SimpleURLLoaderList::iterator loader_it,
     base::OnceCallback<void(std::optional<std::string>, int)> callback,
     int64_t navigation_id,
-    std::string_view domain,
+    std::string host,
     std::optional<std::string> response_body) {
   network::SimpleURLLoader* loader = loader_it->get();
   int response_code = -1;
@@ -572,7 +569,7 @@ void AnnotationIndexClientImpl::OnSimpleURLLoaderComplete(
   active_url_loaders_.erase(loader_it);
 
   if (!is_success) {
-    LogServerResponseReceived(log_router_, navigation_id, domain, response_code,
+    LogServerResponseReceived(log_router_, navigation_id, host, response_code,
                               is_success);
     std::move(callback).Run(std::nullopt, response_code);
     return;

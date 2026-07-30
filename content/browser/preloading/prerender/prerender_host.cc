@@ -25,6 +25,7 @@
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/preloading/prefetch/no_vary_search_helper.h"
 #include "content/browser/preloading/preload_activation_report_manager.h"
+#include "content/browser/preloading/preload_activation_report_utils.h"
 #include "content/browser/preloading/preloading_attempt_impl.h"
 #include "content/browser/preloading/preloading_trigger_type_impl.h"
 #include "content/browser/preloading/prerender/devtools_prerender_attempt.h"
@@ -42,6 +43,7 @@
 #include "content/browser/renderer_host/page_impl.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/renderer_host/render_view_host_impl.h"
+#include "content/browser/site_instance_impl.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/content_browser_client.h"
@@ -513,11 +515,24 @@ PrerenderHost::PrerenderHost(
   } else {
     frame_tree_delegate_ = std::make_unique<PrerenderFrameTreeDelegate>(
         web_contents.GetBrowserContext(), web_contents, *this);
+
     scoped_refptr<SiteInstanceImpl> site_instance =
         base::FeatureList::IsEnabled(kCreatePrerenderSiteInstanceWithURL)
             ? SiteInstanceImpl::CreateForURL(web_contents.GetBrowserContext(),
                                              attributes.prerendering_url)
             : SiteInstanceImpl::Create(web_contents.GetBrowserContext());
+
+    if (ShouldAllowProcessReuse() &&
+        attributes.initiator_frame_token.has_value()) {
+      RenderFrameHostImpl* initiator_rfh = RenderFrameHostImpl::FromFrameToken(
+          attributes.initiator_process_id,
+          attributes.initiator_frame_token.value());
+      if (initiator_rfh) {
+        site_instance->ReuseExistingProcessIfPossible(
+            initiator_rfh->GetProcess());
+      }
+    }
+
     GetFrameTree()->Init(site_instance.get(),
                          /*renderer_initiated_creation=*/false,
                          /*main_frame_name=*/"", /*opener_for_origin=*/nullptr,
@@ -574,6 +589,8 @@ bool PrerenderHost::StartPrerendering() {
   load_url_params.initiator_origin = attributes_.initiator_origin;
   load_url_params.initiator_process_id = attributes_.initiator_process_id;
   load_url_params.initiator_frame_token = attributes_.initiator_frame_token;
+  load_url_params.initiator_navigation_state =
+      attributes_.initiator_navigation_state;
 #if BUILDFLAG(IS_ANDROID)
   if (!attributes_.additional_headers.IsEmpty()) {
     load_url_params.extra_headers =
@@ -710,7 +727,9 @@ void PrerenderHost::ReadyToCommitNavigation(
           blink::mojom::WebFeature::kPrerender2CrossOriginIframes);
     }
 
-    if (base::FeatureList::IsEnabled(features::kPrerenderActivationBeacon)) {
+    if (IsPrerenderActivationBeaconEnabled(
+            navigation_request->GetURL(),
+            navigation_request->GetResponseHeaders())) {
       activation_beacon_url_ = FindActivationBeaconURL(*navigation_request);
     }
   }
@@ -800,8 +819,7 @@ std::unique_ptr<StoredPage> PrerenderHost::Activate(
   CHECK(is_ready_for_activation_);
   is_ready_for_activation_ = false;
 
-  if (base::FeatureList::IsEnabled(features::kPrerenderActivationBeacon) &&
-      !activation_beacon_url_.is_empty()) {
+  if (!activation_beacon_url_.is_empty()) {
     auto* manager =
         PreloadActivationReportManager::GetOrCreateForBrowserContext(
             web_contents_->GetBrowserContext());
@@ -1371,6 +1389,77 @@ void PrerenderHost::RecordActivation(NavigationRequest& navigation_request) {
 
 PrerenderHost::LoadingOutcome PrerenderHost::WaitForLoadStopForTesting() {
   return frame_tree_delegate_->WaitForLoadStopForTesting();  // IN-TEST
+}
+
+bool PrerenderHost::ShouldAllowProcessReuse() const {
+  if (attributes_.IsBrowserInitiated() ||
+      !base::FeatureList::IsEnabled(
+          features::kPrerender2ReuseInitiatorProcess)) {
+    return false;
+  }
+
+  // TODO(https://crbug.com/524800804): Add the following restrictions:
+  // 1. Disallow cross-origin prerendering to reuse the process.
+
+  if (attributes_.GetTargetHint() ==
+      blink::mojom::SpeculationTargetHint::kBlank) {
+    return false;
+  }
+  std::string allowed_action =
+      features::kPrerender2ReuseInitiatorProcessActionType.Get();
+
+  bool action_matches = false;
+  if (allowed_action == "all") {
+    action_matches = true;
+  } else if (allowed_action == "prerender" &&
+             attributes_.prerender_action_type ==
+                 blink::mojom::SpeculationAction::kPrerender) {
+    action_matches = true;
+  } else if (allowed_action == "prerender-until-script" &&
+             attributes_.prerender_action_type ==
+                 blink::mojom::SpeculationAction::kPrerenderUntilScript) {
+    action_matches = true;
+  }
+
+  if (!action_matches) {
+    return false;
+  }
+
+  std::string allowed_eagerness =
+      features::kPrerender2ReuseInitiatorProcessEagerness.Get();
+  if (allowed_eagerness == "all") {
+    return true;
+  }
+
+  auto get_eagerness_score = [](blink::mojom::SpeculationEagerness e) {
+    switch (e) {
+      case blink::mojom::SpeculationEagerness::kConservative:
+        return 0;
+      case blink::mojom::SpeculationEagerness::kModerate:
+        return 1;
+      case blink::mojom::SpeculationEagerness::kEager:
+        return 2;
+      case blink::mojom::SpeculationEagerness::kImmediate:
+        return 3;
+    }
+  };
+
+  CHECK(attributes_.GetEagerness().has_value());
+  int current_score = get_eagerness_score(attributes_.GetEagerness().value());
+  int allowed_score = 1;  // Default Moderate
+  if (allowed_eagerness == "conservative") {
+    allowed_score = 0;
+  } else if (allowed_eagerness == "moderate") {
+    allowed_score = 1;
+  } else if (allowed_eagerness == "eager") {
+    allowed_score = 2;
+  } else if (allowed_eagerness == "immediate") {
+    allowed_score = 3;
+  } else {
+    return false;
+  }
+
+  return current_score <= allowed_score;
 }
 
 const GURL& PrerenderHost::GetInitialUrl() const {

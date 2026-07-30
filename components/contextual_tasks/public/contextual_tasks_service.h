@@ -145,6 +145,7 @@ class ContextualTasksService : public KeyedService {
       SessionID tab_id) const = 0;
   virtual std::vector<SessionID> GetTabsAssociatedWithTask(
       const base::Uuid& task_id) const = 0;
+  virtual void SetLastActiveTask(const base::Uuid& task_id) = 0;
 
   // Add / remove observers.
   virtual void AddObserver(Observer* observer) = 0;

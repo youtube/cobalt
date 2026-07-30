@@ -122,6 +122,9 @@ class DummyFrameOwner final : public GarbageCollected<DummyFrameOwner>,
   bool AllowFullscreen() const override { return false; }
   bool AllowPaymentRequest() const override { return false; }
   bool IsDisplayNone() const override { return false; }
+  mojom::blink::FrameResponsiveSizing GetResponsiveSizing() const override {
+    return mojom::blink::FrameResponsiveSizing::kNone;
+  }
   mojom::blink::ColorScheme GetColorScheme() const override {
     return mojom::blink::ColorScheme::kLight;
   }
@@ -834,49 +837,8 @@ TEST_P(FrameFetchContextHintsTest, MonitorDeviceMemoryHintsLocalContext) {
   ExpectHeader("http://localhost/1.gif", "Sec-CH-Viewport-Width", false, "");
 }
 
-TEST_P(FrameFetchContextHintsTest, MonitorDeviceMemoryHintsOld) {
-  // Test with old limits. See https://crbug.com/454354290
-  // TODO: remove this whole section when feature flag is retired.
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndDisableFeature(
-      features::kUpdatedDeviceMemoryLimitsFor2026);
-  ExpectHeader("https://www.example.com/1.gif", "Device-Memory", false, "");
-  ClientHintsPreferences preferences;
-  preferences.SetShouldSend(
-      network::mojom::WebClientHintsType::kDeviceMemory_DEPRECATED);
-  preferences.SetShouldSend(network::mojom::WebClientHintsType::kDeviceMemory);
-  document->GetFrame()->GetClientHintsPreferences().UpdateFrom(preferences);
-  ApproximatedDeviceMemory::SetPhysicalMemoryMBForTesting(4096);
-  ExpectHeader("https://www.example.com/1.gif", "Device-Memory", true, "4");
-  ExpectHeader("https://www.example.com/1.gif", "Sec-CH-Device-Memory", true,
-               "4");
-  ApproximatedDeviceMemory::SetPhysicalMemoryMBForTesting(2048);
-  ExpectHeader("https://www.example.com/1.gif", "Device-Memory", true, "2");
-  ExpectHeader("https://www.example.com/1.gif", "Sec-CH-Device-Memory", true,
-               "2");
-  ApproximatedDeviceMemory::SetPhysicalMemoryMBForTesting(64385);
-  ExpectHeader("https://www.example.com/1.gif", "Device-Memory", true, "8");
-  ExpectHeader("https://www.example.com/1.gif", "Sec-CH-Device-Memory", true,
-               "8");
-  ApproximatedDeviceMemory::SetPhysicalMemoryMBForTesting(768);
-  ExpectHeader("https://www.example.com/1.gif", "Device-Memory", true, "0.5");
-  ExpectHeader("https://www.example.com/1.gif", "Sec-CH-Device-Memory", true,
-               "0.5");
-  ExpectHeader("https://www.example.com/1.gif", "DPR", false, "");
-  ExpectHeader("https://www.example.com/1.gif", "Sec-CH-DPR", false, "");
-  ExpectHeader("https://www.example.com/1.gif", "Width", false, "");
-  ExpectHeader("https://www.example.com/1.gif", "Sec-CH-Width", false, "");
-  ExpectHeader("https://www.example.com/1.gif", "Viewport-Width", false, "");
-  ExpectHeader("https://www.example.com/1.gif", "Sec-CH-Viewport-Width", false,
-               "");
-}
-
 TEST_P(FrameFetchContextHintsTest, MonitorDeviceMemoryHints) {
   // Test with new, 2026 limits - see https://crbug.com/454354290
-  // TODO Remove next two lines when ready to retire feature flag.
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      features::kUpdatedDeviceMemoryLimitsFor2026);
   ExpectHeader("https://www.example.com/1.gif", "Device-Memory", false, "");
   ClientHintsPreferences preferences;
   preferences.SetShouldSend(

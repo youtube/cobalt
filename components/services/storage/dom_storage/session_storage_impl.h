@@ -24,7 +24,6 @@
 #include "components/services/storage/dom_storage/async_dom_storage_database.h"
 #include "components/services/storage/dom_storage/db_status.h"
 #include "components/services/storage/dom_storage/dom_storage_database.h"
-#include "components/services/storage/dom_storage/dom_storage_histogram_helper.h"
 #include "components/services/storage/dom_storage/session_storage_data_map.h"
 #include "components/services/storage/dom_storage/session_storage_metadata.h"
 #include "components/services/storage/dom_storage/session_storage_namespace_impl.h"
@@ -109,11 +108,6 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
 
   void FlushAreaForTesting(const std::string& namespace_id,
                            const blink::StorageKey& storage_key);
-  void PutValueForTesting(const std::string& namespace_id,
-                          const blink::StorageKey& storage_key,
-                          const std::vector<uint8_t>& key,
-                          const std::vector<uint8_t>& value,
-                          base::OnceCallback<void(bool)> callback);
 
   // Access the underlying `AsyncDomStorageDatabase`. May be null if the
   // database is not yet open.
@@ -138,10 +132,6 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
   friend class DOMStorageBrowserTest;
   FRIEND_TEST_ALL_PREFIXES(SessionStorageImplTest,
                            ClearDiskStateOnOpenWithEmptyPathUsesInMemory);
-
-  // Constructs an absolute path to the database using
-  // `storage_partition_directory_`.
-  base::FilePath GetDatabasePath() const;
 
   scoped_refptr<DomStorageDatabase::SharedMapLocator> RegisterNewAreaMap(
       const std::string& namespace_id,
@@ -185,7 +175,13 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
   void OnConnectionFinished();
   void PurgeAllNamespaceDataMaps();
   void DeleteAndRecreateDatabase(DomStorageRecoveryReason reason);
-  void OnDBDestroyed(bool recreate_in_memory, DbStatus status);
+  void OnDBDestroyed(bool recreate_in_memory,
+                     DatabaseMetricsType metrics_type,
+                     DbStatus status);
+  void OpenOnDiskDatabase();
+  // Callback for the BackingMode::kClearDiskStateOnOpen path of
+  // InitiateConnection().
+  void OnDiskStateCleared(DbStatus status);
 
   void GetStatistics(size_t* total_cache_size, size_t* unused_areas_count);
 

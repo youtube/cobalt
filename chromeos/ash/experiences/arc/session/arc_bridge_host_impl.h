@@ -171,8 +171,6 @@ class ArcBridgeHostImpl
       override;
   void OnSystemUiInstanceReady(
       mojo::PendingRemote<mojom::SystemUiInstance> system_ui_remote) override;
-  void OnTimerInstanceReady(
-      mojo::PendingRemote<mojom::TimerInstance> timer_remote) override;
   void OnTracingInstanceReady(
       mojo::PendingRemote<mojom::TracingInstance> trace_remote) override;
   void OnTtsInstanceReady(

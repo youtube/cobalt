@@ -41,6 +41,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/dictionary.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_object_string.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_crypto_key.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/typed_arrays/dom_array_piece.h"
 #include "third_party/blink/renderer/core/typed_arrays/dom_typed_array.h"
 #include "third_party/blink/renderer/modules/crypto/crypto_key.h"
@@ -190,6 +191,7 @@ bool AlgorithmNameComparator(const AlgorithmNameMapping& a,
 }
 
 std::optional<WebCryptoAlgorithmId> LookupAlgorithmIdByName(
+    v8::Isolate* isolate,
     const String& algorithm_name) {
   auto it = VisitCharacters(algorithm_name, [&](auto algo_chars) {
     using CharType = decltype(algo_chars)::value_type;
@@ -214,7 +216,8 @@ std::optional<WebCryptoAlgorithmId> LookupAlgorithmIdByName(
        WebCryptoAlgorithm::IsMlDsa(id) || id == kWebCryptoAlgorithmIdMlKem768 ||
        id == kWebCryptoAlgorithmIdMlKem1024 ||
        id == kWebCryptoAlgorithmIdMlKem768X25519) &&
-      !RuntimeEnabledFeatures::WebCryptoPQCEnabled()) {
+      !RuntimeEnabledFeatures::WebCryptoPQCEnabled(
+          ExecutionContext::From(isolate->GetCurrentContext()))) {
     return std::nullopt;
   }
   return id;
@@ -1148,7 +1151,7 @@ bool ParseAlgorithmDictionary(v8::Isolate* isolate,
                               ErrorContext context,
                               ExceptionState& exception_state) {
   std::optional<WebCryptoAlgorithmId> algorithm_id =
-      LookupAlgorithmIdByName(algorithm_name);
+      LookupAlgorithmIdByName(isolate, algorithm_name);
   if (!algorithm_id) {
     SetNotSupportedError(context.ToString("Unrecognized name"),
                          exception_state);

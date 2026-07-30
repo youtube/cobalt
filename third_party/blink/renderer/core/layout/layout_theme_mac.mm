@@ -124,20 +124,13 @@ Color LayoutThemeMac::SystemHighlightFromColorProvider(
   return color.BlendWithWhite();
 }
 
-Color LayoutThemeMac::GetCustomFocusRingColor(
-    mojom::blink::ColorScheme color_scheme) const {
-  return color_scheme == mojom::blink::ColorScheme::kDark
-             ? Color::FromRGB(0x99, 0xC8, 0xFF)
-             : LayoutTheme::GetCustomFocusRingColor();
-}
-
 Color LayoutThemeMac::FocusRingColor(
     mojom::blink::ColorScheme color_scheme) const {
-  if (UsesTestModeFocusRingColor()) {
-    return HasCustomFocusRingColor() ? GetCustomFocusRingColor(color_scheme)
-           : color_scheme == mojom::blink::ColorScheme::kDark
-               ? kDefaultFocusRingColorForTestsDark
-               : kDefaultFocusRingColorForTestsLight;
+  if (WebTestSupport::IsRunningWebTest()) {
+    return CustomFocusRingColor().value_or(
+        color_scheme == mojom::blink::ColorScheme::kDark
+            ? kDefaultFocusRingColorForTestsDark
+            : kDefaultFocusRingColorForTestsLight);
   }
 
   if (ui::NativeTheme::GetInstanceForWeb()->preferred_contrast() ==
@@ -146,8 +139,10 @@ Color LayoutThemeMac::FocusRingColor(
     return Color::FromRGBA(0x10, 0x10, 0x10, 0xFF);
   }
 
-  if (HasCustomFocusRingColor()) {
-    return GetCustomFocusRingColor(color_scheme);
+  if (std::optional<Color> custom_color = CustomFocusRingColor()) {
+    return color_scheme == mojom::blink::ColorScheme::kDark
+               ? Color::FromRGB(0x99, 0xC8, 0xFF)
+               : *custom_color;
   }
 
   Color focus_ring =
@@ -156,10 +151,6 @@ Color LayoutThemeMac::FocusRingColor(
                              : SkColorSetRGB(0x00, 0x67, 0xF4));
   focus_ring.SetAlpha(166 / 255.0f);
   return focus_ring;
-}
-
-bool LayoutThemeMac::UsesTestModeFocusRingColor() const {
-  return WebTestSupport::IsRunningWebTest();
 }
 
 LayoutTheme& LayoutTheme::NativeTheme() {

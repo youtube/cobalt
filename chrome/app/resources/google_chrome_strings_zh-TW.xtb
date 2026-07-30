@@ -60,6 +60,17 @@
 <translation id="1587223624401073077">Google Chrome 正在使用你的攝影機。</translation>
 <translation id="1587325591171447154"><ph name="FILE_NAME" /> 並不安全，因此遭到 Chrome 封鎖。</translation>
 <translation id="1597911401261118146">如要檢查你的密碼是否因資料侵害事件而遭到外洩，或是否有其他安全性問題，<ph name="BEGIN_LINK" />請登入 Chrome<ph name="END_LINK" />。</translation>
+<translation id="1619639070275605589">這個動作會：
+          <ph name="LINE_BREAKS" />
+            • 重設起始網頁、新分頁、搜尋引擎和固定分頁
+            <ph name="LINE_BREAK" />
+            • 停用擴充功能
+            <ph name="LINE_BREAK" />
+            • 刪除 Cookie 和其他暫存的網站資料
+            <ph name="LINE_BREAK" />
+            • 重設 Chrome 捷徑
+            <ph name="LINE_BREAKS" />
+            書籤、歷史記錄和儲存的密碼不受影響。</translation>
 <translation id="1619887657840448962">為了讓 Chrome 的安全性更有保障，我們停用了以下這個未列在「<ph name="IDS_EXTENSION_WEB_STORE_TITLE" />」中的擴充功能 (它可能是在您不知情的情況下加入瀏覽器)。</translation>
 <translation id="1628000112320670027">前往 Chrome 說明頁面</translation>
 <translation id="1640672724030957280">下載中…</translation>
@@ -136,6 +147,7 @@
 <translation id="2472092250898121027">這項擴充功能含有惡意軟體且不安全。請從 Chrome 中移除這項擴充功能，使其無法再查看及變更你造訪的網站相關資料，包括你的個人資訊。</translation>
 <translation id="2485422356828889247">解除安裝</translation>
 <translation id="2513154137948333830">必須重新啟動：<ph name="INSTALL_SUCCESS" /></translation>
+<translation id="2523492931736391680">Chrome 可確保工作安全無虞</translation>
 <translation id="2534365042754120737">為保護你的資料，允許 Chrome 從近期未造訪的網站移除權限。這項設定不會關閉通知。</translation>
 <translation id="2556847002339236023">由於 Chrome 閒置超過 <ph name="TIMEOUT_DURATION" />，貴機構已將其關閉。瀏覽資料已刪除，當中可能包含歷史記錄、自動填入的資料和下載內容。</translation>
 <translation id="2563121210305478421">要重新啟動 Chrome 嗎？</translation>
@@ -146,7 +158,7 @@
 <translation id="2580411288591421699">你無法安裝這個版本的 Google Chrome，因為相同的版本目前正在執行中。請關閉 Google Chrome 然後再試一次。</translation>
 <translation id="2586406160782125153">登出後，系統會將你的瀏覽資料從這個裝置上刪除。日後如要重新取得你的資料，請以 <ph name="USER_EMAIL" /> 身分登入 Chrome。</translation>
 <translation id="259935314519650377">無法快取下載的安裝程式，錯誤碼：<ph name="UNPACK_CACHING_ERROR_CODE" />。</translation>
-<translation id="2608461706055011366">讓 Chrome 內建 Gemini 快速歸納這份文件的摘要，並回答你的問題</translation>
+<translation id="2608461706055011366">讓 Chrome 內建 Gemini 快速摘要這份文件，並回答你的問題</translation>
 <translation id="2620436844016719705">系統</translation>
 <translation id="263447411082773721">在各裝置完美同步密碼、書籤和歷史記錄。將預設瀏覽器更新為 Chrome，輕鬆使用熟悉且喜愛的功能。Chrome 會釘選到工作列，方便你快速存取。</translation>
 <translation id="2645435784669275700">ChromeOS</translation>
@@ -238,6 +250,7 @@
 <translation id="345171907106878721">新增為 Chrome 使用者</translation>
 <translation id="3453763134178591239">Chrome OS 條款</translation>
 <translation id="3503306920980160878">Chrome 需要位置資訊存取權，才能與這個網站分享你的位置資訊</translation>
+<translation id="3512495006767217696">Chrome 內建這項功能，能幫你建立、儲存及自動填入高強度密碼。建議新增捷徑，方便隨時使用</translation>
 <translation id="3539955434060988644">在 Chrome 無痕視窗中開啟連結(&amp;G)</translation>
 <translation id="3576528680708590453">系統管理員已設定 Google Chrome 開啟替代瀏覽器來存取 <ph name="TARGET_URL_HOSTNAME" />。</translation>
 <translation id="3582972582564653026">讓所有裝置保持同步，享有個人化的 Chrome 體驗</translation>
@@ -299,6 +312,7 @@
 <translation id="4149882025268051530">安裝程式無法解壓縮封存檔案，請再次下載 Google Chrome。</translation>
 <translation id="415112847282352845">如要在所有裝置上使用你的地址和其他資料，請登入 Chrome。登入後，這個地址就會儲存到 Google 帳戶。</translation>
 <translation id="4153934450158521343">Chrome 即將關閉並刪除資料</translation>
+<translation id="4159985264221160808">為確保你在 Chrome 上的工作安全無虞，貴機構將能查看或管理特定資訊</translation>
 <translation id="4173512894976930765">網站可能會正常運作。關閉所有 Chrome 視窗後，系統會將你登出大部分網站，但如果你已登入 Chrome，Google 帳戶就會維持登入狀態。</translation>
 <translation id="4175922240926474352">這個網站沒有使用安全連線，檔案可能已經遭人竄改，因此 Chrome 已禁止下載</translation>
 <translation id="4191857738314598978">{0,plural, =1{請在 1 天內重新啟動 Chrome}other{請在 # 天內重新啟動 Chrome}}</translation>
@@ -330,6 +344,7 @@
 <translation id="4493028449971051158">啟動錯誤：請以系統管理員身分執行安裝程式。</translation>
 <translation id="4501471624619070934">安裝失敗，因為這個國家/地區設有存取限制。</translation>
 <translation id="4571503333518166079">前往 Chrome 通知設定</translation>
+<translation id="4580939929828762295">使用 Google 密碼管理工具確保安全</translation>
 <translation id="4592634244097223647">向 Google 詢問這張圖片的相關問題</translation>
 <translation id="459622048091363950">Chrome 取得存取權後，網站將可要求你授予存取權。</translation>
 <translation id="4598116752460667024">搜尋清單中的任何程序。</translation>
@@ -516,6 +531,7 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="6438015621983209660">在手機上使用 Chrome，享有更全面的安全瀏覽強化防護功能</translation>
 <translation id="6442774133615368941">在 Chrome iOS 應用程式使用相機購物、翻譯及辨識所見事物</translation>
 <translation id="6448835208126432197">如要在 Chrome 內建 Gemini 中選取部分畫面，請使用鍵盤快速鍵。</translation>
+<translation id="6473659734176498825">這張簡化示意圖呈現 Chrome 的 Google 密碼管理工具進入點</translation>
 <translation id="6473905796280459355">前往「關於 Chrome」頁面</translation>
 <translation id="6481963882741794338">連結 Chrome 和其他 Google 服務，用於個人化等用途</translation>
 <translation id="648319183876919572">安全瀏覽強化防護功能可進一步協助你防範危險的網站和下載內容</translation>
@@ -687,6 +703,7 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="8064965390968184078">1. 點選下方的「<ph name="BUTTON_LABEL" />」
 2. 在 Windows 設定中，點選「<ph name="BUTTON_2" />」
 3. 在 Windows 通知中點選「<ph name="BUTTON_3" />」，即可將 Chrom 釘選到工作列以便快速存取</translation>
+<translation id="8069447462453318634">選取「釘選至工具列」</translation>
 <translation id="8074398340364918139">如要搜尋特定 Chrome 功能或擴充功能，請在網址列輸入其捷徑，然後按下你所選擇的鍵盤按鍵</translation>
 <translation id="8077579734294125741">其他 Chrome 設定檔</translation>
 <translation id="8086881907087796310">安裝失敗，因為電腦不符合最低硬體需求。</translation>
@@ -772,6 +789,15 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="8922998289262614701">從 Chrome 移除這個應用程式的資料</translation>
 <translation id="8925636929359899517">我們會使用資訊改善這項服務。請參閱《<ph name="BEGIN_LINK1" />隱私權政策<ph name="END_LINK1" />》和《<ph name="BEGIN_LINK2" />服務條款<ph name="END_LINK2" />》。</translation>
 <translation id="8936233353620149764">開啟/關閉 Chrome 內建的 Gemini</translation>
+<translation id="8944232836376404813">這個動作會：
+          <ph name="LINE_BREAKS" />
+            • 重設起始網頁、新分頁、搜尋引擎和固定分頁
+            <ph name="LINE_BREAK" />
+            • 停用擴充功能
+            <ph name="LINE_BREAK" />
+            • 刪除 Cookie 和其他暫存的網站資料
+            <ph name="LINE_BREAKS" />
+            書籤、歷史記錄和儲存的密碼不受影響。</translation>
 <translation id="8948460679427074738">這項擴充功能尚未發布隱私權實務規範 (例如擴充功能如何收集和使用資料)，因此 Chrome 建議你移除。</translation>
 <translation id="8958307504142971576">現在可以使用更多 Chrome 功能</translation>
 <translation id="8991530961471831170">開啟 Chrome 內建 Gemini</translation>

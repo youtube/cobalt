@@ -9,11 +9,8 @@
 
 #include <vector>
 
-// #include "base/android/jni_android.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/passwords/manage_passwords_state.h"
-#include "components/device_reauth/device_authenticator.h"
-#include "components/password_manager/core/browser/password_manager_metrics_util.h"
 #include "content/public/browser/web_contents_observer.h"
 
 namespace content {
@@ -66,19 +63,10 @@ class AccountChooserDialogAndroid : public content::WebContentsObserver {
   // required, the handling is not considered done until that finishes.
   bool HandleCredentialChosen(size_t index, bool sign_button_clicked);
 
-  // Called when the biometric re-auth finished. |index| is the index
-  // of the chosen credential and |auth_succeeded| is the result of the
-  // re-authentication. Destroys |this|.
-  void OnReauthCompleted(size_t index, bool auth_succeded);
-
   raw_ptr<content::WebContents> web_contents_ = nullptr;
 
   // Client used to retrieve the biometric authenticator.
   raw_ptr<password_manager::PasswordManagerClient> client_ = nullptr;
-
-  // Authenticator used to trigger a biometric re-auth before passing the
-  // credential to the site.
-  std::unique_ptr<device_reauth::DeviceAuthenticator> authenticator_;
 
   ManagePasswordsState passwords_data_;
   url::Origin origin_;

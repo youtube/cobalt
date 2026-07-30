@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_MANAGED_DEVICE_NAVIGATOR_MANAGED_DATA_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_MANAGED_DEVICE_NAVIGATOR_MANAGED_DATA_H_
 
+#include "base/types/expected.h"
 #include "third_party/blink/public/mojom/device/device.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -86,7 +87,7 @@ class MODULES_EXPORT NavigatorManagedData final
   void OnAttributeReceived(
       ScriptState* script_state,
       ScriptPromiseResolver<IDLNullable<IDLString>>* resolver,
-      mojom::blink::DeviceAttributeResultPtr result);
+      base::expected<mojom::blink::DeviceAttributeValuePtr, String> result);
 
   // Lazily binds mojo interface.
   mojom::blink::DeviceAPIService* GetService();

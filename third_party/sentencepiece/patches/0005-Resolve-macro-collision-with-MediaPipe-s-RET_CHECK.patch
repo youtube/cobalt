@@ -1,0 +1,33 @@
+From 4dc4e6f88a297935e8db66414425b38e26a849e5 Mon Sep 17 00:00:00 2001
+From: Nathan Memmott <memmott@chromium.org>
+Date: Wed, 17 Jun 2026 11:53:34 -0700
+Subject: [PATCH 5/7] Resolve macro collision with MediaPipe's RET_CHECK
+
+---
+ third_party/sentencepiece/src/src/util.h | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/third_party/sentencepiece/src/src/util.h b/third_party/sentencepiece/src/src/util.h
+index ecaa4ed3fc290..f0af43af82344 100644
+--- a/third_party/sentencepiece/src/src/util.h
++++ b/third_party/sentencepiece/src/src/util.h
+@@ -281,11 +281,11 @@ std::vector<std::string> StrSplitAsCSV(absl::string_view text);
+ std::wstring Utf8ToWide(const absl::string_view input);
+ #endif
+ 
+-#define RET_CHECK(condition)                                  \
+-  if (condition) {                                            \
+-  } else /* NOLINT */                                         \
+-    return absl::StatusBuilder(::absl::StatusCode::kInternal) \
+-           << __FILE__ << "(" << __LINE__ << ") [" << #condition << "] "
++#define RET_CHECK(condition)                                    \
++  if (condition) {                                              \
++  } else /* NOLINT */                                           \
++    return (absl::StatusBuilder(::absl::StatusCode::kInternal)  \
++           << __FILE__ << "(" << __LINE__ << ") [" << #condition << "] ")
+ 
+ #define RET_CHECK_EQ(a, b) RET_CHECK((a) == (b))
+ #define RET_CHECK_NE(a, b) RET_CHECK((a) != (b))
+-- 
+2.54.0.1189.g8c84645362-goog
+

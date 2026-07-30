@@ -7,6 +7,7 @@
 #import <objc/runtime.h>
 
 #import "base/test/metrics/histogram_tester.h"
+#import "components/sync/test/test_sync_service.h"
 #import "ios/chrome/app/change_profile_continuation.h"
 #import "ios/chrome/browser/authentication/ui_bundled/authentication_flow/authentication_flow_in_profile_performer_delegate.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
@@ -22,6 +23,8 @@
 #import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity_manager.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/testing/protocol_fake.h"
 #import "ios/web/public/test/web_task_environment.h"
@@ -41,6 +44,8 @@ class AuthenticationFlowInProfilePerformerTest : public PlatformTest {
         AuthenticationServiceFactory::GetInstance(),
         AuthenticationServiceFactory::GetFactoryWithDelegate(
             std::make_unique<FakeAuthenticationServiceDelegate>()));
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              base::BindRepeating(&CreateTestSyncService));
     profile_ = std::move(builder).Build();
     browser_ = std::make_unique<TestBrowser>(profile_.get());
     fake_identity_ = [FakeSystemIdentity fakeIdentity1];

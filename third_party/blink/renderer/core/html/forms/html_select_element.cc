@@ -2306,7 +2306,6 @@ bool HTMLSelectElement::ShouldIgnoreDescendantsForElementTraversals(
 
 void HTMLSelectElement::StartFiltering() {
   CHECK(RuntimeEnabledFeatures::FilterableSelectEnabled());
-  CHECK(!UsesMenuList());
   CHECK(!active_option_);
   for (HTMLOptionElement& option : GetOptionList()) {
     if (option.SupportsActiveOptionPseudo()) {
@@ -2319,7 +2318,6 @@ void HTMLSelectElement::StartFiltering() {
 
 void HTMLSelectElement::StopFiltering() {
   CHECK(RuntimeEnabledFeatures::FilterableSelectEnabled());
-  CHECK(!UsesMenuList());
   if (active_option_) {
     HTMLOptionElement* old_active_option = active_option_;
     active_option_ = nullptr;
@@ -2337,7 +2335,6 @@ bool SupportsActive(HTMLOptionElement& option) {
 
 void HTMLSelectElement::MoveActiveOptionForwards() {
   CHECK(RuntimeEnabledFeatures::FilterableSelectEnabled());
-  CHECK(!UsesMenuList());
   CHECK(active_option_);
   if (HTMLOptionElement* new_option =
           GetOptionList().FindNextElement(*active_option_, &SupportsActive)) {
@@ -2351,7 +2348,6 @@ void HTMLSelectElement::MoveActiveOptionForwards() {
 
 void HTMLSelectElement::MoveActiveOptionBackwards() {
   CHECK(RuntimeEnabledFeatures::FilterableSelectEnabled());
-  CHECK(!UsesMenuList());
   CHECK(active_option_);
   if (HTMLOptionElement* new_option = GetOptionList().FindPreviousElement(
           *active_option_, &SupportsActive)) {

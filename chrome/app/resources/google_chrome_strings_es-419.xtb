@@ -60,6 +60,17 @@
 <translation id="1587223624401073077">Google Chrome está usando tu cámara.</translation>
 <translation id="1587325591171447154">Chrome bloqueó <ph name="FILE_NAME" /> porque es un archivo peligroso.</translation>
 <translation id="1597911401261118146">Para comprobar si tus contraseñas están a salvo de violaciones de la seguridad de los datos y otros problemas de seguridad, <ph name="BEGIN_LINK" />accede a Chrome<ph name="END_LINK" />.</translation>
+<translation id="1619639070275605589">Si realizas esta acción, sucederá lo siguiente:
+          <ph name="LINE_BREAKS" />
+            • Se restablecerán la página de inicio, la página de nueva pestaña, el motor de búsqueda y las pestañas fijas.
+            <ph name="LINE_BREAK" />
+            • Se inhabilitarán las extensiones.
+            <ph name="LINE_BREAK" />
+            • Se borrarán las cookies y otros datos de sitios temporales.
+            <ph name="LINE_BREAK" />
+            • Se restablecerán los accesos directos de Chrome.
+            <ph name="LINE_BREAKS" />
+            Esta acción no afectará los favoritos, el historial ni las contraseñas guardadas.</translation>
 <translation id="1619887657840448962">Para que Chrome sea más seguro, inhabilitamos algunas extensiones que no aparecen en <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> y que posiblemente se hayan agregado sin tu conocimiento.</translation>
 <translation id="1628000112320670027">Obtener ayuda con Chrome</translation>
 <translation id="1640672724030957280">Descargando...</translation>
@@ -136,6 +147,7 @@
 <translation id="2472092250898121027">Esta extensión contiene software malicioso y no es segura. Quítala de Chrome para que ya no pueda ver ni cambiar tus datos en los sitios que visitas, incluida tu información personal.</translation>
 <translation id="2485422356828889247">Desinstalar</translation>
 <translation id="2513154137948333830">Debes reiniciar el sistema: <ph name="INSTALL_SUCCESS" /></translation>
+<translation id="2523492931736391680">Tu trabajo seguro en Chrome</translation>
 <translation id="2534365042754120737">Para proteger tus datos, permite que Chrome quite permisos de los sitios que no visitaste recientemente. Esto no detiene las notificaciones.</translation>
 <translation id="2556847002339236023">Tu organización cierra Chrome cuando no se usa durante <ph name="TIMEOUT_DURATION" />. Se borraron los datos de navegación. Esto puede incluir el historial, los datos de Autocompletar y las descargas.</translation>
 <translation id="2563121210305478421">¿Quieres reiniciar Chrome?</translation>
@@ -240,6 +252,7 @@ Si esta página no funciona como debería, intenta permitir la optimización.</t
 <translation id="345171907106878721">Agrégate a Chrome</translation>
 <translation id="3453763134178591239">Condiciones del ChromeOS</translation>
 <translation id="3503306920980160878">Chrome necesita acceder a tu ubicación para compartirla con este sitio</translation>
+<translation id="3512495006767217696">Integrado en Chrome para ayudarte a crear, guardar y autocompletar contraseñas seguras. Agrega el acceso directo para ingresar fácilmente</translation>
 <translation id="3539955434060988644">Abrir el vínculo en una ventana de navegación de incó&amp;gnito de Chrome</translation>
 <translation id="3576528680708590453">El administrador del sistema configuró Google Chrome de manera que se abriera un navegador alternativo para acceder a <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="3582972582564653026">Sincroniza y personaliza Chrome en todos tus dispositivos</translation>
@@ -302,6 +315,7 @@ Si esta página no funciona como debería, intenta permitir la optimización.</t
 <translation id="4149882025268051530">El instalador no pudo descomprimir el archivo. Descargue Google Chrome nuevamente.</translation>
 <translation id="415112847282352845">Para acceder a tus direcciones y más en todos tus dispositivos, ingresa a Chrome. Esta dirección se guardará en tu Cuenta de Google después de que accedas.</translation>
 <translation id="4153934450158521343">Chrome se cerrará y borrará datos pronto</translation>
+<translation id="4159985264221160808">Para proteger tu trabajo en Chrome, tu organización podrá ver o administrar cierta información</translation>
 <translation id="4173512894976930765">Es probable que los sitios funcionen según lo previsto. Saldrás de la mayoría de los sitios cuando cierres todas las ventanas de Chrome, excepto tu Cuenta de Google si accediste a Chrome.</translation>
 <translation id="4175922240926474352">Chrome bloqueó esta descarga porque el sitio no usa una conexión segura y el archivo puede haber sido manipulado</translation>
 <translation id="4191857738314598978">{0,plural, =1{Reinicia Chrome en el transcurso de 1 día}other{Reinicia Chrome en el transcurso de # días}}</translation>
@@ -333,6 +347,7 @@ Si esta página no funciona como debería, intenta permitir la optimización.</t
 <translation id="4493028449971051158">Error de inicio: Ejecuta el instalador como administrador.</translation>
 <translation id="4501471624619070934">La instalación falló porque el acceso está restringido en este país.</translation>
 <translation id="4571503333518166079">Ir a la configuración de notificaciones de Chrome</translation>
+<translation id="4580939929828762295">Mantén la seguridad con el Administrador de contraseñas de Google</translation>
 <translation id="4592634244097223647">Preguntar a Google acerca de esta imagen</translation>
 <translation id="459622048091363950">Una vez que Chrome tenga acceso, los sitios web podrán solicitarte acceso.</translation>
 <translation id="4598116752460667024">Busca cualquier proceso de la lista.</translation>
@@ -517,6 +532,7 @@ Si esta página no funciona como debería, intenta permitir la optimización.</t
 <translation id="6438015621983209660">Extiende la Navegación segura mejorada con Chrome en tu teléfono</translation>
 <translation id="6442774133615368941">Compra, identifica y traduce lo que ves con la cámara en la app de Chrome para iOS</translation>
 <translation id="6448835208126432197">Para seleccionar una parte de la pantalla en Gemini en Chrome, usa la combinación de teclas.</translation>
+<translation id="6473659734176498825">Una imagen simplificada que muestra el punto de entrada del Administrador de contraseñas de Google en Chrome</translation>
 <translation id="6473905796280459355">Ir a la página Acerca de Chrome</translation>
 <translation id="6481963882741794338">Vincula Chrome y otros servicios de Google para la personalización y otros fines</translation>
 <translation id="648319183876919572">La Navegación segura mejorada realiza más acciones para protegerte de descargas y sitios web peligrosos</translation>
@@ -688,6 +704,7 @@ Si esta página no funciona como debería, intenta permitir la optimización.</t
 <translation id="8064965390968184078">1. Haz clic en <ph name="BUTTON_LABEL" /> a continuación.
 2. Haz clic en <ph name="BUTTON_2" /> en la configuración de Windows.
 3. Haz clic en <ph name="BUTTON_3" /> en la notificación de Windows para fijar Chrome a la barra de tareas y acceder rápidamente.</translation>
+<translation id="8069447462453318634">Selecciona "Fijar a la barra de herramientas"</translation>
 <translation id="8074398340364918139">Para buscar una función o extensión específica de Chrome, escribe su atajo en la barra de direcciones, seguido de la tecla que seleccionaste</translation>
 <translation id="8077579734294125741">Otros perfiles de Chrome</translation>
 <translation id="8086881907087796310">La instalación falló porque tu computadora no cumple con los requisitos mínimos de hardware.</translation>
@@ -773,6 +790,15 @@ No se pueden guardar nuevos favoritos en tu cuenta hasta que borres algunos. Si 
 <translation id="8922998289262614701">Quitar los datos de esta app de Chrome</translation>
 <translation id="8925636929359899517">Usamos la información para mejorar este servicio. Consulta la <ph name="BEGIN_LINK1" />Política de Privacidad <ph name="END_LINK1" />y las <ph name="BEGIN_LINK2" />Condiciones del Servicio<ph name="END_LINK2" />.</translation>
 <translation id="8936233353620149764">Activar o desactivar Gemini en Chrome</translation>
+<translation id="8944232836376404813">Si realizas esta acción, sucederá lo siguiente:
+          <ph name="LINE_BREAKS" />
+            • Se restablecerán la página de inicio, la página de nueva pestaña, el motor de búsqueda y las pestañas fijas.
+            <ph name="LINE_BREAK" />
+            • Se inhabilitarán las extensiones.
+            <ph name="LINE_BREAK" />
+            • Se borrarán las cookies y otros datos de sitios temporales.
+            <ph name="LINE_BREAKS" />
+            Esta acción no afectará los favoritos, el historial ni las contraseñas guardadas.</translation>
 <translation id="8948460679427074738">Esta extensión no publicó prácticas de privacidad, como la forma en que recopila y usa datos. Chrome te recomienda quitarla.</translation>
 <translation id="8958307504142971576">Ahora tienes más funciones disponibles en Chrome</translation>
 <translation id="8991530961471831170">Abrir Gemini en Chrome</translation>

@@ -569,7 +569,7 @@ IN_PROC_BROWSER_TEST_F(TabsApiInteractiveTest,
   // Under the hood, the original browser was temporarily pinned to the front by
   // setting its z-order to kFloatingWindow. This checks that the original
   // browser's z-order is reset.
-  EXPECT_EQ(ui::ZOrderLevel::kNormal, browser()->window()->GetZOrderLevel());
+  EXPECT_EQ(ui::ZOrderLevel::kNormal, browser()->GetWindow()->GetZOrderLevel());
 }
 
 }  // namespace extensions

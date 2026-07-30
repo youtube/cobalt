@@ -265,7 +265,7 @@ std::u16string WindowMetadataController::FormatTitleForDisplay(
 void WindowMetadataController::SetWindowUserTitle(
     const std::string& user_title) {
   user_title_ = user_title;
-  browser_->window()->UpdateTitleBar();
+  BrowserWindow::FromBrowser(browser_)->UpdateTitleBar();
   // See comment in Browser::OnTabGroupChanged
   DCHECK(!IsRelevantToAppSessionService(browser_->type()));
   SessionService* const session_service =

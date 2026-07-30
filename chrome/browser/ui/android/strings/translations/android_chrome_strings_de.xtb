@@ -117,6 +117,7 @@ Weitere Einstellungen, bei denen Daten zur Verbesserung von Chrome verwendet wer
 <translation id="1435593198351412143">PDFs automatisch öffnen</translation>
 <translation id="1437543266176261764">Wird ausgeführt in <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">Du kannst deine beobachteten Produkte in den Lesezeichen organisieren</translation>
+<translation id="1452651021404174820">Gerät auswählen</translation>
 <translation id="1455845192930279203">Möchtest du „<ph name="FILE_NAME" />“ (<ph name="FILE_SIZE" />) trotzdem von <ph name="DOWNLOAD_DOMAIN" /> herunterladen?</translation>
 <translation id="1460751212339734034">Weniger tippen und Zeit sparen</translation>
 <translation id="146522654774760805">Passwörter und Autofill</translation>
@@ -124,6 +125,7 @@ Weitere Einstellungen, bei denen Daten zur Verbesserung von Chrome verwendet wer
 <translation id="1477626028522505441"><ph name="FILE_NAME" /> konnte aufgrund von Serverproblemen nicht heruntergeladen werden.</translation>
 <translation id="147982357559798527">Geändert</translation>
 <translation id="1480287803138246127">Möglicherweise wird ein Teil deines Verlaufs hier nicht angezeigt. Wenn du dir den gesamten Chrome-Verlauf ansehen möchtest, öffne den vollständigen Chrome-Verlauf.</translation>
+<translation id="1483493594462132177">Senden</translation>
 <translation id="1495677929897281669">Zurück zum Tab</translation>
 <translation id="1496514951988037011">Nutzername</translation>
 <translation id="1501480321619201731">Gruppe löschen</translation>
@@ -1273,6 +1275,7 @@ Einige Websites schalten möglicherweise Werbeanzeigen, deren Auswahl nicht dara
 <translation id="634208815998129842">Task-Manager</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 und <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> weitere}other{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 und <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> weitere}}</translation>
 <translation id="6345878117466430440">Als gelesen markieren</translation>
+<translation id="6350745006329795504">Meine Geräte verwalten</translation>
 <translation id="6356893102071098867">Prüfe, ob du das richtige Konto ausgewählt hast</translation>
 <translation id="6364438453358674297">Vorschlag aus Verlauf entfernen?</translation>
 <translation id="6380100320871303656">Chrome lädt Seiten häufiger vorab, die du wahrscheinlich aufrufen wirst. Bei dieser Einstellung werden voraussichtlich mehr Daten genutzt.</translation>

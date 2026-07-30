@@ -146,10 +146,6 @@ export class PowerBookmarkRowElement extends CrLitElement {
   override willUpdate(changedProperties: PropertyValues<this>) {
     super.willUpdate(changedProperties);
 
-    if (changedProperties.has('bookmark') &&
-        this.bookmark.id !== changedProperties.get('bookmark')?.id) {
-      this.toggleExpand = false;
-    }
 
 
     if (changedProperties.has('compact')) {

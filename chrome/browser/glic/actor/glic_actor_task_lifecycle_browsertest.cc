@@ -8,7 +8,12 @@
 #include "chrome/browser/glic/actor/new_glic_actor_functional_browsertest.h"
 #include "chrome/browser/glic/public/service/glic_instance_coordinator.h"
 #include "components/actor/public/mojom/actor_types.mojom.h"
+#include "components/page_content_annotations/content/page_context_fetcher.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_widget_host.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
+#include "third_party/blink/public/common/features.h"
 
 namespace mojo {
 
@@ -109,12 +114,79 @@ class GlicActorTaskLifecycleFunctionalBrowserTest
  public:
   GlicActorTaskLifecycleFunctionalBrowserTest()
       : GlicActorFunctionalBrowserTestBase(
-            "./glic_actor_task_lifecycle_browsertest.js") {}
+            "./glic_actor_task_lifecycle_browsertest.js") {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        /*enabled_features=*/
+        {
+            {blink::features::kAIPageContentTrackedElementsIframe, {}},
+            {page_content_annotations::kGlicTabScreenshotExperiment,
+             {{"screenshot_timeout_ms", "30s"}}},
+        },
+        /*disabled_features=*/{});
+  }
   ~GlicActorTaskLifecycleFunctionalBrowserTest() override = default;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(GlicActorTaskLifecycleFunctionalBrowserTest,
                        testPauseAndResumeCreatedTask) {
+  TestFuture<ActorTask::State> task_completion_state;
+  base::CallbackListSubscription completion_subscription;
+
+  ExecuteJsTest();
+
+  TaskId task_id = ExtractTaskIdFromStepData();
+  completion_subscription =
+      CreateTaskCompletionSubscription(task_id, task_completion_state);
+
+  ContinueJsTest();
+
+  EXPECT_EQ(ActorTask::State::kFinished, task_completion_state.Get())
+      << "Task " << task_id << " did not reach kFinished state.";
+}
+
+// TODO(b/484011242): Fix flakiness and re-enable this test on Android.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_testPauseAndResumeCreatedTaskWithIframe \
+  DISABLED_testPauseAndResumeCreatedTaskWithIframe
+#else
+#define MAYBE_testPauseAndResumeCreatedTaskWithIframe \
+  testPauseAndResumeCreatedTaskWithIframe
+#endif
+IN_PROC_BROWSER_TEST_F(GlicActorTaskLifecycleFunctionalBrowserTest,
+                       MAYBE_testPauseAndResumeCreatedTaskWithIframe) {
+  ASSERT_TRUE(content::NavigateToURL(
+      active_tab()->GetContents(),
+      embedded_test_server()->GetURL("/actor/simple_iframe.html")));
+
+  content::RenderFrameHost* main_frame =
+      active_tab()->GetContents()->GetPrimaryMainFrame();
+
+  // Wait for main frame layout/render.
+  {
+    base::test::TestFuture<bool> future;
+    main_frame->GetRenderWidgetHost()->InsertVisualStateCallback(
+        future.GetCallback());
+    ASSERT_TRUE(future.Wait()) << "Timeout waiting for syncing with renderer";
+  }
+
+  // Wait for child frame layout/render.
+  {
+    content::RenderFrameHost* child_frame =
+        content::ChildFrameAt(main_frame, 0);
+    ASSERT_TRUE(child_frame);
+
+    base::test::TestFuture<bool> future;
+    child_frame->GetRenderWidgetHost()->InsertVisualStateCallback(
+        future.GetCallback());
+    ASSERT_TRUE(future.Wait())
+        << "Timeout waiting for syncing with subframe renderer";
+  }
+
+  content::WaitForCopyableViewInWebContents(active_tab()->GetContents());
+
   TestFuture<ActorTask::State> task_completion_state;
   base::CallbackListSubscription completion_subscription;
 

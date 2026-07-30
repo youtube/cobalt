@@ -74,6 +74,7 @@ Certaines fonctionnalités ne seront peut-être pas disponibles et les modificat
 <translation id="1820835682567584003">Chromium essaie de <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="183031085822326697">La prochaine fois que vous ouvrirez Chromium sur votre <ph name="DEVICE_TYPE" />, une invite vous proposera d'utiliser le gestionnaire de mots de passe Google.</translation>
 <translation id="1838374766361614909">Effacer les termes de recherche</translation>
+<translation id="1846849503013521481">Pour sécuriser votre travail sur Chromium, votre organisation pourra afficher ou gérer certaines informations</translation>
 <translation id="18552579716432081">Pour supprimer les données de navigation de cet appareil uniquement, tout en les conservant dans votre compte Google, <ph name="BEGIN_LINK" />déconnectez-vous de Chromium<ph name="END_LINK" />.</translation>
 <translation id="1857749206890802997">Téléchargez Chromium sur votre téléphone pour ouvrir ou créer de nouveaux groupes d'onglets en déplacement.</translation>
 <translation id="185970820835152459">Vous pouvez gérer les comptes Google auxquels vous êtes connecté. Vos comptes Google sont utilisés par le navigateur Chronium, par Play Store, par Gmail et autres. Si vous voulez ajouter un compte pour quelqu'un d'autre, comme un membre de votre famille, ajoutez plutôt une nouvelle personne à votre <ph name="DEVICE_TYPE" />. <ph name="LINK_BEGIN" />En savoir plus<ph name="LINK_END" /></translation>
@@ -436,6 +437,7 @@ Si cette page ne fonctionne pas comme prévu, essayez d'autoriser l'optimisation
 <translation id="5953657885167112863">Profiter d'un Chromium sur mesure</translation>
 <translation id="5960071705175224773">Vos paramètres ont été modifiés par une appli inconnue</translation>
 <translation id="5968400720580217226">Mode IA</translation>
+<translation id="5977420883993828287">Épinglage effectué! Utilisez à nouveau les tâches contextuelles à partir de la barre d'outils</translation>
 <translation id="5986585015444752010">{COUNT,plural, =1{Votre organisation ferme automatiquement Chromium lorsqu'il n'est pas utilisé pendant 1 minute.}one{Votre organisation ferme automatiquement Chromium lorsqu'il n'est pas utilisé pendant # minutes.}other{Votre organisation ferme automatiquement Chromium lorsqu'il n'est pas utilisé pendant # minutes.}}</translation>
 <translation id="5987687638152509985">Mettez Chromium à jour pour commencer la synchronisation</translation>
 <translation id="6003112304606738118">Téléchargement en cours… <ph name="HOURS" /> heure(s) restante(s)</translation>
@@ -540,6 +542,17 @@ Certaines fonctionnalités seront peut-être inaccessibles. Veuillez spécifier 
 <translation id="6896758677409633944">Copier</translation>
 <translation id="6901631050894301805">Définissez Chromium comme navigateur par défaut et épinglez-le à votre barre des tâches</translation>
 <translation id="6909503629704372277">&amp;Gérer les profils Chromium</translation>
+<translation id="6919942714452658456">Cette action aura les effets suivants :
+<ph name="LINE_BREAKS" />
+• Réinitialiser votre page de démarrage, votre page Nouvel onglet, votre moteur de recherche et vos onglets épinglés
+<ph name="LINE_BREAK" />
+• Désactiver les extensions
+<ph name="LINE_BREAK" />
+• Supprimer les témoins et d'autres données temporaires relatives aux sites
+<ph name="LINE_BREAK" />
+• Réinitialiser les raccourcis de Chromium
+<ph name="LINE_BREAKS" />
+Les signets, l'historique et les mots de passe enregistrés ne seront pas touchés.</translation>
 <translation id="6934579572334859869">Poser des questions à la recherche d'images à propos de cette image</translation>
 <translation id="6948031725951063910">Vous avez atteint la limite de <ph name="BOOKMARK_LIMIT" /> favoris de Chromium, donc certains de vos favoris n'ont pas encore été enregistrés dans votre compte Google.
 
@@ -609,6 +622,7 @@ Chromium est incapable de récupérer vos paramètres.</translation>
 <translation id="7686590090926151193">Chromium n'est pas votre navigateur par défaut</translation>
 <translation id="7689606757190482937">Synchroniser et personnaliser Chromium sur vos appareils</translation>
 <translation id="7699779824407626136">mise à jour de Chromium</translation>
+<translation id="7700735928747402058">Votre travail sécurisé sur Chromium</translation>
 <translation id="7716950018788545737">Tâches terminées.</translation>
 <translation id="77283119132245232">Fournit des services de traçage système pour <ph name="BROWSER_NAME" />. Si ce service est désactivé, les traces de la performance créées par le navigateur ne comprendront pas les événements à l'échelle du système tels que les événements ReadyThread et de changement de contexte.</translation>
 <translation id="7745317241717453663">Cette action entraînera la suppression de vos données de navigation sur cet appareil. Pour récupérer vos données plus tard, connectez-vous à Chromium en tant que <ph name="USER_EMAIL" />.</translation>
@@ -640,6 +654,7 @@ Chromium est incapable de récupérer vos paramètres.</translation>
 <translation id="8031714377769448844">Épinglez Chromium à votre barre des tâches pour y accéder rapidement à tout moment</translation>
 <translation id="80471789339884597">Merci pour l'installation. Vous devez redémarrer tous vos navigateurs avant d'utiliser <ph name="BUNDLE_NAME" />.</translation>
 <translation id="8054112667659782652">Toujours afficher le raccourci de la recherche d'images</translation>
+<translation id="8069447462453318634">Sélectionnez « Épingler à la barre d'outils ».</translation>
 <translation id="8077498902115777962">Désactiver l'exécution de Chromium en arrière-plan pour les applis</translation>
 <translation id="80790299200510644">Recherche d'images</translation>
 <translation id="8086881907087796310">L'installation a échoué, car votre ordinateur ne répond pas aux exigences minimales concernant le matériel.</translation>
@@ -721,6 +736,15 @@ Chromium est incapable de récupérer vos paramètres.</translation>
 <translation id="8907580949721785412">Chromium essaie d'afficher les mots de passe. Pour autoriser cette action, entrez votre mot de passe Windows.</translation>
 <translation id="8932992523185907506">Chromium n'est plus votre navigateur par défaut. Faire de Chromium le navigateur par défaut?</translation>
 <translation id="8941642502866065432">Impossible de mettre à jour Chromium</translation>
+<translation id="8944232836376404813">Cette action aura les effets suivants :
+<ph name="LINE_BREAKS" />
+• Réinitialiser votre page de démarrage, votre page Nouvel onglet, votre moteur de recherche et vos onglets épinglés
+<ph name="LINE_BREAK" />
+• Désactiver les extensions
+<ph name="LINE_BREAK" />
+• Supprimer les témoins et d'autres données temporaires relatives aux sites
+<ph name="LINE_BREAKS" />
+Les signets, l'historique et les mots de passe enregistrés ne seront pas touchés.</translation>
 <translation id="897581876605952338">Logo de Chromium Enterprise</translation>
 <translation id="8981150672034878610">Impossible de démarrer Chromium parce qu'un problème est survenu lors de l'ouverture de votre profil. Essayez de redémarrer Chromium.</translation>
 <translation id="8988036198400390003">Gérer les profils Chromium</translation>

@@ -43,10 +43,6 @@ class PinnedToolbarActionsContainerBrowserTest : public InProcessBrowserTest {
     PinnedToolbarActionsModel* const actions_model =
         PinnedToolbarActionsModel::Get(browser()->profile());
     actions_model->UpdatePinnedState(kActionShowChromeLabs, false);
-    if (tabs::GetTabSearchPosition(browser()) ==
-        tabs::TabSearchPosition::kToolbarButton) {
-      actions_model->UpdatePinnedState(kActionTabSearch, false);
-    }
     views::test::WaitForAnimatingLayoutManager(container());
     // OS integration is needed to be able to launch web applications. This
     // override ensures OS integration doesn't leave any traces.

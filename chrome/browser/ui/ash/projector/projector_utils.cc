@@ -116,5 +116,7 @@ void SendFilesToProjectorApp(std::vector<base::FilePath> files) {
   // to finish, as `started_new_navigation` is set to false for the launch
   // params.
   web_app::WebAppLaunchNavigationHandleUserData::DispatchLaunchParams(
-      web_contents, std::move(launch_params));
+      web_contents, std::move(launch_params),
+      apps::LaunchContainer::kLaunchContainerNone,
+      apps::LaunchSource::kUnknown);
 }

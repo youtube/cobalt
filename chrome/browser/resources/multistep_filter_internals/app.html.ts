@@ -24,7 +24,7 @@ export function getHtml(this: MultistepFilterInternalsAppElement) {
     <div class="log-line header-line">
       <span class="text-time">Time</span>
       <span class="text-nav">Navigation ID</span>
-      <span class="text-domain">Domain</span>
+      <span class="text-host">Host</span>
       <span class="text-event">Event</span>
       <span class="text-details">Details</span>
     </div>
@@ -37,8 +37,8 @@ export function getHtml(this: MultistepFilterInternalsAppElement) {
                 item.navigationId.toString() :
                 'no-nav'}]
           </span>
-          <span class="text-domain">
-            ${item.sourceEtldPlus1 || 'no-domain'}
+          <span class="text-host">
+            ${item.host || 'no-host'}
           </span>
           <span class="text-event">${item.eventType}</span>
           <span class="text-details">${item.details}</span>

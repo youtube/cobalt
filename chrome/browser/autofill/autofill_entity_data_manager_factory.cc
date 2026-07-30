@@ -5,6 +5,7 @@
 #include "chrome/browser/autofill/autofill_entity_data_manager_factory.h"
 
 #include "base/no_destructor.h"
+#include "chrome/browser/autofill/personal_context_access_manager_factory.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -60,6 +61,7 @@ AutofillEntityDataManagerFactory::AutofillEntityDataManagerFactory()
   DependsOn(StrikeDatabaseFactory::GetInstance());
   DependsOn(IdentityManagerFactory::GetInstance());
   DependsOn(SyncServiceFactory::GetInstance());
+  DependsOn(PersonalContextAccessManagerFactory::GetInstance());
 }
 
 AutofillEntityDataManagerFactory::~AutofillEntityDataManagerFactory() = default;
@@ -87,6 +89,7 @@ AutofillEntityDataManagerFactory::BuildServiceInstanceForBrowserContext(
       SyncServiceFactory::GetForProfile(profile), std::move(local_storage),
       HistoryServiceFactory::GetForProfile(profile,
                                            ServiceAccessType::EXPLICIT_ACCESS),
+      PersonalContextAccessManagerFactory::GetForProfile(profile),
       StrikeDatabaseFactory::GetForProfile(profile),
       GeoIpCountryCode(GetCountryCodeFromVariations()));
   // LINT.ThenChange(//chrome/browser/autofill/android/java/src/org/chromium/chrome/browser/autofill/autofill_ai/EntityDataManagerFactory.java:AutofillAiCreateDataManager)

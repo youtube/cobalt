@@ -61,7 +61,8 @@ class BuildUnittest(unittest.TestCase):
     builder = build.RcBuilder()
     class DummyOpts:
       def __init__(self):
-        self.input = util.PathFromRoot('grit/testdata/depfile.grd')
+        self.input = os.path.relpath(
+            util.PathFromRoot('grit/testdata/depfile.grd'))
         self.verbose = False
         self.extra_verbose = False
     expected_dep_file = output_dir.GetPath('substitute.grd.d')
@@ -84,9 +85,14 @@ class BuildUnittest(unittest.TestCase):
 
       self.assertEqual("default_100_percent.pak", dep_output_file)
       self.assertEqual(deps, [
-          util.PathFromRoot('grit/testdata/default_100_percent/a.png'),
-          util.PathFromRoot('grit/testdata/grit_part.grdp'),
-          util.PathFromRoot('grit/testdata/special_100_percent/a.png'),
+          os.path.relpath(
+              util.PathFromRoot('grit/testdata/default_100_percent/a.png'),
+              output_dir.GetPath()),
+          os.path.relpath(util.PathFromRoot('grit/testdata/grit_part.grdp'),
+                          output_dir.GetPath()),
+          os.path.relpath(
+              util.PathFromRoot('grit/testdata/special_100_percent/a.png'),
+              output_dir.GetPath()),
       ])
     output_dir.CleanUp()
 
@@ -95,7 +101,8 @@ class BuildUnittest(unittest.TestCase):
     builder = build.RcBuilder()
     class DummyOpts:
       def __init__(self):
-        self.input = util.PathFromRoot('grit/testdata/substitute_no_ids.grd')
+        self.input = os.path.relpath(
+            util.PathFromRoot('grit/testdata/substitute_no_ids.grd'))
         self.verbose = False
         self.extra_verbose = False
     expected_dep_file = output_dir.GetPath('substitute_no_ids.grd.d')
@@ -113,10 +120,14 @@ class BuildUnittest(unittest.TestCase):
 
       self.assertEqual("resource.h", dep_output_file)
       self.assertEqual(2, len(deps))
-      self.assertEqual(deps[0],
-          util.PathFromRoot('grit/testdata/substitute.xmb'))
-      self.assertEqual(deps[1],
-          util.PathFromRoot('grit/testdata/resource_ids'))
+      self.assertEqual(
+          deps[0],
+          os.path.relpath(util.PathFromRoot('grit/testdata/substitute.xmb'),
+                          output_dir.GetPath()))
+      self.assertEqual(
+          deps[1],
+          os.path.relpath(util.PathFromRoot('grit/testdata/resource_ids'),
+                          output_dir.GetPath()))
     output_dir.CleanUp()
 
   def testAssertOutputs(self):
@@ -544,7 +555,8 @@ class BuildUnittest(unittest.TestCase):
     builder = build.RcBuilder()
     class DummyOpts:
       def __init__(self):
-        self.input = util.PathFromRoot('grit/testdata/substitute.grd')
+        self.input = os.path.relpath(
+            util.PathFromRoot('grit/testdata/substitute.grd'))
         self.verbose = False
         self.extra_verbose = False
     expected_dep_file_name = 'substitute.grd.d'
@@ -583,7 +595,8 @@ class BuildUnittest(unittest.TestCase):
 
       self.assertEqual(expected_stamp_file_name, dep_output_file)
       self.assertEqual(deps, [
-          util.PathFromRoot('grit/testdata/substitute.xmb'),
+          os.path.relpath(util.PathFromRoot('grit/testdata/substitute.xmb'),
+                          output_dir.GetPath()),
       ])
     output_dir.CleanUp()
 

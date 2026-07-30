@@ -4,6 +4,8 @@
 
 #import "ios/chrome/browser/webui/ui_bundled/actor_internals/actor_internals_handler.h"
 
+#import <optional>
+
 #import "base/containers/flat_map.h"
 #import "base/notreached.h"
 #import "base/strings/strcat.h"
@@ -56,5 +58,5 @@ void ActorInternalsHandler::WillAddJournalEntry(
       std::string(actor::JournalEntryTypeToString(entry.data->type)),
       std::move(details), entry.data->timestamp, entry.data->task_id.value(),
       actor::TrackToString(entry.data->track_uuid, entry.data->task_id),
-      entry.screenshot));
+      entry.screenshot, /*iframe_screenshot=*/std::nullopt));
 }

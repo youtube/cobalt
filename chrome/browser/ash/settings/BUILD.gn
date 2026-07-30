@@ -95,6 +95,7 @@ static_library("test_support") {
     "//chrome/browser/ash/ownership",
     "//chrome/browser/ash/policy/core:test_support",
     "//chrome/browser/ash/profiles",
+    "//chrome/browser/net:test_support",
     "//chrome/browser/profiles:profile",
     "//chromeos/ash/components/browser_context_helper",
     "//chromeos/ash/components/cryptohome",

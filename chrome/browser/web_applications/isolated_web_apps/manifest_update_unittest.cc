@@ -30,6 +30,7 @@
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
 #include "components/webapps/common/web_app_id.h"
+#include "components/webapps/isolated_web_apps/public/iwa_runtime_data_provider.h"
 #include "components/webapps/isolated_web_apps/test_support/signing_keys.h"
 #include "components/webapps/isolated_web_apps/types/iwa_version.h"
 #include "components/webapps/isolated_web_apps/types/update_channel.h"
@@ -110,8 +111,7 @@ class ManifestUpdateTest : public IsolatedWebAppTest {
 
  protected:
   void SetUp() override {
-    resetter_ =
-        ChromeIwaRuntimeDataProvider::SetInstanceForTesting(&data_provider_);
+    resetter_ = IwaRuntimeDataProvider::SetInstanceForTesting(&data_provider_);
     IsolatedWebAppTest::SetUp();
     provider().SetEnableAutomaticIwaUpdates(
         FakeWebAppProvider::AutomaticIwaUpdateStrategy::kForceEnabled);
@@ -169,7 +169,7 @@ class ManifestUpdateTest : public IsolatedWebAppTest {
 
   base::test::ScopedFeatureList scoped_feature_list_;
   FakeIwaRuntimeDataProvider data_provider_;
-  std::optional<base::AutoReset<ChromeIwaRuntimeDataProvider*>> resetter_;
+  std::optional<base::AutoReset<IwaRuntimeDataProvider*>> resetter_;
 };
 
 TEST_F(ManifestUpdateTest, DisplayOverride) {

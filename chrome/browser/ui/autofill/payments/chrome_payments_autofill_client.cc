@@ -22,6 +22,7 @@
 #include "chrome/browser/ui/autofill/payments/credit_card_scanner_controller.h"
 #include "chrome/browser/ui/autofill/payments/iban_bubble_controller_impl.h"
 #include "chrome/browser/ui/autofill/payments/mandatory_reauth_bubble_controller_impl.h"
+#include "chrome/browser/ui/autofill/payments/omnibox_autofill_bubble_controller.h"
 #include "chrome/browser/ui/autofill/payments/payments_view_factory.h"
 #include "chrome/browser/ui/autofill/payments/virtual_card_enroll_bubble_controller_impl.h"
 #include "chrome/browser/ui/autofill/risk_util.h"
@@ -1244,13 +1245,29 @@ ChromePaymentsAutofillClient::GetOmniboxAutofillDelegate() {
   return omnibox_autofill_delegate_.get();
 }
 
-void ChromePaymentsAutofillClient::ShowOmniboxAutofillChip() {
-  if (tabs::TabInterface* tab_interface =
-          tabs::TabInterface::MaybeGetFromContents(web_contents())) {
-    if (OmniboxAutofillPageActionController* controller =
-            OmniboxAutofillPageActionController::From(*tab_interface)) {
-      controller->Show();
-    }
+void ChromePaymentsAutofillClient::ShowOmniboxAutofillChip(
+    std::vector<Suggestion> suggestions,
+    base::RepeatingCallback<void(base::span<const Suggestion>)>
+        on_suggestions_shown,
+    base::RepeatingCallback<void(const Suggestion&)> did_select_suggestion,
+    base::RepeatingCallback<
+        void(const Suggestion&,
+             const AutofillSuggestionDelegate::SuggestionMetadata&)>
+        did_accept_suggestion) {
+  tabs::TabInterface* tab_interface =
+      tabs::TabInterface::MaybeGetFromContents(web_contents());
+  if (!tab_interface) {
+    return;
+  }
+  if (OmniboxAutofillBubbleController* bubble_controller =
+          OmniboxAutofillBubbleController::From(*tab_interface)) {
+    bubble_controller->Initialize(
+        std::move(suggestions), std::move(on_suggestions_shown),
+        std::move(did_select_suggestion), std::move(did_accept_suggestion));
+  }
+  if (OmniboxAutofillPageActionController* page_action_controller =
+          OmniboxAutofillPageActionController::From(*tab_interface)) {
+    page_action_controller->Show();
   }
 }
 

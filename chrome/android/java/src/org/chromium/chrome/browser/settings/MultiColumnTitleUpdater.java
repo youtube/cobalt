@@ -15,7 +15,6 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -32,7 +31,6 @@ import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.components.browser_ui.settings.search.SettingsIndexData;
 import org.chromium.ui.base.LocalizationUtils;
 
@@ -442,35 +440,6 @@ class MultiColumnTitleUpdater implements MultiColumnSettings.Observer {
 
         // Enable detailed page title.
         mContainer.setVisibility(View.VISIBLE);
-
-        maybeUpdateStartMargin();
-    }
-
-    // Set left margin to align with the detailed pane when displayed in the toolbar.
-    private void maybeUpdateStartMargin() {
-        if (ChromeFeatureList.sSearchInSettings.isEnabled()) return;
-
-        View view = mMultiColumnSettings.getHeaderView();
-        int headerViewWidth = view.getLayoutParams().width;
-        int dividerWidth =
-                view.getResources()
-                        .getDimensionPixelSize(R.dimen.settings_multi_column_divider_size);
-        int contentOffset =
-                view.getResources().getDimensionPixelSize(R.dimen.settings_detailed_title_offset);
-
-        int endMargin =
-                view.getResources()
-                        .getDimensionPixelSize(R.dimen.settings_two_column_layout_margin);
-        // The size of help icon. This needs to be consistent with the one set
-        // at SettingsActivity.onCreateOptionsMenu.
-        int helpIconSize =
-                view.getResources().getDimensionPixelSize(R.dimen.settings_help_icon_size);
-
-        var params = (ViewGroup.MarginLayoutParams) mContainer.getLayoutParams();
-        params.setMarginStart(headerViewWidth + dividerWidth + contentOffset);
-        params.setMarginEnd(endMargin + helpIconSize);
-        mContainer.setLayoutParams(params);
-        mContainer.invalidate();
     }
 
     public void onSaveInstanceState(Bundle outState) {

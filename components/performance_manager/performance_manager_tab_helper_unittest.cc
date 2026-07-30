@@ -398,16 +398,20 @@ TEST_P(PerformanceManagerTabHelperTest,
       PerformanceManagerTabHelper::FromWebContents(web_contents());
   ASSERT_TRUE(tab_helper);
 
-  tab_helper->DidUpdateFaviconURL(first_nav_main_rfh, {});
+  tab_helper->DidUpdateFaviconURL(
+      first_nav_main_rfh, {},
+      blink::mojom::FaviconUpdateReason::kLinkElementChange);
 
   // The observer shouldn't have been called at this point.
   testing::Mock::VerifyAndClear(&observer);
   // Set the expectation for the next check.
-  EXPECT_CALL(observer, OnFaviconUpdated(::testing::_));
+  EXPECT_CALL(observer, OnFaviconUpdated(::testing::_, ::testing::_));
 
   // Sanity check to ensure that notification sent to the active main frame are
   // forwarded.
-  tab_helper->DidUpdateFaviconURL(web_contents()->GetPrimaryMainFrame(), {});
+  tab_helper->DidUpdateFaviconURL(
+      web_contents()->GetPrimaryMainFrame(), {},
+      blink::mojom::FaviconUpdateReason::kLinkElementChange);
 
   testing::Mock::VerifyAndClear(&observer);
   graph->RemovePageNodeObserver(&observer);

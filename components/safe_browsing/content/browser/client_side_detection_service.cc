@@ -61,11 +61,6 @@ using content::BrowserThread;
 
 namespace safe_browsing {
 
-const int ClientSideDetectionService::kReportsIntervalDays = 1;
-const int ClientSideDetectionService::kMaxReportsPerInterval = 3;
-const int ClientSideDetectionService::kNegativeCacheIntervalDays = 1;
-const int ClientSideDetectionService::kPositiveCacheIntervalMinutes = 30;
-
 const char ClientSideDetectionService::kClientReportPhishingUrl[] =
     "https://sb-ssl.google.com/safebrowsing/clientreport/phishing";
 
@@ -75,13 +70,11 @@ struct ClientSideDetectionService::ClientPhishingReportInfo {
   GURL phishing_url;
 };
 
-ClientSideDetectionService::CacheState::CacheState(bool phish, base::Time time)
-    : is_phishing(phish), timestamp(time) {}
-
 ClientSideDetectionService::ClientSideDetectionService(
     std::unique_ptr<Delegate> delegate,
     optimization_guide::OptimizationGuideModelProvider* opt_guide)
-    : delegate_(std::move(delegate)) {
+    : ClientSideDetectionServiceBase(delegate ? delegate->GetPrefs() : nullptr),
+      delegate_(std::move(delegate)) {
   // delegate and prefs can be null in unit tests.
   if (!delegate_ || !delegate_->GetPrefs()) {
     return;
@@ -169,7 +162,7 @@ void ClientSideDetectionService::OnPrefsUpdated() {
     UnsubscribeToModelSubscription();
 
     client_phishing_reports_.clear();
-    cache_.clear();
+    ClearCache();
   }
 
   SendModelToRenderers();  // always refresh the renderer state
@@ -200,12 +193,6 @@ void ClientSideDetectionService::SendClientReportPhishingRequest(
           weak_factory_.GetWeakPtr(), std::move(verdict), std::move(callback),
           access_token));
 }
-
-bool ClientSideDetectionService::IsPrivateIPAddress(
-    const net::IPAddress& address) const {
-  return !address.IsPubliclyRoutable();
-}
-
 
 void ClientSideDetectionService::OnURLLoaderComplete(
     network::SimpleURLLoader* url_loader,
@@ -301,14 +288,25 @@ void ClientSideDetectionService::StartClientReportPhishingRequest(
               "Safe Browsing agrees the page is dangerous, Chrome will show a "
               "full-page interstitial warning."
             trigger:
-              "Whenever the clinet-side detector machine learning model "
+              "Whenever the client-side detector machine learning model "
               "computes a phishy-ness score above a threshold, after page-load."
+            internal {
+              contacts {
+                email: "chrome-counter-abuse-alerts@google.com"
+              }
+            }
+            user_data {
+              type: ACCESS_TOKEN
+              type: SENSITIVE_URL
+              type: WEB_CONTENT
+            }
             data:
               "Top-level page URL without CGI parameters, boolean and double "
               "features extracted from DOM, such as the number of resources "
               "loaded in the page, if certain likely phishing and social "
               "engineering terms found on the page, etc."
             destination: GOOGLE_OWNED_SERVICE
+            last_reviewed: "2026-06-17"
           }
           policy {
             cookies_allowed: YES
@@ -383,8 +381,7 @@ void ClientSideDetectionService::HandlePhishingVerdict(
   if (net_error == net::OK && response_code.has_value() &&
       net::HTTP_OK == response_code.value() && response.ParseFromString(data)) {
     // Cache response, possibly flushing an old one.
-    cache_[info->phishing_url] =
-        base::WrapUnique(new CacheState(response.phishy(), base::Time::Now()));
+    AddCacheEntry(info->phishing_url, response.phishy(), base::Time::Now());
     is_phishing = response.phishy();
     if (response.has_intelligent_scan_verdict()) {
       intelligent_scan_verdict = response.intelligent_scan_verdict();
@@ -406,128 +403,6 @@ void ClientSideDetectionService::HandlePhishingVerdict(
     std::move(info->callback)
         .Run(info->phishing_url, is_phishing, response_code,
              intelligent_scan_verdict);
-  }
-}
-
-bool ClientSideDetectionService::GetValidCachedResult(const GURL& url,
-                                                      bool* is_phishing) {
-  UpdateCache();
-
-  auto it = cache_.find(url);
-  if (it == cache_.end()) {
-    return false;
-  }
-
-  // We still need to check if the result is valid.
-  const CacheState& cache_state = *it->second;
-  if (cache_state.is_phishing
-          ? cache_state.timestamp >
-                base::Time::Now() - base::Minutes(kPositiveCacheIntervalMinutes)
-          : cache_state.timestamp >
-                base::Time::Now() - base::Days(kNegativeCacheIntervalDays)) {
-    *is_phishing = cache_state.is_phishing;
-    return true;
-  }
-  return false;
-}
-
-void ClientSideDetectionService::UpdateCache() {
-  // Since we limit the number of requests but allow pass-through for cache
-  // refreshes, we don't want to remove elements from the cache if they
-  // could be used for this purpose even if we will not use the entry to
-  // satisfy the request from the cache.
-  base::TimeDelta positive_cache_interval =
-      std::max(base::Minutes(kPositiveCacheIntervalMinutes),
-               base::Days(kReportsIntervalDays));
-  base::TimeDelta negative_cache_interval = std::max(
-      base::Days(kNegativeCacheIntervalDays), base::Days(kReportsIntervalDays));
-
-  // Remove elements from the cache that will no longer be used.
-  for (auto it = cache_.begin(); it != cache_.end();) {
-    const CacheState& cache_state = *it->second;
-    if (cache_state.is_phishing
-            ? cache_state.timestamp >
-                  base::Time::Now() - positive_cache_interval
-            : cache_state.timestamp >
-                  base::Time::Now() - negative_cache_interval) {
-      ++it;
-    } else {
-      cache_.erase(it++);
-    }
-  }
-}
-
-bool ClientSideDetectionService::AtPhishingReportLimit() {
-  // Clear the expired timestamps
-  const auto cutoff = base::Time::Now() - base::Days(kReportsIntervalDays);
-  // Erase items older than cutoff because we will never care about them again.
-  while (!phishing_report_times_.empty() &&
-         phishing_report_times_.front() < cutoff) {
-    phishing_report_times_.pop_front();
-  }
-
-  // `delegate_` and prefs can be null in unit tests.
-  if (base::FeatureList::IsEnabled(kSafeBrowsingDailyPhishingReportsLimit) &&
-      (delegate_ && delegate_->GetPrefs()) &&
-      IsEnhancedProtectionEnabled(*delegate_->GetPrefs())) {
-    return GetPhishingNumReports() >=
-           kSafeBrowsingDailyPhishingReportsLimitESB.Get();
-  }
-  return GetPhishingNumReports() >= kMaxReportsPerInterval;
-}
-
-int ClientSideDetectionService::GetPhishingNumReports() {
-  return phishing_report_times_.size();
-}
-
-bool ClientSideDetectionService::AddPhishingReport(base::Time timestamp) {
-  // We should not be adding a report when we are at the limit when this
-  // function calls, but in case it does, we want to track how far back the
-  // last report was prior to the current report and exit the function early.
-  // Each classification request is made on the tab level, which may not have
-  // had |phishing_report_times_| updated because the service class, that's on
-  // the profile level, was processing a different request. Therefore, we check
-  // one last time before we log the request.
-  if (AtPhishingReportLimit()) {
-    base::UmaHistogramMediumTimes("SBClientPhishing.TimeSinceLastReportAtLimit",
-                                  timestamp - phishing_report_times_.back());
-    return false;
-  }
-
-  if (!delegate_ || !delegate_->GetPrefs()) {
-    base::UmaHistogramBoolean("SBClientPhishing.AddPhishingReportSuccessful",
-                              false);
-    return false;
-  }
-
-  phishing_report_times_.push_back(timestamp);
-
-  base::ListValue time_list;
-  for (const base::Time& report_time : phishing_report_times_) {
-    time_list.Append(base::Value(report_time.InSecondsFSinceUnixEpoch()));
-  }
-  delegate_->GetPrefs()->SetList(prefs::kSafeBrowsingCsdPingTimestamps,
-                                 std::move(time_list));
-  base::UmaHistogramBoolean("SBClientPhishing.AddPhishingReportSuccessful",
-                            true);
-
-  return true;
-}
-
-void ClientSideDetectionService::LoadPhishingReportTimesFromPrefs() {
-  // delegate and prefs can be null in unit tests.
-  if (!delegate_ || !delegate_->GetPrefs()) {
-    return;
-  }
-
-  phishing_report_times_.clear();
-  const auto cutoff = base::Time::Now() - base::Days(kReportsIntervalDays);
-  for (const base::Value& timestamp :
-       delegate_->GetPrefs()->GetList(prefs::kSafeBrowsingCsdPingTimestamps)) {
-    auto time = base::Time::FromSecondsSinceUnixEpoch(timestamp.GetDouble());
-    if (time >= cutoff) {
-      phishing_report_times_.push_back(time);
-    }
   }
 }
 

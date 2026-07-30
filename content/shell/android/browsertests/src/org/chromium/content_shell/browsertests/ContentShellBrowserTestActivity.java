@@ -92,7 +92,6 @@ public abstract class ContentShellBrowserTestActivity extends NativeBrowserTestA
                         false,
                         false,
                         false,
-                        false,
                         new StartupCallback() {
                             @Override
                             public void onSuccess(@Nullable StartupMetrics metrics) {

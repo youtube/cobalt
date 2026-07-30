@@ -32,6 +32,14 @@ class VisitedLinkReader : public VisitedLinkCommon,
       void(mojo::PendingReceiver<mojom::VisitedLinkNotificationSink>)>
   GetBindCallback();
 
+  // Configures the reader to use pseudo-partitioning storage (hashing with
+  // constant salt kPseudoPartitionedConstantSalt and using the link URL for
+  // each field in the triple key). This is used by Android WebView. See
+  // crbug.com/506963484 for more context.
+  void SetIsPseudoPartitioned(bool is_pseudo_partitioned) {
+    is_pseudo_partitioned_ = is_pseudo_partitioned;
+  }
+
   // Mutator for `salts_`. Called by Documents which received
   // per-origin salts from their navigation commit params. This function may
   // only be called on the UI (main) thread.
@@ -58,6 +66,8 @@ class VisitedLinkReader : public VisitedLinkCommon,
 
  private:
   void FreeTable();
+
+  bool UsePartitionedDatabase() const;
 
   // These helper functions for UpdateVisitedLinks() allow us to use the correct
   // header (SharedHeader or PartitionedSharedHeader) when reading the new

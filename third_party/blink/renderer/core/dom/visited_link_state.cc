@@ -32,6 +32,7 @@
 
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "net/base/schemeful_site.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/core/dom/document.h"
@@ -93,8 +94,8 @@ static inline LinkHash PartitionedLinkHashForElement(
   // NOTE: for all Documents which have a valid VisitedLinkState, we should not
   // ever encounter an invalid GetFrame() or an invalid TopFrameOrigin().
   DCHECK(element.GetDocument().TopFrameOrigin());
-  const net::SchemefulSite top_level_site(
-      element.GetDocument().TopFrameOrigin()->ToUrlOrigin());
+  const net::SchemefulSite& top_level_site =
+      element.GetDocument().TopFrameOrigin()->GetSchemefulSite();
   // (3) Frame Origin.
   const SecurityOrigin* frame_origin =
       CalculateFrameOrigin(element.GetDocument());

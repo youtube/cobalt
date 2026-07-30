@@ -50,6 +50,8 @@
 #include "components/embedder_support/switches.h"
 #include "components/memory_system/initializer.h"
 #include "components/memory_system/parameters.h"
+#include "components/metrics/call_stacks/call_stack_profile_builder.h"
+#include "components/metrics/call_stacks/call_stack_profile_metrics_provider.h"
 #include "components/metrics/unsent_log_store_metrics.h"
 #include "components/safe_browsing/android/safe_browsing_api_handler_bridge.h"
 #include "components/sampling_profiler/process_type.h"
@@ -427,12 +429,13 @@ void AwMainDelegate::InitializeMemorySystem(const bool is_browser_process) {
     sampling_profiler::ProfilerProcessType profiler_process_type;
     if (is_browser_process) {
       profiler_process_type = sampling_profiler::ProfilerProcessType::kBrowser;
+      metrics::CallStackProfileBuilder::SetBrowserProcessReceiverCallback(
+          base::BindRepeating(
+              &metrics::CallStackProfileMetricsProvider::ReceiveProfile));
     } else if (process_type == switches::kRendererProcess) {
       // TODO(crbug.com/40150046): If webview ever supports extensions, exclude
       // extension renderers.
       profiler_process_type = sampling_profiler::ProfilerProcessType::kRenderer;
-    } else if (process_type == switches::kGpuProcess) {
-      profiler_process_type = sampling_profiler::ProfilerProcessType::kGpu;
     } else if (process_type == switches::kUtilityProcess) {
       // TODO(crbug.com/41412949): If webview ever runs the network service OOP,
       // detect it and use ProfilerProcessType::kNetworkService.

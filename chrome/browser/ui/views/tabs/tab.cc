@@ -7,30 +7,22 @@
 #include <stddef.h>
 
 #include <algorithm>
-#include <array>
-#include <limits>
 #include <memory>
 #include <optional>
 #include <string_view>
 #include <utility>
 
-#include "base/debug/alias.h"
 #include "base/functional/bind.h"
-#include "base/i18n/rtl.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/user_metrics.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/scoped_observation.h"
-#include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "cc/paint/paint_flags.h"
-#include "cc/paint/paint_recorder.h"
-#include "cc/paint/paint_shader.h"
 #include "chrome/browser/glic/browser_ui/tab_underline_controller.h"
 #include "chrome/browser/glic/browser_ui/tab_underline_view.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
-#include "chrome/browser/themes/theme_properties.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -41,11 +33,9 @@
 #include "chrome/browser/ui/tabs/tab_change_type.h"
 #include "chrome/browser/ui/tabs/tab_data.h"
 #include "chrome/browser/ui/tabs/tab_style.h"
-#include "chrome/browser/ui/tabs/tab_utils.h"
 #include "chrome/browser/ui/thumbnails/thumbnail_image.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/view_ids.h"
-#include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/event_utils.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/tabs/browser_tab_strip_controller.h"
@@ -63,44 +53,29 @@
 #include "chrome/browser/ui/window_metadata/window_metadata_controller.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/grit/generated_resources.h"
-#include "chrome/grit/theme_resources.h"
-#include "components/collaboration/public/messaging/message.h"
 #include "components/contextual_tasks/public/features.h"
-#include "components/grit/components_scaled_resources.h"
-#include "components/tab_groups/tab_group_color.h"
-#include "components/tab_groups/tab_group_visual_data.h"
 #include "components/tabs/public/tab_alert.h"
 #include "components/tabs/public/tab_group.h"
 #include "components/tabs/public/tab_interface.h"
 #include "third_party/skia/include/core/SkPath.h"
-#include "third_party/skia/include/effects/SkGradient.h"
-#include "third_party/skia/include/pathops/SkPathOps.h"
 #include "ui/accessibility/ax_enums.mojom.h"
-#include "ui/accessibility/ax_node_data.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/list_selection_model.h"
 #include "ui/base/pointer/touch_ui_controller.h"
-#include "ui/base/resource/resource_bundle.h"
-#include "ui/base/theme_provider.h"
 #include "ui/compositor/clip_recorder.h"
 #include "ui/compositor/compositor.h"
 #include "ui/gfx/animation/tween.h"
 #include "ui/gfx/canvas.h"
-#include "ui/gfx/color_palette.h"
 #include "ui/gfx/favicon_size.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/gfx/paint_vector_icon.h"
-#include "ui/gfx/scoped_canvas.h"
-#include "ui/resources/grit/ui_resources.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/border.h"
 #include "ui/views/bubble/bubble_border.h"
-#include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/focus_ring.h"
 #include "ui/views/controls/highlight_path_generator.h"
-#include "ui/views/controls/label.h"
 #include "ui/views/metadata/view_factory.h"
 #include "ui/views/rect_based_targeting_utils.h"
 #include "ui/views/view.h"
@@ -109,14 +84,12 @@
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/tooltip_manager.h"
 #include "ui/views/widget/widget.h"
-#include "ui/views/window/frame_view.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "ui/views/win/pen_event_handler_util.h"
 #endif
 
 #if defined(USE_AURA)
-#include "ui/aura/env.h"
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -304,7 +277,11 @@ Tab::Tab(tabs::TabHandle handle, TabSlotController* controller)
   title_animation_.SetDuration(base::Milliseconds(100));
 
   // Enable keyboard focus.
+#if BUILDFLAG(IS_MAC)
+  SetFocusBehavior(FocusBehavior::ALWAYS);
+#else
   SetFocusBehavior(FocusBehavior::ACCESSIBLE_ONLY);
+#endif
   views::FocusRing::Install(this);
   views::HighlightPathGenerator::Install(
       this,
@@ -539,6 +516,13 @@ void Tab::Layout(PassKey) {
 }
 
 bool Tab::OnKeyPressed(const ui::KeyEvent& event) {
+#if BUILDFLAG(IS_MAC)
+  if (event.key_code() == ui::VKEY_RETURN && event.IsControlDown()) {
+    ShowContextMenu(GetKeyboardContextMenuLocation(),
+                    ui::mojom::MenuSourceType::kKeyboard);
+    return true;
+  }
+#endif
   if (event.key_code() == ui::VKEY_RETURN && !IsSelected()) {
     controller_->SelectTab(this, event);
     return true;

@@ -151,7 +151,8 @@ void FakeLocalFrameHost::RunBeforeUnloadConfirm(
 }
 
 void FakeLocalFrameHost::UpdateFaviconURL(
-    Vector<blink::mojom::blink::FaviconURLPtr> favicon_urls) {}
+    Vector<blink::mojom::blink::FaviconURLPtr> favicon_urls,
+    blink::mojom::blink::FaviconUpdateReason reason) {}
 
 void FakeLocalFrameHost::DownloadURL(
     mojom::blink::DownloadURLParamsPtr params) {}

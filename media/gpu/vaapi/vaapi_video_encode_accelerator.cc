@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <sstream>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -76,6 +77,17 @@ std::unique_ptr<ScopedVASurface> CreateScopedSurface(
       /*visible_size=*/std::nullopt,
       /*va_fourcc=*/std::nullopt);
   return surfaces.empty() ? nullptr : std::move(surfaces.front());
+}
+
+std::string SpatialLayersToString(
+    const std::vector<gfx::Size>& spatial_layer_resolutions) {
+  std::stringstream ss;
+  ss << "{";
+  for (const gfx::Size& s : spatial_layer_resolutions) {
+    ss << s.ToString() << ", ";
+  }
+  ss << "}";
+  return ss.str();
 }
 
 }  // namespace
@@ -642,8 +654,8 @@ bool VaapiVideoEncodeAccelerator::CreateSurfacesForMappableSIEncoding(
     }
   }
 
-  // The downscaling for-loop below relies on |spatial_layer_resolutions|
-  // ordered from small to larger ones. It cannot contain duplicates.
+  // The scaling for-loop below relies on |spatial_layer_resolutions| ordered
+  // from small to larger ones. It cannot contain duplicates.
   // TODO(crbug.com/40172317): Consider supporting multiple layers with the
   // same resolution.
   CHECK(std::ranges::is_sorted(spatial_layer_resolutions,
@@ -656,18 +668,23 @@ bool VaapiVideoEncodeAccelerator::CreateSurfacesForMappableSIEncoding(
   TRACE_EVENT1("media,gpu", "VAVEA::ConstructSurfaces", "layers",
                spatial_layer_resolutions.size());
   auto source_rect = frame.visible_rect();
-  for (const gfx::Size& encode_size : spatial_layer_resolutions) {
-    if (encode_size.width() > source_rect.width() ||
-        encode_size.height() > source_rect.height()) {
-      NotifyError({EncoderStatus::Codes::kInvalidInputFrame,
-                   "Only down scaling is supported in spatial layer encoding"});
-      return false;
-    }
+  for (size_t i = 0; i < spatial_layer_resolutions.size(); ++i) {
+    const gfx::Size& encode_size = spatial_layer_resolutions[i];
+    const bool is_last_layer = (i == spatial_layer_resolutions.size() - 1);
     const bool engage_vpp = source_rect != gfx::Rect(encode_size);
     // Crop and scale |source_surface| to a surface whose size is |encode_size|.
     // The size of a reconstructed surface is also |encode_size|.
-    CHECK(source_surface);
-    if (engage_vpp) {
+    if (!source_surface) {
+      NotifyError(
+          {EncoderStatus::Codes::kInvalidInputFrame,
+           base::StrCat(
+               {"Assumption failure: at most one same resolution spatial layer "
+                "and it is top: source_rect: ",
+                source_rect.ToString(), ", spatial_layer_resolutions: ",
+                SpatialLayersToString(spatial_layer_resolutions)})});
+      return false;
+    }
+    if (engage_vpp || !is_last_layer) {
       input_surfaces->push_back(
           ExecuteBlitSurface(source_surface.get(), source_rect, encode_size));
     } else {
@@ -999,8 +1016,8 @@ void VaapiVideoEncodeAccelerator::EncodePendingInputs() {
       jobs.emplace_back(std::move(job));
     }
     for (auto& job : jobs) {
-      TRACE_EVENT_BEGIN("media,gpu", "PlatformEncoding.Encode",
-                        perfetto::Track::FromPointer(&job));
+      TRACE_EVENT("media,gpu", "PlatformEncoding.Encode",
+                  perfetto::Flow::FromPointer(job.get()));
 
       if (!encoder_->Encode(*job)) {
         NotifyError({EncoderStatus::Codes::kEncoderFailedEncode,
@@ -1009,6 +1026,7 @@ void VaapiVideoEncodeAccelerator::EncodePendingInputs() {
       }
     }
     for (size_t i = 0; i < jobs.size(); i++) {
+      auto flow = perfetto::TerminatingFlow::FromPointer(jobs[i].get());
       std::optional<EncodeResult> result =
           encoder_->GetEncodeResult(std::move(jobs[i]));
       if (!result) {
@@ -1017,10 +1035,10 @@ void VaapiVideoEncodeAccelerator::EncodePendingInputs() {
         return;
       }
 
-      TRACE_EVENT_END("media,gpu", /*"PlatformEncoding.Encode"*/
-                      perfetto::Track::FromPointer(&jobs[i]), "timestamp",
-                      result->metadata().timestamp.InMicroseconds(), "size",
-                      spatial_layer_resolutions[i].ToString());
+      TRACE_EVENT_INSTANT("media,gpu", "PlatformEncoding.EncodeResult", flow,
+                          "timestamp",
+                          result->metadata().timestamp.InMicroseconds(), "size",
+                          spatial_layer_resolutions[i].ToString());
 
       pending_encode_results_.push(std::move(result));
     }

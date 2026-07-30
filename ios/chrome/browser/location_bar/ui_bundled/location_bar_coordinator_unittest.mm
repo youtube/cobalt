@@ -14,6 +14,7 @@
 #import "components/feature_engagement/test/mock_tracker.h"
 #import "components/omnibox/browser/test_location_bar_model.h"
 #import "components/send_tab_to_self/features.h"
+#import "components/send_tab_to_self/metrics_util.h"
 #import "components/variations/scoped_variations_ids_provider.h"
 #import "components/variations/variations_ids_provider.h"
 #import "ios/chrome/browser/autocomplete/model/autocomplete_browser_agent.h"
@@ -444,7 +445,8 @@ TEST_F(LocationBarCoordinatorTest, SendTabToSelfTapped) {
   // Note: `ignoringNonObjectArgs` because OCMock cannot handle C++ references.
   [[[mock_browser_coordinator_handler_ expect] ignoringNonObjectArgs]
       showSendTabToSelfUI:GURL()
-                    title:@"Test Title"];
+                    title:@"Test Title"
+               entryPoint:send_tab_to_self::ShareEntryPoint::kOmniboxMenu];
 
   [partial_mock_coordinator locationBarSendTabToSelfTapped];
 

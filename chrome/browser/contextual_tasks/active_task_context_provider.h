@@ -38,6 +38,9 @@ class ActiveTaskContextProvider {
     // Called when the set of tabs that are part of the active context changes.
     virtual void OnContextTabsChanged(
         const std::set<tabs::TabHandle>& context_tabs) = 0;
+
+    // Called when the provider is being destroyed.
+    virtual void OnActiveTaskContextProviderDestroyed() {}
   };
 
   static ActiveTaskContextProvider* From(BrowserWindowInterface* window);

@@ -7,10 +7,18 @@
 
 #include <stdint.h>
 
+#include <string>
+#include <vector>
+
 namespace chrome_pdf {
 
 // Returns whether `ch` is a word boundary.
 bool IsWordBoundary(uint32_t ch);
+
+// Convert a UTF-16 string to a blob for use in FPDFPageObjMark_SetBlobParam().
+// That function takes unsigned char. Also for that purpose this function adds
+// a BOM to the beginning.
+std::vector<unsigned char> ToUTF16BEBlob(const std::u16string& str);
 
 }  // namespace chrome_pdf
 

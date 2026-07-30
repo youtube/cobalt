@@ -25,6 +25,7 @@
 #include "chrome/common/extensions/api/autofill_private.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
+#include "components/autofill/core/browser/integrators/autofill_ai/management_utils.h"
 #include "components/autofill/core/common/autofill_prefs.h"
 #include "components/prefs/pref_filter.h"
 #include "components/sync/service/sync_service.h"
@@ -107,12 +108,14 @@ void AutofillPrivateEventRouter::OnEntityInstancesChanged() {
       autofill::prefs::IsAutofillAiReauthBeforeFillingEnabled(pref_service);
 
   base::ListValue args;
-  args.Append(ToValueList(
-      extensions::autofill_ai_util::
-          EntityInstancesToPrivateApiEntityInstancesWithLabels(
-              entity_data_manager_observer_.GetSource()->GetEntityInstances(),
-              obfuscate_sensitive_types,
-              g_browser_process->GetApplicationLocale())));
+  args.Append(
+      ToValueList(extensions::autofill_ai_util::
+                      EntityInstancesToPrivateApiEntityInstancesWithLabels(
+                          autofill::GetEntityInstancesForSettings(
+                              entity_data_manager_observer_.GetSource()
+                                  ->GetEntityInstances()),
+                          obfuscate_sensitive_types,
+                          g_browser_process->GetApplicationLocale())));
 
   std::unique_ptr<Event> extension_event = std::make_unique<Event>(
       events::AUTOFILL_PRIVATE_ON_ENTITY_INSTANCES_CHANGED,

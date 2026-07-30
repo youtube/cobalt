@@ -93,7 +93,7 @@ RenderFrameHostImpl* GetParentForFrameAncestors(NavigationRequest* request,
 
 // static
 void AncestorThrottle::CreateAndAdd(NavigationThrottleRegistry& registry) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  CHECK_CURRENTLY_ON(BrowserThread::UI, base::NotFatalUntil::M152);
 
   registry.AddThrottle(base::WrapUnique(new AncestorThrottle(registry)));
 }
@@ -167,9 +167,10 @@ AncestorThrottle::AncestorThrottle(NavigationThrottleRegistry& registry)
 void AncestorThrottle::ParseXFrameOptionsError(
     const net::HttpResponseHeaders* headers,
     network::mojom::XFrameOptionsValue disposition) {
-  DCHECK(disposition == network::mojom::XFrameOptionsValue::kConflict ||
-         disposition == network::mojom::XFrameOptionsValue::kInvalid);
-  DCHECK(headers);
+  CHECK(disposition == network::mojom::XFrameOptionsValue::kConflict ||
+            disposition == network::mojom::XFrameOptionsValue::kInvalid,
+        base::NotFatalUntil::M152);
+  CHECK(headers, base::NotFatalUntil::M152);
 
   std::string value =
       headers->GetNormalizedHeader("X-Frame-Options").value_or(std::string());
@@ -201,7 +202,8 @@ void AncestorThrottle::ParseXFrameOptionsError(
 }
 
 void AncestorThrottle::ConsoleErrorEmbeddingRequiresOptIn() {
-  DCHECK(base::FeatureList::IsEnabled(features::kEmbeddingRequiresOptIn));
+  CHECK(base::FeatureList::IsEnabled(features::kEmbeddingRequiresOptIn),
+        base::NotFatalUntil::M152);
   std::string message = base::StringPrintf(
       "Refused to display '%s' in a frame: It did not opt-into cross-origin "
       "embedding by setting either an 'X-Frame-Options' header, or a "
@@ -218,8 +220,9 @@ void AncestorThrottle::ConsoleErrorEmbeddingRequiresOptIn() {
 
 void AncestorThrottle::ConsoleErrorXFrameOptions(
     network::mojom::XFrameOptionsValue disposition) {
-  DCHECK(disposition == network::mojom::XFrameOptionsValue::kDeny ||
-         disposition == network::mojom::XFrameOptionsValue::kSameOrigin);
+  CHECK(disposition == network::mojom::XFrameOptionsValue::kDeny ||
+            disposition == network::mojom::XFrameOptionsValue::kSameOrigin,
+        base::NotFatalUntil::M152);
   std::string message = base::StringPrintf(
       "Refused to display '%s' in a frame because it set 'X-Frame-Options' "
       "to '%s'.",

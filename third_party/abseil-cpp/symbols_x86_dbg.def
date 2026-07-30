@@ -578,12 +578,12 @@ EXPORTS
     ??$GrowSooTableToNextCapacityAndPrepareInsert@$03$00@container_internal@absl@@YAIAAVCommonFields@01@ABUPolicyFunctions@01@V?$FunctionRef@$$A6AII@Z@1@_N@Z
     ??$GrowSooTableToNextCapacityAndPrepareInsert@$07$00@container_internal@absl@@YAIAAVCommonFields@01@ABUPolicyFunctions@01@V?$FunctionRef@$$A6AII@Z@1@_N@Z
     ??$GrowSooTableToNextCapacityAndPrepareInsert@$0A@$0A@@container_internal@absl@@YAIAAVCommonFields@01@ABUPolicyFunctions@01@V?$FunctionRef@$$A6AII@Z@1@_N@Z
-    ??$HardeningAssertGE@I@base_internal@absl@@YAXII@Z
-    ??$HardeningAssertGE@PBUPayload@status_internal@absl@@@base_internal@absl@@YAXPBUPayload@status_internal@1@0@Z
-    ??$HardeningAssertGT@I@base_internal@absl@@YAXII@Z
-    ??$HardeningAssertLE@I@base_internal@absl@@YAXII@Z
-    ??$HardeningAssertLT@I@base_internal@absl@@YAXII@Z
-    ??$HardeningAssertLT@PBUPayload@status_internal@absl@@@base_internal@absl@@YAXPBUPayload@status_internal@1@0@Z
+    ??$HardeningAssertGE@II@base_internal@absl@@YAXII@Z
+    ??$HardeningAssertGE@PBUPayload@status_internal@absl@@PBU123@@base_internal@absl@@YAXPBUPayload@status_internal@1@0@Z
+    ??$HardeningAssertGT@II@base_internal@absl@@YAXII@Z
+    ??$HardeningAssertLE@II@base_internal@absl@@YAXII@Z
+    ??$HardeningAssertLT@II@base_internal@absl@@YAXII@Z
+    ??$HardeningAssertLT@PBUPayload@status_internal@absl@@PBU123@@base_internal@absl@@YAXPBUPayload@status_internal@1@0@Z
     ??$HardeningAssertNonEmpty@V?$InlinedVector@PAUCordRep@cord_internal@absl@@$01V?$allocator@PAUCordRep@cord_internal@absl@@@__Cr@std@@@absl@@@base_internal@absl@@YAXABV?$InlinedVector@PAUCordRep@cord_internal@absl@@$01V?$allocator@PAUCordRep@cord_internal@absl@@@__Cr@std@@@1@@Z
     ??$HashOf@$S$$ZI@absl@@YAIABI@Z
     ??$HashOf@$S$$ZV?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@H@absl@@YAIABV?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@ABH@Z

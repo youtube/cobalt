@@ -244,4 +244,16 @@ TEST_F(SandboxMacTest, NetworkProcessPrefs) {
   ExecuteWithParams("NetworkProcessPrefs", sandbox::mojom::Sandbox::kNetwork);
 }
 
+MULTIPROCESS_TEST_MAIN(ProxyResolverProcess) {
+  CheckCreateSeatbeltServer();
+  return 0;
+}
+
+// Verifies the kProxyResolver seatbelt profile initializes successfully with
+// the required parameters supplied by SetupSandboxParameters().
+TEST_F(SandboxMacTest, ProxyResolverInitializesSandbox) {
+  ExecuteWithParams("ProxyResolverProcess",
+                    sandbox::mojom::Sandbox::kProxyResolver);
+}
+
 }  // namespace content

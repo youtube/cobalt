@@ -254,10 +254,13 @@ TEST_F(URLConversionTest, TestGURLWithNSURLFeatureDisabled) {
 
   NSURL* url = [NSURL URLWithString:@"about:blank#hash"];
   GURL gurl = GURLWithNSURL(url);
-  // If this test fails, it means Apple has fixed the bug in NSURL's
-  // absoluteString, and the kUseNSURLDataForGURLConversion workaround can be
-  // removed.
-  EXPECT_EQ("about:blank%23hash", gurl.spec());
+
+  if (@available(anyAppleOS 27.0, *)) {
+    // If this test fails, it means Apple has broken the bug fix in iOS 27+.
+    EXPECT_EQ("about:blank#hash", gurl.spec());
+  } else {
+    EXPECT_EQ("about:blank%23hash", gurl.spec());
+  }
 }
 
 }  // namespace

@@ -33,9 +33,8 @@
 
 #pragma mark TableViewItem
 
-- (void)configureCell:(LegacyTableViewCell*)tableCell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:tableCell withStyler:styler];
+- (void)configureCell:(LegacyTableViewCell*)tableCell {
+  [super configureCell:tableCell];
   BookmarkParentFolderCell* cell =
       base::apple::ObjCCastStrict<BookmarkParentFolderCell>(tableCell);
   cell.parentFolderNameLabel.text = self.title;

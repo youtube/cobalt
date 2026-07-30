@@ -47,8 +47,7 @@ struct TrainerResult {
 TrainerResult RunTrainer(const std::vector<std::string>& input, int size,
                          const bool use_dp = false, const float dp_noise = 0.0,
                          const uint32_t dp_clip = 0) {
-  const std::string input_file =
-      util::JoinPath(::testing::TempDir(), "input");
+  const std::string input_file = util::JoinPath(::testing::TempDir(), "input");
   const std::string model_prefix =
       util::JoinPath(::testing::TempDir(), "model");
   {
@@ -118,11 +117,13 @@ TEST(UnigramTrainerTest, BasicTest) {
       30);
 
   // Check seed pieces.
-  EXPECT_EQ(27, res.seed_pieces_and_probs.size());
+  EXPECT_EQ(56, res.seed_pieces_and_probs.size());
 
   // Check final pieces.
-  EXPECT_EQ("A O P a an apple b d e g h i l le m n p r t v ve y ▁ ▁an",
-            res.sentence_pieces);
+  EXPECT_EQ(
+      "A O Overly P Pineapple a b d e g h i l le m magnanimity n p r t v y ▁ "
+      "▁an",
+      res.sentence_pieces);
 }
 
 TEST(UnigramTrainerTest, BasicDPTest) {
@@ -133,8 +134,8 @@ TEST(UnigramTrainerTest, BasicDPTest) {
          "Overly \t 6", "Available \t 5"},
         22, true /*use_dp*/, 0 /*dp_noise*/, 4 /*dp_clipping*/);
 
-    // Got 16 instead of 27 seeds.
-    EXPECT_EQ(16, res.seed_pieces_and_probs.size());
+    // Got 38 instead of 27 seeds.
+    EXPECT_EQ(38, res.seed_pieces_and_probs.size());
 
     // And they are equiv to if the last sentence was not there.
     const auto& res_nodp = RunTrainer(
@@ -153,24 +154,21 @@ namespace {
 static constexpr char kTestInputData[] = "wagahaiwa_nekodearu.txt";
 
 TEST(UnigramTrainerTest, EndToEndTest) {
-  const std::string input =
-      util::JoinPath(::testing::SrcDir(), kTestInputData);
+  const std::string input = util::JoinPath(::testing::SrcDir(), kTestInputData);
 
   ASSERT_TRUE(
       SentencePieceTrainer::Train(
-          absl::StrCat(
-              "--model_prefix=",
-              util::JoinPath(::testing::TempDir(), "tmp_model"),
-              " --input=", input,
-              " --vocab_size=8000 --normalization_rule_name=identity",
-              " --model_type=unigram --user_defined_symbols=<user>",
-              " --control_symbols=<ctrl> --max_sentence_length=2048"))
+          absl::StrCat("--model_prefix=",
+                       util::JoinPath(::testing::TempDir(), "tmp_model"),
+                       " --input=", input,
+                       " --vocab_size=8000 --normalization_rule_name=identity",
+                       " --model_type=unigram --user_defined_symbols=<user>",
+                       " --control_symbols=<ctrl> --max_sentence_length=2048"))
           .ok());
 
   SentencePieceProcessor sp;
-  EXPECT_TRUE(sp.Load(util::JoinPath(::testing::TempDir(),
-                                     "tmp_model.model"))
-                  .ok());
+  EXPECT_TRUE(
+      sp.Load(util::JoinPath(::testing::TempDir(), "tmp_model.model")).ok());
   EXPECT_EQ(8000, sp.GetPieceSize());
 
   const int cid = sp.PieceToId("<ctrl>");

@@ -494,10 +494,10 @@ scoped_refptr<StaticBitmapImage> ImageBitmap::Transfer() {
     // For it to be safe to transfer a StaticBitmapImage it must not be
     // referenced by any other object on this thread.
     // The first step is to attempt to release other references via
-    // NotifyWillTransfer
+    // NotifyImageBitmapWillTransfer.
     const auto content_id =
         image_->PaintImageForCurrentFrame().GetContentIdForFrame(0);
-    CanvasResourceProvider::NotifyWillTransfer(content_id);
+    NotifyImageBitmapWillTransfer(content_id);
 
     // If will still have other references, the last resort is to make a copy
     // of the bitmap.  This could happen, for example, if another ImageBitmap

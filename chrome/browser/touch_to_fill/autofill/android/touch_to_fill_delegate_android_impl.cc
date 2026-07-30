@@ -158,7 +158,7 @@ TouchToFillDelegateAndroidImpl::DryRun(FormGlobalId form_id,
   }
 
   // Trigger only if the client and the form are not insecure.
-  if (IsFormOrClientNonSecure(manager_->client(), *form)) {
+  if (!manager_->client().IsContextSecure()) {
     return {TriggerOutcome::kFormOrClientNotSecure, {}};
   }
   // Trigger only on focusable empty field.
@@ -368,13 +368,10 @@ void TouchToFillDelegateAndroidImpl::Reset() {
 }
 
 bool TouchToFillDelegateAndroidImpl::ShouldShowScanCreditCard() {
-  if (!manager_->client()
-           .GetPaymentsAutofillClient()
-           ->HasCreditCardScanFeature()) {
-    return false;
-  }
-
-  return !IsFormOrClientNonSecure(manager_->client(), query_form_);
+  return manager_->client()
+             .GetPaymentsAutofillClient()
+             ->HasCreditCardScanFeature() &&
+         manager_->client().IsContextSecure();
 }
 
 bool TouchToFillDelegateAndroidImpl::ShouldShowGPayLogo() const {

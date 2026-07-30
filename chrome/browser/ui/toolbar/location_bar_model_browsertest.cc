@@ -298,7 +298,7 @@ IN_PROC_BROWSER_TEST_F(LocationBarModelTest,
   ASSERT_TRUE(location_bar_model->GetFormattedFullURL().empty());
 
   OmniboxView* omnibox_view =
-      browser()->window()->GetLocationBar()->GetOmniboxView();
+      BrowserWindow::FromBrowser(browser())->GetLocationBar()->GetOmniboxView();
   ASSERT_TRUE(omnibox_view);
 
   content::WebContents* ntp_tab =
@@ -438,7 +438,7 @@ IN_PROC_BROWSER_TEST_F(LocationBarModelInstantNTPBrowserInitiatedLinksTest,
   LocationBarModel* location_bar_model =
       browser()->GetFeatures().location_bar_model();
   OmniboxView* omnibox_view =
-      browser()->window()->GetLocationBar()->GetOmniboxView();
+      BrowserWindow::FromBrowser(browser())->GetLocationBar()->GetOmniboxView();
   ASSERT_TRUE(omnibox_view);
 
   const GURL slow_url = NavigateRemoteNTPAndClickSlowLink();
@@ -467,7 +467,7 @@ IN_PROC_BROWSER_TEST_F(LocationBarModelInstantNTPNoBrowserInitiatedLinksTest,
   LocationBarModel* location_bar_model =
       browser()->GetFeatures().location_bar_model();
   OmniboxView* omnibox_view =
-      browser()->window()->GetLocationBar()->GetOmniboxView();
+      BrowserWindow::FromBrowser(browser())->GetLocationBar()->GetOmniboxView();
   ASSERT_TRUE(omnibox_view);
 
   const GURL slow_url = NavigateRemoteNTPAndClickSlowLink();

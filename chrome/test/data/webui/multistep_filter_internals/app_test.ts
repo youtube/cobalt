@@ -54,7 +54,7 @@ suite('AppTest', function() {
     const mojoLog: LogEntry = {
       timestamp: {internalValue: 13350000000000000n},
       eventType: 'Navigation Started',
-      sourceEtldPlus1: 'example.com',
+      host: 'example.com',
       navigationId: TEST_NAV_ID,
       details: 'key: foo',
     };
@@ -72,7 +72,7 @@ suite('AppTest', function() {
         'Navigation Started',
         line.querySelector('.text-event')!.textContent?.trim());
     assertEquals(
-        'example.com', line.querySelector('.text-domain')!.textContent?.trim());
+        'example.com', line.querySelector('.text-host')!.textContent?.trim());
     assertEquals(
         `[${TEST_NAV_ID.toString()}]`,
         line.querySelector('.text-nav')!.textContent?.trim());
@@ -84,14 +84,14 @@ suite('AppTest', function() {
     await fireLogEntryAdded({
       timestamp: {internalValue: 13350000000000000n},
       eventType: 'Url Eligibility Check',
-      sourceEtldPlus1: 'apple.com',
+      host: 'apple.com',
       navigationId: TEST_NAV_ID,
       details: '',
     });
     await fireLogEntryAdded({
       timestamp: {internalValue: 13350000000000001n},
       eventType: 'Annotation Extraction Started',
-      sourceEtldPlus1: 'banana.com',
+      host: 'banana.com',
       navigationId: TEST_NAV_ID,
       details: '',
     });
@@ -122,7 +122,7 @@ suite('AppTest', function() {
       timestamp: {internalValue: 13350000000000000n},
       eventType: 'Navigation Started',
       navigationId: TEST_NAV_ID,
-      sourceEtldPlus1: '',
+      host: '',
       details: '',
     };
 
@@ -141,7 +141,7 @@ suite('AppTest', function() {
       eventType: 'Url Eligibility Check',
       navigationId: TEST_NAV_ID,
       details: 'safe: match_this_string',
-      sourceEtldPlus1: '',
+      host: '',
     });
     await microtasksFinished();
 
@@ -162,7 +162,7 @@ suite('AppTest', function() {
       timestamp: {internalValue: 13350000000000000n},
       eventType: 'Url Eligibility Check',
       navigationId: TEST_NAV_ID,
-      sourceEtldPlus1: '',
+      host: '',
       details: '',
     });
     await microtasksFinished();

@@ -79,6 +79,8 @@ struct BrokerStateInfo {
   array<BrokerAssetInfo> assets;
   array<BrokerUseCaseInfo> use_cases;
   array<BrokerModelInfo> models;
+  int32? model_crash_count;
+  int32? max_model_crash_count;
 };
 
 // A debug interface for ModelBroker. This is primarily exposed for
@@ -98,4 +100,7 @@ interface ModelBrokerDebug {
   // Request uninstallation of models.
   // Not all implementations may honor this request.
   UninstallModels();
+
+  // Reset the crash count for the model execution.
+  ResetModelCrashCount();
 };

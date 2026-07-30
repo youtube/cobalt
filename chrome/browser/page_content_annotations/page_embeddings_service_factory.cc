@@ -15,6 +15,7 @@
 #include "components/page_content_annotations/content/embeddings_candidate_generator.h"
 #include "components/page_content_annotations/content/page_embeddings_service.h"
 #include "components/passage_embeddings/core/passage_embeddings_features.h"
+#include "components/passage_embeddings/core/passage_embeddings_service_controller.h"
 
 namespace page_content_annotations {
 
@@ -66,9 +67,9 @@ PageEmbeddingsServiceFactory::BuildServiceInstanceForBrowserContext(
   return std::make_unique<PageEmbeddingsService>(
       base::BindRepeating(&GenerateEmbeddingsCandidates),
       page_content_extraction_service,
-      passage_embeddings::ChromePassageEmbeddingsServiceController::Get()
+      passage_embeddings::GetChromePassageEmbeddingsServiceController()
           ->GetEmbedder(),
-      passage_embeddings::ChromePassageEmbeddingsServiceController::Get());
+      passage_embeddings::GetChromePassageEmbeddingsServiceController());
 }
 
 bool PageEmbeddingsServiceFactory::ServiceIsCreatedWithBrowserContext() const {

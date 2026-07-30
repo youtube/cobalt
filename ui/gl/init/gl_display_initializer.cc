@@ -86,18 +86,13 @@ void GetEGLInitDisplays(bool supports_angle,
 
   if (supports_angle_d3d) {
     if (use_angle_default) {
-      // Default mode for ANGLE - try D3D11, else try D3D9
+      // Default mode for ANGLE - use D3D11.
       if (!GetGlWorkarounds().disable_d3d11) {
         AddInitDisplay(init_displays, ANGLE_D3D11);
-      }
-      if (features::IsANGLED3D9FallbackAllowed()) {
-        AddInitDisplay(init_displays, ANGLE_D3D9);
       }
     } else {
       if (requested_renderer == kANGLEImplementationD3D11Name) {
         AddInitDisplay(init_displays, ANGLE_D3D11);
-      } else if (requested_renderer == kANGLEImplementationD3D9Name) {
-        AddInitDisplay(init_displays, ANGLE_D3D9);
       } else if (requested_renderer == kANGLEImplementationD3D11NULLName) {
         AddInitDisplay(init_displays, ANGLE_D3D11_NULL);
       } else if (requested_renderer == kANGLEImplementationD3D11on12Name) {
@@ -210,10 +205,8 @@ void GetDisplayInitializationParams(bool* supports_angle,
   if (g_driver_egl.client_ext.b_EGL_ANGLE_platform_angle) {
     supports_angle_d3d =
         g_driver_egl.client_ext.b_EGL_ANGLE_platform_angle_d3d &&
-        (gl::GLImplementationParts(gl::ANGLEImplementation::kD3D9)
-             .IsAllowed(allowed_impls) ||
-         gl::GLImplementationParts(gl::ANGLEImplementation::kD3D11)
-             .IsAllowed(allowed_impls));
+        gl::GLImplementationParts(gl::ANGLEImplementation::kD3D11)
+            .IsAllowed(allowed_impls);
     supports_angle_opengl =
         g_driver_egl.client_ext.b_EGL_ANGLE_platform_angle_opengl &&
         (gl::GLImplementationParts(gl::ANGLEImplementation::kOpenGL)

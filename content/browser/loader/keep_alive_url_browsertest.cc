@@ -1040,22 +1040,52 @@ IN_PROC_BROWSER_TEST_P(KeepAliveURLAttributionReportingBrowserTest,
       .WillOnce(
           [&](BackgroundRegistrationsId) { completed_future.SetValue(); });
 
-  // Set up redirects according to the following redirect chain:
-  // fetch("http://a.test:<port>/beacon", keepalive: true)
-  // --> http://b.test/beacon-redirected
-  ASSERT_NO_FATAL_FAILURE(
-      LoadPageWithKeepAliveRequestAndSendResponseAfterUnload(
-          GetKeepAlivePageURL(
-              method, /*num_requests=*/1,
-              GetConnectSrcCSPHeader(url::Origin::Create(allowed_csp_url))),
-          request_handler.get(),
-          base::StringPrintf(k301Response, violating_csp_redirect_target)));
+  // Load a page with the correct CSP header without firing a fetch immediately.
+  ASSERT_TRUE(NavigateToURL(
+      web_contents(),
+      GetKeepAlivePageURL(
+          method, /*num_requests=*/0,
+          GetConnectSrcCSPHeader(url::Origin::Create(allowed_csp_url)))));
+  RenderFrameHostImplWrapper rfh_1(current_frame_host());
+  DisableBackForwardCache(web_contents());
+
+  // Trigger the fetch keepalive request after navigation commit, so the
+  // KeepAliveURLLoaderFactory has the committed document's attribution context.
+  // Omitting `attributionReporting` is intentional: `kUnset` maps to trigger
+  // eligibility in GetRegistrationEligibility(), matching the old request
+  // shape.
+  ASSERT_TRUE(ExecJs(
+      web_contents(),
+      JsReplace("fetch($1, {keepalive: true, cache: 'no-store', method: $2});",
+                GetKeepAliveEndpoint(), method),
+      content::EXECUTE_SCRIPT_NO_RESOLVE_PROMISES));
+
+  request_handler->WaitForRequest();
+  if (loader_service()) {
+    ASSERT_EQ(loader_service()->NumLoadersForTesting(), 1u);
+  }
+  // Collects any potential histogram before the process is gone.
+  FetchHistogramsFromChildProcesses();
+
+  // Navigate to cross-origin page to ensure the 1st page can be unloaded.
+  ASSERT_TRUE(NavigateToURL(web_contents(), GetCrossOriginPageURL()));
+  ASSERT_NE(current_frame_host(), rfh_1.get());
+  ASSERT_TRUE(rfh_1.WaitUntilRenderFrameDeleted());
+
+  if (loader_service()) {
+    ASSERT_EQ(loader_service()->NumLoadersForTesting(), 1u);
+  }
+
+  // Send back the violating redirect response to terminate request handling.
+  request_handler->Send(
+      base::StringPrintf(k301Response, violating_csp_redirect_target));
+  request_handler->Done();
 
   // The redirect doesn't match CSP source from the 1st page, so the loader is
   // terminated.
   // While the 1st page is unloaded, the disconnection may not propagate to
   // browser process in time, such that calling
-  // `WaitforTotalCompleteProcessed()` here might be flaky.
+  // `WaitForTotalOnCompleteProcessed()` here might be flaky.
   loaders_observer().WaitForTotalOnComplete({net::ERR_BLOCKED_BY_CSP});
   ASSERT_TRUE(completed_future.Wait())
       << "Timed out waiting for background registration completion.";

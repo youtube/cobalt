@@ -131,6 +131,11 @@ class WaapUIMetricsService : public KeyedService {
       base::TimeTicks end_ticks,
       WaapUIMetricsRecorder::ReloadButtonMode new_mode);
 
+  void RecordReloadButtonInteractionToReload(
+      base::TimeTicks interaction_ticks,
+      base::TimeTicks execution_ticks,
+      WaapUIMetricsRecorder::ReloadButtonInputType input_type);
+
   // Called when the first browser window is painted after it's requested to be
   // shown during startup.
   void OnStartupBrowserWindowShowRequestedToFirstPaint(

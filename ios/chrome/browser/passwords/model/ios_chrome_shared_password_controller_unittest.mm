@@ -5,6 +5,7 @@
 #import "ios/chrome/browser/passwords/model/ios_chrome_shared_password_controller.h"
 
 #import "base/strings/sys_string_conversions.h"
+#import "base/test/scoped_feature_list.h"
 #import "base/test/task_environment.h"
 #import "components/autofill/core/common/autofill_test_utils.h"
 #import "components/password_manager/core/browser/mock_password_manager.h"
@@ -13,7 +14,9 @@
 #import "components/password_manager/ios/password_manager_java_script_feature.h"
 #import "components/password_manager/ios/password_suggestion_helper.h"
 #import "components/test/ios/test_utils.h"
+#import "components/webauthn/ios/features.h"
 #import "ios/chrome/browser/passwords/password_suggestion/ui/password_suggestion_utils.h"
+#import "ios/chrome/grit/ios_strings.h"
 #import "ios/web/public/test/fakes/fake_web_frame.h"
 #import "ios/web/public/test/fakes/fake_web_frames_manager.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
@@ -23,6 +26,7 @@
 #import "testing/platform_test.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
+#import "ui/base/l10n/l10n_util.h"
 
 using autofill::SuggestionType;
 
@@ -144,9 +148,9 @@ class IOSChromeSharedPasswordControllerTest : public PlatformTest {
  protected:
   base::test::TaskEnvironment task_environment_;
   autofill::test::AutofillUnitTestEnvironment autofill_test_environment_;
-  raw_ptr<web::FakeWebFramesManager, DanglingUntriaged> web_frames_manager_;
   web::FakeWebState fake_web_state_;
-  raw_ptr<web::WebFrame> frame_;
+  raw_ptr<web::FakeWebFramesManager> web_frames_manager_ = nullptr;
+  raw_ptr<web::WebFrame> frame_ = nullptr;
   testing::StrictMock<password_manager::MockPasswordManager> password_manager_;
   id suggestion_helper_;
   id driver_helper_;
@@ -193,5 +197,67 @@ TEST_F(IOSChromeSharedPasswordControllerTest, ReturnsSuggestionsIfAvailable) {
 
   EXPECT_TRUE(completion_was_called);
 
+  EXPECT_OCMOCK_VERIFY(suggestion_helper_);
+}
+
+// Tests that password suggestions display description are formatted with
+// subtext and domain if they are affiliated.
+TEST_F(IOSChromeSharedPasswordControllerTest,
+       ReturnsSuggestionsWithSubtextIfAffiliated) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      {kIOSPasskeyShim, kIOSPasskeyConditionalLoginWithShim}, {});
+
+  FormSuggestionProviderQuery* form_query = CreateFormSuggestionProviderQuery();
+
+  // Create an affiliated suggestion (host different from test.com).
+  FormSuggestion* affiliated_suggestion =
+      [FormSuggestion suggestionWithValue:@"username"
+                       displayDescription:@"affiliated.com"
+                                     icon:nil
+                                     type:SuggestionType::kPasswordEntry
+                                  payload:autofill::Suggestion::Payload()
+                           requiresReauth:YES];
+
+  // Create a local suggestion (host same as test.com).
+  FormSuggestion* local_suggestion =
+      [FormSuggestion suggestionWithValue:@"username2"
+                       displayDescription:@"test.com"
+                                     icon:nil
+                                     type:SuggestionType::kPasswordEntry
+                                  payload:autofill::Suggestion::Payload()
+                           requiresReauth:YES];
+
+  NSArray<FormSuggestion*>* suggestions =
+      @[ affiliated_suggestion, local_suggestion ];
+  OCMExpect([suggestion_helper_ retrieveSuggestionsWithForm:form_query])
+      .andReturn(suggestions);
+
+  __block BOOL completion_was_called = NO;
+  [controller_
+      retrieveSuggestionsForForm:form_query
+                        webState:&fake_web_state_
+               completionHandler:^(
+                   NSArray<FormSuggestion*>* retrieved_suggestions,
+                   id<FormSuggestionProvider> delegate) {
+                 EXPECT_EQ(2u, retrieved_suggestions.count);
+
+                 // Verify affiliated suggestion has "Password • affiliated.com"
+                 NSString* passwordText =
+                     l10n_util::GetNSString(IDS_IOS_PASSWORD_SUBTEXT);
+                 NSString* expectedAffiliatedDesc =
+                     [NSString stringWithFormat:@"%@ • %@", passwordText,
+                                                @"affiliated.com"];
+                 EXPECT_NSEQ(retrieved_suggestions[0].displayDescription,
+                             expectedAffiliatedDesc);
+
+                 // Verify local suggestion has "Password"
+                 EXPECT_NSEQ(retrieved_suggestions[1].displayDescription,
+                             passwordText);
+
+                 completion_was_called = YES;
+               }];
+
+  EXPECT_TRUE(completion_was_called);
   EXPECT_OCMOCK_VERIFY(suggestion_helper_);
 }

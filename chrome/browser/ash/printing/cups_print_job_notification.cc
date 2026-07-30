@@ -44,7 +44,7 @@ constexpr uint32_t kPrintManagementPageButtonIndex = 0;
 constexpr uint32_t kWebPrintingContentSettingsButtonIndex = 1;
 
 bool IsPrintJobInitiatedByWebPrintingAPI(const CupsPrintJob& job) {
-  return job.source() == crosapi::mojom::PrintJob::Source::kIsolatedWebApp;
+  return job.source() == ::printing::PrintJob::Source::kIsolatedWebApp;
 }
 
 }  // namespace

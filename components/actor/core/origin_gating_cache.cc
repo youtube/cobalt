@@ -27,8 +27,6 @@ OriginGatingCache::~OriginGatingCache() = default;
 bool OriginGatingCache::IsNavigationAllowed(
     const url::Origin& source_origin,
     const url::Origin& destination_origin) const {
-  CHECK(IsNavigationGatingEnabled());
-
   return std::visit(
       absl::Overload{
           [&](const OriginMap& origins) -> bool {

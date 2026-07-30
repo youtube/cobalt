@@ -21,6 +21,7 @@ source_set("test_support") {
 
   deps = [
     "//chrome/browser",
+    "//chrome/browser:platform_util_internal",
     "//chrome/browser/shortcuts:test_support",
     "//chrome/browser/ui",
     "//chrome/browser/ui:browser_element_identifiers",

@@ -19,6 +19,7 @@
 #include "chrome/browser/devtools/devtools_file_watcher.h"
 #include "chrome/browser/platform_util.h"
 #include "components/prefs/pref_change_registrar.h"
+#include "content/public/browser/file_system_access_permission_context.h"
 
 class GURL;
 class Profile;
@@ -194,6 +195,13 @@ class DevToolsFileHelper {
   void AddUserConfirmedFileSystem(const std::string& type,
                                   const base::FilePath& path,
                                   bool allowed);
+  void CheckBlocklistAndConnectAutomaticFileSystem(
+      const std::string& file_system_path,
+      const base::Uuid& file_system_uuid,
+      bool add_if_missing,
+      const HandlePermissionsCallback& handle_permissions_callback,
+      ConnectCallback connect_callback,
+      content::FileSystemAccessPermissionContext::SensitiveEntryResult result);
   void ConnectMissingAutomaticFileSystem(
       const std::string& file_system_path,
       const base::Uuid& file_system_uuid,

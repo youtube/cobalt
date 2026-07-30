@@ -17,6 +17,7 @@
 #include "components/permissions/permission_util.h"
 #include "components/permissions/request_type.h"
 #include "components/permissions/test/mock_permission_request.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/views/controls/label.h"
@@ -119,7 +120,8 @@ class PermissionPromptBubbleTwoOriginsViewBrowserTest
   std::unique_ptr<PermissionPromptBubbleBaseView> CreateBubble(
       TestDelegateTwoOrigins* delegate) {
     return std::make_unique<PermissionPromptBubbleTwoOriginsView>(
-        browser(), delegate->GetWeakPtr(), PermissionPromptStyle::kBubbleOnly);
+        browser()->tab_strip_model()->GetActiveWebContents(),
+        delegate->GetWeakPtr(), PermissionPromptStyle::kBubbleOnly);
   }
 };
 

@@ -125,7 +125,7 @@ class UserCloudPolicyStatusProviderTest
   signin::IdentityTestEnvironment identity_test_env_;
   std::unique_ptr<policy::MockUserCloudPolicyStore> user_store_;
   std::unique_ptr<policy::CloudPolicyCore> user_core_;
-  raw_ptr<policy::MockCloudPolicyClient, DanglingUntriaged> user_client_;
+  raw_ptr<policy::MockCloudPolicyClient> user_client_;
   std::unique_ptr<UserCloudPolicyStatusProvider> status_provider_;
 };
 
@@ -337,10 +337,11 @@ TEST_F(UserCloudPolicyStatusProviderTest, ConnectNewClient) {
   observation.Observe(status_provider_.get());
 
   // Disconnect the current client.
+  user_client_ = nullptr;
   user_core()->Disconnect();
   // Connect a new client.
-  policy::MockCloudPolicyClient* new_client =
-      ConnectNewMockClient(user_core_.get());
+  user_client_ = ConnectNewMockClient(user_core_.get());
+  policy::MockCloudPolicyClient* new_client = user_client_;
 
   // Verify that the status provider listens to the new client and can observe
   // client errors.

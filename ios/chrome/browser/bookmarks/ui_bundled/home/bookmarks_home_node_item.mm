@@ -70,9 +70,8 @@ const NSInteger kNumberOfTitleLines = 2;
   return self;
 }
 
-- (void)configureCell:(LegacyTableViewCell*)cell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:cell withStyler:styler];
+- (void)configureCell:(LegacyTableViewCell*)cell {
+  [super configureCell:cell];
 
   if (_isFolder) {
     TableViewBookmarksFolderCell* bookmarkCell =

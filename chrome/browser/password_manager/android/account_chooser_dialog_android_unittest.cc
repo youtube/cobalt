@@ -4,15 +4,10 @@
 
 #include "chrome/browser/password_manager/android/account_chooser_dialog_android.h"
 
-#include "base/android/device_info.h"
-#include "base/test/gmock_callback_support.h"
 #include "base/test/mock_callback.h"
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
-#include "components/device_reauth/device_authenticator.h"
-#include "components/device_reauth/mock_device_authenticator.h"
-#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_manager_metrics_util.h"
 #include "components/password_manager/core/browser/password_manager_test_utils.h"
@@ -23,12 +18,7 @@
 
 namespace {
 
-using base::test::RunOnceCallback;
-using device_reauth::MockDeviceAuthenticator;
-using testing::_;
-using testing::Eq;
 using testing::Pointee;
-using testing::Return;
 
 password_manager::PasswordFormData kFormData1 = {
     password_manager::PasswordForm::Scheme::kHtml,
@@ -59,17 +49,7 @@ password_manager::PasswordFormData kFormData2 = {
 };
 
 class MockPasswordManagerClient
-    : public password_manager::StubPasswordManagerClient {
- public:
-  MOCK_METHOD(std::unique_ptr<device_reauth::DeviceAuthenticator>,
-              GetDeviceAuthenticator,
-              (),
-              (override));
-  MOCK_METHOD(bool,
-              IsReauthBeforeFillingRequired,
-              (device_reauth::DeviceAuthenticator*),
-              (override));
-};
+    : public password_manager::StubPasswordManagerClient {};
 
 }  // namespace
 
@@ -97,14 +77,9 @@ class AccountChooserDialogAndroidTest : public ChromeRenderViewHostTestHarness {
   base::MockCallback<ManagePasswordsState::CredentialsCallback>
       credential_callback_;
 
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-AccountChooserDialogAndroidTest::AccountChooserDialogAndroidTest() {
-  scoped_feature_list_.InitAndEnableFeature(
-      password_manager::features::kBiometricTouchToFill);
-}
+AccountChooserDialogAndroidTest::AccountChooserDialogAndroidTest() = default;
 
 void AccountChooserDialogAndroidTest::SetUp() {
   ChromeRenderViewHostTestHarness::SetUp();
@@ -128,19 +103,9 @@ AccountChooserDialogAndroidTest::CreateDialogManyAccounts() {
   return CreateDialog(std::move(credentials));
 }
 
-TEST_F(AccountChooserDialogAndroidTest, SendsCredentialIfAuthNotAvailable) {
-  // Auth is required to fill passwords in Android automotive.
-  if (base::android::device_info::is_automotive()) {
-    GTEST_SKIP();
-  }
-
+TEST_F(AccountChooserDialogAndroidTest, SendsCredentialClick) {
   AccountChooserDialogAndroid* dialog = CreateDialogManyAccounts();
 
-  auto authenticator = std::make_unique<MockDeviceAuthenticator>();
-
-  EXPECT_CALL(client_, IsReauthBeforeFillingRequired).WillOnce(Return(false));
-  EXPECT_CALL(client_, GetDeviceAuthenticator)
-      .WillOnce(Return(testing::ByMove(std::move(authenticator))));
   std::unique_ptr<password_manager::PasswordForm> form =
       FillPasswordFormWithData(kFormData2, /*is_account_store=*/false);
 
@@ -149,63 +114,4 @@ TEST_F(AccountChooserDialogAndroidTest, SendsCredentialIfAuthNotAvailable) {
   dialog->OnCredentialClicked(base::android::AttachCurrentThread(),
                               1 /* credential_item */,
                               false /* signin_button_clicked */);
-}
-
-TEST_F(AccountChooserDialogAndroidTest, SendsCredentialIfAuthSuccessful) {
-  AccountChooserDialogAndroid* dialog = CreateDialogManyAccounts();
-
-  auto authenticator = std::make_unique<MockDeviceAuthenticator>();
-
-  ON_CALL(client_, IsReauthBeforeFillingRequired).WillByDefault(Return(true));
-  EXPECT_CALL(*authenticator, AuthenticateWithMessage)
-      .WillOnce(RunOnceCallback<1>(true));
-  EXPECT_CALL(client_, GetDeviceAuthenticator)
-      .WillOnce(Return(testing::ByMove(std::move(authenticator))));
-
-  std::unique_ptr<password_manager::PasswordForm> form =
-      FillPasswordFormWithData(kFormData2, /*is_account_store=*/false);
-  EXPECT_CALL(credential_callback_, Run(Pointee(*form.get())));
-
-  dialog->OnCredentialClicked(base::android::AttachCurrentThread(),
-                              1 /* credential_item */,
-                              false /* signin_button_clicked */);
-}
-
-TEST_F(AccountChooserDialogAndroidTest, DoesntSendCredentialIfAuthFailed) {
-  AccountChooserDialogAndroid* dialog = CreateDialogManyAccounts();
-
-  auto authenticator = std::make_unique<MockDeviceAuthenticator>();
-
-  ON_CALL(client_, IsReauthBeforeFillingRequired).WillByDefault(Return(true));
-  EXPECT_CALL(*authenticator, AuthenticateWithMessage)
-      .WillOnce(RunOnceCallback<1>(false));
-  EXPECT_CALL(client_, GetDeviceAuthenticator)
-      .WillOnce(Return(testing::ByMove(std::move(authenticator))));
-
-  std::unique_ptr<password_manager::PasswordForm> form =
-      FillPasswordFormWithData(kFormData2, /*is_account_store=*/false);
-  EXPECT_CALL(credential_callback_, Run(nullptr));
-
-  dialog->OnCredentialClicked(base::android::AttachCurrentThread(),
-                              1 /* credential_item */,
-                              false /* signin_button_clicked */);
-}
-
-TEST_F(AccountChooserDialogAndroidTest, CancelsAuthIfDestroyed) {
-  AccountChooserDialogAndroid* dialog = CreateDialogManyAccounts();
-
-  auto authenticator = std::make_unique<MockDeviceAuthenticator>();
-  auto* authenticator_ptr = authenticator.get();
-
-  ON_CALL(client_, IsReauthBeforeFillingRequired).WillByDefault(Return(true));
-  EXPECT_CALL(*authenticator_ptr, AuthenticateWithMessage);
-  EXPECT_CALL(client_, GetDeviceAuthenticator)
-      .WillOnce(Return(testing::ByMove(std::move(authenticator))));
-
-  dialog->OnCredentialClicked(base::android::AttachCurrentThread(),
-                              1 /* credential_item */,
-                              false /* signin_button_clicked */);
-
-  EXPECT_CALL(*authenticator_ptr, Cancel());
-  dialog->OnVisibilityChanged(content::Visibility::HIDDEN);
 }

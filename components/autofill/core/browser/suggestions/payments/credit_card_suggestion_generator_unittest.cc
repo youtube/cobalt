@@ -641,12 +641,15 @@ class AutofillCreditCardBenefitsLabelTest
         card(), autofill_client(), CREDIT_CARD_NUMBER,
         /*virtual_card_option=*/false, &metadata_logging_context);
 
-    base::flat_map<int64_t, std::string>
-        expected_instrument_ids_to_available_benefit_sources = {
-            {card().instrument_id(), card().benefit_source()}};
+    base::flat_map<
+        int64_t,
+        autofill_metrics::CardMetadataLoggingContext::CardBenefitLoggingContext>
+        expected_instrument_ids_to_available_benefit_context = {
+            {card().instrument_id(),
+             {card().benefit_source(), GetTypeForCardBenefit(GetBenefit())}}};
     EXPECT_EQ(
-        metadata_logging_context.instrument_ids_to_available_benefit_sources,
-        expected_instrument_ids_to_available_benefit_sources);
+        metadata_logging_context.instrument_ids_to_available_benefit_context,
+        expected_instrument_ids_to_available_benefit_context);
   }
 
  private:
@@ -864,14 +867,17 @@ TEST_P(AutofillCreditCardBenefitsLabelTest,
 TEST_P(AutofillCreditCardBenefitsLabelTest,
        GetCreditCardSuggestionsForTouchToFill_BenefitsAdded_RealCard) {
   std::vector<CreditCard> cards = {card()};
-  base::flat_map<int64_t, std::string>
-      expected_instrument_ids_to_available_benefit_sources = {
-          {cards[0].instrument_id(), cards[0].benefit_source()}};
+  base::flat_map<
+      int64_t,
+      autofill_metrics::CardMetadataLoggingContext::CardBenefitLoggingContext>
+      expected_instrument_ids_to_available_benefit_context = {
+          {cards[0].instrument_id(),
+           {cards[0].benefit_source(), GetTypeForCardBenefit(GetBenefit())}}};
   EXPECT_CALL(credit_card_form_event_logger(),
               OnMetadataLoggingContextReceived(
                   Field(&autofill_metrics::CardMetadataLoggingContext::
-                            instrument_ids_to_available_benefit_sources,
-                        expected_instrument_ids_to_available_benefit_sources)))
+                            instrument_ids_to_available_benefit_context,
+                        expected_instrument_ids_to_available_benefit_context)))
       .Times(1);
 
   std::vector<Suggestion> suggestions = GetCreditCardSuggestionsForTouchToFill(
@@ -901,14 +907,17 @@ TEST_P(AutofillCreditCardBenefitsLabelTest,
        GetCreditCardSuggestionsForTouchToFill_BenefitsAdded_VirtualCard) {
   CreditCard virtual_card = CreditCard::CreateVirtualCard(card());
   std::vector<CreditCard> cards = {virtual_card};
-  base::flat_map<int64_t, std::string>
-      expected_instrument_ids_to_available_benefit_sources = {
-          {cards[0].instrument_id(), cards[0].benefit_source()}};
+  base::flat_map<
+      int64_t,
+      autofill_metrics::CardMetadataLoggingContext::CardBenefitLoggingContext>
+      expected_instrument_ids_to_available_benefit_context = {
+          {cards[0].instrument_id(),
+           {cards[0].benefit_source(), GetTypeForCardBenefit(GetBenefit())}}};
   EXPECT_CALL(credit_card_form_event_logger(),
               OnMetadataLoggingContextReceived(
                   Field(&autofill_metrics::CardMetadataLoggingContext::
-                            instrument_ids_to_available_benefit_sources,
-                        expected_instrument_ids_to_available_benefit_sources)))
+                            instrument_ids_to_available_benefit_context,
+                        expected_instrument_ids_to_available_benefit_context)))
       .Times(1);
 
   std::vector<Suggestion> suggestions = GetCreditCardSuggestionsForTouchToFill(
@@ -1019,15 +1028,19 @@ TEST_P(
     GetCreditCardSuggestionsForTouchToFill_OnMetadataLoggingContextReceivedCalled) {
   std::vector<CreditCard> cards = {card(),
                                    CreditCard::CreateVirtualCard(card())};
-  base::flat_map<int64_t, std::string>
-      expected_instrument_ids_to_available_benefit_sources = {
-          {cards[0].instrument_id(), cards[0].benefit_source()},
-          {cards[1].instrument_id(), cards[1].benefit_source()}};
+  base::flat_map<
+      int64_t,
+      autofill_metrics::CardMetadataLoggingContext::CardBenefitLoggingContext>
+      expected_instrument_ids_to_available_benefit_context = {
+          {cards[0].instrument_id(),
+           {cards[0].benefit_source(), GetTypeForCardBenefit(GetBenefit())}},
+          {cards[1].instrument_id(),
+           {cards[1].benefit_source(), GetTypeForCardBenefit(GetBenefit())}}};
   EXPECT_CALL(credit_card_form_event_logger(),
               OnMetadataLoggingContextReceived(
                   Field(&autofill_metrics::CardMetadataLoggingContext::
-                            instrument_ids_to_available_benefit_sources,
-                        expected_instrument_ids_to_available_benefit_sources)))
+                            instrument_ids_to_available_benefit_context,
+                        expected_instrument_ids_to_available_benefit_context)))
       .Times(1);
 
   GetCreditCardSuggestionsForTouchToFill(cards, autofill_manager(),
@@ -6513,6 +6526,37 @@ TEST_F(CreditCardSuggestionGeneratorTest, VirtualCard) {
                     EqualsManagePaymentsMethodsSuggestion(
                         /*with_gpay_logo=*/true)));
   }
+}
+
+// Tests that credit card suggestions are not generated when payments is blocked
+// by the AutofillSettings policy.
+TEST_F(CreditCardSuggestionGeneratorTest, AutofillSettingsBlocked) {
+  base::test::ScopedFeatureList scoped_feature_list{
+      features::kAutofillEnableAutofillSettingsEnterprisePolicy};
+
+  payments_data().ClearCreditCards();
+  CreditCard visa_card(autofill::test::MakeGuid(1), test::kEmptyOrigin);
+  test::SetCreditCardInfo(&visa_card, "Elvis Presley", "4111111111113456", "04",
+                          "2099", "1");
+  payments_data().AddCreditCard(visa_card);
+
+  autofill_client().SetAutofillTypeBlockedByPolicy(
+      AutofillClient::AutofillPolicyDataCategory::kPayments, true);
+
+  FormBundle form_bundle =
+      GetFormWithTypes({.fields = {{.role = CREDIT_CARD_NUMBER}}});
+  form_bundle.trigger_field = form_bundle.form.fields()[0];
+  form_bundle.trigger_autofill_field = form_bundle.form_structure->field(0);
+
+  std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
+      form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
+      *form_bundle.trigger_autofill_field, autofill_client(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
+      credit_card_form_event_logger(),
+      AutofillMetrics::PaymentsSigninState::kUnknown,
+      /*exclude_virtual_cards=*/false);
+  EXPECT_TRUE(suggestions.empty());
 }
 
 }  // namespace

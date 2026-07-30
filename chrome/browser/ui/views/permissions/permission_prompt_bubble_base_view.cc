@@ -66,10 +66,10 @@ std::string_view GetPermissionActionString(
 }  // namespace
 
 PermissionPromptBubbleBaseView::PermissionPromptBubbleBaseView(
-    Browser* browser,
+    content::WebContents* web_contents,
     base::WeakPtr<permissions::PermissionPrompt::Delegate> delegate,
     PermissionPromptStyle prompt_style)
-    : PermissionPromptBaseView(browser, delegate),
+    : PermissionPromptBaseView(web_contents, delegate),
       delegate_(delegate),
       is_one_time_permission_(IsOneTimePermission(*delegate.get())) {
   // Note that browser() may be null in unit tests.
@@ -204,7 +204,7 @@ void PermissionPromptBubbleBaseView::Show() {
 }
 
 void PermissionPromptBubbleBaseView::CreateWidget() {
-  CHECK(browser()->window());
+  CHECK(GetBrowser()->GetWindow());
 
   UpdateAnchorPosition();
 
@@ -223,7 +223,7 @@ void PermissionPromptBubbleBaseView::CreateWidget() {
 void PermissionPromptBubbleBaseView::ShowWidget() {
   // If a browser window (or popup) other than the bubble parent has focus,
   // don't take focus.
-  if (browser()->GetWindow()->IsActive()) {
+  if (GetBrowser() && GetBrowser()->GetWindow()->IsActive()) {
     GetWidget()->Show();
   } else {
     GetWidget()->ShowInactive();
@@ -270,7 +270,8 @@ void PermissionPromptBubbleBaseView::RunButtonCallback(int button_id) {
   permissions::PermissionUmaUtil::RecordActionBrowserAlwaysActive(
       request_type(), GetPermissionActionString(button),
       record_browser_always_active_value());
-  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  BrowserView* browser_view =
+      BrowserView::GetBrowserViewForBrowser(GetBrowser());
 #if BUILDFLAG(IS_CHROMEOS)
   // `PERMISSION_SMART_CARD` is essentially a chooser permission without an
   // actual chooser - thus, there is no blocklist of devices and no real

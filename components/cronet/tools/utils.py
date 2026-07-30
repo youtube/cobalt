@@ -137,8 +137,10 @@ def read_file(path):
 
 
 def write_file(path, contents):
-    """Writes contents to a file"""
-    return pathlib.Path(path).write_text(contents)
+    """Writes contents to a file, creating parent directories if they don't exist"""
+    path_obj = pathlib.Path(path)
+    path_obj.parent.mkdir(parents=True, exist_ok=True)
+    return path_obj.write_text(contents)
 
 
 def build(out_dir, build_target, extra_options=None):

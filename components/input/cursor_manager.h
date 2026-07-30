@@ -8,10 +8,12 @@
 #include <map>
 #include <vector>
 
+#include "base/component_export.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/component_export.h"
+#include "base/scoped_multi_source_observation.h"
+#include "components/input/render_widget_host_view_input_observer.h"
 #include "ui/base/cursor/cursor.h"
 #include "ui/base/cursor/mojom/cursor_type.mojom-shared.h"
 
@@ -24,10 +26,15 @@ class RenderWidgetHostViewInput;
 // calls back to its DisplayCursor method when the cursor needs to change,
 // either because the mouse moved over a different view or because a cursor
 // update was received for the current view.
-class COMPONENT_EXPORT(INPUT) CursorManager {
+class COMPONENT_EXPORT(INPUT) CursorManager
+    : public RenderWidgetHostViewInputObserver {
  public:
   explicit CursorManager(RenderWidgetHostViewInput* root);
-  ~CursorManager();
+  ~CursorManager() override;
+
+  // RenderWidgetHostViewInputObserver:
+  void OnRenderWidgetHostViewInputDestroyed(
+      RenderWidgetHostViewInput* view) override;
 
   // Called for any RenderWidgetHostView that received an UpdateCursor message
   // from its renderer process.
@@ -65,14 +72,19 @@ class COMPONENT_EXPORT(INPUT) CursorManager {
   void DisallowCustomCursorScopeExpired(int max_dimension_dips);
   void UpdateCursor();
 
+  void AddObservation(RenderWidgetHostViewInput* view);
+  void RemoveObservation(RenderWidgetHostViewInput* view);
+
   // Stores the last received cursor from each RenderWidgetHostView.
   std::map<RenderWidgetHostViewInput*, ui::Cursor> cursor_map_;
 
+  base::ScopedMultiSourceObservation<RenderWidgetHostViewInput,
+                                     RenderWidgetHostViewInputObserver>
+      observations_{this};
+
   // The view currently underneath the cursor, which corresponds to the cursor
   // currently displayed.
-  // TODO(crbug.com/324115585): Fix FlakyDanglingUntriaged.
-  raw_ptr<RenderWidgetHostViewInput, FlakyDanglingUntriaged>
-      view_under_cursor_;
+  raw_ptr<RenderWidgetHostViewInput> view_under_cursor_;
 
   // The root view is the target for DisplayCursor calls whenever the active
   // cursor needs to change.

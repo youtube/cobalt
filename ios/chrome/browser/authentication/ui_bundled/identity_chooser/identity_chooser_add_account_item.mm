@@ -21,9 +21,8 @@
   return self;
 }
 
-- (void)configureCell:(TableViewIdentityCell*)cell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:cell withStyler:styler];
+- (void)configureCell:(TableViewIdentityCell*)cell {
+  [super configureCell:cell];
   NSString* title =
       l10n_util::GetNSString(IDS_IOS_ACCOUNT_IDENTITY_CHOOSER_ADD_ACCOUNT);
   UIImage* image = [[UIImage imageNamed:@"settings_accounts_add_account"]

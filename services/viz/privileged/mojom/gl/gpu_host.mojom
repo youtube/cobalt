@@ -16,6 +16,9 @@ import "ui/gfx/mojom/gpu_extra_info.mojom";
 import "url/mojom/url.mojom";
 
 [EnableIf=is_win]
+import "services/webnn/public/mojom/ep_device_info.mojom";
+
+[EnableIf=is_win]
 import "services/webnn/public/mojom/ep_package_info.mojom";
 
 [EnableIf=is_win]
@@ -100,9 +103,8 @@ interface GpuHost {
       => (map<string, webnn.mojom.EpPackageInfo> ep_package_info);
 
   // Requests the Browser to create a CompilerContext in the Compiler process
-  // for a specific ORT context. Launches the Compiler utility process if it
-  // hasn't been launched yet. EP package info is forwarded to the Compiler
-  // process so it can initialize its ORT Environment with the correct EPs.
+  // for a specific EP device. Each EP device has its own dedicated Compiler
+  // process and the Browser launches one on first use for that device.
   // Browser creates all pipe pairs:
   //   - CompilerContext pipe: returned as
   //     compiler_context_remote (for Renderer)
@@ -114,11 +116,11 @@ interface GpuHost {
   RequestWebNNCompilerContext(
       webnn.mojom.CreateContextOptions context_options,
       webnn.mojom.ContextProperties context_properties,
-      map<string, webnn.mojom.EpPackageInfo> ep_package_info)
-    => (pending_remote<webnn.mojom.WebNNCompilerContext>?
-            compiler_context_remote,
-        pending_receiver<webnn.mojom.WebNNModelLoader>?
-            model_loader_receiver);
+      webnn.mojom.EpDeviceInfo target_device)
+      => (pending_remote<webnn.mojom.WebNNCompilerContext>?
+              compiler_context_remote,
+          pending_receiver<webnn.mojom.WebNNModelLoader>?
+              model_loader_receiver);
 
   // Tells the GPU host to create a temporary file that can be used to save all
   // weights in the WebNN graph. Returns the open file handle if the file was

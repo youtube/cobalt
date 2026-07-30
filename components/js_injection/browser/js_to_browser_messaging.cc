@@ -20,6 +20,7 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/weak_document_ptr.h"
 #include "content/public/browser/web_contents.h"
+#include "mojo/public/cpp/bindings/message.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/public/common/messaging/message_port_descriptor.h"
 #include "third_party/blink/public/common/messaging/string_message_codec.h"
@@ -254,21 +255,32 @@ void JsToBrowserMessaging::PostMessage(
     host_ =
         connection_factory_->CreateHost(top_level_origin_string, origin_string,
                                         is_main_frame, reply_proxy_.get());
-#if DCHECK_IS_ON()
+    if (!host_) {
+      return;
+    }
+
     top_level_origin_string_ = top_level_origin_string;
     origin_string_ = origin_string;
     is_main_frame_ = is_main_frame;
-#endif
-    if (!host_)
-      return;
   }
+
+  // The following checks will only be effective on the second and following
+  // calls to `PostMessage`.
   // The origin and whether this is the main frame should not change once
   // PostMessage() has been received.
-#if DCHECK_IS_ON()
-  DCHECK_EQ(GetOriginString(top_level_origin), top_level_origin_string_);
-  DCHECK_EQ(GetOriginString(source_origin), origin_string_);
-  DCHECK_EQ(is_main_frame_, !render_frame_host_->GetParentOrOuterDocument());
-#endif
+  if (top_level_origin_string_ != GetOriginString(top_level_origin)) {
+    mojo::ReportBadMessage("top_level_origin changed after host reset.");
+    return;
+  }
+  if (origin_string_ != GetOriginString(source_origin)) {
+    mojo::ReportBadMessage("source_origin changed after host reset.");
+    return;
+  }
+  if (is_main_frame_ != !render_frame_host_->GetParentOrOuterDocument()) {
+    mojo::ReportBadMessage("is_main_frame changed after host reset.");
+    return;
+  }
+
   std::unique_ptr<WebMessage> web_message = std::make_unique<WebMessage>();
   web_message->message = std::move(message);
   web_message->ports = std::move(ports);

@@ -266,6 +266,7 @@ chromium_luci.configure_targets(
             "mac_default_arm64": True,
             "mac_default_x64": True,
             "mac_toolchain": True,
+            "mac_x64_wpt_child_processes": True,
             "non-gce": True,
             "nvidia_geforce_gtx_1660": True,
             "out_dir_arg": True,

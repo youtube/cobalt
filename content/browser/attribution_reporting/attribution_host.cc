@@ -367,7 +367,7 @@ void AttributionHost::RegisterDataHost(
     bool is_for_background_requests,
     const std::vector<url::Origin>& reporting_origins) {
   auto suitable_context = AttributionSuitableContext::Create(
-      static_cast<RenderFrameHostImpl*>(receivers_.GetCurrentTargetFrame()));
+      static_cast<RenderFrameHostImpl*>(&receivers_.CurrentTargetFrame()));
   if (!suitable_context.has_value()) {
     return;
   }
@@ -393,7 +393,7 @@ void AttributionHost::NotifyNavigationWithBackgroundRegistrationsWillStart(
     const blink::AttributionSrcToken& attribution_src_token,
     uint32_t expected_registrations) {
   auto suitable_context = AttributionSuitableContext::Create(
-      static_cast<RenderFrameHostImpl*>(receivers_.GetCurrentTargetFrame()));
+      static_cast<RenderFrameHostImpl*>(&receivers_.CurrentTargetFrame()));
   if (!suitable_context.has_value()) {
     return;
   }
@@ -413,7 +413,7 @@ void AttributionHost::RegisterNavigationDataHost(
     mojo::PendingReceiver<attribution_reporting::mojom::DataHost> data_host,
     const blink::AttributionSrcToken& attribution_src_token) {
   auto suitable_context = AttributionSuitableContext::Create(
-      static_cast<RenderFrameHostImpl*>(receivers_.GetCurrentTargetFrame()));
+      static_cast<RenderFrameHostImpl*>(&receivers_.CurrentTargetFrame()));
   if (!suitable_context.has_value()) {
     return;
   }

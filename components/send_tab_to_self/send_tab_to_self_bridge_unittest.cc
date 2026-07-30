@@ -283,13 +283,17 @@ class SendTabToSelfBridgeTest : public testing::Test {
   void AddSampleEntries() {
     // Adds timer to avoid having two entries with the same shared timestamp.
     bridge_->SendEntry(GURL("http://a.com"), "a", kLocalDeviceCacheGuid,
-                       PageContext(), NavigationHistory(), base::DoNothing());
+                       PageContext(), NavigationHistory(), base::DoNothing(),
+                       ShareEntryPoint::kShareSheet);
     bridge_->SendEntry(GURL("http://b.com"), "b", kLocalDeviceCacheGuid,
-                       PageContext(), NavigationHistory(), base::DoNothing());
+                       PageContext(), NavigationHistory(), base::DoNothing(),
+                       ShareEntryPoint::kShareSheet);
     bridge_->SendEntry(GURL("http://c.com"), "c", kLocalDeviceCacheGuid,
-                       PageContext(), NavigationHistory(), base::DoNothing());
+                       PageContext(), NavigationHistory(), base::DoNothing(),
+                       ShareEntryPoint::kShareSheet);
     bridge_->SendEntry(GURL("http://d.com"), "d", kLocalDeviceCacheGuid,
-                       PageContext(), NavigationHistory(), base::DoNothing());
+                       PageContext(), NavigationHistory(), base::DoNothing(),
+                       ShareEntryPoint::kShareSheet);
   }
 
   void SetLocalDeviceCacheGuid(const std::string& cache_guid) {
@@ -725,6 +729,7 @@ TEST_F(SendTabToSelfBridgeTest, AddExpiredEntry) {
 
 TEST_F(SendTabToSelfBridgeTest, AddInvalidEntries) {
   InitializeBridge();
+  base::HistogramTester histogram_tester;
   EXPECT_CALL(*mock_observer(), OnEntriesAddedRemotely(_)).Times(0);
 
   // Add Entry should fail on invalid URLs.
@@ -735,7 +740,8 @@ TEST_F(SendTabToSelfBridgeTest, AddInvalidEntries) {
               Run(SendTabToSelfResult::kFailureInvalidUrl));
   EXPECT_EQ(nullptr, bridge()->SendEntry(GURL(), "d", kLocalDeviceCacheGuid,
                                          PageContext(), NavigationHistory(),
-                                         mock_callback_fail_1.Get()));
+                                         mock_callback_fail_1.Get(),
+                                         ShareEntryPoint::kShareSheet));
 
   base::MockCallback<base::OnceCallback<void(SendTabToSelfResult)>>
       mock_callback_fail_2;
@@ -744,16 +750,18 @@ TEST_F(SendTabToSelfBridgeTest, AddInvalidEntries) {
   EXPECT_EQ(nullptr,
             bridge()->SendEntry(GURL("http://?k=v"), "d", kLocalDeviceCacheGuid,
                                 PageContext(), NavigationHistory(),
-                                mock_callback_fail_2.Get()));
+                                mock_callback_fail_2.Get(),
+                                ShareEntryPoint::kShareSheet));
 
   base::MockCallback<base::OnceCallback<void(SendTabToSelfResult)>>
       mock_callback_fail_3;
   EXPECT_CALL(mock_callback_fail_3,
               Run(SendTabToSelfResult::kFailureInvalidUrl));
-  EXPECT_EQ(nullptr, bridge()->SendEntry(GURL("http//google.com"), "d",
-                                         kLocalDeviceCacheGuid, PageContext(),
-                                         NavigationHistory(),
-                                         mock_callback_fail_3.Get()));
+  EXPECT_EQ(nullptr,
+            bridge()->SendEntry(GURL("http//google.com"), "d",
+                                kLocalDeviceCacheGuid, PageContext(),
+                                NavigationHistory(), mock_callback_fail_3.Get(),
+                                ShareEntryPoint::kShareSheet));
 
   // Add Entry should fail on invalid schemes.
   base::MockCallback<base::OnceCallback<void(SendTabToSelfResult)>>
@@ -763,7 +771,8 @@ TEST_F(SendTabToSelfBridgeTest, AddInvalidEntries) {
   EXPECT_EQ(nullptr, bridge()->SendEntry(GURL("chrome://flags"), "d",
                                          kLocalDeviceCacheGuid, PageContext(),
                                          NavigationHistory(),
-                                         mock_callback_fail_scheme_1.Get()));
+                                         mock_callback_fail_scheme_1.Get(),
+                                         ShareEntryPoint::kShareSheet));
 
   base::MockCallback<base::OnceCallback<void(SendTabToSelfResult)>>
       mock_callback_fail_scheme_2;
@@ -772,7 +781,12 @@ TEST_F(SendTabToSelfBridgeTest, AddInvalidEntries) {
   EXPECT_EQ(nullptr,
             bridge()->SendEntry(GURL("about:blank"), "d", kLocalDeviceCacheGuid,
                                 PageContext(), NavigationHistory(),
-                                mock_callback_fail_scheme_2.Get()));
+                                mock_callback_fail_scheme_2.Get(),
+                                ShareEntryPoint::kShareSheet));
+
+  histogram_tester.ExpectUniqueSample("Sharing.SendTabToSelf.SendResult",
+                                      SendTabToSelfResult::kFailureInvalidUrl,
+                                      5);
 }
 
 TEST_F(SendTabToSelfBridgeTest, IsEntityDataValid) {
@@ -803,10 +817,12 @@ TEST_F(SendTabToSelfBridgeTest, IsEntityDataValid) {
 // local change processor marks the entity as successfully synced.
 TEST_F(SendTabToSelfBridgeTest, NotifyPendingCommitsOnIncrementalSync) {
   InitializeBridge();
+  base::HistogramTester histogram_tester;
   base::test::TestFuture<SendTabToSelfResult> future;
   const SendTabToSelfEntry* entry = bridge()->SendEntry(
       GURL("https://www.example.com/"), "title", kLocalDeviceCacheGuid,
-      PageContext(), NavigationHistory(), future.GetCallback());
+      PageContext(), NavigationHistory(), future.GetCallback(),
+      ShareEntryPoint::kShareSheet);
   ASSERT_NE(nullptr, entry);
 
   // Still unsynced, should not fire.
@@ -822,16 +838,21 @@ TEST_F(SendTabToSelfBridgeTest, NotifyPendingCommitsOnIncrementalSync) {
   bridge()->ApplyIncrementalSyncChanges(bridge()->CreateMetadataChangeList(),
                                         syncer::EntityChangeList());
   EXPECT_EQ(future.Get(), SendTabToSelfResult::kSuccess);
+
+  histogram_tester.ExpectUniqueSample("Sharing.SendTabToSelf.SendResult",
+                                      SendTabToSelfResult::kSuccess, 1);
 }
 
 // Tests that the pending commit callback is fired with a commit error
 // when the sync engine reports a specific error for the entity.
 TEST_F(SendTabToSelfBridgeTest, NotifyPendingCommitsOnCommitError) {
   InitializeBridge();
+  base::HistogramTester histogram_tester;
   base::test::TestFuture<SendTabToSelfResult> future;
   const SendTabToSelfEntry* entry = bridge()->SendEntry(
       GURL("https://www.example.com/"), "title", kLocalDeviceCacheGuid,
-      PageContext(), NavigationHistory(), future.GetCallback());
+      PageContext(), NavigationHistory(), future.GetCallback(),
+      ShareEntryPoint::kShareSheet);
   ASSERT_NE(nullptr, entry);
 
   syncer::FailedCommitResponseData error_data;
@@ -840,6 +861,10 @@ TEST_F(SendTabToSelfBridgeTest, NotifyPendingCommitsOnCommitError) {
 
   bridge()->OnCommitAttemptErrors({error_data});
   EXPECT_EQ(future.Get(), SendTabToSelfResult::kFailureCommitAttemptError);
+
+  histogram_tester.ExpectUniqueSample(
+      "Sharing.SendTabToSelf.SendResult",
+      SendTabToSelfResult::kFailureCommitAttemptError, 1);
 }
 
 // Tests that the pending commit callback is fired with a commit attempt failed
@@ -847,41 +872,59 @@ TEST_F(SendTabToSelfBridgeTest, NotifyPendingCommitsOnCommitError) {
 // error).
 TEST_F(SendTabToSelfBridgeTest, NotifyPendingCommitsOnCommitAttemptFailed) {
   InitializeBridge();
+  base::HistogramTester histogram_tester;
   base::test::TestFuture<SendTabToSelfResult> future;
   const SendTabToSelfEntry* entry = bridge()->SendEntry(
       GURL("https://www.example.com/"), "title", kLocalDeviceCacheGuid,
-      PageContext(), NavigationHistory(), future.GetCallback());
+      PageContext(), NavigationHistory(), future.GetCallback(),
+      ShareEntryPoint::kShareSheet);
   ASSERT_NE(nullptr, entry);
 
   bridge()->OnCommitAttemptFailed(syncer::SyncCommitError::kServerError);
   EXPECT_EQ(future.Get(), SendTabToSelfResult::kFailureCommitAttemptFailed);
+
+  histogram_tester.ExpectUniqueSample(
+      "Sharing.SendTabToSelf.SendResult",
+      SendTabToSelfResult::kFailureCommitAttemptFailed, 1);
 }
 
 TEST_F(SendTabToSelfBridgeTest,
        NotifyPendingCommitsOnCommitAttemptFailedWithNetworkError) {
   InitializeBridge();
+  base::HistogramTester histogram_tester;
   base::test::TestFuture<SendTabToSelfResult> future;
   const SendTabToSelfEntry* entry = bridge()->SendEntry(
       GURL("https://www.example.com/"), "title", kLocalDeviceCacheGuid,
-      PageContext(), NavigationHistory(), future.GetCallback());
+      PageContext(), NavigationHistory(), future.GetCallback(),
+      ShareEntryPoint::kShareSheet);
   ASSERT_NE(nullptr, entry);
 
   bridge()->OnCommitAttemptFailed(syncer::SyncCommitError::kNetworkError);
   EXPECT_EQ(future.Get(), SendTabToSelfResult::kFailureNoInternetConnection);
+
+  histogram_tester.ExpectUniqueSample(
+      "Sharing.SendTabToSelf.SendResult",
+      SendTabToSelfResult::kFailureNoInternetConnection, 1);
 }
 
 // Tests that the pending commit callback is fired with a sync disabled error
 // when sync is disabled while there are still pending commits.
 TEST_F(SendTabToSelfBridgeTest, NotifyPendingCommitsOnDisableSync) {
   InitializeBridge();
+  base::HistogramTester histogram_tester;
   base::test::TestFuture<SendTabToSelfResult> future;
   const SendTabToSelfEntry* entry = bridge()->SendEntry(
       GURL("https://www.example.com/"), "title", kLocalDeviceCacheGuid,
-      PageContext(), NavigationHistory(), future.GetCallback());
+      PageContext(), NavigationHistory(), future.GetCallback(),
+      ShareEntryPoint::kShareSheet);
   ASSERT_NE(nullptr, entry);
 
   bridge()->ApplyDisableSyncChanges(bridge()->CreateMetadataChangeList());
   EXPECT_EQ(future.Get(), SendTabToSelfResult::kFailureSyncDisabled);
+
+  histogram_tester.ExpectUniqueSample("Sharing.SendTabToSelf.SendResult",
+                                      SendTabToSelfResult::kFailureSyncDisabled,
+                                      1);
 }
 
 // Tests that the pending commit callback is fired with an entry removed error
@@ -889,10 +932,12 @@ TEST_F(SendTabToSelfBridgeTest, NotifyPendingCommitsOnDisableSync) {
 // still pending.
 TEST_F(SendTabToSelfBridgeTest, NotifyPendingCommitsOnHistoryDeletion) {
   InitializeBridge();
+  base::HistogramTester histogram_tester;
   base::test::TestFuture<SendTabToSelfResult> future;
   const SendTabToSelfEntry* entry = bridge()->SendEntry(
       GURL("https://www.example.com/"), "title", kLocalDeviceCacheGuid,
-      PageContext(), NavigationHistory(), future.GetCallback());
+      PageContext(), NavigationHistory(), future.GetCallback(),
+      ShareEntryPoint::kShareSheet);
   ASSERT_NE(nullptr, entry);
 
   history::URLRows urls_to_remove;
@@ -901,6 +946,10 @@ TEST_F(SendTabToSelfBridgeTest, NotifyPendingCommitsOnHistoryDeletion) {
   bridge()->OnHistoryDeletions(
       nullptr, history::DeletionInfo::ForUrls(urls_to_remove, {}));
   EXPECT_EQ(future.Get(), SendTabToSelfResult::kFailureEntryRemoved);
+
+  histogram_tester.ExpectUniqueSample("Sharing.SendTabToSelf.SendResult",
+                                      SendTabToSelfResult::kFailureEntryRemoved,
+                                      1);
 }
 
 // Tests that the pending commit callback is fired with an entry removed error
@@ -910,7 +959,8 @@ TEST_F(SendTabToSelfBridgeTest, NotifyPendingCommitsOnAllHistoryDeletion) {
   base::test::TestFuture<SendTabToSelfResult> future;
   const SendTabToSelfEntry* entry = bridge()->SendEntry(
       GURL("https://www.example.com/"), "title", kLocalDeviceCacheGuid,
-      PageContext(), NavigationHistory(), future.GetCallback());
+      PageContext(), NavigationHistory(), future.GetCallback(),
+      ShareEntryPoint::kShareSheet);
   ASSERT_NE(nullptr, entry);
 
   bridge()->OnHistoryDeletions(nullptr, history::DeletionInfo::ForAllHistory());
@@ -924,7 +974,8 @@ TEST_F(SendTabToSelfBridgeTest, NotifyPendingCommitsOnTimeout) {
   base::test::TestFuture<SendTabToSelfResult> future;
   const SendTabToSelfEntry* entry = bridge()->SendEntry(
       GURL("https://www.example.com/"), "title", kLocalDeviceCacheGuid,
-      PageContext(), NavigationHistory(), future.GetCallback());
+      PageContext(), NavigationHistory(), future.GetCallback(),
+      ShareEntryPoint::kShareSheet);
   ASSERT_NE(nullptr, entry);
 
   task_environment().FastForwardBy(base::Seconds(10));
@@ -962,9 +1013,11 @@ TEST_F(SendTabToSelfBridgeTest, AddDuplicateEntries) {
   // So they are intentionally different here.
   EXPECT_CALL(*processor(), Put(_, _, _)).Times(1);
   bridge()->SendEntry(GURL("http://a.com"), "a", kLocalDeviceCacheGuid,
-                      PageContext(), NavigationHistory(), base::DoNothing());
+                      PageContext(), NavigationHistory(), base::DoNothing(),
+                      ShareEntryPoint::kShareSheet);
   bridge()->SendEntry(GURL("http://a.com"), "b", kLocalDeviceCacheGuid,
-                      PageContext(), NavigationHistory(), base::DoNothing());
+                      PageContext(), NavigationHistory(), base::DoNothing(),
+                      ShareEntryPoint::kShareSheet);
   EXPECT_EQ(1ul, bridge()->GetAllGuids().size());
 
   // Wait for more than the current dedupe time (5 seconds).
@@ -972,9 +1025,11 @@ TEST_F(SendTabToSelfBridgeTest, AddDuplicateEntries) {
 
   EXPECT_CALL(*processor(), Put(_, _, _)).Times(2);
   bridge()->SendEntry(GURL("http://a.com"), "a", kLocalDeviceCacheGuid,
-                      PageContext(), NavigationHistory(), base::DoNothing());
+                      PageContext(), NavigationHistory(), base::DoNothing(),
+                      ShareEntryPoint::kShareSheet);
   bridge()->SendEntry(GURL("http://b.com"), "b", kLocalDeviceCacheGuid,
-                      PageContext(), NavigationHistory(), base::DoNothing());
+                      PageContext(), NavigationHistory(), base::DoNothing(),
+                      ShareEntryPoint::kShareSheet);
   EXPECT_EQ(3ul, bridge()->GetAllGuids().size());
 }
 
@@ -1367,12 +1422,12 @@ TEST_F(SendTabToSelfBridgeTest, CollapseWhitespacesOfEntryTitle) {
 
   const SendTabToSelfEntry* result = bridge()->SendEntry(
       GURL("http://a.com"), " a  b ", kLocalDeviceCacheGuid, PageContext(),
-      NavigationHistory(), base::DoNothing());
+      NavigationHistory(), base::DoNothing(), ShareEntryPoint::kShareSheet);
   EXPECT_EQ("a b", result->GetTitle());
 
-  result = bridge()->SendEntry(GURL("http://b.com"), "입",
-                               kLocalDeviceCacheGuid, PageContext(),
-                               NavigationHistory(), base::DoNothing());
+  result = bridge()->SendEntry(
+      GURL("http://b.com"), "입", kLocalDeviceCacheGuid, PageContext(),
+      NavigationHistory(), base::DoNothing(), ShareEntryPoint::kShareSheet);
   EXPECT_EQ("입", result->GetTitle());
 }
 
@@ -1695,7 +1750,7 @@ TEST_F(SendTabToSelfBridgeTest, SendEntry_UsesFullName) {
 
   const SendTabToSelfEntry* result = bridge()->SendEntry(
       GURL("http://www.example.com/"), "title", "target", PageContext(),
-      NavigationHistory(), base::DoNothing());
+      NavigationHistory(), base::DoNothing(), ShareEntryPoint::kShareSheet);
 
   ASSERT_NE(nullptr, result);
   EXPECT_EQ(full_name, result->GetDeviceName());
@@ -1724,14 +1779,16 @@ TEST_F(SendTabToSelfBridgeTest, SendEntry_RecordsDeviceFormFactorCombination) {
   AddTestDevice(target_device.get());
 
   bridge()->SendEntry(GURL("https://example.com"), "Title", "target_phone_guid",
-                      PageContext(), NavigationHistory(), base::DoNothing());
+                      PageContext(), NavigationHistory(), base::DoNothing(),
+                      ShareEntryPoint::kShareSheet);
 
   histogram_tester.ExpectUniqueSample(
       "Sharing.SendTabToSelf.DeviceFormFactorCombination",
       SendTabToSelfFormFactorCombination::kDesktopToPhone, 1);
 }
 
-TEST_F(SendTabToSelfBridgeTest, SendEntry_RecordsDeviceFormFactorCombinationUnknown) {
+TEST_F(SendTabToSelfBridgeTest,
+       SendEntry_RecordsDeviceFormFactorCombinationUnknown) {
   InitializeBridge();
   base::HistogramTester histogram_tester;
 
@@ -1747,7 +1804,8 @@ TEST_F(SendTabToSelfBridgeTest, SendEntry_RecordsDeviceFormFactorCombinationUnkn
   // There is no DeviceInfo for the target device.
 
   bridge()->SendEntry(GURL("https://example.com"), "Title", "target_phone_guid",
-                      PageContext(), NavigationHistory(), base::DoNothing());
+                      PageContext(), NavigationHistory(), base::DoNothing(),
+                      ShareEntryPoint::kShareSheet);
 
   histogram_tester.ExpectUniqueSample(
       "Sharing.SendTabToSelf.DeviceFormFactorCombination",
@@ -1764,7 +1822,7 @@ TEST_F(SendTabToSelfBridgeTest, SendEntry_RecordsPageContextSize) {
 
   bridge()->SendEntry(GURL("http://www.example.com/"), "title",
                       kLocalDeviceCacheGuid, context, NavigationHistory(),
-                      base::DoNothing());
+                      base::DoNothing(), ShareEntryPoint::kShareSheet);
 
   histogram_tester.ExpectUniqueSample(
       "Sharing.SendTabToSelf.PageContextSize",
@@ -1785,7 +1843,7 @@ TEST_F(SendTabToSelfBridgeTest, SendEntry_RecordsPageContextSize_ExceedsLimit) {
 
   bridge()->SendEntry(GURL("http://www.example.com/"), "title",
                       kLocalDeviceCacheGuid, context, NavigationHistory(),
-                      base::DoNothing());
+                      base::DoNothing(), ShareEntryPoint::kShareSheet);
 
   size_t size = PageContextToProto(context).ByteSizeLong();
   ASSERT_GT(size, kMaxPageContextSizeBytes);
@@ -1817,7 +1875,7 @@ TEST_F(SendTabToSelfBridgeTest, SendEntryWithHistory) {
       GURL("https://www.example.com/"), "title", kLocalDeviceCacheGuid,
       PageContext(),
       NavigationHistory(std::move(navigations), kCurrentNavigationIndex),
-      base::DoNothing());
+      base::DoNothing(), ShareEntryPoint::kShareSheet);
 
   ASSERT_NE(nullptr, result);
   EXPECT_EQ(2u, result->GetNavigationHistory().navigations.size());
@@ -1965,13 +2023,14 @@ TEST_F(SendTabToSelfBridgeTest,
 
   bridge()->SendEntry(GURL("https://www.example.com"), "dummy title",
                       kLocalDeviceCacheGuid, PageContext(), NavigationHistory(),
-                      mock_callback.Get());
+                      mock_callback.Get(), ShareEntryPoint::kShareSheet);
 }
 
 // Verifies that SendEntry invokes the callback with kSuccess even when the
 // entry is throttled due to deduplication.
 TEST_F(SendTabToSelfBridgeTest, InvokesCallbackWithSuccessForThrottledEntry) {
   InitializeBridge();
+  base::HistogramTester histogram_tester;
 
   const GURL kUrl("https://www.example.com");
   const std::string kTitle("dummy title");
@@ -1979,7 +2038,8 @@ TEST_F(SendTabToSelfBridgeTest, InvokesCallbackWithSuccessForThrottledEntry) {
   // Add the first entry.
   EXPECT_CALL(*processor(), Put(_, _, _));
   bridge()->SendEntry(kUrl, kTitle, kLocalDeviceCacheGuid, PageContext(),
-                      NavigationHistory(), base::DoNothing());
+                      NavigationHistory(), base::DoNothing(),
+                      ShareEntryPoint::kShareSheet);
 
   // Attempt to add an identical entry immediately. It should be throttled.
   EXPECT_CALL(*processor(), Put(_, _, _)).Times(0);
@@ -1988,7 +2048,12 @@ TEST_F(SendTabToSelfBridgeTest, InvokesCallbackWithSuccessForThrottledEntry) {
   EXPECT_CALL(mock_callback, Run(SendTabToSelfResult::kSuccessThrottled));
 
   bridge()->SendEntry(kUrl, kTitle, kLocalDeviceCacheGuid, PageContext(),
-                      NavigationHistory(), mock_callback.Get());
+                      NavigationHistory(), mock_callback.Get(),
+                      ShareEntryPoint::kShareSheet);
+
+  histogram_tester.ExpectUniqueSample("Sharing.SendTabToSelf.SendResult",
+                                      SendTabToSelfResult::kSuccessThrottled,
+                                      1);
 }
 
 TEST_F(SendTabToSelfBridgeTest, DeleteAllEntriesPersists) {

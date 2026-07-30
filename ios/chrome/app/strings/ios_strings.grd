@@ -560,9 +560,6 @@
       <message name="IDS_IOS_ASK_GEMINI_CHIP_CUE_LABEL" desc="The contextual cue label for the Ask Gemini Chip [iOS only]">
         Get insights with Gemini
       </message>
-      <message name="IDS_IOS_ASK_GEMINI_CHIP_PREFILL_PROMPT" desc="Prefill prompt passed to the floaty when the Ask Gemini Chip is tapped [iOS only]">
-        Give me a one-line summary and useful insights beyond this page. Use a concise, casual tone. Limit to 100 words.
-      </message>
       <message name="IDS_IOS_ASK_GEMINI_EDIT_MENU" desc="Edit Menu button to ask Gemini about the selected text.">
         Ask Gemini
       </message>
@@ -4409,6 +4406,12 @@ To continue from your computer, switch to <ph name="OTHER_EMAIL">$2<ex>john.doe@
       <message name="IDS_IOS_LEVEL_UP_SEE_ALL" desc="Link button to open all available level-up tasks. [iOS only]">
         See All
       </message>
+      <message name="IDS_IOS_LEVEL_UP_SIGNED_OUT_SNACKBAR" desc="Snackbar message displayed when a user attempts to use Level Up without being signed in. [iOS only]">
+        You have to be signed in to use Level Up
+      </message>
+      <message name="IDS_IOS_LEVEL_UP_SIGNED_OUT_SNACKBAR_ACTION" desc="Action button title on the snackbar message displayed when a user attempts to use Level Up without being signed in, allowing them to sign in. [iOS only]">
+        Sign in
+      </message>
       <message name="IDS_IOS_LEVEL_UP_STAT_PASSWORDS_VERIFIED" desc="Title for the passwords verified statistic card. [iOS only]">
         {count, plural,
           =1 {1 password instantly verified}
@@ -4445,6 +4448,12 @@ To continue from your computer, switch to <ph name="OTHER_EMAIL">$2<ex>john.doe@
         {count, plural,
           =1 {Complete 1 more task to level up}
           other {Complete {count} more tasks to level up}}
+      </message>
+      <message name="IDS_IOS_LEVEL_UP_TURN_OFF_PROGRESS_UPDATES" desc="The context menu item to turn off Level Up progress updates. [iOS only]">
+        Turn off progress updates
+      </message>
+      <message name="IDS_IOS_LEVEL_UP_TURN_ON_PROGRESS_UPDATES" desc="The context menu item to turn on Level Up progress updates. [iOS only]">
+        Turn on progress updates
       </message>
       <message name="IDS_IOS_LEVEL_UP_WELCOME" desc="The welcome text displayed in the user profile header of the Level Up feature screen. [iOS only]">
         Welcome
@@ -6856,6 +6865,15 @@ Handoff must also be enabled in the General section of Settings, and your device
       <message name="IDS_IOS_SAVE_TO_DRIVE_ACCOUNT_PICKER_TITLE" desc="Dialog title to invite the user to pick a destination for their download (e.g. Files or Drive) and if applicable (e.g. they choose Drive) an account to save a file as. [iOS only]">
         Save in…
       </message>
+      <message name="IDS_IOS_SAVE_TO_DRIVE_CONFIRM_CHANGE_PROFILE_BUTTON" desc="Button label for a confirmation dialog that appears when a user tries to save a file to Google Drive while a different profile is active. [Length: 25em] [iOS only]" meaning="User is in the process of saving a file to Google Drive, and then tries to switch profiles. This dialog is shown to confirm the profile switch.">
+        Switch Profiles
+      </message>
+      <message name="IDS_IOS_SAVE_TO_DRIVE_CONFIRM_CHANGE_PROFILE_MESSAGE" desc="Message for a confirmation dialog that appears when a user tries to save a file to Google Drive while a different profile is active. [Length: 25em] [iOS only]" meaning="User is in the process of saving a file to Google Drive, and then tries to switch profiles. This dialog is shown to confirm the profile switch.">
+        This means you will lose your unsaved file and current tabs
+      </message>
+      <message name="IDS_IOS_SAVE_TO_DRIVE_CONFIRM_CHANGE_PROFILE_TITLE" desc="Title for a confirmation dialog that appears when a user tries to save a file to Google Drive while a different profile is active. [Length: 25em] [iOS only]" meaning="User is in the process of saving a file to Google Drive, and then tries to switch profiles. This dialog is shown to confirm the profile switch.">
+        You're about to switch profiles
+      </message>
       <message name="IDS_IOS_SAVE_TO_PHOTOS_ACCOUNT_PICKER_ASK_EVERY_TIME" desc="Switch label to let the user choose whether they want to pick an account every time. [iOS only]">
         Ask which account to use every time
       </message>
@@ -7000,14 +7018,29 @@ Handoff must also be enabled in the General section of Settings, and your device
       <message name="IDS_IOS_SEND_TAB_PROMO_TITLE" desc="Title for the Send Tab to Self promo Magic Stack module.">
         Get Tabs Notifications
       </message>
+      <message name="IDS_IOS_SEND_TAB_TO_SELF_BOTTOM_SHEET_SEND_BUTTON" desc="Button label for the Send Tab To Self bottom sheet dialog that sends the current tab to a user's other device. [iOS only]">
+        Send
+      </message>
+      <message name="IDS_IOS_SEND_TAB_TO_SELF_BOTTOM_SHEET_TITLE" desc="Title for the Send Tab To Self bottom sheet dialog that chooses the device to which the current tab will be sent. [iOS only]">
+        Choose a device
+      </message>
       <message name="IDS_IOS_SEND_TAB_TO_SELF_HIDE_CONTEXT_MENU_DESCRIPTION" desc="Description for the long-press context menu hide action of the send tab to self module.">
         Hide "<ph name="Module_Name"><ex>Get Tabs Notifications</ex>$1</ph>"
+      </message>
+      <message name="IDS_IOS_SEND_TAB_TO_SELF_MANAGE_DEVICES" desc="Label for a menu item to manage the devices that can receive tabs. [iOS only]">
+        Manage your devices
       </message>
       <message name="IDS_IOS_SEND_TAB_TO_SELF_NOTIFICATION_SETTINGS_BODY" desc="Body text of the Send Tabs notifications entry in the Notification Settings Screen.">
         Alerts when you receive tabs from your other devices.
       </message>
       <message name="IDS_IOS_SEND_TAB_TO_SELF_NOTIFICATION_SETTINGS_TITLE" desc="Title text of the Send Tabs notifications entry in the Notification Settings Screen.">
         Tabs
+      </message>
+      <message name="IDS_IOS_SEND_TAB_TO_SELF_NO_DEVICES_FOUND_TITLE" desc="Title of the Send Tab to Self bottom sheet when there are no target devices. [iOS only]">
+        No devices found
+      </message>
+      <message name="IDS_IOS_SEND_TAB_TO_SELF_NO_TARGET_DEVICE_LABEL_WITH_EMAIL" desc="Label shown when a user with no available target devices attempts to use send-tab-to-self, displaying the email they should sign in with. [iOS only]">
+        To send this link, sign in to your other device using <ph name="USER_EMAIL">$1<ex>user@email.com</ex></ph>
       </message>
       <message name="IDS_IOS_SEND_TAB_TO_SELF_SNACKBAR_MESSAGE" desc="Message briefly displayed at the bottom of the screen to the user to inform that the tab is being sent to the target device. [Length: 35em]" meaning="The is being sent to the target device. [Length: 35em]">
         Sending to <ph name="DEVICE_NAME">$1<ex>IPhone</ex></ph>…
@@ -8241,6 +8274,9 @@ Handoff must also be enabled in the General section of Settings, and your device
       <message name="IDS_IOS_TAB_GROUP_CREATION_PLACEHOLDER" desc="Placeholder shown in tab group creation view to indicate to the user the expected action which is to type the name of the group currently created. [iOS only]">
         Name group
       </message>
+      <message name="IDS_IOS_TAB_GROUP_CREATION_TEXT_FIELD_ACCESSIBILITY_LABEL" is_accessibility_with_no_ui="true" desc="Accessibility label for the tab group name text field in the creation screen. This is spoken by VoiceOver. [iOS only]">
+        Group name
+      </message>
       <message name="IDS_IOS_TAB_GROUP_EDITION_ACCESSIBILITY_HINT" desc="Accessibility hint for the tab group edition button. This is spoken by VoiceOver. [iOS only]">
         Edit Tab Group
       </message>
@@ -8990,6 +9026,12 @@ Handoff must also be enabled in the General section of Settings, and your device
       </message>
       <message name="IDS_SEARCH_ENGINE_CHOICE_DEFAULT_HINT" desc="Announcement for screen reader users. This string is announced when the user interacts with the 'Set as Default' button at the bottom of the 'Choose Your Search Engine' choice screen. The text provides a hint that the user needs to choose a search engine from the list on this screen before they can press this button.">
         Choose a search engine from the list.
+      </message>
+      <message name="IDS_SEND_TAB_TO_SELF_INFOBAR_AUTO_OPEN_SUBTITLE" desc="The subtitle text for the infobar when a user receives shared links from another device that open automatically, indicating the sending device.">
+        From <ph name="DEVICE_NAME">$1<ex>My iPhone</ex></ph>
+      </message>
+      <message name="IDS_SEND_TAB_TO_SELF_INFOBAR_AUTO_OPEN_TITLE" desc="The title text for the infobar when a user receives shared links from another device that open automatically.">
+        Links received
       </message>
       <message name="IDS_SEND_TAB_TO_SELF_INFOBAR_MESSAGE" desc="The message text for the infobar when a user receives a shared tab from another device.">
         Tab received.

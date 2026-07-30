@@ -589,6 +589,8 @@ class VIEWS_EXPORT NativeWidgetMacNSWindowHost
   // based on enterprise policies.
   bool allow_screenshots_ = true;
 
+  bool window_will_close_called_ = false;
+
   mojo::AssociatedReceiver<remote_cocoa::mojom::NativeWidgetNSWindowHost>
       remote_ns_window_host_receiver_{this};
 

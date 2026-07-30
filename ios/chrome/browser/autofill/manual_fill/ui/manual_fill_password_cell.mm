@@ -83,9 +83,8 @@
   return self;
 }
 
-- (void)configureCell:(ManualFillPasswordCell*)cell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:cell withStyler:styler];
+- (void)configureCell:(ManualFillPasswordCell*)cell {
+  [super configureCell:cell];
   [cell setUpWithCredential:self.credential
                   contentInjector:self.contentInjector
                       menuActions:self.menuActions

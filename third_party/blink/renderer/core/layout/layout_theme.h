@@ -53,7 +53,7 @@ class CORE_EXPORT LayoutTheme : public RefCounted<LayoutTheme> {
   USING_FAST_MALLOC(LayoutTheme);
 
  protected:
-  LayoutTheme();
+  LayoutTheme() = default;
 
  public:
   virtual ~LayoutTheme() = default;
@@ -133,8 +133,8 @@ class CORE_EXPORT LayoutTheme : public RefCounted<LayoutTheme> {
                                 bool can_expose_accent_color) const;
 
   virtual Color FocusRingColor(mojom::blink::ColorScheme color_scheme) const;
-  virtual Color PlatformFocusRingColor() const { return Color(0, 0, 0); }
   void SetCustomFocusRingColor(const Color&);
+
   virtual Color TapHighlightColor() const { return kDefaultTapHighlightColor; }
 
   static Color PlatformDefaultCompositionBackgroundColor() {
@@ -153,7 +153,7 @@ class CORE_EXPORT LayoutTheme : public RefCounted<LayoutTheme> {
                             const ui::ColorProvider* color_provider,
                             bool can_expose_accent_color) const;
 
-  virtual void AdjustSliderThumbSize(ComputedStyleBuilder&) const;
+  void AdjustSliderThumbSize(ComputedStyleBuilder&) const;
 
   virtual int PopupInternalPaddingStart(const ComputedStyle&) const {
     return 0;
@@ -166,22 +166,12 @@ class CORE_EXPORT LayoutTheme : public RefCounted<LayoutTheme> {
     return 0;
   }
 
-  // Returns size of one slider tick mark for a horizontal track.
-  // For vertical tracks we rotate it and use it. i.e. Width is always length
-  // along the track.
-  virtual gfx::Size SliderTickSize() const = 0;
-  // Returns the distance of slider tick origin from the slider track center.
-  virtual int SliderTickOffsetFromTrackCenter() const = 0;
-
   virtual bool PopsMenuByArrowKeys() const { return false; }
   virtual bool PopsMenuByReturnKey() const { return true; }
 
   virtual String DisplayNameForFile(const File& file) const;
 
   virtual bool SupportsSelectionForegroundColors() const { return true; }
-
-  // Adjust style as per platform selection.
-  virtual void AdjustControlPartStyle(ComputedStyleBuilder&);
 
   virtual bool IsAccentColorCustomized(
       mojom::blink::ColorScheme color_scheme) const;
@@ -235,18 +225,19 @@ class CORE_EXPORT LayoutTheme : public RefCounted<LayoutTheme> {
       mojom::blink::ColorScheme color_scheme) const;
 
   // Methods for each appearance value.
-  virtual void AdjustCheckboxStyle(ComputedStyleBuilder&) const;
-  virtual void AdjustRadioStyle(ComputedStyleBuilder&) const;
+  void AdjustCheckboxStyle(ComputedStyleBuilder&) const;
+  void AdjustRadioStyle(ComputedStyleBuilder&) const;
 
-  virtual void AdjustButtonStyle(ComputedStyleBuilder&) const;
+  void AdjustPushButtonStyle(ComputedStyleBuilder&) const;
   virtual void AdjustInnerSpinButtonStyle(ComputedStyleBuilder&) const;
 
-  virtual void AdjustMenuListStyle(ComputedStyleBuilder&) const;
-  virtual void AdjustSliderThumbStyle(ComputedStyleBuilder&) const;
+  void AdjustMenuListStyle(ComputedStyleBuilder&) const;
+  void AdjustSliderThumbStyle(ComputedStyleBuilder&) const;
   virtual void AdjustSearchFieldCancelButtonStyle(ComputedStyleBuilder&) const;
 
-  bool HasCustomFocusRingColor() const;
-  Color GetCustomFocusRingColor() const;
+  std::optional<Color> CustomFocusRingColor() const {
+    return custom_focus_ring_color_;
+  }
 
   Color DefaultSystemColor(CSSValueID,
                            mojom::blink::ColorScheme color_scheme,
@@ -271,8 +262,7 @@ class CORE_EXPORT LayoutTheme : public RefCounted<LayoutTheme> {
 
   void UpdateForcedColorsState();
 
-  Color custom_focus_ring_color_;
-  bool has_custom_focus_ring_color_;
+  std::optional<Color> custom_focus_ring_color_;
   base::TimeDelta caret_blink_interval_ = base::Milliseconds(500);
 
   // This color is expected to be drawn on a semi-transparent overlay,

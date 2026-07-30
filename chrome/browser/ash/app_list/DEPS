@@ -60,7 +60,6 @@ include_rules = [
   "+chrome/browser/ui/navigator/browser_navigator.h",
   "+chrome/browser/ui/navigator/browser_navigator_params.h",
   "+chrome/browser/ui/web_applications",
-  "+chrome/browser/ui/webui/ash/settings/app_management",
   "+chrome/browser/ui/webui/ash/settings/calculator",
   "+chrome/browser/ui/webui/ash/settings/pages/storage",
   "+chrome/browser/ui/webui/ash/settings/search",
@@ -109,8 +108,6 @@ specific_include_rules = {
   "app_list_sort_browsertest\\.cc": [
     "+ash/app_list/app_list_model_provider.h",
     "+ash/app_list/views/app_list_item_view.h",
-    "+ash/app_list/views/app_list_menu_model_adapter.h",
-    "+ash/app_list/views/apps_grid_context_menu.h",
     "+ash/app_list/views/apps_grid_view.h",
     "+ash/shell.h",
   ],

@@ -48,6 +48,7 @@
 <translation id="1129383337808748948"><ph name="CONTENT_TITLE" /> vernieuwen</translation>
 <translation id="1142002900084379065">Recente foto's</translation>
 <translation id="114221662579355151">Hiermee geef je <ph name="APP1_NAME" />, <ph name="APP2_NAME" /> en alle apps en websites met camerarechten toegang tot de camera. Je moet misschien de webpagina vernieuwen of de app opnieuw starten.</translation>
+<translation id="1145593918056169051">Printer is gestopt</translation>
 <translation id="1147991416141538220">Neem contact op met de beheerder van dit apparaat om toegang te vragen.</translation>
 <translation id="1148499908455722006">Dialoogvenster met informatie openen voor <ph name="USER_NAME" /></translation>
 <translation id="1150989369772528668">Agenda</translation>
@@ -151,6 +152,7 @@
 <translation id="1383876407941801731">Zoeken</translation>
 <translation id="1388728792929436380"><ph name="DEVICE_TYPE" /> wordt opnieuw opgestart als de updates zijn voltooid.</translation>
 <translation id="1390113502208199250">Je moet dit apparaat terugzetten op de fabrieksinstellingen om de functies van Chrome Education Upgrade te gebruiken.</translation>
+<translation id="1390907927270446471"><ph name="PROFILE_USERNAME" /> is niet geautoriseerd om af te drukken naar <ph name="PRINTER_NAME" />. Neem contact op met je beheerder.</translation>
 <translation id="1391102559483454063">Aan</translation>
 <translation id="1394698770495054737">Volledige vervaging</translation>
 <translation id="1395878931462960119">{DAYS,plural, =1{1 dag geleden}other{# dagen geleden}}</translation>
@@ -169,6 +171,7 @@
 <translation id="1426410128494586442">Ja</translation>
 <translation id="142655739075382478"><ph name="APP_NAME" /> is geblokkeerd</translation>
 <translation id="142765311413773645"><ph name="APP_NAME" />-licentie is verlopen</translation>
+<translation id="1430915738399379752">Afdrukken</translation>
 <translation id="1435537621343861112">Kan dicteren niet starten. Je microfoon staat uit.</translation>
 <translation id="1445031758921122223">Bestanden voor gezichtsherkenning gedownload</translation>
 <translation id="1447907279406111651">Nu · Eindigt om <ph name="END_TIME" /></translation>
@@ -229,6 +232,7 @@
 <translation id="1597880963776148053">Rondleiding stap <ph name="STEP" /> van <ph name="TOTAL_STEPS" />. Je vastgezette en geopende apps staan op de plank onderaan het scherm. Druk op Alt + Shift + L en daarna op Tab om de focus op items op de plank te plaatsen.</translation>
 <translation id="1602085790802918092">De virtuele machine wordt gestart</translation>
 <translation id="1602874809115667351"><ph name="LAUNCHER_KEY_NAME" /> + pijl-omlaag</translation>
+<translation id="1604432177629086300">Kan niet afdrukken. Controleer de printer en probeer het opnieuw.</translation>
 <translation id="1604857178818051494">Media pauzeren</translation>
 <translation id="1607312127821884567">Instellen van de weergave van apps van je telefoon sluiten</translation>
 <translation id="1610778689852195798">'Ongedaan maken'</translation>
@@ -372,6 +376,7 @@
 <translation id="2053312383184521053">Gegevens van inactieve status</translation>
 <translation id="2064048859448024834">Het cameravoorbeeld staat aan</translation>
 <translation id="2067220651560163985">Temperatuur tonen in Celsius</translation>
+<translation id="206960706005837784"><ph name="APP_NAME" /> is klaar met afdrukken naar <ph name="PRINTER_NAME" /></translation>
 <translation id="2075520525463668108"><ph name="CAPTURE_MEDIUM" /> schakelen. <ph name="CAPTURE_MEDIUM" /> is <ph name="CAPTURE_STATE" /></translation>
 <translation id="2079545284768500474">Ongedaan maken</translation>
 <translation id="2086334242442703436">Emoji-kiezer openen</translation>
@@ -441,6 +446,7 @@
 <translation id="2328561734797404498">Start je apparaat opnieuw op om <ph name="APP_NAME" /> te gebruiken.</translation>
 <translation id="2335091074961603075">Je Chromebook of bluetooth-apparaat gebruikt een oudere versie van bluetooth. Gebruik de interne microfoon voor betere audiokwaliteit.</translation>
 <translation id="2336214675195760012">{NUM_DAYS,plural, =1{<ph name="MANAGER" /> vereist dat je vandaag verbinding maakt met wifi om een update te downloaden. Je kunt de update ook downloaden via een verbinding met datalimiet (er kunnen kosten van toepassing zijn).}other{<ph name="MANAGER" /> vereist dat je vóór de deadline verbinding maakt met wifi en een update downloadt. Je kunt de update ook downloaden via een verbinding met datalimiet (er kunnen kosten van toepassing zijn).}}</translation>
+<translation id="2336258397628212480"><ph name="APP_NAME" /> drukt 1 pagina af naar <ph name="PRINTER_NAME" /></translation>
 <translation id="2336381494582898602">Powerwash</translation>
 <translation id="2339073806695260576">Tik op de stylusknop op de plank om een notitie of screenshot te maken, of om de Assistent, de laserpen of het vergrootglas te gebruiken.</translation>
 <translation id="2341729377289034582">Vergrendeld in verticale stand</translation>
@@ -755,6 +761,7 @@ Anders wordt de ingebouwde touchpad over <ph name="TIMEOUT_SECONDS" /> weer aang
 <translation id="3206735939915734551">Caps Lock aan-/uitzetten</translation>
 <translation id="3207953481422525583">Gebruikersinstellingen</translation>
 <translation id="3208321278970793882">App</translation>
+<translation id="32101887417650595">Kan geen verbinding maken met printer</translation>
 <translation id="3212221635583599601">Maak verbinding met internet voor meer acties</translation>
 <translation id="3213571860604332401">Link opslaan als bookmark</translation>
 <translation id="3217205077783620295">Volume staat aan. Als je het uitzet, hoor je geen audio.</translation>
@@ -823,6 +830,7 @@ Anders wordt de ingebouwde touchpad over <ph name="TIMEOUT_SECONDS" /> weer aang
 <translation id="3431517721463707585">Bureau 14</translation>
 <translation id="3433507769937235446">Vergrendelen als je weggaat</translation>
 <translation id="3434107140712555581"><ph name="BATTERY_PERCENTAGE" />%</translation>
+<translation id="343578350365773421">Papier is op</translation>
 <translation id="3435967511775410570">Vingerafdruk herkend</translation>
 <translation id="3437677362970530951">Games in de Play Store en andere gamingplatforms</translation>
 <translation id="3439896670700055005">De huidige pagina opnieuw laden en gecachete content negeren</translation>
@@ -999,6 +1007,7 @@ Sluit je apparaat aan op een stopcontact.</translation>
 <translation id="3848526302597027234">Krijg toegang tot de volgende rechten:</translation>
 <translation id="385051799172605136">Terug</translation>
 <translation id="385300504083504382">Begin</translation>
+<translation id="3854976556788175030">De uitvoerlade is vol</translation>
 <translation id="3857807444929313943">Raak de sensor opnieuw aan</translation>
 <translation id="3859364108019690">Kan geen apps streamen</translation>
 <translation id="3861638017150647085">De gebruikersnaam '<ph name="USERNAME" />' is niet beschikbaar</translation>
@@ -1051,6 +1060,7 @@ Sluit je apparaat aan op een stopcontact.</translation>
 <translation id="401993194061514265">Stift niet beschikbaar. Open Screencast opnieuw.</translation>
 <translation id="4021716437419160885">Omlaag scrollen</translation>
 <translation id="4022497978915111141">Apparaat vergrendelen</translation>
+<translation id="4023048917751563912"><ph name="APP_NAME" /> drukt <ph name="PAGE_NUMBER" /> pagina's af naar <ph name="PRINTER_NAME" /></translation>
 <translation id="4024840464866786680">Als je je pincode en wachtwoord bent vergeten of onlangs het wachtwoord van je Google-account hebt gewijzigd, probeer je deze gebruiker te herstellen.</translation>
 <translation id="4026843240379844265">Actief venster verplaatsen tussen schermen</translation>
 <translation id="4028481283645788203">Wachtwoord vereist voor extra beveiliging</translation>
@@ -1580,6 +1590,7 @@ Geen apparaten verbonden.</translation>
 <translation id="5491186829646618080">Firmware-updates beschikbaar</translation>
 <translation id="5503884284981862082">De Google Assistent openen/sluiten</translation>
 <translation id="550391772491508736">Casten hervatten</translation>
+<translation id="5505307013568720083">Inkt is op</translation>
 <translation id="5506975627792768506">Vergrootglas aan- of uitzetten</translation>
 <translation id="5507778598655387680"><ph name="VOLUME_LEVEL" />, als je op Enter drukt, wordt de audio uitgezet.</translation>
 <translation id="5512042095225963688">Vorig woord verwijderen</translation>
@@ -1691,12 +1702,14 @@ Geen apparaten verbonden.</translation>
 <translation id="5791926618942305301">Je zit in de functie voor schermopname, die is ingesteld op <ph name="SOURCE" /> <ph name="TYPE" />. Druk op Tab om het opnametype te kiezen. Druk op Enter om op te nemen. Stel in op gedeeltelijk screenshot om het opnamegebied te selecteren. Druk op de spatiebalk om de regio te selecteren als deze nog niet actief is.</translation>
 <translation id="579415080077680903">Stil</translation>
 <translation id="5802516411616338943">Snelle instellingen openen</translation>
+<translation id="5804241973901381774">Rechten</translation>
 <translation id="5804651031882187592">De instelling Simkaart vergrendelen uitzetten</translation>
 <translation id="5805809050170488595">Klik om <ph name="NETWORK_NAME" /> te activeren</translation>
 <translation id="5818796501620225415">Je kunt meer tijd toevoegen of je focussessie beëindigen</translation>
 <translation id="5819918159912280082">Je Chromebook is onverwacht opnieuw opgestart. Open je vorige vensters en apps.</translation>
 <translation id="5823239091726045201">Google Tasks op het web</translation>
 <translation id="5825969630400862129">Instellingen voor verbonden apparaten</translation>
+<translation id="5828633471261496623">Bezig met afdrukken....</translation>
 <translation id="5830180081891717894">Nog <ph name="WINDOWS" /></translation>
 <translation id="5830205393314753525">Kan <ph name="APP_NAME" /> niet openen</translation>
 <translation id="583281660410589416">Onbekend</translation>
@@ -1721,6 +1734,7 @@ Geen apparaten verbonden.</translation>
 <translation id="5892014525522223653">Je bent offline.</translation>
 <translation id="5895138241574237353">Opnieuw starten</translation>
 <translation id="589817443623831496">Puntscannen</translation>
+<translation id="5901494423252125310">Printerklep is open</translation>
 <translation id="5901630391730855834">Geel</translation>
 <translation id="5904614460720589786">Kan <ph name="APP_NAME" /> niet instellen vanwege een configuratieprobleem. Neem contact op met je beheerder. Foutcode: <ph name="ERROR_CODE" />.</translation>
 <translation id="5910726859585389579"><ph name="DEVICE_TYPE" /> is offline</translation>
@@ -1785,6 +1799,7 @@ Geen apparaten verbonden.</translation>
         <ph name="BEGIN_PARAGRAPH2" />Als je deze functie uitschakelt, heeft dit geen gevolgen voor de mogelijkheid van dit apparaat om de informatie te sturen die nodig is voor essentiële services zoals systeemupdates en beveiliging.<ph name="END_PARAGRAPH2" />
         <ph name="BEGIN_PARAGRAPH3" />De eigenaar kan deze functie beheren via Instellingen &gt; Geavanceerd &gt; Automatisch diagnostische en gebruiksgegevens verzenden naar Google.<ph name="END_PARAGRAPH3" />
         <ph name="BEGIN_PARAGRAPH4" />Als de instelling voor aanvullende Web- en app-activiteit aanstaat voor je kind, kunnen deze gegevens worden opgeslagen in hun Google-account. Ga naar families.google.com voor meer informatie over deze instellingen en hoe je ze kunt aanpassen.<ph name="END_PARAGRAPH4" /></translation>
+<translation id="6052261338768299955"><ph name="APP_NAME" /> probeert af te drukken naar <ph name="PRINTER_NAME" /></translation>
 <translation id="6054305421211936131">Inloggen met smartkaart</translation>
 <translation id="6059276912018042191">Recente Chrome-tabbladen</translation>
 <translation id="606147842285839995">ExpressKey 3</translation>
@@ -1888,6 +1903,7 @@ Geen apparaten verbonden.</translation>
 <translation id="6337159624125741244">Vergrootglas voor volledig scherm staat aan</translation>
 <translation id="6338485349199627913"><ph name="DISPLAY_NAME" /> is een beheerde sessie die wordt beheerd door <ph name="MANAGER" /></translation>
 <translation id="6340148837564298498">Als je je pincode bent vergeten, probeer je deze gebruiker te herstellen.</translation>
+<translation id="634208815998129842">Taakbeheer</translation>
 <translation id="6344138931392227467"><ph name="DEVICE_NAME" /> gekoppeld</translation>
 <translation id="6345418402353744910">Je gebruikersnaam en wachtwoord zijn vereist voor de proxy <ph name="PROXY" /> zodat de beheerder je netwerk kan configureren</translation>
 <translation id="6348449481487610270"><ph name="MODIFIER_ONE" /> + <ph name="MODIFIER_TWO" /> + <ph name="KEY_ONE" /> en dan <ph name="MODIFIER_THREE" /> + <ph name="KEY_TWO" /> of <ph name="KEY_THREE" /></translation>
@@ -2093,6 +2109,7 @@ Nieuwe installatie</translation>
 <translation id="6921427376813842559">Apparaat updaten</translation>
 <translation id="6929081673585394903">Bedieningselementen tonen</translation>
 <translation id="6931576957638141829">Opslaan in</translation>
+<translation id="6935286146439255109">Er ontbreekt een papierlade</translation>
 <translation id="6935857786205183008">Staand</translation>
 <translation id="6942518653766415536">Menu voor opname-indelingen</translation>
 <translation id="6945221475159498467">Selecteren</translation>
@@ -2115,6 +2132,7 @@ Nieuwe installatie</translation>
 <translation id="6988094684494323731">De Linux-container wordt gestart</translation>
 <translation id="7000027735917578303">Instellingen voor vensters en bureaus</translation>
 <translation id="7001036685275644873">Back-up maken van Linux-apps en -bestanden</translation>
+<translation id="7001066449188684145">Identificatie vereist om af te drukken naar <ph name="PRINTER_NAME" />. Neem contact op met je beheerder.</translation>
 <translation id="7004910047186208204">Verbinding maken via mobiele data</translation>
 <translation id="7005239792648594238">Open een app om aan de slag te gaan</translation>
 <translation id="7014684956566476813">Verbonden met een apparaat met de naam <ph name="DEVICE_NAME" /></translation>
@@ -2154,6 +2172,7 @@ Nieuwe installatie</translation>
 <translation id="7108254681523785542">Selecteer een item om het te plakken. Je kunt het klembord bekijken door op <ph name="SHORTCUT_KEY_NAME" /> + v te drukken.</translation>
 <translation id="7108338896283013870">Verbergen</translation>
 <translation id="7108933416628942903">Nu vergrendelen</translation>
+<translation id="7116554090938189816">SSL-certificaat voor printer is verlopen. Start de printer opnieuw op en probeer het nog een keer.</translation>
 <translation id="7116969082764510092">Bureau 11</translation>
 <translation id="7118268675952955085">screenshot</translation>
 <translation id="7118597077555700347"><ph name="SEARCH_RESULT_TEXT" /> openen</translation>
@@ -2205,6 +2224,7 @@ Nieuwe installatie</translation>
 <translation id="7312210124139670355">Je beheerder reset je e-simkaart. Dit kan een paar minuten duren.</translation>
 <translation id="7312761820869643657">Apparaat updaten naar eerdere versie</translation>
 <translation id="7313193732017069507">Camera uitvouwen</translation>
+<translation id="7325209047678309347">Er is een papierstoring</translation>
 <translation id="7327989755579928735"><ph name="MANAGER" /> heeft ADB-foutopsporing uitgezet. Nadat je je <ph name="DEVICE_TYPE" /> opnieuw hebt opgestart, kun je apps niet meer sideloaden.</translation>
 <translation id="73289266812733869">Niet geselecteerd</translation>
 <translation id="7330397557116570022">Ga naar een tekstveld om dicteren te gebruiken</translation>
@@ -2579,6 +2599,7 @@ Als je het apparaat wilt uitzetten, houd je de aan/uit-knop op het apparaat weer
 <translation id="8339706171276328417"><ph name="ACTION_DESCRIPTION" /> · <ph name="TIME" /></translation>
 <translation id="834414266279889566">Slechte uitvoer</translation>
 <translation id="8345019317483336363">Venster <ph name="WINDOW_TITLE" /> geselecteerd</translation>
+<translation id="8347227221149377169">Afdruktaken</translation>
 <translation id="8349826889576450703">launcher</translation>
 <translation id="8349964124165471584">Link openen in een nieuw venster</translation>
 <translation id="8351131234907093545">Notitie maken</translation>
@@ -2617,6 +2638,7 @@ Als je het apparaat wilt uitzetten, houd je de aan/uit-knop op het apparaat weer
 <translation id="8458259704995116343">VM starten is mislukt.</translation>
 <translation id="84613761564611563">Gebruikersinterface voor netwerkconfiguratie aangevraagd. Een ogenblik geduld...</translation>
 <translation id="8462305545768648477">'Selecteer om voor te lezen' sluiten</translation>
+<translation id="8463001014623882202">Autorisatie mislukt</translation>
 <translation id="8466665972451889002">Items in <ph name="GROUP_NAME" /> tonen</translation>
 <translation id="8468806060683421065">deadline <ph name="DUE_DATE_AND_TIME" /></translation>
 <translation id="8473301994082929012"><ph name="ORGANIZATION_NAME" /> heeft <ph name="FEATURE_NAME" /> <ph name="FEATURE_STATE" />.</translation>

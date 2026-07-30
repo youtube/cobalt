@@ -304,7 +304,9 @@ std::u16string GetDisplayNicknameForCreditCard(
 // available.
 std::optional<Suggestion::Text> GetCreditCardBenefitSuggestionLabel(
     const CreditCard& credit_card,
-    const AutofillClient& client);
+    const AutofillClient& client,
+    autofill_metrics::CardMetadataLoggingContext* metadata_logging_context =
+        nullptr);
 
 Suggestion CreateManagePaymentMethodsEntry(SuggestionType suggestion_type,
                                            bool with_gpay_logo);

@@ -81,6 +81,8 @@ std::string AttachmentButtonTypeToString(
       return "SuggestedTab";
     case ContextualSearchAttachmentButtonType::kRecentTab:
       return "RecentTab";
+    case ContextualSearchAttachmentButtonType::kDrive:
+      return "Drive";
   }
 }
 }  // namespace

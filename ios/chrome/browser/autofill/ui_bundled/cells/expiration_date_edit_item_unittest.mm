@@ -7,7 +7,6 @@
 #import "base/apple/foundation_util.h"
 #import "ios/chrome/browser/autofill/ui_bundled/cells/expiration_date_edit_item_delegate.h"
 #import "ios/chrome/browser/autofill/ui_bundled/expiration_date_picker.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
@@ -33,9 +32,7 @@ TEST_F(ExpirationDateEditItemTest, ConfigureCellSetsFieldName) {
   ExpirationDateEditCell* cell =
       base::apple::ObjCCastStrict<ExpirationDateEditCell>(view);
   EXPECT_EQ(0U, cell.textLabel.text.length);
-
-  ChromeTableViewStyler* styler = [[ChromeTableViewStyler alloc] init];
-  [item configureCell:cell withStyler:styler];
+  [item configureCell:cell];
   EXPECT_NSEQ(field_name_label_text, cell.textLabel.text);
 }
 
@@ -57,9 +54,7 @@ TEST_F(ExpirationDateEditItemTest, PickingDateUpdatesItemAndTextField) {
   NSString* formatted_date = [NSString stringWithFormat:@"%@/%@", month, year];
 
   EXPECT_EQ(0U, cell.textField.text.length);
-
-  ChromeTableViewStyler* styler = [[ChromeTableViewStyler alloc] init];
-  [item configureCell:cell withStyler:styler];
+  [item configureCell:cell];
 
   OCMExpect([mockedDelegate expirationDateEditItemDidChange:item]);
 
@@ -84,9 +79,7 @@ TEST_F(ExpirationDateEditItemTest,
 
   ExpirationDateEditCell* cell =
       base::apple::ObjCCastStrict<ExpirationDateEditCell>(view);
-
-  ChromeTableViewStyler* styler = [[ChromeTableViewStyler alloc] init];
-  [item configureCell:cell withStyler:styler];
+  [item configureCell:cell];
 
   EXPECT_FALSE(cell.isAccessibilityElement);
 }

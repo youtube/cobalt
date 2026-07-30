@@ -7,6 +7,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "ash/login/resources/grit/ash_login_strings.h"
 #include "ash/shell.h"
 #include "base/check_deref.h"
 #include "base/strings/utf_string_conversions.h"

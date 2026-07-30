@@ -31,7 +31,6 @@ import org.chromium.build.annotations.EnsuresNonNull;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.settings.search.EmptyFragment;
 import org.chromium.chrome.browser.settings.search.SettingsSearchCoordinator;
@@ -333,18 +332,13 @@ public class MultiColumnSettings extends PreferenceHeaderFragmentCompat {
             @Nullable ViewGroup container,
             @Nullable Bundle savedInstanceState) {
         View view = super.onCreateView(inflater, container, savedInstanceState);
-        boolean searchEnabled = ChromeFeatureList.sSearchInSettings.isEnabled();
-        if (searchEnabled) {
-            addTitleContainer(inflater, (SlidingPaneLayout) view);
-        }
+        addTitleContainer(inflater, (SlidingPaneLayout) view);
         mHeaderView = view.findViewById(R.id.preferences_header);
 
         // Set up the initial width of child views.
         {
             var resources = view.getResources();
-            View detailView =
-                    view.findViewById(
-                            searchEnabled ? R.id.preferences_detail_pane : R.id.preferences_detail);
+            View detailView = view.findViewById(R.id.preferences_detail_pane);
             LayoutParams params = detailView.getLayoutParams();
             // Set the minimum required width of detailed view here, so that the
             // SlidingPaneLayout handles single/multi column switch.

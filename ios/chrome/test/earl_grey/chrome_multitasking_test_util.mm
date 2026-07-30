@@ -45,7 +45,7 @@ using base::test::ios::kWaitForUIElementTimeout;
 
 + (void)resizeWindowToCompact {
   XCUIApplication* app = [[XCUIApplication alloc] init];
-  XCUIElement* appWindow = app.windows.firstMatch;
+  XCUIElement* appWindow = app.windows[@"0"];
 
   // Drag bottom-left corner inwards to trigger compact width.
   XCUICoordinate* bottomLeftStart =
@@ -73,7 +73,7 @@ using base::test::ios::kWaitForUIElementTimeout;
   XCUIApplication* springboard = [[XCUIApplication alloc]
       initWithBundleIdentifier:kSpringboardBundleIdentifier];
   XCUIApplication* app = [[XCUIApplication alloc] init];
-  XCUIElement* appWindow = app.windows.firstMatch;
+  XCUIElement* appWindow = app.windows[@"0"];
 
   // Drag bottom-left corner back to left edge to restore regular width.
   // Note: Avoid dragging to screen bottom-left corner (0.0, 1.0) as it snaps
@@ -103,7 +103,7 @@ using base::test::ios::kWaitForUIElementTimeout;
   XCUIApplication* springboard = [[XCUIApplication alloc]
       initWithBundleIdentifier:kSpringboardBundleIdentifier];
   XCUIApplication* app = [[XCUIApplication alloc] init];
-  XCUIElement* appWindow = app.windows.firstMatch;
+  XCUIElement* appWindow = app.windows[@"0"];
 
   // Drag bottom-right corner to screen corner to exit Stage Manager back to
   // fullscreen.
@@ -135,7 +135,7 @@ using base::test::ios::kWaitForUIElementTimeout;
 // animations have completed.
 + (void)waitForWindowFrameToStabilize {
   XCUIApplication* app = [[XCUIApplication alloc] init];
-  XCUIElement* appWindow = app.windows.firstMatch;
+  XCUIElement* appWindow = app.windows[@"0"];
   __block CGRect lastFrame = CGRectNull;
   GREYCondition* frameStabilized = [GREYCondition
       conditionWithName:@"Wait for window frame to stabilize"

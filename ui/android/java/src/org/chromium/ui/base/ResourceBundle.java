@@ -34,11 +34,9 @@ public final class ResourceBundle {
 
     private ResourceBundle() {}
 
-    /** Called when there are no locale pak files available. */
-    @CalledByNative
+    /** Initiaze with no locales. */
     public static void setNoAvailableLocalePaks() {
-        assert sAvailableLocales == null;
-        sAvailableLocales = new String[] {};
+        setAvailablePakLocales(new String[] {});
     }
 
     /**

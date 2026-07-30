@@ -11,6 +11,7 @@
 #include <optional>
 #include <ostream>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -250,6 +251,12 @@ std::vector<base::FilePath> GetFilesWithPredicate(
 void EnumerateUpdateClientTempDirectories(
     UpdaterScope scope,
     base::FunctionRef<void(const base::FilePath& dir)> callback);
+
+// Returns true if the App ID is valid (not empty, not too long, does not
+// contain path separators '/' or '\', and does not contain path traversal
+// components).
+bool IsValidAppId(std::string_view app_id);
+bool IsValidAppId(std::wstring_view app_id);
 
 }  // namespace updater
 

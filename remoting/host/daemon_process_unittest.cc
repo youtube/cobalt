@@ -8,6 +8,7 @@
 
 #include <memory>
 
+#include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
@@ -16,10 +17,12 @@
 #include "base/process/process.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/scoped_command_line.h"
 #include "base/test/task_environment.h"
 #include "mojo/public/cpp/system/message_pipe.h"
 #include "remoting/base/auto_thread_task_runner.h"
 #include "remoting/host/base/host_exit_codes.h"
+#include "remoting/host/base/switches.h"
 #include "remoting/host/desktop_session.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -82,6 +85,11 @@ class MockDaemonProcess : public DaemonProcess {
   MOCK_METHOD(void,
               BindSessionServices,
               (mojo::PendingReceiver<mojom::ChromotingSessionServices>),
+              (override));
+
+  MOCK_METHOD(std::unique_ptr<WorkerProcessLauncher::Delegate>,
+              CreatePeerConnectionProcessLauncherDelegate,
+              (int),
               (override));
 };
 
@@ -297,6 +305,28 @@ TEST_F(DaemonProcessTest, InvalidConnectTerminal) {
   daemon_process_->CreateDesktopSession(id, CreateSessionOptions());
   EXPECT_TRUE(desktop_sessions().empty());
   EXPECT_EQ(terminal_id_, 0);
+}
+
+TEST_F(DaemonProcessTest, LaunchPeerConnectionProcess) {
+  base::test::ScopedCommandLine scoped_command_line;
+  scoped_command_line.GetProcessCommandLine()->AppendSwitch(
+      kEnablePeerConnectionProcessSwitch);
+
+  InSequence s;
+  EXPECT_CALL(*daemon_process_, SendHostConfigToNetworkProcess(_));
+  EXPECT_CALL(*daemon_process_, CreatePeerConnectionProcessLauncherDelegate(_))
+      .WillOnce(testing::ReturnNull());
+  EXPECT_CALL(*daemon_process_, SendTerminalDisconnected(_));
+
+  StartDaemonProcess();
+
+  int id = terminal_id_++;
+  daemon_process_->CreateDesktopSession(id, CreateSessionOptions());
+  EXPECT_EQ(desktop_sessions().size(), 1u);
+  EXPECT_EQ(id, desktop_sessions().front()->id());
+
+  daemon_process_->CloseDesktopSession(id);
+  EXPECT_TRUE(desktop_sessions().empty());
 }
 
 }  // namespace remoting

@@ -18,9 +18,8 @@
   return self;
 }
 
-- (void)configureHeaderFooterView:(AutofillEditProfileButtonFooterCell*)footer
-                       withStyler:(ChromeTableViewStyler*)styler {
-  [super configureHeaderFooterView:footer withStyler:styler];
+- (void)configureHeaderFooterView:(AutofillEditProfileButtonFooterCell*)footer {
+  [super configureHeaderFooterView:footer];
 
   SetConfigurationTitle(footer.button, self.buttonText);
   footer.button.enabled = self.enabled;

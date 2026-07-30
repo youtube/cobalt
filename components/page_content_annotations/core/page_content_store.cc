@@ -9,8 +9,10 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/thread_pool.h"
+#include "base/timer/elapsed_timer.h"
 #include "components/database_utils/url_converter.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/os_crypt/async/common/encryptor.h"
@@ -20,6 +22,7 @@
 #include "sql/recovery.h"
 #include "sql/statement.h"
 #include "sql/transaction.h"
+#include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 
 namespace optimization_guide {
 
@@ -35,9 +38,6 @@ PageContentStore::~PageContentStore() {
 
 void PageContentStore::OnDatabaseError(int extended_error,
                                        sql::Statement* stmt) {
-  VLOG(1) << "PageContentStore database operation failed: " << extended_error
-          << ", " << stmt->GetSQLStatement();
-
   // Attempt to recover a corrupt database, if it is eligible to be recovered.
   if (sql::IsErrorCatastrophic(extended_error) &&
       sql::Recovery::RecoverIfPossible(
@@ -63,6 +63,8 @@ void PageContentStore::OnDatabaseError(int extended_error,
 
 bool PageContentStore::InitializeDb() {
   CHECK(!db_initialized_);
+
+  base::ElapsedTimer db_init_timer;
 
   db_.set_error_callback(base::BindRepeating(&PageContentStore::OnDatabaseError,
                                              base::Unretained(this)));
@@ -118,6 +120,8 @@ bool PageContentStore::InitializeDb() {
     return false;
   }
 
+  base::UmaHistogramTimes("OptimizationGuide.PageContentStore.DbInitTime",
+                          db_init_timer.Elapsed());
   return true;
 }
 
@@ -136,6 +140,12 @@ bool PageContentStore::AddPageContent(const GURL& url,
   if (!db_initialized_ || !encryptor_) {
     return false;
   }
+  base::ElapsedTimer write_timer;
+  absl::Cleanup record_latency = [&]() {
+    base::UmaHistogramTimes(
+        "OptimizationGuide.PageContentStore.AddPageContentLatency",
+        write_timer.Elapsed());
+  };
 
   // Delete existing contents, else the insert call would fail since tab_id is
   // marked unique
@@ -148,10 +158,14 @@ bool PageContentStore::AddPageContent(const GURL& url,
     return false;
   }
   std::string encrypted_page_context;
+  base::ElapsedTimer encrypt_timer;
   if (!encryptor_->EncryptString(serialized_page_context,
                                  &encrypted_page_context)) {
     return false;
   }
+  base::UmaHistogramTimes(
+      "OptimizationGuide.PageContentStore.EncryptionLatency",
+      encrypt_timer.Elapsed());
 
   sql::Transaction transaction(&db_);
   if (!transaction.Begin()) {
@@ -215,7 +229,7 @@ std::optional<proto::PageContext> PageContentStore::GetPageContentForTab(
   if (!db_initialized_ || !encryptor_) {
     return std::nullopt;
   }
-
+  base::ElapsedTimer read_timer;
   static const char kSelectSql[] =
       "SELECT pc.value FROM page_content pc "
       "JOIN page_metadata pm ON pc.id = pm.content_id "
@@ -223,7 +237,11 @@ std::optional<proto::PageContext> PageContentStore::GetPageContentForTab(
   sql::Statement statement(db_.GetCachedStatement(SQL_FROM_HERE, kSelectSql));
   statement.BindInt64(0, tab_id);
 
-  return GetPageContentFromStatement(&statement);
+  auto result = GetPageContentFromStatement(&statement);
+  base::UmaHistogramTimes(
+      "OptimizationGuide.PageContentStore.GetPageContentForTabLatency",
+      read_timer.Elapsed());
+  return result;
 }
 
 std::optional<proto::PageContext> PageContentStore::GetPageContentFromStatement(
@@ -234,10 +252,14 @@ std::optional<proto::PageContext> PageContentStore::GetPageContentFromStatement(
 
   std::string encrypted_page_context = statement->ColumnBlobAsString(0);
   std::string serialized_page_context;
+  base::ElapsedTimer decrypt_timer;
   if (!encryptor_->DecryptString(encrypted_page_context,
                                  &serialized_page_context)) {
     return std::nullopt;
   }
+  base::UmaHistogramTimes(
+      "OptimizationGuide.PageContentStore.DecryptionLatency",
+      decrypt_timer.Elapsed());
   proto::PageContext page_context;
   if (!page_context.ParseFromString(serialized_page_context)) {
     return std::nullopt;
@@ -250,6 +272,12 @@ bool PageContentStore::DeletePageContentOlderThan(base::Time timestamp) {
   if (!db_initialized_) {
     return false;
   }
+  base::ElapsedTimer delete_timer;
+  absl::Cleanup record_latency = [&]() {
+    base::UmaHistogramTimes(
+        "OptimizationGuide.PageContentStore.DeletePageContentOlderThanLatency",
+        delete_timer.Elapsed());
+  };
 
   sql::Transaction transaction(&db_);
   if (!transaction.Begin()) {
@@ -298,6 +326,12 @@ bool PageContentStore::DeletePageContentForTab(int64_t tab_id) {
   if (!db_initialized_) {
     return false;
   }
+  base::ElapsedTimer delete_timer;
+  absl::Cleanup record_latency = [&]() {
+    base::UmaHistogramTimes(
+        "OptimizationGuide.PageContentStore.DeletePageContentForTabLatency",
+        delete_timer.Elapsed());
+  };
 
   sql::Transaction transaction(&db_);
   if (!transaction.Begin()) {
@@ -334,6 +368,12 @@ bool PageContentStore::DeletePageContentForTabs(
   if (tab_ids.empty()) {
     return true;
   }
+  base::ElapsedTimer delete_timer;
+  absl::Cleanup record_latency = [&]() {
+    base::UmaHistogramTimes(
+        "OptimizationGuide.PageContentStore.DeletePageContentForTabsLatency",
+        delete_timer.Elapsed());
+  };
 
   sql::Transaction transaction(&db_);
   if (!transaction.Begin()) {
@@ -383,6 +423,12 @@ bool PageContentStore::DeleteAllEntries() {
   if (!db_initialized_) {
     return false;
   }
+  base::ElapsedTimer delete_timer;
+  absl::Cleanup record_latency = [&]() {
+    base::UmaHistogramTimes(
+        "OptimizationGuide.PageContentStore.DeleteAllEntriesLatency",
+        delete_timer.Elapsed());
+  };
 
   sql::Transaction transaction(&db_);
   if (!transaction.Begin()) {
@@ -404,7 +450,7 @@ std::vector<int64_t> PageContentStore::GetAllTabIds() {
   if (!db_initialized_) {
     return {};
   }
-
+  base::ElapsedTimer query_timer;
   static const char kSelectSql[] =
       "SELECT tab_id FROM page_metadata WHERE tab_id IS NOT NULL";
   sql::Statement statement(db_.GetCachedStatement(SQL_FROM_HERE, kSelectSql));
@@ -413,6 +459,9 @@ std::vector<int64_t> PageContentStore::GetAllTabIds() {
   while (statement.Step()) {
     tab_ids.push_back(statement.ColumnInt64(0));
   }
+  base::UmaHistogramTimes(
+      "OptimizationGuide.PageContentStore.GetAllTabIdsLatency",
+      query_timer.Elapsed());
   return tab_ids;
 }
 

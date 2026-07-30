@@ -55,8 +55,6 @@ GPU_CONFIG_EXPORT void GetGpuSupportedDirectXVersion(
 GPU_CONFIG_EXPORT void RecordGpuSupportedDx12VersionHistograms(
     uint32_t d3d12_feature_level,
     uint32_t highest_shader_model_version);
-GPU_CONFIG_EXPORT uint32_t
-GetGpuSupportedVulkanVersion(const gpu::GPUInfo::GPUDevice& gpu_device);
 
 // Iterate through all adapters and create a hardware D3D11 device on each
 // adapter. If succeeded, query the highest feature level it supports and

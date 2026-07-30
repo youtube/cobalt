@@ -33,6 +33,7 @@
 #include "base/time/time.h"
 #include "base/time/time_delta_from_string.h"
 #include "build/build_config.h"
+#include "cc/base/features.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
 #include "components/input/features.h"
 #include "components/input/input_constants.h"
@@ -494,6 +495,12 @@ bool RendererBlinkPlatformImpl::IsElasticOverscrollEnabledOnRoot() {
 bool RendererBlinkPlatformImpl::IsElasticOverscrollSupported() {
   RenderThreadImpl* thread = RenderThreadImpl::current();
   return thread ? thread->IsElasticOverscrollSupported() : false;
+}
+
+bool RendererBlinkPlatformImpl::IsElasticOverscrollEnabledForSubscroll() {
+  return base::FeatureList::IsEnabled(
+             ::features::kOverscrollEffectOnNonRootScrollers) &&
+         IsElasticOverscrollSupported();
 }
 
 bool RendererBlinkPlatformImpl::IsScrollAnimatorEnabled() {

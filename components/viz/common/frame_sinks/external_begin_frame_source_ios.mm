@@ -141,15 +141,11 @@ uint64_t GetMachTimeFromSeconds(CFTimeInterval seconds) {
     // operation.
     _preferredRefreshRate =
         std::clamp(refresh_rate, kMinimumRefreshRate, _maximumRefreshRate);
-    if (@available(iOS 15, *)) {
-      [_displayLink
-          setPreferredFrameRateRange:CAFrameRateRange{
-                                         .minimum = kMinimumRefreshRate,
-                                         .maximum = _maximumRefreshRate,
-                                         .preferred = _preferredRefreshRate}];
-    } else if (@available(iOS 10, *)) {
-      [_displayLink setPreferredFramesPerSecond:_preferredRefreshRate];
-    }
+    [_displayLink
+        setPreferredFrameRateRange:CAFrameRateRange{
+                                       .minimum = kMinimumRefreshRate,
+                                       .maximum = _maximumRefreshRate,
+                                       .preferred = _preferredRefreshRate}];
 
     // _displayLink.frameInterval is used on iOS 3-10. However, these are pretty
     // old iOS versions, which we are not targeting.

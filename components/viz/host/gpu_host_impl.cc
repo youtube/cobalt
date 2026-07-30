@@ -40,6 +40,8 @@
 
 #if BUILDFLAG(IS_WIN)
 #include "services/webnn/host/execution_provider_initializer.h"
+#include "services/webnn/public/cpp/context_properties.h"
+#include "services/webnn/public/cpp/ep_device_info.h"
 #include "ui/gfx/win/rendering_window_manager.h"
 #elif BUILDFLAG(IS_MAC)
 #include "ui/accelerated_widget_mac/window_resize_helper_mac.h"
@@ -845,7 +847,7 @@ void GpuHostImpl::EnsureWebNNExecutionProvidersReady(
 void GpuHostImpl::Delegate::RequestWebNNCompilerContext(
     webnn::mojom::CreateContextOptionsPtr context_options,
     const webnn::ContextProperties& context_properties,
-    base::flat_map<std::string, webnn::mojom::EpPackageInfoPtr> ep_package_info,
+    const webnn::EpDeviceInfo& target_device,
     RequestWebNNCompilerContextCallback callback) {
   std::move(callback).Run(mojo::NullRemote(), mojo::NullReceiver());
 }
@@ -853,13 +855,13 @@ void GpuHostImpl::Delegate::RequestWebNNCompilerContext(
 void GpuHostImpl::RequestWebNNCompilerContext(
     webnn::mojom::CreateContextOptionsPtr context_options,
     const webnn::ContextProperties& context_properties,
-    base::flat_map<std::string, webnn::mojom::EpPackageInfoPtr> ep_package_info,
+    const webnn::EpDeviceInfo& target_device,
     RequestWebNNCompilerContextCallback callback) {
-  delegate_->RequestWebNNCompilerContext(
-      std::move(context_options), context_properties,
-      std::move(ep_package_info), std::move(callback));
+  delegate_->RequestWebNNCompilerContext(std::move(context_options),
+                                         context_properties, target_device,
+                                         std::move(callback));
 }
-#endif
+#endif  // BUILDFLAG(IS_WIN)
 
 void GpuHostImpl::CreateWebNNWeightsFile(CreateWebNNWeightsFileCallback cb) {
   webnn::CreateWeightsFile(std::move(cb));

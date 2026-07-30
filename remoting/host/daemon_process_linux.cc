@@ -87,6 +87,8 @@ class DaemonProcessLinux : public DaemonProcess {
       int terminal_id,
       const mojom::DesktopSessionOptions& options) override;
   void LaunchNetworkProcess() override;
+  std::unique_ptr<WorkerProcessLauncher::Delegate>
+  CreatePeerConnectionProcessLauncherDelegate(int terminal_id) override;
 
   void OnStartDesktopSessionFactoryResult(
       base::expected<void, Loggable> result);
@@ -166,6 +168,47 @@ void DaemonProcessLinux::LaunchNetworkProcess() {
   SetNetworkLauncherDelegate(
       std::make_unique<LinuxWorkerProcessLauncherDelegate>(std::move(options),
                                                            io_task_runner()));
+}
+
+std::unique_ptr<WorkerProcessLauncher::Delegate>
+DaemonProcessLinux::CreatePeerConnectionProcessLauncherDelegate(
+    int terminal_id) {
+  DCHECK(caller_task_runner()->BelongsToCurrentThread());
+
+  base::FilePath this_exe;
+  if (!base::PathService::Get(base::BasePathKey::FILE_EXE, &this_exe)) {
+    LOG(ERROR) << "Failed to get the current executable path.";
+    return nullptr;
+  }
+
+  auto user_info = GetPasswdUserInfo(GetPeerConnectionProcessUsername());
+  if (!user_info.has_value()) {
+    LOG(ERROR) << user_info.error();
+    return nullptr;
+  }
+
+  base::CommandLine command_line(this_exe);
+  command_line.AppendSwitchASCII(kProcessTypeSwitchName,
+                                 kProcessTypePeerConnection);
+
+  LinuxWorkerProcessLauncherDelegate::LaunchOptions options(command_line);
+  options.new_session = true;
+  options.uid = user_info->uid;
+  options.gid = user_info->gid;
+
+  base::FilePath temp_dir;
+  if (!base::PathService::Get(base::DIR_TEMP, &temp_dir)) {
+    LOG(ERROR) << "Failed to get the temporary directory path.";
+    return nullptr;
+  }
+  options.working_dir = temp_dir;
+  options.environment_variables = {
+      {"LOGNAME", GetPeerConnectionProcessUsername().data()},
+      {"USER", GetPeerConnectionProcessUsername().data()},
+  };
+
+  return std::make_unique<LinuxWorkerProcessLauncherDelegate>(
+      std::move(options), io_task_runner());
 }
 
 void DaemonProcessLinux::OnStartDesktopSessionFactoryResult(

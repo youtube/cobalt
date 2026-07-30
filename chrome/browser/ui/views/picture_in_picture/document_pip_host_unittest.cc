@@ -579,13 +579,14 @@ TEST_F(DocumentPipHostTest, DidAddMessageToConsole_DoesNotConsume) {
       /*line_no=*/1, u"test_source"));
 }
 
-// GetJavaScriptDialogManager returns nullptr until future CL wires the dialog
-// delegate.
-TEST_F(DocumentPipHostTest, GetJavaScriptDialogManager_ReturnsNullptr) {
+// GetJavaScriptDialogManager returns the TabModalDialogManager attached to the
+// child WebContents during CreateAndShowPipWindow(), so JS dialogs
+// (alert/confirm/prompt) are shown rather than auto-suppressed.
+TEST_F(DocumentPipHostTest, GetJavaScriptDialogManager_ReturnsManager) {
   DocumentPipHost* host = CreateHostAndOpenPipWindow();
   ASSERT_TRUE(host);
 
-  EXPECT_EQ(nullptr,
+  EXPECT_NE(nullptr,
             host->GetJavaScriptDialogManager(host->GetChildWebContents()));
 }
 

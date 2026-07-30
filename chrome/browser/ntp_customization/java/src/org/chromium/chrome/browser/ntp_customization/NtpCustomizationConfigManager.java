@@ -140,11 +140,14 @@ public class NtpCustomizationConfigManager {
         if (mBackgroundType == NtpBackgroundType.IMAGE_FROM_DISK) {
             mIsInitialized = true;
             BackgroundImageInfo imageInfo = NtpCustomizationUtils.readNtpBackgroundImageInfo();
+            String filePath =
+                    NtpCustomizationUtils.getBackgroundImageFilePathFromSharedPreference();
             NtpCustomizationUtils.readNtpBackgroundImage(
                     (bitmap) -> {
                         onBackgroundImageAvailable(bitmap, imageInfo);
                     },
-                    EXECUTOR);
+                    EXECUTOR,
+                    filePath);
         } else if (mBackgroundType == NtpBackgroundType.THEME_COLLECTION) {
             mIsInitialized = true;
             NtpThemeDailyRefreshManager ntpThemeDailyRefreshManager =
@@ -334,6 +337,11 @@ public class NtpCustomizationConfigManager {
 
         mBackgroundType = IMAGE_FROM_DISK;
         mNtpBackgroundData = uploadImageData;
+        // Saves the file path to the SharedPreference.
+        NtpCustomizationUtils.setBackgroundImageFilePathToSharedPreference(
+                NtpCustomizationUtils.getBackgroundImageFileFromPath(
+                                uploadImageData.getLastUploadImageFilePath())
+                        .getAbsolutePath());
 
         Bitmap bitmap = uploadImageData.getBitmap();
         if (bitmap == null) {
@@ -350,7 +358,8 @@ public class NtpCustomizationConfigManager {
                         /* customBackgroundInfo= */ null,
                         bitmap,
                         backgroundImageInfo,
-                        /* skipSavingPrimaryColor= */ false);
+                        /* skipSavingPrimaryColor= */ false,
+                        uploadImageData);
         uploadImageData.setPrimaryColor(primaryColor);
 
         onBackgroundImageChanged(bitmap, backgroundImageInfo, oldType);

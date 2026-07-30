@@ -5,6 +5,7 @@
 #include "components/guest_view/browser/slim_web_view/slim_web_view_url_loader_factory_interceptor.h"
 
 #include "base/logging.h"
+#include "base/memory/self_deleting.h"
 #include "base/memory/weak_ptr.h"
 #include "components/guest_view/browser/slim_web_view/request_utils.h"
 #include "components/guest_view/browser/slim_web_view/slim_web_view_guest.h"
@@ -88,8 +89,9 @@ class URLLoaderFactoryProxy
       mojo::PendingRemote<network::mojom::TrustedURLLoaderHeaderClient>
           target_header_client_remote,
       SlimWebViewGuest* guest,
-      bool is_subframe_request)
-      : network::SelfDeletingURLLoaderFactory(std::move(loader_receiver)),
+      bool is_subframe_request,
+      base::SelfDeletingPassKey key)
+      : network::SelfDeletingURLLoaderFactory(std::move(loader_receiver), key),
         guest_(guest->GetWeakPtr()),
         is_subframe_request_(is_subframe_request) {
     target_factory_.Bind(std::move(target_factory));
@@ -109,7 +111,6 @@ class URLLoaderFactoryProxy
                          weak_ptr_factory_.GetWeakPtr()));
     }
   }
-  ~URLLoaderFactoryProxy() override = default;
 
   // network::mojom::URLLoaderFactory:
   void CreateLoaderAndStart(
@@ -200,6 +201,8 @@ class URLLoaderFactoryProxy
  private:
   using SelfDeletingURLLoaderFactory::DisconnectReceiversAndDestroy;
 
+  ~URLLoaderFactoryProxy() override = default;
+
   void OnTargetHeaderClientDisconnect() {
     // The downstream header client factory has disconnected.
     // The remote is reset to prevent further calls. This proxy is not
@@ -253,9 +256,8 @@ void MaybeInterceptURLLoaderFactoryForSlimWebView(
 
   // Insert the proxy factory.
   auto [receiver, remote] = factory_builder.Append();
-  // The proxy factory manages its own lifetime.
   bool is_subframe_request = render_frame_host->GetParent() != nullptr;
-  new URLLoaderFactoryProxy(
+  base::MakeSelfDeleting<URLLoaderFactoryProxy>(
       std::move(receiver), std::move(remote), std::move(header_client_receiver),
       std::move(target_header_client), guest, is_subframe_request);
 }

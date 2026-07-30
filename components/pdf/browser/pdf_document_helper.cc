@@ -341,6 +341,15 @@ void PDFDocumentHelper::RegisterForDocumentLoadComplete(
   document_load_complete_callbacks_.push_back(std::move(callback));
 }
 
+void PDFDocumentHelper::HasMeaningfulText(
+    pdf::mojom::PdfListener::HasMeaningfulTextCallback callback) {
+  if (!remote_pdf_client_ || !is_document_load_complete_) {
+    std::move(callback).Run(false);
+    return;
+  }
+  remote_pdf_client_->HasMeaningfulText(std::move(callback));
+}
+
 void PDFDocumentHelper::OnSelectionEvent(ui::SelectionEventType event) {
   // Should be handled by `TouchSelectionControllerClientAura`.
   NOTREACHED();

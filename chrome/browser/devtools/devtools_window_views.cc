@@ -114,7 +114,7 @@ BrowserWindow* DevToolsWindow::GetInspectedBrowserWindow() {
   BrowserWindowInterface* browser =
       GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
           inspected_web_contents);
-  return browser ? browser->GetBrowserForMigrationOnly()->window() : nullptr;
+  return browser ? BrowserWindow::FromBrowser(browser) : nullptr;
 }
 
 void DevToolsWindow::UpdateBrowserToolbar() {

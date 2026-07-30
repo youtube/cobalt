@@ -1622,7 +1622,8 @@ void CompositorFrameReporter::ReportCompositorLatencyTraceEvents(
   }
 
   const auto trace_track =
-      perfetto::Track(base::trace_event::GetNextGlobalTraceId());
+      perfetto::NamedTrack("PipelineReporter",
+                           base::trace_event::GetNextGlobalTraceId());
   TRACE_EVENT_BEGIN(
       kTraceCategory, "PipelineReporter", trace_track, args_.frame_time,
       [&](perfetto::EventContext context) {

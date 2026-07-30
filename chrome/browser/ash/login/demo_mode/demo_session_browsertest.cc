@@ -409,10 +409,10 @@ IN_PROC_BROWSER_TEST_F(
     DemoSessionKeyboardBrightnessIncreaseThreeTimesToOneHundredPercents) {
   base::ScopedAllowBlockingForTesting scoped_allow_blocking;
   login_manager_mixin_.WaitForActiveSession();
-  base::RunLoop().RunUntilIdle();
-  EXPECT_EQ(chromeos::FakePowerManagerClient::Get()
-                ->num_increase_keyboard_brightness_calls(),
-            3);
+  EXPECT_TRUE(base::test::RunUntil([]() {
+    return chromeos::FakePowerManagerClient::Get()
+               ->num_increase_keyboard_brightness_calls() == 3;
+  }));
 }
 
 class DemoSessionLoginWithGrowthCampaignTest : public DemoSessionLoginTest {

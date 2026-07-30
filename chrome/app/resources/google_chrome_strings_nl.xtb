@@ -62,6 +62,17 @@ Sommige functies zijn wellicht niet beschikbaar en wijzigingen in voorkeuren wor
 <translation id="1587223624401073077">Google Chrome gebruikt je camera.</translation>
 <translation id="1587325591171447154"><ph name="FILE_NAME" /> is gevaarlijk en is daarom door Chrome geblokkeerd.</translation>
 <translation id="1597911401261118146">Als je wilt checken of je wachtwoorden zijn beveiligd tegen gegevenslekken en andere beveiligingsproblemen, <ph name="BEGIN_LINK" />log je in bij Chrome<ph name="END_LINK" />.</translation>
+<translation id="1619639070275605589">Door deze actie gebeurt het volgende:
+          <ph name="LINE_BREAKS" />
+            • Je startpagina, nieuwe tabbladpagina, zoekmachine en vastgezette tabbladen worden gereset
+            <ph name="LINE_BREAK" />
+            • Extensies worden uitgezet
+            <ph name="LINE_BREAK" />
+            • Cookies en andere tijdelijke sitegegevens worden verwijderd
+            <ph name="LINE_BREAK" />
+            • Chrome-snelkoppelingen worden gereset
+            <ph name="LINE_BREAKS" />
+            Dit heeft geen gevolgen voor bookmarks, geschiedenis en opgeslagen wachtwoorden.</translation>
 <translation id="1619887657840448962">We hebben de volgende extensie uitgezet die niet wordt vermeld in de <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> en mogelijk zonder je medeweten is toegevoegd. We doen dit om Chrome veiliger te maken.</translation>
 <translation id="1628000112320670027">Hulp bij Chrome</translation>
 <translation id="1640672724030957280">Bezig met downloaden...</translation>
@@ -140,6 +151,7 @@ Sommige functies zijn wellicht niet beschikbaar en wijzigingen in voorkeuren wor
 <translation id="2472092250898121027">Deze extensie bevat malware en is onveilig. Verwijder de extensie van Chrome zodat deze je gegevens (waaronder je persoonlijke informatie) niet meer kan bekijken en wijzigen op sites die je bezoekt.</translation>
 <translation id="2485422356828889247">Installatie ongedaan maken</translation>
 <translation id="2513154137948333830">Opnieuw opstarten vereist: <ph name="INSTALL_SUCCESS" /></translation>
+<translation id="2523492931736391680">Je werk beveiligd in Chrome</translation>
 <translation id="2534365042754120737">Ter bescherming van je gegevens kun je Chrome de rechten laten verwijderen voor sites die je niet recent hebt bezocht. Hiermee worden meldingen niet gestopt.</translation>
 <translation id="2556847002339236023">Je organisatie sluit Chrome als deze <ph name="TIMEOUT_DURATION" /> niet wordt gebruikt. Browsegegevens zijn verwijderd. Dit kunnen onder andere de geschiedenis, gegevens voor automatisch invullen en downloads zijn.</translation>
 <translation id="2563121210305478421">Chrome opnieuw starten?</translation>
@@ -244,6 +256,7 @@ Als deze pagina niet werkt zoals verwacht, kun je optimalisatie toestaan.</trans
 <translation id="345171907106878721">Jezelf toevoegen aan Chrome</translation>
 <translation id="3453763134178591239">Voorwaarden van Chrome OS</translation>
 <translation id="3503306920980160878">Chrome heeft toegang tot je locatie nodig om je locatie met deze site te delen</translation>
+<translation id="3512495006767217696">Geïntegreerd in Chrome om je te helpen sterke wachtwoorden te maken, op te slaan en automatisch in te vullen. Voeg de snelkoppeling toe voor makkelijke toegang</translation>
 <translation id="3539955434060988644">Link openen in een Chrome-inco&amp;gnitovenster</translation>
 <translation id="3576528680708590453">Je systeembeheerder heeft Google Chrome geconfigureerd om een alternatieve browser te openen voor toegang tot <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="3582972582564653026">Chrome op al je apparaten synchroniseren en personaliseren</translation>
@@ -305,6 +318,7 @@ Als deze pagina niet werkt zoals verwacht, kun je optimalisatie toestaan.</trans
 <translation id="4149882025268051530">Het installatieprogramma kan het archief niet uitpakken. Download Google Chrome opnieuw.</translation>
 <translation id="415112847282352845">Log in bij Chrome om onder andere je adressen te gebruiken op al je apparaten. Dit adres wordt opgeslagen in je Google-account nadat je bent ingelogd.</translation>
 <translation id="4153934450158521343">Chrome wordt zo meteen gesloten en de gegevens worden verwijderd</translation>
+<translation id="4159985264221160808">Je organisatie kan bepaalde informatie bekijken of beheren om je werk in Chrome te beveiligen</translation>
 <translation id="4173512894976930765">Sites werken waarschijnlijk zoals verwacht. Je wordt uitgelogd van de meeste sites als je alle Chrome-vensters sluit, behalve van je Google-account als je bent ingelogd bij Chrome.</translation>
 <translation id="4175922240926474352">Chrome heeft deze download geblokkeerd, omdat de site geen beveiligde verbinding gebruikt en het bestand kan zijn gemanipuleerd</translation>
 <translation id="4191857738314598978">{0,plural, =1{Start Chrome binnen een dag opnieuw}other{Start Chrome binnen # dagen opnieuw}}</translation>
@@ -336,6 +350,7 @@ Als deze pagina niet werkt zoals verwacht, kun je optimalisatie toestaan.</trans
 <translation id="4493028449971051158">Opstartfout: voer het installatieprogramma uit als beheerder.</translation>
 <translation id="4501471624619070934">De installatie is mislukt omdat de toegang is beperkt in dit land.</translation>
 <translation id="4571503333518166079">Ga naar instellingen voor Chrome-meldingen</translation>
+<translation id="4580939929828762295">Veilig blijven met Google Wachtwoordmanager</translation>
 <translation id="4592634244097223647">Google vragen over deze afbeelding</translation>
 <translation id="459622048091363950">Zodra Chrome toegang heeft, kunnen websites je om toegang vragen.</translation>
 <translation id="4598116752460667024">Zoek naar een proces in de lijst.</translation>
@@ -522,6 +537,7 @@ Sommige functies zijn wellicht niet beschikbaar. Geef een andere profieldirector
 <translation id="6438015621983209660">Gebruik de uitgebreide versie van Safe Browsing met Chrome op je telefoon</translation>
 <translation id="6442774133615368941">Winkel, vertaal en herken wat je ziet met je camera in de Chrome iOS-app</translation>
 <translation id="6448835208126432197">Gebruik de sneltoets om een deel van het scherm te selecteren in Gemini in Chrome.</translation>
+<translation id="6473659734176498825">Een vereenvoudigde afbeelding van het toegangspunt voor Google Wachtwoordmanager in Chrome</translation>
 <translation id="6473905796280459355">Naar de pagina Over Chrome</translation>
 <translation id="6481963882741794338">Koppel Chrome en andere Google-services voor personalisatie en andere doeleinden</translation>
 <translation id="648319183876919572">De uitgebreide versie van Safe Browsing doet meer om je te beschermen tegen gevaarlijke websites en downloads</translation>
@@ -693,6 +709,7 @@ Sommige functies zijn wellicht niet beschikbaar. Geef een andere profieldirector
 <translation id="8064965390968184078">1. Klik op <ph name="BUTTON_LABEL" /> hieronder
 2. Klik op <ph name="BUTTON_2" /> in je Windows-instellingen
 3. Klik op <ph name="BUTTON_3" /> in de Windows-melding om Chrome vast te zetten op je taakbalk voor snelle toegang</translation>
+<translation id="8069447462453318634">Selecteer Vastzetten op werkbalk</translation>
 <translation id="8074398340364918139">Als je een specifieke Chrome-functie of -extensie wilt doorzoeken, typ je de bijbehorende snelkoppeling in de adresbalk gevolgd door de door jou geselecteerde toets</translation>
 <translation id="8077579734294125741">Andere Chrome-profielen</translation>
 <translation id="8086881907087796310">De installatie is mislukt omdat je computer niet voldoet aan de minimale hardwarevereisten.</translation>
@@ -778,6 +795,15 @@ Je kunt pas nieuwe bookmarks opslaan in je account als je er een paar hebt verwi
 <translation id="8922998289262614701">De gegevens van deze app verwijderen uit Chrome</translation>
 <translation id="8925636929359899517">We gebruiken informatie om deze service te verbeteren. Bekijk het <ph name="BEGIN_LINK1" />Privacybeleid<ph name="END_LINK1" /> en de <ph name="BEGIN_LINK2" />Servicevoorwaarden<ph name="END_LINK2" />.</translation>
 <translation id="8936233353620149764">Gemini in Chrome aan-/uitzetten</translation>
+<translation id="8944232836376404813">Door deze actie gebeurt het volgende:
+          <ph name="LINE_BREAKS" />
+            • Je startpagina, nieuwe tabbladpagina, zoekmachine en vastgezette tabbladen worden gereset
+            <ph name="LINE_BREAK" />
+            • Extensies worden uitgezet
+            <ph name="LINE_BREAK" />
+            • Cookies en andere tijdelijke sitegegevens worden verwijderd
+            <ph name="LINE_BREAKS" />
+            Dit heeft geen gevolgen voor bookmarks, geschiedenis en opgeslagen wachtwoorden.</translation>
 <translation id="8948460679427074738">Deze extensie heeft geen privacyprocedures gepubliceerd, zoals de manier waarop gegevens worden verzameld en gebruikt. Chrome raadt je aan deze te verwijderen.</translation>
 <translation id="8958307504142971576">Er zijn nu meer functies beschikbaar voor je in Chrome</translation>
 <translation id="8991530961471831170">Gemini in Chrome openen</translation>

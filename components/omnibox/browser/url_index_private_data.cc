@@ -398,6 +398,15 @@ scoped_refptr<URLIndexPrivateData> URLIndexPrivateData::RebuildFromHistory(
       history_db->GetBatchRecentVisitsForSignificantURLs(
           kMaxVisitsToStoreInCache);
 
+  // Pre-allocate the history info map to avoid repeated rehashing as entries
+  // are inserted one-by-one. Cap the reservation to avoid over-allocating for
+  // users with small history (p99 is ~3,077 on Windows, ~340 on Android).
+  static constexpr int kMaxReserve = 4096;
+  if (max_urls_indexed > 0) {
+    rebuilt_data->history_info_map_.reserve(
+        std::min(max_urls_indexed, kMaxReserve));
+  }
+
   int num_urls_indexed = 0;
   for (history::URLRow row; history_enum.GetNextURL(&row);) {
     CHECK(row.url().is_valid());

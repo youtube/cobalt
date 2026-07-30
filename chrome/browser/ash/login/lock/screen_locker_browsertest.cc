@@ -119,7 +119,7 @@ IN_PROC_BROWSER_TEST_F(ScreenLockerTest, TestFullscreenExit) {
   // hidden), locking the screen should exit fullscreen. The shelf is
   // auto hidden when in immersive fullscreen.
   ScreenLockerTester tester;
-  BrowserWindow* browser_window = browser()->window();
+  BrowserWindow* browser_window = BrowserWindow::FromBrowser(browser());
   auto* window_state = WindowState::Get(browser_window->GetNativeWindow());
   {
     ui_test_utils::ToggleFullscreenModeAndWait(browser());

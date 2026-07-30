@@ -98,7 +98,7 @@ class BaseBookmarkBubbleViewBrowserTest : public DialogBrowserTest {
         BookmarkModelFactory::GetForBrowserContext(browser()->profile());
     bookmarks::test::WaitForBookmarkModelToLoad(bookmark_model);
     bookmarks::AddIfNotBookmarked(bookmark_model, url, title);
-    browser()->window()->ShowBookmarkBubble(url, true);
+    BrowserWindow::FromBrowser(browser())->ShowBookmarkBubble(url, true);
 
     if (name == "ios_promotion") {
       BookmarkBubbleView::bookmark_bubble()->AcceptDialog();
@@ -191,8 +191,8 @@ class BookmarkBubbleViewMigrationBrowserTest : public InProcessBrowserTest {
   }
 
   void CreateBubbleView(bool already_bookmarked = true) {
-    browser()->window()->ShowBookmarkBubble(GURL(kTestBookmarkURL),
-                                            already_bookmarked);
+    BrowserWindow::FromBrowser(browser())->ShowBookmarkBubble(
+        GURL(kTestBookmarkURL), already_bookmarked);
   }
 
   bookmarks::BookmarkModel* GetBookmarkModel() { return bookmark_model_; }

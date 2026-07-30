@@ -24,9 +24,7 @@ typedef NS_ENUM(NSInteger, TableViewDetailTextCellAccessorySymbol) {
 @property(nonatomic, assign) BOOL allowMultilineDetailText;
 
 // UIColor for the cell's textLabel. Default is
-// [UIColor colorNamed:kTextPrimaryColor]. ChromeTableViewStyler's
-// `cellTitleColor` takes precedence over the default color, but not over
-// `textColor`.
+// [UIColor colorNamed:kTextPrimaryColor].
 @property(nonatomic, strong) UIColor* textColor;
 // Main text to be displayed.
 @property(nonatomic, copy) NSString* text;

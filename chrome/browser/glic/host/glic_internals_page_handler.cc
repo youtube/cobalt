@@ -22,6 +22,7 @@
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_features.mojom.h"
 #include "chrome/browser/glic/host/guest_util.h"
+#include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_invoke_options.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
@@ -29,7 +30,9 @@
 #include "chrome/browser/glic/public/glic_passkeys.h"
 #include "chrome/browser/glic/service/glic_instance_coordinator_impl.h"
 #include "chrome/browser/glic/suggestions/contextual_cueing_features.h"
+#include "chrome/browser/metrics/chrome_feature_list_creator.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/startup_data.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
@@ -38,6 +41,8 @@
 #include "components/prefs/pref_service.h"
 #include "components/skills/features.h"
 #include "components/tabs/public/tab_interface.h"
+#include "components/variations/service/variations_service.h"
+#include "components/variations/service/variations_service_utils.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/blink/public/common/features.h"
 #include "ui/base/device_form_factor.h"
@@ -452,79 +457,94 @@ void GlicInternalsPageHandler::GetInternalsDataPayload(
 
   mojom::InternalsDebugInfoPtr debug_info = mojom::InternalsDebugInfo::New();
 
+  // Populate partial WebClientInitialState
+  Profile* profile = Profile::FromBrowserContext(browser_context_);
+  auto state = mojom::WebClientInitialState::New();
+  PopulateGlobalClientInitialState(state.get(), profile);
+
   // Feature flags
-  debug_info->glic_feature_enabled =
-      base::FeatureList::IsEnabled(features::kGlic);
-  debug_info->glic_actor_feature_enabled =
-      base::FeatureList::IsEnabled(features::kGlicActor);
+  debug_info->glic_actor_feature_enabled = state->enable_act_in_focused_tab;
   debug_info->glic_rollout_feature_enabled =
       base::FeatureList::IsEnabled(features::kGlicRollout);
+  debug_info->glic_tiered_rollout_feature_enabled =
+      base::FeatureList::IsEnabled(features::kGlicTieredRollout);
+  debug_info->glic_tiered_rollout_v2_feature_enabled =
+      base::FeatureList::IsEnabled(features::kGlicTieredRolloutV2);
 
   // Platform and form factor
-  debug_info->platform = GetGlicPlatform();
-  debug_info->form_factor = GetGlicFormFactor(ui::GetDeviceFormFactor());
+  debug_info->platform = state->platform;
+  debug_info->form_factor = state->form_factor;
 
   // WebClientInitialState fields (browser and user settings)
-  Profile* profile = Profile::FromBrowserContext(browser_context_);
-  PrefService* pref_service = profile->GetPrefs();
-
   base::flat_map<std::string, bool> boolean_settings;
 
   boolean_settings["Microphone Permission Enabled"] =
-      pref_service->GetBoolean(prefs::kGlicMicrophoneEnabled);
+      state->microphone_permission_enabled;
+  boolean_settings["Location Permission Enabled"] =
+      state->location_permission_enabled;
   boolean_settings["Tab Context Permission Enabled"] =
-      pref_service->GetBoolean(prefs::kGlicTabContextEnabled);
+      state->tab_context_permission_enabled;
+  boolean_settings["OS Location Permission Enabled"] =
+      state->os_location_permission_enabled;
 
   boolean_settings["Zero State Suggestions Enabled"] =
-      IsZeroStateSuggestionsEnabled();
+      state->enable_zero_state_suggestions;
   boolean_settings["Cached Get User Profile Info Enabled"] =
-      base::FeatureList::IsEnabled(
-          features::kGlicEnableCachedGetUserProfileInfo);
-  boolean_settings["Scroll To Enabled"] =
-      base::FeatureList::IsEnabled(features::kGlicScrollTo);
+      state->enable_cached_get_user_profile_info;
+  boolean_settings["Scroll To Enabled"] = state->enable_scroll_to;
   boolean_settings["Default Tab Context Setting Feature Enabled"] =
-      base::FeatureList::IsEnabled(features::kGlicDefaultTabContextSetting);
+      state->enable_default_tab_context_setting_feature;
   boolean_settings["Default Tab Context Setting Enabled"] =
-      pref_service->GetBoolean(prefs::kGlicDefaultTabContextEnabled);
+      state->default_tab_context_setting_enabled;
   boolean_settings["Closed Captioning Setting Enabled"] =
-      pref_service->GetBoolean(prefs::kGlicClosedCaptioningEnabled);
+      state->closed_captioning_setting_enabled;
   boolean_settings["Maybe Refresh User Status Enabled"] =
-      base::FeatureList::IsEnabled(features::kGlicUserStatusCheck) &&
-      features::kGlicUserStatusRefreshApi.Get();
+      state->enable_maybe_refresh_user_status;
   boolean_settings["Get Context Actor Enabled"] =
-      base::FeatureList::IsEnabled(glic::mojom::features::kGlicActorTabContext);
+      state->enable_get_context_actor;
   boolean_settings["Web Actuation Setting Feature Enabled"] =
-      base::FeatureList::IsEnabled(features::kGlicWebActuationSetting);
+      state->enable_web_actuation_setting_feature;
 
   boolean_settings["Get Page Metadata Enabled"] =
-      base::FeatureList::IsEnabled(blink::features::kFrameMetadataObserver);
+      state->enable_get_page_metadata;
+  boolean_settings["Capture Region Enabled"] = state->enable_capture_region;
+  boolean_settings["Can Act on Web"] = state->can_act_on_web;
 
-  boolean_settings["Capture Region Enabled"] =
-      base::FeatureList::IsEnabled(features::kGlicCaptureRegion);
-  boolean_settings["Can Act on Web"] =
-      glic_service ? glic_service->actor_policy_checker().CanActOnWeb() : false;
-
-  boolean_settings["Activate Tab Enabled"] =
-      base::FeatureList::IsEnabled(glic::mojom::features::kGlicActivateTabApi);
-  boolean_settings["Get Tab by ID Enabled"] =
-      base::FeatureList::IsEnabled(features::kGlicGetTabByIdApi);
+  boolean_settings["Activate Tab Enabled"] = state->enable_activate_tab;
+  boolean_settings["Get Tab by ID Enabled"] = state->enable_get_tab_by_id;
   boolean_settings["Open Password Manager Settings Page Enabled"] =
-      base::FeatureList::IsEnabled(
-          features::kGlicOpenPasswordManagerSettingsPageApi);
-  boolean_settings["Skills Feature Enabled"] =
-      base::FeatureList::IsEnabled(features::kSkillsEnabled);
+      state->enable_open_password_manager_settings_page;
+  boolean_settings["Skills Feature Enabled"] = state->enable_skills;
   boolean_settings["Get Tab Favicon by ID Enabled"] =
-      base::FeatureList::IsEnabled(features::kGlicGetTabFaviconById);
+      state->enable_get_tab_favicon_by_id;
   boolean_settings["Process Counter Abuse Verdict Enabled"] =
-      base::FeatureList::IsEnabled(features::kGlicProcessCounterAbuseVerdict);
+      state->enable_process_counter_abuse_verdict;
 
   debug_info->boolean_settings = std::move(boolean_settings);
+  debug_info->hotkey = state->hotkey;
 
-#if !BUILDFLAG(IS_ANDROID)
-  debug_info->hotkey = GetHotkeyString();
-#else
-  debug_info->hotkey = "";
-#endif
+  // Locale and country settings
+  if (auto* startup_data = g_browser_process->startup_data()) {
+    debug_info->locale = base::ToLowerASCII(
+        startup_data->chrome_feature_list_creator()->actual_locale());
+  }
+  debug_info->permanent_country_code =
+      base::ToLowerASCII(variations::GetCurrentCountryCode(
+          g_browser_process->variations_service()));
+  if (g_browser_process->variations_service()) {
+    debug_info->session_country_code = base::ToLowerASCII(
+        g_browser_process->variations_service()->GetLatestCountry());
+  }
+
+  // Additional enablement checks from GlicEnabling::ProfileEnablement
+  GlicEnabling::ProfileEnablement enablement =
+      GlicEnabling::EnablementForProfile(profile);
+  debug_info->system_requirement_met = enablement.system_requirement_met;
+  debug_info->os_version_supported = enablement.os_version_supported;
+  debug_info->anchor_entrypoint_override_active =
+      enablement.anchor_entrypoint_override_active;
+  debug_info->primary_account_needs_signed_in =
+      enablement.primary_account_needs_signed_in;
 
   payload->debug_info = std::move(debug_info);
 

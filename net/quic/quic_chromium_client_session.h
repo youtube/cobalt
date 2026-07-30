@@ -1052,6 +1052,8 @@ class NET_EXPORT_PRIVATE QuicChromiumClientSession
 
   // Helper to finish network probe once socket has been opened. Always called
   // asynchronously.
+  // TODO(crbug.com/518753285): Stop accepting a `network` parameter. Instead,
+  // require `probing_socket` to have already been bound at creation time.
   void FinishStartProbing(ProbingCallback probing_callback,
                           std::unique_ptr<DatagramClientSocket> probing_socket,
                           handles::NetworkHandle network,

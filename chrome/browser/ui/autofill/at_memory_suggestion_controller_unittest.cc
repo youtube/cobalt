@@ -49,6 +49,7 @@ class TestAtMemorySuggestionControllerAutofillClient
               (base::span<const Suggestion>,
                base::WeakPtr<AutofillSuggestionDelegate>),
               (override));
+  MOCK_METHOD(void, HideAtMemoryBottomSheet, (), (override));
 
  private:
   base::WeakPtr<AtMemorySuggestionController> suggestion_controller_;
@@ -200,6 +201,15 @@ TEST_F(AtMemorySuggestionControllerTest, AcceptSuggestion) {
 
   client().suggestion_controller(manager()).AcceptSuggestion(
       /*index=*/0, AutofillMetrics::SuggestionAcceptedMethod::kTap);
+}
+
+TEST_F(AtMemorySuggestionControllerTest,
+       HideCallsClientHideAtMemoryBottomSheet) {
+  ShowSuggestions(manager(),
+                  {Suggestion(u"test", SuggestionType::kAddressEntry)});
+  EXPECT_CALL(client(), HideAtMemoryBottomSheet);
+  client().suggestion_controller(manager()).Hide(
+      SuggestionHidingReason::kViewDestroyed);
 }
 
 }  // namespace

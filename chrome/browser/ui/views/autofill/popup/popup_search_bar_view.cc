@@ -36,9 +36,9 @@ namespace autofill {
 PopupSearchBarView::PopupSearchBarView(const std::u16string& placeholder,
                                        Delegate& delegate,
                                        bool show_indicator,
-                                       bool is_loading,
-                                       bool show_search_icon_sparkle)
-    : delegate_(delegate) {
+                                       bool show_search_icon_sparkle,
+                                       base::TimeDelta debounce_delay)
+    : delegate_(delegate), debounce_delay_(debounce_delay) {
   ChromeLayoutProvider* layout_provider = ChromeLayoutProvider::Get();
 
   SetLayoutManager(std::make_unique<views::FlexLayout>())
@@ -64,9 +64,8 @@ PopupSearchBarView::PopupSearchBarView(const std::u16string& placeholder,
 
   search_icon_ = AddChildView(std::make_unique<views::ImageView>(
       ui::ImageModel::FromVectorIcon(*icon, ui::kColorIcon, icon_size)));
-
   throbber_ = AddChildView(std::make_unique<views::Throbber>(icon_size));
-  SetLoading(is_loading);
+  SetLoading(false);
 
   input_ = AddChildView(
       views::Builder<views::Textfield>()
@@ -187,7 +186,7 @@ void PopupSearchBarView::OnInputChanged() {
     indicator_->SetVisible(empty);
   }
   input_change_notification_timer_.Start(
-      FROM_HERE, kInputChangeCallbackDelay,
+      FROM_HERE, debounce_delay_,
       // `delegate_` is expected to outlive `this`, the timer will either be
       // triggered when it is alive or canceled.
       base::BindOnce(&Delegate::SearchBarOnInputChanged,

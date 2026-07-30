@@ -3096,6 +3096,18 @@ _CONFIG = [
     },
     {
         'paths': [
+            'third_party/blink/common/chrome_debug_urls.cc',
+            'third_party/blink/public/common/chrome_debug_urls.h',
+        ],
+        'allowed': [
+            'GURL',
+            'base::SplitStringPiece',
+            'base::SPLIT_WANT_NONEMPTY',
+            'base::TRIM_WHITESPACE',
+        ]
+    },
+    {
+        'paths': [
             'third_party/blink/renderer/core/inspector/thread_debugger_common_impl.cc',
         ],
         'allowed': [

@@ -48,7 +48,6 @@
 #include "chromeos/ash/experiences/arc/mojom/sharesheet.mojom.h"
 #include "chromeos/ash/experiences/arc/mojom/system_state.mojom.h"
 #include "chromeos/ash/experiences/arc/mojom/system_ui.mojom.h"
-#include "chromeos/ash/experiences/arc/mojom/timer.mojom.h"
 #include "chromeos/ash/experiences/arc/mojom/tracing.mojom.h"
 #include "chromeos/ash/experiences/arc/mojom/tts.mojom.h"
 #include "chromeos/ash/experiences/arc/mojom/usb_host.mojom.h"
@@ -223,9 +222,6 @@ void FakeArcBridgeHost::OnSystemStateInstanceReady(
 
 void FakeArcBridgeHost::OnSystemUiInstanceReady(
     mojo::PendingRemote<mojom::SystemUiInstance> system_ui_remote) {}
-
-void FakeArcBridgeHost::OnTimerInstanceReady(
-    mojo::PendingRemote<mojom::TimerInstance> timer_remote) {}
 
 void FakeArcBridgeHost::OnTracingInstanceReady(
     mojo::PendingRemote<mojom::TracingInstance> trace_remote) {}

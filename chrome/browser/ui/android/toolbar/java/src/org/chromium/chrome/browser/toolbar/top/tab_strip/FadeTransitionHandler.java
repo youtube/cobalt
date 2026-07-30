@@ -25,6 +25,7 @@ class FadeTransitionHandler {
 
     private int mTabStripTransitionThreshold;
     private int mTabStripWidth;
+    private boolean mTabStripSuppressed;
 
     FadeTransitionHandler(
             OneshotSupplier<TabStripTransitionDelegate> tabStripTransitionDelegateSupplier,
@@ -49,6 +50,12 @@ class FadeTransitionHandler {
         requestTransition(forceFadeInStrip);
     }
 
+    void suppressTabStrip(boolean suppress) {
+        if (mTabStripSuppressed == suppress) return;
+        mTabStripSuppressed = suppress;
+        requestTransition(/* forceFadeInStrip= */ false);
+    }
+
     private void requestTransition(boolean forceFadeInStrip) {
         mTabStripTransitionDelegateSupplier.runSyncOrOnAvailable(
                 mCallbackController.makeCancelable(
@@ -58,7 +65,9 @@ class FadeTransitionHandler {
     private void maybeUpdateTabStripVisibility(boolean forceFadeInStrip) {
         if (mTabStripWidth <= 0) return;
 
-        boolean showTabStrip = mTabStripWidth >= mTabStripTransitionThreshold || forceFadeInStrip;
+        boolean showTabStrip =
+                (mTabStripWidth >= mTabStripTransitionThreshold || forceFadeInStrip)
+                        && !mTabStripSuppressed;
         var newOpacity = showTabStrip ? 0f : 1f;
 
         var delegate = mTabStripTransitionDelegateSupplier.get();

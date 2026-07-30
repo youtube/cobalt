@@ -268,7 +268,11 @@ export async function filesTooltipHidesOnWindowResize() {
       await remoteCall.waitForElement(appId, [tooltipQueryVisible, '#label']);
   chrome.test.assertEq('Search', label.text);
 
-  // Resize the window.
+  // Resize the window. The remote `resizeWindow` test util also dispatches
+  // a synthetic 'resize' event so this assertion exercises the tooltip's
+  // listener even on builders where the requested bounds collapse to the
+  // SWA's current outer size after work-area clamping (which is a no-op
+  // resize per HTML semantics and produces no 'resize' event).
   chrome.test.assertTrue(
       await remoteCall.callRemoteTestUtil('resizeWindow', appId, [1200, 1200]));
 

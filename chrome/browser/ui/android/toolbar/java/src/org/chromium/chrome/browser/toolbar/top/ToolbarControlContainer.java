@@ -78,13 +78,14 @@ import org.chromium.ui.widget.OptimizedFrameLayout;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 /** Layout for the browser controls (omnibox, menu, tab strip, etc..). */
 @NullMarked
 public class ToolbarControlContainer extends OptimizedFrameLayout
-        implements ControlContainer, Observer {
+        implements ControlContainer, Observer, DesktopWindowStateManager.AppHeaderObserver {
     private static final double SAMPLE_STALE_CAPTURE_PROBABILITY = 0.01;
     private static boolean sForceStaleCaptureHistogram;
 
@@ -100,6 +101,7 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
     private boolean mIsAppInUnfocusedDesktopWindow;
     private int mToolbarLayoutHeight;
     private int mTabStripTopPadding;
+    private int mTabStripHeight;
     private final Rect mToolbarCaptureSize = new Rect();
 
     private View mToolbarHairline;
@@ -302,6 +304,9 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
         if (mToolbarDataProvider != null) {
             mToolbarDataProvider.removeToolbarDataProviderObserver(this);
         }
+        if (mDesktopWindowStateManager != null) {
+            mDesktopWindowStateManager.removeObserver(this);
+        }
     }
 
     @Override
@@ -314,6 +319,7 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
     // implements TabStripTransitionDelegate
     @Override
     public void onHeightChanged(int tabStripHeight, int topPadding, boolean applyScrimOverlay) {
+        mTabStripHeight = tabStripHeight;
         mTabStripTopPadding = topPadding;
         mutateToolbarLayoutParams().topMargin = tabStripHeight;
 
@@ -337,6 +343,8 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
             findToolbar.setLayoutParams(layoutParams);
         }
         maybeUpdateTempTabStripDrawableBackground(mIncognito, getAppHeaderState());
+        updateToolbarRightOffset(tabStripHeight);
+        updateSystemGestureExclusions();
     }
 
     @Override
@@ -482,6 +490,9 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
         mToolbarDataProvider = toolbarDataProvider;
         mToolbarDataProvider.addToolbarDataProviderObserver(this);
         mDesktopWindowStateManager = desktopWindowStateManager;
+        if (mDesktopWindowStateManager != null) {
+            mDesktopWindowStateManager.addObserver(this);
+        }
 
         BooleanSupplier isVisible = () -> this.getVisibility() == View.VISIBLE;
         mToolbarContainer.setPostInitializationDependencies(
@@ -1148,6 +1159,53 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
             mXrSpaceModeObservableSupplier = xrSpaceModeObservableSupplier;
             mXrSpaceModeObservableSupplier.addSyncObserver(mOnXrSpaceModeChanged);
         }
+    }
+
+    @Override
+    public void onAppHeaderStateChanged(AppHeaderState newState) {
+        updateToolbarRightOffset(mTabStripHeight);
+        updateSystemGestureExclusions();
+    }
+
+    private void updateToolbarRightOffset(int currentTabStripHeight) {
+        if (mToolbarView == null) return;
+        View tabletLayout = mToolbarView.findViewById(R.id.toolbar_tablet_layout);
+        if (tabletLayout == null) return;
+
+        int rightMargin = 0;
+        AppHeaderState appHeaderState = getAppHeaderState();
+        if (appHeaderState != null
+                && appHeaderState.isInDesktopWindow()
+                && currentTabStripHeight == 0) {
+            rightMargin = appHeaderState.getRightPadding();
+        }
+        MarginLayoutParams lp = (MarginLayoutParams) tabletLayout.getLayoutParams();
+        if (lp.rightMargin != rightMargin) {
+            lp.rightMargin = rightMargin;
+            tabletLayout.setLayoutParams(lp);
+        }
+    }
+
+    @Override
+    public void setSystemGestureExclusionRects(List<Rect> rects) {
+        AppHeaderState appHeaderState = getAppHeaderState();
+        if (appHeaderState != null
+                && appHeaderState.isInDesktopWindow()
+                && mTabStripHeight == 0
+                && getWidth() > 0) {
+            int left = appHeaderState.getLeftPadding();
+            int right = getWidth() - appHeaderState.getRightPadding();
+            int top = appHeaderState.getCaptionControlsTopOffset();
+            int bottom = top + appHeaderState.getCaptionControlsHeight();
+            Rect exclusionRect = new Rect(left, top, right, bottom);
+            super.setSystemGestureExclusionRects(List.of(exclusionRect));
+        } else {
+            super.setSystemGestureExclusionRects(rects);
+        }
+    }
+
+    private void updateSystemGestureExclusions() {
+        setSystemGestureExclusionRects(List.of());
     }
 
     public void onXrSpaceModeChanged(Boolean fullSpaceMode) {

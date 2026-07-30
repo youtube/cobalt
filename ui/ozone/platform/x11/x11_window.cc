@@ -1842,6 +1842,10 @@ gfx::Size X11Window::GetSize() {
   return GetBoundsInPixels().size();
 }
 
+base::WeakPtr<ui::X11DesktopWindowMoveClient::Delegate> X11Window::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
+}
+
 void X11Window::QuitDragLoop() {
   DCHECK(drag_loop_);
   drag_loop_->EndMoveLoop();

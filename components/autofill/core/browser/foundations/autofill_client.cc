@@ -133,14 +133,19 @@ const AutofillComposeDelegate* AutofillClient::GetComposeDelegate() const {
   return const_cast<AutofillClient*>(this)->GetComposeDelegate();
 }
 
-accessibility_annotator::AccessibilityQueryService*
-AutofillClient::GetAccessibilityQueryService() {
+accessibility_annotator::AtMemoryQueryService*
+AutofillClient::GetAtMemoryQueryService() {
   return nullptr;
 }
 
 personal_context::PersonalContextEnablementState
 AutofillClient::GetPersonalContextEnablementState() const {
   return personal_context::PersonalContextEnablementState::kDisabledNotEligible;
+}
+
+personal_context::PersonalContextEnablementService*
+AutofillClient::GetPersonalContextEnablementService() const {
+  return nullptr;
 }
 
 PasswordManagerDelegate* AutofillClient::GetPasswordManagerDelegate(
@@ -440,6 +445,16 @@ OtpPhishGuardDelegate* AutofillClient::GetOtpPhishGuardDelegate() {
 void AutofillClient::OpenGeminiInSidebar(const std::u16string& prompt) {
   // TODO(crbug.com/493824736): Implement opening Gemini in the sidebar.
   NOTIMPLEMENTED();
+}
+
+bool AutofillClient::IsGlicEnabled() const {
+  return false;
+}
+
+bool AutofillClient::IsAutofillTypeBlockedByPolicy(
+    const GURL& url,
+    AutofillPolicyDataCategory category) const {
+  return false;
 }
 
 }  // namespace autofill

@@ -10,6 +10,7 @@
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_session_delegate.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_view_state_delegate.h"
 
+class PrefService;
 class WebStateList;
 
 namespace feature_engagement {
@@ -24,6 +25,7 @@ class Tracker;
 
 - (instancetype)initWithWebStateList:(WebStateList*)webStateList
                              tracker:(feature_engagement::Tracker*)tracker
+                         prefService:(PrefService*)prefService
     NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)init NS_UNAVAILABLE;

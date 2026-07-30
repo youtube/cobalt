@@ -42,7 +42,7 @@ source_set("model") {
     "//ios/chrome/browser/lens/model",
     "//ios/chrome/browser/metrics/model",
     "//ios/chrome/browser/metrics/model:tab_usage_recorder_browser_agent",
-    "//ios/chrome/browser/omnibox/model/omnibox_position",
+    "//ios/chrome/browser/omnibox/model/omnibox_focus",
     "//ios/chrome/browser/policy/model",
     "//ios/chrome/browser/policy/model:browser_agent",
     "//ios/chrome/browser/prerender/model",

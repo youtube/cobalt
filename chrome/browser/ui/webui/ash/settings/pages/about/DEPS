@@ -22,6 +22,5 @@ include_rules = [
   "+chrome/browser/ui/webui/management",
   "+chrome/browser/ui/webui/settings",
   "+chrome/browser/ui/webui/version",
-  "+chrome/common",
   "+chrome/grit",
 ]

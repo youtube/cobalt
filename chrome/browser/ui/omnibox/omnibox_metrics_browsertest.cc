@@ -53,16 +53,14 @@ class OmniboxMetricsTest : public InProcessBrowserTest {
 
  protected:
   AutocompleteController* controller() {
-    return browser()
-        ->window()
+    return BrowserWindow::FromBrowser(browser())
         ->GetLocationBar()
         ->GetOmniboxController()
         ->autocomplete_controller();
   }
 
   OmniboxEditModel* model() {
-    return browser()
-        ->window()
+    return BrowserWindow::FromBrowser(browser())
         ->GetLocationBar()
         ->GetOmniboxController()
         ->edit_model();

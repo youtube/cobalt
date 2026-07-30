@@ -128,10 +128,14 @@ int GetEventModifiers(int modifiers,
 
 base::TimeTicks GetEventTimeTicks(const std::optional<double>& timestamp) {
   // Convert timestamp, in seconds since unix epoch, to an event timestamp
-  // which is time ticks since platform start time.
-  return timestamp.has_value()
-             ? base::Seconds(timestamp.value()) + base::TimeTicks::UnixEpoch()
-             : base::TimeTicks::Now();
+  // which is time ticks since platform start time. Anchor both clocks to the
+  // current instant to map the wall-clock time onto the TimeTicks timeline.
+  if (!timestamp.has_value()) {
+    return base::TimeTicks::Now();
+  }
+  const base::Time event_time =
+      base::Time::UnixEpoch() + base::Seconds(timestamp.value());
+  return base::TimeTicks::Now() - (base::Time::Now() - event_time);
 }
 
 bool SetKeyboardEventText(

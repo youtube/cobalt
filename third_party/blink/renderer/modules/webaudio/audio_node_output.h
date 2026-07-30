@@ -33,6 +33,7 @@
 #include "third_party/blink/renderer/modules/webaudio/audio_param.h"
 #include "third_party/blink/renderer/platform/audio/audio_bus.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
+#include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
 
@@ -91,8 +92,18 @@ class MODULES_EXPORT AudioNodeOutput final {
   // node, but it has otherwise "finished" its work.  For example, when a note
   // has finished playing.  It is kept around, because it may be played again at
   // a later time.  They must be called with the context's graph lock.
-  void Disable();
-  void Enable();
+  //
+  // DisableAndEnqueue disables this output and pushes downstream handlers that
+  // might need to be disabled into the provided `worklist`. The actual
+  // disabling of downstream nodes is handled by the caller (see
+  // `AudioHandler::DisableOutputs()`).
+  void DisableAndEnqueue(Vector<scoped_refptr<AudioHandler>>& worklist);
+
+  // EnableAndEnqueue enables this output and pushes downstream handlers that
+  // might need to be enabled into the provided `worklist`. The actual
+  // enabling of downstream nodes is handled by the caller (see
+  // `AudioHandler::EnableOutputs()`).
+  void EnableAndEnqueue(Vector<scoped_refptr<AudioHandler>>& worklist);
 
   // updateRenderingState() is called in the audio thread at the start or end of
   // the render quantum to handle any recent changes to the graph state.

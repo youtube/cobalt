@@ -1,0 +1,6 @@
+android.webkit.WebView focusable focused
+++android.view.View
+++++android.view.View role_description='math'
+++++++android.view.View math_intent='power(base, exponent)'
+++++++++android.view.View interesting name='%F0%9D%91%A5' math_arg='base'
+++++++++android.view.View interesting name='2' math_arg='exponent'

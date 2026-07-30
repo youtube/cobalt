@@ -177,7 +177,7 @@ IN_PROC_BROWSER_TEST_F(GeolocationHeaderBrowserTest, AppendsXGeoHeader) {
 
   // Trigger priming by typing in the Omnibox.
   OmniboxView* omnibox_view =
-      browser()->window()->GetLocationBar()->GetOmniboxView();
+      BrowserWindow::FromBrowser(browser())->GetLocationBar()->GetOmniboxView();
   omnibox_view->OnBeforePossibleChange();
   omnibox_view->SetUserText(u"test");
   omnibox_view->OnAfterPossibleChange(true);
@@ -213,8 +213,8 @@ IN_PROC_BROWSER_TEST_F(GeolocationHeaderBrowserTest, AppendsXGeoHeader) {
   // that use Views (Linux, Windows, ChromeOS) while safely skipping it on
   // Mac (if not using Views).
 #if defined(TOOLKIT_VIEWS)
-  LocationBarView* location_bar_view =
-      static_cast<LocationBarView*>(browser()->window()->GetLocationBar());
+  LocationBarView* location_bar_view = static_cast<LocationBarView*>(
+      BrowserWindow::FromBrowser(browser())->GetLocationBar());
   const auto& image_views = location_bar_view->GetContentSettingViewsForTest();
   bool geo_icon_visible = false;
   for (const auto& view : image_views) {
@@ -277,7 +277,7 @@ IN_PROC_BROWSER_TEST_F(GeolocationHeaderBrowserTest,
 
   // Trigger priming by typing in the Omnibox.
   OmniboxView* omnibox_view =
-      browser()->window()->GetLocationBar()->GetOmniboxView();
+      BrowserWindow::FromBrowser(browser())->GetLocationBar()->GetOmniboxView();
   omnibox_view->OnBeforePossibleChange();
   omnibox_view->SetUserText(u"test");
   omnibox_view->OnAfterPossibleChange(true);
@@ -315,7 +315,7 @@ IN_PROC_BROWSER_TEST_F(GeolocationHeaderBrowserTest, NoHeaderForNonDse) {
 
   // Trigger priming by typing in the Omnibox.
   OmniboxView* omnibox_view =
-      browser()->window()->GetLocationBar()->GetOmniboxView();
+      BrowserWindow::FromBrowser(browser())->GetLocationBar()->GetOmniboxView();
   omnibox_view->OnBeforePossibleChange();
   omnibox_view->SetUserText(u"test");
   omnibox_view->OnAfterPossibleChange(true);
@@ -357,7 +357,7 @@ IN_PROC_BROWSER_TEST_F(GeolocationHeaderBrowserTest, RedirectToNonDse) {
 
   // Trigger priming by typing in the Omnibox.
   OmniboxView* omnibox_view =
-      browser()->window()->GetLocationBar()->GetOmniboxView();
+      BrowserWindow::FromBrowser(browser())->GetLocationBar()->GetOmniboxView();
   omnibox_view->OnBeforePossibleChange();
   omnibox_view->SetUserText(u"test");
   omnibox_view->OnAfterPossibleChange(true);
@@ -399,7 +399,7 @@ IN_PROC_BROWSER_TEST_F(GeolocationHeaderBrowserTest, RedirectToSameOrigin) {
 
   // Trigger priming by typing in the Omnibox.
   OmniboxView* omnibox_view =
-      browser()->window()->GetLocationBar()->GetOmniboxView();
+      BrowserWindow::FromBrowser(browser())->GetLocationBar()->GetOmniboxView();
   omnibox_view->OnBeforePossibleChange();
   omnibox_view->SetUserText(u"test");
   omnibox_view->OnAfterPossibleChange(true);
@@ -442,7 +442,7 @@ IN_PROC_BROWSER_TEST_F(GeolocationHeaderFencedFrameBrowserTest,
 
   // Trigger priming by typing in the Omnibox.
   OmniboxView* omnibox_view =
-      browser()->window()->GetLocationBar()->GetOmniboxView();
+      BrowserWindow::FromBrowser(browser())->GetLocationBar()->GetOmniboxView();
   omnibox_view->OnBeforePossibleChange();
   omnibox_view->SetUserText(u"test");
   omnibox_view->OnAfterPossibleChange(true);
@@ -506,7 +506,7 @@ IN_PROC_BROWSER_TEST_F(GeolocationHeaderBrowserTest,
 
   // Trigger priming by typing in the Omnibox.
   OmniboxView* omnibox_view =
-      browser()->window()->GetLocationBar()->GetOmniboxView();
+      BrowserWindow::FromBrowser(browser())->GetLocationBar()->GetOmniboxView();
   omnibox_view->OnBeforePossibleChange();
   omnibox_view->SetUserText(u"test");
   omnibox_view->OnAfterPossibleChange(true);

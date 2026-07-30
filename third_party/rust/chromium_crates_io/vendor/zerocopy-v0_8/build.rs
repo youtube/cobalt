@@ -95,6 +95,8 @@ fn main() {
         println!("cargo:rustc-check-cfg=cfg(coverage_nightly)");
         println!("cargo:rustc-check-cfg=cfg(zerocopy_inline_always)");
         println!("cargo:rustc-check-cfg=cfg(zerocopy_unstable_ptr)");
+        println!("cargo:rustc-check-cfg=cfg(zerocopy_unstable_linux)");
+        println!("cargo:rustc-check-cfg=cfg(no_fp_fmt_parse)");
     }
 
     for version_cfg in version_cfgs {

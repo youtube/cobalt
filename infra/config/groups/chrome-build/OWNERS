@@ -1,1 +1,1 @@
-include build:/BUILD_OWNERS
+include build:main:/BUILD_OWNERS

@@ -621,7 +621,8 @@ void PerformanceManagerTabHelper::WebContentsDestroyed() {
 
 void PerformanceManagerTabHelper::DidUpdateFaviconURL(
     content::RenderFrameHost* render_frame_host,
-    const std::vector<blink::mojom::FaviconURLPtr>& candidates) {
+    const std::vector<blink::mojom::FaviconURLPtr>& candidates,
+    blink::mojom::FaviconUpdateReason reason) {
   DCHECK(page_node_);
 
   // This favicon change might have been initiated by a different frame some
@@ -639,7 +640,7 @@ void PerformanceManagerTabHelper::DidUpdateFaviconURL(
       return;
     }
   }
-  page_node_->OnFaviconUpdated();
+  page_node_->OnFaviconUpdated(reason);
 }
 
 void PerformanceManagerTabHelper::MediaPictureInPictureChanged(

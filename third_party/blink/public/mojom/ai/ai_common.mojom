@@ -10,6 +10,9 @@ module blink.mojom;
 // defined in components/optimization_guide/core/model_execution/on_device_model_feature_adapter.h,
 // while reserving 1024 tokens for the output (i.e. 10240 - 1024 = 9216).
 const uint64 kWritingAssistanceMaxInputTokenSize = 9216;
+// Small models initially only support a maximum input size of 4k. This respects
+// their inherent limits and slowdowns from being initially run only on CPUs.
+const uint64 kTinyModelMaxInputTokenSize = 4096;
 
 struct AILanguageCode {
   // BCP 47 language code used for the Built-in AI APIs.

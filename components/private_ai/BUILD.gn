@@ -64,6 +64,8 @@ source_set("private_ai") {
     "private_ai_common.h",
     "private_ai_network_driver.h",
     "private_ai_oak_session_driver.h",
+    "private_ai_service.cc",
+    "private_ai_service.h",
     "secure_channel.h",
     "secure_channel_impl.cc",
     "secure_channel_impl.h",
@@ -83,13 +85,17 @@ source_set("private_ai") {
     ":proto",
     ":proto_extras",
     "//base",
+    "//components/keyed_service/core",
     "//components/private_ai/attestation",
     "//components/private_ai/common",
     "//components/private_ai/crypto",
     "//components/private_ai/oak_session_service",
     "//components/private_ai/phosphor",
     "//components/private_ai/proto_utils",
+    "//components/signin/public/identity_manager",
+    "//components/version_info",
     "//crypto",
+    "//google_apis",
     "//mojo/public/cpp/system",
     "//net",
     "//services/cert_verifier/public/mojom",
@@ -142,6 +148,7 @@ source_set("unit_tests") {
     "connection_timeout_unittest.cc",
     "connection_token_attestation_unittest.cc",
     "connection_unused_timeout_unittest.cc",
+    "private_ai_service_unittest.cc",
     "secure_channel_impl_unittest.cc",
     "secure_session_async_impl_unittest.cc",
     "websocket_client_unittest.cc",
@@ -156,10 +163,18 @@ source_set("unit_tests") {
     "//components/private_ai/attestation:unit_tests",
     "//components/private_ai/common",
     "//components/private_ai/common:unit_tests",
-    "//components/private_ai/content:unit_tests",
     "//components/private_ai/crypto:unit_tests",
+    "//components/signin/public/identity_manager:test_support",
+  ]
+  if (is_ios) {
+    deps += [ "//components/private_ai/ios:unit_tests" ]
+  } else {
+    deps += [ "//components/private_ai/content:unit_tests" ]
+  }
+  deps += [
     "//components/private_ai/mojom",
     "//components/private_ai/phosphor",
+    "//components/private_ai/phosphor:test_support",
     "//components/private_ai/phosphor:unit_tests",
     "//components/private_ai/proto_utils:unit_tests",
     "//mojo/public/cpp/system",

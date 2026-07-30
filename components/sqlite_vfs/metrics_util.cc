@@ -37,6 +37,8 @@ std::string_view ClientToTag(Client client) {
   switch (client) {
     case Client::kCodeCache:
       return ".CodeCache";
+    case Client::kSharedCacheIsolated:
+      return ".SharedCacheIsolated";
     case Client::kShaderCache:
       return ".ShaderCache";
     case Client::kTest:

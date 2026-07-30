@@ -13,7 +13,7 @@
 #include "chrome/browser/ui/performance_controls/performance_intervention_button_controller_delegate.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 
-class Browser;
+class BrowserWindowInterface;
 class TabStripModel;
 
 namespace feature_engagement {
@@ -37,7 +37,7 @@ class PerformanceInterventionButtonController
  public:
   PerformanceInterventionButtonController(
       PerformanceInterventionButtonControllerDelegate* delegate,
-      Browser* browser);
+      BrowserWindowInterface* browser);
   ~PerformanceInterventionButtonController() override;
 
   PerformanceInterventionButtonController(
@@ -85,7 +85,7 @@ class PerformanceInterventionButtonController
       const PerformanceDetectionManager::ActionableTabsResult& result);
 
   raw_ptr<PerformanceInterventionButtonControllerDelegate> delegate_ = nullptr;
-  const raw_ptr<Browser> browser_;
+  const raw_ptr<BrowserWindowInterface> browser_;
   PerformanceDetectionManager::ActionableTabsResult actionable_cpu_tabs_;
   base::RetainingOneShotTimer hide_button_timer_;
   base::WeakPtrFactory<PerformanceInterventionButtonController>

@@ -65,8 +65,8 @@ class SafeBrowsingClientImplTest : public PlatformTest,
 
  private:
   web::WebTaskEnvironment task_environment_;
-  std::unique_ptr<SafeBrowsingClientImpl> client_;
   std::unique_ptr<ProfileIOS> profile_;
+  std::unique_ptr<SafeBrowsingClientImpl> client_;
   std::unique_ptr<web::FakeWebState> web_state_;
   bool prerender_cancelled_ = false;
 };

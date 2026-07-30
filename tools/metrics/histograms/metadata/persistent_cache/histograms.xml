@@ -50,13 +50,13 @@ chromium-metrics-reviews@google.com.
 <variants name="VfsClient">
   <variant name="CodeCache"/>
   <variant name="ShaderCache"/>
-  <variant name="Test"/>
+  <variant name="SharedCacheIsolated"/>
 </variants>
 
 <!-- LINT.ThenChange(//components/sqlite_vfs/client.h:VfsClient) -->
 
 <histogram name="PersistentCache.BackendInitialize.{Mode}.{Client}"
-    units="microseconds" expires_after="2026-10-11">
+    units="microseconds" expires_after="2026-12-16">
   <owner>grt@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>

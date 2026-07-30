@@ -14,7 +14,6 @@
 #include "ui/views/controls/label.h"
 #include "ui/views/test/button_test_api.h"
 #include "ui/views/test/views_test_base.h"
-#include "ui/views/view_utils.h"
 
 namespace {
 

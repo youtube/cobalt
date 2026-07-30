@@ -52,8 +52,7 @@ class MockFilterExtractor : public FilterExtractor {
               ExtractAnnotationFromUrl,
               (const GURL& url,
                base::OnceCallback<void(std::optional<base::Uuid>)> callback,
-               int64_t navigation_id,
-               std::string_view domain),
+               int64_t navigation_id),
               (override));
 };
 
@@ -68,10 +67,9 @@ class MockFilterSuggestionGenerator : public FilterSuggestionGenerator {
       void,
       GenerateSuggestion,
       (const GURL& url,
-       const std::vector<std::string>& supported_task_types,
+       std::vector<std::string> supported_task_types,
        base::OnceCallback<void(std::optional<UrlFilterSuggestion>)> callback,
-       int64_t navigation_id,
-       std::string_view domain),
+       int64_t navigation_id),
       (override));
 };
 
@@ -203,7 +201,7 @@ TEST_F(MultistepFilterServiceTest, ExtractAnnotation) {
           base::test::RunOnceCallback<1>(std::vector<std::string>{"task1"}));
 
   EXPECT_CALL(*mock_extractor_, ExtractAnnotationFromUrl(
-                                    kUrl, _, kTestNavigationId, "example.com"))
+                                    kUrl, _, kTestNavigationId))
       .WillOnce(base::test::RunOnceCallback<1>(mock_uuid));
 
   EXPECT_CALL(*mock_observer_,
@@ -263,12 +261,10 @@ TEST_F(MultistepFilterServiceTest, GenerateFilterSuggestions) {
       mock_callback;
   UrlFilterSuggestion mock_suggestion(UrlFilterSuggestion::Params{
       .navigation_url = kUrl,
-      .source_domain = u"example.com",
       .source_host = u"example.com",
       .extraction_timestamp = base::Time::Now(),
       .attribute_ui_labels = {},
       .triggering_navigation_id = kTestNavigationId,
-      .triggering_domain = "example.com",
       .triggering_host = "example.com",
       .task_type = "task1"});
 
@@ -278,7 +274,7 @@ TEST_F(MultistepFilterServiceTest, GenerateFilterSuggestions) {
 
   EXPECT_CALL(*mock_generator_,
               GenerateSuggestion(kUrl, std::vector<std::string>{"task1"}, _,
-                                 kTestNavigationId, "example.com"))
+                                 kTestNavigationId))
       .WillOnce(base::test::RunOnceCallback<2>(mock_suggestion));
 
   EXPECT_CALL(*mock_observer_,

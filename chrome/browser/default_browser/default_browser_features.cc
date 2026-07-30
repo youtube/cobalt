@@ -9,6 +9,7 @@
 
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
+#include "build/build_config.h"
 #include "chrome/common/webui_url_constants.h"
 #include "url/gurl.h"
 
@@ -43,11 +44,11 @@ DefaultBrowserSetterType GetDefaultBrowserSetterType() {
 }
 
 GURL GetDefaultBrowserVisualGuideURL() {
-  if (!base::FeatureList::IsEnabled(kDefaultBrowserSetterSelection)) {
-    GURL(kChromeUIDefaultBrowserVisualGuidedSetterURL);
-  }
-
+#if BUILDFLAG(IS_WIN)
   return GURL(kDefaultBrowserVisualGuideUrlParam.Get());
+#else
+  return GURL();
+#endif
 }
 
 BASE_FEATURE(kDefaultBrowserFramework, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -91,11 +92,11 @@ BASE_FEATURE_ENUM_PARAM(DefaultBrowserSetterType,
                         DefaultBrowserSetterType::kShellIntegration,
                         kDefaultBrowserSetterSelectionOption);
 
-// TODO(https://crbugs.com/454597786): Replace this with the const webui url.
+#if BUILDFLAG(IS_WIN)
 BASE_FEATURE_PARAM(std::string,
                    kDefaultBrowserVisualGuideUrlParam,
                    &kDefaultBrowserSetterSelection,
-                   "url",
-                   "chrome://default-browser/");
+                   chrome::kChromeUIDefaultBrowserVisualGuidedSetterURL);
+#endif
 
 }  // namespace default_browser

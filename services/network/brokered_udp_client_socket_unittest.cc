@@ -252,15 +252,15 @@ TEST_F(BrokeredUdpClientSocketTest, Connect) {
   // ConnectUsingNetwork and ConnectUsingDefaultNetwork should also return
   // ERR_NOT_IMPLEMENTED on all platforms.
   auto socket4 = client_socket_factory_.CreateDatagramClientSocket(
-      net::DatagramSocket::DEFAULT_BIND, net::NetLog::Get(),
-      net::NetLogSource());
+      net::DatagramSocket::DEFAULT_BIND, net::handles::kInvalidNetworkHandle,
+      net::NetLog::Get(), net::NetLogSource());
   rv = socket4->ConnectUsingNetwork(net::handles::kInvalidNetworkHandle,
                                     server_address);
   ASSERT_EQ(rv, net::ERR_NOT_IMPLEMENTED);
   EXPECT_EQ(net::handles::kInvalidNetworkHandle, socket4->GetBoundNetwork());
   auto socket5 = client_socket_factory_.CreateDatagramClientSocket(
-      net::DatagramSocket::DEFAULT_BIND, net::NetLog::Get(),
-      net::NetLogSource());
+      net::DatagramSocket::DEFAULT_BIND, net::handles::kInvalidNetworkHandle,
+      net::NetLog::Get(), net::NetLogSource());
   rv = socket5->ConnectUsingDefaultNetwork(server_address);
   ASSERT_EQ(rv, net::ERR_NOT_IMPLEMENTED);
   EXPECT_EQ(net::handles::kInvalidNetworkHandle, socket5->GetBoundNetwork());
@@ -358,8 +358,8 @@ TEST_F(BrokeredUdpClientSocketTest, ConnectUsingNetworkAsync) {
     // Connecting using a not existing network should fail but not report
     // ERR_NOT_IMPLEMENTED when network handles are supported.
     auto socket = client_socket_factory_.CreateDatagramClientSocket(
-        net::DatagramSocket::DEFAULT_BIND, net::NetLog::Get(),
-        net::NetLogSource());
+        net::DatagramSocket::DEFAULT_BIND, net::handles::kInvalidNetworkHandle,
+        net::NetLog::Get(), net::NetLogSource());
     int rv = socket->ConnectUsingNetworkAsync(
         wrong_network_handle, server_address, callback.callback());
     EXPECT_EQ(rv, net::ERR_IO_PENDING);
@@ -375,7 +375,8 @@ TEST_F(BrokeredUdpClientSocketTest, ConnectUsingNetworkAsync) {
         net::NetworkChangeNotifier::GetDefaultNetwork();
     if (network_handle != net::handles::kInvalidNetworkHandle) {
       auto socket2 = client_socket_factory_.CreateDatagramClientSocket(
-          net::DatagramSocket::DEFAULT_BIND, net::NetLog::Get(),
+          net::DatagramSocket::DEFAULT_BIND,
+          net::handles::kInvalidNetworkHandle, net::NetLog::Get(),
           net::NetLogSource());
       int rv = socket2->ConnectUsingNetworkAsync(network_handle, server_address,
                                                  callback.callback());
@@ -386,7 +387,8 @@ TEST_F(BrokeredUdpClientSocketTest, ConnectUsingNetworkAsync) {
       // Also check that connecting using the default network succeeds with a
       // valid default network.
       auto socket3 = client_socket_factory_.CreateDatagramClientSocket(
-          net::DatagramSocket::DEFAULT_BIND, net::NetLog::Get(),
+          net::DatagramSocket::DEFAULT_BIND,
+          net::handles::kInvalidNetworkHandle, net::NetLog::Get(),
           net::NetLogSource());
       rv = socket3->ConnectUsingDefaultNetworkAsync(server_address,
                                                     callback.callback());
@@ -401,8 +403,8 @@ TEST_F(BrokeredUdpClientSocketTest, ConnectUsingNetworkAsync) {
             socket_->ConnectUsingNetworkAsync(
                 wrong_network_handle, server_address, callback.callback()));
   auto socket2 = client_socket_factory_.CreateDatagramClientSocket(
-      net::DatagramSocket::DEFAULT_BIND, net::NetLog::Get(),
-      net::NetLogSource());
+      net::DatagramSocket::DEFAULT_BIND, net::handles::kInvalidNetworkHandle,
+      net::NetLog::Get(), net::NetLogSource());
   EXPECT_EQ(net::ERR_NOT_IMPLEMENTED, socket2->ConnectUsingDefaultNetworkAsync(
                                           server_address, callback.callback()));
 #endif  // BUILDFLAG(IS_ANDROID)

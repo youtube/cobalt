@@ -1042,6 +1042,7 @@ void DedicatedWorkerHost::ObserveNetworkServiceCrash(
   auto params = network::mojom::URLLoaderFactoryParams::New();
   params->process_id = ToOriginatingProcessId(worker_process_host_->GetID());
   params->debug_tag = "DedicatedWorkerHost::ObserveNetworkServiceCrash";
+  params->network_restrictions_id = network_restrictions_id_;
   network_service_connection_error_handler_holder_.reset();
   storage_partition_impl->GetNetworkContext()->CreateURLLoaderFactory(
       network_service_connection_error_handler_holder_

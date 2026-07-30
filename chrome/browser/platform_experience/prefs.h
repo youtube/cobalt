@@ -24,6 +24,10 @@ inline constexpr char kShouldUsePEHNotificationTextIndexPrefName[] =
 inline constexpr char kPEHNotificationTextIndexPrefName[] =
     "platform_experience_helper.notification_text";
 
+// Timestamp pref for the last time PEH features were synced to prefs.
+inline constexpr char kPEHLastSyncTimePrefName[] =
+    "platform_experience_helper.last_sync_time";
+
 void RegisterPrefs(PrefRegistrySimple& registry);
 
 // Overrides prefs to reflect values from feature flags.

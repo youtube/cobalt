@@ -8,7 +8,6 @@
 #import <UIKit/UIKit.h>
 
 #import "ios/chrome/browser/policy/model/management_state.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/browser/signin/model/constants.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/browser/signin/model/signin_util.h"

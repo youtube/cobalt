@@ -128,8 +128,8 @@ class DocumentPipFrameView : public views::FrameView,
   // coordinate space.
   gfx::Rect ConvertControlBoundsToFrame(views::View* control_view) const;
 
-  // Bounds of the origin chip in frame-view coordinates.
-  gfx::Rect GetOriginChipBounds() const;
+  // Bounds of the security icon in frame-view coordinates.
+  gfx::Rect GetSecurityIconBounds() const;
 
   // Reads the opener URL and security level and updates the origin label text
   // and the lock/security icon.

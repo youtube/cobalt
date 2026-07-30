@@ -6,8 +6,11 @@
 
 #include <utility>
 
+#include "base/byte_count.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
+#include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "components/optimization_guide/core/model_execution/manifest_broker/manifest.h"
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
@@ -167,12 +170,33 @@ std::vector<mojom::BrokerPropertyInfoPtr> ManifestMonitor::GetBrokerProperties()
     const {
   std::vector<mojom::BrokerPropertyInfoPtr> properties;
   properties.push_back(mojom::BrokerPropertyInfo::New(
+      "Enabled by feature flag",
+      features::IsOnDeviceExecutionEnabled() ? "true" : "false"));
+  properties.push_back(mojom::BrokerPropertyInfo::New(
+      "Enabled by enterprise policy",
+      IsAllowedByPolicy(local_state_.get()) ? "true" : "false"));
+  properties.push_back(mojom::BrokerPropertyInfo::New(
+      "Enabled by user setting",
+      IsAllowedByUserSetting(local_state_.get()) ? "true" : "false"));
+  properties.push_back(mojom::BrokerPropertyInfo::New(
       "Manifest Path",
       manifest_dir_.has_value() ? manifest_dir_->AsUTF8Unsafe() : "N/A"));
-  properties.push_back(mojom::BrokerPropertyInfo::New(
-      "Free Disk Space", free_space_.has_value()
-                             ? base::ToString(free_space_->InMiB()) + " MiB"
-                             : "N/A"));
+
+  std::string disk_space_string = "N/A";
+  if (free_space_.has_value()) {
+    base::ByteCount disk_space_required =
+        features::GetDiskSpaceRequiredForOnDeviceModelInstall();
+    base::ByteCount disk_space_available = *free_space_;
+    bool is_available =
+        !features::IsFreeDiskSpaceTooLowForOnDeviceModelInstall(*free_space_);
+    disk_space_string = base::StrCat(
+        {is_available ? "true" : "false", " (",
+         base::NumberToString(disk_space_available.InMiB()), " MiB available, ",
+         base::NumberToString(disk_space_required.InMiB()), " MiB required)"});
+  }
+
+  properties.push_back(mojom::BrokerPropertyInfo::New("Disk space available",
+                                                      disk_space_string));
   properties.push_back(mojom::BrokerPropertyInfo::New(
       "Manifest Loaded", manifest_.has_value() ? "true" : "false"));
   return properties;

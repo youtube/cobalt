@@ -20,6 +20,10 @@
 // Called when the user taps the completed tasks header row in the card cell.
 - (void)taskCollectionViewDidTapCompletedHeader:(UICollectionViewCell*)cell;
 
+// Called when the user taps an individual task row inside the card cell.
+- (void)taskCollectionViewCell:(LevelUpTaskCollectionViewCell*)cell
+                    didTapTask:(LevelUpTask*)task;
+
 @end
 
 // Collection view cell representing the individual Level Up checklist tasks

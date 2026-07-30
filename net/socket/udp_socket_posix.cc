@@ -4,7 +4,6 @@
 
 #include "net/socket/udp_socket_posix.h"
 
-#include "base/notimplemented.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_APPLE)
@@ -22,7 +21,10 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
+#include <algorithm>
+#include <array>
 #include <memory>
+#include <vector>
 
 #include "base/debug/alias.h"
 #include "base/debug/crash_logging.h"
@@ -82,9 +84,52 @@ namespace {
 constexpr int kBindRetries = 10;
 constexpr int kPortStart = 1024;
 constexpr int kPortEnd = 65535;
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+// Maximum number of UDP packets that can be read at a time from recvmmsg.
+constexpr size_t kMaxMmsgMessages = 128;
+#endif
 
 int GetSocketFDHash(int fd) {
   return fd ^ 1595649551;
+}
+
+uint8_t GetTosFromMsghdr(struct msghdr* msg) {
+  if (msg->msg_controllen == 0) {
+    return 0;
+  }
+  for (struct cmsghdr* cmsg = CMSG_FIRSTHDR(msg); cmsg != nullptr;
+       // SAFETY: CMSG_NXTHDR is a system macro that safely iterates over
+       // control messages using the boundaries defined in msghdr.
+       cmsg = UNSAFE_BUFFERS(CMSG_NXTHDR(msg, cmsg))) {
+#if BUILDFLAG(IS_APPLE)
+    constexpr int kTosType = IP_RECVTOS;
+#else
+    constexpr int kTosType = IP_TOS;
+#endif
+    if (cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == kTosType) {
+      uint8_t tos_val = 0;
+      // SAFETY: CMSG_DATA returns a pointer to the control message payload.
+      // For IP_TOS, the kernel writes the payload as a uint8_t (1 byte).
+      auto cmsg_data_as_span = UNSAFE_BUFFERS(base::span(
+          reinterpret_cast<const uint8_t*>(CMSG_DATA(cmsg)), sizeof(uint8_t)));
+      base::byte_span_from_ref(tos_val).copy_from(cmsg_data_as_span);
+      return tos_val;
+    }
+
+    if (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_TCLASS) {
+      int tclass_val = 0;
+      // SAFETY: CMSG_DATA returns a pointer to the control message payload.
+      // For IPV6_TCLASS, the kernel writes the payload as an 'int' (usually 4
+      // bytes). We must read sizeof(int) bytes to correctly handle big-endian
+      // architectures (where the value would be in the last byte of the int)
+      // and avoid alignment issues.
+      auto cmsg_data_as_span = UNSAFE_BUFFERS(base::span(
+          reinterpret_cast<const uint8_t*>(CMSG_DATA(cmsg)), sizeof(int)));
+      base::byte_span_from_ref(tclass_val).copy_from(cmsg_data_as_span);
+      return static_cast<uint8_t>(tclass_val);
+    }
+  }
+  return 0;
 }
 
 #if BUILDFLAG(IS_MAC)
@@ -301,7 +346,9 @@ void UDPSocketPosix::Close() {
   // Zero out any pending read/write callback state.
   read_buf_.reset();
   read_buf_len_ = 0;
+  read_multiple_maximum_packet_size_ = 0;
   read_callback_.Reset();
+  read_multiple_callback_.Reset();
   recv_from_address_ = nullptr;
   write_buf_.reset();
   write_buf_len_ = 0;
@@ -437,8 +484,52 @@ base::expected<DatagramsMetadata, Error> UDPSocketPosix::ReadMultiple(
     size_t maximum_packet_size,
     base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)>
         callback) {
-  NOTIMPLEMENTED();
-  return base::unexpected(ERR_NOT_IMPLEMENTED);
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_NE(socket_, kInvalidSocket);
+  // Concurrent reads are not supported.
+  CHECK(read_multiple_callback_.is_null());
+  CHECK(read_callback_.is_null());
+  CHECK(!recv_from_address_);
+  CHECK(!callback.is_null());  // Synchronous operation not supported
+  CHECK_GT(buf_len, 0u);
+  CHECK_GT(maximum_packet_size, 0u);
+  CHECK_GE(buf_len, maximum_packet_size);
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+  base::expected<DatagramsMetadata, Error> nread =
+      InternalReadMultiple(buffer, buf_len, maximum_packet_size);
+  if (nread.has_value() || nread.error() != ERR_IO_PENDING) {
+    return nread;
+  }
+
+  if (!base::CurrentIOThread::Get()->WatchFileDescriptor(
+          socket_, true, base::MessagePumpForIO::WATCH_READ,
+          &read_socket_watcher_, &read_watcher_)) {
+    PLOG(ERROR) << "WatchFileDescriptor failed on read";
+    int result = MapSystemError(errno);
+    LogRead(result, nullptr, 0, nullptr);
+    return base::unexpected(static_cast<Error>(result));
+  }
+
+  read_buf_ = buffer;
+  read_buf_len_ = base::checked_cast<int>(buf_len);
+  read_multiple_maximum_packet_size_ = maximum_packet_size;
+  read_multiple_callback_ = std::move(callback);
+  return base::unexpected(ERR_IO_PENDING);
+#else
+  int rv =
+      RecvFrom(buffer, base::checked_cast<int>(maximum_packet_size), nullptr,
+               base::BindOnce(&UDPSocketPosix::OnFallbackReadComplete,
+                              base::Unretained(this), std::move(callback)));
+  if (rv < 0) {
+    return base::unexpected(static_cast<Error>(rv));
+  }
+  return DatagramsMetadata{DatagramMetadata{
+      .offset = 0,
+      .length = static_cast<size_t>(rv),
+      .tos = last_tos_,
+  }};
+#endif
 }
 
 int UDPSocketPosix::RecvFrom(IOBuffer* buf,
@@ -448,6 +539,7 @@ int UDPSocketPosix::RecvFrom(IOBuffer* buf,
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK_NE(kInvalidSocket, socket_);
   CHECK(read_callback_.is_null());
+  CHECK(read_multiple_callback_.is_null());
   DCHECK(!recv_from_address_);
   DCHECK(!callback.is_null());  // Synchronous operation not supported
   DCHECK_GT(buf_len, 0);
@@ -754,8 +846,11 @@ int UDPSocketPosix::AllowAddressSharingForMulticast() {
 void UDPSocketPosix::ReadWatcher::OnFileCanReadWithoutBlocking(int) {
   TRACE_EVENT(NetTracingCategory(),
               "UDPSocketPosix::ReadWatcher::OnFileCanReadWithoutBlocking");
-  if (!socket_->read_callback_.is_null())
+  if (!socket_->read_callback_.is_null()) {
     socket_->DidCompleteRead();
+  } else if (!socket_->read_multiple_callback_.is_null()) {
+    socket_->DidCompleteMultipleRead();
+  }
 }
 
 void UDPSocketPosix::WriteWatcher::OnFileCanWriteWithoutBlocking(int) {
@@ -770,6 +865,30 @@ void UDPSocketPosix::DoReadCallback(int rv) {
   // Since Run() may result in Read() being called,
   // clear |read_callback_| up front.
   std::move(read_callback_).Run(rv);
+}
+
+void UDPSocketPosix::DoReadMultipleCallback(
+    base::expected<DatagramsMetadata, Error> rv) {
+  CHECK(rv.has_value() || rv.error() != ERR_IO_PENDING);
+  CHECK(!read_multiple_callback_.is_null());
+
+  // Since Run() may result in Read() being called,
+  // clear |read_multiple_callback_| up front.
+  std::move(read_multiple_callback_).Run(std::move(rv));
+}
+
+void UDPSocketPosix::OnFallbackReadComplete(
+    base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)> callback,
+    int rv) {
+  if (rv < 0) {
+    std::move(callback).Run(base::unexpected(static_cast<Error>(rv)));
+    return;
+  }
+  std::move(callback).Run(DatagramsMetadata{DatagramMetadata{
+      .offset = 0,
+      .length = static_cast<size_t>(rv),
+      .tos = last_tos_,
+  }});
 }
 
 void UDPSocketPosix::DoWriteCallback(int rv) {
@@ -794,10 +913,38 @@ void UDPSocketPosix::DidCompleteRead() {
   }
 }
 
+void UDPSocketPosix::DidCompleteMultipleRead() {
+  CHECK(!read_multiple_callback_.is_null());
+
+  base::expected<DatagramsMetadata, Error> result = InternalReadMultiple(
+      read_buf_.get(), read_buf_len_, read_multiple_maximum_packet_size_);
+  if (result.has_value() || result.error() != ERR_IO_PENDING) {
+    read_buf_.reset();
+    read_buf_len_ = 0;
+    read_multiple_maximum_packet_size_ = 0;
+    bool ok = read_socket_watcher_.StopWatchingFileDescriptor();
+    CHECK(ok);
+    DoReadMultipleCallback(std::move(result));
+  }
+}
+
 void UDPSocketPosix::LogRead(int result,
                              const char* bytes,
                              socklen_t addr_len,
                              const sockaddr* addr) {
+  IPEndPoint address;
+  bool have_valid_address = false;
+  if (result >= 0 && net_log_.IsCapturing()) {
+    DCHECK(addr_len > 0);
+    DCHECK(addr);
+    have_valid_address = address.FromSockAddr(addr, addr_len);
+  }
+  LogRead(result, bytes, have_valid_address ? &address : nullptr);
+}
+
+void UDPSocketPosix::LogRead(int result,
+                             const char* bytes,
+                             const IPEndPoint* address) {
   if (result < 0) {
     net_log_.AddEventWithNetErrorCode(NetLogEventType::UDP_RECEIVE_ERROR,
                                       result);
@@ -805,13 +952,8 @@ void UDPSocketPosix::LogRead(int result,
   }
 
   if (net_log_.IsCapturing()) {
-    DCHECK(addr_len > 0);
-    DCHECK(addr);
-
-    IPEndPoint address;
-    bool is_address_valid = address.FromSockAddr(addr, addr_len);
     NetLogUDPDataTransfer(net_log_, NetLogEventType::UDP_BYTES_RECEIVED, result,
-                          bytes, is_address_valid ? &address : nullptr);
+                          bytes, address);
   }
 
   activity_monitor::IncrementBytesReceived(result);
@@ -861,6 +1003,115 @@ int UDPSocketPosix::InternalRecvFrom(IOBuffer* buf,
   return InternalRecvFromNonConnectedSocket(buf, buf_len, address);
 }
 
+base::expected<DatagramsMetadata, Error> UDPSocketPosix::InternalReadMultiple(
+    IOBuffer* buffer,
+    size_t buf_len,
+    size_t maximum_packet_size) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  // This read API currently only supports connected UDP sockets.
+  CHECK(is_connected_);
+  CHECK(remote_address_);
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+  return InternalRecvMmsg(buffer, buf_len / maximum_packet_size,
+                          maximum_packet_size);
+#else
+  NOTREACHED();
+#endif
+}
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+base::expected<DatagramsMetadata, Error> UDPSocketPosix::InternalRecvMmsg(
+    IOBuffer* buffer,
+    size_t num_messages,
+    size_t maximum_packet_size) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_GE(buffer->span().size(), num_messages * maximum_packet_size);
+  size_t messages_to_read =
+      static_cast<size_t>(std::min(num_messages, kMaxMmsgMessages));
+
+  // We only expect to receive TOS/ECN control messages, which fit in a
+  // uint8_t (for IPv4 IP_TOS) or an int (for IPv6 IPV6_TCLASS). We allocate
+  // space for an 'int' (the larger of the two) to support both families.
+  // The kernel only populates control messages for options explicitly enabled
+  // via setsockopt (in this case, SetRecvTos() enables
+  // IP_RECVTOS/IPV6_RECVTCLASS). Therefore, a buffer size of
+  // CMSG_SPACE(sizeof(int)) per message is sufficient. If we opt-in to more
+  // control messages in the future (e.g., IP_PKTINFO or IP_RECVTTL), this
+  // buffer size must be expanded.
+  constexpr size_t kControlBufferSize = CMSG_SPACE(sizeof(int));
+  alignas(CMSG_ALIGN(sizeof(int)))
+      std::array<char, kMaxMmsgMessages * kControlBufferSize>
+          control_buffers;
+
+  std::array<struct mmsghdr, kMaxMmsgMessages> mmsg = {};
+  std::array<struct iovec, kMaxMmsgMessages> mmsg_iov = {};
+
+  const auto buffer_span = buffer->span();
+  for (size_t i = 0; i < messages_to_read; ++i) {
+    struct iovec& iov = mmsg_iov[i];
+    iov.iov_base = &buffer_span[i * maximum_packet_size];
+    iov.iov_len = maximum_packet_size;
+    struct msghdr& msg_hdr = mmsg[i].msg_hdr;
+    msg_hdr.msg_iov = &iov;
+    msg_hdr.msg_iovlen = 1;
+    msg_hdr.msg_control = &control_buffers[i * kControlBufferSize];
+    msg_hdr.msg_controllen = kControlBufferSize;
+  }
+
+  int messages_read = HANDLE_EINTR(
+      recvmmsg(socket_, mmsg.data(), messages_to_read, 0, nullptr));
+
+  if (messages_read < 0) {
+    int result = MapSystemError(errno);
+    if (result != ERR_IO_PENDING) {
+      LogRead(result, nullptr, 0, nullptr);
+    }
+    return base::unexpected(static_cast<Error>(result));
+  }
+
+  auto result = ProcessRecvMmsgResults(
+      base::span(mmsg).first(static_cast<size_t>(messages_read)),
+      maximum_packet_size);
+
+  if (!result.has_value()) {
+    LogRead(result.error(), nullptr, 0, nullptr);
+    return result;
+  }
+
+  for (const auto& datagram : result.value()) {
+    LogRead(static_cast<int>(datagram.length),
+            reinterpret_cast<const char*>(
+                buffer->span().subspan(datagram.offset).data()),
+            remote_address_.get());
+  }
+
+  return result;
+}
+
+base::expected<DatagramsMetadata, Error> UDPSocketPosix::ProcessRecvMmsgResults(
+    base::span<struct mmsghdr> mmsg,
+    size_t maximum_packet_size) {
+  DatagramsMetadata datagrams;
+  datagrams.reserve(mmsg.size());
+  for (size_t i = 0; i < mmsg.size(); ++i) {
+    if (mmsg[i].msg_hdr.msg_flags & MSG_TRUNC) {
+      return base::unexpected(ERR_MSG_TOO_BIG);
+    }
+    if (mmsg[i].msg_hdr.msg_flags & MSG_CTRUNC) {
+      return base::unexpected(ERR_CONTROL_MSG_TOO_BIG);
+    }
+    size_t msg_len = mmsg[i].msg_len;
+    uint8_t msg_tos = 0;
+    if (msg_len > 0) {
+      msg_tos = GetTosFromMsghdr(&mmsg[i].msg_hdr);
+    }
+    datagrams.push_back(DatagramMetadata{
+        .offset = i * maximum_packet_size, .length = msg_len, .tos = msg_tos});
+  }
+  return datagrams;
+}
+#endif
+
 int UDPSocketPosix::InternalRecvFromConnectedSocket(IOBuffer* buf,
                                                     int buf_len,
                                                     IPEndPoint* address) {
@@ -884,11 +1135,7 @@ int UDPSocketPosix::InternalRecvFromConnectedSocket(IOBuffer* buf,
     }
   }
 
-  SockaddrStorage sock_addr;
-  bool success =
-      remote_address_->ToSockAddr(sock_addr.addr(), &sock_addr.addr_len);
-  DCHECK(success);
-  LogRead(result, buf->data(), sock_addr.addr_len, sock_addr.addr());
+  LogRead(result, buf->data(), remote_address_.get());
   return result;
 }
 
@@ -921,7 +1168,9 @@ int UDPSocketPosix::InternalRecvFromNonConnectedSocket(IOBuffer* buf,
     }
   } else {
     storage.addr_len = msg.msg_namelen;
-    if (msg.msg_flags & MSG_TRUNC) {
+    if (msg.msg_flags & MSG_CTRUNC) {
+      result = ERR_UNEXPECTED;
+    } else if (msg.msg_flags & MSG_TRUNC) {
       // NB: recvfrom(..., MSG_TRUNC, ...) would be a simpler way to do this on
       // Linux, but isn't supported by POSIX.
       result = ERR_MSG_TOO_BIG;
@@ -932,27 +1181,8 @@ int UDPSocketPosix::InternalRecvFromNonConnectedSocket(IOBuffer* buf,
       result = bytes_transferred;
     }
     last_tos_ = 0;
-    if (bytes_transferred > 0 && msg.msg_controllen > 0) {
-      for (struct cmsghdr* cmsg = CMSG_FIRSTHDR(&msg); cmsg != nullptr;
-           // SAFETY: Size and null pointer checks are done in system header
-           // files.
-           cmsg = UNSAFE_BUFFERS(CMSG_NXTHDR(&msg, cmsg))) {
-#if BUILDFLAG(IS_APPLE)
-        if ((cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_RECVTOS) ||
-            (cmsg->cmsg_level == IPPROTO_IPV6 &&
-             cmsg->cmsg_type == IPV6_TCLASS)) {
-#else
-        if ((cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_TOS) ||
-            (cmsg->cmsg_level == IPPROTO_IPV6 &&
-             cmsg->cmsg_type == IPV6_TCLASS)) {
-#endif  // BUILDFLAG(IS_APPLE)
-          auto cmsg_data_as_span =
-              // SAFETY: `CMSG_DATA` points to `control_buffer`. Its size is
-              // 512.
-              UNSAFE_BUFFERS(base::span(CMSG_DATA(cmsg), sizeof(uint8_t)));
-          base::byte_span_from_ref(last_tos_).copy_from(cmsg_data_as_span);
-        }
-      }
+    if (result >= 0) {
+      last_tos_ = GetTosFromMsghdr(&msg);
     }
   }
 

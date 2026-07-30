@@ -3375,7 +3375,7 @@ void LocalFrame::FinishedLoading(FrameLoader::NavigationFinishState state) {
   DomWindow()->FinishedLoading(state);
 }
 
-void LocalFrame::UpdateFaviconURL() {
+void LocalFrame::UpdateFaviconURL(mojom::blink::FaviconUpdateReason reason) {
   if (!IsMainFrame())
     return;
 
@@ -3402,7 +3402,7 @@ void LocalFrame::UpdateFaviconURL() {
   }
   DCHECK_EQ(icon_urls.size(), urls.size());
 
-  GetLocalFrameHostRemote().UpdateFaviconURL(std::move(urls));
+  GetLocalFrameHostRemote().UpdateFaviconURL(std::move(urls), reason);
 
   if (GetPage())
     GetPage()->GetPageScheduler()->OnTitleOrFaviconUpdated();
@@ -3973,7 +3973,7 @@ String CreateMarkupInRect(LocalFrame* frame,
   const CreateMarkupOptions create_markup_options =
       CreateMarkupOptions::Builder()
           .SetShouldAnnotateForInterchange(true)
-          .SetShouldResolveURLs(kResolveNonLocalURLs)
+          .SetShouldResolveUrls(ResolveUrls::kNonLocal)
           .Build();
   if (start_position.CompareTo(end_position) <= 0) {
     return CreateMarkup(start_position, end_position, create_markup_options);

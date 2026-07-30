@@ -38,8 +38,7 @@
             start-icon="os-settings:lock"
             on-click="onConfigureLockClick_"
             label="[[selectLockScreenTitleString_(hasPinLogin)]]"
-            sub-label="[[getPasswordState_(hasPin,
-                prefs.settings.enable_screen_lock.value)]]"
+            sub-label="[[unlockStatusLabel_]]"
             role-description="$i18n{subpageArrowRoleDescription}">
         </cr-link-row>
         <cr-link-row id="manageOtherPeopleRow" class="hr"

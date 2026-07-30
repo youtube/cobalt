@@ -23,6 +23,7 @@
 #include "third_party/blink/renderer/core/testing/core_unit_test_helper.h"
 #include "third_party/blink/renderer/core/testing/sim/sim_request.h"
 #include "third_party/blink/renderer/core/testing/sim/sim_test.h"
+#include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 
 namespace blink {
 
@@ -198,6 +199,123 @@ TEST_F(DragControllerSimTest, ThrottledDocumentHandled) {
       &data, *GetDocument().GetFrame(), DragController::Operation());
 
   // Test passes if we don't crash.
+}
+
+// Dragging an image whose intrinsic area exceeds `kMaxOriginalImageArea`
+// (1500*1500) causes `DragImageForImage()` to return null. The drag should
+// still proceed even with no image overlay.
+TEST_F(DragControllerSimTest, ImageTooLargeForPreviewStillStartsDrag) {
+  WebView().MainFrameViewWidget()->Resize(gfx::Size(800, 600));
+  SimRequest main_resource("https://example.com/test.html", "text/html");
+  SimRequest image_resource("https://example.com/big.png", "image/png");
+  LoadURL("https://example.com/test.html");
+  main_resource.Complete(R"HTML(
+    <!DOCTYPE html>
+    <style>* { margin: 0; }</style>
+    <img id="big" src="big.png">
+  )HTML");
+
+  // The 3000x2000.png test image exceeds the `kMaxOriginalImageArea` cap,
+  // so `DragImageForImage()` returns nullptr, but the image still passes
+  // `CanDragImage()`.
+  image_resource.Complete(*test::ReadFromFile(
+      test::CoreTestDataPath("notifications/3000x2000.png")));
+  test::RunPendingTasks();
+  Compositor().BeginFrame();
+
+  Element* image_element = GetDocument().getElementById(AtomicString("big"));
+  ASSERT_TRUE(image_element);
+
+  const gfx::Point drag_origin(50, 50);
+  WebMouseEvent mouse_event(WebInputEvent::Type::kMouseDown,
+                            WebInputEvent::kNoModifiers,
+                            WebInputEvent::GetStaticTimeStampForTests());
+  mouse_event.button = WebMouseEvent::Button::kLeft;
+  mouse_event.SetPositionInWidget(drag_origin.x(), drag_origin.y());
+
+  DragController& drag_controller = WebView().GetPage()->GetDragController();
+  DragState& drag_state = drag_controller.GetDragState();
+  drag_state.drag_type_ = kDragSourceActionImage;
+  drag_state.drag_src_ = image_element;
+  drag_state.drag_data_transfer_ = DataTransfer::Create(
+      DataTransfer::kDragAndDrop, DataTransferAccessPolicy::kWritable,
+      DataObject::Create());
+
+  EXPECT_TRUE(drag_controller.StartDrag(GetDocument().GetFrame(), drag_state,
+                                        mouse_event, drag_origin));
+}
+
+// An image drag whose source `<img>` has no image URL should not start a
+// drag at all.
+TEST_F(DragControllerSimTest, ImageDragWithEmptyUrlDoesNotStartDrag) {
+  WebView().MainFrameViewWidget()->Resize(gfx::Size(800, 600));
+  SimRequest main_resource("https://example.com/test.html", "text/html");
+  LoadURL("https://example.com/test.html");
+  // `<img>` with no `src` and explicit dimensions so the element is still
+  // hittable. `HitTestResult::AbsoluteImageURL()` is empty in this case.
+  main_resource.Complete(R"HTML(
+    <!DOCTYPE html>
+    <style>* { margin: 0; }</style>
+    <img id="empty" width="200" height="200">
+  )HTML");
+  Compositor().BeginFrame();
+
+  Element* image_element = GetDocument().getElementById(AtomicString("empty"));
+  ASSERT_TRUE(image_element);
+
+  const gfx::Point drag_origin(50, 50);
+  WebMouseEvent mouse_event(WebInputEvent::Type::kMouseDown,
+                            WebInputEvent::kNoModifiers,
+                            WebInputEvent::GetStaticTimeStampForTests());
+  mouse_event.button = WebMouseEvent::Button::kLeft;
+  mouse_event.SetPositionInWidget(drag_origin.x(), drag_origin.y());
+
+  DragController& drag_controller = WebView().GetPage()->GetDragController();
+  DragState& drag_state = drag_controller.GetDragState();
+  drag_state.drag_type_ = kDragSourceActionImage;
+  drag_state.drag_src_ = image_element;
+  drag_state.drag_data_transfer_ = DataTransfer::Create(
+      DataTransfer::kDragAndDrop, DataTransferAccessPolicy::kWritable,
+      DataObject::Create());
+
+  EXPECT_FALSE(drag_controller.StartDrag(GetDocument().GetFrame(), drag_state,
+                                         mouse_event, drag_origin));
+}
+
+// Verifies that a link drag whose source `<a>` has no `href` does not start a
+// drag.
+TEST_F(DragControllerSimTest, LinkDragWithEmptyHrefDoesNotStartDrag) {
+  WebView().MainFrameViewWidget()->Resize(gfx::Size(800, 600));
+  SimRequest main_resource("https://example.com/test.html", "text/html");
+  LoadURL("https://example.com/test.html");
+  main_resource.Complete(R"HTML(
+    <!DOCTYPE html>
+    <style>* { margin: 0; }
+           a { display: inline-block; width: 100px; height: 30px; }</style>
+    <a id="link">click</a>
+  )HTML");
+  Compositor().BeginFrame();
+
+  Element* link_element = GetDocument().getElementById(AtomicString("link"));
+  ASSERT_TRUE(link_element);
+
+  const gfx::Point drag_origin(10, 10);
+  WebMouseEvent mouse_event(WebInputEvent::Type::kMouseDown,
+                            WebInputEvent::kNoModifiers,
+                            WebInputEvent::GetStaticTimeStampForTests());
+  mouse_event.button = WebMouseEvent::Button::kLeft;
+  mouse_event.SetPositionInWidget(drag_origin.x(), drag_origin.y());
+
+  DragController& drag_controller = WebView().GetPage()->GetDragController();
+  DragState& drag_state = drag_controller.GetDragState();
+  drag_state.drag_type_ = kDragSourceActionLink;
+  drag_state.drag_src_ = link_element;
+  drag_state.drag_data_transfer_ = DataTransfer::Create(
+      DataTransfer::kDragAndDrop, DataTransferAccessPolicy::kWritable,
+      DataObject::Create());
+
+  EXPECT_FALSE(drag_controller.StartDrag(GetDocument().GetFrame(), drag_state,
+                                         mouse_event, drag_origin));
 }
 
 TEST_F(DragControllerTest, DragImageForSelectionClipsToViewport) {

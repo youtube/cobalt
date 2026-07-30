@@ -39,6 +39,7 @@ class Summarizer final : public ScriptWrappable,
       const String& context,
       mojo::PendingRemote<blink::mojom::blink::ModelStreamingResponder>
           responder) override;
+  double inputQuota() const;
 
   // summarizer.idl:
   ScriptPromise<IDLString> summarize(ScriptState* script_state,

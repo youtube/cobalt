@@ -17,7 +17,7 @@
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
 #include "components/content_settings/core/common/content_settings_types.h"
-#include "components/permissions/permission_uma_util.h"
+#include "components/permissions/permission_uma_constants.h"
 
 class OneTimePermissionsTracker;
 

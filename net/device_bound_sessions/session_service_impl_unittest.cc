@@ -616,12 +616,12 @@ TEST_F(SessionServiceImplTest, EventObserverOnAddSession) {
     EXPECT_EQ(details.new_session_display->key.id.value(), kSessionId);
   });
 
-  SessionParams::Scope scope;
-  scope.origin = kOrigin;
-  SessionParams params(
-      kSessionId, kTestUrl, kRefreshUrlString, std::move(scope),
-      /*creds=*/{}, unexportable_keys::UnexportableSigningKeyId(),
-      /*allowed_refresh_initiators=*/{});
+  SessionParams params{
+      .session_id = kSessionId,
+      .fetcher_url = kTestUrl,
+      .refresh_url = kRefreshUrlString,
+      .scope = {.origin = kOrigin},
+  };
 
   base::test::TestFuture<SessionError::ErrorType> add_session_future;
   service().AddSession(SchemefulSite(kTestUrl), std::move(params), wrapped_key,
@@ -1610,12 +1610,9 @@ TEST_F(SessionServiceImplTest, RefreshWithInvalidParams) {
   // parameters (e.g. doesn't specify any bound credentials).
   ScopedTestRegistrationFetcher scoped_test_fetcher(base::BindRepeating(
       [](RegistrationFetcher::RegistrationCompleteCallback callback) {
-        std::move(callback).Run(
-            nullptr, RegistrationResult(Session::CreateIfValid(SessionParams(
-                         kSessionId, GURL(), "", SessionParams::Scope(),
-                         std::vector<SessionParams::Credential>(),
-                         unexportable_keys::UnexportableSigningKeyId(),
-                         /*allowed_refresh_initiators=*/{}))));
+        std::move(callback).Run(nullptr,
+                                RegistrationResult(Session::CreateIfValid(
+                                    SessionParams{.session_id = kSessionId})));
       }));
   service().DeferRequestForRefresh(
       dbsc_request, SessionService::DeferralParams(Session::Id(kSessionId)),
@@ -2591,14 +2588,13 @@ TEST_F(SessionServiceImplWithStoreTest, GetAllSessionsWaitsForSessionsToLoad) {
   service().GetAllSessionsAsync(
       future.GetCallback<const std::vector<SessionKey>&>());
 
-  SessionParams::Scope scope;
-  scope.origin = "https://example.com";
-  auto session_or_error = Session::CreateIfValid(SessionParams(
-      "session_id", kTestUrl, "https://example.com/refresh", std::move(scope),
-      /*creds=*/{}, unexportable_keys::UnexportableSigningKeyId(),
-      /*allowed_refresh_initiators=*/{}));
-  ASSERT_TRUE(session_or_error.has_value());
-  std::unique_ptr<Session> session = std::move(*session_or_error);
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<Session> session,
+                       Session::CreateIfValid(SessionParams{
+                           .session_id = "session_id",
+                           .fetcher_url = kTestUrl,
+                           .refresh_url = kRefreshUrlString,
+                           .scope = {.origin = kOrigin},
+                       }));
   ASSERT_TRUE(session);
 
   // Complete loading. If we did not defer, we'd miss this session.
@@ -3526,14 +3522,14 @@ TEST_F(SessionServiceImplTest, SessionDeletionDuringRefresh_ConfigChange) {
   }
 
   // Complete the refresh with a new session
-  SessionParams::Scope scope;
-  scope.origin = "https://example.com";
-  ASSERT_OK_AND_ASSIGN(
-      std::unique_ptr<Session> session,
-      Session::CreateIfValid(SessionParams(
-          kSessionId, kTestUrl, "https://example.com/refresh", std::move(scope),
-          /*creds=*/{}, unexportable_keys::UnexportableSigningKeyId(),
-          /*allowed_refresh_initiators=*/{})));
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<Session> session,
+                       Session::CreateIfValid(SessionParams{
+                           .session_id = kSessionId,
+                           .fetcher_url = kTestUrl,
+                           .refresh_url = kRefreshUrlString,
+                           .scope = {.origin = kOrigin},
+
+                       }));
   ASSERT_TRUE(session);
 
   tracker.ResolvePendingRefresh(

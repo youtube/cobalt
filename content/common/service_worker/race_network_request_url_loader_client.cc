@@ -39,6 +39,13 @@ const char kMainResourceHistogramForRaceNetworkFetchEvent[] =
 const char kSubresourceHistogramForRaceNetworkFetchEvent[] =
     "ServiceWorker.FetchEvent.Subresource.RaceNetworkRequest";
 
+// When this is enabled, it fixes the network socket stall bug when
+// RaceNetworkRequest receives a redirect response.
+//
+// crbug.com/510900934 for more details.
+BASE_FEATURE(kServiceWorkerStaticRouterRaceRedirectFix,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 void RecordRaceNetworkRequestCloningResponseForFetchHandlerHistogram(
     bool is_main_resource,
     bool is_cloning_data_finished_before_response_complete) {
@@ -210,6 +217,7 @@ void ServiceWorkerRaceNetworkRequestURLLoaderClient::OnReceiveRedirect(
   // If redirect happened, we don't have to create another data pipe.
   data_consume_policy_ = DataConsumePolicy::kForwardingOnly;
   response_received_time_ = base::TimeTicks::Now();
+  redirected_ = true;
 
   // TODO(crbug.com/40258805): Return a redirect response to |owner| as a
   // RaceNetworkRequest result without breaking the cache storage compatibility.
@@ -231,7 +239,8 @@ void ServiceWorkerRaceNetworkRequestURLLoaderClient::OnReceiveRedirect(
       // This happens when the response is faster than the fetch handler.
       owner_->SetCommitResponsibility(FetchResponseFrom::kServiceWorker);
       forwarding_client_->OnReceiveRedirect(redirect_info, std::move(head));
-      break;
+      MaybeCompleteRedirectResponse(/*run_completion_callback=*/false);
+      return;
     case FetchResponseFrom::kServiceWorker:
       // This happens when the fetch handler is faster, so basically
       // RaceNetworkRequest does not handle the response anymore. The fetch
@@ -239,17 +248,18 @@ void ServiceWorkerRaceNetworkRequestURLLoaderClient::OnReceiveRedirect(
       // used. Let the fetch handler side client to handle the rest. The fetch
       // handler side close the connection if it's not needed anyway.
       forwarding_client_->OnReceiveRedirect(redirect_info, std::move(head));
-      break;
+      MaybeCompleteRedirectResponse(/*run_completion_callback=*/true);
+      return;
     case FetchResponseFrom::kWithoutServiceWorker:
       // This happens when the fetch handler is faster and the result is
       // fallback. In this case in-flight RaceNetworkRequest will be used as a
       // fallback request.
       owner_->HandleRedirect(redirect_info, head);
-      break;
+      MaybeCompleteRedirectResponse(/*run_completion_callback=*/true);
+      return;
     case FetchResponseFrom::kAutoPreloadHandlingFallback:
       NOTREACHED();
   }
-  redirected_ = true;
 }
 
 void ServiceWorkerRaceNetworkRequestURLLoaderClient::OnComplete(
@@ -296,6 +306,27 @@ void ServiceWorkerRaceNetworkRequestURLLoaderClient::
 void ServiceWorkerRaceNetworkRequestURLLoaderClient::Bind(
     mojo::PendingRemote<network::mojom::URLLoaderClient>* remote) {
   receiver_.Bind(remote->InitWithNewPipeAndPassReceiver());
+}
+
+void ServiceWorkerRaceNetworkRequestURLLoaderClient::
+    MaybeCompleteRedirectResponse(bool run_completion_callback) {
+  if (!base::FeatureList::IsEnabled(
+          kServiceWorkerStaticRouterRaceRedirectFix)) {
+    return;
+  }
+  if (!is_main_resource_) {
+    return;
+  }
+  // For main resource requests, there is no response body to transfer upon a
+  // redirect. We can immediately consider the data transfer for the fetch
+  // handler completed so that we don't delay the loader's destruction.
+  //
+  // If `run_completion_callback` is true, it notifies the owner (loader) to
+  // trigger its self-destruction check immediately.
+  clone_response_for_fetch_handler_completed_ = true;
+  if (run_completion_callback) {
+    MaybeRunCloneCompletedForFetchHandlerCallback();
+  }
 }
 
 void ServiceWorkerRaceNetworkRequestURLLoaderClient::CommitResponse() {

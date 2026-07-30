@@ -29,13 +29,16 @@ public class SigninAndHistorySyncBundleHelperTest {
     @SmallTest
     public void testPutAndGetFullscreenSigninAndHistorySyncConfig() {
         final FullscreenSigninAndHistorySyncConfig initialConfig =
-                new FullscreenSigninAndHistorySyncConfig.Builder(
-                                "title", "subtitle", "dismiss", "history title", "history subtitle")
+                FullscreenSigninAndHistorySyncConfig.builderForSwitchAccountFlow(
+                                "title",
+                                "subtitle",
+                                "dismiss",
+                                "history title",
+                                "history subtitle",
+                                "test@gmail.com")
                         .historyOptInMode(HistorySyncConfig.OptInMode.REQUIRED)
                         .signinLogoId(3)
                         .shouldDisableSignin(true)
-                        .selectedAccountEmail("test@gmail.com")
-                        .signinFlow(SigninAndHistorySyncCoordinator.SigninFlow.SWITCH_ACCOUNT)
                         .build();
 
         Bundle bundle = SigninAndHistorySyncBundleHelper.getBundle(initialConfig);

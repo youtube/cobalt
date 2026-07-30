@@ -75,6 +75,7 @@ Neke funkcije možda neće biti dostupne i promjene postavki se neće sačuvati.
 <translation id="1820835682567584003">Chromium pokušava <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="183031085822326697">Sljedeći put kada otvorite Chromium na uređaju <ph name="DEVICE_TYPE" />, vidjet ćete upit da koristite Google upravitelj lozinki.</translation>
 <translation id="1838374766361614909">Obriši pretraživanje</translation>
+<translation id="1846849503013521481">Da zaštiti vaš rad u Chromiumu, vaša organizacija će moći pregledati određene informacije ili upravljati njima</translation>
 <translation id="18552579716432081">Da izbrišete podatke pregledanja samo s ovog uređaja, a da ih zadržite na Google računu, <ph name="BEGIN_LINK" />odjavite se iz Chromiuma<ph name="END_LINK" />.</translation>
 <translation id="1857749206890802997">Preuzmite Chromium na telefon da otvarate ili kreirate nove grupe kartica u pokretu.</translation>
 <translation id="185970820835152459">Možete upravljati Google računima na koje ste prijavljeni. Vaši Google računi se koriste za preglednik Chromium, Play trgovinu, Gmail i drugo. Ako želite dodati račun za nekog drugog, kao što je član porodice, umjesto računa dodajte novu osobu na svoj uređaj <ph name="DEVICE_TYPE" />. <ph name="LINK_BEGIN" />Saznajte više<ph name="LINK_END" /></translation>
@@ -437,6 +438,7 @@ Ako ova stranica ne funkcionira kako se očekuje, pokušajte dozvoliti optimizac
 <translation id="5953657885167112863">Personalizirajte Chromium</translation>
 <translation id="5960071705175224773">Nepoznata aplikacija je promijenila vaše postavke</translation>
 <translation id="5968400720580217226">AI način rada</translation>
+<translation id="5977420883993828287">Zakačeno! Ponovo koristite kontekstualne zadatke putem alatne trake</translation>
 <translation id="5986585015444752010">{COUNT,plural, =1{Organizacija automatski zatvara Chromium kada se ne koristi 1 minutu.}one{Organizacija automatski zatvara Chromium kada se ne koristi # minutu.}few{Organizacija automatski zatvara Chromium kada se ne koristi # minute.}other{Organizacija automatski zatvara Chromium kada se ne koristi # minuta.}}</translation>
 <translation id="5987687638152509985">Ažurirajte Chromium da započnete sinhronizaciju</translation>
 <translation id="6003112304606738118">Preuzimanje… Preostalo je <ph name="HOURS" /> h</translation>
@@ -541,6 +543,17 @@ Moguće je da neke funkcije neće biti dostupne. Odredite drugi direktorij profi
 <translation id="6896758677409633944">Kopiraj</translation>
 <translation id="6901631050894301805">Postavite Chromium kao zadani preglednik i zakačite ga na traku zadataka</translation>
 <translation id="6909503629704372277">&amp;Upravljajte profilima u Chromiumu</translation>
+<translation id="6919942714452658456">Ova radnja će:
+          <ph name="LINE_BREAKS" />
+            • vratiti stranicu za pokretanje, stranicu Nova kartica, pretraživač i zakačene kartice na zadano
+            <ph name="LINE_BREAK" />
+            • onemogućiti ekstenzije
+            <ph name="LINE_BREAK" />
+            • izbrisati kolačiće i druge privremene podatke web lokacije
+            <ph name="LINE_BREAK" />
+            • vratiti prečice Chromiuma na zadano
+            <ph name="LINE_BREAKS" />
+            Ova radnja neće uticati na oznake, historiju i sačuvane lozinke.</translation>
 <translation id="6934579572334859869">Postavite pitanje pretraživanju pomoću slika o ovoj slici</translation>
 <translation id="6948031725951063910">Dosegnuli ste ograničenje Chromiuma od <ph name="BOOKMARK_LIMIT" /> oznake/a, pa neke od vaših oznaka još uvijek nisu sačuvane na Google račun.
 
@@ -610,6 +623,7 @@ Chromium ne može vratiti vaše postavke.</translation>
 <translation id="7686590090926151193">Chromium nije vaš zadani preglednik</translation>
 <translation id="7689606757190482937">Sinhronizirajte i personalizirajte Chromium na svim uređajima</translation>
 <translation id="7699779824407626136">Ažuriranje Chromiuma</translation>
+<translation id="7700735928747402058">Vaš rad je zaštićen u Chromiumu</translation>
 <translation id="7716950018788545737">Zadaci su prekinuti.</translation>
 <translation id="77283119132245232">Pruža usluge praćenja sistema za preglednik <ph name="BROWSER_NAME" />. Ako se ta usluga onemogući, praćenja performansi koje je kreirao preglednik neće uključivati događaje na nivou sistema kao što je promjena konteksta i događaji spremnosti Threada.</translation>
 <translation id="7745317241717453663">Na ovaj način će se podaci o pregledanju izbrisati s ovog uređaja. Za preuzimanje podataka kasnije prijavite se u Chromium kao korisnik <ph name="USER_EMAIL" />.</translation>
@@ -641,6 +655,7 @@ Chromium ne može vratiti vaše postavke.</translation>
 <translation id="8031714377769448844">Zakačite Chromium u traku zadataka da mu brzo pristupite bilo kada</translation>
 <translation id="80471789339884597">Hvala što ste instalirali. Morate ponovo pokrenuti sve preglednike prije nego što možete koristiti <ph name="BUNDLE_NAME" />.</translation>
 <translation id="8054112667659782652">Uvijek prikaži prečicu pretraživanja pomoću slika</translation>
+<translation id="8069447462453318634">Odaberite "Zakači na alatnu traku"</translation>
 <translation id="8077498902115777962">Onemogući pokretanje Chromiuma u pozadini za aplikacije</translation>
 <translation id="80790299200510644">Pretraživanje pomoću slika</translation>
 <translation id="8086881907087796310">Instalacija nije uspjela jer vaš računar ne ispunjava minimalne hardverske zahtjeve.</translation>
@@ -722,6 +737,15 @@ Chromium ne može vratiti vaše postavke.</translation>
 <translation id="8907580949721785412">Chromium pokušava prikazati lozinke. Upišite Windows lozinku da ovo omogućite.</translation>
 <translation id="8932992523185907506">Chromium više nije zadani preglednik. Postaviti Chromium kao zadani preglednik?</translation>
 <translation id="8941642502866065432">Nije moguće ažurirati Chromium</translation>
+<translation id="8944232836376404813">Ova radnja će:
+          <ph name="LINE_BREAKS" />
+            • vratiti stranicu za pokretanje, stranicu Nova kartica, pretraživač i zakačene kartice na zadano
+            <ph name="LINE_BREAK" />
+            • onemogućiti ekstenzije
+            <ph name="LINE_BREAK" />
+            • izbrisati kolačiće i druge privremene podatke web lokacije
+            <ph name="LINE_BREAKS" />
+            Ova radnja neće uticati na oznake, historiju i sačuvane lozinke.</translation>
 <translation id="897581876605952338">Logotip za Chromium Enterprise</translation>
 <translation id="8981150672034878610">Nije moguće otvoriti Chromium jer je došlo do greške prilikom otvaranja profila. Pokušajte ponovo pokrenuti Chromium.</translation>
 <translation id="8988036198400390003">Upravljajte profilima u Chromiumu</translation>

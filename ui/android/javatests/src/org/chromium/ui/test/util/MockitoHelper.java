@@ -28,7 +28,7 @@ public class MockitoHelper {
      *
      * <p>This often allows us to verify the functionality inside the provided object, trigger it
      * exactly when we want to, or verify that a sequences of events happen in the order we expect.
-     * However this does not allow access to multiple arguments or to specify the return value, in
+     * However, this does not allow access to multiple arguments or to specify the return value, in
      * which case using the original doAnswer is likely better.
      *
      * <p>Note that users of this should be careful when invoking functionality directly in their
@@ -133,5 +133,14 @@ public class MockitoHelper {
         Callback<T> mock = Mockito.mock(Callback.class);
         forwardBind(mock);
         return mock;
+    }
+
+    /**
+     * Type-safe wrapper around {@code Mockito.clearInvocations} that avoids unchecked warnings when
+     * clearing parameterized (generic) mocks.
+     */
+    @SafeVarargs
+    public static <T> void clearInvocations(T... mocks) {
+        Mockito.clearInvocations(mocks);
     }
 }

@@ -14,7 +14,6 @@
 <translation id="1036348656032585052">Deaktivieren</translation>
 <translation id="1036436692654972538">Wird auf deinem Gerät gespeichert</translation>
 <translation id="1041322626941363065">Warnen, wenn Passwörter durch eine Datenpanne preisgegeben wurden</translation>
-<translation id="104491362976654916">Offlineseite</translation>
 <translation id="1046742265332833834">Blaues Design</translation>
 <translation id="1049743911850919806">Inkognito</translation>
 <translation id="1053651653201045802">Abgemeldet. Melde dich wieder an, um die Lesezeichen, Passwörter und sonstigen Informationen in deinem Konto zu verwenden.</translation>
@@ -138,6 +137,7 @@
 <translation id="1445276840641906250">Alle deine Tabs in einem Browser</translation>
 <translation id="1447564161241938558">Der Import von Passwörtern und Passkeys wurde von deinem Administrator deaktiviert</translation>
 <translation id="1450170672351507823">Standardschutz ist aktiviert. Der erweiterte Schutz bietet noch mehr Sicherheit.</translation>
+<translation id="1452651021404174820">Gerät auswählen</translation>
 <translation id="1455660774629812862">Nicht ausblenden</translation>
 <translation id="1456545332132818232">Rezensionen für <ph name="PRODUCT_NAME" />, <ph name="STARS" /> von <ph name="MAX_STARS" />, <ph name="DOMAIN" /></translation>
 <translation id="1460751212339734034">Weniger tippen und Zeit sparen</translation>
@@ -145,6 +145,7 @@
 <translation id="1469381646033328562">Dein Konto wird von deinen Eltern verwaltet.
 <ph name="BEGIN_LINK" />Weitere Informationen<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Geändert</translation>
+<translation id="1483493594462132177">Senden</translation>
 <translation id="1486096554574027028">Passwörter suchen</translation>
 <translation id="1491277525950327607">Zum Aktivieren bzw. Deaktivieren doppeltippen</translation>
 <translation id="1492417797159476138">Du hast diesen Nutzernamen für diese Website bereits gespeichert</translation>
@@ -406,6 +407,7 @@
 <translation id="2321086116217818302">Passwörter werden zum Exportieren vorbereitet…</translation>
 <translation id="2323697864063408084">Du kannst Benachrichtigungen auf dem Sperrbildschirm und als Banner sehen, um nichts Wichtiges zu verpassen</translation>
 <translation id="2326302612031521902">Auswahl der Einheit</translation>
+<translation id="2327445548174191329">Von <ph name="DEVICE_NAME" /></translation>
 <translation id="2330607597130465898">Kein Safe Browsing</translation>
 <translation id="233375395665273385">Löschen und abmelden</translation>
 <translation id="2340966584724330791">Google erhebt Daten aus deinen Chats sowie die von dir mit Gemini geteilten Inhalte (z. B. Dateien, Videos, Bildschirminhalte und Fotos). Außerdem werden dein Feedback, Daten der Websites, die du mit Gemini besuchst, Informationen zur Produktnutzung und Standortinformationen (z. B. der ungefähre Ort deines Geräts, deine IP‑Adresse oder die in deinem Google-Konto hinterlegte Privat- oder Arbeitsadresse) aufgezeichnet.</translation>
@@ -501,6 +503,7 @@
 <translation id="2666092431469916601">Oben</translation>
 <translation id="2669454659051515572">Alle Personen, die dieses Gerät nutzen, können heruntergeladene Dateien sehen</translation>
 <translation id="2671423594960767771">Gruppe freigeben</translation>
+<translation id="2673183423393669407">In Raten zahlen</translation>
 <translation id="2673508731173059946">Kopierten Link aufrufen</translation>
 <translation id="2679659833697380">Deine Informationen werden auf deinem Gerät gespeichert</translation>
 <translation id="2681572445246787428">Dokumentsignierung</translation>
@@ -587,7 +590,6 @@
 <translation id="2996291259634659425">Passphrase erstellen</translation>
 <translation id="3010025794097054078">So kannst du dich bestmöglich vor Bedrohungen wie Datenpannen, unsicheren Websites und mehr schützen.</translation>
 <translation id="3012310354105716927">Einige Daten wurden noch nicht gespeichert</translation>
-<translation id="3013922155552460252">Gemini-Aktivitäten wie Chats, Feedback und Prompts aufrufen und verwalten</translation>
 <translation id="3016518775797983090">Seite kann nicht geteilt werden</translation>
 <translation id="3020183492814296499">Verknüpfungen</translation>
 <translation id="3021342271734507256">Zeichne, markiere oder tippe auf dem Display auf etwas, nach dem du suchen möchtest</translation>
@@ -1169,6 +1171,7 @@
 <translation id="5020732097997376541">Tippe auf das Lens-Symbol</translation>
 <translation id="5021500396464456616">Kontaktiere die Person, die diesen Link gesendet hat</translation>
 <translation id="5039804452771397117">Zulassen</translation>
+<translation id="5050042263972837708">Gruppenname</translation>
 <translation id="5050810143224996149">Passwort teilen</translation>
 <translation id="5052499409147950210">Website bearbeiten</translation>
 <translation id="5055015094595227120">Genauer Standort</translation>
@@ -1224,6 +1227,7 @@
 <translation id="5200894869889836319">Optionen zum Festlegen von Berechtigungen</translation>
 <translation id="5203051773066903947">Eingeben</translation>
 <translation id="5206453674369664567">Abmelden und Daten löschen</translation>
+<translation id="5209320130288484488">Keine Geräte gefunden</translation>
 <translation id="5210365745912300556">Schließen</translation>
 <translation id="5211488077761630279">Zulassen, dass „<ph name="SITE_NAME" />“ <ph name="PERMISSION" /> verwendet?</translation>
 <translation id="5217245356412073535">Du kannst in den Einstellungen &gt; den Inhaltseinstellungen die Desktop-Ansicht als Standardeinstellung festlegen</translation>
@@ -1243,6 +1247,7 @@
 <translation id="5248640482715684545">Diese Website versucht, eine andere App zu öffnen.</translation>
 <translation id="5250371859659394278">Von einer unbekannten Quelle</translation>
 <translation id="525510229763628836">Minimiert</translation>
+<translation id="5260842098960755113">Thread geschlossen</translation>
 <translation id="5269913829202614649">Startseite anpassen</translation>
 <translation id="5271265092610673171">{count,plural, =1{Ein Pflichtfeld ist leer. Bitte fülle es vor dem Speichern aus.}other{Einige Pflichtfelder sind leer. Bitte fülle sie vor dem Speichern aus.}}</translation>
 <translation id="5271549068863921519">Passwort speichern</translation>
@@ -1558,6 +1563,7 @@ Handoff muss auch im Abschnitt „Allgemein“ deiner Einstellungen aktiviert se
 <translation id="6327249202318869726">Gemini ist für dein Konto deaktiviert. Weitere Informationen erhältst du von deinem Administrator.</translation>
 <translation id="6331836477476466332">Ein sicherer und leistungsstarker Browser für dich</translation>
 <translation id="6337234675334993532">Verschlüsselung</translation>
+<translation id="6337711171050747395">Optionen für die Ratenzahlung an der Kasse anzeigen</translation>
 <translation id="633809752005859102">Es ist ein schwerwiegendes Problem aufgetreten. Wir arbeiten daran.</translation>
 <translation id="6339793034470834130">Wenn du den Web Inspector verwenden möchtest, musst du auf einem Computer mithilfe eines Kabels eine Verbindung zu Safari herstellen und über das Menü „Entwickler“ auf das iPhone zugreifen. Du kannst das Menü „Entwickler“ im Bereich „Erweitert“ in den Safari-Einstellungen auf deinem Computer aktivieren.</translation>
 <translation id="6340285871011301182">Teilweise Übersetzung ist nicht verfügbar.</translation>
@@ -1569,6 +1575,7 @@ Handoff muss auch im Abschnitt „Allgemein“ deiner Einstellungen aktiviert se
 <translation id="6344533709188026708">Ein separater Bereich zum Arbeiten</translation>
 <translation id="6347953390226388422">{count,plural, =1{Diese Adresse wird aus deinem Google-Konto (<ph name="USER_EMAIL" />) und von diesem Gerät gelöscht.}other{Diese Adressen werden aus deinem Google-Konto (<ph name="USER_EMAIL" />) und von diesem Gerät gelöscht.}}</translation>
 <translation id="634878792104344809">Passwörter, Verlauf und mehr auf allen Geräten synchronisieren</translation>
+<translation id="6350745006329795504">Meine Geräte verwalten</translation>
 <translation id="6351147166808964033">Tab-Wechsler starten</translation>
 <translation id="63519665078626091">Wenn du den Web Inspector verwenden möchtest, musst du auf einem Computer mithilfe eines Kabels eine Verbindung zu Safari herstellen und über das Menü „Entwickler“ auf das iPad zugreifen. Du kannst das Menü „Entwickler“ im Bereich „Erweitert“ in den Safari-Einstellungen auf deinem Computer aktivieren.</translation>
 <translation id="6355820183143562453">Karte „Preis-Tracking“ ausblenden</translation>
@@ -2104,7 +2111,6 @@ Wenn du auf deinem Computer fortfahren möchtest, wechsle zu <ph name="OTHER_EMA
 <translation id="8114753159095730575">Dateidownload verfügbar. Optionen stehen unten auf dem Bildschirm zur Verfügung.</translation>
 <translation id="8123502380991596210">„Das ist neu“ ausblenden</translation>
 <translation id="8123953306357309250">Synchronisierung abbrechen? Du kannst die Synchronisierung jederzeit in den Einstellungen aktivieren.</translation>
-<translation id="8130712116203026166">Fasse den Inhalt in einer Zeile zusammen und gib mir nützliche Informationen, die nicht auf dieser Seite zu finden sind. Verwende einen prägnanten, ungezwungenen Tonfall. Beschränke dich auf 100 Wörter.</translation>
 <translation id="81313319706244542">2. Tippe auf „Passwörter“</translation>
 <translation id="8131740175452115882">Bestätigen</translation>
 <translation id="8132598642024322408">Jetzt: <ph name="PRICE" /> – zuvor: <ph name="PREVIOUS_PRICE" />.</translation>
@@ -2150,6 +2156,7 @@ Wenn du auf deinem Computer fortfahren möchtest, wechsle zu <ph name="OTHER_EMA
 <translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">Du gibst Informationen in <ph name="URL" /> ein</translation>
 <translation id="8275068909952022340">Mehr…</translation>
+<translation id="8280797717392145626">Links empfangen</translation>
 <translation id="8281781826761538115">Standard: <ph name="DEFAULT_LOCALE" /></translation>
 <translation id="8281886186245836920">Überspringen</translation>
 <translation id="8282657446819506217">In Tabgruppe öffnen</translation>
@@ -2271,7 +2278,6 @@ Wenn du auf deinem Computer fortfahren möchtest, wechsle zu <ph name="OTHER_EMA
 <translation id="866266761389616183">Oh nein!</translation>
 <translation id="8663764600409216912">Du verwendest Passwörter, die nicht einfach zu erraten sein dürften</translation>
 <translation id="8664992138761940052">Standardmäßig wird dein aktueller Tab geteilt, wenn du einen neuen Chat startest. Inhalte und URLs geteilter Tabs werden an Google gesendet. Du kannst diese Einstellung jederzeit ändern.</translation>
-<translation id="8668210798914567634">Diese Seite wurde in deiner Leseliste gespeichert.</translation>
 <translation id="8672642291731179042">Seiten übersetzen</translation>
 <translation id="8672733398999596205">Alle aktivieren</translation>
 <translation id="8674716540979958118">Du nutzt kompromittierte Passwörter.</translation>
@@ -2323,7 +2329,7 @@ Wenn du auf deinem Computer fortfahren möchtest, wechsle zu <ph name="OTHER_EMA
 <translation id="8813277370772331957">Später erinnern</translation>
 <translation id="8814308045751067027">Wenn du Gemini Live verwenden möchtest, musst du Chrome in den Einstellungen Zugriff auf dein Mikrofon gewähren</translation>
 <translation id="8814719628147284151">Weiter</translation>
-<translation id="881559332211266856">Redress-Nummer aktualisieren</translation>
+<translation id="881559332211266856">Redress Number aktualisieren</translation>
 <translation id="8817524703470045896">Du kannst Preise beobachten und dich benachrichtigen lassen, wenn der Preis auf einer Website sinkt</translation>
 <translation id="8819155700324279105">Du kannst dich durch zusätzliche Schutzmaßnahmen besser vor Onlinebedrohungen schützen lassen</translation>
 <translation id="8820817407110198400">Lesezeichen</translation>

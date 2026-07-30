@@ -286,9 +286,6 @@ public class ExternalNavigationDelegateImpl implements ExternalNavigationDelegat
     }
 
     @Override
-    public void maybeRecordExternalNavigationSchemeHistogram(GURL url) {}
-
-    @Override
     public void notifyCctPasswordSavingRecorderOfExternalNavigation() {
         WindowAndroid windowAndroid = assumeNonNull(getWindowAndroid());
         CctPasswordSavingMetricsRecorderBridge cctSavingMetricsRecorder =

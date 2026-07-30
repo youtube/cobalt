@@ -968,6 +968,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                             (profileProvider) -> {
                                 UsageStatsService.createPageViewObserverIfEnabled(
                                         this,
+                                        getLifecycleDispatcher(),
                                         profileProvider.getOriginalProfile(),
                                         getActivityTabProvider(),
                                         getTabContentManagerSupplier());
@@ -1199,8 +1200,8 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
 
     @Override
     public int getBaseStatusBarColor(Tab tab) {
-        // TODO(crbug.com/465719853): Pass the CCT Top Bar Color in AGSA intent after Google Bottom Bar is
-        // launched
+        // TODO(crbug.com/465719853): Pass the CCT Top Bar Color in AGSA intent after Google Bottom
+        // Bar is launched
         if (GoogleBottomBarCoordinator.isFeatureEnabled()
                 && CustomTabsConnection.getInstance()
                         .shouldEnableGoogleBottomBarForIntent(mIntentDataProvider)) {

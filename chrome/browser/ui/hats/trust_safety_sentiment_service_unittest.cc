@@ -351,7 +351,9 @@ TEST_F(TrustSafetySentimentServiceTest, TriggersClearOnLaunch) {
   // The launched survey will be randomly selected from the two triggers.
   std::string requested_survey_trigger;
   EXPECT_CALL(*mock_hats_service(), LaunchSurvey)
-      .WillOnce(testing::SaveArg<0>(&requested_survey_trigger));
+      .WillOnce(
+          testing::DoAll(testing::SaveArg<0>(&requested_survey_trigger),
+                         testing::Return(HatsService::LaunchError::kNone)));
   service()->OpenedNewTabPage();
   testing::Mock::VerifyAndClearExpectations(mock_hats_service());
   auto surveyed_feature_area =

@@ -163,6 +163,7 @@ source_set("browser_tests") {
     ":demo_mode",
     ":test_support",
     "//ash/constants",
+    "//ash/login/resources:login_strings",
     "//ash/public/cpp",
     "//ash/strings",
     "//base",

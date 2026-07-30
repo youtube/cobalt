@@ -48,6 +48,7 @@ static_library("lock_screen_reauth") {
 
   deps = [
     "//ash/constants",
+    "//ash/login/resources:login_strings",
     "//ash/public/cpp",
     "//ash/webui/common:trusted_types_util",
     "//chrome/app:generated_resources",

@@ -7,21 +7,73 @@ providers:
     config:
       timeoutSeconds: 1200
 tests:
-  - assert:
+  - vars:
+      diff_files:
+        - content/browser/usb/usb_browsertest.cc
+    assert:
     - type: python
       value: file://../../../testing/asserts/check_changes.py:check_files_changed
       config:
         files:
         - content/browser/usb/usb_browsertest.cc
-    - type: python
-      value: file://../../../testing/asserts/check_gtests.py
-      config:
-        binary: content_browsertests
-        filter: 'WebUsbTest.*Open*:WebUsbTest.*Close*'
     - type: llm-rubric
-      value: file://autorater_prompt.md
+      value: |
+        You are an expert code reviewer and test evaluation system.
+        Your task is to judge the validity of generated code that adds a
+        browser test case to `content/browser/usb/usb_browsertest.cc`.
+
+        You must evaluate the generated output against the given criteria.
+
+        ### Evaluation Criteria
+
+        1. **Target File and Location**:
+          - The changes must be modifying
+            `content/browser/usb/usb_browsertest.cc`.
+          - The new test must be contained within exactly one
+            `IN_PROC_BROWSER_TEST_F(WebUsbTest, ...)` block.
+          - The test case name (the second argument to `IN_PROC_BROWSER_TEST_F`)
+            must contain either `Open` or `Close` (e.g., `OpenClose`,
+            `OpenAndCloseDevice`).
+
+        2. **Test Assertions (Googletest)**:
+          - The test must contain Googletest assertions (e.g., `EXPECT_*` or
+            `ASSERT_*`) to verify the steps. This can be a single assertion
+            wrapping a JavaScript block that performs the checks.
+          - The assertions or the wrapped JavaScript must verify the results of
+            the steps in the following logical order:
+            1. Check that `opened` is `true` after open.
+            2. Check that `opened` is `false` after close.
+            3. Check that the device is still recognized in the returned array
+                of devices.
+
+        3. **JavaScript Execution Correctness**:
+          - The JavaScript strings passed to `EvalJs` or `ExecJs` must be
+            syntactically correct.
+          - The JavaScript code must perform the following actions, containing
+            these exact API substrings/methods (in chronological execution
+            order across the test):
+            1. Request permission first:
+                `navigator.usb.requestDevice({ filters: [{ vendorId: 0 }] })`
+            2. Open the device: `.open()`
+            3. Check status: `.opened`
+            4. Close the device: `.close()`
+            5. Check status again: `.opened`
+            6. Retrieve devices: `navigator.usb.getDevices()`
+
+        4. **Substantive Validation (No Dummy/Empty Tests)**:
+          - Ensure the test is not a dummy test or an empty test shell.
+          - The test must actually perform the browser actions and WebUSB API
+            calls described above. Simply adding `EXPECT_TRUE(true)` or empty
+            helper methods is not acceptable.
+
+        ### Response
+        Using the evaluation criteria above, grade the generated output on a
+        scale of 0.0 to 1.0, where 1.0 is a perfect test and 0.0 is a completely
+        broken test. Explain the reason for your score.
+      provider: python:agents/testing/gemini_provider.py
+      threshold: 0.7
     metadata:
       pass_k_threshold: 1
-      runs_per_test: 5
+      runs_per_test: 1
       precompile_targets:
       - content_browsertests

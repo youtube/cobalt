@@ -57,11 +57,12 @@ using SharedClipboardUIFeatureDisabledBrowserTest =
 
 IN_PROC_BROWSER_TEST_F(SharedClipboardUIFeatureDisabledBrowserTest,
                        ContextMenu_UIFeatureDisabled) {
-  Init(syncer::DeviceInfo::SharingFeature::kSharedClipboardV2,
-       syncer::DeviceInfo::SharingFeature::kSharedClipboardV2);
+  Init(syncer::DeviceInfo::SharingFeature::kSharedClipboardV2);
   auto devices = sharing_service()->GetDeviceCandidates(
       syncer::DeviceInfo::SharingFeature::kSharedClipboardV2);
-  ASSERT_EQ(2u, devices.size());
+  // Only the remote device is available; the local device is filtered out by
+  // GUID, mirroring production behavior.
+  ASSERT_EQ(1u, devices.size());
 
   std::unique_ptr<TestRenderViewContextMenu> menu =
       InitContextMenu(GURL(), "", kSelectedText);

@@ -52,7 +52,6 @@
 #include "components/optimization_guide/core/optimization_guide_common.mojom.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
 #include "components/optimization_guide/proto/features/contextual_cueing.pb.h"
-#include "components/pdf/common/constants.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/signin/public/identity_manager/account_capabilities.h"
@@ -234,6 +233,12 @@ void ContextualCueingController::RegisterCueTarget(
 void ContextualCueingController::OnPageContentAnnotated(
     const page_content_annotations::HistoryVisit& visit,
     const page_content_annotations::PageContentAnnotationsResult& result) {
+  RunGlicSingleSourcePath(visit, result);
+}
+
+void ContextualCueingController::RunGlicSingleSourcePath(
+    const page_content_annotations::HistoryVisit& visit,
+    const page_content_annotations::PageContentAnnotationsResult& result) {
   content::WebContents* active_web_contents =
       tab_list_interface_->GetActiveTab()
           ? tab_list_interface_->GetActiveTab()->GetContents()
@@ -278,35 +283,22 @@ void ContextualCueingController::OnPageContentAnnotated(
     return;
   }
 
-  // Check classification to see if we should proceed to next step.
-  bool passes_edu = false;
-  bool passes_shopping = false;
-  for (const page_content_annotations::Category& category :
-       result.GetCategoryResults()) {
-    if (category.category_type ==
-            page_content_annotations::CategoryType::kEducation &&
-        category.score > kEduClassifierThreshold.Get()) {
-      passes_edu = true;
-    }
-    if (category.category_type ==
-            page_content_annotations::CategoryType::kShopping &&
-        category.score > kShoppingClassifierThreshold.Get()) {
-      passes_shopping = true;
-    }
+  // Delegate page-level classification to the registered Glic target, which
+  // owns the edu/shopping threshold logic.
+  CueTarget* glic_target = GetTarget(CueTargetType::kGlic);
+  if (!glic_target) {
+    CUEING_LOG(base::StringPrintf(
+        "%s ineligible for cue: Target feature kGlic not registered.",
+        active_web_contents->GetLastCommittedURL().spec().c_str()));
+    RecordContextualCueingDecision(
+        source_id, ContextualCueingDecision::kTargetFeatureNotRegistered);
+    return;
   }
 
-  bool is_supported_category = false;
-  if (kDiscardShoppingPdfs.Get() &&
-      active_web_contents->GetContentsMimeType() == pdf::kPDFMimeType) {
-    is_supported_category = passes_edu && !passes_shopping;
-  } else {
-    is_supported_category = passes_edu || passes_shopping;
-  }
-
-  if (!is_supported_category) {
+  if (!glic_target->IsPageEligible(result, active_web_contents)) {
     CUEING_LOG(base::StringPrintf(
         "%s ineligible for cue: Failed category classification.",
-        active_web_contents->GetLastCommittedURL().spec()));
+        active_web_contents->GetLastCommittedURL().spec().c_str()));
     RecordContextualCueingDecision(
         source_id, ContextualCueingDecision::kFailedCategoryClassification);
     return;
@@ -323,10 +315,10 @@ void ContextualCueingController::OnPageContentAnnotated(
     return;
   }
 
-  CUEING_LOG(
-      base::StringPrintf("%s eligible for cue: Category classification "
-                         "succeeded. Initiating model execution request.",
-                         active_web_contents->GetLastCommittedURL().spec()));
+  CUEING_LOG(base::StringPrintf(
+      "%s eligible for cue: Category classification "
+      "succeeded. Initiating model execution request.",
+      active_web_contents->GetLastCommittedURL().spec().c_str()));
   InitiateModelExecutionRequest();
 }
 
@@ -815,7 +807,7 @@ void ContextualCueingController::ShowCue(
   page_action_observer_->RegisterAsPageActionObserver(*page_action_controller);
 
   contextual_cueing_service_->OnCueShown(
-      active_tab->GetContents()->GetLastCommittedURL());
+      active_tab->GetContents()->GetLastCommittedURL(), cue_type);
 #endif
 
   base::UmaHistogramSparse("ContextualCueing.ShownCueCUJ",

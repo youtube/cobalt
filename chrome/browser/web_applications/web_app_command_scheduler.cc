@@ -67,7 +67,6 @@
 #include "chrome/browser/web_applications/isolated_web_apps/commands/get_isolated_web_app_browsing_data_command.h"
 #include "chrome/browser/web_applications/isolated_web_apps/commands/install_isolated_web_app_command.h"
 #include "chrome/browser/web_applications/isolated_web_apps/commands/isolated_web_app_apply_update_command.h"
-#include "chrome/browser/web_applications/isolated_web_apps/commands/isolated_web_app_install_command_helper.h"
 #include "chrome/browser/web_applications/isolated_web_apps/commands/isolated_web_app_prepare_and_store_update_command.h"
 #include "chrome/browser/web_applications/isolated_web_apps/install/isolated_web_app_install_source.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
@@ -300,8 +299,7 @@ void WebAppCommandScheduler::InstallIsolatedWebApp(
       std::make_unique<InstallIsolatedWebAppCommand>(
           url_info, install_source, expected_version, *profile_,
           std::move(optional_keep_alive),
-          std::move(optional_profile_keep_alive), std::move(callback),
-          std::make_unique<IsolatedWebAppInstallCommandHelper>(url_info)),
+          std::move(optional_profile_keep_alive), std::move(callback)),
       call_location);
 }
 
@@ -336,8 +334,7 @@ void WebAppCommandScheduler::PrepareAndStoreIsolatedWebAppUpdate(
   provider_->command_manager().ScheduleCommand(
       std::make_unique<IsolatedWebAppUpdatePrepareAndStoreCommand>(
           update_info, url_info, *profile_, std::move(optional_keep_alive),
-          std::move(optional_profile_keep_alive), std::move(callback),
-          std::make_unique<IsolatedWebAppInstallCommandHelper>(url_info)),
+          std::move(optional_profile_keep_alive), std::move(callback)),
       call_location);
 }
 
@@ -350,8 +347,7 @@ void WebAppCommandScheduler::ApplyPendingIsolatedWebAppUpdate(
   provider_->command_manager().ScheduleCommand(
       std::make_unique<IsolatedWebAppApplyUpdateCommand>(
           url_info, *profile_, std::move(optional_keep_alive),
-          std::move(optional_profile_keep_alive), std::move(callback),
-          std::make_unique<IsolatedWebAppInstallCommandHelper>(url_info)),
+          std::move(optional_profile_keep_alive), std::move(callback)),
       call_location);
 }
 

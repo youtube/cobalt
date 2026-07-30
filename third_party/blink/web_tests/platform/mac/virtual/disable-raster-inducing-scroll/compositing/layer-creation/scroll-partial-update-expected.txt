@@ -34,7 +34,6 @@ scroll me
     {
       "name": "LayoutBlockFlow DIV id='scroller'",
       "bounds": [185, 400],
-      "backgroundColor": "#FFFF0080",
       "transform": 3
     }
   ],

@@ -40,6 +40,7 @@
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/download_list_commands.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -92,6 +93,10 @@ class DownloadManagerCoordinatorTest : public PlatformTest {
         [[LayoutGuideSceneAgent alloc] init];
     [scene_state_ addAgent:layout_guide_scene_agent];
     browser_ = std::make_unique<TestBrowser>(profile_.get(), scene_state_);
+    mock_gemini_handler_ = OCMProtocolMock(@protocol(GeminiCommands));
+    [browser_->GetCommandDispatcher()
+        startDispatchingToTarget:mock_gemini_handler_
+                     forProtocol:@protocol(GeminiCommands)];
     presenter_ = [[FakeContainedPresenter alloc] init];
     base_view_controller_ = [[UIViewController alloc] init];
     activity_view_controller_class_ =
@@ -117,6 +122,9 @@ class DownloadManagerCoordinatorTest : public PlatformTest {
       [coordinator_ stop];
     }
 
+    [browser_->GetCommandDispatcher()
+        stopDispatchingForProtocol:@protocol(GeminiCommands)];
+    mock_gemini_handler_ = nil;
     [activity_view_controller_class_ stopMocking];
     [application_ stopMocking];
     [[InstallationNotifier sharedInstance] stopPolling];
@@ -153,6 +161,7 @@ class DownloadManagerCoordinatorTest : public PlatformTest {
   // Destructor will call -stopMocking on this object to make sure that
   // UIApplication is not mocked after these test finish running.
   id application_;
+  id mock_gemini_handler_;
   DownloadManagerCoordinator* coordinator_;
   base::UserActionTester user_action_tester_;
   base::HistogramTester histogram_tester_;

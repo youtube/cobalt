@@ -85,8 +85,8 @@
   E(kActionFilledCardInformation, IDC_FILLED_CARD_INFORMATION) \
   E(kActionSharingHubScreenshot, IDC_SHARING_HUB_SCREENSHOT) \
   E(kActionVirtualCardEnroll, IDC_VIRTUAL_CARD_ENROLL) \
-  E(kActionFollow, IDC_FOLLOW) \
-  E(kActionUnfollow, IDC_UNFOLLOW) \
+  E(kActionFollow) \
+  E(kActionUnfollow) \
   E(kActionAutofillMandatoryReauth, IDC_AUTOFILL_MANDATORY_REAUTH) \
   E(kActionProfileMenuInAppMenu, IDC_PROFILE_MENU_IN_APP_MENU) \
   E(kActionPasswordsAndAutofillMenu, IDC_PASSWORDS_AND_AUTOFILL_MENU) \
@@ -201,7 +201,7 @@
   E(kActionShowFullUrls, IDC_SHOW_FULL_URLS) \
   E(kActionShowGoogleLensShortcut, IDC_SHOW_GOOGLE_LENS_SHORTCUT) \
   E(kActionShowAiModeOmniboxButton, IDC_SHOW_AI_MODE_OMNIBOX_BUTTON) \
-  E(kActionRecordReplay, IDC_RECORD_REPLAY) \
+  E(kActionRecordReplay) \
   E(kActionShowSearchTools, IDC_SHOW_SEARCH_TOOLS) \
   E(kActionCaretBrowsingToggle, IDC_CARET_BROWSING_TOGGLE) \
   E(kActionChromeTips, IDC_CHROME_TIPS) \
@@ -301,10 +301,8 @@
     IDC_CONTENT_CONTEXT_SEARCHLENSFORIMAGE) \
   E(kActionContentContextGlicShareImage, \
     IDC_CONTENT_CONTEXT_GLICSHAREIMAGE) \
-  E(kActionContentContextTranslateImageWithWeb, \
-    IDC_CONTENT_CONTEXT_TRANSLATEIMAGEWITHWEB) \
-  E(kActionContentContextTranslateImageWithLens, \
-    IDC_CONTENT_CONTEXT_TRANSLATEIMAGEWITHLENS) \
+  E(kActionContentContextTranslateImageWithWeb) \
+  E(kActionContentContextTranslateImageWithLens) \
   /* Audio/video items. */ \
   E(kActionContentContextSaveAvAs, IDC_CONTENT_CONTEXT_SAVEAVAS) \
   E(kActionContentContextCopyAvLocation, IDC_CONTENT_CONTEXT_COPYAVLOCATION) \
@@ -503,8 +501,7 @@
   E(kActionContentContextAutofillFeedback, \
     IDC_CONTENT_CONTEXT_AUTOFILL_FEEDBACK) \
   /* Autofill context menu commands */ \
-  E(kActionContentContextAutofillImprovedSuggestions, \
-    IDC_CONTENT_CONTEXT_AUTOFILL_PREDICTION_IMPROVEMENTS) \
+  E(kActionContentContextAutofillImprovedSuggestions) \
   E(kActionContentContextAutofillFallbackPasswordsSelectPassword, \
     IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SELECT_PASSWORD) \
   E(kActionContentContextAutofillFallbackPasswordsImportPasswords, \
@@ -583,7 +580,7 @@
   E(kActionSidePanelShowLensOverlayResults, IDC_CONTENT_CONTEXT_LENS_OVERLAY) \
   E(kActionSidePanelShowReadAnything, IDC_SHOW_READING_MODE_SIDE_PANEL) \
   E(kActionSidePanelShowReadingList, IDC_READING_LIST_MENU_SHOW_UI) \
-  E(kActionSidePanelShowSearchCompanion, IDC_SHOW_SEARCH_COMPANION) \
+  E(kActionSidePanelShowSearchCompanion) \
   E(kActionSidePanelShowShoppingInsights) \
   E(kActionSidePanelShowSideSearch) \
   E(kActionSidePanelShowMerchantTrust) \
@@ -617,7 +614,7 @@
   E(kActionCopyUrl, IDC_COPY_URL) \
   E(kActionTabGroupsMenu, IDC_SAVED_TAB_GROUPS_MENU) \
   E(kActionTabSearch, IDC_TAB_SEARCH) \
-  E(kActionSplitTab, IDC_SPLIT_TAB) \
+  E(kActionSplitTab, IDC_NEW_SPLIT_TAB) \
   E(kActionFederation) \
   E(kActionGlicContextualCueing) \
   E(kActionShowAiOverlayDialog) \

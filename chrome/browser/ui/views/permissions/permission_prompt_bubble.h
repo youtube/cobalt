@@ -10,8 +10,6 @@
 #include "chrome/browser/ui/views/permissions/permission_prompt_desktop.h"
 #include "content/public/browser/web_contents_observer.h"
 
-class Browser;
-
 namespace content {
 class WebContents;
 }
@@ -19,8 +17,7 @@ class WebContents;
 class PermissionPromptBubble : public PermissionPromptDesktop,
                                public views::WidgetObserver {
  public:
-  PermissionPromptBubble(Browser* browser,
-                         content::WebContents* web_contents,
+  PermissionPromptBubble(content::WebContents* web_contents,
                          Delegate* delegate);
   ~PermissionPromptBubble() override;
   PermissionPromptBubble(const PermissionPromptBubble&) = delete;

@@ -254,6 +254,41 @@ TEST_F(SQLTransactionTest, NestedRollback) {
   EXPECT_EQ(0, CountFoo(db));
 }
 
+// Tests that poisoning and re-opening a `Database` after rolling-back a nested
+// transaction correctly resets the `Database` to a functional state.
+TEST_F(SQLTransactionTest, PoisonAndReopenDatabaseAfterNestedRollback) {
+  Database db(test::kTestTag);
+  ASSERT_TRUE(db.Open(db_path_));
+  ASSERT_TRUE(db.Execute("CREATE TABLE foo (a)"));
+  ASSERT_TRUE(db.Execute("INSERT INTO foo (a) VALUES (111)"));
+  EXPECT_EQ(CountFoo(db), 1);
+
+  {
+    Transaction outer_txn(&db);
+    ASSERT_TRUE(outer_txn.Begin());
+    {
+      Transaction inner_txn(&db);
+      ASSERT_TRUE(inner_txn.Begin());
+      ASSERT_TRUE(db.Execute("INSERT INTO foo (a) VALUES (222)"));
+      inner_txn.Rollback();
+
+      db.Poison();
+    }
+  }
+
+  // The database should be usable once re-opened.
+  db.Close();
+  ASSERT_TRUE(db.Open(db_path_));
+  EXPECT_EQ(CountFoo(db), 1);
+  {
+    Transaction transaction(&db);
+    EXPECT_TRUE(transaction.Begin());
+    ASSERT_TRUE(db.Execute("INSERT INTO foo (a) VALUES (333)"));
+    EXPECT_TRUE(transaction.Commit());
+  }
+  EXPECT_EQ(CountFoo(db), 2);
+}
+
 TEST_F(SQLTransactionTest, TransactionCommitWithPendingWriter) {
   Database db(test::kTestTag);
   ASSERT_TRUE(db.Open(db_path_));

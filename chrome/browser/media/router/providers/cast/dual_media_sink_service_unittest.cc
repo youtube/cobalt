@@ -59,9 +59,10 @@ class DualMediaSinkServiceTest : public testing::Test {
 
   ~DualMediaSinkServiceTest() override = default;
 
-  MOCK_METHOD2(OnSinksDiscovered,
-               void(const std::string& provider_name,
-                    const std::vector<MediaSinkInternal>& sinks));
+  MOCK_METHOD(void,
+              OnSinksDiscovered,
+              (const std::string& provider_name,
+               const std::vector<MediaSinkInternal>& sinks));
 
  protected:
   // Must outlive the raw_ptrs below.

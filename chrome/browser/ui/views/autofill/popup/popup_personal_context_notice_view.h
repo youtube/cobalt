@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_AUTOFILL_POPUP_POPUP_PERSONAL_CONTEXT_NOTICE_VIEW_H_
 
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/ui/views/autofill/popup/popup_row_view.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/styled_label.h"
 #include "ui/views/view.h"
@@ -18,17 +19,22 @@ class StyledLabel;
 namespace autofill {
 
 class AutofillPopupController;
+class PopupRowContentView;
 
 // The view that displays the "Personal context" notice.
 // This notice is shown at the bottom of the Autofill popup to inform the
 // user that personal context is enabled.
-class PopupPersonalContextNoticeView : public views::View {
-  METADATA_HEADER(PopupPersonalContextNoticeView, views::View)
+class PopupPersonalContextNoticeView : public PopupRowView {
+  METADATA_HEADER(PopupPersonalContextNoticeView, PopupRowView)
 
  public:
   explicit PopupPersonalContextNoticeView(
+      PopupRowView::AccessibilitySelectionDelegate& a11y_selection_delegate,
+      PopupRowView::SelectionDelegate& selection_delegate,
       base::WeakPtr<AutofillPopupController> controller,
-      int line_number);
+      int line_number,
+      std::unique_ptr<PopupRowContentView> content_view);
+
   PopupPersonalContextNoticeView(const PopupPersonalContextNoticeView&) =
       delete;
   PopupPersonalContextNoticeView& operator=(

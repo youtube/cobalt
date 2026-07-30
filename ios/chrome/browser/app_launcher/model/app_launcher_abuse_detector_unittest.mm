@@ -42,6 +42,40 @@ TEST_F(AppLauncherAbuseDetectorTest,
                             fromSourcePageURL:kSourceUrl1]);
 }
 
+// Tests cases when the same app is launched repeatedly from the same origin
+// but different paths (simulating history.replaceState).
+TEST_F(AppLauncherAbuseDetectorTest,
+       TestRepeatedAppLaunches_SameOriginDifferentPaths) {
+  const GURL kSourceUrl1("http://www.google.com/path1");
+  const GURL kSourceUrl2("http://www.google.com/path2");
+  const GURL kSourceUrl3("http://www.google.com/path3");
+  const GURL kAppUrl("facetime://+154");
+
+  AppLauncherAbuseDetector* abuseDetector =
+      [[AppLauncherAbuseDetector alloc] init];
+
+  // First launch attempt
+  EXPECT_EQ(ExternalAppLaunchPolicyAllow,
+            [abuseDetector launchPolicyForURL:kAppUrl
+                            fromSourcePageURL:kSourceUrl1]);
+  [abuseDetector didRequestLaunchExternalAppURL:kAppUrl
+                              fromSourcePageURL:kSourceUrl1];
+
+  // Second launch attempt (path changed)
+  EXPECT_EQ(ExternalAppLaunchPolicyAllow,
+            [abuseDetector launchPolicyForURL:kAppUrl
+                            fromSourcePageURL:kSourceUrl2]);
+  [abuseDetector didRequestLaunchExternalAppURL:kAppUrl
+                              fromSourcePageURL:kSourceUrl2];
+
+  // Third launch attempt (path changed again)
+  [abuseDetector didRequestLaunchExternalAppURL:kAppUrl
+                              fromSourcePageURL:kSourceUrl3];
+  EXPECT_EQ(ExternalAppLaunchPolicyPrompt,
+            [abuseDetector launchPolicyForURL:kAppUrl
+                            fromSourcePageURL:kSourceUrl3]);
+}
+
 // Tests cases when same app is launched repeatedly from different sources.
 TEST_F(AppLauncherAbuseDetectorTest,
        TestRepeatedAppLaunches_SameAppDifferentSources) {

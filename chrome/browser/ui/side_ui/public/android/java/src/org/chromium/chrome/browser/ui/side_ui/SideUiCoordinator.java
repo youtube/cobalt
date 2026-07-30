@@ -96,16 +96,16 @@ public interface SideUiCoordinator extends SideUiStateProvider {
 
     /**
      * POD-type that holds the info for a request to reposition or resize a {@link SideUiContainer}.
+     *
+     * <p>TODO(crbug.com/478338737): Consider renaming this class as "SideUiUpdateRequest".
      */
     final class SideUiContainerProperties {
         final @SideUiId int mSideUiId;
         final @AnchorSide int mAnchorSide;
-        final @Px int mWidth;
 
-        public SideUiContainerProperties(@SideUiId int id, @AnchorSide int side, @Px int width) {
+        public SideUiContainerProperties(@SideUiId int id, @AnchorSide int side) {
             mSideUiId = id;
             mAnchorSide = side;
-            mWidth = width;
         }
     }
 

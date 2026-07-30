@@ -19,6 +19,7 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/history/core/browser/history_service.h"
+#include "components/send_tab_to_self/metrics_util.h"
 #include "components/send_tab_to_self/page_context.h"
 #include "components/send_tab_to_self/send_tab_to_self_bridge.h"
 #include "components/send_tab_to_self/send_tab_to_self_model.h"
@@ -96,7 +97,8 @@ IN_PROC_BROWSER_TEST_P(TwoClientSendTabToSelfSyncTest,
 
   ASSERT_TRUE(model0->SendEntry(
       kUrl, kTitle, kTargetDeviceSyncCacheGuid, send_tab_to_self::PageContext(),
-      send_tab_to_self::NavigationHistory(), base::DoNothing()));
+      send_tab_to_self::NavigationHistory(), base::DoNothing(),
+      send_tab_to_self::ShareEntryPoint::kShareSheet));
 
   send_tab_to_self::SendTabToSelfSyncService* service1 =
       SendTabToSelfSyncServiceFactory::GetForProfile(GetProfile(1));
@@ -125,22 +127,23 @@ IN_PROC_BROWSER_TEST_P(TwoClientSendTabToSelfSyncTest,
       SendTabToSelfSyncServiceFactory::GetForProfile(GetProfile(0))
           ->GetSendTabToSelfModel();
 
-  ASSERT_TRUE(model0->SendEntry(kGurl0, kTitle0, kTargetDeviceSyncCacheGuid0,
-                                send_tab_to_self::PageContext(),
-                                send_tab_to_self::NavigationHistory(),
-                                base::DoNothing()));
+  ASSERT_TRUE(model0->SendEntry(
+      kGurl0, kTitle0, kTargetDeviceSyncCacheGuid0,
+      send_tab_to_self::PageContext(), send_tab_to_self::NavigationHistory(),
+      base::DoNothing(), send_tab_to_self::ShareEntryPoint::kShareSheet));
 
-  ASSERT_TRUE(model0->SendEntry(kGurl1, kTitle1, kTargetDeviceSyncCacheGuid1,
-                                send_tab_to_self::PageContext(),
-                                send_tab_to_self::NavigationHistory(),
-                                base::DoNothing()));
+  ASSERT_TRUE(model0->SendEntry(
+      kGurl1, kTitle1, kTargetDeviceSyncCacheGuid1,
+      send_tab_to_self::PageContext(), send_tab_to_self::NavigationHistory(),
+      base::DoNothing(), send_tab_to_self::ShareEntryPoint::kShareSheet));
 
   ASSERT_TRUE(SendTabToSelfSyncServiceFactory::GetForProfile(GetProfile(1))
                   ->GetSendTabToSelfModel()
                   ->SendEntry(kGurl2, kTitle2, kTargetDeviceSyncCacheGuid2,
                               send_tab_to_self::PageContext(),
                               send_tab_to_self::NavigationHistory(),
-                              base::DoNothing()));
+                              base::DoNothing(),
+                              send_tab_to_self::ShareEntryPoint::kShareSheet));
 
   EXPECT_TRUE(send_tab_to_self_helper::SendTabToSelfModelEqualityChecker(
                   SendTabToSelfSyncServiceFactory::GetForProfile(GetProfile(1)),
@@ -268,7 +271,8 @@ IN_PROC_BROWSER_TEST_P(TwoClientSendTabToSelfSyncTest,
 
   ASSERT_TRUE(model0->SendEntry(
       kUrl, kTitle, kTargetDeviceSyncCacheGuid, send_tab_to_self::PageContext(),
-      send_tab_to_self::NavigationHistory(), base::DoNothing()));
+      send_tab_to_self::NavigationHistory(), base::DoNothing(),
+      send_tab_to_self::ShareEntryPoint::kShareSheet));
 
   send_tab_to_self::SendTabToSelfSyncService* service1 =
       SendTabToSelfSyncServiceFactory::GetForProfile(GetProfile(1));
@@ -321,7 +325,8 @@ IN_PROC_BROWSER_TEST_P(TwoClientSendTabToSelfSyncTest,
   SendTabToSelfSyncServiceFactory::GetForProfile(GetProfile(0))
       ->GetSendTabToSelfModel()
       ->SendEntry(kUrl, "example", target_guid, context,
-                  send_tab_to_self::NavigationHistory(), base::DoNothing());
+                  send_tab_to_self::NavigationHistory(), base::DoNothing(),
+                  send_tab_to_self::ShareEntryPoint::kShareSheet);
 
   // Ensure receiver browser is active so notification is handled immediately,
   // as opposed to getting queued and executing during teardown.

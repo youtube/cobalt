@@ -13,8 +13,9 @@ namespace network {
 
 NotImplementedURLLoaderFactory::NotImplementedURLLoaderFactory(
     base::Location creator_location,
-    mojo::PendingReceiver<network::mojom::URLLoaderFactory> factory_receiver)
-    : SelfDeletingURLLoaderFactory(std::move(factory_receiver)),
+    mojo::PendingReceiver<network::mojom::URLLoaderFactory> factory_receiver,
+    base::SelfDeletingPassKey key)
+    : SelfDeletingURLLoaderFactory(std::move(factory_receiver), key),
       creator_location_(creator_location) {}
 
 NotImplementedURLLoaderFactory::~NotImplementedURLLoaderFactory() = default;
@@ -43,7 +44,7 @@ NotImplementedURLLoaderFactory::Create(base::Location creator_location) {
   // The NotImplementedURLLoaderFactory will delete itself when there are no
   // more receivers - see the NotImplementedURLLoaderFactory::OnDisconnect
   // method.
-  new NotImplementedURLLoaderFactory(
+  base::MakeSelfDeleting<NotImplementedURLLoaderFactory>(
       creator_location, pending_remote.InitWithNewPipeAndPassReceiver());
 
   return pending_remote;

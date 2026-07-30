@@ -11,19 +11,20 @@
 #include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/command_updater.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
+#include "chrome/browser/ui/waap/waap_ui_metrics_service.h"
 #include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter_service.h"
 #include "chrome/browser/ui/webui/metrics_reporter/mock_metrics_reporter.h"
 #include "chrome/browser/ui/webui/webui_toolbar/testing/toy_browser.h"
 #include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_test_utils.h"
-#include "chrome/test/base/testing_profile.h"
+#include "chrome/common/chrome_features.h"
+#include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/browser_apis/browser_controls/browser_controls_api.mojom.h"
-#include "content/public/test/browser_task_environment.h"
-#include "content/public/test/test_renderer_host.h"
 #include "content/public/test/web_contents_tester.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -63,21 +64,43 @@ class MockBrowserControlsServiceDelegate
   MockBrowserControlsServiceDelegate() = default;
 
   MOCK_METHOD(void, PermitLaunchUrl, (), (override));
+  // Mocks the baseline query for the unit test pipeline.
+  MOCK_METHOD(base::TimeTicks, GetNavigationStartTicks, (), (const, override));
 };
 
 // This is really an integration test. We provide a faked environment so that we
 // can have an easily predictable sealed environment to exercise the
 // interactions between our service and dependencies. To validate our
 // integration with "real" browser services, we should utilize browser tests.
-class BrowserControlsServiceTest : public ::testing::Test {
+class BrowserControlsServiceTest : public ChromeRenderViewHostTestHarness {
  public:
+  BrowserControlsServiceTest()
+      : ChromeRenderViewHostTestHarness(
+            base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
+
   void SetUp() override {
+    ChromeRenderViewHostTestHarness::SetUp();
+    // Fast-forward the mock clock to ensure we operate on positive, stable
+    // TimeTicks and avoid underflow issues when subtracting offsets in
+    // validation tests.
+    task_environment()->FastForwardBy(base::Seconds(100));
+    feature_list_.InitAndEnableFeature(features::kInitialWebUIMetrics);
+
     service_ = std::make_unique<BrowserControlsService>(
         mojo::PendingReceiver<mojom::BrowserControlsService>(),
-        toy_browser_.GetAdapter(), &metrics_reporter_, &delegate_);
+        toy_browser_.GetAdapter(), &metrics_reporter_, &delegate_, main_rfh());
+
+    // Configure the mock delegate to return a stable baseline (10 seconds ago)
+    // to reconstruct absolute timestamps during validation tests.
+    EXPECT_CALL(delegate_, GetNavigationStartTicks())
+        .WillRepeatedly(
+            ::testing::Return(base::TimeTicks::Now() - base::Seconds(10)));
   }
 
-  void TearDown() override { service_.reset(); }
+  void TearDown() override {
+    service_.reset();
+    ChromeRenderViewHostTestHarness::TearDown();
+  }
 
  protected:
   void ExpectMeasureAndClearMark(const std::string& start_mark,
@@ -98,7 +121,7 @@ class BrowserControlsServiceTest : public ::testing::Test {
   MockBrowserControlsServiceDelegate& delegate() { return delegate_; }
 
  private:
-  content::BrowserTaskEnvironment task_environment_;
+  base::test::ScopedFeatureList feature_list_;
   testing::ToyBrowser toy_browser_;
   ::testing::NiceMock<MockMetricsReporter> metrics_reporter_;
   std::unique_ptr<BrowserControlsService> service_;
@@ -115,8 +138,11 @@ TEST_F(BrowserControlsServiceReloadTest, ReloadByMouseRelease) {
   const base::TimeDelta duration = base::Milliseconds(10);
   ExpectMeasureAndClearMark(kInputMouseReleaseStartMark, duration);
 
-  std::ignore =
-      service().ReloadFromClick(/*bypass_cache=*/false, /*click_flags=*/{});
+  auto metadata = mojom::ReloadInteractionMetadata::New();
+  metadata->input_type = mojom::ReloadInputType::kMouseRelease;
+
+  std::ignore = service().ReloadFromClick(
+      /*bypass_cache=*/false, /*click_flags=*/{}, std::move(metadata));
 
   EXPECT_EQ(IDC_RELOAD, toy_browser().received_commands().back().command_id);
 
@@ -130,9 +156,13 @@ TEST_F(BrowserControlsServiceReloadTest, ReloadWithMiddleMouseButton) {
   const base::TimeDelta duration = base::Milliseconds(10);
   ExpectMeasureAndClearMark(kInputMouseReleaseStartMark, duration);
 
+  auto metadata = mojom::ReloadInteractionMetadata::New();
+  metadata->input_type = mojom::ReloadInputType::kMouseRelease;
+
   std::ignore = service().ReloadFromClick(
       /*bypass_cache=*/false,
-      /*click_flags=*/{mojom::EventDispositionFlag::kMiddleMouseButton});
+      /*click_flags=*/{mojom::EventDispositionFlag::kMiddleMouseButton},
+      std::move(metadata));
 
   EXPECT_EQ(IDC_RELOAD, toy_browser().received_commands().back().command_id);
   EXPECT_EQ(WindowOpenDisposition::NEW_BACKGROUND_TAB,
@@ -146,11 +176,204 @@ TEST_F(BrowserControlsServiceReloadTest, ReloadBypassingCache) {
   std::ignore =
       service().ReloadFromClick(/*bypass_cache=*/true, /*click_flags=*/{});
 
-  EXPECT_EQ(1ul, toy_browser().received_commands().size());
+  EXPECT_EQ(size_t{1}, toy_browser().received_commands().size());
   EXPECT_EQ(IDC_RELOAD_BYPASSING_CACHE,
             toy_browser().received_commands().back().command_id);
   EXPECT_EQ(WindowOpenDisposition::CURRENT_TAB,
             toy_browser().received_commands().back().disposition);
+}
+
+TEST_F(BrowserControlsServiceReloadTest, TelemetryMouseRelease) {
+  auto now = base::TimeTicks::Now();
+  auto nav_start = now - base::Seconds(1);
+  EXPECT_CALL(delegate(), GetNavigationStartTicks())
+      .WillRepeatedly(::testing::Return(nav_start));
+
+  content::RenderFrameHostTester::For(main_rfh())->SimulateUserActivation();
+
+  auto metadata = mojom::ReloadInteractionMetadata::New();
+  base::TimeDelta target_duration = base::Milliseconds(100);
+  metadata->interaction_time_offset = base::Seconds(1) - target_duration;
+  metadata->input_type = mojom::ReloadInputType::kMouseRelease;
+
+  std::ignore = service().ReloadFromClick(
+      /*bypass_cache=*/false, /*click_flags=*/{}, std::move(metadata));
+
+  histogram_tester().ExpectUniqueTimeSample(
+      "InitialWebUI.ReloadButton.InteractionToReload.MouseRelease",
+      target_duration, 1);
+  histogram_tester().ExpectUniqueTimeSample(
+      "InitialWebUI.ReloadButton.InteractionToReload", target_duration, 1);
+}
+
+TEST_F(BrowserControlsServiceReloadTest, TelemetryKeyPress) {
+  auto now = base::TimeTicks::Now();
+  auto nav_start = now - base::Seconds(1);
+  EXPECT_CALL(delegate(), GetNavigationStartTicks())
+      .WillRepeatedly(::testing::Return(nav_start));
+
+  content::RenderFrameHostTester::For(main_rfh())->SimulateUserActivation();
+
+  auto metadata = mojom::ReloadInteractionMetadata::New();
+  base::TimeDelta target_duration = base::Milliseconds(200);
+  metadata->interaction_time_offset = base::Seconds(1) - target_duration;
+  metadata->input_type = mojom::ReloadInputType::kKeyPress;
+
+  std::ignore = service().ReloadFromClick(
+      /*bypass_cache=*/false, /*click_flags=*/{}, std::move(metadata));
+
+  histogram_tester().ExpectUniqueTimeSample(
+      "InitialWebUI.ReloadButton.InteractionToReload.KeyPress", target_duration,
+      1);
+  histogram_tester().ExpectUniqueTimeSample(
+      "InitialWebUI.ReloadButton.InteractionToReload", target_duration, 1);
+}
+
+struct ValidationParam {
+  base::TimeDelta nav_start_offset;
+  base::TimeDelta interaction_offset;
+  bool simulate_activation;
+};
+
+class BrowserControlsServiceValidationTest
+    : public BrowserControlsServiceTest,
+      public ::testing::WithParamInterface<ValidationParam> {};
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    BrowserControlsServiceValidationTest,
+    ::testing::Values(
+        // Negative Offset
+        ValidationParam{.nav_start_offset = base::Seconds(10),
+                        .interaction_offset = base::Milliseconds(-100),
+                        .simulate_activation = true},
+        // No User Activation
+        ValidationParam{.nav_start_offset = base::Milliseconds(500),
+                        .interaction_offset = base::Milliseconds(100),
+                        .simulate_activation = false},
+        // Future Timestamp
+        ValidationParam{.nav_start_offset = base::Seconds(1),
+                        .interaction_offset = base::Milliseconds(1100),
+                        .simulate_activation = true},
+        // Stale Timestamp (older than 10s threshold)
+        ValidationParam{.nav_start_offset = base::Seconds(12),
+                        .interaction_offset = base::Milliseconds(500),
+                        .simulate_activation = true},
+        // Overflow / Max TimeDelta (Potential Integer Wrap-around)
+        ValidationParam{.nav_start_offset = base::Seconds(1),
+                        .interaction_offset = base::TimeDelta::Max(),
+                        .simulate_activation = true}));
+
+TEST_P(BrowserControlsServiceValidationTest, InvalidInputs) {
+  const ValidationParam& param = GetParam();
+
+  auto now = base::TimeTicks::Now();
+  EXPECT_CALL(delegate(), GetNavigationStartTicks())
+      .WillRepeatedly(::testing::Return(now - param.nav_start_offset));
+
+  if (param.simulate_activation) {
+    content::RenderFrameHostTester::For(main_rfh())->SimulateUserActivation();
+  }
+
+  auto metadata = mojom::ReloadInteractionMetadata::New();
+  metadata->interaction_time_offset = param.interaction_offset;
+  metadata->input_type = mojom::ReloadInputType::kMouseRelease;
+
+  auto result = service().ReloadFromClick(
+      /*bypass_cache=*/false, /*click_flags=*/{}, std::move(metadata));
+  ASSERT_TRUE(result.has_value());
+
+  histogram_tester().ExpectTotalCount(
+      "InitialWebUI.ReloadButton.InteractionToReload.MouseRelease", 0);
+  histogram_tester().ExpectTotalCount(
+      "InitialWebUI.ReloadButton.InteractionToReload", 0);
+
+  // Assert reload was not blocked.
+  EXPECT_FALSE(toy_browser().received_commands().empty());
+  EXPECT_EQ(IDC_RELOAD, toy_browser().received_commands().back().command_id);
+}
+
+TEST_F(BrowserControlsServiceReloadTest,
+       Validation_MissingNavigationStartTicks) {
+  std::unique_ptr<content::WebContents> new_web_contents =
+      content::WebContentsTester::CreateTestWebContents(profile(), nullptr);
+  content::RenderFrameHost* new_rfh = new_web_contents->GetPrimaryMainFrame();
+
+  auto temp_service = std::make_unique<BrowserControlsService>(
+      mojo::PendingReceiver<mojom::BrowserControlsService>(),
+      toy_browser().GetAdapter(), &mock_metrics_reporter(), &delegate(),
+      new_rfh);
+
+  EXPECT_CALL(delegate(), GetNavigationStartTicks())
+      .WillRepeatedly(::testing::Return(base::TimeTicks()));
+
+  content::RenderFrameHostTester::For(new_rfh)->SimulateUserActivation();
+
+  auto metadata = mojom::ReloadInteractionMetadata::New();
+  metadata->interaction_time_offset = base::Milliseconds(100);
+  metadata->input_type = mojom::ReloadInputType::kMouseRelease;
+
+  auto result = temp_service->ReloadFromClick(
+      /*bypass_cache=*/false, /*click_flags=*/{}, std::move(metadata));
+  ASSERT_TRUE(result.has_value());
+
+  histogram_tester().ExpectTotalCount(
+      "InitialWebUI.ReloadButton.InteractionToReload.MouseRelease", 0);
+  histogram_tester().ExpectTotalCount(
+      "InitialWebUI.ReloadButton.InteractionToReload", 0);
+}
+
+TEST_F(BrowserControlsServiceReloadTest, Validation_DuplicateTimestamp) {
+  content::RenderFrameHostTester::For(main_rfh())->SimulateUserActivation();
+
+  auto now = base::TimeTicks::Now();
+  auto nav_start = now - base::Seconds(1);
+  EXPECT_CALL(delegate(), GetNavigationStartTicks())
+      .WillRepeatedly(::testing::Return(nav_start));
+
+  auto metadata = mojom::ReloadInteractionMetadata::New();
+  metadata->interaction_time_offset = base::Milliseconds(900);
+  metadata->input_type = mojom::ReloadInputType::kMouseRelease;
+
+  auto result1 = service().ReloadFromClick(
+      /*bypass_cache=*/false, /*click_flags=*/{}, std::move(metadata));
+  ASSERT_TRUE(result1.has_value());
+  EXPECT_EQ(size_t{1}, toy_browser().received_commands().size());
+
+  content::RenderFrameHostTester::For(main_rfh())->SimulateUserActivation();
+
+  auto metadata2 = mojom::ReloadInteractionMetadata::New();
+  metadata2->interaction_time_offset = base::Milliseconds(900);
+  metadata2->input_type = mojom::ReloadInputType::kMouseRelease;
+
+  auto result2 = service().ReloadFromClick(
+      /*bypass_cache=*/false, /*click_flags=*/{}, std::move(metadata2));
+  ASSERT_TRUE(result2.has_value());
+
+  histogram_tester().ExpectTotalCount(
+      "InitialWebUI.ReloadButton.InteractionToReload.MouseRelease", 1);
+  histogram_tester().ExpectTotalCount(
+      "InitialWebUI.ReloadButton.InteractionToReload", 1);
+
+  // Assert reload was not blocked.
+  EXPECT_EQ(size_t{2}, toy_browser().received_commands().size());
+  EXPECT_EQ(IDC_RELOAD, toy_browser().received_commands().back().command_id);
+}
+
+// Tests that dropped touch events (represented by null metadata) trigger
+// the reload, but do NOT record any mouse release metrics.
+TEST_F(BrowserControlsServiceReloadTest, ReloadNullMetadataDroppedTouch) {
+  // Call ReloadFromClick with null metadata.
+  auto result = service().ReloadFromClick(
+      /*bypass_cache=*/false, /*click_flags=*/{}, nullptr);
+  ASSERT_TRUE(result.has_value());
+
+  // Assert reload command was triggered.
+  EXPECT_EQ(size_t{1}, toy_browser().received_commands().size());
+  EXPECT_EQ(IDC_RELOAD, toy_browser().received_commands().back().command_id);
+
+  // Assert that no mouse release metrics are recorded.
+  histogram_tester().ExpectTotalCount(kInputToReloadMouseReleaseHistogram, 0);
 }
 
 // Test suite for StopLoad-related tests.
@@ -312,8 +535,15 @@ TEST_F(BrowserControlsServiceTest, NavigateHome_ShiftClick) {
 TEST_F(BrowserControlsServiceTest, Navigate) {
   GURL test_url("https://www.example.test/");
   std::ignore = service().Navigate(test_url);
-  EXPECT_EQ(1ul, toy_browser().received_urls().size());
+  ASSERT_EQ(1u, toy_browser().received_urls().size());
   EXPECT_EQ(test_url, toy_browser().received_urls().back());
+}
+
+TEST_F(BrowserControlsServiceTest, NavigateText) {
+  std::string text = "testing search query";
+  std::ignore = service().NavigateText(text);
+  ASSERT_EQ(1u, toy_browser().received_navigate_texts().size());
+  EXPECT_EQ(text, toy_browser().received_navigate_texts().back());
 }
 
 TEST_F(BrowserControlsServiceTest, EventFlagsConversion) {

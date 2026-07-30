@@ -117,7 +117,6 @@
 <translation id="1178821169867863726">12 x 16 นิ้ว</translation>
 <translation id="1181037720776840403">นำออก</translation>
 <translation id="1185331130467528132"><ph name="URL" /> ต้องการเข้าถึงอุปกรณ์อื่นๆ ในเครือข่ายภายใน</translation>
-<translation id="1185343831726846924">เปิดการยืนยันบัตรเสมือน (Virtual Card) ไม่ได้</translation>
 <translation id="1186201132766001848">ตรวจสอบรหัสผ่าน</translation>
 <translation id="1187430513518041110">รถยนต์และยานพาหนะ</translation>
 <translation id="1188817995162638216">ยกเลิกการบันทึกไฟล์ไหม</translation>
@@ -1262,7 +1261,6 @@
 <translation id="297173220375858963">การจัดพิมพ์ด้วยคอมพิวเตอร์เดสก์ท็อป</translation>
 <translation id="2972581237482394796">&amp;ทำซ้ำ</translation>
 <translation id="2974468223369775963">บันทึก IBAN นี้ในบัญชี Google ไม่ได้ แต่บันทึกลงใน Chrome บนอุปกรณ์นี้แทน Chrome จะถามคุณอีกครั้งในครั้งถัดไปที่คุณใช้ IBAN นี้</translation>
-<translation id="2976162850019490782">เมื่อเปิดอยู่ Chrome จะแชร์แท็บทั้งหมดในหน้าต่างนี้เพื่อช่วยให้คุณได้รับคำตอบที่เกี่ยวข้องมากขึ้น คุณเปิดใช้ตัวเลือกนี้สำหรับชุดข้อความทั้งหมดได้ในการตั้งค่า</translation>
 <translation id="297667759942911166">ทำงานร่วมกันในกลุ่มแท็บ</translation>
 <translation id="2977665033722899841">เลือก <ph name="ROW_NAME" /> อยู่ตอนนี้ <ph name="ROW_CONTENT" /></translation>
 <translation id="2978824962390592855">อุปรากร</translation>
@@ -1658,7 +1656,7 @@
 <translation id="3587725436724465984">องค์กรของคุณได้ระบุไว้ว่า <ph name="BEGIN_BOLD" /><ph name="DOMAIN" /><ph name="END_BOLD" /> เป็นเว็บไซต์ที่อาจละเมิดนโยบาย <ph name="BEGIN_LEARN_MORE_LINK" />ดูข้อมูลเพิ่มเติมเกี่ยวกับคำเตือนนี้<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="3587738293690942763">ตรงกลาง</translation>
 <translation id="3589519427766620380">ถาม Google Lens เกี่ยวกับหน้านี้</translation>
-<translation id="3596918995172292499">สถานะป้ายทะเบียน</translation>
+<translation id="3596918995172292499">จังหวัด/รัฐที่ออกป้ายทะเบียน</translation>
 <translation id="3600246354004376029"><ph name="TITLE" />, <ph name="DOMAIN" />, <ph name="TIME" /></translation>
 <translation id="3600492954573979888">ปุ่มจัดการการตั้งค่าความเป็นส่วนตัวของ Google เปิดใช้งานเพื่อไปที่การตั้งค่าความเป็นส่วนตัวของบัญชี Google</translation>
 <translation id="3603507503523709">ผู้ดูแลระบบบล็อกแอปพลิเคชันไว้</translation>
@@ -1670,7 +1668,6 @@
 <translation id="361438452008624280">ข้อมูลในรายการ "<ph name="LANGUAGE_ID" />": ภาษาที่ไม่รู้จักหรือไม่รองรับ</translation>
 <translation id="3614934205542186002"><ph name="RUN_CHROME_SAFETY_CHECK_FOCUSED_FRIENDLY_MATCH_TEXT" /> กด Tab ตามด้วย Enter เพื่อเรียกใช้การตรวจสอบความปลอดภัยในการตั้งค่า Chrome</translation>
 <translation id="3615309852743236517">การทำเล็บมือและเล็บเท้า</translation>
-<translation id="3620034424637552643">มักใช้สำหรับเส้นทาง การจัดส่ง และอื่นๆ</translation>
 <translation id="3620239073311576716">เครื่องแบบและชุดทำงาน</translation>
 <translation id="3620865353340165509">บันทึก IBAN นี้ใน Google Wallet ไม่ได้ แต่บันทึกลงใน Chrome บนอุปกรณ์นี้แทน Chrome จะถามคุณอีกครั้งในครั้งถัดไปที่คุณใช้ IBAN นี้</translation>
 <translation id="3621401353678567613">หากต้องการรับการแจ้งเตือนเมื่อราคาต่ำลงสำหรับผลิตภัณฑ์ที่คุณติดตาม ให้เปิดการแจ้งเตือนในการตั้งค่า</translation>
@@ -2219,7 +2216,6 @@
 <translation id="4434045419905280838">ป๊อปอัปและการเปลี่ยนเส้นทาง</translation>
 <translation id="443673843213245140">การใช้พร็อกซีถูกปิดใช้งาน แต่มีการระบุการกำหนดค่าพร็อกซีอย่างชัดเจน</translation>
 <translation id="4438821706955556403">ราคาปกติ</translation>
-<translation id="4439687924334332880">รับคำตอบที่ปรับให้เหมาะกับคุณมากขึ้นด้วยการแชร์แท็บที่เปิดอยู่ในหน้าต่างนี้โดยอัตโนมัติหากแท็บเหล่านั้นเกี่ยวข้องกับชุดข้อความนี้ คุณเปิดใช้ตัวเลือกนี้สำหรับชุดข้อความทั้งหมดได้ในการตั้งค่า</translation>
 <translation id="4441832193888514600">ถูกละเว้นเนื่องจากนโยบายจะต้องตั้งค่าเป็นนโยบายผู้ใช้ระบบคลาวด์เท่านั้น</translation>
 <translation id="4444062564459679679">ส่งไปยัง Chrome ใน <ph name="DEVICE_NAME" /> แล้ว</translation>
 <translation id="4445694043187340808"><ph name="STARTER_PACK_TABS_FOCUSED_FRIENDLY_MATCH_TEXT" /> กด Enter เพื่อค้นหาแท็บ</translation>
@@ -2353,6 +2349,7 @@
 <translation id="4691093235373904540">การมุงหลังคา</translation>
 <translation id="4692623383562244444">เครื่องมือค้นหา</translation>
 <translation id="4695702626068620848"><ph name="KEYWORD" /> - ถาม <ph name="KEYWORD_SHORT_NAME" /></translation>
+<translation id="4697071790493980729">ไม่พบผลการค้นหา</translation>
 <translation id="4698308118265482293">อัปเดตหนังสือเดินทาง</translation>
 <translation id="4698692901173737941">กีฬาต่อสู้</translation>
 <translation id="4701488924964507374"><ph name="SENTENCE1" /> <ph name="SENTENCE2" /></translation>
@@ -2700,7 +2697,6 @@
 <translation id="5238301240406177137">บันทึกในบัญชี</translation>
 <translation id="5239119062986868403">ราคาปกติ</translation>
 <translation id="5239623327352565343">อนุญาตให้เข้าถึงตําแหน่ง</translation>
-<translation id="5241048084654737238">บันทึกการยืนยันข้อมูลบัตรไม่ได้</translation>
 <translation id="5242610955375133957">ฟิล์มแห้ง</translation>
 <translation id="5243004157379865295">อัปเดตที่อยู่</translation>
 <translation id="5244521145258281926">จัดการบัญชี Google เปิดใช้งานเพื่อจัดการข้อมูล ความเป็นส่วนตัว และการรักษาความปลอดภัยในบัญชี Google ของคุณ</translation>
@@ -3356,6 +3352,7 @@
 <translation id="6246316216123107851"><ph name="NUM_DAYS" /> วันที่ผ่านมา</translation>
 <translation id="6246382863801034910">ยานพาหนะ</translation>
 <translation id="6246868321321344665">องค์กรของคุณสามารถดูข้อมูลการท่องเว็บ เช่น รหัสผ่านและประวัติทั้งในโปรไฟล์งานและโปรไฟล์ส่วนตัวได้</translation>
+<translation id="6248479108671123143"><ph name="MEMBER_FIRST_NAME" /> เปลี่ยนแท็บนี้แล้ว <ph name="TAB_TITLE" /></translation>
 <translation id="6248988683584659830">ค้นหาการตั้งค่า</translation>
 <translation id="6250932670816326647">ผลิตภัณฑ์ชำระล้างร่างกาย</translation>
 <translation id="6251906504834538140">{0,plural, =1{ไฟล์ถูกบล็อกไม่ให้มีการย้าย}other{ไฟล์ <ph name="FILE_COUNT" /> รายการถูกบล็อกไม่ให้มีการย้าย}}</translation>
@@ -3712,6 +3709,7 @@
 <translation id="6798066466127540426">รายการนี้ไม่มีผู้ให้บริการค้นหาที่ถูกต้อง</translation>
 <translation id="6798460514924505775">Envelope Chou 3</translation>
 <translation id="6799145206637008376">กรอก CVC ของบัตรเสมือน (Virtual Card) นี้</translation>
+<translation id="6800773453940486492"><ph name="MEMBER_FIRST_NAME" /> เพิ่มแท็บนี้แล้ว <ph name="TAB_TITLE" /></translation>
 <translation id="6801920212017470190">ติดตามการลดราคาทั้งหมดได้ทุกที่ทุกเวลา</translation>
 <translation id="6805030849054648206">Envelope B6/C4</translation>
 <translation id="6807791860691150411">การศึกษา</translation>
@@ -4715,6 +4713,7 @@
 <translation id="8351131234907093545">สร้างโน้ต</translation>
 <translation id="8352849934814541340">ผู้ดูแลระบบของอุปกรณ์นี้ได้ติดตั้งแอปพลิเคชันสำหรับฟังก์ชันเพิ่มเติม แอปพลิเคชันมีสิทธิ์เข้าถึงข้อมูลบางส่วนของคุณได้</translation>
 <translation id="8355270400102541638">บริบทของการขัดข้องในเครื่อง:</translation>
+<translation id="8362914115861174987">แปลเป็นภาษา</translation>
 <translation id="8363502534493474904">ปิดโหมดบนเครื่องบิน</translation>
 <translation id="8363929499301563123">คุกกี้ของเว็บไซต์ (สถานะที่ลงชื่อเข้าใช้บนเว็บไซต์ที่คุณเข้าชมล่าสุดจะได้รับการเก็บไว้)</translation>
 <translation id="8364627913115013041">ไม่ได้ตั้งค่า</translation>
@@ -4734,7 +4733,6 @@
 <translation id="8381674639488873545">การเรียกเก็บเงินเหล่านี้อาจเกิดขึ้นครั้งเดียวหรือเกิดขึ้นซ้ำๆ และอาจไม่แสดงอย่างชัดแจ้ง <ph name="BEGIN_LINK" />เปิดเว็บไซต์<ph name="END_LINK" /></translation>
 <translation id="8382097126743287270">เต็มหน้าจออัตโนมัติ</translation>
 <translation id="838307841291975086">รถสเตชันแวกอน</translation>
-<translation id="838953173259347825">รับคำตอบที่ปรับให้เหมาะกับคุณมากขึ้นด้วยการแชร์แท็บที่เปิดอยู่ในหน้าต่างนี้โดยอัตโนมัติหากแท็บเหล่านั้นเกี่ยวข้องกับชุดข้อความนี้ คุณเปิดใช้ตัวเลือกนี้สำหรับชุดข้อความทั้งหมดได้ใน</translation>
 <translation id="8389532092404711541">ปกติราคา <ph name="LOW_PRICE" /></translation>
 <translation id="8389940864052787379">รถยนต์สั่งผลิตและสมรรถนะสูง</translation>
 <translation id="8390725133630534698">นโยบายของผู้ดูแลระบบบล็อกการแชร์จาก <ph name="ORIGIN_NAME" /> ไปยัง <ph name="VM_NAME" /> ไว้</translation>
@@ -4901,6 +4899,7 @@
 <translation id="8671519637524426245">ค่า <ph name="SECURE_DNS_SALT" /> ไม่เป็นไปตามข้อกำหนดด้านขนาด</translation>
 <translation id="867224526087042813">ลายเซ็น</translation>
 <translation id="8672535691554698269">เครือข่ายคอมพิวเตอร์</translation>
+<translation id="8673710317985154384">{NUM_TABS,plural, =1{แสดงรายละเอียดการแชร์แท็บ กำลังแชร์ 1 แท็บจาก {WEBSITE_LIST_STR}}other{แสดงรายละเอียดการแชร์แท็บ กำลังแชร์ {NUM_TABS} แท็บจาก {WEBSITE_LIST_STR}}}</translation>
 <translation id="8675446170353411473">กำลังอัปโหลดไฟล์ไปยัง <ph name="CLOUD_PROVIDER" /></translation>
 <translation id="8676424191133491403">ไม่หน่วงเวลา</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />, คำตอบ, <ph name="ANSWER" /></translation>
@@ -5154,7 +5153,6 @@
 <translation id="9090243919347147717">ไฟล์แนบ</translation>
 <translation id="9090548458280093580">ค้นหาประวัติการเข้าชม ซึ่งทำงานด้วย AI</translation>
 <translation id="9090993752571911635">ผู้ให้บริการอินเทอร์เน็ต (ISP)</translation>
-<translation id="9092305980625216393">มักใช้สำหรับสภาพอากาศ ข่าวท้องถิ่น และอื่นๆ</translation>
 <translation id="9093723786115107672">ชุดนอน</translation>
 <translation id="9094424186948667194">เข้าถึงแอปและบริการอื่นๆ ในอุปกรณ์นี้</translation>
 <translation id="9094544726794842788">ปุ่ม "ไม่ชอบ" จะเปิดแบบฟอร์มสำหรับส่งความคิดเห็นโดยละเอียดเกี่ยวกับสาเหตุที่คุณไม่ชอบผลการค้นหาเหล่านี้</translation>
@@ -5279,7 +5277,6 @@
 <translation id="964050462028070434">จัดการรหัสผ่านและพาสคีย์…</translation>
 <translation id="964681140808832181">ใช่ ฉันต้องการยกเลิก</translation>
 <translation id="969892804517981540">รุ่นที่เป็นทางการ</translation>
-<translation id="970182982363142444">เมื่อเปิดอยู่ Chrome จะแชร์แท็บทั้งหมดในหน้าต่างนี้เพื่อช่วยให้คุณได้รับคำตอบที่เกี่ยวข้องมากขึ้น คุณเปิดใช้ตัวเลือกนี้สำหรับแชททั้งหมดได้ใน</translation>
 <translation id="97054401902912338">ดูข้อมูลเพิ่มเติมเกี่ยวกับตัวกรองเนื้อหา</translation>
 <translation id="973788791897303708">กลุ่มแท็บนี้เต็มแล้ว</translation>
 <translation id="975560348586398090">{COUNT,plural, =0{ไม่มี}=1{1 รายการ}other{# รายการ}}</translation>

@@ -101,7 +101,7 @@ public class TipsPromoCoordinatorUnitTest {
                 new TipsPromoCoordinator(
                         mActivity,
                         mBottomSheetController,
-                        mQuickDeleteController,
+                        () -> mQuickDeleteController,
                         mSigninCoordinator,
                         mTabCreator,
                         mWindowAndroid,
@@ -679,7 +679,7 @@ public class TipsPromoCoordinatorUnitTest {
                 new TipsPromoCoordinator(
                         mActivity,
                         mBottomSheetController,
-                        mQuickDeleteController,
+                        () -> mQuickDeleteController,
                         mSigninCoordinator,
                         mTabCreator,
                         mWindowAndroid,

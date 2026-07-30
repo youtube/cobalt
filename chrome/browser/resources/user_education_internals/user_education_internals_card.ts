@@ -71,7 +71,7 @@ export class UserEducationInternalsCardElement extends CrLitElement {
     if (confirm(
             'Clear all data associated with this User Education journey?\n' +
             'Note: because of session tracking and event constraints, ' +
-            'Feature Engagement may still disallow some IPH.')) {
+            'Feature Engagement may still disallow some promos.')) {
       this.fire(CLEAR_PROMO_DATA_EVENT, this.promo.internalName);
     }
   }
@@ -84,6 +84,16 @@ export class UserEducationInternalsCardElement extends CrLitElement {
   protected showDescription_() {
     assert(this.promo);
     return this.promo.displayDescription !== '';
+  }
+
+  protected showType_() {
+    assert(this.promo);
+    return this.promo.type !== '';
+  }
+
+  protected showPlatforms_() {
+    assert(this.promo);
+    return this.promo.supportedPlatforms.length > 0;
   }
 
   protected formatPlatforms_() {

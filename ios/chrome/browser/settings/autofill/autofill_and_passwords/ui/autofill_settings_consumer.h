@@ -10,6 +10,12 @@
 // Consumer protocol for the Autofill settings page.
 @protocol AutofillSettingsConsumer <NSObject>
 
+// Sets whether Enhanced Autofill is enabled.
+- (void)setEnhancedAutofillEnabled:(BOOL)enabled;
+
+// Sets whether Autofill AI is allowed by enterprise policy.
+- (void)setAutofillAIAllowedByPolicy:(BOOL)allowed;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_SETTINGS_AUTOFILL_AUTOFILL_AND_PASSWORDS_UI_AUTOFILL_SETTINGS_CONSUMER_H_

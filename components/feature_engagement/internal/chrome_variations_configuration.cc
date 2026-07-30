@@ -216,6 +216,12 @@ void ChromeVariationsConfiguration::ExpandGroupNamesInFeatures(
   }
 }
 
+bool ChromeVariationsConfiguration::HasFeatureConfig(
+    const base::Feature& feature) const {
+  const auto it = configs_.find(feature.name);
+  return it != configs_.end() && it->second.valid;
+}
+
 const FeatureConfig& ChromeVariationsConfiguration::GetFeatureConfig(
     const base::Feature& feature) const {
   auto it = configs_.find(feature.name);

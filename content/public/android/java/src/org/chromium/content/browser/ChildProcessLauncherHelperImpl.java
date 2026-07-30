@@ -697,9 +697,7 @@ public final class ChildProcessLauncherHelperImpl {
                 if (isKernelVersionAtLeast6_18()
                         && Build.VERSION.SDK_INT >= 37
                         && ContentFeatureList.sSandboxedProcessServiceLimitOnAndroid.isEnabled()) {
-                    maxIsolatedServices =
-                            ContentFeatureList.sSandboxedProcessServiceLimitOnAndroidCount
-                                    .getValue();
+                    maxIsolatedServices = Integer.MAX_VALUE;
                 } else {
                     maxIsolatedServices = ChildConnectionAllocator.MAX_VARIABLE_ALLOCATED;
                 }

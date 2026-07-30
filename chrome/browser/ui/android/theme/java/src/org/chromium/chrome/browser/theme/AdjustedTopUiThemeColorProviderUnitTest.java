@@ -126,7 +126,7 @@ public class AdjustedTopUiThemeColorProviderUnitTest {
 
     @Test
     public void testOnCustomBackgroundChanged_nonNtp() {
-        when(mNativePage.useLightIconTint()).thenReturn(true);
+        when(mNativePage.useLightIconTint()).thenReturn(false);
         when(mNativePage.supportsEdgeToEdge()).thenReturn(true);
 
         // 1. Tab is null.
@@ -136,8 +136,8 @@ public class AdjustedTopUiThemeColorProviderUnitTest {
         verify(mTintObserver, never()).onTintChanged(any(), any(), anyInt());
 
         // 2. Tab is not native page.
-        mTabSupplier.set(mTab);
         when(mTab.isNativePage()).thenReturn(false);
+        mTabSupplier.set(mTab);
         clearInvocations(mTintObserver);
         mObserverCaptor.getValue().onCustomBackgroundChanged();
         verify(mTintObserver, never()).onTintChanged(any(), any(), anyInt());
@@ -145,6 +145,7 @@ public class AdjustedTopUiThemeColorProviderUnitTest {
         // 3. Tab is native page but doesn't support edge-to-edge.
         when(mTab.isNativePage()).thenReturn(true);
         when(mNativePage.supportsEdgeToEdge()).thenReturn(false);
+        mAdjustedTopUiThemeColorProvider.updateColor(mTab, TAB_COLOR, false);
         clearInvocations(mTintObserver);
         mObserverCaptor.getValue().onCustomBackgroundChanged();
         verify(mTintObserver, never()).onTintChanged(any(), any(), anyInt());

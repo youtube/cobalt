@@ -335,6 +335,10 @@ class ProfileImportProcess {
   // Records Home and Work superset metrics after the import was applied.
   void LogHomeAndWorkSupersetMetrics() const;
 
+  // Records details about silent profile updates.
+  void LogSilentUpdateMergeCategory(
+      const std::vector<const AutofillProfile*>& existing_profiles) const;
+
   // Indicates if the user is already prompted.
   bool prompt_shown_{false};
 

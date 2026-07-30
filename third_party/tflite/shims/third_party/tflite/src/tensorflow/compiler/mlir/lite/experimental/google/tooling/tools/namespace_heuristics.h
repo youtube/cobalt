@@ -9,7 +9,7 @@
 #include "third_party/tflite/buildflags.h"
 
 #if BUILDFLAG(USE_LITERT_TFLITE)
-#include "third_party/litert/src/tflite/experimental/google/tooling/tools/namespace_heuristics.h"
+#include "third_party/litert/src/litert/vendors/cc/namespace_heuristics.h"
 #else
 #include_next "tensorflow/compiler/mlir/lite/experimental/google/tooling/tools/namespace_heuristics.h"
 #endif

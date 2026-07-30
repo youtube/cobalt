@@ -39,6 +39,15 @@ enum class RenderDocumentLevel {
   kAllFrames = 4,
 };
 
+// LINT.IfChange(DuplicateNavsCookieStatus)
+enum class DuplicateNavsCookieStatus {
+  kNoListener = 0,
+  kCookiesChanged = 1,
+  kCookiesNotChanged = 2,
+  kMaxValue = kCookiesNotChanged,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/navigation/enums.xml:DuplicateNavsCookieStatus)
+
 // Whether same-SiteInstance navigations will result in a change of
 // RenderFrameHosts, which will happen when RenderDocument is enabled. Due to
 // the various levels of the feature, the result may differ depending on whether

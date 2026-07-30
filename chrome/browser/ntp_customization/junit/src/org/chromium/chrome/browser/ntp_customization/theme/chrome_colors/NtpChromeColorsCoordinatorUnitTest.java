@@ -487,7 +487,6 @@ public class NtpChromeColorsCoordinatorUnitTest {
         NtpBackgroundDataUploadImage uploadImageData =
                 new NtpBackgroundDataUploadImage(
                         PlatformType.ANDROID_LOCAL,
-                        /* lastUploadImageFilePath= */ "",
                         backgroundImageInfo,
                         bitmap,
                         /* primaryColor= */ null,
@@ -545,7 +544,6 @@ public class NtpChromeColorsCoordinatorUnitTest {
         NtpBackgroundDataUploadImage uploadImageData =
                 new NtpBackgroundDataUploadImage(
                         PlatformType.ANDROID_LOCAL,
-                        /* lastUploadImageFilePath= */ "",
                         backgroundImageInfo,
                         bitmap,
                         /* primaryColor= */ null,
@@ -578,7 +576,6 @@ public class NtpChromeColorsCoordinatorUnitTest {
         NtpBackgroundDataUploadImage uploadImageData =
                 new NtpBackgroundDataUploadImage(
                         PlatformType.ANDROID_LOCAL,
-                        /* lastUploadImageFilePath= */ "",
                         backgroundImageInfo,
                         bitmap,
                         /* primaryColor= */ null,

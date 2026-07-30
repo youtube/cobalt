@@ -113,6 +113,9 @@ if (is_apple || webnn_use_tflite || webnn_use_litert) {
 }
 
 component("webnn_service") {
+  _configs = configs
+  configs = []
+  configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
   defines = [ "IS_WEBNN_SERVICE_IMPL" ]
 
   sources = []
@@ -287,7 +290,7 @@ source_set("webnn_test_support") {
 
   if (is_win) {
     deps += [
-      "//services/webnn/host",
+      "//services/webnn/public/cpp:win",
       "//ui/gfx/mojom",
     ]
   }
@@ -369,6 +372,7 @@ if (!is_debug) {
       "CPU.Reduce",
       "CPU.Resample2d",
       "CPU.ScatterElements",
+      "CPU.Slice",
       "CPU.Split",
       "CPU.Transpose",
       "CPU.DQConcatQ",
@@ -380,6 +384,7 @@ if (!is_debug) {
       "CPU.DQPool2dQ",
       "CPU.DQReduceQ",
       "CPU.DQResample2dQ",
+      "CPU.DQSliceQ",
       "CPU.DQSplitQ",
       "CPU.DQTransposeQ",
       "GPU.Concat",
@@ -399,6 +404,7 @@ if (!is_debug) {
       "GPU.Reduce",
       "GPU.Resample2d",
       "GPU.ScatterElements",
+      "GPU.Slice",
       "GPU.Split",
       "GPU.Transpose",
       "GPU.DQConcatQ",
@@ -410,6 +416,7 @@ if (!is_debug) {
       "GPU.DQPool2dQ",
       "GPU.DQReduceQ",
       "GPU.DQResample2dQ",
+      "GPU.DQSliceQ",
       "GPU.DQSplitQ",
       "GPU.DQTransposeQ",
       "NPU.Concat",
@@ -429,6 +436,7 @@ if (!is_debug) {
       "NPU.Reduce",
       "NPU.Resample2d",
       "NPU.ScatterElements",
+      "NPU.Slice",
       "NPU.Split",
       "NPU.Transpose",
       "NPU.DQConcatQ",
@@ -440,6 +448,7 @@ if (!is_debug) {
       "NPU.DQPool2dQ",
       "NPU.DQReduceQ",
       "NPU.DQResample2dQ",
+      "NPU.DQSliceQ",
       "NPU.DQSplitQ",
       "NPU.DQTransposeQ",
     ]

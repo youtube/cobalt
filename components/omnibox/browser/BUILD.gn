@@ -94,10 +94,10 @@ aggregate_vector_icons("omnibox_vector_icons") {
     "share.icon",
     "share_chrome_refresh_old.icon",
     "spark.icon",
-    "star.icon",
     "star_active_chrome_refresh_old.icon",
     "star_chrome_refresh_old.icon",
-    "star_filled.icon",
+    "star_custom.icon",
+    "star_filled_custom.icon",
     "stars_filled.icon",
     "subdirectory_arrow_right.icon",
     "subdirectory_arrow_right_old.icon",
@@ -151,6 +151,9 @@ proto_library("partner_location_descriptor_proto") {
 }
 
 static_library("browser") {
+  _configs = configs
+  configs = []
+  configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
   sources = [
     "actions/contextual_search_action.cc",
     "actions/contextual_search_action.h",

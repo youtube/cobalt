@@ -1245,101 +1245,6 @@ targets.bundle(
 )
 
 targets.bundle(
-    name = "chromeos_browser_all_tast_tests",
-    targets = [
-        "chrome_all_tast_tests",
-    ],
-    per_test_modifications = {
-        "chrome_all_tast_tests": [
-            targets.mixin(
-                args = [
-                    "--tast-retries=1",
-                ],
-                swarming = targets.swarming(
-                    shards = 10,
-                    # Tast test doesn't always output. See crbug.com/1306300
-                    io_timeout_sec = 3600,
-                    # https://crbug.com/923426#c27
-                    idempotent = False,
-                ),
-            ),
-            "has_native_resultdb_integration",
-        ],
-    },
-)
-
-# Test suite for running criticalstaging Tast tests.
-targets.bundle(
-    name = "chromeos_browser_criticalstaging_tast_tests",
-    targets = [
-        "chrome_criticalstaging_tast_tests",
-    ],
-    per_test_modifications = {
-        "chrome_criticalstaging_tast_tests": [
-            targets.mixin(
-                ci_only = True,
-                swarming = targets.swarming(
-                    shards = 2,
-                    # Tast test doesn't always output. See crbug.com/1306300
-                    io_timeout_sec = 3600,
-                    # https://crbug.com/923426#c27
-                    idempotent = False,
-                ),
-                experiment_percentage = 100,
-            ),
-            "has_native_resultdb_integration",
-        ],
-    },
-)
-
-# Test suite for running disabled Tast tests to collect data to re-enable
-# them. The test suite should not be critical to builders.
-targets.bundle(
-    name = "chromeos_browser_disabled_tast_tests",
-    targets = [
-        "chrome_disabled_tast_tests",
-    ],
-    per_test_modifications = {
-        "chrome_disabled_tast_tests": [
-            targets.mixin(
-                ci_only = True,
-                swarming = targets.swarming(
-                    shards = 2,
-                    # Tast test doesn't always output. See crbug.com/1306300
-                    io_timeout_sec = 3600,
-                    # https://crbug.com/923426#c27
-                    idempotent = False,
-                ),
-                experiment_percentage = 100,
-            ),
-            "has_native_resultdb_integration",
-        ],
-    },
-)
-
-targets.bundle(
-    name = "chromeos_browser_integration_tests",
-    targets = [
-        "disk_usage_tast_test",
-    ],
-    per_test_modifications = {
-        "disk_usage_tast_test": [
-            targets.mixin(
-                args = [
-                    # Stripping gives more accurate disk usage data.
-                    "--strip-chrome",
-                ],
-                swarming = targets.swarming(
-                    # https://crbug.com/923426#c27
-                    idempotent = False,
-                ),
-            ),
-            "has_native_resultdb_integration",
-        ],
-    },
-)
-
-targets.bundle(
     name = "chromeos_isolated_scripts",
     targets = [
         "telemetry_perf_unittests",
@@ -1412,25 +1317,6 @@ targets.bundle(
             "vaapi_unittest_libfake_args",
         ],
     },
-)
-
-targets.bundle(
-    name = "chromeos_vm_gtests",
-    targets = [
-        "chromeos_integration_tests_suite",
-        "chromeos_system_friendly_gtests",
-        "chromeos_vaapi_fakelib_gtests",
-    ],
-)
-
-targets.bundle(
-    name = "chromeos_vm_tast",
-    targets = [
-        "chromeos_browser_all_tast_tests",
-        "chromeos_browser_criticalstaging_tast_tests",
-        "chromeos_browser_disabled_tast_tests",
-        "chromeos_browser_integration_tests",
-    ],
 )
 
 targets.bundle(

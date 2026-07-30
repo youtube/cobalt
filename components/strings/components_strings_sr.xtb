@@ -117,7 +117,6 @@
 <translation id="1178821169867863726">12×16 in</translation>
 <translation id="1181037720776840403">Уклони</translation>
 <translation id="1185331130467528132"><ph name="URL" /> жели да приступа другим уређајима на локалној мрежи</translation>
-<translation id="1185343831726846924">Потврђивање виртуелне картице не може да се укључи</translation>
 <translation id="1186201132766001848">Провери лозинке</translation>
 <translation id="1187430513518041110">Аутомобили и возила</translation>
 <translation id="1188817995162638216">Желите да откажете чување фајла?</translation>
@@ -1262,7 +1261,6 @@
 <translation id="297173220375858963">Стоно издаваштво</translation>
 <translation id="2972581237482394796">&amp;Понови радњу</translation>
 <translation id="2974468223369775963">Овај IBAN није сачуван на Google налогу. Уместо тога, сачуван је у Chrome-у на овом уређају. Chrome ће вас поново питати следећи пут када користите овај IBAN.</translation>
-<translation id="2976162850019490782">Када је ово подешавање укључено, Chrome дели све картице у овом прозору да би вам помогао да добијете релевантније одговоре. То можете да укључите за све конверзације у Подешавањима.</translation>
 <translation id="297667759942911166">Сарађујте у групама картица</translation>
 <translation id="2977665033722899841"><ph name="ROW_NAME" />, тренутно изабрано. <ph name="ROW_CONTENT" /></translation>
 <translation id="2978824962390592855">Опера</translation>
@@ -1671,7 +1669,6 @@
 <translation id="361438452008624280">Унос на листи „<ph name="LANGUAGE_ID" />“: непознат или неподржан језик.</translation>
 <translation id="3614934205542186002"><ph name="RUN_CHROME_SAFETY_CHECK_FOCUSED_FRIENDLY_MATCH_TEXT" />, притисните Tab, па Enter да бисте покренули проверу безбедности у Chrome подешавањима</translation>
 <translation id="3615309852743236517">Маникири и педикири</translation>
-<translation id="3620034424637552643">Често се користи за путању, испоруке и друго</translation>
 <translation id="3620239073311576716">Униформе и радна одећа</translation>
 <translation id="3620865353340165509">Чување овог IBAN-а у Google новчанику није успело. Уместо тога, сачуван је у Chrome-у на овом уређају. Chrome ће вас поново питати следећи пут када користите овај IBAN.</translation>
 <translation id="3621401353678567613">Да бисте добијали обавештења о снижењима за производе које пратите, укључите обавештења у подешавањима.</translation>
@@ -2220,7 +2217,6 @@
 <translation id="4434045419905280838">Искачући прозори и преусмеравања</translation>
 <translation id="443673843213245140">Коришћење проксија је онемогућено, али је наведена експлицитна конфигурација проксија.</translation>
 <translation id="4438821706955556403">Уобичајена цена</translation>
-<translation id="4439687924334332880">Аутоматски делите отворене картице у овом прозору ако су повезане са овом конверзацијом да бисте добили прилагођеније одговоре. То можете да укључите за све конверзације у Подешавањима.</translation>
 <translation id="4441832193888514600">Игнорише се јер смернице могу да се подесе само као смернице за корисника у клауду.</translation>
 <translation id="4444062564459679679">Већ је послато у Chrome на уређају <ph name="DEVICE_NAME" /></translation>
 <translation id="4445694043187340808"><ph name="STARTER_PACK_TABS_FOCUSED_FRIENDLY_MATCH_TEXT" />, притисните Enter да бисте претражили картице</translation>
@@ -2354,6 +2350,7 @@
 <translation id="4691093235373904540">Кровни радови</translation>
 <translation id="4692623383562244444">Претраживачи</translation>
 <translation id="4695702626068620848"><ph name="KEYWORD" /> – Питајте <ph name="KEYWORD_SHORT_NAME" /></translation>
+<translation id="4697071790493980729">Није пронађен ниједан резултат</translation>
 <translation id="4698308118265482293">Ажурирајте пасош</translation>
 <translation id="4698692901173737941">Борилачки спортови</translation>
 <translation id="4701488924964507374"><ph name="SENTENCE1" /> <ph name="SENTENCE2" /></translation>
@@ -2701,7 +2698,6 @@
 <translation id="5238301240406177137">Сачувај на налогу</translation>
 <translation id="5239119062986868403">Уобичајена цена</translation>
 <translation id="5239623327352565343">Локација је дозвољена</translation>
-<translation id="5241048084654737238">Потврдите да информације о картици не могу да се сачувају</translation>
 <translation id="5242610955375133957">Суви филм</translation>
 <translation id="5243004157379865295">Ажурирајте адресу</translation>
 <translation id="5244521145258281926">Управљај Google налогом, активирајте га да бисте управљали информацијама, приватношћу и безбедношћу на Google налогу</translation>
@@ -3356,6 +3352,7 @@
 <translation id="6246316216123107851">Пре <ph name="NUM_DAYS" /> дана</translation>
 <translation id="6246382863801034910">Возило</translation>
 <translation id="6246868321321344665">Организација може да види податке прегледања, попут лозинки и историје, и на пословном и на личном профилу</translation>
+<translation id="6248479108671123143"><ph name="MEMBER_FIRST_NAME" /> је променио/ла ову картицу, <ph name="TAB_TITLE" /></translation>
 <translation id="6248988683584659830">Подешавања претраге</translation>
 <translation id="6250932670816326647">Производи за купање и негу тела</translation>
 <translation id="6251906504834538140">{0,plural, =1{Премештање фајла је блокирано}one{Премештање <ph name="FILE_COUNT" /> фајла је блокирано}few{Премештање <ph name="FILE_COUNT" /> фајла је блокирано}other{Премештање <ph name="FILE_COUNT" /> фајлова је блокирано}}</translation>
@@ -3712,6 +3709,7 @@
 <translation id="6798066466127540426">Листа не садржи важећег добављача претраге.</translation>
 <translation id="6798460514924505775">Коверта Chou 3</translation>
 <translation id="6799145206637008376">Унесите CVC за ову виртуелну картицу</translation>
+<translation id="6800773453940486492"><ph name="MEMBER_FIRST_NAME" /> је додао/ла ову картицу, <ph name="TAB_TITLE" /></translation>
 <translation id="6801920212017470190">Будите у току са свим снижењима у покрету</translation>
 <translation id="6805030849054648206">Коверта B6/C4</translation>
 <translation id="6807791860691150411">Образовање</translation>
@@ -4715,6 +4713,7 @@
 <translation id="8351131234907093545">Направите белешку</translation>
 <translation id="8352849934814541340">Администратор овог уређаја је инсталирао апликације за додатне функције. Апликације имају приступ неким од података.</translation>
 <translation id="8355270400102541638">Контекст локалног отказивања:</translation>
+<translation id="8362914115861174987">Преводи на језик</translation>
 <translation id="8363502534493474904">да искључите режим рада у авиону</translation>
 <translation id="8363929499301563123">Колачићи веб-сајта (пријављени статус на недавно посећеним веб-сајтовима ће се сачувати)</translation>
 <translation id="8364627913115013041">Није подешено.</translation>
@@ -4734,7 +4733,6 @@
 <translation id="8381674639488873545">Ти трошкови могу да буду једнократни или периодични и можда нису одмах видљиви. <ph name="BEGIN_LINK" />Ипак прикажи<ph name="END_LINK" /></translation>
 <translation id="8382097126743287270">Аутоматски приказ преко целог екрана</translation>
 <translation id="838307841291975086">Караван возила</translation>
-<translation id="838953173259347825">Аутоматски делите отворене картице у овом прозору ако су повезане са овом конверзацијом да бисте добили прилагођеније одговоре. То можете да укључите за све конверзације у одељку</translation>
 <translation id="8389532092404711541">Обично <ph name="LOW_PRICE" /></translation>
 <translation id="8389940864052787379">Прилагођена возила и возила високих перформанси</translation>
 <translation id="8390725133630534698">Смернице за администраторе блокирају дељење са <ph name="ORIGIN_NAME" /> на локацију <ph name="VM_NAME" /></translation>
@@ -4901,6 +4899,7 @@
 <translation id="8671519637524426245">Вредност <ph name="SECURE_DNS_SALT" /> не испуњава услове за величину.</translation>
 <translation id="867224526087042813">Потпис</translation>
 <translation id="8672535691554698269">Рачунарске мреже</translation>
+<translation id="8673710317985154384">{NUM_TABS,plural, =1{Прикажи детаље дељења картице. Дели се 1 картица са {WEBSITE_LIST_STR}}one{Прикажи детаље дељења картице. Дели се {NUM_TABS} картица са {WEBSITE_LIST_STR}}few{Прикажи детаље дељења картице. Деле се {NUM_TABS} картице са {WEBSITE_LIST_STR}}other{Прикажи детаље дељења картице. Дели се {NUM_TABS} картица са {WEBSITE_LIST_STR}}}</translation>
 <translation id="8675446170353411473">Фајлови се оптремају у <ph name="CLOUD_PROVIDER" /></translation>
 <translation id="8676424191133491403">Без одлагања</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />, одговор, <ph name="ANSWER" /></translation>
@@ -5154,7 +5153,6 @@
 <translation id="9090243919347147717">Прилози</translation>
 <translation id="9090548458280093580">Претражите историју, коју омогућава AI</translation>
 <translation id="9090993752571911635">Интернет провајдери</translation>
-<translation id="9092305980625216393">Често се користи за временску прогнозу, локалне вести и друго</translation>
 <translation id="9093723786115107672">Одећа за спавање</translation>
 <translation id="9094424186948667194">Приступајте другим апликацијама и услугама на овом уређају</translation>
 <translation id="9094544726794842788">Опција Не свиђа ми се отвара образац за слање детаљних повратних информација о томе зашто вам се не свиђају ови резултати</translation>
@@ -5280,7 +5278,6 @@
 <translation id="964050462028070434">Управљајте лозинкама и приступним кодовима…</translation>
 <translation id="964681140808832181">Да, желим да откажем</translation>
 <translation id="969892804517981540">Званична верзија</translation>
-<translation id="970182982363142444">Када је ово подешавање укључено, Chrome дели све картице у овом прозору да би вам помогао да добијете релевантније одговоре. То можете да укључите за све четове у одељку</translation>
 <translation id="97054401902912338">Сазнајте више о филтерима садржаја</translation>
 <translation id="973788791897303708">Ова група картица је пуна</translation>
 <translation id="975560348586398090">{COUNT,plural, =0{None}=1{1 ставка}one{# ставка}few{# ставке}other{# ставки}}</translation>

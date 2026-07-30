@@ -16,6 +16,7 @@
 #include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/rand_util.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
@@ -547,9 +548,10 @@ void InitWithImage(base::span<const uint8_t> img_data,
                    size_t y_stride,
                    uint8_t* uv_plane,
                    size_t uv_stride) {
-  CHECK_GE(img_data.size(), size.GetArea() * 3 / 2);
-  auto y_span = img_data.first(size.GetArea());
-  auto uv_span = img_data.subspan(size.GetArea());
+  const size_t area = base::checked_cast<size_t>(size.GetArea());
+  CHECK_GE(img_data.size(), area * 3 / 2);
+  auto y_span = img_data.first(area);
+  auto uv_span = img_data.subspan(area);
   libyuv::NV12Copy(y_span.data(), size.width(), uv_span.data(), size.width(),
                    y_plane, y_stride, uv_plane, uv_stride, size.width(),
                    size.height());
@@ -802,7 +804,7 @@ TEST_P(VulkanOverlayAdaptorTest, Correctness) {
   auto in_mailbox = gpu::Mailbox::Generate();
   auto out_mailbox = gpu::Mailbox::Generate();
 
-  test::Image image(media::g_source_directory.Append(
+  test::Image image(media::GetSourceDir().Append(
       base::FilePath(is_10bit ? kMT2TImage : kMM21Image)));
   ASSERT_TRUE(image.Load());
   gfx::Size size(
@@ -1035,9 +1037,9 @@ int main(int argc, char** argv) {
     }
 
     if (it->first == "source_directory") {
-      media::g_source_directory = base::FilePath(it->second);
+      media::GetSourceDir() = base::FilePath(it->second);
     } else if (it->first == "output_directory") {
-      media::g_output_directory = base::FilePath(it->second);
+      media::GetOutputDir() = base::FilePath(it->second);
     } else {
       std::cout << "unknown option: --" << it->first << "\n"
                 << media::usage_msg;

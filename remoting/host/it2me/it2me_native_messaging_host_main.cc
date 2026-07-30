@@ -217,7 +217,8 @@ int It2MeNativeMessagingHostMain(int argc, char** argv) {
 #error Not implemented.
 #endif
 
-  base::SingleThreadTaskExecutor main_task_executor(base::MessagePumpType::UI);
+  base::SingleThreadTaskExecutor main_task_executor(base::MessagePumpType::UI,
+                                                    /*is_main_thread=*/true);
   base::RunLoop run_loop;
 
 #if BUILDFLAG(IS_APPLE)

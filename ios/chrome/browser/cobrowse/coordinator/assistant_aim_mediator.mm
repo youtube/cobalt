@@ -189,10 +189,17 @@
   _webState.reset();
   _urlLoader = nullptr;
   _context = nil;
+  [self endSession];
   _cobrowseBrowserAgent = nullptr;
   _capabilities = std::nullopt;
   _logger = nil;
   _authenticationService = nullptr;
+}
+
+- (void)endSession {
+  if (_cobrowseBrowserAgent) {
+    _cobrowseBrowserAgent->SetSessionActive(false);
+  }
 }
 
 #pragma mark - CRWWebStatePolicyDecider

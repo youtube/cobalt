@@ -70,6 +70,7 @@ static_library("signin") {
 
   deps = [
     "//ash/constants",
+    "//ash/login/resources:login_strings",
     "//ash/public/cpp",
     "//ash/webui/settings/public/constants:mojom",
     "//chrome/app:branded_strings",

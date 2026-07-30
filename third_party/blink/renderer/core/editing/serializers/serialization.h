@@ -104,7 +104,7 @@ void ReplaceChildrenWithText(ContainerNode*, const String&, ExceptionState&);
 CORE_EXPORT String
 CreateMarkup(const Node*,
              ChildrenOnly = kIncludeNode,
-             AbsoluteURLs = kDoNotResolveURLs,
+             ResolveUrls = ResolveUrls::kNone,
              const ShadowRootInclusion& = ShadowRootInclusion());
 
 CORE_EXPORT String
@@ -142,7 +142,7 @@ CORE_EXPORT String CreateStrictlyProcessedMarkupWithContext(
     unsigned fragment_end,
     const String& base_url,
     ChildrenOnly = kIncludeNode,
-    AbsoluteURLs = kDoNotResolveURLs,
+    ResolveUrls = ResolveUrls::kNone,
     const ShadowRootInclusion& = ShadowRootInclusion());
 
 void MergeWithNextTextNode(Text*, ExceptionState&);

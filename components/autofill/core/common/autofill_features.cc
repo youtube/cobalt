@@ -419,6 +419,15 @@ BASE_FEATURE(kAutofillAndroidKeyboardAccessoryDynamicPositioning,
 // Feature flag for kAutofillAtMemory.
 BASE_FEATURE(kAutofillAtMemory, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// The subscription tiers for which AtMemory is eligible. Comma-separated list
+// of subscription tier integers. If empty/not defined, no tier restrictions
+// are applied.
+BASE_FEATURE_PARAM(std::string,
+                   kAutofillAtMemoryEligibleTiers,
+                   &kAutofillAtMemory,
+                   "at_memory_eligible_tiers",
+                   "");
+
 // Controls whether the Autosuggest nudging logic is used. If enabled, user are
 // encouraged to use the AtMemory feature.
 BASE_FEATURE(kAutofillAtMemoryInactivityNudge,
@@ -544,6 +553,11 @@ BASE_FEATURE_PARAM(bool,
 BASE_FEATURE(kAutofillEnableAddressFieldParserNG,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, Autofill will support per domain and per data type enterprise
+// policy.
+BASE_FEATURE(kAutofillEnableAutofillSettingsEnterprisePolicy,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, FormFieldParser::MatchesRegexWithCache tries to avoid
 // re-computing whether a regex matches an input string by caching the result.
 // The result size is controlled by
@@ -614,27 +628,6 @@ BASE_FEATURE(kAutofillEnableSkippingUnrecognizedAttribute,
 // TODO(crbug.com/447111009): Remove when launched.
 BASE_FEATURE(kAutofillEnableStreetAddressMergeModes,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// When enabled, chrome will support name and email address profile.
-// TODO(crbug.com/356845298): Clean up when launched.
-BASE_FEATURE(kAutofillEnableSupportForNameAndEmail,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// The number of times after which, a never accepted `kAccountNameEmail`
-// suggestion will result in the `kAccountNameEmail` profile being deleted.
-BASE_FEATURE_PARAM(int,
-                   kAutofillNameAndEmailProfileNotSelectedThreshold,
-                   &kAutofillEnableSupportForNameAndEmail,
-                   "rejection_threshold",
-                   10);
-
-// The pattern used to remove nicknames from the account full name before
-// creating the kAccountNameEmail profile.
-BASE_FEATURE_PARAM(std::string,
-                   kAutofillNameAndEmailProfileNicknameRegex,
-                   &kAutofillEnableSupportForNameAndEmail,
-                   "nickname_regex",
-                   R"(\s+\([^)]*\)|\s+\"[^\"]*\")");
 
 // Enables extended zip code validation.
 // TODO(crbug.com/434140055): Clean up when launched.
@@ -936,11 +929,6 @@ BASE_FEATURE(kAutofillStructuredFieldsDisableAddressLines,
 // TODO(crbug.com/465119085): Clean up when launched.
 BASE_FEATURE(kAutofillSupportCombinedZipAndCityFR,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables using a custom address model for Japan, overriding the legacy one.
-// TODO(crbug.com/359768803): Remove in M151.
-BASE_FEATURE(kAutofillSupportPhoneticNameForJP,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables splitting two-part zip codes into two fields while filling and
 // importing split zip codes from two adjacent fields.

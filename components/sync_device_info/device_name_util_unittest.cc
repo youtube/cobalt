@@ -196,6 +196,14 @@ TEST_F(DeviceNameUtilTest, CheckManufacturerNameCapitalization) {
 
   EXPECT_EQ("Foo&Bar Foo Computer model", candidates.fallback_full_name);
   EXPECT_EQ("Foo&Bar Foo Computer", candidates.preferred_name_if_unique);
+
+  // Non-ASCII manufacturer names should be returned as-is.
+  device = CreateFakeDeviceInfo("guid", "model", DeviceInfo::OsType::kWindows,
+                                "电子产品", "model");
+  candidates = GetDisplayNameCandidates(device.get());
+
+  EXPECT_EQ("电子产品 Computer model", candidates.fallback_full_name);
+  EXPECT_EQ("电子产品 Computer", candidates.preferred_name_if_unique);
 }
 
 TEST_F(DeviceNameUtilTest, DetermineDisplayNamesAndDeduplicate) {
@@ -289,6 +297,149 @@ TEST_F(DeviceNameUtilSimplifyNamingTest,
       "guid", "", DeviceInfo::OsType::kWindows, "Dell", "XPS 13");
 
   EXPECT_EQ("Dell Computer", GetDeviceDisplayName(device.get()));
+}
+
+namespace {
+
+constexpr char kSamsungManufacturer[] = "Samsung";
+constexpr char kGalaxyS22UltraMarketingName[] = "Galaxy S22 Ultra";
+constexpr char kGalaxyS22UltraModel[] = "SM-S908U";
+
+constexpr char kGoogleManufacturer[] = "Google";
+constexpr char kPixel9Name[] = "Pixel 9";
+
+constexpr char kAppleManufacturer[] = "Apple Inc.";
+constexpr char kIPhone13MarketingName[] = "iPhone 13";
+constexpr char kIPhone13Model[] = "iPhone14,5";
+
+}  // namespace
+
+class DeviceNameUtilUseServerDeterminedDeviceNameTest : public testing::Test {
+ protected:
+  base::test::ScopedFeatureList scoped_feature_list_{
+      kSyncUseServerDeterminedDeviceName};
+};
+
+// Tests that if a server-determined marketing name is available, it is used as
+// the preferred name. It also verifies that we bypass different legacy
+// platform-specific rules (such as Android's generic "Manufacturer Phone"
+// fallback and iOS's model-prefix parsing).
+TEST_F(DeviceNameUtilUseServerDeterminedDeviceNameTest,
+       GetDisplayNameCandidates_WithServerDeterminedName) {
+  // Case 1: Android Phone where model differs from marketing name.
+  // Bypasses legacy "Samsung Phone SM-S908U" fallback.
+  {
+    TestDeviceInfoBuilder builder(DeviceInfo::OsType::kAndroid);
+    builder.WithGuid("guid1")
+        .WithClientName(kGalaxyS22UltraModel)
+        .WithManufacturerName(kSamsungManufacturer)
+        .WithModelName(kGalaxyS22UltraModel)
+        .WithServerDeterminedModelName(kGalaxyS22UltraMarketingName);
+    std::unique_ptr<DeviceInfo> device = builder.Build();
+
+    DisplayNameCandidates candidates = GetDisplayNameCandidates(device.get());
+    EXPECT_EQ(kGalaxyS22UltraMarketingName,
+              candidates.preferred_name_if_unique);
+    // Fallback is also the marketing name in the original design.
+    EXPECT_EQ(kGalaxyS22UltraMarketingName, candidates.fallback_full_name);
+  }
+
+  // Case 2: Android Phone where model is the same as marketing name.
+  {
+    TestDeviceInfoBuilder builder(DeviceInfo::OsType::kAndroid);
+    builder.WithGuid("guid2")
+        .WithClientName(kPixel9Name)
+        .WithManufacturerName(kGoogleManufacturer)
+        .WithModelName(kPixel9Name)
+        .WithServerDeterminedModelName(kPixel9Name);
+    std::unique_ptr<DeviceInfo> device = builder.Build();
+
+    DisplayNameCandidates candidates = GetDisplayNameCandidates(device.get());
+    EXPECT_EQ(kPixel9Name, candidates.preferred_name_if_unique);
+    EXPECT_EQ(kPixel9Name, candidates.fallback_full_name);
+  }
+
+  // Case 3: iOS Phone. Bypasses legacy Apple prefix parsing.
+  {
+    TestDeviceInfoBuilder builder(DeviceInfo::OsType::kIOS);
+    builder.WithGuid("guid3")
+        .WithClientName("iPhone")
+        .WithManufacturerName(kAppleManufacturer)
+        .WithModelName(kIPhone13Model)
+        .WithServerDeterminedModelName(kIPhone13MarketingName);
+    std::unique_ptr<DeviceInfo> device = builder.Build();
+
+    DisplayNameCandidates candidates = GetDisplayNameCandidates(device.get());
+    EXPECT_EQ(kIPhone13MarketingName, candidates.preferred_name_if_unique);
+    EXPECT_EQ(kIPhone13MarketingName, candidates.fallback_full_name);
+  }
+}
+
+// Tests that server-determined marketing names always take precedence over
+// user-defined custom names (high quality client names).
+TEST_F(DeviceNameUtilUseServerDeterminedDeviceNameTest,
+       GetDisplayNameCandidates_ServerDeterminedNameOverridesCustomName) {
+  TestDeviceInfoBuilder builder(DeviceInfo::OsType::kAndroid);
+  builder.WithGuid("guid1")
+      .WithClientName("My Work Phone")  // Custom high-quality name
+      .WithManufacturerName(kSamsungManufacturer)
+      .WithModelName(kGalaxyS22UltraModel)
+      .WithServerDeterminedModelName(kGalaxyS22UltraMarketingName);
+  std::unique_ptr<DeviceInfo> device = builder.Build();
+
+  DisplayNameCandidates candidates = GetDisplayNameCandidates(device.get());
+  EXPECT_EQ(kGalaxyS22UltraMarketingName, candidates.preferred_name_if_unique);
+  EXPECT_EQ(kGalaxyS22UltraMarketingName, candidates.fallback_full_name);
+}
+
+// Tests that if the feature is enabled but the server-determined name is
+// missing (nullopt), the utility falls back to the legacy naming logic.
+TEST_F(DeviceNameUtilUseServerDeterminedDeviceNameTest,
+       GetDisplayNameCandidates_FeatureEnabled_NoServerDeterminedName) {
+  TestDeviceInfoBuilder builder(DeviceInfo::OsType::kAndroid);
+  builder.WithGuid("guid1")
+      .WithClientName(kGalaxyS22UltraModel)
+      .WithManufacturerName(kSamsungManufacturer)
+      .WithModelName(kGalaxyS22UltraModel);
+  std::unique_ptr<DeviceInfo> device = builder.Build();
+
+  DisplayNameCandidates candidates = GetDisplayNameCandidates(device.get());
+  EXPECT_EQ("Samsung Phone", candidates.preferred_name_if_unique);
+  EXPECT_EQ("Samsung Phone SM-S908U", candidates.fallback_full_name);
+}
+
+// Tests that if the feature is enabled but the server-determined name is
+// empty, the utility safely falls back to the legacy naming logic.
+TEST_F(DeviceNameUtilUseServerDeterminedDeviceNameTest,
+       GetDisplayNameCandidates_FeatureEnabled_EmptyServerDeterminedName) {
+  TestDeviceInfoBuilder builder(DeviceInfo::OsType::kAndroid);
+  builder.WithGuid("guid1")
+      .WithClientName(kGalaxyS22UltraModel)
+      .WithManufacturerName(kSamsungManufacturer)
+      .WithModelName(kGalaxyS22UltraModel)
+      .WithServerDeterminedModelName("");
+  std::unique_ptr<DeviceInfo> device = builder.Build();
+
+  DisplayNameCandidates candidates = GetDisplayNameCandidates(device.get());
+  EXPECT_EQ("Samsung Phone", candidates.preferred_name_if_unique);
+  EXPECT_EQ("Samsung Phone SM-S908U", candidates.fallback_full_name);
+}
+
+// Tests that if the feature is disabled, the utility falls back to the
+// legacy naming logic even if a server-determined name is available.
+TEST_F(DeviceNameUtilTest,
+       GetDisplayNameCandidates_ServerDeterminedName_FeatureDisabled) {
+  TestDeviceInfoBuilder builder(DeviceInfo::OsType::kAndroid);
+  builder.WithGuid("guid1")
+      .WithClientName(kGalaxyS22UltraModel)
+      .WithManufacturerName(kSamsungManufacturer)
+      .WithModelName(kGalaxyS22UltraModel)
+      .WithServerDeterminedModelName(kGalaxyS22UltraMarketingName);
+  std::unique_ptr<DeviceInfo> device = builder.Build();
+
+  DisplayNameCandidates candidates = GetDisplayNameCandidates(device.get());
+  EXPECT_EQ("Samsung Phone", candidates.preferred_name_if_unique);
+  EXPECT_EQ("Samsung Phone SM-S908U", candidates.fallback_full_name);
 }
 
 }  // namespace syncer

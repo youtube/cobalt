@@ -9,8 +9,8 @@
 #import "ios/chrome/browser/settings/ui_bundled/settings_controller_protocol.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_root_table_view_controller.h"
 
-@protocol AutofillAIBaseMutator;
 @class IdentityDocsTableViewController;
+@protocol IdentityDocsMutator;
 
 // Delegate for presentation events related to IdentityDocsTableViewController.
 @protocol IdentityDocsTableViewControllerDelegate <NSObject>
@@ -30,7 +30,7 @@
 @property(nonatomic, weak) id<IdentityDocsTableViewControllerDelegate> delegate;
 
 // Mutator for actions in the view.
-@property(nonatomic, weak) id<AutofillAIBaseMutator> mutator;
+@property(nonatomic, weak) id<IdentityDocsMutator> mutator;
 
 - (instancetype)init NS_DESIGNATED_INITIALIZER;
 

@@ -1007,11 +1007,9 @@ void LocalFrameMojoHandler::InvokeScriptToolForInspector(
 
 void LocalFrameMojoHandler::NotifyInspectorOfCrossDocumentScriptToolResult(
     const base::UnguessableToken& invocation_id) {
-  if (auto* model_context =
-          ModelContextSupplement::modelContext(*GetDocument())) {
-    model_context->GetCrossDocumentScriptToolResult(invocation_id,
-                                                    base::DoNothing());
-  }
+  auto* model_context = ModelContextSupplement::modelContext(*GetDocument());
+  model_context->GetCrossDocumentScriptToolResult(invocation_id,
+                                                  base::DoNothing());
 }
 
 #if BUILDFLAG(IS_MAC)

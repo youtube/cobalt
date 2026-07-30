@@ -5,17 +5,20 @@
 #ifndef COMPONENTS_SERVICES_STORAGE_DOM_STORAGE_TEST_SUPPORT_FAKE_DOM_STORAGE_DATABASE_FACTORY_H_
 #define COMPONENTS_SERVICES_STORAGE_DOM_STORAGE_TEST_SUPPORT_FAKE_DOM_STORAGE_DATABASE_FACTORY_H_
 
+#include <optional>
+
 #include "base/files/file_path.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/threading/sequence_bound.h"
+#include "base/trace_event/memory_allocator_dump_guid.h"
 #include "components/services/storage/dom_storage/dom_storage_database.h"
 #include "components/services/storage/dom_storage/test_support/scoped_dom_storage_database_factory_for_testing.h"
 
 namespace storage {
 
 // A fake factory for creating FakeDomStorageDatabase instances in tests.
-// The first `num_open_failures` Create() calls produce databases that return
+// The first `num_open_failures` Open() calls produce databases that return
 // Corruption from Open(); subsequent calls produce databases that return OK.
 // The first `num_destroy_failures` Destroy() calls return IOError; subsequent
 // calls return OK.
@@ -41,17 +44,19 @@ class FakeDomStorageDatabaseFactory {
       const FakeDomStorageDatabaseFactory&) = delete;
 
  private:
-  base::SequenceBound<DomStorageDatabase> Create(
-      StorageType storage_type,
-      bool is_in_memory,
-      scoped_refptr<base::SequencedTaskRunner> runner);
+  void Open(StorageType storage_type,
+            const base::FilePath& storage_partition_dir,
+            const std::optional<base::trace_event::MemoryAllocatorDumpGuid>&
+                memory_dump_id,
+            DomStorageDatabaseFactory::OpenResultCallback callback);
 
   void Destroy(const base::FilePath& database_path,
+               bool is_sqlite,
                DomStorageDatabaseFactory::StatusCallback callback);
 
   const int num_open_failures_;
   const int num_destroy_failures_;
-  int create_count_ = 0;
+  int open_count_ = 0;
   int destroy_count_ = 0;
 
   // Must be declared last so it is destroyed first, ensuring the callbacks

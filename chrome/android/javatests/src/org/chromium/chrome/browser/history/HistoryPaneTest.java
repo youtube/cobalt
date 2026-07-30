@@ -18,18 +18,15 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import org.chromium.base.test.util.Batch;
+import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
-import org.chromium.base.test.util.DisableIf;
-import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
-import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.browsing_data.BrowsingDataBridge;
 import org.chromium.chrome.browser.browsing_data.BrowsingDataType;
 import org.chromium.chrome.browser.browsing_data.TimePeriod;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
-import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.transit.AutoResetCtaTransitTestRule;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
@@ -42,8 +39,6 @@ import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.test.transit.SoftKeyboardCondition;
 import org.chromium.url.GURL;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
 /** Public transit tests for the Hub's history pane. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
@@ -53,6 +48,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
     ChromeFeatureList.ENABLE_ESCAPE_HANDLING_FOR_SECONDARY_ACTIVITIES
 })
 @DisableFeatures(ChromeFeatureList.ANDROID_HISTORY_CLUSTERING)
+// @DisableIf.Device(DeviceFormFactor.DESKTOP)
 public class HistoryPaneTest {
     @Rule
     public AutoResetCtaTransitTestRule mCtaTestRule =
@@ -62,29 +58,44 @@ public class HistoryPaneTest {
     private boolean mIsLargeFormFactorDevice;
 
     @Before
-    public void setUp() {
+    public void setUp() throws Exception {
         mStartingPage = mCtaTestRule.startOnBlankPage();
-        ChromeTabbedActivity cta = mCtaTestRule.getActivity();
-        final AtomicBoolean isTablet = new AtomicBoolean();
+        clearHistory();
         runOnUiThreadBlocking(
                 () -> {
-                    clearHistory(cta.getProfileProviderSupplier().get().getOriginalProfile());
-                    isTablet.set(DeviceFormFactor.isNonMultiDisplayContextOnTablet(cta));
+                    mIsLargeFormFactorDevice =
+                            DeviceFormFactor.isNonMultiDisplayContextOnTablet(
+                                    mCtaTestRule.getActivity());
                 });
-        mIsLargeFormFactorDevice = isTablet.get();
+    }
+
+    private void clearHistory() throws Exception {
+        CallbackHelper helper = new CallbackHelper();
+        runOnUiThreadBlocking(
+                () -> {
+                    BrowsingDataBridge.getForProfile(
+                                    mCtaTestRule
+                                            .getActivity()
+                                            .getProfileProviderSupplier()
+                                            .get()
+                                            .getOriginalProfile())
+                            .clearBrowsingData(
+                                    helper::notifyCalled,
+                                    new int[] {BrowsingDataType.HISTORY},
+                                    TimePeriod.ALL_TIME);
+                });
+        helper.waitForNext();
     }
 
     @Test
     @MediumTest
-    @DisabledTest(message = "https://crbug.com/494280678")
     public void testEmptyView() {
         RegularTabSwitcherStation tabSwitcher = mStartingPage.openRegularTabSwitcher();
-        tabSwitcher.selectHistoryPane().expectEmptyState(mIsLargeFormFactorDevice);
+        tabSwitcher.selectHistoryPane().expectEmptyState();
     }
 
     @Test
     @MediumTest
-    @DisabledTest(message = "https://crbug.com/494280678")
     public void testOpenedHistoryItem_HistoryItemsAreDisplayed() {
         String urlOne =
                 mCtaTestRule.getTestServer().getURL("/chrome/test/data/android/navigate/one.html");
@@ -103,7 +114,6 @@ public class HistoryPaneTest {
 
     @Test
     @MediumTest
-    @DisabledTest(message = "https://crbug.com/494280678")
     public void testOpenedHistoryItem_SearchMatch() {
         String urlOne =
                 mCtaTestRule.getTestServer().getURL("/chrome/test/data/android/navigate/one.html");
@@ -136,7 +146,6 @@ public class HistoryPaneTest {
 
     @Test
     @MediumTest
-    @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/481444820
     public void testOpenedHistoryItem_SingleClickOpensInSameTab() {
         String urlOne =
                 mCtaTestRule.getTestServer().getURL("/chrome/test/data/android/navigate/one.html");
@@ -156,7 +165,6 @@ public class HistoryPaneTest {
     @Test
     @MediumTest
     @EnableFeatures(ChromeFeatureList.ANDROID_HISTORY_CLUSTERING)
-    @DisabledTest(message = "https://crbug.com/494280678")
     public void testHistoryClustering_ExpandCollapse() {
         String urlOne =
                 mCtaTestRule.getTestServer().getURL("/chrome/test/data/android/navigate/one.html");
@@ -196,11 +204,5 @@ public class HistoryPaneTest {
         history.expectEntry(domain);
         history.expectNoEntry("One");
         history.expectNoEntry("Two");
-    }
-
-    private void clearHistory(Profile profile) {
-        BrowsingDataBridge.getForProfile(profile)
-                .clearBrowsingData(
-                        () -> {}, new int[] {BrowsingDataType.HISTORY}, TimePeriod.ALL_TIME);
     }
 }

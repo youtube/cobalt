@@ -25,7 +25,7 @@
 #pragma mark - GeminiConsentProviderDelegate
 
 - (BOOL)isGeminiLiveConsentAccepted {
-  return gemini::DidUserConsentToGemini(_prefService);
+  return gemini::DidUserConsentToGeminiLive(_prefService);
 }
 
 - (BOOL)isGeminiLiveIntroShown {

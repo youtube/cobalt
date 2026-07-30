@@ -861,7 +861,6 @@ Si cette règle est activée, votre appareil <ph name="PRODUCT_OS_NAME" /> accep
 Remarque : Cette règle ne prend effet qu'une fois que l'utilisateur s'est connecté, et ne s'applique pas à l'écran de connexion.</translation>
 <translation id="1597684038583138808">Activer la définition pour Réponses rapides</translation>
 <translation id="1598258379228800626">Activer la mise en surbrillance des éléments sélectionnés au clavier sur l'écran de connexion</translation>
-<translation id="1599424828227887013">Activer l'isolation des sites pour des origines définies sur les appareils Android</translation>
 <translation id="159946228300522107">Si cette règle est définie sur "True", Chrome agrandit la première fenêtre affichée à la première exécution.
 
       Si cette règle est définie sur "False" ou qu'elle n'est pas configurée, Chrome peut agrandir la première fenêtre, selon la taille de l'écran.</translation>
@@ -2126,17 +2125,6 @@ Si cette règle est activée ou n'est pas définie, l'utilisateur peut définir 
 <translation id="2402537890732357732">Toujours afficher le libellé de gestion</translation>
 <translation id="2402547085566757554">Ne pas utiliser la page "Nouvel onglet" comme page d'accueil</translation>
 <translation id="2405765347317553213">Paramètres de Tab Compare</translation>
-<translation id="240713331529749993">Si cette règle est configurée, chacune des origines définies dans une liste d'éléments séparés par une virgule exécute un processus dédié sous Android. Le processus de chaque origine définie ne pourra contenir que des documents de cette origine et de ses sous-domaines. Par exemple, spécifier https://a1.example.com/ autorise https://a2.a1.example.com/ dans le même processus, mais pas https://example.com ni https://b.example.com. Notez qu'Android isole certains sites sensibles par défaut à partir de <ph name="PRODUCT_NAME" /> 77, et que cette règle étend ce mode pour isoler des origines supplémentaires spécifiques.
-
-      Depuis <ph name="PRODUCT_NAME" /> 77, vous pouvez aussi spécifier une plage d'origines à isoler à l'aide d'un caractère générique. Par exemple, spécifier https://[*.]corp.example.com attribuera à chaque origine sous https://corp.example.com son propre processus dédié, y compris https://corp.example.com, https://a1.corp.example.com et https://a2.a1.corp.example.com.
-
-      Notez que les origines isolées par cette règle ne pourront pas scripter d'autres origines dans le même site, ce qui est sinon possible lorsque deux documents du même site modifient leurs valeurs document.domain pour qu'elles correspondent. Les administrateurs doivent vérifier que ce comportement inhabituel n'est pas utilisé sur une origine avant de l'isoler.
-
-      Si cette règle est désactivée, toute forme d'isolation de sites l'est aussi, y compris l'isolation des sites sensibles et des tests en conditions réelles d'IsolateOriginsAndroid, de SitePerProcessAndroid et d'autres modes d'isolation de sites. Les utilisateurs peuvent quand même activer manuellement IsolateOrigins via le flag de ligne de commande.
-
-      Si cette règle n'est pas configurée, les utilisateurs peuvent modifier ce paramètre.
-
-      Remarque : L'isolation de trop nombreux sites sur Android peut entraîner des problèmes de performances, surtout sur les appareils disposant de peu de mémoire. Cette règle ne concerne que Chrome, sur les appareils Android de plus de 1 Go de RAM. Pour les plates-formes autres qu'Android, utilisez <ph name="ISOLATE_ORIGINS_POLICY_NAME" />.</translation>
 <translation id="2407758458436268630">Autoriser le modèle de réduction intelligente de luminosité à augmenter le délai d'assombrissement de l'écran</translation>
 <translation id="2410163749464044777">Paramètres de stockage des données utilisateur locales</translation>
 <translation id="2411629345938804022">Si cette règle est définie sur "3", les sites Web peuvent demander l'accès aux appareils Bluetooth à proximité. Si cette règle est définie sur "2", la demande d'accès à ces appareils est refusée.
@@ -4035,21 +4023,6 @@ Si cette règle est activée, SwiftShader est utilisé comme remplacement logici
 Si elle est désactivée ou qu'elle n'est pas configurée, la création de contexte WebGL peut échouer si l'accélération GPU matérielle n'est pas disponible. Les pages Web peuvent dysfonctionner si elles ne gèrent pas correctement l'échec de la création du contexte WebGL.
 
 Il s'agit d'une règle temporaire qui sera supprimée à l'avenir.</translation>
-<translation id="3607939601300521364">Détermine si l'agent <ph name="GEMINI_SPARK_PRODUCT_NAME" /> est autorisé à se connecter à <ph name="PRODUCT_NAME" /> et à utiliser la navigation automatique.
-
-0 = <ph name="GEMINI_SPARK_PRODUCT_NAME" /> est autorisé à se connecter à la navigation automatique de <ph name="PRODUCT_NAME" /> et à l'utiliser
-
-1 = <ph name="GEMINI_SPARK_PRODUCT_NAME" /> n'est pas autorisé à se connecter à la navigation automatique de <ph name="PRODUCT_NAME" /> ni à l'utiliser
-
-Avertissement : Autoriser <ph name="GEMINI_SPARK_PRODUCT_NAME" /> à se connecter à <ph name="PRODUCT_NAME" /> et à utiliser la navigation automatique permet à l'agent <ph name="GEMINI_SPARK_PRODUCT_NAME" /> d'effectuer des actions autonomes en plusieurs étapes sur les clients <ph name="PRODUCT_NAME" /> depuis la session de navigateur active. Cela implique des risques de sécurité importants, y compris liés aux identifiants, à l'accès au réseau local et à la perte de signaux contextuels. Les contrôles de gestion et de sécurité existants pourraient ne pas être respectés.
-
-Les administrateurs sont invités à évaluer attentivement le modèle de menace réseau, ainsi que les consignes en matière de conformité et de confidentialité de leur organisation avant d'activer cette fonctionnalité.
-
-Cette règle n'a aucun effet lorsque les règles de navigation automatique de <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> ou <ph name="PRODUCT_NAME" /> sont désactivées. Par exemple, l'appli <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> peut être désactivée par la règle <ph name="GEMINI_SETTINGS_POLICY_NAME" />. Pour en savoir plus sur <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> dans <ph name="PRODUCT_NAME" />, veuillez consulter https://support.google.com/chrome/a?p=gemini_in_chrome.
-
-<ph name="GEMINI_SPARK_PRODUCT_NAME" /> et la navigation automatique de <ph name="PRODUCT_NAME" /> ne sont pas disponibles dans tous les pays ni dans toutes les langues. Définir cette règle sur 0 - Activée ne garantit pas que la fonctionnalité sera activée. Elle reste soumise à disponibilité. Pour en savoir plus sur le déploiement, consultez les notes de version d'Enterprise : https://chromeenterprise.google/resources/release-notes/
-
-Si la règle n'est pas configurée, son comportement est déterminé par la règle <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.</translation>
 <translation id="3608206578291537084">Activer le pipeline de rapports chiffrés</translation>
 <translation id="3608281460204780443">Afficher l'icône du Chrome Web Store dans le lanceur d'applis <ph name="PRODUCT_OS_NAME" /> et sur la page de nouvel onglet</translation>
 <translation id="3612482251405108708">Démarrage automatique de la réauthentification en ligne sur l'écran de verrouillage</translation>
@@ -4969,17 +4942,6 @@ Pour en savoir plus, consultez la page https://chromium.googlesource.com/chromiu
 
 Cette règle a été utilisée pour désactiver la mise à niveau automatique du contenu mixte sur iOS. Elle est désormais obsolète et n'est plus prise en charge.</translation>
 <translation id="4252522848899331223">Autoriser l'utilisateur à contourner l'avertissement de navigation sécurisée</translation>
-<translation id="4260027436474745627">Si cette règle est configurée, chacune des origines définies dans une liste d'éléments séparés par une virgule exécute un processus dédié. Le processus de chaque origine définie ne pourra contenir que des documents de cette origine et de ses sous-domaines. Par exemple, spécifier https://a1.example.com/ autorise https://a2.a1.example.com/ dans le même processus, mais pas https://example.com ni https://b.example.com.
-
-      Depuis <ph name="PRODUCT_NAME" /> 77, vous pouvez aussi spécifier une plage d'origines à isoler à l'aide d'un caractère générique. Par exemple, spécifier https://[*.]corp.example.com attribuera à chaque origine sous https://corp.example.com son propre processus dédié, y compris https://corp.example.com, https://a1.corp.example.com et https://a2.a1.corp.example.com.
-
-      Notez que tous les sites (c'est-à-dire le schéma avec eTLD+1 tel que https://example.com) sont déjà isolés par défaut sur les plates-formes de bureau, comme indiqué dans la règle <ph name="SITE_PER_PROCESS_POLICY_NAME" />. La règle <ph name="ISOLATE_ORIGINS_POLICY_NAME" /> est utile pour isoler des origines spécifiques plus précisément (ex. : https://a.example.com).
-
-      Notez aussi que les origines isolées par cette règle ne pourront pas scripter d'autres origines dans le même site, ce qui est sinon possible lorsque deux documents du même site modifient leurs valeurs document.domain pour qu'elles correspondent. Les administrateurs doivent vérifier que ce comportement inhabituel n'est pas utilisé sur une origine avant de l'isoler.
-
-      Si cette règle est désactivée ou qu'elle n'est pas configurée, les utilisateurs peuvent modifier ce paramètre.
-
-      Remarque : Sous Android, utilisez la règle <ph name="ISOLATE_ORIGINS_ANDROID_POLICY_NAME" /> à la place.</translation>
 <translation id="4261641564041253502">Sélectionner automatiquement les certificats client correspondant aux filtres pour les rapports sur le signal de sécurité <ph name="PRODUCT_NAME" />.</translation>
 <translation id="4261820385751181068">Paramètres régionaux de l'écran de connexion de l'appareil</translation>
 <translation id="4263788921751326798">Désactiver les rapports d'erreur de l'appareil</translation>
@@ -7401,6 +7363,7 @@ Si elle est désactivée ou n'est pas configurée, les Glanceables ne sont pas a
 <translation id="5775235485119094648">Recharge de la batterie tant que le niveau de charge défini n'est pas atteint.</translation>
 <translation id="5776485039795852974">Demander confirmation chaque fois qu'un site veut afficher des notifications sur le bureau</translation>
 <translation id="5776508475264864949">Interdire à l'appli Gemini d'effectuer des actions sur les pages Web.</translation>
+<translation id="5779185945203505880">Demander chaque fois qu'un site veut accéder aux capteurs</translation>
 <translation id="5783009211970309878">Imprimer les en-têtes et les pieds de page</translation>
 <translation id="5786913136266632175">Autoriser les Découvertes Chrome et améliorer les modèles d'IA.</translation>
 <translation id="5789288985554424301">Permet de définir si les sites Web sont autorisés à utiliser l'API Idle Detection.
@@ -7721,6 +7684,7 @@ Si vous définissez cette valeur sur <ph name="DISPLAY_MANAGEMENT_LABEL_TRANSIEN
 <translation id="5962271004971310788">Extensions dont l'utilisateur doit autoriser l'exécution en mode navigation privée pour utiliser ce même mode</translation>
 <translation id="5963752574792883406">port 990 (peut être débloqué jusqu'au 01/02/2022)</translation>
 <translation id="596523880465577341">Cette règle est obsolète et non compatible, veuillez utiliser la règle <ph name="EXTENSION_INSTALL_ALLOWLIST_POLICY_NAME" /> à la place.</translation>
+<translation id="5965344524743236327">ID ou numéro du projet <ph name="GOOGLE_CLOUD_PRODUCT_NAME" /> correspondant à l'instance <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> à activer. Pour en savoir plus sur les ID de projet, consultez https://docs.cloud.google.com/resource-manager/docs/creating-managing-projects.</translation>
 <translation id="5966615072639944554">Extensions autorisées à utiliser l'API d'attestation à distance</translation>
 <translation id="596732417280023843">Nom du profil du certificat.</translation>
 <translation id="5972538402066550344">Autoriser les contrôles de rapports précis</translation>
@@ -8131,6 +8095,7 @@ Si la règle <ph name="ALLOWED_INPUT_METHODS_POLICY_NAME" /> n'est pas configur�
 <translation id="6264247808139384018">Si cette règle est activée ou n'est pas configurée, les utilisateurs qui s'authentifient avec un mot de passe peuvent verrouiller l'écran.
 
 Si cette règle est désactivée, les utilisateurs ne peuvent pas verrouiller l'écran (ils peuvent uniquement se déconnecter de leur session utilisateur).</translation>
+<translation id="6265114688953151459">Identifiant unique du moteur <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" />. Le format doit comporter entre 1 et 63 caractères correspondant au modèle [a-z0-9][a-z0-9-_]*. Pour en savoir plus, consultez https://docs.cloud.google.com/gemini/enterprise/docs/reference/rest/v1/projects.locations.collections.engines#Engine.</translation>
 <translation id="6265892395051519509">Autoriser l'accès aux capteurs sur ces sites</translation>
 <translation id="6266043141694454734">Détermine si le Chrome Root Store et l'outil de vérification des certificats intégré seront utilisés pour vérifier les certificats de serveur</translation>
 <translation id="6266686172120601139">Activer la mise en mémoire tampon adaptative pour Web Audio</translation>
@@ -10670,6 +10635,9 @@ Ce comportement est identique à celui de <ph name="POLICY_VALUE_PRIMARY_ACCOUNT
 <translation id="7816326058023670173">Secret partagé entre les appareils utilisés par les parents et l’enfant.</translation>
 <translation id="7818131573217430250">Définir l'état par défaut du mode Contraste élevé sur l'écran de connexion</translation>
 <translation id="7821864705813933283">Autoriser l'affichage de la recherche par zone <ph name="GOOGLE_LENS_PRODUCT_NAME" /> dans le menu contextuel, si disponible.</translation>
+<translation id="7822068288960631707">Si cette règle est définie sur "1", les sites Web peuvent accéder aux capteurs (de mouvement et de lumière, par exemple) et les utiliser. Si elle est définie sur "2", l'accès aux capteurs est refusé. Si elle est définie sur "3", l'utilisateur reçoit une invite lorsqu'un site demande l'accès aux capteurs si le flag de fonctionnalité à trois états est activé. Sinon, l'accès aux capteurs est autorisé par défaut.
+
+      Si cette règle n'est pas configurée, <ph name="ALLOW_SENSORS_POLICY_NAME" /> s'applique. Toutefois, les utilisateurs peuvent modifier ce paramètre.</translation>
 <translation id="7823902813460802031">Si cette règle est activée, <ph name="PRODUCT_OS_NAME" /> empêche l'appareil de passer en mode développeur.
 
        Si cette règle est désactivée ou qu'elle n'est pas configurée, l'appareil peut continuer d'utiliser ce mode, si nécessaire.</translation>

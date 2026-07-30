@@ -27,6 +27,7 @@ public enum PersistedTabDataConfiguration {
     ENCRYPTED_MOCK_PERSISTED_TAB_DATA("EMPTD"),
     SHOPPING_PERSISTED_TAB_DATA("SPTD"),
     ARCHIVE_PERSISTED_TAB_DATA("APTD"),
+    SEND_TAB_TO_SELF_TAB_CARD_LABEL_DATA("STTSTCLD"),
     EMPTY_BYTE_BUFFER_TEST_CONFIG("EBBTC"),
     // TODO(crbug.com/40143638) investigate separating test from prod test implementations
     TEST_CONFIG("TC");
@@ -68,6 +69,9 @@ public enum PersistedTabDataConfiguration {
         sEncryptedLookup.put(ShoppingPersistedTabData.class, SHOPPING_PERSISTED_TAB_DATA);
         sLookup.put(ArchivePersistedTabData.class, ARCHIVE_PERSISTED_TAB_DATA);
         sEncryptedLookup.put(ArchivePersistedTabData.class, ARCHIVE_PERSISTED_TAB_DATA);
+        sLookup.put(SendTabToSelfTabCardLabelData.class, SEND_TAB_TO_SELF_TAB_CARD_LABEL_DATA);
+        sEncryptedLookup.put(
+                SendTabToSelfTabCardLabelData.class, SEND_TAB_TO_SELF_TAB_CARD_LABEL_DATA);
     }
 
     private final String mId;
@@ -92,6 +96,7 @@ public enum PersistedTabDataConfiguration {
                 return getMockPersistedTabDataStorage();
             case SHOPPING_PERSISTED_TAB_DATA:
             case ARCHIVE_PERSISTED_TAB_DATA:
+            case SEND_TAB_TO_SELF_TAB_CARD_LABEL_DATA:
                 return new LevelDBPersistedTabDataStorageFactory().create();
             case EMPTY_BYTE_BUFFER_TEST_CONFIG:
                 return getEmptyByteBufferPersistedTabDataStorage();

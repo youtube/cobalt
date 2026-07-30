@@ -26,7 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from mod_pywebsocket import msgutil
+from pywebsocket3 import msgutil
 
 # Hello in Japanese
 _UNICODE_HELLO = u'\u3053\u3093\u306b\u3061\u306f'

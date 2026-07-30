@@ -60,6 +60,17 @@
 <translation id="1587223624401073077">‏Google Chrome משתמש במצלמה שלך.</translation>
 <translation id="1587325591171447154">‏<ph name="FILE_NAME" /> מסוכן, ולכן Chrome חסם אותו.</translation>
 <translation id="1597911401261118146">‏כדי לבדוק אם שאר הסיסמאות מוגנות מפני פרצות באבטחת מידע ובעיות אבטחה אחרות, <ph name="BEGIN_LINK" />יש להיכנס ל-Chrome<ph name="END_LINK" />.</translation>
+<translation id="1619639070275605589">‏בעקבות האיפוס:
+          <ph name="LINE_BREAKS" />
+            • יתאפסו דף הפתיחה, דף הכרטיסייה החדשה, מנוע החיפוש והכרטיסיות המוצמדות
+            <ph name="LINE_BREAK" />
+            • התוספים יושבתו
+            <ph name="LINE_BREAK" />
+            • יימחקו קובצי Cookie ונתונים זמניים אחרים מאתרים
+            <ph name="LINE_BREAK" />
+            • יתאפסו קיצורי הדרך של Chrome
+            <ph name="LINE_BREAKS" />
+            לא תהיה השפעה על הסימניות, ההיסטוריה והסיסמאות השמורות.</translation>
 <translation id="1619887657840448962">‏כדי לשפר את האבטחה של Chrome, השבתנו את התוסף הבא שאינו רשום ב-<ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> וייתכן שנוסף ללא ידיעתך.</translation>
 <translation id="1628000112320670027">‏קבלת עזרה בנושא Chrome</translation>
 <translation id="1640672724030957280">מוריד...</translation>
@@ -136,6 +147,7 @@
 <translation id="2472092250898121027">‏התוסף הזה מכיל תוכנה זדונית והוא לא בטוח. צריך להסיר אותו מ-Chrome כדי לא לאפשר לו יותר להציג ולשנות את הנתונים שלך באתרים שאליהם תתבצע כניסה, כולל הפרטים האישיים שלך.</translation>
 <translation id="2485422356828889247">הסרה</translation>
 <translation id="2513154137948333830">נדרשת הפעלה מחדש: <ph name="INSTALL_SUCCESS" /></translation>
+<translation id="2523492931736391680">‏עבודה מאובטחת ב-Chrome</translation>
 <translation id="2534365042754120737">‏כדי להגן על הנתונים שלך, כדאי לאפשר ל-Chrome להסיר הרשאות מאתרים שלא נכנסת אליהם לאחרונה. המערכת תמשיך לשלוח התראות.</translation>
 <translation id="2556847002339236023">‏לפי הגדרת הארגון, Chrome נסגר אוטומטית כשלא משתמשים בו במשך <ph name="TIMEOUT_DURATION" />. נתוני הגלישה נמחקו. בין הנתונים שנמחקו: היסטוריה, מילוי אוטומטי והורדות.</translation>
 <translation id="2563121210305478421">‏להפעיל את Chrome מחדש?</translation>
@@ -240,6 +252,7 @@
 <translation id="345171907106878721">‏הוספת עצמך ל-Chrome</translation>
 <translation id="3453763134178591239">‏התנאים של ChromeOS</translation>
 <translation id="3503306920980160878">‏Chrome זקוק לגישה למיקום שלך כדי לשתף אותו עם האתר הזה</translation>
+<translation id="3512495006767217696">‏מנהל הסיסמאות מובנה ב-Chrome ומאפשר לך ליצור ולשמור סיסמאות חזקות ולמלא אותן אוטומטית. כדי להגיע אליו בקלות, אפשר להוסיף את קיצור הדרך</translation>
 <translation id="3539955434060988644">‏פתיחת הקישור בחלון לגלישה &amp;פרטית של Chrome</translation>
 <translation id="3576528680708590453">‏לפי הגדרת מנהל המערכת, Google Chrome יפתח דפדפן חלופי כדי לגשת אל <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="3582972582564653026">‏סינכרון והתאמה אישית של Chrome בכל המכשירים שלך</translation>
@@ -302,6 +315,7 @@
 <translation id="4149882025268051530">‏המתקין נכשל בביצוע דחיסה לארכיון. יש להוריד שוב את Google Chrome.</translation>
 <translation id="415112847282352845">‏כדי לקבל גישה לכתובות ולנתונים נוספים בכל המכשירים שלך, כדאי להיכנס ל-Chrome. לאחר הכניסה, הכתובת הזו תישמר בחשבון שלך ב-Google.</translation>
 <translation id="4153934450158521343">‏Chrome ייסגר בקרוב והנתונים שבו יימחקו</translation>
+<translation id="4159985264221160808">‏כדי להגן על העבודה שלך ב-Chrome, הארגון יוכל לראות חלק מהמידע או לנהל אותו</translation>
 <translation id="4173512894976930765">‏סביר להניח שאתרים יפעלו כצפוי. אם סוגרים את כל החלונות של Chrome, מתבצעת יציאה מהחשבון ברוב האתרים, חוץ מחשבון Google אם הוא מחובר ל-Chrome.</translation>
 <translation id="4175922240926474352">‏ההורדה הזו נחסמה על ידי Chrome כי האתר לא משתמש בחיבור מאובטח ויכול להיות שבוצעו שינויים לא מורשים בקובץ</translation>
 <translation id="4191857738314598978">{0,plural, =1{‏צריך להפעיל מחדש את Chrome תוך יום אחד}one{‏צריך להפעיל מחדש את Chrome תוך # ימים}two{‏צריך להפעיל מחדש את Chrome תוך # ימים}other{‏צריך להפעיל מחדש את Chrome תוך # ימים}}</translation>
@@ -333,6 +347,7 @@
 <translation id="4493028449971051158">שגיאת הפעלה: יש להפעיל את מנהל ההתקנה כאדמין.</translation>
 <translation id="4501471624619070934">ההתקנה נכשלה כי הגישה מוגבלת במדינה הזו.</translation>
 <translation id="4571503333518166079">‏מעבר אל הגדרות של הודעות ב-Chrome</translation>
+<translation id="4580939929828762295">‏מנהל הסיסמאות של Google עוזר לשמור על הבטיחות שלך</translation>
 <translation id="4592634244097223647">‏אפשר לשאול את Google על התמונה הזו</translation>
 <translation id="459622048091363950">‏אחרי מתן גישה ל-Chrome, אתרים יוכלו לבקש ממך גישה.</translation>
 <translation id="4598116752460667024">מחפשים תהליך כלשהו מהרשימה.</translation>
@@ -517,6 +532,7 @@
 <translation id="6438015621983209660">‏רוצה להרחיב את הגרסה המשופרת של גלישה בטוחה ב-Chrome בטלפון?</translation>
 <translation id="6442774133615368941">‏אפשר לקנות, לתרגם ולזהות דברים שרואים במצלמה באפליקציית Chrome ל-iOS</translation>
 <translation id="6448835208126432197">‏שימוש במקש קיצור כדי לבחור חלק מהמסך ב-Gemini ב-Chrome.</translation>
+<translation id="6473659734176498825">‏תמונה פשוטה שמראה את נקודת הכניסה למנהל הסיסמאות של Google ב-Chrome</translation>
 <translation id="6473905796280459355">‏מעבר לדף 'מידע על Chrome'</translation>
 <translation id="6481963882741794338">‏אפשר לקשר את Chrome לשירותי Google אחרים לצורך התאמה אישית ולמטרות אחרות</translation>
 <translation id="648319183876919572">הגרסה המשופרת של הגלישה הבטוחה מגנה עליך טוב יותר מפני הורדות ואתרים מסוכנים</translation>
@@ -688,6 +704,7 @@
 <translation id="8064965390968184078">‏1. לוחצים על <ph name="BUTTON_LABEL" /> למטה
 2. לוחצים על <ph name="BUTTON_2" /> בהגדרות של Windows
 3. לוחצים על <ph name="BUTTON_3" /> בהתראה של Windows כדי להצמיד את Chrome לסרגל האפליקציות לגישה מהירה</translation>
+<translation id="8069447462453318634">צריך לבחור באפשרות "הצמדה לסרגל הכלים"</translation>
 <translation id="8074398340364918139">‏כדי לחפש תכונה או תוסף ספציפיים של Chrome, אפשר להקליד את השם המקוצר שלהם בסרגל הכתובות ולאחר מכן ללחוץ על מקש המקלדת שנבחר</translation>
 <translation id="8077579734294125741">‏פרופילים אחרים ב-Chrome</translation>
 <translation id="8086881907087796310">ההתקנה נכשלה כי המחשב לא עומד בדרישות החומרה המינימליות.</translation>
@@ -773,6 +790,15 @@
 <translation id="8922998289262614701">‏להסיר את הנתונים של האפליקציה הזאת מ-Chrome?</translation>
 <translation id="8925636929359899517">אנחנו משתמשים במידע כדי לשפר את השירות הזה. אפשר לקרוא את <ph name="BEGIN_LINK1" />מדיניות הפרטיות<ph name="END_LINK1" /> ו<ph name="BEGIN_LINK2" />התנאים וההגבלות<ph name="END_LINK2" />.</translation>
 <translation id="8936233353620149764">‏הפעלה או השבתה של Gemini ב-Chrome</translation>
+<translation id="8944232836376404813">‏בעקבות האיפוס:
+          <ph name="LINE_BREAKS" />
+            • יתאפסו דף הפתיחה, דף הכרטיסייה החדשה, מנוע החיפוש והכרטיסיות המוצמדות
+            <ph name="LINE_BREAK" />
+            • התוספים יושבתו
+            <ph name="LINE_BREAK" />
+            • יימחקו קובצי Cookie ונתונים זמניים אחרים מאתרים
+            <ph name="LINE_BREAKS" />
+            לא תהיה השפעה על הסימניות, ההיסטוריה והסיסמאות השמורות.</translation>
 <translation id="8948460679427074738">‏לתוסף הזה לא פורסמו נוהלי פרטיות, למשל האופן שבו הוא אוסף נתונים ומשתמש בהם. ההמלצה של Chrome היא להסיר אותו.</translation>
 <translation id="8958307504142971576">‏עכשיו יש לך יותר תכונות זמינות ב-Chrome</translation>
 <translation id="8991530961471831170">‏פתיחת Gemini ב-Chrome</translation>

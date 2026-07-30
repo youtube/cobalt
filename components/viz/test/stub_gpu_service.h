@@ -100,6 +100,9 @@ class StubGpuService : public mojom::GpuService {
   void Crash() override;
   void Hang() override;
   void ThrowJavaException() override;
+  // mojom::GpuService implementation:
+  void InduceMemoryInvalidAccess(
+      mojom::MemoryInvalidAccessType action) override;
 #if BUILDFLAG(ENABLE_VRP_FLAGS)
   void GetVrpFlags(GetVrpFlagsCallback callback) override;
 #endif

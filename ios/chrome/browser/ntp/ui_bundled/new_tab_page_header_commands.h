@@ -5,11 +5,11 @@
 #ifndef IOS_CHROME_BROWSER_NTP_UI_BUNDLED_NEW_TAB_PAGE_HEADER_COMMANDS_H_
 #define IOS_CHROME_BROWSER_NTP_UI_BUNDLED_NEW_TAB_PAGE_HEADER_COMMANDS_H_
 
-// Commands protocol allowing the NewTabPageHeaderViewController to
+// Commands protocol allowing the NewTabPageHeaderView to
 // interact with the coordinator layer.
 @protocol NewTabPageHeaderCommands
 
-// Informs the receiver that the NewTabPageHeaderViewController's size
+// Informs the receiver that the NewTabPageHeaderView's size
 // has changed.
 - (void)updateForHeaderSizeChange;
 

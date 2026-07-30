@@ -899,8 +899,6 @@ TEST_F(AutofillProfileComparatorTest,
 // alternative name are considered equal.
 TEST_F(AutofillProfileComparatorTest,
        ProfilesHaveTheSameSettingsVisibleValuesJP) {
-  base::test::ScopedFeatureList scoped_feature_list{
-      features::kAutofillSupportPhoneticNameForJP};
   AutofillProfile existing_profile(AddressCountryCode("JP"));
   test::SetProfileInfo(&existing_profile, test::SetProfileInfoOptionsBuilder()
                                               .with_first_name("firstName")
@@ -968,8 +966,6 @@ TEST_F(AutofillProfileComparatorTest, GetProfileDifference) {
 }
 
 TEST_F(AutofillProfileComparatorTest, GetDifferentCountriesProfileDifference) {
-  base::test::ScopedFeatureList feature_list{
-      features::kAutofillSupportPhoneticNameForJP};
   AutofillProfile existing_profile(AddressCountryCode("US"));
   test::SetProfileInfo(&existing_profile, test::SetProfileInfoOptionsBuilder()
                                               .with_first_name("firstName")

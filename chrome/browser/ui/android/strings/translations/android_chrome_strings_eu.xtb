@@ -117,6 +117,7 @@ Chrome-ren erabilera hobetzeko datuak erabiltzen dituzten ezarpen gehiago ikuste
 <translation id="1435593198351412143">Ireki PDFak automatikoki</translation>
 <translation id="1437543266176261764"><ph name="APP_NAME" /> aplikazioan exekutatzen</translation>
 <translation id="1448440926884431741">Antolatu jarraipena egiten diezun produktuak Laster-markak atalean</translation>
+<translation id="1452651021404174820">Aukeratu gailu bat</translation>
 <translation id="1455845192930279203">"<ph name="FILE_NAME" />" (<ph name="FILE_SIZE" />) deskargatu egin nahi duzu <ph name="DOWNLOAD_DOMAIN" /> domeinutik hala ere?</translation>
 <translation id="1460751212339734034">Aurreztu denbora, idatzi gutxiago</translation>
 <translation id="146522654774760805">Pasahitzak eta Betetze automatikoa</translation>
@@ -124,6 +125,7 @@ Chrome-ren erabilera hobetzeko datuak erabiltzen dituzten ezarpen gehiago ikuste
 <translation id="1477626028522505441">Ezin izan da deskargatu <ph name="FILE_NAME" />, zerbitzariarekin arazoak daudelako.</translation>
 <translation id="147982357559798527">Aldatu egin da</translation>
 <translation id="1480287803138246127">Baliteke historia osoa ez agertzea hemen. Chrome-ko historia osoa ikusteko, ireki ezazu.</translation>
+<translation id="1483493594462132177">Bidali</translation>
 <translation id="1495677929897281669">Itzuli fitxara</translation>
 <translation id="1496514951988037011">erabiltzaile-izena</translation>
 <translation id="1501480321619201731">Ezabatu taldea</translation>
@@ -1273,6 +1275,7 @@ Esaterako, bisitatu dituzun webguneetan oinarritzen ez diren iragarkiak bidalita
 <translation id="634208815998129842">Zereginen kudeatzailea</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{<ph name="SHIPPING_ADDRESS_PREVIEW" /> eta beste <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" />}other{<ph name="SHIPPING_ADDRESS_PREVIEW" /> eta beste <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" />}}</translation>
 <translation id="6345878117466430440">Markatu irakurritako gisa</translation>
+<translation id="6350745006329795504">Kudeatu gailuak</translation>
 <translation id="6356893102071098867">Egiaztatu kontu zuzena aukeratu duzun</translation>
 <translation id="6364438453358674297">Iradokizuna historiatik ezabatu nahi duzu?</translation>
 <translation id="6380100320871303656">Maizago kargatzen dira aurrez Google-ren ustez bisitatuko dituzun orriak. Litekeena da ezarpen honek datu gehiago erabiltzea.</translation>

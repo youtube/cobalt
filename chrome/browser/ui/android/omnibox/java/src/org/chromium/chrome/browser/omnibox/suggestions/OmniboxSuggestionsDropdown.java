@@ -25,6 +25,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.chromium.base.Callback;
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.TimeUtils;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.metrics.TimingMetric;
@@ -315,6 +316,12 @@ public class OmniboxSuggestionsDropdown extends RecyclerView {
                 TimingMetric metric2 =
                         OmniboxMetrics.recordSuggestionsDropdownAsyncInflationWallTime();
                 TraceEvent tracing = TraceEvent.scoped("OmniboxSuggestionsDropdown.Constructor")) {
+            boolean runsOnExpectedThread =
+                    OmniboxFeatures.sAsyncViewInflation.isEnabled()
+                            ? !ThreadUtils.runningOnUiThread()
+                            : ThreadUtils.runningOnUiThread();
+            OmniboxMetrics.recordSuggestionsDropdownInflationThreadMatchesExpectedThread(
+                    runsOnExpectedThread);
             mHandler = new Handler(Looper.getMainLooper());
 
             setFocusable(true);

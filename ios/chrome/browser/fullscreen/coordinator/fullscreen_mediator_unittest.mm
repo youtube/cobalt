@@ -7,7 +7,8 @@
 #import "base/memory/raw_ptr.h"
 #import "base/test/task_environment.h"
 #import "ios/chrome/browser/fullscreen/model/fullscreen_browser_agent.h"
-#import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent.h"
+#import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
@@ -45,17 +46,16 @@ class FullscreenMediatorTestObserver : public FullscreenBrowserAgentObserver {
 class FullscreenMediatorTest : public PlatformTest {
  protected:
   FullscreenMediatorTest() {
+    scene_state_ = [[SceneState alloc] initWithAppState:nil];
     profile_ = TestProfileIOS::Builder().Build();
-    browser_ = std::make_unique<TestBrowser>(profile_.get());
+    browser_ = std::make_unique<TestBrowser>(profile_.get(), scene_state_);
     FullscreenBrowserAgent::CreateForBrowser(browser_.get());
-    OmniboxPositionBrowserAgent::CreateForBrowser(browser_.get());
     agent_ = FullscreenBrowserAgent::FromBrowser(browser_.get());
     agent_->AddObserver(&observer_);
     mediator_ = [[FullscreenMediator alloc]
-               initWithBrowserAgent:agent_
-                       webStateList:browser_->GetWebStateList()
-        omniboxPositionBrowserAgent:OmniboxPositionBrowserAgent::FromBrowser(
-                                        browser_.get())];
+        initWithBrowserAgent:agent_
+                webStateList:browser_->GetWebStateList()
+                 layoutState:scene_state_.layoutState];
   }
 
   void TearDown() override {
@@ -65,6 +65,7 @@ class FullscreenMediatorTest : public PlatformTest {
 
   base::test::TaskEnvironment task_environment_;
 
+  SceneState* scene_state_;
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
   std::unique_ptr<TestProfileIOS> profile_;
   std::unique_ptr<TestBrowser> browser_;

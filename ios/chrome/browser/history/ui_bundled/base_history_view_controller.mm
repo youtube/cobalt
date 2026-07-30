@@ -682,7 +682,7 @@ static const base::TimeDelta kDelayUntilReadyToRemoveLoadingIndicatorsMs =
     // Even if Apple documentation hints toward reconfiguring the row instead
     // of just updating the cell, it creates a visible jank. Use the item
     // configuration method instead. See crbug.com/479692041 for more info.
-    [item configureCell:cell withStyler:self.styler];
+    [item configureCell:cell];
   }
 }
 

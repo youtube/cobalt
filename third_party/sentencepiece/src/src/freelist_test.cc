@@ -13,6 +13,7 @@
 // limitations under the License.!
 
 #include "freelist.h"
+
 #include "testharness.h"
 
 namespace sentencepiece {

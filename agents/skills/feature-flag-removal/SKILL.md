@@ -18,6 +18,9 @@ Your task is to clean up a `base::Feature` flag and its associated code.
       which is a config that generates `base::Feature`s at build time. Treat the
       "stable" status as `ENABLED_BY_DEFAULT` and all other statuses as
       `DISABLED_BY_DEFAULT`.
+    - If the flag has a uniform default state but is explicitly overridden
+      (e.g., force-disabled) for specific platforms via runtime overrides, bring
+      this discrepancy to the user's attention before cleaning it up.
 
 02. **Remove C++ flag enablement checks**:
 
@@ -42,9 +45,20 @@ Your task is to clean up a `base::Feature` flag and its associated code.
 
 04. **Remove obsolete C++ test coverage**:
 
-    - Remove obsolete tests or assertions that exercise the non-default state.
     - Remove `base::test::ScopedFeatureList`s that explicitly set the feature in
       the default state.
+    - If keeping the **enabled** state (deleting the disabled path):
+      - Remove tests that only exercise the disabled state.
+      - Remove `base::test::ScopedFeatureList`s that forced-enable the feature.
+    - If keeping the **disabled** state (deleting the enabled path):
+      - Remove tests that only exercise the enabled state and are no longer
+        relevant.
+      - Update tests that previously forced-enabled the feature to verify the
+        permanent disabled behavior (instead of deleting them, if the test
+        covers general functionality).
+      - Ensure helper test listener/observer implementations handle the absence
+        of feature-specific events safely (e.g., check for null pointers when
+        casting events).
     - Remove references to the obsolete feature in test names.
 
 05. **Clean up Java code**:
@@ -150,6 +164,10 @@ Your task is to clean up a `base::Feature` flag and its associated code.
 
     - Check immediately above each modified code block for obsolete comments.
     - If a comment still partially applies, reword it. Otherwise, delete it.
+    - Search the codebase for references to the feature flag name in other
+      comments (e.g., both the C++ constant `kMyFeature` and the user-facing
+      name `MyFeature`) to clean up obsolete discussions, TODOs, or design
+      notes.
 
 15. **Verify the build is not broken**:
 

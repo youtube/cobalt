@@ -1111,7 +1111,6 @@ class PaintCanvasVideoRendererWithGLTest : public testing::Test {
     GLenum target = GL_TEXTURE_2D;
     GLuint texture = 0;
     destination_gl->GenTextures(1, &texture);
-    destination_gl->BindTexture(target, texture);
 
     gfx::Size expected_size = frame->visible_rect().size();
 
@@ -1119,6 +1118,10 @@ class PaintCanvasVideoRendererWithGLTest : public testing::Test {
     CHECK(destination_gl->CanCopySharedImageDirectlyToGLTexture(
         media::IsOpaque(frame->format()), shared_image.get(), target, GL_RGBA,
         GL_UNSIGNED_BYTE, 0, kUnpremul_SkAlphaType));
+    destination_gl->BindTexture(target, texture);
+    destination_gl->TexImage2D(target, 0, GL_RGBA, expected_size.width(),
+                               expected_size.height(), 0, GL_RGBA,
+                               GL_UNSIGNED_BYTE, nullptr);
     std::unique_ptr<gpu::RasterScopedAccess> destination_access =
         destination_gl->CopySharedImageDirectlyToGLTexture(
             frame->visible_rect(), shared_image.get(),

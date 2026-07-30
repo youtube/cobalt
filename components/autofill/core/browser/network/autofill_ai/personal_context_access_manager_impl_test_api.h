@@ -19,7 +19,7 @@ class PersonalContextAccessManagerImplTestApi {
       PersonalContextAccessManagerImpl* manager)
       : manager_(*manager) {}
 
-  void ResetCacheForType(EntityType type) { manager_->ResetCacheForType(type); }
+  void ResetStateForType(EntityType type) { manager_->ResetStateForType(type); }
 
   void CacheUnmaskedSpiiEntity(EntityInstance entity) {
     manager_->CacheUnmaskedSpiiEntity(std::move(entity));

@@ -194,6 +194,10 @@ BASE_DECLARE_FEATURE(kGlicActorUiTabIndicatorSpinnerIgnoreReducedMotion);
 COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kGlicActorUiTaskIconUiFixes);
 COMPONENT_EXPORT(CHROME_FEATURES)
+BASE_DECLARE_FEATURE(kGlicActorUiTaskListBubbleDelayShow);
+COMPONENT_EXPORT(CHROME_FEATURES)
+extern const base::FeatureParam<int> kGlicActorUiTaskListBubbleDelayMs;
+COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kActorUiThemed);
 COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kGlicActorPostTaskUiUpdateEnabled);
@@ -675,6 +679,9 @@ COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kGlicActorAutofillOneTimePassword);
 
 COMPONENT_EXPORT(CHROME_FEATURES)
+BASE_DECLARE_FEATURE(kGlicActorAutofillPreClick);
+
+COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kGlicActorAutofillSectionLabel);
 
 COMPONENT_EXPORT(CHROME_FEATURES)
@@ -850,6 +857,9 @@ extern const base::FeatureParam<base::TimeDelta>
     kHttpsUpgradesAskBeforeHttpFallbackDelay;
 COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kHttpsFirstModeIncognito);
+
+COMPONENT_EXPORT(CHROME_FEATURES)
+BASE_DECLARE_FEATURE(kIncomingCallNotifications);
 
 COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kIndigo);
@@ -1292,6 +1302,8 @@ COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<bool> kWebUIReloadButtonPrewarmWebUI;
 COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<bool> kWebUIReloadButtonPrewarmWebUIPreNavigate;
+COMPONENT_EXPORT(CHROME_FEATURES)
+extern const base::FeatureParam<bool> kWebUIReloadButtonProfilePrewarming;
 COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<bool> kWebUIReloadButtonKeepVisibleUntilPaint;
 COMPONENT_EXPORT(CHROME_FEATURES)

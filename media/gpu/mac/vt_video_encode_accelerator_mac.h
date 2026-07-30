@@ -57,6 +57,8 @@ class MEDIA_GPU_EXPORT VTVideoEncodeAccelerator
   void Flush(FlushCallback flush_callback) override;
   bool IsFlushSupported() override;
 
+  static double CalculatePsnrForTesting(double mse, VideoPixelFormat format);
+
  private:
   // Holds the associated data of a video frame being processed.
   struct InProgressFrameEncode;
@@ -101,14 +103,18 @@ class MEDIA_GPU_EXPORT VTVideoEncodeAccelerator
 
   base::TimeDelta AssignMonotonicTimestamp();
 
+  static double CalculatePsnr(double mse, VideoPixelFormat format);
+
   video_toolbox::ScopedVTCompressionSessionRef compression_session_;
 
   gfx::Size input_visible_size_;
   size_t bitstream_buffer_size_ = 0;
   int32_t frame_rate_ = 0;
   int num_temporal_layers_ = 1;
+  VideoPixelFormat input_format_ = PIXEL_FORMAT_UNKNOWN;
   VideoCodecProfile profile_ = H264PROFILE_BASELINE;
   VideoCodec codec_ = VideoCodec::kH264;
+  bool calculate_psnr_ = false;
 
   media::Bitrate bitrate_;
 

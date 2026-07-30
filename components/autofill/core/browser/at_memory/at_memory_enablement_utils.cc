@@ -4,12 +4,23 @@
 
 #include "components/autofill/core/browser/at_memory/at_memory_enablement_utils.h"
 
+#include "base/containers/flat_set.h"
 #include "base/feature_list.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
+#include "build/branding_buildflags.h"
+#include "build/build_config.h"
+#include "components/autofill/core/common/autofill_debug_features.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/personal_context/core/personal_context_enablement_service.h"
 #include "components/personal_context/core/personal_context_prefs.h"
 #include "components/personal_context/core/personal_context_types.h"
 #include "components/prefs/pref_service.h"
+#include "components/subscription_eligibility/subscription_eligibility_service.h"
+
+#if !BUILDFLAG(IS_FUCHSIA)
+#include "components/variations/service/google_groups_manager.h"  // nogncheck
+#endif
 
 namespace autofill {
 
@@ -42,6 +53,48 @@ namespace {
       personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus);
 }
 
+// Returns the set of eligible subscription tiers configured by the
+// `kAutofillAtMemoryEligibleTiers` feature parameter. Returns an empty set if
+// the parameter is empty, not defined, or contains no valid integers.
+base::flat_set<int32_t> GetAutofillAtMemoryEligibleTiers() {
+  const std::string tier_list = features::kAutofillAtMemoryEligibleTiers.Get();
+  const std::vector<std::string_view> tier_pieces = base::SplitStringPiece(
+      tier_list, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  std::vector<int32_t> eligible_tiers;
+  eligible_tiers.reserve(tier_pieces.size());
+  for (std::string_view piece : tier_pieces) {
+    int32_t tier_id = 0;
+    if (base::StringToInt(piece, &tier_id)) {
+      eligible_tiers.push_back(tier_id);
+    }
+  }
+  return base::flat_set<int32_t>(std::move(eligible_tiers));
+}
+
+// Returns whether the subscription tier eligibility criteria are met.
+//
+// Eligibility is determined by checking whether the user's tier is configured
+// as eligible by the `kAutofillAtMemoryEligibleTiers` feature parameter.
+//
+// If the feature parameter is empty (not set or set to an empty list), this is
+// interpreted as having no restrictions, in which case any subscription tier is
+// eligible (and `subscription_eligibility_service` being null is also allowed).
+[[nodiscard]] bool IsSubscriptionTierEligible(
+    const subscription_eligibility::SubscriptionEligibilityService*
+        subscription_eligibility_service) {
+  const base::flat_set<int32_t> eligible_tiers =
+      GetAutofillAtMemoryEligibleTiers();
+  if (eligible_tiers.empty()) {
+    return true;
+  }
+  if (!subscription_eligibility_service) {
+    return false;
+  }
+  const int32_t tier =
+      subscription_eligibility_service->GetAiSubscriptionTier();
+  return eligible_tiers.contains(tier);
+}
+
 // Returns true if AtMemory is supported for the user.
 //
 // Checks that AtMemory feature flags are enabled, At-Memory eligibility
@@ -50,20 +103,31 @@ namespace {
 // toggles.
 [[nodiscard]] bool IsAtMemorySupported(
     personal_context::PersonalContextEnablementService*
-        personal_context_service) {
-  // TODO(crbug.com/522695178) Allow overriding the eligibility checks for
-  // testing and dogfooding.
+        personal_context_service,
+    const GoogleGroupsManager* google_groups_manager,
+    const subscription_eligibility::SubscriptionEligibilityService*
+        subscription_eligibility_service) {
+  if (base::FeatureList::IsEnabled(
+          features::debug::kAtMemorySkipEligibilityChecks)) {
+    return base::FeatureList::IsEnabled(features::kAutofillAtMemory);
+  }
+
+  if constexpr (!BUILDFLAG(GOOGLE_CHROME_BRANDING)) {
+    return false;
+  }
 
   if (!IsPersonalContextEligible(personal_context_service)) {
     return false;
   }
   // TODO(crbug.com/517490748) Check blocklist.
   // TODO(crbug.com/521270638) Check enterprise policy implementation.
-  // TODO(crbug.com/505644871) Disable atmemory in non-branded Chromium builds.
-  // TODO(crbug.com/517838959) Check subscription tier eligibility.
+
+  if (!IsSubscriptionTierEligible(subscription_eligibility_service)) {
+    return false;
+  }
 
   // TODO(crbug.com/509479886) Add unit test to ensure this is checked last.
-  return base::FeatureList::IsEnabled(features::kAutofillAtMemory);
+  return IsAtMemoryFeatureEnabled(google_groups_manager);
 }
 
 [[nodiscard]] bool SatisfiesPersonalContextToggleRequirement(
@@ -72,6 +136,7 @@ namespace {
   switch (action) {
     case AtMemoryAction::kTriggerSearchUI:
     case AtMemoryAction::kAllowCustomizeAtMemoryShortcut:
+    case AtMemoryAction::kShowIph:
       return IsPersonalContextToggleOn(pref_service);
     case AtMemoryAction::kShowAtMemoryInSettings:
       return true;
@@ -81,16 +146,40 @@ namespace {
 
 }  // namespace
 
+bool MayPerformAtMemoryAction(AtMemoryAction action,
+                              const AutofillClient& client) {
+  return MayPerformAtMemoryAction(
+      action, client.GetPersonalContextEnablementService(),
+      client.GetSubscriptionEligibilityService(), client.GetPrefs(),
+      client.GetGoogleGroupsManager());
+}
+
 bool MayPerformAtMemoryAction(
     AtMemoryAction action,
     personal_context::PersonalContextEnablementService*
         personal_context_service,
-    const PrefService* pref_service) {
-  if (!IsAtMemorySupported(personal_context_service)) {
+    const subscription_eligibility::SubscriptionEligibilityService*
+        subscription_eligibility_service,
+    const PrefService* pref_service,
+    const GoogleGroupsManager* google_groups_manager) {
+  if (!IsAtMemorySupported(personal_context_service, google_groups_manager,
+                           subscription_eligibility_service)) {
     return false;
   }
 
   return SatisfiesPersonalContextToggleRequirement(action, pref_service);
+}
+
+bool IsAtMemoryFeatureEnabled(
+    const GoogleGroupsManager* google_groups_manager) {
+#if !BUILDFLAG(IS_FUCHSIA)
+  return google_groups_manager
+             ? google_groups_manager->IsFeatureEnabledForProfile(
+                   features::kAutofillAtMemory)
+             : base::FeatureList::IsEnabled(features::kAutofillAtMemory);
+#else
+  return base::FeatureList::IsEnabled(features::kAutofillAtMemory);
+#endif
 }
 
 }  // namespace autofill

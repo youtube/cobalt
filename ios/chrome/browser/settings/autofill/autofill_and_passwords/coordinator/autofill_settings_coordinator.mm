@@ -5,14 +5,17 @@
 #import "ios/chrome/browser/settings/autofill/autofill_and_passwords/coordinator/autofill_settings_coordinator.h"
 
 #import "base/check_op.h"
+#import "ios/chrome/browser/autofill/model/autofill_ai_util.h"
 #import "ios/chrome/browser/settings/autofill/autofill_and_passwords/coordinator/autofill_settings_mediator.h"
 #import "ios/chrome/browser/settings/autofill/autofill_and_passwords/ui/autofill_settings_table_view_controller.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
+#import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 
 @interface AutofillSettingsCoordinator () <
-    AutofillSettingsTableViewControllerDelegate>
+    AutofillSettingsTableViewControllerDelegate,
+    AutofillSettingsMediatorDelegate>
 @end
 
 @implementation AutofillSettingsCoordinator {
@@ -38,9 +41,15 @@
       initWithStyle:ChromeTableViewStyle()];
   _viewController.delegate = self;
 
+  ProfileIOS* originalProfile =
+      self.browser->GetProfile()->GetOriginalProfile();
   _mediator = [[AutofillSettingsMediator alloc]
-      initWithUserPrefService:self.browser->GetProfile()->GetPrefs()];
+      initWithPrefService:originalProfile->GetPrefs()
+          identityManager:IdentityManagerFactory::GetForProfile(
+                              originalProfile)];
   _mediator.consumer = _viewController;
+  _mediator.delegate = self;
+  _viewController.mutator = _mediator;
 
   [self.baseNavigationController pushViewController:_viewController
                                            animated:YES];
@@ -52,6 +61,14 @@
 
   _viewController.delegate = nil;
   _viewController = nil;
+}
+
+#pragma mark - AutofillSettingsMediatorDelegate
+
+- (void)autofillSettingsMediator:(AutofillSettingsMediator*)mediator
+       didToggleEnhancedAutofill:(BOOL)enabled {
+  autofill::SetEnhancedAutofillEnabled(
+      self.browser->GetProfile()->GetOriginalProfile(), enabled);
 }
 
 #pragma mark - AutofillSettingsTableViewControllerDelegate

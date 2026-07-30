@@ -21,6 +21,7 @@
 #include "third_party/blink/renderer/core/keywords.h"
 #include "third_party/blink/renderer/core/testing/null_execution_context.h"
 #include "third_party/blink/renderer/core/xml/dom_parser.h"
+#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
@@ -82,20 +83,44 @@ TEST(HTMLDocumentParserFastpathTest,
                                      HtmlFastPathResult::kSucceeded, 0);
 }
 
-TEST(HTMLDocumentParserFastpathTest, LongTextIsSplit) {
+TEST(HTMLDocumentParserFastpathTest, LongTextIsNotSplit) {
+  ScopedSplitLargeTextNodesForTest disabled(false);
   test::TaskEnvironment task_environment;
   ScopedNullExecutionContext execution_context;
   auto* document =
       HTMLDocument::CreateForTest(execution_context.GetExecutionContext());
   document->write("<body></body>");
   auto* div = MakeGarbageCollected<HTMLDivElement>(*document);
-  std::vector<LChar> chars(Text::kDefaultLengthLimit + 1, 'a');
+  std::vector<LChar> chars(
+      HTMLConstructionSite::kObsoleteTextNodeLengthLimit + 1, 'a');
   div->SetInnerHTMLWithoutTrustedTypes(String(base::span(chars)));
   Text* text_node = To<Text>(div->firstChild());
   ASSERT_TRUE(text_node);
-  // Text is split at 64k for performance. See
-  // HTMLConstructionSite::FlushPendingText for more details.
-  EXPECT_EQ(Text::kDefaultLengthLimit, text_node->length());
+  // Text nodes are no longer split by length, so the entire run of text is kept
+  // in a single Text node.
+  EXPECT_EQ(HTMLConstructionSite::kObsoleteTextNodeLengthLimit + 1,
+            text_node->length());
+  EXPECT_FALSE(text_node->nextSibling());
+}
+
+TEST(HTMLDocumentParserFastpathTest, LongTextIsSplitWhenFeatureEnabled) {
+  ScopedSplitLargeTextNodesForTest enabled(true);
+  test::TaskEnvironment task_environment;
+  ScopedNullExecutionContext execution_context;
+  auto* document =
+      HTMLDocument::CreateForTest(execution_context.GetExecutionContext());
+  document->write("<body></body>");
+  auto* div = MakeGarbageCollected<HTMLDivElement>(*document);
+  std::vector<LChar> chars(
+      HTMLConstructionSite::kObsoleteTextNodeLengthLimit + 1, 'a');
+  div->SetInnerHTMLWithoutTrustedTypes(String(base::span(chars)));
+  Text* text_node = To<Text>(div->firstChild());
+  ASSERT_TRUE(text_node);
+  // With the feature enabled, text is split at the length limit, leaving a
+  // sibling Text node with the remainder.
+  EXPECT_EQ(HTMLConstructionSite::kObsoleteTextNodeLengthLimit,
+            text_node->length());
+  EXPECT_TRUE(text_node->nextSibling());
 }
 
 TEST(HTMLDocumentParserFastpathTest, MaximumHTMLParserDOMTreeDepth) {

@@ -45,9 +45,9 @@ constexpr std::string_view kTestName2 = "Thomas Jefferson";
 constexpr std::string_view kTestEmailAddress2 = "thomas.jefferson@gmail.com";
 constexpr GaiaId::Literal kFakeGaiaId("1234567890");
 
-class AccountNameEmailStoreCoreTest : public testing::Test {
+class AccountNameEmailStoreTest : public testing::Test {
  public:
-  AccountNameEmailStoreCoreTest()
+  AccountNameEmailStoreTest()
       : prefs_(test::PrefServiceForTesting()),
         identity_manager_(identity_test_env_.identity_manager()),
         store_(test_adm_, *identity_manager_, sync_service_, *prefs_) {}
@@ -139,14 +139,6 @@ MATCHER_P2(IsCorrectAccountNameEmail, name_full, email, "") {
          arg->GetRawInfo(EMAIL_ADDRESS) == email &&
          arg->GetAddressCountryCode().value().empty();
 }
-
-class AccountNameEmailStoreTest : public AccountNameEmailStoreCoreTest {
- public:
-  AccountNameEmailStoreTest() {
-    features_.InitWithFeatures(
-        {features::kAutofillEnableSupportForNameAndEmail}, {});
-  }
-};
 
 // Tests that a new `kAccountNameEmail` profile isn't created when an empty
 // `AccountInfo` is passed into the `MaybeUpdateOrCreateAccountNameEmail`
@@ -332,7 +324,7 @@ TEST_F(AccountNameEmailStoreTest, AccountNameEmailProfileRemoved) {
 
   EXPECT_GT(pref_service().GetInteger(
                 prefs::kAutofillNameAndEmailProfileNotSelectedCounter),
-            features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get());
+            AccountNameEmailStore::kNotSelectedThreshold);
 }
 
 // Tests that the `kAutofillNameAndEmailProfileNotSelectedCounter` pref is not
@@ -383,7 +375,7 @@ TEST_F(AccountNameEmailStoreTest, ProfileReappearsAfterNameChange) {
   ASSERT_THAT(address_data_manager().GetProfiles(), IsEmpty());
   ASSERT_GT(pref_service().GetInteger(
                 prefs::kAutofillNameAndEmailProfileNotSelectedCounter),
-            features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get());
+            AccountNameEmailStore::kNotSelectedThreshold);
 
   AccountInfo info = GetPrimaryAccountInfo();
   info = AccountInfo::Builder(info).SetFullName(kTestName2).Build();
@@ -414,7 +406,7 @@ TEST_F(AccountNameEmailStoreTest, OnCounterPrefUpdated) {
   // profile.
   pref_service().SetInteger(
       prefs::kAutofillNameAndEmailProfileNotSelectedCounter,
-      features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get());
+      AccountNameEmailStore::kNotSelectedThreshold);
   EXPECT_THAT(address_data_manager().GetProfiles(),
               ElementsAre(IsCorrectAccountNameEmail(
                   base::UTF8ToUTF16(kTestName1),
@@ -425,7 +417,7 @@ TEST_F(AccountNameEmailStoreTest, OnCounterPrefUpdated) {
   // kAccountNameEmail profile.
   pref_service().SetInteger(
       prefs::kAutofillNameAndEmailProfileNotSelectedCounter,
-      features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get() + 1);
+      AccountNameEmailStore::kNotSelectedThreshold + 1);
   EXPECT_THAT(address_data_manager().GetProfiles(), IsEmpty());
 }
 
@@ -524,7 +516,7 @@ TEST_F(AccountNameEmailStoreTest, SignInAfterHardRemove) {
                   signin::ConsentLevel::kSignin))));
   pref_service().SetInteger(
       prefs::kAutofillNameAndEmailProfileNotSelectedCounter,
-      features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get() + 1);
+      AccountNameEmailStore::kNotSelectedThreshold + 1);
   sync_service().SetDownloadStatusFor(
       {syncer::DataType::PRIORITY_PREFERENCES},
       syncer::SyncService::DataTypeDownloadStatus::kUpToDate);
@@ -533,7 +525,7 @@ TEST_F(AccountNameEmailStoreTest, SignInAfterHardRemove) {
   EXPECT_THAT(address_data_manager().GetProfiles(), IsEmpty());
   EXPECT_GT(pref_service().GetInteger(
                 prefs::kAutofillNameAndEmailProfileNotSelectedCounter),
-            features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get());
+            AccountNameEmailStore::kNotSelectedThreshold);
 }
 
 #endif  // !BUILDFLAG(CHROME_OS)
@@ -599,14 +591,14 @@ TEST_F(AccountNameEmailStoreTest, AutofillSyncToggleOnAfterHardRemove) {
   SetAutofillSyncToggleStatus(false);
   ASSERT_GT(pref_service().GetInteger(
                 prefs::kAutofillNameAndEmailProfileNotSelectedCounter),
-            features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get());
+            AccountNameEmailStore::kNotSelectedThreshold);
 
   // Enabling the sync toggle again does not reset the pref.
   SetAutofillSyncToggleStatus(true);
   EXPECT_THAT(address_data_manager().GetProfiles(), IsEmpty());
   EXPECT_GT(pref_service().GetInteger(
                 prefs::kAutofillNameAndEmailProfileNotSelectedCounter),
-            features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get());
+            AccountNameEmailStore::kNotSelectedThreshold);
 }
 
 // Tests that the kAccountNameEmail profile will be recreated even if the stored
@@ -682,12 +674,10 @@ TEST_F(AccountNameEmailStoreTest,
 }
 #endif  // BUILDFLAG(IS_IOS)
 
-class AccountNameEmailStoreSyncTest : public AccountNameEmailStoreCoreTest {
+class AccountNameEmailStoreSyncTest : public AccountNameEmailStoreTest {
  public:
   AccountNameEmailStoreSyncTest() {
-    features_.InitWithFeatures(
-        {features::kAutofillEnableSupportForNameAndEmail},
-        {syncer::kReplaceSyncPromosWithSignInPromos});
+    features_.InitAndDisableFeature(syncer::kReplaceSyncPromosWithSignInPromos);
   }
 };
 
@@ -715,7 +705,7 @@ struct NicknameTestCase {
 };
 
 class AccountNameEmailStoreWithNicknameTest
-    : public AccountNameEmailStoreCoreTest,
+    : public AccountNameEmailStoreTest,
       public testing::WithParamInterface<NicknameTestCase> {};
 
 // Tests that AutofillProfile is created without the nickname.

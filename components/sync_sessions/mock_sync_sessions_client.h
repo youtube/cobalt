@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_SYNC_SESSIONS_MOCK_SYNC_SESSIONS_CLIENT_H_
 #define COMPONENTS_SYNC_SESSIONS_MOCK_SYNC_SESSIONS_CLIENT_H_
 
+#include <optional>
 #include <string>
 
 #include "base/memory/weak_ptr.h"
@@ -38,6 +39,10 @@ class MockSyncSessionsClient : public SyncSessionsClient {
               GetLocalSessionEventRouter,
               (),
               (override));
+  MOCK_METHOD(std::optional<std::string>,
+              GetSessionDisplayNameFromDeviceInfo,
+              (const std::string& session_tag),
+              (const, override));
 
   base::WeakPtr<SyncSessionsClient> AsWeakPtr() override;
 

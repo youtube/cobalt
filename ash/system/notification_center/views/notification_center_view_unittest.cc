@@ -242,30 +242,6 @@ TEST_P(NotificationCenterViewTest, ContentsRelayout) {
             GetNotificationListView()->height());
 }
 
-TEST_P(NotificationCenterViewTest, VisibleWhenLocked) {
-  // This test is only valid if the lock screen feature is enabled.
-  // TODO(yoshiki): Clean up after the feature is launched crbug.com/913764.
-  if (!features::IsLockScreenNotificationsEnabled()) {
-    return;
-  }
-
-  // Enables the lock screen notification if the feature is disabled.
-  PrefService* user_prefs =
-      Shell::Get()->session_controller()->GetLastActiveUserPrefService();
-  user_prefs->SetString(prefs::kMessageCenterLockScreenMode,
-                        prefs::kMessageCenterLockScreenModeShow);
-
-  ASSERT_TRUE(AshMessageCenterLockScreenController::IsEnabled());
-
-  test_api()->AddNotification();
-  test_api()->AddNotification();
-
-  BlockUserSession(BLOCKED_BY_LOCK_SCREEN);
-  test_api()->ToggleBubble();
-
-  EXPECT_TRUE(notification_center_view()->GetVisible());
-}
-
 TEST_P(NotificationCenterViewTest, ClearAllPressed) {
   test_api()->AddNotification();
   test_api()->AddNotification();

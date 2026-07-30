@@ -63,6 +63,7 @@ using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::IsEmpty;
 using ::testing::Ne;
+using ::testing::UnorderedElementsAre;
 
 constexpr base::FilePath::CharType kBaseName[] = FILE_PATH_LITERAL("test_db");
 
@@ -1336,46 +1337,100 @@ TEST_P(VfsTransitionMultiprocessTest, TransitionAfterCrash) {
   // Terminate child process abruptly.
   TerminateLastChild();
 
-  // Step 3: Make new pending file set with opposite journal mode in parent.
-  ASSERT_OK_AND_ASSIGN(auto pending_file_set_2,
-                       MakePendingFileSet(client, file_set_directory(),
-                                          base_name, single_conn, !wal));
-
-  ASSERT_OK_AND_ASSIGN(
-      auto file_set_2,
-      SqliteVfsFileSet::Bind(client, std::move(pending_file_set_2)));
-
-  // Register files in parent.
-  SqliteSandboxedVfsDelegate::UnregisterRunner unregister_runner_2 =
-      SqliteSandboxedVfsDelegate::GetInstance()->RegisterSandboxedFiles(
-          file_set_2);
-
-  // Verify database can be opened.
-  sql::Database db_2(MakeDatabaseOptionsForFileSet(file_set_2), "Test");
-
-  EXPECT_TRUE(db_2.Open(file_set_2.GetDbVirtualFilePath()));
-
-  // Confirm that the database is using the expected journal mode.
   {
-    sql::Statement s(db_2.GetUniqueStatement("PRAGMA journal_mode"));
-    ASSERT_TRUE(s.Step());
-    EXPECT_EQ(s.ColumnString(0), !wal ? "wal" : "truncate");
+    // Step 3: Make new pending file set with opposite journal mode in parent.
+    ASSERT_OK_AND_ASSIGN(auto pending_file_set_2,
+                         MakePendingFileSet(client, file_set_directory(),
+                                            base_name, single_conn, !wal));
+
+    ASSERT_OK_AND_ASSIGN(
+        auto file_set_2,
+        SqliteVfsFileSet::Bind(client, std::move(pending_file_set_2)));
+
+    // Register files in parent.
+    SqliteSandboxedVfsDelegate::UnregisterRunner unregister_runner_2 =
+        SqliteSandboxedVfsDelegate::GetInstance()->RegisterSandboxedFiles(
+            file_set_2);
+
+    // Verify database can be opened.
+    sql::Database db_2(MakeDatabaseOptionsForFileSet(file_set_2), "Test");
+
+    EXPECT_TRUE(db_2.Open(file_set_2.GetDbVirtualFilePath()));
+
+    // Confirm that the database is using the expected journal mode.
+    {
+      sql::Statement s(db_2.GetUniqueStatement("PRAGMA journal_mode"));
+      ASSERT_TRUE(s.Step());
+      EXPECT_EQ(s.ColumnString(0), !wal ? "wal" : "truncate");
+    }
+
+    // Verify that the data written by the child is present.
+    {
+      sql::Statement s(db_2.GetUniqueStatement("SELECT val FROM test"));
+      ASSERT_TRUE(s.Step());
+      EXPECT_EQ(s.ColumnString(0), "child_value");
+    }
+
+    // Execute a statement and confirm once again.
+    ASSERT_TRUE(db_2.Execute("INSERT INTO test (val) VALUES ('later')"));
+    {
+      sql::Statement s(db_2.GetUniqueStatement("PRAGMA journal_mode"));
+      ASSERT_TRUE(s.Step());
+      EXPECT_EQ(s.ColumnString(0), !wal ? "wal" : "truncate");
+    }
+
+    // Confirm that the unused journal file is empty.
+    auto* extension = wal ? kWalJournalFileExtension : kJournalFileExtension;
+    EXPECT_EQ(base::GetFileSize(file_set_directory()
+                                    .Append(base::FilePath(kBaseName))
+                                    .AddExtension(extension)),
+              0LL);
   }
 
-  // Execute a statement and confirm once again.
-  ASSERT_TRUE(db_2.Execute("INSERT INTO test (val) VALUES ('later')"));
+  // Reopen the database and make sure that the unused file is gone.
   {
-    sql::Statement s(db_2.GetUniqueStatement("PRAGMA journal_mode"));
-    ASSERT_TRUE(s.Step());
-    EXPECT_EQ(s.ColumnString(0), !wal ? "wal" : "truncate");
-  }
+    ASSERT_OK_AND_ASSIGN(auto pending_file_set_3,
+                         MakePendingFileSet(client, file_set_directory(),
+                                            base_name, single_conn, !wal));
 
-  // Confirm that the unused journal file is empty.
-  auto* extension = wal ? kWalJournalFileExtension : kJournalFileExtension;
-  EXPECT_EQ(base::GetFileSize(file_set_directory()
-                                  .Append(base::FilePath(kBaseName))
-                                  .AddExtension(extension)),
-            0LL);
+    ASSERT_OK_AND_ASSIGN(
+        auto file_set_3,
+        SqliteVfsFileSet::Bind(client, std::move(pending_file_set_3)));
+
+    // Register files in parent.
+    SqliteSandboxedVfsDelegate::UnregisterRunner unregister_runner_3 =
+        SqliteSandboxedVfsDelegate::GetInstance()->RegisterSandboxedFiles(
+            file_set_3);
+
+    // Verify database can be opened.
+    sql::Database db_3(MakeDatabaseOptionsForFileSet(file_set_3), "Test");
+
+    EXPECT_TRUE(db_3.Open(file_set_3.GetDbVirtualFilePath()));
+
+    // Confirm that the database is using the expected journal mode.
+    {
+      sql::Statement s(db_3.GetUniqueStatement("PRAGMA journal_mode"));
+      ASSERT_TRUE(s.Step());
+      EXPECT_EQ(s.ColumnString(0), !wal ? "wal" : "truncate");
+    }
+
+    // Verify that the previously-written data is present.
+    {
+      sql::Statement s(db_3.GetUniqueStatement("SELECT val FROM test"));
+      std::vector<std::string> values;
+      ASSERT_TRUE(s.Step());
+      values.push_back(s.ColumnString(0));
+      ASSERT_TRUE(s.Step());
+      values.push_back(s.ColumnString(0));
+      EXPECT_THAT(values, UnorderedElementsAre("child_value", "later"));
+    }
+
+    // Confirm that the unused journal file is absent.
+    auto* extension = wal ? kWalJournalFileExtension : kJournalFileExtension;
+    EXPECT_FALSE(base::PathExists(file_set_directory()
+                                      .Append(base::FilePath(kBaseName))
+                                      .AddExtension(extension)));
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(

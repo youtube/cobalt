@@ -1,1 +1,273 @@
-<?xml version="1.0" ?><!DOCTYPE translationbundle><translationbundle lang="ro"></translationbundle>
+<?xml version="1.0" ?>
+<!DOCTYPE translationbundle>
+<translationbundle lang="ro">
+<translation id="1005333234656240382">Activezi remedierea erorilor prin ADB?</translation>
+<translation id="1076766328672150609">Copilul tău poate folosi un cod PIN pentru a debloca dispozitivul.</translation>
+<translation id="1097658378307015415">Înainte de a vă conecta, începeți o sesiune pentru invitați pentru activarea rețelei <ph name="NETWORK_ID" /></translation>
+<translation id="1111932478203988717">Copilul tău poate să folosească acest cod PIN pentru a se conecta la dispozitiv</translation>
+<translation id="1122587596907914265">Imagini de fundal unice cu stil</translation>
+<translation id="1131201598497838573">Codul PIN al copilului a fost actualizat</translation>
+<translation id="1147322039136785890"><ph name="SUPERVISED_USER_NAME" /> poate acum să folosească dispozitivul</translation>
+<translation id="1176864681932214421">Creează imagini cu AI</translation>
+<translation id="1177073277575830464">Configurarea rapidă pe Android s-a finalizat. Continuă configurarea pe <ph name="DEVICE_TYPE" />.</translation>
+<translation id="1179902906564467236">Urmează instrucțiunile de pe telefon sau folosește aplicația camerei foto</translation>
+<translation id="1185924365081634987">Pentru a remedia eroarea de rețea, poți încerca și să <ph name="GUEST_SIGNIN_LINK_START" />navighezi ca invitat<ph name="GUEST_SIGNIN_LINK_END" />.</translation>
+<translation id="1201402288615127009">Înainte</translation>
+<translation id="1222835797152767346">Setează un cod PIN ca să te conectezi mai ușor</translation>
+<translation id="1347625331607114917">Confirmă codul pe telefonul Android</translation>
+<translation id="1347975661240122359">Actualizarea va începe când bateria va ajunge la <ph name="BATTERY_LEVEL" />%.</translation>
+<translation id="1375938286942050085">Configurarea este finalizată. Pregătește-ți dispozitivul pentru jocuri</translation>
+<translation id="1377600615067678409">Ignorați deocamdată</translation>
+<translation id="1400243387594338234">Poți să folosești acest cod PIN pentru a te conecta la dispozitiv</translation>
+<translation id="1426410128494586442">Da</translation>
+<translation id="1473927070149284123">Încearcă din nou sau conectează-te manual la o rețea</translation>
+<translation id="1503556098270577657">Te-ai conectat la <ph name="USER_EMAIL" /> folosind telefonul Android</translation>
+<translation id="1521442365706402292">Gestionează certificatele</translation>
+<translation id="1572876035008611720">Introdu adresa de e-mail</translation>
+<translation id="1642494467033190216">Înainte de activarea altor funcții de remediere a erorilor, trebuie să elimini protecția sistemului rootfs și să repornești.</translation>
+<translation id="1678919064276516737">Adresa de e-mail și PIN-ul pe care le-ai introdus nu corespund</translation>
+<translation id="169675691788639886">Dispozitivul are serverul SSH configurat. Nu te conecta folosind conturi cu informații sensibile.</translation>
+<translation id="1730666151302379551">Am uitat parola veche</translation>
+<translation id="1826192255355608658">Sincronizează marcajele, parolele, istoricul și altele din browserul Chrome</translation>
+<translation id="1831848493690504725">Nu putem accesa Google prin rețeaua conectată. Încearcă să alegi altă rețea sau să verifici setările de rețea ori setările proxy (dacă folosești un proxy).</translation>
+<translation id="1987574314042117472">Selectează și instalează aplicații populare</translation>
+<translation id="2052572566310583903">Instalată pe celelalte dispozitive</translation>
+<translation id="2090165459409185032">Pentru a recupera informațiile despre cont, accesează: google.com/accounts/recovery</translation>
+<translation id="2157779167749714207">Dispozitivul <ph name="DEVICE_TYPE" /> este livrat cu Gemini</translation>
+<translation id="2163470535490402084">Accesează internetul pentru a te conecta pe dispozitivul tău <ph name="DEVICE_TYPE" />.</translation>
+<translation id="2178585470774851578">Activezi funcțiile de remediere a erorilor în sistemul de operare Chrome Flex, care vor configura SSH daemon și vor activa pornirea de pe unități USB.</translation>
+<translation id="2219081237089444028">Setează o parolă pentru <ph name="DEVICE_TYPE" /> ca să te conectezi mai ușor</translation>
+<translation id="2296022312651137376"><ph name="DOMAIN_NAME" /> solicită ca dispozitivul să fie online atunci când te conectezi la <ph name="EMAIL" /></translation>
+<translation id="2317842250900878657">Finalizat: <ph name="PROGRESS_PERCENT" />%</translation>
+<translation id="2319072477089403627">Se conectează la telefonul Android...</translation>
+<translation id="2328137272841210255">Resetează codul PIN</translation>
+<translation id="2342180549977909852">Copilul tău poate folosi un număr (PIN) în locul unei parole pentru a debloca dispozitivul. Pentru a seta codul PIN mai târziu, accesează Setări.</translation>
+<translation id="2359808026110333948">Continuă</translation>
+<translation id="2408955596600435184">Introdu codul PIN</translation>
+<translation id="2439152382014731627">Resetează parola <ph name="DEVICE_TYPE" /></translation>
+<translation id="2450223707519584812">Nu vei putea adăuga utilizatori, deoarece lipsesc cheile pentru API-ul Google. Pentru detalii, consultă <ph name="DETAILS_URL" />.</translation>
+<translation id="2582253231918033891"><ph name="PRODUCT_NAME" /> <ph name="PRODUCT_VERSION" /> (Platforma <ph name="PLATFORM_VERSION" />) <ph name="DEVICE_SERIAL_NUMBER" /></translation>
+<translation id="2725200716980197196">Conexiunea la rețea a fost restabilită</translation>
+<translation id="2731700343119398978">Așteptați...</translation>
+<translation id="2732134891301408122">Conținutul suplimentar <ph name="CURRENT_ELEMENT" /> din <ph name="TOTAL_ELEMENTS" /></translation>
+<translation id="2740531572673183784">OK</translation>
+<translation id="2754825024506485820">Găsește aplicațiile de care ai nevoie, de la productivitate la divertisment, în Magazinul Google Play. Poți instala aplicații oricând.</translation>
+<translation id="2805539617243680210">Gata!</translation>
+<translation id="2832124733806557606">Copilul tău poate folosi un cod PIN pentru a se conecta sau a debloca dispozitivul.</translation>
+<translation id="283669119850230892">Pentru a utiliza rețeaua <ph name="NETWORK_ID" />, finalizați mai întâi conexiunea la internet mai jos.</translation>
+<translation id="2849767214114481738">Codul PIN a fost adăugat</translation>
+<translation id="2893180576842394309">Google poate folosi istoricul pentru a personaliza Căutarea și alte servicii Google</translation>
+<translation id="2904210161403910217">Parola s-a schimbat de la ultima conectare</translation>
+<translation id="2921081876747860777">Creează o parolă ca să protejezi datele locale.</translation>
+<translation id="2950666755714083615">Doresc să mă înscriu</translation>
+<translation id="2979966855249721010">Pe baza intereselor tale, poți vedea recomandări de aplicații, sfaturi și altele</translation>
+<translation id="3012917896646559015">Contactați imediat producătorul hardware-ului pentru a vă trimite computerul la o unitate de reparații.</translation>
+<translation id="3028371505549235127">În loc să introduci parola Contului Google pentru a te conecta, poți crea o parolă pentru <ph name="DEVICE_TYPE" /> pentru acest dispozitiv</translation>
+<translation id="3101924772906986970">Marcajele, parolele, istoricul și altele din browserul Chrome se salvează în Contul Google</translation>
+<translation id="313205617302240621">Ai uitat parola?</translation>
+<translation id="3170072451822350649">De asemenea, poți să omiți conectarea și să <ph name="LINK_START" />navighezi ca invitat<ph name="LINK_END" />.</translation>
+<translation id="3196912927885212665">Pentru configurarea cu telefonul Android, trebuie să activezi conexiunea Bluetooth a Chromebookului</translation>
+<translation id="3238192140106069382">Se conectează și se verifică</translation>
+<translation id="3261268979727295785">În cazul copiilor mai mari, poți adăuga opțiuni de control parental după ce finalizezi configurarea. Vei găsi informații despre controlul parental în aplicația Explorare.</translation>
+<translation id="3278001907972365362">Trebuie să te ocupi de Conturile Google.</translation>
+<translation id="3283148363895519428">Urmează instrucțiunile de pe telefon pentru a continua configurarea. Asigură-te că telefonul este în apropiere și că funcția Bluetooth este activată.</translation>
+<translation id="3435896845095436175">Activează</translation>
+<translation id="3462413494201477527">Anulezi configurarea contului?</translation>
+<translation id="3473241910002674503">Navighează la ecranul de pornire, înapoi și comută între aplicații folosind butoanele în modul tabletă.</translation>
+<translation id="3491669675709357988">Contul copilului nu este configurat pentru control parental din Family Link. După ce finalizezi configurarea, poți adăuga opțiuni de control parental. Vei găsi informații despre controlul parental în aplicația Explorare.</translation>
+<translation id="3635199270495525546">S-a detectat un Trusted Platform Module (TPM)</translation>
+<translation id="3661106764436337772">Scrie mai rapid și cu mai multă încredere</translation>
+<translation id="3662207097851752847">Confirmă Contul Google pe telefon</translation>
+<translation id="3672681487849735243">A fost detectată o eroare de fabricație</translation>
+<translation id="3673097791729989571">Conectare găzduită de <ph name="SAML_DOMAIN" /></translation>
+<translation id="3673287357837016374">Codul PIN a fost actualizat</translation>
+<translation id="367645871420407123">nu completa dacă dorești să setezi parola directorului rădăcină la valoarea prestabilită a imaginii de test</translation>
+<translation id="3712050472459130149">Este necesară actualizarea contului</translation>
+<translation id="3733296813637058299">Vom instala aceste aplicații pentru tine. Poți găsi mai multe aplicații pentru <ph name="DEVICE_TYPE" /> în Magazinul Play.</translation>
+<translation id="376841534249795524">Pentru ce vei folosi <ph name="DEVICE_TYPE" />?</translation>
+<translation id="3789841737615482174">Instalează</translation>
+<translation id="385051799172605136">Înapoi</translation>
+<translation id="3897746662269329507"><ph name="DEVICE_TYPE" /> este creat pentru jocuri. Se va deschide aplicația Explorare, unde vei putea să accesezi sute dintre cele mai recente jocuri, să vezi oferte de jocuri și să descoperi funcțiile de joc preinstalate pe dispozitiv.</translation>
+<translation id="3910588685973519483">Creează imagini de fundal folosind AI</translation>
+<translation id="3950820424414687140">Conectează-te</translation>
+<translation id="3994318741694670028">Din păcate, computerul este configurat cu un ID de hardware incorect. Acest lucru împiedică actualizarea sistemului de operare Chrome Flex cu cele mai recente remedieri de securitate, iar computerul <ph name="BEGIN_BOLD" />ar putea fi vulnerabil la atacuri<ph name="END_BOLD" />.</translation>
+<translation id="4002440992267487163">Configurează codul PIN</translation>
+<translation id="4044883420905480380">Te-ai conectat la Wi-Fi și la <ph name="USER_EMAIL" /> de pe telefonul Android</translation>
+<translation id="4062561150282203854">Sincronizează aplicațiile, setările și altele de pe dispozitivul <ph name="DEVICE_TYPE" /></translation>
+<translation id="4089743381329341712">Aplicațiile selectate vor fi instalate după configurare. Găsește mai multe recomandări mai târziu în aplicația Aplicații și jocuri.</translation>
+<translation id="4104944259562794668">O poți activa mai târziu în Setări &gt; Securitate și confidențialitate &gt; Ecranul de blocare și conectarea</translation>
+<translation id="41365691917097717">Dacă alegi să continui, remedierea erorilor prin ADB se va activa pentru crearea și testarea aplicațiilor Android. Reține că această acțiune permite instalarea aplicațiilor Android care nu au fost verificate de Google. Pentru dezactivare, este necesară revenirea la setările din fabrică.</translation>
+<translation id="4232484478444192782">Telefonul tău Android îți stă la dispoziție. Se transferă rețeaua Wi-Fi și parola.</translation>
+<translation id="4242145785130247982">Nu se acceptă mai multe certificate de client</translation>
+<translation id="4250680216510889253">Nu</translation>
+<translation id="4263223596040212967">Verifică structura tastaturii și încearcă din nou.</translation>
+<translation id="4289732974614035569">Alege un cod PIN</translation>
+<translation id="4317733381297736564">Achiziții în aplicație</translation>
+<translation id="4370975561335139969">Adresa de e-mail și parola pe care le-ai introdus nu se potrivesc</translation>
+<translation id="4373418556073552953">Conectează-te cu telefonul Android</translation>
+<translation id="4410545552906060960">Folosește un număr (PIN) în locul unei parole pentru a debloca dispozitivul. Pentru a-ți seta codul PIN mai târziu, accesează Setări.</translation>
+<translation id="4415213869328311284"><ph name="DEVICE_TYPE" /> este gata de utilizare.</translation>
+<translation id="4450974146388585462">Diagnosticați</translation>
+<translation id="445099924538929605"><ph name="DEVICE_OS" /> a detectat un TPM activ care îți poate stoca datele cu un grad sporit de siguranță.</translation>
+<translation id="4472575034687746823">Începeți</translation>
+<translation id="4567512141633030272">Opțiune de conectare greșită?</translation>
+<translation id="4568213207643490790">Ne pare rău, conturile Google nu sunt permise pe dispozitiv.</translation>
+<translation id="4611759022973144129">Poți folosi această parolă pentru a te conecta la <ph name="DEVICE_TYPE" />.</translation>
+<translation id="4727847987444062305">Sesiune pentru invitați gestionată</translation>
+<translation id="473775607612524610">Actualizează</translation>
+<translation id="473936925429402449">Selectat, conținutul suplimentar <ph name="CURRENT_ELEMENT" /> din <ph name="TOTAL_ELEMENTS" /></translation>
+<translation id="4830502475412647084">Se instalează actualizarea sistemului de operare</translation>
+<translation id="4837926214103741331">Nu ești autorizat(ă) să folosești acest dispozitiv. Contactează proprietarul dispozitivului pentru permisiunea de conectare.</translation>
+<translation id="4864369630010738180">Se conectează...</translation>
+<translation id="4899696330053002588">Conține anunțuri</translation>
+<translation id="4944310289250773232">Acest serviciu de autentificare este găzduit de <ph name="SAML_DOMAIN" /></translation>
+<translation id="4955710816792587366">Alege codul PIN</translation>
+<translation id="5029287942302939687">Parola este setată</translation>
+<translation id="503155457707535043">Aplicațiile se descarcă</translation>
+<translation id="5045550434625856497">Parolă incorectă</translation>
+<translation id="5062930723426326933">Conectarea nu a reușit, conectați-vă la internet și încercați din nou.</translation>
+<translation id="5115309401544567011">Conectează dispozitivul <ph name="DEVICE_TYPE" /> la o sursă de alimentare.</translation>
+<translation id="5147516217412920887">Urmează instrucțiunile de pe telefon pentru verificarea codului</translation>
+<translation id="5160857336552977725">Conectează-te la <ph name="DEVICE_TYPE" /></translation>
+<translation id="523505283826916779">Setări de accesibilitate</translation>
+<translation id="5240931875940563122">Conectează-te cu telefonul Android</translation>
+<translation id="5255859108402770436">Conectează-te din nou</translation>
+<translation id="5260508466980570042">Ne pare rău, adresa de e-mail sau parola nu a putut fi verificată. Încearcă din nou.</translation>
+<translation id="5264252276333215551">Conectați-vă la internet pentru a lansa aplicația în modul chioșc.</translation>
+<translation id="528208740344463258">Ca să descarci și să folosești aplicații Android, mai întâi trebuie să instalezi această actualizare obligatorie. În timp ce dispozitivul <ph name="DEVICE_TYPE" /> se actualizează, nu îl poți folosi. Dispozitivul <ph name="DEVICE_TYPE" /> va reporni după ce se finalizează instalarea.</translation>
+<translation id="542948651837270806">Este necesară instalarea unei actualizări pentru firmware-ul Trusted Platform Module. Vezi <ph name="TPM_FIRMWARE_UPDATE_LINK" /></translation>
+<translation id="5448293924669608770">Hopa, a apărut o eroare la conectare</translation>
+<translation id="5463450804024056231">Înscrie-te pentru e-mailuri de pe <ph name="DEVICE_TYPE" /></translation>
+<translation id="5527474464531963247">De asemenea, puteți selecta altă rețea.</translation>
+<translation id="5539070192556911367">Nu se poate accesa Google</translation>
+<translation id="557722062034137776">Resetarea dispozitivului nu va afecta conturile Google sau datele sincronizate cu aceste conturi. Cu toate acestea, toate fișierele salvate local pe dispozitiv vor fi șterse.</translation>
+<translation id="5626172233890210551">Folosește parola</translation>
+<translation id="5636996382092289526">Pentru a utiliza <ph name="NETWORK_ID" /> ar putea fi necesar să <ph name="LINK_START" />accesați mai întâi pagina de conectare a rețelei<ph name="LINK_END" />, care se va deschide automat în câteva secunde. Dacă acest lucru nu se întâmplă, rețeaua nu poate fi utilizată.</translation>
+<translation id="5659964844710667266">Creează o parolă pentru acest dispozitiv <ph name="DEVICE_TYPE" /></translation>
+<translation id="5684950556880280580">Parola a fost actualizată</translation>
+<translation id="5762787084360227629">Introdu informații despre Contul Google</translation>
+<translation id="5764797882307050727">Eliberează spațiu pe dispozitiv.</translation>
+<translation id="5765425701854290211">Ne pare rău, unele fișiere erau deteriorate și actualizarea nu a reușit. Fișierele sincronizate sunt în siguranță.</translation>
+<translation id="5770125698810550803">Afișează butoane de navigare</translation>
+<translation id="5799478978078236781">Primește sfaturi, oferte și actualizări referitoare la <ph name="DEVICE_TYPE" /> și trimite feedback.</translation>
+<translation id="5804259315582798390">Nu s-a putut activa recuperarea datelor locale</translation>
+<translation id="5810809306422959727">Acest cont nu este eligibil pentru controlul parental</translation>
+<translation id="5852137567692933493">Reporniți și faceți Powerwash</translation>
+<translation id="5856721540245522153">Activează funcțiile de remediere a erorilor</translation>
+<translation id="5860491529813859533">Activează</translation>
+<translation id="5895138241574237353">Reîncepe</translation>
+<translation id="5895335062901455404">Preferințele și activitățile salvate vor fi disponibile pe orice dispozitiv cu sistemul de operare Chrome Flex dacă te conectezi folosind Contul Google. Poți să alegi ce să sincronizezi în Setări.</translation>
+<translation id="5939518447894949180">Resetează</translation>
+<translation id="5959471481388474538">Rețea indisponibilă</translation>
+<translation id="6016178549409952427">Navighează la conținutul suplimentar <ph name="CURRENT_ELEMENT" /> din <ph name="TOTAL_ELEMENTS" /></translation>
+<translation id="6040143037577758943">Închide</translation>
+<translation id="6055544610007596637">Instalează aplicații pentru <ph name="DEVICE_TYPE" /> din Magazinul Google Play</translation>
+<translation id="6071181508177083058">confirmă parola</translation>
+<translation id="6125479973208104919">Din păcate, va trebui să îți adaugi din nou contul pe acest dispozitiv <ph name="DEVICE_TYPE" />.</translation>
+<translation id="6165508094623778733">Află mai multe</translation>
+<translation id="6170498031581934115">Nu s-a putut activa remedierea erorilor prin ADB. Accesează Setări și încearcă din nou.</translation>
+<translation id="6172020488605056255">Dă clic dreapta pentru a folosi funcția Ajută-mă să citesc</translation>
+<translation id="6173623053897475761">Introdu din nou codul PIN</translation>
+<translation id="6202304368170870640">Poți folosi codul PIN ca să te conectezi la dispozitiv sau să-l deblochezi.</translation>
+<translation id="623261264391834964">Dă clic dreapta într-o casetă text pentru a folosi funcția Ajută-mă să scriu</translation>
+<translation id="6280215091796946657">Conectează-te cu alt cont</translation>
+<translation id="6287713404380454515">Din motive de securitate, administratorul a dezactivat PIN-ul și parola dispozitivului. De acum înainte, folosește parola pentru <ph name="MANAGER" />.</translation>
+<translation id="6314819609899340042">Ai activat funcțiile de remediere a erorilor pe acest dispozitiv <ph name="IDS_SHORT_PRODUCT_NAME" />.</translation>
+<translation id="6380143666419481200">Acceptați și continuați</translation>
+<translation id="6418511932144861495">Instalează actualizarea importantă</translation>
+<translation id="6480327114083866287">Gestionat de <ph name="MANAGER" /></translation>
+<translation id="6495266441917713704">Nu se poate transfera conexiunea Wi-Fi</translation>
+<translation id="6515620015470298987">Conectarea nu a reușit din cauza unei probleme la verificarea configurației dispozitivului. Șterge datele de pe <ph name="DEVICE_TYPE" /> și încearcă din nou.</translation>
+<translation id="6532527800157340614">Conectarea nu a reușit, deoarece indicativul de acces nu a putut fi preluat. Verifică starea conexiunii la rețea și încearcă din nou.</translation>
+<translation id="6607890859198268021"><ph name="USER_EMAIL" /> este deja gestionat de <ph name="DOMAIN" />. Pentru a folosi controlul parental cu alt Cont Google, deconectează-te după configurare, apoi selectează „Adaugă o persoană” în ecranul de conectare.</translation>
+<translation id="6648911618876616409">O actualizare esențială este gata de instalare. Conectează-te pentru a începe.</translation>
+<translation id="667752334740867460">Se primesc informații despre Wi-Fi...</translation>
+<translation id="6680442031740878064">Spațiu disponibil: <ph name="AVAILABLE_SPACE" /></translation>
+<translation id="6722744767592605627">Poți recupera <ph name="EMAIL" />, dar datele locale se vor șterge.</translation>
+<translation id="6789834167207639931">Introdu din nou parola Contului Google în ecranul următor pentru a finaliza recuperarea</translation>
+<translation id="6800893479155997609">Cele mai populare aplicații pentru <ph name="DEVICE_TYPE" /></translation>
+<translation id="6835762382653651563">Accesează internetul pentru a actualiza dispozitivul <ph name="DEVICE_TYPE" />.</translation>
+<translation id="6839916869147598086">Conectarea a fost schimbată</translation>
+<translation id="6903907808598579934">Activează sincronizarea</translation>
+<translation id="6918733588290914545">Configurare rapidă cu telefonul Android</translation>
+<translation id="6955698182324067397">Activezi funcțiile de remediere a erorilor în sistemul de operare Chrome, care vor configura SSH daemon și vor activa pornirea de pe unități USB.</translation>
+<translation id="6965382102122355670">OK</translation>
+<translation id="6981982820502123353">Accesibilitate</translation>
+<translation id="6996245928508281884">Activează funcția Bluetooth și Wi-Fi a telefonului</translation>
+<translation id="7077829361966535409">Pagina de conectare nu s-a putut încărca utilizând setările de proxy actuale. <ph name="GAIA_RELOAD_LINK_START" />Încercați să vă conectați din nou<ph name="GAIA_RELOAD_LINK_END" /> sau utilizați alte <ph name="PROXY_SETTINGS_LINK_START" />setări de proxy<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
+<translation id="7114054701490058191">Parolele nu corespund</translation>
+<translation id="7135729336746831607">Activezi Bluetooth?</translation>
+<translation id="7141105143012495934">Nu s-a conectat, deoarece nu s-au putut prelua detaliile contului. Contactează administratorul sau încearcă din nou.</translation>
+<translation id="7144878232160441200">Reîncearcă</translation>
+<translation id="7202337678781136582">Scanează codul QR cu telefonul Android</translation>
+<translation id="7290242001003353852">Acest serviciu de conectare, găzduit de <ph name="SAML_DOMAIN" />, îți accesează camera foto.</translation>
+<translation id="7329154610228416156">Nu s-a conectat, deoarece era configurată folosirea unei adrese URL nesecurizate (<ph name="BLOCKED_URL" />). Contactează administratorul.</translation>
+<translation id="7345706641791090287">Confirmă parola</translation>
+<translation id="7352651011704765696">A apărut o eroare</translation>
+<translation id="7476454130948140105">Bateria este prea descărcată pentru actualizare (<ph name="BATTERY_PERCENT" />%)</translation>
+<translation id="7543104066686362383">Activează funcțiile de remediere a erorilor pe acest dispozitiv <ph name="IDS_SHORT_PRODUCT_NAME" /></translation>
+<translation id="7553242001898162573">Introdu parola</translation>
+<translation id="7556242789364317684">Din păcate, <ph name="SHORT_PRODUCT_NAME" /> nu vă poate recupera setările. Pentru a remedia eroarea, este necesar ca <ph name="SHORT_PRODUCT_NAME" /> să reseteze dispozitivul utilizând Powerwash.</translation>
+<translation id="7560756177962144929">Sincronizează dispozitivul <ph name="DEVICE_TYPE" /></translation>
+<translation id="7571643774869182231">Nu există suficient spațiu de stocare pentru actualizare</translation>
+<translation id="7622114377921274169">Se încarcă.</translation>
+<translation id="7630426712700473382">Dispozitivul este gestionat de <ph name="MANAGER" /> și solicită de fiecare dată conectarea.</translation>
+<translation id="7639914187072011620">Eroare la preluarea redirecționării SAML de la server</translation>
+<translation id="7649070708921625228">Ajutor</translation>
+<translation id="7658239707568436148">Anulează</translation>
+<translation id="7659584679870740384">Nu ești autorizat(ă) să folosești acest dispozitiv. Contactează administratorul pentru permisiunea de conectare.</translation>
+<translation id="7660116474961254898">Urmează instrucțiunile de pe telefon</translation>
+<translation id="7671139479636735732">Dă clic dreapta pentru a-ți vizualiza ideile cu ușurință</translation>
+<translation id="770831926727930011">Datele locale sunt protejate de parola veche. Introdu vechea parolă pentru a recupera datele locale.</translation>
+<translation id="7722040605881499779">Spațiul necesar pentru actualizare: <ph name="NECESSARY_SPACE" /></translation>
+<translation id="7792012425874949788">A apărut o eroare la conectare</translation>
+<translation id="780301667611848630">Nu, mulțumesc</translation>
+<translation id="7803657407897251194">Pentru a continua configurarea folosind dispozitivul Android, conectează dispozitivul <ph name="DEVICE_TYPE" /> la o rețea</translation>
+<translation id="7851457902707056880">Conectarea a fost restricționată la contul proprietarului. Reporniți dispozitivul și conectați-vă folosind contul proprietarului. Dispozitivul va reporni automat în 30 de secunde.</translation>
+<translation id="7870730066603611552">Examinează opțiunile de sincronizare după configurare</translation>
+<translation id="7883792253546618164">Te poți dezabona în orice moment.</translation>
+<translation id="7906440585529721295">Datele locale se vor șterge</translation>
+<translation id="7943311690198910993">Metoda de conectare a fost actualizată</translation>
+<translation id="7968982339740310781">Afișați detaliile</translation>
+<translation id="7982083145464587921">Reporniți dispozitivul, pentru ca eroarea să fie remediată.</translation>
+<translation id="7990958035181555539">Transferă automat conexiunea Wi-Fi de pe telefonul Android</translation>
+<translation id="8054563304616131773">Introdu o adresă de e-mail validă</translation>
+<translation id="8065144531309810062">Folosește Google AI pentru a-ți dezvolta creativitatea și a-ți spori productivitatea</translation>
+<translation id="8098616321286360457">Este necesară o conexiune la rețea</translation>
+<translation id="8131740175452115882">Confirmați</translation>
+<translation id="8146177459103116374">Dacă v-ați înregistrat deja pe acest dispozitiv, puteți să vă <ph name="LINK2_START" />conectați ca utilizator existent<ph name="LINK2_END" />.</translation>
+<translation id="8146793085009540321">Conectarea nu a reușit. Contactează administratorul sau încearcă din nou.</translation>
+<translation id="8202160505685531999">Reintrodu parola pentru a actualiza profilul <ph name="DEVICE_TYPE" />.</translation>
+<translation id="8241806945692107836">Se determină configurația dispozitivului...</translation>
+<translation id="8242426110754782860">Continuă</translation>
+<translation id="826905130698769948">Certificat de client nevalid</translation>
+<translation id="8274924778568117936">Nu închide și nu opri dispozitivul <ph name="DEVICE_TYPE" /> înainte să se finalizeze actualizarea. Dispozitivul <ph name="DEVICE_TYPE" /> va reporni după ce se finalizează instalarea.</translation>
+<translation id="8281886186245836920">Omite</translation>
+<translation id="8304383784961451596">Nu ești autorizat(ă) să folosești acest dispozitiv. Contactează administratorul pentru permisiunea de conectare sau conectează-te cu un cont Google supravegheat prin Family Link.</translation>
+<translation id="8354034204605718473">Codul PIN al copilului a fost adăugat</translation>
+<translation id="8366396658833131068">Conexiunea la rețea a fost restabilită. Selectați altă rețea sau apăsați mai jos pe butonul „Continuați” pentru a lansa aplicația chioșc.</translation>
+<translation id="8425768983279799676">Poți folosi codul PIN ca să deblochezi dispozitivul.</translation>
+<translation id="843173223122814223">Creează fundaluri cu AI</translation>
+<translation id="8452105022015742247">Transferarea informațiilor din Contul Google de pe telefonul Android</translation>
+<translation id="8524841856047224176">Personalizează fundalurile camerei pentru apeluri video și altele</translation>
+<translation id="8569673829373920831">Mai multe despre <ph name="APP_NAME" /></translation>
+<translation id="8655972064210167941">Nu s-a conectat, deoarece parola nu a putut fi confirmată. Contactează administratorul sau încearcă din nou.</translation>
+<translation id="8674903726754070732">Din păcate, computerul este configurat cu un ID de hardware incorect. Acest lucru împiedică actualizarea sistemului de operare Chrome cu cele mai recente remedieri de securitate, iar computerul <ph name="BEGIN_BOLD" />ar putea fi vulnerabil la atacuri<ph name="END_BOLD" />.</translation>
+<translation id="8695139659682234808">Adaugă opțiuni de control parental după configurare</translation>
+<translation id="8725066075913043281">Încearcă din nou</translation>
+<translation id="8730621377337864115">Terminat</translation>
+<translation id="8740086188450289493">Folosește parola Contului Google</translation>
+<translation id="8740247629089392745">Poți să îi dai Chromebookul utilizatorului <ph name="SUPERVISED_USER_NAME" />. Configurarea este aproape gata, apoi conținutul va putea fi explorat.</translation>
+<translation id="8759753423332885148">Află mai multe.</translation>
+<translation id="8777628254805677039">parola directorului rădăcină</translation>
+<translation id="8794548468611058947">În loc să introduci parola Contului Google pentru a te conecta, poți crea un cod PIN pentru <ph name="DEVICE_TYPE" /></translation>
+<translation id="8830796635868321089">Căutarea actualizărilor utilizând setările de proxy actuale nu a reușit. Ajustați <ph name="PROXY_SETTINGS_LINK_START" />setările de proxy<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
+<translation id="885746075120788020">Preferințele și activitățile salvate vor fi disponibile pe orice dispozitiv cu sistemul de operare Chrome dacă te conectezi folosind Contul Google. Poți să alegi ce să sincronizezi în Setări.</translation>
+<translation id="8875221558267407626">Rezumă conținut, simplifică limbajul complex sau pune întrebări</translation>
+<translation id="8946359700442089734">Funcțiile de remediere a erorilor nu au fost activate complet pe acest dispozitiv <ph name="IDS_SHORT_PRODUCT_NAME" />.</translation>
+<translation id="8965037249707889821">Introduceți parola veche</translation>
+<translation id="8975396729541388937">Dezabonează-te oricând dând clic pe linkul din e-mailurile pe care le primești.</translation>
+<translation id="9033765790910064284">Continuă oricum</translation>
+<translation id="903480517321259405">Introdu din nou codul PIN</translation>
+<translation id="9076523132036239772">Din păcate, adresa de e-mail sau parola nu a putut fi verificată. Încearcă să te conectezi mai întâi la o rețea.</translation>
+</translationbundle>

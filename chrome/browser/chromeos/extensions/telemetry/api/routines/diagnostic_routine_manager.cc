@@ -112,10 +112,9 @@ DiagnosticRoutineManager::CreateRoutine(
   mojo::PendingReceiver<crosapi::TelemetryDiagnosticRoutineObserver>
       observer_receiver;
 
-  GetRemoteService()->CreateRoutine(
-      std::move(routine_argument),
-      control_remote.InitWithNewPipeAndPassReceiver(),
-      observer_receiver.InitWithNewPipeAndPassRemote());
+  GetService().CreateRoutine(std::move(routine_argument),
+                             control_remote.InitWithNewPipeAndPassReceiver(),
+                             observer_receiver.InitWithNewPipeAndPassRemote());
 
   auto uuid = base::Uuid::GenerateRandomV4();
   DiagnosticRoutineInfo routine_info(extension_id, uuid, browser_context_,
@@ -207,12 +206,12 @@ void DiagnosticRoutineManager::OnExtensionUnloaded(
   app_ui_observers_.erase(extension->id());
 }
 
-mojo::Remote<crosapi::TelemetryDiagnosticRoutinesService>&
-DiagnosticRoutineManager::GetRemoteService() {
+crosapi::TelemetryDiagnosticRoutinesService&
+DiagnosticRoutineManager::GetService() {
   if (!remote_strategy_) {
     remote_strategy_ = RemoteDiagnosticRoutineServiceStrategy::Create();
   }
-  return remote_strategy_->GetRemoteService();
+  return remote_strategy_->GetService();
 }
 
 void DiagnosticRoutineManager::OnAppUiClosed(

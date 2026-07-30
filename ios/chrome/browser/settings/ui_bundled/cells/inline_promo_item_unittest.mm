@@ -8,7 +8,6 @@
 #import "ios/chrome/browser/settings/ui_bundled/cells/inline_promo_cell.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
@@ -56,7 +55,7 @@ TEST_F(InlinePromoItemTest, ConfigureCell) {
       base::apple::ObjCCastStrict<InlinePromoCell>(cell);
 
   // Configure cell.
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
 
   // Verify cell configuration.
   UIButton* close_button = promo_cell.closeButton;
@@ -100,11 +99,11 @@ TEST_F(InlinePromoItemTest, CloseButtonVisibility) {
   InlinePromoCell* promo_cell =
       base::apple::ObjCCastStrict<InlinePromoCell>(cell);
 
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
   EXPECT_FALSE(promo_cell.closeButton.hidden);
 
   item.shouldShowCloseButton = false;
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
   EXPECT_TRUE(promo_cell.closeButton.hidden);
 }
 
@@ -120,11 +119,11 @@ TEST_F(InlinePromoItemTest, BadgeVisibility) {
   InlinePromoCell* promo_cell =
       base::apple::ObjCCastStrict<InlinePromoCell>(cell);
 
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
   EXPECT_FALSE(promo_cell.badgeView.hidden);
 
   item.shouldDisplayBadge = NO;
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
   EXPECT_TRUE(promo_cell.badgeView.hidden);
 }
 
@@ -140,7 +139,7 @@ TEST_F(InlinePromoItemTest, DisableCell) {
   InlinePromoCell* promo_cell =
       base::apple::ObjCCastStrict<InlinePromoCell>(cell);
 
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
 
   EXPECT_FALSE(promo_cell.closeButton.enabled);
   EXPECT_TRUE([promo_cell.promoTextLabel.textColor

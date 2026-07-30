@@ -22,6 +22,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/ui/actions/chrome_action_id.h"
+#include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #endif
 #include "chrome/common/webui_url_constants.h"
@@ -290,5 +291,41 @@ bool GetEffectivePinState(Profile* profile) {
 #endif
   return false;
 }
+
+#if !BUILDFLAG(IS_ANDROID)
+void UpdatePinButtonVisibilityState(BrowserWindowInterface* browser_window,
+                                    bool eligible) {
+  if (!browser_window || !browser_window->GetActions()) {
+    return;
+  }
+
+  actions::ActionItem* const scope_action =
+      browser_window->GetActions()->root_action_item();
+  if (!scope_action) {
+    return;
+  }
+
+  actions::ActionItem* const action_item =
+      actions::ActionManager::Get().FindAction(
+          kActionSidePanelShowContextualTasks, scope_action);
+
+  if (action_item) {
+    if (!eligible) {
+      // If it's not eligible, actively pull it out of the pinned model space.
+      if (auto* model =
+              PinnedToolbarActionsModel::Get(browser_window->GetProfile())) {
+        if (model->Contains(kActionSidePanelShowContextualTasks)) {
+          model->UpdatePinnedState(kActionSidePanelShowContextualTasks,
+                                   /*should_pin=*/false);
+        }
+      }
+    }
+
+    // 2. Now it is completely safe to turn visibility off, because the toolbar
+    // engine won't try to anchor or look up a non-existent element.
+    action_item->SetVisible(eligible);
+  }
+}
+#endif
 
 }  // namespace contextual_tasks

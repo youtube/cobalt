@@ -19,7 +19,6 @@
 class Profile;
 
 namespace ash {
-class FileSuggestKeyedService;
 
 // A suggestion provider for most recently used drive files.
 class DriveRecentFileSuggestionProvider
@@ -38,8 +37,6 @@ class DriveRecentFileSuggestionProvider
 
   // FileSuggestionProvider:
   void GetSuggestFileData(GetSuggestFileDataCallback callback) override;
-  void MaybeUpdateItemSuggestCache(
-      base::PassKey<FileSuggestKeyedService>) override;
 
   // drive::DriveIntegrationService::Observer:
   void OnDriveIntegrationServiceDestroyed() override;

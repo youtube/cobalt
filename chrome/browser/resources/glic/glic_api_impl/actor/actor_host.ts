@@ -6,21 +6,22 @@
 // to the browser via mojo.
 
 import type * as actorWebUiMojom from '../../actor_webui.mojom-webui.js';
-import type {ActorHandlerInterface} from '../../glic.mojom-webui.js';
+import type {ActorClientInterface, ActorHandlerInterface, ActorTaskState as ActorTaskStateMojo, TabContext as TabContextMojo} from '../../glic.mojom-webui.js';
 import type * as api from '../../glic_api/glic_api.js';
 import type {ActorTaskInterruptReason, ActorTaskPauseReason, ActorTaskStopReason, CancelActionsResult, FormFillingResponse, Journal, TabContextOptions, TaskOptions} from '../../glic_api/glic_api.js';
-import {CreateTaskErrorReason, PerformActionsErrorReason} from '../../glic_api/glic_api.js';
+import {CreateTaskErrorReason, FeatureMode, PerformActionsErrorReason} from '../../glic_api/glic_api.js';
 import type {CheckEnumCompatibility} from '../conversions.js';
 import {enumFromClient, enumToClient} from '../enum_conversions.js';
-import {byteArrayFromClient, getArrayBufferFromBigBuffer, idFromClient, idToClient, optionalToClient, resumeActorTaskResultToClient, tabContextOptionsFromClient, tabContextToClient, taskOptionsToMojo, urlToClient} from '../host/conversions.js';
+import {bitmapN32ToRGBAImage, byteArrayFromClient, getArrayBufferFromBigBuffer, idFromClient, idToClient, optionalFromClient, optionalToClient, originToClient, tabContextOptionsFromClient, tabContextToClient, urlToClient} from '../host/conversions.js';
 import {ErrorWithReasonImpl} from '../request_types.js';
-import type {ResumeActorTaskResultPrivate, TabContextResultPrivate} from '../request_types.js';
+import type {ResumeActorTaskResultPrivate, RgbaImage, TabContextResultPrivate} from '../request_types.js';
 import {assertNever} from '../transport/messaging.js';
 import type {ResponseExtras} from '../transport/messaging.js';
-import type {PostMessageHandler} from '../transport/post_message_transport.js';
+import type {PostMessageHandler, PostMessageRemote} from '../transport/post_message_transport.js';
 
+import type {ConfirmationRequestErrorReason as ConfirmationRequestErrorReasonMojo, NavigationConfirmationRequest as NavigationConfirmationRequestMojo, NavigationConfirmationResponse as NavigationConfirmationResponseMojo, SelectAutofillSuggestionsDialogErrorReason as SelectAutofillSuggestionsDialogErrorReasonMojo, SelectAutofillSuggestionsDialogRequest as SelectAutofillSuggestionsDialogRequestMojo, SelectAutofillSuggestionsDialogResponse as SelectAutofillSuggestionsDialogResponseMojo, SelectCredentialDialogErrorReason as SelectCredentialDialogErrorReasonMojo, SelectCredentialDialogRequest as SelectCredentialDialogRequestMojo, SelectCredentialDialogResponse as SelectCredentialDialogResponseMojo, TaskOptions as TaskOptionsMojo, UserConfirmationDialogRequest as UserConfirmationDialogRequestMojo, UserConfirmationDialogResponse as UserConfirmationDialogResponseMojo, UserGrantedPermissionDuration as UserGrantedPermissionDurationMojo} from './../../actor_webui.mojom-webui.js';
 import type * as actorTypes from './actor_types.js';
-import type {ActorHost} from './actor_types.js';
+import type {ActorClient, ActorHost} from './actor_types.js';
 
 export class ActorHostMessageHandler implements PostMessageHandler<ActorHost> {
   constructor(private actorHandler: ActorHandlerInterface) {}
@@ -252,6 +253,61 @@ export class ActorHostMessageHandler implements PostMessageHandler<ActorHost> {
   }
 }
 
+
+export class ActorClientImpl implements ActorClientInterface {
+  constructor(private sender: PostMessageRemote<ActorClient>) {}
+
+  notifyActorTaskStateChanged(taskId: number, state: ActorTaskStateMojo): void {
+    const clientState = enumToClient(state);
+    this.sender.requestNoResponse(
+        'notifyActorTaskStateChanged', {taskId, state: clientState});
+  }
+
+  async requestToShowCredentialSelectionDialog(
+      request: SelectCredentialDialogRequestMojo):
+      Promise<{response: SelectCredentialDialogResponseMojo}> {
+    const clientResponse = await this.sender.requestWithResponse(
+        'requestToShowDialog',
+        {request: selectCredentialDialogRequestToClient(request)});
+    return {
+      response: selectCredentialDialogResponseToMojo(clientResponse.response),
+    };
+  }
+
+  async requestToShowUserConfirmationDialog(
+      request: UserConfirmationDialogRequestMojo):
+      Promise<{response: UserConfirmationDialogResponseMojo}> {
+    const clientResponse = await this.sender.requestWithResponse(
+        'requestToShowConfirmationDialog',
+        {request: userConfirmationDialogRequestToClient(request)});
+    return {
+      response: userConfirmationDialogResponseToMojo(clientResponse.response),
+    };
+  }
+
+  async requestToConfirmNavigation(request: NavigationConfirmationRequestMojo):
+      Promise<{response: NavigationConfirmationResponseMojo}> {
+    const clientResponse = await this.sender.requestWithResponse(
+        'requestToConfirmNavigation',
+        {request: navigationConfirmationRequestToClient(request)});
+    return {
+      response: navigationConfirmationResponseToMojo(clientResponse.response),
+    };
+  }
+
+  async requestToShowAutofillSuggestionsDialog(
+      request: SelectAutofillSuggestionsDialogRequestMojo):
+      Promise<{response: SelectAutofillSuggestionsDialogResponseMojo}> {
+    const clientResponse = await this.sender.requestWithResponse(
+        'requestToShowAutofillSuggestionsDialog',
+        {request: selectAutofillSuggestionsDialogRequestToClient(request)});
+    return {
+      response: selectAutofillSuggestionsDialogResponseToMojo(
+          clientResponse.response),
+    };
+  }
+}
+
 assertNever<CheckEnumCompatibility<
     typeof actorWebUiMojom.SelectCredentialDialogErrorReason,
     typeof actorTypes.SelectCredentialDialogErrorReason>>();
@@ -261,3 +317,166 @@ assertNever<CheckEnumCompatibility<
 assertNever<CheckEnumCompatibility<
     typeof actorWebUiMojom.UserGrantedPermissionDuration,
     typeof api.UserGrantedPermissionDuration>>();
+
+function selectCredentialDialogResponseToMojo(
+    response: actorTypes.SelectCredentialDialogResponsePrivate):
+    SelectCredentialDialogResponseMojo {
+  return response.errorReason ?
+      {
+        taskId: response.taskId,
+        errorReason: response.errorReason as number as
+            SelectCredentialDialogErrorReasonMojo,
+        permissionDuration: null,
+        selectedCredentialId: null,
+      } :
+      {
+        ...response,
+        errorReason: null,
+        permissionDuration: optionalFromClient(response.permissionDuration) as
+                UserGrantedPermissionDurationMojo |
+            null,
+        selectedCredentialId: response.selectedCredentialId ?? null,
+      };
+}
+
+function selectCredentialDialogRequestToClient(
+    request: SelectCredentialDialogRequestMojo):
+    actorTypes.SelectCredentialDialogRequestPrivate {
+  const icons = new Map<string, RgbaImage>();
+  if (request.icons) {
+    for (const [siteOrApp, value] of Object.entries(request.icons)) {
+      const rgbaImage = bitmapN32ToRGBAImage(value);
+      if (rgbaImage) {
+        icons.set(siteOrApp, rgbaImage);
+      }
+    }
+  }
+  return {
+    ...request,
+    credentials: request.credentials.map(
+        credential => ({
+          ...credential,
+          requestOrigin: originToClient(credential.requestOrigin),
+          type: enumToClient(credential.type),
+          accountPicture: credential.accountPicture ?
+              bitmapN32ToRGBAImage(credential.accountPicture) :
+              undefined,
+        })),
+    icons,
+  };
+}
+
+function userConfirmationDialogRequestToClient(
+    request: UserConfirmationDialogRequestMojo):
+    actorTypes.UserConfirmationDialogRequestPrivate {
+  return {
+    navigationOrigin: request.payload.navigationOrigin ?
+        originToClient(request.payload.navigationOrigin) :
+        undefined,
+    forBlocklistedOrigin: request.payload.forBlocklistedOrigin,
+  };
+}
+
+function userConfirmationDialogResponseToMojo(
+    response: actorTypes.UserConfirmationDialogResponsePrivate):
+    UserConfirmationDialogResponseMojo {
+  if (response.errorReason) {
+    return {
+      result: {
+        errorReason: response.errorReason as number as
+            ConfirmationRequestErrorReasonMojo,
+      },
+    };
+  }
+  return {
+    result: {permissionGranted: response.permissionGranted},
+  };
+}
+
+function navigationConfirmationRequestToClient(
+    request: NavigationConfirmationRequestMojo):
+    actorTypes.NavigationConfirmationRequestPrivate {
+  return {
+    taskId: request.taskId,
+    navigationOrigin: originToClient(request.navigationOrigin),
+  };
+}
+
+function navigationConfirmationResponseToMojo(
+    response: actorTypes.NavigationConfirmationResponsePrivate):
+    NavigationConfirmationResponseMojo {
+  if (response.errorReason) {
+    return {
+      result: {
+        errorReason: response.errorReason as number as
+            ConfirmationRequestErrorReasonMojo,
+      },
+    };
+  }
+  return {
+    result: {
+      permissionGranted: response.permissionGranted,
+    },
+  };
+}
+
+function selectAutofillSuggestionsDialogRequestToClient(
+    request: SelectAutofillSuggestionsDialogRequestMojo):
+    actorTypes.SelectAutofillSuggestionsDialogRequestPrivate {
+  return {
+    ...request,
+    formFillingRequests: request.formFillingRequests.map(
+        r => ({
+          ...r,
+          requestedData: Number(r.requestedData),
+          formattedRequestOrigin: r.formattedRequestOrigin,
+          suggestions: r.suggestions.map(
+              s => ({
+                ...s,
+                icon: s.icon ? bitmapN32ToRGBAImage(s.icon) : undefined,
+              })),
+        })),
+  };
+}
+
+function selectAutofillSuggestionsDialogResponseToMojo(
+    response: actorTypes.SelectAutofillSuggestionsDialogResponsePrivate):
+    SelectAutofillSuggestionsDialogResponseMojo {
+  if (response.errorReason) {
+    return {
+      taskId: response.taskId,
+      result: {
+        errorReason: response.errorReason as number as
+            SelectAutofillSuggestionsDialogErrorReasonMojo,
+      },
+    };
+  } else {
+    return {
+      taskId: response.taskId,
+      result: {
+        selectedSuggestions: response.selectedSuggestions,
+      },
+    };
+  }
+}
+
+function taskOptionsToMojo(taskOptions?: TaskOptions): TaskOptionsMojo|null {
+  if (taskOptions) {
+    return {
+      title: taskOptions.title ?? null,
+      duration: enumFromClient(taskOptions.duration),
+      featureMode:
+          enumFromClient(taskOptions.featureMode ?? FeatureMode.UNSPECIFIED),
+    };
+  }
+  return null;
+}
+
+function resumeActorTaskResultToClient(
+    tabContext: TabContextMojo, actionResult: number,
+    extras: ResponseExtras): ResumeActorTaskResultPrivate {
+  return {
+    ...tabContextToClient(tabContext, extras),
+    actionResult,
+  };
+}

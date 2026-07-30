@@ -11,6 +11,7 @@
 
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/time/time.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_webui_config.h"
 #include "chrome/browser/ui/webui/webui_toolbar/browser_controls_service.h"
@@ -18,6 +19,7 @@
 #include "components/browser_apis/browser_controls/browser_controls_api.mojom-forward.h"
 #include "components/browser_apis/browser_controls/browser_controls_api_data_model.mojom.h"
 #include "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api.mojom.h"
+#include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/webui_config.h"
 #include "content/public/common/url_constants.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -37,8 +39,13 @@ class HelpBubbleHandler;
 // The webui controller for the webui toolbar. This class has a two part
 // initialization. The controller is not ready to use until after
 // Init() is called.
+namespace content {
+class NavigationHandle;
+}
+
 class WebUIToolbarUI : public TopChromeWebUIController,
-                       public help_bubble::mojom::HelpBubbleHandlerFactory {
+                       public help_bubble::mojom::HelpBubbleHandlerFactory,
+                       public content::WebContentsObserver {
  public:
   // Provides dependencies to this controller during init.
   class DependencyProvider {
@@ -64,6 +71,12 @@ class WebUIToolbarUI : public TopChromeWebUIController,
   WebUIToolbarUI(const WebUIToolbarUI&) = delete;
   WebUIToolbarUI& operator=(const WebUIToolbarUI&) = delete;
   ~WebUIToolbarUI() override;
+
+  // Returns the cached absolute navigation start ticks of the active document.
+  // Used on-demand by the telemetry pipeline via the delegate.
+  base::TimeTicks navigation_start_ticks() const {
+    return navigation_start_ticks_;
+  }
 
   static constexpr std::string_view GetWebUIName() { return "WebUIToolbar"; }
 
@@ -101,6 +114,10 @@ class WebUIToolbarUI : public TopChromeWebUIController,
   void WebUIRenderFrameCreated(
       content::RenderFrameHost* render_frame_host) override;
 
+  // content::WebContentsObserver:
+  void DidFinishNavigation(
+      content::NavigationHandle* navigation_handle) override;
+
   // help_bubble::mojom::HelpBubbleHandlerFactory:
   void CreateHelpBubbleHandler(
       mojo::PendingRemote<help_bubble::mojom::HelpBubbleClient> client,
@@ -132,6 +149,9 @@ class WebUIToolbarUI : public TopChromeWebUIController,
   std::unique_ptr<browser_controls_api::BrowserControlsService>
       browser_controls_service_;
   std::unique_ptr<toolbar_ui_api::ToolbarUIService> toolbar_ui_service_;
+  // Caches the absolute navigation start ticks of the toolbar document.
+  // Set once when the primary main frame navigation commits.
+  base::TimeTicks navigation_start_ticks_;
 
   /////////////////////////////////////////////////////////////////////////////
   // There's a subtle edge case for WebUI toolbar, because it's hosted at the

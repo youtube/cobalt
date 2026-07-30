@@ -14,6 +14,7 @@ import android.view.InputDevice;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -39,6 +40,8 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CallbackHelper;
+import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler.AppMenuItemType;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.components.browser_ui.util.motion.MotionEventInfo;
@@ -758,5 +761,101 @@ public class AppMenuItemViewBinderTest {
                 "Tint should match the requested color resource",
                 expectedColor,
                 tint.getDefaultColor());
+    }
+
+    @Test
+    @UiThreadTest
+    @MediumTest
+    public void testHeaderPixelHeight() {
+        PropertyModel model = new PropertyModel.Builder(AppMenuItemProperties.ALL_KEYS).build();
+        int expectedHeight =
+                mActivity.getResources().getDimensionPixelSize(R.dimen.menu_header_height);
+
+        Assert.assertEquals(
+                expectedHeight, AppMenuItemViewBinder.getHeaderPixelHeight(mActivity, model));
+    }
+
+    private MaterialButton getFirstButtonForIconModel(PropertyModel itemModel) {
+        PropertyModel model =
+                new PropertyModel.Builder(AppMenuItemProperties.ALL_KEYS)
+                        .with(AppMenuItemProperties.MENU_ITEM_ID, 1)
+                        .build();
+        MVCListAdapter.ModelList subList = new MVCListAdapter.ModelList();
+        subList.add(new MVCListAdapter.ListItem(0, itemModel));
+        model.set(AppMenuItemProperties.ADDITIONAL_ICONS, subList);
+        mMenuList.add(new MVCListAdapter.ListItem(AppMenuItemType.BUTTON_ROW, model));
+
+        ViewGroup parentView = mActivity.findViewById(android.R.id.content);
+        View view = mModelListAdapter.getView(0, null, parentView);
+        return view.findViewById(R.id.button_one);
+    }
+
+    @Test
+    @UiThreadTest
+    @MediumTest
+    @EnableFeatures(ChromeFeatureList.ANDROID_THEME_MODULE)
+    public void testIconRowViewBinders_DefaultItem_NotCheckableSelected() {
+        Drawable icon =
+                AppCompatResources.getDrawable(mActivity, R.drawable.test_ic_vintage_filter);
+        PropertyModel item =
+                new PropertyModel.Builder(AppMenuItemProperties.ALL_ICON_KEYS)
+                        .with(AppMenuItemProperties.MENU_ITEM_ID, MENU_ID1)
+                        .with(AppMenuItemProperties.TITLE_CONDENSED, TITLE_1)
+                        .with(AppMenuItemProperties.ICON, icon)
+                        .build();
+
+        MaterialButton button = getFirstButtonForIconModel(item);
+
+        Assert.assertFalse("Button should not be checkable", button.isCheckable());
+        Assert.assertFalse("Button should not be checked", button.isChecked());
+        Assert.assertFalse("Button should not be selected", button.isSelected());
+    }
+
+    @Test
+    @UiThreadTest
+    @MediumTest
+    @EnableFeatures(ChromeFeatureList.ANDROID_THEME_MODULE)
+    public void testIconRowViewBinders_ModelCheckableTrue_Ignored() {
+        Drawable icon =
+                AppCompatResources.getDrawable(mActivity, R.drawable.test_ic_vintage_filter);
+        PropertyModel item =
+                new PropertyModel.Builder(AppMenuItemProperties.ALL_ICON_KEYS)
+                        .with(AppMenuItemProperties.MENU_ITEM_ID, MENU_ID1)
+                        .with(AppMenuItemProperties.TITLE_CONDENSED, TITLE_1)
+                        .with(AppMenuItemProperties.ICON, icon)
+                        .with(AppMenuItemProperties.CHECKABLE, true)
+                        .build();
+
+        MaterialButton button = getFirstButtonForIconModel(item);
+
+        Assert.assertFalse("Button should not be checkable", button.isCheckable());
+        Assert.assertFalse("Button should not be checked", button.isChecked());
+        Assert.assertFalse("Button should not be selected", button.isSelected());
+    }
+
+    @Test
+    @UiThreadTest
+    @MediumTest
+    @EnableFeatures(ChromeFeatureList.ANDROID_THEME_MODULE)
+    public void testIconRowViewBinders_ModelCheckedTrue_SelectedButNotAccessibilitySelected() {
+        Drawable icon =
+                AppCompatResources.getDrawable(mActivity, R.drawable.test_ic_vintage_filter);
+        PropertyModel item =
+                new PropertyModel.Builder(AppMenuItemProperties.ALL_ICON_KEYS)
+                        .with(AppMenuItemProperties.MENU_ITEM_ID, MENU_ID1)
+                        .with(AppMenuItemProperties.TITLE_CONDENSED, TITLE_1)
+                        .with(AppMenuItemProperties.ICON, icon)
+                        .with(AppMenuItemProperties.CHECKED, true)
+                        .build();
+
+        MaterialButton button = getFirstButtonForIconModel(item);
+
+        Assert.assertFalse("Button should not be checkable", button.isCheckable());
+        Assert.assertFalse("Button should not be checked", button.isChecked());
+        Assert.assertTrue("Button should be selected", button.isSelected());
+
+        AccessibilityNodeInfo info = AccessibilityNodeInfo.obtain();
+        button.onInitializeAccessibilityNodeInfo(info);
+        Assert.assertFalse("Accessibility should not show selected", info.isSelected());
     }
 }

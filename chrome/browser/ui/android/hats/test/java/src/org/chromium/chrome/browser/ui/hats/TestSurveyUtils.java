@@ -44,7 +44,6 @@ public class TestSurveyUtils {
                         false,
                         psdBitFields,
                         psdStringFields,
-                        null,
                         RequestedBrowserType.REGULAR,
                         ProfileAgeRequirement.ANY_AGE));
     }

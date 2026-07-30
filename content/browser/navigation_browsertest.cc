@@ -38,11 +38,11 @@
 #include "components/ukm/test_ukm_recorder.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "content/browser/browser_url_handler_impl.h"
-#include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/renderer_host/navigation_request.h"
 #include "content/browser/renderer_host/navigation_state_keep_alive.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/renderer_host/spare_render_process_host_manager_impl.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/browser/site_instance_impl.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/common/content_navigation_policy.h"
@@ -4102,17 +4102,9 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
             request->GetInitiatorProcessId(), *frame_token);
         ASSERT_FALSE(initiator_rfh);
 
-        // Even if the initiator RenderFrameHost is gone, its policy container
-        // should still be around since the LocalFrame has not been destroyed
-        // yet.
-        PolicyContainerHost* initiator_policy_container =
-            RenderFrameHostImpl::GetPolicyContainerHost(
-                base::OptionalToPtr(frame_token),
-                request->GetInitiatorProcessId(),
-                web_contents()->GetPrimaryMainFrame()->GetStoragePartition());
-        ASSERT_TRUE(initiator_policy_container);
-        ASSERT_EQ(network::mojom::ReferrerPolicy::kAlways,
-                  initiator_policy_container->referrer_policy());
+        // Even if the initiator RenderFrameHost is gone, a valid initiator
+        // navigation state should have been passed to the navigation request.
+        EXPECT_NE(nullptr, request->GetInitiatorNavigationState());
 
         // Even if the initiator RenderFrameHost is gone, the navigation request
         // (to "about:blank") should have inherited its policy container.
@@ -4196,18 +4188,12 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, FormSubmissionThenDeleteFrame) {
             request->GetInitiatorProcessId(), frame_token.value());
         ASSERT_FALSE(deleted_initiator_rfh);
 
-        // Even if the initiator RenderFrameHost is gone, its policy container
-        // should still be around since the LocalFrame has not been destroyed
-        // yet.
-        PolicyContainerHost* initiator_policy_container =
-            RenderFrameHostImpl::GetPolicyContainerHost(
-                base::OptionalToPtr(frame_token),
-                request->GetInitiatorProcessId(),
-                web_contents()->GetPrimaryMainFrame()->GetStoragePartition());
-        ASSERT_TRUE(initiator_policy_container);
-        EXPECT_EQ(network::mojom::ReferrerPolicy::kAlways,
-                  initiator_policy_container->referrer_policy());
+        // Even if the initiator RenderFrameHost is gone, a valid initiator
+        // navigation state should have been passed to the navigation request.
+        EXPECT_NE(nullptr, request->GetInitiatorNavigationState());
 
+        // Even if the initiator RenderFrameHost is gone, the request should
+        // have inherited its policies.
         auto* initiator_policies =
             request->GetInitiatorPolicyContainerPolicies();
         ASSERT_TRUE(initiator_policies);
@@ -4305,17 +4291,13 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
             request->GetInitiatorProcessId(), frame_token.value());
         ASSERT_FALSE(deleted_initiator_rfh);
 
-        // Even if the initiator RenderFrameHost is gone, its policy container
-        // should still be around since the LocalFrame has not been destroyed
-        // yet.
-        PolicyContainerHost* initiator_policy_container =
-            RenderFrameHostImpl::GetPolicyContainerHost(
-                base::OptionalToPtr(frame_token),
-                request->GetInitiatorProcessId(),
-                web_contents()->GetPrimaryMainFrame()->GetStoragePartition());
-        ASSERT_TRUE(initiator_policy_container);
-        EXPECT_EQ(network::mojom::ReferrerPolicy::kAlways,
-                  initiator_policy_container->referrer_policy());
+        // Even if the initiator RenderFrameHost is gone, a valid initiator
+        // navigation state should have been passed to the navigation request.
+        EXPECT_NE(nullptr, request->GetInitiatorNavigationState());
+
+        // Even if the initiator RenderFrameHost is gone, the request should
+        // have inherited its policies.
+        ASSERT_TRUE(request->GetInitiatorPolicyContainerPolicies());
         EXPECT_EQ(
             network::mojom::ReferrerPolicy::kAlways,
             request->GetInitiatorPolicyContainerPolicies()->referrer_policy);
@@ -4494,17 +4476,9 @@ IN_PROC_BROWSER_TEST_F(
             request->GetInitiatorProcessId(), frame_token.value());
         EXPECT_FALSE(initiator_rfh);
 
-        // Even if the initiator RenderFrameHost is gone, its
-        // PolicyContainerHost should still be around since the LocalFrame has
-        // not been destroyed yet.
-        PolicyContainerHost* initiator_policy_container =
-            RenderFrameHostImpl::GetPolicyContainerHost(
-                base::OptionalToPtr(frame_token),
-                request->GetInitiatorProcessId(),
-                web_contents()->GetPrimaryMainFrame()->GetStoragePartition());
-        ASSERT_TRUE(initiator_policy_container);
-        EXPECT_EQ(network::mojom::ReferrerPolicy::kAlways,
-                  initiator_policy_container->referrer_policy());
+        // Even if the initiator RenderFrameHost is gone, the request should
+        // have inherited its policies.
+        ASSERT_TRUE(request->GetInitiatorPolicyContainerPolicies());
         EXPECT_EQ(
             network::mojom::ReferrerPolicy::kAlways,
             request->GetInitiatorPolicyContainerPolicies()->referrer_policy);

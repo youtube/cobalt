@@ -46,6 +46,7 @@
 #include "chrome/browser/ui/views/profiles/profile_picker_flow_controller.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_glic_flow_controller.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_toolbar.h"
+#include "chrome/browser/ui/views/profiles/profile_picker_widget.h"
 #include "chrome/browser/ui/webui/signin/profile_picker_ui.h"
 #include "chrome/browser/ui/webui/signin/signin_ui_error.h"
 #include "chrome/browser/ui/webui/signin/signin_url_utils.h"
@@ -104,22 +105,6 @@ constexpr float kMaxRatioOfWorkArea = 0.9;
 constexpr int kSupportedAcceleratorCommands[] = {
     IDC_CLOSE_TAB,       IDC_CLOSE_WINDOW, IDC_EXIT,  IDC_FULLSCREEN,
     IDC_MINIMIZE_WINDOW, IDC_BACK,         IDC_RELOAD};
-
-class ProfilePickerWidget : public views::Widget {
- public:
-  explicit ProfilePickerWidget(ProfilePickerView* profile_picker_view) {
-    views::Widget::InitParams params(
-        views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
-    params.delegate = profile_picker_view;
-#if BUILDFLAG(IS_LINUX)
-    params.wm_class_name = shell_integration_linux::GetProgramClassName();
-    params.wm_class_class = shell_integration_linux::GetProgramClassClass();
-    params.wayland_app_id = params.wm_class_class;
-#endif
-    Init(std::move(params));
-  }
-  ~ProfilePickerWidget() override = default;
-};
 
 // Returns whether the current flow is part of the classic profile picker flow.
 // Checking this should become eventually unnecessary as flows move away from
@@ -488,6 +473,11 @@ void ProfilePickerView::SetNativeToolbarSigninButtonsVisible(bool visible) {
 
 void ProfilePickerView::SetNativeToolbarDontSignInButtonVisible(bool visible) {
   CHECK_DEREF(toolbar_).SetDontSignInButtonVisible(visible);
+}
+
+void ProfilePickerView::SetNativeToolbarStartBrowsingButtonVisible(
+    bool visible) {
+  CHECK_DEREF(toolbar_).SetStartBrowsingButtonVisible(visible);
 }
 
 bool ProfilePickerView::AreNativeToolbarSigninButtonsVisibleForTesting() const {

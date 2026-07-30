@@ -3787,10 +3787,10 @@ Called by update_net_trust_anchors.py.-->
   <int value="3" label="TpmErrorResponse"/>
   <int value="4" label="BadMagicNumber"/>
   <int value="5" label="WrongType"/>
-  <int value="6" label="NonceMismatch"/>
+  <int value="6" label="ChallengeMismatch"/>
 </enum>
 
-<!-- LINT.ThenChange(//crypto/tpm.rs:ParseResult) -->
+<!-- LINT.ThenChange(//crypto/tpm_parser.h:TpmCertifyParseResult) -->
 
 <!-- LINT.IfChange(TpmCertifyVerifyResult) -->
 
@@ -3804,7 +3804,7 @@ Called by update_net_trust_anchors.py.-->
   <int value="6" label="InvalidSignature"/>
 </enum>
 
-<!-- LINT.ThenChange(//crypto/tpm.rs:VerificationResult) -->
+<!-- LINT.ThenChange(//crypto/tpm_parser.h:TpmCertifyVerifyResult) -->
 
 <enum name="TPMSupport">
   <int value="0" label="None"/>

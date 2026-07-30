@@ -38,6 +38,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/common/content_client.h"
 #include "net/base/net_errors.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/cpp/ip_address_space_util.h"
 #include "services/network/public/mojom/client_security_state.mojom-forward.h"
 #include "third_party/blink/public/common/service_worker/embedded_worker_status.h"
@@ -79,13 +80,17 @@ ServiceWorkerRegisterJob::ServiceWorkerRegisterJob(
       ancestor_frame_type_(ancestor_frame_type),
       creator_policy_container_policies_(std::move(policy_container_policies)),
       creator_network_restrictions_id_(
-          [](GlobalRenderFrameHostId id)
-              -> std::optional<base::UnguessableToken> {
-            if (auto* rfh = RenderFrameHostImpl::FromID(id)) {
-              return rfh->GetNetworkRestrictionsID();
-            }
-            return std::nullopt;
-          }(requesting_frame_id)),
+          // If connection allowlists are present in the creator policies, we
+          // generate a new token specifically for the script fetch job. This
+          // decouples the lifespan of the fetch restrictions from the creator
+          // frame/context (which may be destroyed during or long before the
+          // fetch).
+          (creator_policy_container_policies_.connection_allowlists.enforced
+               .has_value() ||
+           creator_policy_container_policies_.connection_allowlists.report_only
+               .has_value())
+              ? base::UnguessableToken::Create()
+              : network::GetNoOpNetworkRestrictionsId()),
       network_restrictions_id_(base::UnguessableToken::Create()) {
   CHECK(context_);
   CHECK(outside_fetch_client_settings_object_);
@@ -113,33 +118,48 @@ ServiceWorkerRegisterJob::ServiceWorkerRegisterJob(
       skip_script_comparison_(skip_script_comparison),
       promise_resolved_status_(blink::ServiceWorkerStatusCode::kOk),
       ancestor_frame_type_(registration->ancestor_frame_type()),
-      creator_network_restrictions_id_(
+      creator_policy_container_policies_(
           [](ServiceWorkerRegistration* registration)
-              -> std::optional<base::UnguessableToken> {
+              -> PolicyContainerPolicies {
             ServiceWorkerVersion* version = registration->GetNewestVersion();
-            return version ? version->creator_network_restrictions_id()
-                           : std::nullopt;
+            if (version) {
+              scoped_refptr<PolicyContainerHost> policy_container_host =
+                  version->policy_container_host();
+              if (policy_container_host) {
+                return policy_container_host->policies().Clone();
+              }
+            }
+            return PolicyContainerPolicies();
           }(registration)),
+      creator_network_restrictions_id_(
+          // If connection allowlists are present in the creator policies, we
+          // generate a new token specifically for the script fetch job. This
+          // decouples the lifespan of the fetch restrictions from the creator
+          // frame/context (which may be destroyed during or long before the
+          // fetch).
+          (creator_policy_container_policies_.connection_allowlists.enforced
+               .has_value() ||
+           creator_policy_container_policies_.connection_allowlists.report_only
+               .has_value())
+              ? base::UnguessableToken::Create()
+              : network::GetNoOpNetworkRestrictionsId()),
       network_restrictions_id_(base::UnguessableToken::Create()) {
   CHECK(context_);
   CHECK(outside_fetch_client_settings_object_);
   CHECK(outside_fetch_client_settings_object_->policy_container_policies);
   internal_.registration = registration;
-
-  ServiceWorkerVersion* version = registration->GetNewestVersion();
-  if (version) {
-    scoped_refptr<PolicyContainerHost> policy_container_host =
-        version->policy_container_host();
-    if (policy_container_host) {
-      creator_policy_container_policies_ =
-          mojo::Clone(policy_container_host->policies());
-    }
-  }
 }
 
 ServiceWorkerRegisterJob::~ServiceWorkerRegisterJob() {
   DCHECK(phase_ == INITIAL || phase_ == COMPLETE || phase_ == ABORT)
       << "Jobs should only be interrupted during shutdown.";
+  if (creator_network_restrictions_id_ !=
+      network::GetNoOpNetworkRestrictionsId()) {
+    context_->wrapper()
+        ->storage_partition()
+        ->ClearNetworkRestrictionsAfterDelay(
+            {creator_network_restrictions_id_});
+  }
 }
 
 void ServiceWorkerRegisterJob::AddCallback(RegistrationCallback callback) {
@@ -171,6 +191,15 @@ void ServiceWorkerRegisterJob::Start() {
 
 void ServiceWorkerRegisterJob::StartImpl() {
   SetPhase(START);
+  if (creator_network_restrictions_id_ !=
+      network::GetNoOpNetworkRestrictionsId()) {
+    context_->wrapper()
+        ->storage_partition()
+        ->RestrictNetworkForIdsInNetworkContext(
+            {{creator_network_restrictions_id_,
+              creator_policy_container_policies_.connection_allowlists}},
+            base::DoNothing());
+  }
   ServiceWorkerRegistry::FindRegistrationCallback next_step;
   if (job_type_ == REGISTRATION_JOB) {
     next_step =

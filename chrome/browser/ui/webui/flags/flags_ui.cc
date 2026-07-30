@@ -17,6 +17,7 @@
 #include "chrome/browser/about_flags.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/webui/flags/flags_ui_handler.h"
 #include "chrome/common/pref_names.h"
 #include "components/grit/components_scaled_resources.h"
@@ -66,6 +67,8 @@ content::WebUIDataSource* CreateAndAddFlagsUIHTMLSource(Profile* profile) {
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       profile, chrome::kChromeUIFlagsHost);
   source->AddString(flags_ui::kVersion, version_info::GetVersionNumber());
+  source->AddBoolean("importExportEnabled", base::FeatureList::IsEnabled(
+                                                features::kImportExportFlags));
 
 #if BUILDFLAG(IS_CHROMEOS)
   if (!user_manager::UserManager::Get()->IsCurrentUserOwner() &&

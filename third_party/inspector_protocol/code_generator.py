@@ -754,9 +754,13 @@ def main():
 
   if deps_filename:
     assert stamp_filename
+    # source_set mixes relative input paths (the .pdl domains) with absolute
+    # ones (the jinja templates, from realpath(__file__)). Make every path
+    # relative to the cwd (the output dir, which is what depfile paths resolve
+    # against) so the depfile doesn't embed the checkout location.
+    deps = sorted(os.path.relpath(p) for p in source_set)
     with open(deps_filename, "w") as deps_file:
-      deps_file.write("%s: %s\n" %
-                      (stamp_filename, " ".join(sorted(source_set))))
+      deps_file.write("%s: %s\n" % (stamp_filename, " ".join(deps)))
 
 
 if __name__ == "__main__":

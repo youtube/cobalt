@@ -6,6 +6,8 @@ package org.chromium.chrome.browser.omnibox;
 
 import static org.hamcrest.core.IsEqual.equalTo;
 
+import static org.chromium.ui.test.util.MockitoHelper.clearInvocations;
+
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -581,8 +583,6 @@ public class UrlBarTest {
     @Test
     @SmallTest
     @DisabledTest(message = "Disabled because of b/333536371")
-    @SuppressWarnings(
-            "unchecked") // Mockito.clearInvocations() varargs on generic Callback<String>.
     public void testUrlTextChangeListener() {
         mUrlBar.setTextChangeListener(mUrlTextChangeListener);
 
@@ -592,7 +592,7 @@ public class UrlBarTest {
         // Setting autocomplete does not send a change update.
         mOmnibox.setAutocompleteText("oeia", null);
 
-        Mockito.clearInvocations(mUrlTextChangeListener);
+        clearInvocations(mUrlTextChangeListener);
         mOmnibox.setText("");
         Mockito.verify(mUrlTextChangeListener).onResult("");
     }

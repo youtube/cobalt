@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.tasks.tab_management.vertical_tabs;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.verify;
@@ -17,6 +18,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
+import androidx.annotation.Px;
 import androidx.test.filters.SmallTest;
 
 import org.junit.After;
@@ -92,11 +94,27 @@ public class VerticalTabsSideUiCoordinatorUnitTest {
 
     @Test
     @SmallTest
-    public void testDetermineContainerWidth() {
-        int viewWidth = ViewUtils.dpToPx(mActivity, VIEW_WIDTH_DP);
-        assertEquals(0, mCoordinator.determineContainerWidth(VIEW_WIDTH_DP, 500, 800));
+    public void testDetermineShowableWidth() {
+        @Px int viewWidth = ViewUtils.dpToPx(mActivity, VIEW_WIDTH_DP);
+
+        assertEquals(
+                0,
+                mCoordinator.determineShowableWidth(
+                        /* availableWidth= */ viewWidth - 1, /* windowWidth= */ viewWidth + 100));
+        assertEquals(
+                viewWidth,
+                mCoordinator.determineShowableWidth(
+                        /* availableWidth= */ viewWidth, /* windowWidth= */ viewWidth + 100));
+    }
+
+    @Test
+    @SmallTest
+    public void testHasContentToShow() {
         mCoordinator.setVisible(true);
-        assertEquals(VIEW_WIDTH_DP, mCoordinator.determineContainerWidth(VIEW_WIDTH_DP, 500, 800));
+        assertTrue(mCoordinator.hasContentToShow());
+
+        mCoordinator.setVisible(false);
+        assertFalse(mCoordinator.hasContentToShow());
     }
 
     @Test

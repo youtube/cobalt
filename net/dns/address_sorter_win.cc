@@ -43,7 +43,11 @@ class AddressSorterWin : public AddressSorter {
   // AddressSorter:
   void Sort(const std::vector<IPEndPoint>& endpoints,
             const NetworkAnonymizationKey& anonymization_key,
+            handles::NetworkHandle target_network,
             CallbackType callback) const override {
+    // Multi-network support is available only on Android, we should never
+    // receive a non-default `target_network` argument.
+    CHECK_EQ(target_network, handles::kInvalidNetworkHandle);
     DCHECK(!endpoints.empty());
     Job::Start(endpoints, std::move(callback));
   }

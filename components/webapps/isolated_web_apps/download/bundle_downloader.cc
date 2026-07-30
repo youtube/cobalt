@@ -4,6 +4,7 @@
 
 #include "components/webapps/isolated_web_apps/download/bundle_downloader.h"
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 
@@ -15,9 +16,12 @@
 #include "net/base/net_errors.h"
 #include "net/http/http_request_headers.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "services/network/public/cpp/ip_address_space_util.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
+#include "services/network/public/mojom/client_security_state.mojom.h"
+#include "services/network/public/mojom/network_context.mojom.h"
 #include "url/gurl.h"
 
 namespace web_app {
@@ -67,9 +71,10 @@ const base::FilePath& ScopedTempWebBundleFile::path() const {
 
 // static
 std::unique_ptr<IsolatedWebAppDownloader> IsolatedWebAppDownloader::Create(
-    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory) {
-  return base::WrapUnique(
-      new IsolatedWebAppDownloader(std::move(url_loader_factory)));
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    network::mojom::NetworkContext* network_context) {
+  return base::WrapUnique(new IsolatedWebAppDownloader(
+      std::move(url_loader_factory), network_context));
 }
 
 // static
@@ -79,8 +84,9 @@ IsolatedWebAppDownloader::CreateAndStartDownloading(
     base::FilePath destination,
     net::PartialNetworkTrafficAnnotationTag partial_traffic_annotation,
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    network::mojom::NetworkContext* network_context,
     IsolatedWebAppDownloader::DownloadCallback download_callback) {
-  auto downloader = Create(std::move(url_loader_factory));
+  auto downloader = Create(std::move(url_loader_factory), network_context);
   downloader->DownloadSignedWebBundle(std::move(url), std::move(destination),
                                       std::move(partial_traffic_annotation),
                                       std::move(download_callback));
@@ -88,8 +94,10 @@ IsolatedWebAppDownloader::CreateAndStartDownloading(
 }
 
 IsolatedWebAppDownloader::IsolatedWebAppDownloader(
-    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory)
-    : url_loader_factory_(std::move(url_loader_factory)) {}
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    network::mojom::NetworkContext* network_context)
+    : url_loader_factory_(std::move(url_loader_factory)),
+      host_resolver_(network::SimpleHostResolver::Create(network_context)) {}
 
 IsolatedWebAppDownloader::~IsolatedWebAppDownloader() = default;
 
@@ -126,6 +134,95 @@ void IsolatedWebAppDownloader::DownloadSignedWebBundle(
     base::FilePath destination,
     net::PartialNetworkTrafficAnnotationTag partial_traffic_annotation,
     DownloadCallback download_callback) {
+  if (auto space = network::GetAddressSpaceFromUrl(url)) {
+    DownloadSignedWebBundleWithAddressSpace(
+        std::move(url), std::move(destination),
+        std::move(partial_traffic_annotation), std::move(download_callback),
+        *space);
+    return;
+  }
+
+  network::mojom::ResolveHostParametersPtr parameters =
+      network::mojom::ResolveHostParameters::New();
+  parameters->initial_priority = net::RequestPriority::HIGHEST;
+
+  GURL url_copy = url;
+  host_resolver_->ResolveHost(
+      network::mojom::HostResolverHost::NewHostPortPair(
+          net::HostPortPair::FromURL(url_copy)),
+      net::NetworkAnonymizationKey(), std::move(parameters),
+      base::BindOnce(&IsolatedWebAppDownloader::OnHostResolved,
+                     weak_factory_.GetWeakPtr(),
+                     base::BindOnce(&IsolatedWebAppDownloader::
+                                        DownloadSignedWebBundleWithAddressSpace,
+                                    weak_factory_.GetWeakPtr(), std::move(url),
+                                    std::move(destination),
+                                    std::move(partial_traffic_annotation),
+                                    std::move(download_callback))));
+}
+
+void IsolatedWebAppDownloader::DownloadInitialBytes(
+    GURL url,
+    net::PartialNetworkTrafficAnnotationTag partial_traffic_annotation,
+    PartialDownloadCallback download_callback) {
+  if (auto space = network::GetAddressSpaceFromUrl(url)) {
+    DownloadInitialBytesWithAddressSpace(std::move(url),
+                                         std::move(partial_traffic_annotation),
+                                         std::move(download_callback), *space);
+    return;
+  }
+
+  network::mojom::ResolveHostParametersPtr parameters =
+      network::mojom::ResolveHostParameters::New();
+  parameters->initial_priority = net::RequestPriority::HIGHEST;
+
+  GURL url_copy = url;
+  host_resolver_->ResolveHost(
+      network::mojom::HostResolverHost::NewHostPortPair(
+          net::HostPortPair::FromURL(url_copy)),
+      net::NetworkAnonymizationKey(), std::move(parameters),
+      base::BindOnce(
+          &IsolatedWebAppDownloader::OnHostResolved, weak_factory_.GetWeakPtr(),
+          base::BindOnce(
+              &IsolatedWebAppDownloader::DownloadInitialBytesWithAddressSpace,
+              weak_factory_.GetWeakPtr(), std::move(url),
+              std::move(partial_traffic_annotation),
+              std::move(download_callback))));
+}
+
+void IsolatedWebAppDownloader::OnHostResolved(
+    base::OnceCallback<void(network::mojom::IPAddressSpace)> next_step_callback,
+    int result,
+    const net::ResolveErrorInfo& resolve_error_info,
+    const net::AddressList& resolved_addresses,
+    const net::HostResolverEndpointResults& alternative_endpoints) {
+  network::mojom::IPAddressSpace space =
+      network::mojom::IPAddressSpace::kUnknown;
+  if (result == net::OK && !resolved_addresses.empty()) {
+    // If resolved_addresses contains multiple addresses with different address
+    // spaces (e.g. both public and private IPs), using
+    // resolved_addresses.front() might lead to a security bypass if the network
+    // service ends up connecting to a public IP but we set the client security
+    // state to kLocal (based on the first address being private). To be safe,
+    // we iterate over all resolved addresses and choose the 'most public'
+    // (least privileged) address space (i.e. kPublic > kLocal > kLoopback).
+    space = network::IPAddressToIPAddressSpace(
+        std::ranges::max(resolved_addresses, network::IsLessPublicAddressSpace,
+                         [](const auto& endpoint) {
+                           return network::IPAddressToIPAddressSpace(
+                               endpoint.address());
+                         })
+            .address());
+  }
+  std::move(next_step_callback).Run(space);
+}
+
+void IsolatedWebAppDownloader::DownloadSignedWebBundleWithAddressSpace(
+    GURL url,
+    base::FilePath destination,
+    net::PartialNetworkTrafficAnnotationTag partial_traffic_annotation,
+    DownloadCallback download_callback,
+    network::mojom::IPAddressSpace client_space) {
   net::NetworkTrafficAnnotationTag traffic_annotation =
       GetNetworkTrafficAnnotationTag(std::move(partial_traffic_annotation));
 
@@ -133,6 +230,15 @@ void IsolatedWebAppDownloader::DownloadSignedWebBundle(
   resource_request->url = url;
   // Cookies are not allowed.
   resource_request->credentials_mode = network::mojom::CredentialsMode::kOmit;
+
+  auto client_security_state = network::mojom::ClientSecurityState::New();
+  client_security_state->ip_address_space = client_space;
+  client_security_state->is_web_secure_context = true;
+  client_security_state->local_network_access_request_policy =
+      network::mojom::LocalNetworkAccessRequestPolicy::kBlock;
+  resource_request->trusted_params = network::ResourceRequest::TrustedParams();
+  resource_request->trusted_params->client_security_state =
+      std::move(client_security_state);
 
   simple_url_loader_ = network::SimpleURLLoader::Create(
       std::move(resource_request), std::move(traffic_annotation));
@@ -152,13 +258,13 @@ void IsolatedWebAppDownloader::DownloadSignedWebBundle(
       destination);
 }
 
-void IsolatedWebAppDownloader::DownloadInitialBytes(
+void IsolatedWebAppDownloader::DownloadInitialBytesWithAddressSpace(
     GURL url,
     net::PartialNetworkTrafficAnnotationTag partial_traffic_annotation,
-    PartialDownloadCallback download_callback) {
+    PartialDownloadCallback download_callback,
+    network::mojom::IPAddressSpace client_space) {
   net::NetworkTrafficAnnotationTag traffic_annotation =
       GetNetworkTrafficAnnotationTag(std::move(partial_traffic_annotation));
-
   // 8 KiB - this should be enough to contain the entire integrity block of any
   // signed web bundle. While it is technically possible to create a bigger one,
   // there's no reason to do that. In such case, if it happens, this whole
@@ -172,6 +278,15 @@ void IsolatedWebAppDownloader::DownloadInitialBytes(
   resource_request->headers.SetHeader(
       net::HttpRequestHeaders::kRange,
       net::HttpByteRange::Bounded(0, kMaxInitialBytes - 1).GetHeaderValue());
+
+  auto client_security_state = network::mojom::ClientSecurityState::New();
+  client_security_state->ip_address_space = client_space;
+  client_security_state->is_web_secure_context = true;
+  client_security_state->local_network_access_request_policy =
+      network::mojom::LocalNetworkAccessRequestPolicy::kBlock;
+  resource_request->trusted_params = network::ResourceRequest::TrustedParams();
+  resource_request->trusted_params->client_security_state =
+      std::move(client_security_state);
 
   simple_url_loader_ = network::SimpleURLLoader::Create(
       std::move(resource_request), std::move(traffic_annotation));

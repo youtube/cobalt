@@ -35,7 +35,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="SimpleGeolocation.Provider.GeolocationControllerRequestInterval"
-    units="hours" expires_after="2026-08-02">
+    units="hours" expires_after="2027-02-02">
   <owner>alvinji@chromium.org</owner>
   <owner>deviceapi-team@google.com</owner>
   <summary>
@@ -60,7 +60,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SimpleGeolocation.Provider.TimezoneResolverRequestInterval"
-    units="hours" expires_after="2026-10-11">
+    units="hours" expires_after="2026-12-16">
   <owner>alvinji@chromium.org</owner>
   <owner>deviceapi-team@google.com</owner>
   <summary>

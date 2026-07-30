@@ -29,6 +29,7 @@ class SessionUiImpl : public SessionUi {
  private:
   friend class DictationSessionUiImplBrowserTest;
   void OnDictationBubbleCloseClicked();
+  void OnToggleActiveStreamClicked();
 
   const base::raw_ref<SessionUiDelegate> controller_;
 

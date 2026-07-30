@@ -32,7 +32,7 @@ class XRFrameRequestCallbackCollection final
   explicit XRFrameRequestCallbackCollection(ExecutionContext*);
   ~XRFrameRequestCallbackCollection() override = default;
 
-  using CallbackId = int;
+  using CallbackId = uint32_t;
   CallbackId RegisterCallback(V8XRFrameRequestCallback*);
   void CancelCallback(CallbackId);
   void ExecuteCallbacks(XRSession*, double timestamp, XRFrame*);
@@ -48,7 +48,7 @@ class XRFrameRequestCallbackCollection final
   }
 
  private:
-  bool IsValidCallbackId(int id) {
+  bool IsValidCallbackId(CallbackId id) {
     using Traits = HashTraits<CallbackId>;
     return !IsHashTraitsEmptyOrDeletedValue<Traits, CallbackId>(id);
   }
@@ -66,7 +66,7 @@ class XRFrameRequestCallbackCollection final
   CallbackFrameRequestMap current_callback_frame_requests_;
   CallbackAsyncTaskMap current_callback_async_tasks_;
 
-  CallbackId next_callback_id_ = 0;
+  CallbackId previous_callback_id_ = 0;
 
   // Trace IDs need to be unique for any outstanding frames. While we can only
   // have one immersive session at a time, that is not the case for inline

@@ -75,9 +75,9 @@
 #include "content/browser/browser_plugin/browser_plugin_embedder.h"
 #include "content/browser/browser_plugin/browser_plugin_guest.h"
 #include "content/browser/btm/btm_bounce_detector.h"
-#include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/closewatcher/close_listener_manager.h"
 #include "content/browser/compositor/surface_utils.h"
+#include "content/browser/declarative_performance_observer/declarative_performance_observer_coordinator.h"
 #include "content/browser/device_posture/device_posture_provider_impl.h"
 #include "content/browser/devtools/protocol/page_handler.h"
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
@@ -95,7 +95,6 @@
 #include "content/browser/media/audio_stream_monitor.h"
 #include "content/browser/media/media_web_contents_observer.h"
 #include "content/browser/memory/scheduler_loop_quarantine_web_contents_observer.h"
-#include "content/browser/network/declarative_performance_observer_coordinator.h"
 #include "content/browser/permissions/permission_controller_impl.h"
 #include "content/browser/permissions/permission_util.h"
 #include "content/browser/preloading/prefetch/prefetch_request.h"
@@ -130,6 +129,7 @@
 #include "content/browser/renderer_host/visible_time_request_trigger.h"
 #include "content/browser/screen_details/screen_change_monitor.h"
 #include "content/browser/screen_orientation/screen_orientation_provider.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/browser/shared_storage/shared_storage_budget_charger.h"
 #include "content/browser/site_instance_impl.h"
 #include "content/browser/surface_embed/surface_embed_connector_impl.h"
@@ -5744,6 +5744,8 @@ FrameTree* WebContentsImpl::CreateNewWindow(
     load_params->initiator_origin = opener->GetLastCommittedOrigin();
     load_params->initiator_process_id = render_process_id;
     load_params->initiator_frame_token = opener->GetFrameToken();
+    load_params->initiator_navigation_state =
+        opener->CreateInitiatorStateFromCurrentFrame();
     // Avoiding setting |load_params->source_site_instance| when
     // |opener_suppressed| is true, because in that case we do not want to use
     // the old SiteInstance and/or BrowsingInstance.  See also the test here:
@@ -5963,8 +5965,12 @@ void WebContentsImpl::ShowCreatedWidget(int process_id,
   // GetOutermostWebContents() returns |this| if there are no outer WebContents.
   auto* outer_web_contents = GetOuterWebContents();
   auto* outermost_web_contents = GetOutermostWebContents();
+  auto* surface_embed_connector = static_cast<SurfaceEmbedConnectorImpl*>(
+      outermost_web_contents->GetSurfaceEmbedConnector());
   RenderWidgetHostView* view =
-      outermost_web_contents->GetRenderWidgetHostView();
+      surface_embed_connector
+          ? surface_embed_connector->GetRootRenderWidgetHostView()
+          : outermost_web_contents->GetRenderWidgetHostView();
   // It's not entirely obvious why we need the transform only in the case where
   // the outer webcontents is not the same as the outermost webcontents. It may
   // be due to the fact that oopifs that are children of the mainframe get
@@ -7806,6 +7812,16 @@ void WebContentsImpl::OnStartDragging(
     return;
   }
 
+  // Do not contaminate pure local file drags (e.g., from ChromeOS Files app)
+  // with drag tracking tokens.
+  bool is_pure_file_drag =
+      !drop_data->filenames.empty() && !drop_data->text.has_value() &&
+      !drop_data->html.has_value() && drop_data->file_contents.empty();
+
+  if (is_pure_file_drag) {
+    return;
+  }
+
   DragId drag_id(base::UnguessableToken::Create());
 
   DragSourceDocumentTracker::GetOrCreateForCurrentDocument(source_frame)
@@ -7949,7 +7965,8 @@ void WebContentsImpl::DidFinishNavigation(NavigationHandle* navigation_handle) {
     DCHECK(navigation_handle->IsInPrimaryMainFrame());
     auto* rfhi = static_cast<RenderFrameHostImpl*>(
         navigation_handle->GetRenderFrameHost());
-    UpdateFaviconURL(rfhi, rfhi->FaviconURLs());
+    UpdateFaviconURL(rfhi, rfhi->FaviconURLs(),
+                     blink::mojom::FaviconUpdateReason::kPageLoad);
     OnManifestUrlChanged(rfhi->GetPage());
 
     // The page might have set its title while prerendering, and if it was, we
@@ -8857,7 +8874,8 @@ void WebContentsImpl::OpenColorChooser(
 
 void WebContentsImpl::UpdateFaviconURL(
     RenderFrameHostImpl* source,
-    const std::vector<blink::mojom::FaviconURLPtr>& candidates) {
+    const std::vector<blink::mojom::FaviconURLPtr>& candidates,
+    blink::mojom::FaviconUpdateReason reason) {
   OPTIONAL_TRACE_EVENT1("content", "WebContentsImpl::UpdateFaviconURL",
                         "render_frame_host", source);
   // We get updated favicon URLs after the page stops loading. If a cross-site
@@ -8869,7 +8887,7 @@ void WebContentsImpl::UpdateFaviconURL(
   }
 
   observers_.NotifyObservers(&WebContentsObserver::DidUpdateFaviconURL, source,
-                             candidates);
+                             candidates, reason);
 }
 
 void WebContentsImpl::SetIsOverlayContent(bool is_overlay_content) {
@@ -9950,6 +9968,40 @@ void WebContentsImpl::SetWindowRect(const gfx::Rect& new_bounds) {
     return;
   }
 
+  delegate_->SetContentsBounds(this, bounds);
+}
+
+void WebContentsImpl::MoveWindowTo(const gfx::Point& origin) {
+  OPTIONAL_TRACE_EVENT0("content", "WebContentsImpl::MoveWindowTo");
+  if (!delegate_) {
+    return;
+  }
+  auto* view = GetPrimaryMainFrame()->GetView();
+  if (!view) {
+    return;
+  }
+  gfx::Rect bounds(origin, view->GetBoundsInRootWindow().size());
+  int64_t display_id = AdjustWindowRect(&bounds, GetPrimaryMainFrame());
+  if (!ForSecurityDropFullscreen(display_id)) {
+    return;
+  }
+  delegate_->SetContentsBounds(this, bounds);
+}
+
+void WebContentsImpl::ResizeWindowTo(const gfx::Size& size) {
+  OPTIONAL_TRACE_EVENT0("content", "WebContentsImpl::ResizeWindowTo");
+  if (!delegate_) {
+    return;
+  }
+  auto* view = GetPrimaryMainFrame()->GetView();
+  if (!view) {
+    return;
+  }
+  gfx::Rect bounds(view->GetBoundsInRootWindow().origin(), size);
+  int64_t display_id = AdjustWindowRect(&bounds, GetPrimaryMainFrame());
+  if (!ForSecurityDropFullscreen(display_id)) {
+    return;
+  }
   delegate_->SetContentsBounds(this, bounds);
 }
 
@@ -12260,6 +12312,13 @@ void WebContentsImpl::SetVisibilityForChildViews(bool visible) {
 }
 
 void WebContentsImpl::HandleColorRelatedStateChanges() {
+  // This can be reached re-entrantly during ~WebContentsImpl, after the
+  // primary main frame has begun being destroyed. Bail out before
+  // dereferencing it via GetPrimaryMainFrame() below.
+  if (IsBeingDestroyed()) {
+    return;
+  }
+
   if (const auto* const theme = ui::NativeTheme::GetInstanceForWeb();
       prefers_reduced_transparency_ != theme->prefers_reduced_transparency() ||
       inverted_colors_ != theme->inverted_colors() ||
@@ -12321,6 +12380,12 @@ void WebContentsImpl::OnCaptionStyleUpdated() {
 }
 
 void WebContentsImpl::OnColorProviderChanged() {
+  // OnColorProviderChanged() might have been triggered as the result of the
+  // observed source being destroyed during teardown, in this case, no-op.
+  if (IsBeingDestroyed()) {
+    return;
+  }
+
   // OnColorProviderChanged() might have been triggered as the result of the
   // observed source being reset. If this is the case fallback to the default
   // source.
@@ -12756,8 +12821,8 @@ bool WebContentsImpl::CancelPrerendering(FrameTreeNode* frame_tree_node,
         ->CancelPrerendering(PrerenderCancellationReason(final_status));
   }
   return GetPrerenderHostRegistry()->CancelHost(
-            frame_tree_node->frame_tree().delegate()->GetPrerenderHostId(),
-            final_status);
+      frame_tree_node->frame_tree().delegate()->GetPrerenderHostId(),
+      final_status);
 }
 
 ui::mojom::VirtualKeyboardMode WebContentsImpl::GetVirtualKeyboardMode() const {

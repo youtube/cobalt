@@ -295,6 +295,8 @@ void WebUIBrowserWindow::Show() {
   // which calls PaintAsActiveChanged() -> Browser::DidBecomeActive(). The
   // Browser must be fully constructed by that point.
   web_view_->GetWebContents()->SetInitialFocus();
+
+  EnsureActiveTabHasNonZeroSize();
 }
 
 // The code about Browser's activation state is copied from
@@ -308,6 +310,41 @@ void WebUIBrowserWindow::PaintAsActiveChanged() {
   if (webui_browser::mojom::Page* page = GetWebUIBrowserUI()->page()) {
     page->OnPaintAsActiveChanged(widget_->ShouldPaintAsActive());
   }
+}
+
+// In BrowserView when a new window is opened, the active tab's
+// initial size is determined synchronously during the window's layout in the
+// browser process.
+//
+// In contrast, the WebUI Browser's UI is hosted as a WebUI page in a separate
+// renderer process, and the tab WebContents is embedded inside it. Sizing of
+// the tab is determined asynchronously when the WebUI layout finishes. As a
+// result, the tab initially has a size of 0x0. CDP clients can query the page
+// while the document still has zero size, causing WPT tests to fail because the
+// zero-sized viewport is considered "non-interactive".
+//
+// To workaround this, we forcefully assign a non-zero initial size to the
+// active tab WebContents before clients can interact with it.
+void WebUIBrowserWindow::EnsureActiveTabHasNonZeroSize() {
+  content::WebContents* active_contents =
+      browser_->tab_strip_model()->GetActiveWebContents();
+  if (!active_contents) {
+    return;
+  }
+
+  if (!active_contents->GetSize().IsZero()) {
+    return;
+  }
+
+  gfx::Size size = GetContentsSize();
+  // The content size is determined by the WebUI layout. If the layout is
+  // not yet available during browser startup, fallback to the restored bounds
+  // of the window.
+  if (size.IsEmpty()) {
+    size = GetRestoredBounds().size();
+  }
+
+  active_contents->Resize(gfx::Rect(size));
 }
 
 void WebUIBrowserWindow::ShowInactive() {
@@ -1160,8 +1197,7 @@ bool WebUIBrowserWindow::IsFullscreen() const {
 }
 
 gfx::Rect WebUIBrowserWindow::GetRestoredBounds() const {
-  NOTIMPLEMENTED_LOG_ONCE();
-  return gfx::Rect();
+  return widget_->GetRestoredBounds();
 }
 
 ui::mojom::WindowShowState WebUIBrowserWindow::GetRestoredState() const {

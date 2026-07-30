@@ -40,7 +40,8 @@ jclass AutocompleteMatch::GetClazz(JNIEnv* env) {
 }
 
 ScopedJavaLocalRef<jobject> AutocompleteMatch::GetOrCreateJavaObject(
-    JNIEnv* env) const {
+    JNIEnv* env,
+    const TemplateURLService* template_url_service) const {
   // Short circuit if we already built the match.
   if (java_match_)
     return ScopedJavaLocalRef<jobject>(*java_match_);
@@ -104,6 +105,8 @@ ScopedJavaLocalRef<jobject> AutocompleteMatch::GetOrCreateJavaObject(
           base::android::ToJavaByteArray(env, str_suggest_template);
     }
   }
+
+  int starter_pack_id = static_cast<int>(StarterPackId(template_url_service));
 
   java_match_ = std::make_unique<ScopedJavaGlobalRef<jobject>>(
       Java_AutocompleteMatch_build(

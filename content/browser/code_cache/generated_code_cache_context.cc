@@ -9,12 +9,14 @@
 #include <optional>
 #include <string>
 
+#include "base/barrier_closure.h"
 #include "base/containers/span.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
@@ -22,6 +24,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/sequence_checker.h"
 #include "base/system/sys_info.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner_thread_mode.h"
 #include "base/task/task_traits.h"
@@ -228,6 +231,18 @@ void GeneratedCodeCacheContext::Shutdown() {
   task_runner_.reset();
 }
 
+void GeneratedCodeCacheContext::ShutdownForTesting(base::OnceClosure callback) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  auto ui_callback = base::BindPostTaskToCurrentDefault(std::move(callback));
+
+  RunOrPostTask(
+      this, FROM_HERE,
+      base::BindOnce(&GeneratedCodeCacheContext::ShutdownOnThreadForTesting,
+                     this, std::move(ui_callback),
+                     std::move(task_runner_for_resource_)));
+  task_runner_.reset();
+}
+
 void GeneratedCodeCacheContext::ClearAndDeletePersistentCacheCollection() {
 #if !BUILDFLAG(IS_FUCHSIA)
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -319,6 +334,51 @@ void GeneratedCodeCacheContext::ShutdownOnThread(
   generated_js_code_cache_.reset();
   generated_wasm_code_cache_.reset();
   generated_webui_js_code_cache_.reset();
+}
+
+void GeneratedCodeCacheContext::ShutdownOnThreadForTesting(  // IN-TEST
+    base::OnceClosure callback,
+    DedicatedTaskRunnerForResource task_runner_for_resource) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  std::vector<GeneratedCodeCache*> caches_to_wait;
+  if (generated_js_code_cache_) {
+    caches_to_wait.push_back(generated_js_code_cache_.get());
+  }
+  if (generated_wasm_code_cache_) {
+    caches_to_wait.push_back(generated_wasm_code_cache_.get());
+  }
+  if (generated_webui_js_code_cache_) {
+    caches_to_wait.push_back(generated_webui_js_code_cache_.get());
+  }
+
+  if (caches_to_wait.empty()) {
+    ShutdownOnThread(std::move(task_runner_for_resource));
+    std::move(callback).Run();
+    return;
+  }
+
+#if !BUILDFLAG(IS_FUCHSIA)
+  persistent_cache_collection_.reset();
+#endif  // !BUILDFLAG(IS_FUCHSIA)
+
+  // A callback to be run once all GeneratedCodeCache instances have completely
+  // shut down their backends.
+  auto on_cleanup_complete = base::BindOnce(
+      [](scoped_refptr<GeneratedCodeCacheContext> self,
+         base::OnceClosure callback,
+         DedicatedTaskRunnerForResource task_runner_for_resource) {
+        self->ShutdownOnThread(std::move(task_runner_for_resource));
+        std::move(callback).Run();
+      },
+      base::WrapRefCounted(this), std::move(callback),
+      std::move(task_runner_for_resource));
+
+  auto barrier = base::BarrierClosure(caches_to_wait.size(),
+                                      std::move(on_cleanup_complete));
+  for (auto* cache : caches_to_wait) {
+    cache->ShutdownForTesting(barrier);  // IN-TEST
+  }
 }
 
 GeneratedCodeCache* GeneratedCodeCacheContext::generated_js_code_cache() const {

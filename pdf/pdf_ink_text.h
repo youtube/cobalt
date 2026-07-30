@@ -107,7 +107,16 @@ struct InkTextInfo {
               std::vector<uint32_t> glyphs,
               std::vector<float> glyph_positions,
               gfx::RectF location,
-              bool is_horizontal);
+              bool is_horizontal,
+              std::u16string text);
+  InkTextInfo(FontId font_id,
+              std::vector<uint32_t> glyphs,
+              std::vector<float> glyph_positions,
+              gfx::RectF location,
+              bool is_horizontal,
+              bool is_synthetic_bold,
+              bool is_synthetic_italic,
+              std::u16string text);
   InkTextInfo(InkTextInfo&&) noexcept;
   InkTextInfo& operator=(InkTextInfo&&) noexcept;
   ~InkTextInfo();
@@ -118,12 +127,22 @@ struct InkTextInfo {
 
   FontId font_id;
   std::vector<uint32_t> glyphs;
+
   // Positions relative to the origin of the `location` rect in CSS pixels.
-  // if is_horizontal is true, x-axis, if false, y-axis.
+  // if is_horizontal is true, x-axis, if false, y-axis. Has the same length as
+  // `glyphs`.
   std::vector<float> glyph_positions;
+
   // In CSS pixels. Based on top left of screen origin.
   gfx::RectF location;
   bool is_horizontal;
+  bool is_synthetic_bold;
+  bool is_synthetic_italic;
+
+  // The UTF-16 text represented by the glyphs in this InkTextInfo. The length
+  // of `glyphs` and `text` are not the same in general. So it's not possible to
+  // take substrings of `text` at this point.
+  std::u16string text;
 };
 
 }  // namespace chrome_pdf

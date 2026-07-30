@@ -68,4 +68,16 @@ void QuicChromiumClientSessionPeer::SetDefaultNetwork(
   session->default_network_ = network;
 }
 
+// static
+bool QuicChromiumClientSessionPeer::IsMigrateBackToDefaultNetworkTimerRunning(
+    QuicChromiumClientSession* session) {
+  return session->migrate_back_to_default_timer_.IsRunning();
+}
+
+// static
+void QuicChromiumClientSessionPeer::OnCryptoHandshakeComplete(
+    QuicChromiumClientSession* session) {
+  session->OnCryptoHandshakeComplete();
+}
+
 }  // namespace net::test

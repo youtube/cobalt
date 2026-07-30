@@ -4,10 +4,8 @@
 
 #include "chrome/browser/ui/views/tabs/tab/glow_hover_controller.h"
 
-#include "base/feature_list.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/time/time.h"
-#include "chrome/browser/ui/ui_features.h"
 #include "ui/views/view.h"
 
 // Amount to scale the opacity. The spec is in terms of a Sketch radial gradient

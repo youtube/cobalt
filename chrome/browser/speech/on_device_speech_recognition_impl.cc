@@ -6,16 +6,22 @@
 
 #include <algorithm>
 
+#include "base/metrics/histogram_functions.h"
+#include "base/notreached.h"
+#include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_types.h"
+#include "components/language/core/browser/pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/soda/constants.h"
 #include "components/soda/pref_names.h"
 #include "components/soda/soda_installer.h"
 #include "content/public/browser/document_user_data.h"
+#include "content/public/browser/permission_controller.h"
+#include "content/public/browser/permission_descriptor_util.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/security_principal.h"
@@ -24,6 +30,7 @@
 #include "media/mojo/mojom/speech_recognizer.mojom.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
+#include "third_party/blink/public/common/permissions/permission_utils.h"
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"  // nogncheck crbug.com/40147906
@@ -39,12 +46,51 @@ namespace {
 const char kOnDeviceLanguagesDownloadedKey[] = "ondevice-languages-downloaded";
 const char kEnglishLanguageCodeKey[] = "en-US";
 
+int GetPriority(media::mojom::AvailabilityStatus status) {
+  switch (status) {
+    case media::mojom::AvailabilityStatus::kUnavailable:
+      return 0;
+    case media::mojom::AvailabilityStatus::kDownloadable:
+      return 1;
+    case media::mojom::AvailabilityStatus::kDownloadableWithoutUserActivation:
+      return 2;
+    case media::mojom::AvailabilityStatus::kDownloading:
+      return 3;
+    case media::mojom::AvailabilityStatus::kAvailable:
+      return 4;
+  }
+  NOTREACHED();
+}
+
 // Returns a boolean indicating whether the language is enabled.
 bool IsLanguageInstallable(std::string_view language_code,
                            bool is_soda_binary_installed) {
   return std::ranges::contains(
       speech::SodaInstaller::GetInstance()->GetLiveCaptionEnabledLanguages(),
       language_code);
+}
+
+std::vector<std::string_view> GetAcceptLanguagesList(
+    PrefService* profile_prefs,
+    std::string& accept_languages_out) {
+  if (!profile_prefs) {
+    return {};
+  }
+  accept_languages_out =
+      profile_prefs->GetString(language::prefs::kAcceptLanguages);
+  return base::SplitStringPiece(accept_languages_out, ",",
+                                base::TRIM_WHITESPACE,
+                                base::SPLIT_WANT_NONEMPTY);
+}
+
+bool HasMicPermission(content::RenderFrameHost& rfh) {
+  return rfh.GetBrowserContext()
+             ->GetPermissionController()
+             ->GetPermissionStatusForCurrentDocument(
+                 content::PermissionDescriptorUtil::
+                     CreatePermissionDescriptorForPermissionType(
+                         blink::PermissionType::AUDIO_CAPTURE),
+                 &rfh) == blink::mojom::PermissionStatus::GRANTED;
 }
 
 }  // namespace
@@ -101,6 +147,16 @@ void OnDeviceSpeechRecognitionImpl::Available(
 
   media::mojom::AvailabilityStatus overall_status =
       media::mojom::AvailabilityStatus::kAvailable;
+
+  Profile* profile =
+      Profile::FromBrowserContext(render_frame_host().GetBrowserContext());
+  PrefService* profile_prefs = profile ? profile->GetPrefs() : nullptr;
+  std::string accept_languages;
+  std::vector<std::string_view> accept_languages_list =
+      GetAcceptLanguagesList(profile_prefs, accept_languages);
+
+  bool has_mic_permission = HasMicPermission(render_frame_host());
+
   for (std::string_view language : languages) {
     std::optional<speech::SodaLanguagePackComponentConfig> language_config =
         speech::GetLanguageComponentConfigMatchingLanguageSubtag(language);
@@ -116,8 +172,11 @@ void OnDeviceSpeechRecognitionImpl::Available(
     //   'downloadable' if all languages are either available, downloading, or
     //   downloadable 'unavailable' in if one or more language is unavailable
     media::mojom::AvailabilityStatus status = GetMaskedAvailabilityStatus(
-        language_config.value().language_name, quality);
-    overall_status = std::min(overall_status, status);
+        language_config.value().language_name, quality, accept_languages_list,
+        has_mic_permission, profile_prefs);
+    if (GetPriority(status) < GetPriority(overall_status)) {
+      overall_status = status;
+    }
   }
 
   std::move(callback).Run(overall_status);
@@ -214,15 +273,15 @@ void OnDeviceSpeechRecognitionImpl::Install(
                        weak_ptr_factory_.GetWeakPtr()));
   } else {
     std::set<std::string> pending_languages;
-    if (!speech::SodaInstaller::GetInstance()->IsSodaBinaryInstalled()) {
-      pending_languages.insert("");
-    }
 
+    const bool binary_installed =
+        speech::SodaInstaller::GetInstance()->IsSodaBinaryInstalled();
     const std::set<speech::LanguageCode> installed_languages =
         speech::SodaInstaller::GetInstance()->InstalledLanguages();
 
     for (std::string_view language : language_names_key) {
-      if (!installed_languages.contains(speech::GetLanguageCode(language))) {
+      if (!binary_installed ||
+          !installed_languages.contains(speech::GetLanguageCode(language))) {
         pending_languages.insert(std::string(language));
       }
     }
@@ -387,35 +446,68 @@ void OnDeviceSpeechRecognitionImpl::
 media::mojom::AvailabilityStatus
 OnDeviceSpeechRecognitionImpl::GetMaskedAvailabilityStatus(
     std::string_view language,
-    media::mojom::SpeechRecognitionQuality quality) {
+    media::mojom::SpeechRecognitionQuality quality,
+    const std::vector<std::string_view>& accept_languages_list,
+    bool has_mic_permission,
+    PrefService* profile_prefs) {
   media::mojom::AvailabilityStatus availability_status =
       GetOnDeviceSpeechRecognitionAvailabilityStatus(
           render_frame_host().GetBrowserContext(), language, quality);
+  bool has_mic_and_accept_lang = false;
+
+  if (has_mic_permission) {
+    has_mic_and_accept_lang = std::ranges::any_of(
+        accept_languages_list, [&language](std::string_view accept_lang) {
+          return base::EqualsCaseInsensitiveASCII(accept_lang, language);
+        });
+  }
+
   if (availability_status == media::mojom::AvailabilityStatus::kAvailable &&
-      !HasOnDeviceLanguageDownloaded(language)) {
+      IsLanguageAvailabilityMaskedForOrigin(language, has_mic_and_accept_lang,
+                                            profile_prefs)) {
     return media::mojom::AvailabilityStatus::kDownloadable;
+  }
+
+  if (availability_status == media::mojom::AvailabilityStatus::kDownloadable &&
+      has_mic_and_accept_lang) {
+    return media::mojom::AvailabilityStatus::kDownloadableWithoutUserActivation;
   }
 
   return availability_status;
 }
 
-bool OnDeviceSpeechRecognitionImpl::HasOnDeviceLanguageDownloaded(
-    std::string_view language) {
+bool OnDeviceSpeechRecognitionImpl::IsLanguageAvailabilityMaskedForOrigin(
+    std::string_view language,
+    bool has_mic_and_accept_lang,
+    PrefService* profile_prefs) {
+  if (base::FeatureList::IsEnabled(media::kPreemptiveSodaDownload) &&
+      profile_prefs) {
+    if (language ==
+        speech::GetDefaultLiveCaptionLanguage(
+            g_browser_process->GetApplicationLocale(), profile_prefs)) {
+      return false;
+    }
+  }
+
+  if (has_mic_and_accept_lang) {
+    return false;
+  }
+
   const GURL url = render_frame_host().GetLastCommittedOrigin().GetURL();
   if (!url.is_valid() || url.SchemeIsFile()) {
-    return transient_on_device_languages_downloaded_.contains(
+    return !transient_on_device_languages_downloaded_.contains(
         std::string(language));
   }
 
   base::Value on_device_languages_downloaded_value =
       GetOnDeviceLanguagesDownloadedValue();
   if (on_device_languages_downloaded_value.is_dict()) {
-    return on_device_languages_downloaded_value.GetDict()
-        .EnsureList(kOnDeviceLanguagesDownloadedKey)
-        ->contains(language);
+    return !on_device_languages_downloaded_value.GetDict()
+                .EnsureList(kOnDeviceLanguagesDownloadedKey)
+                ->contains(language);
   }
 
-  return false;
+  return true;
 }
 
 void OnDeviceSpeechRecognitionImpl::SetOnDeviceLanguageDownloaded(

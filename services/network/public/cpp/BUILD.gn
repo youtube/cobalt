@@ -942,6 +942,7 @@ source_set("tests") {
     "//services/network/public/mojom:mojom_ad_auction",
     "//services/network/public/mojom:mojom_permissions_policy",
     "//testing/gtest",
+    "//third_party/fuzztest",
   ]
 
   public_deps = [ ":buildflags" ]

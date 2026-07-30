@@ -60,13 +60,9 @@ std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
   config.features_enabled.push_back(kPageActionMenu);
   // TODO(crbug.com/511992708): Fix these tests when Chrome Next is enabled.
   config.features_disabled.push_back(kChromeNextIa);
-
-  if ([self isRunningTest:@selector
-            (testAskGeminiChipDoesNotShowForNonConsentedUsers)]) {
-    config.features_enabled.push_back(kAskGeminiChip);
-  } else {
-    config.features_enabled_and_params.push_back(
-        {kAskGeminiChip, {{kAskGeminiChipIgnoreCriteria, "true"}}});
+  if (![self isRunningTest:
+                 @selector(testAskGeminiChipDoesNotShowForNonConsentedUsers)]) {
+    config.features_enabled.push_back(kAskGeminiChipIgnoreCriteria);
   }
 
   if ([self isRunningTest:@selector

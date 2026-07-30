@@ -87,7 +87,7 @@ void ResetDeviceRestoreDataForTesting();
 // name or the email.
 NSString* UserGivenNameFullNameOrEmail(id<SystemIdentity> identity);
 
-// Returns the user full name of `identity`. In case it’s nil, returns the the
+// Returns the user full name of `identity`. In case it’s nil, returns the
 // email.
 NSString* UserFullNameOrEmail(id<SystemIdentity> identity);
 

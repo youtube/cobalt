@@ -4,15 +4,23 @@
 
 #include "components/sqlite_vfs/vfs_utils.h"
 
+#include <stdint.h>
+
+#include <array>
+#include <optional>
+
 #include "base/check.h"
+#include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/clamped_math.h"
+#include "base/types/expected.h"
 #include "base/uuid.h"
 #include "build/build_config.h"
 #include "components/sqlite_vfs/constants.h"
+#include "components/sqlite_vfs/file_set_error.h"
 #include "components/sqlite_vfs/file_type.h"
 #include "components/sqlite_vfs/metrics_util.h"
 #include "components/sqlite_vfs/pending_file_set.h"
@@ -28,6 +36,32 @@
 namespace sqlite_vfs {
 
 namespace {
+
+// Returns a FileSetError based on `error` for `path` (if provided).
+FileSetError FileErrorToFileSetError(base::File::Error error,
+                                     const base::FilePath& path = {}) {
+  switch (error) {
+    case base::File::FILE_ERROR_IN_USE:
+    case base::File::FILE_ERROR_NO_SPACE:
+    case base::File::FILE_ERROR_TOO_MANY_OPENED:
+      return FileSetError::kTransient;
+
+    case base::File::FILE_ERROR_NOT_FOUND:
+      return FileSetError::kPermanent;
+
+    case base::File::FILE_ERROR_ACCESS_DENIED:
+      if (!path.empty() && base::DirectoryExists(path)) {
+        return FileSetError::kPermanentRequireDeletion;
+      }
+      return FileSetError::kPermanent;
+
+    case base::File::FILE_ERROR_NOT_A_FILE:
+      return FileSetError::kPermanentRequireDeletion;
+
+    default:
+      return FileSetError::kPermanent;
+  }
+}
 
 // Returns a duplicate of `source_file` (at `source_file_path`) which has either
 // read-only (`source_is_read_write` = false) or read-write (otherwise) access
@@ -70,9 +104,32 @@ base::File DuplicateFile(const base::File& source_file,
 #endif
 }
 
+// Returns true if `db_file` plausibly looks like it was last written to using a
+// write-ahead log rather than a rollback journal. Returns false for all errors.
+bool IsWalMode(base::File& db_file) {
+  // https://sqlite.org/fileformat.html#file_format_version_numbers
+  static constexpr int64_t kReadVersionOffset = 19;
+
+  std::array<uint8_t, 1> read_version_byte;
+
+  if (db_file.Read(kReadVersionOffset, read_version_byte) !=
+      read_version_byte.size()) {
+    return false;  // Either an I/O error or an empty file.
+  }
+
+  // While all database files are required to begin with "SQLite format 3\0", do
+  // not check for that here. The file will be rejected by SQLite when it is
+  // opened. Check only whether or not the read version is 2; see
+  // https://crsrc.org/c/third_party/sqlite/src/src/btree.c?q=%22read%20version%20is%20set%20to%202%22.
+
+  static constexpr uint8_t kWalJournalingMode = 2;
+
+  return read_version_byte[0] == kWalJournalingMode;
+}
+
 }  // namespace
 
-std::optional<PendingFileSet> MakePendingFileSet(
+base::expected<PendingFileSet, FileSetError> MakePendingFileSet(
     Client client,
     const base::FilePath& directory,
     const base::FilePath& base_name,
@@ -136,35 +193,55 @@ std::optional<PendingFileSet> MakePendingFileSet(
       GetHistogramName(client, "CreateResult", FileType::kMainDb),
       -pending_file_set.db_file.error_details(), -base::File::FILE_ERROR_MAX);
   if (!pending_file_set.db_file.IsValid()) {
-    return std::nullopt;
+    return base::unexpected(FileErrorToFileSetError(
+        pending_file_set.db_file.error_details(), db_file_path));
   }
 
-  // The rollback journal file is always needed; even if write-ahead logging is
-  // desired.
-  pending_file_set.journal_file = base::File(journal_file_path, create_flags);
-  base::UmaHistogramExactLinear(
-      GetHistogramName(client, "CreateResult", FileType::kMainJournal),
-      -pending_file_set.journal_file.error_details(),
-      -base::File::FILE_ERROR_MAX);
-  if (!pending_file_set.journal_file.IsValid()) {
-    return std::nullopt;
+  // Check the state of the main database file to determine whether the rollback
+  // journal and/or the write-ahead log are needed.
+  const bool db_is_wal = IsWalMode(pending_file_set.db_file);
+  const bool need_journal = !journal_mode_wal || !db_is_wal;
+  const bool need_wal = journal_mode_wal || db_is_wal;
+
+  if (need_journal) {
+    pending_file_set.journal_file = base::File(journal_file_path, create_flags);
+    base::UmaHistogramExactLinear(
+        GetHistogramName(client, "CreateResult", FileType::kMainJournal),
+        -pending_file_set.journal_file.error_details(),
+        -base::File::FILE_ERROR_MAX);
+    if (!pending_file_set.journal_file.IsValid()) {
+      return base::unexpected(FileErrorToFileSetError(
+          pending_file_set.journal_file.error_details(), journal_file_path));
+    }
+  } else {
+    // Delete a stray -journal file left behind by a previous migration to
+    // WAL-mode.
+    base::DeleteFile(journal_file_path);
   }
 
-  // The write-ahead log file must be created if WAL-mode is requested. An
-  // existing one must be opened even if WAL-mode is not requested to enable
-  // migration from WAL back to use of a rollback journal.
-  pending_file_set.wal_file = base::File(
-      wal_file_path,
-      (journal_mode_wal ? create_flags
-                        : ((create_flags & ~base::File::FLAG_OPEN_ALWAYS) |
-                           base::File::FLAG_OPEN)));
-  base::UmaHistogramExactLinear(
-      GetHistogramName(client, "CreateResult", FileType::kWal),
-      -pending_file_set.wal_file.error_details(), -base::File::FILE_ERROR_MAX);
-  if (!pending_file_set.wal_file.IsValid() &&
-      (journal_mode_wal || pending_file_set.wal_file.error_details() !=
-                               base::File::FILE_ERROR_NOT_FOUND)) {
-    return std::nullopt;
+  if (need_wal) {
+    // The write-ahead log file must be created if WAL-mode is requested. An
+    // existing one must be opened even if WAL-mode is not requested to enable
+    // migration from WAL back to use of a rollback journal.
+    pending_file_set.wal_file = base::File(
+        wal_file_path,
+        (journal_mode_wal ? create_flags
+                          : ((create_flags & ~base::File::FLAG_OPEN_ALWAYS) |
+                             base::File::FLAG_OPEN)));
+    base::UmaHistogramExactLinear(
+        GetHistogramName(client, "CreateResult", FileType::kWal),
+        -pending_file_set.wal_file.error_details(),
+        -base::File::FILE_ERROR_MAX);
+    if (!pending_file_set.wal_file.IsValid() &&
+        (journal_mode_wal || pending_file_set.wal_file.error_details() !=
+                                 base::File::FILE_ERROR_NOT_FOUND)) {
+      return base::unexpected(FileErrorToFileSetError(
+          pending_file_set.wal_file.error_details(), wal_file_path));
+    }
+  } else {
+    // Delete a stray -wal file left behind by a previous migration to rollback
+    // journaling.
+    base::DeleteFile(wal_file_path);
   }
 
   if (!single_connection && pending_file_set.wal_file.IsValid()) {
@@ -238,7 +315,9 @@ std::optional<PendingFileSet> MakePendingFileSet(
           -pending_file_set.wal_index_file_read_only.error_details(),
           -base::File::FILE_ERROR_MAX);
       if (!pending_file_set.wal_index_file_read_only.IsValid()) {
-        return std::nullopt;
+        return base::unexpected(FileErrorToFileSetError(
+            pending_file_set.wal_index_file_read_only.error_details(),
+            wal_index_file_path));
       }
     }
 #endif
@@ -248,7 +327,9 @@ std::optional<PendingFileSet> MakePendingFileSet(
         -pending_file_set.wal_index_file.error_details(),
         -base::File::FILE_ERROR_MAX);
     if (!pending_file_set.wal_index_file.IsValid()) {
-      return std::nullopt;
+      return base::unexpected(FileErrorToFileSetError(
+          pending_file_set.wal_index_file.error_details(),
+          wal_index_file_path));
     }
   }
 
@@ -257,7 +338,7 @@ std::optional<PendingFileSet> MakePendingFileSet(
     pending_file_set.shared_lock = SharedLocks::CreateRegion(
         /*wal_mode=*/pending_file_set.wal_file.IsValid());
     if (!pending_file_set.shared_lock.IsValid()) {
-      return std::nullopt;
+      return base::unexpected(FileSetError::kTransient);
     }
   }
 
@@ -270,46 +351,51 @@ std::optional<PendingFileSet> MakePendingFileSet(
   return pending_file_set;
 }
 
-std::optional<PendingFileSet> ShareConnection(const base::FilePath& directory,
-                                              const base::FilePath& base_name,
-                                              const SqliteVfsFileSet& file_set,
-                                              bool read_write) {
+base::expected<PendingFileSet, FileSetError> ShareConnection(
+    const base::FilePath& directory,
+    const base::FilePath& base_name,
+    const SqliteVfsFileSet& file_set,
+    bool read_write) {
   // Cannot share a single-connection backend. If it ever becomes interesting to
   // connect to a backend in one process and then move it to another process,
   // we shall introduce a way to `Unbind()` a backend to convert it back into a
   // `PendingFileSet`.
   CHECK(!file_set.is_single_connection());
 
+  const auto root_path = directory.Append(base_name);
+
   PendingFileSet pending_file_set;
 
-  pending_file_set.db_file =
-      DuplicateFile(file_set.GetDbFile(),
-                    directory.Append(base_name).AddExtension(kDbFileExtension),
-                    !file_set.read_only(), read_write);
+  auto path = root_path.AddExtension(kDbFileExtension);
+  pending_file_set.db_file = DuplicateFile(file_set.GetDbFile(), path,
+                                           !file_set.read_only(), read_write);
   if (!pending_file_set.db_file.IsValid()) {
-    return std::nullopt;
+    return base::unexpected(FileErrorToFileSetError(
+        pending_file_set.db_file.error_details(), path));
   }
 
-  pending_file_set.journal_file = DuplicateFile(
-      file_set.GetJournalFile(),
-      directory.Append(base_name).AddExtension(kJournalFileExtension),
-      !file_set.read_only(), read_write);
-  if (!pending_file_set.journal_file.IsValid()) {
-    return std::nullopt;
+  if (file_set.has_journal_file()) {
+    path = root_path.AddExtension(kJournalFileExtension);
+    pending_file_set.journal_file = DuplicateFile(
+        file_set.GetJournalFile(), path, !file_set.read_only(), read_write);
+    if (!pending_file_set.journal_file.IsValid()) {
+      return base::unexpected(FileErrorToFileSetError(
+          pending_file_set.journal_file.error_details(), path));
+    }
   }
 
   pending_file_set.shared_lock = file_set.GetSharedLock().Duplicate();
   if (!pending_file_set.shared_lock.IsValid()) {
-    return std::nullopt;
+    return base::unexpected(FileSetError::kTransient);
   }
 
   if (file_set.has_wal_file()) {
+    path = root_path.AddExtension(kWalJournalFileExtension);
     pending_file_set.wal_file = DuplicateFile(
-        file_set.GetWalJournalFile(),
-        directory.Append(base_name).AddExtension(kWalJournalFileExtension),
-        !file_set.read_only(), read_write);
+        file_set.GetWalJournalFile(), path, !file_set.read_only(), read_write);
     if (!pending_file_set.wal_file.IsValid()) {
-      return std::nullopt;
+      return base::unexpected(FileErrorToFileSetError(
+          pending_file_set.wal_file.error_details(), path));
     }
 
 #if BUILDFLAG(IS_WIN)
@@ -333,7 +419,8 @@ std::optional<PendingFileSet> ShareConnection(const base::FilePath& directory,
     }
 #endif
     if (!pending_file_set.wal_index_file.IsValid()) {
-      return std::nullopt;
+      return base::unexpected(FileErrorToFileSetError(
+          pending_file_set.wal_index_file.error_details()));
     }
   }
 

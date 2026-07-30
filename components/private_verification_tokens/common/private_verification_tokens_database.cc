@@ -4,14 +4,17 @@
 
 #include "components/private_verification_tokens/common/private_verification_tokens_database.h"
 
+#include <algorithm>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/strings/string_util.h"
 #include "base/threading/sequence_bound.h"
 #include "base/types/pass_key.h"
 #include "components/private_verification_tokens/common/private_verification_tokens_token.h"
@@ -24,7 +27,7 @@
 namespace {
 
 // Version number of the database.
-const int kCurrentVersionNumber = 1;
+const int kCurrentVersionNumber = 2;
 
 static constexpr char kDatabaseTag[] = "PrivateVerificationTokens";
 
@@ -37,19 +40,20 @@ static constexpr char kCreateTokensTableSql[] =
       "expiration INTEGER NOT NULL,"
       "token BLOB NOT NULL,"
       "redeemed INTEGER NOT NULL DEFAULT 0,"
-      "version INTEGER NOT NULL)";
+      "version INTEGER NOT NULL,"
+      "creation_time INTEGER NOT NULL)";
 
 static constexpr char kInsertTokenSql[] =
   "INSERT INTO tokens("
-      "etld_plus_one,key_id,expiration,token,version) "
-      "VALUES(?,?,?,?,?)";
+      "etld_plus_one,key_id,expiration,token,version,creation_time) "
+      "VALUES(?,?,?,?,?,?)";
 
 static constexpr char kGetTokenSql[] =
-    "SELECT id,etld_plus_one,key_id,expiration,token,version "
+    "SELECT id,etld_plus_one,key_id,expiration,token,version,creation_time "
     "FROM tokens WHERE redeemed = 0 AND etld_plus_one = ?";
 
 static constexpr char kGetAllTokensSql[] =
-    "SELECT id,etld_plus_one,key_id,expiration,token,version "
+    "SELECT id,etld_plus_one,key_id,expiration,token,version,creation_time "
     "FROM tokens WHERE redeemed = 0 "
     "GROUP BY etld_plus_one";
 
@@ -171,6 +175,8 @@ bool PrivateVerificationTokensDatabase::StoreTokens(
         2, (token.expiration() - base::Time::UnixEpoch()).InSeconds());
     statement.BindBlob(3, token.token());
     statement.BindInt64(4, token.version());
+    statement.BindInt64(
+        5, (token.creation_time() - base::Time::UnixEpoch()).InSeconds());
     if (!statement.Run()) {
       return false;
     }
@@ -198,11 +204,13 @@ std::optional<TokenWithId> PrivateVerificationTokensDatabase::GetToken(
     int64_t expiration = statement.ColumnInt64(3);
     SerializedToken token = statement.ColumnBlobAsVector(4);
     uint32_t version = static_cast<uint32_t>(statement.ColumnInt64(5));
+    int64_t creation_time = statement.ColumnInt64(6);
 
     return TokenWithId{
         id, PrivateVerificationTokensToken(
                 std::move(etld_plus_one_str), std::move(token), key_id,
-                base::Time::UnixEpoch() + base::Seconds(expiration), version)};
+                base::Time::UnixEpoch() + base::Seconds(expiration), version,
+                base::Time::UnixEpoch() + base::Seconds(creation_time))};
   }
   if (!statement.Succeeded()) {
     return std::nullopt;
@@ -229,12 +237,14 @@ PrivateVerificationTokensDatabase::GetTokensFromEach() {
     int64_t expiration = statement.ColumnInt64(3);
     SerializedToken token = statement.ColumnBlobAsVector(4);
     uint32_t version = static_cast<uint32_t>(statement.ColumnInt64(5));
+    int64_t creation_time = statement.ColumnInt64(6);
 
     tokens.try_emplace(
         etld_plus_one, id,
         PrivateVerificationTokensToken(
             etld_plus_one, std::move(token), key_id,
-            base::Time::UnixEpoch() + base::Seconds(expiration), version));
+            base::Time::UnixEpoch() + base::Seconds(expiration), version,
+            base::Time::UnixEpoch() + base::Seconds(creation_time)));
   }
   if (!statement.Succeeded()) {
     return {};
@@ -250,6 +260,46 @@ bool PrivateVerificationTokensDatabase::DeleteRedeemedTokens() {
   sql::Statement statement(
       database_->GetCachedStatement(SQL_FROM_HERE, kDeleteRedeemedTokensSql));
   DCHECK(statement.is_valid());
+  return statement.Run();
+}
+
+bool PrivateVerificationTokensDatabase::DeleteTokens(
+    std::optional<base::Time> delete_begin,
+    std::optional<std::string> etld_plus_one) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!EnsureDBInitialized()) {
+    return false;
+  }
+
+  std::vector<std::string> where_clauses;
+  if (delete_begin.has_value()) {
+    where_clauses.push_back("creation_time >= ?");
+  }
+  if (etld_plus_one.has_value()) {
+    where_clauses.push_back("etld_plus_one = ?");
+  }
+
+  std::string sql = "DELETE FROM tokens";
+  if (!where_clauses.empty()) {
+    sql += " WHERE " + base::JoinString(where_clauses, " AND ");
+  }
+
+  sql::Statement statement(database_->GetUniqueStatement(sql));
+  DCHECK(statement.is_valid());
+
+  int param_index = 0;
+  if (delete_begin.has_value()) {
+    statement.BindInt64(
+        param_index++,
+        (delete_begin.value() - base::Time::UnixEpoch()).InSeconds());
+  }
+  if (etld_plus_one.has_value()) {
+    statement.BindString(param_index++, etld_plus_one.value());
+  }
+
+  DCHECK_EQ(static_cast<size_t>(param_index),
+            static_cast<size_t>(std::count(sql.begin(), sql.end(), '?')));
+
   return statement.Run();
 }
 

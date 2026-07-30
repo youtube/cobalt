@@ -6,13 +6,14 @@
 
 #include <utility>
 
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/i18n/icu_util.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/no_destructor.h"
-#include "base/task/bind_post_task.h"
+#include "base/run_loop.h"
 #include "base/task/sequenced_task_runner.h"
-#include "base/threading/platform_thread.h"
-#include "base/threading/thread.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"  // [nogncheck]
 #include "content/browser/cache_storage/cache_storage_control_wrapper.h"  // [nogncheck]
 #include "content/browser/code_cache/generated_code_cache_context.h"  // [nogncheck]
@@ -24,7 +25,6 @@
 #include "content/public/test/test_browser_context.h"
 #include "content/test/fuzzer/code_cache_host_mojolpm_fuzzer.pb.h"
 #include "content/test/fuzzer/mojolpm_fuzzer_support.h"
-#include "net/disk_cache/disk_cache.h"
 #include "storage/browser/quota/quota_manager.h"
 #include "storage/browser/quota/special_storage_policy.h"
 #include "storage/browser/test/mock_special_storage_policy.h"
@@ -188,39 +188,22 @@ void CodeCacheHostTestcase::TearDown(base::OnceClosure done_closure) {
 void CodeCacheHostTestcase::TearDownOnUIThread(base::OnceClosure done_closure) {
   code_cache_host_receivers_.clear();
 
-  scoped_refptr<base::SequencedTaskRunner> context_runner =
-      generated_code_cache_context_->GetTaskRunner(
-          generated_code_cache_context_);
+  // Shutdown the context and wait for backend cleanup before continuing
+  // teardown.
+  generated_code_cache_context_->ShutdownForTesting(base::BindOnce(
+      [](CodeCacheHostTestcase* self, base::OnceClosure done_closure) {
+        // Destroy the BrowserContext now on the UI thread.
+        self->generated_code_cache_context_.reset();
+        self->cache_storage_control_wrapper_.reset();
+        self->browser_context_.reset();
 
-  generated_code_cache_context_->Shutdown();
-
-  // GeneratedCodeCacheContext::Shutdown posts a task to the context's sequence
-  // to do its work. Post a task to run after it on that same sequence to flush
-  // the cache thread. This ensures that all background write tasks have
-  // completed before attempting to destroy the BrowserContext (which deletes
-  // the temp dir).
-  context_runner->PostTask(
-      FROM_HERE,
-      base::BindOnce(
-          [](base::OnceClosure continue_teardown_on_ui) {
-            disk_cache::FlushCacheThreadAsynchronouslyForTesting(
-                std::move(continue_teardown_on_ui));
-          },
-          base::BindPostTaskToCurrentDefault(base::BindOnce(
-              [](CodeCacheHostTestcase* self, base::OnceClosure done_closure) {
-                // Destroy the BrowserContext now on the UI thread.
-                self->generated_code_cache_context_.reset();
-                self->cache_storage_control_wrapper_.reset();
-                self->browser_context_.reset();
-
-                // Complete tear down on the fuzzer thread.
-                GetFuzzerTaskRunner()->PostTask(
-                    FROM_HERE,
-                    base::BindOnce(
-                        &CodeCacheHostTestcase::TearDownOnFuzzerThread,
-                        base::Unretained(self), std::move(done_closure)));
-              },
-              base::Unretained(this), std::move(done_closure)))));
+        // Complete tear down on the fuzzer thread.
+        GetFuzzerTaskRunner()->PostTask(
+            FROM_HERE,
+            base::BindOnce(&CodeCacheHostTestcase::TearDownOnFuzzerThread,
+                           base::Unretained(self), std::move(done_closure)));
+      },
+      base::Unretained(this), std::move(done_closure)));
 }
 
 void CodeCacheHostTestcase::TearDownOnFuzzerThread(

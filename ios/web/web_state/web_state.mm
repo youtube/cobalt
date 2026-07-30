@@ -82,6 +82,10 @@ void WebState::InterfaceBinder::RemoveInterface(
   callbacks_.erase(std::string(interface_name));
 }
 
+bool WebState::InterfaceBinder::HasRegisteredInterfaces() const {
+  return !callbacks_.empty();
+}
+
 void WebState::InterfaceBinder::BindInterface(
     mojo::GenericPendingReceiver receiver) {
   DCHECK(receiver.is_valid());

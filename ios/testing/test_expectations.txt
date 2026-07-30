@@ -1,0 +1,15 @@
+# Test Expectations File.
+#
+# Format:
+# [crbug.com/BUG] [ [Tags] ] TestClassName[/TestMethodName] [ [Expectations] ]
+#
+# Tags: iOS, iOS18, iOS26, 24A5355p, Simulator, Device, etc.
+# Expectations: Failure
+#
+# Examples:
+# crbug.com/123456 [ iOS26 Simulator ] MyTestCase/testAppStoreSearch [ Failure ]
+# crbug.com/789101 [ iOS18 ] FlakyTestCase [ Failure ]
+#
+
+# Smoke test to verify expectations functionality. Do not remove.
+crbug.com/523267238 SmokeTestCase/testFailingMethod [ Failure ]

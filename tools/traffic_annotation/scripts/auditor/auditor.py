@@ -1021,7 +1021,8 @@ class Exporter:
     for group_item in root.iter("group"):
       assert group_item.tag == "group"
       group_name = str(group_item.attrib["name"])
-      group = Group(group_name, True, [])
+      hidden = group_item.attrib.get("hidden", "false").lower() == "true"
+      group = Group(group_name, hidden, [])
       self.grouping_archive.append(group)
       for sender_item in group_item.iter("sender"):
         assert sender_item.tag == "sender"

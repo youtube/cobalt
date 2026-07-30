@@ -231,6 +231,7 @@ const ICUScriptData* ICUScriptData::Instance() {
 
 ScriptData::RunExtensionLookups ICUScriptData::GetSafeToExtendExistingRun(
     UScriptCode script) const {
+  base::AutoLock lock(bits_cache_lock_);
   std::unique_ptr<UnicodeBitSet>& bits =
       bits_cache_.insert(script, nullptr).stored_value->value;
   if (bits) {

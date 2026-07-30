@@ -22,6 +22,7 @@ android_library("java") {
     "java/src/org/chromium/components/thinwebview/ThinWebView.java",
     "java/src/org/chromium/components/thinwebview/ThinWebViewAttachParams.java",
     "java/src/org/chromium/components/thinwebview/ThinWebViewConstraints.java",
+    "java/src/org/chromium/components/thinwebview/ThinWebViewPrintingController.java",
   ]
 
   deps = [

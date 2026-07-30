@@ -62,6 +62,8 @@ const char* const STRING_ATTRIBUTES[] = {
     "container_title",
     "content_description",
     "supplemental_description",
+    "math_arg",
+    "math_intent",
 };
 
 const char* const INT_ATTRIBUTES[] = {
@@ -224,6 +226,17 @@ void AccessibilityTreeFormatterAndroid::AddProperties(
             android_node->GetAndroidContentDescription());
   dict->Set("supplemental_description",
             android_node->GetAndroidSupplementalDescription());
+
+  if (ui::IsMath(android_node->GetRole())) {
+    std::string intent = android_node->GetMathIntent();
+    if (!intent.empty()) {
+      dict->Set("math_intent", intent);
+    }
+    std::string arg = android_node->GetMathArg();
+    if (!arg.empty()) {
+      dict->Set("math_arg", arg);
+    }
+  }
 
   // Int attributes.
   SetIfHasValue(dict, "item_index", android_node->GetItemIndex());

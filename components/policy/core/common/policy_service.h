@@ -6,7 +6,9 @@
 #define COMPONENTS_POLICY_CORE_COMMON_POLICY_SERVICE_H_
 
 #include <map>
+#include <optional>
 #include <string>
+#include <string_view>
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
@@ -96,6 +98,16 @@ class POLICY_EXPORT PolicyService {
   virtual bool HasProvider(ConfigurationPolicyProvider* provider) const = 0;
 
   virtual const PolicyMap& GetPolicies(const PolicyNamespace& ns) const = 0;
+
+  // Returns the hash of the initial value (see PolicyValueHash) of
+  // `policy_name` in the POLICY_DOMAIN_CHROME domain. Returns `{}` if
+  // - `policy_name` is marked as dynamic_refresh: true (currently, policy
+  // hashes
+  //    are not calculated for that case as an optimization)
+  // - `policy_name` does not exist
+  // - IsFirstPolicyLoadComplete(POLICY_DOMAIN_CHROME) is false.
+  virtual std::optional<size_t> GetInitialChromePolicyValueHash(
+      std::string_view policy_name) const = 0;
 
   // The PolicyService loads policy from several sources, and some require
   // asynchronous loads. IsInitializationComplete() returns true once all

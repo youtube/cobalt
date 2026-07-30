@@ -70,6 +70,16 @@ namespace {
 
 constexpr int64_t kLogRotateAtSize = 1024 * 1024;  // 1 MiB.
 
+template <typename CharT>
+bool IsValidAppIdImpl(std::basic_string_view<CharT> app_id) {
+  static constexpr size_t kMaxAppIdLength = 256;
+  return !app_id.empty() && app_id.length() <= kMaxAppIdLength &&
+         std::ranges::all_of(app_id, &base::IsAsciiPrintable<CharT>) &&
+         app_id.find(CharT{'/'}) == std::basic_string_view<CharT>::npos &&
+         app_id.find(CharT{'\\'}) == std::basic_string_view<CharT>::npos &&
+         app_id[0] != CharT{'.'};
+}
+
 }  // namespace
 
 std::optional<base::FilePath> GetVersionedInstallDirectory(
@@ -386,6 +396,14 @@ void EnumerateUpdateClientTempDirectories(
                              base::StrCat({"*", kProdId, matcher, "*"})))
         .ForEach([&callback](const base::FilePath& dir) { callback(dir); });
   }
+}
+
+bool IsValidAppId(std::string_view app_id) {
+  return IsValidAppIdImpl(app_id);
+}
+
+bool IsValidAppId(std::wstring_view app_id) {
+  return IsValidAppIdImpl(app_id);
 }
 
 }  // namespace updater

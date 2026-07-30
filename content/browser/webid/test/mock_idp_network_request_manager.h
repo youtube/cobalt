@@ -68,10 +68,6 @@ class MockIdpNetworkRequestManager : public webid::IdpNetworkRequestManager {
               (const GURL&, bool, webid::MetricsEndpointErrorCode),
               (override));
   MOCK_METHOD(void,
-              SendLogout,
-              (const GURL& logout_url, LogoutCallback),
-              (override));
-  MOCK_METHOD(void,
               DownloadAndDecodeImage,
               (const GURL&, ImageCallback),
               (override));

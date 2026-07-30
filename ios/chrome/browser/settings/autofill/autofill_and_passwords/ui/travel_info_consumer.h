@@ -31,6 +31,10 @@ class EntityType;
 - (void)setWritableEntityTypes:
     (const std::vector<autofill::EntityType>&)writableEntityTypes;
 
+// Sets the toggle state for "save and fill travel info" and its enabled
+// state.
+- (void)setTravelInfoToggleState:(BOOL)on enabled:(BOOL)enabled;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_SETTINGS_AUTOFILL_AUTOFILL_AND_PASSWORDS_UI_TRAVEL_INFO_CONSUMER_H_

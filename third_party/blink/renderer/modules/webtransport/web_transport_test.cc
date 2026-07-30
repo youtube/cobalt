@@ -3294,6 +3294,150 @@ TEST_F(WebTransportTest,
   EXPECT_TRUE(receive_stream);
 }
 
+TEST_F(WebTransportTest, AnticipatedStreamsSetViaOptions) {
+  ScopedWebTransportAnticipatedConcurrentIncomingStreamsForTest scoped_feature(
+      true);
+  V8TestingScope scope;
+  AddBinder(scope);
+
+  auto* options = MakeGarbageCollected<WebTransportOptions>();
+  options->setAnticipatedConcurrentIncomingUnidirectionalStreams(10);
+  options->setAnticipatedConcurrentIncomingBidirectionalStreams(20);
+
+  auto* web_transport = WebTransport::Create(scope.GetScriptState(),
+                                             String("https://example.com/"),
+                                             options, ASSERT_NO_EXCEPTION);
+  // Flush the connector_ remote so the queued Connect() Mojo call is
+  // dispatched to the mock WebTransportConnector before we read the args.
+  web_transport->FlushConnectorForTesting();
+
+  auto args = connector_.TakeConnectArgs();
+  ASSERT_EQ(1u, args.size());
+  EXPECT_EQ(args[0].anticipated_concurrent_incoming_unidirectional_streams,
+            std::optional<uint16_t>(10));
+  EXPECT_EQ(args[0].anticipated_concurrent_incoming_bidirectional_streams,
+            std::optional<uint16_t>(20));
+
+  EXPECT_EQ(web_transport->anticipatedConcurrentIncomingUnidirectionalStreams(),
+            10);
+  EXPECT_EQ(web_transport->anticipatedConcurrentIncomingBidirectionalStreams(),
+            20);
+}
+
+TEST_F(WebTransportTest, AnticipatedStreamsDefaultNull) {
+  ScopedWebTransportAnticipatedConcurrentIncomingStreamsForTest scoped_feature(
+      true);
+  V8TestingScope scope;
+  AddBinder(scope);
+
+  auto* web_transport = WebTransport::Create(
+      scope.GetScriptState(), String("https://example.com/"), EmptyOptions(),
+      ASSERT_NO_EXCEPTION);
+  // Flush the connector_ remote so the queued Connect() Mojo call is
+  // dispatched to the mock WebTransportConnector before we read the args.
+  web_transport->FlushConnectorForTesting();
+
+  auto args = connector_.TakeConnectArgs();
+  ASSERT_EQ(1u, args.size());
+  EXPECT_EQ(args[0].anticipated_concurrent_incoming_unidirectional_streams,
+            std::nullopt);
+  EXPECT_EQ(args[0].anticipated_concurrent_incoming_bidirectional_streams,
+            std::nullopt);
+
+  EXPECT_EQ(web_transport->anticipatedConcurrentIncomingUnidirectionalStreams(),
+            std::nullopt);
+  EXPECT_EQ(web_transport->anticipatedConcurrentIncomingBidirectionalStreams(),
+            std::nullopt);
+}
+
+TEST_F(WebTransportTest, AnticipatedStreamsExplicitNull) {
+  ScopedWebTransportAnticipatedConcurrentIncomingStreamsForTest scoped_feature(
+      true);
+  V8TestingScope scope;
+  AddBinder(scope);
+
+  auto* options = MakeGarbageCollected<WebTransportOptions>();
+  // Explicitly set to null (as opposed to not providing the option at all).
+  options->setAnticipatedConcurrentIncomingUnidirectionalStreams(std::nullopt);
+  options->setAnticipatedConcurrentIncomingBidirectionalStreams(std::nullopt);
+
+  auto* web_transport = WebTransport::Create(scope.GetScriptState(),
+                                             String("https://example.com/"),
+                                             options, ASSERT_NO_EXCEPTION);
+  // Flush the connector_ remote so the queued Connect() Mojo call is
+  // dispatched to the mock WebTransportConnector before we read the args.
+  web_transport->FlushConnectorForTesting();
+
+  auto args = connector_.TakeConnectArgs();
+  ASSERT_EQ(1u, args.size());
+  EXPECT_EQ(args[0].anticipated_concurrent_incoming_unidirectional_streams,
+            std::nullopt);
+  EXPECT_EQ(args[0].anticipated_concurrent_incoming_bidirectional_streams,
+            std::nullopt);
+
+  EXPECT_EQ(web_transport->anticipatedConcurrentIncomingUnidirectionalStreams(),
+            std::nullopt);
+  EXPECT_EQ(web_transport->anticipatedConcurrentIncomingBidirectionalStreams(),
+            std::nullopt);
+}
+
+TEST_F(WebTransportTest, AnticipatedStreamsFlagOff) {
+  ScopedWebTransportAnticipatedConcurrentIncomingStreamsForTest scoped_feature(
+      false);
+  V8TestingScope scope;
+  AddBinder(scope);
+
+  auto* options = MakeGarbageCollected<WebTransportOptions>();
+  options->setAnticipatedConcurrentIncomingUnidirectionalStreams(10);
+  options->setAnticipatedConcurrentIncomingBidirectionalStreams(20);
+
+  auto* web_transport = WebTransport::Create(scope.GetScriptState(),
+                                             String("https://example.com/"),
+                                             options, ASSERT_NO_EXCEPTION);
+  // Flush the connector_ remote so the queued Connect() Mojo call is
+  // dispatched to the mock WebTransportConnector before we read the args.
+  web_transport->FlushConnectorForTesting();
+
+  EXPECT_EQ(web_transport->anticipatedConcurrentIncomingUnidirectionalStreams(),
+            std::nullopt);
+  EXPECT_EQ(web_transport->anticipatedConcurrentIncomingBidirectionalStreams(),
+            std::nullopt);
+
+  auto args = connector_.TakeConnectArgs();
+  ASSERT_EQ(1u, args.size());
+  EXPECT_EQ(args[0].anticipated_concurrent_incoming_unidirectional_streams,
+            std::nullopt);
+  EXPECT_EQ(args[0].anticipated_concurrent_incoming_bidirectional_streams,
+            std::nullopt);
+}
+
+TEST_F(WebTransportTest, AnticipatedStreamsSetterStoresValue) {
+  ScopedWebTransportAnticipatedConcurrentIncomingStreamsForTest scoped_feature(
+      true);
+  V8TestingScope scope;
+  AddBinder(scope);
+
+  auto* web_transport = WebTransport::Create(
+      scope.GetScriptState(), String("https://example.com/"), EmptyOptions(),
+      ASSERT_NO_EXCEPTION);
+
+  EXPECT_EQ(web_transport->anticipatedConcurrentIncomingUnidirectionalStreams(),
+            std::nullopt);
+
+  web_transport->setAnticipatedConcurrentIncomingUnidirectionalStreams(42);
+  EXPECT_EQ(web_transport->anticipatedConcurrentIncomingUnidirectionalStreams(),
+            42);
+
+  web_transport->setAnticipatedConcurrentIncomingBidirectionalStreams(99);
+  EXPECT_EQ(web_transport->anticipatedConcurrentIncomingBidirectionalStreams(),
+            99);
+
+  web_transport->setAnticipatedConcurrentIncomingUnidirectionalStreams(
+      std::nullopt);
+  EXPECT_EQ(web_transport->anticipatedConcurrentIncomingUnidirectionalStreams(),
+            std::nullopt);
+}
+
 }  // namespace
 
 }  // namespace blink

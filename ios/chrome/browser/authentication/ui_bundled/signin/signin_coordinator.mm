@@ -108,6 +108,8 @@ using signin_metrics::PromoAction;
                                                          command.contextStyle
                                                       accessPoint:
                                                           command.accessPoint
+                                             confirmChangeProfile:
+                                                 command.confirmChangeProfile
                                              prepareChangeProfile:
                                                  command.prepareChangeProfile
                                              continuationProvider:provider];
@@ -306,6 +308,9 @@ using signin_metrics::PromoAction;
                                                 accessPoint:
                                                     (signin_metrics::
                                                          AccessPoint)accessPoint
+                                       confirmChangeProfile:
+                                           (SigninChangeProfileConfirmationBlock)
+                                               confirmChangeProfile
                                        prepareChangeProfile:
                                            (ProceduralBlock)prepareChangeProfile
                                        continuationProvider:
@@ -316,6 +321,7 @@ using signin_metrics::PromoAction;
                                 browser:browser
                            contextStyle:contextStyle
                             accessPoint:accessPoint
+                   confirmChangeProfile:confirmChangeProfile
                    prepareChangeProfile:prepareChangeProfile
                    continuationProvider:continuationProvider];
 }

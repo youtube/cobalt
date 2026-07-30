@@ -45,6 +45,7 @@ class SyncedSessionTracker {
     PRESENTABLE  // Have one window with at least one tab with syncable content.
   };
 
+  // `sessions_client` must not be null and must outlive this object.
   explicit SyncedSessionTracker(SyncSessionsClient* sessions_client);
 
   SyncedSessionTracker(const SyncedSessionTracker&) = delete;
@@ -122,6 +123,12 @@ class SyncedSessionTracker {
   // Deletes those windows and tabs associated with |session_tag| that are no
   // longer owned. See ResetSessionTracking(...)..
   void CleanupSession(const std::string& session_tag);
+
+  // Attempts to update the session name for the given session tag using
+  // the preferred device name from DeviceInfo. If DeviceInfo is not available,
+  // the session name remains unchanged. `session_tag` must represent an
+  // existing session.
+  void TryUpdateSessionNameFromDeviceInfo(const std::string& session_tag);
 
   // Adds the window with id |window_id| to the session specified by
   // |session_tag|. If none existed for that session, creates one. Similarly, if

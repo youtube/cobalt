@@ -8,6 +8,7 @@
 
 #include "base/notreached.h"
 #include "components/autofill/core/browser/country_type.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #include "components/autofill/core/common/dense_set.h"
@@ -139,6 +140,17 @@ DenseSet<EntityType> GetWritableEntityTypes(
     entity_types.insert(entity_type);
   }
   return entity_types;
+}
+
+std::vector<EntityInstance> GetEntityInstancesForSettings(
+    base::span<const EntityInstance> entities) {
+  std::vector<EntityInstance> result;
+  for (const EntityInstance& entity : entities) {
+    if (entity.record_type() != EntityInstance::RecordType::kPersonalContext) {
+      result.push_back(entity);
+    }
+  }
+  return result;
 }
 
 }  // namespace autofill

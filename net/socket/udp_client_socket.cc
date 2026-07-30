@@ -8,6 +8,7 @@
 #include "build/build_config.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_change_notifier.h"
+#include "net/base/network_handle.h"
 #include "net/base/port_util.h"
 #include "net/socket/datagram_client_socket.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
@@ -42,21 +43,21 @@ base::DictValue CreateNetLogUDPBindToNetworkParams(
 UDPClientSocket::UDPClientSocket(DatagramSocket::BindType bind_type,
                                  net::NetLog* net_log,
                                  const net::NetLogSource& source,
-                                 handles::NetworkHandle network)
+                                 handles::NetworkHandle target_network)
     : net_log_(
           NetLogWithSource::Make(net_log, NetLogSourceType::UDP_CLIENT_SOCKET)),
       socket_(bind_type, net_log, net_log_.source()),
-      connect_using_network_(network) {
+      connect_using_network_(target_network) {
   net_log_.BeginEventReferencingSource(NetLogEventType::SOCKET_ALIVE, source);
 }
 
 UDPClientSocket::UDPClientSocket(DatagramSocket::BindType bind_type,
                                  NetLogWithSource source_net_log,
-                                 handles::NetworkHandle network)
+                                 handles::NetworkHandle target_network)
     : net_log_(NetLogWithSource::Make(source_net_log.net_log(),
                                       NetLogSourceType::UDP_CLIENT_SOCKET)),
       socket_(bind_type, net_log_),
-      connect_using_network_(network) {
+      connect_using_network_(target_network) {
   net_log_.BeginEventReferencingSource(NetLogEventType::SOCKET_ALIVE,
                                        source_net_log.source());
 }
@@ -70,8 +71,9 @@ int UDPClientSocket::Connect(const IPEndPoint& address) {
   if (!IsPortAllowedForIpEndpoint(address)) {
     return ERR_UNSAFE_PORT;
   }
-  if (connect_using_network_ != handles::kInvalidNetworkHandle)
+  if (connect_using_network_ != handles::kInvalidNetworkHandle) {
     return ConnectUsingNetwork(connect_using_network_, address);
+  }
 
   connect_called_ = true;
   int rv = OK;

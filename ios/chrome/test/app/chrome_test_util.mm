@@ -70,10 +70,15 @@ inline constexpr base::TimeDelta kProfileCreationTimeout = base::Seconds(20);
 ProfileIOS* GetProfile(bool incognito) {
   // The profile can take time to initialize when the app starts (e.g.,
   // enterprise registration blocking pref initialization).
-  CHECK(base::test::ios::WaitUntilConditionOrTimeout(kProfileCreationTimeout, ^{
-    return chrome_test_util::GetForegroundActiveScene().profileState.profile !=
-           nil;
-  }));
+  // The message loop must run while waiting (`run_message_loop=true`) because
+  // preference loading and other profile startup tasks are posted to the main
+  // thread and need to execute for the profile to finish loading. Otherwise,
+  // the main thread will deadlock waiting for the condition.
+  CHECK(base::test::ios::WaitUntilConditionOrTimeout(
+      kProfileCreationTimeout, /*run_message_loop=*/true, ^{
+        return chrome_test_util::GetForegroundActiveScene()
+                   .profileState.profile != nil;
+      }));
   ProfileIOS* profile =
       chrome_test_util::GetForegroundActiveScene().profileState.profile;
   CHECK(profile);

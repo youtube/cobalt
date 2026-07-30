@@ -1221,10 +1221,16 @@ std::u16string BrowserAccessibilityAndroid::GetAndroidStateDescription() const {
     state_descs.push_back(GetAriaCurrentStateDescription());
   }
 
-  // For range controls, retrieve the aria-valuetext via kAriaValueText.
+  // For range controls, retrieve the aria-valuetext.
   if (GetData().IsRangeValueSupported()) {
-    std::u16string value_text =
-        GetString16Attribute(ax::mojom::StringAttribute::kAriaValueText);
+    std::u16string value_text;
+    // Fall back to aria-valuenow for non editable spinbuttons.
+    if (GetRole() == ax::mojom::Role::kSpinButton && !IsTextField()) {
+      value_text = GetValueForControl();
+    } else {
+      value_text =
+          GetString16Attribute(ax::mojom::StringAttribute::kAriaValueText);
+    }
     if (value_text.empty() &&
         GetRole() == ax::mojom::Role::kProgressIndicator &&
         !HasFloatAttribute(ax::mojom::FloatAttribute::kValueForRange)) {
@@ -2570,8 +2576,9 @@ bool BrowserAccessibilityAndroid::ShouldPromoteValueToTextProperty(
     case ax::mojom::Role::kDate:
     case ax::mojom::Role::kDateTime:
     case ax::mojom::Role::kInputTime:
-    case ax::mojom::Role::kSpinButton:
       return true;
+    case ax::mojom::Role::kSpinButton:
+      return IsTextField();
     case ax::mojom::Role::kColorWell:
       return false;
     default:
@@ -2820,6 +2827,21 @@ BrowserAccessibilityAndroid::GenerateAccessibilityNodeInfoString() const {
   auto* manager =
       static_cast<BrowserAccessibilityManagerAndroid*>(this->manager());
   return manager->GenerateAccessibilityNodeInfoString(GetUniqueId());
+}
+
+const std::string& BrowserAccessibilityAndroid::GetMathTag() const {
+  if (!ui::IsMath(GetRole())) {
+    return base::EmptyString();
+  }
+  return GetStringAttribute(ax::mojom::StringAttribute::kHtmlTag);
+}
+
+const std::string& BrowserAccessibilityAndroid::GetMathIntent() const {
+  return GetStringAttribute(ax::mojom::StringAttribute::kMathIntent);
+}
+
+const std::string& BrowserAccessibilityAndroid::GetMathArg() const {
+  return GetStringAttribute(ax::mojom::StringAttribute::kMathArg);
 }
 
 int BrowserAccessibilityAndroid::GetPaintOrder() const {

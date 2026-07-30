@@ -33,6 +33,7 @@
 #include "chrome/browser/webauthn/gpm_enclave_controller.h"
 #include "chrome/browser/webauthn/webauthn_switches.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/trusted_vault/trusted_vault_histograms.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -239,8 +240,20 @@ class AuthenticatorRequestWindow
     GURL url;
     switch (step_) {
       case AuthenticatorRequestDialogModel::Step::kGPMRecoverSecurityDomain:
-        url = GaiaUrls::GetInstance()->SigninChromePasskeyUnlockUrl(
-            account_index);
+        if (base::FeatureList::IsEnabled(
+                device::kWebAuthnGpmPasskeyEmbeddedRecoveryUrl)) {
+          url =
+              GaiaUrls::GetInstance()
+                  ->SigninChromePasskeyUnlockDesktopEmbeddedUrl(account_index);
+          trusted_vault::RecordTrustedVaultRecoveryFlowTriggeredEndpoint(
+              trusted_vault::TrustedVaultRecoveryFlowEndpoint::
+                  kDesktopEmbedded);
+        } else {
+          url = GaiaUrls::GetInstance()->SigninChromePasskeyUnlockUrl(
+              account_index);
+          trusted_vault::RecordTrustedVaultRecoveryFlowTriggeredEndpoint(
+              trusted_vault::TrustedVaultRecoveryFlowEndpoint::kDesktop);
+        }
         device::enclave::RecordEvent(device::enclave::Event::kRecoveryShown);
         webauthn::user_actions::RecordRecoveryShown(model_->request_type);
         passkey_reset_observer_ =

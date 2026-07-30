@@ -4,6 +4,7 @@
 
 #include "chrome/browser/contextual_tasks/contextual_tasks_url_loader_factory_interceptor.h"
 
+#include "base/memory/self_deleting.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
@@ -226,8 +227,9 @@ class ContextualTasksProxyingURLLoaderFactory
       mojo::PendingReceiver<network::mojom::URLLoaderFactory> loader_receiver,
       mojo::PendingRemote<network::mojom::URLLoaderFactory> target_factory,
       ContextualTasksUiService* ui_service,
-      base::WeakPtr<content::WebContents> web_contents)
-      : network::SelfDeletingURLLoaderFactory(std::move(loader_receiver)),
+      base::WeakPtr<content::WebContents> web_contents,
+      base::SelfDeletingPassKey key)
+      : network::SelfDeletingURLLoaderFactory(std::move(loader_receiver), key),
         ui_service_(ui_service ? ui_service->GetWeakPtr() : nullptr),
         web_contents_(web_contents) {
     target_factory_.Bind(std::move(target_factory));
@@ -242,8 +244,6 @@ class ContextualTasksProxyingURLLoaderFactory
       ch_ua_full_version_list_ = ua_metadata.SerializeBrandFullVersionList();
     }
   }
-
-  ~ContextualTasksProxyingURLLoaderFactory() override = default;
 
   // network::mojom::URLLoaderFactory:
   void CreateLoaderAndStart(
@@ -324,6 +324,8 @@ class ContextualTasksProxyingURLLoaderFactory
   }
 
  private:
+  ~ContextualTasksProxyingURLLoaderFactory() override = default;
+
   void OnTargetFactoryDisconnected() { DisconnectReceiversAndDestroy(); }
 
   void OnAccessTokenReceived(
@@ -423,8 +425,7 @@ void MaybeInterceptURLLoaderFactory(
 
   OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: "
              "MaybeInterceptURLLoaderFactory creating proxy factory";
-  // The proxy factory manages its own lifetime.
-  new ContextualTasksProxyingURLLoaderFactory(
+  base::MakeSelfDeleting<ContextualTasksProxyingURLLoaderFactory>(
       std::move(receiver), std::move(remote), ui_service,
       owner_web_contents->GetWeakPtr());
 }

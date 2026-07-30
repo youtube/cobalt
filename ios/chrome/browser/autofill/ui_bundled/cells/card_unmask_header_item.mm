@@ -49,9 +49,8 @@ const CGFloat kGooglePayBadgeHeight = 16;
 
 #pragma mark - TableViewHeaderFooterItem
 
-- (void)configureHeaderFooterView:(CardUnmaskHeaderView*)cardUnmaskHeaderView
-                       withStyler:(ChromeTableViewStyler*)styler {
-  [super configureHeaderFooterView:cardUnmaskHeaderView withStyler:styler];
+- (void)configureHeaderFooterView:(CardUnmaskHeaderView*)cardUnmaskHeaderView {
+  [super configureHeaderFooterView:cardUnmaskHeaderView];
   cardUnmaskHeaderView.titleLabel.text = _titleText;
   cardUnmaskHeaderView.instructionsLabel.text = _instructionsText;
 }

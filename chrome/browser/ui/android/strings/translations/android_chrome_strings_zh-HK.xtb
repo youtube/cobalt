@@ -117,6 +117,7 @@
 <translation id="1435593198351412143">自動開啟 PDF</translation>
 <translation id="1437543266176261764">正在 <ph name="APP_NAME" /> 中執行</translation>
 <translation id="1448440926884431741">在「書籤」中整理追蹤的產品</translation>
+<translation id="1452651021404174820">選擇裝置</translation>
 <translation id="1455845192930279203">確定要從 <ph name="DOWNLOAD_DOMAIN" /> 下載「<ph name="FILE_NAME" />」(<ph name="FILE_SIZE" />) 嗎？</translation>
 <translation id="1460751212339734034">節省時間，減少輸入操作</translation>
 <translation id="146522654774760805">密碼和自動填入</translation>
@@ -124,6 +125,7 @@
 <translation id="1477626028522505441">伺服器發生問題，因此無法下載 <ph name="FILE_NAME" />。</translation>
 <translation id="147982357559798527">已變更</translation>
 <translation id="1480287803138246127">部分記錄可能不會在此顯示。如要查看所有 Chrome 記錄，請開啟完整 Chrome 記錄。</translation>
+<translation id="1483493594462132177">傳送</translation>
 <translation id="1495677929897281669">返回分頁</translation>
 <translation id="1496514951988037011">使用者名稱</translation>
 <translation id="1501480321619201731">刪除群組</translation>
@@ -1273,6 +1275,7 @@
 <translation id="634208815998129842">工作管理員</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 和另外 <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> 個地址}other{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 和另外 <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> 個地址}}</translation>
 <translation id="6345878117466430440">標示為已閱讀</translation>
+<translation id="6350745006329795504">管理你的裝置</translation>
 <translation id="6356893102071098867">請確認所選的帳戶是否正確</translation>
 <translation id="6364438453358674297">從記錄中移除建議項目嗎？</translation>
 <translation id="6380100320871303656">Chrome 會較頻密地預先載入 Chrome 您可能會瀏覽的頁面。此設定可能會提高數據用量。</translation>

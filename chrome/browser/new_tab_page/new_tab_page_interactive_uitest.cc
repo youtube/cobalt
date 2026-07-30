@@ -114,7 +114,7 @@ class NewTabPageTest : public InProcessBrowserTest,
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
 
-    browser_view_ = static_cast<BrowserView*>(browser()->window());
+    browser_view_ = BrowserView::GetBrowserViewForBrowser(browser());
     contents_ = browser_view_->GetActiveWebContents();
 
     // Wait for initial about:blank to load and attach DevTools before

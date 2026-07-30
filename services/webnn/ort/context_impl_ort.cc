@@ -205,6 +205,27 @@ ContextImplOrt::ContextImplOrt(
   if (base::FeatureList::IsEnabled(kUseDeviceTensor)) {
     device_allocator_ = DeviceAllocator::Create(session_options_, env_);
   }
+
+  ScopedOrtExternalResourceImporter external_resource_importer;
+  const OrtInteropApi* ort_interop_api =
+      PlatformFunctions::GetInstance()->ort_interop_api();
+  if (ort_interop_api) {
+    ScopedOrtStatus status(
+        ort_interop_api->CreateExternalResourceImporterForDevice(
+            first_selected_device, ScopedOrtExternalResourceImporter::Receiver(
+                                       external_resource_importer)
+                                       .get()));
+    if (!status.is_valid() && external_resource_importer != nullptr) {
+      bool can_import = false;
+      CHECK_STATUS(ort_interop_api->CanImportMemory(
+          external_resource_importer.get(),
+          ORT_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP, &can_import));
+
+      if (can_import) {
+        external_resource_importer_ = std::move(external_resource_importer);
+      }
+    }
+  }
 }
 
 ContextImplOrt::~ContextImplOrt() = default;
@@ -572,38 +593,96 @@ ContextImplOrt::CreateTensorFromSharedImageImpl(
                                               "Failed to create tensor."));
   }
 
-  // CreateTensorWithDataAsOrtValue only allows CPU memory.
-  void* mapped_ptr = nullptr;
-  HRESULT hr = d3d12_buffer->Map(0, nullptr, &mapped_ptr);
-  if (FAILED(hr)) {
-    LOG(ERROR) << "[WebNN] Failed to map D3D12 buffer: "
-               << logging::SystemErrorCodeToString(hr);
-    return base::unexpected(
-        mojom::Error::New(mojom::Error::Code::kNotSupportedError,
-                          "WebGPU interop is not supported."));
+  base::win::ScopedHandle d3d12_heap_handle;
+  if (external_resource_importer_.is_valid()) {
+    d3d12_heap_handle = representation->GetD3D12HeapHandle();
   }
 
   const OrtApi* ort_api = PlatformFunctions::GetInstance()->ort_api();
 
+  ScopedOrtExternalMemoryHandle external_memory_handle;
+  ScopedOrtValue tensor;
   ONNXTensorElementDataType ort_data_type =
       WebnnToOnnxDataType(tensor_info->descriptor.data_type());
   std::vector<int64_t> ort_shape =
       WebnnToOnnxShape(tensor_info->descriptor.shape());
+  bool can_access_on_cpu = false;
+  if (d3d12_heap_handle.is_valid()) {
+    const OrtInteropApi* ort_interop_api =
+        PlatformFunctions::GetInstance()->ort_interop_api();
 
-  ScopedOrtMemoryInfo memory_info;
-  CHECK_STATUS(ort_api->CreateCpuMemoryInfo(
-      OrtDeviceAllocator, OrtMemTypeCPU,
-      ScopedOrtMemoryInfo::Receiver(memory_info).get()));
+    OrtExternalMemoryDescriptor memory_descriptor{};
+    memory_descriptor.version = ORT_API_VERSION;
+    memory_descriptor.handle_type = ORT_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP;
+    memory_descriptor.size_bytes = buffer_size;
+    memory_descriptor.native_handle = d3d12_heap_handle.get();
+    ScopedOrtExternalMemoryHandle memory_handle;
+    ScopedOrtStatus status(ort_interop_api->ImportMemory(
+        external_resource_importer_.get(), &memory_descriptor,
+        ScopedOrtExternalMemoryHandle::Receiver(memory_handle).get()));
+    if (!status.is_valid()) {
+      OrtExternalTensorDescriptor tensor_descriptor{};
+      tensor_descriptor.version = ORT_API_VERSION;
+      tensor_descriptor.element_type = ort_data_type;
+      tensor_descriptor.shape = ort_shape.data();
+      tensor_descriptor.rank = ort_shape.size();
 
-  ScopedOrtValue tensor;
-  CHECK_STATUS(ort_api->CreateTensorWithDataAsOrtValue(
-      memory_info.get(), mapped_ptr, buffer_size, ort_shape.data(),
-      ort_shape.size(), ort_data_type, ScopedOrtValue::Receiver(tensor).get()));
-  CHECK(tensor.get());
+      CHECK_STATUS(ort_interop_api->CreateTensorFromMemory(
+          external_resource_importer_.get(), memory_handle.get(),
+          &tensor_descriptor, ScopedOrtValue::Receiver(tensor).get()));
+      // Successfully imported the D3D12 buffer as an ORT tensor.
+      external_memory_handle = std::move(memory_handle);
 
+      // The OrtValue owns the lifetime of this OrtMemoryInfo.
+      const OrtMemoryInfo* memory_info;
+      CHECK_STATUS(ort_api->GetTensorMemoryInfo(tensor.get(), &memory_info));
+      can_access_on_cpu = ort_api->MemoryInfoGetDeviceMemType(memory_info) ==
+                          OrtDeviceMemoryType_HOST_ACCESSIBLE;
+    } else {
+      LOG(WARNING) << "[WebNN] ImportMemory failed for D3D12 buffer. Falling "
+                      "back to using mapped buffers.";
+    }
+  }
+
+  // If external resource importer is not available or import fails, fall back
+  // to using mapped D3D12 buffer.
+  if (tensor.get() == nullptr) {
+    void* mapped_ptr = nullptr;
+    HRESULT hr = d3d12_buffer->Map(0, nullptr, &mapped_ptr);
+    if (FAILED(hr)) {
+      return base::unexpected(
+          mojom::Error::New(mojom::Error::Code::kNotSupportedError,
+                            "WebGPU interop is not supported."));
+    }
+
+    // CreateTensorWithDataAsOrtValue only allows CPU memory.
+    ScopedOrtMemoryInfo memory_info;
+    CHECK_STATUS(ort_api->CreateCpuMemoryInfo(
+        OrtDeviceAllocator, OrtMemTypeCPU,
+        ScopedOrtMemoryInfo::Receiver(memory_info).get()));
+
+    CHECK_STATUS(ort_api->CreateTensorWithDataAsOrtValue(
+        memory_info.get(), mapped_ptr, buffer_size, ort_shape.data(),
+        ort_shape.size(), ort_data_type,
+        ScopedOrtValue::Receiver(tensor).get()));
+    CHECK(tensor.get());
+    can_access_on_cpu = true;
+  }
+
+  if (!can_access_on_cpu &&
+      (tensor_info->usage.Has(MLTensorUsageFlags::kRead) ||
+       tensor_info->usage.Has(MLTensorUsageFlags::kWrite))) {
+    return base::unexpected(mojom::Error::New(
+        mojom::Error::Code::kNotSupportedError,
+        "CPU read/write access is not supported with exportable tensors."));
+  }
+
+  // ORT requires that we keep the OrtExternalMemoryHandle alive as long as the
+  // tensor is alive, so we also need to pass the handle to TensorImplOrt.
   return base::MakeRefCounted<TensorImplOrt>(
       std::move(receiver), *this, std::move(tensor_info),
-      std::move(representation), buffer_size, std::move(tensor));
+      std::move(representation), buffer_size, std::move(external_memory_handle),
+      std::move(tensor));
 }
 
 std::string_view ContextImplOrt::GetBackendName() const {

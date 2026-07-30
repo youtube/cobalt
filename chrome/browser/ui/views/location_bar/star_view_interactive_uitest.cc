@@ -9,6 +9,7 @@
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
+#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bubble_view.h"
@@ -137,7 +138,7 @@ IN_PROC_BROWSER_TEST_F(StarViewTest, InkDropHighlighted) {
     bookmarks::BookmarkModel* model =
         BookmarkModelFactory::GetForBrowserContext(browser()->profile());
     bookmarks::AddIfNotBookmarked(model, url, /*title=*/std::u16string());
-    browser()->window()->ShowBookmarkBubble(url, false);
+    BrowserWindow::FromBrowser(browser())->ShowBookmarkBubble(url, false);
     EXPECT_EQ(ink_drop_test_api.GetInkDrop()->GetTargetInkDropState(),
               views::InkDropState::ACTIVATED);
   }

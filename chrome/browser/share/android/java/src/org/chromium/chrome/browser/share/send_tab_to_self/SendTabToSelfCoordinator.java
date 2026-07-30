@@ -15,7 +15,6 @@ import android.provider.Browser;
 
 import org.chromium.base.Callback;
 import org.chromium.base.IntentUtils;
-import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.supplier.SupplierUtils;
@@ -193,6 +192,8 @@ public class SendTabToSelfCoordinator
     private @Nullable PropertyModelChangeProcessor mChangeProcessor;
     private @Nullable EnhancedTargetDevicePickerView mView;
 
+    private final @ShareEntryPoint int mEntryPoint;
+
     public SendTabToSelfCoordinator(
             Context context,
             @Nullable WindowAndroid windowAndroid,
@@ -206,7 +207,8 @@ public class SendTabToSelfCoordinator
             SigninAndHistorySyncActivityLauncher signinAndHistorySyncActivityLauncher,
             ActivityResultTracker activityResultTracker,
             MonotonicObservableSupplier<ModalDialogManager> modalDialogManagerSupplier,
-            SnackbarManager snackbarManager) {
+            SnackbarManager snackbarManager,
+            @ShareEntryPoint int entryPoint) {
         mContext = context;
         mWindowAndroid = windowAndroid;
         mUrl = url;
@@ -220,6 +222,7 @@ public class SendTabToSelfCoordinator
         mActivityResultTracker = activityResultTracker;
         mModalDialogManagerSupplier = modalDialogManagerSupplier;
         mSnackbarManager = snackbarManager;
+        mEntryPoint = entryPoint;
     }
 
     public void show() {
@@ -228,20 +231,24 @@ public class SendTabToSelfCoordinator
                 SendTabToSelfAndroidBridge.getEntryPointDisplayReason(mProfile, mUrl);
         assert displayReason != null;
 
+        int deviceCount = 0;
+        if (displayReason == EntryPointDisplayReason.OFFER_FEATURE) {
+            List<TargetDeviceInfo> targetDevices =
+                    SendTabToSelfAndroidBridge.getAllTargetDeviceInfos(mProfile);
+            deviceCount = targetDevices.size();
+        }
+        SendTabToSelfAndroidBridge.recordTargetDeviceCount(mEntryPoint, displayReason, deviceCount);
+
         SendTabToSelfMetricsRecorder.recordCrossDeviceTabJourney();
+        SendTabToSelfMetricsRecorder.recordEntryPointInvoked(mEntryPoint);
         switch (displayReason) {
             case EntryPointDisplayReason.INFORM_NO_TARGET_DEVICE:
-                // TODO(crbug.com/493866368): Refactor NoTargetDeviceBottomSheetContent to MVC for
-                // consistency.
                 mBottomSheetController.requestShowContent(
                         new NoTargetDeviceBottomSheetContent(mContext, mProfile), true);
                 return;
             case EntryPointDisplayReason.OFFER_FEATURE:
                 List<TargetDeviceInfo> targetDevices =
                         SendTabToSelfAndroidBridge.getAllTargetDeviceInfos(mProfile);
-                RecordHistogram.recordCount100Histogram(
-                        "Sharing.SendTabToSelf.AndroidDevicePickerTargetCount",
-                        targetDevices.size());
                 if (ChromeFeatureList.isEnabled(
                         ChromeFeatureList.SEND_TAB_TO_SELF_ENHANCED_BOTTOMSHEET)) {
                     showEnhancedTargetDevicePicker(targetDevices);
@@ -381,7 +388,7 @@ public class SendTabToSelfCoordinator
         PropertyModel model = EnhancedTargetDevicePickerProperties.createDefaultModel();
 
         new EnhancedTargetDevicePickerMediator(
-                mUrl, mTitle, targetDevices, mProfile, mTabProvider, model);
+                mUrl, mTitle, targetDevices, mProfile, mTabProvider, model, mEntryPoint);
 
         mChangeProcessor =
                 PropertyModelChangeProcessor.create(
@@ -432,7 +439,8 @@ public class SendTabToSelfCoordinator
                         mBottomSheetController,
                         targetDevices,
                         mProfile,
-                        mTabProvider),
+                        mTabProvider,
+                        mEntryPoint),
                 true);
     }
 }

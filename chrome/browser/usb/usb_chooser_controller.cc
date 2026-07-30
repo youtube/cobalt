@@ -25,16 +25,13 @@
 #include "content/public/browser/isolated_context_util.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
+#include "services/device/public/cpp/usb/usb_ids.h"
 #include "services/device/public/cpp/usb/usb_utils.h"
 #include "services/device/public/mojom/usb_enumeration_options.mojom.h"
 #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-shared.h"
 #include "third_party/blink/public/common/features_generated.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
-
-#if !BUILDFLAG(IS_ANDROID)
-#include "services/device/public/cpp/usb/usb_ids.h"
-#endif  // !BUILDFLAG(IS_ANDROID)
 
 using content::RenderFrameHost;
 using content::WebContents;
@@ -50,17 +47,15 @@ std::u16string FormatUsbDeviceName(
   if (device_name.empty()) {
     uint16_t vendor_id = device_info.vendor_id;
     uint16_t product_id = device_info.product_id;
-#if !BUILDFLAG(IS_ANDROID)
-    if (const char* product_name =
-            device::UsbIds::GetProductName(vendor_id, product_id)) {
-      return base::UTF8ToUTF16(product_name);
-    } else if (const char* vendor_name =
-                   device::UsbIds::GetVendorName(vendor_id)) {
+    device::UsbIdNames names =
+        device::UsbIds::GetVendorAndProductName(vendor_id, product_id);
+    if (names.product_name) {
+      return base::UTF8ToUTF16(names.product_name);
+    } else if (names.vendor_name) {
       return l10n_util::GetStringFUTF16(
           IDS_DEVICE_CHOOSER_DEVICE_NAME_UNKNOWN_DEVICE_WITH_VENDOR_NAME,
-          base::UTF8ToUTF16(vendor_name));
+          base::UTF8ToUTF16(names.vendor_name));
     }
-#endif  // !BUILDFLAG(IS_ANDROID)
     device_name = l10n_util::GetStringFUTF16(
         IDS_DEVICE_CHOOSER_DEVICE_NAME_UNKNOWN_DEVICE_WITH_VENDOR_ID_AND_PRODUCT_ID,
         base::ASCIIToUTF16(base::StringPrintf("%04x", vendor_id)),

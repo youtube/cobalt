@@ -59,6 +59,7 @@
 #include "net/base/url_util.h"
 #include "net/cookies/cookie_setting_override.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
 #include "services/network/public/cpp/url_loader_factory_builder.h"
 #include "services/network/public/mojom/client_security_state.mojom.h"
@@ -1858,8 +1859,7 @@ scoped_refptr<network::SharedURLLoaderFactory>
 ServiceWorkerContextWrapper::GetLoaderFactoryForUpdateCheck(
     const GURL& scope,
     network::mojom::ClientSecurityStatePtr client_security_state,
-    const std::optional<base::UnguessableToken>&
-        creator_network_restrictions_id) {
+    const base::UnguessableToken& creator_network_restrictions_id) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   // TODO(crbug.com/40767578): Do we want to instrument this with
   // devtools? It is currently not recorded at all.
@@ -1876,8 +1876,7 @@ ServiceWorkerContextWrapper::GetLoaderFactoryForMainScriptFetch(
     const GURL& scope,
     int64_t version_id,
     network::mojom::ClientSecurityStatePtr client_security_state,
-    const std::optional<base::UnguessableToken>&
-        creator_network_restrictions_id) {
+    const base::UnguessableToken& creator_network_restrictions_id) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   return GetLoaderFactoryForBrowserInitiatedRequest(
       scope, version_id, std::move(client_security_state),
@@ -1891,8 +1890,7 @@ ServiceWorkerContextWrapper::GetLoaderFactoryForBrowserInitiatedRequest(
     const GURL& scope,
     std::optional<int64_t> version_id,
     network::mojom::ClientSecurityStatePtr client_security_state,
-    const std::optional<base::UnguessableToken>&
-        creator_network_restrictions_id) {
+    const base::UnguessableToken& creator_network_restrictions_id) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   // TODO(falken): Replace this with URLLoaderInterceptor.

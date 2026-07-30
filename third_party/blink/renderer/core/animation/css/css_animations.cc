@@ -1643,7 +1643,7 @@ TimelineTrigger* CSSAnimations::ComputeTimelineTrigger(
     TimelineTriggerRangeList* range_list =
         MakeGarbageCollected<TimelineTriggerRangeList>(ranges);
 
-    return MakeGarbageCollected<TimelineTrigger>(range_list, element);
+    return MakeGarbageCollected<TimelineTrigger>(range_list);
   }
 
   return existing_trigger;

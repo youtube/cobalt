@@ -10,6 +10,8 @@
           "--performance-hint=ON_DEVICE_MODEL_PERFORMANCE_HINT_CPU",
           "--expectations-file=AIExpectations_CPU",
           "--release",
+          "--timeout-multiplier=5",
+          "--child-processes=1",
           "--driver-name",
           "Google Chrome",
           "--write-run-histories-to=${ISOLATED_OUTDIR}/run_histories.json"
@@ -34,7 +36,8 @@
             "os": "Mac-15|Mac-26",
             "pool": "chrome.tests"
           },
-          "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com"
+          "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 4
         },
         "test": "chrome_ai_wpt_tests",
         "test_id_prefix": "ninja://components/optimization_guide/internal/testing:chrome_ai_wpt_tests/"
@@ -46,6 +49,8 @@
           "--performance-hint=ON_DEVICE_MODEL_PERFORMANCE_HINT_FASTEST_INFERENCE",
           "--expectations-file=AIExpectations_GPU",
           "--release",
+          "--timeout-multiplier=5",
+          "--child-processes=1",
           "--driver-name",
           "Google Chrome",
           "--write-run-histories-to=${ISOLATED_OUTDIR}/run_histories.json"
@@ -70,7 +75,8 @@
             "os": "Mac-15|Mac-26",
             "pool": "chrome.tests"
           },
-          "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com"
+          "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 4
         },
         "test": "chrome_ai_wpt_tests",
         "test_id_prefix": "ninja://components/optimization_guide/internal/testing:chrome_ai_wpt_tests/"
@@ -82,6 +88,8 @@
           "--performance-hint=ON_DEVICE_MODEL_PERFORMANCE_HINT_CPU",
           "--expectations-file=AIExpectations_LiteRTCPU",
           "--release",
+          "--timeout-multiplier=5",
+          "--child-processes=1",
           "--driver-name",
           "Google Chrome",
           "--write-run-histories-to=${ISOLATED_OUTDIR}/run_histories.json"
@@ -106,7 +114,8 @@
             "os": "Mac-15|Mac-26",
             "pool": "chrome.tests"
           },
-          "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com"
+          "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 4
         },
         "test": "chrome_ai_wpt_tests",
         "test_id_prefix": "ninja://components/optimization_guide/internal/testing:chrome_ai_wpt_tests/"
@@ -118,6 +127,8 @@
           "--performance-hint=ON_DEVICE_MODEL_PERFORMANCE_HINT_FASTEST_INFERENCE",
           "--expectations-file=AIExpectations_LiteRTGPU",
           "--release",
+          "--timeout-multiplier=5",
+          "--child-processes=1",
           "--driver-name",
           "Google Chrome",
           "--write-run-histories-to=${ISOLATED_OUTDIR}/run_histories.json"
@@ -142,7 +153,8 @@
             "os": "Mac-15|Mac-26",
             "pool": "chrome.tests"
           },
-          "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com"
+          "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 4
         },
         "test": "chrome_ai_wpt_tests",
         "test_id_prefix": "ninja://components/optimization_guide/internal/testing:chrome_ai_wpt_tests/"
@@ -158,9 +170,12 @@
           "--performance-hint=ON_DEVICE_MODEL_PERFORMANCE_HINT_CPU",
           "--expectations-file=AIExpectations_CPU",
           "--release",
+          "--timeout-multiplier=5",
+          "--child-processes=1",
           "--driver-name",
           "Google Chrome",
-          "--write-run-histories-to=${ISOLATED_OUTDIR}/run_histories.json"
+          "--write-run-histories-to=${ISOLATED_OUTDIR}/run_histories.json",
+          "--child-processes=3"
         ],
         "merge": {
           "args": [
@@ -182,7 +197,8 @@
             "os": "Mac-15|Mac-26",
             "pool": "chrome.tests"
           },
-          "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com"
+          "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 4
         },
         "test": "chrome_ai_wpt_tests",
         "test_id_prefix": "ninja://components/optimization_guide/internal/testing:chrome_ai_wpt_tests/"
@@ -194,9 +210,12 @@
           "--performance-hint=ON_DEVICE_MODEL_PERFORMANCE_HINT_FASTEST_INFERENCE",
           "--expectations-file=AIExpectations_GPU",
           "--release",
+          "--timeout-multiplier=5",
+          "--child-processes=1",
           "--driver-name",
           "Google Chrome",
-          "--write-run-histories-to=${ISOLATED_OUTDIR}/run_histories.json"
+          "--write-run-histories-to=${ISOLATED_OUTDIR}/run_histories.json",
+          "--child-processes=3"
         ],
         "merge": {
           "args": [
@@ -218,7 +237,8 @@
             "os": "Mac-15|Mac-26",
             "pool": "chrome.tests"
           },
-          "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com"
+          "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 4
         },
         "test": "chrome_ai_wpt_tests",
         "test_id_prefix": "ninja://components/optimization_guide/internal/testing:chrome_ai_wpt_tests/"
@@ -230,9 +250,12 @@
           "--performance-hint=ON_DEVICE_MODEL_PERFORMANCE_HINT_CPU",
           "--expectations-file=AIExpectations_LiteRTCPU",
           "--release",
+          "--timeout-multiplier=5",
+          "--child-processes=1",
           "--driver-name",
           "Google Chrome",
-          "--write-run-histories-to=${ISOLATED_OUTDIR}/run_histories.json"
+          "--write-run-histories-to=${ISOLATED_OUTDIR}/run_histories.json",
+          "--child-processes=3"
         ],
         "merge": {
           "args": [
@@ -254,7 +277,8 @@
             "os": "Mac-15|Mac-26",
             "pool": "chrome.tests"
           },
-          "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com"
+          "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 4
         },
         "test": "chrome_ai_wpt_tests",
         "test_id_prefix": "ninja://components/optimization_guide/internal/testing:chrome_ai_wpt_tests/"
@@ -266,9 +290,12 @@
           "--performance-hint=ON_DEVICE_MODEL_PERFORMANCE_HINT_FASTEST_INFERENCE",
           "--expectations-file=AIExpectations_LiteRTGPU",
           "--release",
+          "--timeout-multiplier=5",
+          "--child-processes=1",
           "--driver-name",
           "Google Chrome",
-          "--write-run-histories-to=${ISOLATED_OUTDIR}/run_histories.json"
+          "--write-run-histories-to=${ISOLATED_OUTDIR}/run_histories.json",
+          "--child-processes=3"
         ],
         "merge": {
           "args": [
@@ -290,7 +317,8 @@
             "os": "Mac-15|Mac-26",
             "pool": "chrome.tests"
           },
-          "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com"
+          "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 4
         },
         "test": "chrome_ai_wpt_tests",
         "test_id_prefix": "ninja://components/optimization_guide/internal/testing:chrome_ai_wpt_tests/"

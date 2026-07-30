@@ -213,6 +213,7 @@ if (enable_printing) {
         "//chrome/browser/pdf:pdf_pref_names",
         "//chrome/browser/task_manager",
         "//chrome/browser/ui/webui",
+        "//chrome/browser/ui/webui/print_preview",
         "//components/cloud_devices/common",
         "//components/guest_view/browser",
         "//components/pref_registry",
@@ -261,16 +262,28 @@ if (enable_print_preview) {
     testonly = true
 
     sources = [
+      "print_preview_test.cc",
+      "print_preview_test.h",
       "test_print_preview_observer.cc",
       "test_print_preview_observer.h",
     ]
 
+    public_deps = [
+      "//chrome/browser/ui/webui/print_preview",
+      "//chrome/test:test_support",
+    ]
+
     deps = [
+      ":printing",
       "//base",
       "//chrome/browser",
+      "//chrome/browser:test_support",
       "//chrome/browser/ui",
+      "//chrome/services/printing/public/mojom",
       "//content/public/browser",
       "//content/test:test_support",
+      "//mojo/public/cpp/bindings",
+      "//printing/backend:test_support",
       "//printing/buildflags",
     ]
   }

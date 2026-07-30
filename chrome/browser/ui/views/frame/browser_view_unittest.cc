@@ -12,6 +12,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
@@ -395,9 +396,8 @@ TEST_F(BrowserViewTest, FindBrowserWindowWithWebContents) {
   // After adding the web contents to the browser's UI hierarchy the browser
   // window should be correctly associated with the contents.
   auto* web_view_ptr = browser_view()->AddChildView(std::move(web_view));
-  EXPECT_EQ(browser()->window(),
-            BrowserWindow::FindBrowserWindowWithWebContents(
-                web_view_ptr->GetWebContents()));
+  EXPECT_EQ(browser_view(), BrowserWindow::FindBrowserWindowWithWebContents(
+                                web_view_ptr->GetWebContents()));
 
   // Removing the web contents from the browser's UI hierarchy should
   // disassociate it with the browser window.
@@ -412,9 +412,8 @@ TEST_F(BrowserViewTest, FindBrowserWindowWithWebContentsTabSwitch) {
   AddTab(browser_view()->browser(), GURL("about:blank"));
   content::WebContents* original_active_contents =
       browser_view()->GetActiveWebContents();
-  EXPECT_EQ(browser()->window(),
-            BrowserWindow::FindBrowserWindowWithWebContents(
-                original_active_contents));
+  EXPECT_EQ(browser_view(), BrowserWindow::FindBrowserWindowWithWebContents(
+                                original_active_contents));
 
   // Inactive tabs (aka tabs with their web contents not currently embedded in
   // the browser's ContentWebView) should still be associated with their hosting
@@ -424,12 +423,10 @@ TEST_F(BrowserViewTest, FindBrowserWindowWithWebContentsTabSwitch) {
       browser_view()->GetActiveWebContents();
   EXPECT_NE(original_active_contents, browser_view()->GetActiveWebContents());
   EXPECT_EQ(new_active_contents, browser_view()->GetActiveWebContents());
-  EXPECT_EQ(browser()->window(),
-            BrowserWindow::FindBrowserWindowWithWebContents(
-                original_active_contents));
-  EXPECT_EQ(
-      browser()->window(),
-      BrowserWindow::FindBrowserWindowWithWebContents(new_active_contents));
+  EXPECT_EQ(browser_view(), BrowserWindow::FindBrowserWindowWithWebContents(
+                                original_active_contents));
+  EXPECT_EQ(browser_view(), BrowserWindow::FindBrowserWindowWithWebContents(
+                                new_active_contents));
 }
 
 // Tests that BrowserWindow::FromBrowser() resolves to the same BrowserWindow as
@@ -469,6 +466,22 @@ TEST_F(BrowserViewTest, DISABLED_RepeatedAccelerators) {
   const ui::Accelerator kNextTabRepeatAccel(
       ui::VKEY_TAB, ui::EF_CONTROL_DOWN | ui::EF_IS_REPEAT);
   EXPECT_TRUE(browser_view()->AcceleratorPressed(kNextTabRepeatAccel));
+}
+
+TEST_F(BrowserViewTest, RecordShortcutMetrics) {
+  base::HistogramTester histogram_tester;
+
+  const ui::Accelerator kLocationAccel(ui::VKEY_L, ui::EF_PLATFORM_ACCELERATOR);
+  EXPECT_TRUE(browser_view()->AcceleratorPressed(kLocationAccel));
+  histogram_tester.ExpectUniqueSample("Browser.Shortcuts.TriggeredCommandId",
+                                      IDC_FOCUS_LOCATION, 1);
+
+  // Repeated key events should be excluded from telemetry.
+  const ui::Accelerator kLocationRepeatAccel(
+      ui::VKEY_L, ui::EF_PLATFORM_ACCELERATOR | ui::EF_IS_REPEAT);
+  browser_view()->AcceleratorPressed(kLocationRepeatAccel);
+  histogram_tester.ExpectUniqueSample("Browser.Shortcuts.TriggeredCommandId",
+                                      IDC_FOCUS_LOCATION, 1);
 }
 #endif  // !BUILDFLAG(IS_MAC)
 
@@ -778,7 +791,7 @@ using BrowserViewWindowTypeTest = BrowserWithTestWindowTest;
 TEST_F(BrowserViewWindowTypeTest, TestWindowIsNotReturned) {
   // Check that BrowserView::GetBrowserViewForBrowser does not return a
   // non-BrowserView BrowserWindow instance - in this case, a TestBrowserWindow.
-  EXPECT_NE(nullptr, browser()->window());
+  EXPECT_NE(nullptr, BrowserWindow::FromBrowser(browser()));
   EXPECT_EQ(nullptr, BrowserView::GetBrowserViewForBrowser(browser()));
 }
 

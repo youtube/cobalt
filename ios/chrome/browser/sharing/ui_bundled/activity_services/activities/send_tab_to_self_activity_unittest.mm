@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/sharing/ui_bundled/activity_services/activities/send_tab_to_self_activity.h"
 
+#import "components/send_tab_to_self/metrics_util.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/sharing/ui_bundled/activity_services/data/share_to_data.h"
 #import "testing/platform_test.h"
@@ -65,7 +66,10 @@ TEST_F(SendTabToSelfActivityTest, DataFalse_ActivityDisabled) {
 TEST_F(SendTabToSelfActivityTest, ExecuteActivity_CallsHandler) {
   ShareToData* data = CreateData(true);
 
-  [[mocked_handler_ expect] showSendTabToSelfUI:data.shareURL title:data.title];
+  [[mocked_handler_ expect]
+      showSendTabToSelfUI:data.shareURL
+                    title:data.title
+               entryPoint:send_tab_to_self::ShareEntryPoint::kShareSheet];
 
   SendTabToSelfActivity* activity =
       [[SendTabToSelfActivity alloc] initWithData:data handler:mocked_handler_];

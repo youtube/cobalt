@@ -802,7 +802,7 @@ void ClipboardHostImpl::OnCopyCustomFormatAllowedResult(
     const ui::ClipboardFormatType&,
     const ClipboardPasteData&,
     std::optional<std::u16string> replacement_data) {
-  DCHECK_GT(pending_writes_, 0);
+  CHECK_GT(pending_writes_, 0, base::NotFatalUntil::M152);
   --pending_writes_;
 
   AddSourceDataToClipboardWriter(*clipboard_writer_, render_frame_host());
@@ -869,7 +869,7 @@ void ClipboardHostImpl::OnCopyHtmlAllowedResult(
     const ui::ClipboardFormatType& data_type,
     const ClipboardPasteData& data,
     std::optional<std::u16string> replacement_data) {
-  DCHECK_GT(pending_writes_, 0);
+  CHECK_GT(pending_writes_, 0, base::NotFatalUntil::M152);
   --pending_writes_;
 
   AddSourceDataToClipboardWriter(*clipboard_writer_, render_frame_host());
@@ -888,7 +888,7 @@ void ClipboardHostImpl::OnCopyAllowedResult(
     const ui::ClipboardFormatType& data_type,
     const ClipboardPasteData& data,
     std::optional<std::u16string> replacement_data) {
-  DCHECK_GT(pending_writes_, 0);
+  CHECK_GT(pending_writes_, 0, base::NotFatalUntil::M152);
   --pending_writes_;
 
   AddSourceDataToClipboardWriter(*clipboard_writer_, render_frame_host());

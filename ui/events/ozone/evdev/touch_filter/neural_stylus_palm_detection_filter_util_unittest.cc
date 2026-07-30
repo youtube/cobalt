@@ -226,7 +226,7 @@ TEST_P(NeuralStylusPalmDetectionFilterUtilTest, UnscaledMajorMinorResolution) {
   touch_.major = 20;
   touch_.minor = 10;
   touch_.orientation = 0;
-  base::TimeTicks time = base::TimeTicks::UnixEpoch() + base::Seconds(30);
+  base::TimeTicks time = base::TimeTicks() + base::Seconds(30);
   PalmFilterSample sample =
       CreatePalmFilterSample(touch_, time, model_config_, device_info);
   EXPECT_EQ(20 / 2, sample.major_radius);
@@ -237,7 +237,7 @@ TEST_P(NeuralStylusPalmDetectionFilterUtilTest, StrokeGetMaxMajorTest) {
   PalmFilterStroke stroke(model_config_, /*tracking_id*/ 0);
   touch_.tracking_id = stroke.tracking_id();
   EXPECT_FLOAT_EQ(0, stroke.MaxMajorRadius());
-  base::TimeTicks time = base::TimeTicks::UnixEpoch() + base::Seconds(30);
+  base::TimeTicks time = base::TimeTicks() + base::Seconds(30);
   const PalmFilterDeviceInfo nocturne_distilled =
       CreatePalmFilterDeviceInfo(nocturne_touchscreen_);
   for (int i = 1; i < 50; ++i) {
@@ -255,7 +255,7 @@ TEST_P(NeuralStylusPalmDetectionFilterUtilTest, StrokeGetMaxMajorTest) {
 TEST_P(NeuralStylusPalmDetectionFilterUtilTest, SampleRadiusConversion) {
   // A single number: a _constant_.
   model_config_.radius_polynomial_resize = {71.3};
-  base::TimeTicks time = base::TimeTicks::UnixEpoch() + base::Seconds(30);
+  base::TimeTicks time = base::TimeTicks() + base::Seconds(30);
   const PalmFilterDeviceInfo nocturne_distilled =
       CreatePalmFilterDeviceInfo(nocturne_touchscreen_);
   PalmFilterSample sample =
@@ -275,7 +275,7 @@ TEST(PalmFilterStrokeTest, NumberOfResampledValues) {
   NeuralStylusPalmDetectionFilterModelConfig model_config_;
   model_config_.max_sample_count = 3;
   model_config_.resample_period = base::Milliseconds(8);
-  base::TimeTicks down_time = base::TimeTicks::UnixEpoch() + base::Seconds(30);
+  base::TimeTicks down_time = base::TimeTicks() + base::Seconds(30);
 
   PalmFilterStroke stroke(model_config_, /*tracking_id*/ 0);
   const PalmFilterDeviceInfo device_info;
@@ -329,7 +329,7 @@ TEST(PalmFilterStrokeTest, ResamplingTest) {
   touch_.y = 2;
   touch_.major = 4;
   touch_.minor = 3;
-  base::TimeTicks down_time = base::TimeTicks::UnixEpoch() + base::Seconds(30);
+  base::TimeTicks down_time = base::TimeTicks() + base::Seconds(30);
   PalmFilterSample sample1 =
       CreatePalmFilterSample(touch_, down_time, model_config_, device_info);
   stroke.ProcessSample(sample1);
@@ -385,7 +385,7 @@ TEST(PalmFilterStrokeTest, MultipleResampledValues) {
   touch_.y = 10;
   touch_.major = 200;
   touch_.minor = 100;
-  base::TimeTicks down_time = base::TimeTicks::UnixEpoch() + base::Seconds(30);
+  base::TimeTicks down_time = base::TimeTicks() + base::Seconds(30);
   PalmFilterSample sample1 =
       CreatePalmFilterSample(touch_, down_time, model_config_, device_info);
   stroke.ProcessSample(sample1);

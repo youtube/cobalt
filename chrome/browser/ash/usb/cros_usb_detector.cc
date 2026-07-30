@@ -164,15 +164,12 @@ crostini::CrostiniManager* manager() {
 class CrosUsbNotificationDelegate
     : public message_center::NotificationDelegate {
  public:
-  explicit CrosUsbNotificationDelegate(const std::string& notification_id,
-                                       std::string guid,
+  explicit CrosUsbNotificationDelegate(std::string guid,
                                        std::vector<std::string> vm_names,
                                        std::string settings_sub_page)
-      : notification_id_(notification_id),
-        guid_(std::move(guid)),
+      : guid_(std::move(guid)),
         vm_names_(std::move(vm_names)),
-        settings_sub_page_(std::move(settings_sub_page)),
-        disposition_(CrosUsbNotificationClosed::kUnknown) {}
+        settings_sub_page_(std::move(settings_sub_page)) {}
 
   CrosUsbNotificationDelegate(const CrosUsbNotificationDelegate&) = delete;
   CrosUsbNotificationDelegate& operator=(const CrosUsbNotificationDelegate&) =
@@ -180,7 +177,6 @@ class CrosUsbNotificationDelegate
 
   void Click(const std::optional<int>& button_index,
              const std::optional<std::u16string>& reply) override {
-    disposition_ = CrosUsbNotificationClosed::kUnknown;
     if (button_index && *button_index < static_cast<int>(vm_names_.size())) {
       LOG(WARNING)
           << "Share USB device with [some guest] notification was clicked";
@@ -194,24 +190,15 @@ class CrosUsbNotificationDelegate
     }
   }
 
-  void Close(bool by_user) override {
-    if (by_user) {
-      disposition_ = CrosUsbNotificationClosed::kByUser;
-    }
-  }
-
  private:
   ~CrosUsbNotificationDelegate() override = default;
   void HandleConnectToGuest(const guest_os::GuestId& guest_id) {
-    disposition_ = CrosUsbNotificationClosed::kConnectToLinux;
     CrosUsbDetector* detector = CrosUsbDetector::Get();
     if (detector) {
       LOG(WARNING)
           << "Handling guest connection, will attach USB device to guest";
       detector->AttachUsbDeviceToGuest(guest_id, guid_, base::DoNothing());
-      return;
     }
-    Close(false);
   }
 
   void HandleConnectToGuest(const std::string& vm_name) {
@@ -226,14 +213,11 @@ class CrosUsbNotificationDelegate
       // user.
       ash::SettingsAppManager::Get()->Open(*user, {.sub_page = sub_page});
     }
-    Close(false);
   }
 
-  std::string notification_id_;
   std::string guid_;
   std::vector<std::string> vm_names_;
   std::string settings_sub_page_;
-  CrosUsbNotificationClosed disposition_;
   base::WeakPtrFactory<CrosUsbNotificationDelegate> weak_ptr_factory_{this};
 };
 
@@ -361,8 +345,7 @@ void ShowNotificationForDevice(const std::string& guid,
                                  NotificationCatalogName::kCrosUSBDetector),
       rich_notification_data,
       base::MakeRefCounted<CrosUsbNotificationDelegate>(
-          notification_id, guid, std::move(vm_names),
-          std::move(settings_sub_page)));
+          guid, std::move(vm_names), std::move(settings_sub_page)));
   SystemNotificationHelper::GetInstance()->Display(notification);
 }
 

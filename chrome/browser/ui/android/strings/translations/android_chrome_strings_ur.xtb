@@ -117,6 +117,7 @@
 <translation id="1435593198351412143">‏خودکار طور پر PDFs کھولیں</translation>
 <translation id="1437543266176261764"><ph name="APP_NAME" /> میں چل رہا ہے</translation>
 <translation id="1448440926884431741">اپنے ٹریک کردہ پروڈکٹس کو بُک مارکس میں منظم کریں</translation>
+<translation id="1452651021404174820">کوئی آلہ منتخب کریں</translation>
 <translation id="1455845192930279203">کیا آپ بہر صورت <ph name="DOWNLOAD_DOMAIN" /> سے "<ph name="FILE_NAME" />" (<ph name="FILE_SIZE" />) کو ڈاؤن لوڈ کرنا چاہتے ہیں؟</translation>
 <translation id="1460751212339734034">وقت کی بچت کریں، کم ٹائپ کریں</translation>
 <translation id="146522654774760805">پاس ورڈز اور آٹو فل</translation>
@@ -124,6 +125,7 @@
 <translation id="1477626028522505441">سروس کے مسائل کی وجہ سے <ph name="FILE_NAME" /> کو ڈاؤن لوڈ کرنا ناکام ہوگیا۔</translation>
 <translation id="147982357559798527">تبدیل کر دیا گیا</translation>
 <translation id="1480287803138246127">‏ہو سکتا ہے آپ کی کچھ سرگزشت یہاں ظاہر نہ ہو۔ اپنی تمام Chrome کی سرگزشت دیکھنے کے لیے، مکمل Chrome کی سرگزشت کھولیں۔</translation>
+<translation id="1483493594462132177">بھیجیں</translation>
 <translation id="1495677929897281669">ٹیب پر واپس جائیں</translation>
 <translation id="1496514951988037011">صارف نام</translation>
 <translation id="1501480321619201731">گروپ حذف کریں</translation>
@@ -1273,6 +1275,7 @@
 <translation id="634208815998129842">ٹاسک مینیجر</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{‏<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 اور <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> مزید}other{‏<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 اور <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> مزید}}</translation>
 <translation id="6345878117466430440">بطور پڑھا ہوا مارک کریں</translation>
+<translation id="6350745006329795504">اپنے آلات کا نظم کریں</translation>
 <translation id="6356893102071098867">چیک کریں کہ آپ نے صحیح اکاؤنٹ کا انتخاب کیا ہے</translation>
 <translation id="6364438453358674297">سرگزشت سے تجویز ہٹائیں؟</translation>
 <translation id="6380100320871303656">‏جن صفحات کو Chrome کے خیال میں آپ ملاحظہ کر سکتے ہیں وہ زیادہ کثرت سے پیشگی لوڈ ہوتے ہیں۔ اس ترتیب کے نیتجے میں ڈیٹا کے استعمال میں اضافہ ہو سکتا ہے۔</translation>

@@ -25,8 +25,8 @@
 #include "base/values.h"
 #include "base/version.h"
 #include "chrome/browser/web_applications/isolated_web_apps/key_distribution/iwa_key_distribution_histograms.h"
-#include "chrome/browser/web_applications/isolated_web_apps/key_distribution/proto/key_distribution.pb.h"
 #include "chrome/browser/web_applications/isolated_web_apps/runtime_data/chrome_iwa_runtime_data_provider.h"
+#include "components/webapps/isolated_web_apps/key_distribution/proto/key_distribution.pb.h"
 #include "components/webapps/isolated_web_apps/public/iwa_runtime_data_provider.h"
 
 class BrowserProcessImpl;

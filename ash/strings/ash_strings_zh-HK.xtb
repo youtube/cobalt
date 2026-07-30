@@ -48,6 +48,7 @@
 <translation id="1129383337808748948">重新整理<ph name="CONTENT_TITLE" /></translation>
 <translation id="1142002900084379065">最近的相片</translation>
 <translation id="114221662579355151">此操作會允許「<ph name="APP1_NAME" />」、「<ph name="APP2_NAME" />」以及所有具備相機權限的應用程式和網站存取相機。系統可能會要求你重新整理網頁或重新啟動應用程式。</translation>
+<translation id="1145593918056169051">打印機已停止運作</translation>
 <translation id="1147991416141538220">如要求存取權，請聯絡此裝置的管理員。</translation>
 <translation id="1148499908455722006">打開 <ph name="USER_NAME" /> 嘅資料對話框</translation>
 <translation id="1150989369772528668">日曆</translation>
@@ -151,6 +152,7 @@
 <translation id="1383876407941801731">搜尋</translation>
 <translation id="1388728792929436380"><ph name="DEVICE_TYPE" /> 將在更新完成時重新啟動。</translation>
 <translation id="1390113502208199250">您需要將此裝置回復原廠設定，才能使用 Chrome Education 升級功能。</translation>
+<translation id="1390907927270446471">「<ph name="PROFILE_USERNAME" />」無權透過「<ph name="PRINTER_NAME" />」列印。請聯絡您的管理員。</translation>
 <translation id="1391102559483454063">已開啟</translation>
 <translation id="1394698770495054737">完全模糊</translation>
 <translation id="1395878931462960119">{DAYS,plural, =1{1 天前}other{# 天前}}</translation>
@@ -169,6 +171,7 @@
 <translation id="1426410128494586442">是</translation>
 <translation id="142655739075382478">已封鎖「<ph name="APP_NAME" />」</translation>
 <translation id="142765311413773645"><ph name="APP_NAME" /> 授權已過期</translation>
+<translation id="1430915738399379752">列印</translation>
 <translation id="1435537621343861112">無法啟動語音聽寫功能，因為麥克風已關閉。</translation>
 <translation id="1445031758921122223">已下載面部控制檔案</translation>
 <translation id="1447907279406111651">正在進行 · 於<ph name="END_TIME" /> 結束</translation>
@@ -229,6 +232,7 @@
 <translation id="1597880963776148053">導覽步驟 <ph name="STEP" />，共 <ph name="TOTAL_STEPS" /> 個步驟。畫面底部的捷徑列會顯示已固定及開啟的應用程式。按下 Alt + Shift + L 鍵再按 Tab 鍵可將焦點移至捷徑列項目。</translation>
 <translation id="1602085790802918092">正在啟動虛擬機器</translation>
 <translation id="1602874809115667351"><ph name="LAUNCHER_KEY_NAME" />鍵 + 向下鍵</translation>
+<translation id="1604432177629086300">無法列印。請檢查打印機，然後再試一次</translation>
 <translation id="1604857178818051494">暫停媒體</translation>
 <translation id="1607312127821884567">取消設定睇手機嘅應用程式</translation>
 <translation id="1610778689852195798">「復原」</translation>
@@ -372,6 +376,7 @@
 <translation id="2053312383184521053">閒置狀態數據</translation>
 <translation id="2064048859448024834">開咗攝錄機預覽</translation>
 <translation id="2067220651560163985">顯示攝氏溫度</translation>
+<translation id="206960706005837784">「<ph name="APP_NAME" />」已完成使用「<ph name="PRINTER_NAME" />」列印</translation>
 <translation id="2075520525463668108">切換<ph name="CAPTURE_MEDIUM" />。<ph name="CAPTURE_MEDIUM" /><ph name="CAPTURE_STATE" /></translation>
 <translation id="2079545284768500474">復原</translation>
 <translation id="2086334242442703436">開啟 Emoji 點選器</translation>
@@ -441,6 +446,7 @@
 <translation id="2328561734797404498">請重新啟動裝置，以便使用 <ph name="APP_NAME" />。</translation>
 <translation id="2335091074961603075">Chromebook 或藍牙裝置正使用較舊版本的藍牙。如要提高音效品質，請使用內置麥克風。</translation>
 <translation id="2336214675195760012">{NUM_DAYS,plural, =1{<ph name="MANAGER" /> 要求你在今天內連接 Wi-Fi 並下載更新，或使用按用量收費連線的下載更新 (可能需支付費用)。}other{<ph name="MANAGER" /> 要求你連接 Wi-Fi 並在期限前下載更新，或使用按用量收費連線的下載更新 (可能需支付費用)。}}</translation>
+<translation id="2336258397628212480">「<ph name="APP_NAME" />」正在使用「<ph name="PRINTER_NAME" />」列印 1 頁內容</translation>
 <translation id="2336381494582898602">執行 Powerwash</translation>
 <translation id="2339073806695260576">輕按捷徑列的觸控按鈕即可寫筆記、擷取螢幕畫面，並使用雷射筆或放大鏡。</translation>
 <translation id="2341729377289034582">已鎖定為垂直</translation>
@@ -755,6 +761,7 @@
 <translation id="3206735939915734551">開啟/關閉 Caps Lock 鍵</translation>
 <translation id="3207953481422525583">使用者設定</translation>
 <translation id="3208321278970793882">應用程式</translation>
+<translation id="32101887417650595">無法連線至打印機</translation>
 <translation id="3212221635583599601">連線至互聯網即可執行更多操作</translation>
 <translation id="3213571860604332401">將連結儲存為書籤</translation>
 <translation id="3217205077783620295">打開咗音量，切換將會靜音。</translation>
@@ -823,6 +830,7 @@
 <translation id="3431517721463707585">桌面 14</translation>
 <translation id="3433507769937235446">離開時鎖定</translation>
 <translation id="3434107140712555581"><ph name="BATTERY_PERCENTAGE" />%</translation>
+<translation id="343578350365773421">紙張用完</translation>
 <translation id="3435967511775410570">成功識別指紋</translation>
 <translation id="3437677362970530951">「Play 商店」和其他遊戲平台上的遊戲</translation>
 <translation id="3439896670700055005">重新載入目前網頁，而不使用快取內容</translation>
@@ -999,6 +1007,7 @@
 <translation id="3848526302597027234">存取以下權限：</translation>
 <translation id="385051799172605136">返回</translation>
 <translation id="385300504083504382">開頭</translation>
+<translation id="3854976556788175030">輸出紙匣已滿</translation>
 <translation id="3857807444929313943">提起手指，然後再次輕觸</translation>
 <translation id="3859364108019690">無法以串流方式使用應用程式</translation>
 <translation id="3861638017150647085">使用者名稱「<ph name="USERNAME" />」無法使用</translation>
@@ -1051,6 +1060,7 @@
 <translation id="401993194061514265">無法使用標記，請重新開啟螢幕錄影應用程式。</translation>
 <translation id="4021716437419160885">向下捲動</translation>
 <translation id="4022497978915111141">鎖定裝置</translation>
+<translation id="4023048917751563912">「<ph name="APP_NAME" />」正在使用「<ph name="PRINTER_NAME" />」列印 <ph name="PAGE_NUMBER" /> 頁內容</translation>
 <translation id="4024840464866786680">如果您忘記 PIN 和密碼，或最近曾變更 Google 帳戶密碼，請嘗試復原此使用者密碼。</translation>
 <translation id="4026843240379844265">在顯示屏之間移動使用中的視窗</translation>
 <translation id="4028481283645788203">為安全起見，請輸入密碼</translation>
@@ -1579,6 +1589,7 @@
 <translation id="5491186829646618080">有可用的韌體更新</translation>
 <translation id="5503884284981862082">開啟/關閉「Google 助理」</translation>
 <translation id="550391772491508736">繼續投放</translation>
+<translation id="5505307013568720083">墨水用完</translation>
 <translation id="5506975627792768506">開啟或關閉放大鏡</translation>
 <translation id="5507778598655387680"><ph name="VOLUME_LEVEL" />，㩒 Enter 鍵就可以變做靜音。</translation>
 <translation id="5512042095225963688">刪除上一個字詞</translation>
@@ -1690,12 +1701,14 @@
 <translation id="5791926618942305301">喺螢幕截圖入面，設定為<ph name="SOURCE" />嘅<ph name="TYPE" />。㩒 Tab 鍵可以揀擷取類型。㩒 Enter 鍵就可以擷取。如果要揀擷取區域，請設定為部分螢幕截圖。如果仲未啟用，請㩒空格鍵選取區域。</translation>
 <translation id="579415080077680903">靜音</translation>
 <translation id="5802516411616338943">開啟「快速設定」</translation>
+<translation id="5804241973901381774">權限</translation>
 <translation id="5804651031882187592">關閉「鎖定 SIM 卡」設定</translation>
 <translation id="5805809050170488595">按一下即可啟用 <ph name="NETWORK_NAME" /></translation>
 <translation id="5818796501620225415">你可延長時間，亦可結束專注模式</translation>
 <translation id="5819918159912280082">Chromebook 意外重新開機。你可開啟之前使用的視窗和應用程式。</translation>
 <translation id="5823239091726045201">Google Tasks 網頁版</translation>
 <translation id="5825969630400862129">已連接裝置設定</translation>
+<translation id="5828633471261496623">列印中…</translation>
 <translation id="5830180081891717894">還有 <ph name="WINDOWS" /> 個</translation>
 <translation id="5830205393314753525">無法開啟「<ph name="APP_NAME" />」</translation>
 <translation id="583281660410589416">不明</translation>
@@ -1720,6 +1733,7 @@
 <translation id="5892014525522223653">你已離線。</translation>
 <translation id="5895138241574237353">重新啟動</translation>
 <translation id="589817443623831496">點掃瞄</translation>
+<translation id="5901494423252125310">打印機的外蓋應關上</translation>
 <translation id="5901630391730855834">黃色</translation>
 <translation id="5904614460720589786">設定發生問題，因此無法設定 <ph name="APP_NAME" />。請聯絡您的管理員。錯誤代碼：<ph name="ERROR_CODE" />。</translation>
 <translation id="5910726859585389579"><ph name="DEVICE_TYPE" /> 已離線</translation>
@@ -1784,6 +1798,7 @@
         <ph name="BEGIN_PARAGRAPH2" />即使關閉此功能，此裝置仍然可以傳送基本服務 (例如系統更新與安全性) 所需的資料。<ph name="END_PARAGRAPH2" />
         <ph name="BEGIN_PARAGRAPH3" />擁有者可前往「設定」&gt;「進階」&gt;「自動將診斷和使用情況資料傳送給 Google」，以控制此功能。<ph name="END_PARAGRAPH3" />
         <ph name="BEGIN_PARAGRAPH4" />果你已為子女開啟其他「網絡及應用程式活動記錄」設定，此資料可能會儲存在其 Google 帳戶中。你可以前往 families.google.com 瞭解這些設定的詳情和調整方法。<ph name="END_PARAGRAPH4" /></translation>
+<translation id="6052261338768299955">「<ph name="APP_NAME" />」正在嘗試使用「<ph name="PRINTER_NAME" />」列印</translation>
 <translation id="6054305421211936131">使用智能卡登入</translation>
 <translation id="6059276912018042191">最近開啟的 Chrome 分頁</translation>
 <translation id="606147842285839995">ExpressKey 3</translation>
@@ -1887,6 +1902,7 @@
 <translation id="6337159624125741244">已開啟「全螢幕放大鏡」</translation>
 <translation id="6338485349199627913">「<ph name="DISPLAY_NAME" />」是由 <ph name="MANAGER" /> 管理的工作階段</translation>
 <translation id="6340148837564298498">如果忘記 PIN，建議你復原此使用者的帳戶。</translation>
+<translation id="634208815998129842">工作管理員</translation>
 <translation id="6344138931392227467">已連結 <ph name="DEVICE_NAME" /></translation>
 <translation id="6345418402353744910">Proxy <ph name="PROXY" /> 要求您提供使用者名稱和密碼，以便管理員設定您的網絡</translation>
 <translation id="6348449481487610270"><ph name="MODIFIER_ONE" /><ph name="MODIFIER_TWO" /><ph name="KEY_ONE" /> 然後 <ph name="MODIFIER_THREE" /><ph name="KEY_TWO" /> 或 <ph name="KEY_THREE" /></translation>
@@ -2091,6 +2107,7 @@
 <translation id="6921427376813842559">更新裝置</translation>
 <translation id="6929081673585394903">顯示控制項</translation>
 <translation id="6931576957638141829">儲存至</translation>
+<translation id="6935286146439255109">找不到紙匣</translation>
 <translation id="6935857786205183008">直向</translation>
 <translation id="6942518653766415536">錄製內容格式選單</translation>
 <translation id="6945221475159498467">選取</translation>
@@ -2113,6 +2130,7 @@
 <translation id="6988094684494323731">正在啟動 Linux 容器</translation>
 <translation id="7000027735917578303">視窗同桌面設定</translation>
 <translation id="7001036685275644873">正在備份 Linux 應用程式和檔案</translation>
+<translation id="7001066449188684145">必須驗證身分，才能透過「<ph name="PRINTER_NAME" />」列印。請聯絡您的管理員。</translation>
 <translation id="7004910047186208204">連線至流動數據</translation>
 <translation id="7005239792648594238">開啟應用程式即可開始</translation>
 <translation id="7014684956566476813">已連接名為「<ph name="DEVICE_NAME" />」的裝置</translation>
@@ -2152,6 +2170,7 @@
 <translation id="7108254681523785542">請選取要貼上的項目。按下 <ph name="SHORTCUT_KEY_NAME" /> + V 鍵即可查看剪貼簿。</translation>
 <translation id="7108338896283013870">隱藏</translation>
 <translation id="7108933416628942903">立即鎖定</translation>
+<translation id="7116554090938189816">打印機 SSL 憑證已過期。請重新啟動打印機，並再試一次。</translation>
 <translation id="7116969082764510092">桌面 11</translation>
 <translation id="7118268675952955085">螢幕截圖</translation>
 <translation id="7118597077555700347">開啟<ph name="SEARCH_RESULT_TEXT" /></translation>
@@ -2203,6 +2222,7 @@
 <translation id="7312210124139670355">管理員正在重設您的 eSIM 卡。這項操作可能需時數分鐘。</translation>
 <translation id="7312761820869643657">將裝置更新為先前的版本</translation>
 <translation id="7313193732017069507">展開相機調整大小的按鈕</translation>
+<translation id="7325209047678309347">打印機卡紙</translation>
 <translation id="7327989755579928735"><ph name="MANAGER" /> 已停用 ADB 偵錯。重新啟動 <ph name="DEVICE_TYPE" /> 後，您將無法載入應用程式。</translation>
 <translation id="73289266812733869">已取消選取</translation>
 <translation id="7330397557116570022">將焦點放到文字欄位以使用「語音聽寫」</translation>
@@ -2577,6 +2597,7 @@
 <translation id="8339706171276328417"><ph name="ACTION_DESCRIPTION" /> · <ph name="TIME" /></translation>
 <translation id="834414266279889566">輸出內容欠佳</translation>
 <translation id="8345019317483336363">揀咗「<ph name="WINDOW_TITLE" />」視窗</translation>
+<translation id="8347227221149377169">列印工作</translation>
 <translation id="8349826889576450703">啟動器</translation>
 <translation id="8349964124165471584">在新視窗中開啟連結</translation>
 <translation id="8351131234907093545">建立筆記</translation>
@@ -2615,6 +2636,7 @@
 <translation id="8458259704995116343">無法啟動虛擬機器。</translation>
 <translation id="84613761564611563">已要求網絡設定使用者介面，請稍候…</translation>
 <translation id="8462305545768648477">關閉「揀選朗讀內容」</translation>
+<translation id="8463001014623882202">授權失敗</translation>
 <translation id="8466665972451889002">顯示「<ph name="GROUP_NAME" />」中的項目</translation>
 <translation id="8468806060683421065">繳交期限：<ph name="DUE_DATE_AND_TIME" /></translation>
 <translation id="8473301994082929012"><ph name="ORGANIZATION_NAME" /> 已 <ph name="FEATURE_STATE" /><ph name="FEATURE_NAME" />。</translation>

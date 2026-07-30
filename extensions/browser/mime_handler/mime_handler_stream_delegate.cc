@@ -38,4 +38,8 @@ bool MimeHandlerStreamDelegate::PluginCanSave() const {
 
 void MimeHandlerStreamDelegate::SetPluginCanSave(bool plugin_can_save) {}
 
+bool MimeHandlerStreamDelegate::RequiresPerInstanceProcessIsolation() const {
+  return false;
+}
+
 }  // namespace extensions

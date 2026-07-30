@@ -15,6 +15,8 @@ build_webui("build") {
     "experiment.html.ts",
     "experiment.ts",
     "flags_browser_proxy.ts",
+    "icons.html.ts",
+    "import_export_file_proxy.ts",
   ]
 
   css_files = [

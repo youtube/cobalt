@@ -35,21 +35,16 @@ class ManagePasswordsPageActionController {
   ManagePasswordsPageActionController& operator=(
       const ManagePasswordsPageActionController&) = delete;
 
-  // Fetches the current password state and if a site is blacklisted
-  // and updates the page action icon.
+  // Fetches the current password state and updates the page action icon.
   // `state`: The current password_manager::ui::State.
-  // `is_blocklisted`: True if the current site is blocklisted for password
-  // saving.
   void UpdateVisibility(password_manager::ui::State state,
-                        bool is_blocklisted,
                         ManagePasswordsUIController& passwords_ui_controller,
                         actions::ActionItem& passwords_action_item);
 
   // Returns the appropriate tooltip text for the manage passwords icon based
   // on the current state.
   static std::u16string GetManagePasswordsTooltipText(
-      password_manager::ui::State state,
-      bool is_blocklisted);
+      password_manager::ui::State state);
 
  private:
   const raw_ref<page_actions::PageActionController> page_action_controller_;

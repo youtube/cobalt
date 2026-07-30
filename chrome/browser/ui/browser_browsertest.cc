@@ -658,7 +658,7 @@ IN_PROC_BROWSER_TEST_F(
             closing_contents->GetPrimaryMainFrame()->GetProcess())
       << "Test relies on active and closing tabs sharing a renderer process.";
 
-  BrowserView* browser_view = browser()->window()->AsBrowserView();
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   ASSERT_TRUE(browser_view);
   views::View* active_webview = browser_view->GetActiveContentsWebView();
   ASSERT_TRUE(active_webview);
@@ -2179,7 +2179,9 @@ IN_PROC_BROWSER_TEST_F(KioskModeTest, MAYBE_EnableKioskModeTest) {
 
 #if BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_F(KioskModeTest, DoNotExitFullscreen) {
-  browser()->window()->GetExclusiveAccessContext()->ExitFullscreen();
+  BrowserWindow::FromBrowser(browser())
+      ->GetExclusiveAccessContext()
+      ->ExitFullscreen();
   ASSERT_TRUE(browser()->GetWindow()->IsFullscreen());
 }
 
@@ -2632,7 +2634,8 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, GetSizeForNewRenderView) {
   content::RenderViewHost* prev_rvh =
       web_contents->GetPrimaryMainFrame()->GetRenderViewHost();
   const gfx::Size initial_wcv_size = web_contents->GetContainerBounds().size();
-  RenderViewSizeObserver observer(web_contents, browser()->window());
+  RenderViewSizeObserver observer(web_contents,
+                                  BrowserWindow::FromBrowser(browser()));
 
   // Navigate to a non-NTP page, without resizing WebContentsView.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(

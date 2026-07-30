@@ -74,6 +74,7 @@ class PersonalContextManager final {
   void OnFetchPiiEntitiesResponse(
       proto::ContextMemoryFeature feature,
       FetcherId fetcher_id,
+      base::TimeTicks start_time,
       FetchPiiContextCallback callback,
       base::expected<const proto::FetchPiiEntitiesResponse, ContextMemoryError>
           fetch_response);

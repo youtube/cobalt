@@ -785,9 +785,6 @@ TEST_F(ExtensionsToolbarDesktopUnitTest,
       InstallExtensionWithHostPermissions("Extension", {"<all_urls>"});
   WithholdHostPermissions(extension.get());
 
-  extensions::HostAccessRequestsHelper::SetCooldownForTesting(
-      base::TimeDelta());
-
   // Navigate to a site and verify request access button is not visible, since
   // no extension has added a request.
   NavigateAndCommit(GURL("http://www.example.com"));
@@ -892,9 +889,6 @@ TEST_F(ExtensionsToolbarDesktopUnitTest,
 // same-origin navigations.
 TEST_F(ExtensionsToolbarDesktopUnitTest,
        RequestAccessButton_NavigationBetweenPages_RequestWithPattern) {
-  extensions::HostAccessRequestsHelper::SetCooldownForTesting(
-      base::TimeDelta());
-
   auto extension =
       InstallExtensionWithHostPermissions("Extension", {"<all_urls>"});
   WithholdHostPermissions(extension.get());
@@ -1088,9 +1082,6 @@ TEST_F(ExtensionsToolbarDesktopUnitTest, RequestAccessButton_RequestDismissed) {
 
 TEST_F(ExtensionsToolbarDesktopUnitTest,
        RequestAccessButton_OnPressedExecuteAction) {
-  extensions::HostAccessRequestsHelper::SetCooldownForTesting(
-      base::TimeDelta());
-
   auto extension =
       InstallExtensionWithHostPermissions("Extension", {"<all_urls>"});
   WithholdHostPermissions(extension.get());
@@ -1156,9 +1147,6 @@ TEST_F(ExtensionsToolbarDesktopUnitTest,
 // correct information.
 TEST_F(ExtensionsToolbarDesktopUnitTest,
        RequestAccessButton_UpdateInBetweenClickAndConfirmationCollapse) {
-  extensions::HostAccessRequestsHelper::SetCooldownForTesting(
-      base::TimeDelta());
-
   auto extension_A =
       InstallExtensionWithHostPermissions("Extension A", {"<all_urls>"});
   auto extension_B =

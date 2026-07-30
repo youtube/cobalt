@@ -14,6 +14,7 @@
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
 #import "ios/chrome/test/earl_grey/chrome_test_case.h"
+#import "ios/chrome/test/scoped_eg_synchronization_disabler.h"
 #import "ios/testing/earl_grey/app_launch_configuration.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
 #import "net/test/embedded_test_server/embedded_test_server.h"
@@ -68,7 +69,10 @@ std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
 
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config;
-  config.relaunch_policy = NoForceRelaunchAndResetState;
+  // Use `ForceRelaunchByCleanShutdown` to ensure a clean app state for each
+  // test. Some tests show a modal warning which cannot be reliably dismissed
+  // programmatically.
+  config.relaunch_policy = ForceRelaunchByCleanShutdown;
 
   // Use commandline args to save a fake allowlisted URL.
   config.additional_args.push_back(
@@ -76,8 +80,13 @@ std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
       _allowlistedURL.spec());
 
   if ([self isRunningTest:@selector(testPasswordReuseDetectionWarning)] ||
-      [self isRunningTest:@selector
-            (testPasswordReuseDetectionKeydownPreventDefault)]) {
+      [self
+          isRunningTest:@selector(
+                            testPasswordReuseDetectionKeydownPreventDefault)] ||
+      [self isRunningTest:@selector(testPasswordReuseDetectionPaste)] ||
+      [self
+          isRunningTest:
+              @selector(testPasswordReuseDetectionPasteWithKeyboardShortcut)]) {
     // Use commandline args to save a fake phishing cached verdict.
     config.additional_args.push_back(
         std::string("--mark_as_phish_guard_phishing=") + _phishingURL.spec());
@@ -110,11 +119,30 @@ std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
 - (void)typePasswordIntoWebInput {
   [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
       performAction:chrome_test_util::TapWebElementWithId(kInputElement)];
+  [ChromeEarlGrey waitForKeyboardToAppear];
 
   [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"P" flags:UIKeyModifierShift];
   for (NSString* character in @[ @"a", @"s", @"s", @"w", @"o", @"r", @"d" ]) {
     [ChromeEarlGrey simulatePhysicalKeyboardEvent:character flags:0];
   }
+
+  [ChromeEarlGrey
+      waitForJavaScriptCondition:
+          [NSString stringWithFormat:
+                        @"document.getElementById('%s').value.includes('%@');",
+                        kInputElement, @"Password"]];
+}
+
+- (void)waitForPasswordProtectionWarningWithoutSync {
+  // Disable synchronization to instruct EarlGrey to inspect the view
+  // hierarchy immediately instead of waiting for the app to become idle,
+  // which can block the test and cause a timeout during the modal's
+  // presentation animation.
+  ScopedSynchronizationDisabler disabler;
+  [ChromeEarlGrey
+      waitForUIElementToAppearWithMatcher:PasswordProtectionMatcher()
+                                  timeout:base::test::ios::
+                                              kWaitForUIElementTimeout];
 }
 
 // Tests that password protection UI is shown when saved password is reused on
@@ -126,10 +154,7 @@ std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
   [ChromeEarlGrey waitForWebStateContainingText:kInputPage];
 
   [self typePasswordIntoWebInput];
-  [ChromeEarlGrey
-      waitForUIElementToAppearWithMatcher:PasswordProtectionMatcher()
-                                  timeout:base::test::ios::
-                                              kWaitForUIElementTimeout];
+  [self waitForPasswordProtectionWarningWithoutSync];
 }
 
 // Tests that password protection UI is shown even when the webpage cancels
@@ -139,10 +164,7 @@ std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
   [ChromeEarlGrey waitForWebStateContainingText:kInputPage];
 
   [self typePasswordIntoWebInput];
-  [ChromeEarlGrey
-      waitForUIElementToAppearWithMatcher:PasswordProtectionMatcher()
-                                  timeout:base::test::ios::
-                                              kWaitForUIElementTimeout];
+  [self waitForPasswordProtectionWarningWithoutSync];
 }
 
 // Tests that password protection UI is not shown when saved password is reused
@@ -157,6 +179,58 @@ std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
 
   [[EarlGrey selectElementWithMatcher:PasswordProtectionMatcher()]
       assertWithMatcher:grey_nil()];
+}
+
+// Tests that password protection UI is shown when a saved password is pasted
+// on a phishing site (using the callout menu).
+- (void)testPasswordReuseDetectionPaste {
+  [ChromeEarlGrey loadURL:_phishingURL];
+  [ChromeEarlGrey waitForWebStateContainingText:kInputPage];
+
+  // Tap input once to focus it.
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
+      performAction:chrome_test_util::TapWebElementWithId(kInputElement)];
+  [ChromeEarlGrey waitForKeyboardToAppear];
+
+  // Add password to the pasteboard.
+  [ChromeEarlGrey copyTextToPasteboard:@"Password"];
+
+  // Tap input a second time to bring up the iOS edit menu / callout bar.
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
+      performAction:chrome_test_util::TapWebElementWithId(kInputElement)];
+
+  // Tap the "Paste" button in the system callout bar.
+  id<GREYMatcher> pasteButton =
+      chrome_test_util::SystemSelectionCalloutPasteButton();
+  [ChromeEarlGrey waitForUIElementToAppearWithMatcher:pasteButton];
+  [[EarlGrey selectElementWithMatcher:pasteButton] performAction:grey_tap()];
+
+  [self waitForPasswordProtectionWarningWithoutSync];
+}
+
+// Tests that password protection UI is shown when saved password is pasted on a
+// phishing site using a keyboard shortcut (Cmd+V).
+- (void)testPasswordReuseDetectionPasteWithKeyboardShortcut {
+  [ChromeEarlGrey loadURL:_phishingURL];
+  [ChromeEarlGrey waitForWebStateContainingText:kInputPage];
+
+  // Tap input to focus it.
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
+      performAction:chrome_test_util::TapWebElementWithId(kInputElement)];
+  [ChromeEarlGrey waitForKeyboardToAppear];
+
+  // Copy password to clipboard and simulate Cmd+V paste.
+  [ChromeEarlGrey copyTextToPasteboard:@"Password"];
+  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"v"
+                                          flags:UIKeyModifierCommand];
+
+  [ChromeEarlGrey
+      waitForJavaScriptCondition:
+          [NSString stringWithFormat:
+                        @"document.getElementById('%s').value.includes('%@');",
+                        kInputElement, @"Password"]];
+
+  [self waitForPasswordProtectionWarningWithoutSync];
 }
 
 @end

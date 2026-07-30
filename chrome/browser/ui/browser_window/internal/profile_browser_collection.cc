@@ -41,9 +41,8 @@ BrowserWindowInterface* ProfileBrowserCollection::FindTabbedBrowser(
     }
 
 #if !BUILDFLAG(IS_ANDROID)
-    Browser* browser_concrete = browser->GetBrowserForMigrationOnly();
-    if (!browser_concrete->window() ||
-        !browser_concrete->window()->IsOnCurrentWorkspace()) {
+    BrowserWindow* browser_window = BrowserWindow::FromBrowser(browser);
+    if (!browser_window || !browser_window->IsOnCurrentWorkspace()) {
       return true;
     }
 #endif

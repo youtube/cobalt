@@ -159,6 +159,7 @@ source_set("impl") {
       "//chrome/browser/ui/translate",
       "//chrome/browser/ui/user_education",
       "//chrome/browser/ui/webui:webui_util",
+      "//chrome/browser/ui/webui/history",
       "//chrome/browser/user_education",
       "//chrome/common:mojo_bindings",
       "//components/compose/core/browser",

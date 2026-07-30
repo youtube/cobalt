@@ -271,6 +271,7 @@ Called by update_document_policy_enum.py.-->
   <int value="8" label="VerificationFailed"/>
   <int value="9" label="ManagerDestroyed"/>
   <int value="10" label="TokenSentToRenderer"/>
+  <int value="11" label="DriverInactive"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/autofill/content/browser/integrators/email_verifier/email_verifier_delegate.h:EvpAutofillFlowResult) -->
@@ -351,6 +352,7 @@ Called by update_document_policy_enum.py.-->
   <int value="54" label="TokenVerificationKbInvalidSdHash"/>
   <int value="55" label="TokenVerificationKbMissingCnf"/>
   <int value="56" label="TokenVerificationKbSignatureFailed"/>
+  <int value="57" label="TokenVerificationSdJwtInvalidTyp"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/webid/email_verification_request.mojom:EmailVerificationRequestResult) -->
@@ -6673,6 +6675,11 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5927" label="SVGPathElementGetPathData"/>
   <int value="5928" label="SVGPathElementGetPathDataNormalized"/>
   <int value="5929" label="DownloadFromAdScript"/>
+  <int value="5930" label="CompositorKeyframeSnapshotMissing"/>
+  <int value="5931" label="TimelineTrigger"/>
+  <int value="5932" label="ContainerTimingAttribute"/>
+  <int value="5933" label="ContainerTimingAttributeHasRootName"/>
+  <int value="5934" label="ContainerTimingIgnoreAttribute"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->

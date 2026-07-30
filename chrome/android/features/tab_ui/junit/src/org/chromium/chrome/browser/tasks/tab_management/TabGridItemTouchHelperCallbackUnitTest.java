@@ -63,6 +63,7 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabUngrouper;
+import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.TabListLayoutType;
 import org.chromium.chrome.browser.tasks.tab_management.TabListModel.AnimationStatus;
 import org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties;
 import org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.ModelType;
@@ -225,7 +226,7 @@ public class TabGridItemTouchHelperCallbackUnitTest {
                         mTabClosedListener,
                         isDialog ? mTabGridDialogHandler : null,
                         "",
-                        !isDialog,
+                        isDialog ? TabListLayoutType.FLAT : TabListLayoutType.GROUPED,
                         CallbackUtils.emptyRunnable());
         mItemTouchHelperCallback.setupCallback(THRESHOLD, MERGE_AREA_THRESHOLD, THRESHOLD);
         mItemTouchHelperCallback.getMovementFlags(mRecyclerView, mMockViewHolder1);
@@ -607,7 +608,7 @@ public class TabGridItemTouchHelperCallbackUnitTest {
     @Test
     public void onDragTab_Hovered_NonGts() {
         // Suppose drag happens in components other than GTS.
-        mItemTouchHelperCallback.setActionsOnAllRelatedTabsForTesting(false);
+        setupItemTouchHelperCallback(true);
 
         // Hovering shouldn't make any difference.
         verifyDrag(mMockViewHolder1, 5, 0, POSITION2, AnimationStatus.CARD_RESTORE);
@@ -942,7 +943,6 @@ public class TabGridItemTouchHelperCallbackUnitTest {
         AtomicInteger recordedTabId = new AtomicInteger(TabModel.INVALID_TAB_INDEX);
 
         mItemTouchHelperCallback.setOnDropOnArchivalMessageCardEventListener(recordedTabId::set);
-        mItemTouchHelperCallback.setActionsOnAllRelatedTabsForTesting(true);
 
         // Simulate the selection of card#1 in TabListModel.
         mItemTouchHelperCallback.setSelectedTabIndexForTesting(POSITION1);
@@ -976,7 +976,6 @@ public class TabGridItemTouchHelperCallbackUnitTest {
         AtomicInteger recordedTabId = new AtomicInteger(TabModel.INVALID_TAB_INDEX);
 
         mItemTouchHelperCallback.setOnDropOnArchivalMessageCardEventListener(recordedTabId::set);
-        mItemTouchHelperCallback.setActionsOnAllRelatedTabsForTesting(true);
 
         // Simulate the selection of card#1 in TabListModel.
         mItemTouchHelperCallback.setSelectedTabIndexForTesting(POSITION1);
@@ -996,8 +995,6 @@ public class TabGridItemTouchHelperCallbackUnitTest {
     public void onHoverOverArchivalCard() {
         setupItemTouchHelperCallback(false);
         addArchivedMessageCard();
-
-        mItemTouchHelperCallback.setActionsOnAllRelatedTabsForTesting(true);
 
         // Simulate the selection of card#1 in TabListModel.
         mItemTouchHelperCallback.setSelectedTabIndexForTesting(POSITION1);
@@ -1039,7 +1036,6 @@ public class TabGridItemTouchHelperCallbackUnitTest {
         AtomicInteger recordedTabId = new AtomicInteger(TabModel.INVALID_TAB_INDEX);
 
         mItemTouchHelperCallback.setOnDropOnArchivalMessageCardEventListener(recordedTabId::set);
-        mItemTouchHelperCallback.setActionsOnAllRelatedTabsForTesting(true);
 
         // Simulate the selection of card#1 in TabListModel.
         mItemTouchHelperCallback.setSelectedTabIndexForTesting(POSITION1);
@@ -1080,8 +1076,6 @@ public class TabGridItemTouchHelperCallbackUnitTest {
 
         setupItemTouchHelperCallback(false);
         addArchivedMessageCard();
-
-        mItemTouchHelperCallback.setActionsOnAllRelatedTabsForTesting(true);
 
         // Simulate the selection of card#1 in TabListModel.
         mItemTouchHelperCallback.setSelectedTabIndexForTesting(POSITION1);
@@ -1426,7 +1420,7 @@ public class TabGridItemTouchHelperCallbackUnitTest {
     public void testClearCardState_ArchivedMessage() {
         setupItemTouchHelperCallback(false);
         addArchivedMessageCard();
-        mItemTouchHelperCallback.setActionsOnAllRelatedTabsForTesting(true);
+
         mItemTouchHelperCallback.setSelectedTabIndexForTesting(POSITION1);
 
         // Pretend a drag over the archived message card has started.

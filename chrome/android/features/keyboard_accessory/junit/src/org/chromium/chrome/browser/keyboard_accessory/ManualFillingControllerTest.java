@@ -162,7 +162,6 @@ public class ManualFillingControllerTest {
     @Mock private EdgeToEdgeController mMockEdgeToEdgeController;
     @Mock private MultiWindowModeStateDispatcher mMockMultiWindowModeStateDispatcher;
     @Mock private BrowserControlsManager mMockBrowserControlsManager;
-    @Mock private Runnable mMockAtMemoryCallback;
 
     private final ManualFillingCoordinator mController = new ManualFillingCoordinator();
     private final ManualFillingMediator mMediator = mController.getMediatorForTesting();
@@ -384,9 +383,8 @@ public class ManualFillingControllerTest {
     }
 
     @Test
-    public void testSetsAtMemoryCallback() {
-        mController.setAtMemoryCallback(mMockAtMemoryCallback);
-        verify(mMockKeyboardAccessory).setAtMemoryCallback(mMockAtMemoryCallback);
+    public void testRegistersAtMemoryCallbackOnInitialize() {
+        verify(mMockKeyboardAccessory).setAtMemoryCallback(any());
     }
 
     @Test

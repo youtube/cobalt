@@ -40,7 +40,7 @@ import org.chromium.chrome.browser.tab.StorageLoadedData;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabGroupCollectionData;
-import org.chromium.chrome.browser.tab.TabStateAttributes;
+import org.chromium.chrome.browser.tab.TabStateAttributesRegistry;
 import org.chromium.chrome.browser.tab.TabStateStorageService;
 import org.chromium.chrome.browser.tab.TabStateStorageServiceFactory;
 import org.chromium.chrome.browser.tabmodel.IncognitoTabModel;
@@ -290,7 +290,8 @@ public class ModelTrackingOrchestratorUnitTest {
         mOrchestrator.onRestoredForModel(/* incognito= */ false);
 
         MockTab tab = new MockTab(1, mProfile);
-        TabStateAttributes.createForTab(tab, TabCreationState.LIVE_IN_FOREGROUND);
+        TabStateAttributesRegistry.createAttributesForTab(
+                tab, TabStateStore.class, TabCreationState.LIVE_IN_FOREGROUND);
 
         mRegularTabSupplier.set(tab);
         mOrchestrator.saveTab(tab);

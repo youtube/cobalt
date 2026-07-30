@@ -52,6 +52,7 @@
 #include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "content/browser/file_system/file_system_manager_impl.h"
 #include "content/browser/file_system_access/file_system_access_manager_impl.h"
+#include "content/browser/process_lock.h"
 #include "content/browser/renderer_host/cross_process_frame_connector.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/media/media_stream_manager.h"
@@ -2110,6 +2111,31 @@ bool HasOriginKeyedProcess(RenderFrameHost* frame) {
       .IsOriginKeyed();
 }
 
+bool HaveEmbedderIsolationWithSameUniqueInstance(RenderFrameHost* a,
+                                                 RenderFrameHost* b) {
+  auto* a_impl = static_cast<RenderFrameHostImpl*>(a);
+  auto* b_impl = static_cast<RenderFrameHostImpl*>(b);
+  const EmbedderIsolationInfo& a_eii =
+      a_impl->GetSiteInstance()->GetSiteInfo().embedder_isolation_info();
+  const EmbedderIsolationInfo& b_eii =
+      b_impl->GetSiteInstance()->GetSiteInfo().embedder_isolation_info();
+  return a_eii.is_unique_instance() && a_eii == b_eii;
+}
+
+bool HasUniqueInstanceIsolation(RenderFrameHost* frame) {
+  auto* frame_impl = static_cast<RenderFrameHostImpl*>(frame);
+  const EmbedderIsolationInfo& site_eii =
+      frame_impl->GetSiteInstance()->GetSiteInfo().embedder_isolation_info();
+  // The first clause checks the SiteInstance was assigned unique-instance
+  // isolation; the second checks the process it actually landed in is locked to
+  // that same instance id. The second clause is what catches cross-instance
+  // contamination -- a unique-instance frame reusing a process locked to a
+  // different instance's id -- which the first clause cannot see.
+  return site_eii.is_unique_instance() &&
+         frame_impl->GetProcess()->GetProcessLock().embedder_isolation_info() ==
+             site_eii;
+}
+
 std::vector<RenderFrameHost*> CollectAllRenderFrameHosts(
     RenderFrameHost* starting_rfh) {
   std::vector<RenderFrameHost*> visited_frames;
@@ -2364,11 +2390,14 @@ ui::AXNodeData GetFocusedAccessibilityNodeInfo(WebContents* web_contents) {
 
 bool AccessibilityTreeContainsNodeWithName(ui::BrowserAccessibility* node,
                                            std::string_view name) {
-  // If an image annotation is set, it plays the same role as a name, so it
-  // makes sense to check both in the same test helper.
+  // If an image or canvas annotation is set, it plays the same role as a name,
+  // so it makes sense to check them in the same test helper.
   if (node->GetStringAttribute(ax::mojom::StringAttribute::kName) == name ||
       node->GetStringAttribute(ax::mojom::StringAttribute::kImageAnnotation) ==
-          name) {
+          name ||
+      (node->GetRole() == ax::mojom::Role::kCanvas &&
+       node->GetStringAttribute(
+           ax::mojom::StringAttribute::kCanvasAnnotation) == name)) {
     return true;
   }
   for (unsigned i = 0; i < node->PlatformChildCount(); i++) {

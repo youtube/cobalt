@@ -1,0 +1,42 @@
+From 4828375b8508ab1ab1817281b68766ea13e1be8c Mon Sep 17 00:00:00 2001
+From: Nathan Memmott <memmott@chromium.org>
+Date: Wed, 17 Jun 2026 13:25:36 -0700
+Subject: [PATCH 6/7] Remove internal absl/base/internal/endian.h dependency
+
+---
+ third_party/sentencepiece/src/src/util.h | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/third_party/sentencepiece/src/src/util.h b/third_party/sentencepiece/src/src/util.h
+index f0af43af82344..f92936703594f 100644
+--- a/third_party/sentencepiece/src/src/util.h
++++ b/third_party/sentencepiece/src/src/util.h
+@@ -32,7 +32,7 @@
+ #include "common.h"
+ #include "config.h"
+ #include "sentencepiece_processor.h"
+-#include "absl/base/internal/endian.h"
++#include "absl/base/config.h"
+ #include "absl/base/thread_annotations.h"
+ #include "absl/functional/any_invocable.h"
+ #include "absl/numeric/bits.h"
+@@ -255,10 +255,14 @@ class ReservoirSampler {
+ namespace util {
+ 
+ constexpr bool is_bigendian() {
+-  return absl::endian::native == absl::endian::big;
++#ifdef ABSL_IS_BIG_ENDIAN
++  return true;
++#else
++  return false;
++#endif
+ }
+ 
+-inline uint32_t Swap32(uint32_t x) { return absl::gbswap_32(x); }
++inline uint32_t Swap32(uint32_t x) { return absl::byteswap(x); }
+ 
+ inline std::string JoinPath(absl::string_view path) {
+   return {path.data(), path.size()};
+-- 
+2.54.0.1189.g8c84645362-goog
+

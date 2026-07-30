@@ -107,7 +107,7 @@
 <translation id="1398057416966591719">ଆପଣଙ୍କ Google ଆକାଉଣ୍ଟରେ <ph name="BEGIN_LINK1" />କେଉଁ Chrome ଡାଟାକୁ ସେଭ କରାଯିବ ତାହା ଆପଣ ପରିଚାଳନା<ph name="END_LINK1" /> କରିପାରିବେ।
 
 ଆପଣଙ୍କ Chrome ଅନୁଭୂତିକୁ ଉନ୍ନତ କରିବା ପାଇଁ ଡାଟା ବ୍ୟବହାର କରୁଥିବା ଅଧିକ ସେଟିଂସ ନିମନ୍ତେ <ph name="BEGIN_LINK2" />Google ସେବାଗୁଡ଼ିକୁ<ph name="END_LINK2" /> ଯାଆନ୍ତୁ।</translation>
-<translation id="1407069428457324124">ଗାଢ଼ ଥିମ୍</translation>
+<translation id="1407069428457324124">ଡାର୍କ ଥିମ</translation>
 <translation id="1407135791313364759">ସବୁ ଖୋଲନ୍ତୁ</translation>
 <translation id="1409879593029778104"><ph name="FILE_NAME" /> ଡାଇନ୍‌ଲୋଡ୍‍କୁ ପ୍ରତିରୋଧ କରାଯାଇଛି କାରଣ ଫାଇଲ୍‌ ପୂର୍ବରୁ ଅଛି।</translation>
 <translation id="1413446866325418126">ଆପଣଙ୍କ Google ଆକାଉଣ୍ଟରେ ଡାଟା ସେଭ କରନ୍ତୁ</translation>
@@ -117,6 +117,7 @@
 <translation id="1435593198351412143">ସ୍ୱତଃ PDFଗୁଡ଼ିକୁ ଖୋଲନ୍ତୁ</translation>
 <translation id="1437543266176261764"><ph name="APP_NAME" />ରେ ଚାଲୁଛି</translation>
 <translation id="1448440926884431741">ଆପଣଙ୍କ ଟ୍ରାକ କରାଯାଇଥିବା ପ୍ରଡକ୍ଟଗୁଡ଼ିକୁ ବୁକମାର୍କରେ ବ୍ୟବସ୍ଥିତ କରନ୍ତୁ</translation>
+<translation id="1452651021404174820">ଏକ ଡିଭାଇସ ବାଛନ୍ତୁ</translation>
 <translation id="1455845192930279203">ଆପଣ ଯେ କୌଣସି ପ୍ରକାରେ <ph name="DOWNLOAD_DOMAIN" />ରୁ "<ph name="FILE_NAME" />" (<ph name="FILE_SIZE" />)କୁ ଡାଉନଲୋଡ କରିବାକୁ ଚାହୁଁଛନ୍ତି?</translation>
 <translation id="1460751212339734034">ସମୟ ବଞ୍ଚାନ୍ତୁ, କମ ଟାଇପ କରନ୍ତୁ</translation>
 <translation id="146522654774760805">ପାସୱାର୍ଡ ଏବଂ ଅଟୋଫିଲ</translation>
@@ -124,6 +125,7 @@
 <translation id="1477626028522505441">ସର୍ଭର୍ ସମସ୍ୟା ଯୋଗୁଁ <ph name="FILE_NAME" /> ଡାଉନ୍‌ଲୋଡ୍ ହେବାରେ ବିଫଳ ହେଲା।</translation>
 <translation id="147982357559798527">ପରିବର୍ତ୍ତନ କରାଯାଇଛି</translation>
 <translation id="1480287803138246127">ଆପଣଙ୍କର କିଛି ଇତିହାସ ଏଠାରେ ଦେଖାଯାଇନପାରେ। ଆପଣଙ୍କର ସମସ୍ତ Chrome ଇତିହାସ ଦେଖିବାକୁ ସମ୍ପୂର୍ଣ୍ଣ Chrome ଇତିହାସ ଖୋଲନ୍ତୁ।</translation>
+<translation id="1483493594462132177">ପଠାନ୍ତୁ</translation>
 <translation id="1495677929897281669">ଟାବ୍‌କୁ ଫେରନ୍ତୁ</translation>
 <translation id="1496514951988037011">ୟୁଜରନେମ</translation>
 <translation id="1501480321619201731">ଗୋଷ୍ଠୀ ଡିଲିଟ୍ କରନ୍ତୁ</translation>
@@ -1273,6 +1275,7 @@
 <translation id="634208815998129842">ଟାସ୍କ ମେନେଜର</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 ଏବଂ <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> ଅଧିକ}other{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 ଏବଂ <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> ଅଧିକ}}</translation>
 <translation id="6345878117466430440">ପଢ଼ାଯାଇଛି ଭାବରେ ଚିହ୍ନଟ କରନ୍ତୁ</translation>
+<translation id="6350745006329795504">ଆପଣଙ୍କ ଡିଭାଇସଗୁଡ଼ିକୁ ପରିଚାଳନା କରନ୍ତୁ</translation>
 <translation id="6356893102071098867">ଆପଣ ସଠିକ ଆକାଉଣ୍ଟ ବାଛିଛନ୍ତି ବୋଲି ଯାଞ୍ଚ କରନ୍ତୁ</translation>
 <translation id="6364438453358674297">ଇତିବୃତ୍ତିରୁ ପ୍ରସ୍ତାବକୁ କାଢ଼ି ଦେବେକି?</translation>
 <translation id="6380100320871303656">ଆପଣ ଭିଜିଟ କରିବାର ସମ୍ଭାବନା ଅଛି ବୋଲି Chrome ଭାବୁଥିବା ପୃଷ୍ଠାଗୁଡ଼ିକୁ ବାରମ୍ବାର ପ୍ରିଲୋଡ କରେ। ଏହି ସେଟିଂ ଯୋଗୁଁ ଡାଟାର ବ୍ୟବହାର ବଢ଼ିପାରେ।</translation>

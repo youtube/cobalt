@@ -121,7 +121,12 @@ void GeometryCache::NotifyGeometryChanged() {
     return;
   }
 
+  auto weak_this = weak_ptr_factory_.GetWeakPtr();
   auto geometry = GetBoundsPx();
+  if (!weak_this) {
+    return;
+  }
+
   if (last_notified_geometry_ == geometry) {
     return;
   }

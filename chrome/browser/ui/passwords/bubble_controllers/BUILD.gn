@@ -125,6 +125,7 @@ source_set("unit_tests") {
       "//base/test:test_support",
       "//chrome/app:generated_resources",
       "//chrome/app/theme:theme_resources",
+      "//chrome/browser/password_manager:test_support",
       "//chrome/browser/password_manager/factories",
       "//chrome/browser/signin",
       "//chrome/browser/sync",

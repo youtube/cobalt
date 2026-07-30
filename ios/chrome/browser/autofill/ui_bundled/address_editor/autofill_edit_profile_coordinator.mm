@@ -135,6 +135,7 @@
                          completion:nil];
   _navigationController.presentationController.delegate = nil;
   _viewController = nil;
+  [_autofillProfileEditMediator disconnect];
   _autofillProfileEditMediator = nil;
 }
 

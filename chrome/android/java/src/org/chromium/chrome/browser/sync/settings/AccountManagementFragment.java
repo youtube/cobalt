@@ -56,6 +56,8 @@ import org.chromium.components.signin.AccountManagerFacade;
 import org.chromium.components.signin.AccountManagerFacadeProvider;
 import org.chromium.components.signin.AccountUtils;
 import org.chromium.components.signin.GAIAServiceType;
+import org.chromium.components.signin.SigninFeatureMap;
+import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.base.AccountInfo;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.signin.metrics.SignoutReason;
@@ -170,9 +172,7 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
         if (getPreferenceScreen() != null) getPreferenceScreen().removeAll();
 
         mPrimaryAccount = getIdentityManager().getPrimaryAccountInfo();
-        List<AccountInfo> accounts =
-                AccountUtils.getAccountsIfFulfilledOrEmpty(
-                        AccountManagerFacadeProvider.getInstance().getAccounts());
+        List<AccountInfo> accounts = getAccounts();
         if (mPrimaryAccount == null || accounts.isEmpty()) {
             // The AccountManagementFragment can only be shown when the user is signed in. If the
             // user is signed out, exit the fragment.
@@ -190,7 +190,7 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
         addPreferencesFromResource(R.xml.account_management_preferences);
         configureSignOutSwitch();
         configureChildAccountPreferences();
-        AccountManagerFacadeProvider.getInstance().getAccounts().then(this::updateAccountsList);
+        updateAccountsList(accounts);
     }
 
     /**
@@ -273,10 +273,6 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
     }
 
     private void updateAccountsList(List<AccountInfo> accounts) {
-        // This method is called asynchronously on accounts fetched from AccountManagerFacade.
-        // Make sure the fragment is alive before updating preferences.
-        if (!isResumed()) return;
-
         setAccountBadges(accounts);
 
         PreferenceCategory accountsCategory = findPreference(PREF_ACCOUNTS_CATEGORY);
@@ -396,6 +392,8 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
     }
 
     private void setAccountBadges(List<AccountInfo> accounts) {
+        // TODO(crbug.com/517558429): This method is called every time profile data is updated,
+        // resulting in redundant BadgeConfig creation. This should be optimized.
         for (AccountInfo account : accounts) {
             AccountManagerFacadeProvider.getInstance()
                     .checkIsSubjectToParentalControls(
@@ -416,7 +414,7 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
     // ProfileDataCache.Observer implementation:
     @Override
     public void onProfileDataUpdated(DisplayableProfileData profileData) {
-        AccountManagerFacadeProvider.getInstance().getAccounts().then(this::updateAccountsList);
+        updateAccountsList(getAccounts());
     }
 
     // SignInStateObserver implementation:
@@ -536,6 +534,7 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
 
     /**
      * Open the account management UI.
+     *
      * @param serviceType A signin::GAIAServiceType that triggered the dialog.
      */
     public static void openAccountManagementScreen(
@@ -571,6 +570,15 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
 
     SigninManager getSigninManager() {
         return assumeNonNull(IdentityServicesProvider.get().getSigninManager(getProfile()));
+    }
+
+    private List<AccountInfo> getAccounts() {
+        if (SigninFeatureMap.isEnabled(
+                SigninFeatures.MAKE_IDENTITY_MANAGER_SOURCE_OF_ACCOUNTS_PART2)) {
+            return getIdentityManager().getExtendedAccountInfoForAccountsWithRefreshToken();
+        }
+        return AccountUtils.getAccountsIfFulfilledOrEmpty(
+                AccountManagerFacadeProvider.getInstance().getAccounts());
     }
 
     public static final ChromeBaseSearchIndexProvider SEARCH_INDEX_DATA_PROVIDER =

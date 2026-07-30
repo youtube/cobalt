@@ -1261,7 +1261,7 @@ IN_PROC_BROWSER_TEST_F(TabListBridgeBrowserTest, IsTabListEditable) {
   EXPECT_TRUE(TabListInterface::CanEditTabList(*profile));
 
   // Change the first tab list to be un-editable.
-  browser1->window()->DisableTabStripEditingForTesting();
+  BrowserWindow::FromBrowser(browser1)->DisableTabStripEditingForTesting();
 
   EXPECT_FALSE(tab_list1->IsThisTabListEditable());
   EXPECT_TRUE(tab_list2->IsThisTabListEditable());

@@ -68,7 +68,7 @@ void IntentChipButton::Update() {
       AnimateCollapse(kAnimationDuration);
     }
   }
-  if (browser_->window() && was_visible && !is_visible) {
+  if (browser_->GetWindow() && was_visible && !is_visible) {
     IntentPickerBubbleView::CloseCurrentBubble();
   }
 }

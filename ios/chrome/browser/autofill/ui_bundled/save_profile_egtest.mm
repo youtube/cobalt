@@ -525,8 +525,9 @@ void TypeTextInXframeField(NSString* fieldID, NSString* text) {
       assertWithMatcher:grey_sufficientlyVisible()];
 
   // Save the profile.
-  [[EarlGrey selectElementWithMatcher:ModalButtonMatcher()]
-      performAction:grey_tap()];
+  [[[EarlGrey selectElementWithMatcher:ModalButtonMatcher()]
+         usingSearchAction:grey_scrollInDirection(kGREYDirectionDown, 200)
+      onElementWithMatcher:EditProfileBottomSheet()] performAction:grey_tap()];
 
   // Ensure profile is saved locally.
   GREYAssertEqual(1U, [AutofillAppInterface profilesCount],

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import type {ExperimentalFeaturesData, FlagsBrowserProxy} from 'chrome://flags/flags_browser_proxy.js';
+import type {ExperimentalFeaturesData, FlagsBrowserProxy, FlagsExportData} from 'chrome://flags/flags_browser_proxy.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 
 export class TestFlagsBrowserProxy extends TestBrowserProxy implements
@@ -19,10 +19,17 @@ export class TestFlagsBrowserProxy extends TestBrowserProxy implements
     // </if>
   };
 
+  private exportData: FlagsExportData = {
+    enabled_flags: [],
+    customized_flags: {},
+  };
+
   constructor() {
     super([
       'restartBrowser',
       'resetAllFlags',
+      'exportFlags',
+      'importFlags',
       'requestDeprecatedFeatures',
       'requestExperimentalFeatures',
       'enableExperimentalFeature',
@@ -42,6 +49,20 @@ export class TestFlagsBrowserProxy extends TestBrowserProxy implements
 
   resetAllFlags() {
     this.methodCalled('resetAllFlags');
+  }
+
+  setExportData(data: FlagsExportData) {
+    this.exportData = data;
+  }
+
+  exportFlags() {
+    this.methodCalled('exportFlags');
+    return Promise.resolve(structuredClone(this.exportData));
+  }
+
+  importFlags(data: FlagsExportData) {
+    this.methodCalled('importFlags', data);
+    return Promise.resolve(true);
   }
 
   requestDeprecatedFeatures() {

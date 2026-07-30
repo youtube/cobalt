@@ -87,10 +87,10 @@ std::string DbStatus::ToString() const {
   return msg_;
 }
 
-void DbStatus::Log(std::string_view histogram_base, bool in_memory) const {
+void DbStatus::Log(std::string_view histogram_base,
+                   DatabaseMetricsType metrics_type) const {
   base::UmaHistogramEnumeration(
-      base::StrCat({histogram_base, in_memory ? ".InMemory" : ".OnDisk"}),
-      type_);
+      base::StrCat({histogram_base, GetHistogramSuffix(metrics_type)}), type_);
 }
 
 }  // namespace storage

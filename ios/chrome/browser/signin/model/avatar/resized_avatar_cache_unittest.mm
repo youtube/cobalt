@@ -74,8 +74,8 @@ TEST_F(ResizedAvatarCacheTest, FetchAvatar) {
   EXPECT_EQ(default_avatar, same_default_avatar);
   // Wait for the end of the fetch.
   fake_system_identity_manager()->WaitForServiceCallbacksToComplete();
-  // Asking again, the fecthed avatar is expected (instead of the default
-  // avatar)
+  // Asking again, the fetched avatar is expected (instead of the default
+  // avatar).
   UIImage* identity_avatar =
       [resized_avatar_cache_ resizedAvatarForIdentity:identity1_];
   EXPECT_NE(default_avatar, identity_avatar);

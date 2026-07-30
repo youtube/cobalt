@@ -12,7 +12,6 @@
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_url_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/content_configuration/favicon_content_configuration.h"
 #import "ios/chrome/browser/shared/ui/table_view/content_configuration/table_view_cell_content_configuration.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util.h"
 
@@ -41,9 +40,8 @@ const NSInteger kNumberOfTitleLines = 2;
   return self;
 }
 
-- (void)configureCell:(LegacyTableViewCell*)cell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:cell withStyler:styler];
+- (void)configureCell:(LegacyTableViewCell*)cell {
+  [super configureCell:cell];
 
   TableViewCellContentConfiguration* configuration =
       [[TableViewCellContentConfiguration alloc] init];

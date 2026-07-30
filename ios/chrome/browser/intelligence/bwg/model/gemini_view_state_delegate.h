@@ -30,6 +30,9 @@
 // Called when the user barges in during Gemini Live session.
 - (void)geminiLiveUserDidBargeIn;
 
+// Called when the Gemini UI did appear.
+- (void)geminiUIDidAppear;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_BWG_MODEL_GEMINI_VIEW_STATE_DELEGATE_H_

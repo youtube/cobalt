@@ -709,7 +709,7 @@ bool Framebuffer::GetReadBufferIsMultisampledTexture() const {
 bool Framebuffer::GetReadBufferIsMultisampledRenderbuffer() const {
   const Attachment* attachment = GetReadBufferAttachment();
   return attachment ? attachment->IsRenderbufferAttachment() &&
-                          attachment->samples() > 1
+                          attachment->samples() > 0
                     : false;
 }
 

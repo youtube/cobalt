@@ -95,6 +95,12 @@ component("service") {
       "dcomp_texture_win.h",
       "image_transport_surface_win.cc",
     ]
+    if (skia_use_dawn) {
+      sources += [
+        "dawn_texture_solid_color_pool.cc",
+        "dawn_texture_solid_color_pool.h",
+      ]
+    }
     libs += [
       "d3d11.lib",
       "dcomp.lib",

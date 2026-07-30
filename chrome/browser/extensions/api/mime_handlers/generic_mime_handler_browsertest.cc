@@ -23,6 +23,7 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
+#include "content/public/test/test_utils.h"
 #include "extensions/browser/mime_handler/mime_handler_registry.h"
 #include "extensions/browser/mime_handler/mime_handler_stream_manager.h"
 #include "extensions/common/constants.h"
@@ -31,6 +32,8 @@
 #include "extensions/test/result_catcher.h"
 #include "net/dns/mock_host_resolver.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_features.h"
+#include "ui/base/page_transition_types.h"
+#include "url/url_constants.h"
 
 namespace extensions {
 
@@ -259,6 +262,39 @@ IN_PROC_BROWSER_TEST_F(GenericMimeHandlerBrowserTest,
         }
       });
   EXPECT_FALSE(found_extension_frame);
+}
+
+// A generic MIME handler renders a top-level PDF as an embedded
+// cross-origin OOPIF. Disabling the extension closes its tab.
+IN_PROC_BROWSER_TEST_F(GenericMimeHandlerBrowserTest,
+                       DisablingTopLevelHandlerClosesTab) {
+  const Extension* extension =
+      LoadExtension(test_data_dir_.AppendASCII(kTestExtensionDir));
+  ASSERT_TRUE(extension);
+
+  // Tab 0 hosts the PDF viewer. Wait for handler.js to call
+  // chrome.test.succeed() so the top-level StreamInfo is claimed.
+  ResultCatcher catcher;
+  content::WebContents* pdf_web_contents = GetActiveWebContents();
+  ASSERT_TRUE(NavigateToURL(pdf_web_contents,
+                            embedded_test_server()->GetURL(kTestPdfPath)));
+  ASSERT_TRUE(catcher.GetNextResult()) << catcher.message();
+
+  auto* manager =
+      mime_handler::MimeHandlerStreamManager::FromWebContents(pdf_web_contents);
+  ASSERT_TRUE(manager);
+  ASSERT_TRUE(manager->GetTopLevelHandlerExtensionId());
+  ASSERT_EQ(extension->id(), *manager->GetTopLevelHandlerExtensionId());
+
+  // Open a second tab so the viewer tab is not the last tab, which would
+  // be NTP-replaced (reusing its WebContents) rather than closed.
+  ASSERT_TRUE(
+      AddTabAtIndex(1, GURL(url::kAboutBlankURL), ui::PAGE_TRANSITION_TYPED));
+
+  content::WebContentsDestroyedWatcher destroyed_watcher(pdf_web_contents);
+  DisableExtension(extension->id());
+  destroyed_watcher.Wait();
+  EXPECT_TRUE(destroyed_watcher.IsDestroyed());
 }
 
 // Verifies that every permissions policy feature is enabled on the

@@ -48,6 +48,10 @@ class ChromeDeviceAuthenticatorFactory : public ProfileKeyedServiceFactory {
       Profile* profile,
       const base::android::JavaRef<jobject>& activity,
       const device_reauth::DeviceAuthParams& params);
+#else
+  static std::unique_ptr<device_reauth::DeviceAuthenticator> GetForProfile(
+      Profile* profile,
+      const device_reauth::DeviceAuthParams& params);
 #endif
 
  private:

@@ -150,8 +150,7 @@ void NetErrorTabHelper::DownloadPageLater() {
   if (!entry || entry->GetPageType() != content::PAGE_TYPE_ERROR)
     return;
 
-  if (!net_error_page_support_.GetCurrentTargetFrame()
-           ->IsInPrimaryMainFrame()) {
+  if (!net_error_page_support_.CurrentTargetFrame().IsInPrimaryMainFrame()) {
     return;
   }
 
@@ -296,8 +295,8 @@ void NetErrorTabHelper::RunNetworkDiagnosticsHelper(
   if (!CanShowNetworkDiagnosticsDialog(web_contents()))
     return;
 
-  if (!network_diagnostics_receivers_.GetCurrentTargetFrame()
-           ->IsInPrimaryMainFrame()) {
+  if (!network_diagnostics_receivers_.CurrentTargetFrame()
+           .IsInPrimaryMainFrame()) {
     return;
   }
 

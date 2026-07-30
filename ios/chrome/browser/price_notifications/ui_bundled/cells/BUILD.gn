@@ -23,8 +23,8 @@ source_set("cells") {
     "//components/url_formatter",
     "//ios/chrome/app/strings",
     "//ios/chrome/browser/price_notifications/ui_bundled:constants",
+    "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/shared/ui/symbols",
-    "//ios/chrome/browser/shared/ui/table_view:styler",
     "//ios/chrome/browser/shared/ui/table_view/cells",
     "//ios/chrome/browser/shared/ui/util",
     "//ios/chrome/common/ui/colors",
@@ -42,7 +42,8 @@ source_set("unit_tests") {
   sources = [ "price_notifications_table_view_item_unittest.mm" ]
   deps = [
     ":cells",
-    "//ios/chrome/browser/shared/ui/table_view:styler",
+    "//ios/chrome/browser/shared/public/features",
+    "//ios/chrome/browser/shared/ui/util",
     "//ios/chrome/common/ui/colors",
     "//testing/gtest",
     "//url",

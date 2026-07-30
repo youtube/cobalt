@@ -36,6 +36,26 @@ struct ImageData {
   mojo_base.mojom.BigBuffer webp_bytes;
 };
 
+// Maps each option of
+// https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/object-fit
+enum ObjectFit {
+  kFill,
+  kContain,
+  kCover,
+  kNone,
+  kScaleDown,
+};
+
+struct ReplacementData {
+  // Bytes for the original image.
+  ImageData original_image;
+  // The viz::TrackedElementId which identifies this element, if tracking was
+  // requested.
+  mojo_base.mojom.Token? tracked_element_id;
+  // Image element's computed object-fit.
+  ObjectFit object_fit;
+};
+
 // Renderer -> Browser interface to communicate status for a single image
 // replacement.
 interface ImageReplacementHost {
@@ -47,10 +67,7 @@ interface ImageReplacementHost {
   //   `replacement_frame_token`: Identifier for the subframe in the replacement
   //     image shadow tree. The host is responsible for navigating this subframe
   //     to the remote content.
-  //   `original_image`: Bytes for the original image.
-  //   `tracked_element_id`: The viz::TrackedElementId which identifies this
-  //     element, if tracking was requested.
+  //   `replacement_data`: Data and styling configuration for the replacement.
   ReplacementFrameAttached(LocalFrameToken replacement_frame_token,
-                           ImageData original_image,
-                           mojo_base.mojom.Token? tracked_element_id);
+                           ReplacementData replacement_data);
 };

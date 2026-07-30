@@ -17,3 +17,60 @@ source_set("local_network_access") {
     "//services/network/public/cpp",
   ]
 }
+
+if (!is_android) {
+  source_set("browser_tests") {
+    testonly = true
+
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+
+    # These tests pre-date strict sign-comparison warnings; relax to the warning
+    # posture they had while compiled in //chrome/test.
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    sources = [
+      "local_network_access_browsertest.cc",
+      "local_network_access_browsertest_base.cc",
+      "local_network_access_browsertest_base.h",
+      "local_network_access_counters_browsertest.cc",
+      "local_network_access_deprecation_browsertest.cc",
+      "local_network_access_iframe_browsertest.cc",
+      "local_network_access_policies_browsertest.cc",
+      "local_network_access_prompt_browsertest.cc",
+      "local_network_access_split_permission_browsertest.cc",
+      "local_network_access_workers_browsertest.cc",
+    ]
+
+    deps = [
+      "//base",
+      "//chrome/browser/apps/app_service",
+      "//chrome/browser/apps/platform_apps:browser_test_support",
+      "//chrome/browser/content_settings:content_settings_factory",
+      "//chrome/browser/extensions",
+      "//chrome/browser/net",
+      "//chrome/browser/policy:test_support",
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/ui",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//components/content_settings/core/browser",
+      "//components/content_settings/core/common",
+      "//components/embedder_support",
+      "//components/error_page/content/browser",
+      "//components/metrics:content",
+      "//components/network_session_configurator/common",
+      "//components/permissions",
+      "//components/permissions:test_support",
+      "//components/policy/core/common:common_constants",
+      "//components/prefs",
+      "//components/proxy_config",
+      "//content/test:browsertest_support",
+      "//content/test:test_support",
+      "//extensions/browser",
+      "//services/network/public/cpp:ip_address_space_overrides_test_utils",
+      "//testing/gtest",
+    ]
+  }
+}

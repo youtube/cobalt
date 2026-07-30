@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "base/functional/callback_helpers.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
@@ -17,17 +18,31 @@
 #include "components/autofill/core/common/autofill_prefs.h"
 #include "components/autofill/core/common/form_data.h"
 #include "components/autofill/core/common/form_data_test_api.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace autofill {
+
+namespace {
 
 using autofill_metrics::OmniboxAutofillShowChipDecisionPart1;
 using test::CreateFormDataForFrame;
 using test::CreateTestFormField;
 
+class MockAutofillClient : public TestAutofillClient {
+ public:
+  MockAutofillClient() = default;
+  ~MockAutofillClient() override = default;
+
+  MOCK_METHOD(AutofillManager*,
+              GetAutofillManagerForPrimaryMainFrame,
+              (),
+              (override));
+};
+
 class OmniboxAutofillDelegateTest
     : public testing::Test,
-      public WithTestAutofillClientDriverManager<> {
+      public WithTestAutofillClientDriverManager<MockAutofillClient> {
  public:
   OmniboxAutofillDelegateTest() {
     scoped_feature_list_.InitAndEnableFeature(
@@ -59,6 +74,9 @@ class OmniboxAutofillDelegateTest
     autofill_driver().SetParent(nullptr);
     autofill_driver().SetIsEmbedded(false);
     autofill_driver().SetIsActive(true);
+
+    ON_CALL(autofill_client(), GetAutofillManagerForPrimaryMainFrame)
+        .WillByDefault(::testing::Return(&autofill_manager()));
   }
 
   void TearDown() override { DestroyAutofillClient(); }
@@ -441,7 +459,11 @@ TEST_F(OmniboxAutofillDelegateTest,
 
 TEST_F(OmniboxAutofillDelegateTest,
        OnAutofillManagerStateChanged_WasActive_HideChip) {
-  payments_autofill_client().ShowOmniboxAutofillChip();
+  payments_autofill_client().ShowOmniboxAutofillChip(
+      /*suggestions=*/{},
+      /*on_suggestions_shown=*/base::DoNothing(),
+      /*did_select_suggestion=*/base::DoNothing(),
+      /*did_accept_suggestion=*/base::DoNothing());
 
   EXPECT_TRUE(payments_autofill_client().omnibox_autofill_chip_shown());
   EXPECT_FALSE(payments_autofill_client().omnibox_autofill_chip_hidden());
@@ -460,7 +482,11 @@ TEST_F(OmniboxAutofillDelegateTest,
 
 TEST_F(OmniboxAutofillDelegateTest,
        OnAutofillManagerStateChanged_WasNotActive_DoesNotHideChip) {
-  payments_autofill_client().ShowOmniboxAutofillChip();
+  payments_autofill_client().ShowOmniboxAutofillChip(
+      /*suggestions=*/{},
+      /*on_suggestions_shown=*/base::DoNothing(),
+      /*did_select_suggestion=*/base::DoNothing(),
+      /*did_accept_suggestion=*/base::DoNothing());
 
   EXPECT_TRUE(payments_autofill_client().omnibox_autofill_chip_shown());
   EXPECT_FALSE(payments_autofill_client().omnibox_autofill_chip_hidden());
@@ -482,7 +508,11 @@ TEST_F(OmniboxAutofillDelegateTest, OnAfterFormsSeen_FormRemoved_HidesChip) {
   FormData form = CreateTestCreditCardFormData();
   FormsSeen({form});
 
-  payments_autofill_client().ShowOmniboxAutofillChip();
+  payments_autofill_client().ShowOmniboxAutofillChip(
+      /*suggestions=*/{},
+      /*on_suggestions_shown=*/base::DoNothing(),
+      /*did_select_suggestion=*/base::DoNothing(),
+      /*did_accept_suggestion=*/base::DoNothing());
 
   EXPECT_TRUE(payments_autofill_client().omnibox_autofill_chip_shown());
   EXPECT_FALSE(payments_autofill_client().omnibox_autofill_chip_hidden());
@@ -499,7 +529,11 @@ TEST_F(OmniboxAutofillDelegateTest,
   FormData form = CreateTestCreditCardFormData();
   FormsSeen({form});
 
-  payments_autofill_client().ShowOmniboxAutofillChip();
+  payments_autofill_client().ShowOmniboxAutofillChip(
+      /*suggestions=*/{},
+      /*on_suggestions_shown=*/base::DoNothing(),
+      /*did_select_suggestion=*/base::DoNothing(),
+      /*did_accept_suggestion=*/base::DoNothing());
 
   EXPECT_TRUE(payments_autofill_client().omnibox_autofill_chip_shown());
   EXPECT_FALSE(payments_autofill_client().omnibox_autofill_chip_hidden());
@@ -524,5 +558,86 @@ TEST_F(OmniboxAutofillDelegateTest,
   // `trigger_form_global_id_` would be pointless. Instead, abort hide logic.
   EXPECT_FALSE(payments_autofill_client().omnibox_autofill_chip_hidden());
 }
+
+TEST_F(OmniboxAutofillDelegateTest,
+       OnGetIntersectionObserverInfo_NotVisible_ReturnsEarly) {
+  FormData form = CreateTestCreditCardFormData();
+  FormsSeen({form});
+
+  OmniboxAutofillDelegate* delegate =
+      payments_autofill_client().GetOmniboxAutofillDelegate();
+  ASSERT_TRUE(delegate);
+
+  delegate->OnGetIntersectionObserverInfo(/*is_visible=*/false);
+
+  EXPECT_FALSE(payments_autofill_client().omnibox_autofill_chip_shown());
+}
+
+TEST_F(OmniboxAutofillDelegateTest,
+       OnGetIntersectionObserverInfo_NoAutofillManager_ReturnsEarly) {
+  FormData form = CreateTestCreditCardFormData();
+  FormsSeen({form});
+
+  OmniboxAutofillDelegate* delegate =
+      payments_autofill_client().GetOmniboxAutofillDelegate();
+  ASSERT_TRUE(delegate);
+
+  // Override mock to return `nullptr`.
+  EXPECT_CALL(autofill_client(), GetAutofillManagerForPrimaryMainFrame)
+      .WillOnce(::testing::Return(nullptr));
+
+  delegate->OnGetIntersectionObserverInfo(/*is_visible=*/true);
+
+  EXPECT_FALSE(payments_autofill_client().omnibox_autofill_chip_shown());
+}
+
+TEST_F(OmniboxAutofillDelegateTest,
+       OnGetIntersectionObserverInfo_FormNotFound_ReturnsEarly) {
+  // Do not call `FormsSeen` to simulate form not found.
+
+  OmniboxAutofillDelegate* delegate =
+      payments_autofill_client().GetOmniboxAutofillDelegate();
+  ASSERT_TRUE(delegate);
+
+  delegate->OnGetIntersectionObserverInfo(/*is_visible=*/true);
+
+  EXPECT_FALSE(payments_autofill_client().omnibox_autofill_chip_shown());
+}
+
+TEST_F(OmniboxAutofillDelegateTest,
+       OnGetIntersectionObserverInfo_FieldNotFound_ReturnsEarly) {
+  FormData form = CreateTestCreditCardFormData();
+  FormsSeen({form});
+
+  OmniboxAutofillDelegate* delegate =
+      payments_autofill_client().GetOmniboxAutofillDelegate();
+  ASSERT_TRUE(delegate);
+
+  // Update the form to remove the trigger field (card number) at index 1 (see
+  // `AppendTestCreditCardFormData`).
+  FormData updated_form = form;
+  ASSERT_EQ(test_api(updated_form).fields().size(), 5u);
+  test_api(updated_form).Remove(1);
+  FormsSeen({updated_form});
+
+  delegate->OnGetIntersectionObserverInfo(/*is_visible=*/true);
+
+  EXPECT_FALSE(payments_autofill_client().omnibox_autofill_chip_shown());
+}
+
+TEST_F(OmniboxAutofillDelegateTest, OnGetIntersectionObserverInfo_IsVisible) {
+  FormData form = CreateTestCreditCardFormData();
+  FormsSeen({form});
+
+  OmniboxAutofillDelegate* delegate =
+      payments_autofill_client().GetOmniboxAutofillDelegate();
+  ASSERT_TRUE(delegate);
+
+  delegate->OnGetIntersectionObserverInfo(/*is_visible=*/true);
+
+  EXPECT_TRUE(payments_autofill_client().omnibox_autofill_chip_shown());
+}
+
+}  // namespace
 
 }  // namespace autofill

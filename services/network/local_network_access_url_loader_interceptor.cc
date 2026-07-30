@@ -44,7 +44,7 @@ net::Error LocalNetworkAccessUrlLoaderInterceptor::OnConnected(
               url_loader_network_observer);
   std::optional<mojom::CorsError> cors_error =
       LocalNetworkAccessCheckResultToCorsError(result);
-  // If there's no PNA-related CORS error, the connection is allowed (from PNA's
+  // If there's no LNA-related CORS error, the connection is allowed (from LNA's
   // perspective).
   if (!cors_error.has_value()) {
     return net::OK;

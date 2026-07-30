@@ -12,6 +12,7 @@ export function getHtml(this: AvatarButtonElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
 <cr-button id="button"
+    ?disabled="${!this.state.enabled}"
     ?has-border="${this.shouldPaintBorder()}"
     title="${this.getTooltip_() || ''}"
     aria-label="${this.state.accessibilityName || ''}"

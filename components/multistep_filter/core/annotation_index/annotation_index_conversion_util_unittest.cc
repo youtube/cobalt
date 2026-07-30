@@ -39,7 +39,7 @@ TEST(AnnotationIndexConversionUtilTest, ToSupportedTasks) {
 
 TEST(AnnotationIndexConversionUtilTest, ToExecutionCandidate) {
   FilterAnnotation annotation(base::Uuid::ParseLowercase(kTestCandidateId),
-                              "SEARCH_FLIGHTS", "travel.com", "sub.travel.com",
+                              "SEARCH_FLIGHTS", "sub.travel.com",
                               base::Time::Now(),
                               {FilterAttribute("PRICE_MIN", "100"),
                                FilterAttribute("PRICE_MAX", "500")});
@@ -58,11 +58,11 @@ TEST(AnnotationIndexConversionUtilTest, ToExecutionCandidate) {
 TEST(AnnotationIndexConversionUtilTest, ToGetTaskExecutionStrategiesRequest) {
   FilterAnnotation annotation1(
       base::Uuid::ParseLowercase("11111111-1111-1111-1111-111111111111"),
-      "TASK1", "example.com", "sub.example.com", base::Time::Now(),
+      "TASK1", "sub.example.com", base::Time::Now(),
       {FilterAttribute("KEY1", "VAL1")});
   FilterAnnotation annotation2(
       base::Uuid::ParseLowercase("22222222-2222-2222-2222-222222222222"),
-      "TASK2", "example.com", "sub.example.com", base::Time::Now(),
+      "TASK2", "sub.example.com", base::Time::Now(),
       {FilterAttribute("KEY2", "VAL2")});
   std::vector<FilterAnnotation> annotations = {annotation1, annotation2};
 
@@ -145,7 +145,6 @@ TEST(AnnotationIndexConversionUtilTest, ToFilterAnnotation) {
   ASSERT_TRUE(annotation.has_value());
   EXPECT_TRUE(annotation->id.is_valid());
   EXPECT_EQ(annotation->task_type, "SEARCH_FLIGHTS");
-  EXPECT_EQ(annotation->source_domain, "example.com");
   EXPECT_EQ(annotation->source_host, "example.com");
   ASSERT_EQ(annotation->attributes.size(), 2u);
   EXPECT_EQ(annotation->attributes[0].key, "PRICE_MIN");
@@ -161,7 +160,7 @@ TEST(AnnotationIndexConversionUtilTest, ToFilterAnnotation_EmptyResponse) {
   EXPECT_FALSE(annotation.has_value());
 }
 
-TEST(AnnotationIndexConversionUtilTest, ToFilterAnnotation_EmptyDomain) {
+TEST(AnnotationIndexConversionUtilTest, ToFilterAnnotation_EmptyHost) {
   ExtractTaskAttributesResponse response;
   response.set_task_type("SEARCH_FLIGHTS");
 
@@ -170,7 +169,7 @@ TEST(AnnotationIndexConversionUtilTest, ToFilterAnnotation_EmptyDomain) {
   attr1->set_value("100");
 
   std::optional<FilterAnnotation> annotation =
-      ToFilterAnnotation(GURL("file:///invalid-domain"), response);
+      ToFilterAnnotation(GURL("file:///invalid-host"), response);
   EXPECT_FALSE(annotation.has_value());
 }
 

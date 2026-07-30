@@ -303,6 +303,11 @@ TEST(URLRequestContextConfigTest, TestExperimentalOptionParsing) {
           std::nullopt);
   EXPECT_EQ(net::OK, resolve_request->Start(
                          base::BindOnce([](int error) { NOTREACHED(); })));
+  resolve_request = context->host_resolver()->CreateRequest(
+      net::HostPortPair("abcde", 80), net::NetworkAnonymizationKey(),
+      /* target_network= */ 1, net::NetLogWithSource(), std::nullopt);
+  EXPECT_EQ(net::OK, resolve_request->Start(
+                         base::BindOnce([](int error) { NOTREACHED(); })));
 
   EXPECT_TRUE(config->network_thread_priority);
   EXPECT_EQ(42, config->network_thread_priority.value());

@@ -3,9 +3,10 @@
 // found in the LICENSE file.
 
 import type {WebClientInitialState} from '../glic.mojom-webui.js';
-import type {AdditionalContext, AdditionalContextPart, AnnotatedPageData, CaptureRegionErrorReason, CaptureRegionParams, CaptureRegionResult, ChromeVersion, ClientCapabilities, ClientErrorDialogType, ConversationInfo, CounterAbuseVerdict, CreateSkillRequest, ErrorReasonTypes, ErrorWithReason, ExperimentalTriggeringUpdate, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, FormFactor, GeminiEnterpriseSettings, GetPinCandidatesOptions, HostCapability, InvokeOptions, MetricUserInputReactionType, MicrophoneStatus, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, PinTabsOptions, Platform, ResumeActorTaskResult, Screenshot, ScrollToParams, Skill, SkillPreview, SkillsWebClientEvent, TabContextOptions, TabContextResult, TabData, UnpinTabsOptions, UpdateSkillRequest, UserProfileInfo, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
+import type {AdditionalContext, AdditionalContextPart, AnnotatedPageData, CaptureRegionErrorReason, CaptureRegionParams, CaptureRegionResult, ChromeVersion, ClientCapabilities, ClientErrorDialogType, ConversationInfo, CounterAbuseVerdict, CreateSkillRequest, ErrorReasonTypes, ErrorWithReason, ExperimentalTriggeringUpdate, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, FormFactor, GeminiEnterpriseSettings, GetPinCandidatesOptions, HostCapability, InvokeOptions, MetricUserInputReactionType, MicrophoneStatus, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, PinTabsOptions, Platform, ResumeActorTaskResult, Screenshot, Skill, SkillPreview, SkillsWebClientEvent, TabContextOptions, TabContextResult, TabData, UnpinTabsOptions, UpdateSkillRequest, UserProfileInfo, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
 
 import type {ActorClient, ActorHost} from './actor/actor_types.js';
+import type {AnnotationClient, AnnotationHost} from './annotation/annotation_types.js';
 import type {InterfaceDef, InterfaceDefMethods, ReplaceProperties} from './transport/messaging.js';
 import {defInterface, defMessage} from './transport/messaging.js';
 import type {ErrorCodec, PendingReceiver, PendingRemote, TransferableException} from './transport/post_message_transport.js';
@@ -13,6 +14,8 @@ import type {ErrorCodec, PendingReceiver, PendingRemote, TransferableException} 
 export type {
   ActorClient,
   ActorHost,
+  AnnotationClient,
+  AnnotationHost,
 };
 
 /*
@@ -37,7 +40,6 @@ export const WebClientHostDef = defInterface({
         actorRemote?: PendingRemote<ActorHost>,
         actorReceiver?: PendingReceiver<ActorClient>,
       }>(),
-      backgroundAllowed: true,
       histogram: {name: 'WebClientCreated', id: 1},
     },
     {
@@ -48,7 +50,6 @@ export const WebClientHostDef = defInterface({
         // (success is false).
         exception?: GlicException,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 2},
     },
     {
@@ -58,7 +59,6 @@ export const WebClientHostDef = defInterface({
         update?: ExperimentalTriggeringUpdate,
               observation: SubscriberObservationType,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 98},
     },
     {
@@ -71,28 +71,23 @@ export const WebClientHostDef = defInterface({
         // Undefined on failure.
         tabData?: TabDataPrivate,
       }>(),
-      backgroundAllowed: false,
       histogram: {id: 3},
     },
     {
       name: 'openGlicSettingsPage',
       request: defMessage<{options?: OpenSettingsOptions}>(),
-      backgroundAllowed: true,
       histogram: {id: 4},
     },
     {
       name: 'openPasswordManagerSettingsPage',
-      backgroundAllowed: true,
       histogram: {id: 78},
     },
     {
       name: 'closePanel',
-      backgroundAllowed: true,
       histogram: {id: 5},
     },
     {
       name: 'closePanelAndShutdown',
-      backgroundAllowed: true,
       histogram: {id: 6},
     },
     {
@@ -104,7 +99,6 @@ export const WebClientHostDef = defInterface({
       response: defMessage<{
         modelQualityClientId: string,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 8},
     },
     {
@@ -113,7 +107,6 @@ export const WebClientHostDef = defInterface({
         info?: ConversationInfo,
       }>(),
       response: defMessage<{}>(),
-      backgroundAllowed: true,
       histogram: {id: 64},
     },
     {
@@ -122,7 +115,6 @@ export const WebClientHostDef = defInterface({
         info: ConversationInfo,
       }>(),
       response: defMessage<{}>(),
-      backgroundAllowed: true,
       histogram: {id: 65},
     },
     {
@@ -133,7 +125,6 @@ export const WebClientHostDef = defInterface({
       response: defMessage<{
         tabContextResult: TabContextResultPrivate,
       }>(),
-      backgroundAllowed: false,
       histogram: {id: 9},
     },
     {
@@ -145,7 +136,6 @@ export const WebClientHostDef = defInterface({
       response: defMessage<{
         tabContextResult: TabContextResultPrivate,
       }>(),
-      backgroundAllowed: false,
       histogram: {id: 10},
     },
     {
@@ -158,7 +148,6 @@ export const WebClientHostDef = defInterface({
       response: defMessage<{
         result: ImageBytesResultPrivate | null,
       }>(),
-      backgroundAllowed: false,
       histogram: {id: 101},
     },
     {
@@ -169,7 +158,6 @@ export const WebClientHostDef = defInterface({
       response: defMessage<{
         effectiveMax: number,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 12},
     },
     {
@@ -177,7 +165,6 @@ export const WebClientHostDef = defInterface({
       request: defMessage<{
         tabId: string,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 76},
     },
     {
@@ -185,7 +172,6 @@ export const WebClientHostDef = defInterface({
       response: defMessage<{
         screenshot: Screenshot,
       }>(),
-      backgroundAllowed: false,
       histogram: {id: 16},
     },
     {
@@ -199,7 +185,6 @@ export const WebClientHostDef = defInterface({
           durationMs?: number,
         },
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 17},
     },
     {
@@ -207,7 +192,6 @@ export const WebClientHostDef = defInterface({
       request: defMessage<{
         enabled: boolean,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 18},
     },
     {
@@ -218,7 +202,6 @@ export const WebClientHostDef = defInterface({
           height: number,
         },
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 20},
     },
     {
@@ -226,7 +209,6 @@ export const WebClientHostDef = defInterface({
       request: defMessage<{
         enabled: boolean,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 21},
     },
     {
@@ -234,7 +216,6 @@ export const WebClientHostDef = defInterface({
       request: defMessage<{
         enabled: boolean,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 22},
     },
     {
@@ -242,7 +223,6 @@ export const WebClientHostDef = defInterface({
       request: defMessage<{
         enabled: boolean,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 23},
     },
     {
@@ -250,7 +230,6 @@ export const WebClientHostDef = defInterface({
       request: defMessage<{
         enabled: boolean,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 56},
     },
     {
@@ -258,7 +237,6 @@ export const WebClientHostDef = defInterface({
       request: defMessage<{
         show: boolean,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 24},
     },
     {
@@ -266,7 +244,6 @@ export const WebClientHostDef = defInterface({
       request: defMessage<{
         enabled: boolean,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 69},
     },
     {
@@ -274,7 +251,6 @@ export const WebClientHostDef = defInterface({
       response: defMessage<{
         profileInfo?: UserProfileInfoPrivate,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 25},
     },
     {
@@ -282,17 +258,14 @@ export const WebClientHostDef = defInterface({
       response: defMessage<{
         success: boolean,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 26},
     },
     {
       name: 'attachPanel',
-      backgroundAllowed: true,
       histogram: {id: 27},
     },
     {
       name: 'detachPanel',
-      backgroundAllowed: true,
       histogram: {id: 28},
     },
     {
@@ -300,7 +273,6 @@ export const WebClientHostDef = defInterface({
       request: defMessage<{
         enabled: boolean,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 29},
     },
     {
@@ -308,7 +280,6 @@ export const WebClientHostDef = defInterface({
       request: defMessage<{
         mode: number,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 38},
     },
     {
@@ -316,38 +287,31 @@ export const WebClientHostDef = defInterface({
       request: defMessage<{
         reactionType: MetricUserInputReactionType,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 66},
     },
     {
       name: 'onOptinImpression',
-      backgroundAllowed: true,
       histogram: {id: 99},
     },
     {
       name: 'onContextUploadStarted',
-      backgroundAllowed: true,
       histogram: {id: 68},
     },
     {
       name: 'onContextUploadCompleted',
-      backgroundAllowed: true,
       histogram: {id: 67},
     },
     {
       name: 'onResponseStarted',
-      backgroundAllowed: true,
       histogram: {id: 40},
     },
     {
       name: 'onResponseStopped',
       request: defMessage<{details?: OnResponseStoppedDetails}>(),
-      backgroundAllowed: true,
       histogram: {id: 41},
     },
     {
       name: 'onSessionTerminated',
-      backgroundAllowed: true,
       histogram: {id: 42},
     },
     {
@@ -356,7 +320,6 @@ export const WebClientHostDef = defInterface({
         model: number,
         duration: number,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 43},
     },
     {
@@ -364,12 +327,10 @@ export const WebClientHostDef = defInterface({
       request: defMessage<{
         positive: boolean,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 39},
     },
     {
       name: 'onClosedCaptionsShown',
-      backgroundAllowed: true,
       histogram: {id: 59},
     },
     {
@@ -377,21 +338,7 @@ export const WebClientHostDef = defInterface({
       request: defMessage<{
         isRetry?: boolean,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 93},
-    },
-    {
-      name: 'scrollTo',
-      request: defMessage<{
-        params: ScrollToParams,
-      }>(),
-      backgroundAllowed: false,
-      histogram: {id: 45},
-    },
-    {
-      name: 'dropScrollToHighlight',
-      backgroundAllowed: true,
-      histogram: {id: 57},
     },
     {
       name: 'setSyntheticExperimentState',
@@ -399,7 +346,6 @@ export const WebClientHostDef = defInterface({
         trialName: string,
         groupName: string,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 46},
     },
     {
@@ -412,7 +358,6 @@ export const WebClientHostDef = defInterface({
       response: defMessage<{
         enabled: boolean,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 48},
     },
     {
@@ -424,7 +369,6 @@ export const WebClientHostDef = defInterface({
       response: defMessage<{
         pinnedAll: boolean,
       }>(),
-      backgroundAllowed: false,
       histogram: {id: 49},
     },
     {
@@ -436,7 +380,6 @@ export const WebClientHostDef = defInterface({
       response: defMessage<{
         unpinnedAll: boolean,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 50},
     },
     {
@@ -444,7 +387,6 @@ export const WebClientHostDef = defInterface({
       request: defMessage<{
         options?: UnpinTabsOptions,
       }>(),
-      backgroundAllowed: false,
       histogram: {id: 51},
     },
     {
@@ -469,12 +411,10 @@ export const WebClientHostDef = defInterface({
     },
     {
       name: 'showManageSkillsUi',
-      backgroundAllowed: true,
       histogram: {id: 86},
     },
     {
       name: 'showBrowseSkillsUi',
-      backgroundAllowed: true,
       histogram: {id: 95},
     },
     {
@@ -492,7 +432,6 @@ export const WebClientHostDef = defInterface({
       request: defMessage<{
         event: SkillsWebClientEvent,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 91},
     },
     {
@@ -501,7 +440,6 @@ export const WebClientHostDef = defInterface({
         options: GetPinCandidatesOptions,
         pinCandidatesPipe: PendingRemote<WebClientPinCandidatesObserver>,
       }>(),
-      backgroundAllowed: false,
       histogram: {id: 52},
     },
     {
@@ -510,7 +448,6 @@ export const WebClientHostDef = defInterface({
         remote: PendingRemote<WebClientRegionCapture>,
         params?: CaptureRegionParams,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 71},
     },
     {
@@ -519,7 +456,6 @@ export const WebClientHostDef = defInterface({
         tabId: string,
         regionId: string,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 92},
     },
     {
@@ -530,12 +466,10 @@ export const WebClientHostDef = defInterface({
       response: defMessage<{
         suggestions?: ZeroStateSuggestions,
       }>(),
-      backgroundAllowed: false,
       histogram: {id: 54},
     },
     {
       name: 'maybeRefreshUserStatus',
-      backgroundAllowed: true,
       histogram: {id: 58},
     },
     {
@@ -558,7 +492,6 @@ export const WebClientHostDef = defInterface({
       response: defMessage<{
         success: boolean,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 63},
     },
     {
@@ -566,12 +499,10 @@ export const WebClientHostDef = defInterface({
       request: defMessage<{
         newMode: WebClientMode,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 70},
     },
     {
       name: 'setOnboardingCompleted',
-      backgroundAllowed: true,
       histogram: {id: 80},
     },
     {
@@ -580,7 +511,6 @@ export const WebClientHostDef = defInterface({
         tabId: string,
         remote: PendingRemote<WebClientTabDataObserver>,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 81},
     },
     {
@@ -589,7 +519,6 @@ export const WebClientHostDef = defInterface({
         tabId: string,
         remote: PendingRemote<WebClientTabFaviconObserver>,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 94},
     },
     {
@@ -597,7 +526,6 @@ export const WebClientHostDef = defInterface({
       request: defMessage<{
         status: MicrophoneStatus,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 90},
     },
     {
@@ -607,21 +535,18 @@ export const WebClientHostDef = defInterface({
         sparseValue: number,
         // Add other histogram types as needed.
       }>(),
-      backgroundAllowed: true,
     },
     {
       name: 'setErrorDialogState',
       request: defMessage<{
         shownDialogType?: ClientErrorDialogType,
       }>(),
-      backgroundAllowed: true,
     },
     {
       name: 'reportClientTransientError',
       request: defMessage<{
         abslStatus: number,
       }>(),
-      backgroundAllowed: true,
     },
     {
       name: 'processCounterAbuseVerdict',
@@ -629,18 +554,21 @@ export const WebClientHostDef = defInterface({
         tabId: string,
         verdict: CounterAbuseVerdict,
       }>(),
-      backgroundAllowed: true,
       histogram: {id: 100},
     },
     {
       name: 'subscribeToZoomLevel',
-      backgroundAllowed: true,
       histogram: {id: 96},
     },
     {
       name: 'unsubscribeFromZoomLevel',
-      backgroundAllowed: true,
       histogram: {id: 97},
+    },
+    {
+      name: 'createAnnotationHandler',
+      request: defMessage<{
+        annotationReceiver: PendingReceiver<AnnotationHost>,
+      }>(),
     },
   ],
 });
@@ -660,85 +588,72 @@ export const WebClientDef = defInterface({
       response: defMessage<{
         openPanelInfo?: OpenPanelInfo,
       }>(),
-      backgroundAllowed: true,
     },
     {
       name: 'notifyPanelWasClosed',
-      backgroundAllowed: true,
     },
     {
       name: 'stopMicrophone',
-      backgroundAllowed: true,
     },
     {
       name: 'panelStateChanged',
       request: defMessage<{
         panelState: PanelState,
       }>(),
-      backgroundAllowed: true,
     },
     {
       name: 'canAttachStateChanged',
       request: defMessage<{
         canAttach: boolean,
       }>(),
-      backgroundAllowed: true,
     },
     {
       name: 'notifyGeminiEnterpriseSettingsChanged',
       request: defMessage<{
         settings: GeminiEnterpriseSettings | undefined,
       }>(),
-      backgroundAllowed: true,
     },
     {
       name: 'notifyMicrophonePermissionStateChanged',
       request: defMessage<{
         enabled: boolean,
       }>(),
-      backgroundAllowed: true,
     },
     {
       name: 'notifyLocationPermissionStateChanged',
       request: defMessage<{
         enabled: boolean,
       }>(),
-      backgroundAllowed: true,
     },
     {
       name: 'notifyTabContextPermissionStateChanged',
       request: defMessage<{
         enabled: boolean,
       }>(),
-      backgroundAllowed: true,
     },
     {
       name: 'notifyDefaultTabContextPermissionStateChanged',
       request: defMessage<{
         enabled: boolean,
       }>(),
-      backgroundAllowed: true,
     },
     {
       name: 'notifyOsLocationPermissionStateChanged',
       request: defMessage<{
         enabled: boolean,
       }>(),
-      backgroundAllowed: true,
     },
     {
       name: 'notifyClosedCaptioningSettingChanged',
       request: defMessage<{
         enabled: boolean,
       }>(),
-      backgroundAllowed: true,
     },
     {
       name: 'notifyActuationOnWebSettingChanged',
       request: defMessage<{
         enabled: boolean,
       }>(),
-      backgroundAllowed: true,
     },
     {
       name: 'notifyFocusedTabChanged',
@@ -751,35 +666,30 @@ export const WebClientDef = defInterface({
       request: defMessage<{
         panelActive: boolean,
       }>(),
-      backgroundAllowed: true,
     },
     {
       name: 'checkResponsive',
       response: defMessage<{
         clientSendMessageQueueLength: number,
       }>(),
-      backgroundAllowed: true,
     },
     {
       name: 'notifyManualResizeChanged',
       request: defMessage<{
         resizing: boolean,
       }>(),
-      backgroundAllowed: true,
     },
     {
       name: 'browserIsOpenChanged',
       request: defMessage<{
         browserIsOpen: boolean,
       }>(),
-      backgroundAllowed: true,
     },
     {
       name: 'notifyOsHotkeyStateChanged',
       request: defMessage<{
         hotkey: string,
       }>(),
-      backgroundAllowed: true,
     },
     {
       name: 'notifyPinnedTabsChanged',
@@ -816,9 +726,7 @@ export const WebClientDef = defInterface({
       request: defMessage<{
         skillId: string,
       }>(),
-      backgroundAllowed: true,
     },
-
     {
       name: 'zeroStateSuggestionsChanged',
       request: defMessage<{
@@ -845,29 +753,24 @@ export const WebClientDef = defInterface({
       request: defMessage<{
         canActOnWeb: boolean,
       }>(),
-      backgroundAllowed: true,
     },
     {
       name: 'onboardingCompletedChanged',
       request: defMessage<{
         completed: boolean,
       }>(),
-      backgroundAllowed: true,
     },
     {
       name: 'notifyActorTaskListRowClicked',
       request: defMessage<{
         taskId: number,
       }>(),
-      backgroundAllowed: true,
     },
-
     {
       name: 'invoke',
       request: defMessage<{
         options: InvokeOptionsPrivate,
       }>(),
-      backgroundAllowed: true,
     },
     {
       name: 'getExperimentalTriggeringUpdates',
@@ -877,14 +780,12 @@ export const WebClientDef = defInterface({
       response: defMessage<{
         success: boolean,
       }>(),
-      backgroundAllowed: true,
     },
     {
       name: 'notifyZoomLevelChanged',
       request: defMessage<{
         zoomFactor: number,
       }>(),
-      backgroundAllowed: true,
     },
   ],
 });
@@ -952,8 +853,8 @@ export type WebClientRequestTypes =
     InterfaceDefMethods<WebClientTabDataObserver>&
     InterfaceDefMethods<WebClientTabFaviconObserver>;
 
-export type HostRequestTypes =
-    InterfaceDefMethods<WebClientHost>&InterfaceDefMethods<ActorHost>;
+export type HostRequestTypes = InterfaceDefMethods<WebClientHost>&
+    InterfaceDefMethods<ActorHost>&InterfaceDefMethods<AnnotationHost>;
 
 type InterfaceHistogramIds<I extends InterfaceDef> = {
   [M in I['methods'][number] as M['histogram'] extends {id: number} ?
@@ -1067,11 +968,12 @@ export const RECORDED_REQUEST_IDS = {
   OnOptinImpression: 99,
   ProcessCounterAbuseVerdict: 100,
   GetImageBytesFromTab: 101,
-} as const satisfies InterfaceHistogramIds<WebClientHost>&
-    InterfaceHistogramIds<ActorHost>;
+} as const satisfies
 // LINT.ThenChange(
 // //tools/metrics/histograms/metadata/glic/histograms.xml:ApiRequestType,
 // //tools/metrics/histograms/metadata/glic/enums.xml:GlicHostApiRequestType)
+InterfaceHistogramIds<WebClientHost>&InterfaceHistogramIds<ActorHost>&
+    InterfaceHistogramIds<AnnotationHost>;
 export const MAX_REQUEST_ID = Math.max(...Object.values(RECORDED_REQUEST_IDS));
 
 // Provides metrics histogram information for a host request type.

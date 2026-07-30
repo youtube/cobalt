@@ -55,6 +55,7 @@ CreateValidNavigationControlsState() {
           toolbar_ui_api::mojom::OmniboxViewState::New(),
           toolbar_ui_api::mojom::LocationBarFlags::New(),
           std::vector<toolbar_ui_api::mojom::ContentSettingImageStatePtr>(),
+          std::vector<toolbar_ui_api::mojom::PageActionStatePtr>(),
           toolbar_ui_api::mojom::LhsChipsState::New(
               toolbar_ui_api::mojom::SecurityChipState::New(
                   toolbar_ui_api::IconHandle(),

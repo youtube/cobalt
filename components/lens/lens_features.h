@@ -232,6 +232,14 @@ BASE_DECLARE_FEATURE(
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensDeleteContextOnPageNavigation);
 
+// The implementation type for the Lens Overlay on Android.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern const char kLensOverlayAndroidImplIntent[];
+COMPONENT_EXPORT(LENS_FEATURES)
+extern const char kLensOverlayAndroidImplWebUI[];
+COMPONENT_EXPORT(LENS_FEATURES)
+extern const base::FeatureParam<std::string> kLensOverlayAndroidImplType;
+
 // The base URL for Lens.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern const base::FeatureParam<std::string> kHomepageURLForLens;

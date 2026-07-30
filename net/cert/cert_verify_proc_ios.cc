@@ -172,37 +172,15 @@ int BuildAndEvaluateSecTrustRef(CFArrayRef cert_array,
   }
 
   if (sct_array_ref) {
-    if (__builtin_available(iOS 12.1.1, *)) {
-      status = SecTrustSetSignedCertificateTimestamps(tmp_trust.get(),
-                                                      sct_array_ref);
-      if (status)
-        return NetErrorFromOSStatus(status);
-    }
+    status =
+        SecTrustSetSignedCertificateTimestamps(tmp_trust.get(), sct_array_ref);
+    if (status)
+      return NetErrorFromOSStatus(status);
   }
 
   ScopedCFTypeRef<CFErrorRef> tmp_error;
-  bool tmp_is_trusted = false;
-  if (__builtin_available(iOS 12.0, *)) {
-    tmp_is_trusted =
-        SecTrustEvaluateWithError(tmp_trust.get(), tmp_error.InitializeInto());
-  } else {
-#if !defined(__IPHONE_12_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_12_0
-    SecTrustResultType tmp_trust_result;
-    status = SecTrustEvaluate(tmp_trust.get(), &tmp_trust_result);
-    if (status)
-      return NetErrorFromOSStatus(status);
-    switch (tmp_trust_result) {
-      case kSecTrustResultUnspecified:
-      case kSecTrustResultProceed:
-        tmp_is_trusted = true;
-        break;
-      case kSecTrustResultInvalid:
-        return ERR_FAILED;
-      default:
-        tmp_is_trusted = false;
-    }
-#endif
-  }
+  bool tmp_is_trusted =
+      SecTrustEvaluateWithError(tmp_trust.get(), tmp_error.InitializeInto());
 
   trust_ref->swap(tmp_trust);
   trust_error->swap(tmp_error);
@@ -278,91 +256,6 @@ CertStatus CertVerifyProcIOS::GetCertFailureStatusFromError(CFErrorRef error) {
   return CertStatusFromOSStatus(error_code);
 }
 
-#if !defined(__IPHONE_12_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_12_0
-// The iOS APIs don't expose an API-stable set of reasons for certificate
-// validation failures. However, internally, the reason is tracked, and it's
-// converted to user-facing localized strings.
-//
-// In the absence of a consistent API, convert the English strings to their
-// localized counterpart, and then compare that with the error properties. If
-// they're equal, it's a strong sign that this was the cause for the error.
-// While this will break if/when iOS changes the contents of these strings,
-// it's sufficient enough for now.
-//
-// TODO(rsleevi): https://crbug.com/601915 - Use a less brittle solution when
-// possible.
-// static
-CertStatus CertVerifyProcIOS::GetCertFailureStatusFromTrust(SecTrustRef trust) {
-  CertStatus reason = 0;
-
-  base::apple::ScopedCFTypeRef<CFArrayRef> properties(
-      SecTrustCopyProperties(trust));
-  if (!properties)
-    return CERT_STATUS_INVALID;
-
-  const CFIndex properties_length = CFArrayGetCount(properties.get());
-  if (properties_length == 0)
-    return CERT_STATUS_INVALID;
-
-  CFBundleRef bundle =
-      CFBundleGetBundleWithIdentifier(CFSTR("com.apple.Security"));
-  CFStringRef date_string =
-      CFSTR("One or more certificates have expired or are not valid yet.");
-  ScopedCFTypeRef<CFStringRef> date_error(CFBundleCopyLocalizedString(
-      bundle, date_string, date_string, CFSTR("SecCertificate")));
-  CFStringRef trust_string = CFSTR("Root certificate is not trusted.");
-  ScopedCFTypeRef<CFStringRef> trust_error(CFBundleCopyLocalizedString(
-      bundle, trust_string, trust_string, CFSTR("SecCertificate")));
-  CFStringRef weak_string =
-      CFSTR("One or more certificates is using a weak key size.");
-  ScopedCFTypeRef<CFStringRef> weak_error(CFBundleCopyLocalizedString(
-      bundle, weak_string, weak_string, CFSTR("SecCertificate")));
-  CFStringRef hostname_mismatch_string = CFSTR("Hostname mismatch.");
-  ScopedCFTypeRef<CFStringRef> hostname_mismatch_error(
-      CFBundleCopyLocalizedString(bundle, hostname_mismatch_string,
-                                  hostname_mismatch_string,
-                                  CFSTR("SecCertificate")));
-  CFStringRef root_certificate_string =
-      CFSTR("Unable to build chain to root certificate.");
-  ScopedCFTypeRef<CFStringRef> root_certificate_error(
-      CFBundleCopyLocalizedString(bundle, root_certificate_string,
-                                  root_certificate_string,
-                                  CFSTR("SecCertificate")));
-  CFStringRef policy_requirements_not_met_string =
-      CFSTR("Policy requirements not met.");
-  ScopedCFTypeRef<CFStringRef> policy_requirements_not_met_error(
-      CFBundleCopyLocalizedString(bundle, policy_requirements_not_met_string,
-                                  policy_requirements_not_met_string,
-                                  CFSTR("SecCertificate")));
-
-  for (CFIndex i = 0; i < properties_length; ++i) {
-    CFDictionaryRef dict = reinterpret_cast<CFDictionaryRef>(
-        const_cast<void*>(CFArrayGetValueAtIndex(properties.get(), i)));
-    CFStringRef error = reinterpret_cast<CFStringRef>(
-        const_cast<void*>(CFDictionaryGetValue(dict, CFSTR("value"))));
-
-    if (CFEqual(error, date_error.get())) {
-      reason |= CERT_STATUS_DATE_INVALID;
-    } else if (CFEqual(error, trust_error.get())) {
-      reason |= CERT_STATUS_AUTHORITY_INVALID;
-    } else if (CFEqual(error, weak_error.get())) {
-      reason |= CERT_STATUS_WEAK_KEY;
-    } else if (CFEqual(error, hostname_mismatch_error.get())) {
-      reason |= CERT_STATUS_COMMON_NAME_INVALID;
-    } else if (CFEqual(error, policy_requirements_not_met_error.get())) {
-      reason |= CERT_STATUS_INVALID | CERT_STATUS_AUTHORITY_INVALID;
-    } else if (CFEqual(error, root_certificate_error.get())) {
-      reason |= CERT_STATUS_AUTHORITY_INVALID;
-    } else {
-      LOG(ERROR) << "Unrecognized error: " << error;
-      reason |= CERT_STATUS_INVALID;
-    }
-  }
-
-  return reason;
-}
-#endif  // !defined(__IPHONE_12_0) || __IPHONE_OS_VERSION_MIN_REQUIRED <
-        // __IPHONE_12_0
 
 CertVerifyProcIOS::~CertVerifyProcIOS() = default;
 
@@ -399,22 +292,22 @@ int CertVerifyProcIOS::VerifyInternal(X509Certificate* cert,
 
   ScopedCFTypeRef<CFMutableArrayRef> sct_array_ref;
   if (!sct_list.empty()) {
-    if (__builtin_available(iOS 12.1.1, *)) {
-      std::vector<std::string_view> decoded_sct_list;
-      if (ct::DecodeSCTList(sct_list, &decoded_sct_list)) {
-        sct_array_ref.reset(CFArrayCreateMutable(kCFAllocatorDefault,
-                                                 decoded_sct_list.size(),
-                                                 &kCFTypeArrayCallBacks));
-        if (!sct_array_ref)
+    std::vector<std::string_view> decoded_sct_list;
+    if (ct::DecodeSCTList(sct_list, &decoded_sct_list)) {
+      sct_array_ref.reset(CFArrayCreateMutable(kCFAllocatorDefault,
+                                               decoded_sct_list.size(),
+                                               &kCFTypeArrayCallBacks));
+      if (!sct_array_ref) {
+        return ERR_OUT_OF_MEMORY;
+      }
+      for (const auto& sct : decoded_sct_list) {
+        ScopedCFTypeRef<CFDataRef> sct_ref(CFDataCreate(
+            kCFAllocatorDefault, reinterpret_cast<const UInt8*>(sct.data()),
+            base::checked_cast<CFIndex>(sct.size())));
+        if (!sct_ref) {
           return ERR_OUT_OF_MEMORY;
-        for (const auto& sct : decoded_sct_list) {
-          ScopedCFTypeRef<CFDataRef> sct_ref(CFDataCreate(
-              kCFAllocatorDefault, reinterpret_cast<const UInt8*>(sct.data()),
-              base::checked_cast<CFIndex>(sct.size())));
-          if (!sct_ref)
-            return ERR_OUT_OF_MEMORY;
-          CFArrayAppendValue(sct_array_ref.get(), sct_ref.get());
         }
+        CFArrayAppendValue(sct_array_ref.get(), sct_ref.get());
       }
     }
   }
@@ -436,33 +329,8 @@ int CertVerifyProcIOS::VerifyInternal(X509Certificate* cert,
 
   // TODO(rsleevi): Support CRLSet revocation.
   if (!is_trusted) {
-    if (__builtin_available(iOS 12.0, *)) {
-      verify_result->cert_status |=
-          GetCertFailureStatusFromError(trust_error.get());
-    } else {
-#if !defined(__IPHONE_12_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_12_0
-      SecTrustResultType trust_result = kSecTrustResultInvalid;
-      OSStatus status = SecTrustGetTrustResult(trust_ref.get(), &trust_result);
-      if (status)
-        return NetErrorFromOSStatus(status);
-      switch (trust_result) {
-        case kSecTrustResultUnspecified:
-        case kSecTrustResultProceed:
-          NOTREACHED();
-        case kSecTrustResultDeny:
-          verify_result->cert_status |= CERT_STATUS_AUTHORITY_INVALID;
-          break;
-        default:
-          verify_result->cert_status |=
-              GetCertFailureStatusFromTrust(trust_ref.get());
-      }
-#else
-      // It should be impossible to reach this code, but if somehow it is
-      // reached it would allow any certificate as valid since no errors would
-      // be added to cert_status. Therefore, add a NOTREACHED() as a fail safe.
-      NOTREACHED();
-#endif
-    }
+    verify_result->cert_status |=
+        GetCertFailureStatusFromError(trust_error.get());
   }
   GetCertChainInfo(final_chain.get(), verify_result);
 

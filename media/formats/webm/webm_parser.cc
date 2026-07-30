@@ -234,7 +234,7 @@ static const ElementIdInfo kColorVolumeMetadataIds[] = {
 };
 
 static const ElementIdInfo kProjectionIds[] = {
-    {UINT, kWebMIdProjectionType},      {SKIP_BINARY, kWebMIdProjectionPrivate},
+    {UINT, kWebMIdProjectionType},      {BINARY, kWebMIdProjectionPrivate},
     {FLOAT, kWebMIdProjectionPoseYaw},  {FLOAT, kWebMIdProjectionPosePitch},
     {FLOAT, kWebMIdProjectionPoseRoll},
 };

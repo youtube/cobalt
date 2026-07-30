@@ -20,7 +20,6 @@
     {
       "name": "LayoutBlockFlow DIV id='scroller'",
       "bounds": [185, 210],
-      "backgroundColor": "#80808080",
       "invalidations": [
         [0, 5, 15, 15]
       ]

@@ -30,6 +30,7 @@
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_browser_agent.h"
@@ -42,6 +43,7 @@
   __weak SceneState* _sceneState;
   __weak id<SceneCommands> _sceneEndpoint;
   __weak id<SettingsCommands> _settingsEndpoint;
+  __weak id<GeminiCommands> _geminiEndpoint;
 
   std::unique_ptr<Browser> _mainBrowser;
   std::unique_ptr<Browser> _otrBrowser;
@@ -55,15 +57,17 @@
 - (instancetype)initWithProfile:(ProfileIOS*)profile
                      sceneState:(SceneState*)sceneState
                   sceneEndpoint:(id<SceneCommands>)sceneEndpoint
-               settingsEndpoint:(id<SettingsCommands>)settingsEndpoint {
-  TRACE_EVENT("ui",
-              "-[BrowserLifecycleManager "
-              "initWithProfile:sceneState:sceneEndpoint:settingsEndpoint:]");
+               settingsEndpoint:(id<SettingsCommands>)settingsEndpoint
+                 geminiEndpoint:(id<GeminiCommands>)geminiEndpoint {
+  TRACE_EVENT("ui", "-[BrowserLifecycleManager "
+                    "initWithProfile:sceneState:sceneEndpoint:settingsEndpoint:"
+                    "geminiEndpoint:]");
   if ((self = [super init])) {
     _profile = profile;
     _sceneState = sceneState;
     _sceneEndpoint = sceneEndpoint;
     _settingsEndpoint = settingsEndpoint;
+    _geminiEndpoint = geminiEndpoint;
 
     // Create all browsers.
     _mainBrowser = Browser::Create(_profile, _sceneState);
@@ -292,6 +296,8 @@
                            forProtocol:@protocol(SceneCommands)];
   [dispatcher startDispatchingToTarget:_settingsEndpoint
                            forProtocol:@protocol(SettingsCommands)];
+  [dispatcher startDispatchingToTarget:_geminiEndpoint
+                           forProtocol:@protocol(GeminiCommands)];
 }
 
 // Sets up an existing browser.

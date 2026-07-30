@@ -50,6 +50,7 @@ import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.RobolectricUtil;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
@@ -98,6 +99,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 @DisableFeatures(ChromeFeatureList.CROSS_DEVICE_PREF_TRACKER_EXTRA_LOGS)
+@DisabledTest(message = "crbug.com/525121694")
 public class ToolbarPositionControllerTest {
 
     @Rule public MockitoRule mMockitoJUnit = MockitoJUnit.rule();

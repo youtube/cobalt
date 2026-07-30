@@ -16,6 +16,7 @@
 class Browser;
 class AvatarToolbarButtonStateManager;
 class WebUIToolbarControlDelegate;
+class AvatarToolbarButtonTestAccessor;
 
 // WebUIAvatarToolbarButton implements C++-side functionality for the
 // WebUI-based implementation of the avatar button in the toolbar.
@@ -71,6 +72,9 @@ class WebUIAvatarToolbarButton : public AvatarToolbarButtonInterface {
   void NotifyIPHPromoChanged(bool has_promo);
 
  private:
+  // Used by tests to access the private state_manager_ for verification and
+  // fallback queries when the button is hidden.
+  friend class ::AvatarToolbarButtonTestAccessor;
   void UpdateState();
   void UpdateAccessibilityLabel();
   void AnnounceInternal(std::u16string text);

@@ -63,11 +63,6 @@ _builder(
 )
 
 _builder(
-    name = "linux-asan-v8-arm-dbg",
-    mirror_of = "ci/ASan Debug (32-bit x86 with V8-ARM)",
-)
-
-_builder(
     name = "linux-asan-v8-arm-rel",
     mirror_of = "ci/ASan Release (32-bit x86 with V8-ARM)",
 )
@@ -119,6 +114,8 @@ _builder(
 )
 
 _mirror_builder(name = "android-desktop-x64-libfuzzer-asan", executable = "recipe:chromium/fuzz")
+
+_mirror_builder(name = "android-desktop-x64-asan-rel")
 
 _mirror_builder(name = "android-arm64-libfuzzer-hwasan", executable = "recipe:chromium/fuzz")
 
@@ -199,14 +196,15 @@ try_.builder(
 
 # Libfuzzer test bots.
 
-# All test bots should run on the CQ for any changes to fuzztest.
-# See crbug.com/466122130.
+# All test bots should run on the CQ for any changes to fuzztest or libfuzzer.
+# See crbug.com/466122130 and crbug.com/493762894.
 def _test_builder(**kwargs):
     _mirror_builder(
         cq_settings = try_.cq_settings(
             location_filters = [
                 "testing/libfuzzer/.+",
                 "third_party/fuzztest/.+",
+                "third_party/libFuzzer/.+",
             ],
         ),
         **kwargs

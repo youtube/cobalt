@@ -15,8 +15,10 @@
 #import "components/keyed_service/core/service_access_type.h"
 #import "components/sync/model/data_type_store_service.h"
 #import "components/sync/service/sync_service.h"
+#import "components/sync_device_info/device_info.h"
 #import "components/sync_device_info/device_info_sync_service.h"
 #import "components/sync_device_info/device_info_tracker.h"
+#import "components/sync_device_info/device_name_util.h"
 #import "components/sync_sessions/local_session_event_router.h"
 #import "components/sync_sessions/session_sync_prefs.h"
 #import "components/sync_sessions/session_sync_service_impl.h"
@@ -75,6 +77,22 @@ class SyncSessionsClientImpl final : public sync_sessions::SyncSessionsClient {
   SyncSessionsClientImpl& operator=(const SyncSessionsClientImpl&) = delete;
 
   ~SyncSessionsClientImpl() override {}
+
+  std::optional<std::string> GetSessionDisplayNameFromDeviceInfo(
+      const std::string& session_tag) const override {
+    CHECK(device_info_service_);
+
+    const syncer::DeviceInfoTracker* tracker =
+        device_info_service_->GetDeviceInfoTracker();
+    CHECK(tracker);
+
+    const syncer::DeviceInfo* device_info = tracker->GetDeviceInfo(session_tag);
+    if (!device_info) {
+      return std::nullopt;
+    }
+    return syncer::GetDisplayNameCandidates(device_info)
+        .preferred_name_if_unique;
+  }
 
   // SyncSessionsClient implementation.
   sync_sessions::SessionSyncPrefs* GetSessionSyncPrefs() override {

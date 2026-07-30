@@ -125,8 +125,6 @@ class CONTENT_EXPORT SurfaceEmbedConnectorImpl
   input::RenderWidgetHostViewInput* GetParentViewInput() override;
   input::RenderWidgetHostViewInput* GetRootViewInput() override;
 
-  void OnRenderFrameCreated();
-
   // Updates the `view_` member to track the current RenderWidgetHostView
   // associated with the child WebContents.
   void UpdateViewForCurrentRenderFrameHost();

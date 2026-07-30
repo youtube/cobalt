@@ -19,6 +19,9 @@ class AtMemoryBottomSheetDelegate {
 
   // Called when the search query changes.
   virtual void OnQuerySubmitted(const std::u16string& query) = 0;
+
+  // Called when the user selects a suggestion in the bottom sheet.
+  virtual void OnSuggestionSelected(int position) = 0;
 };
 
 }  // namespace autofill

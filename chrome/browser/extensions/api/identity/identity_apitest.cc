@@ -102,6 +102,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/idle/idle.h"
+#include "ui/base/idle/scoped_set_idle_state.h"
 #include "ui/gfx/geometry/rect.h"
 #include "url/gurl.h"
 
@@ -114,7 +115,6 @@
 #include "components/guest_view/browser/guest_view_manager_delegate.h"
 #include "components/guest_view/browser/guest_view_manager_factory.h"
 #include "components/guest_view/browser/test_guest_view_manager.h"
-#include "ui/base/idle/scoped_set_idle_state.h"
 #include "ui/views/widget/any_widget_observer.h"
 #include "ui/views/window/dialog_delegate.h"
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
@@ -151,12 +151,12 @@ using api::oauth2::OAuth2Info;
 const char kAccessToken[] = "auth_token";
 const char kExtensionId[] = "ext_id";
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 const char kGetAuthTokenResultHistogramName[] =
     "Signin.Extensions.GetAuthTokenResult";
 const char kGetAuthTokenResultAfterConsentApprovedHistogramName[] =
     "Signin.Extensions.GetAuthTokenResult.RemoteConsentApproved";
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 const char kLaunchWebAuthFlowResultHistogramName[] =
     "Signin.Extensions.LaunchWebAuthFlowResult";
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
@@ -240,7 +240,6 @@ class AsyncExtensionBrowserTest : public ExtensionBrowserTest {
       async_function_runners_;
 };
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 class TestHangOAuth2MintTokenFlow : public OAuth2MintTokenFlow {
  public:
   TestHangOAuth2MintTokenFlow()
@@ -320,6 +319,7 @@ class TestOAuth2MintTokenFlow : public OAuth2MintTokenFlow {
   raw_ptr<OAuth2MintTokenFlow::Delegate> delegate_;
 };
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 std::unique_ptr<net::EmbeddedTestServer> LaunchHttpsServer() {
   std::unique_ptr<net::EmbeddedTestServer> https_server =
       std::make_unique<net::EmbeddedTestServer>(
@@ -367,7 +367,6 @@ void SimulateCustomUrlRedirect(const std::string& redirect_url,
 
 }  // namespace
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 class FakeGetAuthTokenFunction : public IdentityGetAuthTokenFunction {
  public:
   FakeGetAuthTokenFunction()
@@ -458,6 +457,7 @@ class FakeGetAuthTokenFunction : public IdentityGetAuthTokenFunction {
   }
 #endif
 
+#if !BUILDFLAG(IS_CHROMEOS)
   // Fix auth error on secondary account or add a new account.
   void FixOrAddSecondaryAccount() {
     signin::IdentityManager* identity_manager =
@@ -520,6 +520,7 @@ class FakeGetAuthTokenFunction : public IdentityGetAuthTokenFunction {
       SigninFailed();
     }
   }
+#endif
 
   void ShowRemoteConsentDialog(
       const RemoteConsentResolutionData& resolution_data) override {
@@ -584,7 +585,6 @@ class MockQueuedMintRequest : public IdentityMintRequestQueue::Request {
  public:
   MOCK_METHOD1(StartMintToken, void(IdentityMintRequestQueue::MintType));
 };
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 class IdentityTestWithSignin : public AsyncExtensionBrowserTest {
  public:
@@ -963,7 +963,6 @@ IN_PROC_BROWSER_TEST_P(
   }
 }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 class GetAuthTokenFunctionTest
     : public IdentityTestWithSignin,
       public signin::IdentityManager::DiagnosticsObserver {
@@ -1104,15 +1103,6 @@ class GetAuthTokenFunctionTest
 
   void RunGetAuthTokenFunction(ExtensionFunction* function,
                                const std::string& args,
-                               Browser* browser,
-                               std::string* access_token,
-                               std::set<std::string>* granted_scopes) {
-    RunGetAuthTokenFunction(function, args, browser->profile(), access_token,
-                            granted_scopes);
-  }
-
-  void RunGetAuthTokenFunction(ExtensionFunction* function,
-                               const std::string& args,
                                Profile* profile,
                                std::string* access_token,
                                std::set<std::string>* granted_scopes) {
@@ -1239,15 +1229,20 @@ IN_PROC_BROWSER_TEST_F(GetAuthTokenFunctionTest,
       IdentityGetAuthTokenError::State::kSignInFailed, 1);
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 IN_PROC_BROWSER_TEST_F(GetAuthTokenFunctionTest,
                        PRE_InteractiveNotSignedAndSigninNotAllowed) {
-  // kSigninAllowed cannot be set after the profile creation. Use
+  // On Desktop, kSigninAllowed cannot be set after the profile creation. Use
   // kSigninAllowedOnNextStartup instead.
   profile()->GetPrefs()->SetBoolean(prefs::kSigninAllowedOnNextStartup, false);
 }
+#endif
 
 IN_PROC_BROWSER_TEST_F(GetAuthTokenFunctionTest,
                        InteractiveNotSignedAndSigninNotAllowed) {
+#if BUILDFLAG(IS_ANDROID)
+  profile()->GetPrefs()->SetBoolean(prefs::kSigninAllowed, false);
+#endif
   ASSERT_FALSE(profile()->GetPrefs()->GetBoolean(prefs::kSigninAllowed));
   scoped_refptr<FakeGetAuthTokenFunction> func(new FakeGetAuthTokenFunction());
   func->set_extension(CreateExtension(CLIENT_ID | SCOPES));
@@ -1404,7 +1399,7 @@ IN_PROC_BROWSER_TEST_F(GetAuthTokenFunctionTest, NonInteractiveSuccess) {
 
   std::string access_token;
   std::set<std::string> granted_scopes;
-  RunGetAuthTokenFunction(func.get(), "[{}]", browser(), &access_token,
+  RunGetAuthTokenFunction(func.get(), "[{}]", profile(), &access_token,
                           &granted_scopes);
   EXPECT_EQ(std::string(kAccessToken), access_token);
   EXPECT_EQ(func->GetExtensionTokenKeyForTest()->scopes, granted_scopes);
@@ -1542,7 +1537,7 @@ IN_PROC_BROWSER_TEST_F(GetAuthTokenFunctionTest,
 
   std::string access_token;
   std::set<std::string> granted_scopes;
-  RunGetAuthTokenFunction(func.get(), "[{\"interactive\": true}]", browser(),
+  RunGetAuthTokenFunction(func.get(), "[{\"interactive\": true}]", profile(),
                           &access_token, &granted_scopes);
   EXPECT_EQ(std::string(kAccessToken), access_token);
   EXPECT_EQ(func->GetExtensionTokenKeyForTest()->scopes, granted_scopes);
@@ -1802,7 +1797,7 @@ IN_PROC_BROWSER_TEST_P(GetAuthTokenFunctionInteractivityTest,
   } else {
     std::string access_token;
     std::set<std::string> granted_scopes;
-    RunGetAuthTokenFunction(func.get(), function_args, browser(), &access_token,
+    RunGetAuthTokenFunction(func.get(), function_args, profile(), &access_token,
                             &granted_scopes);
     EXPECT_EQ(std::string(kAccessToken), access_token);
     EXPECT_EQ(func->GetExtensionTokenKeyForTest()->scopes, granted_scopes);
@@ -1858,7 +1853,7 @@ IN_PROC_BROWSER_TEST_P(GetAuthTokenFunctionInteractivityTest,
   } else {
     std::string access_token;
     std::set<std::string> granted_scopes;
-    RunGetAuthTokenFunction(func.get(), function_args, browser(), &access_token,
+    RunGetAuthTokenFunction(func.get(), function_args, profile(), &access_token,
                             &granted_scopes);
     EXPECT_EQ(std::string(kAccessToken), access_token);
     EXPECT_EQ(func->GetExtensionTokenKeyForTest()->scopes, granted_scopes);
@@ -1976,6 +1971,7 @@ IN_PROC_BROWSER_TEST_F(GetAuthTokenFunctionTest,
 }
 #endif
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 #if !BUILDFLAG(IS_MAC)
 // Test was originally written for http://crbug.com/41338040 and subsequently
 // modified to use the remote consent flow.
@@ -2038,6 +2034,7 @@ IN_PROC_BROWSER_TEST_F(GetAuthTokenFunctionTest,
       FROM_HERE, std::move(keep_alive));
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 IN_PROC_BROWSER_TEST_F(GetAuthTokenFunctionTest, NoninteractiveQueue) {
   SignIn("primary@example.com");
@@ -2215,7 +2212,7 @@ IN_PROC_BROWSER_TEST_F(GetAuthTokenFunctionTest, NonInteractiveCacheHit) {
   // Get a token. Should not require a GAIA request.
   std::string access_token;
   std::set<std::string> granted_scopes;
-  RunGetAuthTokenFunction(func.get(), "[{}]", browser(), &access_token,
+  RunGetAuthTokenFunction(func.get(), "[{}]", profile(), &access_token,
                           &granted_scopes);
   EXPECT_EQ(std::string(kAccessToken), access_token);
   EXPECT_EQ(func->GetExtensionTokenKeyForTest()->scopes, granted_scopes);
@@ -2242,7 +2239,7 @@ IN_PROC_BROWSER_TEST_F(GetAuthTokenFunctionTest,
 
   std::string access_token;
   std::set<std::string> granted_scopes;
-  RunGetAuthTokenFunction(func.get(), "[{}]", browser(), &access_token,
+  RunGetAuthTokenFunction(func.get(), "[{}]", profile(), &access_token,
                           &granted_scopes);
   EXPECT_EQ(std::string(kAccessToken), access_token);
   EXPECT_EQ(func->GetExtensionTokenKeyForTest()->scopes, granted_scopes);
@@ -2294,7 +2291,7 @@ IN_PROC_BROWSER_TEST_F(GetAuthTokenFunctionTest,
   func->push_mint_token_result(TestOAuth2MintTokenFlow::MINT_TOKEN_SUCCESS);
   std::string access_token;
   std::set<std::string> granted_scopes;
-  RunGetAuthTokenFunction(func.get(), "[{}]", browser(), &access_token,
+  RunGetAuthTokenFunction(func.get(), "[{}]", profile(), &access_token,
                           &granted_scopes);
   EXPECT_EQ(std::string(kAccessToken), access_token);
   EXPECT_EQ(func->GetExtensionTokenKeyForTest()->scopes, granted_scopes);
@@ -2369,7 +2366,7 @@ IN_PROC_BROWSER_TEST_F(GetAuthTokenFunctionTest, LoginInvalidatesTokenCache) {
 
   std::string access_token;
   std::set<std::string> granted_scopes;
-  RunGetAuthTokenFunction(func.get(), "[{\"interactive\": true}]", browser(),
+  RunGetAuthTokenFunction(func.get(), "[{\"interactive\": true}]", profile(),
                           &access_token, &granted_scopes);
   EXPECT_EQ(std::string(kAccessToken), access_token);
   EXPECT_EQ(func->GetExtensionTokenKeyForTest()->scopes, granted_scopes);
@@ -2830,7 +2827,7 @@ IN_PROC_BROWSER_TEST_F(GetAuthTokenFunctionTest,
 
     std::string access_token;
     std::set<std::string> granted_scopes;
-    RunGetAuthTokenFunction(func.get(), "[{}]", browser(), &access_token,
+    RunGetAuthTokenFunction(func.get(), "[{}]", profile(), &access_token,
                             &granted_scopes);
     EXPECT_EQ(std::string(kAccessToken), access_token);
     EXPECT_EQ(func->GetExtensionTokenKeyForTest()->scopes, granted_scopes);
@@ -2982,7 +2979,10 @@ IN_PROC_BROWSER_TEST_F(
 }
 
 // The signin flow is simply not used on Ash.
-#if !BUILDFLAG(IS_CHROMEOS)
+// TODO(crbug.com/525397809): Currently this crashes because
+// SetInvalidRefreshTokenForAccount does not work on Android. We should fix this
+// and enable this test on Android.
+#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
 IN_PROC_BROWSER_TEST_F(GetAuthTokenFunctionTest,
                        MultiSecondaryInteractiveInvalidToken) {
   // Setup a secondary account with no valid refresh token, and try to get a
@@ -3020,7 +3020,7 @@ IN_PROC_BROWSER_TEST_F(GetAuthTokenFunctionTest,
     // token.
     std::string access_token;
     std::set<std::string> granted_scopes;
-    RunGetAuthTokenFunction(func.get(), kFunctionParams, browser(),
+    RunGetAuthTokenFunction(func.get(), kFunctionParams, profile(),
                             &access_token, &granted_scopes);
     EXPECT_EQ(std::string(kAccessToken), access_token);
     EXPECT_EQ(func->GetExtensionTokenKeyForTest()->scopes, granted_scopes);
@@ -3042,7 +3042,7 @@ IN_PROC_BROWSER_TEST_F(GetAuthTokenFunctionTest, ScopesDefault) {
 
   std::string access_token;
   std::set<std::string> granted_scopes;
-  RunGetAuthTokenFunction(func.get(), "[{}]", browser(), &access_token,
+  RunGetAuthTokenFunction(func.get(), "[{}]", profile(), &access_token,
                           &granted_scopes);
   EXPECT_EQ(std::string(kAccessToken), access_token);
 
@@ -3081,7 +3081,7 @@ IN_PROC_BROWSER_TEST_F(GetAuthTokenFunctionTest, ScopesEmail) {
                                scopes);
   std::string access_token;
   std::set<std::string> granted_scopes;
-  RunGetAuthTokenFunction(func.get(), "[{\"scopes\": [\"email\"]}]", browser(),
+  RunGetAuthTokenFunction(func.get(), "[{\"scopes\": [\"email\"]}]", profile(),
                           &access_token, &granted_scopes);
   EXPECT_EQ(std::string(kAccessToken), access_token);
 
@@ -3106,7 +3106,7 @@ IN_PROC_BROWSER_TEST_F(GetAuthTokenFunctionTest, ScopesEmailFooBar) {
   std::set<std::string> granted_scopes;
   RunGetAuthTokenFunction(func.get(),
                           "[{\"scopes\": [\"email\", \"foo\", \"bar\"]}]",
-                          browser(), &access_token, &granted_scopes);
+                          profile(), &access_token, &granted_scopes);
   EXPECT_EQ(std::string(kAccessToken), access_token);
 
   const ExtensionTokenKey* token_key = func->GetExtensionTokenKeyForTest();
@@ -3133,7 +3133,7 @@ IN_PROC_BROWSER_TEST_F(GetAuthTokenFunctionTest, SubsetMatchCacheHit) {
   std::string access_token;
   std::set<std::string> granted_scopes;
   RunGetAuthTokenFunction(func.get(), "[{\"scopes\": [\"email\", \"foo\"]}]",
-                          browser(), &access_token, &granted_scopes);
+                          profile(), &access_token, &granted_scopes);
   EXPECT_EQ(std::string(kAccessToken), access_token);
   EXPECT_EQ(scopes, granted_scopes);
   EXPECT_FALSE(func->login_ui_shown());
@@ -3158,7 +3158,7 @@ IN_PROC_BROWSER_TEST_F(GetAuthTokenFunctionTest, SubsetMatchCachePopulate) {
   std::string access_token;
   std::set<std::string> granted_scopes;
   RunGetAuthTokenFunction(func.get(), "[{\"scopes\": [\"email\", \"foo\"]}]",
-                          browser(), &access_token, &granted_scopes);
+                          profile(), &access_token, &granted_scopes);
 
   const IdentityTokenCacheValue& token =
       GetCachedToken(CoreAccountInfo(), scopes);
@@ -3187,7 +3187,7 @@ IN_PROC_BROWSER_TEST_F(GetAuthTokenFunctionTest, GranularPermissionsResponse) {
   RunGetAuthTokenFunction(func.get(),
                           "[{\"enableGranularPermissions\": true,"
                           "\"scopes\": [\"email\", \"bar\"]}]",
-                          browser(), &access_token, &granted_scopes);
+                          profile(), &access_token, &granted_scopes);
   EXPECT_EQ(kAccessToken, access_token);
   EXPECT_EQ(scopes, granted_scopes);
 
@@ -3319,7 +3319,7 @@ IN_PROC_BROWSER_TEST_P(GetAuthTokenFunctionEnableGranularPermissionsTest,
 
   std::string access_token;
   std::set<std::string> granted_scopes;
-  RunGetAuthTokenFunction(func.get(), "[{" + args + "}]", browser(),
+  RunGetAuthTokenFunction(func.get(), "[{" + args + "}]", profile(),
                           &access_token, &granted_scopes);
   EXPECT_EQ(kAccessToken, access_token);
   EXPECT_EQ(func->GetExtensionTokenKeyForTest()->scopes, granted_scopes);
@@ -3340,7 +3340,6 @@ INSTANTIATE_TEST_SUITE_P(
                     std::make_pair("\"enableGranularPermissions\": false",
                                    false),
                     std::make_pair("", false)));
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 class RemoveCachedAuthTokenFunctionTest : public ExtensionBrowserTest {
  protected:
@@ -3385,7 +3384,6 @@ class RemoveCachedAuthTokenFunctionTest : public ExtensionBrowserTest {
   }
 };
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 class GetAuthTokenFunctionSelectedUserIdTest : public GetAuthTokenFunctionTest {
  public:
   // Executes a new function and checks that the selected_user_id is the
@@ -3560,7 +3558,6 @@ IN_PROC_BROWSER_TEST_F(GetAuthTokenFunctionSelectedUserIdTest,
       1);
 }
 #endif
-#endif  //  BUILDFLAG(ENABLE_EXTENSIONS)
 
 IN_PROC_BROWSER_TEST_F(RemoveCachedAuthTokenFunctionTest, NotFound) {
   EXPECT_TRUE(InvalidateDefaultToken());

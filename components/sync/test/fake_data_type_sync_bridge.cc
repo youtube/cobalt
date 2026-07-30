@@ -193,6 +193,7 @@ std::optional<ModelError> FakeDataTypeSyncBridge::MergeFullSyncData(
     EntityChangeList entity_data) {
   if (error_next_) {
     error_next_ = false;
+    metadata_change_list->DropAllChanges();
     return ModelError(FROM_HERE, syncer::ModelError::Type::kGenericTestError);
   }
 
@@ -238,6 +239,7 @@ std::optional<ModelError> FakeDataTypeSyncBridge::ApplyIncrementalSyncChanges(
     EntityChangeList entity_changes) {
   if (error_next_) {
     error_next_ = false;
+    metadata_changes->DropAllChanges();
     return ModelError(FROM_HERE, syncer::ModelError::Type::kGenericTestError);
   }
 

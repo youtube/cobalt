@@ -63,13 +63,15 @@
         ],
         'args': [
           '--release',
+          '--timeout-multiplier=5',
+          '--child-processes=1',
         ],
         'mac_args': [
           '--driver-name',
           'Google Chrome',
         ],
         'swarming': {
-          'shards': 1,
+          'shards': 4,
         },
       },
       'chrome_ai_wpt_tests_gpu': {
@@ -95,13 +97,15 @@
         ],
         'args': [
           '--release',
+          '--timeout-multiplier=5',
+          '--child-processes=1',
         ],
         'mac_args': [
           '--driver-name',
           'Google Chrome',
         ],
         'swarming': {
-          'shards': 1,
+          'shards': 4,
         },
       },
       'chrome_ai_wpt_tests_litert_cpu': {
@@ -127,13 +131,15 @@
         ],
         'args': [
           '--release',
+          '--timeout-multiplier=5',
+          '--child-processes=1',
         ],
         'mac_args': [
           '--driver-name',
           'Google Chrome',
         ],
         'swarming': {
-          'shards': 1,
+          'shards': 4,
         },
       },
       'chrome_ai_wpt_tests_litert_gpu': {
@@ -159,13 +165,15 @@
         ],
         'args': [
           '--release',
+          '--timeout-multiplier=5',
+          '--child-processes=1',
         ],
         'mac_args': [
           '--driver-name',
           'Google Chrome',
         ],
         'swarming': {
-          'shards': 1,
+          'shards': 4,
         },
       },
     },

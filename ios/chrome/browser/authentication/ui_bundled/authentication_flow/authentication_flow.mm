@@ -90,6 +90,11 @@ enum class AuthenticationState {
   // Checks with AuthenticationService is sign-in is allowed. If not,
   // the sign-in is canceled.
   kCheckSignInAllowed,
+  // Determine if switching profile is needed.
+  kDetermineIfSwitchingProfileIsNeeded,
+  // If switching profile is needed and `confirmChangeProfile` is set, allow
+  // the user to confirm or cancel the switch.
+  kConfirmSwitchProfileIfNeeded,
   // After this step, sign-in should not be canceled or stopped.
   // This steps calls `-[<AuthenticationFlowDelegate>
   // authenticationFlowWillSwitchProfileWithReadyCompletion:]` if needed.
@@ -250,6 +255,8 @@ void RecordUnsyncedDataHistogramIfNeeded(UnsyncedDataTypeHistogram histogram,
   // State machine tracking.
   AuthenticationState _state;
   signin_ui::CancelationReason _cancelationReason;
+  // Whether switching profile is needed.
+  BOOL _shouldSwitchProfile;
   // YES if the personal profile should be converted to a managed (work) profile
   // as part of the signin flow. Can only be true if the to-be-signed-in account
   // is managed.
@@ -402,6 +409,8 @@ void RecordUnsyncedDataHistogramIfNeeded(UnsyncedDataTypeHistogram histogram,
     case AuthenticationState::kShowManagedConfirmationIfNeeded:
     case AuthenticationState::kConvertPersonalProfileToManagedIfNeeded:
     case AuthenticationState::kCheckSignInAllowed:
+    case AuthenticationState::kDetermineIfSwitchingProfileIsNeeded:
+    case AuthenticationState::kConfirmSwitchProfileIfNeeded:
     case AuthenticationState::kSwitchProfileIfNeeded:
     case AuthenticationState::kHandOverToAuthenticationFlowInProfile:
       return AuthenticationState::kCompleteWithFailure;
@@ -441,6 +450,10 @@ void RecordUnsyncedDataHistogramIfNeeded(UnsyncedDataTypeHistogram histogram,
     case AuthenticationState::kConvertPersonalProfileToManagedIfNeeded:
       return AuthenticationState::kCheckSignInAllowed;
     case AuthenticationState::kCheckSignInAllowed:
+      return AuthenticationState::kDetermineIfSwitchingProfileIsNeeded;
+    case AuthenticationState::kDetermineIfSwitchingProfileIsNeeded:
+      return AuthenticationState::kConfirmSwitchProfileIfNeeded;
+    case AuthenticationState::kConfirmSwitchProfileIfNeeded:
       return AuthenticationState::kSwitchProfileIfNeeded;
     case AuthenticationState::kSwitchProfileIfNeeded:
       return AuthenticationState::kHandOverToAuthenticationFlowInProfile;
@@ -506,6 +519,14 @@ void RecordUnsyncedDataHistogramIfNeeded(UnsyncedDataTypeHistogram histogram,
 
     case AuthenticationState::kCheckSignInAllowed:
       [self checkSignInAllowedStep];
+      return;
+
+    case AuthenticationState::kDetermineIfSwitchingProfileIsNeeded:
+      [self determineIfSwitchingProfileIsNeededStep];
+      return;
+
+    case AuthenticationState::kConfirmSwitchProfileIfNeeded:
+      [self confirmSwitchProfileIfNeededStep];
       return;
 
     case AuthenticationState::kSwitchProfileIfNeeded:
@@ -696,10 +717,9 @@ void RecordUnsyncedDataHistogramIfNeeded(UnsyncedDataTypeHistogram histogram,
   [self continueFlow];
 }
 
-// Switches profile if `_identityToSignIn` is assigned to another profile.
-// If `_identityToSignIn` doesn't exist anymore, an error is generated.
-// If the identity is assigned to the current profile this step is a no-op.
-- (void)switchProfileIfNeededStep {
+// Determines if switching profile is needed. The answer belongs to
+// `_shouldSwitchProfile`.
+- (void)determineIfSwitchingProfileIsNeededStep {
   CHECK(_unsyncedDataTypes.has_value());
   ProfileIOS* profile = [self profile];
   signin::IdentityManager* identityManager =
@@ -764,6 +784,34 @@ void RecordUnsyncedDataHistogramIfNeeded(UnsyncedDataTypeHistogram histogram,
     [self continueFlow];
     return;
   }
+
+  _shouldSwitchProfile = YES;
+  [self continueFlow];
+}
+
+// Confirms switch profile if `_shouldSwitchProfile`.
+- (void)confirmSwitchProfileIfNeededStep {
+  if (!_shouldSwitchProfile) {
+    [self continueFlow];
+    return;
+  }
+
+  [_performer confirmChangeProfile:self.confirmChangeProfile
+                       forIdentity:_identityToSignIn];
+  self.confirmChangeProfile = nil;
+}
+
+// Switches profile if `_shouldSwitchProfile` is YES. If the identity doesn't
+// exist anymore, an error is generated.
+- (void)switchProfileIfNeededStep {
+  if (!_shouldSwitchProfile) {
+    [self continueFlow];
+    return;
+  }
+
+  ProfileIOS* profile = [self profile];
+  signin::IdentityManager* identityManager =
+      IdentityManagerFactory::GetForProfile(profile);
   BOOL isValidIdentityInSomeProfile =
       GetApplicationContext()
           ->GetAccountProfileMapper()
@@ -870,6 +918,7 @@ void RecordUnsyncedDataHistogramIfNeeded(UnsyncedDataTypeHistogram histogram,
   _identityToSignIn = nil;
   _identityToSignInHostedDomain = nil;
   _browserForAuthenticationFlowInProfile = nullptr;
+  _confirmChangeProfile = nil;
 }
 
 - (BOOL)canceled {
@@ -1044,6 +1093,14 @@ void RecordUnsyncedDataHistogramIfNeeded(UnsyncedDataTypeHistogram histogram,
 
 - (void)didMakePersonalProfileManaged {
   [self continueFlow];
+}
+
+- (void)didConfirmChangeProfileCanProceed:(BOOL)canProceed {
+  if (canProceed) {
+    [self continueFlow];
+  } else {
+    [self cancelFlowWithReason:signin_ui::CancelationReason::kUserCanceled];
+  }
 }
 
 #pragma mark - Private methods

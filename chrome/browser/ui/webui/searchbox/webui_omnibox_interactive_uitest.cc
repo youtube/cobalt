@@ -47,6 +47,7 @@
 #include "components/contextual_search/pref_names.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
+#include "components/omnibox/browser/aim_eligibility_service_features.h"
 #include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/prefs/pref_service.h"
@@ -124,8 +125,6 @@ class OmniboxWebUiInteractiveTestBase
           {omnibox::kShowLensSearchChip.name, "true"}};
       features.emplace_back(omnibox::internal::kWebUIOmniboxSimplification,
                             simplification_params);
-      features.emplace_back(omnibox::kAiModeOmniboxEntryPoint,
-                            base::FieldTrialParams());
       features.emplace_back(omnibox::kAimEnabled, base::FieldTrialParams());
       features.emplace_back(
           features::kPageActionsMigration,
@@ -511,7 +510,9 @@ IN_PROC_BROWSER_TEST_F(OmniboxAimWebUiInteractiveTest,
 }
 
 // TODO(crbug.com/505548434, crbug.com/517370516): Flaky on Mac, Win and Linux.
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+// TODO(crbug.com/524892796): Broken on ChromeOS.
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_ClassicContextMenuOpensDeepSearch \
   DISABLED_ClassicContextMenuOpensDeepSearch
 #else

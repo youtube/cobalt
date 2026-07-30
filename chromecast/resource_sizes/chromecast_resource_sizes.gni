@@ -6,7 +6,8 @@ import("//build/config/clang/clang.gni")
 import("//build/util/generate_wrapper.gni")
 
 # Generates a script in the bin directory that runs
-# //chromecast/resource_sizes/chromecast_resource_sizes.py for the provided configuration.
+# //chromecast/resource_sizes/chromecast_resource_sizes.py for the provided
+# configuration.
 template("chromecast_resource_sizes_test") {
   generate_wrapper(target_name) {
     forward_variables_from(invoker, [ "data_deps" ])

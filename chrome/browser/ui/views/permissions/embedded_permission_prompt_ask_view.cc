@@ -18,9 +18,9 @@ DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(EmbeddedPermissionPromptAskView,
                                       kAllowThisTimeId);
 
 EmbeddedPermissionPromptAskView::EmbeddedPermissionPromptAskView(
-    Browser* browser,
+    content::WebContents* web_contents,
     base::WeakPtr<EmbeddedPermissionPromptViewDelegate> delegate)
-    : EmbeddedPermissionPromptBaseView(browser, delegate) {}
+    : EmbeddedPermissionPromptBaseView(web_contents, delegate) {}
 
 EmbeddedPermissionPromptAskView::~EmbeddedPermissionPromptAskView() = default;
 

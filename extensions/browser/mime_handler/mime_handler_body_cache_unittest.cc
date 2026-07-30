@@ -23,13 +23,8 @@ class MimeHandlerBodyCacheTest : public testing::Test {
   void CreateDataPipe(mojo::ScopedDataPipeProducerHandle* producer,
                       mojo::ScopedDataPipeConsumerHandle* consumer,
                       uint32_t capacity = 1024) {
-    MojoCreateDataPipeOptions options;
-    options.struct_size = sizeof(MojoCreateDataPipeOptions);
-    options.flags = MOJO_CREATE_DATA_PIPE_FLAG_NONE;
-    options.element_num_bytes = 1;
-    options.capacity_num_bytes = capacity;
     ASSERT_EQ(MOJO_RESULT_OK,
-              mojo::CreateDataPipe(&options, *producer, *consumer));
+              mojo::CreateDataPipe(capacity, *producer, *consumer));
   }
 
   void WriteData(mojo::ScopedDataPipeProducerHandle& producer,
@@ -47,20 +42,6 @@ class MimeHandlerBodyCacheTest : public testing::Test {
   base::test::TaskEnvironment task_environment_;
 };
 
-TEST_F(MimeHandlerBodyCacheTest, CreateAndCache) {
-  mojo::ScopedDataPipeProducerHandle producer;
-  mojo::ScopedDataPipeConsumerHandle consumer;
-  CreateDataPipe(&producer, &consumer);
-
-  WriteData(producer, "Hello, World!");
-  producer.reset();
-
-  auto cache = MimeHandlerBodyCache::Create(std::move(consumer), nullptr);
-  ASSERT_TRUE(cache);
-
-  EXPECT_TRUE(base::test::RunUntil([&] { return cache->is_complete(); }));
-}
-
 TEST_F(MimeHandlerBodyCacheTest, CreatePipeFromCache) {
   mojo::ScopedDataPipeProducerHandle producer;
   mojo::ScopedDataPipeConsumerHandle consumer;
@@ -74,6 +55,7 @@ TEST_F(MimeHandlerBodyCacheTest, CreatePipeFromCache) {
   ASSERT_TRUE(cache);
 
   ASSERT_TRUE(base::test::RunUntil([&] { return cache->is_complete(); }));
+  EXPECT_EQ(kTestData.size(), cache->cached_size());
 
   auto new_consumer = cache->CreatePipe();
   ASSERT_TRUE(new_consumer.is_valid());
@@ -139,22 +121,6 @@ TEST_F(MimeHandlerBodyCacheTest, LargeData) {
   auto new_consumer = cache->CreatePipe();
   ASSERT_TRUE(new_consumer.is_valid());
   EXPECT_EQ(large_data, ReadAllData(std::move(new_consumer)));
-}
-
-TEST_F(MimeHandlerBodyCacheTest, CachedSize) {
-  mojo::ScopedDataPipeProducerHandle producer;
-  mojo::ScopedDataPipeConsumerHandle consumer;
-  CreateDataPipe(&producer, &consumer);
-
-  const std::string kTestData = "Size test data";
-  WriteData(producer, kTestData);
-  producer.reset();
-
-  auto cache = MimeHandlerBodyCache::Create(std::move(consumer), nullptr);
-  ASSERT_TRUE(cache);
-
-  ASSERT_TRUE(base::test::RunUntil([&] { return cache->is_complete(); }));
-  EXPECT_EQ(kTestData.size(), cache->cached_size());
 }
 
 TEST_F(MimeHandlerBodyCacheTest, IsNotCompleteBeforeDrain) {

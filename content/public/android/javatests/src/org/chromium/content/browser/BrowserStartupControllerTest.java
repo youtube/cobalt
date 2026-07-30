@@ -148,7 +148,6 @@ public class BrowserStartupControllerTest {
                                 true,
                                 false,
                                 false,
-                                false,
                                 callback);
                     } catch (Exception e) {
                         throw new AssertionError("Browser should have started successfully", e);
@@ -190,7 +189,6 @@ public class BrowserStartupControllerTest {
                                 true,
                                 false,
                                 false,
-                                false,
                                 callback1);
                     } catch (Exception e) {
                         throw new AssertionError("Browser should have started successfully", e);
@@ -202,7 +200,6 @@ public class BrowserStartupControllerTest {
                         mController.startBrowserProcessesAsync(
                                 LibraryProcessType.PROCESS_BROWSER,
                                 true,
-                                false,
                                 false,
                                 false,
                                 callback2);
@@ -254,7 +251,6 @@ public class BrowserStartupControllerTest {
                                 true,
                                 false,
                                 false,
-                                false,
                                 callback1);
                     } catch (Exception e) {
                         throw new AssertionError("Browser should have started successfully", e);
@@ -288,7 +284,6 @@ public class BrowserStartupControllerTest {
                         mController.startBrowserProcessesAsync(
                                 LibraryProcessType.PROCESS_BROWSER,
                                 true,
-                                false,
                                 false,
                                 false,
                                 callback3);
@@ -332,7 +327,6 @@ public class BrowserStartupControllerTest {
                                 true,
                                 false,
                                 false,
-                                false,
                                 callback);
                     } catch (Exception e) {
                         throw new AssertionError("Browser should have started successfully", e);
@@ -368,7 +362,6 @@ public class BrowserStartupControllerTest {
                                 true,
                                 false,
                                 false,
-                                false,
                                 callback1);
                     } catch (Exception e) {
                         throw new AssertionError("Browser should have started successfully", e);
@@ -402,7 +395,6 @@ public class BrowserStartupControllerTest {
                         mController.startBrowserProcessesAsync(
                                 LibraryProcessType.PROCESS_BROWSER,
                                 true,
-                                false,
                                 false,
                                 false,
                                 callback3);
@@ -467,7 +459,6 @@ public class BrowserStartupControllerTest {
                         mController.startBrowserProcessesAsync(
                                 LibraryProcessType.PROCESS_BROWSER,
                                 true,
-                                false,
                                 false,
                                 false,
                                 callback);
@@ -536,7 +527,6 @@ public class BrowserStartupControllerTest {
                                 true,
                                 false,
                                 false,
-                                false,
                                 callback);
                     } catch (Exception e) {
                         throw new AssertionError("Browser should have started successfully", e);
@@ -577,7 +567,6 @@ public class BrowserStartupControllerTest {
                                 true,
                                 false,
                                 false,
-                                false,
                                 callback);
                         Assert.fail("Browser should not have started successfully");
                     } catch (Exception e) {
@@ -610,7 +599,6 @@ public class BrowserStartupControllerTest {
                                 LibraryProcessType.PROCESS_BROWSER,
                                 true,
                                 true,
-                                false,
                                 false,
                                 callback1);
                     } catch (Exception e) {
@@ -650,7 +638,6 @@ public class BrowserStartupControllerTest {
                         mController.startBrowserProcessesAsync(
                                 LibraryProcessType.PROCESS_BROWSER,
                                 true,
-                                false,
                                 false,
                                 false,
                                 callback3);
@@ -697,7 +684,6 @@ public class BrowserStartupControllerTest {
                                 true,
                                 true,
                                 false,
-                                false,
                                 callback1);
                     } catch (Exception e) {
                         throw new AssertionError("Browser should have started successfully", e);
@@ -707,7 +693,6 @@ public class BrowserStartupControllerTest {
                                 LibraryProcessType.PROCESS_BROWSER,
                                 true,
                                 true,
-                                false,
                                 false,
                                 callback2);
                     } catch (Exception e) {
@@ -758,7 +743,6 @@ public class BrowserStartupControllerTest {
                                 true,
                                 true,
                                 false,
-                                false,
                                 callback1);
                     } catch (Exception e) {
                         throw new AssertionError("Browser should have started successfully", e);
@@ -771,7 +755,6 @@ public class BrowserStartupControllerTest {
                                 LibraryProcessType.PROCESS_BROWSER,
                                 true,
                                 true,
-                                false,
                                 false,
                                 callback2);
                     } catch (Exception e) {
@@ -827,7 +810,6 @@ public class BrowserStartupControllerTest {
                                 true,
                                 true,
                                 false,
-                                false,
                                 callback1);
                     } catch (Exception e) {
                         throw new AssertionError("Browser should have started successfully", e);
@@ -836,7 +818,6 @@ public class BrowserStartupControllerTest {
                         mController.startBrowserProcessesAsync(
                                 LibraryProcessType.PROCESS_BROWSER,
                                 true,
-                                false,
                                 false,
                                 false,
                                 callback2);
@@ -895,7 +876,6 @@ public class BrowserStartupControllerTest {
                                 true,
                                 true,
                                 false,
-                                false,
                                 callback1);
                     } catch (Exception e) {
                         throw new AssertionError("Browser should have started successfully", e);
@@ -949,7 +929,6 @@ public class BrowserStartupControllerTest {
                                 LibraryProcessType.PROCESS_BROWSER,
                                 true,
                                 true,
-                                false,
                                 false,
                                 callback1);
                     } catch (Exception e) {
@@ -1007,7 +986,6 @@ public class BrowserStartupControllerTest {
                                 true,
                                 true,
                                 false,
-                                false,
                                 callback1);
                     } catch (Exception e) {
                         throw new AssertionError("Browser should have started successfully", e);
@@ -1033,46 +1011,4 @@ public class BrowserStartupControllerTest {
         Assert.assertTrue("Callback 2 should have been a success.", callback2.mWasSuccess);
     }
 
-    @Test
-    @SmallTest
-    public void testAsynchronousStartupRequestWithFlushStartupTasks() {
-        mController.mStartupResult = BrowserStartupControllerImpl.STARTUP_SUCCESS;
-        mController.mLibraryLoadSucceeds = true;
-        final TestStartupCallback callback = new TestStartupCallback();
-
-        // Kick off the asynchronous startup request.
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    try {
-                        mController.startBrowserProcessesAsync(
-                                LibraryProcessType.PROCESS_BROWSER,
-                                true,
-                                false,
-                                false,
-                                true,
-                                callback);
-                    } catch (Exception e) {
-                        throw new AssertionError("Browser should have started successfully", e);
-                    }
-                });
-
-        // Wait for posted tasks to complete.
-        InstrumentationRegistry.getInstrumentation().waitForIdleSync();
-
-        Assert.assertEquals(
-                "The browser process should have been launched once.",
-                1,
-                mController.fullBrowserLaunchCounter());
-
-        Assert.assertFalse(
-                "contentStart should have been posted", mController.mContentStartInClientCall);
-        Assert.assertTrue(
-                "flushStartupTasks should have been called.", mController.mFlushStartupTasksCalled);
-        Assert.assertFalse(
-                "flushStartupTasks should have been posted.",
-                mController.mStartupTasksInClientCall);
-
-        Assert.assertTrue("Callback should have been executed.", callback.mHasStartupResult);
-        Assert.assertTrue("Callback should have been a success.", callback.mWasSuccess);
-    }
 }

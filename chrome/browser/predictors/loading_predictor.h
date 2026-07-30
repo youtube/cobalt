@@ -29,6 +29,10 @@
 
 class Profile;
 
+namespace base {
+class UnguessableToken;
+}  // namespace base
+
 namespace features {
 
 BASE_DECLARE_FEATURE(kSuppressesLoadingPredictorOnSlowNetwork);
@@ -139,6 +143,7 @@ class LoadingPredictor : public KeyedService,
       const GURL& url,
       bool allow_credentials,
       const net::NetworkAnonymizationKey& network_anonymization_key,
+      const base::UnguessableToken& network_restrictions_id,
       const net::NetworkTrafficAnnotationTag& traffic_annotation =
           kLoadingPredictorPreconnectTrafficAnnotation,
       const content::StoragePartitionConfig* storage_partition_config =

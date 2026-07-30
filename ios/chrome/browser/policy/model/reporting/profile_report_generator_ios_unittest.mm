@@ -292,8 +292,7 @@ class ProfileReportGeneratorIOSTest
     return profile_->GetProfileName();
   }
 
-  ReportingDelegateFactoryIOS delegate_factory_;
-  ProfileReportGenerator generator_;
+  ProfileReportGenerator* generator() { return &generator_; }
 
  private:
   base::test::ScopedFeatureList feature_list_;
@@ -303,15 +302,17 @@ class ProfileReportGeneratorIOSTest
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
   std::unique_ptr<policy::MockCloudPolicyStore> policy_store_;
   TestProfileManagerIOS profile_manager_;
-  raw_ptr<ProfileIOS> profile_;
+  raw_ptr<ProfileIOS> profile_ = nullptr;
 
   policy::SchemaRegistry schema_registry_;
   policy::PolicyMap policy_map_;
-  raw_ptr<AuthenticationService> authentication_service_;
-  raw_ptr<ChromeAccountManagerService> account_manager_service_;
+  raw_ptr<AuthenticationService> authentication_service_ = nullptr;
+  raw_ptr<ChromeAccountManagerService> account_manager_service_ = nullptr;
   std::unique_ptr<policy::FakeBrowserDMTokenStorage> browser_dm_token_storage_;
   std::unique_ptr<policy::MachineLevelUserCloudPolicyManager>
       machine_policy_manager_;
+  ReportingDelegateFactoryIOS delegate_factory_;
+  ProfileReportGenerator generator_;
 };
 
 TEST_P(ProfileReportGeneratorIOSTest, UnsignedInProfile) {
@@ -343,14 +344,14 @@ TEST_P(ProfileReportGeneratorIOSTest, PoliciesReportedOnlyWhenEnabled) {
 
   // Make sure policies are no longer reported when `set_policies_enabled` is
   // set to false.
-  generator_.set_policies_enabled(false);
+  generator()->set_policies_enabled(false);
   report = GenerateReport();
   ASSERT_TRUE(report);
   EXPECT_EQ(0, report->chrome_policies_size());
 
   // Make sure policies are once again being reported after setting
   // `set_policies_enabled` back to true.
-  generator_.set_policies_enabled(true);
+  generator()->set_policies_enabled(true);
   report = GenerateReport();
   ASSERT_TRUE(report);
   EXPECT_EQ(2, report->chrome_policies_size());

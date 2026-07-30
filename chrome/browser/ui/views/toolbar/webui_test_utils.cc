@@ -7,6 +7,7 @@
 #include "base/functional/bind.h"
 #include "base/notimplemented.h"
 #include "base/run_loop.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/test/run_until.h"
 #include "chrome/browser/headless/headless_command_processor.h"
 #include "chrome/browser/profiles/profile.h"
@@ -18,20 +19,69 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/profiles/avatar_toolbar_button.h"
+#include "chrome/browser/ui/views/profiles/avatar_toolbar_button_state_manager.h"
+#include "chrome/browser/ui/views/toolbar/avatar_toolbar_button_interface.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/browser/ui/views/toolbar/webui_avatar_toolbar_button.h"
 #include "chrome/browser/ui/views/toolbar/webui_toolbar_web_view.h"
 #include "chrome/browser/ui/waap/initial_web_ui_manager.h"
 #include "chrome/common/chrome_features.h"
+#include "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api_data_model.mojom.h"
 #include "components/metrics/content/subprocess_metrics_provider.h"
 #include "content/public/test/browser_test_utils.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/interaction/element_tracker.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/interaction/interaction_test_util_views.h"
 #include "ui/views/view_utils.h"
+
+namespace {
+
+::AvatarToolbarButtonState MapMojomAvatarState(
+    toolbar_ui_api::mojom::AvatarToolbarButtonState state) {
+  switch (state) {
+    case toolbar_ui_api::mojom::AvatarToolbarButtonState::kGuestSession:
+      return ::AvatarToolbarButtonState::kGuestSession;
+    case toolbar_ui_api::mojom::AvatarToolbarButtonState::kIncognitoProfile:
+      return ::AvatarToolbarButtonState::kIncognitoProfile;
+    case toolbar_ui_api::mojom::AvatarToolbarButtonState::kExplicitTextShowing:
+      return ::AvatarToolbarButtonState::kExplicitTextShowing;
+    case toolbar_ui_api::mojom::AvatarToolbarButtonState::kOnSignin:
+      return ::AvatarToolbarButtonState::kOnSignin;
+    case toolbar_ui_api::mojom::AvatarToolbarButtonState::kShowIdentityName:
+      return ::AvatarToolbarButtonState::kShowIdentityName;
+    case toolbar_ui_api::mojom::AvatarToolbarButtonState::kSigninPending:
+      return ::AvatarToolbarButtonState::kSigninPending;
+    case toolbar_ui_api::mojom::AvatarToolbarButtonState::kSyncPaused:
+      return ::AvatarToolbarButtonState::kSyncPaused;
+    case toolbar_ui_api::mojom::AvatarToolbarButtonState::kUpgradeClientError:
+      return ::AvatarToolbarButtonState::kUpgradeClientError;
+    case toolbar_ui_api::mojom::AvatarToolbarButtonState::kPassphraseError:
+      return ::AvatarToolbarButtonState::kPassphraseError;
+    case toolbar_ui_api::mojom::AvatarToolbarButtonState::
+        kBookmarksLimitExceeded:
+      return ::AvatarToolbarButtonState::kBookmarksLimitExceeded;
+    case toolbar_ui_api::mojom::AvatarToolbarButtonState::kSyncError:
+      return ::AvatarToolbarButtonState::kSyncError;
+    case toolbar_ui_api::mojom::AvatarToolbarButtonState::kPasskeysLockedError:
+      return ::AvatarToolbarButtonState::kPasskeysLockedError;
+    case toolbar_ui_api::mojom::AvatarToolbarButtonState::kPromo:
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+      return ::AvatarToolbarButtonState::kPromo;
+#else
+      NOTREACHED();
+#endif
+    case toolbar_ui_api::mojom::AvatarToolbarButtonState::kManagement:
+      return ::AvatarToolbarButtonState::kManagement;
+    case toolbar_ui_api::mojom::AvatarToolbarButtonState::kNormal:
+      return ::AvatarToolbarButtonState::kNormal;
+  }
+}
+
+}  // namespace
 
 void WaitUntilInitialWebUIPaintAndFlushMetricsForTesting(
     BrowserWindowInterface* browser) {
@@ -190,6 +240,100 @@ void AvatarToolbarButtonTestAccessor::WaitForAvatarButton() {
   run_loop.Run();
 }
 
+bool AvatarToolbarButtonTestAccessor::WaitForText(const std::u16string& text) {
+  return base::test::RunUntil([this, text]() { return GetText() == text; });
+}
+
+bool AvatarToolbarButtonTestAccessor::WaitForTextNotEqual(
+    const std::u16string& text) {
+  return base::test::RunUntil([this, text]() { return GetText() != text; });
+}
+
+bool AvatarToolbarButtonTestAccessor::WaitForVisible(bool visible) {
+  return base::test::RunUntil(
+      [this, visible]() { return GetVisible() == visible; });
+}
+
+bool AvatarToolbarButtonTestAccessor::WaitForEnabled(bool enabled) {
+  return base::test::RunUntil(
+      [this, enabled]() { return GetEnabled() == enabled; });
+}
+
+bool AvatarToolbarButtonTestAccessor::WaitForState(
+    AvatarToolbarButtonState state) {
+  return base::test::RunUntil([this, state]() { return GetState() == state; });
+}
+
+AvatarToolbarButtonState AvatarToolbarButtonTestAccessor::GetState() {
+  return std::visit(
+      absl::Overload{
+          [](AvatarToolbarButton* button) -> AvatarToolbarButtonState {
+            return button ? button->state_manager_->GetActiveState()
+                          : AvatarToolbarButtonState::kNormal;
+          },
+          [this](WebUIAvatarToolbarButton* button) -> AvatarToolbarButtonState {
+            if (!button) {
+              return AvatarToolbarButtonState::kNormal;
+            }
+            if (ShouldUseCppFallback(button)) {
+              return button->state_manager_
+                         ? button->state_manager_->GetActiveState()
+                         : AvatarToolbarButtonState::kNormal;
+            }
+            content::WebContents* contents = GetWebContents();
+            if (!contents) {
+              return AvatarToolbarButtonState::kNormal;
+            }
+            int state_val =
+                content::EvalJs(
+                    contents,
+                    "(async () => {"
+                    "  const app = document.querySelector('toolbar-app');"
+                    "  if (!app) return -1;"
+                    "  await app.updateComplete;"
+                    "  const btn = "
+                    "app.shadowRoot?.querySelector('avatar-button');"
+                    "  if (!btn) return -1;"
+                    "  await btn.updateComplete;"
+                    "  return btn.state?.state !== undefined ? btn.state.state "
+                    ": -1;"
+                    "})()")
+                    .ExtractInt();
+            if (state_val == -1) {
+              return AvatarToolbarButtonState::kNormal;
+            }
+            return MapMojomAvatarState(
+                static_cast<toolbar_ui_api::mojom::AvatarToolbarButtonState>(
+                    state_val));
+          },
+      },
+      GetButton());
+}
+
+bool AvatarToolbarButtonTestAccessor::WaitForImageUrl(
+    const std::string& image_url) {
+  return base::test::RunUntil(
+      [this, image_url]() { return GetImageUrl() == image_url; });
+}
+
+bool AvatarToolbarButtonTestAccessor::WaitForRenderedTooltipText(
+    const std::u16string& text) {
+  return base::test::RunUntil(
+      [this, text]() { return GetRenderedTooltipText(gfx::Point()) == text; });
+}
+
+bool AvatarToolbarButtonTestAccessor::WaitForAccessibilityLabel(
+    const std::u16string& text) {
+  return base::test::RunUntil(
+      [this, text]() { return GetAccessibilityLabel() == text; });
+}
+
+bool AvatarToolbarButtonTestAccessor::WaitForAccessibilityDescription(
+    const std::u16string& text) {
+  return base::test::RunUntil(
+      [this, text]() { return GetAccessibilityDescription() == text; });
+}
+
 AvatarToolbarButtonInterface* AvatarToolbarButtonTestAccessor::GetInterface() {
   auto* const browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
   if (!browser_view) {
@@ -197,6 +341,44 @@ AvatarToolbarButtonInterface* AvatarToolbarButtonTestAccessor::GetInterface() {
   }
   return browser_view->toolbar_button_provider()
       ->GetAvatarToolbarButtonInterface();
+}
+
+content::WebContents* AvatarToolbarButtonTestAccessor::GetWebContents() {
+  auto* const browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (!browser_view) {
+    return nullptr;
+  }
+  views::View* webui_toolbar =
+      views::ElementTrackerViews::GetInstance()->GetFirstMatchingView(
+          kWebUIToolbarElementIdentifier,
+          views::ElementTrackerViews::GetContextForView(browser_view));
+  if (!webui_toolbar) {
+    return nullptr;
+  }
+  return views::AsViewClass<WebUIToolbarWebView>(webui_toolbar)
+      ->GetWebViewForTesting()
+      ->web_contents();
+}
+
+bool AvatarToolbarButtonTestAccessor::ShouldUseCppFallback(
+    WebUIAvatarToolbarButton* button) {
+#if BUILDFLAG(IS_CHROMEOS)
+  if (!button || !button->state_manager_) {
+    return false;
+  }
+  // On ChromeOS, the avatar button is hidden for normal profiles. In C++ Views,
+  // the button view still exists and is updated even when hidden, and many
+  // tests assert on its state/text. In WebUI, we don't render the element in
+  // the DOM at all when hidden. To allow these tests to pass without adding
+  // ChromeOS-specific conditions to every test, we fall back to querying the
+  // C++ state manager when the button is hidden.
+  Profile* profile = button->state_manager_->browser()->profile();
+  return !AvatarToolbarButtonInterface::CanShowForProfile(profile);
+#else
+  // On other platforms, the button is always visible for the profiles used in
+  // these tests, so we should always test the actual WebUI DOM.
+  return false;
+#endif
 }
 
 AvatarToolbarButtonTestAccessor::ButtonVariant
@@ -212,45 +394,99 @@ AvatarToolbarButtonTestAccessor::GetButton() {
 }
 
 bool AvatarToolbarButtonTestAccessor::GetEnabled() {
-  return std::visit(absl::Overload{
-                        [](AvatarToolbarButton* button) -> bool {
-                          return button ? button->GetEnabled() : false;
-                        },
-                        [](WebUIAvatarToolbarButton* button) -> bool {
-                          // TODO(behamilton)
-                          NOTIMPLEMENTED();
-                          return button ? true : false;
-                        },
-                    },
-                    GetButton());
+  return std::visit(
+      absl::Overload{
+          [](AvatarToolbarButton* button) -> bool {
+            return button ? button->GetEnabled() : false;
+          },
+          [this](WebUIAvatarToolbarButton* button) -> bool {
+            if (!button) {
+              return false;
+            }
+            if (ShouldUseCppFallback(button)) {
+#if BUILDFLAG(IS_CHROMEOS)
+              Profile* profile = button->state_manager_->browser()->profile();
+              return profile->IsOffTheRecord() && !profile->IsGuestSession() &&
+                     !profile->GetOTRProfileID().IsCaptivePortal();
+#else
+              return true;
+#endif
+            }
+            content::WebContents* contents = GetWebContents();
+            return contents &&
+                   content::EvalJs(
+                       contents,
+                       "document.querySelector('toolbar-app')"
+                       "?.shadowRoot?.querySelector('avatar-button')"
+                       "?.shadowRoot?.querySelector('#button')"
+                       "?.disabled === false")
+                       .ExtractBool();
+          },
+      },
+      GetButton());
 }
 
 bool AvatarToolbarButtonTestAccessor::GetVisible() {
-  return std::visit(absl::Overload{
-                        [](AvatarToolbarButton* button) {
-                          return button ? button->GetVisible() : false;
-                        },
-                        [](WebUIAvatarToolbarButton* button) {
-                          // TODO(behamilton)
-                          NOTIMPLEMENTED();
-                          return button ? true : false;
-                        },
-                    },
-                    GetButton());
+  return std::visit(
+      absl::Overload{
+          [](AvatarToolbarButton* button) {
+            return button ? button->GetVisible() : false;
+          },
+          [this](WebUIAvatarToolbarButton* button) {
+            if (!button) {
+              return false;
+            }
+            content::WebContents* contents = GetWebContents();
+            return contents &&
+                   content::EvalJs(
+                       contents,
+                       "!!document.querySelector('toolbar-app')"
+                       "?.shadowRoot?.querySelector('avatar-button')")
+                       .ExtractBool();
+          },
+      },
+      GetButton());
 }
 
 std::u16string AvatarToolbarButtonTestAccessor::GetText() {
-  return std::visit(absl::Overload{
-                        [](AvatarToolbarButton* button) -> std::u16string {
-                          return button ? std::u16string(button->GetText())
-                                        : std::u16string();
-                        },
-                        [](WebUIAvatarToolbarButton* button) -> std::u16string {
-                          NOTIMPLEMENTED();
-                          return {};
-                        },
-                    },
-                    GetButton());
+  return std::visit(
+      absl::Overload{
+          [](AvatarToolbarButton* button) -> std::u16string {
+            return button ? std::u16string(button->GetText())
+                          : std::u16string();
+          },
+          [this](WebUIAvatarToolbarButton* button) -> std::u16string {
+            if (!button) {
+              return std::u16string();
+            }
+            if (ShouldUseCppFallback(button)) {
+              StateProvider* active_provider =
+                  button->state_manager_->GetActiveStateProvider();
+              return active_provider ? active_provider->GetText()
+                                     : std::u16string();
+            }
+            content::WebContents* contents = GetWebContents();
+            if (!contents) {
+              return std::u16string();
+            }
+            return base::UTF8ToUTF16(
+                content::EvalJs(
+                    contents,
+                    "(async () => {"
+                    "  const app = document.querySelector('toolbar-app');"
+                    "  if (!app) return '';"
+                    "  await app.updateComplete;"
+                    "  const btn = "
+                    "app.shadowRoot?.querySelector('avatar-button');"
+                    "  if (!btn) return '';"
+                    "  await btn.updateComplete;"
+                    "  const textEl = btn.shadowRoot?.querySelector('#text');"
+                    "  return textEl?.textContent?.trim() || '';"
+                    "})()")
+                    .ExtractString());
+          },
+      },
+      GetButton());
 }
 
 void AvatarToolbarButtonTestAccessor::Click() {
@@ -300,7 +536,6 @@ gfx::ImageSkia AvatarToolbarButtonTestAccessor::GetImage(
                                         : gfx::ImageSkia();
                         },
                         [](WebUIAvatarToolbarButton* button) {
-                          // TODO(behamilton)
                           NOTIMPLEMENTED();
                           return gfx::ImageSkia();
                         },
@@ -308,18 +543,178 @@ gfx::ImageSkia AvatarToolbarButtonTestAccessor::GetImage(
                     GetButton());
 }
 
+std::string AvatarToolbarButtonTestAccessor::GetImageUrl() {
+  return std::visit(
+      absl::Overload{
+          [](AvatarToolbarButton* button) -> std::string {
+            return std::string();
+          },
+          [this](WebUIAvatarToolbarButton* button) -> std::string {
+            if (!button) {
+              return std::string();
+            }
+            if (ShouldUseCppFallback(button)) {
+              StateProvider* active_provider =
+                  button->state_manager_->GetActiveStateProvider();
+              return active_provider ? active_provider->GetAvatarIconUrl()
+                                     : std::string();
+            }
+            content::WebContents* contents = GetWebContents();
+            if (!contents) {
+              return std::string();
+            }
+            return content::EvalJs(
+                       contents,
+                       "(async () => {"
+                       "  const app = document.querySelector('toolbar-app');"
+                       "  if (!app) return '';"
+                       "  await app.updateComplete;"
+                       "  const btn = "
+                       "app.shadowRoot?.querySelector('avatar-button');"
+                       "  if (!btn) return '';"
+                       "  await btn.updateComplete;"
+                       "  const img = "
+                       "btn.shadowRoot?.querySelector('#icon');"
+                       "  return img?.src || '';"
+                       "})()")
+                .ExtractString();
+          },
+      },
+      GetButton());
+}
+
 std::u16string AvatarToolbarButtonTestAccessor::GetRenderedTooltipText(
     const gfx::Point& p) {
-  return std::visit(absl::Overload{
-                        [p](AvatarToolbarButton* button) {
-                          return button ? button->GetRenderedTooltipText(p)
-                                        : std::u16string();
-                        },
-                        [](WebUIAvatarToolbarButton* button) {
-                          // TODO(behamilton)
-                          NOTIMPLEMENTED();
-                          return std::u16string();
-                        },
-                    },
-                    GetButton());
+  return std::visit(
+      absl::Overload{
+          [p](AvatarToolbarButton* button) {
+            return button ? button->GetRenderedTooltipText(p)
+                          : std::u16string();
+          },
+          [this](WebUIAvatarToolbarButton* button) {
+            if (!button) {
+              return std::u16string();
+            }
+            if (ShouldUseCppFallback(button)) {
+              StateProvider* active_provider =
+                  button->state_manager_->GetActiveStateProvider();
+              return active_provider ? active_provider->GetAvatarTooltipText()
+                                     : std::u16string();
+            }
+            content::WebContents* contents = GetWebContents();
+            if (!contents) {
+              return std::u16string();
+            }
+            return base::UTF8ToUTF16(
+                content::EvalJs(
+                    contents,
+                    "(async () => {"
+                    "  const app = document.querySelector('toolbar-app');"
+                    "  if (!app) return '';"
+                    "  await app.updateComplete;"
+                    "  const btn = "
+                    "app.shadowRoot?.querySelector('avatar-button');"
+                    "  if (!btn) return '';"
+                    "  await btn.updateComplete;"
+                    "  const buttonEl = "
+                    "btn.shadowRoot?.querySelector('#button');"
+                    "  return buttonEl?.title || btn.state?.tooltip || '';"
+                    "})()")
+                    .ExtractString());
+          },
+      },
+      GetButton());
+}
+
+std::u16string AvatarToolbarButtonTestAccessor::GetAccessibilityLabel() {
+  return std::visit(
+      absl::Overload{
+          [](AvatarToolbarButton* button) -> std::u16string {
+            return button ? button->GetViewAccessibility().GetCachedName()
+                          : std::u16string();
+          },
+          [this](WebUIAvatarToolbarButton* button) -> std::u16string {
+            if (!button) {
+              return std::u16string();
+            }
+            if (ShouldUseCppFallback(button)) {
+              StateProvider* active_provider =
+                  button->state_manager_->GetActiveStateProvider();
+              if (active_provider) {
+                auto labels = button->state_manager_->GetAccessibilityLabels(
+                    active_provider->GetText());
+                return labels.first;
+              }
+              return std::u16string();
+            }
+            content::WebContents* contents = GetWebContents();
+            if (!contents) {
+              return std::u16string();
+            }
+            return base::UTF8ToUTF16(
+                content::EvalJs(
+                    contents,
+                    "(async () => {"
+                    "  const app = document.querySelector('toolbar-app');"
+                    "  if (!app) return '';"
+                    "  await app.updateComplete;"
+                    "  const btn = "
+                    "app.shadowRoot?.querySelector('avatar-button');"
+                    "  if (!btn) return '';"
+                    "  await btn.updateComplete;"
+                    "  const buttonEl = "
+                    "btn.shadowRoot?.querySelector('#button');"
+                    "  return buttonEl?.getAttribute('aria-label') || '';"
+                    "})()")
+                    .ExtractString());
+          },
+      },
+      GetButton());
+}
+
+std::u16string AvatarToolbarButtonTestAccessor::GetAccessibilityDescription() {
+  return std::visit(
+      absl::Overload{
+          [](AvatarToolbarButton* button) -> std::u16string {
+            return button
+                       ? button->GetViewAccessibility().GetCachedDescription()
+                       : std::u16string();
+          },
+          [this](WebUIAvatarToolbarButton* button) -> std::u16string {
+            if (!button) {
+              return std::u16string();
+            }
+            if (ShouldUseCppFallback(button)) {
+              StateProvider* active_provider =
+                  button->state_manager_->GetActiveStateProvider();
+              if (active_provider) {
+                auto labels = button->state_manager_->GetAccessibilityLabels(
+                    active_provider->GetText());
+                return labels.second;
+              }
+              return std::u16string();
+            }
+            content::WebContents* contents = GetWebContents();
+            if (!contents) {
+              return std::u16string();
+            }
+            return base::UTF8ToUTF16(
+                content::EvalJs(
+                    contents,
+                    "(async () => {"
+                    "  const app = document.querySelector('toolbar-app');"
+                    "  if (!app) return '';"
+                    "  await app.updateComplete;"
+                    "  const btn = "
+                    "app.shadowRoot?.querySelector('avatar-button');"
+                    "  if (!btn) return '';"
+                    "  await btn.updateComplete;"
+                    "  const buttonEl = "
+                    "btn.shadowRoot?.querySelector('#button');"
+                    "  return buttonEl?.getAttribute('aria-description') || '';"
+                    "})()")
+                    .ExtractString());
+          },
+      },
+      GetButton());
 }

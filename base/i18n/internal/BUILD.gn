@@ -13,11 +13,14 @@ source_set("internal") {
     "legacy_icu_converter.h",
   ]
   defines = [ "BASE_I18N_IMPLEMENTATION" ]
-  deps = [
+  public_deps = [
     "//base",
     "//base/i18n:base_i18n_export",
   ]
-  visibility = [ "//base/i18n:*" ]
+  visibility = [
+    ":*",
+    "//base/i18n:*",
+  ]
 }
 
 rust_static_library("i18n_icu_bridge_ffi") {
@@ -54,5 +57,15 @@ source_set("canonical_language_tags") {
   visibility = [
     ":*",
     "//base/i18n:*",
+  ]
+}
+
+source_set("unittests") {
+  testonly = true
+  sources = [ "immutable_string_unittest.cc" ]
+  deps = [
+    "//base",
+    "//base:i18n",
+    "//testing/gtest",
   ]
 }

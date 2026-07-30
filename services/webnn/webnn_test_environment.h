@@ -15,7 +15,13 @@
 #include "ui/gfx/mojom/dxgi_info.mojom.h"
 #endif
 
-namespace webnn::test {
+namespace webnn {
+
+#if BUILDFLAG(IS_WIN)
+struct EpDeviceInfo;
+#endif
+
+namespace test {
 
 // A minimal fake GpuHost implementation for testing.
 class FakeGpuHostForTesting : public viz::mojom::GpuHost {
@@ -57,8 +63,7 @@ class FakeGpuHostForTesting : public viz::mojom::GpuHost {
   void RequestWebNNCompilerContext(
       webnn::mojom::CreateContextOptionsPtr context_options,
       const webnn::ContextProperties& context_properties,
-      base::flat_map<std::string, webnn::mojom::EpPackageInfoPtr>
-          ep_package_info,
+      const webnn::EpDeviceInfo& target_device,
       RequestWebNNCompilerContextCallback callback) override;
 #endif
   void CreateWebNNWeightsFile(CreateWebNNWeightsFileCallback callback) override;
@@ -108,6 +113,8 @@ class WebNNTestEnvironment {
   base::RepeatingClosure destruction_callback_;
 };
 
-}  // namespace webnn::test
+}  // namespace test
+
+}  // namespace webnn
 
 #endif  // SERVICES_WEBNN_WEBNN_TEST_ENVIRONMENT_H_

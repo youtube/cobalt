@@ -142,7 +142,7 @@ int QuicSessionPoolTestBase::RequestBuilder::CallRequest() {
       std::move(proxy_annotation_tag), http_user_agent_settings, session_usage,
       privacy_mode, priority, socket_tag, network_anonymization_key,
       secure_dns_policy, require_dns_https_alpn, cert_verify_flags, url,
-      handles::kInvalidNetworkHandle, net_log, &net_error_details,
+      target_network, net_log, &net_error_details,
       MultiplexedSessionCreationInitiator::kUnknown,
       connection_management_config,
       std::move(failed_on_default_network_callback), std::move(callback));
@@ -242,13 +242,14 @@ bool QuicSessionPoolTestBase::HasActiveSession(
     const ProxyChain& proxy_chain,
     SessionUsage session_usage,
     bool require_dns_https_alpn,
-    bool disable_cert_verification_network_fetches) {
+    bool disable_cert_verification_network_fetches,
+    handles::NetworkHandle target_network) {
   quic::QuicServerId server_id(scheme_host_port.host(),
                                scheme_host_port.port());
   return QuicSessionPoolPeer::HasActiveSession(
       pool_.get(), server_id, privacy_mode, network_anonymization_key,
       proxy_chain, session_usage, require_dns_https_alpn,
-      disable_cert_verification_network_fetches);
+      disable_cert_verification_network_fetches, target_network);
 }
 
 bool QuicSessionPoolTestBase::HasActiveJob(
@@ -277,13 +278,14 @@ QuicChromiumClientSession* QuicSessionPoolTestBase::GetActiveSession(
     const ProxyChain& proxy_chain,
     SessionUsage session_usage,
     bool require_dns_https_alpn,
-    bool disable_cert_verification_network_fetches) {
+    bool disable_cert_verification_network_fetches,
+    handles::NetworkHandle target_network) {
   quic::QuicServerId server_id(scheme_host_port.host(),
                                scheme_host_port.port());
   return QuicSessionPoolPeer::GetActiveSession(
       pool_.get(), server_id, privacy_mode, network_anonymization_key,
       proxy_chain, session_usage, require_dns_https_alpn,
-      disable_cert_verification_network_fetches);
+      disable_cert_verification_network_fetches, target_network);
 }
 
 int QuicSessionPoolTestBase::GetSourcePortForNewSessionAndGoAway(

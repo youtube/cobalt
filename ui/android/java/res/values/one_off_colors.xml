@@ -105,23 +105,23 @@ found in the LICENSE file.
          @see TabGroupColorIds -->
     <!-- Color Picker Colors -->
     <color name="tab_group_color_picker_blue_refresh_light">#325CCD</color>
-    <color name="tab_group_color_picker_blue_refresh_dark">#C8D3FF</color>
+    <color name="tab_group_color_picker_blue_refresh_dark">#B5C4FF</color>
     <color name="tab_group_color_picker_cyan_refresh_light">#057C84</color>
-    <color name="tab_group_color_picker_cyan_refresh_dark">#C7FAFF</color>
+    <color name="tab_group_color_picker_cyan_refresh_dark">#7AD4DD</color>
     <color name="tab_group_color_picker_green_refresh_light">#1A7736</color>
-    <color name="tab_group_color_picker_green_refresh_dark">#C6FFC7</color>
+    <color name="tab_group_color_picker_green_refresh_dark">#81DA8D</color>
     <color name="tab_group_color_picker_grey_refresh_light">#5A5F66</color>
-    <color name="tab_group_color_picker_grey_refresh_dark">#D0D5DD</color>
+    <color name="tab_group_color_picker_grey_refresh_dark">#C3C7CF</color>
     <color name="tab_group_color_picker_yellow_refresh_light">#637505</color>
-    <color name="tab_group_color_picker_yellow_refresh_dark">#EEFFA5</color>
+    <color name="tab_group_color_picker_yellow_refresh_dark">#BBD05F</color>
     <color name="tab_group_color_picker_pink_refresh_light">#CC06AB</color>
-    <color name="tab_group_color_picker_pink_refresh_dark">#FFC3E8</color>
+    <color name="tab_group_color_picker_pink_refresh_dark">#FFADE2</color>
     <color name="tab_group_color_picker_orange_refresh_light">#CC4E00</color>
-    <color name="tab_group_color_picker_orange_refresh_dark">#FFDEA7</color>
+    <color name="tab_group_color_picker_orange_refresh_dark">#F9BC41</color>
     <color name="tab_group_color_picker_purple_refresh_light">#7C31E6</color>
-    <color name="tab_group_color_picker_purple_refresh_dark">#E0CBFF</color>
+    <color name="tab_group_color_picker_purple_refresh_dark">#D5BBFF</color>
     <color name="tab_group_color_picker_red_refresh_light">#DF000C</color>
-    <color name="tab_group_color_picker_red_refresh_dark">#FFC7C1</color>
+    <color name="tab_group_color_picker_red_refresh_dark">#FFB4AB</color>
 
     <!-- Card Colors -->
     <color name="tab_group_card_color_blue_refresh_light">@color/tab_group_color_picker_blue_refresh_dark</color>

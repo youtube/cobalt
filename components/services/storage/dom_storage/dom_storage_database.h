@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <map>
+#include <memory>
 #include <optional>
 #include <set>
 #include <string>
@@ -21,14 +22,16 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/threading/sequence_bound.h"
 #include "base/time/time.h"
+#include "base/trace_event/memory_allocator_dump_guid.h"
 #include "base/types/pass_key.h"
 #include "components/services/storage/dom_storage/db_status.h"
+#include "components/services/storage/dom_storage/dom_storage_histogram_helper.h"
+#include "components/services/storage/dom_storage/dom_storage_rollout.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 
 namespace base {
 class FilePath;
 namespace trace_event {
-class MemoryAllocatorDumpGuid;
 class ProcessMemoryDump;
 }  // namespace trace_event
 }  // namespace base
@@ -47,10 +50,11 @@ enum class StorageType;
 // and one for local storage. Records the key-value pairs for all StorageAreas
 // along with usage metadata.
 //
-// Use the `DomStorageDatabaseFactory` to asynchronously create an instance of
-// this type from any sequence. When owning a SequenceBound<DomStorageDatabase>
-// as produced by those helpers, all work on the DomStorageDatabase can be
-// safely done via `SequenceBound::PostTaskWithThisObject`.
+// Use the `DomStorageDatabaseFactory` to asynchronously create and open an
+// instance of this type from any sequence. When owning the resulting
+// `SequenceBound<std::unique_ptr<DomStorageDatabase>>`, all work on the
+// `DomStorageDatabase` can be safely done via `AsyncCall()` /
+// `PostTaskWithThisObject()`.
 class DomStorageDatabase {
  public:
   using Key = std::vector<uint8_t>;
@@ -260,10 +264,23 @@ class DomStorageDatabase {
     std::optional<Usage> map_usage;
   };
 
-  // Constructs an absolute path to the `storage_type` database under
-  // `storage_partition_dir`.
-  static base::FilePath GetPath(StorageType storage_type,
-                                const base::FilePath& storage_partition_dir);
+  // Returns the LevelDB database path for `storage_type` under
+  // `storage_partition_dir`. The path is a directory:
+  //
+  // `storage_partition_dir`/Local Storage/leveldb     (for `kLocalStorage`)
+  // `storage_partition_dir`/Session Storage           (for `kSessionStorage`)
+  static base::FilePath GetLevelDbPath(
+      StorageType storage_type,
+      const base::FilePath& storage_partition_dir);
+
+  // Returns the SQLite database path for `storage_type` under
+  // `storage_partition_dir`. The path is a file:
+  //
+  // `storage_partition_dir`/LocalStorage              (for `kLocalStorage`)
+  // `storage_partition_dir`/SessionStorage            (for `kSessionStorage`)
+  static base::FilePath GetSqlitePath(
+      StorageType storage_type,
+      const base::FilePath& storage_partition_dir);
 
   virtual ~DomStorageDatabase() = default;
 
@@ -340,52 +357,142 @@ class DomStorageDatabaseFactory {
  public:
   using PassKey = base::PassKey<DomStorageDatabaseFactory>;
 
-  // Creates and opens a `SequenceBound<DomStorageDatabase>`.
-  //
-  // To create an in-memory database, provide an empty `database_path`.
-  static base::SequenceBound<DomStorageDatabase> Create(
+  // Result of opening a DomStorage database. Contains everything
+  // the caller needs to use the database and record metrics. The database has
+  // already been opened on its backend sequence; `open_status` carries the
+  // outcome.
+  class OpenResult {
+   public:
+    OpenResult();
+    ~OpenResult();
+    OpenResult(OpenResult&&);
+    OpenResult& operator=(OpenResult&&);
+
+    // Stores `database` for transport to the caller's sequence, with a deleter
+    // that destroys it on `task_runner` (its backend sequence) if the result is
+    // dropped before `TakeDatabase()`. Producers of an `OpenResult` must set
+    // the database via this.
+    void SetDatabase(scoped_refptr<base::SequencedTaskRunner> task_runner,
+                     std::unique_ptr<DomStorageDatabase> database);
+
+    // Returns the database stored by `SetDatabase()`, bound to its backend
+    // sequence. Must be called once, on the caller's sequence.
+    base::SequenceBound<std::unique_ptr<DomStorageDatabase>> TakeDatabase();
+
+    base::FilePath database_path;
+    DatabaseMetricsType metrics_type = DatabaseMetricsType::kOnDisk;
+    bool is_sqlite = false;
+    DbStatus open_status = DbStatus::IOError("uninitialized");
+
+   private:
+    // The opened database while the result is in flight to the caller's
+    // sequence. If the result is dropped before `TakeDatabase()`, the
+    // `OnTaskRunnerDeleter` destroys it on its backend sequence, closing its
+    // file handle.
+    std::unique_ptr<DomStorageDatabase, base::OnTaskRunnerDeleter> database_{
+        nullptr, base::OnTaskRunnerDeleter(nullptr)};
+  };
+
+  using OpenResultCallback = base::OnceCallback<void(OpenResult)>;
+
+  using OpenCallback = base::RepeatingCallback<void(
+      StorageType,
+      const base::FilePath&,
+      const std::optional<base::trace_event::MemoryAllocatorDumpGuid>&,
+      OpenResultCallback)>;
+
+  // Asynchronously opens a DomStorageDatabase. For in-memory
+  // databases, pass an empty `storage_partition_dir`. The callback receives
+  // the opened database, its resolved configuration, and the Open() outcome.
+  static void Open(
       StorageType storage_type,
-      bool is_in_memory,
-      scoped_refptr<base::SequencedTaskRunner> blocking_task_runner);
+      const base::FilePath& storage_partition_dir,
+      const std::optional<base::trace_event::MemoryAllocatorDumpGuid>&
+          memory_dump_id,
+      OpenResultCallback callback);
 
   using StatusCallback = base::OnceCallback<void(DbStatus)>;
 
-  using CreateCallback =
-      base::RepeatingCallback<base::SequenceBound<DomStorageDatabase>(
-          StorageType,
-          bool,
-          scoped_refptr<base::SequencedTaskRunner>)>;
-  using DestroyCallback =
-      base::RepeatingCallback<void(const base::FilePath&, StatusCallback)>;
+  using DestroyCallback = base::RepeatingCallback<
+      void(const base::FilePath&, bool is_sqlite, StatusCallback)>;
 
-  // Destroys the persistent database on the filesystem identified by the
-  // absolute path in `database_path`.
+  // Destroys the on-disk database for the given `storage_type` under
+  // `storage_partition_dir`. Checks which backend (LevelDB or SQLite) exists
+  // on disk and destroys it.
   //
-  // All work is done on `task_runner`, which must support blocking operations,
-  // and upon completion `callback` is called on the calling sequence.
-  static void Destroy(const base::FilePath& database_path,
+  // All work is done on blocking task runners, and upon completion `callback`
+  // is called on the calling sequence.
+  static void Destroy(StorageType storage_type,
+                      const base::FilePath& storage_partition_dir,
                       StatusCallback callback);
 
  private:
   friend class LocalStorageLevelDBTest;
   friend class LocalStorageSqliteTest;
+  friend class LocalStorageImplOnDiskSQLiteRolloutTestBase;
   friend class DomStorageDatabaseTest;
   friend class SessionStorageLevelDBTest;
   friend class SessionStorageSqliteTest;
+  friend class SessionStorageImplOnDiskSQLiteRolloutTestBase;
   friend class ScopedDomStorageDatabaseFactoryForTesting;
 
-  // Production implementations.
-  static base::SequenceBound<DomStorageDatabase> CreateImpl(
+  static void OpenImpl(
       StorageType storage_type,
-      bool is_in_memory,
-      scoped_refptr<base::SequencedTaskRunner> blocking_task_runner);
+      const base::FilePath& storage_partition_dir,
+      const std::optional<base::trace_event::MemoryAllocatorDumpGuid>&
+          memory_dump_id,
+      OpenResultCallback callback);
+
+  // The following Open helpers are private static members so that
+  // `InitializeDatabase` can create a `PassKey` when constructing backend
+  // subclasses.
+
+  // Called only in experimental rollout stages. Runs on the LevelDB blocking
+  // sequence.
+  //
+  // Checks for an existing on-disk LevelDB database. Accordingly, initializes
+  // the appropriate database backend.
+  static void CheckDiskStateAndInitializeDatabase(
+      StorageType storage_type,
+      base::FilePath storage_partition_dir,
+      DomStorageSqliteRolloutStage stage,
+      std::optional<base::trace_event::MemoryAllocatorDumpGuid> memory_dump_id,
+      OpenResultCallback callback);
+
+  // Constructs the backend, opens it, records the OpenDatabase histograms, and
+  // runs `callback` (already bound to the caller's sequence) with the
+  // assembled `OpenResult`.
+  //
+  // For on-disk databases this may be called from any sequence: the work runs
+  // on the backend's blocking sequence (selected via `GetTaskRunnerForDb()`),
+  // re-posting to it if needed. For in-memory databases the caller must invoke
+  // this on the backend's sequence, since `GetTaskRunnerForDb()` returns a
+  // fresh sequence on each call for an empty path and so cannot be used here to
+  // re-post.
+  static void InitializeDatabase(
+      StorageType storage_type,
+      bool is_sqlite,
+      bool write_exp_tag,
+      DatabaseMetricsType metrics_type,
+      base::FilePath database_path,
+      std::optional<base::trace_event::MemoryAllocatorDumpGuid> memory_dump_id,
+      OpenResultCallback callback);
+
   static void DestroyImpl(const base::FilePath& database_path,
+                          bool is_sqlite,
                           StatusCallback callback);
 
-  // Returns the create/destroy callbacks, lazily initialized on first call.
-  // Defaults point to `CreateImpl`/`DestroyImpl`. Tests can swap in custom
+  // Callback for the async disk state check during Destroy().
+  static void OnDestroyDiskStateChecked(
+      StorageType storage_type,
+      const base::FilePath& storage_partition_dir,
+      StatusCallback callback,
+      LevelDbOnDiskState leveldb_state);
+
+  // Returns the open/destroy callbacks, lazily initialized on first call.
+  // Defaults point to `OpenImpl`/`DestroyImpl`. Tests can swap in custom
   // implementations via `ScopedDomStorageDatabaseFactoryForTesting`.
-  static CreateCallback& GetCreateCallback();
+  static OpenCallback& GetOpenCallback();
   static DestroyCallback& GetDestroyCallback();
 
   // Allow unit tests to create a database instance without `SequenceBound`.

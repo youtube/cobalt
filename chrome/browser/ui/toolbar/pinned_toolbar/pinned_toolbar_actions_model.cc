@@ -18,7 +18,6 @@
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
-#include "chrome/browser/ui/tab_search_feature.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model_factory.h"
 #include "chrome/browser/ui/toolbar/toolbar_pref_names.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -241,11 +240,6 @@ void PinnedToolbarActionsModel::MaybeMigrateExistingPinnedStates() {
   if (!pref_service_->GetBoolean(prefs::kPinnedChromeLabsMigrationComplete)) {
     UpdatePinnedState(kActionShowChromeLabs, true);
     pref_service_->SetBoolean(prefs::kPinnedChromeLabsMigrationComplete, true);
-  }
-  if (features::HasTabSearchToolbarButton() &&
-      !pref_service_->GetBoolean(prefs::kTabSearchMigrationComplete)) {
-    UpdatePinnedState(kActionTabSearch, true);
-    pref_service_->SetBoolean(prefs::kTabSearchMigrationComplete, true);
   }
   if (!pref_service_->GetBoolean(prefs::kPinnedCastMigrationComplete)) {
     bool previously_pinned =

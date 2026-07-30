@@ -474,7 +474,6 @@ public class FeedSurfaceCoordinatorTest {
         NtpBackgroundDataUploadImage uploadImageData =
                 new NtpBackgroundDataUploadImage(
                         NtpBackgroundDataBase.PlatformType.ANDROID_LOCAL,
-                        /* lastUploadImageFilePath= */ "",
                         mBackgroundImageInfo,
                         mBitmap,
                         /* primaryColor= */ null,

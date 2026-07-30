@@ -5,7 +5,6 @@
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_view_layout.h"
 
 #include "chrome/browser/ui/views/tabs/projects/layout_constants.h"
-#include "chrome/browser/ui/views/tabs/projects/projects_panel_recent_threads_view.h"
 
 ProjectsPanelViewLayout::ProjectsPanelViewLayout(
     views::View* controls_view,

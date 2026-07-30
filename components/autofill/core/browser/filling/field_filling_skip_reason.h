@@ -29,7 +29,7 @@ enum class FieldFillingSkipReason : uint8_t {
   kFillingLimitReachedType = 12,
   kUnrecognizedAutocompleteAttribute = 13,
   // kFieldDoesNotMatchTargetFieldsSet = 14, // DEPRECATED
-  kFieldTypeUnrelated = 15,
+  // kFieldTypeUnrelated = 15, // DEPRECATED
   kNoValueToFill = 16,
   kAutofilledValueDidNotChange = 17,
   // The field was blocked by either a different filling operation (which will

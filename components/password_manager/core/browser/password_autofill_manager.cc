@@ -119,6 +119,7 @@ bool IsSuggestionHandledInPasswordManager(SuggestionType type) {
     case SuggestionType::kAtMemoryInactivityNudge:
     case SuggestionType::kOpenGemini:
     case SuggestionType::kAtMemoryNoConnection:
+    case SuggestionType::kAtMemoryGenericError:
     case SuggestionType::kAtMemorySearchAffordance:
     case SuggestionType::kPersonalContextNotice:
     case SuggestionType::kIdentityCredential:
@@ -145,6 +146,7 @@ bool IsSuggestionHandledInPasswordManager(SuggestionType type) {
     case SuggestionType::kFetchingAmbientData:
     case SuggestionType::kBnplFootnote:
     case SuggestionType::kAutocompleteAtMemoryButton:
+    case SuggestionType::kMaximizeCreditCardBenefitsEntry:
       return false;
   }
 }

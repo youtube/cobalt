@@ -26,12 +26,14 @@
 #include "remoting/base/logging.h"
 #include "remoting/host/base/host_exit_codes.h"
 #include "remoting/host/base/screen_resolution.h"
+#include "remoting/host/base/switches.h"
 #include "remoting/host/chromoting_host_services_server.h"
 #include "remoting/host/config_file_watcher.h"
 #include "remoting/host/desktop_session.h"
 #include "remoting/host/host_config.h"
 #include "remoting/host/host_event_logger.h"
 #include "remoting/host/host_status_observer.h"
+#include "remoting/host/peer_connection_process_handler.h"
 #include "remoting/protocol/transport.h"
 
 namespace remoting {
@@ -101,6 +103,7 @@ void DaemonProcess::OnWorkerProcessStopped() {
   // re-launched.
   remoting_host_control_.reset();
   desktop_session_connection_events_.reset();
+  peer_connection_launchers_.clear();
   DeleteAllDesktopSessions();
 }
 
@@ -176,6 +179,35 @@ void DaemonProcess::CloseDesktopSession(int terminal_id) {
 
   VLOG(1) << "Daemon: closed desktop session " << terminal_id;
   SendTerminalDisconnected(terminal_id);
+
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          kEnablePeerConnectionProcessSwitch)) {
+    ClosePeerConnectionProcess(terminal_id);
+  }
+}
+
+void DaemonProcess::LaunchPeerConnectionProcess(int terminal_id) {
+  DCHECK(caller_task_runner()->BelongsToCurrentThread());
+
+  auto delegate = CreatePeerConnectionProcessLauncherDelegate(terminal_id);
+  if (!delegate) {
+    LOG(ERROR) << "Failed to create launcher delegate.";
+    return;
+  }
+
+  // Safe to use base::Unretained(this) because DaemonProcess owns the
+  // PeerConnectionProcessHandler instances (in peer_connection_launchers_)
+  // which outlive the lifetime of the callbacks.
+  peer_connection_launchers_[terminal_id] =
+      std::make_unique<PeerConnectionProcessHandler>(
+          terminal_id, caller_task_runner(), std::move(delegate),
+          base::BindOnce(&DaemonProcess::ClosePeerConnectionProcess,
+                         base::Unretained(this)));
+}
+
+void DaemonProcess::ClosePeerConnectionProcess(int terminal_id) {
+  DCHECK(caller_task_runner()->BelongsToCurrentThread());
+  peer_connection_launchers_.erase(terminal_id);
 }
 
 DaemonProcess::DaemonProcess(
@@ -228,6 +260,11 @@ void DaemonProcess::CreateDesktopSession(
 
   VLOG(1) << "Daemon: opened desktop session " << terminal_id;
   desktop_sessions_.push_back(session.release());
+
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          kEnablePeerConnectionProcessSwitch)) {
+    LaunchPeerConnectionProcess(terminal_id);
+  }
 }
 
 void DaemonProcess::ReconnectDesktopSession(
@@ -311,6 +348,17 @@ void DaemonProcess::SetNetworkLauncherDelegate(
 bool DaemonProcess::OnDesktopSessionAgentAttached(
     int terminal_id,
     mojo::ScopedMessagePipeHandle desktop_pipe) {
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          kEnablePeerConnectionProcessSwitch)) {
+    auto it = peer_connection_launchers_.find(terminal_id);
+    if (it != peer_connection_launchers_.end()) {
+      it->second->ConnectDesktopChannel(std::move(desktop_pipe));
+    } else {
+      LOG(ERROR) << "No PC process launcher found for terminal " << terminal_id;
+    }
+    return true;
+  }
+
   if (desktop_session_connection_events_) {
     desktop_session_connection_events_->OnDesktopSessionAgentAttached(
         terminal_id, std::move(desktop_pipe));

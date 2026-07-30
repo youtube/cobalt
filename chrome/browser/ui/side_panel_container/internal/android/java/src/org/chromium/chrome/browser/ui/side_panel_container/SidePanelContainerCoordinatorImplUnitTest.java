@@ -47,7 +47,8 @@ public class SidePanelContainerCoordinatorImplUnitTest {
     public void init_registerSelfAsSideUiContainer() {
         var sidePanelContainerCoordinator = createSidePanelContainerCoordinator();
 
-        sidePanelContainerCoordinator.init(mock(SidePanelCoordinatorAndroid.class));
+        sidePanelContainerCoordinator.init(
+                mock(SidePanelCoordinatorAndroid.class), /* sidePanelDevFeature= */ null);
 
         verify(mMockSideUiCoordinator).registerSideUiContainer(sidePanelContainerCoordinator);
     }
@@ -62,13 +63,13 @@ public class SidePanelContainerCoordinatorImplUnitTest {
     }
 
     @Test
-    public void determineContainerWidthDp_calculatePerWindowWidthAndAvailableWidth() {
+    public void determineShowableWidthDp_calculatePerWindowWidthAndAvailableWidth() {
         // 1. Wide side panel.
         int windowWidthDp = MIN_WINDOW_WIDTH_DP_FOR_WIDE_SIDE_PANEL;
         int availableWidthDp = WIDE_SIDE_PANEL_WIDTH_DP;
         assertEquals(
                 WIDE_SIDE_PANEL_WIDTH_DP,
-                SidePanelContainerCoordinatorImpl.determineContainerWidthDp(
+                SidePanelContainerCoordinatorImpl.determineShowableWidthDp(
                         availableWidthDp, windowWidthDp));
 
         // 2. Narrow side panel.
@@ -76,7 +77,7 @@ public class SidePanelContainerCoordinatorImplUnitTest {
         availableWidthDp = NARROW_SIDE_PANEL_WIDTH_DP;
         assertEquals(
                 NARROW_SIDE_PANEL_WIDTH_DP,
-                SidePanelContainerCoordinatorImpl.determineContainerWidthDp(
+                SidePanelContainerCoordinatorImpl.determineShowableWidthDp(
                         availableWidthDp, windowWidthDp));
 
         // 3. Fill available space.
@@ -84,7 +85,7 @@ public class SidePanelContainerCoordinatorImplUnitTest {
         windowWidthDp = MIN_WEB_CONTENTS_WIDTH_DP + availableWidthDp;
         assertEquals(
                 availableWidthDp,
-                SidePanelContainerCoordinatorImpl.determineContainerWidthDp(
+                SidePanelContainerCoordinatorImpl.determineShowableWidthDp(
                         availableWidthDp, windowWidthDp));
 
         // 4. Not enough space to accommodate MIN_SIDE_PANEL_WIDTH_DP.
@@ -92,7 +93,7 @@ public class SidePanelContainerCoordinatorImplUnitTest {
         windowWidthDp = MIN_WEB_CONTENTS_WIDTH_DP + availableWidthDp;
         assertEquals(
                 0,
-                SidePanelContainerCoordinatorImpl.determineContainerWidthDp(
+                SidePanelContainerCoordinatorImpl.determineShowableWidthDp(
                         availableWidthDp, windowWidthDp));
     }
 

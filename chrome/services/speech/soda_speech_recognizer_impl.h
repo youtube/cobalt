@@ -118,6 +118,7 @@ class SodaSpeechRecognizerImpl
   // Low-latency energy endpointer used to detect when speech starts and ends.
   Endpointer endpointer_;
 
+  const bool continuous_;
   int num_samples_recorded_ = 0;
   bool sound_started_ = false;
   bool waiting_for_final_result_ = false;

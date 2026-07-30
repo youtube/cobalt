@@ -20,24 +20,24 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
-import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.CredentialProperties.CREDENTIAL;
-import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.CredentialProperties.FAVICON_OR_FALLBACK;
-import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.CredentialProperties.ON_CLICK_LISTENER;
-import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.CredentialProperties.SHOW_SUBMIT_BUTTON;
-import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.DISMISS_HANDLER;
-import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.FooterProperties.MANAGE_BUTTON_TEXT;
-import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.FooterProperties.ON_CLICK_HYBRID;
-import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.FooterProperties.ON_CLICK_MANAGE;
-import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.FooterProperties.SHOW_HYBRID;
-import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.HeaderProperties.AVATAR;
-import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.HeaderProperties.IMAGE_DRAWABLE_ID;
-import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.HeaderProperties.SUBTITLE;
-import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.HeaderProperties.TITLE;
-import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.SHEET_ITEMS;
-import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.VISIBLE;
-import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.WebAuthnCredentialProperties.ON_WEBAUTHN_CLICK_LISTENER;
-import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.WebAuthnCredentialProperties.SHOW_WEBAUTHN_SUBMIT_BUTTON;
-import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.WebAuthnCredentialProperties.WEBAUTHN_CREDENTIAL;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillPasswordManagerProperties.CredentialProperties.CREDENTIAL;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillPasswordManagerProperties.CredentialProperties.FAVICON_OR_FALLBACK;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillPasswordManagerProperties.CredentialProperties.ON_CLICK_LISTENER;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillPasswordManagerProperties.CredentialProperties.SHOW_SUBMIT_BUTTON;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillPasswordManagerProperties.DISMISS_HANDLER;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillPasswordManagerProperties.FooterProperties.MANAGE_BUTTON_TEXT;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillPasswordManagerProperties.FooterProperties.ON_CLICK_HYBRID;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillPasswordManagerProperties.FooterProperties.ON_CLICK_MANAGE;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillPasswordManagerProperties.FooterProperties.SHOW_HYBRID;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillPasswordManagerProperties.HeaderProperties.AVATAR;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillPasswordManagerProperties.HeaderProperties.IMAGE_DRAWABLE_ID;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillPasswordManagerProperties.HeaderProperties.SUBTITLE;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillPasswordManagerProperties.HeaderProperties.TITLE;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillPasswordManagerProperties.SHEET_ITEMS;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillPasswordManagerProperties.VISIBLE;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillPasswordManagerProperties.WebAuthnCredentialProperties.ON_WEBAUTHN_CLICK_LISTENER;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillPasswordManagerProperties.WebAuthnCredentialProperties.SHOW_WEBAUTHN_SUBMIT_BUTTON;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillPasswordManagerProperties.WebAuthnCredentialProperties.WEBAUTHN_CREDENTIAL;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -62,9 +62,9 @@ import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.RobolectricUtil;
 import org.chromium.chrome.browser.password_manager.GetLoginMatchType;
-import org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.FaviconOrFallback;
-import org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.ItemType;
-import org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.MorePasskeysProperties;
+import org.chromium.chrome.browser.touch_to_fill.TouchToFillPasswordManagerProperties.FaviconOrFallback;
+import org.chromium.chrome.browser.touch_to_fill.TouchToFillPasswordManagerProperties.ItemType;
+import org.chromium.chrome.browser.touch_to_fill.TouchToFillPasswordManagerProperties.MorePasskeysProperties;
 import org.chromium.chrome.browser.touch_to_fill.common.BottomSheetFocusHelper;
 import org.chromium.chrome.browser.touch_to_fill.data.Credential;
 import org.chromium.chrome.browser.touch_to_fill.data.WebauthnCredential;
@@ -157,9 +157,10 @@ public class TouchToFillControllerTest {
 
     private final TestImageFetcher mImageFetcher = spy(new TestImageFetcher());
     private final Context mContext = ContextUtils.getApplicationContext();
-    private final TouchToFillMediator mMediator = new TouchToFillMediator();
+    private final TouchToFillPasswordManagerMediator mMediator =
+            new TouchToFillPasswordManagerMediator();
     private final PropertyModel mModel =
-            TouchToFillProperties.createDefaultModel(mMediator::onDismissed);
+            TouchToFillPasswordManagerProperties.createDefaultModel(mMediator::onDismissed);
 
     @Before
     public void setUp() {
@@ -618,7 +619,7 @@ public class TouchToFillControllerTest {
         assertThat(mModel.get(VISIBLE), is(false));
         assertThat(
                 RecordHistogram.getHistogramTotalCountForTesting(
-                        TouchToFillMediator.UMA_TOUCH_TO_FILL_CREDENTIAL_INDEX),
+                        TouchToFillPasswordManagerMediator.UMA_TOUCH_TO_FILL_CREDENTIAL_INDEX),
                 is(0));
     }
 
@@ -639,7 +640,7 @@ public class TouchToFillControllerTest {
         assertThat(mModel.get(VISIBLE), is(false));
         assertThat(
                 RecordHistogram.getHistogramValueCountForTesting(
-                        TouchToFillMediator.UMA_TOUCH_TO_FILL_CREDENTIAL_INDEX, 1),
+                        TouchToFillPasswordManagerMediator.UMA_TOUCH_TO_FILL_CREDENTIAL_INDEX, 1),
                 is(1));
     }
 
@@ -657,7 +658,7 @@ public class TouchToFillControllerTest {
         assertThat(mModel.get(VISIBLE), is(false));
         assertThat(
                 RecordHistogram.getHistogramValueCountForTesting(
-                        TouchToFillMediator.UMA_TOUCH_TO_FILL_DISMISSAL_REASON,
+                        TouchToFillPasswordManagerMediator.UMA_TOUCH_TO_FILL_DISMISSAL_REASON,
                         BottomSheetController.StateChangeReason.BACK_PRESS),
                 is(1));
     }

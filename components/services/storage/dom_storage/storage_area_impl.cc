@@ -6,15 +6,13 @@
 
 #include <memory>
 
-#include "base/containers/span.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "base/trace_event/process_memory_dump.h"
-#include "third_party/leveldatabase/env_chromium.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 
 namespace storage {
 
@@ -85,9 +83,25 @@ StorageAreaImpl::StorageAreaImpl(
 }
 
 StorageAreaImpl::~StorageAreaImpl() {
-  DCHECK(!has_pending_load_tasks());
-  if (commit_batch_)
+  // For local storage, the map ID is unknown where `database_` must use the
+  // area's storage key to look up the map ID.
+  bool is_session_storage = map_locator_->map_id().has_value();
+
+  // Record data loss, which happens when this storage area destructs before
+  // persisting changes to `database_`.
+  //
+  // TODO(crbug.com/503422295): Monitor this histogram and if dropping changes
+  // is common then handle that here.
+  std::string histogram_name =
+      absl::StrFormat("Storage.%s.ShutdownDroppedChanges",
+                      is_session_storage ? "SessionStorage" : "LocalStorage");
+  base::UmaHistogramBoolean(histogram_name,
+                            has_pending_load_read_write_tasks());
+
+  if (commit_batch_) {
     CommitChanges();
+  }
+
   if (database_) {
     database_->RemoveCommitter(this);
   }
@@ -95,7 +109,11 @@ StorageAreaImpl::~StorageAreaImpl() {
 
 void StorageAreaImpl::InitializeAsEmpty() {
   DCHECK_EQ(map_state_, MapState::UNLOADED);
+
   map_state_ = MapState::LOADING_FROM_DATABASE;
+  if (loading_started_callback_for_testing_) {
+    loading_started_callback_for_testing_.Run();
+  }
   OnMapLoaded(ValueMap());
 }
 
@@ -137,10 +155,6 @@ std::unique_ptr<StorageAreaImpl> StorageAreaImpl::ForkToNewMap(
         AccessMode::ReadWrite));
   }
   return forked_area;
-}
-
-void StorageAreaImpl::CancelAllPendingRequests() {
-  on_load_complete_tasks_.clear();
 }
 
 bool StorageAreaImpl::has_pending_load_read_write_tasks() const {
@@ -225,6 +239,11 @@ void StorageAreaImpl::PurgeMemory() {
 
 void StorageAreaImpl::SetCacheModeForTesting(CacheMode cache_mode) {
   SetCacheMode(cache_mode);
+}
+
+void StorageAreaImpl::SetLoadingStartedCallbackForTesting(
+    base::RepeatingClosure callback) {
+  loading_started_callback_for_testing_ = callback;
 }
 
 void StorageAreaImpl::AddObserver(
@@ -576,6 +595,9 @@ void StorageAreaImpl::LoadMap(OnLoadCompleteTask completion_task) {
   }
 
   map_state_ = MapState::LOADING_FROM_DATABASE;
+  if (loading_started_callback_for_testing_) {
+    loading_started_callback_for_testing_.Run();
+  }
 
   if (!database_) {
     OnMapLoaded(

@@ -109,12 +109,15 @@
   [animatedView.layer.mask addAnimation:animation forKey:@"maskAnimation"];
 
   // Active tab grid blur animation setup.
-  UIVisualEffectView* activeGridBlurView = [[UIVisualEffectView alloc]
-      initWithEffect:[UIBlurEffect effectWithStyle:kTabGridBlurStyle]];
-  activeGridBlurView.translatesAutoresizingMaskIntoConstraints = NO;
-  [animatedView.superview insertSubview:activeGridBlurView
-                           belowSubview:animatedView];
-  AddSameConstraints(activeGridBlurView.superview, activeGridBlurView);
+  UIVisualEffectView* activeGridBlurView = nil;
+  if (!UIAccessibilityIsReduceTransparencyEnabled()) {
+    activeGridBlurView = [[UIVisualEffectView alloc]
+        initWithEffect:[UIBlurEffect effectWithStyle:kTabGridBlurStyle]];
+    activeGridBlurView.translatesAutoresizingMaskIntoConstraints = NO;
+    [animatedView.superview insertSubview:activeGridBlurView
+                             belowSubview:animatedView];
+    AddSameConstraints(activeGridBlurView.superview, activeGridBlurView);
+  }
 
   [animatedView.superview setNeedsLayout];
   [animatedView.superview layoutIfNeeded];

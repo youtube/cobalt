@@ -65,6 +65,8 @@
 #include "google_apis/gaia/oauth2_access_token_manager.h"
 #endif
 
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
+
 namespace extensions {
 
 namespace {
@@ -405,7 +407,6 @@ bool IdentityGetAuthTokenFunction::ShouldStartSigninFlow() {
 }
 
 void IdentityGetAuthTokenFunction::StartSigninFlow() {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
   DCHECK(ShouldStartSigninFlow());
 
   // All cached tokens are invalid because the user is not signed in.
@@ -443,10 +444,7 @@ void IdentityGetAuthTokenFunction::StartSigninFlow() {
   }
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
   ShowExtensionLoginPrompt();
-#endif
-#else
-  SigninFailed();
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
 void IdentityGetAuthTokenFunction::StartMintTokenFlow(
@@ -921,18 +919,16 @@ void IdentityGetAuthTokenFunction::OnChromeSigninDialogDestroyed() {
 }
 #endif
 
+#if !BUILDFLAG(IS_CHROMEOS)
 void IdentityGetAuthTokenFunction::ShowExtensionLoginPrompt() {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
   const CoreAccountInfo& account = token_key_.account_info;
   std::string email_hint = account.IsEmpty()
                                ? GetSigninPrimaryAccount(GetProfile()).email
                                : account.email;
 
   ShowExtensionSigninPrompt(GetProfile(), IsPrimaryAccountOnly(), email_hint);
-#else
-  NOTREACHED();
-#endif
 }
+#endif
 
 void IdentityGetAuthTokenFunction::ShowRemoteConsentDialog(
     const RemoteConsentResolutionData& resolution_data) {

@@ -26,6 +26,7 @@
 #include "content/public/browser/global_request_id.h"
 #include "mojo/public/cpp/system/data_pipe.h"
 #include "net/http/http_status_code.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/header_util.h"
 #include "services/network/public/cpp/synthetic_response_util.h"
@@ -250,7 +251,7 @@ void ServiceWorkerSyntheticResponseManager::InitiateRequest(
   url_loader_factory_ = service_worker_client->CreateNetworkURLLoaderFactory(
       ServiceWorkerClient::CreateNetworkURLLoaderFactoryType::
           kSyntheticNetworkRequest,
-      storage_partition, request, std::nullopt);
+      storage_partition, request, network::GetNoOpNetworkRestrictionsId());
   is_initiated_by_prefetch_ = service_worker_client->is_initiated_by_prefetch();
   factory_interceptor_count_ =
       service_worker_client->factory_interceptor_count();

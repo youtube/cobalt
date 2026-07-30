@@ -47,3 +47,9 @@ per-file settings.json=chrome-branch-day@chops-service-accounts.iam.gserviceacco
 
 # Chromium Bedrock
 per-file subprojects/chromium/ci/chromium.bedrock.star=tluk@chromium.org
+
+# Toolchains owners
+per-file subprojects/chromium/trusted-robots.star=dlf@google.com
+per-file subprojects/chromium/trusted-robots.star=jsca@google.com
+per-file subprojects/chromium/trusted-robots/toolchains.star=dlf@google.com
+per-file subprojects/chromium/trusted-robots/toolchains.star=jsca@google.com

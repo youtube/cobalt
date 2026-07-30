@@ -67,6 +67,9 @@ BASE_DECLARE_FEATURE(kAutofillPaymentsSheetV3Ios);
 // button with the Undo autofill button in the keyboard accessory.
 BASE_DECLARE_FEATURE(kAutofillUndoIos);
 
+// Rejects form submission events if they lack user gesture.
+BASE_DECLARE_FEATURE(kAutofillRejectFormSubmissionsWithoutUserGesture);
+
 // Reports JS errors that occur upon handling form submission in the renderer.
 BASE_DECLARE_FEATURE(kAutofillReportFormSubmissionErrors);
 

@@ -351,7 +351,7 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(platform_util::IsBrowserLockedFullscreen(boca_app_browser));
   EXPECT_FALSE(chromeos::wm::CanFloatWindow(
       boca_app_browser->GetWindow()->GetNativeWindow()));
-  EXPECT_TRUE(boca_app_browser->window()->IsToolbarVisible());
+  EXPECT_TRUE(BrowserWindow::FromBrowser(boca_app_browser)->IsToolbarVisible());
 
   // Unlock the boca app.
   bundle.set_locked(false);
@@ -359,7 +359,7 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_FALSE(platform_util::IsBrowserLockedFullscreen(boca_app_browser));
   EXPECT_FALSE(chromeos::wm::CanFloatWindow(
       boca_app_browser->GetWindow()->GetNativeWindow()));
-  EXPECT_TRUE(boca_app_browser->window()->IsToolbarVisible());
+  EXPECT_TRUE(BrowserWindow::FromBrowser(boca_app_browser)->IsToolbarVisible());
 
   // Attempt to lock the boca app again to simulate real world scenario.
   bundle.set_locked(true);
@@ -368,7 +368,7 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(platform_util::IsBrowserLockedFullscreen(boca_app_browser));
   EXPECT_FALSE(chromeos::wm::CanFloatWindow(
       boca_app_browser->GetWindow()->GetNativeWindow()));
-  EXPECT_TRUE(boca_app_browser->window()->IsToolbarVisible());
+  EXPECT_TRUE(BrowserWindow::FromBrowser(boca_app_browser)->IsToolbarVisible());
 
   // Unlock the Boca app to unblock test teardown that involves browser window
   // close.
@@ -570,7 +570,7 @@ IN_PROC_BROWSER_TEST_F(OnTaskSessionManagerBrowserTest,
   ASSERT_TRUE(platform_util::IsBrowserLockedFullscreen(boca_app_browser));
   EXPECT_FALSE(chromeos::wm::CanFloatWindow(
       boca_app_browser->GetWindow()->GetNativeWindow()));
-  EXPECT_TRUE(boca_app_browser->window()->IsToolbarVisible());
+  EXPECT_TRUE(BrowserWindow::FromBrowser(boca_app_browser)->IsToolbarVisible());
 
   // Unlock the Boca app to unblock test teardown that involves browser window
   // close.

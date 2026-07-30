@@ -3,6 +3,12 @@
 // found in the LICENSE file.
 
 private enum MojoStrings {
+    /// Profiles declare this method, a wrapper method around `getRemote` that follows
+    /// the Singleton pattern, in `codePrefix`. This method ensures: (1) `getRemote`
+    /// is only called once, and (2) the remote is saved to a global variable so it
+    /// can be closed at the end of the program.
+    static let getOrCreatePrimaryRemote = "getOrCreatePrimaryRemote"
+
     static let credentialManager = "blink.mojom.CredentialManager"
     static let credentialManagerRemote = "blink.mojom.CredentialManagerRemote"
     static let credentialManagerRemoteWrapper = "CredentialManagerRemoteWrapper"
@@ -16,8 +22,7 @@ extension ILType {
     // CredentialManager
     fileprivate static let jsCredentialManager: ILType = .object(
         ofGroup: MojoStrings.credentialManager,
-        withProperties: ["$interfaceName"],
-        withMethods: ["getRemote"])
+        withProperties: ["$interfaceName"])
     fileprivate static let jsCredentialManagerRemote: ILType = .object(
         ofGroup: MojoStrings.credentialManagerRemote, withProperties: ["$"],
         withMethods: ["preventSilentAccess", "store", "get"])
@@ -46,9 +51,7 @@ extension ObjectGroup {
         properties: [
             "$interfaceName": .string
         ],
-        methods: [
-            "getRemote": [] => .jsCredentialManagerRemote
-        ]
+        methods: [:]
     )
 
     fileprivate static let credentialManagerRemote = ObjectGroup(
@@ -92,37 +95,21 @@ extension ObjectGroup {
 }
 
 private let mojoBuiltins: [String: ILType] = [
+    MojoStrings.getOrCreatePrimaryRemote: .function([] => .jsCredentialManagerRemote),
+
     MojoStrings.credentialManager: .jsCredentialManager,
-    CommonMojoStrings.string16: .jsString16Constructor,
-    CommonMojoStrings.url: .jsUrlConstructor,
-    CommonMojoStrings.schemeHostPort: .jsSchemeHostPortConstructor,
     MojoStrings.credentialInfo: .constructor(
         [
             .plain(.jsCredentialType),
-            .plain(.jsString16),
-            .plain(.jsString16),
+            .either(.jsString16, .undefined),
+            .either(.jsString16, .undefined),
             .plain(.jsUrl),
-            .plain(.jsString16),
+            .either(.jsString16, .undefined),
             .plain(.jsSchemeHostPort),
         ]
             => .jsCredentialInfo
     ),
 ]
-
-// Program Template to force Mojo usage
-private let MojoCredentialManagerFuzzer = ProgramTemplate(
-    "MojoCredentialManagerFuzzer"
-) { b in
-    b.buildPrefix()
-
-    // Get the CredentialManager remote
-    let managerStatic = b.createNamedVariable(
-        forBuiltin: MojoStrings.credentialManager)
-    b.callMethod("getRemote", on: managerStatic, withArgs: [])
-
-    // Generate random code to use the objects further
-    b.build(n: 50)
-}
 
 private func isTargetObject(type: ILType) -> Bool {
     guard type.Is(.object()), let group = type.group else { return false }
@@ -145,9 +132,8 @@ private let MojoMethodCallGenerator = CodeGenerator("MojoMethodCallGenerator") {
 
     // If we can't find a Mojo object in scope, create the credential manager remote
     guard let obj = targetVar else {
-        let managerStatic = b.createNamedVariable(
-            forBuiltin: MojoStrings.credentialManager)
-        b.callMethod("getRemote", on: managerStatic, withArgs: [])
+        let getRemoteFunc = b.createNamedVariable(forBuiltin: MojoStrings.getOrCreatePrimaryRemote)
+        b.callFunction(getRemoteFunc, withArgs: [])
         return
     }
 
@@ -203,8 +189,16 @@ let mojoCredentialManagerProfile = Profile(
     ],
     maxExecsBeforeRespawn: 1000,
     timeout: Timeout.interval(11000, 11000),
-    codePrefix: "",
-    codeSuffix: "",
+    codePrefix: """
+        let globalRemote = null;
+        function getOrCreatePrimaryRemote() {
+            if (!globalRemote) {
+                globalRemote = blink.mojom.CredentialManager.getRemote();
+            }
+            return globalRemote;
+        }
+        """,
+    codeSuffix: "if (globalRemote) {globalRemote.$.close()}",
     ecmaVersion: v8Profile.ecmaVersion,
     startupTests: [
         ("fuzzilli('FUZZILLI_PRINT', 'test')", .shouldSucceed),
@@ -218,10 +212,7 @@ let mojoCredentialManagerProfile = Profile(
         (MojoPropertyRetrievalGenerator, 10000),
         (MojoUrlArrayGenerator, 1),
     ] + commonMojoCodeGenerators,
-    additionalProgramTemplates: WeightedList([
-        // Heavily bias Fuzzilli to use the ProgramTemplate that establishes a Mojo connection.
-        (MojoCredentialManagerFuzzer, 1000)
-    ]),
+    additionalProgramTemplates: WeightedList([]),
     disabledCodeGenerators: mojoDisabledGenerators,
     disabledMutators: v8Profile.disabledMutators,
     additionalBuiltins: mojoBuiltins.merging(commonMojoBuiltins) { (existing, _) in existing },

@@ -67,53 +67,65 @@ class SodaSpeechRecognizerImplTest
       std::optional<base::TimeDelta>) override {}
   void OnLanguageChanged(const std::string& language) override {}
   void OnMaskOffensiveWordsChanged(bool mask_offensive_words) override {}
-  void MarkDone() override {}
+  void MarkDone() override {
+    mark_done_called_ = true;
+    MaybeQuit();
+  }
   void UpdateRecognitionContext(
       const media::SpeechRecognitionRecognitionContext& recognition_context)
       override {
     recognition_context_updated_ = true;
+    MaybeQuit();
   }
 
   // media::mojom::SpeechRecognitionSessionClient implementation.
   void ResultRetrieved(std::vector<media::mojom::WebSpeechRecognitionResultPtr>
                            results) override {
     result_received_ = true;
+    MaybeQuit();
   }
 
   void ErrorOccurred(media::mojom::SpeechRecognitionErrorPtr error) override {
     EXPECT_TRUE(recognition_started_);
     EXPECT_FALSE(recognition_ended_);
     error_ = error->code;
+    MaybeQuit();
   }
 
   void Started() override {
     recognition_started_ = true;
     CheckEventsConsistency();
+    MaybeQuit();
   }
 
   void AudioStarted() override {
     audio_started_ = true;
     CheckEventsConsistency();
+    MaybeQuit();
   }
 
   void SoundStarted() override {
     sound_started_ = true;
     CheckEventsConsistency();
+    MaybeQuit();
   }
 
   void SoundEnded() override {
     sound_ended_ = true;
     CheckEventsConsistency();
+    MaybeQuit();
   }
 
   void AudioEnded() override {
     audio_ended_ = true;
     CheckEventsConsistency();
+    MaybeQuit();
   }
 
   void Ended() override {
     recognition_ended_ = true;
     CheckEventsConsistency();
+    MaybeQuit();
   }
 
   void OnSpeechRecognitionRecognitionEvent() {
@@ -133,8 +145,19 @@ class SodaSpeechRecognizerImplTest
 
   void OnSpeechRecognitionError() { recognizer_->OnSpeechRecognitionError(); }
 
-  void AddAudio() {
-    recognizer_->AddAudioFromRenderer(media::mojom::AudioDataS16::New());
+  void AddAudio(int frame_count = 4800, bool loud = false) {
+    auto audio_data = media::mojom::AudioDataS16::New();
+    audio_data->channel_count = 1;
+    audio_data->sample_rate = 48000;
+    audio_data->frame_count = frame_count;
+    audio_data->data.resize(frame_count, 0);
+    if (loud) {
+      for (int i = 0; i < frame_count; ++i) {
+        // High amplitude to trigger the endpointer's speech detection.
+        audio_data->data[i] = 32767;
+      }
+    }
+    recognizer_->AddAudioFromRenderer(std::move(audio_data));
   }
 
   void Abort() { recognizer_->Abort(); }
@@ -142,6 +165,20 @@ class SodaSpeechRecognizerImplTest
   void RecognizerUpdateRecognitionContext(
       const media::SpeechRecognitionRecognitionContext& recognition_context) {
     recognizer_->UpdateRecognitionContext(recognition_context);
+  }
+
+  void WaitForCondition(base::FunctionRef<bool()> condition) {
+    while (!condition()) {
+      base::RunLoop run_loop;
+      quit_closure_ = run_loop.QuitClosure();
+      run_loop.Run();
+    }
+  }
+
+  void MaybeQuit() {
+    if (quit_closure_) {
+      std::move(quit_closure_).Run();
+    }
   }
 
  protected:
@@ -162,78 +199,70 @@ class SodaSpeechRecognizerImplTest
   bool sound_started_ = false;
   bool sound_ended_ = false;
   bool recognition_context_updated_ = false;
+  bool mark_done_called_ = false;
   media::mojom::SpeechRecognitionErrorCode error_ =
       media::mojom::SpeechRecognitionErrorCode::kNone;
+  base::OnceClosure quit_closure_;
 };
 
 TEST_P(SodaSpeechRecognizerImplTest, Start) {
   // Recognition is started automatically as soon as the recognizer is created.
-  base::RunLoop().RunUntilIdle();  // EVENT_START processing.
-  EXPECT_TRUE(recognition_started_);
+  WaitForCondition([&]() { return recognition_started_; });
   EXPECT_FALSE(audio_started_);
   EXPECT_FALSE(result_received_);
   CheckEventsConsistency();
 }
 
 TEST_P(SodaSpeechRecognizerImplTest, RecognitionEvent) {
-  base::RunLoop().RunUntilIdle();  // EVENT_START processing.
-  EXPECT_TRUE(recognition_started_);
+  WaitForCondition([&]() { return recognition_started_; });
 
   AddAudio();
-  base::RunLoop().RunUntilIdle();  // EVENT_AUDIO_DATA processing.
-  EXPECT_TRUE(audio_started_);
+  WaitForCondition([&]() { return audio_started_; });
   CheckEventsConsistency();
 
   OnSpeechRecognitionRecognitionEvent();
-  base::RunLoop().RunUntilIdle();  // EVENT_ENGINE_RESULT processing.
-  EXPECT_TRUE(result_received_);
+  WaitForCondition([&]() { return result_received_; });
   CheckEventsConsistency();
 
   StopCapture();
-  base::RunLoop().RunUntilIdle();  // EVENT_STOP_CAPTURE processing.
-  EXPECT_TRUE(recognition_ended_);
+  WaitForCondition([&]() { return recognition_ended_; });
   CheckEventsConsistency();
   CheckFinalEventsConsistency();
 }
 
 TEST_P(SodaSpeechRecognizerImplTest, Abort) {
-  base::RunLoop().RunUntilIdle();  // EVENT_START processing.
-  EXPECT_TRUE(recognition_started_);
+  WaitForCondition([&]() { return recognition_started_; });
 
   Abort();
-  base::RunLoop().RunUntilIdle();  // EVENT_ABORT processing.
-  EXPECT_TRUE(recognition_ended_);
+  WaitForCondition([&]() { return recognition_ended_; });
   CheckEventsConsistency();
   CheckFinalEventsConsistency();
 }
 
 TEST_P(SodaSpeechRecognizerImplTest, EngineError) {
-  base::RunLoop().RunUntilIdle();  // EVENT_START processing.
-  EXPECT_TRUE(recognition_started_);
+  WaitForCondition([&]() { return recognition_started_; });
 
   OnSpeechRecognitionError();
-  base::RunLoop().RunUntilIdle();  // EVENT_ENGINE_ERROR processing.
-  EXPECT_TRUE(recognition_ended_);
+  WaitForCondition([&]() { return recognition_ended_; });
   CheckEventsConsistency();
   CheckFinalEventsConsistency();
 }
 
 TEST_P(SodaSpeechRecognizerImplTest, StopCaptureWithNoFinalResult) {
-  base::RunLoop().RunUntilIdle();  // EVENT_START processing.
-  EXPECT_TRUE(recognition_started_);
+  WaitForCondition([&]() { return recognition_started_; });
 
   AddAudio();
-  base::RunLoop().RunUntilIdle();  // EVENT_AUDIO_DATA processing.
-  EXPECT_TRUE(audio_started_);
+  WaitForCondition([&]() { return audio_started_; });
   CheckEventsConsistency();
 
   OnSpeechRecognitionRecognitionEventPartial();
-  base::RunLoop().RunUntilIdle();  // EVENT_ENGINE_RESULT processing.
-  EXPECT_TRUE(result_received_);
+  WaitForCondition([&]() { return result_received_; });
   CheckEventsConsistency();
 
   StopCapture();
-  base::RunLoop().RunUntilIdle();  // EVENT_STOP_CAPTURE processing.
+  WaitForCondition([&]() { return audio_ended_; });
+  EXPECT_FALSE(recognition_ended_);
+  environment_.FastForwardBy(base::Seconds(4));
   EXPECT_FALSE(recognition_ended_);
   environment_.FastForwardBy(base::Seconds(1));
   EXPECT_TRUE(recognition_ended_);
@@ -241,14 +270,107 @@ TEST_P(SodaSpeechRecognizerImplTest, StopCaptureWithNoFinalResult) {
 
 TEST_P(SodaSpeechRecognizerImplTest, UpdateRecognitionContext) {
   // EVENT_START processing.
-  EXPECT_TRUE(base::test::RunUntil([&]() { return recognition_started_; }));
+  WaitForCondition([&]() { return recognition_started_; });
 
   // EVENT_UPDATE_RECOGNITION_CONTEXT processing.
   RecognizerUpdateRecognitionContext(
       media::SpeechRecognitionRecognitionContext());
-  EXPECT_TRUE(
-      base::test::RunUntil([&]() { return recognition_context_updated_; }));
+  WaitForCondition([&]() { return recognition_context_updated_; });
   CheckEventsConsistency();
+}
+
+TEST_P(SodaSpeechRecognizerImplTest, NoSpeechTimeoutBehavior) {
+  WaitForCondition([&]() { return recognition_started_; });
+
+  AddAudio();
+  WaitForCondition([&]() { return audio_started_; });
+
+  // Pass environment estimation.
+  for (int i = 0; i < 30; ++i) {
+    environment_.FastForwardBy(base::Milliseconds(100));
+    AddAudio(4800, /*loud=*/false);
+  }
+
+  // Send 10 seconds of silence to trigger no-speech timeout.
+  for (int i = 0; i < 100; ++i) {
+    environment_.FastForwardBy(base::Milliseconds(100));
+    AddAudio(4800, /*loud=*/false);
+  }
+
+  if (GetParam()) {
+    base::RunLoop().RunUntilIdle();
+    EXPECT_FALSE(recognition_ended_);
+    EXPECT_EQ(error_, media::mojom::SpeechRecognitionErrorCode::kNone);
+  } else {
+    WaitForCondition([&]() { return recognition_ended_; });
+    EXPECT_TRUE(recognition_ended_);
+    EXPECT_EQ(error_, media::mojom::SpeechRecognitionErrorCode::kNoSpeech);
+  }
+}
+
+TEST_P(SodaSpeechRecognizerImplTest, FinalResultBehavior) {
+  WaitForCondition([&]() { return recognition_started_; });
+
+  AddAudio();
+  WaitForCondition([&]() { return audio_started_; });
+
+  // Go to recognizing
+  OnSpeechRecognitionRecognitionEventPartial();
+  WaitForCondition([&]() { return sound_started_; });
+
+  EXPECT_FALSE(mark_done_called_);
+
+  // Send final result
+  OnSpeechRecognitionRecognitionEvent();
+
+  if (GetParam()) {
+    // continuous=true: should NOT stop capture automatically
+    WaitForCondition([&]() { return result_received_; });
+    EXPECT_FALSE(recognition_ended_);
+    EXPECT_FALSE(mark_done_called_);
+    // We need to stop it manually to end test clean
+    StopCapture();
+    WaitForCondition([&]() { return recognition_ended_; });
+    EXPECT_TRUE(mark_done_called_);
+  } else {
+    // continuous=false: should stop capture automatically and end immediately
+    WaitForCondition([&]() { return recognition_ended_; });
+    EXPECT_TRUE(mark_done_called_);
+  }
+}
+
+TEST_P(SodaSpeechRecognizerImplTest, StopCaptureThenReceiveFinalResult) {
+  WaitForCondition([&]() { return recognition_started_; });
+
+  AddAudio();
+  WaitForCondition([&]() { return audio_started_; });
+
+  // Go to recognizing
+  OnSpeechRecognitionRecognitionEventPartial();
+  WaitForCondition([&]() { return sound_started_; });
+
+  StopCapture();
+  WaitForCondition([&]() { return audio_ended_; });
+  EXPECT_FALSE(recognition_ended_);  // waiting for final result
+  EXPECT_TRUE(mark_done_called_);
+
+  // Send final result
+  OnSpeechRecognitionRecognitionEvent();
+  WaitForCondition([&]() { return recognition_ended_; });
+}
+
+TEST_P(SodaSpeechRecognizerImplTest, MarkDoneCalledOnStop) {
+  WaitForCondition([&]() { return recognition_started_; });
+
+  AddAudio();
+  WaitForCondition([&]() { return audio_started_; });
+
+  EXPECT_FALSE(mark_done_called_);
+
+  StopCapture();
+  WaitForCondition([&]() { return audio_ended_; });
+
+  EXPECT_TRUE(mark_done_called_);
 }
 
 INSTANTIATE_TEST_SUITE_P(All, SodaSpeechRecognizerImplTest, testing::Bool());

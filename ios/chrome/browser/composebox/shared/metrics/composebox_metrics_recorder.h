@@ -33,7 +33,8 @@ enum class FuseboxAttachmentButtonType {
   kClipboard = 5,
   kSuggestedTab = 6,
   kRecentTab = 7,
-  kMaxValue = kRecentTab
+  kDriveFiles = 8,
+  kMaxValue = kDriveFiles
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/omnibox/enums.xml:FuseboxAttachmentButtonType)
 
@@ -141,6 +142,8 @@ enum class ComposeboxEntrypoint;
 
 // Records the number of files attached.
 - (void)recordFilesAttached:(NSUInteger)count;
+
+- (void)recordDriveFilesAttached:(NSUInteger)count;
 
 - (void)recordVoiceSearchButtonUsed;
 - (void)recordLensSearchButtonUsed;

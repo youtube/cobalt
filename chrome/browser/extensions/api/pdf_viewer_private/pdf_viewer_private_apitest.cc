@@ -120,6 +120,7 @@ IN_PROC_BROWSER_TEST_F(PdfViewerPrivateApiTest, GetTextInfo_MojoSerialization) {
 
   // Check that every field is non-zero.
   EXPECT_NE(text_info->effective_zoom, 0);
+  EXPECT_NE(text_info->primary_ascent, 0);
   ASSERT_THAT(text_info->text_runs, Not(IsEmpty()));
   pdf::mojom::InkTextRunPtr& text_run = text_info->text_runs[0];
   EXPECT_NE(text_run->location, gfx::RectF());

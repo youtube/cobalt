@@ -116,7 +116,7 @@ IN_PROC_BROWSER_TEST_F(GlobalKeyboardShortcutsTest, HistoryNavigation) {
 
 // Test that common hotkeys for editing the omnibox work.
 IN_PROC_BROWSER_TEST_F(GlobalKeyboardShortcutsTest, CopyPasteOmnibox) {
-  BrowserWindow* window = browser()->window();
+  BrowserWindow* window = BrowserWindow::FromBrowser(browser());
   ASSERT_TRUE(window);
   LocationBar* location_bar = window->GetLocationBar();
   ASSERT_TRUE(location_bar);

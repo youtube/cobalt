@@ -52,7 +52,6 @@ import "chromeos/ash/experiences/arc/mojom/screen_capture.mojom";
 import "chromeos/ash/experiences/arc/mojom/sharesheet.mojom";
 import "chromeos/ash/experiences/arc/mojom/system_state.mojom";
 import "chromeos/ash/experiences/arc/mojom/system_ui.mojom";
-import "chromeos/ash/experiences/arc/mojom/timer.mojom";
 import "chromeos/ash/experiences/arc/mojom/tracing.mojom";
 import "chromeos/ash/experiences/arc/mojom/tts.mojom";
 import "chromeos/ash/experiences/arc/mojom/usb_host.mojom";
@@ -64,8 +63,8 @@ import "chromeos/ash/experiences/arc/mojom/webapk.mojom";
 import "chromeos/components/payments/mojom/payment_app.mojom";
 
 // Next MinVersion: 71
-// Deprecated method IDs: 101, 105, 109, 118, 121, 126, 132, 134, 136, 137, 147,
-//                        153, 154, 160, 165
+// Deprecated method IDs: 101, 105, 109, 118, 121, 126, 132, 134, 136, 137, 141,
+//                        147, 153, 154, 160, 165
 // Next method ID: 176
 [Uuid="1defbc6a-5e24-46bd-9117-3b2f106d7e7a"]
 interface ArcBridgeHost {
@@ -267,10 +266,6 @@ interface ArcBridgeHost {
   // Notifies Chrome that the SystemUiInstance interface is ready.
   [MinVersion=62] OnSystemUiInstanceReady@167(
       pending_remote<SystemUiInstance> instance_remote);
-
-  // Notifies Chrome that the TimerInstance interface is ready.
-  [MinVersion=36] OnTimerInstanceReady@141(
-      pending_remote<TimerInstance> instance_remote);
 
   // Notifies Chrome that the TracingInstance interface is ready.
   [MinVersion=22] OnTracingInstanceReady@128(

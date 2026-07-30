@@ -7,13 +7,14 @@
 #import "base/strings/sys_string_conversions.h"
 #import "ios/chrome/browser/app_launcher/model/app_launching_state.h"
 #import "url/gurl.h"
+#import "url/origin.h"
 
 const int kMaxAllowedConsecutiveExternalAppLaunches = 2;
 
 @interface AppLauncherAbuseDetector ()
 // Maps between external application redirection key and state.
-// the key is a space separated combination of the absolute string for the
-// original source URL, and the scheme of the external Application URL.
+// the key is a space separated combination of the serialization of the
+// origin of the source URL, and the scheme of the external Application URL.
 @property(nonatomic, strong)
     NSMutableDictionary<NSString*, AppLaunchingState*>* appLaunchingStates;
 // Generates key for `appURL` and `sourceURL` to be used to retrieve state from
@@ -28,9 +29,10 @@ const int kMaxAllowedConsecutiveExternalAppLaunches = 2;
 
 + (NSString*)stateKeyForAppURL:(const GURL&)appURL
                      sourceURL:(const GURL&)sourcePageURL {
-  return
-      [NSString stringWithFormat:@"%s %s", sourcePageURL.GetContent().c_str(),
-                                 appURL.GetScheme().c_str()];
+  return [NSString
+      stringWithFormat:@"%s %s",
+                       url::Origin::Create(sourcePageURL).Serialize().c_str(),
+                       appURL.GetScheme().c_str()];
 }
 
 - (instancetype)init {

@@ -13,6 +13,7 @@
 #include "components/autofill/content/browser/content_autofill_driver_factory.h"
 #include "components/cdm/browser/media_drm_storage_impl.h"
 #include "components/content_capture/browser/onscreen_content_provider.h"
+#include "components/metrics/call_stacks/call_stack_profile_collector.h"
 #include "components/network_hints/browser/simple_network_hints_handler_impl.h"
 #include "components/page_load_metrics/browser/metrics_web_contents_observer.h"
 #include "components/prefs/pref_service.h"
@@ -252,6 +253,11 @@ void AwContentBrowserClient::ExposeInterfacesToRenderer(
   // the IO thread.
   registry->AddInterface<mojom::RenderMessageFilter>(base::BindRepeating(
       &CreateRenderMessageFilter, render_process_host->GetDeprecatedID()));
+
+  if (base::FeatureList::IsEnabled(features::kWebViewMemoryProfilingClient)) {
+    registry->AddInterface<metrics::mojom::CallStackProfileCollector>(
+        base::BindRepeating(&metrics::CallStackProfileCollector::Create));
+  }
 }
 
 void AwContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(

@@ -1201,14 +1201,6 @@ BASE_FEATURE(kLocalAuthenticationWithPin, base::FEATURE_ENABLED_BY_DEFAULT);
 // to feedback reports.
 BASE_FEATURE(kLinkCrossDeviceInternals, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Supports the feature to hide sensitive content in notifications on the lock
-// screen. This option is effective when |kLockScreenNotification| is enabled.
-BASE_FEATURE(kLockScreenHideSensitiveNotificationsSupport,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables notifications on the lock screen.
-BASE_FEATURE(kLockScreenNotifications, base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Feature to allow MAC address randomization to be enabled for WiFi networks.
 BASE_FEATURE(kMacAddressRandomization, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -1825,7 +1817,7 @@ BASE_FEATURE(kUseDHCPCD10, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, the new `TokenHandleStoreImpl` will be used instead of
 // `TokenHandleUtil`.
-BASE_FEATURE(kUseTokenHandleStore, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kUseTokenHandleStore, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Use the AnnotatedAccountId for mapping between User and BrowserContext
 // (a.k.a. browser's Profile).
@@ -2018,6 +2010,14 @@ BASE_FEATURE(kDeviceActiveClientChurnObservationCheckMembership,
 BASE_FEATURE(kDeviceActiveClientChurnObservationNewDeviceMetadata,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Enables or disables persisting device config (networks, EULA acceptance...)
+// over a powerwash that happens as part of a device move to a new domain
+BASE_FEATURE(kDeviceMoveConfigSave, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables the DeviceWeeklyScheduledSuspend policy for Managed Guest Sessions.
+BASE_FEATURE(kDeviceWeeklyScheduledSuspendMgs,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Enables peripheral customization to be split per device.
 BASE_FEATURE(kPeripheralCustomization, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -2174,6 +2174,10 @@ BASE_FEATURE(kHappinessTrackingLauncherAppsNeeding,
 
 // Enables the Happiness Tracking System for the Office integration.
 BASE_FEATURE(kHappinessTrackingOffice, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables the Happiness Tracking System for the slow and laggy survery.
+BASE_FEATURE(kHappinessTrackingSystemSlowAndLaggyDeepDive,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables new UX for files policy restrictions on ChromeOS.
 BASE_FEATURE(kNewFilesPolicyUX, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -2477,6 +2481,10 @@ bool IsDemoModeSignInFileCleanupEnabled() {
 
 bool IsDeskTemplateSyncEnabled() {
   return base::FeatureList::IsEnabled(kDeskTemplateSync);
+}
+
+bool IsDeviceMoveConfigSaveEnabled() {
+  return base::FeatureList::IsEnabled(kDeviceMoveConfigSave);
 }
 
 bool IsDisplayPerformanceModeEnabled() {
@@ -2824,21 +2832,12 @@ bool IsLobsterEnabledForManagedUsers() {
   return base::FeatureList::IsEnabled(kLobsterForManagedUsers);
 }
 
-bool IsLockScreenHideSensitiveNotificationsSupported() {
-  return base::FeatureList::IsEnabled(
-      kLockScreenHideSensitiveNotificationsSupport);
-}
-
 bool AreGameDashboardUtilitiesEnabled() {
   return base::FeatureList::IsEnabled(kGameDashboardUtilities);
 }
 
 bool IsAppLaunchShortcutEnabled() {
   return base::FeatureList::IsEnabled(kAppLaunchShortcut);
-}
-
-bool IsLockScreenNotificationsEnabled() {
-  return base::FeatureList::IsEnabled(kLockScreenNotifications);
 }
 
 bool IsProductivityLauncherImageSearchEnabled() {

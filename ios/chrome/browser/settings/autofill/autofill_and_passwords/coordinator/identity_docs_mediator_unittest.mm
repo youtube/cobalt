@@ -10,6 +10,8 @@
 #import "components/autofill/core/browser/data_manager/autofill_ai/entity_data_manager.h"
 #import "components/autofill/core/browser/test_utils/entity_data_test_utils.h"
 #import "components/autofill/core/common/autofill_features.h"
+#import "components/autofill/core/common/autofill_prefs.h"
+#import "components/prefs/pref_service.h"
 #import "components/sync/test/test_sync_service.h"
 #import "ios/chrome/browser/autofill/model/ios_autofill_entity_data_manager_factory.h"
 #import "ios/chrome/browser/settings/autofill/autofill_ai/ui/autofill_ai_entity_item.h"
@@ -45,7 +47,8 @@ class IdentityDocsMediatorTest : public PlatformTest {
         IOSAutofillEntityDataManagerFactory::GetForProfile(profile_.get());
 
     mediator_ = [[IdentityDocsMediator alloc]
-        initWithEntityDataManager:entity_data_manager];
+        initWithEntityDataManager:entity_data_manager
+                      prefService:profile_->GetPrefs()];
     consumer_ = OCMProtocolMock(@protocol(IdentityDocsConsumer));
   }
 
@@ -150,4 +153,55 @@ TEST_F(IdentityDocsMediatorTest, DidSelectDeleteEntityItemsRemovesEntity) {
       base::test::ios::kWaitForActionTimeout, true, ^{
         return !entity_data_manager->GetEntityInstance(entity_id).has_value();
       }));
+}
+
+// Tests that calling `didToggleIdentityDocs` updates the preference.
+TEST_F(IdentityDocsMediatorTest, TogglesIdentityDocsPref) {
+  PrefService* prefs = profile_->GetPrefs();
+  prefs->SetBoolean(autofill::prefs::kAutofillAiIdentityEntitiesEnabled, false);
+
+  [mediator_ didToggleIdentityDocs:YES];
+  EXPECT_TRUE(
+      prefs->GetBoolean(autofill::prefs::kAutofillAiIdentityEntitiesEnabled));
+
+  [mediator_ didToggleIdentityDocs:NO];
+  EXPECT_FALSE(
+      prefs->GetBoolean(autofill::prefs::kAutofillAiIdentityEntitiesEnabled));
+}
+
+// Tests that a preference change updates the consumer toggle state.
+TEST_F(IdentityDocsMediatorTest, PrefChangeUpdatesConsumer) {
+  profile_->GetPrefs()->SetBoolean(
+      autofill::prefs::kAutofillAiIdentityEntitiesEnabled, false);
+  mediator_.consumer = consumer_;
+
+  OCMExpect([consumer_ setIdentityDocsToggleState:YES enabled:YES]);
+  profile_->GetPrefs()->SetBoolean(
+      autofill::prefs::kAutofillAiIdentityEntitiesEnabled, true);
+  [consumer_ verify];
+
+  OCMExpect([consumer_ setIdentityDocsToggleState:NO enabled:YES]);
+  profile_->GetPrefs()->SetBoolean(
+      autofill::prefs::kAutofillAiIdentityEntitiesEnabled, false);
+  [consumer_ verify];
+}
+
+// Tests that a preference change for address autofill updates the consumer
+// toggle enabled state.
+TEST_F(IdentityDocsMediatorTest, AutofillProfilePrefChangeUpdatesConsumer) {
+  profile_->GetPrefs()->SetBoolean(autofill::prefs::kAutofillProfileEnabled,
+                                   true);
+  profile_->GetPrefs()->SetBoolean(
+      autofill::prefs::kAutofillAiIdentityEntitiesEnabled, true);
+  mediator_.consumer = consumer_;
+
+  OCMExpect([consumer_ setIdentityDocsToggleState:NO enabled:NO]);
+  profile_->GetPrefs()->SetBoolean(autofill::prefs::kAutofillProfileEnabled,
+                                   false);
+  [consumer_ verify];
+
+  OCMExpect([consumer_ setIdentityDocsToggleState:YES enabled:YES]);
+  profile_->GetPrefs()->SetBoolean(autofill::prefs::kAutofillProfileEnabled,
+                                   true);
+  [consumer_ verify];
 }

@@ -17,6 +17,12 @@ enum class AppBarPosition {
   kRight,
 };
 
+// The position of the main toolbar (omnibox).
+enum class ToolbarPosition {
+  kTop,
+  kBottom,
+};
+
 @class LayoutState;
 
 // Protocol for observers of the layout state.
@@ -44,6 +50,15 @@ enum class AppBarPosition {
 - (void)layoutState:(LayoutState*)layoutState
     didChangeAppBarPosition:(AppBarPosition)appBarPosition;
 
+// Called when the assistant container cutout radius changes.
+- (void)layoutState:(LayoutState*)layoutState
+    didChangeAssistantContainerCutoutRadius:
+        (CGFloat)assistantContainerCutoutRadius;
+
+// Called when the toolbar position changes.
+- (void)layoutState:(LayoutState*)layoutState
+    didChangeToolbarPosition:(ToolbarPosition)toolbarPosition;
+
 @end
 
 // Object containing the state of the layout.
@@ -64,6 +79,12 @@ enum class AppBarPosition {
 
 // The position of the app bar.
 @property(nonatomic, assign) AppBarPosition appBarPosition;
+
+// The cutout corner radius of the App Bar matching the assistant container.
+@property(nonatomic, assign) CGFloat assistantContainerCutoutRadius;
+
+// The position of the toolbar (omnibox).
+@property(nonatomic, assign) ToolbarPosition toolbarPosition;
 
 // Sets `containedLayoutActive` with a transition coordinator to
 // synchronize animations. `coordinator` must not be nil.

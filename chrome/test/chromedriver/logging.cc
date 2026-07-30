@@ -159,11 +159,9 @@ bool HandleLogMessage(int severity,
     } else {
       entry = base::StringPrintf(
           "[%.3lf][%s]: %s",
-          base::TimeDelta(base::TimeTicks::Now() -
-                          base::TimeTicks::UnixEpoch())
+          base::TimeDelta(base::Time::Now() - base::Time::UnixEpoch())
               .InSecondsF(),
-          level_name,
-          message.c_str());
+          level_name, message.c_str());
     }
     fprintf(stderr, "%s", entry.c_str());
     fflush(stderr);

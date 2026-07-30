@@ -34,7 +34,7 @@ namespace long_screenshots {
 // feature ends or when Chrome starts up (to handle when Chrome is killed in the
 // background and there was no opportunity to clean the files).
 class LongScreenshotsTabService : public paint_preview::PaintPreviewBaseService,
-                                  public base::MemoryConsumer {
+                                  public base::PassiveMemoryConsumer {
  public:
   LongScreenshotsTabService(
       std::unique_ptr<paint_preview::PaintPreviewFileMixin> file_mixin,
@@ -104,10 +104,6 @@ class LongScreenshotsTabService : public paint_preview::PaintPreviewBaseService,
   void LongScreenshotsClosedAndroid(JNIEnv* env);
 
   base::android::ScopedJavaGlobalRef<jobject> GetJavaRef() { return java_ref_; }
-
-  // base::MemoryConsumer:
-  void OnUpdateMemoryLimit() override {}
-  void OnReleaseMemory() override {}
 
  private:
   friend class LongScreenshotsTabServiceTest;

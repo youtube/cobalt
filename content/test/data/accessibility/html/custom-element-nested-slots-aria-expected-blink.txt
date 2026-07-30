@@ -1,0 +1,13 @@
+rootWebArea htmlTag='#document'
+++genericContainer ignored
+++++genericContainer htmlTag='body'
+++++++listBox htmlTag='my-list'
+++++++++genericContainer htmlTag='div'
+++++++++++none ignored
+++++++++++++genericContainer ignored
+++++++++++++++listBoxOption htmlTag='div' name='Option 1' selected=false
+++++++++++++++++staticText name='Option 1'
+++++++++++++++++++inlineTextBox name='Option 1'
+++++++++++++++listBoxOption htmlTag='div' name='Option 2' selected=false
+++++++++++++++++staticText name='Option 2'
+++++++++++++++++++inlineTextBox name='Option 2'

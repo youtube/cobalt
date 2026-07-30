@@ -1,0 +1,57 @@
+diff --git a/base/strings/gn_deps_debugging_eval.cc b/base/strings/gn_deps_debugging_eval.cc
+new file mode 100644
+index 0000000000000..801d9a7fabcde
+--- /dev/null
++++ b/base/strings/gn_deps_debugging_eval.cc
+@@ -0,0 +1,17 @@
++// Copyright 2026 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#include "base/strings/gn_deps_debugging_eval.h"
++
++namespace base::gn_deps_debugging_eval {
++
++FooController::FooController(PrefService* prefs) : prefs_(prefs) {}
++
++FooController::~FooController() = default;
++
++bool FooController::HasPrefsForTesting() const {
++  return prefs_ != nullptr;
++}
++
++}  // namespace base::gn_deps_debugging_eval
+diff --git a/base/strings/gn_deps_debugging_eval.h b/base/strings/gn_deps_debugging_eval.h
+new file mode 100644
+index 0000000000000..d5f7b706abcde
+--- /dev/null
++++ b/base/strings/gn_deps_debugging_eval.h
+@@ -0,0 +1,28 @@
++// Copyright 2026 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#ifndef BASE_STRINGS_GN_DEPS_DEBUGGING_EVAL_H_
++#define BASE_STRINGS_GN_DEPS_DEBUGGING_EVAL_H_
++
++#include "components/prefs/pref_service.h"
++
++namespace base::gn_deps_debugging_eval {
++
++// This fake class is used by //agents prompt evals. The include above creates
++// a GN include-visibility problem because this public header only needs a
++// pointer declaration.
++class FooController {
++ public:
++  explicit FooController(PrefService* prefs);
++  ~FooController();
++
++  bool HasPrefsForTesting() const;
++
++ private:
++  PrefService* prefs_;
++};
++
++}  // namespace base::gn_deps_debugging_eval
++
++#endif  // BASE_STRINGS_GN_DEPS_DEBUGGING_EVAL_H_

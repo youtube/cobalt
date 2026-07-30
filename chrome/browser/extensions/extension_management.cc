@@ -606,10 +606,7 @@ bool ExtensionManagement::IsFileUrlNavigationAllowed(const ExtensionId& id) {
 extensions::ManagedToolbarPinMode ExtensionManagement::GetToolbarPinMode(
     const ExtensionId& extension_id) {
   auto* setting = GetSettingsForId(extension_id);
-  if (setting) {
-    return setting->toolbar_pin;
-  }
-  return extensions::ManagedToolbarPinMode::kDefaultUnpinned;
+  return setting ? setting->toolbar_pin : ManagedToolbarPinMode::kNotSet;
 }
 
 bool ExtensionManagement::CheckMinimumVersion(const Extension* extension,

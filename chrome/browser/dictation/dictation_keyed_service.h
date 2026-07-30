@@ -9,6 +9,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/dictation/dictation_multiplexer.h"
 #include "chrome/browser/dictation/session_controller.h"
 #include "chrome/browser/dictation/session_controller_delegate.h"
 #include "components/keyed_service/core/keyed_service.h"
@@ -56,7 +57,8 @@ class DictationKeyedService : public KeyedService,
   // If a target is provided, the new session will immediately start up a
   // stream. Otherwise, if nullptr is passed the session is created without a
   // stream.
-  void StartSession(BrowserWindowInterface& window, Target* target);
+  void StartSession(BrowserWindowInterface& window,
+                    std::unique_ptr<Target> target);
 
   // Returns true if there is no active session.
   bool ShouldShowContextMenuItem() const;
@@ -72,8 +74,12 @@ class DictationKeyedService : public KeyedService,
     return const_cast<DictationKeyedService*>(this)->session_controller();
   }
 
+  DictationMultiplexer& multiplexer() { return multiplexer_; }
+
  private:
   raw_ptr<Profile> profile_;
+
+  DictationMultiplexer multiplexer_;
 
   struct SessionState {
     SessionState(SessionControllerDelegate& delegate,

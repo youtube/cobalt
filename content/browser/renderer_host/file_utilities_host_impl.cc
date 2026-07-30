@@ -9,7 +9,7 @@
 #include <utility>
 
 #include "base/files/file_util.h"
-#include "content/browser/child_process_security_policy_impl.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 

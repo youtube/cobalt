@@ -70,7 +70,7 @@ class SendTabToSelfBubbleController
   // Hides send tab to self bubble.
   void HideBubble();
   // Displays send tab to self bubble.
-  void ShowBubble(bool show_back_button = false);
+  void ShowBubble(ShareEntryPoint entry_point, bool show_back_button = false);
 
   bool IsBubbleShown() const;
 
@@ -156,6 +156,8 @@ class SendTabToSelfBubbleController
   raw_ptr<SendTabToSelfBubbleView> send_tab_to_self_bubble_view_ = nullptr;
   // True if the back button is currently shown.
   bool show_back_button_ = false;
+
+  std::optional<ShareEntryPoint> entry_point_;
 
   raw_ptr<actions::ActionItem> send_tab_to_self_action_item_ = nullptr;
 

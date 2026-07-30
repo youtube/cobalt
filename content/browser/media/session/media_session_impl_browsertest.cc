@@ -2727,7 +2727,8 @@ IN_PROC_BROWSER_TEST_F(MediaSessionImplBrowserTest, UpdateFaviconURL) {
       /*is_default_icon=*/false));
 
   media_session_->DidUpdateFaviconURL(
-      shell()->web_contents()->GetPrimaryMainFrame(), favicons);
+      shell()->web_contents()->GetPrimaryMainFrame(), favicons,
+      blink::mojom::FaviconUpdateReason::kPageLoad);
 
   {
     std::vector<media_session::MediaImage> expected_images;
@@ -2756,7 +2757,8 @@ IN_PROC_BROWSER_TEST_F(MediaSessionImplBrowserTest, UpdateFaviconURL) {
     media_session::test::MockMediaSessionMojoObserver observer(*media_session_);
     media_session_->DidUpdateFaviconURL(
         shell()->web_contents()->GetPrimaryMainFrame(),
-        std::vector<blink::mojom::FaviconURLPtr>());
+        std::vector<blink::mojom::FaviconURLPtr>(),
+        blink::mojom::FaviconUpdateReason::kPageLoad);
     observer.WaitForExpectedImagesOfType(
         media_session::mojom::MediaSessionImageType::kSourceIcon,
         std::vector<media_session::MediaImage>());
@@ -2772,7 +2774,8 @@ IN_PROC_BROWSER_TEST_F(MediaSessionImplBrowserTest,
       /*is_default_icon=*/false));
 
   media_session_->DidUpdateFaviconURL(
-      shell()->web_contents()->GetPrimaryMainFrame(), favicons);
+      shell()->web_contents()->GetPrimaryMainFrame(), favicons,
+      blink::mojom::FaviconUpdateReason::kPageLoad);
 
   {
     std::vector<media_session::MediaImage> expected_images;
@@ -2836,7 +2839,8 @@ class FaviconWaiter : public WebContentsObserver {
 
   void DidUpdateFaviconURL(
       RenderFrameHost* render_frame_host,
-      const std::vector<blink::mojom::FaviconURLPtr>& candidates) override {
+      const std::vector<blink::mojom::FaviconURLPtr>& candidates,
+      blink::mojom::FaviconUpdateReason reason) override {
     received_favicon_ = true;
     run_loop_.Quit();
   }
@@ -3123,7 +3127,8 @@ IN_PROC_BROWSER_TEST_F(MediaSessionImplBrowserTest, CacheFaviconImages) {
                                     valid_sizes, /*is_default_icon=*/false));
 
   media_session_->DidUpdateFaviconURL(
-      shell()->web_contents()->GetPrimaryMainFrame(), favicons);
+      shell()->web_contents()->GetPrimaryMainFrame(), favicons,
+      blink::mojom::FaviconUpdateReason::kPageLoad);
 
   media_session::MediaImage test_image;
   test_image.src = favicon_server().GetURL("/favicon.ico");
@@ -3497,7 +3502,8 @@ IN_PROC_BROWSER_TEST_F(MediaSessionImplPrerenderingBrowserTest,
       /*is_default_icon=*/false));
 
   media_session_->DidUpdateFaviconURL(
-      shell()->web_contents()->GetPrimaryMainFrame(), favicons);
+      shell()->web_contents()->GetPrimaryMainFrame(), favicons,
+      blink::mojom::FaviconUpdateReason::kPageLoad);
   media_session::MediaImage test_image;
   test_image.src = test_image_src;
   test_image.sizes = valid_sizes;

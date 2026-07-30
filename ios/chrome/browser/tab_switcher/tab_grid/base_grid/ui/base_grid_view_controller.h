@@ -20,7 +20,7 @@
 @class GridItemIdentifier;
 @protocol GridViewControllerMutator;
 @class LayoutGuideCenter;
-@class LegacyGridTransitionLayout;
+
 @class TabGridTransitionLayout;
 @protocol PriceCardDataSource;
 @protocol SuggestedActionsDelegate;
@@ -173,9 +173,6 @@ class WebStateID;
 // The active context menu interaction animator.
 @property(nonatomic, strong) id<UIContextMenuInteractionAnimating>
     activeContextMenuAnimator;
-
-// Returns the legacy layout of the grid for use in an animated transition.
-- (LegacyGridTransitionLayout*)legacyTransitionLayout;
 
 // Returns the layout of the grid for use in an animated transition.
 - (TabGridTransitionLayout*)transitionLayout;

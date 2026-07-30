@@ -211,17 +211,22 @@ public class PersistentStoreCleaner {
         List<TabModelSelector> selectors = new ArrayList<>();
 
         TabModelSelector archivedTabModelSelector = tabWindowManager.getArchivedTabModelSelector();
-        assert archivedTabModelSelector != null;
-        selectors.add(archivedTabModelSelector);
-        windowTags.add(ARCHIVED_WINDOW_TAG);
+        if (archivedTabModelSelector != null) {
+            selectors.add(archivedTabModelSelector);
+            windowTags.add(ARCHIVED_WINDOW_TAG);
+        }
 
         for (TabModelSelector selector : tabWindowManager.getAllTabModelSelectors()) {
+            if (selector == null) continue;
+
             selectors.add(selector);
             int windowId = tabWindowManager.getWindowIdForSelector(selector);
             windowTags.add(String.valueOf(windowId));
         }
 
         for (TabModelSelector selector : tabWindowManager.getCustomTabsTabModelSelectors()) {
+            if (selector == null) continue;
+
             selectors.add(selector);
             int taskId = tabWindowManager.getTaskIdForCustomTab(selector);
             windowTags.add(String.valueOf(taskId));
@@ -230,6 +235,7 @@ public class PersistentStoreCleaner {
         // Retry once selectors are fully initialized.
         assert !selectors.isEmpty();
         for (TabModelSelector selector : selectors) {
+            assert selector != null;
             if (!selector.isTabStateInitialized()) {
                 TabModelUtils.runOnTabStateInitialized(
                         () -> {

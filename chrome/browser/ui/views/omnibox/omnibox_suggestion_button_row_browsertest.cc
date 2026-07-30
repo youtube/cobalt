@@ -179,7 +179,7 @@ class OmniboxSuggestionButtonRowBrowserTest : public DialogBrowserTest {
   }
 
   LocationBar* GetLocationBar() {
-    return browser()->window()->GetLocationBar();
+    return BrowserWindow::FromBrowser(browser())->GetLocationBar();
   }
 
   OmniboxViewViews* GetOmniboxViewViews() {

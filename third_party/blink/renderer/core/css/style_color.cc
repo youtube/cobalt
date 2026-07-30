@@ -54,6 +54,45 @@ Color ResolveColorOperand(
   }
 }
 
+const CalculationValue* ResolveColorChannel(
+    const CSSValue& value,
+    const CSSLengthResolver& length_resolver) {
+  if (const auto* numeric = DynamicTo<CSSNumericLiteralValue>(value)) {
+    PixelsAndPercent literal;
+    if (numeric->IsAngle()) {
+      literal = PixelsAndPercent(numeric->ComputeDegrees());
+    } else if (numeric->IsPercentage()) {
+      literal = PixelsAndPercent(0., numeric->DoubleValue(), false, true);
+    } else {
+      // It's not actually a "pixels" value, but treating it as one simplifies
+      // storage and resolution.
+      literal = PixelsAndPercent(numeric->DoubleValue());
+    }
+    return MakeGarbageCollected<CalculationValue>(literal,
+                                                  Length::ValueRange::kAll);
+  }
+  if (const auto* identifier = DynamicTo<CSSIdentifierValue>(value)) {
+    if (identifier->GetValueID() == CSSValueID::kNone) {
+      return nullptr;
+    }
+    const auto* expression =
+        MakeGarbageCollected<CalculationExpressionColorChannelKeywordNode>(
+            CSSValueIDToColorChannelKeyword(identifier->GetValueID()));
+    return CalculationValue::CreateSimplified(expression,
+                                              Length::ValueRange::kAll);
+  }
+  if (const auto* function = DynamicTo<CSSMathFunctionValue>(value)) {
+    // TODO(crbug.com/487357825): ToCalcValue() should know when to not
+    // apply zoom.
+    float saved_zoom = length_resolver.Zoom();
+    const_cast<CSSLengthResolver&>(length_resolver).SetZoom(1.0f);
+    auto* result = function->ToCalcValue(length_resolver);
+    const_cast<CSSLengthResolver&>(length_resolver).SetZoom(saved_zoom);
+    return result;
+  }
+  NOTREACHED();
+}
+
 CSSValue* ConvertColorOperandToCSSValue(
     const StyleColor::ColorOrUnresolvedColorFunction& color_or_function,
     UnderlyingColorType type) {
@@ -163,43 +202,9 @@ StyleColor::UnresolvedAlphaColor::UnresolvedAlphaColor(
     : UnresolvedColorFunction(UnresolvedColorFunction::Type::kAlphaColor),
       origin_color_(origin_color.color_or_unresolved_color_function_),
       origin_color_type_(ResolveColorOperandType(origin_color)) {
-  auto to_channel =
-      [&length_resolver](const CSSValue& value) -> const CalculationValue* {
-    if (const CSSNumericLiteralValue* numeric =
-            DynamicTo<CSSNumericLiteralValue>(value)) {
-      if (numeric->IsPercentage()) {
-        return MakeGarbageCollected<CalculationValue>(
-            PixelsAndPercent(0., numeric->DoubleValue(), false, true),
-            Length::ValueRange::kAll);
-      } else {
-        return MakeGarbageCollected<CalculationValue>(
-            PixelsAndPercent(numeric->DoubleValue()), Length::ValueRange::kAll);
-      }
-    } else if (const CSSIdentifierValue* identifier =
-                   DynamicTo<CSSIdentifierValue>(value)) {
-      if (identifier->GetValueID() == CSSValueID::kNone) {
-        return nullptr;
-      }
-      const CalculationExpressionNode* expression =
-          MakeGarbageCollected<CalculationExpressionColorChannelKeywordNode>(
-              CSSValueIDToColorChannelKeyword(identifier->GetValueID()));
-      return CalculationValue::CreateSimplified(expression,
-                                                Length::ValueRange::kAll);
-    } else if (const CSSMathFunctionValue* function =
-                   DynamicTo<CSSMathFunctionValue>(value)) {
-      float saved_zoom = length_resolver.Zoom();
-      const_cast<CSSLengthResolver&>(length_resolver).SetZoom(1.0f);
-      auto* result = function->ToCalcValue(length_resolver);
-      const_cast<CSSLengthResolver&>(length_resolver).SetZoom(saved_zoom);
-      return result;
-    } else {
-      NOTREACHED();
-    }
-  };
-
   if (alpha != nullptr) {
     alpha_was_specified_ = true;
-    alpha_ = to_channel(*alpha);
+    alpha_ = ResolveColorChannel(*alpha, length_resolver);
   } else {
     // https://drafts.csswg.org/css-color-5/#relative-alpha
     // If the alpha value is omitted, it defaults to that of the origin color.
@@ -313,55 +318,12 @@ StyleColor::UnresolvedRelativeColor::UnresolvedRelativeColor(
       origin_color_(origin_color.color_or_unresolved_color_function_),
       origin_color_type_(ResolveColorOperandType(origin_color)),
       color_interpolation_space_(color_interpolation_space) {
-  auto to_channel =
-      [&length_resolver](const CSSValue& value) -> const CalculationValue* {
-    if (const CSSNumericLiteralValue* numeric =
-            DynamicTo<CSSNumericLiteralValue>(value)) {
-      if (numeric->IsAngle()) {
-        return MakeGarbageCollected<CalculationValue>(
-            PixelsAndPercent(numeric->ComputeDegrees()),
-            Length::ValueRange::kAll);
-      }
-      if (numeric->IsPercentage()) {
-        return MakeGarbageCollected<CalculationValue>(
-            PixelsAndPercent(0., numeric->DoubleValue(), false, true),
-            Length::ValueRange::kAll);
-      } else {
-        // It's not actually a "pixels" value, but treating it as one simplifies
-        // storage and resolution.
-        return MakeGarbageCollected<CalculationValue>(
-            PixelsAndPercent(numeric->DoubleValue()), Length::ValueRange::kAll);
-      }
-    } else if (const CSSIdentifierValue* identifier =
-                   DynamicTo<CSSIdentifierValue>(value)) {
-      if (identifier->GetValueID() == CSSValueID::kNone) {
-        return nullptr;
-      }
-      const CalculationExpressionNode* expression =
-          MakeGarbageCollected<CalculationExpressionColorChannelKeywordNode>(
-              CSSValueIDToColorChannelKeyword(identifier->GetValueID()));
-      return CalculationValue::CreateSimplified(expression,
-                                                Length::ValueRange::kAll);
-    } else if (const CSSMathFunctionValue* function =
-                   DynamicTo<CSSMathFunctionValue>(value)) {
-      // TODO(crbug.com/487357825): ToCalcValue() should know when to not
-      // apply zoom.
-      float saved_zoom = length_resolver.Zoom();
-      const_cast<CSSLengthResolver&>(length_resolver).SetZoom(1.0f);
-      auto* result = function->ToCalcValue(length_resolver);
-      const_cast<CSSLengthResolver&>(length_resolver).SetZoom(saved_zoom);
-      return result;
-    } else {
-      NOTREACHED();
-    }
-  };
-
-  channel0_ = to_channel(channel0);
-  channel1_ = to_channel(channel1);
-  channel2_ = to_channel(channel2);
-  if (alpha != nullptr) {
+  channel0_ = ResolveColorChannel(channel0, length_resolver);
+  channel1_ = ResolveColorChannel(channel1, length_resolver);
+  channel2_ = ResolveColorChannel(channel2, length_resolver);
+  if (alpha) {
     alpha_was_specified_ = true;
-    alpha_ = to_channel(*alpha);
+    alpha_ = ResolveColorChannel(*alpha, length_resolver);
   } else {
     // https://drafts.csswg.org/css-color-5/#rcs-intro
     // If the alpha value of the relative color is omitted, it defaults to that

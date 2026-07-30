@@ -224,7 +224,8 @@ void TestWebContents::TestSetFaviconURL(
 
 void TestWebContents::TestUpdateFaviconURL(
     const std::vector<blink::mojom::FaviconURLPtr>& favicon_urls) {
-  GetPrimaryMainFrame()->UpdateFaviconURL(mojo::Clone(favicon_urls));
+  GetPrimaryMainFrame()->UpdateFaviconURL(
+      mojo::Clone(favicon_urls), blink::mojom::FaviconUpdateReason::kPageLoad);
 }
 
 void TestWebContents::SetLastCommittedURL(const GURL& url) {

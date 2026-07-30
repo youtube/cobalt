@@ -35,6 +35,7 @@ source_set("unit_tests") {
   deps = [
     ":coordinator",
     "//base/test:test_support",
+    "//components/sync:test_support",
     "//components/sync/service",
     "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/model/browser/test:test_support",
@@ -45,6 +46,8 @@ source_set("unit_tests") {
     "//ios/chrome/browser/signin/model:fake_system_identity_manager",
     "//ios/chrome/browser/signin/model:test_support",
     "//ios/chrome/browser/signin/model/trusted_vault:trusted_vault_factory",
+    "//ios/chrome/browser/sync/model",
+    "//ios/chrome/browser/sync/model:test_support",
     "//ios/chrome/test:test_support",
     "//ios/chrome/test/providers/signin:trusted_vault",
     "//ios/web/common:uikit",

@@ -21,7 +21,6 @@
 #include "base/trace_event/named_trigger.h"
 #include "base/trace_event/trace_event.h"
 #include "components/crash/core/common/crash_key.h"
-#include "components/page_load_metrics/browser/navigation_handle_user_data.h"
 #include "components/page_load_metrics/browser/observers/core/largest_contentful_paint_handler.h"
 #include "components/page_load_metrics/browser/page_load_metrics_util.h"
 #include "components/page_load_metrics/common/page_load_metrics_util.h"

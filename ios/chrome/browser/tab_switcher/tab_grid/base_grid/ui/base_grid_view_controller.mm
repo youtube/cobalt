@@ -43,7 +43,6 @@
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_view_controller_mutator.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/group_grid_cell.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_context_menu/tab_context_menu_provider.h"
-#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/legacy_grid_transition_layout.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/tab_grid_transition_item.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/tab_grid_transition_layout.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_group_item.h"
@@ -485,56 +484,6 @@ typedef NS_ENUM(NSInteger, DragEntrySide) {
   _contentInsets = contentInsets;
 }
 
-- (LegacyGridTransitionLayout*)legacyTransitionLayout {
-  [self.collectionView layoutIfNeeded];
-  NSMutableArray<LegacyGridTransitionItem*>* items =
-      [[NSMutableArray alloc] init];
-  LegacyGridTransitionActiveItem* activeItem;
-  LegacyGridTransitionItem* selectionItem;
-  NSInteger tabSectionIndex = [self.diffableDataSource
-      indexForSectionIdentifier:kGridOpenTabsSectionIdentifier];
-  for (NSIndexPath* path in self.collectionView.indexPathsForVisibleItems) {
-    if (path.section != tabSectionIndex) {
-      continue;
-    }
-    UICollectionViewCell* collectionViewCell =
-        [self.collectionView cellForItemAtIndexPath:path];
-    if (![collectionViewCell isKindOfClass:[GridCell class]]) {
-      continue;
-    }
-    GridCell* cell = ObjCCastStrict<GridCell>(collectionViewCell);
-    UICollectionViewLayoutAttributes* attributes =
-        [self.collectionView layoutAttributesForItemAtIndexPath:path];
-    // Normalize frame to window coordinates. The attributes class applies this
-    // change to the other properties such as center, bounds, etc.
-    attributes.frame = [self.collectionView convertRect:attributes.frame
-                                                 toView:nil];
-    if ([cell.itemIdentifier isEqual:self.selectedItemIdentifier]) {
-      GridTransitionCell* activeCell =
-          [GridTransitionCell transitionCellFromCell:cell];
-      activeItem =
-          [LegacyGridTransitionActiveItem itemWithCell:activeCell
-                                                center:attributes.center
-                                                  size:attributes.size];
-      // NTP items need to be animated differently.
-      if (IsUrlNtp(cell.itemIdentifier.tabSwitcherItem.URL)) {
-        activeItem.shouldUseBVCSnapshot = YES;
-      }
-      selectionItem = [LegacyGridTransitionItem
-          itemWithCell:[GridCell transitionSelectionCellFromCell:cell]
-                center:attributes.center];
-    } else {
-      UIView* cellSnapshot = [cell snapshotViewAfterScreenUpdates:YES];
-      LegacyGridTransitionItem* item =
-          [LegacyGridTransitionItem itemWithCell:cellSnapshot
-                                          center:attributes.center];
-      [items addObject:item];
-    }
-  }
-  return [LegacyGridTransitionLayout layoutWithInactiveItems:items
-                                                  activeItem:activeItem
-                                               selectionItem:selectionItem];
-}
 
 - (TabGridTransitionLayout*)transitionLayout {
   return [TabGridTransitionLayout

@@ -150,8 +150,7 @@ Result LocalNetworkAccessChecker::CheckAddressSpace(
   }
 
   // Currently for LNA we are only blocking public -> local/private/loopback
-  // requests. Requests from local -> loopback (or private -> local in PNA
-  // terminology) are not blocked at present.
+  // requests. Requests from local -> loopback are not blocked at present.
   if (base::FeatureList::IsEnabled(features::kLocalNetworkAccessChecks)) {
     if (!IsLessPublicAddressSpaceLNA(
             resource_address_space, client_security_state_->ip_address_space)) {

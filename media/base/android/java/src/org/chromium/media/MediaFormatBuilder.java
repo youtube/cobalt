@@ -9,7 +9,7 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 
-import org.chromium.base.ContextUtils;
+import org.chromium.base.DeviceInfo;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.media.MediaCodecUtil.MimeTypes;
@@ -79,7 +79,7 @@ class MediaFormatBuilder {
     private static void addInputSizeInfoToFormat(
             MediaFormat format, boolean allowAdaptivePlayback) {
         if (allowAdaptivePlayback) {
-            if (DisplayCompat.isTv(ContextUtils.getApplicationContext())) {
+            if (DeviceInfo.isTV()) {
                 // For now, only set max width and height to native resolution on TVs.
                 // Some decoders on TVs interpret max width / height quite literally,
                 // and a crash can occur if these are exceeded.

@@ -13,6 +13,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "base/check.h"
@@ -310,7 +311,8 @@ void SetSuggestionLabelsForCard(
                             CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR, app_locale))});
     }
     std::optional<Suggestion::Text> benefit_label =
-        GetCreditCardBenefitSuggestionLabel(credit_card, client);
+        GetCreditCardBenefitSuggestionLabel(credit_card, client,
+                                            &metadata_logging_context);
     if (benefit_label) {
       // Keep track of which cards had eligible benefits even if the
       // benefit is not displayed in the suggestion due to
@@ -318,8 +320,6 @@ void SetSuggestionLabelsForCard(
       // of users with benefit-eligible cards and assess how actually
       // displaying the benefit in the experiment influences the users autofill
       // interactions.
-      metadata_logging_context.instrument_ids_to_available_benefit_sources
-          .insert({credit_card.instrument_id(), credit_card.benefit_source()});
       if (client.GetPersonalDataManager()
               .payments_data_manager()
               .IsCardEligibleForBenefits(credit_card)) {
@@ -691,19 +691,33 @@ std::u16string GetDisplayNicknameForCreditCard(
 }
 
 // Returns the benefit text to display in credit card suggestions if it is
-// available.
+// available. Populates the optional `metadata_logging_context` with the benefit
+// source and type associated with the `credit_card` if a valid benefit exists.
 std::optional<Suggestion::Text> GetCreditCardBenefitSuggestionLabel(
     const CreditCard& credit_card,
-    const AutofillClient& client) {
-  const std::u16string& benefit_description =
+    const AutofillClient& client,
+    autofill_metrics::CardMetadataLoggingContext* metadata_logging_context) {
+  std::optional<CreditCardBenefit> benefit =
       client.GetPersonalDataManager()
           .payments_data_manager()
-          .GetApplicableBenefitDescriptionForCardAndOrigin(
+          .GetApplicableBenefitForCardAndOrigin(
               credit_card, client.GetLastCommittedPrimaryMainFrameOrigin(),
               client.GetAutofillOptimizationGuideDecider());
-  if (benefit_description.empty()) {
+  if (!benefit.has_value()) {
     return std::nullopt;
   }
+  if (metadata_logging_context) {
+    metadata_logging_context->instrument_ids_to_available_benefit_context
+        .insert({credit_card.instrument_id(),
+                 autofill_metrics::CardMetadataLoggingContext::
+                     CardBenefitLoggingContext{
+                         .benefit_source = credit_card.benefit_source(),
+                         .benefit_type = GetTypeForCardBenefit(benefit.value()),
+                     }});
+  }
+  const std::u16string& benefit_description = std::visit(
+      [](const CreditCardBenefitBase& b) { return b.benefit_description(); },
+      benefit.value());
 #if BUILDFLAG(IS_ANDROID)
   // The TTF bottom sheet displays a separate `Terms apply for card benefits`
   // message after listing all card suggestion, so it should not be appended
@@ -936,15 +950,14 @@ std::vector<Suggestion> GetCreditCardSuggestionsForTouchToFill(
         credit_card.record_type() == CreditCard::RecordType::kVirtualCard);
     suggestion.icon = credit_card.CardIconForAutofillSuggestion();
     std::optional<Suggestion::Text> benefit_label =
-        GetCreditCardBenefitSuggestionLabel(credit_card, manager.client());
+        GetCreditCardBenefitSuggestionLabel(credit_card, manager.client(),
+                                            &metadata_logging_context);
     if (benefit_label) {
       // Keep track of which cards had eligible benefits even if the
       // benefit is not displayed in the suggestion due to
       // IsCardEligibleForBenefits() == false. This helps denote a control
       // group of users with benefit-eligible cards to help determine how
       // benefit availability affects autofill usage.
-      metadata_logging_context.instrument_ids_to_available_benefit_sources
-          .insert({credit_card.instrument_id(), credit_card.benefit_source()});
       if (manager.client()
               .GetPersonalDataManager()
               .payments_data_manager()
@@ -1081,6 +1094,7 @@ bool IsCreditCardFooterSuggestion(
     case SuggestionType::kScanCreditCard:
     case SuggestionType::kUndoOrClear:
     case SuggestionType::kBnplFootnote:
+    case SuggestionType::kMaximizeCreditCardBenefitsEntry:
       return true;
     case SuggestionType::kAllLoyaltyCardsEntry:
     case SuggestionType::kAllSavedPasswordsEntry:
@@ -1099,6 +1113,7 @@ bool IsCreditCardFooterSuggestion(
     case SuggestionType::kAtMemoryInactivityNudge:
     case SuggestionType::kOpenGemini:
     case SuggestionType::kAtMemoryNoConnection:
+    case SuggestionType::kAtMemoryGenericError:
     case SuggestionType::kAtMemorySearchAffordance:
     case SuggestionType::kAddressFieldByFieldFilling:
     case SuggestionType::kAutocompleteEntry:
@@ -1559,7 +1574,7 @@ bool ShouldShowScanCreditCard(const FormStructure& form,
     return false;
   }
 
-  if (IsFormOrClientNonSecure(client, form)) {
+  if (!client.IsContextSecure()) {
     return false;
   }
 

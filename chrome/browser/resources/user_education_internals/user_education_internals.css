@@ -22,10 +22,12 @@
   --iph-section-border-color: var(--google-blue-300);
   --main-column-max-width: 680px;
   --new-badge-section-border-color: var(--google-yellow-300);
+  --ntp-promos-section-border-color: var(--google-purple-200);
+  --non-iph-promo-section-border-color:
+      color-mix(in hsl, var(--google-yellow-300), var(--google-red-300));
+  --tutorials-section-border-color: var(--google-red-300);
   --whats-new-section-border-color: var(--google-grey-300);
   --side-bar-width: 200px;
-  --tutorials-section-border-color: var(--google-red-300);
-  --ntp-promos-section-border-color: var(--google-purple-200);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -33,9 +35,11 @@
     --advanced-section-border-color: var(--google-green-700);
     --iph-section-border-color: var(--google-blue-700);
     --new-badge-section-border-color: var(--google-yellow-700);
-    --whats-new-section-border-color: var(--google-grey-700);
-    --tutorials-section-border-color: var(--google-red-700);
     --ntp-promos-section-border-color: var(--google-purple-900);
+    --non-iph-promo-section-border-color:
+        color-mix(in hsl, var(--google-yellow-700), var(--google-red-700));
+    --tutorials-section-border-color: var(--google-red-700);
+    --whats-new-section-border-color: var(--google-grey-700);
   }
 }
 
@@ -71,6 +75,16 @@ p {
   padding-inline: var(--cr-section-padding);
 }
 
+.if-empty {
+  display: block;
+}
+
+.promo-list:has(:is(
+    user-education-internals-card,
+    user-education-whats-new-internals-card):not([hidden])) > .if-empty {
+  display: none;
+}
+
 #container {
   align-items: flex-start;
   color: var(--cr-primary-text-color);
@@ -93,6 +107,10 @@ p {
 
 #sidebar {
   width: var(--side-bar-width);
+}
+
+#menu {
+  flex-direction: column;
 }
 
 #main {
@@ -126,6 +144,12 @@ p {
 
 #newBadges {
   border-inline-start: 1px solid var(--new-badge-section-border-color);
+  padding-inline: var(--cr-section-padding);
+  scroll-margin-top: 16px;
+}
+
+#nonIphPromos {
+  border-inline-start: 1px solid var(--non-iph-promo-section-border-color);
   padding-inline: var(--cr-section-padding);
   scroll-margin-top: 16px;
 }

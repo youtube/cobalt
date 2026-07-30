@@ -94,4 +94,12 @@ public class AtMemoryBottomSheetCoordinatorTest {
         assertNotNull(searchInput);
         assertTrue(searchInput.hasFocus());
     }
+
+    @Test
+    public void testShow_FlyoutScreen() {
+        // TODO(crbug.com/513146609): Implement the test case when the user queries
+        // the at.memory search. The list of suggestions are shown and the user clicks
+        // the detail page button, then the flyout screen is shown. In that case, the
+        // bottom sheet should be updated to show the flyout.
+    }
 }

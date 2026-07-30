@@ -145,6 +145,8 @@ BASE_DECLARE_FEATURE(kAutofillAndroidKeyboardAccessoryDynamicPositioning);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillAtMemory);
 COMPONENT_EXPORT(AUTOFILL)
+BASE_DECLARE_FEATURE_PARAM(std::string, kAutofillAtMemoryEligibleTiers);
+COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillAtMemoryInactivityNudge);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillBetterLocalHeuristicPlaceholderSupport);
@@ -200,6 +202,8 @@ BASE_DECLARE_FEATURE_PARAM(bool, kAutofillAblationStudyIsDryRun);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillEnableAddressFieldParserNG);
 COMPONENT_EXPORT(AUTOFILL)
+BASE_DECLARE_FEATURE(kAutofillEnableAutofillSettingsEnterprisePolicy);
+COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillEnableCacheForRegexMatching);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE_PARAM(int,
@@ -226,14 +230,6 @@ COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillEnableSkippingUnrecognizedAttribute);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillEnableStreetAddressMergeModes);
-COMPONENT_EXPORT(AUTOFILL)
-BASE_DECLARE_FEATURE(kAutofillEnableSupportForNameAndEmail);
-COMPONENT_EXPORT(AUTOFILL)
-BASE_DECLARE_FEATURE_PARAM(int,
-                           kAutofillNameAndEmailProfileNotSelectedThreshold);
-COMPONENT_EXPORT(AUTOFILL)
-BASE_DECLARE_FEATURE_PARAM(std::string,
-                           kAutofillNameAndEmailProfileNicknameRegex);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillExtendZipCodeValidation);
 COMPONENT_EXPORT(AUTOFILL)
@@ -322,8 +318,6 @@ COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillStructuredFieldsDisableAddressLines);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillSupportCombinedZipAndCityFR);
-COMPONENT_EXPORT(AUTOFILL)
-BASE_DECLARE_FEATURE(kAutofillSupportPhoneticNameForJP);
 COMPONENT_EXPORT(AUTOFILL) BASE_DECLARE_FEATURE(kAutofillSupportSplitZipCode);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillSupportStandaloneZipCodeGlobally);

@@ -10,6 +10,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "components/send_tab_to_self/metrics_util.h"
 #include "components/send_tab_to_self/target_device_info.h"
 #include "ui/menus/simple_menu_model.h"
 
@@ -23,7 +24,8 @@ namespace send_tab_to_self {
 // Acts as the ui::SimpleMenuModel::Delegate for the submenu.
 class SendTabToSelfContextMenuDelegate : public ui::SimpleMenuModel::Delegate {
  public:
-  explicit SendTabToSelfContextMenuDelegate(content::WebContents* web_contents);
+  SendTabToSelfContextMenuDelegate(content::WebContents* web_contents,
+                                   ShareEntryPoint entry_point);
 
   SendTabToSelfContextMenuDelegate(const SendTabToSelfContextMenuDelegate&) =
       delete;
@@ -39,6 +41,7 @@ class SendTabToSelfContextMenuDelegate : public ui::SimpleMenuModel::Delegate {
   // ui::SimpleMenuModel::Delegate:
   bool IsCommandIdEnabled(int command_id) const override;
   void ExecuteCommand(int command_id, int event_flags) override;
+  void OnMenuWillShow(ui::SimpleMenuModel* source) override;
 
  private:
   // Returns the list of target devices to show in the context menu.
@@ -50,6 +53,7 @@ class SendTabToSelfContextMenuDelegate : public ui::SimpleMenuModel::Delegate {
 
   base::WeakPtr<content::WebContents> web_contents_;
   const std::vector<TargetDeviceInfo> devices_;
+  const ShareEntryPoint entry_point_;
 };
 
 }  // namespace send_tab_to_self

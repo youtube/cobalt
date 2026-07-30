@@ -34,7 +34,7 @@ class ToyDropTarget : public mojom::DropTarget {
   ~ToyDropTarget() override;
 
   // mojom::DropTarget:
-  void GetBounds(GetBoundsCallback callback) override;
+
   void OnDragEntered(const std::vector<tabs_api::NodeId>& source_tab_ids,
                      const gfx::Point& local_point) override;
   void OnDrag(const gfx::Point& local_point) override;

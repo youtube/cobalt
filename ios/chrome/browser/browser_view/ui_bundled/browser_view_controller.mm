@@ -1166,7 +1166,15 @@ bool IsFullscreenNextIAEnabled() {
   crash_keys::SetCurrentOrientation(GetInterfaceOrientation(),
                                     [[UIDevice currentDevice] orientation]);
 
-  if (!IsFullscreenNextIAEnabled()) {
+  if (IsFullscreenNextIAEnabled()) {
+    __weak BrowserViewController* weakSelf = self;
+    [coordinator
+        animateAlongsideTransition:^(
+            id<UIViewControllerTransitionCoordinatorContext>) {
+          [weakSelf.popupMenuCommandsHandler adjustPopupSize];
+        }
+                        completion:nil];
+  } else {
     __weak BrowserViewController* weakSelf = self;
     [coordinator
         animateAlongsideTransition:^(
@@ -1612,7 +1620,6 @@ bool IsFullscreenNextIAEnabled() {
         viewController.view.translatesAutoresizingMaskIntoConstraints = NO;
         [self updateNTPConstraints];
       }
-      [NTPCoordinator constrainNamedGuideForFeedIPH];
     } else {
       self.browserContentViewController.contentView = view;
       if (IsFullscreenRefactoringEnabled()) {
@@ -1908,10 +1915,7 @@ bool IsFullscreenNextIAEnabled() {
   // TODO(crbug.com/40842406): Remove this and let
   // `PrimaryToolbarViewController` or `ToolbarCoordinator` call the update ?
   [self.toolbarCoordinator updateToolbar];
-
-  if (IsGeminiCopresenceEnabled()) {
-    [self.geminiHandler updateFloatyWithTraitCollection:self.traitCollection];
-  }
+  [self.geminiHandler updateFloatyWithTraitCollection:self.traitCollection];
 
   self.fullscreenController->BrowserTraitCollectionChangedEnd();
 }
@@ -2674,11 +2678,16 @@ bool IsFullscreenNextIAEnabled() {
     }
   }
 
-  if (IsChromeNextIaEnabled() && isNTP && _isOffTheRecord) {
-    insets.bottom = [self secondaryToolbarHeightWithInset];
-    insets.top = [self expandedTopToolbarHeight];
-    if (self.layoutState.appBarPosition == AppBarPosition::kBottom) {
-      insets.bottom += kAppBarHeight;
+  if (isNTP && _isOffTheRecord) {
+    if (IsChromeNextIaEnabled()) {
+      insets.bottom = [self secondaryToolbarHeightWithInset];
+      insets.top = [self expandedTopToolbarHeight];
+      if (self.layoutState.appBarPosition == AppBarPosition::kBottom) {
+        insets.bottom += kAppBarHeight;
+      }
+    } else {
+      insets.top = [self expandedTopToolbarHeight];
+      insets.bottom = [self secondaryToolbarHeightWithInset];
     }
   }
   CGRect frameInView = UIEdgeInsetsInsetRect(self.view.bounds, insets);
@@ -2746,8 +2755,6 @@ bool IsFullscreenNextIAEnabled() {
 
   if (IsFullscreenRefactoringEnabled()) {
     newPage.frame = [self foregroundTabAnimationViewFrameForWebState:webState];
-  } else {
-    newPage.frame = [self newPageFrameForWebState:webState];
   }
 
   if (isNTP && !isIncognito && !CanShowTabStrip(self)) {
@@ -2798,7 +2805,7 @@ bool IsFullscreenNextIAEnabled() {
   if (IsChromeNextIaEnabled()) {
     animatedView.appBarPosition = self.layoutState.appBarPosition;
   }
-  if (IsFullscreenRefactoringEnabled() && isNTP) {
+  if (isNTP) {
     animatedView.backgroundView =
         [self.contentArea resizableSnapshotViewFromRect:frame
                                      afterScreenUpdates:NO
@@ -3140,9 +3147,6 @@ bool IsFullscreenNextIAEnabled() {
 #pragma mark - LensOverlayPresentationEnvironment
 
 - (void)lensOverlayDidPrepare {
-  if (!IsGeminiCopresenceEnabled()) {
-    return;
-  }
 
   [self.sceneHandler hideAssistant];
   [self.geminiHandler
@@ -3164,9 +3168,6 @@ bool IsFullscreenNextIAEnabled() {
 }
 
 - (void)lensOverlayDidDisappear {
-  if (!IsGeminiCopresenceEnabled()) {
-    return;
-  }
 
   [self.geminiHandler
       updateFloatyVisibilityIfEligibleAnimated:NO

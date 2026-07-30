@@ -48,6 +48,7 @@ public class SendTabToSelfGestureDetectorTest {
     @Mock private Profile mProfile;
     @Mock private WebContents mWebContents;
     @Mock private SendTabToSelfAndroidBridge.Natives mNativeMock;
+    @Mock private SendTabToSelfMetricsRecorder.Natives mMetricsRecorderMock;
 
     private SendTabToSelfGestureDetector mDetector;
 
@@ -57,6 +58,7 @@ public class SendTabToSelfGestureDetectorTest {
         when(mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)).thenReturn(mSensor);
 
         SendTabToSelfAndroidBridgeJni.setInstanceForTesting(mNativeMock);
+        SendTabToSelfMetricsRecorderJni.setInstanceForTesting(mMetricsRecorderMock);
 
         when(mTab.getWebContents()).thenReturn(mWebContents);
         when(mTab.getUrl()).thenReturn(new GURL("https://www.example.com"));
@@ -80,7 +82,8 @@ public class SendTabToSelfGestureDetectorTest {
         // A single shake spike should not be enough to trigger.
         mDetector.onSensorValuesChanged(new float[] {0f, 0f, 20f}, 1000L);
         verify(mNativeMock, never())
-                .sendTabToDevice(any(), any(), anyString(), anyString(), anyString(), any());
+                .sendTabToDevice(
+                        any(), any(), anyString(), anyString(), anyString(), any(), anyInt());
     }
 
     @Test
@@ -96,7 +99,8 @@ public class SendTabToSelfGestureDetectorTest {
                         eq("cache_guid"),
                         eq("https://www.example.com/"),
                         eq("Example Page"),
-                        any());
+                        any(),
+                        eq(ShareEntryPoint.GESTURE));
     }
 
     @Test
@@ -106,7 +110,8 @@ public class SendTabToSelfGestureDetectorTest {
         mDetector.onSensorValuesChanged(new float[] {0f, 0f, 20f}, 1000L);
         mDetector.onSensorValuesChanged(new float[] {0f, 0f, 20f}, 1050L);
         verify(mNativeMock, never())
-                .sendTabToDevice(any(), any(), anyString(), anyString(), anyString(), any());
+                .sendTabToDevice(
+                        any(), any(), anyString(), anyString(), anyString(), any(), anyInt());
     }
 
     @Test
@@ -116,7 +121,8 @@ public class SendTabToSelfGestureDetectorTest {
         mDetector.onSensorValuesChanged(new float[] {0f, 0f, 20f}, 1000L);
         mDetector.onSensorValuesChanged(new float[] {0f, 0f, 20f}, 1600L);
         verify(mNativeMock, never())
-                .sendTabToDevice(any(), any(), anyString(), anyString(), anyString(), any());
+                .sendTabToDevice(
+                        any(), any(), anyString(), anyString(), anyString(), any(), anyInt());
     }
 
     @Test
@@ -126,17 +132,20 @@ public class SendTabToSelfGestureDetectorTest {
         mDetector.onSensorValuesChanged(new float[] {0f, 0f, 20f}, 1000L);
         mDetector.onSensorValuesChanged(new float[] {0f, 0f, 20f}, 1300L);
         verify(mNativeMock, times(1))
-                .sendTabToDevice(any(), any(), anyString(), anyString(), anyString(), any());
+                .sendTabToDevice(
+                        any(), any(), anyString(), anyString(), anyString(), any(), anyInt());
 
         // A third spike soon after should not trigger again immediately (it's part of the reset).
         mDetector.onSensorValuesChanged(new float[] {0f, 0f, 20f}, 1400L);
         verify(mNativeMock, times(1))
-                .sendTabToDevice(any(), any(), anyString(), anyString(), anyString(), any());
+                .sendTabToDevice(
+                        any(), any(), anyString(), anyString(), anyString(), any(), anyInt());
 
         // A fourth spike after another valid interval should trigger a second time.
         mDetector.onSensorValuesChanged(new float[] {0f, 0f, 20f}, 1700L);
         verify(mNativeMock, times(2))
-                .sendTabToDevice(any(), any(), anyString(), anyString(), anyString(), any());
+                .sendTabToDevice(
+                        any(), any(), anyString(), anyString(), anyString(), any(), anyInt());
     }
 
     @Test
@@ -150,7 +159,8 @@ public class SendTabToSelfGestureDetectorTest {
         mDetector.onSensorValuesChanged(new float[] {0f, 0f, 20f}, 1300L);
 
         verify(mNativeMock, never())
-                .sendTabToDevice(any(), any(), anyString(), anyString(), anyString(), any());
+                .sendTabToDevice(
+                        any(), any(), anyString(), anyString(), anyString(), any(), anyInt());
     }
 
     @Test
@@ -165,7 +175,8 @@ public class SendTabToSelfGestureDetectorTest {
         mDetector.onSensorValuesChanged(new float[] {0f, 0f, 20f}, 1300L);
 
         verify(mNativeMock, never())
-                .sendTabToDevice(any(), any(), anyString(), anyString(), anyString(), any());
+                .sendTabToDevice(
+                        any(), any(), anyString(), anyString(), anyString(), any(), anyInt());
     }
 
     @Test
@@ -180,7 +191,8 @@ public class SendTabToSelfGestureDetectorTest {
         mDetector.onSensorValuesChanged(new float[] {0f, 0f, 20f}, 1300L);
 
         verify(mNativeMock, never())
-                .sendTabToDevice(any(), any(), anyString(), anyString(), anyString(), any());
+                .sendTabToDevice(
+                        any(), any(), anyString(), anyString(), anyString(), any(), anyInt());
     }
 
     @Test
@@ -195,7 +207,8 @@ public class SendTabToSelfGestureDetectorTest {
         mDetector.onSensorValuesChanged(new float[] {0f, 0f, 20f}, 1300L);
 
         verify(mNativeMock, times(1))
-                .sendTabToDevice(any(), any(), anyString(), anyString(), anyString(), any());
+                .sendTabToDevice(
+                        any(), any(), anyString(), anyString(), anyString(), any(), anyInt());
     }
 
     @Test

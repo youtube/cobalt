@@ -19,6 +19,7 @@
 #include "components/keyed_service/core/service_access_type.h"
 #include "components/passage_embeddings/core/passage_embedder_model_observer.h"
 #include "components/passage_embeddings/core/passage_embeddings_features.h"
+#include "components/passage_embeddings/core/passage_embeddings_service_controller.h"
 #include "components/permissions/features.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -94,7 +95,7 @@ PassageEmbedderModelObserverFactory::BuildServiceInstanceForBrowserContext(
       global_state_service
           ? &global_state_service->GetGlobalState().prediction_manager()
           : nullptr,
-      ChromePassageEmbeddingsServiceController::Get());
+      passage_embeddings::GetChromePassageEmbeddingsServiceController());
 }
 
 }  // namespace passage_embeddings

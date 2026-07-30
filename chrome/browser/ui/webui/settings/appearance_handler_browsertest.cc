@@ -25,10 +25,7 @@ namespace settings {
 
 class AppearanceHandlerTest : public InProcessBrowserTest {
  public:
-  AppearanceHandlerTest() {
-    scoped_feature_list_.InitAndDisableFeature(
-        tabs::kHorizontalTabStripComboButton);
-  }
+  AppearanceHandlerTest() = default;
   ~AppearanceHandlerTest() override = default;
   AppearanceHandlerTest(const AppearanceHandlerTest&) = delete;
   AppearanceHandlerTest& operator=(const AppearanceHandlerTest&) = delete;
@@ -39,9 +36,6 @@ class AppearanceHandlerTest : public InProcessBrowserTest {
     EXPECT_TRUE(content::WaitForLoadStop(
         browser()->tab_strip_model()->GetActiveWebContents()));
   }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(AppearanceHandlerTest,
@@ -70,12 +64,7 @@ IN_PROC_BROWSER_TEST_F(AppearanceHandlerTest, ResetPinnedToolbarActions) {
 
   EXPECT_TRUE(prefs->GetBoolean(prefs::kShowHomeButton));
   EXPECT_FALSE(prefs->GetBoolean(prefs::kShowForwardButton));
-  if (tabs::GetTabSearchPosition(browser()) ==
-      tabs::TabSearchPosition::kToolbarButton) {
-    EXPECT_EQ(3u, actions_model->PinnedActionIds().size());
-  } else {
-    EXPECT_EQ(2u, actions_model->PinnedActionIds().size());
-  }
+  EXPECT_EQ(2u, actions_model->PinnedActionIds().size());
 
   base::ListValue args;
   browser()
@@ -87,15 +76,8 @@ IN_PROC_BROWSER_TEST_F(AppearanceHandlerTest, ResetPinnedToolbarActions) {
 
   EXPECT_FALSE(prefs->GetBoolean(prefs::kShowHomeButton));
   EXPECT_TRUE(prefs->GetBoolean(prefs::kShowForwardButton));
-  if (tabs::GetTabSearchPosition(browser()) ==
-      tabs::TabSearchPosition::kToolbarButton) {
-    ASSERT_EQ(2u, actions_model->PinnedActionIds().size());
-    EXPECT_EQ(kActionShowChromeLabs, actions_model->PinnedActionIds()[0]);
-    EXPECT_EQ(kActionTabSearch, actions_model->PinnedActionIds()[1]);
-  } else {
-    ASSERT_EQ(1u, actions_model->PinnedActionIds().size());
-    EXPECT_EQ(kActionShowChromeLabs, actions_model->PinnedActionIds()[0]);
-  }
+  ASSERT_EQ(1u, actions_model->PinnedActionIds().size());
+  EXPECT_EQ(kActionShowChromeLabs, actions_model->PinnedActionIds()[0]);
 }
 
 }  // namespace settings

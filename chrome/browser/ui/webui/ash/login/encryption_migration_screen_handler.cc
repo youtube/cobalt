@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/webui/ash/login/encryption_migration_screen_handler.h"
 
+#include "ash/login/resources/grit/ash_login_strings.h"
 #include "base/system/sys_info.h"
 #include "chrome/browser/ash/login/screens/encryption_migration_screen.h"
 #include "chrome/grit/generated_resources.h"

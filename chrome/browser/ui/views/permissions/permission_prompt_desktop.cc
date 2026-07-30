@@ -8,20 +8,31 @@
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
+#include "chrome/browser/ui/webui/webui_embedding_context.h"
+#include "components/tabs/public/tab_interface.h"
 
 namespace {}  // namespace
 
 PermissionPromptDesktop::PermissionPromptDesktop(
-    Browser* browser,
     content::WebContents* web_contents,
     Delegate* delegate)
-    : web_contents_(web_contents), delegate_(delegate), browser_(browser) {}
+    : web_contents_(web_contents), delegate_(delegate) {
+  if (!browser_) {
+    UpdateBrowser();
+  }
+}
 
 PermissionPromptDesktop::~PermissionPromptDesktop() = default;
 
 bool PermissionPromptDesktop::UpdateBrowser() {
+  tabs::TabInterface* tab =
+      web_contents_ ? tabs::TabInterface::MaybeGetFromContents(web_contents_)
+                    : nullptr;
   BrowserWindowInterface* current_browser =
-      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(web_contents_);
+      tab ? tab->GetBrowserWindowInterface() : nullptr;
+  if (!current_browser) {
+    current_browser = webui::GetBrowserWindowInterface(web_contents_);
+  }
   // Browser for |web_contents_| might change when for example the tab was
   // dragged to another window.
   bool was_browser_changed = false;

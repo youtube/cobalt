@@ -111,18 +111,24 @@ FuzzedSocketFactory::~FuzzedSocketFactory() = default;
 std::unique_ptr<DatagramClientSocket>
 FuzzedSocketFactory::CreateDatagramClientSocket(
     DatagramSocket::BindType bind_type,
+    handles::NetworkHandle target_network,
     NetLog* net_log,
     const NetLogSource& source) {
+  // Currently this is not used to test any multi-network scenarios. This means
+  // that it is safe to always ignore `target_network`.
   return std::make_unique<FuzzedDatagramClientSocket>(data_provider_);
 }
 
 std::unique_ptr<TransportClientSocket>
 FuzzedSocketFactory::CreateTransportClientSocket(
     const AddressList& addresses,
+    handles::NetworkHandle target_network,
     std::unique_ptr<SocketPerformanceWatcher> socket_performance_watcher,
     NetworkQualityEstimator* network_quality_estimator,
     NetLog* net_log,
     const NetLogSource& source) {
+  // Currently this is not used to test any multi-network scenarios. This means
+  // that it is safe to always ignore `target_network`.
   auto socket = std::make_unique<FuzzedSocket>(data_provider_, net_log);
   socket->set_fuzz_connect_result(fuzz_connect_result_);
   // Just use the first address.

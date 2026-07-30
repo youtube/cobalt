@@ -53,6 +53,9 @@ BASE_DECLARE_FEATURE(kDsePreload2OnPressIncognito);
 // https://docs.google.com/document/d/1f4dcNYP3O_Ft4yMmC42ETxGC5lM7YF5FDbEgnxUua7M/edit?tab=t.38v8gca76tmi
 BASE_DECLARE_FEATURE(kDsePreload2OnSuggestNonDefalutMatch);
 
+extern const base::FeatureParam<std::string>
+    kDsePreload2InitialNoVarySearchHint;
+
 // Returns true iff we should enter DsePreload2 code path.
 bool IsDsePreload2Enabled();
 

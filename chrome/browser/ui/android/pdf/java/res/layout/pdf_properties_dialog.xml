@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2026 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<GridLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:columnCount="2"
+    android:paddingVertical="24dp"
+    android:paddingStart="48dp"
+    android:paddingEnd="48dp">
+
+    <!-- File Name -->
+    <TextView
+        android:id="@+id/file_name_label"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_columnWeight="1"
+        android:layout_gravity="fill_horizontal"
+        android:layout_marginBottom="16dp"
+        android:text="@string/pdf_properties_file_name"
+        android:textAppearance="@style/TextAppearance.TextSmall.Secondary" />
+    <TextView
+        android:id="@+id/file_name_value"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_columnWeight="4"
+        android:layout_gravity="fill_horizontal"
+        android:layout_marginBottom="16dp"
+        android:textAppearance="@style/TextAppearance.TextMedium.Primary" />
+
+    <!-- File Size -->
+    <TextView
+        android:id="@+id/file_size_label"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_columnWeight="1"
+        android:layout_gravity="fill_horizontal"
+        android:layout_marginBottom="16dp"
+        android:text="@string/pdf_properties_file_size"
+        android:textAppearance="@style/TextAppearance.TextSmall.Secondary" />
+    <TextView
+        android:id="@+id/file_size_value"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_columnWeight="4"
+        android:layout_gravity="fill_horizontal"
+        android:layout_marginBottom="16dp"
+        android:textAppearance="@style/TextAppearance.TextMedium.Primary" />
+
+    <!-- Title -->
+    <TextView
+        android:id="@+id/title_label"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_columnWeight="1"
+        android:layout_gravity="fill_horizontal"
+        android:layout_marginBottom="16dp"
+        android:text="@string/pdf_properties_title"
+        android:textAppearance="@style/TextAppearance.TextSmall.Secondary" />
+    <TextView
+        android:id="@+id/title_value"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_columnWeight="4"
+        android:layout_gravity="fill_horizontal"
+        android:layout_marginBottom="16dp"
+        android:textAppearance="@style/TextAppearance.TextMedium.Primary" />
+
+    <!-- Created -->
+    <TextView
+        android:id="@+id/created_label"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_columnWeight="1"
+        android:layout_gravity="fill_horizontal"
+        android:layout_marginBottom="16dp"
+        android:text="@string/pdf_properties_created"
+        android:textAppearance="@style/TextAppearance.TextSmall.Secondary" />
+    <TextView
+        android:id="@+id/created_value"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_columnWeight="4"
+        android:layout_gravity="fill_horizontal"
+        android:layout_marginBottom="16dp"
+        android:textAppearance="@style/TextAppearance.TextMedium.Primary" />
+
+    <!-- Modified -->
+    <TextView
+        android:id="@+id/modified_label"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_columnWeight="1"
+        android:layout_gravity="fill_horizontal"
+        android:layout_marginBottom="16dp"
+        android:text="@string/pdf_properties_modified"
+        android:textAppearance="@style/TextAppearance.TextSmall.Secondary" />
+    <TextView
+        android:id="@+id/modified_value"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_columnWeight="4"
+        android:layout_gravity="fill_horizontal"
+        android:layout_marginBottom="16dp"
+        android:textAppearance="@style/TextAppearance.TextMedium.Primary" />
+
+    <!-- Page Count -->
+    <TextView
+        android:id="@+id/page_count_label"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_columnWeight="1"
+        android:layout_gravity="fill_horizontal"
+        android:layout_marginBottom="16dp"
+        android:text="@string/pdf_properties_page_count"
+        android:textAppearance="@style/TextAppearance.TextSmall.Secondary" />
+    <TextView
+        android:id="@+id/page_count_value"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_columnWeight="4"
+        android:layout_gravity="fill_horizontal"
+        android:layout_marginBottom="16dp"
+        android:textAppearance="@style/TextAppearance.TextMedium.Primary" />
+
+    <!-- Page Size -->
+    <TextView
+        android:id="@+id/page_size_label"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_columnWeight="1"
+        android:layout_gravity="fill_horizontal"
+        android:text="@string/pdf_properties_page_size"
+        android:textAppearance="@style/TextAppearance.TextSmall.Secondary" />
+    <TextView
+        android:id="@+id/page_size_value"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_columnWeight="4"
+        android:layout_gravity="fill_horizontal"
+        android:textAppearance="@style/TextAppearance.TextMedium.Primary" />
+
+</GridLayout>

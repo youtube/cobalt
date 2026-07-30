@@ -217,7 +217,7 @@ void GlicHandler::HandleGetGlicShortcut(const base::ListValue& args) {
   AllowJavascript();
   ResolveJavascriptCallback(
       callback_id,
-      base::UTF16ToUTF8(glic::GlicLauncherConfiguration::GetGlobalHotkey()
+      base::UTF16ToUTF8(glic::GlicLauncherConfiguration::GetToggleHotkey()
                             .GetShortcutText()));
 }
 
@@ -292,9 +292,8 @@ void GlicHandler::HandleGetGlicSelectionShortcut(const base::ListValue& args) {
   AllowJavascript();
   ResolveJavascriptCallback(
       callback_id,
-      base::UTF16ToUTF8(
-          glic::GlicLauncherConfiguration::GetSelectionGlobalHotkey()
-              .GetShortcutText()));
+      base::UTF16ToUTF8(glic::GlicLauncherConfiguration::GetSelectionHotkey()
+                            .GetShortcutText()));
 }
 
 void GlicHandler::HandleSetGlicSelectionShortcut(const base::ListValue& args) {

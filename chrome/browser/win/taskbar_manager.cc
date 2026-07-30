@@ -67,14 +67,8 @@ constexpr std::array kChannels = {
 // ITaskbarManager method returned an error.
 std::optional<bool> IsPinningAllowed(
     const ComPtr<ITaskbarManager>& taskbar_manager) {
-  // `get_IsSupported` and `get_IsPinningAllowed` issue a synchronous, blocking
-  // cross-process RPC to the shell (explorer.exe), so they must not run on the
-  // UI thread. The TaskbarManager WinRT object is agile
-  // (MarshalingBehavior=Agile, ThreadingModel=Both), so these queries are safe
-  // to call from the background thread that created the object. Only
-  // `RequestPinCurrentAppAsync`, which displays a confirmation dialog, requires
-  // the UI thread.
-  DCHECK(!BrowserThread::CurrentlyOn(BrowserThread::UI));
+  // Windows requires that this is run on the UI thread.
+  CHECK_CURRENTLY_ON(BrowserThread::UI);
   boolean supported;
   HRESULT hr = taskbar_manager->get_IsSupported(&supported);
   if (FAILED(hr)) {
@@ -153,15 +147,28 @@ void OnIsCurrentAppPinnedResult(ComPtr<ITaskbarManager> taskbar_manager,
   }
 }
 
-// Checks whether the current app is already pinned and, if not (and
-// `check_only` is false), requests that it be pinned. This runs on the UI
-// thread because `RequestPinCurrentAppAsync` displays a confirmation dialog.
-// Pinning eligibility (`IsPinningAllowed`) has already been verified on a
-// background thread by the caller.
-void PinCurrentAppOnUIThread(
+void PinToTaskbarIfAllowedOnUIThread(
     ComPtr<ITaskbarManager> taskbar_manager,
+    const std::wstring& app_user_model_id,
     bool check_only,
     base::OnceCallback<void(PinResultMetric)> callback) {
+  // Chrome doesn't currently set this, so it will be cleared when the
+  // pinning process is done. ITaskbarManager requires that this be set to the
+  // same value as the window requesting the pinning.
+  ::SetCurrentProcessExplicitAppUserModelID(app_user_model_id.c_str());
+
+  // There must be a shortcut with AUMI `app_user_model_id` in the start menu
+  // for this to return true.
+  auto is_pinning_allowed = IsPinningAllowed(taskbar_manager);
+  if (!is_pinning_allowed.has_value()) {
+    std::move(callback).Run(PinResultMetric::kTaskbarManagerError);
+    return;
+  }
+  if (!*is_pinning_allowed) {
+    std::move(callback).Run(PinResultMetric::kPinningNotAllowed);
+    return;
+  }
+
   ComPtr<IAsyncOperation<bool>> is_pinned_operation = nullptr;
   HRESULT hr = taskbar_manager->IsCurrentAppPinnedAsync(&is_pinned_operation);
   if (FAILED(hr)) {
@@ -186,9 +193,7 @@ void PinCurrentAppOnUIThread(
 }
 
 // Attempts to pin a shortcut with AUMI `app_user_model_id` to the taskbar.
-// Must be called on a background thread: it does COM work and queries pinning
-// eligibility (a blocking shell RPC) here, then finishes the asynchronous pin
-// request on the UI thread.
+// Pinning is done on the UI thread, asynchronously.
 void PinWithLimitedAccessFeature(const std::wstring& app_user_model_id,
                                  bool check_only,
                                  ResultMetricCallback callback) {
@@ -221,33 +226,10 @@ void PinWithLimitedAccessFeature(const std::wstring& app_user_model_id,
     return;
   }
 
-  // Chrome doesn't currently set this, so it will be cleared when the pinning
-  // process is done. ITaskbarManager requires that this be set to the same
-  // value as the window requesting the pinning. It must also be set before
-  // querying `IsPinningAllowed`, which only returns true when there is a Start
-  // Menu shortcut with this AUMI.
-  ::SetCurrentProcessExplicitAppUserModelID(app_user_model_id.c_str());
-
-  // Determine whether pinning is allowed on this background thread.
-  // `get_IsPinningAllowed` makes a synchronous, blocking cross-process RPC to
-  // the shell, so it must not run on the UI thread.
-  std::optional<bool> is_pinning_allowed = IsPinningAllowed(taskbar_manager);
-  if (!is_pinning_allowed.has_value()) {
-    std::move(callback).Run(PinResultMetric::kTaskbarManagerError);
-    return;
-  }
-  if (!*is_pinning_allowed) {
-    std::move(callback).Run(PinResultMetric::kPinningNotAllowed);
-    return;
-  }
-
-  // The remaining work uses the WinRT async machinery and, for
-  // `RequestPinCurrentAppAsync`, displays a confirmation dialog, so it runs on
-  // the UI thread.
   content::GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE,
-      base::BindOnce(&PinCurrentAppOnUIThread, std::move(taskbar_manager),
-                     check_only, std::move(callback)));
+      base::BindOnce(&PinToTaskbarIfAllowedOnUIThread, taskbar_manager,
+                     app_user_model_id, check_only, std::move(callback)));
 }
 
 void PinAppToTaskbarInternal(const std::wstring& app_user_model_id,

@@ -78,6 +78,8 @@ class Symbolizer:
 
     cmd = [_STACK_TOOL, '--arch', arch, '--output-directory',
            constants.GetOutDirectory(), '--more-info']
+    if self._apk_under_test:
+      cmd.extend(['--apks-directory', os.path.dirname(self._apk_under_test)])
     env = dict(os.environ)
     env['PYTHONDONTWRITEBYTECODE'] = '1'
     with tempfile.NamedTemporaryFile(mode='w') as f:
@@ -95,7 +97,8 @@ class Symbolizer:
 
 
 class PassThroughSymbolizer(ExpensiveLineTransformer):
-  def __init__(self, device_abi):
+
+  def __init__(self, device_abi, apks_directory=None):
     self._command = None
     super().__init__(_PROCESS_START_TIMEOUT, _MINIMUM_TIMEOUT,
                      _PER_LINE_TIMEOUT)
@@ -111,8 +114,11 @@ class PassThroughSymbolizer(ExpensiveLineTransformer):
     self._command = [
         _STACK_TOOL, '--arch', arch, '--output-directory',
         constants.GetOutDirectory(), '--more-info', '--pass-through', '--flush',
-        '--quiet', '-'
+        '--quiet'
     ]
+    if apks_directory:
+      self._command.extend(['--apks-directory', apks_directory])
+    self._command.append('-')
     self.start()
 
   @property
@@ -125,12 +131,14 @@ class PassThroughSymbolizer(ExpensiveLineTransformer):
 
 
 class PassThroughSymbolizerPool(ExpensiveLineTransformerPool):
-  def __init__(self, device_abi):
+
+  def __init__(self, device_abi, apks_directory=None):
     self._device_abi = device_abi
+    self._apks_directory = apks_directory
     super().__init__(_MAX_RESTARTS, _POOL_SIZE, _PASSTHROUH_ON_FAILURE)
 
   def CreateTransformer(self):
-    return PassThroughSymbolizer(self._device_abi)
+    return PassThroughSymbolizer(self._device_abi, self._apks_directory)
 
   @property
   def name(self):

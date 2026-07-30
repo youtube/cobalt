@@ -247,7 +247,8 @@ void WebUIBrowserUI::BindInterface(
   auto* tab_drag_service_feature =
       browser_->browser_window_features()->tab_drag_service_feature();
   CHECK(tab_drag_service_feature) << "Browser missing TabDragService";
-  tab_drag_service_feature->AcceptDragService(std::move(receiver));
+  tab_drag_service_feature->AcceptDragService(
+      std::move(receiver), web_ui()->GetWebContents()->GetContentNativeView());
 }
 
 void WebUIBrowserUI::BindInterface(

@@ -117,6 +117,7 @@ Pour voir d'autres paramètres qui utilisent les données pour améliorer votre 
 <translation id="1435593198351412143">Ouvrir automatiquement les PDF</translation>
 <translation id="1437543266176261764">Exécution dans <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">Organisez vos produits suivis dans les favoris</translation>
+<translation id="1452651021404174820">Sélectionnez un appareil</translation>
 <translation id="1455845192930279203">Voulez-vous quand même télécharger "<ph name="FILE_NAME" />" (<ph name="FILE_SIZE" />) depuis <ph name="DOWNLOAD_DOMAIN" /> ?</translation>
 <translation id="1460751212339734034">Tapez moins et gagnez du temps</translation>
 <translation id="146522654774760805">Mots de passe et saisie automatique</translation>
@@ -124,6 +125,7 @@ Pour voir d'autres paramètres qui utilisent les données pour améliorer votre 
 <translation id="1477626028522505441">Échec du téléchargement du fichier "<ph name="FILE_NAME" />" en raison de problèmes liés au serveur.</translation>
 <translation id="147982357559798527">Modifié</translation>
 <translation id="1480287803138246127">Il est possible qu'une partie de votre historique ne s'affiche pas ici. Pour l'afficher en intégralité, sélectionnez "Ouvrir tout l'historique Chrome".</translation>
+<translation id="1483493594462132177">Envoyer</translation>
 <translation id="1495677929897281669">Retour à l'onglet</translation>
 <translation id="1496514951988037011">nom d'utilisateur</translation>
 <translation id="1501480321619201731">Supprimer le groupe</translation>
@@ -1273,6 +1275,7 @@ Par exemple, certains sites Web peuvent répondre à cette demande en diffusant 
 <translation id="634208815998129842">Gestionnaire de tâches</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 et <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> de plus}one{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 et <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> de plus}other{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 et <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> de plus}}</translation>
 <translation id="6345878117466430440">Marquer comme lu</translation>
+<translation id="6350745006329795504">Gérer vos appareils</translation>
 <translation id="6356893102071098867">Vérifiez si vous avez choisi le bon compte</translation>
 <translation id="6364438453358674297">Supprimer la suggestion de l'historique ?</translation>
 <translation id="6380100320871303656">Les pages que vous êtes susceptible de consulter selon Chrome sont préchargées plus souvent (cela peut augmenter la consommation des données).</translation>

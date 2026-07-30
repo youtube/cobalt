@@ -52,7 +52,7 @@ enum DisplayType {
   DEFAULT = 0,
   SWIFT_SHADER = 1,
   ANGLE_WARP = 2,
-  ANGLE_D3D9 = 3,
+  ANGLE_D3D9 [[deprecated]] = 3,
   ANGLE_D3D11 = 4,
   ANGLE_OPENGL = 5,
   ANGLE_OPENGLES = 6,

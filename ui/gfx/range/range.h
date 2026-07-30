@@ -124,7 +124,7 @@ class GFX_RANGE_EXPORT Range {
   // Computes the intersection of this range with the given |range|.
   // If they don't intersect, it returns an InvalidRange().
   // The returned range is always empty or forward (never reversed).
-  constexpr Range Intersect(const Range& range) const {
+  [[nodiscard]] constexpr Range Intersect(const Range& range) const {
     const size_t min = std::max(GetMin(), range.GetMin());
     const size_t max = std::min(GetMax(), range.GetMax());
     return (min < max || Contains(range) || range.Contains(*this))

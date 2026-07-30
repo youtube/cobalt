@@ -43,4 +43,9 @@
 
   [RuntimeEnabled=WebTransportCongestionControl]
   readonly attribute WebTransportCongestionControl congestionControl;
+
+  [RuntimeEnabled=WebTransportAnticipatedConcurrentIncomingStreams]
+  attribute [EnforceRange] unsigned short? anticipatedConcurrentIncomingUnidirectionalStreams;
+  [RuntimeEnabled=WebTransportAnticipatedConcurrentIncomingStreams]
+  attribute [EnforceRange] unsigned short? anticipatedConcurrentIncomingBidirectionalStreams;
 };

@@ -4,14 +4,21 @@
 
 #include "content/browser/webnn/webnn_compiler_process_host.h"
 
+#include <string_view>
+
 #include "base/command_line.h"
 #include "base/feature_list.h"
+#include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/no_destructor.h"
+#include "base/strings/strcat.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/service_process_host.h"
 #include "sandbox/policy/switches.h"
+#include "services/webnn/host/execution_provider_initializer.h"
 #include "services/webnn/public/cpp/compiler_disconnect_reason.h"
+#include "services/webnn/public/cpp/context_properties.h"
 #include "services/webnn/public/mojom/features.mojom-features.h"
 #include "services/webnn/public/mojom/webnn_compiler_context.mojom.h"
 #include "services/webnn/public/mojom/webnn_context_provider.mojom.h"
@@ -21,15 +28,29 @@ namespace content {
 
 namespace {
 
-// Number of times the Compiler process has crashed unexpectedly.
-// Stop relaunching after too many crashes to avoid an infinite loop.
-// This is intentionally file-scoped to keep process-wide crash accounting
-// across WebNNCompilerProcessHost re-creation within the browser process.
-int g_compiler_crash_count = 0;
-
 // Maximum number of unexpected Compiler-process disconnects allowed before
 // relaunch is blocked.
 constexpr int kMaxCompilerCrashCount = 3;
+
+// Number of times each WebNN Compiler process has crashed, keyed by device.
+// Stop relaunching after too many crashes to avoid an infinite loop.
+// This is intentionally file-scoped to keep process-wide crash accounting
+// across WebNNCompilerProcessHost re-creation within the browser process.
+base::flat_map<webnn::EpDeviceInfo, int>& GetWebNNCompilerCrashCounts() {
+  static base::NoDestructor<base::flat_map<webnn::EpDeviceInfo, int>> counts;
+  return *counts;
+}
+
+std::string_view WebnnDeviceTypeToString(webnn::mojom::Device device_type) {
+  switch (device_type) {
+    case webnn::mojom::Device::kCpu:
+      return "CPU";
+    case webnn::mojom::Device::kGpu:
+      return "GPU";
+    case webnn::mojom::Device::kNpu:
+      return "NPU";
+  }
+}
 
 }  // namespace
 
@@ -40,30 +61,60 @@ WebNNCompilerProcessHost::~WebNNCompilerProcessHost() = default;
 void WebNNCompilerProcessHost::RequestCompilerContext(
     webnn::mojom::CreateContextOptionsPtr context_options,
     const webnn::ContextProperties& context_properties,
-    base::flat_map<std::string, webnn::mojom::EpPackageInfoPtr> ep_package_info,
+    const webnn::EpDeviceInfo& target_device,
     RequestCallback callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  // Launch the Compiler process if not already running.
-  if (!remote_.is_bound()) {
-    if (g_compiler_crash_count >= kMaxCompilerCrashCount ||
-        !base::FeatureList::IsEnabled(
-            webnn::mojom::features::kWebNNCompilerProcess) ||
-        !base::FeatureList::IsEnabled(
-            webnn::mojom::features::kWebNNOnnxRuntime)) {
+  const auto crash_it = GetWebNNCompilerCrashCounts().find(target_device);
+  if ((crash_it != GetWebNNCompilerCrashCounts().end() &&
+       crash_it->second >= kMaxCompilerCrashCount) ||
+      !base::FeatureList::IsEnabled(
+          webnn::mojom::features::kWebNNCompilerProcess) ||
+      !base::FeatureList::IsEnabled(
+          webnn::mojom::features::kWebNNOnnxRuntime)) {
+    std::move(callback).Run(mojo::NullRemote(), mojo::NullReceiver());
+    return;
+  }
+
+  // Always call this function to update the EP info since EPs in `NotPresent`
+  // state may be added asynchronously after initialization.
+  webnn::EnsureExecutionProvidersReady(
+      base::BindOnce(&WebNNCompilerProcessHost::OnEpsResolvedForCompilerContext,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(context_options),
+                     context_properties, target_device, std::move(callback)));
+}
+
+void WebNNCompilerProcessHost::OnEpsResolvedForCompilerContext(
+    webnn::mojom::CreateContextOptionsPtr context_options,
+    const webnn::ContextProperties& context_properties,
+    const webnn::EpDeviceInfo& target_device,
+    RequestCallback callback,
+    base::flat_map<std::string, webnn::mojom::EpPackageInfoPtr>
+        ep_package_info_map) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
+  const auto ep_it = ep_package_info_map.find(target_device.ep_name);
+  if (ep_it == ep_package_info_map.end()) {
+    std::move(callback).Run(mojo::NullRemote(), mojo::NullReceiver());
+    return;
+  }
+  const base::FilePath& ep_library_path = ep_it->second->library_path;
+
+  // Each EP device gets its own compiler process.
+  auto& compiler_remote = webnn_compiler_remotes_[target_device];
+
+  // Launch a new Compiler process for this device if not already running.
+  if (!compiler_remote.is_bound()) {
+    compiler_remote = LaunchCompilerProcess();
+    // Compiler process could not be launched — return nulls.
+    if (!compiler_remote.is_bound()) {
       std::move(callback).Run(mojo::NullRemote(), mojo::NullReceiver());
       return;
     }
 
-    remote_ = LaunchCompilerProcess();
-    remote_.set_disconnect_with_reason_handler(base::BindOnce(
-        &WebNNCompilerProcessHost::OnDisconnected, base::Unretained(this)));
-  }
-
-  if (!remote_.is_bound()) {
-    // Compiler process could not be launched — return nulls.
-    std::move(callback).Run(mojo::NullRemote(), mojo::NullReceiver());
-    return;
+    compiler_remote.set_disconnect_with_reason_handler(
+        base::BindOnce(&WebNNCompilerProcessHost::OnDisconnected,
+                       base::Unretained(this), target_device));
   }
 
   // Create CompilerContext pipe pair: Renderer gets the remote, Compiler gets
@@ -80,21 +131,24 @@ void WebNNCompilerProcessHost::RequestCompilerContext(
       model_loader_remote.InitWithNewPipeAndPassReceiver();
 
   // Tell the Compiler process to create a per-context compiler state.
-  // EP package info is forwarded via mojom so the Compiler process can
-  // initialize its ORT Environment with the correct EPs.
-  remote_->CreateCompilerContext(std::move(context_options), context_properties,
-                                 std::move(ep_package_info),
-                                 std::move(model_loader_remote),
-                                 std::move(compiler_context_receiver));
+  // EP library path and target device information are forwarded via mojom so
+  // the Compiler process can initialize its ORT Environment with the correct EP
+  // device.
+  compiler_remote->CreateCompilerContext(
+      std::move(context_options), context_properties, ep_library_path,
+      target_device, std::move(model_loader_remote),
+      std::move(compiler_context_receiver));
 
   std::move(callback).Run(std::move(compiler_context_remote),
                           std::move(model_loader_receiver));
 }
 
-void WebNNCompilerProcessHost::OnDisconnected(uint32_t reason,
-                                              const std::string& description) {
+void WebNNCompilerProcessHost::OnDisconnected(
+    const webnn::EpDeviceInfo& device_info,
+    uint32_t reason,
+    const std::string& description) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  remote_.reset();
+  webnn_compiler_remotes_.erase(device_info);
 
   // `reason` comes from a less-trusted child process. Verify it matches a
   // known disconnect reason before acting on it; treat any unrecognized
@@ -110,13 +164,16 @@ void WebNNCompilerProcessHost::OnDisconnected(uint32_t reason,
   }
 
   // Any other disconnect is unexpected and treated as a crash.
-  ++g_compiler_crash_count;
-  base::UmaHistogramExactLinear("WebNN.CompilerProcess.CrashCount",
-                                g_compiler_crash_count,
-                                kMaxCompilerCrashCount + 1);
+  int crash_count = ++GetWebNNCompilerCrashCounts()[device_info];
+  base::UmaHistogramExactLinear(
+      base::StrCat({"WebNN.CompilerProcess.CrashCount.", device_info.ep_name,
+                    ".", WebnnDeviceTypeToString(device_info.device_type)}),
+      crash_count, kMaxCompilerCrashCount + 1);
 
-  LOG(ERROR) << "WebNN Compiler process disconnected unexpectedly (count: "
-             << g_compiler_crash_count << "): " << description;
+  LOG(ERROR) << "WebNN Compiler process disconnected unexpectedly for ["
+             << device_info.ep_name << ", "
+             << WebnnDeviceTypeToString(device_info.device_type)
+             << "] (count: " << crash_count << ").";
 }
 
 mojo::Remote<webnn::mojom::WebNNCompilerService>

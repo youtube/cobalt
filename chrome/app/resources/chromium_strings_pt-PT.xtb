@@ -73,6 +73,7 @@
 <translation id="1820835682567584003">O Chromium está a tentar <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="183031085822326697">Da próxima vez que abrir o Chromium no seu <ph name="DEVICE_TYPE" />, é apresentada uma indicação para usar o Gestor de Palavras-passe da Google.</translation>
 <translation id="1838374766361614909">Limpar pesquisa</translation>
+<translation id="1846849503013521481">Para proteger o seu trabalho no Chromium, a sua organização vai poder ver ou gerir determinadas informações</translation>
 <translation id="18552579716432081">Para eliminar os dados de navegação apenas deste dispositivo e mantê-los na sua Conta Google, <ph name="BEGIN_LINK" />termine sessão no Chromium<ph name="END_LINK" />.</translation>
 <translation id="1857749206890802997">Transfira o Chromium para o seu telemóvel para abrir ou criar novos grupos de separadores em qualquer lugar.</translation>
 <translation id="185970820835152459">Pode gerir as suas Contas Google com sessão iniciada. As suas Contas Google são utilizadas para o navegador Chromium, a Play Store, o Gmail e muito mais. Se pretender adicionar uma conta para outra pessoa, como um membro da família, adicione uma nova pessoa ao seu <ph name="DEVICE_TYPE" />. <ph name="LINK_BEGIN" />Saiba mais<ph name="LINK_END" /></translation>
@@ -435,6 +436,7 @@ Se esta página não estiver a funcionar conforme esperado, experimente permitir
 <translation id="5953657885167112863">Personalize o Chromium</translation>
 <translation id="5960071705175224773">As suas definições foram alteradas por uma app desconhecida</translation>
 <translation id="5968400720580217226">Modo IA</translation>
+<translation id="5977420883993828287">Fixadas! Use novamente as Tarefas contextuais a partir da barra de ferramentas</translation>
 <translation id="5986585015444752010">{COUNT,plural, =1{A sua organização fecha automaticamente o Chromium quando não é usado durante 1 minuto.}other{A sua organização fecha automaticamente o Chromium quando não é usado durante # minutos.}}</translation>
 <translation id="5987687638152509985">Atualize o Chromium para iniciar a sincronização</translation>
 <translation id="6003112304606738118">A transferir… Falta(m) <ph name="HOURS" /> hora(s)</translation>
@@ -619,6 +621,7 @@ O Chromium não consegue recuperar as suas definições.</translation>
 <translation id="7686590090926151193">O Chromium não é o seu navegador predefinido.</translation>
 <translation id="7689606757190482937">Sincronizar e personalizar o Chromium em todos os dispositivos</translation>
 <translation id="7699779824407626136">Atualização do Chromium</translation>
+<translation id="7700735928747402058">O seu trabalho está seguro no Chromium</translation>
 <translation id="7716950018788545737">As tarefas terminaram.</translation>
 <translation id="77283119132245232">Oferece serviços de rastreio do sistema para o <ph name="BROWSER_NAME" />. Se este serviço estiver desativado, os rastreios de desempenho criados pelo navegador não incluem eventos ao nível do sistema, como eventos de mudança de contexto e de thread pronta.</translation>
 <translation id="7745317241717453663">Esta ação elimina os dados de navegação deste dispositivo. Para recuperar os dados mais tarde, inicie sessão no Chromium como <ph name="USER_EMAIL" />.</translation>
@@ -650,6 +653,7 @@ O Chromium não consegue recuperar as suas definições.</translation>
 <translation id="8031714377769448844">Afixe o Chromium à barra de tarefas para aceder rapidamente ao mesmo em qualquer altura</translation>
 <translation id="80471789339884597">Agradecemos a instalação. Tem de reiniciar todos os navegadores antes de usar o <ph name="BUNDLE_NAME" />.</translation>
 <translation id="8054112667659782652">Mostrar sempre o atalho da pesquisa de imagens</translation>
+<translation id="8069447462453318634">Selecione "Fixar na barra de ferramentas"</translation>
 <translation id="8077498902115777962">Desativar a execução do Chromium em segundo plano para apps</translation>
 <translation id="80790299200510644">Pesquisa de imagens</translation>
 <translation id="8086881907087796310">A instalação falhou porque o seu computador não cumpre os requisitos mínimos de hardware.</translation>

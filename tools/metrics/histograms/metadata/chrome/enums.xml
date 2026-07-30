@@ -35,6 +35,16 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="Blocklist disabled."/>
 </enum>
 
+<!-- LINT.IfChange(BrowserColorScheme) -->
+
+<enum name="BrowserColorScheme">
+  <int value="0" label="System"/>
+  <int value="1" label="Light"/>
+  <int value="2" label="Dark"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/themes/theme_service.h:BrowserColorScheme) -->
+
 <enum name="BuildStateUpdateType">
   <int value="0" label="No new version"/>
   <int value="1" label="Update available"/>

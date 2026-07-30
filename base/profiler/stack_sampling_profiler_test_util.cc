@@ -174,8 +174,7 @@ std::unique_ptr<Unwinder> CreateChromeUnwinderAndroid32ForTesting(
   DCHECK(ok);
   return std::make_unique<ChromeUnwinderAndroid32ForTesting>(
       std::move(cfi_file),
-      base::CreateChromeUnwindInfoAndroid32(
-          UNSAFE_TODO({cfi_file->data(), cfi_file->length()})),
+      base::CreateChromeUnwindInfoAndroid32(cfi_file->bytes()),
       chrome_module_base_address,
       /* text_section_start_address= */ base::android::kStartOfText);
 }

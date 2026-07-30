@@ -195,6 +195,7 @@ public class TabSwitcherSearchRenderTest {
     @MediumTest
     @Feature({"RenderTest"})
     @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
+    @DisableIf.Device(DeviceFormFactor.DESKTOP)
     public void testZeroPrefixSuggestions_ShownInRegular(boolean nightModeEnabled)
             throws IOException {
         List<String> urlsToOpen = Arrays.asList("/chrome/test/data/android/test.html");

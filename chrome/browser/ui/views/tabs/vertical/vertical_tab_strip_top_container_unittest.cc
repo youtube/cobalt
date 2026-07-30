@@ -14,7 +14,6 @@
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/views/tabs/shared/tab_strip_combo_button.h"
-#include "chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/testing_profile.h"
@@ -24,7 +23,6 @@
 #include "ui/actions/actions.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/views/controls/button/label_button.h"
-#include "ui/views/test/views_test_base.h"
 #include "ui/views/widget/widget.h"
 
 namespace {

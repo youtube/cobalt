@@ -111,7 +111,8 @@ WebAppFilter WebAppFilter::LaunchableFromInstallApi() {
 
 // static
 WebAppFilter WebAppFilter::IsTrusted() {
-  return IsTrue(SimpleCondition::kInstalledByTrustedSource);
+  return IsTrue(SimpleCondition::kInstalledByTrustedSource) |
+         IsIsolatedSubApp();
 }
 
 // static

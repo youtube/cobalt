@@ -3227,7 +3227,7 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
   // Create a browser window with a native window for user0.
   std::unique_ptr<Browser> browser(
       CreateBrowserWithTestWindowForProfile(profile()));
-  BrowserWindow* browser_window = browser->window();
+  ui::BaseWindow* browser_window = browser->GetWindow();
   aura::Window* window = browser_window->GetNativeWindow();
   window_manager->SetWindowOwner(window, account_id());
 

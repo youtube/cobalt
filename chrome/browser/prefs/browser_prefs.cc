@@ -26,6 +26,7 @@
 #include "chrome/browser/browser_process_impl.h"
 #include "chrome/browser/chrome_content_browser_client.h"
 #include "chrome/browser/component_updater/component_updater_prefs.h"
+#include "chrome/browser/contextual_cueing/prefs.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/engagement/important_sites_util.h"
 #include "chrome/browser/enterprise/reporting/prefs.h"
@@ -224,6 +225,8 @@
 #include "ui/webui/buildflags.h"
 
 #if BUILDFLAG(ENABLE_WEBUI_NTP)
+#include "chrome/browser/new_tab_page/modules/file_suggestion/drive_service.h"
+#include "chrome/browser/new_tab_page/modules/v2/most_relevant_tab_resumption/most_relevant_tab_resumption_page_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page_ui.h"
 #if !BUILDFLAG(IS_ANDROID)
@@ -275,6 +278,7 @@
 #include "chrome/browser/lens/android/lens_prefs.h"
 #include "chrome/browser/media/android/cdm/media_drm_origin_id_manager.h"
 #include "chrome/browser/notifications/notification_channels_provider_android.h"
+#include "chrome/browser/ntp_customization/ntp_android_custom_background_service.h"
 #include "chrome/browser/partnerbookmarks/partner_bookmarks_shim.h"
 #include "chrome/browser/readaloud/android/prefs.h"
 #include "chrome/browser/ssl/known_interception_disclosure_infobar_delegate.h"
@@ -296,12 +300,10 @@
 #include "chrome/browser/media/router/discovery/access_code/access_code_cast_feature.h"
 #include "chrome/browser/media/router/media_router_feature.h"
 #include "chrome/browser/nearby_sharing/common/nearby_share_prefs.h"
-#include "chrome/browser/new_tab_page/modules/file_suggestion/drive_service.h"
 #include "chrome/browser/new_tab_page/modules/file_suggestion/microsoft_files_page_handler.h"
 #include "chrome/browser/new_tab_page/modules/v2/authentication/microsoft_auth_page_handler.h"
 #include "chrome/browser/new_tab_page/modules/v2/calendar/google_calendar_page_handler.h"
 #include "chrome/browser/new_tab_page/modules/v2/calendar/outlook_calendar_page_handler.h"
-#include "chrome/browser/new_tab_page/modules/v2/most_relevant_tab_resumption/most_relevant_tab_resumption_page_handler.h"
 #include "chrome/browser/new_tab_page/modules/v2/tab_groups/tab_groups_page_handler.h"
 #include "chrome/browser/new_tab_page/promos/promo_service.h"
 #include "chrome/browser/screen_ai/pref_names.h"
@@ -986,6 +988,18 @@ constexpr char kGlicSelectionWidgetDismissCount[] =
 inline constexpr char kRealboxContextMenuAnimationState[] =
     "realbox.context_menu_animation_state";
 
+// Deprecated 06/2026.
+inline constexpr char kTabSearchMigrationComplete[] =
+    "toolbar.tab_search_migration_complete";
+inline constexpr char kTabSearchPinnedToTabstripMigrationComplete[] =
+    "tab_search.pinned_to_tabstrip_migration_complete";
+inline constexpr char kTabSearchPinnedToTabstripMigrationComplete2[] =
+    "tab_search.pinned_to_tabstrip_migration_complete_2";
+
+// Deprecated 06/2026.
+inline constexpr char kDefaultBrowserInfobarLastDeclined[] =
+    "browser.default_browser_infobar_last_declined";
+
 // Register local state used only for migration (clearing or moving to a new
 // key).
 void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
@@ -1324,6 +1338,16 @@ void RegisterProfilePrefsForMigration(
 
   // Deprecated 06/2026.
   registry->RegisterDictionaryPref(kRealboxContextMenuAnimationState);
+
+  // Deprecated 06/2026.
+  registry->RegisterBooleanPref(kTabSearchMigrationComplete, true);
+  registry->RegisterBooleanPref(kTabSearchPinnedToTabstripMigrationComplete,
+                                true);
+  registry->RegisterBooleanPref(kTabSearchPinnedToTabstripMigrationComplete2,
+                                true);
+
+  // Deprecated 06/2026.
+  registry->RegisterInt64Pref(kDefaultBrowserInfobarLastDeclined, 0);
 }
 
 }  // namespace
@@ -1681,6 +1705,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   chrome_prefs::RegisterProfilePrefs(registry);
   collaboration::prefs::RegisterProfilePrefs(registry);
   commerce::RegisterProfilePrefs(registry);
+  contextual_cueing::prefs::RegisterProfilePrefs(registry);
   contextual_search::ContextualSearchService::RegisterProfilePrefs(registry);
   contextual_tasks::RegisterProfilePrefs(registry);
   registry->RegisterIntegerPref(prefs::kContextualTasksNextPanelOpenCount, 0);
@@ -1852,6 +1877,8 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
 #endif  // !BUILDFLAG(IS_ANDROID)
   NewTabPageHandler::RegisterProfilePrefs(registry);
   NewTabPageUI::RegisterProfilePrefs(registry);
+  MostRelevantTabResumptionPageHandler::RegisterProfilePrefs(registry);
+  DriveService::RegisterProfilePrefs(registry);
 #endif  // BUILDFLAG(ENABLE_WEBUI_NTP)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -1862,6 +1889,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   KnownInterceptionDisclosureInfoBarDelegate::RegisterProfilePrefs(registry);
   MediaDrmOriginIdManager::RegisterProfilePrefs(registry);
   NotificationChannelsProviderAndroid::RegisterProfilePrefs(registry);
+  NtpAndroidCustomBackgroundService::RegisterProfilePrefs(registry);
   ntp_tiles::PopularSitesImpl::RegisterProfilePrefs(registry);
   OomInterventionDecider::RegisterProfilePrefs(registry);
   PartnerBookmarksShim::RegisterProfilePrefs(registry);
@@ -1880,7 +1908,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   captions::LiveTranslateController::RegisterProfilePrefs(registry);
   ChromeAuthenticatorRequestDelegate::RegisterProfilePrefs(registry);
   commerce::CommerceUiTabHelper::RegisterProfilePrefs(registry);
-  DriveService::RegisterProfilePrefs(registry);
   first_run::RegisterProfilePrefs(registry);
   gcm::RegisterProfilePrefs(registry);
   GoogleCalendarPageHandler::RegisterProfilePrefs(registry);
@@ -1899,7 +1926,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   send_tab_to_self::RegisterProfilePrefs(registry);
   signin::RegisterProfilePrefs(registry);
   StartupBrowserCreator::RegisterProfilePrefs(registry);
-  MostRelevantTabResumptionPageHandler::RegisterProfilePrefs(registry);
   TabGroupsPageHandler::RegisterProfilePrefs(registry);
   tab_groups::saved_tab_groups::prefs::RegisterProfilePrefs(registry);
   tab_search_prefs::RegisterProfilePrefs(registry);
@@ -2375,12 +2401,6 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
   // Check MigrateDeprecatedAutofillPrefs() to see if this is safe to remove.
   autofill::prefs::MigrateDeprecatedAutofillPrefs(profile_prefs);
 
-  // TODO(326079444): After experiment is over, update the deprecated date and
-  // allow this to be cleaned up.
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
-  MigrateDefaultBrowserLastDeclinedPref(profile_prefs);
-#endif
-
   // Added 06/2025.
   profile_prefs->ClearPref(kStorageGarbageCollect);
   profile_prefs->ClearPref(kGaiaCookiePeriodicReportTimeDeprecated);
@@ -2538,11 +2558,6 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
   // Added 03/2026.
   profile_prefs->ClearPref(kTabSearchTabIndex);
 
-#if !BUILDFLAG(IS_ANDROID)
-  // Added 02/2026.
-  tabs::MigrateTabSearchPref(profile_prefs);
-#endif  // !BUILDFLAG(IS_ANDROID)
-
   // Added 03/2026
   profile_prefs->ClearPref(
       kSigninFromBookmarksBubbleSyntheticTrialGroupNamePref);
@@ -2598,6 +2613,16 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
 
   // Added 06/2026.
   profile_prefs->ClearPref(kRealboxContextMenuAnimationState);
+
+  // Added 06/2026
+  profile_prefs->ClearPref(kTabSearchMigrationComplete);
+  profile_prefs->ClearPref(kTabSearchPinnedToTabstripMigrationComplete);
+  profile_prefs->ClearPref(kTabSearchPinnedToTabstripMigrationComplete2);
+
+  // Added 06/2026
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
+  profile_prefs->ClearPref(kDefaultBrowserInfobarLastDeclined);
+#endif
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_PROFILE_PREFS

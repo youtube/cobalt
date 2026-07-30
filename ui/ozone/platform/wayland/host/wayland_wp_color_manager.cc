@@ -419,6 +419,7 @@ void WaylandWpColorManager::OnSupportedPrimariesNamed(
 void WaylandWpColorManager::OnDone(void* data, wp_color_manager_v1* manager) {
   auto* self = static_cast<WaylandWpColorManager*>(data);
   self->ready_ = true;
+  self->observers_.Notify(&Observer::OnColorManagerReady);
   if (auto* output_manager = self->connection_->wayland_output_manager()) {
     output_manager->InitializeAllWpColorManagementOutputs();
   }

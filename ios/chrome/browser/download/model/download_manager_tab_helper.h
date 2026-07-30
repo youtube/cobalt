@@ -136,8 +136,11 @@ class DownloadManagerTabHelper
   void MaybeSetDownloadPathForAutoDeletion();
 
   // Move the download to user selected location if `shouldProceed` is set as
-  // true, otherwise clean up the current download task.
-  void MaybeMoveDownloadToDownloadsDirectory(bool shouldProceed);
+  // true, otherwise clean up the current download task. The result is ignored
+  // if `task` no longer matches the current download.
+  void MaybeMoveDownloadToDownloadsDirectory(
+      base::WeakPtr<web::DownloadTask> task,
+      bool shouldProceed);
 
   // Process the complete download task. Move the download item to the user
   // selected location if it's not to be saved to google drive, otherwise stop

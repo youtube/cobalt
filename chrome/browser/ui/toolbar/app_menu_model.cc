@@ -72,7 +72,6 @@
 #include "chrome/browser/ui/safety_hub/safety_hub_hats_service.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_hats_service_factory.h"
 #include "chrome/browser/ui/startup/default_browser_prompt/default_browser_prompt_manager.h"
-#include "chrome/browser/ui/tab_search_feature.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/recent_tabs_sub_menu_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -1073,15 +1072,11 @@ void ToolsMenuModel::Build(Browser* browser) {
   is_tablet_mode = display::Screen::Get()->InTabletMode();
 #endif  // BUILDFLAG(IS_CHROMEOS)
   if (!is_tablet_mode) {
-    if (features::HasTabSearchToolbarButton() ||
-        base::FeatureList::IsEnabled(tabs::kHorizontalTabStripComboButton)) {
+    if (base::FeatureList::IsEnabled(tabs::kHorizontalTabStripComboButton)) {
       AddItemWithStringIdAndVectorIcon(
           this, IDC_TAB_SEARCH, IDS_TAB_SEARCH_MENU,
-          base::FeatureList::IsEnabled(tabs::kHorizontalTabStripComboButton)
-              ? features::IsRoundedIconsEnabled() ? kManageSearchIcon
-                                                  : kTabSearchTabStripOldIcon
-          : features::IsRoundedIconsEnabled() ? kTabSearchIcon
-                                              : kTabSearchToolbarOldIcon);
+          features::IsRoundedIconsEnabled() ? kManageSearchIcon
+                                            : kTabSearchTabStripOldIcon);
     }
   }
 
@@ -2114,7 +2109,8 @@ void AppMenuModel::Build() {
 
 #if !BUILDFLAG(IS_CHROMEOS)
   sub_menus_.push_back(std::make_unique<ProfileSubMenuModel>(
-      this, browser()->profile(), browser()->window()->GetColorProvider()));
+      this, browser()->profile(),
+      BrowserWindow::FromBrowser(browser())->GetColorProvider()));
   auto* const profile_submenu_model =
       static_cast<ProfileSubMenuModel*>(sub_menus_.back().get());
   AddSubMenu(IDC_PROFILE_MENU_IN_APP_MENU,

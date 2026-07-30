@@ -75,6 +75,7 @@
 <translation id="1820835682567584003">Chromium está tentando <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="183031085822326697">A próxima vez que abras Chromium no teu dispositivo (<ph name="DEVICE_TYPE" />), verás unha solicitude para usar o xestor de contrasinais de Google.</translation>
 <translation id="1838374766361614909">Borrar busca</translation>
+<translation id="1846849503013521481">Para protexer o teu traballo en Chromium, a túa organización poderá ver ou xestionar certa información</translation>
 <translation id="18552579716432081">Para eliminar os datos de navegación só deste dispositivo, pero non da túa Conta de Google, tes que <ph name="BEGIN_LINK" />pechar sesión en Chromium<ph name="END_LINK" />.</translation>
 <translation id="1857749206890802997">Descarga Chromium no teléfono para abrir ou crear grupos de pestanas esteas onde esteas.</translation>
 <translation id="185970820835152459">Podes xestionar as Contas de Google nas que teñas a sesión iniciada. As túas Contas de Google úsanse para o navegador Chromium, Play Store, Gmail e moito máis. Se queres engadir unha conta para outra persoa, como un familiar, engade unha persoa nova ao teu dispositivo (<ph name="DEVICE_TYPE" />). <ph name="LINK_BEGIN" />Máis información<ph name="LINK_END" /></translation>
@@ -437,6 +438,7 @@ Proba a permitila se esta páxina non funciona como debería.</translation>
 <translation id="5953657885167112863">Configura Chromium ao teu gusto</translation>
 <translation id="5960071705175224773">Unha aplicación descoñecida cambiou a túa configuración</translation>
 <translation id="5968400720580217226">Modo IA</translation>
+<translation id="5977420883993828287">Elemento fixado! Usa de novo as tarefas contextuais desde a barra de ferramentas</translation>
 <translation id="5986585015444752010">{COUNT,plural, =1{A túa organización pechará Chromium automaticamente cando leve 1 minuto sen usarse.}other{A túa organización pechará Chromium automaticamente cando leve # minutos sen usarse.}}</translation>
 <translation id="5987687638152509985">Actualiza Chromium para iniciar a sincronización</translation>
 <translation id="6003112304606738118">Descargando… Tempo restante: <ph name="HOURS" /> h</translation>
@@ -541,6 +543,17 @@ Proba a permitila se esta páxina non funciona como debería.</translation>
 <translation id="6896758677409633944">Copiar</translation>
 <translation id="6901631050894301805">Define Chromium como o teu navegador predeterminado e fíxao na barra de tarefas</translation>
 <translation id="6909503629704372277">&amp;Xestionar perfís de Chromium</translation>
+<translation id="6919942714452658456">Ao levar a cabo esta acción:
+          <ph name="LINE_BREAKS" />
+            • Restableceranse a páxina de inicio, a pestana Nova páxina, o buscador e as pestanas fixadas
+            <ph name="LINE_BREAK" />
+            • Desactivaranse as extensións
+            <ph name="LINE_BREAK" />
+            • Eliminaranse as cookies e outros datos temporais dos sitios
+            <ph name="LINE_BREAK" />
+            • Restableceranse os atallos de Chromium
+            <ph name="LINE_BREAKS" />
+            Os marcadores, o historial e os contrasinais gardados non se verán afectados.</translation>
 <translation id="6934579572334859869">Pregúntalle á busca de imaxes acerca desta imaxe</translation>
 <translation id="6948031725951063910">Alcanzaches o límite de <ph name="BOOKMARK_LIMIT" /> marcadores de Chromium, polo que algúns aínda non se gardaron na túa Conta de Google.
 
@@ -610,6 +623,7 @@ Chromium non pode recuperar a túa configuración.</translation>
 <translation id="7686590090926151193">Chromium non é o teu navegador predeterminado</translation>
 <translation id="7689606757190482937">Sincroniza e personaliza Chromium nos teus dispositivos</translation>
 <translation id="7699779824407626136">Actualización de Chromium</translation>
+<translation id="7700735928747402058">O teu traballo está protexido en Chromium</translation>
 <translation id="7716950018788545737">Tarefas finalizadas.</translation>
 <translation id="77283119132245232">Fornece servizos de seguimento do sistema para <ph name="BROWSER_NAME" />. Se este servizo está desactivado, os rastros de rendemento creados polo navegador non incluirán eventos de todo o sistema (como os eventos de subprocesos ou de cambio de contexto).</translation>
 <translation id="7745317241717453663">Esta acción eliminará os teus datos de navegación deste dispositivo. Para recuperar os teus datos máis tarde, inicia sesión en Chromium como <ph name="USER_EMAIL" />.</translation>
@@ -641,6 +655,7 @@ Chromium non pode recuperar a túa configuración.</translation>
 <translation id="8031714377769448844">Fixa Chromium na barra de tarefas para acceder máis rápido en calquera momento</translation>
 <translation id="80471789339884597">Grazas por levar a cabo a instalación. Para utilizar <ph name="BUNDLE_NAME" />, debes reiniciar todos os teus navegadores.</translation>
 <translation id="8054112667659782652">Mostrar sempre atallo da busca de imaxes</translation>
+<translation id="8069447462453318634">Selecciona Fixar na barra de ferramentas</translation>
 <translation id="8077498902115777962">Desactivar execución de Chromium en segundo plano para as aplicacións</translation>
 <translation id="80790299200510644">Busca de imaxes</translation>
 <translation id="8086881907087796310">Produciuse un erro na instalación porque o teu ordenador non cumpre os requisitos mínimos de hardware.</translation>
@@ -722,6 +737,15 @@ Chromium non pode recuperar a túa configuración.</translation>
 <translation id="8907580949721785412">Chromium está tentando mostrar contrasinais. Escribe os teus contrasinais de Windows para permitir esta acción.</translation>
 <translation id="8932992523185907506">Chromium xa non é o teu navegador predeterminado. Queres establecer Chromium como navegador predeterminado?</translation>
 <translation id="8941642502866065432">Non se puido actualizar Chromium</translation>
+<translation id="8944232836376404813">Ao levar a cabo esta acción:
+          <ph name="LINE_BREAKS" />
+            • Restableceranse a páxina de inicio, a pestana Nova páxina, o buscador e as pestanas fixadas
+            <ph name="LINE_BREAK" />
+            • Desactivaranse as extensións
+            <ph name="LINE_BREAK" />
+            • Eliminaranse as cookies e outros datos temporais dos sitios
+            <ph name="LINE_BREAKS" />
+            Os marcadores, o historial e os contrasinais gardados non se verán afectados.</translation>
 <translation id="897581876605952338">Logotipo de Chromium Enterprise</translation>
 <translation id="8981150672034878610">Non se puido iniciar Chromium porque se produciu un erro ao abrir o perfil. Proba a reiniciar Chromium.</translation>
 <translation id="8988036198400390003">Xestionar perfís de Chromium</translation>

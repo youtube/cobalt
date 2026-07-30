@@ -146,7 +146,9 @@ enum class SBThreatType {
   // A report of Google ad that caused a blocked popup was collected.
   SB_THREAT_TYPE_BLOCKED_AD_POPUP = 19,
 
-  // The page loaded a resource from the Suspicious Site list.
+  // This site is considered suspicious enough to trigger logging a report to
+  // Safe Browsing with more details.
+  // TODO(awado): Rename this to SB_THREAT_TYPE_LOGGABLE_SUSPICIOUS_SITE.
   SB_THREAT_TYPE_SUSPICIOUS_SITE = 20,
 
   // Enterprise password reuse detected on low reputation page.
@@ -173,7 +175,12 @@ enum class SBThreatType {
   // CSD Download allowlist.
   SB_THREAT_TYPE_CSD_DOWNLOAD_ALLOWLIST = 28,
 
-  kMaxValue = SB_THREAT_TYPE_CSD_DOWNLOAD_ALLOWLIST,
+  // Sites that are classified as suspicious by SafeBrowsing and should display
+  // a nonblocking warning.
+  SB_THREAT_TYPE_WARNABLE_SUSPICIOUS_SITE = 29,
+
+  kMaxValue = SB_THREAT_TYPE_WARNABLE_SUSPICIOUS_SITE,
+
 };
 
 using SBThreatTypeSet = base::flat_set<SBThreatType>;

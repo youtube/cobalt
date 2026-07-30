@@ -117,6 +117,7 @@
 <translation id="1435593198351412143">PDFs आपोआप उघडा</translation>
 <translation id="1437543266176261764"><ph name="APP_NAME" /> मध्ये रन होत आहे</translation>
 <translation id="1448440926884431741">तुमची माग ठेवलेली उत्पादने Bookmarks मध्ये व्यवस्थापित करा</translation>
+<translation id="1452651021404174820">डिव्हाइस निवडा</translation>
 <translation id="1455845192930279203">तुम्हाला तरीही <ph name="DOWNLOAD_DOMAIN" /> वरून "<ph name="FILE_NAME" />" (<ph name="FILE_SIZE" />) डाउनलोड करायची आहे का?</translation>
 <translation id="1460751212339734034">वेळ वाचवा, कमी टाइप करा</translation>
 <translation id="146522654774760805">पासवर्ड आणि ऑटोफिल</translation>
@@ -124,6 +125,7 @@
 <translation id="1477626028522505441">सर्व्हर समस्यांमुळे <ph name="FILE_NAME" /> डाउनलोड अयशस्वी झाले.</translation>
 <translation id="147982357559798527">बदलला आहे</translation>
 <translation id="1480287803138246127">तुमचा काही इतिहास कदाचित इथे दिसणार नाही. तुमचा सर्व Chrome इतिहास पाहण्यासाठी, संपूर्ण Chrome इतिहास उघडा.</translation>
+<translation id="1483493594462132177">पाठवा</translation>
 <translation id="1495677929897281669">टॅबवर परत</translation>
 <translation id="1496514951988037011">वापरकर्ता नाव</translation>
 <translation id="1501480321619201731">गट हटवा</translation>
@@ -1273,6 +1275,7 @@
 <translation id="634208815998129842">टास्क मॅनेजर</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 आणि <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> अधिक}other{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 आणि <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> अधिक}}</translation>
 <translation id="6345878117466430440">वाचलेले अशी खूण करा</translation>
+<translation id="6350745006329795504">तुमची डिव्हाइस व्यवस्थापित करा</translation>
 <translation id="6356893102071098867">तुम्ही योग्य खाते निवडले आहे का हे तपासा</translation>
 <translation id="6364438453358674297">इतिहासातून सूचना काढून टाकायची?</translation>
 <translation id="6380100320871303656">Chrome ला तुम्ही भेट देण्याची शक्यता आहे असे वाटत असलेली पेज ते अधिक वारंवार प्रीलोड करते. या सेटिंगमुळे डेटा वापर वाढू शकतो.</translation>

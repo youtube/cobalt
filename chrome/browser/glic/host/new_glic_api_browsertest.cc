@@ -19,6 +19,7 @@
 #include "chrome/browser/glic/glic_enums.h"
 #include "chrome/browser/glic/host/auth_controller.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
+#include "chrome/browser/glic/host/context/glic_tab_favicon_observer.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_features.mojom-features.h"
 #include "chrome/browser/glic/host/glic_web_contents_warming_pool.h"
@@ -68,7 +69,6 @@
 #include "components/skills/features.h"
 #include "components/skills/public/skills_service.h"
 #include "components/tabs/public/tab_interface.h"
-#include "content/public/browser/favicon_status.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/render_frame_host.h"
@@ -272,9 +272,6 @@ class NewGlicApiTest : public GlicApiBrowserTest,
           {{features::kGlicUserStatusRefreshApi.name, "true"},
            {features::kGlicUserStatusThrottleInterval.name, "2s"}}},
          {features::kGlicOpenPasswordManagerSettingsPageApi, {}},
-#if BUILDFLAG(IS_ANDROID)
-         {chrome::android::kBrowserWindowInterfaceMobile, {}},
-#endif
          {features::kGlicActor,
           {{features::kGlicActorPolicyControlExemption.name, "true"}}},
          {blink::features::kAIPageContentTrackedElementsIframe, {}}},
@@ -1551,6 +1548,92 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithPixelOutput,
   GetOnlyGlicInstance()->GetSharingManagerInternal().PinTabs(
       {GetTabListInterface()->GetActiveTab()->GetHandle()});
   ExecuteJsTest();
+}
+
+IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithPixelOutput,
+                       testTabFaviconObserverLifecycleAndCleanup) {
+  ASSERT_OK(OpenGlicForActiveTab());
+  GetOnlyGlicInstance()->GetSharingManagerInternal().PinTabs(
+      {GetTabListInterface()->GetActiveTab()->GetHandle()});
+  tabs::TabHandle active_tab_handle =
+      GetTabListInterface()->GetActiveTab()->GetHandle();
+
+  EXPECT_FALSE(service()->tab_favicon_observer().HasTabObserverForTesting(
+      active_tab_handle));
+
+  ExecuteJsTest();
+
+  // Wait for the subscription Mojo message to be processed.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return service()->tab_favicon_observer().HasTabObserverForTesting(
+        active_tab_handle);
+  }));
+
+  ContinueJsTest();
+
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    service()->tab_favicon_observer().FireCleanupTimerForTesting();
+    return !service()->tab_favicon_observer().HasTabObserverForTesting(
+        active_tab_handle);
+  }));
+}
+
+IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithPixelOutput,
+                       testTabFaviconObserverTabWillClose) {
+  auto* tab_0_contents = GetTabListInterface()->GetTab(0)->GetContents();
+  ASSERT_TRUE(content::NavigateToURL(tab_0_contents, GetTestUrl("page.html")));
+  tabs::TabInterface* second_tab =
+      GetTabListInterface()->OpenTab(GetTestUrl("page2.html"), -1);
+  tabs::TabHandle second_tab_handle = second_tab->GetHandle();
+
+  ASSERT_OK(OpenGlicForActiveTab());
+  GetOnlyGlicInstance()->GetSharingManagerInternal().PinTabs(
+      {second_tab_handle});
+
+  ExecuteJsTest();
+
+  // Wait for the subscription Mojo message to be processed.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return service()->tab_favicon_observer().HasTabObserverForTesting(
+        second_tab_handle);
+  }));
+
+  GetTabListInterface()->CloseTab(second_tab_handle);
+
+  EXPECT_FALSE(service()->tab_favicon_observer().HasTabObserverForTesting(
+      second_tab_handle));
+}
+
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_testAndroidFaviconUpdatedViaObserver \
+  testAndroidFaviconUpdatedViaObserver
+#else
+#define MAYBE_testAndroidFaviconUpdatedViaObserver \
+  DISABLED_testAndroidFaviconUpdatedViaObserver
+#endif
+IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithPixelOutput,
+                       MAYBE_testAndroidFaviconUpdatedViaObserver) {
+#if BUILDFLAG(IS_ANDROID)
+  ASSERT_OK(OpenGlicForActiveTab());
+  GetOnlyGlicInstance()->GetSharingManagerInternal().PinTabs(
+      {GetTabListInterface()->GetActiveTab()->GetHandle()});
+
+  ExecuteJsTest();
+
+  auto* observer =
+      service()->tab_favicon_observer().GetTabFaviconObserverForTesting(
+          GetTabListInterface()->GetActiveTab()->GetHandle());
+  ASSERT_TRUE(observer);
+
+  SkBitmap red_bitmap;
+  red_bitmap.allocN32Pixels(16, 16);
+  red_bitmap.eraseColor(SK_ColorRED);
+  observer->OnFaviconUpdated(red_bitmap);
+
+  ContinueJsTest();
+#else
+  GTEST_SKIP() << "Android-only test";
+#endif
 }
 
 // TODO(crbug.com/512876414): Re-enable on Android.

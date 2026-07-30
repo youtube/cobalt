@@ -77,6 +77,13 @@ template("tflite_target_gen") {
     target(invoker.target_type, target_name + type) {
       forward_variables_from(invoker, minimal_vars_to_forward_to_target)
 
+      _configs = []
+      if (defined(configs)) {
+        _configs = configs
+      }
+      configs = []
+      configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
+
       if (defined(cflags) && filter_include(cflags, [ "-ObjC++" ]) != []) {
         # Disable libc++ modules when compiling with Objective-C++ support, as
         # it is incompatible with the libc++ modules build on macOS.

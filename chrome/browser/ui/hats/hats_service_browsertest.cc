@@ -13,6 +13,7 @@
 #include "base/run_loop.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "base/version.h"
 #include "chrome/browser/browser_process.h"
@@ -439,8 +440,9 @@ IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, SurveyAlreadyFullNoShow) {
 
 IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, LaunchDelayedSurvey) {
   SetMetricsConsent(true);
-  EXPECT_TRUE(
-      GetHatsService()->LaunchDelayedSurvey(kHatsSurveyTriggerSettings, 0));
+  EXPECT_EQ(
+      GetHatsService()->LaunchDelayedSurvey(kHatsSurveyTriggerSettings, 0),
+      HatsService::LaunchError::kNone);
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(HatsNextDialogCreated());
 }
@@ -450,16 +452,18 @@ IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne,
   SetMetricsConsent(true);
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
-  EXPECT_TRUE(GetHatsService()->LaunchDelayedSurveyForWebContents(
-      kHatsSurveyTriggerSettings, web_contents, 0));
+  EXPECT_EQ(GetHatsService()->LaunchDelayedSurveyForWebContents(
+                kHatsSurveyTriggerSettings, web_contents, 0),
+            HatsService::LaunchError::kNone);
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(HatsNextDialogCreated());
 }
 
 IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, DisallowsEmptyWebContents) {
   SetMetricsConsent(true);
-  EXPECT_FALSE(GetHatsService()->LaunchDelayedSurveyForWebContents(
-      kHatsSurveyTriggerSettings, nullptr, 0));
+  EXPECT_EQ(GetHatsService()->LaunchDelayedSurveyForWebContents(
+                kHatsSurveyTriggerSettings, nullptr, 0),
+            HatsService::LaunchError::kError);
   EXPECT_FALSE(HatsNextDialogCreated());
 }
 
@@ -469,13 +473,15 @@ IN_PROC_BROWSER_TEST_F(
   SetMetricsConsent(true);
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
-  EXPECT_TRUE(GetHatsService()->LaunchDelayedSurveyForWebContents(
-      kHatsSurveyTriggerSettings, web_contents, 0));
+  EXPECT_EQ(GetHatsService()->LaunchDelayedSurveyForWebContents(
+                kHatsSurveyTriggerSettings, web_contents, 0),
+            HatsService::LaunchError::kNone);
   base::RunLoop().RunUntilIdle();
   chrome::AddTabAt(browser(), GURL(), -1, true);
-  EXPECT_TRUE(GetHatsService()->LaunchDelayedSurveyForWebContents(
-      kHatsSurveyTriggerSettings,
-      browser()->tab_strip_model()->GetActiveWebContents(), 0));
+  EXPECT_EQ(GetHatsService()->LaunchDelayedSurveyForWebContents(
+                kHatsSurveyTriggerSettings,
+                browser()->tab_strip_model()->GetActiveWebContents(), 0),
+            HatsService::LaunchError::kNone);
 }
 
 IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne,
@@ -483,10 +489,12 @@ IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne,
   SetMetricsConsent(true);
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
-  EXPECT_TRUE(GetHatsService()->LaunchDelayedSurveyForWebContents(
-      kHatsSurveyTriggerSettings, web_contents, 0));
-  EXPECT_FALSE(GetHatsService()->LaunchDelayedSurveyForWebContents(
-      kHatsSurveyTriggerSettings, web_contents, 0));
+  EXPECT_EQ(GetHatsService()->LaunchDelayedSurveyForWebContents(
+                kHatsSurveyTriggerSettings, web_contents, 0),
+            HatsService::LaunchError::kNone);
+  EXPECT_EQ(GetHatsService()->LaunchDelayedSurveyForWebContents(
+                kHatsSurveyTriggerSettings, web_contents, 0),
+            HatsService::LaunchError::kSurveyInProgress);
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(HatsNextDialogCreated());
 }
@@ -496,8 +504,9 @@ IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne,
   SetMetricsConsent(true);
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
-  EXPECT_TRUE(GetHatsService()->LaunchDelayedSurveyForWebContents(
-      kHatsSurveyTriggerSettings, web_contents, 0));
+  EXPECT_EQ(GetHatsService()->LaunchDelayedSurveyForWebContents(
+                kHatsSurveyTriggerSettings, web_contents, 0),
+            HatsService::LaunchError::kNone);
   base::RunLoop().RunUntilIdle();
   EXPECT_FALSE(GetHatsService()->HasPendingTasks());
 }
@@ -633,7 +642,9 @@ IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, SameOriginNavigation) {
 // returns false until the service has been informed the dialog was closed.
 IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, SingleHatsNextDialog) {
   SetMetricsConsent(true);
-  EXPECT_TRUE(GetHatsService()->ShouldShowSurvey(kHatsSurveyTriggerSettings));
+  EXPECT_EQ(
+      GetHatsService()->GetLaunchError(browser(), kHatsSurveyTriggerSettings),
+      HatsService::LaunchError::kNone);
   GetHatsService()->LaunchSurvey(kHatsSurveyTriggerSettings);
 
   // Clear any metadata that would prevent another survey from being displayed.
@@ -645,11 +656,15 @@ IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, SingleHatsNextDialog) {
   // request, the dialog waits for a timeout posted to the UI thread before
   // closing itself. Since this test is also on the UI thread, these checks,
   // which rely on the dialog still being open, will not race.
-  EXPECT_FALSE(GetHatsService()->ShouldShowSurvey(kHatsSurveyTriggerSettings));
+  EXPECT_EQ(
+      GetHatsService()->GetLaunchError(browser(), kHatsSurveyTriggerSettings),
+      HatsService::LaunchError::kSurveyInProgress);
 
   // Inform the service directly that the dialog has been closed.
   GetHatsService()->HatsNextDialogClosed();
-  EXPECT_TRUE(GetHatsService()->ShouldShowSurvey(kHatsSurveyTriggerSettings));
+  EXPECT_EQ(
+      GetHatsService()->GetLaunchError(browser(), kHatsSurveyTriggerSettings),
+      HatsService::LaunchError::kNone);
 }
 
 // Check that launching a HaTS Next survey records a survey check time
@@ -700,4 +715,47 @@ IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, DialogDoesNotOutliveBrowser) {
 
   CloseBrowserSynchronously(hats_browser.ExtractAsDangling());
   EXPECT_FALSE(GetHatsService()->hats_next_dialog_exists_for_testing());
+}
+
+IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne,
+                       LaunchSurveyRunsFailureCallbackOnEligibilityFailure) {
+  SetMetricsConsent(true);
+  HatsServiceDesktop::SurveyMetadata metadata;
+  metadata.is_survey_full = true;
+  GetHatsService()->SetSurveyMetadataForTesting(metadata);
+
+  base::test::TestFuture<void> failure_called;
+  GetHatsService()->LaunchSurvey(
+      kHatsSurveyTriggerSettings, base::DoNothing(),
+      base::BindOnce(
+          [](base::test::TestFuture<void>* future) { future->SetValue(); },
+          &failure_called));
+  EXPECT_TRUE(failure_called.Wait());
+  EXPECT_FALSE(HatsNextDialogCreated());
+}
+
+IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne,
+                       LaunchDelayedSurveyRunsFailureCallbackOnDuplicate) {
+  SetMetricsConsent(true);
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  // First request should succeed and be enqueued.
+  EXPECT_EQ(GetHatsService()->LaunchDelayedSurveyForWebContents(
+                kHatsSurveyTriggerSettings, web_contents, 10000),
+            HatsService::LaunchError::kNone);
+
+  // Second request (duplicate) should fail immediately and run its failure
+  // callback.
+  base::test::TestFuture<void> failure_called;
+  EXPECT_EQ(
+      GetHatsService()->LaunchDelayedSurveyForWebContents(
+          kHatsSurveyTriggerSettings, web_contents, 10000, {}, {},
+          HatsService::NavigationBehavior::ALLOW_ANY, base::DoNothing(),
+          base::BindOnce(
+              [](base::test::TestFuture<void>* future) { future->SetValue(); },
+              &failure_called)),
+      HatsService::LaunchError::kSurveyInProgress);
+
+  EXPECT_TRUE(failure_called.Wait());
 }

@@ -70,7 +70,7 @@ class AccountConsistencyBrowserAgent
       UIViewController* base_view_controller,
       signin::SigninEnabledDataSource* signin_enabled_data_source);
 
-  // Returns whether it is is possible to show the browser's account menu.
+  // Returns whether it is possible to show the browser's account menu.
   bool CanShowAccountMenu() const;
 
   // Opens the account menu, offering to switch to a different account (even one

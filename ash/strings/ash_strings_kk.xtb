@@ -48,6 +48,7 @@
 <translation id="1129383337808748948"><ph name="CONTENT_TITLE" /> жаңарту</translation>
 <translation id="1142002900084379065">Жақында түскен фотосуреттер</translation>
 <translation id="114221662579355151">Бұл <ph name="APP1_NAME" />, <ph name="APP2_NAME" /> қолданбаларының және камера рұқсаты бар барлық қолданба мен веб-сайттың камераны пайдалануына мүмкіндік береді. Веб-бетті жаңарту немесе қолданбаны өшіріп қосу керек болуы мүмкін.</translation>
+<translation id="1145593918056169051">Принтер тоқтады</translation>
 <translation id="1147991416141538220">Пайдалану рұқсатын алу үшін құрылғының әкімшісіне хабарласыңыз.</translation>
 <translation id="1148499908455722006"><ph name="USER_NAME" /> аккаунты туралы ақпарат диалогтік терезесін ашу</translation>
 <translation id="1150989369772528668">Күнтізбе</translation>
@@ -151,6 +152,7 @@
 <translation id="1383876407941801731">Іздеу</translation>
 <translation id="1388728792929436380">Жаңарту аяқталғанда, <ph name="DEVICE_TYPE" /> құрылғысы қайта қосылады.</translation>
 <translation id="1390113502208199250">Chrome Education Upgrade мүмкіндіктерін пайдалану үшін құрылғыны зауыттық параметрлерге қайтаруыңыз керек.</translation>
+<translation id="1390907927270446471">Пайдаланушының (<ph name="PROFILE_USERNAME" />) <ph name="PRINTER_NAME" /> принтеріне басып шығаруға рұқсаты жоқ. Әкімшіге хабарласыңыз.</translation>
 <translation id="1391102559483454063">Қосулы</translation>
 <translation id="1394698770495054737">Толық бұлдыр</translation>
 <translation id="1395878931462960119">{DAYS,plural, =1{1 күн бұрын}other{# күн бұрын}}</translation>
@@ -169,6 +171,7 @@
 <translation id="1426410128494586442">Иә</translation>
 <translation id="142655739075382478"><ph name="APP_NAME" /> бөгелді</translation>
 <translation id="142765311413773645"><ph name="APP_NAME" /> лицензиясының мерзімі аяқталды</translation>
+<translation id="1430915738399379752">Басып шығару</translation>
 <translation id="1435537621343861112">Мәтінді дауыспен енгізуді бастау мүмкін емес. Микрофон өшірулі.</translation>
 <translation id="1445031758921122223">Бет-әлпетімен басқару файлдары жүктеп алынды</translation>
 <translation id="1447907279406111651">Қазір · <ph name="END_TIME" /> аяқталады</translation>
@@ -229,6 +232,7 @@
 <translation id="1597880963776148053">Шолудың <ph name="STEP" />/<ph name="TOTAL_STEPS" />-қадамы. Бекітілген және ашық қолданбалар экранның төменгі жағындағы сөреде болады. Сөре элементтерін ерекшелеу үшін Alt + Shift + L пернелерін, содан кейін Tab пернесін басыңыз.</translation>
 <translation id="1602085790802918092">Виртуалдық құрылғы іске қосылуда</translation>
 <translation id="1602874809115667351"><ph name="LAUNCHER_KEY_NAME" /> + төмен бағыт пернесі</translation>
+<translation id="1604432177629086300">Басып шығарылмады. Принтерді тексеріп, қайталап көріңіз.</translation>
 <translation id="1604857178818051494">Мультимедианы кідірту</translation>
 <translation id="1607312127821884567">Телефондағы қолданбаларды көру мүмкіндігін реттеуден бас тарту</translation>
 <translation id="1610778689852195798">"Қайтару"</translation>
@@ -372,6 +376,7 @@
 <translation id="2053312383184521053">Әрекетсіз күй деректері</translation>
 <translation id="2064048859448024834">Камераның алғы көрінісі қосылды</translation>
 <translation id="2067220651560163985">Температураны Цельсиймен көрсету</translation>
+<translation id="206960706005837784"><ph name="APP_NAME" /> қолданбасы <ph name="PRINTER_NAME" /> принтерінде басып шығарды.</translation>
 <translation id="2075520525463668108"><ph name="CAPTURE_MEDIUM" /> функциясын қосу немесе өшіру. <ph name="CAPTURE_MEDIUM" /> — <ph name="CAPTURE_STATE" /></translation>
 <translation id="2079545284768500474">Қайтару</translation>
 <translation id="2086334242442703436">Эмоджи таңдағышты ашу</translation>
@@ -441,6 +446,7 @@
 <translation id="2328561734797404498"><ph name="APP_NAME" /> пайдалану үшін құрылғыңызды қайта қосыңыз.</translation>
 <translation id="2335091074961603075">Chromebook немесе Bluetooth құрылғыңызда Bluetooth ескі нұсқасы тұр. Дыбыс сапасын жақсарту үшін ішкі микрофонды пайдаланыңыз.</translation>
 <translation id="2336214675195760012">{NUM_DAYS,plural, =1{Жаңа нұсқаны жүктеп алу үшін <ph name="MANAGER" /> Wi-Fi желісіне қосылуыңызды талап етеді. Болмаса трафик саналатын байланыс арқылы жүктеп алыңыз (ақы алынуы мүмкін).}other{<ph name="MANAGER" /> Wi-Fi желісіне қосылып, мерзім аяқталғанға дейін, жаңа нұсқаны жүктеп алуыңызды талап етеді. Болмаса трафик саналатын байланыс арқылы жүктеп алыңыз (ақы алынуы мүмкін).}}</translation>
+<translation id="2336258397628212480"><ph name="APP_NAME" /> қолданбасы <ph name="PRINTER_NAME" /> принтерінде 1 бет басып шығарып жатыр.</translation>
 <translation id="2336381494582898602">Powerwash</translation>
 <translation id="2339073806695260576">Жазба мен скриншот үшін сөредегі стилус түймесін түртіңіз. Лазерлік меңзерді немесе ұлғайтқыш әйнекті пайдаланыңыз.</translation>
 <translation id="2341729377289034582">Тік қалыпта құлыпталды</translation>
@@ -755,6 +761,7 @@
 <translation id="3206735939915734551">Caps Lock қосу/өшіру</translation>
 <translation id="3207953481422525583">Пайдаланушы параметрлері</translation>
 <translation id="3208321278970793882">Қолданба</translation>
+<translation id="32101887417650595">Принтерге қосылмады</translation>
 <translation id="3212221635583599601">Қосымша ақпарат алу үшін интернетке қосылыңыз.</translation>
 <translation id="3213571860604332401">Сілтемені бетбелгі ретінде сақтау</translation>
 <translation id="3217205077783620295">Дыбыс деңгейі қосылып тұр. Түймені қайта бассаңыз, дауыс өшеді.</translation>
@@ -823,6 +830,7 @@
 <translation id="3431517721463707585">14-жұмыс үстелі</translation>
 <translation id="3433507769937235446">Компьютерден алыстағанда құлыптау</translation>
 <translation id="3434107140712555581"><ph name="BATTERY_PERCENTAGE" />%</translation>
+<translation id="343578350365773421">Қағаз бітті</translation>
 <translation id="3435967511775410570">Саусақ ізі танылды.</translation>
 <translation id="3437677362970530951">Play Store мен басқа ойын платформаларындағы ойындар</translation>
 <translation id="3439896670700055005">Кэштелген мазмұнды пайдаланбай, ағымдағы бетті қайта жүктеу</translation>
@@ -999,6 +1007,7 @@
 <translation id="3848526302597027234">Келесі рұқсаттарды алу:</translation>
 <translation id="385051799172605136">Артқа</translation>
 <translation id="385300504083504382">Басына өту</translation>
+<translation id="3854976556788175030">Шығыс науасы толы</translation>
 <translation id="3857807444929313943">Саусағыңызды алып, қайта түртіңіз</translation>
 <translation id="3859364108019690">Қолданбаларды трансляциялау мүмкін емес</translation>
 <translation id="3861638017150647085">"<ph name="USERNAME" />" деген пайдаланушы аты қолжетімді емес.</translation>
@@ -1051,6 +1060,7 @@
 <translation id="401993194061514265">Маркер қолжетімді емес. Скринкасты қайта ашыңыз.</translation>
 <translation id="4021716437419160885">Төменге айналдыру</translation>
 <translation id="4022497978915111141">Құрылғыны құлыптау</translation>
+<translation id="4023048917751563912"><ph name="APP_NAME" /> қолданбасы <ph name="PRINTER_NAME" /> принтерінде <ph name="PAGE_NUMBER" /> бет басып шығарып жатыр.</translation>
 <translation id="4024840464866786680">PIN коды мен құпия сөзді ұмытып қалсаңыз немесе Google аккаунты құпия сөзін жақында өзгертсеңіз, осы пайдаланушыны қалпына келтіріп көріңіз.</translation>
 <translation id="4026843240379844265">Қосулы терезені дисплейлер арасында ауыстырып қосу</translation>
 <translation id="4028481283645788203">Қауіпсіздікті күшейту үшін құпия сөзді енгізу қажет.</translation>
@@ -1580,6 +1590,7 @@
 <translation id="5491186829646618080">Микробағдарламаның жаңа нұсқасы қолжетімді</translation>
 <translation id="5503884284981862082">Google Assistant-ті ашу/жабу</translation>
 <translation id="550391772491508736">Трансляциялауды жалғастыру</translation>
+<translation id="5505307013568720083">Сия бітті</translation>
 <translation id="5506975627792768506">Ұлғайтқышты қосу немесе өшіру</translation>
 <translation id="5507778598655387680"><ph name="VOLUME_LEVEL" />, Enter пернесі басылса, аудио дыбысы өшіріледі.</translation>
 <translation id="5512042095225963688">Алдыңғы сөзді жою</translation>
@@ -1691,12 +1702,14 @@
 <translation id="5791926618942305301">Экран жазбасында <ph name="SOURCE" /> <ph name="TYPE" /> мәніне орнатылған. Түсіру түрін таңдау үшін Tab пернесін басыңыз. Түсіру үшін Enter пернесін басыңыз. Түсіретін аймақты таңдау үшін экранның бір бөлігінің скриншотын түсіруге орнатыңыз. Аймақ әлі белгіленбеген болса, оны таңдау үшін бос орын пернесін басыңыз.</translation>
 <translation id="579415080077680903">Дыбыссыз режим</translation>
 <translation id="5802516411616338943">Жылдам параметрлерді ашу</translation>
+<translation id="5804241973901381774">Рұқсаттар</translation>
 <translation id="5804651031882187592">"SIM картасын құлыптау" параметрін өшіру</translation>
 <translation id="5805809050170488595"><ph name="NETWORK_NAME" /> іске қосу үшін басыңыз</translation>
 <translation id="5818796501620225415">Көбірек уақыт қосуға немесе зейін қою сеансын аяқтауға болады.</translation>
 <translation id="5819918159912280082">Chromebook күтпеген жерден өшіп қосылды. Алдыңғы терезелер мен қолданбаларды ашыңыз.</translation>
 <translation id="5823239091726045201">Ғаламтордағы Google Tasks</translation>
 <translation id="5825969630400862129">Байланысқан құрылғылар параметрлері</translation>
+<translation id="5828633471261496623">Басып шығару…</translation>
 <translation id="5830180081891717894">Тағы <ph name="WINDOWS" /></translation>
 <translation id="5830205393314753525"><ph name="APP_NAME" /> қолданбасын ашу мүмкін емес</translation>
 <translation id="583281660410589416">Белгісіз</translation>
@@ -1721,6 +1734,7 @@
 <translation id="5892014525522223653">Офлайн режимдесіз.</translation>
 <translation id="5895138241574237353">Қайта іске қосу</translation>
 <translation id="589817443623831496">Нүктемен сканерлеу</translation>
+<translation id="5901494423252125310">Принтер есігі ашық</translation>
 <translation id="5901630391730855834">Сары</translation>
 <translation id="5904614460720589786">Конфигурациядағы қатеге байланысты <ph name="APP_NAME" /> орнатылмады. Әкімшіге хабарласыңыз. Қате коды: <ph name="ERROR_CODE" />.</translation>
 <translation id="5910726859585389579"><ph name="DEVICE_TYPE" /> офлайн режимде.</translation>
@@ -1785,6 +1799,7 @@
         <ph name="BEGIN_PARAGRAPH2" />Бұл функцияны өшірсеңіз, құрылғының маңызды қызметтерге (мысалы, жүйені жаңарту және қауіпсіздік) қажетті ақпаратты жіберу мүмкіндігіне әсер етпейді.<ph name="END_PARAGRAPH2" />
         <ph name="BEGIN_PARAGRAPH3" />Иесі бұл функцияны "Параметрлер &gt; Қосымша &gt; Диагностика және пайдалану туралы деректі Google қызметіне автоматты түрде жіберу" бөлімінде басқара алады.<ph name="END_PARAGRAPH3" />
         <ph name="BEGIN_PARAGRAPH4" />Балаңыз үшін "Интернет пен қолданбаларды пайдаланудың қосымша тарихы" параметрі қосылып тұрса, бұл деректер оның Google аккаунтына сақталуы мүмкін. account.google.com бетіне кіріп, бұл параметрлер мен оларды реттеу жолы туралы толық ақпарат алыңыз.<ph name="END_PARAGRAPH4" /></translation>
+<translation id="6052261338768299955"><ph name="APP_NAME" /> қолданбасы <ph name="PRINTER_NAME" /> принтерінде басып шығарғалы жатыр.</translation>
 <translation id="6054305421211936131">Смарт картамен кіру</translation>
 <translation id="6059276912018042191">Соңғы Chrome қойындылары</translation>
 <translation id="606147842285839995">ExpressKey 3</translation>
@@ -1888,6 +1903,7 @@
 <translation id="6337159624125741244">Толық экран ұлғайтқышы қосылды</translation>
 <translation id="6338485349199627913"><ph name="DISPLAY_NAME" /> – <ph name="MANAGER" /> басқаратын сеанс.</translation>
 <translation id="6340148837564298498">PIN кодыңызды ұмытып қалсаңыз, осы аккаунтты қалпына келтіріп көріңіз.</translation>
+<translation id="634208815998129842">Тапсырмалар реттегіші</translation>
 <translation id="6344138931392227467"><ph name="DEVICE_NAME" /> қосылды</translation>
 <translation id="6345418402353744910"><ph name="PROXY" /> прокси-серверіне пайдаланушы аты мен құпиясөзіңізді енгізуіңіз керек, сонда әкімші желіні конфигурациялай алады.</translation>
 <translation id="6348449481487610270"><ph name="MODIFIER_ONE" /><ph name="MODIFIER_TWO" /><ph name="KEY_ONE" />, одан кейін <ph name="MODIFIER_THREE" /><ph name="KEY_TWO" /> не <ph name="KEY_THREE" /></translation>
@@ -2093,6 +2109,7 @@
 <translation id="6921427376813842559">Құрылғыны жаңартыңыз</translation>
 <translation id="6929081673585394903">Басқару элементтерін көрсету</translation>
 <translation id="6931576957638141829">Сақтау орны</translation>
+<translation id="6935286146439255109">Қағаз науасы жоқ</translation>
 <translation id="6935857786205183008">Портреттік</translation>
 <translation id="6942518653766415536">Жазба форматының мәзірі</translation>
 <translation id="6945221475159498467">Таңдау</translation>
@@ -2115,6 +2132,7 @@
 <translation id="6988094684494323731">Linux контейнері іске қосылуда</translation>
 <translation id="7000027735917578303">Windows және жұмыс үстелі параметрлері</translation>
 <translation id="7001036685275644873">Linux қолданбалары мен файлдарының сақтық көшірмесі жасалуда</translation>
+<translation id="7001066449188684145"><ph name="PRINTER_NAME" /> принтеріне басып шығару үшін жеке басты анықтау қажет. Әкімшіге хабарласыңыз.</translation>
 <translation id="7004910047186208204">Мобильдік интернетке қосылу</translation>
 <translation id="7005239792648594238">Іске қосу үшін қолданбаны ашыңыз.</translation>
 <translation id="7014684956566476813">"<ph name="DEVICE_NAME" />" деп аталатын құрылғыға қосылды.</translation>
@@ -2154,6 +2172,7 @@
 <translation id="7108254681523785542">Қоятын элементті таңдаңыз. <ph name="SHORTCUT_KEY_NAME" /> + v тіркесімін басу арқылы буферді көруге болады.</translation>
 <translation id="7108338896283013870">Жасыру</translation>
 <translation id="7108933416628942903">Қазір құлыптау</translation>
+<translation id="7116554090938189816">Принтердің SSL сертификатының мерзімі біткен. Принтерді қайта іске қосып, әрекетті қайталаңыз.</translation>
 <translation id="7116969082764510092">11-жұмыс үстелі</translation>
 <translation id="7118268675952955085">скриншот</translation>
 <translation id="7118597077555700347"><ph name="SEARCH_RESULT_TEXT" /> мәтінін ашу</translation>
@@ -2205,6 +2224,7 @@
 <translation id="7312210124139670355">Әкімші eSIM-ді қайта орнатуда. Бұл бірнеше минутқа созылуы мүмкін.</translation>
 <translation id="7312761820869643657">Құрылғыны алдыңғы нұсқаға қайтарыңыз</translation>
 <translation id="7313193732017069507">Өлшемді өзгерту түймесін көрсету</translation>
+<translation id="7325209047678309347">Қағаз кептеліп қалды</translation>
 <translation id="7327989755579928735"><ph name="MANAGER" /> сайты ADB түзетуін өшірді. <ph name="DEVICE_TYPE" /> құрылғысы қайта қосылғаннан кейін, қолданбаларды сырт ресурстан жүктеп ала алмайсыз.</translation>
 <translation id="73289266812733869">Таңдалмады</translation>
 <translation id="7330397557116570022">Мәтінді дауыспен енгізуді пайдалану үшін мәтіндік хабар өрісіне өтіңіз.</translation>
@@ -2579,6 +2599,7 @@
 <translation id="8339706171276328417"><ph name="ACTION_DESCRIPTION" /> · <ph name="TIME" /></translation>
 <translation id="834414266279889566">Нашар пікір</translation>
 <translation id="8345019317483336363"><ph name="WINDOW_TITLE" /> терезесі таңдалды</translation>
+<translation id="8347227221149377169">Баспа жұмыстары</translation>
 <translation id="8349826889576450703">қосқыш</translation>
 <translation id="8349964124165471584">Сілтемені жаңа терезеде ашу</translation>
 <translation id="8351131234907093545">Ескертпе жасау</translation>
@@ -2617,6 +2638,7 @@
 <translation id="8458259704995116343">Виртуалды құрылғыны іске қосу мүмкін болмады.</translation>
 <translation id="84613761564611563">Желіні конфигурациялау интерфейсін алу сұралды, күте тұрыңыз…</translation>
 <translation id="8462305545768648477">Select-to-Speak функциясын жабу</translation>
+<translation id="8463001014623882202">Авторизация жасалмады</translation>
 <translation id="8466665972451889002"><ph name="GROUP_NAME" /> тобындағы элементтерді көрсету</translation>
 <translation id="8468806060683421065">мерзімі: <ph name="DUE_DATE_AND_TIME" /></translation>
 <translation id="8473301994082929012"><ph name="ORGANIZATION_NAME" /> ұйымы <ph name="FEATURE_NAME" /> функциясын <ph name="FEATURE_STATE" />.</translation>

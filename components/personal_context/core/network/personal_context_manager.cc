@@ -34,8 +34,9 @@ constexpr char kContextMemoryServiceBaseUrl[] =
     "https://contextmemoryservice.pa.googleapis.com/v1";
 
 // Returns the base URL of the Context Memory Service. If the
-// `kContextMemoryServiceBaseUrlSwitch` is set, its value is returned.
-// Otherwise, the production URL is returned.
+// `kContextMemoryServiceBaseUrlSwitch` is set, its value is returned. If the
+// `kContextMemoryServiceBaseUrlParam` feature parameter is set, its value is
+// returned. Otherwise, the production URL is returned.
 GURL GetContextMemoryServiceBaseUrl() {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(
@@ -43,6 +44,12 @@ GURL GetContextMemoryServiceBaseUrl() {
     return GURL(command_line->GetSwitchValueASCII(
         features::debug::kContextMemoryServiceBaseUrlSwitch));
   }
+  const std::string base_url_override =
+      features::debug::kContextMemoryServiceBaseUrlParam.Get();
+  if (!base_url_override.empty()) {
+    return GURL(base_url_override);
+  }
+
   return GURL(kContextMemoryServiceBaseUrl);
 }
 
@@ -76,17 +83,34 @@ size_t GetMaxParallelPiiFeatureFetchers(proto::ContextMemoryFeature feature) {
   }
 }
 
-void RecordResultHistogram(proto::ContextMemoryFeature feature, bool success) {
+void RecordFetchContextResultHistogram(proto::ContextMemoryFeature feature,
+                                       bool success) {
   base::UmaHistogramBoolean(
       base::StrCat({"PersonalContext.FetchContext.Result.",
                     GetStringNameForContextMemoryFeature(feature)}),
       success);
 }
 
-void RecordLatencyHistogram(proto::ContextMemoryFeature feature,
-                            base::TimeDelta latency) {
+void RecordFetchContextLatencyHistogram(proto::ContextMemoryFeature feature,
+                                        base::TimeDelta latency) {
   base::UmaHistogramMediumTimes(
       base::StrCat({"PersonalContext.FetchContext.Latency.",
+                    GetStringNameForContextMemoryFeature(feature)}),
+      latency);
+}
+
+void RecordFetchPiiEntitiesResultHistogram(proto::ContextMemoryFeature feature,
+                                           bool success) {
+  base::UmaHistogramBoolean(
+      base::StrCat({"PersonalContext.FetchPiiEntities.Result.",
+                    GetStringNameForContextMemoryFeature(feature)}),
+      success);
+}
+
+void RecordFetchPiiEntitiesLatencyHistogram(proto::ContextMemoryFeature feature,
+                                            base::TimeDelta latency) {
+  base::UmaHistogramMediumTimes(
+      base::StrCat({"PersonalContext.FetchPiiEntities.Latency.",
                     GetStringNameForContextMemoryFeature(feature)}),
       latency);
 }
@@ -149,24 +173,25 @@ void PersonalContextManager::OnFetchContextResponse(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   active_fetchers_[feature].erase(fetcher_id);
 
-  RecordLatencyHistogram(feature, base::TimeTicks::Now() - start_time);
+  RecordFetchContextLatencyHistogram(feature,
+                                     base::TimeTicks::Now() - start_time);
 
   if (!fetch_response.has_value()) {
-    RecordResultHistogram(feature, /*success=*/false);
+    RecordFetchContextResultHistogram(feature, /*success=*/false);
     std::move(callback).Run(
         FetchContextResult(base::unexpected(fetch_response.error())));
     return;
   }
 
   if (!fetch_response->has_response_metadata()) {
-    RecordResultHistogram(feature, /*success=*/false);
+    RecordFetchContextResultHistogram(feature, /*success=*/false);
     std::move(callback).Run(FetchContextResult(
         base::unexpected(ContextMemoryError::FromExecutionError(
             ContextMemoryError::ExecutionError::kGenericFailure))));
     return;
   }
 
-  RecordResultHistogram(feature, /*success=*/true);
+  RecordFetchContextResultHistogram(feature, /*success=*/true);
   std::move(callback).Run(
       FetchContextResult(base::ok(fetch_response->response_metadata())));
 }
@@ -196,18 +221,29 @@ void PersonalContextManager::FetchPiiEntities(
       request, timeout,
       base::BindOnce(&PersonalContextManager::OnFetchPiiEntitiesResponse,
                      weak_ptr_factory_.GetWeakPtr(), feature, fetcher_id,
-                     std::move(callback)));
+                     base::TimeTicks::Now(), std::move(callback)));
 }
 
 void PersonalContextManager::OnFetchPiiEntitiesResponse(
     proto::ContextMemoryFeature feature,
     FetcherId fetcher_id,
+    base::TimeTicks start_time,
     FetchPiiContextCallback callback,
     base::expected<const proto::FetchPiiEntitiesResponse, ContextMemoryError>
         fetch_response) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   active_pii_fetchers_[feature].erase(fetcher_id);
 
+  RecordFetchPiiEntitiesLatencyHistogram(feature,
+                                         base::TimeTicks::Now() - start_time);
+
+  if (!fetch_response.has_value()) {
+    RecordFetchPiiEntitiesResultHistogram(feature, /*success=*/false);
+    std::move(callback).Run(FetchPiiEntitiesResult(std::move(fetch_response)));
+    return;
+  }
+
+  RecordFetchPiiEntitiesResultHistogram(feature, /*success=*/true);
   std::move(callback).Run(FetchPiiEntitiesResult(std::move(fetch_response)));
 }
 

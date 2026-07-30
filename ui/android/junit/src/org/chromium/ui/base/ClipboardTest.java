@@ -180,7 +180,7 @@ public class ClipboardTest {
     }
 
     private ClipData createTwoFilesClipData() {
-        String file1 = "content://tmp/test/file1.jpg";
+        String file1 = "content://0@tmp/test/file1.jpg";
         String file2 = "content://tmp/test/file2.txt";
         registerMockFileUri(file1);
         registerMockFileUri(file2);
@@ -193,7 +193,7 @@ public class ClipboardTest {
     private void assertTwoFilesReturned(String[][] filenames) {
         assertEquals(2, filenames.length);
         assertEquals(2, filenames[0].length);
-        assertEquals("content://tmp/test/file1.jpg", filenames[0][0]);
+        assertEquals("content://0@tmp/test/file1.jpg", filenames[0][0]);
         assertEquals("", filenames[0][1]);
         assertEquals(2, filenames[1].length);
         assertEquals("content://tmp/test/file2.txt", filenames[1][0]);

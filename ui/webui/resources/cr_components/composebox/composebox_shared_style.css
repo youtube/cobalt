@@ -174,12 +174,6 @@
   top: 0;
 }
 
-/* Ensure error scrim does not interfere with clicks when not in use. */
-#errorScrim[hidden] {
-  display: none;
-  pointer-events: none;
-}
-
 /* Position absolute: make sure error scrim shows over voice search
  * animation and voice search component since composebox is hidden
  * in voice search mode. 'Absolute' is needed for scrim because
@@ -207,12 +201,18 @@
  * Its submit/stop button children override 'pointer-events' to 'auto'.
  */
 cr-composebox-voice-search {
+  display: block;
   pointer-events: none;
   z-index: 2;
 }
 
-/* Takes height from parent, which gets it from 'animated_glow'. */
-:host([in-voice-search-mode]) cr-composebox-voice-search {
+/* When listening, make voice search 'absolute' to have composebox take
+ * height from parent, which gets it from 'animated_glow'. Otherwise,
+ * make voice search 'static', and thus composebox's source of height
+ * when not listening and in voice search mode (when permission prompt
+ * is showing).
+ */
+:host([in-voice-search-mode][is-listening]) cr-composebox-voice-search {
   inset: 0;
   position: absolute;
 }

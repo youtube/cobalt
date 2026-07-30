@@ -117,7 +117,6 @@
 <translation id="1178821169867863726">12 × 16 بوصة</translation>
 <translation id="1181037720776840403">إزالة</translation>
 <translation id="1185331130467528132">يريد <ph name="URL" /> الوصول إلى الأجهزة الأخرى على شبكتك المحلية</translation>
-<translation id="1185343831726846924">تأكيد عدم إمكانية تفعيل البطاقة الافتراضية</translation>
 <translation id="1186201132766001848">التحقق من كلمات المرور</translation>
 <translation id="1187430513518041110">سيارات ومركبات</translation>
 <translation id="1188817995162638216">إلغاء حفظ الملف؟</translation>
@@ -1262,7 +1261,6 @@
 <translation id="297173220375858963">نشر مكتبي</translation>
 <translation id="2972581237482394796">إعا&amp;دة</translation>
 <translation id="2974468223369775963">‏تعذَّر حفظ رقم الحساب بصيغة IBAN هذا في حسابك على Google. بدلاً من ذلك، تم حفظه في Chrome على هذا الجهاز. سيطلب منك Chrome الإذن مجددًا في المرة التالية التي تستخدم فيها رقم الحساب بصيغة IBAN هذا.</translation>
-<translation id="2976162850019490782">‏عند تفعيل هذه الميزة، سيشارك Chrome جميع علامات التبويب في هذه النافذة لمساعدتك في الحصول على ردود أكثر دقة. يمكنك تفعيل هذه الميزة لجميع سلاسل المحادثات في "الإعدادات".</translation>
 <translation id="297667759942911166">التعاون في مجموعات علامات التبويب</translation>
 <translation id="2977665033722899841"><ph name="ROW_NAME" />، تم اختياره حاليًا. <ph name="ROW_CONTENT" /></translation>
 <translation id="2978824962390592855">أوبرا</translation>
@@ -1671,7 +1669,6 @@
 <translation id="361438452008624280">إدخال في القائمة "<ph name="LANGUAGE_ID" />": لغة غير معروفة أو غير متاحة.</translation>
 <translation id="3614934205542186002">‏<ph name="RUN_CHROME_SAFETY_CHECK_FOCUSED_FRIENDLY_MATCH_TEXT" />، اضغط على مفتاح Tab ثم مفتاح Enter لتفعيل ميزة "التحقّق من الأمان" في إعدادات Chrome</translation>
 <translation id="3615309852743236517">عناية بأظافر اليدين والقدمين</translation>
-<translation id="3620034424637552643">يُستخدَم عادةً لتوفير الاتجاهات وتتبُّع عمليات التسليم وغير ذلك</translation>
 <translation id="3620239073311576716">أزياء موحدة وسترات عمل</translation>
 <translation id="3620865353340165509">‏تعذَّر حفظ رقم الحساب بصيغة IBAN هذا في "محفظة Google". بدلاً من ذلك، تم حفظه في Chrome على هذا الجهاز. سيطلب منك Chrome الإذن مجددًا في المرة المقبلة التي يتم فيها استخدام هذا الرقم.</translation>
 <translation id="3621401353678567613">لتلقّي تنبيهات بشأن انخفاض أسعار المنتجات التي تتتبّعها، فعِّل الإشعارات في الإعدادات.</translation>
@@ -2220,7 +2217,6 @@
 <translation id="4434045419905280838">النوافذ المنبثقة وإعادة التوجيه</translation>
 <translation id="443673843213245140">تم إيقاف استخدام الخادم الوكيل ولكن تم تحديد إعداد صريح للخادم الوكيل.</translation>
 <translation id="4438821706955556403">السعر العادي</translation>
-<translation id="4439687924334332880">يمكنك الحصول على ردود مخصصة أكثر لك من خلال المشاركة التلقائية لعلامات التبويب المفتوحة في هذه النافذة إذا كانت مرتبطة بسلسلة المحادثات هذه. لتفعيل هذه الميزة لجميع سلاسل المحادثات، يُرجى الانتقال إلى "الإعدادات".</translation>
 <translation id="4441832193888514600">تم التجاهل لأنّ هذه السياسة لا يمكن ضبطها كسياسة مستخدم على السحابة الإلكترونية.</translation>
 <translation id="4444062564459679679">‏تم إرسال علامة التبويب إلى Chrome على "<ph name="DEVICE_NAME" />"</translation>
 <translation id="4445694043187340808">‏‫<ph name="STARTER_PACK_TABS_FOCUSED_FRIENDLY_MATCH_TEXT" />: يمكنك الضغط على مفتاح Enter للبحث في علامات التبويب</translation>
@@ -2354,6 +2350,7 @@
 <translation id="4691093235373904540">خدمات تسقيف</translation>
 <translation id="4692623383562244444">محرّكات البحث</translation>
 <translation id="4695702626068620848">‫<ph name="KEYWORD" /> - طرح سؤال على <ph name="KEYWORD_SHORT_NAME" /></translation>
+<translation id="4697071790493980729">لم يتم العثور على نتائج.</translation>
 <translation id="4698308118265482293">تعديل بيانات جواز السفر</translation>
 <translation id="4698692901173737941">رياضات قتالية</translation>
 <translation id="4701488924964507374"><ph name="SENTENCE1" />‏ <ph name="SENTENCE2" /></translation>
@@ -2701,7 +2698,6 @@
 <translation id="5238301240406177137">الحفظ في الحساب</translation>
 <translation id="5239119062986868403">السعر العادي</translation>
 <translation id="5239623327352565343">تمت الموافقة على طلب الوصول إلى الموقع الجغرافي.</translation>
-<translation id="5241048084654737238">تأكيد عدم إمكانية حفظ معلومات البطاقة</translation>
 <translation id="5242610955375133957">فيلم بمكوّنات جافة</translation>
 <translation id="5243004157379865295">تعديل العنوان</translation>
 <translation id="5244521145258281926">‏زر إدارة حساب Google: انقر على هذا الزر لإدارة معلوماتك وخصوصيتك وأمان حسابك في Google.</translation>
@@ -3357,6 +3353,7 @@
 <translation id="6246316216123107851">قبل <ph name="NUM_DAYS" /> يوم</translation>
 <translation id="6246382863801034910">مركَبة</translation>
 <translation id="6246868321321344665">يمكن لمؤسستك الاطّلاع على بيانات التصفُّح، مثل كلمات المرور والسجلّ، في كل من ملف العمل والملف الشخصي</translation>
+<translation id="6248479108671123143">تم تغيير علامة التبويب "<ph name="TAB_TITLE" />" من قِبل "<ph name="MEMBER_FIRST_NAME" />"</translation>
 <translation id="6248988683584659830">البحث في الإعدادات</translation>
 <translation id="6250932670816326647">منتجات استحمام وعناية بالجسم</translation>
 <translation id="6251906504834538140">{0,plural, =1{تم حظر نقل الملف}zero{تم حظر نقل <ph name="FILE_COUNT" /> ملف}two{تم حظر نقل ملفَين (<ph name="FILE_COUNT" />)}few{تم حظر نقل <ph name="FILE_COUNT" /> ملفات}many{تم حظر نقل <ph name="FILE_COUNT" /> ملفًا}other{تم حظر نقل <ph name="FILE_COUNT" /> ملف}}</translation>
@@ -3713,6 +3710,7 @@
 <translation id="6798066466127540426">لا تحتوي القائمة على مقدِّم بحث صالح.</translation>
 <translation id="6798460514924505775">‏ظرف Chou 3</translation>
 <translation id="6799145206637008376">‏عليك ملء حقل رمز التحقُّق من البطاقة (CVC) لهذه البطاقة الافتراضية.</translation>
+<translation id="6800773453940486492">تمت إضافة علامة التبويب "<ph name="TAB_TITLE" />" من قِبل "<ph name="MEMBER_FIRST_NAME" />"</translation>
 <translation id="6801920212017470190">لا يفوتك انخفاض الأسعار أثناء التنقّل</translation>
 <translation id="6805030849054648206">‏ظرف B6/C4</translation>
 <translation id="6807791860691150411">تعليم</translation>
@@ -4717,6 +4715,7 @@
 <translation id="8351131234907093545">إنشاء ملاحظة</translation>
 <translation id="8352849934814541340">ثبَّت مشرف هذا الجهاز تطبيقات للوظائف الإضافية. ويمكن لهذه التطبيقات الوصول إلى بعض بياناتك.</translation>
 <translation id="8355270400102541638">سياق التعطّل على جهاز المستخدِم:</translation>
+<translation id="8362914115861174987">الترجمة إلى</translation>
 <translation id="8363502534493474904">إيقاف "وضع الطيران"</translation>
 <translation id="8363929499301563123">ملفات تعريف الارتباط الخاصة بالمواقع الإلكترونية (سيتم الاحتفاظ بحالة تسجيل الدخول على المواقع الإلكترونية التي تمت زيارتها مؤخرًا)</translation>
 <translation id="8364627913115013041">لم يتم ضبطها.
@@ -4737,7 +4736,6 @@
 <translation id="8381674639488873545">قد يتم تحصيل هذه الرسوم لمرة واحدة أو بشكل متكرِّر، وقد تكون غير واضحة. <ph name="BEGIN_LINK" />عرض على أي حال<ph name="END_LINK" /></translation>
 <translation id="8382097126743287270">وضع ملء الشاشة تلقائيًا</translation>
 <translation id="838307841291975086">سيارات ستيشن واغن</translation>
-<translation id="838953173259347825">يمكنك الحصول على ردود مخصصة أكثر لك من خلال المشاركة التلقائية لعلامات التبويب المفتوحة في هذه النافذة إذا كانت مرتبطة بسلسلة المحادثات هذه. ويمكنك تفعيل هذه الميزة لجميع سلاسل المحادثات في</translation>
 <translation id="8389532092404711541">السعر العادي هو ‫<ph name="LOW_PRICE" /></translation>
 <translation id="8389940864052787379">مركبات مخصّصة ومركبات عالية الأداء</translation>
 <translation id="8390725133630534698">تحظر سياسة المشرف إمكانية المشاركة من <ph name="ORIGIN_NAME" /> إلى <ph name="VM_NAME" />.</translation>
@@ -4904,6 +4902,7 @@
 <translation id="8671519637524426245">قيمة <ph name="SECURE_DNS_SALT" /> لا تستوفي متطلبات الحجم.</translation>
 <translation id="867224526087042813">التوقيع</translation>
 <translation id="8672535691554698269">شبكات كمبيوتر</translation>
+<translation id="8673710317985154384">{NUM_TABS,plural, =1{يؤدي النقر إلى عرض تفاصيل مشاركة علامات التبويب. جارٍ مشاركة علامة تبويب واحدة من {WEBSITE_LIST_STR}}zero{يؤدي النقر إلى عرض تفاصيل مشاركة علامات التبويب. جارٍ مشاركة {NUM_TABS} علامة تبويب من {WEBSITE_LIST_STR}}two{يؤدي النقر إلى عرض تفاصيل مشاركة علامات التبويب. جارٍ مشاركة علامتَي تبويب ({NUM_TABS}) من {WEBSITE_LIST_STR}}few{يؤدي النقر إلى عرض تفاصيل مشاركة علامات التبويب. جارٍ مشاركة {NUM_TABS} علامات تبويب من {WEBSITE_LIST_STR}}many{يؤدي النقر إلى عرض تفاصيل مشاركة علامات التبويب. جارٍ مشاركة {NUM_TABS} علامة تبويب من {WEBSITE_LIST_STR}}other{يؤدي النقر إلى عرض تفاصيل مشاركة علامات التبويب. جارٍ مشاركة {NUM_TABS} علامة تبويب من {WEBSITE_LIST_STR}}}</translation>
 <translation id="8675446170353411473">جارٍ الآن تحميل ملفاتك إلى <ph name="CLOUD_PROVIDER" /></translation>
 <translation id="8676424191133491403">بلا تأخير</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />، إجابة، <ph name="ANSWER" /></translation>
@@ -5157,7 +5156,6 @@
 <translation id="9090243919347147717">المرفقات</translation>
 <translation id="9090548458280093580">البحث في السجلّ باستخدام الذكاء الاصطناعي</translation>
 <translation id="9090993752571911635">‏مزوّدو خدمة الإنترنت (ISP)</translation>
-<translation id="9092305980625216393">يُستخدَم عادةً لتوفير معلومات الطقس والأخبار المحلية وغير ذلك</translation>
 <translation id="9093723786115107672">ملابس نوم</translation>
 <translation id="9094424186948667194">الوصول إلى التطبيقات والخدمات الأخرى على هذا الجهاز</translation>
 <translation id="9094544726794842788">عند النقر على زر "لا يعجبني"، يتم فتح نموذج لإرسال ملاحظات مفصّلة حول سبب عدم إعجابك بهذه النتائج.</translation>
@@ -5283,7 +5281,6 @@
 <translation id="964050462028070434">إدارة كلمات المرور ومفاتيح المرور…</translation>
 <translation id="964681140808832181">نعم، أريد الإلغاء</translation>
 <translation id="969892804517981540">البنية الرسمية</translation>
-<translation id="970182982363142444">‏عند تفعيل هذه الميزة، سيشارك Chrome جميع علامات التبويب في هذه النافذة لمساعدتك في الحصول على ردود أكثر دقة. يمكنك تفعيل هذه الميزة لجميع المحادثات في</translation>
 <translation id="97054401902912338">مزيد من المعلومات حول فلاتر المحتوى</translation>
 <translation id="973788791897303708">مجموعة علامات التبويب هذه ممتلئة</translation>
 <translation id="975560348586398090">{COUNT,plural, =0{بدون}=1{عنصر واحد}two{عنصران (#)}few{# عناصر}many{# عنصرًا}other{# عنصر}}</translation>

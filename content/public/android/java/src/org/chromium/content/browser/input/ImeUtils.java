@@ -23,7 +23,6 @@ import org.chromium.blink_public.web.WebTextInputFlags;
 import org.chromium.blink_public.web.WebTextInputMode;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.content_public.browser.HtmlMetadata;
 import org.chromium.ui.base.ime.TextInputAction;
 import org.chromium.ui.base.ime.TextInputType;
 
@@ -57,18 +56,7 @@ public class ImeUtils {
             int initialSelStart,
             int initialSelEnd,
             String lastText,
-            HtmlMetadata htmlMetadata,
             EditorInfo outAttrs) {
-        if (htmlMetadata.label != null) {
-            outAttrs.label = htmlMetadata.label;
-        }
-        if (htmlMetadata.fieldName != null) {
-            outAttrs.fieldName = htmlMetadata.fieldName;
-        }
-        if (htmlMetadata.placeholder != null) {
-            outAttrs.hintText = htmlMetadata.placeholder;
-        }
-
         outAttrs.inputType =
                 EditorInfo.TYPE_CLASS_TEXT | EditorInfo.TYPE_TEXT_VARIATION_WEB_EDIT_TEXT;
 

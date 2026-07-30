@@ -748,7 +748,7 @@ void OmniboxViewViews::ExecuteCommand(int command_id, int event_flags) {
     case IDC_SEND_TAB_TO_SELF:
       send_tab_to_self::SendTabToSelfBubbleController::
           GetOrCreateForWebContents(location_bar_view_->GetWebContents())
-              ->ShowBubble();
+              ->ShowBubble(send_tab_to_self::ShareEntryPoint::kOmniboxMenu);
       return;
 
     // These commands do invoke the popup.
@@ -1542,7 +1542,8 @@ bool OmniboxViewViews::OnMousePressed(const ui::MouseEvent& event) {
   if (location_bar_view_ && location_bar_view_->GetOmniboxPopupView() &&
       base::FeatureList::IsEnabled(
           omnibox::kWebUIOmniboxFullPopupDoubleClick)) {
-    location_bar_view_->GetOmniboxPopupView()->PushTextToWebUI(is_double_click);
+    location_bar_view_->GetOmniboxPopupView()->SyncNativeStateToWebUI(
+        is_double_click);
   }
 
   return handled;
@@ -2049,18 +2050,10 @@ bool OmniboxViewViews::ShouldShowPlaceholderText() const {
 
   // If the omnibox is focused, only show the AIM placeholder if its conditions
   // are met:
-  if (omnibox_feature_configs::AiModeOmniboxEntryPoint::Get()
-          .hide_aim_hint_text ||
-      !AimButtonVisible() || AreAimHintImpressionLimitsReached()) {
+  if (!AimButtonVisible() || AreAimHintImpressionLimitsReached()) {
     return false;
   }
-  // Hide the AIM placeholder if the popup is closed (e.g. on NTP open).
-  if (omnibox_feature_configs::AiModeOmniboxEntryPoint::Get()
-          .hide_aim_hint_text_on_ntp_open &&
-      !controller()->IsPopupOpen() &&
-      !controller()->edit_model()->user_input_in_progress()) {
-    return false;
-  }
+
   // Hide the AIM placeholder when the AIM button is focused.
   return !controller()->edit_model()->GetPopupSelection().IsButtonFocused();
 }
@@ -2709,24 +2702,24 @@ bool OmniboxViewViews::AreAimHintImpressionLimitsReached() const {
     return false;
   }
 
-  const auto& config = omnibox_feature_configs::AiModeOmniboxEntryPoint::Get();
-  if (config.enable_hint_impression_limits) {
-    PrefService* prefs = location_bar_view_->GetProfile()->GetPrefs();
+  constexpr int kAimHintImpressionLimitTotal = 15;
+  constexpr int kAimHintImpressionLimitDaily = 3;
 
-    // Check total impressions.
-    const int total_impressions =
-        prefs->GetInteger(omnibox::kAimHintTotalImpressions);
-    if (total_impressions >= config.aim_hint_impression_limit_total) {
-      return true;
-    }
+  PrefService* prefs = location_bar_view_->GetProfile()->GetPrefs();
 
-    // Check daily impressions.
-    const int today = (base::Time::Now() - base::Time::UnixEpoch()).InDays();
-    if (prefs->GetInteger(omnibox::kAimHintLastImpressionDay) == today &&
-        prefs->GetInteger(omnibox::kAimHintDailyImpressionsCount) >=
-            config.aim_hint_impression_limit_daily) {
-      return true;
-    }
+  // Check total impressions.
+  const int total_impressions =
+      prefs->GetInteger(omnibox::kAimHintTotalImpressions);
+  if (total_impressions >= kAimHintImpressionLimitTotal) {
+    return true;
+  }
+
+  // Check daily impressions.
+  const int today = (base::Time::Now() - base::Time::UnixEpoch()).InDays();
+  if (prefs->GetInteger(omnibox::kAimHintLastImpressionDay) == today &&
+      prefs->GetInteger(omnibox::kAimHintDailyImpressionsCount) >=
+          kAimHintImpressionLimitDaily) {
+    return true;
   }
   return false;
 }
@@ -2783,11 +2776,6 @@ bool OmniboxViewViews::ShouldInstallContextualTasksPlaceholderText() const {
 }
 
 void OmniboxViewViews::RecordAimHintImpression() {
-  const auto& config = omnibox_feature_configs::AiModeOmniboxEntryPoint::Get();
-  if (!config.enable_hint_impression_limits) {
-    return;
-  }
-
   PrefService* prefs = location_bar_view_->GetProfile()->GetPrefs();
 
   // Increment the total impressions count.

@@ -19,6 +19,7 @@
 #include "net/base/address_list.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
+#include "net/base/network_handle.h"
 #include "net/socket/socket_descriptor.h"
 #include "net/socket/stream_socket.h"
 #include "net/socket/tcp_socket.h"
@@ -53,16 +54,17 @@ class NET_EXPORT TCPClientSocket : public TransportClientSocket,
   // The IP address(es) and port number to connect to. The TCP socket will try
   // each IP address in the list until it succeeds in establishing a
   // connection.
-  // If `network` is specified, the socket will be bound to it. All data traffic
-  // on the socket will be sent and received via `network`. Communication using
-  // this socket will fail if `network` disconnects.
+  // If `target_network` is not `handles::kInvalidNetworkHandle`, the socket
+  // will be bound to it. All data traffic on the socket will be sent and
+  // received via `target_network`. Communication using this socket will fail if
+  // `target_network` disconnects.
   TCPClientSocket(
       const AddressList& addresses,
       std::unique_ptr<SocketPerformanceWatcher> socket_performance_watcher,
       NetworkQualityEstimator* network_quality_estimator,
       net::NetLog* net_log,
       const net::NetLogSource& source,
-      handles::NetworkHandle network = handles::kInvalidNetworkHandle);
+      handles::NetworkHandle network);
 
   // Adopts the given, connected socket and then acts as if Connect() had been
   // called. This function is used by TCPServerSocket and for testing.

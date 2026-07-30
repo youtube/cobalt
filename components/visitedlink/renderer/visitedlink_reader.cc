@@ -24,6 +24,12 @@ VisitedLinkReader::~VisitedLinkReader() {
   FreeTable();
 }
 
+bool VisitedLinkReader::UsePartitionedDatabase() const {
+  return base::FeatureList::IsEnabled(
+             blink::features::kPartitionVisitedLinkDatabaseWithSelfLinks) ||
+         is_pseudo_partitioned_;
+}
+
 base::RepeatingCallback<
     void(mojo::PendingReceiver<mojom::VisitedLinkNotificationSink>)>
 VisitedLinkReader::GetBindCallback() {
@@ -60,8 +66,7 @@ void VisitedLinkReader::UpdateVisitedLinks(
   // to free old objects.
   FreeTable();
   DCHECK(hash_table_ == nullptr);
-  if (base::FeatureList::IsEnabled(
-          blink::features::kPartitionVisitedLinkDatabaseWithSelfLinks)) {
+  if (UsePartitionedDatabase()) {
     return UpdatePartitionedVisitedLinks(std::move(table_region));
   }
   return UpdateUnpartitionedVisitedLinks(std::move(table_region));

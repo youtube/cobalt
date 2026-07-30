@@ -250,10 +250,7 @@ void LensOverlayEntryPointController::UpdateEntryPointsState(
     }
   } else {
     // Update the homework action chip.
-    // TODO(crbug.com/433813408): Remove GetBrowserForMigrationOnly after Page
-    // Actions migration.
-    browser_window_interface_->GetBrowserForMigrationOnly()
-        ->window()
+    BrowserWindow::FromBrowser(browser_window_interface_)
         ->UpdatePageActionIcon(PageActionIconType::kLensOverlayHomework);
   }
 }

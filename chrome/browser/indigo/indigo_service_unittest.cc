@@ -45,6 +45,7 @@ class IndigoServiceTest : public testing::Test {
 
   void TearDown() override {
     component_updater::ResetIndigoInstallDirForTesting();
+    glic::GlicEnabling::SetBypassEnablementChecksForTesting(false);
   }
 
   void CreateService() {
@@ -187,9 +188,10 @@ TEST_F(IndigoServiceTest, GlicRequirementEnabledAndDisabled) {
   MakeAccountAvailableAndCapable();
 
   // Initially Glic is not enabled for the profile, so local eligibility becomes
-  // kMissingCapabilities.
+  // kGlicDisabledForProfile.
   glic::GlicEnabling::SetBypassEnablementChecksForTesting(false);
-  EXPECT_TRUE(LocalEligibilityBecomes(LocalEligibility::kMissingCapabilities));
+  EXPECT_TRUE(
+      LocalEligibilityBecomes(LocalEligibility::kGlicDisabledForProfile));
 
   // Once Glic is enabled (bypassing enablement checks), local eligibility
   // becomes kEligible.

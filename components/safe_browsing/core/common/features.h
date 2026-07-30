@@ -36,6 +36,9 @@ BASE_DECLARE_FEATURE(kAddWarningShownTSToClientSafeBrowsingReport);
 // partially implemented.
 BASE_DECLARE_FEATURE(kAllowSafeBrowsingV4StoreDiskMigrationChanges);
 
+// Enables antivirus product info to be included in download pings.
+BASE_DECLARE_FEATURE(kAntivirusTelemetryForDownloads);
+
 // Enables automatic revocation of notification permissions after the user has
 // received a number of notifications with a suspicious verdict from the
 // on-device model.
@@ -160,10 +163,6 @@ BASE_DECLARE_FEATURE(kClientSideDetectionRedirectChainKillswitch);
 
 BASE_DECLARE_FEATURE(kClientSideDetectionRetryLimit);
 extern const base::FeatureParam<int> kClientSideDetectionRetryLimitTime;
-
-// Send a sample CSPP ping when a URL matches the CSD allowlist and all other
-// preclassification check conditions pass.
-BASE_DECLARE_FEATURE(kClientSideDetectionSamplePing);
 
 #if BUILDFLAG(IS_ANDROID)
 // Inquire the server-side model instead of the on-device model for scam

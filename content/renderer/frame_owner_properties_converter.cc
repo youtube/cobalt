@@ -19,6 +19,7 @@ TypeConverter<blink::WebFrameOwnerProperties,
   result.allow_payment_request = mojo_properties.allow_payment_request;
   result.is_display_none = mojo_properties.is_display_none;
   result.color_scheme = mojo_properties.color_scheme;
+  result.responsive_sizing = mojo_properties.responsive_sizing;
 
   return result;
 }
@@ -40,6 +41,8 @@ TypeConverter<blink::mojom::FrameOwnerPropertiesPtr,
       web_frame_owner_properties.allow_payment_request;
   mojo_properties->is_display_none = web_frame_owner_properties.is_display_none;
   mojo_properties->color_scheme = web_frame_owner_properties.color_scheme;
+  mojo_properties->responsive_sizing =
+      web_frame_owner_properties.responsive_sizing;
 
   return mojo_properties;
 }

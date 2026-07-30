@@ -178,11 +178,17 @@ BASE_FEATURE(kIPHPasswordManagerShortcutFeature,
 BASE_FEATURE(kIPHPasswordSharingFeature,
              "IPH_PasswordSharingFeature",
              base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kIPHPdfGlicSummarizeFeature,
+             "IPH_PdfGlicSummarizeFeature",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHPdfInkSignaturesFeature,
              "IPH_PdfInkSignatures",
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHPdfSearchifyFeature,
              "IPH_PdfSearchifyFeature",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kIPHPdfTextAnnotationsFeature,
+             "IPH_PdfTextAnnotations",
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHPerformanceInterventionDialogFeature,
              "IPH_PerformanceInterventionDialogFeature",
@@ -279,9 +285,6 @@ BASE_FEATURE(kIPHTabGroupsSharedTabFeedbackFeature,
              base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHTabSearchComboButtonFeature,
              "IPH_TabSearchComboButton",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kIPHTabSearchToolbarButtonFeature,
-             "IPH_TabSearchToolbarButton",
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHDesktopSnoozeFeature,
              "IPH_DesktopSnoozeFeature",

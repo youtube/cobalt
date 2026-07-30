@@ -17,8 +17,10 @@
 #include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
+#include "base/files/file_enumerator.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/path_service.h"
+#include "base/test/scoped_path_override.h"
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
 #include "crypto/sha2.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -176,6 +178,32 @@ TEST_F(BinaryFeatureExtractorTest, ExtractImageFeaturesContentMatch) {
   ClientDownloadRequest_ImageHeaders image_headers;
   EXPECT_TRUE(mock_extractor->ExtractImageFeatures(
       path_, BinaryFeatureExtractor::kDefaultOptions, &image_headers, nullptr));
+}
+
+TEST_F(BinaryFeatureExtractorTest, TempFileDeletedOnSuccess) {
+  base::ScopedPathOverride path_override(base::DIR_TEMP, temp_dir_.GetPath());
+
+  constexpr char kTestData[] = "Temp file deletion test";
+  WriteFileToHash(base::as_byte_span(std::string_view(kTestData)));
+
+  scoped_refptr<MockBinaryFeatureExtractor> mock_extractor(
+      new MockBinaryFeatureExtractor());
+  EXPECT_CALL(*mock_extractor, ExtractImageFeaturesFromData(_, _, _, _))
+      .WillOnce(testing::Return(true));
+
+  ClientDownloadRequest_ImageHeaders image_headers;
+  EXPECT_TRUE(mock_extractor->ExtractImageFeatures(
+      path_, BinaryFeatureExtractor::kDefaultOptions, &image_headers, nullptr));
+
+  base::FileEnumerator enumerator(temp_dir_.GetPath(), false,
+                                  base::FileEnumerator::FILES);
+  int file_count = 0;
+  for (base::FilePath name = enumerator.Next(); !name.empty();
+       name = enumerator.Next()) {
+    EXPECT_EQ(name.BaseName(), path_.BaseName());
+    file_count++;
+  }
+  EXPECT_EQ(1, file_count);
 }
 
 }  // namespace safe_browsing

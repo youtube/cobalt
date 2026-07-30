@@ -127,6 +127,8 @@ public class PrintingControllerImpl
 
     private final WindowAndroid mWindowAndroid;
 
+    private @Nullable Runnable mPendingPrintCallback;
+
     /**
      * Sets a test instance for a specific window.
      *
@@ -171,6 +173,10 @@ public class PrintingControllerImpl
         mPrintingState = PRINTING_STATE_FINISHED;
         closeFileDescriptor();
         resetCallbacks();
+        if (mPendingPrintCallback != null) {
+            mPendingPrintCallback.run();
+            mPendingPrintCallback = null;
+        }
         if (sOnDetachCallbackForTesting != null) sOnDetachCallbackForTesting.run();
     }
 
@@ -232,6 +238,11 @@ public class PrintingControllerImpl
         return mIsBusy;
     }
 
+    @Override
+    public void setPendingPrintCallback(Runnable callback) {
+        mPendingPrintCallback = callback;
+    }
+
     @VisibleForTesting
     public @Nullable Printable getPrintable() {
         return mPrintable;
@@ -267,7 +278,13 @@ public class PrintingControllerImpl
             canStartPrint = true;
         }
 
-        if (!canStartPrint) return;
+        if (!canStartPrint) {
+            if (mPendingPrintCallback != null) {
+                mPendingPrintCallback.run();
+                mPendingPrintCallback = null;
+            }
+            return;
+        }
 
         mIsBusy = true;
         assert mPrintManager != null;
@@ -411,6 +428,11 @@ public class PrintingControllerImpl
         // The printmanager contract is that onFinish() is always called as the last
         // callback. We set busy to false here.
         mIsBusy = false;
+
+        if (mPendingPrintCallback != null) {
+            mPendingPrintCallback.run();
+            mPendingPrintCallback = null;
+        }
     }
 
     private void onWriteForPdfPage(

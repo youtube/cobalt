@@ -117,6 +117,7 @@
 <translation id="1435593198351412143">自动打开 PDF 文件</translation>
 <translation id="1437543266176261764">正在“<ph name="APP_NAME" />”应用内运行</translation>
 <translation id="1448440926884431741">在“书签”页面中整理您跟踪的商品</translation>
+<translation id="1452651021404174820">选择设备</translation>
 <translation id="1455845192930279203">您仍要从 <ph name="DOWNLOAD_DOMAIN" /> 下载“<ph name="FILE_NAME" />”(<ph name="FILE_SIZE" />) 吗？</translation>
 <translation id="1460751212339734034">减少输入，节省时间</translation>
 <translation id="146522654774760805">密码和自动填充</translation>
@@ -124,6 +125,7 @@
 <translation id="1477626028522505441">未能成功下载 <ph name="FILE_NAME" />，因为服务器出现了问题。</translation>
 <translation id="147982357559798527">已更改</translation>
 <translation id="1480287803138246127">您的部分历史记录可能不会在此处显示。如需查看您的所有 Chrome 历史记录，请打开完整的 Chrome 历史记录。</translation>
+<translation id="1483493594462132177">发送</translation>
 <translation id="1495677929897281669">返回到标签页</translation>
 <translation id="1496514951988037011">用户名</translation>
 <translation id="1501480321619201731">删除群组</translation>
@@ -1273,6 +1275,7 @@
 <translation id="634208815998129842">任务管理器</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026以及另外 <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> 个地址}other{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026以及另外 <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> 个地址}}</translation>
 <translation id="6345878117466430440">标记为已读</translation>
+<translation id="6350745006329795504">管理设备</translation>
 <translation id="6356893102071098867">确保您选择的是正确的账号</translation>
 <translation id="6364438453358674297">要从历史记录中移除建议吗？</translation>
 <translation id="6380100320871303656">更频繁地预加载 Chrome 认为您可能会访问的网页。此设置可能会消耗更多数据流量。</translation>

@@ -157,9 +157,15 @@ class SurfaceEmbedConnectorImplBrowserTest : public ContentBrowserTest {
         static_cast<WebContentsImpl*>(context.child_web_contents.get());
 
     EXPECT_TRUE(NavigateToURL(parent_web_contents_impl, GURL("about:blank")));
+    // Expect SetView of connector to be called during Attach, which calls
+    // delegate's SetFrameSinkId.
+    EXPECT_CALL(*delegate,
+                SetFrameSinkId(testing::_, /*allow_paint_holding=*/false))
+        .Times(1);
     SurfaceEmbedConnector::Attach(
         child_web_contents_impl,
         parent_web_contents_impl->GetPrimaryMainFrame(), delegate);
+    testing::Mock::VerifyAndClearExpectations(delegate);
 
     context.connector = static_cast<SurfaceEmbedConnectorImpl*>(
         child_web_contents_impl->GetSurfaceEmbedConnector());

@@ -10,6 +10,7 @@
 
 #include "base/containers/circular_deque.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "ui/events/base_event_utils.h"
@@ -85,7 +86,7 @@ class OccludedWidgetInputProtectorTestBase : public WidgetTest {
     return OccludedWidgetInputProtector::GetInstance()->occlusion_history_;
   }
 
-  const std::set<Widget*>& resizing_widgets() {
+  const std::set<raw_ptr<Widget>>& resizing_widgets() {
     return OccludedWidgetInputProtector::GetInstance()->resizing_widgets_;
   }
 

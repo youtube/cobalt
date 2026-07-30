@@ -132,7 +132,7 @@ class IdentityManagerObserverBridgeTest : public testing::Test {
 TEST_F(IdentityManagerObserverBridgeTest, TestOnPrimaryAccountChanged) {
   PrimaryAccountChangeEvent::State previous_state;
   PrimaryAccountChangeEvent::State current_state(account_info_,
-                                                 signin::ConsentLevel::kSync);
+                                                 signin::ConsentLevel::kSignin);
   PrimaryAccountChangeEvent event_details(
       previous_state, current_state, signin_metrics::AccessPoint::kStartPage);
   observer_bridge_.get()->OnPrimaryAccountChanged(event_details);
@@ -148,8 +148,8 @@ TEST_F(IdentityManagerObserverBridgeTest, TestOnPrimaryAccountChanged) {
 // Tests IdentityManagerObserverBridge::OnPrimaryAccountChanged(), with clear
 // event.
 TEST_F(IdentityManagerObserverBridgeTest, TestOnPrimaryAccountCleared) {
-  PrimaryAccountChangeEvent::State previous_state(account_info_,
-                                                  signin::ConsentLevel::kSync);
+  PrimaryAccountChangeEvent::State previous_state(
+      account_info_, signin::ConsentLevel::kSignin);
   PrimaryAccountChangeEvent::State current_state;
   PrimaryAccountChangeEvent event_details(
       previous_state, current_state, signin_metrics::ProfileSignout::kTest);

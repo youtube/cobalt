@@ -267,7 +267,7 @@ IN_PROC_BROWSER_TEST_F(AppBannerManagerDesktopBrowserTest,
   if (IsPageActionMigrated(PageActionIconType::kPwaInstall)) {
     actions::ActionManager::Get().FindAction(kActionInstallPwa)->InvokeAction();
   } else {
-    browser()->window()->ExecutePageActionIconForTesting(
+    BrowserWindow::FromBrowser(browser())->ExecutePageActionIconForTesting(
         PageActionIconType::kPwaInstall);
   }
 

@@ -120,6 +120,10 @@ class SchedulingEmbedder
   // Returns true if currently in a work ready performance scenario state.
   bool IsPerformanceScenarioReady();
 
+  // Finds the job with the worst priority that is not in progress.
+  // Returns jobs.end() if no such job exists.
+  static std::deque<Job>::iterator FindWorstJob(std::deque<Job>& jobs);
+
   // Call the callback with status, etc. and record relevant histograms.
   static void FinishJob(Job job,
                         ComputeEmbeddingsStatus status,

@@ -6,7 +6,7 @@
 #define CONTENT_BROWSER_FILE_SYSTEM_BROWSER_FILE_SYSTEM_HELPER_H_
 
 #include "base/memory/scoped_refptr.h"
-#include "content/browser/child_process_security_policy_impl.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/common/content_export.h"
 #include "content/public/common/child_process_id.h"
 #include "storage/browser/file_system/file_system_context.h"

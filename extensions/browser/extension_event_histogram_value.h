@@ -596,6 +596,8 @@ enum HistogramValue {
   ACCESSIBILITY_PRIVATE_ON_KEY_UP = 572,
   PASSWORDS_PRIVATE_ON_PASSWORD_MANAGER_ACTIONABLE_ERROR_CHANGED = 573,
   INDIGO_PRIVATE_ON_REGENERATE_STARTED = 574,
+  DICTATION_PRIVATE_ON_START_STREAM = 575,
+  DICTATION_PRIVATE_ON_END_STREAM = 576,
   // Last entry: Add new entries above, then run:
   // tools/metrics/histograms/update_extension_histograms.py
   ENUM_BOUNDARY

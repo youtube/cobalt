@@ -94,6 +94,8 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
       listItemSize_: {type: Number},
       searchQueryMaxLength_: {type: Number},
 
+      activeDescendantEnabled_: {type: Boolean},
+
       /**
        * Options for search. Controls how heavily weighted fields are relative
        * to each other in the scoring via field weights.
@@ -109,6 +111,7 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
   protected accessor listMaxHeight_: number|undefined;
   protected accessor listItemSize_: number|undefined;
   protected accessor searchQueryMaxLength_: number = SEARCH_QUERY_MAX_LENGTH;
+  protected accessor activeDescendantEnabled_: boolean = false;
   protected accessor filteredItems_:
       Array<TitleItem|TabData|TabGroupData|SplitViewData> = [];
   private accessor searchOptions_: SearchOptions = {
@@ -166,6 +169,7 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
     this.documentVisibilityChangedListener_ = () => {
       if (document.visibilityState === 'visible') {
         this.windowShownTimestamp_ = Date.now();
+        this.activeDescendantEnabled_ = false;
         this.updateTabs_();
       } else {
         this.onDocumentHidden_();
@@ -250,6 +254,7 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
    * responsive.
    */
   override onSearchTermInput() {
+    this.activeDescendantEnabled_ = false;
     this.hasSearchText = this.getSearchInput().value !== '';
     this.searchText_ = this.getSearchInput().value;
     // Reset the selected item whenever a search query is provided.
@@ -330,12 +335,14 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
         this.updateFilteredTabs_();
         foundTab = true;
       } else if (item instanceof SplitViewData && item.tabs) {
-        if (item.tabs[0].tabId === tab.tabId) {
-          item.tabs[0] = tab;
-          this.updateFilteredTabs_();
-          foundTab = true;
-        } else if (item.tabs[1].tabId === tab.tabId) {
-          item.tabs[1] = tab;
+        const tabIndex = item.tabs.findIndex(t => t.tabId === tab.tabId);
+        if (tabIndex !== -1) {
+          const tabs: [Tab, Tab] = [item.tabs[0], item.tabs[1]];
+          tabs[tabIndex] = tab;
+          const newSplitViewData = new SplitViewData({tabs});
+          newSplitViewData.inActiveWindow = item.inActiveWindow;
+          this.updateSplitViewTabGroup_(newSplitViewData, this.tabGroupsMap_);
+          this.openTabs_[i] = newSplitViewData;
           this.updateFilteredTabs_();
           foundTab = true;
         }
@@ -370,6 +377,7 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
         const idx0 = matchingIndices[0]!;
         const idx1 = matchingIndices[1]!;
         splitViewData.inActiveWindow = this.openTabs_[idx0]!.inActiveWindow;
+        this.updateSplitViewTabGroup_(splitViewData, this.tabGroupsMap_);
         this.openTabs_[idx0] = splitViewData;
         this.openTabs_.splice(idx1, 1);
         this.updateFilteredTabs_();
@@ -423,7 +431,7 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
     this.updateFilteredTabs_();
   }
 
-  private itemIndexToTabIndex_(itemIndex: number) {
+  protected itemIndexToTabIndex_(itemIndex: number) {
     // Note: the array being searched has length at most 3.
     const numPreviousHeaders =
         this.filteredOpenHeaderIndices_.findLastIndex(idx => idx < itemIndex) +
@@ -457,7 +465,7 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
    * @return The number of selectable list items, excludes non
    *     selectable items such as section title items.
    */
-  private selectableItemCount_(): number {
+  protected selectableItemCount_(): number {
     return this.filteredItems_.reduce((acc, item) => {
       return acc + (item instanceof TitleItem ? 0 : 1);
     }, 0);
@@ -612,6 +620,7 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
             tabs: [tabs[0]!, tabs[1]!],
           });
           splitViewData.inActiveWindow = window.active;
+          this.updateSplitViewTabGroup_(splitViewData, this.tabGroupsMap_);
           openTabsList.push(splitViewData);
         } else {
           for (const tab of tabs) {
@@ -631,10 +640,11 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
         loadTimeData.getBoolean('splitViewTabRestoreEnabled');
 
     const recentlyClosedSplitViews = splitViewTabRestoreEnabled ?
-        (profileData.recentlyClosedSplitViews ||
-         []).map(splitView => new SplitViewData({
-                   splitView,
-                 })) :
+        (profileData.recentlyClosedSplitViews || []).map(splitView => {
+          const splitViewData = new SplitViewData({splitView});
+          this.updateSplitViewTabGroup_(splitViewData, this.tabGroupsMap_);
+          return splitViewData;
+        }) :
         [];
 
     const recentlyClosedTabsFiltered = splitViewTabRestoreEnabled ?
@@ -661,6 +671,14 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
     this.$.tabsList.expandedList = profileData.recentlyClosedSectionExpanded;
 
     this.updateFilteredTabs_();
+  }
+
+  protected getAriaActivedescendant_() {
+    if (this.activeDescendantEnabled_) {
+      return this.activeSelectionId_;
+    }
+
+    return undefined;
   }
 
   protected onItemFocus_(e: Event) {
@@ -739,11 +757,17 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
       return;
     }
 
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      this.activeDescendantEnabled_ = false;
+    }
+
     // <if expr="is_macosx">
     const lowerKey = e.key.toLowerCase();
 
     if (e.ctrlKey && (lowerKey === 'n' || lowerKey === 'p')) {
       const mappedKey = lowerKey === 'n' ? 'ArrowDown' : 'ArrowUp';
+
+      this.activeDescendantEnabled_ = true;
       this.$.tabsList.navigate(mappedKey);
 
       e.stopPropagation();
@@ -753,6 +777,7 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
     // </if>
 
     if (selectorNavigationKeys.includes(e.key)) {
+      this.activeDescendantEnabled_ = true;
       this.$.tabsList.navigate(e.key);
 
       e.stopPropagation();
@@ -797,6 +822,21 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
     return tabData;
   }
 
+  private updateSplitViewTabGroup_(
+      splitViewData: SplitViewData, tabGroupsMap: Map<string, TabGroup>) {
+    let groupId = null;
+    if (splitViewData.tabs) {
+      groupId = splitViewData.tabs[0].groupId || splitViewData.tabs[1].groupId;
+    } else if (splitViewData.splitView) {
+      groupId = splitViewData.splitView.groupId;
+    }
+    if (groupId) {
+      splitViewData.tabGroup = tabGroupsMap.get(tokenToString(groupId));
+    } else {
+      splitViewData.tabGroup = undefined;
+    }
+  }
+
   private getRecentlyClosedItemLastActiveTime_(itemData: ItemData) {
     if (itemData instanceof SplitViewData &&
         itemData.type === TabItemType.RECENTLY_CLOSED_SPLIT) {
@@ -817,6 +857,7 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
   }
 
   private async updateFilteredTabs_() {
+    const updateStartTime = Date.now();
     this.openTabs_.sort((a, b) => {
       const tabA = (a instanceof TabData ? a.tab : a.tabs![0]) as Tab;
       const tabB = (b instanceof TabData ? b.tab : b.tabs![0]) as Tab;
@@ -976,6 +1017,10 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
     }
     tabsList.setSelected(
         Math.min(Math.max(selectedIndex, 0), this.lastSelectableIndex_()));
+
+    chrome.metricsPrivate.recordTime(
+        'Tabs.TabSearch.WebUI.SearchUpdateDuration',
+        Math.round(Date.now() - updateStartTime));
   }
 
   getSearchTextForTesting(): string {

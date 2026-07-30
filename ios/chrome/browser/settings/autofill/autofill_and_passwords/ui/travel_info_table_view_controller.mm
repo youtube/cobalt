@@ -8,14 +8,17 @@
 
 #import "base/apple/foundation_util.h"
 #import "base/check.h"
+#import "base/metrics/user_metrics.h"
 #import "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/settings/autofill/autofill_ai/ui/autofill_ai_add_entities_menu_builder.h"
 #import "ios/chrome/browser/settings/autofill/autofill_ai/ui/autofill_ai_entity_item.h"
 #import "ios/chrome/browser/settings/autofill/autofill_and_passwords/ui/autofill_ai_base_item_type.h"
-#import "ios/chrome/browser/settings/autofill/autofill_and_passwords/ui/autofill_ai_base_mutator.h"
+#import "ios/chrome/browser/settings/autofill/autofill_and_passwords/ui/travel_info_mutator.h"
 #import "ios/chrome/browser/settings/autofill/utils/autofill_settings_ui_util.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_root_table_view_controller+toolbar_add.h"
+#import "ios/chrome/browser/shared/ui/table_view/cells/table_view_link_header_footer_item.h"
+#import "ios/chrome/browser/shared/ui/table_view/cells/table_view_switch_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_header_footer_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
@@ -25,10 +28,16 @@
 
 namespace {
 enum SectionIdentifier {
-  SectionIdentifierFlightReservations = kSectionIdentifierEnumZero,
+  SectionIdentifierToggle = kSectionIdentifierEnumZero,
+  SectionIdentifierFlightReservations,
   SectionIdentifierKnownTravelerNumbers,
   SectionIdentifierRedressNumbers,
   SectionIdentifierVehicles,
+};
+
+enum ItemType {
+  ItemTypeToggle = kAutofillAIBaseItemTypeEntity + 1,
+  ItemTypeFooter,
 };
 }  // namespace
 
@@ -45,10 +54,16 @@ enum SectionIdentifier {
   std::vector<autofill::EntityType> _writableEntityTypes;
   UIBarButtonItem* _addButtonInToolbar;
   BOOL _hasLocalEntities;
+  BOOL _travelInfoEnabled;
+  BOOL _travelInfoToggleEnabled;
 }
 
 - (instancetype)init {
-  return [super initWithStyle:ChromeTableViewStyle()];
+  self = [super initWithStyle:ChromeTableViewStyle()];
+  if (self) {
+    _travelInfoToggleEnabled = YES;
+  }
+  return self;
 }
 
 - (void)viewDidLoad {
@@ -70,6 +85,23 @@ enum SectionIdentifier {
   [super loadModel];
 
   TableViewModel* model = self.tableViewModel;
+
+  [model addSectionWithIdentifier:SectionIdentifierToggle];
+  TableViewSwitchItem* toggleItem =
+      [[TableViewSwitchItem alloc] initWithType:ItemTypeToggle];
+  toggleItem.text =
+      l10n_util::GetNSString(IDS_AUTOFILL_TRAVEL_OPT_IN_TOGGLE_LABEL);
+  toggleItem.on = _travelInfoEnabled;
+  toggleItem.enabled = _travelInfoToggleEnabled;
+  toggleItem.target = self;
+  toggleItem.selector = @selector(travelInfoToggleChanged:);
+  [model addItem:toggleItem toSectionWithIdentifier:SectionIdentifierToggle];
+
+  TableViewLinkHeaderFooterItem* footer =
+      [[TableViewLinkHeaderFooterItem alloc] initWithType:ItemTypeFooter];
+  footer.text =
+      l10n_util::GetNSString(IDS_AUTOFILL_TRAVEL_OPT_IN_TOGGLE_SUB_LABEL);
+  [model setFooter:footer forSectionWithIdentifier:SectionIdentifierToggle];
 
   if (_flightReservations.count > 0) {
     [model addSectionWithIdentifier:SectionIdentifierFlightReservations];
@@ -152,6 +184,48 @@ enum SectionIdentifier {
   }
 }
 
+- (void)setTravelInfoToggleState:(BOOL)on enabled:(BOOL)enabled {
+  if (_travelInfoEnabled == on && _travelInfoToggleEnabled == enabled) {
+    return;
+  }
+  _travelInfoEnabled = on;
+  _travelInfoToggleEnabled = enabled;
+  if (self.isViewLoaded) {
+    TableViewModel* model = self.tableViewModel;
+    NSIndexPath* switchPath =
+        [model indexPathForItemType:ItemTypeToggle
+                  sectionIdentifier:SectionIdentifierToggle];
+    if (switchPath) {
+      TableViewSwitchItem* switchItem =
+          base::apple::ObjCCastStrict<TableViewSwitchItem>(
+              [model itemAtIndexPath:switchPath]);
+      switchItem.enabled = enabled;
+      switchItem.on = on;
+      [self reconfigureCellsForItems:@[ switchItem ]];
+    }
+    [self updateAddButtonInToolbar];
+  }
+}
+
+- (void)travelInfoToggleChanged:(UISwitch*)switchView {
+  BOOL switchOn = [switchView isOn];
+  _travelInfoEnabled = switchOn;
+
+  TableViewModel* model = self.tableViewModel;
+  NSIndexPath* switchPath =
+      [model indexPathForItemType:ItemTypeToggle
+                sectionIdentifier:SectionIdentifierToggle];
+  if (switchPath) {
+    TableViewSwitchItem* switchItem =
+        base::apple::ObjCCastStrict<TableViewSwitchItem>(
+            [model itemAtIndexPath:switchPath]);
+    switchItem.on = switchOn;
+  }
+
+  [self updateAddButtonInToolbar];
+  [self.mutator didToggleTravelInfo:switchOn];
+}
+
 - (void)setWritableEntityTypes:
     (const std::vector<autofill::EntityType>&)writableEntityTypes {
   _writableEntityTypes = writableEntityTypes;
@@ -215,12 +289,14 @@ enum SectionIdentifier {
   }
   _addButtonInToolbar.action = nil;
   _addButtonInToolbar.target = nil;
-  _addButtonInToolbar.menu =
-      [AutofillAIAddEntitiesMenuBuilder buildMenuWithTypes:_writableEntityTypes
-                                            profileEnabled:NO
-                                           entitiesEnabled:YES
-                                                  delegate:self];
-  _addButtonInToolbar.enabled = !_writableEntityTypes.empty();
+  _addButtonInToolbar.menu = [AutofillAIAddEntitiesMenuBuilder
+      buildMenuWithTypes:_writableEntityTypes
+          profileEnabled:NO
+         entitiesEnabled:_travelInfoEnabled && _travelInfoToggleEnabled
+                delegate:self];
+  _addButtonInToolbar.enabled = _travelInfoEnabled &&
+                                _travelInfoToggleEnabled &&
+                                !_writableEntityTypes.empty();
 }
 
 #pragma mark - AutofillAIAddEntitiesMenuDelegate
@@ -439,11 +515,11 @@ enum SectionIdentifier {
 #pragma mark - SettingsControllerProtocol
 
 - (void)reportDismissalUserAction {
-  // TODO(crbug.com/500341282): Add missing metric.
+  base::RecordAction(base::UserMetricsAction("MobileTravelInfoSettingsClose"));
 }
 
 - (void)reportBackUserAction {
-  // TODO(crbug.com/500341282): Add missing metric.
+  base::RecordAction(base::UserMetricsAction("MobileTravelInfoSettingsBack"));
 }
 
 - (void)settingsWillBeDismissed {

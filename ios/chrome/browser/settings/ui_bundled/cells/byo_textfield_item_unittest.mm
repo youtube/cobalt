@@ -4,7 +4,6 @@
 
 #import "ios/chrome/browser/settings/ui_bundled/cells/byo_textfield_item.h"
 
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
@@ -22,7 +21,7 @@ TEST_F(BYOTextFieldItemTest, ConfigureCell) {
   UITextField* textField = [[UITextField alloc] init];
   EXPECT_NSEQ(nil, [textField superview]);
   item.textField = textField;
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
   EXPECT_NSEQ(cell.contentView, [textField superview]);
 }
 

@@ -1,0 +1,16 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module webnn.mojom;
+
+import "services/webnn/public/mojom/webnn_device.mojom";
+
+// Identifies an execution provider device by EP name, device type, and hardware
+// device ID. Currently the vendor ID is not needed because each EP in kKnownEPs
+// is associated with a single vendor.
+struct EpDeviceInfo {
+  string ep_name;
+  Device device_type;
+  uint32 device_id;
+};

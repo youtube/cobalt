@@ -187,6 +187,13 @@ class CORE_EXPORT SecurityContext {
     return secure_context_explanation_;
   }
 
+  // True if the embedder flagged this frame as a secure-context root (see
+  // `ContentBrowserClient::IsSecureContextRoot()`); descendants' ancestor
+  // walks stop here rather than continuing to a potentially-insecure wrapper.
+  // Replicated from the browser, not re-derived renderer-side from the scheme.
+  bool IsSecureContextRoot() const { return is_secure_context_root_; }
+  void SetIsSecureContextRoot(bool value) { is_secure_context_root_ = value; }
+
   void SetIsWorkerLoadedFromDataURL(bool is_worker_loaded_from_data_url) {
     is_worker_loaded_from_data_url_ = is_worker_loaded_from_data_url;
   }
@@ -208,6 +215,7 @@ class CORE_EXPORT SecurityContext {
   SecureContextModeExplanation secure_context_explanation_ =
       SecureContextModeExplanation::kInsecureScheme;
   bool is_worker_loaded_from_data_url_ = false;
+  bool is_secure_context_root_ = false;
 };
 
 }  // namespace blink

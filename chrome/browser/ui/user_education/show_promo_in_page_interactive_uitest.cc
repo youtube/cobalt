@@ -335,8 +335,9 @@ IN_PROC_BROWSER_TEST_F(ShowPromoInPageUiTest, FocusesBrowserTabAndAnchor) {
   bubble_is_visible.where = kPathToHelpBubbleCloseButton;
   bubble_is_visible.type = StateChange::Type::kExists;
   RunTestSequence(
-      InstrumentTab(kTabId),
-      Do([this]() { browser()->window()->SetFocusToLocationBar(true); }),
+      InstrumentTab(kTabId), Do([this]() {
+        BrowserWindow::FromBrowser(browser())->SetFocusToLocationBar(true);
+      }),
       Do(std::move(help_bubble_start_callback)),
       WaitForWebContentsNavigation(
           kTabId, GURL(chrome::kChromeUIUserEducationInternalsURL)),
@@ -375,8 +376,9 @@ IN_PROC_BROWSER_TEST_F(ShowPromoInPageUiTest,
   bubble_is_visible.where = kPathToHelpBubbleCloseButton;
   bubble_is_visible.type = StateChange::Type::kExists;
   RunTestSequence(
-      InstrumentNextTab(kTabId),
-      Do([this]() { browser()->window()->SetFocusToLocationBar(true); }),
+      InstrumentNextTab(kTabId), Do([this]() {
+        BrowserWindow::FromBrowser(browser())->SetFocusToLocationBar(true);
+      }),
       Do(std::move(help_bubble_start_callback)),
       WaitForWebContentsNavigation(
           kTabId, GURL(chrome::kChromeUIUserEducationInternalsURL)),

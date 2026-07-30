@@ -896,7 +896,9 @@ class FakeNewWindowDelegate : public ash::TestNewWindowDelegate {
 
   void NewTab() override { new_tab_called_ = true; }
 
-  void ShowTaskManager() override { task_manager_called_ = true; }
+  void ShowTaskManager(bool from_context_menu) override {
+    task_manager_called_ = true;
+  }
 
   void OpenFeedbackPage(FeedbackSource source,
                         const std::string& description_template) override {

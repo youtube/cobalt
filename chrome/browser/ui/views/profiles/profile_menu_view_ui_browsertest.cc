@@ -31,6 +31,7 @@
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/subscription_eligibility/subscription_eligibility_prefs.h"
 #include "components/supervised_user/test_support/supervised_user_signin_test_utils.h"
 #include "components/sync/base/features.h"
 #include "components/sync/service/sync_user_settings.h"
@@ -89,6 +90,7 @@ struct ProfileMenuViewPixelTestParam {
   bool use_multiple_profiles = false;
   bool account_image_available = true;
   bool sync_disabled = false;
+  bool with_ai_avatar_ring = false;
   WithLocalData with_local_data = WithLocalData::kNoLocalData;
 
   // Features and parameters that are enabled in addition to the features
@@ -329,6 +331,13 @@ const ProfileMenuViewPixelTestParam kPixelTestParams[] = {
         .management_status = ManagementStatus::kAccountManaged,
         .sync_disabled = true,
     },
+    {.pixel_test_param = {.test_suffix = "AiSubscriptionAvatarRing_Light"},
+     .signin_status = SigninStatusPixelTestParam::kSignedInNoSync,
+     .with_ai_avatar_ring = true},
+    {.pixel_test_param = {.test_suffix = "AiSubscriptionAvatarRing_Dark",
+                          .use_dark_theme = true},
+     .signin_status = SigninStatusPixelTestParam::kSignedInNoSync,
+     .with_ai_avatar_ring = true},
 };
 
 }  // namespace
@@ -358,6 +367,11 @@ class ProfileMenuViewPixelTest
     std::vector<base::test::FeatureRefAndParams> enabled_features_and_params = {
         {features::kEnterpriseProfileBadgingForMenu, {}},
         {syncer::kReplaceSyncPromosWithSignInPromos, {}}};
+
+    if (GetParam().with_ai_avatar_ring) {
+      enabled_features_and_params.push_back(
+          {features::kEnableAiSubscriptionAvatarRing, {}});
+    }
 
     // 4. Get default-enabled features without params-disabled.
     std::vector<base::test::FeatureRefAndParams>
@@ -656,6 +670,11 @@ class ProfileMenuViewPixelTest
       browser()->profile()->GetPrefs()->SetString(
           prefs::kGoogleServicesLastSyncingGaiaId,
           account_info.gaia.ToString());
+    }
+
+    if (GetParam().with_ai_avatar_ring) {
+      browser()->profile()->GetPrefs()->SetInteger(
+          subscription_eligibility::prefs::kAiSubscriptionTier, 1);
     }
   }
 

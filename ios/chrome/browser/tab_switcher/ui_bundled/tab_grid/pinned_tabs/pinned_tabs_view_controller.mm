@@ -18,7 +18,6 @@
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/pinned_tabs/pinned_tabs_constants.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/pinned_tabs/pinned_tabs_layout.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_context_menu/tab_context_menu_provider.h"
-#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/legacy_grid_transition_layout.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/tab_grid_transition_item.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/tab_grid_transition_layout.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_snapshot_and_favicon.h"
@@ -209,48 +208,6 @@ NSIndexPath* CreateIndexPath(NSInteger index) {
   [self dragSessionEnabled:NO];
 }
 
-- (LegacyGridTransitionLayout*)legacyTransitionLayout {
-  [self.collectionView layoutIfNeeded];
-
-  LegacyGridTransitionActiveItem* activeItem;
-  LegacyGridTransitionItem* selectionItem;
-
-  NSIndexPath* selectedItemIndexPath =
-      self.collectionView.indexPathsForSelectedItems.firstObject;
-  PinnedCell* selectedCell = base::apple::ObjCCastStrict<PinnedCell>(
-      [self.collectionView cellForItemAtIndexPath:selectedItemIndexPath]);
-  if (!selectedCell) {
-    return nil;
-  }
-
-  if (selectedCell.pinnedItemIdentifier == _selectedItemID) {
-    UICollectionViewLayoutAttributes* attributes = [self.collectionView
-        layoutAttributesForItemAtIndexPath:selectedItemIndexPath];
-    // Normalize frame to window coordinates. The attributes class applies this
-    // change to the other properties such as center, bounds, etc.
-    attributes.frame = [self.collectionView convertRect:attributes.frame
-                                                 toView:nil];
-
-    PinnedTransitionCell* activeCell =
-        [PinnedTransitionCell transitionCellFromCell:selectedCell];
-    activeItem = [LegacyGridTransitionActiveItem itemWithCell:activeCell
-                                                       center:attributes.center
-                                                         size:attributes.size];
-    // If the active item is the last inserted item, it needs to be animated
-    // differently.
-    if (selectedCell.pinnedItemIdentifier == _lastInsertedItemID) {
-      activeItem.shouldUseBVCSnapshot = YES;
-    }
-
-    selectionItem = [LegacyGridTransitionItem
-        itemWithCell:[PinnedCell transitionSelectionCellFromCell:selectedCell]
-              center:attributes.center];
-  }
-
-  return [LegacyGridTransitionLayout layoutWithInactiveItems:@[]
-                                                  activeItem:activeItem
-                                               selectionItem:selectionItem];
-}
 
 - (TabGridTransitionLayout*)transitionLayout {
   return [TabGridTransitionLayout

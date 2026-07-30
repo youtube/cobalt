@@ -1279,6 +1279,12 @@ AXObjectInclusion AXNodeObject::ShouldIncludeBasedOnSemantics(
     return kIgnoreObject;
   }
 
+  if (IsCanvas()) {
+    if (!CanvasAnnotation().empty()) {
+      return kIncludeObject;
+    }
+  }
+
   return kDefaultBehavior;
 }
 
@@ -3522,6 +3528,16 @@ bool AXNodeObject::CanvasHasFallbackContent() const {
     return false;
   Node* node = GetNode();
   return IsA<HTMLCanvasElement>(node) && node->hasChildren();
+}
+
+String AXNodeObject::CanvasAnnotation() const {
+  if (IsDetached()) {
+    return String();
+  }
+  if (auto* canvas = DynamicTo<HTMLCanvasElement>(GetNode())) {
+    return canvas->CanvasAnnotation();
+  }
+  return String();
 }
 
 int AXNodeObject::HeadingLevel() const {

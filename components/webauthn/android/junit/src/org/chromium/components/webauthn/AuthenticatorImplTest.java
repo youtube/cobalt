@@ -42,6 +42,7 @@ import org.chromium.blink.mojom.PublicKeyCredentialRequestOptions;
 import org.chromium.blink.mojom.WebAuthnClientCapability;
 import org.chromium.components.ukm.UkmRecorder;
 import org.chromium.components.ukm.UkmRecorderJni;
+import org.chromium.content_public.browser.LifecycleState;
 import org.chromium.content_public.browser.RenderFrameHost;
 import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
@@ -93,6 +94,7 @@ public class AuthenticatorImplTest {
         mTopOrigin = Origin.create(new GURL("https://example.com"));
 
         when(mRenderFrameHost.getLastCommittedOrigin()).thenReturn(mOrigin);
+        when(mRenderFrameHost.getLifecycleState()).thenReturn(LifecycleState.ACTIVE);
 
         WebauthnModeProvider.setInstanceForTesting(mModeProviderMock);
         when(mModeProviderMock.getWebauthnMode(any())).thenReturn(WebauthnMode.CHROME);
@@ -425,5 +427,40 @@ public class AuthenticatorImplTest {
 
         verify(callback, never()).call(any());
         verify(mFido2CredentialRequestMock).handleGetCredentialRequest(any(), any(), any(), any());
+    }
+
+    @Test
+    public void testMakeCredential_inactiveFrame() {
+        when(mRenderFrameHost.getLifecycleState()).thenReturn(LifecycleState.IN_BACK_FORWARD_CACHE);
+
+        Authenticator.MakeCredential_Response callback =
+                mock(Authenticator.MakeCredential_Response.class);
+        PublicKeyCredentialCreationOptions options = new PublicKeyCredentialCreationOptions();
+        mAuthenticator.makeCredential(options, callback);
+
+        verify(callback).call(eq(AuthenticatorStatus.NOT_ALLOWED_ERROR), any(), any());
+        verify(mFido2CredentialRequestMock, never())
+                .handleMakeCredentialRequest(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    public void testGetCredential_inactiveFrame() {
+        when(mRenderFrameHost.getLifecycleState()).thenReturn(LifecycleState.IN_BACK_FORWARD_CACHE);
+
+        Authenticator.GetCredential_Response callback =
+                mock(Authenticator.GetCredential_Response.class);
+        GetCredentialOptions options = new GetCredentialOptions();
+        options.publicKey = new PublicKeyCredentialRequestOptions();
+        mAuthenticator.getCredential(options, callback);
+
+        ArgumentCaptor<GetCredentialResponse> captor =
+                ArgumentCaptor.forClass(GetCredentialResponse.class);
+        verify(callback).call(captor.capture());
+        assertEquals(
+                AuthenticatorStatus.NOT_ALLOWED_ERROR,
+                captor.getValue().getGetAssertionResponse().status);
+
+        verify(mFido2CredentialRequestMock, never())
+                .handleGetCredentialRequest(any(), any(), any(), any());
     }
 }

@@ -10,7 +10,10 @@ import android.widget.ImageView;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.actor.ui.ActorUiTabController.UiTabState;
+import org.chromium.chrome.browser.actor.ui.TabIndicatorStatus;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider.TabFaviconFetcher;
+import org.chromium.chrome.tab_ui.R;
 import org.chromium.components.browser_ui.util.TextResolver;
 import org.chromium.components.browser_ui.util.motion.MotionEventInfo;
 import org.chromium.components.browser_ui.util.motion.OnPeripheralClickListener;
@@ -217,5 +220,31 @@ public class TabListViewBinderUtils {
         } else {
             tabActionListener.run(view, propertyModel.get(TabProperties.TAB_ID), triggeringMotion);
         }
+    }
+
+    /**
+     * Resolves the ACTOR_UI_STATE and updates the accessibility content description.
+     *
+     * @param model the model containing the tab properties.
+     * @param view the View to receive the accessibility content description.
+     * @return true if the actor indicator should be visible, false otherwise.
+     */
+    public static boolean setupActorIndicator(PropertyModel model, View view) {
+        @Nullable UiTabState state = model.get(TabProperties.ACTOR_UI_STATE);
+        boolean shouldBeVisible =
+                state != null
+                        && (state.tabIndicator == TabIndicatorStatus.DYNAMIC
+                                || state.tabIndicator == TabIndicatorStatus.STATIC);
+
+        if (shouldBeVisible) {
+            String title = model.get(TabProperties.TITLE);
+            String accessibilityDesc =
+                    view.getResources().getString(R.string.tab_ax_label_actor_accessing, title);
+            view.setContentDescription(accessibilityDesc);
+        } else {
+            updateContentDescription(model, view);
+        }
+
+        return shouldBeVisible;
     }
 }

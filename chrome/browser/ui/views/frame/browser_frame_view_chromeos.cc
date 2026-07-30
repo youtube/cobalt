@@ -1042,7 +1042,8 @@ void BrowserFrameViewChromeOS::UpdateWindowRoundedCorners() {
 void BrowserFrameViewChromeOS::LayoutProfileIndicator() {
   DCHECK(profile_indicator_icon_);
   const int frame_height =
-      GetTopInset(false) + GetClientFrameElementInfo().top_area_height();
+      GetTopInset(false) +
+      GetClientFrameElementInfo().tabstrip_preferred_height;
   profile_indicator_icon_->SetPosition(
       gfx::Point(kProfileIndicatorPadding,
                  (frame_height - profile_indicator_icon_->height()) / 2));

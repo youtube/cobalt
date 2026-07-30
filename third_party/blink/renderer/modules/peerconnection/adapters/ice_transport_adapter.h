@@ -9,7 +9,12 @@
 
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
+
+// third_party/webrtc is not ready for -Wshorten-64-to-32.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wshorten-64-to-32"
 #include "third_party/webrtc/p2p/base/p2p_transport_channel.h"
+#pragma clang diagnostic pop
 
 namespace blink {
 

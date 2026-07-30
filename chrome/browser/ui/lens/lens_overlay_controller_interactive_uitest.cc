@@ -10,6 +10,7 @@
 #include "base/functional/bind.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/run_until.h"
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/autocomplete/chrome_aim_eligibility_service.h"
@@ -57,6 +58,7 @@
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/lens/lens_features.h"
 #include "components/lens/lens_overlay_invocation_source.h"
+#include "components/lens/lens_overlay_metrics.h"
 #include "components/lens/lens_overlay_permission_utils.h"
 #include "components/pdf/browser/pdf_document_helper.h"
 #include "components/prefs/pref_service.h"
@@ -103,9 +105,8 @@ constexpr char kPdfDocument[] = "/pdf/test.pdf";
 class TestingAimEligibilityService : public ChromeAimEligibilityService {
  public:
   explicit TestingAimEligibilityService(
-      bool is_locally_eligible,
-      bool is_server_eligible,
-      bool server_eligibility_enabled,
+      bool is_aim_eligible,
+      bool is_cobrowse_eligible,
       PrefService& pref_service,
       TemplateURLService* template_url_service)
       : ChromeAimEligibilityService(
@@ -114,9 +115,8 @@ class TestingAimEligibilityService : public ChromeAimEligibilityService {
             /*url_loader_factory=*/nullptr,
             /*identity_manager=*/nullptr,
             /*configuration=*/{}),
-        is_locally_eligible_(is_locally_eligible),
-        is_server_eligible_(is_server_eligible),
-        server_eligibility_enabled_(server_eligibility_enabled) {}
+        is_aim_eligible_(is_aim_eligible),
+        is_cobrowse_eligible_(is_cobrowse_eligible) {}
 
   ~TestingAimEligibilityService() override = default;
 
@@ -124,33 +124,12 @@ class TestingAimEligibilityService : public ChromeAimEligibilityService {
     return nullptr;
   }
 
-  bool IsAimLocallyEligible() const override { return is_locally_eligible_; }
-  bool IsServerEligibilityEnabled() const override {
-    return server_eligibility_enabled_;
-  }
-  bool IsAimEligible() const override {
-    if (!IsAimLocallyEligible()) {
-      return false;
-    }
-    if (IsServerEligibilityEnabled()) {
-      return is_server_eligible_;
-    }
-    return true;
-  }
-  bool IsCobrowseEligible() const override {
-    if (!IsAimLocallyEligible()) {
-      return false;
-    }
-    if (IsServerEligibilityEnabled()) {
-      return is_server_eligible_;
-    }
-    return true;
-  }
+  bool IsAimEligible() const override { return is_aim_eligible_; }
+  bool IsCobrowseEligible() const override { return is_cobrowse_eligible_; }
 
  private:
-  bool is_locally_eligible_;
-  bool is_server_eligible_;
-  bool server_eligibility_enabled_;
+  bool is_aim_eligible_;
+  bool is_cobrowse_eligible_;
 };
 
 class TestingContextualTasksUiService
@@ -392,12 +371,29 @@ class LensOverlayControllerCUJTest : public InteractiveFeaturePromoTest {
                                     LensOverlayController::kOverlayId),
             WaitForWebContentsReady(
                 overlay_id, GURL(chrome::kChromeUILensOverlayUntrustedURL))),
-        InSameContext(WaitForShow(LensOverlayController::kOverlayId),
-                      WaitForScreenshotRendered(overlay_id),
-                      EnsurePresent(overlay_id, kPathToRegionSelection),
-                      MoveMouseTo(LensOverlayController::kOverlayId),
-                      DragMouseTo(std::forward<T>(target_point)),
-                      FinishScreenshotUpload(tab_id_int)));
+        InSameContext(
+            WaitForShow(LensOverlayController::kOverlayId),
+            // Disable animations in the WebUI to prevent flakiness on bots.
+            // The duration is set to 0s instead of 'none' to ensure that
+            // animationend/transitionend events still fire, as the WebUI
+            // logic relies on them to transition states.
+            ExecuteJsAt(overlay_id, {}, R"(
+                        () => {
+                          const style = document.createElement('style');
+                          style.textContent = `
+                            * {
+                              animation-duration: 0s !important;
+                              transition-duration: 0s !important;
+                            }
+                          `;
+                          document.head.appendChild(style);
+                        }
+                      )"),
+            WaitForScreenshotRendered(overlay_id),
+            EnsurePresent(overlay_id, kPathToRegionSelection),
+            MoveMouseTo(LensOverlayController::kOverlayId),
+            DragMouseTo(std::forward<T>(target_point)),
+            FinishScreenshotUpload(tab_id_int)));
   }
 
   bool TriggerLenOverlayHomeworkPageAction() {
@@ -1539,9 +1535,8 @@ class ContextualTasksLensOverlayControllerInteractiveUiTest
                                          -> std::unique_ptr<KeyedService> {
           Profile* profile = Profile::FromBrowserContext(context);
           return std::make_unique<TestingAimEligibilityService>(
-              /*is_locally_eligible=*/true,
-              /*is_server_eligible=*/true,
-              /*server_eligibility_enabled=*/true, *profile->GetPrefs(),
+              /*is_aim_eligible=*/true,
+              /*is_cobrowse_eligible=*/true, *profile->GetPrefs(),
               /*template_url_service=*/nullptr);
         }));
     contextual_tasks::ContextualTasksUiServiceFactory::GetInstance()
@@ -1898,5 +1893,154 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerCsbTest, HidesCsbWhenDisabled) {
 INSTANTIATE_TEST_SUITE_P(All,
                          ParameterizedLensOverlayControllerCUJTest,
                          testing::Bool());
+
+enum class AimEligibilityTestState {
+  kEligible,
+  kAimIneligible,
+  kCobrowseIneligible,
+};
+
+class ContextualTasksLensOverlayControllerEligibilityInteractiveUiTest
+    : public LensOverlayControllerCUJTest,
+      public testing::WithParamInterface<AimEligibilityTestState> {
+ public:
+  ContextualTasksLensOverlayControllerEligibilityInteractiveUiTest() = default;
+  ~ContextualTasksLensOverlayControllerEligibilityInteractiveUiTest() override =
+      default;
+
+  void SetUpFeatureList() override {
+    feature_list_.InitWithFeaturesAndParameters(
+        /*enabled_features=*/{{contextual_tasks::kContextualTasks, {}},
+                              {contextual_tasks::
+                                   kContextualTasksForceEntryPointEligibility,
+                               {}}},
+        /*disabled_features=*/{features::kNonBlockingOsClipboardReads});
+  }
+
+  void SetUpInProcessBrowserTestFixture() override {
+    LensOverlayControllerCUJTest::SetUpInProcessBrowserTestFixture();
+    create_services_subscription_ =
+        BrowserContextDependencyManager::GetInstance()
+            ->RegisterCreateServicesCallbackForTesting(base::BindRepeating(
+                &ContextualTasksLensOverlayControllerEligibilityInteractiveUiTest::
+                    OnWillCreateBrowserContextServices,
+                base::Unretained(this)));
+  }
+
+  void OnWillCreateBrowserContextServices(content::BrowserContext* context) {
+    IdentityTestEnvironmentProfileAdaptor::
+        SetIdentityTestEnvironmentFactoriesOnBrowserContext(context);
+
+    AimEligibilityTestState state = GetParam();
+    bool is_aim = state == AimEligibilityTestState::kEligible ||
+                  state == AimEligibilityTestState::kCobrowseIneligible;
+    bool is_cobrowse = state == AimEligibilityTestState::kEligible;
+
+    AimEligibilityServiceFactory::GetInstance()->SetTestingFactory(
+        context,
+        base::BindRepeating(
+            [](bool aim, bool cobrowse, content::BrowserContext* context)
+                -> std::unique_ptr<KeyedService> {
+              Profile* profile = Profile::FromBrowserContext(context);
+              return std::make_unique<TestingAimEligibilityService>(
+                  aim, cobrowse, *profile->GetPrefs(),
+                  /*template_url_service=*/nullptr);
+            },
+            is_aim, is_cobrowse));
+
+    contextual_tasks::ContextualTasksUiServiceFactory::GetInstance()
+        ->SetTestingFactory(
+            context,
+            base::BindLambdaForTesting([](content::BrowserContext* context) {
+              Profile* profile = Profile::FromBrowserContext(context);
+              return static_cast<std::unique_ptr<KeyedService>>(
+                  std::make_unique<TestingContextualTasksUiService>(
+                      profile,
+                      contextual_tasks::ContextualTasksServiceFactory::
+                          GetForProfile(profile),
+                      IdentityManagerFactory::GetForProfile(profile),
+                      AimEligibilityServiceFactory::GetForProfile(profile),
+                      /*cookie_synchronizer=*/nullptr));
+            }));
+  }
+
+  void SetUpOnMainThread() override {
+    LensOverlayControllerCUJTest::SetUpOnMainThread();
+    WaitForTemplateURLServiceToLoad();
+    identity_test_environment_adaptor_ =
+        std::make_unique<IdentityTestEnvironmentProfileAdaptor>(
+            browser()->profile());
+    identity_test_environment_adaptor_->identity_test_env()
+        ->MakePrimaryAccountAvailable("user@example.com",
+                                      signin::ConsentLevel::kSignin);
+    identity_test_environment_adaptor_->identity_test_env()
+        ->SetAutomaticIssueOfAccessTokens(true);
+  }
+
+  void TearDownOnMainThread() override {
+    identity_test_environment_adaptor_.reset();
+    LensOverlayControllerCUJTest::TearDownOnMainThread();
+  }
+
+ private:
+  base::CallbackListSubscription create_services_subscription_;
+  std::unique_ptr<IdentityTestEnvironmentProfileAdaptor>
+      identity_test_environment_adaptor_;
+};
+
+IN_PROC_BROWSER_TEST_P(
+    ContextualTasksLensOverlayControllerEligibilityInteractiveUiTest,
+    RecordQueryEligibilityOnQuery) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kOverlayId);
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kFirstTab);
+
+  browser()->GetFeatures().side_panel_ui()->DisableAnimationsForTesting();
+
+  auto* const browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  auto off_center_point = base::BindLambdaForTesting([browser_view]() {
+    gfx::Point off_center =
+        browser_view->contents_web_view()->bounds().CenterPoint();
+    off_center.Offset(100, 100);
+    return off_center;
+  });
+
+  base::HistogramTester histogram_tester;
+
+  RunTestSequence(
+      OpenLensOverlayWithRegionSearch(kFirstTab, kOverlayId, off_center_point),
+      WaitForShow(kContextualTasksSidePanelWebViewElementId));
+
+  // Verify metrics.
+  AimEligibilityTestState state = GetParam();
+  lens::LensContextualTasksQueryEligibility expected_eligibility;
+  switch (state) {
+    case AimEligibilityTestState::kEligible:
+      expected_eligibility =
+          lens::LensContextualTasksQueryEligibility::kEligible;
+      break;
+    case AimEligibilityTestState::kAimIneligible:
+      expected_eligibility =
+          lens::LensContextualTasksQueryEligibility::kAimIneligible;
+      break;
+    case AimEligibilityTestState::kCobrowseIneligible:
+      expected_eligibility =
+          lens::LensContextualTasksQueryEligibility::kCobrowseIneligible;
+      break;
+  }
+
+  histogram_tester.ExpectUniqueSample(
+      "Lens.Overlay.ContextualTasks.QueryEligibility", expected_eligibility, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Lens.Overlay.ContextualTasks.QueryEligibility.ByInvocationSource."
+      "AppMenu",
+      expected_eligibility, 1);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    ContextualTasksLensOverlayControllerEligibilityInteractiveUiTest,
+    testing::Values(AimEligibilityTestState::kEligible,
+                    AimEligibilityTestState::kAimIneligible,
+                    AimEligibilityTestState::kCobrowseIneligible));
 
 }  // namespace

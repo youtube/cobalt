@@ -14,6 +14,7 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/memory/self_deleting.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
@@ -43,9 +44,11 @@ const int kMaxWarnings = 2;
 // Implementation of BrowserCollectionObserver used to wait for a browser
 // window.
 class NetworkProfileBubbleBrowserCollectionObserver
-    : public BrowserCollectionObserver {
+    : public BrowserCollectionObserver,
+      public base::SelfDeleting {
  public:
-  NetworkProfileBubbleBrowserCollectionObserver();
+  explicit NetworkProfileBubbleBrowserCollectionObserver(
+      base::SelfDeletingPassKey key);
 
  private:
   ~NetworkProfileBubbleBrowserCollectionObserver() override;
@@ -58,7 +61,8 @@ class NetworkProfileBubbleBrowserCollectionObserver
 };
 
 NetworkProfileBubbleBrowserCollectionObserver::
-    NetworkProfileBubbleBrowserCollectionObserver() {
+    NetworkProfileBubbleBrowserCollectionObserver(base::SelfDeletingPassKey key)
+    : base::SelfDeleting(key) {
   browser_collection_observation_.Observe(
       GlobalBrowserCollection::GetInstance());
 }
@@ -181,6 +185,6 @@ void NetworkProfileBubble::NotifyNetworkProfileDetected() {
     ShowNotification(browser);
   } else {
     // Won't leak because the observer is self-deleting.
-    new NetworkProfileBubbleBrowserCollectionObserver();
+    base::MakeSelfDeleting<NetworkProfileBubbleBrowserCollectionObserver>();
   }
 }

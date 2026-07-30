@@ -34,6 +34,7 @@ class UpdaterStatusAndValueProvider : public policy::PolicyStatusProvider,
 
   // policy::PolicyStatusProvider implementation.
   base::DictValue GetStatus() override;
+  policy::mojom::StatusPtr GetStatusMojo() override;
 
   // policy::PolicyValueProvider implementation.
   base::DictValue GetValues() override;

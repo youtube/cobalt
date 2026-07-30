@@ -11,6 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_page_handler.h"
@@ -20,6 +21,7 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/send_tab_to_self/fake_send_tab_to_self_model.h"
 #include "components/send_tab_to_self/features.h"
+#include "components/send_tab_to_self/metrics_util.h"
 #include "components/send_tab_to_self/send_tab_to_self_model.h"
 #include "components/send_tab_to_self/send_tab_to_self_sync_service.h"
 #include "components/send_tab_to_self/stub_send_tab_to_self_sync_service.h"
@@ -84,7 +86,8 @@ TEST_F(SendTabToSelfContextMenuDelegateTest, GetDevicesForDisplayLimitsToFive) {
   }
   model()->SetTargetDeviceInfoSortedList(devices);
 
-  SendTabToSelfContextMenuDelegate delegate(web_contents());
+  SendTabToSelfContextMenuDelegate delegate(web_contents(),
+                                            ShareEntryPoint::kContentMenu);
   ui::SimpleMenuModel menu_model(&delegate);
   delegate.PopulateSubmenu(&menu_model);
 
@@ -112,7 +115,8 @@ TEST_F(SendTabToSelfContextMenuDelegateTest, ExecuteCommandSendsToDevice) {
       web_contents()->GetController().GetLastCommittedEntry();
   web_contents()->UpdateTitleForEntry(entry, kExampleTitle);
 
-  SendTabToSelfContextMenuDelegate delegate(web_contents());
+  SendTabToSelfContextMenuDelegate delegate(web_contents(),
+                                            ShareEntryPoint::kContentMenu);
   ui::SimpleMenuModel menu_model(&delegate);
   delegate.PopulateSubmenu(&menu_model);
 
@@ -136,7 +140,8 @@ TEST_F(SendTabToSelfContextMenuDelegateTest,
                        syncer::DeviceInfo::FormFactor::kDesktop, now);
   model()->SetTargetDeviceInfoSortedList(devices);
 
-  SendTabToSelfContextMenuDelegate delegate(web_contents());
+  SendTabToSelfContextMenuDelegate delegate(web_contents(),
+                                            ShareEntryPoint::kContentMenu);
   ui::SimpleMenuModel menu_model(&delegate);
   delegate.PopulateSubmenu(&menu_model);
 
@@ -147,6 +152,30 @@ TEST_F(SendTabToSelfContextMenuDelegateTest,
   EXPECT_EQ(menu_model.GetTypeAt(1), ui::MenuModel::TYPE_SEPARATOR);
   EXPECT_EQ(menu_model.GetCommandIdAt(2),
             IDC_CONTENT_CONTEXT_SEND_TAB_TO_SELF_MANAGE_DEVICES);
+}
+
+// Tests that OnMenuWillShow correctly records device count metrics.
+TEST_F(SendTabToSelfContextMenuDelegateTest, OnMenuWillShowRecordsMetrics) {
+  base::Time now = base::Time::Now();
+  std::vector<TargetDeviceInfo> devices;
+  devices.emplace_back("Device 0", "guid0",
+                       syncer::DeviceInfo::FormFactor::kDesktop, now);
+  devices.emplace_back("Device 1", "guid1",
+                       syncer::DeviceInfo::FormFactor::kDesktop, now);
+  model()->SetTargetDeviceInfoSortedList(devices);
+
+  base::HistogramTester histogram_tester;
+
+  SendTabToSelfContextMenuDelegate delegate(web_contents(),
+                                            ShareEntryPoint::kContentMenu);
+  ui::SimpleMenuModel menu_model(&delegate);
+  delegate.PopulateSubmenu(&menu_model);
+
+  delegate.OnMenuWillShow(&menu_model);
+
+  histogram_tester.ExpectUniqueSample(
+      "Sharing.SendTabToSelf.TargetDeviceCount",
+      static_cast<int>(SendTabToSelfDeviceCount::kTwoDevices), 1);
 }
 }  // namespace
 

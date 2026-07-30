@@ -1,0 +1,15 @@
+{
+  "name": "MIME Handler Isolation Test",
+  "version": "1.0",
+  "manifest_version": 3,
+  "mime_types_handler": {
+    "application/pdf": {
+      "handler_url": "viewer.html",
+      "can_embed": true
+    }
+  },
+  "web_accessible_resources": [{
+    "resources": ["helper.html"],
+    "matches": ["<all_urls>"]
+  }]
+}

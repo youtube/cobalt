@@ -72,6 +72,7 @@
 <translation id="1820835682567584003">Chromium mēģina <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="183031085822326697">Kad nākamreiz savā ierīcē (<ph name="DEVICE_TYPE" />) atvērsiet pārlūku Chromium, tiks parādīts aicinājums izmantot Google paroļu pārvaldnieku.</translation>
 <translation id="1838374766361614909">Notīrīt meklēšanas vaicājumu</translation>
+<translation id="1846849503013521481">Lai aizsargātu jūsu darbu pārlūkā Chromium, jūsu organizācija varēs skatīt vai pārvaldīt noteiktu informāciju.</translation>
 <translation id="18552579716432081">Lai dzēstu pārlūkošanas datus tikai no šīs ierīces un paturētu tos Google kontā, <ph name="BEGIN_LINK" />izrakstieties no Chromium<ph name="END_LINK" />.</translation>
 <translation id="1857749206890802997">Lejupielādējiet pārlūku Chromium savā tālrunī, lai atvērtu vai izveidotu jaunas ciļņu grupas, atrodoties ceļā.</translation>
 <translation id="185970820835152459">Varat pārvaldīt Google kontus, kuros esat pierakstījies. Jūsu Google konti tiek izmantoti pārlūkā Chromium, Play veikalā, pakalpojumā Gmail un citur. Ja vēlaties pievienot kontu kādam citam, piemēram, ģimenes loceklim, pievienojiet jaunu personu savai <ph name="DEVICE_TYPE" /> ierīcei. <ph name="LINK_BEGIN" />Uzziniet vairāk<ph name="LINK_END" />.</translation>
@@ -434,6 +435,7 @@ Ja šī lapa nedarbojas, kā paredzēts, mēģiniet atļaut optimizāciju.</tran
 <translation id="5953657885167112863">Chromium personalizēšana</translation>
 <translation id="5960071705175224773">Jūsu iestatījumus mainīja nezināma lietotne</translation>
 <translation id="5968400720580217226">MI režīms</translation>
+<translation id="5977420883993828287">Piesprausta! Varat atkal piekļūt kontekstuālo uzdevumu funkcijai, izmantojot rīkjoslu.</translation>
 <translation id="5986585015444752010">{COUNT,plural, =1{Jūsu organizācija automātiski aizver pārlūku Chromium, ja tas nav izmantots vienu minūti.}zero{Jūsu organizācija automātiski aizver pārlūku Chromium, ja tas nav izmantots # minūtes.}one{Jūsu organizācija automātiski aizver pārlūku Chromium, ja tas nav izmantots # minūti.}other{Jūsu organizācija automātiski aizver pārlūku Chromium, ja tas nav izmantots # minūtes.}}</translation>
 <translation id="5987687638152509985">Lai sāktu sinhronizēšanu, atjauniniet Chromium.</translation>
 <translation id="6003112304606738118">Notiek lejupielāde... Atlikušais laiks: <ph name="HOURS" /> stunda(-as).</translation>
@@ -538,6 +540,17 @@ Dažas funkcijas var nebūt pieejamas. Norādiet citu profila direktoriju vai iz
 <translation id="6896758677409633944">Kopēt</translation>
 <translation id="6901631050894301805">Iestatiet Chromium kā noklusējuma pārlūku un piespraudiet to uzdevumjoslai</translation>
 <translation id="6909503629704372277">&amp;Pārvaldīt Chromium profilus</translation>
+<translation id="6919942714452658456">Veicot šo darbību, tiks ieviestas tālāk norādītās izmaiņas.
+          <ph name="LINE_BREAKS" />
+            • Tiks atiestatīta jūsu sākumlapa, jaunas cilnes lapa, meklētājprogramma un piespraustās cilnes.
+            <ph name="LINE_BREAK" />
+            • Tiks atspējoti paplašinājumi.
+            <ph name="LINE_BREAK" />
+            • Tiks dzēsti sīkfaili un citi vietņu pagaidu dati.
+            <ph name="LINE_BREAK" />
+            • Tiks atiestatīti Chromium īsinājumtaustiņi.
+            <ph name="LINE_BREAKS" />
+            Grāmatzīmes, vēsture un saglabātās paroles netiks ietekmētas.</translation>
 <translation id="6934579572334859869">Jautāt attēlu meklēšanas funkcijai par šo attēlu</translation>
 <translation id="6948031725951063910">Ir sasniegts Chromium grāmatzīmju skaita ierobežojums (<ph name="BOOKMARK_LIMIT" />), tāpēc noteiktas jūsu grāmatzīmes vēl nav saglabātas jūsu Google kontā.
 
@@ -605,6 +618,7 @@ Jaunas grāmatzīmes nevar saglabāt jūsu kontā, kamēr neizdzēsīsiet dažas
 <translation id="7686590090926151193">Chromium nav jūsu noklusējuma pārlūks.</translation>
 <translation id="7689606757190482937">Chromium sinhronizēšana un personalizēšana visās savās ierīcēs</translation>
 <translation id="7699779824407626136">Chromium atjauninājums</translation>
+<translation id="7700735928747402058">Jūsu darbs ir aizsargāts pārlūkā Chromium</translation>
 <translation id="7716950018788545737">Uzdevumi ir pabeigti.</translation>
 <translation id="77283119132245232">Nodrošina sistēmas izsekošanas pakalpojumus pārlūkā <ph name="BROWSER_NAME" />. Ja šis pakalpojums ir atspējots, pārlūka izveidotajos veiktspējas izsekošanas datos netiek ietverti sistēmas līmeņa notikumi, piemēram, konteksta maiņas un pavedienu gatavības notikumi.</translation>
 <translation id="7745317241717453663">Veicot šo darbību, no šīs ierīces tiks dzēsti pārlūkošanas dati. Lai vēlāk izgūtu datus, pierakstieties pārlūkā Chromium kā <ph name="USER_EMAIL" />.</translation>
@@ -636,6 +650,7 @@ Jaunas grāmatzīmes nevar saglabāt jūsu kontā, kamēr neizdzēsīsiet dažas
 <translation id="8031714377769448844">Piespraudiet pārlūku Chromium uzdevumu joslai, lai jebkurā laikā varētu tam ātri piekļūt.</translation>
 <translation id="80471789339884597">Pateicamies, ka veicāt instalēšanu. Pirms <ph name="BUNDLE_NAME" /> izmantošanas ir jārestartē visas pārlūkprogrammas.</translation>
 <translation id="8054112667659782652">Vienmēr rādīt funkcijas Attēlu meklēšana saīsni</translation>
+<translation id="8069447462453318634">Atlasiet vienumu “Piespraust rīkjoslai”.</translation>
 <translation id="8077498902115777962">Atspējot Chromium darbību fonā lietotnēm</translation>
 <translation id="80790299200510644">Attēlu meklēšana</translation>
 <translation id="8086881907087796310">Instalēšana neizdevās, jo jūsu dators neatbilst minimālajām aparatūras prasībām.</translation>
@@ -717,6 +732,15 @@ Jaunas grāmatzīmes nevar saglabāt jūsu kontā, kamēr neizdzēsīsiet dažas
 <translation id="8907580949721785412">Chromium mēģina rādīt paroles. Lai to atļautu, ierakstiet savu Windows paroli.</translation>
 <translation id="8932992523185907506">Chromium vairs nav jūsu noklusējuma pārlūks. Vai iestatīt Chromium par noklusējuma pārlūku?</translation>
 <translation id="8941642502866065432">Nevar atjaunināt Chromium</translation>
+<translation id="8944232836376404813">Veicot šo darbību, tiks ieviestas tālāk norādītās izmaiņas.
+          <ph name="LINE_BREAKS" />
+            • Tiks atiestatīta jūsu sākumlapa, jaunas cilnes lapa, meklētājprogramma un piespraustās cilnes.
+            <ph name="LINE_BREAK" />
+            • Tiks atspējoti paplašinājumi.
+            <ph name="LINE_BREAK" />
+            • Tiks dzēsti sīkfaili un citi vietņu pagaidu dati.
+            <ph name="LINE_BREAKS" />
+            Grāmatzīmes, vēsture un saglabātās paroles netiks ietekmētas.</translation>
 <translation id="897581876605952338">Chromium Enterprise logotips</translation>
 <translation id="8981150672034878610">Nevar palaist pārlūku Chromium, jo radās problēma, atverot jūsu profilu. Mēģiniet restartēt pārlūku Chromium.</translation>
 <translation id="8988036198400390003">Pārvaldīt Chromium profilus</translation>

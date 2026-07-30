@@ -12,6 +12,7 @@ import static org.chromium.chrome.browser.ui.appmenu.AppMenuItemProperties.ICON;
 import static org.chromium.chrome.browser.ui.appmenu.AppMenuItemProperties.ICON_COLOR_RES;
 import static org.chromium.chrome.browser.ui.appmenu.AppMenuItemProperties.ICON_NO_TINT;
 import static org.chromium.chrome.browser.ui.appmenu.AppMenuItemProperties.ICON_SHOW_BADGE;
+import static org.chromium.chrome.browser.ui.appmenu.AppMenuItemProperties.ICON_SUPPLIER;
 import static org.chromium.chrome.browser.ui.appmenu.AppMenuItemProperties.KEY_LISTENER;
 import static org.chromium.chrome.browser.ui.appmenu.AppMenuItemProperties.MANAGED;
 import static org.chromium.chrome.browser.ui.appmenu.AppMenuItemProperties.MENU_ICON_AT_START;
@@ -53,6 +54,7 @@ public class AppMenuItemWithSubmenuProperties {
                 HIGHLIGHTED,
                 MANAGED,
                 ICON,
+                ICON_SUPPLIER,
                 ICON_COLOR_RES,
                 ICON_SHOW_BADGE,
                 ICON_NO_TINT,

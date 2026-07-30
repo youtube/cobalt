@@ -1,0 +1,133 @@
+<!doctype html>
+<!--
+Tests WebXR Media Layers
+-->
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="../resources/webxr_e2e.css">
+  </head>
+  <body>
+    <canvas id="webgl-canvas"></canvas>
+    <!-- Use a video element for the XRMediaBinding quad layer -->
+    <video id="vid" autoplay loop muted crossorigin="anonymous" playsinline></video>
+    <canvas id="vid-canvas" width="64" height="64" style="display:none;"></canvas>
+    <script src="../../../../../../third_party/blink/web_tests/resources/testharness.js"></script>
+    <script src="../resources/webxr_e2e.js"></script>
+    <script>var shouldAutoCreateNonImmersiveSession = false;</script>
+    <script src="../resources/webxr_boilerplate.js"></script>
+    <script>
+      useWebGL2 = true;
+      immersiveSessionInit = {
+        requiredFeatures: ['layers']
+      };
+
+      let projectionLayer = null;
+      let mediaQuadLayer = null;
+      let mediaBinding = null;
+      let frameCount = 0;
+      let renderFramebuffer = null;
+      let vid = document.getElementById('vid');
+      let canvas = document.getElementById('vid-canvas');
+      canvas.width = 64;
+      canvas.height = 64;
+
+      // Fill canvas with a solid green color and stream it to the video element.
+      let ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'rgb(0, 255, 0)';
+      ctx.fillRect(0, 0, 64, 64);
+      vid.srcObject = canvas.captureStream();
+      vid.play();
+
+      // Continuously draw to canvas to ensure stream produces frames.
+      setInterval(() => {
+        ctx.fillStyle = 'rgb(0, 255, 0)';
+        ctx.fillRect(0, 0, 64, 64);
+      }, 16);
+
+      let videoReady = false;
+      vid.requestVideoFrameCallback(() => {
+        videoReady = true;
+      });
+
+      // Fallback: In headless automated testing environments (such as bots running on
+      // virtualized VMs or continuous integration pools), the rendering pipeline and
+      // video compositor are frequently throttled or using software-rendering
+      // (e.g. SwiftShader). This can prevent requestVideoFrameCallback from firing
+      // in a timely manner or entirely.
+      //
+      // We use this timeout fallback to bypass the waiting phase and proceed with the XR
+      // frame assertions after 1 second to prevent the test from hanging and timing out.
+      setTimeout(() => {
+        videoReady = true;
+      }, 1000);
+
+      onRequestSession = function() {
+        let poll = setInterval(() => {
+          if (vid.videoWidth > 0) {
+            clearInterval(poll);
+            navigator.xr.requestSession('immersive-vr', immersiveSessionInit)
+            .then( (session) => {
+              session.mode = 'immersive-vr';
+              sessionInfos[sessionTypes.IMMERSIVE].currentSession = session;
+              onSessionStarted(session);
+            }, (error) => {
+              sessionInfos[sessionTypes.IMMERSIVE].error = error;
+            });
+          }
+        }, 100);
+      };
+
+      onSessionStartedCallback = function(session) {
+        renderFramebuffer = gl.createFramebuffer();
+      };
+
+      updateRenderStateCallback = function(session, gl) {
+        mediaBinding = new XRMediaBinding(session);
+
+        projectionLayer = new XRWebGLLayer(session, gl);
+
+        const refSpace = sessionInfos[getSessionType(session)].currentRefSpace;
+        const commonTransform = new XRRigidTransform({x: 0, y: 1.5, z: -3});
+
+        mediaQuadLayer = mediaBinding.createQuadLayer(vid, {
+          space: refSpace,
+          layout: 'mono',
+          transform: commonTransform
+        });
+
+        session.updateRenderState({
+          layers: [projectionLayer, mediaQuadLayer]
+        });
+      };
+
+      onImmersiveXRFrameCallback = function(session, frame, gl) {
+        // Wait until the video element has successfully generated a frame
+        // before we start counting and verifying to avoid timing flakes.
+        if (!videoReady) {
+          return;
+        }
+
+        if (++frameCount > 10) {
+          done();
+          return;
+        }
+
+        const pose = frame.getViewerPose(
+            sessionInfos[getSessionType(session)].currentRefSpace);
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, projectionLayer.framebuffer);
+        for (const view of pose.views) {
+          let viewport = projectionLayer.getViewport(view);
+          gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
+          gl.enable(gl.SCISSOR_TEST);
+          gl.scissor(viewport.x, viewport.y, viewport.width, viewport.height);
+          gl.clearColor(1.0, 0.0, 0.0, 1.0);  // Red
+          gl.clear(gl.COLOR_BUFFER_BIT);
+          gl.finish();
+        }
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, renderFramebuffer);
+      };
+    </script>
+  </body>
+</html>

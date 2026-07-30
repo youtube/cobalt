@@ -10,18 +10,17 @@
 #import "base/ios/ios_util.h"
 #import "base/task/sequenced_task_runner.h"
 #import "base/time/time.h"
+#import "ios/chrome/browser/autofill/manual_fill/public/manual_fill_constants.h"
 #import "ios/chrome/browser/autofill/manual_fill/ui/manual_fill_action_cell.h"
 #import "ios/chrome/browser/net/model/crurl.h"
 #import "ios/chrome/browser/passwords/password_suggestion/ui/password_suggestion_utils.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_header_footer_item.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_favicon_data_source.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/ui_util.h"
 #import "ios/chrome/grit/ios_strings.h"
-#import "ui/base/device_form_factor.h"
 #import "ui/base/l10n/l10n_util_mac.h"
 #import "url/gurl.h"
 
@@ -40,7 +39,7 @@ namespace {
 constexpr CGFloat PopoverPreferredWidth = 320;
 
 // This is the height used for `self.preferredContentSize` when showing the
-// loading indicator on iPad.
+// loading indicator for the popover view.
 constexpr CGFloat PopoverLoadingHeight = 185.5;
 
 // Minimum and maximum heights permitted for `self.preferredContentSize`.
@@ -63,11 +62,10 @@ constexpr CGFloat kSectionSepatatorLeftInset = 16;
 // Represents the different types of items that can be presented.
 enum class ItemType { kItemTypeData = kItemTypeEnumZero, kItemTypeAction };
 
-// Returns whether the view should be resized to match the desired popover UI on
-// tablets.
+// Returns whether the view should be resized to match the desired popover UI.
 bool ShouldResizeViewForPopover(
     UIModalPresentationStyle modal_presentation_style) {
-  return ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET &&
+  return [ManualFillUtil shouldUsePopover] &&
          modal_presentation_style == UIModalPresentationPopover;
 }
 

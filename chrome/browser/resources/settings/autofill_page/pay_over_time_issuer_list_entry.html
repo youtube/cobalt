@@ -44,9 +44,12 @@
 <if expr="_google_chrome">
       <picture id="paymentsIcon">
         <source
-            srcset="[[getScaledSrcSet_('chrome://theme/IDR_AUTOFILL_GOOGLE_PAY_DARK_SMALL')]]"
+            srcset="[[getGooglePayDarkModeLogoSrcSet_(
+                autofillEnableGradientGoogleLogosEnabled_)]]"
             media="(prefers-color-scheme: dark)">
-        <img alt="" srcset="[[getScaledSrcSet_('chrome://theme/IDR_AUTOFILL_GOOGLE_PAY_SMALL')]]">
+        <img alt=""
+            srcset="[[getGooglePayLightModeLogoSrcSet_(
+                autofillEnableGradientGoogleLogosEnabled_)]]">
       </picture>
 </if>
 <if expr="not _google_chrome">

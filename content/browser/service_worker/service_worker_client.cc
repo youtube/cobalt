@@ -16,11 +16,11 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/types/optional_util.h"
 #include "base/uuid.h"
-#include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/loader/navigation_url_loader_impl.h"
 #include "content/browser/preloading/prefetch/prefetch_features.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/browser/service_worker/service_worker_container_host.h"
 #include "content/browser/service_worker/service_worker_context_core.h"
 #include "content/browser/service_worker/service_worker_security_utils.h"
@@ -34,6 +34,7 @@
 #include "content/public/common/origin_util.h"
 #include "mojo/public/cpp/bindings/remote_set.h"
 #include "net/base/url_util.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/cpp/single_request_url_loader_factory.h"
 #include "services/network/public/cpp/url_loader_factory_builder.h"
 #include "services/network/public/cpp/wrapper_shared_url_loader_factory.h"
@@ -713,7 +714,7 @@ void ServiceWorkerClient::SetControllerRegistration(
   if (controller_registration) {
     CHECK(IsEligibleForServiceWorkerController());
     CHECK(controller_registration->active_version());
-    // TODO(https://crbug.com/497761255): CHECK-exclusion: Convert to CHECK once
+    // TODO(https://crbug.com/526540644): CHECK-exclusion: Convert to CHECK once
     // we are sure this isn't hit.
     DCHECK(IsMatchingRegistration(controller_registration.get()));
   }
@@ -1267,7 +1268,7 @@ ServiceWorkerClient::CreateNetworkURLLoaderFactory(
     CreateNetworkURLLoaderFactoryType type,
     StoragePartitionImpl* storage_partition,
     const network::ResourceRequest& resource_request,
-    const std::optional<base::UnguessableToken>& network_restrictions_id) {
+    const base::UnguessableToken& network_restrictions_id) {
   CHECK(!is_response_committed());
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 

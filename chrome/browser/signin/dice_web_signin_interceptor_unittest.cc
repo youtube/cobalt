@@ -2007,8 +2007,7 @@ TEST_P(DiceWebSigninInterceptorTestSupervisionMetrics, RecordMetrics) {
   MakeValidAccountInfoWithoutCapabilities(&intercepted_account_info);
 
   // Set supervised user capabilities and expectations.
-  AccountCapabilitiesTestMutator mutator(
-      &intercepted_account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&intercepted_account_info);
   mutator.set_is_subject_to_account_level_enterprise_policies(false);
   SinginInterceptSupervisionState expected_state;
   switch (IsSupervisedUser()) {

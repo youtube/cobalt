@@ -67,6 +67,7 @@ PrerenderAttributes::PrerenderAttributes(
     initiator_ukm_id = initiator_render_frame_host->GetPageUkmSourceId();
     auto* rfhi = static_cast<RenderFrameHostImpl*>(initiator_render_frame_host);
     initiator_devtools_navigation_token = rfhi->GetDevToolsNavigationToken();
+    initiator_navigation_state = rfhi->CreateInitiatorStateFromCurrentFrame();
   }
 
   CHECK(!IsBrowserInitiated() ||

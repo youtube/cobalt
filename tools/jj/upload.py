@@ -185,7 +185,7 @@ def main(args, unknown_args):
             f'--json={out}',
             next(iter(immutable_parents))
         ])
-        run_command(presubmit_cmd)
+        run_command(presubmit_cmd, cwd=jj_root)
         results = json.loads(out.read_text())
         if results.get('errors', []) or results.get('warnings', []):
           if not args.allow_warnings:

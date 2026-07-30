@@ -184,10 +184,6 @@ BASE_FEATURE(kOmniboxMultimodalInput, DISABLED);
 // An additional gate to the behavior of OmniboxMultimodalInput on desktop.
 BASE_FEATURE(kAndroidDesktopAimGate, DISABLED);
 
-// Whether the AI Mode entrypoint is shown in the Omnibox as a RHS button. Only
-// used on desktop platforms.
-BASE_FEATURE(kAiModeOmniboxEntryPoint, ENABLED);
-
 // Whether the aim button should dynamically change to portray the submission
 // type.
 BASE_FEATURE(kDynamicAimSubmit, DISABLED);

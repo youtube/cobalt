@@ -59,6 +59,7 @@
 #include "components/sync/test/fake_server_nigori_helper.h"
 #include "components/sync/test/nigori_test_utils.h"
 #include "components/trusted_vault/command_line_switches.h"
+#include "components/trusted_vault/features.h"
 #include "components/trusted_vault/securebox.h"
 #include "components/trusted_vault/standalone_trusted_vault_client.h"
 #include "components/trusted_vault/standalone_trusted_vault_server_constants.h"
@@ -87,7 +88,6 @@
 #include "chrome/browser/ash/sync/sync_error_notifier_factory.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
-#include "components/trusted_vault/features.h"
 #include "ui/views/test/widget_test.h"
 #include "ui/views/widget/any_widget_observer.h"
 #include "ui/views/widget/widget.h"
@@ -1294,6 +1294,8 @@ IN_PROC_BROWSER_TEST_P(SingleClientNigoriWithWebApiTest,
 
   ASSERT_EQ(GetSyncService(0)->GetAccountInfo().gaia, kDefaultGaiaId);
 
+  base::HistogramTester histogram_tester;
+
   // Mimic opening a web page where the user can interact with the retrieval
   // flow.
   OpenTabForSyncKeyRetrieval(
@@ -1311,6 +1313,10 @@ IN_PROC_BROWSER_TEST_P(SingleClientNigoriWithWebApiTest,
   EXPECT_FALSE(GetSyncService(0)
                    ->GetUserSettings()
                    ->IsTrustedVaultKeyRequiredForPreferredDataTypes());
+
+  histogram_tester.ExpectUniqueSample(
+      "TrustedVault.RecoveryFlowTriggeredEndpoint",
+      trusted_vault::TrustedVaultRecoveryFlowEndpoint::kDesktop, 1);
 
 #if !BUILDFLAG(IS_CHROMEOS)
   // Verify the profile-menu error string is empty.

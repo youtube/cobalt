@@ -79,13 +79,16 @@ void InspectorInjectedScriptManager::EvaluateScriptOnNewDocument(
   if (it == scripts_.end()) {
     return;
   }
-  const auto& script = it->value;
+  // Obtaining the script state below may run script that ends up mutating
+  // `scripts_`, so copy the entry while the iterator is still valid.
+  const String world_name = it->value->world_name;
+  const String source = it->value->source;
+  const bool include_command_line_api = it->value->include_command_line_api;
 
   auto* window = frame.DomWindow();
   v8::HandleScope handle_scope(window->GetIsolate());
 
   ScriptState* script_state = nullptr;
-  const String world_name = script->world_name;
   if (world_name.empty()) {
     script_state = ToScriptStateForMainWorld(window->GetFrame());
   } else if (DOMWrapperWorld* world = EnsureDOMWrapperWorld(
@@ -100,8 +103,8 @@ void InspectorInjectedScriptManager::EvaluateScriptOnNewDocument(
   }
 
   v8_session_->evaluate(script_state->GetContext(),
-                        ToV8InspectorStringView(script->source),
-                        script->include_command_line_api);
+                        ToV8InspectorStringView(source),
+                        include_command_line_api);
   // Note v8_session_ may be null here as the session may have been disposed
   // during the execution of the injected script.
 }

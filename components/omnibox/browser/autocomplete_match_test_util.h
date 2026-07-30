@@ -79,9 +79,6 @@ AutocompleteMatch CreateMlScoredMatch(std::string name,
 AutocompleteMatch CreateBoostedShortcutMatch(std::string name,
                                              int traditional_relevance,
                                              float ml_output);
-AutocompleteMatch CreateKeywordHintMatch(std::string name,
-                                         int traditional_relevance);
-
 AutocompleteMatch CreateHistoryClusterMatch(std::string name,
                                             int traditional_relevance);
 

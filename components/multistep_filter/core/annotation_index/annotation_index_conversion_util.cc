@@ -87,8 +87,18 @@ std::vector<FilterSuggestionCandidate> ToFilterSuggestionCandidates(
       continue;
     }
 
+    std::u16string short_text;
+    std::u16string detailed_text;
+    if (strategy.has_suggestion_message()) {
+      short_text =
+          base::UTF8ToUTF16(strategy.suggestion_message().short_text());
+      detailed_text =
+          base::UTF8ToUTF16(strategy.suggestion_message().detailed_text());
+    }
+
     candidates.emplace_back(std::move(annotation_id), std::move(navigation_url),
-                            std::move(attributes));
+                            std::move(attributes), std::move(short_text),
+                            std::move(detailed_text));
   }
 
   return candidates;
@@ -103,9 +113,8 @@ ExtractTaskAttributesRequest ToExtractTaskAttributesRequest(const GURL& url) {
 std::optional<FilterAnnotation> ToFilterAnnotation(
     const GURL& url,
     const ExtractTaskAttributesResponse& response) {
-  const std::string domain = GetEtldPlusOne(url);
   const std::string host(url.host());
-  if (domain.empty() || host.empty() || response.task_type().empty() ||
+  if (host.empty() || response.task_type().empty() ||
       response.task_attributes().empty()) {
     return std::nullopt;
   }
@@ -116,7 +125,7 @@ std::optional<FilterAnnotation> ToFilterAnnotation(
   }
 
   return FilterAnnotation(base::Uuid::GenerateRandomV4(), response.task_type(),
-                          domain, host, base::Time::Now(),
+                          host, base::Time::Now(),
                           std::move(attributes));
 }
 

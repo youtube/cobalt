@@ -7,8 +7,10 @@
 #import "base/test/ios/wait_util.h"
 #import "components/policy/core/common/policy_pref_names.h"
 #import "components/policy/policy_constants.h"
+#import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/account_picker/ui_bundled/account_picker_confirmation/account_picker_confirmation_screen_constants.h"
 #import "ios/chrome/browser/account_picker/ui_bundled/account_picker_screen/account_picker_screen_constants.h"
+#import "ios/chrome/browser/authentication/test/separate_profiles_util.h"
 #import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
 #import "ios/chrome/browser/authentication/test/signin_earl_grey_ui_test_util.h"
 #import "ios/chrome/browser/authentication/test/signin_matchers.h"
@@ -196,12 +198,20 @@ std::unique_ptr<net::test_server::HttpResponse> GetResponse(
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration configuration = [super appConfigurationForTestCase];
   if ([self isRunningTest:@selector(testSaveToDriveDisplayedWhenSignedOut)] ||
-      [self isRunningTest:@selector
-            (testSaveToDriveWhenSignedOutWithAccountOnDevice)] ||
+      [self
+          isRunningTest:@selector(
+                            testSaveToDriveWhenSignedOutWithAccountOnDevice)] ||
       [self isRunningTest:@selector(testDriveFullStorageSignedOut)] ||
       [self isRunningTest:@selector(testCanDownloadToDrive)] ||
-      [self isRunningTest:@selector(testSaveToDriveAccountRemoved)]) {
+      [self isRunningTest:@selector(testSaveToDriveAccountRemoved)] ||
+      [self isRunningTest:@selector(testSaveToDriveSwitchProfileCancel)] ||
+      [self isRunningTest:@selector(testSaveToDriveSwitchProfileSwitch)]) {
     configuration.features_enabled.push_back(kIOSSaveToDriveSignedOut);
+  }
+  if ([self isRunningTest:@selector(testSaveToDriveSwitchProfileCancel)] ||
+      [self isRunningTest:@selector(testSaveToDriveSwitchProfileSwitch)]) {
+    configuration.features_enabled.push_back(
+        kSeparateProfilesForManagedAccounts);
   }
   if ([self isRunningTest:@selector(testCanRetryDownloadToDrive)]) {
     const std::string commandLineSwitch =
@@ -771,6 +781,122 @@ std::unique_ptr<net::test_server::HttpResponse> GetResponse(
   // Verify that the "Try Again" button does NOT appear (non-resumable).
   [[EarlGrey selectElementWithMatcher:DownloadManagerTryAgainButton()]
       assertWithMatcher:grey_nil()];
+}
+
+// Tests that when the user is signed-out and has a managed account on device,
+// selecting that account for Save to Drive triggers a profile switch alert.
+// In this test, the user cancels the profile switch.
+- (void)testSaveToDriveSwitchProfileCancel {
+  // Add fake managed identity.
+  FakeSystemIdentity* fakeManagedIdentity =
+      [FakeSystemIdentity fakeManagedIdentity];
+  [SigninEarlGrey addFakeIdentity:fakeManagedIdentity];
+
+  // Load a page with a download button and tap the download button.
+  [ChromeEarlGrey loadURL:self.testServer->GetURL("/")];
+  [ChromeEarlGrey waitForWebStateContainingText:"Download"];
+  [ChromeEarlGrey tapWebStateElementWithID:@"download"];
+
+  // Check that the "SAVE..." button is presented and tap it.
+  [ChromeEarlGrey waitForUIElementToAppearWithMatcher:SaveEllipsisButton()];
+  [[EarlGrey selectElementWithMatcher:SaveEllipsisButton()]
+      performAction:grey_tap()];
+
+  // Select "Drive" as destination.
+  [ChromeEarlGrey waitForUIElementToAppearWithMatcher:AccountPicker()];
+  [[EarlGrey selectElementWithMatcher:FileDestinationDriveButton()]
+      performAction:grey_tap()];
+
+  // Tap "Save".
+  [[EarlGrey selectElementWithMatcher:AccountPickerPrimaryButton()]
+      performAction:grey_tap()];
+
+  // Wait for the sign-in flow to appear.
+  [ChromeEarlGrey waitForUIElementToAppearWithMatcher:SigninPromo()];
+
+  // Tap the "Sign in" button.
+  [[EarlGrey selectElementWithMatcher:SigninPromoPrimaryButton()]
+      performAction:grey_tap()];
+
+  // Wait for and confirm enterprise onboarding.
+  [ChromeEarlGrey waitForUIElementToAppearWithMatcher:
+                      ManagedProfileCreationScreenMatcher()];
+  [[EarlGrey
+      selectElementWithMatcher:chrome_test_util::ButtonStackPrimaryButton()]
+      performAction:grey_tap()];
+
+  // Check for the profile switch alert.
+  id<GREYMatcher> titleMatcher = grey_text(l10n_util::GetNSString(
+      IDS_IOS_SAVE_TO_DRIVE_CONFIRM_CHANGE_PROFILE_TITLE));
+  [ChromeEarlGrey waitForUIElementToAppearWithMatcher:titleMatcher];
+
+  // Cancel the alert.
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::AlertItemWithAccessibilityLabelId(
+                     IDS_CANCEL)] performAction:grey_tap()];
+
+  // Check the alert disappeared but the sign-in promo (account picker) stays on
+  // screen.
+  [ChromeEarlGrey waitForUIElementToDisappearWithMatcher:titleMatcher];
+  [[EarlGrey selectElementWithMatcher:SigninPromo()]
+      assertWithMatcher:grey_sufficientlyVisible()];
+}
+
+// Tests that when the user is signed-out and has a managed account on device,
+// selecting that account for Save to Drive triggers a profile switch alert.
+// In this test, the user confirms the profile switch and the save succeeds.
+- (void)testSaveToDriveSwitchProfileSwitch {
+  // Add fake managed identity.
+  FakeSystemIdentity* fakeManagedIdentity =
+      [FakeSystemIdentity fakeManagedIdentity];
+  [SigninEarlGrey addFakeIdentity:fakeManagedIdentity];
+
+  // Load a page with a download button and tap the download button.
+  [ChromeEarlGrey loadURL:self.testServer->GetURL("/")];
+  [ChromeEarlGrey waitForWebStateContainingText:"Download"];
+  [ChromeEarlGrey tapWebStateElementWithID:@"download"];
+
+  // Check that the "SAVE..." button is presented and tap it.
+  [ChromeEarlGrey waitForUIElementToAppearWithMatcher:SaveEllipsisButton()];
+  [[EarlGrey selectElementWithMatcher:SaveEllipsisButton()]
+      performAction:grey_tap()];
+
+  // Select "Drive" as destination.
+  [ChromeEarlGrey waitForUIElementToAppearWithMatcher:AccountPicker()];
+  [[EarlGrey selectElementWithMatcher:FileDestinationDriveButton()]
+      performAction:grey_tap()];
+
+  // Tap "Save".
+  [[EarlGrey selectElementWithMatcher:AccountPickerPrimaryButton()]
+      performAction:grey_tap()];
+
+  // Wait for the sign-in flow to appear.
+  [ChromeEarlGrey waitForUIElementToAppearWithMatcher:SigninPromo()];
+
+  // Tap the "Sign in" button.
+  [[EarlGrey selectElementWithMatcher:SigninPromoPrimaryButton()]
+      performAction:grey_tap()];
+
+  // Wait for and confirm enterprise onboarding.
+  [ChromeEarlGrey waitForUIElementToAppearWithMatcher:
+                      ManagedProfileCreationScreenMatcher()];
+  [[EarlGrey
+      selectElementWithMatcher:chrome_test_util::ButtonStackPrimaryButton()]
+      performAction:grey_tap()];
+
+  // Check for the profile switch alert.
+  id<GREYMatcher> titleMatcher = grey_text(l10n_util::GetNSString(
+      IDS_IOS_SAVE_TO_DRIVE_CONFIRM_CHANGE_PROFILE_TITLE));
+  [ChromeEarlGrey waitForUIElementToAppearWithMatcher:titleMatcher];
+
+  // Switch profiles.
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::AlertItemWithAccessibilityLabelId(
+                     IDS_IOS_SAVE_TO_DRIVE_CONFIRM_CHANGE_PROFILE_BUTTON)]
+      performAction:grey_tap()];
+
+  // Wait for the history sync screen.
+  [ChromeEarlGrey waitForUIElementToAppearWithMatcher:HistoryScreenMatcher()];
 }
 
 @end

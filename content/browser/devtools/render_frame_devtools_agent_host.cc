@@ -19,7 +19,6 @@
 #include "build/build_config.h"
 #include "components/viz/common/buildflags.h"
 #include "content/browser/bad_message.h"
-#include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/devtools/devtools_manager.h"
 #include "content/browser/devtools/devtools_renderer_channel.h"
 #include "content/browser/devtools/devtools_session.h"

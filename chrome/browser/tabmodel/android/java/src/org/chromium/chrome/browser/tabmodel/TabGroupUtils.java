@@ -6,6 +6,8 @@ package org.chromium.chrome.browser.tabmodel;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
 
+import android.content.Context;
+import android.graphics.drawable.GradientDrawable;
 import android.text.TextUtils;
 
 import org.chromium.base.Token;
@@ -20,6 +22,8 @@ import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
 import org.chromium.components.tab_group_sync.LocalTabGroupId;
 import org.chromium.components.tab_group_sync.SavedTabGroup;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
+import org.chromium.components.tab_groups.TabGroupColorId;
+import org.chromium.components.tab_groups.TabGroupColorPickerUtils;
 import org.chromium.content_public.browser.LoadUrlParams;
 
 import java.util.ArrayList;
@@ -333,5 +337,25 @@ public class TabGroupUtils {
             if (tabModel.isTabInTabGroup(tab)) groupedTabs.add(tab);
         }
         return groupedTabs;
+    }
+
+    /**
+     * Creates a circular/oval drawable representing a tab group color.
+     *
+     * @param context The current context.
+     * @param colorId The {@link TabGroupColorId} representing the tab group color.
+     * @param isIncognito Whether the current mode is incognito.
+     * @param circleSize The diameter of the circular drawable in pixels.
+     * @return A {@link GradientDrawable} with the tab group color circle.
+     */
+    public static GradientDrawable createColorDrawableForMenu(
+            Context context, @TabGroupColorId int colorId, boolean isIncognito, int circleSize) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.OVAL);
+        drawable.setColor(
+                TabGroupColorPickerUtils.getTabGroupColorPickerItemColor(
+                        context, colorId, isIncognito));
+        drawable.setSize(circleSize, circleSize);
+        return drawable;
     }
 }

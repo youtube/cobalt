@@ -54,3 +54,5 @@ ci.defaults.set(
     execution_timeout = 1 * time.hour,
     health_spec = health_spec.default(),
 )
+
+exec("./trusted-robots/toolchains.star")

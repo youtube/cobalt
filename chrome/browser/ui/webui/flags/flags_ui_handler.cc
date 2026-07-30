@@ -8,6 +8,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/about_flags.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/channel_info.h"
 #include "components/version_info/channel.h"
 #include "components/webui/flags/flags_storage.h"
@@ -147,6 +148,8 @@ void FlagsUIHandler::SendExperimentalFeatures(bool deprecated_features_only) {
               about_flags::IsRestartNeededToCommitChanges());
   results.Set(flags_ui::kShowOwnerWarning,
               access_ == flags_ui::kGeneralAccessFlagsOnly);
+  results.Set("importExportEnabled",
+              base::FeatureList::IsEnabled(features::kImportExportFlags));
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
   version_info::Channel channel = chrome::GetChannel();
@@ -235,6 +238,7 @@ void FlagsUIHandler::HandleResetAllFlags(const base::ListValue& args) {
 
 void FlagsUIHandler::HandleExportFlags(const base::ListValue& args) {
   DCHECK(flags_storage_);
+  CHECK(base::FeatureList::IsEnabled(features::kImportExportFlags));
   AllowJavascript();
   const base::Value& callback_id = args[0];
 
@@ -251,6 +255,7 @@ void FlagsUIHandler::HandleExportFlags(const base::ListValue& args) {
 
 void FlagsUIHandler::HandleImportFlags(const base::ListValue& args) {
   DCHECK(flags_storage_);
+  CHECK(base::FeatureList::IsEnabled(features::kImportExportFlags));
   AllowJavascript();
   CHECK_EQ(2u, args.size());
   const base::Value& callback_id = args[0];

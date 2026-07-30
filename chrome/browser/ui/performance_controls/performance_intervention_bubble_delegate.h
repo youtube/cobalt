@@ -10,7 +10,6 @@
 #include "base/memory/raw_ptr.h"
 #include "ui/base/models/dialog_model.h"
 
-class Browser;
 class PerformanceInterventionBubbleObserver;
 class TabListModel;
 
@@ -19,7 +18,6 @@ class TabListModel;
 class PerformanceInterventionBubbleDelegate : public ui::DialogModelDelegate {
  public:
   PerformanceInterventionBubbleDelegate(
-      Browser* browser,
       std::unique_ptr<TabListModel> tab_list_model,
       PerformanceInterventionBubbleObserver* observer);
 
@@ -37,7 +35,6 @@ class PerformanceInterventionBubbleDelegate : public ui::DialogModelDelegate {
   void OnDeactivateButtonClicked();
 
  private:
-  raw_ptr<Browser> browser_;
   std::unique_ptr<TabListModel> tab_list_model_;
   const raw_ptr<PerformanceInterventionBubbleObserver> observer_;
 };

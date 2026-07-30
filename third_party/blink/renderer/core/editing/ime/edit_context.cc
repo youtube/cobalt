@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <vector>
 
+#include "base/numerics/safe_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/web/web_local_frame_client.h"
@@ -921,8 +922,10 @@ bool EditContext::FirstRectForCharacterRange(uint32_t location,
     // we'll use that to provide the result.
     if (base::saturated_cast<int>(location) >= range.StartOffset() &&
         base::saturated_cast<int>(location + length) <= range.EndOffset()) {
-      const size_t start_in_composition = location - range.StartOffset();
-      const size_t end_in_composition = location + length - range.StartOffset();
+      const wtf_size_t start_in_composition =
+          base::checked_cast<wtf_size_t>(location - range.StartOffset());
+      const wtf_size_t end_in_composition = base::checked_cast<wtf_size_t>(
+          location + length - range.StartOffset());
       if (length == 0) {
         if (start_in_composition == character_bounds_.size()) {
           // Zero-width rect after the last character in the composition range
@@ -939,7 +942,8 @@ bool EditContext::FirstRectForCharacterRange(uint32_t location,
         }
       } else {
         rect_in_css_pixels = character_bounds_[start_in_composition];
-        for (size_t i = start_in_composition + 1; i < end_in_composition; ++i) {
+        for (wtf_size_t i = start_in_composition + 1; i < end_in_composition;
+             ++i) {
           rect_in_css_pixels.Union(character_bounds_[i]);
         }
       }

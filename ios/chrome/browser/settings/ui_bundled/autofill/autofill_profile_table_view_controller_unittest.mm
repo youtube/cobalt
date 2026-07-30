@@ -260,8 +260,9 @@ TEST_P(AutofillProfileTableViewControllerTitleTest, Title) {
   CreateController();
   CheckController();
 
-  CheckTitleWithId(IsParamFeatureEnabled() ? IDS_AUTOFILL_CONTACT_INFO_TITLE
-                                           : IDS_AUTOFILL_ADDRESSES_SETTINGS_TITLE);
+  CheckTitleWithId(IsParamFeatureEnabled()
+                       ? IDS_AUTOFILL_CONTACT_INFO_TITLE
+                       : IDS_AUTOFILL_ADDRESSES_SETTINGS_TITLE);
 }
 
 INSTANTIATE_FEATURE_OVERRIDE_TEST_SUITE(
@@ -325,7 +326,9 @@ TEST_F(AutofillProfileTableViewControllerTest,
            .record_type = autofill::EntityInstance::RecordType::kServerWallet});
 
   // Verify local instance is server wallet item.
-  ASSERT_TRUE(wallet_entity.IsServerInstance());
+  ASSERT_EQ(autofill::GetWalletPassType(wallet_entity.type(),
+                                        wallet_entity.record_type()),
+            autofill::EntityInstance::WalletPassType::kPublic);
 
   entity_data_manager->AddOrUpdateEntityInstance(wallet_entity);
 
@@ -340,7 +343,9 @@ TEST_F(AutofillProfileTableViewControllerTest,
   auto stored_instance =
       entity_data_manager->GetEntityInstance(wallet_entity.guid());
   ASSERT_TRUE(stored_instance.has_value());
-  ASSERT_TRUE(stored_instance->IsServerInstance());
+  ASSERT_EQ(autofill::GetWalletPassType(stored_instance->type(),
+                                        stored_instance->record_type()),
+            autofill::EntityInstance::WalletPassType::kPublic);
 
   CreateController();
   CheckController();
@@ -426,6 +431,98 @@ TEST_F(AutofillProfileTableViewControllerTest,
     EXPECT_EQ(count, 1) << "Type " << autofill::EntityType(type)
                         << " appeared in more than one category";
   }
+}
+
+class AutofillProfileTableViewControllerYourSavedInfoEnabledTest
+    : public AutofillProfileTableViewControllerTest {
+ protected:
+  void SetUp() override {
+    LegacyChromeTableViewControllerTest::SetUp();
+    feature_list_.InitWithFeatures(
+        {kYourSavedInfoSettingsPageIos,
+         autofill::features::kAutofillAiCreateEntityDataManager,
+         autofill::features::kAutofillAiWithDataSchema,
+         autofill::features::kAutofillAiReauthRequired},
+        /*disabled_features=*/{});
+  }
+};
+
+// Tests that when `YourSavedInfoSettingsPageIos` is enabled, only 1 section
+// (Switches) is initialized (no Enhanced Autofill or User Verification
+// sections).
+TEST_F(AutofillProfileTableViewControllerYourSavedInfoEnabledTest,
+       TestInitialization) {
+  LegacyChromeTableViewController* controller =
+      LegacyChromeTableViewControllerTest::controller();
+  CheckController();
+
+  // Expect only 1 section (SectionIdentifierSwitches).
+  EXPECT_EQ(1, NumberOfSections());
+  // Expect header section to contain one row (the address Autofill toggle).
+  EXPECT_EQ(1, NumberOfItemsInSection(0));
+  // Expect subtitle section to contain one row (the address Autofill toggle
+  // subtitle).
+  EXPECT_NE(nil, [controller.tableViewModel footerForSectionIndex:0]);
+
+  // Check the footer of the first section.
+  CheckSectionFooterWithId(IDS_AUTOFILL_ENABLE_PROFILES_TOGGLE_SUBLABEL, 0);
+
+  // Check the add button has no menu and is configured with a direct action.
+  AutofillProfileTableViewController* viewController =
+      base::apple::ObjCCastStrict<AutofillProfileTableViewController>(
+          controller);
+  UIBarButtonItem* addButton = [viewController addButtonInToolbar];
+  EXPECT_EQ(nil, addButton.menu);
+  EXPECT_EQ(@selector(handleAddAddress), addButton.action);
+  EXPECT_EQ(viewController, addButton.target);
+
+  // Verify that Enhanced Autofill subpages, Verify toggle, and Wallet
+  // promo/actions are not reachable/visible.
+  EXPECT_FALSE([viewController shouldShowVerificationSwitch]);
+  EXPECT_FALSE([viewController shouldShowWalletPromo]);
+  EXPECT_FALSE([viewController canModifyEnhancedAutofill]);
+}
+
+// Tests that when `YourSavedInfoSettingsPageIos` is enabled, adding a single
+// address results in two sections (Switches and Addresses).
+TEST_F(AutofillProfileTableViewControllerYourSavedInfoEnabledTest,
+       TestOneProfile) {
+  AddProfile({{autofill::NAME_FULL, "John Doe"},
+              {autofill::ADDRESS_HOME_LINE1, "1 Main Street"}});
+  CreateController();
+  CheckController();
+
+  // Expect two sections (address toggle, addresses).
+  EXPECT_EQ(2, NumberOfSections());
+  // Expect address section to contain one row (the address itself).
+  EXPECT_EQ(1, NumberOfItemsInSection(1));
+}
+
+// Tests that when `YourSavedInfoSettingsPageIos` is enabled, adding entities
+// does not trigger entity sections being populated.
+TEST_F(AutofillProfileTableViewControllerYourSavedInfoEnabledTest,
+       TestNoEntitiesLoaded) {
+  autofill::EntityDataManager* entity_data_manager =
+      IOSAutofillEntityDataManagerFactory::GetForProfile(profile_.get());
+  if (entity_data_manager) {
+    autofill::EntityInstance instance =
+        autofill::test::GetVehicleEntityInstance();
+    entity_data_manager->AddOrUpdateEntityInstance(instance);
+
+    // Wait for it to be added.
+    EXPECT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+        base::test::ios::kWaitForActionTimeout, true, ^{
+          return entity_data_manager->GetEntityInstance(instance.guid())
+              .has_value();
+        }));
+  }
+
+  CreateController();
+  CheckController();
+
+  // Expect only 1 section (SectionIdentifierSwitches) since no profiles are
+  // added.
+  EXPECT_EQ(1, NumberOfSections());
 }
 
 }  // namespace

@@ -21,6 +21,7 @@ class TabDragSessionInjector;
 class TabDragSession;
 class DropTargetRegistry;
 class TabDragWindowAdapter;
+class TabDragWindowRegistry;
 
 // Browser-process-wide manager that owns and coordinates the active
 // TabDragSession. This ensures the session outlives individual window
@@ -45,6 +46,7 @@ class TabDragSessionManager {
   void OnSessionEnded();
 
   DropTargetRegistry& GetDropTargetRegistry();
+  TabDragWindowRegistry* GetWindowRegistry();
 
  private:
   void DestroyActiveSession();

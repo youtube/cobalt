@@ -193,6 +193,9 @@ class PrefRegistrySyncable;
                                                 accessPoint:
                                                     (signin_metrics::
                                                          AccessPoint)accessPoint
+                                       confirmChangeProfile:
+                                           (SigninChangeProfileConfirmationBlock)
+                                               confirmChangeProfile
                                        prepareChangeProfile:
                                            (ProceduralBlock)prepareChangeProfile
                                        continuationProvider:

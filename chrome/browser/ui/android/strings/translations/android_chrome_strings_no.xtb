@@ -117,6 +117,7 @@ For å se flere innstillinger som bruker data for å forbedre Chrome-opplevelsen
 <translation id="1435593198351412143">Åpne PDF-filer automatisk</translation>
 <translation id="1437543266176261764">Kjører i <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">Organiser sporede produkter i Bokmerker</translation>
+<translation id="1452651021404174820">Velg en enhet</translation>
 <translation id="1455845192930279203">Vil du laste ned «<ph name="FILE_NAME" />» (<ph name="FILE_SIZE" />) fra <ph name="DOWNLOAD_DOMAIN" /> likevel?</translation>
 <translation id="1460751212339734034">Spar tid – skriv mindre</translation>
 <translation id="146522654774760805">Passord og autofyll</translation>
@@ -124,6 +125,7 @@ For å se flere innstillinger som bruker data for å forbedre Chrome-opplevelsen
 <translation id="1477626028522505441">Nedlastingen av <ph name="FILE_NAME" /> ble avbrutt på grunn av tjenerproblemer.</translation>
 <translation id="147982357559798527">Endret</translation>
 <translation id="1480287803138246127">Det kan hende at deler av loggen din ikke vises her. For å se hele Chrome-loggen din, åpne hele Chrome-loggen.</translation>
+<translation id="1483493594462132177">Send</translation>
 <translation id="1495677929897281669">Tilbake til fanen</translation>
 <translation id="1496514951988037011">brukernavn</translation>
 <translation id="1501480321619201731">Slett gruppen</translation>
@@ -1273,6 +1275,7 @@ Noen nettsteder kan for eksempel svare på denne forespørselen ved å vise deg 
 <translation id="634208815998129842">Oppgavebehandling</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{<ph name="SHIPPING_ADDRESS_PREVIEW" /> og <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> til}other{<ph name="SHIPPING_ADDRESS_PREVIEW" /> og <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> til}}</translation>
 <translation id="6345878117466430440">Merk som lest</translation>
+<translation id="6350745006329795504">Administrer enhetene dine</translation>
 <translation id="6356893102071098867">Sjekk at du har valgt riktig konto</translation>
 <translation id="6364438453358674297">Vil du fjerne forslaget fra loggen?</translation>
 <translation id="6380100320871303656">Forhåndslaster oftere sider som Chrome tror du sannsynligvis kommer til å besøke. Denne innstillingen kan medføre høyere databruk.</translation>

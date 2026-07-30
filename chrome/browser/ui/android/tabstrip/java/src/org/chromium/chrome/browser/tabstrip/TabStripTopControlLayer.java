@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.tabstrip;
 
 import static org.chromium.build.NullUtil.assertNonNull;
 
+import org.chromium.base.Callback;
 import org.chromium.base.Log;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.NonNullObservableSupplier;
@@ -39,6 +40,7 @@ public class TabStripTopControlLayer implements TopControlLayer, TabStripTransit
     private final ControlContainer mControlContainer;
     private final SettableNonNullObservableSupplier<Integer> mSupplier;
     private final @Nullable TokenHolder mLockTopControlsTokenJar;
+    private @Nullable Callback<Boolean> mTransitionFinishedCallback;
 
     private int mLockTopControlsToken = TokenHolder.INVALID_TOKEN;
     private @Nullable BrowserControlsOffsetTagsInfo mOffsetTagsInfo;
@@ -136,6 +138,7 @@ public class TabStripTopControlLayer implements TopControlLayer, TabStripTransit
     public void destroy() {
         mTopControlsStacker.removeControl(this);
         mSupplier.destroy();
+        mTransitionFinishedCallback = null;
         if (mLockTopControlsTokenJar != null) {
             mLockTopControlsTokenJar.releaseToken(mLockTopControlsToken);
             mLockTopControlsToken = TokenHolder.INVALID_TOKEN;
@@ -252,6 +255,11 @@ public class TabStripTopControlLayer implements TopControlLayer, TabStripTransit
         }
     }
 
+    @Override
+    public void setTransitionFinishedCallback(Callback<Boolean> callback) {
+        mTransitionFinishedCallback = callback;
+    }
+
     private void prepForTransitionRequested(
             int newHeight,
             int topPadding,
@@ -362,6 +370,10 @@ public class TabStripTopControlLayer implements TopControlLayer, TabStripTransit
         recordTabStripTransitionFinished(success);
         if (!success) {
             Log.i(TAG, "Transition canceled.");
+        }
+
+        if (mTransitionFinishedCallback != null) {
+            mTransitionFinishedCallback.onResult(success);
         }
     }
 

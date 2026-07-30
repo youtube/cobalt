@@ -2664,6 +2664,9 @@ HTMLSelectElement* HTMLInputElement::FilterTarget() const {
   if (!RuntimeEnabledFeatures::FilterableSelectEnabled()) {
     return nullptr;
   }
+  if (nearest_ancestor_select_) {
+    return nearest_ancestor_select_;
+  }
   if (auto* select = DynamicTo<HTMLSelectElement>(
           GetElementAttributeResolvingReferenceTarget(
               html_names::kFilterAttr))) {

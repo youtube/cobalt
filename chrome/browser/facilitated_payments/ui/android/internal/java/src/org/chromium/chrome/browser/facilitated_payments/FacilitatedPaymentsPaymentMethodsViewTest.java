@@ -17,6 +17,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import static org.chromium.base.ThreadUtils.runOnUiThreadBlocking;
+import static org.chromium.base.test.util.CriteriaHelper.pollUiThread;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.FopSelectorProperties.SCREEN_ITEMS;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.ItemType.BANK_ACCOUNT;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.ItemType.CONTINUE_BUTTON;
@@ -62,6 +63,7 @@ import org.mockito.quality.Strictness;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.test.util.CommandLineFlags;
+import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -353,7 +355,8 @@ public final class FacilitatedPaymentsPaymentMethodsViewTest {
 
         BottomSheetTestSupport.waitForOpen(mBottomSheetController);
 
-        assertThat(getSheetItems().getChildCount(), is(2));
+        pollUiThread(() -> Criteria.checkThat(getSheetItems().getChildCount(), is(2)));
+
         assertThat(getPaymentAppNameAt(0).getText(), is(PAYMENT_APP_1_NAME));
         assertThat(getPaymentAppNameAt(1).getText(), is(PAYMENT_APP_2_NAME));
     }
@@ -579,7 +582,7 @@ public final class FacilitatedPaymentsPaymentMethodsViewTest {
                     mModel.set(VISIBLE_STATE, SHOWN);
                 });
 
-        assertThat(getSheetItems().getChildCount(), is(1));
+        pollUiThread(() -> Criteria.checkThat(getSheetItems().getChildCount(), is(1)));
         ImageView headerSecurityCheckImage = getHeaderSecurityCheckImageAt(0);
         TextView headerDescription = getHeaderDescriptionAt(0);
 

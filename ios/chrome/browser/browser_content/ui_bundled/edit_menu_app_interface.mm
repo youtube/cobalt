@@ -86,7 +86,9 @@ NSDictionary* ExtractMenuElements(UIView* view,
   id<GREYMatcher> editMenu = [EditMenuAppInterface editMenuMatcher];
   id<GREYMatcher> nextButton = grey_allOf(
       grey_ancestor(editMenu), grey_kindOfClassName(@"_UIEditMenuPageButton"),
-      grey_accessibilityLabel(@"Forward"), nil);
+      grey_anyOf(grey_accessibilityLabel(@"Forward"),
+                 grey_accessibilityLabel(@"Next Page"), nil),
+      nil);
   return nextButton;
 }
 
@@ -94,7 +96,9 @@ NSDictionary* ExtractMenuElements(UIView* view,
   id<GREYMatcher> editMenu = [EditMenuAppInterface editMenuMatcher];
   id<GREYMatcher> previousButton = grey_allOf(
       grey_ancestor(editMenu), grey_kindOfClassName(@"_UIEditMenuPageButton"),
-      grey_accessibilityLabel(@"Previous"), nil);
+      grey_anyOf(grey_accessibilityLabel(@"Previous"),
+                 grey_accessibilityLabel(@"Previous Page"), nil),
+      nil);
   return previousButton;
 }
 

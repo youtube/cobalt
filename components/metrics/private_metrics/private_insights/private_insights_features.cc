@@ -16,4 +16,41 @@ const base::FeatureParam<base::TimeDelta> kPrivateInsightsUploadInterval{
 BASE_FEATURE(kPrivateInsightsPaicErrorReporting,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+const base::FeatureParam<base::TimeDelta> kFcpConditionPollingPeriod{
+    &kPrivateInsightsFeature, "fcp_condition_polling_period",
+    base::TimeDelta()};
+
+const base::FeatureParam<bool> kFcpLogTensorflowErrorMessages{
+    &kPrivateInsightsFeature, "fcp_log_tensorflow_error_messages", true};
+
+const base::FeatureParam<base::TimeDelta> kFcpExecutionTeardownGracePeriod{
+    &kPrivateInsightsFeature, "fcp_execution_teardown_grace_period",
+    base::TimeDelta()};
+
+const base::FeatureParam<base::TimeDelta> kFcpExecutionTeardownExtendedPeriod{
+    &kPrivateInsightsFeature, "fcp_execution_teardown_extended_period",
+    base::TimeDelta()};
+
+const base::FeatureParam<int> kFcpHttpRetryMaxAttempts{
+    &kPrivateInsightsFeature, "fcp_http_retry_max_attempts", 3};
+
+const base::FeatureParam<base::TimeDelta> kFcpHttpRetryDelay{
+    &kPrivateInsightsFeature, "fcp_http_retry_delay", base::Milliseconds(5000)};
+
+const base::FeatureParam<bool> kFcpDisableHttpRequestBodyCompression{
+    &kPrivateInsightsFeature, "fcp_disable_http_request_body_compression",
+    false};
+
+const base::FeatureParam<base::TimeDelta> kFcpWaitingPeriodForCancellation{
+    &kPrivateInsightsFeature, "fcp_waiting_period_for_cancellation",
+    base::Seconds(10)};
+
+const base::FeatureParam<base::TimeDelta> kFcpTransientErrorsRetryDelay{
+    &kPrivateInsightsFeature, "fcp_transient_errors_retry_delay",
+    base::Minutes(15)};
+
+const base::FeatureParam<base::TimeDelta> kFcpPermanentErrorsRetryDelay{
+    &kPrivateInsightsFeature, "fcp_permanent_errors_retry_delay",
+    base::Hours(4)};
+
 }  // namespace private_insights

@@ -11,6 +11,7 @@
 #include "base/containers/lru_cache.h"
 #include "base/feature_list.h"
 #include "base/no_destructor.h"
+#include "base/not_fatal_until.h"
 #include "content/browser/devtools/network_service_devtools_observer.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/navigation_request.h"
@@ -80,7 +81,7 @@ network::mojom::URLLoaderFactoryParamsPtr CreateParams(
     std::string_view debug_tag,
     bool require_cross_site_request_for_cookies,
     bool is_for_service_worker,
-    const std::optional<base::UnguessableToken>& network_restrictions_id,
+    const base::UnguessableToken& network_restrictions_id,
     bool has_effective_top_frame_for_storage_partitioning) {
   DCHECK(process);
 
@@ -94,6 +95,7 @@ network::mojom::URLLoaderFactoryParamsPtr CreateParams(
   if (top_frame_token)
     params->top_frame_id = top_frame_token.value().value();
 
+  CHECK(!network_restrictions_id.is_empty(), base::NotFatalUntil::M163);
   params->network_restrictions_id = network_restrictions_id;
   params->isolation_info = isolation_info;
 
@@ -178,7 +180,7 @@ URLLoaderFactoryParamsHelper::CreateForFrame(
     network::mojom::TrustTokenOperationPolicyVerdict
         trust_token_redemption_policy,
     net::CookieSettingOverrides cookie_setting_overrides,
-    const std::optional<base::UnguessableToken>& network_restrictions_id,
+    const base::UnguessableToken& network_restrictions_id,
     std::string_view debug_tag) {
   const bool has_effective_top_frame_for_storage_partitioning =
       GetContentClient()->browser()->GetEffectiveTopFrameForPartitioning(
@@ -244,7 +246,9 @@ URLLoaderFactoryParamsHelper::CreateForIsolatedWorld(
       "ParamHelper::CreateForIsolatedWorld",
       /*require_cross_site_request_for_cookies=*/false,
       /*is_for_service_worker=*/false,
-      /*TODO(crbug.com/447954811): network_restrictions_id*/ std::nullopt,
+      // Extensions and isolated worlds are out of scope for
+      // Connection-Allowlists.
+      network::GetNoOpNetworkRestrictionsId(),
       has_effective_top_frame_for_storage_partitioning);
 }
 
@@ -253,7 +257,7 @@ URLLoaderFactoryParamsHelper::CreateForPrefetch(
     RenderFrameHostImpl* frame,
     network::mojom::ClientSecurityStatePtr client_security_state,
     net::CookieSettingOverrides cookie_setting_overrides,
-    const std::optional<base::UnguessableToken>& network_restrictions_id) {
+    const base::UnguessableToken& network_restrictions_id) {
   // The factory client |is_trusted| to control the |network_isolation_key| in
   // each separate request (rather than forcing the client to use the key
   // specified in URLLoaderFactoryParams).
@@ -306,7 +310,7 @@ URLLoaderFactoryParamsHelper::CreateForWorker(
         url_loader_network_observer,
     mojo::PendingRemote<network::mojom::DevToolsObserver> devtools_observer,
     network::mojom::ClientSecurityStatePtr client_security_state,
-    const std::optional<base::UnguessableToken>& network_restrictions_id,
+    const base::UnguessableToken& network_restrictions_id,
     std::string_view debug_tag,
     bool require_cross_site_request_for_cookies,
     bool is_for_service_worker) {
@@ -406,7 +410,8 @@ URLLoaderFactoryParamsHelper::CreateForEarlyHintsPreload(
       net::CookieSettingOverrides(), "ParamHelper::CreateForEarlyHintsPreload",
       /*require_cross_site_request_for_cookies=*/false,
       /*is_for_service_worker=*/false,
-      /*TODO(crbug.com/447954811): network_restrictions_id*/ std::nullopt,
+      /*TODO(crbug.com/447954811): network_restrictions_id*/
+      network::GetTODONetworkRestrictionsId(),
       // TODO(crbug.com/495538206): Revisit if early-hints preloads
       // initiated from a frame with an effective top frame for storage
       // partitioning need the same browser-side `site_for_cookies`

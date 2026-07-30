@@ -1,0 +1,9 @@
+include_rules = [
+  "+sql",
+]
+
+specific_include_rules = {
+  ".*unittest\\.cc": [
+    "+third_party/sqlite",
+  ],
+}

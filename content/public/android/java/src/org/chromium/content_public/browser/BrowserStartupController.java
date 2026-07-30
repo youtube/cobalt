@@ -87,8 +87,6 @@ public interface BrowserStartupController {
      *     is started.
      * @param singleProcess true iff the browser should run single-process, ie. keep renderers in
      *     the browser process
-     * @param scheduleFlushStartupTasks Whether to post a task to flush the startup tasks instead of
-     *     letting them complete asynchronously.
      * @param callback the callback to be called when browser startup is complete.
      */
     void startBrowserProcessesAsync(
@@ -96,7 +94,6 @@ public interface BrowserStartupController {
             boolean startGpuProcess,
             boolean startMinimalBrowser,
             boolean singleProcess,
-            boolean scheduleFlushStartupTasks,
             StartupCallback callback);
 
     /**

@@ -5,6 +5,8 @@
 #ifndef CHROME_BROWSER_UI_LENS_LENS_QUERY_FLOW_ROUTER_H_
 #define CHROME_BROWSER_UI_LENS_LENS_QUERY_FLOW_ROUTER_H_
 
+#include <optional>
+
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/profiles/profile.h"
@@ -13,6 +15,7 @@
 #include "chrome/browser/ui/lens/lens_overlay_query_controller.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
 #include "components/contextual_search/contextual_search_session_handle.h"
+#include "components/lens/lens_overlay_invocation_source.h"
 
 namespace lens {
 
@@ -211,6 +214,10 @@ class LensQueryFlowRouter
     return Profile::FromBrowserContext(web_contents()->GetBrowserContext());
   }
 
+  // Records Lens query eligibility state when Unified Side Panel is enabled.
+  void RecordQueryEligibility(
+      std::optional<lens::LensOverlayInvocationSource> invocation_source);
+
   // Sends the provided request info to the contextual tasks panel to create a
   // search URL which is then loaded into the contextual tasks panel.
   void SendInteractionToContextualTasks(
@@ -303,6 +310,10 @@ class LensQueryFlowRouter
   std::unique_ptr<contextual_tasks::DesktopQueryContextualizerDelegate>
       contextualizer_delegate_;
   std::unique_ptr<contextual_tasks::QueryContextualizer> query_contextualizer_;
+
+  // Track if we have already logged the query eligibility for the current
+  // session.
+  bool eligibility_logged_in_session_ = false;
 
   base::WeakPtrFactory<LensQueryFlowRouter> weak_factory_{this};
 };

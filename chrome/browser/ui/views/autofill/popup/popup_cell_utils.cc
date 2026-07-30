@@ -167,6 +167,7 @@ std::u16string GetIconAccessibleName(Suggestion::Icon icon) {
     case Suggestion::Icon::kDelete:
     case Suggestion::Icon::kDevice:
     case Suggestion::Icon::kVehicle:
+    case Suggestion::Icon::kVehicleSpark:
     case Suggestion::Icon::kEdit:
     case Suggestion::Icon::kEmail:
     case Suggestion::Icon::kGmail:
@@ -174,6 +175,7 @@ std::u16string GetIconAccessibleName(Suggestion::Icon icon) {
     case Suggestion::Icon::kGoogleCalendar:
     case Suggestion::Icon::kError:
     case Suggestion::Icon::kFlight:
+    case Suggestion::Icon::kFlightSpark:
     case Suggestion::Icon::kGlobe:
     case Suggestion::Icon::kGoogle:
     case Suggestion::Icon::kGoogleMonochrome:
@@ -182,13 +184,19 @@ std::u16string GetIconAccessibleName(Suggestion::Icon icon) {
     case Suggestion::Icon::kGoogleWallet:
     case Suggestion::Icon::kGoogleWalletMonochrome:
     case Suggestion::Icon::kIdCard:
+    case Suggestion::Icon::kIdCard2:
+    case Suggestion::Icon::kIdCard2Spark:
+    case Suggestion::Icon::kIdCardSpark:
     case Suggestion::Icon::kKey:
     case Suggestion::Icon::kLocation:
     case Suggestion::Icon::kLoyalty:
     case Suggestion::Icon::kMagic:
     case Suggestion::Icon::kNoIcon:
     case Suggestion::Icon::kOfferTag:
+    case Suggestion::Icon::kOrder:
+    case Suggestion::Icon::kOrderSpark:
     case Suggestion::Icon::kPassport:
+    case Suggestion::Icon::kPassportSpark:
     case Suggestion::Icon::kPenSpark:
     case Suggestion::Icon::kPersonCheck:
     case Suggestion::Icon::kQuestionMark:
@@ -196,6 +204,8 @@ std::u16string GetIconAccessibleName(Suggestion::Icon icon) {
     case Suggestion::Icon::kSaveAndFill:
     case Suggestion::Icon::kScanCreditCard:
     case Suggestion::Icon::kSettings:
+    case Suggestion::Icon::kShipment:
+    case Suggestion::Icon::kShipmentSpark:
     case Suggestion::Icon::kUndo:
     case Suggestion::Icon::kAndroidMessages:
     case Suggestion::Icon::kSpark:
@@ -316,6 +326,7 @@ bool IsPaymentMethodSuggestion(const Suggestion& suggestion) {
     case SuggestionType::kIbanEntry:
     case SuggestionType::kBnplEntry:
     case SuggestionType::kSaveAndFillCreditCardEntry:
+    case SuggestionType::kMaximizeCreditCardBenefitsEntry:
       return true;
     case SuggestionType::kAllLoyaltyCardsEntry:
     case SuggestionType::kAllSavedPasswordsEntry:
@@ -373,6 +384,7 @@ bool IsPaymentMethodSuggestion(const Suggestion& suggestion) {
     case SuggestionType::kAutocompleteAtMemoryButton:
     case SuggestionType::kOpenGemini:
     case SuggestionType::kAtMemoryNoConnection:
+    case SuggestionType::kAtMemoryGenericError:
     case SuggestionType::kAtMemorySearchAffordance:
     case SuggestionType::kPersonalContextNotice:
       return false;
@@ -430,6 +442,9 @@ std::optional<ui::ImageModel> GetIconImageModelFromIcon(Suggestion::Icon icon) {
                                           ? vector_icons::kDirectionsCarIcon
                                           : vector_icons::kDirectionsCarOldIcon,
                                       kChromeRefreshIconSize);
+    case Suggestion::Icon::kVehicleSpark:
+      return ImageModelFromVectorIcon(vector_icons::kCarSparkIcon,
+                                      kChromeRefreshIconSize);
     case Suggestion::Icon::kEdit:
       return ImageModelFromVectorIcon(
           ::features::IsRoundedIconsEnabled() ? kEditIcon
@@ -473,11 +488,17 @@ std::optional<ui::ImageModel> GetIconImageModelFromIcon(Suggestion::Icon icon) {
                                                 : vector_icons::kErrorOldIcon,
                                             ui::kColorSysError, kIconSize);
     case Suggestion::Icon::kSadTab:
-      return ImageModelFromVectorIcon(kSadTabOldIcon, kIconSize);
+      return ImageModelFromVectorIcon(::features::IsRoundedIconsEnabled()
+                                          ? kSadTabFilledIcon
+                                          : kSadTabOldIcon,
+                                      kIconSize);
     case Suggestion::Icon::kFlight:
       return ImageModelFromVectorIcon(::features::IsRoundedIconsEnabled()
                                           ? vector_icons::kFlightIcon
                                           : vector_icons::kFlightOldIcon,
+                                      kChromeRefreshIconSize);
+    case Suggestion::Icon::kFlightSpark:
+      return ImageModelFromVectorIcon(vector_icons::kFlightSparkIcon,
                                       kChromeRefreshIconSize);
     case Suggestion::Icon::kGlobe:
       return ImageModelFromVectorIcon(
@@ -507,6 +528,15 @@ std::optional<ui::ImageModel> GetIconImageModelFromIcon(Suggestion::Icon icon) {
                                           ? vector_icons::kIdCardIcon
                                           : vector_icons::kIdCardOldIcon,
                                       kChromeRefreshIconSize);
+    case Suggestion::Icon::kIdCard2:
+      return ImageModelFromVectorIcon(vector_icons::kIdCard2Icon,
+                                      kChromeRefreshIconSize);
+    case Suggestion::Icon::kIdCard2Spark:
+      return ImageModelFromVectorIcon(vector_icons::kIdCard2SparkIcon,
+                                      kChromeRefreshIconSize);
+    case Suggestion::Icon::kIdCardSpark:
+      return ImageModelFromVectorIcon(vector_icons::kIdCardSparkIcon,
+                                      kChromeRefreshIconSize);
     case Suggestion::Icon::kKey:
       return ImageModelFromVectorIcon(
           ::features::IsRoundedIconsEnabled() ? kVpnKeyFilledIcon : kKeyOldIcon,
@@ -527,10 +557,19 @@ std::optional<ui::ImageModel> GetIconImageModelFromIcon(Suggestion::Icon icon) {
                                           ? vector_icons::kButtonMagicIcon
                                           : vector_icons::kMagicButtonOldIcon,
                                       kIconSize);
+    case Suggestion::Icon::kOrder:
+      return ImageModelFromVectorIcon(vector_icons::kShoppingBagIcon,
+                                      kChromeRefreshIconSize);
+    case Suggestion::Icon::kOrderSpark:
+      return ImageModelFromVectorIcon(vector_icons::kShoppingBagSparkIcon,
+                                      kChromeRefreshIconSize);
     case Suggestion::Icon::kPassport:
       return ImageModelFromVectorIcon(::features::IsRoundedIconsEnabled()
                                           ? vector_icons::kPassportIcon
                                           : vector_icons::kPassportOldIcon,
+                                      kChromeRefreshIconSize);
+    case Suggestion::Icon::kPassportSpark:
+      return ImageModelFromVectorIcon(vector_icons::kPassportSparkIcon,
                                       kChromeRefreshIconSize);
     case Suggestion::Icon::kPenSpark:
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
@@ -567,6 +606,12 @@ std::optional<ui::ImageModel> GetIconImageModelFromIcon(Suggestion::Icon icon) {
                                           ? omnibox::kChromeProductIcon
                                           : omnibox::kProductOldIcon,
                                       kIconSize);
+    case Suggestion::Icon::kShipment:
+      return ImageModelFromVectorIcon(vector_icons::kLocalShippingIcon,
+                                      kChromeRefreshIconSize);
+    case Suggestion::Icon::kShipmentSpark:
+      return ImageModelFromVectorIcon(vector_icons::kLocalShippingSparkIcon,
+                                      kChromeRefreshIconSize);
     case Suggestion::Icon::kUndo:
       return ImageModelFromVectorIcon(::features::IsRoundedIconsEnabled()
                                           ? vector_icons::kUndoIcon

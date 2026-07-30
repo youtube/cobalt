@@ -4,11 +4,10 @@
 
 import 'chrome://history/strings.m.js';
 
-import {BrowserProxyImpl} from 'chrome://resources/cr_components/history_clusters/browser_proxy.js';
 import {HistoryClustersElement} from 'chrome://resources/cr_components/history_clusters/clusters.js';
 import type {Cluster, RawVisitData, URLVisit} from 'chrome://resources/cr_components/history_clusters/history_cluster_types.mojom-webui.js';
+import {browserProxyFactory, PageHandlerRemote} from 'chrome://resources/cr_components/history_clusters/history_clusters.mojom-webui.js';
 import type {PageRemote, QueryResult} from 'chrome://resources/cr_components/history_clusters/history_clusters.mojom-webui.js';
-import {PageCallbackRouter, PageHandlerRemote} from 'chrome://resources/cr_components/history_clusters/history_clusters.mojom-webui.js';
 import {PageImageServiceBrowserProxy} from 'chrome://resources/cr_components/page_image_service/browser_proxy.js';
 import {ClientId as PageImageServiceClientId, PageImageServiceHandlerRemote} from 'chrome://resources/cr_components/page_image_service/page_image_service.mojom-webui.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
@@ -24,9 +23,9 @@ let imageServiceHandler: TestMock<PageImageServiceHandlerRemote>&
 
 function createBrowserProxy() {
   handler = TestMock.fromClass(PageHandlerRemote);
-  const callbackRouter = new PageCallbackRouter();
-  BrowserProxyImpl.setInstance(new BrowserProxyImpl(handler, callbackRouter));
-  callbackRouterRemote = callbackRouter.$.bindNewPipeAndPassRemote();
+  const {instance, remote} = browserProxyFactory.createForTest(handler);
+  callbackRouterRemote = remote;
+  browserProxyFactory.setInstance(instance);
 
   imageServiceHandler = TestMock.fromClass(PageImageServiceHandlerRemote);
   PageImageServiceBrowserProxy.setInstance(

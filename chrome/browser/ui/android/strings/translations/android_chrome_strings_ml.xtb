@@ -117,6 +117,7 @@
 <translation id="1435593198351412143">PDF-കൾ സ്വയമേവ തുറക്കുക</translation>
 <translation id="1437543266176261764"><ph name="APP_NAME" />-ൽ റൺ ചെയ്യുന്നു</translation>
 <translation id="1448440926884431741">നിങ്ങൾ ട്രാക്ക് ചെയ്യുന്ന ഉൽപ്പന്നങ്ങൾ ബുക്ക്‌മാർക്കുകളിൽ ഓർഗനൈസ് ചെയ്യുക</translation>
+<translation id="1452651021404174820">ഉപകരണം തിരഞ്ഞെടുക്കുക</translation>
 <translation id="1455845192930279203">നിങ്ങൾക്ക് <ph name="DOWNLOAD_DOMAIN" /> എന്നതിൽ നിന്ന് "<ph name="FILE_NAME" />" (<ph name="FILE_SIZE" />) എന്തായാലും ഡൗൺലോഡ് ചെയ്യണോ?</translation>
 <translation id="1460751212339734034">സമയം ലാഭിക്കൂ, ടൈപ്പിംഗ് കുറയ്ക്കൂ</translation>
 <translation id="146522654774760805">പാസ്‌വേഡുകളും സ്വയമേവ പൂരിപ്പിക്കലും</translation>
@@ -124,6 +125,7 @@
 <translation id="1477626028522505441">സെർവർ പ്രശ്‌നങ്ങൾ കാരണം <ph name="FILE_NAME" /> ഡൗൺലോഡ് ചെയ്യാനായില്ല.</translation>
 <translation id="147982357559798527">മാറ്റി</translation>
 <translation id="1480287803138246127">നിങ്ങളുടെ ചരിത്രത്തിൽ ചിലത് ഇവിടെ ദൃശ്യമായേക്കില്ല. നിങ്ങളുടെ എല്ലാ Chrome ചരിത്രവും കാണാൻ, മുഴുവൻ Chrome ചരിത്രവും തുറക്കുക.</translation>
+<translation id="1483493594462132177">അയയ്‌ക്കുക</translation>
 <translation id="1495677929897281669">ടാബിലേക്ക് മടങ്ങുക</translation>
 <translation id="1496514951988037011">ഉപയോക്തൃനാമം</translation>
 <translation id="1501480321619201731">ഗ്രൂപ്പ് ഇല്ലാതാക്കൂ</translation>
@@ -1273,6 +1275,7 @@
 <translation id="634208815998129842">ടാസ്‌ക് മാനേജർ</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 എന്നതും ‌മറ്റ് <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> പേയ്‌മെന്റ് രീതികളും}other{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 എന്നതും ‌മറ്റ് <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> പേയ്‌മെന്റ് രീതികളും}}</translation>
 <translation id="6345878117466430440">വായിച്ചതായി അടയാളപ്പെടുത്തുക</translation>
+<translation id="6350745006329795504">നിങ്ങളുടെ ഉപകരണങ്ങൾ മാനേജ് ചെയ്യുക</translation>
 <translation id="6356893102071098867">നിങ്ങൾ ശരിയായ അക്കൗണ്ടാണോ തിരഞ്ഞെടുത്തതെന്ന് പരിശോധിക്കുക</translation>
 <translation id="6364438453358674297">ചരിത്രത്തിൽ നിന്ന് നിർദ്ദേശം നീക്കംചെയ്യണോ?</translation>
 <translation id="6380100320871303656">നിങ്ങൾ സന്ദർശിക്കാൻ സാധ്യതയുണ്ടെന്ന് Chrome കരുതുന്ന പേജുകൾ ഇടയ്ക്കിടെ മുൻകൂട്ടി ലോഡ് ചെയ്യുന്നു. ഈ ക്രമീകരണം ഉയർന്ന ഡാറ്റാ ഉപയോഗത്തിന് കാരണമായേക്കാം.</translation>

@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import os
+import argparse
 import sys
 import glob
 import constants
@@ -46,16 +47,23 @@ _ROOT_CRONET = os.path.abspath(
                  os.path.pardir))
 
 
-def _create_metadata_file(repo_path: str, directory_path: str, content: str,
-                          verify_only: bool):
-    """Creates a METADATA file with a header to ensure that this was generated
-  through the script. If the header is not found then it is assumed that the
-  METADATA file is created manually and will not be touched."""
-    metadata = Path(os.path.join(directory_path, "METADATA"))
-    if metadata.is_file() and METADATA_HEADER not in metadata.read_text():
-        # This is a manually created file! Don't overwrite.
-        return
+def _create_metadata_file(repo_path: str,
+                          directory_path: str,
+                          content: str,
+                          verify_only: bool,
+                          source_directory_path: str = None):
+    """Creates a METADATA file.
 
+    If the METADATA file exists in the source directory, it is not generated
+    in the destination directory.
+    """
+    if source_directory_path:
+        source_metadata = Path(os.path.join(source_directory_path, "METADATA"))
+        if source_metadata.is_file():
+            # Already exists in source, don't generate.
+            return
+
+    metadata = Path(os.path.join(directory_path, "METADATA"))
     metadata_content = "\n".join([METADATA_HEADER, content])
     if verify_only:
         if not metadata.exists():
@@ -90,7 +98,8 @@ def _create_module_license_file(repo_path: str, directory_path: str,
 
 def _maybe_create_license_file_symlink(directory_path: str,
                                        original_license_file: str,
-                                       verify_only: bool):
+                                       verify_only: bool,
+                                       source_directory_path: str = None):
     """Creates a LICENSE symbolic link only if it doesn't exist."""
     license_symlink_path = Path(os.path.join(directory_path, "LICENSE"))
     if license_symlink_path.exists():
@@ -104,9 +113,11 @@ def _maybe_create_license_file_symlink(directory_path: str,
     else:
         # license_symlink_path.relative_to(.., walk_up=True) does not exist in
         # Python 3.10, this is the reason why os.path.relpath is used.
-        os.symlink(
-            os.path.relpath(original_license_file,
-                            license_symlink_path.parent), license_symlink_path)
+        ref_dir = source_directory_path if source_directory_path else license_symlink_path.parent
+        rel_target = os.path.relpath(original_license_file, ref_dir)
+        if rel_target == "LICENSE":
+            return
+        os.symlink(rel_target, license_symlink_path)
 
 
 def _map_rust_license_path_to_directory(license_file_path: str) -> str:
@@ -176,7 +187,8 @@ def should_skip_readme_file(readme_path: str) -> bool:
 def update_license(repo_path: str = _ROOT_CRONET,
                    post_process_dict: Dict[str, Callable] = None,
                    verify_only: bool = False,
-                   reachable_through_dependencies: bool = True):
+                   reachable_through_dependencies: bool = True,
+                   dest_path: str = None):
     """
   Updates the licensing files for the entire repository of external/cronet.
 
@@ -197,7 +209,10 @@ def update_license(repo_path: str = _ROOT_CRONET,
   :param reachable_through_dependencies: Ensures that the license generator
   will only process README.chromium files that are reachable through cronet
   as a transitive dependency.
+  :param dest_path: Destination path to write licenses to. If None, repo_path is used.
   """
+    if dest_path is None:
+        dest_path = repo_path
     if post_process_dict is None:
         post_process_dict = constants.POST_PROCESS_OPERATION
     readme_files_to_process = None
@@ -223,14 +238,19 @@ def update_license(repo_path: str = _ROOT_CRONET,
             post_process_dict.get(readme_file, lambda _metadata: _metadata))
 
         license_file_path = metadata.get_license_file_path()
+        written_to_dest = False
         if license_file_path is None:
             # If there is no license file, create one with just the license name. This
             # is necessary for e.g.
             #   //third_party/boringssl/src/pki/testdata/nist-pkits/README.chromium
             license_file_path = "LICENSE"
-            with open(os.path.join(readme_directory, license_file_path),
+            dest_readme_directory = os.path.join(
+                dest_path, os.path.relpath(readme_directory, repo_path))
+            os.makedirs(dest_readme_directory, exist_ok=True)
+            with open(os.path.join(dest_readme_directory, license_file_path),
                       "w") as license_file:
                 license_file.write("\n".join(metadata.get_licenses()))
+            written_to_dest = True
 
         license_directory = readme_directory
         if (os.path.relpath(readme_directory,
@@ -241,21 +261,36 @@ def update_license(repo_path: str = _ROOT_CRONET,
                 repo_path,
                 _map_rust_license_path_to_directory(license_file_path))
 
-        resolved_license_file_path = os.path.join(
-            repo_path,
-            license_utils.resolve_license_path(readme_directory,
-                                               license_file_path))
+        # Map license_directory to dest_path
+        rel_license_dir = os.path.relpath(license_directory, repo_path)
+        dest_license_directory = os.path.join(dest_path, rel_license_dir)
+        os.makedirs(dest_license_directory, exist_ok=True)
+
+        if written_to_dest:
+            resolved_license_file_path = os.path.join(dest_readme_directory,
+                                                      license_file_path)
+        else:
+            resolved_license_file_path = os.path.join(
+                repo_path,
+                license_utils.resolve_license_path(readme_directory,
+                                                   license_file_path))
+
         if not os.path.exists(resolved_license_file_path):
             raise Exception(
                 f"License file {resolved_license_file_path} does not exist for README.chromium: {readme_file}"
             )
-        _maybe_create_license_file_symlink(license_directory,
-                                           resolved_license_file_path,
-                                           verify_only)
-        _create_module_license_file(repo_path, license_directory,
+        _maybe_create_license_file_symlink(
+            dest_license_directory,
+            resolved_license_file_path,
+            verify_only,
+            source_directory_path=license_directory)
+        _create_module_license_file(dest_path, dest_license_directory,
                                     metadata.get_licenses(), verify_only)
-        _create_metadata_file(repo_path, license_directory,
-                              metadata.to_android_metadata(), verify_only)
+        _create_metadata_file(dest_path,
+                              dest_license_directory,
+                              metadata.to_android_metadata(),
+                              verify_only,
+                              source_directory_path=license_directory)
         readme_to_license_content[readme_file] = cronet_utils.read_file(
             resolved_license_file_path)
 
@@ -266,7 +301,9 @@ def update_license(repo_path: str = _ROOT_CRONET,
     else:
         readme_for_top_level = get_all_readme(repo_path)
 
-    top_level_license_file = Path(os.path.join(repo_path, "LICENSE.gn2bp"))
+    top_level_license_file = Path(os.path.join(dest_path, "LICENSE"))
+    # Ensure parent directory exists for top level license file (e.g. out/gn2bp)
+    os.makedirs(top_level_license_file.parent, exist_ok=True)
     license_aggregated = []
     for readme in sorted(readme_for_top_level):
         if should_skip_readme_file(readme):
@@ -280,6 +317,13 @@ def update_license(repo_path: str = _ROOT_CRONET,
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Update licenses.')
+    parser.add_argument('--dest',
+                        type=str,
+                        help='Destination path to write licenses to',
+                        default=None)
+    args = parser.parse_args()
     sys.exit(
         update_license(post_process_dict=constants.POST_PROCESS_OPERATION,
-                       reachable_through_dependencies=True))
+                       reachable_through_dependencies=True,
+                       dest_path=args.dest))

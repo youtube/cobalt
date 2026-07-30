@@ -3627,7 +3627,7 @@ LRESULT HWNDMessageHandler::HandlePointerEventTypeTouchOrNonClient(
   base::WeakPtr<HWNDMessageHandler> ref(msg_handler_weak_factory_.GetWeakPtr());
   delegate_->HandleTouchEvent(&event);
 
-  if (ref) {
+  if (!IsDestroyed(ref)) {
     // Mark touch released events handled. These will usually turn into tap
     // gestures, and doing this avoids propagating the event to other windows.
     if (delegate_->GetFrameMode() == FrameMode::SYSTEM_DRAWN) {
@@ -3678,7 +3678,7 @@ LRESULT HWNDMessageHandler::HandlePointerEventTypePen(
     is_pen_active_in_client_area_ = true;
   }
 
-  if (ref) {
+  if (!IsDestroyed(ref)) {
     SetMsgHandled(handle_pen_events_in_client_area_);
   }
 
@@ -4015,7 +4015,7 @@ bool HWNDMessageHandler::IsDestroyed(
         views::features::kDeferHWNDMessageHandlerDestruction));
     return true;
   }
-  return false;
+  return ref->delete_pending_;
 }
 
 // static

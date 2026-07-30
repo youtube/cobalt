@@ -10,10 +10,13 @@ import "mojo/public/mojom/base/shared_memory.mojom";
 // The handles needed to open a SQLite DB for read-only access.
 struct PendingReadOnlyFileSet {
   mojo_base.mojom.ReadOnlyFile db_file;
-  mojo_base.mojom.ReadOnlyFile journal_file;
 
-  // An optional write-ahead log file, specified only if this backend uses a
-  // write-ahead log rather than a rollback journal.
+  // An optional rollback journal file, specified only if this backend uses one
+  // or is migrating away from one.
+  mojo_base.mojom.ReadOnlyFile? journal_file;
+
+  // An optional write-ahead log file, specified only if this backend uses one
+  // or is migrating away from one.
   mojo_base.mojom.ReadOnlyFile? wal_file;
 
   // An optional write-ahead log index file, specified only if this backend uses
@@ -33,10 +36,13 @@ struct PendingReadOnlyFileSet {
 // The handles needed to open a SQLite DB for read-write access.
 struct PendingReadWriteFileSet {
   mojo_base.mojom.File db_file;
-  mojo_base.mojom.File journal_file;
 
-  // An optional write-ahead log file, specified only if this backend uses a
-  // write-ahead log rather than a rollback journal.
+  // An optional rollback journal file, specified only if this backend uses one
+  // or is migrating away from one.
+  mojo_base.mojom.File? journal_file;
+
+  // An optional write-ahead log file, specified only if this backend uses one
+  // or is migrating away from one.
   mojo_base.mojom.File? wal_file;
 
   // An optional write-ahead log index file, specified only if this backend uses

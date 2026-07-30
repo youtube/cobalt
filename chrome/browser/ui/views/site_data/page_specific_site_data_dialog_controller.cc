@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/views/site_data/page_specific_site_data_dialog_controller.h"
 
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
@@ -95,27 +96,10 @@ void PageSpecificSiteDataDialogController::ShowCollectedCookiesInfoBar(
     content::WebContents* web_contents) {
   auto* browser_infobar_manager =
       infobars::BrowserInfoBarManager::From(g_browser_process);
-  auto spec =
-      infobars::InfoBarSpec::Builder(
-          infobars::InfoBarDelegate::COLLECTED_COOKIES_INFOBAR_DELEGATE)
-          .SetMessageText(
-              l10n_util::GetStringUTF16(IDS_COLLECTED_COOKIES_INFOBAR_MESSAGE))
-          .SetIcon(features::IsRoundedIconsEnabled()
-                       ? vector_icons::kSettingsIcon
-                       : vector_icons::kSettingsChromeRefreshOldIcon)
-          .SetScope(infobars::InfoBarScope::kCurrentTab)
-          .AddOkButton(
-              l10n_util::GetStringUTF16(IDS_COLLECTED_COOKIES_INFOBAR_BUTTON),
-              base::BindRepeating([](content::WebContents* web_contents) {
-                if (web_contents) {
-                  web_contents->GetController().Reload(
-                      content::ReloadType::NORMAL, true);
-                }
-              }))
-          .Build();
-  browser_infobar_manager->Register(std::move(spec));
-  browser_infobar_manager->Show(
-      infobars::InfoBarDelegate::COLLECTED_COOKIES_INFOBAR_DELEGATE);
+  if (browser_infobar_manager) {
+    browser_infobar_manager->Show(
+        infobars::InfoBarDelegate::COLLECTED_COOKIES_INFOBAR_DELEGATE);
+  }
 }
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(PageSpecificSiteDataDialogController);

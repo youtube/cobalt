@@ -19,7 +19,7 @@ AccountCapabilitiesTestMutator::AccountCapabilitiesTestMutator(
 
 AccountCapabilitiesTestMutator::AccountCapabilitiesTestMutator(
     AccountInfo* account_info)
-    : capabilities_(&account_info->capabilities) {}
+    : capabilities_(&account_info->capabilities_) {}
 
 // static
 base::span<const std::string_view>

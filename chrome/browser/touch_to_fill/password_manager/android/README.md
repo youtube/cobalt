@@ -68,7 +68,7 @@ The public build and run target is `chrome_public_test_apk`. Run them with:
 ``` java
 
 // Currently, you need access to internal/ to instantiate the component:
-TouchToFillComponent component = new TouchToFillCoordinator(/*...*/);
+TouchToFillComponent component = new TouchToFillPasswordManagerCoordinator(/*...*/);
 
 component.initialize(activity, activity.getBottomSheetController(), () -> {
   // Things to do when the component is dismissed.

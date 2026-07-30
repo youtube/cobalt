@@ -193,6 +193,9 @@ class ConfigureGeminiCliUnittest(fake_filesystem_unittest.TestCase):
                     'enabled': True,
                     'outfile': str(telemetry_outfile),
                 },
+                'tools': {
+                    'useRipgrep': True,
+                },
             })
 
     def test_updates_existing_settings_file(self):
@@ -218,7 +221,10 @@ class ConfigureGeminiCliUnittest(fake_filesystem_unittest.TestCase):
                 'telemetry': {
                     'enabled': True,
                     'outfile': str(telemetry_outfile)
-                }
+                },
+                'tools': {
+                    'useRipgrep': True,
+                },
             })
 
     def test_updates_existing_general_settings(self):
@@ -251,6 +257,9 @@ class ConfigureGeminiCliUnittest(fake_filesystem_unittest.TestCase):
                     'enabled': True,
                     'outfile': str(telemetry_outfile),
                 },
+                'tools': {
+                    'useRipgrep': True,
+                },
             })
 
     def test_updates_existing_telemetry_settings(self):
@@ -281,6 +290,9 @@ class ConfigureGeminiCliUnittest(fake_filesystem_unittest.TestCase):
                 'telemetry': {
                     'enabled': True,
                     'outfile': str(telemetry_outfile),
+                },
+                'tools': {
+                    'useRipgrep': True,
                 },
             })
 

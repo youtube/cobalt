@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "base/auto_reset.h"
+#include "base/logging.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
@@ -27,7 +28,6 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/hats/trust_safety_sentiment_service.h"
 #include "chrome/browser/ui/hats/trust_safety_sentiment_service_factory.h"
@@ -53,6 +53,7 @@
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/sync/service/sync_service.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/visibility.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -547,10 +548,11 @@ void SaveCardBubbleControllerImpl::OnManageCardsClicked() {
 }
 
 void SaveCardBubbleControllerImpl::ShowPaymentsSettingsPage() {
-  chrome::ShowSettingsSubPage(
-      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
-          web_contents()),
-      chrome::kPaymentsSubPage);
+  tabs::TabInterface* tab = tabs::TabInterface::GetFromContents(web_contents());
+  CHECK(tab);
+  CHECK(tab->GetBrowserWindowInterface());
+  chrome::ShowSettingsSubPage(tab->GetBrowserWindowInterface(),
+                              chrome::kPaymentsSubPage);
 }
 
 void SaveCardBubbleControllerImpl::OnBubbleDiscarded() {
@@ -817,26 +819,27 @@ SaveCardBubbleControllerImpl::GetPageActionTooltipText() {
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
+AutofillBubbleHandler*
+SaveCardBubbleControllerImpl::GetAutofillBubbleHandler() {
+  tabs::TabInterface* tab = tabs::TabInterface::GetFromContents(web_contents());
+  CHECK(tab);
+  BrowserWindowInterface* browser = tab->GetBrowserWindowInterface();
+  CHECK(browser);
+  return AutofillBubbleHandler::Get(browser->GetUnownedUserDataHost());
+}
+
 void SaveCardBubbleControllerImpl::DoShowBubble() {
   if (!IsWebContentsActive()) {
     return;
   }
 
-  BrowserWindowInterface* browser =
-      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
-          web_contents());
+  AutofillBubbleHandler* autofill_bubble_handler = GetAutofillBubbleHandler();
   if (current_bubble_type_ == PaymentsBubbleType::kUploadComplete) {
-    SetBubbleView(*browser->GetBrowserForMigrationOnly()
-                       ->window()
-                       ->GetAutofillBubbleHandler()
-                       ->ShowSaveCardConfirmationBubble(web_contents(), this));
+    SetBubbleView(*autofill_bubble_handler->ShowSaveCardConfirmationBubble(
+        web_contents(), this));
   } else {
-    SetBubbleView(
-        *browser->GetBrowserForMigrationOnly()
-             ->window()
-             ->GetAutofillBubbleHandler()
-             ->ShowSaveCreditCardBubble(web_contents(), this,
-                                        is_triggered_by_user_gesture_));
+    SetBubbleView(*autofill_bubble_handler->ShowSaveCreditCardBubble(
+        web_contents(), this, is_triggered_by_user_gesture_));
   }
   CHECK(bubble_view());
 

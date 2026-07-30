@@ -5,6 +5,9 @@ specific_include_rules = {
   "post_restore_profile_agent.mm": [
     "+components/signin/public/base/consent_level.h",
   ],
+  "post_restore_profile_agent_unittest.mm": [
+    "+components/sync/test/test_sync_service.h",
+  ],
   "profile_controller.mm": [
     "+components/desktop_to_mobile_promos/features.h",
   ],

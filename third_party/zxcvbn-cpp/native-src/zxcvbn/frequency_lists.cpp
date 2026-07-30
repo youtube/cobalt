@@ -126,9 +126,10 @@ RankedDicts::Datawrapper::Datawrapper(std::vector<char> data)
 
 RankedDicts::Datawrapper::Datawrapper(
     std::unique_ptr<base::MemoryMappedFile> map)
-    : size_((map && map->IsValid()) ? map->length() : 0u),
-      data_(map && map->IsValid() ? reinterpret_cast<const char*>(map->data())
-                                  : nullptr),
+    : size_((map && map->IsValid()) ? map->bytes().size() : 0u),
+      data_(map && map->IsValid()
+                ? reinterpret_cast<const char*>(map->bytes().data())
+                : nullptr),
       content_(std::move(map)) {}
 
 RankedDicts::RankedDicts(

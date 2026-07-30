@@ -70,6 +70,45 @@ chromium-metrics-reviews@google.com.
   <token key="ContextMemoryFeature" variants="ContextMemoryFeature"/>
 </histogram>
 
+<histogram
+    name="PersonalContext.FetchPiiEntities.ErrorStatus.{ContextMemoryFeature}"
+    enum="ContextMemoryExecutionError" expires_after="2026-11-15">
+  <owner>qiaoli@google.com</owner>
+  <owner>chrome-memory-context-eng@google.com</owner>
+  <summary>
+    Records the specific execution error code when fetching PII entities from
+    the Context Memory Service for the {ContextMemoryFeature} capability.
+    Recorded on request failure.
+  </summary>
+  <token key="ContextMemoryFeature" variants="ContextMemoryFeature"/>
+</histogram>
+
+<histogram
+    name="PersonalContext.FetchPiiEntities.Latency.{ContextMemoryFeature}"
+    units="ms" expires_after="2026-11-15">
+  <owner>qiaoli@google.com</owner>
+  <owner>chrome-memory-context-eng@google.com</owner>
+  <summary>
+    Records the duration in milliseconds taken to completely fetch PII entities
+    from the Context Memory Service for the {ContextMemoryFeature} capability.
+    Recorded upon request completion or failure.
+  </summary>
+  <token key="ContextMemoryFeature" variants="ContextMemoryFeature"/>
+</histogram>
+
+<histogram
+    name="PersonalContext.FetchPiiEntities.Result.{ContextMemoryFeature}"
+    enum="BooleanSuccess" expires_after="2026-11-15">
+  <owner>qiaoli@google.com</owner>
+  <owner>chrome-memory-context-eng@google.com</owner>
+  <summary>
+    Records whether the PII entities were successfully fetched from the Context
+    Memory Service for the {ContextMemoryFeature} capability. Recorded upon
+    request completion or failure.
+  </summary>
+  <token key="ContextMemoryFeature" variants="ContextMemoryFeature"/>
+</histogram>
+
 <histogram name="PersonalContext.NoticeInteractions"
     enum="PersonalContextNoticeInteractions" expires_after="2026-10-04">
   <owner>kalinino@google.com</owner>

@@ -28,11 +28,6 @@ public class AtMemoryBottomSheetSuggestionView extends LinearLayout {
         super(context, attrs);
     }
 
-    public AtMemoryBottomSheetSuggestionView(
-            Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-    }
-
     @Override
     protected void onFinishInflate() {
         super.onFinishInflate();

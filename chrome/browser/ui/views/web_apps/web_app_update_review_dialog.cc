@@ -141,7 +141,7 @@ class UpdateDialogDelegate : public ui::DialogModelDelegate,
     browser_->GetBrowserView().SetProperty(kIsPwaUpdateDialogShowingKey, true);
   }
   ~UpdateDialogDelegate() override {
-    if (browser_->window()) {
+    if (browser_->GetWindow()) {
       browser_->GetBrowserView().SetProperty(kIsPwaUpdateDialogShowingKey,
                                              false);
     }

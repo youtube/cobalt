@@ -54,6 +54,8 @@ class MODULES_EXPORT CredentialManagerProxy
 
   mojom::blink::FederatedAuthRequest* FederatedAuthRequest();
 
+  mojom::blink::FederatedRequestService* FederatedRequestService();
+
   mojom::blink::DigitalIdentityRequest* DigitalIdentityRequest();
 
   void Trace(Visitor*) const override;
@@ -70,6 +72,7 @@ class MODULES_EXPORT CredentialManagerProxy
   void BindRemoteForFedCm(HeapMojoRemote<Interface>& remote,
                           base::OnceClosure disconnect_closure);
   void OnFederatedAuthRequestConnectionError();
+  void OnFederatedRequestServiceConnectionError();
   void OnDigitalIdentityRequestConnectionError();
 
   HeapMojoRemote<mojom::blink::Authenticator> authenticator_;
@@ -78,6 +81,8 @@ class MODULES_EXPORT CredentialManagerProxy
   HeapMojoRemote<payments::mojom::blink::SecurePaymentConfirmationService>
       spc_service_;
   HeapMojoRemote<mojom::blink::FederatedAuthRequest> federated_auth_request_;
+  HeapMojoRemote<mojom::blink::FederatedRequestService>
+      federated_request_service_;
   HeapMojoRemote<mojom::blink::DigitalIdentityRequest>
       digital_identity_request_;
 };

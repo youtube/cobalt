@@ -41,10 +41,6 @@ class VIZ_SERVICE_EXPORT FrameSinkThrottler {
   // stutter.
   void SetCadenceThrottleInterval(base::TimeDelta interval);
 
-  // Sets whether the frame sink should be throttled due to user interaction
-  // with another frame sink.
-  void SetThrottledDueToInteraction(bool throttled);
-
   // Sets the last known vsync interval, used to calculate simple cadence.
   void SetLastKnownVsync(base::TimeDelta interval,
                          base::TimeDelta unthrottled_interval);
@@ -80,10 +76,6 @@ class VIZ_SERVICE_EXPORT FrameSinkThrottler {
   // For example, throttling from 60hz to 30hz works while throttling from 60hz
   // to 24hz does not.
   base::TimeDelta cadence_throttle_interval_;
-
-  // True if another frame sink is being interacted with. If so this frame sink
-  // will throttle to prioritize giving resources to the interactive frame sink.
-  bool throttled_due_to_interaction_ = false;
 
   // If non-zero, this represents the duration of time in between sending two
   // consecutive frames. If zero, no throttling would be applied.

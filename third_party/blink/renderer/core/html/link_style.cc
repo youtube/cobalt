@@ -6,6 +6,7 @@
 
 #include "base/metrics/histogram_functions.h"
 #include "services/network/public/mojom/referrer_policy.mojom-blink.h"
+#include "third_party/blink/public/mojom/favicon/favicon_url.mojom-blink.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
 #include "third_party/blink/renderer/core/css/style_sheet_contents.h"
 #include "third_party/blink/renderer/core/dom/document.h"
@@ -365,8 +366,10 @@ void LinkStyle::Process(LinkLoadParameters::Reason reason) {
                                     RedirectStatus::kNoRedirect)) {
       return;
     }
-    if (GetDocument().GetFrame())
-      GetDocument().GetFrame()->UpdateFaviconURL();
+    if (GetDocument().GetFrame()) {
+      GetDocument().GetFrame()->UpdateFaviconURL(
+          mojom::blink::FaviconUpdateReason::kLinkElementChange);
+    }
   }
 
   if (!sheet_ && !owner_->LoadLink(params))

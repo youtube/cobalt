@@ -11,6 +11,7 @@
 :host {
   align-items: center;
   display: flex;
+  isolation: isolate;
 }
 
 .favicon-item {
@@ -45,7 +46,7 @@
 
 #more-items {
   align-items: center;
-  color: var(--color-composebox-context-entrypoint-text-disabled, var(--cr-fallback-color-on-surface-variant));
+  color: var(--color-sys-on-surface-subtle, var(--cr-fallback-color-on-surface-subtle));
   display: flex;
   font-family: inherit;
   font-size: 11px;

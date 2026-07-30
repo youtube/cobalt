@@ -10,7 +10,69 @@
 
 namespace blink {
 
-class PaintAutoDarkModeTest : public testing::Test {};
+class PaintAutoDarkModeTest : public testing::Test {
+ public:
+  void TestApplyFilterToImageIrrespectiveOfPageZoom(
+      display::ScreenInfo screen_info) {
+    DarkModeSettings settings;
+    DarkModeFilter filter(settings);
+
+    float page_zoom = 1.0f;
+    float layout_zoom = 1.0f;
+    float css_zoom = 1.0f;
+    gfx::RectF src_rect;
+    gfx::RectF dest_rect;
+
+    // A 50x50 CSS icon gets filtered even if |dest_rect| becomes larger 250x250
+    // than threshold size in larger zoom levels.
+    src_rect = gfx::RectF(50, 50);
+    page_zoom = 5.0f;
+    css_zoom = 1.0f;
+    layout_zoom = page_zoom * screen_info.device_scale_factor;
+    dest_rect =
+        gfx::RectF(50 * layout_zoom * css_zoom, 50 * layout_zoom * css_zoom);
+    EXPECT_TRUE(filter.ShouldApplyFilterToImage(
+        ImageClassifierHelper::GetImageTypeForTesting(screen_info, dest_rect,
+                                                      src_rect, layout_zoom)));
+
+    // A 50x50 CSS icon with css zoom 5.0f becomes 250x250 and does not get
+    // filterred as |dest_rect| is larger than threshold size.
+    src_rect = gfx::RectF(50, 50);
+    page_zoom = 5.0f;
+    css_zoom = 5.0f;
+    layout_zoom = page_zoom * screen_info.device_scale_factor;
+    dest_rect =
+        gfx::RectF(50 * layout_zoom * css_zoom, 50 * layout_zoom * css_zoom);
+    EXPECT_FALSE(filter.ShouldApplyFilterToImage(
+        ImageClassifierHelper::GetImageTypeForTesting(screen_info, dest_rect,
+                                                      src_rect, layout_zoom)));
+
+    // An image with 200x200 CSS size gets classified as photo and does not get
+    // filtered, even if |dest_rect| becomes smaller 50x50 than threshold size
+    // in smaller zoom levels.
+    src_rect = gfx::RectF(200, 200);
+    page_zoom = 0.25f;
+    css_zoom = 1.0f;
+    layout_zoom = page_zoom * screen_info.device_scale_factor;
+    dest_rect =
+        gfx::RectF(200 * layout_zoom * css_zoom, 200 * layout_zoom * css_zoom);
+    EXPECT_FALSE(filter.ShouldApplyFilterToImage(
+        ImageClassifierHelper::GetImageTypeForTesting(screen_info, dest_rect,
+                                                      src_rect, layout_zoom)));
+
+    // An image with 200x200 CSS size becomes 20x20 CSS size and gets classified
+    // as icon as the CSS size is below the threshold.
+    src_rect = gfx::RectF(200, 200);
+    page_zoom = 0.25f;
+    css_zoom = 0.1f;
+    layout_zoom = page_zoom * screen_info.device_scale_factor;
+    dest_rect =
+        gfx::RectF(200 * layout_zoom * css_zoom, 200 * layout_zoom * css_zoom);
+    EXPECT_TRUE(filter.ShouldApplyFilterToImage(
+        ImageClassifierHelper::GetImageTypeForTesting(screen_info, dest_rect,
+                                                      src_rect, layout_zoom)));
+  }
+};
 
 TEST_F(PaintAutoDarkModeTest, ShouldApplyFilterToImage) {
   DarkModeSettings settings;
@@ -75,6 +137,23 @@ TEST_F(PaintAutoDarkModeTest, ShouldApplyFilterToImageOnMobile) {
   EXPECT_FALSE(filter.ShouldApplyFilterToImage(
       ImageClassifierHelper::GetImageTypeForTesting(
           screen_info, gfx::RectF(180, 180), gfx::RectF(180, 180))));
+}
+
+TEST_F(PaintAutoDarkModeTest, ShouldApplyFilterToImageIrrespectiveOfPageZoom) {
+  display::ScreenInfo screen_info;
+  screen_info.rect = gfx::Rect(1920, 1080);
+  screen_info.device_scale_factor = 1.0f;
+
+  TestApplyFilterToImageIrrespectiveOfPageZoom(screen_info);
+}
+
+TEST_F(PaintAutoDarkModeTest,
+       ShouldApplyFilterToImageIrrespectiveOfPageZoomOnMobile) {
+  display::ScreenInfo screen_info;
+  screen_info.rect = gfx::Rect(360, 780);
+  screen_info.device_scale_factor = 3.0f;
+
+  TestApplyFilterToImageIrrespectiveOfPageZoom(screen_info);
 }
 
 }  // namespace blink

@@ -1040,11 +1040,11 @@ class LocationBarMediator
     /* package */ void setUrl(GURL currentUrl, UrlBarData urlBarData) {
         // If the URL is currently focused, do not replace the text they have entered with the URL.
         // Once they stop editing the URL, the current tab's URL will automatically be filled in.
-        if (mUrlCoordinator.hasFocus()) {
+        mOriginalUrl = currentUrl;
+        if (mCurrentInput != null) {
             return;
         }
 
-        mOriginalUrl = currentUrl;
         setUrlBarText(urlBarData, UrlBar.ScrollType.SCROLL_TO_TLD, TextSelection.SELECT_ALL);
     }
 
@@ -1214,12 +1214,20 @@ class LocationBarMediator
             mCurrentInput.setRequestType(mLocationBarDataProvider.getDefaultRequestType());
         }
 
+        // See if there's any existing user selection that we can pick and work with.
+        var selection =
+                new TextSelection(
+                        mUrlCoordinator.getSelectionStart(), mUrlCoordinator.getSelectionEnd());
+
         session.activate(
                 mContext,
                 mLocationBarDataProvider.getWebContents(),
                 mProfileSupplier,
                 () -> {
                     if (mAutocompleteCoordinator == null || mCurrentInput == null) return;
+
+                    if (!selection.isCollapsed()) mCurrentInput.setSelection(selection);
+
                     if (mScrimHandler != null) {
                         mScrimHandler.updateScrimVisualState();
                         mScrimHandler.setVisibility(
@@ -1229,6 +1237,7 @@ class LocationBarMediator
                     mFuseboxCoordinator.beginInput(session);
                     mStatusCoordinator.beginInput(session);
                     mHintTextUpdater.beginInput(mCurrentInput);
+                    mUrlCoordinator.beginInput(mCurrentInput);
                     // Trigger animation now that we have an up-to-date value for the fusebox state.
                     setupSuggestionsListShowAnimation();
                     setAttachmentModelList(session.getFuseboxAttachmentModelList());
@@ -2208,6 +2217,10 @@ class LocationBarMediator
         }
         updateButtonVisibility();
         mLocationBarLayout.onSpecializedFuseboxModeActivated(isSpecializedRequestType);
+        // TODO(https://crbug.com/522911537): Move to an AutocompleteState observer.
+        mLocationBarLayout.setIsInStandby(
+                mCurrentInput != null
+                        && mCurrentInput.getAutocompleteState() == AutocompleteState.STANDBY);
     }
 
     private boolean isLensOnOmniboxEnabled() {
@@ -2450,8 +2463,12 @@ class LocationBarMediator
         // The || !isParentedToSuggestionsContainer() is to handle if the URL bar already has focus
         // (e.g. restored after activity recreation) but hasn't been reparented to the suggestions
         // container. We need this to trigger the focus animation to complete the reparenting.
-        if (mUrlHasFocus
-                && (mUrlFocusedWithoutAnimations || !isParentedToSuggestionsContainer())
+        @FuseboxLayoutMode
+        int layoutMode = mFuseboxCoordinator.getFuseboxLayoutModeSupplier().get();
+        boolean isPopover = layoutMode == FuseboxLayoutMode.SUGGESTIONS_POPOVER;
+        if (input.getAutocompleteState() == AutocompleteState.ENABLED
+                && (mUrlFocusedWithoutAnimations
+                        || (isPopover && !isParentedToSuggestionsContainer()))
                 && !mIsReparenting) {
             handleUrlFocusAnimation(/* hasFocus= */ true);
         } else if (input.getAutocompleteState() != AutocompleteState.STANDBY_NO_FOCUS) {
@@ -2482,6 +2499,8 @@ class LocationBarMediator
 
         mAutocompleteCoordinator.endInput();
         mStatusCoordinator.endInput();
+        mUrlCoordinator.endInput();
+
         if (mScrimHandler != null) mScrimHandler.setVisibility(false);
         input.getRequestTypeSupplier().removeObserver(mAutocompleteRequestTypeObserver);
         FuseboxSessionState state = FuseboxSessionState.from(mLocationBarDataProvider);
@@ -2508,6 +2527,7 @@ class LocationBarMediator
 
         suspendInput();
         state.deactivate();
+        updateUrl();
         if (mUrlHasFocus) {
             mUrlCoordinator.clearFocus();
         }

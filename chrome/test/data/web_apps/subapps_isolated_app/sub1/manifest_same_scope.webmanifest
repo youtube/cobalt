@@ -1,0 +1,10 @@
+{
+  "name": "sub1_same_scope",
+  "icons": [{
+    "src": "/subapps_icon.png",
+    "sizes": "512x512",
+    "type": "image/png"
+    }],
+  "start_url": "/sub1/page_same_scope.html",
+  "display": "standalone"
+}

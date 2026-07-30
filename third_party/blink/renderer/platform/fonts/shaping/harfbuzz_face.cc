@@ -81,18 +81,8 @@ void HarfBuzzFace::Trace(Visitor* visitor) const {
   visitor->Trace(harfbuzz_font_data_);
 }
 
-VariationSelectorMode& GetIgnoreVariationSelectorModeRef() {
-  DEFINE_THREAD_SAFE_STATIC_LOCAL(ThreadSpecific<VariationSelectorMode>,
-                                  variation_selector_mode, ());
-  return *variation_selector_mode;
-}
-
-VariationSelectorMode HarfBuzzFace::GetVariationSelectorMode() {
-  return GetIgnoreVariationSelectorModeRef();
-}
-
 void HarfBuzzFace::SetVariationSelectorMode(VariationSelectorMode value) {
-  GetIgnoreVariationSelectorModeRef() = value;
+  harfbuzz_font_data_->SetVariationSelectorMode(value);
 }
 
 static hb_bool_t HarfBuzzGetGlyph(hb_font_t* hb_font,
@@ -138,16 +128,16 @@ static hb_bool_t HarfBuzzGetGlyph(hb_font_t* hb_font,
   // selectors since we will get the font with the correct presentation relying
   // on FontFallbackPriority in `FontCache::PlatformFallbackFontForCharacter`.
   VariationSelectorMode variation_selector_mode =
-      HarfBuzzFace::GetVariationSelectorMode();
-    if (!ShouldIgnoreVariationSelector(variation_selector_mode) &&
-        Character::IsUnicodeVariationSelector(variation_selector) &&
-        Character::IsVariationSequence(unicode, variation_selector)) {
-      is_variation_sequence = true;
-      consider_variation_selector = true;
-    } else if (UseFontVariantEmojiVariationSelector(variation_selector_mode) &&
-               Character::IsEmoji(unicode)) {
-      consider_variation_selector = true;
-    }
+      hb_font_data->GetVariationSelectorMode();
+  if (!ShouldIgnoreVariationSelector(variation_selector_mode) &&
+      Character::IsUnicodeVariationSelector(variation_selector) &&
+      Character::IsVariationSequence(unicode, variation_selector)) {
+    is_variation_sequence = true;
+    consider_variation_selector = true;
+  } else if (UseFontVariantEmojiVariationSelector(variation_selector_mode) &&
+             Character::IsEmoji(unicode)) {
+    consider_variation_selector = true;
+  }
 
   bool text_presentation_requested = false;
   bool emoji_presentation_requested = false;

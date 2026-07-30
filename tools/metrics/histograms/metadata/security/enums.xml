@@ -272,7 +272,7 @@ chromium-metrics-reviews@google.com.
   <int value="15" label="BlockedByRequiredIpAddressSpaceMismatch"/>
 </enum>
 
-<!-- LINT.ThenChange(/services/network/public/cpp/private_network_access_check_result.h:LocalNetworkAccessCheckResult) -->
+<!-- LINT.ThenChange(/services/network/public/cpp/local_network_access_check_result.h:LocalNetworkAccessCheckResult) -->
 
 <!-- LINT.IfChange(MainFrameProcessReuseBlockReason) -->
 

@@ -11,6 +11,7 @@
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
+#include "components/autofill/core/browser/test_utils/autofill_form_test_utils.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/browser/webdata/autocomplete/autocomplete_entry.h"
 #include "components/autofill/core/browser/webdata/mock_autofill_webdata_service.h"
@@ -42,8 +43,7 @@ class AutocompleteSuggestionGeneratorTest : public testing::Test {
  protected:
   AutocompleteSuggestionGeneratorTest() {
     web_data_service_ = base::MakeRefCounted<MockAutofillWebDataService>();
-    generator_ =
-        std::make_unique<AutocompleteSuggestionGenerator>(web_data_service_);
+    RecreateGenerator();
   }
 
   AutofillClient& client() { return autofill_client_; }
@@ -61,6 +61,11 @@ class AutocompleteSuggestionGeneratorTest : public testing::Test {
     return web_data_service_;
   }
   AutocompleteSuggestionGenerator& generator() { return *generator_; }
+  void RecreateGenerator() {
+    generator_ = std::make_unique<AutocompleteSuggestionGenerator>(
+        web_data_service_,
+        base::FeatureList::IsEnabled(features::kAutofillAtMemory));
+  }
 
  private:
   std::unique_ptr<AutocompleteSuggestionGenerator> generator_;
@@ -183,12 +188,36 @@ TEST_F(AutocompleteSuggestionGeneratorTest,
 }
 
 TEST_F(AutocompleteSuggestionGeneratorTest,
+       CreditCardStandaloneCvcField_NoSuggestions) {
+  FormData form = test::GetFormData(
+      {.fields = {{.role = CREDIT_CARD_STANDALONE_VERIFICATION_CODE}}});
+  test_api(form).field(0).set_should_autocomplete(true);
+  FormStructure form_structure(form);
+  form_structure.field(0)->SetTypeTo(
+      AutofillType(CREDIT_CARD_STANDALONE_VERIFICATION_CODE),
+      /*source=*/std::nullopt);
+
+  base::MockCallback<
+      base::OnceCallback<void(SuggestionGenerator::ReturnedSuggestions)>>
+      suggestions_generated_callback;
+
+  EXPECT_CALL(*web_data_service(), GetFormValuesForElementName).Times(0);
+  EXPECT_CALL(suggestions_generated_callback,
+              Run(Pair(SuggestionGenerator::SuggestionDataSource::kAutocomplete,
+                       IsEmpty())));
+  generator().GenerateSuggestions(form, form.fields()[0], &form_structure,
+                                  form_structure.field(0), client(),
+                                  suggestions_generated_callback.Get());
+}
+
+TEST_F(AutocompleteSuggestionGeneratorTest,
        GenerateAutocompleteSuggestionsWithAtMemoryButtonEnabled) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeatures(
       /*enabled_features=*/
       {features::kShowAutocompleteAtMemoryButton, features::kAutofillAtMemory},
       /*disabled_features=*/{});
+  RecreateGenerator();
 
   FormFieldData field_data =
       test::CreateTestFormField(/*label=*/"", "Some Field Name", "SomePrefix",
@@ -265,6 +294,7 @@ TEST_F(AutocompleteSuggestionGeneratorTest,
       /*enabled_features=*/
       {features::kShowAutocompleteAtMemoryButton, features::kAutofillAtMemory},
       /*disabled_features=*/{});
+  RecreateGenerator();
 
   FormFieldData field_data =
       test::CreateTestFormField(/*label=*/"", "Some Field Name", "SomePrefix",

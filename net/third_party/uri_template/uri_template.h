@@ -22,11 +22,9 @@
 
 #include <set>
 #include <string>
-#include <unordered_map>
 
 #include "base/component_export.h"
-
-using std::string;
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
 namespace uri_template {
 
@@ -46,10 +44,10 @@ namespace uri_template {
  * @return true if the template was parseable. false if it was malformed.
  */
 COMPONENT_EXPORT(URI_TEMPLATE)
-bool Expand(const string& template_uri,
-            const std::unordered_map<string, string>& parameters,
-            string* target,
-            std::set<string>* vars_found = nullptr);
+bool Expand(const std::string& template_uri,
+            const absl::flat_hash_map<std::string, std::string>& parameters,
+            std::string* target,
+            std::set<std::string>* vars_found = nullptr);
 
 }  // namespace uri_template
 

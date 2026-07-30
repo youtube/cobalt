@@ -68,25 +68,22 @@ TEST(ChannelLayoutUtilMac, ChannelMappingInvalidLabel) {
 }
 
 TEST(ChannelLayoutUtilMac, ChannelLayoutMonoToAudioChannelLayout) {
-  int channels = 1;
-  auto output_layout = ChannelLayoutToAudioChannelLayout(
-      ChannelLayout::CHANNEL_LAYOUT_MONO, channels);
+  auto output_layout =
+      ChannelLayoutToAudioChannelLayout(ChannelLayoutConfig::Mono());
 
   EXPECT_GT(output_layout->layout_size(), 0u);
   EXPECT_EQ(output_layout->layout()->mChannelLayoutTag,
             kAudioChannelLayoutTag_UseChannelDescriptions);
-  EXPECT_EQ(output_layout->layout()->mNumberChannelDescriptions,
-            static_cast<UInt32>(channels));
-  EXPECT_EQ(output_layout->layout()->mChannelDescriptions[0].mChannelLabel,
-            kAudioChannelLabel_Mono);
-  EXPECT_EQ(output_layout->layout()->mChannelDescriptions[0].mChannelFlags,
-            kAudioChannelFlags_AllOff);
+  EXPECT_EQ(output_layout->layout()->mNumberChannelDescriptions, 1u);
+  const auto descriptions = GetDescriptions(*output_layout->layout());
+  EXPECT_EQ(descriptions[0].mChannelLabel, kAudioChannelLabel_Mono);
+  EXPECT_EQ(descriptions[0].mChannelFlags, kAudioChannelFlags_AllOff);
 }
 
 TEST(ChannelLayoutUtilMac, ChannelLayoutDiscreteToAudioChannelLayout) {
   int channels = 12;
   auto output_layout = ChannelLayoutToAudioChannelLayout(
-      ChannelLayout::CHANNEL_LAYOUT_DISCRETE, channels);
+      ChannelLayoutConfig(CHANNEL_LAYOUT_DISCRETE, channels));
 
   EXPECT_GT(output_layout->layout_size(), 0u);
   EXPECT_EQ(output_layout->layout()->mChannelLayoutTag,
@@ -102,15 +99,13 @@ TEST(ChannelLayoutUtilMac, ChannelLayoutDiscreteToAudioChannelLayout) {
 }
 
 TEST(ChannelLayoutUtilMac, ChannelLayout7Point1ToAudioChannelLayout) {
-  int channels = 8;
   auto output_layout = ChannelLayoutToAudioChannelLayout(
-      ChannelLayout::CHANNEL_LAYOUT_7_1, channels);
+      ChannelLayoutConfig::FromLayout<CHANNEL_LAYOUT_7_1>());
 
   EXPECT_GT(output_layout->layout_size(), 0u);
   EXPECT_EQ(output_layout->layout()->mChannelLayoutTag,
             kAudioChannelLayoutTag_UseChannelDescriptions);
-  EXPECT_EQ(output_layout->layout()->mNumberChannelDescriptions,
-            static_cast<UInt32>(channels));
+  EXPECT_EQ(output_layout->layout()->mNumberChannelDescriptions, 8u);
 
   static constexpr auto kExpectedLabels = std::to_array<AudioChannelLabel>({
       kAudioChannelLabel_Left,
@@ -124,7 +119,7 @@ TEST(ChannelLayoutUtilMac, ChannelLayout7Point1ToAudioChannelLayout) {
   });
 
   const auto descriptions = GetDescriptions(*output_layout->layout());
-  for (int i = 0; i < channels; ++i) {
+  for (size_t i = 0; i < kExpectedLabels.size(); ++i) {
     EXPECT_EQ(descriptions[i].mChannelLabel, kExpectedLabels[i]);
     EXPECT_EQ(descriptions[i].mChannelFlags, kAudioChannelFlags_AllOff);
   }
@@ -140,8 +135,8 @@ TEST(ChannelLayoutUtilMac, AudioChannelLayoutWithDescriptionsToChannelLayout) {
       kAudioChannelLabel_RightSurround,
   });
   const int channels = std::size(labels);
-  int layout_size =
-      offsetof(AudioChannelLayout, mChannelDescriptions[channels]);
+  int layout_size = sizeof(AudioChannelLayout) +
+                    (channels - 1) * sizeof(AudioChannelDescription);
   ScopedAudioChannelLayout input_layout(layout_size);
 
   input_layout.layout()->mNumberChannelDescriptions = channels;
@@ -251,8 +246,8 @@ TEST(ChannelLayoutUtilMac, ChannelLayoutConvertBackToChannelLayout) {
         input_layout == CHANNEL_LAYOUT_5_1_4_DOWNMIX) {
       continue;
     }
-    auto intermediate_layout =
-        ChannelLayoutToAudioChannelLayout(input_layout, input_channels);
+    auto intermediate_layout = ChannelLayoutToAudioChannelLayout(
+        ChannelLayoutConfig::FromLayout(input_layout));
     EXPECT_NE(intermediate_layout, nullptr);
     EXPECT_GT(intermediate_layout->layout_size(), 0u);
     ChannelLayout output_layout;

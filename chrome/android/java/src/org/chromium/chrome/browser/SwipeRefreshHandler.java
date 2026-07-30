@@ -86,10 +86,6 @@ public class SwipeRefreshHandler extends TabWebContentsUserData
 
     private final EmptyTabObserver mTabObserver;
 
-    // The container view the SwipeRefreshHandler instance is currently
-    // associated with.
-    private @Nullable ViewGroup mContainerView;
-
     // Async runnable for ending the refresh animation after the page first
     // loads a frame. This is used to provide a reasonable minimum animation time.
     private @Nullable Runnable mStopRefreshingRunnable;
@@ -179,7 +175,7 @@ public class SwipeRefreshHandler extends TabWebContentsUserData
                         ? context.getColor(R.color.default_icon_color_blue_light)
                         : SemanticColorUtils.getDefaultIconColorAccent1(context);
         mSwipeRefreshLayout.setColorSchemeColors(iconColor);
-        if (mContainerView != null) mSwipeRefreshLayout.setEnabled(true);
+        if (mTab.getContentView() != null) mSwipeRefreshLayout.setEnabled(true);
         mSwipeRefreshLayout.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
 
         mSwipeRefreshLayout.setOnRefreshListener(
@@ -223,7 +219,6 @@ public class SwipeRefreshHandler extends TabWebContentsUserData
     @Override
     public void initWebContents(WebContents webContents) {
         webContents.setOverscrollRefreshHandler(this);
-        mContainerView = mTab.getContentView();
         setEnabled(true);
     }
 
@@ -232,7 +227,6 @@ public class SwipeRefreshHandler extends TabWebContentsUserData
     public void cleanupWebContents(WebContents webContents) {
         webContents.setOverscrollRefreshHandler(null);
         detachSwipeRefreshLayoutIfNecessary();
-        mContainerView = null;
         mNavigationCoordinator = null;
         mBottomOverscrollHandler = null;
         setEnabled(false);
@@ -383,15 +377,16 @@ public class SwipeRefreshHandler extends TabWebContentsUserData
         if (mSwipeRefreshLayout == null) return;
         cancelDetachLayoutRunnable();
         if (mSwipeRefreshLayout.getParent() == null) {
-            assumeNonNull(mContainerView).addView(mSwipeRefreshLayout);
+            assumeNonNull(mTab.getContentView()).addView(mSwipeRefreshLayout);
         }
     }
 
     private void detachSwipeRefreshLayoutIfNecessary() {
         if (mSwipeRefreshLayout == null) return;
         cancelDetachLayoutRunnable();
-        if (mSwipeRefreshLayout.getParent() != null) {
-            assumeNonNull(mContainerView).removeView(mSwipeRefreshLayout);
+        ViewGroup parent = (ViewGroup) mSwipeRefreshLayout.getParent();
+        if (parent != null) {
+            parent.removeView(mSwipeRefreshLayout);
         }
     }
 }

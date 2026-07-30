@@ -47,6 +47,9 @@ class AISummarizer : public AIContextBoundObject,
   static std::unique_ptr<optimization_guide::proto::SummarizeOptions>
   ToProtoOptions(const blink::mojom::AISummarizerCreateOptionsPtr& options);
 
+  static uint32_t GetInputContextLimit(
+      const blink::mojom::AISummarizerCreateOptionsPtr& options);
+
   // Joins `shared` and `input` contexts with a space and newline as needed.
   static std::string CombineContexts(std::string_view shared,
                                      std::string_view input);

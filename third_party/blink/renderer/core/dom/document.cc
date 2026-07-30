@@ -1065,7 +1065,7 @@ Document::Document(const DocumentInit& initializer,
         !dom_window_->IsFeatureEnabled(
             network::mojom::PermissionsPolicyFeature::kVerticalScroll);
     cached_top_frame_site_for_visited_links_ =
-        net::SchemefulSite(TopFrameOrigin()->ToUrlOrigin());
+        TopFrameOrigin()->GetSchemefulSite();
   } else {
     // We disable fetches for frame-less Documents.
     // See https://crbug.com/961614 for details.
@@ -2371,8 +2371,7 @@ Document::CalculateStyleAndLayoutTreeUpdateForThisDocument() const {
   if (!IsActive() || !View())
     return StyleAndLayoutTreeUpdate::kNone;
 
-  if (style_engine_->NeedsFullStyleUpdate() ||
-      OverscrollCommandTargetsDirty()) {
+  if (style_engine_->NeedsFullStyleUpdate()) {
     return StyleAndLayoutTreeUpdate::kFull;
   }
   if (!use_elements_needing_update_.empty())
@@ -2705,8 +2704,6 @@ void Document::UpdateStyleAndLayoutTreeForThisDocument() {
   document_animations_->UpdateAnimationTimingIfNeeded();
   EvaluateMediaQueryListIfNeeded();
   UpdateUseShadowTreesIfNeeded();
-
-  UpdateOverscrollCommandTargets();
 
   style_engine.UpdateActiveStyle();
   style_engine.UpdateCounterStyles();
@@ -6790,7 +6787,9 @@ void Document::setCookie(const String& value, ExceptionState& exception_state) {
     UseCounter::Count(*this, WebFeature::kFileAccessedCookies);
   }
 
-  cookie_jar_->SetCookie(value);
+  if (cookie_jar_->SetCookie(value)) {
+    IncrementCookieModificationCount();
+  }
 }
 
 bool Document::CookiesEnabled() const {
@@ -7012,20 +7011,20 @@ net::SiteForCookies Document::SiteForCookies() const {
   // like images or video. We do so because when third-party cookie blocking is
   // enabled, access-controlled media cannot be rendered. We only make this
   // exception in this special case to minimize security/privacy risk.
-  url::Origin url_origin = origin->ToUrlOrigin();
-
-  if (override_site_for_cookies_for_csp_media_ && url_origin.opaque() &&
-      !url_origin.GetTupleOrPrecursorTupleIfOpaque().host().empty()) {
-    return net::SiteForCookies::FromOrigin(url::Origin::Create(
-        url_origin.GetTupleOrPrecursorTupleIfOpaque().GetURL()));
+  if (override_site_for_cookies_for_csp_media_ && origin->IsOpaque()) {
+    url::Origin url_origin = origin->ToUrlOrigin();
+    if (!url_origin.GetTupleOrPrecursorTupleIfOpaque().host().empty()) {
+      return net::SiteForCookies::FromOrigin(url::Origin::Create(
+          url_origin.GetTupleOrPrecursorTupleIfOpaque().GetURL()));
+    }
   }
 
-  net::SiteForCookies candidate = net::SiteForCookies::FromOrigin(url_origin);
+  net::SiteForCookies candidate(origin->GetSchemefulSite());
 
-  // If true, CompareWithFrameTreeOriginAndRevise() is skipped if the
-  // SecurityOrigin of the the frames is the same. If any frame has a different
+  // If true, CompareWithFrameTreeSiteAndRevise() is skipped if the
+  // SecurityOrigin of the frames is the same. If any frame has a different
   // SecurityOrigin, then this is set to false so that
-  // CompareWithFrameTreeOriginAndRevise() is called for all remaining frames.
+  // CompareWithFrameTreeSiteAndRevise() is called for all remaining frames.
   bool can_avoid_revise_if_security_origins_match = true;
 
   if (SchemeRegistry::ShouldTreatURLSchemeAsFirstPartyWhenTopLevel(
@@ -7047,8 +7046,10 @@ net::SiteForCookies Document::SiteForCookies() const {
     // If possible, skip revising frames that have the same security origin.
     if (!can_avoid_revise_if_security_origins_match ||
         current_frame_security_origin != origin) {
-      if (!candidate.CompareWithFrameTreeOriginAndRevise(
-              current_frame_security_origin->ToUrlOrigin())) {
+      const bool candidate_still_matches =
+          candidate.CompareWithFrameTreeSiteAndRevise(
+              current_frame_security_origin->GetSchemefulSite());
+      if (!candidate_still_matches) {
         return candidate;
       }
       can_avoid_revise_if_security_origins_match = false;
@@ -9523,8 +9524,7 @@ void Document::Trace(Visitor* visitor) const {
   visitor->Trace(payment_link_handler_);
 #endif  // BUILDFLAG(IS_ANDROID)
   visitor->Trace(view_transitions_);
-  visitor->Trace(overscroll_command_targets_);
-  visitor->Trace(overscroll_command_invokers_);
+
   visitor->Trace(menu_safe_triangle_);
   Supplementable<Document>::Trace(visitor);
   TreeScope::Trace(visitor);
@@ -10309,64 +10309,7 @@ CustomElementRegistry* Document::EffectiveGlobalCustomElementRegistry() const {
   return nullptr;
 }
 
-const HeapHashSet<Member<const Element>>& Document::OverscrollCommandTargets() {
-  UpdateOverscrollCommandTargets();
-  return overscroll_command_targets_;
-}
 
-void Document::UpdateOverscrollCommandTargets() {
-  if (!overscroll_command_targets_dirty_) {
-    return;
-  }
-
-  if (overscroll_command_invokers_.empty() &&
-      overscroll_command_targets_.empty()) {
-    overscroll_command_targets_dirty_ = false;
-    return;
-  }
-
-  HeapHashSet<Member<const Element>> new_targets;
-  for (Element* element : overscroll_command_invokers_) {
-    if (auto* html_element = DynamicTo<HTMLElement>(element)) {
-      if (Element* target = html_element->commandForElement()) {
-        new_targets.insert(target);
-      }
-    }
-  }
-
-  // Calculate the difference and call OverscrollTargetStateChanged.
-  for (auto& entry : overscroll_command_targets_) {
-    if (!new_targets.Contains(entry)) {
-      const_cast<Element*>(entry.Get())->OverscrollTargetStateChanged();
-    }
-  }
-  for (auto& entry : new_targets) {
-    if (!overscroll_command_targets_.Contains(entry)) {
-      const_cast<Element*>(entry.Get())->OverscrollTargetStateChanged();
-    }
-  }
-
-  overscroll_command_targets_ = std::move(new_targets);
-  overscroll_command_targets_dirty_ = false;
-}
-
-// We require either the invokers list to be non-empty (so we have some invokers
-// to process) or the existing targets list to be non-empty (because we might
-// have some "old" targets that need re-processing).
-bool Document::OverscrollCommandTargetsDirty() const {
-  return overscroll_command_targets_dirty_ &&
-         (!overscroll_command_invokers_.empty() ||
-          !overscroll_command_targets_.empty());
-}
-void Document::MarkOverscrollCommandTargetsDirty() {
-  overscroll_command_targets_dirty_ = true;
-}
-void Document::AddOverscrollCommandInvoker(Element& invoker) {
-  overscroll_command_invokers_.insert(&invoker);
-}
-void Document::RemoveOverscrollCommandInvoker(Element& invoker) {
-  overscroll_command_invokers_.erase(&invoker);
-}
 
 template class CORE_TEMPLATE_EXPORT Supplement<Document>;
 

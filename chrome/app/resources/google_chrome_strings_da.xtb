@@ -60,6 +60,17 @@
 <translation id="1587223624401073077">Google Chrome bruger dit kamera.</translation>
 <translation id="1587325591171447154"><ph name="FILE_NAME" /> er skadelig, så Chrome har blokeret den.</translation>
 <translation id="1597911401261118146">Du kan tjekke, om dine andre adgangskoder er beskyttet mod brud på datasikkerheden og andre sikkerhedsproblemer ved at <ph name="BEGIN_LINK" />logge ind på Chrome<ph name="END_LINK" />.</translation>
+<translation id="1619639070275605589">Denne handling gør følgende:
+          <ph name="LINE_BREAKS" />
+            • Nulstiller din opstartsside, siden Ny fane, din søgemaskine og dine fastgjorte faner
+            <ph name="LINE_BREAK" />
+            • Deaktiverer udvidelser
+            <ph name="LINE_BREAK" />
+            • Sletter cookies og andre midlertidige websitedata
+            <ph name="LINE_BREAK" />
+            • Nulstiller Chrome-genveje
+            <ph name="LINE_BREAKS" />
+            Bogmærker, historik og gemte adgangskoder påvirkes ikke.</translation>
 <translation id="1619887657840448962">For at gøre Chrome mere sikker har vi deaktiveret følgende udvidelse, som ikke er anført i <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> og muligvis er blevet tilføjet, uden at du vidste det.</translation>
 <translation id="1628000112320670027">Få hjælp til Chrome</translation>
 <translation id="1640672724030957280">Downloader...</translation>
@@ -136,6 +147,7 @@
 <translation id="2472092250898121027">Denne udvidelse indeholder malware og er ikke sikker. Fjern den fra Chrome, så den ikke længere kan se og ændre dine data på de websites, du besøger, herunder dine personlige oplysninger.</translation>
 <translation id="2485422356828889247">Afinstaller</translation>
 <translation id="2513154137948333830">Genstart er påkrævet: <ph name="INSTALL_SUCCESS" /></translation>
+<translation id="2523492931736391680">Dit arbejde beskyttes i Chrome</translation>
 <translation id="2534365042754120737">Du kan beskytte dine data ved at lade Chrome fjerne tilladelser fra websites, du ikke har besøgt for nylig. Dette forhindrer ikke notifikationer.</translation>
 <translation id="2556847002339236023">Din organisation lukker Chrome, når browseren ikke har været i brug i <ph name="TIMEOUT_DURATION" />. Browserdataene blev slettet. Disse data kan omfatte historik, Autofyld og downloads.</translation>
 <translation id="2563121210305478421">Vil du genstarte Chrome?</translation>
@@ -240,6 +252,7 @@ Hvis denne side ikke fungerer som forventet, kan du prøve at tillade optimering
 <translation id="345171907106878721">Tilføj dig selv i Chrome</translation>
 <translation id="3453763134178591239">Vilkår for ChromeOS</translation>
 <translation id="3503306920980160878">Chrome skal have adgang til din lokation for at dele din lokation med dette website</translation>
+<translation id="3512495006767217696">Indbygget i Chrome for at hjælpe dig med at oprette, gemme og automatisk udfylde stærke adgangskoder. Tilføj genvejen for at få nem adgang</translation>
 <translation id="3539955434060988644">Åbn linket i et inkognitovindue i Chrome</translation>
 <translation id="3576528680708590453">Din systemadministrator har konfigureret Google Chrome til at åbne en anden browser for at få adgang til <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="3582972582564653026">Synkroniser og personligt tilpas Chrome på alle dine enheder</translation>
@@ -302,6 +315,7 @@ Hvis denne side ikke fungerer som forventet, kan du prøve at tillade optimering
 <translation id="4149882025268051530">Installationsprogrammet kunne ikke pakke arkivet ud. Download Google Chrome igen.</translation>
 <translation id="415112847282352845">For at kunne se dine adresser m.m. på alle dine enheder skal du logge ind i Chrome. Denne adresse gemmes på din Google-konto, når du er logget ind.</translation>
 <translation id="4153934450158521343">Chrome lukkes snart, og dataene slettes</translation>
+<translation id="4159985264221160808">For at beskytte dit arbejde i Chrome kan din organisation se eller administrere visse oplysninger</translation>
 <translation id="4173512894976930765">Websites fungerer sandsynligvis som forventet. Du logges ud af de fleste websites, når du lukker alle Chrome-vinduer, med undtagelse af din Google-konto, hvis du er logget ind i Chrome.</translation>
 <translation id="4175922240926474352">Chrome har blokeret denne download, fordi websitet ikke anvender en sikker forbindelse, og der kan være blevet manipuleret med filen</translation>
 <translation id="4191857738314598978">{0,plural, =1{Genstart Chrome inden for én dag}one{Genstart Chrome inden for # dag}other{Genstart Chrome inden for # dage}}</translation>
@@ -333,6 +347,7 @@ Hvis denne side ikke fungerer som forventet, kan du prøve at tillade optimering
 <translation id="4493028449971051158">Opstartsfejl: Kør installationsprogrammet som administrator.</translation>
 <translation id="4501471624619070934">Installationen mislykkedes, fordi der er begrænset adgang i dette land.</translation>
 <translation id="4571503333518166079">Gå til indstillinger for Chrome-notifikationer</translation>
+<translation id="4580939929828762295">Beskyt dine oplysninger med Google Adgangskodeadministrator</translation>
 <translation id="4592634244097223647">Stil Google spørgmål om dette billede</translation>
 <translation id="459622048091363950">Når Chrome har adgang, kan websites bede dig om adgang.</translation>
 <translation id="4598116752460667024">Søg efter en proces på listen.</translation>
@@ -517,6 +532,7 @@ Hvis denne side ikke fungerer som forventet, kan du prøve at tillade optimering
 <translation id="6438015621983209660">Udvid anvendelsen af Udvidet beskyttet browsing med Chrome på din telefon</translation>
 <translation id="6442774133615368941">Køb, oversæt og identificer det, du ser gennem dit kamera, i Chrome-appen til iOS</translation>
 <translation id="6448835208126432197">Brug tastaturgenvejen til at markere en del af skærmen i Gemini i Chrome.</translation>
+<translation id="6473659734176498825">Et forenklet billede, der viser indgangspunktet til Google Adgangskodeadministrator i Chrome</translation>
 <translation id="6473905796280459355">Gå til siden Om Chrome</translation>
 <translation id="6481963882741794338">Tilknyt Chrome og andre Google-tjenester med henblik på personlig tilpasning og andre formål</translation>
 <translation id="648319183876919572">Udvidet beskyttet browsing gør mere for at beskytte dig mod skadelige websites og downloads</translation>
@@ -688,6 +704,7 @@ Hvis denne side ikke fungerer som forventet, kan du prøve at tillade optimering
 <translation id="8064965390968184078">1. Klik på <ph name="BUTTON_LABEL" /> nedenfor
 2. Klik på <ph name="BUTTON_2" /> i dine Windows-indstillinger
 3. Klik på <ph name="BUTTON_3" /> i Windows-notifikationen for at fastgøre Chrome til proceslinjen, så du hurtigt kan tilgå browseren</translation>
+<translation id="8069447462453318634">Vælg "Fastgør til værktøjslinje"</translation>
 <translation id="8074398340364918139">Hvis du vil søge efter en bestemt Chrome-funktion eller -udvidelse, skal du angive genvejen til den i adresselinjen efterfulgt af din valgte tastaturtast</translation>
 <translation id="8077579734294125741">Andre Chrome-profiler</translation>
 <translation id="8086881907087796310">Installationen mislykkedes, fordi din computer ikke opfylder minimumskravene til hardware.</translation>
@@ -773,6 +790,15 @@ Nye bogmærker kan ikke gemmes på din konto, før du sletter nogle. Hvis du log
 <translation id="8922998289262614701">Fjern denne apps data fra Chrome</translation>
 <translation id="8925636929359899517">Vi bruger oplysninger til at forbedre denne tjeneste. Se <ph name="BEGIN_LINK1" />privatlivspolitikken<ph name="END_LINK1" /> og <ph name="BEGIN_LINK2" />servicevilkårene<ph name="END_LINK2" />.</translation>
 <translation id="8936233353620149764">Slå Gemini i Chrome til/fra</translation>
+<translation id="8944232836376404813">Denne handling gør følgende:
+          <ph name="LINE_BREAKS" />
+            • Nulstiller din opstartsside, siden Ny fane, din søgemaskine og dine fastgjorte faner
+            <ph name="LINE_BREAK" />
+            • Deaktiverer udvidelser
+            <ph name="LINE_BREAK" />
+            • Sletter cookies og andre midlertidige websitedata
+            <ph name="LINE_BREAKS" />
+            Bogmærker, historik og gemte adgangskoder påvirkes ikke.</translation>
 <translation id="8948460679427074738">Denne udvidelse har ikke offentliggjort privatlivsprocedurer, f.eks. hvordan den indsamler og bruger data. Chrome anbefaler, at du fjerner den.</translation>
 <translation id="8958307504142971576">Du har nu flere tilgængelige funktioner i Chrome</translation>
 <translation id="8991530961471831170">Åbn Gemini i Chrome</translation>

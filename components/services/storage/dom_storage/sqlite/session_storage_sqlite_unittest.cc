@@ -89,8 +89,8 @@ void SessionStorageSqliteTest::GetDatabasePath(base::FilePath* result) {
   if (!temp_dir_.IsValid()) {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
   }
-  *result = DomStorageDatabase::GetPath(StorageType::kSessionStorage,
-                                        temp_dir_.GetPath());
+  *result = DomStorageDatabase::GetSqlitePath(StorageType::kSessionStorage,
+                                              temp_dir_.GetPath());
 }
 
 base::PassKey<DomStorageDatabaseFactory>

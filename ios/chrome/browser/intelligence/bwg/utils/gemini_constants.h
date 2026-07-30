@@ -39,7 +39,9 @@ enum class EntryPoint {
   ExternalAppStoreEvent = 11,
   // Gemini was opened from the Toolbar.
   Toolbar = 12,
-  kMaxValue = Toolbar,
+  // The entry point is unknown.
+  Unknown = 100,
+  kMaxValue = Unknown,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiEntryPoint)
 

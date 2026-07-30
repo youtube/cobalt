@@ -40,7 +40,8 @@ class GeminiSuggestionHandlerTest : public PlatformTest {
   void SetSuggestions(GeminiTabHelper* tab_helper,
                       const std::vector<std::string>& suggestions) {
     ASSERT_TRUE(tab_helper->zero_state_suggestions_service_);
-    tab_helper->gemini_contextual_eligibility_ = true;
+    tab_helper->gemini_contextual_eligibility_ =
+        GeminiTabHelper::ContextualEligibility::kEligibleViaProactiveFetch;
     tab_helper->zero_state_suggestions_service_->suggestions_ = suggestions;
     if (tab_helper->zero_state_suggestions_service_->web_state_) {
       tab_helper->zero_state_suggestions_service_->suggestions_url_ =

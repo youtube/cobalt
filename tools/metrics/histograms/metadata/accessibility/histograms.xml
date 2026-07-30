@@ -125,7 +125,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Accessibility.Android.Cache.MaxNodesInCache" units="count"
-    expires_after="2026-10-04">
+    expires_after="2026-12-16">
   <owner>aaronmoss@google.com</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
@@ -247,7 +247,7 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.IfChange(KeyboardShortcutsSemanticMeaning) -->
 
-<histogram name="Accessibility.Android.KeyboardShortcut.{ScreenReaderState}6"
+<histogram name="Accessibility.Android.KeyboardShortcut.{ScreenReaderState}7"
     enum="KeyboardShortcutsSemanticMeaning" expires_after="2027-06-01">
   <owner>mschillaci@google.com</owner>
   <owner>katie@chromium.org</owner>
@@ -569,7 +569,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Accessibility.Android.RunningAccessibilityTools"
-    enum="AccessibilityAndroidAccessibilityTools" expires_after="2026-10-18">
+    enum="AccessibilityAndroidAccessibilityTools" expires_after="2026-12-20">
   <owner>aaronmoss@google.com</owner>
   <owner>davidsegovia@google.com</owner>
   <owner>chrome-a11y-core@google.com</owner>
@@ -1043,7 +1043,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Accessibility.CrosCaretBlinkInterval" units="ms"
-    expires_after="2026-10-04">
+    expires_after="2026-12-16">
   <owner>katie@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
@@ -1107,7 +1107,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Accessibility.CrosDictation.ListeningDuration.NetworkRecognition"
-    units="ms" expires_after="2026-10-11">
+    units="ms" expires_after="2026-12-16">
   <owner>katie@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
@@ -1167,7 +1167,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Accessibility.CrosDictation.ToggleDictationMethod"
-    enum="CrosDictationToggleDictationMethod" expires_after="2026-10-11">
+    enum="CrosDictationToggleDictationMethod" expires_after="2026-12-16">
   <owner>anastasi@google.com</owner>
   <owner>dtseng@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
@@ -1175,7 +1175,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Accessibility.CrosDictation.UsedOnDeviceSpeech"
-    enum="BooleanUsage" expires_after="2026-10-11">
+    enum="BooleanUsage" expires_after="2026-12-16">
   <owner>katie@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
@@ -2352,7 +2352,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.LiveTranslate.TranslationDispatcher.LoadResult"
-    enum="TranslationDispatcherLoadResult" expires_after="2026-10-11">
+    enum="TranslationDispatcherLoadResult" expires_after="2026-12-16">
   <owner>evanliu@google.com</owner>
   <owner>chrome-accessibility-eng@google.com</owner>
   <summary>
@@ -2362,7 +2362,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.LiveTranslate.TranslationDispatcher.ParseResult"
-    enum="TranslationDispatcherParseResult" expires_after="2026-10-11">
+    enum="TranslationDispatcherParseResult" expires_after="2026-12-16">
   <owner>evanliu@google.com</owner>
   <owner>chrome-accessibility-eng@google.com</owner>
   <summary>
@@ -3122,7 +3122,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.ReadAnything.EntryPointAfterOmnibox"
-    enum="ReadAnythingOpenTrigger" expires_after="2026-10-18">
+    enum="ReadAnythingOpenTrigger" expires_after="2026-12-20">
   <owner>kristislee@google.com</owner>
   <owner>komo-eng@google.com</owner>
   <summary>
@@ -3301,7 +3301,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.ReadAnything.OpenedAfterOmniboxIPH"
-    enum="Boolean" expires_after="2026-10-11">
+    enum="Boolean" expires_after="2026-12-16">
   <owner>kristislee@google.com</owner>
   <owner>komo-eng@google.com</owner>
   <summary>
@@ -3373,7 +3373,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.ReadAnything.ReadAloud.EngineVersion"
-    units="yyyymmdd0" expires_after="2026-10-11">
+    units="yyyymmdd0" expires_after="2026-12-16">
   <owner>lwinston@google.com</owner>
   <owner>komo-eng@google.com</owner>
   <summary>
@@ -4029,6 +4029,17 @@ even if they fit the naming pattern. -->
   </summary>
 </histogram>
 
+<histogram name="Accessibility.WebSpeech.DownloadRelaxed" enum="Boolean"
+    expires_after="2027-06-01">
+  <owner>evliu@google.com</owner>
+  <owner>chrome-media-ux@google.com</owner>
+  <summary>
+    Recorded when Web Speech API relaxes the user activation requirement for
+    downloading a language pack because it is present in the Accept-Language
+    header.
+  </summary>
+</histogram>
+
 <histogram name="Accessibility.WebSpeech.ErrorOccurred"
     enum="SpeechRecognitionErrorCode" expires_after="2027-04-20">
   <owner>evliu@google.com</owner>
@@ -4090,6 +4101,19 @@ even if they fit the naming pattern. -->
   <summary>
     Whether on-device speech recognition available for use with the Web Speech
     API. Logged when the speech recognition session is created.
+  </summary>
+</histogram>
+
+<histogram name="Accessibility.WebSpeech.RelaxedLanguageUsed" enum="Boolean"
+    expires_after="2027-06-01">
+  <owner>evliu@google.com</owner>
+  <owner>chrome-media-ux@google.com</owner>
+  <summary>
+    Recorded when a Web Speech API speech recognition session starts. Logs true
+    if the requested language is present in the user's Accept-Language header
+    (navigator.languages). This serves as a proxy metric to estimate the usage
+    of language packs downloaded via the relaxed user activation flow, though it
+    may overcount packs installed through other legitimate means.
   </summary>
 </histogram>
 

@@ -337,6 +337,17 @@ const AtomicString& AriaTokenAttributeFromValue(const QualifiedName& attribute,
   return value;
 }
 
+bool IsGenericWrapper(const Element& element, const AtomicString& role_str) {
+  if (!role_str.empty()) {
+    return false;
+  }
+
+  return element.HasTagName(html_names::kDivTag) ||
+         element.HasTagName(html_names::kSpanTag) ||
+         element.HasTagName(html_names::kSlotTag) ||
+         element.IsCustomElement();
+}
+
 }  // namespace
 
 int32_t ToAXMarkerType(DocumentMarker::MarkerType marker_type) {
@@ -1969,6 +1980,15 @@ void AXObject::SerializeOtherScreenReaderAttributes(
   if (CanvasHasFallbackContent()) {
     node_data->AddBoolAttribute(
         ax::mojom::blink::BoolAttribute::kCanvasHasFallback, true);
+  }
+
+  if (node_data->role == ax::mojom::blink::Role::kCanvas) {
+    String canvas_annotation = CanvasAnnotation();
+    if (!canvas_annotation.empty()) {
+      TruncateAndAddStringAttribute(
+          node_data, ax::mojom::blink::StringAttribute::kCanvasAnnotation,
+          canvas_annotation);
+    }
   }
 
   if (IsRangeValueSupported()) {
@@ -5958,8 +5978,7 @@ bool AXObject::IsOrphanedListItem(const Element& element) const {
       continue;
     }
 
-    // Skip anonymous/generic <div> wrappers without explicit roles.
-    if (parent->HasTagName(html_names::kDivTag) && role_str.empty()) {
+    if (IsGenericWrapper(*parent, role_str)) {
       continue;
     }
 
@@ -6012,7 +6031,7 @@ bool AXObject::IsOrphanedOption(const Element& element) const {
       continue;
     }
 
-    if (parent->HasTagName(html_names::kDivTag) && role_str.empty()) {
+    if (IsGenericWrapper(*parent, role_str)) {
       continue;
     }
 
@@ -6066,19 +6085,7 @@ bool AXObject::IsOrphanedTreeItem(const Element& element) const {
       continue;
     }
 
-    // Skip anonymous/generic <div> wrappers without explicit roles.
-    if (parent->HasTagName(html_names::kDivTag) && role_str.empty()) {
-      continue;
-    }
-
-    // Skip anonymous/generic <span> wrappers without explicit roles.
-    if (parent->HasTagName(html_names::kSpanTag) && role_str.empty()) {
-      continue;
-    }
-
-    // Skip generic custom element wrappers (e.g. <cr-tree-item>) without
-    // explicit roles.
-    if (parent->IsCustomElement() && role_str.empty()) {
+    if (IsGenericWrapper(*parent, role_str)) {
       continue;
     }
 

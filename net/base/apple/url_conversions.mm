@@ -56,13 +56,19 @@ GURL GURLWithNSURL(NSURL* url) {
   // 'about:blank%23hash' in absoluteString, but remains 'about:blank#hash' in
   // dataRepresentation. Narrowly scope this workaround to the "about:" scheme
   // to avoid encoding issues.
-  if (base::FeatureList::IsEnabled(features::kUseNSURLDataForGURLConversion)) {
-    NSString* scheme = url.scheme;
-    if (scheme && [scheme caseInsensitiveCompare:@"about"] == NSOrderedSame) {
-      NSData* data = [url dataRepresentation];
-      if (data && data.length > 0) {
-        return GURL(std::string_view(reinterpret_cast<const char*>(data.bytes),
-                                     data.length));
+  // TODO(crbug.com/523200130): Remove this workaround when the minimum
+  // deployment target is iOS 27.0 or higher.
+  if (!@available(anyAppleOS 27.0, *)) {
+    if (base::FeatureList::IsEnabled(
+            features::kUseNSURLDataForGURLConversion)) {
+      // The bug in NSURL absoluteString is natively fixed in iOS 27+.
+      NSString* scheme = url.scheme;
+      if (scheme && [scheme caseInsensitiveCompare:@"about"] == NSOrderedSame) {
+        NSData* data = [url dataRepresentation];
+        if (data && data.length > 0) {
+          return GURL(std::string_view(
+              reinterpret_cast<const char*>(data.bytes), data.length));
+        }
       }
     }
   }

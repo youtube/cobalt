@@ -34,8 +34,8 @@ constexpr uint32_t kDefaultClientId = 0u;
 void BrowserGpuChannelHostFactorySetApplicationVisible(bool is_visible) {
   // This code relies on the browser's GpuChannelEstablishFactory being the
   // BrowserGpuChannelHostFactory.
-  DCHECK_EQ(BrowserMainLoop::GetInstance()->gpu_channel_establish_factory(),
-            BrowserGpuChannelHostFactory::instance());
+  CHECK_EQ(BrowserMainLoop::GetInstance()->gpu_channel_establish_factory(),
+           BrowserGpuChannelHostFactory::instance(), base::NotFatalUntil::M152);
   BrowserGpuChannelHostFactory::instance()->SetApplicationVisible(is_visible);
 }
 
@@ -74,7 +74,7 @@ CompositorDependenciesAndroid& CompositorDependenciesAndroid::Get() {
 
 CompositorDependenciesAndroid::CompositorDependenciesAndroid()
     : frame_sink_id_allocator_(kDefaultClientId) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  CHECK_CURRENTLY_ON(BrowserThread::UI, base::NotFatalUntil::M152);
 
   // Set up a callback to automatically re-connect if we lose our connection.
   // Unretained is safe due to base::NoDestructor.
@@ -169,7 +169,7 @@ void CompositorDependenciesAndroid::OnCompositorVisible(
     CompositorImpl* compositor) {
   CHECK(!visible_synchronous_compositors_);
   bool element_inserted = visible_compositors_.insert(compositor).second;
-  DCHECK(element_inserted);
+  CHECK(element_inserted, base::NotFatalUntil::M152);
   if (visible_compositors_.size() == 1)
     OnVisibilityChanged();
 }
@@ -178,7 +178,7 @@ void CompositorDependenciesAndroid::OnCompositorHidden(
     CompositorImpl* compositor) {
   CHECK(!visible_synchronous_compositors_);
   size_t elements_removed = visible_compositors_.erase(compositor);
-  DCHECK_EQ(1u, elements_removed);
+  CHECK_EQ(1u, elements_removed, base::NotFatalUntil::M152);
   if (visible_compositors_.size() == 0)
     OnVisibilityChanged();
 }

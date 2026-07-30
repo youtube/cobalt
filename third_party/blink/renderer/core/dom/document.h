@@ -2342,6 +2342,11 @@ class CORE_EXPORT Document : public ContainerNode,
     return scoped_custom_element_registry_used_;
   }
 
+  uint64_t CookieModificationCount() const {
+    return cookie_modification_count_;
+  }
+  void IncrementCookieModificationCount() { cookie_modification_count_++; }
+
   ViewTransitionSupplement* GetViewTransitionsIfExists() const {
     return view_transitions_;
   }
@@ -2353,13 +2358,6 @@ class CORE_EXPORT Document : public ContainerNode,
       return CreateViewTransitions();
     }
   }
-
-  const HeapHashSet<Member<const Element>>& OverscrollCommandTargets();
-  void UpdateOverscrollCommandTargets();
-  bool OverscrollCommandTargetsDirty() const;
-  void MarkOverscrollCommandTargetsDirty();
-  void AddOverscrollCommandInvoker(Element& invoker);
-  void RemoveOverscrollCommandInvoker(Element& invoker);
 
   void UpdateActiveState(bool is_active, bool update_active_chain, Element*);
   void UpdateHoverState(Element*);
@@ -3268,6 +3266,12 @@ class CORE_EXPORT Document : public ContainerNode,
   // third-party cookie blocking is enabled.
   bool override_site_for_cookies_for_csp_media_ = false;
 
+  // Tracks the number of times cookies have been modified (e.g., via
+  // document.cookie or CookieStore) within this document. Used to detect if
+  // cookies have changed since a renderer-initiated navigation started, in
+  // which case subsequent duplicate navigations are not ignored.
+  uint64_t cookie_modification_count_ = 0;
+
   // See description in ScheduleShadowTreeCreation().
   HeapHashSet<Member<HTMLInputElement>> elements_needing_shadow_tree_;
 
@@ -3292,16 +3296,6 @@ class CORE_EXPORT Document : public ContainerNode,
 
   bool responsive_embedded_sizing_ = false;
   bool text_scale_meta_tag_present_ = false;
-
-  // `overscroll_command_targets_` is a set of elements that are currently the
-  // targets of command invokers that have `command=toggle-overscroll`. This
-  // set is updated lazily, when `overscroll_command_targets_dirty_` is true.
-  // The `overscroll_command_invokers_` set contains the associated list of
-  // command invokers themselves. Together, these determine the state of the
-  // `:-internal-overscroll-target` pseudo class.
-  HeapHashSet<Member<const Element>> overscroll_command_targets_;
-  HeapHashSet<Member<Element>> overscroll_command_invokers_;
-  bool overscroll_command_targets_dirty_ = false;
 
   // Data on the currently active safe-triangle (if any), for HTML menu
   // elements, that is delaying interest gain/loss.

@@ -25,7 +25,7 @@ class WebContents;
 // message dispatch.
 //
 // When messages are dispatched to the implementation, the implementation can
-// call GetCurrentTargetFrame() on this object (see below) to determine which
+// call CurrentTargetFrame() on this object (see below) to determine which
 // frame sent the message.
 //
 // In order to expose the interface to all RenderFrames, a binder must be
@@ -83,16 +83,20 @@ class CONTENT_EXPORT RenderFrameHostReceiverSet : public WebContentsObserver {
     return frame_to_receivers_map_.contains(render_frame_host);
   }
 
-  // Implementations of `Interface` can call `GetCurrentTargetFrame()` to
-  // determine which frame sent the message. `GetCurrentTargetFrame()` will
-  // never return `nullptr`.
+  // Implementations of `Interface` can call `CurrentTargetFrame()` to
+  // determine which frame sent the message.
   //
   // Important: this method must only be called while the incoming message is
   // being dispatched on the stack.
-  RETURNS_NONNULL RenderFrameHost* GetCurrentTargetFrame() {
+  RenderFrameHost& CurrentTargetFrame() {
     if (current_target_frame_for_testing_)
-      return current_target_frame_for_testing_;
-    return receivers_.current_context();
+      return *current_target_frame_for_testing_;
+    return *receivers_.current_context();
+  }
+
+  // TODO(crbug.com/525108538): this is being migrated.
+  RETURNS_NONNULL RenderFrameHost* GetCurrentTargetFrame() {
+    return &CurrentTargetFrame();
   }
 
   // Reports the currently dispatching Message as bad and closes+removes the

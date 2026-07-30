@@ -104,6 +104,7 @@
 #include "net/proxy_resolution/configured_proxy_resolution_service.h"
 #include "net/proxy_resolution/proxy_config.h"
 #include "net/shared_dictionary/shared_dictionary_isolation_key.h"
+#include "net/ssl/ech_mode_getter.h"
 #include "net/ssl/ssl_config_service.h"
 #include "net/storage_access_api/status.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
@@ -210,6 +211,7 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/application_status_listener.h"
+#include "net/ssl/ech_mode_getter_android.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 namespace network {
@@ -2922,12 +2924,12 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
         std::move(params_->proxy_resolver_factory));
   }
 
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
   if (params_->system_proxy_resolver) {
-    builder.SetMojoWindowsSystemProxyResolver(
+    builder.SetMojoSystemProxyResolver(
         std::move(params_->system_proxy_resolver));
   }
-#endif  // BUILDFLAG(IS_WIN)
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_CHROMEOS)
   if (params_->dhcp_wpad_url_client) {
@@ -3005,10 +3007,17 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
     builder.EnableHttpCache(cache_params);
   }
 
+  std::unique_ptr<net::EchModeGetter> ech_mode_getter;
+  if (params_->use_platform_ech_policy) {
+#if BUILDFLAG(IS_ANDROID)
+    ech_mode_getter = std::make_unique<net::EchModeGetterAndroid>();
+#endif
+  }
   std::unique_ptr<SSLConfigServiceMojo> ssl_config_service =
       std::make_unique<SSLConfigServiceMojo>(
           std::move(params_->initial_ssl_config),
-          std::move(params_->ssl_config_client_receiver));
+          std::move(params_->ssl_config_client_receiver),
+          std::move(ech_mode_getter));
   SSLConfigServiceMojo* ssl_config_service_raw = ssl_config_service.get();
   builder.set_ssl_config_service(std::move(ssl_config_service));
 

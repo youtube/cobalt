@@ -36,9 +36,8 @@ const CGFloat kAccountCellSpacing = 7;
   return self;
 }
 
-- (void)configureCell:(LegacyTableViewCell*)cell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:cell withStyler:styler];
+- (void)configureCell:(LegacyTableViewCell*)cell {
+  [super configureCell:cell];
   TargetAccountCell* accountCell =
       base::apple::ObjCCastStrict<TargetAccountCell>(cell);
   accountCell.avatarBadge.image = self.avatar;

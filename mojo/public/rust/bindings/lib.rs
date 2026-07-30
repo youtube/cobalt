@@ -9,7 +9,6 @@
 //! performance-critical code may need to use the lower-level types in the
 //! `mojo_rust_system_bindings` crate instead.
 
-#[allow(unused)] // FOR_RELEASE: Remove when associated interfaces are fully implemented
 mod multiplex_router;
 
 mod marker_types;
@@ -23,3 +22,7 @@ pub mod message_header;
 pub mod message_pipe_watcher;
 pub mod receiver;
 pub mod remote;
+
+pub mod for_testing {
+    pub use crate::pending_associated_endpoint_parsing::DummyRegistrarForTesting;
+}

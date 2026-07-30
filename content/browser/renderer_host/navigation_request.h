@@ -38,6 +38,7 @@
 #include "content/browser/renderer_host/browsing_context_group_swap.h"
 #include "content/browser/renderer_host/commit_deferring_condition_runner.h"
 #include "content/browser/renderer_host/cookie_access_observers.h"
+#include "content/browser/renderer_host/initiator_navigation_state_impl.h"
 #include "content/browser/renderer_host/navigation_controller_impl.h"
 #include "content/browser/renderer_host/navigation_policy_container_builder.h"
 #include "content/browser/renderer_host/navigation_throttle_registry_impl.h"
@@ -113,6 +114,7 @@ namespace content {
 class AgentClusterKey;
 class CrossOriginEmbedderPolicyReporter;
 class FrameTreeNode;
+class InitiatorNavigationStateImpl;
 class NavigationUIData;
 class NavigationURLLoader;
 class NavigatorDelegate;
@@ -290,6 +292,8 @@ class CONTENT_EXPORT NavigationRequest
       bool was_opener_suppressed,
       const std::optional<blink::LocalFrameToken>& initiator_frame_token,
       int initiator_process_id,
+      scoped_refptr<InitiatorNavigationState> initiator_navigation_state,
+      bool should_ignore_initiator_policies_for_inheritance,
       const std::string& extra_headers,
       FrameNavigationEntry* frame_entry,
       NavigationEntryImpl* entry,
@@ -325,7 +329,8 @@ class CONTENT_EXPORT NavigationRequest
           renderer_ignore_duplicate_navigation_listener,
       mojo::PendingReceiver<
           blink::mojom::NavigationResumeDeferredCommitListener>
-          deferred_commit_resume_listener);
+          deferred_commit_resume_listener,
+      scoped_refptr<InitiatorNavigationState> initiator_navigation_state);
 
   // Creates a NavigationRequest for synchronous navigation that have committed
   // in the renderer process. Those are:
@@ -475,6 +480,8 @@ class CONTENT_EXPORT NavigationRequest
   int GetInitiatorProcessId() override;
   const std::optional<url::Origin>& GetInitiatorOrigin() override;
   const std::optional<GURL>& GetInitiatorBaseUrl() override;
+  scoped_refptr<InitiatorNavigationState> GetInitiatorNavigationState()
+      override;
   const std::vector<std::string>& GetDnsAliases() override;
   bool IsSameProcess() override;
   ProcessSelectionUserData& GetProcessSelectionUserData() override;
@@ -1884,6 +1891,8 @@ class CONTENT_EXPORT NavigationRequest
       std::optional<base::SafeRef<RenderFrameHostImpl>>
           rfh_restored_from_back_forward_cache,
       int initiator_process_id,
+      scoped_refptr<InitiatorNavigationState> initiator_navigation_state,
+      bool should_ignore_initiator_policies_for_inheritance,
       bool was_opener_suppressed,
       EmbedderIsolationInfo::Mode embedder_isolation_mode,
       bool is_embedder_initiated_fenced_frame_navigation = false,
@@ -2646,6 +2655,13 @@ class CONTENT_EXPORT NavigationRequest
       base::TimeTicks completion_time,
       blink::mojom::SubframeResourceLengthsPtr resource_lengths);
 
+  // Returns the impl version of the |initiator_navigation_state_| stored
+  // in this NavigationRequest.
+  InitiatorNavigationStateImpl* initiator_navigation_state_impl() {
+    return static_cast<InitiatorNavigationStateImpl*>(
+        initiator_navigation_state_.get());
+  }
+
   // Used for short-lived NavigationRequest created at DidCommit time for the
   // purpose of committing navigation that were not driven by the browser
   // process. This is used in only two cases:
@@ -3105,10 +3121,6 @@ class CONTENT_EXPORT NavigationRequest
   // The initiator Document's token, if it is present when this
   // NavigationRequest was created.
   std::optional<blink::DocumentToken> initiator_document_token_;
-
-  // The sandbox flags of the navigation's initiator, if any.
-  // WebSandboxFlags::kNone otherwise.
-  const network::mojom::WebSandboxFlags sandbox_flags_initiator_;
 
   // Whether a navigation in a new window had the opener suppressed. False if
   // the navigation is not in a new window. Can only be true for renderer
@@ -3706,6 +3718,10 @@ class CONTENT_EXPORT NavigationRequest
 
   // The resolved and validated full URL for the activation beacon.
   GURL activation_beacon_url_;
+
+  // A record of the state of the document that initiated the navigation. Null
+  // for browser intiiated navigations.
+  scoped_refptr<InitiatorNavigationState> initiator_navigation_state_;
 
   base::WeakPtrFactory<NavigationRequest> weak_factory_{this};
 };

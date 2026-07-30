@@ -40,12 +40,12 @@ class FilterStore {
   virtual void StoreAnnotation(const FilterAnnotation& annotation,
                                base::OnceCallback<void(bool)> callback);
 
-  // Asynchronously retrieves annotations for a specific task type.
+  // Asynchronously retrieves annotations for specific task types.
   // Only annotations created at or after `min_creation_time` are returned.
   // The callback is guaranteed to run safely on the calling sequence (UI
   // thread).
-  virtual void GetAnnotationsForTaskSortedByCreationTimestamp(
-      std::string task_type,
+  virtual void GetAnnotationsForTasksSortedByCreationTimestamp(
+      std::vector<std::string> task_types,
       base::OnceCallback<void(std::vector<FilterAnnotation>)> callback,
       size_t max_count,
       base::Time min_creation_time);

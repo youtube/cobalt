@@ -33,6 +33,7 @@
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_browser_agent.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_browser_agent_observer_bridge.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_service.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_service_observer_bridge.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_entry_flow_result.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_prefs.h"
@@ -75,6 +76,7 @@
 #import "url/gurl.h"
 
 @interface AppBarMediator () <GeminiBrowserAgentObserving,
+                              GeminiServiceObserving,
                               IdentityManagerObserverBridgeDelegate,
                               IncognitoStateObserver,
                               PrefObserverDelegate,
@@ -114,6 +116,7 @@
   std::unique_ptr<signin::IdentityManagerObserverBridge>
       _identityManagerObserver;
   raw_ptr<GeminiService> _geminiService;
+  std::unique_ptr<GeminiServiceObserverBridge> _geminiServiceObserver;
   raw_ptr<GeminiBrowserAgent> _geminiBrowserAgent;
   std::unique_ptr<GeminiBrowserAgentObserverBridge> _geminiObserver;
   raw_ptr<UrlLoadingBrowserAgent> _URLLoader;
@@ -180,6 +183,10 @@
     }
 
     _geminiService = geminiService;
+    if (_geminiService) {
+      _geminiServiceObserver =
+          std::make_unique<GeminiServiceObserverBridge>(self, _geminiService);
+    }
     _geminiBrowserAgent = geminiBrowserAgent;
     if (_geminiBrowserAgent) {
       _geminiObserver = std::make_unique<GeminiBrowserAgentObserverBridge>(
@@ -339,6 +346,7 @@
   _templateURLService = nullptr;
   _authenticationService = nullptr;
   _geminiService = nullptr;
+  _geminiServiceObserver.reset();
   _geminiBrowserAgent = nullptr;
   _geminiObserver.reset();
   _URLLoader = nullptr;
@@ -605,6 +613,12 @@
 }
 
 - (void)geminiAvailabilityChanged:(BOOL)available {
+  [self updateAssistantButton];
+}
+
+#pragma mark - GeminiServiceObserving
+
+- (void)geminiEligibilityDidChange {
   [self updateAssistantButton];
 }
 

@@ -20,9 +20,7 @@ StackSamplingProfiler::UnwindersFactory CreateCoreUnwindersFactory() {
 #if BUILDFLAG(IOS_STACK_PROFILER_ENABLED)
   return BindOnce([] {
     std::vector<std::unique_ptr<Unwinder>> unwinders;
-    if (__builtin_available(iOS 12.0, *)) {
-      unwinders.push_back(std::make_unique<FramePointerUnwinder>());
-    }
+    unwinders.push_back(std::make_unique<FramePointerUnwinder>());
     return unwinders;
   });
 #else   // BUILDFLAG(IOS_STACK_PROFILER_ENABLED)

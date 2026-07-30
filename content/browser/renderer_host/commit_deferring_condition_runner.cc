@@ -85,12 +85,12 @@ CommitDeferringConditionRunner::GetDeferringConditionForTesting() const {
     return nullptr;
   }
 
-  DCHECK(!conditions_.empty());
+  CHECK(!conditions_.empty(), base::NotFatalUntil::M152);
   return (*conditions_.begin()).get();
 }
 
 void CommitDeferringConditionRunner::ResumeProcessing() {
-  DCHECK(is_deferred_);
+  CHECK(is_deferred_, base::NotFatalUntil::M152);
   is_deferred_ = false;
   // End `condition->TraceEventName()` trace event.
   TRACE_EVENT_END("navigation", perfetto::Track::FromPointer(this));
@@ -99,7 +99,7 @@ void CommitDeferringConditionRunner::ResumeProcessing() {
   // This is resuming from a check that resolved asynchronously. The current
   // check is always at the front of the vector so pop it and then proceed with
   // the next one.
-  DCHECK(!conditions_.empty());
+  CHECK(!conditions_.empty(), base::NotFatalUntil::M152);
   conditions_.erase(conditions_.begin());
   ProcessConditions();
 }
@@ -116,17 +116,19 @@ void CommitDeferringConditionRunner::RegisterDeferringConditions(
     case CommitDeferringCondition::NavigationType::kPrerenderedPageActivation:
       // For prerendered page activation, conditions should run before start
       // navigation.
-      DCHECK_LT(navigation_request.state(),
-                NavigationRequest::WILL_START_NAVIGATION);
+      CHECK_LT(navigation_request.state(),
+               NavigationRequest::WILL_START_NAVIGATION,
+               base::NotFatalUntil::M152);
       break;
     case CommitDeferringCondition::NavigationType::kOther:
       // For other navigations, conditions should run before navigation commit,
       // which can be either a normal commit or an error page commit.
-      DCHECK(navigation_request.state() ==
-                 NavigationRequest::WILL_PROCESS_RESPONSE ||
-             navigation_request.state() ==
-                 NavigationRequest::WILL_FAIL_REQUEST ||
-             navigation_request.state() == NavigationRequest::CANCELING);
+      CHECK(navigation_request.state() ==
+                    NavigationRequest::WILL_PROCESS_RESPONSE ||
+                navigation_request.state() ==
+                    NavigationRequest::WILL_FAIL_REQUEST ||
+                navigation_request.state() == NavigationRequest::CANCELING,
+            base::NotFatalUntil::M152);
       break;
   }
 
@@ -136,7 +138,7 @@ void CommitDeferringConditionRunner::RegisterDeferringConditions(
           ->CreateDeferringConditionsForNavigationCommit(navigation_request,
                                                          navigation_type_);
   for (auto& condition : delegate_conditions) {
-    DCHECK(condition);
+    CHECK(condition, base::NotFatalUntil::M152);
     AddCondition(std::move(condition));
   }
 

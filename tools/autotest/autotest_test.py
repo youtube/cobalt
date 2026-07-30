@@ -8,6 +8,9 @@ import os
 import unittest
 from unittest import mock
 
+from click.testing import CliRunner
+import main
+
 import finders.file_finder as file_finder
 import finders.target_finder as target_finder
 import test_executor
@@ -687,6 +690,66 @@ class RunTestTargetsTest(TestCase):
     # BUT it should NOT contain the GTest-specific wrapper flags!
     self.assertNotIn('--fast-local-dev', second_call_args)
     self.assertNotIn('--single-variant', second_call_args)
+
+
+class MainExitCodeTest(TestCase):
+
+  def setUp(self):
+    super().setUp()
+    self.setUpPyfakefs()
+
+    # Create SRC_DIR and test file in fake fs
+    self.fs.create_dir(const.SRC_DIR)
+    self.test_file = os.path.join(const.SRC_DIR, 'foo_unittest.cc')
+    self.fs.create_file(self.test_file, contents='TEST(A, B) {}')
+
+    self.out_dir = os.path.join(const.SRC_DIR, 'out', 'Default')
+    self.fs.create_dir(self.out_dir)
+    self.fs.create_file(os.path.join(self.out_dir, 'build.ninja'))
+
+    # Mock RunCommand to simulate gn refs (matches style of FindTestTargetsTest)
+    self.mock_run_command = mock.patch(
+        'utils.command_util.RunCommand',
+        return_value='//chrome/test:unit_tests').start()
+
+    # Mock build and run
+    self.mock_build = mock.patch('main.test_executor.BuildTestTargets',
+                                 return_value=True).start()
+    self.mock_run = mock.patch('main.test_executor.RunTestTargets').start()
+
+    # Mock filters to avoid subprocess + fakefs issues
+    mock.patch('main.filters.BuildTestFilter',
+               return_value='DummyFilter.*').start()
+    mock.patch(
+        'main.filters.BuildPrefMappingTestFilter',
+        return_value='DummyPrefFilter.*',
+    ).start()
+
+    # Mock telemetry to avoid opentelemetry crash when not initialized
+    mock.patch('main.telemetry.RecordMainAttributes').start()
+
+    self.addCleanup(mock.patch.stopall)
+
+  def test_main_success(self):
+    self.mock_run.return_value = 0
+    runner = CliRunner()
+    result = runner.invoke(main.main, ['-C', self.out_dir, self.test_file])
+    self.assertEqual(result.exit_code, 0)
+    self.mock_run.assert_called_once()
+
+  def test_main_test_failure(self):
+    self.mock_run.return_value = 5
+    runner = CliRunner()
+    result = runner.invoke(main.main, ['-C', self.out_dir, self.test_file])
+    self.assertEqual(result.exit_code, 5)
+    self.mock_run.assert_called_once()
+
+  def test_main_build_failure(self):
+    self.mock_build.return_value = False
+    runner = CliRunner()
+    result = runner.invoke(main.main, ['-C', self.out_dir, self.test_file])
+    self.assertEqual(result.exit_code, 1)
+    self.mock_run.assert_not_called()
 
 
 if __name__ == '__main__':

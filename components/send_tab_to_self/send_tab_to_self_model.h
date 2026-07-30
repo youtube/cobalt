@@ -13,6 +13,7 @@
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/observer_list.h"
+#include "components/send_tab_to_self/metrics_util.h"
 #include "components/send_tab_to_self/page_context.h"
 #include "components/send_tab_to_self/send_tab_to_self_entry.h"
 #include "components/send_tab_to_self/send_tab_to_self_model_observer.h"
@@ -81,7 +82,8 @@ class SendTabToSelfModel {
       const std::string& target_device_cache_guid,
       const PageContext& context,
       NavigationHistory navigation_history,
-      base::OnceCallback<void(SendTabToSelfResult)> commit_confirmation) = 0;
+      base::OnceCallback<void(SendTabToSelfResult)> commit_confirmation,
+      ShareEntryPoint entry_point) = 0;
 
   // Dismiss entry with key `guid`. Allows clients to modify the state
   // of the model as driven by user behaviors.

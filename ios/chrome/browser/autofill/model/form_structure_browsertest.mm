@@ -376,6 +376,12 @@ namespace {
 // (i.e., "NNN_some_site.html") as a literal to the initializer_list given
 // to the kFailingTestNames constructor.
 bool IsFailingTestName(const std::string& test_name) {
+  if (test_name == "132_bug_469012.html") {
+    if (@available(iOS 27.0, *)) {
+      return false;
+    }
+    return true;
+  }
   static constexpr auto kFailingTestNames =
       base::MakeFixedFlatSet<std::string_view>({
           // TODO(crbug.com/40266699): These pages contains iframes. Until
@@ -395,7 +401,6 @@ bool IsFailingTestName(const std::string& test_name) {
           // regressions.
           "110_checkout_harryanddavid.com.html",
           "123_bug_459132.html",
-          "132_bug_469012.html",
       });
   return kFailingTestNames.contains(test_name);
 }

@@ -26,6 +26,7 @@
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_text_area_element.h"
 #include "third_party/blink/renderer/core/layout/layout_theme.h"
+#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 
 using ui::mojom::ImeTextSpanThickness;
 using ui::mojom::ImeTextSpanUnderlineStyle;
@@ -3638,6 +3639,7 @@ TEST_F(InputMethodControllerTest, AutoCompleteTextInputFlags) {
 }
 
 TEST_F(InputMethodControllerTest, AutoCorrectTextInputFlags) {
+  ScopedAutocorrectByDefaultForTest autocorrect_by_default(true);
   constexpr int default_flags = kWebTextInputFlagAutocapitalizeSentences;
   EXPECT_EQ(TextInputFlags("<input autocorrect=off>"),
             kWebTextInputFlagAutocorrectOff | default_flags);
@@ -3646,6 +3648,49 @@ TEST_F(InputMethodControllerTest, AutoCorrectTextInputFlags) {
   EXPECT_EQ(TextInputFlags("<input autocorrect=on>"),
             kWebTextInputFlagAutocorrectOn | default_flags);
   EXPECT_EQ(TextInputFlags("<input autocorrect=ON>"),
+            kWebTextInputFlagAutocorrectOn | default_flags);
+  // With no autocorrect attribute the used state is On (the spec default), but
+  // the IME flag layer treats Off as authoritative and emits On only for an
+  // explicit attribute, leaving the default-On case unset so platforms keep
+  // their own (enabled) default.
+  EXPECT_EQ(TextInputFlags("<input>"), default_flags);
+
+  // Step 1 of the used-autocorrection-state algorithm forces Off for URL,
+  // Email, and Password inputs regardless of the autocorrect attribute. The
+  // autocapitalize flag is also forced to None for these types, and password
+  // additionally carries the HasBeenPasswordField flag.
+  constexpr int email_url_flags =
+      kWebTextInputFlagAutocorrectOff | kWebTextInputFlagAutocapitalizeNone;
+  EXPECT_EQ(TextInputFlags("<input type=email>"), email_url_flags);
+  EXPECT_EQ(TextInputFlags("<input type=email autocorrect=on>"),
+            email_url_flags);
+  EXPECT_EQ(TextInputFlags("<input type=url>"), email_url_flags);
+  EXPECT_EQ(TextInputFlags("<input type=url autocorrect=on>"), email_url_flags);
+  constexpr int password_flags =
+      email_url_flags | kWebTextInputFlagHasBeenPasswordField;
+  EXPECT_EQ(TextInputFlags("<input type=password>"), password_flags);
+  EXPECT_EQ(TextInputFlags("<input type=password autocorrect=on>"),
+            password_flags);
+
+  // Step 3 of the algorithm: an autocapitalize-and-autocorrect inheriting
+  // element with no own autocorrect attribute inherits from its form owner.
+  // The input is associated with the form via the form= attribute so it can
+  // remain the document's last child (required by the TextInputFlags helper).
+  // Each assertion uses a distinct form id because TextInputFlags() appends
+  // to the same document and an earlier id would shadow a later one in DOM
+  // order when resolving the form= attribute.
+  EXPECT_EQ(
+      TextInputFlags("<form id=f1 autocorrect=off></form><input form=f1>"),
+      kWebTextInputFlagAutocorrectOff | default_flags);
+  // Inherited Off is emitted as the authoritative Off flag, but inherited On is
+  // left unset (no explicit attribute on the input): the used state is still On
+  // and resolves to On via the platform default.
+  EXPECT_EQ(TextInputFlags("<form id=f2 autocorrect=on></form><input form=f2>"),
+            default_flags);
+  // An explicit attribute on the input wins over the form (step 2
+  // short-circuits before step 3).
+  EXPECT_EQ(TextInputFlags("<form id=f3 autocorrect=off></form>"
+                           "<input form=f3 autocorrect=on>"),
             kWebTextInputFlagAutocorrectOn | default_flags);
 }
 

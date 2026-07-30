@@ -1403,9 +1403,6 @@ void Element::SetElementAttribute(const QualifiedName& name, Element* element) {
     if (AXObjectCache* cache = GetDocument().ExistingAXObjectCache()) {
       cache->HandleAttributeChanged(name, this);
     }
-    if (name == html_names::kCommandforAttr) {
-      GetDocument().MarkOverscrollCommandTargetsDirty();
-    }
   }
 }
 
@@ -1975,6 +1972,10 @@ bool Element::InterestGained(Element* target, InterestState state) {
 
   Event* interest_event = InterestEvent::Create(event_type_names::kInterest,
                                                 this, Event::Cancelable::kYes);
+  if (RuntimeEnabledFeatures::ShadowRootReferenceTargetEnabled(
+          GetExecutionContext())) {
+    interest_event->SetComposed(true);
+  }
   target->DispatchEvent(*interest_event);
   if (interest_event->defaultPrevented()) {
     return false;
@@ -2020,6 +2021,10 @@ bool Element::InterestLost(Element* target,
                             cancelable == InterestLostCancelable::kCancelable
                                 ? Event::Cancelable::kYes
                                 : Event::Cancelable::kNo);
+  if (RuntimeEnabledFeatures::ShadowRootReferenceTargetEnabled(
+          GetExecutionContext())) {
+    lose_interest_event->SetComposed(true);
+  }
   target->DispatchEvent(*lose_interest_event);
   if (lose_interest_event->defaultPrevented()) {
     return false;
@@ -3825,10 +3830,6 @@ void Element::AttributeChanged(const AttributeModificationParams& params) {
           ->RemovePendingParsingElement(GetIdAttribute(), this);
     }
 
-    if (isConnected() &&
-        (!params.old_value.empty() || !params.new_value.empty())) {
-      GetDocument().MarkOverscrollCommandTargetsDirty();
-    }
   } else if (name == html_names::kClassAttr) {
     if (params.old_value == params.new_value &&
         params.reason != AttributeModificationReason::kByMoveToNewDocument &&
@@ -4363,10 +4364,6 @@ Node::InsertionNotificationRequest Element::InsertedInto(
     }
   }
 
-  if (insertion_point.isConnected() && !GetIdAttribute().empty()) {
-    GetDocument().MarkOverscrollCommandTargetsDirty();
-  }
-
   return kInsertionDone;
 }
 
@@ -4555,9 +4552,6 @@ void Element::RemovedFrom(ContainerNode& insertion_point) {
     tracker->RemoveAllOverscroll();
   }
 
-  if (was_in_document && !GetIdAttribute().empty()) {
-    document.MarkOverscrollCommandTargetsDirty();
-  }
 }
 
 void Element::AttachColumnPseudoElements(AttachContext& context) {
@@ -5581,27 +5575,25 @@ StyleRecalcChange Element::RecalcOwnStyle(
   // If we have an overscroll container, but it's the wrong one or we shouldn't
   // have one, remove this element from the overscroll container (which should
   // also clear GetOverscrollContainer() on `this`).
-  if (GetOverscrollContainer() &&
-      (!new_style || !new_style->IsInternalOverscrollPositionAuto() ||
-       GetOverscrollContainer() != style_recalc_context.overscroll_container)) {
+  bool is_valid_overscroll_area =
+      new_style && new_style->IsInternalOverscrollPositionAuto() &&
+      style_recalc_context.parent_is_overscroll_container;
+  Element* parent = parentElement();
+
+  if (GetOverscrollContainer() && (!new_style || !is_valid_overscroll_area ||
+                                   GetOverscrollContainer() != parent)) {
     DetachOverscroll();
     // We may need to remove this element's ::-internal-overscroll-area-parent.
     child_change =
         child_change.EnsureAtLeast(StyleRecalcChange::kUpdatePseudoElements);
   }
-  // If we no longer an overscroll container, but need one, add this element to
-  // the context overscroll container.
-  if (!GetOverscrollContainer() && new_style &&
-      new_style->IsInternalOverscrollPositionAuto()) {
-    // Note that we don't do anything special if there is no overscroll
-    // container.
-    if (style_recalc_context.overscroll_container) {
-      style_recalc_context.overscroll_container->EnsureOverscrollAreaTracker()
-          .AddOverscroll(this);
-      // We need to add a ::-internal-overscroll-area-parent for this element.
-      child_change =
-          child_change.EnsureAtLeast(StyleRecalcChange::kUpdatePseudoElements);
-    }
+  // If we no longer have an overscroll container, but need one, add this
+  // element to the parent overscroll container.
+  if (!GetOverscrollContainer() && is_valid_overscroll_area) {
+    parent->EnsureOverscrollAreaTracker().AddOverscroll(this);
+    // We need to add a ::-internal-overscroll-area-parent for this element.
+    child_change =
+        child_change.EnsureAtLeast(StyleRecalcChange::kUpdatePseudoElements);
   }
 
   if (!new_style) {
@@ -5980,6 +5972,14 @@ void Element::RebuildLayoutTree(WhitespaceAttacher& whitespace_attacher) {
     if (has_pseudo_elements) {
       RebuildPseudoElementLayoutTree(kPseudoIdScrollMarkerGroupAfter,
                                      local_attacher);
+      RebuildPseudoElementLayoutTree(kPseudoIdScrollButtonBlockEnd,
+                                     local_attacher);
+      RebuildPseudoElementLayoutTree(kPseudoIdScrollButtonInlineEnd,
+                                     local_attacher);
+      RebuildPseudoElementLayoutTree(kPseudoIdScrollButtonInlineStart,
+                                     local_attacher);
+      RebuildPseudoElementLayoutTree(kPseudoIdScrollButtonBlockStart,
+                                     local_attacher);
     }
     LayoutObject* layout_object = GetLayoutObject();
     if (layout_object || !HasDisplayContentsStyle()) {
@@ -6010,14 +6010,6 @@ void Element::RebuildLayoutTree(WhitespaceAttacher& whitespace_attacher) {
       RebuildPseudoElementLayoutTree(kPseudoIdCheckMark, *child_attacher);
       RebuildPseudoElementLayoutTree(kPseudoIdBefore, *child_attacher);
       RebuildPseudoElementLayoutTree(kPseudoIdMarker, *child_attacher);
-      RebuildPseudoElementLayoutTree(kPseudoIdScrollButtonBlockEnd,
-                                     local_attacher);
-      RebuildPseudoElementLayoutTree(kPseudoIdScrollButtonInlineEnd,
-                                     local_attacher);
-      RebuildPseudoElementLayoutTree(kPseudoIdScrollButtonInlineStart,
-                                     local_attacher);
-      RebuildPseudoElementLayoutTree(kPseudoIdScrollButtonBlockStart,
-                                     local_attacher);
       RebuildPseudoElementLayoutTree(kPseudoIdScrollMarkerGroupBefore,
                                      local_attacher);
       RebuildPseudoElementLayoutTree(kPseudoIdBackdrop, *child_attacher);
@@ -6113,7 +6105,6 @@ void Element::RebuildOverscrollAreaLayoutTree(
     PseudoElement* pseudo_element =
         overscroll_area->GetPseudoElement(kPseudoIdOverscrollAreaParent);
     pseudo_element->RebuildLayoutTree(whitespace_attacher);
-    CHECK(pseudo_element->GetLayoutObject());
   }
 }
 
@@ -6131,7 +6122,6 @@ void Element::AttachOverscrollPseudoElements(AttachContext& context) {
     PseudoElement* pseudo_element =
         overscroll_area->GetPseudoElement(kPseudoIdOverscrollAreaParent);
     pseudo_element->AttachLayoutTree(context);
-    CHECK(pseudo_element->GetLayoutObject());
   }
 }
 
@@ -8944,14 +8934,6 @@ void Element::ActiveViewTransitionTypeStateChanged() {
           style_change_reason::kPseudoClass,
           style_change_extra_data::g_active_view_transition_type));
   PseudoStateChanged(CSSSelector::kPseudoActiveViewTransitionType);
-}
-
-void Element::OverscrollTargetStateChanged() {
-  SetNeedsStyleRecalc(kLocalStyleChange,
-                      StyleChangeReasonForTracing::CreateWithExtraData(
-                          style_change_reason::kPseudoClass,
-                          style_change_extra_data::g_overscroll_target));
-  PseudoStateChanged(CSSSelector::kPseudoOverscrollTarget);
 }
 
 bool Element::MatchesOverscrollOpen() const {

@@ -90,14 +90,6 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasRenderingContext,
 
   void ResetInternal() override;
 
-  base::ByteSize AllocatedBufferSize() const override {
-    auto* provider = GetResourceProvider();
-    if (provider) {
-      return provider->EstimatedSizeInBytes();
-    }
-    return base::ByteSize();
-  }
-
   CanvasRenderingContext2DSettings* getContextAttributes() const;
 
   ImageData* createImageData(ImageData*, ExceptionState&) const;
@@ -134,7 +126,7 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasRenderingContext,
                     ExceptionState&);
 
   virtual bool CanCreateResourceProvider() = 0;
-  virtual CanvasResourceProvider* GetOrCreateResourceProvider() = 0;
+  virtual bool InitializeResourceProvider() = 0;
 
   String lang() const;
   void setLang(const String&);
@@ -244,19 +236,14 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasRenderingContext,
     return color_params_.GetAlphaType() == kOpaque_SkAlphaType;
   }
   void DisableAccelerationForCanvas2D() final { DisableAcceleration(); }
-  bool Is2DCanvasAccelerated() const final;
   void PageVisibilityChanged() override {}
   void RestoreCanvasMatrixClipStack(cc::PaintCanvas* c) const final;
   void Reset() override;
   void DidFlush() override;
-  scoped_refptr<StaticBitmapImage> PaintRenderingResultsToSnapshot(
-      SourceDrawingBuffer source_buffer) final;
 
   void SetRestoreFailedCallbackForTesting(base::RepeatingClosure callback) {
     on_restore_failed_callback_for_testing_ = std::move(callback);
   }
-
-  bool IsResourceProviderValid();
 
   HeapTaskRunnerTimer<BaseRenderingContext2D>
       dispatch_context_lost_event_timer_;
@@ -295,9 +282,6 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasRenderingContext,
   void TryRestoreContextEvent(TimerBase*);
   void RestoreFromInvalidSizeIfNeeded() override;
 
-  virtual std::unique_ptr<CanvasResourceProvider> ReplaceResourceProvider(
-      std::unique_ptr<CanvasResourceProvider>) = 0;
-
   static const char kInheritString[];
 
   // Override to prematurely disable acceleration because of a readback.
@@ -313,7 +297,6 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasRenderingContext,
 
  private:
   virtual bool IsHibernating() const { return false; }
-  virtual CanvasResourceProvider* GetResourceProvider() const { NOTREACHED(); }
   virtual void EnableAccelerationIfPossible() {}
   void DrawTextInternal(const String& text,
                         double x,

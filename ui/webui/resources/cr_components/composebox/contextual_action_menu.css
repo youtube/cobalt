@@ -221,13 +221,24 @@ composebox-favicon-group {
   overflow-x: hidden;
   padding: 8px 0;
   position: fixed;
-  scrollbar-width: thin;
   width: 320px;
   z-index: 1;
 }
 
 .share-tabs-flyout::-webkit-scrollbar {
-  width: 4px;
+  width: 12px;
+}
+
+.share-tabs-flyout::-webkit-scrollbar-thumb {
+  background-color: var(--color-sys-surface-variant, #E1E3E1);
+  background-clip: padding-box;
+  border: 4px solid transparent;
+  border-radius: 100px;
+}
+
+.share-tabs-flyout::-webkit-scrollbar-track {
+  margin-bottom: 15px;
+  margin-top: 15px;
 }
 
 .share-tabs-flyout[hidden] {

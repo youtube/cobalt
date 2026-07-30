@@ -75,6 +75,7 @@ Maaaring hindi available ang ilang tampok at hindi mase-save ang mga pagbabago s
 <translation id="1820835682567584003">Sinusubukan ng Chromium na <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="183031085822326697">Sa susunod na buksan mo ang Chromium sa iyong <ph name="DEVICE_TYPE" />, makakakita ka ng prompt na gamitin ang Google Password Manager.</translation>
 <translation id="1838374766361614909">I-clear ang paghahanap</translation>
+<translation id="1846849503013521481">Para ma-secure ang iyong gawa sa Chromium, matitingnan o mapapamahalaan ng organisasyon mo ang ilang partikular na impormasyon</translation>
 <translation id="18552579716432081">Para ma-delete ang data mula sa pag-browse sa device lang na ito, habang pinapanatili ito sa iyong Google Account, <ph name="BEGIN_LINK" />mag-sign out sa Chromium<ph name="END_LINK" />.</translation>
 <translation id="1857749206890802997">I-download ang Chromium sa iyong telepono para magbukas o gumawa ng mga bagong grupo ng tab nang on the go.</translation>
 <translation id="185970820835152459">Puwede mong pamahalaan ang iyong mga naka-sign in na Google Account. Ginagamit ang iyong mga Google Account para sa Chromium browser, Play Store, Gmail, at higit pa. Kung gusto mong magdagdag ng account para sa ibang tao, tulad ng miyembro ng pamilya, magdagdag na lang ng bagong tao sa iyong <ph name="DEVICE_TYPE" />. <ph name="LINK_BEGIN" />Matuto pa<ph name="LINK_END" /></translation>
@@ -437,6 +438,7 @@ Kung hindi gumagana ang page na ito gaya ng inaasahan, subukang payagan ang pag-
 <translation id="5953657885167112863">I-personalize ang Chromium</translation>
 <translation id="5960071705175224773">Binago ng hindi kilalang app ang iyong mga setting</translation>
 <translation id="5968400720580217226">AI Mode</translation>
+<translation id="5977420883993828287">Na-pin na! Gamitin ulit ang Mga Gawaing Batay sa Konteksto mula sa toolbar</translation>
 <translation id="5986585015444752010">{COUNT,plural, =1{Awtomatikong isinasara ng iyong organisasyon ang Chromium kapag hindi ito nagamit nang 1 minuto.}one{Awtomatikong isinasara ng iyong organisasyon ang Chromium kapag hindi ito nagamit nang # minuto.}other{Awtomatikong isinasara ng iyong organisasyon ang Chromium kapag hindi ito nagamit nang # na minuto.}}</translation>
 <translation id="5987687638152509985">I-update ang Chromium upang simulan ang pag-sync</translation>
 <translation id="6003112304606738118">Nagda-download... <ph name="HOURS" /> (na) oras na lang ang natitira</translation>
@@ -541,6 +543,17 @@ Maaaring hindi available ang ilang tampok. Mangyaring tumukoy ng ibang direktory
 <translation id="6896758677409633944">Copy</translation>
 <translation id="6901631050894301805">Itakda ang Chromium bilang iyong default browser at i-pin ito sa taskbar mo</translation>
 <translation id="6909503629704372277">&amp;Pamahalaan ang mga profile sa Chromium</translation>
+<translation id="6919942714452658456">Magagawa ng aksyong ito na:
+          <ph name="LINE_BREAKS" />
+            • I-reset ang iyong page sa pagsisimula, page ng bagong tab, search engine, at mga naka-pin na tab
+            <ph name="LINE_BREAK" />
+            • I-disable ang mga extension
+            <ph name="LINE_BREAK" />
+            • I-delete ang cookies at iba pang pansamantalang data ng site
+            <ph name="LINE_BREAK" />
+            • I-reset ang mga shortcut ng Chromium
+            <ph name="LINE_BREAKS" />
+            Hindi maaapektuhan ang mga bookmark, history, at naka-save na password.</translation>
 <translation id="6934579572334859869">Magtanong sa Paghahanap ng Larawan tungkol sa larawang ito</translation>
 <translation id="6948031725951063910">Naabot mo ang limitasyon ng Chromium na <ph name="BOOKMARK_LIMIT" /> (na) bookmark, kaya hindi pa nase-save sa iyong Google Account ang ilan sa mga bookmark mo.
 
@@ -610,6 +623,7 @@ Hindi mabawi ng Chromium ang iyong mga setting.</translation>
 <translation id="7686590090926151193">Hindi Chromium ang iyong default na browser</translation>
 <translation id="7689606757190482937">I-sync at i-personalize ang Chromium sa lahat ng iyong device</translation>
 <translation id="7699779824407626136">Update sa Chromium</translation>
+<translation id="7700735928747402058">Nase-secure ang iyong gawa sa Chromium</translation>
 <translation id="7716950018788545737">Natapos na ang (mga) gawain.</translation>
 <translation id="77283119132245232">Nagbibigay ng mga serbisyo ng pag-trace ng system para sa <ph name="BROWSER_NAME" />. Kung naka-disable ang serbisyong ito, hindi isasama sa mga trace ng performance na ginawa ng browser ang mga system-wide na event gaya ng mga event na context switch at ready thread.</translation>
 <translation id="7745317241717453663">Ide-delete nito ang iyong data sa pag-browse sa device na ito. Upang makuha ang iyong data sa ibang pagkakataon, mag-sign in sa Chromium bilang <ph name="USER_EMAIL" />.</translation>
@@ -641,6 +655,7 @@ Hindi mabawi ng Chromium ang iyong mga setting.</translation>
 <translation id="8031714377769448844">I-pin ang Chromium sa iyong taskbar para mabilis itong mapuntahan anumang oras</translation>
 <translation id="80471789339884597">Salamat sa pag-install. Dapat mong i-restart ang lahat ng iyong browser bago gamitin ang <ph name="BUNDLE_NAME" />.</translation>
 <translation id="8054112667659782652">Palaging ipakita ang shortcut ng Paghahanap ng Larawan</translation>
+<translation id="8069447462453318634">Piliin ang "I-pin sa toolbar"</translation>
 <translation id="8077498902115777962">I-disable ang pagtakbo ng Chromium sa background para sa mga app</translation>
 <translation id="80790299200510644">Paghahanap ng Larawan</translation>
 <translation id="8086881907087796310">Hindi na-install dahil hindi natutugunan ng iyong computer ang mga minimum na requirement sa hardware.</translation>
@@ -722,6 +737,15 @@ Hindi mabawi ng Chromium ang iyong mga setting.</translation>
 <translation id="8907580949721785412">Sinusubukan ng Chromium na ipakita ang mga password. I-type ang password sa Windows upang payagan ito.</translation>
 <translation id="8932992523185907506">Hindi na Chromium ang iyong default browser. Gawing default browser ang Chromium?</translation>
 <translation id="8941642502866065432">Hindi ma-update ang Chromium</translation>
+<translation id="8944232836376404813">Magagawa ng aksyong ito na:
+          <ph name="LINE_BREAKS" />
+            • I-reset ang iyong page sa pagsisimula, page ng bagong tab, search engine, at mga naka-pin na tab
+            <ph name="LINE_BREAK" />
+            • I-disable ang mga extension
+            <ph name="LINE_BREAK" />
+            • I-delete ang cookies at iba pang pansamantalang data ng site
+            <ph name="LINE_BREAKS" />
+            Hindi maaapektuhan ang mga bookmark, history, at naka-save na password.</translation>
 <translation id="897581876605952338">Logo ng Chromium Enterprise</translation>
 <translation id="8981150672034878610">Hindi masimulan ang Chromium dahil nagkaproblema noong binubuksan ang iyong profile. Subukang i-restart ang Chromium.</translation>
 <translation id="8988036198400390003">Pamahalaan ang mga profile sa Chromium</translation>

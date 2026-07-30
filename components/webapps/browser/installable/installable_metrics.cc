@@ -245,6 +245,54 @@ bool InstallableMetrics::IsReportableInstallSource(WebappInstallSource source) {
 }
 
 // static
+bool InstallableMetrics::IsInstallSurfaceConsideredTrusted(
+    WebappInstallSource source) {
+  switch (source) {
+    case WebappInstallSource::SYSTEM_DEFAULT:
+    case WebappInstallSource::EXTERNAL_DEFAULT:
+    case WebappInstallSource::INTERNAL_DEFAULT:
+    case WebappInstallSource::EXTERNAL_POLICY:
+    case WebappInstallSource::SUB_APP:
+    case WebappInstallSource::MICROSOFT_365_SETUP:
+      return true;
+    case WebappInstallSource::AMBIENT_BADGE_BROWSER_TAB:
+    case WebappInstallSource::AMBIENT_BADGE_CUSTOM_TAB:
+    case WebappInstallSource::API_BROWSER_TAB:
+    case WebappInstallSource::API_CUSTOM_TAB:
+    case WebappInstallSource::ARC:
+    case WebappInstallSource::AUTOMATIC_PROMPT_BROWSER_TAB:
+    case WebappInstallSource::AUTOMATIC_PROMPT_CUSTOM_TAB:
+    case WebappInstallSource::CHROME_SERVICE:
+    case WebappInstallSource::DEVTOOLS:
+    case WebappInstallSource::EXTERNAL_LOCK_SCREEN:
+    case WebappInstallSource::KIOSK:
+    case WebappInstallSource::MENU_BROWSER_TAB:
+    case WebappInstallSource::MENU_CREATE_SHORTCUT:
+    case WebappInstallSource::MENU_CUSTOM_TAB:
+    case WebappInstallSource::ML_PROMOTION:
+    case WebappInstallSource::OMNIBOX_INSTALL_ICON:
+    case WebappInstallSource::PRELOADED_OEM:
+    case WebappInstallSource::PROFILE_MENU:
+    case WebappInstallSource::RICH_INSTALL_UI_WEBLAYER:
+    case WebappInstallSource::PRELOADED_DEFAULT:
+    case WebappInstallSource::ALMANAC_INSTALL_APP_URI:
+    case WebappInstallSource::WEBAPK_RESTORE:
+    case WebappInstallSource::OOBE_APP_RECOMMENDATIONS:
+    case WebappInstallSource::WEB_INSTALL:
+    case WebappInstallSource::CHROMEOS_HELP_APP:
+    case WebappInstallSource::IWA_GRAPHICAL_INSTALLER:
+    case WebappInstallSource::IWA_DEV_UI:
+    case WebappInstallSource::IWA_DEV_COMMAND_LINE:
+    case WebappInstallSource::IWA_EXTERNAL_POLICY:
+    case WebappInstallSource::IWA_SHIMLESS_RMA:
+    case WebappInstallSource::MANAGEMENT_API:
+    case WebappInstallSource::MIGRATION:
+    case WebappInstallSource::SYNC:
+      return false;
+  }
+}
+
+// static
 WebappInstallSource InstallableMetrics::GetInstallSource(
     content::WebContents* web_contents,
     InstallTrigger trigger) {

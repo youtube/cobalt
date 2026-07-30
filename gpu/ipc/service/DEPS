@@ -24,6 +24,12 @@ specific_include_rules = {
   "arc_shared_image_interface\\.cc": [
     "+chromeos/ash/experiences/arc/arc_features.h",
   ],
+  "dawn_texture_solid_color_pool\\.cc": [
+    "+third_party/microsoft_dxheaders/src/include/experimental-composition/experimental-dcomp.h",
+  ],
+  "dawn_texture_solid_color_pool_unittest\\.cc": [
+    "+media/base/win/d3d12_mocks.h",
+  ],
   "image_decode_accelerator_stub_unittest\\.cc": [
     "+skia/ext/skia_memory_dump_provider.h",
   ],

@@ -155,6 +155,7 @@ class SigninUiUtilTestBase : public SigninBrowserTestBase {
 
   void ExpectNoSigninStartedHistograms(
       const base::HistogramTester& histogram_tester) {
+    histogram_tester.ExpectTotalCount("Signin.SignIn.Started", 0);
     histogram_tester.ExpectTotalCount("Signin.SigninStartedAccessPoint", 0);
     histogram_tester.ExpectTotalCount(
         "Signin.SigninStartedAccessPoint.WithDefault", 0);
@@ -169,6 +170,8 @@ class SigninUiUtilTestBase : public SigninBrowserTestBase {
   void ExpectOneSigninStartedHistograms(
       const base::HistogramTester& histogram_tester,
       signin_metrics::PromoAction expected_promo_action) {
+    histogram_tester.ExpectUniqueSample("Signin.SignIn.Started", access_point_,
+                                        1);
     histogram_tester.ExpectUniqueSample("Signin.SigninStartedAccessPoint",
                                         access_point_, 1);
     switch (expected_promo_action) {
@@ -333,7 +336,6 @@ IN_PROC_BROWSER_TEST_P(SigninUiUtilTest_ReplaceSyncPromosWithSignInPromos,
     base::HistogramTester histogram_tester;
     base::UserActionTester user_action_tester;
 
-    ExpectNoSigninStartedHistograms(histogram_tester);
     EXPECT_EQ(0, user_action_tester.GetActionCount(
                      "Signin_Signin_FromBookmarkBubble"));
 
@@ -349,7 +351,7 @@ IN_PROC_BROWSER_TEST_P(SigninUiUtilTest_ReplaceSyncPromosWithSignInPromos,
         GetIdentityManager()->FindExtendedAccountInfoByAccountId(account_id),
         is_default_promo_account);
 
-    ExpectOneSigninStartedHistograms(histogram_tester, expected_promo_action);
+    ExpectNoSigninStartedHistograms(histogram_tester);
     EXPECT_EQ(1, user_action_tester.GetActionCount(
                      "Signin_Signin_FromBookmarkBubble"));
   }
@@ -783,31 +785,34 @@ IN_PROC_BROWSER_TEST_P(SigninUiUtilTest_ReplaceSyncPromosWithSignInPromos,
           signin_metrics::AccessPoint::kStartPage,
           signin_metrics::SourceForRefreshTokenOperation::kUnknown);
 
-  for (bool is_default_promo_account : {true, false}) {
-    base::HistogramTester histogram_tester;
-    base::UserActionTester user_action_tester;
+  const bool is_default_promo_account = true;
+  base::HistogramTester histogram_tester;
+  base::UserActionTester user_action_tester;
 
+  EXPECT_EQ(
+      0, user_action_tester.GetActionCount("Signin_Signin_FromBookmarkBubble"));
+
+  signin_metrics::PromoAction expected_promo_action =
+      is_default_promo_account
+          ? signin_metrics::PromoAction::PROMO_ACTION_WITH_DEFAULT
+          : signin_metrics::PromoAction::PROMO_ACTION_NOT_DEFAULT;
+  ExpectTurnSyncOn(
+      signin_metrics::AccessPoint::kBookmarkBubble, expected_promo_action,
+      account_id, TurnSyncOnHelper::SigninAbortedMode::KEEP_ACCOUNT_ON_WEB_ONLY,
+      /*is_sync_promo=*/false, /*user_already_signed_in=*/false);
+  EnableSync(
+      GetIdentityManager()->FindExtendedAccountInfoByAccountId(account_id),
+      is_default_promo_account);
+
+  if (syncer::IsReplaceSyncPromosWithSignInPromosEnabled()) {
+    histogram_tester.ExpectBucketCount(
+        "Signin.SignIn.Started", signin_metrics::AccessPoint::kBookmarkBubble,
+        1);
+  } else {
     ExpectNoSigninStartedHistograms(histogram_tester);
-    EXPECT_EQ(0, user_action_tester.GetActionCount(
-                     "Signin_Signin_FromBookmarkBubble"));
-
-    signin_metrics::PromoAction expected_promo_action =
-        is_default_promo_account
-            ? signin_metrics::PromoAction::PROMO_ACTION_WITH_DEFAULT
-            : signin_metrics::PromoAction::PROMO_ACTION_NOT_DEFAULT;
-    ExpectTurnSyncOn(
-        signin_metrics::AccessPoint::kBookmarkBubble, expected_promo_action,
-        account_id,
-        TurnSyncOnHelper::SigninAbortedMode::KEEP_ACCOUNT_ON_WEB_ONLY,
-        /*is_sync_promo=*/false, /*user_already_signed_in=*/false);
-    EnableSync(
-        GetIdentityManager()->FindExtendedAccountInfoByAccountId(account_id),
-        is_default_promo_account);
-
-    ExpectOneSigninStartedHistograms(histogram_tester, expected_promo_action);
-    EXPECT_EQ(1, user_action_tester.GetActionCount(
-                     "Signin_Signin_FromBookmarkBubble"));
   }
+  EXPECT_EQ(
+      1, user_action_tester.GetActionCount("Signin_Signin_FromBookmarkBubble"));
 }
 
 IN_PROC_BROWSER_TEST_P(SigninUiUtilTest_ReplaceSyncPromosWithSignInPromos,

@@ -69,6 +69,7 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab.TabState;
 import org.chromium.chrome.browser.tab.TabStateAttributes;
+import org.chromium.chrome.browser.tab.TabStateAttributesRegistry;
 import org.chromium.chrome.browser.tab.TabStateExtractor;
 import org.chromium.chrome.browser.tab.WebContentsState;
 import org.chromium.chrome.browser.tab.state.ShoppingPersistedTabData;
@@ -703,7 +704,8 @@ public class TabPersistentStoreTest {
         CallbackHelper helper = new CallbackHelper();
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    TabStateAttributes.from(tabs[0])
+                    TabStateAttributesRegistry.getAttributesFor(
+                                    tabs[0], TabPersistentStoreImpl.class)
                             .setStateForTesting(TabStateAttributes.DirtinessState.DIRTY);
                     store.getTabsToSaveForTesting().add(tabs[0]);
                     store.saveState();

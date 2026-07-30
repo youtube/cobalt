@@ -150,7 +150,7 @@ def setup_test_environment(args, chrome_version):
     common.terminate_old_chromedriver(args)
     remote_app_path, actual_version = common.install_and_setup_chrome(
         args, chrome_version)
-    common.wait_for_chromedriver(args)
+    common.wait_for_chromedriver(args, actual_version)
     tunnel_proc = common.start_ssh_tunnel(args)
 
     chrome_options = ChromeOptions()
@@ -538,7 +538,7 @@ def main():
             except Exception: # pylint: disable=broad-exception-caught
                 logging.exception("Error during video %s test",
                                   video['name'])
-                common.dump_remote_logs(args)
+                common.dump_remote_logs(args, actual_version)
                 raise
             finally:
                 common.teardown_recording_process(rec_proc)
@@ -550,6 +550,7 @@ def main():
         if FUCHSIA_INFRA_AVAILABLE:
             monitors.dump(LOG_DIR)
         common.finalize_results(actual_version)
+        common.cleanup_binaries(args, actual_version)
         common.teardown_test_environment(driver, tunnel_proc, args)
 
 if __name__ == '__main__':

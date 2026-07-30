@@ -17,8 +17,20 @@
 #include "content/public/test/network_service_test_helper.h"
 #include "ui/base/test/ui_controls.h"
 
-namespace {
-bool NativeInit(base::android::LibraryProcessType) {
+bool NativeInitializationHook(base::android::LibraryProcessType process_type) {
+  // This needs to be done before base::TestSuite::Initialize() is called,
+  // as it also tries to set MessagePumpForUIFactory.
+  base::MessagePump::OverrideMessagePumpForUIFactory(
+      []() -> std::unique_ptr<base::MessagePump> {
+        return std::make_unique<content::NestedMessagePumpAndroid>();
+      });
+
+  if (!content::android::OnJNIOnLoadInit()) {
+    return false;
+  }
+
+  content::SetContentMainDelegate(new ChromeTestChromeMainDelegate());
+
   // Setup a working test environment for the network service in case it's used.
   // Only create this object in the utility process, so that its members don't
   // interfere with other test objects in the browser process.
@@ -30,27 +42,11 @@ bool NativeInit(base::android::LibraryProcessType) {
   ui_controls::EnableUIControls();
   return true;
 }
-}  // namespace
 
 // This is called by the VM when the shared library is first loaded.
 JNI_EXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   base::android::InitVM(vm);
-  // We avoid calling chrome's android::OnJNIOnLoadInit() so we can inject
-  // our own ChromeMainDelegate, and avoid it setting the wrong version number.
-  // We jump directly to the content method instead, which chrome's would call
-  // also.
-  if (!content::android::OnJNIOnLoadInit())
-    return -1;
-
-  // This needs to be done before base::TestSuite::Initialize() is called,
-  // as it also tries to set MessagePumpForUIFactory.
-  base::MessagePump::OverrideMessagePumpForUIFactory(
-      []() -> std::unique_ptr<base::MessagePump> {
-        return std::make_unique<content::NestedMessagePumpAndroid>();
-      });
-
-  content::SetContentMainDelegate(new ChromeTestChromeMainDelegate());
-  base::android::SetNativeInitializationHook(NativeInit);
+  base::android::SetNativeInitializationHook(NativeInitializationHook);
 
   return JNI_VERSION_1_4;
 }

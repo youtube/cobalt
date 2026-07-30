@@ -25,7 +25,6 @@
 #include "build/build_config.h"
 #include "components/download/public/common/download_url_parameters.h"
 #include "components/input/native_web_keyboard_event.h"
-#include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/media/audio_stream_monitor.h"
 #include "content/browser/media/media_web_contents_observer.h"
 #include "content/browser/renderer_host/navigation_entry_impl.h"
@@ -33,6 +32,7 @@
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/renderer_host/render_frame_proxy_host.h"
 #include "content/browser/renderer_host/render_view_host_impl.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/browser/site_instance_impl.h"
 #include "content/browser/storage_partition_impl.h"
 #include "content/common/content_navigation_policy.h"
@@ -96,6 +96,7 @@
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/geometry/skia_conversions.h"
+#include "ui/native_theme/native_theme.h"
 #include "url/gurl.h"
 #include "url/url_constants.h"
 
@@ -3789,6 +3790,63 @@ TEST_F(WebContentsImplTest, OnColorProviderChangedTriggersPageBroadcast) {
   color_provider_source.SwapMaps();
   color_provider_source.NotifyColorProviderChanged();
   mock_page_broadcast.FlushForTesting();
+}
+
+// Regression test: a re-entrant OnColorProviderChanged() during teardown must
+// not re-attach to the default source and recurse into
+// HandleColorRelatedStateChanges(), which would dereference the partially-freed
+// primary frame tree (use after free).
+TEST_F(WebContentsImplTest, OnColorProviderChangedNoOpDuringDestruction) {
+  mojo::AssociatedRemote<blink::mojom::PageBroadcast> broadcast_remote;
+  testing::NiceMock<MockPageBroadcast> mock_page_broadcast(
+      broadcast_remote.BindNewEndpointAndPassDedicatedReceiver());
+  contents()->GetRenderViewHost()->BindPageBroadcast(broadcast_remote.Unbind());
+
+  {
+    TestColorProviderSource color_provider_source;
+    contents()->SetColorProviderSource(&color_provider_source);
+    mock_page_broadcast.FlushForTesting();
+    ::testing::Mock::VerifyAndClearExpectations(&mock_page_broadcast);
+
+    contents()->is_being_destroyed_ = true;
+
+    // Letting `color_provider_source` go out of scope fires
+    // OnColorProviderSourceDestroying() -> Observe(nullptr) ->
+    // OnColorProviderChanged() while the source is null.
+    EXPECT_CALL(mock_page_broadcast, UpdateColorProviders(::testing::_))
+        .Times(0);
+  }
+
+  // The guard should have short-circuited the re-attach, leaving the source
+  // null.
+  EXPECT_EQ(contents()->GetColorProviderSource(), nullptr);
+
+  // A direct call must also be a no-op while the flag is set.
+  contents()->OnColorProviderChanged();
+  mock_page_broadcast.FlushForTesting();
+  EXPECT_EQ(contents()->GetColorProviderSource(), nullptr);
+
+  // Restore the flag so ~WebContentsImpl's CHECK(!IsBeingDestroyed()) is not
+  // tripped during test teardown.
+  contents()->is_being_destroyed_ = false;
+}
+
+// Companion regression test for the other caller of
+// HandleColorRelatedStateChanges(): OnNativeThemeUpdated() must also be a no-op
+// while the WebContents is being destroyed.
+TEST_F(WebContentsImplTest, OnNativeThemeUpdatedNoOpDuringDestruction) {
+  mojo::AssociatedRemote<blink::mojom::PageBroadcast> broadcast_remote;
+  testing::NiceMock<MockPageBroadcast> mock_page_broadcast(
+      broadcast_remote.BindNewEndpointAndPassDedicatedReceiver());
+  contents()->GetRenderViewHost()->BindPageBroadcast(broadcast_remote.Unbind());
+
+  contents()->is_being_destroyed_ = true;
+
+  EXPECT_CALL(mock_page_broadcast, UpdateColorProviders(::testing::_)).Times(0);
+  contents()->OnNativeThemeUpdated(ui::NativeTheme::GetInstanceForWeb());
+  mock_page_broadcast.FlushForTesting();
+
+  contents()->is_being_destroyed_ = false;
 }
 
 TEST_F(WebContentsImplTest, InvalidNetworkHandleAsDefault) {

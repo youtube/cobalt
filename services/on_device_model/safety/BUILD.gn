@@ -4,6 +4,9 @@
 
 if (!is_fuchsia) {
   source_set("bert_safety_op_resolver") {
+    _configs = configs
+    configs = []
+    configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
     sources = [
       "bert_safety_op_resolver.cc",
       "bert_safety_op_resolver.h",
@@ -17,6 +20,9 @@ if (!is_fuchsia) {
   }
 
   source_set("bert_safety_model") {
+    _configs = configs
+    configs = []
+    configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
     sources = [
       "bert_safety_model.cc",
       "bert_safety_model.h",

@@ -252,6 +252,7 @@ SigninCoordinatorResult HistorySyncResultToSigninCoordinatorResult(
                              browser:self.browser
                         contextStyle:self.contextStyle
                          accessPoint:self.accessPoint
+                confirmChangeProfile:nil
                 prepareChangeProfile:nil
                 continuationProvider:_continuationProvider];
       __weak __typeof(self) weakSelf = self;

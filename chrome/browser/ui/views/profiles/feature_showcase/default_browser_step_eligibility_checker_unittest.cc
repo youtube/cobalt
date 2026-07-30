@@ -98,7 +98,7 @@ TEST_F(DefaultBrowserStepEligibilityCheckerTest, CheckFinishedNotDefault) {
   checker.SetStateForTesting(shell_integration::NOT_DEFAULT);
   base::test::TestFuture<bool> future;
   checker.CheckEligibility(profile(), future.GetCallback());
-  EXPECT_TRUE(future.Get());
+  EXPECT_EQ(future.Get(), shell_integration::CanSetAsDefaultBrowser());
 }
 
 TEST_F(DefaultBrowserStepEligibilityCheckerTest,
@@ -109,7 +109,7 @@ TEST_F(DefaultBrowserStepEligibilityCheckerTest,
   checker.SetStateForTesting(shell_integration::OTHER_MODE_IS_DEFAULT);
   base::test::TestFuture<bool> future;
   checker.CheckEligibility(profile(), future.GetCallback());
-  EXPECT_TRUE(future.Get());
+  EXPECT_EQ(future.Get(), shell_integration::CanSetAsDefaultBrowser());
 }
 
 TEST_F(DefaultBrowserStepEligibilityCheckerTest, CheckFinishedUnknownDefault) {

@@ -21,8 +21,8 @@ namespace actor {
 
 class ActorTool;
 class ActorToolRequest;
-class ObservationDelayController;
 class ToolDelegate;
+class ToolController;
 
 // Executes a sequence of actions moving through the state machine.
 //
@@ -116,10 +116,12 @@ class ActorEngine {
   // Callback for when UI pre-invoke is finished.
   void FinishedUiPreInvoke(ActionResult result);
 
+  // Callback invoked when tool validation is complete.
+  void OnToolValidationComplete(ToolExecutionResult result);
+
   // Callback invoked when a tool completes execution, which bridges the tool's
   // `ToolExecutionResult` into an `ActionResult`.
-  void OnToolExecutionComplete(ActorTool* tool,
-                               ToolExecutionResult tool_result);
+  void OnToolExecutionComplete(ToolExecutionResult result);
 
   // Callback for when tool execution is finished.
   void FinishedToolInvoke(ActionResult result);
@@ -137,10 +139,6 @@ class ActorEngine {
 
   // Returns the index of the action currently in progress.
   size_t InProgressActionIndex() const;
-
-  // The current tool being executed. This is reset when the action is completed
-  // or the ActorEngine is destroyed.
-  std::unique_ptr<ActorTool> current_tool_;
 
   // The current state of the execution engine.
   State state_;
@@ -164,14 +162,9 @@ class ActorEngine {
   // implementation.
   std::vector<ActionResult> action_results_;
 
-  // Current async entry for journal logging.
-  std::unique_ptr<AggregatedJournal::PendingAsyncEntry> current_async_entry_;
-
-  // This is used to add delays after tool invocations to ensure that the page
-  // is ready for another tool invocation.
-  //
-  // TODO(crbug.com/504625981): Replace this with a ToolController once setup.
-  std::unique_ptr<ObservationDelayController> observation_delay_controller_;
+  // The state machine responsible for validating, creating, invoking and
+  // post-invocation of the current tool.
+  std::unique_ptr<ToolController> tool_controller_;
 
   // The delegate to notify of execution milestones.
   raw_ptr<ExecutionUpdatesDelegate> execution_updates_delegate_;

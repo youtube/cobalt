@@ -9,11 +9,11 @@
 The top-level lifecycle of a Dictation interaction. A session begins when the
 user invokes the feature (e.g., via a context menu) and ends when the UI is
 dismissed or the task is completed. A session coordinates one or more
-transcription streams.
+speech recognition streams.
 
 ### Stream
 
-A single period of audio capture and transcription.
+A single period of audio capture and speech recognition.
 
 * A stream is always bound to exactly one Target.
 * Only one stream can be "live" (actively capturing microphone input) at a time.
@@ -52,3 +52,66 @@ The final operation where the stable, transformed transcription is inserted into
 the target. A commit only occurs once the text is finalized (i.e., after all
 transcriptions and transformations are complete). For MVP, this is an atomic
 operation at the end of a stream.
+
+## Implementation
+
+Speech recognition is provided by a cloud hosted service. The implementation in
+Chrome connects to this service via a component extension we call the
+"connector" or "connector extension". The core dictation logic in the browser
+process communicates with the connector extension via a private extension API.
+
+The extension itself is built outside of the chromium source tree and provided
+via the component updater.
+
+## Implementation Key Files
+
+### //chrome/browser/dictation
+
+Core dictation logic
+
+* dictation_keyed_service.h - profile-global object,
+  always available if the feature is enabled to serve as the entrypoint and
+  central coordinator class.
+* session_controller.h - Implements a dictation
+  session which coordinates the speech recognition stream and UI.
+* session_ui_impl.h - Implements the UI for a
+  dictation session. This object controls the browser UI views and is the
+  handler logic for all UI triggered actions.
+* listener_stream_provider.h - Implements the
+  speech recognition stream. Starts a connection to the recognition service via
+  the connector extension using the private dictation API.
+* dictation_multiplexer.h - Associates each stream
+  provider with an id and receives messages from the connector extension via
+  the private dictation API. This object is responsible for routing the
+  messages to the appropriate stream provider object.
+
+### chrome/browser/extensions/api/dictation_private/
+
+C++ implementation of the private extension API used to communicate between
+core dictation impl in the browser and the connector extension.
+
+* dictation_private_api.h - C++ implementation of the privateDictation API
+  called by the extension
+
+### chrome/common/extensions/api/
+
+The IDL defining the API exposed to the connector extension
+
+* chrome/common/extensions/api/dictation_private.webidl
+
+(See https://crrev.com/c/7871142 for all the files touched relevant to the
+extension API)
+
+### chrome/browser/ui/views/dictation/
+
+Views UI components
+
+* dictation_bubble_ui.h - The primary UI widget which implements a toast-like
+  bubble UI in which the dictation session takes place.
+
+### chrome/browser/renderer_context_menu/
+
+* dictation_menu_observer.h - Implements the start dictation context menu item
+
+* render_view_context_menu.cc - Where the context menu item is registered in
+  the menu

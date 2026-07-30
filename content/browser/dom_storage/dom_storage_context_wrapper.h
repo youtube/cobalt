@@ -17,7 +17,7 @@
 #include "components/services/storage/public/mojom/local_storage_control.mojom.h"
 #include "components/services/storage/public/mojom/session_storage_control.mojom.h"
 #include "components/services/storage/public/mojom/storage_usage_info.mojom.h"
-#include "content/browser/child_process_security_policy_impl.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/dom_storage_context.h"
 #include "mojo/public/cpp/bindings/message.h"

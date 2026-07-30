@@ -249,9 +249,23 @@ void MeasureTpmOperationsInternal(UnexportableKeyProvider::Config config) {
                         wrapped_key_creation_timer.Elapsed(),
                         wrapped_key != nullptr);
 
+  base::ElapsedTimer attestation_key_creation_timer;
   auto attestation_key =
       wrap_delete_key(provider->GenerateAttestationKeySlowly(kAllAlgorithms));
+  ReportUmaTpmOperation(
+      TPMOperation::kNewAttestationKeyCreation, supported_algo,
+      attestation_key_creation_timer.Elapsed(), attestation_key != nullptr);
+
   if (attestation_key) {
+    base::ElapsedTimer wrapped_attestation_key_creation_timer;
+    auto wrapped_attestation_key =
+        wrap_delete_key(provider->FromWrappedAttestationKeySlowly(
+            attestation_key->GetWrappedKey()));
+    ReportUmaTpmOperation(TPMOperation::kWrappedAttestationKeyCreation,
+                          supported_algo,
+                          wrapped_attestation_key_creation_timer.Elapsed(),
+                          wrapped_attestation_key != nullptr);
+
     base::ElapsedTimer certification_timer;
     std::optional<AttestationStatement> certification =
         attestation_key->CertifySlowly(*current_key, {5, 6, 7, 8});
@@ -314,6 +328,12 @@ std::string OperationToString(TPMOperation operation) {
       return "KeyDeletion";
     case TPMOperation::kKeyCertification:
       return "KeyCertification";
+    case TPMOperation::kNewAttestationKeyCreation:
+      return "NewAttestationKeyCreation";
+    case TPMOperation::kWrappedAttestationKeyCreation:
+      return "WrappedAttestationKeyCreation";
+    case TPMOperation::kWrappedAttestationKeyExport:
+      return "WrappedAttestationKeyExport";
   }
 }
 

@@ -21,9 +21,8 @@
 
 #pragma mark TableViewItem
 
-- (void)configureCell:(LegacyTableViewCell*)cell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:cell withStyler:styler];
+- (void)configureCell:(LegacyTableViewCell*)cell {
+  [super configureCell:cell];
   TableViewCellContentConfiguration* contentConfiguration =
       [[TableViewCellContentConfiguration alloc] init];
   contentConfiguration.title = self.text;

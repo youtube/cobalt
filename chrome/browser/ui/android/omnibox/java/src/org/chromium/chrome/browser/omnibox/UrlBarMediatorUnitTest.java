@@ -14,7 +14,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import android.content.ClipData;
@@ -25,16 +24,11 @@ import android.text.Selection;
 import android.text.SpannableStringBuilder;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 
-import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -44,6 +38,7 @@ import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.search_engines.settings.SiteSearchSettings;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.components.browser_ui.settings.SettingsNavigation;
+import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.OmniboxFeatureList;
 import org.chromium.components.omnibox.OmniboxUrlEmphasizer;
 import org.chromium.components.omnibox.OmniboxUrlEmphasizer.UrlEmphasisColorSpan;
@@ -57,9 +52,6 @@ import org.chromium.url.GURL;
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class UrlBarMediatorUnitTest {
-    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
-    @Mock Callback<Boolean> mFocusChangeCallback;
-
     Context mContext;
     PropertyModel mModel;
     UrlBarMediator mMediator;
@@ -74,7 +66,6 @@ public class UrlBarMediatorUnitTest {
                 new UrlBarMediator(
                         ContextUtils.getApplicationContext(),
                         mModel,
-                        mFocusChangeCallback,
                         /* textChangeListener= */ null,
                         /* richTextChangeListener= */ null,
                         /* keyDownListener= */ null) {
@@ -386,6 +377,7 @@ public class UrlBarMediatorUnitTest {
 
     @Test
     public void hintVisibility() {
+        var input = new AutocompleteInput();
         UrlBarData baseData =
                 UrlBarData.create(
                         new GURL("http://www.example.com"),
@@ -396,7 +388,7 @@ public class UrlBarMediatorUnitTest {
         mMediator.setUrlBarHintText("Hint 1");
         assertTrue(mModel.get(UrlBarProperties.SHOW_HINT_TEXT));
         mMediator.setUrlBarData(baseData, ScrollType.NO_SCROLL, TextSelection.SELECT_END);
-        mModel.get(UrlBarProperties.FOCUS_CHANGE_CALLBACK).onResult(true);
+        mMediator.beginInput(input);
         mModel.get(UrlBarProperties.TEXT_CHANGE_LISTENER).onResult("");
 
         assertTrue(mModel.get(UrlBarProperties.SHOW_HINT_TEXT));
@@ -406,7 +398,7 @@ public class UrlBarMediatorUnitTest {
         mMediator.setUrlBarData(UrlBarData.EMPTY, ScrollType.NO_SCROLL, TextSelection.SELECT_END);
         assertTrue(mModel.get(UrlBarProperties.SHOW_HINT_TEXT));
 
-        mModel.get(UrlBarProperties.FOCUS_CHANGE_CALLBACK).onResult(false);
+        mMediator.endInput();
         assertTrue(mModel.get(UrlBarProperties.SHOW_HINT_TEXT));
     }
 
@@ -485,18 +477,6 @@ public class UrlBarMediatorUnitTest {
                         UrlBar.ScrollType.SCROLL_TO_TLD,
                         TextSelection.SELECT_END));
         assertTrue(mModel.get(UrlBarProperties.TEXT_STATE).originChanged);
-    }
-
-    @Test
-    public void reparentingDropsFocusChangeEvents() {
-        mMediator.startReparenting();
-        mModel.get(UrlBarProperties.FOCUS_CHANGE_CALLBACK).onResult(true);
-        mModel.get(UrlBarProperties.FOCUS_CHANGE_CALLBACK).onResult(false);
-        verifyNoInteractions(mFocusChangeCallback);
-
-        mMediator.finishReparenting();
-        mModel.get(UrlBarProperties.FOCUS_CHANGE_CALLBACK).onResult(true);
-        verify(mFocusChangeCallback).onResult(true);
     }
 
     @Test

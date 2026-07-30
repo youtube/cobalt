@@ -831,3 +831,21 @@ TEST_F(SaveUpdateBubbleControllerTest, ShowsUpdateEvenIfNoExistingCredential) {
 
   EXPECT_TRUE(controller()->IsCurrentStateUpdate());
 }
+
+TEST_F(SaveUpdateBubbleControllerTest, IsSavingBlockedByTrustedVaultError) {
+  PretendPasswordWaiting();
+  EXPECT_CALL(*delegate(), IsSavingBlockedByTrustedVaultError())
+      .WillOnce(Return(true));
+  EXPECT_TRUE(controller()->IsSavingBlockedByTrustedVaultError());
+
+  EXPECT_CALL(*delegate(), IsSavingBlockedByTrustedVaultError())
+      .WillOnce(Return(false));
+  EXPECT_FALSE(controller()->IsSavingBlockedByTrustedVaultError());
+}
+
+TEST_F(SaveUpdateBubbleControllerTest, OnTrustedVaultUnlockClicked) {
+  PretendPasswordWaiting();
+  EXPECT_CALL(*delegate(), StartTrustedVaultErrorResolutionFlow());
+  EXPECT_CALL(*delegate(), SavePasswordAfterTrustedVaultErrorResolution());
+  controller()->OnTrustedVaultUnlockClicked();
+}

@@ -23,6 +23,7 @@
 #include "chrome/browser/actor/actor_tab_data.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_task_metadata.h"
+#include "chrome/browser/actor/actor_util.h"
 #include "chrome/browser/actor/enterprise_policy_checker.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/tab_observation_strategy.h"
@@ -46,6 +47,7 @@
 #include "components/actor/core/journal_details_builder.h"
 #include "components/actor/core/task_id.h"
 #include "components/actor/public/mojom/actor_types.mojom.h"
+#include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/download_item_utils.h"
 #include "content/public/browser/navigation_handle.h"
@@ -498,10 +500,21 @@ void ActorKeyedService::RequestTabObservation(
 
               if (fetch_result.screenshot_result.has_value()) {
                 auto& data = fetch_result.screenshot_result->screenshot_data;
+                std::optional<std::vector<uint8_t>> iframe_data = std::nullopt;
+                if (fetch_result.annotated_page_content_result->proto
+                        .gemini_in_chrome_page_metadata()
+                        .screenshot_info()
+                        .iframe_info_size() > 0) {
+                  iframe_data = actor::GetScreenshotWithIframeBoundingBoxes(
+                      data, fetch_result.screenshot_result->mime_type,
+                      fetch_result.annotated_page_content_result->proto
+                          .gemini_in_chrome_page_metadata()
+                          .screenshot_info());
+                }
                 pending_journal_entry->GetJournal().LogScreenshot(
                     last_committed_url, pending_journal_entry->GetTaskId(),
                     fetch_result.screenshot_result->mime_type,
-                    base::as_byte_span(data));
+                    base::as_byte_span(data), iframe_data);
               }
 
               if (tab) {

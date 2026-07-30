@@ -12,6 +12,9 @@
 #import "ios/chrome/browser/fullscreen/public/fullscreen_metrics.h"
 
 enum class ComposeboxEntrypoint;
+namespace send_tab_to_self {
+enum class ShareEntryPoint;
+}
 namespace base {
 class ScopedClosureRunner;
 }
@@ -90,7 +93,9 @@ enum class TrustedVaultUserActionTriggerForUMA;
 
 // Shows the dialog for sending the page with `url` and `title` between a user's
 // devices.
-- (void)showSendTabToSelfUI:(const GURL&)url title:(NSString*)title;
+- (void)showSendTabToSelfUI:(const GURL&)url
+                      title:(NSString*)title
+                 entryPoint:(send_tab_to_self::ShareEntryPoint)entryPoint;
 
 #if !defined(NDEBUG)
 // Inserts a new tab showing the HTML source of the current page.

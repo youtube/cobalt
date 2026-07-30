@@ -17,14 +17,19 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/webnn/graph_builder_context.h"
 #include "services/webnn/public/cpp/context_properties.h"
-#include "services/webnn/public/mojom/ep_package_info.mojom.h"
 #include "services/webnn/public/mojom/webnn_compiler_context.mojom.h"
 #include "services/webnn/public/mojom/webnn_context_provider.mojom.h"
 #include "services/webnn/public/mojom/webnn_error.mojom.h"
 #include "services/webnn/public/mojom/webnn_graph_builder.mojom.h"
 #include "services/webnn/public/mojom/webnn_model_loader.mojom.h"
 
+namespace base {
+class FilePath;
+}
+
 namespace webnn {
+
+struct EpDeviceInfo;
 
 class WebNNTensorImpl;
 class WebNNConstantOperand;
@@ -40,14 +45,15 @@ class CompilerContextImplOrt final : public GraphBuilderContext,
                                      public mojom::WebNNCompilerContext {
  public:
   static std::unique_ptr<CompilerContextImplOrt> Create(
-      base::flat_map<std::string, mojom::EpPackageInfoPtr> ep_package_info,
+      const base::FilePath& ep_library_path,
+      const EpDeviceInfo& target_device,
       mojom::CreateContextOptionsPtr options,
       ContextProperties properties,
       mojo::PendingRemote<mojom::WebNNModelLoader> model_loader);
 
   CompilerContextImplOrt(
+      const EpDeviceInfo& target_device,
       scoped_refptr<Environment> env,
-      scoped_refptr<SessionOptions> session_options,
       mojom::CreateContextOptionsPtr options,
       ContextProperties properties,
       mojo::PendingRemote<mojom::WebNNModelLoader> model_loader,

@@ -17,7 +17,7 @@ namespace {
 Vector<std::pair<SMILTime, SMILTimeOrigin>> ExtractListContents(
     const SMILInstanceTimeList& list) {
   Vector<std::pair<SMILTime, SMILTimeOrigin>> times;
-  for (const auto& item : list)
+  for (const auto& item : list.AsSpan())
     times.push_back(std::make_pair(item.Time(), item.Origin()));
   return times;
 }

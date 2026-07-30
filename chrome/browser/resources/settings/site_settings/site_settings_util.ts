@@ -105,7 +105,6 @@ export function getLocalizationStringForContentType(
     case ContentSettingsTypes.ANTI_ABUSE:
     case ContentSettingsTypes.PDF_DOCUMENTS:
     case ContentSettingsTypes.PERFORMANCE:
-    case ContentSettingsTypes.PRIVATE_NETWORK_DEVICES:
     case ContentSettingsTypes.SITE_DATA:
     case ContentSettingsTypes.OFFER_WRITING_HELP:
     case ContentSettingsTypes.SMART_CARD_READERS:

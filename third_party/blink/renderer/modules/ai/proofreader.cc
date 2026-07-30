@@ -89,8 +89,8 @@ MatchingBlock LongestCommonSubsequence(base::span<const String> a,
         ++size;
       }
       if (size > result.size) {
-        result.start_a = i;
-        result.start_b = j;
+        result.start_a = base::checked_cast<uint32_t>(i);
+        result.start_b = base::checked_cast<uint32_t>(j);
         result.size = size;
       }
     }
@@ -123,10 +123,10 @@ Vector<MatchingBlock> GetMatchingBlocks(Vector<String> seq_1,
     }
     // Calculate the location of the matching block in the two original
     // sequences.
-    uint32_t matching_start_in_seq_1 =
-        block_pair.start_a + matching_block.start_a;
-    uint32_t matching_start_in_seq_2 =
-        block_pair.start_b + matching_block.start_b;
+    uint32_t matching_start_in_seq_1 = base::checked_cast<uint32_t>(
+        block_pair.start_a + matching_block.start_a);
+    uint32_t matching_start_in_seq_2 = base::checked_cast<uint32_t>(
+        block_pair.start_b + matching_block.start_b);
     matching_blocks.push_back(MatchingBlock(
         matching_start_in_seq_1, matching_start_in_seq_2, matching_block.size));
     // Push the remaining of the blocks to the left of the longest matching
@@ -669,7 +669,7 @@ void Proofreader::OnLabelsComplete(
     return;
   }
 
-  for (size_t i = 0; i < corrections.size(); ++i) {
+  for (wtf_size_t i = 0; i < corrections.size(); ++i) {
     JSONValue* entry = labels_array->at(i);
     String labels_string;
 

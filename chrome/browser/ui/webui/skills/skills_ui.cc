@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/webui/skills/skills_ui.h"
 
 #include "base/check_deref.h"
+#include "base/command_line.h"
 #include "base/i18n/number_formatting.h"
 #include "base/strings/string_util.h"
 #include "chrome/browser/browser_process.h"
@@ -151,6 +152,14 @@ SkillsUI::SkillsUI(content::WebUI* web_ui) : ui::MojoWebUIController(web_ui) {
   source->AddBoolean(
       "isSkillsWebViewV2Enabled",
       base::FeatureList::IsEnabled(features::kSkillsWebViewV2Enabled));
+
+  auto* command_line = base::CommandLine::ForCurrentProcess();
+  source->AddBoolean("devMode", command_line->HasSwitch("skills-dev"));
+  source->AddString("skillsApiAllowedOrigins",
+                    "https://chromeskills-staging.corp.google.com");
+  source->AddString(
+      "skillsHostUrl",
+      "https://chromeskills-staging.corp.google.com/chromeskills/browse");
 
   // Shared strings for Skills V1/V2.
   // TODO(b/521780336): Remove search results strings once we migrate to v2.

@@ -80,6 +80,25 @@ class PerfBenchmark(benchmark.Benchmark):
   def SetExtraBrowserOptionsWithBrowser(self, options, possible_browser):
     """To be overridden by perf benchmarks. Run after SetExtraBrowserOptions."""
 
+  def RemoveExtraBrowserArgWithValues(self, options, arg):
+    """Safely removes a browser argument.
+
+    Unlike options.RemoveExtraBrowserArg, this method:
+    1. Supports matching flags with values (e.g. --flag=value) when removing
+       by flag name (e.g. --flag).
+    2. Does not raise KeyError if the flag is not found.
+    """
+    if '=' in arg:
+      if arg in options.extra_browser_args:
+        options.RemoveExtraBrowserArg(arg)
+    else:
+      to_remove = [
+          x for x in options.extra_browser_args
+          if x == arg or x.startswith(arg + '=')
+      ]
+      for x in to_remove:
+        options.RemoveExtraBrowserArg(x)
+
   def CustomizeOptions(self, finder_options, possible_browser=None):
     # Subclass of PerfBenchmark should override SetExtraBrowserOptions or
     # SetExtraBrowserOptionsWithBrowser to add more browser options, rather than
@@ -162,11 +181,12 @@ class PerfBenchmark(benchmark.Benchmark):
     # Because of binary size constraints, Android cannot use the
     # "--enable-field-trial-config" flag. For Android, we instead generate
     # browser args from the fieldtrial_testing_config.json config file. For
-    # other OSes, we simply pass the "--enable-field-trial-config" flag. See the
-    # FIELDTRIAL_TESTING_ENABLED buildflag definition in
+    # other OSes, we pass the "--enable-field-trial-config=benchmarking" flag so
+    # that Chrome respects the disable_benchmarking parameter in the field trial
+    # config. See the FIELDTRIAL_TESTING_ENABLED buildflag definition in
     # components/variations/service/BUILD.gn for more details.
     if not self.IsAndroid(possible_browser):
-      return '--enable-field-trial-config'
+      return '--enable-field-trial-config=benchmarking'
 
     variations_dir = os.path.join(path_module.GetChromiumSrcDir(), 'testing',
                                   'variations')

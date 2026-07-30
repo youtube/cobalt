@@ -117,7 +117,6 @@
 <translation id="1178821169867863726">12 x 16 ઇંચ</translation>
 <translation id="1181037720776840403">કાઢી નાખો</translation>
 <translation id="1185331130467528132"><ph name="URL" /> તમારા સ્થાનિક નેટવર્ક પરના અન્ય ડિવાઇસ ઍક્સેસ કરવા માગે છે</translation>
-<translation id="1185343831726846924">વર્ચ્યુઅલ કાર્ડ ચાલુ કરી શકાતું નથી તે કન્ફર્મ કરી રહ્યાં છીએ</translation>
 <translation id="1186201132766001848">પાસવર્ડ ચેક કરો</translation>
 <translation id="1187430513518041110">ઑટોમોબાઇલ અને વાહનો</translation>
 <translation id="1188817995162638216">ફાઇલ સાચવવાનું રદ કરીએ?</translation>
@@ -1262,7 +1261,6 @@
 <translation id="297173220375858963">ડેસ્કટૉપ પબ્લિશિંગ</translation>
 <translation id="2972581237482394796">&amp;ફરી કરો</translation>
 <translation id="2974468223369775963">આ IBAN તમારા Google એકાઉન્ટમાં સાચવી શકાયો નથી. એના બદલે તેને આ ડિવાઇસ પર Chromeમાં સાચવવામાં આવ્યો છે. આગલી વખતે તમે આ IBANનો ઉપયોગ કરશો, ત્યારે Chrome તમને ફરીથી પૂછશે.</translation>
-<translation id="2976162850019490782">જ્યારે ચાલુ હોય, ત્યારે Chrome તમને વધુ સંબંધિત જવાબો મેળવવામાં મદદ કરવા માટે આ વિન્ડોમાંના બધા ટૅબ શેર કરશે. તમે સેટિંગમાં જઈને તમામ થ્રેડ માટે આને ચાલુ કરી શકો છો.</translation>
 <translation id="297667759942911166">ટૅબના ગ્રૂપમાં સહયોગ કરો</translation>
 <translation id="2977665033722899841"><ph name="ROW_NAME" />, વર્તમાનમાં પસંદ કરેલ. <ph name="ROW_CONTENT" /></translation>
 <translation id="2978824962390592855">ઑપેરા</translation>
@@ -1671,7 +1669,6 @@
 <translation id="361438452008624280">સૂચિની એન્ટ્રી "<ph name="LANGUAGE_ID" />": અજાણી અથવા અસમર્થિત ભાષા.</translation>
 <translation id="3614934205542186002"><ph name="RUN_CHROME_SAFETY_CHECK_FOCUSED_FRIENDLY_MATCH_TEXT" />, Chrome સેટિંગમાં સલામતી માટે તપાસ ચલાવવા માટે, પહેલાં Tab અને પછી Enter કી દબાવો</translation>
 <translation id="3615309852743236517">મૅનિક્યોર અને પેડિક્યોર</translation>
-<translation id="3620034424637552643">ઘણીવાર દિશાનિર્દેશો, ડિલિવરી વગેરે માટે ઉપયોગમાં લેવાય છે</translation>
 <translation id="3620239073311576716">ગણવેશ અને કામ પર પહેરવાના કપડા</translation>
 <translation id="3620865353340165509">આ IBAN Google Walletમાં સાચવી શકાયો નથી. એના બદલે તે આ ડિવાઇસ પર Chromeમાં સાચવવામાં આવ્યો છે. આગલી વખતે તમે આ IBANનો ઉપયોગ કરશો, ત્યારે Chrome તમને ફરીથી પૂછશે.</translation>
 <translation id="3621401353678567613">તમે ટ્રૅક કરતા હો તેવી પ્રોડક્ટ માટે કિંમતમાં ઘટાડા સંબંધિત અલર્ટ મેળવવા માટે, સેટિંગમાં જઈને નોટિફિકેશન ચાલુ કરો.</translation>
@@ -2220,7 +2217,6 @@
 <translation id="4434045419905280838">પૉપ-અપ અને રીડાયરેક્ટ</translation>
 <translation id="443673843213245140">પ્રૉક્સીનો ઉપયોગ બંધ કરેલો છે પણ એક સ્પષ્ટ પ્રૉક્સી ગોઠવણીનો ઉલ્લેખ કરેલો છે.</translation>
 <translation id="4438821706955556403">સામાન્ય કિંમત</translation>
-<translation id="4439687924334332880">જો આ વિન્ડોમાંના ખુલ્લા ટૅબ આ થ્રેડ સાથે સંબંધિત હોય, તો તેને ઑટોમૅટિક રીતે શેર કરીને વધુ અનુકૂળ બનાવેલા જવાબો મેળવો. તમે સેટિંગમાં જઈને તમામ થ્રેડ માટે આને ચાલુ કરી શકો છો.</translation>
 <translation id="4441832193888514600">અવગણવામાં આવ્યું કારણ કે પૉલિસી માત્ર ક્લાઉડ વપરાશકર્તાની પૉલિસી તરીકે જ સેટ કરવામાં આવી શકે છે.</translation>
 <translation id="4444062564459679679">તમારા <ph name="DEVICE_NAME" /> પર Chromeને પહેલેથી મોકલવામાં આવ્યું છે</translation>
 <translation id="4445694043187340808"><ph name="STARTER_PACK_TABS_FOCUSED_FRIENDLY_MATCH_TEXT" />, ટૅબ શોધવા માટે Enter કી દબાવો</translation>
@@ -2354,6 +2350,7 @@
 <translation id="4691093235373904540">છતને લગતું કામ</translation>
 <translation id="4692623383562244444">શોધ એન્જિન</translation>
 <translation id="4695702626068620848"><ph name="KEYWORD" /> - <ph name="KEYWORD_SHORT_NAME" />ને પૂછો</translation>
+<translation id="4697071790493980729">કોઈ પરિણામ મળ્યું નથી</translation>
 <translation id="4698308118265482293">પાસપોર્ટની માહિતી અપડેટ કરો</translation>
 <translation id="4698692901173737941">લડાઈની રમતો</translation>
 <translation id="4701488924964507374"><ph name="SENTENCE1" /> <ph name="SENTENCE2" /></translation>
@@ -2701,7 +2698,6 @@
 <translation id="5238301240406177137">એકાઉન્ટમાં સાચવો</translation>
 <translation id="5239119062986868403">સામાન્ય કિંમત</translation>
 <translation id="5239623327352565343">લોકેશનની મંજૂરી છે</translation>
-<translation id="5241048084654737238">કાર્ડની માહિતી સાચવી શકાતી નથી તે કન્ફર્મ કરી રહ્યાં છીએ</translation>
 <translation id="5242610955375133957">ડ્રાય ફિલ્મ</translation>
 <translation id="5243004157379865295">સરનામું અપડેટ કરો</translation>
 <translation id="5244521145258281926">'Google એકાઉન્ટ મેનેજ કરો', તમારા Google એકાઉન્ટમાં તમારી માહિતી, પ્રાઇવસી અને સુરક્ષા મેનેજ કરવા માટે સક્રિય કરો</translation>
@@ -3022,6 +3018,7 @@
 <translation id="5718601519531438273">આમાં પાસપોર્ટ અને ડ્રાઇવિંગ લાઇસન્સ જેવી માહિતી શામેલ છે</translation>
 <translation id="5720705177508910913">વર્તમાન વપરાશકર્તા</translation>
 <translation id="5720895412771013401">ડેસ્કટૉપ કમ્પ્યૂટર</translation>
+<translation id="5721147290164931316">તમારા ફોન વડે સાઇન ઇન કરવા માટે સ્કૅન કરો</translation>
 <translation id="5721367770070844253">{count,plural, =1{{website_1}}=2{{website_1}, {website_2}}=3{{website_1}, {website_2} અને વધુ 1}one{{website_1}, {website_2} અને વધુ {more_count}}other{{website_1}, {website_2} અને વધુ {more_count}}}</translation>
 <translation id="572328651809341494">તાજેતરના ટેબ્સ</translation>
 <translation id="5723873695528696965">તમારા MIDI ડિવાઇસને નિયંત્રિત અને ફરીથી પ્રોગ્રામ કરો</translation>
@@ -3356,6 +3353,7 @@
 <translation id="6246316216123107851"><ph name="NUM_DAYS" /> દિવસ પહેલાં</translation>
 <translation id="6246382863801034910">વાહન</translation>
 <translation id="6246868321321344665">તમારી સંસ્થા ઑફિસની અને વ્યક્તિગત પ્રોફાઇલ બંનેમાં પાસવર્ડ અને ઇતિહાસ જેવા બ્રાઉઝિંગ ડેટાને જોઈ શકે છે</translation>
+<translation id="6248479108671123143"><ph name="MEMBER_FIRST_NAME" /> દ્વારા આ ટૅબમાં ફેરફાર કરવામાં આવ્યો, <ph name="TAB_TITLE" /></translation>
 <translation id="6248988683584659830">શોધ સેટિંગ</translation>
 <translation id="6250932670816326647">સ્નાન અને શરીરની સંભાળ રાખવા સંબંધિત પ્રોડક્ટ</translation>
 <translation id="6251906504834538140">{0,plural, =1{ફાઇલને ખસેડવાથી બ્લૉક કરી છે}one{<ph name="FILE_COUNT" /> ફાઇલને ખસેડવાથી બ્લૉક કરી છે}other{<ph name="FILE_COUNT" /> ફાઇલને ખસેડવાથી બ્લૉક કરી છે}}</translation>
@@ -3712,6 +3710,7 @@
 <translation id="6798066466127540426">સૂચિમાં કોઈ માન્ય શોધ પ્રદાતા શામેલ નથી.</translation>
 <translation id="6798460514924505775">એન્વલપ ચોઉ 3</translation>
 <translation id="6799145206637008376">આ વર્ચ્યુઅલ કાર્ડ માટે CVC ભરો</translation>
+<translation id="6800773453940486492"><ph name="MEMBER_FIRST_NAME" /> દ્વારા આ ટૅબ ઉમેરવામાં આવ્યું, <ph name="TAB_TITLE" /></translation>
 <translation id="6801920212017470190">મુસાફરીમાં હો ત્યારે પણ તમારી બધી પ્રોડક્ટની કિંમતમાં ઘટાડા અંગે માહિતગાર રહો</translation>
 <translation id="6805030849054648206">એન્વલપ B6/C4</translation>
 <translation id="6807791860691150411">શિક્ષણ</translation>
@@ -4270,6 +4269,7 @@
 <translation id="7646681339175747202">તમે હાલમાં જ ઉપયોગમાં લીધેલો પાસવર્ડ કોઈ ડેટા ઉલ્લંઘનમાં જોવા મળ્યો છે. Google Password Manager હમણાં જ તમારો પાસવર્ડ બદલવાનો સુઝાવ આપે છે.</translation>
 <translation id="7647206758853451655">પ્રિન્ટની ક્વૉલિટી</translation>
 <translation id="7648133459447652947">તમારું કર્સર બતાવવા માટે ઍપ સ્વિચ કરો, પેજ ફરીથી લોડ કરો અથવા પાછા જાઓ</translation>
+<translation id="764847582138410250">તમારા ફોન વડે સાઇન ઇન કરવા માટે સ્કૅન કરો</translation>
 <translation id="7648527891719919697">તમે <ph name="BEGIN_ANDROID_SETTINGS_LINK" />Android સેટિંગ<ph name="END_ANDROID_SETTINGS_LINK" />માં અદ્યતન સુરક્ષા ચાલુ કરી હોવાથી આ સાઇટ બ્લૉક કરેલી રહેશે. <ph name="BEGIN_LEARN_MORE_LINK" />આ ચેતવણી વિશે વધુ જાણો<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="7648900539798595789">Google Walletમાં જાણીતા મુસાફરનો નંબર સાચવો</translation>
 <translation id="7648992873808071793">આ ડિવાઇસ પર ફાઇલો સાચવો</translation>
@@ -4714,6 +4714,7 @@
 <translation id="8351131234907093545">નોંધ બનાવો</translation>
 <translation id="8352849934814541340">આ ડિવાઇસના ઍડમિનિસ્ટ્રેટર દ્વારા વધારાના કાર્યો માટે ઍપ્લિકેશન ઇન્સ્ટૉલ કરવામાં આવી છે. ઍપ્લિકેશન તમારા અમુક ડેટાનો ઍક્સેસ ધરાવે છે.</translation>
 <translation id="8355270400102541638">સ્થાનિક ક્રૅશ સંદર્ભ:</translation>
+<translation id="8362914115861174987">આ ભાષામાં અનુવાદ કરો</translation>
 <translation id="8363502534493474904">એરપ્લેન મોડ બંધ કરીને</translation>
 <translation id="8363929499301563123">વેબસાઇટ કુકી (તાજેતરમાં મુલાકાત લીધેલી વેબસાઇટ પર સાઇન ઇન કર્યાનું સ્ટેટસ જાળવી રાખવામાં આવશે)</translation>
 <translation id="8364627913115013041">સેટ નથી.</translation>
@@ -4733,7 +4734,6 @@
 <translation id="8381674639488873545">આ શુલ્ક એક વખત લાગે અથવા પુનરાવર્તિત હોઈ શકે અને તેનો સ્પષ્ટ ખ્યાલ ન આવે તેમ પણ બને. <ph name="BEGIN_LINK" />તો પણ બતાવો<ph name="END_LINK" /></translation>
 <translation id="8382097126743287270">ઑટોમૅટિક પૂર્ણ સ્ક્રીન</translation>
 <translation id="838307841291975086">સ્ટેશન વૅગન</translation>
-<translation id="838953173259347825">જો આ વિન્ડોમાંના ખુલ્લા ટૅબ આ થ્રેડ સાથે સંબંધિત હોય, તો તેને ઑટોમૅટિક રીતે શેર કરીને વધુ અનુકૂળ બનાવેલા જવાબો મેળવો. તમે આમાં જઈને તમામ થ્રેડ માટે આને ચાલુ કરી શકો છો</translation>
 <translation id="8389532092404711541">સામાન્ય રીતે <ph name="LOW_PRICE" /></translation>
 <translation id="8389940864052787379">કસ્ટમાઇઝ કરેલા અને ખાસ પર્ફોર્મન્સવાળા વાહનો</translation>
 <translation id="8390725133630534698">વ્યવસ્થાપકની નીતિને કારણે <ph name="ORIGIN_NAME" />થી <ph name="VM_NAME" />માં પેસ્ટ કરવાની સુવિધા બ્લૉક કરવામાં આવી છે</translation>
@@ -4899,6 +4899,7 @@
 <translation id="8671519637524426245"><ph name="SECURE_DNS_SALT" />નું મૂલ્ય કદની આવશ્યકતાઓ પૂરી કરતું નથી.</translation>
 <translation id="867224526087042813">સહી</translation>
 <translation id="8672535691554698269">કમ્પ્યૂટર નેટવર્ક</translation>
+<translation id="8673710317985154384">{NUM_TABS,plural, =1{ટૅબ શેર કરવાની વિગતો બતાવો. {WEBSITE_LIST_STR}માંથી 1 ટૅબ શેર કરી રહ્યાં છીએ}one{ટૅબ શેર કરવાની વિગતો બતાવો. {WEBSITE_LIST_STR}માંથી {NUM_TABS} ટૅબ શેર કરી રહ્યાં છીએ}other{ટૅબ શેર કરવાની વિગતો બતાવો. {WEBSITE_LIST_STR}માંથી {NUM_TABS} ટૅબ શેર કરી રહ્યાં છીએ}}</translation>
 <translation id="8675446170353411473">તમારી ફાઇલો <ph name="CLOUD_PROVIDER" /> પર અપલોડ કરવામાં આવી રહી છે</translation>
 <translation id="8676424191133491403">કોઈ વિલંબ વિના</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />, જવાબ, <ph name="ANSWER" /></translation>
@@ -5152,7 +5153,6 @@
 <translation id="9090243919347147717">જોડાણો</translation>
 <translation id="9090548458280093580">AI દ્વારા સંચાલિત, તમારા ઇતિહાસમાંથી શોધો સુવિધા</translation>
 <translation id="9090993752571911635">ઇન્ટરનેટ સેવા આપનાર કંપનીઓ (ISPs)</translation>
-<translation id="9092305980625216393">ઘણીવાર હવામાન, સ્થાનિક ન્યૂઝ વગેરે માટે ઉપયોગમાં લેવાય છે</translation>
 <translation id="9093723786115107672">સૂતી વખતે પહેરવાના કપડા</translation>
 <translation id="9094424186948667194">આ ડિવાઇસ પરની અન્ય ઍપ અને સેવાઓ ઍક્સેસ કરો</translation>
 <translation id="9094544726794842788">થમ્બ્સ ડાઉન, આ પરિણામો તમને શા માટે નાપસંદ છે તેના વિશે વિગતવાર પ્રતિસાદ સબમિટ કરવા માટેનું ફોર્મ ખોલે છે</translation>
@@ -5278,7 +5278,6 @@
 <translation id="964050462028070434">પાસવર્ડ અને પાસકી મેનેજ કરો…</translation>
 <translation id="964681140808832181">હા, હું રદ કરવા માગું છું</translation>
 <translation id="969892804517981540">આધિકારિક બિલ્ડ</translation>
-<translation id="970182982363142444">જ્યારે ચાલુ હોય, ત્યારે Chrome તમને વધુ સંબંધિત જવાબો મેળવવામાં મદદ કરવા માટે આ વિન્ડોમાંના બધા ટૅબ શેર કરશે. તમે આને આમાં બધી ચૅટ માટે ચાલુ કરી શકો છો</translation>
 <translation id="97054401902912338">કન્ટેન્ટના ફિલ્ટર વિશે વધુ જાણો</translation>
 <translation id="973788791897303708">આ ટૅબનું ગ્રૂપ ભરાઈ ગયું છે</translation>
 <translation id="975560348586398090">{COUNT,plural, =0{કોઈ નહીં}=1{1 આઇટમ}one{# આઇટમ}other{# આઇટમ}}</translation>

@@ -124,9 +124,8 @@ UILabel* CreateLabel() {
 
 #pragma mark - CollectionViewItem
 
-- (void)configureCell:(EnhancedSafeBrowsingInlinePromoCell*)cell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:cell withStyler:styler];
+- (void)configureCell:(EnhancedSafeBrowsingInlinePromoCell*)cell {
+  [super configureCell:cell];
   cell.delegate = self.delegate;
   [cell setSelectionStyle:UITableViewCellSelectionStyleNone];
 }

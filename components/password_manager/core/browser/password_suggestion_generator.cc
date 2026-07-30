@@ -478,9 +478,8 @@ std::vector<Suggestion> PasswordSuggestionGenerator::GetSuggestionsForDomain(
                      autofill::FieldType::PASSWORD));
   }
 
-  // TODO(crbug.com/333945816): Restrict QR code autofill to the Chrome Sign-in
-  // page.
   bool has_qr =
+      password_client_->IsChromeSigninPage() &&
       base::FeatureList::IsEnabled(features::kMagiChromeQrCodeAutofill) &&
       password_client_->GetWebAuthnCredentialsDelegateForDriver(
           password_manager_driver_) &&
@@ -683,11 +682,8 @@ PasswordSuggestionGenerator::GetWebauthnSignInWithAnotherDeviceSuggestion(
   if (!delegate) {
     return std::nullopt;
   }
-  if (base::FeatureList::IsEnabled(features::kMagiChromeQrCodeAutofill)) {
-    // Offer the inlined QR code suggestion instead of the standard hybrid
-    // suggestion if possible.
-    // TODO(crbug.com/333945816): Restrict QR code autofill to the Chrome
-    // Sign-in page.
+  if (password_client_->IsChromeSigninPage() &&
+      base::FeatureList::IsEnabled(features::kMagiChromeQrCodeAutofill)) {
     std::optional<std::string> qr_string = delegate->GetCableQrString();
     if (qr_string.has_value()) {
       autofill::Suggestion suggestion(

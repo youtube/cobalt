@@ -61,7 +61,6 @@
 #include "content/browser/accessibility/browser_accessibility_state_impl.h"
 #include "content/browser/bad_message.h"
 #include "content/browser/browser_main_loop.h"
-#include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/compositor/surface_utils.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/file_system/browser_file_system_helper.h"
@@ -85,6 +84,7 @@
 #include "content/browser/renderer_host/visible_time_request_trigger.h"
 #include "content/browser/scheduler/browser_task_executor.h"
 #include "content/browser/scheduler/browser_ui_thread_scheduler.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/browser/storage_partition_impl.h"
 #include "content/common/content_constants_internal.h"
 #include "content/common/frame.mojom.h"
@@ -1463,6 +1463,13 @@ void RenderWidgetHostImpl::SetPageFocus(bool focused) {
   // where this RenderWidgetHost lives.
   if (owner_delegate_ && frame_tree_) {
     frame_tree_->ReplicatePageFocus(focused);
+  }
+
+  if (!focused && view_) {
+    auto* root_view = view_->GetRootView();
+    if (root_view && root_view->HasActiveUnboundedSurface()) {
+      root_view->DismissUnboundedSurface();
+    }
   }
 }
 

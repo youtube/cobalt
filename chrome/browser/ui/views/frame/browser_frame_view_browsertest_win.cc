@@ -14,6 +14,7 @@
 #include "chrome/browser/devtools/devtools_window_testing.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/views/frame/app_menu_button.h"
 #include "chrome/browser/ui/views/frame/browser_caption_button_container_win.h"
 #include "chrome/browser/ui/views/frame/browser_frame_view_win.h"
@@ -256,9 +257,9 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserFrameViewWinTest, NoThemeColor) {
   theme_color_ = std::nullopt;
   InstallAndLaunchWebApp();
 
-  EXPECT_EQ(
-      frame_view_->GetTitlebarColor(),
-      browser()->window()->GetColorProvider()->GetColor(ui::kColorFrameActive));
+  EXPECT_EQ(frame_view_->GetTitlebarColor(),
+            BrowserWindow::FromBrowser(browser())->GetColorProvider()->GetColor(
+                ui::kColorFrameActive));
 }
 
 IN_PROC_BROWSER_TEST_F(WebAppBrowserFrameViewWinTest, MaximizedLayout) {

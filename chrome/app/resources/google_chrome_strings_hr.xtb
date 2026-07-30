@@ -60,6 +60,17 @@
 <translation id="1587223624401073077">Google Chrome upotrebljava vašu kameru.</translation>
 <translation id="1587325591171447154">Datoteka <ph name="FILE_NAME" /> opasna je, pa ju je Chrome blokirao.</translation>
 <translation id="1597911401261118146">Da biste provjerili jesu li vaše zaporke sigurne od povrede podataka i drugih poteškoća sa sigurnošću, <ph name="BEGIN_LINK" />prijavite se na Chrome<ph name="END_LINK" />.</translation>
+<translation id="1619639070275605589">Tom ćete radnjom:
+          <ph name="LINE_BREAKS" />
+            • vratiti početnu stranicu, stranicu Nova kartica, tražilicu i prikvačene kartice na zadano
+            <ph name="LINE_BREAK" />
+            • onemogućiti proširenja
+            <ph name="LINE_BREAK" />
+            • izbrisati kolačiće i druge privremene podatke web-lokacije
+            <ph name="LINE_BREAK" />
+            • vratiti prečace na Chromeu na zadano.
+            <ph name="LINE_BREAKS" />
+            To neće utjecati na oznake, povijest i spremljene zaporke.</translation>
 <translation id="1619887657840448962">Kako bismo Chrome učinili sigurnijim, onemogućili smo sljedeće proširenje koje nije navedeno na stranici <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> i možda je dodano bez vašeg znanja.</translation>
 <translation id="1628000112320670027">Potraži pomoć za upotrebu Chromea</translation>
 <translation id="1640672724030957280">Preuzimanje...</translation>
@@ -136,6 +147,7 @@
 <translation id="2472092250898121027">Ovo proširenje sadrži zlonamjerni softver i nije sigurno. Uklonite ga iz Chromea kako više ne bi moglo vidjeti i mijenjati vaše podatke na web-lokacijama koje posjećujete, uključujući vaše osobne podatke.</translation>
 <translation id="2485422356828889247">Deinstaliraj</translation>
 <translation id="2513154137948333830">Potrebno je ponovno pokretanje: <ph name="INSTALL_SUCCESS" /></translation>
+<translation id="2523492931736391680">Vaš je rad siguran u Chromeu</translation>
 <translation id="2534365042754120737">Da biste zaštitili svoje podatke, dopustite Chromeu da ukloni dopuštenja s web-lokacija koje niste posjetili u posljednje vrijeme. Obavijesti se ne zaustavljaju.</translation>
 <translation id="2556847002339236023">Vaša organizacija zatvara Chrome kada se ne upotrebljava <ph name="TIMEOUT_DURATION" />. Podaci o pregledavanju su izbrisani. To može uključivati povijest, automatsko popunjavanje i preuzimanja.</translation>
 <translation id="2563121210305478421">Ponovo pokrenuti Chrome?</translation>
@@ -240,6 +252,7 @@ Ako ova stranica ne funkcionira ispravno, dopustite optimizaciju.</translation>
 <translation id="345171907106878721">Dodajte sebe kao korisnika Chromea</translation>
 <translation id="3453763134178591239">Uvjeti za Chrome OS</translation>
 <translation id="3503306920980160878">Chrome treba dopuštenje za pristup vašoj lokaciji da bi je podijelio s ovom web-lokacijom</translation>
+<translation id="3512495006767217696">Ugrađen u Chrome kako bi vam pomogao da izradite, spremite i automatski popunite snažne zaporke. Dodajte prečac za jednostavan pristup</translation>
 <translation id="3539955434060988644">Otvori vezu u ano&amp;nimnom prozoru Chromea</translation>
 <translation id="3576528680708590453">Vaš administrator sustava konfigurirao je Google Chrome da otvara zamjenski preglednik za pristup URL-u <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="3582972582564653026">Uključite sinkronizaciju Chromea kako bi vam bio prilagođen na svim vašim uređajima</translation>
@@ -302,6 +315,7 @@ Ako ova stranica ne funkcionira ispravno, dopustite optimizaciju.</translation>
 <translation id="4149882025268051530">Program za instalaciju nije dekomprimirao arhivu. Ponovno preuzmite program Google Chrome.</translation>
 <translation id="415112847282352845">Da biste mogli pristupati svojim adresama i drugim podacima na svim svojim uređajima, prijavite se na Chrome Adresa će se spremiti na vaš Google račun nakon što se prijavite.</translation>
 <translation id="4153934450158521343">Chrome će se uskoro zatvoriti i izbrisati podatke</translation>
+<translation id="4159985264221160808">Da bi zaštitila vaš rad u Chromeu, vaša će organizacija moći pregledavati određene podatke ili upravljati njima</translation>
 <translation id="4173512894976930765">Web-lokacije će vjerojatno funkcionirati prema očekivanjima. Kad zatvorite sve prozore Chroma, odjavit ćete se s većine web-lokacija osim Google računa ako ste prijavljeni na Chrome.</translation>
 <translation id="4175922240926474352">Chrome je blokirao ovo preuzimanje jer ova web-lokacija ne upotrebljava sigurnu vezu i datoteka se možda neovlašteno mijenjala</translation>
 <translation id="4191857738314598978">{0,plural, =1{Ponovo pokrenite Chrome u roku od jednog dana}one{Ponovo pokrenite Chrome u roku od # dana}few{Ponovo pokrenite Chrome u roku od # dana}other{Ponovo pokrenite Chrome u roku od # dana}}</translation>
@@ -333,6 +347,7 @@ Ako ova stranica ne funkcionira ispravno, dopustite optimizaciju.</translation>
 <translation id="4493028449971051158">Pogreška pri pokretanju: pokrenite program za instalaciju kao administrator.</translation>
 <translation id="4501471624619070934">Instalacija nije uspjela jer je pristup ograničen za ovu zemlju.</translation>
 <translation id="4571503333518166079">Otvori postavke obavijesti za Chrome</translation>
+<translation id="4580939929828762295">Ostanite sigurni uz Google upravitelj zaporki</translation>
 <translation id="4592634244097223647">Postavite pitanja Googleu o toj slici</translation>
 <translation id="459622048091363950">Kada Chrome dobije pristup, web-lokacije će vas moći tražiti pristup.</translation>
 <translation id="4598116752460667024">Potražite bilo koji proces s popisa.</translation>
@@ -517,6 +532,7 @@ Ako ova stranica ne funkcionira ispravno, dopustite optimizaciju.</translation>
 <translation id="6438015621983209660">Proširite poboljšano sigurno pregledavanje uz Chrome na telefonu</translation>
 <translation id="6442774133615368941">Kupujte, prevodite i identificirajte ono što vidite pomoću kamere u iOS aplikaciji Chrome</translation>
 <translation id="6448835208126432197">Da biste odabrali dio zaslona u Geminiju u Chromeu, upotrijebite tipkovni prečac.</translation>
+<translation id="6473659734176498825">Pojednostavljena slika koja prikazuje ulaznu točku Google upravitelja zaporki u Chromeu</translation>
 <translation id="6473905796280459355">Otvorite stranicu O Chromeu</translation>
 <translation id="6481963882741794338">Povezivanje Chromea i drugih Googleovih usluga radi personalizacije i u druge svrhe</translation>
 <translation id="648319183876919572">Poboljšano sigurno pregledavanje pruža vam više zaštite od opasnih web-lokacija i preuzimanja</translation>
@@ -688,6 +704,7 @@ Ako ova stranica ne funkcionira ispravno, dopustite optimizaciju.</translation>
 <translation id="8064965390968184078">1. Kliknite <ph name="BUTTON_LABEL" /> u nastavku
 2. Kliknite <ph name="BUTTON_2" /> u postavkama Windowsa
 3. Kliknite <ph name="BUTTON_3" /> u obavijesti Windowsa da biste prikvačili Chrome na traku sa zadacima radi brzog pristupa</translation>
+<translation id="8069447462453318634">Odaberite Prikvači na alatnu traku</translation>
 <translation id="8074398340364918139">Da biste pretražili određenu Chromeovu značajku ili proširenje, u adresnu traku unesite njezin prečac, a zatim odabranu tipku na tipkovnici</translation>
 <translation id="8077579734294125741">Ostali profili na Chromeu</translation>
 <translation id="8086881907087796310">Instalacija nije uspjela jer vaše računalo ne zadovoljava minimalne zahtjeve za hardver.</translation>
@@ -773,6 +790,15 @@ Nove oznake ne mogu se spremiti na vaš račun dok neke ne izbrišete. Ako se sa
 <translation id="8922998289262614701">Uklonite podatke ove aplikacije iz Chromea</translation>
 <translation id="8925636929359899517">Podatke upotrebljavamo za poboljšanje ove usluge. Pročitajte <ph name="BEGIN_LINK1" />pravila o privatnosti<ph name="END_LINK1" /> i <ph name="BEGIN_LINK2" />uvjete pružanja usluge<ph name="END_LINK2" />.</translation>
 <translation id="8936233353620149764">Uključite/isključite Gemini u Chromeu</translation>
+<translation id="8944232836376404813">Tom ćete radnjom:
+          <ph name="LINE_BREAKS" />
+            • vratiti početnu stranicu, stranicu Nova kartica, tražilicu i prikvačene kartice na zadano
+            <ph name="LINE_BREAK" />
+            • onemogućiti proširenja
+            <ph name="LINE_BREAK" />
+            • izbrisati kolačiće i druge privremene podatke web-lokacije.
+            <ph name="LINE_BREAKS" />
+            To neće utjecati na oznake, povijest i spremljene zaporke.</translation>
 <translation id="8948460679427074738">Ovo proširenje nije objavilo prakse u vezi s privatnošću, na primjer način na koji prikuplja i upotrebljava podatke. Chrome preporučuje da ga uklonite.</translation>
 <translation id="8958307504142971576">Sada imate više dostupnih značajki u Chromeu</translation>
 <translation id="8991530961471831170">Otvori Gemini u Chromeu</translation>

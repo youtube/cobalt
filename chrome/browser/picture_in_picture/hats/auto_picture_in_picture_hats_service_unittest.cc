@@ -419,7 +419,9 @@ TEST_F(AutoPictureInPictureHatsServiceTest, PSDFieldsMatchConfig) {
   EXPECT_CALL(*mock_hats_service(),
               LaunchSurveyForWebContents(kHatsSurveyTriggerAutoPipAllowed,
                                          web_contents(), _, _, _, _, _, _))
-      .WillOnce(testing::SaveArg<3>(&captured_psd));
+      .WillOnce(
+          testing::DoAll(testing::SaveArg<3>(&captured_psd),
+                         testing::Return(HatsService::LaunchError::kNone)));
 
   service()->MaybeLaunchSurvey(web_contents());
 

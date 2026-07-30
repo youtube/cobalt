@@ -250,7 +250,7 @@ class ProfileAttributesStorageTest : public testing::Test {
 
   ProfileAttributesTestObserver& observer() { return observer_; }
 
-  void AddTestingProfile() {
+  base::FilePath AddTestingProfile() {
     size_t number_of_profiles = storage()->GetNumberOfProfiles();
 
     base::FilePath profile_path = GetProfilePath(
@@ -273,6 +273,7 @@ class ProfileAttributesStorageTest : public testing::Test {
     storage()->AddProfile(std::move(params));
 
     EXPECT_EQ(number_of_profiles + 1, storage()->GetNumberOfProfiles());
+    return profile_path;
   }
 
   void ResetProfileAttributesStorage() {
@@ -325,12 +326,10 @@ TEST_F(ProfileAttributesStorageTest, ProfileNotFound) {
                 GetProfilePath("testing_profile_path0")),
             nullptr);
 
-  AddTestingProfile();
+  base::FilePath profile_path = AddTestingProfile();
   EXPECT_EQ(1U, storage()->GetNumberOfProfiles());
 
-  ASSERT_NE(storage()->GetProfileAttributesWithPath(
-                GetProfilePath("testing_profile_path0")),
-            nullptr);
+  ASSERT_NE(storage()->GetProfileAttributesWithPath(profile_path), nullptr);
   ASSERT_EQ(storage()->GetProfileAttributesWithPath(
                 GetProfilePath("testing_profile_path1")),
             nullptr);
@@ -445,21 +444,19 @@ TEST_F(ProfileAttributesStorageTest, RemoveProfile) {
       GetProfilePath("testing_profile_path0"));
   ASSERT_EQ(entry, nullptr);
 
-  AddTestingProfile();
+  base::FilePath profile_path = AddTestingProfile();
   EXPECT_EQ(1U, storage()->GetNumberOfProfiles());
-  entry = storage()->GetProfileAttributesWithPath(
-      GetProfilePath("testing_profile_path0"));
+  entry = storage()->GetProfileAttributesWithPath(profile_path);
   ASSERT_NE(entry, nullptr);
   EXPECT_EQ(u"testing_profile_name0", entry->GetName());
 
   // Deleting an existing profile. This should call observers and make the entry
   // un-retrievable.
   AddCallExpectationsForRemoveProfile(0);
-  storage()->RemoveProfile(GetProfilePath("testing_profile_path0"));
+  storage()->RemoveProfile(profile_path);
   VerifyAndResetCallExpectations();
   EXPECT_EQ(0U, storage()->GetNumberOfProfiles());
-  entry = storage()->GetProfileAttributesWithPath(
-      GetProfilePath("testing_profile_path0"));
+  entry = storage()->GetProfileAttributesWithPath(profile_path);
   EXPECT_EQ(entry, nullptr);
 }
 
@@ -757,9 +754,7 @@ TEST_F(ProfileAttributesStorageTest, ProfileNamesOnInit) {
 }
 
 TEST_F(ProfileAttributesStorageTest, EntryAccessors) {
-  AddTestingProfile();
-
-  base::FilePath path = GetProfilePath("testing_profile_path0");
+  base::FilePath path = AddTestingProfile();
 
   ProfileAttributesEntry* entry = storage()->GetProfileAttributesWithPath(path);
   ASSERT_NE(entry, nullptr);
@@ -824,13 +819,12 @@ TEST_F(ProfileAttributesStorageTest, EntryAccessors) {
 }
 
 TEST_F(ProfileAttributesStorageTest, EntryInternalAccessors) {
-  AddTestingProfile();
+  base::FilePath path = AddTestingProfile();
 
-  ProfileAttributesEntry* entry = storage()->GetProfileAttributesWithPath(
-      GetProfilePath("testing_profile_path0"));
+  ProfileAttributesEntry* entry = storage()->GetProfileAttributesWithPath(path);
   ASSERT_NE(entry, nullptr);
 
-  EXPECT_EQ(GetProfilePath("testing_profile_path0"), entry->GetPath());
+  EXPECT_EQ(path, entry->GetPath());
 
   const char key[] = "test";
 
@@ -910,10 +904,9 @@ TEST_F(ProfileAttributesStorageTest, EntryInternalAccessors) {
 }
 
 TEST_F(ProfileAttributesStorageTest, ProfileActiveTime) {
-  AddTestingProfile();
+  base::FilePath path = AddTestingProfile();
 
-  ProfileAttributesEntry* entry = storage()->GetProfileAttributesWithPath(
-      GetProfilePath("testing_profile_path0"));
+  ProfileAttributesEntry* entry = storage()->GetProfileAttributesWithPath(path);
   ASSERT_NE(entry, nullptr);
 
   // Check the state before active time is stored.
@@ -946,9 +939,7 @@ TEST_F(ProfileAttributesStorageTest, ProfileActiveTime) {
 }
 
 TEST_F(ProfileAttributesStorageTest, AuthInfo) {
-  AddTestingProfile();
-
-  base::FilePath path = GetProfilePath("testing_profile_path0");
+  base::FilePath path = AddTestingProfile();
 
   ProfileAttributesEntry* entry = storage()->GetProfileAttributesWithPath(path);
   ASSERT_NE(entry, nullptr);
@@ -1126,12 +1117,9 @@ TEST_F(ProfileAttributesStorageTest, ConcatenateGaiaNameAndProfileName) {
 }
 
 TEST_F(ProfileAttributesStorageTest, SupervisedUsersAccessors) {
-  AddTestingProfile();
+  base::FilePath path = AddTestingProfile();
 
-  base::FilePath path = GetProfilePath("testing_profile_path0");
-
-  ProfileAttributesEntry* entry = storage()->GetProfileAttributesWithPath(
-      GetProfilePath("testing_profile_path0"));
+  ProfileAttributesEntry* entry = storage()->GetProfileAttributesWithPath(path);
   ASSERT_NE(entry, nullptr);
 
   entry->SetSupervisedUserId("");
@@ -1205,45 +1193,42 @@ TEST_F(ProfileAttributesStorageTest, ReSortTriggered) {
 }
 
 TEST_F(ProfileAttributesStorageTest, RemoveOtherProfile) {
-  AddTestingProfile();
-  AddTestingProfile();
+  base::FilePath path0 = AddTestingProfile();
+  base::FilePath path1 = AddTestingProfile();
 
   EXPECT_EQ(2U, storage()->GetNumberOfProfiles());
 
-  ProfileAttributesEntry* first_entry = storage()->GetProfileAttributesWithPath(
-      GetProfilePath("testing_profile_path0"));
+  ProfileAttributesEntry* first_entry =
+      storage()->GetProfileAttributesWithPath(path0);
   ASSERT_NE(first_entry, nullptr);
 
   ProfileAttributesEntry* second_entry =
-      storage()->GetProfileAttributesWithPath(
-          GetProfilePath("testing_profile_path1"));
+      storage()->GetProfileAttributesWithPath(path1);
   ASSERT_NE(second_entry, nullptr);
 
   EXPECT_EQ(u"testing_profile_name0", first_entry->GetName());
 
   AddCallExpectationsForRemoveProfile(1);
-  storage()->RemoveProfile(GetProfilePath("testing_profile_path1"));
+  storage()->RemoveProfile(path1);
   VerifyAndResetCallExpectations();
-  second_entry = storage()->GetProfileAttributesWithPath(
-      GetProfilePath("testing_profile_path1"));
+  second_entry = storage()->GetProfileAttributesWithPath(path1);
   ASSERT_EQ(second_entry, nullptr);
 
-  EXPECT_EQ(GetProfilePath("testing_profile_path0"), first_entry->GetPath());
+  EXPECT_EQ(path0, first_entry->GetPath());
   EXPECT_EQ(u"testing_profile_name0", first_entry->GetName());
 }
 
 TEST_F(ProfileAttributesStorageTest, AccessFromElsewhere) {
-  AddTestingProfile();
+  base::FilePath path = AddTestingProfile();
 
   DisableObserver();  // No need to test observers in this test.
 
-  ProfileAttributesEntry* first_entry = storage()->GetProfileAttributesWithPath(
-      GetProfilePath("testing_profile_path0"));
+  ProfileAttributesEntry* first_entry =
+      storage()->GetProfileAttributesWithPath(path);
   ASSERT_NE(first_entry, nullptr);
 
   ProfileAttributesEntry* second_entry =
-      storage()->GetProfileAttributesWithPath(
-          GetProfilePath("testing_profile_path0"));
+      storage()->GetProfileAttributesWithPath(path);
   ASSERT_NE(second_entry, nullptr);
 
   first_entry->SetLocalProfileName(u"NewName",
@@ -1386,9 +1371,7 @@ TEST_F(ProfileAttributesStorageTest,
 TEST_F(ProfileAttributesStorageTest, ProfileForceSigninLock) {
   signin_util::ScopedForceSigninSetterForTesting force_signin_setter(true);
 
-  AddTestingProfile();
-
-  base::FilePath path = GetProfilePath("testing_profile_path0");
+  base::FilePath path = AddTestingProfile();
 
   ProfileAttributesEntry* entry = storage()->GetProfileAttributesWithPath(path);
   ASSERT_NE(entry, nullptr);
@@ -1411,9 +1394,7 @@ TEST_F(ProfileAttributesStorageTest, ProfileForceSigninLock) {
 // Avatar icons not used on Android.
 #if !BUILDFLAG(IS_ANDROID)
 TEST_F(ProfileAttributesStorageTest, AvatarIconIndex) {
-  AddTestingProfile();
-
-  base::FilePath profile_path = GetProfilePath("testing_profile_path0");
+  base::FilePath profile_path = AddTestingProfile();
 
   ProfileAttributesEntry* entry =
       storage()->GetProfileAttributesWithPath(profile_path);
@@ -1755,8 +1736,7 @@ TEST_F(ProfileAttributesStorageTest, ProfilesState_SingleProfile) {
 #if !BUILDFLAG(IS_ANDROID)
 TEST_F(ProfileAttributesStorageTest, ProfileThemeColors) {
   ui::MockOsSettingsProvider os_settings_provider;
-  AddTestingProfile();
-  base::FilePath profile_path = GetProfilePath("testing_profile_path0");
+  base::FilePath profile_path = AddTestingProfile();
 
   ProfileAttributesEntry* entry =
       storage()->GetProfileAttributesWithPath(profile_path);
@@ -1956,10 +1936,9 @@ TEST_F(ProfileAttributesStorageTest, GetAllProfilesKeys) {
             base::flat_set<std::string>());
 
   // Add a profile, and check that it is returned.
-  AddTestingProfile();
+  base::FilePath path = AddTestingProfile();
   EXPECT_EQ(ProfileAttributesStorage::GetAllProfilesKeys(local_state),
-            base::flat_set<std::string>({base::StringPrintf(
-                "testing_profile_path%" PRIuS, (size_t)0U)}));
+            base::flat_set<std::string>({path.BaseName().MaybeAsASCII()}));
 }
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
@@ -2401,9 +2380,7 @@ TEST_P(ProfileAttributesStorageTestWithProfileReorderingParam,
 }
 
 TEST_F(ProfileAttributesStorageTest, EnterpriseLabelOverridesLocalProfileName) {
-  AddTestingProfile();
-
-  base::FilePath path = GetProfilePath("testing_profile_path0");
+  base::FilePath path = AddTestingProfile();
 
   ProfileAttributesEntry* entry = storage()->GetProfileAttributesWithPath(path);
   ASSERT_NE(entry, nullptr);
@@ -2419,8 +2396,7 @@ TEST_F(ProfileAttributesStorageTest, EnterpriseLabelOverridesLocalProfileName) {
 }
 
 TEST_F(ProfileAttributesStorageTest, GetHostedDomainFormatStability) {
-  AddTestingProfile();
-  base::FilePath path = GetProfilePath("testing_profile_path0");
+  base::FilePath path = AddTestingProfile();
   ProfileAttributesEntry* entry = storage()->GetProfileAttributesWithPath(path);
   ASSERT_NE(entry, nullptr);
 

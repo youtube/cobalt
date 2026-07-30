@@ -72,6 +72,7 @@
 <translation id="1820835682567584003">Chromium が <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="183031085822326697">次回 <ph name="DEVICE_TYPE" /> で Chromium を開いたときに、Google パスワード マネージャーを使用するよう求めるメッセージが表示されます。</translation>
 <translation id="1838374766361614909">検索をクリア</translation>
+<translation id="1846849503013521481">Chromium での作業を保護するため、組織は特定の情報を表示または管理できます</translation>
 <translation id="18552579716432081">閲覧履歴データをこのデバイスからのみ削除して、Google アカウントに残すには、<ph name="BEGIN_LINK" />Chromium からログアウト<ph name="END_LINK" />します。</translation>
 <translation id="1857749206890802997">スマートフォンに Chromium をダウンロードして、外出先でタブグループを開いたり、新しいタブグループを作成したりできます。</translation>
 <translation id="185970820835152459">ログインする Google アカウントを管理できます。Google アカウントは、Chromium ブラウザ、Play ストア、Gmail などで使用されます。家族など、あなた以外の人のアカウントを追加する場合は、<ph name="DEVICE_TYPE" /> に新しいユーザーを追加してください。<ph name="LINK_BEGIN" />詳細<ph name="LINK_END" /></translation>
@@ -428,6 +429,7 @@
 <translation id="5953657885167112863">Chromium を自分好みに</translation>
 <translation id="5960071705175224773">不明なアプリによって設定が変更されました</translation>
 <translation id="5968400720580217226">AI モード</translation>
+<translation id="5977420883993828287">固定しました。ツールバーからコンテキスト タスクを使用できます</translation>
 <translation id="5986585015444752010">{COUNT,plural, =1{1 分間使用しなかった場合、組織は Chromium を自動的に終了します。}other{# 分間使用しなかった場合、組織は Chromium を自動的に終了します。}}</translation>
 <translation id="5987687638152509985">同期を開始するには、Chromium を更新します</translation>
 <translation id="6003112304606738118">ダウンロードしています... 残り <ph name="HOURS" /> 時間です</translation>
@@ -530,6 +532,17 @@
 <translation id="6896758677409633944">コピー</translation>
 <translation id="6901631050894301805">Chromium を既定のブラウザに設定して、タスクバーに固定する</translation>
 <translation id="6909503629704372277">Chromium プロフィールを管理(&amp;M)</translation>
+<translation id="6919942714452658456">この操作を行うと、次のようになります。
+          <ph name="LINE_BREAKS" />
+            • 起動ページ、新しいタブページ、検索エンジン、固定タブがリセットされます
+            <ph name="LINE_BREAK" />
+            • 拡張機能が無効になります
+            <ph name="LINE_BREAK" />
+            • Cookie や他の一時的なサイトデータが削除されます
+            <ph name="LINE_BREAK" />
+            • Chromium のショートカットがリセットされます
+            <ph name="LINE_BREAKS" />
+            ブックマーク、履歴、保存したパスワードへの影響はありません。</translation>
 <translation id="6934579572334859869">画像検索でこの画像について質問する</translation>
 <translation id="6948031725951063910">Chromium のブックマーク数の上限（<ph name="BOOKMARK_LIMIT" /> 個）に達したため、Google アカウントにまだ保存されていないブックマークがあります。
 
@@ -599,6 +612,7 @@
 <translation id="7686590090926151193">Chromium はデフォルトのブラウザとして設定されていません</translation>
 <translation id="7689606757190482937">同期してカスタマイズした Chromium をどのデバイスでも使用できます</translation>
 <translation id="7699779824407626136">Chromium の更新</translation>
+<translation id="7700735928747402058">Chromium で作業を保護</translation>
 <translation id="7716950018788545737">タスクを終了しました。</translation>
 <translation id="77283119132245232"><ph name="BROWSER_NAME" /> のシステム トレース サービスを提供します。このサービスを無効にした場合、ブラウザによって作成されるパフォーマンス トレースに、コンテキスト切り替えやスレッドの準備完了などのシステム全体のイベントは含められません。</translation>
 <translation id="7745317241717453663">このデバイスから閲覧データを削除します。後でデータを取得するには、<ph name="USER_EMAIL" /> として Chromium にログインしてください。</translation>
@@ -630,6 +644,7 @@
 <translation id="8031714377769448844">Chromium をタスクバーに固定すると、いつでもすばやくアクセスできます</translation>
 <translation id="80471789339884597">インストールいただきありがとうございます。<ph name="BUNDLE_NAME" /> を使用するにはすべてのブラウザを再起動してください。</translation>
 <translation id="8054112667659782652">画像検索のショートカットを常に表示する</translation>
+<translation id="8069447462453318634">[ツールバーに固定] を選択します</translation>
 <translation id="8077498902115777962">Chromium のアプリ向けのバックグラウンドでの実行を無効にする</translation>
 <translation id="80790299200510644">画像検索</translation>
 <translation id="8086881907087796310">パソコンがハードウェアの最小要件を満たしていないため、インストールできませんでした。</translation>
@@ -711,6 +726,15 @@
 <translation id="8907580949721785412">Chromium でパスワードを表示しようとしています。続行するには、Windows のパスワードを入力してください。</translation>
 <translation id="8932992523185907506">Chromium は既定のブラウザではなくなりました。Chromium を既定のブラウザにしますか？</translation>
 <translation id="8941642502866065432">Chromium を更新できません</translation>
+<translation id="8944232836376404813">この操作を行うと、次のようになります。
+          <ph name="LINE_BREAKS" />
+            • 起動ページ、新しいタブページ、検索エンジン、固定タブがリセットされます
+            <ph name="LINE_BREAK" />
+            • 拡張機能が無効になります
+            <ph name="LINE_BREAK" />
+            • Cookie や他の一時的なサイトデータが削除されます
+            <ph name="LINE_BREAKS" />
+            ブックマーク、履歴、保存したパスワードへの影響はありません。</translation>
 <translation id="897581876605952338">Chromium Enterprise ロゴ</translation>
 <translation id="8981150672034878610">プロファイルを開く際にエラーが発生したため、Chromium を起動できません。Chromium を再起動してみてください。</translation>
 <translation id="8988036198400390003">Chromium プロファイルを管理</translation>

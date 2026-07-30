@@ -276,4 +276,10 @@ std::string GetSecurityDomainNameForUma(SecurityDomainId domain) {
   }
 }
 
+void RecordTrustedVaultRecoveryFlowTriggeredEndpoint(
+    TrustedVaultRecoveryFlowEndpoint endpoint) {
+  base::UmaHistogramEnumeration("TrustedVault.RecoveryFlowTriggeredEndpoint",
+                                endpoint);
+}
+
 }  // namespace trusted_vault

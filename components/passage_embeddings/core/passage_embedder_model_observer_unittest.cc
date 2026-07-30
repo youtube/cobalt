@@ -11,17 +11,29 @@
 #include "base/test/test_future.h"
 #include "components/optimization_guide/core/delivery/test_optimization_guide_model_provider.h"
 #include "components/passage_embeddings/core/passage_embeddings_service_controller.h"
+#include "components/passage_embeddings/core/passage_embeddings_service_launcher.h"
 #include "components/passage_embeddings/core/passage_embeddings_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace passage_embeddings {
 
+class DummyPassageEmbeddingsServiceLauncher
+    : public PassageEmbeddingsServiceLauncher {
+ public:
+  void LaunchService(mojo::PendingReceiver<mojom::PassageEmbeddingsService>
+                         receiver) override {}
+  void OnServiceDisconnected(bool is_idle) override {}
+  bool AllowedToLaunch() const override { return true; }
+};
+
 class FakePassageEmbeddingsServiceController
     : public passage_embeddings::PassageEmbeddingsServiceController {
  public:
   explicit FakePassageEmbeddingsServiceController(
+      PassageEmbeddingsServiceLauncher& launcher,
       base::test::TestFuture<bool>* model_info_future)
-      : model_info_received_future_(model_info_future) {}
+      : PassageEmbeddingsServiceController(launcher),
+        model_info_received_future_(model_info_future) {}
   ~FakePassageEmbeddingsServiceController() override = default;
 
   // passage_embeddings::PassageEmbeddingsServiceController:
@@ -32,8 +44,6 @@ class FakePassageEmbeddingsServiceController
     model_info_received_future_->SetValue(received_model_info);
     return received_model_info;
   }
-  void MaybeLaunchService() override {}
-  void ResetServiceRemote() override {}
 
  protected:
   raw_ptr<base::test::TestFuture<bool>> model_info_received_future_;
@@ -104,9 +114,10 @@ TEST_F(PassageEmbedderModelObserverTest, ObservesTargetAndNotifiesObserver) {
 
   EXPECT_FALSE(target_observed_future_.IsReady());
 
+  DummyPassageEmbeddingsServiceLauncher launcher;
   auto service_controller =
       std::make_unique<FakePassageEmbeddingsServiceController>(
-          &model_info_received_future_);
+          launcher, &model_info_received_future_);
 
   EXPECT_FALSE(model_info_received_future_.IsReady());
 

@@ -96,6 +96,9 @@ source_set("test_support") {
 }
 
 source_set("unit_tests") {
+  _configs = configs
+  configs = []
+  configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
   testonly = true
   sources = [
     "media_transcript_provider_unittest.cc",

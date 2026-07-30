@@ -542,11 +542,19 @@ class CORE_EXPORT GridItems : public GarbageCollected<GridItems> {
     item_data_.ReserveInitialCapacity(initial_capacity);
   }
 
+  void SetHasStackingAxisAlignment() { has_stacking_axis_alignment_ = true; }
+  bool HasStackingAxisAlignment() const { return has_stacking_axis_alignment_; }
+
   void Trace(Visitor* visitor) const { visitor->Trace(item_data_); }
 
  private:
   // End index used to iterate over the non-subgridded items of the collection.
   wtf_size_t first_subgridded_item_index_{0};
+
+  // Whether any item or the container has non-normal stacking-axis alignment.
+  // This only applies to layout modes that have a stacking axis, like
+  // grid-lanes.
+  bool has_stacking_axis_alignment_{false};
 
   // Grid items are rearranged in order-modified document order since
   // auto-placement and painting rely on it later in the algorithm.

@@ -9,6 +9,7 @@
 #include <set>
 
 #include "base/containers/circular_deque.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/singleton.h"
 #include "base/time/time.h"
 #include "base/types/pass_key.h"
@@ -110,7 +111,7 @@ class VIEWS_EXPORT OccludedWidgetInputProtector : public views::WidgetObserver {
   std::map<views::Widget*, gfx::Rect> always_on_top_widgets_;
 
   // Always-on-top widgets currently being resized by the user.
-  std::set<views::Widget*> resizing_widgets_;
+  std::set<raw_ptr<views::Widget>> resizing_widgets_;
 
   // A history of screen rects that have recently been covered by always-on-top
   // windows, stored in chronological order (oldest first).

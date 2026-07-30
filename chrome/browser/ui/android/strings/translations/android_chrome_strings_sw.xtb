@@ -117,6 +117,7 @@ Kwa mipangilio zaidi inayotumia data ili kuboresha hali yako ya utumiaji wa Chro
 <translation id="1435593198351412143">Kufungua PDF kitomatiki</translation>
 <translation id="1437543266176261764">Inatumika kwenye programu ya <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">Panga bidhaa unazofuatilia kwenye Alamisho</translation>
+<translation id="1452651021404174820">Chagua kifaa</translation>
 <translation id="1455845192930279203">Je, ungependa kupakua "<ph name="FILE_NAME" />" (<ph name="FILE_SIZE" />) kutoka kwenye <ph name="DOWNLOAD_DOMAIN" /> licha ya hayo?</translation>
 <translation id="1460751212339734034">Okoa muda, andika kidogo</translation>
 <translation id="146522654774760805">Manenosiri na kujaza kiotomatiki</translation>
@@ -124,6 +125,7 @@ Kwa mipangilio zaidi inayotumia data ili kuboresha hali yako ya utumiaji wa Chro
 <translation id="1477626028522505441">Kipakuliwa cha <ph name="FILE_NAME" /> hakijafaulu kwa sababu ya matatizo ya seva.</translation>
 <translation id="147982357559798527">Kimebadilishwa</translation>
 <translation id="1480287803138246127">Huenda baadhi ya historia yako isionekane hapa. Ili uone historia yako yote kwenye Chrome, fungua historia kamili kwenye Chrome.</translation>
+<translation id="1483493594462132177">Tuma</translation>
 <translation id="1495677929897281669">Rudi kwenye kichupo</translation>
 <translation id="1496514951988037011">jina la mtumiaji</translation>
 <translation id="1501480321619201731">Futa kikundi</translation>
@@ -1273,6 +1275,7 @@ Kwa mfano, baadhi ya tovuti zinaweza kujibu ombi hili kwa kukuonyesha matangazo 
 <translation id="634208815998129842">Kidhibiti cha shughuli</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 na <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> zaidi}other{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 na <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> zaidi}}</translation>
 <translation id="6345878117466430440">Tia alama kuwa umesoma</translation>
+<translation id="6350745006329795504">Dhibiti vifaa vyako</translation>
 <translation id="6356893102071098867">Hakikisha kuwa umechagua akaunti sahihi</translation>
 <translation id="6364438453358674297">Je, ungependa kuondoa pendekezo kwenye historia?</translation>
 <translation id="6380100320871303656">Hupakia mapema mara nyingi zaidi kurasa ambazo Chrome inafikiri kwamba unaweza kuzitembelea. Mipangilio hii inaweza kusababisha ongezeko la matumizi ya data.</translation>

@@ -14,15 +14,23 @@ namespace ui {
 X11DesktopWindowMoveClient::Delegate::~Delegate() = default;
 
 X11DesktopWindowMoveClient::X11DesktopWindowMoveClient(Delegate* window)
-    : window_(window) {}
+    : window_(window ? window->AsWeakPtr() : nullptr) {}
 
 X11DesktopWindowMoveClient::~X11DesktopWindowMoveClient() = default;
 
 void X11DesktopWindowMoveClient::OnMouseMovement(const gfx::Point& screen_point,
                                                  int flags,
                                                  base::TimeTicks event_time) {
+  if (!window_) {
+    return;
+  }
   gfx::Point system_loc = screen_point - window_offset_;
-  window_->SetBoundsOnMove(gfx::Rect(system_loc, window_->GetSize()));
+  base::WeakPtr<X11DesktopWindowMoveClient> alive(weak_factory_.GetWeakPtr());
+  const gfx::Size size = window_->GetSize();
+  if (!alive || !window_) {
+    return;
+  }
+  window_->SetBoundsOnMove(gfx::Rect(system_loc, size));
 }
 
 void X11DesktopWindowMoveClient::OnMouseReleased() {

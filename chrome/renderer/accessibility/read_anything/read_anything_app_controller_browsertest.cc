@@ -36,6 +36,7 @@
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/ax_enums.mojom-shared.h"
+#include "ui/accessibility/ax_features.mojom.h"
 #include "ui/accessibility/ax_location_and_scroll_updates.h"
 #include "ui/accessibility/ax_node.h"
 #include "ui/accessibility/ax_node_data.h"
@@ -329,7 +330,7 @@ class ReadAnythingAppControllerTest : public ChromeRenderViewTest {
   void EnableDocs() {
     scoped_feature_list_.Reset();
     scoped_feature_list_.InitAndEnableFeature(
-        features::kReadAnythingDocsIntegration);
+        ax::mojom::features::kReadAnythingDocsIntegration);
   }
 
   void EnableLineFocus() {

@@ -20,9 +20,6 @@ namespace web {
 
 namespace {
 
-BASE_FEATURE(kContentEnableInjectedFeatureScripts,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 std::u16string MakeInjectableIntoMainFrameOnly(const std::u16string& script) {
   std::u16string format_string = u"if (window == window.top) { $1 }";
   return base::ReplaceStringPlaceholders(format_string, script,
@@ -30,6 +27,9 @@ std::u16string MakeInjectableIntoMainFrameOnly(const std::u16string& script) {
 }
 
 }  // namespace
+
+BASE_FEATURE(kContentEnableInjectedFeatureScripts,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 ContentJavaScriptFeatureManager::ContentJavaScriptFeatureManager(
     std::vector<JavaScriptFeature*> features) {

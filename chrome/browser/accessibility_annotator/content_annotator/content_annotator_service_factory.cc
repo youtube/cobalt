@@ -19,6 +19,7 @@
 #include "components/accessibility_annotator/core/accessibility_annotator_features.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/optimization_guide/core/model_execution/remote_model_executor.h"
+#include "components/passage_embeddings/core/passage_embeddings_service_controller.h"
 
 // static
 accessibility_annotator::ContentAnnotatorService*
@@ -103,7 +104,7 @@ ContentAnnotatorServiceFactory::BuildServiceInstanceForBrowserContext(
   }
 
   auto* passage_embeddings_service_controller =
-      passage_embeddings::ChromePassageEmbeddingsServiceController::Get();
+      passage_embeddings::GetChromePassageEmbeddingsServiceController();
 
   return accessibility_annotator::ContentAnnotatorService::Create(
       *page_content_annotations_service, *page_content_extraction_service,

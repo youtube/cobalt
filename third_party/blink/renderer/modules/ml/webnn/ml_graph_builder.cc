@@ -1733,7 +1733,8 @@ MLOperand* MLGraphBuilder::constant(ScriptState* script_state,
   auto* constant =
       MakeGarbageCollected<MLConstantOperand>(this, std::move(descriptor));
 
-  UMA_HISTOGRAM_MEMORY_KB("WebNN.ConstantDataSizeInKB", bytes.size() / 1024);
+  UMA_HISTOGRAM_MEMORY_KB("WebNN.ConstantDataSizeInKB",
+                          base::saturated_cast<int>(bytes.size() / 1024));
   TRACE_EVENT_BEGIN("webnn", "copy constant bytes into BigBuffer",
                     scoped_trace.track(), "size", bytes.size());
   mojo_base::BigBuffer constant_data = mojo_base::BigBuffer(bytes);
@@ -1854,7 +1855,8 @@ MLOperand* MLGraphBuilder::constant(
   auto* constant =
       MakeGarbageCollected<MLConstantOperand>(this, std::move(descriptor));
 
-  UMA_HISTOGRAM_MEMORY_KB("WebNN.ConstantDataSizeInKB", byte_length / 1024);
+  UMA_HISTOGRAM_MEMORY_KB("WebNN.ConstantDataSizeInKB",
+                          base::saturated_cast<int>(byte_length / 1024));
   TRACE_EVENT_BEGIN("webnn", "create constant scalar value BigBuffer",
                     scoped_trace.track(), "size", byte_length);
   scoped_trace.AddStep("post mojo message: CreatePendingConstant");

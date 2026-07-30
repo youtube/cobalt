@@ -404,18 +404,23 @@ bool AimEligibilityService::IsAimAllowedByDse() const {
   return search::DefaultSearchProviderIsGoogle(template_url_service_);
 }
 
-bool AimEligibilityService::IsAimLocallyEligible() const {
+bool AimEligibilityService::IsAimAllowedByFeatureAndPolicy() const {
   // Kill switch: If AIM is completely disabled, return false.
   if (!base::FeatureList::IsEnabled(omnibox::kAimEnabled)) {
     return false;
   }
 
-  // Always check Google DSE and Policy requirements.
-  if (!IsAimAllowedByDse() || !IsAimAllowedByPolicy(&pref_service_.get())) {
+  // Check Policy requirements.
+  if (!IsAimAllowedByPolicy(&pref_service_.get())) {
     return false;
   }
 
   return true;
+}
+
+bool AimEligibilityService::IsAimLocallyEligible() const {
+  // Check core baseline eligibility and Google DSE requirement.
+  return IsAimAllowedByFeatureAndPolicy() && IsAimAllowedByDse();
 }
 
 bool AimEligibilityService::IsAimEligible() const {

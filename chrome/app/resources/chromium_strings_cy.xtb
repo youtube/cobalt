@@ -75,6 +75,7 @@ Mae'n bosib na fydd rhai nodweddion ar gael ac ni fydd newidiadau o ran dewisiad
 <translation id="1820835682567584003">Mae Chromium yn ceisio <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="183031085822326697">Y tro nesaf y byddwch yn agor Chromium ar eich <ph name="DEVICE_TYPE" />, byddwch yn gweld anogwr i ddefnyddio Rheolwr Cyfrineiriau Google.</translation>
 <translation id="1838374766361614909">Clirio'r blwch chwilio</translation>
+<translation id="1846849503013521481">Er mwyn diogelu eich gwaith ar Chromium, bydd eich sefydliad yn gallu gweld neu reoli gwybodaeth benodol</translation>
 <translation id="18552579716432081">I ddileu data pori o'r ddyfais hon yn unig, tra'n eu cadw yn eich Cyfrif Google, <ph name="BEGIN_LINK" />allgofnodwch o Chromium<ph name="END_LINK" />.</translation>
 <translation id="1857749206890802997">Lawrlwythwch Chromium ar eich ffôn i agor neu greu grwpiau tabiau newydd wrth fynd.</translation>
 <translation id="185970820835152459">Gallwch reoli'ch Cyfrifon Google sydd wedi'u mewngofnodi. Defnyddir eich Cyfrifon Google ar gyfer porwr Chromium, Play Store, Gmail, a rhagor. Os ydych am ychwanegu cyfrif ar gyfer rhywun arall, megis aelod o'r teulu, ychwanegwch berson newydd at eich <ph name="DEVICE_TYPE" /> yn lle. <ph name="LINK_BEGIN" />Dysgu rhagor<ph name="LINK_END" /></translation>
@@ -437,6 +438,7 @@ Os nad yw'r dudalen hon yn gweithio fel y disgwylir, rhowch gynnig ar ganiatáu 
 <translation id="5953657885167112863">Gwneud Chromium yn Unigryw i Chi</translation>
 <translation id="5960071705175224773">Newidiwyd eich gosodiadau gan ap anhysbys</translation>
 <translation id="5968400720580217226">Dull AI</translation>
+<translation id="5977420883993828287">Piniwyd! Defnyddio Tasgau Cyd-destunol eto o'r bar offer</translation>
 <translation id="5986585015444752010">{COUNT,plural, =1{Mae eich sefydliad yn cau Chromium yn awtomatig pan na chaiff ei ddefnyddio am 1 funud.}zero{Mae eich sefydliad yn cau Chromium yn awtomatig pan na chaiff ei ddefnyddio am # munud.}two{Mae eich sefydliad yn cau Chromium yn awtomatig pan na chaiff ei ddefnyddio am # funud.}few{Mae eich sefydliad yn cau Chromium yn awtomatig pan na chaiff ei ddefnyddio am # munud.}many{Mae eich sefydliad yn cau Chromium yn awtomatig pan na chaiff ei ddefnyddio am # munud.}other{Mae eich sefydliad yn cau Chromium yn awtomatig pan na chaiff ei ddefnyddio am # munud.}}</translation>
 <translation id="5987687638152509985">Diweddarwch Chromium i ddechrau cysoni</translation>
 <translation id="6003112304606738118">Wrthi'n lawrlwytho... Mae <ph name="HOURS" /> awr ar ôl</translation>
@@ -541,6 +543,17 @@ Mae'n bosib na fydd rhai nodweddion ar gael. Rhowch gyfeiriadur proffil gwahanol
 <translation id="6896758677409633944">Copïo</translation>
 <translation id="6901631050894301805">Gosodwch Chromium fel eich porwr diofyn a'i binio i'ch bar tasgau</translation>
 <translation id="6909503629704372277">&amp;Rheoli proffiliau Chromium</translation>
+<translation id="6919942714452658456">Bydd y weithred hon yn:
+          <ph name="LINE_BREAKS" />
+            • Ailosod eich tudalen gychwyn, tudalen tab newydd, peiriant chwilio a thabiau sydd wedi'u pinio
+            <ph name="LINE_BREAK" />
+            • Analluogi estyniadau
+            <ph name="LINE_BREAK" />
+            • Dileu cwcis a data gwefan eraill dros dro
+            <ph name="LINE_BREAK" />
+            • Ailosod llwybrau byr Chromium
+            <ph name="LINE_BREAKS" />
+            Ni fydd hyn yn effeithio ar nodau tudalen, hanes a chyfrineiriau sydd wedi'u cadw.</translation>
 <translation id="6934579572334859869">Gofyn i Chwilio Lluniau am y llun hwn</translation>
 <translation id="6948031725951063910">Rydych wedi cyrraedd terfyn Chromium o <ph name="BOOKMARK_LIMIT" /> nod tudalen, felly nid yw rhai o'ch nodau tudalen wedi'u cadw yn eich Cyfrif Google eto.
 
@@ -610,6 +623,7 @@ Ni all Chromium adfer eich gosodiadau.</translation>
 <translation id="7686590090926151193">Nid Chromium yw eich porwr diofyn</translation>
 <translation id="7689606757190482937">Cysoni â phersonoleiddio Chromium ar draws eich dyfeisiau</translation>
 <translation id="7699779824407626136">Diweddariad Chromium</translation>
+<translation id="7700735928747402058">Eich gwaith wedi'i ddiogelu ar Chromium</translation>
 <translation id="7716950018788545737">Tasg(au) wedi dod i ben.</translation>
 <translation id="77283119132245232">Yn darparu gwasanaethau olrhain system ar gyfer <ph name="BROWSER_NAME" />. Os yw'r gwasanaeth hwn wedi'i analluogi, ni fydd olion perfformiad a grëir gan y porwr yn cynnwys digwyddiadau system gyfan megis switsh cyd-destun a digwyddiadau trywydd parod.</translation>
 <translation id="7745317241717453663">Bydd hyn yn dileu eich data pori o'r ddyfais hon. I adfer eich data yn nes ymlaen, mewngofnodwch i Chromium fel <ph name="USER_EMAIL" />.</translation>
@@ -641,6 +655,7 @@ Ni all Chromium adfer eich gosodiadau.</translation>
 <translation id="8031714377769448844">Pinio Chromium i'ch bar tasgau i'w gyrraedd yn gyflym unrhyw bryd</translation>
 <translation id="80471789339884597">Diolch am osod. Rhaid i chi ailgychwyn eich holl borwyr cyn defnyddio <ph name="BUNDLE_NAME" />.</translation>
 <translation id="8054112667659782652">Dangos llwybr byr Chwilio Lluniau bob amser</translation>
+<translation id="8069447462453318634">Dewis "Pinio i'r bar offer"</translation>
 <translation id="8077498902115777962">Analluogi rhedeg Chromium yn y cefndir ar gyfer apiau</translation>
 <translation id="80790299200510644">Chwilio Lluniau</translation>
 <translation id="8086881907087796310">Wedi methu â gosod oherwydd nad yw'ch cyfrifiadur yn bodloni'r gofynion caledwedd sylfaenol.</translation>
@@ -722,6 +737,15 @@ Ni all Chromium adfer eich gosodiadau.</translation>
 <translation id="8907580949721785412">Mae Chromium yn ceisio dangos cyfrineiriau. Rhowch eich cyfrinair Windows i ganiatáu hyn.</translation>
 <translation id="8932992523185907506">Nid Chromium yw eich porwr diofyn mwyach. Gwneud Chromium yn borwr diofyn?</translation>
 <translation id="8941642502866065432">Methu â diweddaru Chromium</translation>
+<translation id="8944232836376404813">Bydd y weithred hon yn:
+          <ph name="LINE_BREAKS" />
+            • Ailosod eich tudalen gychwyn, tudalen tab newydd, peiriant chwilio a thabiau sydd wedi'u pinio
+            <ph name="LINE_BREAK" />
+            • Analluogi estyniadau
+            <ph name="LINE_BREAK" />
+            • Dileu cwcis a data gwefan eraill dros dro
+            <ph name="LINE_BREAKS" />
+            Ni fydd hyn yn effeithio ar nodau tudalen, hanes a chyfrineiriau sydd wedi'u cadw.</translation>
 <translation id="897581876605952338">Logo Chromium Enterprise</translation>
 <translation id="8981150672034878610">Methu â dechrau Chromium oherwydd aeth rhywbeth o'i le wrth agor eich proffil. Rhowch gynnig ar ailgychwyn Chromium.</translation>
 <translation id="8988036198400390003">Rheoli proffiliau Chromium</translation>

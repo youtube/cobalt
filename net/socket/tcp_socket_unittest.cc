@@ -204,7 +204,8 @@ class TCPSocketTest
 
     TestCompletionCallback connect_callback;
     TCPClientSocket connecting_socket(local_address_list(), nullptr, nullptr,
-                                      nullptr, NetLogSource());
+                                      nullptr, NetLogSource(),
+                                      handles::kInvalidNetworkHandle);
     int connect_result = connecting_socket.Connect(connect_callback.callback());
     EXPECT_THAT(connect_callback.GetResult(connect_result), IsOk());
 
@@ -357,7 +358,8 @@ TEST_P(TCPSocketTest, Accept) {
   // TODO(yzshen): Switch to use TCPSocket when it supports client socket
   // operations.
   TCPClientSocket connecting_socket(local_address_list(), nullptr, nullptr,
-                                    nullptr, NetLogSource());
+                                    nullptr, NetLogSource(),
+                                    handles::kInvalidNetworkHandle);
   int connect_result = connecting_socket.Connect(connect_callback.callback());
 
   TestCompletionCallback accept_callback;
@@ -395,7 +397,8 @@ TEST_P(TCPSocketTest, AdoptConnectedSocket) {
   // TODO(yzshen): Switch to use TCPSocket when it supports client socket
   // operations.
   TCPClientSocket connecting_socket(local_address_list(), nullptr, nullptr,
-                                    nullptr, NetLogSource());
+                                    nullptr, NetLogSource(),
+                                    handles::kInvalidNetworkHandle);
   int connect_result = connecting_socket.Connect(connect_callback.callback());
 
   TestCompletionCallback accept_callback;
@@ -451,12 +454,14 @@ TEST_P(TCPSocketTest, Accept2Connections) {
 
   TestCompletionCallback connect_callback;
   TCPClientSocket connecting_socket(local_address_list(), nullptr, nullptr,
-                                    nullptr, NetLogSource());
+                                    nullptr, NetLogSource(),
+                                    handles::kInvalidNetworkHandle);
   int connect_result = connecting_socket.Connect(connect_callback.callback());
 
   TestCompletionCallback connect_callback2;
   TCPClientSocket connecting_socket2(local_address_list(), nullptr, nullptr,
-                                     nullptr, NetLogSource());
+                                     nullptr, NetLogSource(),
+                                     handles::kInvalidNetworkHandle);
   int connect_result2 =
       connecting_socket2.Connect(connect_callback2.callback());
 
@@ -490,7 +495,8 @@ TEST_P(TCPSocketTest, AcceptIPv6) {
 
   TestCompletionCallback connect_callback;
   TCPClientSocket connecting_socket(local_address_list(), nullptr, nullptr,
-                                    nullptr, NetLogSource());
+                                    nullptr, NetLogSource(),
+                                    handles::kInvalidNetworkHandle);
   int connect_result = connecting_socket.Connect(connect_callback.callback());
 
   TestCompletionCallback accept_callback;
@@ -1177,7 +1183,8 @@ TEST_P(TCPSocketTest, IsConnected) {
 
   TestCompletionCallback connect_callback;
   TCPClientSocket connecting_socket(local_address_list(), nullptr, nullptr,
-                                    nullptr, NetLogSource());
+                                    nullptr, NetLogSource(),
+                                    handles::kInvalidNetworkHandle);
 
   // Immediately after creation, the socket should not be connected.
   EXPECT_FALSE(connecting_socket.IsConnected());
@@ -1266,7 +1273,8 @@ TEST_P(TCPSocketTest, BeforeConnectCallback) {
 
   TestCompletionCallback connect_callback;
   TCPClientSocket connecting_socket(local_address_list(), nullptr, nullptr,
-                                    nullptr, NetLogSource());
+                                    nullptr, NetLogSource(),
+                                    handles::kInvalidNetworkHandle);
 
   connecting_socket.SetBeforeConnectCallback(base::BindLambdaForTesting([&] {
     EXPECT_FALSE(connecting_socket.IsConnected());
@@ -1311,7 +1319,8 @@ TEST_P(TCPSocketTest, BeforeConnectCallbackFails) {
 
   TestCompletionCallback connect_callback;
   TCPClientSocket connecting_socket(local_address_list(), nullptr, nullptr,
-                                    nullptr, NetLogSource());
+                                    nullptr, NetLogSource(),
+                                    handles::kInvalidNetworkHandle);
 
   // Set a callback that returns a nonsensical error, and make sure it's
   // returned.
@@ -1339,7 +1348,8 @@ TEST_P(TCPSocketTest, SetKeepAlive) {
 
   TestCompletionCallback connect_callback;
   TCPClientSocket connecting_socket(local_address_list(), nullptr, nullptr,
-                                    nullptr, NetLogSource());
+                                    nullptr, NetLogSource(),
+                                    handles::kInvalidNetworkHandle);
 
   // Non-connected sockets should not be able to set KeepAlive.
   ASSERT_FALSE(connecting_socket.IsConnected());
@@ -1371,7 +1381,8 @@ TEST_P(TCPSocketTest, SetNoDelay) {
 
   TestCompletionCallback connect_callback;
   TCPClientSocket connecting_socket(local_address_list(), nullptr, nullptr,
-                                    nullptr, NetLogSource());
+                                    nullptr, NetLogSource(),
+                                    handles::kInvalidNetworkHandle);
 
   // Non-connected sockets should not be able to set NoDelay.
   ASSERT_FALSE(connecting_socket.IsConnected());

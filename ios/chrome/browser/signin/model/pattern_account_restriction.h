@@ -21,10 +21,10 @@ class Pattern {
  public:
   explicit Pattern(std::vector<std::string> chunks);
   ~Pattern();
-  // Copyable
+  // Copyable.
   Pattern(const Pattern&);
   Pattern& operator=(const Pattern&);
-  // Moveable
+  // Movable.
   Pattern(Pattern&& from);
   Pattern& operator=(Pattern&& from);
 
@@ -41,11 +41,11 @@ class PatternAccountRestriction {
   PatternAccountRestriction();
   explicit PatternAccountRestriction(std::vector<Pattern> patterns);
   ~PatternAccountRestriction();
-  // Non-copyable
+  // Non-copyable.
   PatternAccountRestriction(const PatternAccountRestriction& other) = delete;
   PatternAccountRestriction& operator=(const PatternAccountRestriction& other) =
       delete;
-  // Moveable
+  // Movable.
   PatternAccountRestriction(PatternAccountRestriction&& from);
   PatternAccountRestriction& operator=(PatternAccountRestriction&& from);
 

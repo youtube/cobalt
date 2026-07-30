@@ -7,6 +7,9 @@
 #include <unordered_set>
 #include <utility>
 
+#include "base/test/gtest_util.h"
+#include "base/test/scoped_feature_list.h"
+#include "net/base/features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace disk_cache {
@@ -140,6 +143,43 @@ TEST(CacheEntryKeyTest, StdHash) {
   EXPECT_EQ(key_set.count(key2), 1u);
   EXPECT_EQ(key_set.count(key1_copy), 1u);
   EXPECT_EQ(key_set.count(CacheEntryKey("non_existent_key")), 0u);
+}
+
+class CacheEntryKeyFeatureTest : public testing::TestWithParam<bool> {
+ public:
+  static std::string ParamToString(const testing::TestParamInfo<bool>& info) {
+    return info.param ? "RendererAccessibleHttpCacheEnabled"
+                      : "RendererAccessibleHttpCacheDisabled";
+  }
+
+  void SetUp() override {
+    if (GetParam()) {
+      feature_list_.InitAndEnableFeature(
+          net::features::kRendererAccessibleHttpCache);
+    } else {
+      feature_list_.InitAndDisableFeature(
+          net::features::kRendererAccessibleHttpCache);
+    }
+  }
+
+ protected:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         CacheEntryKeyFeatureTest,
+                         testing::Bool(),
+                         CacheEntryKeyFeatureTest::ParamToString);
+
+TEST_P(CacheEntryKeyFeatureTest, ResourceUrlAccess) {
+  CacheEntryKey key("0/0/https://example.com/");
+  if (GetParam()) {
+    EXPECT_EQ(key.resource_url(), "https://example.com/");
+    EXPECT_EQ(key.resource_url_hash().value(), -66026148);
+  } else {
+    BASE_EXPECT_DEATH(key.resource_url(), "");
+    BASE_EXPECT_DEATH(key.resource_url_hash(), "");
+  }
 }
 
 }  // namespace
