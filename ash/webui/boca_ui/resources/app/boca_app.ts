@@ -130,6 +130,12 @@ export enum StudentStatusDetail {
   MULTIPLE_DEVICE_SIGNED_IN = 9,
 }
 
+export enum GeminiEnablementState {
+  UNKNOWN = 0,
+  ENABLED = 1,
+  DISABLED = 2,
+}
+
 /**
  * Declare network state enum type
  */
@@ -186,6 +192,7 @@ export enum MaterialType {
   YOUTUBE_VIDEO = 2,
   LINK = 3,
   FORM = 4,
+  GUIDED_LEARNING = 5,
 }
 
 /**
@@ -283,6 +290,7 @@ export declare interface StudentActivity {
   // multi-group.
   joinMethod: JoinMethod;
   viewScreenSessionCode?: string;
+  geminiState: GeminiEnablementState;
 }
 
 /**
@@ -451,6 +459,11 @@ export declare interface ClientApiDelegate {
    * Stop the current screen share presentation for the student.
    */
   stopPresentingStudentScreen(): Promise<boolean>;
+
+  /**
+   * Get Gemini enabled status.
+   */
+  getGeminiStatus(): Promise<boolean>;
 }
 
 /**

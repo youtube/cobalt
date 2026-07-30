@@ -166,6 +166,9 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   using ShapeRects = std::vector<gfx::Rect>;
   using PaintAsActiveCallbackList = base::RepeatingClosureList;
 
+  enum class ClosedReason;
+  using ClosedCallback = base::OnceCallback<void(ClosedReason)>;
+
   enum class FrameType {
     kDefault,      // Use whatever the default would be.
     kForceCustom,  // Force the custom frame.
@@ -899,8 +902,7 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   // It is OK to not reset the Widget in the callback. This blocks the window
   // from closing. Used for example in web page unload handlers that shows a
   // dialog to the user to confirm whether to discard changes.
-  void MakeCloseSynchronous(
-      base::OnceCallback<void(ClosedReason)> override_close);
+  void MakeCloseSynchronous(ClosedCallback override_close);
 
   // A UI test which tries to asynchronously examine a widget (e.g. the pixel
   // tests) will fail if the widget is closed before that.  This can happen
@@ -1463,6 +1465,13 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   // Called to enable or disable screenshots of this widget.
   void SetAllowScreenshots(bool allow);
   bool AreScreenshotsAllowed();
+
+#if BUILDFLAG(IS_WIN)
+  // Called to exclude this window from screen capture.
+  // Note: On macOS, equivalent functionality is handled at the capturer
+  // level via ScreenCaptureKit (see screen_capture_kit_device_mac.mm).
+  void SetExcludeFromScreenCapture(bool exclude);
+#endif
 
   // Called when we become / stop being `child_widget`'s parent.
   void OnChildAdded(Widget* child_widget);

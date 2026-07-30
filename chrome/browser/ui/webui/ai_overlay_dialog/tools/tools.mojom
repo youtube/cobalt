@@ -37,7 +37,9 @@ enum ScrollGranularity {
 interface AiOverlayTools {
   // Browser tools
 
-  // Open a URL.
+  // Open a URL. Use when the user wants to follow/open a link or go to a page.
+  // When following a link, extract the exact URL from the page markdown
+  // content where links are of the format: `[text](url)`
   //
   // url: Exact URL. Use PerformSearch to find a page instead of guessing a URL.
   OpenUrl(string url, bool new_tab) => result<mojo_base.mojom.Empty, string>;
@@ -71,6 +73,10 @@ interface AiOverlayTools {
   FindAndHighlight(string query) => result<mojo_base.mojom.Empty, string>;
 
   // Scroll the viewport in a specific direction.
+  //
+  // granularity: ["document", "page"] - The units of the `magnitude` param.
+  //   "document" scrolls to the start or end of the document.
+  // magnitude: the distance to scroll. Positive is down, negative is up.
   Scroll(ScrollGranularity granularity, double magnitude)
       => result<mojo_base.mojom.Empty, string>;
 
@@ -95,8 +101,8 @@ interface AiOverlayTools {
       string target_language) => result<mojo_base.mojom.Empty, string>;
 
   // @NON_BLOCKING
-  // Use for tasks taking >1s to process, or to generate images, audio, video,
-  // or long text. Prefer direct voice replies for quick (<1s) tasks.
+  // Use for tasks taking >1s to process, email, or to generate images, audio,
+  // video, or long text. Prefer direct voice replies for quick (<1s) tasks.
   //
   // prompt: The request to send to Gemini in the side panel.
   InvokeGlic(string prompt) => result<string, string>;

@@ -26,6 +26,7 @@ struct Facet;
 
 namespace password_manager {
 class PasswordManagerInterface;
+struct StoredCredential;
 }  // namespace password_manager
 
 namespace actor_login {
@@ -46,7 +47,7 @@ class ActorLoginCredentialFiller {
       base::TimeTicks attempt_login_start_time,
       IsTaskInFocus is_task_in_focus,
       LoginStatusResultOrErrorReply callback);
-  ~ActorLoginCredentialFiller();
+  virtual ~ActorLoginCredentialFiller();
 
   ActorLoginCredentialFiller(const ActorLoginCredentialFiller&) = delete;
   ActorLoginCredentialFiller& operator=(const ActorLoginCredentialFiller&) =
@@ -63,9 +64,21 @@ class ActorLoginCredentialFiller {
   // properly populate the actor login MQLS logs.
   void OnPrimaryPageChanged();
 
- private:
+ protected:
   enum class FieldType { kUsername, kPassword };
 
+  // Retrieves the full data of a saved credential for the form managed
+  // by `signin_form_manager` corresponding to `credential_`.
+  virtual const password_manager::StoredCredential* GetMatchingStoredCredential(
+      const password_manager::PasswordFormManager& signin_form_manager);
+
+  virtual bool DoesStoredCredentialBelongToManager(
+      const password_manager::PasswordFormManager* manager,
+      const password_manager::StoredCredential& stored_credential);
+
+  virtual bool IsReauthBeforeFillingRequired();
+
+ private:
   // Called when the affiliations for `credential_.request_origin` have been
   // retrieved. `results` contains facets affiliated with the
   // `credential_.request_origin`.
@@ -88,18 +101,13 @@ class ActorLoginCredentialFiller {
   // `eligible_managers`.
   void MaybeReauthAndFillAllEligibleFields(
       std::vector<password_manager::PasswordFormManager*> eligible_managers,
-      const password_manager::PasswordForm& stored_credential);
+      password_manager::StoredCredential stored_credential);
 
   // Triggers the device reauthentication flow.
   // `on_reauth_cb` is executed only if reauthentication is successful.
   // If reauthentication fails, the filling process is aborted and an error
   // is reported via `callback_`.
   void AttemptReauth(base::OnceClosure on_reauth_cb);
-
-  // Retrieves the full data of a saved credential for the form managed
-  // by `signin_form_manager` corresponding to `credential_`.
-  const password_manager::PasswordForm* GetMatchingStoredCredential(
-      const password_manager::PasswordFormManager& signin_form_manager);
 
   // Reauthenticates the user before filling.
   void ReauthenticateAndFill(base::OnceClosure fill_form_cb);
@@ -112,7 +120,7 @@ class ActorLoginCredentialFiller {
   // Fills all eligible fields with `stored_credential.password_value` and
   // `stored_credential.username_value`.
   void FillAllEligibleFields(
-      const password_manager::PasswordForm& stored_credential,
+      password_manager::StoredCredential stored_credential,
       bool should_skip_iframes,
       std::vector<password_manager::PasswordFormManager*> eligible_managers);
 

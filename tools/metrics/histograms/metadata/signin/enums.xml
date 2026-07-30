@@ -237,6 +237,33 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Account is uknown with an invalid token"/>
 </enum>
 
+<!-- LINT.IfChange(AgeMismatchPromptMode) -->
+
+<enum name="AgeMismatchPromptMode">
+  <int value="0" label="Standard"/>
+  <int value="1" label="Signin Flow"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/authentication/age_mismatch_signout/ui/age_mismatch_prompt_mode.h:AgeMismatchPromptMode) -->
+
+<!-- LINT.IfChange(AgeMismatchSignoutAction) -->
+
+<enum name="AgeMismatchSignoutAction">
+  <int value="0" label="Use another account"/>
+  <int value="1" label="Use without an account"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/authentication/age_mismatch_signout/coordinator/age_mismatch_signout_constants.h:AgeMismatchSignoutAction) -->
+
+<!-- LINT.IfChange(AgeMismatchStaySignedOutButtonState) -->
+
+<enum name="AgeMismatchStaySignedOutButtonState">
+  <int value="0" label="Shown"/>
+  <int value="1" label="Hidden"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/authentication/age_mismatch_signout/coordinator/age_mismatch_signout_constants.h:AgeMismatchStaySignedOutButtonState) -->
+
 <enum name="BooleanBoundToTheSameKey">
   <int value="0" label="Bound to different keys"/>
   <int value="1" label="Bound to the same key"/>
@@ -334,6 +361,16 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/signin/bound_session_credentials/bound_session_params_storage.cc:BoundSessionParamsWriteError) -->
+
+<!-- LINT.IfChange(CanSignInToChromeCapabilityResult) -->
+
+<enum name="CanSignInToChromeCapabilityResult">
+  <int value="0" label="False"/>
+  <int value="1" label="True"/>
+  <int value="2" label="Timeout"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/authentication/ui_bundled/authentication_flow/age_mismatch_capabilities_fetcher.h:CanSignInToChromeCapabilityResult) -->
 
 <enum name="CctAccountMismatchType">
   <int value="0" label="Signed out of both Chrome and 1P app"/>
@@ -790,6 +827,8 @@ chromium-metrics-reviews@google.com.
   <int value="97" label="Glic Invoke API"/>
   <int value="98" label="Secure Gateway Service"/>
   <int value="99" label="Drive Picker Host"/>
+  <int value="100" label="Skills Service"/>
+  <int value="101" label="Context Memory Service"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/signin/public/base/oauth_consumer_id.h:OAuthConsumerId) -->
@@ -1023,6 +1062,7 @@ chromium-metrics-reviews@google.com.
   <int value="101"
       label="Autofill and passwords settings page on iOS and Android"/>
   <int value="102" label="Sign-in deep link (e.g. from cross-device QR code)"/>
+  <int value="103" label="Age mismatch signout (iOS only)"/>
 </enum>
 
 <enum name="SigninAccountReconcilorState">

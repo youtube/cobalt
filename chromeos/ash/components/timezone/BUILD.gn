@@ -7,9 +7,14 @@ assert(is_chromeos, "Non-Chrome-OS builds must not depend on //chromeos/ash")
 component("timezone") {
   defines = [ "IS_CHROMEOS_ASH_COMPONENTS_TIMEZONE_IMPL" ]
   deps = [
+    ":util",
+    "//ash/constants",
     "//base",
     "//chromeos/ash/components/geolocation",
+    "//chromeos/ash/components/settings",
     "//components/prefs",
+    "//components/session_manager/core",
+    "//components/user_manager",
     "//google_apis",
     "//net",
     "//services/network/public/cpp",
@@ -21,6 +26,21 @@ component("timezone") {
     "timezone_request.h",
     "timezone_resolver.cc",
     "timezone_resolver.h",
+  ]
+}
+
+source_set("util") {
+  deps = [
+    "//ash/constants",
+    "//base",
+    "//chromeos/ash/components/settings",
+    "//components/policy/proto",
+    "//components/prefs",
+    "//components/user_manager",
+  ]
+  sources = [
+    "timezone_util.cc",
+    "timezone_util.h",
   ]
 }
 

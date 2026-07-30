@@ -4,30 +4,44 @@
 
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <algorithm>
+#include <cmath>
 #include <optional>
-#include <ranges>
+#include <ostream>
+#include <string>
+#include <string_view>
+#include <tuple>
 #include <utility>
 #include <variant>
+#include <vector>
 
+#include "base/check.h"
+#include "base/check_op.h"
+#include "base/containers/flat_set.h"
+#include "base/feature_list.h"
 #include "base/notreached.h"
-#include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_ostream_operators.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/time/time.h"
+#include "base/types/optional_ref.h"
 #include "components/autofill/core/browser/autofill_format_string.h"
 #include "components/autofill/core/browser/autofill_type.h"
-#include "components/autofill/core/browser/data_model/addresses/autofill_i18n_api.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_normalization_utils.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_structured_address_component.h"
 #include "components/autofill/core/browser/data_model/addresses/contact_info.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/country_info.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/date_info.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
-#include "components/autofill/core/browser/data_model/data_model_utils.h"
-#include "components/autofill/core/browser/data_quality/autofill_data_util.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #include "components/autofill/core/browser/field_type_utils.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/proto/server.pb.h"
 #include "components/autofill/core/common/autofill_features.h"
+#include "components/autofill/core/common/dense_set.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace autofill {
@@ -77,7 +91,7 @@ std::optional<size_t> DetermineSuffixLength(const AttributeInstance& a1,
   return length ? std::make_optional(length) : std::nullopt;
 }
 
-// Returns `s` in the demanded `format`. See `data_util::IsValidDateFormat` for
+// Returns `s` in the demanded `format`. See `data_util::IsValidAffixFormat` for
 // the valid `format` values.
 std::u16string FormatAffix(std::u16string s, std::u16string_view format) {
   // We parse the leading minus here rather than using `base::StringToInt()` to
@@ -124,6 +138,7 @@ std::u16string FormatFlightNumber(std::u16string s,
 
 std::u16string Format(
     std::u16string s,
+    FieldType type,
     base::optional_ref<const AutofillFormatString> format_string) {
   if (!format_string) {
     return s;
@@ -131,8 +146,14 @@ std::u16string Format(
 
   switch (format_string->type) {
     case FormatString_Type_AFFIX:
+      if (!IsAffixFormatStringEnabledForType(type)) {
+        break;
+      }
       return FormatAffix(std::move(s), format_string->value);
     case FormatString_Type_FLIGHT_NUMBER:
+      if (type != FLIGHT_RESERVATION_FLIGHT_NUMBER) {
+        break;
+      }
       return FormatFlightNumber(std::move(s), format_string->value);
     case FormatString_Type_DATE:
     case FormatString_Type_ICU_DATE:
@@ -147,7 +168,7 @@ bool IsMaskableRecordType(EntityInstance::RecordType record_type) {
       return false;
     case EntityInstance::RecordType::kServerWallet:
       return true;
-    case EntityInstance::RecordType::kAccessibilityAnnotator:
+    case EntityInstance::RecordType::kPersonalContext:
       return false;
   }
   NOTREACHED();
@@ -199,7 +220,8 @@ std::u16string AttributeInstance::GetInfo(
                      [&](const NameInfo&) { return GetRawInfo(field_type); },
                      [&](const StateInfo&) { return GetRawInfo(field_type); },
                      [&](const std::u16string&) {
-                       return Format(GetRawInfo(field_type), format_string);
+                       return Format(GetRawInfo(field_type), field_type,
+                                     format_string);
                      }},
       info_);
 }
@@ -388,13 +410,13 @@ std::ostream& operator<<(std::ostream& os,
                          const EntityInstance::RecordType& t) {
   switch (t) {
     case EntityInstance::RecordType::kLocal:
-      os << "kLocal" << std::endl;
+      os << "kLocal";
       break;
     case EntityInstance::RecordType::kServerWallet:
-      os << "kServerWallet" << std::endl;
+      os << "kServerWallet";
       break;
-    case EntityInstance::RecordType::kAccessibilityAnnotator:
-      os << "kAccessibilityAnnotator" << std::endl;
+    case EntityInstance::RecordType::kPersonalContext:
+      os << "kPersonalContext";
       break;
   }
   return os;
@@ -584,7 +606,7 @@ bool EntityInstance::IsServerInstance() const {
       return false;
     case RecordType::kServerWallet:
       return true;
-    case RecordType::kAccessibilityAnnotator:
+    case RecordType::kPersonalContext:
       return false;
   }
   NOTREACHED();
@@ -704,29 +726,5 @@ bool EntityInstance::FrecencyOrder::operator()(
          std::tuple(get_ranking_score(rhs), rhs.use_date());
 }
 
-bool IsMaskedStorageSupported(EntityType type,
-                              EntityInstance::RecordType record_type) {
-  switch (record_type) {
-    case EntityInstance::RecordType::kLocal:
-    case EntityInstance::RecordType::kAccessibilityAnnotator:
-      return false;
-    case EntityInstance::RecordType::kServerWallet:
-      break;
-  }
-  switch (type.name()) {
-    case EntityTypeName::kDriversLicense:
-    case EntityTypeName::kKnownTravelerNumber:
-    case EntityTypeName::kNationalIdCard:
-    case EntityTypeName::kPassport:
-    case EntityTypeName::kRedressNumber:
-      return true;
-    case EntityTypeName::kFlightReservation:
-    case EntityTypeName::kVehicle:
-    case EntityTypeName::kOrder:
-    case EntityTypeName::kShipment:
-      return false;
-  }
-  NOTREACHED();
-}
 
 }  // namespace autofill

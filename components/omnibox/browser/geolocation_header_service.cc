@@ -5,6 +5,7 @@
 #include "components/omnibox/browser/geolocation_header_service.h"
 
 #include "base/base64url.h"
+#include "base/logging.h"
 #include "base/strings/strcat.h"
 #include "components/content_settings/core/browser/content_settings_observer.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
@@ -109,7 +110,7 @@ void GeolocationHeaderService::PrimeLocation() {
 
   const TemplateURL* default_provider =
       template_url_service_->GetDefaultSearchProvider();
-  if (!default_provider) {
+  if (!default_provider || !default_provider->send_x_geo_header()) {
     return;
   }
 
@@ -126,8 +127,10 @@ void GeolocationHeaderService::PrimeLocation() {
     return;
   }
 
-  // If the location is fresh there is no need to query for a new one.
-  if (HasCachedLocation()) {
+  // If the location is fresh and matches targeted precision requirements, there
+  // is no need to query for a new one.
+  if (HasCachedLocation() &&
+      last_position_->is_precise == HasPrecisePermission(requesting_url)) {
     base::TimeDelta age = location_age_for_testing_.value_or(
         base::Time::Now() - last_position_->timestamp);
     if (age <= kMaxLocationAgeForPriming) {
@@ -163,16 +166,23 @@ bool GeolocationHeaderService::HasCachedLocation() const {
 }
 
 std::optional<std::string> GeolocationHeaderService::GetLocationHeader(
-    const GURL& url) {
+    const GURL& url,
+    bool for_automatic_sending) {
   if (!url.SchemeIs(url::kHttpsScheme) || !HasCachedLocation() ||
       !IsUrlEligibleForLocationHeader(url)) {
     return std::nullopt;
   }
 
-  if (!IsAllowedByPermission(url) ||
-      (last_position_->is_precise && !HasPrecisePermission(url))) {
-    last_position_.reset();
-    geolocation_.reset();
+  // If this call is for the purpose of sending the header automatically, the
+  // DSE should have permission. If this call is for the purpose of building
+  // omnibox suggestion, then it should only be allowed if the DSE does NOT have
+  // permission.
+  if (for_automatic_sending != IsAllowedByPermission(url)) {
+    return std::nullopt;
+  }
+
+  if (last_position_->is_precise && !HasPrecisePermission(url)) {
+    // TODO(b/507328589): Implement location coarsening.
     return std::nullopt;
   }
 
@@ -229,12 +239,16 @@ bool GeolocationHeaderService::HasDeviceLocationPermission(
 
 bool GeolocationHeaderService::IsUrlEligibleForLocationHeader(
     const GURL& url) const {
+  if (!url.SchemeIs(url::kHttpsScheme)) {
+    return false;
+  }
+
   if (!template_url_service_) {
     return false;
   }
   const TemplateURL* default_provider =
       template_url_service_->GetDefaultSearchProvider();
-  if (!default_provider) {
+  if (!default_provider || !default_provider->send_x_geo_header()) {
     return false;
   }
 

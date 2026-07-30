@@ -52,15 +52,6 @@ void PrefetchStreamingURLLoader::Start(
   // This is a violation of const correctness which lead to a confusing bug
   // here.
   network::ResourceRequest new_request(request);
-  if (!new_request.trusted_params) {
-    new_request.trusted_params.emplace();
-  }
-
-  // Request cookies will be included with the response.
-  // They must be removed before forwarding to any untrusted client.
-  // This happens in `PrefetchResponseReader::HandleRedirect` and
-  // `PrefetchResponseReader::OnReceiveResponse`.
-  new_request.trusted_params->include_request_cookies_with_response = true;
 
   // `is_outermost_main_frame` is true here because the prefetched result is
   // served only for outermost main frames.
@@ -268,7 +259,7 @@ void PrefetchStreamingURLLoader::HandleRedirect(
     PrefetchRedirectStatus redirect_status,
     const net::RedirectInfo& redirect_info,
     network::mojom::URLResponseHeadPtr redirect_head,
-    PrefetchUpdateHeadersParams update_headers_params) {
+    network::HttpRequestHeadersUpdateParams headers_update_params) {
   TRACE_EVENT("loading", "PrefetchStreamingURLLoader::HandleRedirect", flow_);
 
   if (!is_waiting_handle_redirect_from_prefetch_service_) {
@@ -286,9 +277,9 @@ void PrefetchStreamingURLLoader::HandleRedirect(
     case PrefetchRedirectStatus::kFollow:
       CHECK(prefetch_url_loader_);
       prefetch_url_loader_->FollowRedirect(
-          std::move(update_headers_params.removed_headers),
-          std::move(update_headers_params.modified_headers),
-          std::move(update_headers_params.modified_cors_exempt_headers),
+          std::move(headers_update_params.removed_headers),
+          std::move(headers_update_params.modified_headers),
+          std::move(headers_update_params.modified_cors_exempt_headers),
           /*new_url=*/std::nullopt);
       break;
     case PrefetchRedirectStatus::kSwitchNetworkContext:

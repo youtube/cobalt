@@ -2357,7 +2357,6 @@ source_set("browser") {
     "tracing/file_tracing_provider_impl.h",
     "tracing/memory_instrumentation_util.cc",
     "tracing/memory_instrumentation_util.h",
-    "tracing/trace_upload_list.h",
     "tracing/traces_internals/traces_internals_handler.cc",
     "tracing/traces_internals/traces_internals_handler.h",
     "tracing/tracing_controller_impl.cc",
@@ -3083,8 +3082,6 @@ source_set("browser") {
     }
     if (is_mac) {
       sources += [
-        "media/capture/capture_util_mac.h",
-        "media/capture/capture_util_mac.mm",
         "media/capture/desktop_capture_device_mac.cc",
         "media/capture/desktop_capture_device_mac.h",
         "media/capture/desktop_capture_util_mac.h",

@@ -18,6 +18,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.actor.ActorTask;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsVisibilityManager;
 import org.chromium.chrome.browser.glic.GlicButtonStateController.ButtonState;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
@@ -25,7 +26,10 @@ import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarFeatures;
 import org.chromium.chrome.browser.toolbar.optional_button.BaseButtonDataProvider;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonData;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonData.ButtonSpec;
+import org.chromium.chrome.browser.ui.bottombar.BottomBarConfigUtils;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
+import org.chromium.chrome.browser.ui.messages.snackbar.Snackbar;
+import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.user_education.IphCommandBuilder;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.feature_engagement.EventConstants;
@@ -44,6 +48,7 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider {
     private final GlicButtonDelegate mToggleGlicCallback;
     private final Supplier<@Nullable Tracker> mTrackerSupplier;
     private final Supplier<@Nullable TabModelSelector> mTabModelSelectorSupplier;
+    private final @Nullable Runnable mRecomputeUiStateCallback;
     private final ButtonSpec mDefaultSpec;
     private final ButtonSpec mWorkingSpec;
     private final ButtonSpec mReviewSpec;
@@ -60,6 +65,7 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider {
      * @param taskSupplier Supplier for the ChromeAndroidTask.
      * @param browserControlsVisibilityManager Manager for browser controls.
      * @param tabModelSelectorSupplier Supplier for the TabModelSelector.
+     * @param recomputeUiStateCallback Callback to trigger recomputation of adaptive toolbar button.
      */
     public GlicToolbarButtonController(
             Activity activity,
@@ -68,7 +74,8 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider {
             Supplier<@Nullable Tracker> trackerSupplier,
             Supplier<@Nullable ChromeAndroidTask> taskSupplier,
             BrowserControlsVisibilityManager browserControlsVisibilityManager,
-            Supplier<@Nullable TabModelSelector> tabModelSelectorSupplier) {
+            Supplier<@Nullable TabModelSelector> tabModelSelectorSupplier,
+            @Nullable Runnable recomputeUiStateCallback) {
         super(
                 activeTabSupplier,
                 /* modalDialogManager= */ null,
@@ -83,6 +90,7 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider {
         mToggleGlicCallback = toggleGlicCallback;
         mTrackerSupplier = trackerSupplier;
         mTabModelSelectorSupplier = tabModelSelectorSupplier;
+        mRecomputeUiStateCallback = recomputeUiStateCallback;
         mDefaultSpec = mButtonData.getButtonSpec();
         Drawable collapsedDrawable =
                 AppCompatResources.getDrawable(activity, R.drawable.glic_dirty_dot_spark);
@@ -90,7 +98,13 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider {
         mStateController =
                 new GlicButtonStateController(
                         activity,
-                        (state, isPanelOpen) -> notifyObservers(true),
+                        (state, isPanelOpen) -> {
+                            if (mRecomputeUiStateCallback != null) {
+                                mRecomputeUiStateCallback.run();
+                            } else {
+                                notifyObservers(true);
+                            }
+                        },
                         taskSupplier,
                         browserControlsVisibilityManager);
 
@@ -103,6 +117,7 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider {
                 new ButtonSpec.Builder(createDoneSpec())
                         .setCollapsedDrawable(collapsedDrawable)
                         .build();
+        setShouldShowOnIncognitoTabs(true);
     }
 
     private ButtonSpec createReviewSpec() {
@@ -134,9 +149,24 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider {
                 .build();
     }
 
+    /**
+     * Returns whether the Glic button should be forcibly shown on the toolbar.
+     *
+     * @param profile The current profile.
+     */
+    public boolean shouldForciblyShowGlicButton(Profile profile) {
+        if (!AdaptiveToolbarFeatures.isGlicEnabledForProfile(profile)
+                || BottomBarConfigUtils.isBottomBarEnabled(mActivity)) {
+            return false;
+        }
+        mStateController.updateObservations(profile);
+        List<ActorTask> activeTasks = mStateController.getActiveTasks();
+        return mStateController.isPanelOpen() || (activeTasks != null && !activeTasks.isEmpty());
+    }
+
     @Override
     protected boolean shouldShowButton(@Nullable Tab tab) {
-        if (tab == null || tab.isOffTheRecord() || UrlUtilities.isNtpUrl(tab.getUrl())) {
+        if (tab == null || UrlUtilities.isNtpUrl(tab.getUrl())) {
             return false;
         }
         // TODO(crbug.com/499354469): Add proper checks for glic availability.
@@ -154,6 +184,11 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider {
         }
 
         assumeNonNull(tab);
+        if (tab.isOffTheRecord()) {
+            mButtonData.setButtonSpec(new ButtonSpec.Builder(mDefaultSpec).build());
+            return buttonData;
+        }
+
         mStateController.updateObservations(tab.getProfile());
         mStateController.updateButtonState();
 
@@ -206,6 +241,25 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider {
 
         if (mTaskMenuCoordinator != null && mTaskMenuCoordinator.isShowing()) {
             mTaskMenuCoordinator.dismiss();
+            return;
+        }
+
+        Tab tab = mActiveTabSupplier.get();
+        if (tab != null && tab.isOffTheRecord()) {
+            if (mActivity instanceof SnackbarManager.SnackbarManageable) {
+                SnackbarManager snackbarManager =
+                        ((SnackbarManager.SnackbarManageable) mActivity).getSnackbarManager();
+                if (snackbarManager != null) {
+                    snackbarManager.showSnackbar(
+                            Snackbar.make(
+                                            mActivity.getString(
+                                                    R.string.glic_incognito_not_available),
+                                            null,
+                                            Snackbar.TYPE_NOTIFICATION,
+                                            Snackbar.UMA_GLIC)
+                                    .setDuration(SnackbarManager.DEFAULT_SNACKBAR_DURATION_MS));
+                }
+            }
             return;
         }
 

@@ -86,7 +86,7 @@ class InfoBarContainerViewBrowserTest : public InProcessBrowserTest {
     auto delegate = std::make_unique<PriorityInfoBarDelegate>(
         priority, base::UTF8ToUTF16(message));
     return GetInfoBarManager()->AddInfoBar(
-        std::make_unique<ConfirmInfoBar>(std::move(delegate)));
+        ConfirmInfoBar::Create(std::move(delegate)));
   }
 
   // Returns the message text of all currently visible infobar views.
@@ -323,7 +323,7 @@ class InfoBarContainerSplitTabTest : public InfoBarContainerViewBrowserTest {
   void SplitTabWithActive(int index_to_split) {
     browser()->tab_strip_model()->AddToNewSplit(
         {index_to_split},
-        split_tabs::SplitTabVisualData(split_tabs::SplitTabLayout::kVertical,
+        split_tabs::SplitTabVisualData(split_tabs::SplitTabLayout::kSideBySide,
                                        0.5f),
         split_tabs::SplitTabCreatedSource::kToolbarButton);
   }

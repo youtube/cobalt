@@ -89,7 +89,21 @@ public class DownloadMessageUiControllerTest {
                 .apply();
     }
 
+    public void enableShowBlockedSensitiveDownload(boolean enabled) {
+        if (enabled) {
+            FeatureOverrides.newBuilder()
+                    .enable(ChromeFeatureList.SHOW_BLOCKED_SENSITIVE_DOWNLOAD)
+                    .apply();
+        } else {
+            FeatureOverrides.newBuilder()
+                    .disable(ChromeFeatureList.SHOW_BLOCKED_SENSITIVE_DOWNLOAD)
+                    .apply();
+        }
+    }
+
     static class TestDelegate implements DownloadMessageUiController.Delegate {
+        public boolean mMaybeSwitchToFocusedActivityCalled;
+
         @Override
         public @Nullable Context getContext() {
             return ApplicationProvider.getApplicationContext();
@@ -107,6 +121,7 @@ public class DownloadMessageUiControllerTest {
 
         @Override
         public boolean maybeSwitchToFocusedActivity() {
+            mMaybeSwitchToFocusedActivityCalled = true;
             return false;
         }
 
@@ -123,9 +138,15 @@ public class DownloadMessageUiControllerTest {
 
     static class TestDownloadMessageUiController extends DownloadMessageUiControllerImpl {
         private DownloadProgressMessageUiData mInfo;
+        public final TestDelegate mDelegate;
 
         public TestDownloadMessageUiController() {
-            super(new TestDelegate());
+            this(new TestDelegate());
+        }
+
+        private TestDownloadMessageUiController(TestDelegate delegate) {
+            super(delegate);
+            mDelegate = delegate;
         }
 
         @Override
@@ -273,6 +294,33 @@ public class DownloadMessageUiControllerTest {
         mTestController.onItemUpdated(item);
         mTestController.verify(MESSAGE_DOWNLOAD_FAILED, DESCRIPTION_BLOCKED);
         mTestController.verifyIgnoreAction(true);
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Download"})
+    public void testSingleOfflineItemBlockedSensitive() {
+        enableShowBlockedSensitiveDownload(true);
+        OfflineItem item = createOfflineItem(OfflineItemState.FAILED);
+        item.failState = FailState.FILE_BLOCKED;
+        item.isDangerous = true;
+        item.dangerType = DownloadDangerType.SENSITIVE_CONTENT_BLOCK;
+        mTestController.onItemUpdated(item);
+        mTestController.verify(MESSAGE_DOWNLOAD_FAILED, DESCRIPTION_BLOCKED);
+        mTestController.verifyIgnoreAction(true);
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Download"})
+    public void testSingleOfflineItemBlockedSensitiveWithFeatureDisabled() {
+        enableShowBlockedSensitiveDownload(false);
+        OfflineItem item = createOfflineItem(OfflineItemState.FAILED);
+        item.failState = FailState.FILE_BLOCKED;
+        item.isDangerous = true;
+        item.dangerType = DownloadDangerType.SENSITIVE_CONTENT_BLOCK;
+        mTestController.onItemUpdated(item);
+        mTestController.verifyMessageGone();
     }
 
     @Test
@@ -869,5 +917,14 @@ public class DownloadMessageUiControllerTest {
 
         mTestController.verify(
                 MESSAGE_SINGLE_DOWNLOAD_COMPLETE, DESCRIPTION_DOWNLOAD_COMPLETE_ELIDED);
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Download"})
+    public void testShowIncognitoDownloadMessageSwitchesActivity() {
+        mTestController.mDelegate.mMaybeSwitchToFocusedActivityCalled = false;
+        mTestController.showIncognitoDownloadMessage((result) -> {});
+        Assert.assertTrue(mTestController.mDelegate.mMaybeSwitchToFocusedActivityCalled);
     }
 }

@@ -19,9 +19,8 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
-import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter.MergeNotificationType;
-import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterObserver;
+import org.chromium.chrome.browser.tabmodel.TabGroupMergeNotificationType;
+import org.chromium.chrome.browser.tabmodel.TabGroupObserver;
 import org.chromium.chrome.browser.tabmodel.TabGroupUtils.TabGroupCreationCallback;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
@@ -41,15 +40,15 @@ public class TabListEditorAddToGroupAction extends TabListEditorAction {
     private final Activity mActivity;
     private final TabGroupCreationDialogManager mTabGroupCreationDialogManager;
     private final TabGroupListBottomSheetCoordinatorFactory mFactory;
-    private final TabGroupModelFilterObserver mFilterObserver =
-            new TabGroupModelFilterObserver() {
+    private final TabGroupObserver mFilterObserver =
+            new TabGroupObserver() {
                 @Override
                 public void willCloseTabGroup(Token tabGroupId, boolean isHiding) {
                     updateText();
                 }
 
                 @Override
-                public void didCreateNewGroup(Tab destinationTab, TabGroupModelFilter filter) {
+                public void didCreateNewGroup(Tab destinationTab, TabModel tabModel) {
                     updateText();
                 }
             };
@@ -205,7 +204,7 @@ public class TabListEditorAddToGroupAction extends TabListEditorAction {
             tabModel.mergeListOfTabsToGroup(
                     tabs,
                     destinationTab,
-                    /* notify= */ MergeNotificationType.NOTIFY_IF_NOT_NEW_GROUP);
+                    /* notify= */ TabGroupMergeNotificationType.NOTIFY_IF_NOT_NEW_GROUP);
         }
         mTabGroupCreationDialogManager.showDialog(
                 assumeNonNull(destinationTab.getTabGroupId()), tabModel);

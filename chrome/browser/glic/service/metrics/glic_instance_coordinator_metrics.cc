@@ -23,6 +23,9 @@ namespace {
 int BytesToMB(uint64_t bytes) {
   return static_cast<int>(bytes / 1024 / 1024);
 }
+
+const base::FeatureParam<base::TimeDelta> kMemoryMetricsPeriod{
+    &features::kGlicRecordMemoryFootprintMetrics, "period", base::Minutes(30)};
 }  // namespace
 
 GlicInstanceCoordinatorMetrics::GlicInstanceCoordinatorMetrics(
@@ -31,6 +34,15 @@ GlicInstanceCoordinatorMetrics::GlicInstanceCoordinatorMetrics(
 
 GlicInstanceCoordinatorMetrics::~GlicInstanceCoordinatorMetrics() {
   EndConcurrentVisibility();
+}
+
+void GlicInstanceCoordinatorMetrics::StartPeriodicMemoryMetricsRecording() {
+  if (base::FeatureList::IsEnabled(
+          features::kGlicRecordMemoryFootprintMetrics)) {
+    memory_metrics_timer_.Start(
+        FROM_HERE, kMemoryMetricsPeriod.Get(), this,
+        &GlicInstanceCoordinatorMetrics::RecordPeriodicMemoryMetrics);
+  }
 }
 
 void GlicInstanceCoordinatorMetrics::OnInstanceVisibilityChanged() {
@@ -73,16 +85,28 @@ void GlicInstanceCoordinatorMetrics::RecordSwitchConversationTarget(
 
 void GlicInstanceCoordinatorMetrics::OnMemoryPressure(
     base::MemoryPressureLevel level) {
+  std::string_view suffix = (level == base::MEMORY_PRESSURE_LEVEL_MODERATE)
+                                ? ".ModeratePressure"
+                                : ".CriticalPressure";
+  RecordMemoryFootprint(suffix);
+}
+
+void GlicInstanceCoordinatorMetrics::RecordPeriodicMemoryMetrics() {
+  RecordMemoryFootprint(".Periodic");
+}
+
+void GlicInstanceCoordinatorMetrics::RecordMemoryFootprint(
+    std::string_view suffix) {
   if (!base::FeatureList::IsEnabled(
           features::kGlicRecordMemoryFootprintMetrics)) {
     return;
   }
 
-  auto hosts = data_provider_->GetAllUnhibernatedHosts();
-  if (hosts.empty()) {
+  auto web_contents_list = data_provider_->GetAllUnhibernatedWebContents();
+  if (web_contents_list.empty()) {
     return;
   }
-  size_t instance_count = hosts.size();
+  size_t instance_count = web_contents_list.size();
 
   uint64_t total_webui_bytes = 0;
   uint64_t total_client_bytes = 0;
@@ -91,14 +115,16 @@ void GlicInstanceCoordinatorMetrics::OnMemoryPressure(
   base::flat_set<content::RenderProcessHost*> unique_webui_processes;
   base::flat_set<content::RenderProcessHost*> unique_client_processes;
 
-  for (Host* host : hosts) {
-    if (auto* contents = host->webui_contents()) {
-      if (auto* process = contents->GetPrimaryMainFrame()->GetProcess()) {
+  for (const auto& item : web_contents_list) {
+    if (item.webui_contents) {
+      if (auto* process =
+              item.webui_contents->GetPrimaryMainFrame()->GetProcess()) {
         unique_webui_processes.insert(process);
       }
     }
-    if (auto* contents = host->web_client_contents()) {
-      if (auto* process = contents->GetPrimaryMainFrame()->GetProcess()) {
+    if (item.web_client_contents) {
+      if (auto* process =
+              item.web_client_contents->GetPrimaryMainFrame()->GetProcess()) {
         unique_client_processes.insert(process);
       }
     }
@@ -118,10 +144,6 @@ void GlicInstanceCoordinatorMetrics::OnMemoryPressure(
   int avg_client_mb = BytesToMB(total_client_bytes / instance_count);
   int avg_total_mb = BytesToMB(absolute_total_bytes / instance_count);
   int total_mb = BytesToMB(absolute_total_bytes);
-
-  std::string_view suffix = (level == base::MEMORY_PRESSURE_LEVEL_MODERATE)
-                                ? ".ModeratePressure"
-                                : ".CriticalPressure";
 
   base::UmaHistogramMemoryLargeMB(
       base::StrCat({"Glic.Instance.AvgWebUIPrivateMemoryFootprint", suffix}),

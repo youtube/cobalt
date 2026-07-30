@@ -4,11 +4,14 @@
 
 #include "chrome/browser/extensions/api/tabs/tabs_api.h"
 
+#include "base/metrics/histogram_functions.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/strings/pattern.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/thread_pool.h"
+#include "base/types/expected.h"
 #include "base/types/expected_macros.h"
 #include "base/types/optional_util.h"
 #include "chrome/browser/devtools/devtools_window.h"
@@ -47,6 +50,9 @@
 #include "components/zoom/zoom_controller.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
+#include "content/public/browser/navigation_handle.h"
+#include "extensions/browser/api/constants.h"
+#include "extensions/browser/extension_user_activation_service.h"
 #include "extensions/browser/extension_zoom_request_client.h"
 #include "extensions/browser/extensions_browser_client.h"
 #include "extensions/buildflags/buildflags.h"
@@ -55,6 +61,8 @@
 #include "extensions/common/manifest_handlers/incognito_info.h"
 #include "extensions/common/mojom/api_permission_id.mojom-shared.h"
 #include "extensions/common/permissions/permissions_data.h"
+#include "services/metrics/public/cpp/ukm_builders.h"
+#include "services/metrics/public/cpp/ukm_recorder.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/base_window.h"
@@ -128,8 +136,8 @@ constexpr char kWindowCreateCannotParseIwaUrlError[] =
 constexpr char kWindowCreateCannotUseTabIdWithIwaError[] =
     "Creating a new window for an Isolated Web App does not support adding a "
     "tab by its ID.";
-constexpr char kWindowCreateCannotMoveIwaTabError[] =
-    "The tab of an Isolated Web App cannot be moved to a new window.";
+constexpr char kCannotMoveIwaTabError[] =
+    "The tab of an Isolated Web App cannot be moved.";
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
@@ -400,17 +408,20 @@ int MoveTabToWindow(ExtensionFunction* function,
                     bool allow_other_window_types,
                     std::string* error) {
   WindowController* source_window = nullptr;
+  content::WebContents* web_contents = nullptr;
   int source_index = -1;
   if (!tabs_internal::GetTabById(tab_id, function->browser_context(),
                                  function->include_incognito_information(),
-                                 &source_window, nullptr, &source_index,
+                                 &source_window, &web_contents, &source_index,
                                  error) ||
       !source_window) {
     return -1;
   }
 
-  if (!ExtensionTabUtil::IsTabStripEditable(*source_window->profile())) {
-    *error = ExtensionTabUtil::kTabStripNotEditableError;
+  auto validation_result = WindowsCreateFunction::ValidateTab(
+      source_window, target_browser->GetProfile(), web_contents);
+  if (!validation_result.has_value()) {
+    *error = std::move(validation_result.error());
     return -1;
   }
 
@@ -420,11 +431,6 @@ int MoveTabToWindow(ExtensionFunction* function,
   if (!allow_other_window_types &&
       target_browser->GetType() != BrowserWindowInterface::TYPE_NORMAL) {
     *error = ExtensionTabUtil::kCanOnlyMoveTabsWithinNormalWindowsError;
-    return -1;
-  }
-
-  if (target_browser->GetProfile() != source_window->profile()) {
-    *error = ExtensionTabUtil::kCanOnlyMoveTabsWithinSameProfileError;
     return -1;
   }
 
@@ -460,10 +466,7 @@ int MoveTabToWindow(ExtensionFunction* function,
 
   BrowserWindowInterface* source_browser =
       source_window->GetBrowserWindowInterface();
-  if (!source_browser) {
-    *error = ExtensionTabUtil::kCanOnlyMoveTabsWithinNormalWindowsError;
-    return -1;
-  }
+  CHECK(source_browser);
 
   TabListInterface* source_tab_list = TabListInterface::From(source_browser);
   ::tabs::TabInterface* tab = source_tab_list->GetTab(source_index);
@@ -522,6 +525,149 @@ std::vector<::tabs::TabHandle> GetTabsInSplit(
   }
 
   return split_tabs;
+}
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class UpdateActionType {
+  // Updates that are not redirects for the default search engine page.
+  kOtherUpdates = 0,
+  // Updates that are redirects for the default search engine page which are
+  // not a result of a user gesture.
+  kDSERedirectsWithoutUserGesture = 1,
+  // Updates that are redirects for the default search engine page after a user
+  // gesture has occurred.
+  kDSERedirectsWithUserGesture = 2,
+  // Updates that are redirects after the user has landed on the search engine
+  // results page (SERP) for a while.
+  kDSERedirectsAfterLandingOnSERP = 3,
+  // The maximum value of the UpdateActionType enum.
+  kMaxValue = kDSERedirectsAfterLandingOnSERP,
+};
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class RemoveActionType {
+  // Removals that are not for the default search engine page.
+  kOtherRemovals = 0,
+  // Removals of the default search engine page which are not a result of a user
+  // gesture.
+  kDSERemovalsWithoutUserGesture = 1,
+  // Removals of the default search engine page after a user gesture has
+  // occurred.
+  kDSERemovalsWithUserGesture = 2,
+  // Removals of the default search engine page after the user has landed on the
+  // search engine results page (SERP) for a while.
+  kDSERemovalsAfterLandingOnSERP = 3,
+  // The maximum value of the RemoveActionType enum.
+  kMaxValue = kDSERemovalsAfterLandingOnSERP,
+};
+
+bool HasUserActivation(const ExtensionId& extension_id,
+                       content::BrowserContext& browser_context,
+                       content::RenderFrameHost* calling_render_frame_host,
+                       content::WebContents& tab_web_contents,
+                       bool extension_function_user_gesture) {
+  return extension_function_user_gesture ||
+         ExtensionUserActivationService::Get(&browser_context)
+             ->HasTransientActivation(extension_id) ||
+         (calling_render_frame_host &&
+          calling_render_frame_host->HasTransientUserActivation()) ||
+         (tab_web_contents.GetPrimaryMainFrame() &&
+          tab_web_contents.GetPrimaryMainFrame()->HasTransientUserActivation());
+}
+
+// Returns true if a Tabs API update call is a default search engine (DSE)
+// redirect without a user gesture.
+// An update is considered a DSE redirect if the source URL is the DSE page and
+// the destination URL is not the DSE page, and the update is not a result of a
+// user gesture.
+bool IsDSERedirect(const ExtensionId& extension_id,
+                   content::BrowserContext& browser_context,
+                   content::RenderFrameHost* calling_render_frame_host,
+                   content::WebContents& tab_web_contents,
+                   const GURL& destination_url,
+                   bool extension_function_user_gesture) {
+  auto is_dse_redirect = [&browser_context,
+                          &destination_url](const GURL& source_url) {
+    return ExtensionsBrowserClient::Get()->IsDefaultSearchEngineRedirect(
+        &browser_context, source_url, destination_url);
+  };
+
+  // If there is a pending entry, proceed to checking user gestures since the
+  // user may have not yet landed on the DSE page.
+  content::NavigationEntry* entry =
+      tab_web_contents.GetController().GetPendingEntry();
+  if (!entry) {
+    entry = tab_web_contents.GetController().GetLastCommittedEntry();
+    // Assume no redirect if user has landed on the DSE page for a while.
+    if (entry && base::Time::Now() - entry->GetTimestamp() > base::Seconds(5)) {
+      base::UmaHistogramEnumeration(
+          "Extensions.Tabs.UpdateAction",
+          is_dse_redirect(entry->GetURL())
+              ? UpdateActionType::kDSERedirectsAfterLandingOnSERP
+              : UpdateActionType::kOtherUpdates);
+      return false;
+    }
+  }
+  if (!entry || !is_dse_redirect(entry->GetURL())) {
+    base::UmaHistogramEnumeration("Extensions.Tabs.UpdateAction",
+                                  UpdateActionType::kOtherUpdates);
+    return false;
+  }
+  bool has_user_activation = HasUserActivation(
+      extension_id, browser_context, calling_render_frame_host,
+      tab_web_contents, extension_function_user_gesture);
+  base::UmaHistogramEnumeration(
+      "Extensions.Tabs.UpdateAction",
+      has_user_activation ? UpdateActionType::kDSERedirectsWithUserGesture
+                          : UpdateActionType::kDSERedirectsWithoutUserGesture);
+  return !has_user_activation;
+}
+
+// Returns true if a Tabs API remove call is a default search engine (DSE)
+// removal without a user gesture.
+// A removal is considered a DSE removal if the source URL is the DSE page and
+// the removal is not a result of a user gesture.
+bool IsDSERemoval(const ExtensionId& extension_id,
+                  content::BrowserContext& browser_context,
+                  content::RenderFrameHost* calling_render_frame_host,
+                  content::WebContents& tab_web_contents,
+                  bool extension_function_user_gesture) {
+  auto is_dse = [&browser_context](const GURL& source_url) {
+    return ExtensionsBrowserClient::Get()->IsDefaultSearchEngineRedirect(
+        &browser_context, source_url, GURL());
+  };
+
+  // If there is a pending entry, proceed to checking user gestures since the
+  // user may have not yet landed on the DSE page.
+  content::NavigationEntry* entry =
+      tab_web_contents.GetController().GetPendingEntry();
+  if (!entry) {
+    entry = tab_web_contents.GetController().GetLastCommittedEntry();
+    // Assume no removal if user has landed on the DSE page for a while.
+    if (entry && base::Time::Now() - entry->GetTimestamp() > base::Seconds(5)) {
+      base::UmaHistogramEnumeration(
+          "Extensions.Tabs.RemoveAction",
+          is_dse(entry->GetURL())
+              ? RemoveActionType::kDSERemovalsAfterLandingOnSERP
+              : RemoveActionType::kOtherRemovals);
+      return false;
+    }
+  }
+  if (!entry || !is_dse(entry->GetURL())) {
+    base::UmaHistogramEnumeration("Extensions.Tabs.RemoveAction",
+                                  RemoveActionType::kOtherRemovals);
+    return false;
+  }
+  bool has_user_activation = HasUserActivation(
+      extension_id, browser_context, calling_render_frame_host,
+      tab_web_contents, extension_function_user_gesture);
+  base::UmaHistogramEnumeration(
+      "Extensions.Tabs.RemoveAction",
+      has_user_activation ? RemoveActionType::kDSERemovalsWithUserGesture
+                          : RemoveActionType::kDSERemovalsWithoutUserGesture);
+  return !has_user_activation;
 }
 
 }  // namespace
@@ -862,10 +1008,10 @@ ExtensionFunction::ResponseAction WindowsCreateFunction::Run() {
     }
 
     // Validate the tab information. Return an error if it's not valid.
-    std::string tab_error = ValidateTab(source_window, window_profile,
-                                        web_contents, is_locked_fullscreen);
-    if (!tab_error.empty()) {
-      return RespondNow(Error(std::move(tab_error)));
+    auto tab_validation = ValidateTab(source_window, window_profile,
+                                      web_contents, is_locked_fullscreen);
+    if (!tab_validation.has_value()) {
+      return RespondNow(Error(std::move(tab_validation.error())));
     }
   }
 
@@ -1250,39 +1396,40 @@ ExtensionFunction::ResponseValue WindowsCreateFunction::OnBrowserWindowCreated(
 }
 
 // static
-std::string WindowsCreateFunction::ValidateTab(
+base::expected<void, std::string> WindowsCreateFunction::ValidateTab(
     WindowController* source_window,
     Profile* window_profile,
     content::WebContents* web_contents,
     bool is_locked_fullscreen) {
   if (!source_window) {
     // The source window can be null for prerender tabs.
-    return tabs_constants::kInvalidWindowStateError;
+    return base::unexpected(tabs_constants::kInvalidWindowStateError);
   }
-
   if (!source_window->GetBrowserWindowInterface()) {
-    return ExtensionTabUtil::kCanOnlyMoveTabsWithinNormalWindowsError;
+    return base::unexpected(
+        ExtensionTabUtil::kCanOnlyMoveTabsWithinNormalWindowsError);
   }
-
 #if !BUILDFLAG(IS_ANDROID)
   Browser* source_browser = source_window->GetBrowser();
+  CHECK(source_browser);
   if (web_app::AppBrowserController* controller =
           source_browser->app_controller();
       controller && controller->IsIsolatedWebApp()) {
-    return kWindowCreateCannotMoveIwaTabError;
+    return base::unexpected(kCannotMoveIwaTabError);
   }
 #endif
 
-  if (!ExtensionTabUtil::IsTabStripEditable(*window_profile)) {
-    return ExtensionTabUtil::kTabStripNotEditableError;
+  if (!ExtensionTabUtil::IsTabStripEditable(*source_window->profile())) {
+    return base::unexpected(ExtensionTabUtil::kTabStripNotEditableError);
   }
 
   if (source_window->profile() != window_profile) {
-    return ExtensionTabUtil::kCanOnlyMoveTabsWithinSameProfileError;
+    return base::unexpected(
+        ExtensionTabUtil::kCanOnlyMoveTabsWithinSameProfileError);
   }
 
   if (DevToolsWindow::IsDevToolsWindow(web_contents)) {
-    return tabs_constants::kNotAllowedForDevToolsError;
+    return base::unexpected(tabs_constants::kNotAllowedForDevToolsError);
   }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -1290,11 +1437,12 @@ std::string WindowsCreateFunction::ValidateTab(
   // locked fullscreen on ChromeOS.
   if (is_locked_fullscreen &&
       ash::features::IsBocaOnTaskLockedQuizMigrationEnabled()) {
-    return ExtensionTabUtil::kCanOnlyMoveTabsWithinNormalWindowsError;
+    return base::unexpected(
+        ExtensionTabUtil::kCanOnlyMoveTabsWithinNormalWindowsError);
   }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-  return std::string();  // No error.
+  return {};
 }
 
 // static
@@ -2657,6 +2805,20 @@ bool TabsUpdateFunction::UpdateURL(content::WebContents* web_contents,
     return false;
   }
 
+  if (IsDSERedirect(extension()->id(), *browser_context(), render_frame_host(),
+                    *web_contents, *url, user_gesture())) {
+    ukm::builders::Extensions_Tabs_UpdateDSE(
+        ukm::UkmRecorder::GetSourceIdForExtensionUrl(
+            base::PassKey<TabsUpdateFunction>(), extension()->url()))
+        .SetSeen(true)
+        .Record(ukm::UkmRecorder::Get());
+    ukm::builders::Extensions_SearchRedirect(
+        ukm::UkmRecorder::GetSourceIdForRedirectUrl(
+            base::PassKey<TabsUpdateFunction>(), *url))
+        .SetApi(
+            static_cast<int64_t>(ExtensionSearchRedirectedByApi::kTabsUpdate))
+        .Record(ukm::UkmRecorder::Get());
+  }
   content::NavigationController::LoadURLParams load_params(*url);
 
   // Treat extension-initiated navigations as renderer-initiated so that the URL
@@ -2987,6 +3149,15 @@ bool TabsRemoveFunction::RemoveTab(int tab_id, std::string* error) {
                                  &contents, nullptr, error) ||
       !window) {
     return false;
+  }
+
+  if (IsDSERemoval(extension()->id(), *browser_context(), render_frame_host(),
+                   *contents, user_gesture())) {
+    ukm::builders::Extensions_Tabs_RemoveDSE(
+        ukm::UkmRecorder::GetSourceIdForExtensionUrl(
+            base::PassKey<TabsRemoveFunction>(), extension()->url()))
+        .SetSeen(true)
+        .Record(ukm::UkmRecorder::Get());
   }
 
   // Don't let the extension remove a tab if the user is dragging tabs around.

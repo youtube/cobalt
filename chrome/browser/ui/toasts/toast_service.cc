@@ -51,6 +51,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "components/translate/core/browser/translate_manager.h"
 #include "components/vector_icons/vector_icons.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/menus/simple_menu_model.h"
 #include "ui/strings/grit/ui_strings.h"
 
@@ -80,29 +81,41 @@ void ToastService::RegisterToasts(
 
   toast_registry_->RegisterToast(
       ToastId::kLinkCopied,
-      ToastSpecification::Builder(kLinkChromeRefreshIcon,
+      ToastSpecification::Builder(features::IsRoundedIconsEnabled()
+                                      ? kLinkIcon
+                                      : kLinkChromeRefreshOldIcon,
                                   IDS_LINK_COPIED_TOAST_BODY)
           .Build());
 
   toast_registry_->RegisterToast(
       ToastId::kImageCopied,
-      ToastSpecification::Builder(kCopyMenuIcon, IDS_IMAGE_COPIED_TOAST_BODY)
+      ToastSpecification::Builder(features::IsRoundedIconsEnabled()
+                                      ? kContentCopyIcon
+                                      : kCopyMenuOldIcon,
+                                  IDS_IMAGE_COPIED_TOAST_BODY)
           .Build());
   toast_registry_->RegisterToast(
       ToastId::kVideoFrameCopied,
-      ToastSpecification::Builder(kCopyMenuIcon,
+      ToastSpecification::Builder(features::IsRoundedIconsEnabled()
+                                      ? kContentCopyIcon
+                                      : kCopyMenuOldIcon,
                                   IDS_VIDEO_FRAME_COPIED_TOAST_BODY)
           .Build());
 
   toast_registry_->RegisterToast(
       ToastId::kLinkToHighlightCopied,
-      ToastSpecification::Builder(kLinkChromeRefreshIcon,
+      ToastSpecification::Builder(features::IsRoundedIconsEnabled()
+                                      ? kLinkIcon
+                                      : kLinkChromeRefreshOldIcon,
                                   IDS_LINK_COPIED_TO_HIGHLIGHT_TOAST_BODY)
           .Build());
 
   toast_registry_->RegisterToast(
       ToastId::kAddedToReadingList,
-      ToastSpecification::Builder(kReadingListIcon, IDS_READING_LIST_TOAST_BODY)
+      ToastSpecification::Builder(features::IsRoundedIconsEnabled()
+                                      ? kListAltIcon
+                                      : kReadingListOldIcon,
+                                  IDS_READING_LIST_TOAST_BODY)
           .AddActionButton(IDS_READING_LIST_TOAST_BUTTON,
                            base::BindRepeating(
                                [](BrowserWindowInterface* window) {
@@ -116,7 +129,9 @@ void ToastService::RegisterToasts(
 
   toast_registry_->RegisterToast(
       ToastId::kClearBrowsingData,
-      ToastSpecification::Builder(kTrashCanRefreshIcon,
+      ToastSpecification::Builder(features::IsRoundedIconsEnabled()
+                                      ? kDeleteIcon
+                                      : kTrashCanRefreshOldIcon,
                                   IDS_CLEAR_BROWSING_DATA_TOAST_BODY)
           .Build());
 
@@ -125,7 +140,9 @@ void ToastService::RegisterToasts(
   // updated.
   toast_registry_->RegisterToast(
       ToastId::kNonMilestoneUpdate,
-      ToastSpecification::Builder(kBrowserLogoIcon,
+      ToastSpecification::Builder(features::IsRoundedIconsEnabled()
+                                      ? kChromeProductIcon
+                                      : kBrowserLogoOldIcon,
                                   IDS_NON_MILESTONE_UPDATE_TOAST_BODY)
           .AddGlobalScoped()
           .Build());
@@ -138,7 +155,7 @@ void ToastService::RegisterToasts(
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
             plus_addresses::kPlusAddressLogoSmallIcon,
 #else
-            vector_icons::kEmailIcon,
+            vector_icons::kEmailOldIcon,
 #endif
             IDS_PLUS_ADDRESS_FULL_FORM_FILL_TOAST_MESSAGE)
             .AddMenu()
@@ -153,7 +170,8 @@ void ToastService::RegisterToasts(
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
             vector_icons::kGshieldIcon,
 #else
-            kSecurityIcon,
+            features::IsRoundedIconsEnabled() ? kSecurityIcon
+                                              : kSecurityOldIcon,
 #endif
             IDS_SETTINGS_SAFEBROWSING_ENHANCED_ON_TOAST_MESSAGE)
             .AddActionButton(
@@ -174,14 +192,16 @@ void ToastService::RegisterToasts(
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
             vector_icons::kGshieldIcon,
 #else
-            kSecurityIcon,
+            features::IsRoundedIconsEnabled() ? kSecurityIcon
+                                              : kSecurityOldIcon,
 #endif
             IDS_SETTINGS_SAFEBROWSING_ENHANCED_ON_TOAST_MESSAGE)
             .Build());
     toast_registry_->RegisterToast(
         ToastId::kSyncEsbOff,
         ToastSpecification::Builder(
-            kInfoIcon, IDS_SETTINGS_SAFEBROWSING_ENHANCED_OFF_TOAST_MESSAGE)
+            features::IsRoundedIconsEnabled() ? kInfoIcon : kInfoOldIcon,
+            IDS_SETTINGS_SAFEBROWSING_ENHANCED_OFF_TOAST_MESSAGE)
             .AddActionButton(
                 IDS_SETTINGS_SAFEBROWSING_TURN_ON_ENHANCED_TOAST_BUTTON,
                 base::BindRepeating(
@@ -201,7 +221,9 @@ void ToastService::RegisterToasts(
     // Current tab has been removed from the group.
     toast_registry_->RegisterToast(
         ToastId::kTabGroupSyncTabRemoved,
-        ToastSpecification::Builder(kAccountCircleChromeRefreshIcon,
+        ToastSpecification::Builder(features::IsRoundedIconsEnabled()
+                                        ? kAccountCircleIcon
+                                        : kAccountCircleChromeRefreshOldIcon,
                                     IDS_DATA_SHARING_TOAST_TAB_REMOVED)
             .AddCloseButton()
             .AddActionButton(
@@ -224,7 +246,9 @@ void ToastService::RegisterToasts(
     // Another user has joined an open group (global)
     toast_registry_->RegisterToast(
         ToastId::kTabGroupSyncUserJoined,
-        ToastSpecification::Builder(kAccountCircleChromeRefreshIcon,
+        ToastSpecification::Builder(features::IsRoundedIconsEnabled()
+                                        ? kAccountCircleIcon
+                                        : kAccountCircleChromeRefreshOldIcon,
                                     IDS_DATA_SHARING_TOAST_NEW_MEMBER)
             .AddCloseButton()
             .AddActionButton(
@@ -247,7 +271,9 @@ void ToastService::RegisterToasts(
     // Profile has been removed from open group (global)
     toast_registry_->RegisterToast(
         ToastId::kTabGroupSyncRemovedFromGroup,
-        ToastSpecification::Builder(kTabGroupSharingIcon,
+        ToastSpecification::Builder(features::IsRoundedIconsEnabled()
+                                        ? kGroupCustomIcon
+                                        : kTabGroupSharingOldIcon,
                                     IDS_DATA_SHARING_TOAST_BLOCK_LEAVE)
             .AddGlobalScoped()
             .Build());
@@ -256,7 +282,8 @@ void ToastService::RegisterToasts(
     toast_registry_->RegisterToast(
         ToastId::kTabGroupSharingVersionUpToDate,
         ToastSpecification::Builder(
-            kTabGroupSharingIcon,
+            features::IsRoundedIconsEnabled() ? kGroupCustomIcon
+                                              : kTabGroupSharingOldIcon,
             IDS_COLLABORATION_SHARED_TAB_GROUPS_AVAILABLE_AGAIN_IPH_MESSAGE)
             .AddGlobalScoped()
             .Build());
@@ -264,7 +291,9 @@ void ToastService::RegisterToasts(
 
   toast_registry_->RegisterToast(
       ToastId::kClosePinnedTab,
-      ToastSpecification::Builder(kKeepIcon, IDS_CLOSE_PINNED_TAB_TOAST_BODY)
+      ToastSpecification::Builder(
+          features::IsRoundedIconsEnabled() ? kKeepIcon : kKeepOldIcon,
+          IDS_CLOSE_PINNED_TAB_TOAST_BODY)
           .SetToastAsActionable()
           .Build());
 
@@ -281,7 +310,7 @@ void ToastService::RegisterToasts(
 
   toast_registry_->RegisterToast(
       ToastId::kDiceUserMigrated,
-      ToastSpecification::Builder(vector_icons::kCelebrationIcon,
+      ToastSpecification::Builder(vector_icons::kCelebrationOldIcon,
                                   IDS_DICE_MIGRATION_CONFIRMATION_TOAST_MESSAGE)
           .AddCloseButton()
           .AddActionButton(IDS_DICE_MIGRATION_CONFIRMATION_TOAST_BUTTON,
@@ -297,20 +326,23 @@ void ToastService::RegisterToasts(
 
   toast_registry_->RegisterToast(
       ToastId::kEmailVerified,
-      ToastSpecification::Builder(vector_icons::kEmailIcon, IDS_EMAIL_VERIFIED)
+      ToastSpecification::Builder(vector_icons::kEmailOldIcon,
+                                  IDS_EMAIL_VERIFIED)
           .AddCloseButton()
           .Build());
 
   toast_registry_->RegisterToast(
       ToastId::kGlicShareImageFailed,
-      ToastSpecification::Builder(vector_icons::kInfoRefreshIcon,
+      ToastSpecification::Builder(vector_icons::kInfoRefreshOldIcon,
                                   IDS_GLIC_SHARE_IMAGE_FAILED_TOAST_BODY)
           .AddCloseButton()
           .Build());
 
   toast_registry_->RegisterToast(
       ToastId::kCopiedToClipboard,
-      ToastSpecification::Builder(kInfoIcon, IDS_COPIED_TO_CLIPBOARD_TOAST_BODY)
+      ToastSpecification::Builder(
+          features::IsRoundedIconsEnabled() ? kInfoIcon : kInfoOldIcon,
+          IDS_COPIED_TO_CLIPBOARD_TOAST_BODY)
           .Build());
 
   toast_registry_->RegisterToast(
@@ -319,7 +351,7 @@ void ToastService::RegisterToasts(
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
           vector_icons::kGshieldIcon,
 #else
-          kSecurityIcon,
+          features::IsRoundedIconsEnabled() ? kSecurityIcon : kSecurityOldIcon,
 #endif
           IDS_SETTINGS_SECURITY_BUNDLE_TOAST_FOR_USER_OPTED_INTO_ENHANCED_BUNDLE)
           .AddActionButton(
@@ -337,7 +369,9 @@ void ToastService::RegisterToasts(
 
   toast_registry_->RegisterToast(
       ToastId::kSkillSaved,
-      ToastSpecification::Builder(kCheckIcon, IDS_SKILL_SAVED_TOAST_BODY)
+      ToastSpecification::Builder(
+          features::IsRoundedIconsEnabled() ? kCheckIcon : kCheckOldIcon,
+          IDS_SKILL_SAVED_TOAST_BODY)
           .AddCloseButton()
           .AddActionButton(IDS_SKILL_SAVED_TOAST_BUTTON,
                            base::BindRepeating(
@@ -350,12 +384,16 @@ void ToastService::RegisterToasts(
 
   toast_registry_->RegisterToast(
       ToastId::kSkillSavedWithoutInvokeButton,
-      ToastSpecification::Builder(kCheckIcon, IDS_SKILL_SAVED_TOAST_BODY)
+      ToastSpecification::Builder(
+          features::IsRoundedIconsEnabled() ? kCheckIcon : kCheckOldIcon,
+          IDS_SKILL_SAVED_TOAST_BODY)
           .Build());
 
   toast_registry_->RegisterToast(
       ToastId::kSkillDeleted,
-      ToastSpecification::Builder(kDeleteIcon, IDS_SKILL_DELETED_TOAST_BODY)
+      ToastSpecification::Builder(
+          features::IsRoundedIconsEnabled() ? kDeleteIcon : kDeleteOldIcon,
+          IDS_SKILL_DELETED_TOAST_BODY)
           .AddCloseButton()
           .AddActionButton(IDS_SKILL_UNDO_TOAST_BUTTON,
                            base::BindRepeating(
@@ -367,11 +405,14 @@ void ToastService::RegisterToasts(
           .Build());
 
   toast_registry_->RegisterToast(
-      ToastId::kRecordReplay, ToastSpecification::Builder(kInfoIcon).Build());
+      ToastId::kRecordReplay,
+      ToastSpecification::Builder(
+          features::IsRoundedIconsEnabled() ? kInfoIcon : kInfoOldIcon)
+          .Build());
 
   toast_registry_->RegisterToast(
       ToastId::kAutoSignIn,
-      ToastSpecification::Builder(vector_icons::kPasswordManagerIcon,
+      ToastSpecification::Builder(vector_icons::kPasswordManagerOldIcon,
                                   IDS_MANAGE_PASSWORDS_AUTO_SIGNIN_TOAST_BODY)
           .AddMenu()
           .Build());
@@ -381,7 +422,7 @@ void ToastService::RegisterToasts(
     toast_registry_->RegisterToast(
         ToastId::kAutofillAiFetchFromWalletErrorMessage,
         ToastSpecification::Builder(
-            vector_icons::kPersonTextIcon,
+            vector_icons::kPersonTextOldIcon,
             IDS_AUTOFILL_AI_WALLET_FETCH_FAILURE_NOTIFICATION)
             .AddGlobalScoped()
             .Build());
@@ -391,7 +432,7 @@ void ToastService::RegisterToasts(
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
             vector_icons::kGoogleWalletMonochromeIcon,
 #else
-            vector_icons::kPersonTextIcon,
+            vector_icons::kPersonTextOldIcon,
 #endif
             IDS_AUTOFILL_AI_WALLET_UPDATE_OR_MIGRATE_FAILURE_NOTIFICATION)
             .AddGlobalScoped()
@@ -430,7 +471,7 @@ void ToastService::RegisterToasts(
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
             vector_icons::kPlayCircleSparkIcon,
 #else
-            vector_icons::kPlayArrowChromeRefreshIcon,
+            vector_icons::kPlayArrowChromeRefreshOldIcon,
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
             IDS_MULTISTEP_FILTER_SUGGESTION_TITLE)
             .AddActionButton(
@@ -455,7 +496,7 @@ void ToastService::RegisterToasts(
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
             vector_icons::kPlayCircleSparkIcon,
 #else
-            vector_icons::kPlayArrowChromeRefreshIcon,
+            vector_icons::kPlayArrowChromeRefreshOldIcon,
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
             IDS_MULTISTEP_FILTER_SUGGESTION_RECENT_TITLE)
             .AddActionButton(
@@ -480,7 +521,8 @@ void ToastService::RegisterToasts(
       ToastId::kSendTabToSelfTabOpened,
       // TODO(crbug.com/488072250): Update the strings.
       ToastSpecification::Builder(
-          vector_icons::kDevicesIcon,
+          features::IsRoundedIconsEnabled() ? kDevicesIcon
+                                            : vector_icons::kDevicesOldIcon,
           IDS_SEND_TAB_PUSH_NOTIFICATION_TITLE_USER_GIVEN_DEVICE_NAME)
           .AddGlobalScoped()
           .Build());
@@ -489,7 +531,8 @@ void ToastService::RegisterToasts(
       ToastId::kSendTabToSelfTabsOpenedInBackground,
       // TODO(crbug.com/488072250): Update the strings.
       ToastSpecification::Builder(
-          vector_icons::kDevicesIcon,
+          features::IsRoundedIconsEnabled() ? kDevicesIcon
+                                            : vector_icons::kDevicesOldIcon,
           IDS_SEND_TAB_PUSH_NOTIFICATION_TITLE_USER_GIVEN_DEVICE_NAME)
           .AddCloseButton()
           .AddActionButton(
@@ -511,7 +554,9 @@ void ToastService::RegisterToasts(
   // TODO(crbug.com/492072882): Update design and strings, they are temporary.
   toast_registry_->RegisterToast(
       ToastId::kSendTabToSelfSuccess,
-      ToastSpecification::Builder(vector_icons::kDevicesIcon,
+      ToastSpecification::Builder(features::IsRoundedIconsEnabled()
+                                      ? kDevicesIcon
+                                      : vector_icons::kDevicesOldIcon,
                                   IDS_SEND_TAB_TO_SELF_POST_SEND_SUCCESS_TOAST)
           .AddCloseButton()
           .Build());
@@ -519,7 +564,8 @@ void ToastService::RegisterToasts(
   toast_registry_->RegisterToast(
       ToastId::kSendTabToSelfSuccessThrottled,
       ToastSpecification::Builder(
-          vector_icons::kDevicesIcon,
+          features::IsRoundedIconsEnabled() ? kDevicesIcon
+                                            : vector_icons::kDevicesOldIcon,
           IDS_SEND_TAB_TO_SELF_POST_SEND_THROTTLED_TOAST)
           .AddCloseButton()
           .Build());
@@ -528,14 +574,24 @@ void ToastService::RegisterToasts(
   toast_registry_->RegisterToast(
       ToastId::kSendTabToSelfFailure,
       ToastSpecification::Builder(
-          vector_icons::kWarningIcon,
+          vector_icons::kWarningOldIcon,
           IDS_MESSAGE_NOTIFICATION_SEND_TAB_TO_SELF_CONFIRMATION_FAILURE_MESSAGE)
           .AddCloseButton()
           .Build());
   // Report a scam confirmation toast.
   toast_registry_->RegisterToast(
       ToastId::kReportUnsafeSiteConfirmation,
-      ToastSpecification::Builder(kCheckIcon,
-                                  IDS_REPORT_UNSAFE_SITE_CONFIRMATION_TOAST)
+      ToastSpecification::Builder(
+          features::IsRoundedIconsEnabled() ? kCheckIcon : kCheckOldIcon,
+          IDS_REPORT_UNSAFE_SITE_CONFIRMATION_TOAST)
           .Build());
+
+#if !BUILDFLAG(IS_CHROMEOS)
+  toast_registry_->RegisterToast(
+      ToastId::kDefaultBrowserUpdateSuccess,
+      ToastSpecification::Builder(
+          features::IsRoundedIconsEnabled() ? kCheckIcon : kCheckOldIcon,
+          IDS_DEFAULT_BROWSER_SUCCESS_TOAST_BODY)
+          .Build());
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 }  // RegisterToasts() end.

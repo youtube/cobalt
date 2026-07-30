@@ -1114,7 +1114,7 @@ BASE_FEATURE(kEnableAudioMonitoringOnAndroid, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables Picture-in-Picture menu item on the video context menu on Android.
 BASE_FEATURE(kContextMenuPictureInPictureAndroid,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables fullscreen video Picture-in-Picture on Android.
 BASE_FEATURE(kFullscreenVideoPictureInPicture,
@@ -1275,13 +1275,7 @@ BASE_FEATURE(kEnableArmHwdrm, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(ENABLE_OPENH264)
 // Run-time feature for OpenH264 software encoder.
-BASE_FEATURE(kOpenH264SoftwareEncoder,
-#if BUILDFLAG(IS_ANDROID)
-             base::FEATURE_DISABLED_BY_DEFAULT
-#else
-             base::FEATURE_ENABLED_BY_DEFAULT
-#endif
-);
+BASE_FEATURE(kOpenH264SoftwareEncoder, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ENABLE_OPENH264)
 
 #if BUILDFLAG(IS_WIN)
@@ -1594,8 +1588,7 @@ BASE_FEATURE(kFuchsiaMediacodecVideoEncoder, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // TODO(b:502631767): Remove this flag once the migration is done.
 // Enables migration of CDM storage path to use SHA256.
-BASE_FEATURE(kFuchsiaCdmStoragePathMigration,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kFuchsiaCdmStoragePathMigration, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_FUCHSIA)
 
 // Controls whether to pre-dispatch more decode tasks when pending decodes is

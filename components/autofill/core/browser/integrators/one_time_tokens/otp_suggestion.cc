@@ -4,13 +4,18 @@
 
 #include "components/autofill/core/browser/integrators/one_time_tokens/otp_suggestion.h"
 
+#include <stddef.h>
+
 #include <algorithm>
+#include <iterator>
+#include <string>
 #include <vector>
 
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/foundations/autofill_manager.h"
+#include "components/autofill/core/common/unique_ids.h"
 
 namespace autofill {
 

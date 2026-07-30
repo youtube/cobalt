@@ -61,7 +61,7 @@ suite('LineFocusMoveMode', () => {
     const readingMode = new FakeReadingMode();
     // Initialize font size so that the threshold for merging text bounds
     // is correctly calculated and not zero.
-    readingMode.fontSize = 20;
+    readingMode.fontSize = 1.5;
     chrome.readingMode = readingMode as unknown as typeof chrome.readingMode;
     model = new LineFocusModel();
     styleMode = new LineFocusLineStyleMode(LineFocusStyle.UNDERLINE, model);
@@ -126,6 +126,12 @@ suite('LineFocusMoveMode', () => {
       assertEquals(defaultHeight, model.getMaxY());
       assertLT(model.getMinY(), defaultHeight);
       assertEquals(3, model.getTextBounds().length);
+    });
+
+    test('onActivated scrolls to first line', () => {
+      const container = createShortContainer();
+      mode.onActivated(container, defaultHeight);
+      assertNotEquals(0, scrollDiffReceived);
     });
 
     test('onActivated sets center focal point', () => {
@@ -255,8 +261,15 @@ suite('LineFocusMoveMode', () => {
       assertEquals(top2 - top3, scrollDistance);
     });
 
+    test('onScrollEnd notifies of move for user scroll', () => {
+      model.setInitiatedScroll(false);
+      mode.onScrollEnd(100);
+
+      assertTrue(notifiedMove);
+    });
+
     test(
-        'onScrollEnd notifies of move for line focus scroll for small window only',
+        'onScrollEnd notifies of move for single-line window only on line focus scroll',
         () => {
           const rect1 = new DOMRect(0, 10, 100, 20);
           const rect2 = new DOMRect(0, 30, 100, 20);
@@ -265,46 +278,26 @@ suite('LineFocusMoveMode', () => {
           model.setCurrentLineIndex(1);
           model.setTop(10);
           model.setWindowHeight(10);
-          const singleWindow =
-              new LineFocusWindowStyleMode(LineFocusStyle.SMALL_WINDOW, model);
-          model.setInitiatedScroll(true);
 
+          // Underline style does nothing.
+          model.setInitiatedScroll(true);
           mode.onScrollEnd(100);
           assertFalse(notifiedMove);
 
+          // Medium window does nothing.
+          model.setInitiatedScroll(true);
+          mode = new LineFocusStaticMoveMode(model, windowMode, delegate);
+          mode.onScrollEnd(100);
+          assertFalse(notifiedMove);
+
+          // Small window notifies of move.
+          model.setInitiatedScroll(true);
+          const singleWindow =
+              new LineFocusWindowStyleMode(LineFocusStyle.SMALL_WINDOW, model);
           mode = new LineFocusStaticMoveMode(model, singleWindow, delegate);
           mode.onScrollEnd(100);
           assertTrue(notifiedMove);
         });
-
-    test('onScrollEnd notifies of move for user scroll', () => {
-      model.setInitiatedScroll(false);
-      mode.onScrollEnd(100);
-
-      assertTrue(notifiedMove);
-    });
-
-    test('onScrollEnd notifies of move for single-line window only', () => {
-      const rect1 = new DOMRect(0, 10, 100, 20);
-      const rect2 = new DOMRect(0, 30, 100, 20);
-      const rect3 = new DOMRect(0, 50, 100, 20);
-      model.setTextBounds([rect1, rect2, rect3]);
-      model.setCurrentLineIndex(1);
-      model.setTop(10);
-      model.setWindowHeight(10);
-
-      model.setInitiatedScroll(true);
-      mode = new LineFocusStaticMoveMode(model, windowMode, delegate);
-      mode.onScrollEnd(100);
-      assertFalse(notifiedMove);
-
-      model.setInitiatedScroll(true);
-      const singleWindow =
-          new LineFocusWindowStyleMode(LineFocusStyle.SMALL_WINDOW, model);
-      mode = new LineFocusStaticMoveMode(model, singleWindow, delegate);
-      mode.onScrollEnd(100);
-      assertTrue(notifiedMove);
-    });
 
     test('onTextLocationsChange updates scroll buffer', () => {
       const container = createShortContainer();
@@ -468,10 +461,12 @@ suite('LineFocusMoveMode', () => {
     test('onActivated from on does not move to first line', () => {
       const container = createShortContainer();
       model.setSessionActive(true);
+      const focalPoint = 100;
+      model.setFocalPoint(focalPoint);
 
       mode.onActivated(container, defaultHeight);
 
-      assertEquals(model.getMinY(), model.getFocalPoint());
+      assertEquals(focalPoint, model.getFocalPoint());
       assertEquals(null, model.getCurrentLineIndex());
       assertTrue(notifiedMove);
     });
@@ -561,7 +556,7 @@ suite('LineFocusMoveMode', () => {
       };
       const y1 = 43;
       const y2 = 55;
-      const y3 = 12;
+      const y3 = 32;
       // Ensure we test moving up and down;
       assertLT(y1, y2);
       assertGT(y2, y3);
@@ -651,6 +646,7 @@ suite('LineFocusMoveMode', () => {
 
       mode.onMouseMoveInToolbar(0);
 
+      // The line should align with the bottom of the first visible line.
       assertEquals(minY, model.getTop());
       assertEquals(0, model.getWindowHeight());
     });
@@ -828,21 +824,28 @@ suite('LineFocusMoveMode', () => {
 
     test('snapToNextLine scrolls down to line if out of view', () => {
       mockLinesCounters();
-      let oldTop = model.getTop();
+      model.setMaxY(100);
+      model.setTextBounds([
+        new DOMRect(0, 0, 10, 25),
+        new DOMRect(0, 30, 10, 25),
+        new DOMRect(0, 60, 10, 25),
+        new DOMRect(0, 90, 10, 25),
+      ]);
 
-      // Snap to the first line.
+      // The first three lines are in view so no scrolling.
       snapForward(mode);
-      let newTop = model.getTop();
-      // Continue moving to the next line until scrolling occurs.
-      while (oldTop < newTop) {
-        assertEquals(0, scrollDiffReceived);
-        oldTop = newTop;
-        snapForward(mode);
-        newTop = model.getTop();
-      }
+      assertEquals(0, scrollDiffReceived);
 
+      snapForward(mode);
+      assertEquals(0, scrollDiffReceived);
+
+      snapForward(mode);
+      assertEquals(0, scrollDiffReceived);
+
+      // The fourth line is partially out of view so scroll to center it.
+      snapForward(mode);
       assertLT(0, scrollDiffReceived);
-      assertLT(0, keyboardLines);
+      assertEquals(4, keyboardLines);
       assertEquals(0, speechLines);
     });
 

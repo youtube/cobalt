@@ -308,6 +308,9 @@ class VIEWS_EXPORT MenuItemView : public View, public LayoutDelegate {
   void SetIcon(const ui::ImageModel& icon);
   const ui::ImageModel GetIcon() const;
 
+  // Sets the color of the icon.
+  void SetIconColor(std::optional<ui::ColorVariant> icon_color);
+
   // Sets the view used to render the icon. This clobbers any icon set via
   // SetIcon(). MenuItemView takes ownership of |icon_view|.
   void SetIconView(std::unique_ptr<ImageView> icon_view);
@@ -468,6 +471,7 @@ class VIEWS_EXPORT MenuItemView : public View, public LayoutDelegate {
   friend class internal::MenuRunnerImpl;
   friend class MenuControllerTest;
   friend class TestMenuItemView;
+  friend class MenuModelAdapter;
   FRIEND_TEST_ALL_PREFIXES(MenuControllerTest, RepostEventToEmptyMenuItem);
 
   enum class PaintMode { kNormal, kForDrag };
@@ -487,6 +491,11 @@ class VIEWS_EXPORT MenuItemView : public View, public LayoutDelegate {
   const SubmenuView* GetContainingSubmenu() const {
     return parent_menu_item_->GetSubmenu();
   }
+
+  // Sets if the minor icon is displayed to the right of the minor text if
+  // present. This is only available via the SimpleMenuModel. This is exclusive
+  // to having a sub-menu.
+  void SetMinorIconOnRight(bool minor_icon_on_right);
 
   // The RunXXX methods call into this to set up the necessary state before
   // running.
@@ -671,6 +680,7 @@ class VIEWS_EXPORT MenuItemView : public View, public LayoutDelegate {
   std::u16string minor_text_;
   bool minor_text_is_url_ = false;
   ui::ImageModel minor_icon_;
+  bool minor_icon_on_right_ = false;
 
   // Does the title have a mnemonic? Only useful on the root menu item.
   bool has_mnemonics_ = false;

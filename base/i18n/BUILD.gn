@@ -2,22 +2,77 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/locales.gni")
+import("//build/rust/rust_static_library.gni")
+
 source_set("base_i18n_export") {
   public = [ "base_i18n_export.h" ]
+}
+
+rust_static_library("i18n_icu_bridge_ffi") {
+  allow_unsafe = true  # Needed for FFI that underpins the `cxx` crate.
+  crate_root = "internal/icu_bridge.rs"
+  sources = [ "internal/icu_bridge.rs" ]
+  cxx_bindings = [ "internal/icu_bridge.rs" ]
+  build_native_rust_unit_tests = true
+  visibility = [
+    ":*",
+    "//base:i18n",
+  ]
+  deps = [
+    "//third_party/rust/icu_locale/v2:lib",
+    "//third_party/rust/icu_locale_core/v2:lib",
+    "//third_party/rust/log/v0_4:lib",
+  ]
+}
+
+action("canonical_language_codes_gen") {
+  script = "//tools/i18n/generate_canonical_locales_list.py"
+  outputs = [ "$root_gen_dir/base/i18n/internal/canonical_language_codes.inc" ]
+  args = rebase_path(outputs, root_build_dir) + [ "${enable_pseudolocales}" ]
+  visibility = [ ":*" ]
+}
+
+source_set("canonical_language_codes") {
+  deps = [ ":canonical_language_codes_gen" ]
+  sources = [ "$root_gen_dir/base/i18n/internal/canonical_language_codes.inc" ]
+  visibility = [ ":*" ]
+}
+
+source_set("internal") {
+  sources = [
+    "internal/immutable_string.cc",
+    "internal/immutable_string.h",
+  ]
+  defines = [ "BASE_I18N_IMPLEMENTATION" ]
+  deps = [
+    ":base_i18n_export",
+    "//base",
+  ]
+  visibility = [ ":*" ]
 }
 
 source_set("language_code") {
   sources = [
     "language_code.cc",
     "language_code.h",
+    "language_code_builder.cc",
+    "language_code_builder.h",
+    "language_codes.cc",
+    "language_codes.h",
   ]
 
   defines = [ "BASE_I18N_IMPLEMENTATION" ]
 
   public_deps = [ ":base_i18n_export" ]
-  deps = [ "//base" ]
+  deps = [
+    ":canonical_language_codes",
+    ":i18n_icu_bridge_ffi",
+    ":internal",
+    "//base",
+  ]
   visibility = [
     ":*",
-    "//base:i18n",
+    "//base:*",
   ]
 }

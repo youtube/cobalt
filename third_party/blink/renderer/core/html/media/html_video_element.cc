@@ -481,7 +481,6 @@ void HTMLVideoElement::OnVisibilityRatioReport(double ratio) {
 void HTMLVideoElement::ResetCache(TimerBase*) {
   snapshot_provider_.reset();
   cached_draw_info_.reset();
-  sw_draw_surface_.reset();
 }
 
 bool HTMLVideoElement::IsPersistent() const {
@@ -564,9 +563,10 @@ void HTMLVideoElement::RequestVisibility(
 
 void HTMLVideoElement::PaintCurrentFrame(cc::PaintCanvas* canvas,
                                          const gfx::Rect& dest_rect,
-                                         const cc::PaintFlags& flags) const {
+                                         const cc::PaintFlags& flags,
+                                         bool force_pixel_readback) const {
   if (auto* wmp = GetWebMediaPlayer()) {
-    wmp->Paint(canvas, dest_rect, flags);
+    wmp->Paint(canvas, dest_rect, flags, force_pixel_readback);
   }
 }
 
@@ -674,6 +674,16 @@ unsigned HTMLVideoElement::webkitDecodedFrameCount() const {
   return 0;
 }
 
+void HTMLVideoElement::DidChangeIsCanvasOrInCanvasSubtree() {
+  HTMLMediaElement::DidChangeIsCanvasOrInCanvasSubtree();
+  if (IsCanvasOrInCanvasSubtree()) {
+    UpdateLayoutObject();
+    if (auto* wmp = GetWebMediaPlayer()) {
+      wmp->RequestVideoFrameCallback();
+    }
+  }
+}
+
 unsigned HTMLVideoElement::webkitDroppedFrameCount() const {
   if (auto* wmp = GetWebMediaPlayer()) {
     return wmp->DroppedFrameCount();
@@ -691,11 +701,6 @@ KURL HTMLVideoElement::PosterImageURL() const {
 bool HTMLVideoElement::IsDefaultPosterImageURL() const {
   return ImageSourceURL() == default_poster_url_;
 }
-
-// Killswitch guarding HTMLVideoElement not caching the SkSurface used for
-// VideoFrame->StaticBitmapImage software draws.
-BASE_FEATURE(kHTMLVideoElementCacheSkSurface,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 scoped_refptr<StaticBitmapImage> HTMLVideoElement::CreateStaticBitmapImage(
     std::optional<gfx::Size> size,
@@ -724,7 +729,6 @@ scoped_refptr<StaticBitmapImage> HTMLVideoElement::CreateStaticBitmapImage(
           wrapper->ContextProvider().RasterContextProvider();
     }
     snapshot_provider_.reset();
-    sw_draw_surface_.reset();
 
     if (ShouldCreateAcceleratedImages(raster_context_provider)) {
       snapshot_provider_ = CanvasNon2DResourceProviderSharedImage::Create(
@@ -733,12 +737,6 @@ scoped_refptr<StaticBitmapImage> HTMLVideoElement::CreateStaticBitmapImage(
           SharedGpuContext::ContextProviderWrapper(),
           gpu::SHARED_IMAGE_USAGE_DISPLAY_READ);
       if (!snapshot_provider_) {
-        return nullptr;
-      }
-    } else if (base::FeatureList::IsEnabled(kHTMLVideoElementCacheSkSurface)) {
-      sw_draw_surface_ = CanvasNon2DSnapshotProviderBitmap::CreateSurface(
-          required_provider_info);
-      if (!sw_draw_surface_) {
         return nullptr;
       }
     }
@@ -756,9 +754,8 @@ scoped_refptr<StaticBitmapImage> HTMLVideoElement::CreateStaticBitmapImage(
         kPreferTaggedOrientation, reinterpret_as_srgb);
   } else {
     image = CreateUnacceleratedImageFromVideoFrame(
-        std::move(media_video_frame), cached_draw_info_.value(),
-        sw_draw_surface_, video_renderer, kPreferTaggedOrientation,
-        reinterpret_as_srgb);
+        std::move(media_video_frame), cached_draw_info_.value(), video_renderer,
+        kPreferTaggedOrientation, reinterpret_as_srgb);
   }
   if (image)
     image->SetOriginClean(!WouldTaintOrigin());
@@ -994,6 +991,12 @@ void HTMLVideoElement::OnIntersectionChangedForLazyLoad(
 void HTMLVideoElement::OnWebMediaPlayerCreated() {
   if (auto* vfc_requester = VideoFrameCallbackRequester::From(*this))
     vfc_requester->OnWebMediaPlayerCreated();
+
+  if (IsCanvasOrInCanvasSubtree()) {
+    if (auto* wmp = GetWebMediaPlayer()) {
+      wmp->RequestVideoFrameCallback();
+    }
+  }
 }
 
 void HTMLVideoElement::OnWebMediaPlayerCleared() {
@@ -1034,6 +1037,15 @@ void HTMLVideoElement::AttributeChanged(
 void HTMLVideoElement::OnRequestVideoFrameCallback() {
   if (auto* vfc_requester = VideoFrameCallbackRequester::From(*this)) {
     vfc_requester->OnRequestVideoFrameCallback();
+  }
+
+  if (IsCanvasOrInCanvasSubtree()) {
+    if (GetLayoutObject()) {
+      GetLayoutObject()->SetShouldDoFullPaintInvalidation();
+    }
+    if (auto* wmp = GetWebMediaPlayer()) {
+      wmp->RequestVideoFrameCallback();
+    }
   }
 }
 

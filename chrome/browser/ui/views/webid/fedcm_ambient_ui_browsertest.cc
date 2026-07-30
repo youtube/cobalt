@@ -760,4 +760,117 @@ IN_PROC_BROWSER_TEST_F(FedCmAmbientUiBrowserTest, MultiIdpOneAccountFallback) {
   EXPECT_FALSE(observer.GetCurrentPageActionState().showing);
 }
 
+IN_PROC_BROWSER_TEST_F(FedCmAmbientUiBrowserTest,
+                       TabSwitchingNoDoubleCounting) {
+  auto* controller = browser()
+                         ->GetActiveTabInterface()
+                         ->GetTabFeatures()
+                         ->page_action_controller();
+
+  page_actions::PageActionObserver observer(kActionFederation);
+  observer.RegisterAsPageActionObserver(*controller);
+
+  base::HistogramTester histograms;
+  ShowAmbientUi(content::IdentityRequestAccount::LoginState::kSignUp,
+                content::IdentityRequestAccount::LoginState::kSignUp);
+
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return observer.GetCurrentPageActionState().chip_showing; }));
+
+  histograms.ExpectBucketCount("Blink.FedCm.Ambient.Impression",
+                               AmbientImpression::kSignUpChip, 1);
+
+  // Add a new tab and switch to it.
+  ASSERT_TRUE(AddTabAtIndex(1, GURL("about:blank"), ui::PAGE_TRANSITION_TYPED));
+  EXPECT_EQ(1, browser()->tab_strip_model()->active_index());
+
+  // Switch back to the first tab.
+  browser()->tab_strip_model()->ActivateTabAt(0);
+  EXPECT_EQ(0, browser()->tab_strip_model()->active_index());
+
+  // Verify that switching back did not trigger an additional impression log.
+  histograms.ExpectBucketCount("Blink.FedCm.Ambient.Impression",
+                               AmbientImpression::kSignUpChip, 1);
+  histograms.ExpectTotalCount("Blink.FedCm.Ambient.Impression", 1);
+}
+
+IN_PROC_BROWSER_TEST_F(FedCmAmbientUiBrowserTest,
+                       SignInNoDoubleCountingOverlap) {
+  auto* controller = browser()
+                         ->GetActiveTabInterface()
+                         ->GetTabFeatures()
+                         ->page_action_controller();
+
+  page_actions::PageActionObserver observer(kActionFederation);
+  observer.RegisterAsPageActionObserver(*controller);
+
+  base::HistogramTester histograms;
+  ShowAmbientUi(content::IdentityRequestAccount::LoginState::kSignIn,
+                content::IdentityRequestAccount::LoginState::kSignIn);
+
+  // Initially, suggestion chip is shown.
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return observer.GetCurrentPageActionState().chip_showing; }));
+
+  // Verify only kSignInChip is logged, and NO kSignInIcon is logged.
+  histograms.ExpectBucketCount("Blink.FedCm.Ambient.Impression",
+                               AmbientImpression::kSignInChip, 1);
+  histograms.ExpectBucketCount("Blink.FedCm.Ambient.Impression",
+                               AmbientImpression::kSignInIcon, 0);
+
+  // Collapse the chip into a static icon.
+  controller->HideSuggestionChip(kActionFederation);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return !observer.GetCurrentPageActionState().chip_showing; }));
+
+  // Verify that kSignInIcon is logged *only* after collapse, and total
+  // impression becomes 2.
+  histograms.ExpectBucketCount("Blink.FedCm.Ambient.Impression",
+                               AmbientImpression::kSignInIcon, 1);
+  histograms.ExpectTotalCount("Blink.FedCm.Ambient.Impression", 2);
+}
+
+IN_PROC_BROWSER_TEST_F(FedCmAmbientUiBrowserTest, SignInNoVerifyingImpression) {
+  auto* controller = browser()
+                         ->GetActiveTabInterface()
+                         ->GetTabFeatures()
+                         ->page_action_controller();
+
+  page_actions::PageActionObserver observer(kActionFederation);
+  observer.RegisterAsPageActionObserver(*controller);
+
+  base::HistogramTester histograms;
+  ShowAmbientUi(content::IdentityRequestAccount::LoginState::kSignIn,
+                content::IdentityRequestAccount::LoginState::kSignIn);
+
+  // Initially, suggestion chip is shown.
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return observer.GetCurrentPageActionState().chip_showing; }));
+
+  histograms.ExpectBucketCount("Blink.FedCm.Ambient.Impression",
+                               AmbientImpression::kSignInChip, 1);
+  histograms.ExpectTotalCount("Blink.FedCm.Ambient.Impression", 1);
+
+  bool account_selected = false;
+  EXPECT_CALL(*delegate_, OnAccountSelected).WillOnce(InvokeWithoutArgs([&]() {
+    account_selected = true;
+  }));
+
+  // We simulate clicking on the chip, which should now sign the user in
+  // directly and show "Signing in...".
+  view()->OnPageActionClicked();
+
+  ASSERT_TRUE(base::test::RunUntil([&]() { return account_selected; }));
+
+  // Verify that the "Signing in..." chip is shown.
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return observer.GetCurrentPageActionState().chip_showing; }));
+
+  // Verify that NO additional impression was logged when the "Signing in..."
+  // chip appeared.
+  histograms.ExpectBucketCount("Blink.FedCm.Ambient.Impression",
+                               AmbientImpression::kSignInChip, 1);
+  histograms.ExpectTotalCount("Blink.FedCm.Ambient.Impression", 1);
+}
+
 }  // namespace webid

@@ -32,7 +32,9 @@
 // Mutator for actions in the view.
 @property(nonatomic, weak) id<AutofillAIBaseMutator> mutator;
 
-- (instancetype)initWithStyle:(UITableViewStyle)style NS_DESIGNATED_INITIALIZER;
+- (instancetype)init NS_DESIGNATED_INITIALIZER;
+
+- (instancetype)initWithStyle:(UITableViewStyle)style NS_UNAVAILABLE;
 
 @end
 

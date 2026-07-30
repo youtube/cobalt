@@ -250,6 +250,12 @@ void ProxyImpl::SetDeferBeginMainFrameFromImpl(bool defer_begin_main_frame) {
     scheduler_->SetDeferBeginMainFrame(ShouldDeferBeginMainFrame());
 }
 
+void ProxyImpl::SendEarlyFinalBeginMainFrame() {
+  // Triggers a fake vsync
+  scheduler_->SendEarlyFinalBeginMainFrame();
+  host_impl_->DidSendEarlyFinalBeginMainFrame();
+}
+
 void ProxyImpl::SetNeedsRedrawOnImpl(const gfx::Rect& damage_rect) {
   DCHECK(IsImplThread());
   host_impl_->SetViewportDamage(damage_rect);

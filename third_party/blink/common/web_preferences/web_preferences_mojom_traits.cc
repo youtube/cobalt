@@ -57,8 +57,6 @@ bool StructTraits<blink::mojom::WebPreferencesDataView,
   out->minimum_font_size = data.minimum_font_size();
   out->minimum_logical_font_size = data.minimum_logical_font_size();
   out->context_menu_on_mouse_up = data.context_menu_on_mouse_up();
-  out->always_show_context_menu_on_touch =
-      data.always_show_context_menu_on_touch();
   out->javascript_enabled = data.javascript_enabled();
   out->web_security_enabled = data.web_security_enabled();
   out->loads_images_automatically = data.loads_images_automatically();
@@ -74,6 +72,8 @@ bool StructTraits<blink::mojom::WebPreferencesDataView,
   out->javascript_can_access_clipboard = data.javascript_can_access_clipboard();
   out->dns_prefetching_enabled = data.dns_prefetching_enabled();
   out->data_saver_enabled = data.data_saver_enabled();
+  out->battery_saver_enabled = data.battery_saver_enabled();
+  out->preloading_disabled = data.preloading_disabled();
   out->local_storage_enabled = data.local_storage_enabled();
   out->tabs_to_links = data.tabs_to_links();
   out->disable_ipc_flooding_protection = data.disable_ipc_flooding_protection();

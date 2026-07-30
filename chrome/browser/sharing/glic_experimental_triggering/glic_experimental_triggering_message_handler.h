@@ -17,11 +17,9 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/unique_receiver_set.h"
 
-namespace glic {
-class GlicExperimentalOptInController;
-}  // namespace glic
-
 class Profile;
+
+class BrowserWindowInterface;
 
 class SharingMessageSender;
 
@@ -44,22 +42,23 @@ class GlicExperimentalTriggeringMessageHandler : public SharingMessageHandler {
   void OnMessage(components_sharing_message::SharingMessage message,
                  DoneCallback done_callback) override;
 
+  size_t GetUpdatesHandlerMapSizeForTesting() const {
+    return context_id_to_updates_handler_map_.size();
+  }
+
  protected:
   // Virtual for testing purposes to allow mocking the active tab.
   virtual tabs::TabInterface* GetActiveTab() const;
+  // Virtual for testing purposes to allow mocking the browser window.
+  virtual BrowserWindowInterface* GetBrowserWindow() const;
 
  private:
   friend class ExperimentalTriggeringUpdatesHandler;
-
-  void ProcessDeviceOptInRequest(tabs::TabInterface* active_tab);
 
   void OnUpdatesHandlerCleanup(std::string context_id);
 
   const raw_ptr<Profile> profile_;
   const raw_ptr<SharingMessageSender> message_sender_;
-#if !BUILDFLAG(IS_ANDROID)
-  std::unique_ptr<glic::GlicExperimentalOptInController> opt_in_controller_;
-#endif
   std::map<std::string, std::unique_ptr<ExperimentalTriggeringUpdatesHandler>>
       context_id_to_updates_handler_map_;
   base::WeakPtrFactory<GlicExperimentalTriggeringMessageHandler>

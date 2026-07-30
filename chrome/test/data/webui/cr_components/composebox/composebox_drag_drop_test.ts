@@ -1,7 +1,7 @@
 // Copyright 2025 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import 'chrome://new-tab-page/strings.m.js';
+import 'chrome://contextual-tasks/strings.m.js';
 import 'chrome://resources/cr_components/composebox/composebox.js';
 import 'chrome://resources/cr_components/composebox/file_carousel.js';
 
@@ -201,17 +201,20 @@ suite('DragAndDropHandler', () => {
 // --- SUITE 2: Integration Tests for the Element ---
 suite('ComposeboxDragAndDrop', () => {
   let composeboxElement: ComposeboxElement;
+  let pageHandler: TestMock<PageHandlerRemote>;
   let searchboxHandler: TestMock<SearchboxPageHandlerRemote>;
   let windowProxy: TestMock<WindowProxy>;
 
   setup(() => {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     // Set up ComposeboxProxyImpl
-    installMock(
+    pageHandler = installMock(
         PageHandlerRemote,
         mock => ComposeboxProxyImpl.setInstance(new ComposeboxProxyImpl(
             mock, new PageCallbackRouter(), new SearchboxPageHandlerRemote(),
             new SearchboxPageCallbackRouter())));
+    pageHandler.setResultFor(
+        'getSmartTabSharingActive', Promise.resolve({active: false}));
     searchboxHandler = installMock(
         SearchboxPageHandlerRemote,
         mock => ComposeboxProxyImpl.getInstance().searchboxHandler = mock);
@@ -255,6 +258,7 @@ suite('ComposeboxDragAndDrop', () => {
     });
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     searchboxHandler.reset();
+    pageHandler.reset();
   });
 
   async function createComposeboxElement() {

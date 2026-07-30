@@ -125,32 +125,18 @@ media::mojom::VideoFrameDataPtr MakeVideoFrameData(
     shared_image = input->shared_image()->Export(
         /*with_buffer_handle=*/true);
     sync_token = input->acquire_sync_token();
-#if BUILDFLAG(IS_ANDROID)
-    return media::mojom::VideoFrameData::NewSharedImageData(
-        media::mojom::SharedImageVideoFrameData::New(
-            std::move(shared_image.value()), std::move(sync_token),
-            /*is_mappable=*/true, std::move(input->ycbcr_info())));
-#else
     return media::mojom::VideoFrameData::NewSharedImageData(
         media::mojom::SharedImageVideoFrameData::New(
             std::move(shared_image.value()), std::move(sync_token),
             /*is_mappable=*/true));
-#endif
   }
 
   if (input->HasSharedImage()) {
     gpu::ExportedSharedImage shared_image = input->shared_image()->Export();
-#if BUILDFLAG(IS_ANDROID)
-    return media::mojom::VideoFrameData::NewSharedImageData(
-        media::mojom::SharedImageVideoFrameData::New(
-            std::move(shared_image), input->acquire_sync_token(),
-            /*is_mappable=*/false, std::move(input->ycbcr_info())));
-#else
     return media::mojom::VideoFrameData::NewSharedImageData(
         media::mojom::SharedImageVideoFrameData::New(
             std::move(shared_image), input->acquire_sync_token(),
             /*is_mappable=*/false));
-#endif
   }
 
   if (input->storage_type() == media::VideoFrame::STORAGE_OPAQUE) {
@@ -392,6 +378,23 @@ bool StructTraits<media::mojom::VideoFrameDataView,
 
     bool is_mappable = shared_image_data.is_mappable();
     if (is_mappable) {
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+      // TODO(crbug.com/513289253): Avoid CloneGpuMemoryBufferHandle() only for
+      // validation.
+      const auto video_pixel_format =
+          media::SharedImageFormatToVideoPixelFormat(shared_image->format());
+      if (video_pixel_format) {
+        auto gmb_handle = shared_image->CloneGpuMemoryBufferHandle();
+        if (!gmb_handle.is_null() && gmb_handle.type == gfx::NATIVE_PIXMAP) {
+          if (!media::VerifyGpuMemoryBufferHandle(*video_pixel_format,
+                                                  coded_size, gmb_handle)) {
+            LOG(ERROR)
+                << "Invalid GpuMemoryBufferHandle for mappable SharedImage";
+            return false;
+          }
+        }
+      }
+#endif
       // VideoFrame should have buffer usage if its SI is mappable.
       // NOTE: This isn't exactly correct for software SharedImages can be
       // mappable but do not have buffer usage. But since, such software
@@ -408,14 +411,6 @@ bool StructTraits<media::mojom::VideoFrameDataView,
           media::VideoFrame::ReleaseMailboxCB(), visible_rect, natural_size,
           timestamp);
     }
-
-#if BUILDFLAG(IS_ANDROID)
-    std::optional<gpu::VulkanYCbCrInfo> ycbcr_info;
-    if (!shared_image_data.ReadYcbcrData(&ycbcr_info)) {
-      return false;
-    }
-    frame->set_ycbcr_info(ycbcr_info);
-#endif
   } else if (data.is_opaque_data()) {
     DCHECK(metadata.tracking_token.has_value());
     frame = media::VideoFrame::WrapTrackingToken(

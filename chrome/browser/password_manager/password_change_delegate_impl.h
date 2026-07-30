@@ -82,9 +82,6 @@ class PasswordChangeDelegateImpl : public PasswordChangeDelegate {
   }
 #endif
 
-  // Called by the OtpFieldDetector if an OTP field is detected in any relevant
-  // frame of executor_. Visible for testing.
-  void OnOtpFieldDetected();
 
   // Returns the web contents, on which the password change is run.
   content::WebContents* executor() const;
@@ -144,10 +141,9 @@ class PasswordChangeDelegateImpl : public PasswordChangeDelegate {
   std::u16string generated_password_;
 
   raw_ptr<content::WebContents> originator_ = nullptr;
-  // If the password change tab is visible to the user, hidden_executor_ will be
-  // null, if it's hidden, visible_executor_ will be null.
+  // If the password change tab is visible to the user (moved to tab strip),
+  // `hidden_executor_` will be null.
   std::unique_ptr<DetachedWebContents> hidden_executor_;
-  raw_ptr<content::WebContents> visible_executor_ = nullptr;
 
   const raw_ptr<Profile> profile_ = nullptr;
 
@@ -190,9 +186,6 @@ class PasswordChangeDelegateImpl : public PasswordChangeDelegate {
   // the website requires it. This subscription is only used before the password
   // change flow starts.
   base::CallbackListSubscription otp_fields_submitted_subscription_;
-  // Subscription on adding OTP fields in `executor_` in case the user is
-  // interrupted to enter an OTP while the password change flow happens.
-  base::CallbackListSubscription otp_fields_detected_subscription_;
 
   ukm::SourceId ukm_source_id_ = ukm::kInvalidSourceId;
 

@@ -254,6 +254,7 @@
 <translation id="1380591466760231819">Захидлын нугалаа</translation>
 <translation id="138218114945450791">Бүдэг цэнхэр</translation>
 <translation id="1382194467192730611">Таны админы зөвшөөрсөн USB төхөөрөмж</translation>
+<translation id="1383876407941801731">Хайлт</translation>
 <translation id="1384725838384960382">Аюулгүй төлбөрийн мандат үнэмлэхийг баталгаажуулах хүснэгт</translation>
 <translation id="1386623374109090026">Тэмдэглэгээ</translation>
 <translation id="138810468159004008">Сайтад зочлох явцад зөвшөөрөх</translation>
@@ -316,7 +317,6 @@
 <translation id="1463793142714244641">Дундын өмчлөлийн, амралтын үл хөдлөх хөрөнгүүд</translation>
 <translation id="1465457928007067810">Олон улсын банк акаунтны дугаарыг таны Google Бүртгэлд хадгалсан</translation>
 <translation id="1467432559032391204">Зүүн</translation>
-<translation id="1468653229182955856"><ph name="ONE_TIME_CODE" /> нь <ph name="TOP_ORIGIN" /> дээр үргэлжлүүлэх таны <ph name="EMBEDDED_ORIGIN" />-н код юм</translation>
 <translation id="1472675084647422956">Дэлгэрэнгүй харуулах</translation>
 <translation id="1473183651233018052">JIS B10</translation>
 <translation id="1473495410389165587">Бичих тусламж авахын тулд 3 эсвэл түүнээс олон үг оруулна уу</translation>
@@ -549,6 +549,7 @@
 <translation id="1832474362231610822">Зургийг OneDrive-т хадгалсан</translation>
 <translation id="1832730227369924598">Дэлгэцийн синк</translation>
 <translation id="1834452765064623979">Барилга, засвар үйлчилгээ</translation>
+<translation id="1837606605602726453">Администратор өргөтгөлийг тусгайлан зөвшөөрсөн эсвэл блоклосон тул эрсдэлийн оноо, ангиллыг үл хэрэгссэн.</translation>
 <translation id="1838374766361614909">Хайлтыг арилгах</translation>
 <translation id="1839331950812095887">таны бодлыг хураангуйлах цөөн хэдэн үг</translation>
 <translation id="1839551713262164453">Удирдамжийн утгыг баталгаажуулахад алдаа гарч, амжилтгүй боллоо</translation>
@@ -1674,7 +1675,6 @@
 <translation id="3600246354004376029"><ph name="TITLE" />, <ph name="DOMAIN" />, <ph name="TIME" /></translation>
 <translation id="3600492954573979888">Google-н нууцлалын тохиргоог удирдах товчлуур, Google Бүртгэлийнхээ нууцлалын тохиргоонд зочлохын тулд идэвхжүүлнэ үү</translation>
 <translation id="3603507503523709">Администратор аппликэйшнийг блоклосон</translation>
-<translation id="3605082766859363473">ХОУ-ы горимыг сонгосон</translation>
 <translation id="3605899229568538311">5 x 5 инч</translation>
 <translation id="3606917451836803637">ТВ шоу, хөтөлбөрүүд</translation>
 <translation id="3608932978122581043">Чиглэлийг заах</translation>
@@ -1822,6 +1822,7 @@
 <translation id="380865868633614173">Картын мэдээллийг хадгалж байна</translation>
 <translation id="3810770279996899697">Нууц үгний менежерт MacOS Keychain-д хандах эрх шаардлагатай</translation>
 <translation id="3810973564298564668">удирдах</translation>
+<translation id="3811328723651698330"><ph name="STRING_1" />, <ph name="STRING_2" /></translation>
 <translation id="3812398568375898177">Энэ нь ChromeOS дээрх Android аппуудын гүйцэтгэлийг сайжруулах чухал шинэчлэлт юм.</translation>
 <translation id="3814865536373139791">Танай байгууллага бодлогыг хэрхэн удирддагийг хялбарчлах</translation>
 <translation id="3815434930383843058">8 x 12 инч</translation>
@@ -1861,6 +1862,7 @@
 <translation id="3875783148670536197">Надад хэрхэн хийхийг харуулна уу</translation>
 <translation id="3877603629930976930">Бүү хуваалц</translation>
 <translation id="3878445208930547646">Энэ сайтаас хуулахыг зөвшөөрдөггүй</translation>
+<translation id="3879674895057686427">Орчуулах хэл сонгох</translation>
 <translation id="3879748587602334249">Таталтын менежер</translation>
 <translation id="3880456882942693779">Урлаг, энтертэйнмент</translation>
 <translation id="3880589673277376494">Интернэт, телеком</translation>
@@ -2020,7 +2022,6 @@
 <translation id="411918202192379658">Автоматаар бөглөх онцлог илүү сайн боллоо</translation>
 <translation id="4121428309786185360">-д хугацаа нь дуусна</translation>
 <translation id="4123572138124678573">Доод буланд гурван нүх цоолох</translation>
-<translation id="4125597496726375563">Зураг үүсгэхийг сонгосон</translation>
 <translation id="412601465078863288">Байршуулах үйлдэл завсарласан</translation>
 <translation id="4127317221386336246">Хувцасны чимэглэлүүд</translation>
 <translation id="4129401438321186435">{COUNT,plural, =1{1 бусад}other{# бусад}}</translation>
@@ -2236,6 +2237,7 @@
 <translation id="443673843213245140">Орлон ашиглах эрхийг хаасан байгаа боловч тодорхой түвшинд орлон ашиглах тохиргоог тусгасан байна.</translation>
 <translation id="4438821706955556403">Дундаж үнэ</translation>
 <translation id="4441832193888514600">Бодлогыг зөвхөн үүлний хэрэглэгчийн бодлого байдлаар тохируулах боломжтой тул үл хэрэгссэн.</translation>
+<translation id="4444062564459679679">Таны <ph name="DEVICE_NAME" /> дээрх Chrome-д аль хэдийн илгээсэн</translation>
 <translation id="4445133368066241428">Түгээмэл сэдвүүд</translation>
 <translation id="4445694043187340808"><ph name="STARTER_PACK_TABS_FOCUSED_FRIENDLY_MATCH_TEXT" />, табаас хайхын тулд Enter дээр дарна уу</translation>
 <translation id="4445964943162061557">Энэ нь туршилтын онцлог бөгөөд заримдаа алдаа гаргаж болно.</translation>
@@ -2400,6 +2402,7 @@
 <translation id="4736934858538408121">Виртуал карт</translation>
 <translation id="473775607612524610">Шинэчлэх</translation>
 <translation id="4738601419177586157"><ph name="TEXT" />-н хайлтын зөвлөмж</translation>
+<translation id="473866660302034629"><ph name="TAB_TITLE" />, сонгосон таб, <ph name="TOTAL" />-н <ph name="INDEX" />, табуудын хооронд сэлгэхийн тулд зүүн эсвэл баруун сумыг ашиглана уу</translation>
 <translation id="4742407542027196863">Нууц үгийг удирдах...</translation>
 <translation id="474270528725216349">Синк хийсэн төхөөрөмжүүд дээрх дор хаяж 1 сайтаас</translation>
 <translation id="4743275772928623722">Таны системийг шинэчилсэн хэдий ч таны апп эсвэл файлуудын заримыг сэргээж чадсангүй. Таны аппуудыг автоматаар дахин татна.</translation>
@@ -2467,6 +2470,7 @@
 <translation id="4832961164064927107">BBQ, мах шарах</translation>
 <translation id="4835568975547260025">Chrome танд асуултууддаа илүү тохируулсан хариулт авахад туслахын тулд хамааралтай нээлттэй табуудыг өгөгдмөлөөр хуваалцана.</translation>
 <translation id="4840250757394056958">Chrome-н түүхээ үзэх</translation>
+<translation id="4842365697443353018">Дараа төлөхийг ашиглахын тулд маягтын мэдээллийг арилгана уу</translation>
 <translation id="484462545196658690">Автомат</translation>
 <translation id="4844937814014739139">Хуваалцсан табыг гүйлгэх, томруулах</translation>
 <translation id="484671803914931257"><ph name="MERCHANT_NAME" /> болон бусад худалдаачны хөнгөлөлт аваарай</translation>
@@ -3089,6 +3093,7 @@
 <translation id="5784606427469807560">Таны картыг баталгаажуулах үед асуудал гарлаа. Интернэт холболтоо шалгаад, дахин оролдоно уу.</translation>
 <translation id="5785756445106461925">Цаашилбал, энэ хуудас нь аюултай бусад үүсвэрүүдийг агуулж байна. Ийм төрлийн үүсвэрүүдийг дамжуулж байх явцад бусад хүмүүс харах, мөн халдагч нар хуусанд нөлөөлөхүйц байдлаар өөрчилж болдог.</translation>
 <translation id="5787146423283493983">Гол хэлэлцээр</translation>
+<translation id="5789643057113097023">.</translation>
 <translation id="5793317771769868848">Энэ төлбөрийн хэрэгслийг энэ төхөөрөмжөөс устгана</translation>
 <translation id="5794065675298686371">Үнэ мөшгөх мэдэгдлийг асаах</translation>
 <translation id="5797984091151707075">Админы бодлогоор блоклосон</translation>
@@ -3446,6 +3451,7 @@
 <translation id="634500758737709758">Чиглэл</translation>
 <translation id="6348220984832452017">Идэвхтэй хувилбарууд</translation>
 <translation id="6349101878882523185"><ph name="APP_NAME" />-г суулгах</translation>
+<translation id="6350739641326887427">Pix кодыг хуулаад буулгахгүйгээр төлбөр төлөөрэй. <ph name="BEGIN_LINK1" />Хэрхэн ажилладгийг нь харах<ph name="END_LINK1" /></translation>
 <translation id="6351658970066645919">Интернэтээр үзсэн өгөгдлийг устгах</translation>
 <translation id="6353505687280762741">{COUNT,plural, =0{Байхгүй}=1{(<ph name="DOMAIN_LIST" />-н) 1 нууц үг (синк хийсэн)}=2{(<ph name="DOMAIN_LIST" />-н) 2 нууц үг (синк хийсэн)}other{(<ph name="DOMAIN_LIST" />-н) # нууц үг (синк хийсэн)}}</translation>
 <translation id="6354918092619878358">SECG зууван муруй secp256r1 (aka ANSI X9.62 prime256v1, NIST P-256)</translation>
@@ -3504,7 +3510,6 @@
 <translation id="6424600253695044005">Үүлэн хадгалах сан</translation>
 <translation id="6425092077175753609">Material</translation>
 <translation id="6427730057873428458">Дээд доод хэсгийг нь дотогш нугалж эвхэх брошюрын нугалаа</translation>
-<translation id="6428450836711225518">Утасны дугаараа баталгаажуулах</translation>
 <translation id="6429267199680088961">A4 Таб</translation>
 <translation id="643051589346665201">Google-н нууц үгийг өөрчлөх</translation>
 <translation id="6431556523611594411">Нээлттэй табуудыг хуваалцах</translation>
@@ -3612,7 +3617,6 @@
 <translation id="6587923378399804057">Таны хуулсан холбоос</translation>
 <translation id="6591833882275308647">Таны <ph name="DEVICE_TYPE" />-г удирдаагүй байна</translation>
 <translation id="6595495738567740002">Энэ төхөөрөмжөөс Google-н күүкиг устгахын тулд <ph name="BEGIN_LINK" />Chrome-с гарна уу<ph name="END_LINK" />.</translation>
-<translation id="6596325263575161958">Шифрлэлтийн сонголтууд</translation>
 <translation id="6596573334527383067">Өчигдрийн илэрцийг харуулах</translation>
 <translation id="6597665340361269064">90 хэм</translation>
 <translation id="6598976221101665070">Драмын кинонууд</translation>
@@ -3662,6 +3666,7 @@
 <translation id="668132230070712111">Видеог Google Драйвт хадгалсан</translation>
 <translation id="6681790815630918386">Карт баталгаажуулалтын кодыг хадгалсан</translation>
 <translation id="6683022854667115063">Чихэвч</translation>
+<translation id="6686570026048064255">Pix код илрүүлэхийг унтраахын тулд <ph name="BEGIN_LINK1" />Chrome-н тохиргоо<ph name="END_LINK1" /> руу очно уу</translation>
 <translation id="6687230248707087982">Дугтуй (энгийн)</translation>
 <translation id="6687335167692595844">Фонтын хэмжээг шаардсан</translation>
 <translation id="6688743156324860098">Шинэчлэх…</translation>
@@ -3752,7 +3757,6 @@
 <translation id="6820143000046097424">цуваа порт</translation>
 <translation id="6820686453637990663">CVC</translation>
 <translation id="6820949753458790123">Хэсэгчилсэн хялбар төлбөрөөр төлөөрэй</translation>
-<translation id="6822745163454377107">Энэ уялдаат харилцан яриатай нээлттэй табуудаа хуваалцаад илүү хурдан, илүү тохируулсан хариулт аваарай.</translation>
 <translation id="6825578344716086703">Та <ph name="DOMAIN" />-д хандахыг хүссэн ч уг сервер нь алгоритмын сул кодыг ашигласан сертификаттай байна. Тухайн сервер аюулгүй байдлын талаар мэдээллэсэн мэдээлэл нь хуурамч байж болох бөгөөд энэхүү сервер нь таны хүссэн (та халдагчтай харилцаж байж болзошгүй) сервер биш байж болно.</translation>
 <translation id="6826993739343257035">AR-г зөвшөөрөх үү?</translation>
 <translation id="6828150717884939426">Залгах</translation>
@@ -3887,7 +3891,6 @@
 <translation id="702275896380648118">Энэ сайт таны дуртай зүйлсийг тодорхойлж, дараа нь бусад сайтад зар санал болгодог. Энэ сайт мөн танд илүү хамааралтай зар харуулахын тулд таны зарын сэдвүүдийг Chrome-с авдаг.</translation>
 <translation id="7023162328967545559">Админы сануулга</translation>
 <translation id="7023765275461720661">Бүртгэл холбоод, <ph name="BNPL_ISSUER_NAME" />-р төлбөр төлөх үү?</translation>
-<translation id="7029809446516969842">Нууц үг</translation>
 <translation id="7030164307377592766">төлбөрийн хэрэгсэл бөглөх тохиргоог өөрчлөх</translation>
 <translation id="7031110846419387930">Таны хөтөч, OS, төхөөрөмж, суулгасан программ хангамж, файл, IP хаягийн талаарх мэдээлэл</translation>
 <translation id="7031646650991750659">Таны Google Play-н ямар апп суулгасан болох</translation>
@@ -4453,7 +4456,6 @@
 <translation id="7874796722855317864">"<ph name="PROXY_UNKNOWN_CONDITION" />" нь мэдэгдэж буй нөхцөлийн төрөл биш байна.</translation>
 <translation id="7877007680666472091">хамгаалалттай content ID</translation>
 <translation id="7878562273885520351">Таны нууц үгийг хулгайлсан байна</translation>
-<translation id="7881044256965445977">Таны дотоод сүлжээнд холбогдсон дурын төхөөрөмжийг хайж, холбогдох</translation>
 <translation id="7885670691503039914">Хэрэв аль нэг сайт дээр үнэ буурсан тохиолдолд та имэйлээр илгээх сэрэмжлүүлэг авна. Энэ хуудсыг <ph name="LAST_BOOKMARKS_FOLDER" /> хавчуургын фолдерт хадгална.</translation>
 <translation id="7886897188117641322">Зарыг хувийн болгоход туслахын тулд ямар сэдвүүдийн өргөн хүрээтэй ангиллыг ашиглаж болохыг сонгоно уу</translation>
 <translation id="7887683347370398519">CVC-гээ шалгаад дахин оролдоно уу</translation>
@@ -4847,6 +4849,7 @@
 <translation id="8511402995811232419">Күүки удирдах</translation>
 <translation id="851353418319061866">Нарийвчлалын шалгалт</translation>
 <translation id="8513580896341796021">Татаж эхэллээ. Үүнийг харахын тулд |<ph name="ACCELERATOR" />| дээр дарна уу.</translation>
+<translation id="8515544520486085367">Төлбөрийн мэдээллийг автоматаар бөглөх</translation>
 <translation id="8519753333133776369">Танай администраторын зөвшөөрсөн HID төхөөрөмж</translation>
 <translation id="8521013008769249764">Буйдан болон гар амраагчтай түшлэгтэй сандлууд</translation>
 <translation id="8521812709849134608">Тавцангууд</translation>
@@ -4979,7 +4982,6 @@
 <translation id="8737685506611670901"><ph name="PROTOCOL" /> холбоосуудыг <ph name="REPLACED_HANDLER_TITLE" />-ний оронд нээх</translation>
 <translation id="8738058698779197622">Найдвартай аюулгүй холболт бий болгохын тулд та цагаа зөв тохируулах хэрэгтэй. Учир нь  веб хуудсуудын өөрсдийгөө таниулахад ашигладаг гэрчилгээ нь тодорхой хугацаанд л хүчинтэй байдаг юм. Таны төхөөрөмжийн цаг буруу байгаа тохиолдолд Chromium нь эдгээр гэрчилгээнүүдийг баталгаажуулж чадахгүй.</translation>
 <translation id="8740359287975076522"><ph name="HOST_NAME" />-н &lt;abbr id="dnsDefinition"&gt;DNS хаяг&lt;/abbr&gt; олдсонгүй. Алдааг шалгаж байна.</translation>
-<translation id="8742371904523228557"><ph name="ONE_TIME_CODE" /> бол <ph name="ORIGIN" />-д зориулсан таны код</translation>
 <translation id="874918643257405732">Энэ табыг тэмдэглэх</translation>
 <translation id="8751426954251315517">Дараагийн удаа дахин оролдоно уу</translation>
 <translation id="8753913772043329557">Бодлогын лог</translation>
@@ -5157,7 +5159,6 @@
 <translation id="9042827002460091668">Интернэт холболтоо шалгаад, дахин оролдоно уу</translation>
 <translation id="9043161870923715789">ХОУ-ы горим</translation>
 <translation id="9045525010788763347"><ph name="RESULT_MODIFIED_DATE" /> - <ph name="RESULT_PRODUCT_SOURCE" /></translation>
-<translation id="9046578823518542618"><ph name="URL" /> таны дотоод сүлжээн дээрх аливаа төхөөрөмжийг хайх, холбогдохыг хүсэж байна</translation>
 <translation id="9046864189129893978">Микрофонууд (<ph name="MICS_COUNT" />)</translation>
 <translation id="9046865906192819796">"Одоо ав, дараа төл" төлбөрийн хэрэгслийн үйлчилгээний нөхцөлийн дэлгэцийг тал өндрөөр нээсэн.</translation>
 <translation id="9047528041803621289">Таны өгөгдмөл хайлтын систем танд вебээс хайх боломжийг олгодог. Та үүнийг тохиргооноос өөрчлөх боломжтой.</translation>
@@ -5271,7 +5272,6 @@
 <translation id="9204089334327209740">Байршуулж дууссаны дараа та <ph name="CLOUD_PROVIDER" /> дахь файлуудаа өөрчлөх боломжтой. Хогийн саван дахь аливаа файл зэрэг дотоод хадгалах санг автоматаар хасна.</translation>
 <translation id="9205078245616868884">Таны өгөгдлийг таны синк хийх нэвтрэх үгтэй шифрлэсэн. Синкийг эхлүүлэхийн тулд үүнийг оруулна уу.</translation>
 <translation id="920643408853370361">Аяллын даатгал</translation>
-<translation id="9206639970165643781">Энэ уялдаат харилцан ярианы хариултыг сайжруулахын тулд холбогдох нээлттэй табуудыг хуваалцах уу?</translation>
 <translation id="9207861905230894330">Өгүүллийг нэмэх явц амжилтгүй боллоо.</translation>
 <translation id="9209339767782560829">Таны нэвтрэх сертификатыг ашиглахад асуудал гарлаа.</translation>
 <translation id="9210152531668884481">Би зөвшөөрч байна</translation>

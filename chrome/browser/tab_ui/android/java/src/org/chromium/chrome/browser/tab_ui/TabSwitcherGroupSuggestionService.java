@@ -22,8 +22,7 @@ import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab_group_suggestion.GroupSuggestionsServiceFactory;
 import org.chromium.chrome.browser.tabmodel.TabClosingSource;
-import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
-import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterObserver;
+import org.chromium.chrome.browser.tabmodel.TabGroupObserver;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tabwindow.WindowId;
@@ -185,8 +184,8 @@ public class TabSwitcherGroupSuggestionService {
                 }
             };
 
-    private final TabGroupModelFilterObserver mTabGroupModelFilterObserver =
-            new TabGroupModelFilterObserver() {
+    private final TabGroupObserver mTabGroupObserver =
+            new TabGroupObserver() {
                 @Override
                 public void willMergeTabToGroup(
                         Tab movedTab, int newRootId, @Nullable Token tabGroupId) {
@@ -205,7 +204,7 @@ public class TabSwitcherGroupSuggestionService {
                 }
 
                 @Override
-                public void didCreateNewGroup(Tab destinationTab, TabGroupModelFilter filter) {
+                public void didCreateNewGroup(Tab destinationTab, TabModel tabModel) {
                     clearSuggestions();
                 }
 
@@ -257,12 +256,12 @@ public class TabSwitcherGroupSuggestionService {
     private void onTabModelChanged(TabModel newTabModel, @Nullable TabModel oldTabModel) {
         if (oldTabModel != null) {
             oldTabModel.removeObserver(mTabModelObserver);
-            oldTabModel.removeTabGroupObserver(mTabGroupModelFilterObserver);
+            oldTabModel.removeTabGroupObserver(mTabGroupObserver);
         }
 
         if (newTabModel != null) {
             newTabModel.addObserver(mTabModelObserver);
-            newTabModel.addTabGroupObserver(mTabGroupModelFilterObserver);
+            newTabModel.addTabGroupObserver(mTabGroupObserver);
         }
     }
 

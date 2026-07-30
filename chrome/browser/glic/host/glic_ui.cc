@@ -13,6 +13,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "base/version_info/version_info.h"
+#include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/glic/fre/fre_util.h"
 #include "chrome/browser/glic/fre/glic_fre_page_handler.h"
@@ -166,6 +167,9 @@ GlicUI::GlicUI(content::WebUI* web_ui)
        IDS_GLIC_INELIGIBLE_PROFILE_NOTICE_ACTION_BUTTON},
       {"ineligibleProfileNoticeHeader",
        IDS_GLIC_INELIGIBLE_PROFILE_NOTICE_HEADER},
+      {"ineligibleAccountNotice", IDS_GLIC_INELIGIBLE_ACCOUNT_NOTICE},
+      {"ineligibleAccountNoticeHeader",
+       IDS_GLIC_INELIGIBLE_ACCOUNT_NOTICE_HEADER},
       {"disabledByAdminNotice", IDS_GLIC_DISABLED_BY_ADMIN_NOTICE},
       {"disabledByAdminNoticeCloseButton",
        IDS_GLIC_DISABLED_BY_ADMIN_NOTICE_CLOSE_BUTTON},
@@ -178,6 +182,10 @@ GlicUI::GlicUI(content::WebUI* web_ui)
       {"signInNoticeActionButton", IDS_GLIC_SIGN_IN_NOTICE_ACTION_BUTTON},
       {"signInNoticeHeader", IDS_GLIC_SIGN_IN_NOTICE_HEADER},
       {"unresponsiveMessage", IDS_GLIC_UNRESPONSIVE_MESSAGE},
+      {"locationMismatchNoticeHeader",
+       IDS_GLIC_LOCATION_MISMATCH_NOTICE_HEADER},
+      {"locationMismatchNotice", IDS_GLIC_LOCATION_MISMATCH_NOTICE},
+      {"getHelp", IDS_GLIC_GET_HELP},
   };
 
   content::BrowserContext* browser_context =
@@ -250,6 +258,13 @@ GlicUI::GlicUI(content::WebUI* web_ui)
   source->AddBoolean("showErrorAllowed", is_internal_google_account ||
                                              profile->GetPrefs()->GetBoolean(
                                                  prefs::kGlicShowErrorAllowed));
+#if BUILDFLAG(IS_ANDROID)
+  const bool is_android_mobile =
+      GetGlicFormFactor(ui::GetDeviceFormFactor()) == mojom::FormFactor::kPhone;
+  source->AddBoolean("isAndroidMobile", is_android_mobile);
+#else
+  source->AddBoolean("isAndroidMobile", false);
+#endif
   source->AddInteger("maxInFlightRequests",
                      base::FeatureList::IsEnabled(kGlicMaxInFlightRequests)
                          ? kGlicMaxInFlightRequestLimit.Get()

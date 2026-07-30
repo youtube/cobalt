@@ -606,6 +606,7 @@ source_set("profiles_extra_parts_impl") {
     ":profiles_extra_parts",
     "//base",
     "//chrome/browser:browser_process",
+    "//chrome/browser:chrome_browser_main",
     "//chrome/browser:font_pref",
     "//chrome/browser/accessibility",
     "//chrome/browser/accessibility_annotator",
@@ -827,6 +828,9 @@ source_set("profiles_extra_parts_impl") {
       "//chrome/browser/web_applications/isolated_web_apps/window_management",
     ]
   }
+  if (!is_android && !is_chromeos) {
+    deps += [ "//chrome/browser/download/bubble" ]
+  }
   if (is_chromeos) {
     deps += [
       "//chrome/browser/apps/almanac_api_client",
@@ -856,7 +860,10 @@ source_set("profiles_extra_parts_impl") {
   }
 
   if (!is_chromeos && !is_android) {
-    deps += [ ":profile_util" ]
+    deps += [
+      ":profile_util",
+      "//chrome/browser/download/bubble",
+    ]
   }
 
   if (is_win || is_mac || is_linux || is_chromeos) {
@@ -923,8 +930,8 @@ source_set("profiles_extra_parts_impl") {
 
   if (!is_android) {
     deps += [
+      "//chrome/browser/glic/browser_ui",
       "//chrome/browser/password_manager/factories:startup_import_factory",
-      "//chrome/browser/ui/tabs:glic",
     ]
   }
 

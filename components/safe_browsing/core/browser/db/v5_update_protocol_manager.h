@@ -42,6 +42,50 @@ using V5UpdateCallback = base::RepeatingCallback<void(
 
 class V5UpdateProtocolManager : public SBUpdateProtocolManager {
  public:
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  // LINT.IfChange(V5ParseResult)
+  enum class V5ParseResult {
+    // Success.
+    kSuccess = 0,
+    // Failed to parse response from string.
+    kParseFromStringError = 1,
+    // The number of expected lists requested does not match the number of lists
+    // in the response.
+    kMismatchedSizeError = 2,
+    // The name of the list in the response does not match the expected list
+    // name.
+    kMismatchedNameError = 3,
+    // The hash prefix length in the response does not match the expected prefix
+    // length.
+    kMismatchedPrefixLengthError = 4,
+    // The provided wait duration for some list is negative.
+    kNegativeDurationError = 5,
+
+    kMaxValue = kNegativeDurationError,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/safe_browsing/enums.xml:V5ParseResult)
+
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  // LINT.IfChange(V5OperationResult)
+  enum class V5OperationResult {
+    // 200 response code means that the server recognized the request.
+    kSuccess = 0,
+
+    // Subset of successful responses where the response body wasn't parsable.
+    kParseError = 1,
+
+    // Operation request failed (network error).
+    kNetworkError = 2,
+
+    // Operation request returned HTTP result code other than 200.
+    kHttpError = 3,
+
+    kMaxValue = kHttpError,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/safe_browsing/enums.xml:V5OperationResult)
+
   V5UpdateProtocolManager(const V5UpdateProtocolManager&) = delete;
   V5UpdateProtocolManager& operator=(const V5UpdateProtocolManager&) = delete;
 
@@ -94,13 +138,15 @@ class V5UpdateProtocolManager : public SBUpdateProtocolManager {
   // `update_callback_` or schedules the next update attempt upon failure.
   void OnURLLoaderComplete(
       std::vector<ListIdentifierAndVersion> list_identifier_to_version_mapping,
+      base::TimeTicks request_start_time,
       std::optional<std::string> response_body);
 
   // Helper method for `OnURLLoaderComplete` that returns the result of fetching
   // and parsing the response.
-  ParsedResponse OnURLLoaderCompleteInternal(
+  base::expected<ParsedResponse, V5OperationResult> OnURLLoaderCompleteInternal(
       int net_error,
       int response_code,
+      base::TimeTicks request_start_time,
       const std::optional<std::string>& response_body,
       const std::vector<ListIdentifierAndVersion>&
           list_identifier_to_version_mapping);
@@ -114,9 +160,9 @@ class V5UpdateProtocolManager : public SBUpdateProtocolManager {
   // Parses the base64 encoded response received from the server as a
   // `BatchGetHashListsResponse` protobuf.
   // Returns the mapping per requested `ListIdentifier` to the `HashList`
-  // returned from the server. Also returns the minimum wait duration across
-  // lists in the response.
-  ParsedResponse ParseUpdateResponse(
+  // returned from the server if the parsing is successful, or a `V5ParseResult`
+  // error. Also returns the minimum wait duration across lists in the response.
+  base::expected<ParsedResponse, V5ParseResult> ParseUpdateResponse(
       const std::optional<std::string>& response_body,
       const std::vector<ListIdentifierAndVersion>&
           list_identifier_to_version_mapping);
@@ -138,6 +184,10 @@ class V5UpdateProtocolManager : public SBUpdateProtocolManager {
   void ScheduleNextUpdateAfterInterval(
       base::TimeDelta interval,
       std::vector<ListIdentifierAndVersion> list_identifier_to_version_mapping);
+
+  // SBUpdateProtocolManager override:
+  void RecordProtocolSpecificNextUpdateInterval(
+      base::TimeDelta interval) override;
 
   // The callback that's called when fetching lists completes.
   V5UpdateCallback update_callback_;

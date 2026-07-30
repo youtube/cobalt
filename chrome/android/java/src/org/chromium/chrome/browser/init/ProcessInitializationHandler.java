@@ -67,6 +67,7 @@ import org.chromium.chrome.browser.download.OfflineContentAvailabilityStatusProv
 import org.chromium.chrome.browser.enterprise.util.EnterpriseInfo;
 import org.chromium.chrome.browser.firstrun.TosDialogBehaviorSharedPrefInvalidator;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.glic.GlicEnabling;
 import org.chromium.chrome.browser.history.HistoryDeletionBridge;
 import org.chromium.chrome.browser.homepage.HomepageManager;
 import org.chromium.chrome.browser.incognito.IncognitoTabLauncher;
@@ -79,6 +80,8 @@ import org.chromium.chrome.browser.metrics.PackageMetrics;
 import org.chromium.chrome.browser.metrics.StorageSystem;
 import org.chromium.chrome.browser.metrics.UmaSessionStats;
 import org.chromium.chrome.browser.metrics.UmaUtils;
+import org.chromium.chrome.browser.night_mode.GlobalNightModeStateProviderHolder;
+import org.chromium.chrome.browser.night_mode.NightModeStateProvider;
 import org.chromium.chrome.browser.notifications.TrampolineActivityTracker;
 import org.chromium.chrome.browser.notifications.channels.ChannelsUpdater;
 import org.chromium.chrome.browser.offlinepages.measurements.OfflineMeasurementsBackgroundTask;
@@ -140,6 +143,7 @@ import org.chromium.ui.base.PhotoPickerListener;
 import org.chromium.ui.base.SelectFileDialog;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.edge_to_edge.EdgeToEdgeStateProvider;
+import org.chromium.ui.native_theme.OsSettingsProviderAndroidBridge;
 import org.chromium.url.GURL;
 
 import java.io.File;
@@ -458,6 +462,20 @@ public class ProcessInitializationHandler {
 
         AccessibilityState.registerObservers();
 
+        boolean initialNightMode = GlobalNightModeStateProviderHolder.getInstance().isInNightMode();
+        OsSettingsProviderAndroidBridge.setPreferredColorScheme(initialNightMode);
+        GlobalNightModeStateProviderHolder.getInstance()
+                .addObserver(
+                        new NightModeStateProvider.Observer() {
+                            @Override
+                            public void onNightModeStateChanged() {
+                                boolean isDark =
+                                        GlobalNightModeStateProviderHolder.getInstance()
+                                                .isInNightMode();
+                                OsSettingsProviderAndroidBridge.setPreferredColorScheme(isDark);
+                            }
+                        });
+
         if (DeviceInfo.isAutomotive()) {
             DrivingRestrictionsManager.initialize();
         }
@@ -472,7 +490,7 @@ public class ProcessInitializationHandler {
         JavalessRenderersFeatureList.setRegisterSyntheticFieldTrialCallback(
                 UmaSessionStats::registerSyntheticFieldTrial);
 
-        if (ChromeFeatureList.sGlic.isEnabled()) {
+        if (GlicEnabling.isEnabledByFlags()) {
             ActorForegroundServiceManager.initialize();
         }
     }

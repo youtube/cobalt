@@ -110,6 +110,8 @@ chromium-metrics-reviews@google.com.
   <variant name="IPH_AutofillHomeWorkProfileSuggestion"
       summary="message shown along with the home and work profile suggestion
                option in the Autofill dropdown"/>
+  <variant name="IPH_AutofillOmniboxPaymentChip"
+      summary="the Autofill payment omnibox page action chip"/>
   <variant name="IPH_AutofillVirtualCardCVCSuggestion"
       summary="message shown to users that have saved a virtual card on an
                online merchant website to educate users on how to fill in
@@ -126,8 +128,6 @@ chromium-metrics-reviews@google.com.
   <variant name="IPH_BadgedReadingList" summary="badged reading list"/>
   <variant name="IPH_BatterySaverMode" summary="battery saver mode"/>
   <variant name="IPH_Bookmark" summary="bookmark"/>
-  <variant name="IPH_BookmarksBar"
-      summary="educating users about the bookmarks bar setting in Appearance"/>
   <variant name="IPH_BottomToolbarTip" summary="bottom toolbar"/>
   <variant name="IPH_CCTHistory" summary="CCT history action"/>
   <variant name="IPH_CCTMinimized" summary="CCT minimize action"/>
@@ -653,8 +653,12 @@ chromium-metrics-reviews@google.com.
                sync-to-signin migration."/>
   <variant name="IPH_SiteControls"
       summary="educating users that site controls have moved to the app menu"/>
+  <variant name="IPH_SmartTabSharingDefaultOnFeature"
+      summary="Smart Tab Sharing Default On custom UI feature"/>
   <variant name="IPH_SmartTabSharingFeature"
       summary="Smart Tab Sharing feature"/>
+  <variant name="IPH_SmartTabSharingTryItFeature"
+      summary="Smart Tab Sharing Try It custom UI feature"/>
   <variant name="IPH_SupervisedUserProfileSignin"
       summary="informing supervised users about parental controls"/>
   <variant name="IPH_TabAudioMuting" summary="muting tab audio"/>

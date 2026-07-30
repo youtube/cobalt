@@ -5,6 +5,7 @@
 #ifndef SERVICES_AUDIO_PUBLIC_CPP_SOUNDS_SOUNDS_MANAGER_H_
 #define SERVICES_AUDIO_PUBLIC_CPP_SOUNDS_SOUNDS_MANAGER_H_
 
+#include <memory>
 #include <string_view>
 
 #include "base/component_export.h"
@@ -27,28 +28,24 @@ class COMPONENT_EXPORT(AUDIO_PUBLIC_CPP) SoundsManager {
   // Creates a singleton instance of the SoundsManager.
   using StreamFactoryBinder = base::RepeatingCallback<void(
       mojo::PendingReceiver<media::mojom::AudioStreamFactory>)>;
-  static void Create(StreamFactoryBinder stream_factory_binder);
 
-  // Removes a singleton instance of the SoundsManager.
-  static void Shutdown();
+  // Creates an instance of the `SoundsManager`.
+  static std::unique_ptr<SoundsManager> Create(
+      StreamFactoryBinder stream_factory_binder);
 
-  // Returns a pointer to a singleton instance of the SoundsManager.
-  static SoundsManager* Get();
+  virtual ~SoundsManager();
 
   SoundsManager(const SoundsManager&) = delete;
   SoundsManager& operator=(const SoundsManager&) = delete;
 
-  // Initializes sounds manager for testing. The |manager| will be owned
-  // by the internal pointer and will be deleted by Shutdown().
-  static void InitializeForTesting(SoundsManager* manager);
-
-  // Initializes SoundsManager with the wav data or the flac data for the system
-  // sounds. The `codec` should be `kPCM` for the wav audio data or `kFLAC` for
-  // the flac audio data. Returns true if SoundsManager was successfully
-  // initialized.
+  // Initializes `SoundsManager` with the wav data or the flac data from the
+  // `resource_id`. The `codec` should be `kPCM` for the wav audio data or
+  // `kFLAC` for the flac audio data. Returns `true` if `SoundsManager` was
+  // successfully initialized.
   virtual bool Initialize(SoundKey key,
-                          std::string_view data,
-                          media::AudioCodec codec) = 0;
+                          int resource_id,
+                          media::AudioCodec codec,
+                          bool loop) = 0;
 
   // Plays sound identified by |key|, returns false if SoundsManager
   // was not properly initialized.
@@ -65,7 +62,6 @@ class COMPONENT_EXPORT(AUDIO_PUBLIC_CPP) SoundsManager {
 
  protected:
   SoundsManager();
-  virtual ~SoundsManager();
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

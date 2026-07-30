@@ -84,7 +84,6 @@
 #include "chrome/browser/ui/views/bookmarks/bookmark_page_action_controller.h"
 #include "chrome/browser/ui/views/commerce/discounts_page_action_view_controller.h"
 #include "chrome/browser/ui/views/commerce/price_insights_page_action_view_controller.h"
-#include "chrome/browser/ui/views/contextual_tasks/contextual_tasks_page_action_controller.h"
 #include "chrome/browser/ui/views/file_system_access/file_system_access_page_action_controller.h"
 #include "chrome/browser/ui/views/intent_picker/intent_picker_view_page_action_controller.h"
 #include "chrome/browser/ui/views/js_optimization/js_optimizations_page_action_controller.h"
@@ -126,6 +125,7 @@
 #include "chrome/browser/skills/skills_ui_tab_controller.h"
 #include "chrome/browser/ui/contextual_search/tab_contextualization_controller.h"
 #include "chrome/browser/ui/tabs/features.h"
+#include "chrome/browser/ui/tabs/tab_attachment_tracker.h"
 #include "chrome/browser/web_applications/web_app_tab_helper.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/chrome_features.h"
@@ -219,10 +219,8 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
           std::make_unique<IntentPickerViewPageActionController>(tab);
     }
 
-    if (IsPageActionMigrated(PageActionIconType::kFileSystemAccess)) {
-      file_system_access_page_action_controller_ =
-          std::make_unique<FileSystemAccessPageActionController>(tab);
-    }
+    file_system_access_page_action_controller_ =
+        std::make_unique<FileSystemAccessPageActionController>(tab);
 
     if (IsPageActionMigrated(PageActionIconType::kZoom)) {
       zoom_view_controller_ = std::make_unique<zoom::ZoomViewController>(
@@ -257,14 +255,6 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
           GetUserDataFactory()
               .CreateInstance<LensOverlayHomeworkPageActionController>(
                   tab, tab, *profile, *page_action_controller_);
-    }
-
-    if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks) &&
-        (contextual_tasks::kShowEntryPoint.Get() ==
-         contextual_tasks::EntryPointOption::kPageActionRevisit)) {
-      contextual_tasks_page_action_controller_ =
-          GetUserDataFactory()
-              .CreateInstance<ContextualTasksPageActionController>(tab, &tab);
     }
 
     if (IsPageActionMigrated(PageActionIconType::kBookmarkStar) &&
@@ -493,6 +483,9 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
 
   tab_creation_metrics_controller_ =
       std::make_unique<TabCreationMetricsController>(&tab);
+
+  tab_attachment_tracker_ =
+      GetUserDataFactory().CreateInstance<TabAttachmentTracker>(tab, &tab);
 
   tab_ui_helper_ = GetUserDataFactory().CreateInstance<TabUIHelper>(tab, tab);
 

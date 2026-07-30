@@ -3936,7 +3936,6 @@ interface HTMLElement : Element
     getter overscrollarea
     getter overscrollcontainer
     getter popover
-    getter scrollParent
     getter spellcheck
     getter style
     getter tabIndex
@@ -3951,7 +3950,9 @@ interface HTMLElement : Element
     method constructor
     method focus
     method hidePopover
+    method scrollParent
     method showPopover
+    method showUnboundedElement
     method togglePopover
     setter accessKey
     setter autocapitalize
@@ -6351,7 +6352,9 @@ interface MediaStreamTrackGenerator : MediaStreamTrack
     method constructor
 interface MediaStreamTrackProcessor
     attribute @@toStringTag
+    getter discardedFrames
     getter readable
+    getter totalFrames
     method constructor
 interface MediaStreamTrackVideoStats
     attribute @@toStringTag
@@ -11882,6 +11885,10 @@ interface WebTransportError : DOMException
     getter source
     getter streamErrorCode
     method constructor
+interface WebTransportReceiveStream : ReadableStream
+    attribute @@toStringTag
+    method constructor
+    method getStats
 interface WebTransportSendGroup
     attribute @@toStringTag
     method constructor

@@ -38,9 +38,9 @@
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/views/drive_picker_host/drive_picker_host_controller.h"
-#include "chrome/browser/ui/views/drive_picker_host/drive_picker_result_handler.mojom.h"
 #include "chrome/browser/ui/views/drive_picker_host/drive_picker_sanitizer.h"
 #include "chrome/browser/ui/webui/cr_components/composebox/composebox_handler.h"
+#include "chrome/browser/ui/webui/drive_picker_host/drive_picker_host_request.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
 #include "chrome/browser/ui/webui/searchbox/contextual_searchbox_test_utils.h"
 #include "chrome/browser/ui/webui/searchbox/searchbox_test_utils.h"
@@ -77,6 +77,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/base_window.h"
+#include "ui/base/test/mock_base_window.h"
 #include "ui/base/unowned_user_data/unowned_user_data_host.h"
 #include "ui/base/webui/web_ui_util.h"
 
@@ -188,42 +189,10 @@ class MockDrivePickerHostController : public DrivePickerHostController {
       BrowserWindowInterface* browser_window_interface)
       : DrivePickerHostController(browser_window_interface) {}
   ~MockDrivePickerHostController() override = default;
-  MOCK_METHOD(
-      void,
-      ShowDrivePickerHost,
-      (mojo::PendingRemote<drive_picker_host::mojom::DrivePickerResultHandler>),
-      (override));
-};
-
-class MockBaseWindow : public ui::BaseWindow {
- public:
-  MockBaseWindow() = default;
-  ~MockBaseWindow() = default;
-  MOCK_METHOD(bool, IsActive, (), (const, override));
-  MOCK_METHOD(bool, IsMaximized, (), (const, override));
-  MOCK_METHOD(bool, IsMinimized, (), (const, override));
-  MOCK_METHOD(bool, IsFullscreen, (), (const, override));
-  MOCK_METHOD(gfx::NativeWindow, GetNativeWindow, (), (const, override));
-  MOCK_METHOD(gfx::Rect, GetRestoredBounds, (), (const, override));
-  MOCK_METHOD(ui::mojom::WindowShowState,
-              GetRestoredState,
-              (),
-              (const, override));
-  MOCK_METHOD(gfx::Rect, GetBounds, (), (const, override));
-  MOCK_METHOD(void, Show, (), (override));
-  MOCK_METHOD(void, Hide, (), (override));
-  MOCK_METHOD(bool, IsVisible, (), (const, override));
-  MOCK_METHOD(void, ShowInactive, (), (override));
-  MOCK_METHOD(void, Close, (), (override));
-  MOCK_METHOD(void, Activate, (), (override));
-  MOCK_METHOD(void, Deactivate, (), (override));
-  MOCK_METHOD(void, Maximize, (), (override));
-  MOCK_METHOD(void, Minimize, (), (override));
-  MOCK_METHOD(void, Restore, (), (override));
-  MOCK_METHOD(void, SetBounds, (const gfx::Rect&), (override));
-  MOCK_METHOD(void, FlashFrame, (bool), (override));
-  MOCK_METHOD(ui::ZOrderLevel, GetZOrderLevel, (), (const, override));
-  MOCK_METHOD(void, SetZOrderLevel, (ui::ZOrderLevel), (override));
+  MOCK_METHOD(void,
+              ShowDrivePickerHost,
+              (std::unique_ptr<drive_picker_host::DrivePickerHostRequest>),
+              (override));
 };
 
 class MockContextualTasksContextService
@@ -369,7 +338,7 @@ class ContextualSearchboxHandlerTest
   std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
       contextual_session_handle_;
   testing::NiceMock<MockBrowserWindowInterface> mock_browser_window_interface_;
-  testing::NiceMock<MockBaseWindow> mock_base_window_;
+  testing::NiceMock<ui::MockBaseWindow> mock_base_window_;
   ui::UnownedUserDataHost unowned_user_data_host_;
 #if BUILDFLAG(IS_CHROMEOS)
   ash::NetworkHandlerTestHelper network_handler_test_helper_;
@@ -1534,10 +1503,8 @@ TEST_F(ContextualSearchboxHandlerTest, OnDriveUploadClicked) {
       pending_remote;
   EXPECT_CALL(*mock_ptr, ShowDrivePickerHost(testing::_))
       .WillOnce(
-          [&](mojo::PendingRemote<
-              drive_picker_host::mojom::DrivePickerResultHandler> remote) {
-            pending_remote = std::move(remote);
-          });
+          [&](std::unique_ptr<drive_picker_host::DrivePickerHostRequest>
+                  request) { pending_remote = request->TakeResultHandler(); });
 
   base::test::TestFuture<searchbox::mojom::DriveUploadResponsePtr> future;
   handler().OnDriveUploadClicked(future.GetCallback());
@@ -1957,7 +1924,7 @@ TEST_F(ContextualSearchboxHandlerTest, QueryAutocomplete_SetsLensInputs) {
   handler().omnibox_controller()->SetAutocompleteControllerForTesting(
       std::move(autocomplete_controller));
 
-  handler().QueryAutocomplete(u"test", false);
+  handler().QueryAutocomplete(u"test", false, 0);
 
   EXPECT_TRUE(input.lens_overlay_suggest_inputs().has_value());
   EXPECT_EQ(input.lens_overlay_suggest_inputs()->encoded_image_signals(),
@@ -1990,8 +1957,10 @@ TEST_F(ContextualSearchboxHandlerTest,
     handler().omnibox_controller()->SetAutocompleteControllerForTesting(
         std::move(autocomplete_controller));
 
-    handler().QueryAutocomplete(u"test", false);
-    EXPECT_FALSE(input.lens_overlay_suggest_inputs().has_value());
+    handler().QueryAutocomplete(u"test", false, 0);
+    EXPECT_TRUE(input.lens_overlay_suggest_inputs().has_value());
+    EXPECT_EQ(input.lens_overlay_suggest_inputs()->encoded_image_signals(),
+              "xyz");
   }
 
   // 2. Case: `active_tool = TOOL_MODE_CANVAS`.
@@ -2011,7 +1980,7 @@ TEST_F(ContextualSearchboxHandlerTest,
     handler().omnibox_controller()->SetAutocompleteControllerForTesting(
         std::move(autocomplete_controller));
 
-    handler().QueryAutocomplete(u"test", false);
+    handler().QueryAutocomplete(u"test", false, 0);
     EXPECT_FALSE(input.lens_overlay_suggest_inputs().has_value());
   }
 }

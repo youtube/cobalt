@@ -1009,8 +1009,7 @@ void AshNotificationView::RemoveGroupNotification(
         std::move(on_animation_aborted),
         /*delay_in_ms=*/0,
         /*duration_in_ms=*/kSlideOutGroupedNotificationAnimationDurationMs,
-        gfx::Tween::LINEAR,
-        "Ash.Notification.GroupNotification.SlideOut.AnimationSmoothness");
+        gfx::Tween::LINEAR);
   } else {
     std::move(on_notification_slid_out).Run();
   }
@@ -1381,12 +1380,10 @@ void AshNotificationView::OnThemeChanged() {
       message_center::MessageCenter::Get()->FindVisibleNotificationById(
           notification_id()));
 
-  // For unittests, `GetColorProvider()` could be nullptr.
-  if (inline_reply() && GetColorProvider()) {
-    inline_reply()->textfield()->SetTextColor(
-        GetColorProvider()->GetColor(cros_tokens::kCrosSysOnSurface));
-    inline_reply()->textfield()->set_placeholder_text_color(
-        GetColorProvider()->GetColor(cros_tokens::kCrosSysOnSurfaceVariant));
+  if (inline_reply()) {
+    inline_reply()->textfield()->SetTextColorId(cros_tokens::kCrosSysOnSurface);
+    inline_reply()->textfield()->SetPlaceholderTextColorId(
+        cros_tokens::kCrosSysOnSurfaceVariant);
   }
 
   if (icon_view() &&

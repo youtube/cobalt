@@ -428,6 +428,10 @@ void RenderWidgetHostViewMac::InitAsChild(gfx::NativeView parent_view) {
   DCHECK_EQ(widget_type_, WidgetType::kFrame);
 }
 
+ui::Compositor* RenderWidgetHostViewMac::GetCompositor() {
+  return browser_compositor_ ? browser_compositor_->GetCompositor() : nullptr;
+}
+
 void RenderWidgetHostViewMac::InitAsPopup(
     RenderWidgetHostView* parent_host_view,
     const gfx::Rect& pos,
@@ -1070,6 +1074,25 @@ void RenderWidgetHostViewMac::SetWindowFrameInScreen(const gfx::Rect& rect) {
   // screen association. Note the use of the generic variant of
   // UpdateScreenInfo() that does not consider Cocoa provided screen info.
   RenderWidgetHostViewBase::UpdateScreenInfo();
+}
+
+void RenderWidgetHostViewMac::SetForceSpecifiedDeadline(
+    std::optional<uint32_t> deadline_in_frames) {
+  if (browser_compositor_) {
+    if (auto* dfh = browser_compositor_->GetDelegatedFrameHost()) {
+      dfh->SetForceSpecifiedDeadline(deadline_in_frames);
+    }
+  }
+}
+
+std::optional<uint32_t>
+RenderWidgetHostViewMac::GetForceSpecifiedDeadlineForTesting() {
+  if (browser_compositor_) {
+    if (auto* dfh = browser_compositor_->GetDelegatedFrameHost()) {
+      return dfh->GetForceSpecifiedDeadlineForTesting();
+    }
+  }
+  return std::nullopt;
 }
 
 //

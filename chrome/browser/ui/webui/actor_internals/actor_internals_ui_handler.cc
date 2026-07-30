@@ -44,6 +44,8 @@ std::string ToString(uint64_t track_uuid, actor::TaskId task_id) {
     return "Browser";
   } else if (actor::MakeRendererTrackUUID(task_id) == track_uuid) {
     return "Renderer";
+  } else if (actor::IsGlicExperimentalTriggeringTrack(track_uuid)) {
+    return "GlicExperimentalTriggering";
   } else {
     return base::NumberToString(track_uuid);
   }
@@ -55,9 +57,10 @@ ActorInternalsUIHandler::ActorInternalsUIHandler(
     content::WebContents* web_contents,
     mojo::PendingRemote<actor_internals::mojom::Page> page,
     mojo::PendingReceiver<actor_internals::mojom::PageHandler> receiver)
-    : web_contents_(web_contents),
-      remote_(std::move(page)),
-      receiver_(this, std::move(receiver)) {
+    : web_contents_(web_contents) {
+  handler_ = std::make_unique<actor_internals::ActorInternalsHandler>(
+      std::move(page), std::move(receiver), this);
+
   auto* profile =
       Profile::FromBrowserContext(web_contents->GetBrowserContext());
   auto& journal = actor::ActorKeyedService::Get(profile)->GetJournal();
@@ -82,7 +85,7 @@ void ActorInternalsUIHandler::WillAddJournalEntry(
     details[detail->key] = detail->value;
   }
 
-  remote_->JournalEntryAdded(actor_internals::mojom::JournalEntry::New(
+  handler_->OnJournalEntryAdded(actor_internals::mojom::JournalEntry::New(
       entry.url, entry.data->event, ToString(entry.data->type),
       std::move(details), entry.data->timestamp, entry.data->task_id.value(),
       ToString(entry.data->track_uuid, entry.data->task_id), entry.screenshot));

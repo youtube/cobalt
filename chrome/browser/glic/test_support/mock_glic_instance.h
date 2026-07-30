@@ -55,14 +55,22 @@ class MockGlicInstance : public GlicInstance {
               OnPolylinePointsChanged,
               (const std::vector<int>&),
               (override));
+  MOCK_METHOD(GlicActorTaskManager*, GetActorTaskManager, (), (override));
+  MOCK_METHOD(bool, IsActuating, (), (const, override));
   MOCK_METHOD(void, CancelTask, (), (override));
-  MOCK_METHOD(void, BindTabForTesting, (tabs::TabInterface*), (override));
+
   MOCK_METHOD(void,
               GetExperimentalTriggeringUpdates,
               (mojo::PendingRemote<mojom::ExperimentalTriggeringUpdatesHandler>,
                base::OnceCallback<void(bool)>),
               (override));
   MOCK_METHOD(Host&, host, (), (override));
+  MOCK_METHOD(void,
+              SendAdditionalContext,
+              (mojom::AdditionalContextPtr),
+              (override));
+  MOCK_METHOD(void, FocusIfActive, (), (override));
+  MOCK_METHOD(void, NotifyActorTaskListRowClicked, (int32_t), (override));
 
   base::WeakPtr<MockGlicInstance> GetWeakPtr() {
     return weak_ptr_factory_.GetWeakPtr();

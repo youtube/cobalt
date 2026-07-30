@@ -62,8 +62,6 @@ public class PriceTrackingBottomSheetContentRenderTest {
     public static BaseActivityTestRule<BlankUiTestActivity> sActivityTestRule =
             new BaseActivityTestRule<>(BlankUiTestActivity.class);
 
-    private static Activity sActivity;
-
     @Rule
     public RenderTestRule mRenderTestRule =
             RenderTestRule.Builder.withPublicCorpus()
@@ -90,13 +88,14 @@ public class PriceTrackingBottomSheetContentRenderTest {
 
     @BeforeClass
     public static void setupSuite() {
-        sActivity = sActivityTestRule.launchActivity(null);
+        sActivityTestRule.launchActivity(null);
     }
 
     @Before
     public void setUp() throws Exception {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
+                    Activity activity = sActivityTestRule.getActivity();
                     mPriceTrackingStateSupplier = ObservableSuppliers.createNonNull(false);
                     doReturn(mMockProfile).when(mMockTab).getProfile();
                     doReturn(PRODUCT_TITLE).when(mMockTab).getTitle();
@@ -113,9 +112,9 @@ public class PriceTrackingBottomSheetContentRenderTest {
 
                     mCoordinator =
                             new PriceTrackingBottomSheetContentCoordinator(
-                                    sActivity, () -> mMockTab, mMockPriceInsightsDelegate);
+                                    activity, () -> mMockTab, mMockPriceInsightsDelegate);
                     mContentView = mCoordinator.getContentViewForTesting();
-                    sActivity.setContentView(mContentView);
+                    activity.setContentView(mContentView);
                 });
     }
 

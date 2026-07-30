@@ -7082,15 +7082,12 @@ class ChromeExtensionsCapabilityTest(ChromeDriverBaseTestWithWebServer):
         chrome_switches=[_DISABLE_MV2_EXPERIMENTS_SWITCH])
 
   def testCanInspectExtensionWindows(self):
-    crx_unpacked = os.path.join(_TEST_DATA_DIR, 'extv2_new_window')
+    crx_unpacked = os.path.join(_TEST_DATA_DIR, 'extv3_new_window')
     # This test exercises inspection of extension created new window.
     # Extension created regular windows/tabs, unlike background_page, is not
     # considered an extension target.
     driver = self.CreateDriver(
-        chrome_switches=[
-          _DISABLE_MV2_EXPERIMENTS_SWITCH,
-          'load-extension=' + crx_unpacked
-        ])
+        chrome_switches=['load-extension=' + crx_unpacked])
 
     # Wait for extension window to be open.
     self.WaitForCondition(lambda: len(driver.GetWindowHandles()) > 1)
@@ -7125,48 +7122,6 @@ class ChromeExtensionsCapabilityTest(ChromeDriverBaseTestWithWebServer):
         return
     self.fail("couldn't find extension-created window")
 
-  def testCanInspectBackgroundPage(self):
-    crx = os.path.join(_TEST_DATA_DIR, 'ext_bg_page.crx')
-    # This test exercises inspection of an extension background page, which
-    # is only valid for manifest V2 extensions. Explicitly disable the
-    # experiment that disallows MV2 extensions.
-    # This test can be removed entirely when support for MV2 extensions is
-    # removed.
-    driver = self.CreateDriver(
-        # Chrome Extension inspection requires enableExtensionTargets = True.
-        experimental_options={'enableExtensionTargets': True},
-        chrome_extensions=[self._PackExtension(crx)],
-        chrome_switches=[_DISABLE_MV2_EXPERIMENTS_SWITCH])
-    handles = driver.GetWindowHandles()
-    for handle in handles:
-      driver.SwitchToWindow(handle)
-      if driver.GetCurrentUrl() == 'chrome-extension://' \
-          'nibbphkelpaohebejnbojjalikodckih/_generated_background_page.html':
-        self.assertEqual(42, driver.ExecuteScript('return magic;'))
-        return
-    self.fail("couldn't find generated background page for test extension")
-
-  def testCanInspectExtensionTargetsWithMigratedSwitch(self):
-    crx = os.path.join(_TEST_DATA_DIR, 'ext_bg_page.crx')
-    # Chrome Extension inspection requires enableExtensionTargets = True.
-    # We migrate experimental_options={'windowTypes': ['background_page']} to
-    # the new chrome option.
-    # This test exercises inspection of an extension background page, which
-    # is only valid for manifest V2 extensions. Explicitly disable the
-    # experiment that disallows MV2 extensions.
-    driver = self.CreateDriver(
-        chrome_extensions=[self._PackExtension(crx)],
-        experimental_options={'windowTypes': ['background_page']},
-        chrome_switches=[_DISABLE_MV2_EXPERIMENTS_SWITCH])
-    handles = driver.GetWindowHandles()
-    for handle in handles:
-      driver.SwitchToWindow(handle)
-      if driver.GetCurrentUrl() == 'chrome-extension://' \
-          'nibbphkelpaohebejnbojjalikodckih/_generated_background_page.html':
-        self.assertEqual(42, driver.ExecuteScript('return magic;'))
-        return
-    self.fail("couldn't find generated background page for test extension")
-
   def testIFrameWithExtensionsSource(self):
     crx_path = os.path.join(_TEST_DATA_DIR, 'frames_extension.crx')
     driver = self.CreateDriver(
@@ -7186,10 +7141,7 @@ class ChromeExtensionsCapabilityTest(ChromeDriverBaseTestWithWebServer):
     # the extension's content script's one.
     extension_path = os.path.join(_TEST_DATA_DIR, 'all_frames')
     driver = self.CreateDriver(
-        chrome_switches=[
-            'load-extension=%s' % extension_path,
-            _DISABLE_MV2_EXPERIMENTS_SWITCH
-        ])
+        chrome_switches=['load-extension=%s' % extension_path])
     driver.Load(
         ChromeDriverTest._http_server.GetUrl() + '/chromedriver/container.html')
     driver.SwitchToMainFrame()

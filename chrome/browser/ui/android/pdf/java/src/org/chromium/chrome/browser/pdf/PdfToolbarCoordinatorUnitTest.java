@@ -142,4 +142,32 @@ public class PdfToolbarCoordinatorUnitTest {
         TextView title = mPdfPageView.findViewById(R.id.pdf_title);
         Assert.assertEquals("test_title.pdf", title.getText().toString());
     }
+
+    @Test
+    public void testFitToPageToggle() {
+        // Default current page is 99 (1-indexed), so pageIndex should be 98.
+        View fitToPageButton = mPdfPageView.findViewById(R.id.fit_to_page_button);
+
+        // Initial state: click triggers fit-to-height and changes state to fit-to-width.
+        fitToPageButton.performClick();
+        verify(mDelegate).toggleFitToPage(true, 98);
+
+        // Second click triggers fit-to-width and changes state back to fit-to-height.
+        fitToPageButton.performClick();
+        verify(mDelegate).toggleFitToPage(false, 98);
+    }
+
+    @Test
+    public void testTwoPagesPerRowToggle() {
+        // Default current page is 99 (1-indexed) and zoom level is 1.0f
+        View twoPageButton = mPdfPageView.findViewById(R.id.two_page_button);
+
+        // Initial state: click toggles two pages per row to active (true)
+        twoPageButton.performClick();
+        verify(mDelegate).toggleTwoPagesPerRow(true, 1.0f, 98);
+
+        // Second click: click toggles two pages per row to inactive (false)
+        twoPageButton.performClick();
+        verify(mDelegate).toggleTwoPagesPerRow(false, 1.0f, 98);
+    }
 }

@@ -6,9 +6,12 @@
 #define ASH_WEBUI_BOCA_UI_PROVIDER_TAB_INFO_COLLECTOR_H_
 
 #include <memory>
+#include <optional>
 
 #include "ash/public/cpp/tab_strip_delegate.h"
+#include "ash/webui/boca_ui/mojom/boca.mojom-shared.h"
 #include "ash/webui/boca_ui/mojom/boca.mojom.h"
+#include "base/functional/callback_forward.h"
 #include "content/public/browser/web_ui.h"
 
 namespace mojom = ash::boca::mojom;
@@ -16,29 +19,26 @@ namespace mojom = ash::boca::mojom;
 namespace ash::boca {
 class TabInfoCollector {
  public:
-  TabInfoCollector(content::WebUI* web_ui, bool is_producer);
-  explicit TabInfoCollector(bool is_producer);
-  TabInfoCollector(const TabInfoCollector&) = delete;
-  TabInfoCollector& operator=(const TabInfoCollector&) = delete;
-  ~TabInfoCollector();
+  using UrlTypeGetter =
+      base::RepeatingCallback<std::optional<mojom::UrlType>(int32_t id)>;
+  static std::unique_ptr<TabInfoCollector> Create(content::WebUI* web_ui,
+                                                  bool is_producer);
+  static std::unique_ptr<TabInfoCollector> Create(bool is_producer);
+
+  virtual ~TabInfoCollector() = default;
 
   // Fetches window tab info based on current boca role synchronously.
-  std::vector<mojom::WindowPtr> GetWindowTabInfo();
+  virtual std::vector<mojom::WindowPtr> GetWindowTabInfo(
+      UrlTypeGetter url_type_getter) = 0;
 
   // Fetches window tab info for provided `target_window` synchronously.
-  std::vector<mojom::WindowPtr> GetWindowTabInfoForTarget(
-      aura::Window* target_window);
+  virtual std::vector<mojom::WindowPtr> GetWindowTabInfoForTarget(
+      aura::Window* target_window,
+      UrlTypeGetter url_type_getter) = 0;
 
   // Fetches window tab info for all browser windows synchronously.
-  std::vector<mojom::WindowPtr> GetWindowTabInfoForAllBrowserWindows();
-
- private:
-  mojom::TabInfoPtr AshToPageTabInfo(ash::TabInfo tab);
-  void SortWindowList(std::vector<std::vector<ash::TabInfo>>& windows_list);
-  std::vector<mojom::WindowPtr> AshToPageWindows(
-      std::vector<std::vector<ash::TabInfo>> windows);
-  const bool is_producer_;
-  const raw_ptr<content::WebUI> web_ui_;
+  virtual std::vector<mojom::WindowPtr> GetWindowTabInfoForAllBrowserWindows(
+      UrlTypeGetter url_type_getter) = 0;
 };
 
 }  // namespace ash::boca

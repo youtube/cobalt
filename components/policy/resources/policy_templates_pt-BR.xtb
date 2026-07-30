@@ -147,6 +147,7 @@ Os padrões de URL não podem entrar em conflito com <ph name="CONTROLLED_FRAME_
 Para saber mais sobre padrões de URL válidos, consulte https://chromeenterprise.google/policies/url-patterns. <ph name="WILDCARD_VALUE" /> não é um valor aceitável para esta política.</translation>
 <translation id="1082802595100075771">Permitir que os usuários escolham usar um Serviço do Google anônimo para oferecer descrições automáticas para imagens que não têm um texto alternativo</translation>
 <translation id="1084697375611053264">Especifica a lista de domínios de aplicativos da Web de terceiros que podem usar a <ph name="DESK_API_NAME" /> para controlar os espaços de trabalho do <ph name="PRODUCT_OS_NAME" />. Esses padrões de URL precisam seguir o formato definido para a propriedade "matches" em https://developer.chrome.com/docs/extensions/mv3/manifest/externally_connectable/#reference.</translation>
+<translation id="1086596047220085412">Configurações do compartilhamento inteligente de guias</translation>
 <translation id="1087057100912843460">Permitir atualizações</translation>
 <translation id="1087187152710800704">Nega a permissão para gerenciamento de janelas em todos os sites por padrão</translation>
 <translation id="1087437665304381368">Essa política controla apenas o modo de desenvolvedor do <ph name="PRODUCT_OS_NAME" />. Se quiser impedir o acesso às Opções do desenvolvedor do Android, configure a política <ph name="DEVELOPER_TOOLS_DISABLED_POLICY_NAME" />.</translation>
@@ -252,6 +253,29 @@ Para mais informações sobre como tratar dados de recursos de IA generativa, co
 <translation id="1160479894929412407">Permitir protocolo QUIC</translation>
 <translation id="1160939557934457296">Desativa a continuação na página de aviso de "Navegação segura"</translation>
 <translation id="1161685818042751282">Não importe certificados de servidor TLS adicionados pelo usuário de repositórios de confiança de plataforma.</translation>
+<translation id="1162404282416180562">Configura uma lista de regras de controle de dados para evitar vazamentos.
+
+      Cada regra consiste no seguinte:
+      - Campos de condição que acionam essa regra. Uma regra só será acionada se uma ação do usuário corresponder a todos os campos preenchidos em <ph name="DATA_CONTROLS_SOURCES" />, <ph name="DATA_CONTROLS_DESTINATIONS" />, <ph name="DATA_CONTROLS_AND" />, <ph name="DATA_CONTROLS_OR" /> e <ph name="DATA_CONTROLS_NOT" />. Para subcampos da lista, precisa haver correspondência de apenas uma entrada. Por exemplo, apenas um padrão de URL precisa ser correspondente para acionar a regra.
+      - Uma lista de restrições a serem aplicadas. Dependendo da restrição, pode ser que apenas as condições <ph name="DATA_CONTROLS_SOURCES" /> ou <ph name="DATA_CONTROLS_DESTINATIONS" /> estejam disponíveis.
+
+      As regras podem ser aplicadas para:
+      - Controlar os dados na área de transferência compartilhados entre as origens e os destinos;
+      - Controlar o bloqueio de capturas de tela com base nas guias de origem.
+
+      Se a política <ph name="ON_SECURITY_EVENT_ENTERPRISE_CONNECTOR" /> for definida como "True" (verdadeira), as regras acionadas serão informadas ao administrador.
+      O nível de restrição pode ser definido como "BLOCK", "WARN" ou "REPORT" (bloquear, alertar ou informar).
+      - Se a restrição for definida como BLOCK, a ação não vai ser autorizada.
+      - Se a restrição for definida como WARN, o usuário vai ser avisado e poderá escolher entre continuar ou cancelar a ação.
+      - Se a restrição for definida como "REPORT", a ação do usuário não será interrompida, mas um relatório será enviado se a política <ph name="ON_SECURITY_EVENT_ENTERPRISE_CONNECTOR" /> estiver ativada.
+
+      Observações:
+      - Formate os padrões de URL da maneira descrita em https://support.google.com/chrome/a?p=url_blocklist_filter_format.
+      - Para regras de prevenção contra vazamento de dados específicas do <ph name="PRODUCT_OS_NAME" />, consulte também a política <ph name="DATA_LEAK_PREVENTION_RULES_LIST" />.
+
+      Se a política for deixada sem definição, nenhuma restrição será aplicada.
+
+      Esta política está disponível apenas para usuários que receberam uma licença do <ph name="CHROME_ENTERPRISE_PREMIUM_NAME" />.</translation>
 <translation id="1163080558183062209">Desativar tipos de impressora na lista de proibições</translation>
 <translation id="1163389598183927209">Um grupo de políticas relacionadas ao <ph name="PRIVACY_SANDBOX_NAME" />. Consulte <ph name="PRIVACY_SANDBOX_URL" /> para conferir detalhes sobre a iniciativa do <ph name="PRODUCT_NAME" /> para descontinuar os cookies de terceiros.</translation>
 <translation id="1165923723751466821">Permitir logins no perfil e no navegador como visitante</translation>
@@ -719,6 +743,15 @@ Se esta política não for definida, o seletor de emojis será ativado para usu�
 <translation id="1509692106376861764">Esta política teve o uso suspenso a partir da versão 29 do <ph name="PRODUCT_NAME" />.</translation>
 <translation id="1509839615768187049">Sempre usar o cliente DNS integrado</translation>
 <translation id="1514888685242892912">Ativar <ph name="PRODUCT_NAME" /></translation>
+<translation id="1514959848081381646">Esta política controla as integrações do Modo IA do Google na barra de endereço e na caixa de pesquisa da página "Nova guia".
+
+Para acessar esse recurso, o Google precisa ser definido como o mecanismo de pesquisa padrão do usuário.
+
+0 = o recurso ficará disponível para os usuários.
+
+1 = o recurso não ficará disponível para os usuários.
+
+Se não for definida, o comportamento será determinado pela política <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.</translation>
 <translation id="1515230621229117540">Ativa o menu de acessibilidade flutuante</translation>
 <translation id="1515824657887788963">Permite que uma página execute solicitações XHR síncronas durante a dispensa de páginas.</translation>
 <translation id="1516486219683984217">Não permitir o uso de notificações do sistema</translation>
@@ -1089,6 +1122,7 @@ política foi a 121. O suporte foi removido na versão 122.</translation>
       Veja também: <ph name="REMOTE_ACCESS_HOST_CLIENT_DOMAIN_LIST_POLICY_NAME" />.
 
       Observação: esta configuração substituirá a <ph name="REMOTE_ACCESS_HOST_DOMAIN_POLICY_NAME" />, se ela estiver presente.</translation>
+<translation id="1723571018091915166">Não permitir o compartilhamento inteligente de guias com integrações do <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />.</translation>
 <translation id="172374442286684480">Permitir que todos os sites definam dados locais</translation>
 <translation id="1729169799290004131">Se a política for definida, a porcentagem de brilho da tela será especificada, desativando os recursos do brilho automático. O brilho inicial da tela será ajustado para o valor da política, mas os usuários poderão mudá-lo.
 
@@ -2024,6 +2058,18 @@ Se a política for deixada sem definição, os usuários poderão mudar a lista 
 
       Se ela for definida como falsa ou não for definida, nenhum botão será exibido.</translation>
 <translation id="2294382669900758280">A reprodução de vídeos em apps Android não é levada em consideração, mesmo se esta política estiver definida como <ph name="TRUE" />.</translation>
+<translation id="2296529215567227994">Especifica se o Modo de Navegação Anônima deve ser substituído pelo Modo Isolado.
+
+O Modo Isolado é um modo de navegação temporário exclusivo para empresas que substitui o Modo de Navegação Anônima.
+Ao contrário do Modo de Navegação Anônima, o Modo Isolado é compatível com políticas empresariais relacionadas à DLP e extensões de instalação forçada.
+
+Tenha em mente que as políticas relacionadas à Navegação Anônima não são aplicadas ao Modo Isolado.
+
+Se for definida como 1 – Ativado, o Modo Isolado será ativado e substituirá o Modo de Navegação Anônima.
+
+Se for definida como 0 – Desativada ou deixada sem definição, o Modo Isolado será desativado e a Navegação Anônima será usada como comportamento padrão.
+
+Esta política exige uma licença do <ph name="CHROME_ENTERPRISE_PREMIUM_NAME" /> para entrar em vigor.</translation>
 <translation id="2299220924812062390">Especifica uma lista de plug-ins ativados</translation>
 <translation id="2299815818824242485">Não permitir pesquisas por proxy com maior proteção</translation>
 <translation id="2303795211377219696">Ativar o preenchimento automático para cartões de crédito</translation>
@@ -2953,6 +2999,13 @@ Esta política só pode ser definida como uma política do usuário em nuvem.</t
 <translation id="2866726566162790531">Lista de origens que autorizam todas as autenticações HTTP</translation>
 <translation id="2868756546751652023">Permitir o uso do tethering instantâneo</translation>
 <translation id="286898786908566256">Permitir que os usuários enviem números de telefone do Chrome para o dispositivo Android</translation>
+<translation id="287087426320717057">Esta política permite que usuários iniciem qualquer tipo de atualização de firmware.
+
+      Se a política for ativada ou deixada sem definição, os usuários, como o proprietário do dispositivo, poderão iniciar atualizações de firmware.
+
+      Se ela for desativada, os usuários não poderão fazer essas atualizações.
+
+      A política é válida para atualizações de firmware de periféricos externos e componentes internos dos dispositivos <ph name="PRODUCT_OS_FLEX_NAME" />. As atualizações de firmware dos componentes internos de dispositivos <ph name="PRODUCT_OS_NAME" /> não são afetadas por esta política.</translation>
 <translation id="2872098849906555324">Desativar a sincronização do Google Drive</translation>
 <translation id="2872189563975139803">Configurações para separação de perfis corporativos</translation>
 <translation id="2872961005593481000">Desligar</translation>
@@ -2994,7 +3047,7 @@ Esta política só pode ser definida como uma política do usuário em nuvem.</t
 <translation id="2896434627453256512">Definir a política para ativar o recurso de janela fantasma.
       Se a política for definida como "true" (verdadeira), janelas fantasma do ARC serão criadas antes da inicialização do ARC após uma falha ou reinicialização com base na configuração de restauração do app.
       Se a política for definida como "false" (falsa), nenhuma janela fantasma será criada antes da inicialização do ARC. Apps do ARC serão restaurados após a inicialização dele</translation>
-<translation id="2897716186959852329">Nunca permitir a leitura em voz alta</translation>
+<translation id="2897716186959852329">Nunca permitir Ler em voz alta</translation>
 <translation id="2899002520262095963">Os apps Android podem usar as configurações de rede e os certificados de CA definidos por esta política, mas não têm acesso a algumas opções de configuração.</translation>
 <translation id="2899213072616346687">Restringe modo de impressão de gráficos em segundo plano. Se esta política não for definida, não haverá restrição.</translation>
 <translation id="2899640611559504158">Desativar acesso à linha de comando de máquinas virtuais</translation>
@@ -4614,6 +4667,13 @@ A política pode ser combinada com <ph name="POLICY_CLOUD_POLICY_OVERRIDES_PLATF
 <translation id="3928726028264020458">Ativar relatórios de informações VPD do dispositivo</translation>
 <translation id="3935592079035695061">Milissegundos desde a meia-noite.</translation>
 <translation id="3937800910397007337">Forçar a prioridade de primeiro plano para todas as guias</translation>
+<translation id="3938885528378923718">Configure como o <ph name="PRODUCT_NAME" /> baixa e usa o modelo básico da IA generativa para inferência local.
+
+Quando a política for definida como Permitida (0) ou deixada sem definição, o modelo será baixado automaticamente e usado para inferência.
+
+Se a política for definida como Desativada (1), o modelo não será baixado e o anterior (se houver) será excluído.
+
+Em plataformas para computador, também é possível desativar o download desse modelo definindo <ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" /> como falso.</translation>
 <translation id="3941289958028934630">Desativar a resposta falada na tela de login</translation>
 <translation id="3943930334592166130">Esta política controla se o usuário receberá uma solicitação para selecionar um certificado de cliente quando a <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_POLICY_NAME" /> corresponder a mais de um certificado.
       Se esta política for definida como "Ativada", o usuário receberá uma solicitação para selecionar um certificado de cliente sempre que a política de seleção automática corresponder a vários certificados.
@@ -6844,13 +6904,6 @@ Observação: esta política não se aplica a HSTS Upgrades.</translation>
 <translation id="5303080953475303561">Se a política for definida, ela controlará a frequência com que a tela de bloqueio solicita a senha para o desbloqueio rápido. Quando a tela de bloqueio aparece, se a última senha digitada tiver sido inserida antes da janela de tempo especificada pelo valor escolhido, o desbloqueio rápido não ficará disponível. Se os usuários continuarem na tela de bloqueio após esse período, uma senha será solicitada na próxima vez que o código errado for digitado ou que eles acessarem a tela de bloqueio, o que ocorrer primeiro.
 
       Se a política não for definida, os usuários usando o desbloqueio rápido terão que inserir a senha na tela de bloqueio diariamente.</translation>
-<translation id="530488290401810961">Defina como o <ph name="PRODUCT_NAME" /> vai baixar o modelo básico de IA generativa e usá-lo para inferência local.
-
-Se a política estiver definida como Permitida (0), ou não tiver sido configurada, o modelo será baixado automaticamente e usado para inferência.
-
-Se a política estiver definida como Desativada (1), o modelo não será baixado e o anterior (se houver) será excluído.
-
-Em plataformas para computador, também é possível usar <ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" /> para desativar o download desse modelo.</translation>
 <translation id="5306186200045823863">Ativar confiança na infraestrutura de ICP legada da Symantec Corporation</translation>
 <translation id="5307432759655324440">Disponibilidade do modo de navegação anônima</translation>
 <translation id="5308551343115571396">Após a desativação do <ph name="LACROS_NAME" />, vamos tentar manter o máximo possível de dados do usuário, removendo todos os dados do navegador.</translation>
@@ -8575,17 +8628,46 @@ Se a política for deixada sem definição, o <ph name="PRODUCT_OS_NAME" /> usar
 
       Se você definir a política, os usuários não poderão mudá-la. Se ela não for definida, os usuários poderão mostrar ou ocultar o atalho de apps no menu de contexto da barra de favoritos.</translation>
 <translation id="638003144128412430">Desativar relatórios de informações de fuso horário do dispositivo</translation>
+<translation id="638217866669468708">Esta política controla o compartilhamento do conteúdo de páginas e arquivos com o <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> e o <ph name="GOOGLE_LENS_PRODUCT_NAME" /> pelo painel lateral ou pelas guias do <ph name="PRODUCT_NAME" />.
+
+Ela não afeta o <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> na web. A política só controla como os usuários podem compartilhar informações com esse recurso ao usar o <ph name="PRODUCT_NAME" />.
+
+0 = os usuários poderão compartilhar o conteúdo de páginas ou arquivos com o <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />.
+
+1 = os usuários não poderão compartilhar o conteúdo de páginas ou arquivos com o <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />. Os pontos de entrada para compartilhamento de contexto e o painel lateral serão desativados ou ocultados.
+
+Esta política será ignorada quando o <ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> não for o mecanismo de pesquisa padrão dos usuários, já que o recurso está desativado.
+
+Ela é independente da política <ph name="AI_MODE_SETTINGS_POLICY_NAME" />. A política <ph name="AI_MODE_SETTINGS_POLICY_NAME" /> controla apenas os pontos de entrada na caixa de pesquisa da omnibox ou da página "Nova guia". Já esta política controla o compartilhamento de contexto pelo painel lateral ou pelas guias.
+
+Além disso, esta política não controla a integração do <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />, que pode ser desativada pela <ph name="GEMINI_SETTINGS_POLICY_NAME" />.
+
+Se esta política não for definida, o comportamento dela será determinado pela política <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.
+
+Para mais informações sobre como tratar dados de recursos de IA generativa, consulte https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="6382209369210116232">Desativar extensões não publicadas</translation>
-<translation id="6382287177674997281">Esta política permite que usuários iniciem qualquer tipo de atualização de firmware.
-
-      Se a política for ativada, os usuários, como o proprietário do dispositivo, poderão iniciar atualizações de firmware.
-
-      Se for desativada ou deixada sem definição, os usuários não poderão fazer atualizações de firmware.
-
-      Esta política é válida para atualizações de firmware de periféricos externos e componentes internos de dispositivos <ph name="PRODUCT_OS_FLEX_NAME" />. As atualizações de firmware de componentes internos de dispositivos <ph name="PRODUCT_OS_NAME" /> não são afetadas por esta política.</translation>
 <translation id="6383774771168138899">Configura o fluxo de <ph name="CLOUD_UPLOAD_NAME" /> para <ph name="MICROSOFT_ONE_DRIVE_NAME" /> e <ph name="MICROSOFT_365_NAME" /></translation>
 <translation id="6384542789059421431">Ativar a exibição de páginas de resultados do mecanismo de pesquisa padrão em um painel lateral do navegador.</translation>
 <translation id="6389240462871677239">Permitir que origens de Apps Isolados da Web usem a API Controlled Frame</translation>
+<translation id="6393598243777822017">Esta política controla o recurso de compartilhamento inteligente de guias do <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> pelo painel lateral ou pelas guias do <ph name="PRODUCT_NAME" />.
+
+Ela não afeta o <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> na web. Esta política só controla como os usuários podem compartilhar informações com esse recurso ao usar o <ph name="PRODUCT_NAME" />.
+
+Se ela for definida como 0, os usuários poderão compartilhar o conteúdo de páginas ou arquivos com o <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />.
+
+Se for definida como 1, os usuários não poderão compartilhar o conteúdo de páginas ou arquivos com o <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />. Os pontos de entrada para compartilhamento de contexto e o painel lateral serão desativados ou ocultados.
+
+Esta política será ignorada quando a <ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> não for o mecanismo de pesquisa padrão dos usuários, já que o recurso está desativado.
+
+Esta política é independente da <ph name="AI_MODE_SETTINGS_POLICY_NAME" />. A política de <ph name="AI_MODE_SETTINGS_POLICY_NAME" /> controla apenas os pontos de entrada na caixa de pesquisa da omnibox ou da página Nova Guia. Já esta política controla o compartilhamento de contexto pelo painel lateral ou pelas guias.
+
+Esta política também não controla a integração do <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />, que pode ser desativada pela <ph name="GEMINI_SETTINGS_POLICY_NAME" />.
+
+Se a <ph name="SEARCH_CONTENT_SHARING_SETTINGS_POLICY_NAME" /> for desativada, esta política será ignorada.
+
+Se esta política não for definida, o comportamento dela será determinado pela política <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.
+
+Para mais informações sobre como tratar dados de recursos de IA generativa, consulte https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="6394350458541421998">Esta política teve o uso suspenso a partir da versão 29 do <ph name="PRODUCT_OS_NAME" />. Em vez dela, use a política PresentationScreenDimDelayScale.</translation>
 <translation id="6397588391180665797">Informar a configuração de rede dos usuários em dispositivos registrados.
 
@@ -9152,7 +9234,7 @@ Para o <ph name="PRODUCT_OS_NAME" />, ela sempre é eficaz.</translation>
       Se a política for ativada, os sites poderão usar os SharedArrayBuffers sem restrições.
 
       Se ela for desativada ou deixada sem definição, os sites só poderão usar os SharedArrayBuffers em isolamento entre origens.</translation>
-<translation id="6734397897213913438">Sempre permitir a leitura em voz alta</translation>
+<translation id="6734397897213913438">Sempre permitir Ler em voz alta</translation>
 <translation id="6735701345096330595">Forçar a ativação da correção ortográfica de idiomas</translation>
 <translation id="6736283207617136584">Ativar relatórios sobre o status de atualização do SO do dispositivo</translation>
 <translation id="6739541168983991680">Automatizar o fluxo de <ph name="CLOUD_UPLOAD_NAME" /> para <ph name="MICROSOFT_ONE_DRIVE_NAME" /> e <ph name="MICROSOFT_365_NAME" /></translation>
@@ -10374,8 +10456,7 @@ Se a política não for definida, ela será funcionalmente equivalente a ser def
 <translation id="7455912144588577399">Se a política for definida como verdadeira, os usuários poderão ler páginas da
 Web qualificadas em voz alta usando a conversão de texto em voz. Isso é possível graças à síntese de áudio e
 à destilação de conteúdo do lado do servidor. Se for definida como falsa,
-esse recurso será desativado. Se definida como padrão ou deixada sem definição,
-a leitura em voz alta será ativada.</translation>
+esse recurso será desativado. Se definida como padrão ou deixada sem definição, o reucurso Ler em voz alta será ativado.</translation>
 <translation id="7456922722153109956">Esta política controla a visibilidade do aviso abaixo da caixa de pesquisa na página "Nova guia".
 
       Se a política estiver definida como Ativada, a página "Nova guia" vai mostrar o aviso abaixo da caixa de pesquisa, caso esteja disponível.
@@ -11121,6 +11202,7 @@ Se a política for desativada ou não for definida, o usuário poderá fixar ou 
 
 Se a política <ph name="ENABLE_MEDIA_ROUTER_POLICY_NAME" /> for definida como desativada, o valor desta política não terá efeito e o ícone da barra de ferramentas não vai aparecer.</translation>
 <translation id="7933141401888114454">Ativar a criação de usuários supervisionados</translation>
+<translation id="793360449603660370">Permitir o compartilhamento inteligente de guias com integrações do <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />.</translation>
 <translation id="793473937901685727">Definir a disponibilidade do certificado para apps ARC</translation>
 <translation id="7936302526928951356">A string do user agent não vai congelar a versão principal.</translation>
 <translation id="7936632434238618620">Se a política for definida, você poderá fazer uma lista de padrões de URL que especificam sites para que o Chrome possa selecionar um certificado do cliente automaticamente. O valor é uma matriz de dicionários JSON convertidos em strings, cada um com o formato <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_EXAMPLE" />, em que <ph name="URL_PATTERN_PLACEHOLDER" /> é um padrão de configuração de conteúdo. <ph name="FILTER_PLACEHOLDER" /> restringe quais certificados do cliente podem ser selecionados automaticamente pelo navegador. Seja qual for o filtro utilizado, apenas os certificados correspondentes à solicitação do servidor serão selecionados. No Android e iOS, o Chrome só pode selecionar certificados do cliente que ele mesmo provisionou. Ele não pode acessar certificados instalados no nível do sistema operacional.
@@ -11518,6 +11600,15 @@ Os URLs que correspondem à lista de permissões e à lista de bloqueio são per
 
 Encontre informações detalhadas sobre padrões do URL válidos em https://support.google.com/chrome/a?p=url_blocklist_filter_format.</translation>
 <translation id="8186911565834244165">Permitir feedback do usuário</translation>
+<translation id="8190271041226151932">Esta configuração permite integrações dos apps do Gemini.
+
+0 = a integração do Gemini ficará disponível para os usuários.
+
+1 = a integração do Gemini não ficará disponível para os usuários.
+
+Se não for definida, o comportamento será determinado pela política <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.
+
+Para mais informações, consulte o artigo da Central de Ajuda: https://support.google.com/chrome/a?p=gemini_in_chrome.</translation>
 <translation id="8195133650230097559">Ignorar solicitações de wake locks para gerenciamento de energia</translation>
 <translation id="8196558469954193908">Esta política permite a união da conexão HTTP/2 quando os certificados do cliente estão em uso. Para fazer a união, o nome do host da possível nova conexão e o nome do host de uma conexão já existente precisam corresponder a um ou mais padrões descritos nesta política. A política é uma lista de hosts que utilizam o formato de filtro <ph name="URL_BLOCKLIST_POLICY_NAME" />: "example.com" corresponde a "example.com" e a todos os subdomínios (por exemplo, "sub.example.com"), enquanto ".example.net" corresponde exatamente a "example.net".
 
@@ -12353,7 +12444,7 @@ o esquema https.</translation>
 <translation id="8715885991031124968">Permitir caixas de diálogo de JavaScript acionadas por um subframe de origem diferente.</translation>
 <translation id="8720288018555457355">Permitir descobertas do Chrome sem melhorar os modelos de IA.</translation>
 <translation id="8720547069538712402">Permitir que o usuário ative ou desative a verificação ortográfica</translation>
-<translation id="8721685661759544418">Ativar a leitura em voz alta (destilação de texto e síntese de conversão de texto em voz) para páginas da Web</translation>
+<translation id="8721685661759544418">Ativar o recurso Ler em voz alta (destilação de texto e síntese de conversão de texto em voz) para páginas da Web</translation>
 <translation id="8726080977639508431">Esta política controla como o <ph name="PRODUCT_NAME" /> interpreta políticas de lista de sites/lista cinza no recurso Suporte a navegadores legados. Ela afeta as políticas <ph name="URL_LIST_POLICY_NAME" />, <ph name="URL_GREYLIST_POLICY_NAME" />, <ph name="USE_IE_SITELIST_POLICY_NAME" />, <ph name="EXTERNAL_SITELIST_POLICY_NAME" /> e <ph name="EXTERNAL_GREYLIST_POLICY_NAME" />.
 
       Se ela for definida como "Default" (0) ou for deixada sem definição, a correspondência de URL será menos rigorosa. Regras que não tiverem "/" procurarão uma substring em qualquer lugar no nome do host do URL. A correspondência do componente de caminho de um URL diferencia maiúsculas de minúsculas.

@@ -18,6 +18,7 @@
 #include "base/scoped_observation.h"
 #include "build/build_config.h"
 #include "chrome/browser/glic/common/glic_tab_observer.h"
+#include "chrome/browser/glic/common/instance_independent_hotkey_manager.h"
 #include "chrome/browser/glic/glic_tab_restore_data.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_web_client_access.h"
@@ -110,6 +111,7 @@ class GlicInstanceCoordinatorImpl
   int GetVisibleInstanceCount() const override;
 
   bool IsAnyPanelShowing() const override;
+  bool IsConversationPresent(const std::string& conversation_id) const override;
   // GlicInstanceCoordinator implementation
   GlicInstance* GetInstanceForTab(const tabs::TabInterface* tab) const override;
   // Sorts instances by recency and returns the instance id and
@@ -187,6 +189,7 @@ class GlicInstanceCoordinatorImpl
   GlicWebContentsWarmingPool& GetWebContentsWarmingPoolForTesting();
   std::string DescribeForTesting();
   std::vector<GlicInstanceImpl*> GetInstancesForTesting();
+  GlicInstanceCoordinatorMetrics& GetMetricsForTesting() { return metrics_; }
 
   // Testing support. These methods should not be added to the public interface.
   GlicInstanceImpl* GetInstanceImplFor(const InstanceId& id) const;
@@ -203,7 +206,7 @@ class GlicInstanceCoordinatorImpl
   // Returns a pointer to an instance with the given conversation id or nullptr
   // if no such instance exists.
   GlicInstanceImpl* GetInstanceImplForConversationId(
-      const std::string& conversation_id);
+      const std::string& conversation_id) const;
   GlicInstanceImpl* GetOrCreateInstanceImplForConversationId(
       const std::string& conversation_id,
       const std::optional<std::string>& turn_id);
@@ -219,7 +222,7 @@ class GlicInstanceCoordinatorImpl
   std::vector<GlicInstanceImpl*> GetSortedRecentInstances(size_t limit) const;
 
   // GlicInstanceCoordinatorMetrics::DataProvider implementation
-  std::vector<Host*> GetAllUnhibernatedHosts() override;
+  std::vector<InstanceWebContents> GetAllUnhibernatedWebContents() override;
 
   void ShowInstanceForTabs(GlicInstanceImpl* instance,
                            const std::vector<tabs::TabInterface*>& tabs,
@@ -293,6 +296,7 @@ class GlicInstanceCoordinatorImpl
                           signin::IdentityManager::Observer>
       identity_manager_observation_{this};
 
+  std::unique_ptr<InstanceIndependentHotkeyManager> hotkey_manager_;
   base::WeakPtrFactory<GlicInstanceCoordinatorImpl> weak_ptr_factory_{this};
 };
 

@@ -13,6 +13,7 @@ import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.description;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -22,6 +23,7 @@ import static org.mockito.Mockito.when;
 import android.os.SystemClock;
 import android.util.Pair;
 import android.view.KeyEvent;
+import android.view.View;
 
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.SmallTest;
@@ -144,6 +146,7 @@ public class KeyboardShortcutsTest {
         }
         when(mTabModel.getTabRemover()).thenReturn(mTabRemover);
         when(mTabModel.isTabMultiSelected(TAB_ID)).thenReturn(true);
+        when(mTabModel.getOrderedMultiSelectedTabs()).thenReturn(List.of(tabs.get(0)));
 
         doNothing().when(mTabRemover).closeTabs(any(TabClosureParams.class), anyBoolean());
     }
@@ -163,6 +166,7 @@ public class KeyboardShortcutsTest {
             for (Tab tab : tabsToClose) {
                 when(mTabModel.isTabMultiSelected(tab.getId())).thenReturn(true);
             }
+            when(mTabModel.getOrderedMultiSelectedTabs()).thenReturn(tabsToClose);
             for (int i = 0; i < keyCodeAndModifier.size(); i++) {
                 clearInvocations(mTabRemover);
                 int keyCode = keyCodeAndModifier.get(i).first;
@@ -320,6 +324,7 @@ public class KeyboardShortcutsTest {
         when(mTab.getIsPinned()).thenReturn(true);
         when(mTabModel.isTabMultiSelected(0)).thenReturn(true);
         when(mTabModel.isTabMultiSelected(1)).thenReturn(true);
+        when(mTabModel.getOrderedMultiSelectedTabs()).thenReturn(List.of(mTab, mTab2));
 
         // trigger Ctrl+W keyboard shortcut once.
         ThreadUtils.runOnUiThreadBlocking(
@@ -576,6 +581,18 @@ public class KeyboardShortcutsTest {
         verify(mMenuOrKeyboardActionController, times(1))
                 .onMenuOrKeyboardAction(
                         /* id= */ eq(R.id.open_tab_strip_context_menu), /* fromMenu= */ eq(false));
+    }
+
+    /** Test that pressing F10 triggers focus on the app menu button view. */
+    @Test
+    @SmallTest
+    public void testFocusAppMenuButton() {
+        View mockMenuButton = mock(View.class);
+        when(mToolbarManager.getMenuButtonView()).thenReturn(mockMenuButton);
+
+        assertTrue(keyDown(KeyEvent.KEYCODE_F10, 0, true));
+        verify(mToolbarManager, times(1)).getMenuButtonView();
+        verify(mockMenuButton, times(1)).requestFocus();
     }
 
     /** Test that pressing F7 triggers the caret browsing dialog. */

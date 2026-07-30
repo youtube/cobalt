@@ -5,6 +5,9 @@
 #ifndef COMPONENTS_OPTIMIZATION_GUIDE_CONTENT_BROWSER_PAGE_CONTENT_PROTO_UTIL_H_
 #define COMPONENTS_OPTIMIZATION_GUIDE_CONTENT_BROWSER_PAGE_CONTENT_PROTO_UTIL_H_
 
+#include <string_view>
+#include <variant>
+
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/feature_list.h"
@@ -15,11 +18,13 @@
 #include "components/optimization_guide/proto/common_types.pb.h"
 #include "components/optimization_guide/proto/features/model_prototyping.pb.h"
 #include "content/public/browser/global_routing_id.h"
+#include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom-forward.h"
 #include "ui/gfx/geometry/point.h"
 #include "url/origin.h"
 
 namespace content {
+class RenderFrameHost;
 class WebContents;
 }  // namespace content
 
@@ -50,6 +55,11 @@ struct RenderFrameInfo {
   GURL url;
   std::string serialized_server_token;
   std::optional<optimization_guide::proto::MediaData> media_data;
+
+  // Whether the browser process has verified that this frame (or its process)
+  // has an active popup widget. This is used for defense-in-depth against
+  // compromised renderers spoofing popups.
+  bool has_active_popup = false;
 };
 
 struct TargetNodeInfo {
@@ -130,6 +140,12 @@ std::optional<optimization_guide::TargetNodeInfo> FindNodeWithID(
 content::RenderFrameHost* GetRenderFrameForDocumentIdentifier(
     content::WebContents& web_contents,
     std::string_view target_document_token);
+
+// Returns the RenderFrameHost for the given renderer process id and frame
+// token, or nullptr if the render frame host is not found.
+content::RenderFrameHost* GetRenderFrameHostForToken(
+    int renderer_process_id,
+    blink::FrameToken frame_token);
 
 // Returns the URL to use for frame metadata given the Document's
 // `committed_url` and `committed_origin`. The `committed_url` may not be a

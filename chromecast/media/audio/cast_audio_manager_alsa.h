@@ -33,8 +33,7 @@ class CastAudioManagerAlsa : public CastAudioManager {
       CastAudioManagerHelper::Delegate* delegate,
       base::RepeatingCallback<CmaBackendFactory*()> backend_factory_getter,
       scoped_refptr<base::SingleThreadTaskRunner> browser_task_runner,
-      scoped_refptr<base::SingleThreadTaskRunner> media_task_runner,
-      bool use_mixer);
+      scoped_refptr<base::SingleThreadTaskRunner> media_task_runner);
 
   CastAudioManagerAlsa(const CastAudioManagerAlsa&) = delete;
   CastAudioManagerAlsa& operator=(const CastAudioManagerAlsa&) = delete;
@@ -43,7 +42,7 @@ class CastAudioManagerAlsa : public CastAudioManager {
 
   // CastAudioManager implementation.
   bool HasAudioInputDevices() override;
-  void GetAudioInputDeviceNames(
+  bool GetAudioInputDeviceNames(
       ::media::AudioDeviceNames* device_names) override;
   ::media::AudioParameters GetInputStreamParameters(
       const std::string& device_id) override;
@@ -64,7 +63,7 @@ class CastAudioManagerAlsa : public CastAudioManager {
       const std::string& device_id);
 
   // Gets a list of available ALSA devices.
-  void GetAlsaAudioDevices(StreamType type,
+  bool GetAlsaAudioDevices(StreamType type,
                            ::media::AudioDeviceNames* device_names);
 
   // Gets the ALSA devices' names and ids that support streams of the

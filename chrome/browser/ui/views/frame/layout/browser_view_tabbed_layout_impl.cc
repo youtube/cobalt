@@ -49,12 +49,6 @@
 
 namespace {
 
-// Loading bar is thicker than a separator, but instead of moving the bottom
-// of the top container down, it starts above where the separator would go.
-constexpr int kLoadingBarHeight = 3;
-constexpr int kLoadingBarOffset =
-    kLoadingBarHeight - views::Separator::kThickness;
-
 // Minimum area next to caption buttons to use as a grab handle.
 constexpr int kVerticalTabsGrabHandleSize = 40;
 
@@ -117,10 +111,6 @@ BrowserViewTabbedLayoutImpl::TopSeparatorType
 BrowserViewTabbedLayoutImpl::GetTopSeparatorType() const {
   if (!delegate().IsToolbarVisible() && !delegate().IsBookmarkBarVisible()) {
     return TopSeparatorType::kNone;
-  }
-
-  if (IsParentedTo(views().loading_bar, views().top_container)) {
-    return TopSeparatorType::kLoadingBar;
   }
 
   // In immersive mode, when the top container is visually separate, the
@@ -262,6 +252,9 @@ BrowserViewTabbedLayoutImpl::CalculateHorizontalLayout(
             vertical_tab_strip->GetMinimumSize().width(),
             base::ClampCeil(
                 params.leading_exclusion.ContentWithPadding().width()));
+      } else {
+        min_vertical_tab_strip_width =
+            vertical_tab_strip->GetMinimumSize().width();
       }
 
       // Account for grab handle. This has to be done after the minimum size
@@ -647,11 +640,6 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
                     vertical_tab_strip_width,
                     params.visual_client_area.height() -
                         vertical_tab_strip_animation.top_offset);
-      // In vertical tabs mode, extra space is allocated next to the top element
-      // to serve as a grab handle, on whatever side the caption buttons are.
-      if (!is_fullscreen(window_state)) {
-        IncreasePaddingToMinimum(params, GetMinimumGrabHandlePadding());
-      }
       int inset_amount = horizontal_layout.vertical_tab_strip_width;
       if (adjust_for_cracking) {
         inset_amount -= 1;
@@ -977,23 +965,23 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
         !(is_split_outline_replacing_shadow_or_separator &&
           horizontal_layout.has_side_panel() && !side_panel_leading);
 
-    gfx::Insets start_contents_view_inset;
-    start_contents_view_inset
-        .set_top(include_top_inset ? MultiContentsView::kSplitViewContentInset
-                                   : 0)
-        .set_bottom(MultiContentsView::kSplitViewContentInset)
-        .set_left(include_leading_inset
-                      ? MultiContentsView::kSplitViewContentInset
-                      : 0);
+    gfx::Insets start_contents_view_inset = gfx::Insets::TLBR(
+        include_top_inset ? MultiContentsView::kSplitViewContentInset : 0,
+        include_leading_inset ? MultiContentsView::kSplitViewContentInset : 0,
+        MultiContentsView::kSplitViewContentInset,
+        include_trailing_inset ? MultiContentsView::kSplitViewContentInset : 0);
+    gfx::Insets end_contents_view_inset = start_contents_view_inset;
 
-    gfx::Insets end_contents_view_inset;
-    end_contents_view_inset
-        .set_top(include_top_inset ? MultiContentsView::kSplitViewContentInset
-                                   : 0)
-        .set_bottom(MultiContentsView::kSplitViewContentInset)
-        .set_right(include_trailing_inset
-                       ? MultiContentsView::kSplitViewContentInset
-                       : 0);
+    // Remove the insets on the shared edge between the start and end contents
+    // views.
+    if (views().multi_contents_view->GetSplitLayout() ==
+        split_tabs::SplitTabLayout::kSideBySide) {
+      start_contents_view_inset.set_right(0);
+      end_contents_view_inset.set_left(0);
+    } else {
+      start_contents_view_inset.set_bottom(0);
+      end_contents_view_inset.set_top(0);
+    }
 
     views().multi_contents_view->SetSplitViewInsets(start_contents_view_inset,
                                                     end_contents_view_inset);
@@ -1191,20 +1179,6 @@ gfx::Rect BrowserViewTabbedLayoutImpl::CalculateTopContainerLayoutImpl(
   // There are multiple different ways the top separator can render.
   const TopSeparatorType top_separator_type = GetTopSeparatorType();
 
-  // Lay out the loading bar when present.
-  if (IsParentedTo(views().loading_bar, views().top_container)) {
-    gfx::Rect loading_bar_bounds;
-    if (top_separator_type == TopSeparatorType::kLoadingBar) {
-      loading_bar_bounds =
-          gfx::Rect(params.visual_client_area.x(),
-                    params.visual_client_area.y() - kLoadingBarOffset,
-                    params.visual_client_area.width(), kLoadingBarHeight);
-      params.SetTop(loading_bar_bounds.bottom());
-    }
-    layout.AddChild(views().loading_bar, loading_bar_bounds,
-                    top_separator_type == TopSeparatorType::kLoadingBar);
-  }
-
   // Maybe show the separator in the top container.
   if (IsParentedTo(views().top_container_separator, views().top_container)) {
     gfx::Rect separator_bounds;
@@ -1233,8 +1207,14 @@ void BrowserViewTabbedLayoutImpl::ConfigureTopContainerBackground(
   // The top container always draws an opaque background in tabbed browser mode
   // to avoid cracking between visual elements.
   background->SetVisible(true);
-  if (is_fullscreen(delegate().GetBrowserWindowState()) &&
-      GetTabStripType() == TabStripType::kHorizontal) {
+
+  // In immersive mode and ChromeOS touch UI mode, the top Chrome UI is
+  // parented to the `top_container()` and the frame header is not visible.
+  // In these cases, the top container's background color should match the
+  // frame color to ensure visual consistency.
+  if (GetTabStripType() == TabStripType::kHorizontal &&
+      IsParentedTo(views().horizontal_tab_strip_region_view,
+                   views().top_container)) {
     background->SetPrimaryColor(ui::kColorFrameActive);
   } else {
     background->SetPrimaryColor(CustomCornersBackground::ToolbarTheme());
@@ -1298,9 +1278,11 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
     const VerticalTabStripAnimation animation =
         CalculateVerticalTabStripAnimation(params, window_state);
     auto* const vertical_tabs_background =
-        static_cast<CustomCornersBackground*>(
-            views().vertical_tab_strip_region_view->background());
-    CHECK(vertical_tabs_background);
+        views()
+            .vertical_tab_strip_region_view->background()
+            ->AsA<CustomCornersBackground>();
+    CHECK(vertical_tabs_background)
+        << "Expected vertical tab strip to have a CustomCornersBackground.";
 
     if (features::IsGlassFrameEnabled()) {
       float background_alpha = 0.0f;
@@ -1410,7 +1392,9 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
 
   // Set toolbar corners.
   auto* const toolbar_background =
-      static_cast<CustomCornersBackground*>(views().toolbar->background());
+      views().toolbar->background()->AsA<CustomCornersBackground>();
+  CHECK(toolbar_background)
+      << "Expected toolbar to have a CustomCornersBackground.";
   CustomCornersBackground::Corners toolbar_corners;
   switch (tab_strip_type) {
     case TabStripType::kHorizontal: {
@@ -1435,13 +1419,13 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
       break;
     }
     case TabStripType::kVertical: {
-      if (!is_fullscreen(window_state)) {
-        // Curve trailing corner when it goes all the way to the edge of the
-        // browser.
-        if (params.trailing_exclusion.IsEmpty()) {
-          toolbar_corners.upper_trailing =
-              toolbar_background->GetWindowCorner(/*upper=*/true);
-        }
+      // Curve trailing corner when it becomes the top trailing corner of the
+      // browser.
+      if (window_state == WindowState::kNormal &&
+          IsParentedTo(views().top_container, views().browser_view) &&
+          params.trailing_exclusion.IsEmpty()) {
+        toolbar_corners.upper_trailing =
+            toolbar_background->GetWindowCorner(/*upper=*/true);
       }
       break;
     }
@@ -1454,14 +1438,18 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
 
   if (views().main_background_region &&
       views().main_background_region->GetVisible()) {
-    auto* const background = static_cast<CustomCornersBackground*>(
-        views().main_background_region->background());
+    auto* const background = views()
+                                 .main_background_region->background()
+                                 ->AsA<CustomCornersBackground>();
+    CHECK(background)
+        << "Expected main background region to have a CustomCornersBackground.";
     CustomCornersBackground::Corners main_background_corners;
 
     // Frame-colored corners are shown at the top in horizontal tabstrip mode.
     // This doesn't apply in fullscreen, as the tabstrip is not in the window.
     if (tab_strip_type == TabStripType::kHorizontal &&
-        !is_fullscreen(window_state)) {
+        IsParentedTo(views().horizontal_tab_strip_region_view,
+                     views().browser_view)) {
       // If (due to narrow width) the top container is not laid out in the main
       // area, it also doesn't get rounded corners.
       if (views().main_background_region->y() <= views().top_container->y()) {

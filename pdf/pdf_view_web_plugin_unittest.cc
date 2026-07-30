@@ -3599,6 +3599,14 @@ TEST_P(PdfViewWebPluginInkTest, AddFont) {
                                                     kSerializedTypeface);
 }
 
+TEST_P(PdfViewWebPluginInkTest, DiscardText) {
+  static constexpr InkTextId kTextId(1);
+
+  EXPECT_CALL(*engine_ptr_, DiscardText(kTextId));
+
+  plugin_->ink_module_client_for_testing()->DiscardText(kTextId);
+}
+
 TEST_P(PdfViewWebPluginInkTest, DrawText) {
   static constexpr int kPageIndex = 0;
   static constexpr InkTextId kTextId(1);
@@ -3618,6 +3626,16 @@ TEST_P(PdfViewWebPluginInkTest, DrawText) {
       /*text=*/"Hello");
   plugin_->ink_module_client_for_testing()->DrawText(
       kPageIndex, kTextId, {}, kZoom, text_box_attributes);
+}
+
+TEST_P(PdfViewWebPluginInkTest, UpdateTextActiveAndInvalidate) {
+  static constexpr InkTextId kTextId(1);
+
+  EXPECT_CALL(*engine_ptr_,
+              UpdateTextActiveAndInvalidate(kTextId, /*active=*/false));
+
+  plugin_->ink_module_client_for_testing()->UpdateTextActiveAndInvalidate(
+      kTextId, /*active=*/false);
 }
 
 class PdfViewWebPluginInkTextHighlightTest : public PdfViewWebPluginInkTest {

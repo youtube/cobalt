@@ -352,8 +352,6 @@ bool TestSurfaceBase::IsInitialLoadSpinnerUpdate(
 
 TestForYouSurface::TestForYouSurface(FeedStream* stream)
     : TestSurfaceBase(StreamType(StreamKind::kForYou), stream) {}
-TestWebFeedSurface::TestWebFeedSurface(FeedStream* stream)
-    : TestSurfaceBase(StreamType(StreamKind::kFollowing), stream) {}
 
 TestReliabilityLoggingBridge::TestReliabilityLoggingBridge() = default;
 TestReliabilityLoggingBridge::~TestReliabilityLoggingBridge() = default;
@@ -837,21 +835,20 @@ bool TestWireResponseTranslator::InjectedResponseConsumed() const {
 
 FakeRefreshTaskScheduler::FakeRefreshTaskScheduler() = default;
 FakeRefreshTaskScheduler::~FakeRefreshTaskScheduler() = default;
-void FakeRefreshTaskScheduler::EnsureScheduled(RefreshTaskId id,
-                                               base::TimeDelta run_time) {
-  scheduled_run_times[id] = run_time;
+void FakeRefreshTaskScheduler::EnsureScheduled(base::TimeDelta run_time) {
+  scheduled_run_time = run_time;
 }
-void FakeRefreshTaskScheduler::Cancel(RefreshTaskId id) {
-  canceled_tasks.insert(id);
+void FakeRefreshTaskScheduler::Cancel() {
+  canceled = true;
 }
-void FakeRefreshTaskScheduler::RefreshTaskComplete(RefreshTaskId id) {
-  completed_tasks.insert(id);
+void FakeRefreshTaskScheduler::RefreshTaskComplete() {
+  completed = true;
 }
 
 void FakeRefreshTaskScheduler::Clear() {
-  scheduled_run_times.clear();
-  canceled_tasks.clear();
-  completed_tasks.clear();
+  scheduled_run_time.reset();
+  canceled = false;
+  completed = false;
 }
 
 TestMetricsReporter::TestMetricsReporter(PrefService* prefs)
@@ -902,8 +899,6 @@ TestMetricsReporter::StreamMetrics& TestMetricsReporter::Stream(
     const StreamType& stream_type) {
   if (stream_type.IsForYou())
     return for_you;
-  if (stream_type.IsWebFeed())
-    return web_feed;
   ADD_FAILURE() << stream_type << " case not supported here";
   return for_you;
 }
@@ -1095,12 +1090,6 @@ void FeedApiTest::UploadActions(std::vector<feedwire::FeedAction> actions) {
     stream_->UploadAction(action, CreateLoggingParameters(),
                           (--actions_remaining) == 0ul, base::DoNothing());
   }
-}
-
-RefreshTaskId FeedStreamTestForAllStreamTypes::GetRefreshTaskId() const {
-  RefreshTaskId id;
-  CHECK(GetStreamType().GetRefreshTaskId(id));
-  return id;
 }
 
 void FeedStreamTestForAllStreamTypes::SetUp() {

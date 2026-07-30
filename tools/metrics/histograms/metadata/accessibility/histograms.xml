@@ -68,17 +68,6 @@ chromium-metrics-reviews@google.com.
   <variant name="Shutdown" summary="shut down"/>
 </variants>
 
-<histogram name="Accessibility.ActiveTime" units="ms"
-    expires_after="2026-10-04">
-  <owner>lucasradaelli@google.com</owner>
-  <owner>janewman@microsoft.com</owner>
-  <owner>chrome-a11y-core@google.com</owner>
-  <summary>
-    The amount of time accessibility was enabled and actively used. Reported
-    when we switch states from active to inactive.
-  </summary>
-</histogram>
-
 <histogram
     name="Accessibility.Android.AutoDisableV2.{CurrentState}Time.{CallType}"
     units="ms" expires_after="2027-06-01">
@@ -804,33 +793,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Accessibility.AutoDisabled.BlockedAfter.{EventType}"
-    enum="AssistiveTech" expires_after="2027-06-01">
-  <owner>lucasradaelli@google.com</owner>
-  <owner>chrome-a11y-core@google.com</owner>
-  <summary>
-    After an auto-disable heuristic was triggered without matching A11y API
-    calls, this is the reason it was blocked (e.g., the presence of a known
-    assistive technology).
-  </summary>
-  <token key="EventType">
-    <variant name="Focus"/>
-    <variant name="LoadComplete"/>
-    <variant name="UserInput"/>
-  </token>
-</histogram>
-
-<histogram name="Accessibility.AutoDisabled.EventCount" units="count"
-    expires_after="2027-06-01">
-  <owner>abigailbklein@google.com</owner>
-  <owner>chrome-a11y-core@google.com</owner>
-  <summary>
-    The number of user input events that were received within one time window,
-    without any accompanying accessibility API usage, that triggered
-    accessibility to be auto-disabled.
-  </summary>
-</histogram>
-
 <histogram
     name="Accessibility.AXTreeFixing.ScreenAI.Disconnect.{DisconnectCount}"
     enum="BooleanOccurred" expires_after="2027-06-01">
@@ -996,7 +958,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Accessibility.CaptionSettingsLoadedFromPrefs"
-    enum="BooleanEnabled" expires_after="2026-06-01">
+    enum="BooleanEnabled" expires_after="2027-05-19">
   <owner>evliu@google.com</owner>
   <owner>chrome-media-ux@google.com</owner>
   <summary>
@@ -1006,7 +968,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Accessibility.CaptionSettingsLoadedFromSystemSettings"
-    enum="BooleanEnabled" expires_after="2026-06-01">
+    enum="BooleanEnabled" expires_after="2027-05-19">
   <owner>evliu@google.com</owner>
   <owner>chrome-media-ux@google.com</owner>
   <summary>
@@ -1939,18 +1901,6 @@ even if they fit the naming pattern. -->
   </summary>
 </histogram>
 
-<histogram name="Accessibility.InactiveTime" units="ms"
-    expires_after="2026-06-01">
-  <owner>lucasradaelli@google.com</owner>
-  <owner>abigailbklein@chromium.org</owner>
-  <owner>janewman@microsoft.com</owner>
-  <summary>
-    The amount of time accessibility was enabled but not actively used. Reported
-    when we switch states from inactive to active. This histogram will not be
-    logged if the auto-disable accessibility feature is enabled.
-  </summary>
-</histogram>
-
 <histogram name="Accessibility.InlineTextBoxes.Count" units="count"
     expires_after="2027-06-01">
   <owner>mschillaci@google.com</owner>
@@ -2458,7 +2408,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.PDF.IsPDFTagged" enum="BooleanExists"
-    expires_after="2026-09-13">
+    expires_after="2026-11-15">
   <owner>dtseng@chromium.org</owner>
   <owner>kyungjunlee@google.com</owner>
   <owner>chrome-a11y-core@google.com</owner>
@@ -3077,6 +3027,26 @@ even if they fit the naming pattern. -->
     Records whether distillation was successful after opening Reading mode via
     the omnibox chip.
   </summary>
+</histogram>
+
+<histogram
+    name="Accessibility.ReadAnything.DistilledPageStructure.{CountMetric}"
+    units="count" expires_after="2027-05-01">
+  <owner>lwinston@google.com</owner>
+  <owner>komo-eng@google.com</owner>
+  <summary>
+    Records {CountMetric}. Recorded when the content is successfully distilled
+    and updated in the Reading Mode panel.
+  </summary>
+  <token key="CountMetric">
+    <variant name="NumberParagraphs"
+        summary="the number of paragraphs distilled on the page"/>
+    <variant name="TotalHeaderCount"
+        summary="the sum of all headers on the distilled page"/>
+    <variant name="UniqueHeaderTags"
+        summary="the number of unique types of header elements used on the
+                 distilled page"/>
+  </token>
 </histogram>
 
 <histogram name="Accessibility.ReadAnything.EmptyState"
@@ -3897,7 +3867,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.VTTContainsStyleBlock" enum="BooleanEnabled"
-    expires_after="2026-06-01">
+    expires_after="2027-05-19">
   <owner>evliu@google.com</owner>
   <owner>chrome-media-ux@google.com</owner>
   <summary>
@@ -4245,7 +4215,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.{ServiceName}.Service.CrashCountBeforeResume"
-    units="count" expires_after="2026-06-01">
+    units="count" expires_after="2027-06-01">
   <owner>rhalavati@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
@@ -4257,7 +4227,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.{ServiceName}.Service.Initialization"
-    enum="BooleanSuccess" expires_after="2026-06-01">
+    enum="BooleanSuccess" expires_after="2027-06-01">
   <owner>rhalavati@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
@@ -4268,7 +4238,7 @@ even if they fit the naming pattern. -->
 
 <histogram
     name="Accessibility.{ServiceName}.Service.InitializationTime.{Result}"
-    units="ms" expires_after="2026-06-01">
+    units="ms" expires_after="2027-06-01">
   <owner>rhalavati@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
@@ -4282,7 +4252,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.{ServiceName}.Service.IsSuspended"
-    enum="Boolean" expires_after="2026-06-01">
+    enum="Boolean" expires_after="2027-06-01">
   <owner>rhalavati@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>

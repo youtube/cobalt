@@ -106,7 +106,11 @@ class ContextualTasksPageHandlerTest : public ChromeRenderViewHostTestHarness {
           return std::unique_ptr<KeyedService>(
               std::make_unique<NiceMock<MockContextualTasksUiService>>(
                   profile,
-                  ContextualTasksServiceFactory::GetForProfile(profile)));
+                  ContextualTasksServiceFactory::GetForProfile(profile),
+                  /*identity_manager=*/nullptr,
+                  /*aim_eligibility_service=*/nullptr,
+                  /*eligibility_manager=*/nullptr,
+                  /*cookie_synchronizer=*/nullptr));
         }));
 
     mock_panel_controller_ =
@@ -262,10 +266,16 @@ TEST_F(ContextualTasksPageHandlerTest, GetUrlForTask_InitialUrlExists) {
   EXPECT_CALL(*mock_contextual_tasks_ui_service_, GetInitialUrlForTask(task_id))
       .WillOnce(Return(expected_url));
 
+  contextual_search::MockContextualSearchSessionHandle mock_session;
+  EXPECT_CALL(*contextual_tasks_ui_, GetOrCreateContextualSessionHandle())
+      .WillOnce(Return(&mock_session));
+
   base::RunLoop run_loop;
   page_handler_->GetUrlForTask(task_id,
                                base::BindLambdaForTesting([&](const GURL& url) {
                                  EXPECT_EQ(url, expected_url);
+                                 EXPECT_EQ(mock_session.previous_query(),
+                                           "test");
                                  run_loop.Quit();
                                }));
   run_loop.Run();

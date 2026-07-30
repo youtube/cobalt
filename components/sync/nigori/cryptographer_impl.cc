@@ -18,10 +18,11 @@ namespace syncer {
 
 // static
 std::unique_ptr<CryptographerImpl> CryptographerImpl::CreateEmpty() {
-  return base::WrapUnique(
-      new CryptographerImpl(NigoriKeyBag::CreateEmpty(),
-                            /*default_encryption_key_name=*/std::string(),
-                            CrossUserSharingKeys::CreateEmpty()));
+  return base::WrapUnique(new CryptographerImpl(
+      NigoriKeyBag::CreateEmpty(),
+      /*default_encryption_key_name=*/std::string(),
+      CrossUserSharingKeys::CreateEmpty(),
+      /*default_cross_user_sharing_key_version=*/std::nullopt));
 }
 
 // static
@@ -36,28 +37,41 @@ std::unique_ptr<CryptographerImpl> CryptographerImpl::FromSingleKeyForTesting(
 }
 
 // static
-std::unique_ptr<CryptographerImpl> CryptographerImpl::FromProto(
+std::unique_ptr<CryptographerImpl> CryptographerImpl::FromLocalProto(
     const sync_pb::CryptographerData& proto) {
-  NigoriKeyBag key_bag = NigoriKeyBag::CreateFromProto(proto.key_bag());
-  // TODO(crbug.com/40141634): An invalid local state should be handled in the
-  // caller instead of CHECK-ing here, e.g. by resetting the local state.
-  CHECK(proto.default_key_name().empty() ||
-        key_bag.HasKey(proto.default_key_name()));
+  if (!IsLocalProtoValid(proto)) {
+    return nullptr;
+  }
 
+  NigoriKeyBag key_bag = NigoriKeyBag::CreateFromProto(proto.key_bag());
   CrossUserSharingKeys cross_user_sharing_keys =
       CrossUserSharingKeys::CreateFromProto(proto.cross_user_sharing_keys());
 
-  return base::WrapUnique(
-      new CryptographerImpl(std::move(key_bag), proto.default_key_name(),
-                            std::move(cross_user_sharing_keys)));
+  return base::WrapUnique(new CryptographerImpl(
+      std::move(key_bag), proto.default_key_name(),
+      std::move(cross_user_sharing_keys),
+      /*default_cross_user_sharing_key_version=*/std::nullopt));
+}
+
+// static
+bool CryptographerImpl::IsLocalProtoValid(
+    const sync_pb::CryptographerData& proto) {
+  if (proto.default_key_name().empty()) {
+    return true;
+  }
+  return NigoriKeyBag::CreateFromProto(proto.key_bag())
+      .HasKey(proto.default_key_name());
 }
 
 CryptographerImpl::CryptographerImpl(
     NigoriKeyBag key_bag,
     std::string default_encryption_key_name,
-    CrossUserSharingKeys cross_user_sharing_keys)
+    CrossUserSharingKeys cross_user_sharing_keys,
+    std::optional<uint32_t> default_cross_user_sharing_key_version)
     : key_bag_(std::move(key_bag)),
       default_encryption_key_name_(std::move(default_encryption_key_name)),
+      default_cross_user_sharing_key_version_(
+          default_cross_user_sharing_key_version),
       cross_user_sharing_keys_(std::move(cross_user_sharing_keys)) {
   DCHECK(default_encryption_key_name_.empty() ||
          key_bag_.HasKey(default_encryption_key_name_));
@@ -65,12 +79,27 @@ CryptographerImpl::CryptographerImpl(
 
 CryptographerImpl::~CryptographerImpl() = default;
 
-sync_pb::CryptographerData CryptographerImpl::ToProto() const {
+sync_pb::CryptographerData CryptographerImpl::ToLocalProto() const {
   sync_pb::CryptographerData proto;
   *proto.mutable_key_bag() = key_bag_.ToProto();
   proto.set_default_key_name(default_encryption_key_name_);
   *proto.mutable_cross_user_sharing_keys() = cross_user_sharing_keys_.ToProto();
   return proto;
+}
+
+sync_pb::EncryptedData CryptographerImpl::ExportEncryptedKeyBag() const {
+  CHECK(CanEncrypt());
+
+  sync_pb::EncryptionKeys keys_for_encryption;
+  *keys_for_encryption.mutable_cross_user_sharing_private_key() =
+      cross_user_sharing_keys_.ToProto().private_key();
+
+  *keys_for_encryption.mutable_key() = key_bag_.ToProto().key();
+
+  sync_pb::EncryptedData encrypted;
+  const bool success = Encrypt(keys_for_encryption, &encrypted);
+  CHECK(success);
+  return encrypted;
 }
 
 std::string CryptographerImpl::EmplaceKey(
@@ -142,7 +171,8 @@ sync_pb::NigoriKey CryptographerImpl::ExportDefaultKey() const {
 std::unique_ptr<CryptographerImpl> CryptographerImpl::Clone() const {
   return base::WrapUnique(
       new CryptographerImpl(key_bag_.Clone(), default_encryption_key_name_,
-                            cross_user_sharing_keys_.Clone()));
+                            cross_user_sharing_keys_.Clone(),
+                            default_cross_user_sharing_key_version_));
 }
 
 size_t CryptographerImpl::KeyBagSizeForTesting() const {

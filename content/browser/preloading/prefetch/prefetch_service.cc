@@ -541,11 +541,11 @@ base::WeakPtr<PrefetchContainer> PrefetchService::CreatePrefetchContainer(
 
 bool PrefetchService::IsPrefetchDuplicate(
     const GURL& url,
-    const std::optional<net::HttpNoVarySearchData>& no_vary_search_hint) {
+    const std::optional<net::HttpNoVarySearchData>& no_vary_search_hint) const {
   TRACE_EVENT("loading", "PrefetchService::IsPrefetchDuplicate");
   std::vector<const PrefetchDeduplicationEntry*> candidates;
-  candidates.reserve(owned_prefetches_.size());
-  for (const auto& [key, container] : owned_prefetches_) {
+  candidates.reserve(owned_prefetches().size());
+  for (const auto& [key, container] : owned_prefetches()) {
     candidates.push_back(container.get());
   }
   return content::IsPrefetchDuplicate(candidates, url, no_vary_search_hint);
@@ -1280,19 +1280,18 @@ void PrefetchService::OnGotEligibilityForRedirect(
 
     streaming_url_loader->HandleRedirect(
         PrefetchRedirectStatus::kFail, redirect_info, std::move(redirect_head),
-        /*update_headers_params=*/{});
+        /*headers_update_params=*/{});
 
     // TODO(https://crbug.com/400761083): Use
     // `ResetPrefetchContainerAndProgressAsync()` instead.
     return;
   }
 
-  auto [updates_for_resource_request, updates_for_follow_redirect] =
-      PrepareRedirectHeadersForPrefetch(redirect_info.new_url,
-                                        prefetch_container->request());
+  auto headers_update_params = PrepareRedirectHeadersForPrefetch(
+      redirect_info.new_url, prefetch_container->request());
 
-  prefetch_container->UpdateResourceRequest(
-      redirect_info, std::move(updates_for_resource_request));
+  prefetch_container->UpdateResourceRequest(redirect_info,
+                                            headers_update_params);
 
   prefetch_container->NotifyPrefetchRequestWillBeSent(&redirect_head);
 
@@ -1304,7 +1303,7 @@ void PrefetchService::OnGotEligibilityForRedirect(
           ->IsIsolatedNetworkContextRequiredForPreviousRedirectHop()) {
     streaming_url_loader->HandleRedirect(
         PrefetchRedirectStatus::kSwitchNetworkContext, redirect_info,
-        std::move(redirect_head), /*update_headers_params=*/{});
+        std::move(redirect_head), /*headers_update_params=*/{});
     // The new ResponseReader is associated with the new streaming URL loader at
     // the PrefetchStreamingURLLoader constructor.
     SendPrefetchRequest(*prefetch_container);
@@ -1315,7 +1314,7 @@ void PrefetchService::OnGotEligibilityForRedirect(
   // Otherwise, follow the redirect in the same streaming URL loader.
   streaming_url_loader->HandleRedirect(PrefetchRedirectStatus::kFollow,
                                        redirect_info, std::move(redirect_head),
-                                       std::move(updates_for_follow_redirect));
+                                       std::move(headers_update_params));
   // Associate the new ResponseReader with the current streaming URL loader.
   streaming_url_loader->SetResponseReader(
       prefetch_container->GetResponseReaderForCurrentPrefetch());
@@ -1780,7 +1779,7 @@ void PrefetchService::OnPrefetchRedirect(
             prefetch_container->GetStreamingURLLoader()) {
       streaming_url_loader->HandleRedirect(
           PrefetchRedirectStatus::kFail, redirect_info,
-          std::move(redirect_head), /*update_headers_params=*/{});
+          std::move(redirect_head), /*headers_update_params=*/{});
     }
 
     // TODO(crbug.com/400761083): Use

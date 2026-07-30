@@ -118,6 +118,7 @@
 <translation id="1448440926884431741">在“书签”页面中整理您跟踪的商品</translation>
 <translation id="1455845192930279203">您仍要从 <ph name="DOWNLOAD_DOMAIN" /> 下载“<ph name="FILE_NAME" />”(<ph name="FILE_SIZE" />) 吗？</translation>
 <translation id="1460751212339734034">减少输入，节省时间</translation>
+<translation id="146522654774760805">密码和自动填充</translation>
 <translation id="1466383950273130737">选择要让 Chrome 采用的语言</translation>
 <translation id="1477626028522505441">未能成功下载 <ph name="FILE_NAME" />，因为服务器出现了问题。</translation>
 <translation id="147982357559798527">已更改</translation>
@@ -227,6 +228,7 @@
 <translation id="200114059308480249">将上下文内容纳入到 Google 搜索查询中？</translation>
 <translation id="2004096469149679223"><ph name="TAB_TITLE" />，已固定的无痕式标签页，已设为静音</translation>
 <translation id="2021896219286479412">全屏网站控件</translation>
+<translation id="2022953316617983419">二维码</translation>
 <translation id="2024195579772565064">删除搜索引擎</translation>
 <translation id="2029669011553795746">提示通知选择启用底部动作条已以一半高度显示</translation>
 <translation id="2038563949887743358">开启“请求切换到桌面版网站”</translation>
@@ -263,6 +265,7 @@
 <translation id="2184272387334793084">登录后即可将密码等信息同步到您的所有设备上</translation>
 <translation id="218608176142494674">共享</translation>
 <translation id="2186779861549045980">您可以选择要将哪些数据保存到您的 Google 账号中。\n您也可在书签、阅读清单或密码管理工具中查看和管理这些内容。</translation>
+<translation id="2190355936436201913">（空）</translation>
 <translation id="219283042927675668">分组内的标签页</translation>
 <translation id="2194856509914051091">注意事项</translation>
 <translation id="2205701497928406883"><ph name="TAB_TITLE" />，已固定的标签页，正在共享内容</translation>
@@ -300,6 +303,7 @@
 <translation id="233375395665273385">删除数据并退出账号</translation>
 <translation id="2341410551640223969">无法安装 <ph name="WEBAPK_NAME" />。</translation>
 <translation id="2349710944427398404">Chrome 所使用的数据总量，包括账号、书签和已保存的设置</translation>
+<translation id="2354001756790975382">其他书签</translation>
 <translation id="235789365079050412">Google 隐私权政策</translation>
 <translation id="2359808026110333948">继续</translation>
 <translation id="2362083820973145409">您已使用<ph name="USER_NAME" />的身份登录。<ph name="USER_EMAIL" />。打开设置。</translation>
@@ -544,6 +548,7 @@
 <translation id="3359667936385849800">使用您当前的服务提供商</translation>
 <translation id="3373701465337594448">开启此设置后，这里会列出您访问过的哪些网站会推测您的兴趣</translation>
 <translation id="3384347053049321195">分享图片</translation>
+<translation id="3385749568468586663">Gemini 在无痕模式下无法使用</translation>
 <translation id="3387650086002190359">未能成功下载 <ph name="FILE_NAME" />，因为文件系统出现了错误。</translation>
 <translation id="3417835166382867856">搜索标签页</translation>
 <translation id="3430670036890315772">关闭个人资料锁定功能将移除您已保存的信息</translation>
@@ -702,6 +707,7 @@
 <translation id="4084712963632273211">来自 <ph name="PUBLISHER_ORIGIN" /> - <ph name="BEGIN_DEEMPHASIZED" />由 Google 提供<ph name="END_DEEMPHASIZED" /></translation>
 <translation id="4092709865241032354">请添加您在此网站上使用的用户名，以便 Google 密码管理工具保存您的登录信息</translation>
 <translation id="4095146165863963773">要删除应用数据吗？</translation>
+<translation id="4095483462103784441">创建新标签页分组</translation>
 <translation id="4096227151372679484">书签保存流程已半屏打开</translation>
 <translation id="4105527135143631701">Google 密码管理工具更新动作条已打开</translation>
 <translation id="4113030288477039509">由您的管理员管理</translation>
@@ -785,6 +791,7 @@
 <translation id="4409014848144759297"><ph name="WEBSITE_TITLE" />及另外 <ph name="TAB_COUNT" /> 个标签页</translation>
 <translation id="441100617989818073">未使用或重复的标签页和标签页分组</translation>
 <translation id="4412123112245770507">收起此部分</translation>
+<translation id="4412698727486357573">帮助中心</translation>
 <translation id="4414179633735763985">已删除 <ph name="TAB_GROUPS_AND_TABS_PART" /></translation>
 <translation id="4415276339145661267">管理您的 Google 账号</translation>
 <translation id="4425140285732600465">正在跟踪价格。当任一网站上的商品降价时，您会收到提醒。</translation>
@@ -896,6 +903,7 @@
 <translation id="4864369630010738180">正在登录…</translation>
 <translation id="4866368707455379617">无法为 Chrome 安装<ph name="MODULE" /></translation>
 <translation id="4875775213178255010">内容建议</translation>
+<translation id="4876880121961092787">隐藏书签栏</translation>
 <translation id="4877678010818027629">进入无痕模式</translation>
 <translation id="4878404682131129617">未能成功通过代理服务器建立隧道</translation>
 <translation id="4880127995492972015">翻译…</translation>
@@ -1268,6 +1276,7 @@
 <translation id="6437162790453527153">登录账号即可将您的书签等信息同步到您的所有设备上</translation>
 <translation id="6437478888915024427">网页信息</translation>
 <translation id="6440291723980579689">仅当您打开网页后，它们才会加载</translation>
+<translation id="6441377161852435370">向阅读清单中添加标签页</translation>
 <translation id="6441734959916820584">名称太长</translation>
 <translation id="6444291413624515012">已关闭“<ph name="TAB_GROUP_TITLE" />”标签页分组</translation>
 <translation id="6452534462676960500">新活动</translation>
@@ -1357,6 +1366,7 @@
 <translation id="6787600234697426339">打开的窗口数已达 <ph name="MAX_INSTANCE_COUNT" /> 个上限</translation>
 <translation id="6795633245022906657">快速打开一个新标签页。若要修改该快捷方式，请前往“设置”部分。</translation>
 <translation id="679588508577699489">将 Chrome 设为默认浏览器</translation>
+<translation id="679845623837196966">显示阅读清单</translation>
 <translation id="679956319013005046">如需设置首选的自动填充服务，请先在 <ph name="BEGIN_LINK" />Android 设置<ph name="END_LINK" />中添加该服务。</translation>
 <translation id="6802555630140434547">系统将会关闭此窗口</translation>
 <translation id="6803791793483522764">查看通知</translation>
@@ -1428,7 +1438,6 @@
 <translation id="6980258170429555165">“<ph name="MENU_NAME" />”菜单处于突出显示状态。</translation>
 <translation id="6983306615164277634">您也可轻触并按住地址栏来更改其位置。</translation>
 <translation id="6987047470128880212">无法在此设备上使用无痕模式</translation>
-<translation id="6989358895283601928">保存并打印</translation>
 <translation id="6996145122199359148">下载此网页</translation>
 <translation id="7013762323294215682">此通行密钥将保存到密码管理工具。任何有权访问密码管理工具的用户都能使用此通行密钥。</translation>
 <translation id="7020741890149022655">添加到阅读清单<ph name="BEGIN_NEW" />新功能<ph name="END_NEW" /></translation>
@@ -1446,6 +1455,7 @@
 <translation id="7080145768121641840"><ph name="TAB_TITLE" />，已选择的固定标签页，已设为静音</translation>
 <translation id="7084115944294706056">选择地址栏位置</translation>
 <translation id="7085332316435785646">选择是否要包含 Chrome 历史记录以便在各款 Google 服务中获享更个性化的体验</translation>
+<translation id="7087066066828635014">提示通知已开启</translation>
 <translation id="7088681679121566888">Chrome 已是最新版本</translation>
 <translation id="7098100324909062850"><ph name="TAB_TITLE" />，已选择的多个无痕式标签页之一，已设为静音</translation>
 <translation id="7106762743910369165">您的浏览器由贵单位管理</translation>
@@ -1631,6 +1641,7 @@
 <translation id="7821130663268546430">您可在标签页切换器中找到所有打开的标签页</translation>
 <translation id="7822705602465980873">当您登录后，这些数据将与您的 Google 账号关联，以便在各种 Google 服务中保护您，例如：在安全事件发生后加强 Gmail 的保护力度。</translation>
 <translation id="7824665136384946951">您的组织已关闭“安全浏览”功能</translation>
+<translation id="7825973332242257878">标签页分组</translation>
 <translation id="7826342993930002256">您的专属 Chrome 浏览器，走到哪带到哪</translation>
 <translation id="7846161022626028328">出错了，请重试。</translation>
 <translation id="7846296061357476882">Google 服务</translation>
@@ -1655,6 +1666,7 @@
 <translation id="7934668619883965330">无法下载此文件。文件格式不受支持。</translation>
 <translation id="7951102827450076904">一律打开下载的 PDF</translation>
 <translation id="7952479614398473176">如需打开一个新窗口，请先将使用中的窗口总数减少到 <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> 个或更少。</translation>
+<translation id="7956713633345437162">移动设备书签</translation>
 <translation id="7957413488482743710">使用虚拟卡可隐藏您的实体卡信息，保护您免遭潜在欺诈活动的威胁。<ph name="BEGIN_LINK1" />详细了解虚拟卡<ph name="END_LINK1" /></translation>
 <translation id="7959485987650214982">此设备上的标签页</translation>
 <translation id="7961926449547174351">您已停用存储空间的访问权限，请转到“设置”启用该访问权限。</translation>
@@ -1843,6 +1855,7 @@
 <translation id="867914734596684889">显示或隐藏书签栏</translation>
 <translation id="8683039184091909753">图片</translation>
 <translation id="8688183792442786085"><ph name="TAB_TITLE" />，所选的标签页</translation>
+<translation id="8696297579102085705">发送到您的设备</translation>
 <translation id="8697753151306746444">改为共享窗口或屏幕</translation>
 <translation id="8699120352855309748">不询问是否翻译这些语言</translation>
 <translation id="8712637175834984815">知道了</translation>
@@ -1990,6 +2003,7 @@
 <translation id="970715775301869095">还剩 <ph name="MINUTES" /> 分钟</translation>
 <translation id="981121421437150478">离线</translation>
 <translation id="983192555821071799">关闭所有标签页</translation>
+<translation id="984275831282074731">支付方式</translation>
 <translation id="984756705737569814">无法检查您 Google 账号中的密码</translation>
 <translation id="987264212798334818">常规</translation>
 <translation id="988091779042748639">若要删除您设备中的无痕浏览记录，请关闭所有无痕式标签页。</translation>

@@ -20,6 +20,8 @@
 #include "chrome/browser/download/download_item_warning_data.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/enterprise/connectors/analysis/content_analysis_downloads_delegate.h"
+#include "chrome/grit/generated_resources.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "chrome/browser/enterprise/connectors/common.h"
 #include "chrome/browser/enterprise/connectors/connectors_service.h"
 #include "chrome/browser/enterprise/connectors/reporting/reporting_event_router_factory.h"
@@ -878,25 +880,38 @@ void DeepScanningRequest::OnDownloadDestroyed(
   // scan has finished.
   callback_.Reset();
 
-  Profile* profile =
-      Profile::FromBrowserContext(metadata_->GetBrowserContext());
-  enterprise_connectors::BinaryUploadService* upload_service =
-      download_service_->GetBinaryUploadService(profile, analysis_settings_);
+  // Store a weak pointer to `this` before executing cancellation. If the cancel
+  // request processes synchronously, it might execute request callbacks that
+  // synchronously trigger `CallbackAndCleanup()` and destroy this instance.
+  base::WeakPtr<DeepScanningRequest> weak_this = weak_ptr_factory_.GetWeakPtr();
 
-  if (upload_service) {
-    auto cancel =
-        std::make_unique<enterprise_connectors::BinaryUploadCancelRequests>(
-            analysis_settings_.cloud_or_local_settings);
-    cancel->set_user_action_id(user_action_id_);
+  content::BrowserContext* browser_context =
+      metadata_ ? metadata_->GetBrowserContext() : nullptr;
+  if (browser_context) {
+    Profile* profile = Profile::FromBrowserContext(browser_context);
+    enterprise_connectors::BinaryUploadService* upload_service =
+        download_service_->GetBinaryUploadService(profile, analysis_settings_);
 
-    // We do the best effort to cancel the requests in upload service.
-    upload_service->MaybeCancelRequests(std::move(cancel));
+    if (upload_service) {
+      auto cancel =
+          std::make_unique<enterprise_connectors::BinaryUploadCancelRequests>(
+              analysis_settings_.cloud_or_local_settings);
+      cancel->set_user_action_id(user_action_id_);
+
+      // We do the best effort to cancel the requests in upload service.
+      // 'This' may be destroyed in the call below.
+      upload_service->MaybeCancelRequests(std::move(cancel));
+    }
   }
 
-  // `FinishRequest` always clears the `download_observation` and `metadata`,
-  // preventing use-after-free issues for `download_item` after it's been
-  // destroyed.
-  FinishRequest(DownloadCheckResult::UNKNOWN);
+  // Only proceed to finish the request and clean up if this instance has not
+  // been synchronously destroyed during the cancel call above.
+  if (weak_this) {
+    // `FinishRequest` always clears the `download_observation` and `metadata`
+    // (if it was not cleared yet), preventing use-after-free issues for
+    // `download_item` after it's been destroyed.
+    FinishRequest(DownloadCheckResult::UNKNOWN);
+  }
 }
 
 const enterprise_connectors::AnalysisSettings& DeepScanningRequest::settings()
@@ -981,11 +996,19 @@ void DeepScanningRequest::MaybeFinishRequest(DownloadCheckResult result) {
             &DeepScanningRequest::FinishRequest, weak_ptr_factory_.GetWeakPtr(),
             DownloadCheckResult::SENSITIVE_CONTENT_BLOCK);
 
+        enterprise_connectors::ContentAnalysisResponse::Result::TriggeredRule::
+            CustomRuleMessage custom_message;
+        for (const auto& metadata : file_metadata_) {
+          custom_message = GetForceSaveToCloudCustomRuleMessage(
+              metadata.second.scan_response);
+          if (custom_message.message_segments_size() > 0) {
+            break;
+          }
+        }
+
         ShowForceSaveToCloudDialog(
             std::move(keep_closure), std::move(discard_closure),
-            force_save_web_contents,
-            enterprise_connectors::ContentAnalysisResponse::Result::
-                TriggeredRule::CustomRuleMessage(),
+            force_save_web_contents, custom_message,
             save_package_files_.size());
         return;
 #endif  // BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
@@ -996,6 +1019,12 @@ void DeepScanningRequest::MaybeFinishRequest(DownloadCheckResult result) {
 }
 
 void DeepScanningRequest::FinishRequest(DownloadCheckResult result) {
+  // Metadata could be already destroyed in the previous call to
+  // `MaybeFinishRequest`.
+  if (!metadata_ || !metadata_->GetBrowserContext()) {
+    return;
+  }
+
   enterprise_connectors::EventResult event_result =
       enterprise_connectors::EventResult::UNKNOWN;
 
@@ -1140,7 +1169,10 @@ void DeepScanningRequest::ShowForceSaveToCloudDialog(
       std::make_unique<enterprise_connectors::ContentAnalysisDownloadsDelegate>(
           metadata_->GetTargetFilePath().BaseName().AsUTF16Unsafe(), u"",
           GURL(), false, std::move(keep_closure), std::move(discard_closure),
-          nullptr, custom_message),
+          nullptr, custom_message,
+          l10n_util::GetStringFUTF16(
+              IDS_DEEP_SCANNING_DIALOG_SAVE_TO_CLOUD_STORAGE_MESSAGE,
+              metadata_->GetTargetFilePath().BaseName().AsUTF16Unsafe())),
       true,  // Downloads are always cloud-based for now.
       web_contents, enterprise_connectors::DeepScanAccessPoint::DOWNLOAD,
       file_count,

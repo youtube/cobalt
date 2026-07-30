@@ -7,7 +7,7 @@ import {EventTracker} from 'chrome://resources/js/event_tracker.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
-import type {TextAttributes, TextBoxRect} from '../constants.js';
+import type {TextAnnotation, TextAttributes, TextBoxRect} from '../constants.js';
 import {TextTypeface} from '../constants.js';
 import {colorsEqual, convertRotatedCoordinates, Ink2Manager, MIN_TEXTBOX_SIZE_PX, stylesEqual} from '../ink2_manager.js';
 import type {TextBoxInit, ViewportParams} from '../ink2_manager.js';
@@ -330,13 +330,10 @@ export class InkTextBoxElement extends InkTextBoxElementBase {
               }
 
               // Notify the backend.
-              Ink2Manager.getInstance().commitTextAnnotation({
+              const annotation: TextAnnotation = {
                 id: this.id_,
-                isEdited: isEdited,
                 mojoTextInfo: result.mojoTextInfo,
-                newTypefaces: result.typefaces,
                 pageIndex: this.pageIndex_,
-                pdfZoom: this.zoom_,
                 text: this.textValue_,
                 textAttributes: this.attributes_,
                 textBoxRect: {
@@ -346,7 +343,9 @@ export class InkTextBoxElement extends InkTextBoxElementBase {
                   width: this.width_,
                 },
                 textOrientation: this.textOrientation_,
-              });
+              };
+              Ink2Manager.getInstance().commitTextAnnotation(
+                  annotation, isEdited, result.typefaces);
             })
             .catch(e => {
               console.error('Error committing text annotation:', e);
@@ -437,6 +436,7 @@ export class InkTextBoxElement extends InkTextBoxElementBase {
     const target = e.composedPath()[0];
     if (target === this.$.textbox) {
       this.focus();
+      this.fire('ink-text-box-focused-for-test');
     } else {
       this.commitTextAnnotation();
     }
@@ -455,6 +455,7 @@ export class InkTextBoxElement extends InkTextBoxElementBase {
     // Backspace/Delete key not in the textbox deletes the annotation.
     if (e.key === 'Backspace' || e.key === 'Delete') {
       this.textValue_ = '';
+      this.textBoxEdited_();
       this.commitTextAnnotation();
       return;
     }

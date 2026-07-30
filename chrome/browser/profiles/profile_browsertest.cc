@@ -40,6 +40,7 @@
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_features.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/lifetime/application_lifetime_desktop.h"
 #include "chrome/browser/profiles/chrome_version_service.h"
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
 #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
@@ -48,7 +49,6 @@
 #include "chrome/browser/profiles/profile_observer.h"
 #include "chrome/browser/profiles/profile_test_util.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/buildflags.h"
 #include "chrome/common/chrome_constants.h"
@@ -470,6 +470,51 @@ IN_PROC_BROWSER_TEST_F(ProfileBrowserTest, MAYBE_ProfileReadmeCreated) {
   EXPECT_TRUE(
       base::PathExists(temp_dir.GetPath().Append(chrome::kReadmeFilename)));
 }
+
+#if !BUILDFLAG(IS_ANDROID)
+IN_PROC_BROWSER_TEST_F(ProfileBrowserTest, SyncToSigninMigrationSynchronous) {
+  base::HistogramTester histograms;
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  MockProfileDelegate delegate;
+  EXPECT_CALL(delegate, OnProfileCreationFinished(
+                            testing::NotNull(),
+                            Profile::CreateMode::kSynchronous, true, true));
+
+  std::unique_ptr<Profile> profile = CreateProfile(
+      temp_dir.GetPath(), &delegate, Profile::CreateMode::kSynchronous);
+  histograms.ExpectTotalCount("Sync.SyncToSigninMigrationDecision", 1);
+  FlushIoTaskRunnerAndSpinThreads();
+}
+
+// TODO(crbug.com/40817682): Flaky on ChromeOS.
+#if !BUILDFLAG(IS_CHROMEOS)
+IN_PROC_BROWSER_TEST_F(ProfileBrowserTest, SyncToSigninMigrationAsynchronous) {
+  base::HistogramTester histograms;
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  MockProfileDelegate delegate;
+  base::RunLoop run_loop;
+  EXPECT_CALL(delegate, OnProfileCreationFinished(
+                            testing::NotNull(),
+                            Profile::CreateMode::kAsynchronous, true, true))
+      .WillOnce(testing::InvokeWithoutArgs([&run_loop]() { run_loop.Quit(); }));
+
+  std::unique_ptr<Profile> profile(CreateProfile(
+      temp_dir.GetPath(), &delegate, Profile::CreateMode::kAsynchronous));
+  histograms.ExpectTotalCount("Sync.SyncToSigninMigrationDecision", 0);
+
+  run_loop.Run();
+  histograms.ExpectTotalCount("Sync.SyncToSigninMigrationDecision", 1);
+
+  FlushIoTaskRunnerAndSpinThreads();
+}
+#endif  // !BUILDFLAG(IS_CHROMEOS)
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 // The EndSession IO synchronization is only critical on Windows, but also
 // happens under Ozone. See BrowserProcessImpl::EndSession.

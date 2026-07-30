@@ -5161,6 +5161,7 @@ targets.bundle(
         "blink_fuzzer_unittests",
         "blink_heap_unittests",
         "blink_platform_unittests",
+        "blink_unittests",
         "boringssl_crypto_tests",
         "boringssl_ssl_tests",
         "capture_unittests",
@@ -5218,6 +5219,12 @@ targets.bundle(
             args = [
                 "--test-launcher-bot-mode",
                 "--test-launcher-filter-file=testing/buildbot/filters/ios.blink_platform_unittests.filter",
+            ],
+        ),
+        "blink_unittests": targets.mixin(
+            args = [
+                "--test-launcher-bot-mode",
+                "--test-launcher-filter-file=testing/buildbot/filters/ios.blink_unittests.filter",
             ],
         ),
         "cc_unittests": targets.mixin(
@@ -5281,6 +5288,12 @@ targets.bundle(
             args = [
                 "--test-launcher-bot-mode",
                 "--test-launcher-filter-file=testing/buildbot/filters/ios.media_unittests.filter",
+            ],
+        ),
+        "midi_unittests": targets.mixin(
+            args = [
+                "--test-launcher-bot-mode",
+                "--test-launcher-filter-file=testing/buildbot/filters/ios.use_blink.midi_unittests.filter",
             ],
         ),
         "mojo_unittests": targets.mixin(
@@ -6808,6 +6821,7 @@ targets.bundle(
     name = "updater_gtests_linux",
     targets = [
         "updater_tests",
+        "updater_fuzztests",
         # 'updater_tests_system' is not yet supported on Linux.
     ],
     per_test_modifications = {
@@ -6822,6 +6836,7 @@ targets.bundle(
     targets = [
         "updater_tests",
         "updater_tests_system",
+        "updater_fuzztests",
     ],
     per_test_modifications = {
         "updater_tests": [
@@ -6838,6 +6853,7 @@ targets.bundle(
     targets = [
         "updater_tests",
         "updater_tests_system",
+        "updater_fuzztests",
     ],
     per_test_modifications = {
         "updater_tests": [

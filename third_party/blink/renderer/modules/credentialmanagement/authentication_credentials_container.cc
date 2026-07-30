@@ -28,6 +28,7 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_all_accepted_credentials_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_client_inputs.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_client_outputs.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_cmtg_key_outputs.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_large_blob_inputs.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_large_blob_outputs.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_payment_inputs.h"
@@ -140,10 +141,6 @@ void RecordWebAuthnCspMetric(ExecutionContext* context,
   base::UmaHistogramBoolean(
       std::string("WebAuthentication.CspAllow.") + request_type.Utf8(),
       allowed);
-
-  if (!allowed) {
-    UseCounter::Count(context, WebFeature::kWebAuthenticationCspDisallowsRpId);
-  }
 }
 
 // RequiredOriginType enumerates the requirements on the environment to perform
@@ -717,6 +714,11 @@ void OnMakePublicKeyCredentialComplete(
     extension_outputs->setPayment(
         ConvertTo<blink::AuthenticationExtensionsPaymentOutputs*>(
             credential->payment));
+  }
+  if (credential->cmtg_key) {
+    extension_outputs->setCmtgKey(
+        ConvertTo<blink::AuthenticationExtensionsCmtgKeyOutputs*>(
+            std::move(credential->cmtg_key)));
   }
   if (credential->echo_prf) {
     auto* prf_outputs = AuthenticationExtensionsPRFOutputs::Create();

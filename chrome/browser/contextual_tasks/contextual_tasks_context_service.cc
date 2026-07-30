@@ -28,6 +28,7 @@
 #include "base/task/thread_pool.h"
 #include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_model_handler.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_scoring_utils.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_signal_utils.h"
@@ -41,6 +42,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/contextual_tasks/public/prefs.h"
+#include "components/google/core/common/google_util.h"
 #include "components/optimization_guide/core/model_quality/model_quality_log_entry.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
 #include "components/optimization_guide/proto/features/contextual_tasks_context.pb.h"
@@ -50,6 +52,7 @@
 #include "components/page_content_annotations/core/page_content_extraction_types.h"
 #include "components/page_content_annotations/core/page_embeddings_common.h"
 #include "components/passage_embeddings/core/passage_embeddings_types.h"
+#include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
@@ -322,6 +325,19 @@ ContextualTasksContextService::ContextualTasksContextService(
 
 ContextualTasksContextService::~ContextualTasksContextService() = default;
 
+// static
+bool ContextualTasksContextService::GetIsSmartTabSharingEnabled(
+    const Profile* profile) {
+  if (profile && profile->GetPrefs() &&
+      profile->GetPrefs()->GetInteger(
+          kContextualTasksSmartTabSharingSettings) ==
+          static_cast<int>(SmartTabSharingSettingsValue::kDisabled)) {
+    return false;
+  }
+  return base::FeatureList::IsEnabled(kContextualTasksContext) &&
+         kContextualTasksContextSmartTabSharing.Get();
+}
+
 void ContextualTasksContextService::SetClockForTesting(
     const base::TickClock* tick_clock) {
   tick_clock_ = tick_clock;
@@ -337,6 +353,15 @@ void ContextualTasksContextService::GetRelevantTabsForQuery(
 
   AUTO_CONTEXT_LOG(base::StringPrintf("Processing query %s in mode %d", query,
                                       options.tab_selection_mode));
+
+  if (query.empty()) {
+    AUTO_CONTEXT_LOG("Query is empty");
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(std::move(callback),
+                       std::vector<base::WeakPtr<content::WebContents>>()));
+    return;
+  }
 
   if (!embedder_model_version_) {
     AUTO_CONTEXT_LOG("Embedder not available");
@@ -566,12 +591,26 @@ ContextualTasksContextService::GetAllEligibleTabs(
           tabs::TabInterface* tab = tab_list->GetTab(i);
           content::WebContents* web_contents =
               tab ? tab->GetContents() : nullptr;
-          if (!IsValidUrlForSuggestedTab(web_contents->GetLastCommittedURL(),
-                                         profile_, site_exclusion_detail)) {
+          if (!web_contents) {
+            AUTO_CONTEXT_LOG("Tab contents is null.");
+            continue;
+          }
+          GURL url = web_contents->GetLastCommittedURL();
+          if (!IsValidUrlForSuggestedTab(url, profile_,
+                                         site_exclusion_detail)) {
             AUTO_CONTEXT_LOG(
                 base::StringPrintf("Removing %s from relevant set as it is not "
                                    "valid e.g. it is NTP, internal page, etc.",
-                                   web_contents->GetLastCommittedURL().spec()));
+                                   url.spec()));
+            continue;
+          }
+
+          if (google_util::IsGoogleSearchUrl(url) ||
+              google_util::IsGoogleHomePageUrl(url)) {
+            AUTO_CONTEXT_LOG(
+                base::StringPrintf("Removing %s from relevant set as it is a "
+                                   "Google Search URL.",
+                                   url.spec()));
             continue;
           }
           if (!ShouldAddTabToSelection(web_contents)) {
@@ -850,14 +889,16 @@ void ContextualTasksContextService::OnAllTabsScored(
 
   std::vector<base::WeakPtr<content::WebContents>> relevant_tabs;
   base::flat_set<GURL> seen_urls;
-  std::ranges::for_each(
-      scored_relevant_tabs, [&](const auto& score_and_contents) {
-        if (score_and_contents.second &&
-            seen_urls.insert(score_and_contents.second->GetLastCommittedURL())
-                .second) {
-          relevant_tabs.push_back(score_and_contents.second);
-        }
-      });
+  for (const auto& [score, web_contents] : scored_relevant_tabs) {
+    if (!web_contents) {
+      continue;
+    }
+    if (kDeduplicateRelevantTabsByUrl.Get() &&
+        !seen_urls.insert(web_contents->GetLastCommittedURL()).second) {
+      continue;
+    }
+    relevant_tabs.push_back(web_contents);
+  }
 
   std::move(on_tab_selection_complete).Run(std::move(relevant_tabs));
 }

@@ -4,7 +4,6 @@
 
 #import "ios/chrome/browser/settings/autofill/autofill_and_passwords/coordinator/identity_docs_coordinator.h"
 
-#import "base/apple/foundation_util.h"
 #import "base/check_op.h"
 #import "components/autofill/core/browser/data_manager/autofill_ai/entity_data_manager.h"
 #import "ios/chrome/browser/autofill/model/ios_autofill_entity_data_manager_factory.h"
@@ -46,8 +45,7 @@
 }
 
 - (void)start {
-  _viewController = [[IdentityDocsTableViewController alloc]
-      initWithStyle:ChromeTableViewStyle()];
+  _viewController = [[IdentityDocsTableViewController alloc] init];
   _viewController.delegate = self;
 
   autofill::EntityDataManager* entityDataManager =
@@ -92,6 +90,11 @@
   [self startEntityEditCoordinatorWithID:entityID];
 }
 
+- (void)autofillAIBaseMediator:(AutofillAIBaseMediator*)mediator
+    didRequestToCreateEntityWithType:(autofill::EntityType)entityType {
+  [self startEntityEditCoordinatorWithType:entityType];
+}
+
 #pragma mark - AutofillAIEntityEditCoordinatorDelegate
 
 - (void)autofillAIEntityEditCoordinatorDidFinish:
@@ -110,6 +113,18 @@
       initWithBaseNavigationController:self.baseNavigationController
                                browser:self.browser
                               entityID:entityID];
+  _entityEditCoordinator.delegate = self;
+  [_entityEditCoordinator start];
+}
+
+// Starts the coordinator responsible for creating a new identity document
+// entity of the specified type.
+- (void)startEntityEditCoordinatorWithType:(autofill::EntityType)entityType {
+  [self stopEntityEditCoordinator];
+  _entityEditCoordinator = [[AutofillAIEntityEditCoordinator alloc]
+      initWithBaseNavigationController:self.baseNavigationController
+                               browser:self.browser
+                            entityType:entityType];
   _entityEditCoordinator.delegate = self;
   [_entityEditCoordinator start];
 }

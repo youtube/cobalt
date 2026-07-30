@@ -283,6 +283,7 @@ test("components_unittests") {
     "//components/page_image_service:unit_tests",
     "//components/page_info/core:unit_tests",
     "//components/password_manager/core/browser:unit_tests",
+    "//components/password_manager/core/browser/actor_login/internal:unit_tests",
     "//components/password_manager/core/browser/affiliation:affiliation_fetching_unittests",
     "//components/password_manager/core/browser/affiliation:unit_tests",
     "//components/password_manager/core/browser/export:unit_tests",
@@ -510,6 +511,7 @@ test("components_unittests") {
       "//components/history/content/browser:unit_tests",
       "//components/history_clusters/core:unit_tests",
       "//components/history_embeddings/core:unit_tests",
+      "//components/infobars/content:unit_tests",
       "//components/input:unit_tests",
       "//components/invalidation:legacy_topics_cleanup_unit_tests",
       "//components/invalidation:unit_tests",
@@ -634,6 +636,7 @@ test("components_unittests") {
       "//components/blocked_content:unit_tests",
       "//components/browser_apis/browser_controls:unit_tests",
       "//components/browser_apis/tab_strip:unit_tests",
+      "//components/browser_apis/ui_controllers/toolbar:unit_tests",
       "//components/content_settings/browser/ui:unit_tests",
       "//components/headless/test:unit_tests",
       "//components/media_router/browser:unit_tests",
@@ -771,7 +774,6 @@ test("components_unittests") {
       "//components/live_caption:unit_tests",
 
       # TODO(crbug.com/470475787): Enable this test on Android.
-      "//components/password_manager/core/browser/actor_login/internal:unit_tests",
       "//components/soda:unit_tests",
       "//components/storage_monitor:unit_tests",
       "//components/web_modal:unit_tests",
@@ -898,8 +900,8 @@ test("components_unittests") {
 
   if (safe_browsing_mode != 0 && !is_ios) {
     deps += [
-      # TODO(chromium: 1169835) components / reporting / storage / resources: unit_tests
-      # can't be run on iOS until they are updated.
+      # TODO(chromium: 1169835) components / reporting / storage / resources:
+      # unit_tests can't be run on iOS until they are updated.
       "//components/safe_browsing/content/browser/password_protection:password_protection_unittest",
       "//components/safe_browsing/content/browser/triggers:unit_tests",
       "//components/safe_browsing/content/browser/web_ui:unit_tests",
@@ -1316,8 +1318,8 @@ if (use_blink) {
     }
 
     if (is_linux || is_chromeos) {
-      # content_extractor_browsertest is a standalone content extraction tool built as
-      # a MANUAL component_browsertest.
+      # content_extractor_browsertest is a standalone content extraction tool
+      # built as a MANUAL component_browsertest.
       sources += [ "dom_distiller/standalone/content_extractor_browsertest.cc" ]
       deps += [
         "//components/leveldb_proto",

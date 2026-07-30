@@ -434,6 +434,7 @@ source_set("common_unittests_sources") {
     "permissions_policy/policy_value_unittest.cc",
     "scheduler/web_scheduler_tracked_feature_unittest.cc",
     "security/address_space_feature_unittest.cc",
+    "service_worker/service_worker_loader_helpers_unittest.cc",
     "service_worker/service_worker_router_rule_mojom_traits_unittest.cc",
     "service_worker/service_worker_scope_match_unittest.cc",
     "shared_storage/module_script_downloader_unittest.cc",
@@ -548,6 +549,9 @@ if (use_fuzzing_engine_with_lpm) {
     if (is_android) {
       deps += [ "//third_party/icu:icu_assets" ]
     }
+
+    # TODO(crbug.com/505034799): Migrate to FUZZ_TEST.
+    is_fuzztest_compatible = false
   }
 
   fuzzer_test("storage_key_string_fuzzer") {

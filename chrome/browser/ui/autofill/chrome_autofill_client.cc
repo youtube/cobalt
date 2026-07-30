@@ -109,6 +109,7 @@
 #include "components/autofill/core/browser/form_import/form_data_importer.h"
 #include "components/autofill/core/browser/form_predictions_tracker.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
+#include "components/autofill/core/browser/foundations/autofill_manager.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
 #include "components/autofill/core/browser/integrators/identity_credential/identity_credential_delegate.h"
 #include "components/autofill/core/browser/integrators/one_time_tokens/otp_field_detector.h"
@@ -803,7 +804,7 @@ ChromeAutofillClient::ShowAutofillSuggestions(
 
 void ChromeAutofillClient::UpdateAutofillDataListValues(
     base::span<const SelectOption> options) {
-  if (suggestion_controller_.get()) {
+  if (suggestion_controller_) {
     suggestion_controller_->UpdateDataListValues(options);
   }
 }
@@ -834,8 +835,7 @@ void ChromeAutofillClient::UpdateAutofillSuggestions(
   // When a form changes dynamically, `suggestion_controller_` may hold a
   // delegate of the wrong type, so updating the popup would call into the wrong
   // delegate. Hence, just close the existing popup (crbug.com/40143378).
-  if (main_filling_product !=
-      suggestion_controller_.get()->GetMainFillingProduct()) {
+  if (main_filling_product != suggestion_controller_->GetMainFillingProduct()) {
     suggestion_controller_->Hide(SuggestionHidingReason::kStaleData);
     return;
   }
@@ -849,7 +849,7 @@ void ChromeAutofillClient::UpdateAutofillSuggestions(
 
 void ChromeAutofillClient::HideAutofillSuggestions(
     SuggestionHidingReason reason) {
-  if (suggestion_controller_.get()) {
+  if (suggestion_controller_) {
     suggestion_controller_->Hide(reason);
   }
 }
@@ -1440,6 +1440,15 @@ void ChromeAutofillClient::OnActorTaskStateChange(actor::ActorTask& task) {
     // The status update is for an actor that isn't interacting with this tab.
     // The value of `is_actor_mode_` shouldn't be updated.
     return;
+  }
+
+  // If the task was just created, known forms should be reparsed to ensure that
+  // actor specific behaviors are in place.
+  if (!active_actor_task_.has_value()) {
+    for (AutofillDriver* driver :
+         GetAutofillDriverFactory().GetExistingDrivers()) {
+      driver->GetAutofillManager().ReparseKnownForms();
+    }
   }
 
   // TODO(crbug.com/469428128): Evaluate whether

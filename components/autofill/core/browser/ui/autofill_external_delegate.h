@@ -5,19 +5,24 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_UI_AUTOFILL_EXTERNAL_DELEGATE_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_UI_AUTOFILL_EXTERNAL_DELEGATE_H_
 
+#include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <variant>
 #include <vector>
 
-#include "base/compiler_specific.h"
-#include "base/containers/flat_map.h"
+#include "base/check.h"
 #include "base/containers/span.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
-#include "base/scoped_observation.h"
+#include "base/types/expected.h"
+#include "base/types/optional_ref.h"
 #include "components/autofill/core/browser/autofill_trigger_source.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
+#include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/browser/filling/autofill_ai/autofill_ai_access_manager.h"
 #include "components/autofill/core/browser/filling/form_filler.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/metrics/suggestions_list_metrics.h"
@@ -25,10 +30,13 @@
 #include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/browser/ui/autofill_suggestion_delegate.h"
+#include "components/autofill/core/browser/ui/suggestion_button_action.h"
 #include "components/autofill/core/browser/ui/tabbed_pane_enums.h"
 #include "components/autofill/core/common/aliases.h"
 #include "components/autofill/core/common/form_data.h"
 #include "components/autofill/core/common/form_field_data.h"
+#include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
+#include "components/autofill/core/common/unique_ids.h"
 #include "components/device_reauth/device_authenticator.h"
 
 namespace gfx {
@@ -188,6 +196,15 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
   void OnCreditCardFetched(AutofillTriggerSource trigger_source,
                            const CreditCard& card);
 
+  // Fills the queried form with the provided `EntityInstance` in `result`,
+  // unless a `FailureReason` is present.
+  void OnEntityInstanceFetched(
+      AutofillTriggerSource trigger_source,
+      const FieldTypeSet& ai_field_types,
+      base::expected<EntityInstance, AutofillAiAccessManager::FailureReason>
+          result,
+      bool reauth_attempted);
+
   // Returns the last Autofill triggering field. Derived from the `form` and
   // `field` parameters of `OnQuery(). Returns nullptr if called before
   // `OnQuery()` or if the `form` becomes outdated, see crbug.com/1117028.
@@ -238,21 +255,6 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
 
   // Returns the text (i.e. |Suggestion| value) for Chrome autofill options.
   std::u16string GetSettingsSuggestionValue() const;
-
-  // Called when biometric authentication is completed.
-  // Triggers `callback` with an `auth_succeeded` parameter.
-  void OnReauthCompleted(base::OnceCallback<void(bool)> callback,
-                         bool auth_succeeded);
-
-  // Requires user authentication and runs `callback` with an `auth_suceeded`
-  // parameter on completion. `reauth_message` specifies the string displayed in
-  // the re-auth dialog.
-  void MaybeAuthenticateBeforeFilling(const std::u16string& reauth_message,
-                                      std::string histogram,
-                                      base::OnceCallback<void(bool)> callback);
-
-  // Attempts to fill an Autofill AI `suggestion` into for `query_field_`;
-  void FillAutofillAiFormAndHidePopup(const Suggestion& suggestion);
 
   // Returns if the Pay Now Pay Later tabs should be shown.
   virtual bool ShouldShowPayNowPayLaterTabs();

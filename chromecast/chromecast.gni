@@ -35,30 +35,16 @@ declare_args() {
   # Set true to enable assistant features.
   enable_assistant = false
 
-  # Set to true if there is a full mixer implementation; if not, we create a
-  # shim mixer service receiver that pushes audio to the CMA backend.
-  have_full_mixer = is_cast_audio_only
+
 
   # If true, the mixer will be instantiated inside cast_shell. When false, the
   # mixer is expected to be running in another process.
   mixer_in_cast_shell = true
 
-  # Set to true on devices where the VolumeControl implementation is in the
-  # libcast_avsettings_1.0.so instead of in libcast_media_1.0.so.
-  cast_volume_control_in_avsettings = false
 
-  # Set to true for builds targeting ARC.
-  is_android_arc = false
 
-  if (is_android) {
-    # Set to true to get logcat from a remote service
-    # If false, will only get the logs of the app.
-    use_remote_service_logcat = false
-  }
 
-  # Set to true to enable a CMA media backend that allows mixed audio to be
-  # output with sync'd video.
-  enable_video_with_mixed_audio = false
+
 
   # unified flag to pick monotonic_clock OR monotonic_clock_raw
   media_clock_monotonic_raw = !is_android && !is_cast_desktop_build
@@ -74,19 +60,12 @@ declare_args() {
   # TODO(ziyangch): make the parsing logic have ability to quote/escape characters.
   default_command_line_flags = []
 
-  # Set to true to disable secure flac/opus support in EME, when using
-  # cast CMA media backend and supporting Widevine or Playready.
-  disable_secure_flac_and_opus_decoding = false
 
-  # Set to true to enable video capture service for video input and output.
-  enable_video_capture_service = false
 
   # Set to true to enable external Mojo services to communicate with services
   # within cast_shell.
   enable_external_mojo_services = is_linux || is_chromeos || is_android
 
-  # Support using system perfetto tracing
-  enable_perfetto_tracing = false
 
   # Recording happens at this sample rate. Must be 16000, 48000 or 96000 Hz.
   audio_input_sample_rate = 16000
@@ -94,25 +73,15 @@ declare_args() {
   # Whether use unix sockets in Cast input/output stream.
   use_unix_sockets = is_linux || is_chromeos || is_android
 
-  # Set to true to enable audio capture service for audio input.
-  enable_audio_capture_service = false
 
   # Extra rpath to use for standalone services.
   iot_service_rpath = ""
 
-  # Set to true to enable media overlay for volume bar, etc.
-  enable_media_overlay = false
 
-  # Set to true to forward crashes to the system's crash handler instead of
-  # handling them internally.  This disables the built-in crash handler.
-  use_system_crash_handler = false
 
   # True to use the Chromium runtime for cast rendering.
   enable_chromium_runtime_cast_renderer = false
 
-  # True to use the remoting implementation of cast streaming for the cast web
-  # runtime (as opposed to the mirroring-only implementation).
-  enable_remoting_for_cwr = false
 
   # device specific string to append to User string.
   device_user_agent_suffix = ""

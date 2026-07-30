@@ -24,7 +24,6 @@ BASE_FEATURE(kAccessibilityAriaInvalidAndErrorMessage,
 // When enabled, Android events will include more metadata about the incoming
 // events.
 BASE_FEATURE(kAccessibilityExpandEventMetadata,
-             "AccessibilityExpandEventMetadata",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, the full accessibility tree will be exposed for non-atomic
@@ -367,7 +366,7 @@ BASE_FEATURE(kRemoveRendererProcessLimit, base::FEATURE_ENABLED_BY_DEFAULT);
 // https://crbug.com/329027914
 BASE_FEATURE(
     kPartitionAllocSchedulerLoopQuarantineTaskObserverForBrowserUIThread,
-    base::FEATURE_DISABLED_BY_DEFAULT);
+    base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Killswitch for prefetch devtools UA override (crbug.com/422193319).
 BASE_FEATURE(kPrefetchDevtoolsUserAgentOverride,
@@ -685,6 +684,12 @@ BASE_FEATURE(kServiceWorkerStaticRouterCORPCheck,
 // blocked when it receives an opaque response from the service worker static
 // router.
 BASE_FEATURE(kServiceWorkerStaticRouterOpaqueCheck,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// (crbug.com/507149743): When enabled, the browser process and the renderer
+// process repopulate parsed_headers if it is missing for the response from the
+// static router.
+BASE_FEATURE(kServiceWorkerStaticRouterParsedHeaders,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // (crbug.com/497302265): When enabled, the main script response fetching is

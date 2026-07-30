@@ -83,6 +83,9 @@
 [submodule "third_party/anonymous_tokens/src"]
 	path = third_party/anonymous_tokens/src
 	url = https://chromium.googlesource.com/external/github.com/google/anonymous-tokens
+[submodule "third_party/aria-practices/src"]
+	path = third_party/aria-practices/src
+	url = https://chromium.googlesource.com/external/github.com/w3c/aria-practices
 [submodule "third_party/readability/src"]
 	path = third_party/readability/src
 	url = https://chromium.googlesource.com/external/github.com/mozilla/readability
@@ -495,6 +498,9 @@
 	path = third_party/search_engines_data/resources_internal
 	url = https://chrome-internal.googlesource.com/external/search_engines_data_internal
 	gclient-condition = checkout_src_internal
+[submodule "third_party/sframe/src"]
+	path = third_party/sframe/src
+	url = https://chromium.googlesource.com/external/github.com/cisco/sframe
 [submodule "third_party/skia"]
 	path = third_party/skia
 	url = https://skia.googlesource.com/skia
@@ -758,10 +764,6 @@
 	path = components/accessibility/internal
 	url = https://chrome-internal.googlesource.com/chrome-accessibility
 	gclient-condition = checkout_src_internal
-[submodule "components/accessibility_annotator/core/resources/internal"]
-	path = components/accessibility_annotator/core/resources/internal
-	url = https://chrome-internal.googlesource.com/chrome/components/accessibility_annotator/core/resources/internal
-	gclient-condition = checkout_src_internal
 [submodule "components/activity_reporter/internal"]
 	path = components/activity_reporter/internal
 	url = https://chrome-internal.googlesource.com/activity_reporter_internal
@@ -793,6 +795,10 @@
 [submodule "components/optimization_guide/internal"]
 	path = components/optimization_guide/internal
 	url = https://chrome-internal.googlesource.com/chrome/components/optimization_guide
+	gclient-condition = checkout_src_internal
+[submodule "components/personal_context/core/resources/internal"]
+	path = components/personal_context/core/resources/internal
+	url = https://chrome-internal.googlesource.com/chrome/components/personal_context/core/resources/internal
 	gclient-condition = checkout_src_internal
 [submodule "components/plus_addresses/core/browser/resources/internal"]
 	path = components/plus_addresses/core/browser/resources/internal

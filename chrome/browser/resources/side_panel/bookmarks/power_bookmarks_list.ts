@@ -123,9 +123,10 @@ export class PowerBookmarksListElement extends PolymerElement implements
         },
       },
 
-      renamingId_: {
+      renamingId: {
         type: String,
         value: '',
+        notify: true,
       },
 
       hasLoadedData_: {
@@ -156,7 +157,7 @@ export class PowerBookmarksListElement extends PolymerElement implements
       canDrag_: {
         type: Boolean,
         value: true,
-        computed: 'computeCanDrag_(editing, renamingId_, hasSomeActiveFilter)',
+        computed: 'computeCanDrag_(editing, renamingId, hasSomeActiveFilter)',
         observer: 'onCanDragChange_',
       },
 
@@ -182,8 +183,8 @@ export class PowerBookmarksListElement extends PolymerElement implements
 
   static get observers() {
     return [
-      'updateDisplayLists_(activeFolderPath.splices, labels.*, ' +
-          'sortOrder, searchQuery)',
+      'onSearchChanged_(searchQuery)',
+      'updateDisplayLists_(activeFolderPath.*, labels.*, sortOrder, searchQuery)',
     ];
   }
 
@@ -208,6 +209,7 @@ export class PowerBookmarksListElement extends PolymerElement implements
   declare hasSomeActiveFilter: boolean;
   declare hasShownBookmarks: boolean;
   declare labels: Label[];
+  declare renamingId: string;
   declare searchQuery: string|undefined;
 
   declare private compact_: boolean;
@@ -219,7 +221,6 @@ export class PowerBookmarksListElement extends PolymerElement implements
   declare private hasActiveDrag_: boolean;
   declare private sectionVisibility_: ListSectionVisibility;
   declare private hasFolders_: boolean;
-  declare private renamingId_: string;
   declare private shoppingCollectionFolderId_: string;
   declare private updatedElementIds_: string[];
 
@@ -418,10 +419,6 @@ export class PowerBookmarksListElement extends PolymerElement implements
     this.onRowClicked_(event);
   }
 
-  setRenamingIdForTests(id: string) {
-    this.renamingId_ = id;
-  }
-
   /**
    * Returns the KeyboardNavigationService instance for testing.
    */
@@ -459,7 +456,7 @@ export class PowerBookmarksListElement extends PolymerElement implements
   }
 
   private computeCanDrag_(): boolean {
-    return !this.editing && !this.renamingId_ && !this.hasSomeActiveFilter;
+    return !this.editing && !this.renamingId && !this.hasSomeActiveFilter;
   }
 
   private focusBookmark_(id: string) {
@@ -548,26 +545,36 @@ export class PowerBookmarksListElement extends PolymerElement implements
         list => this.bookmarksService_.refreshDataForBookmarks(list));
     this.updateListScrollOffset_();
 
-    if (this.recordCountMetricsOnNextUpdate_ && this.hasLoadedData_) {
-      this.recordBookmarkCountMetrics_();
-    }
+
 
     // After the lists are updated and all children updates are complete,
     // notify iron-list to resize.
     afterNextRender(this, () => {
       const children =
           [...this.shadowRoot!.querySelectorAll('power-bookmark-row')];
+
+      const onChildrenUpdated = () => {
+        this.notifyBookmarksListResize_();
+
+        // Make sure the keyboard navigation tree is rebuilt whenever the
+        // iron-list is updated.
+        this.rebuildNavigationElements_();
+
+        if (this.recordCountMetricsOnNextUpdate_ && this.hasLoadedData_) {
+          this.recordBookmarkCountMetrics_();
+        }
+      };
       if (children.length > 0) {
         Promise.all(children.map(el => el.updateComplete))
-            .then(() => {
-              this.notifyBookmarksListResize_();
-
-              // Make sure the keyboard navigation tree is rebuilt whenever the
-              // iron-list is updated.
-              this.rebuildNavigationElements_();
-            });
+            .then(onChildrenUpdated);
+      } else {
+        onChildrenUpdated();
       }
     });
+  }
+
+  private onSearchChanged_() {
+    this.recordCountMetricsOnNextUpdate_ = true;
   }
 
   private updateListScrollOffset_() {
@@ -621,6 +628,7 @@ export class PowerBookmarksListElement extends PolymerElement implements
     recordBookmarksShown(
         this.keyArrowNavigationService_.getElementCount(),
         this.hasSomeActiveFilter);
+    this.dispatchEvent(new CustomEvent('bookmark-count-recorded'));
   }
 
   private onRowToggled_(_event: CustomEvent<{
@@ -644,6 +652,7 @@ export class PowerBookmarksListElement extends PolymerElement implements
       if (event.detail.bookmark.children) {
         this.recordCountMetricsOnNextUpdate_ = true;
         this.push('activeFolderPath', event.detail.bookmark);
+        this.dispatchActiveFolderPathChanged_();
         this.dispatchEvent(
             new CustomEvent('clear-search', {bubbles: true, composed: true}));
         afterNextRender(this, () => {
@@ -702,7 +711,7 @@ export class PowerBookmarksListElement extends PolymerElement implements
     if (newName != null) {
       this.bookmarksApi_.renameBookmark(event.detail.bookmark.id, newName);
     }
-    this.renamingId_ = '';
+    this.renamingId = '';
   }
 
   private getDisplayListElement_(index: number): IronListElement|null {
@@ -760,6 +769,15 @@ export class PowerBookmarksListElement extends PolymerElement implements
   private onBackClicked_() {
     this.recordCountMetricsOnNextUpdate_ = true;
     this.pop('activeFolderPath');
+    this.dispatchActiveFolderPathChanged_();
+  }
+
+  private dispatchActiveFolderPathChanged_() {
+    this.dispatchEvent(new CustomEvent('active-folder-path-changed', {
+      bubbles: true,
+      composed: true,
+      detail: {value: this.activeFolderPath},
+    }));
   }
 
   private onShowContextMenuClicked_(
@@ -790,7 +808,7 @@ export class PowerBookmarksListElement extends PolymerElement implements
     this.bookmarksApi_
         .createFolder(newParent.id, loadTimeData.getString('newFolderTitle'))
         .then((result: {newFolderId: string}) => {
-          this.renamingId_ = result.newFolderId;
+          this.renamingId = result.newFolderId;
         });
   }
 

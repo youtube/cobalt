@@ -153,14 +153,10 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeFromCheckupDelegateBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(PasswordChangeFromCheckupDelegateBrowserTest,
-                       FormWaiterFindsFormAndSubmits) {
+                       FormWaiterFindsFormFillsAndSubmitsThroughGlic) {
   Profile* profile = browser()->profile();
   auto* actor_service =
       actor::ActorKeyedServiceFactory::GetActorKeyedService(profile);
-
-  // Grab the Optimization Guide Mock
-  auto* mock_opt_guide = static_cast<MockOptimizationGuideKeyedService*>(
-      OptimizationGuideKeyedServiceFactory::GetForProfile(profile));
 
   content::WebContents* original_web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -192,30 +188,26 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeFromCheckupDelegateBrowserTest,
       browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_TRUE(content::NavigateToURL(new_web_contents, url));
 
-  base::RunLoop run_loop;
-  // Simulate the filler submitting the form with Model Execution Service.
-  EXPECT_CALL(*mock_opt_guide,
-              ExecuteModel(optimization_guide::ModelBasedCapabilityKey::
-                               kPasswordChangeSubmission,
-                           testing::_, testing::_, testing::_))
-      .WillOnce(testing::DoAll(
-          testing::Invoke(&run_loop, &base::RunLoop::Quit),
-          testing::WithArg<3>([&](auto callback) {
-            optimization_guide::proto::PasswordChangeResponse response;
-            response.mutable_submit_form_data()->set_dom_node_id_to_click(
-                GetDomNodeId(new_web_contents,
-                             "chg_submit_wo_username_button"));
-            auto result =
-                optimization_guide::OptimizationGuideModelExecutionResult(
-                    optimization_guide::AnyWrapProto(response), nullptr);
-            std::move(callback).Run(std::move(result), nullptr);
-          })));
   actor_service->StopTask(task_id,
                           actor::ActorTask::StoppedReason::kTaskComplete);
-  run_loop.Run();
 
-  // After the form is submitted a verification task is created
-  // and finished.
+  // Wait for the form fields to be filled.
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return content::EvalJs(
+               new_web_contents,
+               "document.getElementById('new_password_1').value !== ''")
+        .ExtractBool();
+  }));
+
+  std::string new_password_value =
+      content::EvalJs(new_web_contents,
+                      "document.getElementById('new_password_1').value")
+          .ExtractString();
+  EXPECT_EQ(base::UTF8ToUTF16(new_password_value),
+            delegate->generated_password());
+
+  // After the form is filled, the delegate transitions to Glic verification.
+  // We simulate Glic completing the verification task.
   actor::TaskId verification_task_id = actor_service->CreateTask(
       actor::TestTaskSourceInfo(), actor::NoEnterprisePolicyChecker());
   actor_service->StopTask(verification_task_id,
@@ -265,69 +257,6 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeFromCheckupDelegateBrowserTest,
     return delegate->GetFindFormTaskState() ==
            actor::ActorTask::State::kCancelled;
   }));
-}
-
-IN_PROC_BROWSER_TEST_F(PasswordChangeFromCheckupDelegateBrowserTest,
-                       AutoSelectsCorrectCredential) {
-  Profile* profile = browser()->profile();
-  auto* actor_service =
-      actor::ActorKeyedServiceFactory::GetActorKeyedService(profile);
-
-  content::WebContents* originator_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
-
-  // Start the flow with a specific credential.
-  auto delegate = std::make_unique<PasswordChangeFromCheckupDelegate>(
-      ChromePasswordManagerClient::FromWebContents(originator_contents));
-  const std::string username = "testuser";
-  const GURL origin_url = embedded_test_server()->GetURL("example.com", "/");
-
-  delegate->StartPasswordChangeFlow(CreateCredentialUIEntry(origin_url),
-                                    originator_contents->GetWeakPtr());
-  auto* actuation_tab = browser()->tab_strip_model()->GetActiveTab();
-
-  // Setup the `ActorTask` and associate the tab.
-  actor::TaskId task_id = actor_service->CreateTask(
-      actor::TestTaskSourceInfo(), actor::NoEnterprisePolicyChecker());
-  actor::ActorTask* task = actor_service->GetTask(task_id);
-  base::test::TestFuture<actor::mojom::ActionResultPtr> add_tab_future;
-  task->AddTab(actuation_tab->GetHandle(), /*stop_task_on_detach=*/true,
-               add_tab_future.GetCallback());
-  ASSERT_TRUE(add_tab_future.Wait());
-
-  actor_service->NotifyTaskStateChanged(*task);
-  EXPECT_TRUE(base::test::RunUntil([&]() {
-    return browser()->tab_strip_model()->GetActiveTab() == actuation_tab;
-  }));
-  // Simulate the `ExecutionEngine` needing a credential.
-  std::vector<actor_login::Credential> credentials;
-
-  // Wrong credential
-  actor_login::Credential wrong_user;
-  wrong_user.username = u"wrong_user";
-  wrong_user.source_site_or_app = base::UTF8ToUTF16(origin_url.spec());
-  credentials.push_back(wrong_user);
-
-  // Correct credential
-  actor_login::Credential correct_user;
-  correct_user.username = base::UTF8ToUTF16(username);
-  correct_user.source_site_or_app = base::UTF8ToUTF16(origin_url.spec());
-  credentials.push_back(correct_user);
-
-  base::test::TestFuture<actor::webui::mojom::SelectCredentialDialogResponsePtr>
-      selection_future;
-
-  task->GetExecutionEngine().PromptToSelectCredential(
-      credentials, /*icons=*/{}, selection_future.GetCallback());
-
-  auto response = selection_future.Take();
-  ASSERT_TRUE(response->selected_credential_id.has_value());
-  EXPECT_EQ(response->selected_credential_id.value(), correct_user.id.value());
-  EXPECT_EQ(response->permission_duration,
-            actor::webui::mojom::UserGrantedPermissionDuration::kOneTime);
-
-  actor_service->StopTask(task_id,
-                          actor::ActorTask::StoppedReason::kTaskComplete);
 }
 
 IN_PROC_BROWSER_TEST_F(PasswordChangeFromCheckupDelegateBrowserTest,

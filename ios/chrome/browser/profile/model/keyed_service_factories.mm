@@ -102,6 +102,7 @@
 #import "ios/chrome/browser/language/model/url_language_histogram_factory.h"
 #import "ios/chrome/browser/language_detection/model/language_detection_model_loader_service_ios_factory.h"
 #import "ios/chrome/browser/language_detection/model/language_detection_model_service_factory.h"
+#import "ios/chrome/browser/level_up/model/level_up_service_factory.h"
 #import "ios/chrome/browser/mailto_handler/model/mailto_handler_service_factory.h"
 #import "ios/chrome/browser/metrics/model/bookmark_model_metrics_service_factory.h"
 #import "ios/chrome/browser/metrics/model/google_groups_manager_factory.h"
@@ -179,6 +180,7 @@
 #import "ios/chrome/browser/signin/model/signin_metrics_service_factory.h"
 #import "ios/chrome/browser/signin/model/signin_profile_info_updater_factory.h"
 #import "ios/chrome/browser/signin/model/trusted_vault/trusted_vault_client_backend_factory.h"
+#import "ios/chrome/browser/subscription_eligibility/model/subscription_eligibility_service_factory.h"
 #import "ios/chrome/browser/supervised_user/model/child_account_service_factory.h"
 #import "ios/chrome/browser/supervised_user/model/family_link_settings_service_factory.h"
 #import "ios/chrome/browser/supervised_user/model/list_family_members_service_factory.h"
@@ -325,6 +327,7 @@ void EnsureProfileKeyedServiceFactoriesBuilt() {
   HomeBackgroundCustomizationServiceFactory::GetInstance();
   HomeBackgroundImageServiceFactory::GetInstance();
   NtpBackgroundServiceFactory::GetInstance();
+  LevelUpServiceFactory::GetInstance();
   HttpsUpgradeServiceFactory::GetInstance();
   IdentityManagerFactory::GetInstance();
   ImageFetcherServiceFactory::GetInstance();
@@ -405,6 +408,7 @@ void EnsureProfileKeyedServiceFactoriesBuilt() {
   SigninProfileInfoUpdaterFactory::GetInstance();
   SupervisedUserMetricsServiceFactory::GetInstance();
   SupervisedUserServiceFactory::GetInstance();
+  SubscriptionEligibilityServiceFactory::GetInstance();
   SyncInvalidationsServiceFactory::GetInstance();
   SyncServiceFactory::GetInstance();
   TabGroupServiceFactory::GetInstance();

@@ -5,19 +5,30 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_FOUNDATIONS_AUTOFILL_DRIVER_ROUTER_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_FOUNDATIONS_AUTOFILL_DRIVER_ROUTER_H_
 
+#include <stddef.h>
+
 #include <optional>
 #include <string>
+#include <vector>
 
+#include "base/containers/flat_set.h"
+#include "base/containers/span.h"
+#include "base/functional/bind_internal.h"
+#include "base/functional/callback_forward.h"
+#include "base/task/sequenced_task_runner.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/foundations/autofill_driver.h"
 #include "components/autofill/core/browser/foundations/form_forest.h"
+#include "components/autofill/core/common/aliases.h"
 #include "components/autofill/core/common/form_data.h"
 #include "components/autofill/core/common/form_data_predictions.h"
 #include "components/autofill/core/common/form_field_data.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
 #include "components/autofill/core/common/password_form_fill_data.h"
+#include "components/autofill/core/common/unique_ids.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
-#include "ui/gfx/geometry/rect_f.h"
+#include "ui/gfx/geometry/rect.h"
+#include "url/origin.h"
 
 namespace autofill {
 
@@ -186,11 +197,11 @@ class AutofillDriverRouter {
       RoutedCallback<> focus_no_longer_on_form);
   // This event is broadcast to all drivers.
   void FocusOnNonFormField(RoutedCallback<> callback, AutofillDriver& source);
-  void FormsSeen(RoutedCallback<const std::vector<FormData>&,
-                                const std::vector<FormGlobalId>&> callback,
-                 AutofillDriver& source,
-                 std::vector<FormData> updated_forms,
-                 const std::vector<FormGlobalId>& removed_forms);
+  void FormsSeen(
+      RoutedCallback<std::vector<FormData>, std::vector<FormGlobalId>> callback,
+      AutofillDriver& source,
+      std::vector<FormData> renderer_forms,
+      std::vector<FormGlobalId> removed_forms);
   void FormSubmitted(
       RoutedCallback<const FormData&, mojom::SubmissionSource> callback,
       AutofillDriver& source,
@@ -261,10 +272,10 @@ class AutofillDriverRouter {
       const url::Origin& main_origin,
       const url::Origin& triggered_origin,
       const absl::flat_hash_map<FieldGlobalId, FieldType>& field_type_map);
-  void DispatchEmailVerifiedEvent(
+  void SendEmailVerificationToken(
       RoutedCallback<FieldRendererId, const std::string&> callback,
       const FieldGlobalId& field_id,
-      const std::string& presentation_token);
+      const std::string& token);
   void ExposeDomNodeIdsInAllFrames(RoutedCallback<> callback);
   using BrowserFormHandler = AutofillDriver::BrowserFormHandler;
   using RendererFormHandler =

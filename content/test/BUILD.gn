@@ -208,8 +208,6 @@ static_library("test_support") {
     "../public/test/background_color_change_waiter.h",
     "../public/test/background_sync_test_util.cc",
     "../public/test/background_sync_test_util.h",
-    "../public/test/background_tracing_test_support.cc",
-    "../public/test/background_tracing_test_support.h",
     "../public/test/blink_test_environment.cc",
     "../public/test/blink_test_environment.h",
     "../public/test/bluetooth_test_utils.cc",
@@ -340,6 +338,8 @@ static_library("test_support") {
     "../public/test/prerender_test_util.h",
     "../public/test/privacy_sandbox_coordinator_test_util.cc",
     "../public/test/privacy_sandbox_coordinator_test_util.h",
+    "../public/test/pwn_open_url_helper.cc",
+    "../public/test/pwn_open_url_helper.h",
     "../public/test/render_frame_host_test_support.cc",
     "../public/test/render_frame_host_test_support.h",
     "../public/test/render_view_test.cc",
@@ -657,6 +657,7 @@ static_library("test_support") {
     "//services/device/public/mojom:usb",
     "//services/device/time_zone_monitor:test_support",
     "//services/metrics/public/cpp:metrics_cpp",
+    "//services/tracing/public/cpp/background_tracing",
     "//storage/browser/quota:mojo_bindings",
 
     # TODO(jam): remove this by adding a public header for the NetworkContext
@@ -1577,6 +1578,7 @@ test("content_browsertests") {
     "../browser/file_system_access/file_system_access_file_writer_impl_browsertest.cc",
     "../browser/file_system_access/file_system_access_handle_impl_browsertest_util.cc",
     "../browser/file_system_access/file_system_access_handle_impl_browsertest_util.h",
+    "../browser/file_system_access/file_system_access_sync_access_handle_browsertest.cc",
     "../browser/file_system_access/file_system_chooser_browsertest.cc",
     "../browser/find_request_manager_browsertest.cc",
     "../browser/first_party_sets/first_party_sets_handler_impl_browsertest.cc",
@@ -1589,6 +1591,7 @@ test("content_browsertests") {
     "../browser/gpu/gpu_host_impl_persistent_cache_browsertest.cc",
     "../browser/gpu/gpu_ipc_browsertest.cc",
     "../browser/gpu/in_process_gpu_thread_browsertest.cc",
+    "../browser/gpu/initial_gpu_channel_browsertest.cc",
     "../browser/gpu/peak_gpu_memory_tracker_impl_browsertest.cc",
     "../browser/host_zoom_map_impl_browsertest.cc",
     "../browser/indexed_db/indexed_db_browsertest.cc",
@@ -1737,6 +1740,7 @@ test("content_browsertests") {
     "../browser/renderer_host/spare_render_process_host_manager_browsertest.cc",
     "../browser/renderer_host/speculative_render_view_host_browsertest.cc",
     "../browser/renderer_host/unassigned_site_instance_browsertest.cc",
+    "../browser/renderer_host/unbounded_element_browsertest.cc",
     "../browser/renderer_host/view_transition_browsertest.cc",
     "../browser/resource_loading_browsertest.cc",
     "../browser/screen_details/screen_details_browsertest.cc",
@@ -1951,6 +1955,7 @@ test("content_browsertests") {
     "//components/favicon/content",
     "//components/history/core/browser:features",
     "//components/input",
+    "//components/language_detection/content/common",
     "//components/metrics/dwa:dwa_builders",
     "//components/metrics/private_metrics",
     "//components/network_session_configurator/common",
@@ -2680,6 +2685,7 @@ test("content_unittests") {
     "../browser/devtools/devtools_background_services_context_impl_unittest.cc",
     "../browser/devtools/devtools_frontend_host_impl_unittest.cc",
     "../browser/devtools/devtools_http_handler_unittest.cc",
+    "../browser/devtools/devtools_session_unittest.cc",
     "../browser/devtools/devtools_video_consumer_unittest.cc",
     "../browser/devtools/protocol/tracing_handler_unittest.cc",
     "../browser/devtools/protocol_unittest.cc",
@@ -3016,7 +3022,6 @@ test("content_unittests") {
     "../browser/storage_partition_config_unittest.cc",
     "../browser/storage_partition_impl_map_unittest.cc",
     "../browser/storage_partition_impl_unittest.cc",
-    "../browser/tracing/background_tracing_manager_unittest.cc",
     "../browser/tracing/traces_internals/traces_internals_handler_unittest.cc",
     "../browser/url_loader_factory_params_helper_unittest.cc",
     "../browser/usb/web_usb_service_impl_unittest.cc",
@@ -3126,6 +3131,7 @@ test("content_unittests") {
     "../common/memory_coordinator/mojom/memory_consumer_traits_unittest.cc",
     "../common/pseudonymization_salt_unittest.cc",
     "../common/scheduler_loop_quarantine_task_observer_unittest.cc",
+    "../common/service_worker/forwarded_race_network_request_url_loader_factory_unittest.cc",
     "../common/service_worker/race_network_request_read_buffer_manager_unittest.cc",
     "../common/service_worker/race_network_request_simple_buffer_manager_unittest.cc",
     "../common/service_worker/race_network_request_url_loader_client_unittest.cc",
@@ -3195,6 +3201,7 @@ test("content_unittests") {
       "../browser/date_time_chooser/ios/date_time_chooser_util_unittest.mm",
       "../browser/renderer_host/ios_extended_text_input_traits_unittest.mm",
       "../browser/renderer_host/render_widget_host_view_ios_uiview_unittest.mm",
+      "../browser/renderer_host/render_widget_host_view_ios_unittest.mm",
     ]
   }
 
@@ -3728,6 +3735,7 @@ test("content_unittests") {
         "../browser/speech/speech_recognition_manager_impl_unittest.cc",
       ]
       deps += [
+        "//components/optimization_guide/core:ondevice",
         "//components/soda:constants",
         "//components/soda:utils",
         "//media/mojo/mojom:speech_recognition",

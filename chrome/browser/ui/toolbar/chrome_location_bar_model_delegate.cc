@@ -37,6 +37,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
 #include "extensions/common/constants.h"
+#include "ui/base/ui_base_features.h"
 #include "url/gurl.h"
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -126,10 +127,15 @@ bool ChromeLocationBarModelDelegate::ShouldDisplayURL() const {
   };
 
   GURL url = entry->GetURL();
-  if (is_ntp(entry->GetVirtualURL()) || is_ntp(url) ||
-      IsContextualTasksPage()) {
+  if (is_ntp(entry->GetVirtualURL()) || is_ntp(url)) {
     return false;
   }
+
+#if !BUILDFLAG(IS_ANDROID)
+  if (IsContextualTasksPage()) {
+    return false;
+  }
+#endif
 
   Profile* profile = GetProfile();
   return !profile || !search::IsInstantNTPURL(url, profile);
@@ -190,11 +196,13 @@ const gfx::VectorIcon* ChromeLocationBarModelDelegate::GetVectorIconOverride()
   }
 
   if (url.SchemeIs(content::kChromeUIScheme)) {
-    return &omnibox::kProductChromeRefreshIcon;
+    return &(features::IsRoundedIconsEnabled()
+                 ? omnibox::kChromeProductIcon
+                 : omnibox::kProductChromeRefreshOldIcon);
   }
 
   if (url.SchemeIs(extensions::kExtensionScheme)) {
-    return &vector_icons::kExtensionChromeRefreshIcon;
+    return &vector_icons::kExtensionChromeRefreshOldIcon;
   }
 #endif
 

@@ -99,7 +99,7 @@ BASE_FEATURE_PARAM(int,
                    "ring-size",
                    partition_alloc::internal::SlotSpanRingMaxSize::kMedium);
 
-BASE_FEATURE(kPartitionAllocWithAdvancedChecks, FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kPartitionAllocWithAdvancedChecks, FEATURE_ENABLED_BY_DEFAULT);
 constexpr FeatureParam<PartitionAllocWithAdvancedChecksEnabledProcesses>::Option
     kPartitionAllocWithAdvancedChecksEnabledProcessesOptions[] = {
         {PartitionAllocWithAdvancedChecksEnabledProcesses::kBrowserOnly,
@@ -121,14 +121,34 @@ constinit const FeatureParam<PartitionAllocWithAdvancedChecksEnabledProcesses>
         PartitionAllocWithAdvancedChecksEnabledProcesses::kBrowserOnly,
         &kPartitionAllocWithAdvancedChecksEnabledProcessesOptions};
 
+// Enabled-by-default. Without proper
+// `PartitionAllocSchedulerLoopQuarantineConfig` configuration, the feature
+// remains effectively disabled.
 BASE_FEATURE(kPartitionAllocSchedulerLoopQuarantine,
-             FEATURE_DISABLED_BY_DEFAULT);
+             FEATURE_ENABLED_BY_DEFAULT);
 // Scheduler Loop Quarantine's config.
 // Note: Do not use the prepared macro as of no need for a local cache.
 constinit const FeatureParam<std::string>
     kPartitionAllocSchedulerLoopQuarantineConfig{
         &kPartitionAllocSchedulerLoopQuarantine,
-        "PartitionAllocSchedulerLoopQuarantineConfig", "{}"};
+        "PartitionAllocSchedulerLoopQuarantineConfig",
+        R"({
+          "browser":{
+            "main":{
+              "branch-capacity-in-bytes":524288,
+              "enable-quarantine":true,
+              "enable-zapping":true,
+              "leak-on-destruction":false
+            },
+            "amsc":{
+              "branch-capacity-in-bytes":524288,
+              "enable-quarantine":true,
+              "enable-zapping":true,
+              "leak-on-destruction":false,
+              "max-quarantine-size":null
+            }
+          }
+        })"};
 
 BASE_FEATURE(kPartitionAllocSchedulerLoopQuarantineTaskControlledPurge,
              FEATURE_DISABLED_BY_DEFAULT);
@@ -413,14 +433,9 @@ BASE_FEATURE(kPartitionAllocUsePriorityInheritanceLocks,
              FEATURE_DISABLED_BY_DEFAULT);
 #endif  // PA_BUILDFLAG(ENABLE_PARTITION_LOCK_PRIORITY_INHERITANCE)
 
-// This feature is disabled on ChromeOS because of https://crbug.com/495493036.
-BASE_FEATURE(kPartitionAllocFreeWithSize,
-#if BUILDFLAG(IS_CHROMEOS)
-             FEATURE_DISABLED_BY_DEFAULT
-#else
-             FEATURE_ENABLED_BY_DEFAULT
-#endif
-);
+// Note: There are two ChromeOS platforms (OVIS & REX) that are disabled for
+// this feature because of https://crbug.com/495493036.
+BASE_FEATURE(kPartitionAllocFreeWithSize, FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(bool,
                    kPartitionAllocStrictFreeSizeCheck,
                    &kPartitionAllocFreeWithSize,

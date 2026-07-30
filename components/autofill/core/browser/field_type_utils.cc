@@ -4,11 +4,17 @@
 
 #include "components/autofill/core/browser/field_type_utils.h"
 
+#include <stddef.h>
+
+#include <optional>
+
 #include "base/check.h"
+#include "base/check_op.h"
 #include "base/containers/fixed_flat_map.h"
 #include "base/notreached.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/autofill_type.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/field_types.h"
 
 namespace autofill {
@@ -338,6 +344,11 @@ bool IsAffixFormatStringEnabledForType(FieldType type) {
       return true;
   }
   NOTREACHED();
+}
+
+bool IsAffixFormatStringEnabledForType(AttributeType type) {
+  std::optional<FieldType> field_type = type.field_type();
+  return field_type && IsAffixFormatStringEnabledForType(*field_type);
 }
 
 }  // namespace autofill

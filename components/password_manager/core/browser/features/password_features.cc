@@ -32,7 +32,7 @@ BASE_FEATURE(kActorLoginQualityLogs, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kAndroidSmsOtpFilling, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAndroidSmsOtpFilling, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 BASE_FEATURE(kApplyClientsideModelPredictionsForPasswordTypes,
@@ -53,9 +53,9 @@ const base::FeatureParam<base::TimeDelta> kAwaitPageStabilityTimeout = {
 
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
-BASE_FEATURE(kRetryCapturePageContent, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kRetryCapturePageContent, base::FEATURE_ENABLED_BY_DEFAULT);
 const base::FeatureParam<base::TimeDelta> kCapturePageContentDelay = {
-    &kRetryCapturePageContent, "retry_capture_delay", base::Seconds(0)};
+    &kRetryCapturePageContent, "retry_capture_delay", base::Milliseconds(500)};
 const base::FeatureParam<int> kCapturePageContentRetryCount = {
     &kRetryCapturePageContent, "retry_count", 3};
 
@@ -112,9 +112,6 @@ BASE_FEATURE(kFetchChangePasswordUrlForPasswordChange,
 #endif
 );
 
-BASE_FEATURE(kFillChangePasswordFormByTyping,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kFillOnAccountSelect,
              "fill-on-account-select",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -150,7 +147,12 @@ BASE_FEATURE(kOtpPhishGuard, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kPasswordDateLastFilled, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kPasswordFormClientsideClassifier,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 BASE_FEATURE(kPasswordFormGroupedAffiliations,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -165,9 +167,6 @@ BASE_FEATURE(kPreventAPCOnFederatedLogin, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kPasswordStorePropagatesActionableErrors,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kProactivelyDownloadModelForPasswordChange,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kPasswordCheckupPrototype, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
@@ -178,9 +177,6 @@ BASE_FEATURE(kRestartToGainAccessToKeychain,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-
-BASE_FEATURE(kRunPasswordChangeInBackgroundTab,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kShowTabWithPasswordChangeOnSuccess,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -198,8 +194,6 @@ BASE_FEATURE(kTriggerPasswordResyncWhenUndecryptablePasswordsDetected,
 
 BASE_FEATURE(kUseDetachedWidget, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kUserInterventionForPasswordChange,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)  // Desktop
 

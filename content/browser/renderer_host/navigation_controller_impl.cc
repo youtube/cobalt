@@ -878,7 +878,7 @@ NavigationControllerImpl::NavigationControllerImpl(
       delegate_(delegate),
       ssl_manager_(this),
       get_timestamp_callback_(base::BindRepeating(&base::Time::Now)),
-      back_forward_cache_(browser_context) {
+      back_forward_cache_(*this) {
   DCHECK(browser_context_);
 }
 
@@ -1110,6 +1110,9 @@ void NavigationControllerImpl::SetPendingEntry(
   DiscardNonCommittedEntries();
   pending_entry_ = entry.release();
   DCHECK_EQ(-1, pending_entry_index_);
+  if (delegate_ && pending_entry_->is_renderer_initiated()) {
+    delegate_->NotifyNavigationStateChangedFromController(INVALIDATE_TYPE_URL);
+  }
 }
 
 NavigationEntryImpl* NavigationControllerImpl::GetActiveEntry() {
@@ -4229,7 +4232,6 @@ base::WeakPtr<NavigationHandle> NavigationControllerImpl::NavigateWithoutEntry(
         CreateNavigationEntryFromLoadParams(node, params, override_user_agent,
                                             should_replace_current_entry,
                                             params.has_user_gesture);
-    DiscardPendingEntry(false);
     SetPendingEntry(std::move(entry));
   }
 
@@ -4507,7 +4509,7 @@ NavigationControllerImpl::CreateNavigationEntryFromLoadParams(
   // started_from_context_menu. Move started_from_context_menu to
   // NavigationUIData.
   entry->set_started_from_context_menu(params.started_from_context_menu);
-  entry->set_remove_extra_headers_on_cross_origin_redirect(
+  entry->SetRemoveExtraHeadersOnCrossOriginRedirect(
       params.remove_extra_headers_on_cross_origin_redirect);
 
   return entry;
@@ -4889,7 +4891,7 @@ NavigationControllerImpl::CreateNavigationRequestFromEntry(
       false /* is_pdf */);
 
   request->set_remove_extra_headers_on_cross_origin_redirect(
-      entry->remove_extra_headers_on_cross_origin_redirect());
+      entry->GetRemoveExtraHeadersOnCrossOriginRedirect());
   return request;
 }
 

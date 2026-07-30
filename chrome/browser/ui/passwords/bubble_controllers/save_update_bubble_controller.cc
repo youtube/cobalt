@@ -6,8 +6,11 @@
 
 #include <algorithm>
 
+#include "base/check.h"
+#include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/strings/utf_ostream_operators.h"
 #include "base/time/default_clock.h"
 #include "chrome/browser/password_manager/factories/password_counter_factory.h"
 #include "chrome/browser/password_manager/factories/profile_password_store_factory.h"

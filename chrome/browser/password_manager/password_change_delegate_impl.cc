@@ -140,15 +140,6 @@ void AddPasswordChangeToTabStrip(
                                      /*foreground=*/true);
 }
 
-void FocusPasswordChangeTab(content::WebContents* executor) {
-  auto* tab_interface = tabs::TabInterface::GetFromContents(executor);
-  TabStripModel* tab_strip_model =
-      tab_interface->GetBrowserWindowInterface()->GetTabStripModel();
-  int index = tab_strip_model->GetIndexOfWebContents(executor);
-  CHECK(index != TabStripModel::kNoTab);
-  tab_strip_model->ActivateTabAt(index);
-}
-
 PasswordChangeDelegate::CoarseFinalPasswordChangeState GetCoarseState(
     PasswordChangeDelegate::State state) {
   switch (state) {
@@ -233,7 +224,8 @@ PasswordChangeDelegateImpl::PasswordChangeDelegateImpl(
   // Don't show the dialog and don't start the flow if user navigates to a
   // different site instead of entering the OTP.
   navigation_observer_ = std::make_unique<CrossOriginNavigationObserver>(
-      originator_.get(), AffiliationServiceFactory::GetForProfile(profile_),
+      originator_.get(), originator_->GetURL(),
+      AffiliationServiceFactory::GetForProfile(profile_),
       base::BindOnce(
           &PasswordChangeDelegateImpl::OnCrossOriginNavigationDetected,
           weak_ptr_factory_.GetWeakPtr()));
@@ -317,8 +309,7 @@ PasswordChangeDelegateImpl::~PasswordChangeDelegateImpl() {
 }
 
 content::WebContents* PasswordChangeDelegateImpl::executor() const {
-  return hidden_executor_ ? hidden_executor_->GetWebContents()
-                          : visible_executor_.get();
+  return hidden_executor_ ? hidden_executor_->GetWebContents() : nullptr;
 }
 
 void PasswordChangeDelegateImpl::StartPasswordChangeFlow() {
@@ -341,12 +332,8 @@ void PasswordChangeDelegateImpl::StartPasswordChangeFlow() {
   // a local ML model for field classification.
   // TODO(452883239): Clean this up when model is downloaded on start-up for
   // everybody.
-  if (base::FeatureList::IsEnabled(
-          password_manager::features::
-              kProactivelyDownloadModelForPasswordChange)) {
-    PasswordFieldClassificationModelHandlerFactory::GetForBrowserContext(
-        originator_->GetBrowserContext());
-  }
+  PasswordFieldClassificationModelHandlerFactory::GetForBrowserContext(
+      originator_->GetBrowserContext());
 }
 
 void PasswordChangeDelegateImpl::OnLoginStateCheckResult(
@@ -434,7 +421,6 @@ void PasswordChangeDelegateImpl::OnTabWillDetach(
     // Reset pointers immediately to avoid keeping dangling pointer to the tab.
     ResetInternalState();
     originator_ = nullptr;
-    visible_executor_ = nullptr;
     hidden_executor_.reset();
     ui_controller_.reset();
     Stop();
@@ -458,18 +444,6 @@ void PasswordChangeDelegateImpl::Stop() {
 }
 
 
-void PasswordChangeDelegateImpl::OnOtpFieldDetected() {
-  if (auto logger = GetLoggerIfAvailable(executor())) {
-    logger->LogMessage(BrowserSavePasswordProgressLogger::
-                           STRING_AUTOMATED_PASSWORD_CHANGE_OTP_DETECTED);
-  }
-  ReportFlowInterruption(
-      QualityStatus::
-          PasswordChangeQuality_StepQuality_SubmissionStatus_OTP_DETECTED);
-
-  ResetInternalState();
-  UpdateState(State::kOtpDetected);
-}
 
 void PasswordChangeDelegateImpl::OpenPasswordChangeTab() {
   content::WebContents* web_contents = executor();
@@ -481,17 +455,13 @@ void PasswordChangeDelegateImpl::OpenPasswordChangeTab() {
                                /* is_renderer_initiated= */ false),
         /*navigation_handle_callback=*/{});
     CHECK(web_contents);
-  } else if (!visible_executor_) {
+  } else {
     AddPasswordChangeToTabStrip(
         originator_,
         DetachedWebContents::ReleaseWebContents(std::move(hidden_executor_)));
-  } else {
-    FocusPasswordChangeTab(web_contents);
   }
 
   if (current_state_ == State::kOtpDetected && form_manager_) {
-    CHECK(base::FeatureList::IsEnabled(
-        password_manager::features::kUserInterventionForPasswordChange));
     // If user decided to take over control when interruption is detected we
     // assume they will complete the password change process, thus the new
     // password must be saved.
@@ -572,15 +542,7 @@ void PasswordChangeDelegateImpl::ProceedToChangePassword() {
   login_state_checker_.reset();
   UpdateState(State::kWaitingForChangePasswordForm);
 
-  if (base::FeatureList::IsEnabled(
-          password_manager::features::kRunPasswordChangeInBackgroundTab)) {
-    visible_executor_ = originator_->OpenURL(
-        content::OpenURLParams(GURL(change_password_url_), content::Referrer(),
-                               WindowOpenDisposition::NEW_BACKGROUND_TAB,
-                               ui::PAGE_TRANSITION_LINK,
-                               /*is_renderer_initiated=*/false),
-        /*navigation_handle_callback=*/{});
-  } else if (!hidden_executor_) {
+  if (!hidden_executor_) {
     hidden_executor_ =
         CreateDetachedWebContents(profile_, change_password_url_);
   }
@@ -588,7 +550,8 @@ void PasswordChangeDelegateImpl::ProceedToChangePassword() {
   auto* client = ChromePasswordManagerClient::FromWebContents(executor());
 
   navigation_observer_ = std::make_unique<CrossOriginNavigationObserver>(
-      executor(), AffiliationServiceFactory::GetForProfile(profile_),
+      executor(), change_password_url_,
+      AffiliationServiceFactory::GetForProfile(profile_),
       base::BindOnce(
           &PasswordChangeDelegateImpl::OnCrossOriginNavigationDetected,
           weak_ptr_factory_.GetWeakPtr()));
@@ -599,22 +562,6 @@ void PasswordChangeDelegateImpl::ProceedToChangePassword() {
       base::BindOnce(&PasswordChangeDelegateImpl::OnPasswordChangeFormNotFound,
                      weak_ptr_factory_.GetWeakPtr()));
 
-  // When interruptions (including OTPs) are detected on a server there is no
-  // need to use local ML model for OTP detection.
-  if (!base::FeatureList::IsEnabled(
-          password_manager::features::kUserInterventionForPasswordChange)) {
-    // Even though the user is assumed to be fully signed in by this point in
-    // time, they may still see an OTP during the password change flow, so watch
-    // for this.
-    autofill::ContentAutofillClient* autofill_client =
-        autofill::ContentAutofillClient::FromWebContents(executor());
-    autofill::OtpFieldDetector* otp_field_detector =
-        autofill_client->GetOtpFieldDetector();
-    otp_fields_detected_subscription_ =
-        otp_field_detector->RegisterOtpFieldsDetectedCallback(
-            base::BindRepeating(&PasswordChangeDelegateImpl::OnOtpFieldDetected,
-                                weak_ptr_factory_.GetWeakPtr()));
-  }
 }
 
 void PasswordChangeDelegateImpl::UpdateState(State new_state) {
@@ -801,5 +748,5 @@ void PasswordChangeDelegateImpl::ResetInternalState() {
   form_submission_helper_.reset();
   submission_verifier_.reset();
   form_manager_.reset();
-  otp_fields_detected_subscription_ = {};
+  otp_fields_submitted_subscription_ = {};
 }

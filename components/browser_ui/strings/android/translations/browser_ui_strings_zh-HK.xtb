@@ -5,7 +5,6 @@
 <translation id="1036348656032585052">停用</translation>
 <translation id="1046742265332833834">藍色主題</translation>
 <translation id="1070329623210597193">此網站可以查看或編輯的檔案</translation>
-<translation id="1073417869336441572">請說明你允許使用第三方 Cookie 的原因，協助我們改善 Chrome。<ph name="BEGIN_LINK" />傳送意見<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">你可要求查看桌面版網站</translation>
 <translation id="1109482864356262001">需要動作或光線感應器的功能將無法運作</translation>
 <translation id="1126523729897810826">完成下列建議操作，充分運用 Chrome 的各項功能</translation>
@@ -21,6 +20,7 @@
 <translation id="1240190568154816272">Chrome 提示</translation>
 <translation id="1242008676835033345">嵌入至 <ph name="WEBSITE_URL" /></translation>
 <translation id="1263609676484797429">輕按 [應用程式] &gt; [預設應用程式]</translation>
+<translation id="1264694639515903274">你現可自訂首頁</translation>
 <translation id="1272079795634619415">停止</translation>
 <translation id="1275718070701477396">已選取</translation>
 <translation id="1289742167380433257">Google 已優化此網頁的圖片，以節省數據用量。</translation>
@@ -90,6 +90,7 @@
 <translation id="1915307458270490472">結束通話</translation>
 <translation id="1919950603503897840">選取聯絡人</translation>
 <translation id="1923695749281512248">已下載：<ph name="BYTES_DOWNLOADED_WITH_UNITS" />，總大小：<ph name="FILE_SIZE_WITH_UNITS" /></translation>
+<translation id="192926679114491605">自訂首頁</translation>
 <translation id="1939059826036755332">自動顯示畫中畫</translation>
 <translation id="1954597385941141174">網站可要求連接 USB 裝置</translation>
 <translation id="1979673356880165407">在您瀏覽的所有網站上縮放文字和圖片</translation>
@@ -286,6 +287,7 @@
 <translation id="3843916486309149084">Chrome 將於今天再次封鎖 Cookie</translation>
 <translation id="385051799172605136">返回</translation>
 <translation id="3859306556332390985">向前快轉</translation>
+<translation id="3870711497942672548">換上喜歡的首頁顏色和圖片，建立專屬 Chrome 瀏覽器</translation>
 <translation id="389521680295183045">網站可以要求偵測您使用裝置的時間</translation>
 <translation id="3895926599014793903">強制啟用縮放功能</translation>
 <translation id="3903738175795615004">從頂部拖曳或按 Esc 鍵以退出全螢幕。</translation>
@@ -328,7 +330,9 @@
 <translation id="4290791284969893584">關閉網頁後，您已開始的工作可能無法完成</translation>
 <translation id="429312253194641664">網站正在播放媒體</translation>
 <translation id="42981349822642051">展開</translation>
+<translation id="4310738531374808763">自訂首頁</translation>
 <translation id="4336219115486912529">{COUNT,plural, =1{明天到期}other{# 天後到期}}</translation>
+<translation id="4336371609622603229">選擇自訂主題，建立你的專屬 Chrome</translation>
 <translation id="4338831206024587507"><ph name="DOMAIN" /> 下的所有網站</translation>
 <translation id="4340799661701629185">不允許網站傳送通知</translation>
 <translation id="4341577178275615435">如要開啟或關閉「鍵盤瀏覽」功能，請使用快速鍵 F7</translation>
@@ -440,7 +444,6 @@
 <translation id="5555115555607204100">不使用 Chrome 的 V8 引擎加快網站速度，但 Chrome 防攻擊的能力會略為上升</translation>
 <translation id="5556459405103347317">重新載入</translation>
 <translation id="5591840828808741583">已封鎖 <ph name="SITE_NAME" /></translation>
-<translation id="560980142378233747">這代表網站功能應可正常運作，但瀏覽保護程度會降低。<ph name="BEGIN_LINK" />傳送意見<ph name="END_LINK" /></translation>
 <translation id="5617702678271228680">新分頁資訊卡頁底面板</translation>
 <translation id="5621413808884657932">開咗之後，網站可以要求存取呢部裝置上嘅其他應用程式同服務。閂咗之後，網站唔可以存取呢部裝置上嘅其他應用程式同服務。</translation>
 <translation id="5632485077360054581">顯示方法</translation>
@@ -519,6 +522,7 @@
 <translation id="6262279340360821358">已封鎖「<ph name="PERMISSION_1" />」和「<ph name="PERMISSION_2" />」</translation>
 <translation id="6270391203985052864">網站將可以要求向您傳送通知</translation>
 <translation id="6295158916970320988">所有網站</translation>
+<translation id="6305257382500066042">立即試用</translation>
 <translation id="6320088164292336938">震動</translation>
 <translation id="6367753977865761591">禁止特定網站使用第三方登入功能。</translation>
 <translation id="6398765197997659313">退出全螢幕模式</translation>
@@ -529,7 +533,6 @@
 <translation id="6447842834002726250">Cookie</translation>
 <translation id="6452138246455930388">開咗嘅分頁有商品減價，由 <ph name="OLD_PRICE" /> 減到 <ph name="NEW_PRICE" />，<ph name="PRODUCT_NAME" />，<ph name="DOMAIN_NAME" /></translation>
 <translation id="6500423977866688905">視窗縮小時要求使用流動裝置檢視模式</translation>
-<translation id="6514791408445720076">自訂頁面</translation>
 <translation id="6527303717912515753">分享</translation>
 <translation id="6530703012083415527">開咗之後，網站可以使用彈出式視窗同重新導向。閂咗之後，網站唔可以使用彈出式視窗同重新導向。</translation>
 <translation id="6540488083026747005">你已允許此網站使用第三方 Cookie</translation>
@@ -593,7 +596,6 @@
 <translation id="7141896414559753902">禁止網站顯示彈出式視窗和重新導向 (建議)</translation>
 <translation id="7176368934862295254"><ph name="KILOBYTES" /> KB</translation>
 <translation id="7180611975245234373">重新整理</translation>
-<translation id="7180865173735832675">自訂</translation>
 <translation id="7188508872042490670">裝置上的網站資料</translation>
 <translation id="7201549776650881587">此操作會刪除 <ph name="ORIGIN" /> 底下所有網站或該網站在主畫面上的應用程式儲存的所有資料和 Cookie</translation>
 <translation id="7219254577985949841">要刪除網站資料嗎？</translation>
@@ -707,7 +709,6 @@
 <translation id="83792324527827022">有網站正在使用您的相機和麥克風</translation>
 <translation id="8380167699614421159">此網站顯示滋擾性或誤導廣告</translation>
 <translation id="8394832520002899662">輕按即可返回網站</translation>
-<translation id="8404500559369898929">選擇自訂背景主題，建立你的專屬 Chrome</translation>
 <translation id="8409345997656833551">在文章能以簡化檢視模式顯示時接收通知</translation>
 <translation id="8416874502399604126">呢次批准用咪</translation>
 <translation id="8423565414844018592">文字縮放比例已經設定咗做 <ph name="TEXT_SCALING" /></translation>
@@ -753,7 +754,6 @@
 <translation id="8737426583868847403">已儲存自訂縮放等級的網站會在這裡顯示</translation>
 <translation id="8748714929822124637">不允許網站存取區域網絡上的其他裝置</translation>
 <translation id="8751914237388039244">選取圖片</translation>
-<translation id="8775741625735357092">你可以在 [設定] &gt; [外觀] 中開啟書籤列</translation>
 <translation id="8800034312320686233">網站無法正常運作嗎？</translation>
 <translation id="8801436777607969138">封鎖特定網站執行 JavaScript。</translation>
 <translation id="8801657293260363985">V8 是 Chrome 的 JavaScript 和 WebAssembly 引擎，可提升網站效能</translation>

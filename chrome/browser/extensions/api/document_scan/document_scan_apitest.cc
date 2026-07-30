@@ -172,10 +172,10 @@ IN_PROC_BROWSER_TEST_P(DocumentScanApiTest, PerformScan_PermissionAllowed) {
   ScannerDiscoveryRunner::SetDiscoveryConfirmationResultForTesting(true);
   base::AutoReset<std::optional<bool>> testing_scope =
       StartScanRunner::SetStartScanConfirmationResultForTesting(true);
-  AddScanners({CreateTestScannerInfo()});
-  const std::vector<std::string> scan_data = {"img", "data", "img", "data", ""};
-  lorgnette_manager()->ConfigureReadScanDataResponse(
-      lorgnette::OPERATION_RESULT_EOF, scan_data);
+  lorgnette::ScannerInfo scanner_info = CreateTestScannerInfo();
+  AddScanners({scanner_info});
+  lorgnette_manager()->SetDataForFutureScanJobs(
+      scanner_info.name(), {"img", "data", "img", "data", ""});
   RunTest("perform_scan.html");
   // TODO(b/313494616): Load a second extension to verify (lack of)
   // cross-extension handle sharing.
@@ -188,10 +188,10 @@ IN_PROC_BROWSER_TEST_P(DocumentScanApiTest, PerformScan_ExtensionTrusted) {
   ScannerDiscoveryRunner::SetDiscoveryConfirmationResultForTesting(false);
   base::AutoReset<std::optional<bool>> testing_scope =
       StartScanRunner::SetStartScanConfirmationResultForTesting(false);
-  AddScanners({CreateTestScannerInfo()});
-  const std::vector<std::string> scan_data = {"img", "data", "img", "data", ""};
-  lorgnette_manager()->ConfigureReadScanDataResponse(
-      lorgnette::OPERATION_RESULT_EOF, scan_data);
+  lorgnette::ScannerInfo scanner_info = CreateTestScannerInfo();
+  AddScanners({scanner_info});
+  lorgnette_manager()->SetDataForFutureScanJobs(
+      scanner_info.name(), {"img", "data", "img", "data", ""});
   RunTest("perform_scan.html");
 }
 

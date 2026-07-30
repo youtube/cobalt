@@ -234,7 +234,7 @@ void ContextualSearchSessionHandle::StartTabContextUploadFlow(
 
 void ContextualSearchSessionHandle::StartUrlContextUploadFlow(
     const base::UnguessableToken& file_token,
-    const GURL& url) {
+    const std::string& url) {
   // Exit early if the file token is not in the list of uploaded context
   // tokens, i.e. it was deleted before the upload flow could start.
   auto it = std::find(uploaded_context_tokens_.begin(),
@@ -246,7 +246,7 @@ void ContextualSearchSessionHandle::StartUrlContextUploadFlow(
   if (auto* context_controller = GetController()) {
     auto contextual_input_data = std::make_unique<lens::ContextualInputData>();
     contextual_input_data->primary_content_type = lens::MimeType::kUnknown;
-    contextual_input_data->page_url = url;
+    contextual_input_data->parsed_url = url;
     context_controller->StartFileUploadFlow(
         file_token, std::move(contextual_input_data), std::nullopt);
   }
@@ -254,9 +254,7 @@ void ContextualSearchSessionHandle::StartUrlContextUploadFlow(
 
 void ContextualSearchSessionHandle::StartDriveContextUploadFlow(
     const base::UnguessableToken& file_token,
-    const std::string& drive_id,
-    std::optional<std::string> resource_key,
-    const std::string& mime_type_string) {
+    const DriveUploadParams& params) {
   // Exit early if the file token is not in the list of uploaded context
   // tokens, i.e. it was deleted before the upload flow could start.
   auto it = std::find(uploaded_context_tokens_.begin(),
@@ -267,9 +265,11 @@ void ContextualSearchSessionHandle::StartDriveContextUploadFlow(
 
   if (auto* context_controller = GetController()) {
     auto contextual_input_data = std::make_unique<lens::ContextualInputData>();
-    contextual_input_data->drive_id = drive_id;
-    contextual_input_data->resource_key = resource_key;
-    contextual_input_data->mime_type_string = mime_type_string;
+    contextual_input_data->drive_id = params.drive_id;
+    contextual_input_data->resource_key = params.resource_key;
+    contextual_input_data->mime_type_string = params.mime_type;
+    contextual_input_data->file_name = params.file_name;
+    contextual_input_data->page_title = params.file_name;
     contextual_input_data->primary_content_type = lens::MimeType::kUnknown;
     context_controller->StartFileUploadFlow(
         file_token, std::move(contextual_input_data), std::nullopt);

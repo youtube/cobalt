@@ -27,13 +27,14 @@ namespace contextual_tasks {
 // Enables the contextual tasks side panel while browsing.
 BASE_FEATURE(kContextualTasks, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables extra OAuth scopes for contextual tasks.
+BASE_FEATURE(kContextualTasksExtraOauthScopes,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables the pin button in the toolbar for contextual tasks.
 BASE_FEATURE(kEnableContextualTasksPinButtonInToolbar,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables the use of the kSearchResultsOAuth2Scope instead of the
-// kChromeSyncOAuth2Scope.
-BASE_FEATURE(kContextualTasksScopeChange, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables relevant context determination for contextual tasks.
 BASE_FEATURE(kContextualTasksContext, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -127,6 +128,10 @@ BASE_FEATURE(kContextualTasksWebpageApcComparison,
 // based fusebox is fully functional.
 BASE_FEATURE(kContextualTasksJavaFusebox, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables overriding side panel to show Bottom Sheet on demand.
+BASE_FEATURE(kContextualTasksOverrideShowBottomSheetOnLargeScreen,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 bool GetIsContextualTasksUpdateModeOnNavigationEnabled() {
   return base::FeatureList::IsEnabled(kContextualTasksUpdateModelOnNavigation);
 }
@@ -167,6 +172,11 @@ const base::FeatureParam<bool> kContextualTasksEnableCookiePrefetch(
 const base::FeatureParam<bool> kOnlyUseTitlesForSimilarity(
     &kContextualTasksContext,
     "ContextualTasksContextOnlyUseTitles",
+    false);
+
+const base::FeatureParam<bool> kDeduplicateRelevantTabsByUrl(
+    &kContextualTasksContext,
+    "ContextualTasksContextDeduplicateByUrl",
     false);
 
 const base::FeatureParam<double> kTabSelectionScoreThreshold{
@@ -225,7 +235,6 @@ const base::FeatureParam<std::string> kContextualTasksSignInDomains{
 
 constexpr base::FeatureParam<EntryPointOption>::Option kEntryPointOptions[] = {
     {EntryPointOption::kNoEntryPoint, "no-entry-point"},
-    {EntryPointOption::kPageActionRevisit, "page-action-revisit"},
     {EntryPointOption::kToolbarRevisit, "toolbar-revisit"},
     {EntryPointOption::kToolbarPermanent, "toolbar-permanent"},
     {EntryPointOption::kToolbarEphemeralBranded, "toolbar-ephemeral-branded"}};
@@ -268,6 +277,9 @@ const base::FeatureParam<bool> kForceGscInTabMode(
 // Version 2.4: Adds ability to hideInput/restoreInput
 const base::FeatureParam<std::string> kContextualTasksUserAgentSuffix{
     &kContextualTasks, "contextual-tasks-user-agent-suffix", "Cobrowsing/2.4"};
+
+const base::FeatureParam<std::string> kContextualTasksOAuthScopes{
+    &kContextualTasksExtraOauthScopes, "ContextualTasksOAuthScopes", ""};
 
 const base::FeatureParam<std::string> kContextualTasksHelpUrl(
     &kContextualTasks,
@@ -471,10 +483,6 @@ bool GetIsContextualTasksSuggestionsEnabled() {
   return base::FeatureList::IsEnabled(kContextualTasksSuggestionsEnabled);
 }
 
-bool GetIsSmartTabSharingEnabled() {
-  return base::FeatureList::IsEnabled(kContextualTasksContext) &&
-         kContextualTasksContextSmartTabSharing.Get();
-}
 
 base::TimeDelta GetSmartTabSharingTabSelectionTimeout() {
   if (kSmartTabSharingTabSelectionTimeout.Get().is_positive()) {
@@ -536,9 +544,6 @@ bool IsCustomNlmUiEnabled() {
   return base::FeatureList::IsEnabled(kContextualTasksCustomNlmUi);
 }
 
-bool ShouldUseSearchResultsScope() {
-  return base::FeatureList::IsEnabled(kContextualTasksScopeChange);
-}
 
 bool GetIsBasicModeEnabled() {
   return kContextualTasksEnableBasicMode.Get();
@@ -613,6 +618,12 @@ const char kContextualTasksBackButtonExpandsSidePanelName[] =
     "Contextual Tasks Back Button Expands Side Panel";
 const char kContextualTasksBackButtonExpandsSidePanelDescription[] =
     "Enables expanding the side panel on back navigations.";
+
+const char kContextualTasksOverrideShowBottomSheetOnLargeScreenName[] =
+    "Override Show Bottom Sheet On Large Screen for Contextual Tasks";
+const char kContextualTasksOverrideShowBottomSheetOnLargeScreenDescription[] =
+    "Enables overriding side panel to show Bottom Sheet on large screens for "
+    "contextual tasks.";
 
 }  // namespace flag_descriptions
 

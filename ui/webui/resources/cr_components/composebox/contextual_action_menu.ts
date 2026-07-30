@@ -4,6 +4,7 @@
 
 import './icons.html.js';
 import './composebox_tab_favicon.js';
+import './composebox_favicon_group.js';
 import '//resources/cr_elements/icons.html.js';
 import '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import '//resources/cr_elements/cr_icon/cr_icon.js';
@@ -16,7 +17,9 @@ import type {CrToggleElement} from '//resources/cr_elements/cr_toggle/cr_toggle.
 import {I18nMixinLit} from '//resources/cr_elements/i18n_mixin_lit.js';
 import {assert} from '//resources/js/assert.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
+import {PluralStringProxyImpl} from '//resources/js/plural_string_proxy.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
+import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import type {TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {InputState} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import {InputType, ModelMode, ToolMode} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
@@ -59,6 +62,7 @@ export class ContextualActionMenuElement extends
     return {
       fileNum: {type: Number},
       disabledTabIds: {type: Object},
+      restoredTabIds: {type: Array},
       tabSuggestions: {type: Array},
       inputState: {type: Object},
       smartTabSharingActive: {type: Boolean},
@@ -73,15 +77,20 @@ export class ContextualActionMenuElement extends
       disableAutoReposition: {type: Boolean},
       contextManagementInComposeboxEnabled_: {type: Boolean},
       shareTabsFlyoutOpen_: {type: Boolean},
+      shareTabsFlyoutPosition_: {type: String},
+      sharingTabsText_: {type: String},
+      uploadButtonDisabled: {type: Boolean},
     };
   }
 
   accessor fileNum: number = 0;
   accessor disabledTabIds: Map<number, UnguessableToken> = new Map();
+  accessor restoredTabIds: number[] = [];
   accessor tabSuggestions: TabInfo[] = [];
   accessor inputState: InputState|null = null;
   accessor smartTabSharingActive: boolean = false;
   accessor disableAutoReposition: boolean = false;
+  accessor uploadButtonDisabled: boolean = false;
 
   protected accessor enableMultiTabSelection_: boolean =
       loadTimeData.getBoolean('composeboxContextMenuEnableMultiTabSelection');
@@ -98,6 +107,8 @@ export class ContextualActionMenuElement extends
   protected accessor contextManagementInComposeboxEnabled_: boolean =
       getLoadTimeBoolean('contextManagementInComposeboxEnabled', false);
   protected accessor shareTabsFlyoutOpen_: boolean = false;
+  protected accessor shareTabsFlyoutPosition_: string = 'right';
+  protected accessor sharingTabsText_: string = '';
 
   private closeTimer_: number|null = null;
   private pointerOverTrigger_: boolean = false;
@@ -170,6 +181,17 @@ export class ContextualActionMenuElement extends
     this.resetShareTabsFlyout_();
   }
 
+  override updated(changedProperties: PropertyValues<this>) {
+    super.updated(changedProperties);
+
+    if (this.contextManagementInComposeboxEnabled_) {
+      if (changedProperties.has('disabledTabIds') ||
+          changedProperties.has('restoredTabIds')) {
+        this.updateSharingTabsText_();
+      }
+      this.manageShareTabsInitialFocus_(changedProperties);
+    }
+  }
   get open(): boolean {
     return this.$.menu.open;
   }
@@ -186,40 +208,82 @@ export class ContextualActionMenuElement extends
 
   showAt(anchor: HTMLElement) {
     this.$.menu.showAt(anchor, {
-      width: this.contextManagementInComposeboxEnabled_ ? SHARE_TABS_MENU_WIDTH_PX : MENU_WIDTH_PX,
+      width: this.contextManagementInComposeboxEnabled_ ?
+          SHARE_TABS_MENU_WIDTH_PX :
+          MENU_WIDTH_PX,
       anchorAlignmentX: AnchorAlignment.AFTER_START,
       anchorAlignmentY: AnchorAlignment.AFTER_END,
       noOffset: true,
     });
     window.addEventListener('blur', this.onWindowBlur_);
+
+    if (this.contextManagementInComposeboxEnabled_) {
+      this.updateSharingTabsText_();
+    }
+  }
+
+  private manageShareTabsInitialFocus_(
+      changedProperties: PropertyValues<this>) {
+    // Manually manage the initial keyboard focus for the "Share Tabs" menu item.
+    // Because `tabSuggestions` are fetched asynchronously, the
+    // `#shareTabsTrigger` button may not exist in the DOM at the exact moment
+    // the menu is opened. This causes the underlying <cr-action-menu> to
+    // incorrectly assign the initial focus to the next available item. To fix
+    // this, we reclaim the focus once the tab data arrives and the DOM is updated.
+    if (changedProperties.has('tabSuggestions')) {
+      const isNowPopulated =
+          this.tabSuggestions && this.tabSuggestions.length > 0;
+
+      if (isNowPopulated && this.open) {
+        requestAnimationFrame(() => {
+          const triggerBtn =
+              this.shadowRoot.querySelector<HTMLElement>('#shareTabsTrigger');
+          if (triggerBtn) {
+            triggerBtn.focus();
+          }
+        });
+      }
+    }
+  }
+
+  private updateSharingTabsText_() {
+    const totalTabs = this.disabledTabIds.size + this.restoredTabIds.length;
+    if (!this.contextManagementInComposeboxEnabled_ || totalTabs === 0) {
+      this.sharingTabsText_ = this.i18n('shareTabs');
+      return;
+    }
+
+    PluralStringProxyImpl.getInstance()
+        .getPluralString('sharingTabs', totalTabs)
+        .then((s: string) => {
+          this.sharingTabsText_ = s;
+        });
+  }
+
+  private isItemDisabled_<T>(item: T, disabledItems: T[]|undefined): boolean {
+    if (this.uploadButtonDisabled) {
+      return true;
+    }
+    if (!this.inputState || !disabledItems) {
+      return true;
+    }
+    return disabledItems.includes(item);
   }
 
   protected isToolAllowed_(tool: ToolMode): boolean {
-    if (!this.inputState) {
-      return false;
-    }
-    return this.inputState.allowedTools.includes(tool);
+    return this.isItemAllowed_(tool, this.inputState?.allowedTools);
   }
 
   protected isToolDisabled_(tool: ToolMode): boolean {
-    if (!this.inputState) {
-      return true;
-    }
-    return this.inputState.disabledTools.includes(tool);
+    return this.isItemDisabled_(tool, this.inputState?.disabledTools);
   }
 
   protected isModelAllowed_(model: ModelMode): boolean {
-    if (!this.inputState) {
-      return false;
-    }
-    return this.inputState.allowedModels.includes(model);
+    return this.isItemAllowed_(model, this.inputState?.allowedModels);
   }
 
   protected isModelDisabled_(model: ModelMode): boolean {
-    if (!this.inputState) {
-      return true;
-    }
-    return this.inputState.disabledModels.includes(model);
+    return this.isItemDisabled_(model, this.inputState?.disabledModels);
   }
 
   protected isModelActive_(model: ModelMode): boolean {
@@ -227,6 +291,10 @@ export class ContextualActionMenuElement extends
       return false;
     }
     return this.inputState.activeModel === model;
+  }
+
+  protected isTabSelected_(tabId: number): boolean {
+    return this.disabledTabIds.has(tabId);
   }
 
   protected getToolLabel_(tool: ToolMode): string {
@@ -304,82 +372,52 @@ export class ContextualActionMenuElement extends
     }
   }
 
-  // Checks if the drive upload item in the context menu should be visible.
-  protected isDriveUploadAllowed_(): boolean {
-    if (this.inputState) {
-      return this.inputState.allowedInputTypes.includes(InputType.kDrive);
+  private isItemAllowed_<T>(item: T, allowedItems: T[]|undefined): boolean {
+    if (!this.inputState || !allowedItems) {
+      return false;
     }
-    return false;
+    return allowedItems.includes(item);
   }
 
-  // Checks if the drive upload item in the context menu should be disabled.
-  protected isDriveUploadDisabled_(): boolean {
-    if (this.inputState) {
-      return this.inputState.disabledInputTypes.includes(InputType.kDrive);
-    }
-    return this.fileNum >= this.maxFileCount_;
+  protected isInputTypeAllowed_(...types: InputType[]): boolean {
+    return types.some(
+        type => this.isItemAllowed_(type, this.inputState?.allowedInputTypes));
   }
 
-  // Checks if the image upload item in the context menu should be visible.
-  protected isImageUploadAllowed_(): boolean {
-    if (this.inputState) {
-      return this.inputState.allowedInputTypes.includes(InputType.kLensImage);
+  protected isInputTypeDisabled_(inputType: InputType): boolean {
+    if (this.uploadButtonDisabled) {
+      return true;
     }
-    return false;
-  }
-
-  // Checks if the image upload item in the context menu should be disabled.
-  protected isImageUploadDisabled_(): boolean {
+    const limitReached = this.fileNum >= this.maxFileCount_;
     if (this.inputState) {
-      return this.inputState.disabledInputTypes.includes(InputType.kLensImage);
+      return limitReached ||
+          (this.inputState.disabledInputTypes || []).includes(inputType);
     }
-    return this.fileNum >= this.maxFileCount_;
-  }
-
-  // Checks if the file upload item in the context menu should be visible.
-  protected isFileUploadAllowed_(): boolean {
-    if (this.inputState) {
-      return this.inputState.allowedInputTypes.includes(InputType.kLensFile);
-    }
-    return false;
-  }
-
-  // Checks if the file upload item in the context menu should be disabled.
-  protected isFileUploadDisabled_(): boolean {
-    if (this.inputState) {
-      return this.inputState.disabledInputTypes.includes(InputType.kLensFile);
-    }
-    return this.fileNum >= this.maxFileCount_;
-  }
-
-  // Checks if the browser tab item in the context menu should be visible.
-  protected isBrowserTabAllowed_(): boolean {
-    if (this.inputState) {
-      return this.inputState.allowedInputTypes.includes(InputType.kBrowserTab);
-    }
-    return false;
-  }
-
-  protected isMultiTabSelectionEnabledForShareTabsMode_(): boolean {
-    return this.contextManagementInComposeboxEnabled_ && this.enableMultiTabSelection_;
+    return limitReached;
   }
 
   // Checks if a tab item in the context menu should be disabled.
   protected isTabDisabled_(tab: TabInfo): boolean {
-    let noNewContextAllowed = this.fileNum >= this.maxFileCount_;
-    if (this.inputState) {
-      noNewContextAllowed =
-          this.inputState.disabledInputTypes.includes(InputType.kBrowserTab);
+    const noNewContextAllowed =
+        this.isInputTypeDisabled_(InputType.kBrowserTab);
+    const isTabInContext = this.isTabSelected_(tab.tabId);
+    if (this.restoredTabIds.includes(tab.tabId)) {
+      return true;
     }
-    const isTabInContext = this.disabledTabIds.has(tab.tabId);
-    // If multi-tab selection is enabled, we only want to disable a tab if
-    // no more context can be added and the tab has not yet been added as
-    // context already. Otherwise, don't disable the tab, since we want to allow
-    // users to unselect the tab, and remove it from the context.
-    if (this.isMultiTabSelectionEnabledForShareTabsMode_()) {
+    if (this.enableMultiTabSelection_) {
       return noNewContextAllowed && !isTabInContext;
     }
     return noNewContextAllowed || isTabInContext;
+  }
+
+  protected getSelectedTabs_(): TabInfo[] {
+    return this.tabSuggestions.filter(
+        tab => this.isTabSelected_(tab.tabId) ||
+            this.restoredTabIds.includes(tab.tabId));
+  }
+
+  protected isRecentTab_(index: number): boolean {
+    return index === 0;
   }
 
   protected onSmartTabSharingToggleChange_(e: Event) {
@@ -415,8 +453,7 @@ export class ContextualActionMenuElement extends
 
     assert(tabInfo);
 
-    if (this.isMultiTabSelectionEnabledForShareTabsMode_() &&
-        this.disabledTabIds.has(tabInfo.tabId)) {
+    if (this.enableMultiTabSelection_ && this.isTabSelected_(tabInfo.tabId)) {
       this.deleteTabContext_(this.disabledTabIds.get(tabInfo.tabId)!);
       return;
     }
@@ -437,7 +474,7 @@ export class ContextualActionMenuElement extends
       delayUpload: false,
       origin: TabUploadOrigin.CONTEXT_MENU,
     });
-    if (!this.isMultiTabSelectionEnabledForShareTabsMode_()) {
+    if (!this.enableMultiTabSelection_) {
       this.$.menu.close();
     }
   }
@@ -446,6 +483,7 @@ export class ContextualActionMenuElement extends
     this.pointerOverTrigger_ = true;
     this.cancelCloseTimer_();
     this.shareTabsFlyoutOpen_ = true;
+    this.updateFlyoutPosition_();
   }
 
   protected onShareTabsRowPointerleave_() {
@@ -462,6 +500,78 @@ export class ContextualActionMenuElement extends
     this.pointerOverFlyout_ = false;
     this.scheduleCloseTimer_();
   }
+
+  protected onShareTabsRowKeydown_(e: KeyboardEvent) {
+    if (e.key === 'ArrowRight' || e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      e.stopPropagation();
+      this.shareTabsFlyoutOpen_ = true;
+      this.updateFlyoutPosition_();
+
+      this.updateComplete.then(() => {
+        const firstTabItem = this.shadowRoot.querySelector<HTMLElement>(
+            '.share-tabs-flyout button.dropdown-item');
+        if (firstTabItem) {
+          firstTabItem.focus();
+        }
+      });
+    }
+  }
+
+  protected onShareTabsFlyoutKeydown_(e: KeyboardEvent) {
+    if (e.key === 'ArrowLeft' || e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      this.shareTabsFlyoutOpen_ = false;
+
+      const row =
+          this.shadowRoot.querySelector<HTMLElement>('#shareTabsTrigger');
+      if (row) {
+        row.focus();
+      }
+    }
+  }
+
+  private updateFlyoutPosition_() {
+    this.updateComplete.then(() => {
+      const trigger =
+          this.shadowRoot.querySelector<HTMLElement>('#shareTabsTrigger');
+      const flyout =
+          this.shadowRoot.querySelector<HTMLElement>('.share-tabs-flyout');
+      if (!trigger || !flyout) {
+        return;
+      }
+
+      const triggerRect = trigger.getBoundingClientRect();
+      const flyoutWidth = flyout.offsetWidth || 320;
+      const viewportWidth = window.innerWidth;
+
+      if (triggerRect.right + flyoutWidth + 4 <= viewportWidth) {
+        this.shareTabsFlyoutPosition_ = 'right';
+        flyout.style.left = '';
+        flyout.style.right = '';
+      } else if (triggerRect.left >= flyoutWidth + 4) {
+        this.shareTabsFlyoutPosition_ = 'left';
+        flyout.style.left = '';
+        flyout.style.right = '';
+      } else {
+        this.shareTabsFlyoutPosition_ = 'bottom';
+        const rtl = getComputedStyle(this).direction === 'rtl';
+        if (rtl) {
+          const maxRight = triggerRect.right - flyoutWidth - 12;
+          const boundedRight = Math.max(0, Math.min(110, maxRight));
+          flyout.style.right = `${boundedRight}px`;
+          flyout.style.left = 'auto';
+        } else {
+          const maxLeft = viewportWidth - triggerRect.left - flyoutWidth - 12;
+          const boundedLeft = Math.max(0, Math.min(110, maxLeft));
+          flyout.style.left = `${boundedLeft}px`;
+          flyout.style.right = 'auto';
+        }
+      }
+    });
+  }
+
 
   private scheduleCloseTimer_() {
     this.cancelCloseTimer_();

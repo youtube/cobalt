@@ -793,7 +793,7 @@ ExecutionEngineStateWaiter::ExecutionEngineStateWaiter(
     ExecutionEngine& execution_engine,
     ExecutionEngine::State target_state)
     : callback_(std::move(callback)),
-      execution_engine_(execution_engine.GetWeakPtr()),
+      execution_engine_(execution_engine.GetActionSequenceWeakPtr()),
       target_state_(target_state) {
   execution_engine_->AddObserver(this);
 }
@@ -844,6 +844,9 @@ ScopedExecutionEngineFactory::ScopedExecutionEngineFactory(
 ScopedExecutionEngineFactory::~ScopedExecutionEngineFactory() {
   ExecutionEngine::GetFactoryFunctionForTesting().Reset();
 }
+
+MockActorTaskDelegate::MockActorTaskDelegate() = default;
+MockActorTaskDelegate::~MockActorTaskDelegate() = default;
 
 MockPolicyChecker::MockPolicyChecker(UrlBlockReason reason,
                                      ContentValidationReason content_reason)

@@ -68,6 +68,8 @@ GlicCueTarget::~GlicCueTarget() = default;
 bool GlicCueTarget::IsEligible() const {
   return GlicEnabling::IsEnabledForProfile(
              browser_window_interface_->GetProfile()) &&
+         browser_window_interface_->GetProfile()->GetPrefs()->GetBoolean(
+             prefs::kGlicPinnedToTabstrip) &&
          !glic_keyed_service_->IsPanelShowingForBrowser(
              *browser_window_interface_);
 }
@@ -156,8 +158,9 @@ contextual_cueing::CueActionData GlicCueTarget::CueActionDataFromResponse(
 
       tabs::TabHandle handle(
           tab_handle_factory.GetHandleForSessionId(session_id.id()));
-      // Ensure tab is valid
-      if (handle.Get()) {
+      // Ensure tab is valid and belongs to the current browser window.
+      if (handle.Get() && handle.Get()->GetBrowserWindowInterface() ==
+                              &browser_window_interface_.get()) {
         data.tabs_to_share.push_back(handle);
       }
     }

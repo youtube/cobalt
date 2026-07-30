@@ -40,6 +40,18 @@ const SendTabToSelfEntry* FakeSendTabToSelfModel::GetEntryByGUID(
   return it != entries_.end() ? it->second.get() : nullptr;
 }
 
+std::vector<const SendTabToSelfEntry*>
+FakeSendTabToSelfModel::GetUnopenedEntriesTargetedToLocalDevice() const {
+  std::vector<const SendTabToSelfEntry*> unopened_entries;
+  for (const auto& [guid, entry] : entries_) {
+    if (entry->GetTargetDeviceSyncCacheGuid() == local_cache_guid_ &&
+        !entry->IsOpened()) {
+      unopened_entries.push_back(entry.get());
+    }
+  }
+  return unopened_entries;
+}
+
 const SendTabToSelfEntry* FakeSendTabToSelfModel::SendEntry(
     const GURL& url,
     const std::string& title,
@@ -69,7 +81,7 @@ const SendTabToSelfEntry* FakeSendTabToSelfModel::SendEntry(
   }
 
   for (auto& observer : observers_) {
-    observer.EntryAddedLocally(result);
+    observer.OnEntryAddedLocally(result);
   }
 
   if (commit_confirmation) {
@@ -95,7 +107,7 @@ void FakeSendTabToSelfModel::MarkEntryOpened(const std::string& guid) {
   if (it != entries_.end()) {
     it->second->MarkOpened(base::Time::Now());
     for (auto& observer : observers_) {
-      observer.EntriesOpenedRemotely({it->second.get()});
+      observer.OnEntriesOpenedRemotely({it->second.get()});
     }
   }
 }
@@ -135,6 +147,10 @@ void FakeSendTabToSelfModel::SetLocalDeviceName(std::string_view device_name) {
   local_device_name_ = std::string(device_name);
 }
 
+void FakeSendTabToSelfModel::SetLocalCacheGuid(std::string_view cache_guid) {
+  local_cache_guid_ = std::string(cache_guid);
+}
+
 void FakeSendTabToSelfModel::SetSendResult(SendTabToSelfResult result) {
   send_result_ = result;
 }
@@ -159,7 +175,7 @@ const SendTabToSelfEntry* FakeSendTabToSelfModel::AddEntryRemotely(
   entries_[guid] = std::move(entry);
 
   for (auto& observer : observers_) {
-    observer.EntriesAddedRemotely({result});
+    observer.OnEntriesAddedRemotely({result});
   }
 
   return result;

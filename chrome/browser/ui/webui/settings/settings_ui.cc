@@ -23,6 +23,7 @@
 #include "chrome/browser/commerce/shopping_service_factory.h"
 #include "chrome/browser/compose/compose_enabling.h"
 #include "chrome/browser/contextual_cueing/features.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_context_service.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/history_embeddings/history_embeddings_utils.h"
@@ -112,6 +113,7 @@
 #include "components/compose/core/browser/compose_features.h"
 #include "components/content_settings/core/common/features.h"
 #include "components/contextual_tasks/public/features.h"
+#include "components/contextual_tasks/public/prefs.h"
 #include "components/favicon_base/favicon_url_parser.h"
 #include "components/history/core/browser/features.h"
 #include "components/metrics/metrics_reporting_choice_service.h"
@@ -130,7 +132,7 @@
 #include "components/search_engines/template_url_service.h"
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/signin/public/base/signin_switches.h"
-#include "components/strings/grit/components_variant_strings.h"
+#include "components/strings/grit/components_strings.h"
 #include "components/subscription_eligibility/subscription_eligibility_service.h"
 #include "components/sync/base/features.h"
 #include "content/public/browser/isolated_web_apps_policy.h"
@@ -433,12 +435,6 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
           autofill::features::kYourSavedInfoBrandingInSettings));
 
   html_source->AddBoolean(
-      "enableYourSavedInfoPolicyAndExtentionToggleIndicators",
-      base::FeatureList::IsEnabled(
-          autofill::features::
-              kYourSavedInfoPolicyAndExtentionToggleIndicators));
-
-  html_source->AddBoolean(
       "enableYourSavedInfoShoppingPage",
       base::FeatureList::IsEnabled(
           autofill::features::kYourSavedInfoSettingsPageShoppingIntegration));
@@ -638,8 +634,8 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
   html_source->AddString("aiSuggestionsHelpCenterArticleLink",
                          contextual_cueing::kHelpCenterArticleLink.Get());
 
-  const bool enable_ai_mode_search =
-      contextual_tasks::GetIsSmartTabSharingEnabled();
+  const bool enable_ai_mode_search = contextual_tasks::
+      ContextualTasksContextService::GetIsSmartTabSharingEnabled(profile);
   html_source->AddBoolean("enableAiModeSearchSetting", enable_ai_mode_search);
 
   const bool show_ai_settings_for_testing = base::FeatureList::IsEnabled(
@@ -691,20 +687,19 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
   personal_context::PersonalContextEnablementService* enablement_service =
       PersonalContextEnablementServiceFactory::GetForProfile(profile);
   html_source->AddBoolean(
-      "showAccessibilityAnnotatorSettingsLink",
+      "showPersonalContextSettingsLink",
       enablement_service &&
           enablement_service->GetEnablementState() ==
               personal_context::PersonalContextEnablementState::kEnabled);
-  html_source->AddLocalizedString("accessibilityAnnotatorSettingsTitle",
+  html_source->AddLocalizedString("personalContextSettingsTitle",
                                   IDS_ACCESSIBILITY_ANNOTATOR_SETTINGS_TITLE);
   html_source->AddLocalizedString(
-      "accessibilityAnnotatorSettingsDescription",
+      "personalContextSettingsDescription",
       IDS_ACCESSIBILITY_ANNOTATOR_SETTINGS_DESCRIPTION_DESKTOP);
 
-  html_source->AddString("webuiRefresh2026", base::FeatureList::IsEnabled(
-                                                 features::kWebuiRefresh2026)
-                                                 ? "webui-refresh-2026"
-                                                 : "");
+  html_source->AddString(
+      "webuiRefresh2026",
+      features::IsWebuiRefresh2026Enabled() ? "webui-refresh-2026" : "");
 
   TryShowHatsSurveyWithTimeout();
 }

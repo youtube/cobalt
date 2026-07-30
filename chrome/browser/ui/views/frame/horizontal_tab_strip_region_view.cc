@@ -10,6 +10,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/themes/theme_properties.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
@@ -19,6 +20,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/frame/window_frame_util.h"
 #include "chrome/browser/ui/layout_constants.h"
+#include "chrome/browser/ui/tab_search_feature.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/tab_menu_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -256,8 +258,8 @@ HorizontalTabStripRegionView::HorizontalTabStripRegionView(
 
   if (base::FeatureList::IsEnabled(features::kTabGroupsFocusing)) {
     unfocus_button_ = AddChildView(std::make_unique<TabStripControlButton>(
-        browser, views::Button::PressedCallback(), vector_icons::kArrowBackIcon,
-        Edge::kNone, Edge::kNone));
+        browser, views::Button::PressedCallback(),
+        vector_icons::kArrowBackOldIcon, Edge::kNone, Edge::kNone));
 
     actions::ActionItem* const unfocus_action =
         actions::ActionManager::Get().FindAction(
@@ -276,14 +278,20 @@ HorizontalTabStripRegionView::HorizontalTabStripRegionView(
   std::unique_ptr<TabStripActionContainer> tab_strip_action_container;
   if (browser &&
       (browser->GetType() == BrowserWindowInterface::Type::TYPE_NORMAL)) {
-    if (glic::GlicEnabling::IsEnabledByGlobalCriteria()) {
+    // The Glic button visibility is dynamic and depends on profile state
+    // (e.g., sign-in status, enterprise policies, recoverable errors).
+    if (glic::GlicEnabling::ShouldShowGlicButton(profile_)) {
       tab_strip_action_container = std::make_unique<TabStripActionContainer>(
           browser, browser->GetFeatures().glic_nudge_controller());
-
       tab_strip_action_container->SetProperty(views::kCrossAxisAlignmentKey,
                                               views::LayoutAlignment::kStart);
-    } else if (!base::FeatureList::IsEnabled(
-                   tabs::kHorizontalTabStripComboButton)) {
+    }
+
+    // The physical location of the Tab Search button must remain stable
+    // regardless of transient Glic errors. We only draw it here if the global
+    // feature state dictates it hasn't been moved to the pinned toolbar.
+    if (!base::FeatureList::IsEnabled(tabs::kHorizontalTabStripComboButton) &&
+        !features::HasTabSearchToolbarButton()) {
       tab_search_button =
           std::make_unique<TabSearchButton>(browser, Edge::kNone, Edge::kNone);
       tab_search_button->SetProperty(views::kCrossAxisAlignmentKey,
@@ -317,7 +325,7 @@ HorizontalTabStripRegionView::HorizontalTabStripRegionView(
         std::make_unique<NewTabButton>(
             base::BindRepeating(&TabStrip::NewTabButtonPressed,
                                 base::Unretained(tab_strip_)),
-            vector_icons::kAddIcon, Edge::kNone, Edge::kNone, browser);
+            vector_icons::kAddOldIcon, Edge::kNone, Edge::kNone, browser);
 
     new_tab_button_ = AddChildView(std::move(tab_strip_control_button));
 
@@ -584,7 +592,9 @@ views::Button* HorizontalTabStripRegionView::GetTabSearchButton() {
 }
 
 views::LabelButton* HorizontalTabStripRegionView::GetGlicButton() {
-  return tab_strip_action_container_->GetGlicButton();
+  return tab_strip_action_container_
+             ? tab_strip_action_container_->GetGlicButton()
+             : nullptr;
 }
 
 void HorizontalTabStripRegionView::InitializeTabStrip() {

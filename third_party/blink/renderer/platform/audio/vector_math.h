@@ -46,121 +46,101 @@ PLATFORM_EXPORT void Conv(base::span<const float> source,
                           base::span<const float> filter,
                           base::span<float> dest,
                           uint32_t frames_to_process,
-                          const AudioFloatArray* prepared_filter);
+                          const AudioFloatArray& prepared_filter);
 
 // Prepare filter for Conv for faster processing.
 PLATFORM_EXPORT void PrepareFilterForConv(base::span<const float> filter,
-                                          AudioFloatArray* prepared_filter);
+                                          AudioFloatArray& prepared_filter);
 
 // Vector scalar multiply and then add.
 //
-// dest[k*dest_stride] += scale * source[k*source_stride]
+// dest[k] += scale * source[k]
 //
 // Note: Mac has a different implementation, and it may produce slightly
 // different results from what linux and windows would do.
-PLATFORM_EXPORT void Vsma(const float* source_p,
-                          int source_stride,
+PLATFORM_EXPORT void Vsma(base::span<const float> source,
                           float scale,
-                          float* dest_p,
-                          int dest_stride,
+                          base::span<float> dest,
                           uint32_t frames_to_process);
 
 // Vector scalar multiply:
 //
-// dest[k*dest_stride] = scale * source[k*source_stride]
-PLATFORM_EXPORT void Vsmul(const float* source_p,
-                           int source_stride,
+// dest[k] = scale * source[k]
+PLATFORM_EXPORT void Vsmul(base::span<const float> source,
                            float scale,
-                           float* dest_p,
-                           int dest_stride,
+                           base::span<float> dest,
                            uint32_t frames_to_process);
 
-PLATFORM_EXPORT void Vsadd(const float* source_p,
-                           int source_stride,
+// Vector scalar add:
+//
+// dest[k] = source[k] + addend
+PLATFORM_EXPORT void Vsadd(base::span<const float> source,
                            float addend,
-                           float* dest_p,
-                           int dest_stride,
+                           base::span<float> dest,
                            uint32_t frames_to_process);
 // Vector add:
 //
-// dest[k*dest_stride] = source1[k*source_stride1] + source2[k*source_stride2]
-PLATFORM_EXPORT void Vadd(const float* source1p,
-                          int source_stride1,
-                          const float* source2p,
-                          int source_stride2,
-                          float* dest_p,
-                          int dest_stride,
+// dest[k] = source1[k] + source2[k]
+PLATFORM_EXPORT void Vadd(base::span<const float> source1,
+                          base::span<const float> source2,
+                          base::span<float> dest,
                           uint32_t frames_to_process);
 
 // Vector subtract:
 //
-// dest[k*dest_stride] = source1[k*source_stride1] - source2[k*source_stride2]
-PLATFORM_EXPORT void Vsub(const float* source1p,
-                          int source_stride1,
-                          const float* source2p,
-                          int source_stride2,
-                          float* dest_p,
-                          int dest_stride,
+// dest[k] = source1[k] - source2[k]
+PLATFORM_EXPORT void Vsub(base::span<const float> source1,
+                          base::span<const float> source2,
+                          base::span<float> dest,
                           uint32_t frames_to_process);
 
 // Finds the maximum magnitude of a float vector:
 //
-// max = max(abs(source[k*source_stride])) for all k.
-PLATFORM_EXPORT void Vmaxmgv(const float* source_p,
-                             int source_stride,
-                             float* max_p,
-                             uint32_t frames_to_process);
+// max = max(abs(source[k])) for all k.
+PLATFORM_EXPORT float Vmaxmgv(base::span<const float> source,
+                              uint32_t frames_to_process);
 
 // Sums the squares of a float vector's elements:
 //
-// sum = sum(source[k*source_stride]^2, k = 0, frames_to_process);
-PLATFORM_EXPORT void Vsvesq(const float* source_p,
-                            int source_stride,
-                            float* sum_p,
-                            uint32_t frames_to_process);
+// sum = sum(source[k]^2, k = 0, frames_to_process);
+PLATFORM_EXPORT float Vsvesq(base::span<const float> source,
+                             uint32_t frames_to_process);
 
 // For an element-by-element multiply of two float vectors:
 //
-// dest[k*dest_stride] = source1[k*source_stride1] * source2[k*source_stride2]
-PLATFORM_EXPORT void Vmul(const float* source1p,
-                          int source_stride1,
-                          const float* source2p,
-                          int source_stride2,
-                          float* dest_p,
-                          int dest_stride,
+// dest[k] = source1[k] * source2[k]
+PLATFORM_EXPORT void Vmul(base::span<const float> source1,
+                          base::span<const float> source2,
+                          base::span<float> dest,
                           uint32_t frames_to_process);
 
-// Multiplies two complex vectors.  Complex version of Vmul where |rea1p| and
-// |imag1p| forms the real and complex components of source1; |real2p| and
-// |imag2p| the components of source2, and |real_dest_p| and |imag_dest_p|, the
+// Multiplies two complex vectors.  Complex version of Vmul where |real1| and
+// |imag1| forms the real and complex components of source1; |real2| and
+// |imag2| the components of source2, and |real_dest| and |imag_dest|, the
 // components of the destination.
-PLATFORM_EXPORT void Zvmul(const float* real1p,
-                           const float* imag1p,
-                           const float* real2p,
-                           const float* imag2p,
-                           float* real_dest_p,
-                           float* imag_dest_p,
+PLATFORM_EXPORT void Zvmul(base::span<const float> real1,
+                           base::span<const float> imag1,
+                           base::span<const float> real2,
+                           base::span<const float> imag2,
+                           base::span<float> real_dest,
+                           base::span<float> imag_dest,
                            uint32_t frames_to_process);
 
 // Copies elements while clipping values to the threshold inputs.
 //
-// dest[k*dest_stride] = clip(source[k*source_stride], low, high)
+// dest[k] = clip(source[k], low, high)
 //
 // where y = clip(x, low, high) = max(low, min(x, high)), effectively making
 // low <= y <= high.
 PLATFORM_EXPORT void Vclip(base::span<const float> source,
-                           int source_stride,
                            float low_threshold,
                            float high_threshold,
-                           base::span<float> dest,
-                           int dest_stride);
+                           base::span<float> dest);
 
 PLATFORM_EXPORT void Vclip(base::span<const float> source,
-                           int source_stride,
                            float low_threshold,
                            float high_threshold,
                            base::span<float> dest,
-                           int dest_stride,
                            uint32_t frames_to_process);
 
 }  // namespace blink::vector_math

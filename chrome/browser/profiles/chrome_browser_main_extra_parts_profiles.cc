@@ -223,6 +223,7 @@
 #include "chrome/browser/signin/about_signin_internals_factory.h"
 #include "chrome/browser/signin/account_consistency_mode_manager_factory.h"
 #include "chrome/browser/signin/account_investigator_factory.h"
+#include "chrome/browser/signin/account_preview_data_service_factory.h"
 #include "chrome/browser/signin/account_reconcilor_factory.h"
 #include "chrome/browser/signin/chrome_signin_client_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
@@ -334,6 +335,7 @@
 #include "chrome/browser/commerce/merchant_viewer/merchant_viewer_data_manager_factory.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "chrome/browser/media/android/cdm/media_drm_origin_id_manager_factory.h"
+#include "chrome/browser/password_manager/android/delayed_password_field_classification_model_handler_factory.h"
 #include "chrome/browser/signin/android/signin_bridge_factory.h"
 #include "chrome/browser/signin/signin_manager_android_factory.h"
 #include "chrome/browser/ui/android/android_profile_browser_collection_service_factory.h"
@@ -375,6 +377,7 @@
 #include "chrome/browser/private_ai/private_ai_service_factory.h"
 #include "chrome/browser/profile_resetter/reset_report_uploader_factory.h"
 #include "chrome/browser/record_replay/recording_data_manager_factory.h"
+#include "chrome/browser/record_replay/task_service_factory.h"
 #include "chrome/browser/screen_ai/screen_ai_service_router_factory.h"
 #include "chrome/browser/search/instant_service_factory.h"
 #include "chrome/browser/search_engine_choice/search_engine_choice_dialog_service_factory.h"
@@ -551,7 +554,7 @@
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/ui/tabs/glic_actor_task_icon_manager_factory.h"
+#include "chrome/browser/glic/browser_ui/glic_actor_task_icon_manager_factory.h"
 #endif
 
 #if BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
@@ -709,6 +712,7 @@ void ChromeBrowserMainExtraPartsProfiles::
   AccountConsistencyModeManagerFactory::GetInstance();
   AccountInvestigatorFactory::GetInstance();
   AccountPasswordStoreFactory::GetInstance();
+  AccountPreviewDataServiceFactory::GetInstance();
   AccountReconcilorFactory::GetInstance();
   AccountSettingServiceFactory::GetInstance();
 #if !BUILDFLAG(IS_ANDROID)
@@ -1045,7 +1049,7 @@ void ChromeBrowserMainExtraPartsProfiles::
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
   glic::GlicKeyedServiceFactory::GetInstance();
 #if !BUILDFLAG(IS_ANDROID)
-  tabs::GlicActorTaskIconManagerFactory::GetInstance();
+  glic::GlicActorTaskIconManagerFactory::GetInstance();
 #endif
 #if !BUILDFLAG(IS_ANDROID)
   GlobalErrorServiceFactory::GetInstance();
@@ -1219,6 +1223,9 @@ void ChromeBrowserMainExtraPartsProfiles::
 #if !BUILDFLAG(IS_ANDROID)
   webauthn::PasskeyUnlockManagerFactory::GetInstance();
 #endif
+#if BUILDFLAG(IS_ANDROID)
+  DelayedPasswordFieldClassificationModelHandlerFactory::GetInstance();
+#endif
   password_manager::PasswordManagerLogRouterFactory::GetInstance();
   password_manager::PasswordRequirementsServiceFactory::GetInstance();
   PasswordFieldClassificationModelHandlerFactory::GetInstance();
@@ -1324,6 +1331,7 @@ void ChromeBrowserMainExtraPartsProfiles::
   ReadingListModelFactory::GetInstance();
 #if !BUILDFLAG(IS_ANDROID)
   record_replay::RecordingDataManagerFactory::GetInstance();
+  record_replay::TaskServiceFactory::GetInstance();
 #endif
   ReduceAcceptLanguageFactory::GetInstance();
   RendererUpdaterFactory::GetInstance();

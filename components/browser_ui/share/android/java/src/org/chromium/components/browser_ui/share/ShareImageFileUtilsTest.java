@@ -7,7 +7,6 @@ package org.chromium.components.browser_ui.share;
 import static org.mockito.ArgumentMatchers.notNull;
 import static org.mockito.Mockito.doAnswer;
 
-import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipDescription;
 import android.content.ClipboardManager;
@@ -109,8 +108,6 @@ public class ShareImageFileUtilsTest {
     public static final BaseActivityTestRule<BlankUiTestActivity> sActivityTestRule =
             new BaseActivityTestRule<>(BlankUiTestActivity.class);
 
-    private static Activity sActivity;
-
     @Mock ClipboardManager mMockClipboardManager;
 
     @Nullable ClipData mPrimaryClip;
@@ -118,7 +115,7 @@ public class ShareImageFileUtilsTest {
 
     @BeforeClass
     public static void setupSuite() {
-        sActivity = sActivityTestRule.launchActivity(null);
+        sActivityTestRule.launchActivity(null);
 
         Looper.prepare();
     }
@@ -244,7 +241,10 @@ public class ShareImageFileUtilsTest {
     }
 
     public void deleteExternalStorageFiles() {
-        File externalStorageDir = sActivity.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+        File externalStorageDir =
+                sActivityTestRule
+                        .getActivity()
+                        .getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
         String[] children = externalStorageDir.list();
         for (int i = 0; i < children.length; i++) {
             new File(externalStorageDir, children[i]).delete();
@@ -292,7 +292,10 @@ public class ShareImageFileUtilsTest {
     @SmallTest
     public void testGetNextAvailableFile() throws IOException {
         String fileName = TEST_IMAGE_FILE_NAME + "_next_availble";
-        File externalStorageDir = sActivity.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+        File externalStorageDir =
+                sActivityTestRule
+                        .getActivity()
+                        .getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
         File imageFile =
                 ShareImageFileUtils.getNextAvailableFile(
                         externalStorageDir.getPath(), fileName, TEST_JPG_IMAGE_FILE_EXTENSION);

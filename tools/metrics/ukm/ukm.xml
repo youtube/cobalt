@@ -9171,6 +9171,20 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
+<event name="Extensions.DeclarativeNetRequest.DSERedirect">
+  <owner>quarz@chromium.org</owner>
+  <owner>extensions-core@chromium.org</owner>
+  <summary>
+    Recorded when an extension redirects search away from the default search
+    engine (DSE) page using the DeclarativeNetRequest API.
+  </summary>
+  <metric name="Seen" enum="Boolean">
+    <summary>
+      Dummy Boolean as UKM does not support events with no metrics.
+    </summary>
+  </metric>
+</event>
+
 <event name="Extensions.ExtensionUsage">
   <owner>howardcha@google.com</owner>
   <owner>webstore-eng@google.com</owner>
@@ -9366,6 +9380,49 @@ be describing additional metrics about the same event.
         </statistics>
       </history>
     </aggregation>
+  </metric>
+</event>
+
+<event name="Extensions.SearchRedirect">
+  <owner>quarz@chromium.org</owner>
+  <owner>extensions-core@chromium.org</owner>
+  <summary>
+    Recorded when an extension redirects a search away from the default search
+    engine (DSE) page. The event is associated with the destination URL of the
+    redirect.
+  </summary>
+  <metric name="Api" enum="ExtensionSearchRedirectedByApi">
+    <summary>
+      The API used to perform the redirect.
+    </summary>
+  </metric>
+</event>
+
+<event name="Extensions.Tabs.RemoveDSE">
+  <owner>quarz@chromium.org</owner>
+  <owner>extensions-core@chromium.org</owner>
+  <summary>
+    Recorded when an extension uses the Tabs API to update the default search
+    engine url of the tab.
+  </summary>
+  <metric name="Seen" enum="Boolean">
+    <summary>
+      Dummy Boolean as UKM does not support events with no metrics.
+    </summary>
+  </metric>
+</event>
+
+<event name="Extensions.Tabs.UpdateDSE">
+  <owner>quarz@chromium.org</owner>
+  <owner>extensions-core@chromium.org</owner>
+  <summary>
+    Recorded when an extension uses the Tabs API to remove a tab whose url is
+    the default search engine.
+  </summary>
+  <metric name="Seen" enum="Boolean">
+    <summary>
+      Dummy Boolean as UKM does not support events with no metrics.
+    </summary>
   </metric>
 </event>
 
@@ -10936,6 +10993,11 @@ be describing additional metrics about the same event.
   <summary>
     Metrics recorded when an HTTPS-First Mode event happens.
   </summary>
+  <metric name="FallbackReason" enum="HttpsFirstModeFallbackReason">
+    <summary>
+      The reason why the navigation fell back to HTTP.
+    </summary>
+  </metric>
   <metric name="Result" enum="HttpsFirstModeBlockingResult">
     <summary>
       An enum value representing the decision the user made when shown an
@@ -11618,6 +11680,12 @@ be describing additional metrics about the same event.
       framework.
     </summary>
   </metric>
+  <metric name="MediaPipePageLoad" enum="Boolean">
+    <summary>
+      True if the page loaded in the main frame uses the MediaPipe JavaScript
+      framework.
+    </summary>
+  </metric>
   <metric name="NextJSPageLoad" enum="Boolean">
     <summary>
       True if the page loaded in the main frame uses the Next.js JavaScript
@@ -11651,6 +11719,17 @@ be describing additional metrics about the same event.
   <metric name="SveltePageLoad" enum="Boolean">
     <summary>
       True if the page loaded in the main frame uses the Svelte JavaScript
+      framework.
+    </summary>
+  </metric>
+  <metric name="TFJSPageLoad" enum="Boolean">
+    <summary>
+      True if the page loaded in the main frame uses the TensorflowJS framework.
+    </summary>
+  </metric>
+  <metric name="TransformersJSPageLoad" enum="Boolean">
+    <summary>
+      True if the page loaded in the main frame uses the Transformers.js
       framework.
     </summary>
   </metric>
@@ -18489,6 +18568,13 @@ be describing additional metrics about the same event.
       components/payments/core/journey_logger.h.
     </summary>
   </metric>
+  <metric name="WindowSizeCheckRejectionReason"
+      enum="PaymentRequestWindowSizeCheckRejectionReason">
+    <summary>
+      The reason why the browser window size check failed and the Payment
+      Request or Payment Handler dialog was rejected.
+    </summary>
+  </metric>
 </event>
 
 <event name="PaymentRequest.TransactionAmount">
@@ -19129,6 +19215,16 @@ be describing additional metrics about the same event.
         </statistics>
       </history>
     </aggregation>
+  </metric>
+  <metric name="GeolocationPromptType" enum="GeolocationPromptType">
+    <summary>
+      An enum of type GeolocationPromptType (see
+      https://source.chromium.org/search?q=class:%5CbGeolocationPromptType%5Cb).
+      This is only emitted for geolocation permission prompts if approximate
+      geolocation is enabled. In that case, it encodes the variant of the
+      geolocation prompt type and it is either 0 (kApproximateOrPrecise), 1
+      (kApproximateOnly) or 2 (kUpgradeToPrecise).
+    </summary>
   </metric>
   <metric name="Gesture">
     <summary>
@@ -23159,6 +23255,13 @@ be describing additional metrics about the same event.
       Type of the soft navigation. Corresponds to the first URL change.
     </summary>
   </metric>
+  <metric name="PageLoadType">
+    <summary>
+      Indicates whether the soft navigation occurred within a PageLoad event
+      (value 1), a PrerenderPageLoad event (value 2), or a HistoryNavigation
+      event (value 3). See page_load_metrics::PageLoadType.
+    </summary>
+  </metric>
   <metric name="PaintTiming.LargestContentfulPaint">
     <summary>
       Measures the LargestContentfulPaint in milliseconds from the start time of
@@ -23692,6 +23795,42 @@ be describing additional metrics about the same event.
       The total time the tab has spent as the active tab since it was created,
       in seconds.
     </summary>
+  </metric>
+</event>
+
+<event name="Tabs.SadTab">
+  <owner>olivierrobin@chromium.org</owner>
+  <owner>rohitrao@chromium.org</owner>
+  <summary>
+    Recorded when a Sad Tab is displayed or interacted with. This allows
+    correlating specific URLs and page contexts with renderer crashes that lead
+    to Sad Tabs and user feedback.
+  </summary>
+  <metric name="EventType" enum="SadTabEvent">
+    <summary>
+      The type of the SadTabEvent that occurred (e.g. Displayed, Button clicked,
+      Learn more clicked).
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+  <metric name="IsFeedbackMode" enum="Boolean">
+    <summary>
+      True if the Sad Tab is in feedback mode (typically due to a repeated
+      failure). False if it is in reload mode.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
   </metric>
 </event>
 

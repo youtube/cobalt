@@ -34,15 +34,15 @@
 #include "base/android/bundle_utils.h"
 #include "base/task/thread_pool/environment_config.h"
 #include "build/android_buildflags.h"
-#include "chrome/browser/android/flags/chrome_cached_flags.h"
+#include "chrome/browser/android/flags/chrome_cached_flags.h"  // nogncheck crbug.com/40147906
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "chrome/browser/media/webrtc/desktop_media_picker.h"
 #include "chrome/common/chrome_features.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "content/public/common/content_features.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "media/audio/audio_features.h"
 #include "media/base/media_switches.h"
-#include "gpu/config/gpu_finch_features.h"
 #include "sandbox/policy/features.h"
 #include "ui/gl/gl_features.h"
 #include "ui/gl/gl_switches.h"
@@ -216,10 +216,6 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // factors.
   feature_overrides.EnableFeature(
       autofill::features::kAutofillAndroidDesktopKeyboardAccessoryRevamp);
-  // Enable by default for desktop platforms, pending a tablet rollout using the
-  // same flag.
-  // TODO(crbug.com/445475304): Remove when tablet rollout is complete.
-  feature_overrides.EnableFeature(feed::kAndroidOpenIncognitoAsWindow);
 
   // Enable ANGLE/Vulkan features.
   // TODO (crbug.com//376280554): Enable these features with runtime checks
@@ -266,6 +262,11 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // apply transparently to all pages.
   // TODO(crbug.com/450281745): Remove once feature is enabled by default.
   feature_overrides.EnableFeature(::features::kAndroidDesktopZoomScaling);
+
+  // Enables desktop page web prefs for large displays on Android.
+  // TODO(crbug.com/433519850): Remove once feature is enabled by default.
+  feature_overrides.EnableFeature(
+      blink::features::kAndroidDesktopWebPrefsLargeDisplays);
 
 #endif  // BUILDFLAG(IS_DESKTOP_ANDROID)
   // Desktop-first features which are past incubation should either end up here,

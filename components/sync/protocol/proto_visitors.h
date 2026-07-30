@@ -1010,6 +1010,22 @@ VISIT_PROTO_FIELDS(const sync_pb::WebauthnCredentialSpecifics& proto) {
   VISIT(hidden_time);
 }
 
+VISIT_PROTO_FIELDS(
+    const sync_pb::WebauthnCredentialSpecifics::Encrypted& proto) {
+  VISIT_SECRET(private_key);
+  VISIT_SECRET(hmac_secret);
+  VISIT_SECRET(cred_blob);
+  VISIT_SECRET(large_blob);
+  VISIT(large_blob_uncompressed_size);
+  VISIT_REP(cmtg_keys);
+}
+
+VISIT_PROTO_FIELDS(
+    const sync_pb::WebauthnCredentialSpecifics::Encrypted::CmtgKey& proto) {
+  VISIT_SECRET(private_key);
+  VISIT(creation_time_unix_epoch_millis);
+}
+
 VISIT_PROTO_FIELDS(const sync_pb::HistorySpecifics::PageTransition& proto) {
   VISIT_ENUM(core_transition);
   VISIT(blocked);
@@ -1856,7 +1872,17 @@ VISIT_PROTO_FIELDS(const sync_pb::PaymentInstrument& proto) {
 VISIT_PROTO_FIELDS(const sync_pb::PaymentInstrumentCreationOption& proto) {
   VISIT(id);
   VISIT(buy_now_pay_later_option);
+  VISIT(ewallet_creation_option);
+  VISIT(pix_creation_option);
 }
+
+VISIT_PROTO_FIELDS(const sync_pb::EwalletCreationOption& proto) {
+  VISIT(issuer_id);
+  VISIT(issuer_display_name);
+  VISIT_REP(supported_payment_link_uris);
+}
+
+VISIT_PROTO_FIELDS(const sync_pb::PixCreationOption& proto) {}
 
 VISIT_PROTO_FIELDS(const sync_pb::BankAccountDetails& proto) {
   VISIT(bank_name);
@@ -2141,6 +2167,7 @@ VISIT_PROTO_FIELDS(const sync_pb::AutofillValuableSpecifics& proto) {
   VISIT(serialized_chrome_valuables_metadata);
   VISIT(event_ticket);
   VISIT(transit_pass);
+  VISIT(offer);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::Any& proto) {
@@ -2250,6 +2277,16 @@ VISIT_PROTO_FIELDS(const sync_pb::TransitPass& proto) {
   VISIT(transit_pass_number);
   VISIT(agency_logo_url);
   VISIT_REP(agency_domains);
+}
+
+VISIT_PROTO_FIELDS(const sync_pb::Offer& proto) {
+  VISIT(issuer_name);
+  VISIT(provider_name);
+  VISIT(offer_short_title);
+  VISIT(expiration_time_unix_epoch_micros);
+  VISIT(offer_code);
+  VISIT(offer_title_image_url);
+  VISIT_REP(issuer_domains);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::AutofillValuableMetadataSpecifics& proto) {

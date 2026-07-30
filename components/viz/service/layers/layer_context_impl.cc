@@ -521,17 +521,17 @@ base::expected<bool, std::string> UpdatePropertyTree(
           "Invalid parent_id for non-root property tree node");
     }
 
-    auto& node = *tree.Node(wire->id);
+    auto& node = tree.MutableNode(wire->id);
     node.id = wire->id;
     node.parent_id = wire->parent_id;
     RETURN_IF_ERROR(UpdatePropertyTreeNode(trees, node, *wire));
   }
 
-  auto* root_node = tree.Node(cc::kRootPropertyNodeId);
-  if (!root_node) {
+  if (cc::kRootPropertyNodeId >= static_cast<int>(tree.size())) {
     return base::unexpected("Missing root property node");
   }
-  if (root_node->parent_id != cc::kInvalidPropertyNodeId) {
+  auto& root_node = tree.MutableNode(cc::kRootPropertyNodeId);
+  if (root_node.parent_id != cc::kInvalidPropertyNodeId) {
     return base::unexpected(
         "Root property node must have an invalid parent ID");
   }
@@ -1169,24 +1169,20 @@ base::expected<void, std::string> DeserializeTiling(
             static_cast<uint32_t>(tiling.tiling_data()->num_tiles_x()) ||
         wire_tile->row_index >=
             static_cast<uint32_t>(tiling.tiling_data()->num_tiles_y());
-    if (is_out_of_bounds) {
-      const bool is_deleted = wire_tile->contents->is_missing_reason() &&
-                              wire_tile->contents->get_missing_reason() ==
-                                  cc::mojom::MissingTileReason::kTileDeleted;
+    const bool is_deleted = wire_tile->contents->is_missing_reason() &&
+                            wire_tile->contents->get_missing_reason() ==
+                                cc::mojom::MissingTileReason::kTileDeleted;
+    // Deleted tiles (both in-bounds and out-of-bounds) are not allowed to track
+    // damage.
+    if (is_deleted && wire_tile->update_damage) {
+      return base::unexpected("Deleted tile cannot update damage");
+    }
 
+    if (is_out_of_bounds) {
       if (!is_deleted) {
         return base::unexpected("Invalid tile index in Tiling");
       }
-
-      // OOB deleted tiles are allowed for cleanup, but they cannot track damage
-      // because they have no valid bounds in the current tiling grid.
-      if (wire_tile->update_damage) {
-        return base::unexpected(
-            "Out-of-bounds deleted tile cannot update damage");
-      }
     }
-    // TODO(zmo): Should we also reject deleted tiles with |update_damage| set
-    // to true?
     ASSIGN_OR_RETURN(auto contents,
                      DeserializeTileContents(host_impl, *wire_tile->contents));
     tiling.SetTileContents(

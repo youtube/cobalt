@@ -184,8 +184,8 @@ ui::ImageModel BackForwardMenuModel::GetIconAt(size_t index) const {
       return ui::ImageModel();
     case MenuSection::kShowFullHistory:
       return ui::ImageModel::FromVectorIcon(
-          kHistoryIcon, ui::kColorMenuIcon,
-          ui::SimpleMenuModel::kDefaultIconSize);
+          features::IsRoundedIconsEnabled() ? kHistoryIcon : kHistoryOldIcon,
+          ui::kColorMenuIcon, ui::SimpleMenuModel::kDefaultIconSize);
   }
 }
 

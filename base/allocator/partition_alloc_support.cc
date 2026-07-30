@@ -136,12 +136,35 @@ namespace switches {
 constexpr char kGpuProcess[] = "gpu-process";
 constexpr char kProcessType[] = "type";
 [[maybe_unused]] constexpr char kRendererProcess[] = "renderer";
+const char kUtilitySubType[] = "utility-sub-type";
 constexpr char kZygoteProcess[] = "zygote";
 }  // namespace switches
 
 [[maybe_unused]] std::string GetProcessType() {
   const CommandLine* command_line = CommandLine::ForCurrentProcess();
   return command_line->GetSwitchValueASCII(switches::kProcessType);
+}
+
+// Returns a "process type identifier" for the current process.
+// It is the process type (e.g. "renderer", "gpu-process") for non-utility
+// processes. For the browser process, it is "browser".
+// For utility processes, it is "utility" followed by "." and the utility
+// sub-type name (e.g. "utility.network.mojom.NetworkService").
+[[maybe_unused]] std::string GetProcessTypeIdentifier() {
+  const CommandLine* command_line = CommandLine::ForCurrentProcess();
+  std::string process_type =
+      command_line->GetSwitchValueASCII(switches::kProcessType);
+  if (process_type.empty()) {
+    return "browser";
+  }
+  if (process_type == "utility") {
+    std::string utility_subtype =
+        command_line->GetSwitchValueASCII(switches::kUtilitySubType);
+    if (!utility_subtype.empty()) {
+      return "utility." + utility_subtype;
+    }
+  }
+  return process_type;
 }
 
 class LockMetricsRecorderSupport
@@ -175,10 +198,10 @@ void RunThreadCachePeriodicPurge() {
       "Memory.PartitionAlloc.PeriodicPurge.Subsampled",
       base::ShouldRecordSubsampledMetric(0.01));
   TRACE_EVENT0("memory", "PeriodicPurge");
-  auto& instance = ::partition_alloc::ThreadCacheRegistry::Instance();
-  instance.RunPeriodicPurge();
+  ::partition_alloc::ThreadCache::RunPeriodicPurge();
   TimeDelta delay =
-      Microseconds(instance.GetPeriodicPurgeNextIntervalInMicroseconds());
+      Microseconds(::partition_alloc::ThreadCache::
+                       GetPeriodicPurgeNextIntervalInMicroseconds());
   SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE, BindOnce(RunThreadCachePeriodicPurge), delay);
 }
@@ -270,10 +293,10 @@ void MemoryReclaimerSupport::MaybeScheduleTask(TimeDelta delay) {
 }
 
 void StartThreadCachePeriodicPurge() {
-  auto& instance = ::partition_alloc::ThreadCacheRegistry::Instance();
-  TimeDelta delay = std::max(
-      Microseconds(instance.GetPeriodicPurgeNextIntervalInMicroseconds()),
-      kFirstPAPurgeOrReclaimDelay);
+  TimeDelta delay =
+      std::max(Microseconds(::partition_alloc::ThreadCache::
+                                GetPeriodicPurgeNextIntervalInMicroseconds()),
+               kFirstPAPurgeOrReclaimDelay);
 
   SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE, BindOnce(RunThreadCachePeriodicPurge), delay);
@@ -879,9 +902,10 @@ void ReconfigureSchedulerLoopQuarantineBranch(
           base::features::kPartitionAllocSchedulerLoopQuarantine)) {
     return;
   }
-  std::string process_type = GetProcessType();
+  std::string process_type_identifier = GetProcessTypeIdentifier();
   partition_alloc::internal::SchedulerLoopQuarantineConfig config =
-      GetSchedulerLoopQuarantineConfiguration(process_type, branch_type);
+      GetSchedulerLoopQuarantineConfiguration(process_type_identifier,
+                                              branch_type);
   for (size_t alloc_token = 0; alloc_token < allocator_shim::kNumPartitions;
        alloc_token++) {
     allocator_shim::internal::PartitionAllocMalloc::Allocator(
@@ -1157,16 +1181,18 @@ void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
       break;
   }
 
+  std::string process_type_identifier = GetProcessTypeIdentifier();
   const auto scheduler_loop_quarantine_global_config =
       GetSchedulerLoopQuarantineConfiguration(
-          process_type, SchedulerLoopQuarantineBranchType::kGlobal);
+          process_type_identifier, SchedulerLoopQuarantineBranchType::kGlobal);
   const auto scheduler_loop_quarantine_thread_local_config =
       GetSchedulerLoopQuarantineConfiguration(
-          process_type, SchedulerLoopQuarantineBranchType::kThreadLocalDefault);
+          process_type_identifier,
+          SchedulerLoopQuarantineBranchType::kThreadLocalDefault);
   const auto
       scheduler_loop_quarantine_for_advanced_memory_safety_checks_config =
           GetSchedulerLoopQuarantineConfiguration(
-              process_type,
+              process_type_identifier,
               SchedulerLoopQuarantineBranchType::kAdvancedMemorySafetyChecks);
 
   if (base::FeatureList::IsEnabled(
@@ -1187,8 +1213,26 @@ void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
   partition_alloc::TagViolationReportingMode memory_tagging_reporting_mode =
       partition_alloc::TagViolationReportingMode::kUndefined;
 
+#if !BUILDFLAG(IS_CHROMEOS)
+  // Enable free with size on non-ChromeOS purely based on feature flag.
   const bool enable_free_with_size =
       base::FeatureList::IsEnabled(base::features::kPartitionAllocFreeWithSize);
+#else
+  bool enable_free_with_size = false;  // Default to false.
+  // TODO(crbug.com/495493036): Remove this opt out once the bug is fixed.
+  static constexpr auto kOptOutChromeOSPlatforms =
+      std::to_array<std::string_view>(
+          {std::string_view("REX"), std::string_view("OVIS")});
+  if (std::ranges::find(kOptOutChromeOSPlatforms,
+                        base::SysInfo::HardwareModelName()) ==
+      kOptOutChromeOSPlatforms.end()) {
+    // If we aren't on an opt-d out device, check the feature enablement. This
+    // prevents the device being considered part of the experiment if it was
+    // opt-ed out (querying for feature status marks as active).
+    enable_free_with_size = base::FeatureList::IsEnabled(
+        base::features::kPartitionAllocFreeWithSize);
+  }
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
   const bool enable_strict_free_size_check =
       base::features::kPartitionAllocStrictFreeSizeCheck.Get();
@@ -1397,7 +1441,7 @@ void PartitionAllocSupport::ReconfigureAfterTaskRunnerInit(
   // Lower thread cache limits to avoid stranding too much memory in the caches.
   if (SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled(
           features::kPartialLowEndModeExcludePartitionAllocSupport)) {
-    ::partition_alloc::ThreadCacheRegistry::Instance().SetThreadCacheMultiplier(
+    ::partition_alloc::ThreadCache::SetThreadCacheMultiplier(
         ::partition_alloc::ThreadCache::kDefaultMultiplier / 2.);
   }
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)

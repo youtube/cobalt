@@ -120,6 +120,7 @@
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
 #include "chrome/browser/ui/exclusive_access/pointer_lock_controller.h"
 #include "chrome/browser/ui/find_bar/find_bar_controller.h"
+#include "chrome/browser/ui/focus/browser_focus_controller.h"
 #include "chrome/browser/ui/fullscreen/browser_window_fullscreen_controller.h"
 #include "chrome/browser/ui/global_error/global_error.h"
 #include "chrome/browser/ui/global_error/global_error_service.h"
@@ -155,6 +156,7 @@
 #include "chrome/browser/ui/web_modal/browser_window_modal_dialog_delegate.h"
 #include "chrome/browser/ui/webui/signin/login_ui_service.h"
 #include "chrome/browser/ui/webui/signin/login_ui_service_factory.h"
+#include "chrome/browser/ui/window_feature_controller/window_feature_controller.h"
 #include "chrome/browser/ui/window_sizer/window_sizer.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
@@ -258,6 +260,7 @@
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/text_elider.h"
 #include "ui/gfx/text_utils.h"
+#include "ui/views/focus/focus_manager.h"
 #include "url/origin.h"
 #include "url/scheme_host_port.h"
 
@@ -390,35 +393,6 @@ void UpdateTabGroupSessionMetadata(Browser* browser,
 
   session_service->SetTabGroupMetadata(browser->session_id(), group_id,
                                        visual_data);
-}
-
-bool ShouldHideUIForFullscreenWrapper(const Browser* browser) {
-  return BrowserWindowFullscreenController::From(browser)
-      ->ShouldHideUIForFullscreen();
-}
-
-bool AlwaysReturnTrue(const Browser* browser) {
-  return true;
-}
-
-bool AlwaysReturnFalse(const Browser* browser) {
-  return false;
-}
-
-base::FunctionRef<bool(const Browser*)> MaybeLazyIsFullscreen(
-    const Browser* browser) {
-  // Returns a base::FunctionRef instead of a Base::RepeatingCallback to reduce
-  // allocation overhead, since this is a performance experiment.
-  if (base::FeatureList::IsEnabled(features::kInlineFullscreenPerfExperiment)) {
-    // In the experiment branch, lazy-eval ShouldHideUIForFullscreen.
-    return &ShouldHideUIForFullscreenWrapper;
-  }
-
-  // In the control branch, eagerly evaluate ShouldHideUIForFullscreen.
-  return BrowserWindowFullscreenController::From(browser)
-                 ->ShouldHideUIForFullscreen()
-             ? &AlwaysReturnTrue
-             : &AlwaysReturnFalse;
 }
 
 }  // namespace
@@ -1394,15 +1368,11 @@ void Browser::ToggleFullscreenModeWithExtension(const GURL& extension_url) {
 }
 
 bool Browser::SupportsWindowFeature(WindowFeature feature) const {
-  bool supports =
-      SupportsWindowFeatureImpl(feature, /*check_can_support=*/false);
-  // Supported features imply CanSupportWindowFeature.
-  DCHECK(!supports || CanSupportWindowFeature(feature));
-  return supports;
+  return WindowFeatureController::From(this)->SupportsWindowFeature(feature);
 }
 
 bool Browser::CanSupportWindowFeature(WindowFeature feature) const {
-  return SupportsWindowFeatureImpl(feature, /*check_can_support=*/true);
+  return WindowFeatureController::From(this)->CanSupportWindowFeature(feature);
 }
 
 void Browser::OpenFile() {
@@ -1497,11 +1467,12 @@ void Browser::OnTabStripModelChanged(TabStripModel* tab_strip_model,
     }
     case TabStripModelChange::kRemoved: {
       for (const auto& contents : change.GetRemove()->contents) {
+        bool had_active_modal_dialog = false;
         if (TabRemoveReasonUtils::WillDeleteTab(contents.remove_reason)) {
-          OnTabClosing(contents.contents);
+          OnTabClosing(contents.tab, &had_active_modal_dialog);
         }
-        OnTabDetached(contents.contents,
-                      contents.contents == selection.old_contents);
+        OnTabDetached(contents.tab, contents.contents == selection.old_contents,
+                      had_active_modal_dialog);
       }
       break;
     }
@@ -1810,6 +1781,8 @@ bool Browser::ShouldAllowRunningInsecureContent(
 void Browser::OnDidBlockNavigation(
     content::WebContents* web_contents,
     const GURL& blocked_url,
+    const GURL& initiator_url,
+    const url::Origin& initiator_origin,
     blink::mojom::NavigationBlockedReason reason) {
   if (reason ==
       blink::mojom::NavigationBlockedReason::kRedirectWithNoUserGesture) {
@@ -1821,7 +1794,8 @@ void Browser::OnDidBlockNavigation(
             blocked_content::GetListItemPositionFromDistance(index,
                                                              total_elements));
       };
-      framebust_helper->AddBlockedUrl(blocked_url, base::BindOnce(on_click));
+      framebust_helper->AddBlockedUrl(blocked_url, initiator_origin,
+                                      base::BindOnce(on_click));
     }
   }
 }
@@ -1854,13 +1828,6 @@ bool Browser::ShouldShowStaleContentOnEviction(content::WebContents* source) {
 #else
   return false;
 #endif  // BUILDFLAG(IS_CHROMEOS)
-}
-
-bool Browser::IsPointerLocked() const {
-  return browser_window_features()
-      ->exclusive_access_manager()
-      ->pointer_lock_controller()
-      ->IsPointerLocked();
 }
 
 void Browser::OnWindowDidShow() {
@@ -2591,7 +2558,7 @@ blink::mojom::DisplayMode Browser::GetDisplayMode(
     }
 
     if (app_browser_controller &&
-        app_browser_controller->AppUsesBorderlessMode() &&
+        app_browser_controller->AppUsesUnframedMode() &&
         window_->IsUnframedModeEnabled()) {
       return blink::mojom::DisplayMode::kUnframed;
     }
@@ -2908,7 +2875,9 @@ void Browser::OnTabInsertedAt(WebContents* contents, int index) {
   }
 }
 
-void Browser::OnTabClosing(WebContents* contents) {
+void Browser::OnTabClosing(tabs::TabInterface* tab,
+                           bool* had_active_modal_dialog) {
+  WebContents* contents = tab->GetContents();
   // When this function is called |contents| has been removed from the
   // TabStripModel. Some of the following code may trigger calling to the
   // WebContentsDelegate, which is |this|, which may try to look for the
@@ -2920,7 +2889,10 @@ void Browser::OnTabClosing(WebContents* contents) {
   // However, when the tab is being closed, we must first close the dialogs [to
   // give them an opportunity to clean up after themselves] while the state
   // associated with their tab is still valid.
-  WebContentsModalDialogManager::FromWebContents(contents)->CloseAllDialogs();
+  WebContentsModalDialogManager* dialog_manager =
+      WebContentsModalDialogManager::FromWebContents(contents);
+  *had_active_modal_dialog = dialog_manager && dialog_manager->IsDialogActive();
+  dialog_manager->CloseAllDialogs();
 
   // Page load metrics need to be informed that the WebContents will soon be
   // destroyed, so that upcoming visibility changes can be ignored.
@@ -2936,7 +2908,10 @@ void Browser::OnTabClosing(WebContents* contents) {
   }
 }
 
-void Browser::OnTabDetached(WebContents* contents, bool was_active) {
+void Browser::OnTabDetached(tabs::TabInterface* tab,
+                            bool was_active,
+                            bool had_active_modal_dialog) {
+  WebContents* contents = tab->GetContents();
   if (!tab_strip_model_->closing_all()) {
     SessionServiceBase* service = GetAppropriateSessionServiceIfExisting(this);
     if (service) {
@@ -2948,6 +2923,35 @@ void Browser::OnTabDetached(WebContents* contents, bool was_active) {
   TabDetachedAtImpl(contents, was_active, DetachType::kDetach);
 
   window_->OnTabDetached(contents, was_active);
+
+  // crbug.com/40624231: CloseAllDialogs() releases the dialog's scoped
+  // input-ignore token on `contents`, but the active same-process sibling can
+  // still be left without renderer focus. No active-tab change happens while
+  // closing the background tab, so restore focus after detach completes.
+  tabs::TabInterface* active_tab = tab_strip_model_->GetActiveTab();
+  WebContents* active_contents =
+      active_tab ? active_tab->GetContents() : nullptr;
+  if (had_active_modal_dialog && active_tab && active_contents && !was_active &&
+      active_contents != contents &&
+      active_contents->GetPrimaryMainFrame()->GetProcess() ==
+          tab->GetContents()->GetPrimaryMainFrame()->GetProcess()) {
+    tabs::TabHandle active_tab_handle = active_tab->GetHandle();
+    window_->SetFocusToLocationBar(false);
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&Browser::RestoreFocusAfterTabModalPopupClose,
+                       weak_factory_.GetWeakPtr(), active_tab_handle));
+  }
+}
+
+void Browser::RestoreFocusAfterTabModalPopupClose(
+    tabs::TabHandle active_tab_handle) {
+  tabs::TabInterface* active_tab = active_tab_handle.Get();
+  if (!active_tab || !window_ ||
+      tab_strip_model_->GetActiveTab() != active_tab) {
+    return;
+  }
+  BrowserFocusController::From(this)->FocusWebContentsPane();
 }
 
 void Browser::OnTabDeactivated(WebContents* contents) {
@@ -3506,123 +3510,6 @@ void Browser::UpdateWindowForLoadingStateChanged(content::WebContents* source,
       status_bubbles.front()->SetStatus(
           CoreTabHelper::FromWebContents(selected_contents)->GetStatusText());
     }
-  }
-}
-
-bool Browser::NormalBrowserSupportsWindowFeature(WindowFeature feature,
-                                                 bool check_can_support) const {
-  const base::FunctionRef<bool(const Browser*)> fullscreen =
-      MaybeLazyIsFullscreen(this);
-  switch (feature) {
-    case WindowFeature::kFeatureBookmarkBar:
-      return true;
-    case WindowFeature::kFeatureTabStrip:
-    case WindowFeature::kFeatureToolbar:
-    case WindowFeature::kFeatureLocationBar:
-      return check_can_support || !fullscreen(this);
-    case WindowFeature::kFeatureTitleBar:
-    case WindowFeature::kFeatureNone:
-      return false;
-  }
-}
-
-bool Browser::PopupBrowserSupportsWindowFeature(WindowFeature feature,
-                                                bool check_can_support) const {
-  const base::FunctionRef<bool(const Browser*)> fullscreen =
-      MaybeLazyIsFullscreen(this);
-  switch (feature) {
-    case WindowFeature::kFeatureTitleBar:
-    case WindowFeature::kFeatureLocationBar:
-      return check_can_support || (!fullscreen(this) && !is_trusted_source());
-    case WindowFeature::kFeatureTabStrip:
-    case WindowFeature::kFeatureToolbar:
-    case WindowFeature::kFeatureBookmarkBar:
-    case WindowFeature::kFeatureNone:
-      return false;
-  }
-}
-
-bool Browser::AppPopupBrowserSupportsWindowFeature(
-    WindowFeature feature,
-    bool check_can_support) const {
-  const base::FunctionRef<bool(const Browser*)> fullscreen =
-      MaybeLazyIsFullscreen(this);
-  switch (feature) {
-    case WindowFeature::kFeatureTitleBar:
-      return check_can_support || !fullscreen(this);
-    case WindowFeature::kFeatureLocationBar:
-      return app_controller() && (check_can_support || !fullscreen(this));
-    default:
-      return PopupBrowserSupportsWindowFeature(feature, check_can_support);
-  }
-}
-
-bool Browser::AppBrowserSupportsWindowFeature(WindowFeature feature,
-                                              bool check_can_support) const {
-  auto* const app_browser_controller = app_controller();
-  DCHECK(app_browser_controller);
-  const base::FunctionRef<bool(const Browser*)> fullscreen =
-      MaybeLazyIsFullscreen(this);
-  switch (feature) {
-    // Web apps should always support the toolbar, so the title/origin of the
-    // current page can be shown when browsing a url that is not inside the app.
-    // Note: Final determination of whether or not the toolbar is shown is made
-    // by the |AppBrowserController|.
-    // TODO(crbug.com/40639933): Make this control the visibility of Browser
-    // Controls more generally.
-    case WindowFeature::kFeatureToolbar:
-      return true;
-    case WindowFeature::kFeatureTitleBar:
-    // TODO(crbug.com/40639933): Make this control the visibility of
-    // CustomTabBarView.
-    case WindowFeature::kFeatureLocationBar:
-      return check_can_support || !fullscreen(this);
-    case WindowFeature::kFeatureTabStrip:
-      // Even when the app has a tab strip, it should be hidden in
-      // fullscreen. This is consistent with the behavior of
-      // NormalBrowserSupportsWindowFeature().
-      return app_browser_controller->has_tab_strip() &&
-             (check_can_support || !fullscreen(this));
-    case WindowFeature::kFeatureBookmarkBar:
-    case WindowFeature::kFeatureNone:
-      return false;
-  }
-}
-
-bool Browser::PictureInPictureBrowserSupportsWindowFeature(
-    WindowFeature feature,
-    bool check_can_support) const {
-  switch (feature) {
-    case WindowFeature::kFeatureTitleBar:
-      return true;
-    case WindowFeature::kFeatureLocationBar:
-    case WindowFeature::kFeatureTabStrip:
-    case WindowFeature::kFeatureToolbar:
-    case WindowFeature::kFeatureBookmarkBar:
-    case WindowFeature::kFeatureNone:
-      return false;
-  }
-}
-
-bool Browser::SupportsWindowFeatureImpl(WindowFeature feature,
-                                        bool check_can_support) const {
-  switch (type_) {
-    case TYPE_NORMAL:
-      return NormalBrowserSupportsWindowFeature(feature, check_can_support);
-    case TYPE_POPUP:
-      return PopupBrowserSupportsWindowFeature(feature, check_can_support);
-    case TYPE_APP:
-      if (app_controller()) {
-        return AppBrowserSupportsWindowFeature(feature, check_can_support);
-      }
-      // TODO(crbug.com/40639933): Change legacy apps to TYPE_APP_POPUP.
-      return AppPopupBrowserSupportsWindowFeature(feature, check_can_support);
-    case TYPE_DEVTOOLS:
-    case TYPE_APP_POPUP:
-      return AppPopupBrowserSupportsWindowFeature(feature, check_can_support);
-    case TYPE_PICTURE_IN_PICTURE:
-      return PictureInPictureBrowserSupportsWindowFeature(feature,
-                                                          check_can_support);
   }
 }
 

@@ -281,6 +281,7 @@ size_t TemplateURLRef::SearchTermsArgs::EstimateMemoryUsage() const {
   res += base::trace_event::EstimateMemoryUsage(input_state);
   res += base::trace_event::EstimateMemoryUsage(image_translate_source_locale);
   res += base::trace_event::EstimateMemoryUsage(image_translate_target_locale);
+  res += base::trace_event::EstimateMemoryUsage(previous_query);
 
   return res;
 }
@@ -838,6 +839,8 @@ bool TemplateURLRef::ParseParameter(size_t start,
     replacements->push_back(Replacement(GOOGLE_SEARCH_CLIENT, start));
   } else if (parameter == "google:searchFieldtrialParameter") {
     replacements->push_back(Replacement(GOOGLE_SEARCH_FIELDTRIAL_GROUP, start));
+  } else if (parameter == "google:searchSource") {
+    replacements->push_back(Replacement(GOOGLE_SEARCH_SOURCE, start));
   } else if (parameter == "google:searchVersion") {
     replacements->push_back(Replacement(GOOGLE_SEARCH_VERSION, start));
   } else if (parameter == "google:sessionToken") {
@@ -1027,6 +1030,15 @@ void TemplateURLRef::ParseHostAndSearchTermKey(
   base::ReplaceSubstringsAfterOffset(
       &url_string, 0, "{google:baseSuggestURL}",
       search_terms_data.GoogleBaseSuggestURLValue());
+  // TODO(crbug.com/509448052): ParseHostAndSearchTermKey manually replaces a
+  // subset of structural placeholders. This logic should ideally be unified
+  // with HandleReplacements to avoid duplication.
+  base::ReplaceSubstringsAfterOffset(
+      &url_string, 0, "{google:suggestPath}",
+      (base::FeatureList::GetInstance() &&
+       base::FeatureList::IsEnabled(omnibox::kUseShortSuggestPathV1))
+          ? "s"
+          : "search");
   base::ReplaceSubstringsAfterOffset(&url_string, 0, "{yandex:searchPath}",
                                      YandexSearchPathFromDeviceFormFactor());
 
@@ -1396,6 +1408,27 @@ std::string TemplateURLRef::HandleReplacements(
         // url.insert(replacement.index, used_www ? "gcx=w&" : "gcx=c&");
         break;
 
+      case GOOGLE_SEARCH_SOURCE: {
+        DCHECK(!replacement.is_post_param);
+        using OEP = ::metrics::OmniboxEventProto;
+        std::string source_param;
+        const auto pc = search_terms_args.page_classification;
+        if (pc == OEP::NTP ||
+            pc == OEP::INSTANT_NTP_WITH_OMNIBOX_AS_STARTING_FOCUS ||
+            pc == OEP::SEARCH_RESULT_PAGE_NO_SEARCH_TERM_REPLACEMENT ||
+            pc == OEP::SEARCH_RESULT_PAGE_DOING_SEARCH_TERM_REPLACEMENT ||
+            pc == OEP::SEARCH_RESULT_PAGE_ON_CCT ||
+            pc == OEP::SRP_ZPS_PREFETCH || pc == OEP::OTHER) {
+          source_param = "chrome.ob";
+        } else if (pc == OEP::NTP_REALBOX) {
+          source_param = "chrome.rb";
+        }
+        if (!source_param.empty()) {
+          HandleReplacement("source", source_param, replacement, &url);
+        }
+        break;
+      }
+
       case GOOGLE_SEARCH_SOURCE_ID: {
         DCHECK(!replacement.is_post_param);
         switch (search_terms_args.request_source) {
@@ -1499,6 +1532,7 @@ std::string TemplateURLRef::HandleReplacements(
 
       case GOOGLE_SUGGEST_PATH: {
         bool use_short_path =
+            base::FeatureList::GetInstance() &&
             base::FeatureList::IsEnabled(omnibox::kUseShortSuggestPathV1);
         const std::string path = use_short_path ? "s" : "search";
         HandleReplacement(std::string(), path, replacement, &url);

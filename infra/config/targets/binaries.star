@@ -2034,6 +2034,12 @@ targets.binaries.console_test_launcher(
     module_scheme = "gtest",
 )
 
+targets.binaries.console_test_launcher(
+    name = "puffin_unittests",
+    label = "//third_party/puffin:puffin_unittests",
+    module_scheme = "gtest",
+)
+
 targets.binaries.windowed_test_launcher(
     name = "remoting_unittests",
     label = "//remoting:remoting_unittests",
@@ -2423,6 +2429,13 @@ targets.binaries.console_test_launcher(
         "--ui-test-action-max-timeout=45000",
         "--ui-test-action-timeout=40000",
     ],
+    module_scheme = "gtest",
+)
+
+targets.binaries.console_test_launcher(
+    name = "updater_fuzztests",
+    label = "//chrome/updater:updater_fuzztests",
+    skip_usage_check = True,
     module_scheme = "gtest",
 )
 

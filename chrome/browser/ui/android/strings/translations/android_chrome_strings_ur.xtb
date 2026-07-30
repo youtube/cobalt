@@ -118,6 +118,7 @@
 <translation id="1448440926884431741">اپنے ٹریک کردہ پروڈکٹس کو بُک مارکس میں منظم کریں</translation>
 <translation id="1455845192930279203">کیا آپ بہر صورت <ph name="DOWNLOAD_DOMAIN" /> سے "<ph name="FILE_NAME" />" (<ph name="FILE_SIZE" />) کو ڈاؤن لوڈ کرنا چاہتے ہیں؟</translation>
 <translation id="1460751212339734034">وقت کی بچت کریں، کم ٹائپ کریں</translation>
+<translation id="146522654774760805">پاس ورڈز اور آٹو فل</translation>
 <translation id="1466383950273130737">‏Chrome کی زبان منتخب کریں</translation>
 <translation id="1477626028522505441">سروس کے مسائل کی وجہ سے <ph name="FILE_NAME" /> کو ڈاؤن لوڈ کرنا ناکام ہوگیا۔</translation>
 <translation id="147982357559798527">تبدیل کر دیا گیا</translation>
@@ -227,6 +228,7 @@
 <translation id="200114059308480249">‏Google تلاشیوں میں آس پاس کا متن شامل کریں؟</translation>
 <translation id="2004096469149679223">‫<ph name="TAB_TITLE" />، پن کردہ خاموش کردہ پوشیدگی ٹیب</translation>
 <translation id="2021896219286479412">پوری اسکرین کے سائٹ کنٹرولز</translation>
+<translation id="2022953316617983419">‏QR کوڈ</translation>
 <translation id="2024195579772565064">سرچ انجن حذف کریں</translation>
 <translation id="2029669011553795746">تجاویز کی اطلاعات کا آپٹ ان آدھا کھلا ہوا ہے</translation>
 <translation id="2038563949887743358">ڈیسک ٹاپ سائٹ کی درخواست کو آن کریں</translation>
@@ -263,6 +265,7 @@
 <translation id="2184272387334793084">اپنے تمام آلات پر اپنے پاس ورڈز وغیرہ حاصل کرنے کے لیے سائن ان کریں</translation>
 <translation id="218608176142494674">اشتراک</translation>
 <translation id="2186779861549045980">‏آپ منتخب کر سکتی ہیں کہ آپ کے Google اکاؤنٹ میں کون سا ڈیٹا محفوظ کرنا ہے، ۔‎\nآپ ان آئٹمز کو اپنے بُک مارکس، پڑھنے کی فہرست یا پاس ورڈ مینیجر میں بھی دیکھ اور ان کا نظم کر سکتی ہیں۔</translation>
+<translation id="2190355936436201913">(خالی)</translation>
 <translation id="219283042927675668">گروپ میں موجود ٹیبز</translation>
 <translation id="2194856509914051091">قابل غور چیزیں</translation>
 <translation id="2205701497928406883">‫<ph name="TAB_TITLE" />، پن کردہ اشتراک کا ٹیب</translation>
@@ -300,6 +303,7 @@
 <translation id="233375395665273385">حذف کریں اور سائن آؤٹ کریں</translation>
 <translation id="2341410551640223969"><ph name="WEBAPK_NAME" /> انسٹال نہیں کی جا سکی۔</translation>
 <translation id="2349710944427398404">‏اکاؤنٹس، بُک مارکس اور محفوظ کردہ ترتیبات سمیت، Chrome کے ذریعے استعمال کردہ کُل ڈیٹا</translation>
+<translation id="2354001756790975382">دیگر بُک مارکس</translation>
 <translation id="235789365079050412">‏Google کی رازداری کی پالیسی</translation>
 <translation id="2359808026110333948">جاری رکھیں</translation>
 <translation id="2362083820973145409"><ph name="USER_NAME" /> کے بطور سائن ان کردہ۔ <ph name="USER_EMAIL" />۔ ترتیبات کھولتا ہے۔</translation>
@@ -544,6 +548,7 @@
 <translation id="3359667936385849800">اپنے موجودہ سروس فراہم کنندہ کو استعمال کریں</translation>
 <translation id="3373701465337594448">آن ہونے پر، آپ کی ملاحظہ کردہ سائٹس کی فہرست یہاں دکھائی دینے والی دلچسپیوں کا اندازہ لگا سکتی ہے</translation>
 <translation id="3384347053049321195">تصویر کا اشتراک کریں</translation>
+<translation id="3385749568468586663">‏‫Gemini پوشیدگی وضع میں دستیاب نہیں ہے</translation>
 <translation id="3387650086002190359">سسٹم کی خرابیوں کی وجہ سے <ph name="FILE_NAME" /> کو ڈاؤن لوڈ کرنا ناکام ہوگیا۔</translation>
 <translation id="3417835166382867856">ٹیبز تلاش کریں</translation>
 <translation id="3430670036890315772">آپ کے پروفائل لاک کو آف کرنے سے آپ کی محفوظ کردہ معلومات ہٹ جائے گی</translation>
@@ -702,6 +707,7 @@
 <translation id="4084712963632273211">‏بذریعہ <ph name="PUBLISHER_ORIGIN" /> – <ph name="BEGIN_DEEMPHASIZED" />Google کے ذریعے ڈیلیور کردہ<ph name="END_DEEMPHASIZED" /></translation>
 <translation id="4092709865241032354">‏Google پاس ورڈ مینیجر کو اپنے سائن ان کی معلومات محفوظ کرنے میں مدد کرنے کی خاطر، اس سائٹ کے لیے اپنا صارف نام شامل کریں</translation>
 <translation id="4095146165863963773">ایپ کا ڈیٹا حذف کریں؟</translation>
+<translation id="4095483462103784441">نیا ٹیب گروپ تخلیق کریں</translation>
 <translation id="4096227151372679484">بُک مارک محفوظ کرنے کا فلو نصف اونچائی پر کھلا ہوا ہے</translation>
 <translation id="4105527135143631701">‏‫Google پاس ورڈ مینیجر کی اپ ڈیٹ کھولی گئی</translation>
 <translation id="4113030288477039509">آپ کے منتظم کے زیر انتظام</translation>
@@ -785,6 +791,7 @@
 <translation id="4409014848144759297"><ph name="WEBSITE_TITLE" /> اور <ph name="TAB_COUNT" /> دیگر ٹیبز</translation>
 <translation id="441100617989818073">غیر استعمال شدہ یا ڈپلیکیٹ ٹیبز اور گروپس</translation>
 <translation id="4412123112245770507">سیکشن سکیڑیں</translation>
+<translation id="4412698727486357573">ہیلپ سینٹر</translation>
 <translation id="4414179633735763985"><ph name="TAB_GROUPS_AND_TABS_PART" /> کو حذف کر دیا گیا</translation>
 <translation id="4415276339145661267">‏اپنے Google اکاؤنٹ کا نظم کریں</translation>
 <translation id="4425140285732600465">قیمت ٹریک کی جا رہی ہے۔ کسی بھی سائٹ پر قیمت میں گراوٹ ہونے پر الرٹس حاصل کریں۔</translation>
@@ -896,6 +903,7 @@
 <translation id="4864369630010738180">سائن ان کر رہا ہے…</translation>
 <translation id="4866368707455379617">‏Chrome کیلئے <ph name="MODULE" /> انسٹال کرنے سے قاصر</translation>
 <translation id="4875775213178255010">مواد کی تجاویز</translation>
+<translation id="4876880121961092787">بُک مارکس بار چھپائیں</translation>
 <translation id="4877678010818027629">پوشیدگی وضع میں داخل ہوں</translation>
 <translation id="4878404682131129617">پراکسی سرور کے ذریعہ سرنگ بنانا ناکام ہو گیا</translation>
 <translation id="4880127995492972015">ترجمہ کریں…</translation>
@@ -1268,6 +1276,7 @@
 <translation id="6437162790453527153">اپنے تمام آلات پر اپنے بُک مارکس وغیرہ حاصل کرنے کیلئے سائن ان کریں</translation>
 <translation id="6437478888915024427">صفحہ کی معلومات</translation>
 <translation id="6440291723980579689">صفحات آپ کے کھولنے کے بعد ہی لوڈ ہوتے ہیں</translation>
+<translation id="6441377161852435370">پڑھنے کی فہرست میں ٹیب شامل کریں</translation>
 <translation id="6441734959916820584">نام کافی بڑا ہے</translation>
 <translation id="6444291413624515012"><ph name="TAB_GROUP_TITLE" /> ٹیب گروپ کو بند کر دیا گیا</translation>
 <translation id="6452534462676960500">نئی سرگرمی</translation>
@@ -1357,6 +1366,7 @@
 <translation id="6787600234697426339"><ph name="MAX_INSTANCE_COUNT" /> ونڈو کی حد تک پہنچ گئے ہیں</translation>
 <translation id="6795633245022906657">فوری طور پر ایک نیا ٹیب کھولیں۔ اس شارٹ کٹ میں ترمیم کرنے کے لیے، ترتیبات پر جائیں۔</translation>
 <translation id="679588508577699489">‏‫Chrome کو اپنا ڈیفالٹ بنائیں</translation>
+<translation id="679845623837196966">پڑھنے کی فہرست دکھائیں</translation>
 <translation id="679956319013005046">‏آٹو فل کے لیے اپنی ترجیحی سروس سیٹ کرنے کے لیے، پہلے <ph name="BEGIN_LINK" />Android کی ترتیبات<ph name="END_LINK" /> میں سروس شامل کریں۔</translation>
 <translation id="6802555630140434547">ونڈو بند کر دی جائے گی</translation>
 <translation id="6803791793483522764">اطلاعات کا جائزہ لیں</translation>
@@ -1428,7 +1438,6 @@
 <translation id="6980258170429555165">‫<ph name="MENU_NAME" /> مینیو کو نمایاں کیا گیا ہے۔</translation>
 <translation id="6983306615164277634">آپ پوزیشن تبدیل کرنے کے لیے ایڈریس بار کو چھو سکتے ہیں اور دبا کر رکھ سکتے ہیں۔</translation>
 <translation id="6987047470128880212">اس آلے پر پوشیدگی دستیاب نہیں ہے</translation>
-<translation id="6989358895283601928">محفوظ کریں اور پرنٹ کریں</translation>
 <translation id="6996145122199359148">اس صفحہ کو ڈاؤن لوڈ کریں</translation>
 <translation id="7013762323294215682">یہ پاس کی آپ کے پاس ورڈ مینیجر میں محفوظ ہو جائے گی۔ اس تک رسائی کا حامل کوئی بھی شخص اس پاس کی کو استعمال کر سکے گا۔</translation>
 <translation id="7020741890149022655">پڑھنے کی فہرست میں شامل کریں<ph name="BEGIN_NEW" />نئی<ph name="END_NEW" /></translation>
@@ -1446,6 +1455,7 @@
 <translation id="7080145768121641840">‫<ph name="TAB_TITLE" />، منتخب پن کردہ خاموش کردہ ٹیب</translation>
 <translation id="7084115944294706056">ایڈریس بار کی پوزیشن کا انتخاب کریں</translation>
 <translation id="7085332316435785646">‏منتخب کریں کہ آیا Google سروسز میں مزید ذاتی نوعیت کے تجربات کے لیے Chrome کی سرگزشت کو شامل کریں</translation>
+<translation id="7087066066828635014">تجاویز کی اطلاعات آن ہو گئی ہیں</translation>
 <translation id="7088681679121566888">‏Chrome اپ ٹو ڈیٹ ہے</translation>
 <translation id="7098100324909062850">‫<ph name="TAB_TITLE" />، متعدد منتخب خاموش کردہ پوشیدگی ٹیب</translation>
 <translation id="7106762743910369165">آپ کا براؤزر آپ کی تنظیم کے زیر انتظام ہے</translation>
@@ -1633,6 +1643,7 @@
 <translation id="7821130663268546430">آپ ٹیب سوئچر میں تمام کھلے ٹیبز تلاش کر سکتے ہیں</translation>
 <translation id="7822705602465980873">‏آپ کے سائن ان ہونے پر یہ ڈیٹا آپ کے Google اکاؤنٹ سے لنک کر دیا جاتا ہے تاکہ آپ کو تمام Google سروسز پر تحفظ فراہم کیا جا سکے، مثال کے طور پر سیکیورٹی کے واقعے کے بعد Gmail میں تحفظ میں اضافہ کرنا۔</translation>
 <translation id="7824665136384946951">آپ کی تنظیم نے محفوظ براؤزنگ کو آف کر دیا ہے</translation>
+<translation id="7825973332242257878">ٹیب گروپس</translation>
 <translation id="7826342993930002256">‏آپ کا Chrome، ہر جگہ</translation>
 <translation id="7846161022626028328">ایک خرابی پیش آ گئی۔ دوبارہ کوشش کریں۔</translation>
 <translation id="7846296061357476882">‏Google سروسز</translation>
@@ -1657,6 +1668,7 @@
 <translation id="7934668619883965330">فائل ڈاؤن لوڈ نہیں ہو سکتی۔ فائل فارمیٹ تعاون یافتہ نہیں ہے۔</translation>
 <translation id="7951102827450076904">‏ہمیشہ ڈاؤن لوڈ کردہ PDFs کھولیں</translation>
 <translation id="7952479614398473176">نئی ونڈو کھولنے کے لیے، فعال ونڈوز کی کل تعداد کو <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> یا اس سے کم کریں۔</translation>
+<translation id="7956713633345437162">موبائل بُک مارکس</translation>
 <translation id="7957413488482743710">ورچوئل کارڈ آپ کے اصل کارڈ کو چھپاتا ہے تاکہ آپ کی ممکنہ دھوکہ دہی سے حفاظت کرنے میں مدد کر سکے۔ <ph name="BEGIN_LINK1" />ورچوئل کارڈز کے بارے میں مزید جانیں<ph name="END_LINK1" /></translation>
 <translation id="7959485987650214982">اس آلہ پر ٹیبز</translation>
 <translation id="7961926449547174351">آپ نے اسٹوریج تک رسائی کو غیر فعال کر دیا ہے، براہ کرم اسے فعال کرنے کے لیے ترتیبات پر جائیں۔</translation>
@@ -1845,6 +1857,7 @@
 <translation id="867914734596684889">بُک مارکس بار دکھائیں یا چھپائیں</translation>
 <translation id="8683039184091909753">تصویر</translation>
 <translation id="8688183792442786085"><ph name="TAB_TITLE" />، منتخب کردہ ٹیب</translation>
+<translation id="8696297579102085705">اپنے آلے پر بھیجیں</translation>
 <translation id="8697753151306746444">اس کے بجائے ونڈو یا اسکرین کا اشتراک کریں</translation>
 <translation id="8699120352855309748">ان زبانوں کو ترجمہ کرنے کی پیشکش نہ کریں</translation>
 <translation id="8712637175834984815">سمجھ آ گئی</translation>
@@ -1992,6 +2005,7 @@
 <translation id="970715775301869095"><ph name="MINUTES" /> منٹ باقی</translation>
 <translation id="981121421437150478">آف لائن</translation>
 <translation id="983192555821071799">سبھی ٹیبز بند کریں</translation>
+<translation id="984275831282074731">ادائیگی کے طریقے</translation>
 <translation id="984756705737569814">‏آپ کے Google اکاؤنٹ میں پاس ورڈز کو چیک نہیں کیا جا سکتا</translation>
 <translation id="987264212798334818">عمومی</translation>
 <translation id="988091779042748639">اپنے آلے سے پوشیدگی براؤزنگ کی سرگزشت کو حذف کرنے کیلئے تمام پوشیدگی ٹیبز کو بند کریں۔</translation>

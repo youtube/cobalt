@@ -16,6 +16,10 @@ BASE_FEATURE(kGenericSensorExtraClasses, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kSensorsAllowAskBlockPermissionModel,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables severing sensor connections on permission revocation.
+BASE_FEATURE(kSeverSensorConnectionsOnPermissionRevocation,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Expose serial port logical connection state and dispatch connection events
 // for Bluetooth serial ports when the Bluetooth device connection state
 // changes.
@@ -43,6 +47,18 @@ BASE_FEATURE(kWebUsbBlocklist,
 // or endpoint. This protects devices which ignore this field.
 BASE_FEATURE(kWebUsbProtectedClassControlTransferBlock,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// When enabled, WebUSB control transfers enforce a positive matching allowlist
+// for Standard requests (permitting only GET_STATUS, GET_DESCRIPTOR,
+// GET_CONFIGURATION, GET_INTERFACE, SYNCH_FRAME). All other Standard requests
+// are strictly blocked.
+BASE_FEATURE(kWebUsbEnforceStandardRequestAllowlist,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// When enabled, WebUSB rejects claiming interfaces that share endpoints with
+// already claimed interfaces, and avoids overwriting endpoint mapping entries.
+// See crbug.com/513167952.
+BASE_FEATURE(kWebUsbHardenEndpointAliasing, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, accessing the navigator.hid attribute does not prevent the
 // frame from entering the back forward cache.

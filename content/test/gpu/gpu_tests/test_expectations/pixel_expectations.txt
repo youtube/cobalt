@@ -472,6 +472,7 @@ crbug.com/40935289 [ angle-vulkan arm fuchsia no-clang-coverage web-engine-shell
 
 # Flaky on Mac ASAN
 crbug.com/372055518 [ angle-metal asan mac ] Pixel_WebGLReadPixelsTabSwitch_SoftwareCompositing [ Failure ]
+crbug.com/514645136 [ angle-metal asan mac ] Pixel_Video_MP4_Rounded_Corner [ Failure ]
 
 # Flaky hang on Mac GL ASAN
 crbug.com/40277254 [ mac angle-opengl asan ] Pixel_WebGPUDisplayP3 [ Failure ]
@@ -529,7 +530,7 @@ crbug.com/415830130 [ angle-vulkan arm fuchsia fuchsia-board-sherlock no-asan no
 crbug.com/446181110 [ android android-pixel-10 android-webview-instrumentation ] Pixel_CanvasLowLatency2D [ Failure ]
 crbug.com/446181110 [ android android-pixel-10 android-webview-instrumentation ] Pixel_CanvasLowLatency2DDrawImage [ Failure ]
 crbug.com/446181110 [ android android-pixel-10 android-webview-instrumentation ] Pixel_CanvasLowLatency2DImageData [ Failure ]
-crbug.com/446861923 [ android android-pixel-10 ] Pixel_Video_Context_Loss_VP9 [ Failure ]
+crbug.com/446861923 [ android android-pixel-10 android-webview-instrumentation no-passthrough renderer-skia-gl ] Pixel_Video_Context_Loss_VP9 [ Failure ]
 crbug.com/446861923 [ android android-pixel-10 android-chromium ] Pixel_OffscreenCanvasAccelerated2DWorker [ Failure ]
 crbug.com/446861923 [ android android-pixel-10 android-chromium ] Pixel_Video_AV1 [ Failure ]
 crbug.com/446861923 [ android android-pixel-10 android-chromium ] Pixel_Video_BackdropFilter [ Failure ]
@@ -548,6 +549,9 @@ crbug.com/286989320 [ linux amd-0x7340 ] Pixel_MeetEffects_rainbow_wig_and_eyela
 # Mac AMD flaky directory failures
 crbug.com/444653106 [ mac amd-0x7340 graphite-enabled angle-metal ] Pixel_CSSFilterEffects [ Slow ]
 crbug.com/444653106 [ mac amd-0x7340 graphite-enabled angle-metal ] Pixel_CSSFilterEffects_NoOverlays [ Slow ]
+
+# Linux AMD flakes
+crbug.com/494242715 [ linux amd-0x7480 ] Pixel_PaintWorkletTransform [ Failure ]
 
 #######################################################################
 # Automated Entries After This Point - Do Not Manually Add Below Here #

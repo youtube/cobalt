@@ -1,4 +1,5 @@
 include_rules = [
+    "+base/callback_list.h",
     "+base/containers/flat_map.h",
     "+base/containers/span.h",
     "+base/files/file_path.h",
@@ -59,6 +60,7 @@ include_rules = [
     "+services/network/public/mojom/web_sandbox_flags.mojom-blink-forward.h",
     "+services/network/public/mojom/web_sandbox_flags.mojom-shared.h",
     "+services/service_manager/public",
+    "+services/viz/public/mojom/compositing/compositor_frame_sink.mojom-shared.h",
     "+ui/base/dragdrop/mojom/drag_drop_types.mojom-shared.h",
     "+ui/base/ime/ime_text_span.h",
     "+ui/display/mojom",

@@ -449,6 +449,9 @@ int Database::WalCheckpointImpl(base::cstring_view db_name,
 
 base::WeakPtr<Database> Database::GetWeakPtr(InternalApiToken) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!is_open()) {
+    return nullptr;
+  }
   return weak_factory_.GetWeakPtr();
 }
 
@@ -1406,18 +1409,25 @@ bool Database::BeginTransaction(InternalApiToken) {
     return false;
   }
 
-  bool success = true;
   DCHECK_GE(transaction_nesting_, 0);
   if (!transaction_nesting_) {
     needs_rollback_ = false;
 
+    // Create and cache the "COMMIT" and "ROLLBACK" statements right away. If
+    // they can't be created, the transaction cannot be allowed to begin or else
+    // it would be impossible to terminate.
+    if (!GetCachedStatement(commit_statement_id_, "COMMIT")->is_valid() ||
+        !GetCachedStatement(rollback_statement_id_, "ROLLBACK")->is_valid()) {
+      return false;
+    }
+
     Statement begin(GetCachedStatement(SQL_FROM_HERE, "BEGIN TRANSACTION"));
-    if (!begin.Run()) {
+    if (!begin.is_valid() || !begin.Run()) {
       return false;
     }
   }
   ++transaction_nesting_;
-  return success;
+  return true;
 }
 
 void Database::RollbackTransaction(InternalApiToken) {
@@ -1467,7 +1477,10 @@ bool Database::CommitTransaction(InternalApiToken) {
     return false;
   }
 
-  Statement commit(GetCachedStatement(SQL_FROM_HERE, "COMMIT"));
+  Statement commit(GetCachedStatement(commit_statement_id_, "COMMIT"));
+  // A valid "COMMIT" statement was cached by `BeginTransaction`. That statement
+  // is mandatory for keeping SQLite and the application in sync.
+  CHECK(commit.is_valid(), base::NotFatalUntil::M155);
 
   bool succeeded = commit.Run();
   if (!is_open()) {
@@ -1498,16 +1511,25 @@ bool Database::CommitTransaction(InternalApiToken) {
 
 bool Database::BeginTransactionDeprecated() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!is_open()) {
+    return false;
+  }
   return BeginTransaction(InternalApiToken());
 }
 
 bool Database::CommitTransactionDeprecated() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!is_open()) {
+    return false;
+  }
   return CommitTransaction(InternalApiToken());
 }
 
 void Database::RollbackTransactionDeprecated() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!is_open()) {
+    return;
+  }
   RollbackTransaction(InternalApiToken());
 }
 
@@ -2297,6 +2319,34 @@ bool Database::OpenInternal(const std::string& db_file_path) {
       return false;
     }
 
+    // Set the synchronous flag, which controls how aggressively SQLite writes
+    // data to disk.
+    //
+    // If `no_sync_` is true, this is set to OFF. With synchronous=OFF, SQLite
+    // hands data to the OS for writing but doesn't wait for it to complete.
+    // This is very fast, but an OS crash or power failure can lead to database
+    // corruption. Data is safe from an application crash.
+    //
+    // Otherwise, if WAL mode is enabled, this is set to NORMAL. In WAL mode,
+    // synchronous=NORMAL means SQLite syncs at critical moments (like
+    // checkpoints), but not for every individual transaction. An OS crash or
+    // power failure may cause the loss of transactions that occurred since the
+    // last checkpoint, but the database file itself will not be corrupted.
+    //
+    // If `no_sync_` is false and WAL mode is disabled, the synchronous flag is
+    // not set, which means SQLite uses its default (FULL).
+    // See https://www.sqlite.org/pragma.html#pragma_synchronous for more
+    // details.
+    if (options_.no_sync_ || UseWALMode()) {
+      if (!Execute(options_.no_sync_
+                       ? base::cstring_view("PRAGMA synchronous=OFF")
+                       : base::cstring_view("PRAGMA synchronous=NORMAL"))) {
+        RecordOpenDatabaseFailureReason(
+            histogram_tag_, OpenDatabaseFailedReason::kPragmaSynchronousFailed);
+        return false;
+      }
+    }
+
     // https://www.sqlite.org/pragma.html#pragma_journal_mode
     // WAL - Use a write-ahead log instead of a journal file.
     // DELETE (default) - delete -journal file to commit.
@@ -2309,33 +2359,6 @@ bool Database::OpenInternal(const std::string& db_file_path) {
     // Needs to be performed after setting exclusive locking mode. Otherwise can
     // fail if underlying VFS doesn't support shared memory.
     if (UseWALMode()) {
-      // Set the synchronous flag, which controls how aggressively SQLite writes
-      // data to disk.
-      //
-      // If `no_sync_on_wal_mode_` is true, this is set to OFF. With
-      // synchronous=OFF, SQLite hands data to the OS for writing but doesn't
-      // wait for it to complete. This is very fast, but an OS crash or power
-      // failure can lead to database corruption. Data is safe from an
-      // application crash.
-      //
-      // Otherwise, this is set to NORMAL. In WAL mode, synchronous=NORMAL means
-      // SQLite syncs at critical moments (like checkpoints), but not for every
-      // individual transaction. An OS crash or power failure may cause the loss
-      // of transactions that occurred since the last checkpoint, but the
-      // database file itself will not be corrupted.
-      // See https://www.sqlite.org/pragma.html#pragma_synchronous for more
-      // details.
-      //
-      // TODO(shuagga@microsoft.com): Evaluate if this loss of durability is a
-      // concern.
-      if (!Execute(options_.no_sync_on_wal_mode_
-                       ? base::cstring_view("PRAGMA synchronous=OFF")
-                       : base::cstring_view("PRAGMA synchronous=NORMAL"))) {
-        RecordOpenDatabaseFailureReason(
-            histogram_tag_, OpenDatabaseFailedReason::kPragmaSynchronousFailed);
-        return false;
-      }
-
       // Opening the db in WAL mode can fail (eg if the underlying VFS doesn't
       // support shared memory and we are not in exclusive locking mode).
       if (!Execute("PRAGMA journal_mode=WAL")) {
@@ -2519,15 +2542,15 @@ void Database::ConfigureSqliteDatabaseObject() {
 void Database::DoRollback() {
   TRACE_EVENT0("sql", "Database::DoRollback");
 
-  Statement rollback(GetCachedStatement(SQL_FROM_HERE, "ROLLBACK"));
+  Statement rollback(GetCachedStatement(rollback_statement_id_, "ROLLBACK"));
+  // A valid "ROLLBACK" statement was cached by `BeginTransaction`. That
+  // statement is mandatory for keeping SQLite and the application in sync.
+  CHECK(rollback.is_valid(), base::NotFatalUntil::M155);
 
   rollback.Run();
 
-  // The cache may have been accumulating dirty pages for commit.  Note that in
-  // some cases sql::Transaction can fire rollback after a database is closed.
-  if (is_open()) {
-    ReleaseCacheMemoryIfNeeded(false);
-  }
+  // The cache may have been accumulating dirty pages for commit.
+  ReleaseCacheMemoryIfNeeded(false);
 
   needs_rollback_ = false;
 }

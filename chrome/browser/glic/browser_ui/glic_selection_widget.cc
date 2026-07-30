@@ -20,6 +20,7 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
 #include "ui/base/resource/resource_bundle.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_variant.h"
 #include "ui/compositor/layer.h"
@@ -164,14 +165,15 @@ class GlicSelectionContentsView : public views::View {
         l10n_util::GetStringUTF16(IDS_APP_COPY), nullptr, nullptr);
     auto* copy_btn =
         ask_pill_->AddChildView(views::ImageButton::CreateIconButton(
-            std::move(on_copy), vector_icons::kContentCopyIcon, copy_tooltip));
+            std::move(on_copy), vector_icons::kContentCopyOldIcon,
+            copy_tooltip));
     copy_btn->SetTooltipText(copy_tooltip);
     copy_btn->SetImageVerticalAlignment(views::ImageButton::ALIGN_MIDDLE);
     copy_btn->SetBorder(
         views::CreateEmptyBorder(views::LayoutProvider::Get()->GetInsetsMetric(
             views::INSETS_VECTOR_IMAGE_BUTTON)));
     views::SetImageFromVectorIconWithColor(
-        copy_btn, vector_icons::kContentCopyIcon, kIconSize,
+        copy_btn, vector_icons::kContentCopyOldIcon, kIconSize,
         views::IconColors(ui::kColorSysOnSurfaceVariant,
                           ui::kColorLabelForegroundDisabled,
                           ui::kColorSysOnSurfaceVariant));
@@ -183,7 +185,10 @@ class GlicSelectionContentsView : public views::View {
         l10n_util::GetStringUTF16(IDS_CONTENT_CONTEXT_COPYLINKTOTEXT);
     copy_link_btn_ =
         ask_pill_->AddChildView(views::ImageButton::CreateIconButton(
-            std::move(on_copy_link), omnibox::kShareChromeRefreshIcon,
+            std::move(on_copy_link),
+            features::IsRoundedIconsEnabled()
+                ? omnibox::kShareIcon
+                : omnibox::kShareChromeRefreshOldIcon,
             copy_link_tooltip));
     copy_link_btn_->SetTooltipText(copy_link_tooltip);
     copy_link_btn_->SetImageVerticalAlignment(views::ImageButton::ALIGN_MIDDLE);
@@ -191,7 +196,10 @@ class GlicSelectionContentsView : public views::View {
         views::CreateEmptyBorder(views::LayoutProvider::Get()->GetInsetsMetric(
             views::INSETS_VECTOR_IMAGE_BUTTON)));
     views::SetImageFromVectorIconWithColor(
-        copy_link_btn_, omnibox::kShareChromeRefreshIcon, kIconSize,
+        copy_link_btn_,
+        features::IsRoundedIconsEnabled() ? omnibox::kShareIcon
+                                          : omnibox::kShareChromeRefreshOldIcon,
+        kIconSize,
         views::IconColors(ui::kColorSysOnSurfaceVariant,
                           ui::kColorLabelForegroundDisabled,
                           ui::kColorSysOnSurfaceVariant));
@@ -218,7 +226,7 @@ class GlicSelectionContentsView : public views::View {
     if (features::kGlicSelectionPromptEnablePinning.Get()) {
       pin_btn_ =
           dismiss_pill_->AddChildView(views::ImageButton::CreateIconButton(
-              std::move(on_toggle_pin), vector_icons::kCaretUpIcon,
+              std::move(on_toggle_pin), vector_icons::kCaretUpOldIcon,
               std::u16string()));
       pin_btn_->SetImageVerticalAlignment(views::ImageButton::ALIGN_MIDDLE);
       pin_btn_->SetBorder(views::CreateEmptyBorder(
@@ -231,7 +239,7 @@ class GlicSelectionContentsView : public views::View {
       auto dismiss_tooltip = l10n_util::GetStringUTF16(IDS_APP_CLOSE);
       dismiss_btn_ =
           dismiss_pill_->AddChildView(views::ImageButton::CreateIconButton(
-              std::move(on_dismiss), vector_icons::kCloseIcon,
+              std::move(on_dismiss), vector_icons::kCloseOldIcon,
               dismiss_tooltip));
       dismiss_btn_->SetTooltipText(dismiss_tooltip);
       dismiss_btn_->SetImageVerticalAlignment(views::ImageButton::ALIGN_MIDDLE);
@@ -239,7 +247,7 @@ class GlicSelectionContentsView : public views::View {
           views::LayoutProvider::Get()->GetInsetsMetric(
               views::INSETS_VECTOR_IMAGE_BUTTON)));
       views::SetImageFromVectorIconWithColor(
-          dismiss_btn_, vector_icons::kCloseIcon, kIconSize,
+          dismiss_btn_, vector_icons::kCloseOldIcon, kIconSize,
           views::IconColors(ui::kColorSysOnSurfaceVariant,
                             ui::kColorLabelForegroundDisabled,
                             ui::kColorSysOnSurfaceVariant));
@@ -290,8 +298,8 @@ class GlicSelectionContentsView : public views::View {
 
   void SetPinned(bool is_pinned) {
     if (pin_btn_) {
-      const gfx::VectorIcon& icon =
-          is_pinned ? vector_icons::kCaretDownIcon : vector_icons::kCaretUpIcon;
+      const gfx::VectorIcon& icon = is_pinned ? vector_icons::kCaretDownOldIcon
+                                              : vector_icons::kCaretUpOldIcon;
       views::SetImageFromVectorIconWithColor(
           pin_btn_, icon, kIconSize,
           views::IconColors(ui::kColorSysOnSurfaceVariant,
@@ -371,7 +379,7 @@ GlicSelectionWidgetDelegate::GlicSelectionWidgetDelegate(
     base::RepeatingCallback<void(bool)> on_pin_toggled,
     base::RepeatingClosure on_dismiss)
     : BubbleDialogDelegate(nullptr,
-                           views::BubbleBorder::TOP_LEFT,
+                           views::BubbleBorder::BOTTOM_RIGHT,
                            views::BubbleBorder::STANDARD_SHADOW,
                            /*autosize=*/true),
       original_anchor_rect_(anchor_rect),
@@ -447,7 +455,7 @@ void GlicSelectionWidgetDelegate::UpdatePosition() {
     // The pill has a BubbleBorder with a STANDARD_SHADOW. This shadow adds
     // a large invisible inset (typically ~24px). We must subtract this inset
     // so the visual top of the pill aligns with our target. We also subtract
-    // the default 4px arrow gap added by BubbleDialogDelegate for TOP_LEFT.
+    // the default 4px arrow gap added by BubbleDialogDelegate for BOTTOM_RIGHT.
     int top_inset = 0;
     if (auto* contents_view = GetContentsView()) {
       if (!contents_view->children().empty()) {
@@ -464,37 +472,7 @@ void GlicSelectionWidgetDelegate::UpdatePosition() {
     SetAnchorRect(gfx::Rect(pinned_x, pinned_y, 0, 0));
   } else {
     // Unpinned: anchored inline near selection.
-    int ask_gemini_width = 120;
-    if (auto* contents_view = GetContentsView()) {
-      if (!contents_view->children().empty()) {
-        auto* ask_pill = contents_view->children()[0].get();
-        if (!ask_pill->children().empty()) {
-          ask_gemini_width =
-              ask_pill->children()[0]->GetPreferredSize().width();
-        }
-      }
-    }
-    gfx::Rect adjusted_anchor = original_anchor_rect_;
-    int overlap = 4 + ask_gemini_width / 2;
-    int target_x = std::max(original_anchor_rect_.x(),
-                            original_anchor_rect_.right() - overlap);
-
-    // TODO(crbug.com/507481568): Handle cases where the widget spills off the
-    // bottom of the window, and use RTL code (see ui/gfx/text_utils.h) to flip
-    // the layout when needed.
-    if (!window_bounds_.IsEmpty()) {
-      constexpr int kWindowEdgePadding = 16;
-      target_x = std::max(target_x, window_bounds_.x() + kWindowEdgePadding);
-      if (target_x + total_width >
-          window_bounds_.right() - kWindowEdgePadding) {
-        target_x = window_bounds_.right() - total_width - kWindowEdgePadding;
-      }
-    }
-
-    adjusted_anchor.set_x(target_x);
-    adjusted_anchor.set_width(0);
-    adjusted_anchor.Inset(gfx::Insets::TLBR(0, 0, -8, 0));
-    SetAnchorRect(adjusted_anchor);
+    SetAnchorRect(original_anchor_rect_);
   }
 }
 

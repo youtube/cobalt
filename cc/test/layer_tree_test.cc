@@ -291,6 +291,11 @@ class LayerTreeHostImplForTesting : public ClientLayerTreeHostImpl {
     return f;
   }
 
+  void DidSendEarlyFinalBeginMainFrame() override {
+    LayerTreeHostImpl::DidSendEarlyFinalBeginMainFrame();
+    test_hooks_->DidSendEarlyFinalBeginMainFrameOnThread(this);
+  }
+
   void NotifyReadyToActivate() override {
     if (block_notify_ready_to_activate_for_testing_) {
       notify_ready_to_activate_was_blocked_ = true;

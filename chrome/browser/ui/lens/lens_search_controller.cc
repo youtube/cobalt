@@ -9,6 +9,9 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_panel_controller.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 #include "chrome/browser/contextual_tasks/entry_point_eligibility_manager.h"
 #include "chrome/browser/lens/core/mojom/geometry.mojom.h"
 #include "chrome/browser/profiles/profile.h"
@@ -77,9 +80,20 @@ std::string ScaleBitmapAndEncodeToDataUri(SkBitmap bitmap) {
 }
 
 bool UseNonBlockingPrivacyNotice(
-    lens::LensOverlayInvocationSource invocation_source) {
+    lens::LensOverlayInvocationSource invocation_source,
+    bool should_route_to_contextual_tasks) {
   if (!lens::features::IsLensOverlayNonBlockingPrivacyNoticeEnabled()) {
     return false;
+  }
+  // The non-blocking privacy notice may be used for the image context menu
+  // entrypoint if the flag is enabled and if the query is not being routed to
+  // Contextual Tasks.
+  if (lens::features::
+          IsLensOverlayNonBlockingPrivacyNoticeForImageSearchEnabled() &&
+      invocation_source ==
+          lens::LensOverlayInvocationSource::kContentAreaContextMenuImage &&
+      !should_route_to_contextual_tasks) {
+    return true;
   }
   // Invocation sources that simply open the overlay without submitting a query
   // are permitted to use the non-blocking privacy notice.
@@ -797,7 +811,9 @@ bool LensSearchController::RunLensEligibilityChecks(
   // The non-blocking privacy notice permits the overlay to open without
   // requesting user permission via the bubble.
   if (lens::features::IsLensOverlayNonBlockingPrivacyNoticeEnabled() &&
-      UseNonBlockingPrivacyNotice(invocation_source)) {
+      UseNonBlockingPrivacyNotice(
+          invocation_source,
+          ShouldEnableContextualTasksRouting(invocation_source))) {
     return true;
   }
 
@@ -1082,6 +1098,34 @@ void LensSearchController::TabWillEnterBackground(tabs::TabInterface* tab) {
     CloseLensSync(
         lens::LensOverlayDismissalSource::kTabBackgroundedWhileInitializing);
     return;
+  }
+
+  // Dismisses the Lens session and closes the side panel if the tab is
+  // backgrounded in the contextual tasks flow while waiting for results.
+  // This prevents a broken state where the overlay or a blank panel might be
+  // left open on a background tab.
+  if (should_route_to_contextual_tasks() && IsShowingUI()) {
+    auto* panel_controller =
+        contextual_tasks::ContextualTasksPanelController::From(
+            tab_->GetBrowserWindowInterface());
+    if (panel_controller) {
+      content::WebContents* panel_contents =
+          panel_controller->GetActiveWebContents();
+      if (panel_contents) {
+        GURL url = panel_contents->GetVisibleURL();
+        base::Uuid task_id =
+            contextual_tasks::ContextualTasksUiService::GetTaskIdFromUrl(url);
+
+        auto* ui_service = contextual_tasks::ContextualTasksUiServiceFactory::
+            GetForBrowserContext(tab_->GetContents()->GetBrowserContext());
+        if (ui_service && ui_service->IsTaskWaitingForUrl(task_id)) {
+          panel_controller->Close();
+          CloseLensSync(lens::LensOverlayDismissalSource::
+                            kTabBackgroundedWhileInitializing);
+          return;
+        }
+      }
+    }
   }
 
   // If no Lens UI is showing when the tab is backgrounded, then the entire Lens

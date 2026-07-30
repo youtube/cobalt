@@ -200,6 +200,8 @@ public class ImeAdapterImpl
 
     private boolean mAllowFullscreenIme;
 
+    private boolean mKeyboardSuppressed;
+
     // Whether to force show keyboard during stylus handwriting. We do not show it when writing
     // system is active and stylus is used to edit input text. This is used to show the soft
     // keyboard from Direct writing toolbar.
@@ -210,6 +212,8 @@ public class ImeAdapterImpl
     private String[] mSupportedMimeTypes = {};
 
     private @Nullable AutocorrectManager mAutocorrectManager;
+
+    private @Nullable ImeRenderWidgetHostImpl mBoundImeRenderWidgetHost;
 
     /**
      * {@ResultReceiver} passed in InputMethodManager#showSoftInput}. We need this to scroll to the
@@ -262,7 +266,9 @@ public class ImeAdapterImpl
         public void onConnectionError(MojoException e) {}
 
         @Override
-        public void close() {}
+        public void close() {
+            mHandle.close();
+        }
     }
 
     /**
@@ -617,6 +623,14 @@ public class ImeAdapterImpl
         mAllowFullscreenIme = allow;
     }
 
+    @Override
+    public void setKeyboardSuppressed(boolean suppressed) {
+        mKeyboardSuppressed = suppressed;
+        if (mKeyboardSuppressed) {
+            hideKeyboard();
+        }
+    }
+
     @VisibleForTesting
     void setInputConnectionFactory(ChromiumBaseInputConnection.Factory factory) {
         mInputConnectionFactory = factory;
@@ -889,6 +903,10 @@ public class ImeAdapterImpl
     /** Show soft keyboard only if it is the current keyboard configuration. */
     private void showSoftKeyboard() {
         if (!isValid()) return;
+        if (mKeyboardSuppressed) {
+            Log.d(TAG, "showSoftKeyboard: blocked because keyboard is suppressed");
+            return;
+        }
         if (DEBUG_LOGS) Log.i(TAG, "showSoftKeyboard");
         View containerView = getContainerView();
 
@@ -1096,6 +1114,11 @@ public class ImeAdapterImpl
         mStylusWritingImeCallback = null;
         if (mWebContents.getStylusWritingHandler() != null) {
             mWebContents.getStylusWritingHandler().onImeAdapterDestroyed();
+        }
+
+        if (mBoundImeRenderWidgetHost != null) {
+            mBoundImeRenderWidgetHost.close();
+            mBoundImeRenderWidgetHost = null;
         }
 
         WeakReference<ImeAdapterImpl> oldValue = sNativeHelperMap.remove(mNativeImeAdapterAndroid);
@@ -1817,9 +1840,13 @@ public class ImeAdapterImpl
      */
     @CalledByNative
     private void bindImeRenderHost(long nativeHandle) {
+        if (mBoundImeRenderWidgetHost != null) {
+            mBoundImeRenderWidgetHost.close();
+            mBoundImeRenderWidgetHost = null;
+        }
         MessagePipeHandle handle =
                 CoreImpl.getInstance().acquireNativeHandle(nativeHandle).toMessagePipeHandle();
-        new ImeRenderWidgetHostImpl(this, handle);
+        mBoundImeRenderWidgetHost = new ImeRenderWidgetHostImpl(this, handle);
     }
 
     /**

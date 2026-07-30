@@ -67,6 +67,8 @@ CGFloat const kSheetTopPadding = 40.0f;
 
   // Metrics recorder
   ComposeboxMetricsRecorder* _metricsRecorder;
+  // Tracks if the user performed a successful action in the menu.
+  BOOL _successfulActionPerformed;
 }
 
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController
@@ -91,13 +93,12 @@ CGFloat const kSheetTopPadding = 40.0f;
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController
                                    browser:(Browser*)browser
                                 entrypoint:(ComposeboxEntrypoint)entrypoint {
-  return
-      [self initWithBaseViewController:viewController
-                               browser:browser
-                preselectedAttachments:nil
-                            inputState:nil
-                       metricsRecorder:[[ComposeboxMetricsRecorder alloc] init]
-                            entrypoint:entrypoint];
+  return [self initWithBaseViewController:viewController
+                                  browser:browser
+                   preselectedAttachments:nil
+                               inputState:nil
+                          metricsRecorder:nil
+                               entrypoint:entrypoint];
 }
 
 - (void)start {
@@ -116,6 +117,12 @@ CGFloat const kSheetTopPadding = 40.0f;
         std::move(configParams),
         contextual_search::ContextualSearchSource::kNewTabPage,
         lens::LensOverlayInvocationSource::kNtpContextualQuery);
+
+    _metricsRecorder = [[ComposeboxMetricsRecorder alloc] init];
+    if (_sessionHandle) {
+      _metricsRecorder.contextualSearchMetricsRecorder =
+          _sessionHandle->GetMetricsRecorder();
+    }
 
     ComposeboxModeHolder* modeHolder = [[ComposeboxModeHolder alloc] init];
 
@@ -191,6 +198,14 @@ CGFloat const kSheetTopPadding = 40.0f;
 }
 
 - (void)stop {
+  if (!_successfulActionPerformed) {
+    [_metricsRecorder recordAttachmentsMenuShown:NO];
+  }
+  if (_isStandaloneMenu) {
+    // Disconnect the metrics recorder when its constructed by the menu.
+    _metricsRecorder.contextualSearchMetricsRecorder = nullptr;
+  }
+  _metricsRecorder = nil;
   [_viewController.presentingViewController dismissViewControllerAnimated:YES
                                                                completion:nil];
   _viewController = nil;
@@ -212,7 +227,15 @@ CGFloat const kSheetTopPadding = 40.0f;
 
 - (void)composeboxMenuMediator:(ComposeboxMenuMediator*)mediator
                     didTapTool:(ComposeboxMode)toolMode {
+  _successfulActionPerformed = YES;
+
   if (_isStandaloneMenu) {
+    [_metricsRecorder recordToolSelected:toolMode];
+    if (toolMode == ComposeboxMode::kAIM) {
+      [_metricsRecorder
+          recordAiModeActivationSource:AiModeActivationSource::kToolMenu];
+    }
+
     ComposeboxFocusParams* focusParams = [[ComposeboxFocusParams alloc]
         initWithEntrypoint:_entrypoint
                      query:nil
@@ -234,7 +257,10 @@ CGFloat const kSheetTopPadding = 40.0f;
 
 - (void)composeboxMenuMediator:(ComposeboxMenuMediator*)mediator
                    didTapModel:(ComposeboxModelOption)modelMode {
+  _successfulActionPerformed = YES;
+
   if (_isStandaloneMenu) {
+    [_metricsRecorder recordModelSelected:modelMode];
     ComposeboxFocusParams* focusParams = [[ComposeboxFocusParams alloc]
         initWithEntrypoint:_entrypoint
                      query:nil
@@ -256,6 +282,7 @@ CGFloat const kSheetTopPadding = 40.0f;
 
 - (void)composeboxMenuMediator:(ComposeboxMenuMediator*)mediator
           didUpdateAttachments:(ComposeboxAttachmentSelection*)attachments {
+  _successfulActionPerformed = YES;
   if (_isStandaloneMenu) {
     ComposeboxFocusParams* focusParams = [[ComposeboxFocusParams alloc]
         initWithEntrypoint:_entrypoint
@@ -403,6 +430,14 @@ CGFloat const kSheetTopPadding = 40.0f;
   }
   if (![_inputState isAttachmentHidden:kFile]) {
     visibleButtons.push_back(FuseboxAttachmentButtonType::kFiles);
+  }
+
+  for (const auto& tool : _inputState.allowedTools) {
+    [_metricsRecorder recordToolModeShown:tool];
+  }
+
+  for (const auto& model : _inputState.allowedModels) {
+    [_metricsRecorder recordModelModeShown:model];
   }
 
   [_metricsRecorder

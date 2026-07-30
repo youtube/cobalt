@@ -666,7 +666,7 @@ RenderWidgetHostViewBase::GetInputWeakPtr() {
 }
 
 input::RenderInputRouter* RenderWidgetHostViewBase::GetViewRenderInputRouter() {
-  return host()->GetRenderInputRouter();
+  return host() ? host()->GetRenderInputRouter() : nullptr;
 }
 
 void RenderWidgetHostViewBase::SetScaleOverrideForCapture(float scale) {
@@ -1023,6 +1023,11 @@ void RenderWidgetHostViewBase::UpdateFrameSinkIdRegistration() {
 void RenderWidgetHostViewBase::SetViewTransitionResources(
     std::unique_ptr<ScopedViewTransitionResources> resources) {
   view_transition_resources_ = std::move(resources);
+}
+
+std::optional<uint32_t>
+RenderWidgetHostView::GetForceSpecifiedDeadlineForTesting() {
+  return std::nullopt;
 }
 
 }  // namespace content

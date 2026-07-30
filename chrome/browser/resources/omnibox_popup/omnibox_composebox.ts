@@ -5,15 +5,19 @@
 import '//resources/cr_components/composebox/composebox_dropdown.js';
 import '//resources/cr_components/composebox/composebox_file_inputs.js';
 import '//resources/cr_components/composebox/composebox_input.js';
+import '//resources/cr_components/composebox/composebox_tool_chip.js';
 import '//resources/cr_components/composebox/contextual_entrypoint_button.js';
 
+import type {TabUpload} from '//resources/cr_components/composebox/common.js';
 import type {PageHandlerRemote} from '//resources/cr_components/composebox/composebox.mojom-webui.js';
 import type {ComposeboxDropdownElement} from '//resources/cr_components/composebox/composebox_dropdown.js';
 import type {ComposeboxInputElement} from '//resources/cr_components/composebox/composebox_input.js';
 import {ComposeboxEmbedderMixin} from '//resources/cr_components/composebox/composebox_mixin.js';
 import {ComposeboxProxyImpl} from '//resources/cr_components/composebox/composebox_proxy.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
+import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import type {FileAttachment, PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote, SearchContext, TabAttachment} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import {ToolMode} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 
 import {getCss} from './omnibox_composebox.css.js';
 import {getHtml} from './omnibox_composebox.html.js';
@@ -42,11 +46,16 @@ export class OmniboxComposeboxElement extends ComposeboxEmbedderMixin
 
   static override get properties() {
     return {
+      applyContextButtonBackground: {
+        reflect: true,
+        type: Boolean,
+      },
       entrypointName: {type: String, reflect: true},
     };
   }
 
   accessor entrypointName: string = 'Omnibox';
+  accessor applyContextButtonBackground: boolean = false;
   private pageHandler_: PageHandlerRemote;
   private searchboxCallbackRouter_: SearchboxPageCallbackRouter;
   private searchboxHandler_: SearchboxPageHandlerRemote;
@@ -57,6 +66,30 @@ export class OmniboxComposeboxElement extends ComposeboxEmbedderMixin
     this.searchboxCallbackRouter_ =
         ComposeboxProxyImpl.getInstance().searchboxCallbackRouter;
     this.searchboxHandler_ = ComposeboxProxyImpl.getInstance().searchboxHandler;
+  }
+
+  override willUpdate(changedProperties: PropertyValues<this>) {
+    super.willUpdate(changedProperties);
+
+    if (changedProperties.has('inputState') ||
+        changedProperties.has('webuiOmniboxSimplificationEnabled')) {
+      const inToolMode = this.inputState?.activeTool !== ToolMode.kUnspecified;
+      this.applyContextButtonBackground =
+          this.webuiOmniboxSimplificationEnabled && !inToolMode;
+    }
+  }
+
+  override firstUpdated(changedProperties: PropertyValues<this>) {
+    super.firstUpdated(changedProperties);
+    this.focusInput();
+  }
+
+  override async addTabContextHandleCallback(
+      _tabUpload: TabUpload, _replaceAutoActiveTabToken: boolean = false) {
+    // TODO(crbug.com/508287630): Implement fully when adding file carousel.
+    // For now, satisfy contract to avoid assertNotReached crashes on state
+    // updates.
+    return Promise.resolve();
   }
 
   override getActiveElement(): Element|null {
@@ -81,6 +114,10 @@ export class OmniboxComposeboxElement extends ComposeboxEmbedderMixin
 
   override getSearchboxHandler(): SearchboxPageHandlerRemote {
     return this.searchboxHandler_;
+  }
+
+  override getContextEntrypointElement(): HTMLElement|null {
+    return this.shadowRoot?.querySelector('#contextEntrypoint') || null;
   }
 
   addSearchContext(context: SearchContext|null) {

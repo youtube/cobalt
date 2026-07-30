@@ -284,6 +284,55 @@ TEST_P(PageContextExtractorJavaScriptFeatureTest,
   EXPECT_THAT(*result_value, base::test::IsSupersetOfValue(expected_value));
 }
 
+// Validate that <form> elements with nested <input name="name"> or <input
+// name="action"> don't clobber the values in the APC.
+TEST_P(PageContextExtractorJavaScriptFeatureTest,
+       ExtractPageContextHandlesFormNamedElementPollution) {
+  // Create HTML containing a form with children named "name" and "action".
+  // Direct properties form.name and form.action will be overridden by DOM
+  // Elements, which would result in unexpected type errors.
+  const std::string main_html =
+      "<html><head><title>Main</title></head><body>"
+      "<form name=\"pollutedForm\" action=\"http://examplesite.com/submit\">"
+      "  <input name=\"name\" value=\"polluted-input-element-name\">"
+      "  <input name=\"action\" value=\"polluted-input-element-action\">"
+      "</form>"
+      "</body></html>";
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  std::optional<base::Value> result_value = RunExtraction(
+      web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
+      /*include_cross_origin_frame_content=*/false,
+      /*use_rich_extraction=*/true,
+      /*use_rich_extraction_with_actionable=*/false,
+      /*extract_paid_content=*/false,
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1));
+
+  ASSERT_TRUE(result_value);
+  const base::DictValue& dict = result_value->GetDict();
+
+  // Drill down to the form node in the extracted Rich Extraction tree:
+  // rootNode -> childrenNodes[0] (body) -> childrenNodes[0] (form)
+  const base::DictValue* root_node = dict.FindDict("rootNode");
+  ASSERT_TRUE(root_node);
+  const base::ListValue* body_children = root_node->FindList("childrenNodes");
+  ASSERT_TRUE(body_children && !body_children->empty());
+  const base::DictValue& form_node = (*body_children)[0].GetDict();
+
+  // Verify formName and actionUrl were safely extracted as strings rather than
+  // being polluted or skipped.
+  const std::string* form_name =
+      form_node.FindStringByDottedPath("contentAttributes.formData.formName");
+  ASSERT_TRUE(form_name);
+  EXPECT_EQ(*form_name, "pollutedForm");
+
+  const std::string* action_url =
+      form_node.FindStringByDottedPath("contentAttributes.formData.actionUrl");
+  ASSERT_TRUE(action_url);
+  EXPECT_EQ(*action_url, "http://examplesite.com/submit");
+}
+
 // Test the extraction of the page context with RichExtraction.
 TEST_P(PageContextExtractorJavaScriptFeatureTest,
        ExtractPageContext_RichExtraction) {
@@ -803,6 +852,77 @@ TEST_P(PageContextExtractorJavaScriptFeatureTest,
       button_node.FindStringByDottedPath("contentAttributes.label");
   ASSERT_TRUE(label);
   EXPECT_EQ(*label, "Direct Label");
+}
+
+// Test that -webkit-text-security is respected for ARIA label and table name
+// extraction.
+TEST_P(PageContextExtractorJavaScriptFeatureTest,
+       ExtractPageContext_TextSecurityBypass) {
+  const std::string html =
+      "<html><body>"
+      "  <span id=\"secret\" style=\"-webkit-text-security: "
+      "disc\">9999-8888</span>"
+      "  <button id=\"btn\" aria-labelledby=\"secret\">Submit</button>"
+      "  <table>"
+      "    <caption style=\"-webkit-text-security: disc\">My Secret "
+      "Table</caption>"
+      "    <thead><tr><th>Header</th></tr></thead>"
+      "    <tbody><tr><td>Body</td></tr></tbody>"
+      "  </table>"
+      "</body></html>";
+  web::test::LoadHtml(base::SysUTF8ToNSString(html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  std::optional<base::Value> result_value = RunExtraction(
+      web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
+      /*include_cross_origin_frame_content=*/false,
+      /*use_rich_extraction=*/true,
+      /*use_rich_extraction_with_actionable=*/true,
+      /*extract_paid_content=*/false,
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(4));
+
+  ASSERT_TRUE(result_value);
+  const base::DictValue& dict = result_value->GetDict();
+  const base::DictValue* root_node = dict.FindDict("rootNode");
+  ASSERT_TRUE(root_node);
+  const base::ListValue* children = root_node->FindList("childrenNodes");
+  ASSERT_TRUE(children);
+
+  // Expected children:
+  // 1. Span container (with the masked text inside)
+  // 2. Button (referencing the span via aria-labelledby)
+  // 3. Table (with the caption)
+  ASSERT_EQ(children->size(), 3u);
+
+  const std::string expected_mask =
+      "\u2022\u2022\u2022\u2022\u2022\u2022\u2022";
+
+  // Verify Span's text node is masked correctly.
+  const base::DictValue& text_node = (*children)[0].GetDict();
+  const std::string* span_text = text_node.FindStringByDottedPath(
+      "contentAttributes.textInfo.textContent");
+  ASSERT_TRUE(span_text);
+  EXPECT_EQ(*span_text, expected_mask);
+
+  // Verify Button's ARIA label is masked correctly.
+  const base::DictValue& button_node = (*children)[1].GetDict();
+  const std::string* button_label =
+      button_node.FindStringByDottedPath("contentAttributes.label");
+  ASSERT_TRUE(button_label);
+  EXPECT_EQ(*button_label, expected_mask);
+
+  // Verify Table's caption is masked correctly.
+  const base::DictValue& table_node = (*children)[2].GetDict();
+  std::optional<double> attribute_type =
+      table_node.FindDoubleByDottedPath("contentAttributes.attributeType");
+  ASSERT_TRUE(attribute_type.has_value());
+  EXPECT_EQ(
+      static_cast<int>(attribute_type.value()),
+      static_cast<int>(optimization_guide::proto::CONTENT_ATTRIBUTE_TABLE));
+  const std::string* table_name = table_node.FindStringByDottedPath(
+      "contentAttributes.tableData.tableName");
+  ASSERT_TRUE(table_name);
+  EXPECT_EQ(*table_name, expected_mask);
 }
 
 TEST_P(PageContextExtractorJavaScriptFeatureTest,
@@ -1755,6 +1875,64 @@ TEST_P(PageContextExtractorJavaScriptFeatureTest,
       "contentAttributes.nodeInteractionInfo");
   EXPECT_FALSE(interaction_info3 &&
                interaction_info3->FindDouble("documentScopedZOrder"));
+}
+
+TEST_P(PageContextExtractorJavaScriptFeatureTest,
+       ExtractPageContext_FormDisabledWithPollution) {
+  // A form element containing an input with name="disabled".
+  // Since HTMLFormElement has [LegacyOverrideBuiltIns], accessing form.disabled
+  // returns the input element rather than undefined. Strictly checking
+  // form.disabled === true prevents the form from being incorrectly marked as
+  // disabled.
+  const std::string html = R"(
+    <html>
+      <body>
+        <form id="myForm">
+          <input name="disabled" type="text" value="Not really disabled">
+        </form>
+      </body>
+    </html>
+  )";
+  web::test::LoadHtml(base::SysUTF8ToNSString(html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  std::optional<base::Value> result_value = RunExtraction(
+      web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
+      /*include_cross_origin_frame_content=*/false,
+      /*use_rich_extraction=*/true,
+      /*use_rich_extraction_with_actionable=*/true,
+      /*extract_paid_content=*/false,
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1));
+
+  ASSERT_TRUE(result_value);
+  ASSERT_TRUE(result_value->is_dict());
+
+  const base::DictValue& dict = result_value->GetDict();
+  const base::DictValue* root_node = dict.FindDict("rootNode");
+  ASSERT_TRUE(root_node);
+  const base::ListValue* children = root_node->FindList("childrenNodes");
+  ASSERT_TRUE(children);
+  ASSERT_GE(children->size(), 1u);
+
+  // The form element should be the first node in this hierarchy.
+  const base::DictValue& form_node = (*children)[0].GetDict();
+  std::optional<double> attribute_type =
+      form_node.FindDoubleByDottedPath("contentAttributes.attributeType");
+  ASSERT_TRUE(attribute_type.has_value());
+  ASSERT_EQ(
+      static_cast<int>(attribute_type.value()),
+      static_cast<int>(optimization_guide::proto::CONTENT_ATTRIBUTE_FORM));
+
+  // Verify the form itself does NOT have isDisabled set to true.
+  // Note: If the pollution bug occurred, `nodeInteractionInfo` would be
+  // incorrectly populated with `isDisabled = true`. In the correct/fixed case,
+  // `nodeInteractionInfo` is either not populated (null) or has `isDisabled =
+  // false`.
+  const base::DictValue* interaction_info =
+      form_node.FindDictByDottedPath("contentAttributes.nodeInteractionInfo");
+  if (interaction_info) {
+    EXPECT_FALSE(interaction_info->FindBool("isDisabled").value_or(false));
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(All,

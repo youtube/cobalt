@@ -29,6 +29,7 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab.TabLaunchType;
+import org.chromium.chrome.browser.tab.TabUtils;
 import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridge;
 import org.chromium.components.content_settings.ContentSetting;
 import org.chromium.components.content_settings.ContentSettingsType;
@@ -126,6 +127,10 @@ public abstract class TabModelJniBridge implements TabModelInternal {
     @Override
     @CalledByNative
     public abstract @JniType("TabAndroid*") @Nullable Tab getTabAt(int index);
+
+    @Override
+    @CalledByNative
+    public abstract @JniType("std::vector<TabAndroid*>") List<Tab> getOrderedMultiSelectedTabs();
 
     @Override
     public Profile getProfile() {
@@ -429,6 +434,7 @@ public abstract class TabModelJniBridge implements TabModelInternal {
 
         MultiInstanceOrchestratorFactory.getInstance()
                 .moveTabsToNewWindow(
+                        TabUtils.getActivity(parentTab),
                         Collections.singletonList(tab),
                         /* finalizeCallback= */ null,
                         NewWindowAppSource.DEV_TOOLS);

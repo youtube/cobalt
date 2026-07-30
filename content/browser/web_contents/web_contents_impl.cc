@@ -2679,7 +2679,7 @@ base::ScopedClosureRunner WebContentsImpl::IncrementCapturerCount(
     ++stay_awake_capturer_count_;
   }
 
-  view_->OnCapturerCountChanged();
+  OnCapturerCountChanged();
 
   // Note: This provides a hint to upstream code to size the views optimally
   // for quality (e.g., to avoid scaling).
@@ -2715,6 +2715,13 @@ bool WebContentsImpl::IsBeingCaptured() {
 
 bool WebContentsImpl::IsBeingVisiblyCaptured() {
   return visible_capturer_count_ > 0;
+}
+
+void WebContentsImpl::OnCapturerCountChanged() {
+  view_->OnCapturerCountChanged();
+  if (surface_embed_connector_) {
+    surface_embed_connector_->SetKeepSurfaceAlive(IsBeingCaptured());
+  }
 }
 
 #if BUILDFLAG(IS_MAC) && BUILDFLAG(USE_EXTERNAL_POPUP_MENU)
@@ -3147,11 +3154,9 @@ void WebContentsImpl::SetPrimaryPageImportance(
   // and the subframes.
   base::android::ScopedServiceBindingBatch scoped_service_binding_batch;
 
-  if (base::FeatureList::IsEnabled(features::kSubframeImportance)) {
-    if (subframe_importance != primary_subframe_importance_) {
-      primary_subframe_importance_ = subframe_importance;
-      ApplyPrimaryPageSubframeImportance();
-    }
+  if (subframe_importance != primary_subframe_importance_) {
+    primary_subframe_importance_ = subframe_importance;
+    ApplyPrimaryPageSubframeImportance();
   }
 
   GetPrimaryMainFrame()->GetRenderWidgetHost()->SetImportance(
@@ -5033,10 +5038,9 @@ void WebContentsImpl::UpdateVisibilityAndNotifyPageAndView(
   PageVisibilityState page_visibility =
       CalculatePageVisibilityState(new_visibility);
 
-  // A crashed frame might be covered by a sad tab. See docs on SadTabHelper
-  // exactly when it is or isn't. Either way, don't make it visible.
-  bool view_is_visible =
-      !IsCrashed() && page_visibility != PageVisibilityState::kHidden;
+  TRACE_EVENT1("content",
+               "WebContentsImpl::UpdateVisibilityAndNotifyPageAndView",
+               "page_visibility", page_visibility);
 
   // True if the instance is being hidden or revealed.
   const bool hide_or_reveal = (visibility_ == Visibility::HIDDEN) !=
@@ -5094,24 +5098,7 @@ void WebContentsImpl::UpdateVisibilityAndNotifyPageAndView(
     ForEachRenderViewHost(view_mask, update_frame_tree_visibility);
   }
 
-  // |GetRenderWidgetHostView()| can be null if the user middle clicks a link to
-  // open a tab in the background, then closes the tab before selecting it.
-  // This is because closing the tab calls WebContentsImpl::Destroy(), which
-  // removes the |GetRenderViewHost()|; then when we actually destroy the
-  // window, OnWindowPosChanged() notices and calls WasHidden() (which
-  // calls us).
-  if (auto* view = GetRenderWidgetHostView()) {
-    if (view_is_visible) {
-      static_cast<RenderWidgetHostViewBase*>(view)->ShowWithVisibility(
-          page_visibility);
-    } else if (new_visibility == Visibility::HIDDEN) {
-      view->Hide();
-    } else {
-      view->WasOccluded();
-    }
-  }
-
-  SetVisibilityForChildViews(view_is_visible);
+  SetPrimaryMainFrameViewVisibility(new_visibility);
 
   if (page_visibility == PageVisibilityState::kHidden) {
     // Similar to when showing the page, we only hide the page after
@@ -5176,6 +5163,38 @@ void WebContentsImpl::UpdateVisibilityAndNotifyPageAndView(
       }
     }
   }
+}
+
+void WebContentsImpl::SetPrimaryMainFrameViewVisibility(Visibility visibility) {
+  PageVisibilityState page_visibility =
+      CalculatePageVisibilityState(visibility);
+
+  // A crashed frame might be covered by a sad tab. See docs on SadTabHelper
+  // exactly when it is or isn't. Either way, don't make it visible.
+  bool view_is_visible =
+      !IsCrashed() && page_visibility != PageVisibilityState::kHidden;
+
+  TRACE_EVENT1("content", "WebContentsImpl::SetPrimaryMainFrameViewVisibility",
+               "view_is_visible", view_is_visible);
+
+  // |GetRenderWidgetHostView()| can be null if the user middle clicks a link to
+  // open a tab in the background, then closes the tab before selecting it.
+  // This is because closing the tab calls WebContentsImpl::Destroy(), which
+  // removes the |GetRenderViewHost()|; then when we actually destroy the
+  // window, OnWindowPosChanged() notices and calls WasHidden() (which
+  // calls us).
+  if (auto* view = GetRenderWidgetHostView()) {
+    if (view_is_visible) {
+      static_cast<RenderWidgetHostViewBase*>(view)->ShowWithVisibility(
+          page_visibility);
+    } else if (visibility == Visibility::HIDDEN) {
+      view->Hide();
+    } else {
+      view->WasOccluded();
+    }
+  }
+
+  SetVisibilityForChildViews(view_is_visible);
 }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -6467,8 +6486,7 @@ const std::optional<gfx::Rect> WebContentsImpl::GetTextSelectionBounds(
     if (view && root_view) {
       const auto* region = text_input_manager_->GetSelectionRegion(view);
       if (region) {
-        gfx::Rect bounds =
-            gfx::RectBetweenSelectionBounds(region->anchor, region->focus);
+        gfx::Rect bounds = region->bounding_box;
         if (!bounds.IsEmpty()) {
           gfx::Point origin = bounds.origin();
           origin += root_view->GetViewBounds().OffsetFromOrigin();
@@ -8951,12 +8969,14 @@ void WebContentsImpl::NotifyNavigationEntriesDeleted() {
 void WebContentsImpl::OnDidBlockNavigation(
     const GURL& blocked_url,
     const GURL& initiator_url,
+    const url::Origin& initiator_origin,
     blink::mojom::NavigationBlockedReason reason) {
   OPTIONAL_TRACE_EVENT("content", "WebContentsImpl::OnDidBlockNavigation",
                        "blocked_url", blocked_url, "initiator_url",
                        initiator_url, "reason", reason);
   if (delegate_) {
-    delegate_->OnDidBlockNavigation(this, blocked_url, reason);
+    delegate_->OnDidBlockNavigation(this, blocked_url, initiator_url,
+                                    initiator_origin, reason);
   }
 }
 
@@ -8981,8 +9001,7 @@ void WebContentsImpl::RenderFrameCreated(
   }
 
 #if BUILDFLAG(IS_ANDROID)
-  if (base::FeatureList::IsEnabled(features::kSubframeImportance) &&
-      render_frame_host->GetParent() &&
+  if (render_frame_host->GetParent() &&
       render_frame_host->frame_tree()->is_primary()) {
     if (auto* rwh = render_frame_host->GetLocalRenderWidgetHost()) {
       rwh->SetImportance(primary_subframe_importance_);
@@ -10812,6 +10831,12 @@ void WebContentsImpl::NotifySwappedFromRenderManager(
   NotifyFrameSwapped(old_frame, new_frame);
 }
 
+void WebContentsImpl::PrimaryMainFrameSwapComplete(
+    RenderFrameHostImpl* new_frame) {
+  CHECK(new_frame->GetView() == GetRenderWidgetHostView());
+  SetPrimaryMainFrameViewVisibility(GetVisibility());
+}
+
 void WebContentsImpl::NotifySwappedFromRenderManagerWithoutFallbackContent(
     RenderFrameHostImpl* new_frame) {
   auto* rwhv = static_cast<RenderWidgetHostViewBase*>(new_frame->GetView());
@@ -11091,6 +11116,13 @@ WebContentsImpl::GetFaviconURLs() {
 
 void WebContentsImpl::Resize(const gfx::Rect& new_bounds) {
   OPTIONAL_TRACE_EVENT0("content", "WebContentsImpl::Resize");
+  // If we're embedded, the HTML element has control over the size (and
+  // resizing the platform view will resize the embedder, not this).
+  // TODO(crbug.com/505317114): Refactor this so this is in the View, which
+  // already has the appropriate platform split.
+  if (surface_embed_connector_) {
+    return;
+  }
   if (view_) {
     view_->Resize(new_bounds);
   }
@@ -12192,9 +12224,7 @@ void WebContentsImpl::NotifyPageBecamePrimary(PageImpl& page) {
   // pages restored from back/forward cache. Note that we don't need to clear
   // importance for non-primary pages because the importance is ignored at
   // RenderWidgetHostImpl::GetPriority() and updated when it becomes inactive.
-  if (base::FeatureList::IsEnabled(features::kSubframeImportance)) {
-    ApplyPrimaryPageSubframeImportance();
-  }
+  ApplyPrimaryPageSubframeImportance();
 #endif
 
   // Clear |save_package_| since the primary page changed.
@@ -12277,7 +12307,7 @@ void WebContentsImpl::DecrementCapturerCount(bool stay_hidden,
     return;
   }
 
-  view_->OnCapturerCountChanged();
+  OnCapturerCountChanged();
 
   const bool is_being_captured = IsBeingCaptured();
   if (!is_being_captured) {

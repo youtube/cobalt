@@ -33,6 +33,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/path_service.h"
 #include "base/rand_util.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/task/bind_post_task.h"
 #include "base/trace_event/trace_event.h"
@@ -96,9 +97,7 @@
 #include "ui/display/win/screen_win.h"
 #include "ui/gfx/mojom/dxgi_info.mojom.h"
 #endif  // BUILDFLAG(IS_WIN)
-#if BUILDFLAG(IS_CASTOS)
-#include "chromecast/chromecast_buildflags.h"  // nogncheck
-#endif                                         // BUILDFLAG(IS_CASTOS)
+
 
 namespace content {
 
@@ -519,14 +518,6 @@ void GpuDataManagerImplPrivate::InitializeGpuModes() {
 
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kDisableGpu)) {
-    // Chomecast audio-only builds run with the flag --disable-gpu. The GPU
-    // process should not access hardware GPU in this case.
-#if BUILDFLAG(IS_CASTOS)
-#if BUILDFLAG(IS_CAST_AUDIO_ONLY)
-    fallback_modes_.clear();
-    fallback_modes_.push_back(gpu::GpuMode::DISPLAY_COMPOSITOR);
-#endif  // BUILDFLAG(IS_CAST_AUDIO_ONLY)
-#endif  // BUILDFLAG(IS_CASTOS)
 
 #if (BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CAST_ANDROID)) || \
     BUILDFLAG(IS_CHROMEOS)
@@ -1156,6 +1147,19 @@ void GpuDataManagerImplPrivate::TerminateInfoCollectionGpuProcess() {
   if (host)
     host->ForceShutdown();
 }
+
+void GpuDataManagerImplPrivate::SetUseAdapterLuid(const CHROME_LUID& luid) {
+  use_adapter_luid_ = luid;
+}
+
+void GpuDataManagerImplPrivate::ClearUseAdapterLuid() {
+  use_adapter_luid_ = std::nullopt;
+}
+
+std::optional<CHROME_LUID> GpuDataManagerImplPrivate::GetUseAdapterLuid()
+    const {
+  return use_adapter_luid_;
+}
 #endif
 
 void GpuDataManagerImplPrivate::PostCreateThreads() {
@@ -1358,6 +1362,19 @@ void GpuDataManagerImplPrivate::AppendGpuCommandLine(
   if (!use_gl.empty()) {
     command_line->AppendSwitchASCII(switches::kUseGL, use_gl);
   }
+
+#if BUILDFLAG(IS_WIN)
+  if (browser_command_line->HasSwitch(switches::kUseAdapterLuid)) {
+    command_line->AppendSwitchASCII(
+        switches::kUseAdapterLuid,
+        browser_command_line->GetSwitchValueASCII(switches::kUseAdapterLuid));
+  } else if (use_adapter_luid_.has_value()) {
+    std::string luid_string =
+        base::NumberToString(use_adapter_luid_->HighPart) + "," +
+        base::NumberToString(use_adapter_luid_->LowPart);
+    command_line->AppendSwitchASCII(switches::kUseAdapterLuid, luid_string);
+  }
+#endif
 }
 
 void GpuDataManagerImplPrivate::UpdateGpuPreferences(

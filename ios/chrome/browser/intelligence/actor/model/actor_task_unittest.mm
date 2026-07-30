@@ -34,7 +34,7 @@
 @property(nonatomic, assign) actor::ActorTaskState oldState;
 
 @property(nonatomic, assign) BOOL willExecuteToolCalled;
-@property(nonatomic, copy) NSString* toolString;
+@property(nonatomic, assign) actor::ToolType toolType;
 @property(nonatomic, assign) web::WebStateID toolWebStateId;
 
 @property(nonatomic, assign) BOOL didStopCalled;
@@ -72,11 +72,11 @@
 }
 
 - (void)actorTaskWithID:(actor::ActorTaskId)taskID
-        willExecuteTool:(NSString*)toolString
+        willExecuteTool:(actor::ToolType)toolType
              taskUpdate:(NSString*)taskUpdate
              onWebState:(web::WebStateID)webStateID {
   _willExecuteToolCalled = YES;
-  _toolString = toolString;
+  _toolType = toolType;
   _toolWebStateId = webStateID;
 }
 
@@ -128,7 +128,8 @@ namespace actor {
 
 class MockTool : public ActorTool {
  public:
-  MockTool(base::WeakPtr<web::WebState> web_state) : web_state_(web_state) {}
+  explicit MockTool(base::WeakPtr<web::WebState> web_state)
+      : web_state_(web_state) {}
   ~MockTool() override = default;
 
   void Execute(ToolExecutionCallback callback) override {
@@ -139,9 +140,7 @@ class MockTool : public ActorTool {
     return web_state_;
   }
 
-  optimization_guide::proto::Action::ActionCase GetActionCase() const override {
-    return optimization_guide::proto::Action::ACTION_NOT_SET;
-  }
+  ToolType GetToolType() const override { return ToolType::kUnknown; }
 
  private:
   base::WeakPtr<web::WebState> web_state_;
@@ -179,10 +178,9 @@ class ActorTaskTest : public PlatformTest {
 
   void SetTaskState(ActorTaskState state) { task_->SetState(state); }
 
-  void TriggerOnWillExecuteTool(
-      optimization_guide::proto::Action::ActionCase tool_case,
-      web::WebStateID web_state_id) {
-    task_->OnWillExecuteTool(tool_case, web_state_id);
+  void TriggerOnWillExecuteTool(ToolType tool_type,
+                                web::WebStateID web_state_id) {
+    task_->OnWillExecuteTool(tool_type, web_state_id);
   }
 
   std::unique_ptr<AggregatedJournal> journal_;
@@ -291,6 +289,44 @@ TEST_F(ActorTaskTest, AddControlledWebStateNotifiesObserver) {
             observer.addedWebStateId.identifier());
 }
 
+// Tests that AddControlledWebState correctly adds a WebState to the controlled
+// list and notifies observers.
+TEST_F(ActorTaskTest, AddControlledWebState) {
+  FakeActorTaskUpdatesObserver* observer =
+      [[FakeActorTaskUpdatesObserver alloc] init];
+  task_->AddObserver(observer);
+
+  std::unique_ptr<web::FakeWebState> web_state =
+      std::make_unique<web::FakeWebState>();
+
+  observer.didAddWebStateCalled = NO;
+  task_->AddControlledWebState(web_state.get());
+
+  EXPECT_TRUE(observer.didAddWebStateCalled);
+  EXPECT_EQ(web_state->GetUniqueIdentifier().identifier(),
+            observer.addedWebStateId.identifier());
+
+  const auto& controlled_states = GetControlledWebStates();
+  EXPECT_EQ(1u, controlled_states.size());
+  EXPECT_EQ(web_state.get(), controlled_states[0].get());
+
+  std::vector<JournalEntry> logs = journal_->GetLogs();
+  ASSERT_EQ(1u, logs.size());
+  EXPECT_EQ("ActorTask::AddControlledWebState", logs[0].event);
+  ASSERT_EQ(1u, logs[0].details.size());
+  EXPECT_EQ("web_state_id", logs[0].details[0].key);
+  EXPECT_EQ(base::NumberToString(web_state->GetUniqueIdentifier().identifier()),
+            logs[0].details[0].value);
+
+  // Test adding nullptr or duplicate.
+  observer.didAddWebStateCalled = NO;
+  task_->AddControlledWebState(nullptr);
+  task_->AddControlledWebState(web_state.get());
+  EXPECT_FALSE(observer.didAddWebStateCalled);
+  EXPECT_EQ(1u, GetControlledWebStates().size());
+  EXPECT_EQ(1u, journal_->GetLogs().size());
+}
+
 // Tests that AddObserver registers the observer and immediately sends the
 // current state and controlled web states.
 TEST_F(ActorTaskTest, AddObserverTriggersImmediateSync) {
@@ -376,21 +412,21 @@ TEST_F(ActorTaskTest, OnWillExecuteToolNotifiesObserver) {
 
   // 1. Test a successfully mapped tool execution.
   observer.willExecuteToolCalled = NO;
-  TriggerOnWillExecuteTool(optimization_guide::proto::Action::kNavigate,
+  TriggerOnWillExecuteTool(ToolType::kNavigate,
                            web_state->GetUniqueIdentifier());
 
   EXPECT_TRUE(observer.willExecuteToolCalled);
-  EXPECT_NSEQ(@"NavigateTool", observer.toolString);
+  EXPECT_EQ(ToolType::kNavigate, observer.toolType);
   EXPECT_EQ(web_state->GetUniqueIdentifier().identifier(),
             observer.toolWebStateId.identifier());
 
   // 2. Test an unmapped/fallback tool execution.
   observer.willExecuteToolCalled = NO;
-  TriggerOnWillExecuteTool(optimization_guide::proto::Action::ACTION_NOT_SET,
+  TriggerOnWillExecuteTool(ToolType::kUnknown,
                            web_state->GetUniqueIdentifier());
 
   EXPECT_TRUE(observer.willExecuteToolCalled);
-  EXPECT_NSEQ(@"Unknown tool", observer.toolString);
+  EXPECT_EQ(ToolType::kUnknown, observer.toolType);
   EXPECT_EQ(web_state->GetUniqueIdentifier().identifier(),
             observer.toolWebStateId.identifier());
 }
@@ -468,7 +504,7 @@ TEST_F(ActorTaskTest, OptionalMethodsGracefullyIgnored) {
   EXPECT_NO_FATAL_FAILURE({ SetTaskState(ActorTaskState::kActing); });
 
   EXPECT_NO_FATAL_FAILURE({
-    TriggerOnWillExecuteTool(optimization_guide::proto::Action::kNavigate,
+    TriggerOnWillExecuteTool(ToolType::kNavigate,
                              web::WebStateID::FromSerializedValue(123));
   });
 

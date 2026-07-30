@@ -32,6 +32,7 @@
 #include <memory>
 #include <vector>
 
+#include "base/callback_list.h"
 #include "base/gtest_prod_util.h"
 #include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
@@ -398,7 +399,8 @@ class CORE_EXPORT LocalFrame final
 
   void NetworkBecameAlmostIdle(base::TimeDelta almost_idle_start_time);
   void NetworkBecameIdle(base::TimeDelta idle_start_time);
-  void RequestNetworkIdleCallback(base::OnceClosure callback);
+  [[nodiscard]] base::CallbackListSubscription RequestNetworkIdleCallback(
+      base::OnceClosure callback);
 
   // =========================================================================
   // All public functions below this point are candidates to move out of
@@ -966,7 +968,13 @@ class CORE_EXPORT LocalFrame final
   bool AllowStorageAccessSyncAndNotify(
       blink::WebContentSettingsClient::StorageType storage_type);
 
+  // TODO(crbug.com/351354996): Remove this after the refactor is completed.
   void NotifyFrameVisibilityChanged(mojom::blink::FrameVisibility visibility);
+
+  void OnFrameVisibilityChangedForMediaPlayback(bool is_hidden);
+  std::optional<bool> IsHiddenForMediaPlayback() const {
+    return is_hidden_for_media_playback_;
+  }
 
   HeapHashSet<WeakMember<FrameVisibilityObserver>>&
   GetFrameVisibilityObserverSet() {
@@ -1050,8 +1058,6 @@ class CORE_EXPORT LocalFrame final
   void SetTitlebarAreaDocumentStyleEnvironmentVariables() const;
   void MaybeUpdateWindowControlsOverlayWithNewZoomLevel();
 
-  void EnsureLinkPreviewTriggererInitialized();
-
   void OnStorageAccessCallback(base::OnceCallback<void(bool)> callback,
                                mojom::blink::StorageTypeAccessed storage_type,
                                bool isAllowed);
@@ -1114,7 +1120,7 @@ class CORE_EXPORT LocalFrame final
 
   Member<AdTracker> ad_tracker_;
   Member<IdlenessDetector> idleness_detector_;
-  base::OnceClosure network_idle_callback_;
+  base::OnceClosureList network_idle_callbacks_;
   Member<AttributionSrcLoader> attribution_src_loader_;
   Member<InspectorIssueReporter> inspector_issue_reporter_;
   Member<InspectorTraceEvents> inspector_trace_events_;
@@ -1259,6 +1265,13 @@ class CORE_EXPORT LocalFrame final
 
   // Whether caret browsing mode has been overridden by the embedder or not.
   bool is_caret_browsing_overridden_ = false;
+
+  // Whether this frame is hidden for the purposes of the
+  // media-playback-while-not-visible permission policy. Uses std::optional so
+  // that clients can know whether the value has been calculated already. True
+  // when the frame or any of its ancestors is not rendered (e.g. display:none,
+  // visibility:hidden, or zero-area layout on the iframe element).
+  std::optional<bool> is_hidden_for_media_playback_;
 };
 
 inline FrameLoader& LocalFrame::Loader() const {

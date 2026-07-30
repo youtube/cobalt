@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/views/toolbar/webui_toolbar_web_view.h"
 
+#include <limits>
 #include <memory>
 
 #include "base/feature_list.h"
@@ -37,6 +38,7 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/view_ids.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/location_bar/webui_content_setting_image_control.h"
 #include "chrome/browser/ui/views/location_bar/webui_location_bar.h"
 #include "chrome/browser/ui/views/profiles/profile_menu_coordinator.h"
@@ -64,6 +66,7 @@
 #include "content/public/common/result_codes.h"
 #include "mojo/public/mojom/base/error.mojom.h"
 #include "net/base/filename_util.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
 #include "ui/accessibility/ax_enums.mojom-shared.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -184,6 +187,7 @@ WebUIToolbarWebView::WebUIToolbarWebView(
     std::unique_ptr<WebUILocationBar> location_bar)
     : browser_(browser),
       controller_(controller),
+      icon_table_(this),
       reload_control_(this),
       split_tabs_control_(this),
       home_control_(this),
@@ -212,7 +216,7 @@ WebUIToolbarWebView::WebUIToolbarWebView(
   last_queued_state_.location_bar_state->lhs_chips_state =
       toolbar_ui_api::mojom::LhsChipsState::New(
           toolbar_ui_api::mojom::SecurityChipState::New(
-              toolbar_ui_api::mojom::SecurityChipIcon::kHttp,
+              toolbar_ui_api::IconHandle(),
               toolbar_ui_api::mojom::SecurityLevel::kNone, std::u16string(),
               /*is_clickable=*/false, /*is_text_dangerous=*/false,
               /*is_visible=*/true),
@@ -220,6 +224,8 @@ WebUIToolbarWebView::WebUIToolbarWebView(
           /*permission_dashboard=*/nullptr);
   last_queued_state_.layout_constants_version = 0;
   last_queued_state_.back_forward_control_state = GetBackForwardState();
+  last_queued_state_.avatar_control_state =
+      toolbar_ui_api::mojom::AvatarControlState::New();
 
   if (auto* manager = InitialWebUIWindowMetricsManager::From(browser_)) {
     manager->OnReloadButtonCreated();
@@ -278,6 +284,17 @@ void WebUIToolbarWebView::AddedToWidget() {
 
   if (!is_preloaded_) {
     web_view_->LoadInitialURL(GURL(chrome::kChromeUIWebUIToolbarURL));
+
+    if (base::FeatureList::IsEnabled(
+            blink::features::kInitialWebUISurfaceSync)) {
+      // Apply specified deadline to toolbar and main content views.
+      size_t frames_param =
+          blink::features::kInitialWebUISurfaceSyncDeadlineInFrames.Get();
+      uint32_t frames = frames_param == std::numeric_limits<size_t>::max()
+                            ? std::numeric_limits<uint32_t>::max()
+                            : base::checked_cast<uint32_t>(frames_param);
+      SetSurfaceSyncDeadline(frames);
+    }
   }
 
   // Initialize the split tabs control early to determine its initial visibility
@@ -475,6 +492,10 @@ void WebUIToolbarWebView::OnOmniboxAction(
   }
 }
 
+void WebUIToolbarWebView::ShowAvatarMenu() {
+  avatar_control_.ButtonPressed(/*is_source_accelerator=*/false);
+}
+
 ReloadControl* WebUIToolbarWebView::GetReloadControl() {
   return &reload_control_;
 }
@@ -498,6 +519,10 @@ views::View* WebUIToolbarWebView::GetView() {
 
 void WebUIToolbarWebView::AnnounceAlert(const std::u16string& announcement) {
   GetViewAccessibility().AnnounceAlert(announcement);
+}
+
+webui_toolbar::IconTable& WebUIToolbarWebView::GetIconTable() {
+  return icon_table_;
 }
 
 void WebUIToolbarWebView::OnPreferredSizeChanged() {
@@ -524,6 +549,11 @@ WebUIToolbarWebView::GetNavigationControlsStateFetcher() {
   return std::make_unique<toolbar_ui_api::NavigationControlsStateFetcherImpl>(
       base::BindRepeating(&WebUIToolbarWebView::GetNavigationControlsState,
                           base::Unretained(this)));
+}
+
+std::unique_ptr<toolbar_ui_api::IconTableFetcher>
+WebUIToolbarWebView::GetIconTableFetcher() {
+  return icon_table_.MakeIconTableFetcher();
 }
 
 CommandUpdater* WebUIToolbarWebView::GetCommandUpdater() {
@@ -594,6 +624,11 @@ void WebUIToolbarWebView::DidFirstVisuallyNonEmptyPaint() {
   if (did_first_non_empty_paint_callback_) {
     std::move(did_first_non_empty_paint_callback_).Run();
   }
+
+  // Reset infinite deadline for toolbar and main content views.
+  if (base::FeatureList::IsEnabled(blink::features::kInitialWebUISurfaceSync)) {
+    SetSurfaceSyncDeadline(std::nullopt);
+  }
 }
 
 void WebUIToolbarWebView::PrimaryMainFrameRenderProcessGone(
@@ -654,6 +689,17 @@ void WebUIToolbarWebView::PrimaryMainFrameRenderProcessGone(
   }
 }
 
+const ui::ColorProvider* WebUIToolbarWebView::GetColorProvider() const {
+  return views::View::GetColorProvider();
+}
+
+float WebUIToolbarWebView::GetScaleFactor() const {
+  if (auto* ui = web_view_->web_contents()->GetWebUI()) {
+    return ui->GetDeviceScaleFactor();
+  }
+  return 1.0f;
+}
+
 void WebUIToolbarWebView::RecoverFromRendererCrashOrUnresponsiveness() {
   CHECK(web_view_);
   // Note that in some cases the WebView might have been recovered already (e.g.
@@ -676,6 +722,20 @@ void WebUIToolbarWebView::SetInitializationState(
       << "from " << static_cast<int>(initialization_state_) << " to "
       << static_cast<int>(new_state);
   initialization_state_ = new_state;
+}
+
+void WebUIToolbarWebView::SetSurfaceSyncDeadline(
+    std::optional<uint32_t> deadline_in_frames) {
+  if (auto* rwhv = web_view_->web_contents()->GetRenderWidgetHostView()) {
+    rwhv->SetForceSpecifiedDeadline(deadline_in_frames);
+  }
+  if (auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser_)) {
+    if (auto* active_contents = browser_view->GetActiveWebContents()) {
+      if (auto* main_rwhv = active_contents->GetRenderWidgetHostView()) {
+        main_rwhv->SetForceSpecifiedDeadline(deadline_in_frames);
+      }
+    }
+  }
 }
 
 void WebUIToolbarWebView::SetDidFirstNonEmptyPaintCallbackForTesting(
@@ -719,6 +779,12 @@ void WebUIToolbarWebView::OnHomeButtonDropFile(
     const gfx::PointF& drop_position) {
   if (std::optional<GURL> url = web_view_->ConsumeDroppedUrl(drop_position)) {
     home_control_.OnHomeButtonDropUrl(*url);
+  }
+}
+
+void WebUIToolbarWebView::OnToolbarDropFile(const gfx::PointF& drop_position) {
+  if (std::optional<GURL> url = web_view_->ConsumeDroppedUrl(drop_position)) {
+    browser_->OpenGURL(*url, WindowOpenDisposition::CURRENT_TAB);
   }
 }
 
@@ -838,6 +904,14 @@ void WebUIToolbarWebView::OnContentSettingChanged(
                                ->content_setting_image_states)) {
     last_queued_state_.location_bar_state->content_setting_image_states =
         std::move(state);
+    PostPushNavigationState();
+  }
+}
+
+void WebUIToolbarWebView::OnAvatarControlStateChanged(
+    toolbar_ui_api::mojom::AvatarControlStatePtr state) {
+  if (!mojo::Equals(state, last_queued_state_.avatar_control_state)) {
+    last_queued_state_.avatar_control_state = std::move(state);
     PostPushNavigationState();
   }
 }

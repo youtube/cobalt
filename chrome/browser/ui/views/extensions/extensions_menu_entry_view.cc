@@ -18,6 +18,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/mojom/menu_source_type.mojom.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/menu_button_controller.h"
@@ -55,14 +56,14 @@ views::Builder<HoverButton> GetSitePermissionsButtonBuilder(
     button_builder.SetHorizontalAlignment(gfx::ALIGN_LEFT)
         .SetImageModel(views::Button::ButtonState::STATE_NORMAL,
                        ui::ImageModel::FromVectorIcon(
-                           vector_icons::kBusinessChromeRefreshIcon,
+                           vector_icons::kBusinessChromeRefreshOldIcon,
                            kColorExtensionMenuIcon, small_icon_size));
   } else {
     // Add right-aligned arrow icon for non-enterprise extensions when the
     // button is not disabled.
     auto arrow_icon = ui::ImageModel::FromVectorIcon(
-        vector_icons::kSubmenuArrowChromeRefreshIcon, kColorExtensionMenuIcon,
-        small_icon_size);
+        vector_icons::kSubmenuArrowChromeRefreshOldIcon,
+        kColorExtensionMenuIcon, small_icon_size);
 
     button_builder.SetHorizontalAlignment(gfx::ALIGN_RIGHT)
         .SetImageModel(views::Button::ButtonState::STATE_NORMAL, arrow_icon)
@@ -226,8 +227,11 @@ void ExtensionsMenuEntryView::Update(
   site_permissions_button_->SetState(is_permissions_enabled
                                          ? views::Button::STATE_NORMAL
                                          : views::Button::STATE_DISABLED);
-  site_permissions_button_->GetViewAccessibility().SetIsEnabled(
-      is_permissions_enabled);
+  // The site permissions text is not intended to be focusable as it is not
+  // clickable in this view. Ignore the button in accessibility so screen
+  // readers read the label inside it without treating it as a button.
+  site_permissions_button_->GetViewAccessibility().SetIsIgnored(true);
+  site_permissions_button_->SetFocusBehavior(views::View::FocusBehavior::NEVER);
   site_permissions_button_->SetText(entry_state.site_permissions_button.text);
   site_permissions_button_->SetTooltipText(
       entry_state.site_permissions_button.tooltip_text);
@@ -254,7 +258,17 @@ void ExtensionsMenuEntryView::UpdateActionButton(
   action_button_->SetEnabled(true);
   action_button_->SetState(is_action_enabled ? views::Button::STATE_NORMAL
                                              : views::Button::STATE_DISABLED);
-  action_button_->GetViewAccessibility().SetIsEnabled(is_action_enabled);
+  // Keep the view accessibility enabled so it remains focusable for screen
+  // readers, even when logically disabled.
+  if (!is_action_enabled) {
+    action_button_->GetViewAccessibility().SetDescription(
+        l10n_util::GetStringFUTF16(IDS_EXTENSION_DISABLED_ERROR_TITLE,
+                                   button_state.text));
+  } else {
+    action_button_->GetViewAccessibility().SetDescription(
+        std::u16string(),
+        ax::mojom::DescriptionFrom::kAttributeExplicitlyEmpty);
+  }
 }
 
 void ExtensionsMenuEntryView::UpdateContextMenuButton(
@@ -262,15 +276,19 @@ void ExtensionsMenuEntryView::UpdateContextMenuButton(
   const int icon_size = ChromeLayoutProvider::Get()->GetDistanceMetric(
       DISTANCE_EXTENSIONS_MENU_BUTTON_ICON_SIZE);
   auto three_dot_icon = ui::ImageModel::FromVectorIcon(
-      kBrowserToolsChromeRefreshIcon, kColorExtensionMenuIcon, icon_size);
+      features::IsRoundedIconsEnabled() ? kMoreVertIcon
+                                        : kBrowserToolsChromeRefreshOldIcon,
+      kColorExtensionMenuIcon, icon_size);
 
   // Show a pin button for the context menu normal state icon when the action is
   // pinned in the toolbar. All other states should look, and behave, the same.
   context_menu_button_->SetImageModel(
       views::Button::STATE_NORMAL,
-      button_state.is_on ? ui::ImageModel::FromVectorIcon(
-                               kKeepIcon, kColorExtensionMenuIcon, icon_size)
-                         : three_dot_icon);
+      button_state.is_on
+          ? ui::ImageModel::FromVectorIcon(
+                features::IsRoundedIconsEnabled() ? kKeepIcon : kKeepOldIcon,
+                kColorExtensionMenuIcon, icon_size)
+          : three_dot_icon);
   context_menu_button_->SetImageModel(views::Button::STATE_HOVERED,
                                       three_dot_icon);
   context_menu_button_->SetImageModel(views::Button::STATE_PRESSED,

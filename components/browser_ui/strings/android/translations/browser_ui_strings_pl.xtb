@@ -5,7 +5,6 @@
 <translation id="1036348656032585052">Wyłącz</translation>
 <translation id="1046742265332833834">Motyw niebieski</translation>
 <translation id="1070329623210597193">Pliki, które ta witryna może wyświetlać lub edytować</translation>
-<translation id="1073417869336441572">Pomóż nam ulepszyć Chrome, informując nas, dlaczego zezwalasz na pliki cookie innych firm. <ph name="BEGIN_LINK" />Prześlij opinię<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">Możesz poprosić o wyświetlenie witryn w wersji na komputer</translation>
 <translation id="1109482864356262001">Nie będą działać funkcje, które potrzebują czujników ruchu lub światła</translation>
 <translation id="1126523729897810826">Wykonaj te sugerowane działania, aby w pełni wykorzystać możliwości Chrome</translation>
@@ -21,6 +20,7 @@
 <translation id="1240190568154816272">Wskazówki dotyczące Chrome</translation>
 <translation id="1242008676835033345">Umieszczono na <ph name="WEBSITE_URL" /></translation>
 <translation id="1263609676484797429">Kliknij Aplikacje &gt; Aplikacje domyślne.</translation>
+<translation id="1264694639515903274">Teraz możesz dostosować stronę główną</translation>
 <translation id="1272079795634619415">Zatrzymaj</translation>
 <translation id="1275718070701477396">Zaznaczony</translation>
 <translation id="1289742167380433257">Aby zaoszczędzić dane, obrazy z tej strony zostały zoptymalizowane przez Google.</translation>
@@ -90,6 +90,7 @@
 <translation id="1915307458270490472">Rozłącz</translation>
 <translation id="1919950603503897840">Wybierz kontakty</translation>
 <translation id="1923695749281512248"><ph name="BYTES_DOWNLOADED_WITH_UNITS" /> / <ph name="FILE_SIZE_WITH_UNITS" /></translation>
+<translation id="192926679114491605">Dostosuj stronę główną</translation>
 <translation id="1939059826036755332">Automatyczny obraz w obrazie</translation>
 <translation id="1954597385941141174">Strony mogą prosić o zgodę na połączenie z urządzeniami USB</translation>
 <translation id="1979673356880165407">Powiększaj lub pomniejszaj tekst i obrazy we wszystkich odwiedzanych witrynach</translation>
@@ -286,6 +287,7 @@
 <translation id="3843916486309149084">Chrome ponownie zablokuje pliki cookie dzisiaj</translation>
 <translation id="385051799172605136">Wstecz</translation>
 <translation id="3859306556332390985">Przewiń do przodu</translation>
+<translation id="3870711497942672548">Dostosuj Chrome za pomocą spersonalizowanych kolorów i obrazów na stronie głównej</translation>
 <translation id="389521680295183045">Witryny mogą prosić o pozwolenie na sprawdzanie, kiedy używasz urządzenia</translation>
 <translation id="3895926599014793903">Wymuś powiększenie</translation>
 <translation id="3903738175795615004">Aby zamknąć pełny ekran, przeciągnij od góry lub naciśnij klawisz Esc.</translation>
@@ -328,7 +330,9 @@
 <translation id="4290791284969893584">Po zamknięciu strony rozpoczęte zadania mogą nie zostać ukończone</translation>
 <translation id="429312253194641664">Strona odtwarza multimedia</translation>
 <translation id="42981349822642051">Rozwiń</translation>
+<translation id="4310738531374808763">Dostosowywanie strony głównej</translation>
 <translation id="4336219115486912529">{COUNT,plural, =1{Wygasa jutro}few{Wygasa za # dni}many{Wygasa za # dni}other{Wygasa za # dnia}}</translation>
+<translation id="4336371609622603229">Dostosuj Chrome, wybierając niestandardowy motyw</translation>
 <translation id="4338831206024587507">Wszystkie witryny w domenie <ph name="DOMAIN" /></translation>
 <translation id="4340799661701629185">Nie zezwalaj witrynom na wysyłanie powiadomień</translation>
 <translation id="4341577178275615435">Aby włączyć lub wyłączyć przeglądanie przy użyciu kursora, użyj skrótu F7</translation>
@@ -440,7 +444,6 @@
 <translation id="5555115555607204100">Działanie witryn nie będzie przyspieszane za pomocą mechanizmu V8 w przeglądarce Chrome, ale będzie ona trochę bardziej odporna na ataki</translation>
 <translation id="5556459405103347317">Odśwież</translation>
 <translation id="5591840828808741583">Zablokowano: <ph name="SITE_NAME" /></translation>
-<translation id="560980142378233747">Oznacza to, że witryny powinny działać zgodnie z oczekiwaniami, ale możesz mieć mniejszą ochronę podczas ich przeglądania. <ph name="BEGIN_LINK" />Prześlij opinię<ph name="END_LINK" /></translation>
 <translation id="5617702678271228680">Plansza dolna kart na stronie nowej karty</translation>
 <translation id="5621413808884657932">Gdy ta opcja jest włączona, strony mogą prosić o dostęp do innych aplikacji i usług na tym urządzeniu. Gdy jest wyłączona, strony nie mogą uzyskiwać dostępu do innych aplikacji ani usług na tym urządzeniu.</translation>
 <translation id="5632485077360054581">Pokaż jak</translation>
@@ -519,6 +522,7 @@
 <translation id="6262279340360821358">Zablokowane: <ph name="PERMISSION_1" /> i <ph name="PERMISSION_2" /></translation>
 <translation id="6270391203985052864">Witryny mogą prosić o zgodę na wysyłanie powiadomień</translation>
 <translation id="6295158916970320988">Wszystkie witryny</translation>
+<translation id="6305257382500066042">Wypróbuj</translation>
 <translation id="6320088164292336938">Wibracje</translation>
 <translation id="6367753977865761591">Blokowanie logowania przez usługę zewnętrzną w określonej witrynie.</translation>
 <translation id="6398765197997659313">Zamknij pełny ekran</translation>
@@ -529,7 +533,6 @@
 <translation id="6447842834002726250">Pliki cookie</translation>
 <translation id="6452138246455930388">Obniżka ceny na otwartej karcie. Poprzednio: <ph name="OLD_PRICE" />, teraz: <ph name="NEW_PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN_NAME" /></translation>
 <translation id="6500423977866688905">Jeśli okno jest wąskie, poproś o wersję na urządzenia mobilne</translation>
-<translation id="6514791408445720076">Dostosuj stronę</translation>
 <translation id="6527303717912515753">Udostępnij</translation>
 <translation id="6530703012083415527">Gdy ta opcja jest włączona, strony internetowe mogą używać wyskakujących okienek i przekierowań. Gdy jest wyłączona, nie mają tej możliwości.</translation>
 <translation id="6540488083026747005">W przypadku tej witryny zezwalasz na pliki cookie innych firm</translation>
@@ -593,7 +596,6 @@
 <translation id="7141896414559753902">Blokuj wyskakujące okienka i przekierowania na stronach (zalecane)</translation>
 <translation id="7176368934862295254"><ph name="KILOBYTES" /> KB</translation>
 <translation id="7180611975245234373">Odśwież</translation>
-<translation id="7180865173735832675">Dostosuj</translation>
 <translation id="7188508872042490670">Dane witryn na urządzeniu</translation>
 <translation id="7201549776650881587">Spowoduje to usunięcie wszystkich danych i plików cookie zapisanych przez strony internetowe w grupie <ph name="ORIGIN" /> lub jej aplikację na ekranie głównym</translation>
 <translation id="7219254577985949841">Usunąć dane witryny?</translation>
@@ -707,7 +709,6 @@ Ochrona zaawansowana kontroluje te ustawienia Chrome:</translation>
 <translation id="83792324527827022">Strona używa kamery i mikrofonu</translation>
 <translation id="8380167699614421159">Na tej stronie wyświetlają się uciążliwe lub wprowadzające w błąd reklamy</translation>
 <translation id="8394832520002899662">Kliknij, by wrócić na tę stronę</translation>
-<translation id="8404500559369898929">Dostosuj Chrome, wybierając niestandardowy motyw tła</translation>
 <translation id="8409345997656833551">Otrzymuj powiadomienia, gdy artykuł można wyświetlić w widoku uproszczonym</translation>
 <translation id="8416874502399604126">Przyznano jednorazowy dostęp do mikrofonu</translation>
 <translation id="8423565414844018592">Skalowanie tekstu ustawione na <ph name="TEXT_SCALING" /></translation>
@@ -753,7 +754,6 @@ Ochrona zaawansowana kontroluje te ustawienia Chrome:</translation>
 <translation id="8737426583868847403">Tutaj pojawią się witryny, dla których zapiszesz niestandardowy poziom powiększenia</translation>
 <translation id="8748714929822124637">Nie zezwalaj stronom na dostęp do innych urządzeń w sieci lokalnej</translation>
 <translation id="8751914237388039244">Wybierz obraz</translation>
-<translation id="8775741625735357092">Pasek zakładek możesz włączyć, klikając Ustawienia &gt; Wygląd</translation>
 <translation id="8800034312320686233">Strona nie działa?</translation>
 <translation id="8801436777607969138">Zablokuj JavaScript w określonej witrynie.</translation>
 <translation id="8801657293260363985">V8 to mechanizm JavaScript i WebAssembly w Chrome używany do zwiększania wydajności witryny</translation>

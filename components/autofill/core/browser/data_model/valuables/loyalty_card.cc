@@ -4,12 +4,17 @@
 
 #include "components/autofill/core/browser/data_model/valuables/loyalty_card.h"
 
-#include <cstdint>
+#include <stdint.h>
+
+#include <algorithm>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "base/time/time.h"
 #include "components/affiliations/core/browser/affiliation_utils.h"
 #include "components/autofill/core/browser/data_model/valuables/valuable_types.h"
+#include "url/gurl.h"
 
 namespace autofill {
 

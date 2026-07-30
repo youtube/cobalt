@@ -348,11 +348,6 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
       <message name="IDS_PRODUCT_LOGO_ENTERPRISE_ALT_TEXT" desc="Alt text for the Chromium Enterprise logo image." formatter_data="android_java">
         Chromium Enterprise logo
       </message>
-      <if expr="is_win">
-        <message name="IDS_SHORTCUT_NEW_WINDOW" desc="The text label of the New window shortcut context menu entry as of Windows 8">
-          New window
-        </message>
-      </if>
       <if expr="is_macosx or is_chromeos">
         <message name="IDS_TASK_MANAGER_TITLE" desc="The title of the Task Manager window">
           Task Manager
@@ -795,6 +790,9 @@ Chromium is unable to recover your settings.
         </message>
         <message name="IDS_DEFAULT_BROWSER_BUBBLE_DIALOG_BODY" desc="Main explanatory text in the default browser dialog.">
           Get easy access to the features you know, love, and trust by setting Chromium as your default browser.
+        </message>
+        <message name="IDS_DEFAULT_BROWSER_SUCCESS_TOAST_BODY" desc="Body text of the toast shown when Chromium is successfully set as the default browser.">
+          Chromium is now your default browser
         </message>
         <message name="IDS_DEFAULT_BROWSER_BUBBLE_DIALOG_STEPS_PINNED_COMBINED" desc="Numbered instructions. $1, $2 and $3 are the bold button names.">
           1. Click <ph name="BUTTON_LABEL">$1<ex>Open settings</ex></ph> below&#xA;2. Click <ph name="BUTTON_2">$2<ex>Set default</ex></ph> in your Windows settings&#xA;3. Click <ph name="BUTTON_3">$3<ex>Yes</ex></ph> in the Windows notification to pin Chromium to your taskbar for quick access
@@ -3177,20 +3175,11 @@ Chromium is unable to recover your settings.
         <message name="IDS_IOS_DESKTOP_PASSWORD_PROMO_BUBBLE_FOOTER_DESCRIPTION_QR" desc="The description for the iOS desktop password promo bubble footer which lets the user know how to use their saved passwords on their phone: follow the QR code, download Chrome for iOS and sign in to their account.">
           To use your saved passwords, follow the QR code, download Chromium for iOS and sign in to your Google Account
         </message>
-        <message name="IDS_IOS_DESKTOP_LENS_PROMO_NOTIFICATION_TITLE" desc="The title for the iOS desktop Lens promo notification.">
-          Chromium Tip: Search With Lens
-        </message>
-        <message name="IDS_IOS_DESKTOP_PASSWORD_PROMO_NOTIFICATION_TITLE" desc="The title for the iOS desktop Password promo notification.">
-          Chromium Tip: Save Passwords
-        </message>
         <message name="IDS_IOS_DESKTOP_PRICE_TRACKING_DESCRIPTION_QR" desc="The description for the iOS desktop price tracking promo bubble with a QR code.">
           Download Chromium on your phone to track prices and get alerts when the price drops on any site
         </message>
         <message name="IDS_IOS_DESKTOP_PRICE_TRACKING_REMINDER_CONFIRMATION" desc="Body text of the promo bubble that appears after the user chooses to be reminded of price tracking on their iOS device.">
           Next time you open Chromium on your <ph name="DEVICE_TYPE">$1<ex>iPhone</ex></ph>, you’ll see a prompt to enable price tracking alerts.
-        </message>
-        <message name="IDS_IOS_DESKTOP_SAFE_BROWSING_PROMO_NOTIFICATION_TITLE" desc="The title for the iOS desktop Enhanced Safe Browsing promo notification.">
-          Chromium Tip: Enhanced Safe Browsing
         </message>
         <message name="IDS_IOS_DESKTOP_TAB_GROUPS_PROMO_BUBBLE_DESCRIPTION_QR" desc="The description for the iOS desktop Tab Groups promo bubble with a QR code.">
           Download Chromium on your phone to open or create new tab groups on the go.

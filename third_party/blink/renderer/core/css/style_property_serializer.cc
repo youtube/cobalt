@@ -3073,13 +3073,25 @@ String StylePropertySerializer::BorderPropertyValue(
 }
 
 String StylePropertySerializer::BorderImagePropertyValue() const {
+  const StylePropertyShorthand& shorthand = borderImageShorthand();
+
+  bool is_initial = true;
+  for (wtf_size_t i = 1; i < shorthand.length(); ++i) {
+    const CSSValue* value =
+        property_set_.GetPropertyCSSValue(*shorthand.properties()[i]);
+    if (*value != *To<Longhand>(*shorthand.properties()[i]).InitialValue()) {
+      is_initial = false;
+      break;
+    }
+  }
+  if (is_initial) {
+    return property_set_.GetPropertyCSSValue(*shorthand.properties()[0])
+        ->CssText();
+  }
+
   StringBuilder result;
-  const CSSProperty* properties[] = {
-      &GetCSSPropertyBorderImageSource(), &GetCSSPropertyBorderImageSlice(),
-      &GetCSSPropertyBorderImageWidth(), &GetCSSPropertyBorderImageOutset(),
-      &GetCSSPropertyBorderImageRepeat()};
   size_t index = 0;
-  for (const CSSProperty* property : properties) {
+  for (const CSSProperty* property : shorthand.properties()) {
     const CSSValue& value = *property_set_.GetPropertyCSSValue(*property);
     if (!result.empty()) {
       result.Append(" ");
@@ -3419,24 +3431,21 @@ String StylePropertySerializer::LineClampValue(
     if (max_lines->IsIdentifierValue() &&
         block_ellipsis->GetValueID() == CSSValueID::kNoEllipsis) {
       DCHECK_EQ(To<CSSIdentifierValue>(max_lines)->GetValueID(),
-                CSSValueID::kNone);
+                CSSValueID::kAuto);
       return "none";
     }
     return g_empty_string;
   }
 
   CSSValueList* list = CSSValueList::CreateSpaceSeparated();
-  if (max_lines->IsNumericLiteralValue()) {
-    list->Append(*max_lines);
-  } else {
-    DCHECK_EQ(To<CSSIdentifierValue>(max_lines)->GetValueID(),
-              CSSValueID::kNone);
-    if (is_webkit_line_clamp) {
+  if (!max_lines->IsIdentifierValue() ||
+      block_ellipsis->GetValueID() == CSSValueID::kEllipsis) {
+    if (!max_lines->IsNumericLiteralValue() && is_webkit_line_clamp) {
       return g_empty_string;
     }
-    if (block_ellipsis->GetValueID() == CSSValueID::kEllipsis) {
-      list->Append(*CSSIdentifierValue::Create(CSSValueID::kAuto));
-    }
+    list->Append(*max_lines);
+  } else if (is_webkit_line_clamp) {
+    return g_empty_string;
   }
 
   if (block_ellipsis->GetValueID() != CSSValueID::kEllipsis) {

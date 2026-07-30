@@ -6,8 +6,13 @@ package org.chromium.chrome.browser.autofill.settings;
 
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.action.ViewActions.scrollTo;
 import static androidx.test.espresso.assertion.ViewAssertions.doesNotExist;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
+import static androidx.test.espresso.intent.Intents.intended;
+import static androidx.test.espresso.intent.Intents.intending;
+import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
+import static androidx.test.espresso.intent.matcher.IntentMatchers.hasData;
 import static androidx.test.espresso.matcher.RootMatchers.isDialog;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
@@ -15,9 +20,11 @@ import static androidx.test.espresso.matcher.ViewMatchers.withText;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.hamcrest.Matchers.allOf;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
@@ -25,7 +32,18 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import static org.chromium.components.autofill.autofill_ai.utils.TestUtils.buildMercedezVehicleWithLabels;
+import static org.chromium.components.autofill.autofill_ai.utils.TestUtils.getPassportEntityType;
+import static org.chromium.components.autofill.autofill_ai.utils.TestUtils.getVehicleEntityType;
+
+import android.app.Activity;
+import android.app.Instrumentation;
+import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
+
 import androidx.preference.Preference;
+import androidx.preference.PreferenceCategory;
 import androidx.preference.PreferenceGroup;
 import androidx.test.espresso.intent.Intents;
 import androidx.test.filters.MediumTest;
@@ -53,6 +71,7 @@ import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.autofill.AndroidAutofillAvailabilityStatus;
 import org.chromium.chrome.browser.autofill.AutofillClientProviderUtils;
+import org.chromium.chrome.browser.autofill.GoogleWalletLauncher;
 import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManager;
 import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManager.EntityDataManagerObserver;
 import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManagerFactory;
@@ -64,13 +83,17 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.settings.SettingsActivity;
 import org.chromium.chrome.browser.settings.SettingsActivityTestRule;
+import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.components.autofill.autofill_ai.EntityInstance;
 import org.chromium.components.autofill.autofill_ai.EntityInstanceWithLabels;
 import org.chromium.components.autofill.autofill_ai.EntityType;
+import org.chromium.components.autofill.autofill_ai.EntityTypeName;
 import org.chromium.components.autofill.autofill_ai.RecordType;
 import org.chromium.components.autofill.autofill_ai.utils.TestUtils;
 import org.chromium.components.browser_ui.settings.search.SettingsIndexData;
+import org.chromium.components.signin.identitymanager.IdentityManager;
+import org.chromium.components.signin.test.util.TestAccounts;
 import org.chromium.ui.test.util.MockitoHelper;
 
 import java.util.Arrays;
@@ -84,7 +107,7 @@ import java.util.List;
 @EnableFeatures({
     ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID,
     ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA,
-    ChromeFeatureList.AUTOFILL_AI_AVAILABLE_BY_DEFAULT
+    ChromeFeatureList.AUTOFILL_AI_AVAILABLE_BY_DEFAULT,
 })
 public class AutofillIdentityDocsFragmentTest {
     @Rule
@@ -95,6 +118,7 @@ public class AutofillIdentityDocsFragmentTest {
 
     @Mock private HelpAndFeedbackLauncher mHelpAndFeedbackLauncher;
     @Mock private SettingsIndexData mSearchIndexDataMock;
+    @Mock private IdentityManager mIdentityManagerMock;
     @Mock private ReauthenticatorBridge mMockReauthenticatorBridge;
 
     @Mock private EntityDataManager mEntityDataManager;
@@ -111,6 +135,8 @@ public class AutofillIdentityDocsFragmentTest {
         when(mEntityDataManager.getEntitiesWithLabels()).thenReturn(Collections.emptyList());
         when(mEntityDataManager.canListEntityInstancesInSettings()).thenReturn(true);
         when(mEntityDataManager.canEnableOrDisableAutofillAi()).thenReturn(true);
+        when(mEntityDataManager.canEnableOrDisableAutofillAiForType(anyInt())).thenReturn(true);
+        when(mEntityDataManager.isEligibleToAutofillAiForType(anyInt())).thenReturn(true);
         when(mMockReauthenticatorBridge.getBiometricAvailabilityStatus())
                 .thenReturn(BiometricStatus.BIOMETRICS_AVAILABLE);
     }
@@ -183,31 +209,13 @@ public class AutofillIdentityDocsFragmentTest {
     @Test
     @MediumTest
     public void testAutofillAiEntities_identityDocsOnly() {
-        EntityType passportType = TestUtils.getPassportEntityType();
-        EntityType vehicleType = TestUtils.getVehicleEntityType();
-
-        EntityInstanceWithLabels entity1 =
-                new EntityInstanceWithLabels(
-                        "guid1",
-                        passportType,
-                        /* entityInstanceLabel= */ "Passport",
-                        /* entityInstanceSubLabel= */ "Germany",
-                        /* storedInWallet= */ false,
-                        /* walletEntityUrl= */ null);
-
-        EntityInstanceWithLabels entity2 =
-                new EntityInstanceWithLabels(
-                        "guid2",
-                        vehicleType,
-                        /* entityInstanceLabel= */ "Vehicle",
-                        /* entityInstanceSubLabel= */ "Mercedez",
-                        /* storedInWallet= */ false,
-                        /* walletEntityUrl= */ null);
-
         LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
                 new LinkedHashMap<>();
-        instancesMap.put(passportType, Arrays.asList(entity1));
-        instancesMap.put(vehicleType, Arrays.asList(entity2));
+        instancesMap.put(
+                getPassportEntityType(),
+                Arrays.asList(TestUtils.buildGermanyPassportWithLabels("guid1")));
+        instancesMap.put(
+                getVehicleEntityType(), Arrays.asList(buildMercedezVehicleWithLabels("guid2")));
 
         when(mEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
 
@@ -226,17 +234,7 @@ public class AutofillIdentityDocsFragmentTest {
     @Test
     @MediumTest
     public void testAutofillAiEntities_renderedCorrectly() {
-        EntityType passportType = TestUtils.getPassportEntityType();
         EntityType nationalIdType = TestUtils.getNationalIdEntityType();
-
-        EntityInstanceWithLabels entity1 =
-                new EntityInstanceWithLabels(
-                        "guid1",
-                        passportType,
-                        /* entityInstanceLabel= */ "Passport",
-                        /* entityInstanceSubLabel= */ "Germany",
-                        /* storedInWallet= */ false,
-                        /* walletEntityUrl= */ null);
 
         EntityInstanceWithLabels entity2 =
                 new EntityInstanceWithLabels(
@@ -249,7 +247,9 @@ public class AutofillIdentityDocsFragmentTest {
 
         LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
                 new LinkedHashMap<>();
-        instancesMap.put(passportType, Arrays.asList(entity1));
+        instancesMap.put(
+                getPassportEntityType(),
+                Arrays.asList(TestUtils.buildGermanyPassportWithLabels("guid1")));
         instancesMap.put(nationalIdType, Arrays.asList(entity2));
 
         when(mEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
@@ -307,9 +307,44 @@ public class AutofillIdentityDocsFragmentTest {
 
     @Test
     @MediumTest
+    public void testAutofillAiEntities_addButtonNotEnabledWhenPassportDisabled() {
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(
+                getPassportEntityType(),
+                Arrays.asList(TestUtils.buildGermanyPassportWithLabels("guid1")));
+        when(mEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        when(mEntityDataManager.canEnableOrDisableAutofillAiForType(EntityTypeName.PASSPORT))
+                .thenReturn(false);
+
+        mSettingsActivityTestRule.startSettingsActivity();
+
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    AutofillIdentityDocsFragment fragment = mSettingsActivityTestRule.getFragment();
+                    Preference passportCategory = fragment.findPreference("Passport");
+                    Criteria.checkThat(
+                            "Passport entity category should exist",
+                            passportCategory,
+                            Matchers.notNullValue());
+                    PreferenceGroup passportGroup = (PreferenceGroup) passportCategory;
+                    Preference passportEntity = fragment.findPreference("guid1");
+                    Criteria.checkThat(
+                            "Passport entity should exist",
+                            passportEntity,
+                            Matchers.notNullValue());
+
+                    Preference addPassport = passportGroup.findPreference("Passport Add");
+                    assertThat(addPassport).isNotNull();
+                    assertThat(addPassport.isEnabled()).isFalse();
+                });
+    }
+
+    @Test
+    @MediumTest
     public void testAutofillAiEntities_notRenderedIfDisabledAndEmpty() {
         EntityType disabledType =
-                TestUtils.getPassportEntityType(
+                getPassportEntityType(
                         /* isReadOnly= */ false,
                         /* isEnabled= */ false,
                         /* isEligibleForWalletStorage= */ false);
@@ -339,7 +374,7 @@ public class AutofillIdentityDocsFragmentTest {
     @MediumTest
     public void testAutofillAiEntities_notRenderedIfReadOnlyAndEmpty() {
         EntityType readOnlyType =
-                TestUtils.getPassportEntityType(
+                getPassportEntityType(
                         /* isReadOnly= */ true,
                         /* isEnabled= */ true,
                         /* isEligibleForWalletStorage= */ false);
@@ -369,7 +404,7 @@ public class AutofillIdentityDocsFragmentTest {
     @MediumTest
     public void testAutofillAiEntities_renderedIfDisabledButNotEmpty() {
         EntityType disabledType =
-                TestUtils.getPassportEntityType(
+                getPassportEntityType(
                         /* isReadOnly= */ false,
                         /* isEnabled= */ false,
                         /* isEligibleForWalletStorage= */ false);
@@ -409,20 +444,11 @@ public class AutofillIdentityDocsFragmentTest {
     @Test
     @MediumTest
     public void testAutofillAiEntities_rebuildsOnEntityChange() throws Exception {
-        EntityType passportType = TestUtils.getPassportEntityType();
-
-        EntityInstanceWithLabels entity1 =
-                new EntityInstanceWithLabels(
-                        "guid1",
-                        passportType,
-                        /* entityInstanceLabel= */ "Passport",
-                        /* entityInstanceSubLabel= */ "John Doe",
-                        /* storedInWallet= */ false,
-                        /* walletEntityUrl= */ null);
-
+        EntityType passportType = getPassportEntityType();
         LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap1 =
                 new LinkedHashMap<>();
-        instancesMap1.put(passportType, Arrays.asList(entity1));
+        instancesMap1.put(
+                passportType, Arrays.asList(TestUtils.buildGermanyPassportWithLabels("guid1")));
 
         when(mEntityDataManager.getInstancesToList()).thenReturn(instancesMap1);
 
@@ -467,10 +493,9 @@ public class AutofillIdentityDocsFragmentTest {
     @Test
     @MediumTest
     public void testAutofillAiEntities_opensEditorOnAddClick() {
-        EntityType passportType = TestUtils.getPassportEntityType();
         LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
                 new LinkedHashMap<>();
-        instancesMap.put(passportType, Collections.emptyList());
+        instancesMap.put(getPassportEntityType(), Collections.emptyList());
 
         when(mEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
 
@@ -535,18 +560,11 @@ public class AutofillIdentityDocsFragmentTest {
     @Test
     @MediumTest
     public void testAutofillAiEntities_opensEditorOnSuccessfulReauth() {
-        EntityType passportType = TestUtils.getPassportEntityType();
-        EntityInstanceWithLabels entity1 =
-                new EntityInstanceWithLabels(
-                        "guid1",
-                        passportType,
-                        /* entityInstanceLabel= */ "Passport",
-                        /* entityInstanceSubLabel= */ "Germany",
-                        /* storedInWallet= */ false,
-                        /* walletEntityUrl= */ null);
+        EntityType passportType = getPassportEntityType();
         LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
                 new LinkedHashMap<>();
-        instancesMap.put(passportType, Arrays.asList(entity1));
+        instancesMap.put(
+                passportType, Arrays.asList(TestUtils.buildGermanyPassportWithLabels("guid1")));
         when(mEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
 
         EntityInstance entityInstance =
@@ -579,19 +597,11 @@ public class AutofillIdentityDocsFragmentTest {
     @Test
     @MediumTest
     public void testAutofillAiEntities_doesNotOpenEditorOnFailedReauth() {
-        EntityType passportType = TestUtils.getPassportEntityType();
-        EntityInstanceWithLabels entity1 =
-                new EntityInstanceWithLabels(
-                        "guid1",
-                        passportType,
-                        /* entityInstanceLabel= */ "Passport",
-                        /* entityInstanceSubLabel= */ "Germany",
-                        /* storedInWallet= */ false,
-                        /* walletEntityUrl= */ null);
-
+        EntityType passportType = getPassportEntityType();
         LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
                 new LinkedHashMap<>();
-        instancesMap.put(passportType, Arrays.asList(entity1));
+        instancesMap.put(
+                passportType, Arrays.asList(TestUtils.buildGermanyPassportWithLabels("guid1")));
         when(mEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
 
         EntityInstance entityInstance =
@@ -691,6 +701,246 @@ public class AutofillIdentityDocsFragmentTest {
         assertNull(fragment.findPreference(AutofillAiDelegate.DISABLED_WALLET_DATA_SHARING));
     }
 
-    // TODO(crbug.com/482994257): Wallet tests
+    @Test
+    @MediumTest
+    public void testDisabledSettingsText_linksToAutofillOptionsPage() throws Exception {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    AutofillClientProviderUtils.setAutofillAvailabilityToUseForTesting(
+                            AndroidAutofillAvailabilityStatus.AVAILABLE);
+                });
+        mSettingsActivityTestRule.startSettingsActivity();
 
+        onView(withId(R.id.card_button))
+                .check(matches(withText(R.string.autofill_disable_settings_button_label)))
+                .perform(scrollTo(), click());
+
+        onView(withText(R.string.autofill_third_party_filling_default))
+                .check(matches(isDisplayed()));
+    }
+
+    @Test
+    @SmallTest
+    public void testSearchIndex_addsSettingsInfoInThirdPartyMode() {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    AutofillClientProviderUtils.setAutofillAvailabilityToUseForTesting(
+                            AndroidAutofillAvailabilityStatus.AVAILABLE);
+                });
+
+        mSettingsActivityTestRule.startSettingsActivity();
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    AutofillIdentityDocsFragment.SEARCH_INDEX_DATA_PROVIDER
+                            .updateDynamicPreferences(
+                                    mSettingsActivityTestRule.getActivity(),
+                                    mSearchIndexDataMock,
+                                    mSettingsActivityTestRule.getFragment().getProfile());
+                });
+
+        verify(mSearchIndexDataMock, atLeastOnce())
+                .addEntryForKey(
+                        eq(AutofillIdentityDocsFragment.class.getName()),
+                        eq(AutofillAiDelegate.DISABLED_SETTINGS_INFO),
+                        any(Integer.class),
+                        any(Integer.class));
+    }
+
+    @Test
+    @MediumTest
+    public void testAutofillAiEntities_opensEditorOnAddClick_eligibleForWalletFalse()
+            throws Exception {
+        EntityType passportType =
+                TestUtils.getPassportEntityType(
+                        /* isReadOnly= */ false,
+                        /* isEnabled= */ true,
+                        /* isEligibleForWalletStorage= */ false);
+
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(passportType, Collections.emptyList());
+
+        when(mEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        when(mEntityDataManager.isEligibleToAutofillAi()).thenReturn(true);
+
+        mSettingsActivityTestRule.startSettingsActivity();
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    PreferenceCategory category =
+                            mSettingsActivityTestRule.getFragment().findPreference("Passport");
+                    Preference addPassport = category.findPreference("Passport" + " Add");
+                    assertNotNull(addPassport);
+                    addPassport.performClick();
+                });
+
+        onView(withText("Add passport")).inRoot(isDialog()).check(matches(isDisplayed()));
+
+        Context context = mSettingsActivityTestRule.getFragment().getContext();
+        String expectedNoticeText =
+                context.getString(R.string.autofill_ai_save_or_update_local_entity_source_notice);
+        onView(withText(expectedNoticeText)).check(matches(isDisplayed()));
+    }
+
+    @Test
+    @MediumTest
+    public void testAutofillAiEntities_opensEditorOnAddClick_eligibleForWalletTrue()
+            throws Exception {
+        IdentityServicesProvider.setIdentityManagerForTesting(mIdentityManagerMock);
+        when(mIdentityManagerMock.getPrimaryAccountInfo()).thenReturn(TestAccounts.ACCOUNT1);
+        when(mIdentityManagerMock.hasPrimaryAccount()).thenReturn(true);
+        EntityType passportType =
+                TestUtils.getPassportEntityType(
+                        /* isReadOnly= */ false,
+                        /* isEnabled= */ true,
+                        /* isEligibleForWalletStorage= */ true);
+
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(passportType, Collections.emptyList());
+
+        when(mEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        when(mEntityDataManager.isEligibleToAutofillAi()).thenReturn(true);
+
+        mSettingsActivityTestRule.startSettingsActivity();
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    PreferenceCategory category =
+                            mSettingsActivityTestRule.getFragment().findPreference("Passport");
+                    Preference addPassport = category.findPreference("Passport" + " Add");
+                    assertNotNull(addPassport);
+                    addPassport.performClick();
+                });
+
+        onView(withText("Add passport")).inRoot(isDialog()).check(matches(isDisplayed()));
+
+        Context context = mSettingsActivityTestRule.getFragment().getContext();
+        String walletTitle = context.getString(R.string.autofill_google_wallet_title);
+        String expectedNoticeText =
+                context.getString(
+                                R.string.autofill_ai_save_or_update_entity_in_wallet_source_notice)
+                        .replace("$1", walletTitle)
+                        .replace("$2", walletTitle)
+                        .replace("$3", TestAccounts.ACCOUNT1.getEmail())
+                        .replace("<link>", "")
+                        .replace("</link>", "");
+        onView(withText(expectedNoticeText)).check(matches(isDisplayed()));
+    }
+
+    @Test
+    @MediumTest
+    @EnableFeatures(ChromeFeatureList.AUTOFILL_AI_WALLET_PRIVATE_PASSES_DEEP_LINK)
+    public void testAutofillAiEntities_opensWalletDefaultPage_whenUrlIsNull() throws Exception {
+        EntityType passportType = TestUtils.getPassportEntityType();
+
+        EntityInstanceWithLabels entity1 =
+                TestUtils.buildGermanyPassportWithLabels(
+                        "guid1", /* storedInWallet= */ true, /* walletEntityUrl= */ null);
+
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(passportType, Arrays.asList(entity1));
+
+        when(mEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+
+        mSettingsActivityTestRule.startSettingsActivity();
+
+        Preference passportEntity =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> mSettingsActivityTestRule.getFragment().findPreference("guid1"));
+        assertNotNull(passportEntity);
+
+        // Mock the intent that should be fired.
+        Instrumentation.ActivityResult result =
+                new Instrumentation.ActivityResult(Activity.RESULT_OK, null);
+        // Since the walletEntityUrl is null, it should fallback to the general passes page.
+        var intentMatcher =
+                allOf(
+                        hasAction(Intent.ACTION_VIEW),
+                        hasData(Uri.parse(GoogleWalletLauncher.GOOGLE_WALLET_PASSES_URL)));
+        intending(intentMatcher).respondWith(result);
+
+        ThreadUtils.runOnUiThreadBlocking(passportEntity::performClick);
+
+        intended(intentMatcher);
+    }
+
+    @Test
+    @MediumTest
+    @EnableFeatures(ChromeFeatureList.AUTOFILL_AI_WALLET_PRIVATE_PASSES_DEEP_LINK)
+    public void testAutofillAiEntities_opensWalletPrivatePassPageOnClick() throws Exception {
+        EntityType passportType = TestUtils.getPassportEntityType();
+
+        String expectedUrl = "https://wallet.com/private";
+
+        EntityInstanceWithLabels entity1 =
+                TestUtils.buildGermanyPassportWithLabels(
+                        "guid1", /* storedInWallet= */ true, expectedUrl);
+
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(passportType, Arrays.asList(entity1));
+
+        when(mEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+
+        mSettingsActivityTestRule.startSettingsActivity();
+
+        Preference passportEntity =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> mSettingsActivityTestRule.getFragment().findPreference("guid1"));
+        assertNotNull(passportEntity);
+
+        // Mock the intent that should be fired.
+        Instrumentation.ActivityResult result =
+                new Instrumentation.ActivityResult(Activity.RESULT_OK, null);
+        var intentMatcher = allOf(hasAction(Intent.ACTION_VIEW), hasData(Uri.parse(expectedUrl)));
+        intending(intentMatcher).respondWith(result);
+
+        ThreadUtils.runOnUiThreadBlocking(passportEntity::performClick);
+
+        intended(intentMatcher);
+    }
+
+    @Test
+    @MediumTest
+    @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_WALLET_PRIVATE_PASSES_DEEP_LINK)
+    public void testAutofillAiEntities_opensWalletPrivatePassPageOnClick_featureDisabled()
+            throws Exception {
+        EntityType passportType = TestUtils.getPassportEntityType();
+
+        EntityInstanceWithLabels entity1 =
+                TestUtils.buildGermanyPassportWithLabels(
+                        "guid1",
+                        /* storedInWallet= */ true,
+                        /* walletEntityUrl= */ "https://wallet.com/private");
+
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(passportType, Arrays.asList(entity1));
+
+        when(mEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+
+        mSettingsActivityTestRule.startSettingsActivity();
+
+        Preference passportEntity =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> mSettingsActivityTestRule.getFragment().findPreference("guid1"));
+        assertNotNull(passportEntity);
+
+        // Mock the intent that should be fired.
+        Instrumentation.ActivityResult result =
+                new Instrumentation.ActivityResult(Activity.RESULT_OK, null);
+        // Since the deep link feature is disabled, it should fallback to the general passes page.
+        var intentMatcher =
+                allOf(
+                        hasAction(Intent.ACTION_VIEW),
+                        hasData(Uri.parse(GoogleWalletLauncher.GOOGLE_WALLET_PASSES_URL)));
+        intending(intentMatcher).respondWith(result);
+
+        ThreadUtils.runOnUiThreadBlocking(passportEntity::performClick);
+
+        intended(intentMatcher);
+    }
 }

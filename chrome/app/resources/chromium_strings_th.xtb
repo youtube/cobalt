@@ -583,7 +583,6 @@
 <translation id="7318036098707714271">ไฟล์ค่ากำหนดของคุณขัดข้องหรือไม่ถูกต้อง
 
 Chromium ไม่สามารถกู้คืนการตั้งค่าของคุณได้</translation>
-<translation id="7339898014177206373">หน้าต่างใหม่</translation>
 <translation id="734373864078049451">เว็บของคุณ บุ๊กมาร์ก และข้อมูลอื่นๆ ใน Chromium พร้อมใช้แล้วที่นี่</translation>
 <translation id="7347827960336370838">เฉพาะผู้ที่มีพาสเฟรสของคุณเท่านั้นที่จะอ่านข้อมูลที่เข้ารหัสได้ Google จะไม่ได้รับหรือจัดเก็บพาสเฟรสดังกล่าว หากลืมพาสเฟรสหรือต้องการเปลี่ยนการตั้งค่านี้ คุณจะต้อง<ph name="BEGIN_LINK" />ลบข้อมูล Chromium ในบัญชี<ph name="END_LINK" /></translation>
 <translation id="7349591376906416160">ผู้ดูแลระบบได้กำหนดค่าให้ Chromium เปิด <ph name="ALTERNATIVE_BROWSER_NAME" /> เพื่อเข้าถึง <ph name="TARGET_URL_HOSTNAME" /></translation>
@@ -592,6 +591,7 @@ Chromium ไม่สามารถกู้คืนการตั้งค�
 <translation id="7376384068949534168">คุณไม่ได้เข้าชมเมื่อเร็วๆ นี้ Chromium นำสิทธิ์เข้าถึง<ph name="PERMISSION_1" />และ<ph name="PERMISSION_2" />ออกแล้ว</translation>
 <translation id="73786666777299047">เปิด Chrome เว็บสโตร์</translation>
 <translation id="7384121030444253939">ระบบไม่รองรับส่วนขยายนี้แล้ว Chromium แนะนำให้คุณนำออกแทน</translation>
+<translation id="7407655596887111931">ตอนนี้ Chromium เป็นเบราว์เซอร์เริ่มต้นของคุณแล้ว</translation>
 <translation id="7413153308467572558">ดำเนินการต่อจากที่ค้างไว้: Chromium จะคืนค่าแท็บทุกครั้งที่คุณรีสตาร์ท หากต้องการปิดตัวเลือกนี้ ให้ไปที่</translation>
 <translation id="7427879960656355200">นำเข้ารหัสผ่านไปยัง Chromium</translation>
 <translation id="744815265653811511">1. คลิก <ph name="BUTTON_LABEL" /> ด้านล่าง
@@ -733,6 +733,7 @@ Chromium ไม่สามารถกู้คืนการตั้งค�
 <translation id="8981150672034878610">เริ่ม Chromium ไม่ได้เนื่องจากเกิดข้อผิดพลาดขณะเปิดโปรไฟล์ ลองรีสตาร์ท Chromium</translation>
 <translation id="8988036198400390003">จัดการโปรไฟล์ Chromium</translation>
 <translation id="9019929317751753759">เพื่อให้ Chromium ปลอดภัยขึ้น เราได้ปิดส่วนขยายต่อไปนี้ซึ่งไม่ได้แสดงอยู่ใน <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> และอาจมีการเพิ่มเข้ามาโดยที่คุณไม่รู้ตัว</translation>
+<translation id="9022552996538154597">ลงชื่อเข้าใช้ Chromium</translation>
 <translation id="904366664621834601">Chromium บล็อกการดาวน์โหลดนี้เนื่องจากไฟล์ที่เก็บถาวรมีไฟล์อื่นๆ ที่อาจซ่อนมัลแวร์ไว้</translation>
 <translation id="9053882453960391422">ซิงค์รหัสผ่าน บุ๊กมาร์ก และประวัติการเข้าชมในอุปกรณ์ต่างๆ ได้อย่างสมบูรณ์แบบ เข้าถึงฟีเจอร์ที่คุณรู้จักและชื่นชอบได้อย่างง่ายดายโดยอัปเดตเบราว์เซอร์เริ่มต้นเป็น Chromium ระบบจะปักหมุด Chromium ไว้ที่แถบงานเพื่อให้เข้าถึงได้อย่างรวดเร็ว</translation>
 <translation id="9062666675513499497">ลงชื่อเข้าใช้ Chromium เมื่อคุณลงชื่อเข้าใช้บริการอื่นๆ ของ Google</translation>

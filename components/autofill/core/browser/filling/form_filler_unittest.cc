@@ -27,6 +27,7 @@
 #include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/data_manager/payments/test_payments_data_manager.h"
 #include "components/autofill/core/browser/data_manager/test_personal_data_manager.h"
+#include "components/autofill/core/browser/data_model/addresses/autofill_i18n_api.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/field_types.h"
@@ -264,7 +265,8 @@ class FormFillerTest
           mojom::ActionPersistence::kFill, form, filling_payload,
           *GetFormStructure(form),
           *GetAutofillField(form.global_id(), trigger_field.global_id()),
-          trigger_source);
+          trigger_source, /*blocked_fields=*/{}, FillId::Create(),
+          /*forced_fill_values=*/{}, FormFiller::RefillOptions::NotRefill());
     });
   }
 
@@ -311,7 +313,8 @@ class FormFillerTest
         mojom::ActionPersistence::kPreview, form, &virtual_card,
         *GetFormStructure(form),
         *GetAutofillField(form.global_id(), field.global_id()),
-        AutofillTriggerSource::kPopup);
+        AutofillTriggerSource::kPopup, /*blocked_fields=*/{}, FillId::Create(),
+        /*forced_fill_values=*/{}, FormFiller::RefillOptions::NotRefill());
     return filled_fields;
   }
 
@@ -384,7 +387,8 @@ TEST_F(FormFillerTest, DoNotFillIfFormChanged) {
   form_filler().FillOrPreviewForm(
       mojom::ActionPersistence::kFill, form, &profile, *GetFormStructure(form),
       *GetAutofillField(form.global_id(), form.fields().front().global_id()),
-      AutofillTriggerSource::kPopup);
+      AutofillTriggerSource::kPopup, /*blocked_fields=*/{}, FillId::Create(),
+      /*forced_fill_values=*/{}, FormFiller::RefillOptions::NotRefill());
 }
 
 TEST_F(FormFillerTest, SkipPreFilledFields) {
@@ -450,7 +454,8 @@ TEST_F(FormFillerTest, UndoResetsFormFillingData) {
   form_filler().FillOrPreviewForm(
       mojom::ActionPersistence::kFill, form, &profile, *GetFormStructure(form),
       *GetAutofillField(form.global_id(), form.fields().front().global_id()),
-      AutofillTriggerSource::kPopup);
+      AutofillTriggerSource::kPopup, /*blocked_fields=*/{}, FillId::Create(),
+      /*forced_fill_values=*/{}, FormFiller::RefillOptions::NotRefill());
 
   ASSERT_EQ(form_structure->field(0)->last_modifier(),
             FieldModifier::kAutofill);
@@ -510,7 +515,9 @@ TEST_F(FormFillerTest, UndoPreviewDoesNotChangeTheCache) {
 
   form_filler().FillOrPreviewForm(
       mojom::ActionPersistence::kFill, form, &profile, *GetFormStructure(form),
-      *autofill_field, AutofillTriggerSource::kPopup);
+      *autofill_field, AutofillTriggerSource::kPopup, /*blocked_fields=*/{},
+      FillId::Create(), /*forced_fill_values=*/{},
+      FormFiller::RefillOptions::NotRefill());
   ASSERT_EQ(autofill_field->last_modifier(), FieldModifier::kAutofill);
 
   // A preview of the undo operation won't reset the autofill state.
@@ -1914,8 +1921,9 @@ TEST_F(FormFillerTest, FillOrPreviewForm_WithBlockedFields) {
 
   form_filler().FillOrPreviewForm(
       mojom::ActionPersistence::kFill, form, &profile, *form_structure,
-      *form_structure->field(0), AutofillTriggerSource::kPopup, std::nullopt,
-      blocked_fields);
+      *form_structure->field(0), AutofillTriggerSource::kPopup, blocked_fields,
+      FillId::Create(), /*forced_fill_values=*/{},
+      FormFiller::RefillOptions::NotRefill());
 
   // Verify that the skip reasons explicitly included being blocked.
   base::flat_map<FieldGlobalId, DenseSet<FieldFillingSkipReason>> skip_reasons =
@@ -1950,8 +1958,9 @@ TEST_F(FormFillerTest, Refill_UsesBlockedFields) {
           Return(std::vector<FieldGlobalId>{form.fields()[0].global_id()}));
   form_filler().FillOrPreviewForm(
       mojom::ActionPersistence::kFill, form, &profile, *form_structure,
-      *form_structure->field(0), AutofillTriggerSource::kPopup, std::nullopt,
-      blocked_fields);
+      *form_structure->field(0), AutofillTriggerSource::kPopup, blocked_fields,
+      FillId::Create(), /*forced_fill_values=*/{},
+      FormFiller::RefillOptions::NotRefill());
 
   // Append a new field to the form, which will trigger a refill when the form
   // is re-parsed.
@@ -2031,12 +2040,14 @@ TEST_F(FormFillerTest, InitialFillsHaveDistinctIds) {
       mojom::ActionPersistence::kFill, form1, &credit_card,
       *GetFormStructure(form1),
       *GetAutofillField(form1.global_id(), form1.fields().front().global_id()),
-      AutofillTriggerSource::kPopup);
+      AutofillTriggerSource::kPopup, /*blocked_fields=*/{}, FillId::Create(),
+      /*forced_fill_values=*/{}, FormFiller::RefillOptions::NotRefill());
   form_filler().FillOrPreviewForm(
       mojom::ActionPersistence::kFill, form2, &credit_card,
       *GetFormStructure(form2),
       *GetAutofillField(form2.global_id(), form2.fields().front().global_id()),
-      AutofillTriggerSource::kPopup);
+      AutofillTriggerSource::kPopup, /*blocked_fields=*/{}, FillId::Create(),
+      /*forced_fill_values=*/{}, FormFiller::RefillOptions::NotRefill());
 
   std::move(run_loop).Run();
   EXPECT_FALSE(fill_id1->is_empty());
@@ -2078,7 +2089,8 @@ TEST_F(FormFillerTest, FillAndRefillHaveSameFillId) {
       mojom::ActionPersistence::kFill, form, &credit_card,
       *GetFormStructure(form),
       *GetAutofillField(form.global_id(), form.fields().front().global_id()),
-      AutofillTriggerSource::kPopup);
+      AutofillTriggerSource::kPopup, /*blocked_fields=*/{}, FillId::Create(),
+      /*forced_fill_values=*/{}, FormFiller::RefillOptions::NotRefill());
   check.Call("initial fill complete");
 
   test_api(form).fields().push_back(std::move(cvc_field));
@@ -2166,7 +2178,8 @@ TEST_F(FormFillerTest, ProgrammaticRefillBeforeTimeout) {
       mojom::ActionPersistence::kFill, form, &credit_card,
       *GetFormStructure(form),
       *GetAutofillField(form.global_id(), form.fields().front().global_id()),
-      AutofillTriggerSource::kPopup);
+      AutofillTriggerSource::kPopup, /*blocked_fields=*/{}, FillId::Create(),
+      /*forced_fill_values=*/{}, FormFiller::RefillOptions::NotRefill());
   std::move(run_loop).Run();
   check.Call("initial fill complete");
 
@@ -2216,7 +2229,8 @@ TEST_F(FormFillerTest, NoProgrammaticRefillAfterTimeout) {
       mojom::ActionPersistence::kFill, form, &credit_card,
       *GetFormStructure(form),
       *GetAutofillField(form.global_id(), form.fields().front().global_id()),
-      AutofillTriggerSource::kPopup);
+      AutofillTriggerSource::kPopup, /*blocked_fields=*/{}, FillId::Create(),
+      /*forced_fill_values=*/{}, FormFiller::RefillOptions::NotRefill());
   std::move(run_loop).Run();
   check.Call("initial fill complete");
 
@@ -2343,7 +2357,8 @@ TEST_P(RefillTest_SuppressAutomaticRefills, SuppressAutomaticRefills) {
       mojom::ActionPersistence::kFill, form, &credit_card,
       *GetFormStructure(form),
       *GetAutofillField(form.global_id(), form.fields().front().global_id()),
-      AutofillTriggerSource::kPopup);
+      AutofillTriggerSource::kPopup, /*blocked_fields=*/{}, FillId::Create(),
+      /*forced_fill_values=*/{}, FormFiller::RefillOptions::NotRefill());
   check.Call("initial fill complete");
 
   test_api(form).fields().push_back(std::move(cvc_field));

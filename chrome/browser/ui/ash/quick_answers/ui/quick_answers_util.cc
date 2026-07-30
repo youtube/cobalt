@@ -14,6 +14,7 @@
 #include "content/browser/speech/tts_controller_impl.h"
 #include "content/public/browser/tts_utterance.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/color/color_id.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
@@ -110,9 +111,13 @@ const gfx::VectorIcon& GetResultTypeIcon(ResultType result_type) {
     case ResultType::kDefinitionResult:
       return chromeos::kDictionaryIcon;
     case ResultType::kTranslationResult:
-      return omnibox::kAnswerTranslationIcon;
+      return features::IsRoundedIconsEnabled()
+                 ? omnibox::kTranslateIcon
+                 : omnibox::kAnswerTranslationOldIcon;
     case ResultType::kUnitConversionResult:
-      return omnibox::kAnswerCalculatorIcon;
+      return features::IsRoundedIconsEnabled()
+                 ? omnibox::kEqualIcon
+                 : omnibox::kAnswerCalculatorOldIcon;
     default:
       return omnibox::kAnswerDefaultIcon;
   }

@@ -362,6 +362,8 @@ if (is_win || is_mac || is_linux) {
         "win/ui/complete_wnd.h",
         "win/ui/l10n_util.cc",
         "win/ui/l10n_util.h",
+        "win/ui/message_loop.cc",
+        "win/ui/message_loop.h",
         "win/ui/owner_draw_controls.cc",
         "win/ui/owner_draw_controls.h",
         "win/ui/progress_wnd.cc",
@@ -380,6 +382,8 @@ if (is_win || is_mac || is_linux) {
         "win/ui/webview2ui.h",
         "win/ui/webview_progress_wnd.cc",
         "win/ui/webview_progress_wnd.h",
+        "win/ui/window_impl.cc",
+        "win/ui/window_impl.h",
       ]
       deps += [
         "//build:branding_buildflags",
@@ -401,7 +405,7 @@ if (is_win || is_mac || is_linux) {
         "//chrome/windows_services/service_program:lib",
         "//components/winhttp",
         "//third_party/webview2:webview2_static",
-        "//third_party/wtl",
+        "//ui/gfx",
       ]
 
       configs -= [ "//build/config/win:winver" ]
@@ -411,7 +415,9 @@ if (is_win || is_mac || is_linux) {
       ]
 
       libs = [
+        "comctl32.lib",
         "msxml2.lib",
+        "uxtheme.lib",
         "wtsapi32.lib",
       ]
     }
@@ -926,7 +932,6 @@ if (is_win || is_mac || is_linux) {
       "policy/policy_manager_unittest.cc",
       "policy/service_unittest.cc",
       "prefs_unittest.cc",
-      "tag_fuzztest.cc",
       "tag_unittest.cc",
       "test/dm_policy_builder.cc",
       "test/dm_policy_builder.h",
@@ -1069,7 +1074,6 @@ if (is_win || is_mac || is_linux) {
         "win/test:test_executables",
         "win/test:test_strings",
         "win/ui/resources",
-        "//third_party/wtl",
       ]
 
       data_deps += [
@@ -1282,11 +1286,23 @@ if (is_win || is_mac || is_linux) {
     }
   }
 
-  updater_fuzztests = [
-    "TagFuzzTest.FuzzParseBroad",
-    "TagFuzzTest.FuzzParseShared",
-    "TagFuzzTest.FuzzReadTag",
-  ]
+  test("updater_fuzztests") {
+    testonly = true
+    sources = [ "tag_fuzztest.cc" ]
+    fuzztests = [
+      "TagFuzzTest.FuzzParseBroad",
+      "TagFuzzTest.FuzzParseShared",
+      "TagFuzzTest.FuzzReadTag",
+    ]
+    deps = [
+      ":base",
+      ":constants_test",
+      ":tagging",
+      "//base",
+      "//base/test:run_all_unittests",
+      "//third_party/fuzztest",
+    ]
+  }
 
   # These tests are run serially since they mutate system state.
   test("updater_tests") {
@@ -1297,8 +1313,6 @@ if (is_win || is_mac || is_linux) {
       "test/run_all_unittests.cc",
       "test/test_scope_user.cc",
     ]
-
-    fuzztests = updater_fuzztests
 
     deps = [
       ":base",
@@ -1339,8 +1353,6 @@ if (is_win || is_mac || is_linux) {
       "test/run_all_unittests.cc",
       "test/test_scope_system.cc",
     ]
-
-    fuzztests = updater_fuzztests
 
     deps = [
       ":base",

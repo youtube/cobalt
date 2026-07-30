@@ -87,8 +87,6 @@ public class AndroidPaymentAppFinderUnitTest {
     public static BaseActivityTestRule<BlankUiTestActivity> sActivityTestRule =
             new BaseActivityTestRule<>(BlankUiTestActivity.class);
 
-    private static Activity sActivity;
-
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
     @Rule public ChromeBrowserTestRule mTestRule = new ChromeBrowserTestRule();
 
@@ -106,7 +104,7 @@ public class AndroidPaymentAppFinderUnitTest {
 
     @BeforeClass
     public static void setupSuite() {
-        sActivity = sActivityTestRule.launchActivity(null);
+        sActivityTestRule.launchActivity(null);
     }
 
     @Before
@@ -114,10 +112,11 @@ public class AndroidPaymentAppFinderUnitTest {
         mWindowAndroid =
                 ThreadUtils.runOnUiThreadBlocking(
                         () -> {
+                            Activity activity = sActivityTestRule.getActivity();
                             return new ActivityWindowAndroid(
-                                    sActivity,
+                                    activity,
                                     /* listenToActivityState= */ true,
-                                    IntentRequestTracker.createFromActivity(sActivity),
+                                    IntentRequestTracker.createFromActivity(activity),
                                     mInsetObserver,
                                     /* occlusionTrackingAllowed= */ true);
                         });

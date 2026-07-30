@@ -118,6 +118,7 @@
 <translation id="1448440926884431741">ორგანიზებულად დაალაგეთ თვალმიდევნებული პროდუქტები „სანიშნეებში“</translation>
 <translation id="1455845192930279203">მაინც გსურთ, ჩამოტვირთოთ „<ph name="FILE_NAME" />“ (<ph name="FILE_SIZE" />) <ph name="DOWNLOAD_DOMAIN" />-დან?</translation>
 <translation id="1460751212339734034">დაზოგეთ დრო, აკრიფეთ ნაკლები</translation>
+<translation id="146522654774760805">პაროლები და ავტომატური შევსება</translation>
 <translation id="1466383950273130737">აირჩიეთ Chrome-ის ენა</translation>
 <translation id="1477626028522505441"><ph name="FILE_NAME" /> ვერ ჩამოიტვირთა სერვერთან დაკავშირებული პრობლემების გამო.</translation>
 <translation id="147982357559798527">შეიცვალა</translation>
@@ -227,6 +228,7 @@
 <translation id="200114059308480249">გსურთ, დაურთოთ გარშემო ტექსტი Google ძიებებს?</translation>
 <translation id="2004096469149679223"><ph name="TAB_TITLE" />, ჩამაგრებული და დადუმებული ინკოგნიტო ჩანართი</translation>
 <translation id="2021896219286479412">სრულეკრანიანი რეჟიმის მართვა</translation>
+<translation id="2022953316617983419">QR კოდი</translation>
 <translation id="2024195579772565064">საძიებო სისტემის წაშლა</translation>
 <translation id="2029669011553795746">რჩევების შესახებ შეტყობინებებზე თანხმობის გვერდი გაიხსნა ნახევარ სიმაღლეზე</translation>
 <translation id="2038563949887743358">საიტის დესკტოპის ვერსიის მოთხოვნის ჩართვა</translation>
@@ -263,6 +265,7 @@
 <translation id="2184272387334793084">შედით სისტემაში, თქვენი პაროლები და სხვა მონაცემები თქვენს ყველა მოწყობილობაზე რომ მიიღოთ</translation>
 <translation id="218608176142494674">გაზიარება</translation>
 <translation id="2186779861549045980">შეგიძლიათ აირჩიოთ, რა მონაცემებს შეინახავთ თქვენს Google ანგარიშში.\nშეგიძლიათ, ასევე, ნახოთ და მართოთ ეს ერთეულები თქვენს სანიშნეებში, საკითხავ სიაში ან პაროლების მმართველში</translation>
+<translation id="2190355936436201913">(ცარიელი)</translation>
 <translation id="219283042927675668">ჩანართები ჯგუფში</translation>
 <translation id="2194856509914051091">გასათვალისწინებელი საკითხები</translation>
 <translation id="2205701497928406883"><ph name="TAB_TITLE" />, ჩამაგრებულია ჩანართი, რომელიც აზიარებს კონტენტს</translation>
@@ -300,6 +303,7 @@
 <translation id="233375395665273385">წაშლა და გასვლა</translation>
 <translation id="2341410551640223969"><ph name="WEBAPK_NAME" />-ის ინსტალაცია ვერ მოხერხდა.</translation>
 <translation id="2349710944427398404">Chrome-ის მიერ გამოყენებული მეხსიერების საერთო მოცულობა, რომელშიც ინახება ანგარიშები, სანიშნეები და შენახული პარამეტრები</translation>
+<translation id="2354001756790975382">სხვა სანიშნეები</translation>
 <translation id="235789365079050412">Google-ის კონფიდენციალურობის დებულება</translation>
 <translation id="2359808026110333948">გაგრძელება</translation>
 <translation id="2362083820973145409">შესული ხართ, როგორც <ph name="USER_NAME" />. <ph name="USER_EMAIL" />. გახსნის პარამეტრებს.</translation>
@@ -544,6 +548,7 @@
 <translation id="3359667936385849800">სერვისის ამჟამინდელი პროვაიდერის გამოყენება</translation>
 <translation id="3373701465337594448">ჩართვის შემთხვევაში, აქ გამოჩნდება თქვენ მიერ მონახულებული იმ საიტების სია, რომლებიც თქვენს ინტერესებს პროგნოზირებს</translation>
 <translation id="3384347053049321195">სურათის გაზიარება</translation>
+<translation id="3385749568468586663">Gemini მიუწვდომელია ინკოგნიტო რეჟიმში</translation>
 <translation id="3387650086002190359"><ph name="FILE_NAME" /> ვერ ჩამოიტვირთა ფაილების სისტემასთან დაკავშირებული შეცდომების გამო.</translation>
 <translation id="3417835166382867856">ჩანართებში ძიება</translation>
 <translation id="3430670036890315772">პროფილის ჩაკეტვის გამორთვის შემთხვევაში, შენახული ინფორმაცია წაიშლება</translation>
@@ -563,7 +568,7 @@
 <translation id="3488199663160411179">სახელი</translation>
 <translation id="3493531032208478708"><ph name="BEGIN_LINK" />შეიტყვეთ მეტი<ph name="END_LINK" /> შემოთავაზებული კონტენტის შესახებ</translation>
 <translation id="3499246418971111862">chrome_qrcode_<ph name="CURRENT_TIMESTAMP_MS" /></translation>
-<translation id="350276055892098337">დალაგება უძველესით</translation>
+<translation id="350276055892098337">დალაგება: უძველესიდან</translation>
 <translation id="3507132249039706973">სტანდარტული დაცვა ჩართულია</translation>
 <translation id="3509330069915219067">ხაზგარეშეა. Chrome ვერ ახერხებს განახლებების შემოწმებას.</translation>
 <translation id="3513019849832307207">გაწევრიანება და გახსნა</translation>
@@ -702,6 +707,7 @@
 <translation id="4084712963632273211">წყარო: <ph name="PUBLISHER_ORIGIN" /> — <ph name="BEGIN_DEEMPHASIZED" />უზრუნველყოფს Google<ph name="END_DEEMPHASIZED" /></translation>
 <translation id="4092709865241032354">Google პაროლების მმართველს სისტემაში შესვლის მონაცემების შენახვაში რომ დაეხმაროთ, დაამატეთ თქვენი მომხმარებლის სახელი ამ საიტისთვის</translation>
 <translation id="4095146165863963773">წაიშალოს აპების მონაცემები?</translation>
+<translation id="4095483462103784441">ჩანართების ახალი ჯგუფის შექმნა</translation>
 <translation id="4096227151372679484">სანიშნეების შენახვის ნაკადი გახსნილია ნახევარ სიმაღლეზე</translation>
 <translation id="4105527135143631701">Google პაროლების მმართველის განახლება გაიხსნა</translation>
 <translation id="4113030288477039509">თქვენი ადმინისტრატორის მიერ მართული</translation>
@@ -785,6 +791,7 @@
 <translation id="4409014848144759297"><ph name="WEBSITE_TITLE" /> და <ph name="TAB_COUNT" /> სხვა ჩანართი</translation>
 <translation id="441100617989818073">გამოუყენებელი ან დუბლირებული ჩანართები და ჯგუფები</translation>
 <translation id="4412123112245770507">სექციის ჩაკეცვა</translation>
+<translation id="4412698727486357573">დახმარების ცენტრი</translation>
 <translation id="4414179633735763985"><ph name="TAB_GROUPS_AND_TABS_PART" /> წაიშალა</translation>
 <translation id="4415276339145661267">თქვენი Google ანგარიშის მართვა</translation>
 <translation id="4425140285732600465">მიმდინარეობს ფასისთვის თვალის მიდევნება. თქვენ მიიღებთ გაფრთხილებებს, როცა ფასი დაიკლებს რომელიმე საიტზე.</translation>
@@ -853,7 +860,7 @@
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 და <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> სხვა}other{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 და <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> სხვა}}</translation>
 <translation id="4698757800236023795">აქტიური (<ph name="ITEM_COUNT" />)</translation>
 <translation id="4699172675775169585">ქეშირებული სურათები და ფაილები</translation>
-<translation id="4710167854527459075">დალაგება უახლესით</translation>
+<translation id="4710167854527459075">დალაგება: უახლესიდან</translation>
 <translation id="4719927025381752090">თარგმანის შემოთავაზება</translation>
 <translation id="4720556299488643018">გამოწერის გაუქმება</translation>
 <translation id="4732120983431207637">სტეკის დამშლელი</translation>
@@ -896,6 +903,7 @@
 <translation id="4864369630010738180">მიმდინარეობს შესვლა…</translation>
 <translation id="4866368707455379617"><ph name="MODULE" /> ვერ დაინსტალირდა Chrome-ისთვის</translation>
 <translation id="4875775213178255010">კონტენტის შემოთავაზება</translation>
+<translation id="4876880121961092787">სანიშნეების ზოლის დამალვა</translation>
 <translation id="4877678010818027629">ინკოგნიტო რეჟიმზე გადასვლა</translation>
 <translation id="4878404682131129617">პროქსი-სერვერის მეშვეობით გვირაბული კავშირის დამყარება ვერ მოხერხდა</translation>
 <translation id="4880127995492972015">თარგმნა…</translation>
@@ -1268,6 +1276,7 @@
 <translation id="6437162790453527153">შედით სისტემაში, რომ მიიღოთ თქვენი სანიშნეები და სხვა მონაცემები თქვენს ყველა მოწყობილობაზე</translation>
 <translation id="6437478888915024427">გვერდის ინფორმაცია</translation>
 <translation id="6440291723980579689">გვერდები ჩაიტვირთება მხოლოდ მას შემდეგ, რაც მათ გახსნით</translation>
+<translation id="6441377161852435370">ჩანართის დამატება საკითხავ სიაში</translation>
 <translation id="6441734959916820584">სახელი მეტისმეტად გრძელია</translation>
 <translation id="6444291413624515012"><ph name="TAB_GROUP_TITLE" /> ჩანართების ჯგუფი დაიხურა</translation>
 <translation id="6452534462676960500">ახალი აქტივობა</translation>
@@ -1357,6 +1366,7 @@
 <translation id="6787600234697426339"><ph name="MAX_INSTANCE_COUNT" /> ფანჯრის ლიმიტი მიღწეულია</translation>
 <translation id="6795633245022906657">სწრაფად გახსენით ახალი ჩანართი. ამ მალსახმობის რედაქტირებისთვის გადადით პარამეტრებზე.</translation>
 <translation id="679588508577699489">დააყენეთ Chrome ნაგულისხმევ ბრაუზერად</translation>
+<translation id="679845623837196966">საკითხავი სიის ჩვენება</translation>
 <translation id="679956319013005046">ავტომატური შევსებისთვის სასურველი სერვისის დასაყენებლად ჯერ დაამატეთ ეს სერვისი <ph name="BEGIN_LINK" />Android-ის პარამეტრებში<ph name="END_LINK" /> .</translation>
 <translation id="6802555630140434547">ფანჯარა დაიხურება</translation>
 <translation id="6803791793483522764">შეტყობინებების მიმოხილვა</translation>
@@ -1428,7 +1438,6 @@
 <translation id="6980258170429555165"><ph name="MENU_NAME" /> მენიუ გამოყოფილია.</translation>
 <translation id="6983306615164277634">პოზიციის შესაცვლელად შეგიძლიათ მისამართთა ზოლზე ხანგრძლივად შეხებაც.</translation>
 <translation id="6987047470128880212">ინკოგნიტო რეჟიმი ამ მოწყობილობაზე ხელმისაწვდომი არ არის</translation>
-<translation id="6989358895283601928">შენახვა და ბეჭდვა</translation>
 <translation id="6996145122199359148">ამ გვერდის ჩამოტვირთვა</translation>
 <translation id="7013762323294215682">წვდომის ეს გასაღები შეინახება თქვენს პაროლების მმართველში. მისით სარგებლობას შეძლებს ყველა, ვისთვისაც ხელმისაწვდომია წვდომის ეს გასაღები.</translation>
 <translation id="7020741890149022655">საკითხავ სიაში დამატება <ph name="BEGIN_NEW" />სიახლე<ph name="END_NEW" /></translation>
@@ -1446,6 +1455,7 @@
 <translation id="7080145768121641840"><ph name="TAB_TITLE" />, არჩეულია ჩამაგრებული და დადუმებული ჩანართი</translation>
 <translation id="7084115944294706056">აირჩიეთ მისამართთა ზოლის პოზიცია</translation>
 <translation id="7085332316435785646">აირჩიეთ, დაერთოს თუ არა Chrome ისტორია, Google სერვისებში უფრო პერსონალიზებული ფუნქციებით რომ ისარგებლოთ</translation>
+<translation id="7087066066828635014">რჩევების შეტყობინებები ჩართულია</translation>
 <translation id="7088681679121566888">Chrome განახლებულია</translation>
 <translation id="7098100324909062850"><ph name="TAB_TITLE" />, არჩეულია რამდენიმე დადუმებული ინკოგნიტო ჩანართი</translation>
 <translation id="7106762743910369165">თქვენს ბრაუზერს მართავს თქვენი ორგანიზაცია</translation>
@@ -1633,6 +1643,7 @@
 <translation id="7821130663268546430">ყველა გახსნილი ჩანართის პოვნა ჩანართების გადამრთველში შეგიძლიათ</translation>
 <translation id="7822705602465980873">როცა სისტემაში შესული ხართ, ეს მონაცემები მიებმება თქვენს Google ანგარიშს, რომ დაცული იყოთ Google სერვისების ფარგლებში, მაგალითად, უსაფრთხოებასთან დაკავშირებული ინციდენტის შემდეგ გაძლიერდება დაცვა Gmail-ში.</translation>
 <translation id="7824665136384946951">თქვენმა ორგანიზაციამ გამორთო Safe Browsing</translation>
+<translation id="7825973332242257878">ჩანართების ჯგუფები</translation>
 <translation id="7826342993930002256">თქვენი Chrome, ყველგან</translation>
 <translation id="7846161022626028328">შეცდომა მოხდა. ცადეთ ხელახლა.</translation>
 <translation id="7846296061357476882">Google სერვისები</translation>
@@ -1657,6 +1668,7 @@
 <translation id="7934668619883965330">ფაილის ჩამოტვირთვა ვერ ხერხდება. ფაილის ფორმატი მხარდაუჭერელია.</translation>
 <translation id="7951102827450076904">ჩამოტვირთული PDF-ების ყოველთვის გახსნა</translation>
 <translation id="7952479614398473176">ახალი ფანჯრის გასახსნელად შეამცირეთ აქტიური ფანჯრების რაოდენობა მაქსიმუმ <ph name="MAX_WINDOW_COUNT_MINUS_ONE" />-მდე.</translation>
+<translation id="7956713633345437162">მობილური სანიშნეები</translation>
 <translation id="7957413488482743710">ვირტუალური ბარათი დამალავს თქვენს რეალურ ბარათს, რაც დაგიცავთ თაღლითობის პოტენციური შემთხვევებისგან. <ph name="BEGIN_LINK1" />შეიტყვეთ მეტი ვირტუალური ბარათების შესახებ<ph name="END_LINK1" /></translation>
 <translation id="7959485987650214982">ჩანართები ამ მოწყობილობაზე</translation>
 <translation id="7961926449547174351">მეხსიერებაზე წვდომა გათიშული გაქვთ. ჩასართავად გადადით პარამეტრებზე.</translation>
@@ -1845,6 +1857,7 @@
 <translation id="867914734596684889">სანიშნეების ზოლის ჩვენება ან დამალვა</translation>
 <translation id="8683039184091909753">სურათი</translation>
 <translation id="8688183792442786085"><ph name="TAB_TITLE" />, არჩეული ჩანართი</translation>
+<translation id="8696297579102085705">თქვენს მოწყობილობებში გაგზავნა</translation>
 <translation id="8697753151306746444">ფანჯრის ან ეკრანის გაზიარება</translation>
 <translation id="8699120352855309748">ამ ენების თარგმნის შემოთავაზების აკრძალვა</translation>
 <translation id="8712637175834984815">კარგი</translation>
@@ -1992,6 +2005,7 @@
 <translation id="970715775301869095">დარჩენილია <ph name="MINUTES" /> წთ</translation>
 <translation id="981121421437150478">ოფლაინი</translation>
 <translation id="983192555821071799">ყველა ჩანართის დახურვა</translation>
+<translation id="984275831282074731">გადახდის მეთოდები</translation>
 <translation id="984756705737569814">თქვენს Google ანგარიშში პაროლების შემოწმება ვერ ხერხდება</translation>
 <translation id="987264212798334818">ზოგადი</translation>
 <translation id="988091779042748639">თქვენი მოწყობილობიდან ინკოგნიტო რეჟიმში დათვალიერების ისტორია რომ წაშალოთ, დახურეთ ყველა ინკოგნიტო ჩანართი.</translation>

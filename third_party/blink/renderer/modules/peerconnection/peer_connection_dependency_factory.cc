@@ -344,7 +344,7 @@ class LocalNetworkAccessPermissionFactory final
       override {
     mojo::Remote<mojom::blink::PermissionService> permission_service;
     PostCrossThreadTask(
-        *main_thread_task_runner_.get(), FROM_HERE,
+        *main_thread_task_runner_, FROM_HERE,
         CrossThreadBindOnce(
             &PeerConnectionDependencyFactory::BindPermissionService,
             MakeUnwrappingCrossThreadWeakHandle(factory_),
@@ -636,14 +636,17 @@ void ReportUmaEncodeDecodeCapabilities(
     for (const auto& sdp_format : kSdpFormats) {
       bool decode_support =
           webrtc_decoder_factory
-              ->QueryCodecSupport(sdp_format, /*reference_scaling=*/false)
+              ->QueryCodecSupport(sdp_format, /*reference_scaling=*/false,
+                                  /*resolution=*/std::nullopt)
               .is_power_efficient;
 
       EncodeScalabilityMode encode_support =
           EncodeScalabilityMode::NotSupported;
       for (const auto& mode : kScalabilityModes) {
         if (webrtc_encoder_factory
-                ->QueryCodecSupport(sdp_format, mode.scalability_string)
+                ->QueryCodecSupport(
+                    sdp_format, /*scalability_mode=*/mode.scalability_string,
+                    /*resolution=*/std::nullopt)
                 .is_power_efficient) {
           encode_support = mode.scalability_enum;
         } else {
@@ -1000,8 +1003,9 @@ PeerConnectionDependencyFactory::CreatePeerConnection(
     webrtc::PeerConnectionObserver* observer,
     ExceptionState& exception_state) {
   CHECK(observer);
-  if (!GetPcFactory().get())
+  if (!GetPcFactory()) {
     return nullptr;
+  }
 
   webrtc::PeerConnectionDependencies dependencies(observer);
   // |web_frame| may be null in tests, e.g. if
@@ -1276,8 +1280,9 @@ PeerConnectionDependencyFactory::GetWebRtcSignalingTaskRunner() {
 
 void PeerConnectionDependencyFactory::EnsureWebRtcAudioDeviceImpl() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  if (audio_device_.get())
+  if (audio_device_) {
     return;
+  }
 
   audio_device_ = new webrtc::RefCountedObject<blink::WebRtcAudioDeviceImpl>();
 }

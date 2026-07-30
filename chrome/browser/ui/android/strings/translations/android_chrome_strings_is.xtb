@@ -118,6 +118,7 @@ Til að skoða fleiri stillingar sem nota gögn til að bæta Chrome-upplifunina
 <translation id="1448440926884431741">Notaðu bókamerki til að flokka vörur sem þú vaktar</translation>
 <translation id="1455845192930279203">Viltu samt sækja „<ph name="FILE_NAME" />“ (<ph name="FILE_SIZE" />) úr <ph name="DOWNLOAD_DOMAIN" />?</translation>
 <translation id="1460751212339734034">Sparaðu tíma, sláðu minna inn</translation>
+<translation id="146522654774760805">Aðgangsorð og sjálfvirk útfylling</translation>
 <translation id="1466383950273130737">Velja tungumál Chrome</translation>
 <translation id="1477626028522505441">Niðurhal á <ph name="FILE_NAME" /> mistókst vegna vandamála á netþjóni.</translation>
 <translation id="147982357559798527">Breytt</translation>
@@ -227,6 +228,7 @@ Aðeins einstaklingar sem eru með aðgangsorðið þitt geta lesið dulkóðuð
 <translation id="200114059308480249">Taka með texta umhverfis í Google leitum?</translation>
 <translation id="2004096469149679223"><ph name="TAB_TITLE" />, festur huliðsflipi með slökkt á hljóði</translation>
 <translation id="2021896219286479412">Stýringar vefsvæðis á öllum skjá</translation>
+<translation id="2022953316617983419">QR-kóði</translation>
 <translation id="2024195579772565064">Eyða leitarvél</translation>
 <translation id="2029669011553795746">Val um að fá tilkynningar um ráð opnað í hálfri hæð</translation>
 <translation id="2038563949887743358">Kveikja á beiðni um vefsvæði fyrir tölvur</translation>
@@ -263,6 +265,7 @@ Aðeins einstaklingar sem eru með aðgangsorðið þitt geta lesið dulkóðuð
 <translation id="2184272387334793084">Skráðu þig inn til að sækja aðgangsorðin og fleira í öllum tækjunum þínum</translation>
 <translation id="218608176142494674">Deiling</translation>
 <translation id="2186779861549045980">Þú getur valið hvaða gögn á að vista á Google-reikningnum þínum.\nEinnig er hægt að skoða og hafa umsjón með þessum atriðum í bókamerkjunum þínum, á leslistanum eða í aðgangsorðastjórnun.</translation>
+<translation id="2190355936436201913">(autt)</translation>
 <translation id="219283042927675668">Flipar í hóp</translation>
 <translation id="2194856509914051091">Atriði til að hafa í huga</translation>
 <translation id="2205701497928406883"><ph name="TAB_TITLE" />, festur flipi í deilingu</translation>
@@ -300,6 +303,7 @@ Aðeins einstaklingar sem eru með aðgangsorðið þitt geta lesið dulkóðuð
 <translation id="233375395665273385">Eyða og skrá út</translation>
 <translation id="2341410551640223969">Ekki tókst að setja upp <ph name="WEBAPK_NAME" />.</translation>
 <translation id="2349710944427398404">Gögn sem Chrome notar alls, þ.m.t. reikningar, bókamerki og vistaðar stillingar</translation>
+<translation id="2354001756790975382">Önnur bókamerki</translation>
 <translation id="235789365079050412">Persónuverndarstefna Google</translation>
 <translation id="2359808026110333948">Halda áfram</translation>
 <translation id="2362083820973145409">Skráð(ur) inn sem <ph name="USER_NAME" />. <ph name="USER_EMAIL" />. Opnar stillingar.</translation>
@@ -544,6 +548,7 @@ Aðeins einstaklingar sem eru með aðgangsorðið þitt geta lesið dulkóðuð
 <translation id="3359667936385849800">Nota núverandi þjónustuaðila</translation>
 <translation id="3373701465337594448">Ef kveikt er á þessari stillingu birtist listi yfir vefsvæði sem áætla áhugasviðin þín hér</translation>
 <translation id="3384347053049321195">Deila mynd</translation>
+<translation id="3385749568468586663">Gemini er ekki í boði í huliðsstillingu</translation>
 <translation id="3387650086002190359">Niðurhal á <ph name="FILE_NAME" /> mistókst vegna villu í skráakerfi.</translation>
 <translation id="3417835166382867856">Leita í flipum</translation>
 <translation id="3430670036890315772">Ef slökkt er á prófíllásnum veða vistaðar upplýsingar fjarlægðar</translation>
@@ -702,6 +707,7 @@ Aðeins einstaklingar sem eru með aðgangsorðið þitt geta lesið dulkóðuð
 <translation id="4084712963632273211">Frá <ph name="PUBLISHER_ORIGIN" /> – <ph name="BEGIN_DEEMPHASIZED" />birt af Google<ph name="END_DEEMPHASIZED" /></translation>
 <translation id="4092709865241032354">Bættu við notandanafni þínu fyrir þetta vefsvæði til að hjálpa Google-aðgangsorðastjórnun að vista innskráningarupplýsingarnar þínar</translation>
 <translation id="4095146165863963773">Eyða forritsgögnum?</translation>
+<translation id="4095483462103784441">Búa til nýjan flipahóp</translation>
 <translation id="4096227151372679484">Vistun bókamerkja opnuð á hálfum skjánum</translation>
 <translation id="4105527135143631701">Tilkynning frá Google-aðgangsorðastjórnun opnuð</translation>
 <translation id="4113030288477039509">Stjórnað af kerfisstjóra</translation>
@@ -785,6 +791,7 @@ Aðeins einstaklingar sem eru með aðgangsorðið þitt geta lesið dulkóðuð
 <translation id="4409014848144759297"><ph name="WEBSITE_TITLE" /> og <ph name="TAB_COUNT" /> aðrir flipar</translation>
 <translation id="441100617989818073">Ónotaðir eða tvíteknir flipar og hópar</translation>
 <translation id="4412123112245770507">Minnka hluta</translation>
+<translation id="4412698727486357573">Hjálparmiðstöð</translation>
 <translation id="4414179633735763985"><ph name="TAB_GROUPS_AND_TABS_PART" /> eytt</translation>
 <translation id="4415276339145661267">Stjórna Google-reikningnum</translation>
 <translation id="4425140285732600465">Vaktar verð. Fáðu tilkynningu ef verðlækkun verður á einhverju vefsvæði.</translation>
@@ -896,6 +903,7 @@ Google reikningurinn þinn kann að vera með annars konar vefskoðunarferil, sv
 <translation id="4864369630010738180">Skráir inn...</translation>
 <translation id="4866368707455379617">Ekki tókst að setja upp <ph name="MODULE" /> fyrir Chrome</translation>
 <translation id="4875775213178255010">Tillögur að efni</translation>
+<translation id="4876880121961092787">Fela bókamerkjastiku</translation>
 <translation id="4877678010818027629">Kveikja á huliðsstillingu</translation>
 <translation id="4878404682131129617">Ekki tókst að koma á göngum um staðgengilsþjón</translation>
 <translation id="4880127995492972015">Þýða…</translation>
@@ -1268,6 +1276,7 @@ Sum vefsvæði kunna til dæmis að bregðast við beiðninni með því að bir
 <translation id="6437162790453527153">Skráðu þig inn til að fá bókamerkin þín og fleira í öllum tækjunum þínum</translation>
 <translation id="6437478888915024427">Upplýsingar um síðu</translation>
 <translation id="6440291723980579689">Síður hlaðast eingöngu eftir að þú opnar þær</translation>
+<translation id="6441377161852435370">Bæta flipa við leslista</translation>
 <translation id="6441734959916820584">Heitið er of langt</translation>
 <translation id="6444291413624515012"><ph name="TAB_GROUP_TITLE" /> flipahóp lokað</translation>
 <translation id="6452534462676960500">Ný virkni</translation>
@@ -1357,6 +1366,7 @@ Sum vefsvæði kunna til dæmis að bregðast við beiðninni með því að bir
 <translation id="6787600234697426339"><ph name="MAX_INSTANCE_COUNT" /> gluggahámarki náð</translation>
 <translation id="6795633245022906657">Opna nýjan flipa hratt. Opnaðu stillingar til að breyta þessari flýtileið.</translation>
 <translation id="679588508577699489">Gerðu Chrome að sjálfgefnum vafra</translation>
+<translation id="679845623837196966">Sýna leslista</translation>
 <translation id="679956319013005046">Byrjaðu á því að bæta valinni þjónustu við í <ph name="BEGIN_LINK" />stillingum Android<ph name="END_LINK" /> til að stilla sjálfvirka útfyllingu fyrir hana.</translation>
 <translation id="6802555630140434547">Glugganum verður lokað</translation>
 <translation id="6803791793483522764">Fara yfir tilkynningar</translation>
@@ -1428,7 +1438,6 @@ Sum vefsvæði kunna til dæmis að bregðast við beiðninni með því að bir
 <translation id="6980258170429555165"><ph name="MENU_NAME" />-valmyndin er auðkennd.</translation>
 <translation id="6983306615164277634">Þú getur einnig haldið fingri á veffangastikunni til að breyta staðsetningu hennar.</translation>
 <translation id="6987047470128880212">Huliðsstilling er ekki í boði í þessu tæki</translation>
-<translation id="6989358895283601928">Vista og prenta</translation>
 <translation id="6996145122199359148">Sækja þessa síðu</translation>
 <translation id="7013762323294215682">Þessi aðgangslykill verður vistaður í aðgangsorðastjórnun. Þau sem hafa aðgang að henni geta notað þennan aðgangslykil.</translation>
 <translation id="7020741890149022655">Bæta við leslista <ph name="BEGIN_NEW" />Nýtt<ph name="END_NEW" /></translation>
@@ -1446,6 +1455,7 @@ Sum vefsvæði kunna til dæmis að bregðast við beiðninni með því að bir
 <translation id="7080145768121641840"><ph name="TAB_TITLE" />, valinn festur flipi með slökkt á hljóði</translation>
 <translation id="7084115944294706056">Veldu stöðu veffangastikunnar</translation>
 <translation id="7085332316435785646">Veldu hvort að Chrome-ferill eigi að fylgja með til að fá sérsniðnari upplifun í Google-þjónustum</translation>
+<translation id="7087066066828635014">Kveikt er á tilkynningum um ábendingar</translation>
 <translation id="7088681679121566888">Chrome er uppfærður</translation>
 <translation id="7098100324909062850"><ph name="TAB_TITLE" />, margvalinn huliðsflipi með slökkt á hljóði</translation>
 <translation id="7106762743910369165">Vafranum er stjórnað af fyrirtækinu þínu</translation>
@@ -1633,6 +1643,7 @@ Til að breyta þessari stillingu skaltu <ph name="BEGIN_LINK" />eyða Chrome-g�
 <translation id="7821130663268546430">Þú finnur alla opna flipa í flipavalinu</translation>
 <translation id="7822705602465980873">Þegar þú ert innskráð(ur) eru þessi gögn tengd við Google-reikninginn þinn til að vernda þig í Google-þjónustum, t.d. með því að auka vernd í Gmail eftir öryggistilvik.</translation>
 <translation id="7824665136384946951">Fyrirtækið þitt slökkti á öruggri vefskoðun</translation>
+<translation id="7825973332242257878">Flipahópar</translation>
 <translation id="7826342993930002256">Chrome-vafrinn þinn, hvar sem er</translation>
 <translation id="7846161022626028328">Villa kom upp. Reyndu aftur.</translation>
 <translation id="7846296061357476882">Google þjónusta</translation>
@@ -1657,6 +1668,7 @@ Til að breyta þessari stillingu skaltu <ph name="BEGIN_LINK" />eyða Chrome-g�
 <translation id="7934668619883965330">Ekki er hægt að sækja skrá. Skráarsnið ekki stutt.</translation>
 <translation id="7951102827450076904">Alltaf opna sótt PDF-skjöl</translation>
 <translation id="7952479614398473176">Til að opna nýjan glugga skaltu fækka virkum gluggum í <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> eða færri.</translation>
+<translation id="7956713633345437162">Bókamerki fartækis</translation>
 <translation id="7957413488482743710">Sýndarkort felur raunverulega kortið þitt og hjálpar þannig til við að koma í veg fyrir svik. <ph name="BEGIN_LINK1" />Nánar um sýndarkort<ph name="END_LINK1" /></translation>
 <translation id="7959485987650214982">Flipar í þessu tæki</translation>
 <translation id="7961926449547174351">Þú lokaðir fyrir aðgang að geymslurými. Farðu í stillingar og leyfðu aðgang.</translation>
@@ -1845,6 +1857,7 @@ Til að breyta þessari stillingu skaltu <ph name="BEGIN_LINK" />eyða Chrome-g�
 <translation id="867914734596684889">Sýna eða fela bókamerkjastiku</translation>
 <translation id="8683039184091909753">mynd</translation>
 <translation id="8688183792442786085">Valinn flipi: <ph name="TAB_TITLE" /></translation>
+<translation id="8696297579102085705">Senda í tækið þitt</translation>
 <translation id="8697753151306746444">Deildu glugga eða skjá í staðinn</translation>
 <translation id="8699120352855309748">Ekki bjóða upp á að þýða þessi tungumál</translation>
 <translation id="8712637175834984815">Ég skil</translation>
@@ -1992,6 +2005,7 @@ Til að breyta þessari stillingu skaltu <ph name="BEGIN_LINK" />eyða Chrome-g�
 <translation id="970715775301869095"><ph name="MINUTES" /> mín. eftir</translation>
 <translation id="981121421437150478">Ónettengt</translation>
 <translation id="983192555821071799">Loka öllum flipum</translation>
+<translation id="984275831282074731">Greiðslumátar</translation>
 <translation id="984756705737569814">Ekki er hægt að kanna aðgangsorð á Google-reikningnum þínum</translation>
 <translation id="987264212798334818">Almennt</translation>
 <translation id="988091779042748639">Lokaðu öllum huliðsflipum til að eyða vafraferli huliðsstillingar úr tækinu þínu.</translation>

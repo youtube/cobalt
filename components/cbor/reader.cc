@@ -6,6 +6,7 @@
 
 #include <math.h>
 
+#include <iterator>
 #include <limits>
 #include <map>
 #include <utility>
@@ -16,6 +17,7 @@
 #include "base/numerics/checked_math.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_util.h"
+#include "base/strings/string_view_util.h"
 #include "components/cbor/constants.h"
 #include "components/cbor/float_conversions.h"
 
@@ -250,10 +252,6 @@ std::optional<Value> Reader::DecodeToSimpleValueOrFloat(
   CHECK_LE(header.additional_info, 27);
   // Floating point numbers.
   if (header.additional_info > 24) {
-    if (header.additional_info >= 28) {
-      error_code_ = DecoderError::UNSUPPORTED_SIMPLE_VALUE;
-      return std::nullopt;
-    }
     if (!config.allow_floating_point) {
       error_code_ = DecoderError::UNSUPPORTED_FLOATING_POINT_VALUE;
       return std::nullopt;
@@ -320,9 +318,9 @@ std::optional<Value> Reader::ReadStringContent(
     return std::nullopt;
   }
 
-  std::string cbor_string(bytes->begin(), bytes->end());
-  if (base::IsStringUTF8(cbor_string)) {
-    return Value(std::move(cbor_string));
+  if (std::string_view cbor_string_view = base::as_string_view(*bytes);
+      base::IsStringUTF8(cbor_string_view)) {
+    return Value(cbor_string_view);
   }
 
   if (config.allow_invalid_utf8) {
@@ -341,8 +339,7 @@ std::optional<Value> Reader::ReadByteStringContent(
     return std::nullopt;
   }
 
-  std::vector<uint8_t> cbor_byte_string(bytes->begin(), bytes->end());
-  return Value(std::move(cbor_byte_string));
+  return Value(*bytes);
 }
 
 std::optional<Value> Reader::ReadArrayContent(
@@ -373,9 +370,12 @@ std::optional<Value> Reader::ReadMapContent(
   for (uint64_t i = 0; i < length; ++i) {
     std::optional<Value> key =
         DecodeCompleteDataItem(config, max_nesting_level - 1);
+    if (!key.has_value()) {
+      return std::nullopt;
+    }
     std::optional<Value> value =
         DecodeCompleteDataItem(config, max_nesting_level - 1);
-    if (!key.has_value() || !value.has_value()) {
+    if (!value.has_value()) {
       return std::nullopt;
     }
 
@@ -392,25 +392,28 @@ std::optional<Value> Reader::ReadMapContent(
         error_code_ = DecoderError::INCORRECT_MAP_KEY_TYPE;
         return std::nullopt;
     }
-    if (IsDuplicateKey(key.value(), cbor_map))
-      return std::nullopt;
 
-    if (!config.allow_and_canonicalize_out_of_order_keys &&
-        !IsKeyInOrder(key.value(), cbor_map)) {
+    auto [it, inserted] =
+        cbor_map.try_emplace(std::move(key.value()), std::move(value.value()));
+    if (!inserted) {
+      error_code_ = DecoderError::DUPLICATE_KEY;
       return std::nullopt;
     }
 
-    cbor_map.emplace(std::move(key.value()), std::move(value.value()));
+    if (!config.allow_and_canonicalize_out_of_order_keys &&
+        std::next(it) != cbor_map.end()) {
+      error_code_ = DecoderError::OUT_OF_ORDER_KEY;
+      return std::nullopt;
+    }
   }
 
-  Value::MapValue map;
-  map.reserve(cbor_map.size());
+  std::vector<std::pair<Value, Value>> items;
+  items.reserve(cbor_map.size());
   while (!cbor_map.empty()) {
     auto node = cbor_map.extract(cbor_map.begin());
-    map.emplace_hint(map.end(), std::move(node.key()),
-                     std::move(node.mapped()));
+    items.emplace_back(std::move(node.key()), std::move(node.mapped()));
   }
-  return Value(std::move(map));
+  return Value(Value::MapValue(base::sorted_unique, std::move(items)));
 }
 
 std::optional<uint8_t> Reader::ReadByte() {
@@ -427,11 +430,7 @@ std::optional<base::span<const uint8_t>> Reader::ReadBytes(uint64_t num_bytes) {
   // The `uint64_t` => `size_t` conversion below will always succeed
   // because the `if` condition above implies that `num_bytes` fits into a
   // `size_t`.
-  size_t size = base::checked_cast<size_t>(num_bytes);
-
-  const base::span<const uint8_t> ret = rest_.first(size);
-  rest_ = rest_.subspan(size);
-  return ret;
+  return rest_.take_first(base::checked_cast<size_t>(num_bytes));
 }
 
 bool Reader::IsEncodingMinimal(uint8_t additional_bytes, uint64_t uint_data) {
@@ -440,30 +439,6 @@ bool Reader::IsEncodingMinimal(uint8_t additional_bytes, uint64_t uint_data) {
     error_code_ = DecoderError::NON_MINIMAL_CBOR_ENCODING;
     return false;
   }
-  return true;
-}
-
-bool Reader::IsKeyInOrder(const Value& new_key,
-                          const std::map<Value, Value, Value::Less>& map) {
-  if (map.empty()) {
-    return true;
-  }
-
-  const auto& max_current_key = map.rbegin()->first;
-  const auto less = map.key_comp();
-  if (!less(max_current_key, new_key)) {
-    error_code_ = DecoderError::OUT_OF_ORDER_KEY;
-    return false;
-  }
-  return true;
-}
-
-bool Reader::IsDuplicateKey(const Value& new_key,
-                            const std::map<Value, Value, Value::Less>& map) {
-  if (map.find(new_key) == map.end()) {
-    return false;
-  }
-  error_code_ = DecoderError::DUPLICATE_KEY;
   return true;
 }
 

@@ -16,6 +16,7 @@ import("//testing/test.gni")
 # - frameworks - Apple-only. Additional frameworks to link.
 # - additional_configs - additional configs to be used for compilation
 # - dict - a dictionary file for the fuzzer.
+# - dict_deps - targets that generate the dictionary file, if applicable.
 # - libfuzzer_options - options for the fuzzer (e.g. close_fd_mask=N).
 #   These are mostly applied only when the fuzzer is being run using the
 #   libfuzzer fuzzing engine, but a few of these may be interpreted by
@@ -32,6 +33,8 @@ import("//testing/test.gni")
 # - high_end_job_required - whether the fuzzer requires bigger machines to run.
 #   Optional argument.
 # - is_fuzzilli_compatible - whether the fuzzer is compatible with fuzzilli.
+# - is_fuzztest_compatible - whether the fuzzer is compatible with the fuzztest
+#   wrapper when building with centipede. Defaults to true.
 #
 # If use_libfuzzer gn flag is defined, then proper fuzzer would be build.
 # Without use_libfuzzer, use_centipede, or use_chromium_fuzzilli a
@@ -47,9 +50,6 @@ template("fuzzer_test") {
   if (defined(invoker.additional_configs)) {
     _additional_configs = invoker.additional_configs
   }
-
-  # TODO(crbug.com/505034799): Remove this when adding the wrapper.
-  not_needed(invoker, [ "is_fuzztest_compatible" ])
 
   # This ensures that the target name is suffixed by `_fuzzer` if
   # "//testing/libfuzzer:no_clusterfuzz" cannot be found in
@@ -94,7 +94,25 @@ template("fuzzer_test") {
     assert(defined(invoker.sources), "Need sources in $target_name.")
 
     test_deps = []
-    if (defined(invoker.exclude_main) && invoker.exclude_main) {
+    _exclude_main = defined(invoker.exclude_main) && invoker.exclude_main
+
+    _is_fuzztest_compatible = true
+    if (defined(invoker.is_fuzztest_compatible)) {
+      _is_fuzztest_compatible = invoker.is_fuzztest_compatible
+    }
+
+    # Don't apply the wrapper to any targets that specify a seed corpus or dict
+    # because they are not supported by the wrapper and will be manually
+    # migrated to FUZZ_TEST. See crbug.com/505034799 for more details.
+    _use_fuzztest_llvm_wrapper =
+        _is_fuzztest_compatible && use_centipede && !_exclude_main &&
+        !defined(invoker.seed_corpus) && !defined(invoker.dict)
+
+    # If using centipede and able to define a main function, wrap the LLVM
+    # fuzzer with fuzztest's wrapper and build it as a "native" fuzztest.
+    if (_use_fuzztest_llvm_wrapper) {
+      test_deps += [ "//third_party/fuzztest:llvm_wrapper" ]
+    } else if (_exclude_main) {
       test_deps += [ "//testing/libfuzzer:fuzzing_engine_no_main" ]
     } else {
       test_deps += [ "//testing/libfuzzer:fuzzing_engine_main" ]
@@ -167,6 +185,9 @@ template("fuzzer_test") {
         copy(target_name + "_dict_copy") {
           sources = [ invoker.dict ]
           outputs = [ "$root_build_dir/" + target_name + ".dict" ]
+          if (defined(invoker.dict_deps)) {
+            deps = invoker.dict_deps
+          }
         }
         test_data_deps += [ ":" + target_name + "_dict_copy" ]
         supporting_file_test_deps += [ ":" + target_name + "_dict_copy" ]
@@ -330,8 +351,8 @@ template("fuzzer_test") {
                                     ]) != []
       }
       if (_needs_icu) {
-        # Some fuzzers use ICU. Since they are packaged as APKs, they need the ICU
-        # data file explicitly bundled as an asset.
+        # Some fuzzers use ICU. Since they are packaged as APKs, they need the
+        # ICU data file explicitly bundled as an asset.
         test_deps += [ "//third_party/icu:icu_assets" ]
       }
     }
@@ -350,6 +371,9 @@ template("fuzzer_test") {
                                "frameworks",
                              ])
       deps = test_deps
+      if (_use_fuzztest_llvm_wrapper) {
+        fuzztests = [ "LLVMFuzzer.TestOneInput" ]
+      }
       data_deps = test_data_deps
       data = test_data
       testonly = true

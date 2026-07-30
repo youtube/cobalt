@@ -666,7 +666,7 @@ class ComputedStyle final : public ComputedStyleBase {
         return WebkitLineClamp();
       }
     } else if (IsEffectiveContinueCollapse()) {
-      return MaxLines();
+      return MaxLines().Lines();
     }
     return 0;
   }
@@ -1090,7 +1090,8 @@ class ComputedStyle final : public ComputedStyleBase {
   bool IsGapDecorationsContainer() const {
     // `SpecifiesColumns()` signifies we are in a multicol context. Return false
     // if we are not in a multicol, grid, or flex context.
-    return SpecifiesColumns() || IsDisplayFlex() || IsDisplayGrid();
+    return SpecifiesColumns() || IsDisplayFlex() || IsDisplayWebkitBox() ||
+           IsDisplayGrid();
   }
 
   // Flex utility functions.
@@ -1789,7 +1790,8 @@ class ComputedStyle final : public ComputedStyleBase {
   bool BlockifiesChildren() const {
     return IsDisplayFlex() || IsDisplayWebkitBox() || IsDisplayGrid() ||
            IsDisplayGridLanes() || IsDisplayMath() || IsDisplayLayoutCustom() ||
-           (Display() == EDisplay::kContents && IsInBlockifyingDisplay());
+           (Display() == EDisplay::kContents && IsInBlockifyingDisplay()) ||
+           ForcesBlockifiesChildren();
   }
 
   bool InlinifiesChildren() const {

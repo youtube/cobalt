@@ -246,6 +246,29 @@ Pour en savoir plus sur la gestion des données pour les fonctionnalités d'IA 
 <translation id="1160479894929412407">Autoriser le protocole QUIC</translation>
 <translation id="1160939557934457296">Désactiver l'accès au site lors de l'affichage de la page d'avertissement par le service de navigation sécurisée</translation>
 <translation id="1161685818042751282">Ne pas importer les certificats de serveur TLS ajoutés par l'utilisateur depuis les magasins de confiance de la plate-forme.</translation>
+<translation id="1162404282416180562">Configure une liste de règles de contrôle des données pour éviter les fuites de données.
+
+      Chaque règle se compose des éléments suivants :
+- Des champs de conditions permettant de déclencher la règle. Une règle ne se déclenche que si une action utilisateur correspond à tous ses champs <ph name="DATA_CONTROLS_SOURCES" />, <ph name="DATA_CONTROLS_DESTINATIONS" />, <ph name="DATA_CONTROLS_AND" />, <ph name="DATA_CONTROLS_OR" /> et <ph name="DATA_CONTROLS_NOT" /> renseignés. Pour les sous-champs de liste, il suffit de faire correspondre une entrée. Par exemple, la règle se déclenche dès qu'un format d'URL correspond.
+      - Une liste de restrictions à appliquer. En fonction de la restriction, seules les conditions <ph name="DATA_CONTROLS_SOURCES" /> ou <ph name="DATA_CONTROLS_DESTINATIONS" /> peuvent être disponibles.
+
+      Les règles peuvent être ajoutées pour :
+      - Contrôler les données du presse-papiers partagées entre les sources et les destinations.
+      - Contrôler le blocage des captures d'écran en fonction des onglets sources.
+
+      Si la règle <ph name="ON_SECURITY_EVENT_ENTERPRISE_CONNECTOR" /> est définie sur "True", les règles déclenchées sont signalées à l'administrateur.
+      Le niveau de restriction peut être défini sur "BLOCK", "WARN" ou "REPORT".
+      - Si le niveau de restriction est défini sur "BLOCK", l'action concernée ne sera pas autorisée.
+      - Si le niveau de restriction est défini sur "WARN", l'utilisateur sera averti et pourra choisir de continuer ou d'annuler l'action.
+      - Si le niveau de restriction est défini sur "REPORT", l'action utilisateur ne sera pas interrompue, mais un rapport sera envoyé si la règle <ph name="ON_SECURITY_EVENT_ENTERPRISE_CONNECTOR" /> est activée.
+
+      Remarques :
+      - Les formats d'URL doivent respecter les conditions énoncées sur https://support.google.com/chrome/a?p=url_blocklist_filter_format.
+      - Pour les règles de prévention des fuites de données propres à <ph name="PRODUCT_OS_NAME" />, consultez également la règle <ph name="DATA_LEAK_PREVENTION_RULES_LIST" />.
+
+      Si la règle n'est pas configurée, aucune restriction ne sera appliquée.
+
+      Cette règle n'est disponible que pour les utilisateurs disposant d'une licence "<ph name="CHROME_ENTERPRISE_PREMIUM_NAME" />" attribuée.</translation>
 <translation id="1163080558183062209">Permet de désactiver les types d'imprimantes figurant sur la liste deny</translation>
 <translation id="1163389598183927209">Groupe de règles liées à <ph name="PRIVACY_SANDBOX_NAME" />. Pour en savoir plus sur l'abandon des cookies tiers par <ph name="PRODUCT_NAME" />, consultez la page <ph name="PRIVACY_SANDBOX_URL" />.</translation>
 <translation id="1165923723751466821">Autoriser les connexions au navigateur en mode Invité et au profil</translation>
@@ -694,6 +717,15 @@ Si cette règle n'est pas configurée, le sélecteur d'emoji est activé pour le
 <translation id="1509692106376861764">Cette règle a été supprimée à partir de la version 29 de <ph name="PRODUCT_NAME" />.</translation>
 <translation id="1509839615768187049">Toujours utiliser le client DNS intégré</translation>
 <translation id="1514888685242892912">Activer <ph name="PRODUCT_NAME" /></translation>
+<translation id="1514959848081381646">Cette règle contrôle les intégrations du Mode IA de Google dans la barre d'adresse et le champ de recherche de la page "Nouvel onglet".
+
+Pour accéder à cette fonctionnalité, l'utilisateur doit avoir défini Google comme moteur de recherche par défaut.
+
+0 : les utilisateurs auront accès à la fonctionnalité.
+
+1 : les utilisateurs n'auront pas accès à la fonctionnalité.
+
+Si la règle n'est pas configurée, son comportement est déterminé par la règle <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.</translation>
 <translation id="1515230621229117540">Permet d'activer le menu d'accessibilité flottant</translation>
 <translation id="1515824657887788963">Autoriser une page à exécuter des requêtes XHR synchrones pendant sa fermeture.</translation>
 <translation id="1516486219683984217">Ne pas autoriser l'utilisation des notifications système</translation>
@@ -930,6 +962,7 @@ Notez que les applis DOIVENT se déclarer comme gestionnaires de fichiers pour l
 
 Si cette règle n'est pas configurée, <ph name="PRODUCT_OS_NAME" /> peut sélectionner des gestionnaires par défaut en fonction de la logique interne.</translation>
 <translation id="1651810147727432656">Bloquer l'autorisation de gestion des fenêtres sur ces sites</translation>
+<translation id="1652357791185933887">Mode isolé désactivé</translation>
 <translation id="1654087023995670109">Activer le mode Invité du navigateur</translation>
 <translation id="1655229863189977773">Définir la taille du cache du disque en octets</translation>
 <translation id="1655518801232583832">Activer la résolution DNS du système en dehors du service réseau</translation>
@@ -1961,6 +1994,18 @@ Si cette règle n'est pas configurée, les utilisateurs peuvent modifier la list
 
       Si cette règle est définie sur "False" ou qu'elle n'est pas configurée, ce bouton n'est pas affiché.</translation>
 <translation id="2294382669900758280">La lecture vidéo dans les applications Android n'est pas prise en compte même si cette règle est définie sur "<ph name="TRUE" />".</translation>
+<translation id="2296529215567227994">Indique si le mode navigation privée doit être remplacé par le mode isolé.
+
+Le mode isolé est un mode de navigation éphémère réservé aux entreprises qui remplace le mode navigation privée.
+Contrairement au mode navigation privée, le mode isolé est compatible avec les extensions installées d'office et les règles d'entreprise liées à la protection contre la perte de données.
+
+Notez que les règles liées à la navigation privée ne s'appliquent pas au mode isolé.
+
+Si la valeur est définie sur 1 — Activée, le mode isolé est activé et remplace le mode navigation privée.
+
+Si cette règle est définie sur 0 — Désactivée, ou si elle n'est pas configurée, le mode isolé est désactivé et le comportement standard de la navigation privée est utilisé.
+
+Cette règle nécessite une licence <ph name="CHROME_ENTERPRISE_PREMIUM_NAME" /> pour être appliquée.</translation>
 <translation id="2299220924812062390">Indiquer une liste de plug-ins activés</translation>
 <translation id="2299815818824242485">Ne pas autoriser la recherche de protection supérieure via proxy</translation>
 <translation id="2303795211377219696">Activer la saisie automatique pour les cartes de crédit</translation>
@@ -3408,6 +3453,7 @@ Si cette règle n'est pas configurée, le nouveau comportement sera utilisé tou
 <translation id="3229163415739929305">Si cette règle est activée, ou si elle n'est pas définie, l'extraction des métadonnées de chargement de la page et les modèles de machine learning qui améliorent l'expérience de navigation sont activés.
       Si cette règle est désactivée, certaines fonctionnalités peuvent ne pas fonctionner correctement.</translation>
 <translation id="3231311173895401135">Laisser le navigateur décider de la prise en charge</translation>
+<translation id="3231684792162319504">Empêcher le déclenchement expérimental de Gemini.</translation>
 <translation id="3231837273069128027">Cette règle permet de configurer la disponibilité et le comportement des mises à jour du micrologiciel <ph name="TPM_FIRMWARE_UPDATE_TPM" />.
 
       Spécifiez les paramètres individuels dans les propriétés JSON :
@@ -4331,6 +4377,15 @@ Notez que cette règle n'aura aucun effet si la règle <ph name="ENTERPRISE_PROF
        Chaque entrée de la liste contient un dictionnaire qui doit inclure l'identifiant d'extension dans le champ "extension-id", ainsi que son adresse URL dans le champ "update-url".</translation>
 <translation id="3869180930654347954">Désactiver les ensembles propriétaires pour tous les utilisateurs concernés</translation>
 <translation id="3869566220234507038">Toujours charger le navigateur <ph name="LACROS_NAME" /> <ph name="LACROS_ROOTFS_NAME" /></translation>
+<translation id="3869959969423392506">Cette règle détermine si les applications Web isolées (AWI) peuvent ajouter des sous-applis par défaut.
+
+Si cette règle est définie sur 1, les origines d'AWI peuvent ajouter des sous-applis et ignorer les exigences de geste ou de confirmation de l'utilisateur.
+
+Si cette règle est définie sur 2, les origines d'AWI ne peuvent pas ajouter de sous-applis.
+
+Si cette règle est définie sur 3, ou si elle n'est pas configurée, les origines d'applications Web isolées peuvent ajouter des sous-applis après confirmation de l'utilisateur.
+
+Pour les origines d'applications Web isolées spécifiques, cette règle peut être remplacée en utilisant les règles <ph name="SUB_APPS__WITHOUT_PROMPTS_ALLOWED_FOR_ORIGINS_POLICY_NAME" /> et <ph name="SUB_APPS_WITHOUT_PROMPTS_BLOCKED_FOR_POLICY_NAME" />.</translation>
 <translation id="3870035799352372700">Empêcher l'Assistant Google d'accéder au contexte de l'écran durant les interactions</translation>
 <translation id="3870059789954671543">Permet d'activer la fonctionnalité d'accessibilité de mise en surbrillance au clavier sur l'écran de connexion.
 
@@ -4444,6 +4499,13 @@ Cette règle peut être combinée avec <ph name="POLICY_CLOUD_POLICY_OVERRIDES_P
 <translation id="3928726028264020458">Activer les rapports sur les données VPD de l'appareil</translation>
 <translation id="3935592079035695061">Millisecondes depuis minuit.</translation>
 <translation id="3937800910397007337">Forcer la priorité au premier plan pour tous les onglets</translation>
+<translation id="3938885528378923718">Configurez la manière dont <ph name="PRODUCT_NAME" /> télécharge le modèle de fondation de la GenAI et l'utilise pour l'inférence en local.
+
+Si cette règle est définie sur "Autorisé" (0) ou qu'elle n'est pas configurée, le modèle est téléchargé automatiquement et est utilisé pour l'inférence.
+
+Si elle est définie sur "Désactivé" (1), le modèle n'est pas téléchargé, et le modèle existant (s'il a déjà été téléchargé) est supprimé.
+
+Sur les plates-formes de bureau, le téléchargement du modèle peut également être désactivé en définissant <ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" /> sur "false".</translation>
 <translation id="3941289958028934630">Désactiver la lecture vocale sur l'écran de connexion</translation>
 <translation id="3943930334592166130">Cette règle détermine si l'utilisateur est invité ou non à sélectionner un certificat client quand la règle <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_POLICY_NAME" /> établit une correspondance avec plus d'un certificat.
       Si cette règle est activée, l'utilisateur est invité à sélectionner un certificat client chaque fois que la règle de sélection automatique établit une correspondance avec plusieurs certificats.
@@ -4605,6 +4667,7 @@ Pour en savoir plus sur les formats <ph name="URL_LABEL" /> valides, veuillez co
       Pour en savoir plus sur les formats <ph name="URL_LABEL" /> valides, veuillez consulter https://chromeenterprise.google/policies/url-patterns/. Notez toutefois que le format "*", qui correspond à n'importe quelle URL, n'est pas pris en charge par cette règle.</translation>
 <translation id="4070039109671307724">Divers</translation>
 <translation id="4071922398488395340">Inclure les cookies de session dans la fonctionnalité de service SSO flottant</translation>
+<translation id="4072065629757524">Empêcher les origines d'applications Web isolées d'ajouter des sous-applis</translation>
 <translation id="4072225853834793549">Désactiver les raccourcis d'accessibilité sur l'écran de connexion</translation>
 <translation id="4074922053013383215">Économies de mémoire modérées.</translation>
 <translation id="4075675819066819571">Placer l'étagère sur le côté gauche de l'écran</translation>
@@ -4678,6 +4741,11 @@ La disponibilité des extensions est toujours contrôlée par d'autres règles.<
 <translation id="4120401094617902941">Fréquence d'échantillonnage et de collecte des compteurs d'exécution. La valeur minimale autorisée est de 1 jour.
 
 Si cette règle n'est pas configurée, la fréquence par défaut (1 jour) est appliquée.</translation>
+<translation id="4121173511469084157">Par défaut, les applications Web isolées (AWI) peuvent ajouter des sous-applis à condition que l'utilisateur confirme manuellement une invite.
+
+Cette règle détermine les origines d'AWI qui pourront ajouter des sous-applis sans que l'utilisateur reçoive une invite.
+
+Cette règle remplace le comportement de <ph name="DEFAULT_SUB_APPS_WITHOUT_PROMPTS_SETTING_POLICY_NAME" /> et est remplacée par <ph name="SUB_APPS_WITHOUT_PROMPTS_BLOCKED_FOR_ORIGINS_POLICY_NAME" />.</translation>
 <translation id="4121350739760194865">Empêcher les promotions pour des applications de s'afficher sur la page Nouvel onglet</translation>
 <translation id="4122432898152851612">L'utilisateur ne peut voir aucune interface utilisateur concernant la fonctionnalité de synchronisation des fichiers <ph name="PRODUCT_OS_NAME" />.</translation>
 <translation id="4122473079291425973">Fiches affichées sur la page Nouvel onglet si du contenu est disponible, avec toutefois la possibilité pour l'utilisateur de modifier ce paramètre</translation>
@@ -5118,6 +5186,7 @@ Si cette règle est configurée, les utilisateurs ne peuvent pas la modifier dan
 <translation id="4435032708588431506">Autoriser le protocole QUIC</translation>
 <translation id="443665821428652897">Effacer les données des sites à la fermeture du navigateur (obsolète)</translation>
 <translation id="4436941175475497595">Désactiver l'aperçu avant impression</translation>
+<translation id="4436992815485865052">Autoriser le déclenchement expérimental de Gemini.</translation>
 <translation id="4439336120285389675">Répertorier les fonctionnalités abandonnées de la plate-forme en ligne à réactiver provisoirement.
 
       Cette règle permet aux administrateurs de réactiver des fonctionnalités abandonnées de la plate-forme en ligne pendant une durée limitée. Ces fonctionnalités sont identifiées par une balise de chaîne. Les fonctionnalités correspondant aux balises incluses dans la liste renvoyée par cette règle sont réactivées.
@@ -5385,6 +5454,7 @@ Pour en savoir plus sur les formats d'URL valides, veuillez consulter https://ch
           est sans danger.
           </translation>
 <translation id="4578265298946081589">Ne pas redémarrer en cas de déconnexion de l'utilisateur.</translation>
+<translation id="4579171808398039136">Empêcher les applications Web isolées d'utiliser l'API Sub Apps Add sans invite à l'utilisateur</translation>
 <translation id="4581507927311097234">Délai d'inactivité de l'utilisateur, en millisecondes, au terme duquel l'écran est éteint.</translation>
 <translation id="4582027661281685066">Liste de formats d'URL. Les requêtes initiées à partir de sites desservis par des origines qui figurent sur la liste ne sont pas soumises aux contrôles d‘<ph name="PRIVATE_NETWORK_ACCESS" />.
 
@@ -5840,6 +5910,7 @@ Si cette règle n'est pas configurée, la règle <ph name="DEFAULT_DIRECT_SOCKET
 Les formats d'URL ne doivent pas entrer en conflit avec ceux de la règle <ph name="DIRECT_SOCKETS_BLOCKED_FOR_URLS_POLICY_NAME" />. Aucune règle ne prévaut si un format d'URL figure dans les deux règles.
 
 Pour en savoir plus sur les formats d'URL valides, veuillez consulter https://chromeenterprise.google/policies/url-patterns. La valeur <ph name="WILDCARD_VALUE" /> n'est pas acceptée pour cette règle.</translation>
+<translation id="4883562563790831457">Remplacer le mode navigation privée par le mode isolé</translation>
 <translation id="4885338965457068455">Contient une expression régulière permettant de déterminer les comptes Google éligibles à l'enregistrement de fichiers PDF dans Google Drive à partir du lecteur PDF <ph name="PRODUCT_NAME" />.
 
       Une erreur s'affiche si un utilisateur tente d'importer un fichier PDF dans Google Drive à l'aide d'un compte qui ne correspond pas à ce format.
@@ -6522,6 +6593,7 @@ Remarque : Cette fonctionnalité n'est pas encore disponible au grand public. S
 <translation id="5255790642269910630">Si cette règle est configurée, chaque écran pivote en fonction de l'orientation spécifiée, à chaque redémarrage ainsi que la première fois qu'il est affiché après une modification de la valeur de cette règle. Une fois connectés, les utilisateurs peuvent modifier le paramètre de rotation d'écran. Toutefois, le paramètre initial sera rétabli au redémarrage suivant. Cette règle s'applique à l'écran principal, ainsi qu'aux écrans secondaires.
 
 Si cette règle n'est pas configurée, la valeur par défaut est de 0 degré, et les utilisateurs sont libres de la modifier. Dans ce cas, la valeur par défaut n'est pas rétablie au redémarrage.</translation>
+<translation id="5256792633540454282">Contrôle le déclenchement expérimental de Gemini</translation>
 <translation id="5257395339965216304">Données des applications hébergées</translation>
 <translation id="5258445772095084618">Autoriser les utilisateurs non affiliés à se servir des machines virtuelles nécessaires pour faire fonctionner les applis Linux</translation>
 <translation id="5258651513421638932">Autoriser la connexion aux cartes à puce pour les applications isolées</translation>
@@ -6583,13 +6655,6 @@ Remarque : Cette règle ne s'applique pas aux mises à niveau HSTS.</translatio
 <translation id="5303080953475303561">Cette règle permet de contrôler la fréquence à laquelle l'écran de verrouillage exige un mot de passe pour le déverrouillage rapide. Si la dernière saisie du mot de passe est antérieure à la période définie, le déverrouillage rapide n'est pas disponible. Si l'utilisateur reste sur l'écran de verrouillage au-delà de cette période, il devra saisir son mot de passe la prochaine fois qu'il saisira un code erroné ou accédera de nouveau à l'écran de verrouillage, selon la situation qui se présente en premier.
 
       Si cette règle n'est pas configurée, les utilisateurs ayant recours au déverrouillage rapide devront saisir leur mot de passe tous les jours sur l'écran de verrouillage.</translation>
-<translation id="530488290401810961">Configurez la manière dont <ph name="PRODUCT_NAME" /> télécharge le modèle de fondation de l'IA générative et l'utilise pour l'inférence en local.
-
-Si cette règle est définie sur "Autorisé" (0) ou qu'elle n'est pas configurée, le modèle est téléchargé automatiquement et est utilisé pour l'inférence.
-
-Si elle est définie sur "Désactivé" (1), le modèle n'est pas téléchargé, et le modèle existant (s'il a déjà été téléchargé) est supprimé.
-
-Sur les plates-formes de bureau, le téléchargement du modèle peut également être désactivé par <ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" />.</translation>
 <translation id="5306186200045823863">Faire confiance à l'ancienne infrastructure PKI de Symantec Corporation</translation>
 <translation id="5307432759655324440">Disponibilité du mode navigation privée</translation>
 <translation id="5308551343115571396">Une fois <ph name="LACROS_NAME" /> désactivé, nous essayons de conserver le plus de données utilisateur possible, tout en supprimant toutes les données du navigateur.</translation>
@@ -7531,6 +7596,7 @@ Sous <ph name="MAC_OS_NAME" />, cette règle n'est disponible que sur les instan
 
       Cette règle étant obsolète, veuillez utiliser la règle <ph name="PRINTERS_BULK_BLOCKLIST" /> à la place.</translation>
 <translation id="591088232153082363">Recharge intelligente basée sur le modèle d'utilisation de la batterie.</translation>
+<translation id="5911656389795271430">Cette règle est expérimentale.</translation>
 <translation id="5913506885872855604">Vous pouvez utiliser cette option pour traiter certaines plages d'adresses internes comme "publiques", afin qu'elles ne soient pas soumises aux vérifications de l‘<ph name="LOCAL_NETWORK_ACCES" />. Inversement, cette option peut être utilisée pour traiter certaines plages d'adresses publiques susceptibles d'être utilisées en interne comme "locales", afin qu'elles soient protégées par des vérifications de l‘<ph name="LOCAL_NETWORK_ACCESS" />.
 
 Les remplacements d'espace d'adressage IP prennent deux formes :
@@ -8228,14 +8294,24 @@ Si cette règle n'est pas configurée, <ph name="PRODUCT_OS_NAME" /> stocke par 
 
       Si vous configurez cette règle, les utilisateurs ne peuvent pas la modifier. Si cette règle n'est pas configurée, les utilisateurs peuvent choisir d'afficher ou de masquer ce raccourci dans le menu contextuel de la barre de favoris.</translation>
 <translation id="638003144128412430">Désactiver les rapports sur le fuseau horaire de l'appareil</translation>
+<translation id="638217866669468708">Cette règle contrôle le partage du contenu de la page ou du fichier avec le <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> et <ph name="GOOGLE_LENS_PRODUCT_NAME" /> via le panneau latéral ou les onglets de <ph name="PRODUCT_NAME" />.
+
+Sachez que cette règle n'a pas d'incidence sur le <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> sur le Web. Elle contrôle uniquement la façon dont les utilisateurs peuvent partager des informations avec ce mode lorsqu'ils utilisent <ph name="PRODUCT_NAME" />.
+
+0 : les utilisateurs peuvent partager le contenu de la page ou du fichier avec le <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />.
+
+1 : les utilisateurs ne peuvent pas partager le contenu de la page ou du fichier avec le <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />. Les points d'entrée pour partager le contexte et le panneau latéral sont alors désactivés ou masqués.
+
+Cette règle est ignorée lorsque la <ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> n'est pas le moteur de recherche par défaut des utilisateurs, car la fonctionnalité est désactivée.
+
+Cette règle est indépendante de la règle <ph name="AI_MODE_SETTINGS_POLICY_NAME" />. La règle <ph name="AI_MODE_SETTINGS_POLICY_NAME" /> ne contrôle que les points d'entrée sur l'omnibox ou le champ de recherche de la page "Nouvel onglet", tandis que cette règle contrôle le partage de contexte via le panneau latéral ou les onglets.
+
+Cette règle ne contrôle pas non plus l'intégration de <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />, qui peut être désactivée par <ph name="GEMINI_SETTINGS_POLICY_NAME" />.
+
+Si cette règle n'est pas configurée, son comportement est déterminé par la règle <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.
+
+Pour en savoir plus sur la gestion des données pour les fonctionnalités d'IA générative, veuillez consulter https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="6382209369210116232">Désactiver les extensions dont la publication est annulée</translation>
-<translation id="6382287177674997281">Cette règle permet aux utilisateurs de lancer n'importe quel type de mise à jour du micrologiciel.
-
-      Si cette règle est activée, les utilisateurs, comme le propriétaire de l'appareil, peuvent lancer des mises à jour du micrologiciel.
-
-      Si cette règle est désactivée ou si elle n'est pas configurée, aucun utilisateur ne peut appliquer de mises à jour du micrologiciel.
-
-      Cette règle s'applique aux mises à jour du micrologiciel des périphériques externes et des composants internes pour les appareils <ph name="PRODUCT_OS_FLEX_NAME" />. Cette règle n'a pas d'incidence sur les mises à jour du micrologiciel des composants internes pour les appareils <ph name="PRODUCT_OS_NAME" />.</translation>
 <translation id="6383774771168138899">Configurer le flux <ph name="CLOUD_UPLOAD_NAME" /> pour <ph name="MICROSOFT_ONE_DRIVE_NAME" /> et <ph name="MICROSOFT_365_NAME" /></translation>
 <translation id="6384542789059421431">Activer l'affichage des pages de résultats du moteur de recherche par défaut dans un panneau latéral du navigateur.</translation>
 <translation id="6389240462871677239">Autoriser les origines d'applications Web isolées à utiliser Controlled Frame</translation>
@@ -9836,6 +9912,7 @@ Si elle est définie sur "False", l'ancien comportement est activé.</translatio
 <translation id="7372831798009983116">Activer la fonctionnalité d'accessibilité de clic automatique</translation>
 <translation id="7373200034079131670">Redémarrage en cas de déconnexion de l'utilisateur si Android ou une VM sont lancés</translation>
 <translation id="7374784840090523241">Créer les clés d'accès dans d'autres magasins par défaut, comme le profil <ph name="PRODUCT_NAME" />.</translation>
+<translation id="73755679940750599">Autoriser les origines d'applications Web isolées à ajouter des sous-applis sans invite à l'utilisateur</translation>
 <translation id="7375785904116479354">Si cette règle est activée, le moteur de recherche par défaut du précédent navigateur par défaut est importé lors de la première exécution. Si cette règle est désactivée ou qu'elle n'est pas configurée, le moteur de recherche par défaut n'est pas importé lors de la première exécution.
 
       Les utilisateurs peuvent ouvrir une boîte de dialogue d'importation. La case correspondant au moteur de recherche par défaut sera ou ne sera pas cochée, suivant la configuration de cette règle.</translation>
@@ -10691,6 +10768,7 @@ Désactivez cette règle uniquement si vous utilisez une solution de sécurité 
       Si cette règle n'est pas configurée, les sites Web peuvent demander l'accès. Toutefois, les utilisateurs peuvent modifier ce paramètre.
 
       Pour les formats <ph name="URL_LABEL" /> spécifiques, cette règle peut être remplacée par les règles <ph name="WEB_HID_ASK_FOR_URLS_POLICY_NAME" /> et <ph name="WEB_HID_BLOCKED_FOR_URLS_POLICY_NAME" />.</translation>
+<translation id="794786228154185413">Autoriser les applis Web isolées à utiliser l'API Sub Apps Add sans invite à l'utilisateur</translation>
 <translation id="7950451717181391167">Cette règle permet de spécifier si les utilisateurs utilisent <ph name="CLASS_TOOLS_NAME" /> pour envoyer/recevoir des contenus, envoyer/recevoir des sous-titres en tant qu'élèves ou enseignants, ou si les outils de gestion des cours sont désactivés pour les utilisateurs.</translation>
 <translation id="7952007677054834789">Permet de configurer les pages à charger au démarrage, la page d'accueil par défaut et la page Nouvel onglet par défaut dans <ph name="PRODUCT_NAME" />, tout en empêchant les utilisateurs de les modifier.
 
@@ -10751,6 +10829,11 @@ Si ce paramètre est désactivé et que les connexions UDP sortantes sont filtr�
           Cette règle a été supprimée dans Chrome 110.
                                         </translation>
 <translation id="7976157349247117979">Nom de la destination <ph name="PRODUCT_NAME" /></translation>
+<translation id="7981824720804106055">Par défaut, les applications Web isolées (AWI) peuvent ajouter des sous-applis à condition que l'utilisateur confirme manuellement l'invite.
+
+Cette règle détermine les origines d'AWI qui ne pourront pas ajouter de sous-applis sans que l'utilisateur reçoive une invite interactive.
+
+Cette règle remplace le comportement de <ph name="DEFAULT_SUB_APPS_WITHOUT_PROMPTS_SETTING_POLICY_NAME" /> et de <ph name="SUB_APPS_WITHOUT_PROMPTS_ALLOWED_FOR_ORIGINS_POLICY_NAME" />.</translation>
 <translation id="7985242821674907985"><ph name="PRODUCT_NAME" /></translation>
 <translation id="7985781946183471651">Glanceables sur <ph name="PRODUCT_OS_NAME" /></translation>
 <translation id="7986473886676689183">Activer la création de rapports Android</translation>
@@ -11031,6 +11114,15 @@ Les URL correspondant à la fois à la liste d'autorisation et à la liste de bl
 
 Pour en savoir plus sur les formats d‘URL valides, veuillez consulter https://support.google.com/chrome/a?p=url_blocklist_filter_format.</translation>
 <translation id="8186911565834244165">Autoriser les commentaires des utilisateurs</translation>
+<translation id="8190271041226151932">Ce paramètre autorise les intégrations de l'appli Gemini.
+
+0 : les utilisateurs auront accès à l'intégration de Gemini.
+
+1 : les utilisateurs n'auront pas accès à l'intégration de Gemini.
+
+Si la règle n'est pas configurée, son comportement est déterminé par la règle <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.
+
+Pour en savoir plus, veuillez consulter l'article du centre d'aide https://support.google.com/chrome/a?p=gemini_in_chrome.</translation>
 <translation id="8195133650230097559">Ignorer les demandes de wakelocks pour la gestion de l'alimentation</translation>
 <translation id="8196558469954193908">Permet de procéder au multiplexage des connexions HTTP/2 lorsque des certificats client sont utilisés. Pour ce faire, le nom d'hôte de la nouvelle connexion potentielle et celui d'une connexion existante doivent correspondre à un ou plusieurs modèles définis par cette règle. Celle-ci permet d'établir la liste des hôtes selon le format de filtrage <ph name="URL_BLOCKLIST_POLICY_NAME" />, où une correspondance est établie entre "example.com" et "example.com" (et tous les sous-domaines tels que "sub.example.com"), tandis que ".example.net" correspond exactement à "example.net".
 
@@ -11292,6 +11384,7 @@ Si la règle est définie sur <ph name="RUNTIME_ENABLED_VALUE_NAME" />, le flag 
 Si la règle n'est pas configurée, <ph name="RUNTIME_ENABLED_VALUE_NAME" /> est le comportement par défaut.
 
 Remarque : Cette règle est une solution temporaire pour faciliter la transition depuis des API de plein écran avec préfixe webkit. M131 est la dernière version à comprendre cette règle.</translation>
+<translation id="8355021858374793722">Contrôler l'utilisation de l'API Sub Apps Add</translation>
 <translation id="8356953698979920095">Si cette règle est définie sur l'une de ces options, la couleur de rétroéclairage du clavier de l'appareil s'applique par défaut lors de la connexion de l'utilisateur.</translation>
 <translation id="8357681633047935212">Limiter la durée des sessions utilisateur</translation>
 <translation id="8357989008292691856">Liste des utilisateurs autorisés à se connecter</translation>
@@ -12520,10 +12613,12 @@ La valeur par défaut est "RollbackDisabled".</translation>
 <translation id="9206364386317031168">Autoriser les sites à adresser des requêtes réseau à l'appareil local.</translation>
 <translation id="9206472508136116830">Ne pas autoriser la découverte des partages NetBIOS</translation>
 <translation id="9207596996305971030">Ne pas signaler les événements de connexion/déconnexion</translation>
+<translation id="9208328979373108724">Autoriser les origines d'applications Web isolées à ajouter des sous-applis, mais exiger une invite à l'utilisateur</translation>
 <translation id="9210647066889383361">Autoriser les utilisateurs à se connecter à leur appareil avec Smart Lock</translation>
 <translation id="9212598607138782107">Fournisseur d'identité cloud Okta®</translation>
 <translation id="9213751049772256263">Désactiver toutes les variantes</translation>
 <translation id="9217154963008402249">Fréquence des paquets réseau de contrôle</translation>
+<translation id="921762538903956073">Mode isolé disponible</translation>
 <translation id="9220314833408124365">Utiliser une règle par défaut en matière d'URL de provenance (no-referrer-when-downgrade)</translation>
 <translation id="922160134042190462">Ne pas activer <ph name="DESK_API_NAME" /> pour le contrôle <ph name="PRODUCT_OS_NAME" /> tiers</translation>
 <translation id="9221827710437832530">Autoriser l'accès à la géolocalisation sur l'écran de connexion.</translation>

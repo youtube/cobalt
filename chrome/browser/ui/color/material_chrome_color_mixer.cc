@@ -104,6 +104,13 @@ void AddMaterialChromeColorMixer(ui::ColorProvider* provider,
   mixer[kColorDownloadToolbarButtonAnimationForeground] =
       AdjustHighlightColorForContrast(ui::kColorSysPrimary, ui::kColorSysBase);
 
+  // Download History WebUI colors.
+  mixer[kColorDownloadManagerItemError] = {ui::kColorSysError};
+  mixer[kColorDownloadManagerItemBackground] = {ui::kColorSysSurface};
+  mixer[kColorDownloadManagerItemBackgroundInactive] = {
+      ui::kColorSysStateDisabledContainer};
+  mixer[kColorDownloadManagerProgress] = {ui::kColorSysPrimary};
+
   // Extensions colors.
   mixer[kColorExtensionsMenuText] = {ui::kColorSysOnSurface};
   mixer[kColorExtensionsMenuSecondaryText] = {ui::kColorSysOnSurfaceSubtle};
@@ -390,6 +397,17 @@ void AddMaterialChromeColorMixer(ui::ColorProvider* provider,
       ui::kColorSysBaseContainerElevated};
   mixer[kColorOmniboxChipOnSystemBlockedActivityIndicatorForeground] = {
       ui::kColorSysError};
+
+  // Settings columned header colors.
+  mixer[kColorSettingsColumnedSectionDescriptionHeader] = {
+      ui::kColorSysPrimary};
+
+  // Settings info card colors.
+  mixer[kColorSettingsInfoCardBackground] = {ui::kColorSysBaseContainer};
+
+  // Privacy Settings delete browsing dialog container colors.
+  mixer[kColorSettingsPrivacyDbdContainerBackground] = {
+      ui::kColorSysBaseContainer};
 
   // Tabstrip tab alert colors.
   mixer[kColorTabAlertAudioPlayingActiveFrameActive] = {

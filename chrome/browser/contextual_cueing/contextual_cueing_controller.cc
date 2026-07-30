@@ -45,6 +45,7 @@
 #include "components/optimization_guide/core/optimization_guide_common.mojom.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
 #include "components/optimization_guide/proto/features/contextual_cueing.pb.h"
+#include "components/pdf/common/constants.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/signin/public/identity_manager/account_capabilities.h"
@@ -231,21 +232,28 @@ void ContextualCueingController::OnPageContentAnnotated(
   }
 
   // Check classification to see if we should proceed to next step.
-  bool is_supported_category = false;
+  bool passes_edu = false;
+  bool passes_shopping = false;
   for (const page_content_annotations::Category& category :
        result.GetCategoryResults()) {
     if (category.category_type ==
             page_content_annotations::CategoryType::kEducation &&
         category.score > kEduClassifierThreshold.Get()) {
-      is_supported_category = true;
-      break;
+      passes_edu = true;
     }
     if (category.category_type ==
             page_content_annotations::CategoryType::kShopping &&
         category.score > kShoppingClassifierThreshold.Get()) {
-      is_supported_category = true;
-      break;
+      passes_shopping = true;
     }
+  }
+
+  bool is_supported_category = false;
+  if (kDiscardShoppingPdfs.Get() &&
+      active_web_contents->GetContentsMimeType() == pdf::kPDFMimeType) {
+    is_supported_category = passes_edu && !passes_shopping;
+  } else {
+    is_supported_category = passes_edu || passes_shopping;
   }
 
   if (!is_supported_category) {
@@ -608,6 +616,27 @@ void ContextualCueingController::OnCueClicked(
     actions::ActionInvocationContext) {
   CUEING_LOG(
       base::StringPrintf("Cue type '%s' was clicked", GetName(cue_type)));
+#if !BUILDFLAG(IS_ANDROID)
+  CHECK(page_action_observer_);
+  const page_actions::PageActionState& state =
+      page_action_observer_->GetCurrentPageActionState();
+  if (!state.anchored_message_showing) {
+    tabs::TabInterface* active_tab = tab_list_interface_->GetActiveTab();
+    if (active_tab) {
+      // Re-show the anchored message to allow for the user to see the tab
+      // sharing UI before invoking the cue target's click action
+      if (page_actions::PageActionController* page_action_controller =
+              active_tab->GetTabFeatures()->page_action_controller()) {
+        page_action_controller->ShowAnchoredMessage(
+            kActionAnchoredContextualCue,
+            {.priority =
+                 page_actions::PageActionPriorityCategory::kContextualCue});
+      }
+    }
+    return;
+  }
+#endif
+
   if (CueTarget* target = GetTarget(cue_type)) {
     target->OnClick(std::move(data));
   }

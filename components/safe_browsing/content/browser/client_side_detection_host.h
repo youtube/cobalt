@@ -56,6 +56,7 @@ namespace safe_browsing {
 class ClientPhishingRequest;
 class ClientSideDetectionService;
 class VerdictCacheManager;
+class ClipboardExtractedData;
 
 using HostInnerTextCallback = base::OnceCallback<void(std::string)>;
 
@@ -257,6 +258,7 @@ class ClientSideDetectionHost
   friend class ClientSideDetectionHostClipboardDataTest;
   friend class ClientSideDetectionHostGeminiAntiscamProtectionTest;
   friend class ClientSideDetectionHostPriorityTest;
+  friend class ClientSideDetectionHostPrerenderBrowserTest;
   friend class ClientSideDetectionHostPrerenderBrowserTest_Screenshot;
   class ShouldClassifyUrlRequest;
   friend class ShouldClassifyUrlRequest;
@@ -736,6 +738,7 @@ class ClientSideDetectionHost
 
   // The last text that was copied to the clipboard.
   std::u16string last_copied_text_;
+  std::unique_ptr<ClipboardExtractedData> clipboard_extracted_data_;
 
   // The high resolution screenshot of the current tab. Should only be populated
   // when a user reports a site as unsafe.

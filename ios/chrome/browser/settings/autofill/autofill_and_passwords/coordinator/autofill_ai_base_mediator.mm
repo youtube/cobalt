@@ -70,6 +70,11 @@
   }
 }
 
+- (void)didSelectAddEntityWithType:(autofill::EntityType)type {
+  [self.delegate autofillAIBaseMediator:self
+       didRequestToCreateEntityWithType:type];
+}
+
 #pragma mark - Public
 
 + (CGFloat)entityIconPointSize {
@@ -129,12 +134,13 @@
                       (const autofill::EntityInstance&)instance
                               withLabel:(const autofill::EntityLabel&)label {
   AutofillAIEntityItem* item =
-      [[AutofillAIEntityItem alloc] initWithType:kItemTypeEnumZero];
+      [[AutofillAIEntityItem alloc] initWithType:kAutofillAIBaseItemTypeEntity];
   item.name = base::SysUTF16ToNSString(
       base::JoinString(label, autofill::kLabelSeparator));
   item.typeDescription =
       base::SysUTF16ToNSString(instance.type().GetNameForI18n());
   item.guid = instance.guid();
+  item.entityTypeName = instance.type().name();
 
   if (instance.record_type() ==
       autofill::EntityInstance::RecordType::kServerWallet) {

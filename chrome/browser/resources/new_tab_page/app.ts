@@ -5,6 +5,7 @@
 import './action_chips/action_chips.js';
 import './iframe.js';
 import './logo.js';
+import './ntp_composebox.js';
 import './ntp_searchbox.js';
 import '/strings.m.js';
 import 'chrome://new-tab-page/shared/customize_buttons/customize_buttons.js';
@@ -50,7 +51,6 @@ import {ParentTrustedDocumentProxy} from './modules/microsoft_auth_frame_connect
 import type {PageCallbackRouter, PageHandlerRemote, Theme} from './new_tab_page.mojom-webui.js';
 import {NtpBackgroundImageSource} from './new_tab_page.mojom-webui.js';
 import {NewTabPageProxy} from './new_tab_page_proxy.js';
-
 import {ShowNtpPromosResult} from './ntp_promo.mojom-webui.js';
 import type {NtpSearchboxElement} from './ntp_searchbox.js';
 import {$$} from './utils.js';
@@ -213,6 +213,8 @@ export class AppElement extends AppElementBase {
       composeButtonEnabled: {type: Boolean},
       composeboxEnabled: {type: Boolean},
 
+      hasVoiceSearchError: {type: Boolean},
+
       // =======================================================================
       // Protected properties
       // =======================================================================
@@ -333,6 +335,9 @@ export class AppElement extends AppElementBase {
        */
       enableThreadsRail_: {type: Boolean},
 
+      // Whether to use ntp-composebox instead of cr-composebox.
+      useNtpComposeboxFork_: {type: Boolean},
+
       // =======================================================================
       // Private properties
       // =======================================================================
@@ -350,6 +355,7 @@ export class AppElement extends AppElementBase {
     };
   }
 
+  accessor hasVoiceSearchError = false;
   accessor realboxCanShowSecondarySide: boolean = false;
   accessor realboxHadSecondarySide: boolean = false;
   accessor composeButtonEnabled: boolean =
@@ -445,6 +451,8 @@ export class AppElement extends AppElementBase {
       loadTimeData.getBoolean('composeboxShowContextMenuDescription');
   protected accessor enableThreadsRail_: boolean =
       loadTimeData.getBoolean('enableThreadsRail');
+  protected accessor useNtpComposeboxFork_: boolean =
+      loadTimeData.getBoolean('useNtpComposeboxFork');
   protected accessor energyEffectEnabled_: boolean =
       loadTimeData.getBoolean('energyEffectEnabled');
   protected accessor energyEffectAnimationEnabled_: boolean =
@@ -801,6 +809,11 @@ export class AppElement extends AppElementBase {
     }
   }
 
+  // For voice coherence: when error event is fired, this will run.
+  onVoiceSearchError() {
+    this.hasVoiceSearchError = true;
+  }
+
   // Called to update the OGB of relevant NTP state changes.
   private updateOneGoogleBarAppearance_() {
     if (this.oneGoogleBarLoaded_) {
@@ -1014,8 +1027,9 @@ export class AppElement extends AppElementBase {
     }
   }
 
-  protected onVoiceSearchOverlayClose_() {
+  onVoiceSearchOverlayClose() {
     this.showVoiceSearchOverlay_ = false;
+    this.hasVoiceSearchError = false;
   }
 
   /**

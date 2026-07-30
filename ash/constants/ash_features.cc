@@ -663,10 +663,6 @@ BASE_FEATURE(kFastPairBleRotation, base::FEATURE_ENABLED_BY_DEFAULT);
 // debug devices to trigger Fast Pair notifications.
 BASE_FEATURE(kFastPairDebugMetadata, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables using longterm Handshake retry logic for Fast Pair.
-BASE_FEATURE(kFastPairHandshakeLongTermRefactor,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Enables prototype support for Fast Pair for keyboards.
 BASE_FEATURE(kFastPairKeyboards, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -817,9 +813,6 @@ BASE_FEATURE(kForestFeature, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kFullscreenAlertBubble,
              "EnableFullscreenBubble",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Debugging UI for ChromeOS FuseBox service.
-BASE_FEATURE(kFuseBoxDebug, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls whether the fwupd dbus client should be active. This is used only
 // for testing to prevent the fwupd service from spooling and re-activating
@@ -1305,9 +1298,6 @@ BASE_FEATURE(kNearbyPresence, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables a limit on the number of notifications that can show.
 BASE_FEATURE(kNotificationLimit, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables the Night Light feature.
-BASE_FEATURE(kNightLight, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Extracts controller logic from child views of `NotificationCenterView` to
 // place it in a new `NotificationCenterController` class.
 BASE_FEATURE(kNotificationCenterController, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1534,12 +1524,6 @@ BASE_FEATURE(kOrcaSupportDemoMode, base::FEATURE_ENABLED_BY_DEFAULT);
 // Enables Jelly colors and components to appear in the Parent Access Widget
 // if jelly-colors is also enabled.
 BASE_FEATURE(kParentAccessJelly, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables a notification warning users that their Thunderbolt device is not
-// supported on their CrOS device.
-// TODO(crbug.com/40199811): Revisit this flag when there is a way to query
-// billboard devices correctly.
-BASE_FEATURE(kPcieBillboardNotification, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Limits the items on the shelf to the ones associated with windows the
 // currently active desk.
@@ -2607,10 +2591,6 @@ bool IsFastPairDebugMetadataEnabled() {
   return base::FeatureList::IsEnabled(kFastPairDebugMetadata);
 }
 
-bool IsFastPairHandshakeLongTermRefactorEnabled() {
-  return base::FeatureList::IsEnabled(kFastPairHandshakeLongTermRefactor);
-}
-
 bool IsFastPairKeyboardsEnabled() {
   return base::FeatureList::IsEnabled(kFastPairKeyboards);
 }
@@ -2625,10 +2605,6 @@ bool IsFastPairSavedDevicesEnabled() {
 
 bool IsFastPairSavedDevicesStrictOptInEnabled() {
   return base::FeatureList::IsEnabled(kFastPairSavedDevicesStrictOptIn);
-}
-
-bool IsFileManagerFuseBoxDebugEnabled() {
-  return base::FeatureList::IsEnabled(kFuseBoxDebug);
 }
 
 bool IsFilesLocalImageSearchEnabled() {
@@ -2840,10 +2816,6 @@ bool IsLauncherContinueSectionWithRecentsEnabled() {
              kLauncherContinueSectionWithRecentsRollout);
 }
 
-bool IsLauncherNudgeShortIntervalEnabled() {
-  return base::FeatureList::IsEnabled(kLauncherNudgeShortInterval);
-}
-
 bool IsLinkCrossDeviceDogfoodFeedbackEnabled() {
   return base::FeatureList::IsEnabled(kLinkCrossDeviceDogfoodFeedback);
 }
@@ -3049,10 +3021,6 @@ bool IsOobeSplitModifierKeyboardInfoEnabled() {
 
 bool IsParentAccessJellyEnabled() {
   return base::FeatureList::IsEnabled(kParentAccessJelly);
-}
-
-bool IsPcieBillboardNotificationEnabled() {
-  return base::FeatureList::IsEnabled(kPcieBillboardNotification);
 }
 
 bool IsPerDeskShelfEnabled() {

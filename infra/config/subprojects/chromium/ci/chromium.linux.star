@@ -448,7 +448,6 @@ ci.builder(
     ),
     cores = 32,
     ssd = True,
-    gardener_rotations = args.ignore_default(None),
     console_view_entry = consoles.console_view_entry(
         category = "arm64",
         short_name = "bld",
@@ -512,7 +511,6 @@ ci.thin_tester(
         browser_config = targets.browser_config.DEBUG,
         os_type = targets.os_type.LINUX,
     ),
-    gardener_rotations = args.ignore_default(None),
     console_view_entry = consoles.console_view_entry(
         category = "arm64",
         short_name = "dbg",
@@ -763,7 +761,7 @@ ci.thin_tester(
                 # crbug.com/1508286
                 # crbug.com/404871436
                 swarming = targets.swarming(
-                    shards = 60,
+                    shards = 70,
                 ),
             ),
             "content_browsertests": targets.mixin(
@@ -809,7 +807,7 @@ ci.thin_tester(
             ),
             "sync_integration_tests": targets.mixin(
                 swarming = targets.swarming(
-                    shards = 6,
+                    shards = 8,
                 ),
             ),
             "telemetry_perf_unittests": targets.mixin(

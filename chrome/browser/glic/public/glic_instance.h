@@ -26,6 +26,7 @@ class TabInterface;
 
 namespace glic {
 
+class GlicActorTaskManager;
 class Host;
 
 // Instance IDs are created in the form `<index>-<64-bit-random-int>`.
@@ -90,6 +91,18 @@ class GlicInstance {
   // DEPRECATED - Use specific GlicInstance methods instead.
   virtual Host& host() = 0;
 
+  // Sends additional context to the instance.
+  // DEPRECATED: Use the invoke API instead.
+  virtual void SendAdditionalContext(mojom::AdditionalContextPtr context) = 0;
+
+  // Focuses the instance if it is active.
+  // More specifically, it will focus the active embedder.
+  virtual void FocusIfActive() = 0;
+
+  // Notifies the instance that a row in the actor task list bubble was clicked.
+  // TODO(b/512866173): Look into migrating this usage to the invoke API.
+  virtual void NotifyActorTaskListRowClicked(int32_t task_id) = 0;
+
   // Register a handler to observe experimental triggering related updates.
   // The callback informs if the registration operations was successful or not.
   virtual void GetExperimentalTriggeringUpdates(
@@ -115,6 +128,8 @@ class GlicInstance {
   // Returns base::TimeDelta() if the instance is currently active.
   virtual base::TimeDelta GetTimeSinceLastActive() const = 0;
 
+  virtual GlicActorTaskManager* GetActorTaskManager() = 0;
+
   // Metrics springboard for selection area changed.
   // TODO(b/500385503): Figure out what to do here. This is exposed for now
   // given that GlicInstanceMetrics can't be used outside of glic
@@ -122,10 +137,11 @@ class GlicInstance {
   virtual void OnSelectionAreasChanged(int count) = 0;
   virtual void OnPolylinePointsChanged(const std::vector<int>& counts) = 0;
 
+  // Returns true if the instance is currently performing an actuation task.
+  virtual bool IsActuating() const = 0;
+
   // Cancels ongoing actuation task if one exists.
   virtual void CancelTask() = 0;
-
-  virtual void BindTabForTesting(tabs::TabInterface* tab) = 0;
 };
 
 }  // namespace glic

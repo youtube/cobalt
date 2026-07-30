@@ -1390,15 +1390,12 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest,
   histogram_tester.ExpectTotalCount(
       "Tabs.VerticalTabs.ExpandOnHover.ShowDuration", 1);
 }
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_GlassFrameAlphaTest GlassFrameAlphaTest
-#else
-#define MAYBE_GlassFrameAlphaTest DISABLED_GlassFrameAlphaTest
-#endif  // BUILDFLAG(IS_MAC)
+
+// TODO(crbug.com/513107068): Re-enable this test on Mac.
 IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewGlassFrameTest,
-                       MAYBE_GlassFrameAlphaTest) {
+                       DISABLED_GlassFrameAlphaTest) {
   auto* const background =
-      static_cast<CustomCornersBackground*>(region_view()->background());
+      region_view()->background()->AsA<CustomCornersBackground>();
 
   // Background should be opaque during collapse and expand on hover,
   // and transparent otherwise.

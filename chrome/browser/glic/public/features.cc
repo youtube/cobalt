@@ -12,7 +12,6 @@
 
 namespace features {
 
-BASE_FEATURE(kGlicTabRestoration, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kGlicAndroidSidePanel, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicChromeStatusIcon, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -20,6 +19,10 @@ const base::FeatureParam<int> kGlicChromeStatusIconSizePx{
     &kGlicChromeStatusIcon, "glic-chrome-status-icon-size-px", 20};
 const base::FeatureParam<bool> kGlicChromeStatusIconUseAltIcon{
     &kGlicChromeStatusIcon, "glic-chrome-status-icon-use-alt-icon", false};
+const base::FeatureParam<bool> kGlicChromeStatusIconLogOnly{
+    &kGlicChromeStatusIcon, "glic-chrome-status-icon-log-only", true};
+const base::FeatureParam<std::string> kGlicChromeStatusIconOtherAppID{
+    &kGlicChromeStatusIcon, "glic-chrome-status-icon-other-app-id", ""};
 
 BASE_FEATURE(kGlicOrphanedReattachment, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -35,8 +38,6 @@ const base::FeatureParam<std::string> kGlicSelectionTopCueOnlyList{
     &kGlicSelectionPrompt, "top_cue_only_list", ""};
 const base::FeatureParam<int> kGlicSelectionPromptWidgetMaxTotalDismisses{
     &kGlicSelectionPrompt, "max_total_dismisses", 10};
-
-BASE_FEATURE(kGlicDaisyChainViaCoordinator, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicClearTurnIdOnPanelWillOpen,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -131,7 +132,7 @@ BASE_FEATURE(kGlicGetTabFaviconById, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicSkipCookieSyncOnOpen, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kGlicCookieSyncOnTokenChange, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kGlicShareImageViaInvoke, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicShareImageViaInvoke, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicWebClientLoadTimes, base::FEATURE_ENABLED_BY_DEFAULT);
 const base::FeatureParam<int> kGlicPreLoadingTimeMs{
@@ -150,4 +151,10 @@ BASE_FEATURE(kGlicWebDragAndDropFileUpload, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicOptInImpressionMetrics, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Killswitch that controls whether the WebContents visibility state is
+// set to hidden when the Glic panel is warming.
+BASE_FEATURE(kGlicContentsInitiallyHidden, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kGlicAnchorEntryPointForOnboardedUsers,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 }  // namespace features

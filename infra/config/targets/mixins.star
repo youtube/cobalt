@@ -209,9 +209,9 @@ targets.mixin(
 )
 
 targets.mixin(
-    name = "skylab-use-tauto-chromium-wrapper",
+    name = "skylab-tauto-chromium-graphics",
     skylab = targets.skylab(
-        autotest_name = "chromium",
+        autotest_name = "chromium_Graphics",
     ),
 )
 
@@ -719,7 +719,7 @@ targets.mixin(
         dimensions = {
             "os": "Android",
             "device_type": "frankel",
-            "device_os": "BD3A.250721.001",
+            "device_os": "CP1A.260405.005",
             "device_os_type": "userdebug",
             "pool": "chromium.tests.gpu",
         },
@@ -1570,7 +1570,7 @@ targets.mixin(
     swarming = targets.swarming(
         dimensions = {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
         },
     ),
 )
@@ -1583,7 +1583,7 @@ targets.mixin(
     swarming = targets.swarming(
         dimensions = {
             "cpu": "x86-64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
         },
     ),
 )

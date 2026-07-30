@@ -18,6 +18,7 @@
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/trace_event/trace_event.h"
 #include "base/win/win_util.h"
 #include "base/win/windows_version.h"
@@ -32,6 +33,7 @@
 #include "ui/base/cursor/cursor.h"
 #include "ui/base/cursor/platform_cursor.h"
 #include "ui/base/ime/input_method.h"
+#include "ui/base/mojom/menu_source_type.mojom-shared.h"
 #include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/base/win/event_creation_utils.h"
@@ -49,6 +51,7 @@
 #include "ui/events/keycodes/dom/dom_keyboard_layout_map.h"
 #include "ui/events/platform/platform_event_source.h"
 #include "ui/gfx/geometry/insets.h"
+#include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/vector2d.h"
 #include "ui/gfx/native_ui_types.h"
 #include "ui/gfx/path_win.h"
@@ -105,7 +108,8 @@ void UpdateMouseLockRegion(aura::Window* window, bool locked) {
 
 }  // namespace
 
-DEFINE_UI_CLASS_PROPERTY_KEY(aura::Window*, kContentWindowForRootWindow, NULL)
+DEFINE_OWNED_UI_CLASS_PROPERTY_KEY(base::WeakPtr<aura::Window>,
+                                   kContentWindowForRootWindow)
 
 // Identifies the DesktopWindowTreeHostWin associated with the
 // WindowEventDispatcher.
@@ -146,7 +150,12 @@ aura::Window* DesktopWindowTreeHostWin::GetContentWindowForHWND(HWND hwnd) {
   // are not associated with WindowTreeHost instances.
   aura::WindowTreeHost* host =
       aura::WindowTreeHost::GetForAcceleratedWidget(hwnd);
-  return host ? host->window()->GetProperty(kContentWindowForRootWindow) : NULL;
+  if (!host) {
+    return nullptr;
+  }
+  base::WeakPtr<aura::Window>* weak_ptr =
+      host->window()->GetProperty(kContentWindowForRootWindow);
+  return weak_ptr ? weak_ptr->get() : nullptr;
 }
 
 void DesktopWindowTreeHostWin::StartTouchDrag(gfx::Point screen_point) {
@@ -236,7 +245,8 @@ void DesktopWindowTreeHostWin::OnNativeWidgetCreated(
     is_cursor_visible_ = cursor_client->IsCursorVisible();
   }
 
-  window()->SetProperty(kContentWindowForRootWindow, content_window());
+  window()->SetProperty(kContentWindowForRootWindow,
+                        content_window()->GetWeakPtrAsWindow());
   window()->SetProperty(kDesktopWindowTreeHostKey, this);
 
   should_animate_window_close_ =
@@ -867,6 +877,13 @@ FrameMode DesktopWindowTreeHostWin::GetFrameMode() const {
   return FrameMode::SYSTEM_DRAWN;
 }
 
+void DesktopWindowTreeHostWin::ShowCustomSystemMenu(
+    const gfx::Point& screen_point) {}
+
+bool DesktopWindowTreeHostWin::UsesNativeSystemMenu() const {
+  return true;
+}
+
 bool DesktopWindowTreeHostWin::HasFrame() const {
   return !remove_standard_frame_;
 }
@@ -1179,7 +1196,7 @@ void DesktopWindowTreeHostWin::HandleVisibilityChanged(bool visible) {
     native_widget_delegate_->OnNativeWidgetVisibilityChanged(visible);
   }
   if (visible) {
-    UpdateAllowScreenshots();
+    UpdateDisplayAffinity();
   }
 }
 
@@ -1243,6 +1260,18 @@ void DesktopWindowTreeHostWin::HandleKeyEvent(ui::KeyEvent* event) {
       (event->flags() & ui::EF_ALT_DOWN) &&
       !(event->flags() & ui::EF_CONTROL_DOWN)) {
     if (Widget* widget = GetWidget(); widget && widget->non_client_view()) {
+      if (!UsesNativeSystemMenu()) {
+        // Show the Views version of the window frame context menu if it should
+        // be used instead of the OS native version. Default location for the
+        // menu is the origin (0, 0) of the browser.
+        gfx::Point point = widget->non_client_view()
+                               ->frame_view()
+                               ->GetKeyboardContextMenuLocation();
+        ShowCustomSystemMenu(point);
+        event->SetHandled();
+        return;
+      }
+
       return;
     }
   }
@@ -1449,16 +1478,25 @@ void DesktopWindowTreeHostWin::SetAllowScreenshots(bool allow) {
     return;
   }
 
-  UpdateAllowScreenshots();
+  UpdateDisplayAffinity();
 }
 
 bool DesktopWindowTreeHostWin::AreScreenshotsAllowed() {
-  DWORD affinity;
-  if (GetWindowDisplayAffinity(GetHWND(), &affinity)) {
-    return affinity == WDA_NONE;
+  return allow_screenshots_;
+}
+
+void DesktopWindowTreeHostWin::SetExcludeFromScreenCapture(bool exclude) {
+  if (exclude_from_capture_ == exclude) {
+    return;
   }
 
-  return true;
+  exclude_from_capture_ = exclude;
+
+  if (!IsVisible()) {
+    return;
+  }
+
+  UpdateDisplayAffinity();
 }
 
 void DesktopWindowTreeHostWin::ClientDestroyedWidget() {
@@ -1551,19 +1589,28 @@ aura::Window* DesktopWindowTreeHostWin::content_window() {
   return desktop_native_widget_aura_->content_window();
 }
 
-void DesktopWindowTreeHostWin::UpdateAllowScreenshots() {
-  if (AreScreenshotsAllowed() == allow_screenshots_) {
-    return;
+void DesktopWindowTreeHostWin::UpdateDisplayAffinity() {
+  DWORD affinity = WDA_NONE;
+  if (exclude_from_capture_) {
+    // `exclude_from_capture_` is used to exclude the window completely from
+    // screen capture. On Windows 10 20H1 and newer, we use
+    // WDA_EXCLUDEFROMCAPTURE which hides the window from capture while keeping
+    // it visible to the user.
+    affinity = (base::win::GetVersion() >= base::win::Version::WIN10_20H1)
+                   ? WDA_EXCLUDEFROMCAPTURE
+                   : WDA_MONITOR;
+  } else if (!allow_screenshots_) {
+    // `allow_screenshots_` is used to avoid capturing sensitive content.
+    // When screenshots are not allowed, we set the affinity to WDA_MONITOR
+    // rather than WDA_EXCLUDEFROMCAPTURE. WDA_MONITOR obscures the window with
+    // a black rectangle in the capture, explicitly signaling to the user that
+    // the content is intentionally hidden. In contrast, WDA_EXCLUDEFROMCAPTURE
+    // completely removes the window from the capture stream, leaving no visual
+    // cue.
+    affinity = WDA_MONITOR;
   }
 
-  // When screenshots are not allowed, set the affinity to WDA_MONITOR.
-  // This is used instead of WDA_EXCLUDEFROMCAPTURE because the latter renders
-  // the window with "no content", which appears as a black rectangle on the
-  // screen, whereas the former completely removes the window from the screen.
-  // The former is better indication to the user that the contents of the window
-  // are being explicitly not shown.
-  SetWindowDisplayAffinity(GetHWND(),
-                           allow_screenshots_ ? WDA_NONE : WDA_MONITOR);
+  SetWindowDisplayAffinity(GetHWND(), affinity);
 }
 
 void DesktopWindowTreeHostWin::UpdateBackdropColorMode() {

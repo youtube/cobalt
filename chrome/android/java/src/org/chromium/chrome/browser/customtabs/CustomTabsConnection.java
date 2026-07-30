@@ -9,8 +9,11 @@ import static org.chromium.components.content_settings.PrefNames.COOKIE_CONTROLS
 
 import android.app.PendingIntent;
 import android.content.ComponentCallbacks2;
+import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.net.Network;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Bundle;
@@ -105,6 +108,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -409,6 +413,7 @@ public class CustomTabsConnection {
         return mClientManager.newSession(
                 session,
                 Binder.getCallingUid(),
+                Binder.getCallingPid(),
                 onDisconnect,
                 postMessageHandler,
                 serviceConnection,
@@ -1004,13 +1009,16 @@ public class CustomTabsConnection {
             CustomTabsSessionToken session, String message, @Nullable Bundle extras) {
         var sessionHolder = new SessionHolder<>(session);
         int result;
-        if (!mWarmupHasBeenCalled.get()) result = CustomTabsService.RESULT_FAILURE_DISALLOWED;
-        if (!isCallerForegroundOrSelf() && !mSessionDataHolder.isActiveSession(sessionHolder)) {
+        if (!mWarmupHasBeenCalled.get()) {
             result = CustomTabsService.RESULT_FAILURE_DISALLOWED;
+        } else if (!isCallerForegroundOrSelf()
+                && !mSessionDataHolder.isActiveSession(sessionHolder)) {
+            result = CustomTabsService.RESULT_FAILURE_DISALLOWED;
+        } else {
+            // If called before a validatePostMessageOrigin, the post message origin will be invalid
+            // and will return a failure result here.
+            result = mClientManager.postMessage(sessionHolder, message);
         }
-        // If called before a validatePostMessageOrigin, the post message origin will be invalid and
-        // will return a failure result here.
-        result = mClientManager.postMessage(sessionHolder, message);
         logCall("postMessage", result);
         return result;
     }
@@ -1372,6 +1380,47 @@ public class CustomTabsConnection {
     /** See {@link ClientManager#getClientPackageNameForSession(SessionHolder)} */
     public @Nullable String getClientPackageNameForSession(@Nullable SessionHolder<?> session) {
         return mClientManager.getClientPackageNameForSession(session);
+    }
+
+    /**
+     * Extracts the target network from the intent if the caller has the required permissions.
+     * Package-private to be used by {@link CustomTabIntentDataProvider}.
+     */
+    @Nullable Network extractTargetNetwork(Intent intent, @Nullable SessionHolder<?> session) {
+        Network network =
+                IntentUtils.safeGetParcelableExtra(intent, CustomTabsIntent.EXTRA_NETWORK);
+        if (network == null) return null;
+
+        int uid = mClientManager.getClientUidForSession(session);
+        int pid = mClientManager.getClientPidForSession(session);
+        String callerPackageName = mClientManager.getClientPackageNameForSession(session);
+        String callerIdentity =
+                callerPackageName != null
+                        ? String.format(
+                                Locale.US, "%s (UID %d, PID %d)", callerPackageName, uid, pid)
+                        : String.format(Locale.US, "UID %d, PID %d", uid, pid);
+
+        Context context = ContextUtils.getApplicationContext();
+        boolean hasPermission =
+                context.checkPermission("android.permission.MAINLINE_NETWORK_STACK", pid, uid)
+                                == PackageManager.PERMISSION_GRANTED
+                        || context.checkPermission("android.permission.NETWORK_SETTINGS", pid, uid)
+                                == PackageManager.PERMISSION_GRANTED;
+
+        if (!hasPermission) {
+            Log.w(
+                    TAG,
+                    "Stripping EXTRA_NETWORK: caller %s does not have the required network"
+                            + " permission. The Custom Tab will use the default network.",
+                    callerIdentity);
+            return null;
+        }
+
+        Log.i(
+                TAG,
+                "Allowed to use EXTRA_NETWORK: caller %s has required network permission.",
+                callerIdentity);
+        return network;
     }
 
     /**
@@ -1892,7 +1941,7 @@ public class CustomTabsConnection {
         // optimistically assume it is. Otherwise we would effectively disable CCT warmup
         // on these devices.
         if (!workaroundAvailable) return true;
-        return isBackgroundProcess(pid);
+        return !isBackgroundProcess(pid);
     }
 
     void cleanupAllForTesting() {

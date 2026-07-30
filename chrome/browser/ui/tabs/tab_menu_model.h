@@ -67,6 +67,17 @@ class TabMenuModel : public ui::SimpleMenuModel {
   void ActivatedAt(size_t index) override;
   void ActivatedAt(size_t index, int event_flags) override;
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  // Returns the `ContextMenuMatcher` managing the extension-provided menu
+  // items. This must be public because `TabContextMenuController`, which
+  // acts as the `ui::SimpleMenuModel::Delegate` for the tab strip context menu,
+  // needs to query this to check and execute custom extension-provided command
+  // states.
+  extensions::ContextMenuMatcher* extension_items() const {
+    return extension_items_.get();
+  }
+#endif
+
  private:
   void Build(int index);
   void BuildForWebApp(int index);
@@ -89,7 +100,7 @@ class TabMenuModel : public ui::SimpleMenuModel {
   std::unique_ptr<ui::SimpleMenuModel>
       add_to_existing_comparison_table_submenu_;
   std::unique_ptr<ui::SimpleMenuModel> swap_with_split_submenu_;
-  std::unique_ptr<ui::SimpleMenuModel> split_orientation_submenu_;
+  std::unique_ptr<ui::SimpleMenuModel> split_layout_submenu_;
   std::unique_ptr<ui::SimpleMenuModel> arrange_split_view_submenu_;
   std::unique_ptr<ui::SimpleMenuModel> glic_tab_sub_menu_model_;
   std::unique_ptr<ui::SimpleMenuModel> send_tab_to_self_submenu_;

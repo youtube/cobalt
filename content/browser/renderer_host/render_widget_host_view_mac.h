@@ -44,6 +44,7 @@ class RenderWidgetHostNSViewBridge;
 }  // namespace remote_cocoa
 
 namespace ui {
+class Compositor;
 enum class DomCode : uint32_t;
 class Layer;
 class ScopedPasswordInputEnabler;
@@ -125,7 +126,8 @@ class CONTENT_EXPORT RenderWidgetHostViewMac
   CONTENT_EXPORT void SetDelegate(
     NSObject<RenderWidgetHostViewMacDelegate>* delegate);
 
-  // RenderWidgetHostView implementation.
+  // RenderWidgetHostViewBase implementation.
+  ui::Compositor* GetCompositor() override;
   void InitAsChild(gfx::NativeView parent_view) override;
   void SetSize(const gfx::Size& size) override;
   void SetBounds(const gfx::Rect& rect) override;
@@ -142,6 +144,9 @@ class CONTENT_EXPORT RenderWidgetHostViewMac
   void ShowDefinitionForSelection() override;
   void SpeakSelection() override;
   void SetWindowFrameInScreen(const gfx::Rect& rect) override;
+  void SetForceSpecifiedDeadline(
+      std::optional<uint32_t> deadline_in_frames) override;
+  std::optional<uint32_t> GetForceSpecifiedDeadlineForTesting() override;
   void TakeFallbackContentFrom(RenderWidgetHostView* view) override;
   bool IsHTMLFormPopup() const override;
   uint64_t GetNSViewId() const override;

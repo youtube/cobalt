@@ -118,6 +118,7 @@
 <translation id="1448440926884431741">Организирајте ги следените производи во „Обележувачи“</translation>
 <translation id="1455845192930279203">Дали сепак сакате да ја преземете датотеката „<ph name="FILE_NAME" />“ (<ph name="FILE_SIZE" />) од <ph name="DOWNLOAD_DOMAIN" />?</translation>
 <translation id="1460751212339734034">Штедете време, пишувајте помалку</translation>
+<translation id="146522654774760805">Лозинки и „Автоматско пополнување“</translation>
 <translation id="1466383950273130737">Изберете јазик за Chrome</translation>
 <translation id="1477626028522505441">Преземањето на <ph name="FILE_NAME" /> не успеа поради проблеми со серверот.</translation>
 <translation id="147982357559798527">Променето</translation>
@@ -227,6 +228,7 @@
 <translation id="200114059308480249">Да се вклучи околниот текст во пребарувањата на Google?</translation>
 <translation id="2004096469149679223"><ph name="TAB_TITLE" />, прикачена картичка „Инкогнито“ со исклучен звук</translation>
 <translation id="2021896219286479412">Контроли на сајтот на цел екран</translation>
+<translation id="2022953316617983419">QR-код</translation>
 <translation id="2024195579772565064">Избришете го пребарувачот</translation>
 <translation id="2029669011553795746">Долниот лист со прифаќањето на „Известувања за совети“ е отворен на половина висина</translation>
 <translation id="2038563949887743358">Вклучи „Барај локација на работна површина“</translation>
@@ -263,6 +265,7 @@
 <translation id="2184272387334793084">Најавете се за да ги добиете лозинките и друго на сите ваши уреди</translation>
 <translation id="218608176142494674">Се споделува</translation>
 <translation id="2186779861549045980">Може да изберете кои податоци да се зачувуваат во вашата сметка на Google.\nМоже и да ги прегледувате и да управувате со овие ставки во вашите обележувачи, список за читање или управувач со лозинки.</translation>
+<translation id="2190355936436201913">(празно)</translation>
 <translation id="219283042927675668">Картички во група</translation>
 <translation id="2194856509914051091">Нешта што треба да се земат предвид</translation>
 <translation id="2205701497928406883"><ph name="TAB_TITLE" />, прикачена картичка за споделување</translation>
@@ -300,6 +303,7 @@
 <translation id="233375395665273385">Избриши и одјави се</translation>
 <translation id="2341410551640223969">Не можеше да се инсталира <ph name="WEBAPK_NAME" />.</translation>
 <translation id="2349710944427398404">Вкупен сообраќај искористен од Chrome, вклучувајќи сметки, обележувачи и зачувани поставки</translation>
+<translation id="2354001756790975382">Други обележувачи</translation>
 <translation id="235789365079050412">„Политика за приватност“ на Google</translation>
 <translation id="2359808026110333948">Продолжи</translation>
 <translation id="2362083820973145409">Најавени сте како: <ph name="USER_NAME" />. <ph name="USER_EMAIL" />. Ги отвора поставките.</translation>
@@ -544,6 +548,7 @@
 <translation id="3359667936385849800">Користете го тековниот давател на услуги</translation>
 <translation id="3373701465337594448">Кога е вклучено, список со сајтови кои ги посетувате што ги погодуваат вашите интереси ќе се појави тука</translation>
 <translation id="3384347053049321195">Сподели ја сликата</translation>
+<translation id="3385749568468586663">Gemini не е достапен во режимот „Инкогнито“</translation>
 <translation id="3387650086002190359">Преземањето на <ph name="FILE_NAME" /> не успеа поради грешки на системот со датотеки.</translation>
 <translation id="3417835166382867856">Пребарајте ги картичките</translation>
 <translation id="3430670036890315772">Ако го исклучите „Заклучувањето на профилот“, ќе се отстранат вашите зачувани податоци</translation>
@@ -702,6 +707,7 @@
 <translation id="4084712963632273211">Од <ph name="PUBLISHER_ORIGIN" /> - <ph name="BEGIN_DEEMPHASIZED" />испорачано од Google<ph name="END_DEEMPHASIZED" /></translation>
 <translation id="4092709865241032354">За да му помогнете на Google Password Manager да ги зачува вашите податоци за најавување, додајте го вашето корисничко име за сајтов</translation>
 <translation id="4095146165863963773">Избриши ги податоците на апликацијата?</translation>
+<translation id="4095483462103784441">Создајте нова група картички</translation>
 <translation id="4096227151372679484">Текот за зачувување обележувач е отворен на половина екран</translation>
 <translation id="4105527135143631701">Прозорецот за ажурирање на Google Password Manager е отворен</translation>
 <translation id="4113030288477039509">Управувано од вашиот администратор</translation>
@@ -785,6 +791,7 @@
 <translation id="4409014848144759297"><ph name="WEBSITE_TITLE" /> и уште <ph name="TAB_COUNT" /> картички</translation>
 <translation id="441100617989818073">Некористени или дупликат картички и групи</translation>
 <translation id="4412123112245770507">Собери го делот</translation>
+<translation id="4412698727486357573">Центар за помош</translation>
 <translation id="4414179633735763985">Избришани: <ph name="TAB_GROUPS_AND_TABS_PART" /></translation>
 <translation id="4415276339145661267">Управувајте со сметката на Google</translation>
 <translation id="4425140285732600465">Цената се следи. Добивајте предупредувања ако цената се намали на кој било сајт.</translation>
@@ -896,6 +903,7 @@
 <translation id="4864369630010738180">Се најавува…</translation>
 <translation id="4866368707455379617">Не може да се инсталира <ph name="MODULE" /> за Chrome</translation>
 <translation id="4875775213178255010">Предлози за содржина</translation>
+<translation id="4876880121961092787">Скриј ја лентата со обележувачи</translation>
 <translation id="4877678010818027629">Влезете во режим „Инкогнито“</translation>
 <translation id="4878404682131129617">Воспоставувањето тунел преку прокси-сервер не успеа</translation>
 <translation id="4880127995492972015">Преведи…</translation>
@@ -1268,6 +1276,7 @@
 <translation id="6437162790453527153">Најавете се за да ги добиете обележувачите и друго на сите ваши уреди</translation>
 <translation id="6437478888915024427">Информации за страницата</translation>
 <translation id="6440291723980579689">Страниците се вчитуваат само откако ќе ги отворите</translation>
+<translation id="6441377161852435370">Додај ја картичката во списокот за читање</translation>
 <translation id="6441734959916820584">Името е предолго</translation>
 <translation id="6444291413624515012">Групата картички <ph name="TAB_GROUP_TITLE" /> е затворена</translation>
 <translation id="6452534462676960500">Нова активност</translation>
@@ -1357,6 +1366,7 @@
 <translation id="6787600234697426339">Ограничувањето од <ph name="MAX_INSTANCE_COUNT" /> прозорци е достигнато</translation>
 <translation id="6795633245022906657">Брзо отворете нова картичка. За да ја измените кратенкава, одете во „Поставки“.</translation>
 <translation id="679588508577699489">Поставете го Chrome како стандарден прелистувач</translation>
+<translation id="679845623837196966">Прикажи го списокот за читање</translation>
 <translation id="679956319013005046">За да ја поставите претпочитаната услуга за автоматско пополнување, прво додајте ја услугата во <ph name="BEGIN_LINK" />Поставките за Android<ph name="END_LINK" />.</translation>
 <translation id="6802555630140434547">Прозорецот ќе се затвори</translation>
 <translation id="6803791793483522764">Прегледајте ги известувањата</translation>
@@ -1428,7 +1438,6 @@
 <translation id="6980258170429555165">Менито за <ph name="MENU_NAME" /> е нагласено.</translation>
 <translation id="6983306615164277634">Може и да ја допрете и задржите лентата за адреси за да ја промените позицијата.</translation>
 <translation id="6987047470128880212">Инкогнито не е достапен на уредов</translation>
-<translation id="6989358895283601928">Зачувај и отпечати</translation>
 <translation id="6996145122199359148">Преземете ја страницава</translation>
 <translation id="7013762323294215682">Овој криптографски клуч ќе се зачува во вашиот Password Manager. Криптографскиот клуч ќе може да го користат сите што имаат пристап до Password Manager.</translation>
 <translation id="7020741890149022655">Додај во список за читање <ph name="BEGIN_NEW" />Ново<ph name="END_NEW" /></translation>
@@ -1446,6 +1455,7 @@
 <translation id="7080145768121641840"><ph name="TAB_TITLE" />, избрана прикачена картичка со исклучен звук</translation>
 <translation id="7084115944294706056">Изберете ја позицијата на лентата за адреса</translation>
 <translation id="7085332316435785646">Изберете дали да се опфати историјата на Chrome за поперсонализирани доживувања во услугите на Google</translation>
+<translation id="7087066066828635014">Известувањата за совети се вклучени</translation>
 <translation id="7088681679121566888">Chrome е ажуриран</translation>
 <translation id="7098100324909062850"><ph name="TAB_TITLE" />, повеќекратно избрана картичка „Инкогнито“ со исклучен звук</translation>
 <translation id="7106762743910369165">Вашата организација управува со прелистувачот</translation>
@@ -1633,6 +1643,7 @@
 <translation id="7821130663268546430">Може да ги најдете сите отворени картички во „Менувачот на картички“</translation>
 <translation id="7822705602465980873">Кога сте најавени, податоциве се поврзуваат со вашата сметка на Google за да ве штитат на услугите на Google, на пример, зголемување на заштитата во Gmail по безбедносен инцидент.</translation>
 <translation id="7824665136384946951">Вашата организација го исклучи „Безбедното прелистување“</translation>
+<translation id="7825973332242257878">Групи картички</translation>
 <translation id="7826342993930002256">Вашиот Chrome, насекаде</translation>
 <translation id="7846161022626028328">Се јави грешка. Обидете се повторно.</translation>
 <translation id="7846296061357476882">Услуги на Google</translation>
@@ -1657,6 +1668,7 @@
 <translation id="7934668619883965330">Датотеката не може да се преземе. Форматот на датотеката не е поддржан.</translation>
 <translation id="7951102827450076904">Секогаш отворај ги преземените PDF-датотеки</translation>
 <translation id="7952479614398473176">За да отворите нов прозорец, намалете го вкупниот број активни прозорци на <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> или помалку.</translation>
+<translation id="7956713633345437162">Мобилни обележувачи</translation>
 <translation id="7957413488482743710">Виртуелната картичка ја сокрива вашата актуелна картичка за да ја заштити од потенцијална измама. <ph name="BEGIN_LINK1" />Дознајте повеќе за виртуелните картички<ph name="END_LINK1" /></translation>
 <translation id="7959485987650214982">Картички на уредов</translation>
 <translation id="7961926449547174351">Сте го оневозможиле пристапот до „Капацитет“, одете во „Поставки“ за да го овозможите.</translation>
@@ -1845,6 +1857,7 @@
 <translation id="867914734596684889">Прикажи ја или скриј ја лентата со обележувачи</translation>
 <translation id="8683039184091909753">слика</translation>
 <translation id="8688183792442786085"><ph name="TAB_TITLE" />, избрана картичка</translation>
+<translation id="8696297579102085705">Испратете до вашиот уред</translation>
 <translation id="8697753151306746444">Наместо тоа, споделете прозорец или екран</translation>
 <translation id="8699120352855309748">Не нуди превод за овие јазици</translation>
 <translation id="8712637175834984815">Сфатив</translation>
@@ -1992,6 +2005,7 @@
 <translation id="970715775301869095">Останаа <ph name="MINUTES" /> минути</translation>
 <translation id="981121421437150478">Без мрежа</translation>
 <translation id="983192555821071799">Затвори ги сите картички</translation>
+<translation id="984275831282074731">Начини на плаќање</translation>
 <translation id="984756705737569814">Не може да се проверат лозинките во вашата сметка на Google</translation>
 <translation id="987264212798334818">Општо</translation>
 <translation id="988091779042748639">Затворете ги сите картички „Инкогнито“ за да се избрише историјата на прелистувањето во режимот „Инкогнито“ од уредот.</translation>

@@ -10,7 +10,13 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(USE_FUZZING_ENGINE)
+#include "third_party/fuzztest/src/fuzztest/fuzztest.h"  // nogncheck
+#endif
+
 namespace actor {
+
+using optimization_guide::proto::AgentContainerConfig;
 
 namespace {
 
@@ -103,32 +109,28 @@ TEST_F(ActorContainerConfigTest, Assign_ValidAssignment) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config_with_proto(config_proto);
-  EXPECT_TRUE(config_with_proto.IsActive());
 
-  config.Assign(config_with_proto);
+  config.Assign(config_proto);
   EXPECT_TRUE(config.IsActive());
   EXPECT_TRUE(config.IsActuationAllowed(kExampleOrigin));
   EXPECT_TRUE(config.IsNavigationAllowed(kExampleOrigin, kExampleOrigin));
 }
 
-TEST_F(ActorContainerConfigTest, Assign_EmptyConfig) {
+TEST_F(ActorContainerConfigTest, Assign_AbsentProto) {
   ActorContainerConfig config;
   EXPECT_FALSE(config.IsActive());
 
-  ActorContainerConfig other_empty_config;
-  config.Assign(other_empty_config);
+  config.Assign(std::nullopt);
   EXPECT_FALSE(config.IsActive());
   EXPECT_CHECK_DEATH(
       config.IsNavigationAllowed(kExampleOrigin, kIgnoredOrigin));
 }
 
-TEST_F(ActorContainerConfigTest, Assign_EmptyConfig_IgnoresSecondCall) {
+TEST_F(ActorContainerConfigTest, Assign_AbsentProto_IgnoresSecondCall) {
   ActorContainerConfig config;
   EXPECT_FALSE(config.IsActive());
 
-  ActorContainerConfig other_empty_config;
-  config.Assign(other_empty_config);
+  config.Assign(std::nullopt);
   EXPECT_FALSE(config.IsActive());
 
   // Should ignore config after first call to Assign.
@@ -143,15 +145,10 @@ TEST_F(ActorContainerConfigTest, Assign_EmptyConfig_IgnoresSecondCall) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config_with_different_proto(new_config_proto);
-  EXPECT_TRUE(config_with_different_proto.IsActive());
-  EXPECT_TRUE(config_with_different_proto.IsActuationAllowed(kIgnoredOrigin));
-  EXPECT_TRUE(config_with_different_proto.IsNavigationAllowed(kExampleOrigin,
-                                                              kIgnoredOrigin));
 
   // Calling Assign again should be allowed, but it should not grant navigation
   // to the new site the second invocation.
-  config.Assign(config_with_different_proto);
+  config.Assign(new_config_proto);
   EXPECT_FALSE(config.IsActive());
   EXPECT_CHECK_DEATH(config.IsActuationAllowed(kIgnoredOrigin));
   EXPECT_CHECK_DEATH(
@@ -162,16 +159,13 @@ TEST_F(ActorContainerConfigTest, Assign_IgnoresSecondCall) {
   ActorContainerConfig config;
   EXPECT_FALSE(config.IsActive());
 
-  // First config already has a config set.
   optimization_guide::proto::AgentContainerConfig config_proto;
   *config_proto.add_location_rules() = CreateSiteLocationRule("example.com");
   config_proto.mutable_location_rules(0)->mutable_metadata()->add_capabilities(
       optimization_guide::proto::RuleMetadata::CAPABILITY_ALL);
-  ActorContainerConfig already_set_config(config_proto);
-  EXPECT_TRUE(already_set_config.IsActive());
 
   // Start by calling Assign, below we test the next call is ignored.
-  config.Assign(already_set_config);
+  config.Assign(config_proto);
   EXPECT_TRUE(config.IsActive());
 
   // Should ignore config after first call to Assign.
@@ -186,36 +180,24 @@ TEST_F(ActorContainerConfigTest, Assign_IgnoresSecondCall) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config_with_different_proto(new_config_proto);
-  EXPECT_TRUE(config_with_different_proto.IsActive());
-  EXPECT_TRUE(config_with_different_proto.IsActuationAllowed(kIgnoredOrigin));
-  EXPECT_TRUE(config_with_different_proto.IsNavigationAllowed(kExampleOrigin,
-                                                              kIgnoredOrigin));
-
-  // Calling Assign again should be allowed, but it should not grant navigation
-  // to the new site the second invocation.
-  config.Assign(config_with_different_proto);
+  config.Assign(new_config_proto);
   EXPECT_TRUE(config.IsActive());
   EXPECT_FALSE(config.IsActuationAllowed(kIgnoredOrigin));
   EXPECT_FALSE(config.IsNavigationAllowed(kExampleOrigin, kIgnoredOrigin));
-
-  // Calling Assign on a config that is already set should be a no-op.
-  already_set_config.Assign(config_with_different_proto);
-  EXPECT_FALSE(already_set_config.IsActuationAllowed(kIgnoredOrigin));
-  EXPECT_FALSE(
-      already_set_config.IsNavigationAllowed(kExampleOrigin, kIgnoredOrigin));
 }
 
 TEST_F(ActorContainerConfigTest, IsActive) {
   ActorContainerConfig config_with_no_proto;
   EXPECT_FALSE(config_with_no_proto.IsActive());
-
-  optimization_guide::proto::AgentContainerConfig config_proto;
-  ActorContainerConfig config_with_proto(config_proto);
-  EXPECT_TRUE(config_with_proto.IsActive());
 }
 
-TEST_F(ActorContainerConfigTest, EmptyConfigCannotUse) {
+TEST_F(ActorContainerConfigTest, IsActive_WithProto) {
+  ActorContainerConfig config;
+  config.Assign(AgentContainerConfig());
+  EXPECT_TRUE(config.IsActive());
+}
+
+TEST_F(ActorContainerConfigTest, AbsentProtoCannotUse) {
   ActorContainerConfig config;
   EXPECT_FALSE(config.IsActive());
   EXPECT_CHECK_DEATH(config.IsActuationAllowed(kExampleOrigin));
@@ -224,8 +206,8 @@ TEST_F(ActorContainerConfigTest, EmptyConfigCannotUse) {
 }
 
 TEST_F(ActorContainerConfigTest, EmptyProtoBlocksAll) {
-  optimization_guide::proto::AgentContainerConfig config_proto;
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(AgentContainerConfig());
 
   // Same-site.
   EXPECT_FALSE(config.IsActuationAllowed(kExampleOrigin));
@@ -254,7 +236,8 @@ TEST_F(ActorContainerConfigTest, EmptyProtoBlocksAll) {
 TEST_F(ActorContainerConfigTest, NoCapabilities) {
   optimization_guide::proto::AgentContainerConfig config_proto;
   *config_proto.add_location_rules() = CreateWildcardLocationRule();
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   // Same-site.
   EXPECT_FALSE(config.IsActuationAllowed(kExampleOrigin));
@@ -289,7 +272,8 @@ TEST_F(ActorContainerConfigTest, Wildcard_ActuationCapabilityAll) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   // Same-site.
   EXPECT_TRUE(config.IsActuationAllowed(kExampleOrigin));
@@ -326,7 +310,8 @@ TEST_F(ActorContainerConfigTest, Wildcard_WithSource) {
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
   *config_proto.mutable_location_rules(0)->add_navigation_sources() =
       CreateOriginNavigationSource("a.example.com");
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   // Same-site.
   EXPECT_TRUE(config.IsActuationAllowed(kExampleOrigin));
@@ -355,7 +340,8 @@ TEST_F(ActorContainerConfigTest, Wildcard_WithSource) {
 TEST_F(ActorContainerConfigTest, Site_NoCapabilities) {
   optimization_guide::proto::AgentContainerConfig config_proto;
   *config_proto.add_location_rules() = CreateSiteLocationRule("example.com");
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   // Same-site.
   EXPECT_FALSE(config.IsActuationAllowed(kExampleOrigin));
@@ -390,7 +376,8 @@ TEST_F(ActorContainerConfigTest, Site_ActuationCapabilityAll) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   // Same-site.
   EXPECT_TRUE(config.IsActuationAllowed(kExampleOrigin));
@@ -429,7 +416,8 @@ TEST_F(ActorContainerConfigTest, InsecureSite_ActuationCapabilityAll) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   // Same-site.
   EXPECT_FALSE(config.IsActuationAllowed(kExampleOrigin));
@@ -467,7 +455,8 @@ TEST_F(ActorContainerConfigTest, Site_WithSource) {
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
   *config_proto.mutable_location_rules(0)->add_navigation_sources() =
       CreateOriginNavigationSource("a.example.com");
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   // Same-site.
   EXPECT_TRUE(config.IsActuationAllowed(kExampleOrigin));
@@ -497,7 +486,8 @@ TEST_F(ActorContainerConfigTest, Origin_NoCapabilities) {
   optimization_guide::proto::AgentContainerConfig config_proto;
   *config_proto.add_location_rules() =
       CreateOriginLocationRule("a.example.com");
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   // Same-site.
   EXPECT_FALSE(config.IsActuationAllowed(kExampleOrigin));
@@ -533,7 +523,8 @@ TEST_F(ActorContainerConfigTest, Origin_ActuationCapabilityAll) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   // Same-site.
   EXPECT_TRUE(config.IsActuationAllowed(kExampleOrigin));
@@ -569,7 +560,8 @@ TEST_F(ActorContainerConfigTest, InsecureOrigin_ActuationCapabilityAll) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   // Same-site.
   EXPECT_FALSE(config.IsActuationAllowed(kExampleOrigin));
@@ -607,7 +599,8 @@ TEST_F(ActorContainerConfigTest,
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   // Same-site.
   EXPECT_TRUE(config.IsActuationAllowed(kExampleOrigin));
@@ -645,7 +638,8 @@ TEST_F(ActorContainerConfigTest, Origin_WithSource) {
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
   *config_proto.mutable_location_rules(0)->add_navigation_sources() =
       CreateOriginNavigationSource("a.example.com");
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   // Same-site.
   EXPECT_TRUE(config.IsActuationAllowed(kExampleOrigin));
@@ -681,7 +675,8 @@ TEST_F(ActorContainerConfigTest, WildcardAndBlockedSite) {
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
   *config_proto.add_location_rules() = CreateSiteLocationRule("example.com");
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   // Same-site.
   EXPECT_FALSE(config.IsActuationAllowed(kExampleOrigin));
@@ -717,7 +712,8 @@ TEST_F(ActorContainerConfigTest, BlockedWildcardAndAllowedSite) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   // Same-site.
   EXPECT_TRUE(config.IsActuationAllowed(kExampleOrigin));
@@ -754,7 +750,8 @@ TEST_F(ActorContainerConfigTest, SiteAndBlockedOrigin) {
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
   *config_proto.add_location_rules() =
       CreateOriginLocationRule("b.example.com");
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   // Same-site.
   EXPECT_TRUE(config.IsActuationAllowed(kExampleOrigin));
@@ -790,7 +787,8 @@ TEST_F(ActorContainerConfigTest, BlockedSiteAndOrigin) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   // Same-site.
   EXPECT_TRUE(config.IsActuationAllowed(kExampleOrigin));
@@ -823,7 +821,8 @@ TEST_F(ActorContainerConfigTest, NoCapability) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   EXPECT_FALSE(config.IsActuationAllowed(kExampleOrigin));
   EXPECT_FALSE(config.IsNavigationAllowed(kExampleOrigin, kExampleOrigin));
@@ -838,7 +837,8 @@ TEST_F(ActorContainerConfigTest, CapabilityUnknown) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   EXPECT_FALSE(config.IsActuationAllowed(kExampleOrigin));
   EXPECT_FALSE(config.IsNavigationAllowed(kExampleOrigin, kExampleOrigin));
@@ -855,7 +855,8 @@ TEST_F(ActorContainerConfigTest, MultipleCapabilityUnknown) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   EXPECT_FALSE(config.IsActuationAllowed(kExampleOrigin));
   EXPECT_FALSE(config.IsNavigationAllowed(kExampleOrigin, kExampleOrigin));
@@ -872,7 +873,8 @@ TEST_F(ActorContainerConfigTest, MultipleCapabilityAll) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   EXPECT_TRUE(config.IsActuationAllowed(kExampleOrigin));
   EXPECT_TRUE(config.IsNavigationAllowed(kExampleOrigin, kExampleOrigin));
@@ -889,7 +891,8 @@ TEST_F(ActorContainerConfigTest, MixedCapabilitiesUnknownAndAll) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   EXPECT_TRUE(config.IsActuationAllowed(kExampleOrigin));
   EXPECT_TRUE(config.IsNavigationAllowed(kExampleOrigin, kExampleOrigin));
@@ -900,7 +903,8 @@ TEST_F(ActorContainerConfigTest, NoResources) {
   *config_proto.add_location_rules() = CreateSiteLocationRule("example.com");
   config_proto.mutable_location_rules(0)->mutable_metadata()->add_capabilities(
       optimization_guide::proto::RuleMetadata::CAPABILITY_ALL);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   EXPECT_FALSE(config.IsActuationAllowed(kExampleOrigin));
   EXPECT_FALSE(config.IsNavigationAllowed(kExampleOrigin, kExampleOrigin));
@@ -915,7 +919,8 @@ TEST_F(ActorContainerConfigTest, ResourceUnknown) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_UNKNOWN);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   EXPECT_FALSE(config.IsActuationAllowed(kExampleOrigin));
   EXPECT_FALSE(config.IsNavigationAllowed(kExampleOrigin, kExampleOrigin));
@@ -934,7 +939,8 @@ TEST_F(ActorContainerConfigTest, MultipleResourceUnknowns) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_UNKNOWN);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   EXPECT_FALSE(config.IsActuationAllowed(kExampleOrigin));
   EXPECT_FALSE(config.IsNavigationAllowed(kExampleOrigin, kExampleOrigin));
@@ -953,7 +959,8 @@ TEST_F(ActorContainerConfigTest, MixedResourcesUnknownAndSession) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   EXPECT_TRUE(config.IsActuationAllowed(kExampleOrigin));
   EXPECT_TRUE(config.IsNavigationAllowed(kExampleOrigin, kExampleOrigin));
@@ -972,7 +979,8 @@ TEST_F(ActorContainerConfigTest, MultipleResourceSessions) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   EXPECT_TRUE(config.IsActuationAllowed(kExampleOrigin));
   EXPECT_TRUE(config.IsNavigationAllowed(kExampleOrigin, kExampleOrigin));
@@ -988,7 +996,8 @@ TEST_F(ActorContainerConfigTest, SiteWithUnknownProtocol) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   EXPECT_FALSE(config.IsActuationAllowed(kExampleOrigin));
   EXPECT_FALSE(config.IsNavigationAllowed(kExampleOrigin, kExampleOrigin));
@@ -1004,7 +1013,8 @@ TEST_F(ActorContainerConfigTest, OriginWithUnknownProtocol) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   EXPECT_FALSE(config.IsActuationAllowed(kExampleOrigin));
   EXPECT_FALSE(config.IsNavigationAllowed(kExampleOrigin, kExampleOrigin));
@@ -1023,7 +1033,8 @@ TEST_F(ActorContainerConfigTest, SiteWithNoDomain) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   EXPECT_FALSE(config.IsActuationAllowed(kExampleOrigin));
   EXPECT_FALSE(config.IsNavigationAllowed(kExampleOrigin, kExampleOrigin));
@@ -1043,7 +1054,8 @@ TEST_F(ActorContainerConfigTest, OriginWithNoHost) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   EXPECT_FALSE(config.IsActuationAllowed(kExampleOrigin));
   EXPECT_FALSE(config.IsNavigationAllowed(kExampleOrigin, kExampleOrigin));
@@ -1052,7 +1064,8 @@ TEST_F(ActorContainerConfigTest, OriginWithNoHost) {
 TEST_F(ActorContainerConfigTest, EmptyLocationRule) {
   optimization_guide::proto::AgentContainerConfig config_proto;
   config_proto.add_location_rules();
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   EXPECT_FALSE(config.IsActuationAllowed(kExampleOrigin));
   EXPECT_FALSE(config.IsNavigationAllowed(kExampleOrigin, kExampleOrigin));
@@ -1068,7 +1081,8 @@ TEST_F(ActorContainerConfigTest, SiteWithEmptySource) {
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
   config_proto.mutable_location_rules(0)->add_navigation_sources();
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   EXPECT_FALSE(config.IsActuationAllowed(kExampleOrigin));
   EXPECT_FALSE(config.IsNavigationAllowed(kExampleOrigin, kExampleOrigin));
@@ -1084,7 +1098,8 @@ TEST_F(ActorContainerConfigTest, WsOrigin) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   // Should not match https://.
   EXPECT_FALSE(config.IsActuationAllowed(kExampleOrigin));
@@ -1115,7 +1130,8 @@ TEST_F(ActorContainerConfigTest, WssOrigin) {
       ->mutable_metadata()
       ->add_accessible_resources(
           optimization_guide::proto::RuleMetadata::RESOURCE_SESSION);
-  ActorContainerConfig config(config_proto);
+  ActorContainerConfig config;
+  config.Assign(config_proto);
 
   // Should not match https://.
   EXPECT_FALSE(config.IsActuationAllowed(kExampleOrigin));
@@ -1135,5 +1151,15 @@ TEST_F(ActorContainerConfigTest, WssOrigin) {
   EXPECT_FALSE(config.IsActuationAllowed(kCrossSiteWsOrigin));
   EXPECT_FALSE(config.IsNavigationAllowed(kWssOrigin, kCrossSiteWssOrigin));
 }
+
+#if BUILDFLAG(USE_FUZZING_ENGINE)
+void CanParseAnyProto(
+    const optimization_guide::proto::AgentContainerConfig& config_proto) {
+  ActorContainerConfig config;
+  config.Assign(config_proto);
+}
+
+FUZZ_TEST(ActorContainerConfigFuzzTest, CanParseAnyProto);
+#endif
 
 }  // namespace actor

@@ -5,20 +5,37 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_FILLING_FORM_FILLER_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_FILLING_FORM_FILLER_H_
 
+#include <stddef.h>
+
+#include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <variant>
 
+#include "base/containers/flat_map.h"
+#include "base/containers/flat_set.h"
+#include "base/containers/span.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
+#include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "base/types/optional_ref.h"
 #include "components/autofill/core/browser/autofill_trigger_source.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
+#include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/filling/field_filling_skip_reason.h"
 #include "components/autofill/core/browser/filling/field_filling_util.h"
 #include "components/autofill/core/browser/filling/form_autofill_history.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/integrators/one_time_tokens/otp_suggestion.h"
+#include "components/autofill/core/browser/suggestions/suggestion_util.h"
 #include "components/autofill/core/common/autofill_constants.h"
+#include "components/autofill/core/common/dense_set.h"
+#include "components/autofill/core/common/form_field_data.h"
+#include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
+#include "components/autofill/core/common/unique_ids.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
 namespace autofill {
 
@@ -82,15 +99,19 @@ class FormFiller {
   class RefillOptions {
    public:
     static RefillOptions NotRefill();
-    static RefillOptions Refill(FieldTypeSet originally_filled);
+    static RefillOptions Refill(FieldTypeSet originally_filled,
+                                RefillTriggerReason reason);
 
     bool is_refill() const;
     bool may_refill(const FieldTypeSet& field_type) const;
+    std::optional<RefillTriggerReason> reason() const { return reason_; }
 
    private:
     RefillOptions();
 
+    // Both are `std::nullopt` if and only if `is_refill()` is false.
     std::optional<FieldTypeSet> originally_filled_;
+    std::optional<RefillTriggerReason> reason_;
   };
 
   // Given `field`, the corresponding `autofill_field` to fill, and the
@@ -163,6 +184,8 @@ class FormFiller {
   // Fills or previews the data from `filling_payload` into `form`.
   // `blocked_fields` are fields which must not be filled because another
   // filling operation or product of higher priority claims them.
+  // `forced_fill_values` contains values for fields to be filled directly,
+  // regardless of `filling_payload`.
   // TODO(crbug.com/40227071): Clean up the API.
   void FillOrPreviewForm(
       mojom::ActionPersistence action_persistence,
@@ -171,8 +194,10 @@ class FormFiller {
       FormStructure& form_structure,
       AutofillField& autofill_field,
       AutofillTriggerSource trigger_source,
-      std::optional<RefillTriggerReason> refill_trigger_reason = std::nullopt,
-      const base::flat_set<FieldGlobalId>& blocked_fields = {});
+      const base::flat_set<FieldGlobalId>& blocked_fields,
+      FillId fill_id,
+      const std::map<FieldGlobalId, FillingValueAndType>& forced_fill_values,
+      RefillOptions refill_options);
 
   // Prevents any automatic refill of the operation `fill_id`. A renderer may
   // call this when a JavaScript observes the `autofill` event and may therefore
@@ -211,8 +236,10 @@ class FormFiller {
 
   struct AugmentedFillingPayload;
 
-  void SetRefillContext(FormGlobalId form_id,
-                        std::unique_ptr<RefillContext> context);
+  // Stores a refill `context` for `form_id` and returns a raw pointer to the
+  // stored context.
+  RefillContext* SetRefillContext(FormGlobalId form_id,
+                                  std::unique_ptr<RefillContext> context);
 
   RefillContext* GetRefillContext(FormGlobalId form_id);
   RefillContext* GetRefillContext(const FillId& fill_id);
@@ -227,6 +254,20 @@ class FormFiller {
   void TriggerRefill(const FormData& form,
                      AutofillTriggerSource trigger_source,
                      RefillTriggerReason refill_trigger_reason);
+
+  // Initializes the `RefillContext` for `form` if applicable, and no-op
+  // otherwise. Returns true if a new refill context was successfully
+  // initialized, indicating a possibility for a refill to happen eventually.
+  bool MaybeInitializeRefillContext(
+      mojom::ActionPersistence action_persistence,
+      const FormData& form,
+      const AutofillField& autofill_trigger_field,
+      const AugmentedFillingPayload& augmented_filling_payload,
+      const base::flat_set<FieldGlobalId>& blocked_fields,
+      FillId fill_id,
+      const std::vector<FormFieldData>& result_fields,
+      const absl::flat_hash_map<FieldGlobalId, FieldType>& filled_field_types,
+      RefillOptions refill_options);
 
   struct ValueAndTypeAndOverride : public FillingValueAndType {
     bool value_is_an_override = false;
@@ -258,6 +299,15 @@ class FormFiller {
       AutofillTriggerSource trigger_source,
       bool allow_suggestion_swapping,
       std::string* failure_to_fill);
+
+  // Updates the cached `AutofillField`s in `form` with the information
+  // resulting from a filling operation.
+  void UpdateCacheOnFill(
+      FormStructure& form,
+      base::span<const FormFieldData> browser_filled_fields,
+      const base::flat_set<FieldGlobalId>& safe_filled_field_ids,
+      const absl::flat_hash_map<FieldGlobalId, FieldType>& filled_field_types,
+      const AugmentedFillingPayload& augmented_filling_payload) const;
 
   // Appends TriggerFillFieldLogEvent and FillFieldLogEvents to the relevant
   // fields in the `form_structure` if there was a filling operation.

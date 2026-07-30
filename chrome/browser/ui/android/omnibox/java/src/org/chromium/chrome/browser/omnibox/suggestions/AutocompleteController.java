@@ -24,6 +24,7 @@ import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.AutocompleteMatch;
 import org.chromium.components.omnibox.AutocompleteResult;
 import org.chromium.components.omnibox.AutocompleteResult.VerificationPoint;
+import org.chromium.components.omnibox.AutocompleteStopReason;
 import org.chromium.components.omnibox.action.OmniboxAction;
 import org.chromium.components.search_engines.TemplateUrl;
 import org.chromium.content_public.browser.NavigationHandle;
@@ -127,7 +128,8 @@ public class AutocompleteController {
                         input.getPageClassification(),
                         input.getToolMode(),
                         preventInlineAutocomplete,
-                        input.getSiteSearchData() != null,
+                        /* preferKeyword= */ input.getSiteSearchData() != null,
+                        /* inKeywordMode= */ input.getSiteSearchData() != null,
                         input.allowExactKeywordMatch(),
                         true);
     }
@@ -204,14 +206,15 @@ public class AutocompleteController {
      * Stops generating autocomplete suggestions for the currently specified text from {@link
      * #start(AutocompleteInput, int, boolean)}.
      *
-     * @param clear Whether to clear the most recent autocomplete results. When true, the {@link
+     * @param stopReason The reason for stopping the autocomplete controller. If {@link
+     *     AutocompleteStopReason#CLOBBERED} is passed, {@link
      *     #onSuggestionsReceived(AutocompleteResult, String)} will be called with an empty result
      *     set.
      */
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
-    public void stop(boolean clear) {
+    public void stop(@AutocompleteStopReason int stopReason) {
         if (mNativeController == 0) return;
-        AutocompleteControllerJni.get().stop(mNativeController, clear);
+        AutocompleteControllerJni.get().stop(mNativeController, stopReason);
     }
 
     /**
@@ -467,13 +470,16 @@ public class AutocompleteController {
                 @JniType("omnibox::ToolMode") int toolMode,
                 boolean preventInlineAutocomplete,
                 boolean preferKeyword,
+                boolean inKeywordMode,
                 boolean allowExactKeywordMatch,
                 boolean wantAsynchronousMatches);
 
         @Nullable AutocompleteMatch classify(
                 long nativeAutocompleteControllerAndroid, @JniType("std::u16string") String text);
 
-        void stop(long nativeAutocompleteControllerAndroid, boolean clearResults);
+        void stop(
+                long nativeAutocompleteControllerAndroid,
+                @JniType("AutocompleteStopReason") int stopReason);
 
         void resetSession(long nativeAutocompleteControllerAndroid);
 

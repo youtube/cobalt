@@ -35,6 +35,14 @@ public interface MultiInstanceOrchestrator {
     void onInitialize(Activity activity, MultiInstanceManager multiInstanceManager);
 
     /**
+     * Responds to foreground browser process initialization, and handles process-level tasks. For
+     * example, recovery of windows from a previous session that ended due to an unclean exit.
+     *
+     * @param previousProcessExitReason The reason why the previous process terminated.
+     */
+    void onForegroundBrowserProcessInitialized(int previousProcessExitReason);
+
+    /**
      * Creates a new ChromeTabbedActivity instance.
      *
      * @param sourceActivity The activity used to launch the intent.
@@ -77,13 +85,17 @@ public interface MultiInstanceOrchestrator {
     /**
      * Moves the specified tabs to a new ChromeTabbedActivity instance.
      *
+     * @param sourceActivity The activity that should be used to launch the intent.
      * @param tabs The list of tabs to move.
      * @param finalizeCallback A runnable that will be invoked after the tabs have finished
      *     reparenting to the new window.
      * @param source The new window creation source used for metrics.
      */
     void moveTabsToNewWindow(
-            List<Tab> tabs, @Nullable Runnable finalizeCallback, @NewWindowAppSource int source);
+            @Nullable Activity sourceActivity,
+            List<Tab> tabs,
+            @Nullable Runnable finalizeCallback,
+            @NewWindowAppSource int source);
 
     /**
      * Moves the specified tabs to the specified ChromeTabbedActivity instance. This accepts inputs

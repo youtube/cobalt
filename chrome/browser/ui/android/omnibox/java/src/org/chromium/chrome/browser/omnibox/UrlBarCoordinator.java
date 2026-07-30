@@ -218,6 +218,14 @@ public class UrlBarCoordinator
         mUrlBar.setBoundsEllipsisEnabled(enabled);
     }
 
+    /**
+     * Clears text selection, which also has the side effect of dismissing the Android selection
+     * handles and context menu if showing.
+     */
+    public void clearTextSelection() {
+        mUrlBar.clearTextSelection();
+    }
+
     @Override
     public int getSelectionStart() {
         return mUrlBar.getSelectionStart();
@@ -364,6 +372,10 @@ public class UrlBarCoordinator
             // to update a view that accepts text input.
             imm.viewClicked(mUrlBar);
             mUrlBar.setCursorVisible(true);
+            // Force IME to re-establish InputConnection on focus gain. Some devices
+            // (e.g. Samsung foldables) don't proactively call onCreateInputConnection
+            // after the UrlBar regains focus, causing keyboard input to stop working.
+            restartImfInput();
         } else {
             // Moving focus away from UrlBar(EditText) to a non-editable focus holder, such as
             // ToolbarPhone, won't automatically hide keyboard app, but restart it with TYPE_NULL,
@@ -426,6 +438,10 @@ public class UrlBarCoordinator
         } else {
             mUrlBar.clearFocus();
         }
+        // The above call may not actually trigger a focus change, e.g. if focus was lost during
+        // reparenting and the target post-reparenting focus is false, there is no apparent change
+        // from the View's point of view, but the mediator still needs to know.
+        mMediator.onUrlFocusChange(postReparentingFocus);
     }
 
     /**

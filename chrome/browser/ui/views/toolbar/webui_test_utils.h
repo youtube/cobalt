@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_TOOLBAR_WEBUI_TEST_UTILS_H_
 
 #include <string>
+#include <variant>
 
 #include "base/memory/raw_ptr.h"
 #include "ui/gfx/geometry/point.h"
@@ -15,6 +16,7 @@
 class BrowserWindowInterface;
 class AvatarToolbarButtonInterface;
 class AvatarToolbarButton;
+class WebUIAvatarToolbarButton;
 
 namespace views {
 class Widget;
@@ -30,7 +32,11 @@ void WaitForInitialWebUIToolbar(BrowserWindowInterface* browser);
 
 class AvatarToolbarButtonTestAccessor {
  public:
+  using ButtonVariant =
+      std::variant<AvatarToolbarButton*, WebUIAvatarToolbarButton*>;
+
   explicit AvatarToolbarButtonTestAccessor(BrowserWindowInterface* browser);
+  ~AvatarToolbarButtonTestAccessor();
   void WaitForAvatarButton();
   bool GetEnabled();
   bool GetVisible();
@@ -38,12 +44,13 @@ class AvatarToolbarButtonTestAccessor {
   views::Widget* GetWidget();
   gfx::ImageSkia GetImage(views::Button::ButtonState state);
   std::u16string GetRenderedTooltipText(const gfx::Point& p);
-
   void Click();
+  void SetAnnounceCallbackForTesting(
+      base::OnceCallback<void(std::u16string)> callback);
 
  private:
   AvatarToolbarButtonInterface* GetInterface();
-  AvatarToolbarButton* GetButton();
+  ButtonVariant GetButton();
 
   raw_ptr<BrowserWindowInterface> browser_;
 };

@@ -4,6 +4,10 @@
 
 #include "components/autofill/core/browser/metrics/address_data_cleaner_metrics.h"
 
+#include <stddef.h>
+
+#include <string>
+
 #include "base/metrics/histogram_functions.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 

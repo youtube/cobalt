@@ -5,11 +5,11 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_DATA_MODEL_PAYMENTS_BANK_ACCOUNT_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_DATA_MODEL_PAYMENTS_BANK_ACCOUNT_H_
 
-#include <cstdint>
-#include <string>
-#include <string_view>
+#include <stdint.h>
 
-#include "base/types/strong_alias.h"
+#include <compare>
+#include <string>
+
 #include "components/autofill/core/browser/data_model/payments/payment_instrument.h"
 
 class GURL;

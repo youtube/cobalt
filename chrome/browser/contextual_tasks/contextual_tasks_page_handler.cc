@@ -12,6 +12,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/contextual_tasks/ai_mode_context_library_converter.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks.mojom-shared.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_context_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_utils.h"
@@ -52,9 +53,11 @@
 #include "url/gurl.h"
 
 #if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/feature_engagement/tracker_factory.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "components/feature_engagement/public/feature_constants.h"
+#include "components/feature_engagement/public/tracker.h"
 #endif
 
 namespace {
@@ -164,6 +167,22 @@ std::optional<base::UnguessableToken> FindActiveInjectedInputToken(
   return std::nullopt;
 }
 
+#if !BUILDFLAG(IS_ANDROID)
+int GetSmartTabSharingFeatureActivationCount(
+    feature_engagement::Tracker* tracker) {
+  if (!tracker) {
+    return 0;
+  }
+  for (const auto& [config, count] : tracker->ListEvents(
+           feature_engagement::kIPHSmartTabSharingDefaultOnFeature)) {
+    if (config.name == "smart_tab_sharing_activated") {
+      return count;
+    }
+  }
+  return 0;
+}
+#endif
+
 }  // namespace
 
 namespace contextual_tasks {
@@ -243,18 +262,37 @@ void ContextualTasksPageHandler::GetThreadUrl(GetThreadUrlCallback callback) {
 
 void ContextualTasksPageHandler::GetUrlForTask(const base::Uuid& uuid,
                                                GetUrlForTaskCallback callback) {
+  // Wrap the callback to ensure previous_query is set on the session handle
+  // regardless of whether the URL is returned synchronously or asynchronously.
+  auto wrapped_callback = base::BindOnce(
+      [](base::WeakPtr<ContextualTasksPageHandler> self,
+         GetUrlForTaskCallback original_callback, const GURL& url) {
+        if (self && self->web_ui_controller_) {
+          if (auto* session_handle =
+                  self->web_ui_controller_
+                      ->GetOrCreateContextualSessionHandle()) {
+            std::string query = lens::ExtractTextQueryParameterValue(url);
+            if (!query.empty()) {
+              session_handle->set_previous_query(query);
+            }
+          }
+        }
+        std::move(original_callback).Run(url);
+      },
+      weak_ptr_factory_.GetWeakPtr(), std::move(callback));
+
   // First check if there's an initial URL.
   std::optional<GURL> initial_url = ui_service_->GetInitialUrlForTask(uuid);
   if (initial_url) {
-    std::move(callback).Run(
-        contextual_tasks::ContextualTasksUiService::CopyParamsFromWebUIUrl(
+    std::move(wrapped_callback)
+        .Run(contextual_tasks::ContextualTasksUiService::CopyParamsFromWebUIUrl(
             initial_url.value(), web_ui_controller_->GetWebUiUrl()));
     return;
   }
 
   // If the task is waiting for a URL to be generated, register a callback.
   if (ui_service_->IsTaskWaitingForUrl(uuid)) {
-    ui_service_->AddPendingUrlCallback(uuid, std::move(callback));
+    ui_service_->AddPendingUrlCallback(uuid, std::move(wrapped_callback));
     return;
   }
 
@@ -267,9 +305,9 @@ void ContextualTasksPageHandler::GetUrlForTask(const base::Uuid& uuid,
       base::BindOnce(
           [](GetUrlForTaskCallback callback, GURL webui_url, GURL url) {
             std::move(callback).Run(contextual_tasks::ContextualTasksUiService::
-                                        CopyParamsFromWebUIUrl(url, webui_url));
+                                        GetAiUrlFromWebUIUrl(url, webui_url));
           },
-          std::move(callback), web_ui_controller_->GetWebUiUrl()));
+          std::move(wrapped_callback), web_ui_controller_->GetWebUiUrl()));
 }
 
 void ContextualTasksPageHandler::SetTaskId(const base::Uuid& uuid) {
@@ -678,7 +716,15 @@ void ContextualTasksPageHandler::PinSidePanel() {
 
 void ContextualTasksPageHandler::OnContextMenuOpened() {
 #if !BUILDFLAG(IS_ANDROID)
-  if (!contextual_tasks::GetIsSmartTabSharingEnabled()) {
+  if (!contextual_tasks::ContextualTasksContextService::
+          GetIsSmartTabSharingEnabled(web_ui_controller_
+                                          ? web_ui_controller_->GetProfile()
+                                          : nullptr)) {
+    return;
+  }
+  if (GetSmartTabSharingFeatureActivationCount(
+          feature_engagement::TrackerFactory::GetForBrowserContext(
+              web_ui_controller_->GetProfile())) > 0) {
     return;
   }
   if (auto* interface =
@@ -686,6 +732,41 @@ void ContextualTasksPageHandler::OnContextMenuOpened() {
               web_ui_controller_->GetWebUIWebContents()))) {
     interface->MaybeShowFeaturePromo(
         feature_engagement::kIPHSmartTabSharingFeature);
+  }
+#endif
+}
+
+void ContextualTasksPageHandler::NotifySmartTabSharingTryItIphResult(
+    bool accepted) {
+#if !BUILDFLAG(IS_ANDROID)
+  auto* tracker = feature_engagement::TrackerFactory::GetForBrowserContext(
+      web_ui_controller_->GetProfile());
+  if (tracker) {
+    if (accepted) {
+      if (auto* browser = web_ui_controller_->GetBrowser()) {
+        ui_service_->TurnOnSmartTabSharing(browser);
+      }
+
+      tracker->NotifyUsedEvent(
+          feature_engagement::kIPHSmartTabSharingTryItFeature);
+    }
+  }
+#endif
+}
+
+void ContextualTasksPageHandler::NotifySmartTabSharingDefaultOnIphResult(
+    bool accepted) {
+#if !BUILDFLAG(IS_ANDROID)
+  auto* tracker = feature_engagement::TrackerFactory::GetForBrowserContext(
+      web_ui_controller_->GetProfile());
+  if (tracker) {
+    if (accepted) {
+      web_ui_controller_->GetProfile()->GetPrefs()->SetBoolean(
+          contextual_tasks::kContextualTasksShareOpenTabsEveryThread, true);
+
+      tracker->NotifyUsedEvent(
+          feature_engagement::kIPHSmartTabSharingDefaultOnFeature);
+    }
   }
 #endif
 }

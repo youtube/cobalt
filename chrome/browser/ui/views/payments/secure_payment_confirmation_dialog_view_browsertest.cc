@@ -31,6 +31,7 @@
 #include "third_party/blink/public/common/features.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/views/bubble/bubble_frame_view.h"
@@ -243,7 +244,7 @@ class SecurePaymentConfirmationDialogViewTest
 
     const SkBitmap* merchant_icon =
         gfx::CreateVectorIcon(
-            vector_icons::kStorefrontIcon,
+            vector_icons::kStorefrontOldIcon,
             kSecurePaymentConfirmationIconDefaultWidthPx,
             test_delegate_->dialog_view()->GetColorProvider()->GetColor(
                 ui::kColorSysOnSurfaceSubtle))
@@ -272,7 +273,9 @@ class SecurePaymentConfirmationDialogViewTest
     const SkBitmap* instrument_icon =
         instrument_icon_->drawsNothing()
             ? gfx::CreateVectorIcon(
-                  kCreditCardIcon, kSecurePaymentConfirmationIconDefaultWidthPx,
+                  features::IsRoundedIconsEnabled() ? kCreditCardIcon
+                                                    : kCreditCardOldIcon,
+                  kSecurePaymentConfirmationIconDefaultWidthPx,
                   test_delegate_->dialog_view()->GetColorProvider()->GetColor(
                       ui::kColorSysOnSurfaceSubtle))
                   .bitmap()
@@ -287,7 +290,7 @@ class SecurePaymentConfirmationDialogViewTest
 
     const SkBitmap* total_icon =
         gfx::CreateVectorIcon(
-            vector_icons::kPaymentsIcon,
+            vector_icons::kPaymentsOldIcon,
             kSecurePaymentConfirmationIconDefaultWidthPx,
             test_delegate_->dialog_view()->GetColorProvider()->GetColor(
                 ui::kColorSysOnSurfaceSubtle))

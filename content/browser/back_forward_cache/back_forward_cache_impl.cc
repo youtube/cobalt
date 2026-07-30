@@ -30,6 +30,7 @@
 #include "content/browser/back_forward_cache/back_forward_cache_metrics.h"
 #include "content/browser/bad_message.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
+#include "content/browser/renderer_host/navigation_controller_impl.h"
 #include "content/browser/renderer_host/navigation_request.h"
 #include "content/browser/renderer_host/render_frame_host_delegate.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
@@ -81,6 +82,30 @@ const base::FeatureParam<int> kBackForwardCacheSizeForegroundCacheSize{
     &kBackForwardCacheSize, "foreground_cache_size", 0};
 
 namespace {
+
+size_t GetDefaultMaxCacheSize() {
+  if (!IsBackForwardCacheEnabled()) {
+    return 0;
+  }
+  if (!base::FeatureList::IsEnabled(kBackForwardCacheSize)) {
+    return 0;
+  }
+  return kBackForwardCacheSizeCacheSize.Get();
+}
+
+std::optional<size_t> GetDefaultMaxForegroundCacheSize() {
+  if (!IsBackForwardCacheEnabled()) {
+    return std::nullopt;
+  }
+  if (!base::FeatureList::IsEnabled(kBackForwardCacheSize)) {
+    return std::nullopt;
+  }
+  int foreground_size = kBackForwardCacheSizeForegroundCacheSize.Get();
+  if (foreground_size <= 0) {
+    return std::nullopt;
+  }
+  return static_cast<size_t>(foreground_size);
+}
 
 using blink::scheduler::WebSchedulerTrackedFeature;
 using blink::scheduler::WebSchedulerTrackedFeatures;
@@ -672,11 +697,16 @@ BackForwardCacheTestDelegate::~BackForwardCacheTestDelegate() {
   g_bfcache_disabled_test_observer = nullptr;
 }
 
-BackForwardCacheImpl::BackForwardCacheImpl(BrowserContext* browser_context)
-    : allowed_urls_(ParseCommaSeparatedURLs(GetAllowedURLList())),
+BackForwardCacheImpl::BackForwardCacheImpl(
+    NavigationControllerImpl& navigation_controller)
+    : controller_(navigation_controller),
+      allowed_urls_(ParseCommaSeparatedURLs(GetAllowedURLList())),
       blocked_urls_(ParseCommaSeparatedURLs(GetBlockedURLList())),
       blocked_cgi_params_(ParseBlockedCgiParams(GetBlockedCgiParams())),
+      max_cache_size_(GetDefaultMaxCacheSize()),
+      max_foreground_cache_size_(GetDefaultMaxForegroundCacheSize()),
       weak_factory_(this) {
+  BrowserContext* browser_context = navigation_controller.GetBrowserContext();
   should_allow_storing_pages_with_cache_control_no_store_ =
       browser_context &&
       GetContentClient()
@@ -744,40 +774,15 @@ base::TimeDelta BackForwardCacheImpl::GetTimeToLiveInBackForwardCache(
 }
 
 size_t BackForwardCacheImpl::GetCacheSize() {
-  if (!IsBackForwardCacheEnabled()) {
-    return 0;
-  }
-
-  if (embedder_supplied_cache_size_.has_value()) {
-    return embedder_supplied_cache_size_.value();
-  }
-
-  if (base::FeatureList::IsEnabled(kBackForwardCacheSize)) {
-    return kBackForwardCacheSizeCacheSize.Get();
-  }
-
-  return 0;
+  return max_cache_size_;
 }
 
-size_t BackForwardCacheImpl::GetForegroundedEntriesCacheSize() {
-  if (!IsBackForwardCacheEnabled()) {
-    return 0;
-  }
-
-  if (embedder_supplied_cache_size_.has_value()) {
-    // If the embedder supplied a limit (which should affect `GetCacheSize()`),
-    // don't use a foreground-specific limit.
-    return 0;
-  }
-
-  if (base::FeatureList::IsEnabled(kBackForwardCacheSize)) {
-    return kBackForwardCacheSizeForegroundCacheSize.Get();
-  }
-  return 0;
+std::optional<size_t> BackForwardCacheImpl::GetForegroundedEntriesCacheSize() {
+  return max_foreground_cache_size_;
 }
 
 bool BackForwardCacheImpl::UsingForegroundBackgroundCacheSizeLimit() {
-  return GetForegroundedEntriesCacheSize() > 0;
+  return max_foreground_cache_size_.has_value();
 }
 
 BackForwardCacheImpl::Entry* BackForwardCacheImpl::FindMatchingEntry(
@@ -1393,7 +1398,7 @@ void BackForwardCacheImpl::EnforceCacheSizeLimit() {
     // backgrounded process if there is memory pressure, so we can allow more of
     // those to be kept in the cache.
     EnforceCacheSizeLimitInternal(
-        GetForegroundedEntriesCacheSize(),
+        max_foreground_cache_size_.value(),
         BackForwardCacheMetrics::NotRestoredReason::kForegroundCacheLimit);
   }
   EnforceCacheSizeLimitInternal(
@@ -1492,10 +1497,11 @@ size_t BackForwardCacheImpl::EnforceCacheSizeLimitInternal(
 
 void BackForwardCacheImpl::SetEmbedderSuppliedCacheSize(
     size_t embedder_supplied_cache_size) {
-  if (embedder_supplied_cache_size == GetCacheSize()) {
+  if (!IsBackForwardCacheEnabled()) {
     return;
   }
-  embedder_supplied_cache_size_ = embedder_supplied_cache_size;
+  max_cache_size_ = embedder_supplied_cache_size;
+  max_foreground_cache_size_ = std::nullopt;
   EnforceCacheSizeLimit();
 }
 
@@ -1520,7 +1526,7 @@ void BackForwardCacheImpl::SetEmbedderSuppliedCacheForwardEntriesAllowed(
   embedder_supplied_cache_forward_entries_allowed_ =
       embedder_supplied_cache_forward_entries_allowed;
   if (!embedder_supplied_cache_forward_entries_allowed && !entries_.empty()) {
-    PruneForwardEntries(GetNavigationController().GetLastCommittedEntryIndex());
+    PruneForwardEntries(controller_->GetLastCommittedEntryIndex());
   }
 }
 
@@ -1535,9 +1541,8 @@ void BackForwardCacheImpl::PruneForwardEntries(int target_entry_index) {
   if (entries_.empty()) {
     return;
   }
-  auto& controller = GetNavigationController();
   for (std::unique_ptr<Entry>& entry : entries_) {
-    if (IsForwardEntry(entry, controller, target_entry_index)) {
+    if (IsForwardEntry(entry, target_entry_index)) {
       entry->render_frame_host()->EvictFromBackForwardCacheWithReason(
           BackForwardCacheMetrics::NotRestoredReason::kForwardCacheDisabled);
     }
@@ -1706,15 +1711,6 @@ BackForwardCacheImpl::GetEntries() {
   return entries_;
 }
 
-NavigationControllerImpl& BackForwardCacheImpl::GetNavigationController() {
-  CHECK(!entries_.empty());
-  return entries_.front()
-      ->render_frame_host()
-      ->frame_tree_node()
-      ->navigator()
-      .controller();
-}
-
 std::list<BackForwardCacheImpl::Entry*>
 BackForwardCacheImpl::GetEntriesForRenderViewHostImpl(
     const RenderViewHostImpl* rvhi) const {
@@ -1814,9 +1810,8 @@ void BackForwardCacheImpl::RenderViewHostNoLongerStored(
 }
 
 bool BackForwardCacheImpl::IsForwardEntry(const std::unique_ptr<Entry>& entry,
-                                          NavigationControllerImpl& controller,
                                           int current_nav_entry_index) {
-  int entry_index = controller.GetEntryIndexWithUniqueID(
+  int entry_index = controller_->GetEntryIndexWithUniqueID(
       entry->render_frame_host()->nav_entry_id());
   return entry_index != -1 && entry_index > current_nav_entry_index;
 }
@@ -1825,9 +1820,8 @@ void BackForwardCacheImpl::RecordForwardEntriesCount(
     int current_nav_entry_index) {
   int count = 0;
   if (!entries_.empty()) {
-    auto& controller = GetNavigationController();
     count = std::ranges::count_if(entries_, [&](const auto& entry) {
-      return IsForwardEntry(entry, controller, current_nav_entry_index);
+      return IsForwardEntry(entry, current_nav_entry_index);
     });
   }
   base::UmaHistogramExactLinear("BackForwardCache.History.ForwardEntriesCount",
@@ -1841,7 +1835,6 @@ void BackForwardCacheImpl::RecordEntryMatch(const GURL& new_url,
                                   BackForwardCacheEntryMatchResult::kNoEntries);
     return;
   }
-  auto& controller = GetNavigationController();
   bool match_found = false;
   bool index_match_found = false;
 
@@ -1849,7 +1842,7 @@ void BackForwardCacheImpl::RecordEntryMatch(const GURL& new_url,
   for (const auto& entry : entries_) {
     if (entry->render_frame_host()->GetLastCommittedURL() == new_url) {
       match_found = true;
-      int entry_index = controller.GetEntryIndexWithUniqueID(
+      int entry_index = controller_->GetEntryIndexWithUniqueID(
           entry->render_frame_host()->nav_entry_id());
       if (entry_index == target_nav_entry_index) {
         index_match_found = true;
@@ -1916,11 +1909,9 @@ void BackForwardCacheImpl::OnMemoryPressure(
   // TODO(431957711): Check if this is really needed.
   // TODO(431957711): `number_of_tabs` can only ever be 0 or 1. Consider fixing
   // it or removing it the metric.
-  auto& navigation_controller =
-      rfh->frame_tree_node()->navigator().controller();
   size_t number_of_tabs = 0;
   size_t number_of_cached_entries = 0;
-  if (!navigation_controller.GetPendingEntry()) {
+  if (!controller_->GetPendingEntry()) {
     size_t count = Prune(cache_size, reason);
     if (count > 0) {
       number_of_tabs++;

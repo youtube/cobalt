@@ -14,10 +14,8 @@
 namespace contextual_tasks {
 
 BASE_DECLARE_FEATURE(kContextualTasks);
+BASE_DECLARE_FEATURE(kContextualTasksExtraOauthScopes);
 BASE_DECLARE_FEATURE(kEnableContextualTasksPinButtonInToolbar);
-// When enabled, it should instead request the kSearchResultsOAuth2Scope instead
-// of the kChromeSyncOAuth2Scope
-BASE_DECLARE_FEATURE(kContextualTasksScopeChange);
 BASE_DECLARE_FEATURE(kContextualTasksContext);
 BASE_DECLARE_FEATURE(kContextualTasksContextLibrary);
 BASE_DECLARE_FEATURE(kContextualTasksContextLogging);
@@ -99,6 +97,9 @@ BASE_DECLARE_FEATURE(kContextualTasksWebpageApcComparison);
 // only.
 BASE_DECLARE_FEATURE(kContextualTasksJavaFusebox);
 
+// Enables overriding side panel to show Bottom Sheet on demand.
+BASE_DECLARE_FEATURE(kContextualTasksOverrideShowBottomSheetOnLargeScreen);
+
 bool GetIsContextualTasksUpdateModeOnNavigationEnabled();
 
 bool GetIsContextualTasksPdfCitationsEnabled();
@@ -108,7 +109,6 @@ bool GetIsContextualTasksLazyFetchClusterInfoEnabled();
 // Enum denoting which entry point can show when enabled.
 enum class EntryPointOption {
   kNoEntryPoint,
-  kPageActionRevisit,
   kToolbarRevisit,
   kToolbarPermanent,
   kToolbarEphemeralBranded,
@@ -122,10 +122,15 @@ enum class ExpandButtonOption {
 
 // Whether to only consider titles for similarity.
 extern const base::FeatureParam<bool> kOnlyUseTitlesForSimilarity;
+// Whether to deduplicate relevant tabs by URL.
+extern const base::FeatureParam<bool> kDeduplicateRelevantTabsByUrl;
 // Minimum score to consider a tab relevant.
 extern const base::FeatureParam<double> kTabSelectionScoreThreshold;
 // Minimum score required for a tab to be considered visible.
 extern const base::FeatureParam<double> kContentVisibilityThreshold;
+
+// Whether Smart Tab Sharing is enabled for the ContextualTasksContext feature.
+extern const base::FeatureParam<bool> kContextualTasksContextSmartTabSharing;
 
 // Task string to use for formatting the query embedding.
 extern const base::FeatureParam<std::string> kQueryEmbeddingTask;
@@ -156,6 +161,9 @@ extern const base::FeatureParam<int> kContextualTasksNextboxMaxFileSize;
 
 // The user agent suffix to use for requests from the contextual tasks UI.
 extern const base::FeatureParam<std::string> kContextualTasksUserAgentSuffix;
+
+// Extra OAuth scopes separated by commas for contextual tasks.
+extern const base::FeatureParam<std::string> kContextualTasksOAuthScopes;
 
 // The URL for the help center article from the toolbar.
 extern const base::FeatureParam<std::string> kContextualTasksHelpUrl;
@@ -230,9 +238,6 @@ extern std::vector<std::string> GetContextualTasksSignInDomains();
 // Whether the suggestions are enabled for Nextbox.
 extern bool GetIsContextualTasksSuggestionsEnabled();
 
-// Whether Smart Tab Sharing is enabled for the ContextualTasksContext feature.
-extern bool GetIsSmartTabSharingEnabled();
-
 // Returns the timeout for smart tab sharing tab selection.
 extern base::TimeDelta GetSmartTabSharingTabSelectionTimeout();
 
@@ -278,9 +283,6 @@ extern bool GetEnableContextualTasksSmartCompose();
 // zero state suggestions are enabled for Contextual Tasks.
 extern bool GetEnableNativeZeroStateSuggestions();
 
-// Returns whether the kSearchResultsOAuth2Scope should be used instead of the
-// kChromeSyncOAuth2Scope.
-extern bool ShouldUseSearchResultsScope();
 
 // Returns whether basic mode should be enabled.
 extern bool GetIsBasicModeEnabled();
@@ -334,6 +336,9 @@ extern const char kContextualTasksJavaFuseboxName[];
 extern const char kContextualTasksJavaFuseboxDescription[];
 extern const char kContextualTasksBackButtonExpandsSidePanelName[];
 extern const char kContextualTasksBackButtonExpandsSidePanelDescription[];
+extern const char kContextualTasksOverrideShowBottomSheetOnLargeScreenName[];
+extern const char
+    kContextualTasksOverrideShowBottomSheetOnLargeScreenDescription[];
 
 }  // namespace flag_descriptions
 

@@ -17,12 +17,13 @@
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/enterprise_policy_checker.h"
 #include "chrome/browser/actor/execution_engine.h"
+#include "chrome/browser/glic/public/glic_instance.h"
 #include "chrome/browser/glic/public/glic_invoke_options.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_passkeys.h"
+#include "chrome/browser/password_manager/actor_login/password_change_from_checkup_actor_login_service.h"
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
 #include "chrome/browser/password_manager/password_change/change_password_form_waiter.h"
-#include "chrome/browser/password_manager/password_change/model_quality_logs_uploader.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/actor_webui.mojom.h"
 #include "chrome/grit/browser_resources.h"
@@ -56,10 +57,6 @@ std::unique_ptr<Logger> GetLoggerIfAvailable(
     return std::make_unique<Logger>(client->GetCurrentLogManager());
   }
   return nullptr;
-}
-
-bool IsValidUrl(const GURL& url) {
-  return url.is_valid() && url.SchemeIsHTTPOrHTTPS();
 }
 
 std::optional<actor::TaskId> CreateDummyTaskAndTiedTab(
@@ -100,18 +97,6 @@ void RemoveActuationTabFromTask(std::optional<actor::TaskId> task_id,
   actor::ActorTask* task = actor_service->GetTask(*task_id);
   CHECK(task);
   task->RemoveTab(actuation_tab->GetHandle());
-}
-
-bool IsSameOrigin(const std::u16string& credential_source_site_or_app,
-                  const GURL& credential_target_url) {
-  GURL source_url(credential_source_site_or_app);
-
-  if (!IsValidUrl(credential_target_url) || !IsValidUrl(source_url)) {
-    return false;
-  }
-
-  return url::Origin::Create(source_url)
-      .IsSameOriginWith(url::Origin::Create(credential_target_url));
 }
 
 std::string GetReachFormPrompt(const std::string& domain,
@@ -266,7 +251,7 @@ void PasswordChangeFromCheckupDelegate::StartPasswordChangeFlow(
       glic::mojom::InvocationSource::kPasswordChange);
   options.prompts.push_back(std::move(reach_form_prompt));
   options.target.actuation_target = glic::mojom::ActuationTarget::kCurrentTab;
-  glic_service->InvokeWithAutoSubmit(
+  glic_instance_ = glic_service->InvokeWithAutoSubmit(
       glic::InvokeWithAutoSubmitPasskeyProvider::GetPassKey(),
       std::move(options));
 
@@ -284,46 +269,6 @@ void PasswordChangeFromCheckupDelegate::StartPasswordChangeFlow(
             &PasswordChangeFromCheckupDelegate::OnFindFormTaskStateChanged,
             base::Unretained(this)));
   }
-}
-
-void PasswordChangeFromCheckupDelegate::AutoSelectCredential(
-    const std::vector<actor_login::Credential>& credentials,
-    actor::ToolDelegate::CredentialSelectedCallback callback) {
-  if (!actuation_web_contents_) {
-    std::move(callback).Run(
-        actor::webui::mojom::SelectCredentialDialogResponse::New());
-    return;
-  }
-
-  for (const auto& cred : credentials) {
-    // Discard credentials that are not passwords.
-    if (cred.type != actor_login::CredentialType::kPassword ||
-        cred.username != username_) {
-      continue;
-    }
-
-    if (IsSameOrigin(cred.source_site_or_app, credential_url_)) {
-      if (auto logger = GetLoggerIfAvailable(client_)) {
-        logger->LogMessage(
-            Logger::STRING_PASSWORD_CHANGE_FROM_CHECKUP_CREDENTIAL_OVERRIDDEN);
-      }
-      auto response =
-          actor::webui::mojom::SelectCredentialDialogResponse::New();
-      response->selected_credential_id = cred.id.value();
-      response->permission_duration =
-          actor::webui::mojom::UserGrantedPermissionDuration::kOneTime;
-      std::move(callback).Run(std::move(response));
-      return;
-    }
-  }
-
-  if (auto logger = GetLoggerIfAvailable(client_)) {
-    logger->LogMessage(
-        Logger::STRING_PASSWORD_CHANGE_FROM_CHECKUP_NO_CREDENTIAL_FOUND);
-  }
-
-  std::move(callback).Run(
-      actor::webui::mojom::SelectCredentialDialogResponse::New());
 }
 
 glic::GlicKeyedService* PasswordChangeFromCheckupDelegate::GetGlicService() {
@@ -345,7 +290,10 @@ void PasswordChangeFromCheckupDelegate::OnFindFormTaskStateChanged(
   if (!find_form_task_id_) {
     if (task.GetTabs().contains(actuation_tab->GetHandle())) {
       find_form_task_id_ = task.id();
-      RegisterAutoSelectCredential(task);
+      task.GetExecutionEngine().SetActorLoginService(
+          std::make_unique<
+              actor_login::PasswordChangeFromCheckupActorLoginService>(
+              username_, current_password_, credential_url_));
     } else {
       return;
     }
@@ -405,23 +353,23 @@ void PasswordChangeFromCheckupDelegate::OnChangePasswordFormManagerFound(
     logger->LogMessage(Logger::STRING_PASSWORD_CHANGE_FROM_CHECKUP_FORM_FOUND);
   }
 
-  submission_helper_ =
-      std::make_unique<ChangePasswordFormFillingSubmissionHelper>(
-          actuation_web_contents_.get(),
-          ChromePasswordManagerClient::FromWebContents(
-              actuation_web_contents_.get()),
-          base::BindOnce(
-              &PasswordChangeFromCheckupDelegate::OnChangePasswordFormSubmitted,
-              weak_ptr_factory_.GetWeakPtr()));
+  form_filler_ = std::make_unique<ChangePasswordFormFiller>(
+      actuation_web_contents_.get(),
+      ChromePasswordManagerClient::FromWebContents(
+          actuation_web_contents_.get()),
+      /*logs_uploader=*/nullptr);
 
-  submission_helper_->FillChangePasswordForm(
-      form_manager, username_, current_password_, generated_password_);
+  form_filler_->FillForm(
+      form_manager, username_, current_password_, generated_password_,
+      base::BindOnce(
+          &PasswordChangeFromCheckupDelegate::OnChangePasswordFormFilled,
+          weak_ptr_factory_.GetWeakPtr()));
 }
 
-void PasswordChangeFromCheckupDelegate::OnChangePasswordFormSubmitted(
-    ChangePasswordFormFillingSubmissionHelper::SubmissionResult result) {
-  submission_helper_.reset();
-  // If the form submission failed, do not trigger a verification task.
+void PasswordChangeFromCheckupDelegate::OnChangePasswordFormFilled(
+    ChangePasswordFormFiller::FillingResult result) {
+  form_filler_.reset();
+
   if (!result.has_value()) {
     return;
   }
@@ -432,8 +380,7 @@ void PasswordChangeFromCheckupDelegate::OnChangePasswordFormSubmitted(
   }
 
   if (auto logger = GetLoggerIfAvailable(client_)) {
-    logger->LogMessage(
-        Logger::STRING_PASSWORD_CHANGE_FROM_CHECKUP_FORM_SUBMISSION);
+    logger->LogMessage(Logger::STRING_PASSWORD_CHANGE_FROM_CHECKUP_FORM_FILLED);
   }
 
   glic::GlicKeyedService* glic_service = GetGlicService();
@@ -478,6 +425,10 @@ void PasswordChangeFromCheckupDelegate::OnVerificationTaskStateChanged(
     if (task.GetTabs().contains(actuation_tab->GetHandle())) {
       verification_task_id_ = task.id();
       verification_task_created_ = true;
+      task.GetExecutionEngine().SetActorLoginService(
+          std::make_unique<
+              actor_login::PasswordChangeFromCheckupActorLoginService>(
+              username_, current_password_, credential_url_));
       if (auto logger = GetLoggerIfAvailable(client_)) {
         logger->LogMessage(
             Logger::STRING_PASSWORD_CHANGE_FROM_CHECKUP_VERIFICATION_CREATED);
@@ -539,12 +490,6 @@ void PasswordChangeFromCheckupDelegate::HandleMaybeSuccessfulPasswordChange() {
     saved_form_manager_.reset();
   }
 }
-void PasswordChangeFromCheckupDelegate::RegisterAutoSelectCredential(
-    actor::ActorTask& task) {
-  task.GetExecutionEngine().PreHandleCredentialSelectionDialog(
-      base::BindOnce(&PasswordChangeFromCheckupDelegate::AutoSelectCredential,
-                     weak_ptr_factory_.GetWeakPtr()));
-}
 
 void PasswordChangeFromCheckupDelegate::InvokeVerificationFlow(
     std::string post_submission_prompt) {
@@ -559,9 +504,16 @@ void PasswordChangeFromCheckupDelegate::InvokeVerificationFlow(
     return;
   }
 
+  std::string conversation_id;
+  if (glic_instance_ && glic_instance_->conversation_id()) {
+    conversation_id = *glic_instance_->conversation_id();
+  }
+  glic::Target target =
+      conversation_id.empty()
+          ? glic::Target(tab_interface, glic::NewConversation())
+          : glic::Target(tab_interface, glic::ConversationId(conversation_id));
   glic::GlicInvokeOptions options(
-      glic::Target(tab_interface, glic::NewConversation()),
-      glic::mojom::InvocationSource::kPasswordChange);
+      std::move(target), glic::mojom::InvocationSource::kPasswordChange);
   options.prompts.push_back(std::move(post_submission_prompt));
   options.target.actuation_target = glic::mojom::ActuationTarget::kCurrentTab;
   glic_service->InvokeWithAutoSubmit(

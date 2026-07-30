@@ -26,9 +26,6 @@
 #include "base/uuid.h"
 #include "base/values.h"
 #include "chrome/browser/ash/login/demo_mode/demo_mode_dimensions.h"
-#include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
-#include "chrome/browser/browser_process.h"
-#include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/browser/ui/webui/ash/login/online_login_utils.h"
 #include "chromeos/ash/components/demo_mode/utils/demo_session_utils.h"
@@ -174,10 +171,6 @@ constexpr net::NetworkTrafficAnnotationTag kCleanUpTrafficAnnotation =
               "Not implemented."
           })");
 
-scoped_refptr<network::SharedURLLoaderFactory> GetUrlLoaderFactory() {
-  return g_browser_process->shared_url_loader_factory();
-}
-
 GURL GetDemoModeServerBaseUrl() {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   return GURL(
@@ -254,6 +247,7 @@ std::unique_ptr<network::SimpleURLLoader> CreateDemoAccountURLLoader(
 // Send demo account related http requests to server. i.e. setup request,
 // cleanup request.
 void SendDemoAccountRequest(
+    network::mojom::URLLoaderFactory& url_loader_factory,
     const base::DictValue& post_data,
     network::SimpleURLLoader* url_loader,
     base::OnceCallback<void(std::optional<std::string> response_body)>
@@ -266,7 +260,7 @@ void SendDemoAccountRequest(
   CHECK(base::JSONWriter::Write(post_data, &request_string));
   url_loader->AttachStringForUpload(request_string, kContentTypeJSON);
   url_loader->SetTimeoutDuration(kDemoAccountRequestTimeout);
-  url_loader->DownloadToString(GetUrlLoaderFactory().get(), std::move(callback),
+  url_loader->DownloadToString(&url_loader_factory, std::move(callback),
                                kMaxResponseSize);
 }
 
@@ -344,21 +338,6 @@ void RemoveGaiaUsersOnDevice() {
   }
 }
 
-policy::DeviceCloudPolicyManagerAsh* GetDeviceCloudPolicyManager() {
-  auto* platform_part = g_browser_process->platform_part();
-  if (!platform_part) {
-    LOG(ERROR) << "platform_part is null.";
-    return nullptr;
-  }
-  auto* policy_connector_ash = platform_part->browser_policy_connector_ash();
-  if (!policy_connector_ash) {
-    LOG(ERROR) << "browser_policy_connector_ash is null.";
-    return nullptr;
-  }
-
-  return policy_connector_ash->GetDeviceCloudPolicyManager();
-}
-
 base::DictValue GetDeviceInfo(PrefService& local_state) {
   // Full ChromeOS version, for example: R127-15919.0.0_stable-channel.
   const std::string version = demo_mode::GetChromeOSVersionString();
@@ -390,25 +369,30 @@ base::DictValue GetDeviceInfo(PrefService& local_state) {
 
 DemoLoginController::DemoLoginController(
     PrefService* local_state,
+    scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
+    policy::DeviceCloudPolicyManagerAsh* device_cloud_policy_manager_ash,
     base::RepeatingClosure configure_auto_login_callback)
     : local_state_(CHECK_DEREF(local_state)),
+      shared_url_loader_factory_(std::move(shared_url_loader_factory)),
+      device_cloud_policy_manager_ash_(device_cloud_policy_manager_ash),
       configure_auto_login_callback_(std::move(configure_auto_login_callback)) {
-  state_ = State::kLoadingAvailibility;
-
-  auto* cloud_policy_manager = GetDeviceCloudPolicyManager();
-  if (!cloud_policy_manager) {
+  CHECK(shared_url_loader_factory_);
+  if (!device_cloud_policy_manager_ash_) {
     CHECK_IS_TEST();
     state_ = State::kReadyForLoginWithDemoAccount;
     return;
   }
 
-  is_policy_manager_connected_ = cloud_policy_manager->IsConnected();
+  state_ = State::kLoadingAvailibility;
+
+  is_policy_manager_connected_ =
+      device_cloud_policy_manager_ash_->IsConnected();
 
   // Sign in experience relies on DM Token for device verification. DM Token is
   // fetched using policy client, so we need to wait for policy manager to be
   // connected.
   if (!is_policy_manager_connected_) {
-    observation_.Observe(cloud_policy_manager);
+    observation_.Observe(device_cloud_policy_manager_ash_.get());
 
     // `DemoLoginController::OnDeviceCloudPolicyManagerConnected` might not be
     // triggered if there is a network issue.
@@ -498,7 +482,7 @@ void DemoLoginController::SendSetupDemoAccountRequest() {
                                  kSetupAccountTrafficAnnotation);
 
   SendDemoAccountRequest(
-      post_data, url_loader_.get(),
+      *shared_url_loader_factory_.get(), post_data, url_loader_.get(),
       base::BindOnce(&DemoLoginController::OnSetupDemoAccountComplete,
                      weak_ptr_factory_.GetWeakPtr(), sign_in_scoped_device_id));
 }
@@ -678,7 +662,7 @@ void DemoLoginController::MaybeCleanupPreviousDemoAccount() {
                                  kCleanUpTrafficAnnotation);
 
   SendDemoAccountRequest(
-      post_data, url_loader_.get(),
+      *shared_url_loader_factory_.get(), post_data, url_loader_.get(),
       base::BindOnce(&DemoLoginController::OnCleanUpDemoAccountComplete,
                      weak_ptr_factory_.GetWeakPtr()));
 }
@@ -728,10 +712,10 @@ std::optional<base::DictValue> DemoLoginController::GetDeviceIdentifier(
     const std::string& login_scope_device_id) {
   // The class member `policy_manager_for_testing_` is set during testing.
   // If it's not set, it means we're not in the testing environment, so we
-  // can get the real policy manager from `policy_connector_ash`.
+  // can get the real policy manager `device_cloud_policy_manager_ash_`.
   policy::CloudPolicyManager* policy_manager =
       policy_manager_for_testing_ ? policy_manager_for_testing_
-                                  : GetDeviceCloudPolicyManager();
+                                  : device_cloud_policy_manager_ash_.get();
 
   if (!policy_manager) {
     LOG(ERROR)

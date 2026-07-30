@@ -231,13 +231,6 @@ class GlicKeyedService : public KeyedService, public base::SupportsUserData {
   // Get the GlicInstance for a provided tab, or null if there is none.
   virtual GlicInstance* GetInstanceForTab(tabs::TabInterface* tab);
 
-  // Sends additional context to the web client associated with the given tab.
-  // If no web client exists for the tab, then this method does nothing. It is
-  // the responsibility of the caller to ensure that a host exists before
-  // calling this method.
-  virtual void SendAdditionalContext(tabs::TabHandle tab_handle,
-                                     mojom::AdditionalContextPtr context);
-
   GlicTabDataObserver& tab_data_observer() { return *tab_data_observer_; }
   GlicTabFaviconObserver& tab_favicon_observer() {
     return *tab_favicon_observer_;
@@ -273,6 +266,8 @@ class GlicKeyedService : public KeyedService, public base::SupportsUserData {
 
   void FinishPreload(GlicPrewarmingChecksResult reason);
 
+  void OnExperimentalTriggeringStateChanged();
+
   // List of callbacks to be notified when the client requests a change to the
   // context access indicator status.
   base::RepeatingCallbackList<void(bool)>
@@ -306,6 +301,8 @@ class GlicKeyedService : public KeyedService, public base::SupportsUserData {
 
   std::unique_ptr<GlicTabDataObserver> tab_data_observer_;
   std::unique_ptr<GlicTabFaviconObserver> tab_favicon_observer_;
+
+  base::CallbackListSubscription experimental_triggering_state_subscription_;
 
   base::WeakPtrFactory<GlicKeyedService> weak_ptr_factory_{this};
 };

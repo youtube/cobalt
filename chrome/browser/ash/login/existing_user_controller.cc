@@ -307,6 +307,28 @@ bool UserHasAnyLocalAuthFactors(const UserContext& context) {
           context.GetAuthFactorsData().FindPinFactor() != nullptr);
 }
 
+// Checks if the user has a PIN present, an online password present, AND
+// if the PIN is allowed by the QuickUnlock policy.
+//
+// Returns true if and only if all three conditions are met:
+//   1. The user has a PIN set up.
+//   2. The user also has an online password set up.
+//   3. The AuthPolicyConnector confirms that the PIN is allowed by the
+//      QuickUnlock policy for the account.
+//
+// Otherwise, returns false.
+bool IsPinPresentAndAllowedAsSecondaryFactor(const UserContext& context) {
+  // Treat unset as allowed as consumers should always have PIN enabled.
+  bool isPinAllowedByQuickUnlock =
+      AuthPolicyConnector::Get()
+          ->IsPinAllowedByQuickUnlockPolicy(context.GetAccountId())
+          .value_or(true);
+  bool has_pin = context.GetAuthFactorsData().FindPinFactor() != nullptr;
+  bool has_online_password =
+      context.GetAuthFactorsData().FindOnlinePasswordFactor() != nullptr;
+  return has_pin && has_online_password && isPinAllowedByQuickUnlock;
+}
+
 }  // namespace
 
 // Utility class used to wait for a Public Session policy to be available if
@@ -414,7 +436,8 @@ ExistingUserController::ExistingUserController(
     // for now because first session is very short and it will be a auto sign
     // out in 90s if idle.
     demo_login_controller_ = std::make_unique<ash::DemoLoginController>(
-        &local_state_.get(),
+        &local_state_.get(), shared_url_loader_factory_.get(),
+        browser_policy_connector_ash_->GetDeviceCloudPolicyManager(),
         base::BindRepeating(&ExistingUserController::ConfigureAutoLogin,
                             base::Unretained(this)));
   }
@@ -820,6 +843,11 @@ bool ExistingUserController::MaybeShowRemoveLocalAuthFactorsScreen(
     return false;
   }
 
+  if (!user_context.GetAccountId().is_valid()) {
+    LOG(ERROR) << "Invalid AccountId detected";
+    return false;
+  }
+
   user_manager::KnownUser known_user(
       user_manager::UserManager::Get()->GetLocalState());
   if (user_context.GetAuthFlow() == UserContext::AUTH_FLOW_GAIA_WITH_SAML ||
@@ -827,8 +855,14 @@ bool ExistingUserController::MaybeShowRemoveLocalAuthFactorsScreen(
     return false;
   }
 
-  if (!user_context.GetAccountId().is_valid()) {
-    LOG(ERROR) << "Invalid AccountId detected";
+  if (!known_user.GetIsEnterpriseManaged(user_context.GetAccountId())) {
+    return false;
+  }
+
+  // If PIN is present and allowed as a secondary factor, we should not remove
+  // it, as it may have been setup by the QuickUnlock policy.
+  if (IsPinPresentAndAllowedAsSecondaryFactor(user_context)) {
+    return false;
   }
   // Only check for policy after the check for auth mode and auth flow,
   // otherwise we might end up calling an auth policy connector in offline login
@@ -969,7 +1003,7 @@ void ExistingUserController::ShowAutoLaunchManagedGuestSessionNotification() {
       message_center::NotifierId(message_center::NotifierType::SYSTEM_COMPONENT,
                                  kAutoLaunchNotifierId,
                                  NotificationCatalogName::kAutoLaunch),
-      data, std::move(delegate), vector_icons::kBusinessIcon,
+      data, std::move(delegate), vector_icons::kBusinessOldIcon,
       message_center::SystemNotificationWarningLevel::NORMAL);
   notification.SetSystemPriority();
   notification.set_pinned(true);

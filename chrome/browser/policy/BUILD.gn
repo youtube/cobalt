@@ -424,6 +424,7 @@ source_set("browser_tests") {
     "//base",
     "//build:branding_buildflags",
     "//chrome/browser:browser_features",
+    "//chrome/browser:chrome_browser_main",
     "//chrome/browser:chrome_content_browser_client",
     "//chrome/browser:main_extra_parts",
     "//chrome/browser/background",
@@ -617,11 +618,15 @@ source_set("browser_tests") {
 source_set("unit_tests") {
   testonly = true
 
-  sources = [ "value_provider/policy_value_provider_unittest.cc" ]
+  sources = [
+    "local_network_access_ip_address_space_overrides_policy_handler_unittest.cc",
+    "value_provider/policy_value_provider_unittest.cc",
+  ]
 
   deps = [
     ":test_support",
     "//chrome/test:test_support",
+    "//components/policy/core/browser:test_support",
     "//components/policy/core/common:test_support",
     "//extensions/buildflags",
     "//testing/gmock",
@@ -669,6 +674,7 @@ source_set("policy") {
     "dm_token_utils.h",
     "homepage_location_policy_handler.h",
     "javascript_policy_handler.h",
+    "local_network_access_ip_address_space_overrides_policy_handler.h",
     "messaging_layer/public/report_client.h",
     "messaging_layer/upload/configuration_file_controller.h",
     "messaging_layer/upload/encrypted_reporting_client.h",
@@ -712,6 +718,7 @@ source_set("policy") {
     "//components/keyed_service/core",
     "//components/policy/core/browser",
     "//components/policy/core/common",
+    "//components/policy/resources/webui/mojom:mojo_bindings",
     "//components/prefs",
     "//components/reporting/client:report_queue",
     "//components/reporting/client:report_queue_configuration",
@@ -876,6 +883,7 @@ source_set("impl") {
     "dm_token_utils.cc",
     "homepage_location_policy_handler.cc",
     "javascript_policy_handler.cc",
+    "local_network_access_ip_address_space_overrides_policy_handler.cc",
     "messaging_layer/public/report_client.cc",
     "messaging_layer/upload/configuration_file_controller.cc",
     "messaging_layer/upload/encrypted_reporting_client.cc",
@@ -918,6 +926,7 @@ source_set("impl") {
     "//chrome/browser:browser_features",
     "//chrome/browser:browser_process_platform_part",
     "//chrome/browser/browsing_data",
+    "//chrome/browser/contextual_tasks",
     "//chrome/browser/download",
     "//chrome/browser/external_protocol",
     "//chrome/browser/first_party_sets",
@@ -947,12 +956,14 @@ source_set("impl") {
     "//components/content_settings/core/browser",
     "//components/contextual_search:policy_handler",
     "//components/contextual_search:prefs",
+    "//components/contextual_tasks/public",
     "//components/custom_handlers",
     "//components/domain_reliability",
     "//components/domain_reliability:prefs",
     "//components/embedder_support",
     "//components/embedder_support:user_agent",
     "//components/enterprise/browser/data_region",
+    "//components/enterprise/network_header_injection/core:policy",
     "//components/feed/core/shared_prefs:feed_shared_prefs",
     "//components/history/core/common",
     "//components/history_clusters/core",
@@ -1143,6 +1154,7 @@ source_set("impl") {
 
   if (is_mac) {
     sources += [ "browser_dm_token_storage_mac.mm" ]
+    deps += [ "//chrome/browser:app_controller_mac" ]
   }
 
   if (is_linux || is_win || is_mac || is_chromeos) {

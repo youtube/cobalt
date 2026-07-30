@@ -230,11 +230,6 @@ BASE_DECLARE_FEATURE(kSafeBrowsingCrxAllowlistAutoDisable);
 // messaging hosts.
 BASE_DECLARE_FEATURE(kStructuredCloningForMessaging);
 
-// If enabled, APIs of the Telemetry Extension platform that have pending
-// approval will be enabled. Read more about the platform here:
-// https://chromium.googlesource.com/chromium/src/+/master/docs/telemetry_extension/README.md.
-BASE_DECLARE_FEATURE(kTelemetryExtensionPendingApprovalApi);
-
 // Controls whether the component webstore hosted app is loaded.
 BASE_DECLARE_FEATURE(kWebstoreHostedApp);
 
@@ -326,6 +321,11 @@ BASE_DECLARE_FEATURE(kEnableShouldShowPromotion);
 // returning to the previous provider.
 BASE_DECLARE_FEATURE(kSearchEngineExplicitChoiceDialog);
 BASE_DECLARE_FEATURE_PARAM(bool, kSearchEngineExplicitChoiceDialogEscapable);
+
+// If true, the dialog is re-shown until a choice is made. If false, the
+// dialog is limited to once per session, as the original dialog works.
+BASE_DECLARE_FEATURE_PARAM(bool,
+                           kSearchEngineExplicitChoiceDialogUnlimitedShows);
 
 // When enabled, all search extensions will unconditionally get the search
 // engine override dialog.

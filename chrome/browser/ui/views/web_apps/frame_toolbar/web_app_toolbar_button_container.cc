@@ -38,6 +38,7 @@
 #include "components/webapps/browser/installable/installable_metrics.h"
 #include "ui/base/hit_test.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/gfx/text_constants.h"
 #include "ui/views/controls/button/image_button_factory.h"
 #include "ui/views/layout/flex_layout.h"
@@ -133,7 +134,7 @@ WebAppToolbarButtonContainer::WebAppToolbarButtonContainer(
 
   const auto* app_controller = browser_view_->browser()->app_controller();
 
-  // App's origin will not be shown in the borderless mode, it will only be
+  // App's origin will not be shown in the unframed mode, it will only be
   // visible in App Settings UI.
   if (app_controller->HasTitlebarAppOriginText() &&
       !browser_view_->IsUnframedModeEnabled()) {
@@ -155,7 +156,8 @@ WebAppToolbarButtonContainer::WebAppToolbarButtonContainer(
             weak_ptr_factory_.GetWeakPtr())));
     button->SetUninstallText(
         l10n_util::GetStringUTF16(IDS_WEB_APP_UNINSTALL_BUTTON_FRAME));
-    button->SetVectorIcon(kDeleteIcon);
+    button->SetVectorIcon(features::IsRoundedIconsEnabled() ? kDeleteIcon
+                                                            : kDeleteOldIcon);
     button->SetImageLabelSpacing(
         views::LayoutProvider::Get()->GetDistanceMetric(
             views::DistanceMetric::DISTANCE_VECTOR_ICON_PADDING));

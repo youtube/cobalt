@@ -3174,6 +3174,19 @@ inline constexpr char kTPMUpdatePlannedNotificationShownTime[] =
     "tpm_auto_update.planned_notification_shown_time";
 
 //-----------------------------------------------------------------------------
+// Kcer related Prefs
+//-----------------------------------------------------------------------------
+
+// A boolean preference that is registered in user prefs to tracks that at least
+// one PKCS#12 certificate+key pair was dual written into NSS software-backed
+// slot and Chaps. This is a part of the experiment to import PKCS#12 files into
+// Chaps user slot instead of NSS and if the copy from Chaps will not work this
+// preference will be used to decide when a clean up is needed to delete
+// non-working certificates+keys.
+inline constexpr char kNssChapsDualWrittenCertsExist[] =
+    "nss_chaps_dual_written_certs_exist";
+
+//-----------------------------------------------------------------------------
 // CryptAuth related Prefs
 //-----------------------------------------------------------------------------
 
@@ -3704,6 +3717,11 @@ inline constexpr char kPrintingDuplexDefault[] = "printing.duplex_default";
 inline constexpr char kPrintingMaxSheetsAllowed[] =
     "printing.max_sheets_allowed";
 
+// A dictionary that keeps client_ids assigned by Authorization Servers indexed
+// by URLs of these servers. It does not contain empty strings.
+inline constexpr char kPrintingOAuth2AuthorizationServers[] =
+    "printing.oauth2_authorization_servers";
+
 // A pref holding the default PIN mode.
 inline constexpr char kPrintingPinDefault[] = "printing.pin_default";
 
@@ -3896,6 +3914,32 @@ inline constexpr char kTimeLimitLocalOverride[] = "screen_time.local_override";
 
 // A dictionary preference holding the usage time limit definitions for a user.
 inline constexpr char kUsageTimeLimit[] = "screen_time.limit";
+
+//-----------------------------------------------------------------------------
+// Remote command related Prefs
+//-----------------------------------------------------------------------------
+
+// A boolean pref which determines whether a remote admin can start a CRD
+// connection through the 'start crd session' remote command.
+inline constexpr char
+    kRemoteAccessHostAllowEnterpriseRemoteSupportConnections[] =
+        "enterprise_remote_support_connections_allowed";
+
+// A boolean to store that an admin user accessed the host device remotely when
+// no user was present at the device. This boolean enables the device to display
+// a notification to the local user when the session was terminated.
+inline constexpr char kRemoteAdminWasPresent[] = "remote_admin_was_present";
+
+// Whether we received the remove users remote command, and hence should proceed
+// with removing the users while at the login screen.
+inline constexpr char kRemoveUsersRemoteCommand[] =
+    "remove_users_remote_command";
+
+// A boolean pref which determines whether a remote admin can start a CRD
+// connection through the 'start crd session' remote command when no local user
+// is present at the device.
+inline constexpr char kDeviceAllowEnterpriseRemoteAccessConnections[] =
+    "device_allow_enterprise_remote_access_connections";
 
 //-----------------------------------------------------------------------------
 // SkyVault related Prefs

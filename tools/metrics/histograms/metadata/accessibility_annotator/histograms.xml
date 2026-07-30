@@ -24,8 +24,6 @@ chromium-metrics-reviews@google.com.
 
 <variants name="AccessibilityAnnotator.MemoryDataProvider">
   <variant name="AutofillDataProvider" summary="The Autofill data provider."/>
-  <variant name="SyncBridgeDataProvider"
-      summary="The sync bridge data provider."/>
 </variants>
 
 <variants name="AccessibilityAnnotator.ValueClassifierType">
@@ -60,28 +58,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="AccessibilityAnnotator.DirectServerProvider.EntityCount"
-    units="entities" expires_after="2026-08-01">
-  <owner>victorshu@google.com</owner>
-  <owner>zelarabaty@google.com</owner>
-  <summary>
-    Number of annotations retrieved from sync bridge that were converted to
-    entities for service. Recorded when GetEntities is called on the
-    DirectServerEntityProvider.
-  </summary>
-</histogram>
-
-<histogram
-    name="AccessibilityAnnotator.DirectServerProvider.GetEntitiesLatency"
-    units="ms" expires_after="2026-08-01">
-  <owner>victorshu@google.com</owner>
-  <owner>zelarabaty@google.com</owner>
-  <summary>
-    Duration of the GetEntities method in the DirectServerEntityProvider.
-    Recorded when GetEntities is called.
-  </summary>
-</histogram>
-
 <histogram name="AccessibilityAnnotator.FullAnnotationReached" enum="Boolean"
     expires_after="2026-10-04">
   <owner>qiaoli@google.com</owner>
@@ -110,10 +86,12 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AccessibilityAnnotator.RemoteAnnotatorInfo"
-    enum="AccessibilityAnnotatorRemoteAnnotatorInfo" expires_after="2026-10-04">
+    enum="PersonalContextNoticeInteractions" expires_after="2026-10-04">
   <owner>kalinino@google.com</owner>
   <owner>chrome-browser-privacy-team@google.com</owner>
   <summary>
+    (Obsolete) Renamed to PersonalContext.NoticeInteractions.
+
     Records the user interaction with the Accessibility Annotator info dialog.
     Recorded when the info dialog is shown to the user, and when the user
     accepts or dismisses it.

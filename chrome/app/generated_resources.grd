@@ -686,7 +686,16 @@ are declared in tools/grit/grit_args.gni.
           <message name="IDS_CONTENT_CONTEXT_OPENLINKRIGHTVIEW" desc="The name of the open a link in right side of a split view command">
             Open link in right view
           </message>
+          <message name="IDS_CONTENT_CONTEXT_OPENLINKTOPVIEW" desc="The name of the open a link in top side of a split view command">
+            Open link in top view
+          </message>
+          <message name="IDS_CONTENT_CONTEXT_OPENLINKBOTTOMVIEW" desc="The name of the open a link in bottom side of a split view command">
+            Open link in bottom view
+          </message>
           <message name="IDS_CONTENT_CONTEXT_OPENLINKINPROFILES" desc="The name of the open a link as a different user context menu">
+            Open link as
+          </message>
+          <message name="IDS_CONTENT_CONTEXT_OPENLINKINPROFILES_V2" desc="The name of the open a link as a different user context menu">
             Open link as
           </message>
           <message name="IDS_CONTENT_CONTEXT_OPENLINKINPROFILE" desc="The name of the open a link as a different user command">
@@ -720,6 +729,10 @@ are declared in tools/grit/grit_args.gni.
 
           <message name="IDS_CONTENT_CONTEXT_COPYLINKTOTEXT" desc="The name of the Copy Link to Highlight command in the content area context menu">
             Copy link to highlight
+          </message>
+
+          <message name="IDS_CONTENT_CONTEXT_ADD_LINK_TO_READING_LIST" desc="In Title Case: The name of the Add link to reading list command in the content area context menu">
+            Add link to reading list
           </message>
 
           <message name="IDS_CONTENT_CONTEXT_ADD_A_NOTE" desc="The name of the Add Note command in the content area context menu">
@@ -997,8 +1010,17 @@ are declared in tools/grit/grit_args.gni.
           <message name="IDS_CONTENT_CONTEXT_OPENLINKRIGHTVIEW" desc="In Title Case: The name of the open a link in right side of a split view command">
             Open Link in Right View
           </message>
+          <message name="IDS_CONTENT_CONTEXT_OPENLINKTOPVIEW" desc="In Title Case: The name of the open a link in top side of a split view command">
+            Open Link in Top View
+          </message>
+          <message name="IDS_CONTENT_CONTEXT_OPENLINKBOTTOMVIEW" desc="In Title Case: The name of the open a link in bottom side of a split view command">
+            Open Link in Bottom View
+          </message>
           <message name="IDS_CONTENT_CONTEXT_OPENLINKINPROFILES" desc="In Title Case: The name of the open a link as a different user context menu">
             Open Link as
+          </message>
+          <message name="IDS_CONTENT_CONTEXT_OPENLINKINPROFILES_V2" desc="In Title Case: The name of the open a link as a different user context menu">
+            Open Link As
           </message>
           <message name="IDS_CONTENT_CONTEXT_OPENLINKINPROFILE" desc="In Title Case: The name of the open a link as a different user command">
             Open Link as <ph name="USER">$1<ex>user@gmail.com</ex></ph>
@@ -1031,6 +1053,10 @@ are declared in tools/grit/grit_args.gni.
 
           <message name="IDS_CONTENT_CONTEXT_COPYLINKTOTEXT" desc="In Title Case: The name of the Copy Link to Highlight command in the content area context menu">
             Copy Link to Highlight
+          </message>
+
+          <message name="IDS_CONTENT_CONTEXT_ADD_LINK_TO_READING_LIST" desc="In Title Case: The name of the Add link to reading list command in the content area context menu">
+            Add Link to Reading List
           </message>
 
           <message name="IDS_CONTENT_CONTEXT_ADD_A_NOTE" desc="In Title Case: The name of the Add Note command in the content area context menu">
@@ -6508,6 +6534,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
         <message name="IDS_EXTENSIONS_REQUEST_ACCESS_BUTTON" desc="The text of the request acces button that appears on the toolbar when an extension requests access to the site" formatter_data="android_java">
           Allow <ph name="EXTENSIONS_REQUESTING_ACCESS_COUNT">$1<ex>3</ex></ph>?
         </message>
+        <message name="IDS_EXTENSIONS_REQUEST_ACCESS_BUTTON_ACCESSIBLE_NAME" desc="Combined label and description for the request access button used by screen readers." formatter_data="android_java">
+          <ph name="BUTTON_TEXT">%1$s<ex>Allow 1</ex></ph>, <ph name="TOOLTIP_TEXT">%2$s<ex>Click to allow on google.com: Extension Name</ex></ph>
+        </message>
         <message name="IDS_EXTENSIONS_REQUEST_ACCESS_BUTTON_DISMISSED_TEXT" desc="The text of the button that appears on the toolbar after the user grants access to an extension that requested access to the current site." formatter_data="android_java">
           Allowed
         </message>
@@ -7592,10 +7621,6 @@ Keep your key file in a safe place. You will need it to create new versions of y
       </message>
       <message name="IDS_WEBUI_OMNIBOX_COMPOSE_ASK_ABOUT_THIS_PAGE_ARIA_LABEL" desc="The aria-label for the button that allows the user to ask a question about the content of their current page. The $1 is a placeholder for the page title.">
         Ask Google about this page: <ph name="PAGE_TITLE">$1</ph>
-      </message>
-      <message name="IDS_WEBUI_OMNIBOX_COMPOSE_LENS_OVERLAY"
-        desc="The name of the Lens overlay command in the content area context menu">
-        Search with Google Lens
       </message>
       <message name="IDS_WEBUI_OMNIBOX_COMPOSE_ASK_ABOUT_YOUR_TABS"
         desc="Label for a button that guides the user to composebox's context menu using a suggestion like label.">
@@ -8758,6 +8783,15 @@ Keep your key file in a safe place. You will need it to create new versions of y
         {TAB_COUNT, plural,
           =1 {Sharing 1 tab}
           other {Sharing # tabs}}
+      </message>
+      <message name="IDS_COMPOSE_SHARING_TABS_WITH_GOOGLE" desc="Text for the tooltip above the favicons that show a user is sharing tabs as context.">
+        Sharing tabs with Google
+      </message>
+      <message name="IDS_COMPOSE_ADD_TABS" desc="Label for the row in the Composebox context menu that opens a flyout listing all open tabs to share.">
+        Add tabs
+      </message>
+       <message name="IDS_COMPOSE_CURRENT_TAB" desc="Label for the row in the Composebox context menu flyout that shows the current tab the user has open.">
+        Current tab
       </message>
       <message name="IDS_NTP_ACTION_CHIP_TAB_HEADING_1" desc="Heading of the tab action chip on the NTP." >
         Ask about previous tab
@@ -10684,9 +10718,6 @@ Keep your key file in a safe place. You will need it to create new versions of y
         <message name="IDS_IOS_DESKTOP_PASSWORD_PROMO_BUBBLE_SUBTITLE" desc="The subtitle for the iOS desktop password promo bubble which lets the user know they can access their saved password on the Google Password Manager.">
           You can access it on Google Password Manager
         </message>
-        <message name="IDS_IOS_DESKTOP_PASSWORD_PROMO_NOTIFICATION_BODY" desc="The body for the iOS desktop Password promo notification.">
-          Save and autofill your passwords to easily sign in to sites and apps
-        </message>
       </if>
 
       <!--Desktop to iOS address promo strings-->
@@ -10761,9 +10792,6 @@ Keep your key file in a safe place. You will need it to create new versions of y
         <message name="IDS_IOS_DESKTOP_ESB_PROMO_BUBBLE_TITLE_REMINDER" desc="The title for the iOS desktop ESB promo bubble with a reminder button.">
           Enhance Safe Browsing on your <ph name="DEVICE_TYPE">$1<ex>iPhone</ex></ph>
         </message>
-        <message name="IDS_IOS_DESKTOP_SAFE_BROWSING_PROMO_NOTIFICATION_BODY" desc="The body for the iOS desktop Enhanced Safe Browsing promo notification.">
-          Add an extra layer of protection against online threats
-        </message>
       </if>
 
       <!--Desktop to iOS Lens promo strings-->
@@ -10773,9 +10801,6 @@ Keep your key file in a safe place. You will need it to create new versions of y
         </message>
         <message name="IDS_IOS_DESKTOP_LENS_PROMO_BUBBLE_TITLE_REMINDER" desc="The title for the iOS desktop Lens promo bubble with a reminder button.">
           Try Google Lens on your <ph name="DEVICE_TYPE">$1<ex>iPhone</ex></ph>
-        </message>
-        <message name="IDS_IOS_DESKTOP_LENS_PROMO_NOTIFICATION_BODY" desc="The body for the iOS desktop Lens promo notification.">
-          Shop, translate, and identify what you see with your camera.
         </message>
       </if>
 
@@ -10790,12 +10815,6 @@ Keep your key file in a safe place. You will need it to create new versions of y
         <message name="IDS_IOS_DESKTOP_PRICE_TRACKING_PROMO_BUBBLE_TITLE_REMINDER" desc="The title for the iOS desktop Price Tracking promo bubble with a reminder button.">
           Get price tracking alerts on your <ph name="DEVICE_TYPE">$1<ex>iPhone</ex></ph>
         </message>
-        <message name="IDS_IOS_DESKTOP_PRICE_TRACKING_PROMO_NOTIFICATION_BODY" desc="The body for the iOS desktop Price Tracking promo notification.">
-          Keep up with all your price drops on the go
-        </message>
-        <message name="IDS_IOS_DESKTOP_PRICE_TRACKING_PROMO_NOTIFICATION_TITLE" desc="The title for the iOS desktop Price Tracking promo notification.">
-          Enable price tracking alerts
-        </message>
       </if>
 
       <!--Desktop to iOS Tab Groups promo strings-->
@@ -10808,12 +10827,6 @@ Keep your key file in a safe place. You will need it to create new versions of y
         </message>
         <message name="IDS_IOS_DESKTOP_TAB_GROUPS_PROMO_BUBBLE_TITLE_REMINDER" desc="The title for the iOS desktop Tab Groups promo bubble with a reminder button.">
           Use your tab groups on your <ph name="DEVICE_TYPE">$1<ex>iPhone</ex></ph>
-        </message>
-        <message name="IDS_IOS_DESKTOP_TAB_GROUPS_PROMO_NOTIFICATION_BODY" desc="The body for the iOS desktop Tab Groups promo notification.">
-          You can pick up where you left off or create new tab groups on the go
-        </message>
-        <message name="IDS_IOS_DESKTOP_TAB_GROUPS_PROMO_NOTIFICATION_TITLE" desc="The title for the iOS desktop Tab Groups promo notification.">
-          Reminder: Your tab groups
         </message>
       </if>
 
@@ -15272,6 +15285,27 @@ Please help our engineers fix this problem. Tell us what happened right before y
         Set as default
       </message>
 
+      <if expr="is_win">
+        <message name="IDS_RESTORE_WINDOW_MENU_WIN" desc="The Windows browser window menu item text for restoring the window.">
+          &amp;Restore
+        </message>
+        <message name="IDS_MOVE_WINDOW_MENU_WIN" desc="The Windows browser window menu item text for moving the window.">
+          &amp;Move
+        </message>
+        <message name="IDS_SIZE_WINDOW_MENU_WIN" desc="The Windows browser window menu item text for sizing the window.">
+          &amp;Size
+        </message>
+        <message name="IDS_MINIMIZE_WINDOW_MENU_WIN" desc="The Windows browser window menu item text for minimizing the window.">
+          Mi&amp;nimize
+        </message>
+        <message name="IDS_MAXIMIZE_WINDOW_MENU_WIN" desc="The Windows browser window menu item text for maximizing the window.">
+          Ma&amp;ximize
+        </message>
+        <message name="IDS_CLOSE_WINDOW_MENU_WIN" desc="The Windows browser window menu item text for closing the window.">
+          &amp;Close
+        </message>
+      </if>
+
       <if expr="is_linux">
         <message name="IDS_MINIMIZE_WINDOW_MENU" desc="The Linux browser window menu item text for minimizing the window.">
           Minimize
@@ -18583,8 +18617,11 @@ Please help our engineers fix this problem. Tell us what happened right before y
     <message name="IDS_DEEP_SCANNING_DIALOG_CUSTOM_MESSAGE" desc="Message shown around the custom message provided by the administrator when deep scanning returns a failure.">
       Your administrator says: "<ph name="CUSTOM_MESSAGE">$1<ex>Please don't upload this type of data.</ex></ph>"
     </message>
-    <message name="IDS_DEEP_SCANNING_DIALOG_DOWNLOADS_CUSTOM_MESSAGE" desc="Message shown around the custom message provided by the administrator when deep scanning returns a failure on a downloaded file.">
-      <ph name="FILE_NAME">$1<ex>foo.txt</ex></ph> has sensitive or dangerous data. Your administrator says: "<ph name="CUSTOM_MESSAGE">$2<ex>Please don't upload this type of data.</ex></ph>"
+    <message name="IDS_DEEP_SCANNING_DIALOG_COMBINED_CUSTOM_MESSAGE" desc="Combines a verdict message with an administrator custom quote.">
+      <ph name="VERDICT_MESSAGE">$1<ex>foo.txt has sensitive data.</ex></ph>. Your administrator says: "<ph name="CUSTOM_MESSAGE">$2<ex>Please don't upload this type of data.</ex></ph>"
+    </message>
+    <message name="IDS_DEEP_SCANNING_DIALOG_DOWNLOADS_SENSITIVE_DATA" desc="Message shown when deep scanning returns a failure on a downloaded file.">
+      <ph name="FILE_NAME">$1<ex>foo.txt</ex></ph> has sensitive or dangerous data
     </message>
     <message name="IDS_DEEP_SCANNING_DIALOG_CUSTOM_MESSAGE_LEARN_MORE_LINK" desc="Text value of the link passed for the custom message set by the administrator when deep scanning returns a failure.">
       Learn more
@@ -18615,9 +18652,6 @@ Please help our engineers fix this problem. Tell us what happened right before y
     </message>
     <message name="IDS_DEEP_SCANNING_DIALOG_SAVE_TO_CLOUD_STORAGE_MESSAGE" desc="Button text to allow the user to save a file to cloud storage">
       <ph name="FILE_NAME">$1<ex>foo.txt</ex></ph> has sensitive data. Your organization will let you save it to cloud storage or discard it
-    </message>
-    <message name="IDS_DEEP_SCANNING_DIALOG_SAVE_TO_CLOUD_STORAGE_CUSTOM_MESSAGE" desc="Message shown for force save with a custom message.">
-      <ph name="FILE_NAME">$1<ex>foo.txt</ex></ph> has sensitive data. Your organization will let you save it to cloud storage or discard it. Your administrator says: <ph name="CUSTOM_MESSAGE">$2<ex>Please don't upload this type of data.</ex></ph>
     </message>
 
     <!-- Data sharing UI strings -->
@@ -19387,8 +19421,8 @@ Please help our engineers fix this problem. Tell us what happened right before y
     <message name="IDS_OVERFLOW_MENU_ITEM_TEXT_SIDE_PANEL" desc="Text of overflow menu item of side panel button">
       Open side panel
     </message>
-    <message name="IDS_OVERFLOW_MENU_ITEM_TEXT_SPLIT_TABS" desc="Text of overflow menu item of split tabs button">
-      Split Tabs
+    <message name="IDS_OVERFLOW_MENU_ITEM_TEXT_SPLIT_VIEW" desc="Text of overflow menu item of split tabs button">
+      Split View
     </message>
     <message name="IDS_OVERFLOW_MENU_ITEM_TEXT_CONTEXTUAL_TASKS" desc="Text of overflow menu item of contextual tasks button">
       Contextual Tasks
@@ -19425,7 +19459,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
       Change your preferences
     </message>
     <message name="IDS_IWA_INSTALLER_DISABLED_SUBTITLE" desc="Subtitle of the feature disabled screen of the IWA installer. $1 = IDS_IWA_INSTALLER_DISABLED_CHANGE_PREFERENCE">
-      You security preferences do not allow installations of Isolated Apps. <ph name="CHANGE_PREFERENCE">$1<ex>Change your preferences</ex></ph>.
+      Your security preferences do not allow installation of isolated web apps. <ph name="CHANGE_PREFERENCE">$1<ex>Change your preferences</ex></ph>.
     </message>
     <message name="IDS_IWA_INSTALLER_ALREADY_INSTALLED_TITLE" desc="Title of an error dialog shown when the bundle trying to be installed is already installed.">
       <ph name="APP_NAME">$1<ex>Google Maps</ex></ph> is already installed
@@ -19459,6 +19493,12 @@ Please help our engineers fix this problem. Tell us what happened right before y
     </message>
     <message name="IDS_IWA_INSTALLER_SHOW_METADATA_APP_ENTERPRISE_NAME_LABEL" desc="Label before the Isolated Web App enterprise name in the pre-install app info summary screen">
       Offered by: <ph name="ENTERPRISE_NAME">$1<ex>Google</ex></ph>
+    </message>
+    <message name="IDS_IWA_INSTALLER_UPDATE_SETTINGS" desc="Label of a collapsible area containing advanced settings related to application updates.">
+      Update settings
+    </message>
+    <message name="IDS_IWA_INSTALLER_UPDATE_CHANNEL" desc="Label of a combobox to select an update channel.">
+      Update channel
     </message>
     <message name="IDS_IWA_INSTALLER_CONFIRM_TITLE" desc="Title of the confirmation popup that appears immediately before Isolated Web App installation">
       Do you want to continue and allow this software to make changes to your device?
@@ -20201,6 +20241,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_UPDATER_UPDATE_OUTCOME_UPDATE_ERROR" desc="Label for the outcome of an update attempt in which the update could not complete because of an error.">
         Update Error
       </message>
+      <message name="IDS_UPDATER_VIEW_ALL_CHROME_POLICIES" desc="Label for a button that opens the chrome://policy page.">
+        View all Chrome Policies
+      </message>
       <message name="IDS_UPDATER_VIEW_RAW_DETAILS" desc="Title of the button to display the contents of a Chrome Updater log in JSON format">
         Source
       </message>
@@ -20220,6 +20263,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
     </message>
     <message name="IDS_REPORT_UNSAFE_SITE_CONFIRMATION_TOAST" desc="Message confirmation after unsafe-site-report sends to Google">
       Report sent
+    </message>
+    <message name="IDS_REPORT_UNSAFE_SITE_A11Y_IMAGE_TEXT" desc="Aria label for the screenshot image of the site to be reported to Google.">
+      Screenshot
     </message>
 
 
@@ -20251,6 +20297,14 @@ Please help our engineers fix this problem. Tell us what happened right before y
     </message>
     <message name="IDS_CHROME_FINDS_NOTIFICATIONS_UNHELPFUL_BUTTON_TEXT" desc="Text for the unhelpful button found on Chrome finds notifications.">
       Not interested
+    </message>
+
+    <!-- OSCryptAsync Availability InfoBar -->
+    <message name="IDS_OSCRYPTASYNC_AVAILABILITY_INFOBAR_MESSAGE" desc="Label displayed in an infobar when a keychain issue prevents some profile data from being read/written and a browser relaunch is required to resolve.">
+      Relaunch the browser to load your profile data and keep it encrypted
+    </message>
+    <message name="IDS_OSCRYPTASYNC_AVAILABILITY_INFOBAR_BUTTON" desc="The text of the button to proceed with relaunching the entire browser to resolve keychain permission issues.">
+      Relaunch
     </message>
   </messages>
 </release>

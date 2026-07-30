@@ -272,6 +272,9 @@ bool IsFullscreenNextIAEnabled() {
   // view.
   BOOL _lensOverlayVisible;
 
+  // Tracks if the secondary toolbar is currently above the keyboard.
+  BOOL _isSecondaryToolbarAboveKeyboard;
+
   __weak id<BrowserCoordinatorCommands> _browserCoordinatorHandler;
   __weak id<ToolbarCommands> _toolbarHandler;
 
@@ -489,6 +492,9 @@ bool IsFullscreenNextIAEnabled() {
 
 - (void)setBroadcasting:(BOOL)broadcasting {
   if (IsFullscreenRefactoringEnabled()) {
+    if (broadcasting && _fullscreenBrowserAgent) {
+      _fullscreenBrowserAgent->InvalidateInsetRange();
+    }
     // Broadcasting is not needed for FullscreenRefactoring.
     return;
   }
@@ -661,6 +667,10 @@ bool IsFullscreenNextIAEnabled() {
 
 - (void)layoutState:(LayoutState*)layoutState
     didChangeAppBarPosition:(AppBarPosition)appBarPosition {
+  if (!self.view.window) {
+    return;
+  }
+
   [self updateToolbarConstraints];
   [self updateSecondaryToolbarBottomConstraint];
   [self animateTransition];
@@ -857,6 +867,8 @@ bool IsFullscreenNextIAEnabled() {
   _urlLoadingBrowserAgent = nullptr;
   _tabUsageRecorderBrowserAgent = nullptr;
   _snapshotBrowserAgent = nullptr;
+  _fullscreenUIUpdater = nullptr;
+  _fullscreenController = nullptr;
   _fullscreenBrowserAgentObserverBridge = nullptr;
   _fullscreenBrowserAgent = nullptr;
 }
@@ -990,6 +1002,9 @@ bool IsFullscreenNextIAEnabled() {
       setBottomOmniboxOffsetForPopup:secondaryToolbarHeightWithInset];
   self.secondaryToolbarHeightConstraint.constant =
       secondaryToolbarHeightWithInset;
+  if (IsChromeNextIaEnabled()) {
+    [self updateForFullscreenProgress:self.footerFullscreenProgress];
+  }
 }
 
 - (void)viewWillLayoutSubviews {
@@ -1412,8 +1427,7 @@ bool IsFullscreenNextIAEnabled() {
       self.toolbarCoordinator.secondaryToolbarViewController.view;
   self.secondaryToolbarAppBarBottomConstraint =
       [toolbarView.bottomAnchor constraintEqualToAnchor:appBar.topAnchor];
-  self.secondaryToolbarAppBarBottomConstraint.active =
-      (self.layoutState.appBarPosition == AppBarPosition::kBottom);
+  [self updateSecondaryToolbarBottomConstraint];
 }
 
 // Adds constraints to the primary and secondary toolbars, anchoring them to the
@@ -2021,6 +2035,9 @@ bool IsFullscreenNextIAEnabled() {
 #pragma mark - FullscreenUIElement methods
 
 - (void)updateForFullscreenProgress:(CGFloat)progress {
+  if (_isShutdown) {
+    return;
+  }
   [self updateHeadersForFullscreenProgress:progress];
   [self updateFootersForFullscreenProgress:progress];
   if (!IsFullscreenRefactoringEnabled() &&
@@ -2170,10 +2187,16 @@ bool IsFullscreenNextIAEnabled() {
   }
 
   BOOL shouldUseAppBar =
-      (self.layoutState.appBarPosition == AppBarPosition::kBottom);
+      (self.layoutState.appBarPosition == AppBarPosition::kBottom) &&
+      (self.secondaryToolbarAppBarBottomConstraint != nil);
 
-  self.secondaryToolbarAppBarBottomConstraint.active = shouldUseAppBar;
-  self.secondaryToolbarRegularBottomConstraint.active = !shouldUseAppBar;
+  if (shouldUseAppBar) {
+    self.secondaryToolbarRegularBottomConstraint.active = NO;
+    self.secondaryToolbarAppBarBottomConstraint.active = YES;
+  } else {
+    self.secondaryToolbarAppBarBottomConstraint.active = NO;
+    self.secondaryToolbarRegularBottomConstraint.active = YES;
+  }
 }
 
 // Returns the height difference between the fully expanded and fully collapsed
@@ -2216,6 +2239,11 @@ bool IsFullscreenNextIAEnabled() {
 // Resizes the secondary toolbar according to `progress`, where a progress of
 // 1.0 fully expands the toolbar and a progress of 0.0 collapses it.
 - (void)updateNextIASecondaryToolbarForFullscreenProgress:(CGFloat)progress {
+  // Early return if the toolbar is currently managed by keyboard avoidance.
+  if (_isSecondaryToolbarAboveKeyboard) {
+    return;
+  }
+
   const CGFloat expandedHeight = [self secondaryToolbarHeightWithInset];
   if (expandedHeight <= 0.0) {
     return;
@@ -2270,9 +2298,11 @@ bool IsFullscreenNextIAEnabled() {
     if (self.secondaryToolbarHeightConstraint.constant != height) {
       self.secondaryToolbarHeightConstraint.constant = height;
       // Force a layout to cause the frame to be recalculated.
-      UIView* view = self.view;
-      [view setNeedsLayout];
-      [view layoutIfNeeded];
+      if ([self isViewLoaded]) {
+        UIView* view = self.view;
+        [view setNeedsLayout];
+        [view layoutIfNeeded];
+      }
     }
   }
 }
@@ -2882,12 +2912,16 @@ bool IsFullscreenNextIAEnabled() {
 }
 
 - (void)secondaryToolbarMovedAboveKeyboard {
+  _isSecondaryToolbarAboveKeyboard = YES;
+
   // Lower the height constraint priority, allowing UIKeyboardLayoutGuide to
   // move the toolbar above the keyboard.
   self.secondaryToolbarHeightConstraint.priority = UILayoutPriorityDefaultHigh;
 }
 
 - (void)secondaryToolbarRemovedFromKeyboard {
+  _isSecondaryToolbarAboveKeyboard = NO;
+
   // Return to required priority, otherwise UIKeyboardLayoutGuide would set the
   // toolbar minimum height to the bottom safe area.
   self.secondaryToolbarHeightConstraint.priority = UILayoutPriorityRequired - 1;
@@ -2898,6 +2932,7 @@ bool IsFullscreenNextIAEnabled() {
                                        duration:(NSTimeInterval)duration
                                           curve:(UIViewAnimationCurve)curve {
   CHECK(ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_TABLET);
+  _isSecondaryToolbarAboveKeyboard = (keyboardHeight > 0);
   CGFloat keyboardAttachedOffset =
       keyboardHeight +
       self.toolbarCoordinator.keyboardAttachedBottomOmniboxHeight;

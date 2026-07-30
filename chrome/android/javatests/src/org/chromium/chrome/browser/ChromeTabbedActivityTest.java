@@ -55,10 +55,8 @@ import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedIns
 import org.chromium.chrome.browser.multiwindow.MultiInstanceOrchestratorFactory;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.night_mode.NightModeStateProvider;
-import org.chromium.chrome.browser.share.send_tab_to_self.SendTabToSelfGestureDetector;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
-import org.chromium.chrome.browser.tab.TabTestUtils;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
 import org.chromium.chrome.browser.tabmodel.ChromeTabCreator;
 import org.chromium.chrome.browser.tabmodel.MismatchedIndicesHandler;
@@ -76,7 +74,6 @@ import org.chromium.components.tab_group_sync.LocalTabGroupId;
 import org.chromium.components.tab_group_sync.SavedTabGroup;
 import org.chromium.components.tab_group_sync.SavedTabGroupTab;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
-import org.chromium.content_public.browser.ChildProcessImportance;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.PageTransition;
@@ -170,51 +167,6 @@ public class ChromeTabbedActivityTest {
         // Verify that the front tab is in the 'visible' state.
         Assert.assertFalse(tabs[0].isHidden());
         Assert.assertTrue(tabs[1].isHidden());
-    }
-
-    /** Verifies that the focused tab is IMPORTANT and unfocused tabs are MODERATE. */
-    @Test
-    @MediumTest
-    @EnableFeatures({ChromeFeatureList.CHANGE_UNFOCUSED_PRIORITY})
-    @DisableFeatures({ChromeFeatureList.PROCESS_RANK_POLICY_ANDROID})
-    @MinAndroidSdkLevel(VERSION_CODES.S)
-    public void testTabImportance() {
-        mActivityTestRule.getTestServer(); // Triggers the lazy initialization of the test server.
-        final Tab tab =
-                ThreadUtils.runOnUiThreadBlocking(
-                        () -> {
-                            ChromeTabCreator tabCreator = mActivity.getCurrentTabCreator();
-                            return tabCreator.createNewTab(
-                                    new LoadUrlParams(
-                                            mActivityTestRule.getTestServer().getURL(FILE_PATH)),
-                                    TabLaunchType.FROM_CHROME_UI,
-                                    null);
-                        });
-        // Fake sending the activity to unfocused.
-        @ChildProcessImportance
-        int importance =
-                ThreadUtils.runOnUiThreadBlocking(
-                        () -> {
-                            mActivity.onTopResumedActivityChanged(false);
-                            return TabTestUtils.getImportance(tab);
-                        });
-        // Verify that tab has importance MODERATE.
-        Assert.assertEquals(
-                "Tab process does not have importance MODERATE",
-                ChildProcessImportance.MODERATE,
-                importance);
-        // Fake sending the activity to focused.
-        importance =
-                ThreadUtils.runOnUiThreadBlocking(
-                        () -> {
-                            mActivity.onTopResumedActivityChanged(true);
-                            return TabTestUtils.getImportance(tab);
-                        });
-        // Verify that tab has importance IMPORTANT.
-        Assert.assertEquals(
-                "Tab process does not have importance IMPORTANT",
-                ChildProcessImportance.IMPORTANT,
-                importance);
     }
 
     @Test
@@ -1199,40 +1151,54 @@ public class ChromeTabbedActivityTest {
     }
 
     @Test
-    @SmallTest
-    @EnableFeatures(ChromeFeatureList.SEND_TAB_TO_SELF_GESTURE)
-    public void testSendTabToSelfGestureDetectorLifecycle_Enabled() {
-        SendTabToSelfGestureDetector detector =
-                ThreadUtils.runOnUiThreadBlocking(
-                        () -> mActivity.getSendTabToSelfGestureDetectorForTesting());
-        Assert.assertNotNull("Gesture detector should be initialized", detector);
+    @MediumTest
+    public void testCreateNewTabGroupMenu() {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    Tab tab = mActivity.getActivityTab();
+                    Assert.assertNull(tab.getTabGroupId());
+                    mActivity.handleCreateNewTabGroupAction(tab);
+                });
 
-        // Verify the detector is listening.
-        boolean isListening =
-                ThreadUtils.runOnUiThreadBlocking(() -> detector.isListening());
-        Assert.assertTrue("Gesture detector should be listening", isListening);
-
-        // Finish the activity to trigger onDestroyInternal.
-        ThreadUtils.runOnUiThreadBlocking(() -> mActivity.finishAndRemoveTask());
-
-        // Wait for it to be destroyed.
-        ApplicationTestUtils.waitForActivityState(mActivity, Stage.DESTROYED);
-
-        // Verify the detector stops listening.
-        boolean isListeningAfterDestroy =
-                ThreadUtils.runOnUiThreadBlocking(() -> detector.isListening());
-        Assert.assertFalse(
-                "Gesture detector should stop listening after activity is destroyed",
-                isListeningAfterDestroy);
+        // Verify that a tab group was created for the tab.
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    Criteria.checkThat(
+                            mActivity.getActivityTab().getTabGroupId(), Matchers.notNullValue());
+                });
     }
 
     @Test
-    @SmallTest
-    @DisableFeatures(ChromeFeatureList.SEND_TAB_TO_SELF_GESTURE)
-    public void testSendTabToSelfGestureDetectorLifecycle_Disabled() {
-        SendTabToSelfGestureDetector detector =
+    @MediumTest
+    public void testCreateNewTabGroupMenu_TabAlreadyInGroup() {
+        Token initialGroupId =
                 ThreadUtils.runOnUiThreadBlocking(
-                        () -> mActivity.getSendTabToSelfGestureDetectorForTesting());
-        Assert.assertNull("Gesture detector should be null when feature is disabled", detector);
+                        () -> {
+                            Tab tab = mActivity.getActivityTab();
+                            mActivity.getCurrentTabModel().createSingleTabGroup(tab);
+                            return tab.getTabGroupId();
+                        });
+        Assert.assertNotNull(initialGroupId);
+
+        int initialTabCount =
+                ThreadUtils.runOnUiThreadBlocking(() -> mActivity.getCurrentTabModel().getCount());
+
+        // Trigger "Create new tab group" action directly.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mActivity.handleCreateNewTabGroupAction(mActivity.getActivityTab());
+                });
+
+        // Verify that a new tab was opened and added to a different tab group.
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    TabModel tabModel = mActivity.getCurrentTabModel();
+                    Criteria.checkThat(tabModel.getCount(), Matchers.is(initialTabCount + 1));
+
+                    Tab newTab = tabModel.getTabAt(tabModel.getCount() - 1);
+                    Criteria.checkThat(newTab.getTabGroupId(), Matchers.notNullValue());
+                    Criteria.checkThat(
+                            newTab.getTabGroupId(), Matchers.not(Matchers.equalTo(initialGroupId)));
+                });
     }
 }

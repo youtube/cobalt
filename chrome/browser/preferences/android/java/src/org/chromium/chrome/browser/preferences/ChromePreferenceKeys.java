@@ -1019,9 +1019,17 @@ public final class ChromePreferenceKeys {
     public static final String TAB_OR_GROUP_TEARING_MAX_INSTANCES_FAILURE_COUNT =
             "Chrome.TabOrGroupTearing.MaxInstancesFailureCount";
 
-    // Whether the Tips Notifications Opt In promo has been shown.
-    public static final String TIPS_NOTIFICATIONS_OPT_IN_PROMO_SHOWN =
-            "Chrome.TipsNotifications.OptInShown";
+    // Whether the Tips Notifications Opt In promo has been accepted.
+    public static final String TIPS_NOTIFICATIONS_OPT_IN_PROMO_ACCEPTED =
+            "Chrome.TipsNotifications.OptInAccepted";
+
+    // The number of times the Tips Notifications Opt In promo has been shown.
+    public static final String TIPS_NOTIFICATIONS_OPT_IN_PROMO_SHOW_COUNT =
+            "Chrome.TipsNotifications.OptInShowCount";
+
+    // The timestamp of when the Tips Notifications Opt In promo was last shown.
+    public static final String TIPS_NOTIFICATIONS_OPT_IN_PROMO_LAST_SHOWN_TIMESTAMP =
+            "Chrome.TipsNotifications.OptInLastShownTimestamp";
 
     // If the toolbar should be shown on top.
     public static final String TOOLBAR_TOP_ANCHORED = "Chrome.Toolbar.TopAnchored";
@@ -1055,6 +1063,9 @@ public final class ChromePreferenceKeys {
     public static final String UMA_ON_RESUME_COUNTER = "Chrome.UMA.OnResumeCounter2";
 
     public static final String VERIFIED_DIGITAL_ASSET_LINKS = "verified_digital_asset_links";
+
+    /** Stores the user preference for displaying vertical tabs. */
+    public static final String VERTICAL_TABS_ENABLED = "Chrome.VerticalTabs.Enabled";
 
     /** Key for deferred recording of list of uninstalled WebAPK packages. */
     public static final String WEBAPK_UNINSTALLED_PACKAGES = "webapk_uninstalled_packages";
@@ -1291,13 +1302,16 @@ public final class ChromePreferenceKeys {
                 TAB_PERSISTENCE_CURRENT_AUTHORITATIVE_STORE.pattern(),
                 TAB_PERSISTENCE_SHADOW_WRITTEN_STORE.pattern(),
                 TAB_PERSISTENCE_STORE_MANAGER_VERSION,
-                TIPS_NOTIFICATIONS_OPT_IN_PROMO_SHOWN,
+                TIPS_NOTIFICATIONS_OPT_IN_PROMO_ACCEPTED,
+                TIPS_NOTIFICATIONS_OPT_IN_PROMO_SHOW_COUNT,
+                TIPS_NOTIFICATIONS_OPT_IN_PROMO_LAST_SHOWN_TIMESTAMP,
                 TOOLBAR_TOP_ANCHORED,
                 TWA_DISCLOSURE_SEEN_PACKAGES,
                 UMA_ON_POSTCREATE_COUNTER,
                 UMA_ON_RESUME_COUNTER,
                 USB_NOTIFICATION_IDS,
                 USER_ENABLED_DESKTOP_SITE_GLOBAL_SETTING_PREFERENCE_KEY,
+                VERTICAL_TABS_ENABLED,
                 WEB_SIGNIN_ACCOUNT_PICKER_ACTIVE_DISMISSAL_COUNT,
                 WINDOW_CONTROLS_OVERLAY_ENABLED_PACKAGES);
     }

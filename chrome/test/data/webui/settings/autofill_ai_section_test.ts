@@ -91,7 +91,7 @@ suite('AutofillAiSectionUiReflectsEligibilityStatus', function() {
     settingsPrefs.set(
         `prefs.${AiEnterpriseFeaturePrefName.AUTOFILL_AI}.value`,
         ModelExecutionEnterprisePolicyValue.ALLOW);
-    section.prefs = settingsPrefs.prefs;
+    section.prefs = settingsPrefs.prefs!;
     document.body.appendChild(section);
 
     await flushTasks();
@@ -324,7 +324,7 @@ suite('AutofillAiSectionUiTest', function() {
       AutofillAddOtherDatatypesPrefIsEnabled: false,
     });
     section = document.createElement('settings-autofill-ai-section');
-    section.prefs = settingsPrefs.prefs;
+    section.prefs = settingsPrefs.prefs!;
     document.body.appendChild(section);
     await flushTasks();
   }
@@ -430,9 +430,6 @@ suite('AutofillAiSectionUiTest', function() {
       });
 
   test('ToggleRespectsAddressAutofillPolicy', async function() {
-    loadTimeData.overrideValues({
-      enableYourSavedInfoPolicyAndExtentionToggleIndicators: true,
-    });
     settingsPrefs.set('prefs.autofill.profile_enabled', {
       value: false,
       enforcement: chrome.settingsPrivate.Enforcement.ENFORCED,
@@ -454,9 +451,6 @@ suite('AutofillAiSectionUiTest', function() {
   });
 
   test('ToggleRespectsAddressAutofillExtension', async function() {
-    loadTimeData.overrideValues({
-      enableYourSavedInfoPolicyAndExtentionToggleIndicators: true,
-    });
     settingsPrefs.set('prefs.autofill.profile_enabled', {
       value: false,
       enforcement: chrome.settingsPrivate.Enforcement.ENFORCED,
@@ -478,9 +472,6 @@ suite('AutofillAiSectionUiTest', function() {
   });
 
   test('AddressAutofillNotEnforcesTrueValueOnToggle', async function() {
-    loadTimeData.overrideValues({
-      enableYourSavedInfoPolicyAndExtentionToggleIndicators: true,
-    });
     entityDataManager.setGetOptInStatusResponse(false);
     settingsPrefs.set('prefs.autofill.profile_enabled', {
       value: true,

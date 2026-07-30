@@ -53,6 +53,7 @@
 #include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
 #include "components/autofill/core/common/unique_ids.h"
 #include "components/password_manager/core/common/password_manager_features.h"
+#include "content/public/common/content_features.h"
 #include "content/public/renderer/render_frame.h"
 #include "third_party/blink/public/platform/url_conversion.h"
 #include "third_party/blink/public/platform/web_string.h"
@@ -164,7 +165,7 @@ constexpr std::string_view kListItem = "li";
 constexpr std::string_view kMeta = "meta";
 constexpr std::string_view kName = "name";
 constexpr std::string_view kNoScript = "noscript";
-constexpr std::string_view kNonce = "nonce";
+constexpr std::string_view kChallenge = "challenge";
 constexpr std::string_view kOption = "option";
 constexpr std::string_view kParagraph = "p";
 constexpr std::string_view kPattern = "pattern";
@@ -277,6 +278,7 @@ bool IsTextInput(const WebFormControlElement& element) {
   switch (*type) {
     case FormControlType::kContentEditable:
     case FormControlType::kInputCheckbox:
+    case FormControlType::kInputHiddenEmailVerification:
     case FormControlType::kInputMonth:
     case FormControlType::kInputDate:
     case FormControlType::kInputRadio:
@@ -741,7 +743,7 @@ std::optional<InferredLabel> InferLabelFromAriaLabel(
 // input element (they need to overlap a bit). We want to disregard elements
 // that are primarily below the input element (even if they overlap) because
 // that place is often used to indicate incorrect inputs.
-std::optional<InferredLabel> InferLabelFromOverlayingSuccessor(
+std::optional<InferredLabel> InferPlaceholderFromOverlayingSuccessor(
     const WebFormControlElement& element) {
   WebNode next = element.NextSibling();
   while (next && !next.IsElementNode()) {
@@ -1078,9 +1080,9 @@ std::optional<InferredLabel> InferLabelForElement(
     if (auto r = InferLabelFromPlaceholder(element)) {
       return r;
     }
-  }
-  if (auto r = InferLabelFromOverlayingSuccessor(element)) {
-    return r;
+    if (auto r = InferPlaceholderFromOverlayingSuccessor(element)) {
+      return r;
+    }
   }
   // If we didn't find a placeholder, check for aria-label text.
   if (auto r = InferLabelFromAriaLabel(element)) {
@@ -1351,6 +1353,7 @@ void FillFormField(const FormFieldData::FillData& data,
   switch (*type) {
     case FormControlType::kInputCheckbox:
     case FormControlType::kInputRadio:
+    case FormControlType::kInputHiddenEmailVerification:
       return;
     case FormControlType::kContentEditable:
       NOTREACHED();
@@ -1424,6 +1427,7 @@ void PreviewFormField(const FormFieldData::FillData& data,
   switch (*type) {
     case FormControlType::kInputCheckbox:
     case FormControlType::kInputRadio:
+    case FormControlType::kInputHiddenEmailVerification:
       return;
     case FormControlType::kContentEditable:
       NOTREACHED();
@@ -1937,7 +1941,7 @@ std::vector<WebFormControlElement> GetOwnedFormControls(
   return form_controls;
 }
 
-// Populates out a FormField object from a given autofillable
+// Populates out a FormFieldData object from a given autofillable
 // WebFormControlElement. Field properties are copied from |field_data_manager|,
 // if the argument is not null and has entry for |element| (see properties in
 // FieldPropertiesFlags).
@@ -1978,6 +1982,24 @@ void WebFormControlElementToFormField(
   }
 
   field->set_placeholder(GetAttribute<kPlaceholder>(element).Utf16());
+
+  // With `AutofillBetterLocalHeuristicPlaceholderSupport` enabled, field
+  // placeholder (and "poor man's placeholder") gets promoted to become
+  // a first class citizen for local heuristics. Since "poor man's placeholder"
+  // (extracted through `InferPlaceholderFromOverlayingSuccessor`) is a kind of
+  // placeholder, it is treated as a fallback for the placeholder rather
+  // than for the label.
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillBetterLocalHeuristicPlaceholderSupport) &&
+      !InferredLabel::BuildIfValid(field->placeholder(),
+                                   LabelSource::kPlaceHolder)) {
+    std::optional<InferredLabel> inferred_placeholder =
+        InferPlaceholderFromOverlayingSuccessor(element);
+    if (inferred_placeholder) {
+      field->set_placeholder(inferred_placeholder->label);
+    }
+  }
+
   if (HasAttribute<kClass>(element)) {
     field->set_css_classes(GetAttribute<kClass>(element).Utf16());
   }
@@ -1991,8 +2013,8 @@ void WebFormControlElementToFormField(
   field->set_aria_description(
       GetAriaDescription(element.GetDocument(), element));
 
-  if (HasAttribute<kNonce>(element)) {
-    field->set_nonce(GetAttribute<kNonce>(element).Utf16());
+  if (HasAttribute<kChallenge>(element)) {
+    field->set_challenge(GetAttribute<kChallenge>(element).Utf16());
   }
 
   // Traverse up through shadow hosts to see if we can gather missing
@@ -2339,19 +2361,24 @@ bool IsAutofillableElement(const WebFormControlElement& element) {
   return GetAutofillFormControlType(element).has_value();
 }
 
-std::optional<FormControlType> ToAutofillFormControlType(
-    blink::mojom::FormControlType type) {
+std::optional<FormControlType> GetAutofillFormControlType(
+    const WebFormControlElement& element) {
+  if (!element) {
+    return std::nullopt;
+  }
   // We cache this for performance reasons (crbug.com/428506178). This should
   // not affect tests because the only tests that explicitly set the feature are
   // two browser tests (form_autofill_util_browsertest.cc and
   // form_structure_browsertest.cc) whose renderer processes are hopefully never
   // shared with other tests.
-  const static bool g_autofill_ignore_checkable_elements_enabled =
+  static const bool g_autofill_ignore_checkable_elements_enabled =
       base::FeatureList::IsEnabled(features::kAutofillIgnoreCheckableElements);
+  static const bool g_email_verification_protocol_enabled =
+      base::FeatureList::IsEnabled(::features::kEmailVerificationProtocol);
 
   // Note that adding a new field type here automatically makes
   // IsAutofillableElement() return true.
-  switch (type) {
+  switch (element.FormControlTypeForAutofill()) {
     case blink::mojom::FormControlType::kInputCheckbox:
       if (!g_autofill_ignore_checkable_elements_enabled) {
         return FormControlType::kInputCheckbox;
@@ -2359,6 +2386,15 @@ std::optional<FormControlType> ToAutofillFormControlType(
       break;
     case blink::mojom::FormControlType::kInputEmail:
       return FormControlType::kInputEmail;
+    case blink::mojom::FormControlType::kInputHidden:
+      if (g_email_verification_protocol_enabled) {
+        std::optional<AutocompleteParsingResult> parsed =
+            ParseAutocompleteAttribute(GetAutocompleteAttribute(element));
+        if (parsed && parsed->email_verification_token) {
+          return FormControlType::kInputHiddenEmailVerification;
+        }
+      }
+      break;
     case blink::mojom::FormControlType::kInputMonth:
       return FormControlType::kInputMonth;
     case blink::mojom::FormControlType::kInputNumber:
@@ -2393,7 +2429,6 @@ std::optional<FormControlType> ToAutofillFormControlType(
     case blink::mojom::FormControlType::kInputColor:
     case blink::mojom::FormControlType::kInputDatetimeLocal:
     case blink::mojom::FormControlType::kInputFile:
-    case blink::mojom::FormControlType::kInputHidden:
     case blink::mojom::FormControlType::kInputImage:
     case blink::mojom::FormControlType::kInputRange:
     case blink::mojom::FormControlType::kInputReset:
@@ -2405,13 +2440,6 @@ std::optional<FormControlType> ToAutofillFormControlType(
       break;
   }
   return std::nullopt;
-}
-
-std::optional<FormControlType> GetAutofillFormControlType(
-    const WebFormControlElement& element) {
-  return element
-             ? ToAutofillFormControlType(element.FormControlTypeForAutofill())
-             : std::nullopt;
 }
 
 bool IsWebauthnTaggedElement(const WebFormControlElement& element) {

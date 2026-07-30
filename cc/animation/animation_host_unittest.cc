@@ -31,16 +31,6 @@ using ::testing::Return;
 namespace cc {
 namespace {
 
-// Helper method to convert base::TimeTicks to double.
-// Returns double milliseconds if the input value is resolved or
-// std::numeric_limits<double>::quiet_NaN() otherwise.
-double ToMilliseconds(std::optional<base::TimeTicks> time_ticks) {
-  if (!time_ticks) {
-    return std::numeric_limits<double>::quiet_NaN();
-  }
-  return (time_ticks.value() - base::TimeTicks()).InMillisecondsF();
-}
-
 class AnimationHostTest : public AnimationTimelinesTest {
  public:
   AnimationHostTest() = default;
@@ -318,7 +308,7 @@ void SetScrollOffset(PropertyTrees* property_trees,
   // Update both scroll and transform trees
   property_trees->scroll_tree_mutable().SetScrollOffset(element_id, offset);
   TransformNode* transform_node =
-      property_trees->transform_tree_mutable().FindNodeFromElementId(
+      property_trees->transform_tree_mutable().MutableFindNodeFromElementId(
           element_id);
   transform_node->SetScrollOffset(offset, DamageReason::kUntracked);
   transform_node->needs_local_transform_update = true;

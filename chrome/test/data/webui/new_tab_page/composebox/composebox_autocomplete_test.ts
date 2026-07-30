@@ -860,6 +860,7 @@ suite('NewTabPageComposeboxAutocompleteSmartComposeTest', () => {
     testProxy.element.getInputElement().inputElement.dispatchEvent(
         new Event('input'));
 
+    testProxy.element.haveReceivedSynchronousAutocompleteResponse = true;
     testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
         createAutocompleteResultForTesting({
           input: 'smart ',
@@ -887,6 +888,7 @@ suite('NewTabPageComposeboxAutocompleteSmartComposeTest', () => {
     assertEquals(
         testProxy.searchboxHandler.getCallCount('queryAutocomplete'), 2);
 
+    testProxy.element.haveReceivedSynchronousAutocompleteResponse = true;
     testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
         createAutocompleteResultForTesting({
           input: 'smart ',
@@ -928,6 +930,7 @@ suite('NewTabPageComposeboxAutocompleteSmartComposeTest', () => {
     testProxy.element.getInputElement().inputElement.value = 'awesome';
     testProxy.element.getInputElement().inputElement.dispatchEvent(
         new Event('input'));
+    testProxy.element.haveReceivedSynchronousAutocompleteResponse = true;
     testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
         createAutocompleteResultForTesting({
           input: 'awesome',
@@ -1088,7 +1091,8 @@ suite('NewTabPageComposeboxAutocompleteContextTest', () => {
           },
           maxTotalInputs: 3,
         };
-        loadTimeData.overrideValues({composeboxShowZps: true});
+        loadTimeData.overrideValues(
+            {composeboxShowZps: true, tabFaviconChipsToCoinsEnabled: false});
         createComposeboxElement(testProxy);
         testProxy.searchboxCallbackRouterRemote.onInputStateChanged(
             testInputState);
@@ -1214,6 +1218,8 @@ suite('NewTabPageComposeboxAutocompleteContextTest', () => {
   test(
       'multiple auto active tab updates only adds one chip with latest title',
       async () => {
+        loadTimeData.overrideValues(
+            {composeboxShowZps: true, tabFaviconChipsToCoinsEnabled: false});
         createComposeboxElement(testProxy);
         await microtasksFinished();
 

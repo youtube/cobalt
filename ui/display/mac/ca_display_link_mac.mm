@@ -8,9 +8,11 @@
 #import <QuartzCore/CADisplayLink.h>
 
 #include "base/containers/flat_set.h"
+#include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/no_destructor.h"
 #include "base/trace_event/trace_event.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
@@ -38,15 +40,17 @@ API_AVAILABLE(macos(14.0))
 
 namespace ui {
 
+BASE_FEATURE(kCADisplayLinkInGpuThenBrowser, base::FEATURE_DISABLED_BY_DEFAULT);
+
 namespace {
 struct CADisplayLinkGlobals {
   CADisplayLinkGlobals() = default;
   base::Lock lock;
   // Set of display IDs where CADisplayLink has become unreliable in the GPU
   // process (e.g., due to a power event or system refresh rate change).
-  absl::flat_hash_set<int64_t> invalidated_displays GUARDED_BY(lock);
+  absl::flat_hash_set<CGDirectDisplayID> invalidated_displays GUARDED_BY(lock);
 
-  // Indicate whether the display creation has been logged within the
+  // Indicates whether the display creation has been logged within the
   // 'Viz.ExternalBeginFrameSourceMac.DisplayLink.Create2' histogram.
   absl::flat_hash_set<CGDirectDisplayID> recorded_displays GUARDED_BY(lock);
 
@@ -125,21 +129,27 @@ void CADisplayLinkMac::GetRefreshIntervalRange(
 }
 
 // static
+// This function is called from both the GPU and the Browser process.
 void CADisplayLinkMac::TryRecordDisplayLinkCreation(
     CGDirectDisplayID display_id,
     bool success,
     bool in_gpu_process) {
-  // Only record the one from the GPU process as we cannot track the status from
-  // multi-process in one |globals.recorded_displays|.
-  if (!in_gpu_process) {
-    return;
-  }
   auto& globals = CADisplayLinkGlobals::Get();
   base::AutoLock lock(globals.lock);
-
   auto [it, inserted] = globals.recorded_displays.insert(display_id);
   if (inserted) {
-    RecordDisplayLinkCreation(success);
+    if (in_gpu_process) {
+      // Recorded from the GpuMain (CompositorGpuThread) or VizCompositor
+      // threads in the GPU process.
+      UMA_HISTOGRAM_BOOLEAN("Viz.DisplayLink.Create.GPU.CADisplayLink",
+                            success);
+
+    } else {
+      // Created only from the VSyncThread of the Browser process.
+      // Viz.ExternalBeginFrameSourceMac.DisplayLink.Create2 is used to compare
+      // CADisplayLink in Browser with CVDisplayLink.
+      RecordDisplayLinkCreation(success);
+    }
   }
 }
 
@@ -148,6 +158,8 @@ scoped_refptr<DisplayLinkMac> CADisplayLinkMac::GetForDisplay(
     CGDirectDisplayID display_id,
     bool in_gpu_process) {
   if (@available(macos 14.0, *)) {
+    TRACE_EVENT("gpu", "CADisplayLinkMac::GetForDisplay");
+
     scoped_refptr<CADisplayLinkMac> display_link(
         new CADisplayLinkMac(display_id));
     auto* objc_state = display_link->objc_state_.get();
@@ -188,8 +200,6 @@ scoped_refptr<DisplayLinkMac> CADisplayLinkMac::GetForDisplay(
         setCallback:base::BindRepeating(
                         &CADisplayLinkMac::Step,
                         display_link->weak_factory_.GetWeakPtr())];
-
-    TRACE_EVENT("gpu", "CADisplayLinkMac::GetForDisplay succeeded");
 
     return display_link;
   }
@@ -242,14 +252,18 @@ void CADisplayLinkMac::UnregisterCallback(VSyncCallbackMac* callback) {
   }
 }
 
-bool CADisplayLinkMac::NotifyEventAndCheckValidity(int64_t display_id) {
+bool CADisplayLinkMac::NotifyEventAndCheckValidity() {
   base::AutoLock lock(CADisplayLinkGlobals::Get().lock);
-  CADisplayLinkGlobals::Get().invalidated_displays.insert(display_id);
+  CADisplayLinkGlobals::Get().invalidated_displays.insert(display_id_);
   return false;
 }
 
 // static
-bool CADisplayLinkMac::IsValidInGpuProcess(int64_t display_id) {
+bool CADisplayLinkMac::IsValidInGpuProcess(CGDirectDisplayID display_id) {
+  if (!base::FeatureList::IsEnabled(kCADisplayLinkInGpuThenBrowser)) {
+    return false;
+  }
+
   base::AutoLock lock(CADisplayLinkGlobals::Get().lock);
   auto& invalidated_displays = CADisplayLinkGlobals::Get().invalidated_displays;
   return invalidated_displays.find(display_id) == invalidated_displays.end();

@@ -4,6 +4,7 @@
 
 #include "components/optimization_guide/content/browser/page_content_proto_util.h"
 
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <variant>
@@ -11,6 +12,7 @@
 
 #include "base/feature_list.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
 #include "base/supports_user_data.h"
 #include "base/types/expected.h"
@@ -143,14 +145,6 @@ bool ShouldRedactContent(proto::RedactionDecision redaction_decision) {
       LOG(ERROR) << "Missing case statement in ShouldRedactContent";
       return false;
   }
-}
-
-// Returns whether or not a given form control node should have its content
-// redacted (irrespective of the reason).
-bool ShouldRedactContent(
-    const optimization_guide::proto::FormControlData& form_control_data) {
-  return form_control_data.has_redaction_decision() &&
-         ShouldRedactContent(form_control_data.redaction_decision());
 }
 
 optimization_guide::proto::ClickabilityReason ConvertClickabilityReason(
@@ -650,9 +644,10 @@ optimization_guide::proto::RedactionDecision ConvertRedactionDecision(
 
 void ConvertFormControlData(
     const blink::mojom::AIPageContentFormControlData& mojom_form_control_data,
-    blink::mojom::AIPageContentRedactionDecision redaction_decision,
     const std::optional<AutofillFieldMetadata>& autofill_metadata,
-    optimization_guide::proto::FormControlData* proto_form_control_data) {
+    optimization_guide::proto::ContentAttributes* proto_attributes) {
+  optimization_guide::proto::FormControlData* proto_form_control_data =
+      proto_attributes->mutable_form_control_data();
   proto_form_control_data->set_form_control_type(
       ConvertFormControlType(mojom_form_control_data.form_control_type));
   proto_form_control_data->set_is_checked(mojom_form_control_data.is_checked);
@@ -680,11 +675,6 @@ void ConvertFormControlData(
     }
     proto_select_option->set_is_selected(select_option->is_selected);
   }
-  // Set the deprecated proto field for compatibility. The canonical redaction
-  // decision now lives on `ContentAttributes.redaction_decision`.
-  // TODO(crbug.com/480135178): Remove when consumers are migrated.
-  proto_form_control_data->set_redaction_decision(
-      ConvertRedactionDecision(redaction_decision));
 
   // Incorporate any information received from Autofill.
   if (autofill_metadata) {
@@ -697,7 +687,7 @@ void ConvertFormControlData(
     // one, use the Autofill decision when its feature gate is enabled.
     //
     // TODO(b/454611037): Handle <select> related data as well.
-    if (proto_form_control_data->redaction_decision() ==
+    if (proto_attributes->redaction_decision() ==
             proto::REDACTION_DECISION_NO_REDACTION_NECESSARY &&
         IsAutofillRedactionReasonEnabled(autofill_metadata->redaction_reason)) {
       proto::RedactionDecision autofill_redaction_decision =
@@ -705,16 +695,20 @@ void ConvertFormControlData(
               *proto_form_control_data, autofill_metadata->redaction_reason);
       if (autofill_redaction_decision !=
           proto::REDACTION_DECISION_NO_REDACTION_NECESSARY) {
-        proto_form_control_data->set_redaction_decision(
-            autofill_redaction_decision);
+        proto_attributes->set_redaction_decision(autofill_redaction_decision);
 
-        if (ShouldRedactContent(
-                proto_form_control_data->redaction_decision())) {
+        if (ShouldRedactContent(proto_attributes->redaction_decision())) {
           proto_form_control_data->clear_field_value();
         }
       }
     }
   }
+
+  // Set the deprecated proto field for compatibility. The canonical redaction
+  // decision now lives on `ContentAttributes.redaction_decision`.
+  // TODO(crbug.com/480135178): Remove when consumers are migrated.
+  proto_form_control_data->set_redaction_decision(
+      proto_attributes->redaction_decision());
 }
 
 void ConvertTableData(
@@ -843,9 +837,8 @@ base::expected<void, std::string> ConvertAttributes(
     }
     ConvertFormControlData(
         *mojom_attributes.form_control_data,
-        mojom_attributes.redaction_decision,
         GetAutofillFieldData(source_frame_token, session, *proto_attributes),
-        proto_attributes->mutable_form_control_data());
+        proto_attributes);
   } else if (mojom_attributes.table_data) {
     if (mojom_attributes.attribute_type !=
         blink::mojom::AIPageContentAttributeType::kTable) {
@@ -955,6 +948,11 @@ void ConvertFrameData(
   AddDocumentIdentifier(render_frame_info.global_frame_token, frame_token_set,
                         render_frame_info.serialized_server_token,
                         proto_frame_data);
+
+  // The renderer always initializes this from the frame's used line height.
+  // Mojo uses uint32 because negative line heights are not valid.
+  proto_frame_data->set_default_line_height_px(
+      mojom_frame_data.default_line_height_px);
 
   if (mojom_frame_data.contains_paid_content) {
     auto* paid_content_metadata =
@@ -1196,8 +1194,7 @@ class Converter {
     // form control data.
     const optimization_guide::proto::ContentAttributes& proto_attributes =
         proto_node->content_attributes();
-    if (proto_attributes.has_form_control_data() &&
-        ShouldRedactContent(proto_attributes.form_control_data())) {
+    if (ShouldRedactContent(proto_attributes.redaction_decision())) {
       return base::ok();
     }
 
@@ -1252,6 +1249,17 @@ class Converter {
       return base::ok();
     }
 
+    if (page_content_proto().has_popup_window()) {
+      return base::ok();
+    }
+
+    if (!opener_frame_info.has_active_popup) {
+      // This could be a race condition where the popup was closed between the
+      // start of extraction and the renderer's response. We skip the popup
+      // but continue with the rest of the page content.
+      return base::ok();
+    }
+
     optimization_guide::proto::PopupWindow* popup_window =
         page_content_proto().mutable_popup_window();
 
@@ -1261,8 +1269,7 @@ class Converter {
 
     // Set the document ID to the frame which opened the popup (might be wrong,
     // because we treat a main page and its same-site iframes as the same
-    // document id). Also we don't need browser-side security check as the data
-    // all come from the same renderer.
+    // document id). We verify that the the popup is owned by the iframe.
     popup_window->mutable_opener_document_id()->set_serialized_token(
         opener_frame_info.serialized_server_token);
 
@@ -1330,8 +1337,7 @@ class Converter {
       const blink::mojom::AIPageContentAttributes& mojom_attributes,
       const optimization_guide::proto::ContentAttributes& proto_attributes) {
     if (proto_attributes.has_form_control_data()) {
-      const auto redaction_decision =
-          proto_attributes.form_control_data().redaction_decision();
+      const auto redaction_decision = proto_attributes.redaction_decision();
       const bool should_collect_sensitive_payment =
           options_->include_sensitive_payments_for_redaction &&
           redaction_decision ==
@@ -1387,16 +1393,17 @@ class Converter {
         proto_attributes.set_common_ancestor_dom_node_id(
             *mojom_attributes.dom_node_id);
       }
+      proto_attributes.set_redaction_decision(
+          ConvertRedactionDecision(mojom_attributes.redaction_decision));
       ConvertFormControlData(
           *mojom_attributes.form_control_data,
-          mojom_attributes.redaction_decision,
           GetAutofillFieldData(frame_token, session_, proto_attributes),
-          proto_attributes.mutable_form_control_data());
+          &proto_attributes);
       MaybeAddSensitivePaymentOrOtpData(mojom_attributes, proto_attributes);
 
       // If the node is redacted, do not walk children. This is consistent with
       // the behavior in `ConvertNode()`.
-      if (ShouldRedactContent(proto_attributes.form_control_data())) {
+      if (ShouldRedactContent(proto_attributes.redaction_decision())) {
         return;
       }
     }
@@ -1512,6 +1519,13 @@ base::expected<void, std::string> ConvertAIPageContentToProto(
                       page_content_result);
   converter.AddRendererPasswordRedactionBoxes(*main_frame_page_content);
 
+  // Claim the singleton popup before walking child frames so the main frame
+  // wins if multiple verified frames report popup data.
+  if (main_frame_page_content->frame_data->popup) {
+    RETURN_IF_ERROR(converter.ConvertPopup(
+        *main_frame_page_content->frame_data->popup, *render_frame_info));
+  }
+
   RETURN_IF_ERROR(converter.ConvertNode(
       main_frame_token, *main_frame_page_content->root_node,
       GetAccessibilityFocusedNodeId(*main_frame_page_content->frame_data),
@@ -1551,12 +1565,6 @@ base::expected<void, std::string> ConvertAIPageContentToProto(
   page_content_result.proto.set_version(
       optimization_guide::proto::ANNOTATED_PAGE_CONTENT_VERSION_1_0);
   page_content_result.proto.set_mode(mode);
-
-  // If the page had a popup open, provide that popup to APC as well.
-  if (main_frame_page_content->frame_data->popup) {
-    RETURN_IF_ERROR(converter.ConvertPopup(
-        *main_frame_page_content->frame_data->popup, *render_frame_info));
-  }
 
   return base::ok();
 }
@@ -1775,6 +1783,19 @@ content::RenderFrameHost* GetRenderFrameForDocumentIdentifier(
         return content::RenderFrameHost::FrameIterationAction::kContinue;
       });
   return render_frame;
+}
+
+content::RenderFrameHost* GetRenderFrameHostForToken(
+    int renderer_process_id,
+    blink::FrameToken frame_token) {
+  if (frame_token.Is<blink::RemoteFrameToken>()) {
+    return content::RenderFrameHost::FromPlaceholderToken(
+        renderer_process_id, frame_token.GetAs<blink::RemoteFrameToken>());
+  } else {
+    return content::RenderFrameHost::FromFrameToken(
+        content::GlobalRenderFrameHostToken(
+            renderer_process_id, frame_token.GetAs<blink::LocalFrameToken>()));
+  }
 }
 
 RenderFrameInfo::RenderFrameInfo() = default;

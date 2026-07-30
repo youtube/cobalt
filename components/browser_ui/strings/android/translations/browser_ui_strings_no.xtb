@@ -5,7 +5,6 @@
 <translation id="1036348656032585052">Slå av</translation>
 <translation id="1046742265332833834">Blått tema</translation>
 <translation id="1070329623210597193">Filer dette nettstedet kan se eller redigere</translation>
-<translation id="1073417869336441572">Hjelp oss med å forbedre Chrome ved å fortelle oss hvorfor du tillot informasjonskapsler fra tredjeparter. <ph name="BEGIN_LINK" />Send tilbakemelding<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">Du kan be om å få datamaskinversjonen av nettsteder</translation>
 <translation id="1109482864356262001">Funksjoner som krever bevegelses- eller lyssensorer, kommer ikke til å virke</translation>
 <translation id="1126523729897810826">Fullfør de foreslåtte handlingene nedenfor for å få mest mulig ut av Chrome</translation>
@@ -21,6 +20,7 @@
 <translation id="1240190568154816272">Chrome-tips</translation>
 <translation id="1242008676835033345">Innebygd på <ph name="WEBSITE_URL" /></translation>
 <translation id="1263609676484797429">Trykk på Apper  &gt; Standardapper</translation>
+<translation id="1264694639515903274">Nå kan du tilpasse startsiden</translation>
 <translation id="1272079795634619415">Stopp</translation>
 <translation id="1275718070701477396">Valgt</translation>
 <translation id="1289742167380433257">For å spare data er bildene på denne siden optimalisert av Google.</translation>
@@ -90,6 +90,7 @@
 <translation id="1915307458270490472">Legg på</translation>
 <translation id="1919950603503897840">Velg kontakter</translation>
 <translation id="1923695749281512248"><ph name="BYTES_DOWNLOADED_WITH_UNITS" /> / <ph name="FILE_SIZE_WITH_UNITS" /></translation>
+<translation id="192926679114491605">Tilpass startsiden min</translation>
 <translation id="1939059826036755332">Automatisk bilde-i-bilde</translation>
 <translation id="1954597385941141174">Nettsteder kan be om å få koble til USB-enheter</translation>
 <translation id="1979673356880165407">Gjør tekst og bilder større eller mindre for alle nettsteder du besøker</translation>
@@ -286,6 +287,7 @@
 <translation id="3843916486309149084">Chrome begynner å blokkere informasjonskapsler igjen i dag</translation>
 <translation id="385051799172605136">Tilbake</translation>
 <translation id="3859306556332390985">Spol fremover</translation>
+<translation id="3870711497942672548">Gjør Chrome til din egen med egendefinerte farger og bilder på startsiden</translation>
 <translation id="389521680295183045">Nettsteder kan be om å få vite når du bruker enheten aktivt</translation>
 <translation id="3895926599014793903">Tving zoom på</translation>
 <translation id="3903738175795615004">Dra fra toppen eller trykk på Esc-tasten for å avslutte fullskjermmodus.</translation>
@@ -328,7 +330,9 @@
 <translation id="4290791284969893584">Når du lukker sider, kan det hende at oppgaver du har startet, ikke fullføres</translation>
 <translation id="429312253194641664">Et nettsted spiller av medier</translation>
 <translation id="42981349822642051">Vis</translation>
+<translation id="4310738531374808763">Tilpass startsiden din</translation>
 <translation id="4336219115486912529">{COUNT,plural, =1{Utløper i morgen}other{Utløper om # dager}}</translation>
+<translation id="4336371609622603229">Gjør Chrome til din egen ved å velge et egendefinert tema</translation>
 <translation id="4338831206024587507">Alle nettsteder under <ph name="DOMAIN" /></translation>
 <translation id="4340799661701629185">Ikke la nettsteder sende varsler</translation>
 <translation id="4341577178275615435">For å slå markørsurfing på eller av, bruk hurtigtasten F7</translation>
@@ -440,7 +444,6 @@
 <translation id="5555115555607204100">Ikke gjør nettsteder raskere med V8-motoren i Chrome, men gjør Chrome litt mer motstandsdyktig mot angrep</translation>
 <translation id="5556459405103347317">Last inn på nytt</translation>
 <translation id="5591840828808741583"><ph name="SITE_NAME" /> er blokkert</translation>
-<translation id="560980142378233747">Dette betyr at funksjoner på nettstedet skal fungere som forventet, men det kan hende at surfebeskyttelsen svekkes. <ph name="BEGIN_LINK" />Send tilbakemelding<ph name="END_LINK" /></translation>
 <translation id="5617702678271228680">Feltet nederst for kort på Ny fane-siden</translation>
 <translation id="5621413808884657932">Når dette er på, kan nettsteder be om å få bruke andre apper og tjenester på denne enheten. Når dette er av, kan ikke nettsteder bruke andre apper og tjenester på denne enheten.</translation>
 <translation id="5632485077360054581">Vis meg hvordan</translation>
@@ -519,6 +522,7 @@
 <translation id="6262279340360821358"><ph name="PERMISSION_1" /> og <ph name="PERMISSION_2" /> er blokkert</translation>
 <translation id="6270391203985052864">Nettsteder kan be om å få sende deg varsler</translation>
 <translation id="6295158916970320988">Alle nettsteder</translation>
+<translation id="6305257382500066042">Prøv det nå</translation>
 <translation id="6320088164292336938">Vibrering</translation>
 <translation id="6367753977865761591">Blokkér pålogging fra tredjeparter for bestemte nettsteder.</translation>
 <translation id="6398765197997659313">Avslutt fullskjerm</translation>
@@ -529,7 +533,6 @@
 <translation id="6447842834002726250">Informasjonskapsler</translation>
 <translation id="6452138246455930388">Avslag på den åpne fanen din, fra <ph name="OLD_PRICE" /> til <ph name="NEW_PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN_NAME" /></translation>
 <translation id="6500423977866688905">Når vinduet er smalt, kan du be om mobilvisning</translation>
-<translation id="6514791408445720076">Tilpass siden din</translation>
 <translation id="6527303717912515753">Del</translation>
 <translation id="6530703012083415527">Når dette er på, kan nettsteder bruke forgrunnsvinduer og viderekoblinger. Når dette er av, kan ikke nettsteder bruke forgrunnsvinduer eller viderekoblinger.</translation>
 <translation id="6540488083026747005">Du har tillatt informasjonskapsler fra tredjeparter for dette nettstedet</translation>
@@ -593,7 +596,6 @@
 <translation id="7141896414559753902">Blokkér nettsteder fra å vise forgrunnsvinduer og viderekoblinger (anbefales)</translation>
 <translation id="7176368934862295254"><ph name="KILOBYTES" /> kB</translation>
 <translation id="7180611975245234373">Last inn på nytt</translation>
-<translation id="7180865173735832675">Tilpass</translation>
 <translation id="7188508872042490670">Nettstedsdata på enheten</translation>
 <translation id="7201549776650881587">Denne handlingen sletter alle data og informasjonskapsler som er lagret av alle nettstedene under <ph name="ORIGIN" /> eller den tilhørende appen på startskjermen</translation>
 <translation id="7219254577985949841">Vil du slette nettstedsdata?</translation>
@@ -707,7 +709,6 @@ Avansert beskyttelse styrer disse Chrome-innstillingene:</translation>
 <translation id="83792324527827022">Et nettsted bruker kameraet ditt og mikrofonen din</translation>
 <translation id="8380167699614421159">Dette nettstedet viser forstyrrende eller villedende annonser</translation>
 <translation id="8394832520002899662">Trykk for å gå tilbake til nettstedet</translation>
-<translation id="8404500559369898929">Gjør Chrome til din egen ved å velge et egendefinert bakgrunnstema</translation>
 <translation id="8409345997656833551">Bli varslet når artikler kan vises i forenklet visning</translation>
 <translation id="8416874502399604126">Mikrofon er tillatt denne gangen</translation>
 <translation id="8423565414844018592">Tekstskaleringen er satt til <ph name="TEXT_SCALING" /></translation>
@@ -753,7 +754,6 @@ Avansert beskyttelse styrer disse Chrome-innstillingene:</translation>
 <translation id="8737426583868847403">Nettsteder du lagrer et egendefinert zoomnivå for, vises her</translation>
 <translation id="8748714929822124637">Ikke la nettsteder bruke andre enheter på det lokale nettverket</translation>
 <translation id="8751914237388039244">Velg et bilde</translation>
-<translation id="8775741625735357092">Du kan slå på bokmerkelinjen i Innstillinger &gt; Utseende</translation>
 <translation id="8800034312320686233">Virker ikke nettstedet?</translation>
 <translation id="8801436777607969138">Blokkér JavaScript for et bestemt nettsted.</translation>
 <translation id="8801657293260363985">V8 er JavaScript- og WebAssembly-motoren som Chrome bruker til å forbedre nettstedsytelsen</translation>

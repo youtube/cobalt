@@ -24,6 +24,7 @@
 #include "components/sessions/content/session_tab_helper.h"
 #include "content/public/browser/media_session.h"
 #include "media/base/media_switches.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/color/color_id.h"
 
 namespace {
@@ -311,16 +312,17 @@ const gfx::VectorIcon& GetVectorIcon(
     global_media_controls::mojom::IconType icon) {
   switch (icon) {
     case global_media_controls::mojom::IconType::kInfo:
-      return kInfoIcon;
+      return features::IsRoundedIconsEnabled() ? kInfoIcon : kInfoOldIcon;
     case global_media_controls::mojom::IconType::kSpeaker:
-      return kSpeakerIcon;
+      return features::IsRoundedIconsEnabled() ? kSpeakerIcon : kSpeakerOldIcon;
     case global_media_controls::mojom::IconType::kSpeakerGroup:
-      return kSpeakerGroupIcon;
+      return features::IsRoundedIconsEnabled() ? kSpeakerGroupIcon
+                                               : kSpeakerGroupOldIcon;
     case global_media_controls::mojom::IconType::kInput:
-      return kInputIcon;
+      return features::IsRoundedIconsEnabled() ? kInputIcon : kInputOldIcon;
     case global_media_controls::mojom::IconType::kThrobber:
     case global_media_controls::mojom::IconType::kTv:
     case global_media_controls::mojom::IconType::kUnknown:
-      return kTvIcon;
+      return features::IsRoundedIconsEnabled() ? kTvIcon : kTvOldIcon;
   }
 }

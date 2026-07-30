@@ -137,7 +137,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
                                     public ScrollbarAnimationControllerClient,
                                     public VideoFrameControllerClient,
                                     public MutatorHostDelegate,
-                                    public ImageAnimationController::Client,
+                                    public ImageAnimationController::Delegate,
                                     public CompositorDelegateForInput,
                                     public EventLatencyTracker {
  public:
@@ -204,9 +204,8 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   bool HaveRootScrollNode() const override;
   void SetNeedsCommit() override;
   base::TimeDelta CurrentFrameInterval() const override;
-  float RenderedDeviceScaleFactor() const override;
 
-  // ImageAnimationController::Client implementation.
+  // ImageAnimationController::Delegate implementation.
   void RequestBeginFrameForAnimatedImages() override;
   void RequestInvalidationForAnimatedImages() override;
 
@@ -449,6 +448,8 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
 
   // Resets all of the trees to an empty state.
   void ResetTreesForTesting();
+
+  virtual void DidSendEarlyFinalBeginMainFrame();
 
   size_t SourceAnimationFrameNumberForTesting() const;
 
@@ -939,23 +940,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
 
   void RenewTreePriority();
 
-  // The function is called to update state on the sync tree after a commit
-  // finishes or after the sync tree was created to invalidate content on the
-  // impl thread.
-  void UpdateSyncTreeAfterCommitOrImplSideInvalidation();
-
-  // Returns a job map for all 'dirty' PaintWorklets, e.g. PaintWorkletInputs
-  // that do not map to a PaintRecord.
-  PaintWorkletJobMap GatherDirtyPaintWorklets(PaintImageIdFlatSet*) const;
-
-  // Called when all PaintWorklet results are ready (i.e. have been painted) for
-  // the current pending tree.
-  void OnPaintWorkletResultsReady(PaintWorkletJobMap results);
-
-  // Called when the pending tree has been fully painted, i.e. all required data
-  // is available to raster the tree.
-  void NotifyPendingTreeFullyPainted();
-
   void UpdateRasterCapabilities();
 
   bool AnimatePageScale(base::TimeTicks monotonic_time);
@@ -1341,7 +1325,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   ThrottleDecider throttle_decider_;
 
   bool downsample_metrics_ = true;
-  base::MetricsSubSampler metrics_subsampler_;
 
   // See `CommitState::screenshot_destination_token`.
   base::UnguessableToken screenshot_destination_;

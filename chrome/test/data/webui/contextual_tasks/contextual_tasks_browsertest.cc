@@ -96,6 +96,10 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, OverflowMenu) {
   RunTest("contextual_tasks/overflow_menu_test.js", "mocha.run();");
 }
 
+IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, OnboardingTooltip) {
+  RunTest("contextual_tasks/onboarding_tooltip_test.js", "mocha.run();");
+}
+
 IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, WebView) {
   RunTest("contextual_tasks/contextual_tasks_webview_browsertest.js",
           "mocha.run();");
@@ -103,4 +107,8 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, WebView) {
 
 IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, ClipPath) {
   RunTest("contextual_tasks/utils/clip_path_test.js", "mocha.run();");
+}
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, WindowManager) {
+  RunTest("contextual_tasks/window_manager_test.js", "mocha.run();");
 }

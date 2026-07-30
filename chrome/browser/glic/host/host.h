@@ -17,17 +17,11 @@
 #include "chrome/browser/glic/host/context/glic_sharing_manager_provider.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_web_client_access.h"
-#include "chrome/browser/glic/host/host_metrics.h"
 #include "chrome/browser/glic/public/glic_instance.h"
 #include "chrome/browser/glic/public/glic_passkeys.h"
 #include "chrome/common/actor/task_id.h"
 #include "components/autofill/core/browser/integrators/actor/actor_form_filling_types.h"
 #include "components/tabs/public/tab_interface.h"
-
-namespace actor {
-class ActorTaskDelegate;
-class AutofillSelectionDialogEventHandler;
-}  // namespace actor
 
 class Profile;
 namespace content {
@@ -40,8 +34,8 @@ class GlicPageHandler;
 class WebUIContentsContainer;
 class GlicInstanceMetrics;
 class GlicInstanceMetricsBackwardsCompatibility;
-class GlicActorClientSession;
 
+class GlicPinCandidateProvider;
 class GlicSkillsManager;
 
 // The host owns the WebUI that contains the main glic UI and the web client.
@@ -99,8 +93,6 @@ class Host : public GlicSharingManagerProvider {
         bool open_in_background,
         const std::optional<int32_t>& window_id,
         glic::mojom::WebClientHandler::CreateTabCallback callback) = 0;
-    // TODO(mcnee): `delegate` appears unused.
-    virtual GlicActorClientSession* BindActorClientSession() = 0;
 
     virtual void FetchZeroStateSuggestions(
         bool is_first_run,
@@ -127,16 +119,24 @@ class Host : public GlicSharingManagerProvider {
     virtual GlicInstanceMetricsBackwardsCompatibility&
     instance_metrics_backwards_compatibility() = 0;
 
+    virtual GlicSkillsManager& skills_manager() = 0;
+
     virtual bool IsActive() = 0;
 
     virtual std::unique_ptr<WebUIContentsContainer>
     CreateWebUIContentsContainer() = 0;
+
+    virtual void CreateActorHandler(
+        mojo::PendingReceiver<mojom::ActorHandler> receiver,
+        mojo::PendingRemote<mojom::ActorClient> client) = 0;
   };
 
   class Observer : public base::CheckedObserver {
    public:
     // Called when Glic is connected to the WebClient.
     virtual void WebClientConnected() {}
+    // Called when Glic is disconnected from the WebClient.
+    virtual void WebClientDisconnected() {}
 
     // Called when the client is ready to show, invoked sometime after
     // `Host::PanelWillOpen()` is called.
@@ -229,6 +229,8 @@ class Host : public GlicSharingManagerProvider {
 
   // GlicSharingManagerProvider Implementation.
   GlicSharingManager& sharing_manager() override;
+
+  GlicPinCandidateProvider& pin_candidate_provider() override;
 
   GlicSkillsManager& skills_manager();
 
@@ -328,7 +330,7 @@ class Host : public GlicSharingManagerProvider {
   void UnsetWebClient(GlicWebClientAccess* web_client);
   void WebClientInitializeFailed(GlicWebClientAccess* web_client);
 
-  void SetContextAccessIndicator(GlicPageHandler*, bool enabled);
+  void SetContextAccessIndicator(bool enabled);
 
   // Informs the host that the WebUi state has changed.
   void WebUiStateChanged(GlicPageHandler* page_handler,
@@ -373,29 +375,6 @@ class Host : public GlicSharingManagerProvider {
   mojom::PanelState GetPanelState(GlicWebClientAccess* client) const;
 
   base::WeakPtr<Host> GetWeakPtr() { return weak_ptr_factory_.GetWeakPtr(); }
-
-  void RequestToShowCredentialSelectionDialog(
-      actor::TaskId task_id,
-      const base::flat_map<std::string, gfx::Image>& icons,
-      const std::vector<actor_login::Credential>& credentials,
-      actor::ActorTaskDelegate::CredentialSelectedCallback callback);
-
-  void RequestToShowUserConfirmationDialog(
-      actor::TaskId task_id,
-      const url::Origin& navigation_origin,
-      bool for_blocklisted_origin,
-      actor::ActorTaskDelegate::UserConfirmationDialogCallback callback);
-
-  void RequestToConfirmNavigation(
-      actor::TaskId task_id,
-      const url::Origin& navigation_origin,
-      actor::ActorTaskDelegate::NavigationConfirmationCallback callback);
-
-  void RequestToShowAutofillSuggestionsDialog(
-      actor::TaskId task_id,
-      std::vector<autofill::ActorFormFillingRequest> requests,
-      base::WeakPtr<actor::AutofillSelectionDialogEventHandler> event_handler,
-      actor::ActorTaskDelegate::AutofillSuggestionSelectedCallback callback);
 
   void FloatingPanelCanAttachChanged(bool can_attach);
 
@@ -495,13 +474,8 @@ class Host : public GlicSharingManagerProvider {
 
   raw_ptr<GlicSharingManagerProvider> sharing_manager_provider_;
 
-  // Responsible for skill update logic.
-  std::unique_ptr<GlicSkillsManager> skills_manager_;
-
   mojom::MicrophoneStatus microphone_status_ =
       mojom::MicrophoneStatus::kUnknown;
-
-  HostMetrics metrics_;
 
   base::WeakPtrFactory<Host> weak_ptr_factory_{this};
 };

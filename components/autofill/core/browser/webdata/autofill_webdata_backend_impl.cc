@@ -4,20 +4,32 @@
 
 #include "components/autofill/core/browser/webdata/autofill_webdata_backend_impl.h"
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "base/check.h"
-#include "base/check_is_test.h"
 #include "base/check_op.h"
 #include "base/debug/alias.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/location.h"
+#include "base/memory/ref_counted_delete_on_sequence.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/observer_list.h"
-#include "base/strings/string_number_conversions.h"
+#include "base/supports_user_data.h"
 #include "base/task/sequenced_task_runner.h"
-#include "base/uuid.h"
+#include "build/buildflag.h"
+#include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/payments/autofill_offer_data.h"
 #include "components/autofill/core/browser/data_model/payments/autofill_wallet_usage_data.h"
@@ -27,7 +39,8 @@
 #include "components/autofill/core/browser/data_model/payments/credit_card_cloud_token_data.h"
 #include "components/autofill/core/browser/data_model/payments/iban.h"
 #include "components/autofill/core/browser/data_model/payments/payments_metadata.h"
-#include "components/autofill/core/browser/geo/autofill_country.h"
+#include "components/autofill/core/browser/data_model/valuables/loyalty_card.h"
+#include "components/autofill/core/browser/data_model/valuables/valuable_types.h"
 #include "components/autofill/core/browser/payments/payments_customer_data.h"
 #include "components/autofill/core/browser/webdata/addresses/address_autofill_table.h"
 #include "components/autofill/core/browser/webdata/autocomplete/autocomplete_entry.h"
@@ -40,11 +53,14 @@
 #include "components/autofill/core/browser/webdata/payments/server_cvc.h"
 #include "components/autofill/core/browser/webdata/valuables/valuables_table.h"
 #include "components/autofill/core/common/autofill_clock.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/dense_set.h"
 #include "components/autofill/core/common/form_field_data.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/protocol/autofill_specifics.pb.h"
+#include "components/webdata/common/web_data_results.h"
 #include "components/webdata/common/web_database_backend.h"
+#include "sql/database.h"
 
 namespace autofill {
 
@@ -147,6 +163,16 @@ enum class Result {
 void ReportResult(Result result) {
   base::UmaHistogramEnumeration(
       "WebDatabase.AutofillWebDataBackendImpl.OperationResult", result);
+}
+
+bool SupportsSyncingEntityMetadata(const EntityInstance& entity_instance) {
+  switch (entity_instance.record_type()) {
+    case EntityInstance::RecordType::kServerWallet:
+      return true;
+    case EntityInstance::RecordType::kLocal:
+    case EntityInstance::RecordType::kPersonalContext:
+      return false;
+  }
 }
 
 }  // namespace
@@ -340,7 +366,7 @@ void AutofillWebDataBackendImpl::NotifyOnEntityInstanceChanged(
   }
 
   // Notify about potential server metadata changes.
-  if (change.data_model().IsServerInstance()) {
+  if (SupportsSyncingEntityMetadata(change.data_model())) {
     EntityInstanceMetadataChange::Type metadata_change_type = [&] {
       switch (change.type()) {
         case EntityInstanceChange::ADD:
@@ -609,7 +635,7 @@ WebDatabase::State AutofillWebDataBackendImpl::UpdateEntityMetadata(
     return WebDatabase::COMMIT_NOT_NEEDED;
   }
 
-  if (entity.IsServerInstance()) {
+  if (SupportsSyncingEntityMetadata(entity)) {
     EntityInstanceMetadataChange change(EntityInstanceMetadataChange::UPDATE,
                                         entity.guid(), entity.metadata());
     NotifyOnServerEntityMetadataChanged(change);

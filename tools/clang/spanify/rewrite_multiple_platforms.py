@@ -58,6 +58,11 @@ PROJECTS = {
             '//third_party/webrtc/modules/audio_coding:neteq_unittest_proto',
         ],
     },
+    'angle': {
+        'compile_dirs': 'third_party/angle',
+        'tool_arg': '--project=angle',
+        'build_targets': ['//third_party/angle:angle'],
+    },
 }
 
 # Standard GN arguments common to most platforms for spanification.
@@ -383,7 +388,10 @@ def main():
 
     with build_and_manage_llvm():
         logging.info('Testing rewriter...')
-        run_command(['tools/clang/spanify/run_all_tests.py'])
+        run_command([
+            'tools/clang/spanify/run_all_tests.py',
+            f'--project={args.project}',
+        ])
 
         if not args.skip_rewrite:
             run_rewrite_phase(args.platforms, args.project)

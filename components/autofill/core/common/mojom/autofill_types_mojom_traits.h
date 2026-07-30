@@ -128,6 +128,11 @@ struct StructTraits<autofill::mojom::AutocompleteParsingResultDataView,
     return r.webidentity;
   }
 
+  static bool email_verification_token(
+      const autofill::AutocompleteParsingResult& r) {
+    return r.email_verification_token;
+  }
+
   static bool Read(autofill::mojom::AutocompleteParsingResultDataView data,
                    autofill::AutocompleteParsingResult* out);
 };
@@ -201,8 +206,8 @@ struct StructTraits<autofill::mojom::FormFieldDataDataView,
     return r.aria_description();
   }
 
-  static const std::u16string& nonce(const autofill::FormFieldData& r) {
-    return r.nonce();
+  static const std::u16string& challenge(const autofill::FormFieldData& r) {
+    return r.challenge();
   }
 
   static autofill::FieldRendererId renderer_id(

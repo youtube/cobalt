@@ -52,9 +52,8 @@ class CORE_EXPORT GridLanesLayoutAlgorithm
       const GridPlacementData& placement_data,
       const GridLayoutData& layout_data,
       const ComputedStyle& grid_lanes_style,
-      const BoxStrut& borders,
-      const LogicalSize& border_box_size,
-      GridItemData* out_of_flow_item);
+      const LogicalRect& padding_box_rect,
+      GridItemData* item);
 
   // Builds the sizing collection for the given `track_direction`. For the
   // stacking axis this is a no-op. For the grid axis, this builds virtual items
@@ -198,6 +197,18 @@ class CORE_EXPORT GridLanesLayoutAlgorithm
                                     GridSizingTree* sizing_tree,
                                     bool needs_intrinsic_track_size) const;
 
+  // Completes track sizing for the standalone axis of subgrids in
+  // `sizing_subtree`. This only applies when the grid-lanes' grid axis is rows
+  // (or when the standalone axis is columns); for column grid-lanes the
+  // standalone-axis (row) sizing is handled later because Grid requires columns
+  // to be sized before rows.
+  //
+  // TODO(almaher): Can we get the column case working as well? Will that
+  // require an additional pass?
+  void CompleteTrackSizingAlgorithmInStandaloneAxis(
+      const GridSizingSubtree& sizing_subtree,
+      SizingConstraint sizing_constraint) const;
+
   // Resolves non-definite track sizes for the grid axis.
   void ComputeUsedTrackSizes(const GridSizingSubtree& sizing_subtree,
                              SizingConstraint sizing_constraint,
@@ -279,13 +290,12 @@ class CORE_EXPORT GridLanesLayoutAlgorithm
   LayoutUnit CalculateItemInlineContribution(
       const GridSizingSubtree& sizing_subtree,
       const GridItemData& grid_lanes_item,
-      const GridLayoutTrackCollection& track_collection,
       SizingConstraint sizing_constraint);
 
   ConstraintSpace CreateConstraintSpaceForMeasure(
       const SubgriddedItemData& subgridded_item,
       std::optional<LayoutUnit> opt_fixed_inline_size = std::nullopt,
-      const GridLayoutTrackCollection* track_collection = nullptr,
+      bool make_grid_axis_definite = false,
       bool is_for_min_max_sizing = false) const;
 
   // Computes the shared baseline for items within a single virtual item group

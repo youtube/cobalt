@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Actor specific strings (included from generated_resources.grd). -->
 <grit-part>
-  <message name="IDS_HANDOFF_TAKE_OVER_TASK_LABEL" desc="Text on the handoff button when an actor is in control">
+  <message name="IDS_HANDOFF_TAKE_OVER_TASK_LABEL" desc="Text on the handoff button when an actor is in control" formatter_data="android_java">
     Take over task
   </message>
   <message name="IDS_HANDOFF_GIVE_TASK_BACK_LABEL" desc="[Placeholder Description]" translateable="false">
@@ -98,14 +98,8 @@
   <message name="IDS_ACTOR_NOTIFICATION_TITLE_TASK_COMPLETE" desc="Notification title when a task has finished successfully." formatter_data="android_java">
    Task complete
   </message>
-  <message name="IDS_ACTOR_NOTIFICATION_BUTTON_VIEW_TASK" desc="Label for the notification button that takes the user to the tab where the task is running." formatter_data="android_java">
-    View task
-  </message>
-  <message name="IDS_ACTOR_NOTIFICATION_BUTTON_PAUSE_TASK" desc="Label for the notification button that pauses the currently running task." formatter_data="android_java">
-    Pause task
-  </message>
-  <message name="IDS_ACTOR_NOTIFICATION_BUTTON_RESUME_TASK" desc="Label for the notification button that resumes a paused task." formatter_data="android_java">
-    Resume task
+  <message name="IDS_ACTOR_NOTIFICATION_BUTTON_GO_TO_CHROME" desc="Label for the notification button for the user to go to chrome." formatter_data="android_java">
+    Go to Chrome
   </message>
   <message name="IDS_ACTOR_NOTIFICATION_BODY_WORKING" desc="Notification body text when the actor is working on a task." formatter_data="android_java">
     <ph name="TASK_TITLE">%s<ex>My Task</ex></ph>\nGemini is working on your task, and will let you know if more action is needed.

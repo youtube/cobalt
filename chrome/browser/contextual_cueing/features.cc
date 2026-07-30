@@ -20,6 +20,11 @@ const base::FeatureParam<double> kShoppingClassifierThreshold(
     "ContextualCueingV2ShoppingClassifierThreshold",
     0.5);
 
+const base::FeatureParam<bool> kDiscardShoppingPdfs(
+    &kContextualCueingV2,
+    "ContextualCueingV2DiscardShoppingPdfs",
+    true);
+
 const base::FeatureParam<int> kMaxNumBackgroundTabs(
     &kContextualCueingV2,
     "ContextualCueingV2MaxNumBackgroundTabs",
@@ -76,10 +81,9 @@ const base::FeatureParam<double> kBackoffMultiplierBase(
     "ContextualCueingV2BackoffMultiplierBase",
     2.0);
 
-const base::FeatureParam<bool> kUsePrivateAi(
-    &kContextualCueingV2,
-    "ContextualCueingV2UsePrivateAi",
-    false);
+const base::FeatureParam<bool> kUsePrivateAi(&kContextualCueingV2,
+                                             "ContextualCueingV2UsePrivateAi",
+                                             true);
 
 const base::FeatureParam<std::string> kHelpCenterArticleLink(
     &kContextualCueingV2,

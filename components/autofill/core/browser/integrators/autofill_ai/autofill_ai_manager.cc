@@ -5,50 +5,42 @@
 #include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_manager.h"
 
 #include <algorithm>
-#include <iterator>
+#include <map>
 #include <memory>
 #include <optional>
-#include <ranges>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
+#include "base/check.h"
 #include "base/check_deref.h"
 #include "base/containers/extend.h"
-#include "base/containers/fixed_flat_map.h"
 #include "base/containers/flat_set.h"
+#include "base/containers/span.h"
 #include "base/containers/to_vector.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/location.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/notimplemented.h"
-#include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
-#include "base/types/expected.h"
 #include "base/types/optional_ref.h"
 #include "base/types/zip.h"
-#include "base/uuid.h"
+#include "components/autofill/core/browser/autofill_ai_form_rationalization.h"
 #include "components/autofill/core/browser/autofill_field.h"
-#include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
 #include "components/autofill/core/browser/data_manager/autofill_ai/entity_data_manager.h"
-#include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
-#include "components/autofill/core/browser/data_manager/personal_data_manager.h"
-#include "components/autofill/core/browser/data_model/addresses/autofill_structured_address_component.h"
-#include "components/autofill/core/browser/data_model/addresses/autofill_structured_address_utils.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #include "components/autofill/core/browser/field_type_utils.h"
-#include "components/autofill/core/browser/field_types.h"
-#include "components/autofill/core/browser/filling/field_filling_skip_reason.h"
 #include "components/autofill/core/browser/form_processing/autofill_ai/determine_attribute_types.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
@@ -57,7 +49,6 @@
 #include "components/autofill/core/browser/integrators/autofill_ai/metrics/autofill_ai_logger.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/metrics/autofill_ai_metrics.h"
 #include "components/autofill/core/browser/logging/log_manager.h"
-#include "components/autofill/core/browser/metrics/autofill_metrics_utils.h"
 #include "components/autofill/core/browser/ml_model/autofill_ai/autofill_ai_model_executor.h"
 #include "components/autofill/core/browser/network/autofill_ai/wallet_pass_access_manager.h"
 #include "components/autofill/core/browser/permissions/autofill_ai/autofill_ai_permission_utils.h"
@@ -66,7 +57,7 @@
 #include "components/autofill/core/browser/strike_databases/autofill_ai/autofill_ai_update_strike_database.h"
 #include "components/autofill/core/browser/suggestions/autofill_ai/autofill_ai_suggestion_generator.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
-#include "components/autofill/core/browser/suggestions/suggestion_type.h"
+#include "components/autofill/core/browser/suggestions/suggestion_generator.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_internals/log_message.h"
 #include "components/autofill/core/common/autofill_internals/logging_scope.h"
@@ -77,15 +68,28 @@
 #include "components/autofill/core/common/signatures.h"
 #include "components/autofill/core/common/unique_ids.h"
 #include "components/consent_auditor/consent_auditor.h"
-#include "components/strike_database/strike_database.h"
-#include "components/strings/grit/components_strings.h"
 #include "components/wallet/core/common/wallet_features.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
-#include "ui/base/l10n/l10n_util.h"
+#include "services/metrics/public/cpp/ukm_source_id.h"
 
 namespace autofill {
 
 namespace {
+
+bool DidUserExplicitlyAcceptedImportPrompt(
+    AutofillClient::AutofillAiBubbleResult result) {
+  switch (result) {
+    case AutofillClient::AutofillAiBubbleResult::kAccepted:
+    case AutofillClient::AutofillAiBubbleResult::kEditAccepted:
+      return true;
+    case AutofillClient::AutofillAiBubbleResult::kCancelled:
+    case AutofillClient::AutofillAiBubbleResult::kClosed:
+    case AutofillClient::AutofillAiBubbleResult::kUnknown:
+    case AutofillClient::AutofillAiBubbleResult::kNotInteracted:
+    case AutofillClient::AutofillAiBubbleResult::kLostFocus:
+      return false;
+  }
+}
 
 bool DidUserExplicitlyDeclineImportPrompt(
     AutofillClient::AutofillAiBubbleResult result) {
@@ -95,6 +99,7 @@ bool DidUserExplicitlyDeclineImportPrompt(
       return true;
     case AutofillClient::AutofillAiBubbleResult::kUnknown:
     case AutofillClient::AutofillAiBubbleResult::kAccepted:
+    case AutofillClient::AutofillAiBubbleResult::kEditAccepted:
     case AutofillClient::AutofillAiBubbleResult::kNotInteracted:
     case AutofillClient::AutofillAiBubbleResult::kLostFocus:
       return false;
@@ -167,6 +172,15 @@ EntityInstance GetMergedEntity(
                         base::Time::Now(), target_record_type,
                         EntityInstance::AreAttributesReadOnly(false),
                         /*frecency_override=*/"");
+}
+
+// Returns whether saving an entity with the given (`type`, `record_type`)
+// combination is asynchronous. If saving an entity of the given
+// (`type`, `record_type`) is not supported, the function returns false.
+bool IsSaveAsynchronous(EntityType type,
+                        EntityInstance::RecordType record_type) {
+  return GetWalletPassType(type, record_type) ==
+         EntityInstance::WalletPassType::kPrivate;
 }
 
 }  // namespace
@@ -396,7 +410,7 @@ bool AutofillAiManager::MaybeImportForm(const FormStructure& form,
       old_entity = *client_->GetEntityDataManager()->GetEntityInstance(
           candidate_entity.guid());
     }
-    const bool is_save_synchronous = !IsMaskedStorageSupported(
+    const bool is_save_synchronous = !IsSaveAsynchronous(
         candidate_entity.type(), candidate_entity.record_type());
     client_->ShowEntityImportBubble(std::move(candidate_entity),
                                     std::move(old_entity), is_save_synchronous,
@@ -411,10 +425,10 @@ void AutofillAiManager::HandlePromptResult(
     ukm::SourceId ukm_source_id,
     AutofillClient::AutofillAiImportPromptType prompt_type,
     AutofillClient::AutofillAiBubbleResult result,
-    base::optional_ref<const EntityInstance> edited_entity,
+    std::optional<EntityInstance> edited_entity,
     const AutofillClient::EntityImportUIContext& ui_context) {
   if (edited_entity) {
-    entity = *edited_entity;
+    entity = std::exchange(edited_entity, std::nullopt).value();
   }
   logger_.OnImportPromptResult(form, prompt_type, entity.type(),
                                entity.record_type(), result, ukm_source_id);
@@ -423,8 +437,7 @@ void AutofillAiManager::HandlePromptResult(
 
   AddOrClearImportPromptStrikes(prompt_type, result, form.url(), entity);
 
-  const bool prompt_accepted =
-      result == AutofillClient::AutofillAiBubbleResult::kAccepted;
+  const bool prompt_accepted = DidUserExplicitlyAcceptedImportPrompt(result);
 
   switch (prompt_type) {
     case AutofillClient::AutofillAiImportPromptType::kSave:
@@ -453,16 +466,20 @@ void AutofillAiManager::HandlePromptResult(
     return;
   }
 
-  if (!IsMaskedStorageSupported(entity.type(), entity.record_type())) {
+  if (!IsSaveAsynchronous(entity.type(), entity.record_type())) {
     entity_manager.AddOrUpdateEntityInstance(std::move(entity));
     return;
   }
+
+  // PersonalContext entities do not support saving,
+  // thus the record type must be `kServerWallet`.
+  CHECK_EQ(entity.record_type(), EntityInstance::RecordType::kServerWallet);
 
   base::OnceCallback<void(std::optional<EntityInstance>)> callback =
       base::BindOnce(&HandleWalletUpsertResponse,
                      client_->GetEntityDataManager()->GetWeakPtr(),
                      client_->GetWeakPtr(), prompt_type, entity);
-  // For now, asynchronous saves imply saving to Wallet.
+
   if (WalletPassAccessManager* wallet_manager =
           client_->GetWalletPassAccessManager()) {
     switch (prompt_type) {
@@ -604,14 +621,14 @@ void AutofillAiManager::AddOrClearImportPromptStrikes(
   switch (prompt_type) {
     case AutofillClient::AutofillAiImportPromptType::kSave:
     case AutofillClient::AutofillAiImportPromptType::kMigrate:
-      if (result == AutofillClient::AutofillAiBubbleResult::kAccepted) {
+      if (DidUserExplicitlyAcceptedImportPrompt(result)) {
         ClearStrikesForSave(url, entity);
       } else if (DidUserExplicitlyDeclineImportPrompt(result)) {
         AddStrikeForSaveAttempt(url, entity);
       }
       break;
     case AutofillClient::AutofillAiImportPromptType::kUpdate:
-      if (result == AutofillClient::AutofillAiBubbleResult::kAccepted) {
+      if (DidUserExplicitlyAcceptedImportPrompt(result)) {
         ClearStrikesForUpdate(entity.guid());
       } else if (DidUserExplicitlyDeclineImportPrompt(result)) {
         AddStrikeForUpdateAttempt(entity.guid());
@@ -856,9 +873,9 @@ AutofillAiManager::GetMigratePromptCandidates(
       case EntityInstance::RecordType::kServerWallet:
         saved_server_entities.push_back(&entity);
         break;
-      case EntityInstance::RecordType::kAccessibilityAnnotator:
-        // kAccessibilityAnnotator entities are linked to a database in the
-        // Accessibility Annotator component. They must not be saved to the
+      case EntityInstance::RecordType::kPersonalContext:
+        // kPersonalContext entities are linked to a database in the
+        // Personal Context component. They must not be saved to the
         // server to ensure they can be deleted if the source is removed.
         break;
     }

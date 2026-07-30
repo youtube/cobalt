@@ -453,10 +453,6 @@ inline constexpr char kDocumentScanAPITrustedExtensions[] =
 inline constexpr char kInsightsExtensionEnabled[] =
     "insights_extension_enabled";
 
-// Boolean controlling whether showing Sync Consent during sign-in is enabled.
-// Controlled by policy.
-inline constexpr char kEnableSyncConsent[] = "sync_consent.enabled";
-
 // A boolean pref which turns on Advanced Filesystem
 // (USB support, SD card, etc).
 inline constexpr char kLabsAdvancedFilesystemEnabled[] =
@@ -475,14 +471,6 @@ inline constexpr char kShowMobileDataNotification[] =
 inline constexpr char kChromeOSReleaseNotesVersion[] =
     "settings.release_notes.version";
 
-// Automatically open online re-authentication window on the lock screen.
-inline constexpr char kLockScreenAutoStartOnlineReauth[] =
-    "lock_screen_auto_start_online_reauth";
-
-// The URL from which the Terms of Service can be downloaded. The value is only
-// honored for public accounts.
-inline constexpr char kTermsOfServiceURL[] = "terms_of_service.url";
-
 // A boolean preference indicating whether user has seen first-run tutorial
 // already.
 inline constexpr char kFirstRunTutorialShown[] =
@@ -500,15 +488,6 @@ inline constexpr char kTouchVirtualKeyboardEnabled[] =
 // A boolean pref to enable virtual keyboard smart visibility.
 inline constexpr char kVirtualKeyboardSmartVisibilityEnabled[] =
     "ui.virtual_keyboard_smart_visibility_enabled";
-
-// A boolean preference that is registered in user prefs to tracks that at least
-// one PKCS#12 certificate+key pair was dual written into NSS software-backed
-// slot and Chaps. This is a part of the experiment to import PKCS#12 files into
-// Chaps user slot instead of NSS and if the copy from Chaps will not work this
-// preference will be used to decide when a clean up is needed to delete
-// non-working certificates+keys.
-inline constexpr char kNssChapsDualWrittenCertsExist[] =
-    "nss_chaps_dual_written_certs_exist";
 
 // A boolean pref. If set to true, the Unified Desktop feature is made
 // available and turned on by default, which allows applications to span
@@ -532,12 +511,6 @@ inline constexpr char kPinUnlockFeatureNotificationShown[] =
 // current user about the fingerprint unlock feature.
 inline constexpr char kFingerprintUnlockFeatureNotificationShown[] =
     "fingerprint_unlock_feature_notification_shown";
-
-// A boolean pref that controls whether the PIN autosubmit feature is enabled.
-// This feature, when enabled, exposes the user's PIN length by showing how many
-// digits are necessary to unlock the device. Can be recommended.
-inline constexpr char kPinUnlockAutosubmitEnabled[] =
-    "pin_unlock_autosubmit_enabled";
 
 // Boolean pref indicating whether someone can cast to the device.
 inline constexpr char kCastReceiverEnabled[] = "cast_receiver.enabled";
@@ -658,28 +631,6 @@ inline constexpr char kHasResetFirst7DaysSettingsUsedCount[] =
 // "ChromeOS.Settings.NumUniqueSettingsChanged.DeviceLifetime2.{Time}".
 inline constexpr char kHasEverRevokedMetricsConsent[] =
     "settings.has_ever_revoked_metrics_consent";
-
-// A boolean to store that an admin user accessed the host device remotely when
-// no user was present at the device. This boolean enables the device to display
-// a notification to the local user when the session was terminated.
-inline constexpr char kRemoteAdminWasPresent[] = "remote_admin_was_present";
-
-// List pref containing blocked domains of cookies that will not be moved when a
-// user switches between ChromeOS devices, when the Floating SSO Service is
-// enabled.
-inline constexpr char kFloatingSsoDomainBlocklist[] =
-    "floating_sso_domain_blocklist";
-
-// List pref containing blocklist excepted domains of cookies to be moved when a
-// user switches between ChromeOS devices, when the Floating SSO Service is
-// enabled.
-inline constexpr char kFloatingSsoDomainBlocklistExceptions[] =
-    "floating_sso_domain_blocklist_exceptions";
-
-// Boolean pref that determine whether session cookies will be included or not
-// when user switches between ChromeOS devices.
-inline constexpr char kFloatingSsoSessionCookiesIncluded[] =
-    "floating_sso_session_cookies_included";
 
 // This boolean controls whether the first window shown on first run should be
 // unconditionally maximized, overriding the heuristic that normally chooses the
@@ -2312,10 +2263,6 @@ inline constexpr char kReportingUsers[] = "reporting_users";
 inline constexpr char kArcAppInstallEventLoggingEnabled[] =
     "arc.app_install_event_logging_enabled";
 
-// Whether we received the remove users remote command, and hence should proceed
-// with removing the users while at the login screen.
-inline constexpr char kRemoveUsersRemoteCommand[] =
-    "remove_users_remote_command";
 
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
@@ -2326,14 +2273,6 @@ inline constexpr char kDiskCacheSize[] = "browser.disk_cache_size";
 
 inline constexpr char kPerformanceTracingEnabled[] =
     "feedback.performance_tracing_enabled";
-
-// Indicates that debugging features were requested from oobe screen.
-inline constexpr char kDebuggingFeaturesRequested[] =
-    "DebuggingFeaturesRequested";
-
-// Indicates that the user has requested that ARC APK Sideloading be enabled.
-inline constexpr char kEnableAdbSideloadingRequested[] =
-    "EnableAdbSideloadingRequested";
 
 // Pref name for the policy controlling whether to enable Media Router.
 inline constexpr char kEnableMediaRouter[] = "media_router.enable_media_router";
@@ -2389,22 +2328,6 @@ inline constexpr char kGlobalHardwareSecureDecryptionDisabledTimes[] =
 inline constexpr char kHardwareSecureDecryptionDisabledTimes[] =
     "hardware_secure_decryption.disabled_times";
 #endif  // BUILDFLAG(IS_WIN)
-
-#if BUILDFLAG(IS_CHROMEOS)
-
-// A boolean pref which determines whether a remote admin can start a CRD
-// connection through the 'start crd session' remote command.
-inline constexpr char
-    kRemoteAccessHostAllowEnterpriseRemoteSupportConnections[] =
-        "enterprise_remote_support_connections_allowed";
-
-// A boolean pref which determines whether a remote admin can start a CRD
-// connection through the 'start crd session' remote command when no local user
-// is present at the device.
-inline constexpr char kDeviceAllowEnterpriseRemoteAccessConnections[] =
-    "device_allow_enterprise_remote_access_connections";
-
-#endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || \
     BUILDFLAG(IS_ANDROID)
@@ -2920,23 +2843,6 @@ inline constexpr char kKnownInterceptionDisclosureInfobarLastShown[] =
 inline constexpr char kPromptOnMultipleMatchingCertificates[] =
     "prompt_on_multiple_matching_certificates";
 
-#if BUILDFLAG(IS_CHROMEOS)
-// Boolean pref indicating whether the notification informing the user that
-// adb sideloading had been disabled by their admin was shown.
-inline constexpr char kAdbSideloadingDisallowedNotificationShown[] =
-    "adb_sideloading_disallowed_notification_shown";
-// Int64 pref indicating the time in microseconds since Windows epoch
-// (1601-01-01 00:00:00 UTC) when the notification informing the user about a
-// change in adb sideloading policy that will clear all user data was shown.
-// If the notification was not yet shown the pref holds the value Time::Min().
-inline constexpr char kAdbSideloadingPowerwashPlannedNotificationShownTime[] =
-    "adb_sideloading_powerwash_planned_notification_shown_time";
-// Boolean pref indicating whether the notification informing the user about a
-// change in adb sideloading policy that will clear all user data was shown.
-inline constexpr char kAdbSideloadingPowerwashOnNextRebootNotificationShown[] =
-    "adb_sideloading_powerwash_on_next_reboot_notification_shown";
-#endif
-
 // Boolean pref that indicates whether caret browsing is currently enabled.
 inline constexpr char kCaretBrowsingEnabled[] =
     "settings.a11y.caretbrowsing.enabled";
@@ -3008,15 +2914,17 @@ inline constexpr char kDesktopSharingHubEnabled[] =
 // the same major version, the browser should not attempt to auto-open
 // the page again.
 inline constexpr char kLastWhatsNewVersion[] = "browser.last_whats_new_version";
+#endif
+
 // A boolean indicating whether the Lens Region search feature should be enabled
 // if supported.
 inline constexpr char kLensRegionSearchEnabled[] =
     "policy.lens_region_search_enabled";
+
 // A boolean indicating whether the Lens NTP searchbox feature should be enabled
 // if supported.
 inline constexpr char kLensDesktopNTPSearchEnabled[] =
     "policy.lens_desktop_ntp_search_enabled";
-#endif
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 // A dict mapping the edition name with the major version it was shown.
@@ -3107,13 +3015,6 @@ inline constexpr char kVirtualKeyboardResizesLayoutByDefault[] =
 inline constexpr char
     kAccessControlAllowMethodsInCORSPreflightSpecConformant[] =
         "access_control_allow_methods_in_cors_preflight_spec_conformant";
-
-#if BUILDFLAG(IS_CHROMEOS)
-// A dictionary that keeps client_ids assigned by Authorization Servers indexed
-// by URLs of these servers. It does not contain empty strings.
-inline constexpr char kPrintingOAuth2AuthorizationServers[] =
-    "printing.oauth2_authorization_servers";
-#endif
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
 // If this exists and is true, Chrome may run system DNS resolution out of the

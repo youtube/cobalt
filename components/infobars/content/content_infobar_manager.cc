@@ -90,34 +90,22 @@ void ContentInfoBarManager::NavigationEntryCommitted(
   }
 }
 
-void ContentInfoBarManager::WebContentsDestroyed() {
-  // The WebContents is going away; be aggressively paranoid and delete
-  // |this| lest other parts of the system attempt to add infobars or use
-  // this object otherwise during the destruction.
-  // TODO(blundell): This operation seems unnecessary as detailed in the
-  // conversation on
-  // https://chromium-review.googlesource.com/c/chromium/src/+/2859170/7 .
-  // Look at removing it.
-  web_contents()->RemoveUserData(UserDataKey());
-  // That was the equivalent of "delete this". This object is now destroyed;
-  // returning from this function is the only safe thing to do.
-}
-
 void ContentInfoBarManager::OpenURL(const GURL& url,
                                     WindowOpenDisposition disposition,
                                     const std::string& text_fragment) {
   // A normal user click on an infobar URL will result in a CURRENT_TAB
   // disposition; turn that into a NEW_FOREGROUND_TAB so that we don't end up
   // smashing the page the user is looking at.
-  // TODO(crbug.com/482925620): Support `text_fragment` by adding it to
-  // `content::OpenURLParams` and using it here to sync the scroll position.
-  web_contents()->OpenURL(
-      content::OpenURLParams(url, content::Referrer(),
-                             (disposition == WindowOpenDisposition::CURRENT_TAB)
-                                 ? WindowOpenDisposition::NEW_FOREGROUND_TAB
-                                 : disposition,
-                             ui::PAGE_TRANSITION_LINK, false),
-      /*navigation_handle_callback=*/{});
+  content::OpenURLParams params(
+      url, content::Referrer(),
+      (disposition == WindowOpenDisposition::CURRENT_TAB)
+          ? WindowOpenDisposition::NEW_FOREGROUND_TAB
+          : disposition,
+      ui::PAGE_TRANSITION_LINK, false);
+  if (!text_fragment.empty()) {
+    params.internal_scroll_to_text_fragment = text_fragment;
+  }
+  web_contents()->OpenURL(params, /*navigation_handle_callback=*/{});
 }
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(ContentInfoBarManager);

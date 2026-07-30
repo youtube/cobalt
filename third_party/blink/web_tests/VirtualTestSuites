@@ -1499,7 +1499,7 @@
       "wpt_internal/printing"
     ],
     "args": [ "--enable-blink-features=FragmentedOofInCb" ],
-    "expires": "May 17, 2026"
+    "expires": "Nov 14, 2026"
   },
   {
     "prefix": "fsa-incognito",
@@ -2895,8 +2895,8 @@
       "external/wpt/element-timing",
       "external/wpt/css/filter-effects",
       "external/wpt/css/css-grid/animation",
-      "external/wpt/css/css-sizing/responsive-iframe/responsive-iframe.tentative.html",
-      "external/wpt/css/css-sizing/responsive-iframe/responsive-iframe-dom-content-loaded.tentative.html",
+      "external/wpt/css/css-sizing/responsive-iframe/responsive-iframe.html",
+      "external/wpt/css/css-sizing/responsive-iframe/responsive-iframe-dom-content-loaded.html",
       "external/wpt/css/printing",
       "external/wpt/largest-contentful-paint",
       "fast/forms/file/file-appearance-no-default-width.html",
@@ -2912,7 +2912,13 @@
       "wpt_internal/html/canvas/drawElementImage/webgl-ink-overflow.html",
       "wpt_internal/html/canvas/drawElementImage/webgl-scaling.html",
       "wpt_internal/html/canvas/drawElementImage/get-element-transform.html",
-      "wpt_internal/html/canvas/drawElementImage/draw-element-image-returned-matrix.html"
+      "wpt_internal/html/canvas/drawElementImage/draw-element-image-returned-matrix.html",
+      "svg/dom/getScreenCTM-getBoundingClientRect-parity.html",
+      "svg/dom/getBBox-getBoundingClientRect-consistency.html",
+      "svg/dom/getCTM-zoom-invariance.html",
+      "svg/zoom/page/zoom-getbbox-invariance.html",
+      "svg/zoom/page/zoom-getctm-invariance.html",
+      "svg/zoom/page/zoom-getscreenctm-getboundingclientrect-parity.html"
     ],
     "exclusive_tests": [
       "fast/hidpi/static"
@@ -2993,6 +2999,25 @@
       "guidou@chromium.org"
     ],
     "expires": "Nov 11, 2026"
+  },
+  {
+    "prefix": "select-parsing-filtering-disabled",
+    "platforms": [
+      "Linux"
+    ],
+    "bases": [
+      "html5lib",
+      "fast/forms/select",
+      "fast/forms/select-popup",
+      "external/wpt/html/semantics/forms/the-select-element"
+    ],
+    "args": [
+      "--disable-features=InputInSelect,FilterableSelect,CustomizableCombobox"
+    ],
+    "owners": [
+      "jarhar@chromium.org"
+    ],
+    "expires": "Feb 23, 2027"
   },
   {
     "prefix": "selectedcontent-spec-disabled",
@@ -6129,25 +6154,15 @@
       "Win"
     ],
     "bases": [
-      "external/wpt/scroll-animations/animation-trigger/animation-trigger-alternate.tentative.html",
-      "external/wpt/scroll-animations/animation-trigger/animation-trigger-disarmed-by-apis.tentative.html",
-      "external/wpt/scroll-animations/animation-trigger/animation-trigger-late-attached-timeline.tentative.html",
-      "external/wpt/scroll-animations/animation-trigger/animation-trigger-multiple-animations.tentative.html",
-      "external/wpt/scroll-animations/animation-trigger/animation-trigger-once.tentative.html",
-      "external/wpt/scroll-animations/animation-trigger/animation-trigger-once-play-state.tentative.html",
-      "external/wpt/scroll-animations/animation-trigger/animation-trigger-fill-mode-both.tentative.html",
-      "external/wpt/scroll-animations/animation-trigger/animation-trigger-fill-mode-none.tentative.html",
-      "external/wpt/scroll-animations/animation-trigger/animation-trigger-play.tentative.html",
-      "external/wpt/scroll-animations/animation-trigger/animation-trigger-untriggered-animations-exposed.tentative.html",
-      "external/wpt/scroll-animations/animation-trigger/animation-trigger-addAnimation.tentative.html",
-      "external/wpt/scroll-animations/animation-trigger/timeline-trigger-source-starts-in-trigger-range.tentative.html"
+      "external/wpt/scroll-animations/animation-trigger/"
     ],
     "args": [
       "--enable-features=CompositorTimelineTrigger",
       "--enable-threaded-compositing"
     ],
     "owners": [
-      "awogbemila@chromium.org"
+      "awogbemila@chromium.org",
+      "blink-interactions-team@google.com"
     ],
     "expires": "Feb 17, 2027"
   },
@@ -6255,61 +6270,6 @@
     "expires": "Aug 13, 2026"
   },
   {
-    "prefix": "css-line-clamp-lines-and-height",
-    "platforms": [
-      "Linux"
-    ],
-    "bases": [
-      "external/wpt/css/css-overflow/line-clamp/",
-      "external/wpt/compat/webkit-box-clamp-bottom-border.html",
-      "external/wpt/compat/webkit-box-clamp-visibility-change.html",
-      "external/wpt/css/css-flexbox/alignment/flex-align-baseline-line-clamp-001.tentative.html",
-      "external/wpt/css/css-flexbox/alignment/flex-align-baseline-line-clamp-002.tentative.html",
-      "external/wpt/css/css-flexbox/alignment/flex-align-baseline-line-clamp-003.tentative.html",
-      "external/wpt/css/css-grid/alignment/grid-align-baseline-line-clamp-001.tentative.html",
-      "external/wpt/css/css-grid/alignment/grid-align-baseline-line-clamp-002.tentative.html",
-      "external/wpt/css/css-grid/alignment/grid-align-baseline-line-clamp-003.tentative.html",
-      "external/wpt/css/css-inline/baseline-source/baseline-source-first-001.html",
-      "external/wpt/css/css-inline/baseline-source/baseline-source-first-002.html",
-      "external/wpt/css/css-inline/baseline-source/baseline-source-first-003.html",
-      "external/wpt/css/css-inline/baseline-source/baseline-source-last-001.html",
-      "external/wpt/css/css-inline/baseline-source/baseline-source-last-002.html",
-      "external/wpt/css/css-inline/baseline-source/baseline-source-last-003.html",
-      "external/wpt/css/css-inline/text-box-trim/text-box-trim-line-clamp-001.html",
-      "external/wpt/css/css-inline/text-box-trim/text-box-trim-line-clamp-002.html",
-      "external/wpt/css/css-text/white-space/text-wrap-balance-005.html",
-      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-001.html",
-      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-002.html",
-      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-003.html",
-      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-004.html",
-      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-005.html",
-      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-006.html",
-      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-007.html",
-      "external/wpt/css/css-text/white-space/text-wrap-pretty-line-clamp-crash-001.html",
-      "external/wpt/css/css-ui/text-overflow-string-001.html",
-      "external/wpt/css/css-ui/text-overflow-string-002.html",
-      "external/wpt/css/css-ui/text-overflow-string-003.html",
-      "external/wpt/css/css-ui/text-overflow-string-004.html",
-      "external/wpt/css/css-ui/text-overflow-string-005.html",
-      "external/wpt/css/css-ui/text-overflow-string-006.html",
-      "fast/deprecated-flexbox/dynamically-change-line-clamp.html",
-      "fast/deprecated-flexbox/line-clamp-crash.html",
-      "fast/deprecated-flexbox/line-clamp-removed-dynamically.html",
-      "fast/overflow/line-clamp-and-columns.html",
-      "fast/overflow/line-clamp-ellipsis-in-free-space.html",
-      "fast/overflow/line-clamp-floats-dont-grow-container.html",
-      "fast/overflow/line-clamp-hides-trailing-anchor.html",
-      "fast/overflow/line-clamp.html",
-      "paint/invalidation/text-line-clamp-truncation.html"
-    ],
-    "args": [
-      "--enable-blink-features=CSSLineClamp,CSSLineClampLinesAndHeight"
-    ],
-    "owners": [
-      "abotella@igalia.com"
-    ]
-  },
-  {
     "prefix": "durable-messages",
     "owners": [
       "alexnj@chromium.org"
@@ -6391,23 +6351,31 @@
       "Win"
     ],
     "bases": [
+      "external/wpt/svg/styling/svg-filter-render-cross-origin-frame-in-cross-origin-frame.tentative.sub.https.html",
       "external/wpt/svg/styling/svg-filter-render-cross-origin-frame-in-same-origin-frame.tentative.https.html",
       "external/wpt/svg/styling/svg-filter-render-cross-origin-frame.tentative.sub.https.html",
       "external/wpt/svg/styling/svg-filter-render-cross-origin-navigation-in-srcdoc-frame.tentative.sub.https.html",
+      "external/wpt/svg/styling/svg-filter-render-same-origin-frame-in-cross-origin-frame.tentative.sub.https.html",
+      "external/wpt/svg/styling/svg-filter-render-same-origin-frame-in-same-origin-frame.tentative.https.html",
       "external/wpt/svg/styling/svg-filter-render-same-origin-frame-reload-as-sandbox.tentative.https.html",
       "external/wpt/svg/styling/svg-filter-render-same-origin-frame.tentative.https.html",
       "external/wpt/svg/styling/svg-filter-render-sandbox-frame.tentative.https.html",
+      "external/wpt/svg/styling/svg-filter-render-srcdoc-frame.tentative.https.html",
       "external/wpt/svg/styling/svg-filter-render-web-plugin.tentative.https.html",
       "http/tests/inspector-protocol/issues/deprecation-prevent-svg-filter-paint.js",
       "wpt_internal/svg"
     ],
     "exclusive_tests": [
+      "external/wpt/svg/styling/svg-filter-render-cross-origin-frame-in-cross-origin-frame.tentative.sub.https.html",
       "external/wpt/svg/styling/svg-filter-render-cross-origin-frame-in-same-origin-frame.tentative.https.html",
       "external/wpt/svg/styling/svg-filter-render-cross-origin-frame.tentative.sub.https.html",
       "external/wpt/svg/styling/svg-filter-render-cross-origin-navigation-in-srcdoc-frame.tentative.sub.https.html",
+      "external/wpt/svg/styling/svg-filter-render-same-origin-frame-in-cross-origin-frame.tentative.sub.https.html",
+      "external/wpt/svg/styling/svg-filter-render-same-origin-frame-in-same-origin-frame.tentative.https.html",
       "external/wpt/svg/styling/svg-filter-render-same-origin-frame-reload-as-sandbox.tentative.https.html",
       "external/wpt/svg/styling/svg-filter-render-same-origin-frame.tentative.https.html",
       "external/wpt/svg/styling/svg-filter-render-sandbox-frame.tentative.https.html",
+      "external/wpt/svg/styling/svg-filter-render-srcdoc-frame.tentative.https.html",
       "external/wpt/svg/styling/svg-filter-render-web-plugin.tentative.https.html",
       "http/tests/inspector-protocol/issues/deprecation-prevent-svg-filter-paint.js",
       "wpt_internal/svg/svg-filter-render.sub.https.html"
@@ -6474,11 +6442,22 @@
       "wpt_internal/html/rendering/unbounded_element"
     ],
     "args": [
-      "--disable-blink-features=UnboundedElement"
+      "--disable-blink-features=UnboundedElement,UnboundedElementOnTheOpenWeb"
     ],
     "owners": [
       "masonf@chromium.org"
     ],
     "expires": "Dec 1, 2026"
+  },
+  {
+    "prefix": "canvas-draw-element-image-hardware-video",
+    "owners": ["paint-dev@chromium.org"],
+    "platforms": ["Linux", "Mac", "Win"],
+    "bases": [
+      "wpt_internal/html/canvas/drawElementImage/video.html",
+      "wpt_internal/html/canvas/drawElementImage/video-worker.html"
+    ],
+    "args": ["--use-gpu-in-tests", "--enable-threaded-compositing"],
+    "expires": "never"
   }
 ]

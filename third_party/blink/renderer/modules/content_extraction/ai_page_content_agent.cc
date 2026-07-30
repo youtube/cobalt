@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/modules/content_extraction/ai_page_content_agent.h"
 
 #include <algorithm>
+#include <cstdint>
 
 #include "base/check.h"
 #include "base/containers/adapters.h"
@@ -48,6 +49,8 @@
 #include "third_party/blink/renderer/core/html/html_meta_element.h"
 #include "third_party/blink/renderer/core/html/media/html_video_element.h"
 #include "third_party/blink/renderer/core/input/event_handler.h"
+#include "third_party/blink/renderer/core/keywords.h"
+#include "third_party/blink/renderer/core/layout/adjust_for_absolute_zoom.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_rect.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
 #include "third_party/blink/renderer/core/layout/layout_embedded_content.h"
@@ -477,6 +480,25 @@ bool IsAnchoredOffscreen(const LayoutObject& object,
     return false;
   }
 
+  if (is_in_fixed_to_view_subtree) {
+    // Check if the position: fixed offscreen anchor case should be handled.
+    if (!RuntimeEnabledFeatures::
+            AIPageContentAnchoredFixedOffscreenNonActionabilityEnabled()) {
+      return false;
+    }
+  } else {
+    // Check if the position: absolute case should be handled. For now, this is
+    // turned off in stable builds because the implementation was flawed, and
+    // was marking elements that could be scrolled to in an ancestor scrollable
+    // div as anchored offscreen.
+    // TODO(crbug.com/513343406) only support this path if position:absolute is
+    // on an ancestor, and address the overflow:scroll/auto ancestor case.
+    if (!RuntimeEnabledFeatures::
+            AIPageContentAnchoredAbsoluteOffscreenNonActionabilityEnabled()) {
+      return false;
+    }
+  }
+
   // Nodes in a viewport-fixed subtree must intersect the current viewport to
   // be reachable. Other nodes only need to intersect the scrollable document
   // bounds, because normal document scrolling can still bring them onscreen
@@ -791,7 +813,7 @@ void AddClickabilityReasons(
       element.FastGetAttribute(html_names::kAutocompleteAttr);
   const auto& aria_autocomplete =
       element.FastGetAttribute(html_names::kAriaAutocompleteAttr);
-  if ((autocomplete && autocomplete != "off") ||
+  if ((autocomplete && autocomplete != keywords::kOff) ||
       (aria_autocomplete == "inline" || aria_autocomplete == "list" ||
        aria_autocomplete == "both")) {
     interaction_info.clickability_reasons.push_back(Reason::kAutocomplete);
@@ -1161,6 +1183,35 @@ bool FormControlTypeForAriaRole(ax::mojom::blink::Role role,
     default:
       return false;
   }
+}
+
+uint32_t ComputeDefaultLineHeightPx(const ComputedStyle& style) {
+  const LayoutUnit line_height_px = AdjustForAbsoluteZoom::AdjustLayoutUnit(
+      style.ComputedLineHeightAsFixed(), style);
+  // Consumers use this as a minimum row size, so keep fractional and zero-ish
+  // values conservative instead of rounding down to 0.
+  return static_cast<uint32_t>(std::max(1, line_height_px.Ceil()));
+}
+
+// Used only when there is no styled <html> LayoutObject, e.g. display:none or
+// script removing the document element. In that case there is no meaningful
+// author default, and browser callers only need a conservative positive hint.
+constexpr uint32_t kDefaultLineHeightPx = 12;
+
+uint32_t ComputeDefaultLineHeightPx(const LocalFrame& frame) {
+  const Document& document = *frame.GetDocument();
+
+  if (Element* document_element = document.documentElement()) {
+    if (const LayoutObject* layout_object =
+            document_element->GetLayoutObject()) {
+      // Prefer the <html> style because authors set the frame default there.
+      return ComputeDefaultLineHeightPx(layout_object->StyleRef());
+    }
+  }
+
+  // If the document element or its layout object is missing, use a stable
+  // default instead of deriving frame data from the LayoutView.
+  return kDefaultLineHeightPx;
 }
 
 // Populates form control data for ARIA-based controls (e.g. role=checkbox).
@@ -2116,6 +2167,10 @@ void AIPageContentAgent::ContentBuilder::ProcessIframe(
       auto frame_data = mojom::blink::AIPageContentFrameData::New();
       frame_data->frame_interaction_info =
           mojom::blink::AIPageContentFrameInteractionInfo::New();
+      // Browser conversion requires a positive frame-level line height even
+      // when display locks prevent walking the iframe's layout subtree.
+      frame_data->default_line_height_px =
+          ComputeDefaultLineHeightPx(*local_frame);
       content_node.content_attributes->iframe_data->content =
           mojom::blink::AIPageContentIframeContent::NewLocalFrameData(
               std::move(frame_data));
@@ -2299,13 +2354,12 @@ AIPageContentAgent::ContentBuilder::MaybeGenerateContentNodeImpl(
   // the area reachable by scrolling until another control changes state.
   // We drop the actionable metadata so that downstream click generation does
   // not chase nodes that scrolling can never reach.
-  if (RuntimeEnabledFeatures::
-          AIPageContentAnchoredOffscreenNonActionabilityEnabled() &&
-      attributes.node_interaction_info && attributes.geometry &&
+  if (attributes.node_interaction_info && attributes.geometry &&
       IsAnchoredOffscreen(object, *attributes.geometry,
                           recursion_data.is_in_fixed_to_view_subtree)) {
     attributes.node_interaction_info.reset();
   }
+
   AddLabel(object, attributes);
   attributes.is_ad_related = element && element->IsAdRelated();
 
@@ -2701,6 +2755,7 @@ void AIPageContentAgent::ContentBuilder::AddFrameData(
   frame_data.frame_interaction_info =
       mojom::blink::AIPageContentFrameInteractionInfo::New();
   frame_data.title = ReplaceUnpairedSurrogates(frame.GetDocument()->title());
+  frame_data.default_line_height_px = ComputeDefaultLineHeightPx(frame);
   AddFrameInteractionInfo(frame, *frame_data.frame_interaction_info);
   AddMetaData(frame, frame_data.meta_data);
 

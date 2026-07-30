@@ -19,9 +19,9 @@ import {getRequiredElement} from 'chrome://resources/js/util.js';
 
 import {BrowserProxy} from './browser_proxy.js';
 import {GetPoliciesReason} from './policy.mojom-webui.js';
+import type {Status} from './policy.mojom-webui.js';
 import type {Policy} from './policy_row.js';
 import type {PolicyTableElement, PolicyTableModel} from './policy_table.js';
-import type {Status} from './status_box.js';
 
 const policyPageMojoMigrationEnabled =
     loadTimeData.getBoolean('policyPageMojoMigrationEnabled');
@@ -227,7 +227,7 @@ export class Page {
             name: value.forSigninScreen ?
                 `${value.name} [${loadTimeData.getString('signinProfile')}]` :
                 value.name,
-            id: value.isExtension ? id : undefined,
+            id: id,
             policies,
             ...(value.precedenceOrder &&
                 {precedenceOrder: value.precedenceOrder}),

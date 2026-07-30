@@ -9,16 +9,23 @@
 
 :host {
   --bar-max-height: 40px;
-  --color-recording-wave: #8ab4f8;
+  --color-recording-wave: #c9d2ff;
+  --recording-wave-top-padding: 10px;
+
   align-items: flex-start;
-  block-size: 100%;
+
+  /* 100% is relative to height of 'cr-composebox' (or 'cr-searchbox')
+   * since 'animated_glow' (the immediate parent) is absolutely positioned.
+   * Height of 'cr-composebox' is determined by 'div' with id 'composebox'.
+   */
+  block-size: calc(100% - var(--recording-wave-top-padding));
   display: flex;
   inline-size: 100%;
   justify-content: flex-start;
   mask-image: linear-gradient(to right,
                               transparent 0%,
                               black 20%,
-                              black 70%,
+                              black 90%,
                               transparent 100%);
   overflow: visible;
   padding-block-start: 10px;
@@ -68,7 +75,7 @@
  * that major layout recalculation does not occur. */
 .bar-pill.is-unspawned {
   background: transparent;
-  block-size: 6px;
+  block-size: 8px;  /* Minimum height as a bar. */
   box-shadow: none;
   min-block-size: 0;
   transform: none;
@@ -82,11 +89,17 @@
 .bar-pill.is-unspawned::before {
   border-radius: 50%;
   background: var(--color-recording-wave);
-  block-size: 6px;
+  block-size: 6px;  /* Initial minimum height as a ball. */
   content: '';
-  inline-size: 6px;
+  inline-size: 6px;  /* Initial minimum width as a ball. */
   inset-block-start: 50%;
   inset-inline-start: 50%;
   transform: translate(-50%, -50%);
   position: absolute;
+}
+
+@media (prefers-color-scheme: dark) {
+  :host {
+    --color-recording-wave: #37466d;
+  }
 }

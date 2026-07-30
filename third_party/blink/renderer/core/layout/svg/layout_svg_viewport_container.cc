@@ -35,7 +35,7 @@ namespace blink {
 
 LayoutSVGViewportContainer::LayoutSVGViewportContainer(
     SVGViewportContainerElement* node)
-    : LayoutSVGContainer(node) {}
+    : LayoutSVGTransformableContainer(node) {}
 
 SVGLayoutResult LayoutSVGViewportContainer::UpdateSVGLayout(
     const SVGLayoutInfo& layout_info) {
@@ -59,7 +59,7 @@ SVGLayoutResult LayoutSVGViewportContainer::UpdateSVGLayout(
     }
   }
 
-  return LayoutSVGContainer::UpdateSVGLayout(child_layout_info);
+  return LayoutSVGTransformableContainer::UpdateSVGLayout(child_layout_info);
 }
 
 SVGTransformChange LayoutSVGViewportContainer::UpdateLocalTransform(
@@ -69,19 +69,17 @@ SVGTransformChange LayoutSVGViewportContainer::UpdateLocalTransform(
 
   local_to_parent_transform_ = ComputeViewboxTransform();
 
-  if (RuntimeEnabledFeatures::SvgTransformOnNestedSvgElementEnabled()) {
-    local_transform_ = TransformHelper::ComputeTransformIncludingMotion(
-        *GetElement(), reference_box);
+  local_transform_ = TransformHelper::ComputeTransformIncludingMotion(
+      *GetElement(), reference_box);
 
-    // If both `transform` and `viewBox` are applied to an element two new
-    // coordinate systems are established. `transform` establishes the first new
-    // coordinate system for the element. `viewBox` establishes a second
-    // coordinate system for all descendants of the element. The first
-    // coordinate system is post-multiplied by the second coordinate system.
-    //
-    // https://svgwg.org/svg2-draft/coords.html#ViewBoxAttribute
-    local_to_parent_transform_ = local_transform_ * local_to_parent_transform_;
-  }
+  // If both `transform` and `viewBox` are applied to an element two new
+  // coordinate systems are established. `transform` establishes the first new
+  // coordinate system for the element. `viewBox` establishes a second
+  // coordinate system for all descendants of the element. The first
+  // coordinate system is post-multiplied by the second coordinate system.
+  //
+  // https://svgwg.org/svg2-draft/coords.html#ViewBoxAttribute
+  local_to_parent_transform_ = local_transform_ * local_to_parent_transform_;
 
   return change_detector.ComputeChange(local_to_parent_transform_);
 }
@@ -106,8 +104,8 @@ bool LayoutSVGViewportContainer::NodeAtPoint(
       return false;
     }
   }
-  return LayoutSVGContainer::NodeAtPoint(result, hit_test_location,
-                                         accumulated_offset, phase);
+  return LayoutSVGTransformableContainer::NodeAtPoint(
+      result, hit_test_location, accumulated_offset, phase);
 }
 
 void LayoutSVGViewportContainer::IntersectChildren(
@@ -129,20 +127,13 @@ void LayoutSVGViewportContainer::StyleDidChange(
     const ComputedStyle* old_style,
     const StyleChangeContext& style_change_context) {
   NOT_DESTROYED();
-  LayoutSVGContainer::StyleDidChange(diff, old_style, style_change_context);
-  const ComputedStyle& style = StyleRef();
+  LayoutSVGTransformableContainer::StyleDidChange(diff, old_style,
+                                                  style_change_context);
 
   if (old_style && (SVGLayoutSupport::IsOverflowHidden(*old_style) !=
-                    SVGLayoutSupport::IsOverflowHidden(style))) {
+                    SVGLayoutSupport::IsOverflowHidden(StyleRef()))) {
     // See NeedsOverflowClip() in PaintPropertyTreeBuilder for the reason.
     SetNeedsPaintPropertyUpdate();
-  }
-
-  // TODO: Inherit `LayoutSVGViewportContainer` from
-  // `LayoutSVGTransformableContainer` so below bits of code can be shared.
-  if (RuntimeEnabledFeatures::SvgTransformOnNestedSvgElementEnabled()) {
-    TransformHelper::UpdateOffsetPath(*GetElement(), old_style);
-    SetTransformUsesReferenceBox(TransformHelper::DependsOnReferenceBox(style));
   }
 }
 

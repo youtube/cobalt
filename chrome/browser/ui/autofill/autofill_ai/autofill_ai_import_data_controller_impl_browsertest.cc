@@ -1,4 +1,3 @@
-
 // Copyright 2025 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -11,7 +10,6 @@
 #include "base/notreached.h"
 #include "base/test/test_future.h"
 #include "base/test/with_feature_override.h"
-#include "base/types/optional_ref.h"
 #include "chrome/browser/ui/autofill/autofill_ai/entity_attribute_update_details.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/test/test_browser_dialog.h"
@@ -151,6 +149,8 @@ IN_PROC_BROWSER_TEST_P(AutofillAiImportDataControllerImplTest,
     GTEST_SKIP() << "BubbleManager doesn't get informed of the tab changes";
   }
 
+  SetNewEntitiesOptions(
+      {.record_type = EntityInstance::RecordType::kServerWallet});
   ShowUi("SaveNewEntity");
 
   ASSERT_TRUE(controller()->IsShowingBubble());
@@ -200,7 +200,7 @@ IN_PROC_BROWSER_TEST_P(AutofillAiImportDataControllerImplTest,
   ASSERT_TRUE(controller()->IsShowingBubble());
 
   base::test::TestFuture<AutofillClient::AutofillAiBubbleResult,
-                         base::optional_ref<const EntityInstance>,
+                         std::optional<EntityInstance>,
                          const AutofillClient::EntityImportUIContext&>
       prompt_result_future;
   controller()->ShowPrompt(test::GetPassportEntityInstance(), std::nullopt,

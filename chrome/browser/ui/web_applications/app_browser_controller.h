@@ -246,12 +246,12 @@ class AppBrowserController : public ui::ColorProviderKey::InitializerSupplier,
   // window-controls-overlay.
   virtual bool AppUsesWindowControlsOverlay() const;
 
-  // Returns true when an app's effective display mode is borderless.
-  virtual bool AppUsesBorderlessMode() const;
+  // Returns true when an app's effective display mode is unframed.
+  virtual bool AppUsesUnframedMode() const;
 
   // Returns true when `url` matches the display mode override patterns for
-  // borderless mode, or when there are no patterns to match.
-  virtual bool UrlMatchesBorderlessPattern(const GURL& url) const;
+  // unframed mode, or when there are no patterns to match.
+  virtual bool UrlMatchesUnframedPattern(const GURL& url) const;
 
   // Returns true when an app's effective display mode is tabbed.
   virtual bool AppUsesTabbed() const;
@@ -292,6 +292,10 @@ class AppBrowserController : public ui::ColorProviderKey::InitializerSupplier,
 
   // Returns whether prevent close is enabled.
   bool IsPreventCloseEnabled() const;
+
+  // Returns true if the Capture Handle should be exposed for this
+  // app window when captured via window capture.
+  virtual bool IsWindowCaptureHandleAllowed() const;
 
 #if !BUILDFLAG(IS_CHROMEOS)
   // Whether the browser should show the profile menu button in the toolbar.

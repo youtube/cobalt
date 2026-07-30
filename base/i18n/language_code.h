@@ -9,46 +9,43 @@
 #include <array>
 #include <compare>
 #include <cstdint>
-#include <functional>
 #include <optional>
 #include <ostream>
 #include <string_view>
-#include <type_traits>
 
 #include "base/check.h"
 #include "base/i18n/base_i18n_export.h"
+#include "base/i18n/internal/immutable_string.h"
 
 namespace base {
 
-class LanguageCodeBuilder;
-
+class BASE_I18N_EXPORT LanguageCodeBuilder;
+class BASE_I18N_EXPORT RegionCode;
 // A type-safe wrapper for BCP47 language codes (locales).
 //
 // Supported Format Specification:
 // - Core Standard: BCP47 language tags.
-// - Structure: Supports up to 3 subtags separated by hyphens ('-'):
+// - Structure: Supports subtags separated by hyphens ('-'):
 //   - Language: Mandatory, >= 2 chars (e.g., "en", "zh") or 3 chars.
 //   - Script: Optional, 4 chars (e.g., "Hant").
 //   - Region: Optional, 2-3 chars (e.g., "US", "001").
-// - Supported Combinations: "lang", "lang-region", "lang-script",
-// "lang-script-region".
-// - Constraints: Maximum total length of 12 characters, maximum of 3 parts.
-// - Variants: Language variants (e.g. oxendict) are not supported yet.
+//   - Variants: Optional (e.g., "oxendict").
+//   - Extensions: Optional (e.g., "u-ca-gregory").
+//   - Private use: Optional (e.g., "x-privatestuff")
 class BASE_I18N_EXPORT LanguageCode {
  public:
-  ~LanguageCode() = default;
-  LanguageCode(const LanguageCode&) = default;
-  LanguageCode& operator=(const LanguageCode&) = default;
+  using ImmutableStringType = i18n::internal::ImmutableString;
 
-  friend constexpr bool operator==(const LanguageCode& lhs,
-                                   const LanguageCode& rhs) {
-    return lhs.code_ == rhs.code_;
-  }
-  friend constexpr bool operator<(const LanguageCode& lhs,
-                                  const LanguageCode& rhs) {
-    return lhs.code_ < rhs.code_;
-  }
+  ~LanguageCode();
+  LanguageCode(const LanguageCode&);
+  LanguageCode& operator=(const LanguageCode&);
 
+  friend bool operator==(const LanguageCode& lhs, const LanguageCode& rhs) {
+    return lhs.ToString() == rhs.ToString();
+  }
+  friend bool operator<(const LanguageCode& lhs, const LanguageCode& rhs) {
+    return lhs.ToString() < rhs.ToString();
+  }
   friend std::ostream& operator<<(std::ostream& os, const LanguageCode& lc) {
     return os << lc.ToString();
   }
@@ -64,28 +61,52 @@ class BASE_I18N_EXPORT LanguageCode {
   // underscores (e.g., "en_US", "zh_CN").
   std::string ToLegacyICUFormat() const;
 
+  // Returns the region subtag in the language code if present.
+  // Examples:
+  // - "en-US" -> "US"
+  // - "zh-Hant-TW" -> "TW"
+  // - "en" -> std::nullopt
+  // - "sr-Latn" -> std::nullopt
+  std::optional<RegionCode> GetRegionCode() const;
+
  private:
   friend class LanguageCodeBuilder;
 
   // This constructor is intended for internal use by `LanguageCodeBuilder`.
   // Do not call this directly.
-  // A constexpr constructor is provided so we can construct fixed sets of
-  // LanguageCode at compile-time.
-  constexpr explicit LanguageCode(std::string_view code)
-      : length_(code.size()) {
-    CHECK(code.size() >= 2 && code.size() <= 12);
-    std::copy(code.begin(), code.end(), code_.begin());
-  }
+  explicit LanguageCode(ImmutableStringType code);
 
   // The BCP47 language code, e.g. "pt-BR".
-  // language_subtag_length <= 3
-  // script_length <= 4
-  // region_length <= 3
-  // The separators add 2 to the length, in total we need 3 + 4 + 3 + 2 = 12
-  // We do not null-terminate because std::string_view does not require null
-  // termination and it can be created from a pointer and length.
-  std::array<char, 12> code_{};
-  uint8_t length_;
+  // Supports language, script, region, variants and extensions.
+  ImmutableStringType code_;
+};
+
+// Represents the code for a region extracted from a LanguageCode.
+class RegionCode {
+ public:
+  std::string_view ToString() const;
+  friend bool operator==(const RegionCode& lhs, const RegionCode& rhs) {
+    return lhs.ToString() == rhs.ToString();
+  }
+  friend bool operator<(const RegionCode& lhs, const RegionCode& rhs) {
+    return lhs.ToString() < rhs.ToString();
+  }
+  friend std::ostream& operator<<(std::ostream& os, const RegionCode& rc) {
+    return os << rc.ToString();
+  }
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const std::optional<RegionCode>& opt) {
+    return opt ? os << *opt : os << "nullopt";
+  }
+
+ private:
+  friend class LanguageCode;
+
+  // Only LanguageCode can construct it.
+  explicit RegionCode(std::string_view code);
+
+  std::array<char, 3> code_;
+  uint8_t size_;
 };
 
 }  // namespace base
@@ -96,6 +117,13 @@ template <>
 struct hash<base::LanguageCode> {
   std::size_t operator()(const base::LanguageCode& lc) const {
     return std::hash<std::string_view>()(lc.ToString());
+  }
+};
+
+template <>
+struct hash<base::RegionCode> {
+  std::size_t operator()(const base::RegionCode& rc) const {
+    return std::hash<std::string_view>()(rc.ToString());
   }
 };
 

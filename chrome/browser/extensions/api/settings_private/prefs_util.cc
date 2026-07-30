@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "ash/constants/ash_pref_names.h"
+#include "ash/constants/ash_switches.h"
 #include "base/feature_list.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
@@ -78,8 +79,11 @@
 #include "extensions/common/extension.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
+#include "ash/constants/ash_login_pref_names.h"
 #include "ash/constants/ash_pref_names.h"
+#include "ash/constants/ash_switches.h"
 #include "ash/public/cpp/ambient/ambient_prefs.h"
+#include "base/check_deref.h"
 #include "chrome/browser/ash/app_restore/full_restore_prefs.h"
 #include "chrome/browser/ash/bruschetta/bruschetta_pref_names.h"
 #include "chrome/browser/ash/crostini/crostini_pref_names.h"
@@ -98,6 +102,7 @@
 #include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "chromeos/ash/components/tether/pref_names.h"
+#include "chromeos/ash/components/timezone/timezone_util.h"
 #include "chromeos/ash/experiences/arc/arc_prefs.h"
 #include "chromeos/components/quick_answers/public/cpp/quick_answers_prefs.h"
 #include "components/account_manager_core/pref_names.h"
@@ -163,12 +168,12 @@ bool IsSettingReadOnly(const std::string& pref_name) {
 #if BUILDFLAG(IS_CHROMEOS)
   // System timezone is never directly changeable by the user.
   if (pref_name == ash::kSystemTimezone) {
-    return ash::system::PerUserTimezoneEnabled();
+    return ash::switches::IsPerUserTimezoneEnabled();
   }
   // enable_screen_lock and pin_unlock_autosubmit_enabled
   // must be changed through the quickUnlockPrivate API.
   if (pref_name == ash::prefs::kEnableAutoScreenLock ||
-      pref_name == ::prefs::kPinUnlockAutosubmitEnabled) {
+      pref_name == ash::prefs::kPinUnlockAutosubmitEnabled) {
     return true;
   }
 
@@ -645,7 +650,7 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
   (*s_allowlist)[ash::prefs::kEnableAutoScreenLock] =
       settings_api::PrefType::kBoolean;
   // kPinUnlockAutosubmitEnabled is read-only.
-  (*s_allowlist)[::prefs::kPinUnlockAutosubmitEnabled] =
+  (*s_allowlist)[ash::prefs::kPinUnlockAutosubmitEnabled] =
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[ash::prefs::kMessageCenterLockScreenMode] =
       settings_api::PrefType::kString;
@@ -1347,6 +1352,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
   (*s_allowlist)
       [optimization_guide::prefs::kContextualCueingEnterprisePolicyAllowed] =
           settings_api::PrefType::kNumber;
+  (*s_allowlist)[contextual_tasks::kContextualTasksSmartTabSharingSettings] =
+      settings_api::PrefType::kNumber;
 
   // Glic prefs
   if (glic::GlicEnabling::IsEnabledByGlobalCriteria()) {
@@ -1628,7 +1635,9 @@ settings_private::SetPrefResult PrefsUtil::SetCrosSettingsPref(
     }
     const user_manager::User* user =
         ash::ProfileHelper::Get()->GetUserByProfile(profile_);
-    if (user && ash::system::SetSystemTimezone(user, *string_value)) {
+    if (user && ash::system::SetSystemTimezone(
+                    CHECK_DEREF(g_browser_process->local_state()), user,
+                    *string_value)) {
       return settings_private::SetPrefResult::SUCCESS;
     }
     return settings_private::SetPrefResult::PREF_NOT_MODIFIABLE;

@@ -25,6 +25,7 @@
 #include "extensions/browser/mime_handler/mime_handler_stream_delegate.h"
 #include "extensions/browser/mime_handler/stream_container.h"
 #include "extensions/browser/mime_handler/stream_info.h"
+#include "extensions/common/api/mime_handler.mojom.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/mojom/guest_view.mojom.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
@@ -298,16 +299,27 @@ void MimeHandlerStreamManager::AbortAndFallbackToNativeHandler(
 
   const content::FrameTreeNodeId embedder_ftn =
       embedder_host->GetFrameTreeNodeId();
-  pending_native_fallback_frames_.insert(embedder_ftn);
+
+  // Capture the buffered body (if any) before tearing the stream down.
+  // An invalid handle -- no cache attached or the source still draining
+  // -- falls through to a network refetch on reload. Capture the
+  // decoded byte count alongside the pipe so the throttle can populate
+  // `URLLoaderCompletionStatus::decoded_body_length` correctly when it
+  // replays the body (the cache stores post-decoding bytes, so the
+  // wire `Content-Length` is wrong here whenever the original was
+  // content-encoded).
+  mojo::ScopedDataPipeConsumerHandle body =
+      stream_info->stream()->GetFallbackDataPipe();
+  const size_t decoded_body_size =
+      body.is_valid() ? stream_info->stream()->GetCachedBodySize() : 0u;
+  pending_native_fallback_frames_[embedder_ftn] =
+      CachedFallbackBody{std::move(body), decoded_body_size};
 
   // Re-navigate just the embedder frame -- not the whole WebContents --
   // so iframe-hosted MIME handlers fall back without blowing away the
   // main frame. For a primary-main-frame embedder this is equivalent to
   // a main-frame reload. FTN is stable across the scoped navigation, so
   // the throttle's FTN-keyed peek matches the mark set here.
-  // TODO(crbug.com/495538206): Replace this re-fetch with a cached-body
-  // handoff so the native handler can render without a second network
-  // round-trip.
   content::NavigationController::LoadURLParams params(original_url);
   params.frame_tree_node_id = embedder_ftn;
   params.should_replace_current_entry = true;
@@ -318,6 +330,17 @@ void MimeHandlerStreamManager::AbortAndFallbackToNativeHandler(
 bool MimeHandlerStreamManager::IsPendingNativeFallback(
     content::FrameTreeNodeId frame_tree_node_id) const {
   return pending_native_fallback_frames_.contains(frame_tree_node_id);
+}
+
+std::optional<MimeHandlerStreamManager::CachedFallbackBody>
+MimeHandlerStreamManager::TakeCachedFallbackBody(
+    content::FrameTreeNodeId frame_tree_node_id) {
+  auto it = pending_native_fallback_frames_.find(frame_tree_node_id);
+  if (it == pending_native_fallback_frames_.end() ||
+      !it->second.pipe.is_valid()) {
+    return std::nullopt;
+  }
+  return std::move(it->second);
 }
 
 bool MimeHandlerStreamManager::PluginCanSave(
@@ -811,6 +834,14 @@ bool MimeHandlerStreamManager::MaybeSetUpPostMessage(
 
   auto container_manager = GetMimeHandlerViewContainerManager(container_host);
 
+  // Set up beforeunload support for full page PDF viewer, which will also help
+  // set up postMessage support.
+  if (is_full_page) {
+    container_manager->CreateBeforeUnloadControl(
+        base::BindOnce(&MimeHandlerStreamManager::SetUpBeforeUnloadControl,
+                       weak_factory_.GetWeakPtr()));
+  }
+
   // Enable postMessage support.
   // The first parameter for DidLoad() is
   // mime_handler_view_guest_element_instance_id, which is used to identify and
@@ -835,6 +866,12 @@ void MimeHandlerStreamManager::SetStreamContentHostFrameTreeNodeId(
   CHECK(claimed_stream_info);
   claimed_stream_info->set_content_host_frame_tree_node_id(
       navigation_handle->GetFrameTreeNodeId());
+}
+
+void MimeHandlerStreamManager::SetUpBeforeUnloadControl(
+    mojo::PendingRemote<extensions::mime_handler::BeforeUnloadControl>
+        before_unload_control_remote) {
+  // TODO(crbug.com/40268279): Currently a no-op. Support the beforeunload API.
 }
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(MimeHandlerStreamManager);

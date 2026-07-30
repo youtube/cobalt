@@ -96,17 +96,15 @@ base::OnceClosure SharingService::SendMessageToDevice(
     components_sharing_message::SharingMessage message,
     SharingMessageSender::ResponseCallback callback) {
   return message_sender_->SendMessageToDevice(
-      device, response_timeout, std::move(message),
-      SharingMessageSender::DelegateType::kFCM, std::move(callback));
+      device, response_timeout, std::move(message), std::move(callback));
 }
 
-base::OnceClosure SharingService::SendUnencryptedMessageToDevice(
+base::OnceClosure SharingService::SendIosPushMessageToDevice(
     const SharingTargetDeviceInfo& device,
     sync_pb::UnencryptedSharingMessage message,
     SharingMessageSender::ResponseCallback callback) {
-  return message_sender_->SendUnencryptedMessageToDevice(
-      device, std::move(message), SharingMessageSender::DelegateType::kIOSPush,
-      std::move(callback));
+  return message_sender_->SendIosPushMessageToDevice(device, std::move(message),
+                                                     std::move(callback));
 }
 
 void SharingService::RegisterSharingHandler(
@@ -165,9 +163,8 @@ SharingMessageHandler* SharingService::GetSharingHandlerForTesting(
   return handler_registry_->GetSharingHandler(payload_case);
 }
 
-void SharingService::EntryAddedLocally(
+void SharingService::OnEntryAddedLocally(
     const send_tab_to_self::SendTabToSelfEntry* entry) {
-
   std::optional<SharingTargetDeviceInfo> target_device_info =
       GetDeviceByGuid(entry->GetTargetDeviceSyncCacheGuid());
 
@@ -326,7 +323,7 @@ void SharingService::SendNotificationForSendTabToSelfPush(
       IDS_SEND_TAB_PUSH_NOTIFICATION_PLACEHOLDER_BODY));
   push_notification_entry->set_entry_unique_guid(entry.GetGUID());
 
-  SendUnencryptedMessageToDevice(target_device_info.value(),
-                                 std::move(sharing_message),
-                                 /*callback=*/base::DoNothing());
+  SendIosPushMessageToDevice(target_device_info.value(),
+                             std::move(sharing_message),
+                             /*callback=*/base::DoNothing());
 }

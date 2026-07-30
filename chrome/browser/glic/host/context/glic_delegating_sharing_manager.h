@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_GLIC_HOST_CONTEXT_GLIC_DELEGATING_SHARING_MANAGER_H_
 #define CHROME_BROWSER_GLIC_HOST_CONTEXT_GLIC_DELEGATING_SHARING_MANAGER_H_
 
+#include "chrome/browser/glic/host/context/glic_pin_candidate_provider.h"
 #include "chrome/browser/glic/public/context/glic_sharing_manager.h"
 
 namespace glic {
@@ -15,9 +16,9 @@ class GlicSharingManagerImpl;
 // Provides stable external api state (e.g. callback list subscriptions), while
 // also enabling hot-swapping of internal delegate.
 //
-// Retains its own callback list subsciptions (calls to `Add*Callback` are not
+// Retains its own callback list subscriptions (calls to `Add*Callback` are not
 // delegated), but notify calls from current delegate are
-// forwarded and all non-callback-subsciptions methods are delegated directly.
+// forwarded and all non-callback-subscriptions methods are delegated directly.
 //
 // This base class doesn't expose a method to set the delegate, to do so use one
 // of the derived classes below instead.
@@ -88,9 +89,7 @@ class GlicDelegatingSharingManagerBase : public GlicSharingManager {
       tabs::TabHandle tab_handle,
       const mojom::GetTabContextOptions& options,
       base::OnceCallback<void(GlicGetContextResult)> callback) override;
-  void SubscribeToPinCandidates(
-      mojom::GetPinCandidatesOptionsPtr options,
-      mojo::PendingRemote<mojom::PinCandidatesObserver> observer) override;
+
   void OnConversationTurnSubmitted() override;
   base::WeakPtr<GlicSharingManager> GetWeakPtr() override;
 
@@ -109,7 +108,7 @@ class GlicDelegatingSharingManagerBase : public GlicSharingManager {
   void OnTabPinningStatusEventCallback(tabs::TabInterface* tab,
                                        GlicPinningStatusEvent event);
   void OnPinnedTabsChangedCallback(
-      const std::vector<content::WebContents*>& pinnned_tabs);
+      const std::vector<content::WebContents*>& pinned_tabs);
   void OnPinnedTabDataChangedCallback(const TabDataChange& tab_data_change);
 
   // Refreshes all internal subscriptions to point at current delegate.
@@ -174,13 +173,14 @@ class GlicDelegatingSharingManager : public GlicDelegatingSharingManagerBase {
 // Behaves just like `GlicDelegatingSharingManager`, but crashes if a delegate
 // is set with a different PinnedTabManager instance than the previous delegate.
 //
-// Useful for cases where non-pinning sharing bevhavior must change on the fly,
+// Useful for cases where non-pinning sharing behavior must change on the fly,
 // but not pinning behavior (e.g. attach/detach behavior for side panel).
 //
 // TODO(crbug.com/444463509): Enforce invariant at compile time and move
 // GlicPinnedTabManager out of WeakPtr.
 class GlicStablePinningDelegatingSharingManager
-    : public GlicDelegatingSharingManagerBase {
+    : public GlicDelegatingSharingManagerBase,
+      public GlicPinCandidateProvider {
  public:
   explicit GlicStablePinningDelegatingSharingManager(
       GlicSharingManagerImpl* sharing_manager_delegate);
@@ -201,7 +201,7 @@ class GlicStablePinningDelegatingSharingManager
 
  private:
   // Last known state for glic window being active. We hold this so we can set
-  // it on delegate swaps (delegates are not longer able to subscribe directly).
+  // it on delegate swaps (delegates are no longer able to subscribe directly).
   bool glic_window_active_ = false;
 };
 

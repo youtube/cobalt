@@ -13,12 +13,16 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/timer/elapsed_timer.h"
+#include "content/browser/media/capture/screen_capture_kit_device_mac.h"
 #include "content/browser/renderer_host/media/media_stream_manager.h"
 #include "content/browser/renderer_host/media/video_capture_manager.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/web_contents.h"
+#include "media/capture/video/video_capture_device.h"
 #include "third_party/webrtc/modules/desktop_capture/mac/window_list_utils.h"
 
 namespace content {
@@ -101,9 +105,10 @@ GetApplicationAudioCaptureIdForProcess(pid_t pid) {
   std::optional<std::string> bundle_id = GetBundleIdForProcess(pid);
 
   if (!bundle_id) {
-    LOG(ERROR) << "GetApplicationAudioCaptureIdForProcess: Failed to find "
-                  "Bundle ID for PID "
-               << pid << ". Duration: " << timer.Elapsed();
+    MediaStreamManager::SendMessageToNativeLog(
+        base::StringPrintf("AudioCaptureId: Failed to find Bundle ID for PID "
+                           "%d. Duration: %.3f ms",
+                           pid, timer.Elapsed().InMillisecondsF()));
     RecordGetAppAudioCaptureIdMetrics(
         timer.Elapsed(), GetAppAudioCaptureIdMacResult::kFailedToFindBundleId);
     return std::nullopt;
@@ -114,6 +119,10 @@ GetApplicationAudioCaptureIdForProcess(pid_t pid) {
 
   if (!truncated_chromium_bundle_id) {
     // Capturing non-Chromium application window.
+    MediaStreamManager::SendMessageToNativeLog(base::StringPrintf(
+        "AudioCaptureId: Found non-Chromium application. PID: %d, Bundle ID: "
+        "%s. Duration: %.3f ms",
+        pid, bundle_id->c_str(), timer.Elapsed().InMillisecondsF()));
     RecordGetAppAudioCaptureIdMetrics(timer.Elapsed(),
                                       GetAppAudioCaptureIdMacResult::kSuccess);
     return std::make_optional<desktop_capture::ApplicationAudioCaptureId>(
@@ -125,6 +134,11 @@ GetApplicationAudioCaptureIdForProcess(pid_t pid) {
   if (!pwa_installer_bundle_id) {
     // Capturing Chromium browser window. Window PID is the main PID of the
     // browser.
+    MediaStreamManager::SendMessageToNativeLog(base::StringPrintf(
+        "AudioCaptureId: Found Chromium browser. PID: %d, Bundle ID: %s, "
+        "Truncated Bundle ID: %s. Duration: %.3f ms",
+        pid, bundle_id->c_str(), truncated_chromium_bundle_id->c_str(),
+        timer.Elapsed().InMillisecondsF()));
     RecordGetAppAudioCaptureIdMetrics(timer.Elapsed(),
                                       GetAppAudioCaptureIdMacResult::kSuccess);
     return std::make_optional<desktop_capture::ApplicationAudioCaptureId>(
@@ -138,18 +152,24 @@ GetApplicationAudioCaptureIdForProcess(pid_t pid) {
       runningApplicationsWithBundleIdentifier:base::SysUTF8ToNSString(
                                                   *pwa_installer_bundle_id)];
   if (browser_apps.count != 1) {
-    LOG(ERROR)
-        << "GetApplicationAudioCaptureIdForProcess: Failed to uniquely resolve"
-           " browser for PWA PID "
-        << pid << ", PWA Bundle ID: " << *bundle_id
-        << ", Installer Bundle ID: " << *pwa_installer_bundle_id
-        << ", running browsers count: " << browser_apps.count
-        << ". Duration: " << timer.Elapsed();
+    MediaStreamManager::SendMessageToNativeLog(base::StringPrintf(
+        "AudioCaptureId: Failed to uniquely resolve browser for PWA PID %d, "
+        "PWA Bundle ID: %s, Browser Bundle ID: %s, running browsers count: "
+        "%lu. Duration: %.3f ms",
+        pid, bundle_id->c_str(), pwa_installer_bundle_id->c_str(),
+        (unsigned long)browser_apps.count, timer.Elapsed().InMillisecondsF()));
     RecordGetAppAudioCaptureIdMetrics(
         timer.Elapsed(),
         GetAppAudioCaptureIdMacResult::kFailedToFindBrowserForPWA);
     return std::nullopt;
   }
+  MediaStreamManager::SendMessageToNativeLog(base::StringPrintf(
+      "AudioCaptureId: Found Chromium PWA. PWA PID: %d, PWA Bundle ID: %s, "
+      "Browser PID: %d, Browser Bundle ID: %s, Truncated Bundle ID: %s. "
+      "Duration: %.3f ms",
+      pid, bundle_id->c_str(), browser_apps[0].processIdentifier,
+      pwa_installer_bundle_id->c_str(), truncated_chromium_bundle_id->c_str(),
+      timer.Elapsed().InMillisecondsF()));
   RecordGetAppAudioCaptureIdMetrics(timer.Elapsed(),
                                     GetAppAudioCaptureIdMacResult::kSuccess);
   return std::make_optional<desktop_capture::ApplicationAudioCaptureId>(
@@ -181,6 +201,42 @@ void GetApplicationAudioCaptureIdInternal(
             webrtc::GetWindowOwnerPid(desktop_media_id.id));
     std::move(callback).Run(media_id);
   }
+}
+
+std::unique_ptr<media::VideoCaptureDevice> CreateScreenCaptureKitDeviceMac(
+    const DesktopMediaID& source,
+    bool is_native_picker,
+    std::unique_ptr<PipScreenCaptureCoordinatorProxy>
+        pip_screen_capture_coordinator_proxy) {
+  // Although ScreenCaptureKit is available in 12.3 there were some bugs that
+  // were not fixed until 13.2.
+  if (@available(macOS 13.2, *)) {
+    return CreateScreenCaptureKitDeviceMac(
+        source, is_native_picker, /*filter=*/nullptr,
+        /*callback=*/base::DoNothing(),
+        std::move(pip_screen_capture_coordinator_proxy));
+  } else {
+    return nullptr;
+  }
+}
+
+std::optional<DesktopMediaID::Id> GetNativeWindowIdMac(
+    WebContents& web_contents) {
+  gfx::NativeView native_view = web_contents.GetNativeView();
+  NSView* ns_view = native_view.GetNativeNSView();
+  if (!ns_view) {
+    return std::nullopt;
+  }
+
+  NSWindow* ns_window = [ns_view window];
+  if (!ns_window) {
+    return std::nullopt;
+  }
+
+  int64_t window_number = [ns_window windowNumber];
+  return window_number > 0 ? std::make_optional(
+                                 static_cast<DesktopMediaID::Id>(window_number))
+                           : std::nullopt;
 }
 
 }  // namespace content

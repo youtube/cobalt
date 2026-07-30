@@ -113,8 +113,8 @@ class WebAppBrowserController : public AppBrowserController,
   bool IsWindowControlsOverlayEnabled() const override;
   void ToggleWindowControlsOverlayEnabled(
       base::OnceClosure on_complete) override;
-  bool AppUsesBorderlessMode() const override;
-  bool UrlMatchesBorderlessPattern(const GURL& url) const override;
+  bool AppUsesUnframedMode() const override;
+  bool UrlMatchesUnframedPattern(const GURL& url) const override;
   bool IsIsolatedWebApp() const override;
   void SetIsolatedWebAppTrueForTesting() override;
   gfx::Rect GetDefaultBounds() const override;
@@ -124,6 +124,7 @@ class WebAppBrowserController : public AppBrowserController,
   bool HasPendingUpdateNotIgnoredByUser() const override;
   void TriggerAppUpdateOrMigrationDialog(
       base::TimeTicks start_time) const override;
+  bool IsWindowCaptureHandleAllowed() const override;
 #if BUILDFLAG(IS_CHROMEOS)
   const ash::SystemWebAppDelegate* system_app() const override;
   bool ShouldShowCustomTabBar() const override;

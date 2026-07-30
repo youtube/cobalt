@@ -4,13 +4,16 @@
 
 #include "components/autofill/core/browser/ml_model/field_classification_model_executor.h"
 
+#include <stddef.h>
+
 #include <algorithm>
+#include <optional>
 #include <vector>
 
-#include "base/check.h"
 #include "base/check_op.h"
 #include "base/compiler_specific.h"
 #include "components/autofill/core/browser/ml_model/field_classification_model_encoder.h"
+#include "third_party/tflite/src/tensorflow/lite/core/c/common.h"
 #include "third_party/tflite/src/tensorflow/lite/kernels/internal/tensor_ctypes.h"
 
 namespace autofill {

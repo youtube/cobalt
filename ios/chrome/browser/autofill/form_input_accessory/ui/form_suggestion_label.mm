@@ -298,6 +298,8 @@ bool IsPasswordSuggestion(FormSuggestion* suggestion) {
     case SuggestionType::kBnplFootnote:
     case SuggestionType::kAutocompleteAtMemoryButton:
     case SuggestionType::kOpenGemini:
+    case SuggestionType::kAtMemoryNoConnection:
+    case SuggestionType::kAtMemorySearchAffordance:
       return false;
   }
   NOTREACHED();

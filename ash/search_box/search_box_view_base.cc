@@ -700,8 +700,7 @@ void SearchBoxViewBase::OnMouseEvent(ui::MouseEvent* event) {
 
 void SearchBoxViewBase::OnThemeChanged() {
   views::View::OnThemeChanged();
-  search_box_->SetSelectionBackgroundColor(
-      GetWidget()->GetColorProvider()->GetColor(kColorAshFocusAuraColor));
+  search_box_->SetSelectionBackgroundColorId(kColorAshFocusAuraColor);
   UpdatePlaceholderTextStyle();
 }
 
@@ -749,7 +748,7 @@ void SearchBoxViewBase::SetPreferredStyleForAutocompleteText(
 void SearchBoxViewBase::SetPreferredStyleForSearchboxText(
     const gfx::FontList& font_list,
     ui::ColorId text_color_id) {
-  search_box_->SetTextColor(text_color_id);
+  search_box_->SetTextColorId(text_color_id);
   search_box_->SetFontList(font_list);
 }
 

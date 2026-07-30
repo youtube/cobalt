@@ -39,6 +39,7 @@
 #include "chrome/browser/collaboration/messaging/messaging_backend_service_factory.h"
 #include "chrome/browser/defaults.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
+#include "chrome/browser/lifetime/application_lifetime_desktop.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
@@ -1437,8 +1438,8 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, SplitVisualDataRestored) {
   split_tabs::SplitTabId split_pinned =
       browser()->tab_strip_model()->AddToNewSplit(
           {1},
-          split_tabs::SplitTabVisualData(split_tabs::SplitTabLayout::kVertical,
-                                         0.5),
+          split_tabs::SplitTabVisualData(
+              split_tabs::SplitTabLayout::kSideBySide, 0.5),
           split_tabs::SplitTabCreatedSource::kTabContextMenu);
 
   browser()->tab_strip_model()->ActivateTabAt(
@@ -1447,8 +1448,8 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, SplitVisualDataRestored) {
   split_tabs::SplitTabId split_group =
       browser()->tab_strip_model()->AddToNewSplit(
           {3},
-          split_tabs::SplitTabVisualData(
-              split_tabs::SplitTabLayout::kHorizontal, 0.7),
+          split_tabs::SplitTabVisualData(split_tabs::SplitTabLayout::kStacked,
+                                         0.7),
           split_tabs::SplitTabCreatedSource::kTabContextMenu);
 
   browser()->tab_strip_model()->ActivateTabAt(
@@ -1457,15 +1458,15 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, SplitVisualDataRestored) {
   split_tabs::SplitTabId split_unpinned =
       browser()->tab_strip_model()->AddToNewSplit(
           {5},
-          split_tabs::SplitTabVisualData(split_tabs::SplitTabLayout::kVertical,
-                                         0.3),
+          split_tabs::SplitTabVisualData(
+              split_tabs::SplitTabLayout::kSideBySide, 0.3),
           split_tabs::SplitTabCreatedSource::kTabContextMenu);
 
   const auto groups = GetTabGroups(browser()->tab_strip_model());
 
   // Update a some of the split visual data.
   browser()->tab_strip_model()->UpdateSplitLayout(
-      split_unpinned, split_tabs::SplitTabLayout::kHorizontal);
+      split_unpinned, split_tabs::SplitTabLayout::kStacked);
 
   BrowserWindowInterface* new_browser = QuitBrowserAndRestore(browser());
   EXPECT_EQ(kNumTabs, new_browser->GetTabStripModel()->count());
@@ -1491,7 +1492,7 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, SplitVisualDataRestored) {
                  ->GetSplitData(split_pinned)
                  ->visual_data(),
             split_tabs::SplitTabVisualData(
-                split_tabs::SplitTabLayout::kVertical, 0.5));
+                split_tabs::SplitTabLayout::kSideBySide, 0.5));
 
   EXPECT_EQ(new_browser->GetTabStripModel()
                 ->GetSplitData(split_group)
@@ -1501,8 +1502,8 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, SplitVisualDataRestored) {
   EXPECT_EQ(*new_browser->GetTabStripModel()
                  ->GetSplitData(split_group)
                  ->visual_data(),
-            split_tabs::SplitTabVisualData(
-                split_tabs::SplitTabLayout::kHorizontal, 0.7));
+            split_tabs::SplitTabVisualData(split_tabs::SplitTabLayout::kStacked,
+                                           0.7));
 
   EXPECT_EQ(new_browser->GetTabStripModel()
                 ->GetSplitData(split_unpinned)
@@ -1512,8 +1513,8 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, SplitVisualDataRestored) {
   EXPECT_EQ(*new_browser->GetTabStripModel()
                  ->GetSplitData(split_unpinned)
                  ->visual_data(),
-            split_tabs::SplitTabVisualData(
-                split_tabs::SplitTabLayout::kHorizontal, 0.3));
+            split_tabs::SplitTabVisualData(split_tabs::SplitTabLayout::kStacked,
+                                           0.3));
 }
 
 IN_PROC_BROWSER_TEST_F(SessionRestoreTest, StartupPagesWithOnlyNtp) {
@@ -2071,6 +2072,13 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, PersistAndRestoreUserAgentOverride) {
 // was wrong, leading to the wrong tab getting selected, DCHECKs firing, and the
 // pinned tab not getting loaded.
 IN_PROC_BROWSER_TEST_F(SessionRestoreTest, RestorePinnedSelectedTab) {
+#if defined(MEMORY_SANITIZER)
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test on MSAN with InitialWebUI enabled. "
+                    "See crbug.com/477426026.";
+  }
+#endif
+
   // Create a pinned tab.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GetUrl1()));
   browser()->tab_strip_model()->SetTabPinned(0, true);

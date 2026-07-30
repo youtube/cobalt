@@ -4,6 +4,10 @@
 
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 
+#include <ostream>
+#include <string>
+#include <string_view>
+
 #include "base/notreached.h"
 #include "suggestion_type.h"
 
@@ -127,6 +131,10 @@ std::string_view SuggestionTypeToStringView(SuggestionType type) {
       return "kAutocompleteAtMemoryButton";
     case SuggestionType::kOpenGemini:
       return "kOpenGemini";
+    case SuggestionType::kAtMemoryNoConnection:
+      return "kAtMemoryNoConnection";
+    case SuggestionType::kAtMemorySearchAffordance:
+      return "kAtMemorySearchAffordance";
   }
   NOTREACHED();
 }

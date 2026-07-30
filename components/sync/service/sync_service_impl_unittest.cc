@@ -24,6 +24,8 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "components/os_crypt/async/browser/test_utils.h"
+#include "components/os_crypt/async/common/encryptor.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/signin/public/base/gaia_id_hash.h"
 #include "components/signin/public/base/signin_pref_names.h"
@@ -32,6 +34,7 @@
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "components/signin/public/identity_manager/primary_account_mutator.h"
 #include "components/sync/base/command_line_switches.h"
+#include "components/sync/base/custom_passphrase_bootstrap_token.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/base/features.h"
 #include "components/sync/base/pref_names.h"
@@ -39,6 +42,7 @@
 #include "components/sync/base/user_selectable_type.h"
 #include "components/sync/engine/nigori/key_derivation_params.h"
 #include "components/sync/engine/sync_status.h"
+#include "components/sync/nigori/required_passphrase_verifier_impl.h"
 #include "components/sync/service/bookmark_sync_error_state.h"
 #include "components/sync/service/sync_service_observer.h"
 #include "components/sync/service/sync_token_status.h"
@@ -70,6 +74,11 @@ using testing::NotNull;
 using testing::Pair;
 using testing::Return;
 using testing::UnorderedElementsAre;
+
+MATCHER_P(MatchesToken, expected_token, "") {
+  return arg.ToProto().SerializeAsString() ==
+         expected_token.ToProto().SerializeAsString();
+}
 
 namespace syncer {
 
@@ -259,7 +268,8 @@ class SyncServiceImplTest : public ::testing::Test {
 
   void TriggerPassphraseRequired() {
     service_->GetEncryptionObserverForTest()->OnPassphraseRequired(
-        KeyDerivationParams::CreateForPbkdf2(), sync_pb::EncryptedData());
+        std::make_unique<RequiredPassphraseVerifierImpl>(
+            KeyDerivationParams::CreateForPbkdf2(), sync_pb::EncryptedData()));
   }
 
   void RunUntilSyncTransportState(SyncService::TransportState expected_state) {
@@ -1586,8 +1596,15 @@ TEST_F(SyncServiceImplTest, DisableSyncOnClientClearsPassphrasePrefForAccount) {
       identity_manager()
           ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
           .gaia;
-  sync_prefs.SetEncryptionBootstrapTokenForAccount("token", gaia_id);
-  ASSERT_EQ("token", sync_prefs.GetEncryptionBootstrapTokenForAccount(gaia_id));
+  os_crypt_async::Encryptor encryptor =
+      os_crypt_async::GetTestEncryptorForTesting();
+  CustomPassphraseBootstrapToken token =
+      CustomPassphraseBootstrapToken::CreateFakeForTesting(1);
+
+  sync_prefs.SetEncryptionBootstrapTokenForAccount(token, encryptor, gaia_id);
+  ASSERT_THAT(
+      sync_prefs.GetEncryptionBootstrapTokenForAccount(encryptor, gaia_id),
+      MatchesToken(token));
 
   // Clear sync from the dashboard.
   SyncProtocolError client_cmd;
@@ -1598,7 +1615,8 @@ TEST_F(SyncServiceImplTest, DisableSyncOnClientClearsPassphrasePrefForAccount) {
   // The passphrase for account pref cleared when sync is cleared from
   // dashboard.
   EXPECT_TRUE(
-      sync_prefs.GetEncryptionBootstrapTokenForAccount(gaia_id).empty());
+      sync_prefs.GetEncryptionBootstrapTokenForAccount(encryptor, gaia_id)
+          .IsEmpty());
 }
 
 TEST_F(SyncServiceImplTest,
@@ -1623,8 +1641,15 @@ TEST_F(SyncServiceImplTest,
       identity_manager()
           ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
           .gaia;
-  sync_prefs.SetEncryptionBootstrapTokenForAccount("token", gaia_id);
-  ASSERT_EQ("token", sync_prefs.GetEncryptionBootstrapTokenForAccount(gaia_id));
+  os_crypt_async::Encryptor encryptor =
+      os_crypt_async::GetTestEncryptorForTesting();
+  CustomPassphraseBootstrapToken token =
+      CustomPassphraseBootstrapToken::CreateFakeForTesting(1);
+
+  sync_prefs.SetEncryptionBootstrapTokenForAccount(token, encryptor, gaia_id);
+  ASSERT_THAT(
+      sync_prefs.GetEncryptionBootstrapTokenForAccount(encryptor, gaia_id),
+      MatchesToken(token));
 
   // Clear sync from the dashboard.
   SyncProtocolError client_cmd;
@@ -1635,7 +1660,8 @@ TEST_F(SyncServiceImplTest,
   // The passphrase for account pref cleared when sync is cleared from
   // dashboard.
   EXPECT_TRUE(
-      sync_prefs.GetEncryptionBootstrapTokenForAccount(gaia_id).empty());
+      sync_prefs.GetEncryptionBootstrapTokenForAccount(encryptor, gaia_id)
+          .IsEmpty());
 }
 
 TEST_F(SyncServiceImplTest, EncryptionObsoleteClearsPassphrasePrefForAccount) {
@@ -1658,8 +1684,15 @@ TEST_F(SyncServiceImplTest, EncryptionObsoleteClearsPassphrasePrefForAccount) {
       identity_manager()
           ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
           .gaia;
-  sync_prefs.SetEncryptionBootstrapTokenForAccount("token", gaia_id);
-  ASSERT_EQ("token", sync_prefs.GetEncryptionBootstrapTokenForAccount(gaia_id));
+  os_crypt_async::Encryptor encryptor =
+      os_crypt_async::GetTestEncryptorForTesting();
+  CustomPassphraseBootstrapToken token =
+      CustomPassphraseBootstrapToken::CreateFakeForTesting(1);
+
+  sync_prefs.SetEncryptionBootstrapTokenForAccount(token, encryptor, gaia_id);
+  ASSERT_THAT(
+      sync_prefs.GetEncryptionBootstrapTokenForAccount(encryptor, gaia_id),
+      MatchesToken(token));
 
   SyncProtocolError client_cmd;
   client_cmd.action = DISABLE_SYNC_ON_CLIENT;
@@ -1668,7 +1701,8 @@ TEST_F(SyncServiceImplTest, EncryptionObsoleteClearsPassphrasePrefForAccount) {
 
   // The passphrase for account pref should be cleared.
   EXPECT_TRUE(
-      sync_prefs.GetEncryptionBootstrapTokenForAccount(gaia_id).empty());
+      sync_prefs.GetEncryptionBootstrapTokenForAccount(encryptor, gaia_id)
+          .IsEmpty());
 }
 
 // Verify a that local sync mode isn't impacted by sync being disabled.

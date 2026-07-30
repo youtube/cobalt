@@ -10,7 +10,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.isEmptyString;
 import static org.junit.Assert.assertEquals;
 
-import android.app.Activity;
 import android.view.View;
 import android.widget.TextView;
 
@@ -52,8 +51,6 @@ public class AutofillSaveCardBottomSheetViewBinderTest {
     public static BaseActivityTestRule<BlankUiTestActivity> sActivityTestRule =
             new BaseActivityTestRule<>(BlankUiTestActivity.class);
 
-    private static Activity sActivity;
-
     private PropertyModel.Builder mModelBuilder;
     private PropertyModel mModel;
     private AutofillSaveCardBottomSheetView mView;
@@ -84,14 +81,15 @@ public class AutofillSaveCardBottomSheetViewBinderTest {
 
     @BeforeClass
     public static void setupSuite() {
-        sActivity = sActivityTestRule.launchActivity(null);
+        sActivityTestRule.launchActivity(null);
     }
 
     @Before
     public void setUp() throws Exception {
         mModelBuilder = new PropertyModel.Builder(AutofillSaveCardBottomSheetProperties.ALL_KEYS);
-        mView = new AutofillSaveCardBottomSheetView(sActivity);
-        ThreadUtils.runOnUiThreadBlocking(() -> sActivity.setContentView(mView.mContentView));
+        mView = new AutofillSaveCardBottomSheetView(sActivityTestRule.getActivity());
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> sActivityTestRule.getActivity().setContentView(mView.mContentView));
         bind(mModelBuilder);
     }
 

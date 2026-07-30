@@ -60,8 +60,6 @@ public class TabListContainerViewBinderTest {
     public static BaseActivityTestRule<BlankUiTestActivity> sActivityTestRule =
             new BaseActivityTestRule<>(BlankUiTestActivity.class);
 
-    private static Activity sActivity;
-
     private PropertyModel mContainerModel;
     private PropertyModelChangeProcessor mMCP;
     private TabListRecyclerView mRecyclerView;
@@ -73,24 +71,24 @@ public class TabListContainerViewBinderTest {
 
     @BeforeClass
     public static void setupSuite() {
-        sActivity = sActivityTestRule.launchActivity(null);
+        sActivityTestRule.launchActivity(null);
     }
 
     @Before
     public void setUp() throws Exception {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    sActivity.setContentView(R.layout.tab_switcher_pane_layout);
-                    mContentView = sActivity.findViewById(android.R.id.content);
+                    Activity activity = sActivityTestRule.getActivity();
+                    activity.setContentView(R.layout.tab_switcher_pane_layout);
+                    mContentView = activity.findViewById(android.R.id.content);
                     mRecyclerView =
                             (TabListRecyclerView)
-                                    sActivity
-                                            .getLayoutInflater()
+                                    activity.getLayoutInflater()
                                             .inflate(R.layout.tab_list_recycler_view_layout, null);
                     ((FrameLayout) mContentView.findViewById(R.id.tab_list_container))
                             .addView(mRecyclerView);
                     mHairline = mContentView.findViewById(R.id.pane_hairline);
-                    mSupplementaryContainer = new LinearLayout(sActivity);
+                    mSupplementaryContainer = new LinearLayout(activity);
                     mContainerModel = new PropertyModel(TabListContainerProperties.ALL_KEYS);
 
                     mMCP =
@@ -110,7 +108,8 @@ public class TabListContainerViewBinderTest {
     private void setUpGridLayoutManager() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    mGridLayoutManager = spy(new GridLayoutManager(sActivity, 2));
+                    mGridLayoutManager =
+                            spy(new GridLayoutManager(sActivityTestRule.getActivity(), 2));
                     mRecyclerView.setLayoutManager(mGridLayoutManager);
                 });
     }

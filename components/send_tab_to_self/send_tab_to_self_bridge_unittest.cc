@@ -117,13 +117,12 @@ sync_pb::DataTypeState StateWithEncryption(
 
 class MockSendTabToSelfModelObserver : public SendTabToSelfModelObserver {
  public:
-  MOCK_METHOD0(SendTabToSelfModelLoaded, void());
-  MOCK_METHOD1(EntriesAddedRemotely,
+  MOCK_METHOD1(OnEntriesAddedRemotely,
                void(const std::vector<const SendTabToSelfEntry*>&));
-  MOCK_METHOD1(EntriesOpenedRemotely,
+  MOCK_METHOD1(OnEntriesOpenedRemotely,
                void(const std::vector<const SendTabToSelfEntry*>&));
 
-  MOCK_METHOD1(EntriesRemovedRemotely, void(const std::vector<std::string>&));
+  MOCK_METHOD1(OnEntriesRemovedRemotely, void(const std::vector<std::string>&));
 };
 
 class FakeSessionSyncService : public sync_sessions::SessionSyncService {
@@ -332,7 +331,7 @@ class SendTabToSelfBridgeTest : public testing::Test {
 TEST_F(SendTabToSelfBridgeTest, CheckEmpties) {
   InitializeBridge();
 
-  EXPECT_CALL(*mock_observer(), EntriesAddedRemotely(_)).Times(0);
+  EXPECT_CALL(*mock_observer(), OnEntriesAddedRemotely(_)).Times(0);
   EXPECT_EQ(0ul, bridge()->GetAllGuids().size());
   AddSampleEntries();
   EXPECT_EQ(4ul, bridge()->GetAllGuids().size());
@@ -350,7 +349,7 @@ TEST_F(SendTabToSelfBridgeTest, SyncAddOneEntry) {
       syncer::EntityChange::CreateAdd("guid1", MakeEntityData(entry)));
   auto metadata_change_list =
       std::make_unique<syncer::InMemoryMetadataChangeList>();
-  EXPECT_CALL(*mock_observer(), EntriesAddedRemotely(SizeIs(1)));
+  EXPECT_CALL(*mock_observer(), OnEntriesAddedRemotely(SizeIs(1)));
   bridge()->MergeFullSyncData(std::move(metadata_change_list),
                               std::move(remote_input));
   EXPECT_EQ(1ul, bridge()->GetAllGuids().size());
@@ -367,7 +366,7 @@ TEST_F(SendTabToSelfBridgeTest, ApplyIncrementalSyncChangesAddTwoSpecifics) {
       bridge()->CreateMetadataChangeList();
   metadata_changes->UpdateDataTypeState(state);
 
-  EXPECT_CALL(*mock_observer(), EntriesAddedRemotely(SizeIs(2)));
+  EXPECT_CALL(*mock_observer(), OnEntriesAddedRemotely(SizeIs(2)));
 
   auto error = bridge()->ApplyIncrementalSyncChanges(
       std::move(metadata_changes), EntityAddList({specifics1, specifics2}));
@@ -388,7 +387,7 @@ TEST_F(SendTabToSelfBridgeTest, ApplyIncrementalSyncChangesOneAdd) {
   auto metadata_change_list =
       std::make_unique<syncer::InMemoryMetadataChangeList>();
 
-  EXPECT_CALL(*mock_observer(), EntriesAddedRemotely(SizeIs(1)));
+  EXPECT_CALL(*mock_observer(), OnEntriesAddedRemotely(SizeIs(1)));
   bridge()->ApplyIncrementalSyncChanges(std::move(metadata_change_list),
                                         std::move(add_changes));
   EXPECT_EQ(1ul, bridge()->GetAllGuids().size());
@@ -407,7 +406,7 @@ TEST_F(SendTabToSelfBridgeTest, ApplyIncrementalSyncChangesOneDeletion) {
   add_changes.push_back(
       syncer::EntityChange::CreateAdd("guid1", MakeEntityData(entry)));
 
-  EXPECT_CALL(*mock_observer(), EntriesAddedRemotely(SizeIs(1)));
+  EXPECT_CALL(*mock_observer(), OnEntriesAddedRemotely(SizeIs(1)));
   bridge()->ApplyIncrementalSyncChanges(bridge()->CreateMetadataChangeList(),
                                         std::move(add_changes));
   EXPECT_EQ(1ul, bridge()->GetAllGuids().size());
@@ -415,7 +414,7 @@ TEST_F(SendTabToSelfBridgeTest, ApplyIncrementalSyncChangesOneDeletion) {
   delete_changes.push_back(
       syncer::EntityChange::CreateDelete("guid1", syncer::EntityData()));
 
-  EXPECT_CALL(*mock_observer(), EntriesRemovedRemotely(SizeIs(1)));
+  EXPECT_CALL(*mock_observer(), OnEntriesRemovedRemotely(SizeIs(1)));
   bridge()->ApplyIncrementalSyncChanges(bridge()->CreateMetadataChangeList(),
                                         std::move(delete_changes));
   EXPECT_EQ(0ul, bridge()->GetAllGuids().size());
@@ -454,7 +453,7 @@ TEST_F(SendTabToSelfBridgeTest, LocalHistoryDeletion) {
   urls_to_remove.push_back(history::URLRow(GURL("http://www.example.com/")));
   urls_to_remove.push_back(history::URLRow(GURL("http://www.example2.com/")));
 
-  EXPECT_CALL(*mock_observer(), EntriesRemovedRemotely(SizeIs(2)));
+  EXPECT_CALL(*mock_observer(), OnEntriesRemovedRemotely(SizeIs(2)));
   EXPECT_CALL(*processor(), Delete("guid1", _, _));
   EXPECT_CALL(*processor(), Delete("guid2", _, _));
 
@@ -465,7 +464,7 @@ TEST_F(SendTabToSelfBridgeTest, LocalHistoryDeletion) {
 
 TEST_F(SendTabToSelfBridgeTest, ApplyIncrementalSyncChangesEmpty) {
   InitializeBridge();
-  EXPECT_CALL(*mock_observer(), EntriesAddedRemotely(_)).Times(0);
+  EXPECT_CALL(*mock_observer(), OnEntriesAddedRemotely(_)).Times(0);
 
   auto error = bridge()->ApplyIncrementalSyncChanges(
       bridge()->CreateMetadataChangeList(), syncer::EntityChangeList());
@@ -492,7 +491,7 @@ TEST_F(SendTabToSelfBridgeTest, SendEntryAndRestartBridge) {
                   syncer::HasEncryptionKeyName(state.encryption_key_name()),
                   /*entities=*/IsEmpty())));
 
-  EXPECT_CALL(*mock_observer(), EntriesAddedRemotely(_)).Times(0);
+  EXPECT_CALL(*mock_observer(), OnEntriesAddedRemotely(_)).Times(0);
   InitializeBridge();
 
   std::vector<std::string> guids = bridge()->GetAllGuids();
@@ -508,7 +507,7 @@ TEST_F(SendTabToSelfBridgeTest, ApplyIncrementalSyncChangesInMemory) {
   std::unique_ptr<syncer::MetadataChangeList> metadata_changes =
       bridge()->CreateMetadataChangeList();
 
-  EXPECT_CALL(*mock_observer(), EntriesAddedRemotely(SizeIs(1)));
+  EXPECT_CALL(*mock_observer(), OnEntriesAddedRemotely(SizeIs(1)));
 
   auto error_on_add = bridge()->ApplyIncrementalSyncChanges(
       bridge()->CreateMetadataChangeList(), EntityAddList({specifics}));
@@ -517,7 +516,7 @@ TEST_F(SendTabToSelfBridgeTest, ApplyIncrementalSyncChangesInMemory) {
 
   EXPECT_EQ(1ul, bridge()->GetAllGuids().size());
 
-  EXPECT_CALL(*mock_observer(), EntriesRemovedRemotely(SizeIs(1)));
+  EXPECT_CALL(*mock_observer(), OnEntriesRemovedRemotely(SizeIs(1)));
 
   syncer::EntityChangeList entity_change_list;
   entity_change_list.push_back(syncer::EntityChange::CreateDelete(
@@ -531,7 +530,7 @@ TEST_F(SendTabToSelfBridgeTest, ApplyIncrementalSyncChangesInMemory) {
 
 TEST_F(SendTabToSelfBridgeTest, ApplyDeleteNonexistent) {
   InitializeBridge();
-  EXPECT_CALL(*mock_observer(), EntriesAddedRemotely(_)).Times(0);
+  EXPECT_CALL(*mock_observer(), OnEntriesAddedRemotely(_)).Times(0);
 
   std::unique_ptr<syncer::MetadataChangeList> metadata_changes =
       bridge()->CreateMetadataChangeList();
@@ -636,7 +635,7 @@ TEST_F(SendTabToSelfBridgeTest, ExpireEntryDuringInit) {
 
   AdvanceAndGetTime(kExpiryTime / 2.0);
 
-  EXPECT_CALL(*mock_observer(), EntriesRemovedRemotely(SizeIs(1)));
+  EXPECT_CALL(*mock_observer(), OnEntriesRemovedRemotely(SizeIs(1)));
   EXPECT_CALL(*processor(), Delete(_, _, _));
 
   InitializeBridge();
@@ -679,7 +678,7 @@ TEST_F(SendTabToSelfBridgeTest, AddExpiredEntry) {
 
 TEST_F(SendTabToSelfBridgeTest, AddInvalidEntries) {
   InitializeBridge();
-  EXPECT_CALL(*mock_observer(), EntriesAddedRemotely(_)).Times(0);
+  EXPECT_CALL(*mock_observer(), OnEntriesAddedRemotely(_)).Times(0);
 
   // Add Entry should fail on invalid URLs.
   EXPECT_CALL(*processor(), Put(_, _, _)).Times(0);
@@ -854,7 +853,7 @@ TEST_F(SendTabToSelfBridgeTest, GetTargetDeviceInfoSortedList_BridgeNotReady) {
 TEST_F(SendTabToSelfBridgeTest, AddDuplicateEntries) {
   InitializeBridge();
 
-  EXPECT_CALL(*mock_observer(), EntriesAddedRemotely(_)).Times(0);
+  EXPECT_CALL(*mock_observer(), OnEntriesAddedRemotely(_)).Times(0);
 
   // The de-duplication code does not use the title as a comparator.
   // So they are intentionally different here.
@@ -897,7 +896,7 @@ TEST_F(SendTabToSelfBridgeTest, NotifyRemoteSendTabToSelfEntryAdded) {
       std::make_unique<syncer::InMemoryMetadataChangeList>();
 
   // There should only be one entry sent to the observers.
-  EXPECT_CALL(*mock_observer(), EntriesAddedRemotely(SizeIs(1)));
+  EXPECT_CALL(*mock_observer(), OnEntriesAddedRemotely(SizeIs(1)));
   bridge()->MergeFullSyncData(std::move(metadata_change_list),
                               std::move(remote_input));
 
@@ -1134,7 +1133,7 @@ TEST_F(SendTabToSelfBridgeTest, NotifyRemoteSendTabToSelfEntryOpened) {
 
   // an entry with "guid1" should be sent to the observers.
   EXPECT_CALL(*mock_observer(),
-              EntriesOpenedRemotely(
+              OnEntriesOpenedRemotely(
                   AllOf(SizeIs(1), UnorderedElementsAre(GuidIs("guid1")))));
   bridge()->MergeFullSyncData(std::move(metadata_change_list),
                               std::move(remote_input));
@@ -1763,6 +1762,65 @@ TEST_F(SendTabToSelfBridgeTest, DeleteAllEntriesPersists) {
   ShutdownBridge();
   InitializeBridge();
   EXPECT_EQ(0ul, bridge()->GetAllGuids().size());
+}
+
+TEST_F(SendTabToSelfBridgeTest, GetUnopenedEntriesTargetedToLocalDevice) {
+  InitializeBridge();
+
+  syncer::EntityChangeList remote_input;
+
+  // entry1: targeted to local device, unopened, not dismissed.
+  SendTabToSelfEntry entry1(
+      "guid1", GURL("http://www.example.com/"), "title", AdvanceAndGetTime(),
+      "device", kLocalDeviceCacheGuid, PageContext(), NavigationHistory());
+
+  // entry2: targeted to another device.
+  SendTabToSelfEntry entry2("guid2", GURL("http://www.example.com/"), "title",
+                            AdvanceAndGetTime(), "device", "RemoteDevice",
+                            PageContext(), NavigationHistory());
+
+  // entry3: targeted to local device, but will be marked opened.
+  SendTabToSelfEntry entry3(
+      "guid3", GURL("http://www.example.com/"), "title", AdvanceAndGetTime(),
+      "device", kLocalDeviceCacheGuid, PageContext(), NavigationHistory());
+
+  // entry4: targeted to local device, but will be dismissed.
+  SendTabToSelfEntry entry4(
+      "guid4", GURL("http://www.example.com/"), "title", AdvanceAndGetTime(),
+      "device", kLocalDeviceCacheGuid, PageContext(), NavigationHistory());
+
+  // entry5: targeted to local device, unopened, not dismissed.
+  SendTabToSelfEntry entry5(
+      "guid5", GURL("http://www.example.com/"), "title", AdvanceAndGetTime(),
+      "device", kLocalDeviceCacheGuid, PageContext(), NavigationHistory());
+
+  remote_input.push_back(
+      syncer::EntityChange::CreateAdd("guid1", MakeEntityData(entry1)));
+  remote_input.push_back(
+      syncer::EntityChange::CreateAdd("guid2", MakeEntityData(entry2)));
+  remote_input.push_back(
+      syncer::EntityChange::CreateAdd("guid3", MakeEntityData(entry3)));
+  remote_input.push_back(
+      syncer::EntityChange::CreateAdd("guid4", MakeEntityData(entry4)));
+  remote_input.push_back(
+      syncer::EntityChange::CreateAdd("guid5", MakeEntityData(entry5)));
+
+  bridge()->MergeFullSyncData(bridge()->CreateMetadataChangeList(),
+                              std::move(remote_input));
+
+  bridge()->MarkEntryOpened("guid3");
+  bridge()->DismissEntry("guid4");
+
+  std::vector<const SendTabToSelfEntry*> unopened_entries =
+      bridge()->GetUnopenedEntriesTargetedToLocalDevice();
+
+  // entry1, entry4, and entry5 should be returned, because they are unopened (
+  // even though entry4 was dismissed).
+  // entry2 should not be returned because it's not targeted to local device.
+  // entry3 should not be returned because it's marked opened.
+  EXPECT_THAT(
+      unopened_entries,
+      UnorderedElementsAre(GuidIs("guid1"), GuidIs("guid4"), GuidIs("guid5")));
 }
 
 }  // namespace

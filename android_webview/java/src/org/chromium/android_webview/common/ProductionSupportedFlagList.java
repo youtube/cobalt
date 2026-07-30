@@ -653,8 +653,21 @@ public final class ProductionSupportedFlagList {
                 "AlwaysUseAudioManagerOutputFramesPerBuffer",
                 "Use buffer size from AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER for "
                         + "optimal output frame size."),
-        Flag.baseFeature("AudioDecoderAudioFileReader"),
-        Flag.baseFeature("SymphoniaAudioDecoding"),
+        Flag.baseFeature(
+                "DirectOpusAudioDecoding",
+                "Enables use of the OpusAudioDecoder for decoding Opus audio files."),
+        Flag.baseFeature(
+                "SymphoniaAudioDecoding",
+                "Enables use of the SymphoniaAudioDecoder for decoding FLAC audio files."),
+        Flag.baseFeature(
+                "SymphoniaMp3Decoding",
+                "Enables use of the SymphoniaAudioDecoder for decoding MP3 audio files."),
+        Flag.baseFeature(
+                "SymphoniaPcmDecoding",
+                "Enables use of the SymphoniaAudioDecoder for decoding PCM audio files."),
+        Flag.baseFeature(
+                "SymphoniaVorbisDecoding",
+                "Enables use of the SymphoniaAudioDecoder for decoding Vorbis audio files."),
         Flag.baseFeature(
                 "AudioInputConfirmReadsViaShmem",
                 "Enables an audio input optimization that uses shared memory instead of"
@@ -796,9 +809,6 @@ public final class ProductionSupportedFlagList {
                 "AllowDatapipeDrainedAsBytesConsumerInBFCache",
                 "When enabled, allow pages with drained datapipe into bfcache."),
         Flag.baseFeature(
-                AwFeatures.WEBVIEW_USE_INITIAL_NETWORK_STATE_AT_STARTUP,
-                "Use initial network state at startup"),
-        Flag.baseFeature(
                 BlinkFeatures.LOWER_HIGH_RESOLUTION_TIMER_THRESHOLD,
                 "Schedule DOM Timers with high precision only if their deadline is <4ms."),
         Flag.baseFeature(
@@ -895,6 +905,10 @@ public final class ProductionSupportedFlagList {
                 "Start putting pages with broadcast channel into bfcache."),
         Flag.baseFeature(
                 AwFeatures.WEBVIEW_LAZY_FETCH_HAND_WRITING_ICON, "Fetch Hand Writing icon lazily"),
+        Flag.baseFeature(
+                AwFeatures.WEBVIEW_FORCE_WEB_AUTHN,
+                "Force all WebView instances to enable WebAuthn by default in APP mode. This has"
+                        + " no effect for apps which explicitly choose a WebAuthn mode."),
         Flag.baseFeature(
                 ContentFeatures.IGNORE_DUPLICATE_NAVS,
                 "Ignore duplicate navigations, keeping the older navigations instead."),
@@ -1125,9 +1139,6 @@ public final class ProductionSupportedFlagList {
                 "Enables yielding to the event loop between executing deferred module scripts to"
                         + " improve responsiveness."),
         Flag.baseFeature(
-                "ProbeStylusWritingInBackground",
-                "Offload probing of stylus writing support to a background thread."),
-        Flag.baseFeature(
                 AwSwitches.WEBVIEW_OPT_IN_TO_GMS_BIND_SERVICE_OPTIMIZATION,
                 "Opt-in WebView to GMSCore's bindService optimizations"),
         Flag.baseFeature(
@@ -1135,9 +1146,6 @@ public final class ProductionSupportedFlagList {
                 " Moves some of the work that is being run during `startChromium` to be done"
                     + " beforehand during WebView provider initialization. This is expected to"
                     + " improve startup performance especially when async startup takes place."),
-        Flag.baseFeature(
-                "OriginMatcherNewCopyAssignment",
-                "Use a faster implementation for copying OriginMatchers."),
         Flag.baseFeature(
                 AwFeatures.WEBVIEW_BYPASS_PROVISIONAL_COOKIE_MANAGER,
                 "When enabled, the temporary cookie manager used before WebView startup is"
@@ -1352,9 +1360,6 @@ public final class ProductionSupportedFlagList {
                 "WebViewSkipFaviconJavaCopyUntilNeeded",
                 "Skips copying the favicon to Java if not needed by onReceivedIcon"
                         + " being overriden."),
-        Flag.baseFeature(
-                AwFeatures.WEBVIEW_PASS_NULL_FAVICON_TO_ON_PAGE_STARTED,
-                "Passes a null favicon to the onPageStarted method."),
         Flag.baseFeature("PrefetchPrerenderIntegration"),
         Flag.baseFeature(
                 GpuFeatures.AAPM_BLOCKS_WEB_GPU,
@@ -1380,7 +1385,8 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 AwFeatures.WEBVIEW_PREFETCH_OFF_THE_MAIN_THREAD,
                 "Allow the WebView Prefetch API to start main resource prefetch requests from off"
-                        + " the main thread."),
+                        + " the main thread. Only takes effect if PREFETCH_OFF_THE_MAIN_THREAD is"
+                        + " enabled as well."),
         Flag.baseFeature(
                 "PreventSvgFilterPaint",
                 "Disables SVG filter painting for remote frames and web plugins."),

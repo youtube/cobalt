@@ -622,6 +622,9 @@ targets.legacy_basic_suite(
             ),
         ),
         "perfetto_unittests": targets.legacy_test_config(),
+        "puffin_unittests": targets.legacy_test_config(
+            experiment_percentage = 100,
+        ),
         # TODO(crbug.com/40274401): Enable this.
         # "rust_gtest_interop_unittests": None,
         "services_unittests": targets.legacy_test_config(),
@@ -1545,25 +1548,30 @@ targets.legacy_basic_suite(
     },
 )
 
+_CHROME_AI_WPT_TEST_CONFIG = targets.legacy_test_config(
+    mixins = [
+        "has_native_resultdb_integration",
+        "blink_tests_write_run_histories",
+    ],
+    args = [
+        "--release",
+    ],
+    mac_args = [
+        "--driver-name",
+        "Google Chrome",
+    ],
+    swarming = targets.swarming(
+        shards = 1,
+    ),
+)
+
 targets.legacy_basic_suite(
     name = "chrome_ai_wpt_tests_suite",
     tests = {
-        "chrome_ai_wpt_tests": targets.legacy_test_config(
-            mixins = [
-                "has_native_resultdb_integration",
-                "blink_tests_write_run_histories",
-            ],
-            args = [
-                "--release",
-            ],
-            mac_args = [
-                "--driver-name",
-                "Google Chrome",
-            ],
-            swarming = targets.swarming(
-                shards = 1,
-            ),
-        ),
+        "chrome_ai_wpt_tests_gpu": _CHROME_AI_WPT_TEST_CONFIG,
+        "chrome_ai_wpt_tests_cpu": _CHROME_AI_WPT_TEST_CONFIG,
+        "chrome_ai_wpt_tests_litert_cpu": _CHROME_AI_WPT_TEST_CONFIG,
+        "chrome_ai_wpt_tests_litert_gpu": _CHROME_AI_WPT_TEST_CONFIG,
     },
 )
 

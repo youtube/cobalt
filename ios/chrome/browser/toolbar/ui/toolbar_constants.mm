@@ -4,7 +4,10 @@
 
 #import "ios/chrome/browser/toolbar/ui/toolbar_constants.h"
 
-NSString* const kToolbarViewIdentifier = @"kToolbarViewIdentifier";
+NSString* const kPrimaryToolbarViewIdentifier =
+    @"kPrimaryToolbarViewIdentifier";
+NSString* const kSecondaryToolbarViewIdentifier =
+    @"kSecondaryToolbarViewIdentifier";
 NSString* const kToolbarBackButtonIdentifier = @"kToolbarBackButtonIdentifier";
 NSString* const kToolbarForwardButtonIdentifier =
     @"kToolbarForwardButtonIdentifier";
@@ -35,3 +38,4 @@ constexpr CGFloat kToolbarHeightFullscreen = 40;
 constexpr CGFloat kTopToolbarIPhonePortraitHeightFullscreen = 32;
 constexpr CGFloat kLocationBarHeightFullscreen = 32;
 constexpr CGFloat kToolbarPaddingFullscreen = 4;
+constexpr CGFloat kKeyboardAttachedOmniboxBottomPadding = 10;

@@ -272,17 +272,9 @@ bool PictureLayerImpl::ShouldUpdateApproximatedVisibleContentArea(
 
 bool PictureLayerImpl::ShouldReportTileAsMissing(
     const gfx::Rect& tile_geometry_rect,
-    AppendQuadsCustomSharedData* custom_data) const {
-  // By contract, this data will have been populated via a call to
-  // WillAppendQuads().
-  CHECK(custom_data);
-
-  auto* shared_data =
-      static_cast<AppendQuadsCustomSharedDataImpl*>(custom_data);
-
+    const gfx::Rect& scaled_viewport_for_tile_priority) const {
   // Only report the tile as missing if it's in the viewport.
-  return tile_geometry_rect.Intersects(
-      shared_data->scaled_viewport_for_tile_priority_);
+  return tile_geometry_rect.Intersects(scaled_viewport_for_tile_priority);
 }
 
 void PictureLayerImpl::DidAppendQuad(
@@ -375,15 +367,14 @@ bool PictureLayerImpl::ComputeCheckerboardedNeedsRecord() {
   return false;
 }
 
-std::unique_ptr<AppendQuadsCustomSharedData> PictureLayerImpl::WillAppendQuads(
-    float max_contents_scale) {
+void PictureLayerImpl::WillAppendQuads() {
   set_produced_tile_last_append_quads(false);
+}
 
-  auto custom_data = std::make_unique<AppendQuadsCustomSharedDataImpl>();
-  custom_data->scaled_viewport_for_tile_priority_ = gfx::ScaleToEnclosingRect(
+gfx::Rect PictureLayerImpl::GetScaledViewportForTilePriority(
+    float max_contents_scale) const {
+  return gfx::ScaleToEnclosingRect(
       viewport_rect_for_tile_priority_in_content_space_, max_contents_scale);
-
-  return std::move(custom_data);
 }
 
 bool PictureLayerImpl::UpdateTiles() {
@@ -706,10 +697,10 @@ void PictureLayerImpl::UpdateCanUseLCDText(
 }
 
 bool PictureLayerImpl::AffectedByWillChangeTransformHint() const {
-  TransformNode* transform_node =
-      GetTransformTree().Node(transform_tree_index());
-  return transform_node &&
-         transform_node->node_or_ancestors_will_change_transform;
+  return transform_tree_index() != kInvalidPropertyNodeId &&
+         GetTransformTree()
+             .Node(transform_tree_index())
+             .node_or_ancestors_will_change_transform;
 }
 
 LCDTextDisallowedReason PictureLayerImpl::ComputeLCDTextDisallowedReason(
@@ -727,9 +718,9 @@ LCDTextDisallowedReason PictureLayerImpl::ComputeLCDTextDisallowedReason(
     return LCDTextDisallowedReason::kSetting;
   }
 
-  TransformNode* transform_node =
+  const TransformNode& transform_node =
       GetTransformTree().Node(transform_tree_index());
-  if (transform_node->node_or_ancestors_will_change_transform) {
+  if (transform_node.node_or_ancestors_will_change_transform) {
     return LCDTextDisallowedReason::kWillChangeTransform;
   }
 
@@ -737,9 +728,9 @@ LCDTextDisallowedReason PictureLayerImpl::ComputeLCDTextDisallowedReason(
     return LCDTextDisallowedReason::kTransformAnimation;
   }
 
-  EffectNode* effect_node = GetEffectTree().Node(effect_tree_index());
-  if (effect_node->lcd_text_disallowed_by_filter ||
-      effect_node->lcd_text_disallowed_by_backdrop_filter) {
+  const EffectNode& effect_node = GetEffectTree().Node(effect_tree_index());
+  if (effect_node.lcd_text_disallowed_by_filter ||
+      effect_node.lcd_text_disallowed_by_backdrop_filter) {
     return LCDTextDisallowedReason::kPixelOrColorEffect;
   }
 
@@ -938,12 +929,10 @@ ScrollOffsetMap PictureLayerImpl::GetRasterInducingScrollOffsets() const {
       // The transform node has the realized scroll offset and snap amount,
       // and should be used for rendering.
       const auto* scroll_node = scroll_tree.FindNodeFromElementId(element_id);
-      const auto* transform =
-          scroll_node ? transform_tree.Node(scroll_node->transform_id)
-                      : nullptr;
-      if (transform) {
+      if (scroll_node && scroll_node->transform_id != kInvalidPropertyNodeId) {
         map[element_id] = gfx::PointAtOffsetFromOrigin(
-            -transform->to_parent.To2dTranslation());
+            -transform_tree.Node(scroll_node->transform_id)
+                 .to_parent.To2dTranslation());
       } else {
         // Use the current scroll offset if the scroll node doesn't exist or
         // doesn't have a transform node. It doesn't matter because such a
@@ -2058,7 +2047,8 @@ PictureLayerImpl::TileUpdateSet PictureLayerImpl::TakeAllTiles() {
     PictureLayerTiling::TileIterator iter(tilings_->tiling_at(ii));
     for (; !iter.AtEnd(); iter.Next()) {
       Tile* tile = iter.GetCurrent();
-      // TODO(zmo): Should |update_damage| be faise here?
+      // During a full tree sync (e.g. context lost), layer-level update_rect is
+      // used for damage tracking, so tile-level damage tracking is not needed.
       updates[tile->contents_scale_key()].emplace(tile->tiling_i_index(),
                                                   tile->tiling_j_index(),
                                                   /*update_damage=*/false);

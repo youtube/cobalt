@@ -18,9 +18,6 @@ namespace audio {
 
 namespace {
 
-SoundsManager* g_instance = NULL;
-bool g_initialized_for_testing = false;
-
 // SoundsManagerImpl ---------------------------------------------------
 
 class SoundsManagerImpl : public SoundsManager {
@@ -37,8 +34,9 @@ class SoundsManagerImpl : public SoundsManager {
 
   // SoundsManager implementation:
   bool Initialize(SoundKey key,
-                  std::string_view data,
-                  media::AudioCodec codec) override;
+                  int resource_id,
+                  media::AudioCodec codec,
+                  bool loop) override;
   bool Play(SoundKey key) override;
   bool Stop(SoundKey key) override;
   base::TimeDelta GetDuration(SoundKey key) override;
@@ -56,15 +54,16 @@ class SoundsManagerImpl : public SoundsManager {
 };
 
 bool SoundsManagerImpl::Initialize(SoundKey key,
-                                   std::string_view data,
-                                   media::AudioCodec codec) {
+                                   int resource_id,
+                                   media::AudioCodec codec,
+                                   bool loop) {
   if (AudioStreamHandler* handler = GetHandler(key)) {
     DCHECK(handler->IsInitialized());
     return true;
   }
 
-  std::unique_ptr<AudioStreamHandler> handler(
-      new AudioStreamHandler(stream_factory_binder_, data, codec));
+  auto handler = std::make_unique<AudioStreamHandler>(stream_factory_binder_,
+                                                      resource_id, codec, loop);
   if (!handler->IsInitialized()) {
     LOG(WARNING) << "Can't initialize AudioStreamHandler for key=" << key;
     return false;
@@ -107,42 +106,16 @@ AudioStreamHandler* SoundsManagerImpl::GetHandler(SoundKey key) {
 
 }  // namespace
 
+// static
+std::unique_ptr<SoundsManager> SoundsManager::Create(
+    SoundsManager::StreamFactoryBinder stream_factory_binder) {
+  return std::make_unique<SoundsManagerImpl>(std::move(stream_factory_binder));
+}
+
 SoundsManager::SoundsManager() = default;
 
 SoundsManager::~SoundsManager() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-}
-
-// static
-void SoundsManager::Create(StreamFactoryBinder stream_factory_binder) {
-  CHECK(!g_instance || g_initialized_for_testing)
-      << "SoundsManager::Create() is called twice";
-  if (g_initialized_for_testing) {
-    return;
-  }
-  g_instance = new SoundsManagerImpl(std::move(stream_factory_binder));
-}
-
-// static
-void SoundsManager::Shutdown() {
-  CHECK(g_instance) << "SoundsManager::Shutdown() is called "
-                    << "without previous call to Create()";
-  delete g_instance;
-  g_instance = NULL;
-}
-
-// static
-SoundsManager* SoundsManager::Get() {
-  CHECK(g_instance) << "SoundsManager::Get() is called before Create()";
-  return g_instance;
-}
-
-// static
-void SoundsManager::InitializeForTesting(SoundsManager* manager) {
-  CHECK(!g_instance) << "SoundsManager is already initialized.";
-  CHECK(manager);
-  g_instance = manager;
-  g_initialized_for_testing = true;
 }
 
 }  // namespace audio

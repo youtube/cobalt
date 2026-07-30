@@ -320,7 +320,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Apps.AppInstallService.WebAppInstaller.InstallResult{AppInstallSurface}"
-    enum="WebAppInstallResultCode" expires_after="2026-07-12">
+    enum="AppInstallServiceWebAppInstallResult" expires_after="2026-07-12">
   <owner>alancutter@chromium.org</owner>
   <owner>crosdev-commerce-eng@google.com</owner>
   <summary>
@@ -340,7 +340,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Apps.AppLaunch.ChromeAppsDeprecationCheck"
-    enum="ChromeAppDeprecationLaunchOutcome" expires_after="2026-09-06">
+    enum="ChromeAppDeprecationLaunchOutcome" expires_after="2026-11-15">
   <owner>giovax@google.com</owner>
   <owner>src/apps/DEPRECATION_OWNERS</owner>
   <summary>
@@ -2082,7 +2082,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Apps.CreateShortcuts.Linux.Result"
-    enum="WebAppCreateShortcutLinuxResult" expires_after="2026-09-13">
+    enum="WebAppCreateShortcutLinuxResult" expires_after="2026-11-15">
   <owner>phillis@chromium.org</owner>
   <owner>cmumford@chromium.org</owner>
   <summary>
@@ -2114,7 +2114,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Apps.CreateShortcuts.Mac.UpdateSignatureResult"
-    enum="UpdateSignatureResult" expires_after="2026-09-06">
+    enum="UpdateSignatureResult" expires_after="2026-11-15">
   <owner>mek@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -2385,7 +2385,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Apps.OobeAppRecommendationsService.ServerResponseCodes"
-    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-07-06">
+    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-11-15">
   <owner>bohdanty@google.com</owner>
   <owner>cros-oobe@google.com</owner>
   <summary>

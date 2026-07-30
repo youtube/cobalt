@@ -47,6 +47,7 @@
 #include "components/contextual_tasks/public/features.h"
 #include "components/contextual_tasks/public/mock_contextual_tasks_service.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/omnibox/common/composebox_features.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/tabs/public/mock_tab_interface.h"
 #include "components/variations/scoped_variations_ids_provider.h"
@@ -141,6 +142,7 @@ class MockContextualTasksUI : public ContextualTasksUI {
               TakeInputStateModel,
               (),
               (override));
+  MOCK_METHOD(std::vector<int32_t>, GetRestoredTabIds, (), (override));
   MOCK_METHOD(bool, IsActiveTabContextSuggestionShowing, (), (const, override));
   MOCK_METHOD(contextual_tasks::ContextualTasksAutoSuggestionManager*,
               GetAutoSuggestionManager,
@@ -500,6 +502,7 @@ TEST_F(ContextualTasksComposeboxHandlerTest, SubmitQuery) {
           lens::LensOverlayDismissalSource::kContextualTasksQuerySubmitted));
 
   handler_->SubmitQuery("test query", 0, false, false, false, false);
+  EXPECT_EQ(session_handle_->previous_query(), "test query");
 }
 
 TEST_F(ContextualTasksComposeboxHandlerTest, CloseLensOverlayFromWebUI) {
@@ -1503,6 +1506,30 @@ TEST_F(ContextualTasksComposeboxHandlerTest, DeleteContext_Delayed) {
       .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
   handler_->CreateAndSendQueryMessage(kQuery);
   run_loop.Run();
+}
+
+TEST_F(ContextualTasksComposeboxHandlerTest, RestoreTabIds) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      omnibox::kContextManagementInComposebox);
+
+  std::vector<int32_t> restored_tab_ids = {1, 2};
+  EXPECT_CALL(*mock_ui_, GetRestoredTabIds())
+      .WillOnce(testing::Return(restored_tab_ids));
+  EXPECT_CALL(mock_searchbox_page_, SetRestoredTabIds(restored_tab_ids))
+      .Times(1);
+
+  handler_->InitializeInputStateModel();
+}
+
+TEST_F(ContextualTasksComposeboxHandlerTest, GetSelectedTabIds) {
+  int32_t tab_id = 15;
+  base::MockCallback<ContextualSearchboxHandler::AddTabContextCallback>
+      callback;
+  handler_->AddTabContext(tab_id, /*delay_upload=*/true, callback.Get());
+
+  std::vector<int32_t> selected_tab_ids = handler_->GetSelectedTabIds();
+  EXPECT_THAT(selected_tab_ids, testing::Contains(tab_id));
 }
 
 TEST_F(ContextualTasksComposeboxHandlerTest, SubmitQuery_WaitsForUpload) {
@@ -3188,4 +3215,195 @@ TEST_F(ContextualTasksComposeboxHandlerTest,
   ASSERT_EQ(replaced_uploads.size(), 1u);
   EXPECT_EQ(replaced_uploads[0], first_token);
   EXPECT_NE(successful_uploads[1], first_token);
+}
+
+TEST_F(ContextualTasksComposeboxHandlerTest,
+       SubmitQuery_WaitsForRecontextualization) {
+  ASSERT_NE(mock_contextual_tasks_service_ptr_, nullptr)
+      << "Mock controller is NULL!";
+  std::string kQuery = "stashed query";
+  base::Uuid task_id = base::Uuid::GenerateRandomV4();
+  EXPECT_CALL(*mock_ui_, GetTaskId())
+      .WillRepeatedly(
+          testing::ReturnRefOfCopy(std::optional<base::Uuid>(task_id)));
+
+  // Setup context with uploaded tab.
+  contextual_tasks::ContextualTask task(task_id);
+  SessionID session_id = sessions::SessionTabHelper::IdForTab(web_contents());
+  GURL kUrl("about:blank");
+  std::string kTitle = "about:blank";
+
+  contextual_tasks::UrlResource resource(
+      kUrl, contextual_tasks::ResourceType::kWebpage);
+  resource.title = kTitle;
+  resource.tab_id = session_id;
+  task.AddUrlResource(resource);
+
+  auto context =
+      std::make_unique<contextual_tasks::ContextualTaskContext>(task);
+
+  EXPECT_CALL(
+      *mock_contextual_tasks_service_ptr_,
+      GetContextForTask(
+          task_id,
+          testing::Contains(contextual_tasks::ContextualTaskContextSource::
+                                kSubmittedContextDecorator),
+          testing::NotNull(), testing::_))
+      .WillOnce(
+          [&context](
+              const base::Uuid& task_id,
+              const std::set<contextual_tasks::ContextualTaskContextSource>&
+                  sources,
+              std::unique_ptr<contextual_tasks::ContextDecorationParams> params,
+              base::OnceCallback<void(
+                  std::unique_ptr<contextual_tasks::ContextualTaskContext>)>
+                  callback) { std::move(callback).Run(std::move(context)); });
+
+  // Setup FileInfo with expired status.
+  std::vector<const contextual_search::FileInfo*> file_info_list;
+  contextual_search::FileInfo file_info;
+  file_info.tab_session_id = session_id;
+  file_info.upload_status =
+      contextual_search::ContextUploadStatus::kUploadExpired;
+  file_info.request_id.emplace();
+  file_info.request_id->set_context_id(12345);
+  file_info_list.push_back(&file_info);
+
+  EXPECT_CALL(*mock_controller_, GetFileInfoList())
+      .WillRepeatedly(testing::Return(file_info_list));
+
+  // 1. Capture the GetPageContext callback.
+  MockTabContextualizationController::GetPageContextCallback pending_callback;
+  EXPECT_CALL(*mock_tab_controller_, GetPageContext(testing::_))
+      .WillOnce([&](MockTabContextualizationController::GetPageContextCallback
+                        callback) { pending_callback = std::move(callback); });
+
+  // 2. Call CreateAndSendQueryMessage.
+  handler_->CreateAndSendQueryMessage(kQuery);
+
+  // Verify: recontextualization is pending, so the query is blocked.
+  ASSERT_TRUE(handler_->IsAnyContextUploading());
+  ASSERT_FALSE(handler_->HasPendingQueryForTesting());
+  ASSERT_FALSE(pending_callback.is_null());
+
+  // 3. Start file upload when recontextualizer completes context fetch.
+  base::UnguessableToken uploaded_token;
+  EXPECT_CALL(*mock_controller_,
+              StartFileUploadFlow(testing::_, testing::_, testing::_))
+      .WillOnce([&](const base::UnguessableToken& file_token,
+                    std::unique_ptr<lens::ContextualInputData> data,
+                    std::optional<lens::ImageEncodingOptions> image_options) {
+        EXPECT_TRUE(data->is_implicit_upload);
+        uploaded_token = file_token;
+      });
+
+  auto data = std::make_unique<lens::ContextualInputData>();
+  data->tab_session_id = session_id;
+  data->page_url = GURL("about:blank");
+  data->page_title = "about:blank";
+  data->context_id = 12345;
+  data->is_page_context_eligible = true;
+  std::move(pending_callback).Run(std::move(data));
+
+  // Verify: Still uploading and query not stashed in handler (as
+  // recontextualization waits in UploadTracker before
+  // ContinueCreateAndSendQueryMessage is triggered).
+  ASSERT_TRUE(handler_->IsAnyContextUploading());
+  ASSERT_FALSE(handler_->HasPendingQueryForTesting());
+
+  // 4. Complete the upload status change.
+  EXPECT_CALL(*mock_controller_, CreateClientToAimRequest(testing::_))
+      .WillOnce(testing::Return(lens::ClientToAimMessage()));
+  base::RunLoop run_loop;
+  EXPECT_CALL(*mock_ui_, PostMessageToWebview(testing::_))
+      .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
+
+  PostUploadStatusChanged(
+      uploaded_token, lens::MimeType::kUnknown,
+      contextual_search::ContextUploadStatus::kUploadSuccessful);
+  run_loop.Run();
+
+  // Verify: Upload finished, stashed query is successfully sent.
+  ASSERT_FALSE(handler_->IsAnyContextUploading());
+  ASSERT_FALSE(handler_->HasPendingQueryForTesting());
+}
+
+TEST_F(ContextualTasksComposeboxHandlerTest,
+       Recontextualization_TabInvalidatedGracefullyCompletes) {
+  ASSERT_NE(mock_contextual_tasks_service_ptr_, nullptr)
+      << "Mock controller is NULL!";
+  std::string kQuery = "invalid tab query";
+  base::Uuid task_id = base::Uuid::GenerateRandomV4();
+  EXPECT_CALL(*mock_ui_, GetTaskId())
+      .WillRepeatedly(
+          testing::ReturnRefOfCopy(std::optional<base::Uuid>(task_id)));
+
+  // Setup context.
+  contextual_tasks::ContextualTask task(task_id);
+  SessionID session_id = sessions::SessionTabHelper::IdForTab(web_contents());
+  GURL kUrl("about:blank");
+  std::string kTitle = "about:blank";
+
+  contextual_tasks::UrlResource resource(
+      kUrl, contextual_tasks::ResourceType::kWebpage);
+  resource.title = kTitle;
+  resource.tab_id = session_id;
+  task.AddUrlResource(resource);
+
+  auto context =
+      std::make_unique<contextual_tasks::ContextualTaskContext>(task);
+
+  EXPECT_CALL(
+      *mock_contextual_tasks_service_ptr_,
+      GetContextForTask(
+          task_id,
+          testing::Contains(contextual_tasks::ContextualTaskContextSource::
+                                kSubmittedContextDecorator),
+          testing::NotNull(), testing::_))
+      .WillOnce(
+          [&context](
+              const base::Uuid& task_id,
+              const std::set<contextual_tasks::ContextualTaskContextSource>&
+                  sources,
+              std::unique_ptr<contextual_tasks::ContextDecorationParams> params,
+              base::OnceCallback<void(
+                  std::unique_ptr<contextual_tasks::ContextualTaskContext>)>
+                  callback) { std::move(callback).Run(std::move(context)); });
+
+  // Setup FileInfo with expired status.
+  std::vector<const contextual_search::FileInfo*> file_info_list;
+  contextual_search::FileInfo file_info;
+  file_info.tab_session_id = session_id;
+  file_info.upload_status =
+      contextual_search::ContextUploadStatus::kUploadExpired;
+  file_info.request_id.emplace();
+  file_info.request_id->set_context_id(12345);
+  file_info_list.push_back(&file_info);
+
+  EXPECT_CALL(*mock_controller_, GetFileInfoList())
+      .WillRepeatedly(testing::Return(file_info_list));
+
+  // 1. GetPageContext returns nullptr, representing tab was invalidated.
+  EXPECT_CALL(*mock_tab_controller_, GetPageContext(testing::_))
+      .WillOnce([](MockTabContextualizationController::GetPageContextCallback
+                       callback) { std::move(callback).Run(nullptr); });
+
+  // 2. Upload is NOT triggered.
+  EXPECT_CALL(*mock_controller_,
+              StartFileUploadFlow(testing::_, testing::_, testing::_))
+      .Times(0);
+
+  // 3. Complete direct AIM query submission without context upload.
+  EXPECT_CALL(*mock_controller_, CreateClientToAimRequest(testing::_))
+      .WillOnce(testing::Return(lens::ClientToAimMessage()));
+  base::RunLoop run_loop;
+  EXPECT_CALL(*mock_ui_, PostMessageToWebview(testing::_))
+      .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
+
+  handler_->CreateAndSendQueryMessage(kQuery);
+  run_loop.Run();
+
+  // Verify: No context was uploaded, pending uploads are back to 0.
+  ASSERT_FALSE(handler_->IsAnyContextUploading());
+  ASSERT_FALSE(handler_->HasPendingQueryForTesting());
 }

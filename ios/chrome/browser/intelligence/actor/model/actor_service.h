@@ -18,6 +18,7 @@
 #import "ios/web/public/web_state_id.h"
 
 @class PageContextWrapper;
+@class SnackbarActorTaskUpdatesObserver;
 class ProfileIOS;
 
 namespace web {
@@ -89,6 +90,9 @@ class ActorService : public KeyedService {
   web::WebState* GetWebStateForID(web::WebStateID web_state_id,
                                   ActorTaskId task_id);
 
+  // Adds a WebState to the set of controlled WebStates for the given task.
+  void AddControlledWebState(ActorTaskId task_id, web::WebState* web_state);
+
  private:
   // The profile associated with this service instance.
   raw_ptr<ProfileIOS> profile_;
@@ -101,6 +105,10 @@ class ActorService : public KeyedService {
 
   // Map of active tasks, keyed by their task ID.
   std::map<ActorTaskId, std::unique_ptr<ActorTask>> active_tasks_;
+
+  // TODO(crbug.com/512521102): Cleanup observers lifecycle.
+  // Task observer for the latest task.
+  __strong SnackbarActorTaskUpdatesObserver* task_observer_;
 
   // Map of pending PageContext extractions ("observations"). Used to keep the
   // wrapper alive while the extraction is in progress.

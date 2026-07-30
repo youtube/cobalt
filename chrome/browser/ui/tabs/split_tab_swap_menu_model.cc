@@ -13,6 +13,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/ui_base_features.h"
 
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(SplitTabSwapMenuModel,
                                       kSwapStartTabMenuItem);
@@ -48,12 +49,12 @@ std::u16string SplitTabSwapMenuModel::GetLabelForCommandId(
 
   if (id == CommandId::kSwapStartTab) {
     return l10n_util::GetStringUTF16(
-        GetSplitLayout() == split_tabs::SplitTabLayout::kVertical
+        GetSplitLayout() == split_tabs::SplitTabLayout::kSideBySide
             ? IDS_SPLIT_TAB_SWAP_LEFT_VIEW
             : IDS_SPLIT_TAB_SWAP_TOP_VIEW);
   } else if (id == CommandId::kSwapEndTab) {
     return l10n_util::GetStringUTF16(
-        GetSplitLayout() == split_tabs::SplitTabLayout::kVertical
+        GetSplitLayout() == split_tabs::SplitTabLayout::kSideBySide
             ? IDS_SPLIT_TAB_SWAP_RIGHT_VIEW
             : IDS_SPLIT_TAB_SWAP_BOTTOM_VIEW);
   } else {
@@ -67,13 +68,17 @@ ui::ImageModel SplitTabSwapMenuModel::GetIconForCommandId(
   const CommandId id = static_cast<CommandId>(command_id);
   const gfx::VectorIcon* icon = nullptr;
   if (id == CommandId::kSwapStartTab) {
-    icon = GetSplitLayout() == split_tabs::SplitTabLayout::kVertical
-               ? &kSplitSceneLeftIcon
-               : &kSplitSceneUpIcon;
+    icon = GetSplitLayout() == split_tabs::SplitTabLayout::kSideBySide
+               ? &(features::IsRoundedIconsEnabled() ? kSplitSceneLeftIcon
+                                                     : kSplitSceneLeftOldIcon)
+               : &(features::IsRoundedIconsEnabled() ? kSplitSceneUpIcon
+                                                     : kSplitSceneUpOldIcon);
   } else if (id == CommandId::kSwapEndTab) {
-    icon = GetSplitLayout() == split_tabs::SplitTabLayout::kVertical
-               ? &kSplitSceneRightIcon
-               : &kSplitSceneDownIcon;
+    icon = GetSplitLayout() == split_tabs::SplitTabLayout::kSideBySide
+               ? &(features::IsRoundedIconsEnabled() ? kSplitSceneRightIcon
+                                                     : kSplitSceneRightOldIcon)
+               : &(features::IsRoundedIconsEnabled() ? kSplitSceneDownIcon
+                                                     : kSplitSceneDownOldIcon);
   }
   CHECK(icon);
   return ui::ImageModel::FromVectorIcon(*icon, ui::kColorMenuIcon,

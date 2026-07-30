@@ -28,7 +28,9 @@
 namespace syncer {
 
 class Cryptographer;
+class CustomPassphraseBootstrapToken;
 class DataTypeRegistry;
+class RequiredPassphraseVerifier;
 class SyncCycleContext;
 
 // Lives on the sync sequence.
@@ -85,9 +87,9 @@ class SyncManagerImpl
 
   // SyncEncryptionHandler::Observer implementation.
   void OnPassphraseRequired(
-      const KeyDerivationParams& key_derivation_params,
-      const sync_pb::EncryptedData& pending_keys) override;
-  void OnPassphraseAccepted() override;
+      std::unique_ptr<RequiredPassphraseVerifier> verifier) override;
+  void OnPassphraseAccepted(
+      const CustomPassphraseBootstrapToken& bootstrap_token) override;
   void OnTrustedVaultKeyRequired() override;
   void OnTrustedVaultKeyAccepted() override;
   void OnEncryptedTypesChanged(DataTypeSet encrypted_types,

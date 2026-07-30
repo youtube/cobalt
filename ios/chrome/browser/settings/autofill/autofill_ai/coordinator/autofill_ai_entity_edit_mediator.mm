@@ -232,10 +232,15 @@ void LogEntitySaveOrUpdate(AutofillAIEntityEditMode mode,
 
   _entityInstance = builder.Build();
 
-  BOOL isSaveAsynchronous = autofill::IsMaskedStorageSupported(
-      _entityInstance->type(), _entityInstance->record_type());
+  BOOL isWalletPrivatePass =
+      autofill::GetWalletPassType(_entityInstance->type(),
+                                  _entityInstance->record_type()) ==
+      autofill::EntityInstance::WalletPassType::kPrivate;
 
-  if (!isSaveAsynchronous || !_walletPassManager) {
+  if (!isWalletPrivatePass || !_walletPassManager) {
+    // Personal Context entities do not support saving.
+    CHECK_NE(_entityInstance->record_type(),
+             autofill::EntityInstance::RecordType::kPersonalContext);
     LogEntitySaveOrUpdate(self.consumer.mode, *_entityInstance);
     _entityDataManager->AddOrUpdateEntityInstance(*_entityInstance);
     [self.consumer didFinishSavingWithLocalFallback:NO];
@@ -314,12 +319,10 @@ void LogEntitySaveOrUpdate(AutofillAIEntityEditMode mode,
 - (void)requestEditingWithCompletion:(ReauthenticationResultBlock)completion {
   CHECK(completion);
 
-  bool isMasked = autofill::IsMaskedStorageSupported(
-      _entityInstance->type(), _entityInstance->record_type());
   bool hasObfuscatedFields =
       std::ranges::any_of(_entityInstance->type().attributes(),
                           &autofill::AttributeType::is_obfuscated);
-  if (!isMasked && !hasObfuscatedFields) {
+  if (!_entityInstance->IsMaskedEntity() && !hasObfuscatedFields) {
     _isEditing = YES;
     [self updateTitle];
     [self updateEditItemsWithAllAttributes:YES];

@@ -24,16 +24,23 @@
 #include "ui/views/metadata/view_factory.h"
 
 namespace task_manager {
+namespace {
+
+ui::ColorId GetTextfieldPlaceholderTextColor() {
+#if BUILDFLAG(IS_LINUX)
+  return kColorTaskManagerSearchBarPlaceholderText;
+#else
+  return ui::kColorTextfieldForegroundPlaceholder;
+#endif
+}
+
+}  // namespace
+
 TaskManagerSearchBarView::TaskManagerSearchBarView(
     const std::u16string& placeholder,
     const gfx::Insets& margins,
     Delegate& delegate)
-    : delegate_(delegate)
-#if BUILDFLAG(IS_LINUX)
-      ,
-      textfield_placeholder_color_id_(kColorTaskManagerSearchBarPlaceholderText)
-#endif
-{
+    : delegate_(delegate) {
   auto* layout_provider = ChromeLayoutProvider::Get();
   auto search_bar_layout = std::make_unique<views::BoxLayout>();
   search_bar_layout->SetOrientation(views::LayoutOrientation::kHorizontal);
@@ -42,7 +49,7 @@ TaskManagerSearchBarView::TaskManagerSearchBarView(
 
   auto search_icon =
       std::make_unique<views::ImageView>(ui::ImageModel::FromVectorIcon(
-          vector_icons::kSearchChromeRefreshIcon, ui::kColorIcon,
+          vector_icons::kSearchChromeRefreshOldIcon, ui::kColorIcon,
           layout_provider->GetDistanceMetric(
               DISTANCE_TASK_MANAGER_SEARCH_ICON_SIZE)));
   search_icon->SetProperty(views::kMarginsKey, margins);
@@ -55,6 +62,7 @@ TaskManagerSearchBarView::TaskManagerSearchBarView(
           .SetController(this)
           .SetBorder(nullptr)
           .SetBackgroundColor(kColorTaskManagerSearchBarBackground)
+          .SetPlaceholderTextColorId(GetTextfieldPlaceholderTextColor())
           .SetProperty(views::kElementIdentifierKey, kInputField)
           // Set margins to remove duplicate space between search
           // icon and textfield.
@@ -66,7 +74,7 @@ TaskManagerSearchBarView::TaskManagerSearchBarView(
           views::CreateVectorImageButtonWithNativeTheme(
               base::BindRepeating(&TaskManagerSearchBarView::OnClearPressed,
                                   base::Unretained(this)),
-              vector_icons::kCloseChromeRefreshIcon))
+              vector_icons::kCloseChromeRefreshOldIcon))
           // Reset the border set by
           // `CreateVectorImageButtonWithNativeTheme()` as it sets
           // an unnecessary padding to the highlighting circle.
@@ -96,11 +104,6 @@ TaskManagerSearchBarView::TaskManagerSearchBarView(
 }
 
 TaskManagerSearchBarView::~TaskManagerSearchBarView() = default;
-
-void TaskManagerSearchBarView::OnThemeChanged() {
-  views::View::OnThemeChanged();
-  UpdateTextfield();
-}
 
 bool TaskManagerSearchBarView::HandleKeyEvent(views::Textfield* /*sender*/,
                                               const ui::KeyEvent& key_event) {
@@ -150,16 +153,9 @@ gfx::Point TaskManagerSearchBarView::GetClearButtonScreenCenterPointForTesting()
   return clear_->GetBoundsInScreen().CenterPoint();
 }
 
-void TaskManagerSearchBarView::UpdateTextfield() {
-  if (const auto* const color_provider = GetColorProvider(); color_provider) {
-    input_->set_placeholder_text_color(
-        color_provider->GetColor(textfield_placeholder_color_id_.value_or(
-            ui::kColorTextfieldForegroundPlaceholder)));
-  }
-}
-
 BEGIN_METADATA(TaskManagerSearchBarView)
 END_METADATA
 
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(TaskManagerSearchBarView, kInputField);
+
 }  // namespace task_manager

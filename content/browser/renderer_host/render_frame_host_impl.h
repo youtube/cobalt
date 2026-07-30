@@ -1661,11 +1661,12 @@ class CONTENT_EXPORT RenderFrameHostImpl
       FrameTreeNode* child_frame,
       base::TimeTicks start_time,
       base::TimeTicks redirect_time,
+      base::TimeTicks completion_time,
       const GURL& initial_url,
       const GURL& final_url,
       network::mojom::URLResponseHeadPtr response_head,
       bool allow_response_details,
-      const network::URLLoaderCompletionStatus& completion_status);
+      blink::mojom::SubframeResourceLengthsPtr resource_lengths);
 
   // Sends a renderer-debug URL to the renderer process for handling.
   void HandleRendererDebugURL(const GURL& url);
@@ -2657,6 +2658,11 @@ class CONTENT_EXPORT RenderFrameHostImpl
   void InitializeCrashReportContext(
       uint64_t length,
       InitializeCrashReportContextCallback callback) override;
+  void RequestUnboundedSurface(
+      mojo::PendingAssociatedReceiver<blink::mojom::UnboundedSurfaceHost> host,
+      mojo::PendingAssociatedRemote<blink::mojom::UnboundedSurfaceClient>
+          client) override;
+  void DismissActiveUnboundedSurface();
 
   // blink::mojom::BackForwardCacheControllerHost:
   void EvictFromBackForwardCache(
@@ -4483,6 +4489,9 @@ class CONTENT_EXPORT RenderFrameHostImpl
   void OnReadClipboardData(base::OnceCallback<void(bool)> callback,
                            std::string result) const;
 
+  // Dismisses the open unbounded surface, if there is one.
+  void DismissUnboundedSurfaceIfActive();
+
   // The RenderViewHost that this RenderFrameHost is associated with.
   //
   // It is kept alive as long as any RenderFrameHosts or RenderFrameProxyHosts
@@ -4893,6 +4902,13 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // Holder of Mojo connection with the LocalMainFrame in Blink. This
   // remote will be valid when the frame is the active main frame.
   mojo::AssociatedRemote<blink::mojom::LocalMainFrame> local_main_frame_;
+
+  // Holder of Mojo connection with the UnboundedSurfaceClient in Blink for
+  // visual isolation updates and notifications (e.g., dismissal). This
+  // connection is only established for trusted renderers (such as WebUI and
+  // chrome:// scheme callers).
+  mojo::AssociatedRemote<blink::mojom::UnboundedSurfaceClient>
+      unbounded_surface_client_;
 
   // Holds the cross-document NavigationRequests that are waiting to commit.
   // These are navigations that have passed ReadyToCommit stage and are waiting
@@ -5633,6 +5649,11 @@ class CONTENT_EXPORT RenderFrameHostImpl
 
   // True if this rfh was created via a window creation with user activation.
   bool opener_had_user_gesture_ = false;
+
+  // Tracks the frame with the active unbounded surface inside this page/frame
+  // tree. Only set on the outermost main frame. When set, this frame is
+  // strictly either the outermost main frame itself or one of its descendants.
+  base::WeakPtr<RenderFrameHostImpl> active_unbounded_frame_;
 
   // WeakPtrFactories are the last members, to ensure they are destroyed before
   // all other fields of `this`.

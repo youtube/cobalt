@@ -22,6 +22,7 @@
 #include "base/containers/flat_map.h"
 #include "base/containers/span.h"
 #include "base/dcheck_is_on.h"
+#include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -2510,7 +2511,8 @@ bool TabStripModel::IsContextMenuCommandEnabled(
       return true;
 
     default:
-      NOTREACHED();
+      SCOPED_CRASH_KEY_NUMBER("TabStripModel", "command_id", command_id);
+      NOTREACHED() << "Unsupported command: " << command_id;
   }
 }
 
@@ -2755,7 +2757,7 @@ void TabStripModel::ExecuteContextMenuCommand(int context_index,
 
     case CommandAddToSplit: {
       ExecuteAddToNewSplitCommand(context_index,
-                                  split_tabs::SplitTabLayout::kVertical);
+                                  split_tabs::SplitTabLayout::kSideBySide);
       break;
     }
 
@@ -3160,6 +3162,9 @@ void TabStripModel::ExecuteCloseTabs(
   ReentrancyCheck reentrancy_check(&reentrancy_guard_);
   const std::vector<tabs::TabInterface*> tabs_to_close =
       std::move(get_tabs_to_close).Run();
+
+  CreateHistoricalSplitIfClosing(tabs_to_close, close_types);
+
   std::vector<content::WebContents*> web_contents_to_close;
   for (tabs::TabInterface* t : tabs_to_close) {
     web_contents_to_close.push_back(t->GetContents());
@@ -5592,6 +5597,26 @@ void TabStripModel::MaybeRemoveSplitsForUpdate(
       NotifyInactiveSplitTabWillBecomeHidden(split);
       RemoveSplitImpl(split,
                       SplitTabChange::SplitTabRemoveReason::kSplitTabRemoved);
+    }
+  }
+}
+
+void TabStripModel::CreateHistoricalSplitIfClosing(
+    const std::vector<tabs::TabInterface*>& tabs,
+    uint32_t close_types) {
+  if (base::FeatureList::IsEnabled(tabs::kSplitViewTabRestore) &&
+      (close_types & TabCloseTypes::CLOSE_CREATE_HISTORICAL_TAB)) {
+    std::map<split_tabs::SplitTabId, int> split_closing_counts;
+    for (tabs::TabInterface* t : tabs) {
+      std::optional<split_tabs::SplitTabId> split_id = t->GetSplit();
+      if (split_id.has_value()) {
+        split_closing_counts[split_id.value()]++;
+      }
+    }
+    for (const auto& [split_id, count] : split_closing_counts) {
+      if (count == 2) {
+        delegate_->CreateHistoricalSplit(split_id);
+      }
     }
   }
 }

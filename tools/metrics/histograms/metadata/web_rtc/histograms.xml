@@ -159,7 +159,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.Audio.AgcClippingAdjustmentAllowed" enum="Boolean"
-    expires_after="2026-09-13">
+    expires_after="2026-11-15">
   <owner>hlundin@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
   <summary>
@@ -268,7 +268,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.Audio.ApmCaptureOutputLevelAverageRms"
-    units="dBFS (negated)" expires_after="2026-09-13">
+    units="dBFS (negated)" expires_after="2026-11-15">
   <owner>peah@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
   <summary>
@@ -281,7 +281,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.Audio.ApmCaptureOutputLevelPeakRms"
-    units="dBFS (negated)" expires_after="2026-09-13">
+    units="dBFS (negated)" expires_after="2026-11-15">
   <owner>peah@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
   <summary>
@@ -653,7 +653,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.Audio.ReceiverJitterBufferDelayMs" units="ms"
-    expires_after="2026-09-13">
+    expires_after="2026-11-15">
   <owner>hlundin@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
   <summary>
@@ -1601,6 +1601,18 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="WebRTC.PeerConnection.NegotiatedSctpSnap" enum="Boolean"
+    expires_after="2027-05-30">
+  <owner>boivie@google.com</owner>
+  <owner>philipp.hancke@googlemail.com</owner>
+  <owner>webrtc-dev@chromium.org</owner>
+  <summary>
+    Measures whether SCTP SNAP (SCTP Negotiation Acceleration Protocol) was
+    negotiated for the data channel transport. Recorded during the first DTLS
+    connection establishment.
+  </summary>
+</histogram>
+
 <histogram name="WebRTC.PeerConnection.ProvisionalAnswer"
     enum="PeerConnectionProvisionalAnswer" expires_after="2024-06-30">
   <owner>hta@chromium.org</owner>
@@ -1675,6 +1687,18 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="WebRTC.PeerConnection.RtpHeaderExtensionRedefinition"
+    enum="Boolean" expires_after="2027-05-20">
+  <owner>hta@chromium.org</owner>
+  <owner>webrtc-dev@chromium.org</owner>
+  <summary>
+    Records whether an RTP header extension is redefined in a PeerConnection.
+    Redefinition happens when the same extension URI is assigned to different
+    IDs, or the same ID is assigned to different URIs, within the same session.
+    Logged when such a redefinition is detected during SDP negotiation.
+  </summary>
+</histogram>
+
 <histogram name="WebRTC.PeerConnection.RtpTransportCount" units="counts"
     expires_after="2026-10-25">
   <owner>hta@chromium.org</owner>
@@ -1686,7 +1710,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.PeerConnection.SdpBandwidth" enum="SdpBandwidthValue"
-    expires_after="2026-09-14">
+    expires_after="2026-11-15">
   <owner>hta@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>

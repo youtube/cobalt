@@ -118,6 +118,7 @@
 <translation id="1448440926884431741">നിങ്ങൾ ട്രാക്ക് ചെയ്യുന്ന ഉൽപ്പന്നങ്ങൾ ബുക്ക്‌മാർക്കുകളിൽ ഓർഗനൈസ് ചെയ്യുക</translation>
 <translation id="1455845192930279203">നിങ്ങൾക്ക് <ph name="DOWNLOAD_DOMAIN" /> എന്നതിൽ നിന്ന് "<ph name="FILE_NAME" />" (<ph name="FILE_SIZE" />) എന്തായാലും ഡൗൺലോഡ് ചെയ്യണോ?</translation>
 <translation id="1460751212339734034">സമയം ലാഭിക്കൂ, ടൈപ്പിംഗ് കുറയ്ക്കൂ</translation>
+<translation id="146522654774760805">പാസ്‌വേഡുകളും സ്വയമേവ പൂരിപ്പിക്കലും</translation>
 <translation id="1466383950273130737">Chrome-ന്റെ ഭാഷ തിരഞ്ഞെടുക്കുക</translation>
 <translation id="1477626028522505441">സെർവർ പ്രശ്‌നങ്ങൾ കാരണം <ph name="FILE_NAME" /> ഡൗൺലോഡ് ചെയ്യാനായില്ല.</translation>
 <translation id="147982357559798527">മാറ്റി</translation>
@@ -227,6 +228,7 @@
 <translation id="200114059308480249">Google തിരയലുകളിൽ ചുറ്റുമുള്ള ടെക്സ്റ്റ് ഉൾപ്പെടുത്തണോ?</translation>
 <translation id="2004096469149679223"><ph name="TAB_TITLE" />, പിൻ ചെയ്ത, മ്യൂട്ട് ചെയ്ത അദൃശ്യ ടാബ്</translation>
 <translation id="2021896219286479412">പൂർണ്ണ സ്ക്രീൻ സൈറ്റ് നിയന്ത്രണങ്ങൾ</translation>
+<translation id="2022953316617983419">QR കോഡ്</translation>
 <translation id="2024195579772565064">തിരയൽ യന്ത്രം ഇല്ലാതാക്കുക</translation>
 <translation id="2029669011553795746">നുറുങ്ങുകളുമായി ബന്ധപ്പെട്ട അറിയിപ്പുകൾ ഓപ്റ്റ് ഇൻ ചെയ്യൽ പകുതി ഉയരത്തിൽ തുറന്നു</translation>
 <translation id="2038563949887743358">'ഡെസ്‌ക്‌ടോപ്പ് സൈറ്റ് അഭ്യർത്ഥിക്കുക' ഓണാക്കുക</translation>
@@ -263,6 +265,7 @@
 <translation id="2184272387334793084">നിങ്ങളുടെ എല്ലാ ഉപകരണങ്ങളിലും പാസ്‌വേഡുകളും മറ്റും ലഭിക്കാൻ സൈൻ ഇൻ ചെയ്യുക</translation>
 <translation id="218608176142494674">പങ്കിടൽ</translation>
 <translation id="2186779861549045980">നിങ്ങളുടെ Google Account ഏതൊക്കെ ഡാറ്റയാണ് സംരക്ഷിക്കേണ്ടതെന്ന് തിരഞ്ഞെടുക്കാം.\nനിങ്ങളുടെ ബുക്ക്‌മാർക്കുകളിലോ വായിക്കാനുള്ളവയുടെ ലിസ്‌റ്റിലോ Password Manager-ലോ ഈ ഇനങ്ങൾ കാണാനും മാനേജ് ചെയ്യാനും കഴിയും.</translation>
+<translation id="2190355936436201913">(ശൂന്യം)</translation>
 <translation id="219283042927675668">ഗ്രൂപ്പിലെ ടാബുകൾ</translation>
 <translation id="2194856509914051091">പരിഗണിക്കേണ്ട കാര്യങ്ങൾ</translation>
 <translation id="2205701497928406883"><ph name="TAB_TITLE" />, പിൻ ചെയ്ത, ഉള്ളടക്കം പങ്കിടുന്ന ടാബ്</translation>
@@ -300,6 +303,7 @@
 <translation id="233375395665273385">ഇല്ലാതാക്കിയ ശേഷം സൈൻ ഔട്ട് ചെയ്യുക</translation>
 <translation id="2341410551640223969"><ph name="WEBAPK_NAME" /> ഇൻസ്‌റ്റാൾ ചെയ്യാനായില്ല.</translation>
 <translation id="2349710944427398404">അക്കൗണ്ടുകളും ബുക്ക്‌മാർക്കുകളും സംരക്ഷിച്ച ക്രമീകരണവും ഉൾപ്പെടെ Chrome ഉപയോഗിക്കുന്ന മൊത്തം വിവരങ്ങൾ</translation>
+<translation id="2354001756790975382">മറ്റ് ബുക്‌മാര്‍ക്കുകള്‍</translation>
 <translation id="235789365079050412">Google സ്വകാര്യതാ നയം</translation>
 <translation id="2359808026110333948">തുടരുക</translation>
 <translation id="2362083820973145409"><ph name="USER_NAME" /> എന്നയാളായി സൈൻ ഇൻ ചെയ്‌തു. <ph name="USER_EMAIL" />. ക്രമീകരണം തുറക്കുന്നു.</translation>
@@ -544,6 +548,7 @@
 <translation id="3359667936385849800">നിങ്ങളുടെ നിലവിലെ സേവന ദാതാവിനെ ഉപയോഗിക്കുക</translation>
 <translation id="3373701465337594448">ഓണായിരിക്കുമ്പോൾ, നിങ്ങൾ സന്ദർശിക്കുന്ന സൈറ്റുകളിൽ നിങ്ങളുടെ താൽപ്പര്യങ്ങൾ ഊഹിക്കുന്നവയുടെ ലിസ്റ്റ് ഇവിടെ ദൃശ്യമാകും</translation>
 <translation id="3384347053049321195">ചിത്രം പങ്കിടുക</translation>
+<translation id="3385749568468586663">Gemini അദൃശ്യ മോഡിൽ ലഭ്യമല്ല</translation>
 <translation id="3387650086002190359">ഫയൽ സിസ്‌റ്റം പിശകുകൾ കാരണം <ph name="FILE_NAME" /> ഡൗൺലോഡ് ചെയ്യാനായില്ല.</translation>
 <translation id="3417835166382867856">ടാബുകൾ തിരയുക</translation>
 <translation id="3430670036890315772">പ്രൊഫൈൽ ലോക്ക് ഓഫാക്കുന്നത് നിങ്ങളുടെ സംരക്ഷിച്ച വിവരങ്ങൾ നീക്കം ചെയ്യും</translation>
@@ -702,6 +707,7 @@
 <translation id="4084712963632273211"><ph name="PUBLISHER_ORIGIN" />-ൽ നിന്ന് – <ph name="BEGIN_DEEMPHASIZED" />Google നൽകുന്നത്<ph name="END_DEEMPHASIZED" /></translation>
 <translation id="4092709865241032354">സൈൻ ഇൻ വിവരങ്ങൾ സംരക്ഷിക്കാൻ, Google Password Manager-നെ സഹായിക്കുന്നതിന്, ഈ സൈറ്റിനായി നിങ്ങളുടെ ഉപയോക്തൃനാമം ചേർക്കുക</translation>
 <translation id="4095146165863963773">ആപ്പ് ഡാറ്റ ഇല്ലാതാക്കണോ?</translation>
+<translation id="4095483462103784441">പുതിയ ടാബ് ഗ്രൂപ്പ് സൃഷ്ടിക്കുക</translation>
 <translation id="4096227151372679484">ബുക്ക്‌മാർക്ക് സംരക്ഷിക്കൽ ഫ്ലോ പകുതി ഉയരത്തിൽ തുറന്നു</translation>
 <translation id="4105527135143631701">Google Password Manager അപ്ഡേറ്റ് തുറന്നു</translation>
 <translation id="4113030288477039509">നിങ്ങളുടെ അഡ്‌മിനിസ്ട്രേറ്റർ നിയന്ത്രിക്കുന്നത്</translation>
@@ -785,6 +791,7 @@
 <translation id="4409014848144759297"><ph name="WEBSITE_TITLE" /> എന്നതും മറ്റ് <ph name="TAB_COUNT" /> ടാബുകളും</translation>
 <translation id="441100617989818073">ഉപയോഗിക്കാത്ത/ഡ്യൂപ്ലിക്കേറ്റ് ടാബും ഗ്രൂപ്പും</translation>
 <translation id="4412123112245770507">വിഭാഗം ചുരുക്കുക</translation>
+<translation id="4412698727486357573">സഹായ കേന്ദ്രം</translation>
 <translation id="4414179633735763985"><ph name="TAB_GROUPS_AND_TABS_PART" /> ഇല്ലാതാക്കി</translation>
 <translation id="4415276339145661267">നിങ്ങളുടെ Google Account മാനേജ് ചെയ്യുക</translation>
 <translation id="4425140285732600465">നിരക്ക് ട്രാക്ക് ചെയ്യുന്നു. ഏതെങ്കിലും സൈറ്റിൽ വിലക്കുറവ് ഉണ്ടെങ്കിൽ അറിയിപ്പുകൾ നേടുക.</translation>
@@ -896,6 +903,7 @@
 <translation id="4864369630010738180">സൈൻ ഇൻ ചെയ്യുന്നു...</translation>
 <translation id="4866368707455379617">Chrome-നായി <ph name="MODULE" /> ഇൻസ്‌റ്റാൾ ചെയ്യാനായില്ല</translation>
 <translation id="4875775213178255010">ഉള്ളടക്ക നിർദ്ദേശങ്ങൾ</translation>
+<translation id="4876880121961092787">ബുക്ക്‌മാർക്ക് ബാർ മറയ്ക്കൂ</translation>
 <translation id="4877678010818027629">അദൃശ്യ മോഡിലേക്ക് പോകുക</translation>
 <translation id="4878404682131129617">പ്രോക്‌സി സെർവർ മുഖേന ഒരു ടണൽ രൂപപ്പെടുത്താനായില്ല</translation>
 <translation id="4880127995492972015">വിവർത്തനം ചെയ്യുക…</translation>
@@ -1268,6 +1276,7 @@
 <translation id="6437162790453527153">ബുക്ക്‌മാർക്കുകളും മറ്റും നിങ്ങളുടെ എല്ലാ ഉപകരണങ്ങളിലും നേടുന്നതിന് സൈൻ ഇൻ ചെയ്യുക</translation>
 <translation id="6437478888915024427">പേജ് വിവരം</translation>
 <translation id="6440291723980579689">നിങ്ങൾ പേജുകൾ തുറന്നതിന് ശേഷം മാത്രമേ അവ ലോഡ് ചെയ്യൂ</translation>
+<translation id="6441377161852435370">വായിക്കാനുള്ളവയുടെ ലിസ്‌റ്റിലേക്ക് ടാബ് ചേർക്കുക</translation>
 <translation id="6441734959916820584">പേര് വളരെ വലുതാണ്</translation>
 <translation id="6444291413624515012"><ph name="TAB_GROUP_TITLE" /> ടാബ് ഗ്രൂപ്പ് അടച്ചു</translation>
 <translation id="6452534462676960500">പുതിയ പ്രവർത്തനം</translation>
@@ -1357,6 +1366,7 @@
 <translation id="6787600234697426339">പരമാവധി വിൻഡോ പരിധിയായ <ph name="MAX_INSTANCE_COUNT" /> എന്നതിലെത്തി</translation>
 <translation id="6795633245022906657">പുതിയ ടാബ് വേഗത്തിൽ തുറക്കുക. ഈ കുറുക്കുവഴി എഡിറ്റ് ചെയ്യാൻ ക്രമീകരണത്തിലേക്ക് പോകുക.</translation>
 <translation id="679588508577699489">Chrome നിങ്ങളുടെ ഡിഫോൾട്ട് ആക്കുക</translation>
+<translation id="679845623837196966">വായിക്കാനുള്ളവയുടെ ലിസ്‌റ്റ് കാണിക്കുക</translation>
 <translation id="679956319013005046">നിങ്ങൾ തിരഞ്ഞെടുക്കുന്ന സേവനത്തിൽ സ്വയമേവ പൂരിപ്പിക്കൽ സജ്ജീകരിക്കാൻ, ആദ്യം <ph name="BEGIN_LINK" />Android ക്രമീകരണത്തിൽ<ph name="END_LINK" /> ആ സേവനം ചേർക്കുക.</translation>
 <translation id="6802555630140434547">വിൻഡോ അടയ്ക്കും</translation>
 <translation id="6803791793483522764">അറിയിപ്പുകൾ അവലോകനം ചെയ്യുക</translation>
@@ -1428,7 +1438,6 @@
 <translation id="6980258170429555165"><ph name="MENU_NAME" /> മെനു ഹൈലൈറ്റ് ചെയ്തിരിക്കുന്നു.</translation>
 <translation id="6983306615164277634">വിലാസ ബാറിൽ സ്‌പർശിച്ചുപിടിച്ചും നിങ്ങൾക്കതിന്റെ സ്ഥാനം മാറ്റാം.</translation>
 <translation id="6987047470128880212">ഈ ഉപകരണത്തിൽ അദൃശ്യ മോഡ് ലഭ്യമല്ല</translation>
-<translation id="6989358895283601928">സംരക്ഷിച്ച് പ്രിന്റ് ചെയ്യുക</translation>
 <translation id="6996145122199359148">ഈ പേജ് ഡൗൺലോഡ് ചെയ്യുക</translation>
 <translation id="7013762323294215682">ഈ പാസ്‌കീ നിങ്ങളുടെ password manager-ൽ സംരക്ഷിക്കും. അതിലേക്ക് ആക്‌സസുള്ള ഏതൊരാൾക്കും ഈ പാസ്‌കീ ഉപയോഗിക്കാനാകും.</translation>
 <translation id="7020741890149022655">വായനാ ലിസ്റ്റിൽ ചേർക്കൂ <ph name="BEGIN_NEW" />പുതിയത്<ph name="END_NEW" /></translation>
@@ -1446,6 +1455,7 @@
 <translation id="7080145768121641840"><ph name="TAB_TITLE" />, തിരഞ്ഞെടുത്ത, പിൻ ചെയ്ത, മ്യൂട്ട് ചെയ്ത ടാബ്</translation>
 <translation id="7084115944294706056">വിലാസ ബാർ പൊസിഷൻ തിരഞ്ഞെടുക്കൂ</translation>
 <translation id="7085332316435785646">Google സേവനങ്ങളിൽ കൂടുതൽ വ്യക്തിപരമാക്കിയ അനുഭവം ലഭ്യമാകാൻ Chrome ചരിത്രം ഉൾപ്പെടുത്തണോ എന്ന് തിരഞ്ഞെടുക്കുക</translation>
+<translation id="7087066066828635014">നുറുങ്ങുകളുമായി ബന്ധപ്പെട്ട അറിയിപ്പുകൾ ഓണാക്കി</translation>
 <translation id="7088681679121566888">Chrome അപ് റ്റു ഡേറ്റാണ്</translation>
 <translation id="7098100324909062850"><ph name="TAB_TITLE" />, മൾട്ടിസെലക്റ്റ് ചെയ്ത, മ്യൂട്ട് ചെയ്ത അദൃശ്യ ടാബ്</translation>
 <translation id="7106762743910369165">നിങ്ങളുടെ സ്ഥാപനമാണ് നിങ്ങളുടെ ബ്രൗസർ മാനേജ് ചെയ്യുന്നത്</translation>
@@ -1633,6 +1643,7 @@
 <translation id="7821130663268546430">തുറന്നിരിക്കുന്ന ടാബുകളെല്ലാം നിങ്ങൾക്ക് ടാബ് സ്വിച്ചറിൽ കണ്ടെത്താം</translation>
 <translation id="7822705602465980873">നിങ്ങൾ സൈൻ ഇൻ ചെയ്‌തിരിക്കുമ്പോൾ, Google സേവനങ്ങളിലുടനീളം നിങ്ങളെ പരിരക്ഷിക്കുന്നതിന് ഈ ഡാറ്റ നിങ്ങളുടെ Google Account-മായി ലിങ്ക് ചെയ്യും, ഉദാഹരണത്തിന് സുരക്ഷാ വീഴ്ചയ്ക്ക് ശേഷം Gmail-ൽ പരിരക്ഷ വർദ്ധിപ്പിക്കുക.</translation>
 <translation id="7824665136384946951">നിങ്ങളുടെ സ്ഥാപനം സുരക്ഷിത ബ്രൗസിംഗ് ഓഫാക്കി</translation>
+<translation id="7825973332242257878">ടാബ് ഗ്രൂപ്പുകൾ</translation>
 <translation id="7826342993930002256">നിങ്ങളുടെ Chrome, എല്ലായിടത്തും</translation>
 <translation id="7846161022626028328">ഒരു പിശകുണ്ടായി. വീണ്ടും ശ്രമിക്കുക.</translation>
 <translation id="7846296061357476882">Google സേവനങ്ങൾ</translation>
@@ -1657,6 +1668,7 @@
 <translation id="7934668619883965330">ഫയൽ ഡൗൺലോഡ് ചെയ്യാനാകില്ല. ഫയൽ ഫോർമാറ്റിന് പിന്തുണയില്ല.</translation>
 <translation id="7951102827450076904">ഡൗൺലോഡ് ചെയ്ത PDF-കൾ എല്ലായ്‌പ്പോഴും തുറക്കുക</translation>
 <translation id="7952479614398473176">പുതിയൊരു വിൻഡോ തുറക്കാൻ, സജീവമായ വിൻഡോകളുടെ ആകെ എണ്ണം <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> അല്ലെങ്കിൽ അതിൽ കുറവ് ആക്കുക.</translation>
+<translation id="7956713633345437162">മൊബൈൽ ബുക്ക്‌മാർക്കുകൾ</translation>
 <translation id="7957413488482743710">വഞ്ചിക്കപ്പെടാനിടയുള്ള സാഹചര്യങ്ങളിൽ നിന്ന് പരിരക്ഷിക്കാൻ സഹായിക്കുന്നതിന് വെർച്വൽ കാർഡ് നിങ്ങളുടെ യഥാർത്ഥ കാർഡ് വിവരങ്ങൾ മറയ്ക്കുന്നു. <ph name="BEGIN_LINK1" />വെർച്വൽ കാർഡുകളെ കുറിച്ച് കൂടുതലറിയുക<ph name="END_LINK1" /></translation>
 <translation id="7959485987650214982">ഈ ഉപകരണത്തിലെ ടാബുകൾ</translation>
 <translation id="7961926449547174351">നിങ്ങൾ സ്‌റ്റോറേജ് ആക്‌സസ് പ്രവർത്തനരഹിതമാക്കിയിരിക്കുന്നു, ക്രമീകരണത്തിൽ പോയി അത് പ്രവർത്തനക്ഷമമാക്കുക.</translation>
@@ -1845,6 +1857,7 @@
 <translation id="867914734596684889">ബുക്ക്‌മാർക്ക് ബാർ കാണിക്കുക അല്ലെങ്കിൽ മറയ്ക്കുക</translation>
 <translation id="8683039184091909753">ചിത്രം</translation>
 <translation id="8688183792442786085"><ph name="TAB_TITLE" />, തിരഞ്ഞെടുത്ത ടാബ്</translation>
+<translation id="8696297579102085705">നിങ്ങളുടെ ഉപകരണത്തിലേക്ക് അയയ്ക്കുക</translation>
 <translation id="8697753151306746444">പകരം വിൻഡോ അല്ലെങ്കിൽ സ്ക്രീൻ പങ്കിടുക</translation>
 <translation id="8699120352855309748">ഈ ഭാഷകൾ വിവർത്തനം ചെയ്യേണ്ട</translation>
 <translation id="8712637175834984815">മനസ്സിലായി</translation>
@@ -1992,6 +2005,7 @@
 <translation id="970715775301869095"><ph name="MINUTES" /> മിനിറ്റ് ശേഷിക്കുന്നു</translation>
 <translation id="981121421437150478">ഓഫ്‌ലൈൻ</translation>
 <translation id="983192555821071799">ടാബെല്ലാം അടയ്‌ക്കൂ</translation>
+<translation id="984275831282074731">പേയ്‌മെന്റ് രീതികൾ</translation>
 <translation id="984756705737569814">നിങ്ങളുടെ Google Account-ലെ പാസ്‍വേഡുകൾ പരിശോധിക്കാനാകുന്നില്ല</translation>
 <translation id="987264212798334818">പൊതുവായ</translation>
 <translation id="988091779042748639">നിങ്ങളുടെ ഉപകരണത്തിൽ നിന്ന് അദൃശ്യ മോഡിന്റെ ബ്രൗസിംഗ് ചരിത്രം ഇല്ലാതാക്കാൻ എല്ലാ അദൃശ്യ ടാബുകളും അടയ്ക്കുക.</translation>

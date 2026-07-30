@@ -47,6 +47,7 @@
 #include "base/win/scoped_com_initializer.h"
 #include "base/win/scoped_handle.h"
 #include "base/win/scoped_localalloc.h"
+#include "base/win/security_descriptor.h"
 #include "base/win/sid.h"
 #include "base/win/win_util.h"
 #include "chrome/updater/test/integration_tests_impl.h"
@@ -66,6 +67,19 @@ namespace updater::test {
 namespace {
 
 constexpr char kTestAppID[] = "{D07D2B56-F583-4631-9E8E-9942F63765BE}";
+
+// Returns `sid` stringified by the SDDL writer used by
+// `SecurityDescriptor::ToSddl`, which substitutes well-known aliases (e.g. `LA`
+// for the built-in local Administrator) that `Sid::ToSddlString` does not.
+std::optional<std::wstring> SidInSddlForm(const base::win::Sid& sid) {
+  base::win::SecurityDescriptor sd;
+  sd.set_owner(sid);
+  std::optional<std::wstring> sddl = sd.ToSddl(OWNER_SECURITY_INFORMATION);
+  if (!sddl || !sddl->starts_with(L"O:")) {
+    return std::nullopt;
+  }
+  return sddl->substr(2);
+}
 
 }  // namespace
 
@@ -303,8 +317,17 @@ TEST(WinUtil, EnableProcessHeapMetadataProtection) {
 
 TEST(WinUtil, CreateSecureTempDir) {
   std::optional<base::ScopedTempDir> temp_dir = CreateSecureTempDir();
-  EXPECT_TRUE(temp_dir);
-  EXPECT_TRUE(temp_dir->IsValid());
+  ASSERT_TRUE(temp_dir);
+  ASSERT_TRUE(temp_dir->IsValid());
+
+  base::FilePath expected_parent;
+  if (::IsUserAnAdmin()) {
+    ASSERT_TRUE(
+        base::PathService::Get(base::DIR_SYSTEM_TEMP, &expected_parent));
+  } else {
+    ASSERT_TRUE(base::GetTempDir(&expected_parent));
+  }
+  EXPECT_TRUE(expected_parent.IsParent(temp_dir->GetPath()));
 }
 
 TEST(WinUtil, SignalShutdownEvent) {
@@ -683,7 +706,7 @@ TEST(WinUtil, AddCurrentUserAllowedAce) {
   std::optional<base::win::AccessToken> token =
       base::win::AccessToken::FromCurrentProcess();
   ASSERT_TRUE(token.has_value());
-  std::optional<std::wstring> sid_str = token->User().ToSddlString();
+  std::optional<std::wstring> sid_str = SidInSddlForm(token->User());
   ASSERT_TRUE(sid_str.has_value());
 
   // Empty SDDL should produce a DACL with the user's ACE.
@@ -750,7 +773,7 @@ TEST(WinUtil, GetCurrentUserDefaultSecurityDescriptor) {
   // The SDDL must contain the current user's SID.
   auto token = base::win::AccessToken::FromCurrentProcess();
   ASSERT_TRUE(token);
-  auto user_sddl = token->User().ToSddlString();
+  auto user_sddl = SidInSddlForm(token->User());
   ASSERT_TRUE(user_sddl);
   EXPECT_TRUE(sddl->contains(*user_sddl));
 
@@ -815,7 +838,7 @@ TEST(WinUtil, AddCurrentUserAllowedAce_DenyBeforeAllow) {
   std::optional<base::win::AccessToken> token =
       base::win::AccessToken::FromCurrentProcess();
   ASSERT_TRUE(token.has_value());
-  std::optional<std::wstring> sid_str = token->User().ToSddlString();
+  std::optional<std::wstring> sid_str = SidInSddlForm(token->User());
   ASSERT_TRUE(sid_str.has_value());
 
   std::optional<std::wstring> new_sddl = AddCurrentUserAllowedAce(

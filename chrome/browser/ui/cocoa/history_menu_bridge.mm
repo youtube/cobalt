@@ -38,6 +38,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/image_model.h"
 #include "ui/base/resource/resource_bundle.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/color/color_provider.h"
 #include "ui/gfx/favicon_size.h"
 #include "ui/gfx/image/image_skia.h"
@@ -396,7 +397,8 @@ bool HistoryMenuBridge::AddGroupEntryToMenu(sessions::tab_restore::Group* group,
   const ui::ColorId color_id =
       GetTabGroupContextMenuColorId(group->visual_data.color());
   gfx::ImageSkia group_icon = gfx::CreateVectorIcon(
-      kTabGroupIcon, gfx::kFaviconSize, color_provider.GetColor(color_id));
+      features::IsRoundedIconsEnabled() ? kCircleFilledIcon : kTabGroupOldIcon,
+      gfx::kFaviconSize, color_provider.GetColor(color_id));
 
   // Create the submenu.
   NSMenu* submenu = [[NSMenu alloc] init];
@@ -572,7 +574,7 @@ HistoryMenuBridge::HistoryItemForTab(const sessions::tab_restore::Tab& entry,
   // Tab navigations don't come with icons, so we always have to request them.
   GetFaviconForHistoryItem(item.get());
 
-  if (base::FeatureList::IsEnabled(features::kShowTabGroupsMacSystemMenu) &&
+  if (features::IsShowTabGroupsMacSystemMenuEnabled() &&
       entry.group_visual_data.has_value() && attach_group_icon) {
     item->tab_group_color_id = entry.group_visual_data.value().color();
   }

@@ -52,7 +52,6 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.automotivetoolbar.AutomotiveBackButtonToolbarCoordinator;
 import org.chromium.chrome.browser.base.SplitChromeApplication;
-import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.language.GlobalAppLocaleController;
@@ -84,6 +83,7 @@ import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogManagerHolder;
 import org.chromium.ui.util.AttrUtils;
+import org.chromium.ui.util.StyleUtils;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -264,10 +264,27 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
                     R.anim.shared_x_axis_close_exit,
                     SemanticColorUtils.getDefaultBgColor(this));
         }
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
 
         if (NtpCustomizationUtils.isNtpThemeCustomizationEnabled()) {
-            mNtpThemeStateObserver = () -> recreate();
-            NtpThemeStateProvider.getInstance().addObserver(mNtpThemeStateObserver);
+            if (mNtpThemeStateObserver == null) {
+                mNtpThemeStateObserver = () -> recreate();
+                NtpThemeStateProvider.getInstance().addObserver(mNtpThemeStateObserver);
+            }
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+
+        if (mNtpThemeStateObserver != null) {
+            NtpThemeStateProvider.getInstance().removeObserver(mNtpThemeStateObserver);
+            mNtpThemeStateObserver = null;
         }
     }
 
@@ -349,10 +366,6 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
         if (mEdgeToEdgeControllerCreator != null) {
             mEdgeToEdgeControllerCreator.destroy();
             mEdgeToEdgeControllerCreator = null;
-        }
-        if (mNtpThemeStateObserver != null) {
-            NtpThemeStateProvider.getInstance().removeObserver(mNtpThemeStateObserver);
-            mNtpThemeStateObserver = null;
         }
         super.onDestroy();
     }
@@ -617,11 +630,8 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
             applySingleThemeOverlay(R.style.ThemeOverlay_BrowserUI_OptOutEdgeToEdge);
         }
 
-        if (ChromeFeatureList.sAndroidDesktopDensity.isEnabled() && DeviceInfo.isDesktop()) {
+        if (StyleUtils.shouldApplyDesktopDensity()) {
             applySingleThemeOverlay(R.style.ThemeOverlay_BrowserUI_DesktopDensity);
-        }
-
-        if (StripLayoutUtils.shouldApplyMoreDensity()) {
             applySingleThemeOverlay(R.style.ThemeOverlay_BrowserUI_DesktopDensity_TabStrip);
         }
     }

@@ -62,8 +62,6 @@ public class FullScreenIncognitoReauthViewTest {
     public static BaseActivityTestRule<BlankUiTestActivity> sActivityTestRule =
             new BaseActivityTestRule<>(BlankUiTestActivity.class);
 
-    private static Activity sActivity;
-
     private View mView;
     private PropertyModel mPropertyModel;
     private PropertyModelChangeProcessor mModelChangeProcessor;
@@ -86,7 +84,7 @@ public class FullScreenIncognitoReauthViewTest {
 
     @BeforeClass
     public static void setupSuite() {
-        sActivity = sActivityTestRule.launchActivity(null);
+        sActivityTestRule.launchActivity(null);
     }
 
     @Before
@@ -94,11 +92,12 @@ public class FullScreenIncognitoReauthViewTest {
         SettingsNavigationFactory.setInstanceForTesting(mSettingsNavigationMock);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    sActivity.setContentView(R.layout.incognito_reauth_view);
-                    mView = sActivity.findViewById(android.R.id.content);
+                    Activity activity = sActivityTestRule.getActivity();
+                    activity.setContentView(R.layout.incognito_reauth_view);
+                    mView = activity.findViewById(android.R.id.content);
                     mIncognitoReauthMenuDelegate =
                             new IncognitoReauthMenuDelegate(
-                                    sActivity, mCloseAllIncognitoTabsRunnable);
+                                    activity, mCloseAllIncognitoTabsRunnable);
                 });
     }
 

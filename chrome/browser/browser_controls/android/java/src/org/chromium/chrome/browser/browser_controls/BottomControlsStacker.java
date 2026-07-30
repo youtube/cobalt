@@ -265,6 +265,19 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
         return mHasMoreThanOneNonScrollableLayer;
     }
 
+    /**
+     * Checks whether there are any layers that are currently non-scrollable besides the specified
+     * type.
+     */
+    public boolean hasNonScrollableLayersOtherThan(@LayerType int typeToExclude) {
+        for (int layerType : STACK_ORDER) {
+            if (layerType == typeToExclude) continue;
+
+            if (isLayerNonScrollable(layerType)) return true;
+        }
+        return false;
+    }
+
     private boolean isVisibilityForced() {
         return mBrowserControlsState == BrowserControlsState.HIDDEN
                 || mBrowserControlsState == BrowserControlsState.SHOWN;
@@ -680,9 +693,13 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
         }
 
         int height = 0;
+        boolean foundPivot = false;
         for (int i = 0; i < STACK_ORDER.length; i++) {
             int type = STACK_ORDER[i];
-            if (type < startLayer) continue;
+            if (type == startLayer) {
+                foundPivot = true;
+            }
+            if (!foundPivot) continue;
 
             BottomControlsLayer layer = mLayers.get(type);
             if (layer == null || !mLayerVisibilities.get(type)) continue;

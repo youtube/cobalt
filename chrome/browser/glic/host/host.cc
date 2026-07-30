@@ -10,19 +10,18 @@
 
 #include "base/containers/to_vector.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/no_destructor.h"
 #include "base/notimplemented.h"
-#include "chrome/browser/actor/actor_keyed_service.h"
-#include "chrome/browser/actor/ui/actor_ui_state_manager_interface.h"
 #include "chrome/browser/glic/fre/glic_fre_controller.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
+#include "chrome/browser/glic/host/context/glic_pin_candidate_provider.h"
 #include "chrome/browser/glic/host/context/glic_screenshot_capturer.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_provider.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_page_handler.h"
-#include "chrome/browser/glic/host/glic_skills_manager_impl.h"
+#include "chrome/browser/glic/host/glic_skills_manager.h"
 #include "chrome/browser/glic/host/glic_web_contents_warming_pool.h"
 #include "chrome/browser/glic/host/host.h"
-#include "chrome/browser/glic/host/host_metrics.h"
 #include "chrome/browser/glic/host/webui_contents_container.h"
 #include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_instance_metrics_backwards_compatibility.h"
@@ -32,7 +31,6 @@
 #include "chrome/browser/glic/service/glic_instance_coordinator_impl.h"
 #include "chrome/common/actor_webui.mojom.h"
 #include "chrome/common/chrome_features.h"
-#include "components/autofill/core/browser/integrators/actor/actor_form_filling_types.h"
 #include "components/guest_view/browser/guest_view_base.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_controller.h"
@@ -81,8 +79,7 @@ Host::Host(Profile* profile,
     : profile_(profile),
       instance_delegate_(instance_delegate),
       glic_instance_(glic_instance),
-      sharing_manager_provider_(sharing_manager_provider),
-      metrics_(this) {
+      sharing_manager_provider_(sharing_manager_provider) {
   VLOG(1) << "Glic [Host] Constructor";
 }
 
@@ -100,7 +97,6 @@ void Host::SetDelegate(EmbedderDelegate* new_delegate) {
 
 void Host::Shutdown() {
   VLOG(1) << "Glic [Host] Shutdown";
-  metrics_.Shutdown();
 
   handler_info_.reset();
   contents_.reset();
@@ -219,8 +215,6 @@ void Host::CreateContents() {
   glic_service().fre_controller().RecordFrameworkStartTime();
   contents_ = instance_delegate_->CreateWebUIContentsContainer();
   contents_->AttachToHost(this);
-
-  metrics_.StartRecording();
 }
 
 Host::PanelWillOpenOptions::PanelWillOpenOptions() = default;
@@ -342,11 +336,12 @@ GlicSharingManager& Host::sharing_manager() {
   return sharing_manager_provider_->sharing_manager();
 }
 
+GlicPinCandidateProvider& Host::pin_candidate_provider() {
+  return sharing_manager_provider_->pin_candidate_provider();
+}
+
 GlicSkillsManager& Host::skills_manager() {
-  if (!skills_manager_) {
-    skills_manager_ = std::make_unique<GlicSkillsManagerImpl>(this);
-  }
-  return *skills_manager_;
+  return instance_delegate().skills_manager();
 }
 
 Host::InstanceDelegate& Host::instance_delegate() {
@@ -419,6 +414,7 @@ void Host::UnsetWebClient(GlicWebClientAccess* web_client) {
   }
   handler_info_->web_client = nullptr;
   instance_delegate().OnWebClientCleared();
+  observers_.Notify(&Observer::WebClientDisconnected);
 }
 
 void Host::SetWebClient(GlicWebClientAccess* web_client) {
@@ -493,8 +489,7 @@ void Host::WebClientInitializeFailed(GlicWebClientAccess* web_client) {
   }
 }
 
-void Host::SetContextAccessIndicator(GlicPageHandler* page_handler,
-                                     bool enabled) {
+void Host::SetContextAccessIndicator(bool enabled) {
   CHECK(handler_info_);
   if (handler_info_->context_access_indicator_enabled == enabled) {
     return;
@@ -690,71 +685,6 @@ bool Host::IsWidgetShowing(GlicWebClientAccess* client) const {
 
 mojom::PanelState Host::GetPanelState(GlicWebClientAccess* client) const {
   return glic_instance_ ? glic_instance_->GetPanelState() : mojom::PanelState();
-}
-
-void Host::RequestToShowCredentialSelectionDialog(
-    actor::TaskId task_id,
-    const base::flat_map<std::string, gfx::Image>& icons,
-    const std::vector<actor_login::Credential>& credentials,
-    actor::ActorTaskDelegate::CredentialSelectedCallback callback) {
-  if (!IsWebClientConnected()) {
-    std::move(callback).Run(
-        actor::webui::mojom::SelectCredentialDialogResponse::New());
-    return;
-  }
-  handler_info_->web_client->RequestToShowCredentialSelectionDialog(
-      task_id, icons, credentials, std::move(callback));
-}
-
-void Host::RequestToShowUserConfirmationDialog(
-    actor::TaskId task_id,
-    const url::Origin& navigation_origin,
-    bool for_blocklisted_origin,
-    actor::ActorTaskDelegate::UserConfirmationDialogCallback callback) {
-  if (!IsWebClientConnected()) {
-    std::move(callback).Run(
-        actor::webui::mojom::UserConfirmationDialogResponse::New(
-            actor::webui::mojom::ConfirmationRequestResult::
-                NewPermissionGranted(/*value=*/false)));
-    return;
-  }
-  handler_info_->web_client->RequestToShowUserConfirmationDialog(
-      task_id, navigation_origin, for_blocklisted_origin, std::move(callback));
-}
-
-void Host::RequestToConfirmNavigation(
-    actor::TaskId task_id,
-    const url::Origin& navigation_origin,
-    actor::ActorTaskDelegate::NavigationConfirmationCallback callback) {
-  if (!IsWebClientConnected()) {
-    std::move(callback).Run(
-        actor::webui::mojom::NavigationConfirmationResponse::New(
-            actor::webui::mojom::ConfirmationRequestResult::
-                NewPermissionGranted(/*value=*/false)));
-    return;
-  }
-  handler_info_->web_client->RequestToConfirmNavigation(
-      task_id, navigation_origin, std::move(callback));
-}
-
-void Host::RequestToShowAutofillSuggestionsDialog(
-    actor::TaskId task_id,
-    std::vector<autofill::ActorFormFillingRequest> requests,
-    base::WeakPtr<actor::AutofillSelectionDialogEventHandler> event_handler,
-    actor::ActorTaskDelegate::AutofillSuggestionSelectedCallback callback) {
-  if (!IsWebClientConnected()) {
-    std::move(callback).Run(
-        actor::webui::mojom::SelectAutofillSuggestionsDialogResponse::New(
-            task_id.value(),
-            actor::webui::mojom::SelectAutofillSuggestionsDialogResult::
-                NewErrorReason(actor::webui::mojom::
-                                   SelectAutofillSuggestionsDialogErrorReason::
-                                       kDialogPromiseNoSubscriber)));
-    return;
-  }
-  handler_info_->web_client->RequestToShowAutofillSuggestionsDialog(
-      task_id, std::move(requests), std::move(event_handler),
-      std::move(callback));
 }
 
 void Host::FloatingPanelCanAttachChanged(bool can_attach) {

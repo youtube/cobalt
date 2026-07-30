@@ -280,6 +280,11 @@ public class EmptyTabModel implements IncognitoTabModelInternal {
     }
 
     @Override
+    public List<Integer> getOrderedMultiSelectedTabIds() {
+        return Collections.emptyList();
+    }
+
+    @Override
     public List<Tab> getOrderedMultiSelectedTabs() {
         return Collections.emptyList();
     }
@@ -323,15 +328,10 @@ public class EmptyTabModel implements IncognitoTabModelInternal {
     }
 
     @Override
-    public void addTabGroupObserver(TabGroupModelFilterObserver observer) {}
+    public void addTabGroupObserver(TabGroupObserver observer) {}
 
     @Override
-    public void removeTabGroupObserver(TabGroupModelFilterObserver observer) {}
-
-    @Override
-    public TabModel getTabModel() {
-        return this;
-    }
+    public void removeTabGroupObserver(TabGroupObserver observer) {}
 
     @Override
     public List<Tab> getRepresentativeTabList() {
@@ -509,9 +509,6 @@ public class EmptyTabModel implements IncognitoTabModelInternal {
 
     @Override
     public void deleteTabGroupCollapsed(Token tabGroupId) {}
-
-    @Override
-    public void markTabStateInitialized() {}
 
     @Override
     public void moveTabOutOfGroupInDirection(int sourceTabId, boolean trailing) {}

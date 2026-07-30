@@ -9,6 +9,7 @@
 #include "ash/constants/ash_features.h"
 #include "ash/webui/boca_ui/boca_app_page_handler.h"
 #include "ash/webui/boca_ui/boca_util.h"
+#include "ash/webui/boca_ui/provider/tab_info_collector.h"
 #include "ash/webui/boca_ui/url_constants.h"
 #include "ash/webui/common/chrome_os_webui_config.h"
 #include "ash/webui/grit/ash_boca_ui_resources.h"
@@ -16,6 +17,7 @@
 #include "chrome/browser/ash/boca/boca_manager_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chromeos/ash/components/boca/boca_app_client.h"
+#include "chromeos/ash/components/boca/gemini/gemini_status_fetcher.h"
 #include "chromeos/grit/chromeos_boca_app_bundle_resources.h"
 #include "chromeos/grit/chromeos_boca_app_bundle_resources_map.h"
 #include "content/public/browser/web_contents.h"
@@ -131,9 +133,10 @@ void BocaUI::Create(
   page_handler_impl_ = std::make_unique<BocaAppHandler>(
       std::move(page_handler), std::move(page), web_ui(),
       std::make_unique<ClassroomPageHandlerImpl>(),
-      std::move(content_settings_handler), system_web_app_manager,
+      std::move(content_settings_handler),
+      TabInfoCollector::Create(web_ui(), is_producer_), system_web_app_manager,
       BocaAppClient::Get()->GetSessionManager()->session_client_impl(),
-      is_producer_);
+      boca_manager->GetGeminiStatusFetcher(), is_producer_);
   page_handler_impl_->SetSpotlightService(&spotlight_service_);
   if (ash::features::IsAnnotatorModeEnabled() && is_producer_) {
     ash::boca::util::EnableOrDisableMarkerMode(/*enable=*/true);

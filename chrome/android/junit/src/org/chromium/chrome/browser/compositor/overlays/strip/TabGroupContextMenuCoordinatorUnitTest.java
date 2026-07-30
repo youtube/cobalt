@@ -89,6 +89,7 @@ import org.chromium.components.data_sharing.member_role.MemberRole;
 import org.chromium.components.tab_group_sync.LocalTabGroupId;
 import org.chromium.components.tab_group_sync.SavedTabGroup;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
+import org.chromium.components.tab_groups.TabGroupsFeatureMap;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.base.TestActivity;
@@ -112,6 +113,7 @@ import java.util.function.BiConsumer;
 @EnableFeatures({
     ChromeFeatureList.DATA_SHARING,
 })
+@DisableFeatures({TabGroupsFeatureMap.UPDATE_TAB_GROUP_COLORS})
 public class TabGroupContextMenuCoordinatorUnitTest {
     private static final int TAB_ID = 1;
     private static final Token TAB_GROUP_ID = new Token(3L, 4L);
@@ -232,7 +234,7 @@ public class TabGroupContextMenuCoordinatorUnitTest {
         mTabModel.setTabCreatorForTesting(mTabCreator);
         mTotalTabCountSupplier = ObservableSuppliers.createNonNull(3);
         when(mTabModel.getTabCountSupplier()).thenReturn(mTotalTabCountSupplier);
-        mTabsInGroup = setUpTabGroupModelFilter();
+        mTabsInGroup = setUpTabsInGroup();
         when(mProfile.isOffTheRecord()).thenReturn(true);
         when(mMultiInstanceManager.getCurrentInstanceId()).thenReturn(INSTANCE_ID_1);
         when(mMultiInstanceManager.getInstanceInfo(ACTIVE))
@@ -707,7 +709,7 @@ public class TabGroupContextMenuCoordinatorUnitTest {
         }
     }
 
-    private List<Tab> setUpTabGroupModelFilter() {
+    private List<Tab> setUpTabsInGroup() {
         MockTab tab = mTabModel.addTab(TAB_ID);
         tab.setTabGroupId(TAB_GROUP_ID);
         tab.setUrl(EXAMPLE_URL);

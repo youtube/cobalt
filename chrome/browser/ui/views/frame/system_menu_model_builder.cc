@@ -9,9 +9,11 @@
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
@@ -28,6 +30,7 @@
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/models/menu_model.h"
 #include "ui/menus/simple_menu_model.h"
+#include "ui/views/window/vector_icons/vector_icons.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/multi_user/multi_user_window_manager.h"
@@ -51,6 +54,24 @@
 #include "ui/ozone/public/ozone_platform.h"
 #endif
 
+namespace {
+
+void AddItemWithIconMaybe(ui::SimpleMenuModel* model,
+                          int command_id,
+                          int string_id,
+                          const gfx::VectorIcon& icon) {
+  if (features::IsMenuSimplificationEnabled()) {
+    model->AddItemWithStringIdAndIcon(
+        command_id, string_id,
+        ui::ImageModel::FromVectorIcon(icon, ui::kColorMenuIcon,
+                                       ui::SimpleMenuModel::kDefaultIconSize));
+  } else {
+    model->AddItemWithStringId(command_id, string_id);
+  }
+}
+
+}  // namespace
+
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(SystemMenuModelBuilder,
                                       kToggleVerticalTabsElementId);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(
@@ -71,8 +92,10 @@ void SystemMenuModelBuilder::Init() {
 #if BUILDFLAG(IS_WIN)
   // On Windows we put the menu items in the system menu (not at the end). Doing
   // this necessitates adding a trailing separator.
-  model->AddSeparator(ui::NORMAL_SEPARATOR);
-#endif
+  if (!features::IsMenuSimplificationEnabled()) {
+    model->AddSeparator(ui::NORMAL_SEPARATOR);
+  }
+#endif  // BUILDFLAG(IS_WIN)
 }
 
 void SystemMenuModelBuilder::BuildMenu(ui::SimpleMenuModel* model) {
@@ -87,10 +110,32 @@ void SystemMenuModelBuilder::BuildMenu(ui::SimpleMenuModel* model) {
 
 void SystemMenuModelBuilder::BuildSystemMenuForBrowserWindow(
     ui::SimpleMenuModel* model) {
+#if BUILDFLAG(IS_WIN)
+  if (features::IsMenuSimplificationEnabled()) {
+    AddItemWithIconMaybe(model, IDC_RESTORE_WINDOW, IDS_RESTORE_WINDOW_MENU_WIN,
+                         views::kChromeRestoreIcon);
+    model->SetElementIdentifierAt(
+        model->GetIndexOfCommandId(IDC_RESTORE_WINDOW).value(),
+        kSystemMenuRestoreItemElementId);
+    model->AddItemWithStringId(IDC_MOVE_WINDOW, IDS_MOVE_WINDOW_MENU_WIN);
+    model->AddItemWithStringId(IDC_SIZE_WINDOW, IDS_SIZE_WINDOW_MENU_WIN);
+    AddItemWithIconMaybe(model, IDC_MINIMIZE_WINDOW,
+                         IDS_MINIMIZE_WINDOW_MENU_WIN,
+                         views::kChromeMinimizeIcon);
+    AddItemWithIconMaybe(model, IDC_MAXIMIZE_WINDOW,
+                         IDS_MAXIMIZE_WINDOW_MENU_WIN,
+                         views::kChromeMaximizeIcon);
+    model->AddSeparator(ui::NORMAL_SEPARATOR);
+  }
+#endif  // BUILDFLAG(IS_WIN)
+
 #if BUILDFLAG(IS_LINUX)
-  model->AddItemWithStringId(IDC_MINIMIZE_WINDOW, IDS_MINIMIZE_WINDOW_MENU);
-  model->AddItemWithStringId(IDC_MAXIMIZE_WINDOW, IDS_MAXIMIZE_WINDOW_MENU);
-  model->AddItemWithStringId(IDC_RESTORE_WINDOW, IDS_RESTORE_WINDOW_MENU);
+  AddItemWithIconMaybe(model, IDC_MINIMIZE_WINDOW, IDS_MINIMIZE_WINDOW_MENU,
+                       views::kChromeMinimizeIcon);
+  AddItemWithIconMaybe(model, IDC_MAXIMIZE_WINDOW, IDS_MAXIMIZE_WINDOW_MENU,
+                       views::kChromeMaximizeIcon);
+  AddItemWithIconMaybe(model, IDC_RESTORE_WINDOW, IDS_RESTORE_WINDOW_MENU,
+                       views::kChromeRestoreIcon);
   model->AddSeparator(ui::NORMAL_SEPARATOR);
 #endif
   model->AddItemWithStringId(IDC_NEW_TAB, IDS_NEW_TAB);
@@ -101,8 +146,10 @@ void SystemMenuModelBuilder::BuildSystemMenuForBrowserWindow(
                                IDS_GROUP_UNGROUPED_TABS);
   }
 
-  model->AddItemWithStringId(IDC_BOOKMARK_ALL_TABS, IDS_BOOKMARK_ALL_TABS);
-  model->AddItemWithStringId(IDC_NAME_WINDOW, IDS_NAME_WINDOW);
+  AddItemWithIconMaybe(model, IDC_BOOKMARK_ALL_TABS, IDS_BOOKMARK_ALL_TABS,
+                       kBookmarkAllTabsChromeRefreshOldIcon);
+  AddItemWithIconMaybe(model, IDC_NAME_WINDOW, IDS_NAME_WINDOW,
+                       kNameWindowOldIcon);
 
   if (base::FeatureList::IsEnabled(tabs::kHorizontalTabStripComboButton)) {
     model->AddSeparator(ui::NORMAL_SEPARATOR);
@@ -193,6 +240,15 @@ void SystemMenuModelBuilder::BuildSystemMenuForBrowserWindow(
   model->AddSeparator(ui::NORMAL_SEPARATOR);
   model->AddItemWithStringId(IDC_CLOSE_WINDOW, IDS_CLOSE_WINDOW_MENU);
 #endif
+
+#if BUILDFLAG(IS_WIN)
+  if (features::IsMenuSimplificationEnabled()) {
+    model->AddSeparator(ui::NORMAL_SEPARATOR);
+    AddItemWithIconMaybe(model, IDC_CLOSE_WINDOW, IDS_CLOSE_WINDOW_MENU_WIN,
+                         kCloseChromeRefreshOldIcon);
+  }
+#endif  // BUILDFLAG(IS_WIN)
+
 #if BUILDFLAG(IS_CHROMEOS)
   AppendMoveToDesksMenu(model);
 #endif

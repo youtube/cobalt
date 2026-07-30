@@ -475,7 +475,17 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
 }
 
 + (id<GREYMatcher>)primaryToolbar {
-  return grey_kindOfClass([PrimaryToolbarView class]);
+  if (IsChromeNextIaEnabled()) {
+    return grey_accessibilityID(kPrimaryToolbarViewIdentifier);
+  }
+  return grey_kindOfClassName(@"PrimaryToolbarView");
+}
+
++ (id<GREYMatcher>)secondaryToolbar {
+  if (IsChromeNextIaEnabled()) {
+    return grey_accessibilityID(kSecondaryToolbarViewIdentifier);
+  }
+  return grey_kindOfClassName(@"SecondaryToolbarView");
 }
 
 + (id<GREYMatcher>)cancelButton {
@@ -550,15 +560,14 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
 }
 
 + (id<GREYMatcher>)omniboxAtBottom {
-  return grey_allOf(
-      [ChromeMatchersAppInterface defocusedLocationView],
-      grey_ancestor(grey_kindOfClassName(@"SecondaryToolbarView")),
-      grey_sufficientlyVisible(), nil);
+  return grey_allOf([ChromeMatchersAppInterface defocusedLocationView],
+                    grey_ancestor([self secondaryToolbar]),
+                    grey_sufficientlyVisible(), nil);
 }
 
 + (id<GREYMatcher>)omniboxOnTop {
   return grey_allOf([ChromeMatchersAppInterface defocusedLocationView],
-                    grey_ancestor(grey_kindOfClassName(@"PrimaryToolbarView")),
+                    grey_ancestor([self primaryToolbar]),
                     grey_sufficientlyVisible(), nil);
 }
 

@@ -14,7 +14,7 @@
 #include "base/timer/timer.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/tools/tool_delegate.h"
-#include "chrome/browser/password_manager/password_change/change_password_form_filling_submission_helper.h"
+#include "chrome/browser/password_manager/password_change/change_password_form_filler.h"
 #include "url/gurl.h"
 
 class ChangePasswordFormWaiter;
@@ -30,6 +30,7 @@ class PasswordManagerClient;
 }  // namespace password_manager
 
 namespace glic {
+class GlicInstance;
 class GlicKeyedService;
 }
 
@@ -58,28 +59,25 @@ class PasswordChangeFromCheckupDelegate {
 #endif
 
  private:
-  void AutoSelectCredential(
-      const std::vector<actor_login::Credential>& credentials,
-      actor::ToolDelegate::CredentialSelectedCallback callback);
-
   glic::GlicKeyedService* GetGlicService();
 
   void OnFindFormTaskStateChanged(actor::ActorTask& task);
 
   void OnChangePasswordFormManagerFound(
       password_manager::PasswordFormManager* form_manager);
-  void OnChangePasswordFormSubmitted(
-      ChangePasswordFormFillingSubmissionHelper::SubmissionResult result);
+  void OnChangePasswordFormFilled(
+      ChangePasswordFormFiller::FillingResult result);
 
   void OnVerificationTaskStateChanged(actor::ActorTask& task);
   void OnVerificationTimeout();
   void HandleMaybeSuccessfulPasswordChange();
-  void RegisterAutoSelectCredential(actor::ActorTask& task);
   void InvokeVerificationFlow(std::string post_submission_prompt);
 
   base::WeakPtr<content::WebContents> originator_;
   raw_ptr<password_manager::PasswordManagerClient> client_;
   base::WeakPtr<content::WebContents> actuation_web_contents_;
+
+  base::WeakPtr<glic::GlicInstance> glic_instance_;
 
   std::u16string username_;
   std::u16string current_password_;
@@ -90,7 +88,7 @@ class PasswordChangeFromCheckupDelegate {
 
   base::CallbackListSubscription actor_task_state_subscription_;
 
-  std::unique_ptr<ChangePasswordFormFillingSubmissionHelper> submission_helper_;
+  std::unique_ptr<ChangePasswordFormFiller> form_filler_;
   std::unique_ptr<ChangePasswordFormWaiter> form_waiter_;
 
   std::optional<actor::ActorTask::State> find_form_task_state_ = std::nullopt;

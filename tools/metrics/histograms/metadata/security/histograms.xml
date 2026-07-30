@@ -34,7 +34,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="OSCrypt.AppBoundEncryption.SupportLevel"
-    enum="AppBoundEncryptionSupportLevel" expires_after="2026-09-06">
+    enum="AppBoundEncryptionSupportLevel" expires_after="2026-11-15">
   <owner>wfh@chromium.org</owner>
   <owner>nparker@chromium.org</owner>
   <summary>
@@ -56,7 +56,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OSCrypt.AppBoundProvider.Decrypt.ResultLastError"
-    enum="WinGetLastError" expires_after="2026-09-06">
+    enum="WinGetLastError" expires_after="2026-11-15">
   <owner>wfh@chromium.org</owner>
   <owner>nparker@chromium.org</owner>
   <summary>
@@ -140,7 +140,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OSCrypt.EncryptionPrefixVersion"
-    enum="EncryptionPrefixVersion" expires_after="2026-06-28">
+    enum="EncryptionPrefixVersion" expires_after="2027-06-28">
   <owner>wfh@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
@@ -196,17 +196,6 @@ chromium-metrics-reviews@google.com.
     <variant name="SessionFailure"/>
     <variant name="UnlockFailed"/>
   </token>
-</histogram>
-
-<histogram name="OSCrypt.Linux.DecryptedWithEmptyKey" enum="Boolean"
-    expires_after="2026-06-30">
-  <owner>thestig@chromium.org</owner>
-  <owner>wfh@chromium.org</owner>
-  <summary>
-    True, iff the data was not decryptable with the stored encryption key, but
-    was decryptable with a key generated from an empty string. This is emitted
-    every time OSCrypt attempts to decrypt a value.
-  </summary>
 </histogram>
 
 <histogram name="OSCrypt.Mac.FindGenericPasswordError"
@@ -456,13 +445,15 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.HttpsFirstMode.NavigationEvent"
-    enum="HttpsFirstModeNavigationEvent" expires_after="2025-12-21">
+    enum="HttpsFirstModeNavigationEvent" expires_after="2027-04-01">
   <owner>cthomp@chromium.org</owner>
-  <owner>trusty-transport@chromium.org</owner>
+  <owner>chrome-swan@google.com</owner>
   <summary>
     Events for navigations that are upgraded from HTTP to HTTPS by HTTPS-First
     Mode. Recorded for eligible navigations (HTTP main frame navigations that
     are not allowlisted), if the profile is opted in to HTTPS-First Mode.
+
+    Note: This histogram was expired from 2025-12-21 through 2026-05-13.
   </summary>
 </histogram>
 
@@ -495,7 +486,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.HttpsFirstMode.SettingEnabledAtStartup2"
-    enum="HttpsFirstModeSetting" expires_after="2026-09-06">
+    enum="HttpsFirstModeSetting" expires_after="2026-11-15">
   <owner>cthomp@chromium.org</owner>
   <owner>trusty-transport@chromium.org</owner>
   <summary>
@@ -587,7 +578,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.NavigationRequestSecurityLevel"
-    enum="NavigationRequestSecurityLevel" expires_after="2026-09-06">
+    enum="NavigationRequestSecurityLevel" expires_after="2026-11-15">
   <owner>jdeblasio@chromium.org</owner>
   <owner>trusty-transport@chromium.org</owner>
   <summary>
@@ -613,7 +604,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.PageInfo.AboutThisSiteInteraction"
-    enum="AboutThisSiteInteraction" expires_after="2026-09-06">
+    enum="AboutThisSiteInteraction" expires_after="2026-11-15">
   <owner>dullweber@chromium.org</owner>
   <owner>olesiamarukhno@chromium.org</owner>
   <summary>
@@ -770,7 +761,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.PrivateNetworkAccess.CheckResult"
-    enum="LocalNetworkAccessCheckResult" expires_after="2026-09-06">
+    enum="LocalNetworkAccessCheckResult" expires_after="2026-11-15">
   <owner>hchao@chromium.org</owner>
   <owner>clamy@chromium.org</owner>
   <owner>cthomp@chromium.org</owner>

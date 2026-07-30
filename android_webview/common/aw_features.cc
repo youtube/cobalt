@@ -26,9 +26,6 @@ BASE_FEATURE(kWebViewBackForwardCache, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kWebViewBypassHttpCacheForPrefetchFromHeader,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Allow apps to configure the renderer library prefetching behaviour.
-BASE_FEATURE(kWebViewConfigurableLibraryPrefetch,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables content restriction support in WebView.
 BASE_FEATURE(kWebViewContentRestrictionSupport,
@@ -41,6 +38,9 @@ BASE_FEATURE(kWebViewContentRestrictionSupport,
 // TODO(b/364980165): Flag can be removed when SDK versions prior to B are no
 // longer supported.
 BASE_FEATURE(kWebViewFileSystemAccess, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Force the default WebAuthn state to be APP mode.
+BASE_FEATURE(kWebViewForceWebAuthn, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Fetch Hand Writing icon lazily.
 BASE_FEATURE(kWebViewLazyFetchHandWritingIcon,
@@ -102,11 +102,6 @@ BASE_FEATURE(kWebViewInvokeZoomPickerOnGSU, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kWebViewSkipInterceptsForPrefetch,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Whether to use initial network state during initialization to speed up
-// startup.
-BASE_FEATURE(kWebViewUseInitialNetworkStateAtStartup,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // This enables reducing webview user-agent android version and device model.
 BASE_FEATURE(kWebViewReduceUAAndroidVersionDeviceModel,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -130,9 +125,13 @@ BASE_FEATURE(kWebViewPrefetchOnRendererReuse,
 
 // This enables to start main resource prefetch request from off the main thread
 // for WebView Prefetch API. See crbug.com/452406598, crbug.com/452389538 for
-// more details.
+// more details. Only takes effect if `kPrefetchOffTheMainThread` is enabled
+// as well.
 BASE_FEATURE(kWebViewPrefetchOffTheMainThread,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Kill switch for reporting `PreloadServingMetrics` for WebView.
+BASE_FEATURE(kWebViewPreloadServingMetrics, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // This enables WebView's hyperlink context menu.
 BASE_FEATURE(kWebViewHyperlinkContextMenu, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -306,11 +305,6 @@ BASE_FEATURE(kWebViewSaveStateIncludeHeaders,
 // When enabled, the downloaded favicon in native will not be passed through
 // the jni unless needed / when onReceivedIcon is overridden.
 BASE_FEATURE(kWebViewSkipFaviconJavaCopyUntilNeeded,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// When enabled, a null will always be passed as the favicon in the
-// onPageStarted method.
-BASE_FEATURE(kWebViewPassNullFaviconToOnPageStarted,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, certain static methods in SharedStatics do not trigger startup.

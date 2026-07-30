@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_login_pref_names.h"
 #include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
 #include "base/check_deref.h"
@@ -26,21 +27,19 @@
 #include "chrome/browser/ash/customization/customization_document.h"
 #include "chrome/browser/ash/login/configuration_keys.h"
 #include "chrome/browser/ash/login/demo_mode/demo_setup_controller.h"
-#include "chrome/browser/ash/login/login_pref_names.h"
 #include "chrome/browser/ash/login/oobe_screen.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
 #include "chrome/browser/ash/policy/enrollment/enrollment_requisition_manager.h"
 #include "chrome/browser/ash/system/timezone_resolver_manager.h"
-#include "chrome/browser/ash/system/timezone_util.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/ash/login/input_events_blocker.h"
 #include "chrome/browser/ui/ash/login/login_screen_client_impl.h"
 #include "chrome/browser/ui/webui/ash/login/l10n_util.h"
 #include "chrome/browser/ui/webui/ash/login/welcome_screen_handler.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/components/quick_start/quick_start_metrics.h"
+#include "chromeos/ash/components/timezone/timezone_util.h"
 #include "chromeos/dbus/constants/dbus_switches.h"
 #include "components/application_locale_storage/application_locale_storage.h"
 #include "components/language/core/browser/pref_names.h"
@@ -311,7 +310,7 @@ void WelcomeScreen::SetTimezone(const std::string& timezone_id) {
     return;
 
   timezone_ = timezone_id;
-  system::SetSystemAndSigninScreenTimezone(timezone_id);
+  system::SetSystemAndSigninScreenTimezone(local_state_.get(), timezone_id);
 }
 
 std::string WelcomeScreen::GetTimezone() const {
@@ -383,7 +382,7 @@ void WelcomeScreen::ShowImpl() {
   }
 
   // TODO(crbug.com/1105387): Part of initial screen logic.
-  if (local_state_->GetBoolean(::prefs::kDebuggingFeaturesRequested)) {
+  if (local_state_->GetBoolean(ash::prefs::kDebuggingFeaturesRequested)) {
     OnEnableDebugging();
     return;
   }

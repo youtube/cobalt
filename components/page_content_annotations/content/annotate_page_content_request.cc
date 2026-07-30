@@ -29,6 +29,7 @@
 #include "components/history/core/browser/features.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/content/browser/page_context_eligibility.h"
+#include "components/page_content_annotations/content/annotate_page_content_request_metrics.h"
 #include "components/page_content_annotations/content/browser/page_settled_monitor.h"
 #include "components/page_content_annotations/content/page_content_extraction_service.h"
 #include "components/page_content_annotations/content/page_context_fetcher.h"
@@ -316,6 +317,15 @@ void AnnotatedPageContentRequest::DidFinishNavigationWithPageSettledMonitor(
     return;
   }
 
+  ResetForNewNavigation(navigation_handle->IsSameDocument());
+
+  // Skip about:blank navigations. Legacy path waits for FCP which never occurs
+  // for about:blank, effectively skipping it. We match that behavior here
+  // to avoid unnecessary extractions for pages without meaningful content.
+  if (navigation_handle->GetURL().IsAboutBlank()) {
+    return;
+  }
+
   const bool monitor_already_exists = !!monitor;
   if (!monitor_already_exists) {
     // If the monitor was not created in DidStartNavigation (e.g. because this
@@ -339,8 +349,6 @@ void AnnotatedPageContentRequest::DidFinishNavigationWithPageSettledMonitor(
       "HadSettledMonitorAtDidFinishNavigation",
       monitor_already_exists);
 
-  ResetForNewNavigation(navigation_handle->IsSameDocument());
-
   active_page_settled_monitor_ = std::move(monitor);
   active_page_settled_monitor_->Wait(
       web_contents(),
@@ -349,11 +357,6 @@ void AnnotatedPageContentRequest::DidFinishNavigationWithPageSettledMonitor(
 }
 
 void AnnotatedPageContentRequest::DidStopLoading() {
-  if (use_page_settled_monitor_) {
-    // PageSettledMonitor handles its own load signal.
-    return;
-  }
-
   // Ensure that the main frame's Document has finished loading.
   if (!web_contents()->IsDocumentOnLoadCompletedInPrimaryMainFrame()) {
     return;
@@ -362,6 +365,21 @@ void AnnotatedPageContentRequest::DidStopLoading() {
   // Once the main Document has fired the `load` event, wait for all subframes
   // currently in the FrameTree to also finish loading.
   if (web_contents()->IsLoading()) {
+    return;
+  }
+
+  // TODO(b/490161242): Investigate if we should return early here if we are not
+  // waiting for load to avoid duplicate extractions for same-document
+  // navigations.
+  if (waiting_for_load_) {
+    // Only set the timer for cross-document navigations.
+    stop_loading_timer_ = base::ElapsedTimer();
+  }
+
+  waiting_for_load_ = false;
+
+  if (use_page_settled_monitor_) {
+    // PageSettledMonitor handles its own load signal.
     return;
   }
 
@@ -374,15 +392,6 @@ void AnnotatedPageContentRequest::DidStopLoading() {
     waiting_for_fcp_ = false;
   }
 
-  // TODO(b/490161242): Investigate if we should return early here if we are not
-  // waiting for load to avoid duplicate extractions for same-document
-  // navigations.
-  if (waiting_for_load_) {
-    // Only set the timer for cross-document navigations.
-    stop_loading_timer_ = base::ElapsedTimer();
-  }
-
-  waiting_for_load_ = false;
   MaybeScheduleExtraction();
 }
 
@@ -448,7 +457,7 @@ void AnnotatedPageContentRequest::MaybeScheduleExtraction(bool on_hide) {
       base::BindOnce(&AnnotatedPageContentRequest::OnExtractionTimerFired,
                      weak_factory_.GetWeakPtr(), *trigger_source),
       use_page_settled_monitor_
-          ? base::TimeDelta()
+          ? features::GetPageSettledCaptureDelay()
           : features::GetAnnotatedPageContentCaptureDelay());
 }
 
@@ -481,12 +490,15 @@ void AnnotatedPageContentRequest::StartExtraction(
   if (IsPdf()) {
 #if BUILDFLAG(ENABLE_PDF)
     if (is_pdf_text_extraction_enabled_) {
+      RecordRequestType(ExtractionRequestType::kPDFText);
       RequestPdfText(trigger_source);
     } else {
+      RecordRequestType(ExtractionRequestType::kPDFPageCount);
       RequestPdfPageCount();
     }
 #endif  // BUILDFLAG(ENABLE_PDF)
   } else {
+    RecordRequestType(ExtractionRequestType::kAnnotatedPageContent);
     RequestAnnotatedPageContentSync(trigger_source);
   }
 }
@@ -928,8 +940,7 @@ void AnnotatedPageContentRequest::MaybeRecordReadyToExtractMetrics() {
   base::UmaHistogramTimes(
       base::StrCat(
           {"OptimizationGuide.PageContentExtraction.NavigationToReadyLatency.",
-           is_same_document_navigation_ ? "SameDocument." : "CrossDocument.",
-           use_page_settled_monitor_ ? "PageSettledMonitor" : "Legacy"}),
+           is_same_document_navigation_ ? "SameDocument" : "CrossDocument"}),
       navigation_commit_timer_->Elapsed());
   navigation_commit_timer_.reset();
 }

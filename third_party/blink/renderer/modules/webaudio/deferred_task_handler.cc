@@ -39,37 +39,20 @@
 
 namespace blink {
 
-void DeferredTaskHandler::lock() {
-  // Don't allow regular lock in real-time audio thread.
-  DCHECK(!IsAudioThread());
+void DeferredTaskHandler::Lock() {
   context_graph_mutex_.lock();
 }
 
 bool DeferredTaskHandler::TryLock() {
-  // Try to catch cases of using try lock on main thread
-  // - it should use regular lock.
-  DCHECK(IsAudioThread());
-  if (!IsAudioThread()) {
-    // In release build treat tryLock() as lock() (since above
-    // DCHECK(isAudioThread) never fires) - this is the best we can do.
-    lock();
-    return true;
-  }
   return context_graph_mutex_.TryLock();
 }
 
-void DeferredTaskHandler::unlock() {
+void DeferredTaskHandler::Unlock() {
   context_graph_mutex_.unlock();
 }
 
-void DeferredTaskHandler::OfflineLock() {
-  // CHECK is here to make sure to explicitly crash if this is called from
-  // other than the offline render thread, which is considered as the audio
-  // thread in OfflineAudioContext.
-  CHECK(IsAudioThread()) << "DeferredTaskHandler::offlineLock() must be called "
-                            "within the offline audio thread.";
-
-  context_graph_mutex_.lock();
+void DeferredTaskHandler::AssertGraphOwner() const {
+  context_graph_mutex_.AssertAcquired();
 }
 
 void DeferredTaskHandler::BreakConnections() {
@@ -80,7 +63,7 @@ void DeferredTaskHandler::BreakConnections() {
   // connection.
   wtf_size_t size = finished_source_handlers_.size();
   if (size > 0) {
-    for (auto finished : finished_source_handlers_) {
+    for (const auto& finished : finished_source_handlers_) {
       finished->BreakConnectionWithLock();
       active_source_handlers_.erase(finished);
     }
@@ -377,18 +360,6 @@ void DeferredTaskHandler::ContextWillBeDestroyed() {
   // Some handlers might live because of their cross thread tasks.
 }
 
-DeferredTaskHandler::GraphAutoLocker::GraphAutoLocker(
-    const BaseAudioContext* context)
-    : handler_(context->GetDeferredTaskHandler()) {
-  handler_.lock();
-}
-
-DeferredTaskHandler::OfflineGraphAutoLocker::OfflineGraphAutoLocker(
-    OfflineAudioContext* context)
-    : handler_(context->GetDeferredTaskHandler()) {
-  handler_.OfflineLock();
-}
-
 void DeferredTaskHandler::AddRenderingOrphanHandler(
     scoped_refptr<AudioHandler> handler) {
   DCHECK(handler);
@@ -470,7 +441,7 @@ void DeferredTaskHandler::DisableOutputsForTailProcessing() {
   // disable their outputs to indicate to downstream nodes that they're done.
   // This has to be done in the main thread because DisableOutputs() can cause
   // summing juctions to go away, which must be done on the main thread.
-  for (auto handler : finished_tail_processing_handlers_) {
+  for (const auto& handler : finished_tail_processing_handlers_) {
 #if DEBUG_AUDIONODE_REFERENCES > 1
     fprintf(stderr, "[%16p]: %16p: %2d: DisableOutputsForTailProcessing @%g\n",
             handler->Context(), handler.get(), handler->GetNodeType(),

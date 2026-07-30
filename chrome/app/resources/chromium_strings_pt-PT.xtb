@@ -584,7 +584,6 @@ Não é possível guardar novos marcadores na sua conta até eliminar alguns. Se
 <translation id="7318036098707714271">O ficheiro de preferências está danificado ou não é válido.
 
 O Chromium não consegue recuperar as suas definições.</translation>
-<translation id="7339898014177206373">Nova janela</translation>
 <translation id="734373864078049451">A sua Web, os seus marcadores e os seus outros itens do Chromium estão aqui.</translation>
 <translation id="7347827960336370838">Só alguém com a sua frase de acesso pode ler os dados encriptados. A Google não recebe nem armazena a frase de acesso. Se se esquecer da frase de acesso ou quiser alterar esta definição, tem de <ph name="BEGIN_LINK" />eliminar os dados do Chromium na sua conta<ph name="END_LINK" />.</translation>
 <translation id="7349591376906416160">O administrador do sistema configurou o Chromium para abrir o <ph name="ALTERNATIVE_BROWSER_NAME" /> e aceder a <ph name="TARGET_URL_HOSTNAME" />.</translation>
@@ -593,6 +592,7 @@ O Chromium não consegue recuperar as suas definições.</translation>
 <translation id="7376384068949534168">Não visitou o site recentemente. O Chromium removeu <ph name="PERMISSION_1" /> e <ph name="PERMISSION_2" />.</translation>
 <translation id="73786666777299047">Abrir a Web Store do Chrome</translation>
 <translation id="7384121030444253939">Esta extensão já não é suportada. O Chromium recomenda que a remova.</translation>
+<translation id="7407655596887111931">O Chromium é agora o seu navegador predefinido</translation>
 <translation id="7413153308467572558">Continue a partir de onde ficou: o Chromium restaura os seus separadores sempre que reinicia. Para desativar esta opção, aceda às</translation>
 <translation id="7427879960656355200">Importe palavras-passe para o Chromium</translation>
 <translation id="744815265653811511">1. Clique em <ph name="BUTTON_LABEL" /> abaixo
@@ -734,6 +734,7 @@ O Chromium não consegue recuperar as suas definições.</translation>
 <translation id="8981150672034878610">Não é possível iniciar o Chromium porque algo correu mal ao abrir o seu perfil. Experimente reiniciar o Chromium.</translation>
 <translation id="8988036198400390003">Gerir perfis do Chromium</translation>
 <translation id="9019929317751753759">Para tornar o Chromium mais seguro, desativámos a seguinte extensão, que não está listada na <ph name="IDS_EXTENSION_WEB_STORE_TITLE" />, e é possível que tenha sido adicionada sem o seu conhecimento.</translation>
+<translation id="9022552996538154597">Iniciar sessão no Chromium</translation>
 <translation id="904366664621834601">O Chromium bloqueou esta transferência porque o ficheiro de arquivo inclui outros ficheiros que podem ocultar software malicioso</translation>
 <translation id="9053882453960391422">Mantenha as suas palavras-passe, marcadores e histórico perfeitamente sincronizados entre dispositivos. Atualize o navegador predefinido para o Chromium e aceda facilmente às funcionalidades que conhece e adora. O Chromium vai ser afixado à barra de tarefas para um acesso rápido.</translation>
 <translation id="9062666675513499497">Inicie sessão no Chromium quando inicia sessão noutros serviços Google</translation>

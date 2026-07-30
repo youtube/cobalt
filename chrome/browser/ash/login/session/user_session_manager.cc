@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_login_pref_names.h"
 #include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
 #include "ash/metrics/login_unlock_throughput_recorder.h"
@@ -76,7 +77,6 @@
 #include "chrome/browser/ash/login/existing_user_controller.h"
 #include "chrome/browser/ash/login/helper.h"
 #include "chrome/browser/ash/login/lock/screen_locker.h"
-#include "chrome/browser/ash/login/login_pref_names.h"
 #include "chrome/browser/ash/login/onboarding_user_activity_counter.h"
 #include "chrome/browser/ash/login/profile_auth_data.h"
 #include "chrome/browser/ash/login/quick_unlock/pin_backend.h"
@@ -652,7 +652,8 @@ bool MaybeStartManagementTransition(Profile* profile) {
 bool MaybeShowManagedTermsOfService(Profile* profile) {
   user_manager::UserManager* user_manager = user_manager::UserManager::Get();
   if (user_manager->IsCurrentUserNew() ||
-      !profile->GetPrefs()->IsManagedPreference(::prefs::kTermsOfServiceURL)) {
+      !profile->GetPrefs()->IsManagedPreference(
+          ash::prefs::kTermsOfServiceURL)) {
     return false;
   }
 

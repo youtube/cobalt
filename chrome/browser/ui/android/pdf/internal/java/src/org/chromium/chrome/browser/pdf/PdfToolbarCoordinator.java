@@ -40,6 +40,9 @@ public class PdfToolbarCoordinator implements View.OnClickListener {
         mModel =
                 new PropertyModel.Builder(PdfToolbarProperties.ALL_KEYS)
                         .with(PdfToolbarProperties.ON_CLICK_LISTENER, this)
+                        .with(PdfToolbarProperties.ZOOM_LEVEL, 1.0f)
+                        .with(PdfToolbarProperties.SHOW_FIT_TO_HEIGHT_ICON, true)
+                        .with(PdfToolbarProperties.TWO_PAGES_PER_ROW_ACTIVE, false)
                         .build();
 
         // Set up the MCP to sync the Model and View
@@ -62,6 +65,20 @@ public class PdfToolbarCoordinator implements View.OnClickListener {
             mDelegate.changeZoomLevel(getNextZoomLevel(currentZoomFactor, true));
         } else if (actionId == R.id.zoom_decrease_button) {
             mDelegate.changeZoomLevel(getNextZoomLevel(currentZoomFactor, false));
+        } else if (actionId == R.id.fit_to_page_button) {
+            boolean showFitToHeight = mModel.get(PdfToolbarProperties.SHOW_FIT_TO_HEIGHT_ICON);
+            if (showFitToHeight) {
+                mDelegate.toggleFitToPage(true, currentPageNumber - 1);
+                mModel.set(PdfToolbarProperties.SHOW_FIT_TO_HEIGHT_ICON, false);
+            } else {
+                mDelegate.toggleFitToPage(false, currentPageNumber - 1);
+                mModel.set(PdfToolbarProperties.SHOW_FIT_TO_HEIGHT_ICON, true);
+            }
+        } else if (actionId == R.id.two_page_button) {
+            boolean isCurrentlyActive = mModel.get(PdfToolbarProperties.TWO_PAGES_PER_ROW_ACTIVE);
+            boolean newState = !isCurrentlyActive;
+            mModel.set(PdfToolbarProperties.TWO_PAGES_PER_ROW_ACTIVE, newState);
+            mDelegate.toggleTwoPagesPerRow(newState, currentZoomFactor, currentPageNumber - 1);
         }
     }
 

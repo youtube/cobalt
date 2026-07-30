@@ -23,6 +23,7 @@
 #include "ui/base/models/image_model.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/mojom/ui_base_types.mojom-shared.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/point.h"
@@ -98,9 +99,9 @@ ui::ImageModel RelaunchRequiredDialogView::GetWindowIcon() {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
                 vector_icons::kGshieldIcon
 #else
-                kSecurityIcon
+          features::IsRoundedIconsEnabled() ? kSecurityIcon : kSecurityOldIcon
 #endif
-                : vector_icons::kBusinessIcon,
+                : vector_icons::kBusinessOldIcon,
       ui::kColorIcon,
       ChromeLayoutProvider::Get()->GetDistanceMetric(
           views::DISTANCE_BUBBLE_HEADER_VECTOR_ICON_SIZE));

@@ -65,6 +65,7 @@ FileSystemAccessUsageBubbleViewTest.*
 FirstRunDefaultBrowserPixelTest.*
 FirstRunDialogTest.*
 FirstRunIntroPixelTest.*
+FirstRunSignInCelebrationPixelTest.*
 GlobalErrorBubbleTest.*
 HatsBubbleTest.*
 HistorySyncOptinUIDialogPixelTest.*
@@ -179,7 +180,7 @@ WebAppConfirmViewBrowserTest.*
 WebAppInstallDialogBrowserTest.*
 WebAppMenuBrowserTest.*
 WebAppUpdateReviewDialog.*
-WebUIToolbarWebViewPixelBrowserTest.*
+WebUIToolbarPixelInteractiveUiTest.*
 ZoomBubbleDialogTest.*
 
 # To temporarily disable a test, add it here with a leading '-', like this:

@@ -81,6 +81,8 @@ struct BLINK_COMMON_EXPORT WebPreferences {
   // Preference to save data. When enabled, requests will contain the header
   // 'Save-Data: on'.
   bool data_saver_enabled = false;
+  bool battery_saver_enabled = false;
+  bool preloading_disabled = false;
   bool local_storage_enabled = false;
   bool tabs_to_links = true;
   bool disable_ipc_flooding_protection = false;
@@ -178,8 +180,7 @@ struct BLINK_COMMON_EXPORT WebPreferences {
 #else
       mojom::ViewportStyle::kDefault;
 #endif
-  bool always_show_context_menu_on_touch =
-      !(BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS));
+  bool always_show_context_menu_on_touch = !BUILDFLAG(IS_IOS);
   bool smooth_scroll_for_find_enabled =
       BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS);
   bool main_frame_resizes_are_orientation_changes =

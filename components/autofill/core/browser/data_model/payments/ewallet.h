@@ -5,11 +5,14 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_DATA_MODEL_PAYMENTS_EWALLET_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_DATA_MODEL_PAYMENTS_EWALLET_H_
 
-#include <cstdint>
+#include <stdint.h>
+
+#include <compare>
 #include <string>
 #include <string_view>
 
 #include "base/containers/flat_set.h"
+#include "build/buildflag.h"
 #include "components/autofill/core/browser/data_model/payments/payment_instrument.h"
 
 #if BUILDFLAG(IS_ANDROID)

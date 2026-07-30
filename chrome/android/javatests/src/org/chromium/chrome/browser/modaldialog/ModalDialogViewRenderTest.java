@@ -71,8 +71,6 @@ public class ModalDialogViewRenderTest {
     public static BaseActivityTestRule<BlankUiTestActivity> sActivityTestRule =
             new BaseActivityTestRule<>(BlankUiTestActivity.class);
 
-    private static Activity sActivity;
-
     private final @ColorInt int mFakeBgColor;
 
     private Resources mResources;
@@ -101,7 +99,7 @@ public class ModalDialogViewRenderTest {
 
     @BeforeClass
     public static void setupSuite() {
-        sActivity = sActivityTestRule.launchActivity(null);
+        sActivityTestRule.launchActivity(null);
     }
 
     // This helper function waits until the view is rendered trying to prevent flakiness.
@@ -121,7 +119,7 @@ public class ModalDialogViewRenderTest {
     private void setUpViews(int style, boolean forceWrapContentHeight) {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    Activity activity = sActivity;
+                    Activity activity = sActivityTestRule.getActivity();
                     mResources = activity.getResources();
                     mModelBuilder = new PropertyModel.Builder(ModalDialogProperties.ALL_KEYS);
 
@@ -167,7 +165,9 @@ public class ModalDialogViewRenderTest {
                 /* forceWrapContentHeight= */ true);
         final Drawable icon =
                 UiUtils.getTintedDrawable(
-                        sActivity, R.drawable.ic_add_24dp, R.color.default_icon_color_tint_list);
+                        sActivityTestRule.getActivity(),
+                        R.drawable.ic_add_24dp,
+                        R.color.default_icon_color_tint_list);
         createModel(
                 mModelBuilder
                         .with(ModalDialogProperties.TITLE, mResources, R.string.title)
@@ -184,7 +184,9 @@ public class ModalDialogViewRenderTest {
                 /* forceWrapContentHeight= */ true);
         final Drawable icon =
                 UiUtils.getTintedDrawable(
-                        sActivity, R.drawable.ic_add_24dp, R.color.default_icon_color_tint_list);
+                        sActivityTestRule.getActivity(),
+                        R.drawable.ic_add_24dp,
+                        R.color.default_icon_color_tint_list);
         createModel(
                 mModelBuilder
                         .with(ModalDialogProperties.TITLE, mResources, R.string.title)
@@ -209,7 +211,9 @@ public class ModalDialogViewRenderTest {
         // Load the title icon
         final Drawable icon =
                 UiUtils.getTintedDrawable(
-                        sActivity, R.drawable.ic_add_24dp, R.color.default_icon_color_tint_list);
+                        sActivityTestRule.getActivity(),
+                        R.drawable.ic_add_24dp,
+                        R.color.default_icon_color_tint_list);
 
         createModel(
                 mModelBuilder
@@ -483,13 +487,19 @@ public class ModalDialogViewRenderTest {
 
         final Drawable icon1 =
                 UiUtils.getTintedDrawable(
-                        sActivity, R.drawable.ic_add_24dp, R.color.default_icon_color_tint_list);
+                        sActivityTestRule.getActivity(),
+                        R.drawable.ic_add_24dp,
+                        R.color.default_icon_color_tint_list);
         final Drawable icon2 =
                 UiUtils.getTintedDrawable(
-                        sActivity, R.drawable.ic_globe_24dp, R.color.default_icon_color_tint_list);
+                        sActivityTestRule.getActivity(),
+                        R.drawable.ic_globe_24dp,
+                        R.color.default_icon_color_tint_list);
         final Drawable icon3 =
                 UiUtils.getTintedDrawable(
-                        sActivity, R.drawable.ic_info_24dp, R.color.default_icon_color_tint_list);
+                        sActivityTestRule.getActivity(),
+                        R.drawable.ic_info_24dp,
+                        R.color.default_icon_color_tint_list);
 
         final var menuItems = new ArrayList<ModalDialogProperties.ModalDialogMenuItem>();
         menuItems.add(new ModalDialogProperties.ModalDialogMenuItem(icon1, "First menu item"));

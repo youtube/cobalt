@@ -17,6 +17,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/glic/fre/glic_fre_controller.h"
 #include "chrome/browser/glic/glic_pref_names.h"
+#include "chrome/browser/glic/glic_tab_restore_data.h"
 #include "chrome/browser/glic/host/glic.mojom-shared.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_web_client_access.h"
@@ -38,6 +39,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
+#include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/common/chrome_features.h"
@@ -50,8 +52,10 @@
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "ui/base/base_window.h"
+#include "ui/base/unowned_user_data/unowned_user_data_host.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/point_conversions.h"
 
@@ -212,7 +216,6 @@ class GlicInstanceCoordinatorBrowserTest
                  // Speeds up tests to have quicker warming.
                  {features::kGlicWebContentsWarmingDelay.name, "2s"},
              }},
-            {features::kGlicTabRestoration, {}},
             {enterprise_reporting::kGeminiInChromeUsageReporting, {}},
         },
         /*disabled_features=*/{features::kGlicDefaultToLastActiveConversation});
@@ -1002,6 +1005,60 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
+                       TabRestoration_ConversationIdMismatchReturnsNull) {
+  // Tab 1: Keep the instance alive.
+  CreateAndActivateTab(GURL("about:blank"));
+  ASSERT_OK_AND_ASSIGN(GlicInstanceImpl * instance, OpenGlicForActiveTab());
+  auto instance_id = instance->id();
+
+  // Set a conversation ID on the instance.
+  const std::string kConvId = "test_conversation_id";
+  auto info = mojom::ConversationInfo::New();
+  info->conversation_id = kConvId;
+  instance->RegisterConversation(std::move(info), base::DoNothing());
+
+  // Create a fake restore state for a new tab.
+  // It will have the SAME instance ID but a DIFFERENT conversation ID.
+  GlicRestoredState state;
+  state.bound_instance.instance_id = instance_id.value();
+  state.bound_instance.conversation_id = "different_conversation_id";
+  state.side_panel_open = true;  // Try to open side panel, should be skipped.
+
+  // Create a WebContents manually.
+  std::unique_ptr<content::WebContents> web_contents =
+      content::WebContents::Create(
+          content::WebContents::CreateParams(GetProfile()));
+
+  // Attach the restore data.
+  GlicTabRestoreData::CreateForWebContents(web_contents.get(),
+                                           std::move(state));
+
+  // Now add it to the tab strip.
+  auto* tab_list = GetTabListInterface();
+  tabs::TabInterface* restored_tab = nullptr;
+  {
+    GlicTestTabAddedWaiter waiter(GetProfile());
+    tab_list->InsertWebContentsAt(-1, std::move(web_contents),
+                                  /*should_pin=*/false, std::nullopt);
+    restored_tab = waiter.Wait();
+  }
+  ASSERT_TRUE(restored_tab);
+
+  // Verify that the restored tab is NOT bound to the instance.
+  EXPECT_EQ(GetInstanceForTab(restored_tab), nullptr);
+
+  // Verify that the side panel is NOT open for the new tab.
+  EXPECT_OK(WaitForSidePanelState(restored_tab,
+                                  GlicSidePanelCoordinator::State::kClosed));
+
+  // Clean up the tab we created and wait for it to be destroyed to avoid
+  // race conditions during test teardown.
+  content::WebContentsDestroyedWatcher destroyer(restored_tab->GetContents());
+  tab_list->CloseTab(restored_tab->GetHandle());
+  destroyer.Wait();
+}
+
+IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
                        TabRestoration_SidePanelClosed) {
   // Add a new tab so we don't close the browser when we close the tab.
   auto* tab = CreateAndActivateTab(GURL("about:blank"));
@@ -1764,6 +1821,9 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorDefaultToLastActiveBrowserTest,
                 "Glic.Instance.DaisyChain.LastActiveInstance.Success"),
             1);
 
+  histogram_tester.ExpectTotalCount(
+      "Glic.Instance.TimeSinceLastInstanceActiveOnOpen", 1);
+
   // Simulate user input to trigger first action metric.
   instance2->instance_metrics().OnUserInputSubmitted(
       mojom::WebClientMode::kText);
@@ -1860,6 +1920,9 @@ IN_PROC_BROWSER_TEST_F(
   // Verify that no metric was logged since we did not default to last active.
   histogram_tester.ExpectTotalCount(
       "Glic.Instance.AutoOpenedPanel.FirstAction.LastActiveInstance", 0);
+
+  histogram_tester.ExpectTotalCount(
+      "Glic.Instance.TimeSinceLastInstanceActiveOnOpen", 1);
 }
 
 class GlicInstanceCoordinatorNoWarmingTest
@@ -1977,7 +2040,8 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorActuationBrowserTest,
 
   // Stop the task and verify callback IS called.
   instance->GetActorTaskManager()->GetClientSessionForTesting()->StopActorTask(
-      task_id, glic::mojom::ActorTaskStopReason::kTaskComplete);
+      task_id.GetUnsafeValue(),
+      glic::mojom::ActorTaskStopReason::kTaskComplete);
 
   EXPECT_TRUE(success_future.Wait());
 
@@ -2025,5 +2089,18 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
             1);
 }
 #endif
+
+IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
+                       IsPanelShowingForBrowserSafeWithoutTabList) {
+  testing::NiceMock<MockBrowserWindowInterface> mock_bwi;
+  ui::UnownedUserDataHost user_data_host;
+  ON_CALL(mock_bwi, GetUnownedUserDataHost())
+      .WillByDefault(testing::ReturnRef(user_data_host));
+
+  // Since user_data_host has no TabListInterface registered,
+  // TabListInterface::From(&mock_bwi) will return nullptr.
+  // IsPanelShowingForBrowser should return false and NOT crash.
+  EXPECT_FALSE(coordinator().IsPanelShowingForBrowser(mock_bwi));
+}
 
 }  // namespace glic

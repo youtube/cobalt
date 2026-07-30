@@ -318,7 +318,11 @@ svg {
   position: fixed;
 }
 
-cr-composebox {
+:host([energy-effect-enabled_]) cr-composebox {
+  --cr-composebox-expanded-border-radius: 28px;
+}
+
+#composebox {
   --color-composebox-submit-button-background: var(
     --color-new-tab-page-composebox-submit-button-background);
 
@@ -333,17 +337,17 @@ cr-composebox {
   --text-input-inline-end-spacing: 90px;
 }
 
-cr-composebox::part(cancel-icon) {
+#composebox::part(cancel-icon) {
   inset-inline-end: 16px;
 }
 
 /* Adjust voice-icon to maintain 12px gap from cancel-icon (which is 24px wide
    with inset-inline-end of 16px). 16px + 24px + 12px = 52px). */
-cr-composebox::part(voice-icon) {
+#composebox::part(voice-icon) {
   inset-inline-end: 52px;
 }
 
-cr-composebox,
+#composebox,
 ntp-lens-upload-dialog {
   left: 0;
   position: absolute;

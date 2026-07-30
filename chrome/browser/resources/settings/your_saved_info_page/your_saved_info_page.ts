@@ -111,7 +111,7 @@ export class SettingsYourSavedInfoPageElement extends
     };
   }
 
-  declare prefs: {[key: string]: any};
+  declare prefs: Record<string, unknown>;
   declare private hierarchy_: DataTypeHierarchy;
   declare private enableYourSavedInfoShoppingPage_: boolean;
 
@@ -468,7 +468,9 @@ export class SettingsYourSavedInfoPageElement extends
     }
     const control =
         this.shadowRoot!.querySelector<HTMLElement>(`#${triggerId}`);
-    assert(control);
+    assert(
+        control,
+        `Failed to find associated control for child '${childViewId}'`);
     return control;
   }
 

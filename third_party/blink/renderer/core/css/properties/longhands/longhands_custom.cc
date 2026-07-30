@@ -1488,7 +1488,12 @@ const CSSValue* BorderImageRepeat::CSSValueFromComputedStyleInternal(
 }
 
 const CSSValue* BorderImageRepeat::InitialValue() const {
-  return CSSIdentifierValue::Create(CSSValueID::kStretch);
+  DEFINE_STATIC_LOCAL(const Persistent<CSSValuePair>, value,
+                      (MakeGarbageCollected<CSSValuePair>(
+                          CSSIdentifierValue::Create(CSSValueID::kStretch),
+                          CSSIdentifierValue::Create(CSSValueID::kStretch),
+                          CSSValuePair::kDropIdenticalValues)));
+  return value;
 }
 
 const CSSValue* BorderImageSlice::ParseSingleValue(
@@ -2432,8 +2437,8 @@ void Color::ApplyInitial(StyleResolverState& state) const {
 void Color::ApplyInherit(StyleResolverState& state) const {
   ComputedStyleBuilder& builder = state.StyleBuilder();
   if (builder.ShouldPreserveParentColor()) {
-    builder.SetColor(StyleColor(
-        state.ParentStyle()->VisitedDependentColor(GetCSSPropertyColor())));
+    builder.SetColor(StyleColor(GetCSSPropertyColor().ColorIncludingFallback(
+        /*visited_link=*/false, *state.ParentStyle())));
   } else {
     builder.SetColor(state.ParentStyle()->Color());
   }
@@ -6366,12 +6371,34 @@ const CSSValue* MaxLines::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) const {
-  if (stream.Peek().Id() == CSSValueID::kNone) {
-    return css_parsing_utils::ConsumeIdent(stream);
-  } else {
-    return css_parsing_utils::ConsumePositiveInteger(stream, context,
-                                                     local_context);
+  CSSPrimitiveValue* num_lines = nullptr;
+  CSSIdentifierValue* auto_keyword = nullptr;
+
+  do {
+    if (!auto_keyword && stream.Peek().Id() == CSSValueID::kAuto) {
+      auto_keyword = css_parsing_utils::ConsumeIdent(stream);
+      continue;
+    }
+
+    if (!num_lines) {
+      num_lines = css_parsing_utils::ConsumePositiveInteger(stream, context,
+                                                            local_context);
+      if (num_lines) {
+        continue;
+      }
+    }
+
+    break;
+  } while (!stream.AtEnd());
+
+  if (num_lines && auto_keyword) {
+    return MakeGarbageCollected<CSSValuePair>(
+        num_lines, auto_keyword, CSSValuePair::kKeepIdenticalValues);
   }
+  if (num_lines) {
+    return num_lines;
+  }
+  return auto_keyword;
 }
 
 const CSSValue* MaxLines::CSSValueFromComputedStyleInternal(
@@ -6379,12 +6406,20 @@ const CSSValue* MaxLines::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  if (style.MaxLines() == 0) {
-    return CSSIdentifierValue::Create(CSSValueID::kNone);
+  MaxLinesData data = style.MaxLines();
+  if (data.IsAutoValue()) {
+    return CSSIdentifierValue::Create(CSSValueID::kAuto);
   }
-  DCHECK_GE(style.MaxLines(), 1);
-  return CSSNumericLiteralValue::Create(style.MaxLines(),
-                                        CSSPrimitiveValue::UnitType::kNumber);
+
+  DCHECK_GE(data.Lines(), 1u);
+  CSSNumericLiteralValue* num_lines = CSSNumericLiteralValue::Create(
+      data.Lines(), CSSPrimitiveValue::UnitType::kInteger);
+  if (data.HasAutoKeyword()) {
+    return MakeGarbageCollected<CSSValuePair>(
+        num_lines, CSSIdentifierValue::Create(CSSValueID::kAuto),
+        CSSValuePair::kKeepIdenticalValues);
+  }
+  return num_lines;
 }
 
 const CSSValue* BlockEllipsis::CSSValueFromComputedStyleInternal(
@@ -8792,6 +8827,14 @@ const CSSValue* ScrollbarWidth::CSSValueFromComputedStyleInternal(
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
   return CSSIdentifierValue::Create(style.UsedScrollbarWidth());
+}
+
+const CSSValue* ScrollAxisLock::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return CSSIdentifierValue::Create(style.ScrollAxisLock());
 }
 
 const CSSValue* ScrollBehavior::CSSValueFromComputedStyleInternal(

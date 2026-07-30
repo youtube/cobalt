@@ -147,7 +147,7 @@ class OmniboxViewPopupTest : public testing::Test {
 // query.
 TEST_F(OmniboxViewTest, DISABLED_GetIcon_Default) {
   ui::ImageModel expected_icon =
-      ui::ImageModel::FromVectorIcon(vector_icons::kSearchChromeRefreshIcon,
+      ui::ImageModel::FromVectorIcon(vector_icons::kSearchChromeRefreshOldIcon,
                                      gfx::kPlaceholderColor, gfx::kFaviconSize);
 
   ui::ImageModel icon = view()->GetIcon(
@@ -168,9 +168,11 @@ TEST_F(OmniboxViewTest, DISABLED_GetIcon_BookmarkIcon) {
   bookmark_model()->AddURL(bookmark_model()->bookmark_bar_node(), 0,
                            u"a bookmark", kUrl);
 
-  ui::ImageModel expected_icon =
-      ui::ImageModel::FromVectorIcon(omnibox::kBookmarkChromeRefreshIcon,
-                                     gfx::kPlaceholderColor, gfx::kFaviconSize);
+  ui::ImageModel expected_icon = ui::ImageModel::FromVectorIcon(
+      features::IsRoundedIconsEnabled()
+          ? omnibox::kStarIcon
+          : omnibox::kBookmarkChromeRefreshOldIcon,
+      gfx::kPlaceholderColor, gfx::kFaviconSize);
 
   ui::ImageModel icon = view()->GetIcon(
       gfx::kFaviconSize, gfx::kPlaceholderColor, gfx::kPlaceholderColor,

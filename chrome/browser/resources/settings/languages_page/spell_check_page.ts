@@ -119,7 +119,7 @@ export class SettingsSpellCheckPageElement extends
 
   private onSelectedSpellingServiceChange_() {
     this.languageSettingsMetricsProxy_.recordSettingsMetric(
-        this.prefs.spellcheck.use_spelling_service.value ?
+        this.getPref<boolean>('spellcheck.use_spelling_service').value ?
             LanguageSettingsActionType.SELECT_ENHANCED_SPELL_CHECK :
             LanguageSettingsActionType.SELECT_BASIC_SPELL_CHECK);
   }
@@ -334,7 +334,9 @@ export class SettingsSpellCheckPageElement extends
     assert(childViewId === 'editDictionary');
     const control = this.shadowRoot!.querySelector<HTMLElement>(
         '#spellCheckSubpageTrigger');
-    assert(control);
+    assert(
+        control,
+        `Failed to find associated control for child '${childViewId}'`);
     return control;
   }
 }

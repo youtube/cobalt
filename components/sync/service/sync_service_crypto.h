@@ -15,10 +15,8 @@
 #include "base/time/time.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/sync/base/data_type.h"
-#include "components/sync/engine/nigori/key_derivation_params.h"
 #include "components/sync/engine/sync_encryption_handler.h"
 #include "components/sync/engine/sync_engine.h"
-#include "components/sync/protocol/encryption.pb.h"
 #include "components/sync/service/data_type_encryption_handler.h"
 #include "components/trusted_vault/trusted_vault_client.h"
 
@@ -27,6 +25,9 @@ class Encryptor;
 }  // namespace os_crypt_async
 
 namespace syncer {
+
+class CustomPassphraseBootstrapToken;
+class RequiredPassphraseVerifier;
 
 // This class functions as mostly independent component of SyncService that
 // handles things related to encryption, including holding lots of state and
@@ -44,8 +45,10 @@ class SyncServiceCrypto : public SyncEncryptionHandler::Observer,
     virtual void PassphraseTypeChanged(PassphraseType passphrase_type) = 0;
     virtual std::optional<PassphraseType> GetPassphraseType() const = 0;
     virtual void SetEncryptionBootstrapToken(
-        const std::string& bootstrap_token) = 0;
-    virtual std::string GetEncryptionBootstrapToken() const = 0;
+        const CustomPassphraseBootstrapToken& bootstrap_token,
+        const os_crypt_async::Encryptor& encryptor) = 0;
+    virtual CustomPassphraseBootstrapToken GetEncryptionBootstrapToken(
+        const os_crypt_async::Encryptor& encryptor) const = 0;
   };
 
   // `delegate` and `trusted_vault_client` must not be null and must outlive
@@ -72,14 +75,6 @@ class SyncServiceCrypto : public SyncEncryptionHandler::Observer,
   void SetEncryptionPassphrase(const std::string& passphrase);
   bool SetDecryptionPassphrase(const std::string& passphrase);
 
-  // Asynchronously decrypts pending keys using `nigori`. `nigori` must not be
-  // null. It's safe to call this method with wrong `nigori` and, unlike
-  // SetDecryptionPassphrase(), when passphrase isn't required.
-  void SetExplicitPassphraseDecryptionNigoriKey(std::unique_ptr<Nigori> nigori);
-  // Returns stored decryption key, corresponding to the last successfully
-  // decrypted explicit passphrase Nigori. Returns nullptr if there is no such
-  // stored decryption key.
-  std::unique_ptr<Nigori> GetExplicitPassphraseDecryptionNigoriKey() const;
 
   // Returns whether it's already possible to determine whether trusted vault
   // key required (e.g. engine didn't start yet or silent fetch attempt is in
@@ -95,17 +90,18 @@ class SyncServiceCrypto : public SyncEncryptionHandler::Observer,
   void SetSyncEngine(const CoreAccountInfo& account_info, SyncEngine* engine);
 
   // Must be called once an encryptor is available, before any method that
-  // encrypts/decrypts is called. May be called with nullptr.
+  // encrypts/decrypts is called. `encryptor` must not be null.
   void SetEncryptor(std::unique_ptr<os_crypt_async::Encryptor> encryptor);
+  const os_crypt_async::Encryptor* GetEncryptor() const;
 
   // Creates a proxy observer object that will post calls to this thread.
   std::unique_ptr<SyncEncryptionHandler::Observer> GetEncryptionObserverProxy();
 
   // SyncEncryptionHandler::Observer implementation.
   void OnPassphraseRequired(
-      const KeyDerivationParams& key_derivation_params,
-      const sync_pb::EncryptedData& pending_keys) override;
-  void OnPassphraseAccepted() override;
+      std::unique_ptr<RequiredPassphraseVerifier> verifier) override;
+  void OnPassphraseAccepted(
+      const CustomPassphraseBootstrapToken& bootstrap_token) override;
   void OnTrustedVaultKeyRequired() override;
   void OnTrustedVaultKeyAccepted() override;
   void OnEncryptedTypesChanged(DataTypeSet encrypted_types,
@@ -183,26 +179,14 @@ class SyncServiceCrypto : public SyncEncryptionHandler::Observer,
   // TrustedVaultClient::GetIsRecoverabilityDegraded().
   void GetIsRecoverabilityDegradedCompleted(bool is_recoverability_degraded);
 
-  // Attempts decryption of `cached_pending_keys` with a `nigori` and, if
-  // successful, resolves the kPassphraseRequired state and populates the
-  // `nigori` to engine. Should never be called when there is no cached pending
-  // keys. Returns true if successful. Doesn't update bootstrap token.
-  bool SetDecryptionKeyWithoutUpdatingBootstrapToken(
-      std::unique_ptr<Nigori> nigori);
-
-  // Similar to SetDecryptionPassphrase(), but uses bootstrap token instead of
-  // user provided passphrase. Resolves the kPassphraseRequired state on
-  // successful attempt.
+  // Resolves the kPassphraseRequired state from bootstrap token on successful
+  // attempt.
   void MaybeSetDecryptionKeyFromBootstrapToken();
 
-  // Reads Nigori from bootstrap token. Returns nullptr if bootstrap token empty
-  // or corrupted.
-  std::unique_ptr<Nigori> ReadNigoriFromBootstrapToken(
-      const std::string& bootstrap_token) const;
-
-  // Serializes `nigori` as bootstrap token. Returns empty string in case of
-  // crypto/serialization failures.
-  std::string SerializeNigoriAsBootstrapToken(const Nigori& nigori);
+  // Called when a passphrase successfully resolves pending keys. Clears cached
+  // pending keys, transitions required user action to kNone, and triggers
+  // data type reconfiguration.
+  void ResolvePendingKeysRequiredState();
 
   const raw_ptr<Delegate> delegate_;
 
@@ -238,24 +222,12 @@ class SyncServiceCrypto : public SyncEncryptionHandler::Observer,
     // Whether we want to encrypt everything.
     bool encrypt_everything = false;
 
-    // We cache the cryptographer's pending keys whenever
-    // NotifyPassphraseRequired is called. This way, before the UI calls
-    // SetDecryptionPassphrase on the syncer, it can avoid the overhead of an
-    // asynchronous decryption call and give the user immediate feedback about
-    // the passphrase entered by first trying to decrypt the cached pending keys
-    // on the UI thread. Note that SetDecryptionPassphrase can still fail after
-    // the cached pending keys are successfully decrypted if the pending keys
-    // have changed since the time they were cached.
-    sync_pb::EncryptedData cached_pending_keys;
-
-    // The key derivation params for the passphrase. We save them when we
-    // receive a passphrase required event, as they are a necessary piece of
-    // information to be able to properly perform a decryption attempt, and we
-    // want to be able to synchronously do that from the UI thread. For
-    // passphrase types other than CUSTOM_PASSPHRASE, their key derivation
-    // method will always be PBKDF2.
-    KeyDerivationParams passphrase_key_derivation_params =
-        KeyDerivationParams::CreateForPbkdf2();
+    // Caches the verifier whenever OnPassphraseRequired is called. This way,
+    // before the UI calls SetDecryptionPassphrase on the syncer, it can avoid
+    // the overhead of an asynchronous decryption call and give the user
+    // immediate feedback about the passphrase entered by first trying to
+    // decrypt the pending keys on the UI thread.
+    std::unique_ptr<RequiredPassphraseVerifier> required_passphrase_verifier;
 
     // If an explicit passphrase is in use, the time at which the passphrase was
     // first set (if available).

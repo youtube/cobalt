@@ -223,6 +223,21 @@ public class AutocompleteInputUnitTest {
         // String with just spaces should not be zero-prefix
         mInput.setUserText(" ");
         assertFalse(mInput.isInZeroPrefixContext());
+
+        // Non-null SiteSearchData should not be zero-prefix.
+        mInput.setUserText("");
+        mInput.setSiteSearchData(new SiteSearchData("keyword", "Full Name"));
+        assertFalse(mInput.isInZeroPrefixContext());
+    }
+
+    @Test
+    public void isInZeroPrefixContext_withSiteSearch() {
+        mInput.setUserText("");
+        assertTrue(mInput.isInZeroPrefixContext());
+
+        mInput.setSiteSearchData(new AutocompleteInput.SiteSearchData("example.com", "Example"));
+        // Even with empty user text, it shouldn't be zero-prefix context if site search is active.
+        assertFalse(mInput.isInZeroPrefixContext());
     }
 
     @Test

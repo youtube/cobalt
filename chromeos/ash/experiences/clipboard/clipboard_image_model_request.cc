@@ -15,6 +15,7 @@
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "components/account_id/account_id.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
@@ -49,7 +50,10 @@ content::BrowserContext* GetBrowserContextByAccountId(
       ash::BrowserContextHelper::Get()->GetBrowserContextByAccountId(
           account_id);
   CHECK(browser_context);
-  return browser_context;
+  // Use OTR browser context to avoid giving access to the user's persistent
+  // cookies or HTTP Authentication cache.
+  return ash::BrowserContextHelper::Get()->GetOTRBrowserContext(
+      browser_context, /*create_if_needed=*/true);
 }
 
 }  // namespace
@@ -193,9 +197,12 @@ void ClipboardImageModelRequest::Stop(RequestStopReason stop_reason) {
   weak_ptr_factory_.InvalidateWeakPtrs();
   copy_surface_weak_ptr_factory_.InvalidateWeakPtrs();
   timeout_timer_.Stop();
+  request_id_ = base::UnguessableToken();
+  if (web_contents()) {
+    web_contents()->Stop();
+  }
   widget_->Hide();
   deliver_image_model_callback_.Reset();
-  request_id_ = base::UnguessableToken();
   did_stop_loading_ = false;
 
   on_request_finished_callback_.Run();
@@ -241,6 +248,10 @@ void ClipboardImageModelRequest::DidStopLoading() {
   // `DidStopLoading()` can be called multiple times after a paste. We are only
   // interested in the initial load of the data URL.
   if (did_stop_loading_) {
+    return;
+  }
+
+  if (!IsRunningRequest()) {
     return;
   }
 

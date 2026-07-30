@@ -20,14 +20,15 @@ import org.chromium.ui.base.WindowAndroid;
 @NullMarked
 public class SettingsNavigationHelper {
     /**
-      * Tries showing the Autofill and passwords settings page.
-      *
-      * @param context The {@link Context} required to start the settings page. Noop without it.
-      * @return True if the context is valid, feature enabled and `startSettings` was called.
-      */
+     * Tries showing the Autofill and passwords settings page.
+     *
+     * @param context The {@link Context} required to start the settings page. Noop without it.
+     * @return True if the context is valid, feature enabled and `startSettings` was called.
+     */
     public static boolean showAutofillAndPasswordsSettings(@Nullable Context context) {
-        if (context == null || !ChromeFeatureList.isEnabled(
-            ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID)) {
+        if (context == null
+                || !ChromeFeatureList.isEnabled(
+                        ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID)) {
             return false;
         }
 
@@ -48,7 +49,11 @@ public class SettingsNavigationHelper {
             return false;
         }
         SettingsNavigationFactory.createSettingsNavigation()
-                .startSettings(context, AutofillIdentityDocsFragment.class);
+                .startSettings(
+                        context,
+                        AutofillIdentityDocsFragment.class,
+                        /* fragmentArgs= */ null,
+                        /* addToBackStack= */ true);
         return true;
     }
 
@@ -63,7 +68,11 @@ public class SettingsNavigationHelper {
             return false;
         }
         SettingsNavigationFactory.createSettingsNavigation()
-                .startSettings(context, AutofillTravelFragment.class);
+                .startSettings(
+                        context,
+                        AutofillTravelFragment.class,
+                        /* fragmentArgs= */ null,
+                        /* addToBackStack= */ true);
         return true;
     }
 
@@ -74,12 +83,30 @@ public class SettingsNavigationHelper {
      * @return True iff the context is valid and `startSettings` was called.
      */
     public static boolean showAutofillProfileSettings(@Nullable Context context) {
+        return showAutofillProfileSettings(context, /* addToBackStack= */ false);
+    }
+
+    /**
+     * Tries showing the settings page for Addresses.
+     *
+     * @param context The {@link Context} required to start the settings page. Noop without it.
+     * @param addToBackStack Whether to call startSettings method with adding to backstack.
+     * @return True if the context is valid and `startSettings` was called.
+     */
+    public static boolean showAutofillProfileSettings(
+            @Nullable Context context, boolean addToBackStack) {
         if (context == null) {
             return false;
         }
         RecordUserAction.record("AutofillAddressesViewed");
+
         SettingsNavigationFactory.createSettingsNavigation()
-                .startSettings(context, AutofillProfilesFragment.class);
+                .startSettings(
+                        context,
+                        AutofillProfilesFragment.class,
+                        /* fragmentArgs= */ null,
+                        addToBackStack);
+
         return true;
     }
 
@@ -90,12 +117,29 @@ public class SettingsNavigationHelper {
      * @return True iff the context is valid and `startSettings` was called.
      */
     public static boolean showAutofillCreditCardSettings(@Nullable Context context) {
+        return showAutofillCreditCardSettings(context, /* addToBackStack= */ false);
+    }
+
+    /**
+     * Tries showing the settings page for Payments.
+     *
+     * @param context The {@link Context} required to start the settings page. Noop without it.
+     * @param addToBackStack Whether to call startSettings method with adding to backstack.
+     * @return True if the context is valid and `startSettings` was called.
+     */
+    public static boolean showAutofillCreditCardSettings(
+            @Nullable Context context, boolean addToBackStack) {
         if (context == null) {
             return false;
         }
         RecordUserAction.record("AutofillCreditCardsViewed");
+
         SettingsNavigationFactory.createSettingsNavigation()
-                .startSettings(context, AutofillPaymentMethodsFragment.class);
+                .startSettings(
+                        context,
+                        AutofillPaymentMethodsFragment.class,
+                        /* fragmentArgs= */ null,
+                        addToBackStack);
         return true;
     }
 

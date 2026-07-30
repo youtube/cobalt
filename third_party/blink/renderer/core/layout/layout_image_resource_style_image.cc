@@ -47,8 +47,7 @@ LayoutImageResourceStyleImage::~LayoutImageResourceStyleImage() {
 void LayoutImageResourceStyleImage::Initialize(LayoutObject* layout_object) {
   LayoutImageResource::Initialize(layout_object);
 
-  if (style_image_->IsImageResource())
-    cached_image_ = To<StyleFetchedImage>(style_image_.Get())->CachedImage();
+  cached_image_ = style_image_->CachedImage();
 
   style_image_->AddClient(layout_object_);
 }
@@ -72,6 +71,10 @@ scoped_refptr<Image> LayoutImageResourceStyleImage::GetImage(
   }
   return style_image_->GetImage(*layout_object_, *node,
                                 layout_object_->StyleRef(), size);
+}
+
+bool LayoutImageResourceStyleImage::IsCorsSameOrigin() const {
+  return style_image_->IsCorsSameOrigin();
 }
 
 NaturalSizingInfo LayoutImageResourceStyleImage::GetNaturalDimensions(

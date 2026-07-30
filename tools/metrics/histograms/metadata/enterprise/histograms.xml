@@ -121,6 +121,8 @@ chromium-metrics-reviews@google.com.
 
 <variants name="Enterprise_RemoteCommandType">
   <variant name=".BrowserClearBrowsingData" summary="Clear Browsing Data"/>
+  <variant name=".BrowserExtensionUpdateCheck"
+      summary="Extension Update Check"/>
   <variant name=".BrowserRotateAttestationCredential"
       summary="Rotate Attestation Credential"/>
   <variant name=".CommandEchoTest" summary="Command echo test"/>
@@ -139,7 +141,6 @@ chromium-metrics-reviews@google.com.
   <variant name=".DeviceSetVolume" summary="Set volume"/>
   <variant name=".DeviceStartCrdSession" summary="Device start CRD session"/>
   <variant name=".DeviceWipeUsers" summary="Wipe users"/>
-  <variant name=".ExtensionUpdateCheck" summary="Extension Update Check"/>
   <variant name=".FetchCrdAvailabilityInfo"
       summary="Fetch CRD availability info"/>
   <variant name=".FetchSupportPacket" summary="Fetch support packet"/>
@@ -662,7 +663,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Enterprise.ClientCertificates.ClankKeySecurityLevel"
     enum="ClankClientCertificatesBrowserKeySecurityLevel"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>eliashomsi@google.com</owner>
   <owner>cbe-device-trust-eng@google.com</owner>
   <summary>
@@ -712,6 +713,23 @@ chromium-metrics-reviews@google.com.
     request. When a report is separated into multiple requests, all of them
     contain the basic request.
   </summary>
+</histogram>
+
+<histogram
+    name="Enterprise.CloudReportingPolicyStatus.Profile.{SecuritySignalsMode}"
+    enum="EnterpriseCloudReportingPolicyStatus" expires_after="2027-05-15">
+  <owner>zmin@chromium.org</owner>
+  <owner>cec-eng@google.com</owner>
+  <summary>
+    Records the policy status of the profile being reported in an enterprise
+    profile report. Recorded when a profile report is going to be uploaded with
+    security signals mode {SecuritySignalsMode}.
+  </summary>
+  <token key="SecuritySignalsMode">
+    <variant name="NoSignals" summary="No security signals attached"/>
+    <variant name="SignalsAttached" summary="Security signals attached"/>
+    <variant name="SignalsOnly" summary="Security signals only"/>
+  </token>
 </histogram>
 
 <histogram name="Enterprise.CloudReportingReportGenerationError"
@@ -796,6 +814,19 @@ chromium-metrics-reviews@google.com.
     Records the verdict of the Data Controls policy check for a drag and drop
     operation. This is recorded when the kDataControlsDragEnforcement feature is
     enabled and the policy evaluation completes.
+  </summary>
+</histogram>
+
+<histogram name="Enterprise.DataControls.SearchWith.Verdict"
+    enum="EnterpriseDlpPolicyLevel" expires_after="2027-05-11">
+  <owner>anaercegovac@google.com</owner>
+  <owner>cep-se@google.com</owner>
+  <summary>
+    Records the verdict of the Data Controls policy check for a user clicking
+    the &quot;Search [Default Search Engine] with [selected text]&quot; button.
+    Increases in 'WARN' counts within this histogram indicate potential data
+    exfiltration being actioned by the policy. The 'BLOCK' bucket is expected to
+    be empty since the 'Search' item is hidden for block verdicts.
   </summary>
 </histogram>
 
@@ -2832,8 +2863,21 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
+<histogram name="Enterprise.IOS.WebState.DataControls.SearchWith.Verdict"
+    enum="EnterpriseDlpPolicyLevel" expires_after="2027-05-11">
+  <owner>anaercegovac@google.com</owner>
+  <owner>cep-se@google.com</owner>
+  <summary>
+    Records the verdict of the Data Controls policy check for a user clicking
+    the &quot;Search [Default Search Engine] with [selected text]&quot; button.
+    Increases in 'WARN' counts within this histogram indicate potential data
+    exfiltration being actioned by the policy. The 'BLOCK' bucket is expected to
+    be empty since the 'Search' item is hidden for block verdicts.
+  </summary>
+</histogram>
+
 <histogram name="Enterprise.KeySignatureVerification"
-    enum="EnterpriseKeySignatureVerification" expires_after="2026-09-13">
+    enum="EnterpriseKeySignatureVerification" expires_after="2026-11-15">
   <owner>igorcov@chromium.org</owner>
   <owner>emaxx@chromium.org</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
@@ -3011,7 +3055,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.OidcEnrollment.Interception.Funnel"
-    enum="OidcInterceptionFunnelStep" expires_after="2026-07-01">
+    enum="OidcInterceptionFunnelStep" expires_after="2027-05-01">
   <owner>xzonghan@chromium.org</owner>
   <owner>zmin@chromium.org</owner>
   <summary>
@@ -3021,7 +3065,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.OidcEnrollment.Interception.Result"
-    enum="OidcInterceptionResult" expires_after="2026-07-01">
+    enum="OidcInterceptionResult" expires_after="2027-05-01">
   <owner>xzonghan@chromium.org</owner>
   <owner>zmin@chromium.org</owner>
   <summary>
@@ -3032,7 +3076,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Enterprise.OidcEnrollment.ProfileCreation.Funnel.{IdentityType}"
-    enum="OidcProfileCreationFunnelStep" expires_after="2026-07-01">
+    enum="OidcProfileCreationFunnelStep" expires_after="2027-05-01">
   <owner>xzonghan@chromium.org</owner>
   <owner>zmin@chromium.org</owner>
   <summary>
@@ -3044,7 +3088,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Enterprise.OidcEnrollment.ProfileCreation.Result.{IdentityType}"
-    enum="OidcProfileCreationResult" expires_after="2026-07-01">
+    enum="OidcProfileCreationResult" expires_after="2027-05-01">
   <owner>xzonghan@chromium.org</owner>
   <owner>zmin@chromium.org</owner>
   <summary>
@@ -3056,7 +3100,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Enterprise.OidcEnrollment.{IdentityType}.PolicyFetchLatency.{Result}"
-    units="ms" expires_after="2026-07-01">
+    units="ms" expires_after="2027-05-01">
   <owner>xzonghan@chromium.org</owner>
   <owner>zmin@chromium.org</owner>
   <summary>
@@ -3073,7 +3117,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Enterprise.OidcEnrollment.{IdentityType}.RegistrationLatency.{Result}"
-    units="ms" expires_after="2026-07-01">
+    units="ms" expires_after="2027-05-01">
   <owner>xzonghan@chromium.org</owner>
   <owner>zmin@chromium.org</owner>
   <summary>
@@ -3094,7 +3138,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.OnBulkDataEntry.DataSize" units="bytes"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>domfc@chromium.org</owner>
   <owner>webprotect-team@google.com</owner>
   <summary>
@@ -4148,7 +4192,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.UserPolicy.Count" units="policies"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>vincb@google.com</owner>
   <owner>ftirelo@chromium.org</owner>
   <summary>

@@ -74,6 +74,7 @@ void DateTimeChooserImpl::Trace(Visitor* visitor) const {
   visitor->Trace(chrome_client_);
   visitor->Trace(client_);
   DateTimeChooser::Trace(visitor);
+  PagePopupClient::Trace(visitor);
 }
 
 void DateTimeChooserImpl::EndChooser() {
@@ -192,7 +193,7 @@ void DateTimeChooserImpl::WriteDocument(SegmentedBuffer& data) {
   AddProperty("shortMonthLabels", locale_->ShortMonthLabels(), data);
   AddProperty("dayLabels", locale_->WeekDayShortLabels(), data);
   AddProperty("ampmLabels", locale_->TimeAmPmLabels(), data);
-  AddProperty("isLocaleRTL", locale_->IsRTL(), data);
+  AddProperty("isLocaleRTL", locale_->IsRtl(), data);
   AddProperty("isRTL", parameters_->is_anchor_element_rtl, data);
 #if BUILDFLAG(IS_MAC)
   AddProperty("isBorderTransparent", true, data);

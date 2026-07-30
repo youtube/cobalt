@@ -23,6 +23,14 @@ message ExecuteRequest {
   optional Any request_metadata = 2;
 }
 
+// PrivateExecuteRequest is the request for PaicMessage.
+message PrivateExecuteRequest {
+  // The execute request.
+  optional ExecuteRequest request = 1;
+  // The list of variations.
+  repeated int32 variations = 2;
+}
+
 message ExecuteResponse {
   reserved 3;
 
@@ -95,4 +103,5 @@ enum ModelExecutionFeature {
   MODEL_EXECUTION_FEATURE_ANNOTATION_REDUCER_QUERY_CLASSIFIER = 37;
   MODEL_EXECUTION_FEATURE_CONTEXTUAL_CUEING = 38;
   MODEL_EXECUTION_FEATURE_ON_DEVICE_SPEECH_RECOGNITION_TINY_GEMMA = 39;
+  MODEL_EXECUTION_FEATURE_UPDATER_CHAT = 40;
 }

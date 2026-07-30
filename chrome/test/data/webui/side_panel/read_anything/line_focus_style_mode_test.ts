@@ -77,6 +77,28 @@ suite('LineFocusStyleMode', () => {
       assertEquals(0, mode.getOffScreenDiff(1));
     });
 
+    test('getCenterDiff returns diff if line is above screen', () => {
+      const rect1 = new DOMRect(0, 10, 100, 20);
+      const rect2 = new DOMRect(0, 30, 100, 20);
+      const rect3 = new DOMRect(0, 50, 100, 20);
+      model.setTextBounds([rect1, rect2, rect3]);
+      model.setMinY(20);
+      model.setMaxY(100);
+
+      assertGT(0, mode.getCenterDiff(0));
+    });
+
+    test('getCenterDiff returns diff if line is on screen', () => {
+      const rect1 = new DOMRect(0, 10, 100, 20);
+      const rect2 = new DOMRect(0, 30, 100, 20);
+      const rect3 = new DOMRect(0, 50, 100, 20);
+      model.setTextBounds([rect1, rect2, rect3]);
+      model.setMinY(0);
+      model.setMaxY(120);
+
+      assertGT(0, mode.getCenterDiff(1));
+    });
+
     test('getDesiredCenter returns bottomRect.bottom', () => {
       const rect1 = new DOMRect(0, 10, 100, 20);
       const rect2 = new DOMRect(0, 30, 100, 20);
@@ -85,8 +107,8 @@ suite('LineFocusStyleMode', () => {
       assertEquals(50, mode.getDesiredCenter(1));
     });
 
-    test('updateAfterScroll returns false', () => {
-      assertFalse(mode.updateAfterScroll());
+    test('shouldAdaptToTextBounds returns false', () => {
+      assertFalse(mode.shouldAdaptToTextBounds());
     });
   });
 
@@ -128,23 +150,23 @@ suite('LineFocusStyleMode', () => {
       assertEquals(60, model.getWindowHeight());
     });
 
-    test('updateFocusBounds uses average line height when not adapting', () => {
+    test('updateFocusBounds uses most common pitch when not adapting', () => {
       const rect1 = new DOMRect(0, 10, 100, 20);
-      const rect2 = new DOMRect(0, 30, 100, 20);
-      const rect3 = new DOMRect(0, 50, 100, 20);
-      const rect4 = new DOMRect(0, 70, 100, 20);
-      const rect5 = new DOMRect(0, 90, 100, 20);
+      const rect2 = new DOMRect(0, 40, 100, 20);
+      const rect3 = new DOMRect(0, 70, 100, 20);
+      const rect4 = new DOMRect(0, 100, 100, 20);
+      const rect5 = new DOMRect(0, 130, 100, 20);
       model.setTextBounds([rect1, rect2, rect3, rect4, rect5]);
       model.setAdaptMultiLineWindow(false);
       model.setMaxY(200);
 
       largeMode.updateFocusBounds();
 
-      // Average height should be 20. With 3 lines, the total height should be
-      // 60. Since the middle of the viewport is at 100, the top of the focus
-      // area should be at 70 with the bottom at 130 (100 +/- 30).
-      assertEquals(70, model.getTop());
-      assertEquals(60, model.getWindowHeight());
+      // Most common pitch is 30. With 3 lines, the total height should be
+      // 30 * 3 = 90. Since the middle of the viewport is at 100, the top of the
+      // focus area should be at 100 - (90 / 2) = 55.
+      assertEquals(55, model.getTop());
+      assertEquals(90, model.getWindowHeight());
     });
 
     test('updateFocusBounds clamps top index at boundaries', () => {
@@ -210,6 +232,16 @@ suite('LineFocusStyleMode', () => {
       assertEquals(20, largeMode.getFocalPointForRect(rect));
     });
 
+    test('getBottomIndex returns focalIndex when not adapting', () => {
+      model.setAdaptMultiLineWindow(false);
+      assertEquals(5, largeMode.getBottomIndex(5));
+    });
+
+    test('getBottomIndex returns calculated index when adapting', () => {
+      model.setAdaptMultiLineWindow(true);
+      assertEquals(6, largeMode.getBottomIndex(5));
+    });
+
     test('clampLineIndex clamps index such that window stays centered', () => {
       const rect1 = new DOMRect(0, 10, 100, 20);
       const rect2 = new DOMRect(0, 30, 100, 20);
@@ -231,6 +263,14 @@ suite('LineFocusStyleMode', () => {
       assertEquals(0, smallMode.clampLineIndex(0));
       assertEquals(1, smallMode.clampLineIndex(1));
       assertEquals(2, smallMode.clampLineIndex(2));
+    });
+
+    test('clampLineIndex when not adapting returns same index', () => {
+      model.setAdaptMultiLineWindow(false);
+      model.setTextBounds([new DOMRect(0, 10, 100, 20)]);
+
+      assertEquals(1, largeMode.clampLineIndex(1));
+      assertEquals(5, largeMode.clampLineIndex(5));
     });
 
     test('getOffScreenDiff returns diff if bottom line is offscreen', () => {
@@ -265,6 +305,38 @@ suite('LineFocusStyleMode', () => {
       assertEquals(0, largeMode.getOffScreenDiff(1));
     });
 
+    test('getCenterDiff returns diff if bottom line is offscreen', () => {
+      const rect1 = new DOMRect(0, 10, 100, 20);
+      const rect2 = new DOMRect(0, 30, 100, 20);
+      const rect3 = new DOMRect(0, 50, 100, 20);
+      model.setTextBounds([rect1, rect2, rect3]);
+      model.setMaxY(60);
+
+      assertLT(0, largeMode.getCenterDiff(2));
+    });
+
+    test('getCenterDiff returns diff if top line is offscreen', () => {
+      const rect1 = new DOMRect(0, 10, 100, 20);
+      const rect2 = new DOMRect(0, 30, 100, 20);
+      const rect3 = new DOMRect(0, 50, 100, 20);
+      model.setTextBounds([rect1, rect2, rect3]);
+      model.setMinY(20);
+      model.setMaxY(100);
+
+      assertGT(0, largeMode.getCenterDiff(0));
+    });
+
+    test('getCenterDiff returns diff if window is fully on screen', () => {
+      const rect1 = new DOMRect(0, 10, 100, 20);
+      const rect2 = new DOMRect(0, 30, 100, 20);
+      const rect3 = new DOMRect(0, 50, 100, 20);
+      model.setTextBounds([rect1, rect2, rect3]);
+      model.setMinY(0);
+      model.setMaxY(100);
+
+      assertGT(0, largeMode.getCenterDiff(1));
+    });
+
     test('getDesiredCenter returns center of window', () => {
       const rect1 = new DOMRect(0, 10, 100, 20);
       const rect2 = new DOMRect(0, 30, 100, 20);
@@ -285,32 +357,21 @@ suite('LineFocusStyleMode', () => {
           (rect2.top + rect2.bottom) / 2, smallMode.getDesiredCenter(1));
     });
 
-    test('updateAfterScroll respects threshold for small window', () => {
-      const rect1 = new DOMRect(0, 10, 100, 20);
-      model.setTextBounds([rect1]);
-      model.setCurrentLineIndex(0);
-
-      // If we start with top 10 and height 20, diff is 0.
-      model.setTop(10);
-      model.setWindowHeight(20);
-      assertFalse(smallMode.updateAfterScroll());
-
-      // If we start with top 50 and height 100, diff is large.
-      model.setTop(50);
-      model.setWindowHeight(100);
-      assertTrue(smallMode.updateAfterScroll());
+    test('shouldAdaptToTextBounds returns true for small window', () => {
+      model.setAdaptMultiLineWindow(true);
+      assertTrue(smallMode.shouldAdaptToTextBounds());
+      model.setAdaptMultiLineWindow(false);
+      assertTrue(smallMode.shouldAdaptToTextBounds());
     });
 
-    test('updateAfterScroll returns false for multi-line', () => {
-      const rect1 = new DOMRect(0, 10, 100, 20);
-      model.setTextBounds([rect1]);
-      model.setCurrentLineIndex(0);
-
-      // If we start with top 50 and height 100, diff is large.
-      model.setTop(50);
-      model.setWindowHeight(100);
-      assertFalse(largeMode.updateAfterScroll());
-    });
+    test(
+        'shouldAdaptToTextBounds returns true for large window only if adapt multi-line is true',
+        () => {
+          model.setAdaptMultiLineWindow(true);
+          assertTrue(largeMode.shouldAdaptToTextBounds());
+          model.setAdaptMultiLineWindow(false);
+          assertFalse(largeMode.shouldAdaptToTextBounds());
+        });
   });
 
   suite('off mode', () => {
@@ -341,13 +402,18 @@ suite('LineFocusStyleMode', () => {
       assertEquals(0, mode.getOffScreenDiff(5));
     });
 
+    test('getCenterDiff returns 0', () => {
+      assertEquals(0, mode.getCenterDiff(0));
+      assertEquals(0, mode.getCenterDiff(5));
+    });
+
     test('getDesiredCenter returns 0', () => {
       model.setTextBounds([new DOMRect(0, 10, 100, 20)]);
       assertEquals(0, mode.getDesiredCenter(0));
     });
 
-    test('updateAfterScroll returns false', () => {
-      assertFalse(mode.updateAfterScroll());
+    test('shouldAdaptToTextBounds returns false', () => {
+      assertFalse(mode.shouldAdaptToTextBounds());
     });
   });
 });

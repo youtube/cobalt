@@ -106,6 +106,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".CurrentTab" summary="Current Tab button"/>
   <variant name=".Files" summary="File picker"/>
   <variant name=".Gallery" summary="Image picker"/>
+  <variant name=".RecentTab" summary="Add Recent Tabs button"/>
   <variant name=".TabPicker" summary="Tab picker"/>
 </variants>
 
@@ -216,6 +217,7 @@ chromium-metrics-reviews@google.com.
   <variant name="APP_SEARCH" summary="search app"/>
   <variant name="BLANK" summary="about:blank"/>
   <variant name="CHROMEOS_APP_LIST" summary="ChromeOS app list"/>
+  <variant name="CO_BROWSING_COMPOSEBOX" summary="Co-browsing composebox"/>
   <variant name="CONTEXTUAL_SEARCHBOX" summary="Contextual searchbox"/>
   <variant name="HOME_PAGE" summary="the user's home page"/>
   <variant name="INSTANT_NTP_WITH_OMNIBOX_AS_STARTING_FOCUS"
@@ -230,6 +232,12 @@ chromium-metrics-reviews@google.com.
       summary="Lens side panel searchbox"/>
   <variant name="NTP"
       summary="extension-replaced new tab page OR obsolete new tab page"/>
+  <variant name="NTP_COMPOSEBOX"
+      summary="New Tab Page with focus in the composebox"/>
+  <variant name="NTP_COMPOSEBOX_PREFETCH"
+      summary="New Tab Page composebox zero-prefix suggestion prefetch"/>
+  <variant name="NTP_OMNIBOX_COMPOSEBOX"
+      summary="Omnibox composebox in the NTP"/>
   <variant name="NTP_REALBOX"
       summary="New Tab Page with realbox as starting focus"/>
   <variant name="NTP_ZPS_PREFETCH"
@@ -246,6 +254,7 @@ chromium-metrics-reviews@google.com.
   <variant name="OTHER"
       summary="other (typically an arbitrary URL, not a search results page,
                new tab page, etc.)"/>
+  <variant name="OTHER_OMNIBOX_COMPOSEBOX" summary="Omnibox composebox on Web"/>
   <variant name="OTHER_ON_CCT"
       summary="other (typically an arbitrary URL, not a search results page,
                new tab page, etc.) on CCT"/>
@@ -259,6 +268,8 @@ chromium-metrics-reviews@google.com.
       summary="search results page on CCT"/>
   <variant name="SEARCH_SIDE_PANEL_SEARCHBOX"
       summary="Search side panel searchbox"/>
+  <variant name="SRP_OMNIBOX_COMPOSEBOX"
+      summary="Omnibox composebox in the SRP"/>
   <variant name="SRP_ZPS_PREFETCH"
       summary="Search Results Page zero-prefix suggestion prefetch"/>
 </variants>
@@ -850,7 +861,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.AimEntrypoint.Shown" enum="Boolean"
-    expires_after="2026-09-13">
+    expires_after="2026-11-15">
   <owner>khalidpeer@chromium.org</owner>
   <owner>jdonnelly@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
@@ -1386,7 +1397,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.DocumentSuggest.HttpResponseCode"
-    enum="HttpResponseCode" expires_after="2026-09-27">
+    enum="HttpResponseCode" expires_after="2026-11-15">
   <owner>manukh@chromium.org</owner>
   <owner>jdonnelly@chromium.org</owner>
   <summary>
@@ -3683,6 +3694,17 @@ Keep consistent with active providers. Doesn't need to include every provider in
   </summary>
 </histogram>
 
+<histogram name="Omnibox.SearchEngineType.PostNavigation"
+    enum="OmniboxSearchEngineType" expires_after="2026-11-12">
+  <owner>jdonnelly@chromium.org</owner>
+  <owner>wfh@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The type of search engine associated with a match opened from the omnibox,
+    recorded after all navigations (including server redirects) have completed.
+  </summary>
+</histogram>
+
 <histogram name="Omnibox.SearchEngineType{Population}"
     enum="OmniboxSearchEngineType" expires_after="2026-11-12">
   <owner>jdonnelly@chromium.org</owner>
@@ -3743,7 +3765,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.SearchPrefetch.KeepAliveRequestFinalStage"
-    enum="FetchKeepAliveRequestStage" expires_after="2026-08-30">
+    enum="FetchKeepAliveRequestStage" expires_after="2026-11-15">
   <owner>lingqi@chromium.org</owner>
   <owner>chrome-prerendering@google.com</owner>
   <summary>
@@ -4497,7 +4519,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.SuggestTiles.SelectedTileIndex" units="position"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>ender@google.com</owner>
   <owner>mahmadi@chromium.org</owner>
   <summary>
@@ -5058,6 +5080,27 @@ Keep consistent with active providers. Doesn't need to include every provider in
     Logged each time a selection is opened from the WebUI omnibox popup. Records
     whether or not the selection specified by the page (WebUI popup) matched the
     current OmniboxEditModel popup selection.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.Width" units="DIPs" expires_after="2026-11-12">
+  <owner>agale@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <summary>
+    The width of the omnibox view in each open browser window, in DIPs, reported
+    once per UMA log. Desktop only.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.WidthRatioToWindow" units="% of window"
+    expires_after="2026-11-12">
+  <owner>agale@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <summary>
+    The ratio of the width of the omnibox view relative to the window width in
+    each open browser window. Reported once per UMA log. Desktop only.
   </summary>
 </histogram>
 

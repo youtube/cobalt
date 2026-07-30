@@ -97,6 +97,7 @@ bool StructTraits<autofill::mojom::AutocompleteParsingResultDataView,
     return false;
   out->webauthn = data.webauthn();
   out->webidentity = data.webidentity();
+  out->email_verification_token = data.email_verification_token();
   return true;
 }
 
@@ -220,11 +221,11 @@ bool StructTraits<
   }
 
   {
-    std::u16string nonce;
-    if (!data.ReadNonce(&nonce)) {
+    std::u16string challenge;
+    if (!data.ReadChallenge(&challenge)) {
       return false;
     }
-    out->set_nonce(std::move(nonce));
+    out->set_challenge(std::move(challenge));
   }
 
   out->set_properties_mask(data.properties_mask());

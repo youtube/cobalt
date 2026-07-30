@@ -20,7 +20,9 @@ import org.chromium.chrome.browser.actor.ActorKeyedServiceFactory;
 import org.chromium.chrome.browser.actor.ActorTask;
 import org.chromium.chrome.browser.actor.ActorTaskId;
 import org.chromium.chrome.browser.actor.ActorTaskState;
+import org.chromium.chrome.browser.actor.ActorUtils;
 import org.chromium.chrome.browser.glic.GlicInstanceHelper;
+import org.chromium.chrome.browser.glic.GlicMetrics;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabSupplierObserver;
@@ -173,12 +175,6 @@ public class ActorControlCoordinator
         updateBottomSheetSuppression(PeekViewUiState.DEFAULT);
     }
 
-    private boolean isTaskCompleted(@ActorTaskState int newState) {
-        return newState == ActorTaskState.FINISHED
-                || newState == ActorTaskState.FAILED
-                || newState == ActorTaskState.CANCELLED;
-    }
-
     /**
      * Called when the state of the task changes.
      *
@@ -203,7 +199,7 @@ public class ActorControlCoordinator
 
             Set<Integer> tabs = activeTask.getLastActedTabs();
             mActuatedTabId = tabs.isEmpty() ? Tab.INVALID_TAB_ID : tabs.iterator().next();
-        } else if (!isTaskCompleted(newState)) {
+        } else if (!ActorUtils.isCompletedState(newState)) {
             // If the active task is null but the task has not been completed, we are in an invalid
             // state. Clear PeekView content and reset task-related variables.
             mActiveTaskTitle = "";
@@ -218,7 +214,7 @@ public class ActorControlCoordinator
         updatePeekView(newState);
 
         // Clean up state only after the UI has been updated to reflect task completion.
-        if (isTaskCompleted(newState)) {
+        if (ActorUtils.isCompletedState(newState)) {
             mActiveTaskTitle = "";
             mTaskGlicConversationId = "";
         }
@@ -352,6 +348,7 @@ public class ActorControlCoordinator
     /** Called when the close button is clicked. */
     /* package */ void onCloseClicked() {
         assert mTabBottomSheetManager.isSheetInitialized();
+        GlicMetrics.recordClosePeekView();
         mTabBottomSheetManager.tryToCloseBottomSheet(/* animate= */ true);
     }
 

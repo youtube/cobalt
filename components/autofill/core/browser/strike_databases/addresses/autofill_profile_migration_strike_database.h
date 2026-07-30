@@ -5,6 +5,11 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_STRIKE_DATABASES_ADDRESSES_AUTOFILL_PROFILE_MIGRATION_STRIKE_DATABASE_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_STRIKE_DATABASES_ADDRESSES_AUTOFILL_PROFILE_MIGRATION_STRIKE_DATABASE_H_
 
+#include <stddef.h>
+
+#include <string_view>
+
+#include "base/time/time.h"
 #include "components/strike_database/simple_strike_database.h"
 
 namespace autofill {

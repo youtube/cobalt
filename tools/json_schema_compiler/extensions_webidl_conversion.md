@@ -185,7 +185,7 @@ Would become:
 [instanceOf=Blob]
 typedef object Blob;
 
-[requiredCallback] static Promise<Blob> getBlob();
+static Promise<Blob> getBlob();
 ```
 
 ### Functions and Callbacks to Promises
@@ -199,8 +199,27 @@ All functions that used a trailing callback must be converted to return a `Promi
   * A callback with no arguments `void()` becomes `Promise<undefined>`.
   * A nullable argument `void(optional Type arg)` becomes a nullable promise type `Promise<Type?>`.
   * An array argument `void(Type[] arg)` becomes a sequence `Promise<sequence<Type>>`.
-* Callback Optionality: If the original callback was not marked as `optional`, the new definition must have a `[requiredCallback]` extended attribute added before the `static Promise` return type. e.g. `[requiredCallback] Promise<boolean> checkFoo();`
 * void Keyword: The `void` keyword should be replaced with `undefined`.
+
+### Functions that Do Not Support Promises
+Functions annotated with the `[doesNotSupportPromises]` extended attribute (often due to multi-parameter callbacks or complex custom bindings) must not be converted to return a `Promise<T>`. Instead they must retain the trailing callback parameter and the `[doesNotSupportPromises]` extended attribute should be removed.
+
+**Before (`.idl`):**
+```
+// Description of the function.
+// |name|: The name of the alarm.
+// |callback|: Called when done.
+[doesNotSupportPromises="Multi-parameter callback crbug.com/123456"]
+static void foo(DOMString name, FooCallback callback);
+```
+
+**After (`.webidl`):**
+```
+// Description of the function.
+// |name|: The name of the alarm.
+// |callback|: Called when done.
+static undefined foo(DOMString name, FooCallback callback);
+```
 
 ### Promise Function Documentation
 
@@ -243,7 +262,7 @@ callback AlarmCallback = void(optional Alarm alarm);
 // |name|: The name of the alarm to get. Defaults to the empty string.
 // |Returns|: Called with the resulting alarm, if any.
 // |PromiseValue|: alarm: The alarm that was found.
-[requiredCallback] static Promise<Alarm?> get(optional DOMString name);
+static Promise<Alarm?> get(optional DOMString name);
 ```
 
 ### Synchronous Custom Type Function Returns

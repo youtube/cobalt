@@ -565,14 +565,9 @@ void RenderFrameDevToolsAgentHost::UpdateFrameHost(
     return;
   }
 
-  RenderFrameHostImpl* old_host = frame_host_;
-  ChangeFrameHostAndObservedProcess(frame_host);
-  if (IsAttached())
-    UpdateRawHeadersAccess(old_host, nullptr);
-
   std::vector<DevToolsSession*> restricted_sessions;
   for (DevToolsSession* session : sessions()) {
-    if (!ShouldAllowSession(frame_host_, session)) {
+    if (!ShouldAllowSession(frame_host, session)) {
       restricted_sessions.push_back(session);
     }
   }
@@ -580,6 +575,12 @@ void RenderFrameDevToolsAgentHost::UpdateFrameHost(
   if (!restricted_sessions.empty()) {
     protect = this;
     ForceDetachRestrictedSessions(restricted_sessions);
+  }
+
+  RenderFrameHostImpl* old_host = frame_host_;
+  ChangeFrameHostAndObservedProcess(frame_host);
+  if (IsAttached()) {
+    UpdateRawHeadersAccess(old_host, nullptr);
   }
 
   UpdateFrameAlive();

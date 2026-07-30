@@ -127,7 +127,7 @@
   E_CPONLY(kColorDesktopMediaTabListPreviewBackground) \
   /* Desktop to iOS promo bubble. */ \
   E_CPONLY(kColorDesktopToIOSPromoFooterSubtitleLabel) \
-  /* Download bubble and toolbar button colors. */\
+  /* Download bubble and toolbar button colors. */ \
   E_CPONLY(kColorDownloadItemIconDangerous) \
   E_CPONLY(kColorDownloadItemTextDangerous) \
   E_CPONLY(kColorDownloadItemIconWarning) \
@@ -142,6 +142,11 @@
   E_CPONLY(kColorDownloadToolbarButtonAnimationForeground) \
   E_CPONLY(kColorDownloadToolbarButtonInactive) \
   E_CPONLY(kColorDownloadToolbarButtonRingBackground) \
+  /* Download History WebUI colors. */ \
+  E_CPONLY(kColorDownloadManagerItemError) \
+  E_CPONLY(kColorDownloadManagerItemBackground) \
+  E_CPONLY(kColorDownloadManagerItemBackgroundInactive) \
+  E_CPONLY(kColorDownloadManagerProgress) \
   /* Extension colors. */ \
   E_CPONLY(kColorExtensionDialogBackground) \
   E_CPONLY(kColorExtensionIconBadgeBackgroundDefault) \
@@ -424,6 +429,7 @@
   E_CPONLY(kColorOmniboxChipOnSystemBlockedActivityIndicatorBackground) \
   E_CPONLY(kColorOmniboxChipOnSystemBlockedActivityIndicatorForeground) \
   E_CPONLY(kColorOmniboxComposeboxChipBackground) \
+  E_CPONLY(kColorOmniboxComposeboxContextEntrypointBackground) \
   E_CPONLY(kColorOmniboxComposeboxDivider) \
   E_CPONLY(kColorOmniboxComposeboxFaviconBackground) \
   E_CPONLY(kColorOmniboxComposeboxFileThumbnailOverlay) \
@@ -805,6 +811,12 @@
   /* Screenshot captured bubble colors. */ \
   E_CPONLY(kColorScreenshotCapturedImageBackground) \
   E_CPONLY(kColorScreenshotCapturedImageBorder) \
+  /* Settings columned section colors. */ \
+  E_CPONLY(kColorSettingsColumnedSectionDescriptionHeader) \
+  /* Settings info card colors. */ \
+  E_CPONLY(kColorSettingsInfoCardBackground) \
+  /* Privacy Settings delete browsing dialog container colors. */ \
+  E_CPONLY(kColorSettingsPrivacyDbdContainerBackground) \
   /* Share-this-tab dialog colors. */ \
   E_CPONLY(kColorShareThisTabAudioToggleBackground) \
   E_CPONLY(kColorShareThisTabSourceViewBorder) \
@@ -983,8 +995,6 @@
   E_CPONLY(kColorTabGroupTabStripFrameInactiveOrange) \
   E_CPONLY(kColorTabStrokeFrameActive) \
   E_CPONLY(kColorTabStrokeFrameInactive) \
-  E_CPONLY(kColorTabstripLoadingProgressBackground) \
-  E_CPONLY(kColorTabstripLoadingProgressForeground) \
   E_CPONLY(kColorTabstripScrollContainerShadow) \
   E_CPONLY(kColorTabThrobber) \
   E_CPONLY(kColorTabThrobberPreconnect) \
@@ -1095,21 +1105,6 @@
   /* Web contents colors. */ \
   E_CPONLY(kColorWebContentsBackground) \
   E_CPONLY(kColorWebContentsBackgroundLetterboxing) \
-  /* WebUI Tab Strip colors. */ \
-  E_CPONLY(kColorWebUiTabStripBackground) \
-  E_CPONLY(kColorWebUiTabStripFocusOutline) \
-  E_CPONLY(kColorWebUiTabStripIndicatorCapturing) \
-  E_CPONLY(kColorWebUiTabStripIndicatorPip) \
-  E_CPONLY(kColorWebUiTabStripIndicatorRecording) \
-  E_CPONLY(kColorWebUiTabStripScrollbarThumb) \
-  E_CPONLY(kColorWebUiTabStripTabActiveTitleBackground) \
-  E_CPONLY(kColorWebUiTabStripTabActiveTitleContent) \
-  E_CPONLY(kColorWebUiTabStripTabBackground) \
-  E_CPONLY(kColorWebUiTabStripTabBlocked) \
-  E_CPONLY(kColorWebUiTabStripTabLoadingSpinning) \
-  E_CPONLY(kColorWebUiTabStripTabSeparator) \
-  E_CPONLY(kColorWebUiTabStripTabText) \
-  E_CPONLY(kColorWebUiTabStripTabWaitingSpinning) \
   /* Window control button background colors. */ \
   E_CPONLY(kColorWindowControlButtonBackgroundActive) \
   E_CPONLY(kColorWindowControlButtonBackgroundInactive) \

@@ -10,6 +10,7 @@ android_library("java") {
   visibility = [
     ":*",
     "//chrome/android:chrome_all_java",
+    "//chrome/android/javatests:*",
   ]
   srcjar_deps = [ ":jni_headers" ]
   sources = [
@@ -24,6 +25,7 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/ui/autofill/AtMemoryFlyoutCoordinator.java",
     "java/src/org/chromium/chrome/browser/ui/autofill/AtMemoryFlyoutMediator.java",
     "java/src/org/chromium/chrome/browser/ui/autofill/AtMemoryFlyoutProperties.java",
+    "java/src/org/chromium/chrome/browser/ui/autofill/AtMemoryFlyoutView.java",
     "java/src/org/chromium/chrome/browser/ui/autofill/AtMemoryFlyoutViewBinder.java",
     "java/src/org/chromium/chrome/browser/ui/autofill/AuthenticatorOptionsAdapter.java",
     "java/src/org/chromium/chrome/browser/ui/autofill/AuthenticatorSelectionDialog.java",
@@ -48,8 +50,10 @@ android_library("java") {
     "//chrome/browser/ui/android/ephemeraltab:java",
     "//components/autofill/android:main_autofill_java",
     "//components/browser_ui/bottomsheet/android:java",
+    "//components/browser_ui/widget/android:java",
     "//content/public/android:content_full_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
+    "//third_party/androidx:androidx_constraintlayout_constraintlayout_java",
     "//third_party/androidx:androidx_core_core_java",
     "//third_party/androidx:androidx_recyclerview_recyclerview_java",
     "//third_party/jni_zero:jni_zero_java",
@@ -81,8 +85,10 @@ robolectric_library("junit") {
   resources_package = "org.chromium.chrome.browser.ui.autofill.internal"
   sources = [
     "java/src/org/chromium/chrome/browser/ui/autofill/AtMemoryBottomSheetMediatorTest.java",
+    "java/src/org/chromium/chrome/browser/ui/autofill/AtMemoryBottomSheetViewTest.java",
     "java/src/org/chromium/chrome/browser/ui/autofill/AtMemoryFlyoutCoordinatorTest.java",
     "java/src/org/chromium/chrome/browser/ui/autofill/AtMemoryFlyoutMediatorTest.java",
+    "java/src/org/chromium/chrome/browser/ui/autofill/AtMemoryFlyoutViewTest.java",
     "java/src/org/chromium/chrome/browser/ui/autofill/AuthenticatorSelectionDialogBridgeTest.java",
     "java/src/org/chromium/chrome/browser/ui/autofill/AuthenticatorSelectionDialogTest.java",
     "java/src/org/chromium/chrome/browser/ui/autofill/AutofillErrorDialogBridgeTest.java",
@@ -97,12 +103,14 @@ robolectric_library("junit") {
     ":java_resources",
     "//base:base_java_test_support",
     "//base:base_junit_test_support",
+    "//base:callback_java",
     "//base/test:test_support_java",
     "//chrome/browser/profiles/android:java",
     "//chrome/browser/ui/android/ephemeraltab:java",
     "//chrome/test/android:chrome_java_test_support_common",
     "//components/autofill/android:main_autofill_java",
     "//components/browser_ui/bottomsheet/android:java",
+    "//components/browser_ui/widget/android:java",
     "//content/public/android:content_full_java",
     "//third_party/androidx:androidx_core_core_java",
     "//third_party/androidx:androidx_recyclerview_recyclerview_java",
@@ -119,9 +127,39 @@ robolectric_library("junit") {
   ]
 }
 
+android_library("javatests") {
+  testonly = true
+  resources_package = "org.chromium.chrome.browser.ui.autofill.internal"
+  sources = [ "java/src/org/chromium/chrome/browser/ui/autofill/AtMemoryFlyoutViewRenderTest.java" ]
+  deps = [
+    ":java",
+    ":java_resources",
+    "//base:base_java",
+    "//base:base_java_test_support",
+    "//chrome/browser/flags:java",
+    "//chrome/test/android:chrome_java_integration_test_support",
+    "//components/browser_ui/bottomsheet/android:factory_java",
+    "//components/browser_ui/bottomsheet/android:java",
+    "//components/browser_ui/bottomsheet/android:manager_java",
+    "//components/browser_ui/desktop_windowing/android:java",
+    "//components/browser_ui/widget/android:java",
+    "//content/public/test/android:content_java_test_support",
+    "//third_party/androidx:androidx_constraintlayout_constraintlayout_java",
+    "//third_party/androidx:androidx_test_runner_java",
+    "//third_party/junit",
+    "//third_party/mockito:mockito_java",
+    "//ui/android:ui_java",
+    "//ui/android:ui_java_test_support",
+  ]
+}
+
 android_resources("java_resources") {
   sources = [
+    "java/res/drawable/at_memory_flyout_buttons_bg.xml",
+    "java/res/drawable/at_memory_search_bar_background.xml",
     "java/res/layout/at_memory_bottom_sheet.xml",
+    "java/res/layout/at_memory_flyout_bottom_sheet.xml",
+    "java/res/layout/at_memory_flyout_chip.xml",
     "java/res/layout/authenticator_option.xml",
     "java/res/layout/authenticator_selection_dialog.xml",
     "java/res/layout/autofill_error_dialog.xml",
@@ -133,6 +171,7 @@ android_resources("java_resources") {
   deps = [
     "//chrome/android:chrome_app_java_resources",
     "//components/browser_ui/styles/android:java_resources",
+    "//components/strings:components_strings_grd",
     "//ui/android:ui_java_resources",
   ]
 }

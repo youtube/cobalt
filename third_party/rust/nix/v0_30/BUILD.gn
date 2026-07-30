@@ -96,13 +96,27 @@ cargo_crate("lib") {
     "//third_party/rust/bitflags/v2:lib",
     "//third_party/rust/cfg_if/v1:lib",
     "//third_party/rust/libc/v0_2:lib",
+    "//third_party/rust/memoffset/v0_9:lib",
   ]
   build_deps = [ "//third_party/rust/cfg_aliases/v0_2:buildrs_support" ]
-  features = [ "default" ]
+  features = [
+    "fs",
+    "memoffset",
+    "personality",
+    "poll",
+    "process",
+    "ptrace",
+    "signal",
+    "socket",
+  ]
   build_root = "//third_party/rust/chromium_crates_io/vendor/nix-v0_30/build.rs"
   build_sources =
       [ "//third_party/rust/chromium_crates_io/vendor/nix-v0_30/build.rs" ]
 
+  # Only for usage from third-party crates. Add the crate to
+  # //third_party/rust/chromium_crates_io/Cargo.toml to use
+  # it from first-party code.
+  visibility = [ "//third_party/rust/*" ]
   testonly = true
 
   #####################################################################

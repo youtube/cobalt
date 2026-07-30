@@ -5,12 +5,17 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_DATA_MODEL_AUTOFILL_AI_ENTITY_INSTANCE_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_DATA_MODEL_AUTOFILL_AI_ENTITY_INSTANCE_H_
 
+#include <stdint.h>
+
+#include <optional>
 #include <ostream>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <variant>
+#include <vector>
 
+#include "base/check_op.h"
 #include "base/compiler_specific.h"
 #include "base/containers/flat_set.h"
 #include "base/containers/span.h"
@@ -25,9 +30,8 @@
 #include "components/autofill/core/browser/data_model/autofill_ai/country_info.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/date_info.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #include "components/autofill/core/browser/field_types.h"
-#include "components/autofill/core/common/dense_set.h"
-#include "components/autofill/core/common/is_required.h"
 
 namespace sync_pb {
 class AutofillValuableSpecifics;
@@ -271,9 +275,20 @@ class EntityInstance final {
     // copy. Changes happening locally or on the Wallet server are synced among
     // all local storages sharing this entity.
     kServerWallet = 1,
-    // The entity provided by Accessibility Annotator.
-    kAccessibilityAnnotator = 2,
-    kMaxValue = kAccessibilityAnnotator,
+    // The entity provided by Personal Context.
+    kPersonalContext = 2,
+    kMaxValue = kPersonalContext,
+  };
+
+  // Categorizes different types of Google Wallet passes.
+  enum class WalletPassType {
+    // The entity is not supported as a Wallet pass (e.g., local entities, or
+    // server types that are not supported by the Wallet integration).
+    kUnsupported,
+    // A private pass containing sensitive information (e.g. passport).
+    kPrivate,
+    // A public pass without sensitive information (e.g. flight reservation).
+    kPublic,
   };
 
   // `attributes` must be non-empty and their type must be identical to `type`.
@@ -489,18 +504,32 @@ struct EntityInstance::CompareByGuid {
   }
 };
 
-// Returns whether this (entity type, record type) combination supports
-// restricting local storage of obfuscated attributes to "masks" (e.g., the last
-// x digits/characters).
-//
-// If this is `true`, the full entity information can be stored on a server and
-// can be retrieved by the client only on demand. It is not persisted locally on
-// disk. However, note that even if this is `true` users may not be eligible for
-// creating masked server entities depending on their sync settings or their
-// locale. See `MayPerformAutofillAiAction`
-//   for the relevant permission checks.
-bool IsMaskedStorageSupported(EntityType type,
-                              EntityInstance::RecordType record_type);
+// Returns the EntityInstance::WalletPassType of an entity with the given
+// (`type`, `record_type`) combination.
+constexpr EntityInstance::WalletPassType GetWalletPassType(
+    EntityType type,
+    EntityInstance::RecordType record_type) {
+  if (record_type != EntityInstance::RecordType::kServerWallet) {
+    return EntityInstance::WalletPassType::kUnsupported;
+  }
+
+  switch (type.name()) {
+    case EntityTypeName::kDriversLicense:
+    case EntityTypeName::kKnownTravelerNumber:
+    case EntityTypeName::kNationalIdCard:
+    case EntityTypeName::kPassport:
+    case EntityTypeName::kRedressNumber:
+      return EntityInstance::WalletPassType::kPrivate;
+    case EntityTypeName::kFlightReservation:
+    case EntityTypeName::kVehicle:
+      return EntityInstance::WalletPassType::kPublic;
+    case EntityTypeName::kOrder:
+    case EntityTypeName::kShipment:
+      return EntityInstance::WalletPassType::kUnsupported;
+  }
+
+  return EntityInstance::WalletPassType::kUnsupported;
+}
 
 }  // namespace autofill
 

@@ -37,6 +37,7 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/base/ui_base_types.h"
 #include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/color/color_provider.h"
@@ -158,7 +159,9 @@ class ClosePromoButton : public views::ImageButton {
     SetImageModel(
         views::ImageButton::STATE_NORMAL,
         ui::ImageModel::FromVectorIcon(
-            views::kIcCloseOldIcon, cros_tokens::kCrosSysOnSurface, kIconSize));
+            ::features::IsRoundedIconsEnabled() ? views::kCloseIcon
+                                                : views::kIcCloseOldIcon,
+            cros_tokens::kCrosSysOnSurface, kIconSize));
 
     constexpr float kCloseButtonFocusRingHaloThickness = 1.25f;
     views::FocusRing::Get(this)->SetHaloThickness(
@@ -664,11 +667,12 @@ user_education::HelpBubbleViewInfo HelpBubbleViewAsh::Create(
   auto bubble =
       base::WrapUnique(new HelpBubbleViewAsh(id, anchor, std::move(params)));
   auto* const bubble_ptr = bubble.get();
-  auto* const widget = views::BubbleDialogDelegateView::CreateBubble(
-      std::move(bubble), views::Widget::InitParams::CLIENT_OWNS_WIDGET);
+  // TODO(https://crbug.com/510617577): Fix leaks in
+  // views::BubbleDialogDelegate.
+  std::unique_ptr<views::Widget> widget =
+      views::BubbleDialogDelegate::CreateBubble(bubble.release());
   bubble_ptr->InitializeAndShow();
-  return user_education::HelpBubbleViewInfo(base::WrapUnique(widget),
-                                            bubble_ptr);
+  return user_education::HelpBubbleViewInfo(std::move(widget), bubble_ptr);
 }
 
 void HelpBubbleViewAsh::InitializeAndShow() {

@@ -2527,6 +2527,7 @@ _ANDROID_SPECIFIC_PYDEPS_FILES = [
 ]
 
 _GENERIC_PYDEPS_FILES = [
+    'android_webview/tools/pinlist/generate_pinlist.pydeps',
     'android_webview/tools/run_cts.pydeps',
     'build/android/apk_operations.pydeps',
     'build/android/devil_chromium.pydeps',
@@ -4071,6 +4072,8 @@ def CheckSpamLogging(input_api, output_api):
             r'^headless/app/headless_shell\.cc$',
             r'^ipc/ipc_logging\.cc$',
             r'^ios/chrome/app/perf_tests_hook_logging\.mm$',
+            # TODO(crbug.com/512863603): Remove exception.
+            r'^ios/chrome/browser/intelligence/actor/model/aggregated_journal\.mm$',
             r'^remoting/base/logging\.h$',
             r'^remoting/host/.*',
             r'^sandbox/linux/.*',

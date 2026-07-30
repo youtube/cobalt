@@ -115,6 +115,21 @@ size_t GetMaxParallelFeatureExecutions(ModelBasedCapabilityKey feature) {
       // Since there can be multiple forms on a single page, multiple parallel
       // executions are allowed for `kFormsClassifications`.
       return 10;
+    case ModelBasedCapabilityKey::kUpdaterChat:
+      // Allow multiple parallel executions for `kUpdaterChat` so the LLM
+      // can generate summaries for multiple log snippets concurrently,
+      // enabling the front-end to display a multi-snippet status view.
+      return 10;
+  }
+}
+
+bool IsEligibleForPrivateAI(ModelBasedCapabilityKey feature) {
+  switch (feature) {
+    case ModelBasedCapabilityKey::kZeroStateSuggestions:
+    case ModelBasedCapabilityKey::kContextualCueing:
+      return true;
+    default:
+      return false;
   }
 }
 
@@ -219,10 +234,8 @@ void ModelExecutionManager::ExecuteModel(
     fetchers_for_feature.erase(fetchers_for_feature.begin());
   }
   FetcherId fetcher_id = next_model_execution_fetcher_id++;
-  // Currently only ZSS is supported by PrivateAI. Update or remove this CHECK
-  // when other features are supported too.
   CHECK(service_type != ModelExecutionServiceType::kPrivateAi ||
-        feature == ModelBasedCapabilityKey::kZeroStateSuggestions)
+        IsEligibleForPrivateAI(feature))
       << feature;
   base::TimeTicks start_time = base::TimeTicks::Now();
   auto fetcher = CreateModelExecutionFetcher(service_type);

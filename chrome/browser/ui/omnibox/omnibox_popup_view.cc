@@ -9,9 +9,13 @@
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 
 OmniboxPopupView::OmniboxPopupView(OmniboxController* controller)
-    : controller_(controller) {}
+    : controller_(controller), construction_time_(base::TimeTicks::Now()) {}
 
 OmniboxPopupView::~OmniboxPopupView() = default;
+
+OmniboxPopupPresenterBase* OmniboxPopupView::presenter() {
+  return nullptr;
+}
 
 OmniboxController* OmniboxPopupView::controller() {
   return const_cast<OmniboxController*>(
@@ -25,4 +29,8 @@ const OmniboxController* OmniboxPopupView::controller() const {
 std::u16string_view OmniboxPopupView::GetAccessibleButtonTextForResult(
     size_t line) const {
   return {};
+}
+
+OmniboxPopupViewBrowserView* OmniboxPopupView::AsOmniboxPopupViewBrowserView() {
+  return nullptr;
 }

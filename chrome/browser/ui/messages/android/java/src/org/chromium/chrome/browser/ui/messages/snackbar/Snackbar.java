@@ -145,6 +145,8 @@ public class Snackbar {
     public static final int UMA_EXCLUSIVE_ACCESS_BUBBLE = 87;
     public static final int UMA_CONTEXTUAL_TASKS_BOTTOM_SHEET_CLOSED_UNDO = 88;
     public static final int UMA_ACTOR = 89;
+    public static final int UMA_GLIC = 90;
+    public static final int UMA_TIPS_OPT_IN = 91;
     // LINT.ThenChange(//tools/metrics/histograms/metadata/ui/enums.xml:SnackbarIdentifier)
 
     private final @Nullable SnackbarController mController;
@@ -155,6 +157,7 @@ public class Snackbar {
     private int mBackgroundColor;
     private int mTextAppearanceResId;
     private boolean mDefaultLines = true;
+    private boolean mIsHighPriority;
     private int mDurationMs;
     private @Nullable Drawable mProfileImage;
     private final int mType;
@@ -199,8 +202,18 @@ public class Snackbar {
     }
 
     /**
-     * Sets the template text to show on the snackbar, e.g. "Closed %s". See
-     * {@link TemplatePreservingTextView} for details on how the template text is used.
+     * Sets whether the snackbar is high priority. High priority snackbars are shielded from being
+     * discarded by the timeout of other action-type snackbars in the queue (e.g. for security-
+     * critical notices).
+     */
+    public Snackbar setHighPriority(boolean highPriority) {
+        mIsHighPriority = highPriority;
+        return this;
+    }
+
+    /**
+     * Sets the template text to show on the snackbar, e.g. "Closed %s". See {@link
+     * TemplatePreservingTextView} for details on how the template text is used.
      */
     public Snackbar setTemplateText(String templateText) {
         mTemplateText = templateText;
@@ -349,6 +362,13 @@ public class Snackbar {
      */
     boolean isTypePersistent() {
         return mType == TYPE_PERSISTENT;
+    }
+
+    /**
+     * @return Whether the snackbar is high priority.
+     */
+    boolean isHighPriority() {
+        return mIsHighPriority;
     }
 
     public int getIdentifierForTesting() {

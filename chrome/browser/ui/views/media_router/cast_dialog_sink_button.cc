@@ -32,6 +32,7 @@
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/base/ui_base_types.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
@@ -73,10 +74,12 @@ std::unique_ptr<views::View> CreatePrimaryIconForSink(const UIMediaSink& sink) {
   // The stop button has the highest priority, and the issue icon comes second.
   if (sink.state == UIMediaSinkState::CONNECTED) {
     return CreatePrimaryIconView(ui::ImageModel::FromVectorIcon(
-        kGenericStopIcon, ui::kColorAccent, kPrimaryIconSize));
+        features::IsRoundedIconsEnabled() ? kStopCircleIcon
+                                          : kGenericStopOldIcon,
+        ui::kColorAccent, kPrimaryIconSize));
   } else if (sink.issue) {
     auto icon = std::make_unique<views::ImageView>(
-        ui::ImageModel::FromVectorIcon(::vector_icons::kInfoOutlineIcon,
+        ui::ImageModel::FromVectorIcon(::vector_icons::kInfoOutlineOldIcon,
                                        ui::kColorIcon, kPrimaryIconSize));
     icon->SetBorder(views::CreateEmptyBorder(kPrimaryIconBorder));
     return icon;
@@ -232,18 +235,21 @@ const gfx::VectorIcon* CastDialogSinkButton::GetVectorIcon(
   const gfx::VectorIcon* vector_icon;
   switch (icon_type) {
     case SinkIconType::CAST_AUDIO_GROUP:
-      vector_icon = &kSpeakerGroupIcon;
+      vector_icon = &(features::IsRoundedIconsEnabled() ? kSpeakerGroupIcon
+                                                        : kSpeakerGroupOldIcon);
       break;
     case SinkIconType::CAST_AUDIO:
-      vector_icon = &kSpeakerIcon;
+      vector_icon =
+          &(features::IsRoundedIconsEnabled() ? kSpeakerIcon : kSpeakerOldIcon);
       break;
     case SinkIconType::WIRED_DISPLAY:
-      vector_icon = &kInputIcon;
+      vector_icon =
+          &(features::IsRoundedIconsEnabled() ? kInputIcon : kInputOldIcon);
       break;
     case SinkIconType::CAST:
     case SinkIconType::GENERIC:
     default:
-      vector_icon = &kTvIcon;
+      vector_icon = &(features::IsRoundedIconsEnabled() ? kTvIcon : kTvOldIcon);
       break;
   }
   return vector_icon;
@@ -251,7 +257,7 @@ const gfx::VectorIcon* CastDialogSinkButton::GetVectorIcon(
 
 // static
 const gfx::VectorIcon* CastDialogSinkButton::GetVectorIcon(UIMediaSink sink) {
-  return sink.issue ? &::vector_icons::kInfoOutlineIcon
+  return sink.issue ? &::vector_icons::kInfoOutlineOldIcon
                     : GetVectorIcon(sink.icon_type);
 }
 

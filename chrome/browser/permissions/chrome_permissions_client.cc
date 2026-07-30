@@ -116,6 +116,10 @@
 #include "extensions/common/constants.h"
 #endif
 
+#if BUILDFLAG(ENABLE_EXTENSIONS) && !BUILDFLAG(IS_ANDROID)
+#include "extensions/browser/mime_handler/mime_handler_stream_manager.h"
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS) && !BUILDFLAG(IS_ANDROID)
+
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 #include "chrome/browser/permissions/prediction_service/contextual_notification_permission_ui_selector.h"
 #include "chrome/browser/safe_browsing/safe_browsing_service.h"
@@ -130,7 +134,14 @@ using permissions::PermissionRequestGestureType;
 
 #if BUILDFLAG(IS_ANDROID)
 bool ShouldUseQuietUI(content::WebContents* web_contents,
-                      ContentSettingsType type) {
+                      const permissions::PermissionRequest& request) {
+  if (request.GetGeolocationPromptType() ==
+      permissions::GeolocationPromptType::kUpgradeToPrecise) {
+    // We don't support quiet UI for upgrade prompts from approximate location
+    // to precise location.
+    return false;
+  }
+  ContentSettingsType type = request.GetContentSettingsType();
   auto* manager =
       permissions::PermissionRequestManager::FromWebContents(web_contents);
   if (type != ContentSettingsType::NOTIFICATIONS &&
@@ -740,6 +751,56 @@ std::optional<GURL> ChromePermissionsClient::GetEmbeddingOriginOverride(
     // `GetCanonicalOriginOverride()`.
     return embedding_origin;
   }
+
+#if BUILDFLAG(ENABLE_EXTENSIONS) && !BUILDFLAG(IS_ANDROID)
+  // When a MIME handler extension is rendered as an OOPIF, key the
+  // embedding origin to the extension so prompts and content settings
+  // are attributed to the extension that produced the streamed content,
+  // not the navigation host that triggered it.
+  //
+  // The override applies only when `requesting_origin` lies inside the
+  // extension OOPIF subtree. Without this scoping, a top-level page
+  // (e.g. evil.com) that embeds an invisible PDF in an iframe would
+  // have its own permission prompts (e.g. camera) attributed to the
+  // MIME handler extension, because `MimeHandlerStreamManager` is
+  // attached to the WebContents the moment any PDF in the tab is
+  // intercepted -- not only when the extension itself is the requester.
+  // Inside the extension subtree the override applies to every
+  // descendant -- including cross-origin children -- because those
+  // frames only exist because the extension embedded them. When two
+  // frames share `requesting_origin` (e.g. the host site is also
+  // iframed by the extension), BFS picks the first match; this is
+  // best-effort because the API receives only the origin, not the
+  // specific RenderFrameHost.
+  if (auto* manager =
+          extensions::mime_handler::MimeHandlerStreamManager::FromWebContents(
+              web_contents)) {
+    GURL extension_origin;
+    web_contents->GetPrimaryMainFrame()->ForEachRenderFrameHostWithAction(
+        [&](content::RenderFrameHost* rfh) {
+          if (rfh->GetLastCommittedOrigin().GetURL() != requesting_origin) {
+            return content::RenderFrameHost::FrameIterationAction::kContinue;
+          }
+          // The candidate frame's origin matches the requester. Walk
+          // its ancestors (including itself) and return the nearest
+          // MIME handler extension OOPIF if one is present. If none
+          // is, the requester lives outside any extension subtree --
+          // do not override.
+          for (content::RenderFrameHost* ancestor = rfh; ancestor;
+               ancestor = ancestor->GetParent()) {
+            if (manager->IsExtensionHost(ancestor)) {
+              extension_origin = ancestor->GetLastCommittedOrigin().GetURL();
+              return content::RenderFrameHost::FrameIterationAction::kStop;
+            }
+          }
+          return content::RenderFrameHost::FrameIterationAction::kContinue;
+        });
+    if (!extension_origin.is_empty()) {
+      return extension_origin;
+    }
+  }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS) && !BUILDFLAG(IS_ANDROID)
+
   return std::nullopt;
 }
 
@@ -829,9 +890,10 @@ bool ChromePermissionsClient::IsDseOrigin(
 std::unique_ptr<ChromePermissionsClient::PermissionMessageDelegate>
 ChromePermissionsClient::MaybeCreateMessageUI(
     content::WebContents* web_contents,
-    ContentSettingsType type,
+    const permissions::PermissionRequest& request,
     base::WeakPtr<permissions::PermissionPromptAndroid> prompt) {
-  if (ShouldUseQuietUI(web_contents, type) ||
+  ContentSettingsType type = request.GetContentSettingsType();
+  if (ShouldUseQuietUI(web_contents, request) ||
       // The quiet UI is enabled for both Notifications and Geolocation but the
       // Loud Clapper supports only Notifications.
       (type == ContentSettingsType::NOTIFICATIONS &&

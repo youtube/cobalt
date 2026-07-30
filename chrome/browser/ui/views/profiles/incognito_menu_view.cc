@@ -14,6 +14,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "chrome/app/vector_icons/vector_icons.h"
+#include "chrome/browser/lifetime/application_lifetime_desktop.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
@@ -25,10 +26,12 @@
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/image_model.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/color/color_id.h"
 #include "ui/views/accessibility/view_accessibility.h"
+#include "ui/views/bubble/bubble_anchor.h"
 
-IncognitoMenuView::IncognitoMenuView(ui::TrackedElement* anchor_element,
+IncognitoMenuView::IncognitoMenuView(views::BubbleAnchor anchor_element,
                                      Browser* browser)
     : ProfileMenuViewBase(anchor_element, browser) {
   CHECK(profile().IsIncognitoProfile());
@@ -53,7 +56,9 @@ void IncognitoMenuView::BuildMenu() {
   // Padded icon.
   params.profile_image_padding = std::nearbyint(kIdentityInfoImageSize * 0.25f);
   params.profile_image = ui::ImageModel::FromVectorIcon(
-      kIncognitoRefreshMenuIcon, kColorAvatarButtonHighlightIncognitoForeground,
+      features::IsRoundedIconsEnabled() ? kIncognitoIcon
+                                        : kIncognitoRefreshMenuOldIcon,
+      kColorAvatarButtonHighlightIncognitoForeground,
       kIdentityInfoImageSize - 2 * params.profile_image_padding);
   SetProfileIdentityWithCallToAction(std::move(params));
   AddBottomMargin();
@@ -61,7 +66,7 @@ void IncognitoMenuView::BuildMenu() {
   AddFeatureButton(close_button_title,
                    base::BindRepeating(&IncognitoMenuView::OnExitButtonClicked,
                                        base::Unretained(this)),
-                   vector_icons::kCloseIcon);
+                   vector_icons::kCloseOldIcon);
 }
 
 std::u16string IncognitoMenuView::GetAccessibleWindowTitle() const {

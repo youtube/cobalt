@@ -30,7 +30,9 @@
 #include "base/types/expected.h"
 #include "components/feature_engagement/test/mock_tracker.h"
 #include "components/os_crypt/async/browser/test_utils.h"
+#include "components/page_content_annotations/content/annotate_page_content_request_metrics.h"
 #include "components/page_content_annotations/content/page_content_extraction_service.h"
+#include "components/page_content_annotations/content/page_context_fetcher_metrics.h"
 #include "components/page_content_annotations/core/page_content_annotations_features.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/navigation_controller.h"
@@ -306,6 +308,8 @@ class AnnotatePageContentRequestTest
 };
 
 TEST_P(AnnotatePageContentRequestTest, OnLoadTrigger) {
+  base::HistogramTester histogram_tester;
+
   SetTriggeringMode("on_load");
 
   SimulatePageLoad();
@@ -313,6 +317,10 @@ TEST_P(AnnotatePageContentRequestTest, OnLoadTrigger) {
 
   EXPECT_EQ(extraction_service().extraction_count(), 1);
   EXPECT_TRUE(extraction_service().last_extracted_content().has_value());
+
+  histogram_tester.ExpectUniqueSample(
+      kPageContentExtractionRequestTypeHistogram,
+      ExtractionRequestType::kAnnotatedPageContent, 1);
 
   // Hiding should not trigger another extraction.
   web_contents()->WasHidden();
@@ -695,6 +703,8 @@ TEST_P(AnnotatePageContentRequestTest, RefreshAPC_Batching) {
 // Page content getter methods do not support PDF pages.
 // TODO(b/487632737): Support on-demand PDF text extraction.
 TEST_P(AnnotatePageContentRequestTest, RefreshAPCPdfShortCircuit) {
+  base::HistogramTester histogram_tester;
+
   SetTriggeringMode("on_load");
   SimulatePDFLoad(GURL("https://example.com/file.pdf"));
 
@@ -704,6 +714,12 @@ TEST_P(AnnotatePageContentRequestTest, RefreshAPCPdfShortCircuit) {
       refresh_future.GetCallback());
 
   EXPECT_FALSE(refresh_future.Get().has_value());
+
+  histogram_tester.ExpectTotalCount(kPageContentExtractionRequestTypeHistogram,
+                                    0);
+  histogram_tester.ExpectTotalCount(kPdfTextExtractionStatusHistogram, 0);
+  histogram_tester.ExpectTotalCount(kPdfTextExtractionLatencyHistogram, 0);
+  histogram_tester.ExpectTotalCount(kPdfTextExtractionSizeHistogram, 0);
 }
 
 TEST_P(AnnotatePageContentRequestTest,
@@ -896,6 +912,8 @@ TEST_P(AnnotatePageContentRequestTest,
 // Async page content getter methods do not support PDF pages.
 // TODO(b/487632737): Support on-demand PDF text extraction.
 TEST_P(AnnotatePageContentRequestTest, GetAsyncOnPdfPages) {
+  base::HistogramTester histogram_tester;
+
   SetTriggeringMode("on_load");
   SimulatePDFLoad(GURL("https://example.com/file.pdf"));
 
@@ -911,6 +929,12 @@ TEST_P(AnnotatePageContentRequestTest, GetAsyncOnPdfPages) {
 
   EXPECT_TRUE(eligibility_future.IsReady());
   EXPECT_FALSE(eligibility_future.Get().has_value());
+
+  histogram_tester.ExpectTotalCount(kPageContentExtractionRequestTypeHistogram,
+                                    0);
+  histogram_tester.ExpectTotalCount(kPdfTextExtractionStatusHistogram, 0);
+  histogram_tester.ExpectTotalCount(kPdfTextExtractionLatencyHistogram, 0);
+  histogram_tester.ExpectTotalCount(kPdfTextExtractionSizeHistogram, 0);
 }
 
 TEST_P(AnnotatePageContentRequestTest, Metrics_OnLoadTrigger) {
@@ -923,14 +947,14 @@ TEST_P(AnnotatePageContentRequestTest, Metrics_OnLoadTrigger) {
   histogram_tester.ExpectTotalCount(
       "OptimizationGuide.PageContentExtraction.AutomaticOnLoad."
       "ExtractionLatency",
-      IsPageSettledMonitorEnabled() ? 0 : 1);
+      1);
   histogram_tester.ExpectTotalCount(
       "OptimizationGuide.PageContentExtraction.AutomaticOnLoad."
       "StabilityLatency",
-      IsPageSettledMonitorEnabled() ? 0 : 1);
+      1);
   histogram_tester.ExpectTotalCount(
       "OptimizationGuide.PageContentExtraction.AutomaticOnLoad.OverallLatency",
-      IsPageSettledMonitorEnabled() ? 0 : 1);
+      1);
   histogram_tester.ExpectUniqueSample(
       "OptimizationGuide.PageContentExtraction.TriggerSource",
       AnnotatedPageContentRequest::TriggerSource::kOnLoad, 1);
@@ -1103,14 +1127,14 @@ TEST_P(AnnotatePageContentRequestTest,
   histogram_tester.ExpectTotalCount(
       "OptimizationGuide.PageContentExtraction.AutomaticOnLoad."
       "StabilityLatency",
-      IsPageSettledMonitorEnabled() ? 0 : 1);
+      1);
   histogram_tester.ExpectTotalCount(
       "OptimizationGuide.PageContentExtraction.AutomaticOnLoad."
       "ExtractionLatency",
-      IsPageSettledMonitorEnabled() ? 0 : 1);
+      1);
   histogram_tester.ExpectTotalCount(
       "OptimizationGuide.PageContentExtraction.AutomaticOnLoad.OverallLatency",
-      IsPageSettledMonitorEnabled() ? 0 : 1);
+      1);
 
   // Simulate a same-document navigation.
   auto same_doc_nav = content::NavigationSimulator::CreateRendererInitiated(
@@ -1132,17 +1156,19 @@ TEST_P(AnnotatePageContentRequestTest,
   histogram_tester.ExpectTotalCount(
       "OptimizationGuide.PageContentExtraction.AutomaticOnLoad."
       "StabilityLatency",
-      IsPageSettledMonitorEnabled() ? 0 : 1);
+      1);
   histogram_tester.ExpectTotalCount(
       "OptimizationGuide.PageContentExtraction.AutomaticOnLoad."
       "ExtractionLatency",
-      IsPageSettledMonitorEnabled() ? 0 : 1);
+      1);
   histogram_tester.ExpectTotalCount(
       "OptimizationGuide.PageContentExtraction.AutomaticOnLoad.OverallLatency",
-      IsPageSettledMonitorEnabled() ? 0 : 1);
+      1);
 }
 
 TEST_P(AnnotatePageContentRequestTest, OnLoadTriggerPDFExtraction) {
+  base::HistogramTester histogram_tester;
+
   SetTriggeringMode("on_load");
   SimulatePDFLoad(GURL("https://example.com/file.pdf"));
 
@@ -1151,6 +1177,10 @@ TEST_P(AnnotatePageContentRequestTest, OnLoadTriggerPDFExtraction) {
     EXPECT_EQ(extraction_service().extraction_count(), 1);
     EXPECT_EQ(extraction_service().last_extracted_pdf_text(),
               "Sample PDF text");
+
+    histogram_tester.ExpectUniqueSample(
+        kPageContentExtractionRequestTypeHistogram,
+        ExtractionRequestType::kPDFText, 1);
   } else {
     // When feature is disabled:
     // - If platform enables PDF build flag, the count of PDF page is requested
@@ -1159,6 +1189,10 @@ TEST_P(AnnotatePageContentRequestTest, OnLoadTriggerPDFExtraction) {
     task_environment()->FastForwardBy(base::Seconds(1));
     EXPECT_EQ(extraction_service().extraction_count(), 0);
     EXPECT_FALSE(extraction_service().last_extracted_pdf_text().has_value());
+
+    histogram_tester.ExpectUniqueSample(
+        kPageContentExtractionRequestTypeHistogram,
+        ExtractionRequestType::kPDFPageCount, PlatformSupportsPDF() ? 1 : 0);
   }
 }
 
@@ -1166,6 +1200,8 @@ TEST_P(AnnotatePageContentRequestTest, OnLoadTriggerPDFExtraction) {
 // content is almost always static. Repeatedly extracting text does not add much
 // value.
 TEST_P(AnnotatePageContentRequestTest, OnHiddenTriggerNoPDFExtraction) {
+  base::HistogramTester histogram_tester;
+
   SetTriggeringMode("on_hidden");
   SimulatePDFLoad(GURL("https://example.com/file.pdf"));
 
@@ -1179,10 +1215,15 @@ TEST_P(AnnotatePageContentRequestTest, OnHiddenTriggerNoPDFExtraction) {
   task_environment()->FastForwardBy(base::Seconds(1));
   EXPECT_EQ(extraction_service().extraction_count(), 0);
   EXPECT_FALSE(extraction_service().last_extracted_pdf_text().has_value());
+
+  histogram_tester.ExpectTotalCount(kPageContentExtractionRequestTypeHistogram,
+                                    0);
 }
 
 TEST_P(AnnotatePageContentRequestTest,
        OnLoadAndHiddenTriggerPDFTextExtraction) {
+  base::HistogramTester histogram_tester;
+
   SetTriggeringMode("on_load_and_hidden");
   SimulatePDFLoad(GURL("https://example.com/file.pdf"));
 
@@ -1193,12 +1234,20 @@ TEST_P(AnnotatePageContentRequestTest,
     EXPECT_EQ(extraction_service().last_extracted_pdf_text(),
               "Sample PDF text");
 
+    histogram_tester.ExpectUniqueSample(
+        kPageContentExtractionRequestTypeHistogram,
+        ExtractionRequestType::kPDFText, 1);
+
     // Hide the tab.
     web_contents()->WasHidden();
 
     // PDF document does not trigger extraction on hidden.
     task_environment()->FastForwardBy(base::Seconds(1));
     EXPECT_EQ(extraction_service().extraction_count(), 1);
+
+    histogram_tester.ExpectUniqueSample(
+        kPageContentExtractionRequestTypeHistogram,
+        ExtractionRequestType::kPDFText, 1);
   } else {
     // When feature is disabled:
     // - If platform enables PDF build flag, the count of PDF page is requested
@@ -1208,12 +1257,20 @@ TEST_P(AnnotatePageContentRequestTest,
     EXPECT_EQ(extraction_service().extraction_count(), 0);
     EXPECT_FALSE(extraction_service().last_extracted_pdf_text().has_value());
 
+    histogram_tester.ExpectUniqueSample(
+        kPageContentExtractionRequestTypeHistogram,
+        ExtractionRequestType::kPDFPageCount, PlatformSupportsPDF() ? 1 : 0);
+
     // Hide the tab.
     web_contents()->WasHidden();
 
     // PDF document does not trigger extraction on hidden.
     task_environment()->FastForwardBy(base::Seconds(1));
     EXPECT_EQ(extraction_service().extraction_count(), 0);
+
+    histogram_tester.ExpectUniqueSample(
+        kPageContentExtractionRequestTypeHistogram,
+        ExtractionRequestType::kPDFPageCount, PlatformSupportsPDF() ? 1 : 0);
   }
 }
 
@@ -1249,11 +1306,8 @@ TEST_P(AnnotatePageContentRequestTest, NavigationToReadyLatency) {
   SimulatePageLoad();
 
   histogram_tester.ExpectTotalCount(
-      IsPageSettledMonitorEnabled()
-          ? "OptimizationGuide.PageContentExtraction.NavigationToReadyLatency."
-            "CrossDocument.PageSettledMonitor"
-          : "OptimizationGuide.PageContentExtraction.NavigationToReadyLatency."
-            "CrossDocument.Legacy",
+      "OptimizationGuide.PageContentExtraction.NavigationToReadyLatency."
+      "CrossDocument",
       1);
 }
 
@@ -1265,22 +1319,16 @@ TEST_P(AnnotatePageContentRequestTest, NavigationToReadyLatency_OnHidden) {
 
   // Metric should be recorded even if extraction is not yet scheduled.
   histogram_tester.ExpectTotalCount(
-      IsPageSettledMonitorEnabled()
-          ? "OptimizationGuide.PageContentExtraction.NavigationToReadyLatency."
-            "CrossDocument.PageSettledMonitor"
-          : "OptimizationGuide.PageContentExtraction.NavigationToReadyLatency."
-            "CrossDocument.Legacy",
+      "OptimizationGuide.PageContentExtraction.NavigationToReadyLatency."
+      "CrossDocument",
       1);
 
   // Hiding should trigger extraction, but not record the metric again.
   web_contents()->WasHidden();
 
   histogram_tester.ExpectTotalCount(
-      IsPageSettledMonitorEnabled()
-          ? "OptimizationGuide.PageContentExtraction.NavigationToReadyLatency."
-            "CrossDocument.PageSettledMonitor"
-          : "OptimizationGuide.PageContentExtraction.NavigationToReadyLatency."
-            "CrossDocument.Legacy",
+      "OptimizationGuide.PageContentExtraction.NavigationToReadyLatency."
+      "CrossDocument",
       1);
 }
 
@@ -1290,11 +1338,8 @@ TEST_P(AnnotatePageContentRequestTest, NavigationToReadyLatency_SameDocument) {
 
   SimulatePageLoad();
   histogram_tester.ExpectTotalCount(
-      IsPageSettledMonitorEnabled()
-          ? "OptimizationGuide.PageContentExtraction.NavigationToReadyLatency."
-            "CrossDocument.PageSettledMonitor"
-          : "OptimizationGuide.PageContentExtraction.NavigationToReadyLatency."
-            "CrossDocument.Legacy",
+      "OptimizationGuide.PageContentExtraction.NavigationToReadyLatency."
+      "CrossDocument",
       1);
 
   // Perform same-document navigation.
@@ -1304,12 +1349,21 @@ TEST_P(AnnotatePageContentRequestTest, NavigationToReadyLatency_SameDocument) {
   SimulatePageStablization();
 
   histogram_tester.ExpectTotalCount(
-      IsPageSettledMonitorEnabled()
-          ? "OptimizationGuide.PageContentExtraction.NavigationToReadyLatency."
-            "SameDocument.PageSettledMonitor"
-          : "OptimizationGuide.PageContentExtraction.NavigationToReadyLatency."
-            "SameDocument.Legacy",
+      "OptimizationGuide.PageContentExtraction.NavigationToReadyLatency."
+      "SameDocument",
       1);
+}
+
+TEST_P(AnnotatePageContentRequestTest, AboutBlankNavigation_NoExtraction) {
+  SetTriggeringMode("on_load");
+
+  SimulateNavigation(GURL("about:blank"));
+
+  // Wait long enough to ensure no extraction is triggered.
+  task_environment()->FastForwardBy(base::Seconds(30));
+
+  // Extraction should not be triggered for about:blank in either case.
+  EXPECT_EQ(extraction_service().extraction_count(), 0);
 }
 
 INSTANTIATE_TEST_SUITE_P(All,

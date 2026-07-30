@@ -161,6 +161,8 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
   UIView* _tabGridContentView;
   // The alpha for the titles of the buttons.
   CGFloat _buttonsTitleAlpha;
+  // The fullscreen progress.
+  CGFloat _fullscreenProgress;
   // Background view for the IPH.
   AppBarIPHBackgroundView* _IPHBackgroundView;
   // Whether the App Bar content is rotated.
@@ -194,9 +196,7 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
 
 - (void)layoutState:(LayoutState*)layoutState
     didChangeAppBarPosition:(AppBarPosition)appBarPosition {
-  if (appBarPosition != AppBarPosition::kBottom) {
-    [self updateForFullscreenProgress:1.0];
-  }
+  [self updateButtonsTitleAlpha];
 }
 
 #pragma mark - Accessors & Mutators
@@ -284,6 +284,7 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
   _buttonsTitleAlpha = 1;
   _buttonsEnabled = YES;
   _assistantButtonEnabled = YES;
+  _fullscreenProgress = 1;
 
   _assistantButton = [self createAssistantButton];
   _openNewTabButton = [self createOpenNewTabButton];
@@ -442,12 +443,8 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
 #pragma mark - FullscreenUIElement
 
 - (void)updateForFullscreenProgress:(CGFloat)progress {
-  // The App Bar and the button titles should be fully visible in landscape
-  // orientation.
-  CGFloat targetAlpha =
-      self.layoutState.appBarPosition == AppBarPosition::kBottom ? progress
-                                                                 : 1.0;
-  [self setButtonsTitleAlpha:targetAlpha animationDuration:0];
+  _fullscreenProgress = progress;
+  [self updateButtonsTitleAlpha];
 }
 
 - (void)animateFullscreenWithAnimator:(FullscreenAnimator*)animator {
@@ -461,6 +458,7 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
 #pragma mark - FullscreenBrowserAgentObserving
 
 - (void)fullscreenWillUpdateState:(FullscreenBrowserAgent*)agent {
+  _fullscreenProgress = agent->bottom_progress();
   CGFloat targetAlpha =
       self.layoutState.appBarPosition == AppBarPosition::kBottom
           ? agent->bottom_progress()
@@ -470,6 +468,16 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
 }
 
 #pragma mark - Private
+
+// Updates the buttons' title alpha based on the current orientation and
+// fullscreen progress.
+- (void)updateButtonsTitleAlpha {
+  CGFloat targetAlpha =
+      self.layoutState.appBarPosition == AppBarPosition::kBottom
+          ? _fullscreenProgress
+          : 1.0;
+  [self setButtonsTitleAlpha:targetAlpha animationDuration:0];
+}
 
 // Returns `fullTitle` if it fits within the available width for the
 // buttons, or `truncatedTitle` otherwise.
@@ -508,9 +516,9 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
                     truncatedTitle:l10n_util::GetNSString(IDS_IOS_APP_BAR_ASK)];
     case AppBarAssistantButtonState::kAIM:
       return l10n_util::GetNSString(IDS_OMNIBOX_AI_MODE_SCOPE_PLACEHOLDER_TEXT);
-    default:
-      return @"TODO(crbug.com/484000888): To be removed when lens is "
-             @"implemented";
+    case AppBarAssistantButtonState::kFallback:
+      // TODO:(crbug.com/484000888): Update with fallback text.
+      return @"";
   }
 }
 
@@ -577,10 +585,6 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
   NSString* title = [self assistantButtonTitleForCurrentState];
   UIImage* image;
   switch (_assistantButtonState) {
-    case AppBarAssistantButtonState::kLens:
-      title = @"TODO(crbug.com/484000888): Use actual text";
-      image = CustomAppBarSymbol(kCameraLensSymbol);
-      break;
     case AppBarAssistantButtonState::kAsk:
 #if BUILDFLAG(IOS_USE_BRANDED_ASSETS)
       image = CustomAppBarSymbol(kGeminiBrandedLogoSymbol);
@@ -590,6 +594,9 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
       break;
     case AppBarAssistantButtonState::kAIM:
       image = CustomAppBarSymbol(kMagnifyingglassSparkSymbol);
+      break;
+    case AppBarAssistantButtonState::kFallback:
+      // TODO:(crbug.com/484000888): Update with fallback image.
       break;
   }
 

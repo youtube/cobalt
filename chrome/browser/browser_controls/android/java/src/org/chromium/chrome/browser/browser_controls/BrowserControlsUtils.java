@@ -38,20 +38,21 @@ public class BrowserControlsUtils {
                 || DeviceFormFactor.isNonMultiDisplayContextOnLargeTablet(context);
     }
 
-    /** Whether use TopControlsStacker to drive the y offset for top control layers. */
-    public static boolean isTopControlsRefactorOffsetEnabled() {
-        return ChromeFeatureList.sTopControlsRefactorV2.isEnabled();
-    }
-
     /** Whether force adjusting top chrome height is allowed based on feature flags. */
     public static boolean isForceTopChromeHeightAdjustmentOnStartupEnabled(Context context) {
         // Note: the check for feature doSyncMinHeightWithTotalHeightV2 is not necessary once the
         // feature flag is launched. Once we are ready to cleanup the param
         // sLockTopControlsForceAdjustHeightOnStartup it's safe to assume this method to return
         // true always.
-        return isTopControlsRefactorOffsetEnabled()
-                && doSyncMinHeightWithTotalHeightV2(context)
+        return doSyncMinHeightWithTotalHeightV2(context)
                 && ChromeFeatureList.sLockTopControlsForceAdjustHeightOnStartup.getValue();
+    }
+
+    /** Returns whether the top-controls hairline needs an extra offset to stay hidden. */
+    public static boolean shouldContentOffsetHideTopControlsHairline(
+            int contentOffset, int topControlsMinHeight, int topControlsHairlineHeight) {
+        return contentOffset >= topControlsMinHeight
+                && contentOffset <= topControlsMinHeight + topControlsHairlineHeight;
     }
 
     /**

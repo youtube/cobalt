@@ -12,6 +12,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/command_observer.h"
+#include "chrome/browser/glic/browser_ui/glic_actor_nudge_delegate.h"
 #include "chrome/browser/glic/browser_ui/glic_button_controller_delegate.h"
 #include "chrome/browser/glic/browser_ui/glic_nudge_delegate.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
@@ -96,7 +97,8 @@ class ToolbarView : public views::AccessiblePaneView,
                     public ToolbarButtonProvider,
                     public BrowserRootView::DropTarget,
                     public glic::GlicButtonControllerDelegate,
-                    public glic::GlicNudgeDelegate {
+                    public glic::GlicNudgeDelegate,
+                    public glic::GlicActorNudgeDelegate {
   METADATA_HEADER(ToolbarView, views::AccessiblePaneView)
 
  public:
@@ -187,6 +189,10 @@ class ToolbarView : public views::AccessiblePaneView,
   PinnedActionToolbarButton* tab_search_button() const {
     return tab_search_button_;
   }
+
+  // TODO(crbug.com/513238408): Remove this once toolbar layout/overflow is
+  // fixed.
+  AvatarToolbarButton* avatar_toolbar_button() { return avatar_; }
   AppMenuIconController* app_menu_icon_controller() {
     return &app_menu_icon_controller_;
   }
@@ -224,6 +230,7 @@ class ToolbarView : public views::AccessiblePaneView,
   void OnThemeChanged() override;
   bool AcceleratorPressed(const ui::Accelerator& acc) override;
   void ChildPreferredSizeChanged(views::View* child) override;
+  void ChildVisibilityChanged(View* child) override;
 
   friend class AvatarToolbarButtonBaseBrowserTest;
 
@@ -237,11 +244,15 @@ class ToolbarView : public views::AccessiblePaneView,
   // Called when we want to check if the UI is currently showing.
   bool GetIsShowingGlicNudge() override;
 
-  void ShowGlicActorTaskIcon();
-  void HideGlicActorTaskIcon();
-  bool GetIsShowingGlicActorTaskIconNudge();
-  void TriggerGlicActorNudge(const std::u16string nudge_text);
-  bool IsGlicAdded();
+  // GlicActorNudgeDelegate:
+  void ShowGlicActorTaskIcon() override;
+  void HideGlicActorTaskIcon() override;
+  bool GetIsShowingGlicActorTaskIconNudge() override;
+  void SetGlicActorNudgeLabel(const std::u16string& nudge_label) override;
+  void TriggerGlicActorNudge(const std::u16string& nudge_text) override;
+  bool IsGlicAdded() override;
+  void SetGlicActorNudgePressedState(bool pressed) override;
+  void ShowActorTaskListBubble() override;
 
   // Updates glic button parenting after hiding glic actor task icon.
   void FinalizeHideGlicActorTaskIcon();

@@ -5,7 +5,12 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_SAVE_AND_FILL_MANAGER_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_SAVE_AND_FILL_MANAGER_H_
 
+#include <optional>
+
+#include "base/functional/callback_forward.h"
+#include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/metrics/payments/save_and_fill_metrics.h"
+#include "components/autofill/core/browser/payments/payments_autofill_client.h"
 
 namespace autofill::payments {
 
@@ -32,12 +37,14 @@ class SaveAndFillManager {
   // If the strike database exists, add a strike if the suggestion was shown but
   // not selected.
   virtual void MaybeAddStrikeForSaveAndFill() = 0;
-  // Returns true if the feature offer should be blocked.
-  virtual bool ShouldBlockFeature() = 0;
+  // Returns the reason why the feature offer should be blocked, or std::nullopt
+  // if it should not be blocked.
+  virtual std::optional<autofill_metrics::SaveAndFillSuggestionEvent>
+  GetBlockReason() = 0;
   // Logs the reason why the Save and Fill suggestion was not shown if this
   // metric has not yet been recorded, as this is logged once per page load.
   virtual void MaybeLogSaveAndFillSuggestionNotShownReason(
-      autofill_metrics::SaveAndFillSuggestionNotShownReason reason) = 0;
+      autofill_metrics::SaveAndFillSuggestionEvent reason) = 0;
   // Logs when the credit card form was filled / submitted with the
   // Save-and-Fill candidate card.
   virtual void LogCreditCardFormFilled() = 0;

@@ -18,7 +18,7 @@ InterpolationValue MaybeConvertCSSValue(const CSSValue& value,
                                         CoordBox coord_box) {
   InterpolationValue result =
       basic_shape_interpolation_functions::MaybeConvertCSSValue(
-          value, property, geometry_box, coord_box);
+          value, property, geometry_box, coord_box, ShapeBox::kMissing);
   if (result) {
     return result;
   }
@@ -41,7 +41,7 @@ InterpolationValue MaybeConvertBasicShape(const BasicShape* shape,
           shape, property, zoom, geometry_box, coord_box);
     default:
       return basic_shape_interpolation_functions::MaybeConvertBasicShape(
-          shape, property, zoom, geometry_box, coord_box);
+          shape, property, zoom, geometry_box, coord_box, ShapeBox::kMissing);
   }
 }
 
@@ -78,7 +78,7 @@ BasicShape* CreateBasicShape(const InterpolableValue& interpolable_value,
   if (non_interpolable.GetType() ==
       CSSShapeInterpolationType::ShapeNonInterpolableValueType()) {
     return CSSShapeInterpolationType::CreateShape(
-        interpolable_value, &non_interpolable, conversion_data);
+        interpolable_value, non_interpolable, conversion_data);
   }
   return basic_shape_interpolation_functions::CreateBasicShape(
       interpolable_value, non_interpolable, conversion_data);

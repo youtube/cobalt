@@ -15,6 +15,7 @@
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
 #include "base/values.h"
+#include "chrome/browser/ui/views/permissions/embedded_permission_prompt_observer.h"
 #include "components/contextual_search/contextual_search_types.h"
 #include "components/contextual_search/pref_names.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
@@ -44,6 +45,10 @@ extern const char* kSearchSparkIconResourceName;
 extern const char* kReplyRotated180IconResourceName;
 }  // namespace searchbox_internal
 
+namespace gfx {
+class Size;
+}  // namespace gfx
+
 // Base class for browser-side handlers that handle bi-directional communication
 // with WebUI search boxes.
 
@@ -51,8 +56,16 @@ extern const char* kReplyRotated180IconResourceName;
 #define DECLARE_FEATURE(feature) static constinit const base::Feature feature
 
 class SearchboxHandler : public searchbox::mojom::PageHandler,
-                         public AutocompleteController::Observer {
+                         public AutocompleteController::Observer,
+                         public EmbeddedPermissionPromptObserver::Observer {
  public:
+  class Delegate {
+   public:
+    virtual void OnEmbeddedPermissionDialogChanged(
+        bool is_showing,
+        const gfx::Size& prompt_size) = 0;
+  };
+
   SearchboxHandler(const SearchboxHandler&) = delete;
   SearchboxHandler& operator=(const SearchboxHandler&) = delete;
 
@@ -91,10 +104,15 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
   void OnResultChanged(AutocompleteController* controller,
                        bool default_match_changed) override;
 
+  // EmbeddedPermissionPromptObserver::Observer:
+  void OnEmbeddedPermissionPromptChanged(bool is_showing,
+                                         const gfx::Size& prompt_size) override;
+
   // searchbox::mojom::PageHandler:
   void OnFocusChanged(bool focused) override;
   void QueryAutocomplete(const std::u16string& input,
-                         bool prevent_inline_autocomplete) override;
+                         bool prevent_inline_autocomplete,
+                         uint32_t cursor_position) override;
   void StopAutocomplete(bool clear_result) override;
   void OpenAutocompleteMatch(uint8_t line,
                              const GURL& url,
@@ -161,6 +179,7 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
   void OnDriveDisclaimerAccepted() override;
   void OnDriveUploadClicked(OnDriveUploadClickedCallback callback) override;
   void GetPageClassification(GetPageClassificationCallback callback) override;
+  void set_delegate(Delegate* delegate) { omnibox_delegate_ = delegate; }
 
  protected:
   FRIEND_TEST_ALL_PREFIXES(RealboxHandlerTest, AutocompleteController_Start);
@@ -186,10 +205,13 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
   const AutocompleteMatch* GetMatchWithUrl(size_t index, const GURL& url) const;
 
   virtual omnibox::InputState GetInputState() const;
+  virtual std::string GetPreviousQuery();
 
   raw_ptr<Profile> profile_;
   raw_ptr<content::WebContents> web_contents_;
   raw_ptr<OmniboxController> controller_;
+  raw_ptr<Delegate> omnibox_delegate_;
+
   // Children classes should use `omnibox_controller()` or `controller_`.
   std::unique_ptr<OmniboxController> owned_controller_;
 
@@ -199,6 +221,7 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
 
   mojo::Receiver<searchbox::mojom::PageHandler> page_handler_;
   mojo::Remote<searchbox::mojom::Page> page_;
+  base::WeakPtrFactory<SearchboxHandler> weak_ptr_factory_{this};
 
   searchbox::mojom::AutocompleteResultPtr CreateAutocompleteResult(
       const std::u16string& input,

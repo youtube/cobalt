@@ -4,6 +4,8 @@
 
 #include "components/autofill/core/browser/form_processing/optimization_guide_proto_util.h"
 
+#include <stddef.h>
+
 #include <concepts>
 
 #include "base/check_op.h"
@@ -50,6 +52,8 @@ optimization_guide::proto::FormControlType ToFormControlTypeProto(
       return optimization_guide::proto::FORM_CONTROL_TYPE_SELECT_ONE;
     case FormControlType::kTextArea:
       return optimization_guide::proto::FORM_CONTROL_TYPE_TEXT_AREA;
+    case FormControlType::kInputHiddenEmailVerification:
+      return optimization_guide::proto::FORM_CONTROL_TYPE_INPUT_HIDDEN;
   }
   return optimization_guide::proto::FORM_CONTROL_TYPE_UNSPECIFIED;
 }

@@ -60,9 +60,8 @@ static float CalculateNormalizationScale(AudioBus* response) {
   float power = 0;
 
   for (unsigned i = 0; i < number_of_channels; ++i) {
-    float channel_power = 0;
-    vector_math::Vsvesq(response->Channel(i)->Data(), 1, &channel_power,
-                        length);
+    float channel_power =
+        vector_math::Vsvesq(response->Channel(i)->Span(), length);
     power += channel_power;
   }
 

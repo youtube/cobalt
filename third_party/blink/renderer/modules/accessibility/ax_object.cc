@@ -107,6 +107,7 @@
 #include "third_party/blink/renderer/core/input/context_menu_allowed_scope.h"
 #include "third_party/blink/renderer/core/input/event_handler.h"
 #include "third_party/blink/renderer/core/input_type_names.h"
+#include "third_party/blink/renderer/core/keywords.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
 #include "third_party/blink/renderer/core/layout/layout_box_model_object.h"
 #include "third_party/blink/renderer/core/layout/layout_image.h"
@@ -127,6 +128,7 @@
 #include "third_party/blink/renderer/modules/accessibility/aria_notification.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_enums.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_object-inl.h"
+#include "third_party/blink/renderer/modules/accessibility/ax_relation_cache.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_to_number.h"
 #if AX_FAIL_FAST_BUILD()
@@ -4457,6 +4459,11 @@ ax::mojom::blink::Role AXObject::DetermineRoleValue() {
   return NativeRoleIgnoringAria();
 }
 
+void AXObject::UpdateRole() {
+  DCHECK(!IsDetached());
+  role_ = DetermineRoleValue();
+}
+
 bool AXObject::CanSetValueAttribute() const {
   switch (RoleValue()) {
     case ax::mojom::blink::Role::kColorWell:
@@ -5692,7 +5699,6 @@ const AtomicString& AXObject::LiveRegionStatus() const {
                       ("assertive"));
   DEFINE_STATIC_LOCAL(const AtomicString, live_region_status_polite,
                       ("polite"));
-  DEFINE_STATIC_LOCAL(const AtomicString, live_region_status_off, ("off"));
   DEFINE_STATIC_LOCAL(const AtomicString, live_region_status_undefined,
                       ("undefined"));
 
@@ -5714,8 +5720,8 @@ const AtomicString& AXObject::LiveRegionStatus() const {
   if (implicit_value == live_region_status_polite) {
     return live_region_status_polite;
   }
-  if (implicit_value == live_region_status_off) {
-    return live_region_status_off;
+  if (implicit_value == keywords::kOff) {
+    return keywords::kOff;
   }
 
   return g_null_atom;
@@ -5793,12 +5799,12 @@ ax::mojom::blink::Role AXObject::RawAriaRole() const {
   return ax::mojom::blink::Role::kUnknown;
 }
 
-ax::mojom::blink::Role AXObject::DetermineRawAriaRole() const {
-  const Element* element = GetElement();
-  if (!element) {
+ax::mojom::blink::Role AXObject::DetermineRawAriaRoleWithContext() const {
+  if (!GetElement()) {
     return ax::mojom::blink::Role::kUnknown;
   }
-  return DetermineRawAriaRole(*element);
+  const AtomicString& role_str = AriaAttribute(html_names::kRoleAttr);
+  return FirstValidRoleInRoleStringWithContext(role_str);
 }
 
 // static
@@ -5813,12 +5819,164 @@ ax::mojom::blink::Role AXObject::DetermineRawAriaRole(const Element& element) {
   return FirstValidRoleInRoleString(aria_role);
 }
 
+bool AXObject::HasRequiredParentContext(ax::mojom::blink::Role role) const {
+  const Element* element = GetElement();
+  if (!element) {
+    return true;
+  }
+
+  if (role == ax::mojom::blink::Role::kListItem) {
+    return !IsOrphanedListItem(*element);
+  }
+
+  if (role == ax::mojom::blink::Role::kListBoxOption) {
+    return !IsOrphanedOption(*element);
+  }
+
+  return true;
+}
+
+bool AXObject::IsOrphanedListItem(const Element& element) const {
+  // Check if owned via aria-owns (Relation Cache lookup).
+  AXRelationCache* relation_cache = AXObjectCache().RelationCache();
+  if (relation_cache && relation_cache->IsAriaOwned(this)) {
+    AXObject* owner = relation_cache->ValidatedAriaOwner(this);
+    if (owner) {
+      ax::mojom::blink::Role owner_role = owner->RoleValue();
+      if (owner_role == ax::mojom::blink::Role::kList ||
+          owner_role == ax::mojom::blink::Role::kGroup) {
+        return false;  // It has a valid owner, so it is not an orphan.
+      }
+    }
+  }
+
+  // Walk up the DOM tree looking for a valid list container.
+  for (Node* curr = LayoutTreeBuilderTraversal::Parent(element); curr;
+       curr = LayoutTreeBuilderTraversal::Parent(*curr)) {
+    auto* parent = DynamicTo<Element>(curr);
+    if (!parent) {
+      continue;
+    }
+
+    // Valid list element tags.
+    if (parent->HasTagName(html_names::kUlTag) ||
+        parent->HasTagName(html_names::kOlTag) ||
+        parent->HasTagName(html_names::kMenuTag)) {
+      return false;  // Found valid list, so it is not an orphan.
+    }
+
+    // Valid list ARIA roles.
+    const AtomicString& role_str =
+        AXObject::AriaAttribute(*parent, html_names::kRoleAttr);
+    ax::mojom::blink::Role parent_role = ax::mojom::blink::Role::kUnknown;
+    if (!role_str.empty()) {
+      parent_role = FirstValidRoleInRoleString(role_str);
+    }
+    if (parent_role == ax::mojom::blink::Role::kList ||
+        parent_role == ax::mojom::blink::Role::kGroup) {
+      return false;  // Found valid list, so it is not an orphan.
+    }
+
+    // Skip presentational wrappers that do not affect tree structure.
+    if (ui::IsPresentational(parent_role)) {
+      continue;
+    }
+
+    // Skip anonymous/generic <div> wrappers without explicit roles.
+    if (parent->HasTagName(html_names::kDivTag) && role_str.empty()) {
+      continue;
+    }
+
+    // Any other non-generic structural element interrupts the context.
+    break;
+  }
+
+  return true;  // No list parent found, it is an orphan.
+}
+
+bool AXObject::IsOrphanedOption(const Element& element) const {
+  // Check if owned via aria-owns.
+  AXRelationCache* relation_cache = AXObjectCache().RelationCache();
+  if (relation_cache && relation_cache->IsAriaOwned(this)) {
+    AXObject* owner = relation_cache->ValidatedAriaOwner(this);
+    if (owner) {
+      ax::mojom::blink::Role owner_role = owner->RoleValue();
+      if (owner_role == ax::mojom::blink::Role::kListBox ||
+          owner_role == ax::mojom::blink::Role::kGroup) {
+        return false;
+      }
+    }
+  }
+
+  // Walk up the DOM tree looking for a valid select/listbox.
+  for (Node* curr = LayoutTreeBuilderTraversal::Parent(element); curr;
+       curr = LayoutTreeBuilderTraversal::Parent(*curr)) {
+    auto* parent = DynamicTo<Element>(curr);
+    if (!parent) {
+      continue;
+    }
+
+    if (parent->HasTagName(html_names::kSelectTag)) {
+      return false;
+    }
+
+    const AtomicString& role_str =
+        AXObject::AriaAttribute(*parent, html_names::kRoleAttr);
+    ax::mojom::blink::Role parent_role = ax::mojom::blink::Role::kUnknown;
+    if (!role_str.empty()) {
+      parent_role = FirstValidRoleInRoleString(role_str);
+    }
+    if (parent_role == ax::mojom::blink::Role::kListBox ||
+        parent_role == ax::mojom::blink::Role::kGroup) {
+      return false;
+    }
+
+    // Skip presentational wrappers that do not affect tree structure.
+    if (ui::IsPresentational(parent_role)) {
+      continue;
+    }
+
+    if (parent->HasTagName(html_names::kDivTag) && role_str.empty()) {
+      continue;
+    }
+
+    break;
+  }
+
+  return true;
+}
+
+ax::mojom::blink::Role AXObject::FirstValidRoleInRoleStringWithContext(
+    const String& role_str,
+    bool ignore_form_and_region) const {
+  if (role_str.empty()) {
+    return ax::mojom::blink::Role::kUnknown;
+  }
+
+  Vector<String> role_tokens = role_str.SimplifyWhiteSpace().Split(' ');
+
+  for (const String& token : role_tokens) {
+    if (token.empty()) {
+      continue;
+    }
+    ax::mojom::blink::Role role =
+        FirstValidRoleInRoleString(token, ignore_form_and_region);
+    if (role != ax::mojom::blink::Role::kUnknown) {
+      if (HasRequiredParentContext(role)) {
+        return role;
+      }
+    }
+  }
+
+  return ax::mojom::blink::Role::kUnknown;
+}
+
 ax::mojom::blink::Role AXObject::DetermineAriaRole() const {
   if (!GetElement()) {
     return ax::mojom::blink::Role::kUnknown;
   }
 
-  ax::mojom::blink::Role role = DetermineRawAriaRole();
+  ax::mojom::blink::Role role = DetermineRawAriaRoleWithContext();
 
   if ((role == ax::mojom::blink::Role::kForm ||
        role == ax::mojom::blink::Role::kRegion) &&
@@ -5832,9 +5990,10 @@ ax::mojom::blink::Role AXObject::DetermineAriaRole() const {
     // ChromeVox will ignore the aria-roledescription. It only speaks the role
     // description on certain roles, and ignores it on the generic role.
     // See also https://github.com/w3c/aria/issues/1463.
-    if (const AtomicString& role_str = AriaAttribute(html_names::kRoleAttr)) {
-      return FirstValidRoleInRoleString(role_str,
-                                        /*ignore_form_and_region*/ true);
+    const AtomicString& role_str = AriaAttribute(html_names::kRoleAttr);
+    if (!role_str.empty()) {
+      return FirstValidRoleInRoleStringWithContext(
+          role_str, /*ignore_form_and_region*/ true);
     }
     return ax::mojom::blink::Role::kUnknown;
   }
@@ -6027,7 +6186,7 @@ bool AXObject::LiveRegionAtomic() const {
   }
 
   const String& implicit_value = GetImplicitAriaAtomic(RoleValue());
-  return implicit_value == "true";
+  return implicit_value == keywords::kTrue;
 }
 
 const AtomicString& AXObject::ContainerLiveRegionStatus() const {
@@ -7502,8 +7661,10 @@ bool AXObject::OnNativeClickAction() {
       document->GetFrame(),
       mojom::blink::UserActivationNotificationType::kInteraction);
 
-  if (IsTextField())
-    return OnNativeFocusAction();
+  // Text elements activate IME on focus
+  if (IsTextField()) {
+    OnNativeFocusAction();
+  }
 
   Element* element = GetClosestElement();
 
@@ -7527,8 +7688,10 @@ bool AXObject::OnNativeClickAction() {
       }
     }
 
-    // For most elements, AccessKeyAction triggers sending a simulated
+    // For most elements, `AccessKeyAction()` triggers sending a simulated
     // click, including simulating the mousedown, mouseup, and click events.
+    // For some elements (e.g. <option> inside <select>), `AccessKeyAction()`
+    // has special handling that needs to be available to assistive tools.
     element->AccessKeyAction(SimulatedClickCreationScope::kFromAccessibility);
     return true;
   }

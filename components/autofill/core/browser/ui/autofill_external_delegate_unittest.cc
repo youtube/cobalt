@@ -38,6 +38,7 @@
 #include "components/autofill/core/browser/data_manager/test_personal_data_manager.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/browser/filling/autofill_ai/autofill_ai_access_manager_test_api.h"
 #include "components/autofill/core/browser/filling/autofill_ai/field_filling_entity_util.h"
 #include "components/autofill/core/browser/filling/field_filling_util.h"
 #include "components/autofill/core/browser/filling/form_filler.h"
@@ -1299,6 +1300,49 @@ TEST_F(AutofillExternalDelegateTest, AtMemoryRemoteQuery_NoData) {
   external_delegate().OnSearchSubmitted(u"shoe size");
 }
 
+class AutofillExternalDelegateAtMemoryErrorTest
+    : public AutofillExternalDelegateTest,
+      public testing::WithParamInterface<accessibility_annotator::MemorySearchStatus> {};
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    AutofillExternalDelegateAtMemoryErrorTest,
+    testing::Values(accessibility_annotator::MemorySearchStatus::kDataFetchFailure,
+                    accessibility_annotator::MemorySearchStatus::kInferenceFailure,
+                    accessibility_annotator::MemorySearchStatus::kInternalFailure));
+
+// Tests that when a remote query returns no entries and an error status
+// (fetch, inference, or internal failure), the delegate shows a "No server connection" suggestion.
+TEST_P(AutofillExternalDelegateAtMemoryErrorTest, AtMemoryRemoteQuery_NoConnection) {
+  StartAtMemorySession();
+
+  SetupMockAccessibilityQueryService(
+      u"shoe size",
+      {GetParam(), {}},
+      /*full_search=*/true);
+
+  EXPECT_CALL(autofill_client(), UpdateAutofillSuggestions)
+      .WillOnce(testing::Return())
+      .WillOnce([this](const std::vector<Suggestion>& suggestions,
+                       FillingProduct product,
+                       AutofillSuggestionTriggerSource source,
+                       AutofillSuggestionsIgnoreFocusLoss ignore) {
+        EXPECT_THAT(
+            suggestions,
+            testing::ElementsAre(testing::AllOf(
+                HasMainText(l10n_util::GetStringUTF16(
+                    IDS_AUTOFILL_AT_MEMORY_NO_CONNECTION)),
+                testing::Field(&Suggestion::type,
+                               SuggestionType::kAtMemoryNoConnection),
+                testing::Field(&Suggestion::icon, Suggestion::Icon::kSadTab),
+                testing::Field(&Suggestion::acceptability,
+                               Suggestion::Acceptability::
+                                   kUnacceptableWithDeactivatedStyle))));
+      });
+
+  external_delegate().OnSearchSubmitted(u"shoe size");
+}
+
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
 // Tests that when the "Open Gemini" suggestion is accepted, it triggers
 // opening Gemini in the sidebar.
@@ -2533,8 +2577,13 @@ TEST_F(AutofillExternalDelegateTest, AutofillAiReauthFlow_ReauthAccepted) {
       std::make_unique<device_reauth::MockDeviceAuthenticator>();
   EXPECT_CALL(*authenticator, CanAuthenticateWithBiometricOrScreenLock)
       .WillOnce(Return(true));
+
+  device_reauth::DeviceAuthenticator::AuthenticateCallback reauth_callback;
   EXPECT_CALL(*authenticator, AuthenticateWithMessage)
-      .WillOnce(RunOnceCallback<1>(true));
+      .WillOnce(MoveArg<1>(&reauth_callback));
+
+  test_api(autofill_manager().GetAutofillAiAccessManager())
+      .SetDeviceAuthenticator(std::move(authenticator));
 
   {
     InSequence s;
@@ -2544,14 +2593,12 @@ TEST_F(AutofillExternalDelegateTest, AutofillAiReauthFlow_ReauthAccepted) {
         AllOf(Field(&Suggestion::acceptability,
                     Suggestion::Acceptability::kUnacceptable),
               Field(&Suggestion::is_loading, Suggestion::IsLoading(false)));
+
     EXPECT_CALL(
         autofill_client(),
         UpdateAutofillSuggestions(_, FillingProduct::kAutofillAi,
                                   kDefaultSuggestionTriggerSource,
                                   AutofillSuggestionsIgnoreFocusLoss(true)));
-    EXPECT_CALL(autofill_client(),
-                GetDeviceAuthenticator("Autofill.Ai.ReauthToFill"))
-        .WillOnce(Return(std::move(authenticator)));
 
     EXPECT_CALL(
         autofill_manager(),
@@ -2561,6 +2608,8 @@ TEST_F(AutofillExternalDelegateTest, AutofillAiReauthFlow_ReauthAccepted) {
   }
 
   external_delegate().DidAcceptSuggestion(fill_suggestion, {});
+  ASSERT_FALSE(reauth_callback.is_null());
+  std::move(reauth_callback).Run(true);
 }
 
 // Tests that the re-authentication message contains the origin host when
@@ -2579,6 +2628,7 @@ TEST_F(AutofillExternalDelegateTest, AutofillAiReauthFlow_ReauthMessage) {
   AddOrUpdateEntityInstance(passport);
 
   const GURL kUrl = GURL("https://acoolwebsite.test");
+  autofill_client().set_last_committed_primary_main_frame_url(kUrl);
   // Create form with a passport number, which triggers obfuscation and thus
   // re-auth.
   IssueOnQuery({.fields = {{.role = PASSPORT_NUMBER,
@@ -2599,8 +2649,8 @@ TEST_F(AutofillExternalDelegateTest, AutofillAiReauthFlow_ReauthMessage) {
   EXPECT_CALL(*authenticator, AuthenticateWithMessage(expected_message, _))
       .WillOnce(RunOnceCallback<1>(true));
 
-  EXPECT_CALL(autofill_client(), GetDeviceAuthenticator)
-      .WillOnce(Return(std::move(authenticator)));
+  test_api(autofill_manager().GetAutofillAiAccessManager())
+      .SetDeviceAuthenticator(std::move(authenticator));
 
   EXPECT_CALL(autofill_manager(), FillOrPreviewForm);
 
@@ -2631,9 +2681,8 @@ TEST_F(AutofillExternalDelegateTest, AutofillAiReauthFlow_ReauthRejected) {
       .WillOnce(Return(true));
   EXPECT_CALL(*authenticator, AuthenticateWithMessage)
       .WillOnce(RunOnceCallback<1>(false));
-  EXPECT_CALL(autofill_client(),
-              GetDeviceAuthenticator("Autofill.Ai.ReauthToFill"))
-      .WillOnce(Return(std::move(authenticator)));
+  test_api(autofill_manager().GetAutofillAiAccessManager())
+      .SetDeviceAuthenticator(std::move(authenticator));
   EXPECT_CALL(autofill_manager(), FillOrPreviewForm).Times(0);
 
   Suggestion fill_suggestion(SuggestionType::kFillAutofillAi);
@@ -2668,9 +2717,8 @@ TEST_F(AutofillExternalDelegateTest, AutofillAiReauthFlow_ResultMetrics) {
         .WillOnce(Return(true));
     EXPECT_CALL(*authenticator, AuthenticateWithMessage)
         .WillOnce(RunOnceCallback<1>(true));
-    EXPECT_CALL(autofill_client(),
-                GetDeviceAuthenticator("Autofill.Ai.ReauthToFill"))
-        .WillOnce(Return(std::move(authenticator)));
+    test_api(autofill_manager().GetAutofillAiAccessManager())
+        .SetDeviceAuthenticator(std::move(authenticator));
 
     external_delegate().DidAcceptSuggestion(fill_suggestion, {});
 
@@ -2689,9 +2737,8 @@ TEST_F(AutofillExternalDelegateTest, AutofillAiReauthFlow_ResultMetrics) {
         .WillOnce(Return(true));
     EXPECT_CALL(*authenticator, AuthenticateWithMessage)
         .WillOnce(RunOnceCallback<1>(false));
-    EXPECT_CALL(autofill_client(),
-                GetDeviceAuthenticator("Autofill.Ai.ReauthToFill"))
-        .WillOnce(Return(std::move(authenticator)));
+    test_api(autofill_manager().GetAutofillAiAccessManager())
+        .SetDeviceAuthenticator(std::move(authenticator));
 
     external_delegate().DidAcceptSuggestion(fill_suggestion, {});
 
@@ -2719,9 +2766,8 @@ TEST_F(AutofillExternalDelegateTest, AutofillAiReauthFlow_NoAuthenticator) {
   // re-auth.
   IssueOnQuery({.fields = {{.role = PASSPORT_NUMBER}}});
 
-  EXPECT_CALL(autofill_client(),
-              GetDeviceAuthenticator("Autofill.Ai.ReauthToFill"))
-      .WillOnce(Return(nullptr));
+  test_api(autofill_manager().GetAutofillAiAccessManager())
+      .SetDeviceAuthenticator(nullptr);
   EXPECT_CALL(
       autofill_manager(),
       FillOrPreviewForm(mojom::ActionPersistence::kFill, HasQueriedFormId(),
@@ -2999,8 +3045,8 @@ TEST_F(AutofillExternalDelegateWithWalletPrivatePassesTest,
       .WillOnce(Return(true));
   EXPECT_CALL(*authenticator, AuthenticateWithMessage)
       .WillOnce(RunOnceCallback<1>(false));
-  EXPECT_CALL(autofill_client(), GetDeviceAuthenticator)
-      .WillOnce(Return(std::move(authenticator)));
+  test_api(autofill_manager().GetAutofillAiAccessManager())
+      .SetDeviceAuthenticator(std::move(authenticator));
 
   // Expect that the `wallet_manager()` is not called and that no unmask failure
   // notification is shown.

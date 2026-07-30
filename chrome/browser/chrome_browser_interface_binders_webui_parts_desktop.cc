@@ -11,6 +11,7 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks.mojom.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_internals.mojom.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
+#include "chrome/browser/glic/experimental_opt_in/glic_experimental_opt_in_ui.h"
 #include "chrome/browser/glic/selection/selection_overlay_untrusted_ui.h"
 #include "chrome/browser/history_clusters/history_clusters_service_factory.h"
 #include "chrome/browser/history_embeddings/history_embeddings_utils.h"
@@ -30,8 +31,8 @@
 #include "chrome/browser/ui/views/side_panel/tabs_from_other_devices/tabs_from_other_devices_side_panel_coordinator.h"
 #include "chrome/browser/ui/webui/access_code_cast/access_code_cast.mojom.h"
 #include "chrome/browser/ui/webui/access_code_cast/access_code_cast_ui.h"
-#include "chrome/browser/ui/webui/accessibility_annotator/accessibility_annotator_info.mojom.h"
-#include "chrome/browser/ui/webui/accessibility_annotator/accessibility_annotator_info_ui.h"
+#include "chrome/browser/ui/webui/accessibility_annotator/personal_context_notice.mojom.h"
+#include "chrome/browser/ui/webui/accessibility_annotator/personal_context_notice_ui.h"
 #include "chrome/browser/ui/webui/ai_overlay_dialog/ai_overlay_dialog.mojom.h"
 #include "chrome/browser/ui/webui/ai_overlay_dialog/ai_overlay_dialog_untrusted_ui.h"
 #include "chrome/browser/ui/webui/app_service_internals/app_service_internals.mojom.h"
@@ -59,7 +60,6 @@
 #include "chrome/browser/ui/webui/multistep_filter_internals/multistep_filter_internals_ui.h"
 #include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer.mojom.h"
 #include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer_ui.h"
-#include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips.mojom.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page.mojom.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page_ui.h"
@@ -206,6 +206,8 @@
 #endif  // defined(OFFICIAL_BUILD)
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
+#include "chrome/browser/ui/webui/feature_showcase/feature_showcase.mojom.h"
+#include "chrome/browser/ui/webui/feature_showcase/feature_showcase_ui.h"
 #include "chrome/browser/ui/webui/signin/signout_confirmation/signout_confirmation_ui.h"
 #include "ui/webui/resources/js/batch_upload_promo/batch_upload_promo.mojom.h"
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
@@ -273,10 +275,6 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
         ntp_promo::mojom::NtpPromoHandlerFactory, NewTabPageUI>(map);
   }
 
-  if (base::FeatureList::IsEnabled(ntp_features::kNtpNextFeatures)) {
-    RegisterWebUIControllerInterfaceBinder<
-        action_chips::mojom::ActionChipsHandlerFactory, NewTabPageUI>(map);
-  }
   if (HistorySidePanelCoordinator::IsSupported()) {
     RegisterWebUIControllerInterfaceBinder<history::mojom::PageHandler,
                                            HistorySidePanelUI, HistoryUI>(map);
@@ -353,6 +351,9 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  RegisterWebUIControllerInterfaceBinder<
+      feature_showcase::mojom::FeatureShowcasePageHandlerFactory,
+      FeatureShowcaseUI>(map);
   RegisterWebUIControllerInterfaceBinder<
       batch_upload_promo::mojom::PageHandlerFactory, settings::SettingsUI>(map);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
@@ -494,8 +495,8 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
       content_annotator_internals::ContentAnnotatorInternalsUI>(map);
 
   RegisterWebUIControllerInterfaceBinder<
-      accessibility_annotator::info::mojom::PageHandler,
-      accessibility_annotator::info::AccessibilityAnnotatorInfoUI>(map);
+      personal_context::notice::mojom::PageHandler,
+      personal_context::notice::PersonalContextNoticeUI>(map);
 
   RegisterWebUIControllerInterfaceBinder<
       ::mojom::app_service_internals::AppServiceInternalsPageHandler,
@@ -654,6 +655,9 @@ void PopulateChromeWebUIFrameInterfaceBrokersTrustedPartsDesktop(
       base::BindRepeating(&BindMetricsReporterService));
 
   registry.ForWebUI<TabSearchUI>().Add<tab_search::mojom::PageHandlerFactory>();
+
+  registry.ForWebUI<glic::GlicExperimentalOptInUI>()
+      .Add<glic::mojom::ExperimentalOptInPageHandler>();
 
   if (base::FeatureList::IsEnabled(ntp_features::kNtpFooter)) {
     registry.ForWebUI<NewTabFooterUI>()

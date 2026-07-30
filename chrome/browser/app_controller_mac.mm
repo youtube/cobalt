@@ -1318,8 +1318,7 @@ class AppControllerProfileObserver : public ProfileAttributesStorage::Observer,
       .sessionHandler = self;
 
   [MenuControllerCocoa
-      initializeWithNewMenuIconScheme:base::FeatureList::IsEnabled(
-                                          features::kMenuSimplification)];
+      initializeWithNewMenuIconScheme:features::IsMenuSimplificationEnabled()];
 }
 
 - (void)observeValueForKeyPath:(NSString*)keyPath
@@ -1860,7 +1859,12 @@ class AppControllerProfileObserver : public ProfileAttributesStorage::Observer,
     // Asynchronously load profile first if needed.
     // TODO(crbug.com/40261514): Replace CreateBrowser by LaunchBrowserStartup
     app_controller_mac::RunInLastProfileSafely(
-        base::BindOnce(base::IgnoreResult(&CreateBrowser)),
+        base::BindOnce([](Profile* profile) {
+          if (!profile) {
+            return;
+          }
+          CreateBrowser(profile);
+        }),
         app_controller_mac::kShowProfilePickerOnFailure);
   }
 
@@ -2207,7 +2211,7 @@ class AppControllerProfileObserver : public ProfileAttributesStorage::Observer,
   _historyMenuBridge = std::make_unique<HistoryMenuBridge>(_lastProfile);
   _historyMenuBridge->BuildMenu();
 
-  if (base::FeatureList::IsEnabled(features::kShowTabGroupsMacSystemMenu)) {
+  if (features::IsShowTabGroupsMacSystemMenuEnabled()) {
     auto* tab_group_service =
         tab_groups::TabGroupSyncServiceFactory::GetForProfile(_lastProfile);
     if (tab_group_service) {
@@ -2594,7 +2598,17 @@ void OnProfileLoaded(base::OnceCallback<void(Profile*)> callback,
       case app_controller_mac::kIgnoreOnFailure:
         break;
     }
+    std::move(callback).Run(nullptr);
+    return;
   }
+
+  // Shutdown may have started since this callback was scheduled.
+  if (Browser::GetCreationStatusForProfile(safe_profile) !=
+      Browser::CreationStatus::kOk) {
+    std::move(callback).Run(nullptr);
+    return;
+  }
+
   std::move(callback).Run(safe_profile);
 }
 

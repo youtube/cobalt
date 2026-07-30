@@ -4,6 +4,11 @@
 
 package org.chromium.chrome.browser.bottombar;
 
+import android.content.ComponentCallbacks;
+import android.content.Context;
+import android.content.res.Configuration;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.widget.FrameLayout;
 
@@ -35,12 +40,37 @@ import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 public class BottomBarContainerCoordinator
         implements BottomControlsContentDelegate, BottomBarMediator.VisibilityDelegate {
     private final FrameLayout mBottomBarContainer;
+    private final Context mContext;
     private final Callback<Boolean> mRequestLayerUpdateCallback;
     private final BottomBarCoordinator mBottomBarCoordinator;
+    private final Handler mHandler;
+    private final Runnable mModelTokenChangeRunnable = this::onModelTokenChange;
+    private final ComponentCallbacks mComponentCallbacks =
+            new ComponentCallbacks() {
+                @Override
+                public void onConfigurationChanged(Configuration newConfig) {
+                    if (newConfig.orientation == mCurrentOrientation) {
+                        return;
+                    }
+
+                    if (mPendingVisibilityUpdate) {
+                        mHandler.removeCallbacks(mModelTokenChangeRunnable);
+                    }
+                    mCurrentOrientation = newConfig.orientation;
+                    mPendingVisibilityUpdate = true;
+                    mHandler.post(mModelTokenChangeRunnable);
+                }
+
+                @Override
+                public void onLowMemory() {}
+            };
 
     private @Nullable BottomControlsVisibilityController mVisibilityController;
     private @Nullable Callback<Object> mOnModelTokenChange;
     private boolean mIsVisible = true;
+    // Tracking if there is a pending visibility update to avoid scanning the whole queue.
+    private boolean mPendingVisibilityUpdate;
+    private int mCurrentOrientation;
 
     /**
      * @param bottomBarContainer The {@link FrameLayout} for the bottom bar.
@@ -58,6 +88,11 @@ public class BottomBarContainerCoordinator
             NullableObservableSupplier<Profile> profileSupplier,
             NonNullObservableSupplier<Boolean> omniboxFocusStateSupplier) {
         mBottomBarContainer = bottomBarContainer;
+        Context context = bottomBarContainer.getContext();
+        mContext = context;
+        mCurrentOrientation = context.getResources().getConfiguration().orientation;
+        mContext.registerComponentCallbacks(mComponentCallbacks);
+        mHandler = new Handler(Looper.getMainLooper());
         mRequestLayerUpdateCallback = requestLayerUpdateCallback;
 
         mBottomBarCoordinator =
@@ -79,13 +114,16 @@ public class BottomBarContainerCoordinator
         mVisibilityController = visibilityController;
         mOnModelTokenChange = onModelTokenChange;
         updateVisibility();
-        // TODO(crbug.com/493594829): The token change should be based on the property model of the
-        // bottom bar.
-        mOnModelTokenChange.onResult(new Object());
+        onModelTokenChange();
     }
 
     @Override
     public void destroy() {
+        if (mPendingVisibilityUpdate) {
+            mHandler.removeCallbacks(mModelTokenChangeRunnable);
+            mPendingVisibilityUpdate = false;
+        }
+        mContext.unregisterComponentCallbacks(mComponentCallbacks);
         mBottomBarCoordinator.destroy();
     }
 
@@ -93,6 +131,14 @@ public class BottomBarContainerCoordinator
     public void onVisibilityChanged(boolean isVisible) {
         mIsVisible = isVisible;
         updateVisibility();
+    }
+
+    @Override
+    public void onModelTokenChange() {
+        if (mOnModelTokenChange != null) {
+            mOnModelTokenChange.onResult(new Object());
+        }
+        mPendingVisibilityUpdate = false;
     }
 
     @Override
@@ -114,19 +160,18 @@ public class BottomBarContainerCoordinator
     public void attachBottomBarView(View view) {
         mBottomBarContainer.addView(view);
 
-        if (mOnModelTokenChange != null) {
-            // TODO(crbug.com/493594829): The token change should be based on the property model of
-            // the bottom bar.
-            mOnModelTokenChange.onResult(new Object());
-        }
-
+        onModelTokenChange();
         mRequestLayerUpdateCallback.onResult(true);
     }
 
-    public void updateVisibility() {
+    private void updateVisibility() {
         mBottomBarContainer.setVisibility(mIsVisible ? View.VISIBLE : View.GONE);
         if (mVisibilityController != null) {
             mVisibilityController.setBottomControlsVisible(mIsVisible);
         }
+    }
+
+    /*package*/ ComponentCallbacks getComponentCallbacksForTesting() {
+        return mComponentCallbacks;
     }
 }

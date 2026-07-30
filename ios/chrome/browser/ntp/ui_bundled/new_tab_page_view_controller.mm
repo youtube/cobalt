@@ -98,6 +98,10 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
 // Constraint for the height of the container view surrounding the feed.
 @property(nonatomic, strong) NSLayoutConstraint* feedContainerHeightConstraint;
 
+// Whether the NTP is currently transitioning to landscape orientation.
+@property(nonatomic, assign, getter=isTransitioningToLandscape)
+    BOOL transitioningToLandscape;
+
 // `YES` if the NTP starting content offset should be set to a previous scroll
 // state (when navigating away and back), and `NO` if it should be the top of
 // the NTP.
@@ -404,50 +408,22 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
            (id<UIViewControllerTransitionCoordinator>)coordinator {
   [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
 
-  __weak NewTabPageViewController* weakSelf = self;
+  __weak __typeof(self) weakSelf = self;
 
-  CGFloat yOffsetBeforeRotation = [self scrollPosition];
-  CGFloat heightAboveFeedBeforeRotation = [self heightAboveFeed];
+  void (^transitionBlock)(id<UIViewControllerTransitionCoordinatorContext>) =
+      ^(id<UIViewControllerTransitionCoordinatorContext> context) {
+        [weakSelf updateLayoutForSize:size
+                      previousYOffset:[self scrollPosition]
+              previousHeightAboveFeed:[self heightAboveFeed]];
+      };
 
-  void (^alongsideBlock)(id<UIViewControllerTransitionCoordinatorContext>) = ^(
-      id<UIViewControllerTransitionCoordinatorContext> context) {
-    [self updateModuleWidth];
-    [weakSelf handleStickyElementsForScrollPosition:[weakSelf scrollPosition]
-                                              force:YES];
+  void (^completionBlock)(id<UIViewControllerTransitionCoordinatorContext>) =
+      ^(id<UIViewControllerTransitionCoordinatorContext> context) {
+        [weakSelf completeLayoutSizeUpdate];
+      };
 
-    CGFloat heightAboveFeedDifference =
-        [weakSelf heightAboveFeed] - heightAboveFeedBeforeRotation;
-
-    // Rotating the device can change the content suggestions height. This
-    // ensures that it is adjusted if necessary.
-    if (yOffsetBeforeRotation < 0) {
-      weakSelf.collectionView.contentOffset =
-          CGPointMake(0, yOffsetBeforeRotation - heightAboveFeedDifference);
-      [weakSelf updateNTPLayoutForWidth:size.width];
-    }
-    [weakSelf.view setNeedsLayout];
-    [weakSelf.view layoutIfNeeded];
-
-    // Pinned offset is different based on the orientation, so we reevaluate the
-    // minimum scroll position upon device rotation.
-    CGFloat pinnedOffsetY = [weakSelf pinnedOffsetY];
-    if (weakSelf.omniboxFocused && [weakSelf scrollPosition] < pinnedOffsetY) {
-      weakSelf.collectionView.contentOffset = CGPointMake(0, pinnedOffsetY);
-    }
-    if (!weakSelf.feedVisible) {
-      [weakSelf setMinimumHeight];
-    }
-  };
-  [coordinator
-      animateAlongsideTransition:alongsideBlock
-                      completion:^(
-                          id<UIViewControllerTransitionCoordinatorContext>) {
-                        [self updateNTPLayout];
-                        if (self.feedVisible) {
-                          [self updateFeedInsetsForMinimumHeight];
-                        }
-                        [self updateFeedContainerSizeAndPosition];
-                      }];
+  [coordinator animateAlongsideTransition:transitionBlock
+                               completion:completionBlock];
 
   if ([self isOrientationLandscapeForSize:size]) {
     [self.mutator notifyNtpDisplayedInLandscape];
@@ -1231,6 +1207,61 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
   }
 }
 
+// Helper for the animated transition in
+// `-viewWillTransitionToSize:withTransitionCoordinator:`. Updates the layout of
+// the NTP during a transition to `size`, based on the previous scroll position
+// and height above feed.
+- (void)updateLayoutForSize:(CGSize)size
+            previousYOffset:(CGFloat)previousYOffset
+    previousHeightAboveFeed:(CGFloat)previousHeightAboveFeed {
+  self.transitioningToLandscape =
+      IsChromeNextIaEnabled() && [self isOrientationLandscapeForSize:size];
+
+  [self updateModuleWidth];
+  [self handleStickyElementsForScrollPosition:[self scrollPosition] force:YES];
+
+  CGFloat heightAboveFeedDifference =
+      [self heightAboveFeed] - previousHeightAboveFeed;
+
+  // Rotating the device can change the content suggestions height. This
+  // ensures that it is adjusted if necessary.
+  if (previousYOffset < 0) {
+    self.collectionView.contentOffset =
+        CGPointMake(0, previousYOffset - heightAboveFeedDifference);
+    [self updateNTPLayoutForWidth:size.width];
+  }
+
+  [self.view setNeedsLayout];
+  [self.view layoutIfNeeded];
+
+  // Pinned offset is different based on the orientation, so we reevaluate
+  // the minimum scroll position upon device rotation.
+  CGFloat pinnedOffsetY = [self pinnedOffsetY];
+  if (self.omniboxFocused && [self scrollPosition] < pinnedOffsetY) {
+    self.collectionView.contentOffset = CGPointMake(0, pinnedOffsetY);
+  }
+
+  if (!self.feedVisible) {
+    [self setMinimumHeight];
+  }
+}
+
+// Helper for the transition completion in
+// `viewWillTransitionToSize:withTransitionCoordinator:`. Finishes updating the
+// layout of the NTP after a size transition.
+- (void)completeLayoutSizeUpdate {
+  if (IsChromeNextIaEnabled()) {
+    self.transitioningToLandscape = NO;
+  }
+
+  [self updateNTPLayout];
+
+  if (self.feedVisible) {
+    [self updateFeedInsetsForMinimumHeight];
+  }
+  [self updateFeedContainerSizeAndPosition];
+}
+
 // Either signals to the omnibox to cancel its focused state or just update the
 // NTP state for an unfocused state.
 - (void)unfocusOmnibox {
@@ -1368,20 +1399,6 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
   [NSLayoutConstraint activateConstraints:self.fakeOmniboxConstraints];
 }
 
-// Returns YES if scroll and constraint animations should be run for the header.
-- (BOOL)shouldAnimateScrollAnimation {
-  if (self.disableScrollAnimation) {
-    return NO;
-  }
-  if (IsChromeNextIaEnabled() && !IsSplitToolbarMode(self) &&
-      !CanShowTabStrip(self)) {
-    /// TODO(crbug.com/508170459): Implement NTP toolbars for split toolbar
-    /// mode.
-    return NO;
-  }
-  return YES;
-}
-
 // Update the header for a new width size depending on if the change needs to be
 // animated.
 - (void)updateFakeOmniboxOnNewWidth:(CGFloat)width {
@@ -1393,11 +1410,20 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
     // -viewDidLayoutSubviews.  Since self.collectionView and it's superview
     // should always have the same safeArea, this should be safe.
     UIEdgeInsets insets = self.collectionView.superview.safeAreaInsets;
+    CGFloat offset;
+    if (IsChromeNextIaEnabled()) {
+      // Passing 0.0 offset during rotation to landscape because in landscape
+      // orientation the header is fully visible while on the screen.
+      offset = self.isTransitioningToLandscape ? 0.0 : [self adjustedOffset].y;
+    } else {
+      offset = [self adjustedOffset].y;
+    }
+
     [self.headerViewController
-        updateFakeOmniboxForOffset:[self adjustedOffset].y
+        updateFakeOmniboxForOffset:offset
                        screenWidth:width
                     safeAreaInsets:insets
-            animateScrollAnimation:[self shouldAnimateScrollAnimation]];
+            animateScrollAnimation:!self.disableScrollAnimation];
   } else {
     [self.headerViewController updateFakeOmniboxForWidth:width];
   }
@@ -1415,13 +1441,16 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
   }
 
   if (self.shouldAnimateHeader) {
+    BOOL animateScrollAnimation =
+        IsChromeNextIaEnabled()
+            ? (IsSplitToolbarMode(self) || CanShowTabStrip(self))
+            : !self.disableScrollAnimation;
     UIEdgeInsets insets = self.collectionView.safeAreaInsets;
-
     [self.headerViewController
         updateFakeOmniboxForOffset:[self adjustedOffset].y
                        screenWidth:self.collectionView.frame.size.width
                     safeAreaInsets:insets
-            animateScrollAnimation:[self shouldAnimateScrollAnimation]];
+            animateScrollAnimation:animateScrollAnimation];
   }
 }
 
@@ -1998,6 +2027,9 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
 // toolbar. The former is for narrower devices like portait iPhones, and the
 // latter is for wider devices like iPads and landscape iPhones.
 - (BOOL)shouldPinFakeOmnibox {
+  if (IsChromeNextIaEnabled()) {
+    return NO;
+  }
   return !CanShowTabStrip(self) && IsSplitToolbarMode(self);
 }
 

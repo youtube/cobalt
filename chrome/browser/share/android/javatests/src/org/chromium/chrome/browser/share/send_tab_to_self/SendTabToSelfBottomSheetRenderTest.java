@@ -51,8 +51,6 @@ public class SendTabToSelfBottomSheetRenderTest {
     public static BaseActivityTestRule<BlankUiTestActivity> sActivityTestRule =
             new BaseActivityTestRule<>(BlankUiTestActivity.class);
 
-    private static Activity sActivity;
-
     @Rule
     public final RenderTestRule mRenderTestRule =
             RenderTestRule.Builder.withPublicCorpus()
@@ -69,7 +67,7 @@ public class SendTabToSelfBottomSheetRenderTest {
 
     @BeforeClass
     public static void setupSuite() {
-        sActivity = sActivityTestRule.launchActivity(null);
+        sActivityTestRule.launchActivity(null);
     }
 
     @Test
@@ -84,19 +82,20 @@ public class SendTabToSelfBottomSheetRenderTest {
                                 "My Computer", "guid2", FormFactor.DESKTOP, "Active 1 day ago"),
                         new TargetDeviceInfo(
                                 "My Tablet", "guid3", FormFactor.TABLET, "Active 2 days ago"));
+        Activity activity = sActivityTestRule.getActivity();
         View view =
                 ThreadUtils.runOnUiThreadBlocking(
                         () -> {
                             DevicePickerBottomSheetContent sheetContent =
                                     new DevicePickerBottomSheetContent(
-                                            sActivity,
+                                            activity,
                                             JUnitTestGURLs.HTTP_URL.getSpec(),
                                             "Title",
                                             mBottomSheetController,
                                             devices,
                                             mProfile,
                                             () -> null);
-                            sActivity.setContentView(sheetContent.getContentView());
+                            activity.setContentView(sheetContent.getContentView());
                             return sheetContent.getContentView();
                         });
         mRenderTestRule.render(view, "device_picker");
@@ -114,18 +113,19 @@ public class SendTabToSelfBottomSheetRenderTest {
                                 "My Computer", "guid2", FormFactor.DESKTOP, "Active 1 day ago"),
                         new TargetDeviceInfo(
                                 "My Tablet", "guid3", FormFactor.TABLET, "Active 2 days ago"));
+        Activity activity = sActivityTestRule.getActivity();
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     DevicePickerBottomSheetContent sheetContent =
                             new DevicePickerBottomSheetContent(
-                                    sActivity,
+                                    activity,
                                     JUnitTestGURLs.HTTP_URL.getSpec(),
                                     "Title",
                                     mBottomSheetController,
                                     devices,
                                     mProfile,
                                     () -> null);
-                    sActivity.setContentView(sheetContent.getContentView());
+                    activity.setContentView(sheetContent.getContentView());
                 });
         onView(withText(account.getEmail())).check(doesNotExist());
     }
@@ -135,12 +135,13 @@ public class SendTabToSelfBottomSheetRenderTest {
     @Feature("RenderTest")
     public void testNoTargetDeviceBottomSheet() throws Throwable {
         setUpAccountData(TestAccounts.ACCOUNT1);
+        Activity activity = sActivityTestRule.getActivity();
         View view =
                 ThreadUtils.runOnUiThreadBlocking(
                         () -> {
                             NoTargetDeviceBottomSheetContent sheetContent =
-                                    new NoTargetDeviceBottomSheetContent(sActivity, mProfile);
-                            sActivity.setContentView(sheetContent.getContentView());
+                                    new NoTargetDeviceBottomSheetContent(activity, mProfile);
+                            activity.setContentView(sheetContent.getContentView());
                             return sheetContent.getContentView();
                         });
         mRenderTestRule.render(view, "no_target_device_with_account");
@@ -151,11 +152,12 @@ public class SendTabToSelfBottomSheetRenderTest {
     public void testNoTargetDeviceBottomSheetWithNonDisplayableAccountEmail() throws Throwable {
         AccountInfo account = TestAccounts.CHILD_ACCOUNT_NON_DISPLAYABLE_EMAIL;
         setUpAccountData(account);
+        Activity activity = sActivityTestRule.getActivity();
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     NoTargetDeviceBottomSheetContent sheetContent =
-                            new NoTargetDeviceBottomSheetContent(sActivity, mProfile);
-                    sActivity.setContentView(sheetContent.getContentView());
+                            new NoTargetDeviceBottomSheetContent(activity, mProfile);
+                    activity.setContentView(sheetContent.getContentView());
                 });
         onView(withText(account.getEmail())).check(doesNotExist());
     }

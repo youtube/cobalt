@@ -27,6 +27,7 @@
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/win/shortcut.h"
@@ -46,6 +47,7 @@
 #include "chrome/installer/util/util_constants.h"
 #include "content/public/browser/browser_thread.h"
 #include "crypto/obsolete/md5.h"
+#include "net/base/filename_util.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/win/shell.h"
 #include "ui/gfx/image/image.h"
@@ -330,6 +332,40 @@ Result UpdateAppMenuShortcuts(const base::FilePath& profile_path,
   return Result::kOk;
 }
 
+// Returns the path to use for updating an existing shortcut.
+// `desired_path` is the ideal path (based on the new title).
+// `profile_path` and `app_id` identify the app.
+// `current_path` is the path of the shortcut currently being updated.
+//
+// If `desired_path` is not taken, or is already taken by this app, we use it.
+// Otherwise, we look for a unique path like "desired_path (N)".
+// To avoid toggling between "desired_path (1)" and "desired_path (2)" on
+// subsequent updates (if "desired_path" remains taken by another app), we
+// reuse `current_path` if it matches one of the unique path candidates.
+base::FilePath GetShortcutUpdatePath(const base::FilePath& desired_path,
+                                     const base::FilePath& profile_path,
+                                     const webapps::AppId& app_id,
+                                     const base::FilePath& current_path) {
+  if (!base::PathExists(desired_path)) {
+    return desired_path;
+  }
+  if (IsAppShortcutForProfile(desired_path, profile_path, app_id)) {
+    return desired_path;
+  }
+
+  for (int i = 1;; ++i) {
+    const base::FilePath candidate =
+        desired_path.InsertBeforeExtensionASCII(base::StringPrintf(" (%d)", i));
+    if (!base::PathExists(candidate)) {
+      return candidate;
+    }
+    if (IsAppShortcutForProfile(candidate, profile_path, app_id) &&
+        candidate == current_path) {
+      return candidate;
+    }
+  }
+}
+
 Result UpdateShortcuts(const base::FilePath& web_app_path,
                        const base::FilePath& profile_path,
                        const std::u16string& old_app_title,
@@ -345,10 +381,21 @@ Result UpdateShortcuts(const base::FilePath& web_app_path,
   const bool title_change = old_app_title != shortcut_info.title;
   Result result = Result::kOk;
   for (const auto& shortcut : all_shortcuts) {
-    const base::FilePath new_shortcut =
+    const base::FilePath desired_shortcut =
         shortcut.DirName()
             .Append(GetSanitizedFileName(shortcut_info.title))
             .AddExtension(installer::kLnkExt);
+
+    const base::FilePath new_shortcut = GetShortcutUpdatePath(
+        desired_shortcut, profile_path, shortcut_info.app_id, shortcut);
+
+    if (new_shortcut.empty()) {
+      DVLOG(1) << "Error finding unique path for shortcut "
+               << shortcut_info.title;
+      result = Result::kError;
+      continue;
+    }
+
     if (title_change) {
       // When the title changes, it is not enough to rename the shortcut file,
       // because it still points to the old icon. Update the icon file before
@@ -363,15 +410,17 @@ Result UpdateShortcuts(const base::FilePath& web_app_path,
                      shortcut.value().c_str(), nullptr);
     }
 
-    base::File::Error error = base::File::Error::FILE_OK;
-    bool success = base::ReplaceFile(shortcut, new_shortcut, &error);
-    if (success) {
-      SHChangeNotify(SHCNE_RENAMEITEM, SHCNF_PATH | SHCNF_FLUSHNOWAIT,
-                     shortcut.value().c_str(), new_shortcut.value().c_str());
-    } else {
-      DVLOG(1) << "Error renaming shortcut " << shortcut_info.title
-               << " error code " << std::hex << error;
-      result = Result::kError;
+    if (shortcut != new_shortcut) {
+      base::File::Error error = base::File::Error::FILE_OK;
+      const bool success = base::ReplaceFile(shortcut, new_shortcut, &error);
+      if (success) {
+        SHChangeNotify(SHCNE_RENAMEITEM, SHCNF_PATH | SHCNF_FLUSHNOWAIT,
+                       shortcut.value().c_str(), new_shortcut.value().c_str());
+      } else {
+        DVLOG(1) << "Error renaming shortcut " << shortcut_info.title
+                 << " error code " << std::hex << error;
+        result = Result::kError;
+      }
     }
   }
 
@@ -411,10 +460,20 @@ Result UpdateShortcuts(const base::FilePath& web_app_path,
   // like PKEY_ItemName on the shortcut does not seem to change the shortcut's
   // properties, as determined by shortcut_properties.py.
   for (const auto& shortcut : pinned_shortcuts) {
-    const base::FilePath new_shortcut =
+    const base::FilePath desired_shortcut =
         shortcut.DirName()
             .Append(GetSanitizedFileName(shortcut_info.title))
             .AddExtension(installer::kLnkExt);
+
+    const base::FilePath new_shortcut = GetShortcutUpdatePath(
+        desired_shortcut, profile_path, shortcut_info.app_id, shortcut);
+
+    if (new_shortcut.empty()) {
+      DVLOG(1) << "Error finding unique path for shortcut "
+               << shortcut_info.title;
+      result = Result::kError;
+      continue;
+    }
 
     if (title_change) {
       UpdateIconFileForShortcut(web_app_path, shortcut, shortcut_info.title);
@@ -422,17 +481,19 @@ Result UpdateShortcuts(const base::FilePath& web_app_path,
                      shortcut.value().c_str(), nullptr);
     }
 
-    base::File::Error error = base::File::Error::FILE_OK;
-    bool success = base::ReplaceFile(shortcut, new_shortcut, &error);
-    if (success) {
-      // Tell the Windows shell the shortcut has been renamed. Using SHCNF_FLUSH
-      // also works, but blocking is probably a bad idea.
-      SHChangeNotify(SHCNE_RENAMEITEM, SHCNF_PATH | SHCNF_FLUSHNOWAIT,
-                     shortcut.value().c_str(), new_shortcut.value().c_str());
-    } else {
-      DVLOG(1) << "Error renaming shortcut " << shortcut_info.title
-               << " error code " << std::hex << error;
-      result = Result::kError;
+    if (shortcut != new_shortcut) {
+      base::File::Error error = base::File::Error::FILE_OK;
+      const bool success = base::ReplaceFile(shortcut, new_shortcut, &error);
+      if (success) {
+        // Tell the Windows shell the shortcut has been renamed. Using
+        // SHCNF_FLUSH also works, but blocking is probably a bad idea.
+        SHChangeNotify(SHCNE_RENAMEITEM, SHCNF_PATH | SHCNF_FLUSHNOWAIT,
+                       shortcut.value().c_str(), new_shortcut.value().c_str());
+      } else {
+        DVLOG(1) << "Error renaming shortcut " << shortcut_info.title
+                 << " error code " << std::hex << error;
+        result = Result::kError;
+      }
     }
   }
   // SHCNE_ALLEVENTS prevents the WebApp icon on the taskbar from becoming a
@@ -654,6 +715,9 @@ bool CreatePlatformShortcuts(const base::FilePath& web_app_path,
 base::FilePath GetSanitizedFileName(const std::u16string& name) {
   std::wstring file_name = base::AsWString(name);
   base::i18n::ReplaceIllegalCharactersInPath(&file_name, ' ');
+  if (net::IsReservedNameOnWindows(file_name)) {
+    file_name.insert(0, 1, FILE_PATH_LITERAL('_'));
+  }
   return base::FilePath(file_name);
 }
 

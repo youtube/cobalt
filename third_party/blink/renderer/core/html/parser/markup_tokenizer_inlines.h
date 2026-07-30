@@ -39,19 +39,6 @@ inline bool IsTokenizerWhitespace(UChar cc) {
   return cc == ' ' || cc == '\x0A' || cc == '\x09' || cc == '\x0C';
 }
 
-inline void AdvanceStringAndASSERTIgnoringCase(
-    SegmentedString& source,
-    const char* expected_characters) {
-  while (*expected_characters)
-    source.AdvanceAndASSERTIgnoringCase(UNSAFE_TODO(*expected_characters++));
-}
-
-inline void AdvanceStringAndASSERT(SegmentedString& source,
-                                   const char* expected_characters) {
-  while (*expected_characters)
-    source.AdvanceAndASSERT(UNSAFE_TODO(*expected_characters++));
-}
-
 #if defined(COMPILER_MSVC)
 // We need to disable the "unreachable code" warning because we want to assert
 // that some code points aren't reached in the state machine.

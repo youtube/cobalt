@@ -69,6 +69,7 @@
 <translation id="1253032109800629289">Piilota "Tilaa hintaseurantailmoitukset"</translation>
 <translation id="1254424942107648268">Hae edellinen</translation>
 <translation id="1258491128795710625">Uutta</translation>
+<translation id="126093867734601535">Muuttaa taulukon korkeutta.</translation>
 <translation id="1262724000444746916">Piilota "Lisää kirjanmerkkeihin"</translation>
 <translation id="1263231323834454256">Lukulista</translation>
 <translation id="1263433075299269530">Viimeisin avoin välilehti</translation>
@@ -177,6 +178,7 @@
 <translation id="1582732959743469162">Tämä keskeyttää nykyisen latauksen edistymisen.</translation>
 <translation id="1594034544529347967">Alkaa</translation>
 <translation id="1598751033135758830">Avaa sovelluksessa…</translation>
+<translation id="1600571977391127696">Osa sisällöstä ei välttämättä sovi kaikille.</translation>
 <translation id="1601560923496285236">Käytä</translation>
 <translation id="1603718000246404895">{COUNT,plural, =1{1 osoite}other{# osoitetta}}</translation>
 <translation id="1605405588277479165">Pois päältä – Ei suositeltu</translation>
@@ -201,6 +203,7 @@
 <translation id="1657011748321897393">Jakaminen epäonnistui, koska verkkoyhteyttä ei ole.</translation>
 <translation id="1668001730617725852">Avaa uudessa välilehtiryhmässä</translation>
 <translation id="1670861525135254448">Tallenna ajoneuvo</translation>
+<translation id="1671568970992212376">Tallenna kuvia Google Kuviin ja käytä niitä milloin tahansa.</translation>
 <translation id="1674504678466460478"><ph name="SOURCE_LANGUAGE" /> – <ph name="TARGET_LANGUAGE" /></translation>
 <translation id="1678855624321223424">Organisaation käytäntöjen mukaan tiedosto voi sisältää arkaluontoisia tietoja</translation>
 <translation id="168389590065701766">Voit nyt avata Google Lensin osoitepalkista ja hakea mitä tahansa näkemääsi asiaa</translation>
@@ -310,6 +313,7 @@
 <translation id="2012723204723845092">Tervetuloa takaisin!</translation>
 <translation id="2015722694326466240">Jos haluat nähdä salasanat, sinun on ensin määritettävä tunnuskoodi laitteellesi.</translation>
 <translation id="201759455285471444">Laajenna välilehtiryhmä.</translation>
+<translation id="2031515492007104071">Tason nostaminen</translation>
 <translation id="2044394949148788042">Avaa välilehtiruudukko</translation>
 <translation id="2044681667265133332"><ph name="HOSTED_DOMAIN" /> ylläpitää tiliä <ph name="USER_EMAIL" /> ja voi nähdä joitakin tietoja. <ph name="BEGIN_LINK" />Lue lisää<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">uusi tuote</translation>
@@ -335,7 +339,6 @@
 <translation id="2119962645034852864">Osa palveluista ei ole käytettävissä tililläsi</translation>
 <translation id="2120553909046681540">Organisaatiosi on laittanut yksityisen selaamisen pois päältä.</translation>
 <translation id="2122754583996902531">Tämä on ylläpidetty selain. <ph name="BEGIN_LINK" />Lue lisää<ph name="END_LINK" /></translation>
-<translation id="21243612977487926">Organisaatiosi keskusteluita ei käytetä mallien kehittämiseen. Gemini voi näyttää epätarkkoja tietoja, myös ihmisistä, joten tarkista sen vastaukset. <ph name="YOUR_PRIVACY_GEMINI" /></translation>
 <translation id="2139867232736819575">Hae kopioitua tekstiä</translation>
 <translation id="2147127444698817042">Käytettävissä vain iPhonella</translation>
 <translation id="2148799636999124959">Kirjaudu nopeasti sivustoille ja sovelluksiin tallennetuilla salasanoilla.</translation>
@@ -441,6 +444,7 @@
 <translation id="2496626742194544812">Siirry ensimmäiselle välilehdelle</translation>
 <translation id="2499505845365628575">Näet koko selaushistoriasi täältä: <ph name="HISTORY_BUTTON_ACCESSIBILITY_LABEL" />.</translation>
 <translation id="2511117522375201202">Sinulla on <ph name="NUMBER_OF_PASSWORDS" /> vaarantunutta salasanaa, jotka voivat vaarantaa turvallisuutesi.</translation>
+<translation id="2512709994717613803">Taso <ph name="LEVEL_NUMBER" /></translation>
 <translation id="2513103768503127042">Näet välilehtiryhmäsi täällä</translation>
 <translation id="251837347827266434">Sinut kirjataan ulos, välilehdet suljetaan ja selausdata poistetaan</translation>
 <translation id="2520787026086861736">Jos haluat laittaa asetuksen pois päältä, siirry kohtaan <ph name="BEGIN_LINK" />Automaattinen täyttö ja salasanat<ph name="END_LINK" /></translation>
@@ -604,7 +608,6 @@
 <translation id="3132345256151444894">Tallenna oikaisunumero</translation>
 <translation id="3132584647087998639">Tuo dataa</translation>
 <translation id="313283613037595347">Luo uusi incognito-välilehti.</translation>
-<translation id="3136739222562075778">Kortissa näkyvät avoimilla välilehdillä olevien tuotteiden hinnanalennukset</translation>
 <translation id="3138611310073113613">Hylkää valinta</translation>
 <translation id="3140825265190223781">Tallennetut salasanat ja avainkoodit</translation>
 <translation id="3143515551205905069">Peru synkronointi</translation>
@@ -677,6 +680,7 @@
 <translation id="340669334496430859">Muokattu viimeksi</translation>
 <translation id="3409785640040772790">Maps</translation>
 <translation id="3416023309465857378">25.10.2023</translation>
+<translation id="3426715535827854458">Piilota työkalupalkki</translation>
 <translation id="3435738964857648380">Suojaus</translation>
 <translation id="3441673211568148613">Pidä selaaminen yksityisenä</translation>
 <translation id="3443810440409579745">Välilehti vastaanotettu</translation>
@@ -721,7 +725,6 @@
 <translation id="3565012355885596568">Kuvia ei voitu ladata</translation>
 <translation id="3565930036634619844">Välilehti. <ph name="TAB_INDEX" />/<ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3567168891086460374">Tallenna eri tavalla</translation>
-<translation id="3571703298474554279">Nopeampi tapa käyttää sovellusta</translation>
 <translation id="3572503683475187385">Nykyinen välilehti jaetaan Geminille, kun aloitat uuden keskustelun. Kun jaat välilehden Geminille, sen sisältö ja URL-osoite lähetetään Googlelle. <ph name="BEGIN_LINK" />Lue lisää<ph name="END_LINK" /></translation>
 <translation id="3572607909481582402">Google-tililläsi</translation>
 <translation id="3575234738189584619">Hae Lensilla</translation>
@@ -763,6 +766,7 @@
 <translation id="372676576864368480">Täytä automaattisesti kortin numero, jonka loppuosa on <ph name="LAST_DIGITS" /></translation>
 <translation id="3738428049780661523">Luotu <ph name="DATE" /></translation>
 <translation id="3742498336182910186">Kameran rulla</translation>
+<translation id="3743545564993953213">Sivusto yrittää avata Pikanäppäimet-sovelluksen.</translation>
 <translation id="3746269120925354434">Tiedot tallennettu Google Walletiin</translation>
 <translation id="3750225824417196283">Uusi sivu incognito-välilehdellä</translation>
 <translation id="3751873026576444885">Lopeta näytön hakeminen Google Lensillä</translation>
@@ -844,6 +848,7 @@
 <translation id="3994911892367422121">SELVÄ</translation>
 <translation id="3995521777587992544">Sivun lataamisen etenemispalkki, <ph name="EMAIL" /> ladattu</translation>
 <translation id="3997522473364371632">Järjestelmänvalvoja on poistanut salasanan jakamisen käytöstä.</translation>
+<translation id="4000707564769984863">Katso: <ph name="WATCH_LINK" /></translation>
 <translation id="4002066346123236978">Nimi</translation>
 <translation id="4004204301268239848">Salasanat tallennetaan Google-tilillesi, jotta voit käyttää niitä kaikilla laitteilla.</translation>
 <translation id="4007463141047732631">Muokkaa ryhmää</translation>
@@ -852,7 +857,6 @@
 <translation id="4018440314314549819">Täytä tallennetut salasanat automaattisesti</translation>
 <translation id="4021447724486050609">Päivitä selain</translation>
 <translation id="4021931095789478915">Lisää ${url} lukulistalle</translation>
-<translation id="4026496154402824012">Jos haluat laittaa asetuksen pois päältä, siirry kohtaan <ph name="BEGIN_LINK" />Salasanavalinnat<ph name="END_LINK" /></translation>
 <translation id="4028871427853484857">Tallenna tilille…</translation>
 <translation id="4038354071007134711">Mikään laitteen sovellus ei voi avata tiedostoa.</translation>
 <translation id="4042870976416480368">Hae sivulta</translation>
@@ -875,6 +879,7 @@
 <translation id="4129768137228347731">Tallennetaanko <ph name="ENTITY_TYPE" />?</translation>
 <translation id="4133139945030148655">Valmista tuli</translation>
 <translation id="4133265950310064865">Parannettu suojaus</translation>
+<translation id="4142372594294312814">Viisi tärkeää asiaa generatiivisesta tekoälystä</translation>
 <translation id="4145507240503767005"><ph name="SEARCH_ENGINE_NAME" />, <ph name="SEARCH_ENGINE_DOMAIN" /></translation>
 <translation id="4147897805161313378">Google Kuvat</translation>
 <translation id="4148023517926189160">Verkkosivusto haluaa ladata tiedoston ja lisätä sen kalenteriisi.</translation>
@@ -980,6 +985,7 @@
 <translation id="4489536976005181779">{count,plural, =1{Sivu lisätty lukulistalle tililläsi: {email}}other{Sivut lisätty lukulistalle tililläsi: {email}}}</translation>
 <translation id="4493604894403585654">Olet kirjautunut sisään tilillä <ph name="USER_EMAIL" />. Voit lopettaa synkronoinnin milloin tahansa asetuksista. Google voi personoida Hakua ja muita palveluita historiasi perusteella.</translation>
 <translation id="4502423230170890588">Poista tältä laitteelta</translation>
+<translation id="4508486880075514067">Laajenna koko näytölle</translation>
 <translation id="4508750114462689118">Sulje kirjautumismainos</translation>
 <translation id="4509345063551561634">Sijainti:</translation>
 <translation id="4517684186578051919">Laitteen tiedot</translation>
@@ -996,6 +1002,7 @@
 <translation id="456502772933839252">Jaetaan <ph name="PAGE_TITLE" /></translation>
 <translation id="4565377596337484307">Piilota salasana</translation>
 <translation id="4568230126482344545">Piilota "Viimeaikaiset välilehdet"</translation>
+<translation id="4571490460651837010">Hallitse osoitteita ja muita tietoja…</translation>
 <translation id="4578835633387306383">Laita päälle…</translation>
 <translation id="4580621046861724270">Joitakin kirjanmerkkejä ei tallennettu</translation>
 <translation id="4580716718466706433">Siirry Salasanoihin</translation>
@@ -1084,6 +1091,7 @@
 <translation id="4840495572919996524">Kirjanmerkkejä, historiaa, salasanoja tai muita tietojasi ei enää synkronoida Google-tilille.</translation>
 <translation id="484280513275854557">Sinut kirjattiin ulos ja selausdata poistettiin</translation>
 <translation id="484462545196658690">Automaattinen</translation>
+<translation id="4846662396507502151">Selaa nopeammin uuden yläpalkin avulla</translation>
 <translation id="4850886885716139402">Näytä</translation>
 <translation id="4854068532375923088">Salli "Geminin" käyttää kameraa</translation>
 <translation id="4860895144060829044">Soita</translation>
@@ -1212,6 +1220,7 @@
 <translation id="5242899254250321823">Vaihda salasana verkkosivustolla</translation>
 <translation id="5248640482715684545">Sivusto yrittää avata toista sovellusta.</translation>
 <translation id="5250371859659394278">Tuntemattomasta lähteestä</translation>
+<translation id="525510229763628836">Pienennetty</translation>
 <translation id="5269913829202614649">Muokkaa etusivua</translation>
 <translation id="5271265092610673171">{count,plural, =1{Pakollinen kenttä on tyhjä. Täytä se ennen tallentamista.}other{Jotkin pakolliset kentät ovat tyhjiä. Täytä ne ennen tallentamista.}}</translation>
 <translation id="5271549068863921519">Tallenna salasana</translation>
@@ -1232,6 +1241,7 @@
 <translation id="5329451663851195956">Voit päivittää välilehden vetämällä alas.</translation>
 <translation id="5336910966955551309">Kiinnitä suosikkisivustosi koskettamalla pitkään</translation>
 <translation id="5338512273860059533">Kirjautuminen käynnissä.</translation>
+<translation id="5340148832014094861">Huomioi <ph name="GOOGLE_TERMS" /> ja <ph name="GEMINI_APPS_PRIVACY" />. Gemini on tekoäly ja voi tehdä virheitä, myös ihmisiin liittyen.</translation>
 <translation id="5343472494710226394">Kiinnostuksen kohteisiisi perustuvia uutisia, urheilua ja sisältöä.</translation>
 <translation id="5352128922772839949">Tallenna tiedosto</translation>
 <translation id="5355191726083956201">Parannettu suojaus on päällä</translation>
@@ -1323,7 +1333,6 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="5652623411397330904">Seuraamasi tuotteet näkyvät täällä.</translation>
 <translation id="5656431592348714536">Parannettu kalenteri</translation>
 <translation id="5659593005791499971">Sähköposti</translation>
-<translation id="5665739277590037307">Huomioi <ph name="GOOGLE_TERMS" /> ja <ph name="GEMINI_APPS_PRIVACY" />. Gemini voi tehdä virheitä, joten tarkista sen vastaukset.</translation>
 <translation id="5666313630530585305">Kirjaudu sisään verkkosivustolle.</translation>
 <translation id="5669335982068190158">Sinut kirjattiin ulos, kun iPhone nollattiin. Kirjaudu sisään valitsemalla alta "Jatka".</translation>
 <translation id="5669528293118408608">www</translation>
@@ -1421,6 +1430,7 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="5988097621740394599">Katso hinnanalennukset välilehdiltä.</translation>
 <translation id="5988851877894965432">Avaa URL-osoitteet Chromessa</translation>
 <translation id="599343768974649785">Vain aikuisille tarkoitettua tekstiä</translation>
+<translation id="6004988584831654445">Valmista! Saat ilmoituksen, kun tehtäviä tulee lisää.</translation>
 <translation id="6006672969046233841">Uusi välilehti</translation>
 <translation id="6011308810877101166">Paranna hakuehdotuksia</translation>
 <translation id="6012140227487808125">Salataan…</translation>
@@ -1576,6 +1586,7 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="647867789226964031">Vaihda salasanasi</translation>
 <translation id="6480363549849064919">Asiakassovelluksen todennus</translation>
 <translation id="6489174933860678546">Avaa incognito-välilehtiä, niin voit selata verkkoa yksityisemmin.</translation>
+<translation id="6489775505977274806">Piilota tason nostaminen</translation>
 <translation id="6494931198667773526">Päättyy</translation>
 <translation id="6503077044568424649">Käydyimmät</translation>
 <translation id="6503763061813913607">Turvatarkistusilmoitukset</translation>
@@ -1605,7 +1616,6 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="6571070086367343653">Luottokortin muokkaus</translation>
 <translation id="6574092468346088891">Laita turvatarkistusilmoitukset päälle</translation>
 <translation id="6579867704846662339">Voit halutessasi avata muista sovelluksista saapuvat URL-osoitteet incognito-tilassa.</translation>
-<translation id="6583087784430677195">Jos haluat laittaa ominaisuuden pois päältä, avaa <ph name="BEGIN_LINK" />Asetukset<ph name="END_LINK" /> ja siirry Täytä salasanat automaattisesti ‑kohtaan.</translation>
 <translation id="6585618849026997638">Voit palata sinulle tärkeälle sivulle lisäämällä sen kirjanmerkiksi</translation>
 <translation id="6589001036857939353">Kopioiden yhdistäminen</translation>
 <translation id="659407965921887085">Tässä kortissa näkyvät verkossa tapahtuneet hinnanalennukset tuotteille, joita seuraat tällä hetkellä</translation>
@@ -1652,6 +1662,7 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="6685259053455152195">Pikakuvakkeilla voit muuttaa asetuksia ja käyttää ominaisuuksia osoitepalkin kautta nopeasti.</translation>
 <translation id="6689342293888598653">Valkoinen taustaväri</translation>
 <translation id="6689685206615181381">Vain incognito-tila on käytettävissä</translation>
+<translation id="6705491067826837934">Asetukset aina tarvittaessa</translation>
 <translation id="6708501134077648845">Salasanavalinnat</translation>
 <translation id="6709964700841491574">Lukitustila</translation>
 <translation id="6710079714193676716">Organisaatiosi ylläpitämä. Kaikki ominaisuudet eivät välttämättä ole saatavilla. <ph name="BEGIN_LINK" />Lue lisää<ph name="END_LINK" /></translation>
@@ -1667,7 +1678,7 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="6746338529702829275">Tarkista tilin data</translation>
 <translation id="6750456911389438250">{count,plural, =1{{count} historiakohta tuotu}other{{count} historiakohtaa tuotu}}</translation>
 <translation id="6755200887046212842">Hallinnoi tilejä</translation>
-<translation id="6755733078693946548">Käytä salasanoja ja avainkoodeja mistä tahansa sovelluksesta</translation>
+<translation id="6757899787818440812">Keskikorkeus</translation>
 <translation id="6759709389246683070">Jos haluat palata tälle välilehdelle myöhemmin, voit asettaa muistutuksen koskettamalla sitä pitkään</translation>
 <translation id="6761393919622941301">Audio</translation>
 <translation id="6770452996697898492">[VARATTU]</translation>
@@ -1712,6 +1723,7 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="6903282483217634857">Siirrä oikealle</translation>
 <translation id="6903907808598579934">Ota synkronointi käyttöön</translation>
 <translation id="6906448540340261898">Varmista, että voit aina käyttää Google-tilisi salasanoja</translation>
+<translation id="6906978870282539723">Apua välilehtien ja tehtävien kanssa</translation>
 <translation id="6908734251759299256">Päivitä selain</translation>
 <translation id="6913136913033237761"><ph name="FOLDER_NAME" />. Vain tällä laitteella.</translation>
 <translation id="6914583639806229067">Hae kopioitua kuvaa</translation>
@@ -1744,6 +1756,7 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="7015418667643980944">Jaettu näkymä</translation>
 <translation id="7016070607649558507">Sinulla on 1 heikko salasana. Korjaa se nyt, jotta pysyt turvassa.</translation>
 <translation id="7016958933495968912">Discover-asetukset</translation>
+<translation id="7019477124580742994">Haku: <ph name="SEARCH_PROVIDER" /></translation>
 <translation id="7029809446516969842">Salasanat</translation>
 <translation id="7035825883570480307">Otetaanko ilmoitukset käyttöön?</translation>
 <translation id="7039345315346323556">Viimeaikaiset</translation>
@@ -1753,7 +1766,6 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="7063811929043357292">Vanhempi ylläpitää tiliäsi.
 <ph name="BEGIN_LINK" />Lue lisää<ph name="END_LINK" /></translation>
 <translation id="7067780033517902110">Kaikki tiedostot</translation>
-<translation id="707086654079606593">Muuta osoitteita…</translation>
 <translation id="7080806333218412752">Lähettää URL-osoitteita Selaussuojan tarkistettavaksi. Lähettää myös pienen näytteen sivuista, latauksista, laajennustoiminnasta ja järjestelmätiedoista auttaakseen löytämään uusia uhkia. Linkittää tämän datan väliaikaisesti Google-tilillesi ollessasi sisäänkirjautunut, jotta se voi suojella sinua kaikissa Googlen sovelluksissa.</translation>
 <translation id="7082853213442715471">Kun tämä on päällä, tietyt verkkoteknologiat estetään, minkä seurauksena jotkin sivustot voivat latautua hitaammin tai eivät toimi oikein.</translation>
 <translation id="7091023926159231962">{count,plural, =1{{count} salasanan tuonti epäonnistui}other{{count} salasanan tuonti epäonnistui}}</translation>
@@ -1803,7 +1815,6 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="7275307913765547631">Koreaa koskevat sijaintiehdot</translation>
 <translation id="728025568708172005">Esittele paikkaa</translation>
 <translation id="7280980607183752256">Tiedostoa ei voi tuoda</translation>
-<translation id="7281202269687163394">Yksityisyys ja Gemini.</translation>
 <translation id="7282197670900591579">Sitruunankeltainen teema</translation>
 <translation id="7293429513719260019">Valitse kieli</translation>
 <translation id="7300448350764260141">Lisäsuojaus verkkouhkia vastaan.</translation>
@@ -1815,7 +1826,6 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="7345061034321640811">Tuonti ei ole sallittu</translation>
 <translation id="7347998088283246662">Tuo esimerkiksi salasanat, historia ja kirjanmerkit</translation>
 <translation id="7352651011704765696">Tapahtui jokin virhe</translation>
-<translation id="7363497636543208734">Sovelluksessa siirtyminen on nyt helpompaa.</translation>
 <translation id="7364796246159120393">Valitse tiedosto</translation>
 <translation id="736564850024123010">Personoi kokemusta vaihtamalla osoitepalkin paikkaa.</translation>
 <translation id="7366909168761621528">Selausdata</translation>
@@ -2010,7 +2020,6 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="797588153137233716">Valikko → Historia → Poista selausdata</translation>
 <translation id="7977451675950311423">Varoittaa, jos käytät salasanaa, joka on vaarantunut tietosuojaloukkauksen yhteydessä.</translation>
 <translation id="797824194429476746">Välilehdet pysyvät auki tällä laitteella, mutta ryhmä poistetaan pysyvästi.</translation>
-<translation id="797874245254030665">Käytä salasanoja ja avainkoodeja mistä tahansa sovelluksesta</translation>
 <translation id="7982789257301363584">Verkko</translation>
 <translation id="798299424881500862">Oranssi teema</translation>
 <translation id="7987685713885608670">Salasanat kannattaa salata turvallisuussyistä laitteella ennen niiden tallentamista Googlen Salasanojen ylläpitoon.</translation>
@@ -2075,6 +2084,7 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="8182037667962849780">{count,plural, =1{{website_1}}=2{{website_1}, {website_2}}=3{{website_1}, {website_2} ja 1 muu}other{{website_1}, {website_2} ja {more_count} muuta}}</translation>
 <translation id="8184895727539791845">Laita kamera päälle iOS-asetuksista, jotta Gemini voi käyttää kameraa</translation>
 <translation id="8185076488803799132">Tuo</translation>
+<translation id="8187200657863701733">Nykyinen Chrome-taso</translation>
 <translation id="8189615296021678665">Napauta Tallenna, niin voit käyttää salasanaa helposti seuraavalla kirjautumiskerralla.</translation>
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />Omat laitteet<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
 <translation id="8195191503358432289">Lisää salasana</translation>
@@ -2118,6 +2128,7 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="8325455175867928593">Piilota "Kiinnostuksen kohteisiisi perustuvat arvostelut"</translation>
 <translation id="833647236762414178">Luo, tallenna ja muokkaa salasanoja ja avainkoodeja, jotta voit kirjautua helposti sivustoille ja sovelluksiin. <ph name="BEGIN_LINK" />Lue lisää<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">Varmuuskopioi sisältösi ja käytä sitä millä tahansa laitteella.</translation>
+<translation id="8345328955902001853">{count,plural, =1{Suorita vielä yksi tehtävä, niin pääset seuraavalle tasolle}other{Suorita vielä {count} tehtävää, niin pääset seuraavalle tasolle}}</translation>
 <translation id="8348530355586151720">Napauta kolmen pisteen valikkoa</translation>
 <translation id="8349305172487531364">Kirjanmerkkipalkki</translation>
 <translation id="8361189290032177785">{count,plural, =1{{count} kirjanmerkki tuotu}other{{count} kirjanmerkkiä tuotu}}</translation>
@@ -2128,6 +2139,7 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="8368001212524806591">Seuraa hintaa</translation>
 <translation id="8368198938968349418">Laita automaattinen täyttö päälle…</translation>
 <translation id="8370406443343902172">Avaa Asetukset…</translation>
+<translation id="8370929854657845191">Laajenna keskikorkeuteen</translation>
 <translation id="8372471489238799313">{count,plural, =1{Poista osoite}other{Poista osoitteet}}</translation>
 <translation id="8378714024927312812">Organisaatiosi ylläpitämä</translation>
 <translation id="8385363453480067273">Hae näkemiäsi asioita Google Lensillä</translation>

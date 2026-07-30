@@ -37,6 +37,7 @@
 <translation id="2050597508048557928">{TABS_COUNT,plural, =1{已將 <ph name="TABS_COUNT_ONE" /> 個選取的分頁加入書籤}other{已將 <ph name="TABS_COUNT_MANY" /> 個選取的分頁加入書籤}}</translation>
 <translation id="2055057176188061528">選取分頁群組或新建一個</translation>
 <translation id="2074527029802029717">取消分頁固定</translation>
+<translation id="2111670510994270194">在右側新增分頁</translation>
 <translation id="2118649612461486615">商店資訊</translation>
 <translation id="2123073051266141035">{INCOGNITO_TABS_COUNT,plural, =1{你可以在「最近開啟的分頁」和「分頁群組」部分重新開啟已關閉的分頁和群組，但無痕分頁無法重新開啟。}other{你可以在「最近開啟的分頁」和「分頁群組」部分重新開啟已關閉的分頁和群組，但這 # 個無痕分頁無法重新開啟。}}</translation>
 <translation id="2153899164605463849">{TAB_COUNT,plural, =1{將網站取消靜音}other{將多個網站取消靜音}}</translation>
@@ -228,7 +229,7 @@
 <translation id="8428213095426709021">設定</translation>
 <translation id="855081842937141170">固定分頁</translation>
 <translation id="8633025649649592204">近期活動</translation>
-<translation id="8712637175834984815">我瞭解了</translation>
+<translation id="8712637175834984815">知道了</translation>
 <translation id="8714939927607906138">較低價格</translation>
 <translation id="8730621377337864115">完成</translation>
 <translation id="8730999928494395583">你在這些無痕分頁中的活動將從這部裝置上移除</translation>
