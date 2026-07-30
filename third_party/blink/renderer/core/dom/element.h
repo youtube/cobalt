@@ -57,6 +57,7 @@
 #include "third_party/blink/renderer/core/trustedtypes/trusted_types_util.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/transform_view.h"
+#include "third_party/blink/renderer/platform/graphics/paint/tracked_element_data.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_linked_hash_set.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -64,6 +65,7 @@
 #include "third_party/blink/renderer/platform/restriction_target_id.h"
 #include "third_party/blink/renderer/platform/text/text_direction.h"
 #include "third_party/blink/renderer/platform/theme_types.h"
+#include "third_party/blink/renderer/platform/tracked_element_id.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string_table.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
@@ -1001,6 +1003,19 @@ class CORE_EXPORT Element : public ContainerNode {
   // returns the non-empty `id` which it previously provided.
   // Otherwise, returns a nullptr.
   const RegionCaptureCropId* GetRegionCaptureCropId() const;
+
+  // Associates the element with a TrackedElementRect, which is the object
+  // internally backing a TrackedElement.
+  // This method may be called at most once. The ID must be non-null.
+  void SetTrackedElementRect(std::unique_ptr<TrackedElementRect> rect);
+
+  // If SetTrackedElementRect(id) was previously called on `this`,
+  // returns the non-empty `id` which it previously provided.
+  // Otherwise, returns a nullptr.
+  const TrackedElementRect* GetTrackedElementRect() const;
+
+  // Clears the TrackedElementRect associated with the element.
+  void ClearTrackedElementRect();
 
   // Associates the element with a RestrictionTargetId, which is the object
   // internally backing a RestrictionTarget.
@@ -1999,7 +2014,7 @@ class CORE_EXPORT Element : public ContainerNode {
   OverscrollAreaTracker& EnsureOverscrollAreaTracker();
   OverscrollAreaTracker* GetOverscrollAreaTracker() const;
 
-  Element* OverscrollContainer() const;
+  Element* GetOverscrollContainer() const;
   void SetOverscrollContainer(Element*);
   void ClearOverscrollContainer();
 
@@ -2584,10 +2599,12 @@ class CORE_EXPORT Element : public ContainerNode {
   // scroll-marker due to a targeted scroll.
   void NotifyScrollMarkerGroupOfTargetedScroll();
 
+  // ContainerNode ends on a 32-bit member, so put this Member first
+  // to eliminate padding.
+
+  Member<const ComputedStyle> computed_style_;
+
   QualifiedName tag_name_;
-  // This `ComputedStyle` field is a hot accessed member. Keep uncompressed for
-  // performance reasons.
-  subtle::UncompressedMember<const ComputedStyle> computed_style_;
   Member<ElementData> element_data_;
 
   // A tiny Bloom filter for which attribute names and class names exist
@@ -2601,7 +2618,7 @@ class CORE_EXPORT Element : public ContainerNode {
 
   // Do not add new members to Element without a good reason; prefer to
   // add to ElementRareData unless it is performance-critical. Element
-  // is 88 bytes on typical 64-bit platforms, and growing it can cause
+  // is 80 bytes on typical 64-bit platforms, and growing it can cause
   // both memory and performance regressions if you are not careful.
 };
 
@@ -2617,6 +2634,24 @@ inline bool IsDisabledFormControl(const Node* node) {
 
 inline Element* Node::parentElement() const {
   return DynamicTo<Element>(parentNode());
+}
+
+inline Node* Node::previousSibling() const {
+  if (parentNode() && parentNode()->firstChild() == this) {
+    // The previous pointer is used for lastChild(),
+    // so it cannot be trusted.
+    return nullptr;
+  } else {
+    return previous_.Get();
+  }
+}
+
+inline bool Node::HasPreviousSibling() const {
+  if (parentNode() && parentNode()->firstChild() == this) {
+    return false;
+  } else {
+    return previous_;
+  }
 }
 
 inline bool Element::FastHasAttribute(const QualifiedName& name) const {

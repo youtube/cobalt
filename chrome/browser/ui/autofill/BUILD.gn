@@ -8,20 +8,36 @@ import("//components/compose/features.gni")
 import("//components/safe_browsing/buildflags.gni")
 import("//components/signin/features.gni")
 
+if (is_android) {
+  import("//build/config/android/rules.gni")
+}
+
 assert(is_win || is_mac || is_linux || is_chromeos || is_android)
 
-source_set("autofill_ai_string_utils") {
-  sources = [ "autofill_ai/autofill_ai_import_string_utils.h" ]
+if (is_android) {
+  java_cpp_enum("autofill_ai_ui_java_enums") {
+    sources = [ "autofill_ai/entity_attribute_update_details.h" ]
+  }
+}
+
+source_set("autofill_ai_ui_utils") {
+  sources = [
+    "autofill_ai/autofill_ai_import_string_utils.h",
+    "autofill_ai/entity_attribute_update_details.h",
+  ]
   public_deps = [
     "//components/autofill/core/browser",
     "//ui/base",
   ]
 }
 
-source_set("autofill_ai_string_utils_impl") {
-  sources = [ "autofill_ai/autofill_ai_import_string_utils.cc" ]
+source_set("autofill_ai_ui_utils_impl") {
+  sources = [
+    "autofill_ai/autofill_ai_import_string_utils.cc",
+    "autofill_ai/entity_attribute_update_details.cc",
+  ]
   public_deps = [
-    ":autofill_ai_string_utils",
+    ":autofill_ai_ui_utils",
     "//components/autofill/core/browser",
     "//components/strings:components_strings_grit",
     "//ui/base",
@@ -49,7 +65,7 @@ source_set("autofill") {
   ]
 
   public_deps = [
-    ":autofill_ai_string_utils",
+    ":autofill_ai_ui_utils",
     "//base",
     "//base:i18n",
     "//chrome/browser:global_features",
@@ -99,7 +115,6 @@ source_set("autofill") {
       "address_bubbles_controller.h",
       "address_bubbles_icon_controller.h",
       "address_editor_controller.h",
-      "autofill_ai/autofill_ai_import_data_controller.cc",
       "autofill_ai/autofill_ai_import_data_controller.h",
       "autofill_ai/autofill_ai_import_data_controller_impl.h",
       "autofill_context_menu_manager.h",
@@ -162,7 +177,7 @@ source_set("impl") {
 
   deps = [
     ":autofill",
-    ":autofill_ai_string_utils_impl",
+    ":autofill_ai_ui_utils_impl",
     "//chrome/browser:browser_process",
     "//chrome/browser/autofill",
     "//chrome/browser/history",
@@ -171,6 +186,7 @@ source_set("impl") {
     "//chrome/browser/plus_addresses",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/signin",
+    "//chrome/browser/strike_database",
     "//chrome/browser/sync",
     "//chrome/browser/ui:browser_element_identifiers",
     "//chrome/browser/ui/autofill/payments",
@@ -279,6 +295,7 @@ source_set("impl") {
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "autofill_ai/entity_attribute_update_details_unittest.cc",
     "autofill_client_provider_unittest.cc",
     "autofill_suggestion_controller_unittest.cc",
     "chrome_autofill_client_unittest.cc",

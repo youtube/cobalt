@@ -17,6 +17,7 @@
 #import "base/metrics/histogram_functions.h"
 #import "base/scoped_observation.h"
 #import "base/strings/sys_string_conversions.h"
+#import "build/config/ios/buildflags.h"
 #import "components/autofill/core/browser/payments/autofill_error_dialog_context.h"
 #import "components/collaboration/public/collaboration_flow_type.h"
 #import "components/collaboration/public/collaboration_service.h"
@@ -41,6 +42,7 @@
 #import "components/supervised_user/core/common/supervised_user_constants.h"
 #import "components/translate/core/browser/translate_manager.h"
 #import "components/trusted_vault/trusted_vault_server_constants.h"
+#import "components/webauthn/ios/ios_passkey_client.h"
 #import "ios/chrome/browser/app_launcher/model/app_launcher_tab_helper_browser_presentation_provider.h"
 #import "ios/chrome/browser/app_store_rating/model/features.h"
 #import "ios/chrome/browser/authentication/signin/non_modal_promo/coordinator/non_modal_signin_promo_coordinator.h"
@@ -130,6 +132,7 @@
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_browser_agent.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
 #import "ios/chrome/browser/intelligence/enhanced_calendar/coordinator/enhanced_calendar_coordinator.h"
 #import "ios/chrome/browser/intelligence/enhanced_calendar/model/enhanced_calendar_configuration.h"
@@ -170,6 +173,7 @@
 #import "ios/chrome/browser/presenters/ui_bundled/vertical_animation_container.h"
 #import "ios/chrome/browser/price_notifications/ui_bundled/price_notifications_view_coordinator.h"
 #import "ios/chrome/browser/print/coordinator/print_coordinator.h"
+#import "ios/chrome/browser/print/coordinator/print_coordinator_impl.h"
 #import "ios/chrome/browser/promos_manager/coordinator/promos_manager_coordinator.h"
 #import "ios/chrome/browser/promos_manager/model/app_store_review_swift.h"
 #import "ios/chrome/browser/promos_manager/model/features.h"
@@ -354,6 +358,11 @@
 #import "ios/web/public/web_state_id.h"
 #import "ui/base/device_form_factor.h"
 #import "ui/base/l10n/l10n_util.h"
+
+#if BUILDFLAG(ENABLE_SWIFT_CXX_INTEROP)
+#import "ios/chrome/browser/print/coordinator/swift_coordinator.h"
+#import "ios/chrome/common/swift/features.h"
+#endif  // BUILDFLAG(ENABLE_SWIFT_CXX_INTEROP)
 
 namespace {
 
@@ -1262,6 +1271,7 @@ const char kChromeAppStoreUrl[] =
     @protocol(PromosManagerCommands),
     @protocol(FileUploadPanelCommands),
     @protocol(FindInPageCommands),
+    @protocol(IOSPasskeyClientCommands),
     @protocol(BWGCommands),
     @protocol(ReaderModeCommands),
     @protocol(NewTabPageCommands),
@@ -1431,6 +1441,8 @@ const char kChromeAppStoreUrl[] =
       HandlerForProtocol(_dispatcher, SceneCommands);
   _viewControllerDependencies.findInPageCommandsHandler =
       HandlerForProtocol(_dispatcher, FindInPageCommands);
+  _viewControllerDependencies.geminiHandler =
+      HandlerForProtocol(_dispatcher, BWGCommands);
   _viewControllerDependencies.isOffTheRecord = profile->IsOffTheRecord();
   _viewControllerDependencies.urlLoadingBrowserAgent = _urlLoadingBrowserAgent;
   _viewControllerDependencies.tabUsageRecorderBrowserAgent =
@@ -1587,9 +1599,20 @@ const char kChromeAppStoreUrl[] =
                                                    browser:self.browser];
   [self.vcardCoordinator start];
 
-  self.printCoordinator =
-      [[PrintCoordinator alloc] initWithBaseViewController:self.viewController
-                                                   browser:self.browser];
+#if BUILDFLAG(ENABLE_SWIFT_CXX_INTEROP)
+  if (IsSwiftCoordinatorEnabled()) {
+    self.printCoordinator = [[SwiftPrintCoordinatorImpl alloc]
+        initWithBaseViewController:self.viewController
+                           browser:self.browser];
+  }
+#endif  // BUILDFLAG(ENABLE_SWIFT_CXX_INTEROP)
+
+  if (!self.printCoordinator) {
+    self.printCoordinator = [[PrintCoordinatorImpl alloc]
+        initWithBaseViewController:self.viewController
+                           browser:self.browser];
+  }
+
   // Updates the printControllar value inside tabLifecycleMediator.
   self.tabLifecycleMediator.printCoordinator = self.printCoordinator;
 
@@ -2324,12 +2347,27 @@ const char kChromeAppStoreUrl[] =
   self.autofillProgressDialogCoordinator = nil;
 }
 
+#pragma mark - IOSPasskeyClientCommands
+
+- (void)showPasskeyCreationBottomSheet:(const std::string&)requestId {
+  // TODO(crbug.com/460485496) : Add implementation.
+}
+
+- (void)showPasskeySuggestionBottomSheet:(const std::string&)requestId {
+  // TODO(crbug.com/460485496) : Add implementation.
+}
+
 #pragma mark - BrowserCoordinatorCommands
 
 - (void)printTabWithBaseViewController:(UIViewController*)baseViewController {
+  web::WebState* activeWebState = [self activeWebStateOrReaderMode];
+  if (!activeWebState) {
+    return;
+  }
   DCHECK(self.printCoordinator);
-  [self.printCoordinator printWebState:self.activeWebStateOrReaderMode
-                    baseViewController:baseViewController];
+  [self.printCoordinator printView:activeWebState->GetView()
+                         withTitle:tab_util::GetTabTitle(activeWebState)
+                baseViewController:baseViewController];
 }
 
 - (void)printImage:(UIImage*)image
@@ -3254,6 +3292,26 @@ const char kChromeAppStoreUrl[] =
   [_geminiFirstRunCoordinator start];
 }
 
+- (void)hideFloatyIfInvoked {
+  BwgBrowserAgent* geminiBrowserAgent =
+      BwgBrowserAgent::FromBrowser(self.browser);
+  if (!IsGeminiCopresenceEnabled() || !geminiBrowserAgent) {
+    return;
+  }
+
+  geminiBrowserAgent->HideFloatyIfInvoked();
+}
+
+- (void)showFloatyIfInvoked {
+  BwgBrowserAgent* geminiBrowserAgent =
+      BwgBrowserAgent::FromBrowser(self.browser);
+  if (!IsGeminiCopresenceEnabled() || !geminiBrowserAgent) {
+    return;
+  }
+
+  geminiBrowserAgent->ShowFloatyIfInvoked();
+}
+
 #pragma mark - PromosManagerCommands
 
 - (void)showPromo {
@@ -4121,6 +4179,15 @@ const char kChromeAppStoreUrl[] =
   SigninTrustedVaultDialogIntent intent =
       SigninTrustedVaultDialogIntentDegradedRecoverability;
   [self showTrustedVaultReauthWithTrigger:trigger intent:intent];
+}
+
+- (void)showBookmarksLimitExceededHelp {
+  GURL helpUrl(kBookmarksLimitExceededHelpCenter);
+  UrlLoadParams params = UrlLoadParams::InNewTab(helpUrl);
+  params.append_to = OpenPosition::kCurrentTab;
+  params.user_initiated = YES;
+  params.in_incognito = self.isOffTheRecord;
+  _urlLoadingBrowserAgent->Load(params);
 }
 
 #pragma mark - SyncPresenterCommands helper

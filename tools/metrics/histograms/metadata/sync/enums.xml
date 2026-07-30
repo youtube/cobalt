@@ -135,6 +135,17 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(/components/sync_bookmarks/bookmark_model_merger.cc:BookmarksGUIDDuplicates) -->
 
+<!-- LINT.IfChange(BookmarksLimitExceededHelpClickedSource) -->
+
+<enum name="BookmarksLimitExceededHelpClickedSource">
+  <int value="0" label="Settings"/>
+  <int value="1" label="Sync Error Message"/>
+  <int value="2" label="Profile Menu"/>
+  <int value="3" label="Identity Error Info Pill"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/sync/service/sync_service.h:BookmarksLimitExceededHelpClickedSource) -->
+
 <enum name="BooleanIsFirstSync">
   <int value="0" label="Not first sync"/>
   <int value="1" label="First sync"/>
@@ -166,7 +177,7 @@ chromium-metrics-reviews@google.com.
   </int>
 </enum>
 
-<!-- LINT.ThenChange(/components/sync_preferences/cross_device_pref_tracker/cross_device_pref_tracker.h:CrossDevicePrefTrackerAvailabilityAtQuery) -->
+<!-- LINT.ThenChange(/components/sync_preferences/cross_device_pref_tracker/cross_device_pref_tracker.h:ServiceStatus) -->
 
 <!-- LINT.IfChange(InvalidBookmarkSpecificsError) -->
 
@@ -1042,6 +1053,13 @@ chromium-metrics-reviews@google.com.
       label="Primary account does not have other devices; at least one
              non-primary account exists, but none of them have any other
              devices"/>
+  <int value="6"
+      label="Primary account does not exist; at least one non-primary account
+             has other devices"/>
+  <int value="7"
+      label="Primary account does not exist; at least one non-primary account
+             exists, but none of them have any other devices"/>
+  <int value="8" label="No accounts"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/sync/service/device_statistics_tracker.h:SyncDeviceStatisticsOutcome) -->
@@ -1073,6 +1091,9 @@ chromium-metrics-reviews@google.com.
   <int value="4"
       label="Failure: The primary account was changed (or removed) while
              requests were ongoing"/>
+  <int value="5"
+      label="Success: Primary account does not exist; some but not all
+             non-primary succeeded"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/sync/service/device_statistics_tracker.h:SyncDeviceStatisticsSuccess) -->

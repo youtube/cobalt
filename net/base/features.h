@@ -744,6 +744,10 @@ NET_EXPORT BASE_DECLARE_FEATURE(
 // be randomized for better load balancing of the initial DoH URL lookups.
 NET_EXPORT BASE_DECLARE_FEATURE(kEnableBootstrapIPRandomizationForDoh);
 
+// Controls whether X509Util on Android (Cronet, and WebView only) should use
+// lock-free certificate verification mechanism.
+NET_EXPORT BASE_DECLARE_FEATURE(kUseLockFreeX509Verification);
+
 #if BUILDFLAG(IS_APPLE)
 // If enabled, the GURL conversion for NSURLs will use the data representation
 // of the URL if it differs from the absolute string.

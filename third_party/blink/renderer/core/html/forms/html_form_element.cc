@@ -25,6 +25,7 @@
 
 #include "third_party/blink/renderer/core/html/forms/html_form_element.h"
 
+#include <algorithm>
 #include <limits>
 
 #include "base/auto_reset.h"
@@ -70,11 +71,19 @@
 #include "third_party/blink/renderer/core/loader/mixed_content_checker.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/core/page/page.h"
+#include "third_party/blink/renderer/core/script_tools/model_context_supplement.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
+#include "third_party/blink/renderer/platform/json/json_parser.h"
+#include "third_party/blink/renderer/platform/json/json_values.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+#include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
+#include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
 
@@ -117,6 +126,7 @@ void HTMLFormElement::Trace(Visitor* visitor) const {
   visitor->Trace(listed_elements_for_autofill_);
   visitor->Trace(image_elements_);
   visitor->Trace(rel_list_);
+  visitor->Trace(active_webmcp_tool_);
   HTMLElement::Trace(visitor);
 }
 
@@ -132,6 +142,149 @@ bool HTMLFormElement::IsValidElement() {
   return true;
 }
 
+bool HTMLFormElement::IsValidWebMCPForm() const {
+  return active_webmcp_tool_ && active_webmcp_tool_->IsValidTool();
+}
+
+void HTMLFormElement::HTMLFormMcpTool::ExecuteTool(
+    String input_arguments,
+    base::OnceCallback<void(String)> done_callback) {
+  auto fail = [&done_callback]() {
+    // Failure is represented by a null string.
+    return std::move(done_callback).Run(g_null_atom);
+  };
+  std::unique_ptr<JSONValue> json = ParseJSON(input_arguments);
+  if (!json) {
+    return fail();
+  }
+  std::unique_ptr<JSONObject> json_obj = JSONObject::From(std::move(json));
+  if (!json_obj) {
+    return fail();
+  }
+  HeapHashMap<String, Member<HTMLFormControlElement>> controls_map;
+  for (ListedElement* element : form_->ListedElements()) {
+    if (auto* form_control = DynamicTo<HTMLFormControlElement>(element)) {
+      if (form_control->SupportsWebMCP()) {
+        if (String parameter_name = form_control->GetWebMCPParameterName()) {
+          controls_map.insert(parameter_name, form_control);
+        }
+      }
+    }
+  }
+  // Now loop through what we got, and attempt to match it up.
+  for (wtf_size_t i = 0; i < json_obj->size(); ++i) {
+    JSONObject::Entry entry = json_obj->at(i);
+    const String parameter_name = String(entry.first);
+    blink::JSONValue& contents = *entry.second;
+    auto it = controls_map.find(parameter_name);
+    if (it == controls_map.end()) {
+      LOG(ERROR) << "Can't find a control with name " << parameter_name;
+      return fail();
+    }
+    if (!it->value->FillWebMCPData(contents)) {
+      return fail();
+    }
+  }
+
+  // Success. Now we can either submit the form or focus the submit button.
+  // form_->ScheduleFormSubmission(/*event*/ nullptr, /*submit_button*/
+  // nullptr);
+
+  std::move(done_callback)
+      .Run("The form was filled. The user now needs to submit it.");
+}
+
+String HTMLFormElement::HTMLFormMcpTool::ComputeInputSchema() {
+  // Hard-coded schema for now - this is temporary.
+  return R"json({
+    "type": "object",
+    "properties": {
+      "origin": {
+        "type": "string",
+        "description": "The origin city for the flight"
+      },
+      "destination": {
+        "type": "string",
+        "description": "The destination city for the flight"
+      },
+      "departureDate": {
+        "type": "string",
+        "description": "The departure date in YYYY-MM-DD format"
+      },
+      "returnDate": {
+        "type": "string",
+        "description": "The return date in YYYY-MM-DD format. Only required for round-trip flights. Omit for one-way trips."
+      },
+      "passengers": {
+        "type": "number",
+        "description": "The number of passengers (1-8)"
+      }
+    },
+    "required": [
+      "origin", "destination", "departureDate", "passengers"]
+  })json";
+}
+
+void HTMLFormElement::HTMLFormMcpTool::Trace(Visitor* visitor) const {
+  visitor->Trace(form_);
+}
+
+// This gets called when a <form> is added or removed from the document, or
+// when `tool-name` or `tool-description` attributes are added, removed, or
+// changed.
+// Cases:
+//  - just had last attribute added, already connected
+//  - just had last attribute added, not already connected
+//  - just had attribute removed, already connected
+//  - just had attribute removed, not already connected
+//  - just had attribute changed, already connected
+//  - just had attribute changed, not already connected
+//  - already has both attributes, just connected
+//  - already has both attributes, just removed
+void HTMLFormElement::UpdateMcpDefinitionsIfNeeded() {
+  if (!RuntimeEnabledFeatures::WebMCPEnabled()) {
+    return;
+  }
+  // The `<form>` must have *both* the `tool-name` and `tool-description`
+  // attributes, and the form must be document-connected, to qualify for
+  // declarative WebMCP inclusion.
+  String name = FastGetAttribute(html_names::kToolnameAttr);
+  String description = FastGetAttribute(html_names::kTooldescriptionAttr);
+  bool is_valid_mcp_form = isConnected() && name && description;
+  bool name_or_description_changed =
+      is_valid_mcp_form && active_webmcp_tool_ &&
+      (active_webmcp_tool_->ToolName() != name ||
+       active_webmcp_tool_->ToolDescription() != description);
+  if (is_valid_mcp_form == IsValidWebMCPForm() &&
+      !name_or_description_changed) {
+    // No change.
+    return;
+  }
+
+  ModelContext* model_context = nullptr;
+  if (auto* window = GetDocument().domWindow(); window && window->navigator()) {
+    model_context = ModelContextSupplement::modelContext(*window->navigator());
+  }
+  if (!model_context) {
+    return;
+  }
+
+  if (IsValidWebMCPForm()) {
+    CHECK(!is_valid_mcp_form || name_or_description_changed);
+    // Unregister the tool to ensure any in-flight tool executions are aborted.
+    model_context->unregisterTool(active_webmcp_tool_->ToolName(),
+                                  ASSERT_NO_EXCEPTION);
+    active_webmcp_tool_ = nullptr;
+  }
+
+  if (is_valid_mcp_form) {
+    active_webmcp_tool_ =
+        MakeGarbageCollected<HTMLFormMcpTool>(this, name, description);
+    model_context->RegisterDeclarativeTool(name, description,
+                                           active_webmcp_tool_);
+  }
+}
+
 Node::InsertionNotificationRequest HTMLFormElement::InsertedInto(
     ContainerNode& insertion_point) {
   HTMLElement::InsertedInto(insertion_point);
@@ -142,6 +295,7 @@ Node::InsertionNotificationRequest HTMLFormElement::InsertedInto(
     GetDocument().MarkTopLevelFormsDirty();
     GetDocument().DidChangeFormRelatedElementDynamically(
         this, WebFormRelatedChangeType::kAdd);
+    UpdateMcpDefinitionsIfNeeded();
   }
   return kInsertionDone;
 }
@@ -189,6 +343,7 @@ void HTMLFormElement::RemovedFrom(ContainerNode& insertion_point) {
     GetDocument().MarkTopLevelFormsDirty();
     GetDocument().DidChangeFormRelatedElementDynamically(
         this, WebFormRelatedChangeType::kRemove);
+    UpdateMcpDefinitionsIfNeeded();
   }
 }
 
@@ -658,6 +813,16 @@ void HTMLFormElement::DetachLayoutTree(bool performing_reattach) {
   }
 }
 
+void HTMLFormElement::AttributeChanged(
+    const AttributeModificationParams& params) {
+  const QualifiedName& name = params.name;
+  HTMLElement::AttributeChanged(params);
+  if (name == html_names::kToolnameAttr ||
+      name == html_names::kTooldescriptionAttr) {
+    UpdateMcpDefinitionsIfNeeded();
+  }
+}
+
 void HTMLFormElement::ParseAttribute(
     const AttributeModificationParams& params) {
   const QualifiedName& name = params.name;
@@ -701,7 +866,6 @@ void HTMLFormElement::ParseAttribute(
       rel_attribute_ |= RelAttribute::kNoOpener;
     if (rel_list_->contains(AtomicString("opener")))
       rel_attribute_ |= RelAttribute::kOpener;
-
   } else {
     HTMLElement::ParseAttribute(params);
   }
@@ -858,7 +1022,7 @@ void HTMLFormElement::CollectListedElements(
         if (elements_for_autofill) {
           elements_for_autofill->push_back(listed_element);
         }
-      } else if (base::Contains(nested_forms, listed_element->Form())) {
+      } else if (std::ranges::contains(nested_forms, listed_element->Form())) {
         elements_for_autofill->push_back(listed_element);
       }
     }

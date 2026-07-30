@@ -24,7 +24,7 @@ import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/ung
 import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 
 import type {ComposeboxFile, ContextualUpload} from './common.js';
-import {recordContextAdditionMethod} from './common.js';
+import {recordContextAdditionMethod, TabUploadOrigin} from './common.js';
 import {FileUploadErrorType, FileUploadStatus} from './composebox_query.mojom-webui.js';
 import {type ContextMenuEntrypointElement, GlifAnimationState} from './context_menu_entrypoint.js';
 import {getCss} from './contextual_entrypoint_and_carousel.css.js';
@@ -158,6 +158,10 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
       recentTabForChip_: {type: Object},
       carouselOnTop_: {type: Boolean},
       submitButtonShown: {type: Boolean},
+      isOmniboxInCompactMode_: {
+        type: Boolean,
+        reflect: true,
+      },
     };
   }
 
@@ -172,6 +176,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   accessor contextMenuGlifAnimationState: GlifAnimationState =
       GlifAnimationState.INELIGIBLE;
   accessor inComposebox: boolean = false;
+  accessor isOmniboxInCompactMode_: boolean = false;
 
   protected accessor attachmentFileTypes_: string =
       loadTimeData.getString('composeboxAttachmentFileTypes');
@@ -241,6 +246,11 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   }
 
   protected get shouldShowToolChipsForTallMode_(): boolean {
+    // TODO(b/476405347): Consolidate logic here and remove the Omnibox specific
+    // code.
+    if (this.entrypointName === 'Omnibox') {
+      return !this.shouldShowToolChipsForCompactMode_;
+    }
     return this.searchboxLayoutMode !== 'Compact' ||
         this.shouldShowContextualChipsForCompactMode_;
   }
@@ -251,18 +261,29 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   }
 
   protected get shouldShowToolChipsForCompactMode_(): boolean {
-    return this.searchboxLayoutMode === 'Compact' && this.toolChipsVisible_ &&
-        ((this.entrypointName !== 'Omnibox') ||
-         (this.entrypointName === 'Omnibox' &&
-          this.searchboxLayoutMode === 'Compact' && this.inComposebox));
+    if (this.searchboxLayoutMode !== 'Compact' || !this.toolChipsVisible_) {
+      return false;
+    }
+
+    return this.entrypointName !== 'Omnibox' || this.inComposebox;
   }
 
   protected get shouldShowDivider_(): boolean {
+    // TODO(b/476175193): Remove `entrypointName` condition.
+    if (this.entrypointName === 'Omnibox' &&
+        this.searchboxLayoutMode === 'TallBottomContext') {
+      return false;
+    }
+
+    // TODO(b/476405347): Remove `entrypointName` condition.
+    // `this.shouldShowContextualChipsForCompactMode_` can possibly be removed
+    // without consequence.
     return this.showDropdown &&
-        (this.shouldShowContextualChipsForCompactMode_ ||
-         (this.showFileCarousel_ ||
-          this.searchboxLayoutMode === 'TallTopContext' ||
-          this.submitButtonShown));
+        ((this.entrypointName !== 'Omnibox' &&
+          this.shouldShowContextualChipsForCompactMode_) ||
+         this.showFileCarousel_ ||
+         this.searchboxLayoutMode === 'TallTopContext' ||
+         this.submitButtonShown);
   }
 
   protected get shouldHideEntrypointButton_(): boolean {
@@ -313,6 +334,12 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
             this.tabSuggestions.find(tab => tab.showInPreviousTabChip) || null;
       }
     }
+
+    if (changedProperties.has('entrypointName') ||
+        changedProperties.has('searchboxLayoutMode')) {
+      this.isOmniboxInCompactMode_ = this.entrypointName === 'Omnibox' &&
+          this.searchboxLayoutMode === 'Compact';
+    }
   }
 
   addDroppedFiles(files: FileList|null) {
@@ -334,9 +361,11 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   setContextFiles(files: ContextualUpload[]) {
     for (const file of files) {
       if ('tabId' in file) {
-        // If the composebox is being initialized with tab context, we want to
-        // keep the context menu open to allow for multi-tab selection.
-        if (this.contextMenuEnabled_ && !file.delayUpload) {
+        // If the composebox is being initialized with tab context from the
+        // context menu, we want to keep the context menu open to allow for
+        // multi-tab selection.
+        if (this.contextMenuEnabled_ &&
+            file.origin === TabUploadOrigin.CONTEXT_MENU) {
           this.$.contextEntrypoint.openMenuForMultiSelection();
         }
         this.addTabContext_(new CustomEvent('addTabContext', {
@@ -346,6 +375,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
             url: file.url,
             delayUpload: file.delayUpload,
             replaceAutoActiveTabToken: false,
+            origin: file.origin,
           },
         }));
       } else {
@@ -498,6 +528,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
         url: tab.url,
         delayUpload: /*delay_upload=*/ true,
         replaceAutoActiveTabToken: true,
+        origin: TabUploadOrigin.OTHER,
       },
     }));
   }
@@ -529,6 +560,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
         url: tabAttachment.url,
         delayUpload: /*delay_upload=*/ false,
         replaceAutoActiveTabToken: false,
+        origin: TabUploadOrigin.OTHER,
       },
     }));
   }
@@ -729,6 +761,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     url: Url,
     delayUpload: boolean,
     replaceAutoActiveTabToken: boolean,
+    origin: TabUploadOrigin,
   }>) {
     e.stopPropagation();
 
@@ -737,6 +770,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
       title: e.detail.title,
       url: e.detail.url,
       delayUpload: e.detail.delayUpload,
+      origin: e.detail.origin,
       onContextAdded: (file: ComposeboxFile) => {
         this.files_ = new Map([...this.files_.entries(), [file.uuid, file]]);
         this.addedTabsIds_ = new Map(

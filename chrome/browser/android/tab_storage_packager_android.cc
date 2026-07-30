@@ -38,7 +38,8 @@
 namespace tabs {
 // TODO(crbug.com/430996004): Reference a shared constant for the web content
 // state.
-static const int kTabStoragePackagerAndroidVersion = 2;
+// Version 3: Introduce TabState#url.
+static const int kTabStoragePackagerAndroidVersion = 3;
 
 // A payload of data representing TabStripCollection.
 class TabStripCollectionStorageData : public Payload {
@@ -159,7 +160,7 @@ long TabStoragePackagerAndroid::ConsolidateTabData(
     jlong timestamp_millis,
     const jni_zero::JavaRef<jobject>& web_contents_state_buffer,
     std::optional<std::string> opener_app_id,
-    jint theme_color,
+    int32_t theme_color,
     jlong last_navigation_committed_timestamp_millis,
     bool tab_has_sensitive_content,
     TabAndroid* tab) {
@@ -175,12 +176,18 @@ long TabStoragePackagerAndroid::ConsolidateTabData(
     tab_group_id = tab->GetGroup()->token();
   }
 
+  GURL gurl = tab->GetURL();
+  std::optional<std::string> url_spec;
+  if (gurl.is_valid()) {
+    url_spec = gurl.spec();
+  }
+
   AndroidTabPackage android_package(
       kTabStoragePackagerAndroidVersion, tab->GetAndroidId(),
       tab->GetParentId(), timestamp_millis, std::move(web_contents_state_bytes),
       std::move(opener_app_id), theme_color,
       last_navigation_committed_timestamp_millis, tab_has_sensitive_content,
-      tab->GetTabLaunchTypeAtCreation());
+      tab->GetTabLaunchTypeAtCreation(), std::move(url_spec));
 
   TabStoragePackage* package_ptr =
       new TabStoragePackage(tab->GetUserAgent(), std::move(tab_group_id),
@@ -191,8 +198,8 @@ long TabStoragePackagerAndroid::ConsolidateTabData(
 
 long TabStoragePackagerAndroid::ConsolidateTabStripCollectionData(
     JNIEnv* env,
-    jint window_id,
-    jint j_tab_model_type,
+    int32_t window_id,
+    int32_t j_tab_model_type,
     TabAndroid* active_tab) {
   tabs_pb::TabStripCollectionState state;
 

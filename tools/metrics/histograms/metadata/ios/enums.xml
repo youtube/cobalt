@@ -374,6 +374,18 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="Tips Notification"/>
 </enum>
 
+<!-- LINT.IfChange(IOSCrossPlatformPromoType) -->
+
+<enum name="IOSCrossPlatformPromoType">
+  <int value="1" label="Password"/>
+  <int value="2" label="Address"/>
+  <int value="3" label="Payment"/>
+  <int value="4" label="EnhancedBrowsing"/>
+  <int value="5" label="Lens"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/desktop_to_mobile_promos/promos_types.h:PromoType) -->
+
 <!-- LINT.IfChange(IOSDefaultBrowserBannerPromoPromoSessionEndedReason) -->
 
 <enum name="IOSDefaultBrowserBannerPromoPromoSessionEndedReason">
@@ -690,9 +702,19 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Tab Reopen"/>
   <int value="5" label="App Bar"/>
   <int value="6" label="Image long-press context menu"/>
+  <int value="7" label="Image Remix in-product help"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h:EntryPoint) -->
+
+<!-- LINT.IfChange(IOSGeminiFeedback) -->
+
+<enum name="IOSGeminiFeedback">
+  <int value="0" label="Thumbs Up"/>
+  <int value="1" label="Thumbs Down"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h:IOSGeminiFeedback) -->
 
 <!-- LINT.IfChange(IOSGeminiFirstPromptSubmissionMethod) -->
 
@@ -720,6 +742,19 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h:IOSGeminiFREAction) -->
+
+<!--  LINT.IfChange(IOSGeminiSessionCancellationReason) -->
+
+<enum name="IOSGeminiSessionCancellationReason">
+  <int value="0" label="Unknown"/>
+  <int value="1" label="Stop Button Tapped"/>
+  <int value="2" label="Outside Tapped"/>
+  <int value="3" label="Close Button Tapped Expanded State"/>
+  <int value="4" label="Close Button Tapped Collapsed State"/>
+  <int value="5" label="Close Button Tapped Loading State"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h:IOSGeminiSessionCancellationReason) -->
 
 <!-- LINT.IfChange(IOSGeminiSettingsItem) -->
 
@@ -1389,6 +1424,8 @@ chromium-metrics-reviews@google.com.
   <int value="6" label="Notifications"/>
   <int value="7" label="Obsolete in M138 - Docking"/>
   <int value="8" label="Obsolete in M138 - Address Bar"/>
+  <int value="9" label="Safari import"/>
+  <int value="10" label="Background customization"/>
 </enum>
 
 <enum name="IOSShareExtensionReceivedEntrySource">
@@ -2161,6 +2198,9 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="SceneActivation">
     Triggered by a scene becoming foreground active.
   </int>
+  <int value="3" label="ServiceStatusChange">
+    Triggered by the CrossDevicePrefTracker becoming available.
+  </int>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/synced_set_up/public/synced_set_up_metrics.h:SyncedSetUpTriggerSource) -->
@@ -2252,6 +2292,7 @@ chromium-metrics-reviews@google.com.
   <int value="28" label="Passkeys"/>
   <int value="29" label="Choose From Drive"/>
   <int value="30" label="Save To Drive"/>
+  <int value="31" label="Bling Enterprise Profiles"/>
 </enum>
 
 <enum name="WindowActivityOrigin">

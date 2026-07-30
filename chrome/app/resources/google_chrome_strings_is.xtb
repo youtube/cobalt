@@ -360,6 +360,7 @@ Sumir eiginleikar kunna að vera óaðgengilegir og breytingar á kjörstillingu
 <translation id="4885446229353981848">Alltaf sýna flýtileið Google-linsu</translation>
 <translation id="4891791193823137474">Leyfa Google Chrome að keyra í bakgrunni</translation>
 <translation id="4895437082222824641">Opna tengil í nýjum Chrome &amp;flipa</translation>
+<translation id="4918086044614829423">Samþykkja</translation>
 <translation id="4918844574251943176">Mynd afrituð</translation>
 <translation id="4926882258455737990">Til að nota annan Google-reikning með Gemini í Chrome skaltu <ph name="BEGIN_LINK" />búa til nýjan prófíl<ph name="END_LINK" /> og skrá þig inn með reikningnum sem þú vilt nota</translation>
 <translation id="492720062778050435">Chrome mælir með að þú farir yfir þessa viðbót</translation>
@@ -373,6 +374,7 @@ Sumir eiginleikar kunna að vera óaðgengilegir og breytingar á kjörstillingu
 <translation id="5003967926796347400">Smelltu á „Google-aðgangsorðastjórnun“</translation>
 <translation id="5043786843026425788">Nánar um leit með Google-linsu í Chrome</translation>
 <translation id="504867494566807945">Opnaðu tengla úr hvaða forriti sem er í Chrome og festu vafrann þar að auki á forritastikuna þína til að hafa greiðan aðgang að honum</translation>
+<translation id="5105120510934353742">Til að halda áfram að fá uppfærslur fyrir Google Chrome þarftu macOS 13 eða nýrri útgáfu. Þessi tölva notar macOS 12.</translation>
 <translation id="5114340746415930644">Sláðu inn aðgangsorðið þitt til að nota og vista Chrome-gögn á reikningnum þínum, <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">Skráðu þig inn í Chrome þegar þú skráir þig inn í aðrar Google-þjónustur</translation>
 <translation id="5126049312684316860">Chrome forhleður fleiri síðum sem er líklegt að þú munir skoða svo þær hlaðist fyrr þegar þú opnar þær</translation>
@@ -431,6 +433,7 @@ Google Chrome getur ekki endurheimt stillingarnar þínar.</translation>
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="569897634095159764">Ekki er hægt að tengjast internetinu. Staðgengilsþjónninn krefst auðkenningar.</translation>
 <translation id="5709557627224531708">Stilltu Chrome sem sjálfgefinn vafra</translation>
+<translation id="5719246646468301581">Viðbótarþjónustuskilmálar Google Chrome og ChromeOS</translation>
 <translation id="5719324992913248873">Þessi aðgerð mun:
           <ph name="LINE_BREAKS" />
            • Endurstilla sumar stillingar og flýtileiðir Chrome
@@ -511,6 +514,7 @@ Google Chrome getur ekki endurheimt stillingarnar þínar.</translation>
 <translation id="6326175484149238433">Fjarlægja úr Chrome</translation>
 <translation id="6327105987658262776">Uppfærsla er ekki tiltæk.</translation>
 <translation id="6334815226785304306">Gera Google Chrome að sjálfgefnum vafra og festa við forritastikuna</translation>
+<translation id="63540178978900677">Chrome er ekki lengur sjálfgefni vafrinn þinn. Gera Chrome að sjálfgefnum vafra?</translation>
 <translation id="6360449101159168105">Meðan þessi flipi var óvirkur var losað um minni til að gera Chrome hraðari. Þú getur valið að undanskilja þetta vefsvæði alltaf frá því að vera óvirkt.</translation>
 <translation id="6388799252195623474">hjálpa mér með þetta</translation>
 <translation id="6412673304250309937">Ber vefslóðir saman við lista yfir óörugg vefsvæði sem er vistaður í Chrome. Ef vefsvæði reynir að stela aðgangsorðinu þínu, eða ef þú sækir skaðlega skrá, gæti Chrome einnig sent vefslóðir í Örugga vefskoðun, þar á meðal hluta af innihaldi síðna.</translation>
@@ -712,6 +716,9 @@ Google Chrome getur ekki endurheimt stillingarnar þínar.</translation>
 <translation id="8418845734693287262">ChromeOS gat ekki samstillt gögnin þín vegna þess að innskráningarupplýsingar reikningsins eru úreltar.</translation>
 <translation id="842386925677997438">Öryggisverkfæri Chrome</translation>
 <translation id="8425765582779547329">Til að vera öruggari á netinu með vali foreldra þinna skaltu skrá þig inn í Chrome</translation>
+<translation id="842852285618875960">Þú náðir hámarksfjölda bókamerkja í Chrome (<ph name="BOOKMARK_LIMIT" />) svo að sum bókamerkin þín hafa ekki verið vistuð á Google-reikningnum þínum enn sem komið er.
+
+Ekki er hægt að vista ný bókamerki á reikningnum þínum fyrr en þú eyðir einhverjum. Ef þú skráir þig út núna verður óvistuðum bókamerkjum eytt.</translation>
 <translation id="8433638294851456451">Til að senda númer héðan í Android símann þinn skaltu skrá þig inn á Chrome í báðum tækjunum.</translation>
 <translation id="8496177819998570653">Google-aðgangsorðastjórnun</translation>
 <translation id="8498858610309223613">Sérstök öryggisuppfærsla fyrir Google Chrome var tekin í notkun. Endurræstu núna og við opnum flipana þína aftur.</translation>

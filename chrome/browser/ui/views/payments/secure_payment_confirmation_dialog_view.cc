@@ -341,12 +341,17 @@ bool SecurePaymentConfirmationDialogView::ShouldShowCloseButton() const {
 bool SecurePaymentConfirmationDialogView::Accept() {
   views::DialogDelegateView::Accept();
 
-  // Disable the opt-out link to avoid the user clicking on it whilst the
-  // WebAuthn dialog is showing over the SPC one. If opt-out support wasn't
-  // requested by the SPC caller, it won't be visible and doesn't need disabled.
-  //
-  // TODO(crbug.com/40225659): Even disabled this link still looks clickable
-  // (underline disappears, but color doesn't change). Force style the color?
+  // Disable the footer/opt-out links to avoid the user clicking on it whilst
+  // the WebAuthn dialog is showing over the SPC one. Note that this is only
+  // necessarily if the text is visible.
+  // TODO(crbug.com/476172795): Even disabled this link still looks clickable
+  // (underline disappears, but color doesn't change).
+  if (base::FeatureList::IsEnabled(
+          blink::features::kSecurePaymentConfirmationUxRefresh)) {
+    if (footer_view_->GetVisible()) {
+      footer_view_->SetEnabled(false);
+    }
+  }
   if (opt_out_view_->GetVisible()) {
     opt_out_view_->SetEnabled(false);
   }
@@ -544,10 +549,12 @@ void SecurePaymentConfirmationDialogView::InitViews() {
   AddChildView(CreateSpacer(views::DISTANCE_UNRELATED_CONTROL_VERTICAL));
 
   // Title
-  std::unique_ptr<views::Label> title_text =
-      CreateSecurePaymentConfirmationTitleLabel(model_->title());
-  title_text->SetID(static_cast<int>(DialogViewID::TITLE));
-  AddChildView(std::move(title_text));
+  std::unique_ptr<views::Label> title = std::make_unique<views::Label>(
+      model_->title(), views::style::CONTEXT_DIALOG_TITLE,
+      views::style::STYLE_HEADLINE_4);
+  title->SetHorizontalAlignment(gfx::ALIGN_TO_HEAD);
+  title->SetID(static_cast<int>(DialogViewID::TITLE));
+  AddChildView(std::move(title));
   AddChildView(CreateSpacer(views::DISTANCE_UNRELATED_CONTROL_VERTICAL));
 
   // Merchant Row
@@ -606,9 +613,11 @@ void SecurePaymentConfirmationDialogView::InitViews() {
 
   // Footer
   footer_view_ = AddChildView(CreateFooterView());
+  footer_view_->SetVisible(model_->footer_visible());
 
   // Opt out
   opt_out_view_ = AddChildView(CreateOptOutView());
+  opt_out_view_->SetVisible(model_->opt_out_visible());
 
   InvalidateLayout();
 }
@@ -726,18 +735,16 @@ SecurePaymentConfirmationDialogView::CreateNewRowView(
   value_container->SetOrientation(views::BoxLayout::Orientation::kVertical);
   std::unique_ptr<views::Label> value_view = std::make_unique<views::Label>(
       value, views::style::CONTEXT_DIALOG_BODY_TEXT,
-      views::style::STYLE_PRIMARY);
+      views::style::STYLE_BODY_3_MEDIUM);
   value_view->SetHorizontalAlignment(gfx::ALIGN_TO_HEAD);
-  value_view->SetLineHeight(kDescriptionLineHeight);
   value_view->SetID(static_cast<int>(value_id));
   value_container->AddChildView(std::move(value_view));
 
   std::unique_ptr<views::Label> secondary_value_view =
       std::make_unique<views::Label>(secondary_value,
                                      views::style::CONTEXT_DIALOG_BODY_TEXT,
-                                     views::style::STYLE_PRIMARY);
+                                     views::style::STYLE_BODY_4);
   secondary_value_view->SetHorizontalAlignment(gfx::ALIGN_TO_HEAD);
-  secondary_value_view->SetLineHeight(kDescriptionLineHeight);
   secondary_value_view->SetID(static_cast<int>(secondary_value_id));
   // Always create the secondary value view, but set visibility based on value
   // presence. This is so a value can be added later on model updates.
@@ -764,7 +771,7 @@ SecurePaymentConfirmationDialogView::CreateFooterView() {
   return views::Builder<views::StyledLabel>()
       .SetText(text)
       .SetTextContext(ChromeTextContext::CONTEXT_DIALOG_BODY_TEXT_SMALL)
-      .SetDefaultTextStyle(views::style::STYLE_SECONDARY)
+      .SetDefaultTextStyle(views::style::STYLE_BODY_4)
       .SetProperty(
           views::kMarginsKey,
           gfx::Insets().set_top(views::LayoutProvider::Get()->GetDistanceMetric(
@@ -793,7 +800,7 @@ SecurePaymentConfirmationDialogView::CreateOptOutView() {
   return views::Builder<views::StyledLabel>()
       .SetText(text)
       .SetTextContext(ChromeTextContext::CONTEXT_DIALOG_BODY_TEXT_SMALL)
-      .SetDefaultTextStyle(views::style::STYLE_SECONDARY)
+      .SetDefaultTextStyle(views::style::STYLE_BODY_4)
       .SetProperty(
           views::kMarginsKey,
           gfx::Insets().set_top(views::LayoutProvider::Get()->GetDistanceMetric(

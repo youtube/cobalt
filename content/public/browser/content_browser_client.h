@@ -322,6 +322,13 @@ class CONTENT_EXPORT ContentBrowserClient {
                               const ClipboardPasteData& data,
                               std::optional<std::u16string> replacement_data)>;
 
+  // Checks if the drag operation initiated by the renderer is allowed by
+  // enterprise policies. This mirrors `IsClipboardCopyAllowedByPolicy` but
+  // accepts the full `DropData` bundle, allowing the embedder to inspect all
+  // data types present in the drag. The default implementation allows the drag.
+  virtual bool IsDragAllowedByPolicy(const ClipboardEndpoint& source,
+                                     const struct DropData& drop_data);
+
   // Records the detailed reason for ShouldUseSpareRenderProcessHost returning
   // .
   //
@@ -3022,13 +3029,6 @@ class CONTENT_EXPORT ContentBrowserClient {
   // Checks if Isolated Web Apps are enabled, e.g. by feature flag
   // or in any other way.
   virtual bool AreIsolatedWebAppsEnabled(BrowserContext* browser_context);
-
-  // This function can serve to block third-party storage partitioning
-  // from being enabled if it returns false. If it returns true, then
-  // we fallback on the base feature to determine if partitioning is on.
-  virtual bool IsThirdPartyStoragePartitioningAllowed(
-      content::BrowserContext* browser_context,
-      const url::Origin& top_level_origin);
 
   // Checks whether credentials should be included in fenced frame automatic
   // beacon requests, based on user cookie settings. Any cookies sent in an

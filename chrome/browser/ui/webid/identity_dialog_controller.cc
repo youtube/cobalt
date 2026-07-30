@@ -302,6 +302,14 @@ void IdentityDialogController::OnAccountsDisplayed() {
   std::move(on_accounts_displayed_).Run();
 }
 
+void IdentityDialogController::OnFlowCompleted(bool success) {
+  auto* actor_login_request = GetActorLoginRequest();
+  if (actor_login_request) {
+    std::move(actor_login_request->on_federated_token_received_callback())
+        .Run(success);
+  }
+}
+
 void IdentityDialogController::OnAccountSelected(
     const GURL& idp_config_url,
     const std::string& account_id,
@@ -607,6 +615,11 @@ void IdentityDialogController::UnsetActorLoginRequest(content::Page& page) {
 
 IdentityDialogController::ActorLoginRequest*
 IdentityDialogController::GetActorLoginRequest() const {
+  if (rp_web_contents_->IsBeingDestroyed()) {
+    // If the WebContents is being destroyed, don't try to access the page. See
+    // crbug.com/476409625.
+    return nullptr;
+  }
   return IdentityDialogController::ActorLoginRequest::GetForPage(
       rp_web_contents_->GetPrimaryPage());
 }

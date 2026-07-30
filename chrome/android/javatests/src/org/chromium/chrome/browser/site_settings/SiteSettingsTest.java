@@ -33,15 +33,12 @@ import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.refEq;
 
+import static org.chromium.base.test.transit.ViewFinder.waitForNoView;
 import static org.chromium.components.browser_ui.site_settings.AutoDarkMetrics.AutoDarkSettingsChangeSource.SITE_SETTINGS_GLOBAL;
 import static org.chromium.components.content_settings.PrefNames.COOKIE_CONTROLS_MODE;
 import static org.chromium.components.content_settings.PrefNames.DESKTOP_SITE_WINDOW_SETTING_ENABLED;
 import static org.chromium.components.permissions.PermissionUtil.getGeolocationType;
-import static org.chromium.ui.test.util.ViewUtils.VIEW_GONE;
-import static org.chromium.ui.test.util.ViewUtils.VIEW_INVISIBLE;
-import static org.chromium.ui.test.util.ViewUtils.VIEW_NULL;
 import static org.chromium.ui.test.util.ViewUtils.onViewWaiting;
-import static org.chromium.ui.test.util.ViewUtils.waitForViewCheckingState;
 
 import android.content.Context;
 import android.content.Intent;
@@ -122,16 +119,16 @@ import org.chromium.components.browser_ui.settings.SettingsNavigation;
 import org.chromium.components.browser_ui.site_settings.BinaryStatePermissionPreference;
 import org.chromium.components.browser_ui.site_settings.ContentSettingException;
 import org.chromium.components.browser_ui.site_settings.ContentSettingsResources;
+import org.chromium.components.browser_ui.site_settings.CookieSettings;
+import org.chromium.components.browser_ui.site_settings.CookieSettingsPreference;
 import org.chromium.components.browser_ui.site_settings.GeolocationSetting;
 import org.chromium.components.browser_ui.site_settings.GroupedWebsitesSettings;
 import org.chromium.components.browser_ui.site_settings.RwsCookieInfo;
-import org.chromium.components.browser_ui.site_settings.RwsCookieSettings;
 import org.chromium.components.browser_ui.site_settings.SingleCategorySettings;
 import org.chromium.components.browser_ui.site_settings.SingleCategorySettingsConstants;
 import org.chromium.components.browser_ui.site_settings.SingleWebsiteSettings;
 import org.chromium.components.browser_ui.site_settings.SiteSettings;
 import org.chromium.components.browser_ui.site_settings.SiteSettingsCategory;
-import org.chromium.components.browser_ui.site_settings.TriStateCookieSettingsPreference;
 import org.chromium.components.browser_ui.site_settings.TriStateSiteSettingsPreference;
 import org.chromium.components.browser_ui.site_settings.Website;
 import org.chromium.components.browser_ui.site_settings.WebsiteAddress;
@@ -644,9 +641,9 @@ public class SiteSettingsTest {
                     public void run() {
                         final SingleCategorySettings websitePreferences =
                                 (SingleCategorySettings) settingsActivity.getMainFragment();
-                        final TriStateCookieSettingsPreference cookies =
+                        final CookieSettingsPreference cookies =
                                 websitePreferences.findPreference(
-                                        SingleCategorySettings.TRI_STATE_COOKIE_TOGGLE);
+                                        SingleCategorySettings.COOKIE_TOGGLE);
 
                         websitePreferences.onPreferenceChange(
                                 cookies,
@@ -674,7 +671,7 @@ public class SiteSettingsTest {
     }
 
     /** Checks if the button representing the given state matches the managed expectation. */
-    private void checkTriStateCookieToggleButtonState(
+    private void checkCookieToggleButtonState(
             final SettingsActivity settingsActivity,
             final @CookieControlsMode int state,
             final ToggleButtonState toggleState) {
@@ -682,19 +679,18 @@ public class SiteSettingsTest {
                 () -> {
                     SingleCategorySettings preferences =
                             (SingleCategorySettings) settingsActivity.getMainFragment();
-                    TriStateCookieSettingsPreference triStateCookieToggle =
-                            preferences.findPreference(
-                                    SingleCategorySettings.TRI_STATE_COOKIE_TOGGLE);
+                    CookieSettingsPreference cookieToggle =
+                            preferences.findPreference(SingleCategorySettings.COOKIE_TOGGLE);
                     boolean enabled = toggleState != ToggleButtonState.Disabled;
                     boolean checked = toggleState == ToggleButtonState.EnabledChecked;
                     Assert.assertEquals(
                             state + " button should be " + (enabled ? "enabled" : "disabled"),
                             enabled,
-                            triStateCookieToggle.isButtonEnabledForTesting(state));
+                            cookieToggle.isButtonEnabledForTesting(state));
                     Assert.assertEquals(
                             state + " button should be " + (checked ? "checked" : "unchecked"),
                             checked,
-                            triStateCookieToggle.isButtonCheckedForTesting(state));
+                            cookieToggle.isButtonCheckedForTesting(state));
                 });
     }
 
@@ -732,9 +728,8 @@ public class SiteSettingsTest {
                     SingleCategorySettings preferences =
                             (SingleCategorySettings) settingsActivity.getMainFragment();
                     if (type == SiteSettingsCategory.Type.THIRD_PARTY_COOKIES) {
-                        TriStateCookieSettingsPreference preference =
-                                preferences.findPreference(
-                                        SingleCategorySettings.TRI_STATE_COOKIE_TOGGLE);
+                        CookieSettingsPreference preference =
+                                preferences.findPreference(SingleCategorySettings.COOKIE_TOGGLE);
                         preferences.onPreferenceChange(
                                 preference,
                                 enabled
@@ -888,9 +883,8 @@ public class SiteSettingsTest {
                 () -> {
                     final SingleCategorySettings websitePreferences =
                             (SingleCategorySettings) settingsActivity.getMainFragment();
-                    final TriStateCookieSettingsPreference cookies =
-                            websitePreferences.findPreference(
-                                    SingleCategorySettings.TRI_STATE_COOKIE_TOGGLE);
+                    final CookieSettingsPreference cookies =
+                            websitePreferences.findPreference(SingleCategorySettings.COOKIE_TOGGLE);
 
                     Mockito.clearInvocations(mSettingsNavigation);
                     websitePreferences.setSettingsNavigation(mSettingsNavigation);
@@ -902,12 +896,12 @@ public class SiteSettingsTest {
 
                     Bundle fragmentArgs = new Bundle();
                     fragmentArgs.putInt(
-                            RwsCookieSettings.EXTRA_COOKIE_PAGE_STATE, expectedCookieControlMode);
+                            CookieSettings.EXTRA_COOKIE_PAGE_STATE, expectedCookieControlMode);
 
                     Mockito.verify(mSettingsNavigation)
                             .startSettings(
                                     eq(websitePreferences.getContext()),
-                                    eq(RwsCookieSettings.class),
+                                    eq(CookieSettings.class),
                                     refEq(fragmentArgs),
                                     eq(true));
                 });
@@ -1072,11 +1066,11 @@ public class SiteSettingsTest {
         SettingsActivity settingsActivity =
                 SiteSettingsTestUtils.startSiteSettingsCategory(
                         SiteSettingsCategory.Type.THIRD_PARTY_COOKIES);
-        checkTriStateCookieToggleButtonState(
+        checkCookieToggleButtonState(
                 settingsActivity,
                 CookieControlsMode.INCOGNITO_ONLY,
                 ToggleButtonState.EnabledChecked);
-        checkTriStateCookieToggleButtonState(
+        checkCookieToggleButtonState(
                 settingsActivity,
                 CookieControlsMode.BLOCK_THIRD_PARTY,
                 ToggleButtonState.EnabledUnchecked);
@@ -1103,9 +1097,9 @@ public class SiteSettingsTest {
         SettingsActivity settingsActivity =
                 SiteSettingsTestUtils.startSiteSettingsCategory(
                         SiteSettingsCategory.Type.THIRD_PARTY_COOKIES);
-        checkTriStateCookieToggleButtonState(
+        checkCookieToggleButtonState(
                 settingsActivity, CookieControlsMode.INCOGNITO_ONLY, ToggleButtonState.Disabled);
-        checkTriStateCookieToggleButtonState(
+        checkCookieToggleButtonState(
                 settingsActivity,
                 CookieControlsMode.BLOCK_THIRD_PARTY,
                 ToggleButtonState.EnabledChecked);
@@ -1138,11 +1132,11 @@ public class SiteSettingsTest {
         SettingsActivity settingsActivity =
                 SiteSettingsTestUtils.startSiteSettingsCategory(
                         SiteSettingsCategory.Type.THIRD_PARTY_COOKIES);
-        checkTriStateCookieToggleButtonState(
+        checkCookieToggleButtonState(
                 settingsActivity,
                 CookieControlsMode.INCOGNITO_ONLY,
                 ToggleButtonState.EnabledChecked);
-        checkTriStateCookieToggleButtonState(
+        checkCookieToggleButtonState(
                 settingsActivity, CookieControlsMode.BLOCK_THIRD_PARTY, ToggleButtonState.Disabled);
         onView(getManagedViewMatcher(/* activeView= */ true)).check(matches(isDisplayed()));
         onView(getManagedViewMatcher(/* activeView= */ false)).check(matches(not(isDisplayed())));
@@ -1169,11 +1163,11 @@ public class SiteSettingsTest {
         SettingsActivity settingsActivity =
                 SiteSettingsTestUtils.startSiteSettingsCategory(
                         SiteSettingsCategory.Type.THIRD_PARTY_COOKIES);
-        checkTriStateCookieToggleButtonState(
+        checkCookieToggleButtonState(
                 settingsActivity,
                 CookieControlsMode.INCOGNITO_ONLY,
                 ToggleButtonState.EnabledChecked);
-        checkTriStateCookieToggleButtonState(
+        checkCookieToggleButtonState(
                 settingsActivity, CookieControlsMode.BLOCK_THIRD_PARTY, ToggleButtonState.Disabled);
         onView(getManagedViewMatcher(/* activeView= */ true)).check(matches(isDisplayed()));
         onView(getManagedViewMatcher(/* activeView= */ false)).check(matches(not(isDisplayed())));
@@ -1192,11 +1186,11 @@ public class SiteSettingsTest {
         SettingsActivity settingsActivity =
                 SiteSettingsTestUtils.startSiteSettingsCategory(
                         SiteSettingsCategory.Type.THIRD_PARTY_COOKIES);
-        checkTriStateCookieToggleButtonState(
+        checkCookieToggleButtonState(
                 settingsActivity,
                 CookieControlsMode.INCOGNITO_ONLY,
                 ToggleButtonState.EnabledChecked);
-        checkTriStateCookieToggleButtonState(
+        checkCookieToggleButtonState(
                 settingsActivity,
                 CookieControlsMode.BLOCK_THIRD_PARTY,
                 ToggleButtonState.EnabledUnchecked);
@@ -1216,11 +1210,11 @@ public class SiteSettingsTest {
         SettingsActivity settingsActivity =
                 SiteSettingsTestUtils.startSiteSettingsCategory(
                         SiteSettingsCategory.Type.THIRD_PARTY_COOKIES);
-        checkTriStateCookieToggleButtonState(
+        checkCookieToggleButtonState(
                 settingsActivity,
                 CookieControlsMode.INCOGNITO_ONLY,
                 ToggleButtonState.EnabledChecked);
-        checkTriStateCookieToggleButtonState(
+        checkCookieToggleButtonState(
                 settingsActivity,
                 CookieControlsMode.BLOCK_THIRD_PARTY,
                 ToggleButtonState.EnabledUnchecked);
@@ -1635,8 +1629,8 @@ public class SiteSettingsTest {
     public void testOnlyExpectedPreferencesThirdPartyCookies() {
         testExpectedPreferences(
                 SiteSettingsCategory.Type.THIRD_PARTY_COOKIES,
-                new String[] {"info_text", "tri_state_cookie_toggle", "add_exception"},
-                new String[] {"info_text", "tri_state_cookie_toggle", "add_exception"});
+                new String[] {"info_text", "cookie_toggle", "add_exception"},
+                new String[] {"info_text", "cookie_toggle", "add_exception"});
     }
 
     @Test
@@ -1873,9 +1867,7 @@ public class SiteSettingsTest {
                                     new GURL("https://secondary3.com")));
                 });
 
-        waitForViewCheckingState(
-                withText("secondary1.com"), VIEW_INVISIBLE | VIEW_NULL | VIEW_GONE);
-        onView(withText("secondary1.com")).check(doesNotExist());
+        waitForNoView(withText("secondary1.com"));
         onView(withText("secondary3.com")).check(matches(isDisplayed()));
 
         // Reset second permission.
@@ -1915,9 +1907,8 @@ public class SiteSettingsTest {
                 () -> {
                     SingleCategorySettings preferences =
                             (SingleCategorySettings) settingsActivity.getMainFragment();
-                    TriStateCookieSettingsPreference cookieToggle =
-                            preferences.findPreference(
-                                    SingleCategorySettings.TRI_STATE_COOKIE_TOGGLE);
+                    CookieSettingsPreference cookieToggle =
+                            preferences.findPreference(SingleCategorySettings.COOKIE_TOGGLE);
 
                     clickButtonAndVerifyItsChecked(cookieToggle, CookieControlsMode.INCOGNITO_ONLY);
                     clickButtonAndVerifyItsChecked(
@@ -1939,14 +1930,12 @@ public class SiteSettingsTest {
                 () -> {
                     SingleCategorySettings preferences =
                             (SingleCategorySettings) settingsActivity.getMainFragment();
-                    TriStateCookieSettingsPreference threeStateCookieToggle =
-                            preferences.findPreference(
-                                    SingleCategorySettings.TRI_STATE_COOKIE_TOGGLE);
+                    CookieSettingsPreference cookieToggle =
+                            preferences.findPreference(SingleCategorySettings.COOKIE_TOGGLE);
 
+                    clickButtonAndVerifyItsChecked(cookieToggle, CookieControlsMode.INCOGNITO_ONLY);
                     clickButtonAndVerifyItsChecked(
-                            threeStateCookieToggle, CookieControlsMode.INCOGNITO_ONLY);
-                    clickButtonAndVerifyItsChecked(
-                            threeStateCookieToggle, CookieControlsMode.BLOCK_THIRD_PARTY);
+                            cookieToggle, CookieControlsMode.BLOCK_THIRD_PARTY);
                 });
 
         settingsActivity.finish();
@@ -1970,7 +1959,7 @@ public class SiteSettingsTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     clickButtonAndVerifyItsChecked(
-                            getTriStateToggle(settingsActivity),
+                            getCookieToggle(settingsActivity),
                             CookieControlsMode.BLOCK_THIRD_PARTY);
                 });
         // The snackbar should be displayed.
@@ -1982,14 +1971,14 @@ public class SiteSettingsTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     clickButtonAndVerifyItsChecked(
-                            getTriStateToggle(settingsActivity), CookieControlsMode.INCOGNITO_ONLY);
+                            getCookieToggle(settingsActivity), CookieControlsMode.INCOGNITO_ONLY);
                 });
         onView(withText(R.string.privacy_sandbox_snackbar_message)).check(doesNotExist());
         // Click back, click on the more button to test that the settings fragment was open.
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     clickButtonAndVerifyItsChecked(
-                            getTriStateToggle(settingsActivity),
+                            getCookieToggle(settingsActivity),
                             CookieControlsMode.BLOCK_THIRD_PARTY);
                 });
         onView(withText(R.string.privacy_sandbox_snackbar_message)).check(matches(isDisplayed()));
@@ -1997,18 +1986,16 @@ public class SiteSettingsTest {
         onViewWaiting(withText(R.string.ad_privacy_page_title)).check(matches(isDisplayed()));
     }
 
-    private TriStateCookieSettingsPreference getTriStateToggle(SettingsActivity settingsActivity) {
+    private CookieSettingsPreference getCookieToggle(SettingsActivity settingsActivity) {
         SingleCategorySettings preferences =
                 (SingleCategorySettings) settingsActivity.getMainFragment();
-        return preferences.findPreference(SingleCategorySettings.TRI_STATE_COOKIE_TOGGLE);
+        return preferences.findPreference(SingleCategorySettings.COOKIE_TOGGLE);
     }
 
     private void clickButtonAndVerifyItsChecked(
-            TriStateCookieSettingsPreference threeStateCookieToggle,
-            @CookieControlsMode int state) {
-        threeStateCookieToggle.getButton(state).performClick();
-        Assert.assertTrue(
-                "Button should be checked.", threeStateCookieToggle.getButton(state).isChecked());
+            CookieSettingsPreference cookieToggle, @CookieControlsMode int state) {
+        cookieToggle.getButton(state).performClick();
+        Assert.assertTrue("Button should be checked.", cookieToggle.getButton(state).isChecked());
     }
 
     @Test

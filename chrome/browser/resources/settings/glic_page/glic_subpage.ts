@@ -108,10 +108,10 @@ export class SettingsGlicSubpageElement extends SettingsGlicSubpageElementBase {
         },
       },
 
-      closedCaptionsFeatureEnabled_: {
+      closedCaptionsToggleEnabled_: {
         type: Boolean,
         value: () => {
-          return loadTimeData.getBoolean('glicClosedCaptionsFeatureEnabled');
+          return loadTimeData.getBoolean('glicCanUseLive');
         },
       },
 
@@ -291,7 +291,7 @@ export class SettingsGlicSubpageElement extends SettingsGlicSubpageElementBase {
       MetricsBrowserProxyImpl.getInstance();
   declare private tabAccessToggleExpanded_: boolean;
   declare private defaultTabAccessToggleExpanded_: boolean;
-  declare private closedCaptionsFeatureEnabled_: boolean;
+  declare private closedCaptionsToggleEnabled_: boolean;
   declare private glicExtensionsFeatureEnabled_: boolean;
   declare private glicUserStatusCheckFeatureEnabled_: boolean;
   declare private showGlicDefaultTabContextSetting_: boolean;

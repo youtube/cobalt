@@ -9,7 +9,6 @@
 <translation id="1016498331642356377">Hızlıca sesinizle arama yapın. Bu kısayolu düzenlemek için dokunup basılı tutun.</translation>
 <translation id="1028699632127661925"><ph name="DEVICE_NAME" /> cihazına gönderiliyor...</translation>
 <translation id="103269572468856066">Veriler bu siteler ve uygulamalardan da silinsin mi?</translation>
-<translation id="1034259925032978114">Pencere açık</translation>
 <translation id="1035113036584565771">İpucu bildirimleri tanıtımı kapatıldı</translation>
 <translation id="1036348656032585052">Kapat</translation>
 <translation id="1045899828449635435">Ayrıca veriler bu sitelerden de silinsin mi?</translation>
@@ -330,7 +329,6 @@ Sadece parolanıza sahip olan kişiler şifrelenmiş verilerinizi okuyabilir. Pa
 <translation id="2451607499823206582">İzleniyor</translation>
 <translation id="2453860139492968684">Tamamlandı</translation>
 <translation id="2461378706168271257">Sekmelerinizde arayın</translation>
-<translation id="2461822463642141190">Şu an</translation>
 <translation id="2466378451804467735"><ph name="TAB_TITLE" />, Birden Çok Seçili Sesi Kapalı Sekme</translation>
 <translation id="2468444275314013497">Tarayıcınızda bir sorun görünmüyor</translation>
 <translation id="2471632347767899461">Yardım merkezinde arama yapmayı deneyin</translation>
@@ -408,7 +406,6 @@ Sadece parolanıza sahip olan kişiler şifrelenmiş verilerinizi okuyabilir. Pa
 <translation id="2789486458103222910">Tamam</translation>
 <translation id="2791129728587938169">{NUM_PASSWORDS,plural, =1{Chrome, yeniden kullanılan ve iyileştirilebilecek bir şifre tespit etti}other{Chrome, yeniden kullanılan ve iyileştirilebilecek # şifre tespit etti}}</translation>
 <translation id="2794551654724114396">Chrome'dan en iyi şekilde yararlanmanıza yardımcı olacak faydalı ipuçları için bildirimleri açın</translation>
-<translation id="2800066122460699237"><ph name="TAB_TITLE" /> sekmesi kapatılacak</translation>
 <translation id="2805210243313393104">Yer işaretlerinizi, geçmişinizi ve diğerlerini tüm cihazlarınızda kullanın</translation>
 <translation id="2805756323405976993">Uygulamalar</translation>
 <translation id="2819849308549746319">Tüm abonelikleri iptal et</translation>
@@ -725,6 +722,7 @@ Sadece parolanıza sahip olan kişiler şifrelenmiş verilerinizi okuyabilir. Pa
 <translation id="4180726336228139707">Yalnızca bu cihazda</translation>
 <translation id="4181841719683918333">Diller</translation>
 <translation id="4188221736490993796">Z'den A'ya sırala</translation>
+<translation id="4189344235004694858">{NUM_REVOKED_PERMISSIONS,plural, =1{Chrome, spam veya yanıltıcı içerik nedeniyle bu sitenin bildirim göndermesini engelledi}other{Chrome, spam veya yanıltıcı içerik nedeniyle bu sitelerin bildirim göndermesini engelledi}}</translation>
 <translation id="4195643157523330669">Yeni sekmede aç</translation>
 <translation id="4197828496439691735">{NUM_TABS,plural, =1{Bu cihazda 1 sekme}other{Bu cihazda # sekme var}}</translation>
 <translation id="4198423547019359126">Kullanılabilir indirme yeri yok</translation>
@@ -911,7 +909,6 @@ Diğer Google hizmetlerinden yapılan aramalar ve etkinlikler gibi Google hesab�
 <translation id="4908869848243824489">Google'dan Keşfet</translation>
 <translation id="4910889077668685004">Ödeme uygulamaları</translation>
 <translation id="4911042367886397055">Tekrar hoş geldiniz <ph name="USER_NAME" />,</translation>
-<translation id="4912413785358399818">Sekmeyi taşı</translation>
 <translation id="4913169188695071480">Yenilemeyi durdur</translation>
 <translation id="4921224083091001889">Şifrelerinizi ve diğer öğelerinizi tüm cihazlarınızda kullanmak için Chrome'da <ph name="EMAIL" /> olarak oturum açın</translation>
 <translation id="4923173329789776645">İndirilmesi kuruluşunuz tarafından önerilmiyor</translation>
@@ -1117,6 +1114,7 @@ Diğer Google hizmetlerinden yapılan aramalar ve etkinlikler gibi Google hesab�
 <translation id="5833984609253377421">Bağlantıyı paylaş</translation>
 <translation id="5839058148541733625">Chrome Dinozor</translation>
 <translation id="5841444063256914865">"<ph name="FILE_NAME" />" dosyasını yine de indirmek istiyor musunuz?</translation>
+<translation id="5847265694842662173">Chrome, kötüye kullanım amaçlı ve kullanılmayan sitelerin bildirim göndermesini engelledi</translation>
 <translation id="5848257610304005265">PDF, <ph name="APP_NAME" /> ile açılsın mı?</translation>
 <translation id="5849288995120328556">Paylaşım durdurulsun mu?</translation>
 <translation id="5853623416121554550">duraklatıldı</translation>
@@ -1145,6 +1143,7 @@ Diğer Google hizmetlerinden yapılan aramalar ve etkinlikler gibi Google hesab�
 <translation id="5956665950594638604">Chrome Yardım Merkezi'ni yeni bir sekmede açar</translation>
 <translation id="59577092665511740">Bir hesap seçin.</translation>
 <translation id="5958275228015807058">Dosyalarınızı ve sayfalarınızı İndirilenler bölümünde bulabilirsiniz</translation>
+<translation id="5962499136121615854">{NUM_REVOKED_PERMISSIONS,plural, =1{Chrome, son zamanlarda ziyaret etmediğiniz bir sitenin size bildirim göndermesini engelledi}other{Chrome, son zamanlarda ziyaret etmediğiniz sitelerin size bildirim göndermesini engelledi}}</translation>
 <translation id="5962718611393537961">Daraltmak için dokunun</translation>
 <translation id="5964869237734432770">Resim açıklamasını durdur</translation>
 <translation id="5972844218283131174">Tümünün seçimini kaldır</translation>
@@ -1304,7 +1303,6 @@ Diğer Google hizmetlerinden yapılan aramalar ve etkinlikler gibi Google hesab�
 <translation id="6550891580932862748">Sizi tehlikeli web siteleri, indirmeler ve uzantılara karşı korumaz. Diğer Google ürünlerindeki Güvenli Tarama ayarlarınız etkilenmez.</translation>
 <translation id="6554822972009632311">İçerik filtresi açık</translation>
 <translation id="6556501700899673703">Lexend</translation>
-<translation id="6556542240154580383">{TAB_COUNT,plural, =1{<ph name="TAB_TITLE" /> ve <ph name="TAB_COUNT_ONE" /> sekme daha kapatılacak}other{<ph name="TAB_TITLE" /> ve <ph name="TAB_COUNT_MANY" /> sekme daha kapatılacak}}</translation>
 <translation id="6560414384669816528">Sogou ile arama</translation>
 <translation id="656065428026159829">Daha fazla göster</translation>
 <translation id="6564820424018738527">Android cihazınızda benzer bir ayar olabilir. Chrome'da ve Android cihazınızda reklam ölçümü etkinse bir şirket, ziyaret ettiğiniz web siteleri ve kullandığınız uygulamalardaki reklamların etkinliğini ölçebilir.</translation>
@@ -1805,6 +1803,7 @@ Bu ayarı değiştirmek için <ph name="BEGIN_LINK" />hesabınızdaki Chrome ver
 <translation id="847433688444405067">Farklı cihazlarda göz atın</translation>
 <translation id="8477178913400731244">Verileri sil</translation>
 <translation id="8485434340281759656"><ph name="FILE_SIZE" /> <ph name="SEPARATOR" /> <ph name="DESCRIPTION" /></translation>
+<translation id="8491317241605644838">Etkin olmayan pencere yok</translation>
 <translation id="8493948351860045254">Yer aç</translation>
 <translation id="8497242791509864205">Sıralama seçeneklerini aç</translation>
 <translation id="8497480609928300907">Gizlilik kılavuzu açıklaması</translation>
@@ -1903,7 +1902,6 @@ Bu ayarı değiştirmek için <ph name="BEGIN_LINK" />hesabınızdaki Chrome ver
 <translation id="8957528460562961174">Şifrelerinize erişmeye devam etmek için hemen dışa aktarın ve ardından tercih ettiğiniz şifre yöneticisine aktarın. Google Play Hizmetleri kullanılamadığı için Google Şifre Yöneticisi çalışmayı durdurdu.</translation>
 <translation id="8963117664422609631">Site ayarlarına gidin</translation>
 <translation id="8965591936373831584">beklemede</translation>
-<translation id="8968085728801125376">{TAB_COUNT,plural, =1{<ph name="INCOGNITO_TAB_COUNT" /> gizli sekme ve <ph name="TAB_COUNT_ONE" /> sekme daha kapatılacak}other{<ph name="INCOGNITO_TAB_COUNT" /> gizli sekme ve <ph name="TAB_COUNT_MANY" /> sekme daha kapatılacak}}</translation>
 <translation id="8969796057708736017">Dosya, kuruluşunuzun politikalarına uygunsa indirme işleminiz tamamlanır</translation>
 <translation id="8970887620466824814">Bir hata oluştu.</translation>
 <translation id="8972098258593396643">Varsayılan klasöre indirilsin mi?</translation>

@@ -627,6 +627,9 @@ crbug.com/41496274 [ win11 qualcomm-0x36334330 angle-d3d11 ] deqp/functional/gle
 # Graphite
 crbug.com/332745399 [ win graphite-enabled ] conformance2/extensions/webgl-shader-pixel-local-storage.html [ Failure ]
 
+# Win11 Qualcomm
+crbug.com/476376945 [ win11 qualcomm-0x41333430 angle-d3d11 ] conformance2/rendering/framebuffer-render-to-layer.html [ Failure ]
+
 ######################
 # Mac Metal failures #
 ######################
@@ -1024,6 +1027,9 @@ crbug.com/1399117 [ linux intel display-server-wayland no-passthrough ] WebglExt
 # Conflicts if between a generic os condition and a specific version
 #[ highsierra nvidia debug angle-opengl ] WebglExtension_test_10 [ Failure ]
 #[ mac nvidia debug angle-opengl ] WebglExtension_test_10 [ Failure ]
+
+# Incorrect colors
+crbug.com/475877304 [ linux intel-0x9bc5 angle-opengl ] conformance/glsl/samplers/glsl-function-texture2dprojlod.html [ Failure ]
 
 ####################
 # Fuchsia Failures #

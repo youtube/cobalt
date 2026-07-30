@@ -104,18 +104,17 @@ ServiceErrorOr<std::vector<uint8_t>> SignSlowlyWithRefCountedKey(
   return *std::move(signature);
 }
 
-ServiceErrorOr<void> DeleteSigningKeySlowly(
+ServiceErrorOr<size_t> DeleteSigningKeysSlowly(
     crypto::UnexportableKeyProvider* key_provider,
-    base::span<const uint8_t> wrapped_key,
+    base::span<const std::vector<uint8_t>> wrapped_keys,
     void* task_ptr_for_tracing) {
-  TRACE_EVENT("browser", "unexportable_keys::DeleteSigningKeySlowly",
+  TRACE_EVENT("browser", "unexportable_keys::DeleteSigningKeysSlowly",
               perfetto::Flow::FromPointer(task_ptr_for_tracing));
-  if (!CHECK_DEREF(key_provider->AsStatefulUnexportableKeyProvider())
-           .DeleteSigningKeySlowly(wrapped_key)) {
-    return base::unexpected(ServiceError::kCryptoApiFailed);
-  }
-
-  return base::ok();
+  return base::OptionalToExpected(
+      CHECK_DEREF(CHECK_DEREF(key_provider).AsStatefulUnexportableKeyProvider())
+          .DeleteSigningKeysSlowly(
+              base::ToVector<base::span<const uint8_t>>(wrapped_keys)),
+      ServiceError::kCryptoApiFailed);
 }
 
 ServiceErrorOr<size_t> DeleteAllSigningKeysSlowly(
@@ -201,19 +200,19 @@ bool SignTask::ShouldRetryBasedOnResult(
   return !result.has_value();
 }
 
-DeleteKeyTask::DeleteKeyTask(
+DeleteKeysTask::DeleteKeysTask(
     std::unique_ptr<crypto::UnexportableKeyProvider> key_provider,
-    std::vector<uint8_t> wrapped_key,
+    std::vector<std::vector<uint8_t>> wrapped_keys,
     BackgroundTaskPriority priority,
-    base::OnceCallback<void(DeleteKeyTask::ReturnType, size_t)> callback)
-    : internal::BackgroundTaskImpl<DeleteKeyTask::ReturnType>(
-          base::BindRepeating(&DeleteSigningKeySlowly,
+    base::OnceCallback<void(DeleteKeysTask::ReturnType, size_t)> callback)
+    : internal::BackgroundTaskImpl<DeleteKeysTask::ReturnType>(
+          base::BindRepeating(&DeleteSigningKeysSlowly,
                               base::Owned(std::move(key_provider)),
-                              std::move(wrapped_key),
+                              std::move(wrapped_keys),
                               this),
           std::move(callback),
           priority,
-          BackgroundTaskType::kDeleteKey,
+          BackgroundTaskType::kDeleteKeys,
           /*max_retries=*/0) {}
 
 DeleteAllKeysTask::DeleteAllKeysTask(

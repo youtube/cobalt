@@ -44,6 +44,7 @@ import android.widget.ArrayAdapter;
 import android.widget.ListPopupWindow;
 
 import androidx.annotation.ColorInt;
+import androidx.annotation.IntDef;
 import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
@@ -97,6 +98,7 @@ import org.chromium.chrome.browser.layouts.animation.CompositorAnimationHandler;
 import org.chromium.chrome.browser.layouts.animation.CompositorAnimator;
 import org.chromium.chrome.browser.layouts.components.VirtualView;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
+import org.chromium.chrome.browser.multiwindow.UiUtils.NameWindowDialogSource;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.tab.Tab;
@@ -409,10 +411,6 @@ public class StripLayoutHelper
 
                     // Foreground the pinned/unpinned tab to start animation.
                     stripTab.setIsForegrounded(/* isForegrounded= */ true);
-                    mTabDelegate.setIsTabNonDragReordering(
-                            stripTab,
-                            /* isNonDragReordering= */ !stripTab.getIsSelected()
-                                    && !stripTab.getIsMultiSelected());
                     List<Animator> pinnedAnimations =
                             computeAndUpdateTabWidth(
                                     /* animate= */ true, /* deferAnimations= */ true);
@@ -434,6 +432,17 @@ public class StripLayoutHelper
                                     startOffsetX,
                                     endOffsetX,
                                     ANIM_TAB_MOVE_MS));
+
+                    // Only set the tab container to opaque if the tab is actually changing
+                    // position. This prevents the divider from hiding and unhiding due to the
+                    // change in container opacity, avoiding unnecessary visual flickers for
+                    // tab dividers.
+                    if (startOffsetX != 0 || endOffsetX != 0) {
+                        mTabDelegate.setIsTabNonDragReordering(
+                                stripTab,
+                                /* isNonDragReordering= */ !stripTab.getIsSelected()
+                                        && !stripTab.getIsMultiSelected());
+                    }
 
                     queueAnimations(
                             pinnedAnimations,
@@ -663,6 +672,15 @@ public class StripLayoutHelper
     @FunctionalInterface
     interface QueuedIph {
         boolean attemptToShow();
+    }
+
+    @IntDef({
+        NewTabSource.BUTTON,
+        NewTabSource.EMPTY_SPACE_CONTEXT_MENU,
+    })
+    private @interface NewTabSource {
+        int BUTTON = 0;
+        int EMPTY_SPACE_CONTEXT_MENU = 1;
     }
 
     /**
@@ -3058,7 +3076,7 @@ public class StripLayoutHelper
          * immediately after View#startDrag to stop ongoing gesture events. Do not stop reorder in
          * this case.
          */
-        if (!isViewDraggingInProgress()) stopReorderMode();
+        if (!isViewDraggingInProgress()) stopReorderMode(false);
 
         // 2. Reset state
         if (mNewTabButton.onUpOrCancel() && mModel != null) {
@@ -3079,7 +3097,7 @@ public class StripLayoutHelper
             handleGroupTitleClick(groupTitle);
         } else if (view instanceof CompositorButton button) {
             if (button.getType() == ButtonType.NEW_TAB) {
-                handleNewTabClick();
+                handleNewTabClick(NewTabSource.BUTTON);
             } else if (button.getType() == ButtonType.TAB_CLOSE) {
                 handleCloseButtonClick(
                         (StripLayoutTab) button.getParentView(), motionEventButtonState);
@@ -3154,7 +3172,20 @@ public class StripLayoutHelper
     private void showTabStripContextMenu(float xDp, float yDp) {
         if (mTabStripContextMenuCoordinator == null) {
             mTabStripContextMenuCoordinator =
-                    new TabStripContextMenuCoordinator(mContext, mMultiInstanceManager);
+                    new TabStripContextMenuCoordinator(
+                            mContext,
+                            new TabStripContextMenuDelegate() {
+                                @Override
+                                public void onNewTab() {
+                                    handleNewTabClick(NewTabSource.EMPTY_SPACE_CONTEXT_MENU);
+                                }
+
+                                @Override
+                                public void onNameWindow() {
+                                    mMultiInstanceManager.showNameWindowDialog(
+                                            NameWindowDialogSource.TAB_STRIP);
+                                }
+                            });
         }
 
         // Determine the anchor view rect to position the menu.
@@ -3404,10 +3435,20 @@ public class StripLayoutHelper
         RecordHistogram.recordBooleanHistogram("Android.TabStrip.TabGroupCollapsed", !isCollapsed);
     }
 
-    private void handleNewTabClick() {
+    private void handleNewTabClick(@NewTabSource int source) {
         if (mModel == null || mTabCreator == null) return;
 
-        RecordUserAction.record("MobileToolbarNewTab");
+        switch (source) {
+            case NewTabSource.BUTTON:
+                RecordUserAction.record("MobileToolbarNewTab");
+                break;
+            case NewTabSource.EMPTY_SPACE_CONTEXT_MENU:
+                RecordUserAction.record("Android.TabStripMenu.NewTab");
+                break;
+            default:
+                assert false : "Unexpected @NewTabSource.";
+                break;
+        }
         if (!mModel.isIncognito()) mModel.commitAllTabClosures();
         TabCreatorUtil.launchNtp(mTabCreator);
     }
@@ -5265,6 +5306,15 @@ public class StripLayoutHelper
         mCloseButtonMenu.setHorizontalOffset(horizontalOffset);
 
         mCloseButtonMenu.show();
+
+        // Set clipToOutline to true to contain the mouse hover effect inside thepopup's outline.
+        // Also set the background of the list view to tablet_tab_strip_close_all_tabs_context_menu
+        // to make its shape the same as the popup.
+        assumeNonNull(mCloseButtonMenu.getListView());
+        mCloseButtonMenu
+                .getListView()
+                .setBackgroundResource(R.drawable.tablet_tab_strip_close_all_tabs_context_menu);
+        mCloseButtonMenu.getListView().setClipToOutline(true);
     }
 
     /**
@@ -5787,7 +5837,7 @@ public class StripLayoutHelper
                     /* deltaX= */ 0f,
                     ReorderType.DRAG_OUT_OF_STRIP);
         } else if (mIncognito == draggedTabIncognito) {
-            stopReorderMode();
+            stopReorderMode(false);
         }
     }
 
@@ -5813,9 +5863,9 @@ public class StripLayoutHelper
         }
     }
 
-    public void stopReorderMode() {
+    public void stopReorderMode(boolean isDragCancelled) {
         if (mReorderDelegate.getInReorderMode()) {
-            mReorderDelegate.stopReorderMode(mStripViews, mStripGroupTitles);
+            mReorderDelegate.stopReorderMode(mStripViews, mStripGroupTitles, isDragCancelled);
         }
     }
 
@@ -5875,7 +5925,7 @@ public class StripLayoutHelper
 
         view.setWillClose(/* willClose= */ true);
         if (view == mDelayedReorderView) resetDelayedReorderState();
-        if (view == mReorderDelegate.getInteractingView()) stopReorderMode();
+        if (view == mReorderDelegate.getInteractingView()) stopReorderMode(false);
     }
 
     private void resetDelayedReorderState() {

@@ -359,6 +359,7 @@ Certaines fonctionnalités ne seront peut-être pas disponibles et les modificat
 <translation id="4885446229353981848">Toujours afficher le raccourci Lentille Google</translation>
 <translation id="4891791193823137474">Laisser Google Chrome s'exécuter en arrière-plan</translation>
 <translation id="4895437082222824641">Ouvrir le lien dans un nouvel ongle&amp;t Chrome</translation>
+<translation id="4918086044614829423">Accepter</translation>
 <translation id="4918844574251943176">Image copiée</translation>
 <translation id="4926882258455737990">Pour utiliser un autre compte Google avec Gemini dans Chrome, <ph name="BEGIN_LINK" />créez un profil<ph name="END_LINK" /> et connectez-vous avec le compte souhaité</translation>
 <translation id="492720062778050435">Chrome vous recommande d'examiner cette extension</translation>
@@ -372,6 +373,7 @@ Certaines fonctionnalités ne seront peut-être pas disponibles et les modificat
 <translation id="5003967926796347400">Cliquez sur « Gestionnaire de mots de passe Google »</translation>
 <translation id="5043786843026425788">En savoir plus sur la recherche avec Lentille Google dans Chrome</translation>
 <translation id="504867494566807945">Ouvrez des liens dans Chrome à partir de n'importe quelle appli. Il est en outre épinglé à votre barre des tâches pour un accès facile.</translation>
+<translation id="5105120510934353742">Vous devez disposer de macOS 13 ou d'une version ultérieure pour recevoir les futures mises à jour de Google Chrome. Cet ordinateur fonctionne sous macOS 12.</translation>
 <translation id="5114340746415930644">Entrez votre phrase de passe pour utiliser et enregistrer les données Chrome dans votre compte, <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">Vous connecter à Chrome lorsque vous vous connectez à d'autres services Google</translation>
 <translation id="5126049312684316860">Chrome précharge encore plus de pages que vous êtes susceptible de visiter, afin qu'elles se chargent plus rapidement lorsque vous le faites.</translation>
@@ -430,6 +432,7 @@ Google Chrome ne peut pas récupérer vos paramètres.</translation>
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="569897634095159764">Impossible de se connecter à Internet. Le serveur mandataire nécessite une authentification.</translation>
 <translation id="5709557627224531708">Définir Chrome comme navigateur par défaut</translation>
+<translation id="5719246646468301581">Conditions d'utilisation supplémentaires de Google Chrome et de Chrome OS</translation>
 <translation id="5719324992913248873">Cette action aura les effets suivants :
 <ph name="LINE_BREAKS" />
 • Réinitialiser certains des paramètres et des raccourcis de Chrome<ph name="LINE_BREAK" />
@@ -509,6 +512,7 @@ Les signets, l'historique et les mots de passe enregistrés ne seront pas touch�
 <translation id="6326175484149238433">Supprimer de Google Chrome</translation>
 <translation id="6327105987658262776">Aucune mise à jour n'est proposée.</translation>
 <translation id="6334815226785304306">Faire de Google Chrome le navigateur par défaut et l'épingler à la barre des tâches</translation>
+<translation id="63540178978900677">Chrome n'est plus votre navigateur par défaut. Faire de Chrome le navigateur par défaut?</translation>
 <translation id="6360449101159168105">Pendant que cet onglet était inactif, de la mémoire a été libérée pour maintenir la rapidité de Chrome Vous pouvez choisir de toujours exclure ce site de l'inactivité.</translation>
 <translation id="6388799252195623474">aide-moi avec cela</translation>
 <translation id="6412673304250309937">Il vérifie les URL en fonction d'une liste de sites non sécuritaires stockée dans Chrome. Si un site tente de voler votre mot de passe ou si vous téléchargez un fichier dangereux, Chrome peut également envoyer les URL concernées, y compris des extraits du contenu de pages, à la navigation sécurisée.</translation>
@@ -710,6 +714,9 @@ Les signets, l'historique et les mots de passe enregistrés ne seront pas touch�
 <translation id="8418845734693287262">Chrome OS n'a pas pu synchroniser vos données parce que les détails de connexion de votre compte ne sont plus à jour.</translation>
 <translation id="842386925677997438">Les outils de sécurité de Chrome</translation>
 <translation id="8425765582779547329">Pour rester en sécurité en ligne avec les choix de tes parents, connecte-toi à Chrome</translation>
+<translation id="842852285618875960">Vous avez atteint la limite de <ph name="BOOKMARK_LIMIT" /> favoris de Google Chrome, donc certains de vos favoris n'ont pas encore été enregistrés dans votre compte Google.
+
+Vous ne pouvez pas enregistrer de nouveaux favoris dans votre compte tant que vous n'en avez pas supprimé certains. Si vous vous déconnectez maintenant, les favoris non enregistrés seront supprimés.</translation>
 <translation id="8433638294851456451">Pour envoyer un numéro d'ici vers votre téléphone Android, connectez-vous à Chrome sur vos deux appareils.</translation>
 <translation id="8496177819998570653">Gestionnaire de&amp;mots de passe Google</translation>
 <translation id="8498858610309223613">Une mise à jour de sécurité spéciale pour Google Chrome vient d'être effectuée. Redémarrez maintenant, et nous restaurerons vos onglets.</translation>

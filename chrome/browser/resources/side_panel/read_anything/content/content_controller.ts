@@ -48,8 +48,14 @@ const TAG_TO_RM_TAG: Map<string, string> = new Map([
 ]);
 
 export interface ContentListener {
+  // Called when the current state changes between the different ContentTypes.
   onContentStateChange(): void;
+  // Called when the new content is determined to be a different page from
+  // before.
   onNewPageDrawn(): void;
+  // Called when any content on the page has changed. e.g. content is added or
+  // removed.
+  onContentChange(): void;
 }
 
 export enum ContentType {
@@ -121,6 +127,8 @@ export class ContentController {
   private currentState_: ContentState = CONTENT_STATES[ContentType.NO_CONTENT];
   private previousRootId_?: number;
 
+  private trustedUpdatePolicy: TrustedTypePolicy|undefined;
+
   getState(): ContentState {
     return this.currentState_;
   }
@@ -179,6 +187,7 @@ export class ContentController {
     if (deletedNode) {
       this.nodeStore_.removeDomNode(deletedNode);
       deletedNode.remove();
+      this.listeners_.forEach(l => l.onContentChange());
     }
     const root = this.nodeStore_.getDomNode(chrome.readingMode.rootId);
     if (this.hasContent() && !root?.textContent) {
@@ -198,20 +207,59 @@ export class ContentController {
           chrome.readingMode.unexpectedUpdateContentStopSource);
     }
 
-    const isReadAloudEnabled = chrome.readingMode.isReadAloudEnabled;
-    if (isReadAloudEnabled) {
+    if (chrome.readingMode.isReadAloudEnabled) {
       this.speechController_.saveReadAloudState();
       this.speechController_.resetForNewContent();
     }
 
     this.nodeStore_.clearDomNodes();
 
-    // Construct a dom subtree starting with the display root. The display root
-    // may be invalid if there are no content nodes and no selection. This does
-    // not use Lit's templating abstraction, which would create a shadow node
-    // element representing each AXNode, because experimentation (with Polymer)
-    // found the shadow node creation to be ~8-10x slower than constructing and
-    // appending nodes directly to the container element.
+    if (chrome.readingMode.isReadabilityEnabled) {
+      return this.updateContentForReadability();
+    }
+    return this.updateContentForScreen2x(shadowRoot);
+  }
+
+  updateContentForReadability(): Node|null {
+    if (chrome.readingMode.isReadabilityEnabled) {
+      // Readability Path: Build DOM from the HTML string.
+      const title = chrome.readingMode.htmlTitle;
+      const contentHtml = chrome.readingMode.htmlContent;
+
+      // TODO: crbug.com/459156155 - Default to screen2X distillation if no
+      // distilled content from Readability.
+      if (!contentHtml) {
+        this.setEmpty();
+        return null;
+      }
+
+      const contentFragment = document.createDocumentFragment();
+
+      if (title) {
+        const titleElement = document.createElement('h1');
+        titleElement.textContent = title;
+        contentFragment.appendChild(titleElement);
+      }
+
+      const contentContainer = document.createElement('div');
+      contentContainer.innerHTML = this.getTrustedHtml(contentHtml);
+      contentFragment.appendChild(contentContainer);
+
+      this.setState(ContentType.HAS_CONTENT);
+      this.updateReadAloudState(contentFragment);
+      this.listeners_.forEach(l => l.onContentChange());
+      return contentFragment;
+    }
+    return null;
+  }
+
+  updateContentForScreen2x(shadowRoot?: ShadowRoot): Node|null {
+    // Construct a dom subtree starting with the display root. The display
+    // root may be invalid if there are no content nodes and no selection.
+    // This does not use Lit's templating abstraction, which would create a
+    // shadow node element representing each AXNode, because experimentation
+    // (with Polymer) found the shadow node creation to be ~8-10x slower than
+    // constructing and appending nodes directly to the container element.
     const rootId = chrome.readingMode.rootId;
     if (!rootId) {
       return null;
@@ -248,11 +296,18 @@ export class ContentController {
     this.loadImages();
     this.setState(ContentType.HAS_CONTENT);
     this.updateImages(shadowRoot);
+    this.listeners_.forEach(l => l.onContentChange());
 
+    this.updateReadAloudState(node);
+    return node;
+  }
+
+  updateReadAloudState(rootNode: Node): void {
     // If the previous reading position still exists and we haven't reached the
     // end of speech, keep that spot.
-    const setPreviousReadingPosition = isReadAloudEnabled &&
+    const setPreviousReadingPosition = chrome.readingMode.isReadAloudEnabled &&
         this.speechController_.setPreviousReadingPositionIfExists();
+
     requestAnimationFrame(() => {
       // Count this as a new page as long as there's no reading position to keep
       // from before.
@@ -262,7 +317,7 @@ export class ContentController {
       this.nodeStore_.estimateWordsSeenWithDelay();
       // Initialize the speech tree with the new content.
       if (chrome.readingMode.isTsTextSegmentationEnabled) {
-        const contextNode = ReadAloudNode.create(node);
+        const contextNode = ReadAloudNode.create(rootNode);
         if (contextNode) {
           // Don't initialize until after drawing otherwise, the DOM nodes might
           // not yet exist in the tree.
@@ -270,7 +325,6 @@ export class ContentController {
         }
       }
     });
-    return node;
   }
 
   private buildSubtree_(nodeId: number): Node {
@@ -497,13 +551,18 @@ export class ContentController {
     }
     // There is some strange issue where the HTML css application does not work
     // on canvases.
-    for (const canvas of shadowRoot.querySelectorAll('canvas')) {
+    const canvases = shadowRoot.querySelectorAll('canvas');
+    const figures = shadowRoot.querySelectorAll('figure');
+    for (const canvas of canvases) {
       canvas.style.display = imagesEnabled ? '' : 'none';
       this.markTextNodesHiddenIfImagesHidden_(canvas);
     }
-    for (const canvas of shadowRoot.querySelectorAll('figure')) {
+    for (const canvas of figures) {
       canvas.style.display = imagesEnabled ? '' : 'none';
       this.markTextNodesHiddenIfImagesHidden_(canvas);
+    }
+    if (canvases.length > 0 || figures.length > 0) {
+      this.listeners_.forEach(l => l.onContentChange());
     }
   }
 
@@ -535,6 +594,25 @@ export class ContentController {
         }
       });
     });
+  }
+
+  private getTrustedHtml(html: string): TrustedHTML {
+    if (!this.trustedUpdatePolicy || !chrome.readingMode.isReadabilityEnabled) {
+      return window.trustedTypes!.emptyHTML;
+    }
+    return this.trustedUpdatePolicy.createHTML(html);
+  }
+
+  configureTrustedTypes(): void {
+    if (!window.trustedTypes) {
+      return;
+    }
+    this.trustedUpdatePolicy =
+        window.trustedTypes.createPolicy('reader-mode-policy', {
+          createHTML: (s: string) => s,
+          createScript: () => '',
+          createScriptURL: () => '',
+        });
   }
 
   static getInstance(): ContentController {

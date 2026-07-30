@@ -5,16 +5,14 @@
 #ifndef COMPONENTS_SUPERVISED_USER_CORE_BROWSER_DEVICE_PARENTAL_CONTROLS_H_
 #define COMPONENTS_SUPERVISED_USER_CORE_BROWSER_DEVICE_PARENTAL_CONTROLS_H_
 
-#include <string_view>
-
-#include "base/observer_list.h"
+#include "base/callback_list.h"
 #include "components/supervised_user/core/browser/supervised_user_synthetic_field_trial_service_delegate.h"
 
 namespace supervised_user {
 
 // Interface for device-scope platform-specific parental controls that control
 // the behavior of selected browser features for the purpose of user
-// supervision. Use accessors or observer interface to get notified when
+// supervision. Use accessors or subscriber interface to get notified when
 // parental controls state changes. Since these are device-level settings, they
 // are global and bound to the browser process. Instance of this class is a
 // singleton, and can be accessed via
@@ -22,27 +20,25 @@ namespace supervised_user {
 // ApplicationContext::GetDeviceParentalControls() in iOS.
 class DeviceParentalControls {
  public:
-  class Observer {
-   public:
-    // Note: this is intermediate state of migrating away the Supervised User
-    // stack from the pref interface for url filtering. In the target layout,
-    // AndroidParentalControls will notify about change of browser
-    // feature (such as incognito mode, safe search or web filtering) rather
-    // than about change of the underlying parental control setting. Currently,
-    // the existing interface is just duplicated.
-    // TODO(crbug.com/470298260): replace low-level OS signals with high-level
-    // browser feature states.
-    virtual void OnAndroidParentalControlsSearchContentFiltersChanged() {}
-    virtual void OnAndroidParentalControlsBrowserContentFiltersChanged() {}
-  };
+  using Callback = base::RepeatingCallback<void(const DeviceParentalControls&)>;
 
-  // Any initialization that cannot be done at construction time but is required
-  // to make instances of this class functional should be performed in here.
-  // Initialized with GlobalFeatures.
+  DeviceParentalControls();
+  virtual ~DeviceParentalControls();
+  DeviceParentalControls(const DeviceParentalControls&) = delete;
+  const DeviceParentalControls& operator=(const DeviceParentalControls&) =
+      delete;
+
+  // Any platform-specific initialization that cannot be done at construction
+  // time but is required to make instances of this class functional should be
+  // performed in here. Initialized in BrowserProcessImpl.
   virtual void Init() {}
 
   // Returns true if web filtering (url classification) is enabled for the user.
   virtual bool IsWebFilteringEnabled() const = 0;
+
+  // Returns true if incognito mode is disabled for the user (can be overridden
+  // by policies).
+  virtual bool IsIncognitoModeDisabled() const = 0;
 
   // Returns true if safe search is forced for the user client-side (can be
   // overridden by policies).
@@ -51,31 +47,25 @@ class DeviceParentalControls {
   // Returns true if device-level parental controls are enabled on the device.
   virtual bool IsEnabled() const = 0;
 
-  // Temporary migration-time interface to support Android-specific parental
-  // controls knobs.
-  virtual bool IsBrowserContentFiltersEnabled() const = 0;
-  virtual bool IsSearchContentFiltersEnabled() const = 0;
+  // Registers synthetic field trials that are used to annotate metrics
+  // collection.
+  virtual void RegisterDeviceLevelSyntheticFieldTrials(
+      SynteticFieldTrialDelegate& synthetic_field_trial_delegate) const = 0;
 
-  // Testing interfaces.
-  virtual void SetBrowserContentFiltersEnabledForTesting(bool enabled) {}
-  virtual void SetSearchContentFiltersEnabledForTesting(bool enabled) {}
-
-  // Add and remove observers.
-  void AddObserver(Observer* observer) const;
-  void RemoveObserver(Observer* observer) const;
-
-  DeviceParentalControls();
-  virtual ~DeviceParentalControls();
-  DeviceParentalControls(const DeviceParentalControls&) = delete;
-  const DeviceParentalControls& operator=(const DeviceParentalControls&) =
-      delete;
+  // Subscribes to parental controls state changes. Immediately calls the
+  // callback with the current state.
+  base::CallbackListSubscription Subscribe(Callback callback);
 
  protected:
-  void NotifySearchContentFiltersChanged() const;
-  void NotifyBrowserContentFiltersChanged() const;
+  void NotifySubscribers();
 
  private:
-  mutable base::ObserverList<Observer>::Unchecked observer_list_;
+  // Subscribers of this feature. Main consumers should be the pref store (to
+  // convert device settings to user-facing browser features where the interface
+  // is preference-based), the web filter (to convert device settings to
+  // features not driven by prefs) and the metrics service (to emit metrics
+  // about device settings).
+  base::RepeatingCallbackList<Callback::RunType> subscriber_list_;
 };
 
 }  // namespace supervised_user

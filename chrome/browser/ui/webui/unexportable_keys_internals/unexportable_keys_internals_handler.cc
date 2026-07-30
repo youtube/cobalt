@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/base64.h"
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "chrome/browser/ui/webui/unexportable_keys_internals/unexportable_keys_internals.mojom.h"
@@ -63,12 +64,12 @@ void UnexportableKeysInternalsHandler::GetUnexportableKeysInfo(
 void UnexportableKeysInternalsHandler::DeleteKey(
     const unexportable_keys::UnexportableKeyId& key_id,
     DeleteKeyCallback callback) {
-  key_service_->DeleteKeySlowlyAsync(
-      key_id, unexportable_keys::BackgroundTaskPriority::kBestEffort,
+  key_service_->DeleteKeysSlowlyAsync(
+      {key_id}, unexportable_keys::BackgroundTaskPriority::kBestEffort,
       base::BindOnce(
           [](DeleteKeyCallback callback,
-             unexportable_keys::ServiceErrorOr<void> result) {
-            std::move(callback).Run(result.has_value());
+             unexportable_keys::ServiceErrorOr<size_t> result) {
+            std::move(callback).Run(static_cast<bool>(result.value_or(0)));
           },
           std::move(callback)));
 }
@@ -94,8 +95,7 @@ void UnexportableKeysInternalsHandler::OnGetAllSigningKeysForGarbageCollection(
     if (!wrapped_key.has_value()) {
       continue;
     }
-    key_info->wrapped_key =
-        std::string(wrapped_key->begin(), wrapped_key->end());
+    key_info->wrapped_key = base::Base64Encode(*wrapped_key);
 
     unexportable_keys::ServiceErrorOr<
         crypto::SignatureVerifier::SignatureAlgorithm>

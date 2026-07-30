@@ -16,6 +16,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -71,7 +72,7 @@ import org.chromium.base.FakeTimeTestRule;
 import org.chromium.base.FeatureOverrides;
 import org.chromium.base.Token;
 import org.chromium.base.lifetime.Destroyable;
-import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
@@ -82,6 +83,8 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.IntentHandler;
+import org.chromium.chrome.browser.RecentlyClosedEntriesManagerTracker;
+import org.chromium.chrome.browser.RecentlyClosedEntriesManagerTrackerFactory;
 import org.chromium.chrome.browser.app.tabmodel.TabModelOrchestrator;
 import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -90,10 +93,8 @@ import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.AllocatedIdInfo;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.CloseWindowAppSource;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.InstanceAllocationType;
-import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.InstanceStateObserver;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
-import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.SupportedProfileType;
 import org.chromium.chrome.browser.multiwindow.UiUtils.NameWindowDialogSource;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
@@ -105,6 +106,7 @@ import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncFeaturesJni;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
 import org.chromium.chrome.browser.tabmodel.MismatchedIndicesHandler;
 import org.chromium.chrome.browser.tabmodel.NextTabPolicy.NextTabPolicySupplier;
+import org.chromium.chrome.browser.tabmodel.SupportedProfileType;
 import org.chromium.chrome.browser.tabmodel.TabClosingSource;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabGroupMetadata;
@@ -146,7 +148,6 @@ import java.util.stream.Collectors;
 @Config(manifest = Config.NONE)
 @EnableFeatures({
     ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT,
-    ChromeFeatureList.INSTANCE_SWITCHER_V2,
     ChromeFeatureList.RECENTLY_CLOSED_TABS_AND_WINDOWS
 })
 @DisableFeatures({
@@ -188,11 +189,11 @@ public class MultiInstanceManagerApi31UnitTest {
     @Rule public FakeTimeTestRule mFakeTimeTestRule = new FakeTimeTestRule();
 
     @Mock MultiWindowModeStateDispatcher mMultiWindowModeStateDispatcher;
-    @Mock ObservableSupplier<TabModelOrchestrator> mTabModelOrchestratorSupplier;
+    @Mock MonotonicObservableSupplier<TabModelOrchestrator> mTabModelOrchestratorSupplier;
     @Mock TabModelOrchestrator mTabModelOrchestrator;
     @Mock TabPersistentStore mTabPersistentStore;
     @Mock ActivityManager mActivityManager;
-    @Mock ObservableSupplier<ModalDialogManager> mModalDialogManagerSupplier;
+    @Mock MonotonicObservableSupplier<ModalDialogManager> mModalDialogManagerSupplier;
     @Mock ModalDialogManager mModalDialogManager;
     @Mock ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
     @Mock MenuOrKeyboardActionController mMenuOrKeyboardActionController;
@@ -225,6 +226,8 @@ public class MultiInstanceManagerApi31UnitTest {
     @Mock ChromeTabbedActivity mTabbedActivityTask64;
     @Mock ChromeTabbedActivity mTabbedActivityTask65;
     @Mock ChromeTabbedActivity mTabbedActivityTask66;
+    @Mock RecentlyClosedEntriesManagerTracker mRecentlyClosedTracker;
+    @Mock MessageDispatcher mMessageDispatcher;
 
     @Captor private ArgumentCaptor<Runnable> mOnSaveTabListRunnableCaptor;
 
@@ -264,10 +267,10 @@ public class MultiInstanceManagerApi31UnitTest {
 
         private TestMultiInstanceManagerApi31(
                 Activity activity,
-                ObservableSupplier<TabModelOrchestrator> tabModelOrchestratorSupplier,
+                MonotonicObservableSupplier<TabModelOrchestrator> tabModelOrchestratorSupplier,
                 MultiWindowModeStateDispatcher multiWindowModeStateDispatcher,
                 ActivityLifecycleDispatcher activityLifecycleDispatcher,
-                ObservableSupplier<ModalDialogManager> modalDialogManagerSupplier,
+                MonotonicObservableSupplier<ModalDialogManager> modalDialogManagerSupplier,
                 MenuOrKeyboardActionController menuOrKeyboardActionController,
                 Supplier<DesktopWindowStateManager> desktopWindowStateManagerSupplier) {
             super(
@@ -525,7 +528,6 @@ public class MultiInstanceManagerApi31UnitTest {
                                 mModalDialogManagerSupplier,
                                 mMenuOrKeyboardActionController,
                                 mDesktopWindowStateManagerSupplier));
-        ApplicationStatus.setCachingEnabled(true);
 
         mTabbedActivityPool =
                 new Activity[] {
@@ -547,6 +549,8 @@ public class MultiInstanceManagerApi31UnitTest {
         doNothing().when(mMultiInstanceManager).showTargetSelectorDialog(any(), anyInt(), anyInt());
 
         setupActivityForCreateNewWindowIntent(mCurrentActivity);
+        RecentlyClosedEntriesManagerTrackerFactory.setInstanceForTesting(mRecentlyClosedTracker);
+        doReturn(mMessageDispatcher).when(mMultiInstanceManager).getMessageDispatcher();
     }
 
     @After
@@ -555,7 +559,6 @@ public class MultiInstanceManagerApi31UnitTest {
         TabWindowManagerSingleton.resetTabModelSelectorFactoryForTesting();
         ApplicationStatus.destroyForJUnitTests();
         mMultiInstanceManager.mTestBuildInstancesList = false;
-        ApplicationStatus.setCachingEnabled(false);
     }
 
     private void setupActivityForCreateNewWindowIntent(Activity activity) {
@@ -615,70 +618,6 @@ public class MultiInstanceManagerApi31UnitTest {
 
         // New instantiation picks up the smallest available ID.
         assertEquals(1, allocInstanceIndex(PASSED_ID_INVALID, mActivityTask59));
-    }
-
-    @Test
-    @EnableFeatures(ChromeFeatureList.MULTI_INSTANCE_APPLICATION_STATUS_CLEANUP)
-    public void testAllocInstanceId_removeTaskOnRecentScreen_withoutDestroy() {
-        assertEquals(0, allocInstanceIndex(PASSED_ID_INVALID, mActivityTask56));
-
-        // Remove the app task without calling other methods to indicate Activity was destroyed
-        removeTaskWithoutDestroyingActivity(mActivityTask56);
-
-        // New instantiation picks up the smallest available ID.
-        // assertEquals(0, allocInstanceIndex(PASSED_ID_INVALID, mActivityTask57));
-        AllocatedIdInfo instanceIdInfo =
-                mMultiInstanceManager.allocInstanceId(
-                        PASSED_ID_INVALID, TASK_ID_57, false, /* isIncognitoIntent= */ false);
-        int index = instanceIdInfo.instanceId;
-
-        // Does what TabModelOrchestrator.createTabModels() would do to simulate production code.
-        Pair<Integer, TabModelSelector> pair =
-                TabWindowManagerSingleton.getInstance()
-                        .requestSelector(
-                                mActivityTask57,
-                                mModalDialogManager,
-                                mProfileProviderSupplier,
-                                null,
-                                null,
-                                null,
-                                mMismatchedIndicesHandler,
-                                index);
-        int instanceId = pair.first;
-        assertEquals(0, instanceId);
-    }
-
-    @Test
-    @DisableFeatures(ChromeFeatureList.MULTI_INSTANCE_APPLICATION_STATUS_CLEANUP)
-    public void testAllocInstanceId_removeTaskOnRecentScreen_withoutDestroy_fixDisabled() {
-        assertEquals(0, allocInstanceIndex(PASSED_ID_INVALID, mActivityTask56));
-
-        // Remove the app task without calling other methods to indicate Activity was destroyed
-        removeTaskWithoutDestroyingActivity(mActivityTask56);
-
-        // New instantiation picks up the smallest available ID.
-        // assertEquals(0, allocInstanceIndex(PASSED_ID_INVALID, mActivityTask57));
-        AllocatedIdInfo instanceIdInfo =
-                mMultiInstanceManager.allocInstanceId(
-                        PASSED_ID_INVALID, TASK_ID_57, false, /* isIncognitoIntent= */ false);
-        int index = instanceIdInfo.instanceId;
-
-        // Does what TabModelOrchestrator.createTabModels() would do to simulate production code.
-        Pair<Integer, TabModelSelector> pair =
-                TabWindowManagerSingleton.getInstance()
-                        .requestSelector(
-                                mActivityTask57,
-                                mModalDialogManager,
-                                mProfileProviderSupplier,
-                                null,
-                                null,
-                                null,
-                                mMismatchedIndicesHandler,
-                                index);
-        int instanceId = pair.first;
-
-        // This is the "wrong" id, exercising code path where flag is disabled.
-        assertEquals(1, instanceId);
     }
 
     @Test
@@ -886,11 +825,7 @@ public class MultiInstanceManagerApi31UnitTest {
     }
 
     @Test
-    public void testCloseWindow_InstanceStateObserverInvoked() {
-        // Setup InstanceStateObserver for testing.
-        InstanceStateObserver instanceStateObserver = Mockito.mock(InstanceStateObserver.class);
-        mMultiInstanceManager.addInstanceStateObserver(instanceStateObserver);
-
+    public void testCloseWindow_OnInstanceClosedInvoked() {
         // Setup 3 instances.
         assertEquals(0, allocInstanceIndex(PASSED_ID_INVALID, mActivityTask56));
         assertEquals(1, allocInstanceIndex(PASSED_ID_INVALID, mActivityTask57));
@@ -909,9 +844,9 @@ public class MultiInstanceManagerApi31UnitTest {
         assertEquals(
                 1, mMultiInstanceManager.getInstanceInfo(PersistedInstanceType.INACTIVE).size());
 
-        // Verify InstanceStateObserver is invoked.
+        // Verify #onInstanceClosed is invoked.
         ArgumentCaptor<InstanceInfo> captor = ArgumentCaptor.forClass(InstanceInfo.class);
-        verify(instanceStateObserver).onInstanceClosed(captor.capture(), eq(false));
+        verify(mRecentlyClosedTracker).onInstanceClosed(captor.capture(), eq(false));
 
         // Verify the captured InstanceInfo.
         InstanceInfo closedInstanceInfo = captor.getValue();
@@ -1511,11 +1446,6 @@ public class MultiInstanceManagerApi31UnitTest {
         mMultiInstanceManager.updateTasksWithoutDestroyingActivity(
                 INVALID_WINDOW_ID, activityForTask);
         destroyActivity(activityForTask);
-    }
-
-    private void removeTaskWithoutDestroyingActivity(Activity activityForTask) {
-        mMultiInstanceManager.updateTasksWithoutDestroyingActivity(
-                INVALID_WINDOW_ID, activityForTask);
     }
 
     // Simulate only an activity gets destroyed, leaving everything intact.
@@ -2251,11 +2181,10 @@ public class MultiInstanceManagerApi31UnitTest {
     public void showInstanceRestorationMessage() {
         MultiWindowUtils.setInstanceCountForTesting(3);
         MultiWindowUtils.setMaxInstancesForTesting(2);
-        var messageDispatcher = mock(MessageDispatcher.class);
         when(mCurrentActivity.getResources()).thenReturn(mock(Resources.class));
 
-        mMultiInstanceManager.showInstanceRestorationMessage(messageDispatcher);
-        verify(messageDispatcher).enqueueWindowScopedMessage(any(), eq(false));
+        mMultiInstanceManager.showInstanceRestorationMessage();
+        verify(mMessageDispatcher).enqueueWindowScopedMessage(any(), eq(false));
         assertTrue(
                 "SharedPref for tracking restoration message should be updated.",
                 ChromeSharedPreferences.getInstance()
@@ -2373,10 +2302,6 @@ public class MultiInstanceManagerApi31UnitTest {
         assertEquals(1, allocInstanceIndex(PASSED_ID_INVALID, mTabbedActivityTask63));
         multiInstanceManager63.initialize(1, TASK_ID_63, SupportedProfileType.MIXED);
 
-        // Setup InstanceStateObserver for testing.
-        InstanceStateObserver instanceStateObserver = Mockito.mock(InstanceStateObserver.class);
-        multiInstanceManager62.addInstanceStateObserver(instanceStateObserver);
-
         // Setup AppTask's for both activities. Clear test AppTask ids that are set during the test
         // manager instantiation so that ids from the current mocked AppTasks are used.
         MultiInstanceManagerApi31.setAppTaskIdsForTesting(null);
@@ -2411,7 +2336,7 @@ public class MultiInstanceManagerApi31UnitTest {
             verify(mTabbedActivityTask62).startActivity(any());
             verify(appTasks.get(1)).finishAndRemoveTask();
             verify(mActivityManager, never()).moveTaskToFront(TASK_ID_63, 0);
-            verify(instanceStateObserver).onInstanceRestored(1);
+            verify(mRecentlyClosedTracker).onInstanceRestored(1);
             histogramWatcher.assertExpected();
         }
     }
@@ -2553,13 +2478,12 @@ public class MultiInstanceManagerApi31UnitTest {
 
     @Test
     public void showInstanceCreationLimitMessage() {
-        var messageDispatcher = mock(MessageDispatcher.class);
         when(mCurrentActivity.getResources()).thenReturn(mock(Resources.class));
 
-        mMultiInstanceManager.showInstanceCreationLimitMessage(messageDispatcher);
+        mMultiInstanceManager.showInstanceCreationLimitMessage();
 
         ArgumentCaptor<PropertyModel> message = ArgumentCaptor.forClass(PropertyModel.class);
-        verify(messageDispatcher).enqueueWindowScopedMessage(message.capture(), eq(false));
+        verify(mMessageDispatcher).enqueueWindowScopedMessage(message.capture(), eq(false));
         assertEquals(
                 "Message identifier should match.",
                 MessageIdentifier.MULTI_INSTANCE_CREATION_LIMIT,
@@ -2806,7 +2730,7 @@ public class MultiInstanceManagerApi31UnitTest {
         verify(mMultiInstanceManager, Mockito.never())
                 .showTargetSelectorDialog(
                         any(), anyInt(), eq(R.string.contextmenu_open_in_other_window));
-        verify(mMultiInstanceManager, Mockito.never()).showInstanceCreationLimitMessage(any());
+        verify(mMultiInstanceManager, Mockito.never()).showInstanceCreationLimitMessage();
         verify(mMultiInstanceManager, times(1))
                 .launchTabInOtherWindow(
                         /* isIncognito= */ false,
@@ -2842,7 +2766,7 @@ public class MultiInstanceManagerApi31UnitTest {
         verify(mMultiInstanceManager, Mockito.never())
                 .showTargetSelectorDialog(
                         any(), anyInt(), eq(R.string.contextmenu_open_in_other_window));
-        verify(mMultiInstanceManager, Mockito.never()).showInstanceCreationLimitMessage(any());
+        verify(mMultiInstanceManager, Mockito.never()).showInstanceCreationLimitMessage();
         verify(mMultiInstanceManager, times(1))
                 .launchTabInOtherWindow(
                         /* isIncognito= */ true,

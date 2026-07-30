@@ -154,12 +154,12 @@ void SyncTransportDataPrefs::ClearCurrentSyncingGaiaId(
   pref_service->ClearPref(kSyncGaiaId);
 }
 
-std::vector<std::string> SyncTransportDataPrefs::GetCacheGuidsForAllGaiaIds()
-    const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+// static
+std::vector<std::string> SyncTransportDataPrefs::GetCacheGuidsForAllGaiaIds(
+    const PrefService* pref_service) {
   std::vector<std::string> result;
   const base::Value::Dict& data_per_account =
-      pref_service_->GetDict(prefs::internal::kSyncTransportDataPerAccount);
+      pref_service->GetDict(prefs::internal::kSyncTransportDataPerAccount);
   for (const auto [gaia, data] : data_per_account) {
     if (!data.is_dict()) {
       continue;

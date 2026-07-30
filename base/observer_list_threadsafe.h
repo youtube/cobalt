@@ -12,7 +12,6 @@
 #include "base/base_export.h"
 #include "base/check.h"
 #include "base/check_op.h"
-#include "base/containers/contains.h"
 #include "base/dcheck_is_on.h"
 #include "base/debug/stack_trace.h"
 #include "base/functional/bind.h"
@@ -150,7 +149,7 @@ class ObserverListThreadSafe : public internal::ObserverListThreadSafeBase {
     bool was_empty = observers_.empty();
 
     // Add |observer| to the list of observers.
-    DCHECK(!Contains(observers_, observer));
+    DCHECK(!observers_.contains(observer));
     const scoped_refptr<SequencedTaskRunner> task_runner =
         SequencedTaskRunner::GetCurrentDefault();
     // Each observer gets a unique identifier. These unique identifiers are used

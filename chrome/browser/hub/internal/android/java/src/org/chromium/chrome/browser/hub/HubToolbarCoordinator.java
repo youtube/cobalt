@@ -11,12 +11,10 @@ import android.widget.Button;
 import android.widget.ImageButton;
 
 import org.chromium.base.Callback;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
-import org.chromium.base.supplier.NullableObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButton;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityClient;
@@ -40,7 +38,7 @@ public class HubToolbarCoordinator {
     private final MenuButtonCoordinator mMenuButtonCoordinator;
     private final MenuButton mMenuButton;
     private final UserEducationHelper mUserEducationHelper;
-    private final ObservableSupplier<Boolean> mIsAnimatingSupplier;
+    private final MonotonicObservableSupplier<Boolean> mIsAnimatingSupplier;
     private final @Nullable NonNullObservableSupplier<Boolean> mBottomToolbarVisibilitySupplier;
     private final HubActionButtonCoordinator mActionButtonCoordinator;
 
@@ -56,7 +54,6 @@ public class HubToolbarCoordinator {
      * @param userEducationHelper Used to show IPHs.
      * @param isHubAnimatingSupplier Supplies whether a hub layout animation is running.
      * @param bottomToolbarVisibilitySupplier Supplies bottom toolbar visibility state, can be null.
-     * @param currentTabSupplier The supplier of the current {@link Tab}.
      * @param exitHubRunnable Used to exit the hub.
      */
     public HubToolbarCoordinator(
@@ -68,9 +65,8 @@ public class HubToolbarCoordinator {
             SearchActivityClient searchActivityClient,
             HubColorMixer hubColorMixer,
             UserEducationHelper userEducationHelper,
-            ObservableSupplier<Boolean> isHubAnimatingSupplier,
+            MonotonicObservableSupplier<Boolean> isHubAnimatingSupplier,
             @Nullable NonNullObservableSupplier<Boolean> bottomToolbarVisibilitySupplier,
-            NullableObservableSupplier<Tab> currentTabSupplier,
             Runnable exitHubRunnable) {
         mUserEducationHelper = userEducationHelper;
         mMenuButtonCoordinator = menuButtonCoordinator;
@@ -95,7 +91,6 @@ public class HubToolbarCoordinator {
                         paneManager,
                         tracker,
                         searchActivityClient,
-                        currentTabSupplier,
                         exitHubRunnable);
 
         // Set up bottom toolbar visibility observer

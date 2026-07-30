@@ -356,6 +356,7 @@
 <translation id="4814736265800133385">Chromium-ის გამოყენება ანგარიშის გარეშე</translation>
 <translation id="4888717733111232871">Chromium-ის შემავალი წესი დაუშვას mDNS მოძრაობა.</translation>
 <translation id="4893347770495441059">ხელახლა გაშვება &amp;Chromium-ის გასაახლებლად</translation>
+<translation id="4918086044614829423">მიღება</translation>
 <translation id="4918844574251943176">სურათი დაკოპირდა</translation>
 <translation id="4943838377383847465">Chromium ფონურ რეჟიმშია.</translation>
 <translation id="494490797786467921">დააწკაპუნეთ Chromium-ის შესვლის დიალოგის დასახურად</translation>
@@ -533,6 +534,9 @@
 <translation id="6901631050894301805">დააყენეთ Chromium ნაგულისხმევ ბრაუზერად და ჩაამაგრეთ ის თქვენს ამოცანათა ზოლში</translation>
 <translation id="6909503629704372277">Chromium პროფილების &amp;მართვა</translation>
 <translation id="6934579572334859869">სურათების ძიებისთვის ამ სურათის შესახებ შეკითხვა</translation>
+<translation id="6948031725951063910">თქვენ მიაღწიეთ Chromium-ის <ph name="BOOKMARK_LIMIT" /> სანიშნის ლიმიტს, ამიტომ თქვენი ზოგიერთი სანიშნე ჯერ არ შენახულა თქვენს Google ანგარიშში.
+
+ახალი სანიშნეების შენახვა თქვენს ანგარიშში ვერ მოხერხდება, სანამ რამდენიმეს არ წაშლით. ახლა გასვლის შემთხვევაში შეუნახავი სანიშნები წაიშლება.</translation>
 <translation id="6964305034639999644">ბმულის გახსნა Chromium-ის ინკო&amp;გნიტო ფანჯარაში</translation>
 <translation id="6965382102122355670">კარგი</translation>
 <translation id="6978145336957848883">სუსტი პაროლები ადვილი გამოსაცნობია, ამიტომ მიეცით საშუალება Chromium-ს, <ph name="BEGIN_LINK" />თქვენთვის შექმნას და დაიმახსოვროს ძლიერი პაროლები<ph name="END_LINK" />.</translation>
@@ -634,6 +638,7 @@ Chromium ვერ შეძლებს თქვენი პარამე�
 <translation id="8118331347066725040">გამოხმაურება Lens-ით ძიების შესახებ</translation>
 <translation id="8133124826068723441">ChromiumOS-ის საშუალებით ვერ მოხერხდა თქვენი მონაცემების სინქრონიზაცია, რადგან თქვენს დომენზე სინქრონიზაცია მიუწვდომელია.</translation>
 <translation id="813913629614996137">მიმდინარეობს ინიცირება…</translation>
+<translation id="8164014945047474187">Chromium-ის მომსახურების დამატებითი პირობები</translation>
 <translation id="81770708095080097">Chromium-მა დაბლოკა ეს ფაილი, რადგან ის სახიფათოა.</translation>
 <translation id="8177472873527554730">გვერდზე კონტენტი ვერ მოიძებნა</translation>
 <translation id="8200109504272824693">შეიყვანეთ თქვენი საიდუმლო ფრაზა, რომ გამოიყენოთ და შეინახოთ Chromium-ის მონაცემები თქვენს ანგარიშში, <ph name="USER_EMAIL" /></translation>
@@ -701,6 +706,7 @@ Chromium ვერ შეძლებს თქვენი პარამე�
 <translation id="8880203542552872219">ამ შემთხევაში ჩაასწორეთ Chromium-ში შენახული პაროლი ახლის მიხედვით.</translation>
 <translation id="8891709362986793894">თქვენი ორგანიზაცია მოითხოვს, რომ Chromium-ში შეხვიდეთ</translation>
 <translation id="8907580949721785412">Chromium ცდილობს პაროლების ჩვენებას. ჩაწერეთ თქვენი Windows-ის პაროლი ამის დასაშვებად.</translation>
+<translation id="8932992523185907506">Chromium აღარ არის თქვენი ნაგულისხმევი ბრაუზერი. გახდეს Chromium ნაგულისხმევი ბრაუზერი?</translation>
 <translation id="8941642502866065432">Chromium-ის განახლება ვერ მოხერხდა</translation>
 <translation id="897581876605952338">Chromium Enterprise-ის ლოგო</translation>
 <translation id="8981150672034878610">Chromium-ის გაშვება შეუძლებელია, რადგან თქვენი პროფილის გახსნისას მოხდა შეცდომა. ცადეთ Chromium-ის გადატვირთვა.</translation>

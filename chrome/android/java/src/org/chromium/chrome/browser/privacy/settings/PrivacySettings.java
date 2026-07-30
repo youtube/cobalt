@@ -25,7 +25,7 @@ import org.chromium.base.Callback;
 import org.chromium.base.IntentUtils;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
-import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -112,7 +112,8 @@ public class PrivacySettings extends ChromeBaseSettingsFragment
         Bundle extras = new Bundle();
         extras.putString(SingleCategorySettings.EXTRA_CATEGORY, "javascript_optimizer");
         SettingsNavigation navigation = SettingsNavigationFactory.createSettingsNavigation();
-        navigation.startSettings(context, SingleCategorySettings.class, extras);
+        navigation.startSettings(
+                context, SingleCategorySettings.class, extras, /* addToBackStack= */ true);
     }
 
     /** Creates {@link SpanInfo} for link which has the passed-in tag. */
@@ -166,7 +167,11 @@ public class PrivacySettings extends ChromeBaseSettingsFragment
                     // In details it is still a part of SettingsActivity, it will let user find
                     // it is an independent flow.
                     SettingsNavigationFactory.createSettingsNavigation()
-                            .startSettings(getActivity(), PrivacyGuideFragment.class);
+                            .startSettings(
+                                    getActivity(),
+                                    PrivacyGuideFragment.class,
+                                    /* fragmentArgs= */ null,
+                                    /* addToBackStack= */ true);
                     return true;
                 });
         if (getProfile().isChild()
@@ -319,7 +324,7 @@ public class PrivacySettings extends ChromeBaseSettingsFragment
     }
 
     @Override
-    public ObservableSupplier<String> getPageTitle() {
+    public MonotonicObservableSupplier<String> getPageTitle() {
         return mPageTitle;
     }
 
@@ -329,7 +334,11 @@ public class PrivacySettings extends ChromeBaseSettingsFragment
                     @Override
                     public void onClick(View view) {
                         SettingsNavigationFactory.createSettingsNavigation()
-                                .startSettings(getActivity(), GoogleServicesSettings.class);
+                                .startSettings(
+                                        getActivity(),
+                                        GoogleServicesSettings.class,
+                                        /* fragmentArgs= */ null,
+                                        /* addToBackStack= */ true);
                     }
                 };
 
@@ -341,7 +350,8 @@ public class PrivacySettings extends ChromeBaseSettingsFragment
                                 .startSettings(
                                         getActivity(),
                                         ManageSyncSettings.class,
-                                        ManageSyncSettings.createArguments(false));
+                                        /* fragmentArgs= */ null,
+                                        /* addToBackStack= */ true);
                     }
                 };
         if (assumeNonNull(IdentityServicesProvider.get().getIdentityManager(getProfile()))
@@ -593,11 +603,11 @@ public class PrivacySettings extends ChromeBaseSettingsFragment
                 @Override
                 public void updateDynamicPreferences(
                         Context context, SettingsIndexData indexData, Profile profile) {
+                    String frag = PrivacySettings.class.getName();
                     PrivacySandboxBridge bridge = new PrivacySandboxBridge(profile);
                     boolean restricted = isRestrictedSandboxEnabled(bridge);
                     var summaryId = getPrivacySandboxSummaryId(restricted);
-                    updateEntrySummaryForKey(
-                            PREF_PRIVACY_SANDBOX, context.getString(summaryId), indexData);
+                    indexData.updateEntrySummaryForKey(frag, PREF_PRIVACY_SANDBOX, summaryId);
 
                     if (shouldHideSandboxPref(bridge)) {
                         indexData.removeEntry(getUniqueId(PREF_PRIVACY_SANDBOX));
@@ -608,23 +618,17 @@ public class PrivacySettings extends ChromeBaseSettingsFragment
                     } else {
                         indexData.removeEntry(getUniqueId(PREF_HTTPS_FIRST_MODE));
                         var textId = httpsFirstLegacySummaryId(isAdvancedProtectionEnabled());
-                        updateEntrySummaryForKey(
-                                PREF_HTTPS_FIRST_MODE_LEGACY, context.getString(textId), indexData);
+                        indexData.updateEntrySummaryForKey(
+                                frag, PREF_HTTPS_FIRST_MODE_LEGACY, textId);
                     }
 
                     if (shouldHideAdvancedProtectionInfoPref()) {
                         indexData.removeEntry(getUniqueId(PREF_ADVANCED_PROTECTION_INFO));
                     }
-                }
 
-                private void updateEntrySummaryForKey(
-                        String key, String summary, SettingsIndexData indexData) {
-                    var entry = indexData.getEntry(getUniqueId(key));
-                    indexData.updateEntry(
-                            getUniqueId(key),
-                            new SettingsIndexData.Entry.Builder(assumeNonNull(entry))
-                                    .setSummary(summary)
-                                    .build());
+                    // The summary in 'Safe Browsing' is a template string. Removes it.
+                    indexData.updateEntrySummaryForKey(
+                            frag, PREF_SAFE_BROWSING, /* summaryId= */ 0);
                 }
             };
 }

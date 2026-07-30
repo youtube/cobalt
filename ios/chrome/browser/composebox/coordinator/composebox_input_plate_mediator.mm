@@ -284,48 +284,6 @@ CreateInputDataFromAnnotatedPageContent(
   _prefService = nullptr;
 }
 
-- (void)processImageItemProvider:(NSItemProvider*)itemProvider
-                         assetID:(NSString*)assetID {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
-
-  BOOL unableToLoadUIImage =
-      ![itemProvider canLoadObjectOfClass:[UIImage class]];
-  BOOL assetAlreadyLoaded = [_items assetAlreadyLoaded:assetID];
-  if (unableToLoadUIImage || assetAlreadyLoaded) {
-    return;
-  }
-
-  ComposeboxInputItem* item = [[ComposeboxInputItem alloc]
-      initWithComposeboxInputItemType:ComposeboxInputItemType::
-                                          kComposeboxInputItemTypeImage
-                              assetID:assetID];
-  item.uploadIndex = _imageUploadCount++;
-
-  [_items addItem:item];
-  __block base::UnguessableToken identifier = item.identifier;
-
-  __weak __typeof(self) weakSelf = self;
-  // Load the preview image.
-  [itemProvider
-      loadPreviewImageWithOptions:nil
-                completionHandler:^(UIImage* previewImage, NSError* error) {
-                  dispatch_async(dispatch_get_main_queue(), ^{
-                    [weakSelf didLoadPreviewImage:previewImage
-                            forItemWithIdentifier:identifier];
-                  });
-                }];
-
-  // Concurrently load the full image.
-  [itemProvider loadObjectOfClass:[UIImage class]
-                completionHandler:^(__kindof id<NSItemProviderReading> object,
-                                    NSError* error) {
-                  dispatch_async(dispatch_get_main_queue(), ^{
-                    [weakSelf didLoadFullImage:(UIImage*)object
-                         forItemWithIdentifier:identifier];
-                  });
-                }];
-}
-
 - (void)setConsumer:(id<ComposeboxInputPlateConsumer>)consumer {
   DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
   _consumer = consumer;
@@ -402,8 +360,6 @@ CreateInputDataFromAnnotatedPageContent(
   search_url_request_info->query_text = base::SysNSStringToUTF8(text);
   search_url_request_info->query_start_time = base::Time::Now();
   search_url_request_info->additional_params = additionalParams;
-  search_url_request_info->invocation_source =
-      lens::LensOverlayInvocationSource::kOmniboxContextualQuery;
   if (_modeHolder.mode == ComposeboxMode::kImageGeneration) {
     search_url_request_info->additional_params["imgn"] = "1";
   }
@@ -416,6 +372,11 @@ CreateInputDataFromAnnotatedPageContent(
 
   _contextualSearchSession->CreateSearchUrl(std::move(search_url_request_info),
                                             std::move(callback));
+}
+
+- (void)processText:(NSString*)text {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
+  [self.delegate refineWithText:text];
 }
 
 - (void)processPDFFileURL:(GURL)PDFFileURL {
@@ -454,6 +415,51 @@ CreateInputDataFromAnnotatedPageContent(
                                           fromURL:PDFFileURL
                                          withData:data];
       }));
+}
+
+- (void)processImageItemProvider:(NSItemProvider*)itemProvider
+                         assetID:(NSString*)assetID {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
+
+  BOOL unableToLoadUIImage =
+      ![itemProvider canLoadObjectOfClass:[UIImage class]];
+
+  // TODO(crbug.com/475203545): Prevent duplicate items being added. The file
+  // picker and the drag-and-drop interfaces have different schemes for
+  // generating asset IDs. They should be common, in order to prevent the same
+  // file being added several times.
+  BOOL assetAlreadyLoaded = [_items assetAlreadyLoaded:assetID];
+  if (unableToLoadUIImage || assetAlreadyLoaded) {
+    return;
+  }
+
+  ComposeboxInputItem* item = [[ComposeboxInputItem alloc]
+      initWithComposeboxInputItemType:ComposeboxInputItemType::
+                                          kComposeboxInputItemTypeImage
+                              assetID:assetID];
+  [_items addItem:item];
+  __block base::UnguessableToken identifier = item.identifier;
+
+  __weak __typeof(self) weakSelf = self;
+  // Load the preview image.
+  [itemProvider
+      loadPreviewImageWithOptions:nil
+                completionHandler:^(UIImage* previewImage, NSError* error) {
+                  dispatch_async(dispatch_get_main_queue(), ^{
+                    [weakSelf didLoadPreviewImage:previewImage
+                            forItemWithIdentifier:identifier];
+                  });
+                }];
+
+  // Concurrently load the full image.
+  [itemProvider loadObjectOfClass:[UIImage class]
+                completionHandler:^(__kindof id<NSItemProviderReading> object,
+                                    NSError* error) {
+                  dispatch_async(dispatch_get_main_queue(), ^{
+                    [weakSelf didLoadFullImage:(UIImage*)object
+                         forItemWithIdentifier:identifier];
+                  });
+                }];
 }
 
 #pragma mark - ComposeboxModeObserver
@@ -1231,14 +1237,13 @@ CreateInputDataFromAnnotatedPageContent(
 
 #pragma mark - ComposeboxOmniboxClientDelegate
 
-- (omnibox::ChromeAimToolsAndModels)composeboxToolMode {
+- (omnibox::ToolMode)composeboxToolMode {
   if (_modeHolder.mode == ComposeboxMode::kImageGeneration) {
-    return _items.count > 0
-               ? omnibox::ChromeAimToolsAndModels::TOOL_MODE_IMAGE_GEN_UPLOAD
-               : omnibox::ChromeAimToolsAndModels::TOOL_MODE_IMAGE_GEN;
+    return _items.count > 0 ? omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD
+                            : omnibox::ToolMode::TOOL_MODE_IMAGE_GEN;
   }
 
-  return omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED;
+  return omnibox::ToolMode::TOOL_MODE_UNSPECIFIED;
 }
 
 - (std::optional<lens::proto::LensOverlaySuggestInputs>)suggestInputs {

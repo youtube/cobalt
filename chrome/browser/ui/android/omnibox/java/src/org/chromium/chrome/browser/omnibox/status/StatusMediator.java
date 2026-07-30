@@ -17,7 +17,7 @@ import androidx.annotation.DrawableRes;
 import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -64,7 +64,7 @@ public class StatusMediator
 
     private final PropertyModel mModel;
     private final OneshotSupplier<TemplateUrlService> mTemplateUrlServiceSupplier;
-    private final ObservableSupplier<Profile> mProfileSupplier;
+    private final MonotonicObservableSupplier<Profile> mProfileSupplier;
     private final @Nullable Supplier<MerchantTrustSignalsCoordinator>
             mMerchantTrustSignalsCoordinatorSupplier;
     private boolean mUrlHasFocus;
@@ -138,7 +138,7 @@ public class StatusMediator
             LocationBarDataProvider locationBarDataProvider,
             PermissionDialogController permissionDialogController,
             OneshotSupplier<TemplateUrlService> templateUrlServiceSupplier,
-            ObservableSupplier<Profile> profileSupplier,
+            MonotonicObservableSupplier<Profile> profileSupplier,
             PageInfoIphController pageInfoIphController,
             WindowAndroid windowAndroid,
             @Nullable Supplier<MerchantTrustSignalsCoordinator>
@@ -474,9 +474,9 @@ public class StatusMediator
     }
 
     @Override
-    public void showPermissionIcon(PermissionIconResource icon, @StringRes int descriptionRes) {
+    public void showPermissionIcon(PermissionIconResource icon) {
         mModel.set(StatusProperties.STATUS_ICON_RESOURCE, icon);
-        mModel.set(StatusProperties.STATUS_ICON_DESCRIPTION_RES, descriptionRes);
+        mModel.set(StatusProperties.STATUS_ICON_DESCRIPTION_RES, icon.getContentDescriptionRes());
     }
 
     /**
@@ -497,13 +497,14 @@ public class StatusMediator
      */
     @Override
     public void updateLocationBarIcon(@IconTransitionType int transitionType) {
-        // Reset the permission icon.
-        mPermissionStatusHandler.reset();
         // Reset the store icon status.
         mIsStoreIconShowing = false;
 
         // No need to proceed further if we've already updated it for the search engine icon.
-        if (maybeUpdateStatusIconForSearchEngineIcon()) return;
+        if (maybeUpdateStatusIconForSearchEngineIcon()) {
+            mPermissionStatusHandler.reset(/* shouldDismissNativePrompt= */ true);
+            return;
+        }
 
         int icon = 0;
         int tint = 0;
@@ -514,6 +515,7 @@ public class StatusMediator
 
         if (mLocationBarDataProvider.getPageClassification(/* prefetch= */ false)
                 == PageClassification.ANDROID_HUB_VALUE) {
+            mPermissionStatusHandler.reset(/* shouldDismissNativePrompt= */ false);
             // Show the status icon primarily for incognito since it is defaulted off there.
             setStatusIconShown(/* show= */ true);
             icon = R.drawable.ic_arrow_back_24dp;
@@ -523,6 +525,7 @@ public class StatusMediator
                     mModel.get(StatusProperties.SHOW_STATUS_ICON),
                     mModel.get(StatusProperties.VERBOSE_STATUS_TEXT_VISIBLE));
         } else if (mUrlHasFocus) {
+            mPermissionStatusHandler.reset(/* shouldDismissNativePrompt= */ true);
             if (mShowStatusIconWhenUrlFocused) {
                 icon =
                         mUrlBarTextIsSearch
@@ -530,6 +533,8 @@ public class StatusMediator
                                 : R.drawable.ic_globe_24dp;
                 tint = mNavigationIconTintRes;
             }
+        } else if (mPermissionStatusHandler.isClapperQuietIconShowing()) {
+            return;
         } else if (mSecurityIconRes != 0) {
             mIsSecurityViewShown = true;
             icon = mSecurityIconRes;
@@ -746,16 +751,21 @@ public class StatusMediator
     @VisibleForTesting
     @Override
     public void resetCustomIconsStatus() {
-        mPermissionStatusHandler.reset();
-        mStoreIconHandler.removeCallbacksAndMessages(null);
-        mIconTaskHandler.removeCallbacksAndMessages(null);
-        mIsStoreIconShowing = false;
+        mPermissionStatusHandler.reset(/* shouldDismissNativePrompt= */ true);
+        resetEmbeddedIconHandlers();
     }
 
     /** Notifies that the page info was opened. */
     void onPageInfoOpened() {
-        resetCustomIconsStatus();
+        mPermissionStatusHandler.onPageInfoOpened();
+        resetEmbeddedIconHandlers();
         updateLocationBarIcon(IconTransitionType.CROSSFADE);
+    }
+
+    private void resetEmbeddedIconHandlers() {
+        mStoreIconHandler.removeCallbacksAndMessages(null);
+        mIconTaskHandler.removeCallbacksAndMessages(null);
+        mIsStoreIconShowing = false;
     }
 
     boolean isStoreIconShowing() {

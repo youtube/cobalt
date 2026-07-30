@@ -14,8 +14,6 @@ import("//build/util/lastchange.gni")
 import("//build/util/process_version.gni")
 import("//chrome/version.gni")
 import("//components/cronet/android/cronet_test_templates.gni")
-import("//components/cronet/native/include/headers.gni")
-import("//components/grpc_support/include/headers.gni")
 import("//testing/test.gni")
 import("//third_party/jni_zero/jni_zero.gni")
 import("//third_party/netty4/netty4.gni")
@@ -199,9 +197,6 @@ source_set("cronet_static") {
     "//third_party/zlib",
     "//url",
   ]
-  if (!is_cronet_for_aosp_build) {
-    deps += [ "//components/cronet/native:cronet_native_impl" ]
-  }
   sources = [
     "//components/cronet/android/completion_once_callback_adapter.cc",
     "//components/cronet/android/completion_once_callback_adapter.h",
@@ -424,6 +419,7 @@ cronet_impl_common_java_deps_to_package = [
 # by all Cronet engine implementations.
 android_library("cronet_impl_common_java") {
   sources = [
+    "java/src/org/chromium/net/VersionSafeProxyOptions.java",
     "java/src/org/chromium/net/impl/BidirectionalStreamBuilderImpl.java",
     "java/src/org/chromium/net/impl/CallbackExceptionImpl.java",
     "java/src/org/chromium/net/impl/CronetEngineBase.java",
@@ -441,7 +437,6 @@ android_library("cronet_impl_common_java") {
     "java/src/org/chromium/net/impl/UrlResponseInfoImpl.java",
     "java/src/org/chromium/net/impl/VersionSafeCallbacks.java",
     "java/src/org/chromium/net/impl/VersionSafeProxyCallback.java",
-    "java/src/org/chromium/net/impl/VersionSafeProxyOptions.java",
     _generated_impl_version_java,
   ]
 
@@ -658,7 +653,7 @@ android_library("httpengine_native_provider_java") {
       "platform-only/org/chromium/net/AndroidProxyOptions.java",
     ]
   } else {
-    sources += [ "java/src/org/chromium/net/impl/AndroidProxyOptions.java" ]
+    sources += [ "java/src/org/chromium/net/AndroidProxyOptions.java" ]
   }
 
   deps = [
@@ -1744,41 +1739,7 @@ cronet_test("cronet_unittests_android") {
     "//testing/gtest",
   ]
 
-  if (!is_cronet_for_aosp_build) {
-    deps += [ "//components/cronet/native:cronet_native_unittests" ]
-  }
-
   sources = [ "../run_all_unittests.cc" ]
-
-  data = [ "//components/cronet/android/test/test_server/data/" ]
-
-  if (is_android) {
-    shard_timeout = 180
-  }
-}
-
-cronet_test("cronet_tests_android") {
-  deps = [
-    ":cronet_impl_native_java",
-    ":cronet_static",
-    "//base",
-    "//base/test:test_support",
-    "//components/prefs:test_support",
-    "//net",
-    "//net:test_support",
-    "//net/android:net_java",
-    "//testing/gtest",
-  ]
-
-  if (!is_cronet_for_aosp_build) {
-    deps += [ "//components/cronet/native/test:cronet_native_tests" ]
-  }
-
-  allow_cleartext_traffic = true
-
-  sources = [ "../run_all_unittests.cc" ]
-
-  defines = [ "CRONET_TESTS_IMPLEMENTATION" ]
 
   data = [ "//components/cronet/android/test/test_server/data/" ]
 
@@ -1936,12 +1897,6 @@ copy("cronet_package_copy") {
     ":cronet_shared_java",
     ":httpengine_native_provider_java",
   ]
-}
-
-copy("cronet_package_copy_native_headers") {
-  sources = cronet_native_public_headers + grpc_public_headers
-
-  outputs = [ "$_package_dir/include/{{source_file_part}}" ]
 }
 
 copy("cronet_package_copy_native_lib") {
@@ -2117,6 +2072,14 @@ action("cronet_gn2bp_aosp_feedback_loop") {
   ]
   _stamp_path = "$target_gen_dir/$target_name.stamp"
   args = [
+    # Do not specify the channel via --channel`. Doing so risks misconfiguring
+    # which Chromium release track is imported in each Cronet channel in the
+    # Android repo.
+    #
+    # This action is only used by bot environments. These automatically select
+    # the target Cronet channel in the Android repo based on the environment they
+    # are running in (see components/cronet/gn2bp/run_gn2bp.py's
+    # _pick_target_channel_for_bot_environment).
     "--wait-for-presubmit-verified",
     "--stamp",
     rebase_path(_stamp_path, root_build_dir),
@@ -2156,7 +2119,6 @@ if (!using_sanitizer) {
 group("cronet_non_test_package") {
   deps = [
     ":cronet_package_copy",
-    ":cronet_package_copy_native_headers",
     ":cronet_package_copy_native_lib",
     ":cronet_package_copy_native_lib_unstripped",
     ":cronet_package_copy_resources",

@@ -182,7 +182,6 @@
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_features.h"
-#include "base/process/process.h"
 #include "base/task/task_traits.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ash/settings/hardware_data_usage_controller.h"
@@ -1643,6 +1642,16 @@ int ChromeBrowserMainParts::PreMainMessageLoopRunImpl() {
   InitializeWinParentalControls();
 #endif
 
+  // Should be done before starting metrics recording.
+#if BUILDFLAG(IS_LINUX)
+  // On Linux, the EULA dialog requires Views, so it is shown here rather than
+  // when applying the first-run prefs.
+  if (first_run::IsChromeFirstRun() && master_prefs_->eula_required &&
+      !headless::IsHeadlessMode() && !first_run::ShowEulaDialog()) {
+    return CHROME_RESULT_CODE_EULA_REFUSED;
+  }
+#endif
+
   // Now that the file thread has been started, start metrics.
   StartMetricsRecording();
 
@@ -2052,16 +2061,6 @@ void ChromeBrowserMainParts::OnFirstIdle() {
 #if BUILDFLAG(IS_ANDROID)
   sharing::ShareHistory::CreateForProfile(
       ProfileManager::GetPrimaryUserProfile());
-#endif
-
-#if BUILDFLAG(IS_CHROMEOS)
-  // If OneGroupPerRenderer feature is enabled, post a task to clean any left
-  // over cgroups due to any unclean exits.
-  if (base::FeatureList::IsEnabled(base::kOneGroupPerRenderer)) {
-    base::ThreadPool::PostTask(
-        FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
-        base::BindOnce(&base::Process::CleanUpStaleProcessStates));
-  }
 #endif
 }
 

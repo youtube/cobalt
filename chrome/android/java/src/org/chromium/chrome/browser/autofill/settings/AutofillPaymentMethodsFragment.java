@@ -27,7 +27,7 @@ import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.Callback;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -132,7 +132,7 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
     }
 
     @Override
-    public ObservableSupplier<String> getPageTitle() {
+    public MonotonicObservableSupplier<String> getPageTitle() {
         return mPageTitle;
     }
 
@@ -166,6 +166,15 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
         rebuildPage();
     }
 
+    static boolean hasEwallets(PersonalDataManager manager) {
+        return ChromeFeatureList.isEnabled(ChromeFeatureList.AUTOFILL_SYNC_EWALLET_ACCOUNTS)
+                && manager.getEwallets().length != 0;
+    }
+
+    static boolean hasPixAccounts(PersonalDataManager manager) {
+        return manager.getMaskedBankAccounts().length != 0;
+    }
+
     private void rebuildPage() {
         getPreferenceScreen().removeAll();
         getPreferenceScreen().setOrderingAsAdded(true);
@@ -191,7 +200,8 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
                                 getPreferenceManager().getContext(),
                                 AutofillOptionsFragment.class,
                                 AutofillOptionsFragment.createRequiredArgs(
-                                        AutofillOptionsReferrer.PAYMENT_METHODS_FRAGMENT));
+                                        AutofillOptionsReferrer.PAYMENT_METHODS_FRAGMENT),
+                                /* addToBackStack= */ true);
                     });
             getPreferenceScreen().addPreference(disabled_settings_info_pref);
         }
@@ -226,10 +236,8 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
                 });
         getPreferenceScreen().addPreference(autofillSwitch);
 
-        boolean hasPixAccounts = personalDataManager.getMaskedBankAccounts().length != 0;
-        boolean hasEwallets =
-                ChromeFeatureList.isEnabled(ChromeFeatureList.AUTOFILL_SYNC_EWALLET_ACCOUNTS)
-                        && personalDataManager.getEwallets().length != 0;
+        boolean hasPixAccounts = hasPixAccounts(personalDataManager);
+        boolean hasEwallets = hasEwallets(personalDataManager);
         boolean showA2aToggle =
                 personalDataManager.getFacilitatedPaymentsA2ATriggeredOncePref()
                         && ChromeFeatureList.isEnabled(
@@ -678,7 +686,10 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
         SettingsNavigation settingsNavigation =
                 SettingsNavigationFactory.createSettingsNavigation();
         settingsNavigation.startSettings(
-                getActivity(), AutofillLocalCardEditor.class, preference.getExtras());
+                getActivity(),
+                AutofillLocalCardEditor.class,
+                preference.getExtras(),
+                /* addToBackStack= */ true);
     }
 
     /**
@@ -725,7 +736,7 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
         dialog.show();
     }
 
-    private static String getFacilitatedPaymentsTitleString(
+    static String getFacilitatedPaymentsTitleString(
             Context context, boolean hasEwallets, boolean hasPixAccounts) {
         if (hasEwallets && hasPixAccounts) {
             return context.getString(R.string.settings_manage_ewallet_and_pix_title);
@@ -756,7 +767,10 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
         SettingsNavigation settingsNavigation =
                 SettingsNavigationFactory.createSettingsNavigation();
         settingsNavigation.startSettings(
-                getActivity(), FinancialAccountsManagementFragment.class, args);
+                getActivity(),
+                FinancialAccountsManagementFragment.class,
+                args,
+                /* addToBackStack= */ true);
         return true;
     }
 
@@ -767,7 +781,8 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
         settingsNavigation.startSettings(
                 getActivity(),
                 NonCardPaymentMethodsManagementFragment.class,
-                /* fragmentArgs= */ null);
+                /* fragmentArgs= */ null,
+                /* addToBackStack= */ true);
         return true;
     }
 
@@ -817,7 +832,7 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
                         == AndroidAutofillAvailabilityStatus.AVAILABLE);
     }
 
-    private static boolean shouldShowManagePix(PersonalDataManager manager, Profile profile) {
+    static boolean shouldShowManagePix(PersonalDataManager manager, Profile profile) {
         // Feature flag + hasPixAccounts + !disabledSettings
         return ChromeFeatureList.isEnabled(
                         ChromeFeatureList.AUTOFILL_ENABLE_SEPARATE_PIX_PREFERENCE_ITEM)
@@ -834,7 +849,7 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
                 && !disabledSettingsInThirdPartyMode(profile);
     }
 
-    private static boolean shouldShowOtherFinanceAccounts(
+    static boolean shouldShowOtherFinanceAccounts(
             Profile profile, boolean hasEwallets, boolean hasPixAccounts) {
         // !Feature flag + (hasEwallets | hasPixAccount) + !disabledSettings
         return !ChromeFeatureList.isEnabled(
@@ -905,12 +920,8 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
                     String frag = AutofillPaymentMethodsFragment.class.getName();
                     PersonalDataManager personalDataManager =
                             PersonalDataManagerFactory.getForProfile(profile);
-                    boolean hasPixAccounts =
-                            personalDataManager.getMaskedBankAccounts().length != 0;
-                    boolean hasEwallets =
-                            ChromeFeatureList.isEnabled(
-                                            ChromeFeatureList.AUTOFILL_SYNC_EWALLET_ACCOUNTS)
-                                    && personalDataManager.getEwallets().length != 0;
+                    boolean hasPixAccounts = hasPixAccounts(personalDataManager);
+                    boolean hasEwallets = hasEwallets(personalDataManager);
                     boolean showA2aToggle =
                             personalDataManager.getFacilitatedPaymentsA2ATriggeredOncePref()
                                     && ChromeFeatureList.isEnabled(
@@ -929,11 +940,17 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
                             R.string.autofill_enable_credit_cards_toggle_label,
                             R.string.autofill_enable_credit_cards_toggle_sublabel);
                     if (shouldShowManagePix(personalDataManager, profile)) {
+                        int titleId = R.string.settings_manage_pix_title;
+                        Bundle extras = new Bundle();
+                        String title = context.getString(titleId);
+                        extras.putString(FinancialAccountsManagementFragment.TITLE_KEY, title);
                         indexData.addEntryForKey(
                                 frag,
                                 PREF_FINANCIAL_ACCOUNTS_MANAGEMENT,
-                                R.string.settings_manage_pix_title,
-                                R.string.settings_manage_pix_description);
+                                title,
+                                context.getString(R.string.settings_manage_pix_description),
+                                extras,
+                                FinancialAccountsManagementFragment.class.getName());
                     }
                     if (shouldShowManageNonCardPayment(profile, hasEwallets, showA2aToggle)) {
                         indexData.addEntryForKey(
@@ -944,13 +961,19 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
                                 NonCardPaymentMethodsManagementFragment.class.getName());
                     }
                     if (shouldShowOtherFinanceAccounts(profile, hasEwallets, hasPixAccounts)) {
+                        Bundle extras = new Bundle();
+                        String title =
+                                getFacilitatedPaymentsTitleString(
+                                        context, hasEwallets, hasPixAccounts);
+                        extras.putString(FinancialAccountsManagementFragment.TITLE_KEY, title);
                         indexData.addEntryForKey(
                                 frag,
                                 PREF_FINANCIAL_ACCOUNTS_MANAGEMENT,
-                                getFacilitatedPaymentsTitleString(
-                                        context, hasEwallets, hasPixAccounts),
+                                title,
                                 getFacilitatedPaymentsSummaryString(
-                                        context, hasEwallets, hasPixAccounts));
+                                        context, hasEwallets, hasPixAccounts),
+                                extras,
+                                FinancialAccountsManagementFragment.class.getName());
                     }
                     if (shouldShowMandatoryReauthSwitch()) {
                         indexData.addEntryForKey(

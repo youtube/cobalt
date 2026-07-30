@@ -327,7 +327,8 @@ void GlicActorTaskManager::CancelActions(
     return;
   }
 
-  bool success = task->CancelOngoingActions();
+  bool success = task->CancelOngoingActions(
+      actor::mojom::ActionResultCode::kActionsCancelled);
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback),
                                 success ? mojom::CancelActionsResult::kSuccess
@@ -518,7 +519,7 @@ void GlicActorTaskManager::ResumeActorTask(
                 std::move(tab_context_ptr),
                 static_cast<int32_t>(resume_response_code)));
       },
-      std::move(callback), CreateTabData(tab_of_resumed_task->GetContents()),
+      std::move(callback), CreateTabData(tab_of_resumed_task),
       resume_response_code);
 
   actor_keyed_service_->RequestTabObservation(*tab_of_resumed_task, task_id,
@@ -586,8 +587,7 @@ void GlicActorTaskManager::CreateActorTab(
 void GlicActorTaskManager::CreateActorTabFinished(
     glic::mojom::WebClientHandler::CreateActorTabCallback callback,
     tabs::TabInterface* new_tab) {
-  std::move(callback).Run(
-      CreateTabData(new_tab ? new_tab->GetContents() : nullptr));
+  std::move(callback).Run(CreateTabData(new_tab));
 }
 
 void GlicActorTaskManager::ReloadObserverDone(

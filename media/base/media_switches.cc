@@ -666,10 +666,6 @@ BASE_FEATURE(kGlobalMediaControls,
 // Auto-dismiss global media controls.
 BASE_FEATURE(kGlobalMediaControlsAutoDismiss, base::FEATURE_ENABLED_BY_DEFAULT);
 
-#if !BUILDFLAG(IS_CHROMEOS)
-// Updated global media controls UI for all the non-CrOS desktop platforms.
-BASE_FEATURE(kGlobalMediaControlsUpdatedUI, base::FEATURE_ENABLED_BY_DEFAULT);
-#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 #if !BUILDFLAG(IS_ANDROID)
 // If enabled, users can request Media Remoting without fullscreen-in-tab.
@@ -933,6 +929,10 @@ const base::FeatureParam<bool>
 // Enables hardware secure AV1 decoding if supported by the hardware
 // and the OS Content Decryption Module (CDM).
 BASE_FEATURE(kHardwareSecureDecryptionAv1, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables hardware secure VP9 decoding if supported by the hardware
+// and the OS Content Decryption Module (CDM).
+BASE_FEATURE(kHardwareSecureDecryptionVp9, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_WIN)
 // Enables showing permission indicator in the omnibox when a site is allowed or

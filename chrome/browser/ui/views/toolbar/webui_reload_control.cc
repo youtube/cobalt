@@ -32,6 +32,8 @@ WebUIReloadControl::WebUIReloadControl(
 WebUIReloadControl::~WebUIReloadControl() = default;
 
 void WebUIReloadControl::Init() {
+  CHECK(!is_initialized_);
+  is_initialized_ = true;
   SetReloadButtonUIState();
 }
 
@@ -53,15 +55,14 @@ void WebUIReloadControl::SetMenuEnabled(bool is_menu_enabled) {
   SetReloadButtonUIState();
 }
 
-bool WebUIReloadControl::HandleContextMenu(
-    views::Widget* widget,
-    gfx::Point screen_location,
-    const content::ContextMenuParams& params) {
+bool WebUIReloadControl::HandleContextMenu(views::Widget* widget,
+                                           gfx::Point screen_location,
+                                           ui::mojom::MenuSourceType source) {
   if (is_menu_enabled_) {
     menu_runner_->RunMenuAt(webui_toolbar_web_view_->GetWidget(), nullptr,
                             gfx::Rect(screen_location, gfx::Size()),
                             views::MenuAnchorPosition::kBubbleBottomRight,
-                            params.source_type);
+                            source);
   }
   return true;
 }
@@ -92,7 +93,8 @@ void WebUIReloadControl::ExecuteCommand(int command_id, int event_flags) {
 }
 
 void WebUIReloadControl::SetReloadButtonUIState() {
-  CHECK(webui_toolbar_web_view_->webui_toolbar_ui());
-  webui_toolbar_web_view_->webui_toolbar_ui()->SetReloadButtonState(
+  auto* webui_toolbar_ui = webui_toolbar_web_view_->GetWebUIToolbarUI();
+  CHECK(webui_toolbar_ui);
+  webui_toolbar_ui->SetReloadButtonState(
       /*is_loading=*/mode_ == ReloadControl::Mode::kStop, is_menu_enabled_);
 }

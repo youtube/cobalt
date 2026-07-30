@@ -147,9 +147,6 @@ class BrowserTabStripController : public TabStripController,
                               std::optional<tab_groups::TabGroupId> new_group,
                               tabs::TabInterface* tab,
                               int index) override;
-  void OnTabNeedsAttentionChanged(int index, bool attention) override;
-  void OnTabGroupNeedsAttentionChanged(const tab_groups::TabGroupId& group,
-                                       bool attention) override;
   void OnSplitTabChanged(const SplitTabChange& change) override;
   void OnTabGroupFocusChanged(
       std::optional<tab_groups::TabGroupId> new_group_id,
@@ -197,11 +194,7 @@ class BrowserTabStripController : public TabStripController,
   // tabs.
   std::unique_ptr<ImmersiveRevealedLock> immersive_reveal_lock_;
 
-  PrefChangeRegistrar local_state_registrar_;
-
   std::unique_ptr<TabMenuModelFactory> menu_model_factory_;
-
-  bool should_show_discard_indicator_ = true;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_TABS_BROWSER_TAB_STRIP_CONTROLLER_H_

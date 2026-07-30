@@ -18,7 +18,6 @@
 
 #include "base/check.h"
 #include "base/command_line.h"
-#include "base/containers/contains.h"
 #include "base/containers/span_reader.h"
 #include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
@@ -5392,15 +5391,6 @@ bool RenderFrameHostImpl::IsThirdPartyStoragePartitioningEnabled(
     return false;
   }
 
-  // If the enterprise policy blocks, we have directive to override the
-  // current value of net::features::ThirdPartyStoragePartitioning.
-  // We can safely read the last committed-origin (even during navigation)
-  // as we know we are not in the main-frame since that case is filtered above.
-  if (!GetContentClient()->browser()->IsThirdPartyStoragePartitioningAllowed(
-          GetBrowserContext(),
-          main_frame_for_storage_partitioning->GetLastCommittedOrigin())) {
-    return false;
-  }
   return blink::StorageKey::IsThirdPartyStoragePartitioningEnabled();
 }
 
@@ -7538,10 +7528,9 @@ void RenderFrameHostImpl::ShowCreatedWindow(
   RenderFrameHostImpl* opener_frame_host =
       FromFrameToken(GetProcess()->GetDeprecatedID(), opener_frame_token);
 
-  // If |opener_frame_host| has been destroyed just return.
-  // TODO(crbug.com/40158114): Get rid of having to look up the opener frame
-  // to find the newly created web contents, because it is actually just
-  // |delegate_|.
+  // If |opener_frame_host| has been destroyed, just return. The opener frame is
+  // needed to find the newly created web contents. See crbug.com/40158114 for
+  // context.
   if (!opener_frame_host) {
     std::move(callback).Run();
     return;
@@ -7839,8 +7828,8 @@ void RenderFrameHostImpl::AllowBindings(BindingsPolicySet bindings) {
       !RenderProcessHost::run_renderer_in_process()) {
     ProcessLock process_lock = GetProcess()->GetProcessLock();
     if (!process_lock.IsLockedToSite() ||
-        !base::Contains(URLDataManagerBackend::GetWebUISchemes(),
-                        process_lock.GetProcessLockURL().GetScheme())) {
+        !std::ranges::contains(URLDataManagerBackend::GetWebUISchemes(),
+                               process_lock.GetProcessLockURL().GetScheme())) {
       SCOPED_CRASH_KEY_STRING256("AllowBindings", "process_lock",
                                  process_lock.ToString());
       NOTREACHED() << "Calling AllowBindings for a process not locked to WebUI:"
@@ -10546,7 +10535,7 @@ void RenderFrameHostImpl::MaybeSendFencedFrameAutomaticReportingBeacon(
     // the event's "destination" for setReportEventDataForAutomaticBeacons().
     // For cross-origin frames, the data must be opted in to being used for
     // cross-origin beacons.
-    if (info && base::Contains(info->destinations, destination) &&
+    if (info && std::ranges::contains(info->destinations, destination) &&
         (is_same_origin || info->cross_origin_exposed)) {
       data = info->data;
     }
@@ -12547,7 +12536,7 @@ void RenderFrameHostImpl::CommitNavigation(
 
     // See if this is for WebUI.
     const auto& webui_schemes = URLDataManagerBackend::GetWebUISchemes();
-    if (base::Contains(webui_schemes, effective_scheme)) {
+    if (std::ranges::contains(webui_schemes, effective_scheme)) {
       mojo::PendingRemote<network::mojom::URLLoaderFactory> factory_for_webui =
           url_loader_factory::CreatePendingRemote(
               ContentBrowserClient::URLLoaderFactoryType::kDocumentSubResource,
@@ -12998,8 +12987,8 @@ void RenderFrameHostImpl::AddResourceTimingEntryForFailedSubframeNavigation(
       response_head->request_start, response_head->response_start, status_code,
       mime_type, response_head->load_timing, response_head->connection_info,
       response_head->alpn_negotiated_protocol,
-      base::Contains(url::GetSecureSchemes(),
-                     url::Origin::Create(final_url).scheme()),
+      std::ranges::contains(url::GetSecureSchemes(),
+                            url::Origin::Create(final_url).scheme()),
       response_head->is_validated, normalized_server_timing, completion_status);
 }
 

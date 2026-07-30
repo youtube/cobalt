@@ -132,7 +132,7 @@
 #include "chrome/browser/ui/views/exclusive_access_bubble_views.h"
 #include "chrome/browser/ui/views/exclusive_access_bubble_views_context.h"
 #include "chrome/browser/ui/views/extensions/extension_keybinding_registry_views.h"
-#include "chrome/browser/ui/views/extensions/extensions_toolbar_container.h"
+#include "chrome/browser/ui/views/extensions/extensions_toolbar_desktop.h"
 #include "chrome/browser/ui/views/eye_dropper/eye_dropper.h"
 #include "chrome/browser/ui/views/find_bar_host.h"
 #include "chrome/browser/ui/views/frame/app_menu_button.h"
@@ -141,6 +141,7 @@
 #include "chrome/browser/ui/views/frame/contents_container_view.h"
 #include "chrome/browser/ui/views/frame/contents_layout_manager.h"
 #include "chrome/browser/ui/views/frame/contents_separator.h"
+#include "chrome/browser/ui/views/frame/custom_floating_corner.h"
 #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout_delegate_impl.h"
@@ -962,10 +963,16 @@ BrowserView::BrowserView(Browser* browser)
     auto vertical_tab_strip_container =
         std::make_unique<VerticalTabStripRegionView>(
             vertical_tab_strip_state_controller,
-            browser_->GetActions()->root_action_item(), browser_, this);
+            browser_->GetActions()->root_action_item(), this);
 
     vertical_tab_strip_region_view_ =
         AddChildView(std::move(vertical_tab_strip_container));
+
+    vertical_tabs_strip_bottom_corner_ =
+        AddChildView(std::make_unique<CustomFloatingCorner>(
+            *this, CustomFloatingCorner::CornerOrientation::kBottomLeading,
+            views::ShapeContextTokens::kContentSeparatorRadius,
+            CustomFloatingCorner::FrameColor()));
   }
 
   if (tabs::IsProjectsPanelFeatureEnabled()) {
@@ -1073,6 +1080,7 @@ BrowserView::~BrowserView() {
   window_scrim_view_ = nullptr;
   contents_container_ = nullptr;
   vertical_tab_strip_region_view_ = nullptr;
+  vertical_tabs_strip_bottom_corner_ = nullptr;
   projects_panel_container_ = nullptr;
   toolbar_height_side_panel_ = nullptr;
   contents_height_side_panel_ = nullptr;
@@ -1158,14 +1166,25 @@ gfx::Rect BrowserView::GetFindBarBoundingBox() const {
   return contents_container_->GetMirroredRect(contents_bounds);
 }
 
-int BrowserView::GetTabStripHeight() const {
+ClientFrameElementInfo BrowserView::GetFrameElementInfo() const {
   // We want to return tabstrip_->height(), but we might be called in the midst
   // of layout, when that hasn't yet been updated to reflect the current state.
   // So return what the tabstrip height _ought_ to be right now.
-  return ShouldDrawTabStrip() ? horizontal_tab_strip_region_view_->tab_strip()
-                                    ->GetPreferredSize()
-                                    .height()
-                              : 0;
+  ClientFrameElementInfo info;
+  info.tabstrip_preferred_height =
+      horizontal_tab_strip_region_view_ && ShouldDrawTabStrip() &&
+              !ShouldDrawVerticalTabStrip()
+          ? horizontal_tab_strip_region_view_->GetTabStripView()
+                ->GetPreferredSize()
+                .height()
+          : 0;
+  if (toolbar_ && ShouldDrawVerticalTabStrip()) {
+    info.toolbar_minimum_height = toolbar_->GetMinimumSize().height();
+  } else if (web_app_frame_toolbar_ && ShouldDrawWebAppFrameToolbar()) {
+    info.toolbar_minimum_height =
+        web_app_frame_toolbar_->GetMinimumSize().height();
+  }
+  return info;
 }
 
 gfx::Size BrowserView::GetWebAppFrameToolbarPreferredSize() const {
@@ -1324,6 +1343,11 @@ bool BrowserView::ShouldDrawVerticalTabStrip() const {
   auto* controller = tabs::VerticalTabStripStateController::From(browser_);
   return ShouldDrawTabStrip() && controller &&
          controller->ShouldDisplayVerticalTabs();
+}
+
+bool BrowserView::ShouldDrawWebAppFrameToolbar() const {
+  return !IsBorderlessModeEnabled() &&
+         GetFrameView()->ShouldShowWebAppFrameToolbar();
 }
 
 bool BrowserView::IsVerticalTabStripCollapsed() const {
@@ -2294,8 +2318,8 @@ void BrowserView::FocusToolbar() {
 }
 
 ExtensionsContainer* BrowserView::GetExtensionsContainer() {
-  ExtensionsToolbarContainer* container =
-      toolbar_button_provider_->GetExtensionsToolbarContainer();
+  ExtensionsToolbarDesktop* container =
+      toolbar_button_provider_->GetExtensionsToolbarDesktop();
   return container ? container->GetToolbarViewModel() : nullptr;
 }
 
@@ -3056,7 +3080,7 @@ bool BrowserView::IsToolbarShowing() const {
 bool BrowserView::IsLocationBarVisible() const {
   return browser_->SupportsWindowFeature(
              Browser::WindowFeature::kFeatureLocationBar) &&
-         GetLocationBarView()->GetVisible();
+         GetLocationBar()->IsVisible();
 }
 
 void BrowserView::ShowUpdateChromeDialog() {
@@ -3091,11 +3115,11 @@ BrowserView::ShowQRCodeGeneratorBubble(content::WebContents* contents,
     on_back_button_pressed = controller->GetOnBackButtonPressedCallback();
   }
 
-  views::View* anchor_view =
-      toolbar_button_provider()->GetAnchorView(kActionQrCodeGenerator);
+  auto anchor =
+      toolbar_button_provider()->GetBubbleAnchor(kActionQrCodeGenerator);
 
   auto* bubble = new qrcode_generator::QRCodeGeneratorBubble(
-      anchor_view, contents->GetWeakPtr(), std::move(on_closing),
+      anchor, contents->GetWeakPtr(), std::move(on_closing),
       std::move(on_back_button_pressed), url);
 
   views::BubbleDialogDelegateView::CreateBubble(bubble);
@@ -3107,7 +3131,7 @@ sharing_hub::ScreenshotCapturedBubble*
 BrowserView::ShowScreenshotCapturedBubble(content::WebContents* contents,
                                           const gfx::Image& image) {
   auto* bubble = new sharing_hub::ScreenshotCapturedBubble(
-      toolbar_button_provider()->GetAnchorView(std::nullopt), contents, image,
+      toolbar_button_provider()->GetBubbleAnchor(std::nullopt), contents, image,
       browser_->GetProfile());
 
   views::BubbleDialogDelegateView::CreateBubble(bubble);
@@ -3122,7 +3146,7 @@ SharingDialog* BrowserView::ShowSharingDialog(
   // be hardcoded to anchor off the shared clipboard bubble, but that bubble is
   // now gone altogether.
   auto* dialog_view = new SharingDialogView(
-      toolbar_button_provider()->GetAnchorView(std::nullopt), web_contents,
+      toolbar_button_provider()->GetBubbleAnchor(std::nullopt), web_contents,
       std::move(data));
 
   views::BubbleDialogDelegateView::CreateBubble(dialog_view)->Show();
@@ -3133,10 +3157,10 @@ SharingDialog* BrowserView::ShowSharingDialog(
 send_tab_to_self::SendTabToSelfBubbleView*
 BrowserView::ShowSendTabToSelfDevicePickerBubble(
     content::WebContents* web_contents) {
-  views::View* anchor_view =
-      toolbar_button_provider()->GetAnchorView(kActionSendTabToSelf);
+  auto anchor =
+      toolbar_button_provider()->GetBubbleAnchor(kActionSendTabToSelf);
   auto* bubble = new send_tab_to_self::SendTabToSelfDevicePickerBubbleView(
-      anchor_view, web_contents);
+      anchor, web_contents);
 
   views::BubbleDialogDelegateView::CreateBubble(bubble);
   // This is always triggered due to a user gesture, c.f. this method's
@@ -3148,10 +3172,10 @@ BrowserView::ShowSendTabToSelfDevicePickerBubble(
 send_tab_to_self::SendTabToSelfBubbleView*
 BrowserView::ShowSendTabToSelfPromoBubble(content::WebContents* web_contents,
                                           bool show_signin_button) {
-  views::View* anchor_view =
-      toolbar_button_provider()->GetAnchorView(kActionSendTabToSelf);
+  auto anchor =
+      toolbar_button_provider()->GetBubbleAnchor(kActionSendTabToSelf);
   auto* bubble = new send_tab_to_self::SendTabToSelfPromoBubbleView(
-      anchor_view, web_contents, show_signin_button);
+      anchor, web_contents, show_signin_button);
 
   views::BubbleDialogDelegateView::CreateBubble(bubble);
   // This is always triggered due to a user gesture, c.f. method documentation.
@@ -3175,7 +3199,7 @@ void BrowserView::ToggleMultitaskMenu() {
 sharing_hub::SharingHubBubbleView* BrowserView::ShowSharingHubBubble(
     share::ShareAttempt attempt) {
   auto* bubble = new sharing_hub::SharingHubBubbleViewImpl(
-      toolbar_button_provider()->GetAnchorView(std::nullopt), attempt,
+      toolbar_button_provider()->GetBubbleAnchor(std::nullopt), attempt,
       sharing_hub::SharingHubBubbleController::CreateOrGetFromWebContents(
           attempt.web_contents.get()));
   PageActionIconView* icon_view =
@@ -3249,7 +3273,7 @@ void BrowserView::StartPartialTranslate(const std::string& source_language,
   CHECK_DEREF(TranslateBubbleController::From(browser_.get()))
       .StartPartialTranslate(
           GetActiveWebContents(),
-          toolbar_button_provider()->GetAnchorView(kActionShowTranslate),
+          toolbar_button_provider()->GetBubbleAnchor(kActionShowTranslate),
           translate_icon, source_language, target_language, text_selection);
 }
 
@@ -3923,11 +3947,8 @@ std::u16string BrowserView::GetAccessibleTabLabel(int index,
   }
 
   // Tab has a pending permission request.
-  if (toolbar_ && toolbar_->location_bar() &&
-      toolbar_->location_bar()->GetChipController() &&
-      toolbar_->location_bar()
-          ->GetChipController()
-          ->IsPermissionPromptChipVisible()) {
+  if (GetLocationBar() && GetLocationBar()->GetChipController() &&
+      GetLocationBar()->GetChipController()->IsPermissionPromptChipVisible()) {
     return l10n_util::GetStringFUTF16(
         IDS_TAB_AX_LABEL_PERMISSION_REQUESTED_FORMAT, title);
   }
@@ -4871,7 +4892,11 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
   // The top container while in immersive fullscreen on macOS lives in another
   // Widget (OverlayWidgetMac). This means that BrowserView does not need to
   // consult BrowserViewLayout::NonClientHitTest() to calculate the hit test.
-  if (ImmersiveModeController::From(browser())->IsEnabled()) {
+  //
+  // Note that this can occasionally be hit during teardown, so check if the
+  // controller still exists.
+  if (auto* controller = ImmersiveModeController::From(browser());
+      controller && controller->IsEnabled()) {
     // Handle hits on the overlay widget when it is hovering overtop of the
     // content view.
     gfx::Point screen_point(point);
@@ -4954,6 +4979,12 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
           return HTCAPTION;
         }
         return HTCLIENT;
+      } else {
+        gfx::Point test_point2(point);
+        if (ConvertedHitTest(parent(), top_container_, &test_point2) &&
+            top_container_->IsPositionInWindowCaption(test_point2)) {
+          return HTCAPTION;
+        }
       }
     } else {
       // See if the mouse pointer is within the bounds of the
@@ -5238,6 +5269,8 @@ void BrowserView::AddedToWidget() {
   layout_views.horizontal_tab_strip_region_view =
       horizontal_tab_strip_region_view_;
   layout_views.vertical_tab_strip_region_view = vertical_tab_strip_region_view_;
+  layout_views.vertical_tab_strip_bottom_corner =
+      vertical_tabs_strip_bottom_corner_;
   layout_views.projects_panel_container = projects_panel_container_;
   layout_views.toolbar = toolbar_;
   layout_views.infobar_container = infobar_container_;
@@ -6282,7 +6315,6 @@ void BrowserView::ApplyScreenshotSettings(bool allow) {
 
 BEGIN_METADATA(BrowserView)
 ADD_READONLY_PROPERTY_METADATA(gfx::Rect, FindBarBoundingBox)
-ADD_READONLY_PROPERTY_METADATA(int, TabStripHeight)
 ADD_READONLY_PROPERTY_METADATA(bool, TabStripVisible)
 ADD_READONLY_PROPERTY_METADATA(bool, Incognito)
 ADD_READONLY_PROPERTY_METADATA(bool, GuestSession)

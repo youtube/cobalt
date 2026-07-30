@@ -161,6 +161,7 @@
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/perfetto/include/perfetto/tracing/track.h"
+#include "third_party/perfetto/include/perfetto/tracing/track_event_args.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom-blink.h"
 #include "ui/base/mojom/menu_source_type.mojom-blink-forward.h"
 #include "ui/base/mojom/window_show_state.mojom-blink.h"
@@ -857,10 +858,8 @@ void WebFrameWidgetImpl::BindInputTargetClient(
 void WebFrameWidgetImpl::FrameSinkIdAt(const gfx::PointF& point,
                                        const uint64_t trace_id,
                                        FrameSinkIdAtCallback callback) {
-  TRACE_EVENT_WITH_FLOW1("viz,benchmark", "Event.Pipeline",
-                         TRACE_ID_GLOBAL(trace_id),
-                         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT,
-                         "step", "FrameSinkIdAt");
+  TRACE_EVENT("viz,benchmark", "Event.Pipeline",
+              perfetto::Flow::Global(trace_id), "step", "FrameSinkIdAt");
 
   gfx::PointF local_point;
   viz::FrameSinkId id = GetFrameSinkIdAtPoint(point, &local_point);
@@ -4143,8 +4142,9 @@ void WebFrameWidgetImpl::GetCompositionCharacterBoundsInWindow(
 #if BUILDFLAG(IS_ANDROID)
 namespace {
 
-void GetLineBounds(Vector<gfx::QuadF>& line_quads, Node* editor_node) {
-  for (const Node& node : NodeTraversal::DescendantsOf(*editor_node)) {
+void GetLineBounds(Vector<gfx::QuadF>& line_quads,
+                   TextControlInnerEditorElement* inner_editor) {
+  for (const Node& node : NodeTraversal::DescendantsOf(*inner_editor)) {
     if (!node.GetLayoutObject() || !node.GetLayoutObject()->IsText()) {
       continue;
     }
@@ -4161,32 +4161,21 @@ Vector<gfx::Rect> WebFrameWidgetImpl::CalculateVisibleLineBoundsOnScreen() {
   if (!focused_element) {
     return bounds_in_dips;
   }
-
-  Node* editor_node;
-  if (TextControlElement* text_control = ToTextControlOrNull(focused_element);
-      text_control && !text_control->IsDisabledOrReadOnly() &&
-      !text_control->Value().empty()) {
-    editor_node = text_control->InnerEditorElement();
-  } else if (IsEditable(*focused_element) &&
-             !focused_element->textContent().empty()) {
-    editor_node = focused_element;
-  } else {
-    return bounds_in_dips;
-  }
-
-  LayoutObject* layout_object = focused_element->GetLayoutObject();
-  if (!layout_object) {
+  TextControlElement* text_control = ToTextControlOrNull(focused_element);
+  if (!text_control || text_control->IsDisabledOrReadOnly() ||
+      text_control->Value().empty() || !text_control->GetLayoutObject()) {
     return bounds_in_dips;
   }
 
   Vector<gfx::QuadF> bounds_from_blink;
-  GetLineBounds(bounds_from_blink, editor_node);
+  GetLineBounds(bounds_from_blink, text_control->InnerEditorElement());
 
   gfx::Rect screen = LocalRootImpl()->GetFrameView()->FrameToScreen(
       GetPage()->GetVisualViewport().VisibleContentRect());
   for (auto& quad : bounds_from_blink) {
-    gfx::Rect bounding_box = layout_object->GetFrameView()->FrameToScreen(
-        gfx::ToRoundedRect(quad.BoundingBox()));
+    gfx::Rect bounding_box =
+        focused_element->GetLayoutObject()->GetFrameView()->FrameToScreen(
+            gfx::ToRoundedRect(quad.BoundingBox()));
     bounding_box.Intersect(screen);
     if (bounding_box.IsEmpty()) {
       continue;
@@ -4208,15 +4197,9 @@ void WebFrameWidgetImpl::UpdateCursorAnchorInfo(bool update_requested) {
   if (!focused_element) {
     return;
   }
-
-  // Only update cursor for active text controls or contenteditable elements.
-  if (TextControlElement* text_control = ToTextControlOrNull(focused_element);
-      (!text_control || text_control->IsDisabledOrReadOnly()) &&
-      !IsEditable(*focused_element)) {
-    return;
-  }
-  LayoutObject* layout_object = focused_element->GetLayoutObject();
-  if (!layout_object) {
+  TextControlElement* text_control = ToTextControlOrNull(focused_element);
+  if (!text_control || text_control->IsDisabledOrReadOnly() ||
+      !text_control->GetLayoutObject()) {
     return;
   }
 
@@ -4237,7 +4220,8 @@ void WebFrameWidgetImpl::UpdateCursorAnchorInfo(bool update_requested) {
 
   mojom::blink::TextAppearanceInfoPtr text_appearance_info =
       mojom::blink::TextAppearanceInfo::New(
-          layout_object->StyleRef()
+          text_control->GetLayoutObject()
+              ->StyleRef()
               .VisitedDependentColor(GetCSSPropertyColor())
               .Rgb());
 

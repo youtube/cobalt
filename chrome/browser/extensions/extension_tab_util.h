@@ -201,6 +201,11 @@ class ExtensionTabUtil {
   // Gets the extensions-specific split view ID.
   static int GetSplitId(const split_tabs::SplitTabId& id);
 
+  // Returns true if the `browser` supports tab groups in its tab strip. For
+  // example, tab groups are not supported by many app types (PWAs, WebApks,
+  // Chrome Apps, etc.).
+  static bool SupportsTabGroups(BrowserWindowInterface* browser);
+
   // Gets the metadata for the group with ID `group_id`. Sets the `error` if not
   // found. `out_window`, `out_id`, or `out_visual_data` may be nullptr and will
   // not be set within the function if so.
@@ -301,7 +306,7 @@ class ExtensionTabUtil {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // Open the extension's options page. Returns true if an options page was
   // successfully opened (though it may not necessarily *load*, e.g. if the
-  // URL does not exist). This call to open the options page is iniatiated by
+  // URL does not exist). This call to open the options page is initiated by
   // the extension via chrome.runtime.openOptionsPage.
   static bool OpenOptionsPageFromAPI(const Extension* extension,
                                      content::BrowserContext* browser_context);
@@ -313,11 +318,9 @@ class ExtensionTabUtil {
   static bool OpenOptionsPage(const Extension* extension,
                               BrowserWindowInterface* browser);
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
   // Returns true if the given Browser can report tabs to extensions.
   // Example of Browsers which don't support tabs include apps and devtools.
   static bool BrowserSupportsTabs(BrowserWindowInterface* browser);
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
   // Determines the loading status of the given `contents`. This needs to access
   // some non-const member functions of `contents`, but actually leaves it

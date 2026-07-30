@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/memory/raw_ref.h"
 #include "components/policy/policy_export.h"
 #include "components/policy/proto/device_management_backend.pb.h"
 
@@ -35,12 +36,19 @@ struct POLICY_EXPORT ExtensionIdAndVersion {
 
   bool operator<(const ExtensionIdAndVersion& other) const;
   bool operator==(const ExtensionIdAndVersion& other) const;
+
+  std::string ToString() const;
 };
 
-class POLICY_EXPORT CloudPolicyClientTypeParams {
+class POLICY_EXPORT PolicyTypeToFetch {
  public:
-  using ExtensionSetCallback =
-      base::RepeatingCallback<std::set<ExtensionIdAndVersion>()>;
+  class ExtensionsProvider {
+   public:
+    virtual std::set<ExtensionIdAndVersion> GetExtensions() = 0;
+  };
+
+  using ExtensionsProviderRef = raw_ref<ExtensionsProvider>;
+
   // When used in a set, `policy_type` and |settings_entity_id| will be used
   // as the primary key. Only one of |settings_entity_id| and
   // `extension_ids_and_version|` is only used for the policy type
@@ -53,26 +61,22 @@ class POLICY_EXPORT CloudPolicyClientTypeParams {
   //  -  When fetching for a single extension id and version,
   //  `settings_entity_id`
   //     must be also set to `{extension_id}@{extension_version}`.
-  CloudPolicyClientTypeParams(const std::string& policy_type,
-                              const std::string& settings_entity_id);
+  PolicyTypeToFetch(const std::string& policy_type,
+                    const std::string& settings_entity_id);
 
-  CloudPolicyClientTypeParams(const std::string& policy_type,
-                              ExtensionIdAndVersion extension_id_and_version);
+  PolicyTypeToFetch(const std::string& policy_type,
+                    ExtensionsProvider* extension_set_provider);
 
-  CloudPolicyClientTypeParams(
-      const std::string& policy_type,
-      ExtensionSetCallback extension_ids_and_version_getter);
+  PolicyTypeToFetch(const PolicyTypeToFetch&);
+  PolicyTypeToFetch(PolicyTypeToFetch&&);
 
-  CloudPolicyClientTypeParams(const CloudPolicyClientTypeParams&);
-  CloudPolicyClientTypeParams(CloudPolicyClientTypeParams&&);
+  ~PolicyTypeToFetch();
 
-  ~CloudPolicyClientTypeParams();
+  PolicyTypeToFetch& operator=(const PolicyTypeToFetch&);
+  PolicyTypeToFetch& operator=(PolicyTypeToFetch&&);
 
-  CloudPolicyClientTypeParams& operator=(const CloudPolicyClientTypeParams&);
-  CloudPolicyClientTypeParams& operator=(CloudPolicyClientTypeParams&&);
-
-  bool operator<(const CloudPolicyClientTypeParams& other) const;
-  bool operator==(const CloudPolicyClientTypeParams& other) const;
+  std::strong_ordering operator<=>(const PolicyTypeToFetch& other) const =
+      default;
 
   const std::string& policy_type() const { return policy_type_; }
   std::string settings_entity_id() const;
@@ -80,7 +84,7 @@ class POLICY_EXPORT CloudPolicyClientTypeParams {
 
  private:
   std::string policy_type_;
-  std::variant<std::string, ExtensionSetCallback> extra_param_;
+  std::variant<std::string, ExtensionsProviderRef> extra_param_;
 };
 
 }  // namespace policy

@@ -14,6 +14,9 @@
 namespace contextual_tasks {
 
 BASE_DECLARE_FEATURE(kContextualTasks);
+// When enabled, it should instead request the kSearchResultsOAuth2Scope instead
+// of the kChromeSyncOAuth2Scope
+BASE_DECLARE_FEATURE(kContextualTasksScopeChange);
 BASE_DECLARE_FEATURE(kContextualTasksContext);
 BASE_DECLARE_FEATURE(kContextualTasksContextLibrary);
 BASE_DECLARE_FEATURE(kContextualTasksContextLogging);
@@ -44,12 +47,10 @@ enum class EntryPointOption {
   kToolbarPermanent
 };
 
-// The minimum score required for two embeddings to be considered similar.
-extern const base::FeatureParam<double> kMinEmbeddingSimilarityScore;
 // Whether to only consider titles for similarity.
 extern const base::FeatureParam<bool> kOnlyUseTitlesForSimilarity;
-// Minimum score, computed using multiple signals, to consider a tab relevant.
-extern const base::FeatureParam<double> kMinMultiSignalScore;
+// Minimum score to consider a tab relevant.
+extern const base::FeatureParam<double> kTabSelectionScoreThreshold;
 // Minimum score required for a tab to be considered visible.
 extern const base::FeatureParam<double> kContentVisibilityThreshold;
 
@@ -106,6 +107,9 @@ extern int GetContextualTasksShowOnboardingTooltipSessionImpressionCap();
 // user before it no longer shows up.
 extern int GetContextualTasksOnboardingTooltipDismissedCap();
 
+// The delay in milliseconds before the onboarding tooltip is considered shown.
+extern int GetContextualTasksOnboardingTooltipImpressionDelay();
+
 // Returns if voice search is allowed in expanded composebox.
 extern bool GetIsExpandedComposeboxVoiceSearchEnabled();
 
@@ -157,6 +161,10 @@ extern std::string GetContextualTasksHelpUrl();
 
 // Returns whether smart compose is enabled for Contextual Tasks.
 extern bool GetEnableContextualTasksSmartCompose();
+
+// Returns whether the kSearchResultsOAuth2Scope should be used instead of the
+// kChromeSyncOAuth2Scope.
+extern bool ShouldUseSearchResultsScope();
 
 namespace flag_descriptions {
 

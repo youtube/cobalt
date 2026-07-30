@@ -4,6 +4,7 @@
 
 #include "chrome/browser/web_applications/web_app_install_utils.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <map>
 #include <optional>
@@ -16,7 +17,6 @@
 
 #include "base/check.h"
 #include "base/check_op.h"
-#include "base/containers/contains.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/feature_list.h"
@@ -60,6 +60,7 @@
 #include "mojo/public/cpp/bindings/struct_ptr.h"
 #include "net/http/http_util.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/manifest/manifest.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -388,7 +389,7 @@ void PopulateFileHandlerInfoFromManifest(
           icon_info.url = image_resource.src;
           icon_info.purpose =
               ManifestPurposeToIconInfoPurpose(manifest_purpose);
-          if (base::Contains(image_resource.sizes, gfx::Size()) &&
+          if (std::ranges::contains(image_resource.sizes, gfx::Size()) &&
               image_resource.src.spec().find(".svg") != std::string::npos) {
             web_app_info->icons_with_size_any
                 .file_handling_icons[manifest_purpose] = image_resource.src;
@@ -725,7 +726,18 @@ void SetWebAppManifestFields(const WebAppInstallInfo& web_app_info,
   DCHECK(!web_app_info.title.empty());
   web_app.SetName(base::UTF16ToUTF8(web_app_info.title.value()));
 
-  web_app.SetStartUrl(web_app_info.start_url());
+  const GURL& start_url = web_app_info.start_url();
+  CHECK(start_url.is_valid());
+  web_app.SetStartUrl(start_url);
+  // TODO(crbug.com/384536509): Enforce this with a CHECK after verifying this
+  // doesn't happen in the codebase.
+  if (!base::StartsWith(start_url.spec(), web_app_info.scope.spec(),
+                        base::CompareCase::SENSITIVE)) {
+    web_app.SetScope(start_url.GetWithoutFilename());
+  } else {
+    web_app.SetScope(web_app_info.scope);
+  }
+  CHECK(web_app.scope().is_valid());
 
   web_app.SetDisplayMode(web_app_info.display_mode);
   web_app.SetDisplayModeOverride(web_app_info.display_override);
@@ -734,12 +746,6 @@ void SetWebAppManifestFields(const WebAppInstallInfo& web_app_info,
 
   web_app.SetDescription(base::UTF16ToUTF8(web_app_info.description.value()));
   web_app.SetLaunchQueryParams(web_app_info.launch_query_params);
-  if (web_app_info.scope.is_valid()) {
-    web_app.SetScope(web_app_info.scope);
-  } else {
-    web_app.SetScope(web_app_info.start_url().GetWithoutFilename());
-  }
-  CHECK(!web_app.scope().is_empty());
 
   DCHECK(!web_app_info.theme_color.has_value() ||
          SkColorGetA(*web_app_info.theme_color) == SK_AlphaOPAQUE);
@@ -815,6 +821,10 @@ void SetWebAppManifestFields(const WebAppInstallInfo& web_app_info,
   if (web_app_info.validated_scope_extensions.has_value()) {
     web_app.SetValidatedScopeExtensions(
         web_app_info.validated_scope_extensions.value());
+  }
+
+  if (base::FeatureList::IsEnabled(blink::features::kWebAppMigrationApi)) {
+    web_app.SetUnvalidatedMigrationSources(web_app_info.migration_sources);
   }
 
   web_app.SetIsDiyApp(web_app_info.is_diy_app);

@@ -35,9 +35,25 @@ struct Event {
   enum class Type {
     TAB_ADDED,
     ACTIVE_TAB_CHANGED,
+    TAB_REMOVED,
+    TAB_MOVED,
   };
+
+  Event(Type type, raw_ptr<tabs::TabInterface> tab)
+      : type(type),
+        tab(tab),
+        tab_url(tab->GetContents()->GetLastCommittedURL()) {}
+
   Type type;
   raw_ptr<tabs::TabInterface> tab;
+
+  // The URL of the tab at the time of the event. This is stored separately
+  // because `tab` may be null (for removed tabs) or destroyed later.
+  GURL tab_url;
+
+  // Used for TAB_MOVED events.
+  int from_index = -1;
+  int to_index = -1;
 };
 
 // A fake implementation of TabListInterfaceObserver that records callback
@@ -63,11 +79,28 @@ class FakeObserver : public TabListInterfaceObserver {
 
   // TabListInterfaceObserver:
   void OnTabAdded(tabs::TabInterface* tab, int index) override {
-    events_.push_back(Event{Event::Type::TAB_ADDED, tab});
+    events_.emplace_back(Event::Type::TAB_ADDED, tab);
   }
 
   void OnActiveTabChanged(tabs::TabInterface* tab) override {
-    events_.push_back(Event{Event::Type::ACTIVE_TAB_CHANGED, tab});
+    events_.emplace_back(Event::Type::ACTIVE_TAB_CHANGED, tab);
+  }
+
+  void OnTabRemoved(tabs::TabInterface* tab) override {
+    Event event(Event::Type::TAB_REMOVED, tab);
+
+    // The tab may be destroyed after removal, so we avoid accessing it later.
+    event.tab = nullptr;
+    events_.push_back(std::move(event));
+  }
+
+  void OnTabMoved(tabs::TabInterface* tab,
+                  int from_index,
+                  int to_index) override {
+    Event event(Event::Type::TAB_MOVED, tab);
+    event.from_index = from_index;
+    event.to_index = to_index;
+    events_.push_back(std::move(event));
   }
 
  private:
@@ -978,4 +1011,67 @@ IN_PROC_BROWSER_TEST_F(TabListBridgeBrowserTest,
   EXPECT_EQ(
       "3g0 4g0 5g0 0g1 1g1",
       GetTabStripStateString(destination_model, /*annotate_groups=*/true));
+}
+
+IN_PROC_BROWSER_TEST_F(TabListBridgeBrowserTest, Observer_OnTabRemoved) {
+  const GURL url1("http://one.example");
+  const GURL url2("http://two.example");
+
+  TabListInterface* tab_list_interface = TabListBridge::From(browser());
+  ASSERT_TRUE(tab_list_interface);
+
+  // Navigate to one.example in the current tab.
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), url1, WindowOpenDisposition::CURRENT_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+
+  // Open a new tab in the background.
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), url2, WindowOpenDisposition::NEW_BACKGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+
+  FakeObserver observer(tab_list_interface);
+
+  // Close the second tab.
+  tab_list_interface->CloseTab(tab_list_interface->GetTab(1)->GetHandle());
+
+  // We should have received one TAB_CLOSED event corresponding to the second
+  // tab.
+  EXPECT_EQ(url2, observer.ReadEvent(Event::Type::TAB_REMOVED).tab_url);
+}
+
+IN_PROC_BROWSER_TEST_F(TabListBridgeBrowserTest, Observer_OnTabMoved) {
+  // Create three tabs.
+  const GURL url1("http://one.example");
+  const GURL url2("http://two.example");
+  const GURL url3("http://three.example");
+
+  TabListInterface* tab_list_interface = TabListBridge::From(browser());
+  ASSERT_TRUE(tab_list_interface);
+
+  // Navigate to one.example in the current tab.
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), url1, WindowOpenDisposition::CURRENT_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+
+  // Open a new tab in the background.
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), url2, WindowOpenDisposition::NEW_BACKGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+
+  // Open a third tab in the background.
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), url3, WindowOpenDisposition::NEW_BACKGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+
+  FakeObserver observer(tab_list_interface);
+
+  // Move the first tab to the end.
+  tab_list_interface->MoveTab(tab_list_interface->GetTab(0)->GetHandle(), 2);
+
+  // We should have received one TAB_MOVED event corresponding to the first tab.
+  auto event = observer.ReadEvent(Event::Type::TAB_MOVED);
+  EXPECT_EQ(url1, event.tab_url);
+  EXPECT_EQ(0, event.from_index);
+  EXPECT_EQ(2, event.to_index);
 }

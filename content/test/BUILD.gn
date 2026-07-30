@@ -2760,6 +2760,7 @@ test("content_unittests") {
     "../browser/mojo_binder_policy_map_impl_unittest.cc",
     "../browser/network/cross_origin_embedder_policy_reporter_unittest.cc",
     "../browser/network/network_quality_observer_impl_unittest.cc",
+    "../browser/network/reporting_service_proxy_unittest.cc",
     "../browser/network/socket_broker_impl_unittest.cc",
     "../browser/network_context_client_base_impl_unittest.cc",
     "../browser/network_service_instance_impl_unittest.cc",
@@ -2995,6 +2996,7 @@ test("content_unittests") {
     "../browser/webid/delegation/jwt_signer_unittest.cc",
     "../browser/webid/delegation/sd_jwt_unittest.cc",
     "../browser/webid/disconnect_request_unittest.cc",
+    "../browser/webid/identity_credential_source_impl_unittest.cc",
     "../browser/webid/identity_registry_unittest.cc",
     "../browser/webid/idp_network_request_manager_unittest.cc",
     "../browser/webid/mappers_unittest.cc",
@@ -3673,6 +3675,9 @@ test("content_unittests") {
         "//chromeos/dbus/tpm_manager",
         "//chromeos/dbus/u2f",
       ]
+    }
+    if (is_ios && use_blink) {
+      deps += [ "//crypto:test_support" ]
     }
   }
 

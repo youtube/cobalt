@@ -105,7 +105,7 @@ _TEST_CODE_EXCLUDED_PATHS = (
     # Chromium Codelab
     r'codelabs/*')
 
-_THIRD_PARTY_EXCEPT_BLINK = 'third_party/(?!blink/)'
+_THIRD_PARTY_EXCEPT_BLINK = '(?:ios/)?third_party/(?!blink/)'
 
 _TEST_ONLY_WARNING = (
     'You might be calling functions intended only for testing from\n'
@@ -1245,13 +1245,6 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
         ],
     ),
     BanRule(
-        pattern=r'if consteval',
-        explanation=('Use of consteval conditional isn`t allowed. If you need '
-                     'it, contact cxx@chromium.org.', ),
-        treat_as_error=True,
-        excluded_paths=[_THIRD_PARTY_EXCEPT_BLINK],
-    ),
-    BanRule(
         pattern=r'#warning',
         explanation=('Use of #warning isn`t allowed. If you need it, contact '
                      'cxx@chromium.org.', ),
@@ -1424,6 +1417,22 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
             # Constrained algorithms: non-modifying sequence operations
             'all_of',
             'any_of',
+            'contains',
+            'contains_subrange',
+            'starts_with',
+            'ends_with',
+            'find_last',
+            'find_last_if',
+            'find_last_if_not',
+            'iota',
+            'shift_left',
+            'shift_right',
+            'fold_left',
+            'fold_left_first',
+            'fold_right',
+            'fold_right_last',
+            'fold_left_with_iter',
+            'fold_left_first_with_iter',
             'none_of',
             'for_each',
             'for_each_n',
@@ -6482,7 +6491,9 @@ def CheckForIncludeGuards(input_api, output_api):
                                            'partition_allocator'))
                 and (not file_with_path.startswith('third_party')
                      or file_with_path.startswith(
-                         input_api.os_path.join('third_party', 'blink'))))
+                         input_api.os_path.join('third_party', 'blink')))
+                and not file_with_path.startswith(
+                    input_api.os_path.join('ios', 'third_party')))
 
     def replace_special_with_underscore(string):
         return input_api.re.sub(r'[+\\/.-]', '_', string)
@@ -8008,3 +8019,21 @@ def CheckBaseFeatureMacro(input_api, output_api):
         output_api.PresubmitPromptWarning('BASE_FEATURE() macro naming:',
                                           warnings)
     ]
+
+def CheckAyeAye(input_api, output_api):
+    """Runs AyeAye checks locally via the alint tool.
+
+    These checks get run automatically behind the scenes on CLs in
+    Gerrit. Running them locally should surface any warnings or errors
+    earlier.
+    """
+    try:
+        command = ['git', 'config', '--get', '--type=bool', 'localayeaye.enable']
+        opted_in = input_api.subprocess.check_output(command)
+        # TODO(crbug.com/467912454): Roll this out by default.
+        if not opted_in:
+            return []
+    except Exception:
+        return []
+    print("User opted-in to AyeAye checks as top-level presubmit...")
+    return input_api.canned_checks.CheckAyeAye(input_api, output_api)

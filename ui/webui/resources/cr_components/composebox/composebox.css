@@ -545,7 +545,7 @@ search-animated-glow {
 
 :host([searchbox-next-enabled][searchbox-layout-mode="Compact"]) {
   --expanded-border-radius: var(--cr-composebox-expanded-border-radius, 30px);
-  --input-bottom-spacing: 10px;
+  --input-bottom-spacing: 16px;
 }
 
 :host([searchbox-next-enabled][searchbox-layout-mode="Compact"]) #iconContainer {
@@ -571,7 +571,7 @@ search-animated-glow {
 }
 
 :host([searchbox-next-enabled][searchbox-layout-mode="Compact"]) #context {
-  margin-top: -48px;
+  margin-top: var(--cr-composebox-context-margin-top, -48px);
 }
 
 :host([expanding_][show-dropdown_][searchbox-next-enabled][searchbox-layout-mode="Compact"]) cr-composebox-dropdown {
@@ -736,7 +736,7 @@ cr-composebox-voice-search {
   @starting-style {
     opacity: 0;  /* Since hidden elements have no previous state. */
   }
-  transition: opacity 100ms ease-in-out, display 200ms allow-discrete;
+  transition: opacity 90ms ease-in-out, display 100ms allow-discrete;
   z-index: 2;
 }
 

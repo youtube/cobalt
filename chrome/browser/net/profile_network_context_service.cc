@@ -11,7 +11,6 @@
 #include "base/base64.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
-#include "base/containers/flat_map.h"
 #include "base/containers/span.h"
 #include "base/containers/to_vector.h"
 #include "base/feature_list.h"
@@ -64,6 +63,7 @@
 #include "components/embedder_support/pref_names.h"
 #include "components/embedder_support/switches.h"
 #include "components/enterprise/buildflags/buildflags.h"
+#include "components/enterprise/connectors/core/connectors_prefs.h"
 #include "components/language/core/browser/language_prefs.h"
 #include "components/language/core/browser/pref_names.h"
 #include "components/metrics/metrics_pref_names.h"
@@ -313,14 +313,10 @@ std::unique_ptr<net::ClientCertStore> GetWrappedCertStore(
   }
 
   client_certificates::CertificateProvisioningService*
-      browser_provisioning_service = nullptr;
-  if (client_certificates::features::
-          IsManagedBrowserClientCertificateEnabled()) {
-    browser_provisioning_service =
-        g_browser_process->browser_policy_connector()
-            ->chrome_browser_cloud_management_controller()
-            ->GetCertificateProvisioningService();
-  }
+      browser_provisioning_service =
+          g_browser_process->browser_policy_connector()
+              ->chrome_browser_cloud_management_controller()
+              ->GetCertificateProvisioningService();
 
   if (!browser_provisioning_service && !profile_provisioning_service) {
     return platform_store;
@@ -560,17 +556,6 @@ ProfileNetworkContextService::ProfileNetworkContextService(Profile* profile)
       base::BindRepeating(&ProfileNetworkContextService::
                               UpdateCorsNonWildcardRequestHeadersSupport,
                           base::Unretained(this)));
-
-#if BUILDFLAG(ENABLE_REPORTING)
-  if (base::FeatureList::IsEnabled(
-          net::features::kReportingApiEnableEnterpriseCookieIssues)) {
-    pref_change_registrar_.Add(
-        prefs::kReportingEndpoints,
-        base::BindRepeating(
-            &ProfileNetworkContextService::UpdateEnterpriseReportingEndpoints,
-            base::Unretained(this)));
-  }
-#endif  // BUILDFLAG(ENABLE_REPORTING)
 }
 
 ProfileNetworkContextService::~ProfileNetworkContextService() = default;
@@ -1087,38 +1072,6 @@ void ProfileNetworkContextService::UpdateSSLComplianceConfig() {
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-#if BUILDFLAG(ENABLE_REPORTING)
-base::flat_map<std::string, GURL>
-ProfileNetworkContextService::GetEnterpriseReportingEndpoints() const {
-  using FlatMap = base::flat_map<std::string, GURL>;
-  // Create the underlying container first to allow sorting to
-  // be done in a single pass.
-  FlatMap::container_type pairs;
-  const base::Value::Dict& pref_dict =
-      profile_->GetPrefs()->GetDict(prefs::kReportingEndpoints);
-  pairs.reserve(pref_dict.size());
-  // The iterator for base::Value::Dict returns a temporary value when
-  // dereferenced, so a const reference is not used below.
-  for (const auto [endpoint_name, endpoint_url] : pref_dict) {
-    GURL endpoint(endpoint_url.GetString());
-    if (endpoint.is_valid() && endpoint.SchemeIsCryptographic()) {
-      pairs.emplace_back(endpoint_name, std::move(endpoint));
-    }
-  }
-  return FlatMap(std::move(pairs));
-}
-
-void ProfileNetworkContextService::UpdateEnterpriseReportingEndpoints() {
-  base::flat_map<std::string, GURL> endpoints =
-      GetEnterpriseReportingEndpoints();
-  profile_->ForEachLoadedStoragePartition(
-      [&](content::StoragePartition* storage_partition) {
-        storage_partition->GetNetworkContext()->SetEnterpriseReportingEndpoints(
-            endpoints);
-      });
-}
-#endif
-
 // static
 network::mojom::CookieManagerParamsPtr
 ProfileNetworkContextService::CreateCookieManagerParams(
@@ -1319,6 +1272,25 @@ ProfileNetworkContextService::CreateClientCertStore() {
 #endif
 }
 
+#if BUILDFLAG(ENTERPRISE_CACHE_ENCRYPTION)
+void ProfileNetworkContextService::SaveEncryptedCacheMasterKey(
+    const std::vector<uint8_t>& encrypted_master_key) {
+  if (profile_) {
+    profile_->GetPrefs()->SetString(
+        enterprise_connectors::kEncryptedCacheMasterKey,
+        base::Base64Encode(encrypted_master_key));
+  }
+}
+
+std::vector<uint8_t>
+ProfileNetworkContextService::GetEncryptedCacheMasterKey() {
+  std::string encoded_encrypted_master_key = profile_->GetPrefs()->GetString(
+      enterprise_connectors::kEncryptedCacheMasterKey);
+  return base::Base64Decode(encoded_encrypted_master_key).value_or({});
+}
+
+#endif  // BUILDFLAG(ENTERPRISE_CACHE_ENCRYPTION)
+
 void ProfileNetworkContextService::ConfigureNetworkContextParamsInternal(
     bool in_memory,
     const base::FilePath& relative_partition_path,
@@ -1404,9 +1376,20 @@ void ProfileNetworkContextService::ConfigureNetworkContextParamsInternal(
 
 #if BUILDFLAG(ENTERPRISE_CACHE_ENCRYPTION)
     if (enterprise_encryption::ShouldEncryptHttpCache(profile_->GetPrefs())) {
-      g_browser_process->system_network_context_manager()
-          ->AddCacheEncryptionProviderToNetworkContextParams(
-              network_context_params);
+      if (!cache_encryption_provider_) {
+        cache_encryption_provider_ = std::make_unique<
+            enterprise_encryption::CacheEncryptionProviderImpl>(
+            g_browser_process->os_crypt_async(), GetEncryptedCacheMasterKey(),
+            base::BindRepeating(
+                &ProfileNetworkContextService::SaveEncryptedCacheMasterKey,
+                base::Unretained(this)));
+      }
+      mojo::PendingRemote<network::mojom::CacheEncryptionProvider>
+          cache_encryption_provider_remote =
+              cache_encryption_provider_->BindNewRemote();
+
+      network_context_params->encryption_provider =
+          std::move(cache_encryption_provider_remote);
     }
 #endif  // BUILDFLAG(ENTERPRISE_CACHE_ENCRYPTION)
 
@@ -1416,12 +1399,6 @@ void ProfileNetworkContextService::ConfigureNetworkContextParamsInternal(
 #if BUILDFLAG(ENABLE_REPORTING)
     network_context_params->file_paths->reporting_and_nel_store_database_name =
         base::FilePath(chrome::kReportingAndNelStoreFilename);
-
-    if (base::FeatureList::IsEnabled(
-            net::features::kReportingApiEnableEnterpriseCookieIssues)) {
-      network_context_params->enterprise_reporting_endpoints =
-          GetEnterpriseReportingEndpoints();
-    }
 #endif  // BUILDFLAG(ENABLE_REPORTING)
 
     if (relative_partition_path.empty()) {  // This is the main partition.
@@ -1586,8 +1563,8 @@ void ProfileNetworkContextService::ConfigureNetworkContextParamsInternal(
         receiver = uks_remote.InitWithNewPipeAndPassReceiver();
     unexportable_keys::UnexportableKeyServiceProxyImpl* uks =
         UnexportableKeyServiceFactory::
-            RecreateMojoProxyForProfileAndPurposeWithReceiver(
-                profile_,
+            RecreateMojoProxyForStoragePartitionPathAndPurposeWithReceiver(
+                profile_, relative_partition_path,
                 unexportable_keys::KeyPurpose::kDeviceBoundSessionCredentials,
                 std::move(receiver));
     if (uks) {

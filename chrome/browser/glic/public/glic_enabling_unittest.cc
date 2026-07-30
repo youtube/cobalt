@@ -58,7 +58,6 @@ class GlicEnablingTest : public testing::Test {
     scoped_feature_list_.InitWithFeatures(
         {
             features::kGlic,
-            features::kTabstripComboButton,
 #if BUILDFLAG(IS_CHROMEOS)
             chromeos::features::kFeatureManagementGlic,
 #endif  // BUILDFLAG(IS_CHROMEOS)
@@ -207,7 +206,6 @@ class GlicEnablingProfileEligibilityTest : public testing::Test {
         /*enabled_features=*/
         {
             features::kGlic,
-            features::kTabstripComboButton,
 #if BUILDFLAG(IS_CHROMEOS)
             chromeos::features::kFeatureManagementGlic,
 #endif  // BUILDFLAG(IS_CHROMEOS)

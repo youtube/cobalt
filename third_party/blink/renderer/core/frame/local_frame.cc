@@ -86,6 +86,7 @@
 #include "third_party/blink/public/platform/web_content_settings_client.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/platform/web_url_request.h"
+#include "third_party/blink/public/web/web_autofill_client.h"
 #include "third_party/blink/public/web/web_content_capture_client.h"
 #include "third_party/blink/public/web/web_frame.h"
 #include "third_party/blink/public/web/web_link_preview_triggerer.h"
@@ -819,6 +820,9 @@ bool LocalFrame::DetachImpl(FrameDetachType type) {
   frame_visibility_observers_.clear();
 
   not_restored_reasons_.reset();
+  microtasks_pauser_.reset();
+  prescient_networking_.reset();
+  link_preview_triggerer_.reset();
 
   DCHECK(!view_->IsAttached());
   Client()->WillBeDetached();
@@ -2376,6 +2380,14 @@ WebContentSettingsClient* LocalFrame::GetContentSettingsClient() {
 const mojom::RendererContentSettingsPtr& LocalFrame::GetContentSettings()
     const {
   return Loader().GetDocumentLoader()->GetContentSettings();
+}
+
+WebAutofillClient* LocalFrame::GetAutofillClient() {
+  WebLocalFrameImpl* web_frame = WebLocalFrameImpl::FromFrame(this);
+  if (!web_frame) {
+    return nullptr;
+  }
+  return web_frame->AutofillClient();
 }
 
 PluginData* LocalFrame::GetPluginData() const {

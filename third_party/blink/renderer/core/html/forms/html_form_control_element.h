@@ -37,6 +37,7 @@
 namespace blink {
 
 class HTMLFormElement;
+class JSONValue;
 
 // HTMLFormControlElement is the default implementation of
 // ListedElement, and listed element implementations should use
@@ -130,6 +131,21 @@ class CORE_EXPORT HTMLFormControlElement : public HTMLElement,
   }
   void SetAutofillState(WebAutofillState = WebAutofillState::kAutofilled);
 
+  // Returns true if the pseudo classes :tool-form-active and
+  // :tool-submit-active (given by the for_submit parameter) should match for
+  // this element.
+  bool MatchesToolActive(bool for_submit) {
+    // TODO(masonf): Implement correct matching state.
+    //
+    // Additionally:
+    //
+    //   PseudoStateChanged(CSSSelector::kPseudoToolFormActive);
+    //   PseudoStateChanged(CSSSelector::kPseudoToolSubmitFormActive);
+    //
+    // must be invoked appropriately when the state changes.
+    return false;
+  }
+
   bool IsAutocompleteEmailUrlOrPassword() const;
 
   const AtomicString& autocapitalize() const final;
@@ -150,6 +166,12 @@ class CORE_EXPORT HTMLFormControlElement : public HTMLElement,
   int32_t GetAxId() const;
 
   bool MatchesValidityPseudoClasses() const override;
+
+  // Used for the (experimental) declarative WebMCP prototype.
+  String GetMCPJSONValue(JSONValue& value) const;
+  virtual bool SupportsWebMCP() const { return false; }
+  virtual String GetWebMCPParameterName() const;
+  virtual bool FillWebMCPData(JSONValue& data);
 
  protected:
   HTMLFormControlElement(const QualifiedName& tag_name, Document&);

@@ -54,6 +54,18 @@ struct ProfileEnablement {
 
   // Whether live (audio) functionality is disallowed for this account type.
   bool live_disallowed;
+
+  // Summary of whether actuation is enabled, and if not, why not.
+  ActuationEligibility actuation_eligibility;
+};
+
+// Whether actuation is enabled, and if not, why not.
+enum ActuationEligibility {
+  kEligible,
+  kMissingAccountCapability,
+  kMissingChromeBenefits,
+  kManagedOrDataProtected,
+  kPlatformUnsupported,
 };
 
 // The ready state of the profile.
@@ -376,8 +388,6 @@ struct WebClientInitialState {
   bool enable_default_tab_context_setting_feature;
   // Whether the glic default tab context setting is enabled.
   bool default_tab_context_setting_enabled;
-  // Whether features::kGlicClosedCaptioning is enabled.
-  bool enable_closed_captioning_feature;
   // Whether the glic closed captioning setting is enabled.
   bool closed_captioning_setting_enabled;
   // Whether features::kGlicUserStatusCheck is enabled with

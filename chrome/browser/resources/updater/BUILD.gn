@@ -10,8 +10,8 @@ build_webui("build") {
   grd_prefix = "updater"
 
   static_files = [
-    "updater.html",
     "updater.css",
+    "updater.html",
   ]
 
   ts_definitions = [ "//tools/typescript/definitions/pending.d.ts" ]
@@ -48,6 +48,9 @@ build_webui("build") {
     "i18n_setup.ts",
     "icons.html.ts",
     "known_apps.ts",
+    "scope_icon.html.ts",
+    "scope_icon.ts",
+    "tools.ts",
   ]
   css_files = [
     "app.css",

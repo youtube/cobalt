@@ -135,8 +135,7 @@ class ExecutionEngineBrowserTest : public InProcessBrowserTest {
             base::BindRepeating(&ExecutionEngineBrowserTest::web_contents,
                                 base::Unretained(this))) {
     scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{features::kGlic, features::kTabstripComboButton,
-                              features::kGlicActor,
+        /*enabled_features=*/{features::kGlic, features::kGlicActor,
                               kGlicExternalProtocolActionResultCode},
         /*disabled_features=*/{features::kGlicWarming});
   }
@@ -191,7 +190,8 @@ class ExecutionEngineBrowserTest : public InProcessBrowserTest {
     auto event_dispatcher = ui::NewUiEventDispatcher(
         actor_keyed_service()->GetActorUiStateManager());
     auto task = std::make_unique<ActorTask>(
-        GetProfile(), std::move(execution_engine), std::move(event_dispatcher));
+        GetProfile(), std::move(execution_engine), std::move(event_dispatcher),
+        /*options=*/nullptr);
     raw_execution_engine->SetOwner(task.get());
     task_id_ = actor_keyed_service()->AddActiveTask(std::move(task));
   }
@@ -502,7 +502,7 @@ class ExecutionEnginePixelBrowserTest : public ExecutionEngineBrowserTest {
     bool found_red = false;
     base::RunLoop run_loop;
     web_contents()->GetRenderWidgetHostView()->CopyFromSurface(
-        gfx::Rect(), gfx::Size(),
+        gfx::Rect(), gfx::Size(), base::TimeDelta(),
         base::BindLambdaForTesting(
             [&](const content::CopyFromSurfaceResult& result) {
               ASSERT_TRUE(result.has_value());

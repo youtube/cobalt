@@ -55,7 +55,6 @@
 #include "base/base_paths_android.h"
 #include "base/base_switches.h"
 #include "base/command_line.h"
-#include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/files/scoped_file.h"
 #include "base/functional/bind.h"
@@ -238,7 +237,7 @@ std::string AwContentBrowserClient::GetAcceptLangsImpl() {
 
   // If accept languages do not contain en-US, add in en-US which will be
   // used with a lower q-value.
-  if (!base::Contains(locales_string, "en-US")) {
+  if (!locales_string.contains("en-US")) {
     locales_string += ",en-US";
   }
   return locales_string;

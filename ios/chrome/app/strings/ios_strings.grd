@@ -1778,6 +1778,9 @@
       <message name="IDS_IOS_CONTENT_SUGGESTIONS_PIN_SITE_FORM_URL" desc="The label of the 'URL' field of form for the user to edit an existing pinned site">
         URL
       </message>
+      <message name="IDS_IOS_CONTENT_SUGGESTIONS_PIN_SITE_IN_PRODUCT_HELP" desc="In-product help that points at the first most visited tile in content suggestions to educate the user that they could long tap on the tile to pin this site">
+        Tap and hold to pin your favorite sites
+      </message>
       <message name="IDS_IOS_CONTENT_SUGGESTIONS_PIN_SITE_SNACKBAR_ADDED_AND_PINNED" desc="The notification displayed at the bottom of the screen after the user has pinned a site through the 'Add site' button">
         Site added and pinned
       </message>
@@ -3350,6 +3353,15 @@
       <message name="IDS_IOS_IDENTITY_DISC_WITH_NAME_AND_EMAIL_OPEN_ACCOUNT_MENU_WITH_ERROR" desc="The content description for a toolbar button displaying user profile picture. Tapping on this button opens the account menu [iOS only].">
           Signed in as <ph name="USER_NAME">$1<ex>Peter Parker</ex></ph>. <ph name="USER_EMAIL">$2<ex>peter.parker@gmail.com</ex></ph>. Google Account error. Open account menu.
       </message>
+      <message name="IDS_IOS_IDENTITY_ERROR_INFOBAR_DEVICE_MANAGEMENT_REQUIRED_FIX_NOW_BUTTON" desc="Button label on an infobar prompting the user to take action to fix an account issue. [iOS only]">
+        Fix now
+      </message>
+      <message name="IDS_IOS_IDENTITY_ERROR_INFOBAR_DEVICE_MANAGEMENT_REQUIRED_LEARN_MORE_BUTTON" desc="Button label on an infobar allowing the user to get more information about an issue. [iOS only]">
+        Learn more
+      </message>
+      <message name="IDS_IOS_IDENTITY_ERROR_INFOBAR_DEVICE_MANAGEMENT_SERVICES_UNAVAILABLE_MESSAGE" desc="Message body of the identity error info bar when device management policies restrict access to some services. [iOS only]">
+        Some services aren’t available for your account
+      </message>
       <message name="IDS_IOS_IDENTITY_ERROR_INFOBAR_ENTER_BUTTON_LABEL" meaning="An on-screen button that enters the user's input" desc="The label of the enter passphrase action button in the identity error info bar. [iOS only]">
         Enter
       </message>
@@ -4816,6 +4828,21 @@ Handoff must also be enabled in the General section of Settings, and your device
       </message>
       <message name="IDS_IOS_PASSKEY_BOOTSTRAPPING_TITLE" desc="Title of the screen shown when the user needs to enter their Google Password Manager pin to use passkeys on their device.">
         Verify it’s you to use your passkeys on this device
+      </message>
+      <message name="IDS_IOS_PASSKEY_CREATION_BOTTOM_SHEET_ACCOUNT" desc="Below the Passkey Creation Bottom Sheet's subtitle, this indicates in which account the new passkey will be saved (the currently signed in account). [iOS only]">
+        Passkeys are saved in Google Password Manager for
+      </message>
+      <message name="IDS_IOS_PASSKEY_CREATION_BOTTOM_SHEET_CREATE" desc="Passkey Creation Bottom Sheet's button to create a passkey. [iOS only]">
+        Create
+      </message>
+      <message name="IDS_IOS_PASSKEY_CREATION_BOTTOM_SHEET_SAVE_ANOTHER_WAY" desc="Passkey Creation Bottom Sheet's button to use a different credential provider to create the passkey, if any are available. [iOS only]">
+        Save another way
+      </message>
+      <message name="IDS_IOS_PASSKEY_CREATION_BOTTOM_SHEET_SUBTITLE" desc="Passkey Creation Bottom Sheet's subtitle. [iOS only]">
+        Sign in faster from any of your synced devices.
+      </message>
+      <message name="IDS_IOS_PASSKEY_CREATION_BOTTOM_SHEET_TITLE" desc="Passkey Creation Bottom Sheet's title. The user's username/email and website domain will appear below this. [iOS only]">
+        Create a passkey for
       </message>
       <message name="IDS_IOS_PASSKEY_CREATION_DATE" desc="Passkey creation date. [iOS only]">
         Created on <ph name="Date"><ex>2023/12/31</ex>$1</ph>
@@ -6765,6 +6792,12 @@ Handoff must also be enabled in the General section of Settings, and your device
       <message name="IDS_IOS_SET_UP_LIST_AUTOFILL_SHORT_DESCRIPTION" desc="Shortened description for the Set Up List item that encourages the user to set up Chrome's autofill settings.">
         Access your passwords across other apps.
       </message>
+      <message name="IDS_IOS_SET_UP_LIST_BACKGROUND_CUSTOMIZATION_DESCRIPTION" desc="Description for the Set Up List item that encourages the user to set up background customization settings.">
+        Choose from themes, colors or upload an image
+      </message>
+      <message name="IDS_IOS_SET_UP_LIST_BACKGROUND_CUSTOMIZATION_TITLE" desc="Title for the Set Up List item that encourages the user to set up background customization settings.">
+        Customize your homepage
+      </message>
       <message name="IDS_IOS_SET_UP_LIST_COLLAPSE" desc="Accessibility label for the button to expand the Set Up List.">
         Collapse list
       </message>
@@ -6782,6 +6815,12 @@ Handoff must also be enabled in the General section of Settings, and your device
       </message>
       <message name="IDS_IOS_SET_UP_LIST_NOTIFICATIONS_TITLE" desc="Title for the Set Up List item that encourages the user to enable Chrome notifications.">
         Get notifications
+      </message>
+      <message name="IDS_IOS_SET_UP_LIST_SAFARI_IMPORT_DESCRIPTION" desc="Description for the Set Up List item that encourages the user to set up Safari data import settings.">
+        Import passwords, history, bookmarks and more
+      </message>
+      <message name="IDS_IOS_SET_UP_LIST_SAFARI_IMPORT_TITLE" desc="Title for the Set Up List item that encourages the user to set up Safari data import settings.">
+        Bring your data from Safari
       </message>
       <message name="IDS_IOS_SET_UP_LIST_TRY_BUTTON_ACCESSIBILITY_HINT" desc="Action hint for the Try button on the Set Up List view. This is spoken by VoiceOver. ">
         Double tap to try
@@ -7309,6 +7348,15 @@ Handoff must also be enabled in the General section of Settings, and your device
       </message>
       <message name="IDS_IOS_SYNC_ENTER_PASSPHRASE_TITLE" desc="Title for the dialog where the user enters the passphrase.">
         Enter passphrase
+      </message>
+      <message name="IDS_IOS_SYNC_ERROR_BOOKMARKS_LIMIT_EXCEEDED_BUTTON" desc="The button label to display when the user has too many bookmarks to sync.">
+        Learn more
+      </message>
+      <message name="IDS_IOS_SYNC_ERROR_BOOKMARKS_LIMIT_EXCEEDED_MESSAGE" desc="The error message to display when the user has too many bookmarks to sync.">
+        To save bookmarks in your account, delete your unused bookmarks
+      </message>
+      <message name="IDS_IOS_SYNC_ERROR_BOOKMARKS_LIMIT_EXCEEDED_TITLE" desc="The error title to display when the user has too many bookmarks to sync.">
+        Some bookmarks aren't saved
       </message>
       <message name="IDS_IOS_SYNC_ERROR_DESCRIPTION" desc="The error message to display when a generic error prevents sync from starting.">
         Sync isn't working.

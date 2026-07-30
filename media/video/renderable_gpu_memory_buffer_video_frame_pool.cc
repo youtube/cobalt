@@ -34,7 +34,7 @@ namespace {
 class InternalRefCountedPool;
 
 // The VideoFrame-backing resources that are reused by the pool, namely, a
-// GpuMemoryBuffer and a SharedImage. This retains a reference to the
+// mappable SharedImage. This retains a reference to the
 // InternalRefCountedPool that created it. Not safe for concurrent use.
 class FrameResources {
  public:
@@ -44,7 +44,7 @@ class FrameResources {
   FrameResources(const FrameResources& other) = delete;
   FrameResources& operator=(const FrameResources& other) = delete;
 
-  // Allocate GpuMemoryBuffer and create SharedImage. Returns false on failure
+  // Attempts to create a mappable SharedImage. Returns false on failure
   // to do so. The |requires_cpu_access| parameter indicates whether CPU access
   // to the video frames is needed. If true, linear buffers that are mappable by
   // CPU will be used; otherwise, GPU optimized buffers may be preferred.
@@ -219,10 +219,8 @@ bool FrameResources::Initialize(VideoPixelFormat format,
       // 1-copy import into WebGL.
       // Unusually for such SharedImages, they are also *written* via raster for
       // WebGL and WebRTC use cases in which RGBA textures are imported into the
-      // VideoFrames (this is what "renderable" means in this context). Hence,
-      // GLES2_WRITE is required for raster-over-GLES.
-      gpu::SHARED_IMAGE_USAGE_GLES2_READ | gpu::SHARED_IMAGE_USAGE_GLES2_WRITE |
-      gpu::SHARED_IMAGE_USAGE_RASTER_READ |
+      // VideoFrames (this is what "renderable" means in this context).
+      gpu::SHARED_IMAGE_USAGE_GLES2_READ | gpu::SHARED_IMAGE_USAGE_RASTER_READ |
       gpu::SHARED_IMAGE_USAGE_RASTER_WRITE |
       gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
 

@@ -167,6 +167,10 @@ public final class ProductionSupportedFlagList {
                 "Prune old transfer cache entries and disable pruning from client"),
         Flag.baseFeature(
                 VizFeatures.WEBVIEW_NEW_INVALIDATE_HEURISTIC,
+                "More robust heuristic for calling Invalidate. Isn't supported for TV, see"
+                        + " WebViewNewInvalidateHeuristicForTV."),
+        Flag.baseFeature(
+                VizFeatures.WEBVIEW_NEW_INVALIDATE_HEURISTIC_FOR_TV,
                 "More robust heuristic for calling Invalidate"),
         Flag.baseFeature(VizFeatures.WEBVIEW_VULKAN_INTERMEDIATE_BUFFER, "For debugging vulkan"),
         Flag.baseFeature(
@@ -255,6 +259,10 @@ public final class ProductionSupportedFlagList {
                 AutofillFeatures.AUTOFILL_ENABLE_EXPIRATION_DATE_IMPROVEMENTS,
                 "Enables various improvements to handling expiration dates."),
         Flag.baseFeature(
+                AutofillFeatures.AUTOFILL_ENABLE_SKIPPING_UNRECOGNIZED_ATTRIBUTE,
+                "Allows autofill to ignore suppressing predicitons on fields with"
+                        + " autocomplete=unrecognized."),
+        Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_ENABLE_SUPPORT_FOR_PARSING_WITH_SHARED_LABELS,
                 "Splits Autofill labels among consecutive fields for better heuristic"
                         + " predictions."),
@@ -298,6 +306,10 @@ public final class ProductionSupportedFlagList {
                 "When enabled, Autofill will send the structural form signature and low-precision"
                     + " hashes of form and field metadata, and evaluate the accuracy of returned"
                     + " experimental predictions."),
+        Flag.baseFeature(
+                AutofillFeatures.AUTOFILL_SERVER_QUERY_PREDICTIONS_EARLY,
+                "When enabled, Autofill enables querying the server for predictions before the form"
+                        + " has been parsed locally."),
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_SUPPORT_LAST_NAME_PREFIX,
                 "When enabled, Autofill uses a custom name hierarchy for parsing last names."),
@@ -609,6 +621,13 @@ public final class ProductionSupportedFlagList {
                 "Enables an audio input optimization that uses shared memory instead of"
                         + " socket messages for audio IPC read confirmations."),
         Flag.baseFeature("UseRustJsonParser"),
+        Flag.baseFeature(
+                "UpdateScrollPredictorInputMapping",
+                "Updates the scroll predictor's input mapping and behavior. When enabled: 1. It"
+                    + " uses `sample_time` (VSync time - 5ms) as the boundary for a frame's events"
+                    + " and `looks ahead` at the next event to improve prediction. 2. It generates"
+                    + " a synthetic scroll event if the queue is empty, keeping scrolling smooth"
+                    + " even if input events are missed."),
         Flag.baseFeature("V8BaselineBatchCompilation"),
         Flag.baseFeature("V8ConcurrentSparkplug"),
         Flag.baseFeature("V8Flag_incremental_marking_always_user_visible"),
@@ -904,10 +923,6 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 NetworkServiceFeatures.RENDERER_SIDE_CONTENT_DECODING,
                 "Enable renderer-side content decoding (decompression)."),
-        Flag.baseFeature(
-                NetworkServiceFeatures.DEVICE_BOUND_SESSION_ACCESS_OBSERVER_SHARED_REMOTE,
-                "Enable the optimization of reducing unnecessary IPC for cloning"
-                        + " DeviceBoundSessionAccessObserver."),
         Flag.commandLine(
                 AwSwitches.WEBVIEW_USE_STARTUP_TASKS_LOGIC,
                 "When enabled, webview chromium initialization uses the startup tasks logic where"
@@ -961,6 +976,9 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 AwFeatures.WEBVIEW_CONNECT_TO_COMPONENT_PROVIDER_IN_BACKGROUND,
                 "Connect to the non-embedded components provider from a background thread."),
+        Flag.baseFeature(
+                AwFeatures.WEBVIEW_ENABLE_API_CALL_USER_ACTIONS,
+                "Enables recording user actions for API calls."),
         Flag.baseFeature("PrefetchUseContentRefactor"),
         Flag.baseFeature("LowPriorityAsyncScriptExecution"),
         Flag.baseFeature("WebViewPrefetchHighestPrefetchPriority"),
@@ -1040,8 +1058,26 @@ public final class ProductionSupportedFlagList {
                     + " startups: After enabling this flag, applications must be started and then"
                     + " restarted for tracing to apply."),
         Flag.baseFeature(
+                AwFeatures.WEBVIEW_DISABLE_PERFETTO_INIT,
+                "Disables Perfetto initialization if enabled. "
+                        + "When enabled, the "
+                        + AwFeatures.WEBVIEW_EARLY_PERFETTO_INIT
+                        + " and "
+                        + AwFeatures.WEBVIEW_BACKGROUND_PERFETTO_INIT
+                        + " are both ignored. "
+                        + "After enabling this flag, applications must be started and then "
+                        + "restarted for tracing to apply."),
+        Flag.baseFeature(
                 AwFeatures.WEBVIEW_EARLY_PERFETTO_INIT,
                 "Initializes Perfetto as early as possible, right after native library load. "
+                        + "After enabling this flag, applications must be started and then "
+                        + "restarted for tracing to apply."),
+        Flag.baseFeature(
+                AwFeatures.WEBVIEW_BACKGROUND_PERFETTO_INIT,
+                "Initializes Perfetto on a background thread once native library has been loaded. "
+                        + "This flag is ignored if "
+                        + AwFeatures.WEBVIEW_EARLY_PERFETTO_INIT
+                        + " is enabled."
                         + "After enabling this flag, applications must be started and then "
                         + "restarted for tracing to apply."),
         Flag.baseFeature(
@@ -1144,6 +1180,10 @@ public final class ProductionSupportedFlagList {
                 "LevelDBCacheSize",
                 "Reduces the size of the LevelDB cache to reduce memory usage at no expected speed"
                         + " cost"),
+        Flag.baseFeature(
+                "IDBDatabaseExternalMemoryAccounting",
+                "Report external memory held by IndexedDB connections, so it's taken into account"
+                    + " in GC heuristics."),
         Flag.baseFeature(
                 "VariationsStickyPersistence",
                 "Controls how prefs are written and persisted for tracking sticky study activation."

@@ -43,11 +43,6 @@ TabCollectionNode::Type GetTypeFromNode(tabs::ConstChildPtr node_data_) {
   return TabCollectionNode::Type::TAB;
 }
 
-TabCollectionNode::ViewFactory& GetViewFactory() {
-  static base::NoDestructor<TabCollectionNode::ViewFactory> factory;
-  return *factory;
-}
-
 class CollectionTestViewImpl : public views::View {
  public:
   explicit CollectionTestViewImpl(TabCollectionNode* node) {
@@ -87,11 +82,6 @@ void TabCollectionNode::NotifyDataChanged() {
   on_data_changed_callback_list_.Notify();
 }
 
-// static
-void TabCollectionNode::SetViewFactoryForTesting(ViewFactory factory) {
-  GetViewFactory() = std::move(factory);
-}
-
 void TabCollectionNode::SetController(VerticalTabStripController* controller) {
   tab_strip_controller_ = controller;
   for (const auto& child : children_) {
@@ -102,9 +92,6 @@ void TabCollectionNode::SetController(VerticalTabStripController* controller) {
 // static
 std::unique_ptr<views::View> TabCollectionNode::CreateViewForNode(
     TabCollectionNode* node_for_view) {
-  if (GetViewFactory()) {
-    return GetViewFactory().Run(node_for_view);
-  }
   switch (node_for_view->type()) {
     case Type::TABSTRIP:
       return std::make_unique<VerticalTabStripView>(node_for_view);
@@ -293,15 +280,22 @@ void TabCollectionNode::MoveChild(base::PassKey<TabCollectionNode> pass_key,
       continue;
     }
 
+    const gfx::Rect previous_bounds_in_screen =
+        child_node->node_view_->GetBoundsInScreen();
+
     std::unique_ptr<views::View> removed_view =
-        src_parent_node->node_view_->RemoveChildViewT(child_node->node_view_);
+        src_parent_node->detach_child_from_node_
+            ? src_parent_node->detach_child_from_node_.Run(
+                  child_node->node_view_)
+            : src_parent_node->node_view_->RemoveChildViewT(
+                  child_node->node_view_);
     std::unique_ptr<TabCollectionNode> removed_node = std::move(*it);
     src_parent_node->children_.erase(it);
 
     dst_parent_node->AddChildNode(std::move(removed_node), new_index);
     if (dst_parent_node->attach_child_to_node_) {
       dst_parent_node->attach_child_to_node_.Run(std::move(removed_view),
-                                                 new_index);
+                                                 previous_bounds_in_screen);
     } else {
       dst_parent_node->node_view_->AddChildView(std::move(removed_view));
     }

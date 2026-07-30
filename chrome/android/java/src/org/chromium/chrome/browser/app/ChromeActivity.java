@@ -62,12 +62,12 @@ import org.chromium.base.memory.MemoryPurgeManager;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
-import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
-import org.chromium.base.supplier.SettableObservableSupplier;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.ActivityUtils;
@@ -184,6 +184,7 @@ import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab.TabState;
 import org.chromium.chrome.browser.tab.TabUtils;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
+import org.chromium.chrome.browser.tabmodel.SupportedProfileType;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabModel;
@@ -315,22 +316,22 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     protected final ObservableSupplierImpl<EdgeToEdgeController> mEdgeToEdgeControllerSupplier =
             new ObservableSupplierImpl<>();
 
-    protected final SettableObservableSupplier<ManualFillingComponent>
+    protected final SettableMonotonicObservableSupplier<ManualFillingComponent>
             mManualFillingComponentSupplier = ObservableSuppliers.createMonotonic();
 
     /** Used to access the {@link ShareDelegate} from {@link WindowAndroid}. */
-    private final SettableObservableSupplier<ShareDelegate> mShareDelegateSupplier =
+    private final SettableMonotonicObservableSupplier<ShareDelegate> mShareDelegateSupplier =
             ObservableSuppliers.createMonotonic();
 
     private final ObservableSupplierImpl<TabModelOrchestrator> mTabModelOrchestratorSupplier =
             new ObservableSupplierImpl<>();
 
     /** Used to access the {@link TabModelSelector} from {@link WindowAndroid}. */
-    private final SettableObservableSupplier<TabModelSelector> mTabModelSelectorSupplier =
+    private final SettableMonotonicObservableSupplier<TabModelSelector> mTabModelSelectorSupplier =
             ObservableSuppliers.createMonotonic();
 
     /** Used to access the {@link EphemeralTabCoordinator} from {@link WindowAndroid}. */
-    private final SettableObservableSupplier<EphemeralTabCoordinator>
+    private final SettableMonotonicObservableSupplier<EphemeralTabCoordinator>
             mEphemeralTabCoordinatorSupplier = ObservableSuppliers.createMonotonic();
 
     /** Used to hold a mutable reference to a {@link TabCreatorManager}. */
@@ -338,7 +339,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             new ObservableSupplierImpl<>();
 
     // TODO(crbug.com/40182241): Move ownership to RootUiCoordinator.
-    private final SettableObservableSupplier<BrowserControlsManager>
+    private final SettableMonotonicObservableSupplier<BrowserControlsManager>
             mBrowserControlsManagerSupplier = ObservableSuppliers.createMonotonic();
 
     protected final TabModelSelectorProfileSupplier mTabModelProfileSupplier =
@@ -375,7 +376,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
     private TabModelOrchestrator mTabModelOrchestrator;
     private TabModelSelectorTabObserver mTabModelSelectorTabObserver;
-    private SettableObservableSupplier<TabContentManager> mTabContentManagerSupplier =
+    private SettableMonotonicObservableSupplier<TabContentManager> mTabContentManagerSupplier =
             ObservableSuppliers.createMonotonic();
     private TabContentManager mTabContentManager;
 
@@ -477,7 +478,12 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         // lifetime.
         mLegacyTabStartupMetricsTracker =
                 new LegacyTabStartupMetricsTracker(mActivityId, mTabModelSelectorSupplier);
-        mStartupMetricsTracker = new StartupMetricsTracker(mTabModelSelectorSupplier);
+        mStartupMetricsTracker =
+                new StartupMetricsTracker(
+                        mTabModelSelectorSupplier,
+                        () -> {
+                            return getPersistentInstanceState() != null;
+                        });
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
             mStartupMetricsTracker.registerApplicationStartInfoListener();
         }
@@ -1041,12 +1047,14 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
      * native SessionID as the native {@code AndroidBrowserWindow}.
      *
      * @param browserWindowType Type of the browser window (normal, popup, etc.)
-     * @param currentTabModel The current {@link TabModel} for this {@code Activity}.
+     * @param tabModelSelector The {@link TabModelSelector} for this {@code Activity}.
+     * @param supportedProfileType The supported profile type for this {@code Activity}.
      * @param multiInstanceManager The {@link MultiInstanceManager} for this {@code Activity}.
      */
     protected final void initializeChromeAndroidTask(
             @BrowserWindowType int browserWindowType,
-            TabModel currentTabModel,
+            TabModelSelector tabModelSelector,
+            @SupportedProfileType int supportedProfileType,
             @Nullable MultiInstanceManager multiInstanceManager) {
         try (TraceEvent e = TraceEvent.scoped("ChromeActivity.initializeChromeAndroidTask")) {
             // 1. Initialize PopupCreator early so that ChromeAndroidTaskTracker can use it to
@@ -1080,7 +1088,8 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                             browserWindowType,
                             new ChromeAndroidTask.ActivityScopedObjects(
                                     activityWindowAndroid,
-                                    currentTabModel,
+                                    tabModelSelector,
+                                    supportedProfileType,
                                     desktopWindowStateManager,
                                     multiInstanceManager),
                             pendingId);
@@ -2164,18 +2173,19 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         return assertNonNull(mTabModelOrchestrator.getTabModelSelector());
     }
 
-    /** Returns an {@link ObservableSupplier} for {@link TabModelOrchestrator}. */
-    public final ObservableSupplier<TabModelOrchestrator> getTabModelOrchestratorSupplier() {
+    /** Returns an {@link MonotonicObservableSupplier} for {@link TabModelOrchestrator}. */
+    public final MonotonicObservableSupplier<TabModelOrchestrator>
+            getTabModelOrchestratorSupplier() {
         return mTabModelOrchestratorSupplier;
     }
 
-    /** Returns an {@link ObservableSupplier} for {@link TabModelSelector}. */
-    public final ObservableSupplier<TabModelSelector> getTabModelSelectorSupplier() {
+    /** Returns an {@link MonotonicObservableSupplier} for {@link TabModelSelector}. */
+    public final MonotonicObservableSupplier<TabModelSelector> getTabModelSelectorSupplier() {
         return mTabModelSelectorSupplier;
     }
 
-    /** Returns an {@link SettableObservableSupplier} for {@link EphemeralTabCoordinator}. */
-    public final SettableObservableSupplier<EphemeralTabCoordinator>
+    /** Returns an {@link SettableMonotonicObservableSupplier} for {@link EphemeralTabCoordinator}. */
+    public final SettableMonotonicObservableSupplier<EphemeralTabCoordinator>
             getEphemeralTabCoordinatorSupplier() {
         return mEphemeralTabCoordinatorSupplier;
     }
@@ -2188,7 +2198,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     }
 
     /** Gets the supplier of the {@link TabCreatorManager} instance. */
-    public ObservableSupplier<TabCreatorManager> getTabCreatorManagerSupplier() {
+    public MonotonicObservableSupplier<TabCreatorManager> getTabCreatorManagerSupplier() {
         return mTabCreatorManagerSupplier;
     }
 
@@ -2199,7 +2209,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
      * of the screen.
      */
     @Override
-    public ObservableSupplier<EdgeToEdgeController> getEdgeToEdgeSupplier() {
+    public MonotonicObservableSupplier<EdgeToEdgeController> getEdgeToEdgeSupplier() {
         return mEdgeToEdgeControllerSupplier;
     }
 
@@ -2243,7 +2253,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     }
 
     /** Gets the supplier of the {@link TabContentManager} instance. */
-    public ObservableSupplier<TabContentManager> getTabContentManagerSupplier() {
+    public MonotonicObservableSupplier<TabContentManager> getTabContentManagerSupplier() {
         return mTabContentManagerSupplier;
     }
 
@@ -2374,26 +2384,26 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     }
 
     /**
-     * @return An {@link ObservableSupplier} that will supply the {@link LayoutManagerImpl} when it
+     * @return An {@link MonotonicObservableSupplier} that will supply the {@link LayoutManagerImpl} when it
      *     is ready.
      */
-    public final ObservableSupplier<LayoutManagerImpl> getLayoutManagerSupplier() {
+    public final MonotonicObservableSupplier<LayoutManagerImpl> getLayoutManagerSupplier() {
         return mLayoutManagerSupplier;
     }
 
     /**
-     * @return An {@link ObservableSupplier} that will supply the {@link ShareDelegate} when
+     * @return An {@link MonotonicObservableSupplier} that will supply the {@link ShareDelegate} when
      *         it is ready.
      */
-    public ObservableSupplier<ShareDelegate> getShareDelegateSupplier() {
+    public MonotonicObservableSupplier<ShareDelegate> getShareDelegateSupplier() {
         return mShareDelegateSupplier;
     }
 
     /**
-     * @return An {@link ObservableSupplier} that will supply the {@link CompositorViewHolder} when
+     * @return An {@link MonotonicObservableSupplier} that will supply the {@link CompositorViewHolder} when
      *         it is ready.
      */
-    public ObservableSupplier<CompositorViewHolder> getCompositorViewHolderSupplier() {
+    public MonotonicObservableSupplier<CompositorViewHolder> getCompositorViewHolderSupplier() {
         return mCompositorViewHolderSupplier;
     }
 

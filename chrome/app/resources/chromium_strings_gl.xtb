@@ -356,6 +356,7 @@
 <translation id="4814736265800133385">Utilizar Chromium sen ningunha conta</translation>
 <translation id="4888717733111232871">Norma de entrada para Chromium para permitir tráfico mDNS.</translation>
 <translation id="4893347770495441059">Reiniciar para actualizar &amp;Chromium</translation>
+<translation id="4918086044614829423">Aceptar</translation>
 <translation id="4918844574251943176">Copiouse a imaxe</translation>
 <translation id="4943838377383847465">Chromium está no modo de segundo plano.</translation>
 <translation id="494490797786467921">Fai clic para pechar o cadro de diálogo de inicio de sesión de Chromium</translation>
@@ -533,6 +534,9 @@
 <translation id="6901631050894301805">Define Chromium como o teu navegador predeterminado e fíxao na barra de tarefas</translation>
 <translation id="6909503629704372277">&amp;Xestionar perfís de Chromium</translation>
 <translation id="6934579572334859869">Pregúntalle á busca de imaxes acerca desta imaxe</translation>
+<translation id="6948031725951063910">Alcanzaches o límite de <ph name="BOOKMARK_LIMIT" /> marcadores de Chromium, polo que algúns aínda non se gardaron na túa Conta de Google.
+
+Non poderás gardar máis ata que elimines uns cantos. Se pechas a sesión agora, eliminaranse os marcadores sen gardar.</translation>
 <translation id="6964305034639999644">Abrir ligazón nunha ventá do modo de incó&amp;gnito de Chromium</translation>
 <translation id="6965382102122355670">Aceptar</translation>
 <translation id="6978145336957848883">Os contrasinais pouco seguros son fáciles de adiviñar. Permite que Chromium <ph name="BEGIN_LINK" />cree e lembre contrasinais seguros por ti<ph name="END_LINK" />.</translation>
@@ -571,6 +575,7 @@ Chromium non pode recuperar a túa configuración.</translation>
 <translation id="7347827960336370838">Só poderá ler os teus datos encriptados quen teña a túa frase de acceso (Google non a recibirá nin a almacenará). Se a esqueces ou queres cambiar esta opción de configuración, terás que <ph name="BEGIN_LINK" />eliminar os datos de Chromium da túa conta<ph name="END_LINK" />.</translation>
 <translation id="7349591376906416160">A persoa que administra o teu sistema configurou Chromium para abrir o navegador <ph name="TARGET_URL_HOSTNAME" /> co obxectivo de acceder a <ph name="ALTERNATIVE_BROWSER_NAME" />.</translation>
 <translation id="7352651011704765696">Produciuse un erro</translation>
+<translation id="7368826207863345663">Se queres recibir actualizacións de Chromium no futuro, debes instalar o sistema operativo macOS 13 ou unha versión posterior. Este ordenador ten macOS 12.</translation>
 <translation id="7376384068949534168">Levas un tempo sen entrar. Chromium quitou os seguintes permisos: <ph name="PERMISSION_1" /> e <ph name="PERMISSION_2" />.</translation>
 <translation id="7384121030444253939">Xa non se admite esta extensión. Chromium recomenda que a quites.</translation>
 <translation id="7413153308467572558">Retoma a actividade onde a deixaches: Chromium restaura as pestanas cada vez que o reinicies. Para desactivar esta opción, vai a</translation>
@@ -633,6 +638,7 @@ Chromium non pode recuperar a túa configuración.</translation>
 <translation id="8118331347066725040">Envía comentarios sobre as buscas con Lens</translation>
 <translation id="8133124826068723441">Chromium OS non puido sincronizar os teus datos porque a sincronización non está dispoñible para o teu dominio.</translation>
 <translation id="813913629614996137">Iniciando...</translation>
+<translation id="8164014945047474187">Condicións de servizo adicionais de Chromium</translation>
 <translation id="81770708095080097">Este ficheiro é perigoso, así que Chromium bloqueouno.</translation>
 <translation id="8177472873527554730">Non se puido atopar contido na páxina</translation>
 <translation id="8200109504272824693">Escribe a túa frase de acceso para usar e gardar os datos de Chromium na túa conta (<ph name="USER_EMAIL" />)</translation>
@@ -700,6 +706,7 @@ Chromium non pode recuperar a túa configuración.</translation>
 <translation id="8880203542552872219">Se o fixeches, substitúe o contrasinal gardado en Chromium polo novo.</translation>
 <translation id="8891709362986793894">A túa organización esixe que inicies sesión en Chromium</translation>
 <translation id="8907580949721785412">Chromium está tentando mostrar contrasinais. Escribe os teus contrasinais de Windows para permitir esta acción.</translation>
+<translation id="8932992523185907506">Chromium xa non é o teu navegador predeterminado. Queres establecer Chromium como navegador predeterminado?</translation>
 <translation id="8941642502866065432">Non se puido actualizar Chromium</translation>
 <translation id="897581876605952338">Logotipo de Chromium Enterprise</translation>
 <translation id="8981150672034878610">Non se puido iniciar Chromium porque se produciu un erro ao abrir o perfil. Proba a reiniciar Chromium.</translation>

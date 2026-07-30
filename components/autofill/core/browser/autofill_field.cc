@@ -796,9 +796,23 @@ bool AutofillField::HasExpirationDateType() const {
   return Type().GetTypes().contains_any(kExpirationDateTypes);
 }
 
-bool AutofillField::ShouldSuppressSuggestionsAndFillingByDefault() const {
-  return html_type_ == HtmlFieldType::kUnrecognized &&
-         !server_type_prediction_is_override() && !IsCreditCardPrediction();
+bool AutofillField::ShouldSuppressSuggestionsAndFillingByDefault(
+    bool suppress_if_ac_unrecognized) const {
+  // The field will not be suppressed (i.e., it will be filled/suggested) if one
+  // of the following is true:
+  // 1. The autocomplete attribute is valid type (that can be seen in the HTML
+  //    spec).
+  // 2. The field's type comes from a server override.
+  // 3. The field type is credit-card-related.
+  if (html_type_ != HtmlFieldType::kUnrecognized ||
+      server_type_prediction_is_override() || IsCreditCardPrediction()) {
+    return false;
+  }
+
+  return base::FeatureList::IsEnabled(
+             features::kAutofillEnableSkippingUnrecognizedAttribute)
+             ? suppress_if_ac_unrecognized
+             : true;
 }
 
 void AutofillField::SetPasswordRequirements(PasswordRequirementsSpec spec) {

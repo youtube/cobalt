@@ -6,10 +6,10 @@
 
 #include <stddef.h>
 
+#include <algorithm>
 #include <optional>
 #include <string>
 
-#include "base/containers/contains.h"
 #include "base/containers/fixed_flat_map.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -137,9 +137,6 @@ constexpr PrefsForManagedContentSettingsMapEntry
          ContentSettingsType::LOCAL_FONTS, CONTENT_SETTING_ALLOW},
         {prefs::kManagedLocalFontsBlockedForUrls,
          ContentSettingsType::LOCAL_FONTS, CONTENT_SETTING_BLOCK},
-        {prefs::kManagedThirdPartyStoragePartitioningBlockedForOrigins,
-         ContentSettingsType::THIRD_PARTY_STORAGE_PARTITIONING,
-         CONTENT_SETTING_BLOCK},
         {prefs::kManagedWebPrintingAllowedForUrls,
          ContentSettingsType::WEB_PRINTING, CONTENT_SETTING_ALLOW},
         {prefs::kManagedWebPrintingBlockedForUrls,
@@ -239,7 +236,6 @@ constexpr const char* kManagedPrefs[] = {
     prefs::kManagedWindowManagementBlockedForUrls,
     prefs::kManagedLocalFontsAllowedForUrls,
     prefs::kManagedLocalFontsBlockedForUrls,
-    prefs::kManagedThirdPartyStoragePartitioningBlockedForOrigins,
     prefs::kManagedWebPrintingAllowedForUrls,
     prefs::kManagedWebPrintingBlockedForUrls,
     prefs::kManagedDirectSocketsAllowedForUrls,
@@ -286,7 +282,6 @@ constexpr const char* kManagedDefaultPrefs[] = {
     prefs::kManagedDefaultWebHidGuardSetting,
     prefs::kManagedDefaultWindowManagementSetting,
     prefs::kManagedDefaultLocalFontsSetting,
-    prefs::kManagedDefaultThirdPartyStoragePartitioningSetting,
     prefs::kManagedDefaultWebPrintingSetting,
     prefs::kManagedDefaultDirectSocketsSetting,
     prefs::kManagedDefaultDirectSocketsPrivateNetworkAccessSetting,
@@ -402,8 +397,6 @@ const PolicyProvider::PrefsForManagedDefaultMapEntry
          prefs::kManagedDefaultWindowManagementSetting},
         {ContentSettingsType::LOCAL_FONTS,
          prefs::kManagedDefaultLocalFontsSetting},
-        {ContentSettingsType::THIRD_PARTY_STORAGE_PARTITIONING,
-         prefs::kManagedDefaultThirdPartyStoragePartitioningSetting},
         {ContentSettingsType::WEB_PRINTING,
          prefs::kManagedDefaultWebPrintingSetting},
         {ContentSettingsType::DIRECT_SOCKETS,
@@ -745,7 +738,7 @@ void PolicyProvider::OnPreferenceChanged(const std::string& name) {
     }
   }
 
-  if (base::Contains(kManagedPrefs, name)) {
+  if (std::ranges::contains(kManagedPrefs, name)) {
     ReadManagedContentSettings(true);
     ReadManagedDefaultSettings();
   }

@@ -355,6 +355,7 @@
 <translation id="4885446229353981848">Google Lens-Verknüpfung immer anzeigen</translation>
 <translation id="4891791193823137474">Google Chrome im Hintergrund ausführen</translation>
 <translation id="4895437082222824641">Link in neuem Chrome-Tab öffnen</translation>
+<translation id="4918086044614829423">Annehmen</translation>
 <translation id="4918844574251943176">Bild kopiert</translation>
 <translation id="4926882258455737990">Wenn du ein anderes Google-Konto mit Gemini in Chrome verwenden möchtest, <ph name="BEGIN_LINK" />erstelle ein neues Profil<ph name="END_LINK" /> und melde dich mit dem gewünschten Konto an</translation>
 <translation id="492720062778050435">Chrome empfiehlt, diese Erweiterung zu überprüfen</translation>
@@ -368,6 +369,7 @@
 <translation id="5003967926796347400">Klicke auf „Google Passwortmanager“</translation>
 <translation id="5043786843026425788">Weitere Informationen zum Suchen mit Google Lens in Chrome</translation>
 <translation id="504867494566807945">Du kannst über jede App Links in Chrome öffnen. Außerdem wird Chrome für einen einfachen Zugriff an die Taskleiste angepinnt.</translation>
+<translation id="5105120510934353742">Du benötigst macOS 13 oder höher, um zukünftige Google Chrome-Updates zu erhalten. Auf diesem Computer wird macOS 12 ausgeführt.</translation>
 <translation id="5114340746415930644">Gib deine Passphrase ein, um Chrome-Daten in deinem Konto <ph name="USER_EMAIL" /> zu verwenden und zu speichern</translation>
 <translation id="5120334927898581447">In Chrome anmelden, wenn du dich in anderen Google-Diensten anmeldest</translation>
 <translation id="5126049312684316860">Chrome lädt noch mehr Seiten vorab, die du wahrscheinlich besuchen wirst, sodass sie dann schneller zur Verfügung stehen</translation>
@@ -422,6 +424,7 @@
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="569897634095159764">Internetverbindung kann nicht hergestellt werden. Für den Proxyserver ist eine Authentifizierung erforderlich.</translation>
 <translation id="5709557627224531708">Chrome als Standardbrowser festlegen</translation>
+<translation id="5719246646468301581">Zusatzbedingungen für Google Chrome und ChromeOS</translation>
 <translation id="5719324992913248873">Durch diese Aktion geschieht Folgendes:
           <ph name="LINE_BREAKS" />
            • Einige Chrome-Einstellungen und -Verknüpfungen werden zurückgesetzt.
@@ -502,6 +505,7 @@ Diese Aktion wirkt sich nicht auf Lesezeichen, gespeicherte Passwörter und den 
 <translation id="6326175484149238433">Aus Chrome entfernen</translation>
 <translation id="6327105987658262776">Es ist kein Update verfügbar.</translation>
 <translation id="6334815226785304306">Google Chrome als Standardbrowser festlegen und an Taskleiste anpinnen</translation>
+<translation id="63540178978900677">Chrome ist nicht mehr dein Standardbrowser. Chrome als Standardbrowser verwenden?</translation>
 <translation id="6360449101159168105">Während dieser Tab inaktiv war, wurde Arbeitsspeicher freigegeben, damit Chrome schnell bleibt. Du kannst festlegen, dass diese Website nie inaktiv sein soll.</translation>
 <translation id="6388799252195623474">Hilf mir dabei</translation>
 <translation id="6412673304250309937">Prüft URLs anhand einer Liste unsicherer Websites, die in Chrome gespeichert wird. Wenn eine Website versucht, dein Passwort zu stehlen, oder wenn du eine schädliche Datei herunterlädst, kann Chrome auch URLs, einschließlich Teile von Seiteninhalten, an Safe Browsing senden.</translation>
@@ -703,6 +707,9 @@ Diese Aktion wirkt sich nicht auf Lesezeichen, gespeicherte Passwörter und den 
 <translation id="8418845734693287262">Chrome OS konnte deine Daten nicht synchronisieren, da die Anmeldedaten deines Kontos veraltet sind.</translation>
 <translation id="842386925677997438">Sicherheitstools von Chrome</translation>
 <translation id="8425765582779547329">Wenn du die von deinen Eltern festgelegten Einstellungen nutzen möchtest, um im Internet besser geschützt zu sein, melde dich in Chrome an</translation>
+<translation id="842852285618875960">Du hast das Chrome-Limit von <ph name="BOOKMARK_LIMIT" /> Lesezeichen erreicht. Einige deiner Lesezeichen wurden daher noch nicht in deinem Google-Konto gespeichert.
+
+Du kannst erst neue Lesezeichen in deinem Konto speichern, wenn du einige gelöscht hast. Wenn du dich jetzt abmeldest, werden nicht gespeicherte Lesezeichen gelöscht.</translation>
 <translation id="8433638294851456451">Wenn du eine Nummer von diesem Gerät an dein Android-Smartphone senden möchtest, musst du dich auf beiden Geräten in Chrome anmelden.</translation>
 <translation id="8496177819998570653">Google P&amp;asswortmanager</translation>
 <translation id="8498858610309223613">Da soeben ein kritisches Sicherheitsupdate für Google Chrome installiert wurde, solltest du jetzt einen Neustart durchführen. Deine Tabs werden dann automatisch wiederhergestellt.</translation>
