@@ -963,11 +963,12 @@ bool ViewTransitionStyleTracker::HasContainmentBoundary(
 AtomicString ViewTransitionStyleTracker::ComputeContainingGroupName(
     const AtomicString& name,
     const StyleViewTransitionGroup& group) const {
-  if (!group_state_map_.Contains(name)) {
+  const auto it = group_state_map_.find(name);
+  if (it == group_state_map_.end()) {
     return g_null_atom;
   }
 
-  const auto& parent_state = group_state_map_.at(name);
+  const auto& parent_state = it->value;
   if (group.IsNormal() || group.IsContain()) {
     return parent_state.contain;
   }
@@ -1176,10 +1177,11 @@ VectorOf<Element> ViewTransitionStyleTracker::GetTransitioningElements() const {
 const Vector<AtomicString>
 ViewTransitionStyleTracker::GetViewTransitionClassList(
     const AtomicString& name) const {
-  if (!element_data_map_.Contains(name)) {
+  const auto it = element_data_map_.find(name);
+  if (it == element_data_map_.end()) {
     return Vector<AtomicString>();
   }
-  return element_data_map_.at(name)->class_list;
+  return it->value->class_list;
 }
 
 const AtomicString& ViewTransitionStyleTracker::GetContainingGroupName(
@@ -1190,10 +1192,11 @@ const AtomicString& ViewTransitionStyleTracker::GetContainingGroupName(
 
   // GetContainingGroup can be called on an invalid name, e.g. when searching
   // for the parent of a non-existent name.
-  if (!element_data_map_.Contains(name)) {
+  const auto it = element_data_map_.find(name);
+  if (it == element_data_map_.end()) {
     return g_null_atom;
   }
-  return element_data_map_.at(name)->containing_group_name;
+  return it->value->containing_group_name;
 }
 
 bool ViewTransitionStyleTracker::Start() {

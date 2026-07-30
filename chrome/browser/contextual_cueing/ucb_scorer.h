@@ -5,13 +5,9 @@
 #ifndef CHROME_BROWSER_CONTEXTUAL_CUEING_UCB_SCORER_H_
 #define CHROME_BROWSER_CONTEXTUAL_CUEING_UCB_SCORER_H_
 
-namespace contextual_cueing {
+#include "chrome/browser/contextual_cueing/cue_target.h"
 
-struct TargetStats {
-  int impressions = 0;
-  int clicks = 0;
-  int dismissals = 0;
-};
+namespace contextual_cueing {
 
 // Hyperparameters for the UCB (Upper Confidence Bound) scoring function.
 struct UCBHyperparameters {

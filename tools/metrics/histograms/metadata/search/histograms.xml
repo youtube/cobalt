@@ -401,7 +401,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.ChoiceDebug.UnhandledChoiceStatusAtLoadTime"
-    enum="SearchEngineChoiceStatus" expires_after="2026-10-18">
+    enum="SearchEngineChoiceStatus" expires_after="2026-12-20">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -418,7 +418,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.ChoiceDebug.UnknownCountryIdStored"
-    enum="UnknownCountryIdStored" expires_after="2026-10-18">
+    enum="UnknownCountryIdStored" expires_after="2026-12-20">
   <owner>cschlosser@chromium.org</owner>
   <owner>chromeos-privacyhub@google.com</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
@@ -435,7 +435,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.ChoicePrefsCheck.PendingChoiceScreenDisplayStateStatus"
-    enum="PendingChoiceScreenDisplayStateStatus" expires_after="2026-10-18">
+    enum="PendingChoiceScreenDisplayStateStatus" expires_after="2026-12-20">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -455,7 +455,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.ChoicePrefsCheck.WipeOnMissingDse" enum="Boolean"
-    expires_after="2026-10-18">
+    expires_after="2026-12-20">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -575,7 +575,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.ChoiceScreenSelectedEngineIndex" units="index"
-    expires_after="2026-10-18">
+    expires_after="2026-12-20">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -586,7 +586,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.ChoiceScreenShowedEngineAt.CountryMismatch"
-    enum="BooleanSkipped" expires_after="2026-10-18">
+    enum="BooleanSkipped" expires_after="2026-12-20">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -632,7 +632,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.ChoiceWipeReason" enum="SearchEngineChoiceWipeReason"
-    expires_after="2026-10-18">
+    expires_after="2026-12-20">
   <owner>droger@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -1125,7 +1125,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.Integrity.CrossDomainSearch" enum="Boolean"
-    expires_after="2026-10-20">
+    expires_after="2026-12-20">
   <owner>yeroshkin@chromium.org</owner>
   <owner>musalmaan@chromium.org</owner>
   <owner>chrome-desktop-ui-waterloo@google.com</owner>
@@ -1136,7 +1136,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.Integrity.CrossTldSearch" enum="Boolean"
-    expires_after="2026-10-20">
+    expires_after="2026-12-20">
   <owner>yeroshkin@chromium.org</owner>
   <owner>musalmaan@chromium.org</owner>
   <owner>chrome-desktop-ui-waterloo@google.com</owner>
@@ -1164,7 +1164,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 
 <histogram
     name="Search.Integrity.Enterprise.IsDefaultCustomWithMatchingPolicyEngine"
-    enum="Boolean" expires_after="2026-10-20">
+    enum="Boolean" expires_after="2026-12-20">
   <owner>musalmaan@chromium.org</owner>
   <owner>iclelland@chromium.org</owner>
   <owner>chrome-desktop-ui-waterloo@google.com</owner>
@@ -1179,7 +1179,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.Integrity.Enterprise.IsDefaultEnforcedWithoutPolicy"
-    enum="Boolean" expires_after="2026-10-20">
+    enum="Boolean" expires_after="2026-12-20">
   <owner>musalmaan@chromium.org</owner>
   <owner>iclelland@chromium.org</owner>
   <owner>chrome-desktop-ui-waterloo@google.com</owner>
@@ -1208,7 +1208,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.Integrity.ExtensionUrlSearch" enum="Boolean"
-    expires_after="2026-10-20">
+    expires_after="2026-12-20">
   <owner>yeroshkin@chromium.org</owner>
   <owner>musalmaan@chromium.org</owner>
   <owner>chrome-desktop-ui-waterloo@google.com</owner>
@@ -1219,7 +1219,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.Integrity.HasCustomSearchEngine" enum="Boolean"
-    expires_after="2026-10-20">
+    expires_after="2026-12-20">
   <owner>musalmaan@chromium.org</owner>
   <owner>iclelland@chromium.org</owner>
   <owner>chrome-desktop-ui-waterloo@google.com</owner>
@@ -1234,7 +1234,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.Integrity.IsDefaultCustomWithMatchingPolicyEngine"
-    enum="Boolean" expires_after="2026-10-20">
+    enum="Boolean" expires_after="2026-12-20">
   <owner>musalmaan@chromium.org</owner>
   <owner>iclelland@chromium.org</owner>
   <owner>chrome-desktop-ui-waterloo@google.com</owner>
@@ -1251,7 +1251,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.Integrity.IsDefaultEnforcedWithoutPolicy"
-    enum="Boolean" expires_after="2026-10-20">
+    enum="Boolean" expires_after="2026-12-20">
   <owner>musalmaan@chromium.org</owner>
   <owner>iclelland@chromium.org</owner>
   <owner>chrome-desktop-ui-waterloo@google.com</owner>
@@ -1267,7 +1267,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.Integrity.IsDefaultSearchEngineCustom" enum="Boolean"
-    expires_after="2026-10-20">
+    expires_after="2026-12-20">
   <owner>musalmaan@chromium.org</owner>
   <owner>iclelland@chromium.org</owner>
   <owner>chrome-desktop-ui-waterloo@google.com</owner>
@@ -1281,7 +1281,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.Integrity.ObfuscatedSearchUrl" enum="Boolean"
-    expires_after="2026-10-20">
+    expires_after="2026-12-20">
   <owner>yeroshkin@chromium.org</owner>
   <owner>musalmaan@chromium.org</owner>
   <owner>chrome-desktop-ui-waterloo@google.com</owner>
@@ -1292,7 +1292,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.Integrity.Referral.ParameterFound"
-    enum="SearchReferralParam" expires_after="2026-10-20">
+    enum="SearchReferralParam" expires_after="2026-12-20">
   <owner>musalmaan@chromium.org</owner>
   <owner>iclelland@chromium.org</owner>
   <owner>chrome-desktop-ui-waterloo@google.com</owner>
@@ -1305,7 +1305,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.Integrity{Enterprise}.DuplicateKeyword"
-    enum="SearchDuplicateKeyword" expires_after="2026-10-20">
+    enum="SearchDuplicateKeyword" expires_after="2026-12-20">
   <owner>yeroshkin@chromium.org</owner>
   <owner>musalmaan@chromium.org</owner>
   <owner>chrome-desktop-ui-waterloo@google.com</owner>

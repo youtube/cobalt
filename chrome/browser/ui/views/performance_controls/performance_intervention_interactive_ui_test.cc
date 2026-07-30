@@ -23,6 +23,7 @@
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_source.h"
 #include "chrome/browser/resource_coordinator/utils.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/performance_controls/performance_controls_metrics.h"
 #include "chrome/browser/ui/performance_controls/performance_intervention_button_controller.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -534,8 +535,10 @@ IN_PROC_BROWSER_TEST_F(PerformanceInterventionInteractiveTest,
   Browser* const second_browser = CreateBrowser(first_browser->profile());
   ASSERT_TRUE(AddTabAtIndexToBrowser(second_browser, 0, GetURL("c.com"),
                                      ui::PageTransition::PAGE_TRANSITION_LINK));
-  BrowserWindow* const first_browser_window = first_browser->window();
-  BrowserWindow* const second_browser_window = second_browser->window();
+  BrowserWindow* const first_browser_window =
+      BrowserWindow::FromBrowser(first_browser);
+  BrowserWindow* const second_browser_window =
+      BrowserWindow::FromBrowser(second_browser);
   second_browser_window->Activate();
   ASSERT_TRUE(second_browser_window->IsActive());
   ASSERT_FALSE(first_browser_window->IsActive());
@@ -583,8 +586,10 @@ IN_PROC_BROWSER_TEST_F(PerformanceInterventionInteractiveTest,
   Browser* const second_browser = CreateBrowser(first_browser->profile());
   ASSERT_TRUE(AddTabAtIndexToBrowser(second_browser, 0, GetURL("c.com"),
                                      ui::PageTransition::PAGE_TRANSITION_LINK));
-  BrowserWindow* const first_browser_window = first_browser->window();
-  BrowserWindow* const second_browser_window = second_browser->window();
+  BrowserWindow* const first_browser_window =
+      BrowserWindow::FromBrowser(first_browser);
+  BrowserWindow* const second_browser_window =
+      BrowserWindow::FromBrowser(second_browser);
   second_browser_window->Activate();
   ASSERT_TRUE(second_browser_window->IsActive());
 
@@ -645,8 +650,10 @@ IN_PROC_BROWSER_TEST_F(PerformanceInterventionInteractiveTest,
   Browser* const second_browser = CreateBrowser(CreateTestProfile());
   ASSERT_TRUE(AddTabAtIndexToBrowser(second_browser, 0, GetURL("c.com"),
                                      ui::PageTransition::PAGE_TRANSITION_LINK));
-  BrowserWindow* const first_browser_window = first_browser->window();
-  BrowserWindow* const second_browser_window = second_browser->window();
+  BrowserWindow* const first_browser_window =
+      BrowserWindow::FromBrowser(first_browser);
+  BrowserWindow* const second_browser_window =
+      BrowserWindow::FromBrowser(second_browser);
   second_browser_window->Activate();
   ASSERT_TRUE(second_browser_window->IsActive());
   ASSERT_FALSE(first_browser_window->IsActive());

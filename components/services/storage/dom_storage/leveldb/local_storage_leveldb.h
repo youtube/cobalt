@@ -63,9 +63,9 @@ class LocalStorageLevelDB : public DomStorageDatabase {
   using PassKey = base::PassKey<DomStorageDatabaseFactory>;
 
  public:
-  // Use `DomStorageDatabaseFactory::Create()` to construct a
+  // Use `DomStorageDatabaseFactory::Open()` to construct a
   // base::SequenceBound<DomStorageDatabase>.
-  explicit LocalStorageLevelDB(PassKey);
+  LocalStorageLevelDB(PassKey, bool write_exp_tag);
   ~LocalStorageLevelDB() override;
 
   LocalStorageLevelDB(const LocalStorageLevelDB&) = delete;
@@ -146,6 +146,7 @@ class LocalStorageLevelDB : public DomStorageDatabase {
                               const blink::StorageKey& map_storage_key);
 
   std::unique_ptr<DomStorageDatabaseLevelDB> leveldb_;
+  bool write_exp_tag_ = false;
 };
 
 }  // namespace storage

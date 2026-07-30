@@ -49,6 +49,7 @@ component("modules") {
     "//third_party/blink/renderer:config",
     "//third_party/blink/renderer:non_test_config",
     "//third_party/blink/renderer:inside_blink",
+    "//third_party/blink/renderer:narrowing",
     "//third_party/blink/renderer/core:blink_core_pch",
     "//v8:external_startup_data",
   ]

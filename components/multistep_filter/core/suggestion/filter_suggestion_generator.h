@@ -27,10 +27,6 @@ class MultistepFilterLogRouter;
 struct FilterAnnotation;
 struct FilterSuggestionCandidate;
 
-namespace internal {
-// Default maximum number of annotations to retrieve from the filter store.
-constexpr size_t kDefaultMaxResults = 100;
-}  // namespace internal
 
 // Responsible for orchestrating the suggestion generation process for a given
 // URL. This class is owned by the `MultistepFilterService` and shares its
@@ -62,10 +58,9 @@ class FilterSuggestionGenerator {
   //    otherwise.
   virtual void GenerateSuggestion(
       const GURL& url,
-      const std::vector<std::string>& supported_task_types,
+      std::vector<std::string> supported_task_types,
       base::OnceCallback<void(std::optional<UrlFilterSuggestion>)> callback,
-      int64_t navigation_id,
-      std::string_view domain);
+      int64_t navigation_id);
 
  private:
   // See documentation of `GenerateSuggestion()` for more details.
@@ -75,8 +70,7 @@ class FilterSuggestionGenerator {
           success_callback,
       base::ScopedClosureRunner failure_callback,
       int64_t navigation_id,
-      std::string_view domain,
-      std::vector<std::vector<FilterAnnotation>> filter_annotations);
+      std::vector<FilterAnnotation> filter_annotations);
   void OnFilterSuggestionCandidatesFetched(
       const GURL& url,
       base::OnceCallback<void(std::optional<UrlFilterSuggestion>)>
@@ -84,11 +78,7 @@ class FilterSuggestionGenerator {
       base::ScopedClosureRunner failure_callback,
       std::vector<FilterAnnotation> annotations,
       int64_t navigation_id,
-      std::string_view domain,
       std::optional<std::vector<FilterSuggestionCandidate>> candidates);
-
-  // Loads the cue configuration from file or feature flag.
-  void LoadCueConfig();
 
   // The client used to fetch supported task types and URL filter suggestions.
   // This is a non-owning reference. The lifetime of the `AnnotationIndexClient`
@@ -104,9 +94,6 @@ class FilterSuggestionGenerator {
 
   // Log router for the internals page.
   const raw_ptr<MultistepFilterLogRouter> log_router_;
-
-  // JSON config for cues, loaded from file or Finch.
-  base::DictValue cue_config_;
 
   // This should be kept at the end so that it is the first member to be
   // destroyed.

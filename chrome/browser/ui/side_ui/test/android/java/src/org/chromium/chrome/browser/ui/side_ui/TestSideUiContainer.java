@@ -14,20 +14,28 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.AnchorSide;
 import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.SideUiContainerProperties;
 import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.SideUiId;
+import org.chromium.ui.base.ViewUtils;
 
 /** Minimum implementation of {@link SideUiContainer} to allow setting/getting width for tests. */
 @NullMarked
 public final class TestSideUiContainer implements SideUiContainer {
-    public static final @Px int TEST_SIDE_UI_WIDTH = 412;
+    private static final int DEFAULT_MAX_WIDTH_DP = 412;
 
-    /** The last {@code requestedWidth} received by {@link #determineContainerWidth}. */
-    public @Nullable @Px Integer mLastRequestedWidth;
+    /**
+     * Whether the container has content to show.
+     *
+     * <p>This will be returned by {@link #hasContentToShow()}.
+     */
+    public boolean mHasContentToShow = true;
 
-    /** The last {@code availableWidth} received by {@link #determineContainerWidth}. */
+    /** The last {@code availableWidth} received by {@link #determineShowableWidth}. */
     public @Nullable @Px Integer mLastAvailableWidth;
 
-    /** The last {@code windowWidth} received by {@link #determineContainerWidth}. */
+    /** The last {@code windowWidth} received by {@link #determineShowableWidth}. */
     public @Nullable @Px Integer mLastWindowWidth;
+
+    /** Maximum width for this {@link SideUiContainer}. */
+    public int mMaxWidthDp = DEFAULT_MAX_WIDTH_DP;
 
     /** Minimum width for this {@link SideUiContainer}. */
     public int mMinWidthDp;
@@ -59,31 +67,37 @@ public final class TestSideUiContainer implements SideUiContainer {
     }
 
     @Override
-    public int determineContainerWidth(
-            @Px int requestedWidth, @Px int availableWidth, @Px int windowWidth) {
+    public int determineShowableWidth(@Px int availableWidth, @Px int windowWidth) {
         assert availableWidth <= windowWidth;
+        assert mMinWidthDp <= mMaxWidthDp;
+        assert mMaxWidthDp <= windowWidth;
 
-        mLastRequestedWidth = requestedWidth;
         mLastAvailableWidth = availableWidth;
         mLastWindowWidth = windowWidth;
 
-        if (availableWidth < mMinWidthDp) {
+        @Px int minWidth = ViewUtils.dpToPx(mSideUiContainerView.getContext(), mMinWidthDp);
+        @Px int maxWidth = ViewUtils.dpToPx(mSideUiContainerView.getContext(), mMaxWidthDp);
+
+        if (availableWidth < minWidth) {
             return 0;
         }
 
-        // mMinWidthDp <= availableWidth < requestedWidth
-        if (availableWidth < requestedWidth) {
+        if (availableWidth < maxWidth) {
             return availableWidth;
         }
 
-        // requestedWidth <= availableWidth <= windowWidth
-        return requestedWidth;
+        return maxWidth;
     }
 
     @Override
     @AnchorSide
     public int getAnchorSide() {
         return mAnchorSide;
+    }
+
+    @Override
+    public boolean hasContentToShow() {
+        return mHasContentToShow;
     }
 
     @Override
@@ -98,9 +112,8 @@ public final class TestSideUiContainer implements SideUiContainer {
 
     @Override
     public void onWindowResized(boolean canShowSideUi) {
-        @Px int requestedSideUiWidth = canShowSideUi ? TEST_SIDE_UI_WIDTH : 0;
         mSideUiCoordinator.requestUpdateContainer(
-                new SideUiContainerProperties(mSideUiId, mAnchorSide, requestedSideUiWidth),
+                new SideUiContainerProperties(mSideUiId, mAnchorSide),
                 /* suppressAnimations= */ true);
     }
 }

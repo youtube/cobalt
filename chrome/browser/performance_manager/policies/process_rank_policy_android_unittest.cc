@@ -132,23 +132,20 @@ TEST_F(ProcessRankPolicyAndroidTest, FocusedPage) {
             content::ChildProcessImportance::IMPORTANT);
 }
 
-// TODO(crbug.com/523088992): Re-enable this test on Android.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_FocusedNotVisiblePage DISABLED_FocusedNotVisiblePage
-#else
-#define MAYBE_FocusedNotVisiblePage FocusedNotVisiblePage
-#endif  // BUILDFLAG(IS_ANDROID)
-TEST_F(ProcessRankPolicyAndroidTest, MAYBE_FocusedNotVisiblePage) {
+TEST_F(ProcessRankPolicyAndroidTest, FocusedNotVisiblePage) {
+  scoped_feature_list_.InitWithFeaturesAndParameters(
+      /*enabled_features=*/
+      {{chrome::android::kProtectedTabsAndroid, {}},
+       // Effectively disable the recently visible timer.
+       {chrome::android::kProtectRecentlyVisibleTab,
+        {{"duration_in_seconds", "0"}}}},
+      /*disabled_features=*/{});
   graph_->PassToGraph(std::make_unique<ProcessRankPolicyAndroid>());
   MockPageGraph page_graph = CreateDefaultPage();
   DefaultNavigation(page_graph.page.get());
 
   page_graph.page.get()->SetIsFocused(true);
   page_graph.page.get()->SetIsVisible(false);
-
-  // Bypass the recently visible timer.
-  task_environment()->FastForwardBy(
-      base::Seconds(chrome::android::kProtectRecentlyVisibleTabDuration.Get()));
 
   EXPECT_EQ(web_contents()->GetPrimaryMainFrameImportanceForTesting(),
             content::ChildProcessImportance::NORMAL);
@@ -730,25 +727,20 @@ TEST_F(ProcessRankPolicyAndroidTest, HadUserEditsPage) {
             content::ChildProcessImportance::NOT_PERCEPTIBLE);
 }
 
-// TODO(crbug.com/523088992): Re-enable this test on Android.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_NonVisiblePage DISABLED_NonVisiblePage
-#else
-#define MAYBE_NonVisiblePage NonVisiblePage
-#endif  // BUILDFLAG(IS_ANDROID)
-TEST_F(ProcessRankPolicyAndroidTest, MAYBE_NonVisiblePage) {
-  scoped_feature_list_.InitAndEnableFeature(
-      chrome::android::kProtectedTabsAndroid);
+TEST_F(ProcessRankPolicyAndroidTest, NonVisiblePage) {
+  scoped_feature_list_.InitWithFeaturesAndParameters(
+      /*enabled_features=*/
+      {{chrome::android::kProtectedTabsAndroid, {}},
+       // Effectively disable the recently visible timer.
+       {chrome::android::kProtectRecentlyVisibleTab,
+        {{"duration_in_seconds", "0"}}}},
+      /*disabled_features=*/{});
   graph_->PassToGraph(std::make_unique<ProcessRankPolicyAndroid>());
   MockPageGraph page_graph = CreateDefaultPage();
   DefaultNavigation(page_graph.page.get());
 
   page_graph.page.get()->SetIsFocused(false);
   page_graph.page.get()->SetIsVisible(false);
-
-  // Bypass the recently visible timer.
-  task_environment()->FastForwardBy(
-      base::Seconds(chrome::android::kProtectRecentlyVisibleTabDuration.Get()));
 
   EXPECT_EQ(web_contents()->GetPrimaryMainFrameImportanceForTesting(),
             content::ChildProcessImportance::NORMAL);

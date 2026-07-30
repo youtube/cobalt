@@ -23,15 +23,12 @@ include_rules = [
   "+chrome/browser/ui/webui/ash/settings/pages/system_preferences",
   "+chrome/browser/ui/webui/ash/settings/search",
   "+chrome/browser/ui/webui/ash/settings/services/settings_manager",
-  "+chrome/browser/ui/webui/settings",
   "+chrome/browser/web_applications",
-  "+chrome/common",
   "+chrome/grit",
 ]
 
 specific_include_rules = {
   '.*_(browser|unit)test\\.cc': [
-    "+ash/accessibility/accessibility_controller.h",
     "+chrome/browser/ui/browser.h",
     "+chrome/test",
   ],

@@ -10,8 +10,8 @@
 #include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/task/bind_post_task.h"
-#include "content/browser/child_process_security_policy_impl.h"  // nogncheck
 #include "content/browser/dom_storage/session_storage_namespace_impl.h"  // nogncheck
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"  // nogncheck
 #include "content/browser/storage_partition_impl.h"              // nogncheck
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/test/test_browser_context.h"
@@ -127,6 +127,10 @@ class DomStorageTestcase
                                       base::OnceClosure done_closure)
       VALID_CONTEXT_REQUIRED(sequence_checker_);
 
+  // Called from the UI thread; asks the wrapper to push pending writes through
+  // to the storage service.
+  void FlushStorageOnUIThread();
+
   std::unique_ptr<TestBrowserContext> browser_context_;
   blink::SessionStorageNamespaceId session_namespace_id_;
   scoped_refptr<SessionStorageNamespaceImpl> session_namespace_;
@@ -207,6 +211,9 @@ void DomStorageTestcase::RunAction(const ProtoAction& action,
                                    base::OnceClosure done_closure) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
+  const auto ThreadId_UI = dom_storage_proto::RunThreadAction_ThreadId_UI;
+  const auto ThreadId_IO = dom_storage_proto::RunThreadAction_ThreadId_IO;
+
   switch (action.action_case()) {
     case ProtoAction::kNewLocalStorageArea:
       CreateAndAddLocalStorageArea(
@@ -225,10 +232,34 @@ void DomStorageTestcase::RunAction(const ProtoAction& action,
           std::move(done_closure));
       return;
 
-    case ProtoAction::kStorageAreaRemoteAction: {
+    case ProtoAction::kStorageAreaRemoteAction:
       ::mojolpm::HandleRemoteAction(action.storage_area_remote_action());
       break;
-    }
+
+    // These actions ensure that any tasks currently queued on the named
+    // thread have a chance to run before the fuzzer continues.
+    //
+    // We don't provide any particular guarantees here; this does not mean
+    // that the named thread is idle, nor does it prevent any other threads
+    // from running (or the consequences of any resulting callbacks, for
+    // example).
+    case ProtoAction::kRunThread:
+      if (action.run_thread().id() == ThreadId_UI) {
+        GetUIThreadTaskRunner({})->PostTaskAndReply(
+            FROM_HERE, base::DoNothing(), std::move(done_closure));
+      } else if (action.run_thread().id() == ThreadId_IO) {
+        GetIOThreadTaskRunner({})->PostTaskAndReply(
+            FROM_HERE, base::DoNothing(), std::move(done_closure));
+      }
+      return;
+
+    case ProtoAction::kFlushStorage:
+      GetUIThreadTaskRunner({})->PostTaskAndReply(
+          FROM_HERE,
+          base::BindOnce(&DomStorageTestcase::FlushStorageOnUIThread,
+                         base::Unretained(this)),
+          std::move(done_closure));
+      return;
 
     case ProtoAction::ACTION_NOT_SET:
       break;
@@ -256,6 +287,15 @@ void DomStorageTestcase::OpenSessionStorage(
     mojo::PendingReceiver<blink::mojom::StorageArea> receiver) {
   GetStoragePartition()->BindSessionStorageAreaForProcess(
       renderer_id, storage_key, session_namespace_id_, std::move(receiver));
+}
+
+void DomStorageTestcase::FlushStorageOnUIThread() {
+  // Wrapper is null after Shutdown; the testcase tears it down only in
+  // TearDownOnUIThread so reaching here without a context means setup failed.
+  auto* wrapper = GetStoragePartition()->GetDOMStorageContext();
+  if (wrapper) {
+    wrapper->Flush();
+  }
 }
 
 void DomStorageTestcase::CreateAndAddLocalStorageArea(

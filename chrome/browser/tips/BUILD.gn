@@ -11,6 +11,7 @@ static_library("tips") {
   deps = [
     "//base",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/segmentation_platform",
     "//chrome/browser/tips/core",
     "//components/keyed_service/core",
   ]

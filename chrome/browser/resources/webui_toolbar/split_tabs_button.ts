@@ -75,9 +75,30 @@ export class SplitTabsButtonElement extends SplitTabsButtonElementBase {
   }
 
   protected getLabel(): string {
-    const labelId = this.state.isCurrentTabSplit ?
-        'splitTabsButtonAccNameEnabled' :
-        'splitTabsButtonAccNamePinned';
+    if (!this.state.isCurrentTabSplit) {
+      return loadTimeData.getString('splitTabsButtonAccNamePinned');
+    }
+    const isRtl = loadTimeData.getString('textdirection') === 'rtl';
+    let labelId = '';
+    switch (this.state.location) {
+      case SplitTabActiveLocation.kStart:
+        labelId = isRtl ? 'splitTabsButtonAccNameEnabledRight' :
+                          'splitTabsButtonAccNameEnabledLeft';
+        break;
+      case SplitTabActiveLocation.kEnd:
+        labelId = isRtl ? 'splitTabsButtonAccNameEnabledLeft' :
+                          'splitTabsButtonAccNameEnabledRight';
+        break;
+      case SplitTabActiveLocation.kTop:
+        labelId = 'splitTabsButtonAccNameEnabledTop';
+        break;
+      case SplitTabActiveLocation.kBottom:
+        labelId = 'splitTabsButtonAccNameEnabledBottom';
+        break;
+      default:
+        labelId = 'splitTabsButtonAccNamePinned';
+        break;
+    }
     return loadTimeData.getString(labelId);
   }
 

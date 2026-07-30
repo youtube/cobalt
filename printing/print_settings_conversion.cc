@@ -30,8 +30,8 @@
 #include "ui/gfx/geometry/size.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
-#include "chromeos/crosapi/mojom/local_printer.mojom.h"
-#include "print_settings_conversion_chromeos.h"
+#include "printing/cups_printer_status_reason_ash.h"
+#include "printing/print_settings_conversion_chromeos.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace printing {
@@ -341,7 +341,7 @@ std::unique_ptr<PrintSettings> PrintSettingsFromJobSettings(
   std::optional<int> reason = job_settings.FindInt(kSettingPrinterStatusReason);
   if (reason.has_value()) {
     settings->set_printer_status_reason(
-        static_cast<crosapi::mojom::StatusReason::Reason>(reason.value()));
+        static_cast<CupsPrinterStatusReason>(reason.value()));
   }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 

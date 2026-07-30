@@ -125,6 +125,11 @@ void EmailVerifierDelegate::OnVerificationResponseReceived(
     NotifyFlowCompleted(EvpAutofillFlowResult::kManagerDestroyed);
     return;
   }
+  if (manager->driver().GetLifecycleState() !=
+      AutofillDriver::LifecycleState::kActive) {
+    NotifyFlowCompleted(EvpAutofillFlowResult::kDriverInactive);
+    return;
+  }
   if (!token) {
     NotifyFlowCompleted(EvpAutofillFlowResult::kVerificationFailed);
     return;
@@ -145,6 +150,11 @@ void EmailVerifierDelegate::OnEmailVerificationDecision(
     AutofillClient::EmailVerificationPermissionUiResult ui_result) {
   if (!manager) {
     NotifyFlowCompleted(EvpAutofillFlowResult::kManagerDestroyed);
+    return;
+  }
+  if (manager->driver().GetLifecycleState() !=
+      AutofillDriver::LifecycleState::kActive) {
+    NotifyFlowCompleted(EvpAutofillFlowResult::kDriverInactive);
     return;
   }
 
@@ -205,6 +215,11 @@ void EmailVerifierDelegate::OnIsVerifiable(
     std::optional<content::webid::EmailVerifier::Result> result) {
   if (!manager) {
     NotifyFlowCompleted(EvpAutofillFlowResult::kManagerDestroyed);
+    return;
+  }
+  if (manager->driver().GetLifecycleState() !=
+      AutofillDriver::LifecycleState::kActive) {
+    NotifyFlowCompleted(EvpAutofillFlowResult::kDriverInactive);
     return;
   }
 
@@ -374,7 +389,7 @@ void EmailVerifierDelegate::TriggerVerification(
       FindField(fields, [&](const AutofillField& field) {
         return field.parsed_autocomplete() &&
                field.parsed_autocomplete()->email_verification_token &&
-               field.host_form_id() == email_field.host_form_id();
+               field.renderer_form_id() == email_field.renderer_form_id();
       });
 
   if (!token_field) {

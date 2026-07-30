@@ -87,15 +87,17 @@ void CommentsSidePanelCoordinator::TabGroupedStateChanged(
 void CommentsSidePanelCoordinator::OnTabGroupUpdated(
     const tab_groups::SavedTabGroup& group,
     tab_groups::TriggerSource source) {
+  tabs::TabInterface* active_tab = browser_->GetActiveTabInterface();
+
   // Only handle updates to the active group.
   std::optional<tab_groups::TabGroupId> active_group_id =
-      browser_->GetTabStripModel()->GetActiveTabGroupId();
+      active_tab ? active_tab->GetGroup() : std::nullopt;
   if (!active_group_id.has_value() ||
       active_group_id.value() != group.local_group_id()) {
     return;
   }
 
-  UpdateVisuals(browser_->GetActiveTabInterface());
+  UpdateVisuals(active_tab);
 }
 
 void CommentsSidePanelCoordinator::UpdateVisuals(

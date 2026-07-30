@@ -6,13 +6,13 @@
 # by `tools/crates/run_gnrt.py vendor`. Do not edit!
 #
 # This is an empty placeholder that has replaced the
-# `wasip2-1.0.3+wasi-0.2.9` crate.
+# `wasip2-1.0.4+wasi-0.2.12` crate.
 #
 # See `//tools/crates/gnrt/removed_crate.md` to learn more.
 
 [package]
 name = "wasip2"
-version = "1.0.3+wasi-0.2.9"
+version = "1.0.4+wasi-0.2.12"
 
 [package.metadata.gnrt]
 is_placeholder = true

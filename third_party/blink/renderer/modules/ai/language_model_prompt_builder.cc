@@ -212,15 +212,15 @@ class LanguageModelPromptBuilder
   struct PendingEntry : public GarbageCollected<PendingEntry> {
     PendingEntry() = delete;
     explicit PendingEntry(LanguageModelMessageContent* content,
-                          size_t message_index,
-                          size_t content_index)
+                          wtf_size_t message_index,
+                          wtf_size_t content_index)
         : content(content),
           message_index(message_index),
           content_index(content_index) {}
     void Trace(Visitor* visitor) const { visitor->Trace(content); }
     Member<LanguageModelMessageContent> content;
-    size_t message_index = 0;
-    size_t content_index = 0;
+    wtf_size_t message_index = 0;
+    wtf_size_t content_index = 0;
   };
   void Build(const V8LanguageModelPrompt* input);
   // Called to reject the promise and return an error to the callback.
@@ -429,12 +429,12 @@ void LanguageModelPromptBuilder::Build(const V8LanguageModelPrompt* input) {
     }
   }
 
-  size_t message_index = 0;
+  wtf_size_t message_index = 0;
   for (const auto& message : messages) {
     auto content_sequence =
         message->content()->GetAsLanguageModelMessageContentSequence();
     CHECK(!content_sequence.empty());
-    size_t content_index = 0;
+    wtf_size_t content_index = 0;
     for (const auto& content : content_sequence) {
       CHECK(content);
       // Track the pre-allocated message and content slot that the resulting

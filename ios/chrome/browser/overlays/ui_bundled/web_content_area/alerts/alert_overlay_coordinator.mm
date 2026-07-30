@@ -59,11 +59,9 @@ using alert_overlays::AlertRequest;
 #pragma mark - ContainedPresenterDelegate
 
 - (void)containedPresenterWillPresent:(id<ContainedPresenter>)presenter {
-  if (IsGeminiCopresenceEnabled()) {
-    [_geminiHandler
-        hideFloatyIfInvokedAnimated:NO
-                         fromSource:gemini::FloatyUpdateSource::Alert];
-  }
+  [_geminiHandler
+      hideFloatyIfInvokedAnimated:NO
+                       fromSource:gemini::FloatyUpdateSource::Alert];
 }
 
 - (void)containedPresenterDidPresent:(id<ContainedPresenter>)presenter {
@@ -73,12 +71,10 @@ using alert_overlays::AlertRequest;
 - (void)containedPresenterDidDismiss:(id<ContainedPresenter>)presenter {
   self.alertViewController = nil;
   self.presenter = nil;
-  if (IsGeminiCopresenceEnabled()) {
-    [_geminiHandler
-        updateFloatyVisibilityIfEligibleAnimated:NO
-                                      fromSource:gemini::FloatyUpdateSource::
-                                                     Alert];
-  }
+  [_geminiHandler
+      updateFloatyVisibilityIfEligibleAnimated:NO
+                                    fromSource:gemini::FloatyUpdateSource::
+                                                   Alert];
   _geminiHandler = nil;
   self.delegate->OverlayUIDidFinishDismissal(self.requestId);
 }
@@ -101,11 +97,8 @@ using alert_overlays::AlertRequest;
   if (self.started) {
     return;
   }
-
-  if (IsGeminiCopresenceEnabled()) {
-    _geminiHandler = HandlerForProtocol(self.browser->GetCommandDispatcher(),
-                                        GeminiCommands);
-  }
+  _geminiHandler =
+      HandlerForProtocol(self.browser->GetCommandDispatcher(), GeminiCommands);
   self.alertViewController = [[AlertViewController alloc] init];
   self.alertViewController.modalPresentationStyle =
       UIModalPresentationOverCurrentContext;

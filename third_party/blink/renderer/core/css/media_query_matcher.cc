@@ -21,6 +21,7 @@
 
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/metrics/document_update_reason.h"
+#include "third_party/blink/public/mojom/favicon/favicon_url.mojom-blink.h"
 #include "third_party/blink/renderer/core/css/media_list.h"
 #include "third_party/blink/renderer/core/css/media_query_evaluator.h"
 #include "third_party/blink/renderer/core/css/media_query_exp.h"
@@ -135,7 +136,8 @@ void MediaQueryMatcher::MediaFeaturesChanged() {
 
   // Update favicon and theme color when a media query value has changed.
   if (document_->GetFrame()) {
-    document_->GetFrame()->UpdateFaviconURL();
+    document_->GetFrame()->UpdateFaviconURL(
+        mojom::blink::FaviconUpdateReason::kMediaQueryChange);
     document_->GetFrame()->DidChangeThemeColor(
         /*update_theme_color_cache=*/false);
   }

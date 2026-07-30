@@ -33,7 +33,8 @@ namespace autofill {
 class AutocompleteSuggestionGenerator : public SuggestionGenerator {
  public:
   explicit AutocompleteSuggestionGenerator(
-      scoped_refptr<AutofillWebDataService> profile_database);
+      scoped_refptr<AutofillWebDataService> profile_database,
+      bool at_memory_enabled);
   ~AutocompleteSuggestionGenerator() override;
 
   void GenerateSuggestions(
@@ -74,6 +75,9 @@ class AutocompleteSuggestionGenerator : public SuggestionGenerator {
   // initiated or if this manager is destroyed. It is `std::nullopt` if no query
   // is in flight.
   std::optional<WebDataServiceBase::Handle> pending_query_;
+
+  // Whether the AtMemory feature is enabled.
+  const bool at_memory_enabled_;
 
   base::WeakPtrFactory<AutocompleteSuggestionGenerator> weak_ptr_factory_{this};
 };

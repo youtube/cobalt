@@ -5,9 +5,12 @@
 #ifndef CHROME_BROWSER_UI_ANDROID_AUTOFILL_AT_MEMORY_BOTTOM_SHEET_DELEGATE_ANDROID_H_
 #define CHROME_BROWSER_UI_ANDROID_AUTOFILL_AT_MEMORY_BOTTOM_SHEET_DELEGATE_ANDROID_H_
 
+#include <vector>
+
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/autofill/android/at_memory_bottom_sheet_delegate.h"
+#include "components/autofill/core/browser/suggestions/suggestion.h"
 
 namespace autofill {
 
@@ -20,7 +23,8 @@ class AtMemoryBottomSheetDelegateAndroid : public AtMemoryBottomSheetDelegate {
  public:
   AtMemoryBottomSheetDelegateAndroid(
       AutofillClient* client,
-      base::WeakPtr<AutofillSuggestionDelegate> delegate);
+      base::WeakPtr<AutofillSuggestionDelegate> delegate,
+      std::vector<Suggestion> suggestions);
   ~AtMemoryBottomSheetDelegateAndroid() override;
 
   AtMemoryBottomSheetDelegateAndroid(
@@ -31,10 +35,12 @@ class AtMemoryBottomSheetDelegateAndroid : public AtMemoryBottomSheetDelegate {
   // AtMemoryBottomSheetDelegate:
   void OnDismissed() override;
   void OnQuerySubmitted(const std::u16string& query) override;
+  void OnSuggestionSelected(int position) override;
 
  private:
   raw_ptr<AutofillClient> client_;
   base::WeakPtr<AutofillSuggestionDelegate> delegate_;
+  std::vector<Suggestion> suggestions_;
 };
 
 }  // namespace autofill

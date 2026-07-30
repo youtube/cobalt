@@ -44,7 +44,10 @@ impl Write for BoundedOutput {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         if self.1 < buf.len() {
             // hit the write bound, return an error.
-            return Err(io::Error::new(io::ErrorKind::OutOfMemory, "Max output size reached."));
+            return Err(io::Error::new(
+                io::ErrorKind::OutOfMemory,
+                "Max output size reached.",
+            ));
         }
         self.1 -= buf.len();
         self.0.write(buf)

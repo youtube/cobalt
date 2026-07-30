@@ -89,7 +89,7 @@ IN_PROC_BROWSER_TEST_F(SubAppsPermissionsPolicyBrowserTest,
   ASSERT_NO_FATAL_FAILURE(InstallIwaApp());
   content::RenderFrameHost* iwa_frame = OpenApp(parent_app_id_);
 
-  auto result = content::ExecJs(iwa_frame, "navigator.subApps.add({})");
+  auto result = content::ExecJs(iwa_frame, "window.subApps.add([])");
   EXPECT_FALSE(result);
   std::string message = result.message();
   EXPECT_NE(message.find(

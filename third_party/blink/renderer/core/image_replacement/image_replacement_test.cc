@@ -88,15 +88,16 @@ class MockImageReplacementHost : public mojom::blink::ImageReplacementHost {
  public:
   void ReplacementFrameAttached(
       const blink::LocalFrameToken& frame_token,
-      mojom::blink::ImageDataPtr original_image,
-      const std::optional<base::Token>& tracked_element_id) override {
-    EXPECT_TRUE(original_image);
-    if (original_image) {
-      EXPECT_GT(original_image->webp_bytes.size(), 0u);
+      mojom::blink::ReplacementDataPtr replacement_data) override {
+    EXPECT_TRUE(replacement_data);
+    EXPECT_TRUE(replacement_data->original_image);
+    if (replacement_data->original_image) {
+      EXPECT_GT(replacement_data->original_image->webp_bytes.size(), 0u);
 
       // Decode the image.
-      auto data = SkData::MakeWithCopy(original_image->webp_bytes.data(),
-                                       original_image->webp_bytes.size());
+      auto data = SkData::MakeWithCopy(
+          replacement_data->original_image->webp_bytes.data(),
+          replacement_data->original_image->webp_bytes.size());
       auto codec = SkWebpDecoder::Decode(data, nullptr);
       EXPECT_TRUE(codec);
       if (codec) {
@@ -108,8 +109,9 @@ class MockImageReplacementHost : public mojom::blink::ImageReplacementHost {
       }
     }
     frame_token_ = frame_token;
-    original_image_ = std::move(original_image);
-    tracked_element_id_ = tracked_element_id;
+    original_image_ = std::move(replacement_data->original_image);
+    tracked_element_id_ = replacement_data->tracked_element_id;
+    replacement_data_ = std::move(replacement_data);
   }
 
   const std::optional<blink::LocalFrameToken>& frame_token() const {
@@ -118,6 +120,10 @@ class MockImageReplacementHost : public mojom::blink::ImageReplacementHost {
 
   const std::optional<base::Token>& tracked_element_id() const {
     return tracked_element_id_;
+  }
+
+  const mojom::blink::ReplacementDataPtr& replacement_data() const {
+    return replacement_data_;
   }
 
   const SkBitmap& decoded_bitmap() const { return decoded_bitmap_; }
@@ -131,6 +137,7 @@ class MockImageReplacementHost : public mojom::blink::ImageReplacementHost {
   std::optional<blink::LocalFrameToken> frame_token_;
   mojom::blink::ImageDataPtr original_image_;
   std::optional<base::Token> tracked_element_id_;
+  mojom::blink::ReplacementDataPtr replacement_data_;
   SkBitmap decoded_bitmap_;
 };
 
@@ -920,6 +927,43 @@ TEST_F(ImageReplacementSimTest, ImageReplacementResetAfterSrcChange) {
 
   // Replacement should be reset.
   EXPECT_FALSE(img->HasImageReplacement());
+}
+
+TEST_F(ImageReplacementSimTest, ImageReplacementSendsObjectFit) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kImageReplacement);
+  SimRequest main_resource("https://example.com/index.html", "text/html");
+  LoadURL("https://example.com/index.html");
+  main_resource.Complete(R"(
+    <style>
+      #target { object-fit: cover; }
+    </style>
+    <img src="data:image/gif;base64,R0lGODlhAQABAIAAAP///////yH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="
+         id="target"></img>
+  )");
+
+  Compositor().BeginFrame();
+  test::RunPendingTasks();
+
+  HTMLImageElement* img = To<HTMLImageElement>(
+      GetDocument().getElementById(AtomicString("target")));
+  ASSERT_TRUE(img);
+  ASSERT_TRUE(img->GetLayoutObject());
+
+  auto result = ImageReplacement::CreateAndBindReceiver(*img);
+  ASSERT_TRUE(result.has_value());
+
+  mojo::Remote<mojom::blink::ImageReplacement> replacement_remote(
+      std::move(result.value()));
+
+  MockImageReplacementHost mock_host;
+  replacement_remote->StartReplacement(
+      mock_host.receiver().BindNewPipeAndPassRemote(), std::nullopt);
+  test::RunPendingTasks();
+
+  ASSERT_TRUE(mock_host.replacement_data());
+  EXPECT_EQ(mock_host.replacement_data()->object_fit,
+            mojom::blink::ObjectFit::kCover);
 }
 
 }  // namespace blink

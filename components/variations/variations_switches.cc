@@ -32,6 +32,8 @@ const char kEnableBenchmarkingApi[] = "enable-benchmarking-api";
 // additional field trials (using "--force-fieldtrials") by using this switch.
 // For Chrome-branded builds, the testing config is not enabled by default, so
 // this switch is required to enable it.
+// If this switch is set to "benchmarking", it enables variations benchmarking
+// mode, which skips experiments that are disabled for benchmarking.
 const char kEnableFieldTrialTestingConfig[] = "enable-field-trial-config";
 
 // Fakes the channel of the browser for purposes of Variations filtering. This

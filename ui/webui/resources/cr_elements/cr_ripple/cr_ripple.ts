@@ -215,8 +215,7 @@ export class CrRippleElement extends CrLitElement {
     }
 
     this.ripples_.forEach(function(ripple) {
-      const opacity =
-          ripple.computedStyleMap().get('opacity') as CSSUnitValue | null;
+      const opacity = (ripple.computedStyleMap().get('opacity') ?? null) as CSSUnitValue | null;
       if (opacity === null) {
         ripple.remove();
         return;

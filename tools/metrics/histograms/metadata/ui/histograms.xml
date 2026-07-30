@@ -720,6 +720,35 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
+<histogram name="InitialWebUI.ReloadButton.InteractionToReload{InputType}"
+    units="ms" expires_after="2027-06-15">
+  <owner>mych@chromium.org</owner>
+  <owner>chrome-webium-product-eng@google.com</owner>
+  <summary>
+    Records the latency from {InputType} user interaction with the WebUI or C++
+    Views reload button to the initiation of the reload command execution.
+
+    For C++ Views, the start time is the event timestamp of the click or key
+    press, and the end time is when the browser button handler is executed. The
+    metric is emitted immediately during the button press handler.
+
+    For WebUI, the start time is the physical interaction time reconstructed in
+    the browser process by adding the renderer-reported interaction time offset
+    (relative to navigation start) to the browser-side recorded navigation start
+    ticks. The end time is when the browser process receives the Mojo reload
+    request. The metric is emitted immediately upon validating and processing
+    the Mojo request.
+
+    This is only recorded for desktop platforms when the InitialWebUIMetrics is
+    enabled.
+  </summary>
+  <token key="InputType">
+    <variant name="" summary="any physical"/>
+    <variant name=".KeyPress" summary="a KeyPress"/>
+    <variant name=".MouseRelease" summary="a MouseRelease"/>
+  </token>
+</histogram>
+
 <histogram name="InitialWebUI.ReloadButton.MouseHoverToNextPaint" units="ms"
     expires_after="2026-11-08">
   <owner>mych@chromium.org</owner>
@@ -824,7 +853,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="InitialWebUI.Startup{Scenario}.BrowserWindow.FirstPaint{StartupTemperature}"
-    units="ms" expires_after="2026-09-06">
+    units="ms" expires_after="2026-12-16">
   <owner>mych@chromium.org</owner>
   <owner>chrome-webium-product-eng@google.com</owner>
   <summary>
@@ -842,7 +871,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="InitialWebUI.Startup{Scenario}.BrowserWindow.ShowRequestedToFirstPaint{StartupTemperature}"
-    units="ms" expires_after="2026-09-06">
+    units="ms" expires_after="2026-12-16">
   <owner>mych@chromium.org</owner>
   <owner>chrome-webium-product-eng@google.com</owner>
   <summary>
@@ -889,7 +918,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="InitialWebUI.Startup{Scenario}.ReloadButton.RendererProcessCreated{StartupTemperature}"
-    units="ms" expires_after="2026-10-04">
+    units="ms" expires_after="2026-12-16">
   <owner>elkurin@chromium.org</owner>
   <owner>chrome-webium-product-eng@google.com</owner>
   <summary>
@@ -910,7 +939,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="InitialWebUI.Startup{Scenario}.ReloadButton.RendererProcessLaunched{StartupTemperature}"
-    units="ms" expires_after="2026-10-04">
+    units="ms" expires_after="2026-12-16">
   <owner>elkurin@chromium.org</owner>
   <owner>chrome-webium-product-eng@google.com</owner>
   <summary>
@@ -1358,7 +1387,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.ShownUrl" enum="WebUIUrlHashes"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>kerenzhu@chromium.org</owner>
   <owner>dpapad@chromium.org</owner>
   <owner>chrome-webui@google.com</owner>

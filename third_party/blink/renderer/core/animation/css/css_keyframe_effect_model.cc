@@ -57,8 +57,9 @@ void AddMissingProperties(const MissingPropertyValueMap& property_map,
 
     String property_name =
         AnimationInputHelpers::PropertyHandleToKeyframeAttribute(property);
-    if (property_map.Contains(property_name)) {
-      const String& value = property_map.at(property_name);
+    if (auto it = property_map.find(property_name);
+        it != property_map.end()) {
+      const String& value = it->value;
       keyframe->SetCSSPropertyValue(property.GetCSSProperty().PropertyID(),
                                     value, SecureContextMode::kInsecureContext,
                                     nullptr);

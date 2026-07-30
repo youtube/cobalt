@@ -110,12 +110,16 @@ class CodePointIterator {
   // PRECONDITIONS: iterator is not equal to CodePointIterator::End().
   // POSTCONDITION: caller must check the returned value is not equal to
   // `CodePointIterator::End(<same string>)` before dereferencing.
-  UNSAFE_BUFFER_USAGE void operator++() {
-    is_8bit_ ? static_cast<void>(
-                   // SAFETY: safe to increment as we're not deref, required
-                   // from caller via UNSAFE_BUFFER_USAGE.
-                   UNSAFE_BUFFERS(++DataRef()))
-             : ++utf16_;
+  void operator++() {
+    if (is_8bit_) {
+      CHECK_GE(utf16_.length_, 1u);
+      // SAFETY: `length_` >= 1 was checked above, so advancing one byte stays
+      // within the string.
+      UNSAFE_BUFFERS(++DataRef());
+      --utf16_.length_;
+    } else {
+      ++utf16_;
+    }
   }
 
   bool operator==(const CodePointIterator& other) const {

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<title>image-animation: resetting the shared timeline preserves an own (running) timeline</title>
+<link rel="help" href="https://drafts.csswg.org/css-image-animation-1/">
+<meta charset="utf-8" />
+<link rel="match" href="image-animation-shared-reset-preserves-own-ref.html" />
+<style>
+  #running {
+    image-animation: paused;
+  }
+  #shared {
+    image-animation: normal;
+  }
+</style>
+<script src="/common/reftest-wait.js"></script>
+<script src="/css/css-image-animation/resources/image-animation-utils.js"></script>
+<script>
+  let count = 0;
+  function loaded() {
+    count++;
+    if (count < 2)
+      return;
+
+    const running = document.getElementById('running');
+    const shared = document.getElementById('shared');
+    running.style.imageAnimation = 'running';
+
+    // The GIF (anim-rgb.gif) has 3 frames:
+    //   Frame 1: red,   20ms
+    //   Frame 2: green, 200ms
+    //   Frame 3: blue
+    //
+    // Advance the running (own) timeline into the green frame.
+    waitForFrameTime(120).then(() => {
+      // Run a ResetAnimation(force=false) on the shared image via
+      // ImageLoader::DoUpdateFromElement()
+      // referrerpolicy must reset only the shared (normal) timeline and leave
+      // the own (running) timeline as non-reset:
+      //   #shared (normal) -> first frame (red)
+      //   #own (running) -> stays green
+      running.setAttribute('referrerpolicy', 'no-referrer');
+
+      running.style.imageAnimation = 'paused';
+      shared.style.imageAnimation = 'paused';
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          takeScreenshot();
+        });
+      });
+    });
+  }
+</script>
+
+<img id="running" src="/images/anim-rgb.gif" onload="loaded()" />
+<img id="shared" src="/images/anim-rgb.gif" onload="loaded()" />
+
+</html>

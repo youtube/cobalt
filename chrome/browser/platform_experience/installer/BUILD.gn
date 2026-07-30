@@ -13,6 +13,7 @@ source_set("installer_win") {
   deps = [
     "//base",
     "//chrome/browser/google",
+    "//chrome/browser/platform_experience:delegated_tasks",
     "//chrome/common:constants",
     "//chrome/install_static:install_static_util",
   ]

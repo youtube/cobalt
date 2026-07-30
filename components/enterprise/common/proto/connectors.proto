@@ -24,6 +24,7 @@ enum AnalysisConnector {
   BULK_DATA_ENTRY = 3;
   PRINT = 4;
   FILE_TRANSFER = 5;
+  DATA_COPIED = 6;
 }
 
 message ContentMetaData {
@@ -221,6 +222,7 @@ message ContentAnalysisRequest {
     // Only possible for the `FILE_DOWNLOADED` analysis connector.
     NORMAL_DOWNLOAD = 6;
     SAVE_AS_DOWNLOAD = 7;
+    CLIPBOARD_COPY = 8;
   }
   optional Reason reason = 19;
 

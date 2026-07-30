@@ -33,6 +33,21 @@ CHROMEOS_SHEET_CONFIG = {
     'last_update_column_name': 'Last Update',
 }
 
+WINDOWS_DOC_CONFIG = {
+    'doc_id': '1Yx5cdCtqx_czAfkJyP388dlKCShqOGf1oZ96qsz84zo',
+    'doc_name': 'Chrome Browser Network Traffic Annotations - Windows',
+    'credentials_file_path':
+    'tools/traffic_annotation/scripts/credentials.json',
+    'client_token_file_path': 'tools/traffic_annotation/scripts/token.pickle',
+}
+
+CHROMEOS_DOC_CONFIG = {
+    'doc_id': '1F2jb_PHmG1cGkal-l3yv45BQFlOWzovg9o2XM-CO-sQ',
+    'doc_name': 'Chrome Browser Network Traffic Annotations - ChromeOS',
+    'credentials_file_path':
+    'tools/traffic_annotation/scripts/credentials.json',
+    'client_token_file_path': 'tools/traffic_annotation/scripts/token.pickle',
+}
 
 def is_windows():
   return os.name == 'nt'
@@ -48,6 +63,14 @@ def get_sheet_config(build_path):
     return WINDOWS_SHEET_CONFIG
   if is_chromeos(build_path):
     return CHROMEOS_SHEET_CONFIG
+  return None
+
+
+def get_doc_config(build_path):
+  if is_windows():
+    return WINDOWS_DOC_CONFIG
+  if is_chromeos(build_path):
+    return CHROMEOS_DOC_CONFIG
   return None
 
 
@@ -90,10 +113,12 @@ def main_run(args):
   ]
   rc = common.run_command(command_line)
 
-  # Update the Google Sheets on success, but only on the Windows and ChromeOS
-  # trybot.
+  # Update the Google Sheets and Docs on success, but only on the Windows and
+  # ChromeOS trybot.
   update_sheet = '--no-update-sheet' not in args.args
+  update_doc = '--no-update-doc' not in args.args
   sheet_config = get_sheet_config(build_path)
+  doc_config = get_doc_config(build_path)
   try:
     if rc:
       print('Test failed without updating the annotations sheet.')
@@ -105,10 +130,10 @@ def main_run(args):
 
       if update_sheet and sheet_config is not None:
         print('Updating annotations sheet...')
-        config_file = tempfile.NamedTemporaryFile(delete=False, mode='w+')
-        json.dump(sheet_config, config_file, indent=4)
-        config_filename = config_file.name
-        config_file.close()
+        with tempfile.NamedTemporaryFile(delete=False,
+                                         mode='w+') as config_file:
+          json.dump(sheet_config, config_file, indent=4)
+          config_filename = config_file.name
         vpython_path = 'vpython3.bat' if is_windows() else 'vpython3'
 
         command_line = [
@@ -126,6 +151,30 @@ def main_run(args):
 
         if rc:
           failures = ['Please refer to stdout for errors.']
+
+      if update_doc and doc_config is not None:
+        print('Updating annotations doc...')
+        with tempfile.NamedTemporaryFile(delete=False,
+                                         mode='w+') as config_file:
+          json.dump(doc_config, config_file, indent=4)
+          config_filename = config_file.name
+        vpython_path = 'vpython3.bat' if is_windows() else 'vpython3'
+
+        command_line = [
+            vpython_path,
+            os.path.join(common.SRC_DIR, 'tools', 'traffic_annotation',
+                         'scripts', 'update_annotations_doc.py'),
+            '--config-file',
+            config_filename,
+            '--annotations-file',
+            annotations_filename,
+        ]
+        rc_doc = common.run_command(command_line)
+        cleanup_file(config_filename)
+
+        if rc_doc:
+          failures = ['Please refer to stdout for errors.']
+          rc = rc_doc
 
     common.record_local_script_results('test_traffic_annotation_auditor',
                                        args.output, failures, True)

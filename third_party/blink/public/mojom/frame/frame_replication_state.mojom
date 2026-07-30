@@ -95,6 +95,12 @@ struct FrameReplicationState {
   // trustworthy.
   bool has_potentially_trustworthy_unique_origin = false;
 
+  // True if the embedder identifies this frame as a secure-context root —
+  // descendants should treat it as a secure-context boundary when walking
+  // ancestors. Sourced from `ContentBrowserClient::IsSecureContextRoot()` at
+  // navigation commit. Today set for MIME-handler extension OOPIFs.
+  bool is_secure_context_root = false;
+
   // Whether the frame has an active transient user gesture.
   bool has_active_user_gesture = false;
 

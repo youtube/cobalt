@@ -35,8 +35,6 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_prf_inputs.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_prf_outputs.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_prf_values.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_supplemental_pub_keys_inputs.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_supplemental_pub_keys_outputs.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authenticator_selection_criteria.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_credential_creation_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_credential_properties_output.h"
@@ -704,11 +702,6 @@ void OnMakePublicKeyCredentialComplete(
         AuthenticationExtensionsLargeBlobOutputs::Create();
     large_blob_outputs->setSupported(credential->supports_large_blob);
     extension_outputs->setLargeBlob(large_blob_outputs);
-  }
-  if (credential->supplemental_pub_keys) {
-    extension_outputs->setSupplementalPubKeys(
-        ConvertTo<AuthenticationExtensionsSupplementalPubKeysOutputs*>(
-            credential->supplemental_pub_keys));
   }
   if (credential->payment) {
     extension_outputs->setPayment(
@@ -2008,12 +2001,22 @@ AuthenticationCredentialsContainer::preventSilentAccess(
 
   // TODO(https://crbug.com/1441075): Unify the implementation for
   // different CredentialTypes and avoid the duplication eventually.
-  auto* auth_request =
-      CredentialManagerProxy::From(script_state)->FederatedAuthRequest();
-  auth_request->PreventSilentAccess(
-      BindOnce(&OnPreventSilentAccessComplete,
-               std::make_unique<ScopedPromiseResolver>(
-                   resolver, ScopedPromiseResolver::ConnectionType::kFedCm)));
+  if (RuntimeEnabledFeatures::FedCmMultipleRequestsEnabled(
+          ExecutionContext::From(script_state))) {
+    auto* service =
+        CredentialManagerProxy::From(script_state)->FederatedRequestService();
+    service->PreventSilentAccess(
+        BindOnce(&OnPreventSilentAccessComplete,
+                 std::make_unique<ScopedPromiseResolver>(
+                     resolver, ScopedPromiseResolver::ConnectionType::kFedCm)));
+  } else {
+    auto* auth_request =
+        CredentialManagerProxy::From(script_state)->FederatedAuthRequest();
+    auth_request->PreventSilentAccess(
+        BindOnce(&OnPreventSilentAccessComplete,
+                 std::make_unique<ScopedPromiseResolver>(
+                     resolver, ScopedPromiseResolver::ConnectionType::kFedCm)));
+  }
 
   return promise;
 }

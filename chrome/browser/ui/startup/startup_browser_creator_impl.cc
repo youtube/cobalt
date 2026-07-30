@@ -147,7 +147,8 @@ Browser* GetExistingBrowserForOpenBehavior(
           return true;
         }
 
-        BrowserWindow* const browser_window = candidate->window();
+        BrowserWindow* const browser_window =
+            BrowserWindow::FromBrowser(candidate);
         if (!browser_window) {
           return true;
         }
@@ -188,7 +189,8 @@ Browser* GetExistingBrowserForOpenBehavior(
             return true;
           }
 
-          BrowserWindow* const browser_window = candidate->window();
+          BrowserWindow* const browser_window =
+              BrowserWindow::FromBrowser(candidate);
           if (!browser_window) {
             return true;
           }
@@ -374,7 +376,7 @@ Browser* StartupBrowserCreatorImpl::OpenTabsInBrowser(
               [](base::WeakPtr<Browser> browser,
                  std::unique_ptr<ScopedProfileKeepAlive> profile_keepalive,
                  headless::HeadlessCommandHandler::Result result) {
-                if (browser && browser->window()) {
+                if (browser && browser->GetWindow()) {
 #if BUILDFLAG(IS_MAC)
                   // On Macs Chrome keeps running after the last browser
                   // window is closed which is not expected for headless

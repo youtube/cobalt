@@ -42,10 +42,6 @@ class SurveyMetadata {
     static final String KEY_LAST_PROMPT_DISPLAYED_DATE =
             "Chrome.Survey.Date.LastPromptDisplayedDate";
 
-    /** Key represent the last date any survey prompt with cooldown override is shown. */
-    static final String KEY_LAST_PROMPT_WITH_COOLDOWN_OVERRIDE_DISPLAYED_DATE =
-            "Chrome.Survey.Date.LastPromptWithCooldownOverrideDisplayedDate";
-
     private static final int INVALID_DATE = -1;
     private static @Nullable Integer sDateForTesting;
 
@@ -124,11 +120,6 @@ class SurveyMetadata {
         return Holder.getSharedPref().getInt(KEY_LAST_PROMPT_DISPLAYED_DATE, INVALID_DATE);
     }
 
-    static int getLastPromptDisplayedDateForAnySurveyWithCooldownOverride() {
-        return Holder.getSharedPref()
-                .getInt(KEY_LAST_PROMPT_WITH_COOLDOWN_OVERRIDE_DISPLAYED_DATE, INVALID_DATE);
-    }
-
     int getCurrentDate() {
         return mCurrentDateSupplier.get();
     }
@@ -156,17 +147,11 @@ class SurveyMetadata {
         Holder.setIntegerPref(mPrefKeyDiceRolledDate, mLastDiceRolledDate);
     }
 
-    void setPromptDisplayed(boolean hasCooldownOverride) {
+    void setPromptDisplayed() {
         if (mLastPromptDisplayedDate != null && mLastPromptDisplayedDate != INVALID_DATE) return;
 
         mLastPromptDisplayedDate = getCurrentDate();
         Holder.setIntegerPref(mPrefKeyPromptDisplayedDate, mLastPromptDisplayedDate);
-        if (hasCooldownOverride) {
-            Holder.setIntegerPref(
-                    KEY_LAST_PROMPT_WITH_COOLDOWN_OVERRIDE_DISPLAYED_DATE,
-                    mLastPromptDisplayedDate);
-        } else {
-            Holder.setIntegerPref(KEY_LAST_PROMPT_DISPLAYED_DATE, mLastPromptDisplayedDate);
-        }
+        Holder.setIntegerPref(KEY_LAST_PROMPT_DISPLAYED_DATE, mLastPromptDisplayedDate);
     }
 }

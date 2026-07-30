@@ -1,0 +1,92 @@
+# Seed for the flush/commit pipeline: it binds local and session StorageAreas,
+# Puts into them, then issues flush_storage + run_thread { id: IO } + GetAll.
+# flush_storage drives StorageAreaImpl::ScheduleImmediateCommit, and the IO drain
+# gives the commit work queued on the IO thread (where the in-process storage
+# service runs) a chance to run before the GetAll.
+#
+# Draining the IO thread does not make the GetAll deterministic:
+#   - For LocalStorage the GetAll still hits the cache (CacheMode KEYS_AND_VALUES).
+#   - For SessionStorage with a single client binding the CacheMode drops to
+#     KEYS_ONLY_WHEN_POSSIBLE once OnCommitComplete() runs, but there is no
+#     guarantee that happens before the GetAll is processed on the IO thread, so
+#     we may either commit and read back from disk or just hit the cache.
+#
+# Three sequences: single flush, multi-cycle flush, and delete + flush.
+
+# ---- area bindings ----
+# actions[0]: local storage ORIGIN_A, renderer A.
+actions {
+  new_local_storage_area { id: 0  origin_id: ORIGIN_A  renderer_id: RENDERER_A }
+}
+# actions[1]: local storage ORIGIN_B, renderer A (second origin for multi-cycle).
+actions {
+  new_local_storage_area { id: 1  origin_id: ORIGIN_B  renderer_id: RENDERER_A }
+}
+# actions[2]: session storage ORIGIN_A, renderer A.
+actions {
+  new_session_storage_area { id: 2  origin_id: ORIGIN_A  renderer_id: RENDERER_A }
+}
+
+# ---- Put operations ----
+# actions[3]: Put key 65=1 on id 0 (local ORIGIN_A).
+actions {
+  storage_area_remote_action {
+    id: 0
+    m_put { m_key { values { value: 65 } } m_value { values { value: 1 } } }
+  }
+}
+# actions[4]: Put key 66=2 on id 0 (second key on local ORIGIN_A).
+actions {
+  storage_area_remote_action {
+    id: 0
+    m_put { m_key { values { value: 66 } } m_value { values { value: 2 } } }
+  }
+}
+# actions[5]: Put key 65=3 on id 1 (local ORIGIN_B).
+actions {
+  storage_area_remote_action {
+    id: 1
+    m_put { m_key { values { value: 65 } } m_value { values { value: 3 } } }
+  }
+}
+# actions[6]: Put key 65=4 on id 2 (session ORIGIN_A).
+actions {
+  storage_area_remote_action {
+    id: 2
+    m_put { m_key { values { value: 65 } } m_value { values { value: 4 } } }
+  }
+}
+
+# ---- flush / drain primitives ----
+# actions[7]: Flush pending writes to the backing store.
+actions { flush_storage {} }
+# actions[8]: Drain storage-service work queued on the IO thread.
+actions { run_thread { id: IO } }
+
+# ---- read-back after flush ----
+# actions[9]: GetAll on id 0 (post-commit cache read, local).
+actions { storage_area_remote_action { id: 0  m_get_all {} } }
+# actions[10]: GetAll on id 2 (post-commit cache read, session).
+actions { storage_area_remote_action { id: 2  m_get_all {} } }
+
+# ---- delete + read ----
+# actions[11]: Delete key 65 on id 0.
+actions {
+  storage_area_remote_action {
+    id: 0
+    m_delete { m_key { values { value: 65 } } }
+  }
+}
+# actions[12]: GetAll on id 0 after delete+flush (post-delete cache reload).
+actions { storage_area_remote_action { id: 0  m_get_all {} } }
+# actions[13]: GetAll on id 1.
+actions { storage_area_remote_action { id: 1  m_get_all {} } }
+
+# Sequence 0: single flush on local + session, then read (flush_then_drain coverage).
+sequences { action_indexes: [0, 2, 3, 6, 7, 8, 9, 10] }
+# Sequence 1: two local origins, multi-cycle flush (reuses flush 7 + drain 8).
+sequences { action_indexes: [0, 1, 3, 4, 5, 7, 8, 7, 8, 7, 8] }
+# Sequence 2: delete + flush + read (post-delete cache reload path).
+sequences { action_indexes: [0, 1, 3, 5, 7, 8, 11, 7, 8, 12, 13] }
+
+sequence_indexes: [0, 1, 2]

@@ -79,6 +79,15 @@ gpu::ContextResult GLES2CommandBufferStub::Initialize(
 
   const auto& attribs = *init_params.attribs->get_gles();
 
+#if !BUILDFLAG(IS_WIN)
+  if (attribs.context_type == CONTEXT_TYPE_OPENGLES2 &&
+      !channel_->is_gpu_host()) {
+    LOG(ERROR) << "ContextResult::kFatalFailure: CONTEXT_TYPE_OPENGLES2 is not "
+                  "allowed";
+    return gpu::ContextResult::kFatalFailure;
+  }
+#endif
+
   GpuChannelManager* manager = channel_->gpu_channel_manager();
   DCHECK(manager);
   memory_tracker_ = CreateMemoryTracker();

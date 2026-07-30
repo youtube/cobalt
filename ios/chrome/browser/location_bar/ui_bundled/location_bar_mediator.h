@@ -13,7 +13,7 @@
 #import "ios/chrome/browser/location_bar/ui_bundled/location_bar_mutator.h"
 
 @protocol LocationBarConsumer;
-class OmniboxPositionBrowserAgent;
+@class LayoutState;
 class PlaceholderService;
 class TemplateURLService;
 class UrlLoadingBrowserAgent;
@@ -48,9 +48,8 @@ class WebStateList;
 // state.
 @property(nonatomic, assign) WebStateList* webStateList;
 
-// The OmniboxPositionBrowserAgent used to query the position of the omnibox.
-@property(nonatomic, assign)
-    OmniboxPositionBrowserAgent* omniboxPositionBrowserAgent;
+// The LayoutState used to query the position of the omnibox.
+@property(nonatomic, weak) LayoutState* layoutState;
 
 // Whether the location bar is the active one. Only set when `kChromeNextIa` is
 // enabled.

@@ -95,8 +95,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Compositing.BeginMainFrame.BMFReason9{FrameType}{Suffix}"
-    units="reasons" expires_after="2026-10-30">
+<histogram name="Compositing.BeginMainFrame.BMFReason10{FrameType}{Suffix}"
+    units="reasons" expires_after="2027-06-30">
   <owner>thiabaud@google.com</owner>
   <owner>jonross@chromium.org</owner>
   <summary>
@@ -594,7 +594,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.SkiaRenderer.{DrawQuadMaterial}.SrcRectConstraint"
-    enum="SrcRectConstraintUMA" expires_after="2026-10-16">
+    enum="SrcRectConstraintUMA" expires_after="2026-12-16">
   <owner>hitawala@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -703,17 +703,6 @@ chromium-metrics-reviews@google.com.
     Total duration (in us) for all raster tasks to execute. Recorded when raster
     tasks are scheduled, at a downsampled rate. Only reported for platforms
     supporting high resolution clocks.
-  </summary>
-</histogram>
-
-<histogram name="Compositing.TileManager.TileInvalidationArea" units="%"
-    expires_after="2026-07-26">
-  <owner>jonross@chromium.org</owner>
-  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
-  <summary>
-    When resource is assigned to tile for rasterization, records the percentage
-    area of invalidation of said resource. This will only be recorded for
-    partially rasterized tiles.
   </summary>
 </histogram>
 

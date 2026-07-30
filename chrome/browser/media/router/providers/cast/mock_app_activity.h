@@ -24,49 +24,77 @@ class MockAppActivity : public AppActivity {
   MockAppActivity(const MediaRoute& route, const std::string& app_id);
   ~MockAppActivity() override;
 
-  MOCK_METHOD1(SendAppMessageToReceiver,
-               cast_channel::Result(const CastInternalMessage& cast_message));
-  MOCK_METHOD1(SendMediaRequestToReceiver,
-               std::optional<int>(const CastInternalMessage& cast_message));
-  MOCK_METHOD2(SendSetVolumeRequestToReceiver,
-               void(const CastInternalMessage& cast_message,
-                    cast_channel::ResultCallback callback));
-  MOCK_METHOD2(StopSessionOnReceiver,
-               void(const std::string& client_id,
-                    cast_channel::ResultCallback callback));
-  MOCK_METHOD2(CloseConnectionOnReceiver,
-               void(const std::string& client_id,
-                    blink::mojom::PresentationConnectionCloseReason reason));
-  MOCK_METHOD1(SendStopSessionMessageToClients,
-               void(const std::string& hash_token));
-  MOCK_METHOD1(HandleLeaveSession, void(const std::string& client_id));
-  MOCK_METHOD3(
-      AddClient,
-      mojom::RoutePresentationConnectionPtr(const CastMediaSource& source,
-                                            const url::Origin& origin,
-                                            content::FrameTreeNodeId tab_id));
-  MOCK_METHOD1(RemoveClient, void(const std::string& client_id));
-  MOCK_METHOD1(OnSessionSet, void(const CastSession& session));
-  MOCK_METHOD2(OnSessionUpdated,
-               void(const CastSession& session, const std::string& hash_token));
-  MOCK_METHOD2(SendMessageToClient,
-               void(const std::string& client_id,
-                    blink::mojom::PresentationConnectionMessagePtr message));
-  MOCK_METHOD2(SendMediaStatusToClients,
-               void(const base::DictValue& media_status,
-                    std::optional<int> request_id));
-  MOCK_METHOD1(
-      ClosePresentationConnections,
-      void(blink::mojom::PresentationConnectionCloseReason close_reason));
-  MOCK_METHOD0(TerminatePresentationConnections, void());
-  MOCK_METHOD1(OnAppMessage,
-               void(const openscreen::cast::proto::CastMessage& message));
-  MOCK_METHOD1(OnInternalMessage,
-               void(const cast_channel::InternalMessage& message));
-  MOCK_METHOD2(
-      CreateMediaController,
-      void(mojo::PendingReceiver<mojom::MediaController> media_controller,
-           mojo::PendingRemote<mojom::MediaStatusObserver> observer));
+  MOCK_METHOD(cast_channel::Result,
+              SendAppMessageToReceiver,
+              (const CastInternalMessage& cast_message),
+              (override));
+  MOCK_METHOD(std::optional<int>,
+              SendMediaRequestToReceiver,
+              (const CastInternalMessage& cast_message),
+              (override));
+  MOCK_METHOD(void,
+              SendSetVolumeRequestToReceiver,
+              (const CastInternalMessage& cast_message,
+               cast_channel::ResultCallback callback),
+              (override));
+  MOCK_METHOD(void,
+              StopSessionOnReceiver,
+              (const std::string& client_id,
+               cast_channel::ResultCallback callback),
+              (override));
+  MOCK_METHOD(void,
+              CloseConnectionOnReceiver,
+              (const std::string& client_id,
+               blink::mojom::PresentationConnectionCloseReason reason),
+              (override));
+  MOCK_METHOD(void,
+              SendStopSessionMessageToClients,
+              (const std::string& hash_token),
+              (override));
+  MOCK_METHOD(void,
+              HandleLeaveSession,
+              (const std::string& client_id),
+              (override));
+  MOCK_METHOD(mojom::RoutePresentationConnectionPtr,
+              AddClient,
+              (const CastMediaSource& source,
+               const url::Origin& origin,
+               content::FrameTreeNodeId tab_id),
+              (override));
+  MOCK_METHOD(void, RemoveClient, (const std::string& client_id), (override));
+  MOCK_METHOD(void, OnSessionSet, (const CastSession& session), (override));
+  MOCK_METHOD(void,
+              OnSessionUpdated,
+              (const CastSession& session, const std::string& hash_token),
+              (override));
+  MOCK_METHOD(void,
+              SendMessageToClient,
+              (const std::string& client_id,
+               blink::mojom::PresentationConnectionMessagePtr message),
+              (override));
+  MOCK_METHOD(void,
+              SendMediaStatusToClients,
+              (const base::DictValue& media_status,
+               std::optional<int> request_id),
+              (override));
+  MOCK_METHOD(void,
+              ClosePresentationConnections,
+              (blink::mojom::PresentationConnectionCloseReason close_reason),
+              (override));
+  MOCK_METHOD(void, TerminatePresentationConnections, (), (override));
+  MOCK_METHOD(void,
+              OnAppMessage,
+              (const openscreen::cast::proto::CastMessage& message),
+              (override));
+  MOCK_METHOD(void,
+              OnInternalMessage,
+              (const cast_channel::InternalMessage& message),
+              (override));
+  MOCK_METHOD(void,
+              BindMediaController,
+              (mojo::PendingReceiver<mojom::MediaController> media_controller,
+               mojo::PendingRemote<mojom::MediaStatusObserver> observer),
+              (override));
 
  private:
   mojo::Remote<mojom::Logger> logger_;

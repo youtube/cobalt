@@ -668,6 +668,12 @@ void ModelContext::RegisterDeclarativeTool(
     return;
   }
 
+  // TODO(https://crbug.com/509983792): Surface an error to the form when tool
+  // registration fails.
+  if (tool_map_.find(declarative_tool->ToolName()) != tool_map_.end()) {
+    return;
+  }
+
   // TODO(https://crbug.com/509983792): Surface an error if the tool's name is
   // not valid.
   UseCounter::Count(document_,

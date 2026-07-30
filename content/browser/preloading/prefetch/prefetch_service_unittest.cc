@@ -39,6 +39,7 @@
 #include "content/browser/preloading/prefetch/prefetch_streaming_url_loader.h"
 #include "content/browser/preloading/prefetch/prefetch_test_util_internal.h"
 #include "content/browser/preloading/prefetch/prefetch_type.h"
+#include "content/browser/preloading/prefetch/prefetch_url_loader_factory_utils.h"
 #include "content/browser/preloading/preloading.h"
 #include "content/browser/preloading/preloading_attempt_impl.h"
 #include "content/browser/preloading/preloading_data_impl.h"
@@ -405,7 +406,13 @@ class PrefetchServiceTestBase : public PrefetchingMetricsTestBase {
 
     InitScopedFeatureList();
 
-    PrefetchService::SetURLLoaderFactoryForTesting(
+    SetTerminalPrefetchURLLoaderFactoryForTesting(
+        test_shared_url_loader_factory_.get());
+    // `PrePrefetchServiceImpl::SetURLLoaderFactoryForTesting()` is called for
+    // catching network requests in:
+    // - PrePrefetch-related tests, and
+    // - Tests with `kPrefetchOffTheMainThreadForceForTesting` enabled.
+    PrePrefetchServiceImpl::SetURLLoaderFactoryForTesting(
         test_shared_url_loader_factory_.get());
 
     PrefetchService::SetHostNonUniqueFilterForTesting(
@@ -420,10 +427,12 @@ class PrefetchServiceTestBase : public PrefetchingMetricsTestBase {
     }
     PrefetchDocumentManager::SetPrefetchServiceForTesting(nullptr);
     mock_navigation_handle_.reset();
-    PrefetchService::SetURLLoaderFactoryForTesting(nullptr);
+
+    SetTerminalPrefetchURLLoaderFactoryForTesting(nullptr);
+    PrePrefetchServiceImpl::SetURLLoaderFactoryForTesting(nullptr);
+
     PrefetchService::SetHostNonUniqueFilterForTesting(nullptr);
     PrefetchService::SetServiceWorkerContextForTesting(nullptr);
-    PrefetchService::SetURLLoaderFactoryForTesting(nullptr);
     test_content_browser_client_.reset();
     request_handler_keep_alive_.clear();
     service_worker_context_.reset();
@@ -1194,13 +1203,10 @@ class PrefetchServicePrePrefetchTest : public PrefetchServiceTest {
         url::Origin::Create(GURL("https://example.com")),
         /*initial_javascript_enabled_hint=*/true,
         /*initial_should_append_variations_header_hint=*/false);
-    PrePrefetchServiceImpl::SetURLLoaderFactoryForTesting(
-        test_shared_url_loader_factory_.get());
   }
 
   void TearDown() override {
     pre_prefetch_service_.reset();
-    PrePrefetchServiceImpl::SetURLLoaderFactoryForTesting(nullptr);
     PrefetchServiceTest::TearDown();
   }
 
@@ -1214,8 +1220,8 @@ class PrefetchServicePrePrefetchTest : public PrefetchServiceTest {
     return pre_prefetch_service_.get();
   }
 
-  [[nodiscard]] std::unique_ptr<content::PrefetchHandle>
-  MakePrefetchFromPrePrefetch(const GURL& prefetch_url) {
+  [[nodiscard]] std::unique_ptr<PrePrefetchHandle> MakePrePrefetch(
+      const GURL& prefetch_url) {
     base::test::TestFuture<std::unique_ptr<PrePrefetchHandle>> future;
     base::ThreadPool::PostTaskAndReplyWithResult(
         FROM_HERE, {base::MayBlock()},
@@ -1235,8 +1241,12 @@ class PrefetchServicePrePrefetchTest : public PrefetchServiceTest {
             },
             pre_prefetch_service(), prefetch_url),
         future.GetCallback());
-
-    return prefetch_service().AddPrefetchRequestFromPrePrefetch(future.Take());
+    return future.Take();
+  }
+  [[nodiscard]] std::unique_ptr<PrefetchHandle> AddPrefetchFromPrePrefetch(
+      std::unique_ptr<PrePrefetchHandle> pre_prefetch_handle) {
+    return prefetch_service().AddPrefetchRequestFromPrePrefetch(
+        std::move(pre_prefetch_handle));
   }
 
  private:
@@ -1506,6 +1516,17 @@ TEST_P(PrefetchServiceTest, FailureCase_Browser_NetError) {
 }
 
 TEST_P(PrefetchServiceTest, FailureCase_Browser_NotEligibleNonHttps) {
+  if (base::FeatureList::IsEnabled(
+          features::kPrefetchOffTheMainThreadForceForTesting)) {
+    // HTTPS eligibility check is currently implemented in `AwPrefetchManager`
+    // (Java side), so it is still checked in non-test code but is outside of
+    // `kPrefetchOffTheMainThreadForceForTesting` test path, so skipping this
+    // test for now.
+    // TODO(crbug.com/452389538): Add HTTPS eligibility check also to
+    // `//content/browser` side.
+    GTEST_SKIP();
+  }
+
   MakePrefetchService(
       std::make_unique<testing::NiceMock<MockPrefetchServiceDelegate>>(
           /*num_on_prefetch_likely_calls=*/std::nullopt));
@@ -1697,7 +1718,8 @@ TEST_P(PrefetchServicePrePrefetchTest, SuccessCase_Embedder_PrePrefetch) {
   const PrefetchType prefetch_type =
       PrefetchType(PreloadingTriggerType::kEmbedder,
                    /*use_prefetch_proxy=*/false);
-  auto handle = MakePrefetchFromPrePrefetch(GURL("https://example.com"));
+  auto handle =
+      AddPrefetchFromPrePrefetch(MakePrePrefetch(GURL("https://example.com")));
 
   VerifyCommonRequestState(
       GURL("https://example.com"),
@@ -3175,7 +3197,8 @@ TEST_P(PrefetchServicePrePrefetchTest,
   const PrefetchType prefetch_type =
       PrefetchType(PreloadingTriggerType::kEmbedder,
                    /*use_prefetch_proxy=*/false);
-  auto handle = MakePrefetchFromPrePrefetch(GURL("https://example.com/?a=1"));
+  auto handle = AddPrefetchFromPrePrefetch(
+      MakePrePrefetch(GURL("https://example.com/?a=1")));
 
   VerifyCommonRequestState(
       GURL("https://example.com/?a=1"),
@@ -5469,6 +5492,15 @@ class PrefetchServiceLimitsTest
       public ::testing::WithParamInterface<PrefetchRearchParam> {
  public:
   PrefetchServiceLimitsTest() : WithPrefetchRearchParam(GetParam()) {}
+
+  void SetUp() override {
+    PrefetchServiceTestBase::SetUp();
+
+    if (base::FeatureList::IsEnabled(
+            features::kPrefetchOffTheMainThreadForceForTesting)) {
+      GTEST_SKIP() << "Prefetch limit doesn't work for PrePrefetch";
+    }
+  }
 
   void InitScopedFeatureList() override {
     InitBaseParams();
@@ -7839,7 +7871,7 @@ TEST_P(PrefetchServiceAddPrefetchContainerTest, PreserveOldIfOldIsStarted) {
       document_token, GURL("https://example.com"), PreloadingType::kPrefetch);
   PreloadingAttempt* attempt1 = prefetch_container1->request().attempt();
   prefetch_container1->SimulatePrefetchEligibleForTest();
-  prefetch_service().StartSinglePrefetchForTesting(*prefetch_container1);
+  prefetch_container1->SimulatePrefetchStartedForTest();
 
   auto prefetch_container2 = CreateSpeculationRulesPrefetchContainer(
       document_token, GURL("https://example.com"), PreloadingType::kPrefetch);

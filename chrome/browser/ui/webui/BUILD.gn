@@ -125,6 +125,7 @@ source_set("configs") {
       "//chrome/browser/ui/webui/content_annotator_internals",
       "//chrome/browser/ui/webui/data_sharing",
       "//chrome/browser/ui/webui/feedback",
+      "//chrome/browser/ui/webui/history",
       "//chrome/browser/ui/webui/infobar_internals",
       "//chrome/browser/ui/webui/inspect",
       "//chrome/browser/ui/webui/multistep_filter_internals",
@@ -209,6 +210,10 @@ source_set("configs") {
       "//chrome/browser/ui/webui/internals",
       "//chrome/browser/ui/webui/tab_strip_internals",
     ]
+  }
+
+  if (enable_print_preview) {
+    deps += [ "//chrome/browser/ui/webui/print_preview" ]
   }
 
   if (is_mac) {

@@ -278,6 +278,7 @@ TEST_F(PersonalContextManagerTest, MultipleParallelRequestsLimit) {
 }
 
 TEST_F(PersonalContextManagerTest, FetchPiiEntitiesEmptyAccessToken) {
+  base::HistogramTester histogram_tester;
   PiiResponseHolder response_holder;
   proto::FetchPiiEntitiesRequest request;
   request.set_feature(proto::CONTEXT_MEMORY_FEATURE_AMBIENT_AUTOFILL);
@@ -286,9 +287,19 @@ TEST_F(PersonalContextManagerTest, FetchPiiEntitiesEmptyAccessToken) {
   EXPECT_FALSE(response_holder.GetFinalStatus());
   EXPECT_EQ(ContextMemoryError::ExecutionError::kPermissionDenied,
             response_holder.error());
+
+  histogram_tester.ExpectUniqueSample(
+      "PersonalContext.FetchPiiEntities.Result.AmbientAutofill",
+      /*sample=*/false,
+      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      "PersonalContext.FetchPiiEntities.ErrorStatus.AmbientAutofill",
+      ContextMemoryError::ExecutionError::kPermissionDenied,
+      /*expected_bucket_count=*/1);
 }
 
 TEST_F(PersonalContextManagerTest, FetchPiiEntitiesWithUserSignIn) {
+  base::HistogramTester histogram_tester;
   PiiResponseHolder response_holder;
   SetAutomaticIssueOfAccessTokens();
   proto::FetchPiiEntitiesRequest request;
@@ -298,9 +309,18 @@ TEST_F(PersonalContextManagerTest, FetchPiiEntitiesWithUserSignIn) {
   EXPECT_TRUE(SimulateSuccessfulPiiResponse());
   EXPECT_TRUE(response_holder.GetFinalStatus());
   EXPECT_EQ("test_id", response_holder.response().server_request_id());
+
+  histogram_tester.ExpectUniqueSample(
+      "PersonalContext.FetchPiiEntities.Result.AmbientAutofill",
+      /*sample=*/true,
+      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectTotalCount(
+      "PersonalContext.FetchPiiEntities.Latency.AmbientAutofill",
+      /*expected_count=*/1);
 }
 
 TEST_F(PersonalContextManagerTest, FetchPiiEntitiesServerError) {
+  base::HistogramTester histogram_tester;
   PiiResponseHolder response_holder;
   SetAutomaticIssueOfAccessTokens();
   proto::FetchPiiEntitiesRequest request;
@@ -310,10 +330,20 @@ TEST_F(PersonalContextManagerTest, FetchPiiEntitiesServerError) {
 
   EXPECT_TRUE(SimulatePiiResponse("error", net::HTTP_INTERNAL_SERVER_ERROR));
   EXPECT_FALSE(response_holder.GetFinalStatus());
+
+  histogram_tester.ExpectUniqueSample(
+      "PersonalContext.FetchPiiEntities.Result.AmbientAutofill",
+      /*sample=*/false,
+      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      "PersonalContext.FetchPiiEntities.ErrorStatus.AmbientAutofill",
+      ContextMemoryError::ExecutionError::kGenericFailure,
+      /*expected_bucket_count=*/1);
 }
 
 TEST_F(PersonalContextManagerTest,
        FetchPiiEntitiesMultipleParallelRequestsLimit) {
+  base::HistogramTester histogram_tester;
   PiiResponseHolder response_holder1, response_holder2;
 
   SetAutomaticIssueOfAccessTokens();
@@ -336,6 +366,23 @@ TEST_F(PersonalContextManagerTest,
   EXPECT_FALSE(response_holder1.GetFinalStatus());
   EXPECT_EQ(ContextMemoryError::ExecutionError::kCancelled,
             response_holder1.error());
+
+  histogram_tester.ExpectTotalCount(
+      "PersonalContext.FetchPiiEntities.Result.AmbientAutofill",
+      /*expected_count=*/2);
+  histogram_tester.ExpectBucketCount(
+      "PersonalContext.FetchPiiEntities.Result.AmbientAutofill",
+      /*sample=*/false,
+      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      "PersonalContext.FetchPiiEntities.Result.AmbientAutofill",
+      /*sample=*/true,
+      /*expected_count=*/1);
+
+  histogram_tester.ExpectUniqueSample(
+      "PersonalContext.FetchPiiEntities.ErrorStatus.AmbientAutofill",
+      ContextMemoryError::ExecutionError::kCancelled,
+      /*expected_bucket_count=*/1);
 }
 
 }  // namespace

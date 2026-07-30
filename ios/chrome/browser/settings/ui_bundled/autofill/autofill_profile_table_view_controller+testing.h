@@ -15,6 +15,11 @@
 + (autofill::DenseSet<autofill::EntityTypeName>)shoppingForTesting;
 
 - (void)willDeleteItemsAtIndexPaths:(NSArray*)indexPaths;
+- (UIBarButtonItem*)addButtonInToolbar;
+- (BOOL)shouldShowVerificationSwitch;
+- (BOOL)shouldShowWalletPromo;
+- (BOOL)canModifyEnhancedAutofill;
+- (void)handleAddAddress;
 @end
 
 #endif  // IOS_CHROME_BROWSER_SETTINGS_UI_BUNDLED_AUTOFILL_AUTOFILL_PROFILE_TABLE_VIEW_CONTROLLER_TESTING_H_

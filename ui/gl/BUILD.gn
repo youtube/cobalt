@@ -66,63 +66,21 @@ use_angle_stubs =
 # has definitively stuck (at which point the use_static_angle flag itself will
 # also be removed) and the bots no longer expect these files.
 if (use_angle_stubs) {
-  if (is_win) {
-    # Define dummy libraries to satisfy symbol uploader.
-    # 0-byte stubs cause symbol uploader to fail on Windows.
-    shared_library("dummy_libEGL") {
-      output_name = "libEGL"
-      sources = [ "dummy_stub.cc" ]
-    }
-    shared_library("dummy_libGLESv2") {
-      output_name = "libGLESv2"
-      sources = [ "dummy_stub.cc" ]
-    }
-  } else {
-    action("generate_angle_stubs_action") {
-      script = "write_angle_stubs.py"
-      outputs = [ "$target_gen_dir/angle_stubs.stamp" ]
-
-      # We list these stubs as formal outputs so that Siso/Ninja can track them
-      # cleanly and record their command hashes, preventing "command line not
-      # found in log" errors during no-op builds.
-      _stubs = [
-        "$root_out_dir/libEGL$shlib_extension",
-        "$root_out_dir/libGLESv2$shlib_extension",
-      ]
-      if (is_linux || is_chromeos) {
-        _stubs += [
-          "$root_out_dir/libEGL.so.TOC",
-          "$root_out_dir/libGLESv2.so.TOC",
-          "$root_out_dir/libEGL.so.stripped",
-          "$root_out_dir/libEGL.so.debug",
-          "$root_out_dir/libGLESv2.so.stripped",
-          "$root_out_dir/libGLESv2.so.debug",
-        ]
-        if (current_cpu == "x86") {
-          _cpu = "ia32"
-        } else {
-          _cpu = current_cpu
-        }
-        _stubs += [
-          "$root_out_dir/angle_libegl.breakpad.$_cpu",
-          "$root_out_dir/angle_libgles.breakpad.$_cpu",
-        ]
-      }
-
-      outputs += _stubs
-      args = rebase_path(outputs, root_build_dir)
-    }
+  # Define dummy libraries to satisfy symbol uploader and official build infra.
+  shared_library("dummy_libEGL") {
+    output_name = "libEGL"
+    sources = [ "dummy_stub.cc" ]
+  }
+  shared_library("dummy_libGLESv2") {
+    output_name = "libGLESv2"
+    sources = [ "dummy_stub.cc" ]
   }
 
   group("generate_angle_stubs") {
-    if (is_win) {
-      public_deps = [
-        ":dummy_libEGL",
-        ":dummy_libGLESv2",
-      ]
-    } else {
-      public_deps = [ ":generate_angle_stubs_action" ]
-    }
+    public_deps = [
+      ":dummy_libEGL",
+      ":dummy_libGLESv2",
+    ]
   }
 }
 
@@ -247,9 +205,6 @@ component("gl") {
     "//ui/base:ozone_buildflags",
     "//ui/gfx/mojom",
   ]
-  if (use_angle_stubs) {
-    deps += [ ":generate_angle_stubs" ]
-  }
   public_deps = [
     ":gl_enums",
     ":gl_headers",
@@ -260,6 +215,12 @@ component("gl") {
   ]
 
   data_deps = []
+
+  if (use_angle_stubs) {
+    # Added via data_deps so that the dummy libraries are generated for build
+    # infrastructure but not linked into dependent targets.
+    data_deps += [ ":generate_angle_stubs" ]
+  }
 
   if (enable_swiftshader) {
     data_deps += [
@@ -319,12 +280,15 @@ component("gl") {
     sources += [
       "child_window_win.cc",
       "child_window_win.h",
+      "dc_commit_error.h",
       "dc_layer_overlay_image.cc",
       "dc_layer_overlay_image.h",
       "dc_layer_overlay_params.cc",
       "dc_layer_overlay_params.h",
       "dc_layer_tree.cc",
       "dc_layer_tree.h",
+      "dc_surface_solid_color_pool.cc",
+      "dc_surface_solid_color_pool.h",
       "dcomp_presenter.cc",
       "dcomp_presenter.h",
       "dcomp_surface_proxy.h",
@@ -343,6 +307,8 @@ component("gl") {
       "hdr_metadata_helper_win.cc",
       "hdr_metadata_helper_win.h",
       "os_compositor_tree_base.h",
+      "solid_color_pool_base.cc",
+      "solid_color_pool_base.h",
       "swap_chain_presenter.cc",
       "swap_chain_presenter.h",
       "vsync_provider_win.cc",
@@ -548,6 +514,13 @@ static_library("gl_unittest_utils") {
     "gpu_timing_fake.h",
   ]
 
+  if (is_win) {
+    sources += [
+      "dcomp_mocks.cc",
+      "dcomp_mocks.h",
+    ]
+  }
+
   deps = [
     ":gl",
     "//testing/gmock",
@@ -641,6 +614,7 @@ test("gl_unittests") {
       "gl_fence_win_unittest.cc",
       "hdr_metadata_helper_win_unittest.cc",
       "os_compositor_tree_base_unittest.cc",
+      "solid_color_pool_base_unittest.cc",
     ]
   }
 

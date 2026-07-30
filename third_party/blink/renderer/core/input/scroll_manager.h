@@ -106,7 +106,7 @@ class CORE_EXPORT ScrollManager : public GarbageCollected<ScrollManager> {
   ScrollChainResult RecomputeScrollChain(
       const Node& start_node,
       mojom::blink::ScrollDirection direction);
-  bool CanScroll(const Node& current_node);
+  bool CanScroll(const Node& current_node, ScrollbarOrientation orientation);
 
   const Member<LocalFrame> frame_;
 

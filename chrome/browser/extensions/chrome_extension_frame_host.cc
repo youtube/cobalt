@@ -40,7 +40,7 @@ void ChromeExtensionFrameHost::RequestScriptInjectionPermission(
     RequestScriptInjectionPermissionCallback callback) {
   if (!crx_file::id_util::IdIsValid(extension_id)) {
     content::RenderProcessHost* render_process =
-        receivers_.GetCurrentTargetFrame()->GetProcess();
+        receivers_.CurrentTargetFrame().GetProcess();
     if (render_process) {
       bad_message::ReceivedBadMessage(
           render_process,
@@ -94,9 +94,8 @@ void ChromeExtensionFrameHost::DetailedConsoleMessageAdded(
   if (!IsSourceFromAnExtension(source))
     return;
 
-  content::RenderFrameHost* render_frame_host =
-      receivers_.GetCurrentTargetFrame();
-  ExtensionId extension_id = util::GetExtensionIdFromFrame(render_frame_host);
+  content::RenderFrameHost& render_frame_host = receivers_.CurrentTargetFrame();
+  ExtensionId extension_id = util::GetExtensionIdFromFrame(&render_frame_host);
   if (extension_id.empty())
     extension_id = GURL(source).GetHost();
 
@@ -106,8 +105,8 @@ void ChromeExtensionFrameHost::DetailedConsoleMessageAdded(
           extension_id, browser_context->IsOffTheRecord(), source, message,
           stack_trace, web_contents_->GetLastCommittedURL(),
           blink::ConsoleMessageLevelToLogSeverity(level),
-          render_frame_host->GetRoutingID(),
-          render_frame_host->GetProcess()->GetDeprecatedID())));
+          render_frame_host.GetRoutingID(),
+          render_frame_host.GetProcess()->GetDeprecatedID())));
 }
 
 void ChromeExtensionFrameHost::ContentScriptsExecuting(

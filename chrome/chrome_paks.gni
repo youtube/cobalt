@@ -154,6 +154,7 @@ template("chrome_extra_paks") {
       "$root_gen_dir/content/quota_internals_resources.pak",
       "$root_gen_dir/mojo/public/js/mojo_bindings_resources.pak",
       "$root_gen_dir/net/net_resources.pak",
+      "$root_gen_dir/services/device/public/cpp/usb/usb_ids_resources.pak",
       "$root_gen_dir/third_party/blink/public/resources/blink_resources.pak",
       "$root_gen_dir/third_party/blink/public/resources/inspector_overlay_resources.pak",
       "$root_gen_dir/third_party/blink/public/strings/permission_element_generated_strings.pak",
@@ -183,6 +184,7 @@ template("chrome_extra_paks") {
       "//content/browser/resources",
       "//mojo/public/js:resources",
       "//net:net_resources",
+      "//services/device/public/cpp/usb:usb_ids_resources",
       "//third_party/blink/public:devtools_inspector_resources",
       "//third_party/blink/public:resources",
       "//third_party/blink/public/strings:permission_element_generated_strings",
@@ -194,15 +196,6 @@ template("chrome_extra_paks") {
     }
     if (defined(invoker.additional_paks)) {
       sources += invoker.additional_paks
-    }
-
-    # Consumers (extensions, chrome/browser/{usb,serial}) are not built on
-    # mobile Android.
-    if (!is_android || is_desktop_android) {
-      sources += [
-        "$root_gen_dir/services/device/public/cpp/usb/usb_ids_resources.pak",
-      ]
-      deps += [ "//services/device/public/cpp/usb:usb_ids_resources" ]
     }
 
     if (enable_extensions_core) {

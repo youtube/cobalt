@@ -4,11 +4,16 @@
 
 #import "ios/chrome/browser/settings/autofill/autofill_and_passwords/utils/autofill_and_passwords_item_utils.h"
 
+#import "build/branding_buildflags.h"
 #import "components/strings/grit/components_strings.h"
+#import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_settings_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_table_view_controller_constants.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_detail_icon_item.h"
+#import "ios/chrome/browser/shared/ui/table_view/cells/table_view_link_header_footer_item.h"
+#import "ios/chrome/browser/shared/ui/table_view/cells/table_view_switch_item.h"
+#import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_header_footer_item.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util_mac.h"
@@ -70,6 +75,33 @@ TableViewDetailIconItem* DetailItemWithType(
     detail_item.iconTintColor = UIColor.whiteColor;
   }
   return detail_item;
+}
+
+// Returns the branded version of the Google Services symbol.
+UIImage* GetBrandedGoogleServicesSymbol() {
+#if BUILDFLAG(IOS_USE_BRANDED_ASSETS)
+  return CustomSettingsRootMulticolorSymbol(kGoogleIconSymbol);
+#else
+  return DefaultSettingsRootSymbol(kGearshape2Symbol);
+#endif
+}
+
+// Creates and returns a configured TableViewDetailIconItem for Enhanced
+// Autofill.
+TableViewDetailIconItem* EnhancedAutofillDetailItem(NSInteger itemType,
+                                                    NSInteger titleId,
+                                                    UIImage* iconImage) {
+  TableViewDetailIconItem* detailItem =
+      [[TableViewDetailIconItem alloc] initWithType:itemType];
+  detailItem.text = l10n_util::GetNSString(titleId);
+  detailItem.textNumberOfLines = 0;
+  detailItem.textFont =
+      [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote];
+  detailItem.textColor = [UIColor colorNamed:kTextSecondaryColor];
+  detailItem.selectionStyle = UITableViewCellSelectionStyleNone;
+  detailItem.iconImage = iconImage;
+  detailItem.iconTintColor = [UIColor colorNamed:kTextPrimaryColor];
+  return detailItem;
 }
 
 }  // namespace
@@ -150,4 +182,65 @@ TableViewDetailIconItem* AutofillSettingsItem() {
   return DetailItemWithType(SettingsItemTypeAutofillSettings, title, nil,
                             DefaultSettingsRootSymbol(kSettingsSymbol),
                             kSettingsAutofillSettingsCellId);
+}
+
+TableViewSwitchItem* EnhancedAutofillSwitchItem(NSInteger itemType,
+                                                BOOL enabled,
+                                                id target,
+                                                SEL action) {
+  TableViewSwitchItem* switchItem =
+      [[TableViewSwitchItem alloc] initWithType:itemType];
+  switchItem.text = l10n_util::GetNSString(IDS_SETTINGS_AUTOFILL_AI_PAGE_TITLE);
+  switchItem.target = target;
+  switchItem.selector = action;
+  switchItem.on = enabled;
+  switchItem.accessibilityIdentifier = kEnhancedAutofillSwitchViewId;
+  return switchItem;
+}
+
+TableViewHeaderFooterItem* EnhancedAutofillSwitchFooter(NSInteger itemType) {
+  TableViewLinkHeaderFooterItem* footer =
+      [[TableViewLinkHeaderFooterItem alloc] initWithType:itemType];
+  footer.text =
+      l10n_util::GetNSString(IDS_SETTINGS_AUTOFILL_AI_TOGGLE_SUB_LABEL);
+  return footer;
+}
+
+TableViewHeaderFooterItem* EnhancedAutofillWhenOnSectionHeader(
+    NSInteger itemType) {
+  TableViewTextHeaderFooterItem* header =
+      [[TableViewTextHeaderFooterItem alloc] initWithType:itemType];
+  header.text = l10n_util::GetNSString(IDS_SETTINGS_AUTOFILL_AI_WHEN_ON);
+  return header;
+}
+
+TableViewDetailIconItem* EnhancedAutofillCanFillDifficultFieldsItem(
+    NSInteger itemType) {
+  return EnhancedAutofillDetailItem(
+      itemType, IDS_SETTINGS_AUTOFILL_AI_WHEN_ON_CAN_FILL_DIFFICULT_FIELDS,
+      CustomSymbolWithPointSize(kTextAnalysisSymbol,
+                                kSettingsRootSymbolImagePointSize));
+}
+
+TableViewHeaderFooterItem* EnhancedAutofillThingsToConsiderSectionHeader(
+    NSInteger itemType) {
+  TableViewTextHeaderFooterItem* header =
+      [[TableViewTextHeaderFooterItem alloc] initWithType:itemType];
+  header.text =
+      l10n_util::GetNSString(IDS_SETTINGS_AUTOFILL_AI_THINGS_TO_CONSIDER);
+  return header;
+}
+
+TableViewDetailIconItem* EnhancedAutofillDataUsageItem(NSInteger itemType) {
+  return EnhancedAutofillDetailItem(
+      itemType, IDS_SETTINGS_AUTOFILL_AI_TO_CONSIDER_DATA_USAGE,
+      MakeSymbolMonochrome(GetBrandedGoogleServicesSymbol()));
+}
+
+TableViewDetailIconItem* EnhancedAutofillEnterpriseManagedLoggingDisabledItem(
+    NSInteger itemType) {
+  return EnhancedAutofillDetailItem(
+      itemType, IDS_SETTINGS_AUTOFILL_AI_ENTERPRISE_LOGGING_MANAGED_DISABLED,
+      CustomSymbolWithPointSize(kEnterpriseSymbol,
+                                kSettingsRootSymbolImagePointSize));
 }

@@ -11,9 +11,11 @@
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/views/picture_in_picture/document_pip_contents_view.h"
+#include "chrome/browser/ui/views/picture_in_picture/document_pip_dialog_manager_delegate.h"
 #include "chrome/browser/ui/views/picture_in_picture/document_pip_frame_view.h"
 #include "chrome/browser/ui/views/picture_in_picture/document_pip_widget_delegate.h"
 #include "chrome/browser/ui/views/picture_in_picture/picture_in_picture_tucker.h"
+#include "components/javascript_dialogs/tab_modal_dialog_manager.h"
 #include "components/page_load_metrics/browser/metrics_web_contents_observer.h"
 #include "content/public/browser/keyboard_event_processing_result.h"
 #include "content/public/browser/media_stream_request.h"
@@ -110,8 +112,6 @@ void DocumentPipHost::CreateAndShowPipWindow(
   CHECK(child_web_contents);
   pip_options_ = std::move(pip_options);
 
-  child_web_contents->SetDelegate(this);
-
   // Store a back-pointer on the child so the content-settings refresh path can
   // find this host given the captured (child) WebContents. Done before the
   // child's ownership is transferred to the widget delegate below.
@@ -120,6 +120,12 @@ void DocumentPipHost::CreateAndShowPipWindow(
 
   widget_delegate_ = std::make_unique<DocumentPipWidgetDelegate>(
       this, std::move(child_web_contents));
+
+  // DocumentPipContentsView (a views::WebView) sets itself as the child
+  // WebContents' delegate in SetOwnedWebContents(). Re-assign the host as the
+  // delegate so PiP-specific WebContentsDelegate behavior (e.g.
+  // GetJavaScriptDialogManager()) is routed here rather than to the WebView.
+  GetChildWebContents()->SetDelegate(this);
 
   views::Widget::InitParams params(
       views::Widget::InitParams::CLIENT_OWNS_WIDGET,
@@ -144,6 +150,15 @@ void DocumentPipHost::CreateAndShowPipWindow(
   // close callback) cannot outlive this host.
   widget_->MakeCloseSynchronous(base::BindOnce(
       &DocumentPipHost::OnWidgetCloseRequested, base::Unretained(this)));
+
+  // Attach a JavaScript dialog manager so alert()/confirm()/prompt() dialogs
+  // from the PiP document are shown window-modal to the PiP widget. TabHelpers
+  // would normally do this for a tabbed WebContents, but the standalone PiP
+  // child WebContents is not a tab, so wire it up directly with a PiP-specific
+  // delegate that does not depend on Browser/TabStripModel.
+  javascript_dialogs::TabModalDialogManager::CreateForWebContents(
+      GetChildWebContents(),
+      std::make_unique<DocumentPipDialogManagerDelegate>(widget_.get()));
 
   widget_->Show();
 }
@@ -398,9 +413,10 @@ void DocumentPipHost::WebContentsCreated(content::WebContents* source_contents,
 
 content::JavaScriptDialogManager* DocumentPipHost::GetJavaScriptDialogManager(
     content::WebContents* source) {
-  // No dialog manager is wired up yet, so dialogs are auto-dismissed. A
-  // DocumentPipDialogManagerDelegate will be added in a follow-up.
-  return nullptr;
+  // Returns the DocumentPipDialogManagerDelegate-backed manager attached in
+  // CreateAndShowPipWindow(). The content layer auto-suppresses dialogs if this
+  // returns null.
+  return javascript_dialogs::TabModalDialogManager::FromWebContents(source);
 }
 
 bool DocumentPipHost::DidAddMessageToConsole(

@@ -5,6 +5,9 @@
 import("//testing/test.gni")
 
 static_library("language_detection") {
+  _configs = configs
+  configs = []
+  configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
   sources = [
     "language_detection_model.cc",
     "language_detection_model.h",

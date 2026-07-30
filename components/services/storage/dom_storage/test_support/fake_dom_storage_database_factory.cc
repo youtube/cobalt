@@ -9,6 +9,7 @@
 #include "base/functional/bind.h"
 #include "base/task/sequenced_task_runner.h"
 #include "components/services/storage/dom_storage/db_status.h"
+#include "components/services/storage/dom_storage/dom_storage_histogram_helper.h"
 #include "components/services/storage/dom_storage/test_support/fake_dom_storage_database.h"
 
 namespace storage {
@@ -21,7 +22,7 @@ FakeDomStorageDatabaseFactory::FakeDomStorageDatabaseFactory(
       // base::Unretained is safe because `this` owns `scoped_factory_` and
       // destructs it first.
       scoped_factory_(
-          base::BindRepeating(&FakeDomStorageDatabaseFactory::Create,
+          base::BindRepeating(&FakeDomStorageDatabaseFactory::Open,
                               base::Unretained(this)),
           base::BindRepeating(&FakeDomStorageDatabaseFactory::Destroy,
                               base::Unretained(this))) {}
@@ -33,25 +34,33 @@ FakeDomStorageDatabaseFactory::FakeDomStorageDatabaseFactory(
       num_destroy_failures_(0),
       // base::Unretained is safe because `this` owns `scoped_factory_` and
       // destructs it first.
-      scoped_factory_(
-          base::BindRepeating(&FakeDomStorageDatabaseFactory::Create,
-                              base::Unretained(this)),
-          std::move(custom_destroy_callback)) {}
+      scoped_factory_(base::BindRepeating(&FakeDomStorageDatabaseFactory::Open,
+                                          base::Unretained(this)),
+                      std::move(custom_destroy_callback)) {}
 
 FakeDomStorageDatabaseFactory::~FakeDomStorageDatabaseFactory() = default;
 
-base::SequenceBound<DomStorageDatabase> FakeDomStorageDatabaseFactory::Create(
+void FakeDomStorageDatabaseFactory::Open(
     StorageType,
-    bool,
-    scoped_refptr<base::SequencedTaskRunner> runner) {
-  return base::SequenceBound<FakeDomStorageDatabase>(
-      std::move(runner), create_count_++ < num_open_failures_
+    const base::FilePath& storage_partition_dir,
+    const std::optional<base::trace_event::MemoryAllocatorDumpGuid>&,
+    DomStorageDatabaseFactory::OpenResultCallback callback) {
+  bool is_in_memory = storage_partition_dir.empty();
+  DbStatus open_status = open_count_++ < num_open_failures_
                              ? DbStatus::Corruption("test")
-                             : DbStatus::OK());
+                             : DbStatus::OK();
+  DomStorageDatabaseFactory::OpenResult result;
+  result.SetDatabase(GetTaskRunnerForDb(storage_partition_dir),
+                     std::make_unique<FakeDomStorageDatabase>(open_status));
+  result.metrics_type = is_in_memory ? DatabaseMetricsType::kInMemory
+                                     : DatabaseMetricsType::kOnDisk;
+  result.open_status = open_status;
+  std::move(callback).Run(std::move(result));
 }
 
 void FakeDomStorageDatabaseFactory::Destroy(
     const base::FilePath&,
+    bool /*is_sqlite*/,
     DomStorageDatabaseFactory::StatusCallback callback) {
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback),

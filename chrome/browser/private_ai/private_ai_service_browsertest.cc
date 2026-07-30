@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/browser/private_ai/private_ai_service.h"
+#include "components/private_ai/private_ai_service.h"
 
 #include "base/base64.h"
 #include "base/run_loop.h"
@@ -10,16 +10,18 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/private_ai/private_ai_service_factory.h"
-#include "chrome/browser/private_ai/test_private_ai_service.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_test_util.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
+#include "chrome/common/channel_info.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/platform_browser_test.h"
+#include "components/private_ai/content/test_private_ai_service.h"
 #include "components/private_ai/features.h"
 #include "components/private_ai/phosphor/token_manager.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
+#include "content/public/browser/storage_partition.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"
 #include "net/third_party/quiche/src/quiche/blind_sign_auth/proto/spend_token_data.pb.h"
@@ -44,10 +46,12 @@ class PrivateAiServiceBrowserTest : public PlatformBrowserTest {
                                          -> std::unique_ptr<KeyedService> {
           Profile* profile = Profile::FromBrowserContext(context);
           auto test_bsa_factory = std::make_unique<TestBlindSignAuthFactory>();
-          auto* test_bsa_factory_ptr = test_bsa_factory.get();
           return std::make_unique<TestPrivateAiService>(
               IdentityManagerFactory::GetForProfile(profile),
-              profile->GetPrefs(), profile, test_bsa_factory_ptr,
+              profile->GetDefaultStoragePartition()
+                  ->GetURLLoaderFactoryForBrowserProcess(),
+              profile->GetDefaultStoragePartition()->GetNetworkContext(),
+              PrivateAiService::GetApiKey(chrome::GetChannel()),
               std::move(test_bsa_factory));
         }));
   }

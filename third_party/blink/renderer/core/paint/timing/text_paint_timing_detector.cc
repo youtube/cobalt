@@ -85,53 +85,15 @@ void TextPaintTimingDetector::ResetPaintTrackingOnInteraction(
 
 bool TextPaintTimingDetector::ShouldWalkObject(
     const LayoutBoxModelObject& aggregator) {
-  Node* node = aggregator.GetNode();
-  if (!node)
+  if (!aggregator.GetNode()) {
     return false;
-
-  // Do not walk the object if it has already been recorded, unless it has
-  // specifically been marked for "re-walking" or allowing repaint.
-  if (auto iter = recorded_set_.find(&aggregator);
-      iter != recorded_set_.end() &&
-      iter->value != TextPaintStatus::kAllowRepaint) {
-    // TODO(crbug.com/40220033): rewalkable_set_ should be empty most of the
-    // time, until we ship the feature for custom fonts.
-    // HashSet::Contains() appears to hash key even when container is empty.
-    return !rewalkable_set_.empty() && rewalkable_set_.Contains(&aggregator);
   }
-
-  // Check if we know for certain that we need to measure this node, first.
-  if (IsRecordingLargestTextPaint() ||
-      TextElementTiming::NeededForTiming(*node)) {
-    return true;
-  }
-
-  // If we haven't seen this node before, an we aren't recording LCP nor is this
-  // node needed for element timing, the only remaining reason to measure text
-  // timing is for soft navs paints.  We leave this check for last, just because
-  // it might be more expensive.
-  // TODO(crbug.com/423670827): If we cache this value during pre-paint, then we
-  // might not need to worry about it.
-  if (LocalDOMWindow* window = frame_view_->GetFrame().DomWindow()) {
-    if (SoftNavigationHeuristics* heuristics =
-            window->GetSoftNavigationHeuristics();
-        heuristics && heuristics->MaybeGetSoftNavigationContextForTiming(
-                          aggregator.GetNode())) {
-      return true;
-    }
-  }
-
-  // If we've decided not to visit this node for any reason, then let's add it
-  // to the set of recorded nodes, even without measuring its paint, so we never
-  // bother to check it again.
-  // TODO(crbug.com/423670827): Part of the motivation for doing this is so we
-  // don't try to look up context more than once per node.  But then this
-  // content becomes un-recorded for any future observers, and that isn't always
-  // correct (i.e. late application of elementtiming or an Interaction which
-  // toggles content within the node, i.e. adding textContent for the first time
-  // to a previously empty node.)
-  recorded_set_.insert(&aggregator, TextPaintStatus::kPainted);
-  return false;
+  // Walk the object unless it's ineligible for paint tracking (previously
+  // painted, no repaint allowed). This ensures we retry empty aggregators, e.g.
+  // if text nodes are appended later.
+  auto iter = recorded_set_.find(&aggregator);
+  return iter == recorded_set_.end() ||
+         iter->value == TextPaintStatus::kAllowRepaint;
 }
 
 void TextPaintTimingDetector::RecordAggregatedText(
@@ -169,14 +131,6 @@ void TextPaintTimingDetector::RecordAggregatedText(
                                                  mapped_visual_rect);
     }
     return;
-  }
-
-  // Web font styled node should be rewalkable so that resizing during swap
-  // would make the node eligible to be LCP candidate again.
-  if (RuntimeEnabledFeatures::WebFontResizeLCPEnabled()) {
-    if (aggregator.StyleRef().GetFont()->HasCustomFont()) {
-      rewalkable_set_.insert(&aggregator);
-    }
   }
 
   SoftNavigationContext* context = nullptr;
@@ -223,7 +177,6 @@ void TextPaintTimingDetector::ReportLargestIgnoredText() {
 
 void TextPaintTimingDetector::Trace(Visitor* visitor) const {
   visitor->Trace(frame_view_);
-  visitor->Trace(rewalkable_set_);
   visitor->Trace(recorded_set_);
   visitor->Trace(texts_queued_for_paint_time_);
   visitor->Trace(ltp_manager_);

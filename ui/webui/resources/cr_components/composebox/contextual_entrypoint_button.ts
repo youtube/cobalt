@@ -21,7 +21,7 @@ import type {TabInfo} from '//resources/mojo/components/omnibox/browser/searchbo
 import type {InputState} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import {ToolMode} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 
-import {GlifAnimationState, recordBoolean, recordUserAction} from './common.js';
+import {getLoadTimeBoolean, GlifAnimationState, recordBoolean, recordUserAction} from './common.js';
 import {getCss} from './contextual_entrypoint_button.css.js';
 import {getHtml} from './contextual_entrypoint_button.html.js';
 import {WindowProxy} from './window_proxy.js';
@@ -90,7 +90,7 @@ export class ContextualEntrypointButtonElement extends
   protected accessor tabFaviconChipsToCoinsEnabled_: boolean =
       loadTimeData.getBoolean('tabFaviconChipsToCoinsEnabled');
   private showContextMenuDescriptionEnabled_: boolean =
-      loadTimeData.getBoolean('composeboxShowContextMenuDescription');
+      getLoadTimeBoolean('composeboxShowContextMenuDescription', false);
   private metricsSource_: string = loadTimeData.getString('composeboxSource');
   private eventTracker_: EventTracker = new EventTracker();
   private hasRecordedShown_: boolean = false;

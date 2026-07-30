@@ -189,7 +189,9 @@ void EtwSystemDataSource::OnStop(const StopArgs& args) {
 void EtwSystemDataSource::WillClearIncrementalState(
     const ClearIncrementalStateArgs& args) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  consumer_->WillClearIncrementalState();
+  if (consumer_) {
+    consumer_->WillClearIncrementalState();
+  }
 }
 
 }  // namespace tracing

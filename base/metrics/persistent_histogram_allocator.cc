@@ -245,33 +245,6 @@ PersistentMemoryAllocator::Reference PersistentSampleMapRecords::CreateNew(
                                                      sample_map_id_, value);
 }
 
-// This data will be held in persistent memory in order for processes to
-// locate and use histograms created elsewhere.
-struct PersistentHistogramAllocator::PersistentHistogramData {
-  // SHA1(Histogram): Increment this if structure changes!
-  static constexpr uint32_t kPersistentTypeId = 0xF1645910 + 3;
-
-  // Expected size for 32/64-bit check.
-  static constexpr size_t kExpectedInstanceSize =
-      40 + 2 * HistogramSamples::Metadata::kExpectedInstanceSize;
-
-  int32_t histogram_type;
-  int32_t flags;
-  int32_t minimum;
-  int32_t maximum;
-  uint32_t bucket_count;
-  PersistentMemoryAllocator::Reference ranges_ref;
-  uint32_t ranges_checksum;
-  std::atomic<PersistentMemoryAllocator::Reference> counts_ref;
-  HistogramSamples::Metadata samples_metadata;
-  HistogramSamples::Metadata logged_metadata;
-
-  // Space for the histogram name will be added during the actual allocation
-  // request. This must be the last field of the structure. A zero-size array
-  // or a "flexible" array would be preferred but is not (yet) valid C++.
-  char name[sizeof(uint64_t)];  // Force 64-bit alignment on 32-bit builds.
-};
-
 PersistentHistogramAllocator::Iterator::Iterator(
     PersistentHistogramAllocator* allocator)
     : allocator_(allocator), memory_iter_(allocator->memory_allocator()) {}
@@ -320,11 +293,9 @@ std::unique_ptr<HistogramBase> PersistentHistogramAllocator::GetHistogram(
       UNSAFE_TODO(reinterpret_cast<const char*>(data)[alloc_size - 1]) !=
           '\0' ||
       data->samples_metadata.id == 0 || data->logged_metadata.id == 0 ||
-      // Note: Sparse histograms use `id + 1` in `logged_metadata`.
-      (data->histogram_type == SPARSE_HISTOGRAM
-           ? (data->logged_metadata.id != data->samples_metadata.id &&
-              data->logged_metadata.id != data->samples_metadata.id + 1)
-           : (data->logged_metadata.id != data->samples_metadata.id)) ||
+      data->logged_metadata.id != (data->histogram_type == SPARSE_HISTOGRAM
+                                       ? data->samples_metadata.id + 1
+                                       : data->samples_metadata.id) ||
       // Most non-matching values happen due to truncated names. Ideally, we
       // could just verify the name length based on the overall alloc length,
       // but that doesn't work because the allocated block may have been

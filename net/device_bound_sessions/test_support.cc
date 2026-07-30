@@ -405,19 +405,18 @@ ScopedTestRegistrationFetcher ScopedTestRegistrationFetcher::CreateWithSuccess(
       [](const std::string& session_id, const std::string& refresh_url_string,
          const std::string& origin_string,
          RegistrationFetcher::RegistrationCompleteCallback callback) {
-        std::vector<SessionParams::Credential> cookie_credentials;
-        cookie_credentials.push_back(
-            SessionParams::Credential{"test_cookie", "secure"});
-        SessionParams::Scope scope;
-        scope.include_site = true;
-        scope.origin = origin_string;
         std::move(callback).Run(
             nullptr,
-            RegistrationResult(Session::CreateIfValid(SessionParams(
-                session_id, GURL(refresh_url_string), refresh_url_string,
-                std::move(scope), std::move(cookie_credentials),
-                unexportable_keys::UnexportableSigningKeyId(),
-                /*allowed_refresh_initiators=*/{}))));
+            RegistrationResult(Session::CreateIfValid(SessionParams{
+                .session_id = session_id,
+                .fetcher_url = GURL(refresh_url_string),
+                .refresh_url = refresh_url_string,
+                .scope = {.include_site = true, .origin = origin_string},
+                .credentials = {{
+                    .name = "test_cookie",
+                    .attributes = "secure",
+                }},
+            })));
       },
       std::string(session_id), std::string(refresh_url_string),
       std::string(origin_string)));

@@ -47,7 +47,6 @@ namespace autofill {
 class AddressDataManager;
 class AutofillDriver;
 class BrowserAutofillManager;
-class CreditCard;
 class FormStructure;
 
 // Retrieves a copy of the profile that the `payload` refers to.
@@ -58,7 +57,6 @@ std::optional<AutofillProfile> GetProfileFromPayload(
 // Delegate for in-browser Autocomplete and Autofill display and selection.
 class AutofillExternalDelegate : public AutofillSuggestionDelegate {
  public:
-  class ScopedSuggestionSelectionShortcut;
   using UpdateSuggestionsCallback =
       base::RepeatingCallback<void(std::vector<Suggestion>,
                                    AutofillSuggestionTriggerSource)>;
@@ -116,7 +114,7 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
   // Records query results and correctly formats them before sending them off
   // to be displayed. Called when an Autofill query result is available.
   virtual void OnSuggestionsReturned(
-      FieldGlobalId field_id,
+      const FormFieldData& trigger_field,
       const std::vector<Suggestion>& input_suggestions);
 
   // Returns true if there is a screen reader installed on the machine.
@@ -132,14 +130,12 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
   // used to help record the metrics of when a new popup is shown.
   void DidEndTextFieldEditing();
 
-  const FormData& query_form() const { return query_form_; }
-
   void AttemptToDisplayAutofillSuggestionsForTest(
       std::vector<Suggestion> suggestions,
       AutofillSuggestionTriggerSource trigger_source,
-      bool is_update) {
+      base::optional_ref<const FormFieldData> trigger_field) {
     AttemptToDisplayAutofillSuggestions(
-        std::move(suggestions), trigger_source, is_update,
+        std::move(suggestions), trigger_source, trigger_field,
         AutofillSuggestionsIgnoreFocusLoss(false));
   }
   base::WeakPtr<AutofillExternalDelegate> GetWeakPtrForTest() {
@@ -159,15 +155,17 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
   base::optional_ref<const EntityInstance> GetEntityInstance(
       const Suggestion& suggestion) const;
 
-  // Tries to display `suggestions` in the suggestions UI. If `is_update` is
-  // true, then `AutofillClient::UpdateAutofillSuggestions` is called, which
-  // means that suggestions will only be shown if there is currently suggestion
-  // UI with the same main filling product showing and that no new
-  // `SuggestionsUiSessionId` will be assigned.
+  // Tries to display `suggestions` in the suggestions UI.
+  // If `trigger_field` is `std::nullopt`, the delegate attempts to update the
+  // the existing suggestion UI instead of showing new UI. This means:
+  // - The last non-null provided trigger field is used.
+  // - The existing `UiSessionId` continues to be used.
+  // - If no suggestions are currently showing or the new suggestions have a
+  //   different `FillingProduct`, no UI is shown.
   void AttemptToDisplayAutofillSuggestions(
       std::vector<Suggestion> suggestions,
       AutofillSuggestionTriggerSource trigger_source,
-      bool is_update,
+      base::optional_ref<const FormFieldData> trigger_field,
       AutofillSuggestionsIgnoreFocusLoss ignore_focus_loss);
 
   // Returns a callback that, when run, attempts to update the currently shown
@@ -186,20 +184,6 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
   // Private handler for DidAcceptSuggestions for payments related suggestions.
   void DidAcceptPaymentsSuggestion(const Suggestion& suggestion,
                                    const SuggestionMetadata& metadata);
-
-  // Fills the queried form with the provided credit card using the specified
-  // trigger source. Used as a callback for asynchronous card fetches.
-  void OnCreditCardFetched(AutofillTriggerSource trigger_source,
-                           const CreditCard& card);
-
-  // Fills the queried form with the provided `EntityInstance` in `result`,
-  // unless a `FailureReason` is present.
-  void OnEntityInstanceFetched(
-      AutofillTriggerSource trigger_source,
-      const FieldTypeSet& ai_field_types,
-      base::expected<EntityInstance, AutofillAiAccessManager::FailureReason>
-          result,
-      bool reauth_attempted);
 
   // Returns the last Autofill triggering field. Derived from the `form` and
   // `field` parameters of `OnQuery(). Returns nullptr if called before
@@ -247,7 +231,8 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
   // any required separators. Will also go through `suggestions` and remove
   // duplicate autocomplete (not Autofill) suggestions, keeping their datalist
   // version.
-  void InsertDataListValues(std::vector<Suggestion>& suggestions) const;
+  void InsertDataListValues(base::span<const SelectOption> datalist_options,
+                            std::vector<Suggestion>& suggestions) const;
 
   // Returns the text (i.e. |Suggestion| value) for Chrome autofill options.
   std::u16string GetSettingsSuggestionValue() const;
@@ -257,16 +242,15 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
 
   base::WeakPtr<AutofillExternalDelegate> GetWeakPtr();
 
-  // If non-negative, OnSuggestionsReturned() passes one of the suggestions
-  // directly to DidAcceptSuggestion(). See ScopedSuggestionSelectionShortcut
-  // for details.
-  static int shortcut_test_suggestion_index_;
-
   const raw_ref<BrowserAutofillManager> manager_;
 
-  // The current form and field selected by Autofill.
-  FormData query_form_;
-  FormFieldData query_field_;
+  // Holds information about the last autofill query made.
+  struct LastQueryInfo {
+    FormGlobalId form_id;
+    FieldGlobalId field_id;
+    std::vector<SelectOption> field_datalist_options;
+  } last_query_;
+
   // The method how suggestions were triggered on the current form.
   AutofillSuggestionTriggerSource trigger_source_ =
       AutofillSuggestionTriggerSource::kUnspecified;
@@ -283,39 +267,6 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
   std::unique_ptr<device_reauth::DeviceAuthenticator> authenticator_;
 
   base::WeakPtrFactory<AutofillExternalDelegate> weak_ptr_factory_{this};
-};
-
-// When in scope, OnSuggestionsReturned() directly passes one of the Suggestions
-// to DidAcceptSuggestion() rather than displaying the Autofill popup.
-//
-// Specifically, the passed suggestion is the `index`th testing suggestion.
-// Testing suggestions come from PersonalDataManager::test_*().
-//
-// For security reasons, the passed suggestion must correspond to a testing
-// profile from PersonalDataManager. This is asserted by a CHECK(). The CHECK()
-// also fails if no `index`th test suggestion exists.
-//
-// Typical usage is as a member of a test fixture. It can also be used at a
-// narrower scope around, for example, AutofillDriver::AskForValuesToFill(),
-// but beware of potential asynchronicity (e.g., due to asynchronous parsing or
-// asynchronous fetching of suggestions).
-class AutofillExternalDelegate::ScopedSuggestionSelectionShortcut {
- public:
-  explicit ScopedSuggestionSelectionShortcut(int index = 0) {
-    DCHECK(index >= 0);
-    DCHECK(shortcut_test_suggestion_index_ < 0);
-    shortcut_test_suggestion_index_ = index;
-  }
-
-  ScopedSuggestionSelectionShortcut(const ScopedSuggestionSelectionShortcut&) =
-      delete;
-  ScopedSuggestionSelectionShortcut& operator=(
-      const ScopedSuggestionSelectionShortcut&) = delete;
-
-  ~ScopedSuggestionSelectionShortcut() {
-    DCHECK(shortcut_test_suggestion_index_ >= 0);
-    shortcut_test_suggestion_index_ = -1;
-  }
 };
 
 }  // namespace autofill

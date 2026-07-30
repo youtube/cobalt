@@ -19,6 +19,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "components/autofill/core/browser/autofill_field.h"
+#include "components/autofill/core/browser/autofill_trigger_source.h"
 #include "components/autofill/core/browser/data_manager/autofill_ai/entity_data_manager.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
@@ -32,6 +33,7 @@
 #include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_manager_test_api.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/metrics/autofill_ai_metrics.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/metrics/autofill_ai_ukm_logger.h"
+#include "components/autofill/core/browser/network/autofill_ai/mock_personal_context_access_manager.h"
 #include "components/autofill/core/browser/strike_databases/payments/test_strike_database.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/browser/test_utils/autofill_form_test_utils.h"
@@ -124,7 +126,7 @@ class BaseAutofillAiTest : public testing::Test {
             autofill_client().GetIdentityManager(),
             autofill_client().GetSyncService(),
             webdata_helper_.autofill_webdata_service(),
-            /*history_service=*/nullptr,
+            /*history_service=*/nullptr, &pcontext_manager_,
             /*strike_database=*/nullptr,
             /*variation_country_code=*/GeoIpCountryCode("US")));
     RecreateManager();
@@ -139,9 +141,17 @@ class BaseAutofillAiTest : public testing::Test {
   std::unique_ptr<AutofillAiManager>& manager_ptr() { return manager_; }
 
   void AddOrUpdateEntityInstance(EntityInstance entity) {
-    autofill_client().GetEntityDataManager()->AddOrUpdateEntityInstance(
-        std::move(entity));
-    webdata_helper_.WaitUntilIdle();
+    EntityDataManager& edm = *autofill_client().GetEntityDataManager();
+    switch (entity.record_type()) {
+      case EntityInstance::RecordType::kLocal:
+      case EntityInstance::RecordType::kServerWallet:
+        edm.AddOrUpdateEntityInstance(std::move(entity));
+        webdata_helper_.WaitUntilIdle();
+        break;
+      case EntityInstance::RecordType::kPersonalContext:
+        edm.OnPrefetchContextComplete(pcontext_manager_, {entity});
+        break;
+    }
   }
 
   [[nodiscard]] std::unique_ptr<FormStructure> CreateFormStructure(
@@ -321,6 +331,7 @@ class BaseAutofillAiTest : public testing::Test {
   base::test::ScopedFeatureList scoped_feature_list_;
   test::AutofillUnitTestEnvironment autofill_test_env_;
   base::test::SingleThreadTaskEnvironment task_environment_;
+  NiceMock<MockPersonalContextAccessManager> pcontext_manager_;
   NiceMock<MockAutofillClient> autofill_client_;
   std::unique_ptr<AutofillAiManager> manager_;
   TestStrikeDatabase strike_database_;
@@ -512,9 +523,9 @@ TEST_P(AutofillAiFunnelMetricsTest, SuggestionAfterReadiness) {
   }
   {  // The user triggered suggestions.
     manager().OnFormSeen(*form);
-    manager().OnAutofillAiSuggestionsShown(*form, *form->field(0),
-                                           {GetSuggestion(entity)},
-                                           /*ukm_source_id=*/{});
+    manager().OnAutofillAiSuggestionsShown(
+        *form, *form->field(0), {GetSuggestion(entity)},
+        /*ukm_source_id=*/{}, /*update_suggestions_callback=*/{});
     base::HistogramTester histogram_tester;
     SubmitOrAbandonForm(*form);
     ExpectFunnelRecording(histogram_tester, "SuggestionAfterReadiness",
@@ -529,9 +540,9 @@ TEST_P(AutofillAiFunnelMetricsTest, FillAfterSuggestion) {
   AddOrUpdateEntityInstance(entity);
   auto set_up_funnel = [&] {
     manager().OnFormSeen(*form);
-    manager().OnAutofillAiSuggestionsShown(*form, *form->field(0),
-                                           {GetSuggestion(entity)},
-                                           /*ukm_source_id=*/{});
+    manager().OnAutofillAiSuggestionsShown(
+        *form, *form->field(0), {GetSuggestion(entity)},
+        /*ukm_source_id=*/{}, /*update_suggestions_callback=*/{});
   };
   {  // The user didn't fill suggestions.
     set_up_funnel();
@@ -559,9 +570,9 @@ TEST_P(AutofillAiFunnelMetricsTest, CorrectionAfterFill) {
   AddOrUpdateEntityInstance(entity);
   auto set_up_funnel = [&] {
     manager().OnFormSeen(*form);
-    manager().OnAutofillAiSuggestionsShown(*form, *form->field(0),
-                                           {GetSuggestion(entity)},
-                                           /*ukm_source_id=*/{});
+    manager().OnAutofillAiSuggestionsShown(
+        *form, *form->field(0), {GetSuggestion(entity)},
+        /*ukm_source_id=*/{}, /*update_suggestions_callback=*/{});
     manager().OnDidFillSuggestion(entity, *form, *form->field(0),
                                   {form->field(0)},
                                   /*ukm_source_id=*/{});
@@ -669,9 +680,9 @@ TEST_P(AutofillAiKeyMetricsTest, FillingAssistance) {
                               /*sample=*/0);
   }
   {
-    manager().OnAutofillAiSuggestionsShown(*form, *form->field(0),
-                                           {GetSuggestion(entity)},
-                                           /*ukm_source_id=*/{});
+    manager().OnAutofillAiSuggestionsShown(
+        *form, *form->field(0), {GetSuggestion(entity)},
+        /*ukm_source_id=*/{}, /*update_suggestions_callback=*/{});
     manager().OnDidFillSuggestion(entity, *form, *form->field(0),
                                   /*filled_fields=*/{},
                                   /*ukm_source_id=*/{});
@@ -687,9 +698,9 @@ TEST_P(AutofillAiKeyMetricsTest, FillingAcceptance) {
   EntityInstance entity = CreateEntity();
   AddOrUpdateEntityInstance(entity);
   manager().OnFormSeen(*form);
-  manager().OnAutofillAiSuggestionsShown(*form, *form->field(0),
-                                         {GetSuggestion(entity)},
-                                         /*ukm_source_id=*/{});
+  manager().OnAutofillAiSuggestionsShown(
+      *form, *form->field(0), {GetSuggestion(entity)},
+      /*ukm_source_id=*/{}, /*update_suggestions_callback=*/{});
   {
     base::HistogramTester histogram_tester;
     manager().OnFormSubmitted(*form, /*ukm_source_id=*/{});
@@ -712,9 +723,9 @@ TEST_P(AutofillAiKeyMetricsTest, FillingCorrectness) {
   EntityInstance entity = CreateEntity();
   AddOrUpdateEntityInstance(entity);
   manager().OnFormSeen(*form);
-  manager().OnAutofillAiSuggestionsShown(*form, *form->field(0),
-                                         {GetSuggestion(entity)},
-                                         /*ukm_source_id=*/{});
+  manager().OnAutofillAiSuggestionsShown(
+      *form, *form->field(0), {GetSuggestion(entity)},
+      /*ukm_source_id=*/{}, /*update_suggestions_callback=*/{});
   manager().OnDidFillSuggestion(entity, *form, *form->field(0),
                                 /*filled_fields=*/{form->field(0)},
                                 /*ukm_source_id=*/{});
@@ -751,14 +762,14 @@ TEST_F(BaseAutofillAiTest, KeyMetrics_MixedForm) {
   manager().OnFormSeen(*mixed_form);
 
   // Assistance should be true for both.
-  manager().OnAutofillAiSuggestionsShown(*mixed_form,
-                                         *mixed_form->fields().front(),
-                                         {GetSuggestion(vehicle_entity)},
-                                         /*ukm_source_id=*/{});
+  manager().OnAutofillAiSuggestionsShown(
+      *mixed_form, *mixed_form->fields().front(),
+      {GetSuggestion(vehicle_entity)},
+      /*ukm_source_id=*/{}, /*update_suggestions_callback=*/{});
   manager().OnAutofillAiSuggestionsShown(
       *mixed_form, *mixed_form->fields().back(),
       {GetSuggestion(drivers_license_entity)},
-      /*ukm_source_id=*/{});
+      /*ukm_source_id=*/{}, /*update_suggestions_callback=*/{});
 
   // Acceptance should be true for both.
   manager().OnDidFillSuggestion(

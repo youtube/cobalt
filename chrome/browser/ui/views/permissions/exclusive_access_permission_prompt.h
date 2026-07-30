@@ -14,7 +14,6 @@
 #include "components/permissions/permission_request.h"
 #include "components/permissions/request_type.h"
 
-class Browser;
 class ExclusiveAccessPermissionPromptView;
 
 namespace content {
@@ -32,7 +31,6 @@ class ExclusiveAccessPermissionPrompt
       public EmbeddedPermissionPromptContentScrimView::Delegate {
  public:
   ExclusiveAccessPermissionPrompt(
-      Browser* browser,
       content::WebContents* web_contents,
       permissions::PermissionPrompt::Delegate* delegate);
   ~ExclusiveAccessPermissionPrompt() override;

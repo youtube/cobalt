@@ -15,6 +15,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted_memory.h"
+#include "base/memory/self_deleting.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_view_util.h"
@@ -230,10 +231,10 @@ class WebUIURLLoaderFactory : public network::SelfDeletingURLLoaderFactory {
     // The WebUIURLLoaderFactory will delete itself when there are no more
     // receivers - see the
     // network::SelfDeletingURLLoaderFactory::OnDisconnect method.
-    new WebUIURLLoaderFactory(ftn->current_frame_host()->GetBrowserContext(),
-                              ftn->frame_tree_node_id(), scheme,
-                              std::move(allowed_hosts),
-                              pending_remote.InitWithNewPipeAndPassReceiver());
+    base::MakeSelfDeleting<WebUIURLLoaderFactory>(
+        ftn->current_frame_host()->GetBrowserContext(),
+        ftn->frame_tree_node_id(), scheme, std::move(allowed_hosts),
+        pending_remote.InitWithNewPipeAndPassReceiver());
     return pending_remote;
   }
 
@@ -242,11 +243,24 @@ class WebUIURLLoaderFactory : public network::SelfDeletingURLLoaderFactory {
       const std::string& scheme,
       base::flat_set<std::string> allowed_hosts) {
     mojo::PendingRemote<network::mojom::URLLoaderFactory> pending_remote;
-    new WebUIURLLoaderFactory(browser_context, FrameTreeNodeId(), scheme,
-                              std::move(allowed_hosts),
-                              pending_remote.InitWithNewPipeAndPassReceiver());
+    base::MakeSelfDeleting<WebUIURLLoaderFactory>(
+        browser_context, FrameTreeNodeId(), scheme, std::move(allowed_hosts),
+        pending_remote.InitWithNewPipeAndPassReceiver());
     return pending_remote;
   }
+
+  WebUIURLLoaderFactory(
+      BrowserContext* browser_context,
+      FrameTreeNodeId frame_tree_node_id,
+      const std::string& scheme,
+      base::flat_set<std::string> allowed_hosts,
+      mojo::PendingReceiver<network::mojom::URLLoaderFactory> factory_receiver,
+      base::SelfDeletingPassKey key)
+      : network::SelfDeletingURLLoaderFactory(std::move(factory_receiver), key),
+        browser_context_(browser_context->GetWeakPtr()),
+        frame_tree_node_id_(frame_tree_node_id),
+        scheme_(scheme),
+        allowed_hosts_(std::move(allowed_hosts)) {}
 
   WebUIURLLoaderFactory(const WebUIURLLoaderFactory&) = delete;
   WebUIURLLoaderFactory& operator=(const WebUIURLLoaderFactory&) = delete;
@@ -336,18 +350,6 @@ class WebUIURLLoaderFactory : public network::SelfDeletingURLLoaderFactory {
   }
 
   const std::string& scheme() const { return scheme_; }
-
-  WebUIURLLoaderFactory(
-      BrowserContext* browser_context,
-      FrameTreeNodeId frame_tree_node_id,
-      const std::string& scheme,
-      base::flat_set<std::string> allowed_hosts,
-      mojo::PendingReceiver<network::mojom::URLLoaderFactory> factory_receiver)
-      : network::SelfDeletingURLLoaderFactory(std::move(factory_receiver)),
-        browser_context_(browser_context->GetWeakPtr()),
-        frame_tree_node_id_(frame_tree_node_id),
-        scheme_(scheme),
-        allowed_hosts_(std::move(allowed_hosts)) {}
 
   base::WeakPtr<BrowserContext> browser_context_;
   const FrameTreeNodeId frame_tree_node_id_;

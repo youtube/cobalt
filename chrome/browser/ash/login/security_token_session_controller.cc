@@ -25,13 +25,13 @@
 #include "chrome/browser/ash/certificate_provider/certificate_provider_service.h"
 #include "chrome/browser/ash/certificate_provider/certificate_provider_service_factory.h"
 #include "chrome/browser/ash/login/lock/screen_locker.h"
-#include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/enterprise/util/managed_browser_utils.h"
 #include "chrome/browser/extensions/forced_extensions/force_installed_tracker.h"
 #include "chrome/browser/notifications/system_notification_helper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/ash/security_token_restriction/security_token_session_restriction_view.h"
+#include "chromeos/ash/components/browser_context_helper/browser_context_types.h"
 #include "chromeos/ash/components/login/auth/challenge_response/known_user_pref_utils.h"
 #include "chromeos/ash/components/login/auth/public/challenge_response_key.h"
 #include "chromeos/components/certificate_provider/certificate_info.h"
@@ -191,7 +191,7 @@ SecurityTokenSessionController::SecurityTokenSessionController(
     PrefService* local_state,
     const user_manager::User* primary_user,
     chromeos::CertificateProviderService* certificate_provider_service)
-    : is_user_profile_(ProfileHelper::IsPrimaryProfile(profile)),
+    : is_user_profile_(IsUserBrowserContext(profile)),
       local_state_(local_state),
       primary_user_(primary_user),
       certificate_provider_service_(certificate_provider_service),

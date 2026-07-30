@@ -7,6 +7,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/core/editing/frame_selection.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
+#include "third_party/blink/renderer/core/html/forms/html_text_area_element.h"
+#include "third_party/blink/renderer/core/html/forms/text_control_inner_elements.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_object-inl.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_object_cache_impl.h"
 #include "third_party/blink/renderer/modules/accessibility/testing/accessibility_selection_test.h"
@@ -207,6 +209,43 @@ TEST_F(BlinkAXTreeSourceTest,
   EXPECT_EQ(focus_obj->GetNode(), text_node);
   EXPECT_EQ(tree_data.sel_anchor_offset, 2);
   EXPECT_EQ(tree_data.sel_focus_offset, 3);
+}
+
+TEST_F(BlinkAXTreeSourceTest,
+       FocusAtomicTextField_OutOfSyncDOMSelection_GracefulFallback) {
+  // Use a simple textarea. The exact content does not matter, only that
+  // we can get it out of sync by mutating the shadow DOM directly.
+  SetBodyInnerHTML(R"HTML(
+    <textarea id="textarea">Hello</textarea>
+  )HTML");
+
+  HTMLTextAreaElement* textarea =
+      To<HTMLTextAreaElement>(GetElementById("textarea"));
+  ASSERT_TRUE(textarea);
+
+  // Get the inner editor element.
+  TextControlInnerEditorElement* inner_editor = textarea->InnerEditorElement();
+  ASSERT_TRUE(inner_editor);
+
+  // Append a text node "My na" to the inner editor.
+  inner_editor->appendChild(GetDocument().createTextNode("My na"));
+
+  // Focus the textarea.
+  textarea->Focus();
+
+  // Select all.
+  Selection().SelectAll();
+
+  // Update AX.
+  GetAXObjectCache().UpdateAXForAllDocuments();
+
+  // This should not crash, and selection should be empty/invalid because
+  // the DOM selection is out of sync with the text control's value.
+  ui::AXTreeData tree_data;
+  GetSelectionFromTreeSource(&tree_data);
+
+  EXPECT_EQ(tree_data.sel_anchor_object_id, ui::kInvalidAXNodeID);
+  EXPECT_EQ(tree_data.sel_focus_object_id, ui::kInvalidAXNodeID);
 }
 
 }  // namespace blink

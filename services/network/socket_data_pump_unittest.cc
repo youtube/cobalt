@@ -114,7 +114,11 @@ class SocketDataPumpTest : public testing::Test,
         MOJO_RESULT_OK);
 
     socket_ = mock_client_socket_factory_.CreateTransportClientSocket(
-        net::AddressList(), nullptr /*socket_performance_watcher*/,
+        net::AddressList(),
+        // No need to use a target network here. This is used only for testing
+        // in non-multi-network scenarios.
+        net::handles::kInvalidNetworkHandle,
+        nullptr /*socket_performance_watcher*/,
         nullptr /*network_quality_estimator*/, nullptr /*netlog*/,
         net::NetLogSource());
     net::TestCompletionCallback callback;

@@ -20,6 +20,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.UseParametersRunnerFactory;
 
 import org.chromium.android_webview.AwContents;
+import org.chromium.android_webview.AwCookieManager;
 import org.chromium.android_webview.AwNavigation;
 import org.chromium.android_webview.AwNavigationParams;
 import org.chromium.android_webview.AwWebResourceRequest;
@@ -467,6 +468,128 @@ public class NavigateApiTest extends AwParameterizedTest {
             Assert.assertNull(
                     "Header leaked to cross-origin redirect target after saveState/restoreState",
                     getHeader(serverB.getLastRequest(PAGE2_PATH), HEADER_NAME));
+        }
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView"})
+    @CommandLineFlags.Add({"enable-features=WebViewNavigate"})
+    public void secFetchHeaders() throws TimeoutException {
+        int currentCallCount = mOnPageLoadFinished.getCallCount();
+
+        ThreadUtils.runOnUiThreadBlocking(() -> mAwContents.navigate(mPage1Url));
+
+        mOnPageLoadFinished.waitForCallback(currentCallCount);
+        Assert.assertEquals(1, mWebServer.getRequestCount(PAGE1_PATH));
+
+        HTTPRequest request = mWebServer.getLastRequest(PAGE1_PATH);
+
+        // Sec-Fetch-Site should be "none" because the navigation lacks an initiator (API
+        // initiated).
+        String secFetchSite = getHeader(request, "Sec-Fetch-Site");
+        Assert.assertEquals("none", secFetchSite);
+
+        // Sec-Fetch-User should be "?1" because TYPED transition implies user gesture.
+        String secFetchUser = getHeader(request, "Sec-Fetch-User");
+        Assert.assertEquals("?1", secFetchUser);
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView"})
+    @CommandLineFlags.Add({"enable-features=WebViewNavigate"})
+    public void navigateMultipleTimesNoCacheControl() throws TimeoutException {
+        int currentCallCount = mOnPageLoadFinished.getCallCount();
+
+        // First navigation:
+        ThreadUtils.runOnUiThreadBlocking(() -> mAwContents.navigate(mPage1Url));
+        mOnPageLoadFinished.waitForCallback(currentCallCount);
+        Assert.assertEquals(1, mWebServer.getRequestCount(PAGE1_PATH));
+        HTTPRequest request1 = mWebServer.getLastRequest(PAGE1_PATH);
+        Assert.assertNull(getHeader(request1, "Cache-Control"));
+
+        // Second navigation to same URL:
+        ThreadUtils.runOnUiThreadBlocking(() -> mAwContents.navigate(mPage1Url));
+        mOnPageLoadFinished.waitForCallback(currentCallCount + 1);
+        Assert.assertEquals(2, mWebServer.getRequestCount(PAGE1_PATH));
+        HTTPRequest request2 = mWebServer.getLastRequest(PAGE1_PATH);
+
+        // Should NOT have Cache-Control header, unlike a regular reload.
+        Assert.assertNull(getHeader(request2, "Cache-Control"));
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView"})
+    @CommandLineFlags.Add({"enable-features=WebViewNavigate"})
+    public void sameSiteStrictCookies_CrossOriginNavigation() throws Exception {
+        try (TestWebServer serverB = TestWebServer.startAdditional()) {
+            String urlA = mPage1Url;
+            String urlB = serverB.setResponse("/pageB.html", "<html><body>B</body></html>", null);
+
+            final AwCookieManager cookieManager = new AwCookieManager();
+            ThreadUtils.runOnUiThreadBlocking(
+                    () -> {
+                        cookieManager.setAcceptCookie(true);
+                        cookieManager.setCookie(urlA, "strict_cookie=val; SameSite=Strict");
+                    });
+
+            // Navigate to B:
+            int currentCallCount = mOnPageLoadFinished.getCallCount();
+            ThreadUtils.runOnUiThreadBlocking(() -> mAwContents.navigate(urlB));
+            mOnPageLoadFinished.waitForCallback(currentCallCount);
+            Assert.assertEquals(1, serverB.getRequestCount("/pageB.html"));
+
+            // Navigate to A using navigate() API.
+            // This is cross-origin, but since it's via API it should send SameSite=Strict.
+            ThreadUtils.runOnUiThreadBlocking(() -> mAwContents.navigate(urlA));
+            mOnPageLoadFinished.waitForCallback(currentCallCount + 1);
+            Assert.assertEquals(1, mWebServer.getRequestCount(PAGE1_PATH));
+
+            HTTPRequest request = mWebServer.getLastRequest(PAGE1_PATH);
+            String cookieHeader = getHeader(request, "Cookie");
+            Assert.assertNotNull(cookieHeader);
+            Assert.assertTrue(cookieHeader.contains("strict_cookie=val"));
+        }
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView"})
+    @CommandLineFlags.Add({"enable-features=WebViewNavigate"})
+    public void sameSiteCookies_CrossOriginRedirect() throws Exception {
+        try (TestWebServer serverB = TestWebServer.startAdditional()) {
+            String urlB = serverB.setResponse("/target.html", "<html><body>B</body></html>", null);
+            String redirectUrlA = mWebServer.setRedirect("/redirect.html", urlB);
+
+            final AwCookieManager cookieManager = new AwCookieManager();
+            ThreadUtils.runOnUiThreadBlocking(
+                    () -> {
+                        cookieManager.setAcceptCookie(true);
+                        cookieManager.setCookie(urlB, "strict_cookie=val; SameSite=Strict");
+                        cookieManager.setCookie(urlB, "lax_cookie=val; SameSite=Lax");
+                    });
+
+            // Navigate to redirectUrlA (Origin A) which redirects to urlB (Origin B)
+            int currentCallCount = mOnPageLoadFinished.getCallCount();
+            ThreadUtils.runOnUiThreadBlocking(() -> mAwContents.navigate(redirectUrlA));
+            mOnPageLoadFinished.waitForCallback(currentCallCount);
+
+            Assert.assertEquals(1, mWebServer.getRequestCount("/redirect.html"));
+            Assert.assertEquals(1, serverB.getRequestCount("/target.html"));
+
+            HTTPRequest requestB = serverB.getLastRequest("/target.html");
+            String cookieHeader = getHeader(requestB, "Cookie");
+
+            Assert.assertNotNull(cookieHeader);
+
+            // Lax cookie should be sent
+            Assert.assertTrue(cookieHeader.contains("lax_cookie=val"));
+
+            // Strict cookie SHOULD be sent because the navigation has no initiator (behaves like
+            // address bar).
+            Assert.assertTrue(cookieHeader.contains("strict_cookie=val"));
         }
     }
 

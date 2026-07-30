@@ -3025,6 +3025,29 @@ interface FontFace
     setter variant
     setter variationSettings
     setter weight
+interface FontFaceSet : EventTarget
+    attribute @@toStringTag
+    getter onloading
+    getter onloadingdone
+    getter onloadingerror
+    getter ready
+    getter size
+    getter status
+    method @@iterator
+    method add
+    method check
+    method clear
+    method constructor
+    method delete
+    method entries
+    method forEach
+    method has
+    method keys
+    method load
+    method values
+    setter onloading
+    setter onloadingdone
+    setter onloadingerror
 interface FontFaceSetLoadEvent : Event
     attribute @@toStringTag
     getter fontfaces
@@ -3949,7 +3972,6 @@ interface HTMLElement : Element
     getter tabIndex
     getter title
     getter translate
-    getter unbounded
     getter virtualKeyboardPolicy
     getter writingSuggestions
     method attachInternals
@@ -3960,7 +3982,6 @@ interface HTMLElement : Element
     method hidePopover
     method scrollParent
     method showPopover
-    method showUnboundedElement
     method togglePopover
     setter accessKey
     setter autocapitalize
@@ -4098,7 +4119,6 @@ interface HTMLElement : Element
     setter tabIndex
     setter title
     setter translate
-    setter unbounded
     setter virtualKeyboardPolicy
     setter writingSuggestions
 interface HTMLEmbedElement : HTMLElement
@@ -7525,7 +7545,7 @@ interface PreloadData
     attribute @@toStringTag
     getter as
     getter crossorigin
-    getter earlyHints
+    getter earlyhint
     getter url
     getter used
     method constructor
@@ -11876,6 +11896,8 @@ interface WebSocketStream
     method constructor
 interface WebTransport
     attribute @@toStringTag
+    getter anticipatedConcurrentIncomingBidirectionalStreams
+    getter anticipatedConcurrentIncomingUnidirectionalStreams
     getter closed
     getter congestionControl
     getter datagrams
@@ -11889,6 +11911,8 @@ interface WebTransport
     method createSendGroup
     method createUnidirectionalStream
     method getStats
+    setter anticipatedConcurrentIncomingBidirectionalStreams
+    setter anticipatedConcurrentIncomingUnidirectionalStreams
 interface WebTransportBidirectionalStream
     attribute @@toStringTag
     getter readable

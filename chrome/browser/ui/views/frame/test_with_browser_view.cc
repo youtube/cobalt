@@ -59,7 +59,7 @@ void TestWithBrowserView::SetUp() {
       new ash::input_method::MockInputMethodManagerImpl);
 #endif
   BrowserWithTestWindowTest::SetUp();
-  browser_view_ = static_cast<BrowserView*>(browser()->window());
+  browser_view_ = BrowserView::GetBrowserViewForBrowser(browser());
 }
 
 void TestWithBrowserView::TearDown() {

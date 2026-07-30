@@ -21,6 +21,7 @@
 #import "ios/chrome/browser/policy/model/policy_util.h"
 #import "ios/chrome/browser/saved_tab_groups/model/tab_group_service.h"
 #import "ios/chrome/browser/saved_tab_groups/ui/fake_face_pile_provider.h"
+#import "ios/chrome/browser/send_tab_to_self/model/send_tab_to_self_tab_card_label_data.h"
 #import "ios/chrome/browser/sessions/model/ios_chrome_tab_restore_service_factory.h"
 #import "ios/chrome/browser/share_kit/model/test_share_kit_service.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
@@ -30,6 +31,7 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/activity_label_data.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_item_identifier.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_mediator_test.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/regular/regular_grid_mediator_delegate.h"
@@ -38,7 +40,10 @@
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/toolbars/tab_grid_toolbars_configuration.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/toolbars/test/fake_tab_grid_toolbars_mediator.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/test/fake_tab_collection_consumer.h"
+#import "ios/chrome/grit/ios_strings.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
+#import "testing/gtest_mac.h"
+#import "ui/base/l10n/l10n_util.h"
 
 using collaboration::messaging::PersistentNotificationType;
 using testing::_;
@@ -488,4 +493,33 @@ TEST_F(RegularGridMediatorTest, ActivityLabelDataForGroupAfterTabRemoved) {
 
   // The activity label data should be nil.
   EXPECT_NE(nil, [mediator_ activityLabelDataForGroup:tab_group_id]);
+}
+
+// Tests that activityLabelDataForTab returns the correct ActivityLabelData
+// containing the sender device name when the tab is auto-opened from
+// SendTabToSelf, and returns nil after the tab is viewed (WasShown).
+TEST_F(RegularGridMediatorTest, ActivityLabelDataForTab) {
+  web::WebState* web_state = browser_->GetWebStateList()->GetWebStateAt(0);
+  web::WebStateID web_state_id = web_state->GetUniqueIdentifier();
+
+  // No activity label for the tab initially.
+  ActivityLabelData* label_data =
+      [mediator_ activityLabelDataForTab:web_state_id];
+  EXPECT_NSEQ(nil, label_data);
+
+  // Attach SendTabToSelfTabCardLabelData to the WebState.
+  SendTabToSelfTabCardLabelData::CreateForWebState(web_state, "remote_device");
+
+  // Query the activity label again.
+  label_data = [mediator_ activityLabelDataForTab:web_state_id];
+  EXPECT_NSNE(nil, label_data);
+  NSString* expected_text = l10n_util::GetNSStringF(
+      IDS_SEND_TAB_TO_SELF_INFOBAR_AUTO_OPEN_SUBTITLE, u"remote_device");
+  EXPECT_NSEQ(expected_text, label_data.labelString);
+
+  // Show the tab (simulating it being viewed). The label data should be
+  // automatically cleared.
+  web_state->WasShown();
+  label_data = [mediator_ activityLabelDataForTab:web_state_id];
+  EXPECT_NSEQ(nil, label_data);
 }

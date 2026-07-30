@@ -81,7 +81,9 @@ export function getHtml(this: PowerBookmarksListElement) {
                 .hasActiveDrag="${this.hasActiveDrag_}"
                 .activeFolderPath="${this.activeFolderPath}"
                 .hasFolders="${this.hasFolders_}"
-                .rowHeading="${this.getRowHeading_(index)}">
+                .rowHeading="${this.getRowHeading_(index)}"
+                .toggleExpand="${this.expandedFolderIds_.has(
+                    item.bookmark.id)}">
             </power-bookmark-row>`}">
       </cr-lazy-list>
     </div>

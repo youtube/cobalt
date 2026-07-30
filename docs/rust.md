@@ -98,7 +98,7 @@ For examples, see `//third_party/crabbyavif` or
 Unstable features are **unsupported** by default in Chromium. Any use of an
 unstable language or library feature should be agreed upon by the Rust toolchain
 team before enabling it.  See
-[`tools/rust/unstable_rust_feature_usage.md`](../tools/rust/unstable_rust_feature_usage.md)
+[`docs/rust/unstable_rust_feature_usage.md`](../docs/rust/unstable_rust_feature_usage.md)
 for more details.
 
 # Using VSCode

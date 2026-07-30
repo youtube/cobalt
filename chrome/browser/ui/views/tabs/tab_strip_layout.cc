@@ -8,11 +8,9 @@
 
 #include <algorithm>
 #include <optional>
-#include <set>
 
 #include "chrome/browser/ui/tabs/tab_style.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_layout_types.h"
-#include "components/split_tabs/split_tab_id.h"
 #include "ui/gfx/animation/tween.h"
 #include "ui/gfx/geometry/rect.h"
 

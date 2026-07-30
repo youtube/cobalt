@@ -31,7 +31,9 @@ enum class Error {
   // Error when index of browser window is out of bounds.
   kWrongIndex,
   // Error when JavaScript execution is disabled.
-  kJavaScriptUnsupported
+  kJavaScriptUnsupported,
+  // Error when DevTools usage is disabled.
+  kDevToolsUnsupported,
 };
 
 // This function sets an error message to the currently executing command.

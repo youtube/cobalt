@@ -29,7 +29,7 @@
 import json
 from urllib import parse
 
-from mod_pywebsocket import msgutil
+from pywebsocket3 import msgutil
 
 connections = {}
 

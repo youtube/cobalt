@@ -38,7 +38,12 @@ def main(args):
   _fetch(args.shallow)
 
   logging.info('Rebasing onto main@origin')
-  rebase_source = 'mutable()' if args.all else '@'
+  if args.all:
+    rebase_source = 'mutable()'
+  elif args.revision:
+    rebase_source = f'mutable() & ({args.revision})'
+  else:
+    rebase_source = '@'
   run_jj(['rebase', '-b', rebase_source, '-d', 'trunk()', '--skip-emptied'])
   # Skip-emptied with merge commits can produce weird shapes.
   run_jj(['simplify-parents', '-r', 'mutable()'], ignore_working_copy=True)
@@ -70,6 +75,12 @@ if __name__ == '__main__':
       help='Rebases all local changes onto head',
       action='store_true',
   )
+
+  parser.add_argument('-r',
+                      '--revision',
+                      metavar='REVSETS',
+                      help='Revisions to rebase onto head',
+                      type=str)
 
   parser.add_argument(
       '-s',

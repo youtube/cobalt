@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "components/private_ai/common/private_ai_logger.h"
@@ -99,6 +100,7 @@ TEST_F(WebSocketClientTest, ConnectionFailure) {
 TEST_F(WebSocketClientTest, ChannelDropped) {
   GURL url("wss://example.com/websocket");
   MockNetworkContext network_context;
+  base::HistogramTester histogram_tester;
 
   WebSocketClient client(url, &network_context, &logger_);
 
@@ -141,6 +143,11 @@ TEST_F(WebSocketClientTest, ChannelDropped) {
   const auto& result = future.Get();
   ASSERT_FALSE(result.has_value());
   EXPECT_EQ(result.error(), Transport::TransportError::kSocketClosed);
+
+  histogram_tester.ExpectTotalCount(
+      "PrivateAi.Client.WebSocketSessionDuration.ClosedByServer", 1);
+  histogram_tester.ExpectUniqueSample("PrivateAi.Client.WebSocketCloseCode",
+                                      1000, 1);
 }
 
 TEST_F(WebSocketClientTest, MessageFragmentation) {

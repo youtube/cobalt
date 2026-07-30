@@ -4036,7 +4036,9 @@ WizardController::GetAutoEnrollmentController() {
   if (!auto_enrollment_controller_) {
     auto_enrollment_controller_ =
         std::make_unique<policy::AutoEnrollmentController>(
-            shared_url_loader_factory_);
+            &local_state_.get(), shared_url_loader_factory_,
+            browser_policy_connector_ash_->device_management_service(),
+            browser_policy_connector_ash_->GetStateKeysBroker());
   }
   return auto_enrollment_controller_.get();
 }

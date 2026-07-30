@@ -468,7 +468,7 @@ void SupervisedUserNavigationObserver::FilterRenderFrame(
 
 void SupervisedUserNavigationObserver::GoBack() {
   // Request can come only from the main frame.
-  if (!receivers_.GetCurrentTargetFrame()->IsInPrimaryMainFrame()) {
+  if (!receivers_.CurrentTargetFrame().IsInPrimaryMainFrame()) {
     return;
   }
 
@@ -510,7 +510,7 @@ void SupervisedUserNavigationObserver::RequestUrlAccessLocal(
 #if BUILDFLAG(IS_ANDROID)
 void SupervisedUserNavigationObserver::LearnMore(LearnMoreCallback callback) {
   // Learn more can come only from the main frame.
-  if (!receivers_.GetCurrentTargetFrame()->IsInPrimaryMainFrame()) {
+  if (!receivers_.CurrentTargetFrame().IsInPrimaryMainFrame()) {
     return;
   }
 
@@ -552,7 +552,7 @@ void SupervisedUserNavigationObserver::MaybeUpdateRequestedHosts() {
 
 content::FrameTreeNodeId
 SupervisedUserNavigationObserver::frame_tree_node_id() {
-  return receivers_.GetCurrentTargetFrame()->GetFrameTreeNodeId();
+  return receivers_.CurrentTargetFrame().GetFrameTreeNodeId();
 }
 
 supervised_user::SupervisedUserService*

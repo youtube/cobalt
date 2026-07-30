@@ -118,6 +118,16 @@ class ContextualCueingController
   // Initiates a model execution request to MES for the current window state.
   void InitiateModelExecutionRequest();
 
+  // The V1 single-source evaluation path, triggered by page content
+  // annotations. Performs URL eligibility checks, category classification
+  // (delegated to the registered CueTarget), quota/backoff checks, and then
+  // invokes InitiateModelExecutionRequest() if all checks pass.
+  //
+  // TODO(b/523306363): Remove once the V2 multi-source path is fully launched.
+  void RunGlicSingleSourcePath(
+      const page_content_annotations::HistoryVisit& visit,
+      const page_content_annotations::PageContentAnnotationsResult& result);
+
   // Retrieves favicon for a specific web contents.
   void FetchFavicon(tabs::TabInterface* tab,
                     content::WebContents* web_contents);

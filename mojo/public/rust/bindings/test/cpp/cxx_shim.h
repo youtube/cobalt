@@ -23,6 +23,9 @@ void CreatePlusSevenMathServiceAndRemote(
     std::unique_ptr<PlusSevenMathService>& service_out,
     std::unique_ptr<mojo::rust::ScopedMessagePipeHandleWrapper>& remote_out);
 
+void CreateCppAssociatedSender(
+    std::unique_ptr<mojo::rust::ScopedMessagePipeHandleWrapper> handle);
+
 }  // namespace bindings_unittests::mojom
 
 #endif  // MOJO_PUBLIC_RUST_BINDINGS_TEST_CPP_CXX_SHIM_H_

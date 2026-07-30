@@ -35,16 +35,20 @@ promise_test(() => {
     assert_equals(inputEventCount, 2, 'Additional input event should have fired after additional color value change.');
     assert_equals(changeEventCount, 0, 'No change event should have fired before popup is closed.');
 
+    // The change event is dispatched asynchronously, on an animation frame
+    // after the popup closes. Wait for the event itself rather than a fixed
+    // timeout, which races the animation frame and makes the test flaky.
+    const changeFired = new Promise((resolve) => {
+      colorControl.addEventListener('change', resolve, {once: true});
+    });
     eventSender.keyDown('Enter');
     assert_equals(internals.pagePopupWindow, null, "Popup should have closed from Enter key");
     assert_equals(inputEventCount, 2, 'No extra input event should fire when closing popup.');
     assert_equals(changeEventCount, 0, 'Change event is fired asynchronously after closing popup.');
-    return new Promise((resolve) => {
-      window.setTimeout(() => {
-        assert_equals(changeEventCount, 1, 'Change event should have fired (once) asynchronously after closing popup.');
-        resolve();
-      }, 1)
-    });
+    return changeFired;
+  })
+  .then(() => {
+    assert_equals(changeEventCount, 1, 'Change event should have fired (once) asynchronously after closing popup.');
   });
 }, "Color picker: Test firing change and input events");
 

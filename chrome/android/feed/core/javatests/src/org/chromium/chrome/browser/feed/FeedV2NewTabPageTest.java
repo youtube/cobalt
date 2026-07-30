@@ -188,7 +188,8 @@ public class FeedV2NewTabPageTest {
     @CommandLineFlags.Add({
         "force-prefers-no-reduced-motion",
         // Resampling can make scroll offsets non-deterministic so turn it off.
-        "disable-features=ResamplingScrollEvents",
+        // AndroidNavigationBlurTransitionAnimation suppresses input, so turn it off.
+        "disable-features=ResamplingScrollEvents,AndroidNavigationBlurTransitionAnimation",
         "hide-scrollbars"
     })
     @DisableIf.Build(

@@ -135,8 +135,7 @@ IN_PROC_BROWSER_TEST_P(SystemWebAppLinkCaptureBrowserTest,
 
 IN_PROC_BROWSER_TEST_P(SystemWebAppLinkCaptureBrowserTest, OmniboxPasteAndGo) {
   WaitForTestSystemAppInstall();
-  OmniboxEditModel* model = browser()
-                                ->window()
+  OmniboxEditModel* model = BrowserWindow::FromBrowser(browser())
                                 ->GetLocationBar()
                                 ->GetOmniboxController()
                                 ->edit_model();
@@ -460,8 +459,10 @@ IN_PROC_BROWSER_TEST_P(SystemWebAppLinkCaptureBrowserTest,
 
   content::TestNavigationObserver observer(start_url);
   observer.StartWatchingNewWebContents();
-  incognito_browser->window()->GetLocationBar()->FocusLocation(
-      /*is_user_initiated=*/true, /*clear_focus_if_failed=*/false);
+  BrowserWindow::FromBrowser(incognito_browser)
+      ->GetLocationBar()
+      ->FocusLocation(
+          /*is_user_initiated=*/true, /*clear_focus_if_failed=*/false);
   ui_test_utils::SendToOmniboxAndSubmit(incognito_browser, start_url.spec());
   observer.Wait();
 

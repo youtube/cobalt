@@ -10,17 +10,24 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.res.Resources;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+
+import androidx.recyclerview.widget.RecyclerView;
 
 import org.junit.After;
 import org.junit.Before;
@@ -41,13 +48,17 @@ import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.back_press.BackPressManager;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsVisibilityManager;
+import org.chromium.chrome.browser.composeplate.ComposeplateCoordinator;
 import org.chromium.chrome.browser.composeplate.ComposeplateUtils;
 import org.chromium.chrome.browser.composeplate.ComposeplateUtilsJni;
 import org.chromium.chrome.browser.feed.FeedSurfaceScrollDelegate;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
+import org.chromium.chrome.browser.logo.LogoCoordinator;
 import org.chromium.chrome.browser.magic_stack.ModuleRegistry;
+import org.chromium.chrome.browser.ntp.search.SearchBoxCoordinator;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinatorFactory;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
@@ -58,6 +69,7 @@ import org.chromium.chrome.browser.segmentation_platform.client_util.HomeModules
 import org.chromium.chrome.browser.segmentation_platform.client_util.HomeModulesRankingHelperJni;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.signin.services.SigninManager;
+import org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesCoordinator;
 import org.chromium.chrome.browser.suggestions.tile.TileGroup;
 import org.chromium.chrome.browser.sync.SyncServiceFactory;
 import org.chromium.chrome.browser.tab.Tab;
@@ -128,6 +140,13 @@ public class NewTabPageCoordinatorUnitTest {
     @Mock private SigninManager mSigninManager;
     @Mock private SyncService mSyncService;
     @Mock private BackPressManager mBackPressManager;
+    @Mock private SearchBoxCoordinator mMockSearchBox;
+    @Mock private LogoCoordinator mMockLogo;
+    @Mock private MostVisitedTilesCoordinator mMockTiles;
+    @Mock private ComposeplateCoordinator mMockComposeplate;
+    @Mock private View mMockSearchBoxView;
+    @Mock private BrowserControlsVisibilityManager mBrowserControlsVisibilityManager;
+    @Mock private RecyclerView mRecyclerView;
 
     private Activity mActivity;
     private NewTabPageLayout mNewTabPageLayout;
@@ -446,5 +465,303 @@ public class NewTabPageCoordinatorUnitTest {
         View mvtView = layout.findViewById(R.id.mv_tiles_container);
         assertNotNull(mvtView);
         assertEquals(expectedBoundedWidth, mvtView.getLayoutParams().width);
+    }
+
+    @Test
+    public void testSetSearchProviderTopMargin_WithLogo() {
+        setupMockSubCoordinators();
+        mCoordinator.setSearchProviderInfo(/* hasLogo= */ true, /* isGoogle= */ true);
+        clearInvocations(mMockSearchBox, mMockLogo);
+
+        mCoordinator.setSearchProviderTopMargin();
+
+        Resources resources = mActivity.getResources();
+        int logoTopMargin = resources.getDimensionPixelSize(R.dimen.ntp_logo_margin_top);
+        verify(mMockSearchBox).setTopMargin(eq(0));
+        verify(mMockLogo).setTopMargin(eq(logoTopMargin));
+    }
+
+    @Test
+    public void testSetSearchProviderTopMargin_NoLogo() {
+        setupMockSubCoordinators();
+        mCoordinator.setSearchProviderInfo(/* hasLogo= */ false, /* isGoogle= */ false);
+        clearInvocations(mMockSearchBox, mMockLogo);
+
+        mCoordinator.setSearchProviderTopMargin();
+
+        int searchBoxTopMarginNoLogo =
+                mActivity
+                        .getResources()
+                        .getDimensionPixelSize(R.dimen.ntp_search_box_top_margin_if_no_logo);
+        verify(mMockSearchBox).setTopMargin(eq(searchBoxTopMarginNoLogo));
+        verify(mMockLogo).setTopMargin(anyInt());
+    }
+
+    @Test
+    public void testSetLogoViewBottomMargin() {
+        setupMockSubCoordinators();
+        clearInvocations(mMockLogo);
+
+        mCoordinator.setLogoViewBottomMargin();
+
+        int expectedBottomMargin =
+                NtpCustomizationUtils.getLogoViewBottomMarginPx(mActivity.getResources());
+        verify(mMockLogo).setBottomMargin(eq(expectedBottomMargin));
+    }
+
+    @Test
+    public void testUpdateTilesLayoutMargins() {
+        setupMockSubCoordinators();
+        mCoordinator.setSearchProviderInfo(/* hasLogo= */ true, /* isGoogle= */ true);
+        clearInvocations(mMockTiles);
+
+        mCoordinator.updateTilesLayoutMargins();
+
+        verify(mMockTiles).updateTilesLayoutMargins(eq(true), eq(false));
+    }
+
+    @Test
+    public void testSetSearchBoxTextAppearance() {
+        setupMockSubCoordinators();
+        clearInvocations(mMockSearchBox);
+
+        mCoordinator.setSearchBoxTextAppearance();
+
+        int expectedStyle =
+                NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox()
+                        ? R.style.TextAppearance_FakeSearchBoxTextMediumDark
+                        : R.style.TextAppearance_FakeSearchBoxTextMedium;
+        verify(mMockSearchBox).setSearchBoxTextAppearance(eq(expectedStyle));
+    }
+
+    @Test
+    public void testUpdateActionButtonVisibility() {
+        setupMockSubCoordinators();
+        when(mManager.isVoiceSearchEnabled()).thenReturn(true);
+        when(mMockSearchBox.isLensEnabled(anyInt())).thenReturn(false);
+        mCoordinator.setIsComposeplateEnabledForTesting(true);
+        mCoordinator.setSearchProviderInfo(/* hasLogo= */ true, /* isGoogle= */ true);
+        clearInvocations(mMockSearchBox, mMockComposeplate);
+
+        mCoordinator.updateActionButtonVisibility();
+
+        verify(mMockSearchBox).setVoiceSearchButtonVisibility(eq(true));
+        verify(mMockSearchBox).setLensButtonVisibility(eq(false));
+        verify(mMockComposeplate).setVisibility(eq(true), anyBoolean());
+    }
+
+    @Test
+    public void testInitializeComposeplate() {
+        mCoordinator.destroy();
+
+        when(mMockComposeplateUtilsJni.isAimEntrypointEligible(mProfile)).thenReturn(false);
+        createCoordinator();
+        assertNull(mCoordinator.getComposeplateCoordinatorForTesting());
+
+        SearchBoxCoordinator mockSearchBox = mock(SearchBoxCoordinator.class);
+        when(mockSearchBox.getView()).thenReturn(mock(View.class));
+        mCoordinator.setSearchBoxCoordinatorForTesting(mockSearchBox);
+
+        mCoordinator.initializeComposeplate();
+
+        assertNotNull(mCoordinator.getComposeplateCoordinatorForTesting());
+    }
+
+    /**
+     * Verifies when switching to a 3rd party search engine with no logo, expects fallback top
+     * margin and hidden composeplate.
+     */
+    @Test
+    public void testSetSearchProviderInfo_ThirdPartyNoLogo() {
+        int searchBoxTopMarginNoLogo =
+                mActivity
+                        .getResources()
+                        .getDimensionPixelSize(R.dimen.ntp_search_box_top_margin_if_no_logo);
+        verifySetSearchProviderInfo(
+                /* targetHasLogo= */ false,
+                /* targetIsGoogle= */ false,
+                /* expectedSearchBoxTopMargin= */ searchBoxTopMarginNoLogo,
+                /* expectedComposeplateVisible= */ false);
+    }
+
+    /**
+     * Verifies when switching to a 3rd party search engine with a logo, expects standard 0px top
+     * margin and hidden composeplate.
+     */
+    @Test
+    public void testSetSearchProviderInfo_ThirdPartyWithLogo() {
+        verifySetSearchProviderInfo(
+                /* targetHasLogo= */ true,
+                /* targetIsGoogle= */ false,
+                /* expectedSearchBoxTopMargin= */ 0,
+                /* expectedComposeplateVisible= */ false);
+    }
+
+    /**
+     * Verifies when switching to Google default search engine, expects standard 0px top margin and
+     * visible composeplate button.
+     */
+    @Test
+    public void testSetSearchProviderInfo_GoogleWithLogo() {
+        verifySetSearchProviderInfo(
+                /* targetHasLogo= */ true,
+                /* targetIsGoogle= */ true,
+                /* expectedSearchBoxTopMargin= */ 0,
+                /* expectedComposeplateVisible= */ true);
+    }
+
+    @Test
+    public void testSetSearchProviderInfo_InitializesComposeplate() {
+        // Destroys the default coordinator created in setUp() since we need composeplate to start
+        // disabled.
+        mCoordinator.destroy();
+
+        when(mMockComposeplateUtilsJni.isAimEntrypointEligible(mProfile)).thenReturn(false);
+        createCoordinator();
+
+        // Verifies composeplate was not initialized at startup.
+        assertNull(mCoordinator.getComposeplateCoordinatorForTesting());
+
+        // Setup mock SearchBoxCoordinator to verify side effect of
+        // setSearchBoxHeightBoundsVerticalInset().
+        SearchBoxCoordinator mockSearchBox = mock(SearchBoxCoordinator.class);
+        View mockView = mock(View.class);
+        when(mockSearchBox.getView()).thenReturn(mockView);
+        mCoordinator.setSearchBoxCoordinatorForTesting(mockSearchBox);
+
+        // Enables composeplate eligibility so it is ready to be initialized.
+        when(mMockComposeplateUtilsJni.isAimEntrypointEligible(mProfile)).thenReturn(true);
+
+        // Moves state to non-Google provider first, then transition to Google.
+        mCoordinator.setSearchProviderInfo(/* hasLogo= */ true, /* isGoogle= */ false);
+        mCoordinator.setSearchProviderInfo(/* hasLogo= */ true, /* isGoogle= */ true);
+
+        // Verifies composeplate has been initialized.
+        assertNotNull(mCoordinator.getComposeplateCoordinatorForTesting());
+
+        // Verifies setSearchBoxHeightBoundsVerticalInset() side effect on SearchBoxCoordinator.
+        verify(mockSearchBox, atLeastOnce()).setHeight(anyInt());
+
+        // Verifies that calling setSearchProviderInfo() a second time with the same Google
+        // search provider does not crash or re-inflate the ViewStub.
+        mCoordinator.setSearchProviderInfo(/* hasLogo= */ true, /* isGoogle= */ true);
+        assertNotNull(mCoordinator.getComposeplateCoordinatorForTesting());
+    }
+
+    @Test
+    public void testUpdateActionButtonVisibility_ComposeplateHiddenWhenIncognitoDisabled() {
+        setupMockSubCoordinators();
+
+        mCoordinator.setIsComposeplateEnabledForTesting(true);
+        mCoordinator.setSearchProviderInfo(/* hasLogo= */ true, /* isGoogle= */ true);
+
+        // Disables incognito mode.
+        IncognitoUtils.setEnabledForTesting(false);
+        mCoordinator.updateActionButtonVisibility();
+
+        // Verifies that even when composeplate is enabled and Google is the search provider,
+        // disabling incognito mode hides the composeplate button.
+        verify(mMockComposeplate).setVisibility(eq(false), anyBoolean());
+    }
+
+    private void setupMockSubCoordinators() {
+        when(mMockSearchBox.getView()).thenReturn(mMockSearchBoxView);
+        mCoordinator.setSearchBoxCoordinatorForTesting(mMockSearchBox);
+        mCoordinator.setLogoCoordinatorForTesting(mMockLogo);
+        mCoordinator.setMostVisitedTilesCoordinatorForTesting(mMockTiles);
+        mCoordinator.setComposeplateCoordinatorForTesting(mMockComposeplate);
+    }
+
+    private void verifySetSearchProviderInfo(
+            boolean targetHasLogo,
+            boolean targetIsGoogle,
+            int expectedSearchBoxTopMargin,
+            boolean expectedComposeplateVisible) {
+        // To avoid early exit, calls setSearchProviderInfo once with a different pair of
+        // (targetHasLogo, targetIsGoogle)
+        mCoordinator.setSearchProviderInfo(!targetHasLogo, !targetIsGoogle);
+        setupMockSubCoordinators();
+
+        when(mManager.isVoiceSearchEnabled()).thenReturn(true);
+        when(mMockSearchBox.isLensEnabled(anyInt())).thenReturn(false);
+        mCoordinator.setIsComposeplateEnabledForTesting(true);
+
+        mCoordinator.setSearchProviderInfo(targetHasLogo, targetIsGoogle);
+        mCoordinator.updateActionButtonVisibility();
+
+        Resources resources = mActivity.getResources();
+        int logoTopMargin = resources.getDimensionPixelSize(R.dimen.ntp_logo_margin_top);
+        int expectedBottomMargin = NtpCustomizationUtils.getLogoViewBottomMarginPx(resources);
+        int expectedStyle =
+                NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox()
+                        ? R.style.TextAppearance_FakeSearchBoxTextMediumDark
+                        : R.style.TextAppearance_FakeSearchBoxTextMedium;
+
+        verify(mMockSearchBox).setTopMargin(eq(expectedSearchBoxTopMargin));
+        verify(mMockLogo).setTopMargin(eq(logoTopMargin));
+        verify(mMockLogo).setBottomMargin(eq(expectedBottomMargin));
+        verify(mMockTiles).updateTilesLayoutMargins(eq(targetHasLogo), eq(false));
+        verify(mMockSearchBox).setSearchBoxTextAppearance(eq(expectedStyle));
+        verify(mMockSearchBox).setVoiceSearchButtonVisibility(eq(true));
+        verify(mMockSearchBox).setLensButtonVisibility(eq(false));
+        verify(mMockComposeplate).setVisibility(eq(expectedComposeplateVisible), anyBoolean());
+    }
+
+    @Test
+    public void testNtpScrollListener_hidesControls_whenNotLoading() {
+        when(mBrowserControlsVisibilityManager.getBottomControlsHeight()).thenReturn(100);
+        when(mTab.isLoading()).thenReturn(false);
+
+        NewTabPage.NtpScrollListener listener =
+                new NewTabPage.NtpScrollListener(
+                        mBrowserControlsVisibilityManager, mActivity, mTab);
+
+        // Scroll past the threshold (20dp * 1.0 = 20px). Scroll down by 25px:
+        listener.onScrolled(mRecyclerView, 0, 25);
+        verify(mBrowserControlsVisibilityManager).hideAndroidControls(true);
+    }
+
+    @Test
+    public void testNtpScrollListener_doesNotHideControls_whenLoading() {
+        when(mBrowserControlsVisibilityManager.getBottomControlsHeight()).thenReturn(100);
+        when(mTab.isLoading()).thenReturn(true);
+
+        NewTabPage.NtpScrollListener listener =
+                new NewTabPage.NtpScrollListener(
+                        mBrowserControlsVisibilityManager, mActivity, mTab);
+
+        // Scroll past the threshold.
+        listener.onScrolled(mRecyclerView, 0, 25);
+        verify(mBrowserControlsVisibilityManager, never()).hideAndroidControls(true);
+    }
+
+    @Test
+    public void testNtpScrollListener_showsControls_whenNotLoading() {
+        when(mBrowserControlsVisibilityManager.getBottomControlsHeight()).thenReturn(100);
+        when(mBrowserControlsVisibilityManager.getBottomControlHiddenRatio()).thenReturn(1.0f);
+        when(mTab.isLoading()).thenReturn(false);
+
+        NewTabPage.NtpScrollListener listener =
+                new NewTabPage.NtpScrollListener(
+                        mBrowserControlsVisibilityManager, mActivity, mTab);
+
+        // Scroll up past the threshold.
+        listener.onScrolled(mRecyclerView, 0, -25);
+        verify(mBrowserControlsVisibilityManager).showAndroidControls(true);
+    }
+
+    @Test
+    public void testNtpScrollListener_doesNotShowControls_whenLoading() {
+        when(mBrowserControlsVisibilityManager.getBottomControlsHeight()).thenReturn(100);
+        when(mBrowserControlsVisibilityManager.getBottomControlHiddenRatio()).thenReturn(1.0f);
+        when(mTab.isLoading()).thenReturn(true);
+
+        NewTabPage.NtpScrollListener listener =
+                new NewTabPage.NtpScrollListener(
+                        mBrowserControlsVisibilityManager, mActivity, mTab);
+
+        // Scroll up past the threshold.
+        listener.onScrolled(mRecyclerView, 0, -25);
+        verify(mBrowserControlsVisibilityManager, never()).showAndroidControls(true);
     }
 }

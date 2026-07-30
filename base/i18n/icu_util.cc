@@ -240,8 +240,7 @@ int LoadIcuData(PlatformFile data_fd,
   }
 
   (*out_error_code) = U_ZERO_ERROR;
-  udata_setCommonData(const_cast<uint8_t*>((*out_mapped_data_file)->data()),
-                      out_error_code);
+  udata_setCommonData((*out_mapped_data_file)->bytes().data(), out_error_code);
   if (U_FAILURE(*out_error_code)) {
     LOG(ERROR) << "Failed to initialize ICU with data file: "
                << u_errorName(*out_error_code);

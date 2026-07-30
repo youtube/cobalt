@@ -112,6 +112,18 @@ TEST_F(PopupSearchBarViewTest, OnInputChangedIsCalledAfterDelay) {
       PopupSearchBarView::kInputChangeCallbackDelay / 2);
 }
 
+// Verifies that when `debounce_delay` is zero, text input changes notify the
+// delegate on the current tick without advancing mock time.
+TEST_F(PopupSearchBarViewTest, OnInputChangedIsCalledImmediatelyWithZeroDelay) {
+  auto view = std::make_unique<PopupSearchBarView>(
+      u"placeholder", delegate(), /*show_indicator=*/false,
+      /*show_search_icon_sparkle=*/false, /*debounce_delay=*/base::TimeDelta());
+
+  EXPECT_CALL(delegate(), SearchBarOnInputChanged(Eq(u"input text")));
+  view->SetInputTextForTesting(u"input text");
+  task_environment()->RunUntilIdle();
+}
+
 TEST_F(PopupSearchBarViewTest, OnInputChangedCallbackIsThrottled) {
   auto view = std::make_unique<PopupSearchBarView>(u"placeholder", delegate());
 

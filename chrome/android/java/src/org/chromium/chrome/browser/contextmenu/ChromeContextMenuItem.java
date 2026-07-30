@@ -77,6 +77,8 @@ class ChromeContextMenuItem {
         Item.SHARE_PAGE,
         Item.PRINT_PAGE,
         Item.VIEW_PAGE_SOURCE,
+        Item.BACK,
+        Item.FORWARD,
         Item.RELOAD,
         Item.INSPECT_ELEMENT,
         Item.COPY_VIDEO_FRAME,
@@ -136,15 +138,17 @@ class ChromeContextMenuItem {
         int SAVE_PAGE = 38;
         int SHARE_PAGE = 39;
         int PRINT_PAGE = 40;
-        int RELOAD = 41;
+        int BACK = 41;
+        int FORWARD = 42;
+        int RELOAD = 43;
         // Developer Group
-        int VIEW_PAGE_SOURCE = 42;
-        int INSPECT_ELEMENT = 43;
-        int COPY_VIDEO_FRAME = 44;
-        int DOWNLOAD_VIDEO_FRAME = 45;
-        int LENS_OVERLAY = 46;
+        int VIEW_PAGE_SOURCE = 44;
+        int INSPECT_ELEMENT = 45;
+        int COPY_VIDEO_FRAME = 46;
+        int DOWNLOAD_VIDEO_FRAME = 47;
+        int LENS_OVERLAY = 48;
         // ALWAYS UPDATE!
-        int NUM_ENTRIES = 47;
+        int NUM_ENTRIES = 49;
     }
 
     /** Mapping from {@link Item} to the ID found in the ids.xml. */
@@ -190,6 +194,8 @@ class ChromeContextMenuItem {
         R.id.contextmenu_save_page, // Item.SAVE_PAGE
         R.id.contextmenu_share_page, // Item.SHARE_PAGE
         R.id.contextmenu_print_page, // Item.PRINT_PAGE
+        R.id.contextmenu_back, // Item.BACK
+        R.id.contextmenu_forward, // Item.FORWARD
         R.id.contextmenu_reload, // Item.RELOAD
         R.id.contextmenu_view_page_source, // Item.VIEW_PAGE_SOURCE
         R.id.contextmenu_inspect_element, // Item.INSPECT_ELEMENT
@@ -241,6 +247,8 @@ class ChromeContextMenuItem {
         R.string.contextmenu_save_page, // Item.SAVE_PAGE
         R.string.contextmenu_share_page, // Item.SHARE_PAGE
         R.string.contextmenu_print_page, // Item.PRINT_PAGE
+        R.string.contextmenu_back, // Item.BACK
+        R.string.contextmenu_forward, // Item.FORWARD
         R.string.contextmenu_reload, // Item.RELOAD
         R.string.contextmenu_view_page_source, // Item.VIEW_PAGE_SOURCE
         R.string.contextmenu_inspect_element, // Item.INSPECT_ELEMENT

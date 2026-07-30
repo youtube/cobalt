@@ -1,6 +1,6 @@
 AXWebArea
 ++AXGroup AXSubrole=AXLandmarkForm
-++++AXGroup AXSubrole=AXApplicationGroup AXDescription='Browser Engines:'
+++++AXGroup AXSubrole=AXFieldset AXDescription='Browser Engines:'
 ++++++AXGroup
 ++++++++AXStaticText AXValue='Browser Engines:'
 ++++++AXStaticText AXValue='Browser: '

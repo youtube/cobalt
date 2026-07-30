@@ -19,6 +19,7 @@
 #import "components/signin/public/identity_manager/accounts_in_cookie_jar_info.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "components/signin/public/identity_manager/objc/identity_manager_observer_bridge.h"
+#import "components/sync/test/test_sync_service.h"
 #import "components/sync_preferences/testing_pref_service_syncable.h"
 #import "components/test/ios/test_utils.h"
 #import "ios/chrome/browser/authentication/ui_bundled/authentication_flow/authentication_flow.h"
@@ -34,6 +35,8 @@
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity_manager.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/platform_test.h"
@@ -57,6 +60,8 @@ class ConsistencyPromoSigninMediatorTest : public PlatformTest {
         AuthenticationServiceFactory::GetInstance(),
         AuthenticationServiceFactory::GetFactoryWithDelegate(
             std::make_unique<FakeAuthenticationServiceDelegate>()));
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              base::BindRepeating(&CreateTestSyncService));
     profile_ = std::move(builder).Build();
     ASSERT_EQ(ChromeAccountManagerServiceFactory::GetForProfile(profile_.get())
                   ->GetDefaultIdentity(),
@@ -351,28 +356,28 @@ TEST_F(ConsistencyPromoSigninMediatorTest, CookiesError) {
         error_wait_loop->Quit();
       });
 
-    CHECK(captured_callback_);
-    captured_callback_.Run(signin::WebSigninTracker::Result::kOtherError);
+  CHECK(captured_callback_);
+  captured_callback_.Run(signin::WebSigninTracker::Result::kOtherError);
 
-    error_wait_loop->Run();
+  error_wait_loop->Run();
 
-    [mediator_ disconnectWithResult:SigninCoordinatorResultCanceledByUser];
+  [mediator_ disconnectWithResult:SigninCoordinatorResultCanceledByUser];
 
-    histogram_tester.ExpectTotalCount(
-        "Signin.AccountConsistencyPromoAction.Shown", 1);
-    histogram_tester.ExpectBucketCount(
-        "Signin.AccountConsistencyPromoAction.Shown",
-        signin_metrics::AccessPoint::kWebSignin, 1);
-    histogram_tester.ExpectTotalCount(
-        "Signin.AccountConsistencyPromoAction.DismissedButton", 1);
-    histogram_tester.ExpectBucketCount(
-        "Signin.AccountConsistencyPromoAction.DismissedButton",
-        signin_metrics::AccessPoint::kWebSignin, 1);
-    histogram_tester.ExpectTotalCount(
-        "Signin.AccountConsistencyPromoAction.GenericErrorShown", 1);
-    histogram_tester.ExpectBucketCount(
-        "Signin.AccountConsistencyPromoAction.GenericErrorShown",
-        signin_metrics::AccessPoint::kWebSignin, 1);
+  histogram_tester.ExpectTotalCount(
+      "Signin.AccountConsistencyPromoAction.Shown", 1);
+  histogram_tester.ExpectBucketCount(
+      "Signin.AccountConsistencyPromoAction.Shown",
+      signin_metrics::AccessPoint::kWebSignin, 1);
+  histogram_tester.ExpectTotalCount(
+      "Signin.AccountConsistencyPromoAction.DismissedButton", 1);
+  histogram_tester.ExpectBucketCount(
+      "Signin.AccountConsistencyPromoAction.DismissedButton",
+      signin_metrics::AccessPoint::kWebSignin, 1);
+  histogram_tester.ExpectTotalCount(
+      "Signin.AccountConsistencyPromoAction.GenericErrorShown", 1);
+  histogram_tester.ExpectBucketCount(
+      "Signin.AccountConsistencyPromoAction.GenericErrorShown",
+      signin_metrics::AccessPoint::kWebSignin, 1);
 }
 
 // Tests the case where browser sign-in succeeds but cookies never arrive on
@@ -402,28 +407,28 @@ TEST_F(ConsistencyPromoSigninMediatorTest, CookiesTimeout) {
         error_wait_loop->Quit();
       });
 
-    CHECK(captured_callback_);
-    captured_callback_.Run(signin::WebSigninTracker::Result::kTimeout);
+  CHECK(captured_callback_);
+  captured_callback_.Run(signin::WebSigninTracker::Result::kTimeout);
 
-    error_wait_loop->Run();
+  error_wait_loop->Run();
 
-    [mediator_ disconnectWithResult:SigninCoordinatorResultCanceledByUser];
+  [mediator_ disconnectWithResult:SigninCoordinatorResultCanceledByUser];
 
-    histogram_tester.ExpectTotalCount(
-        "Signin.AccountConsistencyPromoAction.Shown", 1);
-    histogram_tester.ExpectBucketCount(
-        "Signin.AccountConsistencyPromoAction.Shown",
-        signin_metrics::AccessPoint::kWebSignin, 1);
-    histogram_tester.ExpectTotalCount(
-        "Signin.AccountConsistencyPromoAction.TimeoutErrorShown", 1);
-    histogram_tester.ExpectBucketCount(
-        "Signin.AccountConsistencyPromoAction.TimeoutErrorShown",
-        signin_metrics::AccessPoint::kWebSignin, 1);
-    histogram_tester.ExpectTotalCount(
-        "Signin.AccountConsistencyPromoAction.DismissedButton", 1);
-    histogram_tester.ExpectBucketCount(
-        "Signin.AccountConsistencyPromoAction.DismissedButton",
-        signin_metrics::AccessPoint::kWebSignin, 1);
+  histogram_tester.ExpectTotalCount(
+      "Signin.AccountConsistencyPromoAction.Shown", 1);
+  histogram_tester.ExpectBucketCount(
+      "Signin.AccountConsistencyPromoAction.Shown",
+      signin_metrics::AccessPoint::kWebSignin, 1);
+  histogram_tester.ExpectTotalCount(
+      "Signin.AccountConsistencyPromoAction.TimeoutErrorShown", 1);
+  histogram_tester.ExpectBucketCount(
+      "Signin.AccountConsistencyPromoAction.TimeoutErrorShown",
+      signin_metrics::AccessPoint::kWebSignin, 1);
+  histogram_tester.ExpectTotalCount(
+      "Signin.AccountConsistencyPromoAction.DismissedButton", 1);
+  histogram_tester.ExpectBucketCount(
+      "Signin.AccountConsistencyPromoAction.DismissedButton",
+      signin_metrics::AccessPoint::kWebSignin, 1);
 }
 
 // Tests the case where browser sign-in fails.

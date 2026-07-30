@@ -28,6 +28,8 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/time/default_clock.h"
+#include "chrome/browser/ash/app_mode/auto_sleep/device_weekly_scheduled_suspend_controller.h"
+#include "chrome/browser/ash/app_mode/auto_sleep/device_weekly_scheduled_suspend_policy_handler.h"
 #include "chrome/browser/ash/cert_provisioning/cert_provisioning_common.h"
 #include "chrome/browser/ash/cert_provisioning/cert_provisioning_scheduler.h"
 #include "chrome/browser/ash/notifications/adb_sideloading_policy_change_notification.h"
@@ -351,6 +353,10 @@ void BrowserPolicyConnectorAsh::Init(
               DeviceScheduledRebootHandler::kRebootTimerTag),
           reboot_notifications_scheduler_.get());
 
+  device_weekly_scheduled_suspend_controller_ =
+      std::make_unique<ash::DeviceWeeklyScheduledSuspendController>(
+          local_state);
+
   device_dlc_predownload_list_policy_handler_ =
       DeviceDlcPredownloadListPolicyHandler::Create();
 
@@ -363,6 +369,10 @@ void BrowserPolicyConnectorAsh::Init(
 
 void BrowserPolicyConnectorAsh::OnBrowserStarted() {
   ChromeBrowserPolicyConnector::OnBrowserStarted();
+
+  if (device_weekly_scheduled_suspend_controller_) {
+    device_weekly_scheduled_suspend_controller_->InitSessionObservation();
+  }
 
   // `ash::Shell` is not available when `BrowserPolicyConnectorAsh::Init` is
   // invoked, so we must delay this initialization until now.
@@ -416,6 +426,8 @@ void BrowserPolicyConnectorAsh::Shutdown() {
   device_scheduled_update_checker_.reset();
 
   device_scheduled_reboot_handler_.reset();
+
+  device_weekly_scheduled_suspend_controller_.reset();
 
   device_dlc_predownload_list_policy_handler_.reset();
 
@@ -560,10 +572,15 @@ void BrowserPolicyConnectorAsh::RegisterPrefs(PrefRegistrySimple* registry) {
   registry->RegisterIntegerPref(
       ash::prefs::kDevicePolicyRefreshRate,
       CloudPolicyRefreshScheduler::kDefaultRefreshDelayMs);
+  DeviceWeeklyScheduledSuspendPolicyHandler::RegisterLocalStatePrefs(registry);
 }
 
 void BrowserPolicyConnectorAsh::OnUserManagerCreated(
     user_manager::UserManager* user_manager) {
+  if (device_weekly_scheduled_suspend_controller_) {
+    device_weekly_scheduled_suspend_controller_->InitUserManagerObservation(
+        user_manager);
+  }
   auto* cros_settings = ash::CrosSettings::Get();
   cloud_external_data_policy_observers_.push_back(
       std::make_unique<policy::CloudExternalDataPolicyObserver>(

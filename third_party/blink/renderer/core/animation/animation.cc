@@ -3319,7 +3319,7 @@ void Animation::EffectInvalidated() {
 }
 
 bool Animation::IsEventDispatchAllowed() const {
-  return (Paused() || start_time_) && !PausedForTrigger();
+  return Paused() || start_time_;
 }
 
 std::optional<AnimationTimeDelta> Animation::TimeToEffectChange() {

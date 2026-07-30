@@ -243,24 +243,6 @@ CGFloat HorizontalMargin() {
   [self.pageControl resetLastPageControlHighlight];
 }
 
-- (void)hide {
-  if (@available(iOS 26, *)) {
-    return;
-  }
-  self.backgroundColor = UIColor.blackColor;
-
-  self.pageControl.alpha = 0.0;
-}
-
-- (void)show {
-  if (@available(iOS 26, *)) {
-    return;
-  }
-  self.backgroundColor = UIColor.clearColor;
-
-  self.pageControl.alpha = 1.0;
-}
-
 - (void)setScrollViewScrolledToEdge:(BOOL)scrolledToEdge {
   if (scrolledToEdge == _scrolledToEdge) {
     return;
@@ -936,6 +918,46 @@ CGFloat HorizontalMargin() {
   if (_pageActionMenuEntrypointView.enabled) {
     [self.buttonsDelegate pageActionMenuEntrypointTapped:sender];
   }
+}
+
+#pragma mark - Accessibility
+
+- (NSArray*)accessibilityElements {
+  NSMutableArray* elements = [[NSMutableArray alloc] init];
+  if (_selectAllButton && !_selectAllButton.hidden) {
+    [elements addObject:_selectAllButton];
+  }
+  if (_editButton && !_editButton.hidden) {
+    [elements addObject:_editButton];
+  }
+  if (_undoButton && !_undoButton.hidden) {
+    [elements addObject:_undoButton];
+  }
+  if (_searchButton && !_searchButton.hidden) {
+    [elements addObject:_searchButton];
+  }
+  if (_pageControl && !_pageControl.hidden) {
+    [elements addObject:_pageControl];
+  }
+  if (_selectedTabsLabel && !_selectedTabsLabel.hidden) {
+    [elements addObject:_selectedTabsLabel];
+  }
+  if (_searchBar && !_searchBar.hidden) {
+    [elements addObject:_searchBar];
+  }
+  if (_cancelSearchButton && !_cancelSearchButton.hidden) {
+    [elements addObject:_cancelSearchButton];
+  }
+  if (_pageActionMenuEntrypointView && !_pageActionMenuEntrypointView.hidden) {
+    [elements addObject:_pageActionMenuEntrypointView];
+  }
+  if (_overflowMenuButton && !_overflowMenuButton.hidden) {
+    [elements addObject:_overflowMenuButton];
+  }
+  if (_doneButton && !_doneButton.hidden) {
+    [elements addObject:_doneButton];
+  }
+  return elements;
 }
 
 @end

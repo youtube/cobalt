@@ -39,6 +39,28 @@ typedef std::map<std::string, std::string> SurveyStringData;
 // configuration. It is created on a per profile basis.
 class HatsService : public KeyedService {
  public:
+  enum class LaunchError {
+    kNone =
+        0,  // Survey passed all client-side checks and will be shown/enqueued.
+    kNoTriggerConfig = 1,  // Trigger not found in the configuration.
+    kWrongBrowserType =
+        2,  // The browser type does not match the required type.
+    kIncognitoDisabled = 3,  // Incognito is disabled by policy but required.
+    kProfileTooNew = 4,      // The user's profile is too new.
+    kSurveyInProgress = 5,   // Another survey is currently active/showing.
+    kCooldownActive = 6,  // A cooldown period (global or per-survey) is active.
+    kOffline = 7,         // The device is currently offline.
+    kBelowProbability =
+        8,  // The survey was rolled out due to probability sampling.
+    kCheckTooRecent =
+        9,  // An attempt to check with the servers was made too recently.
+    kOverCapacity = 10,  // The survey is marked as full/over capacity.
+    kNotVisible =
+        11,       // The web contents became invisible before launch (delayed).
+    kError = 12,  // Other unexpected/system errors (e.g. browser closing).
+    kMaxValue = kError,
+  };
+
   struct SurveyMetadata {
     SurveyMetadata();
     ~SurveyMetadata();
@@ -51,8 +73,6 @@ class HatsService : public KeyedService {
 
     // Metadata affecting all triggers.
     std::optional<base::Time> any_last_survey_started_time;
-    std::optional<base::Time>
-        any_last_survey_with_cooldown_override_started_time;
   };
 
   struct SurveyOptions {
@@ -93,7 +113,7 @@ class HatsService : public KeyedService {
   // customize survey invitations on Android. This is an experimental feature
   // and may be removed in the future. For a NOP, use the default constructor of
   // SurveyOptions.
-  virtual void LaunchSurvey(
+  virtual LaunchError LaunchSurvey(
       const std::string& trigger,
       base::OnceClosure success_callback,
       base::OnceClosure failure_callback,
@@ -102,14 +122,16 @@ class HatsService : public KeyedService {
       const std::optional<std::string>& supplied_trigger_id,
       const SurveyOptions& survey_options) = 0;
 
-  void LaunchSurvey(const std::string& trigger,
-                    base::OnceClosure success_callback = base::DoNothing(),
-                    base::OnceClosure failure_callback = base::DoNothing(),
-                    const SurveyBitsData& product_specific_bits_data = {},
-                    const SurveyStringData& product_specific_string_data = {}) {
-    LaunchSurvey(trigger, std::move(success_callback),
-                 std::move(failure_callback), product_specific_bits_data,
-                 product_specific_string_data, std::nullopt, SurveyOptions());
+  LaunchError LaunchSurvey(
+      const std::string& trigger,
+      base::OnceClosure success_callback = base::DoNothing(),
+      base::OnceClosure failure_callback = base::DoNothing(),
+      const SurveyBitsData& product_specific_bits_data = {},
+      const SurveyStringData& product_specific_string_data = {}) {
+    return LaunchSurvey(trigger, std::move(success_callback),
+                        std::move(failure_callback), product_specific_bits_data,
+                        product_specific_string_data, std::nullopt,
+                        SurveyOptions());
   }
 
   // Launches survey with id |trigger|.
@@ -119,7 +141,7 @@ class HatsService : public KeyedService {
   // associated with the survey response.
   // |web_contents| specifies the `WebContents` where the survey should be
   // displayed.
-  virtual void LaunchSurveyForWebContents(
+  virtual LaunchError LaunchSurveyForWebContents(
       const std::string& trigger,
       content::WebContents* web_contents,
       const SurveyBitsData& product_specific_bits_data,
@@ -128,7 +150,7 @@ class HatsService : public KeyedService {
       base::OnceClosure failure_callback,
       const std::optional<std::string>& supplied_trigger_id,
       const SurveyOptions& survey_options) = 0;
-  void LaunchSurveyForWebContents(
+  LaunchError LaunchSurveyForWebContents(
       const std::string& trigger,
       content::WebContents* web_contents,
       const SurveyBitsData& product_specific_bits_data,
@@ -136,7 +158,7 @@ class HatsService : public KeyedService {
       base::OnceClosure success_callback = base::DoNothing(),
       base::OnceClosure failure_callback = base::DoNothing(),
       const std::optional<std::string>& supplied_trigger_id = std::nullopt) {
-    LaunchSurveyForWebContents(
+    return LaunchSurveyForWebContents(
         trigger, web_contents, product_specific_bits_data,
         product_specific_string_data, std::move(success_callback),
         std::move(failure_callback), supplied_trigger_id, SurveyOptions());
@@ -148,13 +170,14 @@ class HatsService : public KeyedService {
   // contain key-value pairs where the keys match the field names set for the
   // survey in survey_config.cc, and the values are those which will be
   // associated with the survey response.
-  // Returns true if the survey was successfully scheduled.
-  virtual bool LaunchDelayedSurvey(
+  // Returns LaunchResult::kEnqueued if the survey was successfully scheduled,
+  // or a failure reason if it failed upfront checks.
+  virtual LaunchError LaunchDelayedSurvey(
       const std::string& trigger,
       int timeout_ms,
       const SurveyBitsData& product_specific_bits_data,
       const SurveyStringData& product_specific_string_data) = 0;
-  bool LaunchDelayedSurvey(
+  LaunchError LaunchDelayedSurvey(
       const std::string& trigger,
       int timeout_ms,
       const SurveyBitsData& product_specific_bits_data = {}) {
@@ -165,15 +188,16 @@ class HatsService : public KeyedService {
   // Launches survey with id |trigger| with a timeout |timeout_ms| for tab
   // |web_contents| if appropriate. |web_contents| required to be non-nullptr.
   // Launch is cancelled if |web_contents| killed before end of timeout.
-  // Rejects (and returns false) if there is already an identical delayed-task
-  // (same |trigger| and same |web_contents|) waiting to be fulfilled. Also
-  // rejects if the underlying task posting fails.
+  // Rejects (and returns a failure reason) if there is already an identical
+  // delayed-task (same |trigger| and same |web_contents|) waiting to be
+  // fulfilled. Also rejects if the underlying task posting fails.
   // |navigation_behavior| specifies whether cross-origin or cross-document
   // navigations should abort the survey.
   // |success_callback| is called when the survey is shown to the user.
   // |failure_callback| is called if the survey does not launch for any reason.
-  // Returns true if the survey was successfully scheduled.
-  virtual bool LaunchDelayedSurveyForWebContents(
+  // Returns LaunchResult::kEnqueued if the survey was successfully scheduled,
+  // or a failure reason if it failed upfront checks.
+  virtual LaunchError LaunchDelayedSurveyForWebContents(
       const std::string& trigger,
       content::WebContents* web_contents,
       int timeout_ms,
@@ -184,7 +208,7 @@ class HatsService : public KeyedService {
       base::OnceClosure failure_callback,
       const std::optional<std::string>& supplied_trigger_id,
       const SurveyOptions& survey_options) = 0;
-  bool LaunchDelayedSurveyForWebContents(
+  LaunchError LaunchDelayedSurveyForWebContents(
       const std::string& trigger,
       content::WebContents* web_contents,
       int timeout_ms,

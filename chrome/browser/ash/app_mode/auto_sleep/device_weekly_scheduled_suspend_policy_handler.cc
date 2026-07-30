@@ -27,6 +27,8 @@ DeviceWeeklyScheduledSuspendPolicyHandler::
 void DeviceWeeklyScheduledSuspendPolicyHandler::RegisterLocalStatePrefs(
     PrefRegistrySimple* registry) {
   registry->RegisterListPref(ash::prefs::kDeviceWeeklyScheduledSuspend);
+  registry->RegisterIntegerPref(
+      ash::prefs::kDeviceWeeklyScheduledResuspendDelayMs, /*default_value=*/-1);
 }
 
 // ConfigurationPolicyHandler methods:
@@ -47,12 +49,9 @@ void DeviceWeeklyScheduledSuspendPolicyHandler::ApplyPolicySettings(
     PrefValueMap* prefs) {
   const policy::PolicyMap::Entry* policy =
       policies.Get(key::kDeviceWeeklyScheduledSuspend);
-  if (!policy) {
-    return;
-  }
-
-  if (const base::Value* value = policy->value_unsafe(); value) {
-    prefs->SetValue(ash::prefs::kDeviceWeeklyScheduledSuspend, value->Clone());
+  if (policy && policy->value_unsafe()) {
+    prefs->SetValue(ash::prefs::kDeviceWeeklyScheduledSuspend,
+                    policy->value_unsafe()->Clone());
   }
 }
 

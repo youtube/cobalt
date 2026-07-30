@@ -101,6 +101,9 @@ TEST_F(GaiaUrlsTest, InitializeDefault_AllUrls) {
       std::string("https://accounts.google.com/encryption/unlock/") +
           kSigninChromeSyncKeysPlatformSuffix +
           std::string("?kdi=CAIaDgoKY2hyb21lc3luYxAB&authuser=0"));
+  EXPECT_EQ(gaia_urls()->SigninChromePasskeyUnlockDesktopEmbeddedUrl(0).spec(),
+            "https://accounts.google.com/encryption/unlock/"
+            "desktopembedded?kdi=CAESDgoMaHdfcHJvdGVjdGVk&authuser=0");
   EXPECT_EQ(gaia_urls()->service_logout_url().spec(),
             "https://accounts.google.com/Logout");
   EXPECT_EQ(gaia_urls()->LogOutURLWithSource("").spec(),
@@ -184,6 +187,9 @@ TEST_F(GaiaUrlsTest, InitializeDefault_URLSwitches) {
       std::string("https://test-gaia.com/encryption/unlock/") +
           kSigninChromeSyncKeysPlatformSuffix +
           std::string("?kdi=CAIaDgoKY2hyb21lc3luYxAB&authuser=0"));
+  EXPECT_EQ(gaia_urls()->SigninChromePasskeyUnlockDesktopEmbeddedUrl(0).spec(),
+            "https://test-gaia.com/encryption/unlock/"
+            "desktopembedded?kdi=CAESDgoMaHdfcHJvdGVjdGVk&authuser=0");
   EXPECT_EQ(gaia_urls()->service_logout_url().spec(),
             "https://test-gaia.com/Logout");
   EXPECT_EQ(gaia_urls()->LogOutURLWithSource("").spec(),
@@ -300,6 +306,9 @@ TEST_F(GaiaUrlsTest, InitializeFromConfig_AllUrls) {
       gaia_urls()->SigninChromeSyncKeysRecoverabilityDegradedUrl(0).spec(),
       "https://accounts.example.com/encryption/unlock/example-platform?"
       "kdi=CAIaDgoKY2hyb21lc3luYxAB&authuser=0");
+  EXPECT_EQ(gaia_urls()->SigninChromePasskeyUnlockDesktopEmbeddedUrl(0).spec(),
+            "https://accounts.example.com/encryption/unlock/"
+            "desktopembedded?kdi=CAESDgoMaHdfcHJvdGVjdGVk&authuser=0");
   EXPECT_EQ(gaia_urls()->service_logout_url().spec(),
             "https://accounts.example.com/Logout");
   EXPECT_EQ(gaia_urls()->LogOutURLWithSource("").spec(),
@@ -542,4 +551,23 @@ TEST_F(GaiaUrlsTest,
       base::StrCat({"https://accounts.google.com/encryption/unlock/",
                     kSigninChromeSyncKeysPlatformSuffix,
                     "?kdi=CAIaDgoKY2hyb21lc3luYxAB"}));
+}
+
+TEST_F(GaiaUrlsTest,
+       SigninChromePasskeyUnlockDesktopEmbeddedUrl_FeatureEnabled) {
+  base::test::ScopedFeatureList feature_list(
+      gaia::features::kSigninChromePasskeyUnlockUrlUsesAccountIndex);
+  EXPECT_EQ(gaia_urls()->SigninChromePasskeyUnlockDesktopEmbeddedUrl(1).spec(),
+            "https://accounts.google.com/encryption/unlock/"
+            "desktopembedded?kdi=CAESDgoMaHdfcHJvdGVjdGVk&authuser=1");
+}
+
+TEST_F(GaiaUrlsTest,
+       SigninChromePasskeyUnlockDesktopEmbeddedUrl_FeatureDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      gaia::features::kSigninChromePasskeyUnlockUrlUsesAccountIndex);
+  EXPECT_EQ(gaia_urls()->SigninChromePasskeyUnlockDesktopEmbeddedUrl(0).spec(),
+            "https://accounts.google.com/encryption/unlock/"
+            "desktopembedded?kdi=CAESDgoMaHdfcHJvdGVjdGVk");
 }

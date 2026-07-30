@@ -10,7 +10,7 @@
 #include "chromeos/ash/components/multidevice/secure_message_delegate_impl.h"
 #include "chromeos/ash/services/device_sync/cryptauth_enrollment_constants.h"
 #include "chromeos/ash/services/device_sync/proto/cryptauth_common.pb.h"
-#include "crypto/hkdf.h"
+#include "crypto/kdf.h"
 
 namespace ash {
 
@@ -166,11 +166,15 @@ void CryptAuthKeyCreatorImpl::StartKeyCreation(
         continue;
       }
 
-      std::string derived_symmetric_key_material = crypto::HkdfSha256(
-          dh_handshake_secret->symmetric_key(),
-          kCryptAuthSymmetricKeyDerivationSalt,
-          CryptAuthKeyBundle::KeyBundleNameEnumToString(bundle_name),
-          NumBytesForSymmetricKeyType(key_data.type));
+      std::string derived_symmetric_key_material(
+          NumBytesForSymmetricKeyType(key_data.type), 0);
+      crypto::kdf::Hkdf(
+          crypto::hash::kSha256,
+          base::as_byte_span(dh_handshake_secret->symmetric_key()),
+          base::as_byte_span(std::string(kCryptAuthSymmetricKeyDerivationSalt)),
+          base::as_byte_span(
+              CryptAuthKeyBundle::KeyBundleNameEnumToString(bundle_name)),
+          base::as_writable_byte_span(derived_symmetric_key_material));
 
       OnSymmetricKeyDerived(bundle_name, derived_symmetric_key_material);
 

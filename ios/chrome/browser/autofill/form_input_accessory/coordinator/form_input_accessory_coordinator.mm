@@ -81,7 +81,6 @@
 #import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/web/public/web_state.h"
-#import "ui/base/device_form_factor.h"
 #import "ui/base/l10n/l10n_util_mac.h"
 
 namespace {
@@ -343,7 +342,7 @@ AutofillSettingsPage SuggestionToAutofillSettingsPage(
       expandedManualFillCoordinator;
   [expandedManualFillCoordinator start];
 
-  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
+  if ([ManualFillUtil shouldUsePopover]) {
     [expandedManualFillCoordinator presentFromButton:button];
   } else {
     self.formInputViewController = expandedManualFillCoordinator.viewController;
@@ -360,7 +359,7 @@ AutofillSettingsPage SuggestionToAutofillSettingsPage(
 }
 
 - (void)dismissPopover {
-  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
+  if ([ManualFillUtil shouldUsePopover]) {
     // Close the popover view.
     [self stopChildren];
   }
@@ -417,7 +416,7 @@ AutofillSettingsPage SuggestionToAutofillSettingsPage(
   BOOL invokedOnObfuscatedField =
       [_formInputAccessoryMediator lastFocusedFieldWasObfuscated];
 
-  if (ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_TABLET) {
+  if (![ManualFillUtil shouldUsePopover]) {
     [self stopChildren];
   }
 
@@ -607,17 +606,14 @@ AutofillSettingsPage SuggestionToAutofillSettingsPage(
     return;
   }
 
-  if (base::FeatureList::IsEnabled(
-          autofill::features::kAutofillEnableSupportForNameAndEmail)) {
-    sceneHandler =
-        HandlerForProtocol(self.browser->GetCommandDispatcher(), SceneCommands);
-    if (address.record_type() ==
-        autofill::AutofillProfile::RecordType::kAccountNameEmail) {
-      OpenNewTabCommand* command = [OpenNewTabCommand
-          commandWithURLFromChrome:GURL(kGoogleAccountNameEmailAddressEditURL)];
-      [sceneHandler openURLInNewTab:command];
-      return;
-    }
+  sceneHandler =
+      HandlerForProtocol(self.browser->GetCommandDispatcher(), SceneCommands);
+  if (address.record_type() ==
+      autofill::AutofillProfile::RecordType::kAccountNameEmail) {
+    OpenNewTabCommand* command = [OpenNewTabCommand
+        commandWithURLFromChrome:GURL(kGoogleAccountNameEmailAddressEditURL)];
+    [sceneHandler openURLInNewTab:command];
+    return;
   }
 
   CommandDispatcher* dispatcher = self.browser->GetCommandDispatcher();
@@ -673,8 +669,8 @@ AutofillSettingsPage SuggestionToAutofillSettingsPage(
 #pragma mark - CRWResponderInputView
 
 - (UIView*)inputView {
-  BOOL isIPad = ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET;
-  return isIPad ? nil : self.formInputViewController.view;
+  return [ManualFillUtil shouldUsePopover] ? nil
+                                           : self.formInputViewController.view;
 }
 
 - (UIView*)inputAccessoryView {
@@ -914,10 +910,9 @@ AutofillSettingsPage SuggestionToAutofillSettingsPage(
 // notification to re-present the manual fallback UI if it was temporarily
 // dismissed.
 - (void)cardCoordinatorDidCompleteManualFill:(CardCoordinator*)cardCoordinator {
-  // On iPad, the manual fill view is a popover anchored to a button.
-  // We only re-trigger this automatically on iPhone (where it is an input
-  // view).
-  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
+  // This is re-triggered automatically only when it is an input view (as
+  // opposed to a popover anchored to a button).
+  if ([ManualFillUtil shouldUsePopover]) {
     return;
   }
 

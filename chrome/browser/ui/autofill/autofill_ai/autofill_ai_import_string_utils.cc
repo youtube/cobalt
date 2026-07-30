@@ -7,6 +7,7 @@
 #include <string>
 
 #include "base/feature_list.h"
+#include "base/notreached.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/strings/grit/components_strings.h"
@@ -14,168 +15,190 @@
 
 namespace autofill {
 
+namespace {
+
+struct TitleResources {
+  int save_title_id = 0;
+  int save_title_branded_id = 0;
+  int update_title_id = 0;
+  int update_title_branded_id = 0;
+};
+
+TitleResources GetResourcesForType(EntityTypeName type_name) {
+#if BUILDFLAG(IS_ANDROID)
+  switch (type_name) {
+    case EntityTypeName::kDriversLicense:
+      return {
+          .save_title_id =
+              IDS_AUTOFILL_AI_SAVE_DRIVERS_LICENSE_ENTITY_DIALOG_TITLE_ANDROID,
+          .save_title_branded_id =
+              IDS_AUTOFILL_AI_SAVE_DRIVERS_LICENSE_ENTITY_DIALOG_TITLE_ANDROID_BRANDED,
+          .update_title_id =
+              IDS_AUTOFILL_AI_UPDATE_DRIVERS_LICENSE_ENTITY_DIALOG_TITLE_ANDROID,
+          .update_title_branded_id =
+              IDS_AUTOFILL_AI_UPDATE_DRIVERS_LICENSE_ENTITY_DIALOG_TITLE_ANDROID,
+      };
+    case EntityTypeName::kKnownTravelerNumber:
+      return {
+          .save_title_id =
+              IDS_AUTOFILL_AI_SAVE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE_ANDROID,
+          .save_title_branded_id =
+              IDS_AUTOFILL_AI_SAVE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE_ANDROID_BRANDED,
+          .update_title_id =
+              IDS_AUTOFILL_AI_UPDATE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE_ANDROID,
+          .update_title_branded_id =
+              IDS_AUTOFILL_AI_UPDATE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE_ANDROID,
+      };
+    case EntityTypeName::kNationalIdCard:
+      return {
+          .save_title_id =
+              IDS_AUTOFILL_AI_SAVE_NATIONAL_ID_CARD_ENTITY_DIALOG_TITLE_ANDROID,
+          .save_title_branded_id =
+              IDS_AUTOFILL_AI_SAVE_NATIONAL_ID_CARD_ENTITY_DIALOG_TITLE_ANDROID_BRANDED,
+          .update_title_id =
+              IDS_AUTOFILL_AI_UPDATE_NATIONAL_ID_CARD_ENTITY_DIALOG_TITLE_ANDROID,
+          .update_title_branded_id =
+              IDS_AUTOFILL_AI_UPDATE_NATIONAL_ID_CARD_ENTITY_DIALOG_TITLE_ANDROID,
+      };
+    case EntityTypeName::kPassport:
+      return {
+          .save_title_id =
+              IDS_AUTOFILL_AI_SAVE_PASSPORT_ENTITY_DIALOG_TITLE_ANDROID,
+          .save_title_branded_id =
+              IDS_AUTOFILL_AI_SAVE_PASSPORT_ENTITY_DIALOG_TITLE_ANDROID_BRANDED,
+          .update_title_id =
+              IDS_AUTOFILL_AI_UPDATE_PASSPORT_ENTITY_DIALOG_TITLE_ANDROID,
+          .update_title_branded_id =
+              IDS_AUTOFILL_AI_UPDATE_PASSPORT_ENTITY_DIALOG_TITLE_ANDROID,
+      };
+    case EntityTypeName::kRedressNumber:
+      return {
+          .save_title_id =
+              IDS_AUTOFILL_AI_SAVE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE_ANDROID,
+          .save_title_branded_id =
+              IDS_AUTOFILL_AI_SAVE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE_ANDROID_BRANDED,
+          .update_title_id =
+              IDS_AUTOFILL_AI_UPDATE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE_ANDROID,
+          .update_title_branded_id =
+              IDS_AUTOFILL_AI_UPDATE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE_ANDROID,
+      };
+    case EntityTypeName::kVehicle:
+      return {
+          .save_title_id =
+              IDS_AUTOFILL_AI_SAVE_VEHICLE_ENTITY_DIALOG_TITLE_ANDROID,
+          .save_title_branded_id =
+              IDS_AUTOFILL_AI_SAVE_VEHICLE_ENTITY_DIALOG_TITLE_ANDROID_BRANDED,
+          .update_title_id =
+              IDS_AUTOFILL_AI_UPDATE_VEHICLE_ENTITY_DIALOG_TITLE_ANDROID,
+          .update_title_branded_id =
+              IDS_AUTOFILL_AI_UPDATE_VEHICLE_ENTITY_DIALOG_TITLE_ANDROID,
+      };
+    case EntityTypeName::kFlightReservation:
+    case EntityTypeName::kOrder:
+    case EntityTypeName::kShipment:
+      NOTREACHED() << "Entity is read only and doesn't support import prompts.";
+  }
+#else
+  switch (type_name) {
+    case EntityTypeName::kDriversLicense:
+      return {
+          .save_title_id =
+              IDS_AUTOFILL_AI_SAVE_DRIVERS_LICENSE_ENTITY_DIALOG_TITLE,
+          .save_title_branded_id =
+              IDS_AUTOFILL_AI_SAVE_DRIVERS_LICENSE_ENTITY_DIALOG_TITLE_BRANDED,
+          .update_title_id =
+              IDS_AUTOFILL_AI_UPDATE_DRIVERS_LICENSE_ENTITY_DIALOG_TITLE,
+          .update_title_branded_id =
+              IDS_AUTOFILL_AI_UPDATE_DRIVERS_LICENSE_ENTITY_DIALOG_TITLE_BRANDED,
+      };
+    case EntityTypeName::kKnownTravelerNumber:
+      return {
+          .save_title_id =
+              IDS_AUTOFILL_AI_SAVE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE,
+          .save_title_branded_id =
+              IDS_AUTOFILL_AI_SAVE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE_BRANDED,
+          .update_title_id =
+              IDS_AUTOFILL_AI_UPDATE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE,
+          .update_title_branded_id =
+              IDS_AUTOFILL_AI_UPDATE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE_BRANDED,
+      };
+    case EntityTypeName::kNationalIdCard: {
+      const bool use_private_passes_title = base::FeatureList::IsEnabled(
+          features::kAutofillAiWalletPrivatePasses);
+      return {
+          .save_title_id =
+              use_private_passes_title
+                  ? IDS_AUTOFILL_AI_SAVE_ID_CARD_ENTITY_DIALOG_TITLE
+                  : IDS_AUTOFILL_AI_SAVE_NATIONAL_ID_CARD_ENTITY_DIALOG_TITLE,
+          .save_title_branded_id =
+              IDS_AUTOFILL_AI_SAVE_ID_CARD_ENTITY_DIALOG_TITLE_BRANDED,
+          .update_title_id =
+              use_private_passes_title
+                  ? IDS_AUTOFILL_AI_UPDATE_ID_CARD_ENTITY_DIALOG_TITLE
+                  : IDS_AUTOFILL_AI_UPDATE_NATIONAL_ID_CARD_ENTITY_DIALOG_TITLE,
+          .update_title_branded_id =
+              IDS_AUTOFILL_AI_UPDATE_ID_CARD_ENTITY_DIALOG_TITLE_BRANDED,
+      };
+    }
+    case EntityTypeName::kPassport:
+      return {
+          .save_title_id = IDS_AUTOFILL_AI_SAVE_PASSPORT_ENTITY_DIALOG_TITLE,
+          .save_title_branded_id =
+              IDS_AUTOFILL_AI_SAVE_PASSPORT_ENTITY_DIALOG_TITLE_BRANDED,
+          .update_title_id =
+              IDS_AUTOFILL_AI_UPDATE_PASSPORT_ENTITY_DIALOG_TITLE,
+          .update_title_branded_id =
+              IDS_AUTOFILL_AI_UPDATE_PASSPORT_ENTITY_DIALOG_TITLE_BRANDED,
+      };
+    case EntityTypeName::kRedressNumber:
+      return {
+          .save_title_id =
+              IDS_AUTOFILL_AI_SAVE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE,
+          .save_title_branded_id =
+              IDS_AUTOFILL_AI_SAVE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE_BRANDED,
+          .update_title_id =
+              IDS_AUTOFILL_AI_UPDATE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE,
+          .update_title_branded_id =
+              IDS_AUTOFILL_AI_UPDATE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE_BRANDED,
+      };
+    case EntityTypeName::kVehicle:
+      return {
+          .save_title_id = IDS_AUTOFILL_AI_SAVE_VEHICLE_ENTITY_DIALOG_TITLE,
+          .save_title_branded_id =
+              IDS_AUTOFILL_AI_SAVE_VEHICLE_ENTITY_DIALOG_TITLE_BRANDED,
+          .update_title_id = IDS_AUTOFILL_AI_UPDATE_VEHICLE_ENTITY_DIALOG_TITLE,
+          .update_title_branded_id =
+              IDS_AUTOFILL_AI_UPDATE_VEHICLE_ENTITY_DIALOG_TITLE_BRANDED,
+      };
+    case EntityTypeName::kFlightReservation:
+    case EntityTypeName::kOrder:
+    case EntityTypeName::kShipment:
+      NOTREACHED() << "Entity is read only and doesn't support import prompts.";
+  }
+#endif
+}
+
+}  // namespace
+
 std::u16string GetPromptTitle(EntityTypeName type_name,
                               bool is_save_prompt,
                               bool is_server_wallet) {
-#if BUILDFLAG(IS_ANDROID)
+  TitleResources resources = GetResourcesForType(type_name);
+
+  const bool is_wallet_branded =
+      is_server_wallet &&
+      base::FeatureList::IsEnabled(features::kAutofillAiWalletPassBranding2026);
+
+  int resource_id = 0;
   if (is_save_prompt) {
-    const bool is_wallet_branded =
-        is_server_wallet &&
-        base::FeatureList::IsEnabled(
-            features::kAutofillAiWalletPassBranding2026);
-    switch (type_name) {
-      case EntityTypeName::kDriversLicense:
-        return l10n_util::GetStringUTF16(
-            is_wallet_branded
-                ? IDS_AUTOFILL_AI_SAVE_DRIVERS_LICENSE_ENTITY_DIALOG_TITLE_ANDROID_BRANDED
-                : IDS_AUTOFILL_AI_SAVE_DRIVERS_LICENSE_ENTITY_DIALOG_TITLE_ANDROID);
-      case EntityTypeName::kKnownTravelerNumber:
-        return l10n_util::GetStringUTF16(
-            is_wallet_branded
-                ? IDS_AUTOFILL_AI_SAVE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE_ANDROID_BRANDED
-                : IDS_AUTOFILL_AI_SAVE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE_ANDROID);
-      case EntityTypeName::kNationalIdCard:
-        return l10n_util::GetStringUTF16(
-            is_wallet_branded
-                ? IDS_AUTOFILL_AI_SAVE_NATIONAL_ID_CARD_ENTITY_DIALOG_TITLE_ANDROID_BRANDED
-                : IDS_AUTOFILL_AI_SAVE_NATIONAL_ID_CARD_ENTITY_DIALOG_TITLE_ANDROID);
-      case EntityTypeName::kPassport:
-        return l10n_util::GetStringUTF16(
-            is_wallet_branded
-                ? IDS_AUTOFILL_AI_SAVE_PASSPORT_ENTITY_DIALOG_TITLE_ANDROID_BRANDED
-                : IDS_AUTOFILL_AI_SAVE_PASSPORT_ENTITY_DIALOG_TITLE_ANDROID);
-      case EntityTypeName::kRedressNumber:
-        return l10n_util::GetStringUTF16(
-            is_wallet_branded
-                ? IDS_AUTOFILL_AI_SAVE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE_ANDROID_BRANDED
-                : IDS_AUTOFILL_AI_SAVE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE_ANDROID);
-      case EntityTypeName::kVehicle:
-        return l10n_util::GetStringUTF16(
-            is_wallet_branded
-                ? IDS_AUTOFILL_AI_SAVE_VEHICLE_ENTITY_DIALOG_TITLE_ANDROID_BRANDED
-                : IDS_AUTOFILL_AI_SAVE_VEHICLE_ENTITY_DIALOG_TITLE_ANDROID);
-      case EntityTypeName::kFlightReservation:
-        NOTREACHED() << "Entity is read only and doesn't support save prompts.";
-      case EntityTypeName::kOrder:
-        NOTREACHED() << "Entity is read only and doesn't support save prompts.";
-      case EntityTypeName::kShipment:
-        NOTREACHED() << "Entity is read only and doesn't support save prompts.";
-    }
+    resource_id = is_wallet_branded ? resources.save_title_branded_id
+                                    : resources.save_title_id;
   } else {
-    switch (type_name) {
-      case EntityTypeName::kDriversLicense:
-        return l10n_util::GetStringUTF16(
-            IDS_AUTOFILL_AI_UPDATE_DRIVERS_LICENSE_ENTITY_DIALOG_TITLE_ANDROID);
-      case EntityTypeName::kKnownTravelerNumber:
-        return l10n_util::GetStringUTF16(
-            IDS_AUTOFILL_AI_UPDATE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE_ANDROID);
-      case EntityTypeName::kNationalIdCard:
-        return l10n_util::GetStringUTF16(
-            IDS_AUTOFILL_AI_UPDATE_NATIONAL_ID_CARD_ENTITY_DIALOG_TITLE_ANDROID);
-      case EntityTypeName::kPassport:
-        return l10n_util::GetStringUTF16(
-            IDS_AUTOFILL_AI_UPDATE_PASSPORT_ENTITY_DIALOG_TITLE_ANDROID);
-      case EntityTypeName::kRedressNumber:
-        return l10n_util::GetStringUTF16(
-            IDS_AUTOFILL_AI_UPDATE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE_ANDROID);
-      case EntityTypeName::kVehicle:
-        return l10n_util::GetStringUTF16(
-            IDS_AUTOFILL_AI_UPDATE_VEHICLE_ENTITY_DIALOG_TITLE_ANDROID);
-      case EntityTypeName::kFlightReservation:
-        NOTREACHED()
-            << "Entity is read only and doesn't support update prompts.";
-      case EntityTypeName::kOrder:
-        NOTREACHED()
-            << "Entity is read only and doesn't support update prompts.";
-      case EntityTypeName::kShipment:
-        NOTREACHED()
-            << "Entity is read only and doesn't support update prompts.";
-    }
+    resource_id = is_wallet_branded ? resources.update_title_branded_id
+                                    : resources.update_title_id;
   }
-#else
-  if (is_save_prompt) {
-    const bool is_wallet_branded =
-        is_server_wallet &&
-        base::FeatureList::IsEnabled(
-            features::kAutofillAiWalletPassBranding2026);
-    switch (type_name) {
-      case EntityTypeName::kDriversLicense:
-        return l10n_util::GetStringUTF16(
-            is_wallet_branded
-                ? IDS_AUTOFILL_AI_SAVE_DRIVERS_LICENSE_ENTITY_DIALOG_TITLE_BRANDED
-                : IDS_AUTOFILL_AI_SAVE_DRIVERS_LICENSE_ENTITY_DIALOG_TITLE);
-      case EntityTypeName::kKnownTravelerNumber:
-        return l10n_util::GetStringUTF16(
-            is_wallet_branded
-                ? IDS_AUTOFILL_AI_SAVE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE_BRANDED
-                : IDS_AUTOFILL_AI_SAVE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE);
-      case EntityTypeName::kNationalIdCard:
-        if (is_wallet_branded) {
-          return l10n_util::GetStringUTF16(IDS_AUTOFILL_AI_SAVE_ID_CARD_ENTITY_DIALOG_TITLE_BRANDED);
-        }
-        return l10n_util::GetStringUTF16(
-            base::FeatureList::IsEnabled(
-                features::kAutofillAiWalletPrivatePasses)
-                ? IDS_AUTOFILL_AI_SAVE_ID_CARD_ENTITY_DIALOG_TITLE
-                : IDS_AUTOFILL_AI_SAVE_NATIONAL_ID_CARD_ENTITY_DIALOG_TITLE);
-      case EntityTypeName::kPassport:
-        return l10n_util::GetStringUTF16(
-            is_wallet_branded
-                ? IDS_AUTOFILL_AI_SAVE_PASSPORT_ENTITY_DIALOG_TITLE_BRANDED
-                : IDS_AUTOFILL_AI_SAVE_PASSPORT_ENTITY_DIALOG_TITLE);
-      case EntityTypeName::kRedressNumber:
-        return l10n_util::GetStringUTF16(
-            is_wallet_branded
-                ? IDS_AUTOFILL_AI_SAVE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE_BRANDED
-                : IDS_AUTOFILL_AI_SAVE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE);
-      case EntityTypeName::kVehicle:
-        return l10n_util::GetStringUTF16(
-            is_wallet_branded
-                ? IDS_AUTOFILL_AI_SAVE_VEHICLE_ENTITY_DIALOG_TITLE_BRANDED
-                : IDS_AUTOFILL_AI_SAVE_VEHICLE_ENTITY_DIALOG_TITLE);
-      case EntityTypeName::kFlightReservation:
-        NOTREACHED() << "Entity is read only and doesn't support save prompts.";
-      case EntityTypeName::kOrder:
-        NOTREACHED() << "Entity is read only and doesn't support save prompts.";
-      case EntityTypeName::kShipment:
-        NOTREACHED() << "Entity is read only and doesn't support save prompts.";
-    }
-  } else {
-    switch (type_name) {
-      case EntityTypeName::kDriversLicense:
-        return l10n_util::GetStringUTF16(
-            IDS_AUTOFILL_AI_UPDATE_DRIVERS_LICENSE_ENTITY_DIALOG_TITLE);
-      case EntityTypeName::kKnownTravelerNumber:
-        return l10n_util::GetStringUTF16(
-            IDS_AUTOFILL_AI_UPDATE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE);
-      case EntityTypeName::kNationalIdCard:
-        return l10n_util::GetStringUTF16(
-            base::FeatureList::IsEnabled(
-                features::kAutofillAiWalletPrivatePasses)
-                ? IDS_AUTOFILL_AI_UPDATE_ID_CARD_ENTITY_DIALOG_TITLE
-                : IDS_AUTOFILL_AI_UPDATE_NATIONAL_ID_CARD_ENTITY_DIALOG_TITLE);
-      case EntityTypeName::kPassport:
-        return l10n_util::GetStringUTF16(
-            IDS_AUTOFILL_AI_UPDATE_PASSPORT_ENTITY_DIALOG_TITLE);
-      case EntityTypeName::kRedressNumber:
-        return l10n_util::GetStringUTF16(
-            IDS_AUTOFILL_AI_UPDATE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE);
-      case EntityTypeName::kVehicle:
-        return l10n_util::GetStringUTF16(
-            IDS_AUTOFILL_AI_UPDATE_VEHICLE_ENTITY_DIALOG_TITLE);
-      case EntityTypeName::kFlightReservation:
-        NOTREACHED()
-            << "Entity is read only and doesn't support update prompts.";
-      case EntityTypeName::kOrder:
-        NOTREACHED()
-            << "Entity is read only and doesn't support update prompts.";
-      case EntityTypeName::kShipment:
-        NOTREACHED()
-            << "Entity is read only and doesn't support update prompts.";
-    }
-  }
-#endif
-  NOTREACHED();
+
+  return l10n_util::GetStringUTF16(resource_id);
 }
 
 int GetPrimaryButtonTextId(bool is_save_prompt) {

@@ -57,7 +57,8 @@ void PhishingClassifier::SetClientSideDetectionType(
 
 void PhishingClassifier::BeginClassification(DoneCallback done_callback) {
   TRACE_EVENT_BEGIN("safe_browsing", "PhishingClassification",
-                    perfetto::Track::FromPointer(this));
+                    perfetto::NamedTrack::FromPointer(
+                        "safe_browsing::PhishingClassifier", this));
   DCHECK(is_ready());
 
   // However, in an opt build, we will go ahead and clean up the pending
@@ -198,7 +199,8 @@ void PhishingClassifier::OnVisualTfLiteModelImageEmbeddingDone(
 void PhishingClassifier::RunCallback(const ClientPhishingRequest& verdict,
                                      Result phishing_classifier_result) {
   TRACE_EVENT_END("safe_browsing", /* PhishingClassification */
-                  perfetto::Track::FromPointer(this));
+                  perfetto::NamedTrack::FromPointer(
+                      "safe_browsing::PhishingClassifier", this));
   std::move(done_callback_).Run(verdict, phishing_classifier_result);
   Clear();
 }

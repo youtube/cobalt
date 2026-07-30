@@ -180,10 +180,7 @@ AutofillCountry::address_format_extensions() const {
                    {"MX", mx_extensions},
                    {"PL", pl_extensions}};
 
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillSupportPhoneticNameForJP)) {
-    overrides.emplace_back("JP", jp_extensions);
-  }
+  overrides.emplace_back("JP", jp_extensions);
 
   auto extensions =
       base::flat_map<std::string, base::span<const AddressFormatExtension>>(

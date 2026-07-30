@@ -77,7 +77,7 @@ class EncryptionKeyApi
           trusted_vault_keys,
       SetEncryptionKeysCallback callback) override {
     // Extra safeguard.
-    if (receivers_.GetCurrentTargetFrame()->GetLastCommittedOrigin() !=
+    if (receivers_.CurrentTargetFrame().GetLastCommittedOrigin() !=
         GetAllowedGoogleAccountsOrigin()) {
       return;
     }
@@ -112,7 +112,7 @@ class EncryptionKeyApi
       int method_type_hint,
       AddTrustedRecoveryMethodCallback callback) override {
     // Extra safeguard.
-    if (receivers_.GetCurrentTargetFrame()->GetLastCommittedOrigin() !=
+    if (receivers_.CurrentTargetFrame().GetLastCommittedOrigin() !=
         GetAllowedGoogleAccountsOrigin()) {
       return;
     }

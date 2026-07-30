@@ -23,6 +23,7 @@
 #include "components/autofill/core/browser/form_processing/autofill_ai/determine_attribute_types.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
+#include "components/autofill/core/browser/network/autofill_ai/mock_personal_context_access_manager.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/suggestions/suggestion_test_helpers.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
@@ -51,6 +52,7 @@ using ::testing::IsEmpty;
 using ::testing::Matcher;
 using ::testing::Not;
 using ::testing::ResultOf;
+using ::testing::Return;
 
 constexpr char kAppLocaleUS[] = "en-US";
 
@@ -120,7 +122,7 @@ class AutofillAiSuggestionGeneratorTest : public testing::Test {
             autofill_client_.GetPrefs(), autofill_client_.GetIdentityManager(),
             autofill_client_.GetSyncService(),
             webdata_helper_.autofill_webdata_service(),
-            /*history_service=*/nullptr,
+            /*history_service=*/nullptr, &pcontext_manager_,
             /*strike_database=*/nullptr,
             /*variation_country_code=*/GeoIpCountryCode("US")));
     autofill_client_.SetUpPrefsAndIdentityForAutofillAi();
@@ -152,7 +154,15 @@ class AutofillAiSuggestionGeneratorTest : public testing::Test {
   void SetEntities(std::vector<EntityInstance> entities) {
     entities_ = std::move(entities);
     for (EntityInstance& entity : entities_) {
-      edm().AddOrUpdateEntityInstance(entity);
+      switch (entity.record_type()) {
+        case EntityInstance::RecordType::kLocal:
+        case EntityInstance::RecordType::kServerWallet:
+          edm().AddOrUpdateEntityInstance(entity);
+          break;
+        case EntityInstance::RecordType::kPersonalContext:
+          edm().OnPrefetchContextComplete(pcontext_manager_, {entity});
+          break;
+      }
     }
     webdata_helper().WaitUntilIdle();
   }
@@ -219,6 +229,7 @@ class AutofillAiSuggestionGeneratorTest : public testing::Test {
   test::AutofillUnitTestEnvironment autofill_test_environment_;
   AutofillWebDataServiceTestHelper webdata_helper_{
       std::make_unique<EntityTable>()};
+  testing::NiceMock<MockPersonalContextAccessManager> pcontext_manager_;
   TestAutofillClient autofill_client_;
   std::vector<EntityInstance> entities_;
   std::optional<FormStructure> form_structure_;
@@ -444,7 +455,19 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
 
   std::vector<Suggestion> suggestions =
       CreateAutofillAiFillingSuggestions(field(0));
-  EXPECT_THAT(suggestions[0], HasIcon(Suggestion::Icon::kSpark));
+  EXPECT_THAT(suggestions[0], HasIcon(Suggestion::Icon::kFlightSpark));
+}
+
+TEST_F(
+    AutofillAiSuggestionGeneratorTest,
+    GetFillingSuggestion_PersonalContextPassportEntity_UsePassportSparkIcon) {
+  SetEntities({GetPassportEntityInstanceWithRandomGuid(
+      {.record_type = EntityInstance::RecordType::kPersonalContext})});
+  SetForm({PASSPORT_NUMBER});
+
+  std::vector<Suggestion> suggestions =
+      CreateAutofillAiFillingSuggestions(field(0));
+  EXPECT_THAT(suggestions[0], HasIcon(Suggestion::Icon::kPassportSpark));
 }
 
 TEST_F(AutofillAiSuggestionGeneratorTest, GetFillingSuggestion_PrefixMatching) {
@@ -1103,6 +1126,100 @@ TEST_F(AutofillAiSuggestionGeneratorTest, WalletSuggestionsShowIPH) {
   EXPECT_THAT(suggestions, SuggestionsAre(HasIphFeature(kIphFeature)));
 }
 
+TEST_F(AutofillAiSuggestionGeneratorTest, ShowFetchingSuggestionWhenPending) {
+  testing::NiceMock<MockPersonalContextAccessManager> access_manager;
+  client().set_personal_context_access_manager(&access_manager);
+
+  SetForm({PASSPORT_NUMBER});
+  SetEntities({});
+
+  using RequestStatus = PersonalContextAccessManager::RequestStatus;
+  EXPECT_CALL(access_manager,
+              ServerHasDataAvailable(EntityType(EntityTypeName::kPassport)))
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(access_manager, GetPrefetchStatusByEntityType(
+                                  EntityType(EntityTypeName::kPassport)))
+      .WillRepeatedly(Return(RequestStatus::kPending));
+
+  EXPECT_THAT(CreateAutofillAiFillingSuggestions(field(0)),
+              SuggestionsAre(HasType(SuggestionType::kFetchingAmbientData)));
+}
+
+TEST_F(AutofillAiSuggestionGeneratorTest,
+       NoFetchingSuggestionWhenNoDataExists) {
+  testing::NiceMock<MockPersonalContextAccessManager> access_manager;
+  client().set_personal_context_access_manager(&access_manager);
+
+  SetForm({PASSPORT_NUMBER});
+  SetEntities({});
+
+  using RequestStatus = PersonalContextAccessManager::RequestStatus;
+  EXPECT_CALL(access_manager,
+              ServerHasDataAvailable(EntityType(EntityTypeName::kPassport)))
+      .WillRepeatedly(Return(false));
+  // We mock pending to ensure the test fails if the existence check is missing.
+  EXPECT_CALL(access_manager, GetPrefetchStatusByEntityType(
+                                  EntityType(EntityTypeName::kPassport)))
+      .WillRepeatedly(Return(RequestStatus::kPending));
+
+  EXPECT_THAT(CreateAutofillAiFillingSuggestions(field(0)), IsEmpty());
+}
+
+TEST_F(AutofillAiSuggestionGeneratorTest, NoFetchingSuggestionWhenNotPending) {
+  testing::NiceMock<MockPersonalContextAccessManager> access_manager;
+  client().set_personal_context_access_manager(&access_manager);
+
+  SetForm({PASSPORT_NUMBER});
+  SetEntities({});
+
+  using RequestStatus = PersonalContextAccessManager::RequestStatus;
+  EXPECT_CALL(access_manager,
+              ServerHasDataAvailable(EntityType(EntityTypeName::kPassport)))
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(access_manager, GetPrefetchStatusByEntityType(
+                                  EntityType(EntityTypeName::kPassport)))
+      .WillRepeatedly(Return(RequestStatus::kSuccess));
+
+  EXPECT_THAT(CreateAutofillAiFillingSuggestions(field(0)), IsEmpty());
+}
+
+TEST_F(AutofillAiSuggestionGeneratorTest,
+       NoFetchingSuggestionWhenTriggerFieldIsNotPending) {
+  testing::NiceMock<MockPersonalContextAccessManager> access_manager;
+  client().set_personal_context_access_manager(&access_manager);
+
+  // Form has Passport and National ID.
+  SetForm({PASSPORT_NUMBER, NATIONAL_ID_CARD_NUMBER});
+
+  // Passport has local data.
+  SetEntities({test::GetPassportEntityInstance()});
+
+  using RequestStatus = PersonalContextAccessManager::RequestStatus;
+  EXPECT_CALL(access_manager,
+              ServerHasDataAvailable(EntityType(EntityTypeName::kPassport)))
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(access_manager, GetPrefetchStatusByEntityType(
+                                  EntityType(EntityTypeName::kPassport)))
+      .WillRepeatedly(Return(RequestStatus::kSuccess));
+
+  // National ID is fetching, but the focused field (Passport) is not pending.
+  EXPECT_CALL(access_manager, ServerHasDataAvailable(
+                                  EntityType(EntityTypeName::kNationalIdCard)))
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(access_manager, GetPrefetchStatusByEntityType(
+                                  EntityType(EntityTypeName::kNationalIdCard)))
+      .WillRepeatedly(Return(RequestStatus::kPending));
+
+  // User clicks Passport field.
+  std::vector<Suggestion> suggestions =
+      CreateAutofillAiFillingSuggestions(field(0));
+
+  // Should contain Passport suggestions, but NOT fetching suggestion.
+  EXPECT_THAT(suggestions, Not(IsEmpty()));
+  EXPECT_THAT(suggestions,
+              Not(Contains(HasType(SuggestionType::kFetchingAmbientData))));
+}
+
 class AutofillAiSuggestionGeneratorSplitManageSuggestionTest
     : public AutofillAiSuggestionGeneratorTest {
  public:
@@ -1143,6 +1260,50 @@ TEST_F(AutofillAiSuggestionGeneratorSplitManageSuggestionTest,
               ElementsAre(HasType(SuggestionType::kFillAutofillAi),
                           HasType(SuggestionType::kSeparator),
                           HasType(SuggestionType::kManageAutofillAiTravel)));
+}
+
+class AutofillAiSuggestionGeneratorPolicyTest
+    : public AutofillAiSuggestionGeneratorTest {
+ public:
+  AutofillAiSuggestionGeneratorPolicyTest()
+      : AutofillAiSuggestionGeneratorTest(GetEnabledFeatures(),
+                                          /*disabled_features=*/{}) {}
+
+ private:
+  static std::vector<base::test::FeatureRef> GetEnabledFeatures() {
+    auto features = GetDefaultEnabledFeatures();
+    features.push_back(
+        features::kAutofillEnableAutofillSettingsEnterprisePolicy);
+    return features;
+  }
+};
+
+// Tests that identity document entities are blocked from suggestions when the
+// kIdentityDocs policy category is blocked.
+TEST_F(AutofillAiSuggestionGeneratorPolicyTest, BlockIdentityDocs) {
+  SetEntities({GetPassportEntityInstanceWithRandomGuid()});
+  SetForm({PASSPORT_NUMBER});
+
+  client().SetAutofillTypeBlockedByPolicy(
+      AutofillClient::AutofillPolicyDataCategory::kIdentityDocs, true);
+
+  std::vector<Suggestion> suggestions =
+      CreateAutofillAiFillingSuggestions(field(0));
+  EXPECT_TRUE(suggestions.empty());
+}
+
+// Tests that travel entities are blocked from suggestions when the kTravel
+// policy category is blocked.
+TEST_F(AutofillAiSuggestionGeneratorPolicyTest, BlockTravel) {
+  SetEntities({test::GetVehicleEntityInstanceWithRandomGuid()});
+  SetForm({VEHICLE_LICENSE_PLATE});
+
+  client().SetAutofillTypeBlockedByPolicy(
+      AutofillClient::AutofillPolicyDataCategory::kTravel, true);
+
+  std::vector<Suggestion> suggestions =
+      CreateAutofillAiFillingSuggestions(field(0));
+  EXPECT_TRUE(suggestions.empty());
 }
 
 }  // namespace

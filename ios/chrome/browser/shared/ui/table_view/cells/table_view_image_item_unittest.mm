@@ -6,7 +6,6 @@
 
 #import "base/apple/foundation_util.h"
 #import "ios/chrome/browser/shared/ui/table_view/content_configuration/table_view_cell_content_configuration.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
@@ -33,7 +32,7 @@ TEST_F(TableViewImageItemTest, ItemProperties) {
       base::apple::ObjCCastStrict<LegacyTableViewCell>(cell);
   EXPECT_EQ(nil, imageCell.contentConfiguration);
 
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
   EXPECT_NE(nil, imageCell.contentConfiguration);
   ASSERT_TRUE([imageCell.contentConfiguration
       isMemberOfClass:TableViewCellContentConfiguration.class]);
@@ -59,7 +58,7 @@ TEST_F(TableViewImageItemTest, ItemImageViewHidden) {
   LegacyTableViewCell* imageCell =
       base::apple::ObjCCastStrict<LegacyTableViewCell>(cell);
 
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
   ASSERT_TRUE([imageCell.contentConfiguration
       isMemberOfClass:TableViewCellContentConfiguration.class]);
 

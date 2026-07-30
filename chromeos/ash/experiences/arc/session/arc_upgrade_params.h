@@ -45,7 +45,7 @@ struct UpgradeParams {
   std::string account_id;
 
   // Whether the account is managed.
-  bool is_account_managed;
+  bool is_account_managed = false;
 
   // Whether adb sideloading is allowed when the account and/or the device is
   // managed.

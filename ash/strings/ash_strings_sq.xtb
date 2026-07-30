@@ -48,6 +48,7 @@
 <translation id="1129383337808748948">Rifresko "<ph name="CONTENT_TITLE" />"</translation>
 <translation id="1142002900084379065">Fotot e fundit</translation>
 <translation id="114221662579355151">Kjo lejon qasjen te kamera për <ph name="APP1_NAME" />, <ph name="APP2_NAME" /> dhe të gjitha aplikacionet dhe uebsajtet me lejen e kamerës. Mund të duhet të rifreskosh faqen e uebit ose të rinisësh aplikacionin.</translation>
+<translation id="1145593918056169051">Printeri ka ndaluar</translation>
 <translation id="1147991416141538220">Për të kërkuar qasjen, kontakto me administratorin e kësaj pajisjeje.</translation>
 <translation id="1148499908455722006">Hap dialogun e informacioneve për <ph name="USER_NAME" /></translation>
 <translation id="1150989369772528668">Kalendari</translation>
@@ -151,6 +152,7 @@
 <translation id="1383876407941801731">Kërko</translation>
 <translation id="1388728792929436380">Pajisja <ph name="DEVICE_TYPE" /> do të riniset kur të përfundojnë përditësimet.</translation>
 <translation id="1390113502208199250">Do të duhet ta rivendosësh në gjendje fabrike këtë pajisje për të përdorur veçoritë e përmirësimit të Chrome për edukimin.</translation>
+<translation id="1390907927270446471"><ph name="PROFILE_USERNAME" /> nuk është autorizuar të printojë te <ph name="PRINTER_NAME" />. Kontakto me administratorin tënd.</translation>
 <translation id="1391102559483454063">Aktiv</translation>
 <translation id="1394698770495054737">Turbullim i plotë</translation>
 <translation id="1395878931462960119">{DAYS,plural, =1{1 ditë më parë}other{# ditë më parë}}</translation>
@@ -169,6 +171,7 @@
 <translation id="1426410128494586442">Po</translation>
 <translation id="142655739075382478"><ph name="APP_NAME" /> është bllokuar</translation>
 <translation id="142765311413773645">Licenca e <ph name="APP_NAME" /> ka skaduar</translation>
+<translation id="1430915738399379752">Printo</translation>
 <translation id="1435537621343861112">Diktimi nuk mund të fillojë. Mikrofoni yt është joaktiv.</translation>
 <translation id="1445031758921122223">Skedarët e kontrollit me anë të fytyrës u shkarkuan</translation>
 <translation id="1447907279406111651">Tani ⋅ Përfundon në <ph name="END_TIME" /></translation>
@@ -229,6 +232,7 @@
 <translation id="1597880963776148053">Hapi <ph name="STEP" /> nga <ph name="TOTAL_STEPS" /> i turneut. Aplikacionet e tua të gozhduara dhe të hapura janë te rafti që ndodhet në fund të ekranit. Shtyp Alt + Shift + L dhe më pas "Tab" për t'u fokusuar tek artikujt e raftit.</translation>
 <translation id="1602085790802918092">Pajisja virtuale po niset</translation>
 <translation id="1602874809115667351"><ph name="LAUNCHER_KEY_NAME" /> + shigjeta poshtë</translation>
+<translation id="1604432177629086300">Nuk mund të printohej. Kontrollo printerin dhe provo përsëri.</translation>
 <translation id="1604857178818051494">Vendose median në pauzë</translation>
 <translation id="1607312127821884567">Hiq konfigurimin e shikimit të aplikacioneve të telefonit tënd</translation>
 <translation id="1610778689852195798">"Zhbëj"</translation>
@@ -372,6 +376,7 @@
 <translation id="2053312383184521053">Të dhënat e gjendjes së qetë</translation>
 <translation id="2064048859448024834">Pamja paraprake e kamerës aktive</translation>
 <translation id="2067220651560163985">Shfaq temperaturën në celsius</translation>
+<translation id="206960706005837784"><ph name="APP_NAME" /> ka përfunduar printimin te <ph name="PRINTER_NAME" /></translation>
 <translation id="2075520525463668108">Aktivizo/çaktivizo <ph name="CAPTURE_MEDIUM" />. <ph name="CAPTURE_MEDIUM" /> është <ph name="CAPTURE_STATE" /></translation>
 <translation id="2079545284768500474">Zhbëj</translation>
 <translation id="2086334242442703436">Hap zgjedhësin e emoji</translation>
@@ -441,6 +446,7 @@
 <translation id="2328561734797404498">Rinise pajisjen tënde për të përdorur <ph name="APP_NAME" />.</translation>
 <translation id="2335091074961603075">Pajisja jote Chromebook ose me Bluetooth po përdor një version më të vjetër të Bluetooth-it. Përdor mikrofonin e brendshëm për një cilësi më të mirë të audios.</translation>
 <translation id="2336214675195760012">{NUM_DAYS,plural, =1{<ph name="MANAGER" /> kërkon që të lidhesh me Wi-Fi sot për të shkarkuar një përditësim. Ose shkarko nga një lidhje me matje (mund të zbatohen tarifat).}other{<ph name="MANAGER" /> kërkon që të lidhesh me Wi-Fi dhe të shkarkosh një përditësim para afatit. Ose shkarko nga një lidhje me matje (mund të zbatohen tarifat).}}</translation>
+<translation id="2336258397628212480"><ph name="APP_NAME" /> po printon 1 faqe te <ph name="PRINTER_NAME" /></translation>
 <translation id="2336381494582898602">Rivendosje në gjendjen e fabrikës</translation>
 <translation id="2339073806695260576">Trokit te butoni i stilolapsit në raft për të mbajtur një shënim, për të nxjerrë një pamje të ekranit, për të përdorur treguesin me lazer ose xhamin zmadhues.</translation>
 <translation id="2341729377289034582">U kyç vertikalisht</translation>
@@ -755,6 +761,7 @@ Në rast të kundërt, blloku i integruar me prekje do të riaktivizohet pas <ph
 <translation id="3206735939915734551">Aktivizo/çaktivizo kyçjen e kapitaleve</translation>
 <translation id="3207953481422525583">Cilësimet e përdoruesit</translation>
 <translation id="3208321278970793882">Aplikacioni</translation>
+<translation id="32101887417650595">Nuk mund të lidhet me printerin</translation>
 <translation id="3212221635583599601">Lidhu me internetin për më shumë</translation>
 <translation id="3213571860604332401">Ruaje lidhjen si faqeshënues</translation>
 <translation id="3217205077783620295">Volumi është aktiv. Ndërrimi do ta heqë audion.</translation>
@@ -823,6 +830,7 @@ Në rast të kundërt, blloku i integruar me prekje do të riaktivizohet pas <ph
 <translation id="3431517721463707585">Tavolina e punës 14</translation>
 <translation id="3433507769937235446">Kyç kur largohesh</translation>
 <translation id="3434107140712555581"><ph name="BATTERY_PERCENTAGE" />%</translation>
+<translation id="343578350365773421">Nuk ka letër</translation>
 <translation id="3435967511775410570">Gjurma e gishtit u njoh</translation>
 <translation id="3437677362970530951">Lojërat në "Dyqanin e Play" dhe në platforma të tjera lojërash</translation>
 <translation id="3439896670700055005">Ringarko faqen aktuale pa përdorur përmbajtjen e ruajtur në memorien specifike</translation>
@@ -999,6 +1007,7 @@ Lidhe pajisjen me një burim të energjisë elektrike.</translation>
 <translation id="3848526302597027234">Të qaset në lejet e mëposhtme:</translation>
 <translation id="385051799172605136">Prapa</translation>
 <translation id="385300504083504382">Fillimi</translation>
+<translation id="3854976556788175030">Tabakaja e daljes është plot</translation>
 <translation id="3857807444929313943">Ngrije dhe më pas prek përsëri</translation>
 <translation id="3859364108019690">Aplikacionet nuk mund të transmetohen</translation>
 <translation id="3861638017150647085">Emri i përdoruesit "<ph name="USERNAME" />" nuk ofrohet</translation>
@@ -1051,6 +1060,7 @@ Lidhe pajisjen me një burim të energjisë elektrike.</translation>
 <translation id="401993194061514265">Shënuesi nuk ofrohet. Rihap "Transmetimin e ekranit".</translation>
 <translation id="4021716437419160885">Lëviz poshtë</translation>
 <translation id="4022497978915111141">Kyç pajisjen</translation>
+<translation id="4023048917751563912"><ph name="APP_NAME" /> po printon <ph name="PAGE_NUMBER" /> faqe te <ph name="PRINTER_NAME" /></translation>
 <translation id="4024840464866786680">Nëse e ke harruar kodin PIN dhe fjalëkalimin ose e ke ndryshuar së fundi fjalëkalimin e "Llogarisë sate të Google", provo ta rikuperosh këtë përdorues.</translation>
 <translation id="4026843240379844265">Zhvendose dritaren aktive mes ekraneve</translation>
 <translation id="4028481283645788203">Kërkohet fjalëkalimi për më shumë siguri</translation>
@@ -1580,6 +1590,7 @@ Nuk ka pajisje të lidhura.</translation>
 <translation id="5491186829646618080">Ofrohen përditësime të firmuerit</translation>
 <translation id="5503884284981862082">Hap/mbyll "Asistentin e Google"</translation>
 <translation id="550391772491508736">Vazhdo transmetimin</translation>
+<translation id="5505307013568720083">Nuk ka bojë</translation>
 <translation id="5506975627792768506">Aktivizo ose çaktivizo zmadhuesin</translation>
 <translation id="5507778598655387680"><ph name="VOLUME_LEVEL" />, goditja e tastit "Enter" do të çaktivizojë audion.</translation>
 <translation id="5512042095225963688">Fshi fjalën e mëparshme</translation>
@@ -1691,12 +1702,14 @@ Nuk ka pajisje të lidhura.</translation>
 <translation id="5791926618942305301">Në regjistrimin e ekranit, cakto në <ph name="TYPE" /> <ph name="SOURCE" />. Shtyp "Tab" për të zgjedhur llojin e regjistrimit. Shtyp "Enter" për të regjistruar. Për të zgjedhur zonën e regjistrimit, cakto në pamjen e pjesshme të ekranit. Nëse nuk është aktive tashmë, shtyp tastin e hapësirës për të zgjedhur zonën.</translation>
 <translation id="579415080077680903">Heshtja</translation>
 <translation id="5802516411616338943">Hap "Cilësimet e shpejta"</translation>
+<translation id="5804241973901381774">Lejet</translation>
 <translation id="5804651031882187592">Çaktivizo cilësimin "Kyç kartën SIM"</translation>
 <translation id="5805809050170488595">Kliko për të aktivizuar <ph name="NETWORK_NAME" /></translation>
 <translation id="5818796501620225415">Mund të shtosh kohë ose mund ta përfundosh seancën e fokusit</translation>
 <translation id="5819918159912280082">Pajisja jote Chromebook është rinisur papritur. Hap dritaret dhe aplikacionet e tua të mëparshme.</translation>
 <translation id="5823239091726045201">Google Tasks në ueb</translation>
 <translation id="5825969630400862129">Cilësimet e pajisjeve të lidhura</translation>
+<translation id="5828633471261496623">Po printon...</translation>
 <translation id="5830180081891717894"><ph name="WINDOWS" /> të tjera</translation>
 <translation id="5830205393314753525"><ph name="APP_NAME" /> nuk mund të hapet</translation>
 <translation id="583281660410589416">E panjohur</translation>
@@ -1721,6 +1734,7 @@ Nuk ka pajisje të lidhura.</translation>
 <translation id="5892014525522223653">Je offline.</translation>
 <translation id="5895138241574237353">Rinis</translation>
 <translation id="589817443623831496">Skanimi me pika</translation>
+<translation id="5901494423252125310">Dera e printerit është e hapur</translation>
 <translation id="5901630391730855834">E verdhë</translation>
 <translation id="5904614460720589786"><ph name="APP_NAME" /> nuk mund të konfigurohej për shkak të një problemi në konfigurim. Kontakto me administratorin tënd. Kodi i gabimit: <ph name="ERROR_CODE" />.</translation>
 <translation id="5910726859585389579"><ph name="DEVICE_TYPE" /> është offline</translation>
@@ -1785,6 +1799,7 @@ Nuk ka pajisje të lidhura.</translation>
         <ph name="BEGIN_PARAGRAPH2" />Çaktivizimi i kësaj veçorie nuk ndikon në aftësinë e kësaj pajisjeje për të dërguar informacionin e nevojshëm për shërbimet bazë, siç janë përditësimet dhe siguria e sistemit.<ph name="END_PARAGRAPH2" />
         <ph name="BEGIN_PARAGRAPH3" />Zotëruesi mund ta kontrollojë këtë veçori nga Cilësimet &gt; Të përparuara &gt; Dërgo automatikisht të dhëna diagnostikuese dhe përdorimi te Google.<ph name="END_PARAGRAPH3" />
         <ph name="BEGIN_PARAGRAPH4" />Nëse cilësimi i "Aktivitetit shtesë të uebit dhe të aplikacioneve" është i aktivizuar për fëmijën tënd, këto të dhëna mund të ruhen në "Llogarinë e Google" të fëmijës. Mëso më shumë për këto cilësime dhe se si t'i rregullosh ato te families.google.com.<ph name="END_PARAGRAPH4" /></translation>
+<translation id="6052261338768299955"><ph name="APP_NAME" /> po përpiqet të printojë te <ph name="PRINTER_NAME" /></translation>
 <translation id="6054305421211936131">Identifikohu me kartën smart</translation>
 <translation id="6059276912018042191">Skedat e fundit të Chrome</translation>
 <translation id="606147842285839995">ExpressKey 3</translation>
@@ -1888,6 +1903,7 @@ Nuk ka pajisje të lidhura.</translation>
 <translation id="6337159624125741244">"Zmadhuesi i ekranit të plotë" është aktiv</translation>
 <translation id="6338485349199627913"><ph name="DISPLAY_NAME" /> është sesion i menaxhuar që menaxhohet nga <ph name="MANAGER" /></translation>
 <translation id="6340148837564298498">Nëse ke harruar kodin PIN, provo të rikuperosh këtë përdorues.</translation>
+<translation id="634208815998129842">Menaxheri i detyrave</translation>
 <translation id="6344138931392227467"><ph name="DEVICE_NAME" /> u lidh</translation>
 <translation id="6345418402353744910">Emri i përdoruesit dhe fjalëkalimi yt kërkohen për përfaqësuesin <ph name="PROXY" /> që administratori të mund të konfigurojë rrjetin</translation>
 <translation id="6348449481487610270"><ph name="MODIFIER_ONE" /><ph name="MODIFIER_TWO" /><ph name="KEY_ONE" />, më pas <ph name="MODIFIER_THREE" /><ph name="KEY_TWO" /> ose <ph name="KEY_THREE" /></translation>
@@ -2093,6 +2109,7 @@ Instalim i ri</translation>
 <translation id="6921427376813842559">Përditëso pajisjen</translation>
 <translation id="6929081673585394903">Shfaq kontrollet</translation>
 <translation id="6931576957638141829">Ruaj te</translation>
+<translation id="6935286146439255109">Mungon një tabaka letre</translation>
 <translation id="6935857786205183008">Vertikal</translation>
 <translation id="6942518653766415536">Menyja e formatit të regjistrimit</translation>
 <translation id="6945221475159498467">Përzgjidhe</translation>
@@ -2115,6 +2132,7 @@ Instalim i ri</translation>
 <translation id="6988094684494323731">Kontejneri i Linux po niset</translation>
 <translation id="7000027735917578303">Cilësimet e dritareve dhe tavolinave të punës</translation>
 <translation id="7001036685275644873">Po rezervon aplikacionet dhe skedarët Linux</translation>
+<translation id="7001066449188684145">Për të printuar te <ph name="PRINTER_NAME" /> kërkohet identifikimi. Kontakto me administratorin tënd.</translation>
 <translation id="7004910047186208204">Lidhe me të dhënat celulare</translation>
 <translation id="7005239792648594238">Hap një aplikacion për të filluar</translation>
 <translation id="7014684956566476813">Lidhur me një pajisje me emrin "<ph name="DEVICE_NAME" />"</translation>
@@ -2154,6 +2172,7 @@ Instalim i ri</translation>
 <translation id="7108254681523785542">Zgjidh një artikull për ta ngjitur. Mund ta shikosh kujtesën e fragmenteve duke shtypur <ph name="SHORTCUT_KEY_NAME" /> + v.</translation>
 <translation id="7108338896283013870">Fshih</translation>
 <translation id="7108933416628942903">Kyç tani</translation>
+<translation id="7116554090938189816">Certifikata SSL e printerit ka skaduar. Rinis printerin dhe provo përsëri.</translation>
 <translation id="7116969082764510092">Tavolina e punës 11</translation>
 <translation id="7118268675952955085">pamja e ekranit</translation>
 <translation id="7118597077555700347">Hap "<ph name="SEARCH_RESULT_TEXT" />"</translation>
@@ -2205,6 +2224,7 @@ Instalim i ri</translation>
 <translation id="7312210124139670355">Administratori yt po rivendos eSIM. Kjo mund të zgjasë disa minuta.</translation>
 <translation id="7312761820869643657">Kalo pajisjen në versionin e mëparshëm</translation>
 <translation id="7313193732017069507">Zgjero kamerën</translation>
+<translation id="7325209047678309347">Letra është bllokuar</translation>
 <translation id="7327989755579928735"><ph name="MANAGER" /> ka çaktivizuar korrigjimin e ADB-së. Pasi ta rinisësh <ph name="DEVICE_TYPE" />, nuk do të mund të ngarkosh paralelisht aplikacione.</translation>
 <translation id="73289266812733869">I pazgjedhur</translation>
 <translation id="7330397557116570022">Shko te fusha e tekstit për të përdorur "Diktimin"</translation>
@@ -2579,6 +2599,7 @@ Për ta fikur pajisjen, shtyp dhe mbaj shtypur përsëri butonin e energjisë n�
 <translation id="8339706171276328417"><ph name="ACTION_DESCRIPTION" /> · <ph name="TIME" /></translation>
 <translation id="834414266279889566">Rezultat i keq</translation>
 <translation id="8345019317483336363">U zgjodh dritarja <ph name="WINDOW_TITLE" /></translation>
+<translation id="8347227221149377169">Printimet</translation>
 <translation id="8349826889576450703">nisësi</translation>
 <translation id="8349964124165471584">Hape lidhjen në një dritare të re</translation>
 <translation id="8351131234907093545">Krijo një shënim</translation>
@@ -2617,6 +2638,7 @@ Për ta fikur pajisjen, shtyp dhe mbaj shtypur përsëri butonin e energjisë n�
 <translation id="8458259704995116343">Nisja e VM-së dështoi.</translation>
 <translation id="84613761564611563">Kërkohet ndërfaqja e konfigurimit të rrjetit, qëndro në pritje...</translation>
 <translation id="8462305545768648477">Mbyll "Zgjidh që të thuhet"</translation>
+<translation id="8463001014623882202">Autorizimi dështoi</translation>
 <translation id="8466665972451889002">Shfaq artikujt në "<ph name="GROUP_NAME" />"</translation>
 <translation id="8468806060683421065">afati më <ph name="DUE_DATE_AND_TIME" /></translation>
 <translation id="8473301994082929012"><ph name="ORGANIZATION_NAME" /> ka <ph name="FEATURE_STATE" /> <ph name="FEATURE_NAME" />.</translation>

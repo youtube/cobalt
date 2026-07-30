@@ -4,7 +4,8 @@
 
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/pinned_tabs/pinned_tabs_view_controller.h"
 
-#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/legacy_grid_transition_layout.h"
+#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/tab_grid_transition_item.h"
+#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/tab_grid_transition_layout.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_switcher_item.h"
 #import "ios/web/public/web_state_id.h"
 #import "testing/gtest_mac.h"
@@ -31,7 +32,7 @@ TEST_F(PinnedTabsViewControllerTest, NoSelection_NoTransitionLayout) {
   ];
   [view_controller populateItems:items selectedItemID:web::WebStateID()];
 
-  EXPECT_NSEQ(view_controller.legacyTransitionLayout, nil);
+  EXPECT_NSEQ(view_controller.transitionLayout.activeCell, nil);
 }
 
 // Tests that when there is a selected item, there is a transition layout
@@ -52,7 +53,7 @@ TEST_F(PinnedTabsViewControllerTest, Selection_TransitionLayout) {
   ];
   [view_controller populateItems:items selectedItemID:identifier_a];
 
-  EXPECT_NSNE(view_controller.legacyTransitionLayout, nil);
+  EXPECT_NSNE(view_controller.transitionLayout.activeCell, nil);
 }
 
 // Tests that when the selected item is unselected, there is no transition
@@ -76,5 +77,5 @@ TEST_F(PinnedTabsViewControllerTest, Unselection_NoTransitionLayout) {
   // Unselect.
   [view_controller selectItemWithID:web::WebStateID()];
 
-  EXPECT_NSEQ(view_controller.legacyTransitionLayout, nil);
+  EXPECT_NSEQ(view_controller.transitionLayout.activeCell, nil);
 }

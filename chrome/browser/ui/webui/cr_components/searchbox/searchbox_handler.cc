@@ -579,7 +579,7 @@ std::string SearchboxHandler::AutocompleteIconToResourceName(
                   : omnibox::kAnswerTranslationChromeRefreshOldIcon.name)) {
     return kAnswerTranslationIconResourceName;
   } else if (icon.name == (features::IsRoundedIconsEnabled()
-                               ? omnibox::kStarIcon.name
+                               ? omnibox::kStarCustomIcon.name
                                : omnibox::kBookmarkChromeRefreshOldIcon.name)) {
     return kBookmarkIconResourceName;
   } else if (icon.name ==
@@ -651,7 +651,7 @@ std::string SearchboxHandler::AutocompleteIconToResourceName(
     return kSparkIconResourceName;
   } else if (icon.name ==
              (features::IsRoundedIconsEnabled()
-                  ? omnibox::kStarFilledIcon.name
+                  ? omnibox::kStarFilledCustomIcon.name
                   : omnibox::kStarActiveChromeRefreshOldIcon.name)) {
     return kStarActiveIconResourceName;
   } else if (icon.name ==

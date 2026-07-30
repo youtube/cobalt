@@ -127,6 +127,12 @@ public class HistorySyncFirstRunFragment extends Fragment
         FirstRunPageDelegate delegate = getPageDelegate();
         if (delegate == null) return;
 
+        if (isHistorySyncAccepted) {
+            delegate.recordFreProgressHistogram(MobileFreProgress.HISTORY_SYNC_ACCEPTED);
+        } else {
+            delegate.recordFreProgressHistogram(MobileFreProgress.HISTORY_SYNC_DISMISSED);
+        }
+
         // We mark the step as completed no matter what the user chose.
         if (ChromeFeatureList.isEnabled(ChromeFeatureList.DEFAULT_BROWSER_PROMO_FRE)) {
             delegate.setHistorySyncStepCompleted(true);

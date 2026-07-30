@@ -249,6 +249,7 @@ public class TabbedRootUiCoordinatorTest {
 
     @Test
     @MediumTest
+    @CommandLineFlags.Remove({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
     public void testMaybeShowGlicPromo_WouldTrigger_ToolbarNotPinned() {
         mPage = mActivityTestRule.startOnBlankPage();
         mTabbedRootUiCoordinator =
@@ -291,6 +292,7 @@ public class TabbedRootUiCoordinatorTest {
 
     @Test
     @MediumTest
+    @CommandLineFlags.Remove({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
     public void testMaybeShowGlicPromo_WouldTrigger_ToolbarPinned() {
         mPage = mActivityTestRule.startOnBlankPage();
         mTabbedRootUiCoordinator =
@@ -334,6 +336,7 @@ public class TabbedRootUiCoordinatorTest {
 
     @Test
     @MediumTest
+    @CommandLineFlags.Remove({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
     public void testMaybeShowGlicPromo_WouldNotTrigger() {
         mPage = mActivityTestRule.startOnBlankPage();
         mTabbedRootUiCoordinator =

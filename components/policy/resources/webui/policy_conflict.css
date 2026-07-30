@@ -1,0 +1,125 @@
+/* Copyright 2026 The Chromium Authors
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file. */
+
+/* #css_wrapper_metadata_start
+ * #type=style-lit
+ * #import=chrome://resources/cr_elements/cr_shared_vars.css.js
+ * #scheme=relative
+ * #css_wrapper_metadata_end */
+
+/*
+ * TODO(crbug.com/521988139): some styles below are duplicated across a few and
+ * HTML and CSS files (policy_row, policy_precedence_row, policy_conflict,
+ * policy_table). They should be consolidated into a single stylesheet.
+ */
+:host {
+  --table-row-expanded-background: var(--color-sys-surface-variant, var(--google-grey-100));
+}
+
+@media (prefers-color-scheme: dark) {
+  :host {
+    --table-row-expanded-background: var(--color-sys-surface-variant, var(--google-grey-900));
+  }
+}
+
+:host(:not([hidden])) {
+  display: block;
+  border-top: 1px solid var(--cr-separator-color);
+}
+
+.row:not([hidden]) {
+  display: flex;
+}
+
+.row > * {
+  background-color: var(--table-row-expanded-background);
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: var(--cr-section-vertical-padding, 12px) var(--cr-section-padding, 20px);
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.policy.conflict.row {
+  display: grid;
+  grid-template-columns: 25% 30% 10% 10% 10% 10% 5%;
+  grid-template-areas: 'name value source scope level messages copy';
+}
+
+.policy.conflict.row .name {
+  grid-area: name;
+  text-align: end;
+}
+
+.policy.conflict.row .value {
+  grid-area: value;
+  font-family: monospace;
+}
+
+.policy.conflict.row .source {
+  grid-area: source;
+}
+
+.policy.conflict.row .scope {
+  grid-area: scope;
+}
+
+.policy.conflict.row .level {
+  grid-area: level;
+}
+
+.policy.conflict.row .messages {
+  grid-area: messages;
+}
+
+.policy.conflict.row .copy {
+  grid-area: copy;
+}
+
+.value.row .value {
+  flex-grow: 1;
+  font-family: monospace;
+  max-height: 200px;
+  overflow: auto;
+  overflow-wrap: break-word;
+  text-overflow: unset;
+  white-space: pre-wrap;
+}
+
+.copy {
+  cursor: pointer;
+}
+
+.copy-value img {
+  height: 16px;
+  width: 16px;
+}
+
+.policy.conflict.entry {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .policy.conflict.row {
+    display: none;
+  }
+
+  .policy.conflict.entry {
+    display: block;
+  }
+
+  .row > .name {
+    flex: 0 0 35%;
+  }
+
+  .row > .value {
+    display: block;
+    flex: 1;
+  }
+
+  .copy {
+    flex: 0 0 auto;
+  }
+}

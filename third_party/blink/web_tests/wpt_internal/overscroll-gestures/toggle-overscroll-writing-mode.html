@@ -45,10 +45,9 @@
   }
 </style>
 
-<!-- Test Case 1: Vertical-RL Container and Inherited Writing Mode -->
 <div id="container-main" class="container vertical-rl" overscrollcontainer>
-  <div id="overscroll-main-inline-start"></div>
-  <div id="overscroll-main-block-start"></div>
+  <div id="overscroll-main-inline-start" overscrollarea></div>
+  <div id="overscroll-main-block-start" overscrollarea></div>
   <div id="content-main" class="content"></div>
 </div>
 <button id="btn-main-inline" command="toggle-overscroll" commandfor="overscroll-main-inline-start"></button>
@@ -56,7 +55,7 @@
 
 <!-- Test Case 2: Mixed Writing Modes (Horizontal-TB Container, Vertical-RL Area) -->
 <div id="container-nested" class="container horizontal-tb" overscrollcontainer>
-  <div id="overscroll-nested" class="vertical-rl"></div>
+  <div id="overscroll-nested" class="vertical-rl" overscrollarea></div>
   <div id="content-nested" class="content"></div>
 </div>
 <button id="btn-nested" command="toggle-overscroll" commandfor="overscroll-nested"></button>

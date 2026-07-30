@@ -1,0 +1,4 @@
+Tests that Page.addScriptToEvaluateOnNewDocument with runImmediately tolerates scripts being added while paused inside an injected script.
+Paused at least once: true
+PASS: did not crash
+

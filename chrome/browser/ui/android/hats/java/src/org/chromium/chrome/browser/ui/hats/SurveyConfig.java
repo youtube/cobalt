@@ -58,13 +58,6 @@ public class SurveyConfig {
     /** Product Specific String Data fields which are sent with the survey response. */
     final String[] mPsdStringDataFields;
 
-    /**
-     * Optional parameter which overrides the default survey cooldown period, see {@link
-     * SurveyThrottler#MIN_DAYS_BETWEEN_ANY_PROMPT_DISPLAYED}. This value is set only if the survey
-     * feature launched for a specific list of users defined by some Google group.
-     */
-    final @Nullable Integer mCooldownPeriodOverride;
-
     /** Requested browser type decides where the survey can be shown. */
     final @RequestedBrowserType int mRequestedBrowserType;
 
@@ -80,7 +73,6 @@ public class SurveyConfig {
             boolean userPrompted,
             String[] psdBitDataFields,
             String[] psdStringDataFields,
-            @Nullable Integer cooldownPeriodOverride,
             @RequestedBrowserType int requestedBrowserType,
             @ProfileAgeRequirement int profileAgeRequirement) {
         mTrigger = trigger;
@@ -89,7 +81,6 @@ public class SurveyConfig {
         mUserPrompted = userPrompted;
         mPsdBitDataFields = psdBitDataFields;
         mPsdStringDataFields = psdStringDataFields;
-        mCooldownPeriodOverride = cooldownPeriodOverride;
         mRequestedBrowserType = requestedBrowserType;
         mProfileAgeRequirement = profileAgeRequirement;
     }
@@ -145,10 +136,6 @@ public class SurveyConfig {
                 .append(" ProfileAgeRequirement=")
                 .append(config.mProfileAgeRequirement);
 
-        if (config.mCooldownPeriodOverride != null) {
-            sb.append(" CooldownPeriodOverride=").append(config.mCooldownPeriodOverride);
-        }
-
         sb.append(" PsdBitFields=");
         for (String field : config.mPsdBitDataFields) {
             sb.append(field).append(",");
@@ -187,7 +174,6 @@ public class SurveyConfig {
                     config.mUserPrompted,
                     config.mPsdBitDataFields,
                     config.mPsdStringDataFields,
-                    config.mCooldownPeriodOverride,
                     config.mRequestedBrowserType,
                     config.mProfileAgeRequirement);
         }
@@ -203,7 +189,6 @@ public class SurveyConfig {
             boolean userPrompted,
             String[] psdBitDataFields,
             String[] psdStringDataFields,
-            int cooldownPeriodOverride,
             @RequestedBrowserType int requestedBrowserType,
             @ProfileAgeRequirement int profileAgeRequirement) {
         holder.mTriggers.put(
@@ -215,7 +200,6 @@ public class SurveyConfig {
                         userPrompted,
                         psdBitDataFields,
                         psdStringDataFields,
-                        cooldownPeriodOverride == 0 ? null : cooldownPeriodOverride,
                         requestedBrowserType,
                         profileAgeRequirement));
     }

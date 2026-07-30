@@ -660,7 +660,7 @@ void SigninInterceptFirstRunExperienceDialog::DoProfileCustomization() {
 
 void SigninInterceptFirstRunExperienceDialog::
     DoProfileSwitchIPHAndCloseModal() {
-  browser_->window()->MaybeShowProfileSwitchIPH();
+  BrowserWindow::FromBrowser(browser_)->MaybeShowProfileSwitchIPH();
   CloseModalDialog();
 }
 

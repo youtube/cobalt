@@ -207,6 +207,7 @@ public class ActorUiTabController implements UserData {
     @VisibleForTesting
     void onUiTabStateChange(UiTabState state) {
         mCurrentState = state;
+        mTab.setFocusChangeSuppressed(state.actorOverlay.isActive);
         if (mTab.getWebContents() != null) {
             ImeAdapter imeAdapter = ImeAdapter.fromWebContents(mTab.getWebContents());
             if (imeAdapter != null) {
@@ -222,6 +223,7 @@ public class ActorUiTabController implements UserData {
     @Override
     public void destroy() {
         mObservers.clear();
+        mTab.setFocusChangeSuppressed(false);
     }
 
     @CalledByNative

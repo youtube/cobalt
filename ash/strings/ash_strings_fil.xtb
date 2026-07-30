@@ -48,6 +48,7 @@
 <translation id="1129383337808748948">I-refresh ang <ph name="CONTENT_TITLE" /></translation>
 <translation id="1142002900084379065">Mga pinakabagong larawan</translation>
 <translation id="114221662579355151">Pinapayagan nito ang access sa camera para sa <ph name="APP1_NAME" />, <ph name="APP2_NAME" />, at lahat ng app at website na may pahintulot sa camera. Posibleng kailanganin mong i-refresh ang web page o i-restart ang app.</translation>
+<translation id="1145593918056169051">Huminto ang printer</translation>
 <translation id="1147991416141538220">Para humiling ng access, makipag-ugnayan sa administrator ng device na ito.</translation>
 <translation id="1148499908455722006">Buksan ang dialog ng impormasyon para sa <ph name="USER_NAME" /></translation>
 <translation id="1150989369772528668">Kalendaryo</translation>
@@ -151,6 +152,7 @@
 <translation id="1383876407941801731">Hanapin</translation>
 <translation id="1388728792929436380">Magre-restart ang <ph name="DEVICE_TYPE" /> kapag kumpleto na ang mga update.</translation>
 <translation id="1390113502208199250">Kakailanganin mong i-factory reset ang device na ito para gumamit ng mga feature ng Chrome Education Upgrade.</translation>
+<translation id="1390907927270446471">Hindi pinapahintulutan si <ph name="PROFILE_USERNAME" /> na mag-print sa <ph name="PRINTER_NAME" />. Makipag-ugnayan sa iyong administrator.</translation>
 <translation id="1391102559483454063">Naka-on</translation>
 <translation id="1394698770495054737">Ganap na Blur</translation>
 <translation id="1395878931462960119">{DAYS,plural, =1{1 araw ang nakalipas}one{# araw ang nakalipas}other{# na araw ang nakalipas}}</translation>
@@ -169,6 +171,7 @@
 <translation id="1426410128494586442">Oo</translation>
 <translation id="142655739075382478">Naka-block ang <ph name="APP_NAME" /></translation>
 <translation id="142765311413773645">Nag-expire na ang lisensya ng <ph name="APP_NAME" /></translation>
+<translation id="1430915738399379752">I-print</translation>
 <translation id="1435537621343861112">Hindi masimulan ang dictation. Naka-off ang iyong mikropono.</translation>
 <translation id="1445031758921122223">Na-download ang mga file ng pagkontrol gamit ang mukha</translation>
 <translation id="1447907279406111651">Ngayon · Matatapos nang <ph name="END_TIME" /></translation>
@@ -229,6 +232,7 @@
 <translation id="1597880963776148053">Hakbang <ph name="STEP" /> sa <ph name="TOTAL_STEPS" /> ng tour. Nasa shelf na makikita sa ibaba ng iyong screen ang mga naka-pin at nakabukas na app mo. Pindutin ang Alt + Shift + L, pagkatapos ay ang tab para mag-focus sa mga item sa shelf.</translation>
 <translation id="1602085790802918092">Sinisimulan ang virtual machine</translation>
 <translation id="1602874809115667351"><ph name="LAUNCHER_KEY_NAME" /> + pababang arrow</translation>
+<translation id="1604432177629086300">Hindi ma-print. Suriin ang printer at subukan ulit.</translation>
 <translation id="1604857178818051494">Mag-pause ng media</translation>
 <translation id="1607312127821884567">I-dismiss ang pag-set up sa pagtingin sa mga app ng iyong telepono</translation>
 <translation id="1610778689852195798">"I-undo"</translation>
@@ -372,6 +376,7 @@
 <translation id="2053312383184521053">Data sa Idle na Estado</translation>
 <translation id="2064048859448024834">Naka-on ang preview ng camera</translation>
 <translation id="2067220651560163985">Ipakita ang temperatura sa Celsius</translation>
+<translation id="206960706005837784">Natapos na ang pag-print ng <ph name="APP_NAME" /> sa <ph name="PRINTER_NAME" /></translation>
 <translation id="2075520525463668108">I-toggle ang <ph name="CAPTURE_MEDIUM" />. Ang <ph name="CAPTURE_MEDIUM" /> ay <ph name="CAPTURE_STATE" /></translation>
 <translation id="2079545284768500474">I-undo</translation>
 <translation id="2086334242442703436">Buksan ang Picker ng Emoji</translation>
@@ -441,6 +446,7 @@
 <translation id="2328561734797404498">Paki-restart ang iyong device para magamit ang <ph name="APP_NAME" />.</translation>
 <translation id="2335091074961603075">Gumagamit ng mas lumang bersyon ng Bluetooth ang iyong Chromebook o Bluetooth device. Gamitin ang internal na mikropono para sa mas magandang kalidad ng audio.</translation>
 <translation id="2336214675195760012">{NUM_DAYS,plural, =1{Nire-require ka ng <ph name="MANAGER" /> na kumonekta sa Wi-Fi ngayong araw para mag-download ng update. O kaya, mag-download mula sa isang metered connection (posibleng may mga nalalapat na singil).}one{Nire-require ka ng <ph name="MANAGER" /> na kumonekta sa Wi-Fi at mag-download ng update bago ang deadline. O kaya, mag-download mula sa isang metered connection (posibleng may mga nalalapat na singil).}other{Nire-require ka ng <ph name="MANAGER" /> na kumonekta sa Wi-Fi at mag-download ng update bago ang deadline. O kaya, mag-download mula sa isang metered connection (posibleng may mga nalalapat na singil).}}</translation>
+<translation id="2336258397628212480">Nagpi-print ang <ph name="APP_NAME" /> ng 1 page sa <ph name="PRINTER_NAME" /></translation>
 <translation id="2336381494582898602">Powerwash</translation>
 <translation id="2339073806695260576">I-tap ang button na stylus sa shelf para magsulat ng tala, mag-screenshot, gamitin ang laser pointer, o magnifying glass.</translation>
 <translation id="2341729377289034582">Naka-lock sa vertical</translation>
@@ -755,6 +761,7 @@ Kung hindi naman, ie-enable ulit ang naka-built in na touchpad sa loob ng <ph na
 <translation id="3206735939915734551">I-on/i-off ang Caps Lock</translation>
 <translation id="3207953481422525583">Mga Setting ng User</translation>
 <translation id="3208321278970793882">App</translation>
+<translation id="32101887417650595">Hindi makakonekta sa printer</translation>
 <translation id="3212221635583599601">Kumonekta sa internet para sa higit pa</translation>
 <translation id="3213571860604332401">I-save ang link bilang bookmark</translation>
 <translation id="3217205077783620295">Naka-on ang volume, mamu-mute ang audio kapag nag-toggle.</translation>
@@ -823,6 +830,7 @@ Kung hindi naman, ie-enable ulit ang naka-built in na touchpad sa loob ng <ph na
 <translation id="3431517721463707585">Desk 14</translation>
 <translation id="3433507769937235446">Lock-on-leave</translation>
 <translation id="3434107140712555581"><ph name="BATTERY_PERCENTAGE" />%</translation>
+<translation id="343578350365773421">Wala nang papel</translation>
 <translation id="3435967511775410570">Nakilala ang fingerprint</translation>
 <translation id="3437677362970530951">Mga laro sa Play Store at iba pang platform ng gaming</translation>
 <translation id="3439896670700055005">I-reload ang kasalukuyang page nang hindi gumagamit ng naka-cache na content</translation>
@@ -999,6 +1007,7 @@ Isaksak ang iyong device.</translation>
 <translation id="3848526302597027234">I-access ang mga sumusunod na pahintulot:</translation>
 <translation id="385051799172605136">Bumalik</translation>
 <translation id="385300504083504382">Simula</translation>
+<translation id="3854976556788175030">Puno na ang tray para sa output</translation>
 <translation id="3857807444929313943">Iangat, pagkatapos ay pindutin muli</translation>
 <translation id="3859364108019690">Hindi makapag-stream ng mga app</translation>
 <translation id="3861638017150647085">Hindi available ang username na "<ph name="USERNAME" />"</translation>
@@ -1051,6 +1060,7 @@ Isaksak ang iyong device.</translation>
 <translation id="401993194061514265">Hindi available ang marker. Buksan ulit ang Screencast.</translation>
 <translation id="4021716437419160885">Mag-scroll pababa</translation>
 <translation id="4022497978915111141">I-lock ang device</translation>
+<translation id="4023048917751563912">Nagpi-print ang <ph name="APP_NAME" /> ng <ph name="PAGE_NUMBER" /> (na) page sa <ph name="PRINTER_NAME" /></translation>
 <translation id="4024840464866786680">Kung nakalimutan mo ang iyong PIN at password o pinalitan mo ang iyong password ng Google Account kamakailan, subukang i-recover ang user na ito.</translation>
 <translation id="4026843240379844265">Ilipat ang aktibong window sa pagitan ng mga display</translation>
 <translation id="4028481283645788203">Kinakailangan ang password para sa higit pang seguridad</translation>
@@ -1581,6 +1591,7 @@ Walang nakakonektang device.</translation>
 <translation id="5491186829646618080">May mga available na update sa firmware</translation>
 <translation id="5503884284981862082">Buksan/isara ang Google Assistant</translation>
 <translation id="550391772491508736">Ipagpatuloy ang pag-cast</translation>
+<translation id="5505307013568720083">Wala nang ink</translation>
 <translation id="5506975627792768506">I-on o i-off ang magnifier</translation>
 <translation id="5507778598655387680"><ph name="VOLUME_LEVEL" />, Kapag pinindot ang enter, mamu-mute ang audio.</translation>
 <translation id="5512042095225963688">I-delete ang nakaraang salita</translation>
@@ -1692,12 +1703,14 @@ Walang nakakonektang device.</translation>
 <translation id="5791926618942305301">Sa screen capture, itakda sa <ph name="SOURCE" /> <ph name="TYPE" />. Pindutin ang tab para pumili ng uri ng pag-capture. Pindutin ang enter para mag-capture. Para piliin ang bahaging ika-capture, itakda sa hindi buong screenshot. Kung hindi pa aktibo, pindutin ang space para piliin ang bahagi.</translation>
 <translation id="579415080077680903">Pagpapatahimik</translation>
 <translation id="5802516411616338943">Buksan ang Mga Mabilisang Setting</translation>
+<translation id="5804241973901381774">Mga Pahintulot</translation>
 <translation id="5804651031882187592">I-off ang setting na "I-lock ang SIM"</translation>
 <translation id="5805809050170488595">I-click para ma-activate ang <ph name="NETWORK_NAME" /></translation>
 <translation id="5818796501620225415">Puwedeng magdagdag ng oras, o tapusin ang session ng pag-focus</translation>
 <translation id="5819918159912280082">Biglaang nag-restart ang iyong Chromebook. Buksan ang iyong mga nakaraang window at app.</translation>
 <translation id="5823239091726045201">Google Tasks sa web</translation>
 <translation id="5825969630400862129">Mga setting ng mga nakakonektang device</translation>
+<translation id="5828633471261496623">Nagpi-print...</translation>
 <translation id="5830180081891717894"><ph name="WINDOWS" /> pa</translation>
 <translation id="5830205393314753525">Hindi mabuksan ang <ph name="APP_NAME" /></translation>
 <translation id="583281660410589416">Hindi-alam</translation>
@@ -1722,6 +1735,7 @@ Walang nakakonektang device.</translation>
 <translation id="5892014525522223653">Offline ka.</translation>
 <translation id="5895138241574237353">I-restart</translation>
 <translation id="589817443623831496">Pag-point scan</translation>
+<translation id="5901494423252125310">Nakabukas ang takip ng printer</translation>
 <translation id="5901630391730855834">Dilaw</translation>
 <translation id="5904614460720589786">Hindi ma-set up ang <ph name="APP_NAME" /> dahil sa isang problema sa configuration. Makipag-ugnayan sa iyong administrator. Code ng error: <ph name="ERROR_CODE" />.</translation>
 <translation id="5910726859585389579">Offline ang <ph name="DEVICE_TYPE" /></translation>
@@ -1786,6 +1800,7 @@ Walang nakakonektang device.</translation>
         <ph name="BEGIN_PARAGRAPH2" />Ang pag-off sa feature na ito ay hindi nakakaapekto sa kakayahan ng device na ito na ipadala ang impormasyong kinakailangan para sa mahahalagang serbisyo tulad ng mga update sa system at seguridad.<ph name="END_PARAGRAPH2" />
         <ph name="BEGIN_PARAGRAPH3" />Puwedeng konrolin ng may-ari ang feature na ito mula sa Mga Setting &gt; Advanced &gt; Awtomatikong magpadala ng data ng diagnostic at paggamit sa Google.<ph name="END_PARAGRAPH3" />
         <ph name="BEGIN_PARAGRAPH4" />Kung naka-on ang setting na karagdagang Aktibidad sa Web at App para sa iyong anak, posibleng ma-save ang data na ito sa kanyang Google Account. Matuto pa tungkol sa mga setting na ito at kung paano i-adjust ang mga ito sa families.google.com.<ph name="END_PARAGRAPH4" /></translation>
+<translation id="6052261338768299955">Sinusubukang mag-print ng <ph name="APP_NAME" /> sa <ph name="PRINTER_NAME" /></translation>
 <translation id="6054305421211936131">Mag-sign in gamit ang smart card</translation>
 <translation id="6059276912018042191">Mga kamakailang tab ng Chrome</translation>
 <translation id="606147842285839995">ExpressKey 3</translation>
@@ -1890,6 +1905,7 @@ Walang nakakonektang device.</translation>
 <translation id="6337159624125741244">Naka-on ang full-screen magnifier</translation>
 <translation id="6338485349199627913">Ang <ph name="DISPLAY_NAME" /> ay isang session na pinapamahalaan ng <ph name="MANAGER" /></translation>
 <translation id="6340148837564298498">Kung makalimutan mo ang iyong PIN, subukang i-recover ang user na ito.</translation>
+<translation id="634208815998129842">Task manager</translation>
 <translation id="6344138931392227467">Nakonekta ang <ph name="DEVICE_NAME" /></translation>
 <translation id="6345418402353744910">Kailangan ang iyong username at password para sa proxy na <ph name="PROXY" /> para ma-configure ng admin ang network mo</translation>
 <translation id="6348449481487610270"><ph name="MODIFIER_ONE" /><ph name="MODIFIER_TWO" /><ph name="KEY_ONE" /> pagkatapos ay <ph name="MODIFIER_THREE" /><ph name="KEY_TWO" /> o <ph name="KEY_THREE" /></translation>
@@ -2095,6 +2111,7 @@ Kaka-install lang</translation>
 <translation id="6921427376813842559">I-update ang device</translation>
 <translation id="6929081673585394903">Ipakita ang mga kontrol</translation>
 <translation id="6931576957638141829">I-save sa</translation>
+<translation id="6935286146439255109">Walang tray para sa papel</translation>
 <translation id="6935857786205183008">Portrait</translation>
 <translation id="6942518653766415536">Menu ng format ng recording</translation>
 <translation id="6945221475159498467">Pumili</translation>
@@ -2117,6 +2134,7 @@ Kaka-install lang</translation>
 <translation id="6988094684494323731">Sinisimulan ang Linux container</translation>
 <translation id="7000027735917578303">Mga setting ng mga window at desk</translation>
 <translation id="7001036685275644873">Bina-back up ang mga app at file ng Linux</translation>
+<translation id="7001066449188684145">Kinakailangan ang pagkakakilanlan para mag-print sa <ph name="PRINTER_NAME" />. Makipag-ugnayan sa iyong administrator.</translation>
 <translation id="7004910047186208204">Kumonekta sa mobile data</translation>
 <translation id="7005239792648594238">Magbukas ng app para magsimula</translation>
 <translation id="7014684956566476813">Nakakonekta sa isang device na may pangalang <ph name="DEVICE_NAME" /></translation>
@@ -2156,6 +2174,7 @@ Kaka-install lang</translation>
 <translation id="7108254681523785542">Pumili ng item para i-paste ito. Makikita mo ang clipboard sa pamamagitan ng pagpindot sa <ph name="SHORTCUT_KEY_NAME" /> + v.</translation>
 <translation id="7108338896283013870">Itago</translation>
 <translation id="7108933416628942903">I-lock ngayon</translation>
+<translation id="7116554090938189816">Nag-expire na ang SSL certificate ng printer. I-restart ang printer at subukan ulit.</translation>
 <translation id="7116969082764510092">Desk 11</translation>
 <translation id="7118268675952955085">screenshot</translation>
 <translation id="7118597077555700347">Buksan ang <ph name="SEARCH_RESULT_TEXT" /></translation>
@@ -2206,6 +2225,7 @@ Kaka-install lang</translation>
 <translation id="7312210124139670355">Nire-reset ng iyong administrator ang eSIM mo. Puwede itong tumagal nang ilang minuto.</translation>
 <translation id="7312761820869643657">I-update sa nakaraang bersyon ang device</translation>
 <translation id="7313193732017069507">Palawakin ang camera</translation>
+<translation id="7325209047678309347">Nag-jam ang papel</translation>
 <translation id="7327989755579928735">Na-disable ng <ph name="MANAGER" /> ang pag-debug ng ADB. Kapag na-restart mo ang iyong <ph name="DEVICE_TYPE" />, hindi ka makakapag-sideload ng mga app.</translation>
 <translation id="73289266812733869">Hindi pinili</translation>
 <translation id="7330397557116570022">Pumunta sa isang field ng text para magamit ang Dictation</translation>
@@ -2580,6 +2600,7 @@ Para i-shut down ang device, pindutin ulit nang matagal ang power button sa devi
 <translation id="8339706171276328417"><ph name="ACTION_DESCRIPTION" /> · <ph name="TIME" /></translation>
 <translation id="834414266279889566">Hindi magandang output</translation>
 <translation id="8345019317483336363">Napili ang window ng <ph name="WINDOW_TITLE" /></translation>
+<translation id="8347227221149377169">Mga pag-print</translation>
 <translation id="8349826889576450703">launcher</translation>
 <translation id="8349964124165471584">Buksan ang link sa bagong window</translation>
 <translation id="8351131234907093545">Gumawa ng tala</translation>
@@ -2618,6 +2639,7 @@ Para i-shut down ang device, pindutin ulit nang matagal ang power button sa devi
 <translation id="8458259704995116343">Hindi nasimulan ang VM.</translation>
 <translation id="84613761564611563">Hiniling ang network configure UI, mangyaring maghintay...</translation>
 <translation id="8462305545768648477">Isara ang Select-to-speak</translation>
+<translation id="8463001014623882202">Hindi Nabigyan ng Pahintulot</translation>
 <translation id="8466665972451889002">Ipakita ang mga item sa <ph name="GROUP_NAME" /></translation>
 <translation id="8468806060683421065">dapat ipasa sa <ph name="DUE_DATE_AND_TIME" /></translation>
 <translation id="8473301994082929012">Ang <ph name="ORGANIZATION_NAME" /> ay may <ph name="FEATURE_STATE" /> <ph name="FEATURE_NAME" />.</translation>

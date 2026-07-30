@@ -161,11 +161,9 @@ void BrowserCloseManager::ConfirmCloseWithPendingDownloads(
     std::move(callback).Run(/* proceed= */ true);
     return;
   }
-  bwi->GetBrowserForMigrationOnly()
-      ->window()
-      ->ConfirmBrowserCloseWithPendingDownloads(
-          download_count, Browser::DownloadCloseType::kBrowserShutdown,
-          std::move(callback));
+  BrowserWindow::FromBrowser(bwi)->ConfirmBrowserCloseWithPendingDownloads(
+      download_count, Browser::DownloadCloseType::kBrowserShutdown,
+      std::move(callback));
 }
 
 void BrowserCloseManager::OnReportDownloadsCancellable(bool proceed) {

@@ -18,40 +18,36 @@
   if (window.internals)
     internals.settings.setScrollAnimatorEnabled(false);
 
-  window.onload = () => {
+  window.onload = async () => {
+    // Skip test if there is no visible arrow buttons on the scrollbar.
+    if (shouldSkipTests(
+            !hasScrollbarArrows(),
+            'Scrollbar does not have arrow buttons')) {
+      return;
+    }
+
+    await waitForCompositorCommit();
+
     const scroller = document.getElementById("scroller");
     const snapPoint = 400;
     const clickDuration = 100;
 
-    function scrollTop() {
-      return scroller.scrollTop;
-    }
-
-    function scrollLeft() {
-      return scroller.scrollLeft;
-    }
-
-    // MacOS scrollbars do not have arrows. Tests are irrelevant.
-    const macPlatform = navigator.platform.indexOf('Mac') == 0;
-
     promise_test (async () => {
-      if (macPlatform)
-        return;
-
-      scroller.scrollTo(0, 0);
+      await waitForScrollReset(scroller);
       const position = rightArrow(scroller);
+      const scrollend = waitForScrollendEvent(scroller);
       await mousePressOn(position.x, position.y, clickDuration);
-      await waitForScrollEnd(scroller, scrollLeft, snapPoint);
+      await scrollend;
+      assert_approx_equals(scroller.scrollLeft, snapPoint, 1);
     }, "Snaps after clicking the forward arrow on the horizontal scrollbar.");
 
     promise_test (async () => {
-      if (macPlatform)
-        return;
-
-      scroller.scrollTo(0, 0);
+      await waitForScrollReset(scroller);
       const position = downArrow(scroller);
+      const scrollend = waitForScrollendEvent(scroller);
       await mousePressOn(position.x, position.y, clickDuration);
-      await waitForScrollEnd(scroller, scrollTop, snapPoint);
+      await scrollend;
+      assert_approx_equals(scroller.scrollTop, snapPoint, 1);
     }, "Snaps after clicking the down arrow on the vertical scrollbar.");
   };
 </script>

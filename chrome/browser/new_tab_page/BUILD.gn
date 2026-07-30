@@ -173,18 +173,7 @@ source_set("test_support") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [
-    "microsoft_auth/microsoft_auth_service_unittest.cc",
-    "modules/file_suggestion/drive_service_unittest.cc",
-    "modules/file_suggestion/microsoft_files_page_handler_unittest.cc",
-    "modules/new_tab_page_modules_unittest.cc",
-    "modules/v2/authentication/microsoft_auth_page_handler_unittest.cc",
-    "modules/v2/calendar/google_calendar_page_handler_unittest.cc",
-    "modules/v2/calendar/outlook_calendar_page_handler_unittest.cc",
-    "one_google_bar/one_google_bar_loader_impl_unittest.cc",
-    "one_google_bar/one_google_bar_service_unittest.cc",
-    "promos/promo_service_unittest.cc",
-  ]
+  sources = [ "modules/v2/most_relevant_tab_resumption/most_relevant_tab_resumption_page_handler_unittest.cc" ]
   deps = [
     ":impl",
     ":new_tab_page",
@@ -212,10 +201,21 @@ source_set("unit_tests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  # TODO(b/518916684): Enable unit tests for Android
   if (!is_android) {
     sources += [
-      "modules/v2/most_relevant_tab_resumption/most_relevant_tab_resumption_page_handler_unittest.cc",
+      "microsoft_auth/microsoft_auth_service_unittest.cc",
+      "modules/file_suggestion/drive_service_unittest.cc",
+      "modules/file_suggestion/microsoft_files_page_handler_unittest.cc",
+      "modules/new_tab_page_modules_unittest.cc",
+      "modules/v2/authentication/microsoft_auth_page_handler_unittest.cc",
+      "modules/v2/calendar/google_calendar_page_handler_unittest.cc",
+      "modules/v2/calendar/outlook_calendar_page_handler_unittest.cc",
       "modules/v2/tab_groups/tab_groups_page_handler_unittest.cc",
+      "one_google_bar/one_google_bar_loader_impl_unittest.cc",
+      "one_google_bar/one_google_bar_service_unittest.cc",
+      "promos/promo_service_unittest.cc",
     ]
     deps += [
       "//chrome/browser/ui/tabs:test_support",
@@ -249,6 +249,45 @@ if (!is_android) {
       "//components/feature_engagement/test:test_support",
       "//components/ntp_tiles:pref_names",
       "//components/variations/service",
+      "//content/test:test_support",
+      "//testing/gtest",
+      "//ui/base:test_support",
+    ]
+  }
+}
+
+if (!is_android) {
+  source_set("interactive_ui_tests") {
+    testonly = true
+
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+
+    # These tests pre-date strict sign-comparison warnings; relax to the warning
+    # posture they had while compiled in //chrome/test.
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    sources = [
+      "modules/new_tab_page_modules_interactive_uitest.cc",
+      "new_tab_page_interactive_uitest.cc",
+      "new_tab_page_realbox_interactive_uitest.cc",
+      "ntp_promo/ntp_promo_interactive_uitest.cc",
+    ]
+
+    deps = [
+      ":test_support",
+      "//base",
+      "//chrome/browser/autocomplete:aim_eligibility_service",
+      "//chrome/browser/contextual_search",
+      "//chrome/browser/ui",
+      "//chrome/browser/ui/side_panel",
+      "//chrome/browser/ui/side_panel:side_panel_views_dependent",
+      "//chrome/browser/ui/webui/searchbox:searchbox_test_utils",
+      "//chrome/browser/user_education",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//components/contextual_search:test_support",
       "//content/test:test_support",
       "//testing/gtest",
       "//ui/base:test_support",

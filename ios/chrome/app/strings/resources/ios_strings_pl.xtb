@@ -14,7 +14,6 @@
 <translation id="1036348656032585052">Wyłącz</translation>
 <translation id="1036436692654972538">Zapisuje na urządzeniu</translation>
 <translation id="1041322626941363065">Ostrzegaj, jeśli wskutek naruszenia bezpieczeństwa danych doszło do ujawnienia haseł</translation>
-<translation id="104491362976654916">Strona offline</translation>
 <translation id="1046742265332833834">Motyw niebieski</translation>
 <translation id="1049743911850919806">Incognito</translation>
 <translation id="1053651653201045802">Wylogowano. Zaloguj się ponownie, aby korzystać z zakładek, haseł i innych ustawień na swoim koncie.</translation>
@@ -117,6 +116,7 @@
 <translation id="1373120905936431262">Prześlij obraz, aby go zremiksować za pomocą Nano Banana</translation>
 <translation id="1377508275003315939">Hasła</translation>
 <translation id="1381022135873211423">{count,plural, =1{{position} z {count} adresu}few{{position} z {count} adresów}many{{position} z {count} adresów}other{{position} z {count} adresu}}</translation>
+<translation id="13813615483058219">Coś poszło nie tak. Sprawdź połączenie z internetem, zwiększ głośność lub spróbuj ponownie.</translation>
 <translation id="1383876407941801731">Szukaj</translation>
 <translation id="138618066238211776">Kontynuuj jako <ph name="USER_NAME" /></translation>
 <translation id="138692594145659985">Opcje zapisania karty</translation>
@@ -137,6 +137,7 @@
 <translation id="1445276840641906250">Wszystkie Twoje karty w 1 przeglądarce</translation>
 <translation id="1447564161241938558">Importowanie haseł i kluczy dostępu zostało wyłączone przez administratora</translation>
 <translation id="1450170672351507823">Włączona jest standardowa ochrona. Jeśli zależy Ci na większym bezpieczeństwie, użyj silniejszej ochrony.</translation>
+<translation id="1452651021404174820">Wybierz urządzenie</translation>
 <translation id="1455660774629812862">Nie ukrywaj</translation>
 <translation id="1456545332132818232">Opinie o produkcie <ph name="PRODUCT_NAME" />, <ph name="STARS" /> na <ph name="MAX_STARS" />, <ph name="DOMAIN" /></translation>
 <translation id="1460751212339734034">Oszczędzaj czas, pisz mniej</translation>
@@ -144,6 +145,7 @@
 <translation id="1469381646033328562">Twoim kontem zarządza rodzic.
 <ph name="BEGIN_LINK" />Więcej informacji<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Zmieniono</translation>
+<translation id="1483493594462132177">Wyślij</translation>
 <translation id="1486096554574027028">Szukaj haseł</translation>
 <translation id="1491277525950327607">Kliknij dwukrotnie, by zmienić ustawienie</translation>
 <translation id="1492417797159476138">Ta nazwa użytkownika została już zapisana w tej witrynie</translation>
@@ -405,6 +407,7 @@
 <translation id="2321086116217818302">Przygotowuję hasła…</translation>
 <translation id="2323697864063408084">Otrzymuj powiadomienia na ekranie blokady i w postaci banerów, aby nie przegapić ważnych informacji</translation>
 <translation id="2326302612031521902">Selektor jednostek</translation>
+<translation id="2327445548174191329">Z urządzenia <ph name="DEVICE_NAME" /></translation>
 <translation id="2330607597130465898">Brak ochrony</translation>
 <translation id="233375395665273385">Usuń i wyloguj się</translation>
 <translation id="2340966584724330791">Google zapisuje Twoje czaty i materiały, które udostępniasz Gemini (takie jak pliki, filmy, zrzuty ekranu czy zdjęcia). Zbiera też Twoje opinie, informacje z witryn, które odwiedzasz z Gemini, dane o korzystaniu z usług oraz informacje o lokalizacji (w tym ogólną lokalizację urządzenia, adres IP oraz zapisany na koncie Google adres domowy i służbowy).</translation>
@@ -500,6 +503,7 @@
 <translation id="2666092431469916601">Do góry</translation>
 <translation id="2669454659051515572">Pobrane pliki może zobaczyć każdy użytkownik tego urządzenia</translation>
 <translation id="2671423594960767771">Udostępnij grupę</translation>
+<translation id="2673183423393669407">Płatności w ratach</translation>
 <translation id="2673508731173059946">Otwórz skopiowany link</translation>
 <translation id="2679659833697380">Twoje informacje są zapisywane na urządzeniu</translation>
 <translation id="2681572445246787428">Podpisywanie dokumentów</translation>
@@ -586,7 +590,6 @@
 <translation id="2996291259634659425">Utwórz hasło wielowyrazowe</translation>
 <translation id="3010025794097054078">Chroń się przed naruszeniami bezpieczeństwa danych, niebezpiecznymi stronami internetowymi i innymi zagrożeniami.</translation>
 <translation id="3012310354105716927">Niektóre dane nie zostały jeszcze zapisane</translation>
-<translation id="3013922155552460252">Wyświetlaj aktywność w Gemini, taką jak czaty, opinie i prompty, oraz nią zarządzaj</translation>
 <translation id="3016518775797983090">Nie można udostępnić strony</translation>
 <translation id="3020183492814296499">Skróty</translation>
 <translation id="3021342271734507256">Aby wyszukać, narysuj, zaznacz lub kliknij dowolny element na ekranie</translation>
@@ -1168,6 +1171,7 @@
 <translation id="5020732097997376541">Kliknij „ikonę Obiektywu”</translation>
 <translation id="5021500396464456616">Skontaktuj się z osobą, która wysłała ten link</translation>
 <translation id="5039804452771397117">Zezwalaj</translation>
+<translation id="5050042263972837708">Nazwa grupy</translation>
 <translation id="5050810143224996149">Udostępnij hasło</translation>
 <translation id="5052499409147950210">Edytowanie strony internetowej</translation>
 <translation id="5055015094595227120">Dokładna lokalizacja</translation>
@@ -1223,6 +1227,7 @@
 <translation id="5200894869889836319">Opcje ustawiania uprawnień</translation>
 <translation id="5203051773066903947">Wpisz</translation>
 <translation id="5206453674369664567">Wyloguj się i wyczyść dane</translation>
+<translation id="5209320130288484488">Nie znaleziono urządzeń</translation>
 <translation id="5210365745912300556">Zamknij kartę</translation>
 <translation id="5211488077761630279">Zezwolić witrynie „<ph name="SITE_NAME" />” na korzystanie z <ph name="PERMISSION" />?</translation>
 <translation id="5217245356412073535">Możesz zmienić domyślny widok witryny na wersję na komputery po kliknięciu opcji Ustawienia &gt; Ustawienia treści</translation>
@@ -1242,6 +1247,7 @@
 <translation id="5248640482715684545">Ta witryna próbuje otworzyć inną aplikację.</translation>
 <translation id="5250371859659394278">Z nieznanego źródła</translation>
 <translation id="525510229763628836">Zminimalizowane</translation>
+<translation id="5260842098960755113">Wątek został zamknięty</translation>
 <translation id="5269913829202614649">Dostosuj stronę główną</translation>
 <translation id="5271265092610673171">{count,plural, =1{Wymagane pole jest puste. Wypełnij je przed zapisaniem.}few{Niektóre wymagane pola są puste. Wypełnij je przed zapisaniem.}many{Niektóre wymagane pola są puste. Wypełnij je przed zapisaniem.}other{Niektóre wymagane pola są puste. Wypełnij je przed zapisaniem.}}</translation>
 <translation id="5271549068863921519">Zapisz hasło</translation>
@@ -1557,6 +1563,7 @@ Funkcja Handoff musi być też włączona w sekcji Ogólne w Ustawieniach, a urz
 <translation id="6327249202318869726">Gemini jest wyłączony na Twoim koncie. Aby uzyskać więcej informacji, skontaktuj się z administratorem.</translation>
 <translation id="6331836477476466332">Bezpieczniejsza i bardziej wydajna przeglądarka</translation>
 <translation id="6337234675334993532">Szyfrowanie</translation>
+<translation id="6337711171050747395">Pokaż opcje płatności w ratach w momencie płatności</translation>
 <translation id="633809752005859102">Coś poszło nie tak. Zajmiemy się tym.</translation>
 <translation id="6339793034470834130">Aby użyć Inspektora sieci, połącz się z Safari na komputerze, korzystając z kabla, i przejdź do iPhone'a w menu Programowanie. Menu Programowanie możesz włączyć w sekcji Zaawansowane w ustawieniach Safari na komputerze.</translation>
 <translation id="6340285871011301182">Częściowe tłumaczenie jest niedostępne.</translation>
@@ -1568,6 +1575,7 @@ Funkcja Handoff musi być też włączona w sekcji Ogólne w Ustawieniach, a urz
 <translation id="6344533709188026708">Osobne miejsce do pracy</translation>
 <translation id="6347953390226388422">{count,plural, =1{Ten adres zostanie usunięty z Twojego konta Google (<ph name="USER_EMAIL" />) i z tego urządzenia.}few{Te adresy zostaną usunięte z Twojego konta Google (<ph name="USER_EMAIL" />) i z tego urządzenia.}many{Te adresy zostaną usunięte z Twojego konta Google (<ph name="USER_EMAIL" />) i z tego urządzenia.}other{Te adresy zostaną usunięte z Twojego konta Google (<ph name="USER_EMAIL" />) i z tego urządzenia.}}</translation>
 <translation id="634878792104344809">Synchronizuj hasła, historię i inne dane na wszystkich Twoich urządzeniach</translation>
+<translation id="6350745006329795504">Zarządzaj urządzeniami</translation>
 <translation id="6351147166808964033">Otwórz przełącznik kart</translation>
 <translation id="63519665078626091">Aby użyć Inspektora sieci, połącz się z Safari na komputerze, korzystając z kabla, i przejdź do iPada w menu Programowanie. Menu Programowanie możesz włączyć w sekcji Zaawansowane w ustawieniach Safari na komputerze.</translation>
 <translation id="6355820183143562453">Ukryj kartę śledzenia cen</translation>
@@ -2103,7 +2111,6 @@ Aby kontynuować na komputerze, przełącz się na <ph name="OTHER_EMAIL" />. B�
 <translation id="8114753159095730575">Pobrany plik jest dostępny. Opcje są dostępne u dołu ekranu.</translation>
 <translation id="8123502380991596210">Ukryj opcję Co nowego</translation>
 <translation id="8123953306357309250">Anulować synchronizację? W każdej chwili możesz włączyć synchronizację w ustawieniach.</translation>
-<translation id="8130712116203026166">Utwórz jednowierszowe podsumowanie i podaj przydatne statystyki wykraczające poza tę stronę. Użyj zwięzłego, swobodnego tonu. Ogranicz do 100 słów.</translation>
 <translation id="81313319706244542">2. Kliknij Hasła</translation>
 <translation id="8131740175452115882">Potwierdź</translation>
 <translation id="8132598642024322408">Teraz <ph name="PRICE" />, wcześniej <ph name="PREVIOUS_PRICE" />.</translation>
@@ -2149,6 +2156,7 @@ Aby kontynuować na komputerze, przełącz się na <ph name="OTHER_EMAIL" />. B�
 <translation id="8270320981823560179">Dysk</translation>
 <translation id="8273982424131314219">Informacje zostaną podane na stronie <ph name="URL" /></translation>
 <translation id="8275068909952022340">Więcej…</translation>
+<translation id="8280797717392145626">Odebrane linki</translation>
 <translation id="8281781826761538115">Domyślny – <ph name="DEFAULT_LOCALE" /></translation>
 <translation id="8281886186245836920">Pomiń</translation>
 <translation id="8282657446819506217">Otwórz w grupie kart</translation>
@@ -2270,7 +2278,6 @@ Aby kontynuować na komputerze, przełącz się na <ph name="OTHER_EMAIL" />. B�
 <translation id="866266761389616183">Kurza twarz!</translation>
 <translation id="8663764600409216912">Używasz haseł, które są trudne do odgadnięcia</translation>
 <translation id="8664992138761940052">Gdy rozpoczynasz nowy czat, domyślnie udostępniana jest bieżąca karta. Gdy karty są udostępniane, ich zawartość i adresy URL są wysyłane do Google. W każdej chwili możesz zmienić to ustawienie.</translation>
-<translation id="8668210798914567634">Ta strona została zapisana na Twojej liście Do przeczytania.</translation>
 <translation id="8672642291731179042">Tłumacz strony</translation>
 <translation id="8672733398999596205">Włącz wszystkie</translation>
 <translation id="8674716540979958118">Masz przejęte hasła.</translation>

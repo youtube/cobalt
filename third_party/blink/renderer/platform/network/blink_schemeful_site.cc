@@ -19,7 +19,7 @@ BlinkSchemefulSite::BlinkSchemefulSite() {
 
 BlinkSchemefulSite::BlinkSchemefulSite(
     scoped_refptr<const SecurityOrigin> origin)
-    : BlinkSchemefulSite(net::SchemefulSite(origin->ToUrlOrigin())) {}
+    : BlinkSchemefulSite(origin->GetSchemefulSite()) {}
 
 BlinkSchemefulSite::BlinkSchemefulSite(const url::Origin& origin)
     : BlinkSchemefulSite(net::SchemefulSite(origin)) {}
@@ -41,7 +41,7 @@ BlinkSchemefulSite::BlinkSchemefulSite(const net::SchemefulSite& site) {
 }
 
 BlinkSchemefulSite::operator net::SchemefulSite() const {
-  return net::SchemefulSite(site_as_origin_->ToUrlOrigin());
+  return site_as_origin_->GetSchemefulSite();
 }
 
 String BlinkSchemefulSite::Serialize() const {

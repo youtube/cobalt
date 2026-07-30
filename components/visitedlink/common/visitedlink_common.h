@@ -69,6 +69,12 @@ class VisitedLinkCommon {
   static constexpr Fingerprint kNullFingerprint = 0;
   static constexpr Hash kNullHash = -1;
 
+  // The constant salt used for pseudo-partitioned visited links.
+  // Pseudo-partitioning does not use per-origin salts, so a constant salt
+  // is used to adhere to the partitioned infrastructure. This is used in
+  // Android WebView. See crbug.com/506963484 for more context.
+  static constexpr uint64_t kPseudoPartitionedConstantSalt = 0;
+
   VisitedLinkCommon();
 
   VisitedLinkCommon(const VisitedLinkCommon&) = delete;
@@ -80,6 +86,12 @@ class VisitedLinkCommon {
   Fingerprint ComputeURLFingerprint(std::string_view canonical_url) const {
     return ComputeURLFingerprint(canonical_url, salt_);
   }
+
+  // Computes the pseudo-partitioned fingerprint.
+  // Puts the canonical URL into all three partitioned key components
+  // and uses a constant static salt. Used by Android WebView.
+  static Fingerprint ComputePseudoPartitionedFingerprint(
+      std::string_view canonical_url);
 
   // Looks up the given key in the table. Returns true if found. Does not
   // modify the hashtable.
@@ -189,8 +201,20 @@ class VisitedLinkCommon {
   // the number of items in the hash table
   int32_t table_length_ = 0;
 
+  // TODO(crbug.com/517136103): Remove salt_ once migration has landed.
   // salt used for each URL when computing the fingerprint
   LinkSalt salt_ = {};
+
+  // If true, we should resolve unpartitioned query styles (e.g. IsVisited(URL))
+  // by computing the pseudo-partitioned fingerprint (using the link URL for
+  // each field in the triple key and using salt
+  // kPseudoPartitionedConstantSalt). Android WebView does not partition
+  // :visited links. However, it must use the partitioned storage infrastructure
+  // as we move away from the unpartitioned :visited link infrastructure.
+  // Therefore, :visited links on Android WebView are pseudo-partitioned in that
+  // they utilize the existing partitioned hashtable without truly partitioning
+  // the links.
+  bool is_pseudo_partitioned_ = false;
 };
 
 }  // namespace visitedlink

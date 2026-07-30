@@ -30,11 +30,11 @@
 #include "components/persistent_cache/pending_backend.h"
 #include "components/services/storage/public/cpp/buckets/bucket_locator.h"
 #include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
-#include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/code_cache/generated_code_cache.h"
 #include "content/browser/code_cache/generated_code_cache_context.h"
 #include "content/browser/process_lock.h"
 #include "content/browser/renderer_host/render_process_host_impl.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/public/browser/site_isolation_policy.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/common/content_features.h"
@@ -217,7 +217,7 @@ void DidGenerateCacheableMetadataInCacheStorageOnUI(
     const blink::StorageKey& code_cache_storage_key,
     storage::mojom::CacheStorageControl* cache_storage_control_for_testing,
     mojo::ReportBadMessageCallback bad_message_callback) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  CHECK_CURRENTLY_ON(BrowserThread::UI, base::NotFatalUntil::M152);
   auto* render_process_host = RenderProcessHost::FromID(render_process_id);
   if (!render_process_host)
     return;
@@ -659,7 +659,8 @@ class LocalCodeCacheHost : public CodeCacheWithSourceKeyedCacheHost {
       return generated_code_cache_context()->generated_js_code_cache();
     }
 
-    DCHECK_EQ(blink::mojom::CodeCacheType::kWebAssembly, cache_type);
+    CHECK_EQ(blink::mojom::CodeCacheType::kWebAssembly, cache_type,
+             base::NotFatalUntil::M152);
     return generated_code_cache_context()->generated_wasm_code_cache();
   }
 

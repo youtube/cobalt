@@ -666,7 +666,7 @@ class TouchBarNotificationBridge : public CommandObserver,
 
 + (NSImage*)starDefaultIcon {
   static __strong NSImage* starDefaultIcon = CreateNSImageFromIcon(
-      features::IsRoundedIconsEnabled() ? omnibox::kStarIcon
+      features::IsRoundedIconsEnabled() ? omnibox::kStarCustomIcon
                                         : omnibox::kStarChromeRefreshOldIcon,
       kTouchBarDefaultIconColor);
   return starDefaultIcon;
@@ -679,7 +679,7 @@ class TouchBarNotificationBridge : public CommandObserver,
 + (NSImage*)starActiveIcon {
   static __strong NSImage* starActiveIcon = []() {
     return CreateNSImageFromIcon(features::IsRoundedIconsEnabled()
-                                     ? omnibox::kStarFilledIcon
+                                     ? omnibox::kStarFilledCustomIcon
                                      : omnibox::kStarActiveChromeRefreshOldIcon,
                                  kTouchBarStarActiveColor);
   }();

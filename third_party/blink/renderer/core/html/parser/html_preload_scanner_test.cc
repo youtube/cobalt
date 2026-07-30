@@ -1305,6 +1305,35 @@ TEST_F(HTMLPreloadScannerTest, testNonce) {
   }
 }
 
+TEST_F(HTMLPreloadScannerTest, testNonceDanglingMarkup) {
+  NonceTestCase test_cases[] = {
+      // Dangling markup in attribute value should strip nonce.
+      {"http://example.test",
+       "<script src='/script' nonce='abc' foo='x<script'></script>", ""},
+      {"http://example.test",
+       "<script src='/script' nonce='abc' foo='x<style'></script>", ""},
+      {"http://example.test",
+       "<script src='/script' nonce='abc' foo='x<link'></script>", ""},
+      // Dangling markup in attribute name should strip nonce.
+      {"http://example.test",
+       "<script src='/script' nonce='abc' x<script='foo'></script>", ""},
+      // Duplicate attributes should strip nonce.
+      {"http://example.test",
+       "<script src='/script' nonce='abc' foo='a' foo='b'></script>", ""},
+      // Normal case: nonce preserved when no dangling markup signals.
+      {"http://example.test", "<script src='/script' nonce='abc'></script>",
+       "abc"},
+      // Link with dangling markup should also be stripped.
+      {"http://example.test",
+       "<link rel='stylesheet' href='/style' nonce='abc' bar='<link'>", ""},
+  };
+
+  for (const auto& test_case : test_cases) {
+    SCOPED_TRACE(test_case.input_html);
+    Test(test_case);
+  }
+}
+
 TEST_F(HTMLPreloadScannerTest, testAttributionSrc) {
   static constexpr bool kSecureDocumentUrl = true;
   static constexpr bool kInsecureDocumentUrl = false;

@@ -64,7 +64,8 @@ DawnEGLImageRepresentation::~DawnEGLImageRepresentation() {
 wgpu::Texture DawnEGLImageRepresentation::BeginAccess(
     wgpu::TextureUsage usage,
     wgpu::TextureUsage internal_usage) {
-  if (!gl_representation_->BeginAccess(ToSharedImageAccessGLMode(usage))) {
+  if (!gl_representation_->BeginAccess(
+          ToSharedImageAccessGLMode(usage | internal_usage))) {
     return nullptr;
   }
   wgpu::TextureDescriptor texture_descriptor;

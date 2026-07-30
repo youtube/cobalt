@@ -80,6 +80,7 @@ public class FuseboxMetrics {
         FuseboxAttachmentButtonType.CLIPBOARD,
         FuseboxAttachmentButtonType.SUGGESTED_TAB,
         FuseboxAttachmentButtonType.RECENT_TAB,
+        FuseboxAttachmentButtonType.DRIVE_FILES,
         FuseboxAttachmentButtonType.COUNT
     })
     @Retention(RetentionPolicy.SOURCE)
@@ -92,7 +93,8 @@ public class FuseboxMetrics {
         int CLIPBOARD = 5;
         int SUGGESTED_TAB = 6;
         int RECENT_TAB = 7;
-        int COUNT = 8;
+        int DRIVE_FILES = 8;
+        int COUNT = 9;
     }
 
     // LINT.ThenChange(//tools/metrics/histograms/metadata/omnibox/enums.xml:FuseboxAttachmentButtonType)
@@ -296,6 +298,7 @@ public class FuseboxMetrics {
             case FuseboxAttachmentButtonType.CLIPBOARD -> "Clipboard";
             case FuseboxAttachmentButtonType.SUGGESTED_TAB -> "SuggestedTab";
             case FuseboxAttachmentButtonType.RECENT_TAB -> "RecentTab";
+            case FuseboxAttachmentButtonType.DRIVE_FILES -> "DriveFiles";
             default -> "";
         };
     }

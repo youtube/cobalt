@@ -9,6 +9,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -34,6 +35,7 @@ import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.build.BuildConfig;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsOffsetTagsInfo;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
@@ -221,6 +223,9 @@ public class TopToolbarOverlayMediatorTest {
 
     @Test
     public void testProgressUpdate_phone_fromTabObserver() {
+        // TODO(crbug.com/525121986): Failing on Desktop Android.
+        assumeFalse(BuildConfig.IS_DESKTOP_ANDROID);
+
         mModel.set(TopToolbarOverlayProperties.PROGRESS_BAR_INFO, null);
 
         mTabObserverCaptor.getValue().onLoadProgressChanged(mTab, 0.25f);
@@ -236,6 +241,9 @@ public class TopToolbarOverlayMediatorTest {
 
     @Test
     public void testProgressUpdate_phone_fromProgressBar() {
+        // TODO(crbug.com/525121986): Failing on Desktop Android.
+        assumeFalse(BuildConfig.IS_DESKTOP_ANDROID);
+
         mModel.set(TopToolbarOverlayProperties.PROGRESS_BAR_INFO, null);
 
         mProgressBarObserverCaptor.getValue().onVisibleProgressUpdated();
@@ -259,6 +267,9 @@ public class TopToolbarOverlayMediatorTest {
 
     @Test
     public void testProgressUpdate_tablet_fromProgressBar() {
+        // TODO(crbug.com/525121986): Failing on Desktop Android.
+        assumeFalse(BuildConfig.IS_DESKTOP_ANDROID);
+
         TopToolbarOverlayMediator.setIsTabletForTesting(true);
         mModel.set(TopToolbarOverlayProperties.PROGRESS_BAR_INFO, null);
 

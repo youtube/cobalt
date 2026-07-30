@@ -411,6 +411,14 @@ ntp-lens-upload-dialog {
 }
 
 #voiceSearchDialog {
+  --color-composebox-submit-button-background: var(
+      --color-new-tab-page-composebox-submit-button-background);
+  --color-composebox-submit-button-icon: white;
+  --cr-composebox-submit-border-radius: 100px;
+  --cr-composebox-submit-height: 36px;
+  --cr-composebox-submit-icon-offset: 0;
+  --cr-composebox-submit-icon-size: 24px;
+  --cr-composebox-submit-width: 48px;
   background: var(--color-composebox-background);
   border: none;
   border-radius: 28px;
@@ -418,7 +426,7 @@ ntp-lens-upload-dialog {
   height: 112px;
   inset-inline-start: anchor(start);
   margin: 0;
-  overflow: visible;
+  overflow: hidden;
   padding: 0;
   position: absolute;
   position-anchor: --dialog-anchor;
@@ -441,6 +449,16 @@ ntp-lens-upload-dialog {
   width: 100%;
   --composebox-voice-search-top-padding: 9px;
   --composebox-cancel-button-top: 10px;
+  --voice-bottom-actions-bottom: 14px;
+  --voice-bottom-actions-inset-inline-end: 14px;
+}
+
+#voiceSearch::part(voice-stop-button) {
+  position: relative;
+}
+
+#voiceSearch::part(submit) {
+  position: relative;
 }
 
 #voiceSearchGlow {

@@ -260,69 +260,62 @@ NetworkChangeNotifierApple::CalculateConnectionType(
   if (!(flags & kSCNetworkReachabilityFlagsIsWWAN)) {
     return CONNECTION_WIFI;
   }
-  if (@available(iOS 12, *)) {
-    CTTelephonyNetworkInfo* info = [[CTTelephonyNetworkInfo alloc] init];
-    NSDictionary<NSString*, NSString*>*
-        service_current_radio_access_technology =
-            info.serviceCurrentRadioAccessTechnology;
-    NSSet<NSString*>* technologies_2g = [NSSet
-        setWithObjects:CTRadioAccessTechnologyGPRS, CTRadioAccessTechnologyEdge,
-                       CTRadioAccessTechnologyCDMA1x, nil];
-    NSSet<NSString*>* technologies_3g =
-        [NSSet setWithObjects:CTRadioAccessTechnologyWCDMA,
-                              CTRadioAccessTechnologyHSDPA,
-                              CTRadioAccessTechnologyHSUPA,
-                              CTRadioAccessTechnologyCDMAEVDORev0,
-                              CTRadioAccessTechnologyCDMAEVDORevA,
-                              CTRadioAccessTechnologyCDMAEVDORevB,
-                              CTRadioAccessTechnologyeHRPD, nil];
-    NSSet<NSString*>* technologies_4g =
-        [NSSet setWithObjects:CTRadioAccessTechnologyLTE, nil];
-    // TODO: Use constants from CoreTelephony once Cronet builds with Xcode 12.1
-    NSSet<NSString*>* technologies_5g =
-        [NSSet setWithObjects:@"CTRadioAccessTechnologyNRNSA",
-                              @"CTRadioAccessTechnologyNR", nil];
-    int best_network = 0;
-    for (NSString* service in service_current_radio_access_technology) {
-      if (!service_current_radio_access_technology[service]) {
-        continue;
-      }
-      int current_network = 0;
-
-      NSString* network_type = service_current_radio_access_technology[service];
-
-      if ([technologies_2g containsObject:network_type]) {
-        current_network = 2;
-      } else if ([technologies_3g containsObject:network_type]) {
-        current_network = 3;
-      } else if ([technologies_4g containsObject:network_type]) {
-        current_network = 4;
-      } else if ([technologies_5g containsObject:network_type]) {
-        current_network = 5;
-      } else {
-        // New technology?
-        NOTREACHED() << "Unknown network technology: " << network_type;
-      }
-      if (current_network > best_network) {
-        // iOS is supposed to use the best network available.
-        best_network = current_network;
-      }
+  CTTelephonyNetworkInfo* info = [[CTTelephonyNetworkInfo alloc] init];
+  NSDictionary<NSString*, NSString*>* service_current_radio_access_technology =
+      info.serviceCurrentRadioAccessTechnology;
+  NSSet<NSString*>* technologies_2g = [NSSet
+      setWithObjects:CTRadioAccessTechnologyGPRS, CTRadioAccessTechnologyEdge,
+                     CTRadioAccessTechnologyCDMA1x, nil];
+  NSSet<NSString*>* technologies_3g = [NSSet
+      setWithObjects:CTRadioAccessTechnologyWCDMA, CTRadioAccessTechnologyHSDPA,
+                     CTRadioAccessTechnologyHSUPA,
+                     CTRadioAccessTechnologyCDMAEVDORev0,
+                     CTRadioAccessTechnologyCDMAEVDORevA,
+                     CTRadioAccessTechnologyCDMAEVDORevB,
+                     CTRadioAccessTechnologyeHRPD, nil];
+  NSSet<NSString*>* technologies_4g =
+      [NSSet setWithObjects:CTRadioAccessTechnologyLTE, nil];
+  NSSet<NSString*>* technologies_5g =
+      [NSSet setWithObjects:CTRadioAccessTechnologyNRNSA,
+                            CTRadioAccessTechnologyNR, nil];
+  int best_network = 0;
+  for (NSString* service in service_current_radio_access_technology) {
+    if (!service_current_radio_access_technology[service]) {
+      continue;
     }
-    switch (best_network) {
-      case 2:
-        return CONNECTION_2G;
-      case 3:
-        return CONNECTION_3G;
-      case 4:
-        return CONNECTION_4G;
-      case 5:
-        return CONNECTION_5G;
-      default:
-        // Default to CONNECTION_3G to not change existing behavior.
-        return CONNECTION_3G;
+    int current_network = 0;
+
+    NSString* network_type = service_current_radio_access_technology[service];
+
+    if ([technologies_2g containsObject:network_type]) {
+      current_network = 2;
+    } else if ([technologies_3g containsObject:network_type]) {
+      current_network = 3;
+    } else if ([technologies_4g containsObject:network_type]) {
+      current_network = 4;
+    } else if ([technologies_5g containsObject:network_type]) {
+      current_network = 5;
+    } else {
+      // New technology?
+      NOTREACHED() << "Unknown network technology: " << network_type;
     }
-  } else {
-    return CONNECTION_3G;
+    if (current_network > best_network) {
+      // iOS is supposed to use the best network available.
+      best_network = current_network;
+    }
+  }
+  switch (best_network) {
+    case 2:
+      return CONNECTION_2G;
+    case 3:
+      return CONNECTION_3G;
+    case 4:
+      return CONNECTION_4G;
+    case 5:
+      return CONNECTION_5G;
+    default:
+      // Default to CONNECTION_3G to not change existing behavior.
+      return CONNECTION_3G;
   }
 
 #else

@@ -4,17 +4,17 @@
 
 #include "third_party/blink/renderer/core/svg/svg_path_parser.h"
 
+#include "base/containers/span.h"
+#include "testing/libfuzzer/libfuzzer_base_wrappers.h"
 #include "third_party/blink/renderer/core/svg/svg_path_string_source.h"
 #include "third_party/blink/renderer/platform/testing/blink_fuzzer_test_support.h"
 #include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+DEFINE_LLVM_FUZZER_TEST_ONE_INPUT_SPAN(base::span<const uint8_t> data) {
   static blink::BlinkFuzzerTestSupport test_support;
   blink::test::TaskEnvironment task_environment;
-  // SAFETY: Wrapping arguments from libFuzzer in a span.
-  blink::String input_string =
-      blink::String::FromUtf8WithLatin1Fallback(UNSAFE_BUFFERS({data, size}));
+  blink::String input_string = blink::String::FromUtf8WithLatin1Fallback(data);
   blink::SVGPathStringSource source(input_string);
   class NullConsumer {
    public:

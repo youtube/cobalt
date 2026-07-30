@@ -297,7 +297,7 @@ int HostResolverManager::RequestImpl::DoIPv6Reachability() {
   // cannot make assumptions about reachability.
   if (parameters_.source == HostResolverSource::LOCAL_ONLY) {
     int rv = resolver_->StartIPv6ReachabilityCheck(
-        source_net_log_, GetClientSocketFactory(),
+        target_network_, source_net_log_, GetClientSocketFactory(),
         base::DoNothingAs<void(int)>());
     if (rv == ERR_IO_PENDING) {
       next_state_ = STATE_FINISH_REQUEST;
@@ -306,7 +306,7 @@ int HostResolverManager::RequestImpl::DoIPv6Reachability() {
     return OK;
   }
   return resolver_->StartIPv6ReachabilityCheck(
-      source_net_log_, GetClientSocketFactory(),
+      target_network_, source_net_log_, GetClientSocketFactory(),
       base::BindOnce(&RequestImpl::OnIOComplete,
                      weak_ptr_factory_.GetWeakPtr()));
 }
@@ -324,7 +324,7 @@ int HostResolverManager::RequestImpl::DoGetParameters() {
       resolver_->last_ipv6_probe_result_) {
     next_state_ = STATE_GET_PARAMETERS_COMPLETE;
     return resolver_->StartGloballyReachableCheck(
-        ip_address_, source_net_log_, GetClientSocketFactory(),
+        ip_address_, target_network_, source_net_log_, GetClientSocketFactory(),
         base::BindOnce(&RequestImpl::OnIOComplete,
                        weak_ptr_factory_.GetWeakPtr()));
   }

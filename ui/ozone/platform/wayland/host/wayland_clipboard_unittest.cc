@@ -411,6 +411,25 @@ TEST_P(WaylandClipboardTest, ReadFromClipboardWithoutOffer) {
   WaitForClipboardTasks();
 }
 
+TEST_P(WaylandClipboardTest, ReadFromClipboardUnsupportedMimeType) {
+  // When a data offer is advertised but doesn't contain the requested MIME
+  // type, the response callback should be gracefully called with null data,
+  // without logging any "Failed to open file descriptor" error.
+  PostToServerAndWait(
+      [buffer = WhichBufferToUse()](wl::TestWaylandServerThread* server) {
+        auto* data_offer = GetSelectionDevice(server, buffer)->OnDataOffer();
+        data_offer->OnOffer(kMimeTypeUtf8PlainText,
+                            ToClipboardData(kSampleClipboardText));
+        GetSelectionDevice(server, buffer)->OnSelection(data_offer);
+      });
+
+  base::MockCallback<PlatformClipboard::RequestDataClosure> callback;
+  EXPECT_CALL(callback, Run(Eq(nullptr))).Times(1);
+  clipboard_->RequestClipboardData(WhichBufferToUse(), kMimeTypeHtml,
+                                   callback.Get());
+  WaitForClipboardTasks();
+}
+
 TEST_P(WaylandClipboardTest, IsSelectionOwner) {
   connection_->serial_tracker().UpdateSerial(wl::SerialType::kMousePress, 1);
 

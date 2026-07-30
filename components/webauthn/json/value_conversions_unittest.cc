@@ -142,11 +142,6 @@ TEST(WebAuthenticationJSONConversionTest,
       blink::mojom::RemoteDesktopClientOverride::New(
           url::Origin::Create(GURL(kOrigin)),
           /*same_origin_with_ancestors=*/true),
-      blink::mojom::SupplementalPubKeysRequest::New(
-          /*device_scope_requested=*/true,
-          /*provider_scope_requested=*/true,
-          device::AttestationConveyancePreference::kDirect,
-          std::vector<std::string>({"a", "b", "c"})),
       /*payment_browser_bound_key_parameters=*/std::nullopt,
       std::vector<std::string>{"attfmt1", "attfmt2"}, /*is_conditional=*/false,
       /*cmtg_key=*/false);
@@ -157,7 +152,7 @@ TEST(WebAuthenticationJSONConversionTest,
   ASSERT_TRUE(serializer.Serialize(value));
   EXPECT_EQ(
       json,
-      R"({"attestation":"direct","attestationFormats":["attfmt1","attfmt2"],"authenticatorSelection":{"authenticatorAttachment":"platform","residentKey":"required","userVerification":"required"},"challenge":"dGVzdCBjaGFsbGVuZ2U","excludeCredentials":[{"id":"FBUW","transports":["usb"],"type":"public-key"},{"id":"Hh8g","type":"public-key"}],"extensions":{"appIdExclude":"https://example.test/appid.json","credBlob":"dGVzdCBjcmVkIGJsb2I","credProps":true,"credentialProtectionPolicy":"userVerificationRequired","enforceCredentialProtectionPolicy":true,"hmacCreateSecret":true,"largeBlob":{"support":"required"},"minPinLength":true,"payment":{"isPayment":true},"prf":{"eval":{"first":"AQIDBA","second":"BQYHCA"}},"remoteDesktopClientOverride":{"origin":"https://login.example.test","sameOriginWithAncestors":true},"supplementalPubKeys":{"attestation":"direct","attestationFormats":["a","b","c"],"scopes":["device","provider"]}},"hints":["security-key","client-device","hybrid"],"pubKeyCredParams":[{"alg":-7,"type":"public-key"},{"alg":-257,"type":"public-key"}],"rp":{"id":"example.test","name":"Example LLC"},"timeout":300000,"user":{"displayName":"Example User","id":"dGVzdCB1c2VyIGlk","name":"user@example.test"}})");
+      R"({"attestation":"direct","attestationFormats":["attfmt1","attfmt2"],"authenticatorSelection":{"authenticatorAttachment":"platform","residentKey":"required","userVerification":"required"},"challenge":"dGVzdCBjaGFsbGVuZ2U","excludeCredentials":[{"id":"FBUW","transports":["usb"],"type":"public-key"},{"id":"Hh8g","type":"public-key"}],"extensions":{"appIdExclude":"https://example.test/appid.json","credBlob":"dGVzdCBjcmVkIGJsb2I","credProps":true,"credentialProtectionPolicy":"userVerificationRequired","enforceCredentialProtectionPolicy":true,"hmacCreateSecret":true,"largeBlob":{"support":"required"},"minPinLength":true,"payment":{"isPayment":true},"prf":{"eval":{"first":"AQIDBA","second":"BQYHCA"}},"remoteDesktopClientOverride":{"origin":"https://login.example.test","sameOriginWithAncestors":true}},"hints":["security-key","client-device","hybrid"],"pubKeyCredParams":[{"alg":-7,"type":"public-key"},{"alg":-257,"type":"public-key"}],"rp":{"id":"example.test","name":"Example LLC"},"timeout":300000,"user":{"displayName":"Example User","id":"dGVzdCB1c2VyIGlk","name":"user@example.test"}})");
 }
 
 TEST(WebAuthenticationJSONConversionTest,
@@ -187,7 +182,6 @@ TEST(WebAuthenticationJSONConversionTest,
       /*cred_blob=*/std::nullopt,
       /*min_pin_length_requested=*/false,
       /*remote_desktop_client_override=*/nullptr,
-      /*supplemental_pub_keys=*/nullptr,
       /*payment_browser_bound_key_parameters=*/std::nullopt,
       /*attestation_formats=*/std::vector<std::string>(),
       /*is_conditional=*/false,
@@ -247,11 +241,6 @@ TEST(WebAuthenticationJSONConversionTest,
           blink::mojom::RemoteDesktopClientOverride::New(
               url::Origin::Create(GURL(kOrigin)),
               /*same_origin_with_ancestors=*/true),
-          blink::mojom::SupplementalPubKeysRequest::New(
-              /*device_scope_requested=*/true,
-              /*provider_scope_requested=*/true,
-              device::AttestationConveyancePreference::kDirect,
-              std::vector<std::string>({"a", "b", "c"})),
           std::vector<device::PublicKeyCredentialParams::CredentialInfo>(),
           /*cmtg_key=*/false,
           /*cross_device_fallback_url=*/GURL("https://example.test/fallback")));
@@ -262,7 +251,7 @@ TEST(WebAuthenticationJSONConversionTest,
   ASSERT_TRUE(serializer.Serialize(value));
   EXPECT_EQ(
       json,
-      R"({"allowCredentials":[{"id":"FBUW","transports":["usb"],"type":"public-key"},{"id":"Hh8g","type":"public-key"}],"challenge":"dGVzdCBjaGFsbGVuZ2U","extensions":{"appid":"https://example.test/appid.json","crossDeviceFallbackUrl":"https://example.test/fallback","getCredBlob":true,"largeBlob":{"read":true,"write":"CAkK"},"prf":{"eval":{"first":"AQIDBA"},"evalByCredential":{"AQID":{"first":"BAUG","second":"BwgJ"}}},"remoteDesktopClientOverride":{"origin":"https://login.example.test","sameOriginWithAncestors":true},"supplementalPubKeys":{"attestation":"direct","attestationFormats":["a","b","c"],"scopes":["device","provider"]}},"hints":["security-key","client-device","hybrid"],"rpId":"example.test","timeout":300000,"userVerification":"required"})");
+      R"({"allowCredentials":[{"id":"FBUW","transports":["usb"],"type":"public-key"},{"id":"Hh8g","type":"public-key"}],"challenge":"dGVzdCBjaGFsbGVuZ2U","extensions":{"appid":"https://example.test/appid.json","crossDeviceFallbackUrl":"https://example.test/fallback","getCredBlob":true,"largeBlob":{"read":true,"write":"CAkK"},"prf":{"eval":{"first":"AQIDBA"},"evalByCredential":{"AQID":{"first":"BAUG","second":"BwgJ"}}},"remoteDesktopClientOverride":{"origin":"https://login.example.test","sameOriginWithAncestors":true}},"hints":["security-key","client-device","hybrid"],"rpId":"example.test","timeout":300000,"userVerification":"required"})");
 }
 
 TEST(WebAuthenticationJSONConversionTest,
@@ -331,9 +320,6 @@ TEST(WebAuthenticationJSONConversionTest,
         "first": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
         "second": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE"
       }
-    },
-    "supplementalPubKeys": {
-      "signatures": ["ABCD", "EFGH"]
     }
   },
   "id": "dGVzdCBpZA",
@@ -388,9 +374,6 @@ TEST(WebAuthenticationJSONConversionTest,
       /*echo_cred_props=*/true, /*has_cred_props_rk=*/true,
       /*cred_props_rk=*/true, /*echo_large_blob=*/true,
       /*supports_large_blob=*/true,
-      /*supplemental_pub_keys=*/
-      blink::mojom::SupplementalPubKeysResponse::New(
-          std::vector<std::vector<uint8_t>>({{0, 16, 131}, {16, 81, 135}})),
       /*payment=*/nullptr,
       /*cmtg_key=*/nullptr);
 
@@ -509,9 +492,6 @@ TEST(WebAuthenticationJSONConversionTest,
         "first": "mZ0wKXvFA3ule4G8-CezRxvoP4Bn9vuLZD0Ka80JTH0",
         "second": "zfLUaH8wtbWPmGOYySfBjNehFIvhUZQduKXlOH6c9EI"
       }
-    },
-    "supplementalPubKeys": {
-      "signatures": ["ABCD", "EFGH"]
     }
   },
   "id": "dGVzdCBpZA",
@@ -556,9 +536,6 @@ TEST(WebAuthenticationJSONConversionTest,
           /*large_blob=*/kLargeBlob, /*echo_large_blob_written=*/true,
           /*large_blob_written=*/true,
           /*get_cred_blob=*/kCredBlob,
-          /*supplemental_pub_keys=*/
-          blink::mojom::SupplementalPubKeysResponse::New(
-              std::vector<std::vector<uint8_t>>({{0, 16, 131}, {16, 81, 135}})),
           /*payment=*/nullptr,
           /*cmtg_key=*/nullptr,
           /*cross_device_fallback_url=*/true));
@@ -600,8 +577,6 @@ TEST(WebAuthenticationJSONConversionTest,
             expected->extensions->large_blob_written);
   EXPECT_EQ(response->extensions->get_cred_blob,
             expected->extensions->get_cred_blob);
-  EXPECT_EQ(response->extensions->supplemental_pub_keys,
-            expected->extensions->supplemental_pub_keys);
   // Produce a failure even if the list above is missing any fields. But this
   // will not print any meaningful error. `prf_values` has to be cleared
   // because a pointer comparison will be performed for it.

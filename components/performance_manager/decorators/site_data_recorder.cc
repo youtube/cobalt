@@ -242,7 +242,9 @@ void SiteDataRecorder::OnTitleUpdated(const PageNode* page_node) {
   data.OnTitleUpdated();
 }
 
-void SiteDataRecorder::OnFaviconUpdated(const PageNode* page_node) {
+void SiteDataRecorder::OnFaviconUpdated(
+    const PageNode* page_node,
+    blink::mojom::FaviconUpdateReason reason) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   SiteDataNodeData& data = GetSiteDataNodeDataFromPageNode(page_node);
   data.OnFaviconUpdated();

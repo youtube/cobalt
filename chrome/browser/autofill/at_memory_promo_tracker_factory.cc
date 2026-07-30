@@ -4,8 +4,9 @@
 
 #include "chrome/browser/autofill/at_memory_promo_tracker_factory.h"
 
+#include "chrome/browser/metrics/variations/google_groups_manager_factory.h"
+#include "components/autofill/core/browser/at_memory/at_memory_enablement_utils.h"
 #include "components/autofill/core/browser/at_memory_promo_tracker.h"
-#include "components/autofill/core/common/autofill_features.h"
 
 namespace autofill {
 
@@ -28,14 +29,17 @@ AtMemoryPromoTrackerFactory::AtMemoryPromoTrackerFactory()
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
               .WithGuest(ProfileSelection::kNone)
-              .Build()) {}
+              .Build()) {
+  DependsOn(GoogleGroupsManagerFactory::GetInstance());
+}
 
 AtMemoryPromoTrackerFactory::~AtMemoryPromoTrackerFactory() = default;
 
 std::unique_ptr<KeyedService>
 AtMemoryPromoTrackerFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  if (!base::FeatureList::IsEnabled(features::kAutofillAtMemory)) {
+  if (!autofill::IsAtMemoryFeatureEnabled(
+          GoogleGroupsManagerFactory::GetForBrowserContext(context))) {
     return nullptr;
   }
   return std::make_unique<AtMemoryPromoTracker>();

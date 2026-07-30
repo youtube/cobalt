@@ -42,21 +42,14 @@ namespace blink {
 CanvasResourceDispatcher::CanvasResourceDispatcher(
     CanvasResourceDispatcherClient* client,
     scoped_refptr<base::SingleThreadTaskRunner> task_runner,
-    scoped_refptr<base::SingleThreadTaskRunner>
-        agent_group_scheduler_compositor_task_runner,
     uint32_t client_id,
     uint32_t sink_id,
-    DOMNodeId canvas_id,
     const gfx::Size& size)
     : frame_sink_id_(viz::FrameSinkId(client_id, sink_id)),
       size_(size),
       change_size_for_next_commit_(false),
-      placeholder_canvas_id_(canvas_id),
       client_(client),
-      task_runner_(std::move(task_runner)),
-      agent_group_scheduler_compositor_task_runner_(
-          std::move(agent_group_scheduler_compositor_task_runner)),
-      fake_frame_timer_(task_runner_,
+      fake_frame_timer_(std::move(task_runner),
                         this,
                         &CanvasResourceDispatcher::OnFakeFrameTimer) {
   // Frameless canvas pass an invalid |frame_sink_id_|; don't create mojo
@@ -193,27 +186,6 @@ void CanvasResourceDispatcher::DidReceiveCompositorFrameAck(
 
 void CanvasResourceDispatcher::SetNeedsBeginFrame(bool needs_begin_frame) {
   if (needs_begin_frame_ == needs_begin_frame) {
-    // If the offscreencanvas is in the same tread as the canvas, and we are
-    // trying for a second time to request the being frame, and we are in a
-    // capture_stream scenario, we will call a BeginFrame right away. So
-    // Offscreen Canvas can behave in a more synchronous way when it's on the
-    // main thread.
-    if (needs_begin_frame_ && IsMainThread()) {
-      if (placeholder_canvas_id_ ==
-              OffscreenCanvasPlaceholder::kNoPlaceholderId ||
-          placeholder_canvas_id_ == kInvalidDOMNodeId) {
-        return;
-      }
-
-      OffscreenCanvasPlaceholder* placeholder_canvas =
-          OffscreenCanvasPlaceholder::GetPlaceholderCanvasById(
-              placeholder_canvas_id_);
-      if (placeholder_canvas &&
-          placeholder_canvas->IsOffscreenCanvasRegistered() &&
-          placeholder_canvas->HasCanvasCapture() && Client()) {
-        Client()->BeginFrame();
-      }
-    }
     return;
   }
   needs_begin_frame_ = needs_begin_frame;

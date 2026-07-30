@@ -9,11 +9,11 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
+#include "build/build_config.h"
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/contextual_search/contextual_search_service_factory.h"
 #include "chrome/browser/tab_list/mock_tab_list_interface.h"
-#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/browser/ui/contextual_search/tab_contextualization_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
@@ -22,17 +22,10 @@
 #include "chrome/browser/ui/omnibox/test_omnibox_view.h"
 #include "chrome/browser/ui/tab_ui_helper.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/browser/ui/tabs/test_tab_strip_model_delegate.h"
-#include "chrome/browser/ui/views/bubble_anchor_util_views.h"
 #include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_omnibox_client.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
-#include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
-#include "chrome/browser/ui/webui/searchbox/omnibox_composebox_handler.h"
 #include "chrome/browser/ui/webui/searchbox/searchbox_test_utils.h"
-#include "chrome/browser/ui/webui/searchbox/webui_omnibox_handler.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
-#include "chrome/test/base/browser_with_test_window_test.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/contextual_search/contextual_search_service.h"
@@ -69,6 +62,19 @@
 #include "ui/base/unowned_user_data/unowned_user_data_host.h"
 #include "ui/base/webui/web_ui_util.h"
 #include "ui/webui/resources/cr_components/composebox/composebox.mojom.h"
+
+// Exclude desktop-only headers for WebuiOmniboxHandler and
+// OmniboxComposeboxHandler, which are dedicated to the desktop Omnibox Popup
+// and not compiled on Android.
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/tabs/test_tab_strip_model_delegate.h"
+#include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
+#include "chrome/browser/ui/webui/searchbox/omnibox_composebox_handler.h"
+#include "chrome/browser/ui/webui/searchbox/webui_omnibox_handler.h"
+#include "chrome/test/base/browser_with_test_window_test.h"
+#endif
 
 class SearchboxHandlerTest : public ::testing::Test {
  public:
@@ -683,6 +689,9 @@ TEST_F(LensSearchboxHandlerTest, Lens_AutocompleteController_Start) {
   }
 }
 
+// WebuiOmniboxHandler is dedicated to the desktop Omnibox Popup and out of
+// scope for Android WebUI NTP.
+#if !BUILDFLAG(IS_ANDROID)
 namespace {
 class FakeOmniboxPopupView : public OmniboxPopupView {
  public:
@@ -851,6 +860,7 @@ TEST_F(WebuiOmniboxHandlerTest,
   EXPECT_EQ(mojom_match.value()->icon_path,
             searchbox_internal::kReplyRotated180IconResourceName);
 }
+#endif
 
 namespace {
 class DeletingWebContentsDelegate : public content::WebContentsDelegate {
@@ -931,6 +941,9 @@ TEST_F(SearchboxOmniboxClientNavigationTest,
       /*text=*/u"google", match, /*alternative_nav_match=*/AutocompleteMatch());
 }
 
+// OmniboxComposeboxHandler is dedicated to the desktop Omnibox Popup and out of
+// scope for Android WebUI NTP.
+#if !BUILDFLAG(IS_ANDROID)
 namespace {
 class MockPage : public composebox::mojom::Page {
  public:
@@ -1019,3 +1032,4 @@ TEST_F(OmniboxComposeboxHandlerTest, OpenUrl_StopsAutocomplete) {
 
   EXPECT_TRUE(omnibox_controller->autocomplete_controller()->done());
 }
+#endif

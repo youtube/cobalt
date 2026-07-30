@@ -58,6 +58,8 @@ class ContextualTasksPanelHostAndroid
       const content::OpenURLParams& params,
       base::OnceCallback<void(content::NavigationHandle&)>
           navigation_handle_callback) override;
+  bool HandleKeyboardEvent(content::WebContents* source,
+                           const input::NativeWebKeyboardEvent& event) override;
 
  private:
   // Helper method to get the bridge, creating it if necessary. This is because

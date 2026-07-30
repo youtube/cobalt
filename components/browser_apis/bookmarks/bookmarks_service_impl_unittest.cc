@@ -4,49 +4,69 @@
 
 #include "components/browser_apis/bookmarks/bookmarks_service_impl.h"
 
+#include "base/memory/raw_ptr.h"
+#include "base/run_loop.h"
 #include "base/test/task_environment.h"
 #include "base/uuid.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/test/bookmark_test_helpers.h"
 #include "components/bookmarks/test/test_bookmark_client.h"
+#include "mojo/public/cpp/bindings/associated_receiver.h"
+#include "mojo/public/cpp/bindings/pending_associated_receiver.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/skia/include/core/SkBitmap.h"
+#include "ui/gfx/image/image.h"
 
 namespace bookmarks_api {
 
 class BookmarksServiceImplTest : public testing::Test {
  protected:
   BookmarksServiceImplTest() {
-    model_ = std::make_unique<bookmarks::BookmarkModel>(
-        std::make_unique<bookmarks::TestBookmarkClient>());
+    auto client = std::make_unique<bookmarks::TestBookmarkClient>();
+    client_ = client.get();
+    model_ = std::make_unique<bookmarks::BookmarkModel>(std::move(client));
     model_->LoadEmptyForTest();
     service_ = std::make_unique<BookmarksServiceImpl>(model_.get());
+
+    mojo::PendingRemote<mojom::BookmarksService> pending_remote;
+    service_->Accept(pending_remote.InitWithNewPipeAndPassReceiver());
+    remote_service_.Bind(std::move(pending_remote));
   }
 
+  void TearDown() override { client_ = nullptr; }
+
   base::test::TaskEnvironment task_environment_;
+  raw_ptr<bookmarks::TestBookmarkClient> client_;
   std::unique_ptr<bookmarks::BookmarkModel> model_;
   std::unique_ptr<BookmarksServiceImpl> service_;
+  mojo::Remote<mojom::BookmarksService> remote_service_;
 };
 
 TEST_F(BookmarksServiceImplTest, GetBookmarks_Empty) {
-  auto result = service_->GetBookmarks();
-  ASSERT_TRUE(result.has_value());
-  ASSERT_TRUE(result.value()->is_folder());
-  const auto& root_folder = result.value()->get_folder();
-  EXPECT_EQ(root_folder->id, model_->root_node()->uuid());
+  base::RunLoop run_loop;
+  remote_service_->GetBookmarks(base::BindOnce(
+      [](base::OnceClosure quit_closure, const bookmarks::BookmarkModel* model,
+         mojom::BookmarksService::GetBookmarksResult result) {
+        ASSERT_TRUE(result.has_value());
+        ASSERT_TRUE(result.value()->root->is_folder());
+        const auto& root_folder = result.value()->root->get_folder();
+        EXPECT_EQ(root_folder->id, model->root_node()->uuid());
 
-  ASSERT_EQ(root_folder->children.size(), 3u);
-  ASSERT_TRUE(root_folder->children[0]->is_folder());
-  EXPECT_TRUE(root_folder->children[0]->get_folder()->children.empty());
-  ASSERT_TRUE(root_folder->children[1]->is_folder());
-  EXPECT_TRUE(root_folder->children[1]->get_folder()->children.empty());
-  ASSERT_TRUE(root_folder->children[2]->is_folder());
-  EXPECT_TRUE(root_folder->children[2]->get_folder()->children.empty());
-}
+        ASSERT_EQ(root_folder->children.size(), 3u);
+        ASSERT_TRUE(root_folder->children[0]->is_folder());
+        EXPECT_TRUE(root_folder->children[0]->get_folder()->children.empty());
+        ASSERT_TRUE(root_folder->children[1]->is_folder());
+        EXPECT_TRUE(root_folder->children[1]->get_folder()->children.empty());
+        ASSERT_TRUE(root_folder->children[2]->is_folder());
+        EXPECT_TRUE(root_folder->children[2]->get_folder()->children.empty());
 
-TEST_F(BookmarksServiceImplTest, GetBookmark_NotFound) {
-  auto result = service_->GetBookmark(base::Uuid::GenerateRandomV4());
-  EXPECT_FALSE(result.has_value());
-  EXPECT_EQ(result.error()->code, mojo_base::mojom::Code::kNotFound);
+        EXPECT_TRUE(result.value()->stream.is_valid());
+        std::move(quit_closure).Run();
+      },
+      run_loop.QuitClosure(), model_.get()));
+  run_loop.Run();
 }
 
 TEST_F(BookmarksServiceImplTest, GetBookmark_Success) {
@@ -55,6 +75,16 @@ TEST_F(BookmarksServiceImplTest, GetBookmark_Success) {
   const bookmarks::BookmarkNode* node =
       model_->AddURL(parent, 0, u"Title", GURL("http://example.com"));
 
+  model_->GetFavicon(node);
+
+  SkBitmap bitmap;
+  bitmap.allocN32Pixels(1, 1);
+  bitmap.eraseColor(SK_ColorRED);
+  gfx::Image image = gfx::Image::CreateFrom1xBitmap(bitmap);
+
+  ASSERT_TRUE(client_->SimulateFaviconLoaded(
+      node->url(), GURL("http://example.com/favicon.ico"), image));
+
   auto result = service_->GetBookmark(node->uuid());
   ASSERT_TRUE(result.has_value());
   ASSERT_TRUE(result.value()->is_url());
@@ -62,6 +92,9 @@ TEST_F(BookmarksServiceImplTest, GetBookmark_Success) {
   EXPECT_EQ(url_node->id, node->uuid());
   EXPECT_EQ(url_node->title, "Title");
   EXPECT_EQ(url_node->url, GURL("http://example.com"));
+  ASSERT_TRUE(url_node->favicon_url.has_value());
+  EXPECT_EQ(url_node->favicon_url.value(),
+            GURL("http://example.com/favicon.ico"));
 }
 
 TEST_F(BookmarksServiceImplTest, CreateBookmarkNode_Bookmark_Success) {
@@ -167,18 +200,6 @@ TEST_F(BookmarksServiceImplTest, CreateBookmarkNode_IndexOutOfRange_Error) {
       service_->CreateBookmarkNode(parent->uuid(), 1, std::move(node));
   EXPECT_FALSE(result.has_value());
   EXPECT_EQ(result.error()->code, mojo_base::mojom::Code::kInvalidArgument);
-}
-
-TEST_F(BookmarksServiceImplTest, CreateBookmarkNode_InvalidParent) {
-  auto url_node = mojom::Url::New();
-  url_node->title = "New Bookmark";
-  url_node->url = GURL("http://new-example.com");
-  auto node = mojom::BookmarkNode::NewUrl(std::move(url_node));
-
-  auto result = service_->CreateBookmarkNode(base::Uuid::GenerateRandomV4(), 0,
-                                             std::move(node));
-  EXPECT_FALSE(result.has_value());
-  EXPECT_EQ(result.error()->code, mojo_base::mojom::Code::kNotFound);
 }
 
 TEST_F(BookmarksServiceImplTest, CreateBookmarkNode_ParentNotFolder) {
@@ -353,18 +374,6 @@ TEST_F(BookmarksServiceImplTest, UpdateBookmarkNode_InvalidUrl_Error) {
   EXPECT_EQ(result.error()->code, mojo_base::mojom::Code::kInvalidArgument);
 }
 
-TEST_F(BookmarksServiceImplTest, UpdateBookmarkNode_NotFound) {
-  auto url_node = mojom::Url::New();
-  url_node->id = base::Uuid::GenerateRandomV4();
-  url_node->title = "Updated Title";
-  url_node->url = GURL("http://example.com");
-  auto update_node = mojom::BookmarkNode::NewUrl(std::move(url_node));
-
-  auto result = service_->UpdateBookmarkNode(std::move(update_node));
-  EXPECT_FALSE(result.has_value());
-  EXPECT_EQ(result.error()->code, mojo_base::mojom::Code::kNotFound);
-}
-
 TEST_F(BookmarksServiceImplTest, UpdateBookmarkNode_PermanentNode_Error) {
   const bookmarks::BookmarkNode* node = model_->bookmark_bar_node();
   ASSERT_TRUE(node);
@@ -375,6 +384,64 @@ TEST_F(BookmarksServiceImplTest, UpdateBookmarkNode_PermanentNode_Error) {
   auto update_node = mojom::BookmarkNode::NewFolder(std::move(folder_node));
 
   auto result = service_->UpdateBookmarkNode(std::move(update_node));
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error()->code, mojo_base::mojom::Code::kInvalidArgument);
+}
+
+TEST_F(BookmarksServiceImplTest, MoveBookmarkNode_Success) {
+  const bookmarks::BookmarkNode* parent = model_->bookmark_bar_node();
+  ASSERT_TRUE(parent);
+  const bookmarks::BookmarkNode* folder =
+      model_->AddFolder(parent, 0, u"Folder");
+  const bookmarks::BookmarkNode* node =
+      model_->AddURL(parent, 1, u"Title", GURL("http://example.com"));
+
+  ASSERT_EQ(parent->children().size(), 2u);
+  ASSERT_EQ(folder->children().size(), 0u);
+
+  auto result = service_->MoveBookmarkNode(node->uuid(), folder->uuid(), 0);
+  ASSERT_TRUE(result.has_value());
+
+  // Verify it was moved in the model.
+  ASSERT_EQ(parent->children().size(), 1u);
+  ASSERT_EQ(folder->children().size(), 1u);
+  EXPECT_EQ(folder->children()[0].get(), node);
+}
+
+TEST_F(BookmarksServiceImplTest, MoveBookmarkNode_ParentNotFolder) {
+  const bookmarks::BookmarkNode* parent = model_->bookmark_bar_node();
+  ASSERT_TRUE(parent);
+  const bookmarks::BookmarkNode* node1 =
+      model_->AddURL(parent, 0, u"Title1", GURL("http://example1.com"));
+  const bookmarks::BookmarkNode* node2 =
+      model_->AddURL(parent, 1, u"Title2", GURL("http://example2.com"));
+
+  auto result = service_->MoveBookmarkNode(node1->uuid(), node2->uuid(), 0);
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error()->code, mojo_base::mojom::Code::kInvalidArgument);
+}
+
+TEST_F(BookmarksServiceImplTest, MoveBookmarkNode_PermanentNode_Error) {
+  const bookmarks::BookmarkNode* parent = model_->bookmark_bar_node();
+  ASSERT_TRUE(parent);
+  const bookmarks::BookmarkNode* folder =
+      model_->AddFolder(parent, 0, u"Folder");
+  const bookmarks::BookmarkNode* node = model_->other_node();
+
+  auto result = service_->MoveBookmarkNode(node->uuid(), folder->uuid(), 0);
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error()->code, mojo_base::mojom::Code::kInvalidArgument);
+}
+
+TEST_F(BookmarksServiceImplTest, MoveBookmarkNode_IndexOutOfRange) {
+  const bookmarks::BookmarkNode* parent = model_->bookmark_bar_node();
+  ASSERT_TRUE(parent);
+  const bookmarks::BookmarkNode* folder =
+      model_->AddFolder(parent, 0, u"Folder");
+  const bookmarks::BookmarkNode* node =
+      model_->AddURL(parent, 1, u"Title", GURL("http://example.com"));
+
+  auto result = service_->MoveBookmarkNode(node->uuid(), folder->uuid(), 5);
   EXPECT_FALSE(result.has_value());
   EXPECT_EQ(result.error()->code, mojo_base::mojom::Code::kInvalidArgument);
 }
@@ -396,12 +463,6 @@ TEST_F(BookmarksServiceImplTest, DeleteBookmarkNode_Success) {
   EXPECT_TRUE(parent->children().empty());
 }
 
-TEST_F(BookmarksServiceImplTest, DeleteBookmarkNode_NotFound) {
-  auto result = service_->DeleteBookmarkNode(base::Uuid::GenerateRandomV4());
-  EXPECT_FALSE(result.has_value());
-  EXPECT_EQ(result.error()->code, mojo_base::mojom::Code::kNotFound);
-}
-
 TEST_F(BookmarksServiceImplTest, DeleteBookmarkNode_PermanentNode_Error) {
   const bookmarks::BookmarkNode* node = model_->bookmark_bar_node();
   ASSERT_TRUE(node);
@@ -409,6 +470,161 @@ TEST_F(BookmarksServiceImplTest, DeleteBookmarkNode_PermanentNode_Error) {
   auto result = service_->DeleteBookmarkNode(node->uuid());
   EXPECT_FALSE(result.has_value());
   EXPECT_EQ(result.error()->code, mojo_base::mojom::Code::kInvalidArgument);
+}
+
+class TestBookmarksObserver : public mojom::BookmarksObserver {
+ public:
+  explicit TestBookmarksObserver(
+      mojo::PendingAssociatedReceiver<mojom::BookmarksObserver> receiver)
+      : receiver_(this, std::move(receiver)) {}
+
+  void OnBookmarksEvents(
+      std::vector<mojom::BookmarksEventPtr> events) override {
+    for (auto& event : events) {
+      events_.push_back(std::move(event));
+    }
+    if (run_loop_) {
+      run_loop_->Quit();
+    }
+  }
+
+  void WaitForEvent() {
+    if (!events_.empty()) {
+      return;
+    }
+    base::RunLoop run_loop;
+    run_loop_ = &run_loop;
+    run_loop.Run();
+    run_loop_ = nullptr;
+  }
+
+  const std::vector<mojom::BookmarksEventPtr>& events() const {
+    return events_;
+  }
+  void ClearEvents() { events_.clear(); }
+
+ private:
+  mojo::AssociatedReceiver<mojom::BookmarksObserver> receiver_;
+  std::vector<mojom::BookmarksEventPtr> events_;
+  raw_ptr<base::RunLoop> run_loop_ = nullptr;
+};
+
+TEST_F(BookmarksServiceImplTest, Observation) {
+  mojom::BookmarksSnapshotPtr snapshot;
+  {
+    base::RunLoop run_loop;
+    remote_service_->GetBookmarks(base::BindOnce(
+        [](mojom::BookmarksSnapshotPtr* out_snapshot,
+           base::OnceClosure quit_closure,
+           mojom::BookmarksService::GetBookmarksResult result) {
+          ASSERT_TRUE(result.has_value());
+          *out_snapshot = std::move(result.value());
+          std::move(quit_closure).Run();
+        },
+        &snapshot, run_loop.QuitClosure()));
+    run_loop.Run();
+  }
+
+  ASSERT_TRUE(snapshot);
+  TestBookmarksObserver observer(std::move(snapshot->stream));
+
+  // Add a bookmark node.
+  const bookmarks::BookmarkNode* parent = model_->bookmark_bar_node();
+  ASSERT_TRUE(parent);
+
+  model_->AddURL(parent, 0, u"Title", GURL("http://example.com"));
+  observer.WaitForEvent();
+
+  ASSERT_EQ(observer.events().size(), 1u);
+  EXPECT_TRUE(observer.events()[0]->is_added());
+  const auto& added = observer.events()[0]->get_added();
+  EXPECT_EQ(added->parent_id, parent->uuid());
+  EXPECT_EQ(added->index, 0);
+  EXPECT_TRUE(added->node->is_url());
+  EXPECT_EQ(added->node->get_url()->title, "Title");
+  EXPECT_EQ(added->node->get_url()->url, GURL("http://example.com"));
+
+  observer.ClearEvents();
+
+  // Move the node.
+  const bookmarks::BookmarkNode* other_parent = model_->other_node();
+  ASSERT_TRUE(other_parent);
+  const bookmarks::BookmarkNode* node = parent->children()[0].get();
+  base::Uuid node_uuid = node->uuid();
+
+  model_->Move(node, other_parent, 0);
+  observer.WaitForEvent();
+
+  ASSERT_EQ(observer.events().size(), 1u);
+  EXPECT_TRUE(observer.events()[0]->is_moved());
+  const auto& moved = observer.events()[0]->get_moved();
+  EXPECT_EQ(moved->old_parent_id, parent->uuid());
+  EXPECT_EQ(moved->old_index, 0);
+  EXPECT_EQ(moved->new_parent_id, other_parent->uuid());
+  EXPECT_EQ(moved->new_index, 0);
+
+  observer.ClearEvents();
+
+  // Change the node.
+  model_->SetTitle(node, u"New Title",
+                   bookmarks::metrics::BookmarkEditSource::kUser);
+  observer.WaitForEvent();
+
+  ASSERT_EQ(observer.events().size(), 1u);
+  EXPECT_TRUE(observer.events()[0]->is_changed());
+  const auto& changed = observer.events()[0]->get_changed();
+  EXPECT_TRUE(changed->node->is_url());
+  EXPECT_EQ(changed->node->get_url()->id, node_uuid);
+  EXPECT_EQ(changed->node->get_url()->title, "New Title");
+
+  observer.ClearEvents();
+
+  // Add another node to other_parent.
+  const bookmarks::BookmarkNode* node2 =
+      model_->AddURL(other_parent, 1, u"Title 2", GURL("http://example2.com"));
+  observer.WaitForEvent();
+  observer.ClearEvents();
+
+  // Reorder other_parent children: [node, node2] -> [node2, node]
+  std::vector<const bookmarks::BookmarkNode*> new_order = {node2, node};
+  model_->ReorderChildren(other_parent, new_order);
+  observer.WaitForEvent();
+
+  ASSERT_EQ(observer.events().size(), 1u);
+  EXPECT_TRUE(observer.events()[0]->is_moved());
+  const auto& moved2 = observer.events()[0]->get_moved();
+  EXPECT_EQ(moved2->old_parent_id, other_parent->uuid());
+  EXPECT_EQ(moved2->old_index, 1);  // node2 was at index 1
+  EXPECT_EQ(moved2->new_parent_id, other_parent->uuid());
+  EXPECT_EQ(moved2->new_index, 0);  // moved to index 0
+
+  observer.ClearEvents();
+
+  // Remove the node.
+  model_->Remove(node, bookmarks::metrics::BookmarkEditSource::kUser,
+                 FROM_HERE);
+  observer.WaitForEvent();
+  observer.ClearEvents();
+
+  // Now other_parent has [node2].
+  // Add node3 to parent (bookmark_bar_node).
+  const bookmarks::BookmarkNode* node3 =
+      model_->AddURL(parent, 0, u"Title 3", GURL("http://example3.com"));
+  observer.WaitForEvent();
+  observer.ClearEvents();
+
+  base::Uuid node2_uuid = node2->uuid();
+  base::Uuid node3_uuid = node3->uuid();
+
+  // Remove all user bookmarks.
+  model_->RemoveAllUserBookmarks(FROM_HERE);
+  observer.WaitForEvent();
+
+  ASSERT_EQ(observer.events().size(), 2u);
+  EXPECT_TRUE(observer.events()[0]->is_removed());
+  EXPECT_EQ(observer.events()[0]->get_removed()->id, node3_uuid);
+  EXPECT_TRUE(observer.events()[1]->is_removed());
+  EXPECT_EQ(observer.events()[1]->get_removed()->id, node2_uuid);
 }
 
 }  // namespace bookmarks_api

@@ -5387,6 +5387,21 @@ Press an assigned switch or key to remove assignment.
   <message name="IDS_SETTINGS_PEOPLE_LOCK_SCREEN_PIN_OR_PASSWORD" desc="The account password or a custom PIN can be used to unlock the device.">
     PIN or password
   </message>
+  <message name="IDS_SETTINGS_PEOPLE_LOCK_SCREEN_PIN_ONLY" desc="The PIN can be used to unlock the device.">
+    PIN only
+  </message>
+  <message name="IDS_SETTINGS_PEOPLE_LOCK_SCREEN_PASSWORD_OR_FINGERPRINT" desc="The account password or a fingerprint can be used to unlock the device.">
+    Password or fingerprint
+  </message>
+  <message name="IDS_SETTINGS_PEOPLE_LOCK_SCREEN_PIN_OR_FINGERPRINT" desc="The PIN or a fingerprint can be used to unlock the device.">
+    PIN or fingerprint
+  </message>
+  <message name="IDS_SETTINGS_PEOPLE_LOCK_SCREEN_PASSWORD_OR_PIN_OR_FINGERPRINT" desc="The account password, PIN or a fingerprint can be used to unlock the device.">
+    Password, PIN or fingerprint
+  </message>
+  <message name="IDS_SETTINGS_PEOPLE_LOCK_SCREEN_NO_AUTH" desc="The account has no authentication factor.">
+    No authentication
+  </message>
   <message name="IDS_SETTINGS_PEOPLE_LOCK_SCREEN_PIN_AUTOSUBMIT" desc="Option to enable PIN auto-submit">
     Unlock automatically once PIN is entered
   </message>

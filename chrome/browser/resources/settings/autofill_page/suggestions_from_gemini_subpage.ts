@@ -5,6 +5,8 @@
 import 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
 import '../settings_page/settings_subpage.js';
 import '../controls/settings_toggle_button.js';
+import '../settings_shared.css.js';
+import './your_saved_info_shared.css.js';
 
 import {OpenWindowProxyImpl} from 'chrome://resources/js/open_window_proxy.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
@@ -31,11 +33,6 @@ export class SettingsSuggestionsFromGeminiSubpageElement extends
     // TODO(crbug.com/512204278): Add metrics.
     OpenWindowProxyImpl.getInstance().openUrl(
         loadTimeData.getString('personalContextConnectedAppsUrl'));
-  }
-
-  private onManageSuggestionsClick_() {
-    // TODO(crbug.com/512204278): Add metrics.
-    // TODO(crbug.com/512202109): Add functionality.
   }
 }
 

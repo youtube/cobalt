@@ -175,6 +175,17 @@ void KeyUploadClientImpl::GetRequest(
     return;
   }
 
+  // CreateRequest() calls PrivateKey::SignSlowly(). The KcerPrivateKey variant
+  // (ChromeOS) blocks on a base::WaitableEvent while the signature is computed
+  // on the Kcer/UI sequence; it scopes a base::ScopedAllowBaseSyncPrimitives
+  // around that wait. The task therefore only needs MayBlock() here.
+  //
+  // TODO(b/524698801): This unconditionally posts to a worker thread, which
+  // forces the KcerPrivateKey variant to bounce back to the UI thread and block
+  // on a WaitableEvent. Delegate the posting / not-posting decision to the
+  // concrete PrivateKey implementation instead (e.g. a thread-safe
+  // PrivateKey::SignOnWorkerThread()), so Kcer keys can sign directly on the UI
+  // thread without the extra thread hop.
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE,
       {base::MayBlock(), base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},

@@ -37,6 +37,7 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/address_list.h"
 #include "net/base/net_errors.h"
+#include "net/base/network_handle.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/socket_test_util.h"
 #include "net/socket/ssl_client_socket.h"
@@ -307,17 +308,23 @@ class TestSocketFactory : public net::ClientSocketFactory {
  private:
   std::unique_ptr<net::DatagramClientSocket> CreateDatagramClientSocket(
       net::DatagramSocket::BindType,
+      net::handles::NetworkHandle target_network,
       net::NetLog*,
       const net::NetLogSource&) override {
+    // This is used only for testing in scenarios that do not involve multiple
+    // networks. With that in mind, it's safe to ignore `target_network`.
     NOTIMPLEMENTED();
     return nullptr;
   }
   std::unique_ptr<net::TransportClientSocket> CreateTransportClientSocket(
       const net::AddressList&,
+      net::handles::NetworkHandle target_network,
       std::unique_ptr<net::SocketPerformanceWatcher>,
       net::NetworkQualityEstimator*,
       net::NetLog*,
       const net::NetLogSource&) override {
+    // This is used only for testing in scenarios that do not involve multiple
+    // networks. With that in mind, it's safe to ignore `target_network`.
     if (tcp_client_socket_) {
       return std::move(tcp_client_socket_);
     }
@@ -500,7 +507,7 @@ class SslCastSocketTest : public CastSocketTestBase {
     ASSERT_EQ(net::OK, tcp_server_socket_->GetLocalAddress(&server_address));
     tcp_client_socket_ = std::make_unique<net::TCPClientSocket>(
         net::AddressList(server_address), nullptr, nullptr, nullptr,
-        net::NetLogSource());
+        net::NetLogSource(), net::handles::kInvalidNetworkHandle);
 
     std::unique_ptr<net::StreamSocket> accepted_socket;
     accept_result_ = tcp_server_socket_->Accept(

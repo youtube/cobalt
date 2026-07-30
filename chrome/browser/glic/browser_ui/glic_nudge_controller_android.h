@@ -20,8 +20,7 @@ namespace glic {
 class GlicNudgeControllerAndroid : public GlicNudgeController,
                                    public TabListInterfaceObserver {
  public:
-  GlicNudgeControllerAndroid(TabListInterface* tab_list,
-                             content::WebContents* web_contents);
+  explicit GlicNudgeControllerAndroid(content::WebContents* web_contents);
   GlicNudgeControllerAndroid(const GlicNudgeControllerAndroid&) = delete;
   GlicNudgeControllerAndroid& operator=(const GlicNudgeControllerAndroid&) =
       delete;
@@ -46,9 +45,6 @@ class GlicNudgeControllerAndroid : public GlicNudgeController,
   void ClearPromptSuggestion() override;
 
  private:
-  raw_ptr<TabListInterface> tab_list_ = nullptr;
-  base::ScopedObservation<TabListInterface, TabListInterfaceObserver>
-      tab_list_observation_{this};
   raw_ptr<GlicNudgeDelegate> tab_strip_delegate_ = nullptr;
   std::optional<std::string> prompt_suggestion_;
   GlicNudgeActivityCallback nudge_activity_callback_;

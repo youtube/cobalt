@@ -55,9 +55,6 @@ class AttemptLoginTool : public Tool {
                               ToolCallback callback) const override;
   tabs::TabHandle GetTargetTab() const override;
 
-  static mojom::ActionResultCode LoginResultToActorResult(
-      actor_login::LoginStatusResult login_result);
-
  private:
   void OnGetCredentials(actor_login::CredentialsOrError credentials);
   void FetchIcons();

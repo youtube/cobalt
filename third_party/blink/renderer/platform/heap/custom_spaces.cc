@@ -24,6 +24,9 @@ constexpr cppgc::CustomSpaceIndex CSSValueSpace::kSpaceIndex;
 constexpr cppgc::CustomSpaceIndex LayoutObjectSpace::kSpaceIndex;
 
 // static
+constexpr cppgc::CustomSpaceIndex ElementSpace::kSpaceIndex;
+
+// static
 std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>
 CustomSpaces::CreateCustomSpaces() {
   std::vector<std::unique_ptr<cppgc::CustomSpaceBase>> spaces;
@@ -32,6 +35,7 @@ CustomSpaces::CreateCustomSpaces() {
   spaces.emplace_back(std::make_unique<NodeSpace>());
   spaces.emplace_back(std::make_unique<CSSValueSpace>());
   spaces.emplace_back(std::make_unique<LayoutObjectSpace>());
+  spaces.emplace_back(std::make_unique<ElementSpace>());
   return spaces;
 }
 

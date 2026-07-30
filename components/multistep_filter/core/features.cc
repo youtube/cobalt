@@ -53,7 +53,4 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    &kMultistepFilter,
                    base::Minutes(2));
 
-// JSON map of task types to string templates for contextual cues.
-BASE_FEATURE_PARAM(std::string, kCueTemplatesMap, &kMultistepFilter, "{}");
-
 }  // namespace multistep_filter

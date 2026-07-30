@@ -450,24 +450,6 @@ void HatsNotificationController::OnShuttingDown() {
 void HatsNotificationController::OnProfileWillBeDestroyed(Profile* profile) {
   CHECK_EQ(profile_, profile);
 
-  if (!notification_id_.empty()) {
-    // TODO(crbug.com/422687291): Fix
-    // MediaAppIntegrationTest.MaybeTriggerPhotosHats by dismissing its HaTS
-    // notification before browser shutdown so the null check and
-    // CHECK_IS_TEST() branch below can be removed.
-    //
-    // MessageCenter can be gone during browser-test shutdown ordering, while
-    // production code should always expect a non-null MessageCenter here.
-    message_center::MessageCenter* message_center =
-        message_center::MessageCenter::Get();
-    if (message_center) {
-      message_center->RemoveNotification(notification_id_, /*by_user=*/false);
-    } else {
-      CHECK_IS_TEST();
-    }
-    notification_id_.clear();
-  }
-
   network_state_observation_.Reset();
   profile_ = nullptr;
   profile_observation_.Reset();

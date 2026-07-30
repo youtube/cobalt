@@ -26,6 +26,7 @@ class CORE_EXPORT StyleRuleViewTransition : public StyleRuleBase {
   const CSSValue* GetNavigationValue() const { return navigation_.Get(); }
 
   const Vector<String>& GetTypes() const { return types_; }
+  const CSSValue* GetTypesValue() const { return types_value_.Get(); }
 
   StyleRuleViewTransition* Copy() const {
     return MakeGarbageCollected<StyleRuleViewTransition>(*this);
@@ -35,6 +36,7 @@ class CORE_EXPORT StyleRuleViewTransition : public StyleRuleBase {
 
  private:
   Member<const CSSValue> navigation_;
+  Member<const CSSValue> types_value_;
   Vector<String> types_;
 };
 

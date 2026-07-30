@@ -108,10 +108,10 @@ class JournalObserver : public mojom::JournalClient,
   void AddEntriesToJournal(
       std::vector<mojom::JournalEntryPtr> entries) override {
     NonTerminatedJournalEntries::GetOrCreateForCurrentDocument(
-        journal_host_receivers_.GetCurrentTargetFrame())
+        &journal_host_receivers_.CurrentTargetFrame())
         ->TrackEntries(pass_key_, journal_, entries);
     journal_->AppendJournalEntries(
-        journal_host_receivers_.GetCurrentTargetFrame()->GetLastCommittedURL(),
+        journal_host_receivers_.CurrentTargetFrame().GetLastCommittedURL(),
         std::move(entries));
   }
 

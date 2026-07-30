@@ -13,8 +13,12 @@
 #include "base/memory/raw_ptr.h"
 #include "base/test/mock_callback.h"
 #include "components/browser_apis/tab_drag/adapters/tab_drag_session_input_adapter.h"
+#include "components/browser_apis/tab_drag/sessions/drop_target.h"
+#include "components/browser_apis/tab_drag/sessions/drop_target_registry.h"
 #include "components/browser_apis/tab_drag/sessions/tab_drag_session_injector.h"
 #include "components/browser_apis/tab_drag/sessions/tab_drag_session_listener.h"
+#include "components/browser_apis/tab_drag/sessions/tab_drag_window_registry.h"
+#include "components/browser_apis/tab_drag/testing/toy_drop_target_registry.h"
 #include "components/browser_apis/tab_drag/testing/toy_tab_drag_session_input_adapter.h"
 #include "components/browser_apis/tab_drag/testing/toy_tab_drag_session_listener.h"
 #include "components/browser_apis/tab_drag/testing/toy_tab_drag_window_adapter.h"
@@ -29,48 +33,23 @@ namespace tabs_api {
 
 class TabDragSessionTest : public ::testing::Test {
  protected:
-  TabDragSessionTest() : dummy_window_(gfx::Rect(0, 0, 100, 100)) {}
+  TabDragSessionTest() : dummy_window_(gfx::Rect(0, 0, 100, 100), &registry_) {}
   ~TabDragSessionTest() override = default;
 
+  TabDragWindowRegistry registry_;
   ToyTabDragWindowAdapter dummy_window_;
 };
 
-class ToyDropTargetRegistry : public DropTargetRegistry {
- public:
-  void RegisterDropTarget(
-      TabDragWindowAdapter* window_adapter,
-      mojo::PendingAssociatedRemote<mojom::DropTarget> target,
-      mojo::PendingAssociatedReceiver<mojom::DropTargetRegistration>
-          registration) override {}
-  void UnregisterDropTarget(TabDragWindowAdapter* window_adapter) override {}
-
-  std::optional<std::reference_wrapper<TabDragWindowAdapter>> FindTargetWindow(
-      const gfx::Point& screen_point,
-      TabDragWindowAdapter* exclude_window) const override {
-    return target_window_ ? std::make_optional(std::ref(*target_window_))
-                          : std::nullopt;
-  }
-
-  std::optional<std::reference_wrapper<mojom::DropTarget>> GetDropTarget(
-      TabDragWindowAdapter* window_adapter) const override {
-    return std::nullopt;
-  }
-
-  void set_target_window(TabDragWindowAdapter* window) {
-    target_window_ = window;
-  }
-
- private:
-  raw_ptr<TabDragWindowAdapter> target_window_ = nullptr;
-};
 
 TEST_F(TabDragSessionTest, StartAndReleaseCapture) {
   ToyTabDragSessionInputAdapter toy_adapter;
   ToyTabDragSessionListener listener;
   ToyDropTargetRegistry dummy_registry;
-  ToyTabDragSessionInjector injector(toy_adapter, listener, dummy_registry);
+  TabDragWindowRegistry registry;
+  ToyTabDragSessionInjector injector(toy_adapter, listener, dummy_registry,
+                                     &registry);
   base::MockOnceClosure end_callback;
-  ToyTabDragWindowAdapter toy_window(gfx::Rect(0, 0, 100, 100));
+  ToyTabDragWindowAdapter toy_window(gfx::Rect(0, 0, 100, 100), &registry);
 
   EXPECT_FALSE(toy_adapter.capture_started());
   EXPECT_FALSE(toy_adapter.capture_released());
@@ -78,7 +57,7 @@ TEST_F(TabDragSessionTest, StartAndReleaseCapture) {
 
   {
     TabDragSessionParams params{
-        .source_window = &toy_window,
+        .source_window_id = toy_window.GetWindowId(),
         .source_tab_ids = {NodeId(NodeId::Type::kContent, "tab1")},
         .start_point = gfx::Point(),
         .end_callback = end_callback.Get()};
@@ -98,11 +77,12 @@ TEST_F(TabDragSessionTest, InputEventCancelled) {
   ToyTabDragSessionInputAdapter toy_adapter;
   ToyTabDragSessionListener listener;
   ToyDropTargetRegistry dummy_registry;
-  ToyTabDragSessionInjector injector(toy_adapter, listener, dummy_registry);
+  ToyTabDragSessionInjector injector(toy_adapter, listener, dummy_registry,
+                                     &registry_);
   base::MockOnceClosure end_callback;
 
   TabDragSessionParams params{
-      .source_window = &dummy_window_,
+      .source_window_id = dummy_window_.GetWindowId(),
       .source_tab_ids = {NodeId(NodeId::Type::kContent, "tab1")},
       .start_point = gfx::Point(),
       .end_callback = end_callback.Get()};
@@ -117,11 +97,12 @@ TEST_F(TabDragSessionTest, InputEventDropped) {
   ToyTabDragSessionInputAdapter toy_adapter;
   ToyTabDragSessionListener listener;
   ToyDropTargetRegistry dummy_registry;
-  ToyTabDragSessionInjector injector(toy_adapter, listener, dummy_registry);
+  ToyTabDragSessionInjector injector(toy_adapter, listener, dummy_registry,
+                                     &registry_);
   base::MockOnceClosure end_callback;
 
   TabDragSessionParams params{
-      .source_window = &dummy_window_,
+      .source_window_id = dummy_window_.GetWindowId(),
       .source_tab_ids = {NodeId(NodeId::Type::kContent, "tab1")},
       .start_point = gfx::Point(),
       .end_callback = end_callback.Get()};
@@ -136,12 +117,14 @@ TEST_F(TabDragSessionTest, CoordinateTracking) {
   ToyTabDragSessionInputAdapter toy_adapter;
   ToyTabDragSessionListener listener;
   ToyDropTargetRegistry dummy_registry;
-  ToyTabDragSessionInjector injector(toy_adapter, listener, dummy_registry);
+  dummy_registry.set_source_window(&dummy_window_);
+  ToyTabDragSessionInjector injector(toy_adapter, listener, dummy_registry,
+                                     &registry_);
   base::MockOnceClosure end_callback;
 
   gfx::Point start_point(10, 10);
   TabDragSessionParams params{
-      .source_window = &dummy_window_,
+      .source_window_id = dummy_window_.GetWindowId(),
       .source_tab_ids = {NodeId(NodeId::Type::kContent, "tab1")},
       .start_point = start_point,
       .end_callback = end_callback.Get()};
@@ -173,11 +156,14 @@ TEST_F(TabDragSessionTest, ListenerNotification) {
   base::MockOnceClosure end_callback;
   ToyTabDragSessionListener listener;
   ToyDropTargetRegistry registry;
-  ToyTabDragSessionInjector injector(toy_adapter, listener, registry);
+  registry.set_source_window(&dummy_window_);
+  ToyTabDragSessionInjector injector(toy_adapter, listener, registry,
+                                     &registry_);
+  ToyTabDragWindowAdapter target_window(gfx::Rect(0, 0, 100, 100), &registry_);
 
   std::vector<tabs_api::NodeId> tab_ids = {
       NodeId(NodeId::Type::kContent, "tab1")};
-  TabDragSessionParams params{.source_window = &dummy_window_,
+  TabDragSessionParams params{.source_window_id = dummy_window_.GetWindowId(),
                               .source_tab_ids = tab_ids,
                               .start_point = gfx::Point(),
                               .end_callback = end_callback.Get()};
@@ -189,10 +175,18 @@ TEST_F(TabDragSessionTest, ListenerNotification) {
   EXPECT_EQ(listener.events()[0].type,
             ToyTabDragSessionListener::Event::Type::kStarted);
   EXPECT_EQ(listener.events()[0].dragged_tabs, tab_ids);
-  EXPECT_EQ(listener.events()[0].window, &dummy_window_);
+  EXPECT_EQ(listener.events()[0].window_id, dummy_window_.GetWindowId());
+  EXPECT_EQ(listener.events()[0].point, gfx::Point());
 
-  // Move to a target window
-  ToyTabDragWindowAdapter target_window(gfx::Rect(0, 0, 100, 100));
+  // Move outside source window to trigger tear-off.
+  // dummy_window_ is (0,0, 100,100). Threshold is 15.
+  gfx::Point tear_point(120, 120);
+  toy_adapter.SendToyEvent(TabDragInputEvent::Type::kMoved, tear_point);
+
+  // No event is fired during tear-off in the simplified design.
+  ASSERT_EQ(listener.events().size(), 1u);
+
+  // Move to a target window (simulate merge)
   registry.set_target_window(&target_window);
   gfx::Point move_point1(10, 20);
   toy_adapter.SendToyEvent(TabDragInputEvent::Type::kMoved, move_point1);
@@ -200,7 +194,7 @@ TEST_F(TabDragSessionTest, ListenerNotification) {
   ASSERT_EQ(listener.events().size(), 2u);
   EXPECT_EQ(listener.events()[1].type,
             ToyTabDragSessionListener::Event::Type::kTargetChanged);
-  EXPECT_EQ(listener.events()[1].window, &target_window);
+  EXPECT_EQ(listener.events()[1].target, registry.target_id());
   EXPECT_EQ(listener.events()[1].point, move_point1);
 
   // Move within the target window
@@ -228,12 +222,15 @@ TEST_F(TabDragSessionTest, CaptureLostExternally) {
   ToyTabDragSessionInputAdapter toy_adapter;
   ToyTabDragSessionListener listener;
   ToyDropTargetRegistry registry;
-  ToyTabDragSessionInjector injector(toy_adapter, listener, registry);
+  TabDragWindowRegistry window_registry;
+  ToyTabDragSessionInjector injector(toy_adapter, listener, registry,
+                                     &window_registry);
   base::MockOnceClosure end_callback;
-  ToyTabDragWindowAdapter toy_window(gfx::Rect(0, 0, 100, 100));
+  ToyTabDragWindowAdapter toy_window(gfx::Rect(0, 0, 100, 100),
+                                     &window_registry);
 
   TabDragSessionParams params{
-      .source_window = &toy_window,
+      .source_window_id = toy_window.GetWindowId(),
       .source_tab_ids = {NodeId(NodeId::Type::kContent, "tab1")},
       .start_point = gfx::Point(),
       .end_callback = end_callback.Get()};
@@ -245,6 +242,124 @@ TEST_F(TabDragSessionTest, CaptureLostExternally) {
   toy_window.ReleaseCapture();
   EXPECT_CALL(end_callback, Run()).Times(1);
   toy_adapter.SendToyEvent(TabDragInputEvent::Type::kCaptureChanged);
+}
+
+TEST_F(TabDragSessionTest, DropTargetBoundsTearOff) {
+  ToyTabDragSessionInputAdapter toy_adapter;
+  ToyTabDragSessionListener listener;
+  ToyDropTargetRegistry registry;
+  registry.set_source_window(&dummy_window_);
+  ToyTabDragSessionInjector injector(toy_adapter, listener, registry,
+                                     &registry_);
+  base::MockOnceClosure end_callback;
+
+  // Set cached bounds on the source drop target.
+  // Window bounds are (0, 0, 100, 100). We set drop target bounds to (10, 10,
+  // 80, 20). With kTearThreshold = 15, the tear-off bounds will be (-5, -5,
+  // 110, 50).
+  registry.UpdateTargetBounds(registry.source_id(), gfx::Rect(10, 10, 80, 20));
+
+  std::vector<tabs_api::NodeId> tab_ids = {
+      NodeId(NodeId::Type::kContent, "tab1")};
+  TabDragSessionParams params{.source_window_id = dummy_window_.GetWindowId(),
+                              .source_tab_ids = tab_ids,
+                              .start_point = gfx::Point(),
+                              .end_callback = end_callback.Get()};
+  TabDragSession session(std::move(params), &injector);
+
+  EXPECT_TRUE(session.Start().has_value());
+
+  // Move mouse to (50, 30). This is inside the active bounds (-5, -5, 110, 50).
+  // It should remain attached.
+  gfx::Point inside_point(50, 30);
+  toy_adapter.SendToyEvent(TabDragInputEvent::Type::kMoved, inside_point);
+  ASSERT_EQ(listener.events().size(), 2u);  // Started, DragMoved
+  EXPECT_EQ(listener.events()[1].type,
+            ToyTabDragSessionListener::Event::Type::kMoved);
+
+  // Move mouse to (50, 60). This is outside the active bounds (-5, -5, 110, 50)
+  // but inside the window. It should trigger tear-off (transition to detached).
+  gfx::Point tear_point(50, 60);
+  toy_adapter.SendToyEvent(TabDragInputEvent::Type::kMoved, tear_point);
+
+  // Event count remains 2 (no Moved event for detached transition).
+  ASSERT_EQ(listener.events().size(), 2u);
+
+  // Move to a target window (simulate merge) to verify we are indeed detached.
+  ToyTabDragWindowAdapter target_window(gfx::Rect(200, 200, 100, 100),
+                                        &registry_);
+  registry.set_target_window(&target_window);
+  gfx::Point target_point(250, 250);
+  toy_adapter.SendToyEvent(TabDragInputEvent::Type::kMoved, target_point);
+
+  // If we were detached, this move should transition us back to attached and
+  // fire OnTargetChanged.
+  ASSERT_EQ(listener.events().size(), 3u);
+  EXPECT_EQ(listener.events()[2].type,
+            ToyTabDragSessionListener::Event::Type::kTargetChanged);
+  EXPECT_EQ(listener.events()[2].target, registry.target_id());
+
+  EXPECT_CALL(end_callback, Run()).Times(1);
+  toy_adapter.SendToyEvent(TabDragInputEvent::Type::kDropped, target_point);
+}
+
+TEST_F(TabDragSessionTest, DropTargetBoundsAttach) {
+  ToyTabDragSessionInputAdapter toy_adapter;
+  ToyTabDragSessionListener listener;
+  ToyDropTargetRegistry registry;
+  registry.set_source_window(&dummy_window_);
+  ToyTabDragSessionInjector injector(toy_adapter, listener, registry,
+                                     &registry_);
+  base::MockOnceClosure end_callback;
+  ToyTabDragWindowAdapter target_window(gfx::Rect(200, 200, 100, 100),
+                                        &registry_);
+  registry.set_target_window(&target_window);
+
+  // Set cached bounds on the target drop target.
+  // Target window is (200, 200, 100, 100).
+  // We set drop target bounds to (10, 10, 80, 20) relative to the target
+  // window. So in screen coordinates, the target drop target is at (210, 210,
+  // 80, 20).
+  registry.UpdateTargetBounds(registry.target_id(), gfx::Rect(10, 10, 80, 20));
+
+  std::vector<tabs_api::NodeId> tab_ids = {
+      NodeId(NodeId::Type::kContent, "tab1")};
+  TabDragSessionParams params{.source_window_id = dummy_window_.GetWindowId(),
+                              .source_tab_ids = tab_ids,
+                              .start_point = gfx::Point(),
+                              .end_callback = end_callback.Get()};
+  TabDragSession session(std::move(params), &injector);
+
+  EXPECT_TRUE(session.Start().has_value());
+
+  // Move outside source window to trigger tear-off.
+  gfx::Point tear_point(150, 150);
+  toy_adapter.SendToyEvent(TabDragInputEvent::Type::kMoved, tear_point);
+
+  // Now in detached mode.
+  // Move mouse to (250, 290). This is inside the target window (200, 200, 100,
+  // 100) but outside the target drop target bounds (210, 210, 80, 20) -> local
+  // (50, 90). It should NOT attach.
+  gfx::Point outside_target_drop_bounds(250, 290);
+  toy_adapter.SendToyEvent(TabDragInputEvent::Type::kMoved,
+                           outside_target_drop_bounds);
+  ASSERT_EQ(listener.events().size(), 1u);
+
+  // Move mouse to (250, 220). This is inside the target drop target bounds
+  // (210, 210, 80, 20) -> local (50, 20). It should attach and trigger
+  // OnTargetChanged.
+  gfx::Point inside_target_drop_bounds(250, 220);
+  toy_adapter.SendToyEvent(TabDragInputEvent::Type::kMoved,
+                           inside_target_drop_bounds);
+
+  ASSERT_EQ(listener.events().size(), 2u);
+  EXPECT_EQ(listener.events()[1].type,
+            ToyTabDragSessionListener::Event::Type::kTargetChanged);
+  EXPECT_EQ(listener.events()[1].target, registry.target_id());
+
+  EXPECT_CALL(end_callback, Run()).Times(1);
+  toy_adapter.SendToyEvent(TabDragInputEvent::Type::kDropped,
+                           inside_target_drop_bounds);
 }
 
 }  // namespace tabs_api

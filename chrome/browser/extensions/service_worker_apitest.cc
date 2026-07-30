@@ -17,6 +17,9 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
+#include "base/strings/escape.h"
+#include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
@@ -67,6 +70,7 @@
 #include "content/public/test/background_sync_test_util.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "content/public/test/content_mock_cert_verifier.h"
 #include "content/public/test/service_worker_test_helpers.h"
 #include "extensions/browser/api/web_request/extension_web_request_event_router.h"
 #include "extensions/browser/api/web_request/web_request_api_helpers.h"
@@ -84,6 +88,7 @@
 #include "extensions/browser/unpacked_installer.h"
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/common/api/test.h"
+#include "extensions/common/extension_features.h"
 #include "extensions/common/extensions_client.h"
 #include "extensions/common/features/feature_channel.h"
 #include "extensions/common/manifest_handlers/background_info.h"
@@ -1813,6 +1818,127 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerPushMessagingTest,
 // Android.
 IN_PROC_BROWSER_TEST_F(ServiceWorkerTest, MimeHandlerView) {
   ASSERT_TRUE(RunExtensionTest("service_worker/mime_handler_view"));
+}
+
+constexpr char kPdfTestDataDir[] = "chrome/test/data/pdf";
+constexpr char kGenericMimeHandlerTestDataDir[] =
+    "chrome/test/data/extensions/api_test/service_worker/generic_mime_handler";
+// Relative to `test_data_dir_` (rooted at
+// `chrome/test/data/extensions/api_test`), not the source tree.
+constexpr char kGenericMimeHandlerExtensionDir[] =
+    "service_worker/generic_mime_handler";
+
+// `example.test` is used (not `localhost`) because `localhost` short-
+// circuits as trustworthy in `network::IsOriginPotentiallyTrustworthy()`,
+// which would mask the non-trustworthy HTTP top required by the bug.
+class ServiceWorkerGenericMimeHandlerSecureContextTestBase
+    : public ServiceWorkerTest {
+ public:
+  ServiceWorkerGenericMimeHandlerSecureContextTestBase() {
+    scoped_feature_list_.InitAndEnableFeature(
+        extensions_features::kApiMimeHandler);
+  }
+
+ protected:
+  // ServiceWorkerTest:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    ServiceWorkerTest::SetUpCommandLine(command_line);
+    mock_cert_verifier_.SetUpCommandLine(command_line);
+  }
+
+  void SetUpInProcessBrowserTestFixture() override {
+    ServiceWorkerTest::SetUpInProcessBrowserTestFixture();
+    mock_cert_verifier_.SetUpInProcessBrowserTestFixture();
+  }
+
+  void TearDownInProcessBrowserTestFixture() override {
+    mock_cert_verifier_.TearDownInProcessBrowserTestFixture();
+    ServiceWorkerTest::TearDownInProcessBrowserTestFixture();
+  }
+
+  void SetUpOnMainThread() override {
+    ServiceWorkerTest::SetUpOnMainThread();
+    host_resolver()->AddRule("*", "127.0.0.1");
+    mock_cert_verifier_.mock_cert_verifier()->set_default_result(net::OK);
+    embedded_test_server()->ServeFilesFromSourceDirectory(kPdfTestDataDir);
+    ASSERT_TRUE(StartEmbeddedTestServer());
+
+    https_server_.SetSSLConfig(net::EmbeddedTestServer::CERT_TEST_NAMES);
+    https_server_.ServeFilesFromSourceDirectory(kGenericMimeHandlerTestDataDir);
+    ASSERT_TRUE(https_server_.Start());
+  }
+
+  net::EmbeddedTestServer& https_server() { return https_server_; }
+
+  // Navigates to `url`, waits for the inner frame's `inner-report:<json>`
+  // message, and asserts that the HTTPS subframe, which is a subframe of the
+  // MIME-handler extension OOPIF, is a secure context with a working SW
+  // pipeline. The SW probe is bounded by a 5s timeout inside inner.js, so a
+  // hang surfaces as `error`, not a framework timeout.
+  void NavigateAndAssertInnerSecure(const GURL& url) {
+    const Extension* extension = LoadExtension(
+        test_data_dir_.AppendASCII(kGenericMimeHandlerExtensionDir));
+    ASSERT_TRUE(extension);
+
+    ExtensionTestMessageListener listener;
+    listener.set_extension_id(extension->id());
+    ASSERT_TRUE(NavigateToURL(GetActiveWebContents(), url));
+    ASSERT_TRUE(listener.WaitUntilSatisfied()) << listener.message();
+
+    constexpr std::string_view kInnerReportPrefix = "inner-report:";
+    ASSERT_TRUE(base::StartsWith(listener.message(), kInnerReportPrefix))
+        << listener.message();
+    std::optional<base::DictValue> report = base::JSONReader::ReadDict(
+        std::string_view(listener.message()).substr(kInnerReportPrefix.size()),
+        /*options=*/0);
+    ASSERT_TRUE(report.has_value()) << listener.message();
+
+    EXPECT_THAT(report->FindBool("isSecureContext"), testing::Optional(true));
+    EXPECT_THAT(report->FindBool("hasServiceWorkerAPI"),
+                testing::Optional(true));
+    const std::string* error = report->FindString("error");
+    EXPECT_THAT(report->FindBool("registered"), testing::Optional(true))
+        << "SW registration error: " << (error ? *error : "(none)");
+    EXPECT_THAT(report->FindBool("fetchOk"), testing::Optional(true))
+        << "SW fetch error: " << (error ? *error : "(none)");
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+  content::ContentMockCertVerifier mock_cert_verifier_;
+  net::EmbeddedTestServer https_server_{net::EmbeddedTestServer::TYPE_HTTPS};
+};
+
+using ServiceWorkerGenericMimeHandlerSecureContextTest =
+    ServiceWorkerGenericMimeHandlerSecureContextTestBase;
+
+IN_PROC_BROWSER_TEST_F(ServiceWorkerGenericMimeHandlerSecureContextTest,
+                       HttpsSubframeUnderHttpEmbedderIsSecureContext) {
+  GURL pdf = embedded_test_server()->GetURL("example.test", "/test.pdf");
+  GURL inner = https_server().GetURL("example.test", "/inner.html");
+  NavigateAndAssertInnerSecure(GURL(base::StrCat(
+      {pdf.spec(), "#",
+       base::EscapeQueryParamValue(inner.spec(), /*use_plus=*/false)})));
+}
+
+using ServiceWorkerGenericMimeHandlerSecureContextEmbeddedPdfTest =
+    ServiceWorkerGenericMimeHandlerSecureContextTestBase;
+
+// The MIME-handler OOPIF is treated as a secure-context root regardless
+// of where its embedder sits: the embedder may be the outermost main
+// frame (as above) or an `<iframe src="*.pdf">` inside an HTTP HTML
+// page. In both cases process isolation stops the embedder above the
+// wrapper iframe from reading the DOM, intercepting network, or
+// scripting descendants of the OOPIF.
+IN_PROC_BROWSER_TEST_F(
+    ServiceWorkerGenericMimeHandlerSecureContextEmbeddedPdfTest,
+    EmbeddedPdfInHttpPageHttpsSubframeIsSecureContext) {
+  GURL inner = https_server().GetURL("example.test", "/inner.html");
+  GURL embedder = embedded_test_server()->GetURL("example.test",
+                                                 "/embed-mime-handler.html");
+  NavigateAndAssertInnerSecure(GURL(base::StrCat(
+      {embedder.spec(), "?inner=",
+       base::EscapeQueryParamValue(inner.spec(), /*use_plus=*/false)})));
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 

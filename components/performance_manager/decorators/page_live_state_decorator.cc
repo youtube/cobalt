@@ -650,7 +650,9 @@ void PageLiveStateDecorator::OnTitleUpdated(const PageNode* page_node) {
       ->set_updated_title_or_favicon_in_background(true);
 }
 
-void PageLiveStateDecorator::OnFaviconUpdated(const PageNode* page_node) {
+void PageLiveStateDecorator::OnFaviconUpdated(
+    const PageNode* page_node,
+    blink::mojom::FaviconUpdateReason reason) {
   if (page_node->IsVisible()) {
     return;
   }

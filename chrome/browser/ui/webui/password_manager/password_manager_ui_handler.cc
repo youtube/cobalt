@@ -66,13 +66,13 @@ void PasswordManagerUIHandler::ExtendAuthValidity() {
 void PasswordManagerUIHandler::DeleteAllPasswordManagerData(
     DeleteAllPasswordManagerDataCallback callback) {
   passwords_private_delegate_->DeleteAllPasswordManagerData(
-      web_contents_, std::move(callback));
+      std::move(callback));
 }
 
 void PasswordManagerUIHandler::CopyPlaintextBackupPassword(
     int id,
     CopyPlaintextBackupPasswordCallback callback) {
-  passwords_private_delegate_->CopyPlaintextBackupPassword(id, web_contents_,
+  passwords_private_delegate_->CopyPlaintextBackupPassword(id,
                                                            std::move(callback));
 }
 
@@ -130,7 +130,7 @@ void PasswordManagerUIHandler::IsAccountStorageActive(
 }
 
 void PasswordManagerUIHandler::SetAccountStorageEnabled(bool enabled) {
-  passwords_private_delegate_->SetAccountStorageEnabled(enabled, web_contents_);
+  passwords_private_delegate_->SetAccountStorageEnabled(enabled);
 }
 
 void PasswordManagerUIHandler::ShouldShowAccountStorageSettingToggle(
@@ -142,7 +142,7 @@ void PasswordManagerUIHandler::ShouldShowAccountStorageSettingToggle(
 void PasswordManagerUIHandler::SwitchBiometricAuthBeforeFillingState(
     SwitchBiometricAuthBeforeFillingStateCallback callback) {
   passwords_private_delegate_->SwitchBiometricAuthBeforeFillingState(
-      web_contents_, std::move(callback));
+      std::move(callback));
 }
 
 void PasswordManagerUIHandler::StartPasswordChange(int credential_id) {
@@ -163,14 +163,13 @@ void PasswordManagerUIHandler::ShowLastExportedFileInShell() {
 void PasswordManagerUIHandler::DisconnectCloudAuthenticator(
     DisconnectCloudAuthenticatorCallback callback) {
   passwords_private_delegate_->DisconnectCloudAuthenticator(
-      web_contents_, std::move(callback));
+      std::move(callback));
 }
 
 void PasswordManagerUIHandler::IsConnectedToCloudAuthenticator(
     IsConnectedToCloudAuthenticatorCallback callback) {
   std::move(callback).Run(
-      passwords_private_delegate_->IsConnectedToCloudAuthenticator(
-          web_contents_));
+      passwords_private_delegate_->IsConnectedToCloudAuthenticator());
 }
 
 void PasswordManagerUIHandler::UndoRemoveSavedPasswordOrException() {

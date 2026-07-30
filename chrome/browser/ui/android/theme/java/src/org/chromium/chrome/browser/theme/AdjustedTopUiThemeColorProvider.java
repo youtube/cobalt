@@ -71,15 +71,19 @@ public class AdjustedTopUiThemeColorProvider extends TopUiThemeColorProvider {
     @VisibleForTesting
     @Override
     protected void updateColor(Tab tab, @ColorInt int themeColor, boolean shouldAnimate) {
+        // By default update the color normally. If applicable we will override the icon color
+        // after.
+        super.updateColor(tab, themeColor, shouldAnimate);
+
         if (!tab.isNativePage() || !assumeNonNull(tab.getNativePage()).useLightIconTint()) {
-            super.updateColor(tab, themeColor, shouldAnimate);
             return;
         }
-
-        // Only light tint color is used if adjustTintColor is true.
+        // The native page has elected to force a light icon tint (NTP customization with a custom
+        // image for the toolbar). Emulate the toolbar being "dark theme" to ensure light colors are
+        // used for icons.
         ColorStateList iconTint =
                 mContext.getColorStateList(R.color.default_icon_color_white_tint_list);
-        super.updateTint(iconTint, iconTint, BrandedColorScheme.DARK_BRANDED_THEME);
+        updateTint(iconTint, iconTint, BrandedColorScheme.DARK_BRANDED_THEME);
     }
 
     @Override

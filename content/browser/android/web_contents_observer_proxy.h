@@ -87,8 +87,6 @@ class WebContentsObserverProxy : public WebContentsObserver {
 
   base::android::ScopedJavaLocalRef<jobject> GetJavaObjectChecked(
       JNIEnv* env) const;
-
-  GURL base_url_of_last_started_data_url_;
 };
 
 }  // namespace content

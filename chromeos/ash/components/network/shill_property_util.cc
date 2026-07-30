@@ -388,6 +388,8 @@ bool IsLoggableShillProperty(std::string_view key) {
           shill::kEapCaCertProperty,
           shill::kEapPasswordProperty,
           shill::kEapPinProperty,
+          shill::kIKEv2CaCertPemProperty,
+          shill::kIKEv2PskProperty,
           shill::kL2TPIPsecCaCertPemProperty,
           shill::kL2TPIPsecPasswordProperty,
           shill::kL2TPIPsecPinProperty,
@@ -401,6 +403,8 @@ bool IsLoggableShillProperty(std::string_view key) {
           shill::kOpenVPNTLSAuthContentsProperty,
           shill::kPassphraseProperty,
           shill::kUIDataProperty,
+          shill::kWireGuardPeers,
+          shill::kWireGuardPrivateKey,
       });
   return !kSSkipProperties.contains(key);
 }

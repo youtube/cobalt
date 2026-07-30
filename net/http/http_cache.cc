@@ -145,7 +145,7 @@ disk_cache::BackendResult HttpCache::DefaultBackend::CreateBackend(
   disk_cache::ResetHandling reset_handling =
       hard_reset_ ? disk_cache::ResetHandling::kReset
                   : disk_cache::ResetHandling::kResetOnError;
-  LOCAL_HISTOGRAM_BOOLEAN("HttpCache.HardReset", hard_reset_);
+  UMA_HISTOGRAM_BOOLEAN("HttpCache.HardReset", hard_reset_);
 #if BUILDFLAG(IS_ANDROID)
   if (app_status_listener_getter_) {
     return disk_cache::CreateCacheBackend(
@@ -772,19 +772,23 @@ HttpCache::SetHttpNetworkTransactionFactoryForTesting(
 }
 
 // static
-std::string HttpCache::GetResourceURLFromHttpCacheKey(const std::string& key) {
+std::string_view HttpCache::GetResourceURLFromHttpCacheKey(
+    std::string_view key) {
   // The key format is:
   // credential_key/post_key/[isolation_key]url
 
-  std::string::size_type pos = 0;
-  pos = key.find('/', pos) + 1;  // Consume credential_key/
-  pos = key.find('/', pos) + 1;  // Consume post_key/
-
-  // It is a good idea to make this function tolerate invalid input. This can
-  // happen because of disk corruption.
-  if (pos == std::string::npos) {
-    return "";
+  size_t pos = 0;
+  // Consume credential_key/
+  pos = key.find('/', pos);
+  if (pos == std::string_view::npos) {
+    return {};
   }
+  // Consume post_key/
+  pos = key.find('/', pos + 1);
+  if (pos == std::string_view::npos) {
+    return {};
+  }
+  pos += 1;
 
   // Consume [isolation_key].
   // Search the key to see whether it begins with |kDoubleKeyPrefix|. If so,
@@ -798,9 +802,10 @@ std::string HttpCache::GetResourceURLFromHttpCacheKey(const std::string& key) {
     // the original resource url is valid, and hence will not contain the
     // unescaped whitespace of |kDoubleKeySeparator|.
     pos = key.rfind(kDoubleKeySeparator);
-    DCHECK_NE(pos, std::string::npos);
+    if (pos == std::string_view::npos) {
+      return {};
+    }
     pos += strlen(kDoubleKeySeparator);
-    DCHECK_LE(pos, key.size() - 1);
   }
   return key.substr(pos);
 }
@@ -1970,8 +1975,7 @@ bool HttpCache::IsInvalidated(disk_cache::Entry* entry) {
 
     // Lazily parse the URL from the cache key exactly once per entry check.
     if (!parsed_url) {
-      std::string url_str = GetResourceURLFromHttpCacheKey(entry->GetKey());
-      parsed_url = GURL(url_str);
+      parsed_url = GURL(GetResourceURLFromHttpCacheKey(entry->GetKey()));
       if (!parsed_url->is_valid()) {
         return false;
       }

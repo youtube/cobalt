@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/no_destructor.h"
 #include "chrome/browser/vr/test/mock_xr_device_hook_base.h"
 #include "chrome/browser/vr/test/multi_class_browser_test.h"
 #include "chrome/browser/vr/test/ui_utils.h"
@@ -15,6 +16,9 @@ namespace vr {
 namespace {
 class MockForLayers : public MockXRDeviceHookBase {
  public:
+  explicit MockForLayers(int color_tolerance = 0)
+      : color_tolerance_(color_tolerance) {}
+
   void ProcessSubmittedFrameUnlocked(
       const std::vector<device::ViewData>& views,
       const std::vector<device::LayerData>& layers) final;
@@ -22,6 +26,7 @@ class MockForLayers : public MockXRDeviceHookBase {
                    const std::vector<device::LayerData>& expected_layers);
 
  private:
+  int color_tolerance_;
   base::Lock lock_;
   std::vector<device::ViewData> last_submitted_views_ GUARDED_BY(lock_);
   std::vector<device::LayerData> last_submitted_layers_ GUARDED_BY(lock_);
@@ -59,17 +64,43 @@ void MockForLayers::VerifyFrame(
               last_submitted_layers_[i].face_colors.size());
     for (size_t j = 0; j < expected_layers[i].face_colors.size(); ++j) {
       LOG(INFO) << "Verifying face " << j;
-      EXPECT_EQ(expected_layers[i].face_colors[j].r,
-                last_submitted_layers_[i].face_colors[j].r);
-      EXPECT_EQ(expected_layers[i].face_colors[j].g,
-                last_submitted_layers_[i].face_colors[j].g);
-      EXPECT_EQ(expected_layers[i].face_colors[j].b,
-                last_submitted_layers_[i].face_colors[j].b);
-      EXPECT_EQ(expected_layers[i].face_colors[j].a,
-                last_submitted_layers_[i].face_colors[j].a);
+      if (color_tolerance_ == 0) {
+        EXPECT_EQ(expected_layers[i].face_colors[j].r,
+                  last_submitted_layers_[i].face_colors[j].r);
+        EXPECT_EQ(expected_layers[i].face_colors[j].g,
+                  last_submitted_layers_[i].face_colors[j].g);
+        EXPECT_EQ(expected_layers[i].face_colors[j].b,
+                  last_submitted_layers_[i].face_colors[j].b);
+        EXPECT_EQ(expected_layers[i].face_colors[j].a,
+                  last_submitted_layers_[i].face_colors[j].a);
+      } else {
+        // Use a tolerance for video/media layers as YUV/RGB conversions can
+        // introduce slight color variations.
+        EXPECT_NEAR(
+            static_cast<int>(expected_layers[i].face_colors[j].r),
+            static_cast<int>(last_submitted_layers_[i].face_colors[j].r),
+            color_tolerance_);
+        EXPECT_NEAR(
+            static_cast<int>(expected_layers[i].face_colors[j].g),
+            static_cast<int>(last_submitted_layers_[i].face_colors[j].g),
+            color_tolerance_);
+        EXPECT_NEAR(
+            static_cast<int>(expected_layers[i].face_colors[j].b),
+            static_cast<int>(last_submitted_layers_[i].face_colors[j].b),
+            color_tolerance_);
+        EXPECT_NEAR(
+            static_cast<int>(expected_layers[i].face_colors[j].a),
+            static_cast<int>(last_submitted_layers_[i].face_colors[j].a),
+            color_tolerance_);
+      }
     }
   }
 }
+
+class MockForMediaLayers : public MockForLayers {
+ public:
+  MockForMediaLayers() : MockForLayers(10) {}
+};
 }  // namespace
 
 // Test all kinds of layers in WebXR. This test requests the 'layers' feature.
@@ -82,8 +113,6 @@ WEBXR_VR_ALL_RUNTIMES_BROWSER_TEST_F(TestLayers) {
 
   t->WaitOnJavaScriptStep();
   t->AssertNoJavaScriptErrors();
-
-  t->EndTest();
 
   mock.WaitForTotalFrameCount(1);
 
@@ -138,6 +167,47 @@ WEBXR_VR_ALL_RUNTIMES_BROWSER_TEST_F(TestLayers) {
   expected_layers.back().face_colors.push_back(yellow);
 
   mock.VerifyFrame(expected_views, expected_layers);
+
+  t->EndTest();
+}
+
+WEBXR_VR_ALL_RUNTIMES_BROWSER_TEST_F(TestMediaLayers) {
+  UiUtils::DisableOverlayForTesting();
+  MockForMediaLayers mock;
+
+  t->LoadFileAndAwaitInitialization("test_openxr_media_layers");
+  t->EnterSessionWithUserGestureOrFail();
+
+  // Wait for the JS side verification to finish and call done()
+  t->WaitOnJavaScriptStep();
+  t->AssertNoJavaScriptErrors();
+
+  // Ensure we check at least the first frame that successfully rendered
+  mock.WaitForTotalFrameCount(1);
+
+  constexpr device::Color red = {255, 0, 0, 255};
+  constexpr device::Color green = {0, 255, 0, 255};
+
+  // See device/vr/openxr/test/openxr_test_helper.h.
+  constexpr uint32_t view_dimension = 128;
+
+  std::vector<device::ViewData> expected_views;
+  expected_views.push_back(
+      {.color = red,
+       .eye = device::XrEye::kLeft,
+       .viewport = {0, 0, view_dimension, view_dimension}});
+  expected_views.push_back(
+      {.color = red,
+       .eye = device::XrEye::kRight,
+       .viewport = {view_dimension, 0, view_dimension, view_dimension}});
+
+  std::vector<device::LayerData> expected_layers;
+  expected_layers.emplace_back(device::LayerType::kQuad);
+  expected_layers.back().face_colors.push_back(green);
+
+  mock.VerifyFrame(expected_views, expected_layers);
+
+  t->EndTest();
 }
 
 }  // namespace vr

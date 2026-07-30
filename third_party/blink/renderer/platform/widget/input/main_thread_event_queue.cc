@@ -602,7 +602,7 @@ void MainThreadEventQueue::PossiblyScheduleMainFrame() {
     }
   }
   if (needs_main_frame) {
-    SetNeedsMainFrame(cc::BeginMainFrameReason::kOther, /*urgent=*/false);
+    SetNeedsMainFrame(cc::BeginMainFrameReason::kInput, /*urgent=*/false);
   }
 }
 

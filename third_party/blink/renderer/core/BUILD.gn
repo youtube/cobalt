@@ -1983,7 +1983,10 @@ blink_fuzzer_test("blink_html_tokenizer_fuzzer") {
 # Fuzzer for SVG path string parsing
 blink_fuzzer_test("svg_path_parser_fuzzer") {
   sources = [ "svg/svg_path_parser_fuzzer.cc" ]
-  deps = [ ":core" ]
+  deps = [
+    ":core",
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
+  ]
   dict = "//third_party/blink/renderer/core/svg/svg_path_parser.dict"
   seed_corpus = "//third_party/blink/renderer/core/svg/svg_path_parser_corpus"
 }

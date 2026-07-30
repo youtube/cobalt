@@ -407,14 +407,10 @@ class FileHandlerLaunchDialogIwaTest : public IsolatedWebAppBrowserTestHarness {
     observer.SetWebAppInstalledWithOsHooksDelegate(
         test_future.GetRepeatingCallback<const webapps::AppId&>());
 
-    EXPECT_TRUE(content::ExecJs(iwa_contents,
-                                base::ReplaceStringPlaceholders(
-                                    R"(
-              navigator.subApps.add({
-                "$1": {"installURL": "$1"}
-              })
-            )",
-                                    {std::string(install_url)}, nullptr)));
+    EXPECT_TRUE(content::ExecJs(
+        iwa_contents,
+        base::ReplaceStringPlaceholders(R"(window.subApps.add(["$1"]);)",
+                                        {std::string(install_url)}, nullptr)));
 
     webapps::AppId sub_app_id = GenerateAppId(
         /*manifest_id_path=*/std::nullopt, expected_sub_app_url);

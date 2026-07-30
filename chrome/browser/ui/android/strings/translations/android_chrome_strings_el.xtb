@@ -117,6 +117,7 @@
 <translation id="1435593198351412143">Αυτόματο άνοιγμα PDF</translation>
 <translation id="1437543266176261764">Εκτελείται στην εφαρμογή <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">Οργανώστε τα προϊόντα παρακολούθησης σε Σελιδοδείκτες</translation>
+<translation id="1452651021404174820">Επιλέξτε μια συσκευή</translation>
 <translation id="1455845192930279203">Θέλετε να κατεβάσετε ούτως ή άλλως το αρχείο <ph name="FILE_NAME" /> (<ph name="FILE_SIZE" />) από τον ιστότοπο <ph name="DOWNLOAD_DOMAIN" />;</translation>
 <translation id="1460751212339734034">Εξοικονομήστε χρόνο, πληκτρολογήστε λιγότερο</translation>
 <translation id="146522654774760805">Κωδικοί πρόσβασης και αυτόματη συμπλήρωση</translation>
@@ -124,6 +125,7 @@
 <translation id="1477626028522505441">Η λήψη του αρχείου <ph name="FILE_NAME" /> απέτυχε λόγω προβλημάτων στον διακομιστή.</translation>
 <translation id="147982357559798527">Τροποποιήθηκε</translation>
 <translation id="1480287803138246127">Ένα μέρος του ιστορικού μπορεί να μην εμφανίζεται εδώ. Για να δείτε όλο το ιστορικό σας στο Chrome, ανοίξτε το πλήρες Ιστορικό Chrome.</translation>
+<translation id="1483493594462132177">Αποστολή</translation>
 <translation id="1495677929897281669">Επιστροφή στην καρτέλα</translation>
 <translation id="1496514951988037011">όνομα χρήστη</translation>
 <translation id="1501480321619201731">Διαγραφή ομάδας</translation>
@@ -1273,6 +1275,7 @@
 <translation id="634208815998129842">Διαχείριση εργασιών</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 και <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> ακόμη}other{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 και <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> ακόμη}}</translation>
 <translation id="6345878117466430440">Επισήμανση ως αναγνωσμένο</translation>
+<translation id="6350745006329795504">Διαχειριστείτε τις συσκευές σας</translation>
 <translation id="6356893102071098867">Ελέγξτε ότι έχετε επιλέξει τον σωστό λογαριασμό</translation>
 <translation id="6364438453358674297">Κατάργηση πρότασης από το ιστορικό;</translation>
 <translation id="6380100320871303656">Προφορτώνει συχνότερα τις σελίδες που το Chrome θεωρεί πιθανό ότι θα επισκεφτείτε. Αυτή η ρύθμιση μπορεί να οδηγήσει σε αυξημένη χρήση δεδομένων.</translation>

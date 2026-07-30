@@ -82,12 +82,18 @@ class ChromiumDepGraph {
                     description: 'Bridge interfaces for Firebase analytics into gmscore.'),
             com_google_firebase_firebase_messaging: new PropertyOverride(
                     description: 'Firebase Cloud Messaging SDK to send and receive push messages via FCM.'),
+            com_google_googlejavaformat_google_java_format: new PropertyOverride(
+                    licenseUrl: 'https://www.apache.org/licenses/LICENSE-2.0.txt',
+                    licenseName: 'Apache-2.0'),
             com_google_guava_failureaccess: new PropertyOverride(
                     licenseUrl: 'https://www.apache.org/licenses/LICENSE-2.0.txt',
                     licenseName: 'Apache 2.0'),
             com_google_guava_guava: new PropertyOverride(
                     cpePrefix: 'cpe:/a:google:guava',
                     licenseUrl: 'https://www.apache.org/licenses/LICENSE-2.0.txt',
+                    licenseName: 'Apache 2.0'),
+            com_google_jimfs_jimfs: new PropertyOverride(
+                    licenseUrl: 'https://raw.githubusercontent.com/google/jimfs/refs/heads/master/LICENSE',
                     licenseName: 'Apache 2.0'),
             com_google_mlkit_common: new PropertyOverride(
                     licenseUrl: 'https://www.apache.org/licenses/LICENSE-2.0.txt',
@@ -125,6 +131,9 @@ class ChromiumDepGraph {
                     cpePrefix: 'cpe:/a:google:protobuf-javalite',
                     licenseUrl: 'https://raw.githubusercontent.com/protocolbuffers/protobuf/master/LICENSE',
                     licenseName: 'BSD'),
+            io_github_java_diff_utils_java_diff_utils: new PropertyOverride(
+                    licenseUrl: 'https://raw.githubusercontent.com/java-diff-utils/java-diff-utils/refs/heads/master/LICENSE',
+                    licenseName: 'Apache 2.0'),
             io_grpc_grpc_api: new PropertyOverride(
                     cpePrefix: 'cpe:/a:grpc:grpc',
                     licenseUrl: 'https://raw.githubusercontent.com/grpc/grpc-java/refs/heads/master/LICENSE',

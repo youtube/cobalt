@@ -8,6 +8,7 @@
 #include <atomic>
 
 #include "base/functional/callback_forward.h"
+#include "base/no_destructor.h"
 #include "base/observer_list.h"
 #include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
@@ -44,6 +45,8 @@ class HistoryTracker {
   void set_data(ERPHealthData data, base::OnceClosure cb);
 
  private:
+  friend class base::NoDestructor<HistoryTracker>;
+
   // To be called by singleton accessor only.
   explicit HistoryTracker(
       scoped_refptr<base::SequencedTaskRunner> sequenced_task_runner);

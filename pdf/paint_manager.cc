@@ -139,35 +139,42 @@ void PaintManager::SetSize(const gfx::Size& new_size,
   }
 
   if (base::FeatureList::IsEnabled(features::kPdfBufferedPaintManager)) {
-    gfx::Size new_new_size = GetNewContextSize(plugin_size_, new_size);
+    gfx::Size old_image_size = gfx::SkISizeToSize(image_info_.dimensions());
+    gfx::Size padded_new_size = GetNewContextSize(old_image_size, new_size);
     static_assert(SkColorType::kN32_SkColorType ==
                   SkColorType::kBGRA_8888_SkColorType);
-    image_info_ = SkImageInfo::MakeN32(new_new_size.width(),
-                                       new_new_size.height(), alpha_type);
+
     plugin_size_ = new_size;
     device_scale_ = device_scale;
-    weak_factory_.InvalidateWeakPtrs();
-    manual_callback_pending_ = false;
 
-    // Return the old `engine_buffer_` if it exists. If the old buffer fits the
-    // new data, this is a no-op, as the next GetBuffer() call will return the
-    // same buffer.
-    if (engine_buffer_) {
-      BufferFinishedOnMainThread(std::move(engine_buffer_));
+    if (old_image_size != padded_new_size ||
+        image_info_.alphaType() != alpha_type || !engine_buffer_) {
+      image_info_ = SkImageInfo::MakeN32(padded_new_size.width(),
+                                         padded_new_size.height(), alpha_type);
+      weak_factory_.InvalidateWeakPtrs();
+      manual_callback_pending_ = false;
+
+      // Free the old `engine_buffer_` if it exists. If the old buffer fits the
+      // new data, this is a no-op, as the next GetBuffer() call will return the
+      // same buffer.
+      if (engine_buffer_) {
+        BufferFinishedOnMainThread(std::move(engine_buffer_));
+      }
+      if (draw_buffer_) {
+        BufferFinishedOnMainThread(std::move(draw_buffer_));
+      }
+      surface_.reset();
+      engine_buffer_ = GetBuffer();
+      engine_bitmap_ =
+          client_->InstallBuffer(image_info_, engine_buffer_->allocation);
+
+      previous_frame_.reset();
+      flush_pending_ = false;
     }
-    if (draw_buffer_) {
-      BufferFinishedOnMainThread(std::move(draw_buffer_));
-    }
-    surface_.reset();
-    engine_buffer_ = GetBuffer();
-    engine_bitmap_ =
-        client_->InstallBuffer(image_info_, engine_buffer_->allocation);
 
     client_->UpdateScale(1.0f / device_scale_);
 
     view_size_changed_waiting_for_paint_ = true;
-    previous_frame_.reset();
-    flush_pending_ = false;
     aggregator_.InvalidateRect(gfx::Rect(new_size));
     EnsureCallbackPending();
   } else {

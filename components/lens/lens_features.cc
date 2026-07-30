@@ -158,6 +158,12 @@ BASE_FEATURE(kLensRestrictAnnotatedPageContentToSameSiteFramesForNextQueries,
 BASE_FEATURE(kLensDeleteContextOnPageNavigation,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+const char kLensOverlayAndroidImplIntent[] = "intent";
+const char kLensOverlayAndroidImplWebUI[] = "webui";
+
+const base::FeatureParam<std::string> kLensOverlayAndroidImplType{
+    &kLensOverlayAndroid, "implementation_type", kLensOverlayAndroidImplIntent};
+
 constexpr base::FeatureParam<int> kLensUpdatedFeedbackToastTimeoutMs{
     &kLensUpdatedFeedbackEntrypoint, "feedback-toast-timeout-ms", 8000};
 const base::FeatureParam<int> kLensOverlayMinRamMb{&kLensOverlay, "min_ram_mb",

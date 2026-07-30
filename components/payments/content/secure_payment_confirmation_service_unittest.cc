@@ -4,6 +4,8 @@
 
 #include "components/payments/content/secure_payment_confirmation_service.h"
 
+#include <vector>
+
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/test/bind.h"
@@ -130,16 +132,22 @@ class SecurePaymentConfirmationServiceTestBase {
 
 class SecurePaymentConfirmationServiceTest
     : public SecurePaymentConfirmationServiceTestBase,
-      public ::testing::Test {};
+      public ::testing::Test {
+ public:
+  SecurePaymentConfirmationServiceTest() {
+    feature_list_.InitWithFeatures(
+        /*enabled_features=*/
+        {::features::kSecurePaymentConfirmation,
+         features::kSecurePaymentConfirmationUseCredentialStoreAPIs},
+        /*disabled_features=*/{});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
 
 TEST_F(SecurePaymentConfirmationServiceTest,
        SecurePaymentConfirmationAvailabilityAPI) {
-  base::test::ScopedFeatureList features;
-  features.InitWithFeatures(
-      {::features::kSecurePaymentConfirmation,
-       features::kSecurePaymentConfirmationUseCredentialStoreAPIs},
-      {});
-
   InitializeSecurePaymentConfirmationService();
 
   EXPECT_CALL(*mock_internal_authenticator_,
@@ -156,49 +164,7 @@ TEST_F(SecurePaymentConfirmationServiceTest,
 }
 
 TEST_F(SecurePaymentConfirmationServiceTest,
-       SecurePaymentConfirmationAvailabilityAPI_FeatureDisabled) {
-  base::test::ScopedFeatureList features;
-  features.InitWithFeatures(
-      {}, {::features::kSecurePaymentConfirmation,
-           features::kSecurePaymentConfirmationUseCredentialStoreAPIs});
-
-  InitializeSecurePaymentConfirmationService();
-
-  EXPECT_CALL(mock_secure_payment_confirmation_availability_callback_,
-              Run(SecurePaymentConfirmationAvailabilityEnum::
-                      kUnavailableFeatureNotEnabled));
-  spc_service_->SecurePaymentConfirmationAvailability(
-      mock_secure_payment_confirmation_availability_callback_.Get());
-}
-
-TEST_F(
-    SecurePaymentConfirmationServiceTest,
-    SecurePaymentConfirmationAvailabilityAPI_SecurePaymentConfirmationDebugMode) {
-  base::test::ScopedFeatureList features;
-  features.InitWithFeatures(
-      {::features::kSecurePaymentConfirmation,
-       features::kSecurePaymentConfirmationUseCredentialStoreAPIs,
-       ::features::kSecurePaymentConfirmationDebug},
-      {});
-
-  InitializeSecurePaymentConfirmationService(/*with_authenticator=*/false);
-
-  // Here we haven't set up the authenticator, but since the debug flag is set
-  // that does not matter; the API should still return true.
-  EXPECT_CALL(mock_secure_payment_confirmation_availability_callback_,
-              Run(SecurePaymentConfirmationAvailabilityEnum::kAvailable));
-  spc_service_->SecurePaymentConfirmationAvailability(
-      mock_secure_payment_confirmation_availability_callback_.Get());
-}
-
-TEST_F(SecurePaymentConfirmationServiceTest,
        SecurePaymentConfirmationAvailabilityAPI_NoAuthenticator) {
-  base::test::ScopedFeatureList features;
-  features.InitWithFeatures(
-      {::features::kSecurePaymentConfirmation,
-       features::kSecurePaymentConfirmationUseCredentialStoreAPIs},
-      {});
-
   InitializeSecurePaymentConfirmationService(/*with_authenticator=*/false);
 
   EXPECT_CALL(mock_secure_payment_confirmation_availability_callback_,
@@ -211,12 +177,6 @@ TEST_F(SecurePaymentConfirmationServiceTest,
 TEST_F(
     SecurePaymentConfirmationServiceTest,
     SecurePaymentConfirmationAvailabilityAPI_GetMatchingCredentialIdsNotSupported) {
-  base::test::ScopedFeatureList features;
-  features.InitWithFeatures(
-      {::features::kSecurePaymentConfirmation,
-       features::kSecurePaymentConfirmationUseCredentialStoreAPIs},
-      {});
-
   InitializeSecurePaymentConfirmationService();
 
   EXPECT_CALL(*mock_internal_authenticator_,
@@ -233,12 +193,6 @@ TEST_F(
 TEST_F(
     SecurePaymentConfirmationServiceTest,
     SecurePaymentConfirmationAvailabilityAPI_AuthenticatorIsNotUserVerifying) {
-  base::test::ScopedFeatureList features;
-  features.InitWithFeatures(
-      {::features::kSecurePaymentConfirmation,
-       features::kSecurePaymentConfirmationUseCredentialStoreAPIs},
-      {});
-
   InitializeSecurePaymentConfirmationService();
 
   EXPECT_CALL(*mock_internal_authenticator_,
@@ -309,9 +263,6 @@ TEST_F(
 
 TEST_F(SecurePaymentConfirmationServiceTest,
        StorePaymentCredential_RpIdCheckFailed) {
-  base::test::ScopedFeatureList features;
-  features.InitWithFeatures({::features::kSecurePaymentConfirmation}, {});
-
   InitializeSecurePaymentConfirmationService(
       /*with_authenticator=*/false,
       /*is_off_the_record=*/false,
@@ -338,12 +289,6 @@ TEST_F(SecurePaymentConfirmationServiceTest,
 
 TEST_F(SecurePaymentConfirmationServiceTest,
        StorePaymentCredential_RpIdCheckSuccess) {
-  base::test::ScopedFeatureList features;
-  features.InitWithFeatures(
-      {::features::kSecurePaymentConfirmation,
-       features::kSecurePaymentConfirmationUseCredentialStoreAPIs},
-      {});
-
   InitializeSecurePaymentConfirmationService();
 
   const std::vector<uint8_t> credential_id = {0x01, 0x02, 0x03, 0x04};
@@ -365,6 +310,53 @@ TEST_F(SecurePaymentConfirmationServiceTest,
       mock_store_payment_credential_callback.Get());
 
   run_loop.Run();
+}
+
+class SecurePaymentConfirmationServiceDebugModeTest
+    : public SecurePaymentConfirmationServiceTest {
+ public:
+ private:
+  base::test::ScopedFeatureList debug_feature_list_{
+      ::features::kSecurePaymentConfirmationDebug};
+};
+
+TEST_F(SecurePaymentConfirmationServiceDebugModeTest,
+       SecurePaymentConfirmationAvailabilityAPI) {
+  InitializeSecurePaymentConfirmationService(/*with_authenticator=*/false);
+
+  // Here we haven't set up the authenticator, but since the debug flag is set
+  // that does not matter; the API should still return true.
+  EXPECT_CALL(mock_secure_payment_confirmation_availability_callback_,
+              Run(SecurePaymentConfirmationAvailabilityEnum::kAvailable));
+  spc_service_->SecurePaymentConfirmationAvailability(
+      mock_secure_payment_confirmation_availability_callback_.Get());
+}
+
+class SecurePaymentConfirmationServiceFeatureDisabledTest
+    : public SecurePaymentConfirmationServiceTestBase,
+      public ::testing::Test {
+ public:
+  SecurePaymentConfirmationServiceFeatureDisabledTest() {
+    feature_list_.InitWithFeatures(
+        /*enabled_features=*/{},
+        /*disabled_features=*/{
+            ::features::kSecurePaymentConfirmation,
+            features::kSecurePaymentConfirmationUseCredentialStoreAPIs});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+TEST_F(SecurePaymentConfirmationServiceFeatureDisabledTest,
+       SecurePaymentConfirmationAvailabilityAPI) {
+  InitializeSecurePaymentConfirmationService();
+
+  EXPECT_CALL(mock_secure_payment_confirmation_availability_callback_,
+              Run(SecurePaymentConfirmationAvailabilityEnum::
+                      kUnavailableFeatureNotEnabled));
+  spc_service_->SecurePaymentConfirmationAvailability(
+      mock_secure_payment_confirmation_availability_callback_.Get());
 }
 
 #if !BUILDFLAG(IS_IOS)

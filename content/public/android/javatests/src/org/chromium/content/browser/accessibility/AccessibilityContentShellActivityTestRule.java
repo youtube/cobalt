@@ -12,7 +12,6 @@ import static org.chromium.content.browser.accessibility.AccessibilityContentShe
 import static org.chromium.content.browser.accessibility.AccessibilityContentShellTestUtils.sClassNameMatcher;
 import static org.chromium.content.browser.accessibility.AccessibilityContentShellTestUtils.sContentShellDelegate;
 import static org.chromium.ui.accessibility.AccessibilityState.EVENT_TYPE_MASK_ALL;
-import static org.chromium.ui.accessibility.AccessibilityState.StateIdentifierForTesting.EVENT_TYPE_MASK;
 
 import android.annotation.SuppressLint;
 import android.os.Bundle;
@@ -167,7 +166,7 @@ public class AccessibilityContentShellActivityTestRule extends ContentShellActiv
                 () -> {
                     AccessibilityState.setIsAnyAccessibilityServiceEnabledForTesting(true);
                     AccessibilityState.setIsKnownScreenReaderEnabledForTesting(true);
-                    AccessibilityState.setStateMaskForTesting(EVENT_TYPE_MASK, EVENT_TYPE_MASK_ALL);
+                    AccessibilityState.setEventMaskForTesting(EVENT_TYPE_MASK_ALL);
                 });
 
         mWcax = getWebContentsAccessibility();
@@ -190,8 +189,7 @@ public class AccessibilityContentShellActivityTestRule extends ContentShellActiv
                 () -> {
                     AccessibilityState.setIsAnyAccessibilityServiceEnabledForTesting(true);
                     if (includeEventMaskByDefault) {
-                        AccessibilityState.setStateMaskForTesting(
-                                EVENT_TYPE_MASK, EVENT_TYPE_MASK_ALL);
+                        AccessibilityState.setEventMaskForTesting(EVENT_TYPE_MASK_ALL);
                     }
                 });
 
@@ -211,8 +209,7 @@ public class AccessibilityContentShellActivityTestRule extends ContentShellActiv
                     AccessibilityState.setIsAnyAccessibilityServiceEnabledForTesting(true);
                     AccessibilityState.setIsOnlyPasswordManagersEnabledForTesting(true);
                     if (includeEventMaskByDefault) {
-                        AccessibilityState.setStateMaskForTesting(
-                                EVENT_TYPE_MASK, EVENT_TYPE_MASK_ALL);
+                        AccessibilityState.setEventMaskForTesting(EVENT_TYPE_MASK_ALL);
                     }
                 });
 
@@ -232,8 +229,7 @@ public class AccessibilityContentShellActivityTestRule extends ContentShellActiv
                     AccessibilityState.setIsAnyAccessibilityServiceEnabledForTesting(true);
                     AccessibilityState.setIsComplexUserInteractionServiceEnabledForTesting(true);
                     if (includeEventMaskByDefault) {
-                        AccessibilityState.setStateMaskForTesting(
-                                EVENT_TYPE_MASK, EVENT_TYPE_MASK_ALL);
+                        AccessibilityState.setEventMaskForTesting(EVENT_TYPE_MASK_ALL);
                     }
                 });
 

@@ -4,27 +4,20 @@
 
 #include "chrome/browser/ui/views/web_apps/progress_delay.h"
 
+#include "base/command_line.h"
 #include "base/functional/bind.h"
+#include "content/public/common/content_switches.h"
 
 namespace web_app {
 
-namespace {
-
-std::optional<base::TimeDelta> g_duration_override_;
-
-}  // namespace
-
 ProgressDelay::ProgressDelay(base::TimeDelta delay_time, int total_steps)
-    : delay_time_(g_duration_override_.value_or(delay_time)),
+    // Set delay to 0 for tests to prevent flakiness and speed up
+    // test execution.
+    : delay_time_(
+          base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kTestType)
+              ? base::TimeDelta()
+              : delay_time),
       total_steps_(total_steps) {}
-
-// static
-base::AutoReset<std::optional<base::TimeDelta>>
-ProgressDelay::SetDurationOverrideForTesting(  // IN-TEST
-    std::optional<base::TimeDelta> duration) {
-  return base::AutoReset<std::optional<base::TimeDelta>>(&g_duration_override_,
-                                                         duration);
-}
 
 ProgressDelay::~ProgressDelay() = default;
 

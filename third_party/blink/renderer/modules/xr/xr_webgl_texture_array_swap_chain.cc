@@ -110,92 +110,24 @@ void XRWebGLTextureArraySwapChain::OnFrameEnd() {
   gl->FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
                            wrapped_texture->Object(), 0);
 
-  // It would be more efficient to track this state in the WebGL context and
-  // restore to the tracked values, but this is a temporary solution for an edge
-  // case that should no longer be needed once array SharedImages are available
-  // so in the meantime we'll simply query the values.
-  std::array<GLint, 4> curr_viewport = {0, 0, 0, 0};
-  gl->GetIntegerv(GL_VIEWPORT, curr_viewport.data());
+  {
+    ScopedXRWebGLStateRestorer restorer(context(), GL_TEXTURE_2D_ARRAY);
 
-  const bool depth_test_enabled = gl->IsEnabled(GL_DEPTH_TEST);
-  const bool stencil_test_enabled = gl->IsEnabled(GL_STENCIL_TEST);
-  const bool culling_enabled = gl->IsEnabled(GL_CULL_FACE);
-  const bool blend_enabled = gl->IsEnabled(GL_BLEND);
-  const bool dither_enabled = gl->IsEnabled(GL_DITHER);
+    gl->Viewport(0, 0, wrapped_swap_chain_->descriptor().width,
+                 wrapped_swap_chain_->descriptor().height);
 
-  // Ensure that all possible state that could interfere with the draw is reset.
-  gl->Viewport(0, 0, wrapped_swap_chain_->descriptor().width,
-               wrapped_swap_chain_->descriptor().height);
+    gl->BindVertexArrayOES(vao_);
 
-  gl->Disable(GL_DEPTH_TEST);
-  gl->Disable(GL_STENCIL_TEST);
-  gl->Disable(GL_CULL_FACE);
-  gl->Disable(GL_BLEND);
-  gl->Disable(GL_DITHER);
-  gl->Disable(GL_SCISSOR_TEST);
+    gl->UseProgram(GetCopyProgram());
+    gl->Uniform1i(texture_uniform_, 0);
+    gl->Uniform1f(layer_count_uniform_, descriptor().layers);
 
-  if (webgl2()) {
-    gl->Disable(GL_RASTERIZER_DISCARD);
+    gl->ActiveTexture(GL_TEXTURE0);
+    gl->BindTexture(GL_TEXTURE_2D_ARRAY, source_texture->Object());
+
+    // Draw one quad for each layer.
+    gl->DrawArraysInstancedANGLE(GL_TRIANGLES, 0, 6, descriptor().layers);
   }
-
-  // Ensure pages that set WEBGL_polygon_mode don't interfere with rendering.
-  GLenum polygon_mode = GL_FILL_ANGLE;
-  if (context()->ExtensionsUtil()->IsExtensionEnabled("WEBGL_polygon_mode")) {
-    GLint value = 0;
-    gl->GetIntegerv(GL_POLYGON_MODE_ANGLE, &value);
-    polygon_mode = static_cast<GLenum>(value);
-    gl->PolygonModeANGLE(GL_FRONT_AND_BACK, GL_FILL_ANGLE);
-  }
-
-  gl->ColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-  gl->DepthMask(GL_FALSE);
-  gl->BindVertexArrayOES(vao_);
-
-  gl->UseProgram(GetCopyProgram());
-  gl->Uniform1i(texture_uniform_, 0);
-  gl->Uniform1f(layer_count_uniform_, descriptor().layers);
-
-  gl->ActiveTexture(GL_TEXTURE0);
-  gl->BindTexture(GL_TEXTURE_2D_ARRAY, source_texture->Object());
-
-  // Draw one quad for each layer.
-  gl->DrawArraysInstancedANGLE(GL_TRIANGLES, 0, 6, descriptor().layers);
-
-  // Restore manually tracked state
-  gl->Viewport(curr_viewport[0], curr_viewport[1], curr_viewport[2],
-               curr_viewport[3]);
-  if (depth_test_enabled) {
-    gl->Enable(GL_DEPTH_TEST);
-  }
-  if (stencil_test_enabled) {
-    gl->Enable(GL_STENCIL_TEST);
-  }
-  if (culling_enabled) {
-    gl->Enable(GL_CULL_FACE);
-  }
-  if (blend_enabled) {
-    gl->Enable(GL_BLEND);
-  }
-  if (dither_enabled) {
-    gl->Enable(GL_DITHER);
-  }
-  if (polygon_mode != GL_FILL_ANGLE) {
-    gl->PolygonModeANGLE(GL_FRONT_AND_BACK, polygon_mode);
-  }
-
-  // WebGLRenderingContextBase inherits from DrawingBuffer::Client, but makes
-  // all the methods private. Downcasting allows us to access them.
-  DrawingBuffer::Client* client =
-      static_cast<DrawingBuffer::Client*>(context());
-  client->DrawingBufferClientRestoreTexture2DArrayBinding();
-  client->DrawingBufferClientRestoreScissorTest();
-  client->DrawingBufferClientRestoreRasterizerDiscard();
-  client->DrawingBufferClientRestoreMaskAndClearValues();
-  client->DrawingBufferClientRestoreFramebufferBinding();
-
-  context()->RestoreVertexArrayObjectBinding();
-  context()->RestoreProgram();
-  context()->RestoreActiveTexture();
 
   wrapped_swap_chain_->OnFrameEnd();
 

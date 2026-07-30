@@ -33,6 +33,7 @@
 #include "third_party/blink/renderer/core/layout/layout_image.h"
 #include "third_party/blink/renderer/core/layout/natural_sizing_info.h"
 #include "third_party/blink/renderer/core/svg/graphics/svg_image_for_container.h"
+#include "third_party/blink/renderer/platform/graphics/bitmap_image.h"
 #include "ui/base/resource/resource_scale_factor.h"
 
 namespace blink {
@@ -107,14 +108,20 @@ ResourcePriority LayoutImageResource::ComputeResourcePriority() const {
   return layout_object_->ComputeResourcePriority();
 }
 
-void LayoutImageResource::ResetAnimation() {
+void LayoutImageResource::ResetAnimation(ImageLoader::ResetTimeline timeline) {
   DCHECK(layout_object_);
 
   if (!cached_image_) {
     return;
   }
 
-  cached_image_->GetImage()->ResetAnimation();
+  Image* image = cached_image_->GetImage();
+  if (auto* bitmap_image = DynamicTo<BitmapImage>(image);
+      bitmap_image && timeline == ImageLoader::ResetTimeline::kSharedOnly) {
+    bitmap_image->ResetAnimationSharedTimelineOnly();
+  } else {
+    image->ResetAnimation();
+  }
 
   layout_object_->SetShouldDoFullPaintInvalidation();
 }

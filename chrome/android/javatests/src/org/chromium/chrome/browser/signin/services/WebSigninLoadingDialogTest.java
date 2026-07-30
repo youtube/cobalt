@@ -153,6 +153,16 @@ public class WebSigninLoadingDialogTest {
     @MediumTest
     public void testCancelButton() {
         mCoordinator = new WebSigninRedirectCoordinator();
+        HistogramWatcher watcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(
+                                "Signin.ProcessMirrorHeaders.LoadingDialog.Status",
+                                WebSigninRedirectCoordinator.DialogState.SHOWN)
+                        .expectIntRecord(
+                                "Signin.ProcessMirrorHeaders.LoadingDialog.Status",
+                                WebSigninRedirectCoordinator.DialogState.DISMISSED)
+                        .build();
+
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mCoordinator.setTabForTesting(mActivityTestRule.getActivityTab());
@@ -160,10 +170,6 @@ public class WebSigninLoadingDialogTest {
                 });
         onViewWaiting(withId(R.id.web_signin_loading_dialog)).check(matches(isDisplayed()));
 
-        HistogramWatcher watcher =
-                HistogramWatcher.newSingleRecordWatcher(
-                        "Signin.ProcessMirrorHeaders.LoadingDialog.Status",
-                        WebSigninRedirectCoordinator.DialogState.DISMISSED);
         onView(withId(R.id.cancel_button)).perform(click());
 
         Assert.assertNull(mCoordinator.getDialogModelForTesting());
@@ -178,9 +184,14 @@ public class WebSigninLoadingDialogTest {
         mCoordinator = new WebSigninRedirectCoordinator();
 
         HistogramWatcher watcher =
-                HistogramWatcher.newSingleRecordWatcher(
-                        "Signin.ProcessMirrorHeaders.LoadingDialog.Status",
-                        WebSigninRedirectCoordinator.DialogState.DISMISSED);
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(
+                                "Signin.ProcessMirrorHeaders.LoadingDialog.Status",
+                                WebSigninRedirectCoordinator.DialogState.SHOWN)
+                        .expectIntRecord(
+                                "Signin.ProcessMirrorHeaders.LoadingDialog.Status",
+                                WebSigninRedirectCoordinator.DialogState.DISMISSED)
+                        .build();
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -430,5 +441,59 @@ public class WebSigninLoadingDialogTest {
 
         // Dialog should be shown again.
         Assert.assertNotNull(mCoordinator.getDialogModelForTesting());
+    }
+
+    @Test
+    @MediumTest
+    public void testShownRecordedWhenResultArrivesDuringDeferral() {
+        when(mWebSigninBridgeMocks.createWithEmail(any(), anyString(), mCallbackCaptor.capture()))
+                .thenReturn(NATIVE_WEB_SIGNIN_BRIDGE);
+        mCoordinator = new WebSigninRedirectCoordinator();
+        HistogramWatcher watcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(
+                                "Signin.ProcessMirrorHeaders.LoadingDialog.Status",
+                                WebSigninRedirectCoordinator.DialogState.SHOWN)
+                        .expectAnyRecord("Signin.ProcessMirrorHeaders.LoadingDuration.Success")
+                        .build();
+
+        // Use a 0ms delay to show the dialog immediately by running the runnable passed to
+        // startTimer.
+        mCoordinator.setShowDialogTimerForTesting(mMockShowDialogTimer);
+        doAnswer(
+                        invocation -> {
+                            Runnable runnable = invocation.getArgument(1);
+                            runnable.run();
+                            return null;
+                        })
+                .when(mMockShowDialogTimer)
+                .startTimer(anyLong(), any(Runnable.class));
+
+        // Use a mock timer for minimum visible duration that we won't "fire".
+        mCoordinator.setMinDialogVisibleTimerForTesting(mMockMinDialogVisibleTimer);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mCoordinator.initializeWebSigninAndRedirect(
+                            mActivityTestRule.getActivityTab(),
+                            "test@gmail.com",
+                            /* continueUrl= */ new GURL("https://continue.url"),
+                            /* initialTabURL= */ new GURL("about:blank"));
+                });
+
+        onViewWaiting(withId(R.id.web_signin_loading_dialog)).check(matches(isDisplayed()));
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    // Result returns but mock timer has not "fired" yet.
+                    mCallbackCaptor.getValue().onResult(WebSigninTrackerResult.SUCCESS);
+                    // Destroy the coordinator immediately. This should NOT record DISMISSED.
+                    mCoordinator.destroy();
+                });
+
+        // Dialog should be dismissed.
+        Assert.assertNull(mCoordinator.getDialogModelForTesting());
+        // Verify that SHOWN was recorded (and DISMISSED was NOT recorded).
+        watcher.assertExpected();
     }
 }

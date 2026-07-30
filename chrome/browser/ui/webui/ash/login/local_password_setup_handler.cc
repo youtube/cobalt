@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/webui/ash/login/local_password_setup_handler.h"
 
+#include "ash/login/resources/grit/ash_login_strings.h"
 #include "chrome/browser/ui/webui/ash/login/base_screen_handler.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/login/localized_values_builder.h"

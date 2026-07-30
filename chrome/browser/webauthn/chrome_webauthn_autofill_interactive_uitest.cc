@@ -30,6 +30,10 @@
 #include "chrome/browser/webauthn/chrome_authenticator_request_delegate.h"
 #include "chrome/browser/webauthn/gpm_enclave_controller.h"
 #include "chrome/browser/webauthn/passkey_model_factory.h"
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+#include "chrome/browser/signin/dice_tab_helper.h"
+#include "components/signin/public/base/signin_metrics.h"
+#endif
 #include "chrome/browser/webauthn/test_util.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -583,6 +587,7 @@ IN_PROC_BROWSER_TEST_F(WebAuthnWindowsAutofillIntegrationTest, Abort) {
 }
 #endif  // BUILDFLAG(IS_WIN)
 
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
 class WebAuthnMagiChromeQrAutofillIntegrationTest
     : public WebAuthnAutofillIntegrationTest {
  public:
@@ -614,6 +619,20 @@ class WebAuthnMagiChromeQrAutofillIntegrationTest
     scoped_auth_env_ =
         std::make_unique<content::ScopedAuthenticatorEnvironmentForTesting>(
             std::move(virtual_device_factory));
+  }
+
+  void InitializeChromeSigninFlow() {
+    content::WebContents* web_contents =
+        browser()->tab_strip_model()->GetActiveWebContents();
+    DiceTabHelper::CreateForWebContents(web_contents);
+    DiceTabHelper::FromWebContents(web_contents)
+        ->InitializeSigninFlow(
+            https_server_.GetURL(kRpId, "/webauthn_conditional_mediation.html"),
+            signin_metrics::AccessPoint::kSettings,
+            signin_metrics::Reason::kSigninPrimaryAccount,
+            signin_metrics::PromoAction::PROMO_ACTION_NO_SIGNIN_PROMO, GURL(),
+            /*record_signin_started_metrics=*/false, base::DoNothing(),
+            base::DoNothing(), base::DoNothing(), base::DoNothing());
   }
 
   void PostRunTestOnMainThread() override {
@@ -654,6 +673,36 @@ class WebAuthnMagiChromeQrAutofillIntegrationTest
     return testing::AssertionSuccess();
   }
 
+  bool HasWebauthnSignInWithAnotherDeviceInPopup(
+      content::WebContents* web_contents) {
+    base::WeakPtr<autofill::AutofillSuggestionController>
+        suggestion_controller =
+            GetSuggestionsControllerForWebContents(web_contents);
+    if (!suggestion_controller) {
+      return false;
+    }
+    return std::ranges::any_of(
+        suggestion_controller->GetSuggestions(), [](const auto& suggestion) {
+          return suggestion.type ==
+                 autofill::SuggestionType::kWebauthnSignInWithAnotherDevice;
+        });
+  }
+
+  [[nodiscard]] testing::AssertionResult
+  TapUsernameFieldUntilPopupWithSignInWithAnotherDeviceAppears(
+      content::WebContents* web_contents) {
+    base::TimeTicks start_time = base::TimeTicks::Now();
+    while (!HasWebauthnSignInWithAnotherDeviceInPopup(web_contents)) {
+      if (base::TimeTicks::Now() - start_time > base::Seconds(5)) {
+        return testing::AssertionFailure()
+               << "Timed out waiting for WebAuthn Sign In With Another Device "
+                  "suggestion in popup.";
+      }
+      content::SimulateMouseClickOrTapElementWithId(web_contents, "username");
+    }
+    return testing::AssertionSuccess();
+  }
+
  private:
   std::unique_ptr<content::ScopedAuthenticatorEnvironmentForTesting>
       scoped_auth_env_;
@@ -662,6 +711,8 @@ class WebAuthnMagiChromeQrAutofillIntegrationTest
 
 IN_PROC_BROWSER_TEST_F(WebAuthnMagiChromeQrAutofillIntegrationTest,
                        ShowQrCodeSuggestion) {
+  InitializeChromeSigninFlow();
+
   // Make sure input events cannot close the autofill popup.
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -710,4 +761,41 @@ IN_PROC_BROWSER_TEST_F(WebAuthnMagiChromeQrAutofillIntegrationTest,
   EXPECT_THAT(qr_guid_payload->value(), testing::StartsWith("FIDO:/"));
 }
 
+IN_PROC_BROWSER_TEST_F(WebAuthnMagiChromeQrAutofillIntegrationTest,
+                       NoQrCodeSuggestionOnRegularPage) {
+  // Do NOT call InitializeChromeSigninFlow() to simulate a regular page.
+
+  // Make sure input events cannot close the autofill popup.
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  autofill::ChromeAutofillClient* autofill_client =
+      autofill::ChromeAutofillClient::FromWebContentsForTesting(web_contents);
+  autofill_client->SetKeepPopupOpenForTesting(true);
+
+  // Execute the Conditional UI request.
+  content::ExecuteScriptAsync(web_contents, kConditionalUIRequest);
+
+  delegate_observer_->WaitForUI();
+
+  ASSERT_TRUE(TapUsernameFieldUntilPopupWithSignInWithAnotherDeviceAppears(web_contents));
+  base::WeakPtr<autofill::AutofillSuggestionController> suggestion_controller =
+      autofill_client->suggestion_controller_for_testing();
+  const std::vector<autofill::Suggestion>& suggestions =
+      suggestion_controller->GetSuggestions();
+
+  // Find the standard hybrid suggestion on the suggestions list.
+  auto another_device_it = std::ranges::find(
+      suggestions, autofill::SuggestionType::kWebauthnSignInWithAnotherDevice,
+      &autofill::Suggestion::type);
+  ASSERT_NE(another_device_it, suggestions.end())
+      << "Standard hybrid suggestion not found";
+
+  // The inlined QR suggestion should NOT be present.
+  auto qr_it = std::ranges::find(
+      suggestions, autofill::SuggestionType::kWebauthnPasskeyQrCode,
+      &autofill::Suggestion::type);
+  EXPECT_EQ(qr_it, suggestions.end())
+      << "Passkey QR Code suggestion should not be present on a regular page";
+}
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 }  // namespace

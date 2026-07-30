@@ -114,6 +114,7 @@ template("create_native_executable_dist") {
 if (!is_robolectric && enable_java_templates) {
   import("//build/config/android/config.gni")
   import("//build/config/android/internal_rules.gni")
+  import("//build/config/android/tiered_dex.gni")
   import("//build/config/compiler/compiler.gni")
   import("//build/config/coverage/coverage.gni")
   import("//build/config/profiling/profiling.gni")
@@ -2862,71 +2863,93 @@ if (!is_robolectric && enable_java_templates) {
         _shrunk_proto_resources_path =
             "$target_out_dir/${_template_name}.shrunk.proto.ap_"
       }
-      dex(_final_dex_target_name) {
-        forward_variables_from(invoker,
-                               [
-                                 "enable_proguard_checks",
-                                 "custom_assertion_handler",
-                                 "proguard_enable_obfuscation",
-                                 "repackage_classes",
-                               ])
-        min_sdk_version = _min_sdk_version
-        proguard_enabled = _proguard_enabled
-        build_config = _build_config
-        output = _final_dex_path
-        deps = [
-          ":$_build_config_target",
-          ":$_java_target_name",
-        ]
-        if (_proguard_enabled) {
-          # Generates proguard configs
-          deps += [ ":$_compile_resources_target" ]
-          proguard_mapping_path = _proguard_mapping_path
-
-          if (!defined(enable_proguard_checks) && defined(testonly) &&
-              testonly) {
-            # Ignore -checkdiscard and -checkenumunboxed failures.
-            enable_proguard_checks = false
+      if (tiered_dex_assembly && !_proguard_enabled &&
+          _min_sdk_version >= default_min_sdk_version) {
+        tiered_dex_assembly(_final_dex_target_name) {
+          apk_template_name = _template_name
+          build_config = _build_config
+          build_config_target = ":$_build_config_target"
+          min_sdk_version = _min_sdk_version
+          java_target_name = ":$_java_target_name"
+          final_dex_target_name = _final_dex_target_name
+          final_dex_path = _final_dex_path
+          if (defined(testonly)) {
+            testonly = testonly
           }
-
-          # Must not be set via write_build_config, because that will cause it
-          # to be picked up by test apks that use apk_under_test.
-          if (!_assertions_implicitly_enabled && !enable_java_asserts &&
-              (!defined(testonly) || !testonly) &&
-              # Injected JaCoCo code causes -checkdiscards to fail.
-              !use_jacoco_coverage) {
-            proguard_configs = [
-              "//build/android/dcheck_is_off.flags",
-              "//third_party/jni_zero/checkdiscard_proguard.flags",
-            ]
-          }
-
-          if (_optimize_resources) {
-            resources_input = _proto_resources_path
-            resources_output = _shrunk_proto_resources_path
-            deps += [ ":${_compile_resources_target}" ]
-          }
-        } else {
-          if (_min_sdk_version >= default_min_sdk_version) {
-            # Enable dex merging only when min_sdk_version is >= what the
-            # library .dex files were created with.
-            input_dex_filearg =
-                "@FileArg(${_rebased_build_config}:all_dex_files)"
-
-            # Pure dex-merge.
-            enable_desugar = false
-          } else {
-            input_classes_filearg =
-                "@FileArg($_rebased_build_config:processed_classpath)"
-          }
+          forward_variables_from(invoker,
+                                 [
+                                   "custom_assertion_handler",
+                                   "proguard_enable_obfuscation",
+                                   "repackage_classes",
+                                 ])
         }
+      } else {
+        dex(_final_dex_target_name) {
+          forward_variables_from(invoker,
+                                 [
+                                   "enable_proguard_checks",
+                                   "custom_assertion_handler",
+                                   "proguard_enable_obfuscation",
+                                   "repackage_classes",
+                                 ])
+          min_sdk_version = _min_sdk_version
+          proguard_enabled = _proguard_enabled
+          build_config = _build_config
+          output = _final_dex_path
+          deps = [
+            ":$_build_config_target",
+            ":$_java_target_name",
+          ]
+          if (_proguard_enabled) {
+            # Generates proguard configs
+            deps += [ ":$_compile_resources_target" ]
+            proguard_mapping_path = _proguard_mapping_path
 
-        # The individual dependencies would have caught real missing deps in
-        # their respective dex steps. False positives that were suppressed at
-        # per-target dex steps are emitted here since this may use jar files
-        # rather than dex files.
-        if (!defined(enable_desugar)) {
-          ignore_desugar_missing_deps = true
+            if (!defined(enable_proguard_checks) && defined(testonly) &&
+                testonly) {
+              # Ignore -checkdiscard and -checkenumunboxed failures.
+              enable_proguard_checks = false
+            }
+
+            # Must not be set via write_build_config, because that will cause it
+            # to be picked up by test apks that use apk_under_test.
+            if (!_assertions_implicitly_enabled && !enable_java_asserts &&
+                (!defined(testonly) || !testonly) &&
+                # Injected JaCoCo code causes -checkdiscards to fail.
+                !use_jacoco_coverage) {
+              proguard_configs = [
+                "//build/android/dcheck_is_off.flags",
+                "//third_party/jni_zero/checkdiscard_proguard.flags",
+              ]
+            }
+
+            if (_optimize_resources) {
+              resources_input = _proto_resources_path
+              resources_output = _shrunk_proto_resources_path
+              deps += [ ":${_compile_resources_target}" ]
+            }
+          } else {
+            if (_min_sdk_version >= default_min_sdk_version) {
+              # Enable dex merging only when min_sdk_version is >= what the
+              # library .dex files were created with.
+              input_dex_filearg =
+                  "@FileArg(${_rebased_build_config}:all_dex_files)"
+
+              # Pure dex-merge.
+              enable_desugar = false
+            } else {
+              input_classes_filearg =
+                  "@FileArg($_rebased_build_config:processed_classpath)"
+            }
+          }
+
+          # The individual dependencies would have caught real missing deps in
+          # their respective dex steps. False positives that were suppressed at
+          # per-target dex steps are emitted here since this may use jar files
+          # rather than dex files.
+          if (!defined(enable_desugar)) {
+            ignore_desugar_missing_deps = true
+          }
         }
       }
 

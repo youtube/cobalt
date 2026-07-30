@@ -41,11 +41,33 @@ DarkModeFilter::ImageType GetImageType(float dest_to_device_ratio,
 
 float GetRatio(const display::ScreenInfo& screen_info,
                const gfx::RectF& dest_rect) {
+  // Compute device rect in device pixels.
   const gfx::SizeF& device_rect = gfx::ScaleSize(
       gfx::SizeF(screen_info.rect.size()), screen_info.device_scale_factor);
 
   return std::max(dest_rect.width() / device_rect.width(),
                   dest_rect.height() / device_rect.height());
+}
+
+// Classifies an image after undoing the frame's layout zoom factor.
+// |dest_rect| comes from layout geometry and includes layout zoom (page zoom
+// and potentially DSF) and CSS zoom. Undo only layout zoom so page zoom and
+// DSF do not affect classification, while CSS zoom still does. |src_rect| is
+// derived from the image's intrinsic pixel size and is already
+// zoom-independent, so it must be left untouched.
+DarkModeFilter::ImageType GetImageTypeWithZoom(
+    const display::ScreenInfo& screen_info,
+    float zoom,
+    const gfx::RectF& dest_rect,
+    const gfx::RectF& src_rect) {
+  gfx::RectF unzoomed_dest_rect = dest_rect;
+  if (zoom > 0.f && zoom != 1.f) {
+    unzoomed_dest_rect.Scale(1.f / zoom);
+  }
+
+  return GetImageType(GetRatio(screen_info, unzoomed_dest_rect),
+                      gfx::ToEnclosingRect(unzoomed_dest_rect),
+                      gfx::ToEnclosingRect(src_rect));
 }
 
 }  // namespace
@@ -63,20 +85,19 @@ ImageAutoDarkMode ImageClassifierHelper::GetImageAutoDarkMode(
   const display::ScreenInfo& screen_info =
       local_frame.GetChromeClient().GetScreenInfo(local_frame);
 
-  return ImageAutoDarkMode(role, style.ForceDark(),
-                           GetImageType(GetRatio(screen_info, dest_rect),
-                                        gfx::ToEnclosingRect(dest_rect),
-                                        gfx::ToEnclosingRect(src_rect)));
+  const float layout_zoom = local_frame.LayoutZoomFactor();
+  return ImageAutoDarkMode(
+      role, style.ForceDark(),
+      GetImageTypeWithZoom(screen_info, layout_zoom, dest_rect, src_rect));
 }
 
 // static
 DarkModeFilter::ImageType ImageClassifierHelper::GetImageTypeForTesting(
     display::ScreenInfo& screen_info,
     const gfx::RectF& dest_rect,
-    const gfx::RectF& src_rect) {
-  return GetImageType(GetRatio(screen_info, dest_rect),
-                      gfx::ToEnclosingRect(dest_rect),
-                      gfx::ToEnclosingRect(src_rect));
+    const gfx::RectF& src_rect,
+    float zoom) {
+  return GetImageTypeWithZoom(screen_info, zoom, dest_rect, src_rect);
 }
 
 }  // namespace blink

@@ -54,6 +54,7 @@ class AutofillAiWalletUtilsTest : public ::testing::Test {
             autofill_client().GetSyncService(),
             webdata_helper_.autofill_webdata_service(),
             /*history_service=*/nullptr,
+            /*pcontext_manager=*/nullptr,
             /*strike_database=*/nullptr,
             /*variation_country_code=*/GeoIpCountryCode("US")));
     // Wait until EDM has finished its load to ensure that the waits in tests

@@ -227,4 +227,85 @@ TEST_F(LayoutTreeBuilderTraversalTest, ColumnScrollMarkers) {
             LayoutTreeBuilderTraversal::Previous(*marker, nullptr));
 }
 
+TEST_F(LayoutTreeBuilderTraversalTest, FixedPositionedScrollButton) {
+  SetupSampleHTML(R"(
+      <style>
+        #container {
+          width: 200px;
+          height: 200px;
+        }
+        #scroller {
+          overflow: auto;
+          width: 100px;
+          height: 100px;
+        }
+        #scroller::scroll-button(inline-end) {
+          content: '>';
+          width: 20px;
+          height: 20px;
+          position: fixed;
+        }
+      </style>
+      <div id="container">
+        <div id="scroller">
+          <div style="width: 200px; height: 200px;"></div>
+        </div>
+      </div>
+  )");
+  UpdateAllLifecyclePhasesForTest();
+
+  Element* scroller = GetDocument().QuerySelector(AtomicString("#scroller"));
+  PseudoElement* scroll_button =
+      scroller->GetPseudoElement(kPseudoIdScrollButtonInlineEnd);
+  ASSERT_TRUE(scroll_button);
+
+  LayoutObject* scroll_button_layout = scroll_button->GetLayoutObject();
+  ASSERT_TRUE(scroll_button_layout);
+
+  EXPECT_EQ(scroll_button_layout->Parent(),
+            scroller->GetLayoutObject()->Parent());
+}
+
+TEST_F(LayoutTreeBuilderTraversalTest, InFlowScrollButtons) {
+  SetupSampleHTML(R"(
+      <style>
+        #container {
+          width: 200px;
+          height: 200px;
+        }
+        #scroller {
+          overflow: auto;
+          width: 100px;
+          height: 100px;
+        }
+        #scroller::scroll-button(inline-end) {
+          content: '>';
+          width: 20px;
+          height: 20px;
+        }
+      </style>
+      <div id="container">
+        <div id="scroller">
+          <div style="width: 200px; height: 200px;"></div>
+        </div>
+      </div>
+  )");
+  UpdateAllLifecyclePhasesForTest();
+
+  Element* scroller = GetDocument().QuerySelector(AtomicString("#scroller"));
+  PseudoElement* scroll_button =
+      scroller->GetPseudoElement(kPseudoIdScrollButtonInlineEnd);
+  ASSERT_TRUE(scroll_button);
+
+  LayoutObject* scroll_button_layout = scroll_button->GetLayoutObject();
+  ASSERT_TRUE(scroll_button_layout);
+
+  EXPECT_TRUE(scroll_button_layout->Parent()->IsAnonymous());
+  EXPECT_EQ(scroll_button_layout->Parent()->Parent(),
+            scroller->GetLayoutObject()->Parent());
+
+  EXPECT_EQ(LayoutTreeBuilderTraversal::NextSiblingLayoutObject(*scroller),
+            scroll_button_layout);
+}
+
 }  // namespace blink

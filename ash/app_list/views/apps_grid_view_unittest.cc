@@ -6263,7 +6263,7 @@ TEST_P(AppsGridViewTabletTest,
 
   // Cache the current context menu view.
   views::MenuItemView* reorder_submenu =
-      context_menu->root_for_testing()->GetSubmenu()->GetMenuItemAt(2);
+      context_menu->root_for_testing()->GetSubmenu()->GetMenuItemAt(3);
   ASSERT_EQ(reorder_submenu->title(), u"Sort by");
 
   // Open the Sort by submenu.
@@ -6292,7 +6292,7 @@ TEST_P(AppsGridViewTabletTest,
   EXPECT_TRUE(context_menu->IsShowingMenu());
 
   reorder_submenu =
-      context_menu->root_for_testing()->GetSubmenu()->GetMenuItemAt(2);
+      context_menu->root_for_testing()->GetSubmenu()->GetMenuItemAt(3);
   ASSERT_EQ(reorder_submenu->title(), u"Sort by");
 
   // Open the Sort by submenu.
@@ -6327,7 +6327,7 @@ TEST_P(AppsGridViewTabletTest, NoSortOptionsWhenSearchPageIsShownInTabletMode) {
 
   // Cache the current context menu view.
   views::MenuItemView* reorder_submenu =
-      context_menu->root_for_testing()->GetSubmenu()->GetMenuItemAt(2);
+      context_menu->root_for_testing()->GetSubmenu()->GetMenuItemAt(3);
   ASSERT_EQ(reorder_submenu->title(), u"Sort by");
 
   // Open the Sort by submenu.
@@ -6360,11 +6360,11 @@ TEST_P(AppsGridViewTabletTest, NoSortOptionsWhenSearchPageIsShownInTabletMode) {
       Shell::GetPrimaryRootWindowController()->menu_model_adapter_for_testing();
   EXPECT_TRUE(context_menu->IsShowingMenu());
 
-  // Verify that the sort option is removed and there are only 2 options in the
+  // Verify that the sort option is removed and there are only 3 options in the
   // menu.
   int context_menu_size =
       context_menu->root_for_testing()->GetSubmenu()->GetMenuItems().size();
-  EXPECT_LT(context_menu_size, 3);
+  EXPECT_LT(context_menu_size, 4);
 }
 
 TEST_P(AppsGridViewClamshellAndTabletTest, ContextMenuOnFolderItemSortAllApps) {

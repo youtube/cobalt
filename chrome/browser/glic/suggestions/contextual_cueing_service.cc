@@ -35,6 +35,7 @@
 #include "services/metrics/public/cpp/metrics_utils.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
+#include "services/network/public/cpp/constants.h"
 #include "url/gurl.h"
 
 namespace glic {
@@ -354,7 +355,8 @@ void ContextualCueingService::PrepareToFetchContextualGlicZeroStateSuggestions(
         net::NetworkAnonymizationKey::CreateSameSite(
             net::SchemefulSite(mes_url_));
     loading_predictor_->PreconnectURLIfAllowed(
-        mes_url_, /*allow_credentials=*/true, anonymization_key);
+        mes_url_, /*allow_credentials=*/true, anonymization_key,
+        network::GetNoOpNetworkRestrictionsId());
   }
 }
 

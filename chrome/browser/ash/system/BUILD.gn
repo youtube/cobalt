@@ -159,7 +159,6 @@ source_set("unit_tests") {
   sources = [
     "automatic_reboot_manager_unittest.cc",
     "device_disabling_manager_unittest.cc",
-    "procfs_util_unittest.cc",
     "user_removal_manager_unittest.cc",
   ]
 

@@ -515,7 +515,9 @@ class ReadAnythingAppController
   // accurate for voices that don't support word boundaries.
   void RecordEstimatedWordsHeard();
 
-  void RecordDistillationSuccess();
+  void RecordScreen2xDistillationStatus();
+  void RecordDistillationStatus(
+      read_anything::mojom::DistillationStatus status);
 
   // Given a boundary position within the current granularity, identifies the
   // nodes that needs to be highlighted (e.g. until the word boundary), and

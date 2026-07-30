@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <vector>
 
@@ -95,6 +96,7 @@ class ContextualTasksServiceImpl : public ContextualTasksService,
       SessionID tab_id) const override;
   std::vector<SessionID> GetTabsAssociatedWithTask(
       const base::Uuid& tab_id) const override;
+  void SetLastActiveTask(const base::Uuid& task_id) override;
   void GetContextForTask(
       const base::Uuid& task_id,
       const std::set<ContextualTaskContextSource>& sources,
@@ -169,6 +171,9 @@ class ContextualTasksServiceImpl : public ContextualTasksService,
   // A map from tab IDs to task IDs, used to find the task associated with a
   // given tab.
   std::map<SessionID, base::Uuid> tab_to_task_;
+
+  // The ID of the last active task, used as a fallback for sticky chat.
+  std::optional<base::Uuid> last_active_task_id_;
 
   // The entry point for the decorator chain that enriches the context.
   std::unique_ptr<CompositeContextDecorator> composite_context_decorator_;

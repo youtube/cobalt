@@ -7,11 +7,34 @@ import 'chrome://flags/app.js';
 import type {FlagsAppElement} from 'chrome://flags/app.js';
 import type {ExperimentalFeaturesData, Feature} from 'chrome://flags/flags_browser_proxy.js';
 import {FlagsBrowserProxyImpl} from 'chrome://flags/flags_browser_proxy.js';
+import {ImportExportFileProxyImpl} from 'chrome://flags/import_export_file_proxy.js';
+import type {ImportExportFileProxy} from 'chrome://flags/import_export_file_proxy.js';
+import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {getDeepActiveElement} from 'chrome://resources/js/util.js';
 import {assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 import {eventToPromise, isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestFlagsBrowserProxy} from './test_flags_browser_proxy.js';
+
+class TestImportExportFileProxy extends TestBrowserProxy implements
+    ImportExportFileProxy {
+  constructor() {
+    super([
+      'downloadFile',
+      'selectFile',
+    ]);
+  }
+
+  downloadFile(a: HTMLAnchorElement) {
+    this.methodCalled('downloadFile', a);
+  }
+
+  selectFile(input: HTMLInputElement) {
+    this.methodCalled('selectFile', input);
+  }
+}
 
 suite('FlagsAppTest', function() {
   const supportedFeatures: Feature[] = [
@@ -77,6 +100,7 @@ suite('FlagsAppTest', function() {
   let clearSearch: HTMLInputElement;
   let resetAllButton: HTMLButtonElement;
   let browserProxy: TestFlagsBrowserProxy;
+  let fileProxy: TestImportExportFileProxy;
 
   async function setupApp(data: ExperimentalFeaturesData) {
     browserProxy.setFeatureData(data);
@@ -111,7 +135,13 @@ suite('FlagsAppTest', function() {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     browserProxy = new TestFlagsBrowserProxy();
     FlagsBrowserProxyImpl.setInstance(browserProxy);
+    fileProxy = new TestImportExportFileProxy();
+    ImportExportFileProxyImpl.setInstance(fileProxy);
     return setupApp(experimentalFeaturesData);
+  });
+
+  teardown(function() {
+    loadTimeData.overrideValues({importExportEnabled: false});
   });
 
   function searchBoxInput(text: string) {
@@ -411,5 +441,87 @@ suite('FlagsAppTest', function() {
     // '/' should focus the search box when not in input/textarea.
     window.dispatchEvent(new KeyboardEvent('keyup', {key: '/'}));
     assertEquals(searchTextArea, getDeepActiveElement());
+  });
+
+  test('ImportExportFeature', async function() {
+    // Buttons are hidden by default.
+    let importButton =
+        app.getRequiredElement<HTMLElement>('#experiment-import');
+    let exportButton =
+        app.getRequiredElement<HTMLElement>('#experiment-export');
+    assertFalse(isVisible(importButton));
+    assertFalse(isVisible(exportButton));
+
+    // Enable `importExportEnabled`.
+    loadTimeData.overrideValues({importExportEnabled: true});
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    const data: ExperimentalFeaturesData =
+        structuredClone(experimentalFeaturesData);
+    data.importExportEnabled = true;
+    await setupApp(data);
+
+    importButton = app.getRequiredElement<HTMLElement>('#experiment-import');
+    exportButton = app.getRequiredElement<HTMLElement>('#experiment-export');
+    assertTrue(isVisible(importButton));
+    assertTrue(isVisible(exportButton));
+
+    // Test Export.
+    browserProxy.reset();
+    fileProxy.reset();
+    exportButton.click();
+    await browserProxy.whenCalled('exportFlags');
+    const anchor = await fileProxy.whenCalled('downloadFile');
+    assertEquals('flags.json', anchor.download);
+
+    // Test Import.
+    browserProxy.reset();
+    const fileInput =
+        app.getRequiredElement<HTMLInputElement>('#import-file-input');
+    const validJson = JSON.stringify({enabled_flags: ['flag1@1']});
+    const file =
+        new File([validJson], 'flags.json', {type: 'application/json'});
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    fileInput.files = dataTransfer.files;
+    fileInput.dispatchEvent(new Event('change'));
+
+    const importedData = await browserProxy.whenCalled('importFlags');
+    assertEquals('flag1@1', importedData.enabled_flags[0]);
+  });
+
+  test('ImportInvalidFile', async function() {
+    loadTimeData.overrideValues({importExportEnabled: true});
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    const data: ExperimentalFeaturesData =
+        structuredClone(experimentalFeaturesData);
+    data.importExportEnabled = true;
+    await setupApp(data);
+
+    const fileInput =
+        app.getRequiredElement<HTMLInputElement>('#import-file-input');
+    const invalidJson = JSON.stringify({
+      customized_flags: {},
+      end_flags: ['composebox-voice-search-coherence@3'],
+    });
+
+    const file =
+        new File([invalidJson], 'flags.json', {type: 'application/json'});
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    fileInput.files = dataTransfer.files;
+    fileInput.dispatchEvent(new Event('change'));
+
+    const errorToast = app.getRequiredElement<CrToastElement>('#errorToast');
+    await new Promise<void>(resolve => {
+      const check = () => {
+        if (errorToast.open) {
+          resolve();
+        } else {
+          setTimeout(check, 10);
+        }
+      };
+      check();
+    });
+    assertTrue(errorToast.open);
   });
 });

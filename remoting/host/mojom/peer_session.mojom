@@ -1,0 +1,17 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module remoting.mojom;
+
+// Main process interface used by the Daemon to bootstrap the Peer Connection
+// process.
+//
+// Callee: Untrusted PC Process.
+// Caller: Privileged Daemon Process.
+[EnableIf=is_win|is_linux]
+interface PeerConnectionProcessControl {
+  // Passes the desktop pipe (connected to the Desktop Process) to the PC
+  // process.
+  ConnectDesktopChannel(handle<message_pipe> desktop_pipe);
+};

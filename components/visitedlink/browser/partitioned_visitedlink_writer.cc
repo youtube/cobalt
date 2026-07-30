@@ -64,11 +64,14 @@ bool PartitionedVisitedLinkWriter::fail_table_creation_for_testing_ = false;
 // system for every partition key in the VisitedLinkDatabase.
 //
 // The builder will store the fingerprints for those links, as well as the
-// origin salts used to calculate those fingerprints, and then marshalls
-// back to the main (UI) thread where the PartitionedVisitedLinkWriter will be
-// notified. The writer then replaces its empty table with a new table
-// containing the computed fingerprints. The map of origin salts is copied into
-// `salts_` and the UI thread is allowed to get or add to the map itself.
+// origin salts used to calculate those fingerprints (unless use_constant_salt
+// is true, in which case we use a constant salt
+// `kPseudoPartitionedConstantSalt`), and then marshalls back to the main (UI)
+// thread where the PartitionedVisitedLinkWriter will be notified. The writer
+// then replaces its empty table with a new table containing the computed
+// fingerprints. The map of origin salts is copied into `salts_` (which remains
+// empty if use_constant_salt is true) and the UI thread is allowed to get or
+// add to the map itself.
 //
 // The builder must remain active while the history system is using it. If the
 // WeakPtr to the PartitionedVisitedLinkWriter is severed during table build, no
@@ -76,7 +79,8 @@ bool PartitionedVisitedLinkWriter::fail_table_creation_for_testing_ = false;
 class PartitionedVisitedLinkWriter::TableBuilder
     : public VisitedLinkDelegate::VisitedLinkEnumerator {
  public:
-  explicit TableBuilder(base::WeakPtr<PartitionedVisitedLinkWriter> writer);
+  TableBuilder(base::WeakPtr<PartitionedVisitedLinkWriter> writer,
+               bool use_constant_salt);
 
   TableBuilder(const TableBuilder&) = delete;
   TableBuilder& operator=(const TableBuilder&) = delete;
@@ -100,6 +104,9 @@ class PartitionedVisitedLinkWriter::TableBuilder
   // TableBuilder, and call this function to get from it or add to it. Once we
   // return to the UI thread, we will copy `local_salts_` to
   // PartitionedVisitedLinkWriter's `salts_` and allow the UI thread access.
+  //
+  // If `use_constant_salt_` is true, this function immediately returns
+  // `kPseudoPartitionedConstantSalt` and does not modify `local_salts_`.
   uint64_t GetOrAddLocalOriginSalt(const url::Origin& origin);
 
   // OnComplete mashals to this function on the main (UI) thread to do the
@@ -118,13 +125,16 @@ class PartitionedVisitedLinkWriter::TableBuilder
   // Stores the salts we computed on the background thread. See
   // GetOrAddLocalOriginSalt() above for more details.
   std::map<url::Origin, uint64_t> local_salts_;
+
+  const bool use_constant_salt_;
 };
 
 // TableBuilder ----------------------------------------------------
 
 PartitionedVisitedLinkWriter::TableBuilder::TableBuilder(
-    base::WeakPtr<PartitionedVisitedLinkWriter> writer)
-    : writer_(std::move(writer)) {}
+    base::WeakPtr<PartitionedVisitedLinkWriter> writer,
+    bool use_constant_salt)
+    : writer_(std::move(writer)), use_constant_salt_(use_constant_salt) {}
 
 void PartitionedVisitedLinkWriter::TableBuilder::OnVisitedLink(
     const GURL& link_url,
@@ -172,6 +182,11 @@ void PartitionedVisitedLinkWriter::TableBuilder::OnVisitedLinkComplete(
 
 uint64_t PartitionedVisitedLinkWriter::TableBuilder::GetOrAddLocalOriginSalt(
     const url::Origin& origin) {
+  // Pseudo-partitioning uses a constant salt (kPseudoPartitionedConstantSalt)
+  // and therefore does not store salts.
+  if (use_constant_salt_) {
+    return kPseudoPartitionedConstantSalt;
+  }
   // Obtain the salt for this origin if it already exists.
   // Otherwise, generate a new salt for this origin.
   auto [it, inserted] = local_salts_.try_emplace(origin);
@@ -194,22 +209,33 @@ void PartitionedVisitedLinkWriter::TableBuilder::OnCompleteMainThread() {
 // ----------------------------------------------------------
 PartitionedVisitedLinkWriter::PartitionedVisitedLinkWriter(
     content::BrowserContext* browser_context,
-    VisitedLinkDelegate* delegate)
+    VisitedLinkDelegate* delegate,
+    bool use_constant_salt)
     : browser_context_(browser_context),
       delegate_(delegate),
       listener_(
-          std::make_unique<VisitedLinkEventListener>(browser_context, this)) {}
+          std::make_unique<VisitedLinkEventListener>(browser_context, this)),
+      use_constant_salt_(use_constant_salt) {
+  if (use_constant_salt_) {
+    is_pseudo_partitioned_ = true;
+  }
+}
 
 PartitionedVisitedLinkWriter::PartitionedVisitedLinkWriter(
     std::unique_ptr<Listener> listener,
     VisitedLinkDelegate* delegate,
     bool suppress_build,
-    int32_t default_table_size)
+    int32_t default_table_size,
+    bool use_constant_salt)
     : delegate_(delegate),
       listener_(std::move(listener)),
+      use_constant_salt_(use_constant_salt),
       suppress_build_(suppress_build),
       table_size_override_(default_table_size) {
   DCHECK(listener_);
+  if (use_constant_salt_) {
+    is_pseudo_partitioned_ = true;
+  }
 }
 
 PartitionedVisitedLinkWriter::~PartitionedVisitedLinkWriter() = default;
@@ -354,8 +380,8 @@ void PartitionedVisitedLinkWriter::ResizeTable(int32_t new_size) {
 bool PartitionedVisitedLinkWriter::BuildTableFromDelegate() {
   DCHECK(!table_builder_);
 
-  table_builder_ =
-      base::MakeRefCounted<TableBuilder>(weak_ptr_factory_.GetWeakPtr());
+  table_builder_ = base::MakeRefCounted<TableBuilder>(
+      weak_ptr_factory_.GetWeakPtr(), use_constant_salt_);
   delegate_->BuildVisitedLinkTable(table_builder_);
   return true;
 }
@@ -748,6 +774,10 @@ void PartitionedVisitedLinkWriter::DeleteVisitedLinks(
 
 std::optional<uint64_t> PartitionedVisitedLinkWriter::GetOrAddOriginSalt(
     const url::Origin& origin) {
+  if (use_constant_salt_) {
+    // Pseudo-partitioning uses a constant salt rather than per-origin salts.
+    return kPseudoPartitionedConstantSalt;
+  }
   // To avoid race conditions, we should not get from or add to the salt map
   // while the hashtable is building.
   // TODO(crbug.com/332364003): implement a new VisitedLinkNotificationSink
@@ -773,6 +803,38 @@ PartitionedVisitedLinkWriter::GetHashTableFromMapping(
   // Our table pointer is just the data immediately following the header.
   return reinterpret_cast<Fingerprint*>(
       UNSAFE_TODO(hash_table_mapping.data() + sizeof(PartitionedSharedHeader)));
+}
+
+void PartitionedVisitedLinkWriter::AddPseudoPartitionedVisitedLink(
+    const GURL& link_url) {
+  AddPseudoPartitionedVisitedLinks({link_url});
+}
+
+void PartitionedVisitedLinkWriter::AddPseudoPartitionedVisitedLinks(
+    const std::vector<GURL>& link_urls) {
+  bool did_add = false;
+  for (const auto& url : link_urls) {
+    // To construct the VisitedLink to be stored in the partitioned table, we
+    // use the URL in each of the three VisitedLink fields.
+    VisitedLink link = CreatePseudoPartitionedLink(url);
+    if (TryToAddVisitedLink(link) != kNullHash) {
+      did_add = true;
+    }
+  }
+  if (!table_builder_ && did_add) {
+    ResizeTableIfNecessary();
+  }
+}
+
+void PartitionedVisitedLinkWriter::DeletePseudoPartitionedVisitedLinks(
+    const std::vector<GURL>& link_urls) {
+  std::vector<VisitedLink> links;
+  for (const auto& url : link_urls) {
+    // To construct the VisitedLink for lookup in the partitioned table, we
+    // use the URL in each of the three VisitedLink fields.
+    links.push_back(CreatePseudoPartitionedLink(url));
+  }
+  DeleteVisitedLinks(links);
 }
 
 }  // namespace visitedlink

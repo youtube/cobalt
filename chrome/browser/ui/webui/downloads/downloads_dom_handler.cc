@@ -141,8 +141,7 @@ void PromptForScanningInBubble(content::WebContents* web_contents,
   if (!browser) {
     return;
   }
-  browser->GetBrowserForMigrationOnly()
-      ->window()
+  BrowserWindow::FromBrowser(browser)
       ->GetDownloadBubbleUIController()
       ->GetDownloadDisplayController()
       ->OpenSecuritySubpage(

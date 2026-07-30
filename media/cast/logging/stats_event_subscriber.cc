@@ -430,15 +430,21 @@ void StatsEventSubscriber::GetStatsInternal(StatsMap* stats_map) const {
   stats_map->insert(std::make_pair(NUM_FRAMES_DROPPED_BY_ENCODER,
                                    num_frames_dropped_by_encoder_));
   stats_map->insert(std::make_pair(NUM_FRAMES_LATE, num_frames_late_));
+  // Express the event times (TimeTicks) as milliseconds since the Unix epoch
+  // by anchoring both clocks to the current instant.
+  const base::TimeTicks now_ticks = base::TimeTicks::Now();
+  const base::Time now = base::Time::Now();
   if (!first_event_time_.is_null()) {
     stats_map->insert(std::make_pair(
         FIRST_EVENT_TIME_MS,
-        (first_event_time_ - base::TimeTicks::UnixEpoch()).InMillisecondsF()));
+        (now - (now_ticks - first_event_time_) - base::Time::UnixEpoch())
+            .InMillisecondsF()));
   }
   if (!last_event_time_.is_null()) {
     stats_map->insert(std::make_pair(
         LAST_EVENT_TIME_MS,
-        (last_event_time_ - base::TimeTicks::UnixEpoch()).InMillisecondsF()));
+        (now - (now_ticks - last_event_time_) - base::Time::UnixEpoch())
+            .InMillisecondsF()));
   }
 }
 

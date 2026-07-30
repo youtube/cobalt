@@ -30,13 +30,18 @@ NSArray<FormSuggestion*>* FormSuggestionsFromPasskeyCredentials(
         FormatPasskeySuggestionDescription(username, displayName);
 
     FormSuggestion* suggestion = [FormSuggestion
-        suggestionWithValue:value
-         displayDescription:displayDescription
-                       icon:nil
-                       type:autofill::SuggestionType::kWebauthnCredential
-                    payload:autofill::Suggestion::Guid(
-                                base::Base64Encode(passkey.credential_id()))
-             requiresReauth:YES];
+                suggestionWithValue:value
+                         minorValue:base::SysUTF8ToNSString(passkey.rp_id())
+                 displayDescription:displayDescription
+                               icon:nil
+                               type:autofill::SuggestionType::
+                                        kWebauthnCredential
+                            payload:autofill::Suggestion::Guid(
+                                        base::Base64Encode(
+                                            passkey.credential_id()))
+        fieldByFieldFillingTypeUsed:autofill::FieldType::EMPTY_TYPE
+                     requiresReauth:YES
+         acceptanceA11yAnnouncement:nil];
     [passkey_suggestions addObject:suggestion];
   }
 

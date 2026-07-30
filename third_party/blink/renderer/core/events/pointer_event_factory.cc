@@ -387,18 +387,17 @@ PointerEvent* PointerEventFactory::Create(
 void PointerEventFactory::SetLastPosition(int pointer_id,
                                           const gfx::PointF& position_in_screen,
                                           WebInputEvent::Type event_type) {
-  PointerAttributes* attributes =
-      pointer_id_to_attributes_.Contains(pointer_id)
-          ? pointer_id_to_attributes_.at(pointer_id)
-          : MakeGarbageCollected<PointerAttributes>();
+  auto add_result = pointer_id_to_attributes_.insert(pointer_id, nullptr);
+  if (add_result.is_new_entry) {
+    add_result.stored_value->value = MakeGarbageCollected<PointerAttributes>();
+  }
+  PointerAttributes* attributes = add_result.stored_value->value;
 
   if (event_type == WebInputEvent::Type::kPointerRawUpdate) {
     attributes->last_rawupdate_position = position_in_screen;
   } else {
     attributes->last_position = position_in_screen;
   }
-
-  pointer_id_to_attributes_.Set(pointer_id, attributes);
 }
 
 void PointerEventFactory::RemoveLastPosition(const int pointer_id) {

@@ -117,7 +117,6 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="1178821169867863726">12 x 16 pol.</translation>
 <translation id="1181037720776840403">Remover</translation>
 <translation id="1185331130467528132">O app <ph name="URL" /> quer acessar outros dispositivos na sua rede local</translation>
-<translation id="1185343831726846924">Não é possível ativar a confirmação de cartão virtual</translation>
 <translation id="1186201132766001848">Verificar senhas</translation>
 <translation id="1187430513518041110">Automóveis e veículos</translation>
 <translation id="1188817995162638216">Parar de salvar o arquivo?</translation>
@@ -1262,7 +1261,6 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="297173220375858963">Editoração eletrônica</translation>
 <translation id="2972581237482394796">&amp;Refazer</translation>
 <translation id="2974468223369775963">Não foi possível salvar o IBAN na sua Conta do Google. Ele foi salvo no Chrome neste dispositivo. O Chrome vai perguntar de novo na próxima vez que você usar esse IBAN.</translation>
-<translation id="2976162850019490782">Quando ativada, o Chrome vai compartilhar todas as guias desta janela para ajudar você a receber respostas mais relevantes. Você pode ativar essa opção para todas as conversas nas Configurações.</translation>
 <translation id="297667759942911166">Colaborar em grupos de guias</translation>
 <translation id="2977665033722899841">Selecionado no momento: <ph name="ROW_NAME" />. <ph name="ROW_CONTENT" /></translation>
 <translation id="2978824962390592855">Ópera</translation>
@@ -1671,7 +1669,6 @@ Se quiser ocultar as opções para pagar depois, acesse as <ph name="BEGIN_LINK"
 <translation id="361438452008624280">Entrada "<ph name="LANGUAGE_ID" />": idioma desconhecido ou não compatível.</translation>
 <translation id="3614934205542186002"><ph name="RUN_CHROME_SAFETY_CHECK_FOCUSED_FRIENDLY_MATCH_TEXT" />. Pressione Tab e depois Enter para executar a confirmação de segurança nas configurações do Chrome</translation>
 <translation id="3615309852743236517">Manicure e pedicure</translation>
-<translation id="3620034424637552643">Geralmente usado para rotas, entregas e outros</translation>
 <translation id="3620239073311576716">Uniformes e roupas de trabalho</translation>
 <translation id="3620865353340165509">Não foi possível salvar o IBAN na Carteira do Google. Ele foi salvo no Chrome neste dispositivo. O Chrome vai perguntar de novo na próxima vez que você usar esse IBAN.</translation>
 <translation id="3621401353678567613">Para receber alertas de redução no preço dos produtos que você monitora, ative as notificações nas configurações.</translation>
@@ -2220,7 +2217,6 @@ Se quiser ocultar as opções para pagar depois, acesse as <ph name="BEGIN_LINK"
 <translation id="4434045419905280838">Pop-ups e redirecionamentos</translation>
 <translation id="443673843213245140">O uso de um proxy está desativado, mas uma configuração explícita de proxy é especificada.</translation>
 <translation id="4438821706955556403">Preço normal</translation>
-<translation id="4439687924334332880">Receba respostas mais personalizadas compartilhando automaticamente as abas abertas nesta janela quando elas forem relevantes para a conversa. Você pode ativar essa opção para todas as conversas nas Configurações.</translation>
 <translation id="4441832193888514600">Ignorada porque a política só pode ser definida como uma política do usuário em nuvem.</translation>
 <translation id="4444062564459679679">Já enviado para o Chrome no seu <ph name="DEVICE_NAME" /></translation>
 <translation id="4445694043187340808"><ph name="STARTER_PACK_TABS_FOCUSED_FRIENDLY_MATCH_TEXT" />. Pressione Enter para pesquisar guias</translation>
@@ -2354,6 +2350,7 @@ Se quiser ocultar as opções para pagar depois, acesse as <ph name="BEGIN_LINK"
 <translation id="4691093235373904540">Serviços de telhadista</translation>
 <translation id="4692623383562244444">Mecanismos de pesquisa</translation>
 <translation id="4695702626068620848"><ph name="KEYWORD" />: perguntar ao <ph name="KEYWORD_SHORT_NAME" /></translation>
+<translation id="4697071790493980729">Nenhum resultado encontrado</translation>
 <translation id="4698308118265482293">Atualizar passaporte</translation>
 <translation id="4698692901173737941">Lutas</translation>
 <translation id="4701488924964507374"><ph name="SENTENCE1" /> <ph name="SENTENCE2" /></translation>
@@ -2463,7 +2460,7 @@ Se quiser ocultar as opções para pagar depois, acesse as <ph name="BEGIN_LINK"
 <translation id="4864406669374375262">String da versão copiada para a área de transferência</translation>
 <translation id="486459320933704969">Um familiar ou responsável precisa autorizar seu acesso a este site</translation>
 <translation id="4864801646102013152">Reforma de casas</translation>
-<translation id="4865063548323785458">Salve e preencha automaticamente suas senhas para fazer login em sites e apps rapidamente.</translation>
+<translation id="4865063548323785458">Salve e preencha automaticamente suas senhas para fazer login em sites e apps com facilidade.</translation>
 <translation id="4866506163384898554">Pressione |<ph name="ACCELERATOR1" />| + |<ph name="ACCELERATOR2" />| para mostrar o cursor</translation>
 <translation id="4868277513442568587">Para continuar usando os grupos de guias compartilhados, atualize o Chrome</translation>
 <translation id="4873616204573862158">Óculos</translation>
@@ -2701,7 +2698,6 @@ Se quiser ocultar as opções para pagar depois, acesse as <ph name="BEGIN_LINK"
 <translation id="5238301240406177137">Salvar na conta</translation>
 <translation id="5239119062986868403">Preço normal</translation>
 <translation id="5239623327352565343">Acesso à localização permitido</translation>
-<translation id="5241048084654737238">Confirmação de que não foi possível salvar as informações do cartão</translation>
 <translation id="5242610955375133957">Filme seco</translation>
 <translation id="5243004157379865295">Atualizar endereço</translation>
 <translation id="5244521145258281926">Botão "Gerenciar Conta do Google". Ative para gerenciar suas informações, sua privacidade e sua segurança na sua Conta do Google</translation>
@@ -3357,6 +3353,7 @@ Se quiser ocultar as opções para pagar depois, acesse as <ph name="BEGIN_LINK"
 <translation id="6246316216123107851"><ph name="NUM_DAYS" /> dias atrás</translation>
 <translation id="6246382863801034910">Veículo</translation>
 <translation id="6246868321321344665">Sua organização pode ver dados de navegação, como senhas e histórico, nos seus perfis de trabalho e pessoal</translation>
+<translation id="6248479108671123143"><ph name="MEMBER_FIRST_NAME" /> modificou esta guia, <ph name="TAB_TITLE" /></translation>
 <translation id="6248988683584659830">Pesquise nas configurações</translation>
 <translation id="6250932670816326647">Produtos para banho e corpo</translation>
 <translation id="6251906504834538140">{0,plural, =1{A transferência do arquivo está bloqueada}one{A transferência de <ph name="FILE_COUNT" /> arquivo está bloqueada}other{A transferência de <ph name="FILE_COUNT" /> arquivos está bloqueada}}</translation>
@@ -3713,6 +3710,7 @@ Se quiser ocultar as opções para pagar depois, acesse as <ph name="BEGIN_LINK"
 <translation id="6798066466127540426">A lista não contém um provedor de pesquisa válido.</translation>
 <translation id="6798460514924505775">Envelope Chou 3</translation>
 <translation id="6799145206637008376">Preencher o CVC deste cartão virtual</translation>
+<translation id="6800773453940486492"><ph name="MEMBER_FIRST_NAME" /> adicionou esta guia, <ph name="TAB_TITLE" /></translation>
 <translation id="6801920212017470190">Acompanhe todas as reduções de preço em qualquer lugar</translation>
 <translation id="6805030849054648206">Envelope B6/C4</translation>
 <translation id="6807791860691150411">Educação</translation>
@@ -4716,6 +4714,7 @@ Mais detalhes:
 <translation id="8351131234907093545">Criar nota</translation>
 <translation id="8352849934814541340">O administrador do dispositivo instalou aplicativos para funções adicionais. Os aplicativos têm acesso a alguns dos seus dados.</translation>
 <translation id="8355270400102541638">Contexto de falha local:</translation>
+<translation id="8362914115861174987">Traduzir para </translation>
 <translation id="8363502534493474904">Desativar o modo avião</translation>
 <translation id="8363929499301563123">Cookies de sites (o estado de conta conectada nos sites visitados recentemente será preservado)</translation>
 <translation id="8364627913115013041">Não definida.</translation>
@@ -4735,7 +4734,6 @@ Mais detalhes:
 <translation id="8381674639488873545">Essas cobranças podem ser únicas ou recorrentes e talvez não sejam óbvias. <ph name="BEGIN_LINK" />Mostrar mesmo assim<ph name="END_LINK" /></translation>
 <translation id="8382097126743287270">Tela cheia automática</translation>
 <translation id="838307841291975086">Peruas</translation>
-<translation id="838953173259347825">Receba respostas mais personalizadas compartilhando automaticamente as abas abertas nesta janela quando elas forem relevantes para a conversa. Você pode ativar essa opção para todas as conversas nas</translation>
 <translation id="8389532092404711541">Normalmente: <ph name="LOW_PRICE" /></translation>
 <translation id="8389940864052787379">Veículos personalizados e de alta performance</translation>
 <translation id="8390725133630534698">A política do administrador bloqueou a opção de compartilhar conteúdo de <ph name="ORIGIN_NAME" /> para <ph name="VM_NAME" /></translation>
@@ -4902,6 +4900,7 @@ Mais detalhes:
 <translation id="8671519637524426245">O valor <ph name="SECURE_DNS_SALT" /> não atende aos requisitos de tamanho.</translation>
 <translation id="867224526087042813">Assinatura</translation>
 <translation id="8672535691554698269">Redes de computadores</translation>
+<translation id="8673710317985154384">{NUM_TABS,plural, =1{Mostrar detalhes do compartilhamento de guias. Compartilhando 1 guia de {WEBSITE_LIST_STR}}one{Mostrar detalhes do compartilhamento de guias. Compartilhando {NUM_TABS} guia de {WEBSITE_LIST_STR}}other{Mostrar detalhes do compartilhamento de guias. Compartilhando {NUM_TABS} guias de {WEBSITE_LIST_STR}}}</translation>
 <translation id="8675446170353411473">O upload dos seus arquivos está sendo feito para <ph name="CLOUD_PROVIDER" /></translation>
 <translation id="8676424191133491403">Sem atraso</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />, resposta, <ph name="ANSWER" /></translation>
@@ -5155,7 +5154,6 @@ Mais detalhes:
 <translation id="9090243919347147717">Anexos</translation>
 <translation id="9090548458280093580">Pesquise seu histórico com tecnologia de IA</translation>
 <translation id="9090993752571911635">Provedores de acesso à Internet (ISPs)</translation>
-<translation id="9092305980625216393">Geralmente usado para clima, notícias locais e outros</translation>
 <translation id="9093723786115107672">Pijamas</translation>
 <translation id="9094424186948667194">Acessar outros apps e serviços neste dispositivo</translation>
 <translation id="9094544726794842788">O botão "Não gostei" abre um formulário para enviar feedback detalhado sobre o motivo de você não ter gostado desses resultados</translation>
@@ -5282,7 +5280,6 @@ incomuns e incorretas. Isso pode acontecer quando um invasor está fingindo ser 
 <translation id="964050462028070434">Gerenciar senhas e chaves de acesso…</translation>
 <translation id="964681140808832181">Sim, quero cancelar</translation>
 <translation id="969892804517981540">Versão oficial</translation>
-<translation id="970182982363142444">Quando ativada, o Chrome vai compartilhar todas as guias desta janela para ajudar você a receber respostas mais relevantes. Você pode ativar essa opção para todos os chats em</translation>
 <translation id="97054401902912338">Saiba mais sobre os filtros de conteúdo</translation>
 <translation id="973788791897303708">Este grupo de guias está cheio</translation>
 <translation id="975560348586398090">{COUNT,plural, =0{Nenhum}=1{1 item}one{# item}other{# itens}}</translation>

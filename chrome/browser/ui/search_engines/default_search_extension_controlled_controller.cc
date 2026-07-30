@@ -8,6 +8,7 @@
 
 #include "base/check.h"
 #include "base/functional/bind.h"
+#include "base/no_destructor.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -27,7 +28,31 @@
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_features.h"
 
+namespace {
+
+base::WeakPtr<DefaultSearchExtensionControlledController>&
+GetDialogCurrentlyShowingRef() {
+  static base::NoDestructor<
+      base::WeakPtr<DefaultSearchExtensionControlledController>>
+      g_currently_showing;
+  return *g_currently_showing;
+}
+
+}  // namespace
+
 DEFINE_USER_DATA(DefaultSearchExtensionControlledController);
+
+// static
+base::WeakPtr<DefaultSearchExtensionControlledController>
+DefaultSearchExtensionControlledController::GetDialogCurrentlyShowing() {
+  return GetDialogCurrentlyShowingRef();
+}
+
+// static
+void DefaultSearchExtensionControlledController::SetDialogCurrentlyShowing(
+    base::WeakPtr<DefaultSearchExtensionControlledController> controller) {
+  GetDialogCurrentlyShowingRef() = std::move(controller);
+}
 
 DefaultSearchExtensionControlledController::
     DefaultSearchExtensionControlledController(
@@ -43,7 +68,11 @@ DefaultSearchExtensionControlledController::
 }
 
 DefaultSearchExtensionControlledController::
-    ~DefaultSearchExtensionControlledController() = default;
+    ~DefaultSearchExtensionControlledController() {
+  if (GetDialogCurrentlyShowing().get() == this) {
+    SetDialogCurrentlyShowing(nullptr);
+  }
+}
 
 // static
 DefaultSearchExtensionControlledController*
@@ -54,6 +83,10 @@ DefaultSearchExtensionControlledController::From(
 
 bool DefaultSearchExtensionControlledController::
     ShouldRequestConfirmationForExtensionDse(const GURL& url) const {
+  if (GetDialogCurrentlyShowing()) {
+    return false;
+  }
+
   // 1) DSE must be extension-controlled.
   TemplateURLService* template_url_service =
       TemplateURLServiceFactory::GetForProfile(base::to_address(profile_));
@@ -131,6 +164,7 @@ void DefaultSearchExtensionControlledController::ShowConfirmationDialog(
     content::WebContents& web_contents,
     ConfirmationCallback callback) {
   confirmation_callback_ = std::move(callback);
+  SetDialogCurrentlyShowing(weak_factory_.GetWeakPtr());
 
   settings_overridden_params::GetSearchOverriddenParamsThenRun(
       &web_contents,
@@ -165,6 +199,9 @@ void DefaultSearchExtensionControlledController::OnParamsLoaded(
 
 void DefaultSearchExtensionControlledController::DialogResolved(
     SettingsOverriddenDialogController::DialogResult dialog_result) {
+  if (GetDialogCurrentlyShowing().get() == this) {
+    SetDialogCurrentlyShowing(nullptr);
+  }
   CHECK(confirmation_callback_);
   std::move(confirmation_callback_).Run(dialog_result);
 }

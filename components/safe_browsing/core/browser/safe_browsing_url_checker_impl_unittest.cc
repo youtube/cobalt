@@ -314,6 +314,10 @@ class FakeRealTimeUrlLookupService
         threat_type = RTLookupResponse::ThreatInfo::THREAT_TYPE_UNSPECIFIED;
         verdict_type = RTLookupResponse::ThreatInfo::SUSPICIOUS;
         break;
+      case SB_THREAT_TYPE_WARNABLE_SUSPICIOUS_SITE:
+        threat_type = RTLookupResponse::ThreatInfo::SOCIAL_ENGINEERING;
+        verdict_type = RTLookupResponse::ThreatInfo::WARN;
+        break;
       case SB_THREAT_TYPE_UNUSED:
       case SB_THREAT_TYPE_URL_MALWARE:
       case SB_THREAT_TYPE_URL_UNWANTED:

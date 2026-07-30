@@ -55,7 +55,7 @@ class LastResortGCPolicyTest : public Test {
 
 TEST_F(LastResortGCPolicyTest, Enabled_NoTrait) {
   ChildMemoryCoordinator coordinator;
-  LastResortGCPolicy policy{coordinator};
+  LastResortGCPolicy policy{coordinator.policy_manager()};
 
   // Create the consumer with the `ReleaseGCReferences::kNo` trait.
   base::RegisteredMockMemoryConsumer consumer("Consumer",
@@ -70,7 +70,7 @@ TEST_F(LastResortGCPolicyTest, Enabled_NoTrait) {
 
 TEST_F(LastResortGCPolicyTest, Enabled_NoTimer) {
   ChildMemoryCoordinator coordinator;
-  LastResortGCPolicy policy{coordinator};
+  LastResortGCPolicy policy{coordinator.policy_manager()};
 
   // Create the consumer with the `ReleaseGCReferences::kYes` trait.
   base::RegisteredMockMemoryConsumer consumer("Consumer", kTraitsWithReleaseGC);
@@ -100,7 +100,7 @@ TEST_F(LastResortGCPolicyTest, Enabled_Timer) {
         base::NumberToString(kTestRestoreLimitSeconds)}});
 
   ChildMemoryCoordinator coordinator;
-  LastResortGCPolicy policy{coordinator};
+  LastResortGCPolicy policy{coordinator.policy_manager()};
 
   // Create the consumer with the `ReleaseGCReferences::kYes` trait.
   base::RegisteredMockMemoryConsumer consumer("Consumer", kTraitsWithReleaseGC);
@@ -137,7 +137,7 @@ TEST_F(LastResortGCPolicyTest, Persistence) {
         base::NumberToString(kTestRestoreLimitSeconds)}});
 
   ChildMemoryCoordinator coordinator;
-  LastResortGCPolicy policy{coordinator};
+  LastResortGCPolicy policy{coordinator.policy_manager()};
 
   policy.OnV8HeapLastResortGC();
 

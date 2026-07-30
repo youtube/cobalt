@@ -6,8 +6,6 @@
 
 #include <memory>
 
-#include "base/functional/callback.h"
-#include "base/test/mock_callback.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/tabs/public/mock_tab_interface.h"
 #include "testing/gmock/include/gmock/gmock.h"

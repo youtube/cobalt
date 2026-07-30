@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.tasks.tab_management.vertical_tabs;
 
+import android.animation.ObjectAnimator;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
@@ -11,6 +12,7 @@ import android.graphics.drawable.Drawable;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.LinearInterpolator;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -24,6 +26,10 @@ import com.google.android.material.progressindicator.CircularProgressIndicator;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.actor.ui.ActorUiTabController.UiTabState;
+import org.chromium.chrome.browser.actor.ui.TabIndicatorStatus;
+import org.chromium.chrome.browser.tab.MediaState;
+import org.chromium.chrome.browser.tab.TabUtils;
 import org.chromium.chrome.browser.tasks.tab_management.TabActionButtonData;
 import org.chromium.chrome.browser.tasks.tab_management.TabListViewBinderUtils;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties;
@@ -31,6 +37,7 @@ import org.chromium.chrome.browser.tasks.tab_management.TabUiThemeUtil;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.tab_groups.TabGroupColorPickerUtils;
+import org.chromium.ui.base.ViewUtils;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
@@ -39,6 +46,8 @@ import org.chromium.ui.modelutil.PropertyModel;
 class TabVerticalViewBinder {
     private static final float ROTATION_COLLAPSED = 0f;
     private static final float ROTATION_EXPANDED = 180f;
+    private static final float ACTUATION_SPINNER_ROTATION_DEGREES = 360f;
+    private static final long ACTUATION_SPINNER_DURATION_MS = 2000L;
     @VisibleForTesting static final long CHEVRON_ANIMATION_DURATION_MS = 200L;
 
     // Public Entry-Point Binders
@@ -70,9 +79,11 @@ class TabVerticalViewBinder {
             updateChildRowPadding(model, view);
         } else if (TabProperties.CONTENT_DESCRIPTION_TEXT_RESOLVER == propertyKey) {
             TabListViewBinderUtils.updateContentDescription(model, view);
+        } else if (TabProperties.MEDIA_INDICATOR == propertyKey) {
+            updateMediaIndicator(model, view);
+        } else if (TabProperties.ACTOR_UI_STATE == propertyKey) {
+            updateActorIndicator(model, view);
         }
-        // TODO(crbug.com/509226293): Add MEDIA_INDICATOR to TabProperties.ALL_KEYS_VERTICAL_TAB
-        // and implement binder logic to display/update playing/muted audio icons.
     }
 
     /**
@@ -186,6 +197,70 @@ class TabVerticalViewBinder {
         faviconView.setVisibility(isLoading ? View.INVISIBLE : View.VISIBLE);
     }
 
+    private static void updateMediaIndicator(PropertyModel model, ViewGroup view) {
+        ImageView mediaIndicator = view.findViewById(R.id.media_indicator_icon);
+        if (mediaIndicator == null) return;
+
+        @MediaState int mediaState = model.get(TabProperties.MEDIA_INDICATOR);
+        if (mediaState != MediaState.NONE) {
+            mediaIndicator.setImageResource(TabUtils.getMediaIndicatorDrawable(mediaState));
+            mediaIndicator.setVisibility(View.VISIBLE);
+        } else {
+            mediaIndicator.setVisibility(View.GONE);
+        }
+    }
+
+    private static void updateActorIndicator(PropertyModel model, ViewGroup view) {
+        @Nullable View aiIndicatorLine = view.findViewById(R.id.ai_indicator);
+        @Nullable ImageView actuationSpark = view.findViewById(R.id.actuation_spark);
+        @Nullable ImageView actuationSpinner = view.findViewById(R.id.actuation_spinner);
+
+        if (aiIndicatorLine == null || actuationSpark == null || actuationSpinner == null) return;
+
+        boolean shouldBeVisible = TabListViewBinderUtils.setupActorIndicator(model, view);
+        aiIndicatorLine.setVisibility(shouldBeVisible ? View.VISIBLE : View.GONE);
+
+        @Nullable UiTabState state = model.get(TabProperties.ACTOR_UI_STATE);
+
+        boolean isDynamic =
+                shouldBeVisible
+                        && state != null
+                        && state.tabIndicator == TabIndicatorStatus.DYNAMIC;
+
+        ObjectAnimator animator = (ObjectAnimator) actuationSpinner.getTag(R.id.actuation_spinner);
+
+        if (isDynamic) {
+            actuationSpark.setVisibility(View.VISIBLE);
+            actuationSpinner.setVisibility(View.VISIBLE);
+
+            if (animator == null) {
+                animator =
+                        ObjectAnimator.ofFloat(
+                                actuationSpinner,
+                                View.ROTATION,
+                                0f,
+                                ACTUATION_SPINNER_ROTATION_DEGREES);
+                animator.setDuration(ACTUATION_SPINNER_DURATION_MS);
+                animator.setRepeatCount(ObjectAnimator.INFINITE);
+                animator.setInterpolator(new LinearInterpolator());
+                actuationSpinner.setTag(R.id.actuation_spinner, animator);
+
+                // Cancel the animator when the view is recycled to prevent infinite background
+                // execution and memory leaks.
+                ViewUtils.cancelAnimatorOnDetach(actuationSpinner, R.id.actuation_spinner);
+            }
+            if (!animator.isRunning()) {
+                animator.start();
+            }
+        } else {
+            if (animator != null && animator.isRunning()) {
+                animator.cancel();
+            }
+            actuationSpark.setVisibility(View.GONE);
+            actuationSpinner.setVisibility(View.GONE);
+        }
+    }
+
     // Row-Specific Layout Color Binder Helpers
 
     private static void updateRegularColors(PropertyModel model, ViewGroup view) {
@@ -212,7 +287,10 @@ class TabVerticalViewBinder {
         }
 
         updateFavicon(model, view);
-        setupTabHoverListener(model, view);
+        setupTabHoverListener(
+                model,
+                view,
+                /* defaultBackgroundColor= */ ColorStateList.valueOf(Color.TRANSPARENT));
     }
 
     /**
@@ -238,6 +316,7 @@ class TabVerticalViewBinder {
             ViewCompat.setBackgroundTintList(view, tintList);
         }
         updateFavicon(model, view);
+        setupTabHoverListener(model, view, /* defaultBackgroundColor= */ null);
     }
 
     /**
@@ -255,24 +334,25 @@ class TabVerticalViewBinder {
         @Nullable Drawable bg = view.getBackground();
         if (bg != null && colorId != null) {
             bg.mutate();
-            int color =
+            int backgroundColor =
                     TabGroupColorPickerUtils.getTabGroupColorPickerItemColor(
                             context, colorId, isIncognito);
-            ViewCompat.setBackgroundTintList(view, ColorStateList.valueOf(color));
+            ViewCompat.setBackgroundTintList(view, ColorStateList.valueOf(backgroundColor));
 
             @ColorInt
-            int textColor = ContextCompat.getColor(context, R.color.default_text_color_light);
-            @ColorInt
-            int iconColor = ContextCompat.getColor(context, R.color.default_icon_color_light);
+            int foregroundColor =
+                    TabGroupColorPickerUtils.getTabGroupColorPickerItemTextColor(
+                            context, colorId, isIncognito);
 
             TextView titleView = view.findViewById(R.id.group_title);
             if (titleView != null) {
-                titleView.setTextColor(textColor);
+                titleView.setTextColor(foregroundColor);
             }
 
             @Nullable ImageView expandChevron = view.findViewById(R.id.expand_chevron);
             if (expandChevron != null) {
-                ImageViewCompat.setImageTintList(expandChevron, ColorStateList.valueOf(iconColor));
+                ImageViewCompat.setImageTintList(
+                        expandChevron, ColorStateList.valueOf(foregroundColor));
             }
         }
     }
@@ -368,21 +448,25 @@ class TabVerticalViewBinder {
 
     // Gesture & Interaction Layout Helpers
 
-    private static void setupTabHoverListener(PropertyModel model, ViewGroup view) {
+    private static void setupTabHoverListener(
+            PropertyModel model, ViewGroup view, @Nullable ColorStateList defaultBackgroundColor) {
         @Nullable ImageView actionButton = view.findViewById(R.id.action_button);
-        if (actionButton == null) return;
 
         view.setOnHoverListener(
                 (rowView, motionEvent) -> {
                     boolean isSelected = model.get(TabProperties.IS_SELECTED);
                     if (isSelected) {
-                        actionButton.setVisibility(View.VISIBLE);
+                        if (actionButton != null) {
+                            actionButton.setVisibility(View.VISIBLE);
+                        }
                         return false;
                     }
 
                     switch (motionEvent.getAction()) {
                         case MotionEvent.ACTION_HOVER_ENTER:
-                            actionButton.setVisibility(View.VISIBLE);
+                            if (actionButton != null) {
+                                actionButton.setVisibility(View.VISIBLE);
+                            }
                             ViewCompat.setBackgroundTintList(
                                     view,
                                     ColorStateList.valueOf(
@@ -391,9 +475,10 @@ class TabVerticalViewBinder {
                                                     model.get(TabProperties.IS_INCOGNITO))));
                             break;
                         case MotionEvent.ACTION_HOVER_EXIT:
-                            actionButton.setVisibility(View.INVISIBLE);
-                            ViewCompat.setBackgroundTintList(
-                                    view, ColorStateList.valueOf(Color.TRANSPARENT));
+                            if (actionButton != null) {
+                                actionButton.setVisibility(View.INVISIBLE);
+                            }
+                            ViewCompat.setBackgroundTintList(view, defaultBackgroundColor);
                             break;
                     }
                     return false;

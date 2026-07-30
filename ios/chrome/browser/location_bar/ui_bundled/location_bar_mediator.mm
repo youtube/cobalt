@@ -23,12 +23,12 @@
 #import "ios/chrome/browser/lens_overlay/coordinator/lens_overlay_availability.h"
 #import "ios/chrome/browser/location_bar/ui_bundled/location_bar_consumer.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_util.h"
-#import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent.h"
 #import "ios/chrome/browser/omnibox/model/placeholder_service/placeholder_service.h"
 #import "ios/chrome/browser/omnibox/model/placeholder_service/placeholder_service_observer_bridge.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_util.h"
 #import "ios/chrome/browser/search_engines/model/search_engine_observer_bridge.h"
 #import "ios/chrome/browser/search_engines/model/search_engines_util.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
@@ -134,9 +134,9 @@ const CGFloat kIconPointSize = 16.0;
     progress =
         self.topPosition ? agent->top_progress() : agent->bottom_progress();
   } else {
-    CHECK(self.omniboxPositionBrowserAgent);
+    CHECK(self.layoutState);
     BOOL isBottomOmnibox =
-        self.omniboxPositionBrowserAgent->IsCurrentLayoutBottomOmnibox();
+        self.layoutState.toolbarPosition == ToolbarPosition::kBottom;
     progress =
         isBottomOmnibox ? agent->bottom_progress() : agent->top_progress();
   }

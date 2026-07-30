@@ -84,19 +84,6 @@ class WebnnGraphLPMFuzzer {
       const services::fuzzing::webnn_graph::proto::Testcase& testcase)
       : testcase_(testcase) {
     input_generator_.ReseedForTesting(testcase_->seed_for_input_data());
-
-    init_globals->webnn_test_environment_->BindWebNNContextProvider(
-        provider_remote_.BindNewPipeAndPassReceiver());
-
-    base::test::TestFuture<webnn::mojom::CreateContextResultPtr>
-        create_context_future;
-    provider_remote_->CreateWebNNContext(
-        webnn::mojom::CreateContextOptions::New(),
-        create_context_future.GetCallback());
-    webnn::mojom::CreateContextResultPtr create_context_result =
-        create_context_future.Take();
-    webnn_context_.Bind(
-        std::move(create_context_result->get_success()->context_remote));
   }
 
   void NextAction() {
@@ -306,9 +293,6 @@ class WebnnGraphLPMFuzzer {
       testcase_;
   int action_index_ = 0;
   base::test::InsecureRandomGenerator input_generator_;
-
-  mojo::Remote<webnn::mojom::WebNNContextProvider> provider_remote_;
-  mojo::Remote<webnn::mojom::WebNNContext> webnn_context_;
 };
 
 DEFINE_TEXT_PROTO_FUZZER(
@@ -319,9 +303,10 @@ DEFINE_TEXT_PROTO_FUZZER(
       webnn_graph_fuzzer_instance.NextAction();
     }
   }
-  // Ensure that tasks scheduled by destroying the `webnn_graph_fuzzer_instance`
-  // are executed before running the next case. See https://crbug.com/441020155.
-  init_globals->webnn_test_environment_->RunUntilIdle();
+  // Ensure that tasks scheduled by creating and destroying WebNN contexts have
+  // completed before continuing to the next test case.
+  // See https://crbug.com/441020155.
+  init_globals->webnn_test_environment_->WaitForAllContextsToBeDestroyed();
 }
 
 }  // namespace

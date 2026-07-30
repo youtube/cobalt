@@ -1458,6 +1458,11 @@ policies:
   1457: GeminiEnterpriseSettings
   1458: RestrictYouTubeCookiesDeletion
   1459: AutofillSettings
+  1460: IsolateOriginsShortlist
+  1461: DeviceWeeklyScheduledResuspendDelayMs
+  1462: DefaultAutomaticDownloadsSetting
+  1463: AutomaticDownloadsAllowedForUrls
+  1464: AutomaticDownloadsBlockedForUrls
 
 atomic_groups:
   1: Homepage
@@ -1524,3 +1529,4 @@ atomic_groups:
   62: GeolocationSettings
   63: SocketPoolSizeSettings
   64: SubAppsWithoutPromptsSettings
+  65: AutomaticDownloadsSettings

@@ -10,6 +10,7 @@
 #import "base/scoped_observation.h"
 #import "base/test/scoped_feature_list.h"
 #import "components/bookmarks/test/bookmark_test_helpers.h"
+#import "components/sync/test/test_sync_service.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_model_factory.h"
 #import "ios/chrome/browser/browser_view/ui_bundled/browser_view_controller.h"
 #import "ios/chrome/browser/favicon/model/favicon_service_factory.h"
@@ -33,11 +34,14 @@
 #import "ios/chrome/browser/shared/model/browser/browser_list_factory.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser_list_observer.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
 #import "ios/chrome/browser/sync/model/send_tab_to_self_sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/common/ui/reauthentication/reauthentication_module.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/test/web_task_environment.h"
@@ -81,6 +85,9 @@ class BrowserLifecycleManagerTest : public PlatformTest {
         AuthenticationServiceFactory::GetInstance(),
         AuthenticationServiceFactory::GetFactoryWithDelegate(
             std::make_unique<FakeAuthenticationServiceDelegate>()));
+    test_profile_builder.AddTestingFactory(
+        SyncServiceFactory::GetInstance(),
+        base::BindRepeating(&CreateTestSyncService));
     test_profile_builder.AddTestingFactory(
         SessionRestorationServiceFactory::GetInstance(),
         TestSessionRestorationService::GetTestingFactory());
@@ -159,6 +166,7 @@ TEST_F(BrowserLifecycleManagerTest, TestInitNilObserver) {
   @autoreleasepool {
     id mock_scene_handler = OCMProtocolMock(@protocol(SceneCommands));
     id mock_settings_handler = OCMProtocolMock(@protocol(SettingsCommands));
+    id mock_gemini_handler = OCMProtocolMock(@protocol(GeminiCommands));
     IncognitoReauthSceneAgent* reauth_agent = [[IncognitoReauthSceneAgent alloc]
         initWithReauthModule:[[ReauthenticationModule alloc] init]];
     [scene_state() addAgent:reauth_agent];
@@ -166,7 +174,8 @@ TEST_F(BrowserLifecycleManagerTest, TestInitNilObserver) {
         [[BrowserLifecycleManager alloc] initWithProfile:profile()
                                               sceneState:scene_state()
                                            sceneEndpoint:mock_scene_handler
-                                        settingsEndpoint:mock_settings_handler];
+                                        settingsEndpoint:mock_settings_handler
+                                          geminiEndpoint:mock_gemini_handler];
     [wrangler createMainCoordinatorAndInterface];
 
     // Test that BVC is created on demand.
@@ -198,6 +207,7 @@ TEST_F(BrowserLifecycleManagerTest, TestInitNilObserver) {
 TEST_F(BrowserLifecycleManagerTest, TestBrowserList) {
   id mock_scene_handler = OCMProtocolMock(@protocol(SceneCommands));
   id mock_settings_handler = OCMProtocolMock(@protocol(SettingsCommands));
+  id mock_gemini_handler = OCMProtocolMock(@protocol(GeminiCommands));
   IncognitoReauthSceneAgent* reauth_agent = [[IncognitoReauthSceneAgent alloc]
       initWithReauthModule:[[ReauthenticationModule alloc] init]];
   [scene_state() addAgent:reauth_agent];
@@ -205,7 +215,8 @@ TEST_F(BrowserLifecycleManagerTest, TestBrowserList) {
       [[BrowserLifecycleManager alloc] initWithProfile:profile()
                                             sceneState:scene_state()
                                          sceneEndpoint:mock_scene_handler
-                                      settingsEndpoint:mock_settings_handler];
+                                      settingsEndpoint:mock_settings_handler
+                                        geminiEndpoint:mock_gemini_handler];
 
   BrowserList* browser_list = BrowserListFactory::GetForProfile(profile());
 
@@ -270,6 +281,7 @@ TEST_F(BrowserLifecycleManagerTest, TestBrowserList) {
 TEST_F(BrowserLifecycleManagerTest, TestInactiveInterface) {
   id mock_scene_handler = OCMProtocolMock(@protocol(SceneCommands));
   id mock_settings_handler = OCMProtocolMock(@protocol(SettingsCommands));
+  id mock_gemini_handler = OCMProtocolMock(@protocol(GeminiCommands));
   IncognitoReauthSceneAgent* reauth_agent = [[IncognitoReauthSceneAgent alloc]
       initWithReauthModule:[[ReauthenticationModule alloc] init]];
   [scene_state() addAgent:reauth_agent];
@@ -277,7 +289,8 @@ TEST_F(BrowserLifecycleManagerTest, TestInactiveInterface) {
       [[BrowserLifecycleManager alloc] initWithProfile:profile()
                                             sceneState:scene_state()
                                          sceneEndpoint:mock_scene_handler
-                                      settingsEndpoint:mock_settings_handler];
+                                      settingsEndpoint:mock_settings_handler
+                                        geminiEndpoint:mock_gemini_handler];
 
   BrowserList* browser_list = BrowserListFactory::GetForProfile(profile());
 
@@ -301,6 +314,7 @@ TEST_F(BrowserLifecycleManagerTest, TestInactiveInterface) {
 TEST_F(BrowserLifecycleManagerTest, TestSessionRestorationLogic) {
   id mock_scene_handler = OCMProtocolMock(@protocol(SceneCommands));
   id mock_settings_handler = OCMProtocolMock(@protocol(SettingsCommands));
+  id mock_gemini_handler = OCMProtocolMock(@protocol(GeminiCommands));
   IncognitoReauthSceneAgent* reauth_agent = [[IncognitoReauthSceneAgent alloc]
       initWithReauthModule:[[ReauthenticationModule alloc] init]];
   [scene_state() addAgent:reauth_agent];
@@ -308,7 +322,8 @@ TEST_F(BrowserLifecycleManagerTest, TestSessionRestorationLogic) {
       [[BrowserLifecycleManager alloc] initWithProfile:profile()
                                             sceneState:scene_state()
                                          sceneEndpoint:mock_scene_handler
-                                      settingsEndpoint:mock_settings_handler];
+                                      settingsEndpoint:mock_settings_handler
+                                        geminiEndpoint:mock_gemini_handler];
 
   // Create the coordinator and interface. This is required to get access
   // to the Browser via the -mainInterface/-incognitoInterface providers.

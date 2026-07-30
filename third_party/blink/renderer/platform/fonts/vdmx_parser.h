@@ -31,14 +31,14 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_FONTS_VDMX_PARSER_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_FONTS_VDMX_PARSER_H_
 
-#include <cstddef>
 #include <stdint.h>
+
+#include "base/containers/span.h"
 
 namespace blink {
 bool ParseVDMX(int* ymax,
                int* ymin,
-               const uint8_t* vdmx_ptr,
-               size_t vdmx_length,
+               base::span<const uint8_t> vdmx,
                unsigned target_pixel_size);
 }  // namespace blink
 

@@ -21,9 +21,4 @@ interface InfoCollectionGpuService {
           uint32 highest_shader_model_version,
           uint32 directml_feature_level,
           gpu.mojom.DevicePerfInfo device_perf_info);
-
-  // Requests Vulkan version
-  [EnableIf=is_win]
-  GetGpuSupportedVulkanVersionInfo()
-      => (uint32 vulkan_version);
 };

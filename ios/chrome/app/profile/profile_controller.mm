@@ -191,6 +191,9 @@ void RemoveSessionsFromSessionsToDiscard(const SessionIds& session_ids,
   std::ranges::set_difference(
       attrs.GetDiscardedSessions(), session_ids,
       std::inserter(discarded_sessions, discarded_sessions.end()));
+  for (const std::string& session_id : session_ids) {
+    attrs.ClearSessionScopedPrefs(session_id);
+  }
   attrs.SetDiscardedSessions(discarded_sessions);
 }
 

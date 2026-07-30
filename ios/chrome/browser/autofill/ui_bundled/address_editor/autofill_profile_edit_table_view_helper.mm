@@ -466,9 +466,7 @@ const CGFloat kLineSpacingBetweenErrorAndFooter = 12.0f;
         [_controller.tableView footerViewForSection:section];
 
     if (footerView) {
-      [_saveUpdateButtonFooterItem
-          configureHeaderFooterView:footerView
-                         withStyler:_controller.styler];
+      [_saveUpdateButtonFooterItem configureHeaderFooterView:footerView];
     }
   }
 }

@@ -61,7 +61,7 @@ std::string ContextualTranslateDelegate::CreatePostData(
       !request.source_language->empty() && !request.apply_lang_hint) {
     query_set.GetList().Append(*request.source_language);
   } else {
-    query_set.GetList().Append(base::Value());
+    query_set.GetList().Append("auto");
   }
   query_set.GetList().Append(request.target_language);
   if (request.apply_lang_hint) {

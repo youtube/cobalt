@@ -149,6 +149,47 @@ class NET_EXPORT_PRIVATE TcpConnectJob
   // tried.
   class Connector;
 
+  // Tracks the state of a set of connector attempts, either for fresh or stale
+  // DNS results.
+  struct ConnectionState {
+    base::OneShotTimer slow_timer;
+
+    // At the start, only `primary_connector` is non-null, and will try to
+    // alternate connecting to IPv6 and IPv4 addresses, based on what's
+    // available and on `prefer_ipv6`. Once the slow timer expires, there will
+    // always be two connectors, the primary always prefers to connect to IPv6
+    // destinations, and `ipv4_connector` will prefer IPv4 ones. If there are
+    // only untried IPv4 or IPv6 addresses available in the ServiceEndpoint
+    // indicated by `current_endpoint_index`, both jobs may try to connect to
+    // IPs of the same type. If the primary connector is doing an IPv4
+    // resolution when the timer expires, it will be moved into the
+    // `ipv4_connector` slot.
+    //
+    // This is a little awkward, but it avoids the need to swap active
+    // connectors when a connection attempt fails before we create a second
+    // Connector, so allows for a single function to resume a stalled connector
+    // on DNS complete, and a single function to get the next IP for the
+    // primary/secondary connector (which can be used by the resume function as
+    // well), and allows for sync completion of all calls when possible, without
+    // any post tasks, except when advancing `current_endpoint_index`.
+    std::unique_ptr<TcpConnectJob::Connector> primary_connector;
+    std::unique_ptr<TcpConnectJob::Connector> ipv4_connector;
+
+    // The index within the the ServiceEndpoint result of `dns_request_` that
+    // we're currently trying to connect to. Reset each time endpoint results
+    // are updated. This is both a performance optimization, to avoid searching
+    // through the same IPs again and again (Comparing them to
+    // `attempted_addresses_`), and has functional impact - it's only
+    // incremented once all endpoints within a ServiceEndpoint have been tried
+    // and failed, since they're in priority order.
+    size_t current_endpoint_index = 0;
+
+    // Set/cleared on error connecting to IPv6/IPv4. Affects what type of IP is
+    // preferred, if IPv6 and IPv4 IPs of equal priority are available. Only
+    // matters when there's only one Connector.
+    bool prefer_ipv6 = true;
+  };
+
   // Type used yo provide Connectors with IPEndPoints.
   using IPEndPointInfo = base::expected<IPEndPoint, Error>;
 
@@ -241,6 +282,11 @@ class NET_EXPORT_PRIVATE TcpConnectJob
   // available.
   void UpdateSvcbOptional();
 
+  // Resets the state of the connection, stopping the slow timer, destroying
+  // the connectors, and resetting the endpoint index and IPv6 preference to
+  // their default values.
+  void ResetConnectionState(ConnectionState& state);
+
   // Sets `is_done_` to true, and destroys all connectors. Should only be called
   // when the entire TcpConnectJob is complete - either we've successfully
   // connected to an endpoint and ServiceEndpointRequest is crypto ready, or
@@ -289,44 +335,13 @@ class NET_EXPORT_PRIVATE TcpConnectJob
 
   std::unique_ptr<HostResolver::ServiceEndpointRequest> dns_request_;
   bool dns_request_complete_ = false;
-  // The index within the the ServiceEndpoint result of `dns_request_` that
-  // we're currently trying to connect to. Reset each time endpoint results are
-  // updated. This is both a performance optimization, to avoid searching
-  // through the same IPs again and again (Comparing them to
-  // `attempted_addresses_`), and has functional impact - it's only incremented
-  // once all endpoints within a ServiceEndpoint have been tried and failed,
-  // since they're in priority order.
-  size_t current_service_endpoint_index_ = 0;
 
-  // At the start, only `primary_connector_` is non-null, and will try to
-  // alternate connecting to IPv6 and IPv4 addresses, based on what's available
-  // and on `prefer_ipv6_`. Once the slow timer expires, there will always be
-  // two connectors, the primary always prefers to connect to IPv6 destinations,
-  // and `ipv4_connector_` will prefer IPv4 ones. If there are only untried IPv4
-  // or IPv6 addresses available in the ServiceEndpoint indicated by
-  // `current_service_endpoint_index_`, both jobs may try to connect to IPs of
-  // the same type. If the primary connector is doing an IPv4 resolution when
-  // the timer expires, it will be moved into the `ipv4_connector_` slot.
-  //
-  // This is a little awkward, but it avoids the need to swap active connectors
-  // when a connection attempt fails before we create a second Connector, so
-  // allows for a single function to resume a stalled connector on DNS complete,
-  // and a single function to get the next IP for the primary/secondary
-  // connector (which can be used by the resume function as well), and allows
-  // for sync completion of all calls when possible, without any post tasks,
-  // except when advancing `current_service_endpoint_index_`.
-  std::unique_ptr<TcpConnectJob::Connector> primary_connector_;
-  std::unique_ptr<TcpConnectJob::Connector> ipv4_connector_;
-
-  // Set/cleared on error connecting to IPv6/IPv4. Affects what type of IP is
-  // preferred, if IPv6 and IPv4 IPs of equal priority are available. Only
-  // matters when there's only one Connector.
-  bool prefer_ipv6_ = true;
+  // Tracks connection attempts for fresh DNS results. This is the primary
+  // state machine for standard connection attempts.
+  ConnectionState fresh_state_;
 
   ResolveErrorInfo resolve_error_info_;
   std::optional<ResolutionDetails> resolution_details_;
-
-  base::OneShotTimer slow_timer_;
 
   // This includes addresses that Connectors are currently attempting to connect
   // to. No address will ever be tried twice, even if it appears in multiple

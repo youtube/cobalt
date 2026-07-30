@@ -1008,7 +1008,7 @@ suite('ComposeboxVoiceSearch', () => {
         await microtasksFinished();
 
         // Verify: voiceSearchElement property updated.
-        assertTrue(voiceSearchElement.isPermissionPromptOpen_);
+        assertTrue(voiceSearchElement.isPermissionPromptOpen);
 
         // Verify: clearTimeout was called for both blurTimerId and idleTimerId.
         const clearTimeoutCalls = windowProxy.getArgs('clearTimeout');
@@ -1044,7 +1044,7 @@ suite('ComposeboxVoiceSearch', () => {
         await pageRemote.$.flushForTesting();
         await microtasksFinished();
 
-        assertFalse(voiceSearchElement.isPermissionPromptOpen_);
+        assertFalse(voiceSearchElement.isPermissionPromptOpen);
         assertFalse(voiceSearchElement.classList.contains(
             'embedded-permission-prompt-showing'));
 
@@ -1302,6 +1302,8 @@ suite('ComposeboxVoiceSearch', () => {
 
     assertEquals('original text', composeboxElement.input);
     assertFalse(composeboxElement.inVoiceSearchMode);
+    assertEquals(
+        composeboxElement.animationState, GlowAnimationState.VOICE_EXITED);
 
     // Case 2: Non-empty transcript should clobber existing input.
     voiceSearchButton.click();
@@ -1313,6 +1315,8 @@ suite('ComposeboxVoiceSearch', () => {
 
     assertEquals('new voice search query', composeboxElement.input);
     assertFalse(composeboxElement.inVoiceSearchMode);
+    assertEquals(
+        composeboxElement.animationState, GlowAnimationState.VOICE_EXITED);
   });
 
   test(
@@ -2710,7 +2714,7 @@ suite('ComposeboxVoiceSearchMetrics', () => {
         await microtasksFinished();
 
         // Initially permission prompt is not open.
-        assertFalse(voiceSearchElement['isPermissionPromptOpen_']);
+        assertFalse(voiceSearchElement.isPermissionPromptOpen);
 
         let permissionEventDetail: any = null;
         voiceSearchElement.addEventListener(
@@ -2728,7 +2732,7 @@ suite('ComposeboxVoiceSearchMetrics', () => {
         await voiceSearchElement.updateComplete;
 
         // Verify state, event, and textarea placeholder.
-        assertTrue(voiceSearchElement['isPermissionPromptOpen_']);
+        assertTrue(voiceSearchElement.isPermissionPromptOpen);
         assertTrue(!!permissionEventDetail);
         assertTrue(permissionEventDetail.isOpened);
         assertEquals(100, permissionEventDetail.width);
@@ -2747,7 +2751,7 @@ suite('ComposeboxVoiceSearchMetrics', () => {
         await voiceSearchElement.updateComplete;
 
         // Verify state is reset.
-        assertFalse(voiceSearchElement['isPermissionPromptOpen_']);
+        assertFalse(voiceSearchElement.isPermissionPromptOpen);
 
         // Clean up internal state to prevent leaking into the next test.
         voiceSearchElement['voiceModeEndCleanup_']();
@@ -2803,7 +2807,7 @@ suite('ComposeboxVoiceSearchMetrics', () => {
     await microtasksFinished();
 
     // Mock permission prompt to be open.
-    voiceSearchElement['isPermissionPromptOpen_'] = true;
+    voiceSearchElement.isPermissionPromptOpen = true;
 
     windowProxy.reset();
 
@@ -2839,7 +2843,7 @@ suite('ComposeboxVoiceSearchMetrics', () => {
         await microtasksFinished();
 
         // Ensure permission prompt is closed initially.
-        voiceSearchElement['isPermissionPromptOpen_'] = false;
+        voiceSearchElement.isPermissionPromptOpen = false;
 
         windowProxy.reset();
 
@@ -2854,7 +2858,7 @@ suite('ComposeboxVoiceSearchMetrics', () => {
         assertTrue(!!blurTimeoutCall, 'Blur timeout should be scheduled');
 
         // Case: Permission prompt is opened before timeout fires.
-        voiceSearchElement['isPermissionPromptOpen_'] = true;
+        voiceSearchElement.isPermissionPromptOpen = true;
         const callback = blurTimeoutCall[0];
         callback();
         await microtasksFinished();
@@ -2864,7 +2868,7 @@ suite('ComposeboxVoiceSearchMetrics', () => {
         assertTrue(mockSpeechRecognition.voiceSearchInProgress);
 
         // Case: If permission prompt is closed, timeout stops recording.
-        voiceSearchElement['isPermissionPromptOpen_'] = false;
+        voiceSearchElement.isPermissionPromptOpen = false;
         callback();
         await microtasksFinished();
 

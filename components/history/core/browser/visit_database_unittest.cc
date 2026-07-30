@@ -1020,6 +1020,47 @@ TEST_F(VisitDatabaseTest, GetVisibleVisitsInRange) {
   EXPECT_THAT(results[0], MatchesVisitInfo(test_visit_rows[3]));
 }
 
+TEST_F(VisitDatabaseTest, GetVisibleVisitsInRange_RestrictToSyncedUrls) {
+  GURL url1("http://www.google.com/url1");
+  URLRow url_row1(url1);
+  URLID url_id1 = AddURL(url_row1);
+  ASSERT_NE(0, url_id1);
+
+  // Visit 1: Local visit, not known to sync.
+  VisitRow visit1(url_id1, base::Time::Now(), 0,
+                  ui::PageTransitionFromInt(ui::PAGE_TRANSITION_LINK |
+                                            ui::PAGE_TRANSITION_CHAIN_START |
+                                            ui::PAGE_TRANSITION_CHAIN_END),
+                  0, false, 0);
+  visit1.source = SOURCE_BROWSED;
+  visit1.is_known_to_sync = false;
+  ASSERT_TRUE(AddVisit(&visit1));
+
+  // Visit 2: Synced visit (known to sync).
+  VisitRow visit2(url_id1, base::Time::Now() + base::Seconds(1), 0,
+                  ui::PageTransitionFromInt(ui::PAGE_TRANSITION_LINK |
+                                            ui::PAGE_TRANSITION_CHAIN_START |
+                                            ui::PAGE_TRANSITION_CHAIN_END),
+                  0, false, 0);
+  visit2.source = SOURCE_BROWSED;
+  visit2.is_known_to_sync = true;
+  ASSERT_TRUE(AddVisit(&visit2));
+
+  QueryOptions options;
+  options.duplicate_policy = QueryOptions::KEEP_ALL_DUPLICATES;
+  VisitVector results;
+
+  // By default, both visits should be returned.
+  GetVisibleVisitsInRange(options, &results);
+  ASSERT_EQ(2U, results.size());
+
+  // Restrict to synced URLs only.
+  options.restrict_to_synced_urls = true;
+  GetVisibleVisitsInRange(options, &results);
+  ASSERT_EQ(1U, results.size());
+  EXPECT_EQ(visit2.visit_time, results[0].visit_time);
+}
+
 TEST_F(VisitDatabaseTest, VisitSource) {
   // Add visits.
   VisitRow visit_info1(111, Time::Now(), 0, ui::PAGE_TRANSITION_LINK, 0, false,

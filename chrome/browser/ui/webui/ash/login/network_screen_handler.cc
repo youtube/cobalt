@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/webui/ash/login/network_screen_handler.h"
 
+#include "ash/login/resources/grit/ash_login_strings.h"
 #include "base/values.h"
 #include "chrome/browser/ash/login/demo_mode/demo_setup_controller.h"
 #include "chrome/browser/ash/login/screens/network_screen.h"

@@ -21,6 +21,8 @@
 #include "base/scoped_observation.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -43,6 +45,7 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
+#include "components/trusted_vault/trusted_vault_histograms.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -54,6 +57,7 @@
 #include "device/fido/fido_request_handler_base.h"
 #include "device/fido/pin.h"
 #include "device/fido/public/cable_discovery_data.h"
+#include "device/fido/public/features.h"
 #include "device/fido/public/fido_constants.h"
 #include "device/fido/public/fido_transport_protocol.h"
 #include "device/fido/public/fido_types.h"
@@ -1282,6 +1286,7 @@ IN_PROC_BROWSER_TEST_F(AuthenticatorWindowTest, UINavigatesAway) {
 // Make sure the correct authuser index is set when invoking MagicArch for
 // account recovery.
 IN_PROC_BROWSER_TEST_F(AuthenticatorWindowTest, MultiAccountRecovery) {
+  base::HistogramTester histogram_tester;
   set_magic_arch_response(kRecoverySuccess);
   std::vector<AccountInfo> accounts = SetAccountsCookiesAndTokens(
       {"another@example.com", "primary@example.com"});
@@ -1296,6 +1301,40 @@ IN_PROC_BROWSER_TEST_F(AuthenticatorWindowTest, MultiAccountRecovery) {
       AuthenticatorRequestDialogModel::Step::kGPMRecoverSecurityDomain);
   navigation_observer.Wait();
   EXPECT_EQ(last_authuser_parameter_, "1");
+
+  histogram_tester.ExpectUniqueSample(
+      "TrustedVault.RecoveryFlowTriggeredEndpoint",
+      trusted_vault::TrustedVaultRecoveryFlowEndpoint::kDesktop, 1);
+}
+
+class AuthenticatorWindowTestWithEmbeddedRecoveryUrl
+    : public AuthenticatorWindowTest {
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_{
+      device::kWebAuthnGpmPasskeyEmbeddedRecoveryUrl};
+};
+
+IN_PROC_BROWSER_TEST_F(AuthenticatorWindowTestWithEmbeddedRecoveryUrl,
+                       RecoverSecurityDomain_Embedded) {
+  base::HistogramTester histogram_tester;
+  set_magic_arch_response(kRecoverySuccess);
+  std::vector<AccountInfo> accounts = SetAccountsCookiesAndTokens(
+      {"another@example.com", "primary@example.com"});
+  identity_test_env()->SetPrimaryAccount("primary@example.com",
+                                         signin::ConsentLevel::kSignin);
+
+  GURL expected_url =
+      GaiaUrls::GetInstance()->SigninChromePasskeyUnlockDesktopEmbeddedUrl(1);
+  content::TestNavigationObserver navigation_observer(expected_url);
+  navigation_observer.StartWatchingNewWebContents();
+  model_->SetStep(
+      AuthenticatorRequestDialogModel::Step::kGPMRecoverSecurityDomain);
+  navigation_observer.Wait();
+
+  EXPECT_EQ(last_authuser_parameter_, "1");
+  histogram_tester.ExpectUniqueSample(
+      "TrustedVault.RecoveryFlowTriggeredEndpoint",
+      trusted_vault::TrustedVaultRecoveryFlowEndpoint::kDesktopEmbedded, 1);
 }
 
 // Regression test for crbug.com/505059790.

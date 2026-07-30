@@ -1,0 +1,30 @@
+[
+  {
+    "os": [
+      "chromeos"
+    ],
+    "policy_pref_mapping_tests": [
+      {
+        "note": "Default value (no policies set).",
+        "prefs": {
+          "device_weekly_scheduled_resuspend_delay_ms": {
+            "location": "local_state",
+            "default_value": -1
+          }
+        }
+      },
+      {
+        "note": "Policy set to 600000.",
+        "policies": {
+          "DeviceWeeklyScheduledResuspendDelayMs": 600000
+        },
+        "prefs": {
+          "device_weekly_scheduled_resuspend_delay_ms": {
+            "location": "local_state",
+            "value": 600000
+          }
+        }
+      }
+    ]
+  }
+]

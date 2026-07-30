@@ -222,7 +222,30 @@ class TokenPreloadScanner::StartTagScanner {
       String attribute_value = html_token_attribute.Value();
       ProcessAttribute(attribute_name, attribute_value);
     }
+    MaybeClearNonceForDanglingMarkup(attributes);
     PostProcessAfterAttributes();
+  }
+
+  // Mirror the dangling-markup-injection mitigation in
+  // ContentSecurityPolicy::IsNonceableElement so the preload scanner cannot
+  // be tricked into authorizing a speculative fetch with a hijacked nonce.
+  // This is done as a separate pass after ProcessAttributes so we can skip
+  // the work entirely when no nonce is present.
+  void MaybeClearNonceForDanglingMarkup(
+      const HTMLToken::AttributeList& attributes) {
+    if (nonce_.IsNull() || nonce_.empty())
+      return;
+    HashSet<AtomicString> seen_names;
+    for (const HTMLToken::Attribute& html_token_attribute : attributes) {
+      AtomicString attribute_name(html_token_attribute.GetName());
+      String attribute_value = html_token_attribute.Value();
+      if (!seen_names.insert(attribute_name).is_new_entry ||
+          ContentSecurityPolicy::ContainsDanglingMarkupSignal(
+              attribute_name, attribute_value)) {
+        SetNonce(String());
+        return;
+      }
+    }
   }
 
   void PostProcessAfterAttributes() {

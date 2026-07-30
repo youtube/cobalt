@@ -123,6 +123,8 @@ const char* AnalysisConnectorPref(AnalysisConnector connector) {
 #if BUILDFLAG(IS_CHROMEOS)
       return kOnFileTransferPref;
 #endif
+    case AnalysisConnector::DATA_COPIED:
+      return kOnTextCopiedPref;
     case AnalysisConnector::ANALYSIS_CONNECTOR_UNSPECIFIED:
       NOTREACHED() << "Using unspecified analysis connector";
   }
@@ -142,6 +144,8 @@ const char* AnalysisConnectorScopePref(AnalysisConnector connector) {
 #if BUILDFLAG(IS_CHROMEOS)
       return kOnFileTransferScopePref;
 #endif
+    case AnalysisConnector::DATA_COPIED:
+      return kOnTextCopiedScopePref;
     case AnalysisConnector::ANALYSIS_CONNECTOR_UNSPECIFIED:
       NOTREACHED() << "Using unspecified analysis connector";
   }
@@ -467,6 +471,8 @@ std::string DeepScanAccessPointToString(DeepScanAccessPoint access_point) {
       return "FileTransfer";
     case DeepScanAccessPoint::ACTOR:
       return "Actor";
+    case DeepScanAccessPoint::COPY:
+      return "Copy";
   }
   NOTREACHED();
 }

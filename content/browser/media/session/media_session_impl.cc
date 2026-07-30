@@ -342,6 +342,12 @@ void MediaSessionImpl::TitleWasSet(NavigationEntry* entry) {
 
 void MediaSessionImpl::DidUpdateFaviconURL(
     RenderFrameHost* rfh,
+    const std::vector<blink::mojom::FaviconURLPtr>& candidates,
+    blink::mojom::FaviconUpdateReason reason) {
+  SetSourceIconsFromFavicons(candidates);
+}
+
+void MediaSessionImpl::SetSourceIconsFromFavicons(
     const std::vector<blink::mojom::FaviconURLPtr>& candidates) {
   std::vector<media_session::MediaImage> icons;
 
@@ -1032,8 +1038,7 @@ void MediaSessionImpl::Initialize() {
   delegate_->MediaSessionInfoChanged(GetMediaSessionInfoSync());
 
   DCHECK(web_contents());
-  DidUpdateFaviconURL(web_contents()->GetPrimaryMainFrame(),
-                      web_contents()->GetFaviconURLs());
+  SetSourceIconsFromFavicons(web_contents()->GetFaviconURLs());
 
   GetContentClient()->browser()->AddPresentationObserver(this, web_contents());
 }

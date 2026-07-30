@@ -336,8 +336,9 @@ TEST_F(CompoundImageBackingTest, UploadOnAccess) {
   // Test that both read and write access by Skia triggers upload.
   std::vector<GrBackendSemaphore> begin_semaphores;
   std::vector<GrBackendSemaphore> end_semaphores;
-  auto skia_rep = manager_.ProduceSkia(compound_backing->mailbox(),
-                                       &memory_type_tracker_, nullptr);
+  auto skia_rep =
+      manager_.ProduceSkia(compound_backing->mailbox(), &memory_type_tracker_,
+                           nullptr, /*required_usages=*/{});
 
   compound_backing->Update(nullptr);
 

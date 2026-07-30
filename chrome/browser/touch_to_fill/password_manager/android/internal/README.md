@@ -50,7 +50,7 @@ this Observer structure, the model is a `PropertyModel` as defined in
 `//src/ui/android/java/src/org/chromium/ui/modelutil/`. It is build by defining
 readable and writable properties and constructing a model with them. The
 properties (and a simple factory method for the model) are located in the static
-`TouchToFillProperties` class.
+`TouchToFillPasswordManagerProperties` class.
 
 The model contains writable and readable properties.The readable properties are
 guaranteed to never change for the lifetime of the Touch To Fill component:
@@ -75,10 +75,10 @@ The controller of this model implements the TouchToFillComponent interface as
 defined in `public/` and contains all logic that affects the component's visual
 appearance. The controller consists of two parts:
 
-  * **TouchToFillCoordinator** which implements the public interface and creates all
+  * **TouchToFillPasswordManagerCoordinator** which implements the public interface and creates all
     parts of the component (model, mediator, view, etc.) and links them using
     MCPs.
-  * **TouchToFillMediator** which handles request to the component API and changes
+  * **TouchToFillPasswordManagerMediator** which handles request to the component API and changes
     the model accordingly. Interactions with the view are typically handled here
     and either affect the model or notify callers of the component API.
 
@@ -87,7 +87,7 @@ appearance. The controller consists of two parts:
 The view contains all parts that are necessary to display the bottom sheet. It
 consists of two parts:
 
- * **TouchToFillViewBinder** which maps model changes to the view. For the
+ * **TouchToFillPasswordManagerViewBinder** which maps model changes to the view. For the
    Touch To Fill component, the ViewBinder also supports an Adapter that binds
    changes to the `CREDENTIAL_LIST` property to the RecyclerView inside the
    bottom sheet.

@@ -20,7 +20,7 @@ namespace {
 std::string GetHotkeyStringWithMapping(
     base::RepeatingCallback<void(std::u16string&)> token_mapping) {
   std::vector<std::u16string> hotkey_tokens =
-      glic::GlicLauncherConfiguration::GetGlobalHotkey()
+      glic::GlicLauncherConfiguration::GetToggleHotkey()
           .GetShortcutVectorRepresentation();
   // If the hotkey is unset, return an empty string as its representation.
   if (hotkey_tokens.empty()) {

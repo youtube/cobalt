@@ -30,6 +30,7 @@
 #include "net/base/ip_address.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
+#include "net/base/network_handle.h"
 #include "net/base/sys_addrinfo.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
@@ -112,9 +113,15 @@ void WebSocket::Connect(net::CompletionOnceCallback callback) {
     addresses.Deduplicate();
   }
 
-  net::NetLogSource source;
-  socket_ = std::make_unique<net::TCPClientSocket>(addresses, nullptr, nullptr,
-                                                   nullptr, source);
+  socket_ = std::make_unique<net::TCPClientSocket>(
+      addresses,
+      /* socket_performance_watcher= */ nullptr,
+      /* network_quality_estimator= */ nullptr,
+      /* net_log= */ nullptr, net::NetLogSource(),
+      // This is used only for testing in scenarios that do not involve multiple
+      // networks. With that in mind, it's safe to always use the default
+      // network.
+      net::handles::kInvalidNetworkHandle);
 
   state_ = CONNECTING;
   connect_callback_ = std::move(callback);

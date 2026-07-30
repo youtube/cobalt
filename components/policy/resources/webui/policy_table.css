@@ -1,0 +1,141 @@
+/* Copyright 2026 The Chromium Authors
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file. */
+
+ /* #css_wrapper_metadata_start
+ * #type=style-lit
+ * #import=chrome://resources/cr_elements/cr_shared_vars.css.js
+ * #scheme=relative
+ * #css_wrapper_metadata_end */
+
+:host(:not([hidden])) {
+  display: block;
+}
+
+.row:not([hidden]) {
+  display: flex;
+}
+
+.row > * {
+  align-items: center;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: row;
+  gap: 5px;
+  justify-content: space-between;
+  overflow: hidden;
+  padding: var(--cr-section-vertical-padding, 12px)
+      var(--cr-section-padding, 20px);
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.policy-table {
+  margin-bottom: 5px;
+  margin-top: 17px;
+  position: relative;
+  width: 100%;
+}
+
+.policy-table .main {
+  border: 1px solid var(--table-border);
+  border-radius: var(--element-border-radius);
+}
+
+.policy-precedence-data {
+  border-top: 1px solid var(--table-border);
+}
+
+
+.row.header {
+  background-color: var(
+      --color-sys-surface-variant, var(--cr-hover-background-color));
+  border-bottom: 1px solid var(--table-border);
+  border-radius: var(--element-border-radius) var(--element-border-radius) 0 0;
+  display: grid;
+  grid-template-columns: 25% 30% 10% 10% 10% 10% 5%;
+  grid-template-areas: 'name value source scope level status toggle';
+}
+
+.row.header .name {
+  grid-area: name;
+}
+
+.row.header .value {
+  grid-area: value;
+}
+
+.row.header .source {
+  grid-area: source;
+}
+
+.row.header .scope {
+  grid-area: scope;
+}
+
+.row.header .level {
+  grid-area: level;
+}
+
+.row.header .status {
+  grid-area: status;
+}
+
+.row.header .toggle {
+  grid-area: toggle;
+}
+
+
+
+.value.row .value {
+  font-family: monospace;
+}
+
+.no-policy:not([hidden]) {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+}
+
+a {
+  color: var(--link-color);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.updater-link {
+  font-size: smaller;
+  margin-inline-start: 10px;
+}
+
+.toggle {
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .value,
+  .level,
+  .status,
+  .scope {
+    display: none;
+  }
+
+  .row.header {
+    grid-template-columns: 50% 25% 25%;
+    grid-template-areas: 'name source toggle';
+  }
+
+  .reload-show-unset-section {
+    flex-wrap: wrap;
+  }
+
+  .policy-table .main {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .policy-table .main .row > * {
+    overflow: visible;
+  }
+}

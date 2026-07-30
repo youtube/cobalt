@@ -80,7 +80,6 @@ ConnectionFactoryImpl::ConnectionFactoryImpl(
       logger_(logger),
       oak_session_driver_(oak_session_driver),
       network_driver_(network_driver) {
-  CHECK(network_context_);
   CHECK(logger_);
   CHECK(oak_session_driver_);
   CHECK(network_driver_);

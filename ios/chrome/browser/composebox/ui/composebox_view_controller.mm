@@ -25,6 +25,9 @@ namespace {
 /// The padding for the close button.
 const CGFloat kCloseButtonTopMargin = 7.0f;
 const CGFloat kCloseButtonDefaultPadding = 10.0f;
+/// Offset to avoid macOS-style window controls (traffic lights) at the top-left
+/// of the window in compact horizontal size class on iPad.
+const CGFloat kInputPlateIpadWindowControlsOffset = 70.0f;
 /// The trailing and top padding for the input plate container.
 const CGFloat kInputPlateTrailingPadding = 8.0f;
 const CGFloat kInputPlateTopPadding = 4.0f;
@@ -318,10 +321,12 @@ UIImage* CloseButtonImage(UIColor* backgroundColor, BOOL highlighted) {
   UILayoutGuide* safeAreaGuide = self.view.safeAreaLayoutGuide;
 
   // Close button.
+  NSLayoutConstraint* closeButtonTrailingConstraint =
+      [_closeButton.trailingAnchor
+          constraintEqualToAnchor:safeAreaGuide.trailingAnchor
+                         constant:-kCloseButtonDefaultPadding];
   NSMutableArray* closeButtonConstraints = [@[
-    [_closeButton.trailingAnchor
-        constraintEqualToAnchor:safeAreaGuide.trailingAnchor
-                       constant:-kCloseButtonDefaultPadding],
+    closeButtonTrailingConstraint,
     [_closeButton.heightAnchor constraintEqualToConstant:kCloseButtonSize],
     [_closeButton.widthAnchor constraintEqualToAnchor:_closeButton.heightAnchor]
   ] mutableCopy];
@@ -481,10 +486,23 @@ UIImage* CloseButtonImage(UIColor* backgroundColor, BOOL highlighted) {
           _progressiveBlurEffect, safeAreaGuide,
           LayoutSides::kTop | LayoutSides::kLeading | LayoutSides::kTrailing);
 
+      CGFloat leadingMargin = kInputPlateIpadMargin;
+      if (!IsRegularXRegularSizeClass(self.traitCollection)) {
+        BOOL isRTL = [self.view effectiveUserInterfaceLayoutDirection] ==
+                     UIUserInterfaceLayoutDirectionRightToLeft;
+        if (isRTL) {
+          // Close button is on the trailing end in RTL, so update trailing end.
+          closeButtonTrailingConstraint.constant =
+              -kInputPlateIpadWindowControlsOffset;
+        } else {
+          leadingMargin = kInputPlateIpadWindowControlsOffset;
+        }
+      }
+
       [_constraintsForCurrentPosition addObjectsFromArray:@[
         [_inputViewController.view.leadingAnchor
             constraintEqualToAnchor:safeAreaGuide.leadingAnchor
-                           constant:kInputPlateIpadMargin],
+                           constant:leadingMargin],
         [_inputViewController.view.topAnchor
             constraintEqualToAnchor:safeAreaGuide.topAnchor
                            constant:kInputPlateIpadMargin],

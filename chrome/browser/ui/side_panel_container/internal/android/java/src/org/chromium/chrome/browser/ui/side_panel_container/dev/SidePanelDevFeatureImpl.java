@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.ui.side_panel_container.dev;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 
 import org.chromium.base.ThreadUtils;
@@ -12,8 +14,8 @@ import org.chromium.base.version_info.VersionInfo;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.content.WebContentsFactory;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.ui.side_panel.AndroidSidePanelEnabledFn;
 import org.chromium.chrome.browser.ui.side_panel_container.SidePanelContainerCoordinator;
 import org.chromium.components.embedder_support.delegate.WebContentsDelegateAndroid;
 import org.chromium.components.embedder_support.view.ContentView;
@@ -25,12 +27,15 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.ViewAndroidDelegate;
 import org.chromium.ui.base.WindowAndroid;
 
-/** Implements {@link SidePanelDevFeature}. */
+/** Implements a pure-Java, window-scoped {@link SidePanelDevFeature}. */
 @NullMarked
 public final class SidePanelDevFeatureImpl implements SidePanelDevFeature {
     private static final String DEV_FEATURE_URL = "https://www.google.com";
 
+    private final MonotonicObservableSupplier<Profile> mProfileSupplier;
     private final SidePanelContainerCoordinator mSidePanelContainerCoordinator;
+    private final WindowAndroid mWindowAndroid;
+
     private @Nullable SidePanelDevFeatureContent mDevContent;
 
     private static SidePanelDevFeatureContent createDevContent(
@@ -90,29 +95,28 @@ public final class SidePanelDevFeatureImpl implements SidePanelDevFeature {
             MonotonicObservableSupplier<Profile> profileSupplier,
             SidePanelContainerCoordinator sidePanelContainerCoordinator,
             WindowAndroid windowAndroid) {
-        assert ChromeFeatureList.sEnableAndroidSidePanelDevFeature.isEnabled()
-                : "SidePanelDevFeature can only be used when its feature flag is enabled";
+        assert AndroidSidePanelEnabledFn.isPureJavaDevFeatureEnabled();
 
+        mProfileSupplier = profileSupplier;
         mSidePanelContainerCoordinator = sidePanelContainerCoordinator;
-        mDevContent = createDevContent(profileSupplier, windowAndroid);
+        mWindowAndroid = windowAndroid;
     }
 
     @Override
     public void toggle() {
         ThreadUtils.assertOnUiThread();
-        assert mDevContent != null : "null feature content; is the feature already destroyed?";
-        var sidePanelContent = mDevContent.mSidePanelContent;
-        assert sidePanelContent != null;
-
-        if (!mSidePanelContainerCoordinator.isShowing(sidePanelContent)) {
-            mSidePanelContainerCoordinator.populateContent(
-                    sidePanelContent,
-                    result -> {},
+        if (mDevContent == null) {
+            mDevContent = createDevContent(mProfileSupplier, mWindowAndroid);
+            mSidePanelContainerCoordinator.startPopulatingContent(
+                    assumeNonNull(mDevContent.mSidePanelContent),
+                    () -> {},
                     /* startingBounds= */ null,
                     /* suppressAnimations= */ false);
         } else {
-            mSidePanelContainerCoordinator.removeContentAndClose(
-                    result -> {}, /* suppressAnimations= */ false);
+            mDevContent.destroy();
+            mDevContent = null;
+            mSidePanelContainerCoordinator.startRemovingContent(
+                    () -> {}, /* suppressAnimations= */ false);
         }
     }
 
@@ -124,6 +128,11 @@ public final class SidePanelDevFeatureImpl implements SidePanelDevFeature {
             mDevContent.destroy();
             mDevContent = null;
         }
+    }
+
+    /** Returns whether there is {@link SidePanelDevFeatureContent} to show. */
+    public boolean hasDevContentToShow() {
+        return mDevContent != null;
     }
 
     @Nullable SidePanelDevFeatureContent getDevFeatureContentForTesting() {

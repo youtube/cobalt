@@ -27,6 +27,7 @@ class BrowserControlsAdapter {
   virtual void CreateNewSplitTab() = 0;
   virtual void NavigateHome(WindowOpenDisposition disposition) = 0;
   virtual void Navigate(const GURL& url) = 0;
+  virtual void NavigateText(const std::string& text) = 0;
   // These should probably be pulled to their own adapter.
   virtual webui_toolbar::TabSplitStatus ComputeSplitTabStatus() = 0;
 };

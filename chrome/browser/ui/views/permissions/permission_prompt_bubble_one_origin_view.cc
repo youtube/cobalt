@@ -36,6 +36,7 @@
 #include "components/permissions/request_type.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/url_formatter/elide_url.h"
+#include "content/public/browser/web_contents.h"
 #include "extensions/common/constants.h"
 #include "third_party/blink/public/common/features.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -62,7 +63,7 @@ namespace {
 
 std::u16string GetAccessibleWindowTitleInternal(
     const std::u16string display_name,
-    std::vector<base::WeakPtr<permissions::PermissionRequest>>
+    std::vector<base::SafeRef<permissions::PermissionRequest>>
         visible_requests) {
   // Generate one of:
   //   $origin wants to: $permission
@@ -105,12 +106,12 @@ bool ShouldShowRequest(permissions::PermissionPrompt::Delegate& delegate,
   return true;
 }
 
-std::vector<base::WeakPtr<permissions::PermissionRequest>> GetVisibleRequests(
+std::vector<base::SafeRef<permissions::PermissionRequest>> GetVisibleRequests(
     permissions::PermissionPrompt::Delegate& delegate) {
-  std::vector<base::WeakPtr<permissions::PermissionRequest>> visible_requests;
+  std::vector<base::SafeRef<permissions::PermissionRequest>> visible_requests;
   for (const auto& request : delegate.Requests()) {
     if (ShouldShowRequest(delegate, request->request_type())) {
-      visible_requests.push_back(request->GetWeakPtr());
+      visible_requests.push_back(request->GetSafeRef());
     }
   }
   return visible_requests;
@@ -137,15 +138,13 @@ std::optional<std::u16string> GetExtraText(
 }  // namespace
 
 PermissionPromptBubbleOneOriginView::PermissionPromptBubbleOneOriginView(
-    Browser* browser,
+    content::WebContents* web_contents,
     base::WeakPtr<permissions::PermissionPrompt::Delegate> delegate,
     PermissionPromptStyle prompt_style)
-    : PermissionPromptBubbleBaseView(browser,
-                                     delegate,
-                                     prompt_style) {
+    : PermissionPromptBubbleBaseView(web_contents, delegate, prompt_style) {
   std::vector<std::string> requested_audio_capture_device_ids;
   std::vector<std::string> requested_video_capture_device_ids;
-  std::vector<base::WeakPtr<permissions::PermissionRequest>> visible_requests =
+  std::vector<base::SafeRef<permissions::PermissionRequest>> visible_requests =
       GetVisibleRequests(*delegate.get());
 
   SetAccessibleTitle(GetAccessibleWindowTitleInternal(
@@ -205,7 +204,7 @@ void PermissionPromptBubbleOneOriginView::RunButtonCallback(int button_id) {
 }
 
 void PermissionPromptBubbleOneOriginView::AddRequestLine(
-    const base::WeakPtr<permissions::PermissionRequest>& request,
+    const base::SafeRef<permissions::PermissionRequest>& request,
     std::size_t index) {
   ChromeLayoutProvider* provider = ChromeLayoutProvider::Get();
 
@@ -258,7 +257,7 @@ void PermissionPromptBubbleOneOriginView::MaybeAddMediaPreview(
 #if !BUILDFLAG(IS_CHROMEOS)
   // Unit tests call this without initializing `browser_`, but this should not
   // happen in production code.
-  if (!browser()) {
+  if (!GetBrowser()) {
     return;
   }
 
@@ -283,9 +282,10 @@ void PermissionPromptBubbleOneOriginView::MaybeAddMediaPreview(
     OnAudioDevicesChanged(cached_device_info->GetAudioDeviceInfos());
   }
 
-  media_previews_.emplace(browser(), this, index,
-                          requested_audio_capture_device_ids,
-                          requested_video_capture_device_ids);
+  media_previews_.emplace(
+      Profile::FromBrowserContext(web_contents()->GetBrowserContext()), this,
+      index, requested_audio_capture_device_ids,
+      requested_video_capture_device_ids);
 #endif
 }
 

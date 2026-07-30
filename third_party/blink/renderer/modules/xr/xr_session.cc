@@ -983,7 +983,7 @@ void XRSession::ExecuteVideoFrameCallbacks(double timestamp) {
     std::move(callback).Run(timestamp);
 }
 
-int XRSession::requestAnimationFrame(V8XRFrameRequestCallback* callback) {
+uint32_t XRSession::requestAnimationFrame(V8XRFrameRequestCallback* callback) {
   DVLOG(3) << __func__;
 
   TRACE_EVENT0("gpu", "requestAnimationFrame");
@@ -991,12 +991,12 @@ int XRSession::requestAnimationFrame(V8XRFrameRequestCallback* callback) {
   if (ended_)
     return 0;
 
-  int id = callback_collection_->RegisterCallback(callback);
+  uint32_t id = callback_collection_->RegisterCallback(callback);
   MaybeRequestFrame();
   return id;
 }
 
-void XRSession::cancelAnimationFrame(int id) {
+void XRSession::cancelAnimationFrame(uint32_t id) {
   callback_collection_->CancelCallback(id);
 }
 

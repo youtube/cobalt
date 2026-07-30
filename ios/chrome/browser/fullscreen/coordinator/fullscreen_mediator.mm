@@ -12,9 +12,7 @@
 #import "ios/chrome/browser/fullscreen/model/fullscreen_browser_agent_observer_bridge.h"
 #import "ios/chrome/browser/fullscreen/public/fullscreen_metrics.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/scoped_fullscreen_disabler.h"
-#import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent.h"
-#import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent_observer_bridge.h"
-#import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent_observing.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list_observer_bridge.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
@@ -48,7 +46,7 @@ const CGFloat kFullscreenSnapThreshold = 10.0;
 @interface FullscreenMediator () <CRWWebStateObserver,
                                   CRWWebViewScrollViewProxyObserver,
                                   FullscreenBrowserAgentObserving,
-                                  OmniboxPositionBrowserAgentObserving,
+                                  LayoutStateObserver,
                                   WebStateListObserving,
                                   WebViewProxyTabHelperObserving>
 
@@ -67,8 +65,7 @@ const CGFloat kFullscreenSnapThreshold = 10.0;
   std::unique_ptr<web::WebStateObserverBridge> _webStateObserver;
   std::unique_ptr<WebViewProxyTabHelperObserverBridge> _webViewProxyObserver;
   std::unique_ptr<FullscreenBrowserAgentObserverBridge> _browserAgentObserver;
-  std::unique_ptr<OmniboxPositionBrowserAgentObserverBridge>
-      _omniboxPositionObserver;
+  __weak LayoutState* _layoutState;
   std::unique_ptr<ScopedFullscreenDisabler> _voiceOverDisabler;
   CGFloat _lastContentOffset;
   BOOL _isBottomOmnibox;
@@ -85,14 +82,15 @@ const CGFloat kFullscreenSnapThreshold = 10.0;
 
 - (instancetype)initWithBrowserAgent:(FullscreenBrowserAgent*)browserAgent
                         webStateList:(WebStateList*)webStateList
-         omniboxPositionBrowserAgent:
-             (OmniboxPositionBrowserAgent*)omniboxPositionBrowserAgent {
+                         layoutState:(LayoutState*)layoutState {
   if ((self = [super init])) {
     CHECK(browserAgent);
     CHECK(webStateList);
-    CHECK(omniboxPositionBrowserAgent);
+    CHECK(layoutState);
     _browserAgent = browserAgent;
     _webStateList = webStateList;
+    _layoutState = layoutState;
+    [_layoutState addObserver:self];
     _webStateListObserver = std::make_unique<WebStateListObserverBridge>(self);
     _webStateList->AddObserver(_webStateListObserver.get());
     _webStateObserver = std::make_unique<web::WebStateObserverBridge>(self);
@@ -101,11 +99,7 @@ const CGFloat kFullscreenSnapThreshold = 10.0;
     _browserAgentObserver =
         std::make_unique<FullscreenBrowserAgentObserverBridge>(self,
                                                                browserAgent);
-    _omniboxPositionObserver =
-        std::make_unique<OmniboxPositionBrowserAgentObserverBridge>(
-            self, omniboxPositionBrowserAgent);
-    _isBottomOmnibox =
-        omniboxPositionBrowserAgent->IsCurrentLayoutBottomOmnibox();
+    _isBottomOmnibox = _layoutState.toolbarPosition == ToolbarPosition::kBottom;
     self.webState = _webStateList->GetActiveWebState();
 
     NSNotificationCenter* defaultCenter = [NSNotificationCenter defaultCenter];
@@ -149,7 +143,8 @@ const CGFloat kFullscreenSnapThreshold = 10.0;
   _webStateObserver = nullptr;
   _browserAgentObserver = nullptr;
   _webViewProxyObserver = nullptr;
-  _omniboxPositionObserver = nullptr;
+  [_layoutState removeObserver:self];
+  _layoutState = nil;
   [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
@@ -198,10 +193,12 @@ const CGFloat kFullscreenSnapThreshold = 10.0;
   }
 }
 
-#pragma mark - OmniboxPositionBrowserAgentObserving
+#pragma mark - LayoutStateObserver
 
-- (void)omniboxPositionBrowserAgent:(OmniboxPositionBrowserAgent*)browser_agent
-                  didUpdatePosition:(BOOL)isCurrentLayoutBottomOmnibox {
+- (void)layoutState:(LayoutState*)layoutState
+    didChangeToolbarPosition:(ToolbarPosition)toolbarPosition {
+  BOOL isCurrentLayoutBottomOmnibox =
+      toolbarPosition == ToolbarPosition::kBottom;
   if (_isBottomOmnibox == isCurrentLayoutBottomOmnibox) {
     return;
   }

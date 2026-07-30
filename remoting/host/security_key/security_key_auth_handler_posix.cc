@@ -218,6 +218,12 @@ void SecurityKeyAuthHandlerPosix::OnReadComplete(int connection_id) {
 
   HOST_LOG << "Received request from socket: " << connection_id
            << ", code: " << GetCommandCode(request_data);
+
+  if (!send_message_callback_) {
+    LOG(ERROR) << "send_message_callback_ is null, dropping request.";
+    active_sockets_.erase(iter);
+    return;
+  }
   send_message_callback_.Run(connection_id, request_data);
 }
 

@@ -205,6 +205,36 @@ def get_latest_patchset(gerrit_host, project, change_num):
     return None
 
 
+def get_related_changes(gerrit_host, project, change_num):
+    gerrit_host = normalize_gerrit_host(gerrit_host)
+    encoded_project = urllib.parse.quote_plus(project)
+    url = f"https://{gerrit_host}/changes/{encoded_project}~{change_num}/revisions/current/related"
+    try:
+        with urllib.request.urlopen(url, timeout=10) as response:
+            content = response.read().decode("utf-8")
+            if content.startswith(")]}'"):
+                content = content[4:]
+            data = json.loads(content)
+            return data.get("changes", [])
+    except Exception as e:
+        print(
+            f"WARNING: Failed to get related changes from Gerrit: {e}",
+            file=sys.stderr,
+        )
+    return []
+
+
+def fetch_open_parents(gerrit_host, project, change_num):
+    """Fetches related changes and returns only the open parents of the target CL."""
+    print("Querying Gerrit for related changes (chains)...")
+    related_changes = get_related_changes(gerrit_host, project, change_num)
+    for i, change in enumerate(related_changes):
+        if change.get("_change_number") == change_num:
+            # Parents are after the target CL in the list
+            return [c for c in related_changes[i + 1:] if c.get("status") == "NEW"]
+    return []
+
+
 def parse_cl_url(url):
     parsed = urllib.parse.urlparse(url)
     gerrit_host = parsed.netloc
@@ -299,7 +329,7 @@ def find_dep_path_for_cl(deps_content, cl_url):
     return None
 
 
-def modify_deps(deps_path, deps_content, repo_path, repo_url, git_ref):
+def modify_deps(deps_path, deps_content, repo_path, repo_url, git_refs):
     lines = deps_content.splitlines()
     hooks_start_idx = None
     for i, line in enumerate(lines):
@@ -326,9 +356,11 @@ def modify_deps(deps_path, deps_content, repo_path, repo_url, git_ref):
     if hooks_end_idx is None:
         raise RuntimeError("Could not find the end of 'hooks' list in DEPS")
 
-    new_hooks = f"""
+    new_hooks_list = []
+    for idx, git_ref in enumerate(git_refs):
+        new_hooks_list.append(f"""
   {{
-    'name': '2p_patch_fetch',
+    'name': '2p_patch_fetch_{idx}',
     'pattern': '.',
     'cwd': '{repo_path}',
     'action': [
@@ -339,18 +371,17 @@ def modify_deps(deps_path, deps_content, repo_path, repo_url, git_ref):
     ],
   }},
   {{
-    'name': '2p_patch_apply',
+    'name': '2p_patch_apply_{idx}',
     'pattern': '.',
     'cwd': '{repo_path}',
     'action': [
         'git',
-        '-c', 'user.name=Spanifier',
-        '-c', 'user.email=spanify-tool@example.com',
         'cherry-pick',
         'FETCH_HEAD',
     ],
   }},
-"""
+""")
+    new_hooks = "\n".join(new_hooks_list)
 
     # Ensure the last element in the hooks list ends with a comma
     prev_idx = hooks_end_idx - 1
@@ -380,6 +411,19 @@ def generate_deps_roll_cl(git_helper, cl_url, deps_path):
                                    ".googlesource.com")
     dep_url = f"https://{git_host}/{project}"
 
+    git_refs = []
+    open_parents = fetch_open_parents(gerrit_host, project, change_num)
+    for change in reversed(open_parents):
+        c_num = change.get("_change_number")
+        p_set = change.get("_revision_number")
+        ref = f"refs/changes/{c_num % 100:02d}/{c_num}/{p_set}"
+        git_refs.append(ref)
+        print(f"  - Add parent ref to chain: {ref} (CL {c_num})")
+
+    # Always apply the target CL last
+    git_refs.append(git_ref)
+    print(f"  - Add target ref to chain: {git_ref} (CL {change_num})")
+
     with open(deps_path, "r") as f:
         deps_content = f.read()
     dep_path = find_dep_path_for_cl(deps_content, cl_url)
@@ -404,9 +448,9 @@ def generate_deps_roll_cl(git_helper, cl_url, deps_path):
     try:
         print("Modifying DEPS to inject hooks...")
         if not git_helper.dry_run:
-            modify_deps(deps_path, deps_content, dep_path, dep_url, git_ref)
+            modify_deps(deps_path, deps_content, dep_path, dep_url, git_refs)
         else:
-            print(f"[DRY RUN] Would modify {deps_path}")
+            print(f"[DRY RUN] Would modify {deps_path} with refs {git_refs}")
 
         print("Committing DEPS changes...")
         git_helper.commit_all_changes(
@@ -574,7 +618,7 @@ def run_performance_test(git_helper, pinpoint_path, deps_path, args):
     if args.benchmark == "speedometer3":
         print(
             f"\nOnce downloaded, you can calculate confidence intervals by running:\n"
-            f"  out/Default/pinpoint_cli ~/Downloads/{job_id}.csv")
+            f"  out/Default/pinpoint_ci ~/Downloads/{job_id}.csv")
 
 
 def main(args):

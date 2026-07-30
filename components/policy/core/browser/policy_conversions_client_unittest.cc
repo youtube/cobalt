@@ -1,11 +1,15 @@
 // Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
 #include "components/policy/core/browser/policy_conversions_client.h"
 
+#include "base/memory/raw_ptr.h"
 #include "base/strings/strcat.h"
+#include "components/policy/core/common/mock_policy_service.h"
 #include "components/policy/core/common/policy_map.h"
+#include "components/policy/core/common/values_util.h"
+#include "components/policy/policy_constants.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace policy {
@@ -23,6 +27,10 @@ class StubPolicyConversionsClient : public PolicyConversionsClient {
       delete;
   ~StubPolicyConversionsClient() override = default;
 
+  void SetPolicyService(PolicyService* policy_service) {
+    policy_service_ = policy_service;
+  }
+
  private:
   // PolicyConversionsClient.
   bool HasUserPolicies() const override { return false; }
@@ -35,11 +43,13 @@ class StubPolicyConversionsClient : public PolicyConversionsClient {
   }
   base::DictValue GetIdentityFields() override { return base::DictValue(); }
 #endif
-  PolicyService* GetPolicyService() const override { return nullptr; }
+  PolicyService* GetPolicyService() const override { return policy_service_; }
   SchemaRegistry* GetPolicySchemaRegistry() const override { return nullptr; }
   const ConfigurationPolicyHandlerList* GetHandlerList() const override {
     return nullptr;
   }
+
+  raw_ptr<PolicyService> policy_service_ = nullptr;
 };
 
 class PolicyConversionsClientTest : public ::testing::Test {
@@ -49,8 +59,9 @@ class PolicyConversionsClientTest : public ::testing::Test {
                            policy::POLICY_SCOPE_MACHINE,
                            policy::POLICY_SOURCE_ENTERPRISE_DEFAULT,
                            base::Value(base::ListValue()), nullptr);
-    if (set_is_default)
+    if (set_is_default) {
       entry.SetIsDefaultValue();
+    }
     return entry;
   }
 
@@ -129,6 +140,107 @@ TEST_F(PolicyConversionsClientTest, HideMachineValues) {
             *policies.FindByDottedPath(base::StrCat({kPolicyName2, ".value"})));
   EXPECT_FALSE(
       policies.FindByDottedPath(base::StrCat({kPolicyName2, ".error"})));
+}
+
+// Test restart required status handling.
+TEST_F(PolicyConversionsClientTest, RestartRequired) {
+  testing::NiceMock<MockPolicyService> policy_service;
+  StubPolicyConversionsClient client;
+  client.SetPolicyService(&policy_service);
+  EXPECT_CALL(policy_service, IsFirstPolicyLoadComplete(POLICY_DOMAIN_CHROME))
+      .WillRepeatedly(testing::Return(true));
+
+  // Policy that does not support dynamic refresh.
+  const char* const kPolicyA = policy::key::kComponentUpdatesEnabled;
+  // Policy that supports dynamic refresh.
+  const char* const kPolicyB = policy::key::kAutofillAddressEnabled;
+
+  std::optional<PolicyConversions::PolicyToSchemaMap> policy_schemas =
+      policy::PolicyConversions::PolicyToSchemaMap{
+          {{kPolicyA, policy::Schema()}, {kPolicyB, policy::Schema()}}};
+
+  base::Value value1("value1");
+  base::Value value2("value2");
+
+  // 1. New policy without dynamic refresh support should require restart.
+  EXPECT_CALL(policy_service, GetInitialChromePolicyValueHash(kPolicyA))
+      .WillOnce(testing::Return(std::nullopt));
+
+  PolicyMap current_map1;
+  current_map1.Set(kPolicyA, POLICY_LEVEL_MANDATORY, POLICY_SCOPE_USER,
+                   POLICY_SOURCE_CLOUD, value1.Clone(), nullptr);
+
+  base::DictValue policies1 =
+      GetPolicyValues(client, current_map1, policy_schemas);
+
+  const base::DictValue* policy_dict1 = policies1.FindDict(kPolicyA);
+  ASSERT_NE(nullptr, policy_dict1);
+  EXPECT_TRUE(policy_dict1->FindBool("restartRequired").value_or(false));
+
+  // 2. Changed policy without dynamic refresh support should require restart.
+  EXPECT_CALL(policy_service, GetInitialChromePolicyValueHash(kPolicyA))
+      .WillOnce(testing::Return(
+          std::optional<size_t>(policy::PolicyValueHash(value1.Clone()))));
+
+  PolicyMap current_map2;
+  current_map2.Set(kPolicyA, POLICY_LEVEL_MANDATORY, POLICY_SCOPE_USER,
+                   POLICY_SOURCE_CLOUD, value2.Clone(), nullptr);
+
+  base::DictValue policies2 =
+      GetPolicyValues(client, current_map2, policy_schemas);
+
+  const base::DictValue* policy_dict2 = policies2.FindDict(kPolicyA);
+  ASSERT_NE(nullptr, policy_dict2);
+  EXPECT_TRUE(policy_dict2->FindBool("restartRequired").value_or(false));
+
+  // 3. Unchanged policy without dynamic refresh support should not require
+  // restart.
+  EXPECT_CALL(policy_service, GetInitialChromePolicyValueHash(kPolicyA))
+      .WillOnce(testing::Return(
+          std::optional<size_t>(policy::PolicyValueHash(value1.Clone()))));
+
+  PolicyMap current_map3;
+  current_map3.Set(kPolicyA, POLICY_LEVEL_MANDATORY, POLICY_SCOPE_USER,
+                   POLICY_SOURCE_CLOUD, value1.Clone(), nullptr);
+
+  base::DictValue policies3 =
+      GetPolicyValues(client, current_map3, policy_schemas);
+
+  const base::DictValue* policy_dict3 = policies3.FindDict(kPolicyA);
+  ASSERT_NE(nullptr, policy_dict3);
+  EXPECT_FALSE(policy_dict3->FindBool("restartRequired").value_or(false));
+
+  // 4. New policy with dynamic refresh support should not require restart.
+  PolicyMap current_map4;
+  current_map4.Set(kPolicyB, POLICY_LEVEL_MANDATORY, POLICY_SCOPE_USER,
+                   POLICY_SOURCE_CLOUD, value1.Clone(), nullptr);
+
+  base::DictValue policies4 =
+      GetPolicyValues(client, current_map4, policy_schemas);
+
+  const base::DictValue* policy_dict4 = policies4.FindDict(kPolicyB);
+  ASSERT_NE(nullptr, policy_dict4);
+  EXPECT_FALSE(policy_dict4->FindBool("restartRequired").value_or(false));
+
+  // 5. Policy change before initial snapshot is complete should not require
+  // restart.
+  testing::NiceMock<MockPolicyService> policy_service_no_snapshot;
+  StubPolicyConversionsClient client_no_snapshot;
+  client_no_snapshot.SetPolicyService(&policy_service_no_snapshot);
+  EXPECT_CALL(policy_service_no_snapshot,
+              IsFirstPolicyLoadComplete(POLICY_DOMAIN_CHROME))
+      .WillRepeatedly(testing::Return(false));
+
+  PolicyMap current_map5;
+  current_map5.Set(kPolicyA, POLICY_LEVEL_MANDATORY, POLICY_SCOPE_USER,
+                   POLICY_SOURCE_CLOUD, value1.Clone(), nullptr);
+
+  base::DictValue policies5 =
+      GetPolicyValues(client_no_snapshot, current_map5, policy_schemas);
+
+  const base::DictValue* policy_dict5 = policies5.FindDict(kPolicyA);
+  ASSERT_NE(nullptr, policy_dict5);
+  EXPECT_FALSE(policy_dict5->FindBool("restartRequired").value_or(false));
 }
 
 // Test policy ignored status handling.

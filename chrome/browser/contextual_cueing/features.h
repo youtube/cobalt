@@ -14,6 +14,11 @@ namespace contextual_cueing {
 BASE_DECLARE_FEATURE(kContextualCueingV2);
 BASE_DECLARE_FEATURE(kContextualCueingV2EnforceAgeRestriction);
 
+// When enabled, the controller evaluates all registered CueTargets in parallel
+// via base::BarrierCallback and selects the winner with UCB scoring, replacing
+// the single-source Glic annotation-driven path.
+BASE_DECLARE_FEATURE(kContextualCueingV2MultiSource);
+
 extern const base::FeatureParam<double> kEduClassifierThreshold;
 extern const base::FeatureParam<double> kShoppingClassifierThreshold;
 
@@ -56,6 +61,14 @@ extern const base::FeatureParam<base::TimeDelta> kClickBackoffTime;
 
 // If true, uses private AI to generate cues.
 extern const base::FeatureParam<bool> kUsePrivateAi;
+
+// UCB scorer hyperparameters for the V2 multi-source path.
+// See UCBHyperparameters in ucb_scorer.h for field semantics.
+extern const base::FeatureParam<double> kUcbExplorationWeight;
+extern const base::FeatureParam<double> kUcbAlpha;
+extern const base::FeatureParam<double> kUcbBeta;
+extern const base::FeatureParam<double> kUcbGamma;
+extern const base::FeatureParam<int> kUcbMaxExploreImpressions;
 
 // The help center article link.
 extern const base::FeatureParam<std::string> kHelpCenterArticleLink;

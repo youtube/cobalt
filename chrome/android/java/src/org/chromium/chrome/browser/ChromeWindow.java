@@ -75,10 +75,7 @@ public class ChromeWindow extends ActivityWindowAndroid {
 
     @Override
     public void destroy() {
-        var chromeAndroidTaskTracker = ChromeAndroidTaskTrackerFactory.getInstance();
-        if (chromeAndroidTaskTracker != null) {
-            chromeAndroidTaskTracker.onActivityWindowAndroidDestroy(this);
-        }
+        ChromeAndroidTaskTrackerFactory.getInstance().onActivityWindowAndroidDestroy(this);
 
         super.destroy();
     }

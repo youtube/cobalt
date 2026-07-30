@@ -9,7 +9,7 @@
 #include "third_party/tflite/buildflags.h"
 
 #if BUILDFLAG(USE_LITERT_TFLITE)
-#include "third_party/litert/src/tflite/tf_to_tfl_flatbuffer.h"
+#include "third_party/litert/src/tflite/converter/tf_to_tfl_flatbuffer.h"
 #else
 #include_next "tensorflow/compiler/mlir/lite/tf_to_tfl_flatbuffer.h"
 #endif

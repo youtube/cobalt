@@ -99,8 +99,7 @@ class DiagnosticRoutineManager : public extensions::BrowserContextKeyedAPI,
   // enters the finished state. We are removing the routine in that case.
   void OnRoutineExceptionOrFinished(DiagnosticRoutineInfo info);
 
-  mojo::Remote<crosapi::mojom::TelemetryDiagnosticRoutinesService>&
-  GetRemoteService();
+  crosapi::mojom::TelemetryDiagnosticRoutinesService& GetService();
 
   // extensions::BrowserContextKeyedAPI:
   static const char* service_name() { return "DiagnosticRoutineManager"; }

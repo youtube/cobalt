@@ -459,7 +459,8 @@ class GPU_GLES2_EXPORT SkiaImageRepresentation
 
   SkiaImageRepresentation(SharedImageManager* manager,
                           SharedImageBacking* backing,
-                          MemoryTypeTracker* tracker);
+                          MemoryTypeTracker* tracker,
+                          bool is_graphite);
   ~SkiaImageRepresentation() override;
 
   // Note: See BeginWriteAccess below for a description of the semaphore
@@ -504,6 +505,8 @@ class GPU_GLES2_EXPORT SkiaImageRepresentation
 
   virtual void EndWriteAccess() = 0;
   virtual void EndReadAccess() = 0;
+
+  const bool is_graphite_;
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -929,6 +932,7 @@ class GPU_GLES2_EXPORT WebNNTensorRepresentation
 
 #if BUILDFLAG(IS_WIN)
   virtual Microsoft::WRL::ComPtr<ID3D12Resource> GetD3D12Buffer() const;
+  virtual base::win::ScopedHandle GetD3D12HeapHandle() const;
 #endif  // BUILDFLAG(IS_WIN)
 #if BUILDFLAG(IS_APPLE)
   virtual IOSurfaceRef GetIOSurface() const;

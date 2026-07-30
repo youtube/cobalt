@@ -595,7 +595,6 @@ std::vector<std::pair<base::test::FeatureRef, bool>> GetWipFeatures(
   std::vector<std::pair<base::test::FeatureRef, bool>> features = {
       // Support for new field types.
       {features::kAutofillUseINAddressModel, true},
-      {features::kAutofillSupportPhoneticNameForJP, true},
       {features::kAutofillEnableExpirationDateImprovements, true},
       {features::kAutofillSupportCombinedZipAndCityFR, true},
       {features::kAutofillSupportSplitZipCode, true},

@@ -141,7 +141,7 @@ bool BrowserTabStripModelDelegate::CanDuplicateContentsAt(int index) {
 }
 
 bool BrowserTabStripModelDelegate::IsTabStripEditable() {
-  return browser_->window()->IsTabStripEditable();
+  return BrowserWindow::FromBrowser(browser_)->IsTabStripEditable();
 }
 
 content::WebContents* BrowserTabStripModelDelegate::DuplicateContentsAt(

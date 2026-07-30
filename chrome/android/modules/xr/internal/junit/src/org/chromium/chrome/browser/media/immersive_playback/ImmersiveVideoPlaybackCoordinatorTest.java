@@ -8,7 +8,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -53,6 +57,7 @@ import org.chromium.ui.xr.scenecore.XrSurfaceEntityStereoMode;
 import org.chromium.ui.xr.scenecore.XrSurfaceEntityView;
 
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /** Tests for {@link ImmersiveVideoPlaybackCoordinator}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -307,6 +312,52 @@ public class ImmersiveVideoPlaybackCoordinatorTest {
 
         verify(mControlPanelHolder).setEntityEnabled(false);
         assertFalse(panel.isFormatButtonSelectedForTesting());
+    }
+
+    /**
+     * Tests that all components in the hierarchy are disposed strictly bottom-up (children before
+     * parents).
+     */
+    @Test
+    @UiThreadTest
+    public void testDisposalHierarchyOrder() {
+        XrPanelEntityHolder formatPanelHolder = mock(XrPanelEntityHolder.class);
+        when(formatPanelHolder.getEntitySize()).thenReturn(new SizeF(1f, 1f));
+        when(mXrSceneCoreSessionManager.createPanelEntity(any(), any()))
+                .thenReturn(formatPanelHolder);
+
+        mCoordinator.onFormatClicked();
+
+        Consumer<XrPanelEntityHolder> markAsDisposed =
+                holder ->
+                        doThrow(new IllegalStateException("Entity is already disposed"))
+                                .when(holder)
+                                .setEntityEnabled(anyBoolean());
+
+        // 1. Disposing Player surface entity disposes its children (Control Panel and Format
+        // Panel).
+        doAnswer(
+                        invocation -> {
+                            markAsDisposed.accept(mControlPanelHolder);
+                            markAsDisposed.accept(formatPanelHolder);
+                            return null;
+                        })
+                .when(mSurfaceEntityHolder)
+                .dispose();
+
+        // 2. Disposing Control Panel entity disposes its child (Format Panel).
+        doAnswer(
+                        invocation -> {
+                            markAsDisposed.accept(formatPanelHolder);
+                            return null;
+                        })
+                .when(mControlPanelHolder)
+                .dispose();
+
+        mCoordinator.dispose();
+        verify(formatPanelHolder).dispose();
+        verify(mControlPanelHolder).dispose();
+        verify(mSurfaceEntityHolder).dispose();
     }
 
     /** Test subclass that allows injecting mocked dependencies by overriding protected methods. */

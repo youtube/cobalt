@@ -887,8 +887,11 @@ bool MockClientSocketFactory::AllDataProvidersUsed() const {
 std::unique_ptr<DatagramClientSocket>
 MockClientSocketFactory::CreateDatagramClientSocket(
     DatagramSocket::BindType bind_type,
+    handles::NetworkHandle target_network,
     NetLog* net_log,
     const NetLogSource& source) {
+  // Currently this is not used to test any multi-network scenarios. This means
+  // that it is safe to always ignore `target_network`.
   NET_TRACE(1, " *** ") << "mock_data_index: " << mock_data_.next_index();
   SocketDataProvider* data_provider = mock_data_.GetNext();
   auto socket = std::make_unique<MockUDPClientSocket>(data_provider, net_log);
@@ -902,10 +905,13 @@ MockClientSocketFactory::CreateDatagramClientSocket(
 std::unique_ptr<TransportClientSocket>
 MockClientSocketFactory::CreateTransportClientSocket(
     const AddressList& addresses,
+    handles::NetworkHandle target_network,
     std::unique_ptr<SocketPerformanceWatcher> socket_performance_watcher,
     NetworkQualityEstimator* network_quality_estimator,
     NetLog* net_log,
     const NetLogSource& source) {
+  // Currently this is not used to test any multi-network scenarios. This means
+  // that it is safe to always ignore `target_network`.
   SocketDataProvider* data_provider = mock_tcp_data_.GetNextWithoutAsserting();
   if (data_provider) {
     NET_TRACE(1, " *** ") << "mock_tcp_data_index: "
@@ -1272,8 +1278,13 @@ bool MockTCPClientSocket::IsConnectedAndIdle() const {
 }
 
 int MockTCPClientSocket::GetPeerAddress(IPEndPoint* address) const {
-  if (addresses_.empty())
+  if (data_ && data_->force_get_peer_address_failure()) {
+    return ERR_SOCKET_NOT_CONNECTED;
+  }
+
+  if (addresses_.empty()) {
     return MockClientSocket::GetPeerAddress(address);
+  }
 
   if (data_->connect_data().first_attempt_fails) {
     DCHECK_GE(addresses_.size(), 2U);
@@ -1764,6 +1775,10 @@ void MockUDPClientSocket::Close() {
 }
 
 int MockUDPClientSocket::GetPeerAddress(IPEndPoint* address) const {
+  if (data_ && data_->force_get_peer_address_failure()) {
+    return ERR_SOCKET_NOT_CONNECTED;
+  }
+
   if (!data_)
     return ERR_UNEXPECTED;
 
@@ -2146,7 +2161,8 @@ int MockTransportClientSocketPool::RequestSocket(
   last_request_priority_ = priority;
   std::unique_ptr<StreamSocket> socket =
       client_socket_factory_->CreateTransportClientSocket(
-          AddressList(), nullptr, nullptr, net_log.net_log(), NetLogSource());
+          AddressList(), group_id.target_network(), nullptr, nullptr,
+          net_log.net_log(), NetLogSource());
   auto job = std::make_unique<MockConnectJob>(
       std::move(socket), handle, socket_tag, std::move(callback), priority);
   auto* job_ptr = job.get();
@@ -2288,13 +2304,14 @@ void MockTaggingStreamSocket::ApplySocketTag(const SocketTag& tag) {
 std::unique_ptr<TransportClientSocket>
 MockTaggingClientSocketFactory::CreateTransportClientSocket(
     const AddressList& addresses,
+    handles::NetworkHandle target_network,
     std::unique_ptr<SocketPerformanceWatcher> socket_performance_watcher,
     NetworkQualityEstimator* network_quality_estimator,
     NetLog* net_log,
     const NetLogSource& source) {
   auto socket = std::make_unique<MockTaggingStreamSocket>(
       MockClientSocketFactory::CreateTransportClientSocket(
-          addresses, std::move(socket_performance_watcher),
+          addresses, target_network, std::move(socket_performance_watcher),
           network_quality_estimator, net_log, source));
   tcp_socket_ = socket.get();
   return std::move(socket);
@@ -2303,11 +2320,12 @@ MockTaggingClientSocketFactory::CreateTransportClientSocket(
 std::unique_ptr<DatagramClientSocket>
 MockTaggingClientSocketFactory::CreateDatagramClientSocket(
     DatagramSocket::BindType bind_type,
+    handles::NetworkHandle target_network,
     NetLog* net_log,
     const NetLogSource& source) {
   std::unique_ptr<DatagramClientSocket> socket(
-      MockClientSocketFactory::CreateDatagramClientSocket(bind_type, net_log,
-                                                          source));
+      MockClientSocketFactory::CreateDatagramClientSocket(
+          bind_type, target_network, net_log, source));
   udp_socket_ = static_cast<MockUDPClientSocket*>(socket.get());
   return socket;
 }

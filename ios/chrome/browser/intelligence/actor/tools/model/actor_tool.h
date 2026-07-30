@@ -44,6 +44,9 @@ class ActorTool {
   // Executes the tool.
   virtual void Execute(ToolExecutionCallback callback) = 0;
 
+  // Cancels the tool execution.
+  virtual void Cancel();
+
   // Returns the target WebState for this tool, if any.
   virtual base::WeakPtr<web::WebState> GetTargetWebState() const = 0;
 

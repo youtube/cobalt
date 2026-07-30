@@ -8,10 +8,12 @@
 #include <vector>
 
 #include "base/barrier_callback.h"
+#include "base/base_paths.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/files/safe_base_name.h"
 #include "base/functional/bind.h"
+#include "base/path_service.h"
 #include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
 #include "content/browser/file_system_access/features.h"
@@ -297,13 +299,100 @@ void FileSystemAccessHandleBase::DoMove(
                      std::move(callback)));
 }
 
+FileSystemAccessHandleBase::RenamePermission
+FileSystemAccessHandleBase::GetRenamePermission(
+    const std::string& new_entry_name,
+    const bool has_transient_user_activation,
+    const storage::FileSystemURL destination_url) {
+  if (destination_url.type() ==
+      storage::FileSystemType::kFileSystemTypeTemporary) {
+    // For OPFS files, rename with overwrite permission is always allowed.
+    return RenamePermission::kAllowOverwrite;
+  }
+
+  // 1. Check write permission to the target file.
+  CHECK_NE(url().type(), storage::FileSystemType::kFileSystemTypeTemporary);
+  SharedHandleState destination_shared_handle_state =
+      manager()->GetSharedHandleStateForNonSandboxedPath(
+          content::PathInfo(destination_url.virtual_path(), new_entry_name),
+          context().storage_key,
+          // TODO(crbug.com/40198034): Support directory moves.
+          FileSystemAccessPermissionContext::HandleType::kFile,
+          FileSystemAccessPermissionContext::UserAction::kNone);
+
+  if (destination_shared_handle_state.write_grant->GetStatus() ==
+      PermissionStatus::GRANTED) {
+    // When write access to the target file is granted, rename with overwrite
+    // permission is allowed, regardless of the flag.
+    return RenamePermission::kAllowOverwrite;
+  }
+
+  // 2. Determine if we need to check parent directory write permission.
+  // Legacy Behavior (flag off): allow gesture bypass.
+  if (!base::FeatureList::IsEnabled(
+          features::kFileSystemAccessRenameRequiresParentWritePermission)) {
+    return has_transient_user_activation
+               ? RenamePermission::kAllowRenameWithoutOverwrite
+               : RenamePermission::kDeny;
+  }
+  // New behavior (flag on): since we don't have write permission to the target
+  // file, write permission to the parent directory is required to rename the
+  // file. We no longer need to check user activation, because user activation
+  // was introduced as a fallback security mitigation instead of requiring
+  // parent directory write permission, in order to avoid silent renaming in the
+  // background.
+  bool should_check_parent_directory_permission = true;
+  // If `kOnlyInHomedir` is true, the parent directory write permission check is
+  // restricted to the home directory.
+  if (features::kOnlyInHomedir.Get()) {
+    // When the param is set to true, check the parent directory access only
+    // when the destination is in home directory.
+    base::FilePath home_dir;
+    if (base::PathService::Get(base::DIR_HOME, &home_dir)) {
+      base::FilePath parent_dir = destination_url.path().DirName();
+      should_check_parent_directory_permission =
+          home_dir.IsParent(parent_dir) || (home_dir == parent_dir);
+    }
+  }
+
+  // 3. Perform the appropriate permission check.
+  if (should_check_parent_directory_permission) {
+    SharedHandleState parent_shared_handle_state =
+        manager()->GetSharedHandleStateForNonSandboxedPath(
+            content::PathInfo(
+                destination_url.type() == storage::kFileSystemTypeExternal
+                    ? PathType::kExternal
+                    : PathType::kLocal,
+                destination_url.path().DirName()),
+            context().storage_key,
+            FileSystemAccessPermissionContext::HandleType::kDirectory,
+            FileSystemAccessPermissionContext::UserAction::kNone);
+
+    if (parent_shared_handle_state.write_grant->GetStatus() ==
+        PermissionStatus::GRANTED) {
+      // Parent directory permission is granted.
+      return RenamePermission::kAllowOverwrite;
+    } else {
+      return RenamePermission::kDeny;
+    }
+  } else {
+    // Flag on with `kOnlyHomedir` true, but the destination is not in the
+    // homedir. Allow gesture bypass.
+    CHECK(features::kOnlyInHomedir.Get());
+    if (!has_transient_user_activation) {
+      return RenamePermission::kDeny;
+    } else {
+      return RenamePermission::kAllowRenameWithoutOverwrite;
+    }
+  }
+}
+
 void FileSystemAccessHandleBase::DoRename(
     const std::string& new_entry_name,
     bool has_transient_user_activation,
     base::OnceCallback<void(blink::mojom::FileSystemAccessErrorPtr)> callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // To get this far, we must have write access to the entry being moved.
-  // Write access to the parent directory is not required for renames.
   DCHECK_EQ(GetEffectiveWritePermissionStatus(),
             blink::mojom::PermissionStatus::GRANTED);
 
@@ -330,32 +419,18 @@ void FileSystemAccessHandleBase::DoRename(
 #endif
   CHECK(destination_url.is_valid());
 
-  SharedHandleState destination_shared_handle_state =
-      url().type() == storage::FileSystemType::kFileSystemTypeTemporary
-          ? manager()->GetSharedHandleStateForSandboxedPath()
-          : manager()->GetSharedHandleStateForNonSandboxedPath(
-                content::PathInfo(destination_url.virtual_path(),
-                                  new_entry_name),
-                context().storage_key,
-                // TODO(crbug.com/40198034): Support directory moves.
-                FileSystemAccessPermissionContext::HandleType::kFile,
-                FileSystemAccessPermissionContext::UserAction::kNone);
-
-  // Require a user gesture if the write access to the destination is not
-  // explicitly granted.
-  bool has_write_access_to_destination =
-      destination_shared_handle_state.write_grant->GetStatus() ==
-      PermissionStatus::GRANTED;
-  if (!has_write_access_to_destination && !has_transient_user_activation) {
-    // Files in the OPFS always have write access and should never be gated on a
-    // user gesture requirement.
+  RenamePermission permission = GetRenamePermission(
+      new_entry_name, has_transient_user_activation, destination_url);
+  if (permission == RenamePermission::kDeny) {
     CHECK_NE(destination_url.type(), storage::kFileSystemTypeTemporary);
     std::move(callback).Run(file_system_access_error::FromStatus(
         blink::mojom::FileSystemAccessStatus::kPermissionDenied));
     return;
   }
 
-  PrepareForMove(std::move(destination_url), has_write_access_to_destination,
+  const bool has_overwrite_permission =
+      permission == RenamePermission::kAllowOverwrite;
+  PrepareForMove(std::move(destination_url), has_overwrite_permission,
                  has_transient_user_activation, std::move(callback));
 }
 
@@ -427,7 +502,7 @@ void FileSystemAccessHandleBase::DidResolveTokenToMove(
 
 void FileSystemAccessHandleBase::PrepareForMove(
     storage::FileSystemURL destination_url,
-    bool has_write_access_to_destination,
+    bool has_overwrite_permission,
     bool has_transient_user_activation,
     base::OnceCallback<void(blink::mojom::FileSystemAccessErrorPtr)> callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -439,7 +514,7 @@ void FileSystemAccessHandleBase::PrepareForMove(
       take_destination_lock ? 2 : 1,
       base::BindOnce(&FileSystemAccessHandleBase::DidTakeMoveLocks, AsWeakPtr(),
                      destination_url, has_transient_user_activation,
-                     has_write_access_to_destination, std::move(callback)));
+                     has_overwrite_permission, std::move(callback)));
 
   manager()->TakeLock(context(), url(), manager()->GetExclusiveLockType(),
                       barrier_callback);
@@ -452,7 +527,7 @@ void FileSystemAccessHandleBase::PrepareForMove(
 void FileSystemAccessHandleBase::DidTakeMoveLocks(
     storage::FileSystemURL destination_url,
     bool has_transient_user_activation,
-    bool has_write_access_to_destination,
+    bool has_overwrite_permission,
     base::OnceCallback<void(blink::mojom::FileSystemAccessErrorPtr)> callback,
     std::vector<scoped_refptr<LockHandle>> locks) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -497,16 +572,16 @@ void FileSystemAccessHandleBase::DidTakeMoveLocks(
         context().frame_id,
         base::BindOnce(
             &FileSystemAccessHandleBase::DidVerifySensitiveEntryAccessForMove,
-            AsWeakPtr(), std::move(destination_url),
-            has_write_access_to_destination, has_transient_user_activation,
-            std::move(callback), std::move(locks)));
+            AsWeakPtr(), std::move(destination_url), has_overwrite_permission,
+            has_transient_user_activation, std::move(callback),
+            std::move(locks)));
   } else {
     // Skipping ConfirmSensitiveEntryAccess() as either of the following holds:
     // (1) no permission context. Possibly because manager() is being destroyed
     // or in a test.
     // (2) destination file is in Bucket File System, i.e. not a real file.
     DidVerifySensitiveEntryAccessForMove(
-        std::move(destination_url), has_write_access_to_destination,
+        std::move(destination_url), has_overwrite_permission,
         has_transient_user_activation, std::move(callback), std::move(locks),
         FileSystemAccessPermissionContext::SensitiveEntryResult::kAllowed);
   }
@@ -514,7 +589,7 @@ void FileSystemAccessHandleBase::DidTakeMoveLocks(
 
 void FileSystemAccessHandleBase::DidVerifySensitiveEntryAccessForMove(
     storage::FileSystemURL destination_url,
-    bool has_write_access_to_destination,
+    bool has_overwrite_permission,
     bool has_transient_user_activation,
     base::OnceCallback<void(blink::mojom::FileSystemAccessErrorPtr)> callback,
     std::vector<scoped_refptr<LockHandle>> locks,
@@ -529,8 +604,9 @@ void FileSystemAccessHandleBase::DidVerifySensitiveEntryAccessForMove(
     return;
   }
 
-  // Only allow overwriting moves if we have write access to the destination.
-  if (has_write_access_to_destination) {
+  // Only allow overwriting moves if we have write access to the destination or
+  // the parent directory write permission.
+  if (has_overwrite_permission) {
     DoPerformMoveOperation(destination_url, std::move(locks),
                            has_transient_user_activation, std::move(callback));
     return;

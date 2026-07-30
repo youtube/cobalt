@@ -30,6 +30,7 @@ class MockInstance : public GlicInstanceHelper::Instance {
     return conversation_id_;
   }
   std::string conversation_title() const override { return ""; }
+  std::optional<int> task_id() const override { return std::nullopt; }
 
  private:
   InstanceId id_;

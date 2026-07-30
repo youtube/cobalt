@@ -23,10 +23,9 @@
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 
-PermissionPromptChip::PermissionPromptChip(Browser* browser,
-                                           content::WebContents* web_contents,
+PermissionPromptChip::PermissionPromptChip(content::WebContents* web_contents,
                                            Delegate* delegate)
-    : PermissionPromptDesktop(browser, web_contents, delegate) {
+    : PermissionPromptDesktop(web_contents, delegate) {
   DCHECK(delegate);
   LocationBar* lb = GetLocationBar();
 

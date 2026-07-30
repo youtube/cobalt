@@ -232,7 +232,7 @@ void DocumentAnimations::UpdateAnimations(
 
   if (document_->GetPendingAnimations().Update(paint_artifact_compositor)) {
     DCHECK(document_->View());
-    document_->View()->ScheduleAnimation();
+    document_->View()->ScheduleAnimation(cc::BeginMainFrameReason::kAnimation);
   }
 
   UpdateCompositorAnimationTriggers(paint_artifact_compositor);

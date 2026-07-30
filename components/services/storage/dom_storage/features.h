@@ -24,11 +24,54 @@ COMPONENT_EXPORT(STORAGE_FEATURES) BASE_DECLARE_FEATURE(kDomStorageSqlite);
 COMPONENT_EXPORT(STORAGE_FEATURES)
 BASE_DECLARE_FEATURE(kDomStorageSqliteInMemory);
 
-// Returns true if the SQLite backend should be used for DOMStorage.
-// `kDomStorageSqlite` enables SQLite for both in-memory and on-disk databases.
-// `kDomStorageSqliteInMemory` enables SQLite only for in-memory databases.
+// Used as a feature param by `kDomStorageSqliteNewDatabases`. Adding, removing
+// and reordering values is fine; just make sure to update
+// `kDomStorageSqliteNewDatabasesStages` when adding new values.
+enum class DomStorageSqliteRolloutStage {
+  // Use LevelDB exclusively. All on-disk stores emit metrics to "OnDisk".
+  kUseLevelDbOnly,
+  // Functionally the same as `kUseLevelDbOnly`. On-disk stores created during
+  // this stage emit metrics to "OnDiskExperimental"; previously existing stores
+  // emit to "OnDisk".
+  kUseLevelDbAsControl,
+  // Use SQLite for new databases only. On-disk SQLite stores emit metrics to
+  // "OnDiskExperimental"; on-disk LevelDB stores emit to "OnDisk".
+  kUseSqliteForNewDatabases,
+  // Use SQLite exclusively. All on-disk stores emit metrics to "OnDisk".
+  kUseSqliteOnly,
+};
+
+// Enable to control the on-disk rollout of the SQLite backend for DomStorage
+// on new databases. The rollout stage is controlled by the
+// "DomStorageSqliteNewDatabasesStage" param.
 COMPONENT_EXPORT(STORAGE_FEATURES)
-bool ShouldUseSqliteBackend(bool is_in_memory);
+BASE_DECLARE_FEATURE(kDomStorageSqliteNewDatabases);
+COMPONENT_EXPORT(STORAGE_FEATURES)
+BASE_DECLARE_FEATURE_PARAM(DomStorageSqliteRolloutStage,
+                           kDomStorageSqliteNewDatabasesStage);
+
+// Returns the SQLite rollout stage for a DomStorage database, taking into
+// account all relevant feature flags. For in-memory databases, the result
+// is always `kUseSqliteOnly` or `kUseLevelDbOnly` because the experimental
+// on-disk stages do not apply.
+COMPONENT_EXPORT(STORAGE_FEATURES)
+DomStorageSqliteRolloutStage GetSqliteRolloutStage(bool in_memory);
+
+// Returns true if the rollout stage is an experimental stage that requires
+// checking disk state to determine the database path and histogram suffix.
+COMPONENT_EXPORT(STORAGE_FEATURES)
+bool IsExperimentalRolloutStage(DomStorageSqliteRolloutStage stage);
+
+// Returns true if the given stage and disk state indicate SQLite should be
+// used. `leveldb_exists` should be true if a non-empty LevelDB directory
+// exists on disk.
+COMPONENT_EXPORT(STORAGE_FEATURES)
+bool ShouldUseSqlite(DomStorageSqliteRolloutStage stage, bool leveldb_exists);
+
+// Returns true if the experimental tag file should be written after creating
+// a new LevelDB database.
+COMPONENT_EXPORT(STORAGE_FEATURES)
+bool ShouldWriteExpTag(DomStorageSqliteRolloutStage stage, bool leveldb_exists);
 
 }  // namespace storage
 

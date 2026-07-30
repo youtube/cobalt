@@ -165,7 +165,7 @@ IN_PROC_BROWSER_TEST_F(ActiveRenderWidgetHostBrowserTest,
 
   // Focus the URL bar.
   OmniboxView* omnibox =
-      browser()->window()->GetLocationBar()->GetOmniboxView();
+      BrowserWindow::FromBrowser(browser())->GetLocationBar()->GetOmniboxView();
   // Give the omnibox focus.
   omnibox->SetFocus(/*is_user_initiated=*/true);
   base::RunLoop().RunUntilIdle();
@@ -232,7 +232,7 @@ IN_PROC_BROWSER_TEST_F(ActiveRenderWidgetHostBrowserTest, FocusOmniBox) {
 
   // Main frame is already focused at this point and now focus URL bar.
   OmniboxView* omnibox =
-      browser()->window()->GetLocationBar()->GetOmniboxView();
+      BrowserWindow::FromBrowser(browser())->GetLocationBar()->GetOmniboxView();
   // Give the omnibox focus.
   omnibox->SetFocus(/*is_user_initiated=*/true);
 

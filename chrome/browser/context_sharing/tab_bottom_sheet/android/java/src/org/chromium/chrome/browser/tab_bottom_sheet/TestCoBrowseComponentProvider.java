@@ -12,13 +12,27 @@ import androidx.annotation.Px;
 
 import org.jni_zero.CalledByNative;
 
+import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.components.browser_ui.widget.text.TextViewWithCompoundDrawables;
 
 /** Concrete test implementation of {@link CoBrowseComponentProvider} for automated testing. */
 @NullMarked
 public class TestCoBrowseComponentProvider implements CoBrowseComponentProvider {
+    static boolean sUsePlaceholder;
+
+    public static void setUsePlaceholderForTesting(boolean usePlaceholder) {
+        ResettersForTesting.register(() -> sUsePlaceholder = false);
+        sUsePlaceholder = usePlaceholder;
+    }
+
     @CalledByNative
     public TestCoBrowseComponentProvider() {}
+
+    @Override
+    public boolean setupPlaceholderView(TextViewWithCompoundDrawables placeholder) {
+        return sUsePlaceholder;
+    }
 
     @Override
     public TabBottomSheetContent createContent(
@@ -27,7 +41,6 @@ public class TestCoBrowseComponentProvider implements CoBrowseComponentProvider 
             @ColorInt int backgroundColor,
             @Px int peekViewHeight,
             @IdRes int peekViewContainerId,
-            @IdRes int emptyPlaceholderContainerId,
             Runnable onBackPressed) {
         return new TestTabBottomSheetContent(
                 contentView,
@@ -35,7 +48,6 @@ public class TestCoBrowseComponentProvider implements CoBrowseComponentProvider 
                 backgroundColor,
                 peekViewHeight,
                 peekViewContainerId,
-                emptyPlaceholderContainerId,
                 onBackPressed);
     }
 }

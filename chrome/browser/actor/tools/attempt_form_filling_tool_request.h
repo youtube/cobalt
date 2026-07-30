@@ -37,7 +37,8 @@ class AttemptFormFillingToolRequest : public TabToolRequest {
   };
 
   AttemptFormFillingToolRequest(tabs::TabHandle tab_handle,
-                                std::vector<FormFillingRequest> requests);
+                                std::vector<FormFillingRequest> requests,
+                                bool enqueued_click = false);
   AttemptFormFillingToolRequest(const AttemptFormFillingToolRequest&);
   AttemptFormFillingToolRequest& operator=(
       const AttemptFormFillingToolRequest&);
@@ -53,8 +54,13 @@ class AttemptFormFillingToolRequest : public TabToolRequest {
     return requests_;
   }
 
+  bool enqueued_click() const { return enqueued_click_; }
+
  private:
   std::vector<FormFillingRequest> requests_;
+  // Set to true if a click has already been enqueued for the target field of
+  // this request. This prevents infinite click-delegation loops.
+  bool enqueued_click_ = false;
 };
 
 // To support JournalDetailsBuilder which calls base::ToString(), implement the

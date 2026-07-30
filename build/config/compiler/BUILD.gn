@@ -1962,6 +1962,9 @@ config("default_warnings") {
       cflags_cc += [
         # TODO(crbug.com/42050603): fix and reenable
         "-Wno-missing-field-initializers",
+
+        # TODO(crbug.com/522780099): fix and reenable
+        "-Wno-deprecated-builtins",
       ]
     }
 

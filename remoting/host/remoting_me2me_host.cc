@@ -2285,7 +2285,8 @@ int HostProcessMain(bool multi_process) {
   base::ThreadPoolInstance::CreateAndStartWithDefaultParams("Me2Me");
 
   // Create the main task executor and start helper threads.
-  base::SingleThreadTaskExecutor main_task_executor(base::MessagePumpType::UI);
+  base::SingleThreadTaskExecutor main_task_executor(base::MessagePumpType::UI,
+                                                    /*is_main_thread=*/true);
   base::RunLoop run_loop;
   std::unique_ptr<ChromotingHostContext> context =
       ChromotingHostContext::Create(base::MakeRefCounted<AutoThreadTaskRunner>(

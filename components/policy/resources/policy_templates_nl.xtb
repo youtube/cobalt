@@ -860,7 +860,6 @@ Als je dit beleid toepast, accepteert je <ph name="PRODUCT_OS_NAME" />-apparaat 
 Opmerking: Dit beleid wordt pas van kracht nadat een gebruiker is ingelogd en is niet van toepassing op het inlogscherm.</translation>
 <translation id="1597684038583138808">Definitie van Snelle antwoorden aanzetten</translation>
 <translation id="1598258379228800626">Toetsenbordfocusmarking op het inlogscherm aanzetten</translation>
-<translation id="1599424828227887013">Site-isolatie aanzetten voor opgegeven oorsprongen op Android-apparaten</translation>
 <translation id="159946228300522107">Als je het beleid instelt op True, maximaliseert Chrome het eerste venster tijdens de eerste uitvoering.
 
       Als je het beleid instelt op False of niet instelt, kan Chrome het eerste venster mogelijk maximaliseren, afhankelijk van de schermgrootte.</translation>
@@ -2124,17 +2123,6 @@ Als je dit beleid toepast of niet instelt, kan de gebruiker een Google Foto's-af
 <translation id="2402537890732357732">Beheerlabel altijd tonen</translation>
 <translation id="2402547085566757554">Pagina Nieuw tabblad niet gebruiken als homepage</translation>
 <translation id="2405765347317553213">Instellingen voor Tabbladen vergelijken</translation>
-<translation id="240713331529749993">Als je dit beleid toepast, wordt elk van de benoemde herkomsten in een door komma's gescheiden lijst op Android uitgevoerd in een eigen proces. Elk proces van een benoemde herkomst mag alleen documenten bevatten van de betreffende herkomst en de subdomeinen daarvan. Als je bijvoorbeeld https://a1.example.com/ opgeeft, is https://a2.a1.example.com/ toegestaan in hetzelfde proces, maar https://example.com of https://b.example.com niet. Vanaf <ph name="PRODUCT_NAME" /> versie 77 worden bepaalde gevoelige sites standaard geïsoleerd op Android. Dit beleid vormt daarvan een uitbreiding waarbij nog meer specifieke herkomsten worden geïsoleerd.
-
-      Sinds <ph name="PRODUCT_NAME" /> 77 kun je met een jokerteken een herkomstbereik opgeven om te isoleren. Als je bijvoorbeeld https://[*.]corp.example.com opgeeft, wordt elke herkomst onder https://corp.example.com uitgevoerd in een eigen proces, waaronder https://corp.example.com zelf, https://a1.corp.example.com en https://a2.a1.corp.example.com.
-
-Herkomsten die door dit beleid worden geïsoleerd, kunnen geen scripts uitvoeren van andere herkomsten binnen dezelfde site. Normaal is dit wel mogelijk als 2 documenten van dezelfde site hun waarden voor document.domain op elkaar afstemmen. Beheerders moeten bevestigen dat dit ongebruikelijke gedrag niet wordt toegepast op een herkomst voordat deze wordt geïsoleerd.
-
-      Als je het beleid niet toepast, worden alle vormen van site-isolatie uitgezet, waaronder isolatie van gevoelige sites en praktijktests van IsolateOriginsAndroid, SitePerProcessAndroid en andere site-isolatiemodussen. Gebruikers kunnen IsolateOrigins nog altijd handmatig aanzetten via de opdrachtregelflag.
-
-      Als je het beleid niet instelt, kunnen gebruikers deze instelling zelf wijzigen.
-
-      Opmerking: Als je te veel sites isoleert in Android, kunnen er prestatieproblemen optreden, met name op apparaten met weinig geheugen. Dit beleid is alleen van toepassing op Chrome op Android-apparaten met meer dan 1 GB RAM-geheugen. Gebruik <ph name="ISOLATE_ORIGINS_POLICY_NAME" /> om het beleid toe te passen op andere platforms dan Android.</translation>
 <translation id="2407758458436268630">Het slimme dimmodel toestaan de tijd te verlengen totdat het scherm wordt gedimd</translation>
 <translation id="2410163749464044777">Instellingen voor lokale opslag van gebruikersgegevens</translation>
 <translation id="2411629345938804022">Als je het beleid instelt op 3, kunnen websites vragen om toegang tot bluetooth-apparaten in de buurt. Als je het beleid instelt op 2, wordt de toegang tot bluetooth-apparaten in de buurt geblokkeerd.
@@ -4032,21 +4020,6 @@ Als je het beleid toepast, wordt SwiftShader gebruikt als software-reserveoptie 
 Als je het beleid niet toepast of niet instelt, kan het maken van een WebGL-context mislukken als hardwareversnelling via de GPU niet beschikbaar is. Webpagina's kunnen zich onvoorspelbaar gedragen als ze het mislukken van het maken van een WebGL-context niet correct verwerken.
 
 Dit is een tijdelijk beleid dat in de toekomst wordt verwijderd.</translation>
-<translation id="3607939601300521364">Hiermee bepaal je of de <ph name="GEMINI_SPARK_PRODUCT_NAME" />-agent verbinding mag maken met <ph name="PRODUCT_NAME" /> en automatisch browsen mag gebruiken.
-
-0 = <ph name="GEMINI_SPARK_PRODUCT_NAME" /> mag verbinding maken met en automatisch gebruiken browsen in <ph name="PRODUCT_NAME" />
-
-1 = <ph name="GEMINI_SPARK_PRODUCT_NAME" /> mag geen verbinding maken met of automatisch gebruiken browsen in <ph name="PRODUCT_NAME" />
-
-Waarschuwing: Als je <ph name="GEMINI_SPARK_PRODUCT_NAME" /> toestaat verbinding te maken met <ph name="PRODUCT_NAME" /> en automatisch browsen te gebruiken, kan de <ph name="GEMINI_SPARK_PRODUCT_NAME" />-agent zelfstandige acties in meerdere stappen uitvoeren op <ph name="PRODUCT_NAME" />-clients met de actieve browsersessie. Dit brengt aanzienlijke beveiligingsrisico's met zich mee, waaronder risico's voor inloggegevens, toegang tot het lokale netwerk en verlies van contextafhankelijke signalen. Bestaande beheer- en beveiligingsfuncties worden misschien niet gerespecteerd.
-
-We raden beheerders aan het model voor netwerkdreigingen, de nalevingsrichtlijnen en de privacyrichtlijnen van hun organisatie zorgvuldig te evalueren voordat ze deze functie aanzetten.
-
-Dit beleid heeft geen effect als de beleidsregels voor de <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />-app of automatisch browsen in <ph name="PRODUCT_NAME" /> niet worden toegepast. De <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />-app kan bijvoorbeeld worden uitgezet met het beleid <ph name="GEMINI_SETTINGS_POLICY_NAME" />. Ga voor meer informatie over <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> in <ph name="PRODUCT_NAME" /> naar https://support.google.com/chrome/a?p=gemini_in_chrome.
-
-Automatisch browsen in <ph name="PRODUCT_NAME" /> en <ph name="GEMINI_SPARK_PRODUCT_NAME" /> zijn niet in alle landen of alle talen beschikbaar. Als je dit beleid instelt op 0 - Enabled (Aan), garandeert dit niet dat de functie wordt aangezet. De functie blijft afhankelijk van de beschikbaarheid. Check de release-opmerkingen voor Chrome Enterprise voor meer informatie over de uitrol: https://chromeenterprise.google/resources/release-notes/
-
-Als je het beleid niet instelt, wordt het gedrag bepaald door het beleid <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.</translation>
 <translation id="3608206578291537084">De Encrypted Reporting Pipeline aanzetten</translation>
 <translation id="3608281460204780443">Het Chrome Web Store-icoon tonen in de <ph name="PRODUCT_OS_NAME" />-launcher en op de pagina Nieuw tabblad</translation>
 <translation id="3612482251405108708">Automatisch starten van online opnieuw verifiëren op het vergrendelscherm</translation>
@@ -4967,17 +4940,6 @@ Zie https://chromium.googlesource.com/chromium/src/+/main/docs/security/autoupgr
 
 Dit beleid werd gebruikt om automatische upgrades van gemengde content uit te zetten op iOS. Het beleid is nu beëindigd en wordt niet ondersteund.</translation>
 <translation id="4252522848899331223">Gebruiker toestaan Safe Browsing-waarschuwingen over te slaan</translation>
-<translation id="4260027436474745627">Als je dit beleid toepast, wordt elk van de benoemde herkomsten in een door komma's gescheiden lijst uitgevoerd in een eigen proces. Elk proces van een benoemde herkomst mag alleen documenten bevatten van de betreffende herkomst en de subdomeinen daarvan. Als je bijvoorbeeld https://a1.example.com/ opgeeft, valt https://a2.a1.example.com/ onder hetzelfde proces, maar https://example.com of https://b.example.com niet.
-
-Sinds <ph name="PRODUCT_NAME" /> 77 kun je met een jokerteken een herkomstbereik opgeven om te isoleren. Als je bijvoorbeeld https://[*.]corp.example.com opgeeft, wordt elke herkomst onder https://corp.example.com uitgevoerd in een eigen proces, waaronder https://corp.example.com zelf, https://a1.corp.example.com en https://a2.a1.corp.example.com.
-
-Zoals wordt vermeld in ons beleid <ph name="SITE_PER_PROCESS_POLICY_NAME" />, zijn op desktopplatforms alle sites (dus het schema plus eTLD+1, zoals https://example.com) standaard geïsoleerd. Het beleid <ph name="ISOLATE_ORIGINS_POLICY_NAME" /> is handig om specifieke herkomsten op een lager detailniveau te isoleren (bijvoorbeeld https://a.example.com).
-
-      Herkomsten die door dit beleid worden geïsoleerd, kunnen geen scripts uitvoeren van andere herkomsten binnen dezelfde site. Normaal is dit wel mogelijk als 2 documenten van dezelfde site hun waarden voor document.domain op elkaar afstemmen. Beheerders moeten bevestigen dat dit ongebruikelijke gedrag niet wordt toegepast op een herkomst voordat deze wordt geïsoleerd.
-
-      Als je dit beleid niet toepast of niet instelt, kunnen gebruikers deze instelling wijzigen.
-
-      Opmerking: Voor Android gebruik je het beleid <ph name="ISOLATE_ORIGINS_ANDROID_POLICY_NAME" />.</translation>
 <translation id="4261641564041253502">Clientcertificaten die overeenkomen met filters voor rapporten over het beveiligingssignaal <ph name="PRODUCT_NAME" /> automatisch selecteren.</translation>
 <translation id="4261820385751181068">Taal voor inlogscherm van apparaat</translation>
 <translation id="4263788921751326798">Rapportage voor informatie over crashrapporten van apparaat uitzetten</translation>
@@ -7361,6 +7323,7 @@ Als je dit beleid niet toepast of niet instelt, staat Glanceables niet aan in <p
 <translation id="5775235485119094648">Laad de batterij op wanneer de lading zich binnen een bepaald bereik bevindt.</translation>
 <translation id="5776485039795852974">Altijd goedkeuring vragen wanneer een site bureaubladmeldingen wil tonen</translation>
 <translation id="5776508475264864949">De Gemini-app niet toestaan om actie te ondernemen op de webpagina's.</translation>
+<translation id="5779185945203505880">Vragen als een site toegang wil krijgen tot sensoren</translation>
 <translation id="5783009211970309878">Kop- en voetteksten afdrukken</translation>
 <translation id="5786913136266632175">Chrome Finds toestaan en AI-modellen verbeteren.</translation>
 <translation id="5789288985554424301">Hiermee kun je instellen of websites de Idle Detection API mogen gebruiken.
@@ -7681,6 +7644,7 @@ Vanaf <ph name="PRODUCT_NAME" /> 147 wordt dit beleid beëindigd. IT-beheerders 
 <translation id="5962271004971310788">Extensies die de gebruiker in de incognitomodus moet toestaan om te kunnen navigeren in de incognitomodus</translation>
 <translation id="5963752574792883406">poort 990 (blokkering kan worden opgeheven tot 01-02-2022)</translation>
 <translation id="596523880465577341">Dit beleid is beëindigd en wordt niet ondersteund. Gebruik in plaats daarvan het beleid <ph name="EXTENSION_INSTALL_ALLOWLIST_POLICY_NAME" />.</translation>
+<translation id="5965344524743236327">De ID of het nummer van het <ph name="GOOGLE_CLOUD_PRODUCT_NAME" />-project dat overeenkomt met de <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" />-instantie die moet worden aangezet. Ga naar https://docs.cloud.google.com/resource-manager/docs/creating-managing-projects voor meer informatie over project-ID's.</translation>
 <translation id="5966615072639944554">Extensies die toestemming hebben de API voor externe bevestiging te gebruiken</translation>
 <translation id="596732417280023843">De naam van het certificaatprofiel.</translation>
 <translation id="5972538402066550344">Opties voor gedetailleerde rapportage toestaan</translation>
@@ -8090,6 +8054,7 @@ Als je het beleid <ph name="ALLOWED_INPUT_METHODS_POLICY_NAME" /> niet instelt o
 <translation id="6264247808139384018">Als je het beleid toepast of niet instelt, kunnen gebruikers die een wachtwoord gebruiken voor verificatie het scherm vergrendelen.
 
 Als je het beleid niet toepast, kunnen gebruikers het scherm niet vergrendelen. (Ze kunnen alleen uitloggen van de gebruikerssessie.)</translation>
+<translation id="6265114688953151459">De unieke ID van de <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" />-engine. De indeling moet 1 tot 63 tekens bevatten en overeenkomen met het patroon [a-z0-9][a-z0-9-_]*. Ga voor meer informatie naar https://docs.cloud.google.com/gemini/enterprise/docs/reference/rest/v1/projects.locations.collections.engines#Engine.</translation>
 <translation id="6265892395051519509">Toegang tot sensoren op deze sites toestaan</translation>
 <translation id="6266043141694454734">Hiermee wordt bepaald of de Chrome Root Store en de ingebouwde certificaatverificatie worden gebruikt om servercertificaten te verifiëren</translation>
 <translation id="6266686172120601139">Aanpasbare buffering voor Web Audio aanzetten</translation>
@@ -10625,6 +10590,9 @@ Dit is hetzelfde gedrag als <ph name="POLICY_VALUE_PRIMARY_ACCOUNT_KEEP_EXISTING
 <translation id="7816326058023670173">Geheim gedeeld tussen het apparaat van het kind en het apparaat van de ouder.</translation>
 <translation id="7818131573217430250">De standaardstatus van de modus voor hoog contrast op het inlogscherm instellen</translation>
 <translation id="7821864705813933283">Sta toe dat het menu-item voor regio doorzoeken van <ph name="GOOGLE_LENS_PRODUCT_NAME" /> wordt getoond in het contextmenu, als dat wordt ondersteund.</translation>
+<translation id="7822068288960631707">Als je het beleid instelt op 1, hebben websites toegang tot sensoren, zoals bewegings- en lichtsensoren. Als je het beleid instelt op 2, wordt de toegang tot sensoren geblokkeerd. Als je het beleid instelt op 3, wordt de gebruiker om toestemming gevraagd als een site toegang tot sensoren aanvraagt als de functie-flag met 3 statussen aanstaat. Anders wordt toegang tot sensoren standaard toegestaan.
+
+      Als je het beleid niet instelt, is <ph name="ALLOW_SENSORS_POLICY_NAME" /> van toepassing maar kunnen gebruikers deze instelling wijzigen.</translation>
 <translation id="7823902813460802031">Als je dit beleid toepast, voorkomt <ph name="PRODUCT_OS_NAME" /> dat het apparaat in de ontwikkelaarsmodus gaat.
 
        Als je het beleid niet toepast of niet instelt, blijft de ontwikkelaarsmodus beschikbaar voor het apparaat.</translation>

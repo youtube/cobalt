@@ -36,11 +36,6 @@
 #include "absl/random/internal/traits.h"
 #include "absl/random/mocking_access.h"
 
-// TODO: crbug.com/500291117 - Remove when fuzztest is updated not to rely on
-// random internal symbols.
-#include "absl/random/internal/distribution_caller.h"
-#include "absl/random/internal/mock_helpers.h"
-
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 

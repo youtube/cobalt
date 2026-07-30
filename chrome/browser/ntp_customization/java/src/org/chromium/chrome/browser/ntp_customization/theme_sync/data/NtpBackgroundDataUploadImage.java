@@ -16,6 +16,7 @@ import org.chromium.base.Callback;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType;
 import org.chromium.chrome.browser.ntp_customization.theme.upload_image.BackgroundImageInfo;
 
@@ -29,15 +30,16 @@ public class NtpBackgroundDataUploadImage extends NtpBackgroundDataBase {
 
     private static final String FILE_ID_HASH_KEY = "fileIdHash";
 
-    private final String mLastUploadImageFilePath;
     private final @Nullable BackgroundImageInfo mBackgroundImageInfo;
+    // The mFileIdHash isn't null when NTP theme sync is enabled.
     private final @Nullable String mFileIdHash;
+    // The mLastUploadImageFilePath isn't null when mFileIdHash isn't null.
+    private final @Nullable String mLastUploadImageFilePath;
     private @Nullable Bitmap mBitmap;
     private @Nullable @ColorInt Integer mPrimaryColor;
 
     /**
      * @param platformType The platform type of the device.
-     * @param lastUploadImageFilePath The file path of the last uploaded image.
      * @param backgroundImageInfo The background image info containing matrices and window sizes.
      * @param bitmap The local bitmap, not synced.
      * @param primaryColor The primary color of the background image.
@@ -45,21 +47,26 @@ public class NtpBackgroundDataUploadImage extends NtpBackgroundDataBase {
      */
     public NtpBackgroundDataUploadImage(
             @PlatformType int platformType,
-            String lastUploadImageFilePath,
             @Nullable BackgroundImageInfo backgroundImageInfo,
             @Nullable Bitmap bitmap,
             @Nullable @ColorInt Integer primaryColor,
             @Nullable String fileIdHash) {
         super(platformType);
-        mLastUploadImageFilePath = lastUploadImageFilePath;
         mBackgroundImageInfo = backgroundImageInfo;
         mBitmap = bitmap;
         mPrimaryColor = primaryColor;
         mFileIdHash = fileIdHash;
+
+        if (mFileIdHash != null) {
+            mLastUploadImageFilePath =
+                    NtpCustomizationUtils.createUploadImageFileInDir(mFileIdHash).getAbsolutePath();
+        } else {
+            mLastUploadImageFilePath = null;
+        }
     }
 
     /** Returns the file path of the last uploaded image. */
-    public String getLastUploadImageFilePath() {
+    public @Nullable String getLastUploadImageFilePath() {
         return mLastUploadImageFilePath;
     }
 
@@ -113,20 +120,22 @@ public class NtpBackgroundDataUploadImage extends NtpBackgroundDataBase {
             mBitmap = uploadImageData.getBitmap();
             onImageLoadedCallback.onResult(mBitmap);
         } else {
-            // TODO(https://crbug.com/488439751): Loads bitmap using mLastUploadImageFilePath.
             NtpBackgroundDataUtils.loadImage(
                     (result) -> {
                         mBitmap = result;
                         onImageLoadedCallback.onResult(mBitmap);
-                    });
+                    },
+                    mLastUploadImageFilePath);
         }
     }
 
     @Override
     public JSONObject toJson() throws JSONException {
         JSONObject json = super.toJson();
-        json.put(LAST_UPLOAD_IMAGE_FILE_PATH_KEY, mLastUploadImageFilePath);
         json.put(PRIMARY_COLOR_KEY, mPrimaryColor);
+        if (mLastUploadImageFilePath != null) {
+            json.put(LAST_UPLOAD_IMAGE_FILE_PATH_KEY, mLastUploadImageFilePath);
+        }
         if (mFileIdHash != null) {
             json.put(FILE_ID_HASH_KEY, mFileIdHash);
         }
@@ -140,16 +149,21 @@ public class NtpBackgroundDataUploadImage extends NtpBackgroundDataBase {
     public boolean equals(Object obj) {
         if (obj instanceof NtpBackgroundDataUploadImage other) {
             return super.equals(obj)
-                    && Objects.equals(mLastUploadImageFilePath, other.mLastUploadImageFilePath)
                     && Objects.equals(mPrimaryColor, other.mPrimaryColor)
-                    && Objects.equals(mFileIdHash, other.mFileIdHash);
+                    && Objects.equals(mFileIdHash, other.mFileIdHash)
+                    && Objects.equals(mBackgroundImageInfo, other.mBackgroundImageInfo);
         }
         return false;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), mLastUploadImageFilePath, mPrimaryColor, mFileIdHash);
+        return Objects.hash(
+                super.hashCode(),
+                mLastUploadImageFilePath,
+                mPrimaryColor,
+                mFileIdHash,
+                mBackgroundImageInfo);
     }
 
     @Override
@@ -166,10 +180,9 @@ public class NtpBackgroundDataUploadImage extends NtpBackgroundDataBase {
         }
         return new NtpBackgroundDataUploadImage(
                 json.getInt(PLATFORM_TYPE_KEY),
-                json.getString(LAST_UPLOAD_IMAGE_FILE_PATH_KEY),
                 backgroundImageInfo,
                 /* bitmap= */ null,
-                json.getInt(PRIMARY_COLOR_KEY),
-                json.getString(FILE_ID_HASH_KEY));
+                json.has(PRIMARY_COLOR_KEY) ? json.getInt(PRIMARY_COLOR_KEY) : null,
+                json.has(FILE_ID_HASH_KEY) ? json.getString(FILE_ID_HASH_KEY) : null);
     }
 }

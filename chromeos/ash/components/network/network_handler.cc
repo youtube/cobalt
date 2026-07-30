@@ -63,6 +63,7 @@
 namespace ash {
 
 static NetworkHandler* g_network_handler = NULL;
+static bool g_has_ever_been_initialized = false;
 
 NetworkHandler::NetworkHandler(std::unique_ptr<NetworkStateHandler> handler)
     : was_enterprise_managed_at_startup_(
@@ -230,6 +231,7 @@ void NetworkHandler::Initialize() {
   g_network_handler =
       new NetworkHandler(base::WrapUnique(new NetworkStateHandler()));
   g_network_handler->Init();
+  g_has_ever_been_initialized = true;
 }
 
 // static
@@ -238,6 +240,7 @@ void NetworkHandler::InitializeFake() {
   g_network_handler =
       new NetworkHandler(std::make_unique<FakeNetworkStateHandler>());
   g_network_handler->Init();
+  g_has_ever_been_initialized = true;
 }
 
 // static
@@ -257,6 +260,11 @@ NetworkHandler* NetworkHandler::Get() {
 // static
 bool NetworkHandler::IsInitialized() {
   return g_network_handler;
+}
+
+// static
+bool NetworkHandler::HasEverBeenInitialized() {
+  return g_has_ever_been_initialized;
 }
 
 void NetworkHandler::InitializePrefServices(

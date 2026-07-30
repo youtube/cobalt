@@ -436,7 +436,13 @@ TEST_P(SampleBufferTransformerPixelTransferTest, CanConvertFullScale) {
                                        kColorG, kColorB));
 }
 
-TEST_P(SampleBufferTransformerPixelTransferTest, CanConvertAndScaleDown) {
+// TODO(crbug.com/524815064): Re-enable this test.
+#if defined(ADDRESS_SANITIZER)
+#define MAYBE_CanConvertAndScaleDown DISABLED_CanConvertAndScaleDown
+#else
+#define MAYBE_CanConvertAndScaleDown CanConvertAndScaleDown
+#endif
+TEST_P(SampleBufferTransformerPixelTransferTest, MAYBE_CanConvertAndScaleDown) {
   auto [input_pixel_format, output_pixel_format] = GetParam();
 // TODO(crbug.com/406271645): Re-enable this test on Mac.
 #if BUILDFLAG(IS_MAC)
@@ -466,6 +472,8 @@ TEST_P(SampleBufferTransformerPixelTransferTest, CanConvertAndScaleDown) {
   EXPECT_TRUE(PixelBufferIsSingleColor(output_pixel_buffer.get(), kColorR,
                                        kColorG, kColorB));
 }
+// Undefine to prevent conflict with later definitions of the same macro.
+#undef MAYBE_CanConvertAndScaleDown
 
 TEST_P(SampleBufferTransformerPixelTransferTest,
        CanConvertAndScaleDownWhenIoSurfaceIsMissing) {

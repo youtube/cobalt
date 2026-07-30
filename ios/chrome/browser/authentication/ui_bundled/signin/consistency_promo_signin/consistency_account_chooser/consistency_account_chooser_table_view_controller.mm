@@ -109,7 +109,7 @@ constexpr CGFloat kSectionFooterHeight = 8.;
         LegacyTableViewCell* oldCell =
             [self.tableView cellForRowAtIndexPath:previousIndexPath];
         if (oldCell) {
-          [previousIdentityItem configureCell:oldCell withStyler:self.styler];
+          [previousIdentityItem configureCell:oldCell];
         }
       }
 
@@ -125,9 +125,7 @@ constexpr CGFloat kSectionFooterHeight = 8.;
                                                                     .gaiaID)];
       };
       if (newCell) {
-        [identityItem configureCell:newCell
-                         withStyler:self.styler
-                         completion:completionBlock];
+        [identityItem configureCell:newCell withCompletion:completionBlock];
       } else {
         // The cell is not visible, so the animation will not be seen.
         // The completion can be called immediately.

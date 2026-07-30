@@ -9,7 +9,7 @@
 #include "base/functional/callback_helpers.h"
 #include "components/file_access/test/mock_scoped_file_access_delegate.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
-#include "content/browser/child_process_security_policy_impl.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/common/child_process_id.h"
 #include "content/public/test/browser_task_environment.h"

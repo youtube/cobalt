@@ -79,6 +79,25 @@ impl Registrar for () {
     }
 }
 
+pub struct DummyRegistrarForTesting(MultiplexRouterHandle);
+
+impl DummyRegistrarForTesting {
+    pub fn new(sets_high_bit: bool) -> Self {
+        Self(MultiplexRouterHandle::new_for_testing(sets_high_bit))
+    }
+}
+
+impl Registrar for DummyRegistrarForTesting {
+    #[allow(private_interfaces)]
+    fn register_new_endpoint(
+        &self,
+        interface_id: Option<InterfaceId>,
+        endpoint_info: Option<EndpointInfo>,
+    ) -> Option<MultiplexRouterHandle> {
+        self.0.register_new_endpoint(interface_id, endpoint_info)
+    }
+}
+
 impl<Context, T, Marker> mojom_value_parser::MojomParse<Context>
     for PendingAssociatedEndpoint<T, Marker>
 where

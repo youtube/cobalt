@@ -147,11 +147,6 @@ void SurfaceEmbedHost::AttachConnector(
   content::SurfaceEmbedConnector::Attach(
       web_contents_to_attach, &collection_->render_frame_host(), this);
 
-  auto* connector = GetConnector();
-  CHECK(connector->GetFrameSinkId().is_valid());
-  surface_embed_->SetFrameSinkId(connector->GetFrameSinkId(),
-                                 /*allow_paint_holding=*/false);
-
   // TODO(surface-embed): If accessibility info was received before the
   // connector was attached, pass it to the connector now.
 }

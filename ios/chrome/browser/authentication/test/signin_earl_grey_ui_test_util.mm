@@ -43,8 +43,8 @@ using chrome_test_util::SignOutAccountsButton;
 namespace {
 
 // Opens settings > sync settings > button with `identifier`.
-// `identifier` is an accessiblity identifier. It must be visible when the view
-// scrolled to the bottom.
+// `identifier` is an accessibility identifier. It must be visible when the view
+// is scrolled to the bottom.
 void OpenSyncSettingsSubmenu(NSString* identifier) {
   // First scroll down so that the button is visible.
   id<GREYMatcher> scroll_view_matcher =

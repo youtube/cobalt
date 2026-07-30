@@ -20,8 +20,6 @@ const base::FeatureParam<bool>* GetPageActionsMigrationParam(
       return &features::kPageActionsMigrationCookieControls;
     case PageActionIconType::kMandatoryReauth:
       return &features::kPageActionsMigrationAutofillMandatoryReauth;
-    case PageActionIconType::kSharingHub:
-      return &features::kPageActionsMigrationSharingHub;
     case PageActionIconType::kAiMode:
       return &features::kPageActionsMigrationAiMode;
     case PageActionIconType::kVirtualCardEnroll:
@@ -49,8 +47,8 @@ bool IsPageActionMigrated(PageActionIconType page_action) {
     return false;
   }
 
-  // Page actions on the new framework that don't have an implementation on the legacy path
-  // and don't have a feature param.
+  // Page actions on the new framework that don't have an implementation on the
+  // legacy path and don't have a feature param.
   switch (page_action) {
     case PageActionIconType::kAnchoredContextualCue:
     case PageActionIconType::kCollaborationMessaging:

@@ -1,18 +1,19 @@
 //! Filter functions and abstractions.
 //!
-//! MiniJinja inherits from Jinja2 the concept of filter functions.  These are functions
-//! which are applied to values to modify them.  For example the expression `{{ 42|filter(23) }}`
-//! invokes the filter `filter` with the arguments `42` and `23`.
+//! MiniJinja inherits from Jinja2 the concept of filter functions.  These are
+//! functions which are applied to values to modify them.  For example the
+//! expression `{{ 42|filter(23) }}` invokes the filter `filter` with the
+//! arguments `42` and `23`.
 //!
-//! MiniJinja comes with some built-in filters that are listed below. To create a
-//! custom filter write a function that takes at least a value, then registers it
-//! with [`add_filter`](crate::Environment::add_filter).
+//! MiniJinja comes with some built-in filters that are listed below. To create
+//! a custom filter write a function that takes at least a value, then registers
+//! it with [`add_filter`](crate::Environment::add_filter).
 //!
 //! # Using Filters
 //!
-//! Using filters in templates is possible in all places an expression is permitted.
-//! This means they are not just used for printing but also are useful for iteration
-//! or similar situations.
+//! Using filters in templates is possible in all places an expression is
+//! permitted. This means they are not just used for printing but also are
+//! useful for iteration or similar situations.
 //!
 //! Motivating example:
 //!
@@ -47,10 +48,10 @@
 //!
 //! # Accessing State
 //!
-//! In some cases it can be necessary to access the execution [`State`].  Since a borrowed
-//! state implements [`ArgType`](crate::value::ArgType) it's possible to add a
-//! parameter that holds the state.  For instance the following filter appends
-//! the current template name to the string:
+//! In some cases it can be necessary to access the execution [`State`].  Since
+//! a borrowed state implements [`ArgType`](crate::value::ArgType) it's possible
+//! to add a parameter that holds the state.  For instance the following filter
+//! appends the current template name to the string:
 //!
 //! ```
 //! # use minijinja::Environment;
@@ -66,11 +67,12 @@
 //!
 //! # Filter configuration
 //!
-//! The recommended pattern for filters to change their behavior is to leverage global
-//! variables in the template.  For instance take a filter that performs date formatting.
-//! You might want to change the default time format format on a per-template basis
-//! without having to update every filter invocation.  In this case the recommended
-//! pattern is to reserve upper case variables and look them up in the filter:
+//! The recommended pattern for filters to change their behavior is to leverage
+//! global variables in the template.  For instance take a filter that performs
+//! date formatting. You might want to change the default time format format on
+//! a per-template basis without having to update every filter invocation.  In
+//! this case the recommended pattern is to reserve upper case variables and
+//! look them up in the filter:
 //!
 //! ```
 //! # use minijinja::Environment;
@@ -163,9 +165,7 @@ pub fn escape(state: &State, v: &Value) -> Result<Value, Error> {
         // auto-escape is disabled in the current scope. The default formatter
         // also errors on custom auto-escape formats, so we must route through
         // the environment formatter here.
-        ok!(state.with_auto_escape(auto_escape, |state| {
-            state.env().format(v, state, &mut out)
-        }));
+        ok!(state.with_auto_escape(auto_escape, |state| { state.env().format(v, state, &mut out) }));
     } else {
         ok!(write_escaped(&mut out, auto_escape, v));
     }
@@ -326,7 +326,8 @@ mod builtins {
     ///
     /// The filter accepts a few keyword arguments:
     ///
-    /// * `case_sensitive`: set to `true` to make the sorting of strings case sensitive.
+    /// * `case_sensitive`: set to `true` to make the sorting of strings case
+    ///   sensitive.
     /// * `by`: set to `"value"` to sort by value. Defaults to `"key"`.
     /// * `reverse`: set to `true` to sort in reverse.
     #[cfg_attr(docsrs, doc(cfg(feature = "builtins")))]
@@ -341,18 +342,19 @@ mod builtins {
         let by_value = matches!(ok!(kwargs.get("by")), Some("value"));
         let case_sensitive = ok!(kwargs.get::<Option<bool>>("case_sensitive")).unwrap_or(false);
         let reverse = ok!(kwargs.get::<Option<bool>>("reverse")).unwrap_or(false);
-        let mut rv: Vec<_> = ok!(v.try_iter())
-            .map(|key| (key.clone(), v.get_item(&key).unwrap_or(Value::UNDEFINED)))
-            .collect();
+        let mut rv: Vec<_> = if let Some(iter) = v.as_object().and_then(|v| v.try_iter_pairs()) {
+            iter.collect()
+        } else {
+            ok!(v.try_iter())
+                .map(|key| (key.clone(), v.get_item(&key).unwrap_or(Value::UNDEFINED)))
+                .collect()
+        };
         safe_sort(&mut rv, |a, b| {
             let (a, b) = if by_value { (&a.1, &b.1) } else { (&a.0, &b.0) };
             cmp_helper(a, b, case_sensitive, reverse)
         })?;
         kwargs.assert_all_used()?;
-        Ok(rv
-            .into_iter()
-            .map(|(k, v)| Value::from(vec![k, v]))
-            .collect())
+        Ok(rv.into_iter().map(|(k, v)| Value::from([k, v])).collect())
     }
 
     /// Returns an iterable of pairs (items) from a mapping.
@@ -377,7 +379,7 @@ mod builtins {
         if v.kind() == ValueKind::Map {
             Ok(Value::make_object_iterable(v.clone(), |v| {
                 match v.as_object().and_then(|v| v.try_iter_pairs()) {
-                    Some(iter) => Box::new(iter.map(|(key, value)| Value::from(vec![key, value]))),
+                    Some(iter) => Box::new(iter.map(|(key, value)| Value::from([key, value]))),
                     None => Box::new(
                         // this really should not happen unless the object changes it's shape
                         // after the initial check
@@ -390,10 +392,7 @@ mod builtins {
                 }
             }))
         } else {
-            Err(Error::new(
-                ErrorKind::InvalidOperation,
-                "cannot convert value into pairs",
-            ))
+            Err(Error::new(ErrorKind::InvalidOperation, "cannot convert value into pairs"))
         }
     }
 
@@ -468,11 +467,12 @@ mod builtins {
         Ok(rv)
     }
 
-    /// Split a string into its substrings, using `split` as the separator string.
+    /// Split a string into its substrings, using `split` as the separator
+    /// string.
     ///
-    /// If `split` is not provided or `none` the string is split at all whitespace
-    /// characters and multiple spaces and empty strings will be removed from the
-    /// result.
+    /// If `split` is not provided or `none` the string is split at all
+    /// whitespace characters and multiple spaces and empty strings will be
+    /// removed from the result.
     ///
     /// The `maxsplits` parameter defines the maximum number of splits
     /// (starting from the left).  Note that this follows Python conventions
@@ -564,10 +564,7 @@ mod builtins {
                     .ok_or_else(|| Error::new(ErrorKind::InvalidOperation, "overflow on abs"))
             }
             ValueRepr::F64(x) => Ok(Value::from(x.abs())),
-            _ => Err(Error::new(
-                ErrorKind::InvalidOperation,
-                "cannot get absolute value",
-            )),
+            _ => Err(Error::new(ErrorKind::InvalidOperation, "cannot get absolute value")),
         }
     }
 
@@ -663,9 +660,9 @@ mod builtins {
 
     /// Looks up an attribute.
     ///
-    /// In MiniJinja this is the same as the `[]` operator.  In Jinja2 there is a
-    /// small difference which is why this filter is sometimes used in Jinja2
-    /// templates.  For compatibility it's provided here as well.
+    /// In MiniJinja this is the same as the `[]` operator.  In Jinja2 there is
+    /// a small difference which is why this filter is sometimes used in
+    /// Jinja2 templates.  For compatibility it's provided here as well.
     ///
     /// ```jinja
     /// {{ value['key'] == value|attr('key') }} -> true
@@ -718,10 +715,7 @@ mod builtins {
         } else if let Some(mut iter) = value.as_object().and_then(|x| x.try_iter()) {
             Ok(iter.next().unwrap_or(Value::UNDEFINED))
         } else {
-            Err(Error::new(
-                ErrorKind::InvalidOperation,
-                "cannot get first item from value",
-            ))
+            Err(Error::new(ErrorKind::InvalidOperation, "cannot get first item from value"))
         }
     }
 
@@ -749,10 +743,7 @@ mod builtins {
             let mut iter = ok!(rev.try_iter());
             Ok(iter.next().unwrap_or_default())
         } else {
-            Err(Error::new(
-                ErrorKind::InvalidOperation,
-                "cannot get last item from value",
-            ))
+            Err(Error::new(ErrorKind::InvalidOperation, "cannot get last item from value"))
         }
     }
 
@@ -786,9 +777,11 @@ mod builtins {
     ///
     /// The filter accepts a few keyword arguments:
     ///
-    /// * `case_sensitive`: set to `true` to make the sorting of strings case sensitive.
-    /// * `attribute`: can be set to an attribute or dotted path to sort by that attribute.
-    ///   can be a comma-separated list of attributes forming a composite key like "age, name".
+    /// * `case_sensitive`: set to `true` to make the sorting of strings case
+    ///   sensitive.
+    /// * `attribute`: can be set to an attribute or dotted path to sort by that
+    ///   attribute. can be a comma-separated list of attributes forming a
+    ///   composite key like "age, name".
     /// * `reverse`: set to `true` to sort in reverse.
     ///
     /// ```jinja
@@ -828,23 +821,19 @@ mod builtins {
                 // More than one keys
                 safe_sort(&mut items, |a, b| {
                     let key_a = Value::from_iter(
-                        keys.iter()
-                            .map(|k| a.get_path_or_default(k, &Value::UNDEFINED)),
+                        keys.iter().map(|k| a.get_path_or_default(k, &Value::UNDEFINED)),
                     );
                     let key_b = Value::from_iter(
-                        keys.iter()
-                            .map(|k| b.get_path_or_default(k, &Value::UNDEFINED)),
+                        keys.iter().map(|k| b.get_path_or_default(k, &Value::UNDEFINED)),
                     );
                     cmp_helper(&key_a, &key_b, case_sensitive, reverse)
                 })?;
             } else {
                 // Fast path for a more common case of single key
                 let key = if !keys.is_empty() { keys[0] } else { attr };
-                safe_sort(&mut items, |a, b| {
-                    match (a.get_path(key), b.get_path(key)) {
-                        (Ok(a), Ok(b)) => cmp_helper(&a, &b, case_sensitive, reverse),
-                        _ => Ordering::Equal,
-                    }
+                safe_sort(&mut items, |a, b| match (a.get_path(key), b.get_path(key)) {
+                    (Ok(a), Ok(b)) => cmp_helper(&a, &b, case_sensitive, reverse),
+                    _ => Ordering::Equal,
                 })?;
             }
         } else {
@@ -874,11 +863,7 @@ mod builtins {
     #[cfg_attr(docsrs, doc(cfg(feature = "builtins")))]
     pub fn string(state: &State, value: &Value) -> Result<Value, Error> {
         ok!(state.undefined_behavior().assert_value_not_undefined(value));
-        Ok(if value.kind() == ValueKind::String {
-            value.clone()
-        } else {
-            value.to_string().into()
-        })
+        Ok(if value.kind() == ValueKind::String { value.clone() } else { value.to_string().into() })
     }
 
     /// Converts the value into a boolean value.
@@ -986,10 +971,7 @@ mod builtins {
 
         for item in ok!(state.undefined_behavior().try_iter(value)) {
             if tmp.len() == count {
-                rv.push(Value::from(mem::replace(
-                    &mut tmp,
-                    Vec::with_capacity(count),
-                )));
+                rv.push(Value::from(mem::replace(&mut tmp, Vec::with_capacity(count))));
             }
             tmp.push(item);
         }
@@ -1008,11 +990,12 @@ mod builtins {
 
     /// Dumps a value to JSON.
     ///
-    /// This filter is only available if the `json` feature is enabled.  The resulting
-    /// value is safe to use in HTML as well as it will not contain any special HTML
-    /// characters.  The optional parameter to the filter can be set to `true` to enable
-    /// pretty printing.  Note that the `"` character is left unchanged as it's the
-    /// JSON string delimiter.  If you want to pass JSON serialized this way into an
+    /// This filter is only available if the `json` feature is enabled.  The
+    /// resulting value is safe to use in HTML as well as it will not
+    /// contain any special HTML characters.  The optional parameter to the
+    /// filter can be set to `true` to enable pretty printing.  Note that
+    /// the `"` character is left unchanged as it's the JSON string
+    /// delimiter.  If you want to pass JSON serialized this way into an
     /// HTTP attribute use single quoted HTML attributes:
     ///
     /// ```jinja
@@ -1022,10 +1005,10 @@ mod builtins {
     /// <a href="#" data-info='{{ json_object|tojson }}'>...</a>
     /// ```
     ///
-    /// The filter takes one argument `indent` (which can also be passed as keyword
-    /// argument for compatibility with Jinja2) which can be set to `true` to enable
-    /// pretty printing or an integer to control the indentation of the pretty
-    /// printing feature.
+    /// The filter takes one argument `indent` (which can also be passed as
+    /// keyword argument for compatibility with Jinja2) which can be set to
+    /// `true` to enable pretty printing or an integer to control the
+    /// indentation of the pretty printing feature.
     ///
     /// ```jinja
     /// <script>
@@ -1194,9 +1177,10 @@ mod builtins {
             match &value.0 {
                 ValueRepr::None | ValueRepr::Undefined(_) => Ok("".into()),
                 ValueRepr::Bytes(b) => Ok(percent_encoding::percent_encode(b, SET).to_string()),
-                ValueRepr::String(..) | ValueRepr::SmallStr(_) => Ok(
-                    percent_encoding::utf8_percent_encode(value.as_str().unwrap(), SET).to_string(),
-                ),
+                ValueRepr::String(..) | ValueRepr::SmallStr(_) => {
+                    Ok(percent_encoding::utf8_percent_encode(value.as_str().unwrap(), SET)
+                        .to_string())
+                }
                 _ => Ok(percent_encoding::utf8_percent_encode(&value.to_string(), SET).to_string()),
             }
         }
@@ -1220,16 +1204,11 @@ mod builtins {
             None
         };
         for value in ok!(state.undefined_behavior().try_iter(value)) {
-            let test_value = if let Some(ref attr) = attr {
-                ok!(value.get_path(attr))
-            } else {
-                value.clone()
-            };
+            let test_value =
+                if let Some(ref attr) = attr { ok!(value.get_path(attr)) } else { value.clone() };
             let passed = if let Some(test) = test {
-                let new_args = Some(test_value)
-                    .into_iter()
-                    .chain(args.0.iter().cloned())
-                    .collect::<Vec<_>>();
+                let new_args =
+                    Some(test_value).into_iter().chain(args.0.iter().cloned()).collect::<Vec<_>>();
                 ok!(test.call(state, &new_args)).is_true()
             } else {
                 test_value.is_true()
@@ -1295,7 +1274,8 @@ mod builtins {
         select_or_reject(state, true, value, None, test_name, args)
     }
 
-    /// Creates a new sequence of values of which an attribute does not pass a test.
+    /// Creates a new sequence of values of which an attribute does not pass a
+    /// test.
     ///
     /// This functions like [`select`] but it will test an attribute of the
     /// object itself:
@@ -1334,9 +1314,9 @@ mod builtins {
     /// {{ users|map(attribute="username", default="Anonymous")|join(", ") }}
     /// ```
     ///
-    /// Alternatively you can have `map` invoke a filter by passing the name of the
-    /// filter and the arguments afterwards. A good example would be applying a
-    /// text conversion filter on a sequence:
+    /// Alternatively you can have `map` invoke a filter by passing the name of
+    /// the filter and the arguments afterwards. A good example would be
+    /// applying a text conversion filter on a sequence:
     ///
     /// ```jinja
     /// Users on this page: {{ titles|map('lower')|join(', ') }}
@@ -1406,10 +1386,10 @@ mod builtins {
 
     /// Group a sequence of objects by an attribute.
     ///
-    /// The attribute can use dot notation for nested access, like `"address.city"``.
-    /// The values are sorted first so only one group is returned for each unique value.
-    /// The attribute can be passed as first argument or as keyword argument named
-    /// `attribute`.
+    /// The attribute can use dot notation for nested access, like
+    /// `"address.city"``. The values are sorted first so only one group is
+    /// returned for each unique value. The attribute can be passed as first
+    /// argument or as keyword argument named `attribute`.
     ///
     /// For example, a list of User objects with a city attribute can be
     /// rendered in groups. In this example, grouper refers to the city value of
@@ -1425,8 +1405,9 @@ mod builtins {
     /// {% endfor %}</ul>
     /// ```
     ///
-    /// groupby yields named tuples of `(grouper, list)``, which can be used instead
-    /// of the tuple unpacking above.  As such this example is equivalent:
+    /// groupby yields named tuples of `(grouper, list)``, which can be used
+    /// instead of the tuple unpacking above.  As such this example is
+    /// equivalent:
     ///
     /// ```jinja
     /// <ul>{% for group in users|groupby(attribute="city") %}
@@ -1447,11 +1428,11 @@ mod builtins {
     /// {% endfor %}</ul>
     /// ```
     ///
-    /// Like the [`sort`] filter, sorting and grouping is case-insensitive by default.
-    /// The key for each group will have the case of the first item in that group
-    /// of values. For example, if a list of users has cities `["CA", "NY", "ca"]``,
-    /// the "CA" group will have two values.  This can be disabled by passing
-    /// `case_sensitive=True`.
+    /// Like the [`sort`] filter, sorting and grouping is case-insensitive by
+    /// default. The key for each group will have the case of the first item
+    /// in that group of values. For example, if a list of users has cities
+    /// `["CA", "NY", "ca"]``, the "CA" group will have two values.  This
+    /// can be disabled by passing `case_sensitive=True`.
     #[cfg_attr(docsrs, doc(cfg(feature = "builtins")))]
     pub fn groupby(value: Value, attribute: Option<&str>, kwargs: Kwargs) -> Result<Value, Error> {
         let default = ok!(kwargs.get::<Option<Value>>("default")).unwrap_or_default();
@@ -1516,10 +1497,7 @@ mod builtins {
         }
 
         if !list.is_empty() {
-            rv.push(Value::from_object(GroupTuple {
-                grouper: grouper.unwrap(),
-                list,
-            }));
+            rv.push(Value::from_object(GroupTuple { grouper: grouper.unwrap(), list }));
         }
 
         Ok(Value::from_object(rv))
@@ -1536,9 +1514,9 @@ mod builtins {
     /// in the iterable passed to the filter.  The filter will not detect
     /// duplicate objects or arrays, only primitives such as strings or numbers.
     ///
-    /// Optionally the `attribute` keyword argument can be used to make the filter
-    /// operate on an attribute instead of the value itself.  In this case only
-    /// one city per state would be returned:
+    /// Optionally the `attribute` keyword argument can be used to make the
+    /// filter operate on an attribute instead of the value itself.  In this
+    /// case only one city per state would be returned:
     ///
     /// ```jinja
     /// {{ list_of_cities|unique(attribute='state') }}
@@ -1585,11 +1563,11 @@ mod builtins {
 
     /// Chain two or more iterable objects as a single iterable object.
     ///
-    /// If all the individual objects are dictionaries, then the final chained object
-    /// also acts like a dictionary -- you can lookup a key, or iterate over the keys
-    /// etc. Note that the dictionaries are not merged, so if there are duplicate keys,
-    /// then the lookup will return the value from the last matching dictionary in the
-    /// chain.
+    /// If all the individual objects are dictionaries, then the final chained
+    /// object also acts like a dictionary -- you can lookup a key, or
+    /// iterate over the keys etc. Note that the dictionaries are not
+    /// merged, so if there are duplicate keys, then the lookup will return
+    /// the value from the last matching dictionary in the chain.
     ///
     /// If all the individual objects are sequences, then the final chained
     /// object also acts like a list as if the lists are appended.
@@ -1610,17 +1588,12 @@ mod builtins {
         value: Value,
         others: crate::value::Rest<Value>,
     ) -> Result<Value, Error> {
-        let all_values = Some(value.clone())
-            .into_iter()
-            .chain(others.0.iter().cloned())
-            .collect::<Vec<_>>();
+        let all_values =
+            Some(value.clone()).into_iter().chain(others.0.iter().cloned()).collect::<Vec<_>>();
 
         if all_values.iter().all(|v| v.kind() == ValueKind::Map) {
             Ok(Value::from_object(MergeDict::new(all_values)))
-        } else if all_values
-            .iter()
-            .all(|v| matches!(v.kind(), ValueKind::Seq))
-        {
+        } else if all_values.iter().all(|v| matches!(v.kind(), ValueKind::Seq)) {
             Ok(Value::from_object(MergeSeq::new(all_values)))
         } else {
             // General iterator chaining behavior
@@ -1725,15 +1698,16 @@ mod builtins {
     /// -> Hello, World!
     /// ```
     ///
-    /// In many cases, the [str.format()] style could be more convenient than the
-    /// printf-style formatting:
+    /// In many cases, the [str.format()] style could be more convenient than
+    /// the printf-style formatting:
     ///
     /// ```jinja
     /// {{ "{}, {name}!".format(greeting, name="Alice") }}
     /// -> Hello, Alice!
     /// ```
     ///
-    /// This option is available through `minijinja-contrib`'s `pycompat` feature.
+    /// This option is available through `minijinja-contrib`'s `pycompat`
+    /// feature.
     ///
     /// [printf-style]: https://docs.python.org/3/library/stdtypes.html#printf-style-string-formatting
     /// [str.format()]: https://docs.python.org/3/library/string.html#format-string-syntax

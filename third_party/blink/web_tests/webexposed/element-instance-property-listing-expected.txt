@@ -365,7 +365,6 @@ namespace http://www.w3.org/1999/xhtml
     property setPointerCapture
     property shadowRoot
     property showPopover
-    property showUnboundedElement
     property slot
     property spellcheck
     property startViewTransition
@@ -390,7 +389,6 @@ namespace http://www.w3.org/1999/xhtml
     property toggleAttribute
     property togglePopover
     property translate
-    property unbounded
     property virtualKeyboardPolicy
     property webkitMatchesSelector
     property webkitRequestFullScreen

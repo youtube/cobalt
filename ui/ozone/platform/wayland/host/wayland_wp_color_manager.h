@@ -35,6 +35,10 @@ class WaylandWpColorManager
 
     virtual void OnHdrEnabledChanged(bool hdr_enabled) = 0;
     virtual void OnColorManagerDestroyed() = 0;
+
+    // Called when the color manager has finished querying capabilities and is
+    // ready.
+    virtual void OnColorManagerReady() {}
   };
 
   static constexpr char kInterfaceName[] = "wp_color_manager_v1";

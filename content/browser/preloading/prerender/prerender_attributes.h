@@ -112,6 +112,9 @@ struct CONTENT_EXPORT PrerenderAttributes {
   // This is std::nullopt when prerendering is initiated by the browser.
   std::optional<blink::LocalFrameToken> initiator_frame_token;
 
+  // This is nullptr when prerendering is initiated by the browser.
+  scoped_refptr<InitiatorNavigationState> initiator_navigation_state;
+
   // This is invalid when prerendering is initiated by the browser.
   FrameTreeNodeId initiator_frame_tree_node_id;
 

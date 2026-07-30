@@ -415,7 +415,6 @@ suite('AimAppTest', function() {
       'Passes props and attributes to OmniboxComposeboxElement',
       async function() {
         loadTimeData.overrideValues({
-          composeboxForkEnabled: true,
           composeboxSmartComposeEnabled: true,
           caretAnimationEnabled: false,
           contextualMenuUsePecApi: true,

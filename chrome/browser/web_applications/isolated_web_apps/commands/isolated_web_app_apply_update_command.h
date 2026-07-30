@@ -19,7 +19,6 @@
 #include "base/values.h"
 #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
 #include "chrome/browser/web_applications/commands/web_app_command.h"
-#include "chrome/browser/web_applications/isolated_web_apps/commands/isolated_web_app_install_command_helper.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolation_data.h"
 #include "chrome/browser/web_applications/isolated_web_apps/jobs/prepare_install_info_job.h"
@@ -55,8 +54,8 @@ class IsolatedWebAppApplyUpdateCommand
       Profile& profile,
       std::unique_ptr<ScopedKeepAlive> optional_keep_alive,
       std::unique_ptr<ScopedProfileKeepAlive> optional_profile_keep_alive,
-      base::OnceCallback<void(IsolatedWebAppApplyUpdateCommandResult)> callback,
-      std::unique_ptr<IsolatedWebAppInstallCommandHelper> command_helper);
+      base::OnceCallback<void(IsolatedWebAppApplyUpdateCommandResult)>
+          callback);
 
   IsolatedWebAppApplyUpdateCommand(const IsolatedWebAppApplyUpdateCommand&) =
       delete;
@@ -131,8 +130,6 @@ class IsolatedWebAppApplyUpdateCommand
   const std::unique_ptr<ScopedProfileKeepAlive> optional_profile_keep_alive_;
 
   std::optional<IsolationData> isolation_data_;
-
-  const std::unique_ptr<IsolatedWebAppInstallCommandHelper> command_helper_;
 
   std::unique_ptr<PrepareInstallInfoJob> prepare_install_info_job_;
   std::unique_ptr<FinalizeUpdateJob> install_update_job_;

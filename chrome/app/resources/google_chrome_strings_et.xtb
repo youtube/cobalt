@@ -60,6 +60,17 @@
 <translation id="1587223624401073077">Google Chrome kasutab teie kaamerat.</translation>
 <translation id="1587325591171447154"><ph name="FILE_NAME" /> on ohtlik, mistõttu Chrome blokeeris selle.</translation>
 <translation id="1597911401261118146">Kui soovite kontrollida, kas teie paroolid on andmetega seotud rikkumiste ja muude turvaprobleemide eest kaitstud, <ph name="BEGIN_LINK" />logige Chrome'i sisse<ph name="END_LINK" />.</translation>
+<translation id="1619639070275605589">Selle toiminguga kaasneb järgmine.
+          <ph name="LINE_BREAKS" />
+            • Lähtestatakse teie käivitamisel avatav leht, uus vaheleht, otsingumootor ja kinnitatud vahelehed.
+            <ph name="LINE_BREAK" />
+            • Keelatakse laiendused.
+            <ph name="LINE_BREAK" />
+            • Kustutatakse küpsised ja muud ajutised saidiandmed.
+            <ph name="LINE_BREAK" />
+            • Lähtestatakse Chrome'i otseteed.
+            <ph name="LINE_BREAKS" />
+            Toiming ei mõjuta järjehoidjaid, ajalugu ega salvestatud paroole.</translation>
 <translation id="1619887657840448962">Chrome'i turvalisemaks muutmiseks keelasime järgmise laienduse, mida ei leidu veebipoes <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> ja mis võidi lisada teie teadmata.</translation>
 <translation id="1628000112320670027">Chrome'i puhul abi hankimine</translation>
 <translation id="1640672724030957280">Allalaadimine ...</translation>
@@ -138,6 +149,7 @@
 <translation id="2472092250898121027">Laiendus sisaldab pahavara ja see on ebaturvaline. Eemaldage see Chrome'ist, et see ei saaks enam näha ja muuta teie andmeid saitidel, mida külastate, sealhulgas teie isiklikku teavet.</translation>
 <translation id="2485422356828889247">Desinstalli</translation>
 <translation id="2513154137948333830">Vajalik on taaskäivitamine: <ph name="INSTALL_SUCCESS" /></translation>
+<translation id="2523492931736391680">Teie töö on Chrome'is kaitstud</translation>
 <translation id="2534365042754120737">Andmete kaitsmiseks laske Chrome'il eemaldada load saitidelt, mida te pole hiljuti külastanud. See ei peata märguandeid.</translation>
 <translation id="2556847002339236023">Teie organisatsioon suleb Chrome'i, kui seda ei kasutata <ph name="TIMEOUT_DURATION" /> jooksul. Sirvimisandmed kustutati. Need võivad hõlmata ajalugu, automaattäidet ja allalaadimisi.</translation>
 <translation id="2563121210305478421">Kas käivitada Chrome uuesti?</translation>
@@ -242,6 +254,7 @@ Kui see leht ei tööta ootuspäraselt, proovige optimeerimine lubada.</translat
 <translation id="345171907106878721">Lisa Chrome'i</translation>
 <translation id="3453763134178591239">Chrome OS-i tingimused</translation>
 <translation id="3503306920980160878">Chrome vajab juurdepääsu teie asukohale, et seda selle saidiga jagada</translation>
+<translation id="3512495006767217696">Chrome'i sisse ehitatud, et aidata teil luua, salvestada ja automaatselt täita tugevaid paroole. Lisage otsetee, et hõlpsasti juurde pääseda</translation>
 <translation id="3539955434060988644">Ava link Chrome'i inko&amp;gnito aknas</translation>
 <translation id="3576528680708590453">Teie süsteemiadministraator on konfigureerinud Google Chrome'i avama alternatiivset brauserit, et saada juurdepääs lehele <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="3582972582564653026">Sünkroonige ja isikupärastage Chrome kõigis oma seadmetes</translation>
@@ -304,6 +317,7 @@ Kui see leht ei tööta ootuspäraselt, proovige optimeerimine lubada.</translat
 <translation id="4149882025268051530">Installijal ei õnnestunud arhiivi lahti pakkida. Palun laadige Google Chrome uuesti alla.</translation>
 <translation id="415112847282352845">Kõigis seadmetes aadresside ja muude võimaluste kasutamiseks logige sisse Chrome’i. See aadress salvestatakse pärast sisselogimist teie Google’i kontole.</translation>
 <translation id="4153934450158521343">Chrome sulgub peagi ja kustutab andmed</translation>
+<translation id="4159985264221160808">Chrome'is töötamise turvalisuse tagamiseks saab teie organisatsioon teatud teavet vaadata või hallata.</translation>
 <translation id="4173512894976930765">Tõenäoliselt töötavad saidid ootuspäraselt. Kui sulgete kõik Chrome'i aknad, logitakse teid välja enamikust saitidest, v.a Google'i kontost, kui olete Chrome'is sisse logitud</translation>
 <translation id="4175922240926474352">Chrome blokeeris selle allalaadimise, kuna sait ei kasuta turvalist ühendust ja faili võidi muuta</translation>
 <translation id="4191857738314598978">{0,plural, =1{Käivitage Chrome uuesti päeva jooksul}other{Käivitage Chrome uuesti # päeva jooksul}}</translation>
@@ -335,6 +349,7 @@ Kui see leht ei tööta ootuspäraselt, proovige optimeerimine lubada.</translat
 <translation id="4493028449971051158">Käivitamisel ilmnes viga: käitage installiprogrammi administraatorina.</translation>
 <translation id="4501471624619070934">Installimine nurjus selle riigi juurdepääsupiirangute tõttu.</translation>
 <translation id="4571503333518166079">Ava Chrome'i märguandeseaded</translation>
+<translation id="4580939929828762295">Olge Google'i paroolihalduriga kaitstud</translation>
 <translation id="4592634244097223647">Küsige Google'ilt selle pildi kohta</translation>
 <translation id="459622048091363950">Kui annate Chrome'ile juurdepääsu, saavad veebisaidid küsida teilt juurdepääsuluba.</translation>
 <translation id="4598116752460667024">Otsige loendist mis tahes protsessi.</translation>
@@ -521,6 +536,7 @@ Mõned funktsioonid ei pruugi saadaval olla. Määrake muu profiilikataloog või
 <translation id="6438015621983209660">Laiendage telefonis Chrome'iga täiustatud ohutut sirvimist</translation>
 <translation id="6442774133615368941">Ostke, tõlkige ja tuvastage, mida näete, kasutades Chrome'i iOS-i rakenduses oma kaamerat.</translation>
 <translation id="6448835208126432197">Ekraanikuva osa valimiseks funktsioonis Gemini Chrome'is kasutage klaviatuuri otseteed.</translation>
+<translation id="6473659734176498825">Lihtsustatud pilt, mis näitab Google'i paroolihalduri sisenemispunkti Chrome'is</translation>
 <translation id="6473905796280459355">Minemine lehele Teave Chrome’i kohta</translation>
 <translation id="6481963882741794338">Linkige Chrome ja teised Google’i teenused isikupärastamiseks ja muudel eesmärkidel</translation>
 <translation id="648319183876919572">Täiustatud ohutu sirvimine kaitseb teid paremini ohtlike veebisaitide ja allalaadimiste eest</translation>
@@ -692,6 +708,7 @@ Mõned funktsioonid ei pruugi saadaval olla. Määrake muu profiilikataloog või
 <translation id="8064965390968184078">1. Klõpsake alloleval nupul <ph name="BUTTON_LABEL" />
 2. Klõpsake Windowsi seadetes nupul <ph name="BUTTON_2" />
 3. Kiireks juurdepääsuks klõpsake Windowsi märguandes nupul <ph name="BUTTON_3" />, et kinnitada Chrome oma tegumiribale</translation>
+<translation id="8069447462453318634">Tehke valik „Kinnita tööriistaribale“.</translation>
 <translation id="8074398340364918139">Konkreetse Chrome'i funktsiooni või laienduse otsimiseks sisestage selle otsetee aadressiribale ja lisage enda valitud klaviatuuriklahv.</translation>
 <translation id="8077579734294125741">Muud Chrome'i profiilid</translation>
 <translation id="8086881907087796310">Installimine ebaõnnestus, kuna arvuti ei vasta riistvara miinimumnõuetele.</translation>
@@ -777,6 +794,15 @@ Uusi järjehoidjaid ei saa teie kontole salvestada, enne kui mõned kustutate. K
 <translation id="8922998289262614701">Eemalda selle rakenduse andmed Chrome’ist</translation>
 <translation id="8925636929359899517">Kasutame teavet selle teenuse täiustamiseks. Vaadake <ph name="BEGIN_LINK1" />privaatsuseeskirju<ph name="END_LINK1" /> ja <ph name="BEGIN_LINK2" />teenusetingimusi<ph name="END_LINK2" />.</translation>
 <translation id="8936233353620149764">Gemini sisse- ja väljalülitamine Chrome'is</translation>
+<translation id="8944232836376404813">Selle toiminguga kaasneb järgmine.
+          <ph name="LINE_BREAKS" />
+            • Lähtestatakse käivitamisel avatav leht, uus vaheleht, otsingumootor ja kinnitatud vahelehed.
+            <ph name="LINE_BREAK" />
+            • Keelatakse laiendused.
+            <ph name="LINE_BREAK" />
+            • Kustutatakse küpsised ja muud ajutised saidiandmed.
+            <ph name="LINE_BREAKS" />
+            Toiming ei mõjuta järjehoidjaid, ajalugu ega salvestatud paroole.</translation>
 <translation id="8948460679427074738">See laiendus pole avaldanud privaatsuspõhimõtteid, milles kirjeldataks, kuidas laiendus andmeid kogub ja kasutab. Chrome soovitab selle eemaldada.</translation>
 <translation id="8958307504142971576">Nüüd on teil Chrome'is rohkem funktsioone saadaval.</translation>
 <translation id="8991530961471831170">Avage Gemini Chrome'is</translation>

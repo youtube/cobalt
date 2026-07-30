@@ -57,6 +57,7 @@
 #include "services/network/public/cpp/no_vary_search_header_parser.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "services/network/public/cpp/web_sandbox_flags.h"
+#include "services/network/public/mojom/timing_allow_origin.mojom-blink.h"
 #include "services/network/public/mojom/url_response_head.mojom-shared.h"
 #include "services/network/public/mojom/web_sandbox_flags.mojom-blink.h"
 #include "third_party/blink/public/common/client_hints/client_hints.h"
@@ -121,6 +122,7 @@
 #include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/core/inspector/inspector_trace_events.h"
 #include "third_party/blink/renderer/core/inspector/main_thread_debugger.h"
+#include "third_party/blink/renderer/core/layout/layout_replaced.h"
 #include "third_party/blink/renderer/core/lcp_critical_path_predictor/lcp_critical_path_predictor.h"
 #include "third_party/blink/renderer/core/loader/alternate_signed_exchange_resource_info.h"
 #include "third_party/blink/renderer/core/loader/frame_client_hints_preferences_context.h"
@@ -630,6 +632,7 @@ DocumentLoader::DocumentLoader(
               perfetto::Flow::FromPointer(this));
   DCHECK(frame_);
   DCHECK(params_);
+  is_secure_context_root_ = params_->is_secure_context_root;
 
   // See `archive_` attribute documentation.
   if (!frame_->IsMainFrame()) {
@@ -1550,6 +1553,19 @@ void DocumentLoader::HandleRedirect(
 
   DCHECK(!GetTiming().FetchStart().is_null());
   GetTiming().AddRedirect(url_before_redirect, url_after_redirect);
+
+  // Record this redirect response's `Timing-Allow-Origin` values in the
+  // navigation's "navigation timing allow check list". This is later used,
+  // together with the navigation's destination origin, to decide whether
+  // redirect timing is exposed for cross-origin redirect chains.
+  // https://fetch.spec.whatwg.org/#append-to-a-requests-navigation-timing-allow-check-list
+  network::mojom::blink::TimingAllowOriginPtr tao;
+  const AtomicString& tao_header =
+      redirect_response.HttpHeaderField(http_names::kTimingAllowOrigin);
+  if (!tao_header.IsNull()) {
+    tao = ParseTimingAllowOrigin(tao_header);
+  }
+  GetTiming().AppendToNavigationTimingAllowCheckList(std::move(tao));
 }
 
 void DocumentLoader::ConsoleError(const String& message) {
@@ -2919,6 +2935,10 @@ void DocumentLoader::InitializeWindow(Document* owner_document) {
   // wants to inspect sandbox flags.
   SecurityContext& security_context = frame_->DomWindow()->GetSecurityContext();
   security_context.SetSecurityOrigin(std::move(security_origin));
+  // Mirror the browser's `IsSecureContextRoot()` verdict onto this frame's
+  // SecurityContext so same-process descendants see it in
+  // HasInsecureContextInAncestors().
+  security_context.SetIsSecureContextRoot(is_secure_context_root_);
   // Requires SecurityOrigin to be initialized.
   OriginTrialContext::AddTokensFromHeader(
       frame_->DomWindow(), response_.HttpHeaderField(http_names::kOriginTrial));
@@ -2978,7 +2998,39 @@ void DocumentLoader::CommitNavigation() {
       const SecurityOrigin* new_origin =
           frame_->DomWindow()->GetSecurityOrigin();
       if (!old_origin->IsSameOriginWith(new_origin)) {
-        frame_->Owner()->ClearAllNaturalSizingInfo();
+        // In addition to clearing the natural size, resize the view to the
+        // default size, to prevent leaking the previous size.
+        // 1. Ideally this is needed only if the previous `Document` had
+        //    `responsive_embedded_sizing_`. Getting the value involves multiple
+        //    IPCs, so we only check the value of the `frame-sizing` CSS
+        //    property of the frame owner (`<iframe>`).
+        // 2. Ideally the view should be resized to the size of the frame owner
+        //    without the natural size. Use the default size because getting it
+        //    would block until the parent layout is complete.
+        switch (frame_->Owner()->GetResponsiveSizing()) {
+          case mojom::blink::FrameResponsiveSizing::kNone:
+            break;
+          case mojom::blink::FrameResponsiveSizing::kWidth:
+            if (LocalFrameView* frame_view = frame_->View()) {
+              const double zoom = frame_->LayoutZoomFactor();
+              const int height = frame_view->Size().height();
+              const int width =
+                  static_cast<int>(LayoutReplaced::kDefaultWidth * zoom);
+              frame_view->Resize(width, height);
+            }
+            frame_->Owner()->ClearAllNaturalSizingInfo();
+            break;
+          case mojom::blink::FrameResponsiveSizing::kHeight:
+            if (LocalFrameView* frame_view = frame_->View()) {
+              const double zoom = frame_->LayoutZoomFactor();
+              const int width = frame_view->Size().width();
+              const int height =
+                  static_cast<int>(LayoutReplaced::kDefaultHeight * zoom);
+              frame_view->Resize(width, height);
+            }
+            frame_->Owner()->ClearAllNaturalSizingInfo();
+            break;
+        }
       }
     }
   }

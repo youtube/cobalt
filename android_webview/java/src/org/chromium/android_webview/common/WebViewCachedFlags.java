@@ -4,8 +4,6 @@
 
 package org.chromium.android_webview.common;
 
-import static org.chromium.build.NullUtil.assumeNonNull;
-
 import static java.lang.annotation.ElementType.TYPE_USE;
 
 import android.content.SharedPreferences;
@@ -54,7 +52,6 @@ import java.util.Set;
 public class WebViewCachedFlags {
     private static final String CACHED_ENABLED_FLAGS_PREF = "CachedFlagsEnabled";
     private static final String CACHED_DISABLED_FLAGS_PREF = "CachedFlagsDisabled";
-    private static final String MIGRATION_HISTOGRAM_NAME = "Android.WebView.CachedFlagMigration";
     private static final String CACHED_FLAGS_EXIST_HISTOGRAM_NAME =
             "Android.WebView.CachedFlagsExist";
 
@@ -110,7 +107,19 @@ public class WebViewCachedFlags {
     public static void init(SharedPreferences prefs) {
         synchronized (sLock) {
             assert sInstance == null : "Cannot call WebViewCachedFlags.init more than once.";
-            initInternal(prefs);
+            initInternal(prefs, false);
+        }
+    }
+
+    /**
+     * Initializes cached flags singleton instance and uses the default values for all experiments.
+     *
+     * @param prefs the SharedPreferences which will be cleared during initialization.
+     */
+    public static void initForSafeMode(SharedPreferences prefs) {
+        synchronized (sLock) {
+            assert sInstance == null : "Cannot call WebViewCachedFlags.init more than once.";
+            initInternal(prefs, true);
         }
     }
 
@@ -122,10 +131,10 @@ public class WebViewCachedFlags {
      * @param prefs the SharedPreferences from which to initialize the caches.
      */
     public static void initForTesting(SharedPreferences prefs) {
-        initInternal(prefs);
+        initInternal(prefs, false);
     }
 
-    private static void initInternal(SharedPreferences prefs) {
+    private static void initInternal(SharedPreferences prefs, boolean forceDefaults) {
         synchronized (sLock) {
             sInstance =
                     new WebViewCachedFlags(
@@ -190,29 +199,9 @@ public class WebViewCachedFlags {
                                             DefaultState.DISABLED),
                                     Map.entry(
                                             AwFeatures.WEBVIEW_PROFILE_STORE_NOT_TRIGGER_STARTUP,
-                                            DefaultState.DISABLED)));
+                                            DefaultState.DISABLED)),
+                            forceDefaults);
         }
-    }
-
-    /**
-     * Initializes cached flags singleton instance and uses the default values for all experiments.
-     *
-     * @param prefs the SharedPreferences which will be cleared during initialization.
-     */
-    public static void initForSafeMode(SharedPreferences prefs) {
-        init(prefs);
-        // Once regular init has finished, reset both enabled and disabled sets so that every flag
-        // uses its default value.
-        assumeNonNull(sInstance).resetToDefaults();
-    }
-
-    /** Forces all experiments to use their default values. */
-    @VisibleForTesting
-    public void resetToDefaults() {
-        mOverrideEnabled.clear();
-        mOverrideDisabled.clear();
-        mFeaturesLoggedGeneral.clear();
-        mFeaturesLoggedEarly.clear();
     }
 
     /**
@@ -313,22 +302,25 @@ public class WebViewCachedFlags {
 
     @VisibleForTesting
     public WebViewCachedFlags(
-            SharedPreferences prefs, Map<String, @DefaultState Integer> defaults) {
+            SharedPreferences prefs,
+            Map<String, @DefaultState Integer> defaults,
+            boolean forceDefaults) {
         boolean flagsExist =
                 prefs.contains(CACHED_ENABLED_FLAGS_PREF)
                         && prefs.contains(CACHED_DISABLED_FLAGS_PREF);
         RecordHistogram.recordBooleanHistogram(CACHED_FLAGS_EXIST_HISTOGRAM_NAME, flagsExist);
-        // TODO(crbug.com/414342590): Remove the call to HashSet constructor once the migration code
-        // is removed.
-        mOverrideEnabled =
-                new HashSet<>(
-                        prefs.getStringSet(CACHED_ENABLED_FLAGS_PREF, Collections.emptySet()));
-        mOverrideDisabled =
-                new HashSet<>(
-                        prefs.getStringSet(CACHED_DISABLED_FLAGS_PREF, Collections.emptySet()));
-        SharedPreferences.Editor editor = prefs.edit();
-        cleanUpOldManualExperiments(prefs, editor);
-        editor.remove(CACHED_ENABLED_FLAGS_PREF).remove(CACHED_DISABLED_FLAGS_PREF).apply();
+        if (forceDefaults) {
+            mOverrideEnabled = Collections.emptySet();
+            mOverrideDisabled = Collections.emptySet();
+            mFeaturesLoggedGeneral.clear();
+            mFeaturesLoggedEarly.clear();
+        } else {
+            mOverrideEnabled =
+                    prefs.getStringSet(CACHED_ENABLED_FLAGS_PREF, Collections.emptySet());
+            mOverrideDisabled =
+                    prefs.getStringSet(CACHED_DISABLED_FLAGS_PREF, Collections.emptySet());
+        }
+        prefs.edit().remove(CACHED_ENABLED_FLAGS_PREF).remove(CACHED_DISABLED_FLAGS_PREF).apply();
         mDefaults = defaults;
     }
 
@@ -336,42 +328,6 @@ public class WebViewCachedFlags {
     @CalledByNative
     private static boolean isFeatureEnabled(@JniType("std::string") String feature) {
         return get().isCachedFeatureEnabled(feature);
-    }
-
-    /**
-     * Before this generic mechanism was written, a number of early startup experiments used
-     * individual prefs to read experiment state. By migrating to the generic mechanism, we may
-     * leave many clients with old preferences on their devices. This method cleans up any old
-     * preferences from the manual experiments. It also uses the state of the old preference to
-     * carry forward the client's experiment state so that we don't revert them to the default
-     * behavior for a single startup.
-     *
-     * @param prefs the SharedPreferences object used to initialize this class.
-     * @param editor SharedPreferences.Editor used to make modifications to prefs.
-     */
-    // TODO(crbug.com/414342590): Remove this method once migrations are near 0.
-    private void cleanUpOldManualExperiments(
-            SharedPreferences prefs, SharedPreferences.Editor editor) {
-        boolean didMigration = false;
-        if (prefs.contains("useWebViewResourceContext")) {
-            // This flag has been cleaned up now so we don't need to add it to enabled set. Just
-            // remove the pref.
-            editor.remove("useWebViewResourceContext");
-            didMigration = true;
-        }
-        if (prefs.contains("defaultWebViewPartitionedCookiesState")) {
-            // This flag has been cleaned up now so we don't need to add it to enabled set. Just
-            // remove the pref.
-            editor.remove("defaultWebViewPartitionedCookiesState");
-            didMigration = true;
-        }
-        if (prefs.contains("webViewUseStartupTasksLogic")) {
-            // This flag has been cleaned up now so we don't need to add it to enabled set. Just
-            // remove the pref.
-            editor.remove("webViewUseStartupTasksLogic");
-            didMigration = true;
-        }
-        RecordHistogram.recordBooleanHistogram(MIGRATION_HISTOGRAM_NAME, didMigration);
     }
 
     /**

@@ -2291,7 +2291,7 @@ NavigationURLLoaderImpl::CreateNetworkLoaderFactory(
 
   if (header_client) {
     // A standard frame navigation request does not need network
-    // restrictions id to be passed, so we pass std::nullopt.
+    // restrictions id to be passed, so we pass NoOp id.
     // Navigations are subjected to Connection Allowlists via the
     // `NavigationRequest::IsAllowedByConnectionAllowlist` check instead.
     return base::MakeRefCounted<network::WrapperSharedURLLoaderFactory>(
@@ -2299,7 +2299,7 @@ NavigationURLLoaderImpl::CreateNetworkLoaderFactory(
             std::move(header_client), std::move(factory_builder),
             storage_partition, std::move(devtools_cookie_overrides),
             std::move(cookie_overrides),
-            /*network_restrictions_id=*/std::nullopt));
+            network::GetNoOpNetworkRestrictionsId()));
   } else {
     if (!devtools_cookie_overrides.empty() || !cookie_overrides.empty()) {
       network::mojom::URLLoaderFactoryParamsPtr params =
@@ -2483,7 +2483,7 @@ NavigationURLLoaderImpl::CreateURLLoaderFactoryWithHeaderClient(
     StoragePartitionImpl* partition,
     std::optional<net::CookieSettingOverrides> devtools_cookie_overrides,
     std::optional<net::CookieSettingOverrides> cookie_overrides,
-    const std::optional<base::UnguessableToken>& network_restrictions_id) {
+    const base::UnguessableToken& network_restrictions_id) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   if (url_loader_factory::GetTestingInterceptor()) {

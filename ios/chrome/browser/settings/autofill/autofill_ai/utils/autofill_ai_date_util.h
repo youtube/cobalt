@@ -27,4 +27,7 @@ std::u16string AttributeValueFromNSDate(NSDate* date);
 // Returns the format string used for setting the value for a `kDate` type.
 autofill::AutofillFormatString GetAttributeFormatString();
 
+// Returns whether to use the popover view for the date picker.
+bool ShouldUsePopoverForDatePicker();
+
 #endif  // IOS_CHROME_BROWSER_SETTINGS_AUTOFILL_AUTOFILL_AI_UTILS_AUTOFILL_AI_DATE_UTIL_H_

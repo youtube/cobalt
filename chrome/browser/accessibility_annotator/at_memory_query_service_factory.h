@@ -1,0 +1,37 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef CHROME_BROWSER_ACCESSIBILITY_ANNOTATOR_AT_MEMORY_QUERY_SERVICE_FACTORY_H_
+#define CHROME_BROWSER_ACCESSIBILITY_ANNOTATOR_AT_MEMORY_QUERY_SERVICE_FACTORY_H_
+
+#include "base/no_destructor.h"
+#include "chrome/browser/profiles/profile_keyed_service_factory.h"
+
+namespace accessibility_annotator {
+class AtMemoryQueryService;
+}  // namespace accessibility_annotator
+
+class AtMemoryQueryServiceFactory : public ProfileKeyedServiceFactory {
+ public:
+  static accessibility_annotator::AtMemoryQueryService* GetForProfile(
+      Profile* profile);
+  static AtMemoryQueryServiceFactory* GetInstance();
+
+  AtMemoryQueryServiceFactory(const AtMemoryQueryServiceFactory&) = delete;
+  AtMemoryQueryServiceFactory& operator=(const AtMemoryQueryServiceFactory&) =
+      delete;
+
+ private:
+  friend base::NoDestructor<AtMemoryQueryServiceFactory>;
+
+  AtMemoryQueryServiceFactory();
+  ~AtMemoryQueryServiceFactory() override;
+
+  // BrowserContextKeyedServiceFactory:
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
+      content::BrowserContext* context) const override;
+  bool ServiceIsCreatedWithBrowserContext() const override;
+};
+
+#endif  // CHROME_BROWSER_ACCESSIBILITY_ANNOTATOR_AT_MEMORY_QUERY_SERVICE_FACTORY_H_

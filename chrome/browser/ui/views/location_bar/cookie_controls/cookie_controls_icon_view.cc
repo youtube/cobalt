@@ -121,7 +121,7 @@ void CookieControlsIconView::UpdateImpl() {
 }
 
 void CookieControlsIconView::MaybeShowIPH() {
-  CHECK(browser_->window());
+  CHECK(browser_->GetWindow());
   user_education::FeaturePromoParams params(
       feature_engagement::kIPHCookieControlsFeature);
   params.show_promo_result_callback =

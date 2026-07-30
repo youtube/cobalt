@@ -503,10 +503,8 @@ tab_search::mojom::ProfileDataPtr TabSearchPageHandler::CreateProfileData() {
         auto window = tab_search::mojom::Window::New();
         window->active = browser->IsActive();
         window->is_host_window = browser == browser_;
-        window->height = browser->GetBrowserForMigrationOnly()
-                             ->window()
-                             ->GetContentsSize()
-                             .height();
+        window->height =
+            BrowserWindow::FromBrowser(browser)->GetContentsSize().height();
 
         WalkContainer(get_tabs_result.value(), window.get(), profile_data.get(),
                       tab_dedup_keys, tab_group_ids);

@@ -424,71 +424,70 @@ size_t WebDocument::ActiveResourceRequestCount() const {
   return ConstUnwrap<Document>()->Fetcher()->ActiveRequestCount();
 }
 
+uint64_t WebDocument::CookieModificationCount() const {
+  return ConstUnwrap<Document>()->CookieModificationCount();
+}
+
 bool WebDocument::ExecuteScriptTool(
     const base::UnguessableToken& invocation_id,
     const WebString& name,
     const WebString& input_arguments,
     WebScriptToolResultCallback tool_result_cb) {
-  if (auto* model_context =
-          ModelContextSupplement::modelContext(*Unwrap<Document>())) {
-    auto web_tool_declaration = std::make_unique<WebScriptToolDeclaration>();
-    if (auto script_tool_declaration =
-            model_context->GetScriptToolDeclaration(name)) {
-      web_tool_declaration->description =
-          WebString(script_tool_declaration->description);
-      web_tool_declaration->input_schema =
-          WebString(script_tool_declaration->input_schema);
-      web_tool_declaration->read_only = script_tool_declaration->read_only;
-      web_tool_declaration->untrusted_content =
-          script_tool_declaration->untrusted_content;
-    }
-    // TODO(481899636): PLUMB SIGNAL TO THE BROWSER SIDE!
-    return model_context->ExecuteTool(
-        invocation_id, name, input_arguments,
-        /* signal= */ nullptr,
-        blink::BindOnce(
-            [](WebScriptToolResultCallback tool_result_cb,
-               std::unique_ptr<WebScriptToolDeclaration> web_tool_declaration,
-               base::expected<String, ScriptToolError> result) {
-              if (result.has_value()) {
-                std::move(tool_result_cb)
-                    .Run(std::move(web_tool_declaration),
-                         base::expected<WebString, WebScriptToolError>(
-                             WebString(*result)));
-              } else {
-                std::move(tool_result_cb)
-                    .Run(
-                        std::move(web_tool_declaration),
-                        base::unexpected(ToWebScriptToolError(result.error())));
-              }
-            },
-            std::move(tool_result_cb), std::move(web_tool_declaration)));
+  auto* model_context =
+      ModelContextSupplement::modelContext(*Unwrap<Document>());
+  auto web_tool_declaration = std::make_unique<WebScriptToolDeclaration>();
+  if (auto script_tool_declaration =
+          model_context->GetScriptToolDeclaration(name)) {
+    web_tool_declaration->description =
+        WebString(script_tool_declaration->description);
+    web_tool_declaration->input_schema =
+        WebString(script_tool_declaration->input_schema);
+    web_tool_declaration->read_only = script_tool_declaration->read_only;
+    web_tool_declaration->untrusted_content =
+        script_tool_declaration->untrusted_content;
   }
-  return false;
+  // TODO(481899636): PLUMB SIGNAL TO THE BROWSER SIDE!
+  return model_context->ExecuteTool(
+      invocation_id, name, input_arguments,
+      /* signal= */ nullptr,
+      blink::BindOnce(
+          [](WebScriptToolResultCallback tool_result_cb,
+             std::unique_ptr<WebScriptToolDeclaration> web_tool_declaration,
+             base::expected<String, ScriptToolError> result) {
+            if (result.has_value()) {
+              std::move(tool_result_cb)
+                  .Run(std::move(web_tool_declaration),
+                       base::expected<WebString, WebScriptToolError>(
+                           WebString(*result)));
+            } else {
+              std::move(tool_result_cb)
+                  .Run(std::move(web_tool_declaration),
+                       base::unexpected(ToWebScriptToolError(result.error())));
+            }
+          },
+          std::move(tool_result_cb), std::move(web_tool_declaration)));
 }
 
 void WebDocument::CancelScriptTool(
     const base::UnguessableToken& invocation_id) {
-  if (auto* model_context =
-          ModelContextSupplement::modelContext(*Unwrap<Document>())) {
-    model_context->CancelTool(invocation_id);
-  }
+  auto* model_context =
+      ModelContextSupplement::modelContext(*Unwrap<Document>());
+  model_context->CancelTool(invocation_id);
 }
 
 void WebDocument::GetCrossDocumentScriptToolResult(
     const base::UnguessableToken& invocation_id,
     CrossDocumentScriptToolResultCallback result_callback) {
-  if (auto* model_context = ModelContextSupplement::modelContext(
-          *Unwrap<Document>()->domWindow()->navigator())) {
-    model_context->GetCrossDocumentScriptToolResult(
-        invocation_id,
-        blink::BindOnce(
-            [](CrossDocumentScriptToolResultCallback original_callback,
-               String result) {
-              std::move(original_callback).Run(WebString(result));
-            },
-            std::move(result_callback)));
-  }
+  auto* model_context =
+      ModelContextSupplement::modelContext(*Unwrap<Document>());
+  model_context->GetCrossDocumentScriptToolResult(
+      invocation_id,
+      blink::BindOnce(
+          [](CrossDocumentScriptToolResultCallback original_callback,
+             String result) {
+            std::move(original_callback).Run(WebString(result));
+          },
+          std::move(result_callback)));
 }
 
 bool WebDocument::IsAutofillEventEnabled() const {

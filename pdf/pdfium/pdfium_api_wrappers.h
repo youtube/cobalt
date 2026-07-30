@@ -9,6 +9,7 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "base/containers/span.h"
 #include "build/build_config.h"
@@ -73,6 +74,13 @@ std::optional<float> GetPageObjectMarkFloatParam(FPDF_PAGEOBJECTMARK mark,
 // Returns the value of the parameter with `key` in `mark`, or std::nullopt on
 // failure.
 std::optional<std::u16string> GetPageObjectMarkStringParam(
+    FPDF_PAGEOBJECTMARK mark,
+    const std::string& key);
+
+// Wrapper around FPDFPageObjMark_GetParamBlobValue().
+// Returns the value of the parameter with `key` in `mark`, or std::nullopt on
+// failure.
+std::optional<std::vector<unsigned char>> GetPageObjectMarkBlobParam(
     FPDF_PAGEOBJECTMARK mark,
     const std::string& key);
 

@@ -7,26 +7,15 @@
 
 #import <Foundation/Foundation.h>
 
-@class MainToolbarMediator;
+@class LayoutState;
 class PrefService;
-
-/// Delegate protocol for MainToolbarMediator.
-@protocol MainToolbarMediatorDelegate <NSObject>
-
-/// Notifies the delegate that the omnibox position changed.
-- (void)mainToolbarMediatorDidChangeOmniboxPosition:
-    (MainToolbarMediator*)mediator;
-
-@end
 
 /// Mediator for the main toolbar, observing omnibox position.
 @interface MainToolbarMediator : NSObject
 
-/// The delegate for this mediator.
-@property(nonatomic, weak) id<MainToolbarMediatorDelegate> delegate;
-
-/// Initializes the mediator with the preference service.
+/// Initializes the mediator with the preference service and layout state.
 - (instancetype)initWithPrefService:(PrefService*)prefService
+                        layoutState:(LayoutState*)layoutState
     NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)init NS_UNAVAILABLE;

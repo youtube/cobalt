@@ -60,6 +60,17 @@
 <translation id="1587223624401073077">Google Chrome menggunakan kamera Anda.</translation>
 <translation id="1587325591171447154"><ph name="FILE_NAME" /> berbahaya, sehingga Chrome memblokirnya.</translation>
 <translation id="1597911401261118146">Untuk memeriksa apakah sandi Anda aman dari pelanggaran data dan masalah keamanan lainnya, <ph name="BEGIN_LINK" />login ke Chrome<ph name="END_LINK" />.</translation>
+<translation id="1619639070275605589">Tindakan ini akan:
+          <ph name="LINE_BREAKS" />
+            • Mereset halaman awal, halaman tab baru, mesin telusur, dan tab tersemat
+            <ph name="LINE_BREAK" />
+            • Menonaktifkan ekstensi
+            <ph name="LINE_BREAK" />
+            • Menghapus cookie dan data situs sementara lainnya
+            <ph name="LINE_BREAK" />
+            • Mereset pintasan Chrome
+            <ph name="LINE_BREAKS" />
+            Bookmark, histori, dan sandi tersimpan tidak akan terpengaruh.</translation>
 <translation id="1619887657840448962">Agar Chrome lebih aman, kami menonaktifkan ekstensi berikut yang tidak tercantum dalam <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> dan mungkin telah ditambahkan tanpa sepengetahuan Anda.</translation>
 <translation id="1628000112320670027">Dapatkan bantuan Chrome</translation>
 <translation id="1640672724030957280">Mengunduh...</translation>
@@ -136,6 +147,7 @@
 <translation id="2472092250898121027">Ekstensi ini berisi malware dan tidak aman. Hapus dari Chrome agar ekstensi ini tidak dapat lagi melihat dan mengubah data Anda di situs yang Anda kunjungi, termasuk info pribadi Anda.</translation>
 <translation id="2485422356828889247">Uninstal</translation>
 <translation id="2513154137948333830">Perlu memulai ulang: <ph name="INSTALL_SUCCESS" /></translation>
+<translation id="2523492931736391680">Pekerjaan Anda diamankan di Chrome</translation>
 <translation id="2534365042754120737">Untuk melindungi data Anda, izinkan Chrome menghapus izin dari situs yang tidak Anda kunjungi baru-baru ini. Tindakan ini tidak menghentikan notifikasi.</translation>
 <translation id="2556847002339236023">Organisasi Anda menutup Chrome saat tidak digunakan selama <ph name="TIMEOUT_DURATION" />. Data penjelajahan dihapus. Data ini dapat mencakup histori, isi otomatis, dan download.</translation>
 <translation id="2563121210305478421">Luncurkan kembali Chrome?</translation>
@@ -240,7 +252,8 @@ Jika halaman ini tidak berfungsi sebagaimana mestinya, coba izinkan pengoptimala
 <translation id="345171907106878721">Tambahkan diri Anda ke Chrome</translation>
 <translation id="3453763134178591239">Persyaratan ChromeOS</translation>
 <translation id="3503306920980160878">Chrome memerlukan akses ke lokasi Anda untuk berbagi lokasi dengan situs ini</translation>
-<translation id="3539955434060988644">Buka link di jendela Sam&amp;aran Chrome</translation>
+<translation id="3512495006767217696">Diintegrasikan dalam Chrome untuk membantu Anda membuat, menyimpan, dan mengisi otomatis sandi kuat. Tambahkan pintasan untuk memudahkan akses</translation>
+<translation id="3539955434060988644">Buka link di jendela Samaran Chrome</translation>
 <translation id="3576528680708590453">Administrator sistem Anda telah mengonfigurasi Google Chrome untuk membuka browser alternatif guna mengakses <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="3582972582564653026">Menyinkronkan dan mempersonalisasi Chrome di perangkat Anda</translation>
 <translation id="3583751698304738917">Anda sudah login sebagai <ph name="USER_EMAIL_ADDRESS" /> di profil Chrome lain</translation>
@@ -302,6 +315,7 @@ Jika halaman ini tidak berfungsi sebagaimana mestinya, coba izinkan pengoptimala
 <translation id="4149882025268051530">Instalatur gagal mendekompresi arsip. Download kembali Google Chrome.</translation>
 <translation id="415112847282352845">Untuk mendapatkan alamat dan info Anda yang lain di semua perangkat Anda, login ke Chrome. Alamat ini akan disimpan di Akun Google Anda setelah Anda login.</translation>
 <translation id="4153934450158521343">Chrome akan segera ditutup serta menghapus data</translation>
+<translation id="4159985264221160808">Untuk mengamankan pekerjaan Anda di Chrome, organisasi Anda akan dapat melihat atau mengelola informasi tertentu</translation>
 <translation id="4173512894976930765">Situs mungkin akan berfungsi seperti yang diharapkan. Anda akan logout dari sebagian besar situs saat menutup semua jendela Chrome, kecuali Akun Google Anda jika Anda login ke Chrome.</translation>
 <translation id="4175922240926474352">Chrome memblokir download ini karena situs tidak menggunakan koneksi yang aman dan file mungkin telah dimodifikasi</translation>
 <translation id="4191857738314598978">{0,plural, =1{Luncurkan ulang Chrome dalam satu hari}other{Luncurkan ulang Chrome dalam # hari}}</translation>
@@ -333,6 +347,7 @@ Jika halaman ini tidak berfungsi sebagaimana mestinya, coba izinkan pengoptimala
 <translation id="4493028449971051158">Error saat sistem dimulai: jalankan penginstal sebagai administrator.</translation>
 <translation id="4501471624619070934">Penginstalan gagal karena akses dibatasi untuk negara ini.</translation>
 <translation id="4571503333518166079">Buka setelan notifikasi Chrome</translation>
+<translation id="4580939929828762295">Tetap aman dengan Pengelola Sandi Google</translation>
 <translation id="4592634244097223647">Tanya Google info tentang gambar ini</translation>
 <translation id="459622048091363950">Setelah Chrome memiliki akses, situs dapat meminta akses dari Anda.</translation>
 <translation id="4598116752460667024">Telusuri proses apa saja dari daftar.</translation>
@@ -517,6 +532,7 @@ Jika halaman ini tidak berfungsi sebagaimana mestinya, coba izinkan pengoptimala
 <translation id="6438015621983209660">Manfaatkan Safe Browsing yang Disempurnakan dengan Chrome di ponsel</translation>
 <translation id="6442774133615368941">Gunakan kamera di aplikasi Chrome versi iOS untuk berbelanja, menerjemahkan teks, dan mengidentifikasi objek yang Anda lihat</translation>
 <translation id="6448835208126432197">Gunakan pintasan keyboard untuk memilih bagian tertentu dari layar di Gemini di Chrome.</translation>
+<translation id="6473659734176498825">Gambar sederhana yang menampilkan titik entri Pengelola Sandi Google di Chrome</translation>
 <translation id="6473905796280459355">Buka halaman Tentang Chrome</translation>
 <translation id="6481963882741794338">Tautkan Chrome dan layanan Google lainnya untuk personalisasi dan tujuan lainnya</translation>
 <translation id="648319183876919572">Safe Browsing yang Disempurnakan melakukan lebih banyak hal untuk melindungi Anda dari situs dan download berbahaya</translation>
@@ -686,6 +702,7 @@ Jika halaman ini tidak berfungsi sebagaimana mestinya, coba izinkan pengoptimala
 <translation id="80471789339884597">Terima kasih telah menginstal. Anda harus memulai ulang semua browser sebelum menggunakan <ph name="BUNDLE_NAME" />.</translation>
 <translation id="8064015586118426197">ChromeOS Flex</translation>
 <translation id="8064965390968184078">1. Klik <ph name="BUTTON_LABEL" /> di bawah Klik <ph name="BUTTON_2" /> di setelan Windows Klik <ph name="BUTTON_3" /> di notifikasi Windows untuk menyematkan Chrome ke taskbar agar dapat diakses dengan cepat</translation>
+<translation id="8069447462453318634">Pilih "Sematkan ke toolbar"</translation>
 <translation id="8074398340364918139">Untuk menelusuri fitur atau ekstensi Chrome tertentu, ketik pintasannya di kolom URL diikuti tombol keyboard pilihan Anda</translation>
 <translation id="8077579734294125741">Profil Chrome lainnya</translation>
 <translation id="8086881907087796310">Penginstalan gagal karena komputer Anda tidak memenuhi persyaratan hardware minimum.</translation>
@@ -771,6 +788,15 @@ Bookmark baru tidak dapat disimpan di akun hingga Anda menghapus beberapa bookma
 <translation id="8922998289262614701">Hapus data aplikasi ini dari Chrome</translation>
 <translation id="8925636929359899517">Kami menggunakan info untuk meningkatkan kualitas layanan ini. Lihat <ph name="BEGIN_LINK1" />Kebijakan Privasi<ph name="END_LINK1" /> dan <ph name="BEGIN_LINK2" />Persyaratan Layanan<ph name="END_LINK2" />.</translation>
 <translation id="8936233353620149764">Aktifkan/nonaktifkan Gemini di Chrome</translation>
+<translation id="8944232836376404813">Tindakan ini akan:
+          <ph name="LINE_BREAKS" />
+            • Mereset halaman awal, halaman tab baru, mesin telusur, dan tab tersemat
+            <ph name="LINE_BREAK" />
+            • Menonaktifkan ekstensi
+            <ph name="LINE_BREAK" />
+            • Menghapus cookie dan data situs sementara lainnya
+            <ph name="LINE_BREAKS" />
+            Bookmark, histori, dan sandi tersimpan tidak akan terpengaruh.</translation>
 <translation id="8948460679427074738">Ekstensi ini belum memublikasikan praktik privasi, seperti cara ekstensi mengumpulkan dan menggunakan data. Chrome merekomendasikan agar Anda menghapusnya.</translation>
 <translation id="8958307504142971576">Anda kini memiliki lebih banyak fitur yang tersedia di Chrome</translation>
 <translation id="8991530961471831170">Buka Gemini di Chrome</translation>

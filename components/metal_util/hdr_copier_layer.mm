@@ -290,9 +290,7 @@ id<MTLRenderPipelineState> CreateRenderPipelineState(id<MTLDevice> device) {
   if ((self = [super init])) {
     id<MTLDevice> device = metal::GetDefaultDevice();
 #if !BUILDFLAG(IS_IOS_TVOS)
-    if (@available(iOS 16.0, *)) {
-      self.wantsExtendedDynamicRangeContent = YES;
-    }
+    self.wantsExtendedDynamicRangeContent = YES;
 #endif
     self.device = device;
     self.opaque = NO;
@@ -344,25 +342,23 @@ id<MTLRenderPipelineState> CreateRenderPipelineState(id<MTLDevice> device) {
 
   // Set metadata for tone mapping.
 #if !BUILDFLAG(IS_IOS_TVOS)
-  if (@available(iOS 16.0, *)) {
-    if (_colorSpace != colorSpace || _hdrMetadata != hdrMetadata) {
-      CAEDRMetadata* edrMetadata = nil;
-      if (colorSpace.GetTransferID() == gfx::ColorSpace::TransferID::PQ) {
-        base::apple::ScopedCFTypeRef<CFDataRef> display_info =
-            gfx::GenerateMasteringDisplayColorVolume(hdrMetadata);
-        base::apple::ScopedCFTypeRef<CFDataRef> content_info =
-            gfx::GenerateContentLightLevelInfo(hdrMetadata);
-        edrMetadata = [CAEDRMetadata
-            HDR10MetadataWithDisplayInfo:base::apple::CFToNSPtrCast(
-                                             display_info.get())
-                             contentInfo:base::apple::CFToNSPtrCast(
-                                             content_info.get())
-                      opticalOutputScale:203];
-      }
-      self.EDRMetadata = edrMetadata;
-      _colorSpace = colorSpace;
-      _hdrMetadata = hdrMetadata;
+  if (_colorSpace != colorSpace || _hdrMetadata != hdrMetadata) {
+    CAEDRMetadata* edrMetadata = nil;
+    if (colorSpace.GetTransferID() == gfx::ColorSpace::TransferID::PQ) {
+      base::apple::ScopedCFTypeRef<CFDataRef> display_info =
+          gfx::GenerateMasteringDisplayColorVolume(hdrMetadata);
+      base::apple::ScopedCFTypeRef<CFDataRef> content_info =
+          gfx::GenerateContentLightLevelInfo(hdrMetadata);
+      edrMetadata = [CAEDRMetadata
+          HDR10MetadataWithDisplayInfo:base::apple::CFToNSPtrCast(
+                                           display_info.get())
+                           contentInfo:base::apple::CFToNSPtrCast(
+                                           content_info.get())
+                    opticalOutputScale:203];
     }
+    self.EDRMetadata = edrMetadata;
+    _colorSpace = colorSpace;
+    _hdrMetadata = hdrMetadata;
   }
 #endif
 

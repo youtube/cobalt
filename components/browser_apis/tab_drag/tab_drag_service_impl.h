@@ -13,6 +13,7 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "ui/gfx/geometry/point.h"
+#include "ui/gfx/native_ui_types.h"
 
 namespace tabs_api {
 
@@ -27,7 +28,8 @@ class TabDragServiceImpl : public mojom::TabDragServiceDirectReturnStub {
   TabDragServiceImpl& operator=(const TabDragServiceImpl&) = delete;
   ~TabDragServiceImpl() override;
 
-  void Accept(mojo::PendingReceiver<mojom::TabDragService> receiver);
+  void Accept(mojo::PendingReceiver<mojom::TabDragService> receiver,
+              gfx::NativeView context_view);
 
   TabDragWindowAdapter* window_adapter_for_testing() const {
     return window_adapter_.get();
@@ -46,7 +48,7 @@ class TabDragServiceImpl : public mojom::TabDragServiceDirectReturnStub {
   mojom::TabDragServiceBridge bridge_{this};
   raw_ptr<TabDragSessionManager> session_manager_;
   std::unique_ptr<TabDragWindowAdapter> window_adapter_;
-  mojo::ReceiverSet<mojom::TabDragService> receivers_;
+  mojo::ReceiverSet<mojom::TabDragService, gfx::NativeView> receivers_;
 };
 
 }  // namespace tabs_api

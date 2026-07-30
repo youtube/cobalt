@@ -187,6 +187,7 @@ python_library("test_runner_core_py") {
   data = [
     "pylib/gtest/filter/",
     "pylib/instrumentation/render_test.html.jinja",
+    "pylib/local/emulator/package.xml.template",
     "pylib/local/machine/local_machine_hostside_tradefed_config.xml",
     "test_wrapper/logdog_wrapper.py",
     "//third_party/requests/",

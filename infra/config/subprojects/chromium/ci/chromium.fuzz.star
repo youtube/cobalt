@@ -119,6 +119,7 @@ def _arch_short_name(target_arch, target_bits):
 def ci_builder(
         max_concurrent_invocations = None,
         chromium_config_name = None,
+        android_config_name = None,
         build_config = None,
         target_bits = None,
         target_arch = None,
@@ -154,6 +155,12 @@ def ci_builder(
     if platform_short_name:
         gn_configs.append(platform_short_name)
 
+    android_config = None
+    if android_config_name:
+        android_config = builder_config.android_config(
+            config = android_config_name,
+        )
+
     return ci.builder(
         triggering_policy = scheduler.greedy_batching(
             max_concurrent_invocations = max_concurrent_invocations,
@@ -173,6 +180,7 @@ def ci_builder(
                 target_bits = target_bits,
                 target_platform = target_platform,
             ),
+            android_config = android_config,
             clusterfuzz_archive = clusterfuzz_archive,
         ),
         gn_args = gn_args.config(configs = gn_configs),
@@ -403,21 +411,6 @@ browser_asan_builder(
 )
 
 browser_asan_builder(
-    name = "ASan Debug (32-bit x86 with V8-ARM)",
-    build_config = builder_config.build_config.DEBUG,
-    target_bits = 32,
-    target_platform = builder_config.target_platform.LINUX,
-    clusterfuzz_archive_name_prefix = "asan-v8-arm",
-    clusterfuzz_archive_subdir = "v8-arm",
-    console_category = "linux asan|x64 v8-ARM",
-    contact_team_email = "v8-infra@google.com",
-    gn_extra_configs = [
-        "v8_heap",
-        "v8_hybrid",
-    ],
-)
-
-browser_asan_builder(
     name = "ASAN Release",
     build_config = builder_config.build_config.RELEASE,
     target_bits = 64,
@@ -507,6 +500,57 @@ ci.builder(
         short_name = "sbxtst",
     ),
     contact_team_email = "v8-infra@google.com",
+)
+
+ci_builder(
+    name = "android-desktop-x64-asan-rel",
+    description_html = "Android desktop x64 ASan release compile builder.",
+
+    # Build ChromePublic.apk
+    targets = targets.bundle(
+        additional_compile_targets = [
+            "chrome_public_apk",
+        ],
+    ),
+
+    # TODO(b/519161719): Enable gardening once green enough.
+    gardener_rotations = args.ignore_default(None),
+
+    # Android x64 release build.
+    build_config = builder_config.build_config.RELEASE,
+    target_arch = builder_config.target_arch.INTEL,
+    target_bits = 64,
+    target_platform = builder_config.target_platform.ANDROID,
+
+    # Same as android-desktop-x64-compile-rel builder.
+    android_config_name = "base_config",
+    chromium_config_name = "main_builder",
+
+    # gs://chromium-browser-asan/android-release-desktop-x64/asan-android-release-$REV.zip
+    clusterfuzz_archive = builder_config.clusterfuzz_archive(
+        archive_name_prefix = "asan",
+        archive_subdir = "desktop-x64",
+        gs_acl = "public-read",
+        gs_bucket = "chromium-browser-asan",
+    ),
+    console_category = "android",
+    console_short_name = "asan-x64",
+    contact_team_email = "chrome-fuzzing-core@google.com",
+
+    # Same as chromium.android.desktop builders.
+    gclient_apply_configs = ["android"],
+
+    # Largely cribbed from android-desktop-x64-compile-rel.
+    gn_extra_configs = [
+        "android_desktop",
+        "android_builder",
+        "android_fastbuild",
+        "asan",
+        "minimal_symbols",
+        "v8_heap",
+        "webview_trichrome",
+        "webview_shell",
+    ],
 )
 
 def centipede_linux_asan_builder(

@@ -239,8 +239,10 @@ bool GLTexturePassthroughImageRepresentation::
 
 SkiaImageRepresentation::SkiaImageRepresentation(SharedImageManager* manager,
                                                  SharedImageBacking* backing,
-                                                 MemoryTypeTracker* tracker)
-    : SharedImageRepresentation(manager, backing, tracker) {}
+                                                 MemoryTypeTracker* tracker,
+                                                 bool is_graphite)
+    : SharedImageRepresentation(manager, backing, tracker),
+      is_graphite_(is_graphite) {}
 
 SkiaImageRepresentation::~SkiaImageRepresentation() = default;
 
@@ -253,6 +255,13 @@ bool SkiaImageRepresentation::SupportsDeferredGraphiteSubmit() {
 }
 
 bool SkiaImageRepresentation::NeedGraphiteContextSubmitBeforeEndAccess() {
+  // If this is not a Graphite representation, we don't need to submit to a
+  // Graphite context. It is important to not check the feature param here
+  // if we are not using Graphite to avoid unwanted feature study registration.
+  if (!is_graphite_) {
+    return false;
+  }
+
   if (!features::kSkiaGraphiteEnableDeferredSubmit.Get()) {
     // If deferred submit is disabled, then a submit is always required.
     return true;
@@ -334,7 +343,7 @@ SkiaGaneshImageRepresentation::SkiaGaneshImageRepresentation(
     SharedImageManager* manager,
     SharedImageBacking* backing,
     MemoryTypeTracker* tracker)
-    : SkiaImageRepresentation(manager, backing, tracker),
+    : SkiaImageRepresentation(manager, backing, tracker, /*is_graphite=*/false),
       gr_context_(gr_context) {}
 
 SkiaGaneshImageRepresentation::ScopedGaneshWriteAccess::ScopedGaneshWriteAccess(
@@ -609,7 +618,8 @@ SkiaGraphiteImageRepresentation::SkiaGraphiteImageRepresentation(
     SharedImageManager* manager,
     SharedImageBacking* backing,
     MemoryTypeTracker* tracker)
-    : SkiaImageRepresentation(manager, backing, tracker) {}
+    : SkiaImageRepresentation(manager, backing, tracker, /*is_graphite=*/true) {
+}
 
 SkiaGraphiteImageRepresentation::ScopedGraphiteWriteAccess::
     ScopedGraphiteWriteAccess(
@@ -885,6 +895,11 @@ Microsoft::WRL::ComPtr<ID3D12Resource>
 WebNNTensorRepresentation::GetD3D12Buffer() const {
   NOTREACHED();
 }
+
+base::win::ScopedHandle WebNNTensorRepresentation::GetD3D12HeapHandle() const {
+  NOTREACHED();
+}
+
 #endif
 
 #if BUILDFLAG(IS_APPLE)
@@ -1149,10 +1164,14 @@ RasterImageRepresentation::BeginScopedWriteAccess(
     const SkSurfaceProps& surface_props,
     const std::optional<SkColor4f>& clear_color,
     bool visible) {
-  return std::make_unique<ScopedWriteAccess>(
-      base::PassKey<RasterImageRepresentation>(), this,
+  auto* paint_op_buffer =
       BeginWriteAccess(std::move(context_state), final_msaa_count,
-                       surface_props, clear_color, visible));
+                       surface_props, clear_color, visible);
+  if (!paint_op_buffer) {
+    return nullptr;
+  }
+  return std::make_unique<ScopedWriteAccess>(
+      base::PassKey<RasterImageRepresentation>(), this, paint_op_buffer);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

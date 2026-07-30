@@ -152,7 +152,7 @@ void DirectManipulationHelper::OnAnimationStep(base::TimeTicks timestamp) {
 
 void DirectManipulationHelper::OnCompositingShuttingDown(
     ui::Compositor* notifying_compositor) {
-  DCHECK_EQ(notifying_compositor, compositor());
+  CHECK_EQ(notifying_compositor, compositor(), base::NotFatalUntil::M152);
   Destroy();
 }
 
@@ -281,7 +281,7 @@ void DirectManipulationHelper::RemoveAnimationObserver() {
 }
 
 void DirectManipulationHelper::SetDeviceScaleFactorForTesting(float factor) {
-  DCHECK(event_handler_);
+  CHECK(event_handler_, base::NotFatalUntil::M152);
   event_handler_->SetDeviceScaleFactor(factor);
 }
 

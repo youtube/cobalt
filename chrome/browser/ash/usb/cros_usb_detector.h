@@ -74,22 +74,6 @@ enum UsbSubclassCode : uint8_t {
   USB_COMM_SUBCLASS_NETWORK_CTL = 0x0d,
 };
 
-// Reasons the notification may be closed. These are used in histograms so do
-// not remove/reorder entries. Only add at the end just before kMaxValue. Also
-// remember to update the enum listing in
-// tools/metrics/histograms/histograms.xml.
-enum class CrosUsbNotificationClosed {
-  // The notification was dismissed but not by the user (either automatically
-  // or because the device was unplugged).
-  kUnknown,
-  // The user closed the notification via the close box.
-  kByUser,
-  // The user clicked on the Connect to Linux button of the notification.
-  kConnectToLinux,
-  // Maximum value for the enum.
-  kMaxValue = kConnectToLinux
-};
-
 // Represents a USB device tracked by a CrosUsbDetector instance. The
 // CrosUsbDetector only exposes devices which can be shared with Guest OSes.
 struct CrosUsbDeviceInfo {

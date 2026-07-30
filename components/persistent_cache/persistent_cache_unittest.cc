@@ -155,11 +155,12 @@ class PersistentCacheTest : public testing::Test,
         base::StrCat({"Cache", base::NumberToString(next_backend_index_++)}));
     auto pending_backend = backend_storage_->MakePendingBackend(
         cache_name, single_connection, journal_mode_wal);
-    if (!pending_backend) {
-      ADD_FAILURE() << "Failed to make PendingBackend";
+    if (!pending_backend.has_value()) {
+      ADD_FAILURE() << "Failed to make PendingBackend: "
+                    << base::ToString(pending_backend.error());
       return {};
     }
-    return {std::move(cache_name), std::move(pending_backend)};
+    return {std::move(cache_name), *std::move(pending_backend)};
   }
 
   BackendStorage& backend_storage() { return *backend_storage_; }

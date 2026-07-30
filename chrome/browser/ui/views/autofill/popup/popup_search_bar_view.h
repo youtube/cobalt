@@ -42,8 +42,9 @@ class PopupSearchBarView : public views::View,
 
   class Delegate {
    public:
-    // Called when text in the textfield changes. Calls are throttled with
-    // a delay of kInputChangeCallbackDelay to avoid excessive triggering.
+    // Called when text in the textfield changes. Calls are throttled by the
+    // configured `debounce_delay_` (defaults to `kInputChangeCallbackDelay`) to
+    // avoid excessive triggering.
     virtual void SearchBarOnInputChanged(std::u16string_view text) = 0;
 
     // Called when the controls (textfield and clear button) lose focus.
@@ -61,17 +62,20 @@ class PopupSearchBarView : public views::View,
 
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kInputField);
 
-  // The delay between the textfield text change and triggering
-  // the `OnInputChangedCallback`, used to throttle fast user input.
+  // The default delay between a textfield change and triggering
+  // `Delegate::SearchBarOnInputChanged()`, used to throttle fast user input.
   static constexpr base::TimeDelta kInputChangeCallbackDelay =
       base::Milliseconds(250);
 
   // TODO(crbug.com/504977286) Rename show_indicator when launched.
-  PopupSearchBarView(const std::u16string& placeholder,
-                     Delegate& delegate,
-                     bool show_indicator = false,
-                     bool is_loading = false,
-                     bool show_search_icon_sparkle = false);
+  // Calls to `Delegate::SearchBarOnInputChanged()` are throttled by
+  // `debounce_delay`.
+  PopupSearchBarView(
+      const std::u16string& placeholder,
+      Delegate& delegate,
+      bool show_indicator = false,
+      bool show_search_icon_sparkle = false,
+      base::TimeDelta debounce_delay = kInputChangeCallbackDelay);
   PopupSearchBarView(const PopupSearchBarView&) = delete;
   PopupSearchBarView& operator=(const PopupSearchBarView&) = delete;
   ~PopupSearchBarView() override;
@@ -120,6 +124,7 @@ class PopupSearchBarView : public views::View,
 
   base::CallbackListSubscription input_changed_subscription_;
   base::OneShotTimer input_change_notification_timer_;
+  const base::TimeDelta debounce_delay_;
 };
 
 }  // namespace autofill

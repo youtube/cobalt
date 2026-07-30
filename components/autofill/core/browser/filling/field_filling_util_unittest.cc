@@ -114,8 +114,10 @@ TEST(GetObfuscatedValue, ObfuscateValueWithPartialLegacy) {
 }
 
 TEST(GetObfuscatedValue, ObfuscateValue) {
-  base::test::ScopedFeatureList feature_list(
-      features::kAutofillAiWalletPrivatePasses);
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures({features::kAutofillAiWalletPrivatePasses,
+                                 features::kAutofillAmbientAutofill},
+                                {});
 
   // 4 dots + up to 4 chars (visible_suffix_length = 4)
   EXPECT_EQ(GetObfuscatedValue(u"123456789", 4),
@@ -131,8 +133,10 @@ TEST(GetObfuscatedValue, ObfuscateValue) {
 }
 
 TEST(GetObfuscatedValue, ObfuscateAll) {
-  base::test::ScopedFeatureList feature_list(
-      features::kAutofillAiWalletPrivatePasses);
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures({features::kAutofillAiWalletPrivatePasses,
+                                 features::kAutofillAmbientAutofill},
+                                {});
 
   // Matches length of UI string (4 dots + 4 visible = 8 dots).
   // visible_suffix_length = 0 means obfuscate all.

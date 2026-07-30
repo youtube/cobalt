@@ -140,7 +140,8 @@ class MediaSessionImpl : public MediaSession,
   void TitleWasSet(NavigationEntry* entry) override;
   void DidUpdateFaviconURL(
       RenderFrameHost* rfh,
-      const std::vector<blink::mojom::FaviconURLPtr>& candidates) override;
+      const std::vector<blink::mojom::FaviconURLPtr>& candidates,
+      blink::mojom::FaviconUpdateReason reason) override;
   void MediaPictureInPictureChanged(bool is_picture_in_picture) override;
   void RenderFrameHostStateChanged(
       RenderFrameHost* host,
@@ -399,6 +400,9 @@ class MediaSessionImpl : public MediaSession,
   friend class MediaSessionImplDurationThrottleTest;
   friend class MediaInternalsAudioFocusTest;
   friend class WebAppSystemMediaControlsBrowserTest;
+
+  void SetSourceIconsFromFavicons(
+      const std::vector<blink::mojom::FaviconURLPtr>& candidates);
 
   CONTENT_EXPORT void RemoveAllPlayersForTest();
   CONTENT_EXPORT MediaSessionUmaHelper* uma_helper_for_test();

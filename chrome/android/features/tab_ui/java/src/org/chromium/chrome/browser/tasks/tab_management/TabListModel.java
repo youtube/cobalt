@@ -11,6 +11,7 @@ import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.Card
 import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.ModelType.MESSAGE;
 import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.ModelType.TAB;
 import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.ModelType.TAB_GROUP;
+import static org.chromium.chrome.browser.tasks.tab_management.TabProperties.TAB_GROUP_HEADER_ID;
 import static org.chromium.chrome.browser.tasks.tab_management.TabProperties.TAB_GROUP_SYNC_ID;
 import static org.chromium.chrome.browser.tasks.tab_management.TabProperties.TAB_ID;
 import static org.chromium.chrome.browser.tasks.tab_management.TabSwitcherMessageManager.MessageType.ARCHIVED_TABS_MESSAGE;
@@ -19,6 +20,7 @@ import android.util.Pair;
 
 import androidx.annotation.IntDef;
 
+import org.chromium.base.Token;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.tab.Tab;
@@ -100,6 +102,24 @@ public class TabListModel extends ModelList {
             // This intentionally skips TAB_GROUP cards because this method is meant
             // to find the index of a specific tab, not a group header.
             if (model.get(CARD_TYPE) == TAB && model.get(TAB_ID) == tabId) return i;
+        }
+        return TabModel.INVALID_TAB_INDEX;
+    }
+
+    /**
+     * Lookup the position of a tab group header by its group ID.
+     *
+     * @param tabGroupId The group ID to search for.
+     * @return The index within the model list or {@link TabModel#INVALID_TAB_INDEX}.
+     */
+    public int indexFromTabGroupId(Token tabGroupId) {
+        if (tabGroupId == null) return TabModel.INVALID_TAB_INDEX;
+        for (int i = 0; i < size(); i++) {
+            PropertyModel model = get(i).model;
+            if (model.get(CARD_TYPE) == TAB_GROUP
+                    && tabGroupId.equals(model.get(TAB_GROUP_HEADER_ID))) {
+                return i;
+            }
         }
         return TabModel.INVALID_TAB_INDEX;
     }

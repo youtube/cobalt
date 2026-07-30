@@ -30,6 +30,28 @@ class SkillsBrowserTest : public WebUIMochaBrowserTest {
   base::test::ScopedFeatureList scoped_feature_list_{features::kSkillsEnabled};
 };
 
+class SkillsV2BrowserTest : public WebUIMochaBrowserTest {
+ protected:
+  SkillsV2BrowserTest() {
+    set_test_loader_host(chrome::kChromeUISkillsHost);
+    scoped_feature_list_.InitWithFeatures(
+        {features::kSkillsEnabled, features::kSkillsWebViewV2Enabled}, {});
+  }
+
+  void SetUpOnMainThread() override {
+    WebUIMochaBrowserTest::SetUpOnMainThread();
+    glic::GlicEnabling::SetBypassEnablementChecksForTesting(true);
+  }
+
+  void TearDownOnMainThread() override {
+    glic::GlicEnabling::SetBypassEnablementChecksForTesting(false);
+    WebUIMochaBrowserTest::TearDownOnMainThread();
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
 IN_PROC_BROWSER_TEST_F(SkillsBrowserTest, SkillsAppPage) {
   RunTest("skills/skills_test.js", "mocha.run();");
 }
@@ -56,6 +78,10 @@ IN_PROC_BROWSER_TEST_F(SkillsBrowserTest, SkillsCarousel) {
 
 IN_PROC_BROWSER_TEST_F(SkillsBrowserTest, SkillsEmojiPicker) {
   RunTest("skills/skills_emoji_picker_test.js", "mocha.run();");
+}
+
+IN_PROC_BROWSER_TEST_F(SkillsV2BrowserTest, WebviewBridge) {
+  RunTest("skills/webview_bridge_test.js", "mocha.run();");
 }
 
 }  // namespace

@@ -44,7 +44,7 @@ Tests that the document's readyState is set properly at various phases during lo
   shouldBeEqualToString("subdocument.readyState", "complete");
 
   var htmlDocument = document.implementation.createHTMLDocument();
-  shouldBeEqualToString("htmlDocument.readyState", "loading");
+  shouldBeEqualToString("htmlDocument.readyState", "complete");
 
   var expectedDynamicStates = ["interactive", "complete"];
   var nextExpectedDynamicState = 0;

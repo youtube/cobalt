@@ -52,6 +52,13 @@ namespace {
 
 using syncer::DataTypeStore;
 
+void RecordSendResultAndRunCallback(
+    base::OnceCallback<void(SendTabToSelfResult)> callback,
+    SendTabToSelfResult result) {
+  RecordSendResult(result);
+  std::move(callback).Run(result);
+}
+
 const base::TimeDelta kDedupeTime = base::Seconds(5);
 
 const base::TimeDelta kDeviceExpiration = base::Days(10);
@@ -172,8 +179,6 @@ SendTabToSelfBridge::~SendTabToSelfBridge() {
     history_service_observation_.Reset();
   }
 }
-
-
 
 std::optional<syncer::ModelError> SendTabToSelfBridge::MergeFullSyncData(
     std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
@@ -382,8 +387,6 @@ SendTabToSelfBridge::OnCommitAttemptFailed(syncer::SyncCommitError error) {
   return CommitAttemptFailedBehavior::kShouldRetryOnNextCycle;
 }
 
-
-
 std::vector<std::string> SendTabToSelfBridge::GetAllGuids() const {
   std::vector<std::string> keys;
   for (const auto& it : entries_) {
@@ -425,17 +428,24 @@ const SendTabToSelfEntry* SendTabToSelfBridge::SendEntry(
     const std::string& target_device_cache_guid,
     const PageContext& context,
     NavigationHistory navigation_history,
-    base::OnceCallback<void(SendTabToSelfResult)> commit_confirmation) {
+    base::OnceCallback<void(SendTabToSelfResult)> commit_confirmation,
+    ShareEntryPoint entry_point) {
   CHECK(commit_confirmation);
 
+  auto commit_confirmation_with_metrics = base::BindOnce(
+      &RecordSendResultAndRunCallback, std::move(commit_confirmation));
+
+  RecordEntryPointSent(entry_point);
+
   if (!change_processor()->IsTrackingMetadata()) {
-    std::move(commit_confirmation)
+    std::move(commit_confirmation_with_metrics)
         .Run(SendTabToSelfResult::kFailureNotTrackingMetadata);
     return nullptr;
   }
 
   if (!SendTabToSelfEntry::IsValidUrl(url)) {
-    std::move(commit_confirmation).Run(SendTabToSelfResult::kFailureInvalidUrl);
+    std::move(commit_confirmation_with_metrics)
+        .Run(SendTabToSelfResult::kFailureInvalidUrl);
     return nullptr;
   }
 
@@ -449,7 +459,8 @@ const SendTabToSelfEntry* SendTabToSelfBridge::SendEntry(
       target_device_cache_guid == mru_entry->GetTargetDeviceSyncCacheGuid() &&
       shared_time - mru_entry->GetSharedTime() < kDedupeTime) {
     send_tab_to_self::RecordNotificationThrottled();
-    std::move(commit_confirmation).Run(SendTabToSelfResult::kSuccessThrottled);
+    std::move(commit_confirmation_with_metrics)
+        .Run(SendTabToSelfResult::kSuccessThrottled);
     return mru_entry;
   }
 
@@ -499,7 +510,8 @@ const SendTabToSelfEntry* SendTabToSelfBridge::SendEntry(
   change_processor()->Put(guid, std::move(entity_data),
                           batch->GetMetadataChangeList());
 
-  commit_tracker_->TrackCommit(guid, std::move(commit_confirmation));
+  commit_tracker_->TrackCommit(guid,
+                               std::move(commit_confirmation_with_metrics));
 
   for (SendTabToSelfModelObserver& observer : observers_) {
     observer.OnEntryAddedLocally(entry.get());

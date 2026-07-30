@@ -184,7 +184,7 @@ net::HttpRequestHeaders HttpHeaderInjectionMatcherImpl::GetHeadersForUrl(
       // precedence.
       if (!inserted) {
         HeaderValueAndPrecedence& stored = map_it->second;
-        if (rule.precedence_rank > stored.precedence_rank) {
+        if (rule.precedence_rank >= stored.precedence_rank) {
           stored.value = val;
           stored.precedence_rank = rule.precedence_rank;
         }

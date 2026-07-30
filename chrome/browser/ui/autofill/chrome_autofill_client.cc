@@ -25,7 +25,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "chrome/browser/accessibility_annotator/accessibility_query_service_factory.h"
+#include "chrome/browser/accessibility_annotator/at_memory_query_service_factory.h"
 #include "chrome/browser/account_settings/account_setting_service_factory.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/autofill/actor/actor_key_metrics_recorder.h"
@@ -35,6 +35,7 @@
 #include "chrome/browser/autofill/autocomplete_history_manager_factory.h"
 #include "chrome/browser/autofill/autofill_ai_model_cache_factory.h"
 #include "chrome/browser/autofill/autofill_ai_model_executor_factory.h"
+#include "chrome/browser/autofill/autofill_enterprise_policy_service_factory.h"
 #include "chrome/browser/autofill/autofill_entity_data_manager_factory.h"
 #include "chrome/browser/autofill/autofill_field_classification_model_service_factory.h"
 #include "chrome/browser/autofill/autofill_optimization_guide_decider_factory.h"
@@ -99,6 +100,7 @@
 #include "components/autofill/content/browser/content_autofill_driver_factory.h"
 #include "components/autofill/content/browser/content_identity_credential_delegate.h"
 #include "components/autofill/content/browser/integrators/email_verifier/email_verifier_delegate.h"
+#include "components/autofill/core/browser/at_memory/at_memory_enablement_utils.h"
 #include "components/autofill/core/browser/at_memory_promo_tracker.h"
 #include "components/autofill/core/browser/autofill_type.h"
 #include "components/autofill/core/browser/data_manager/autofill_ai/entity_data_manager.h"
@@ -121,6 +123,7 @@
 #include "components/autofill/core/browser/metrics/autofill_settings_metrics.h"
 #include "components/autofill/core/browser/ml_model/field_classification_model_handler.h"
 #include "components/autofill/core/browser/payments/payments_network_interface.h"
+#include "components/autofill/core/browser/permissions/enterprise_policy/autofill_enterprise_policy_service.h"
 #include "components/autofill/core/browser/single_field_fillers/single_field_fill_router.h"
 #include "components/autofill/core/browser/studies/autofill_experiments.h"
 #include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
@@ -350,6 +353,9 @@ void ChromeAutofillClient::AtMemoryPromoObserver::OnPaste() {
 }
 
 void ChromeAutofillClient::ShowAutofillAtMemoryPromo() {
+  if (!MayPerformAtMemoryAction(AtMemoryAction::kShowIph, *this)) {
+    return;
+  }
   auto* user_education_interface =
       BrowserUserEducationInterface::MaybeGetForWebContentsInTab(
           web_contents());
@@ -357,6 +363,11 @@ void ChromeAutofillClient::ShowAutofillAtMemoryPromo() {
     user_education_interface->MaybeShowFeaturePromo(
         feature_engagement::kIPHAutofillAtMemoryFeature);
   }
+}
+
+ChromeAutofillClient::AtMemoryPromoObserver&
+ChromeAutofillClient::at_memory_promo_observer() {
+  return at_memory_promo_observer_;
 }
 #endif
 
@@ -489,22 +500,27 @@ AutofillComposeDelegate* ChromeAutofillClient::GetComposeDelegate() {
 #endif
 }
 
-accessibility_annotator::AccessibilityQueryService*
-ChromeAutofillClient::GetAccessibilityQueryService() {
+accessibility_annotator::AtMemoryQueryService*
+ChromeAutofillClient::GetAtMemoryQueryService() {
   Profile* profile =
       Profile::FromBrowserContext(web_contents()->GetBrowserContext());
-  return AccessibilityQueryServiceFactory::GetForProfile(profile);
+  return AtMemoryQueryServiceFactory::GetForProfile(profile);
 }
 
 personal_context::PersonalContextEnablementState
 ChromeAutofillClient::GetPersonalContextEnablementState() const {
-  Profile* profile =
-      Profile::FromBrowserContext(web_contents()->GetBrowserContext());
+  Profile* profile = GetProfile();
   personal_context::PersonalContextEnablementService* service =
       PersonalContextEnablementServiceFactory::GetForProfile(profile);
   return service ? service->GetEnablementState()
                  : personal_context::PersonalContextEnablementState::
                        kDisabledNotEligible;
+}
+
+personal_context::PersonalContextEnablementService*
+ChromeAutofillClient::GetPersonalContextEnablementService() const {
+  Profile* profile = GetProfile();
+  return PersonalContextEnablementServiceFactory::GetForProfile(profile);
 }
 
 PasswordManagerDelegate* ChromeAutofillClient::GetPasswordManagerDelegate(
@@ -1020,6 +1036,14 @@ bool ChromeAutofillClient::IsAutofillProfileEnabled() const {
   return prefs::IsAutofillProfileEnabled(GetPrefs());
 }
 
+bool ChromeAutofillClient::IsAutofillTypeBlockedByPolicy(
+    const GURL& url,
+    AutofillPolicyDataCategory category) const {
+  AutofillEnterprisePolicyService* service =
+      AutofillEnterprisePolicyServiceFactory::GetForProfile(GetProfile());
+  return service && service->IsAutofillTypeBlockedByPolicy(url, category);
+}
+
 bool ChromeAutofillClient::IsAutocompleteEnabled() const {
   return prefs::IsAutocompleteEnabled(GetPrefs());
 }
@@ -1096,8 +1120,15 @@ void ChromeAutofillClient::ShowAtMemoryBottomSheet(
   if (AtMemoryBottomSheetBridge* bridge =
           GetOrCreateAtMemoryBottomSheetBridge()) {
     bridge->RequestShowContent(
-        std::make_unique<AtMemoryBottomSheetDelegateAndroid>(this, delegate),
+        std::make_unique<AtMemoryBottomSheetDelegateAndroid>(
+            this, delegate, base::ToVector(suggestions)),
         suggestions);
+  }
+}
+
+void ChromeAutofillClient::HideAtMemoryBottomSheet() {
+  if (at_memory_bottom_sheet_bridge_) {
+    at_memory_bottom_sheet_bridge_->Hide();
   }
 }
 
@@ -1559,6 +1590,11 @@ void ChromeAutofillClient::OpenGeminiInSidebar(const std::u16string& prompt) {
                                   glic::mojom::InvocationSource::kAutofill);
   options.prompts.push_back(base::UTF16ToUTF8(prompt));
   glic_keyed_service->Invoke(std::move(options));
+}
+
+bool ChromeAutofillClient::IsGlicEnabled() const {
+  Profile* profile = GetProfile();
+  return profile && glic::GlicEnabling::IsEnabledForProfile(profile);
 }
 
 }  // namespace autofill

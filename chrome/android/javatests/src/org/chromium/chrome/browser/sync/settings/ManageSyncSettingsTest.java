@@ -87,7 +87,6 @@ import org.chromium.chrome.browser.sync.SyncTestRule;
 import org.chromium.chrome.browser.sync.ui.PassphraseCreationDialogFragment;
 import org.chromium.chrome.browser.sync.ui.PassphraseDialogFragment;
 import org.chromium.chrome.browser.ui.extensions.ExtensionUi;
-import org.chromium.chrome.browser.ui.extensions.ExtensionsBuildflags;
 import org.chromium.chrome.browser.ui.extensions.FakeExtensionUiBackendRule;
 import org.chromium.chrome.browser.ui.signin.GoogleActivityController;
 import org.chromium.chrome.browser.ui.signin.history_sync.HistorySyncHelper;
@@ -99,6 +98,7 @@ import org.chromium.chrome.test.util.browser.signin.SigninTestUtil;
 import org.chromium.chrome.test.util.browser.sync.SyncTestUtil;
 import org.chromium.components.browser_ui.modaldialog.AppModalPresenter;
 import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
+import org.chromium.components.extensions.ExtensionsBuildflags;
 import org.chromium.components.policy.test.annotations.Policies;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.regional_capabilities.RegionalCapabilitiesService;
@@ -240,7 +240,7 @@ public class ManageSyncSettingsTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () ->
                         mFakeExtensionUiBackendRule.setEnabled(
-                                ExtensionsBuildflags.ENABLE_DESKTOP_ANDROID_EXTENSIONS));
+                                ExtensionsBuildflags.ENABLE_EXTENSIONS_CORE));
 
         // The types that should be default-enabled in transport mode depend on various flags.
         Set<String> expectedEnabledTypes =

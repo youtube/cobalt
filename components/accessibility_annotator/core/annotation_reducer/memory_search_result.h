@@ -12,13 +12,15 @@
 #include <vector>
 
 #include "base/functional/callback.h"
-#include "components/accessibility_annotator/core/annotation_reducer/entry_type.h"
+#include "components/accessibility_annotator/core/annotation_reducer/memory_data_type.h"
 
 namespace accessibility_annotator {
 
 // Key-value metadata providing additional context for an entry.
 struct EntryMetadata {
-  EntryMetadata(EntryType type, std::u16string type_name, std::u16string value);
+  EntryMetadata(MemoryDataType type,
+                std::u16string type_name,
+                std::u16string value);
   EntryMetadata(const EntryMetadata&);
   EntryMetadata& operator=(const EntryMetadata&);
   EntryMetadata(EntryMetadata&&);
@@ -27,7 +29,7 @@ struct EntryMetadata {
   bool operator==(const EntryMetadata& other) const = default;
 
   // Type of metadata (a key). One of the known types or kUnknown.
-  EntryType type;
+  MemoryDataType type;
   // Localized name of the type (eg: "Departure Airport").
   // For unknown types, it should be filled with free-form text.
   std::u16string type_name;
@@ -67,7 +69,7 @@ struct MemoryEntrySource {
 
 // An individual entry in the returned suggested search results list.
 struct MemorySearchResult {
-  MemorySearchResult(EntryType type,
+  MemorySearchResult(MemoryDataType type,
                      std::u16string type_name,
                      std::u16string value,
                      double confidence_score = 0.0);
@@ -78,7 +80,7 @@ struct MemorySearchResult {
   ~MemorySearchResult();
 
   // Type of value to be filled. One of the known types or kUnknown.
-  EntryType type;
+  MemoryDataType type;
 
   // Localized name of the entry type to be displayed on UI (eg: "Flight
   // Number"). For unknown types, it should be filled with free-form text.
@@ -102,7 +104,8 @@ struct MemorySearchResult {
   bool is_obfuscated = false;
 
   // The identifier of the entry (e.g. IBAN Guid or InstrumentId). If
-  // `EntryType` does not support identifiers, it will be unset (monostate).
+  // `MemoryDataType` does not support identifiers, it will be unset
+  // (monostate).
   std::variant<std::monostate, std::string, int64_t> identifier;
 };
 

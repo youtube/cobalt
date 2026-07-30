@@ -160,14 +160,14 @@ void ProxyMain::RecordBeginMainFrameMetrics(
       timer.Elapsed(), base::Microseconds(1), base::Seconds(10), 50);
 
   base::UmaHistogramExactLinear(
-      base::StrCat({"Compositing.BeginMainFrame.BMFReason9", suffix}),
+      base::StrCat({"Compositing.BeginMainFrame.BMFReason10", suffix}),
       begin_main_frame_reason.to_ulong(), num_buckets);
 
   std::string_view embedded_suffix =
       IsEmbeddedFrame() ? ".Embedded" : ".NonEmbedded";
   base::UmaHistogramExactLinear(
       base::StrCat(
-          {"Compositing.BeginMainFrame.BMFReason9", embedded_suffix, suffix}),
+          {"Compositing.BeginMainFrame.BMFReason10", embedded_suffix, suffix}),
       begin_main_frame_reason.to_ulong(), num_buckets);
 }
 

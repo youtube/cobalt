@@ -862,7 +862,6 @@ Wenn diese Richtlinie aktiviert ist, akzeptiert dein <ph name="PRODUCT_OS_NAME" 
 Hinweis: Diese Richtlinie tritt erst in Kraft, nachdem sich ein Nutzer angemeldet hat, und gilt nicht für den Anmeldebildschirm.</translation>
 <translation id="1597684038583138808">Definition über „Schnellinfo“ aktivieren</translation>
 <translation id="1598258379228800626">„Objekt mit Tastaturfokus hervorheben“ auf dem Anmeldebildschirm aktivieren</translation>
-<translation id="1599424828227887013">Website-Isolierung für angegebene Ursprünge auf Android-Geräten aktivieren</translation>
 <translation id="159946228300522107">Wenn für diese Richtlinie "True" festgelegt ist, maximiert Chrome beim ersten Start das erste angezeigte Fenster.
 
       Ist sie auf "False" gesetzt oder nicht konfiguriert, kann das erste Fenster von Chrome maximiert werden. Das richtet sich nach der Displaygröße.</translation>
@@ -2124,17 +2123,6 @@ Der Nutzer kann ein Google Fotos-Bild als Hintergrund auswählen, wenn diese Ric
 <translation id="2402537890732357732">Verwaltungslabel immer anzeigen</translation>
 <translation id="2402547085566757554">„Neuer Tab“-Seite nicht als Startseite verwenden</translation>
 <translation id="2405765347317553213">Einstellungen für „Tab Compare“</translation>
-<translation id="240713331529749993">Wenn die Richtlinie konfiguriert ist, wird unter Android für jeden der benannten Ursprünge in einer durch Kommas getrennten Liste ein eigener Prozess ausgeführt. Jeder Prozess darf nur Dokumente aus diesem Ursprung und den zugehörigen Subdomains enthalten. Wird zum Beispiel https://a1.beispiel.de/ angegeben, ist https://a2.a1.beispiel.de/ im selben Prozess zulässig, https://beispiel.de oder https://b.beispiel.de aber nicht. Ab <ph name="PRODUCT_NAME" />-Version 77 werden unter Android bestimmte sensible Websites standardmäßig isoliert. Diese Richtlinie weitet diesen Modus auf die Isolierung zusätzlicher Ursprünge aus.
-
-      Seit <ph name="PRODUCT_NAME" />-Version 77 kann auch ein Ursprungsbereich für die Isolierung angegeben werden. Dazu wird ein Platzhalter verwendet. Wenn du z. B. https://[*.]firma.beispiel.de angibst, wird für jeden Ursprung unter https://firma.beispiel.de ein eigener Prozess ausgeführt, einschließlich https://firma.beispiel.de selbst, https://a1.firma.beispiel.de und https://a2.a1.firma.beispiel.de.
-
-      Beachte auch, dass Ursprünge, die durch diese Richtlinie isoliert werden, keine anderen Ursprünge auf derselben Website skripten können. Das ist sonst möglich, wenn zwei SameSite-Dokumente ihre „document.domain“-Werte so verändern, dass sie übereinstimmen. Administratoren sollten sicherstellen, dass dieses ungewöhnliche Verhalten nicht für einen Ursprung verwendet wird, bevor er isoliert wird.
-
-      Wenn diese Richtlinie deaktiviert ist, wird jegliche Form der Website-Isolierung deaktiviert, einschließlich der Isolierung sensibler Websites und Tests von IsolateOriginsAndroid, SitePerProcessAndroid und anderer Modi für die Website-Isolierung. Nutzer können aber weiter das Befehlszeilen-Flag verwenden, um IsolateOrigins manuell zu aktivieren.
-
-      Ist die Richtlinie nicht konfiguriert, können Nutzer diese Einstellung ändern.
-
-      Hinweis: Wenn unter Android zu viele Websites isoliert werden, kann dies Leistungsprobleme verursachen, vor allem auf leistungsschwächeren Geräten. Diese Richtlinie kann nur für Chrome unter Android auf Geräten mit mehr als 1 GB RAM verwendet werden. Für andere Plattformen als Android musst du <ph name="ISOLATE_ORIGINS_POLICY_NAME" /> verwenden.</translation>
 <translation id="2407758458436268630">Intelligentem Dimm-Modell erlauben, den Zeitraum bis zum Dimmen des Bildschirms zu verlängern</translation>
 <translation id="2410163749464044777">Einstellungen für lokale Speicher für Nutzerdaten</translation>
 <translation id="2411629345938804022">Wenn die Richtlinie auf "3" gesetzt ist, können Websites den Zugriff auf Bluetooth-Geräte in der Nähe anfragen. Wenn die Richtlinie auf "2" gesetzt ist, wird der Zugriff auf Bluetooth-Geräte in der Nähe verweigert.
@@ -4037,21 +4025,6 @@ Wenn die Richtlinie aktiviert ist, wird SwiftShader als WebGL-Fallback für Soft
 Wenn die Richtlinie deaktiviert oder nicht konfiguriert ist, kann die Erstellung des WebGL-Kontexts fehlschlagen, wenn die GPU-Beschleunigung für Hardware nicht verfügbar ist. Webseiten funktionieren möglicherweise nicht richtig, wenn sie mit Problemen beim Erstellen des WebGL-Kontexts nicht umgehen können.
 
 Diese Richtlinie ist vorübergehend und wird in Zukunft entfernt.</translation>
-<translation id="3607939601300521364">Legt fest, ob der <ph name="GEMINI_SPARK_PRODUCT_NAME" />-KI-Agent eine Verbindung zu <ph name="PRODUCT_NAME" /> herstellen und das automatische Browsen verwenden darf.
-
-0 = <ph name="GEMINI_SPARK_PRODUCT_NAME" /> darf sich mit dem automatischen Browsen in <ph name="PRODUCT_NAME" /> verbinden und es verwenden
-
-1 = <ph name="GEMINI_SPARK_PRODUCT_NAME" /> darf sich nicht mit dem automatischen Browsen in <ph name="PRODUCT_NAME" /> verbinden und es nicht verwenden
-
-Warnung: Wenn du <ph name="GEMINI_SPARK_PRODUCT_NAME" /> erlaubst, sich mit <ph name="PRODUCT_NAME" /> zu verbinden und das automatische Browsen zu verwenden, kann der <ph name="GEMINI_SPARK_PRODUCT_NAME" />-KI-Agent autonome, Aktionen mit mehreren Schritten auf <ph name="PRODUCT_NAME" />-Clients über die aktive Browsersitzung ausführen. Dies birgt erhebliche Sicherheitsrisiken, darunter Risiken im Zusammenhang mit Anmeldedaten, dem im lokalen Netzwerk eingehenden Traffic und dem Verlust kontextsensitiver Signale. Vorhandene Verwaltungs- und Sicherheitsmechanismen werden möglicherweise nicht berücksichtigt.
-
-Administratoren sollten das Netzwerkbedrohungsmodell sowie die Compliance- und Datenschutzrichtlinien ihrer Organisation sorgfältig prüfen, bevor sie diese Funktion aktivieren.
-
-Diese Richtlinie hat keine Auswirkungen, wenn die <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> App oder die Richtlinie „Automatisches Browsen in <ph name="PRODUCT_NAME" />“ deaktiviert ist. Beispielsweise kann die <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> App durch die Richtlinie „<ph name="GEMINI_SETTINGS_POLICY_NAME" />“ deaktiviert werden. Weitere Informationen zu <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> in <ph name="PRODUCT_NAME" /> findest du unter https://support.google.com/chrome/a?p=gemini_in_chrome.
-
-Automatisches Browsen in <ph name="PRODUCT_NAME" /> und <ph name="GEMINI_SPARK_PRODUCT_NAME" /> sind nicht in allen Ländern und Sprachen verfügbar. Auch wenn du für diese Richtlinie „0 – Aktiviert“ festlegst, kann die Funktion möglicherweise nicht aktiviert werden, da sie von der Verfügbarkeit abhängig ist. Weitere Informationen zur Einführung der Funktion findest du in den Versionshinweisen für Chrome Enterprise: https://chromeenterprise.google/resources/release-notes/
-
-Wenn die Richtlinie nicht konfiguriert ist, wird ihr Verhalten durch die Richtlinie „<ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />“ bestimmt.</translation>
 <translation id="3608206578291537084">Verschlüsselte Pipeline für die Berichterstellung aktivieren</translation>
 <translation id="3608281460204780443">Chrome Web Store-Symbol im <ph name="PRODUCT_OS_NAME" />-Launcher und auf der Seite „Neuer Tab“ anzeigen</translation>
 <translation id="3612482251405108708">Automatischer Start der erneuten Onlineauthentifizierung auf dem Sperrbildschirm</translation>
@@ -4971,17 +4944,6 @@ Weitere Informationen findest du unter https://chromium.googlesource.com/chromiu
 
 Mit dieser Richtlinie wurde das automatische Upgrade für gemischte Inhalte unter iOS deaktiviert. Die Richtlinie ist verwaltet und wird nicht mehr unterstützt.</translation>
 <translation id="4252522848899331223">Zulassen, dass Nutzer Safe Browsing-Warnungen umgehen</translation>
-<translation id="4260027436474745627">Wenn die Richtlinie konfiguriert ist, wird für jeden der benannten Ursprünge in einer durch Kommas getrennten Liste ein eigener Prozess ausgeführt. Jeder Prozess darf nur Dokumente aus diesem Ursprung und den zugehörigen Subdomains enthalten. Wird zum Beispiel https://a1.beispiel.de/ angegeben, ist https://a2.a1.beispiel.de/ im selben Prozess zulässig, https://beispiel.de oder https://b.beispiel.de aber nicht.
-
-      Seit <ph name="PRODUCT_NAME" />-Version 77 kann auch ein Ursprungsbereich für die Isolierung angegeben werden. Dazu wird ein Platzhalter verwendet. Wenn du z. B. https://[*.]firma.beispiel.de angibst, wird für jeden Ursprung unter https://firma.beispiel.de ein eigener Prozess ausgeführt, einschließlich https://firma.beispiel.de selbst, https://a1.firma.beispiel.de und https://a2.a1.firma.beispiel.de.
-
-      Beachte, dass alle Websites (also Protokoll plus eTLD+1, z. B. https://beispiel.de) auf Desktop-Plattformen bereits standardmäßig isoliert werden, wie in der Richtlinie <ph name="SITE_PER_PROCESS_POLICY_NAME" /> angegeben. Die Richtlinie <ph name="ISOLATE_ORIGINS_POLICY_NAME" /> bietet sich auch für die Isolierung spezifischer Ursprünge bei höherer Granularität an (z. B. https://a.beispiel.de).
-
-      Beachte auch, dass Ursprünge, die durch diese Richtlinie isoliert werden, keine anderen Ursprünge auf derselben Website skripten können. Das ist sonst möglich, wenn zwei SameSite-Dokumente ihre „document.domain“-Werte so verändern, dass sie übereinstimmen. Administratoren sollten sicherstellen, dass dieses ungewöhnliche Verhalten nicht für einen Ursprung verwendet wird, bevor er isoliert wird.
-
-      Wenn die Richtlinie deaktiviert oder nicht konfiguriert ist, können Nutzer diese Einstellung ändern.
-
-      Hinweis: Nutze unter Android stattdessen die Richtlinie <ph name="ISOLATE_ORIGINS_ANDROID_POLICY_NAME" />.</translation>
 <translation id="4261641564041253502">Clientzertifikate, die mit Filtern für <ph name="PRODUCT_NAME" />-Sicherheitssignalberichte übereinstimmen, automatisch auswählen.</translation>
 <translation id="4261820385751181068">Sprache der Anmeldeseite</translation>
 <translation id="4263788921751326798">Melden von Informationen zu Absturzberichten auf Geräten deaktivieren</translation>
@@ -7389,6 +7351,7 @@ Wenn diese Richtlinie deaktiviert oder nicht konfiguriert ist, sind Glanceables 
 <translation id="5775235485119094648">Lädt den Akku auf, solange er sich in einem festen Bereich befindet.</translation>
 <translation id="5776485039795852974">Nachfragen, wenn eine Website Desktop-Benachrichtigungen anzeigen will</translation>
 <translation id="5776508475264864949">Nicht zulassen, dass die Gemini App Aktionen auf Webseiten ausführt.</translation>
+<translation id="5779185945203505880">Nachfragen, wenn eine Website auf Sensoren zugreifen möchte</translation>
 <translation id="5783009211970309878">Kopf- und Fußzeilen drucken</translation>
 <translation id="5786913136266632175">Chrome Finds zulassen und KI‑Modelle verbessern.</translation>
 <translation id="5789288985554424301">Mit dieser Richtlinie kannst du festlegen, ob Websites die Idle Detection API verwenden dürfen.
@@ -7709,6 +7672,7 @@ Diese Richtlinie wird ab <ph name="PRODUCT_NAME" /> 147 nicht mehr unterstützt
 <translation id="5962271004971310788">Erweiterungen, deren Ausführung im Inkognitomodus vom Nutzer erlaubt werden muss</translation>
 <translation id="5963752574792883406">Port 990 (Blockierung kann bis 01.02.2022 aufgehoben werden)</translation>
 <translation id="596523880465577341">Diese Richtlinie ist veraltet und wird nicht mehr unterstützt. Bitte verwende stattdessen die Richtlinie „<ph name="EXTENSION_INSTALL_ALLOWLIST_POLICY_NAME" />“.</translation>
+<translation id="5965344524743236327">Die ID oder Nummer des <ph name="GOOGLE_CLOUD_PRODUCT_NAME" />-Projekts, das der zu aktivierenden <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" />-Instanz entspricht. Weitere Informationen zu Projekt-IDs findest du unter https://docs.cloud.google.com/resource-manager/docs/creating-managing-projects.</translation>
 <translation id="5966615072639944554">Erweiterungen, die die Remote Attestation API zur Bestätigung der Nutzeridentität verwenden dürfen</translation>
 <translation id="596732417280023843">Name des Zertifikatsprofils.</translation>
 <translation id="5972538402066550344">Steuerelemente für detailliertes Reporting zulassen</translation>
@@ -8122,6 +8086,7 @@ Wenn die Richtlinie „<ph name="ALLOWED_INPUT_METHODS_POLICY_NAME" />“ nicht 
 <translation id="6264247808139384018">Wenn die Richtlinie aktiviert oder nicht konfiguriert ist, können Nutzer, die sich mit einem Passwort authentifizieren, den Bildschirm sperren.
 
 Ist die Richtlinie deaktiviert, können Nutzer den Bildschirm nicht sperren. Sie können sich lediglich von der Nutzersitzung abmelden.</translation>
+<translation id="6265114688953151459">Die eindeutige Kennung der <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" />-Engine. Das Format muss 1–63 Zeichen umfassen und dem Muster [a-z0-9][a-z0-9-_]* entsprechen. Weitere Informationen findest du unter https://docs.cloud.google.com/gemini/enterprise/docs/reference/rest/v1/projects.locations.collections.engines#Engine.</translation>
 <translation id="6265892395051519509">Diesen Websites den Zugriff auf Sensoren erlauben</translation>
 <translation id="6266043141694454734">Legt fest, ob der Chrome Root Store und die integrierte Zertifikatsprüfung zum Verifizieren von Serverzertifikaten verwendet werden</translation>
 <translation id="6266686172120601139">Adaptives Zwischenspeichern für Web Audio aktivieren</translation>
@@ -10653,6 +10618,9 @@ Dieses Verhalten entspricht <ph name="POLICY_VALUE_PRIMARY_ACCOUNT_KEEP_EXISTING
 <translation id="7816326058023670173">Secret, das zwischen Geräten von Kindern und Eltern geteilt wird.</translation>
 <translation id="7818131573217430250">Standardstatus für den Modus mit hohem Kontrast auf der Anmeldeseite festlegen</translation>
 <translation id="7821864705813933283">Zulassen, dass der Menüpunkt „Ausschnittsuche“ von <ph name="GOOGLE_LENS_PRODUCT_NAME" /> im Kontextmenü angezeigt wird, wenn die Funktion unterstützt wird.</translation>
+<translation id="7822068288960631707">Wenn die Richtlinie auf 1 gesetzt ist, dürfen Websites auf Sensoren wie Bewegungs- und Lichtsensoren zugreifen und diese nutzen. Ist sie auf 2 gesetzt, wird der Zugriff auf alle Sensoren verweigert. Wenn die Richtlinie auf 3 gesetzt ist, wird der Nutzer gefragt, wenn eine Website Zugriff auf Sensoren anfordert und das Tri-State-Funktions-Flag aktiviert ist. Anderenfalls wird der Zugriff auf Sensoren standardmäßig gewährt.
+
+      Wenn sie nicht konfiguriert ist, gilt die Richtlinie <ph name="ALLOW_SENSORS_POLICY_NAME" />, aber Nutzer können diese Einstellung ändern.</translation>
 <translation id="7823902813460802031">Wenn die Richtlinie aktiviert ist, lässt <ph name="PRODUCT_OS_NAME" /> nicht zu, dass das Gerät in den Entwicklermodus wechselt.
 
        Ist die Richtlinie deaktiviert oder nicht konfiguriert, bleibt der Entwicklermodus auf dem Gerät verfügbar.</translation>

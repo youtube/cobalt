@@ -13,7 +13,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/threading/sequence_bound.h"
-#include "base/timer/timer.h"
+#include "base/timer/elapsed_timer.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/os_crypt/async/common/encryptor.h"
 
@@ -114,6 +114,8 @@ class PageContentCache {
   base::SequenceBound<optimization_guide::PageContentStore> store_;
 
   base::ObserverList<Observer> observers_;
+
+  base::ElapsedTimer construction_timer_;
 
   base::WeakPtrFactory<PageContentCache> weak_ptr_factory_{this};
 };

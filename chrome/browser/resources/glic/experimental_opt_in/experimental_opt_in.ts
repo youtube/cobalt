@@ -16,13 +16,6 @@ import {ExperimentalOptInPageHandler} from './glic_experimental_opt_in.mojom-web
 
 const handler = ExperimentalOptInPageHandler.getRemote();
 
-function onNewWindow(e: Event) {
-  const newWindowEvent = e as unknown as chrome.webviewTag.NewWindowEvent;
-  newWindowEvent.preventDefault();
-  handler.validateAndOpenLinkInNewTab(newWindowEvent.targetUrl);
-  newWindowEvent.stopPropagation();
-}
-
 // LINT.IfChange(GlicExperimentalTriggeringErrorType)
 enum FailureType {
   GENERIC_ERROR = 0,
@@ -50,40 +43,166 @@ document.documentElement.style.setProperty(
 // hidden and skeleton is absolute.
 document.body.style.minHeight = `${defaultHeight}px`;
 
-function init() {
-  const webview = getRequiredElement<chrome.webviewTag.WebView>('webview');
-  webview.setAttribute('minwidth', String(defaultWidth));
-  webview.setAttribute('maxwidth', String(defaultWidth));
-  const errorPanel = getRequiredElement('errorPanel');
-  const errorIcon = getRequiredElement('errorIcon');
-  const errorHeadline = getRequiredElement('errorHeadline');
-  const errorMessage = getRequiredElement('errorMessage');
-  const closeButtonError = getRequiredElement('closeButtonError');
-  const tryAgainButton = getRequiredElement('tryAgainButton');
-  const optInUrl = loadTimeData.getString('glicExperimentalTriggeringOptInURL');
-  const optInOrigin = new URL(optInUrl).origin;
+export class ExperimentalOptInApp {
+  private webview_: chrome.webviewTag.WebView;
+  private errorPanel_: HTMLElement;
+  private errorIcon_: HTMLElement;
+  private errorHeadline_: HTMLElement;
+  private errorMessage_: HTMLElement;
+  private closeButtonError_: HTMLElement;
+  private tryAgainButton_: HTMLElement;
+  private optInUrl_: string;
+  private optInOrigin_: string;
 
-  let hasError = false;
+  private hasError_: boolean = false;
+  private transitioned_: boolean = false;
+  private loadingTimeoutId_: number|null = null;
 
-  const skeleton = document.getElementById('skeleton-container');
-  if (skeleton) {
-    try {
-      skeleton.setAttribute(
-          'state',
-          loadTimeData.getString('glicRequiredExperimentalOptInState'));
-    } catch (e) {
-      console.error('Failed to get opt-in state', e);
-      hasError = true;
-      showFailureState(FailureType.GENERIC_ERROR);
+  constructor() {
+    this.webview_ = getRequiredElement<chrome.webviewTag.WebView>('webview');
+    this.webview_.setAttribute('minwidth', String(defaultWidth));
+    this.webview_.setAttribute('maxwidth', String(defaultWidth));
+
+    this.errorPanel_ = getRequiredElement('errorPanel');
+    this.errorIcon_ = getRequiredElement('errorIcon');
+    this.errorHeadline_ = getRequiredElement('errorHeadline');
+    this.errorMessage_ = getRequiredElement('errorMessage');
+    this.closeButtonError_ = getRequiredElement('closeButtonError');
+    this.tryAgainButton_ = getRequiredElement('tryAgainButton');
+
+    this.optInUrl_ =
+        loadTimeData.getString('glicExperimentalTriggeringOptInURL');
+    this.optInOrigin_ = new URL(this.optInUrl_).origin;
+
+    const skeleton = document.getElementById('skeleton-container');
+    if (skeleton) {
+      try {
+        skeleton.setAttribute(
+            'state',
+            loadTimeData.getString('glicRequiredExperimentalOptInState'));
+      } catch (e) {
+        console.error('Failed to get opt-in state', e);
+        this.hasError_ = true;
+        this.showFailureState_(FailureType.GENERIC_ERROR);
+      }
+    }
+
+    this.setupEventListeners_();
+
+    if (!this.hasError_) {
+      this.tryLoad_();
     }
   }
 
-  let transitioned = false;
-  const transitionToWebview = () => {
-    if (transitioned) {
+  private setupEventListeners_() {
+    this.webview_.addEventListener(
+        'contentload', () => this.transitionToWebview_());
+    this.webview_.addEventListener(
+        'loadstop', () => this.transitionToWebview_());
+
+    this.webview_.addEventListener('loadstart', () => {
+      this.hasError_ = false;
+      this.errorPanel_.hidden = true;
+      this.webview_.hidden = false;
+      this.webview_.classList.remove('autosized');
+      this.startWatchdog_();
+    });
+
+    this.webview_.request.onBeforeRequest.addListener(
+        (details: {url: string, frameId: number}) => {
+          if (details.frameId !== 0) {
+            return {};
+          }
+          const url = URL.parse(details.url);
+          if (!url) {
+            console.error(
+                'Failed to parse URL in onBeforeRequest:', details.url);
+            return {cancel: true};
+          }
+          if (loadTimeData.getBoolean('glicDevEnabled')) {
+            return {};
+          }
+          if (url.protocol === 'http:' || url.protocol === 'https:') {
+            if (url.origin !== this.optInOrigin_) {
+              return {cancel: true};
+            }
+          }
+          return {};
+        },
+        {
+          urls: ['<all_urls>'],
+          types: ['main_frame'],
+        },
+        ['blocking']);
+
+    this.webview_.addEventListener('contentload', () => {
+      this.clearWatchdog_();
+      if (this.hasError_) {
+        return;
+      }
+      this.errorPanel_.hidden = true;
+      this.webview_.classList.add('autosized');
+      this.webview_.hidden = false;
+      handler.onWebviewLoaded();
+    });
+
+    this.webview_.addEventListener(
+        'loadabort', ((e: Event) => {
+                       if (loadTimeData.getBoolean('glicDevEnabled')) {
+                         return;
+                       }
+                       const loadAbortEvent =
+                           e as unknown as chrome.webviewTag.LoadAbortEvent;
+                       // Log failures when the top-level
+                       // frame fails to load.
+                       if (loadAbortEvent.isTopLevel) {
+                         this.hasError_ = true;
+                         this.clearWatchdog_();
+                         this.showFailureState_(FailureType.OFFLINE);
+                       }
+                     }) as EventListener);
+
+    this.closeButtonError_.addEventListener('click', () => {
+      handler.reject();
+    });
+
+    this.tryAgainButton_.addEventListener('click', () => {
+      this.tryLoad_();
+    });
+
+    this.webview_.addEventListener(
+        'loadcommit', ((e: Event) => {
+                        const loadCommitEvent =
+                            e as unknown as chrome.webviewTag.LoadCommitEvent;
+                        if (!loadCommitEvent.isTopLevel) {
+                          return;
+                        }
+                        const urlObj = new URL(loadCommitEvent.url);
+                        const urlHash = urlObj.hash;
+
+                        if (urlHash === '#continue') {
+                          handler.accept();
+                        } else if (urlHash.startsWith('#noThanks')) {
+                          handler.reject();
+                        }
+                      }) as EventListener);
+
+    this.webview_.addEventListener(
+        'newwindow', (e: Event) => this.onNewWindow_(e));
+  }
+
+  private onNewWindow_(e: Event) {
+    const newWindowEvent = e as unknown as chrome.webviewTag.NewWindowEvent;
+    newWindowEvent.preventDefault();
+    handler.validateAndOpenLinkInNewTab(newWindowEvent.targetUrl);
+    newWindowEvent.stopPropagation();
+  }
+
+  private transitionToWebview_() {
+    if (this.transitioned_) {
       return;
     }
-    transitioned = true;
+    this.transitioned_ = true;
 
     // Clear min-height restriction once we have real content
     document.body.style.minHeight = '';
@@ -94,8 +213,8 @@ function init() {
     }
     // Force visual layout reflow so transitioning class opacity takes effect
     // correctly.
-    webview.offsetHeight;
-    webview.classList.add('visible');
+    this.webview_.offsetHeight;
+    this.webview_.classList.add('visible');
 
     setTimeout(() => {
       if (skeleton) {
@@ -103,125 +222,63 @@ function init() {
         skeleton.classList.remove('fade-out');
       }
     }, TRANSITION_DURATION_MS);
-  };
+  }
 
-  webview.addEventListener('contentload', transitionToWebview);
-  webview.addEventListener('loadstop', transitionToWebview);
-
-  let loadingTimeoutId: number | null = null;
-
-  function clearWatchdog() {
-    if (loadingTimeoutId !== null) {
-      clearTimeout(loadingTimeoutId);
-      loadingTimeoutId = null;
+  private clearWatchdog_() {
+    if (this.loadingTimeoutId_ !== null) {
+      clearTimeout(this.loadingTimeoutId_);
+      this.loadingTimeoutId_ = null;
     }
   }
 
-  function startWatchdog() {
-    clearWatchdog();
-    loadingTimeoutId = setTimeout(() => {
-      if (!hasError && webview.hidden === false) {
-        hasError = true;
-        webview.stop();
+  private startWatchdog_() {
+    if (loadTimeData.getBoolean('glicDevEnabled')) {
+      return;
+    }
+    this.clearWatchdog_();
+    this.loadingTimeoutId_ = setTimeout(() => {
+      if (!this.hasError_ && this.webview_.hidden === false) {
+        this.hasError_ = true;
+        this.webview_.stop();
         // A timeout may be caused by general slowness or server issues, not
         // just the device being offline, but we show the same generic offline
         // error UI here.
-        showFailureState(FailureType.OFFLINE);
+        this.showFailureState_(FailureType.OFFLINE);
       }
     }, 10000);
   }
 
-  function showFailureState(type: FailureType) {
+  private showFailureState_(type: FailureType) {
     document.body.style.minHeight = '';
     chrome.histograms.recordEnumerationValue(
         'Glic.ExperimentalTriggering.OptIn.ErrorShown', type,
         FailureType.MAX_VALUE + 1);
     if (type === FailureType.OFFLINE) {
-      errorIcon.setAttribute('icon', 'glic:offline');
-      errorHeadline.textContent = loadTimeData.getString('offlineNoticeHeader');
-      errorMessage.textContent =
-        loadTimeData.getString('experimentalOptInOfflineNoticeMessage');
+      this.errorIcon_.setAttribute('icon', 'glic:offline');
+      this.errorHeadline_.textContent =
+          loadTimeData.getString('offlineNoticeHeader');
+      this.errorMessage_.textContent =
+          loadTimeData.getString('experimentalOptInOfflineNoticeMessage');
     } else {
-      errorIcon.setAttribute('icon', 'glic:error');
-      errorHeadline.textContent = loadTimeData.getString('errorNoticeHeader');
-      errorMessage.textContent =
-        loadTimeData.getString('experimentalOptInErrorNoticeMessage');
+      this.errorIcon_.setAttribute('icon', 'glic:error');
+      this.errorHeadline_.textContent =
+          loadTimeData.getString('errorNoticeHeader');
+      this.errorMessage_.textContent =
+          loadTimeData.getString('experimentalOptInErrorNoticeMessage');
     }
 
-    errorPanel.hidden = false;
-    webview.hidden = true;
+    this.errorPanel_.hidden = false;
+    this.webview_.hidden = true;
     const skeleton = document.getElementById('skeleton-container');
     if (skeleton) {
       skeleton.classList.add('hidden');
     }
   }
 
-  webview.addEventListener('loadstart', () => {
-    hasError = false;
-    errorPanel.hidden = true;
-    webview.hidden = false;
-    webview.classList.remove('autosized');
-    startWatchdog();
-  });
-
-  webview.request.onBeforeRequest.addListener(
-      (details: {url: string, frameId: number}) => {
-        if (details.frameId !== 0) {
-          return {};
-        }
-        const url = URL.parse(details.url);
-        if (!url) {
-          console.error('Failed to parse URL in onBeforeRequest:', details.url);
-          return {cancel: true};
-        }
-        if (url.protocol === 'http:' || url.protocol === 'https:') {
-          if (url.origin !== optInOrigin) {
-            return {cancel: true};
-          }
-        }
-        return {};
-      },
-      {
-        urls: ['<all_urls>'],
-        types: ['main_frame'],
-      },
-      ['blocking']);
-  webview.addEventListener('contentload', () => {
-    clearWatchdog();
-    if (hasError) {
-      return;
-    }
-    errorPanel.hidden = true;
-    webview.classList.add('autosized');
-    webview.hidden = false;
-    handler.onWebviewLoaded();
-  });
-
-  webview.addEventListener(
-    'loadabort', ((e: Event) => {
-      const loadAbortEvent =
-        e as unknown as chrome.webviewTag.LoadAbortEvent;
-      // Log failures when the top-level
-      // frame fails to load.
-      if (loadAbortEvent.isTopLevel) {
-        hasError = true;
-        clearWatchdog();
-        showFailureState(FailureType.OFFLINE);
-      }
-    }) as EventListener);
-
-  closeButtonError.addEventListener('click', () => {
-    handler.reject();
-  });
-
-  tryAgainButton.addEventListener('click', () => {
-    tryLoad();
-  });
-
-  async function tryLoad() {
-    errorPanel.hidden = true;
-    webview.hidden = true;
-    hasError = false;
+  private async tryLoad_() {
+    this.errorPanel_.hidden = true;
+    this.webview_.hidden = true;
+    this.hasError_ = false;
     const skeleton = document.getElementById('skeleton-container');
     if (skeleton) {
       skeleton.classList.remove('hidden', 'fade-out');
@@ -230,7 +287,7 @@ function init() {
     // Immediate pre-flight check. If the browser is already offline, show the
     // connection issue UI immediately and stop.
     if (!navigator.onLine) {
-      showFailureState(FailureType.OFFLINE);
+      this.showFailureState_(FailureType.OFFLINE);
       return;
     }
 
@@ -241,43 +298,24 @@ function init() {
       // If sync fails, check if it's because the user went offline during the
       // process.
       if (!navigator.onLine) {
-        showFailureState(FailureType.OFFLINE);
+        this.showFailureState_(FailureType.OFFLINE);
         return;
       }
-      showFailureState(FailureType.COOKIE_SYNC_FAILED);
+      this.showFailureState_(FailureType.COOKIE_SYNC_FAILED);
       return;
     }
 
-    const url = loadTimeData.getString('glicExperimentalTriggeringOptInURL');
-    if (webview.getAttribute('src') === url) {
+    if (this.webview_.getAttribute('src') === this.optInUrl_) {
       // If the URL is already set, setting it again does nothing. Force a reload.
-      webview.reload();
+      this.webview_.reload();
     } else {
-      webview.setAttribute('src', url);
+      this.webview_.setAttribute('src', this.optInUrl_);
     }
   }
-  if (!hasError) {
-    tryLoad();
-  }
+}
 
-  webview.addEventListener(
-      'loadcommit', ((e: Event) => {
-                      const loadCommitEvent =
-                          e as unknown as chrome.webviewTag.LoadCommitEvent;
-                      if (!loadCommitEvent.isTopLevel) {
-                        return;
-                      }
-                      const urlObj = new URL(loadCommitEvent.url);
-                      const urlHash = urlObj.hash;
-
-                      if (urlHash === '#continue') {
-                        handler.accept();
-                      } else if (urlHash.startsWith('#noThanks')) {
-                        handler.reject();
-                      }
-                    }) as EventListener);
-
-  webview.addEventListener('newwindow', onNewWindow as EventListener);
+function init() {
+  new ExperimentalOptInApp();
 }
 
 if (document.readyState === 'loading') {

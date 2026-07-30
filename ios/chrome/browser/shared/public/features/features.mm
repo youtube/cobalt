@@ -116,15 +116,6 @@ BASE_FEATURE(kTCRexKillSwitch,
              "kTCRexKillSwitch",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kTabGridNewTransitions, base::FEATURE_ENABLED_BY_DEFAULT);
-
-bool IsNewTabGridTransitionsEnabled() {
-  if (IsChromeNextIaEnabled()) {
-    return true;
-  }
-  return base::FeatureList::IsEnabled(kTabGridNewTransitions);
-}
-
 BASE_FEATURE(kTabSwitcherOverflowMenu, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kContextualPanelForceShowEntrypoint,
@@ -388,19 +379,6 @@ BASE_FEATURE(kIOSKeyboardAccessoryDefaultView,
 bool IsIOSKeyboardAccessoryDefaultViewEnabled() {
   return base::FeatureList::IsEnabled(kIOSKeyboardAccessoryDefaultView);
 }
-
-BASE_FEATURE(kIOSKeyboardAccessoryTwoBubble, base::FEATURE_ENABLED_BY_DEFAULT);
-
-bool IsIOSKeyboardAccessoryTwoBubbleEnabled() {
-  return base::FeatureList::IsEnabled(kIOSKeyboardAccessoryTwoBubble);
-}
-
-// Feature parameter for kIOSKeyboardAccessoryTwoBubble.
-BASE_FEATURE_PARAM(bool,
-                   kIOSKeyboardAccessoryTwoBubbleKeyboardIconParam,
-                   &kIOSKeyboardAccessoryTwoBubble,
-                   kIOSKeyboardAccessoryTwoBubbleKeyboardIconParamName,
-                   true);
 
 BASE_FEATURE(kInactiveNavigationAfterAppLaunchKillSwitch,
              "kInactiveNavigationAfterAppLaunchKillSwitch",
@@ -1287,4 +1265,16 @@ BASE_FEATURE(kIdentityAwareness, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsIdentityAwarenessEnabled() {
   return base::FeatureList::IsEnabled(kIdentityAwareness);
+}
+
+BASE_FEATURE(kAiAvatarRingIos, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsAiAvatarRingIosEnabled() {
+  return base::FeatureList::IsEnabled(kAiAvatarRingIos);
+}
+
+BASE_FEATURE(kInfobarBannerRevamp, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsInfobarBannerRevampEnabled() {
+  return base::FeatureList::IsEnabled(kInfobarBannerRevamp);
 }

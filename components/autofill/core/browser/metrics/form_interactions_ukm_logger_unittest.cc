@@ -274,7 +274,7 @@ TEST_F(FieldLogUkmMetricTest, AddressSubmittedFormLogEvents) {
     std::vector<std::vector<UkmMetricNameAndValue>> expected_events;
     for (size_t i = 0; i < 3; ++i) {
       FieldFillingSkipReason status =
-          i == 2 ? FieldFillingSkipReason::kFieldTypeUnrelated
+          i == 2 ? FieldFillingSkipReason::kNoValueToFill
                  : FieldFillingSkipReason::kNotSkipped;
       DenseSet<AutofillStatus> autofill_status_vector;
       int field_log_events_count = 0;

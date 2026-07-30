@@ -6,7 +6,6 @@
 
 #include <utility>
 
-#include "components/browser_apis/tab_drag/adapters/tab_drag_window_adapter.h"
 
 namespace tabs_api {
 
@@ -15,17 +14,20 @@ ToyTabDragSessionListener::~ToyTabDragSessionListener() = default;
 
 void ToyTabDragSessionListener::OnSessionStarted(
     std::vector<tabs_api::NodeId> dragged_tabs,
-    TabDragWindowAdapter* source_window) {
+    TabDragWindowId source_window_id,
+    const gfx::Point& start_point) {
+  CHECK(source_window_id);
   events_.push_back({.type = Event::Type::kStarted,
-                     .window = source_window,
+                     .window_id = source_window_id,
+                     .point = start_point,
                      .dragged_tabs = std::move(dragged_tabs)});
 }
 
-void ToyTabDragSessionListener::OnTargetWindowChanged(
-    TabDragWindowAdapter* new_target,
+void ToyTabDragSessionListener::OnTargetChanged(
+    DropTargetId new_target,
     const gfx::Point& screen_point) {
   events_.push_back({.type = Event::Type::kTargetChanged,
-                     .window = new_target,
+                     .target = new_target,
                      .point = screen_point});
 }
 

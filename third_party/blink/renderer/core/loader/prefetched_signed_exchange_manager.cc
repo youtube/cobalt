@@ -46,7 +46,7 @@
 #include "third_party/blink/renderer/platform/wtf/text/string_hash.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
-#include "third_party/perfetto/include/perfetto/tracing/track.h"
+#include "third_party/perfetto/include/perfetto/tracing/track_event_args.h"
 
 namespace blink {
 
@@ -60,9 +60,9 @@ class PrefetchedSignedExchangeManager::PrefetchedSignedExchangeLoader
       : request_(request),
         task_runner_(std::move(task_runner)),
         throttles_(std::move(throttles)) {
-    TRACE_EVENT_BEGIN("loading", "PrefetchedSignedExchangeLoader",
-                      perfetto::Track::FromPointer(this), "url",
-                      request_.url.spec());
+    TRACE_EVENT_INSTANT("loading", "PrefetchedSignedExchangeLoader::Created",
+                        perfetto::Flow::FromPointer(this), "url",
+                        request_.url.spec());
   }
 
   PrefetchedSignedExchangeLoader(const PrefetchedSignedExchangeLoader&) =
@@ -71,7 +71,8 @@ class PrefetchedSignedExchangeManager::PrefetchedSignedExchangeLoader
       const PrefetchedSignedExchangeLoader&) = delete;
 
   ~PrefetchedSignedExchangeLoader() override {
-    TRACE_EVENT_END("loading", perfetto::Track::FromPointer(this));
+    TRACE_EVENT_INSTANT("loading", "PrefetchedSignedExchangeLoader::Destroyed",
+                        perfetto::TerminatingFlow::FromPointer(this));
   }
 
   base::WeakPtr<PrefetchedSignedExchangeLoader> GetWeakPtr() {
@@ -80,6 +81,8 @@ class PrefetchedSignedExchangeManager::PrefetchedSignedExchangeLoader
 
   void SetURLLoader(std::unique_ptr<URLLoader> url_loader) {
     DCHECK(!url_loader_);
+    TRACE_EVENT_INSTANT("loading", "PrefetchedSignedExchangeLoader::StartLoad",
+                        perfetto::Flow::FromPointer(this));
     url_loader_ = std::move(url_loader);
     ExecutePendingMethodCalls();
   }
@@ -226,8 +229,8 @@ PrefetchedSignedExchangeManager::PrefetchedSignedExchangeManager(
     : frame_(frame),
       alternative_resources_(std::move(alternative_resources)),
       prefetched_exchanges_map_(std::move(prefetched_exchanges_map)) {
-  TRACE_EVENT_BEGIN("loading", "PrefetchedSignedExchangeManager",
-                    perfetto::Track::FromPointer(this));
+  TRACE_EVENT_INSTANT("loading", "PrefetchedSignedExchangeManager::Created",
+                      perfetto::Flow::FromPointer(this));
 }
 
 PrefetchedSignedExchangeManager::~PrefetchedSignedExchangeManager() {}
@@ -360,8 +363,9 @@ void PrefetchedSignedExchangeManager::TriggerLoad() {
       loader->SetURLLoader(
           CreateDefaultURLLoader(loader->request(), loader->TakeThrottles()));
     }
-    TRACE_EVENT_END("loading", perfetto::Track::FromPointer(this),
-                    "match_result", "failure", "reason", failure_reason);
+    TRACE_EVENT_INSTANT(
+        "loading", "PrefetchedSignedExchangeManager::TriggerLoadFailure",
+        perfetto::TerminatingFlow::FromPointer(this), "reason", failure_reason);
     return;
   }
   for (wtf_size_t i = 0; i < loaders_.size(); ++i) {
@@ -380,8 +384,9 @@ void PrefetchedSignedExchangeManager::TriggerLoad() {
     loader->SetURLLoader(CreatePrefetchedSignedExchangeURLLoader(
         loader->request(), loader->TakeThrottles(), loader_factory.Unbind()));
   }
-  TRACE_EVENT_END("loading", perfetto::Track::FromPointer(this), "match_result",
-                  "success");
+  TRACE_EVENT_INSTANT("loading",
+                      "PrefetchedSignedExchangeManager::TriggerLoadSuccess",
+                      perfetto::TerminatingFlow::FromPointer(this));
 }
 
 }  // namespace blink

@@ -6,8 +6,8 @@
 
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
-#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/performance_controls/battery_saver_bubble_view.h"
 #include "chrome/grit/generated_resources.h"
@@ -21,10 +21,10 @@
 #include "ui/views/controls/button/button_controller.h"
 #include "ui/views/view_class_properties.h"
 
-BatterySaverButton::BatterySaverButton(BrowserView* browser_view)
+BatterySaverButton::BatterySaverButton(BrowserWindowInterface* browser)
     : ToolbarButton(base::BindRepeating(&BatterySaverButton::OnClicked,
                                         base::Unretained(this))),
-      browser_view_(browser_view) {
+      browser_(browser) {
   // We use a custom version of the energy saver left icon.
   SetVectorIcon(kBatterySaverRefreshCustomIcon);
   button_controller()->set_notify_action(
@@ -114,8 +114,8 @@ void BatterySaverButton::OnClicked() {
 
 void BatterySaverButton::MaybeShowFeaturePromo() {
   pending_promo_ = false;
-  BrowserUserEducationInterface::From(browser_view_->browser())
-      ->MaybeShowFeaturePromo(feature_engagement::kIPHBatterySaverModeFeature);
+  BrowserUserEducationInterface::From(browser_)->MaybeShowFeaturePromo(
+      feature_engagement::kIPHBatterySaverModeFeature);
 }
 
 void BatterySaverButton::CloseFeaturePromo(bool engaged) {
@@ -123,13 +123,13 @@ void BatterySaverButton::CloseFeaturePromo(bool engaged) {
   // attempting to close the promo bubble
   pending_promo_ = false;
   if (engaged) {
-    BrowserUserEducationInterface::From(browser_view_->browser())
+    BrowserUserEducationInterface::From(browser_)
         ->NotifyFeaturePromoFeatureUsed(
             feature_engagement::kIPHBatterySaverModeFeature,
             FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
   } else {
-    BrowserUserEducationInterface::From(browser_view_->browser())
-        ->AbortFeaturePromo(feature_engagement::kIPHBatterySaverModeFeature);
+    BrowserUserEducationInterface::From(browser_)->AbortFeaturePromo(
+        feature_engagement::kIPHBatterySaverModeFeature);
   }
 }
 

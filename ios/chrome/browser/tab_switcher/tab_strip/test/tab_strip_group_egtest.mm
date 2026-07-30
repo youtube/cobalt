@@ -13,6 +13,7 @@
 #import "ios/chrome/test/earl_grey/chrome_earl_grey_ui.h"
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
 #import "ios/chrome/test/earl_grey/chrome_test_case.h"
+#import "ios/chrome/test/earl_grey/chrome_xcui_actions.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
 #import "ui/base/l10n/l10n_util.h"
 
@@ -176,35 +177,7 @@ void AddTabToNewGroup(id<GREYMatcher> tab_cell_matcher,
                       grey_accessibilityID(kCreateTabGroupViewIdentifier)];
 }
 
-// Finds the element with the given `identifier` of given `type`.
-XCUIElement* GetElementMatchingIdentifier(XCUIApplication* app,
-                                          NSString* identifier,
-                                          XCUIElementType type) {
-  XCUIElementQuery* query = [[app.windows.firstMatch
-      descendantsMatchingType:type] matchingIdentifier:identifier];
-  return [query elementBoundByIndex:0];
-}
 
-// Drags and drops the cell with the given `src_cell_identifier` to the
-// `dst_cell_identifier` position.
-void DragDropTabStripTabCellInTabStripView(NSString* src_cell_identifier,
-                                           NSString* dst_cell_identifier) {
-  XCUIApplication* app = [[XCUIApplication alloc] init];
-  XCUIElement* src_element = GetElementMatchingIdentifier(
-      app, src_cell_identifier, XCUIElementTypeCell);
-  XCUICoordinate* start_point =
-      [src_element coordinateWithNormalizedOffset:CGVectorMake(0.5, 0.5)];
-
-  XCUIElement* dst_element = GetElementMatchingIdentifier(
-      app, dst_cell_identifier, XCUIElementTypeCell);
-  XCUICoordinate* end_point =
-      [dst_element coordinateWithNormalizedOffset:CGVectorMake(0.5, 0.5)];
-
-  [start_point pressForDuration:1.5
-           thenDragToCoordinate:end_point
-                   withVelocity:XCUIGestureVelocityDefault
-            thenHoldForDuration:1.0];
-}
 
 // Long-presses on a tab with `title` to make the context menu appear.
 void LongPressTabWithTitle(NSString* title) {
@@ -872,8 +845,10 @@ void LongPressTabWithTitle(NSString* title) {
   // Tab3, currently active: Chrome URLs
 
   // Move Tab2 to Tab3.
-  DragDropTabStripTabCellInTabStripView(IdentifierForRegularCellAtIndex(2),
-                                        IdentifierForRegularCellAtIndex(3));
+  chrome_test_util::LongPressCellAndDragToOffsetOf(
+      IdentifierForRegularCellAtIndex(2), /*src_window_number=*/0,
+      IdentifierForRegularCellAtIndex(3), /*dst_window_number=*/0,
+      CGVectorMake(0.5, 0.5));
 
   [[EarlGrey selectElementWithMatcher:DeleteGroupConfirmationButton()]
       performAction:grey_tap()];
@@ -911,8 +886,10 @@ void LongPressTabWithTitle(NSString* title) {
   // Tab3, currently active: Chrome URLs
 
   // Move Tab2 to Tab3.
-  DragDropTabStripTabCellInTabStripView(IdentifierForRegularCellAtIndex(2),
-                                        IdentifierForRegularCellAtIndex(3));
+  chrome_test_util::LongPressCellAndDragToOffsetOf(
+      IdentifierForRegularCellAtIndex(2), /*src_window_number=*/0,
+      IdentifierForRegularCellAtIndex(3), /*dst_window_number=*/0,
+      CGVectorMake(0.5, 0.5));
 
   [[EarlGrey selectElementWithMatcher:
                  chrome_test_util::ActionSheetItemWithAccessibilityLabelId(

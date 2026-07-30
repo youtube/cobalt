@@ -20,6 +20,7 @@
 #include "sentencepiece_trainer.h"
 #include "testharness.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "util.h"
 
 namespace sentencepiece {
@@ -104,9 +105,9 @@ TEST(BuilderTest, CompileCharsMap) {
   Builder::CharsMap chars_map;
 
   // Lowercase => Uppercase
-  for (char32 lc = static_cast<char32>('a'); lc <= static_cast<char32>('z');
-       ++lc) {
-    const char32 uc = lc + 'A' - 'a';
+  for (char32_t lc = static_cast<char32_t>('a');
+       lc <= static_cast<char32_t>('z'); ++lc) {
+    const char32_t uc = lc + 'A' - 'a';
     chars_map[{lc}] = {uc};
   }
 
@@ -138,6 +139,47 @@ TEST(BuilderTest, CompileCharsMap) {
   EXPECT_EQ("abcえ", normalizer.Normalize("あいうえ"));
   EXPECT_EQ("ABCabcD", normalizer.Normalize("abcあいうd"));
   EXPECT_EQ("abcか", normalizer.Normalize("あいうえおか"));
+}
+
+TEST(BuilderTest, DecompileMalformedCharsMapTest) {
+  // Assembles a precompiled charsmap from raw darts units and a normalized
+  // block, matching the on-disk <size><trie><normalized> layout.
+  auto make_blob = [](const std::vector<uint32_t>& units,
+                      absl::string_view normalized) {
+    std::string trie_blob;
+    for (const uint32_t u : units)
+      trie_blob += string_util::EncodePOD<uint32_t>(u);
+    std::string blob = string_util::EncodePOD<uint32_t>(
+        static_cast<uint32_t>(trie_blob.size()));
+    blob += trie_blob;
+    blob.append(normalized.data(), normalized.size());
+    return blob;
+  };
+
+  // A leaf stores an offset into the normalized block. Point it one past the
+  // block: the value must be rejected, not dereferenced.
+  {
+    std::vector<uint32_t> units(256, 0);
+    units[0] = 0x05;                       // root: label 5, no leaf.
+    units[1] = 0x01 | 0x100 | (3u << 10);  // byte 1: label 1, leaf, offset 3.
+    const std::string normalized("abc\0", 4);
+    units[2] = 0x80000000u | static_cast<uint32_t>(normalized.size());
+    Builder::CharsMap chars_map;
+    EXPECT_FALSE(
+        Builder::DecompileCharsMap(make_blob(units, normalized), &chars_map)
+            .ok());
+  }
+
+  // A node whose child base lies outside the array must be rejected before it
+  // is walked.
+  {
+    std::vector<uint32_t> units(256, 0);
+    units[5] = 0x3FFu << 10;  // non-leaf unit with an out-of-range offset.
+    Builder::CharsMap chars_map;
+    EXPECT_FALSE(Builder::DecompileCharsMap(
+                     make_blob(units, std::string("x\0", 2)), &chars_map)
+                     .ok());
+  }
 }
 
 static constexpr char kTestInputData[] = "nfkc.tsv";
@@ -191,9 +233,9 @@ TEST(BuilderTest, LoadCharsMapWithEmptyeTest) {
                   .ok());
 
   EXPECT_EQ(3, chars_map.size());
-  EXPECT_EQ(std::vector<char32>({0x0041}), chars_map[{0x0061}]);
-  EXPECT_EQ(std::vector<char32>({}), chars_map[{0x0062}]);
-  EXPECT_EQ(std::vector<char32>({}), chars_map[{0x0063}]);
+  EXPECT_EQ(std::vector<char32_t>({0x0041}), chars_map[{0x0061}]);
+  EXPECT_EQ(std::vector<char32_t>({}), chars_map[{0x0062}]);
+  EXPECT_EQ(std::vector<char32_t>({}), chars_map[{0x0063}]);
 
   EXPECT_TRUE(
       Builder::SaveCharsMap(
@@ -210,7 +252,7 @@ TEST(BuilderTest, LoadCharsMapWithEmptyeTest) {
 
 TEST(BuilderTest, ContainsTooManySharedPrefixTest) {
   Builder::CharsMap chars_map;
-  std::vector<char32> keys;
+  std::vector<char32_t> keys;
   // chars_map contains too many shared prefix ("aaaa...");
   for (int i = 0; i < 100; ++i) {
     keys.push_back('a');
@@ -218,6 +260,20 @@ TEST(BuilderTest, ContainsTooManySharedPrefixTest) {
   }
   std::string output;
   EXPECT_FALSE(Builder::CompileCharsMap(chars_map, &output).ok());
+}
+
+TEST(BuilderTest, DecompileDeepCharsMapTest) {
+  Builder::CharsMap chars_map;
+  std::vector<char32_t> key(1001, 'a');
+  chars_map[key] = {'b'};
+
+  std::string blob;
+  ASSERT_TRUE(Builder::CompileCharsMap(chars_map, &blob).ok());
+
+  Builder::CharsMap decompiled_map;
+  absl::Status status = Builder::DecompileCharsMap(blob, &decompiled_map);
+  EXPECT_FALSE(status.ok());
+  EXPECT_EQ(status.message(), "Max recursion depth exceeded in decompile.");
 }
 
 }  // namespace normalizer

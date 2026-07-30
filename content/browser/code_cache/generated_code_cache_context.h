@@ -68,6 +68,10 @@ class CONTENT_EXPORT GeneratedCodeCacheContext
 
   void Shutdown();
 
+  // Shuts down the context and runs `callback` on the caller's sequence once
+  // all background tasks have completed.
+  void ShutdownForTesting(base::OnceClosure callback);
+
   // Call on the code cache thread to get the code cache instances.
   GeneratedCodeCache* generated_js_code_cache() const;
   GeneratedCodeCache* generated_wasm_code_cache() const;
@@ -117,6 +121,9 @@ class CONTENT_EXPORT GeneratedCodeCacheContext
 
   void InitializeOnThread(const base::FilePath& path, int max_bytes);
   void ShutdownOnThread(
+      DedicatedTaskRunnerForResource task_runner_for_resource);
+  void ShutdownOnThreadForTesting(
+      base::OnceClosure callback,
       DedicatedTaskRunnerForResource task_runner_for_resource);
 
   // Created, used and deleted on the code cache thread. Disabled when

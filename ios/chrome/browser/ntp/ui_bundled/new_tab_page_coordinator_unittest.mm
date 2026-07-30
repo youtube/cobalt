@@ -93,6 +93,10 @@ std::unique_ptr<KeyedService> BuildMockIOSChromeAimEligibilityService(
 
 }  // namespace
 
+@interface NewTabPageHeaderView (Testing)
+@property(nonatomic, readonly) UIButton* customizationMenuButton;
+@end
+
 // Test fixture for testing NewTabPageCoordinator class.
 class NewTabPageCoordinatorTest : public PlatformTest {
  protected:
@@ -407,7 +411,7 @@ TEST_F(NewTabPageCoordinatorTest, StartOffTheRecord) {
 }
 
 // Tests that if the NTPCoordinator properly configures
-// NewTabPageHeaderViewController and NewTabPageTabHelper correctly for
+// NewTabPageHeaderView and NewTabPageTabHelper correctly for
 // Start depending on public lifecycle API calls.
 TEST_F(NewTabPageCoordinatorTest, StartIsStartShowing) {
   CreateCoordinator(/*off_the_record=*/false);

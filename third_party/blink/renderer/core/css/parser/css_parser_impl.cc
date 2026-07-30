@@ -292,10 +292,9 @@ static inline void FilterProperties(
     const CSSPropertyValue& property = values[i];
     if (property.PropertyID() == CSSPropertyID::kVariable) {
       const AtomicString& name = property.CustomPropertyName();
-      if (seen_custom_properties.Contains(name)) {
+      if (!seen_custom_properties.insert(name).is_new_entry) {
         continue;
       }
-      seen_custom_properties.insert(name);
     } else {
       const unsigned property_id_index =
           GetCSSPropertyIDIndex(property.PropertyID());

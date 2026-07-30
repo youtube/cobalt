@@ -67,6 +67,7 @@ enum DisallowActivationReasonId : uint64_t {
   kDidChangeOpener = 43,
   kDidCommitNavigation = 44,
   kStartDragging = 45,
+  kWindowPlacement = 46,
   // New entries go above here. New entries should be added to
   // tools/metrics/histograms/enums.xml .
   kMinEmbedderDisallowActivationReason = 2 << 16,

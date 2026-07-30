@@ -417,6 +417,7 @@
                                                       signin_metrics::
                                                           AccessPoint::
                                                               kSaveToPhotosIos
+                                         confirmChangeProfile:nil
                                          prepareChangeProfile:nil
                                          continuationProvider:
                                              // TODO(crbug.com/484919846):

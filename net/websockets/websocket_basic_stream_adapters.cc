@@ -373,9 +373,10 @@ void WebSocketQuicStreamAdapter::OnInitialHeadersComplete(
     bool fin,
     size_t frame_len,
     const quic::QuicHeaderList& quic_header_list) {
+  int64_t content_length = -1;
   quiche::HttpHeaderBlock response_headers;
-  if (!quic::SpdyUtils::CopyAndValidateHeaders(quic_header_list, nullptr,
-                                               &response_headers)) {
+  if (!quic::SpdyUtils::CopyAndValidateHeaders(
+          quic_header_list, &content_length, &response_headers)) {
     DLOG(ERROR) << "Failed to parse header list: "
                 << quic_header_list.DebugString();
     websocket_quic_spdy_stream_->ConsumeHeaderList();

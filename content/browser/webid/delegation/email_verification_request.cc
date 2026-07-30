@@ -665,6 +665,7 @@ void EmailVerificationRequest::MaybeAddDevToolsIssue(
     case EmailVerificationRequestResult::kJwksInvalidResponse:
     case EmailVerificationRequestResult::
         kTokenVerificationSdJwtUnsupportedHeaderAlg:
+    case EmailVerificationRequestResult::kTokenVerificationSdJwtInvalidTyp:
     case EmailVerificationRequestResult::kTokenVerificationSdJwtMissingIss:
     case EmailVerificationRequestResult::kTokenVerificationSdJwtMissingIat:
     case EmailVerificationRequestResult::kTokenVerificationSdJwtMissingCnf:

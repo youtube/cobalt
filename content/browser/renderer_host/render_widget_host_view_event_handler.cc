@@ -121,7 +121,7 @@ RenderWidgetHostViewEventHandler::RenderWidgetHostViewEventHandler(
       mouse_wheel_phase_handler_(host_view) {}
 
 RenderWidgetHostViewEventHandler::~RenderWidgetHostViewEventHandler() {
-  DCHECK(!mouse_locked_);
+  CHECK(!mouse_locked_, base::NotFatalUntil::M152);
 }
 
 void RenderWidgetHostViewEventHandler::SetPopupChild(
@@ -275,8 +275,9 @@ void RenderWidgetHostViewEventHandler::OnKeyEvent(ui::KeyEvent* event) {
 
 void RenderWidgetHostViewEventHandler::HandleMouseWheelEvent(
     ui::MouseEvent* event) {
-  DCHECK(event);
-  DCHECK_EQ(event->type(), ui::EventType::kMousewheel);
+  CHECK(event, base::NotFatalUntil::M152);
+  CHECK_EQ(event->type(), ui::EventType::kMousewheel,
+           base::NotFatalUntil::M152);
 
 #if BUILDFLAG(IS_WIN)
   if (!mouse_locked_) {
@@ -462,8 +463,8 @@ void RenderWidgetHostViewEventHandler::OnScrollEvent(ui::ScrollEvent* event) {
       mouse_wheel_phase_handler_.ResetTouchpadScrollSequence();
     } else if (event->type() == ui::EventType::kScrollFlingCancel) {
       // The user has put their fingers down.
-      DCHECK_EQ(blink::WebGestureDevice::kTouchpad,
-                gesture_event.SourceDevice());
+      CHECK_EQ(blink::WebGestureDevice::kTouchpad, gesture_event.SourceDevice(),
+               base::NotFatalUntil::M152);
       mouse_wheel_phase_handler_.TouchpadScrollingMayBegin();
     }
   }
@@ -749,7 +750,8 @@ void RenderWidgetHostViewEventHandler::HandleMouseEventWhileLocked(
   aura::client::CursorClient* cursor_client =
       aura::client::GetCursorClient(window_->GetRootWindow());
 
-  DCHECK(!cursor_client || !cursor_client->IsCursorVisible());
+  CHECK(!cursor_client || !cursor_client->IsCursorVisible(),
+        base::NotFatalUntil::M152);
 
   if (event->type() == ui::EventType::kMousewheel) {
     HandleMouseWheelEvent(event);
@@ -817,7 +819,7 @@ void RenderWidgetHostViewEventHandler::ModifyEventMovementAndCoords(
 
 void RenderWidgetHostViewEventHandler::MoveCursorToCenter(
     ui::MouseEvent* event) {
-  DCHECK(!window_->GetHost()->SupportsMouseLock());
+  CHECK(!window_->GetHost()->SupportsMouseLock(), base::NotFatalUntil::M152);
 
   gfx::Point center(gfx::Rect(window_->bounds().size()).CenterPoint());
   gfx::Point center_in_screen(window_->GetBoundsInScreen().CenterPoint());

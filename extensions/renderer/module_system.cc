@@ -611,7 +611,7 @@ v8::Local<v8::String> ModuleSystem::WrapSource(v8::Local<v8::String> source) {
       GetIsolate(),
       "(function(require, requireNative, loadScript, exports, console, "
       "privates, apiBridge, bindingUtil, getInternalApi, $Array, $Function, "
-      "$JSON, $Object, $RegExp, $String, $Error, $Promise) {"
+      "$JSON, $Object, $RegExp, $String, $Error, $Promise, $Symbol) {"
       "'use strict';");
   v8::Local<v8::String> right = ToV8StringUnsafe(GetIsolate(), "\n})");
   return handle_scope.Escape(v8::Local<v8::String>(v8::String::Concat(
@@ -746,6 +746,7 @@ v8::Local<v8::Value> ModuleSystem::LoadModuleWithNativeAPIBridge(
       context_->safe_builtins()->GetString(),
       context_->safe_builtins()->GetError(),
       context_->safe_builtins()->GetPromise(),
+      context_->safe_builtins()->GetSymbol(),
   };
   {
     v8::TryCatch try_catch(GetIsolate());

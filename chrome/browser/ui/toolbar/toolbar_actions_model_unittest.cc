@@ -25,11 +25,12 @@
 #include "chrome/browser/extensions/api/extension_action/extension_action_api.h"
 #include "chrome/browser/extensions/extension_action_test_util.h"
 #include "chrome/browser/extensions/extension_service.h"
-#include "chrome/browser/extensions/extension_service_user_test_base.h"
+#include "chrome/browser/extensions/extension_service_test_with_install.h"
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/extensions/test_extension_system.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/toolbar/test_toolbar_action_view_model.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/pref_names.h"
 #include "components/crx_file/id_util.h"
 #include "components/policy/core/common/policy_map.h"
@@ -122,7 +123,7 @@ ToolbarActionsModelTestObserver::~ToolbarActionsModelTestObserver() {
 }  // namespace
 
 class ToolbarActionsModelUnitTest
-    : public extensions::ExtensionServiceUserTestBase {
+    : public extensions::ExtensionServiceTestWithInstall {
  public:
   ToolbarActionsModelUnitTest() = default;
 
@@ -159,6 +160,20 @@ class ToolbarActionsModelUnitTest
   // Test that certain histograms are emitted for user and non-user profiles
   // (for ChromeOS Ash we look at user accounts vs profiles).
   void RunEmitUserHistogramsTest(int incremented_histogram_count);
+
+  // Helper to build and install an extension with a toolbar action.
+  const extensions::Extension* InstallExtensionWithAction(
+      extensions::TestExtensionDir& dir,
+      const std::string& name) {
+    dir.WriteManifest(base::StringPrintf(R"({
+      "name": "%s",
+      "manifest_version": 3,
+      "version": "1.0",
+      "action": {}
+    })",
+                                         name.c_str()));
+    return PackAndInstallCRX(dir.UnpackedPath(), INSTALL_NEW);
+  }
 
   ToolbarActionsModel* toolbar_model() { return toolbar_model_; }
 
@@ -224,7 +239,7 @@ void ToolbarActionsModelUnitTest::InitToolbarModelAndObserver() {
 void ToolbarActionsModelUnitTest::TearDown() {
   model_observer_.reset();
   toolbar_model_ = nullptr;
-  extensions::ExtensionServiceUserTestBase::TearDown();
+  extensions::ExtensionServiceTestWithInstall::TearDown();
 }
 
 void ToolbarActionsModelUnitTest::RunEmitUserHistogramsTest(
@@ -354,7 +369,7 @@ TEST_F(ToolbarActionsModelUnitTest, BasicToolbarActionsModelTest) {
   EXPECT_EQ(1u, observer()->inserted_count());
   EXPECT_THAT(toolbar_model()->action_ids(),
               ::testing::UnorderedElementsAre(extension->id()));
-  // It should be unpinned.
+  // It should be unpinned when loaded (since it was not installed in this run).
   EXPECT_THAT(toolbar_model()->pinned_action_ids(), ::testing::IsEmpty());
 
   // Remove the extension and verify it is removed in the model.
@@ -364,54 +379,73 @@ TEST_F(ToolbarActionsModelUnitTest, BasicToolbarActionsModelTest) {
   EXPECT_THAT(toolbar_model()->pinned_action_ids(), ::testing::IsEmpty());
 }
 
-// Test that new extension actions are always visible on installation and
-// inserted at the "end" of the visible section.
-TEST_F(ToolbarActionsModelUnitTest, NewToolbarExtensionsAreUnpinned) {
+// Test that new extension actions are always pinned on installation and
+// appended to the end of the pinned list when the kExtensionsPinnedByDefault
+// feature is enabled.
+TEST_F(ToolbarActionsModelUnitTest,
+       NewExtensionsArePinnedWhenPinnedByDefaultEnabled) {
+  base::test::ScopedFeatureList feature_list(
+      features::kExtensionsPinnedByDefault);
   Init();
-
-  // Three extensions with actions.
-  scoped_refptr<const extensions::Extension> extension_a =
-      extensions::ExtensionBuilder("a")
-          .SetAction(extensions::ActionInfo::Type::kBrowser)
-          .SetLocation(ManifestLocation::kInternal)
-          .Build();
-  scoped_refptr<const extensions::Extension> extension_b =
-      extensions::ExtensionBuilder("b")
-          .SetAction(extensions::ActionInfo::Type::kBrowser)
-          .SetLocation(ManifestLocation::kInternal)
-          .Build();
-  scoped_refptr<const extensions::Extension> extension_c =
-      extensions::ExtensionBuilder("c")
-          .SetAction(extensions::ActionInfo::Type::kBrowser)
-          .SetLocation(ManifestLocation::kInternal)
-          .Build();
 
   // We should start off without any actions.
   EXPECT_EQ(0u, num_actions());
 
-  // Add one action. It should be unpinned.
-  EXPECT_TRUE(AddExtension(extension_a.get()));
+  // Add one action and trigger installation. It should be pinned by default.
+  extensions::TestExtensionDir test_dir_a;
+  const extensions::Extension* extension_a =
+      InstallExtensionWithAction(test_dir_a, "a");
+  ASSERT_TRUE(extension_a);
+
   EXPECT_EQ(1u, num_actions());
-  EXPECT_THAT(toolbar_model()->pinned_action_ids(), ::testing::IsEmpty());
+  EXPECT_THAT(toolbar_model()->pinned_action_ids(),
+              ::testing::ElementsAre(extension_a->id()));
 
-  // Add a second. It should also be unpinned (even with existing extensions,
-  // default state is unpinned).
-  EXPECT_TRUE(AddExtension(extension_b.get()));
+  // Add a second and trigger installation. It should also be pinned by default.
+  extensions::TestExtensionDir test_dir_b;
+  const extensions::Extension* extension_b =
+      InstallExtensionWithAction(test_dir_b, "b");
+  ASSERT_TRUE(extension_b);
+
   EXPECT_EQ(2u, num_actions());
-  EXPECT_THAT(toolbar_model()->pinned_action_ids(), ::testing::IsEmpty());
+  EXPECT_THAT(toolbar_model()->pinned_action_ids(),
+              ::testing::ElementsAre(extension_a->id(), extension_b->id()));
 
-  // Pin the second. It should now be the only pinned icon.
-  toolbar_model()->SetActionVisibility(extension_b->id(), true);
+  // Unpin the first. Only the second should be pinned.
+  toolbar_model()->SetActionVisibility(extension_a->id(), false);
   EXPECT_EQ(2u, num_actions());
   EXPECT_THAT(toolbar_model()->pinned_action_ids(),
               ::testing::ElementsAre(extension_b->id()));
 
-  // Add a third extension. It should be unpinned (pin state should not carry
-  // to new extensions).
-  EXPECT_TRUE(AddExtension(extension_c.get()));
+  // Add a third extension and trigger installation. It should be pinned by
+  // default.
+  extensions::TestExtensionDir test_dir_c;
+  const extensions::Extension* extension_c =
+      InstallExtensionWithAction(test_dir_c, "c");
+  ASSERT_TRUE(extension_c);
+
   EXPECT_EQ(3u, num_actions());
   EXPECT_THAT(toolbar_model()->pinned_action_ids(),
-              ::testing::ElementsAre(extension_b->id()));
+              ::testing::ElementsAre(extension_b->id(), extension_c->id()));
+}
+
+// Test that new extension actions are NOT pinned on installation when the
+// feature is disabled.
+TEST_F(ToolbarActionsModelUnitTest,
+       NewExtensionsAreUnpinnedWhenPinnedByDefaultDisabled) {
+  Init();
+
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(features::kExtensionsPinnedByDefault);
+
+  // Load an extension.
+  extensions::TestExtensionDir test_dir;
+  const extensions::Extension* extension =
+      InstallExtensionWithAction(test_dir, "test_extension");
+  ASSERT_TRUE(extension);
+
+  EXPECT_EQ(1u, num_actions());
+  EXPECT_THAT(toolbar_model()->pinned_action_ids(), ::testing::IsEmpty());
 }
 
 // Test that the model contains all types of extensions, except those which
@@ -1175,6 +1209,62 @@ TEST_F(ToolbarActionsModelUnitTest, DefaultPinnedByPolicy) {
     observer.WaitForExtensionLoaded();
   }
 
+  EXPECT_FALSE(toolbar_model()->IsActionPinned(extension->id()));
+  EXPECT_THAT(toolbar_model()->pinned_action_ids(), ::testing::IsEmpty());
+}
+
+TEST_F(ToolbarActionsModelUnitTest,
+       DefaultPinnedByFeatureFlag_UserUnpinPreserved) {
+  Init();
+
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kExtensionsPinnedByDefault);
+
+  // Install an extension. It should be pinned by default.
+  extensions::TestExtensionDir test_dir;
+  const extensions::Extension* extension =
+      InstallExtensionWithAction(test_dir, "test extension");
+  ASSERT_TRUE(extension);
+
+  EXPECT_TRUE(toolbar_model()->IsActionPinned(extension->id()));
+  EXPECT_THAT(toolbar_model()->pinned_action_ids(),
+              ::testing::ElementsAre(extension->id()));
+
+  // The user unpins the extension.
+  toolbar_model()->SetActionVisibility(extension->id(), false);
+  EXPECT_FALSE(toolbar_model()->IsActionPinned(extension->id()));
+  EXPECT_THAT(toolbar_model()->pinned_action_ids(), ::testing::IsEmpty());
+
+  // Generate a valid 32-character dummy extension ID.
+  std::string other_extension_id =
+      crx_file::id_util::GenerateId("other_extension");
+
+  // Trigger policy update (which will invoke
+  // OnExtensionManagementSettingsChanged).
+  std::string json = base::StringPrintf(
+      R"({
+        "%s": {
+          "installation_mode": "blocked"
+        }
+      })",
+      other_extension_id.c_str());
+  auto parsed =
+      base::JSONReader::Read(json, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
+  ASSERT_TRUE(parsed);
+  policy::PolicyMap map;
+  map.Set("ExtensionSettings", policy::POLICY_LEVEL_MANDATORY,
+          policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_PLATFORM,
+          std::move(*parsed), nullptr);
+  policy_provider()->UpdateChromePolicy(map);
+
+  auto* extension_management =
+      extensions::ExtensionManagementFactory::GetForBrowserContext(profile());
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return extension_management->IsInstallationExplicitlyBlocked(
+        other_extension_id);
+  }));
+
+  // The extension should remain unpinned.
   EXPECT_FALSE(toolbar_model()->IsActionPinned(extension->id()));
   EXPECT_THAT(toolbar_model()->pinned_action_ids(), ::testing::IsEmpty());
 }

@@ -724,7 +724,8 @@ void ContentWebState::TitleWasSet(content::NavigationEntry* entry) {
 
 void ContentWebState::DidUpdateFaviconURL(
     content::RenderFrameHost* render_frame_host,
-    const std::vector<blink::mojom::FaviconURLPtr>& candidates) {
+    const std::vector<blink::mojom::FaviconURLPtr>& candidates,
+    blink::mojom::FaviconUpdateReason reason) {
   if (!render_frame_host->IsInPrimaryMainFrame()) {
     return;
   }

@@ -247,6 +247,14 @@ class MockPasswordManagerClient : public StubPasswordManagerClient {
               (PasswordManagerDriver*),
               (override));
   MOCK_METHOD(void, NotifyKeychainError, (), (override));
+  MOCK_METHOD(PasswordStoreInterface*,
+              GetProfilePasswordStore,
+              (),
+              (const, override));
+  MOCK_METHOD(PasswordStoreInterface*,
+              GetAccountPasswordStore,
+              (),
+              (const, override));
 #if BUILDFLAG(IS_ANDROID)
   MOCK_METHOD(void,
               ShowPasswordManagerErrorMessage,
@@ -413,10 +421,9 @@ class MockFormSaver : public StubFormSaver {
   }
 };
 
-class PasswordFormManagerTest : public testing::Test,
-                                public testing::WithParamInterface<bool> {
+class PasswordFormManagerTestBase : public testing::Test {
  public:
-  PasswordFormManagerTest()
+  PasswordFormManagerTestBase()
       : task_runner_(new TestMockTimeTaskRunner),
         possible_usernames_(/*max_size=*/2) {
     pref_service_.registry()->RegisterTimePref(
@@ -560,12 +567,14 @@ class PasswordFormManagerTest : public testing::Test,
   void SetUp() override { CreateFormManager(observed_form_); }
 
  protected:
+  virtual bool use_account_saver() const { return false; }
+
   // Creates PasswordFormManager and sets it to |form_manager_|. Along the
   // way a new |fetcher_| is created.
   virtual void CreateFormManager(const FormData& observed_form) {
     auto password_save_manager = std::make_unique<PasswordSaveManagerImpl>(
         /*profile_form_saver=*/std::make_unique<NiceMock<MockFormSaver>>(),
-        /*account_form_saver=*/GetParam()
+        /*account_form_saver=*/use_account_saver()
             ? std::make_unique<NiceMock<MockFormSaver>>()
             : nullptr);
 
@@ -579,7 +588,7 @@ class PasswordFormManagerTest : public testing::Test,
   virtual void CreateFormManagerWithoutFetcher(const FormData& observed_form) {
     auto password_save_manager = std::make_unique<PasswordSaveManagerImpl>(
         /*profile_form_saver=*/std::make_unique<NiceMock<MockFormSaver>>(),
-        /*account_form_saver=*/GetParam()
+        /*account_form_saver=*/use_account_saver()
             ? std::make_unique<NiceMock<MockFormSaver>>()
             : nullptr);
 
@@ -594,7 +603,7 @@ class PasswordFormManagerTest : public testing::Test,
       const PasswordForm& base_auth_observed_form) {
     auto password_save_manager = std::make_unique<PasswordSaveManagerImpl>(
         /*profile_form_saver=*/std::make_unique<NiceMock<MockFormSaver>>(),
-        /*account_form_saver=*/GetParam()
+        /*account_form_saver=*/use_account_saver()
             ? std::make_unique<NiceMock<MockFormSaver>>()
             : nullptr);
     fetcher_->set_scheme(PasswordFormDigest(base_auth_observed_form).scheme);
@@ -704,6 +713,12 @@ class PasswordFormManagerTest : public testing::Test,
   autofill::test::AutofillUnitTestEnvironment autofill_test_environment_;
   NiceMock<autofill::MockAutofillCrowdsourcingManager>
       mock_autofill_crowdsourcing_manager_{/*client=*/nullptr};
+};
+
+class PasswordFormManagerTest : public PasswordFormManagerTestBase,
+                                public testing::WithParamInterface<bool> {
+ protected:
+  bool use_account_saver() const override { return GetParam(); }
 };
 
 TEST_P(PasswordFormManagerTest, DoesManage) {
@@ -4999,7 +5014,8 @@ class MockPasswordSaveManager : public PasswordSaveManager {
   MOCK_METHOD(void, SetShouldStoreActorLoginPermission, (), (override));
 };
 
-class PasswordFormManagerTestWithMockedSaver : public PasswordFormManagerTest {
+class PasswordFormManagerTestWithMockedSaver
+    : public PasswordFormManagerTestBase {
  public:
   PasswordFormManagerTestWithMockedSaver() = default;
   PasswordFormManagerTestWithMockedSaver(

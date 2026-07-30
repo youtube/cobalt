@@ -61,14 +61,14 @@ const char kTestChromeSchema[] = R"(
     })";
 
 constexpr auto kTestPolicyDetails = std::to_array<PolicyDetails>({
-    // is_deprecated is_future is_device_policy source_restriction id
-    // max_external_data_size
-    {false, false, kProfile, kSourceRestrictionNone, kTestPolicy1Id, 0},
-    {false, false, kProfile, kSourceRestrictionNone, kTestPolicy2Id, 0},
-    {false, false, kProfile, kSourceRestrictionNone, kTestPolicy3Id, 0},
-    {false, false, kProfile, kSourceRestrictionNone, kEnrollmentTokenPolicyId,
+    // is_deprecated, is_future, supports_dynamic_refresh, is_device_policy,
+    // source_restriction id, max_external_data_size
+    {false, false, false, kProfile, kSourceRestrictionNone, kTestPolicy1Id, 0},
+    {false, false, false, kProfile, kSourceRestrictionNone, kTestPolicy2Id, 0},
+    {false, false, false, kProfile, kSourceRestrictionNone, kTestPolicy3Id, 0},
+    {false, false, false, kProfile, kSourceRestrictionNone, kEnrollmentTokenPolicyId,
      0},
-    {false, false, kProfile, kSourceRestrictionNone, kEnrollmentOptionPolicyId,
+    {false, false, false, kProfile, kSourceRestrictionNone, kEnrollmentOptionPolicyId,
      0},
 });
 

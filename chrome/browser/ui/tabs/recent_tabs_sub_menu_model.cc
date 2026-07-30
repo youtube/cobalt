@@ -593,7 +593,7 @@ void RecentTabsSubMenuModel::BuildLocalTabItem(
   if (tab.group_visual_data.has_value() &&
       curr_model_index > recent_tabs_title_index_.value() + 1) {
     const ui::ColorProvider* color_provider =
-        browser_->window()->GetColorProvider();
+        BrowserWindow::FromBrowser(browser_)->GetColorProvider();
     const ui::ColorId color_id =
         GetTabGroupContextMenuColorId(tab.group_visual_data.value().color());
     constexpr int kIconSize = 12;
@@ -640,7 +640,7 @@ void RecentTabsSubMenuModel::BuildLocalGroupItem(
 
   // Set the item icon to the group color.
   const ui::ColorProvider* color_provider =
-      browser_->window()->GetColorProvider();
+      BrowserWindow::FromBrowser(browser_)->GetColorProvider();
   const ui::ColorId color_id =
       GetTabGroupContextMenuColorId(group.visual_data.color());
   ui::ImageModel group_icon = ui::ImageModel::FromVectorIcon(
@@ -847,7 +847,7 @@ void RecentTabsSubMenuModel::AddGroupItemToModel(
       GetGroupItemLabel(group.visual_data.title(), item_count);
   // Set the item icon to the group color.
   const ui::ColorProvider* color_provider =
-      browser_->window()->GetColorProvider();
+      BrowserWindow::FromBrowser(browser_)->GetColorProvider();
   const ui::ColorId color_id =
       GetTabGroupContextMenuColorId(group.visual_data.color());
   ui::ImageModel group_icon = ui::ImageModel::FromVectorIcon(

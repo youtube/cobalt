@@ -16,7 +16,8 @@ class UpdateRecommendedDialogTest : public DialogBrowserTest {
       delete;
 
   void ShowUi(const std::string& name) override {
-    InProcessBrowserTest::browser()->window()->ShowUpdateChromeDialog();
+    BrowserWindow::FromBrowser(InProcessBrowserTest::browser())
+        ->ShowUpdateChromeDialog();
   }
 };
 

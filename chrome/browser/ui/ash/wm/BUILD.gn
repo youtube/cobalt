@@ -26,6 +26,7 @@ static_library("wm") {
     "//chrome/browser/ash/browser_delegate",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/signin",
+    "//chrome/browser/ui:browser_tab_strip_tracker",
     "//chrome/browser/ui/ash/desks",
     "//chrome/browser/ui/webui/ash/scanner_feedback_dialog",
     "//chromeos/ash/components/browser_context_helper",

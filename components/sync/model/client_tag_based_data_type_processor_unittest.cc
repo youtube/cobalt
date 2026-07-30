@@ -253,6 +253,7 @@ class TestDataTypeSyncBridge : public FakeDataTypeSyncBridge {
     merge_call_count_++;
 
     if (merge_full_sync_data_error_.has_value()) {
+      metadata_change_list->DropAllChanges();
       return merge_full_sync_data_error_;
     }
 

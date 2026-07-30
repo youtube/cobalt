@@ -153,6 +153,8 @@ class GPU_GLES2_EXPORT D3DImageBacking final
 
   Microsoft::WRL::ComPtr<ID3D12Resource> GetD3D12Buffer() const;
 
+  base::win::ScopedHandle GetD3D12HeapHandle() const;
+
   std::optional<scoped_refptr<gfx::D3DSharedFence>> BeginAccessWebNN();
   void EndAccessWebNN(scoped_refptr<gfx::D3DSharedFence> signaled_fence);
 

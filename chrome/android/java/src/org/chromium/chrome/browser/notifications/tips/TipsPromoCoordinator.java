@@ -114,7 +114,7 @@ public class TipsPromoCoordinator {
 
     private final Context mContext;
     private final BottomSheetController mBottomSheetController;
-    private final QuickDeleteController mQuickDeleteController;
+    private final Supplier<QuickDeleteController> mQuickDeleteControllerCreator;
     private final BottomSheetSigninAndHistorySyncCoordinator mSigninCoordinator;
     private final ChromeTabCreator mRegularTabCreator;
     private final WindowAndroid mWindowAndroid;
@@ -134,7 +134,7 @@ public class TipsPromoCoordinator {
      *
      * @param context The Android {@link Context}.
      * @param bottomSheetController The system {@link BottomSheetController}.
-     * @param quickDeleteController The controller to for the quick delete dialog.
+     * @param quickDeleteControllerCreator The creator for the quick delete controller.
      * @param signinCoordinator The coordinator for the sign-in promo bottom sheet.
      * @param regularTabCreator The {@link ChromeTabCreator} to open new tabs when necessary.
      * @param windowAndroid The current WindowAndroid.
@@ -146,7 +146,7 @@ public class TipsPromoCoordinator {
     public TipsPromoCoordinator(
             Context context,
             BottomSheetController bottomSheetController,
-            QuickDeleteController quickDeleteController,
+            Supplier<QuickDeleteController> quickDeleteControllerCreator,
             BottomSheetSigninAndHistorySyncCoordinator signinCoordinator,
             ChromeTabCreator regularTabCreator,
             WindowAndroid windowAndroid,
@@ -156,7 +156,7 @@ public class TipsPromoCoordinator {
             @TipsNotificationsFeatureType int featureType) {
         mContext = context;
         mBottomSheetController = bottomSheetController;
-        mQuickDeleteController = quickDeleteController;
+        mQuickDeleteControllerCreator = quickDeleteControllerCreator;
         mSigninCoordinator = signinCoordinator;
         mRegularTabCreator = regularTabCreator;
         mWindowAndroid = windowAndroid;
@@ -283,7 +283,7 @@ public class TipsPromoCoordinator {
                 mContext.startActivity(intent);
                 break;
             case TipsNotificationsFeatureType.QUICK_DELETE:
-                mQuickDeleteController.showDialog();
+                mQuickDeleteControllerCreator.get().showDialog();
                 break;
             case TipsNotificationsFeatureType.GOOGLE_LENS:
                 LensMetrics.recordClicked(LensEntryPoint.TIPS_NOTIFICATIONS);

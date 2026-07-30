@@ -7,11 +7,11 @@
 #import <AuthenticationServices/AuthenticationServices.h>
 
 #import "ios/chrome/common/credential_provider/credential_store.h"
+#import "ios/chrome/common/credential_provider/net_util.h"
 #import "ios/chrome/credential_provider_extension/ui/credential_list_consumer.h"
 #import "ios/chrome/credential_provider_extension/ui/credential_list_ui_handler.h"
 #import "ios/chrome/credential_provider_extension/ui/credential_response_handler.h"
 #import "ios/chrome/credential_provider_extension/ui/feature_flags.h"
-#import "ios/chrome/credential_provider_extension/ui/net_util.h"
 #import "ios/chrome/credential_provider_extension/ui/ui_util.h"
 
 @interface CredentialListMediator () <CredentialListHandler>
@@ -220,7 +220,7 @@
   if (credential.registryControlledDomain.length == 0) {
     return NO;
   }
-  return credential_provider_extension::SecureHostsMatch(
+  return credential_provider::SecureHostsMatch(
       requestedHost, credential.registryControlledDomain);
 }
 
@@ -257,8 +257,7 @@
                          : nil;
     NSString* credHost = credURL.host ?: credential.serviceIdentifier;
 
-    if (credential_provider_extension::SecureHostsMatch(requestedHost,
-                                                        credHost)) {
+    if (credential_provider::SecureHostsMatch(requestedHost, credHost)) {
       return YES;
     }
   }

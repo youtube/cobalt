@@ -220,6 +220,16 @@ bool ScoreLineBreaker::Optimize(const LineInfoList& line_info_list,
   // Determine final break points.
   ComputeBreakPoints(candidates, scores, break_points);
 
+  // If the optimal layout produces a different number of lines than the greedy
+  // layout, fallback to greedy. The [spec] allows different number of lines for
+  // `pretty`, and for `balance` of more than 5 lines, but the code needs some
+  // updates to support it.
+  // [spec]: https://drafts.csswg.org/css-text-4/#text-wrap-style
+  if (break_points.size() != line_info_list.Size()) {
+    break_points.clear();
+    return false;
+  }
+
   // Copy data for testing.
   if (scores_out_for_testing_) [[unlikely]] {
     for (const LineBreakScore& score : scores) {

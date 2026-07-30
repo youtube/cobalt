@@ -152,8 +152,8 @@ const Suggestion kSuggestions[] = {
 const Suggestion kExpandableSuggestions[] = {
     CreateSuggestionWithChildren(
         u"Address_entry",
-        SuggestionType::kAddressEntry,
-        {Suggestion(u"Username", SuggestionType::kPasswordEntry)}),
+        SuggestionType::kDevtoolsTestAddresses,
+        {Suggestion(u"Address", SuggestionType::kAddressEntry)}),
     CreateAllLoyaltyCardsEntry()};
 
 const Suggestion kBnplSuggestions[] = {

@@ -526,8 +526,14 @@ ClipboardCommands::GetFragmentFromClipboard(LocalFrame& frame) {
   if (fragment)
     return std::make_pair(fragment, false);
 
-  if (const String markup = frame.GetSystemClipboard()->ReadImageAsImageMarkup(
-          mojom::blink::ClipboardBuffer::kStandard)) {
+  String markup;
+  if (RuntimeEnabledFeatures::ClipboardPasteImageRespectBufferEnabled()) {
+    markup = frame.GetSystemClipboard()->ReadImageAsImageMarkup();
+  } else {
+    markup = frame.GetSystemClipboard()->ReadImageAsImageMarkup(
+        mojom::blink::ClipboardBuffer::kStandard);
+  }
+  if (!markup.empty()) {
     fragment = CreateFragmentFromMarkup(*frame.GetDocument(), markup,
                                         /* base_url */ "",
                                         kDisallowScriptingAndPluginContent);
@@ -772,7 +778,7 @@ class CORE_EXPORT PasteImageResourceObserver final
   const KURL src_;
 };
 
-void ClipboardCommands::PasteFromImageURL(LocalFrame& frame,
+void ClipboardCommands::PasteFromImageUrl(LocalFrame& frame,
                                           EditorCommandSource source,
                                           const String src) {
   DCHECK(frame.GetDocument());
@@ -876,11 +882,11 @@ bool ClipboardCommands::ExecutePasteAndMatchStyle(LocalFrame& frame,
   return true;
 }
 
-bool ClipboardCommands::ExecutePasteFromImageURL(LocalFrame& frame,
+bool ClipboardCommands::ExecutePasteFromImageUrl(LocalFrame& frame,
                                                  Event*,
                                                  EditorCommandSource source,
                                                  const String& src) {
-  PasteFromImageURL(frame, source, src);
+  PasteFromImageUrl(frame, source, src);
   return true;
 }
 

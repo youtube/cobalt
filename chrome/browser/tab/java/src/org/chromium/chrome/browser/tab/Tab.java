@@ -248,6 +248,13 @@ public interface Tab extends TabLifecycle {
     boolean isFrozen();
 
     /**
+     * Suppresses view focus changes for the WebContents.
+     *
+     * @param suppressed Whether to suppress focus changes.
+     */
+    void setFocusChangeSuppressed(boolean suppressed);
+
+    /**
      * Returns Whether the tab can currently be interacted with by the user. This requires the view
      * owned by the Tab to be visible and in a state where the user can interact with it (i.e. not
      * in something like the phone tab switcher).

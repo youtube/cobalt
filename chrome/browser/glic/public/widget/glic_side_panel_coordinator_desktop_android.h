@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_GLIC_PUBLIC_WIDGET_GLIC_SIDE_PANEL_COORDINATOR_DESKTOP_ANDROID_H_
 #define CHROME_BROWSER_GLIC_PUBLIC_WIDGET_GLIC_SIDE_PANEL_COORDINATOR_DESKTOP_ANDROID_H_
 
+#include "base/android/scoped_java_ref.h"
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -89,6 +90,8 @@ class GlicSidePanelCoordinatorDesktopAndroid : public GlicSidePanelCoordinator,
   raw_ptr<GlicKeyedService> glic_service_ = nullptr;
 
   std::unique_ptr<GlicToast> resize_toast_;
+
+  base::android::ScopedJavaGlobalRef<jobject> java_component_provider_;
 
   base::WeakPtrFactory<GlicSidePanelCoordinatorDesktopAndroid>
       weak_ptr_factory_{this};

@@ -234,6 +234,7 @@ class WaylandSurface {
   FRIEND_TEST_ALL_PREFIXES(WaylandWindowTest, UiScale_InitScaleAndBounds);
   FRIEND_TEST_ALL_PREFIXES(WaylandWindowTest, UiScale_HandlePopupGeometry);
   FRIEND_TEST_ALL_PREFIXES(WaylandSurfaceTest, SetExplicitSyncSuccess);
+  FRIEND_TEST_ALL_PREFIXES(WaylandSurfaceScaleTest, GetWaylandScaleSubOne);
   FRIEND_TEST_ALL_PREFIXES(WaylandSurfaceExplicitSyncTest,
                            ConfigureWithExplicitSync);
   FRIEND_TEST_ALL_PREFIXES(WaylandSurfaceExplicitSyncTest,
@@ -310,11 +311,12 @@ class WaylandSurface {
   };
 
   // The wayland scale refers to the scale factor between the buffer coordinates
-  // and Wayland surface coordinates. When SurfaceSubmissionInPixelCoordinates
-  // is true, this is always 1. Otherwise, this is buffer_scale_float unless the
-  // value is less than 1. In that case 1 is returned. Additionally, if
-  // viewporter surface scaling is disabled, the value will be rounded up to the
-  // next integer.
+  // and Wayland surface coordinates.
+  // - If viewporter surface scaling is enabled, buffer_scale_float is returned
+  //   as-is, including values less than 1 (wp_viewport handles the scaling).
+  // - If viewporter surface scaling is disabled, the value is rounded up to the
+  //   next integer and clamped to at least 1, since wl_surface_set_buffer_scale
+  //   only accepts integers >= 1.
   float GetWaylandScale(const State& state);
 
   bool IsViewportScaled(const State& state);

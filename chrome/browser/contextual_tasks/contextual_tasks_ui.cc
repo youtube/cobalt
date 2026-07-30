@@ -609,6 +609,12 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   source->AddBoolean("hideMenuOnAiPageEnabled",
                      base::FeatureList::IsEnabled(
                          contextual_tasks::kContextualTasksHideMenuOnAiPage));
+  source->AddBoolean("contextualTasksEnableSpatialModelToolbarLayout",
+      contextual_tasks::GetContextualTasksSpatialModelToolbarLayoutEnabled());
+  source->AddBoolean(
+      "contextualTasksEnableSpatialModelToolbarLayoutNewThreadInOverflow",
+      contextual_tasks::
+          GetContextualTasksSpatialModelToolbarLayoutNewThreadInOverflow());
   source->AddBoolean(
       "contextManagementInComposeboxEnabled",
       base::FeatureList::IsEnabled(omnibox::kContextManagementInComposebox));
@@ -719,6 +725,7 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       this, std::vector<ui::ElementIdentifier>{
                 kSmartTabSharingMenuItemElementId,
                 kContextualTasksWebUIPinButtonElementId,
+                kContextualTasksWebUIToolbarElementId,
                 kContextualTasksWebUIOverflowMenuElementId,
                 kContextualTasksWebUIOverflowMenuPinButtonElementId});
 #endif

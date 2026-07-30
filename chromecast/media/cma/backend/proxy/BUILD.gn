@@ -12,8 +12,6 @@ template("chromecast_media_grpc_library") {
   grpc_library(target_name) {
     proto_in_dir = "//"
 
-    # NOTE: For using built-in proto files like empty.proto.
-    import_dirs = [ "//third_party/protobuf/src" ]
     use_protobuf_full = true
 
     forward_variables_from(invoker,

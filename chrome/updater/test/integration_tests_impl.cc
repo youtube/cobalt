@@ -1084,6 +1084,8 @@ void InstallAppViaService(UpdaterScope scope,
           expected_final_values.FindInt("expected_result");
       expected_result) {
     EXPECT_EQ(static_cast<int>(final_result), *expected_result);
+  } else if (expected_final_values.FindBool("expect_failure").value_or(false)) {
+    EXPECT_NE(final_result, UpdateService::Result::kSuccess);
   }
 }
 

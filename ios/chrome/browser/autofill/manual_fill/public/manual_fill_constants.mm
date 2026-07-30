@@ -7,6 +7,7 @@
 #import "base/feature_list.h"
 #import "components/autofill/core/common/autofill_features.h"
 #import "components/webauthn/ios/features.h"
+#import "ui/base/device_form_factor.h"
 
 namespace manual_fill {
 
@@ -84,6 +85,10 @@ NSString* const kAccessoryKeyboardAccessibilityIdentifier =
 }  // namespace manual_fill
 
 @implementation ManualFillUtil
+
++ (BOOL)shouldUsePopover {
+  return ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET;
+}
 
 + (manual_fill::ManualFillDataType)manualFillDataTypeFromFillingProduct:
     (autofill::FillingProduct)fillingProduct {

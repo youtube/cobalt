@@ -237,7 +237,6 @@ TEST_F(ExternalBeginFrameSourceMacTest, GetSupportedFrameIntervals) {
 // Tests the keep-alive counter behavior where DisplayLink callbacks continue to
 // be registered for a limited count after begin frames are no longer needed.
 TEST_F(ExternalBeginFrameSourceMacTest, OnNeedsBeginFrames) {
-  EXPECT_FALSE(source_->vsync_callback_mac());
   source_->OnNeedsBeginFrames(true);
   EXPECT_TRUE(source_->vsync_callback_mac());
 
@@ -287,7 +286,6 @@ TEST_F(ExternalBeginFrameSourceMacTest, UpdateVSyncDisplay) {
   EXPECT_FALSE(source_->display_link_mac());
   EXPECT_TRUE(source_->time_source());
 
-  source_->DidReceiveNewCALayerParams();
   source_->UpdateVSyncDisplay(/*display_id=*/1,
                               /*is_browser_vsync_supported=*/true);
   EXPECT_TRUE(source_->display_link_mac());
@@ -400,10 +398,16 @@ TEST_F(ExternalBeginFrameSourceMacTimerTest, SetVSyncDisplayIDFailure) {
 
 // Verifies preferred interval settings while in timer fallback mode.
 TEST_F(ExternalBeginFrameSourceMacTimerTest, SetPreferredInterval) {
+  EXPECT_EQ(source_->preferred_interval(),
+            source_->GetTimerDefaultFrameInterval());
+
   source_->SetPreferredInterval(base::Hertz(30));
   EXPECT_EQ(source_->preferred_interval(), base::Hertz(30));
+  EXPECT_EQ(source_->time_source()->Interval(), base::Hertz(30));
+
   source_->SetPreferredInterval(base::Hertz(60));
   EXPECT_EQ(source_->preferred_interval(), base::Hertz(60));
+  EXPECT_EQ(source_->time_source()->Interval(), base::Hertz(60));
 }
 
 // Verifies that a zero preferred interval correctly resets to the timer's
@@ -485,6 +489,30 @@ TEST_F(ExternalBeginFrameSourceMacTimerTest, OnNeedsBeginFrames) {
 
   source_->OnNeedsBeginFrames(false);
   EXPECT_FALSE(source_->time_source()->Active());
+}
+
+// Tests that when we fall back to a timer and a timer already exists, we
+// correctly reset/update the timer's interval to the minimum frame interval.
+TEST_F(ExternalBeginFrameSourceMacTimerTest,
+       ResetTimerIntervalOnFallbackReuse) {
+  // Set the timer interval to a different value (e.g., 30Hz) to simulate
+  // changes.
+  source_->SetPreferredInterval(base::Hertz(30));
+  EXPECT_EQ(source_->preferred_interval(), base::Hertz(30));
+  EXPECT_EQ(source_->time_source()->Interval(), base::Hertz(30));
+
+  // Force update. This will trigger fallback to the timer.
+  // Since the timer already exists, SetVSyncDisplayID() should reuse it and
+  // reset its interval back to the minimum frame interval
+  // (GetMinimumFrameInterval()).
+  source_->SetVSyncDisplayID(display::kInvalidDisplayId,
+                             /*force_update=*/true);
+
+  // Verify that the timer was reused and its interval was reset to the
+  // minimum frame interval.
+  EXPECT_EQ(source_->time_source()->Interval(),
+            source_->GetMinimumFrameInterval());
+  EXPECT_EQ(source_->preferred_interval(), source_->GetMinimumFrameInterval());
 }
 
 }  // namespace viz

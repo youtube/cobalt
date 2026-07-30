@@ -13,6 +13,7 @@ import android.content.Context;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.omnibox.R;
+import org.chromium.components.omnibox.OmniboxCapabilities;
 import org.chromium.ui.interpolators.Interpolators;
 import org.chromium.ui.modelutil.PropertyModel;
 
@@ -73,7 +74,7 @@ public class UnsyncedSuggestionsListAnimationDriver
 
     @Override
     public boolean isAnimationEnabled() {
-        return !sAnimationsDisabledForTesting;
+        return !OmniboxCapabilities.isDesktopPlatform() && !sAnimationsDisabledForTesting;
     }
 
     static void setAnimationsDisabledForTesting(boolean disabledForTesting) {

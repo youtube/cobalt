@@ -48,6 +48,7 @@
 <translation id="1129383337808748948"><ph name="CONTENT_TITLE" /> പുതുക്കുക</translation>
 <translation id="1142002900084379065">പുതിയ ഫോട്ടോകൾ</translation>
 <translation id="114221662579355151"><ph name="APP1_NAME" />, <ph name="APP2_NAME" /> എന്നിവയ്ക്കും ക്യാമറ ആക്‌സസ് ചെയ്യാൻ അനുമതിയുള്ള മുഴുവൻ ആപ്പുകൾക്കും വെബ്സൈറ്റുകൾക്കും ഇത് ക്യാമറയിലേക്ക് ആക്‌സസ് അനുവദിക്കുന്നു. നിങ്ങൾക്ക് വെബ് പേജ് റീഫ്രഷ് ചെയ്യേണ്ടതായോ ആപ്പ് റീസ്റ്റാർട്ട് ചെയ്യേണ്ടതായോ വന്നേക്കാം.</translation>
+<translation id="1145593918056169051">പ്രിന്റർ പ്രവർത്തനം നിർത്തി</translation>
 <translation id="1147991416141538220">ആക്സസ് ആവശ്യപ്പെടാൻ, ഈ ഉപകരണത്തിന്റെ അഡ്‌മിനെ ബന്ധപ്പെടുക.</translation>
 <translation id="1148499908455722006"><ph name="USER_NAME" /> എന്നതിനുള്ള വിവരങ്ങളുടെ ഡയലോഗ് തുറക്കുക</translation>
 <translation id="1150989369772528668">കലണ്ടർ</translation>
@@ -151,6 +152,7 @@
 <translation id="1383876407941801731">തിരയുക</translation>
 <translation id="1388728792929436380">അപ്‌ഡേറ്റുകൾ പൂർത്തിയാകുമ്പോൾ <ph name="DEVICE_TYPE" /> റീസ്‌റ്റാർട്ട് ചെയ്യും.</translation>
 <translation id="1390113502208199250">Chrome വിദ്യാഭ്യാസ അപ്ഗ്രേഡ് ഫീച്ചറുകൾ ഉപയോഗിക്കുന്നതിന് നിങ്ങൾ ഈ ഉപകരണം ഫാക്‌ടറി റീസെറ്റ് ചെയ്യണം.</translation>
+<translation id="1390907927270446471"><ph name="PRINTER_NAME" /> എന്നതിൽ പ്രിന്റ് ചെയ്യാൻ <ph name="PROFILE_USERNAME" /> എന്നയാൾക്ക് അംഗീകാരമില്ല. നിങ്ങളുടെ അഡ്മിനെ ബന്ധപ്പെടുക.</translation>
 <translation id="1391102559483454063">ഓണാണ്</translation>
 <translation id="1394698770495054737">പൂർണ്ണമായി മങ്ങിക്കൽ</translation>
 <translation id="1395878931462960119">{DAYS,plural, =1{1 ദിവസം മുമ്പ്}other{# ദിവസം മുമ്പ്}}</translation>
@@ -169,6 +171,7 @@
 <translation id="1426410128494586442">അതെ</translation>
 <translation id="142655739075382478"><ph name="APP_NAME" /> ബ്ലോക്ക് ചെയ്‌തിരിക്കുന്നു</translation>
 <translation id="142765311413773645"><ph name="APP_NAME" /> ലൈസൻസ് കാലഹരണപ്പെട്ടു</translation>
+<translation id="1430915738399379752">പ്രിന്റ് ചെയ്യുക</translation>
 <translation id="1435537621343861112">കേട്ടെഴുത്ത് ആരംഭിക്കാനാകുന്നില്ല. നിങ്ങളുടെ മൈക്ക് ഓഫാണ്.</translation>
 <translation id="1445031758921122223">ഫെയ്സ് കൺട്രോൾ ഫയലുകൾ ഡൗൺലോഡ് ചെയ്‌തു</translation>
 <translation id="1447907279406111651">ഇപ്പോൾ · അവസാനിക്കുന്നത് <ph name="END_TIME" /></translation>
@@ -229,6 +232,7 @@
 <translation id="1597880963776148053"><ph name="TOTAL_STEPS" /> ഘട്ടങ്ങളുള്ള ടൂറിന്റെ <ph name="STEP" />-ാമത്തെ ഘട്ടം. നിങ്ങൾ പിൻ ചെയ്‌തതും തുറന്നതുമായ ആപ്പുകൾ, സ്ക്രീനിന്റെ ചുവടെയുള്ള ഷെൽഫിൽ കണ്ടെത്താം. ഷെൽഫ് ഇനങ്ങളിൽ ഫോക്കസ് ചെയ്യാൻ Alt + Shift + L അമർത്തിയ ശേശം ടാബ് അമർത്തുക.</translation>
 <translation id="1602085790802918092">വെർച്വൽ മെഷീൻ ആരംഭിക്കുന്നു</translation>
 <translation id="1602874809115667351"><ph name="LAUNCHER_KEY_NAME" /> + താഴേക്കുള്ള അമ്പടയാളം</translation>
+<translation id="1604432177629086300">പ്രിന്റ് ചെയ്യാനായില്ല. പ്രിന്റർ പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കുക.</translation>
 <translation id="1604857178818051494">മീഡിയ തൽക്കാലികമായി നിർത്തുക</translation>
 <translation id="1607312127821884567">നിങ്ങളുടെ ഫോണിലെ ആപ്പുകൾ കാണുന്നത് സജ്ജീകരിക്കുന്നത് ഡിസ്‌മിസ് ചെയ്യുക</translation>
 <translation id="1610778689852195798">"പഴയപടിയാക്കുക"</translation>
@@ -372,6 +376,7 @@
 <translation id="2053312383184521053">നിഷക്രിയ നില ഡാറ്റ</translation>
 <translation id="2064048859448024834">ക്യാമറാ പ്രിവ്യു ഓണാണ്</translation>
 <translation id="2067220651560163985">താപനില, സെൽഷ്യസിൽ കാണിക്കുക</translation>
+<translation id="206960706005837784"><ph name="APP_NAME" /> എന്നത് <ph name="PRINTER_NAME" /> എന്നതിലേക്ക് അയച്ച് പ്രിന്റ് ചെയ്യൽ പൂർത്തിയാക്കി</translation>
 <translation id="2075520525463668108"><ph name="CAPTURE_MEDIUM" /> ടോഗിൾ ചെയ്യുക. <ph name="CAPTURE_MEDIUM" />, <ph name="CAPTURE_STATE" /></translation>
 <translation id="2079545284768500474">പഴയപടിയാക്കുക</translation>
 <translation id="2086334242442703436">ഇമോജി പിക്കർ തുറക്കുക</translation>
@@ -441,6 +446,7 @@
 <translation id="2328561734797404498"><ph name="APP_NAME" /> ഉപയോഗിക്കാൻ നിങ്ങളുടെ ഉപകരണം റീസ്റ്റാർട്ട് ചെയ്യുക.</translation>
 <translation id="2335091074961603075">Bluetooth-ന്റെ പഴയ പതിപ്പാണ് നിങ്ങളുടെ Chromebook അല്ലെങ്കിൽ Bluetooth ഉപകരണം ഉപയോഗിക്കുന്നത്. മികച്ച ഓഡിയോ നിലവാരത്തിനായി ഇന്റേണൽ മൈക്രോഫോൺ ഉപയോഗിക്കൂ.</translation>
 <translation id="2336214675195760012">{NUM_DAYS,plural, =1{ഇന്ന് തന്നെ വൈഫൈയിൽ കണക്റ്റ് ചെയ്‌ത് അപ്ഡേറ്റ് ഡൗൺലോഡ് ചെയ്യാൻ <ph name="MANAGER" /> നിങ്ങളോട് ആവശ്യപ്പെടുന്നു. അല്ലെങ്കിൽ, മീറ്റർ ചെയ്‌ത കണക്ഷനിൽ നിന്ന് ഡൗൺലോഡ് ചെയ്യുക (നിരക്കുകൾ ബാധകമായേക്കാം).}other{സമയപരിധി അവസാനിക്കുന്നതിന് മുമ്പ് വൈഫൈയിലേക്ക് കണക്റ്റ് ചെയ്‌ത് അപ്ഡേറ്റ് ഡൗൺലോഡ് ചെയ്യാൻ <ph name="MANAGER" /> നിങ്ങളോട് ആവശ്യപ്പെടുന്നു. അല്ലെങ്കിൽ, മീറ്റർ ചെയ്‌ത കണക്ഷനിൽ നിന്ന് ഡൗൺലോഡ് ചെയ്യുക (നിരക്കുകൾ ബാധകമായേക്കാം).}}</translation>
+<translation id="2336258397628212480"><ph name="APP_NAME" /> എന്നത് ഒരു പേജ് പ്രിന്റ് ചെയ്യാൻ <ph name="PRINTER_NAME" /> എന്നതിലേക്ക് അയയ്ക്കുന്നു</translation>
 <translation id="2336381494582898602">പവർവാഷ്</translation>
 <translation id="2339073806695260576">കുറിപ്പ്, സ്‌ക്രീന്‍ഷോട്ട്, എന്നിവ എടുക്കാനും ലേസർ പോയിന്‍ററോ ഭൂതക്കണ്ണാടിയോ ഉപയോഗിക്കാനും ഷെൽഫിലെ സ്‌റ്റൈലസ് ബട്ടൺ ടാപ്പ് ചെയ്യുക.</translation>
 <translation id="2341729377289034582">ലംബമായി ലോക്ക് ചെയ്‌തു</translation>
@@ -755,6 +761,7 @@
 <translation id="3206735939915734551">Caps Lock ഓണാക്കുക / ഓഫാക്കുക</translation>
 <translation id="3207953481422525583">ഉപയോക്തൃ ക്രമീകരണം</translation>
 <translation id="3208321278970793882">ആപ്പ്</translation>
+<translation id="32101887417650595">പ്രിന്ററിലേക്ക് കണക്റ്റ് ചെയ്യാനാവുന്നില്ല</translation>
 <translation id="3212221635583599601">കൂടുതൽ വിവരങ്ങൾക്കായി ഇന്റർനെറ്റിലേക്ക് കണക്റ്റ് ചെയ്യുക</translation>
 <translation id="3213571860604332401">ബുക്ക്‌മാർക്കായി ലിങ്ക് സംരക്ഷിക്കുക</translation>
 <translation id="3217205077783620295">വോളിയം ഓണാണ്, മാറ്റുന്നത് ഓഡിയോയെ മ്യൂട്ട് ആക്കും.</translation>
@@ -823,6 +830,7 @@
 <translation id="3431517721463707585">ഡെസ്‌ക് 14</translation>
 <translation id="3433507769937235446">പുറത്തുകടക്കുമ്പോൾ ലോക്ക് ചെയ്യൽ</translation>
 <translation id="3434107140712555581">ബാറ്ററി: <ph name="BATTERY_PERCENTAGE" />%</translation>
+<translation id="343578350365773421">പേപ്പറില്ല</translation>
 <translation id="3435967511775410570">ഫിംഗർപ്രിന്റ് തിരിച്ചറിഞ്ഞു</translation>
 <translation id="3437677362970530951">Play Store-ലും മറ്റ് ഗെയിമിംഗ് പ്ലാറ്റ്‌ഫോമുകളിലും ഉള്ള ഗെയിമുകൾ</translation>
 <translation id="3439896670700055005">കാഷെ ചെയ്‌ത ഉള്ളടക്കം ഉപയോഗിക്കാതെ നിലവിലെ പേജ് റീലോഡ് ചെയ്യുക</translation>
@@ -999,6 +1007,7 @@
 <translation id="3848526302597027234">ചുവടെയുള്ള അനുമതികൾ ആക്‌സസ് ചെയ്യുക:</translation>
 <translation id="385051799172605136">പിന്നോട്ട്</translation>
 <translation id="385300504083504382">ആരംഭം</translation>
+<translation id="3854976556788175030">ഔട്ട്പുട്ട് ട്രേ നിറഞ്ഞിരിക്കുന്നു</translation>
 <translation id="3857807444929313943">വിരൽ ഉയർത്തി, വീണ്ടും സ്‌പർശിക്കുക</translation>
 <translation id="3859364108019690">ആപ്പുകൾ സ്ട്രീം ചെയ്യാനാകുന്നില്ല</translation>
 <translation id="3861638017150647085">"<ph name="USERNAME" />" എന്ന ഉപയോക്തൃനാമം ലഭ്യമല്ല</translation>
@@ -1051,6 +1060,7 @@
 <translation id="401993194061514265">മാർക്കർ ലഭ്യമല്ല. സ്ക്രീൻകാസ്റ്റ് വീണ്ടും തുറക്കുക.</translation>
 <translation id="4021716437419160885">താഴേയ്‌ക്ക് സ്ക്രോൾ ചെയ്യുക</translation>
 <translation id="4022497978915111141">ഉപകരണം ലോക്ക് ചെയ്യുക</translation>
+<translation id="4023048917751563912"><ph name="APP_NAME" /> എന്നത് <ph name="PAGE_NUMBER" /> പേജ് പ്രിന്റ് ചെയ്യാൻ <ph name="PRINTER_NAME" /> എന്നതിലേക്ക് അയയ്ക്കുന്നു</translation>
 <translation id="4024840464866786680">നിങ്ങളുടെ പിൻ, പാസ്‌വേഡ് എന്നിവ മറന്നെങ്കിലോ അടുത്തിടെ നിങ്ങളുടെ Google Account പാസ്‌വേഡ് മാറ്റിയിട്ടുണ്ടെങ്കിലോ ഈ ഉപയോക്താവിനെ വീണ്ടെടുക്കാൻ ശ്രമിക്കുക.</translation>
 <translation id="4026843240379844265">ഡിസ്‌പ്ലേകൾക്ക് ഇടയിൽ സജീവ വിൻഡോകൾ നീക്കുക</translation>
 <translation id="4028481283645788203">കൂടുതൽ സുരക്ഷയ്ക്ക് പാസ്‍വേഡ് ആവശ്യമാണ്</translation>
@@ -1580,6 +1590,7 @@
 <translation id="5491186829646618080">ഫേംവെയർ അപ്‌ഡേറ്റുകൾ ലഭ്യമാണ്</translation>
 <translation id="5503884284981862082">Google Assistant തുറക്കുകയോ അടയ്ക്കുകയോ ചെയ്യുക</translation>
 <translation id="550391772491508736">കാസ്റ്റ് ചെയ്യൽ പുനരാരംഭിക്കുക</translation>
+<translation id="5505307013568720083">മഷിയില്ല</translation>
 <translation id="5506975627792768506">മാഗ്നിഫയർ ഓണാക്കുകയോ ഓഫാക്കുകയോ ചെയ്യുക</translation>
 <translation id="5507778598655387680"><ph name="VOLUME_LEVEL" />, Enter അമർത്തുന്നത് ഓഡിയോ മ്യൂട്ട് ചെയ്യും.</translation>
 <translation id="5512042095225963688">മുമ്പത്തെ വാക്ക് ഇല്ലാതാക്കുക</translation>
@@ -1691,12 +1702,14 @@
 <translation id="5791926618942305301">സ്ക്രീൻ ക്യാപ്ച്ചറിൽ, <ph name="SOURCE" /> <ph name="TYPE" /> എന്നതായി സജ്ജീകരിക്കുക. ക്യാപ്‌ച്ചർ തരം തിരഞ്ഞെടുക്കാൻ Tab അമർത്തുക. ക്യാപ്‌ചർ ചെയ്യാൻ Enter അമർത്തുക. ക്യാപ്‌ചർ ഏരിയ തിരഞ്ഞെടുക്കാൻ, ഭാഗിക സ്ക്രീൻഷോട്ട് സജ്ജീകരിക്കുക. നിലവിൽ സജീവമല്ലെങ്കിൽ, പ്രദേശം തിരഞ്ഞെടുക്കാൻ space അമർത്തുക.</translation>
 <translation id="579415080077680903">നിശബ്‌ദമാക്കൽ</translation>
 <translation id="5802516411616338943">ദ്രുത ക്രമീകരണം തുറക്കുക</translation>
+<translation id="5804241973901381774">അനുമതികൾ</translation>
 <translation id="5804651031882187592">"സിം ലോക്ക് ചെയ്യുക" ക്രമീകരണം ഓഫാക്കുക</translation>
 <translation id="5805809050170488595"><ph name="NETWORK_NAME" /> സജീവമാക്കാൻ ക്ലിക്ക് ചെയ്യുക</translation>
 <translation id="5818796501620225415">കൂടുതൽ സമയം ചേർക്കുകയോ ഫോക്കസ് സെഷൻ അവസാനിപ്പിക്കുകയോ ചെയ്യാം</translation>
 <translation id="5819918159912280082">നിങ്ങളുടെ Chromebook അപ്രതീക്ഷിതമായി റീസ്റ്റാർട്ട് ചെയ്തു. നിങ്ങളുടെ മുമ്പത്തെ വിൻഡോകളും ആപ്പുകളും തുറക്കുക.</translation>
 <translation id="5823239091726045201">വെബിലെ Google ടാസ്ക്കുകൾ</translation>
 <translation id="5825969630400862129">കണക്റ്റ് ചെയ്തിരിക്കുന്ന ഉപകരണങ്ങൾക്കുള്ള ക്രമീകരണം</translation>
+<translation id="5828633471261496623">പ്രിന്‍റ് ചെയ്യുന്നു...</translation>
 <translation id="5830180081891717894"><ph name="WINDOWS" /> എണ്ണം കൂടി</translation>
 <translation id="5830205393314753525"><ph name="APP_NAME" /> തുറക്കാനാകുന്നില്ല</translation>
 <translation id="583281660410589416">അജ്ഞാതം</translation>
@@ -1721,6 +1734,7 @@
 <translation id="5892014525522223653">നിങ്ങൾ ഓഫ്‌ലൈനാണ്.</translation>
 <translation id="5895138241574237353">പുനരാരംഭിക്കുക</translation>
 <translation id="589817443623831496">പോയിന്റ് സ്കാൻ ചെയ്യൽ</translation>
+<translation id="5901494423252125310">പ്രിന്ററിന്റെ ഡോർ തുറന്നിരിക്കുന്നു</translation>
 <translation id="5901630391730855834">മഞ്ഞ</translation>
 <translation id="5904614460720589786">കോൺഫിഗർ ചെയ്യലിലെ പ്രശ്‍നം കാരണം <ph name="APP_NAME" /> സജ്ജീകരിക്കാനായില്ല. നിങ്ങളുടെ അഡ്‌മിനെ ബന്ധപ്പെടുക. പിശക് കോഡ്: <ph name="ERROR_CODE" />.</translation>
 <translation id="5910726859585389579"><ph name="DEVICE_TYPE" /> ഓഫ്‌ലൈൻ ആണ്</translation>
@@ -1785,6 +1799,7 @@
         <ph name="BEGIN_PARAGRAPH2" />ഈ ഫീച്ചർ ഓഫാക്കുന്നത്, സിസ്റ്റം അപ്‌ഡേറ്റുകളും സുരക്ഷയും പോലുള്ള അത്യാവശ്യ സേവനങ്ങൾക്ക് ആവശ്യമായ വിവരങ്ങൾ അയയ്‌ക്കുന്നതിനുള്ള ഈ ഉപകരണത്തിന്റെ കഴിവിനെ ബാധിക്കുകയില്ല.<ph name="END_PARAGRAPH2" />
         <ph name="BEGIN_PARAGRAPH3" />ക്രമീകരണം &gt; വിപുലമായത് &gt; ഡയഗണോസ്‌റ്റിക്, ഉപയോഗ ഡാറ്റ Google-ന് സ്വയമേവ അയയ്‌ക്കുക എന്നതിൽ ഉടമയ്‌ക്ക് ഈ ഫീച്ചർ നിയന്ത്രിക്കാനാവും.<ph name="END_PARAGRAPH3" />
         <ph name="BEGIN_PARAGRAPH4" />നിങ്ങളുടെ കുട്ടിയുടെ അധിക വെബ്, ആപ്പ് പ്രവർത്തന ക്രമീകരണം ഓണാക്കിയിട്ടുണ്ടെങ്കിൽ, ഈ ഡാറ്റ അവരുടെ Google അക്കൗണ്ടിൽ സംരക്ഷിക്കപ്പെട്ടേക്കാം. ഈ ക്രമീകരണത്തെ കുറിച്ചും അതെങ്ങനെയാണ് ക്രമപ്പെടുത്തുന്നത് എന്നതിനെ കുറിച്ചും families.google.com -ൽ കൂടുതലറിയുക.<ph name="END_PARAGRAPH4" /></translation>
+<translation id="6052261338768299955"><ph name="APP_NAME" /> എന്നത് <ph name="PRINTER_NAME" /> എന്നതിലേക്ക് അയച്ച് പ്രിന്റ് ചെയ്യാൻ ശ്രമിക്കുന്നു</translation>
 <translation id="6054305421211936131">സ്‌മാർട്ട് കാർഡ് ഉപയോഗിച്ച് സൈൻ ഇൻ ചെയ്യുക</translation>
 <translation id="6059276912018042191">അടുത്തിടെയുള്ള Chrome ടാബുകൾ</translation>
 <translation id="606147842285839995">ExpressKey 3</translation>
@@ -1888,6 +1903,7 @@
 <translation id="6337159624125741244">പൂർണ്ണ സ്ക്രീൻ മാഗ്നിഫയർ ഓണാണ്</translation>
 <translation id="6338485349199627913"><ph name="MANAGER" /> മാനേജ് ചെയ്യുന്ന ഒരു മാനേജ് ചെയ്യപ്പെടുന്ന സെഷനാണ് <ph name="DISPLAY_NAME" /></translation>
 <translation id="6340148837564298498">നിങ്ങളുടെ പിൻ മറന്നെങ്കിൽ, ഈ ഉപയോക്താവിനെ വീണ്ടെടുക്കാൻ ശ്രമിക്കുക.</translation>
+<translation id="634208815998129842">ടാസ്‌ക് മാനേജർ</translation>
 <translation id="6344138931392227467"><ph name="DEVICE_NAME" /> കണക്‌റ്റ് ചെയ്‌തു</translation>
 <translation id="6345418402353744910"><ph name="PROXY" /> എന്ന പ്രോക്‌സിക്ക് നിങ്ങളുടെ ഉപയോക്തൃനാമവും പാസ്‌വേഡും ആവശ്യമാണ്, അതുവഴി അഡ്‌മിന് നിങ്ങളുടെ നെറ്റ്‌വർക്ക് കോൺഫിഗർ ചെയ്യാൻ കഴിയും</translation>
 <translation id="6348449481487610270"><ph name="MODIFIER_ONE" /><ph name="MODIFIER_TWO" /><ph name="KEY_ONE" />, തുടർന്ന് <ph name="MODIFIER_THREE" /><ph name="KEY_TWO" /> അല്ലെങ്കിൽ <ph name="KEY_THREE" /></translation>
@@ -2093,6 +2109,7 @@
 <translation id="6921427376813842559">ഉപകരണം അപ്‌ഡേറ്റ് ചെയ്യുക</translation>
 <translation id="6929081673585394903">നിയന്ത്രണങ്ങൾ കാണിക്കുക</translation>
 <translation id="6931576957638141829">ഇനിപ്പറയുന്നതിലേക്ക് സംരക്ഷിക്കുക</translation>
+<translation id="6935286146439255109">പേപ്പർ ട്രേ കാണുന്നില്ല</translation>
 <translation id="6935857786205183008">പോർട്രെയ്‌റ്റ്</translation>
 <translation id="6942518653766415536">റെക്കോർഡിംഗ് ഫോർമാറ്റ് മെനു</translation>
 <translation id="6945221475159498467">തിരഞ്ഞെടുക്കുക</translation>
@@ -2115,6 +2132,7 @@
 <translation id="6988094684494323731">Linux കണ്ടെയ്‌നർ പ്രവർത്തനം ആരംഭിക്കുന്നു</translation>
 <translation id="7000027735917578303">വിന്‍ഡോകളുടെയും ഡെസ്ക്കുകളുടെയും ക്രമീകരണം</translation>
 <translation id="7001036685275644873">Linux ആപ്പുകളും ഫയലുകളും ബാക്കപ്പെടുക്കുന്നു</translation>
+<translation id="7001066449188684145"><ph name="PRINTER_NAME" /> എന്നതിൽ പ്രിന്റ് ചെയ്യാൻ ഐഡന്റിഫിക്കേഷൻ ആവശ്യമാണ്. നിങ്ങളുടെ അഡ്മിനെ ബന്ധപ്പെടുക.</translation>
 <translation id="7004910047186208204">മൊബൈൽ ഡാറ്റയിലേക്ക് കണക്റ്റ് ചെയ്യുക</translation>
 <translation id="7005239792648594238">ആരംഭിക്കാൻ ഒരു ആപ്പ് തുറക്കുക</translation>
 <translation id="7014684956566476813"><ph name="DEVICE_NAME" /> എന്ന് പേരുള്ള ഉപകരണത്തിലേക്ക് കണക്റ്റ് ചെയ്തിരിക്കുന്നു</translation>
@@ -2154,6 +2172,7 @@
 <translation id="7108254681523785542">ഒട്ടിക്കാൻ ഒരിനം തിരഞ്ഞെടുക്കുക. <ph name="SHORTCUT_KEY_NAME" /> + v അമർത്തി നിങ്ങൾക്ക് ക്ലിപ്പ്‌ബോർഡ് കാണാം.</translation>
 <translation id="7108338896283013870">മറയ്ക്കുക</translation>
 <translation id="7108933416628942903">ഇപ്പോൾ ലോക്ക് ചെയ്യുക</translation>
+<translation id="7116554090938189816">പ്രിന്ററിന്റെ SSL സർട്ടിഫിക്കറ്റ് കാലഹരണപ്പെട്ടു. പ്രിന്റർ റീസ്‌റ്റാർട്ട് ചെയ്‌ത് വീണ്ടും ശ്രമിക്കുക.</translation>
 <translation id="7116969082764510092">ഡെസ്‌ക് 11</translation>
 <translation id="7118268675952955085">സ്‌ക്രീൻഷോട്ട്</translation>
 <translation id="7118597077555700347"><ph name="SEARCH_RESULT_TEXT" /> തുറക്കുക</translation>
@@ -2206,6 +2225,7 @@
 <translation id="7312210124139670355">നിങ്ങളുടെ അഡ്‌മിൻ eSIM റീസെറ്റ് ചെയ്യുകയാണ്. ഇതിന് കുറച്ച് സമയമെടുത്തേക്കാം.</translation>
 <translation id="7312761820869643657">ഉപകരണം മുമ്പത്തെ പതിപ്പിലേക്ക് അപ്ഡേറ്റ് ചെയ്യുക</translation>
 <translation id="7313193732017069507">ക്യാമറ വികസിപ്പിക്കുക</translation>
+<translation id="7325209047678309347">പേപ്പർ ജാമായി</translation>
 <translation id="7327989755579928735"><ph name="MANAGER" />, ADB ഡീബഗ് ചെയ്യൽ പ്രവർത്തനരഹിതമാക്കി. <ph name="DEVICE_TYPE" /> റീസ്‌റ്റാർട്ട് ചെയ്‌തുകഴിഞ്ഞാൽ, നിങ്ങൾക്ക് ആപ്പുകൾ സൈഡ് ലോഡ് ചെയ്യാനാകില്ല.</translation>
 <translation id="73289266812733869">തിരഞ്ഞെടുത്തില്ല</translation>
 <translation id="7330397557116570022">കേട്ടെഴുത്ത് ഉപയോഗിക്കാൻ ഒരു ടെക്സ്റ്റ് ഫീൽഡിലേക്ക് പോകുക</translation>
@@ -2580,6 +2600,7 @@
 <translation id="8339706171276328417"><ph name="ACTION_DESCRIPTION" /> · <ph name="TIME" /></translation>
 <translation id="834414266279889566">മോശം ഔട്ട്പുട്ട്</translation>
 <translation id="8345019317483336363"><ph name="WINDOW_TITLE" /> വിന്‍ഡോ തിരഞ്ഞടുത്തു</translation>
+<translation id="8347227221149377169">പ്രിന്റ് ജോലികൾ</translation>
 <translation id="8349826889576450703">ലോഞ്ചർ</translation>
 <translation id="8349964124165471584">പുതിയ വിൻഡോയിൽ ലിങ്ക് തുറക്കുക</translation>
 <translation id="8351131234907093545">കുറിപ്പ് സൃഷ്‌ടിക്കുക</translation>
@@ -2618,6 +2639,7 @@
 <translation id="8458259704995116343">VM ആരംഭിക്കാനായില്ല.</translation>
 <translation id="84613761564611563">നെറ്റ്‌വർക്ക് കോൺഫിഗർ ചെയ്യാനുള്ള UI അഭ്യർത്ഥിച്ചു, കാത്തിരിക്കൂ...</translation>
 <translation id="8462305545768648477">വായിച്ചുകേൾക്കാൻ തിരഞ്ഞെടുക്കുക അടയ്ക്കുക</translation>
+<translation id="8463001014623882202">അംഗീകരിക്കാനായില്ല</translation>
 <translation id="8466665972451889002"><ph name="GROUP_NAME" /> എന്നതിൽ ഇനങ്ങൾ കാണിക്കുക</translation>
 <translation id="8468806060683421065">അവസാന തീയതി <ph name="DUE_DATE_AND_TIME" /></translation>
 <translation id="8473301994082929012"><ph name="ORGANIZATION_NAME" /> എന്ന സ്ഥാപനം <ph name="FEATURE_NAME" /> എന്ന ഫീച്ചർ <ph name="FEATURE_STATE" />.</translation>

@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/modules/canvas/offscreencanvas2d/offscreen_canvas_rendering_context_2d.h"
 
+#include "base/test/scoped_feature_list.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.h"
@@ -12,11 +13,18 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_begin_layer_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_union_blob_htmlcanvaselement_htmlimageelement_htmlvideoelement_imagebitmap_imagedata_offscreencanvas_svgimageelement_videoframe.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_union_cssimagevalue_htmlcanvaselement_htmlimageelement_htmlvideoelement_imagebitmap_offscreencanvas_svgimageelement_videoframe.h"
+#include "third_party/blink/renderer/core/accessibility/ax_context.h"
+#include "third_party/blink/renderer/core/frame/local_frame_view.h"
+#include "third_party/blink/renderer/core/frame/settings.h"
+#include "third_party/blink/renderer/core/html/canvas/html_canvas_element.h"
 #include "third_party/blink/renderer/core/html/canvas/image_data.h"
 #include "third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.h"
+#include "third_party/blink/renderer/core/page/page.h"
+#include "third_party/blink/renderer/modules/canvas/htmlcanvas/html_canvas_element_module.h"
 #include "third_party/blink/renderer/modules/canvas/imagebitmap/image_bitmap_factories.h"
 #include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/task_environment.h"
+#include "ui/accessibility/accessibility_features.h"
 
 namespace blink {
 namespace {
@@ -286,6 +294,76 @@ TEST(OffscreenCanvasRenderingContext2DTest, NoCrashOnDocumentShutdown) {
   context->setFont("12px Ahem");
   scope.GetDocument().Shutdown();
   context->measureText("hello world");
+}
+
+TEST(OffscreenCanvasRenderingContext2DTest, AccessibilityCanvasAnnotation) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(::features::kAccessibilityCanvas);
+
+  test::TaskEnvironment task_environment;
+  V8TestingScope scope;
+
+  // Enable scripts.
+  scope.GetDocument().GetPage()->GetSettings().SetScriptEnabled(true);
+
+  // Create HTMLCanvasElement via HTML.
+  scope.GetDocument().documentElement()->SetInnerHTMLWithoutTrustedTypes(
+      "<body><canvas id='c'></canvas></body>");
+  auto* canvas = To<HTMLCanvasElement>(
+      scope.GetDocument().getElementById(AtomicString("c")));
+  ASSERT_TRUE(canvas);
+  canvas->SetIsDisplayed(true);
+
+  // Transfer control to OffscreenCanvas and get context FIRST.
+  NonThrowableExceptionState exception_state;
+  OffscreenCanvas* offscreen_canvas =
+      HTMLCanvasElementModule::transferControlToOffscreen(
+          scope.GetScriptState(), *canvas, exception_state);
+  ASSERT_TRUE(offscreen_canvas);
+
+  OffscreenCanvasRenderingContext2D* context =
+      GetContext(scope, offscreen_canvas);
+  ASSERT_TRUE(context);
+
+  // Enable accessibility AFTER context is created.
+  AXContext ax_context(scope.GetDocument(), ui::kAXModeComplete);
+
+  // Force layout update to ensure AX objects are created.
+  scope.GetDocument().View()->UpdateAllLifecyclePhasesForTest();
+
+  // Check if accessibility manager is created.
+  ASSERT_TRUE(canvas->GetAccessibilityManagerForTesting());
+  // Check if it should capture rendered text.
+  ASSERT_TRUE(canvas->ShouldCaptureRenderedText());
+
+  // OffscreenCanvas should also want to capture text.
+  ASSERT_TRUE(offscreen_canvas->ShouldCaptureRenderedText());
+
+  // Initially, canvas annotation should be empty.
+  EXPECT_TRUE(canvas->CanvasAnnotation().empty());
+
+  // Draw some text on OffscreenCanvas.
+  context->fillText("Hello", 0, 0);
+  canvas->GetAccessibilityManagerForTesting()->UpdateAnnotation();
+
+  // Since we are on the main thread, the text recording should be synchronous.
+  EXPECT_EQ(canvas->CanvasAnnotation(), "Hello");
+
+  // Draw more text.
+  context->fillText("World", 50, 0);
+  canvas->GetAccessibilityManagerForTesting()->UpdateAnnotation();
+  EXPECT_EQ(canvas->CanvasAnnotation(), "Hello World");
+
+  // Clear rect.
+  context->clearRect(40, -10, 60, 20);
+  canvas->GetAccessibilityManagerForTesting()->UpdateAnnotation();
+  EXPECT_EQ(canvas->CanvasAnnotation(), "Hello");
+
+  // Full clear.
+  context->clearRect(0, 0, offscreen_canvas->width(),
+                     offscreen_canvas->height());
+  canvas->GetAccessibilityManagerForTesting()->UpdateAnnotation();
+  EXPECT_TRUE(canvas->CanvasAnnotation().empty());
 }
 
 }  // namespace

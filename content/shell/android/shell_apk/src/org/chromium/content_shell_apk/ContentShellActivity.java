@@ -91,7 +91,6 @@ public class ContentShellActivity extends Activity {
                             true,
                             false,
                             false,
-                            false,
                             new BrowserStartupController.StartupCallback() {
                                 @Override
                                 public void onSuccess(@Nullable StartupMetrics metrics) {

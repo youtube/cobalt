@@ -41,6 +41,7 @@ class FrameTreeNode;
 class NavigationControllerDelegate;
 class NavigationEntryImpl;
 class NavigationRequest;
+class InitiatorNavigationState;
 class NavigatorDelegate;
 class PrefetchedSignedExchangeCache;
 class RenderFrameHostImpl;
@@ -108,6 +109,7 @@ class CONTENT_EXPORT Navigator {
       mojo::PendingAssociatedRemote<mojom::NavigationClient>* navigation_client,
       blink::LocalFrameToken initiator_frame_token,
       int initiator_process_id,
+      scoped_refptr<InitiatorNavigationState> initiator_navigation_state,
       base::TimeTicks actual_navigation_start);
 
   // Navigation requests -------------------------------------------------------
@@ -128,6 +130,7 @@ class CONTENT_EXPORT Navigator {
       int initiator_process_id,
       const std::optional<url::Origin>& initiator_origin,
       const std::optional<GURL>& initiator_base_url,
+      scoped_refptr<InitiatorNavigationState> initiator_navigation_state,
       const scoped_refptr<network::ResourceRequestBody>& post_body,
       const std::string& extra_headers,
       const Referrer& referrer,
@@ -151,7 +154,7 @@ class CONTENT_EXPORT Navigator {
       int initiator_process_id,
       const url::Origin& initiator_origin,
       const std::optional<GURL>& initiator_base_url,
-      SiteInstance* source_site_instance,
+      scoped_refptr<InitiatorNavigationState> initiator_navigation_state,
       const Referrer& referrer,
       ui::PageTransition page_transition,
       bool should_replace_current_entry,
@@ -205,7 +208,8 @@ class CONTENT_EXPORT Navigator {
           renderer_ignore_duplicate_navigation_listener,
       mojo::PendingReceiver<
           blink::mojom::NavigationResumeDeferredCommitListener>
-          deferred_commit_resume_listener);
+          deferred_commit_resume_listener,
+      scoped_refptr<InitiatorNavigationState> initiator_navigation_state);
 
   // Used to restart a navigation that was thought to be same-document in
   // cross-document mode.

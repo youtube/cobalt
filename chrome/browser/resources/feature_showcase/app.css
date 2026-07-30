@@ -12,6 +12,10 @@
   --child-max-width: 500px;
   --content-gap: 24px;
   --content-width: calc(2 * var(--child-max-width) + var(--content-gap));
+  --color-button-background-prominent: var(--color-sys-primary);
+  --color-button-foreground-prominent: var(--color-sys-on-primary);
+  --color-button-foreground: var(--color-sys-primary);
+  --color-button-border: var(--color-sys-tonal-outline);
 }
 
 #viewManager {
@@ -34,11 +38,11 @@
   aspect-ratio: 608 / 716;
   z-index: -1;
   /* The image starts shrinking when space between the image and content is
-  equal to 50% of image's width. It pushes away the image 1px for every 2px of
+  equal to 35% of image's width. It pushes away the image 1px for every 2px of
   smaller screen size. Part "max(0px, calc(...))" prevents the image from being
   driven away to the left from the right edge */
   transform: translate(
-    max(0px, calc(50% - (50vw - var(--content-width) / 2) / 2)),
+    max(0px, calc(35% - (50vw - var(--content-width) / 2) / 2)),
     -50%);
 }
 
@@ -60,7 +64,7 @@
   left: 0;
   right: auto;
   transform: scaleX(-1) translate(
-    max(0px, calc(50% - (50vw - var(--content-width) / 2) / 2)),
+    max(0px, calc(35% - (50vw - var(--content-width) / 2) / 2)),
     -50%);
 }
 

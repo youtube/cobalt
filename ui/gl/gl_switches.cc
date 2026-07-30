@@ -31,7 +31,6 @@ const char kGLImplementationStubName[] = "stub";
 const char kGLImplementationDisabledName[] = "disabled";
 
 const char kANGLEImplementationDefaultName[]  = "default";
-const char kANGLEImplementationD3D9Name[]     = "d3d9";
 const char kANGLEImplementationD3D11Name[]    = "d3d11";
 const char kANGLEImplementationD3D11on12Name[] = "d3d11on12";
 const char kANGLEImplementationD3D11WarpName[] = "d3d11-warp";

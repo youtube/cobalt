@@ -282,12 +282,11 @@ constexpr std::array<SerializeFunction, kNumOpTypes> g_serialize_functions = {
 #undef M
 
 using DeserializeFunction = PaintOp* (*)(PaintOpReader& reader,
-                                         void* output,
-                                         size_t output_size);
+                                         base::span<uint8_t> output);
 template <typename T>
-PaintOp* Deserialize(PaintOpReader& reader, void* output, size_t output_size) {
-  DCHECK_GE(output_size, sizeof(T));
-  T* op = static_cast<T*>(T::Deserialize(reader, output));
+PaintOp* Deserialize(PaintOpReader& reader, base::span<uint8_t> output) {
+  DCHECK_GE(output.size(), sizeof(T));
+  T* op = static_cast<T*>(T::Deserialize(reader, output.data()));
   if (!op) {
     return nullptr;
   }
@@ -2142,18 +2141,17 @@ size_t PaintOp::Serialize(base::span<uint8_t> memory,
 }
 
 PaintOp* PaintOp::Deserialize(base::span<const volatile uint8_t> input,
-                              void* output,
-                              size_t output_size,
+                              base::span<uint8_t> output,
                               size_t* read_bytes,
                               const DeserializeOptions& options) {
-  DCHECK_GE(output_size, kLargestPaintOpAlignedSize);
+  DCHECK_GE(output.size(), kLargestPaintOpAlignedSize);
 
   uint8_t type;
   PaintOpReader reader(input, options);
   if (!reader.ReadAndValidateOpHeader(&type, read_bytes)) {
     return nullptr;
   }
-  return g_deserialize_functions[type](reader, output, output_size);
+  return g_deserialize_functions[type](reader, output);
 }
 
 PaintOp* PaintOp::DeserializeIntoPaintOpBuffer(
@@ -2168,8 +2166,8 @@ PaintOp* PaintOp::DeserializeIntoPaintOpBuffer(
   }
 
   uint16_t op_aligned_size = g_type_to_aligned_size[type];
-  if (auto* op = g_deserialize_functions[type](
-          reader, buffer->AllocatePaintOp(op_aligned_size), op_aligned_size)) {
+  base::span<uint8_t> output = buffer->AllocatePaintOp(op_aligned_size);
+  if (auto* op = g_deserialize_functions[type](reader, output)) {
     g_analyze_op_functions[type](buffer, op);
     return op;
   }

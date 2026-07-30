@@ -63,6 +63,10 @@ class MimeHandlerStreamDelegate {
 
   virtual bool PluginCanSave() const;
   virtual void SetPluginCanSave(bool plugin_can_save);
+
+  // Returns true if each navigation through this delegate must run in its
+  // own process, isolated from other instances.
+  virtual bool RequiresPerInstanceProcessIsolation() const;
 };
 
 }  // namespace extensions

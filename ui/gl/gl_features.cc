@@ -375,12 +375,6 @@ bool IsSoftwareGLFallbackDueToCrashesAllowed(
   return base::FeatureList::IsEnabled(kAllowSoftwareGLFallbackDueToCrashes);
 }
 
-BASE_FEATURE(kAllowANGLED3D9Fallback, base::FEATURE_DISABLED_BY_DEFAULT);
-
-bool IsANGLED3D9FallbackAllowed() {
-  return base::FeatureList::IsEnabled(kAllowANGLED3D9Fallback);
-}
-
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kAndroidLimitRgb565DisplayToApi32,
              base::FEATURE_ENABLED_BY_DEFAULT);

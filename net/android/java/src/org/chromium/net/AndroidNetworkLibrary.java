@@ -26,10 +26,12 @@ import android.security.NetworkSecurityPolicy;
 import android.telephony.TelephonyManager;
 
 import androidx.annotation.RequiresApi;
+import androidx.annotation.VisibleForTesting;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.CalledByNativeForTesting;
 import org.jni_zero.CalledByNativeUnchecked;
+import org.jni_zero.JniType;
 
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ContextUtils;
@@ -392,6 +394,32 @@ class AndroidNetworkLibrary {
                 return true;
             }
             return NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted();
+        }
+
+        @RequiresApi(Build.VERSION_CODES.CINNAMON_BUN)
+        public int getDomainEncryptionMode(String host) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.CINNAMON_BUN) {
+                return NetworkSecurityPolicy.DOMAIN_ENCRYPTION_MODE_UNKNOWN;
+            }
+            return NetworkSecurityPolicy.getInstance().getDomainEncryptionMode(host);
+        }
+    }
+
+    /** Returns the ECH mode for |host|. */
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @CalledByNative
+    @RequiresApi(Build.VERSION_CODES.CINNAMON_BUN)
+    static int getEchMode(@JniType("std::string") String host) {
+        int encryptionMode = NetworkSecurityPolicyProxy.getInstance().getDomainEncryptionMode(host);
+        switch (encryptionMode) {
+            case NetworkSecurityPolicy.DOMAIN_ENCRYPTION_MODE_DISABLED:
+                return EchMode.DISABLED;
+            case NetworkSecurityPolicy.DOMAIN_ENCRYPTION_MODE_OPPORTUNISTIC:
+            case NetworkSecurityPolicy.DOMAIN_ENCRYPTION_MODE_ENABLED:
+                return EchMode.OPPORTUNISTIC;
+            default:
+                // Default to OPPORTUNISTIC to maintain Chromium's preference for ECH.
+                return EchMode.OPPORTUNISTIC;
         }
     }
 

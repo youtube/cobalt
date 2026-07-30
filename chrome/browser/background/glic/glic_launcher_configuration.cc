@@ -85,41 +85,16 @@ bool GlicLauncherConfiguration::IsEnabled(bool* is_default_value) {
 }
 
 // static
-ui::Accelerator GlicLauncherConfiguration::GetGlobalHotkey() {
+ui::Accelerator GlicLauncherConfiguration::GetToggleHotkey() {
   return GetAcceleratorFromPreference(prefs::kGlicLauncherHotkey);
 }
 
 // static
-ui::Accelerator GlicLauncherConfiguration::GetSelectionGlobalHotkey() {
+ui::Accelerator GlicLauncherConfiguration::GetSelectionHotkey() {
   if (!base::FeatureList::IsEnabled(features::kGlicCaptureRegion)) {
     return ui::Accelerator();
   }
   return GetAcceleratorFromPreference(prefs::kGlicSelectionHotkey);
-}
-
-// static
-ui::Accelerator GlicLauncherConfiguration::GetDefaultHotkey() {
-#if BUILDFLAG(IS_MAC)
-  const ui::EventFlags modifiers = ui::EF_CONTROL_DOWN;
-#elif BUILDFLAG(IS_CHROMEOS)
-  // This is the search key on ChromeOS keyboard.
-  const ui::EventFlags modifiers = ui::EF_COMMAND_DOWN;
-#else
-  const ui::EventFlags modifiers = ui::EF_ALT_DOWN;
-#endif
-
-  return ui::Accelerator(ui::KeyboardCode::VKEY_G, modifiers);
-}
-
-// static
-ui::Accelerator GlicLauncherConfiguration::GetDefaultSelectionHotkey() {
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
-  const ui::EventFlags modifiers = ui::EF_CONTROL_DOWN | ui::EF_SHIFT_DOWN;
-#else
-  const ui::EventFlags modifiers = ui::EF_ALT_DOWN | ui::EF_CONTROL_DOWN;
-#endif
-
-  return ui::Accelerator(ui::KeyboardCode::VKEY_G, modifiers);
 }
 
 // static

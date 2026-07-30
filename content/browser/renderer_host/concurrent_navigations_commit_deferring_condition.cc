@@ -24,7 +24,7 @@ ConcurrentNavigationsCommitDeferringCondition::MaybeCreate(
 
   // Currently only navigations in the primary main frame can restore pages
   // from BFCache or activate prerendered pages.
-  DCHECK(navigation_request.IsInPrimaryMainFrame());
+  CHECK(navigation_request.IsInPrimaryMainFrame(), base::NotFatalUntil::M152);
 
   return base::WrapUnique(
       new ConcurrentNavigationsCommitDeferringCondition(navigation_request));
@@ -50,7 +50,7 @@ ConcurrentNavigationsCommitDeferringCondition::WillCommitNavigation(
   // navigation while the older commit continues, to avoid deleting a pending
   // commit RFH.
   if (request->ShouldQueueDueToExistingPendingCommitRFH()) {
-    DCHECK(!request->IsQueued());
+    CHECK(!request->IsQueued(), base::NotFatalUntil::M152);
     request->set_resume_commit_closure(std::move(resume));
     return Result::kDefer;
   }

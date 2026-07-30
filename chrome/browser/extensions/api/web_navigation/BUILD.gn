@@ -61,4 +61,8 @@ source_set("web_navigation") {
   } else {
     deps += [ "//chrome/browser/ui:browser_tab_strip" ]
   }
+
+  if (!is_android) {
+    deps += [ "//chrome/browser/ui:browser_tab_strip_tracker" ]
+  }
 }

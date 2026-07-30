@@ -4,7 +4,7 @@
 
 import("//tools/grit/grit_rule.gni")
 
-source_ids = "//third_party/usb_ids/usb.ids"
+source_ids = "//third_party/usb_ids/src/usb.ids"
 generated_blob = "$target_gen_dir/usb_ids.dat"
 
 # Generates a compact binary lookup blob from usb.ids. The blob is packaged

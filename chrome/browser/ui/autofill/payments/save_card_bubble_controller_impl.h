@@ -30,6 +30,7 @@ namespace autofill {
 
 enum class BubbleType;
 
+class AutofillBubbleHandler;
 class PaymentsDataManager;
 
 // Implementation of per-tab class to control the local/server save credit card
@@ -302,6 +303,7 @@ class SaveCardBubbleControllerImpl
   // stopped once the bubble is closed.
   base::OneShotTimer auto_close_confirmation_timer_;
 
+  AutofillBubbleHandler* GetAutofillBubbleHandler();
   // Weak pointer factory for this save card bubble controller.
   base::WeakPtrFactory<SaveCardBubbleControllerImpl> weak_ptr_factory_{this};
 

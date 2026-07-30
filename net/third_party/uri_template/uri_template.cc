@@ -32,6 +32,7 @@
 #include "base/strings/escape.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_split.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
 using std::string;
 
@@ -54,8 +55,8 @@ struct UriTemplateConfig {
         no_variable_assignment_if_empty_(no_variable_assignment_if_empty),
         allow_reserved_expansion_(allow_reserved_expansion) {}
 
-  void AppendValue(const string& variable,
-                   const string& value,
+  void AppendValue(std::string_view variable,
+                   std::string_view value,
                    bool use_prefix,
                    string* target) const {
     const std::string& joiner = use_prefix ? prefix_ : joiner_;
@@ -72,7 +73,7 @@ struct UriTemplateConfig {
   }
 
  private:
-  string EscapedValue(const string& value) const {
+  string EscapedValue(std::string_view value) const {
     if (allow_reserved_expansion_) {
       // Reserved expansion passes through reserved and pct-encoded characters.
       return base::EscapeExternalHandlerValue(value);
@@ -92,41 +93,44 @@ struct UriTemplateConfig {
 // '{}' in the source. On result the control parameters are stripped off
 // leaving just the comma-separated variable name(s) that we should try to
 // resolve.
-UriTemplateConfig MakeConfig(string* variable) {
-  switch (*variable->data()) {
+UriTemplateConfig MakeConfig(std::string_view* variable) {
+  if (variable->empty()) {
+    return UriTemplateConfig("", ",", false, false);
+  }
+  switch (variable->front()) {
     // Reserved expansion.
     case '+':
-      *variable = variable->substr(1);
+      variable->remove_prefix(1);
       return UriTemplateConfig("", ",", false, true);
 
     // Fragment expansion.
     case '#':
-      *variable = variable->substr(1);
+      variable->remove_prefix(1);
       return UriTemplateConfig("#", ",", false, true);
 
     // Label with dot-prefix.
     case '.':
-      *variable = variable->substr(1);
+      variable->remove_prefix(1);
       return UriTemplateConfig(".", ".", false, false);
 
     // Path segment expansion.
     case '/':
-      *variable = variable->substr(1);
+      variable->remove_prefix(1);
       return UriTemplateConfig("/", "/", false, false);
 
     // Path segment parameter expansion.
     case ';':
-      *variable = variable->substr(1);
+      variable->remove_prefix(1);
       return UriTemplateConfig(";", ";", true, false, true);
 
     // Form-style query expansion.
     case '?':
-      *variable = variable->substr(1);
+      variable->remove_prefix(1);
       return UriTemplateConfig("?", "&", true, false);
 
     // Form-style query continuation.
     case '&':
-      *variable = variable->substr(1);
+      variable->remove_prefix(1);
       return UriTemplateConfig("&", "&", true, false);
 
     // Simple expansion.
@@ -136,23 +140,23 @@ UriTemplateConfig MakeConfig(string* variable) {
 }
 
 void ProcessVariableSection(
-    string* variable_section,
-    const std::unordered_map<string, string>& parameters,
+    std::string_view variable_section,
+    const absl::flat_hash_map<string, string>& parameters,
     string* target,
     std::set<string>* vars_found) {
-  // Note that this function will modify the variable_section string to remove
-  // the decorators, leaving just comma-separated variable name(s).
-  UriTemplateConfig config = MakeConfig(variable_section);
-  std::vector<string> variables = base::SplitString(
-      *variable_section, ",", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  // Note that this function will modify the variable_section string_view to
+  // remove the decorators, leaving just comma-separated variable name(s).
+  UriTemplateConfig config = MakeConfig(&variable_section);
+  std::vector<std::string_view> variables = base::SplitStringPiece(
+      variable_section, ",", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
   bool first_var = true;
-  for (const string& variable : variables) {
+  for (std::string_view variable : variables) {
     auto found = parameters.find(variable);
     if (found != parameters.end()) {
       config.AppendValue(variable, found->second, first_var, target);
       first_var = false;
       if (vars_found) {
-        vars_found->insert(variable);
+        vars_found->emplace(variable);
       }
     }
   }
@@ -161,18 +165,17 @@ void ProcessVariableSection(
 }  // namespace
 
 bool Expand(const string& path_uri,
-            const std::unordered_map<string, string>& parameters,
+            const absl::flat_hash_map<string, string>& parameters,
             string* target,
             std::set<string>* vars_found) {
-  size_t cur = 0;
-  size_t length = path_uri.length();
-  while (cur < length) {
-    size_t open = path_uri.find('{', cur);
-    size_t close = path_uri.find('}', cur);
-    if (open == string::npos) {
-      if (close == string::npos) {
+  std::string_view path(path_uri);
+  while (!path.empty()) {
+    const size_t open = path.find('{');
+    const size_t close = path.find('}');
+    if (open == std::string_view::npos) {
+      if (close == std::string_view::npos) {
         // No more variables to process.
-        target->append(path_uri.substr(cur).data(), path_uri.length() - cur);
+        target->append(path);
         return true;
       } else {
         // Template was malformed. Unexpected closing brace.
@@ -180,17 +183,28 @@ bool Expand(const string& path_uri,
         return false;
       }
     }
-    target->append(path_uri, cur, open - cur);
-    size_t next_open = path_uri.find('{', open + 1);
-    if (close == string::npos || close < open || next_open < close) {
+
+    if (close == std::string_view::npos || close < open) {
+      // Template was malformed. No closing brace, or closing brace before
+      // opening brace.
+      target->clear();
+      return false;
+    }
+
+    const size_t length_of_section = close - open - 1;
+    target->append(path.substr(0, open));
+    path.remove_prefix(open + 1);
+
+    const std::string_view variable_section = path.substr(0, length_of_section);
+    if (variable_section.contains('{')) {
       // Template was malformed.
       target->clear();
       return false;
     }
-    string variable_section(path_uri, open + 1, close - open - 1);
-    cur = close + 1;
 
-    ProcessVariableSection(&variable_section, parameters, target, vars_found);
+    path.remove_prefix(length_of_section + 1);
+
+    ProcessVariableSection(variable_section, parameters, target, vars_found);
   }
   return true;
 }

@@ -396,7 +396,10 @@ chromium-metrics-reviews@google.com.
   <int value="11" label="Not Chrome App Allowed"/>
   <int value="12" label="Default Allowed"/>
   <int value="13" label="Default Blocked"/>
+  <int value="14" label="KioskMode BlockedButAllowedByAdminPolicy"/>
 </enum>
+
+<!-- LINT.IfChange(ChromeOSUICommands) -->
 
 <enum name="ChromeOSUICommands">
 <!-- Please put in checks to ensure Command IDs are stable before adding them to this enum. -->
@@ -434,7 +437,12 @@ chromium-metrics-reviews@google.com.
   <int value="506" label="Personalization Hub"/>
   <int value="507" label="Hide Continue Section"/>
   <int value="508" label="Show Continue Section"/>
+  <int value="509" label="Hide Desk Name"/>
+  <int value="510" label="Show Desk Name"/>
+  <int value="511" label="Task Manager"/>
 </enum>
+
+<!-- LINT.ThenChange(//ash/public/cpp/app_menu_constants.h:CommandId, //ash/shelf/shelf_context_menu_model.h:CommandId) -->
 
 <enum name="CopyShortcutResult">
   <summary>Result of copying the app shortcut.</summary>
@@ -548,25 +556,6 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Load Model Error"/>
   <int value="3" label="Feature Not Supported Error"/>
   <int value="4" label="Language Not Supported Error"/>
-</enum>
-
-<enum name="ItemSuggestCacheStatus">
-  <int value="0" label="Ok"/>
-  <int value="1" label="Disabled by experiment"/>
-  <int value="2" label="Disabled by policy"/>
-  <int value="3" label="Invalid server URL"/>
-  <int value="4" label="No identity manager"/>
-  <int value="5" label="Google auth error"/>
-  <int value="6" label="Net error"/>
-  <int value="7" label="Response too large"/>
-  <int value="8" label="3xx status"/>
-  <int value="9" label="4xx status"/>
-  <int value="10" label="5xx status"/>
-  <int value="11" label="Empty response"/>
-  <int value="12" label="No results in response"/>
-  <int value="13" label="JSON parse failure"/>
-  <int value="14" label="JSON conversion failure"/>
-  <int value="15" label="Post launch update ignored"/>
 </enum>
 
 <enum name="LauncherContinueSectionResultType">

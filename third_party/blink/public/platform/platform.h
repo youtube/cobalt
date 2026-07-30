@@ -594,6 +594,9 @@ class BLINK_PLATFORM_EXPORT Platform {
   // Whether the platform supports elastic overscroll.
   virtual bool IsElasticOverscrollSupported() { return false; }
 
+  // Whether elastic overscroll is enabled for subscrolls.
+  virtual bool IsElasticOverscrollEnabledForSubscroll() { return false; }
+
   // Whether the scroll animator that produces smooth scrolling is enabled.
   virtual bool IsScrollAnimatorEnabled() { return true; }
 

@@ -83,6 +83,8 @@ class FirstRunFinishOrContinuePixelTest
                   /*eligibility_callback=*/
                   base::BindOnce([](bool eligible) { return eligible; },
                                  eligible),
+                  /*query_effects_callback=*/
+                  base::BindRepeating([] { return false; }),
                   /*step_completed_callback=*/base::DoNothing());
             },
             GetParam().is_feature_showcase_eligible));

@@ -648,7 +648,6 @@ void ApplyRationalizationEngineRules(
             .SetEnvironmentCondition(
                 EnvironmentConditionBuilder()
                     .SetCountryList({GeoIpCountryCode("JP")})
-                    .SetFeature(&features::kAutofillSupportPhoneticNameForJP)
                     .Build())
             .SetTriggerField(
                 FieldCondition{.possible_overall_types =
@@ -673,7 +672,6 @@ void ApplyRationalizationEngineRules(
             .SetEnvironmentCondition(
                 EnvironmentConditionBuilder()
                     .SetCountryList({GeoIpCountryCode("JP")})
-                    .SetFeature(&features::kAutofillSupportPhoneticNameForJP)
                     .Build())
             .SetTriggerField(FieldCondition{.possible_overall_types =
                                                 FieldTypeSet{NAME_FIRST}})

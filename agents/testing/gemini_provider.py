@@ -362,6 +362,9 @@ def _configure_gemini_cli(home_dir: pathlib.Path,
     settings_json['telemetry']['enabled'] = True
     settings_json['telemetry']['outfile'] = str(telemetry_outfile)
 
+    settings_json.setdefault('tools', {})
+    settings_json['tools']['useRipgrep'] = True
+
     with open(settings_file, 'w', encoding='utf-8') as outfile:
         json.dump(settings_json, outfile)
 
@@ -781,8 +784,23 @@ def _run_gemini_cli_with_telemetry_output(
                 f'return code {process.returncode}.\n'
                 f'Output:\n{full_output}')
             return {'error': error_message, 'metrics': metrics}
+        git_diff = ''
+        if diff_files := provider_vars.get('diff_files'):
+            if isinstance(diff_files, str):
+                diff_files = [f.strip() for f in diff_files.split(',')]
+            else:
+                assert isinstance(diff_files, list)
+                assert all(isinstance(f, str) for f in diff_files)
+            logging.info('diff_files: %s', diff_files)
+            cmd = ['git', 'diff', '--', *diff_files]
+            git_diff = subprocess.check_output(cmd, text=True)
+
+        output_text = full_output.strip()
+        if git_diff:
+            output_text += f"\n\nCode Changes:\n{git_diff}"
+
         return {
-            'output': full_output.strip(),
+            'output': output_text,
             'metrics': metrics,
         }
     except subprocess.TimeoutExpired:

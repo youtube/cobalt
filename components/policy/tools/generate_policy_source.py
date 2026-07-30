@@ -93,6 +93,7 @@ class PolicyDetails:
     self.internal_only = features.get('internal_only', False)
     self.metapolicy_type = features.get('metapolicy_type', '')
     self.is_deprecated = policy.get('deprecated', False)
+    self.supports_dynamic_refresh = features.get('dynamic_refresh', True)
     self.is_device_only = policy.get('device_only', False)
     self.is_sensitive = policy.get('sensitive', False)
     self.per_profile = features.get('per_profile', False)
@@ -1134,7 +1135,8 @@ namespace {namespace} {{
   # TODO(crbug.com/40127969): kChromePolicyDetails shouldn't be declare if there
   # is no policy.
   f.write('''[[maybe_unused]] const PolicyDetails kChromePolicyDetails[] = {
-// is_deprecated is_future scope source_restriction id max_external_data_size,
+// is_deprecated, is_future, supports_dynamic_refresh, scope source_restriction id,
+// max_external_data_size,
 // risk tags, uses_local_state_and_profile_prefs
 ''')
   for policy in policies:
@@ -1147,11 +1149,13 @@ namespace {namespace} {{
       if policy.cloud_only:
         source_restriction = 'kSourceRestrictionCloudOnly'
       f.write(
-          '  { %-14s%-10s%-17s%-30s%4s,%22s, %s, %s },\n' %
+          '  { %-14s%-10s%-17s%-17s%-30s%4s,%22s, %s, %s },\n' %
           ('true,' if policy.is_deprecated else 'false,',
-           'true,' if policy.is_future else 'false, ', policy.scope + ",",
-           source_restriction + ",", policy.id, policy.max_size,
-           risk_tags.ToInitString(policy.tags),
+           'true,' if policy.is_future else 'false, ', 'true,'
+               if policy.supports_dynamic_refresh else 'false, ',
+           policy.scope + ',', source_restriction + ",", policy.id, policy.max_size,
+
+               risk_tags.ToInitString(policy.tags),
            ('true' if policy.uses_local_state_and_profile_prefs else 'false')))
   f.write('};\n\n')
 

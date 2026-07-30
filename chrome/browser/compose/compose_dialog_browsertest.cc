@@ -87,11 +87,11 @@ IN_PROC_BROWSER_TEST_F(ComposeSessionBrowserTest, LifetimeOfBubbleWrapper) {
 }
 
 // TODO(crbug.com/507917198): Re-enable this test
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
 #define MAYBE_ContextMenuPasteEnabled DISABLED_ContextMenuPasteEnabled
 #else
 #define MAYBE_ContextMenuPasteEnabled ContextMenuPasteEnabled
-#endif
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
 IN_PROC_BROWSER_TEST_F(ComposeSessionBrowserTest,
                        MAYBE_ContextMenuPasteEnabled) {
   content::BrowserTestClipboardScope test_clipboard_scope;

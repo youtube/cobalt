@@ -10,6 +10,7 @@
 
 namespace blink {
 
+class DOMWrapperWorld;
 class USBConnectionEventInit;
 class USBDevice;
 
@@ -18,18 +19,27 @@ class USBConnectionEvent final : public Event {
 
  public:
   static USBConnectionEvent* Create(const AtomicString& type,
-                                    const USBConnectionEventInit*);
-  static USBConnectionEvent* Create(const AtomicString& type, USBDevice*);
+                                    const USBConnectionEventInit*,
+                                    const DOMWrapperWorld* world = nullptr);
+  static USBConnectionEvent* Create(const AtomicString& type,
+                                    USBDevice*,
+                                    const DOMWrapperWorld* world = nullptr);
 
-  USBConnectionEvent(const AtomicString& type, const USBConnectionEventInit*);
-  USBConnectionEvent(const AtomicString& type, USBDevice*);
+  USBConnectionEvent(const AtomicString& type,
+                     const USBConnectionEventInit*,
+                     const DOMWrapperWorld* world);
+  USBConnectionEvent(const AtomicString& type,
+                     USBDevice*,
+                     const DOMWrapperWorld* world);
 
   USBDevice* device() const { return device_.Get(); }
 
+  bool CanBeDispatchedInWorld(const DOMWrapperWorld&) const override;
   void Trace(Visitor*) const override;
 
  private:
   Member<USBDevice> device_;
+  Member<const DOMWrapperWorld> world_;
 };
 
 }  // namespace blink

@@ -666,7 +666,7 @@ IN_PROC_BROWSER_TEST_F(InitialWebUIPageLoadMetricsObserverBrowserTest,
         std::move(new_web_contents), true);
 
     // Show the new browser window to trigger paint
-    new_browser->window()->Show();
+    new_browser->GetWindow()->Show();
 
     raw_contents->GetController().LoadURL(
         url, content::Referrer(), ui::PAGE_TRANSITION_LINK, std::string());

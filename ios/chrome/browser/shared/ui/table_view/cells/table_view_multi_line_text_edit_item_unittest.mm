@@ -4,7 +4,6 @@
 
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_multi_line_text_edit_item.h"
 
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
@@ -33,7 +32,7 @@ TEST_F(TableViewMultiLineTextEditItemTest, ConfigureCell) {
   EXPECT_EQ(0U, textEditCell.textView.text.length);
   EXPECT_TRUE(textEditCell.textView.isEditable);
 
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
   EXPECT_NSEQ(label, textEditCell.textLabel.text);
   EXPECT_NSEQ(text, textEditCell.textView.text);
   EXPECT_FALSE(textEditCell.textView.isEditable);

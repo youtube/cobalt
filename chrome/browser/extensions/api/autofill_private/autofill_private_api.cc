@@ -1316,8 +1316,9 @@ AutofillPrivateLoadEntityInstancesFunction::Run() {
           autofill_client()->GetPrefs());
   std::vector<autofill_private::EntityInstanceWithLabels> result =
       autofill_ai_util::EntityInstancesToPrivateApiEntityInstancesWithLabels(
-          entity_data_manager->GetEntityInstances(), obfuscate_sensitive_types,
-          g_browser_process->GetApplicationLocale());
+          autofill::GetEntityInstancesForSettings(
+              entity_data_manager->GetEntityInstances()),
+          obfuscate_sensitive_types, g_browser_process->GetApplicationLocale());
   return RespondNow(ArgumentList(
       autofill_private::LoadEntityInstances::Results::Create(result)));
 }

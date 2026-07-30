@@ -22,6 +22,7 @@ import org.robolectric.annotation.Config;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Features;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -31,6 +32,7 @@ import org.chromium.content_public.browser.WebContents;
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 @Features.EnableFeatures(ChromeFeatureList.CONTEXTUAL_TASKS_JAVA_FUSEBOX)
+@DisabledTest(message = "crbug.com/525121205")
 public class ContextualTasksSessionStateUnitTest {
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 

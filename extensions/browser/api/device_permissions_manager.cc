@@ -396,21 +396,17 @@ std::u16string DevicePermissionsManager::GetPermissionMessage(
     const std::u16string& product_string,
     const std::u16string& serial_number,
     bool always_include_manufacturer) {
+  device::UsbIdNames names =
+      device::UsbIds::GetVendorAndProductName(vendor_id, product_id);
+
   std::u16string product = product_string;
-  if (product.empty()) {
-    const char* product_name =
-        device::UsbIds::GetProductName(vendor_id, product_id);
-    if (product_name) {
-      product = base::UTF8ToUTF16(product_name);
-    }
+  if (product.empty() && names.product_name) {
+    product = base::UTF8ToUTF16(names.product_name);
   }
 
   std::u16string manufacturer = manufacturer_string;
-  if (manufacturer_string.empty()) {
-    const char* vendor_name = device::UsbIds::GetVendorName(vendor_id);
-    if (vendor_name) {
-      manufacturer = base::UTF8ToUTF16(vendor_name);
-    }
+  if (manufacturer_string.empty() && names.vendor_name) {
+    manufacturer = base::UTF8ToUTF16(names.vendor_name);
   }
 
   if (serial_number.empty()) {

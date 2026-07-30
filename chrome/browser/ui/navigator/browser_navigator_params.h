@@ -20,6 +20,7 @@
 #include "components/webapps/browser/navigation_data.h"
 #include "content/public/browser/child_process_host.h"
 #include "content/public/browser/global_request_id.h"
+#include "content/public/browser/initiator_navigation_state.h"
 #include "content/public/browser/reload_type.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/site_instance.h"
@@ -119,6 +120,11 @@ struct NavigateParams {
   // The base url of the initiator of the navigation. This is only set if the
   // url is about:blank or about:srcdoc.
   std::optional<GURL> initiator_base_url;
+
+  // A record of the state of the navigation initiator when the navigation
+  // started. This should be non-null for all web contents initiated
+  // navigations.
+  scoped_refptr<content::InitiatorNavigationState> initiator_navigation_state;
 
   // The frame name to be used for the main frame.
   std::string frame_name;

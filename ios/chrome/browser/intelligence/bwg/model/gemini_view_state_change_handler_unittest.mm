@@ -31,6 +31,7 @@ class FakeGeminiViewStateChangeHandlerTarget
   void CollapseFloatyIfInvoked() override { collapse_floaty_called_ = true; }
   void OnLiveButtonTapped() override { live_button_tapped_called_ = true; }
   void OnGeminiLiveUserDidBargeIn() override { barge_in_called_ = true; }
+  void OnGeminiUIDidAppear() override { ui_did_appear_called_ = true; }
 
   std::optional<ios::provider::GeminiViewState> last_view_state_changed_;
   std::optional<ios::provider::GeminiClientMode>
@@ -39,6 +40,7 @@ class FakeGeminiViewStateChangeHandlerTarget
   bool collapse_floaty_called_ = false;
   bool live_button_tapped_called_ = false;
   bool barge_in_called_ = false;
+  bool ui_did_appear_called_ = false;
 };
 
 class GeminiViewStateChangeHandlerTest : public PlatformTest {
@@ -135,6 +137,12 @@ TEST_F(GeminiViewStateChangeHandlerTest, TestGeminiLiveUserDidBargeIn) {
 TEST_F(GeminiViewStateChangeHandlerTest, TestLiveButtonTapped) {
   [handler_ geminiLiveUserDidTapLiveButton];
   EXPECT_TRUE(target_.live_button_tapped_called_);
+}
+
+// Tests that the handler correctly forwards geminiUIDidAppear calls.
+TEST_F(GeminiViewStateChangeHandlerTest, TestGeminiUIDidAppear) {
+  [handler_ geminiUIDidAppear];
+  EXPECT_TRUE(target_.ui_did_appear_called_);
 }
 
 }  // namespace

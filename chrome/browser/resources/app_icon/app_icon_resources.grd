@@ -16,6 +16,8 @@
       <structure type="chrome_scaled_image" name="IDR_ICON_MASK" file="mask/mask.png" />
       <!-- Placeholder cube icon for promise apps. -->
       <structure type="chrome_scaled_image" name="IDR_APP_ICON_PLACEHOLDER_CUBE" file="app_icon_placeholder_cube.png" />
+      <!-- Default icon for web apps. -->
+      <structure type="chrome_scaled_image" name="IDR_WEB_APP_DEFAULT_ICON" file="web_app_default_icon.png" />
     </structures>
   </release>
 </grit>

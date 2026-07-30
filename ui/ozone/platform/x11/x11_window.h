@@ -229,6 +229,7 @@ class X11Window : public PlatformWindow,
   void SetBoundsOnMove(const gfx::Rect& requested_bounds) override;
   scoped_refptr<X11Cursor> GetLastCursor() override;
   gfx::Size GetSize() override;
+  base::WeakPtr<X11DesktopWindowMoveClient::Delegate> AsWeakPtr() override;
 
   void QuitDragLoop();
 

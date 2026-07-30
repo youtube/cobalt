@@ -21,7 +21,7 @@ android.webkit.WebView focusable focused
 ++android.widget.ListView clickable collection disabled interesting container_title='Readonly listbox' item_count=0 row_count=0 column_count=1
 ++android.widget.RadioGroup role_description='radio group' disabled interesting container_title='Readonly radiogroup'
 ++android.widget.SeekBar clickable disabled range interesting name='Readonly slider' item_index=50 item_count=100 range_max=100 range_current_value=50
-++android.widget.EditText role_description='spin button' clickable disabled range interesting name='0' hint='Readonly spinbutton' item_count=100
+++android.widget.EditText role_description='spin button' clickable disabled range interesting name='Readonly spinbutton' state_description='0' item_count=100
 ++android.view.MenuItem role_description='checkbox' checkable clickable collection_item disabled interesting content_description='Readonly menuitemcheckbox'
 ++android.view.MenuItem role_description='radio button' checkable clickable collection_item disabled interesting content_description='Readonly menuitemradio'
 ++android.widget.EditText role_description='search text field' clickable editable_text interesting hint='Readonly searchbox'

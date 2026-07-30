@@ -198,6 +198,12 @@ export class SettingsAutofillAiAddOrEditDialogElement extends
             loadTimeData.getBoolean('enableAutofillAiWalletPrivatePasses'),
       },
 
+      isWalletPassBranding2026Enabled_: {
+        type: Boolean,
+        value: () =>
+            loadTimeData.getBoolean('isAutofillAiWalletPassBranding2026Enabled'),
+      },
+
       /**
        * True while waiting for the backend to respond from Wallet API call.
        */
@@ -223,6 +229,7 @@ export class SettingsAutofillAiAddOrEditDialogElement extends
   declare private userEmail_: string;
   declare private footerText_: TrustedHTML;
   declare private enableSavePrivatePassesToWallet_: boolean;
+  declare private isWalletPassBranding2026Enabled_: boolean;
   declare private saveInProgress_: boolean;
 
   private requiredAttributeTypes_: AttributeType[] = [];

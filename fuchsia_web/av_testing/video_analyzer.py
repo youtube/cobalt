@@ -28,9 +28,9 @@ def from_original_video(recorded: str, original: str) -> object:
         reference, and returns the results as an json object. """
     binary = '/usr/local/cipd/local_analyzer/local_video_analyzer.par'
     assert os.path.isfile(binary)
-    _, filename = os.path.split(original)
+    _, filename = os.path.split(recorded)
     output_dir = os.path.join(LOG_DIR, filename)
-    os.mkdir(output_dir)
+    os.makedirs(output_dir, exist_ok=True)
 
     with RepeatingLog('Waiting for local_video_analyzer.'):
         subprocess.run([

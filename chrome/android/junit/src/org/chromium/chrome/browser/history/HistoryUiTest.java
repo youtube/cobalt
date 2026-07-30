@@ -476,6 +476,20 @@ public class HistoryUiTest {
 
     @Test
     @SmallTest
+    public void testReload() {
+        Assert.assertEquals(4, mAdapter.getItemCount());
+
+        long timestamp = new Date().getTime() - 5000;
+        HistoryItem newItem = StubbedHistoryProvider.createHistoryItem(4, timestamp);
+        mHistoryProvider.addItem(newItem);
+        mHistoryManager.reload();
+        RobolectricUtil.runAllBackgroundAndUi();
+
+        Assert.assertEquals(5, mAdapter.getItemCount());
+    }
+
+    @Test
+    @SmallTest
     public void testSupervisedUser() {
         final HistoryManagerToolbar toolbar = mHistoryManager.getToolbarForTests();
         final HistoryItemView item = (HistoryItemView) getItemView(2);

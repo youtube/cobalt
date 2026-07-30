@@ -361,3 +361,7 @@ IN_PROC_BROWSER_TEST_F(CrComponentsComposeboxTest, ComposeboxMatch) {
 IN_PROC_BROWSER_TEST_F(CrComponentsComposeboxTest, Composebox) {
   RunTest("cr_components/composebox/composebox_test.js", "mocha.run()");
 }
+
+IN_PROC_BROWSER_TEST_F(CrComponentsComposeboxTest, ComposeboxMixin) {
+  RunTest("cr_components/composebox/composebox_mixin_test.js", "mocha.run()");
+}

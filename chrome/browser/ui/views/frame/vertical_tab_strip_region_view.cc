@@ -42,6 +42,7 @@
 #include "chrome/browser/ui/views/tabs/shared/drop_arrow.h"
 #include "chrome/browser/ui/views/tabs/vertical/root_tab_collection_node.h"
 #include "chrome/browser/ui/views/tabs/vertical/tab_collection_node.h"
+#include "chrome/browser/ui/views/tabs/vertical/top_container_button.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_pinned_tab_container_view.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_drag_handler.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_bottom_container.h"
@@ -349,6 +350,25 @@ void VerticalTabStripRegionView::SetIsExitingExpandOnHoverForLayout(
       is_exiting_expand_on_hover);
 }
 
+void VerticalTabStripRegionView::SetTransitionButtonOpacity(float opacity) {
+  for (views::LabelButton* label_button :
+       {top_button_container_->GetCollapseButton(),
+        top_button_container_->GetUnfocusButton()}) {
+    if (label_button) {
+      auto* button = static_cast<TopContainerButton*>(label_button);
+      button->layer()->SetOpacity(opacity);
+
+      if (opacity == 0.0f) {
+        button->ApplyPendingIcon();
+      }
+      if (opacity == 1.0f) {
+        button->SetDelayIconUpdates(false);
+        button->ApplyPendingIcon();
+      }
+    }
+  }
+}
+
 bool VerticalTabStripRegionView::WillWrapDueToOverflow(
     int available_width) const {
   return top_button_container_->WillWrapDueToOverflow(available_width);
@@ -628,13 +648,14 @@ std::optional<int> VerticalTabStripRegionView::GetFocusedTabIndex() const {
     return std::nullopt;
   }
 
-  for (int i = 0; i < tab_strip_model_->count(); ++i) {
-    tabs::TabInterface* tab = tab_strip_model_->GetTabAtIndex(i);
+  int i = 0;
+  for (const tabs::TabInterface* tab : *tab_strip_model_) {
     const TabCollectionNode* node =
         root_node_->GetNodeForHandle(tab->GetHandle());
     if (node && node->view() == focused_view) {
       return i;
     }
+    i++;
   }
 
   return std::nullopt;
@@ -1015,6 +1036,26 @@ void VerticalTabStripRegionView::OnCollapseStateChanged(
 
   if (tab_strip_view_) {
     tab_strip_view_->SetCollapsedState(collapsed);
+  }
+
+  if ((state == tabs::VerticalTabStripCollapseState::kCollapsing) ||
+      (state == tabs::VerticalTabStripCollapseState::kExpanded &&
+       IsAnimatingSize())) {
+    const bool will_wrap = WillWrapDueToOverflow(
+        uncollapsed_width() -
+        2 * GetLayoutConstant(
+                LayoutConstant::kVerticalTabStripHorizontalPadding));
+
+    if (!will_wrap) {
+      for (views::LabelButton* label_button :
+           {top_button_container_->GetCollapseButton(),
+            top_button_container_->GetUnfocusButton()}) {
+        if (label_button) {
+          static_cast<TopContainerButton*>(label_button)
+              ->SetDelayIconUpdates(true);
+        }
+      }
+    }
   }
 
   if (state == tabs::VerticalTabStripCollapseState::kExpanded ||

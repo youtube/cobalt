@@ -22,11 +22,9 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ActivityUtils;
 import org.chromium.chrome.browser.IntentHandler;
-import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.document.ChromeLauncherActivity;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.tab.TabLaunchType;
-import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.components.bookmarks.BookmarkId;
 import org.chromium.components.bookmarks.BookmarkItem;
 import org.chromium.components.bookmarks.BookmarkType;
@@ -67,7 +65,7 @@ public class BookmarkOpenerImpl implements BookmarkOpener {
         recordMetricsForOpenBookmarkInCurrentTab(item);
 
         Intent intent = createBasicOpenIntent(item, incognito);
-        startIntentInSameWindow(intent);
+        IntentHandler.startActivityForTrustedIntent(mContext, intent);
 
         return true;
     }
@@ -108,7 +106,7 @@ public class BookmarkOpenerImpl implements BookmarkOpener {
         if (tabLaunchType != null) {
             IntentHandler.setTabLaunchType(intent, tabLaunchType);
         }
-        startIntentInSameWindow(intent);
+        IntentHandler.startActivityForTrustedIntent(mContext, intent);
 
         return true;
     }
@@ -207,21 +205,6 @@ public class BookmarkOpenerImpl implements BookmarkOpener {
             assumeNonNull(mBookmarkModelSupplier.get())
                     .setReadStatusForReadingList(item.getId(), true);
         }
-    }
-
-    private void startIntentInSameWindow(Intent intent) {
-        Activity activity = ContextUtils.activityFromContext(mContext);
-        assert activity != null;
-
-        int windowId = TabWindowManagerSingleton.getInstance().getIdForWindow(activity);
-        if (windowId != TabWindowManager.INVALID_WINDOW_ID
-                && MultiWindowUtils.launchIntentInInstance(intent, windowId)) {
-            return;
-        }
-
-        // As a fallback for when launching in the specific instance fails we start the intent
-        // normally.
-        IntentHandler.startActivityForTrustedIntent(mContext, intent);
     }
 
     // Metrics

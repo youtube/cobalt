@@ -7,6 +7,7 @@
 #include <string>
 
 #include "ash/constants/ash_features.h"
+#include "ash/login/resources/grit/ash_login_strings.h"
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/functional/bind.h"

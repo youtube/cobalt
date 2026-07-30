@@ -40,6 +40,7 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.state.PersistedTabDataConfiguration;
 import org.chromium.chrome.browser.tab.state.SendTabToSelfTabCardLabelData;
 import org.chromium.components.messages.ManagedMessageDispatcher;
 import org.chromium.components.messages.MessageBannerProperties;
@@ -74,6 +75,9 @@ public class SendTabToSelfAndroidBridgeTest {
 
     @Before
     public void setUp() {
+        // Required to allow SendTabToSelfTabCardLabelData to be initialized.
+        PersistedTabDataConfiguration.setUseTestConfig(true);
+
         ContextUtils.initApplicationContextForTests(RuntimeEnvironment.getApplication());
         SendTabToSelfAndroidBridgeJni.setInstanceForTesting(mNativeMock);
         mWebContents = new MockWebContents();
@@ -89,7 +93,8 @@ public class SendTabToSelfAndroidBridgeTest {
                 "device_name",
                 URL,
                 TITLE,
-                null);
+                null,
+                ShareEntryPoint.SHARE_SHEET);
         verify(mNativeMock)
                 .sendTabToDevice(
                         eq(mProfile),
@@ -97,7 +102,8 @@ public class SendTabToSelfAndroidBridgeTest {
                         eq(TARGET_DEVICE_SYNC_CACHE_GUID),
                         eq(URL),
                         eq(TITLE),
-                        any());
+                        any(),
+                        eq(ShareEntryPoint.SHARE_SHEET));
     }
 
     @Test
@@ -135,7 +141,6 @@ public class SendTabToSelfAndroidBridgeTest {
         Assert.assertEquals(expected, actual);
     }
 
-
     @Test
     @SmallTest
     public void testGetEntryPointDisplayReason() {
@@ -159,7 +164,8 @@ public class SendTabToSelfAndroidBridgeTest {
                 "Pixel 10",
                 URL,
                 TITLE,
-                null);
+                null,
+                ShareEntryPoint.SHARE_SHEET);
 
         verify(mNativeMock)
                 .sendTabToDevice(
@@ -168,7 +174,8 @@ public class SendTabToSelfAndroidBridgeTest {
                         eq(TARGET_DEVICE_SYNC_CACHE_GUID),
                         eq(URL),
                         eq(TITLE),
-                        confirmationCallbackCaptor.capture());
+                        confirmationCallbackCaptor.capture(),
+                        eq(ShareEntryPoint.SHARE_SHEET));
 
         confirmationCallbackCaptor.getValue().onResult(SendTabToSelfResult.SUCCESS);
 
@@ -192,7 +199,8 @@ public class SendTabToSelfAndroidBridgeTest {
                 "Pixel 10",
                 URL,
                 TITLE,
-                null);
+                null,
+                ShareEntryPoint.SHARE_SHEET);
 
         verify(mNativeMock)
                 .sendTabToDevice(
@@ -201,7 +209,8 @@ public class SendTabToSelfAndroidBridgeTest {
                         eq(TARGET_DEVICE_SYNC_CACHE_GUID),
                         eq(URL),
                         eq(TITLE),
-                        confirmationCallbackCaptor.capture());
+                        confirmationCallbackCaptor.capture(),
+                        eq(ShareEntryPoint.SHARE_SHEET));
 
         confirmationCallbackCaptor.getValue().onResult(SendTabToSelfResult.SUCCESS_THROTTLED);
 
@@ -226,7 +235,8 @@ public class SendTabToSelfAndroidBridgeTest {
                 "Pixel 10",
                 URL,
                 TITLE,
-                null);
+                null,
+                ShareEntryPoint.SHARE_SHEET);
 
         verify(mNativeMock)
                 .sendTabToDevice(
@@ -235,7 +245,8 @@ public class SendTabToSelfAndroidBridgeTest {
                         eq(TARGET_DEVICE_SYNC_CACHE_GUID),
                         eq(URL),
                         eq(TITLE),
-                        confirmationCallbackCaptor.capture());
+                        confirmationCallbackCaptor.capture(),
+                        eq(ShareEntryPoint.SHARE_SHEET));
 
         confirmationCallbackCaptor.getValue().onResult(SendTabToSelfResult.FAILURE_INVALID_URL);
 
@@ -261,7 +272,8 @@ public class SendTabToSelfAndroidBridgeTest {
                 "Pixel 10",
                 URL,
                 TITLE,
-                null);
+                null,
+                ShareEntryPoint.SHARE_SHEET);
 
         verify(mNativeMock)
                 .sendTabToDevice(
@@ -270,7 +282,8 @@ public class SendTabToSelfAndroidBridgeTest {
                         eq(TARGET_DEVICE_SYNC_CACHE_GUID),
                         eq(URL),
                         eq(TITLE),
-                        confirmationCallbackCaptor.capture());
+                        confirmationCallbackCaptor.capture(),
+                        eq(ShareEntryPoint.SHARE_SHEET));
 
         confirmationCallbackCaptor
                 .getValue()
@@ -298,7 +311,8 @@ public class SendTabToSelfAndroidBridgeTest {
                 "Pixel 10",
                 URL,
                 TITLE,
-                null);
+                null,
+                ShareEntryPoint.SHARE_SHEET);
 
         verify(mNativeMock)
                 .sendTabToDevice(
@@ -307,7 +321,8 @@ public class SendTabToSelfAndroidBridgeTest {
                         eq(TARGET_DEVICE_SYNC_CACHE_GUID),
                         eq(URL),
                         eq(TITLE),
-                        confirmationCallbackCaptor.capture());
+                        confirmationCallbackCaptor.capture(),
+                        eq(ShareEntryPoint.SHARE_SHEET));
 
         confirmationCallbackCaptor.getValue().onResult(SendTabToSelfResult.FAILURE_COMMIT_TIMEOUT);
 
@@ -333,7 +348,8 @@ public class SendTabToSelfAndroidBridgeTest {
                 "Pixel 10",
                 URL,
                 TITLE,
-                null);
+                null,
+                ShareEntryPoint.SHARE_SHEET);
 
         verify(mNativeMock)
                 .sendTabToDevice(
@@ -342,7 +358,8 @@ public class SendTabToSelfAndroidBridgeTest {
                         eq(TARGET_DEVICE_SYNC_CACHE_GUID),
                         eq(URL),
                         eq(TITLE),
-                        confirmationCallbackCaptor.capture());
+                        confirmationCallbackCaptor.capture(),
+                        eq(ShareEntryPoint.SHARE_SHEET));
 
         confirmationCallbackCaptor.getValue().onResult(SendTabToSelfResult.SUCCESS);
 

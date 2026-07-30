@@ -631,7 +631,7 @@ class CORE_EXPORT PhysicalFragment : public GarbageCollected<PhysicalFragment> {
       return const_iterator(buffer_.end(), buffer_.end());
     }
 
-    wtf_size_t size() const { return buffer_.size(); }
+    size_t size() const { return buffer_.size(); }
     bool empty() const { return buffer_.empty(); }
 
    private:

@@ -57,6 +57,7 @@ class MockObserver : public ActiveTaskContextProvider::Observer {
               OnContextTabsChanged,
               (const std::set<tabs::TabHandle>&),
               (override));
+  MOCK_METHOD(void, OnActiveTaskContextProviderDestroyed, (), (override));
 };
 
 class ActiveTaskContextProviderImplTest : public testing::Test {
@@ -423,6 +424,23 @@ TEST_F(ActiveTaskContextProviderImplTest,
   for (auto& observer : tab_list_observers_) {
     observer.OnActiveTabChanged(*tab_list_, tab1);
   }
+}
+
+TEST_F(ActiveTaskContextProviderImplTest, ObserverNotifiedOnDestruction) {
+  NiceMock<MockBrowserWindowInterface> local_window;
+  ui::UnownedUserDataHost local_user_data_host;
+  ON_CALL(local_window, GetUnownedUserDataHost())
+      .WillByDefault(ReturnRef(local_user_data_host));
+
+  auto local_provider = std::make_unique<ActiveTaskContextProviderImpl>(
+      &local_window, contextual_tasks_service_);
+
+  NiceMock<MockObserver> local_observer;
+  local_provider->AddObserver(&local_observer);
+
+  EXPECT_CALL(local_observer, OnActiveTaskContextProviderDestroyed()).Times(1);
+
+  local_provider.reset();
 }
 
 }  // namespace contextual_tasks

@@ -4,6 +4,12 @@ include_rules = [
   "+mojo/public/cpp",
   "+net",
   "+components/optimization_guide/proto/model_execution.proto",
+  "+components/keyed_service/core",
+  "+components/signin/public/base",
+  "+components/signin/public/identity_manager",
+  "+components/version_info/channel.h",
+  "+google_apis/gaia",
+  "+google_apis/google_api_keys.h",
   "+services/cert_verifier/public/mojom",
   "+services/network",
   "+services/network/public/cpp",
@@ -11,3 +17,9 @@ include_rules = [
   "+third_party/boringssl",
   "+third_party/oak/chromium/proto",
 ]
+
+specific_include_rules = {
+  ".*unittest\\.cc": [
+    "+components/version_info",
+  ],
+}

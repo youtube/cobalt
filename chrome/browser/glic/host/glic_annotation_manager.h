@@ -10,7 +10,7 @@
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
-#include "chrome/browser/glic/host/glic.mojom-shared.h"
+#include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/public/glic_instance.h"
 #include "components/prefs/pref_change_registrar.h"
@@ -25,11 +25,15 @@ namespace glic {
 class GlicKeyedService;
 
 // Manages annotation (scroll-to and highlight) requests for Glic. Owned by
-// and 1:1 with `GlicWebClientHandler`.
-class GlicAnnotationManager {
+// `GlicWebClientHandler`.
+class GlicAnnotationManager : public mojom::AnnotationHandler {
  public:
-  explicit GlicAnnotationManager(GlicKeyedService* service);
-  ~GlicAnnotationManager();
+  GlicAnnotationManager(GlicKeyedService* service, Host* host);
+  ~GlicAnnotationManager() override;
+
+  void Bind(mojo::PendingReceiver<mojom::AnnotationHandler> receiver);
+
+  // mojom::AnnotationHandler implementation.
 
   // Scrolls to and highlights content in its owner's (GlicKeyedService)
   // currently focused tab. 1callback1 is run after the content is found in
@@ -41,9 +45,8 @@ class GlicAnnotationManager {
   // the first request, the first request is cancelled.
   // TODO(crbug.com//397664100): Support scrolling without highlighting.
   void ScrollTo(mojom::ScrollToParamsPtr params,
-                mojom::WebClientHandler::ScrollToCallback callback,
-                Host* host,
-                GlicWebClientAccess* access);
+                ScrollToCallback callback) override;
+  void DropScrollToHighlight() override;
 
   // Removes any existing annotations.
   void RemoveAnnotation(mojom::ScrollToErrorReason reason);
@@ -64,7 +67,7 @@ class GlicAnnotationManager {
                    mojo::Remote<blink::mojom::AnnotationAgent> annotation_agent,
                    mojo::PendingReceiver<blink::mojom::AnnotationAgentHost>
                        annotation_agent_host,
-                   mojom::WebClientHandler::ScrollToCallback callback,
+                   mojom::AnnotationHandler::ScrollToCallback callback,
                    content::RenderFrameHost& render_frame_host,
                    Host* host);
     ~AnnotationTask() override;
@@ -146,7 +149,7 @@ class GlicAnnotationManager {
         annotation_agent_host_receiver_;
 
     // Callback for ScrollTo() that's run when the task completes or fails.
-    mojom::WebClientHandler::ScrollToCallback scroll_to_callback_;
+    mojom::AnnotationHandler::ScrollToCallback scroll_to_callback_;
 
     // The document this task is running in. This is in an iframe/guest main
     // frame for PDFs (depending on whether `chrome_pdf::features::kPdfOopif` is
@@ -166,7 +169,7 @@ class GlicAnnotationManager {
     // Used to record the match duration of `ScrollTo()`.
     const base::TimeTicks start_time_;
 
-    const base::WeakPtr<Host> host_;
+    const raw_ref<Host> host_;
   };
 
   // See documentation for `annotation_agent_container_` below.
@@ -181,6 +184,9 @@ class GlicAnnotationManager {
   // `GlicKeyedService` instance associated with the `GlicWebClientHandler`
   // that owns `this`. Will outlive `this`.
   const raw_ptr<GlicKeyedService> service_;
+  const raw_ref<Host> host_;
+
+  mojo::Receiver<mojom::AnnotationHandler> receiver_{this};
 
   // Set when this class binds to a remote AnnotationAgentContainer when
   // ScrollTo is called. It also tracks the specific document it connected to,

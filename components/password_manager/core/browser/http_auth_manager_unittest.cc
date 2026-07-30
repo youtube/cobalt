@@ -62,6 +62,7 @@ class MockPasswordManagerClient : public StubPasswordManagerClient {
               (const GURL&),
               (const, override));
   MOCK_METHOD(bool, IsFillingEnabled, (const GURL&), (const, override));
+  MOCK_METHOD(const GURL&, GetLastCommittedURL, (), (const, override));
   MOCK_METHOD(void,
               AutofillHttpAuth,
               (const PasswordForm&, const PasswordFormManagerForUI*),
@@ -446,6 +447,69 @@ TEST_P(HttpAuthManagerTest, CrossOriginLeakViaStaleBiometricObserver) {
   httpauth_manager()->DetachObserver(&evil_observer);
   httpauth_manager_.reset();
 }
+
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
+// The biometric reauth prompt should name the origin of the challenger.
+TEST_P(HttpAuthManagerTest, HttpAuthFillingReauthMessageUsesChallengerOrigin) {
+  EXPECT_CALL(client_, IsFillingEnabled).WillRepeatedly(Return(true));
+  EXPECT_CALL(client_, IsReauthBeforeFillingRequired)
+      .WillRepeatedly(Return(true));
+  const GURL main_frame_url("http://embedder.com/");
+  ON_CALL(client_, GetLastCommittedURL)
+      .WillByDefault(ReturnRef(main_frame_url));
+  base::MockOnceClosure mock_callback;
+  EXPECT_CALL(client_, AutofillHttpAuth)
+      .WillOnce(
+          [&](const password_manager::PasswordForm& preferred_match,
+              const password_manager::PasswordFormManagerForUI* form_manager) {
+            httpauth_manager()->Autofill(preferred_match, form_manager,
+                                         mock_callback.Get());
+          });
+
+  std::u16string message;
+  auto mock_authenticator =
+      std::make_unique<device_reauth::MockDeviceAuthenticator>();
+  EXPECT_CALL(*mock_authenticator, AuthenticateWithMessage)
+      .WillOnce(
+          [&](const std::u16string& msg,
+              device_reauth::DeviceAuthenticator::AuthenticateCallback cb) {
+            message = msg;
+            std::move(cb).Run(true);
+          });
+  EXPECT_CALL(client_, GetDeviceAuthenticator)
+      .WillOnce(Return(testing::ByMove(std::move(mock_authenticator))));
+
+  PasswordForm observed_form;
+  observed_form.scheme = PasswordForm::Scheme::kBasic;
+  observed_form.url = GURL("http://proxy.com/");
+  observed_form.signon_realm = "proxy.com/realm";
+
+  PasswordForm stored_form = observed_form;
+  stored_form.username_value = u"user";
+  stored_form.password_value = u"1234";
+
+  MockHttpAuthObserver observer;
+
+  base::WeakPtr<PasswordStoreConsumer> consumer;
+  EXPECT_CALL(*store_, GetLogins).WillOnce(SaveArg<1>(&consumer));
+  httpauth_manager()->SetObserverAndDeliverCredentials(&observer,
+                                                       observed_form);
+  EXPECT_CALL(observer, OnAutofillDataAvailable(std::u16string_view(u"user"),
+                                                std::u16string_view(u"1234")));
+  EXPECT_CALL(mock_callback, Run);
+  ASSERT_TRUE(consumer);
+  std::vector<PasswordForm> result;
+  result.push_back(stored_form);
+  consumer->OnGetPasswordStoreResultsOrErrorFrom(
+      store_.get(), password_manager::FromPasswordForms(std::move(result)));
+
+  EXPECT_NE(std::u16string::npos, message.find(u"proxy.com"));
+  EXPECT_EQ(std::u16string::npos, message.find(u"embedder.com"));
+
+  testing::Mock::VerifyAndClearExpectations(&store_);
+  httpauth_manager()->DetachObserver(&observer);
+}
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
 
 TEST_P(HttpAuthManagerTest, HttpAuthSaving) {
   for (bool filling_and_saving_enabled : {true, false}) {

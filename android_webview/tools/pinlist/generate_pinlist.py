@@ -190,7 +190,6 @@ def _SetWebViewCommandLineFlags():
 def _InitialSetup(device):
   """Performs initial device setup."""
   _DisableWebViewMemoryPinning(device)
-  _DisableDiskReadAhead(device)
   _SetWebViewCommandLineFlags()
 
   logging.info('Restarting Android framework...')
@@ -212,6 +211,7 @@ def _InitialSetup(device):
   logging.info('Unlocking screen...')
   device.RunShellCommand(['input', 'keyevent', 'KEYCODE_MENU'],
                          check_return=True)
+  _DisableDiskReadAhead(device)
 
 
 def _EnsureLowInitialResidency(device, webview_apk_path, max_retries=10):

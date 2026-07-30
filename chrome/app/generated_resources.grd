@@ -6982,6 +6982,12 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_PASSWORD_BUBBLES_FOOTER_SYNCED_TO_ACCOUNT" desc="The footer text of the bubbles that offers users to save, update or manage stored passwords in Chrome and synced to their Google account.">
         You can use saved passwords on any device. They're saved to <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google Password Manager</ex></ph> for <ph name="EMAIL">$2<ex>user@gmail.com</ex></ph>.
       </message>
+      <message name="IDS_PASSWORD_BUBBLES_FOOTER_TRUSTED_VAULT_ERROR" desc="The footer text of the bubbles when there is a trusted vault error, telling the user their passwords are saved to Google Password Manager.">
+        Your passwords are saved to <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google Password Manager</ex></ph> for <ph name="EMAIL">$2<ex>user@gmail.com</ex></ph>.
+      </message>
+      <message name="IDS_PASSWORD_BUBBLES_SUBTITLE_TRUSTED_VAULT_ERROR" desc="The subtitle of the password bubble when saving is blocked by a trusted vault error, telling the user they need to verify their identity to get passwords on all devices.">
+        Verify it's you to get it on all devices with your Google Account
+      </message>
       <message name="IDS_PASSWORD_BUBBLES_FOOTER_SAVING_ON_DEVICE" desc="The footer text of the bubbles that offers users to save, update or manage stored passwords only locally in Chrome.">
         Passwords are saved to <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google Password Manager</ex></ph> on this device.
       </message>
@@ -9894,7 +9900,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
         Languages
       </message>
       <message name="IDS_READING_MODE_LANGUAGE_MENU_CLOSE" desc="Label for a button to close a dialog with options for managing language preferences for Read Aloud.">
-        Close
+        Close language menu
       </message>
       <if expr="is_macosx">
         <message name="IDS_READING_MODE_CLOSE" desc="Tooltip and screen reader label for a button to close reading mode.">
@@ -10013,6 +10019,12 @@ Keep your key file in a safe place. You will need it to create new versions of y
       </message>
       <message name="IDS_LENS_DEFAULT_TITLE" desc="Default title of the Lens side panel">
         Image Search
+      </message>
+      <message name="IDS_LENS_COBROWSE_IPH_HEADER" desc="Instruction for the user to use Google Lens visual selection in co browse panel.">
+        Select anything on the page to search
+      </message>
+      <message name="IDS_LENS_COBROWSE_IPH_DESCRIPTION" desc="Informs user how Google Lens can be used in cobrowse.">
+        Use Google Lens to learn more about specific images or text on a page.
       </message>
 
       <!--Tooltip strings -->
@@ -10738,6 +10750,19 @@ Keep your key file in a safe place. You will need it to create new versions of y
         </message>
       </if>
 
+      <!--Desktop to iOS Wave 2 Promo Notification Titles-->
+      <if expr="not is_android">
+        <message name="IDS_IOS_DESKTOP_AI_PROMO_NOTIFICATION_TITLE" desc="The notification title for the iOS desktop AI promo.">
+          Reminder: AI-powered browsing in your pocket
+        </message>
+        <message name="IDS_IOS_DESKTOP_SHOPPING_PROMO_NOTIFICATION_TITLE" desc="The notification title for the iOS desktop Shopping promo.">
+          Reminder: The best of online shopping in your pocket
+        </message>
+        <message name="IDS_IOS_DESKTOP_YOUR_CHROME_PROMO_NOTIFICATION_TITLE" desc="The notification title for the iOS desktop Your Chrome promo.">
+          Reminder: Seamless browsing in your pocket
+        </message>
+      </if>
+
       <!--Accessible name/action strings-->
       <message name="IDS_ACCESSIBLE_INCOGNITO_WINDOW_TITLE_FORMAT" desc="The format for the accessible title of an Incognito window">
         <ph name="WINDOW_TITLE">$1</ph> (Incognito)
@@ -10769,8 +10794,17 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_PINNED" desc="The accessible name for the toolbar button for the split tabs feature, when it is pinned and disabled.">
         Open tab in split view
       </message>
-      <message name="IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED" desc="The accessible name for the toolbar button for the split tabs feature, when it is enabled.">
-        Arrange split view
+      <message name="IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED_LEFT_ACTIVE" desc="The accessible name for the toolbar button for the split tabs feature, when it is enabled while the left view is active.">
+        Arrange split view - left view active
+      </message>
+      <message name="IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED_RIGHT_ACTIVE" desc="The accessible name for the toolbar button for the split tabs feature, when it is enabled while the right view is active.">
+        Arrange split view - right view active
+      </message>
+      <message name="IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED_TOP_ACTIVE" desc="The accessible name for the toolbar button for the split tabs feature, when it is enabled while the top view is active.">
+        Arrange split view - top view active
+      </message>
+      <message name="IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED_BOTTOM_ACTIVE" desc="The accessible name for the toolbar button for the split tabs feature, when it is enabled while the bottom view is active.">
+        Arrange split view - bottom view active
       </message>
       <message name="IDS_ACCNAME_FIND" desc="The accessible name for the find button.">
         Find
@@ -12217,15 +12251,6 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
       </if>
 
       <!-- Tab Search -->
-      <message name="IDS_TAB_SEARCH_TOOLBAR_BUTTON_PROMO_TITLE" desc="Title text on the tab search toolbar button promo UI.">
-        Tab search is now pinned to your toolbar
-      </message>
-      <message name="IDS_TAB_SEARCH_TOOLBAR_BUTTON_PROMO_BODY" desc="Body text on the tab search toolbar button promo UI.">
-        You can unpin it and open it from the menu
-      </message>
-      <message name="IDS_TAB_SEARCH_TOOLBAR_BUTTON_PROMO_ACTION" desc="Action button text on the tab search toolbar button promo UI.">
-        Unpin
-      </message>
       <message name="IDS_TAB_SEARCH_COMBO_BUTTON_PROMO_TITLE" desc="The body text for a bubble that appears on the tab search button in the tab strip when the user has previously used tab search from the toolbar.">
         Tab search has moved
       </message>
@@ -15576,6 +15601,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
         <message name="IDS_JAVASCRIPT_UNSUPPORTED_ERROR_APPLESCRIPT_MAC" desc="Error dialog title to be displayed when the user attempts to execute JavaScript via AppleScript. Mac-only.">
           Executing JavaScript through AppleScript is turned off. To turn it on, from the menu bar, go to View &gt; Developer &gt; Allow JavaScript from Apple Events. For more information: https://support.google.com/chrome/?p=applescript
         </message>
+        <message name="IDS_DEV_TOOLS_NOT_ALLOWED_APPLESCRIPT_MAC" desc="Error dialog title to be displayed when DevTools are not allowed. Mac-only.">
+                DevTools are not allowed for this URL.
+        </message>
       </if> <!-- is_macosx -->
 
 
@@ -17188,26 +17216,24 @@ Please help our engineers fix this problem. Tell us what happened right before y
     </message>
 
     <!-- Serial port chooser -->
-    <if expr="not is_android">
-      <message name="IDS_SERIAL_PORT_CHOOSER_PROMPT" desc="The label that is used to introduce serial port chooser details to the user in a popup.">
-        <ph name="Origin">$1<ex>www.google.com</ex></ph> wants to connect to a serial port
-      </message>
-      <message name="IDS_SERIAL_PORT_CHOOSER_CONNECT_BUTTON_TEXT" desc="Label on the button that closes the serial port chooser popup and allows the requesting site access to the selected port.">
-        Connect
-      </message>
-      <message name="IDS_SERIAL_PORT_CHOOSER_LOADING_LABEL" desc="Text on label that the browser is loading the list of serial devices.">
-        Finding devices...
-      </message>
-      <message name="IDS_SERIAL_PORT_CHOOSER_LOADING_LABEL_TOOLTIP" desc="Tooltip for the label that the browser is loading the list of serial devices.">
-        Finding serial devices...
-      </message>
-      <message name="IDS_SERIAL_POLICY_DESCRIPTION_FOR_USB_PRODUCT_ID_AND_VENDOR_NAME" desc="String describing a USB device permission granted by enterprise policy to a site when the vendor name is available by a numeric product ID must be used.">
-        USB device from <ph name="VENDOR_NAME">$2<ex>Google</ex></ph> (product <ph name="PRODUCT_ID">$1<ex>0x12AB</ex></ph>)
-      </message>
-      <message name="IDS_SERIAL_POLICY_DESCRIPTION_FOR_USB_VENDOR_NAME" desc="String describing a USB device permission granted by enterprise policy to a site for all devices from a single vendor.">
-        USB devices from <ph name="VENDOR_NAME">$1<ex>Google</ex></ph>
-      </message>
-    </if>
+    <message name="IDS_SERIAL_PORT_CHOOSER_PROMPT" desc="The label that is used to introduce serial port chooser details to the user in a popup.">
+      <ph name="Origin">$1<ex>www.google.com</ex></ph> wants to connect to a serial port
+    </message>
+    <message name="IDS_SERIAL_PORT_CHOOSER_CONNECT_BUTTON_TEXT" desc="Label on the button that closes the serial port chooser popup and allows the requesting site access to the selected port.">
+      Connect
+    </message>
+    <message name="IDS_SERIAL_PORT_CHOOSER_LOADING_LABEL" desc="Text on label that the browser is loading the list of serial devices.">
+      Finding devices...
+    </message>
+    <message name="IDS_SERIAL_PORT_CHOOSER_LOADING_LABEL_TOOLTIP" desc="Tooltip for the label that the browser is loading the list of serial devices.">
+      Finding serial devices...
+    </message>
+    <message name="IDS_SERIAL_POLICY_DESCRIPTION_FOR_USB_PRODUCT_ID_AND_VENDOR_NAME" desc="String describing a USB device permission granted by enterprise policy to a site when the vendor name is available by a numeric product ID must be used.">
+      USB device from <ph name="VENDOR_NAME">$2<ex>Google</ex></ph> (product <ph name="PRODUCT_ID">$1<ex>0x12AB</ex></ph>)
+    </message>
+    <message name="IDS_SERIAL_POLICY_DESCRIPTION_FOR_USB_VENDOR_NAME" desc="String describing a USB device permission granted by enterprise policy to a site for all devices from a single vendor.">
+      USB devices from <ph name="VENDOR_NAME">$1<ex>Google</ex></ph>
+    </message>
     <message name="IDS_SERIAL_PORT_CHOOSER_NAME_WITH_PATH" desc="User option displaying a human-readable name for a serial port with the device path in parenthesis">
       <ph name="FRIENDLY_NAME">$1<ex>Virtual COM Port</ex></ph> (<ph name="DEVICE_PATH">$2<ex>COM1</ex></ph>)
     </message>
@@ -19028,13 +19054,16 @@ Please help our engineers fix this problem. Tell us what happened right before y
         Undo
       </message>
       <message name="IDS_MULTISTEP_FILTER_CUE_ACTION_TEXT" desc="Text for the action button on the contextual cue for multistep filters." translateable="false">
-        Continue
+        Find
       </message>
       <message name="IDS_MULTISTEP_FILTER_CUE_DISMISS" desc="Text for the dismiss menu item on the contextual cue for multistep filters." translateable="false">
         Dismiss
       </message>
       <message name="IDS_MULTISTEP_FILTER_CUE_SETTINGS" desc="Text for the settings menu item on the contextual cue for multistep filters." translateable="false">
-        Manage settings
+        Settings
+      </message>
+      <message name="IDS_MULTISTEP_FILTER_CUE_EXPANDABLE_CONTENT_HEADING" desc="Text for the expandable content heading on the contextual cue for multistep filters." translateable="false">
+        From your recent search
       </message>
       <message name="IDS_LINK_COPIED_TOAST_BODY" desc="Text on a toast notification that is shown when a link is successfully copied.">
         Link copied
@@ -19345,9 +19374,12 @@ Please help our engineers fix this problem. Tell us what happened right before y
         </message>
     </if>
 
-    <!-- PDF Ink Signatures elements. -->
+    <!-- PDF Editing elements. -->
     <message name="IDS_PDF_INK_SIGNATURES_IPH_BODY" desc="Content of in-product help to introduce the PDF Ink Signatures feature.">
     Add freehand drawings, signatures, and highlights with the new Draw tool
+    </message>
+    <message name="IDS_PDF_TEXT_ANNOTATIONS_IPH_BODY" desc="Content of in-product help to introduce the PDF Text Annotations feature.">
+    Add text with the new "Add text" tool
     </message>
 
     <!-- PDF Searchify elements. -->

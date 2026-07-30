@@ -1205,6 +1205,11 @@ html element u
 html element ul
     property compact
     property type
+html element usermedia
+    property error
+    property onstream
+    property setConstraints
+    property stream
 html element var
 html element video
     property HAVE_CURRENT_DATA

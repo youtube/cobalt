@@ -352,6 +352,11 @@ PrerenderHostCreationWaiter::PrerenderHostCreationWaiter() {
       }));
 }
 
+PrerenderHostCreationWaiter::~PrerenderHostCreationWaiter() {
+  PrerenderHost::SetHostCreationCallbackForTesting(
+      base::OnceCallback<void(PrerenderHostId)>());
+}
+
 PrerenderHostId PrerenderHostCreationWaiter::Wait() {
   EXPECT_TRUE(created_host_id_.is_null());
   run_loop_.Run();

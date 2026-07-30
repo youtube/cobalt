@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/strings/stringprintf.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "cc/base/features.h"
@@ -22,6 +23,11 @@
 #include "third_party/blink/public/common/features.h"
 #include "url/gurl.h"
 
+#if defined(USE_AURA)
+#include "ui/aura/window.h"
+#include "ui/aura/window_tracker.h"
+#endif
+
 namespace content {
 
 class UnboundedElementBrowserTest : public ContentBrowserTest {
@@ -31,6 +37,9 @@ class UnboundedElementBrowserTest : public ContentBrowserTest {
   void SetUp() override {
 #if BUILDFLAG(IS_ANDROID)
     // TODO(crbug.com/508672616): Not yet implemented on Android.
+    GTEST_SKIP();
+#elif BUILDFLAG(IS_LINUX)
+    // TODO(crbug.com/525899641): Flaky/failing on Linux Aura/Wayland.
     GTEST_SKIP();
 #else
     feature_list_.InitWithFeatures(
@@ -46,6 +55,45 @@ class UnboundedElementBrowserTest : public ContentBrowserTest {
     ContentBrowserTest::SetUpOnMainThread();
     ASSERT_TRUE(embedded_test_server()->Start());
   }
+
+  void TearDownOnMainThread() override {
+    UnboundedSurfaceWindow* window =
+        primary_main_frame_host()->GetUnboundedSurfaceWindow();
+    if (window) {
+      auto tracker = CreateDestructionTracker(*window);
+      window->Dismiss();
+      WaitForDestruction(std::move(tracker));
+    }
+    ContentBrowserTest::TearDownOnMainThread();
+  }
+
+#if defined(USE_AURA)
+  // Native widget destruction is async with Aura, hence we define helpers to
+  // wait for destruction.
+  std::unique_ptr<aura::WindowTracker> CreateDestructionTracker(
+      UnboundedSurfaceWindow& window) {
+    auto tracker = std::make_unique<aura::WindowTracker>();
+    gfx::NativeWindow native_window = window.GetNativeWindow();
+    CHECK(native_window);
+    tracker->Add(native_window);
+#if BUILDFLAG(IS_WIN)
+    // Explicitly wait for the top-level window to be destroyed on windows, to
+    // avoid the test runner's leak detection check from failing.
+    CHECK(native_window->parent());
+    tracker->Add(native_window->parent());
+#endif
+    return tracker;
+  }
+
+  void WaitForDestruction(std::unique_ptr<aura::WindowTracker> tracker) {
+    EXPECT_TRUE(
+        base::test::RunUntil([&]() { return tracker->windows().empty(); }));
+  }
+#else
+  // Stub implementations for non-Aura.
+  int CreateDestructionTracker(UnboundedSurfaceWindow& window) { return 0; }
+  void WaitForDestruction(int tracker) { return; }
+#endif  // defined(USE_AURA)
 
   WebContentsImpl* web_contents() const {
     return static_cast<WebContentsImpl*>(shell()->web_contents());
@@ -151,11 +199,18 @@ IN_PROC_BROWSER_TEST_F(UnboundedElementBrowserTest, LightDismissEscKey) {
       "getComputedStyle(document.getElementById('target')).visibility";
   EXPECT_EQ("visible", EvalJs(primary_main_frame_host(), get_style));
 
+  UnboundedSurfaceWindow* window =
+      primary_main_frame_host()->GetUnboundedSurfaceWindow();
+  ASSERT_TRUE(window);
+  auto tracker = CreateDestructionTracker(*window);
+
   SimulateKeyPress(web_contents(), ui::DomKey::ESCAPE, ui::DomCode::ESCAPE,
                    ui::VKEY_ESCAPE, false, false, false, false);
   RunUntilInputProcessed(primary_main_frame_host()->GetRenderWidgetHost());
 
   EXPECT_EQ("hidden", EvalJs(primary_main_frame_host(), get_style));
+
+  WaitForDestruction(std::move(tracker));
 }
 
 IN_PROC_BROWSER_TEST_F(UnboundedElementBrowserTest, LightDismissClickOutside) {
@@ -175,10 +230,17 @@ IN_PROC_BROWSER_TEST_F(UnboundedElementBrowserTest, LightDismissClickOutside) {
       "getComputedStyle(document.getElementById('target')).visibility";
   EXPECT_EQ("visible", EvalJs(primary_main_frame_host(), get_style));
 
+  UnboundedSurfaceWindow* window =
+      primary_main_frame_host()->GetUnboundedSurfaceWindow();
+  ASSERT_TRUE(window);
+  auto tracker = CreateDestructionTracker(*window);
+
   SimulateMouseClickAt(web_contents(), 0, blink::WebMouseEvent::Button::kLeft,
                        gfx::Point(300, 300));
   RunUntilInputProcessed(primary_main_frame_host()->GetRenderWidgetHost());
   EXPECT_EQ("hidden", EvalJs(primary_main_frame_host(), get_style));
+
+  WaitForDestruction(std::move(tracker));
 }
 
 IN_PROC_BROWSER_TEST_F(UnboundedElementBrowserTest, PopoverInsideUnbounded) {
@@ -499,7 +561,8 @@ IN_PROC_BROWSER_TEST_F(UnboundedElementBrowserTest,
 
 // TODO(crbug.com/508672616): Unbounded elements within frames are not yet
 // working properly.
-IN_PROC_BROWSER_TEST_F(UnboundedElementBrowserTest, DISABLED_IframeInputEventRouting) {
+IN_PROC_BROWSER_TEST_F(UnboundedElementBrowserTest,
+                       DISABLED_IframeInputEventRouting) {
   GURL url(embedded_test_server()->GetURL("/page_with_iframe.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
 
@@ -652,6 +715,39 @@ IN_PROC_BROWSER_TEST_F(UnboundedElementBrowserTest,
 
   EXPECT_EQ("a", EvalJs(primary_main_frame_host(),
                         "document.getElementById('i').value"));
+}
+
+IN_PROC_BROWSER_TEST_F(UnboundedElementBrowserTest, CloseOnWindowFocusLost) {
+  GURL url(embedded_test_server()->GetURL("/title1.html"));
+  EXPECT_TRUE(NavigateToURL(shell(), url));
+
+  std::string script = R"(
+    document.body.innerHTML = `
+      <div id="target" style="width:50px; height:50px;" unbounded></div>
+    `;
+    document.getElementById('target').showUnboundedElement();
+  )";
+  ASSERT_TRUE(ExecJs(primary_main_frame_host(), script));
+  WaitForFrameReady();
+
+  RenderFrameHostImpl* rfh =
+      static_cast<RenderFrameHostImpl*>(primary_main_frame_host());
+  UnboundedSurfaceWindow* window = rfh->GetUnboundedSurfaceWindow();
+  ASSERT_TRUE(window);
+  EXPECT_TRUE(window->is_valid());
+  auto tracker = CreateDestructionTracker(*window);
+
+  // Simulate the browser window losing focus.
+  primary_main_frame_host()->GetRenderWidgetHost()->Blur();
+
+  RunUntilInputProcessed(primary_main_frame_host()->GetRenderWidgetHost());
+  EXPECT_FALSE(rfh->GetUnboundedSurfaceWindow());
+
+  std::string get_style =
+      "getComputedStyle(document.getElementById('target')).visibility";
+  EXPECT_EQ("hidden", EvalJs(primary_main_frame_host(), get_style));
+
+  WaitForDestruction(std::move(tracker));
 }
 
 }  // namespace content

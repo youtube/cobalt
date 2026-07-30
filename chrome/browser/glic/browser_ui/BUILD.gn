@@ -11,6 +11,7 @@ source_set("browser_ui") {
     "glic_actor_nudge_delegate.h",
     "glic_nudge_controller.h",
     "glic_nudge_delegate.h",
+    "glic_split_button_delegate.h",
   ]
 
   public_deps = [
@@ -109,7 +110,6 @@ source_set("impl") {
       "//chrome/common:buildflags",
       "//chrome/common:chrome_features",
       "//components/omnibox/browser:vector_icons",
-      "//components/pdf/common:constants",
       "//components/prefs",
       "//content/public/browser",
       "//ui/strings:ui_strings__strings_grit",

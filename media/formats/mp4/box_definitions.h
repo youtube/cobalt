@@ -19,6 +19,7 @@
 #include "media/base/media_export.h"
 #include "media/base/media_log.h"
 #include "media/base/video_codecs.h"
+#include "media/base/video_spatial_format.h"
 #include "media/formats/mp4/aac.h"
 #include "media/formats/mp4/ac3.h"
 #include "media/formats/mp4/ac4.h"
@@ -342,6 +343,30 @@ struct MEDIA_EXPORT DolbyVisionInfo {
   VideoColorSpace color_space;
 };
 
+struct MEDIA_EXPORT Stereoscopic3DVideo : Box {
+  DECLARE_BOX_METHODS(Stereoscopic3DVideo);
+  VideoStereoMode mode = VideoStereoMode::kMono;
+};
+
+struct MEDIA_EXPORT Equirectangular : Box {
+  DECLARE_BOX_METHODS(Equirectangular);
+
+  uint32_t bounds_top = 0;
+  uint32_t bounds_bottom = 0;
+  uint32_t bounds_left = 0;
+  uint32_t bounds_right = 0;
+};
+
+struct MEDIA_EXPORT Projection : Box {
+  DECLARE_BOX_METHODS(Projection);
+  VideoProjectionType type = VideoProjectionType::kNone;
+};
+
+struct MEDIA_EXPORT SphericalVideo : Box {
+  DECLARE_BOX_METHODS(SphericalVideo);
+  Projection projection;
+};
+
 struct MEDIA_EXPORT VideoSampleEntry : Box {
   DECLARE_BOX_METHODS(VideoSampleEntry);
 
@@ -362,6 +387,8 @@ struct MEDIA_EXPORT VideoSampleEntry : Box {
   // compatible codec (e.g., H.264, H.265) to a Dolby Vision codec.
   std::optional<DolbyVisionInfo> dv_info;
   gfx::HDRMetadata hdr_metadata;
+
+  VideoSpatialFormat video_spatial_format;
 
   bool IsFormatValid() const;
 

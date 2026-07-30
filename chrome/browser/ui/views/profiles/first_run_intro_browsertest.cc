@@ -164,6 +164,25 @@ class FirstRunIntroPixelTest
       EXPECT_EQ(true, content::EvalJs(profile_picker_view_->GetPickerContents(),
                                       GetMakeCardDescriptionLongerJsString()));
     }
+    if (GetParam().use_refresh) {
+      // Explicitly wait for the animations to load to avoid flakiness.
+      CHECK_EQ(content::EvalJs(profile_picker_view_->GetPickerContents(), R"(
+      Promise.all(
+          Array.from(document.querySelector('sign-in-promo-refresh')
+              .shadowRoot.querySelectorAll('cr-lottie')).map(
+            anim => new Promise(resolve => {
+              if (anim.hasAttribute('is-animation-loaded')) {
+                resolve(true);
+              } else {
+                anim.addEventListener('cr-lottie-initialized',
+                                      () => resolve(true));
+              }
+            })
+          )
+        ).then(() => true);
+      )"),
+               true);
+    }
   }
 
   bool VerifyUi() override {

@@ -243,7 +243,7 @@ void CustomFloatingCorner::OnPaint(gfx::Canvas* canvas) {
   PaintPath(canvas,
             SkPath::Rect(SkRect::MakeXYWH(rect.x(), rect.y(), rect.width(),
                                           rect.height())),
-            color_, false);
+            ColorChoiceWithAlpha(color_), false);
 
   // Maybe draw the stroke.
   if (has_stroke) {

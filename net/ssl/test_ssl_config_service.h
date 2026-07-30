@@ -17,6 +17,7 @@ class TestSSLConfigService : public SSLConfigService {
   void UpdateSSLConfigAndNotify(const SSLContextConfig& config);
 
   SSLContextConfig GetSSLContextConfig() override;
+  EchMode GetEchMode(std::string_view hostname) const override;
   bool CanShareConnectionWithClientCerts(
       std::string_view hostname) const override;
 

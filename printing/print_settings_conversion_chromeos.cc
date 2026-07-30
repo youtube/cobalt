@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "print_settings_conversion_chromeos.h"
+#include "printing/print_settings_conversion_chromeos.h"
 
 #include "printing/print_job_constants.h"
 

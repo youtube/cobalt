@@ -87,6 +87,10 @@ export class TopToolbarElement extends TopToolbarElementBase {
         type: Boolean,
         reflect: true,
       },
+      onboardingTooltipShowing: {type: Boolean},
+      contextualTasksEnableSpatialModelToolbarLayout_: {type: Boolean},
+      contextualTasksEnableSpatialModelToolbarLayoutNewThreadInOverflow_:
+          {type: Boolean},
     };
   }
 
@@ -97,6 +101,7 @@ export class TopToolbarElement extends TopToolbarElementBase {
   accessor isAimEligible: boolean = loadTimeData.getBoolean('isAimEligible');
   accessor enableOpenInNewTabButton: boolean = false;
   accessor showReopenTabs_: boolean = false;
+  accessor onboardingTooltipShowing: boolean = false;
   private browserProxy_: BrowserProxy = BrowserProxyImpl.getInstance();
   private listenerIds_: number[] = [];
   protected accessor isExpandButtonEnabled: boolean =
@@ -105,6 +110,11 @@ export class TopToolbarElement extends TopToolbarElementBase {
       loadTimeData.getBoolean('enablePinButton');
   private hideOverflowMenuOnAiPageEnabled_: boolean =
       loadTimeData.getBoolean('hideMenuOnAiPageEnabled');
+  protected accessor contextualTasksEnableSpatialModelToolbarLayout_: boolean =
+      loadTimeData.getBoolean('contextualTasksEnableSpatialModelToolbarLayout');
+  protected accessor contextualTasksEnableSpatialModelToolbarLayoutNewThreadInOverflow_:
+      boolean = loadTimeData.getBoolean(
+          'contextualTasksEnableSpatialModelToolbarLayoutNewThreadInOverflow');
   accessor hideOverflowMenuButton_: boolean =
       this.hideOverflowMenuOnAiPageEnabled_ && this.isAiPage;
   protected accessor isPinned: boolean =
@@ -139,19 +149,29 @@ export class TopToolbarElement extends TopToolbarElementBase {
     this.listenerIds_ = [];
   }
 
+  // <if expr="not is_android">
+  override firstUpdated(_changedProperties: PropertyValues) {
+    super.firstUpdated(_changedProperties);
+    this.registerHelpBubble(
+        'kContextualTasksWebUIToolbarElementId', '#top-row');
+    this.registerHelpBubble(
+        'kContextualTasksWebUIOverflowMenuElementId',
+        '#overflowMenuButton');
+  }
+  // </if>
+
   override updated(changedProperties: PropertyValues<this>) {
     super.updated(changedProperties);
 
-    if (changedProperties.has('isAiPage')) {
+    if (changedProperties.has('isAiPage') ||
+        changedProperties.has('onboardingTooltipShowing')) {
       this.hideOverflowMenuButton_ =
           this.isAiPage && this.hideOverflowMenuOnAiPageEnabled_;
       // <if expr="not is_android">
       if (this.isAiPage) {
-        this.registerHelpBubble(
-            'kContextualTasksWebUIOverflowMenuElementId',
-            '#overflowMenuButton');
-      } else {
-        this.unregisterHelpBubble('kContextualTasksWebUIOverflowMenuElementId');
+        if (!this.onboardingTooltipShowing) {
+          this.browserProxy_.handler.maybeTriggerPinningPromo();
+        }
       }
       // </if>
     }
@@ -172,11 +192,6 @@ export class TopToolbarElement extends TopToolbarElementBase {
 
   protected onPinClick_() {
     this.isPinned = !this.isPinned;
-    if (this.isPinned) {
-      this.browserProxy_.handler.pinSidePanel();
-    } else {
-      this.browserProxy_.handler.unpinSidePanel();
-    }
   }
 
   protected onCloseButtonClick_() {
@@ -194,6 +209,7 @@ export class TopToolbarElement extends TopToolbarElementBase {
   }
 
   protected onOverflowMenuButtonClick_(e: Event) {
+    recordAction('ContextualTasks.WebUI.UserAction.OpenOverflowMenu');
     this.$.overflowMenu.get().showAt(e.target as HTMLElement);
   }
 

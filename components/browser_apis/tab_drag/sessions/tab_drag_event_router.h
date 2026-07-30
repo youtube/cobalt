@@ -7,16 +7,15 @@
 
 #include <vector>
 
-#include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
+#include "components/browser_apis/tab_drag/adapters/tab_drag_window_adapter.h"
 #include "components/browser_apis/tab_drag/sessions/tab_drag_session_listener.h"
 #include "components/browser_apis/tab_strip/types/node_id.h"
 #include "ui/gfx/geometry/point.h"
 
 namespace tabs_api {
 
-class TabDragWindowAdapter;
 class DropTargetRegistry;
 
 // Routes tab drag events to the right DropTarget. It reacts to high-level
@@ -39,9 +38,10 @@ class TabDragEventRouter : public TabDragSessionListener {
 
   // TabDragSessionListener overrides:
   void OnSessionStarted(std::vector<tabs_api::NodeId> dragged_tabs,
-                        TabDragWindowAdapter* source_window) override;
-  void OnTargetWindowChanged(TabDragWindowAdapter* new_target,
-                             const gfx::Point& screen_point) override;
+                        TabDragWindowId source_window_id,
+                        const gfx::Point& start_point) override;
+  void OnTargetChanged(DropTargetId new_target,
+                       const gfx::Point& screen_point) override;
   void OnDragMoved(const gfx::Point& screen_point) override;
   void OnSessionDropped(const gfx::Point& screen_point) override;
   void OnSessionCancelled() override;
@@ -51,16 +51,16 @@ class TabDragEventRouter : public TabDragSessionListener {
   }
 
  private:
-  void TransitionToTargetWindow(TabDragWindowAdapter* new_target,
-                                const gfx::Point& screen_point);
+  void TransitionToTarget(DropTargetId new_target,
+                          const gfx::Point& screen_point);
 
-  void DispatchEvent(TabDragWindowAdapter* window,
+  void DispatchEvent(DropTargetId target_id,
                      DropTargetEvent event,
                      const gfx::Point& screen_point = gfx::Point());
 
   const raw_ref<DropTargetRegistry> registry_;
   std::vector<tabs_api::NodeId> dragged_tabs_;
-  raw_ptr<TabDragWindowAdapter> current_drop_target_window_ = nullptr;
+  DropTargetId current_drop_target_;
   base::WeakPtrFactory<TabDragEventRouter> weak_factory_{this};
 };
 

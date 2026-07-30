@@ -46,6 +46,7 @@
 #import "components/autofill/ios/browser/test_autofill_client_ios.h"
 #import "components/autofill/ios/browser/test_autofill_manager_injector.h"
 #import "components/autofill/ios/common/field_data_manager_factory_ios.h"
+#import "components/autofill/ios/form_util/form_activity_tab_helper.h"
 #import "components/infobars/core/confirm_infobar_delegate.h"
 #import "components/infobars/core/infobar.h"
 #import "components/infobars/core/infobar_manager.h"
@@ -438,6 +439,9 @@ void AutofillControllerTest::SetUp() {
   autofill_commands_handler_ = OCMProtocolMock(@protocol(AutofillCommands));
   bottomsheet_tab_helper_->SetAutofillBottomSheetHandler(
       autofill_commands_handler_);
+
+  autofill::FormActivityTabHelper::GetOrCreateForWebState(web_state())
+      ->SetForceSubmittedByUserForTesting(true);
 
   histogram_tester_ = std::make_unique<base::HistogramTester>();
 }

@@ -96,10 +96,10 @@ GURL CreateRequestUrl(const FetcherConfig& config,
   // be empty, handle it in the code below.
   CHECK(!kSystemParameters.empty());
 
-  std::string path_with_query = base::StrCat(
-      {config.ServicePath(args), "?", std::string(kSystemParameters)});
+  std::string path_with_query =
+      base::StrCat({config.ServicePath(args), "?", kSystemParameters});
   if (!query_string.empty()) {
-    path_with_query += base::StrCat({"&", std::string(query_string)});
+    base::StrAppend(&path_with_query, {"&", query_string});
   }
   return GURL(config.service_endpoint.Get()).Resolve(path_with_query);
 }

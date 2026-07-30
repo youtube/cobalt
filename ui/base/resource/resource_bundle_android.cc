@@ -403,11 +403,6 @@ const std::vector<ResourceBundle::FdAndRegion>& GetLocalePaks() {
   return locale_packs;
 }
 
-void SetNoAvailableLocalePaksForTest() {
-  Java_ResourceBundle_setNoAvailableLocalePaks(
-      base::android::AttachCurrentThread());
-}
-
 void UnloadAndroidLocaleResources() {
   GetLocalePaksGlobal().clear();
 }

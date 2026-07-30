@@ -60,6 +60,17 @@
 <translation id="1587223624401073077">Google Chrome kameranızı kullanıyor.</translation>
 <translation id="1587325591171447154"><ph name="FILE_NAME" /> tehlikeli olduğu için Chrome tarafından engellendi.</translation>
 <translation id="1597911401261118146">Şifrelerinizin veri ihlali ve diğer güvenlik sorunlarına karşı güvende olup olmadığını kontrol etmek için <ph name="BEGIN_LINK" />Chrome'da oturum açın<ph name="END_LINK" />.</translation>
+<translation id="1619639070275605589">Bu işlem ile:
+          <ph name="LINE_BREAKS" />
+            • Başlangıç sayfanız, yeni sekme sayfanız, arama motorunuz ve sabit sekmeleriniz sıfırlanır.
+            <ph name="LINE_BREAK" />
+            • Uzantılar devre dışı bırakılır.
+            <ph name="LINE_BREAK" />
+            • Çerezler ve diğer geçici site verileri silinir.
+            <ph name="LINE_BREAK" />
+            • Chrome kısayolları sıfırlanır.
+            <ph name="LINE_BREAKS" />
+            Yer işaretleri, geçmiş ve kayıtlı şifreler etkilenmez.</translation>
 <translation id="1619887657840448962">Chrome'u daha güvenli bir hale getirmek için <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> altında listelenmeyen ve bilginiz dışında eklenmiş olabilecek aşağıdaki uzantıyı devre dışı bıraktık.</translation>
 <translation id="1628000112320670027">Chrome'la ilgili yardım alın</translation>
 <translation id="1640672724030957280">İndiriliyor...</translation>
@@ -136,6 +147,7 @@
 <translation id="2472092250898121027">Bu uzantı kötü amaçlı yazılım içerdiği için güvenli değil. Kişisel bilgileriniz de dahil olmak üzere ziyaret ettiğiniz sitelerdeki verilerinizi artık görememesi ve değiştirememesi için bu uzantıyı Chrome'dan kaldırın.</translation>
 <translation id="2485422356828889247">Kaldır</translation>
 <translation id="2513154137948333830">Yeniden başlatma gerekiyor: <ph name="INSTALL_SUCCESS" /></translation>
+<translation id="2523492931736391680">Çalışmanız Chrome'da güvende</translation>
 <translation id="2534365042754120737">Verilerinizin korunması için Chrome'un, yakın zamanda ziyaret etmediğiniz sitelerin izinlerini kaldırmasına izin verin. Bu işlem, bildirimleri durdurmaz.</translation>
 <translation id="2556847002339236023"><ph name="TIMEOUT_DURATION" /> boyunca kullanılmadığında Chrome kuruluşunuz tarafından kapatılır. Tarama verileri silindi. Bu veriler geçmiş, otomatik doldurma ve indirilenleri içerebilir.</translation>
 <translation id="2563121210305478421">Chrome yeniden başlatılsın mı?</translation>
@@ -240,6 +252,7 @@ Bu sayfa beklendiği gibi çalışmıyorsa optimizasyona izin vermeyi deneyin.</
 <translation id="345171907106878721">Kendinizi Chrome'a ekleyin</translation>
 <translation id="3453763134178591239">ChromeOS şartları</translation>
 <translation id="3503306920980160878">Konumunuzu bu siteyle paylaşabilmek için Chrome'un konum bilgilerinize erişmesi gerekiyor</translation>
+<translation id="3512495006767217696">Güçlü şifreler oluşturmanıza, kaydetmenize ve otomatik doldurmanıza yardımcı olmak için Chrome'a entegre edilmiştir. Kolay erişim için kısayol ekleyin.</translation>
 <translation id="3539955434060988644">Bağlantıyı Chrome &amp;Gizli penceresinde aç</translation>
 <translation id="3576528680708590453">Sistem yöneticiniz Google Chrome'u <ph name="TARGET_URL_HOSTNAME" /> adresine erişmek için alternatif bir tarayıcıyı açacak şekilde yapılandırmış.</translation>
 <translation id="3582972582564653026">Chrome'u cihazlarınız arasında senkronize edin ve kişiselleştirin</translation>
@@ -301,6 +314,7 @@ Bu sayfa beklendiği gibi çalışmıyorsa optimizasyona izin vermeyi deneyin.</
 <translation id="4149882025268051530">Yükleyici arşivi açamadı. Lütfen Google Chrome'u yeniden indirin.</translation>
 <translation id="415112847282352845">Adreslerinizi ve diğer öğelerinizi tüm cihazlarınızda kullanmak için Chrome'da oturum açın Bu adres, oturum açtıktan sonra Google Hesabınıza kaydedilir.</translation>
 <translation id="4153934450158521343">Chrome yakında kapanacak ve verileri silecek</translation>
+<translation id="4159985264221160808">Kuruluşunuz, Chrome'daki çalışmanızın güvenliğini sağlamak için belirli bilgileri görüntüleyebilir veya yönetebilir.</translation>
 <translation id="4173512894976930765">Siteler muhtemelen beklendiği gibi çalışır. Tüm Chrome pencerelerini kapattığınızda çoğu sitedeki oturumunuz kapatılır. Chrome'da oturum açtıysanız Google Hesabınız buna dahil değildir.</translation>
 <translation id="4175922240926474352">Sitede güvenli bağlantı kullanılmadığı ve dosya üzerinde oynanmış olabileceği için Chrome bu indirme işlemini engelledi</translation>
 <translation id="4191857738314598978">{0,plural, =1{Chrome'u bir gün içinde yeniden başlatın}other{Chrome'u # gün içinde yeniden başlatın}}</translation>
@@ -332,6 +346,7 @@ Bu sayfa beklendiği gibi çalışmıyorsa optimizasyona izin vermeyi deneyin.</
 <translation id="4493028449971051158">Başlatma hatası: Lütfen yükleyiciyi yönetici olarak çalıştırın.</translation>
 <translation id="4501471624619070934">Bu ülkede erişim kısıtlandığı için yükleme başarısız oldu.</translation>
 <translation id="4571503333518166079">Chrome bildirim ayarlarına git</translation>
+<translation id="4580939929828762295">Google Şifre Yöneticisi ile güvende kalın</translation>
 <translation id="4592634244097223647">Google'a bu görsel hakkında soru sorun</translation>
 <translation id="459622048091363950">Chrome erişim izni aldıktan sonra, web siteleri de erişim için sizden izin isteyebilecek.</translation>
 <translation id="4598116752460667024">Listeden herhangi bir işlemi arayın.</translation>
@@ -518,6 +533,7 @@ Bazı özellikler kullanılamayabilir. Lütfen farklı bir profil dizini belirti
 <translation id="6438015621983209660">Telefonunuzda Chrome ile Gelişmiş Güvenli Tarama'yı genişletin</translation>
 <translation id="6442774133615368941">Chrome iOS uygulamasında kameranızı kullanarak gördüklerinizi satın alın, çevirin ve tanımlayın</translation>
 <translation id="6448835208126432197">Chrome'da Gemini'da ekranın bir bölümünü seçmek için klavye kısayolunu kullanın.</translation>
+<translation id="6473659734176498825">Chrome'da Google Şifre Yöneticisi giriş noktasını gösteren basitleştirilmiş bir resim</translation>
 <translation id="6473905796280459355">Chrome hakkında sayfasına gidin</translation>
 <translation id="6481963882741794338">Kişiselleştirme ve diğer amaçlar için Chrome ile diğer Google hizmetlerini bağlayın</translation>
 <translation id="648319183876919572">Gelişmiş Güvenli Tarama sizi tehlikeli web sitelerinden ve indirmelerden korumak için daha fazlasını yapar</translation>
@@ -689,6 +705,7 @@ Bazı özellikler kullanılamayabilir. Lütfen farklı bir profil dizini belirti
 <translation id="8064965390968184078">1. Aşağıdaki <ph name="BUTTON_LABEL" /> düğmesini tıklayın.
 2. Windows ayarlarınızda <ph name="BUTTON_2" /> düğmesini tıklayın.
 3. Hızlı erişim için Chrome'u görev çubuğunuza sabitlemek isterseniz Windows bildiriminde <ph name="BUTTON_3" /> düğmesini tıklayın.</translation>
+<translation id="8069447462453318634">"Araç çubuğuna sabitle"yi seçin</translation>
 <translation id="8074398340364918139">Belirli bir Chrome özelliğinde veya uzantısında arama yapmak için ilgili kısayolu adres çubuğuna yazdıktan sonra seçtiğiniz klavye tuşuna basın</translation>
 <translation id="8077579734294125741">Diğer Chrome Profilleri</translation>
 <translation id="8086881907087796310">Bilgisayarınız minimum donanım gereksinimlerini karşılamadığından yükleme işlemi başarısız oldu.</translation>
@@ -774,6 +791,15 @@ Bazı yer işaretlerini silene kadar hesabınıza yeni yer işaretleri kaydedile
 <translation id="8922998289262614701">Bu uygulamanın verilerini Chrome'dan kaldır</translation>
 <translation id="8925636929359899517">Bilgileri bu hizmeti geliştirmek için kullanırız. <ph name="BEGIN_LINK1" />Gizlilik Politikası<ph name="END_LINK1" /> ve <ph name="BEGIN_LINK2" />Hizmet Şartları<ph name="END_LINK2" />'na göz atın.</translation>
 <translation id="8936233353620149764">Chrome'da Gemini'ı aç/kapat</translation>
+<translation id="8944232836376404813">Bu işlem ile:
+          <ph name="LINE_BREAKS" />
+            • Başlangıç sayfanız, yeni sekme sayfanız, arama motorunuz ve sabit sekmeleriniz sıfırlanır.
+            <ph name="LINE_BREAK" />
+            • Uzantılar devre dışı bırakılır.
+            <ph name="LINE_BREAK" />
+            • Çerezler ve diğer geçici site verileri silinir.
+            <ph name="LINE_BREAKS" />
+            Yer işaretleri, geçmiş ve kayıtlı şifreler etkilenmez.</translation>
 <translation id="8948460679427074738">Bu uzantı, verileri nasıl topladığı ve kullandığı gibi gizlilik uygulamalarını yayınlamadı. Chrome, bu uzantıyı kaldırmanızı önerir.</translation>
 <translation id="8958307504142971576">Artık Chrome'da daha fazla özellik kullanabilirsiniz</translation>
 <translation id="8991530961471831170">Chrome'da Gemini'ı aç</translation>

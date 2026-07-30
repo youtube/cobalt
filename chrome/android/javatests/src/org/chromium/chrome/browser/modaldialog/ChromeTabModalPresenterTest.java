@@ -48,6 +48,7 @@ import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.RequiresRestart;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.cc.input.BrowserControlsState;
@@ -148,6 +149,7 @@ public class ChromeTabModalPresenterTest {
     @Test
     @SmallTest
     @Feature({"ModalDialog"})
+    @EnableFeatures({ChromeFeatureList.ANDROID_VERTICAL_TABS})
     public void testShow_UrlBarFocused() throws Exception {
         // Show a tab modal dialog. The dialog should be shown on top of the toolbar.
         PropertyModel dialog1 = createDialog(mActivity, mManager, "1", null);
@@ -156,14 +158,26 @@ public class ChromeTabModalPresenterTest {
         final View dialogContainer = mTabModalPresenter.getDialogContainerForTest();
         final View controlContainer = mActivity.findViewById(R.id.control_container);
         final ViewGroup containerParent = mTabModalPresenter.getContainerParentForTest();
+        final ViewGroup rightParent = (ViewGroup) controlContainer.getParent();
+        // Dialog container may be located under secondary_ui_container, not at the same
+        // level in view hierarchy with Control container. |dialogViewInRightParent| in
+        // such case will be |secondary_ui_container| to compare its index against
+        // that of |controlContainer|.
+        //
+        // CoordinatorLayout +
+        //                   +--- secondary_ui_container +
+        //                   |                           +--- dialog_container
+        //                   +--- control_container
+        final View dialogViewInRightParent =
+                containerParent == rightParent ? dialogContainer : containerParent;
 
         ensureDialogContainerVisible();
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     assertThat(
-                            containerParent.indexOfChild(dialogContainer),
-                            Matchers.greaterThan(containerParent.indexOfChild(controlContainer)));
+                            rightParent.indexOfChild(dialogViewInRightParent),
+                            Matchers.greaterThan(rightParent.indexOfChild(controlContainer)));
                 });
 
         // When editing URL, it should be shown on top of the dialog.
@@ -174,8 +188,8 @@ public class ChromeTabModalPresenterTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     assertThat(
-                            containerParent.indexOfChild(dialogContainer),
-                            Matchers.lessThan(containerParent.indexOfChild(controlContainer)));
+                            rightParent.indexOfChild(dialogViewInRightParent),
+                            Matchers.lessThan(rightParent.indexOfChild(controlContainer)));
                 });
 
         // When URL bar is not focused, the dialog should be shown on top of the toolbar again.
@@ -185,8 +199,8 @@ public class ChromeTabModalPresenterTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     assertThat(
-                            containerParent.indexOfChild(dialogContainer),
-                            Matchers.greaterThan(containerParent.indexOfChild(controlContainer)));
+                            rightParent.indexOfChild(dialogViewInRightParent),
+                            Matchers.greaterThan(rightParent.indexOfChild(controlContainer)));
                 });
 
         // Dismiss the dialog by clicking OK.

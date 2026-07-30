@@ -1,0 +1,15 @@
+This is a testharness.js-based test.
+[FAIL] SVG ellipse rx/ry auto resolution affects SVGGeometryElement methods, getTotalLength resolves auto rx/ry.
+  assert_approx_equals: auto rx should resolve to ry expected 313.6517333984375 +/- 0.5 but got 200
+[FAIL] SVG ellipse rx/ry auto resolution affects SVGGeometryElement methods, getPointAtLength(0) at the 3 o'clock starting point.
+  assert_approx_equals: auto-rx x expected 100 +/- 0.5 but got 50
+[FAIL] SVG ellipse rx/ry auto resolution affects SVGGeometryElement methods, isPointInFill resolves auto rx/ry.
+  assert_true: auto-rx: center is in fill expected true got false
+[FAIL] SVG ellipse rx/ry auto resolution affects SVGGeometryElement methods, isPointInStroke with dasharray resolves auto rx/ry.
+  assert_true: auto-rx: point on boundary is in stroke (auto rx resolves to ry=50) expected true got false
+[FAIL] SVG ellipse rx/ry auto resolution affects SVGGeometryElement methods, getTotalLength resolves auto rx/ry against percentage values on the correct axis.
+  assert_approx_equals: auto rx with ry=50% must resolve via height axis (50), not width axis (100) expected 314.1592653589793 +/- 1 but got 200
+[FAIL] SVG ellipse rx/ry auto resolution affects SVGGeometryElement methods, getPointAtLength(0) with percentage ry uses height-axis resolution.
+  assert_approx_equals: auto-rx + ry=50% starting point x expected 150 +/- 0.5 but got 100
+Harness: the test ran to completion.
+

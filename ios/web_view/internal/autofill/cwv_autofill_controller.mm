@@ -38,6 +38,7 @@
 #import "components/autofill/ios/browser/autofill_util.h"
 #import "components/autofill/ios/browser/suggestion_controller_java_script_feature.h"
 #import "components/autofill/ios/form_util/form_activity_params.h"
+#import "components/autofill/ios/form_util/form_activity_tab_helper.h"
 #import "components/keyed_service/core/service_access_type.h"
 #import "components/password_manager/core/browser/leak_detection_dialog_utils.h"
 #import "components/password_manager/ios/shared_password_controller.h"
@@ -293,6 +294,11 @@ CWVAutofillProgressDialogType ToCWVAutofillProgressDialogType(
 
 - (autofill::WebViewAutofillClientIOS*)autofillClient {
   return _autofillClient.get();
+}
+
+- (void)setForceSubmittedByUserForTesting:(BOOL)force {
+  autofill::FormActivityTabHelper::GetOrCreateForWebState(_webState)
+      ->SetForceSubmittedByUserForTesting(force);  // IN-TEST
 }
 
 - (void)clearFormWithName:(NSString*)formName

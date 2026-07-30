@@ -238,9 +238,8 @@ void AutofillAiImportDataControllerImpl::DoShowBubble() {
     BrowserWindowInterface* browser =
         GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
             web_contents());
-    auto* bubble_handler = browser->GetBrowserForMigrationOnly()
-                               ->window()
-                               ->GetAutofillBubbleHandler();
+    auto* bubble_handler =
+        BrowserWindow::FromBrowser(browser)->GetAutofillBubbleHandler();
     if (IsSaveUpdatePrompt()) {
       return *bubble_handler->ShowSaveAutofillAiDataBubble(web_contents(),
                                                            this);

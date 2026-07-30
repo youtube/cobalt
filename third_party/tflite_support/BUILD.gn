@@ -58,6 +58,9 @@ flatbuffer("metadata_schema") {
 }
 
 static_library("tflite_support") {
+  _configs = configs
+  configs = []
+  configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
   sources = [
     "src/tensorflow_lite_support/cc/common.cc",
     "src/tensorflow_lite_support/cc/common.h",

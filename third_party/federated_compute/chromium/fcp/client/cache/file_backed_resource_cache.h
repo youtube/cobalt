@@ -20,7 +20,7 @@
 #include <memory>
 
 #include "absl/status/statusor.h"
-#include "fcp/base/clock.h"
+#include "absl/time/clock_interface.h"
 #include "fcp/client/cache/resource_cache.h"
 #include "fcp/client/log_manager.h"
 
@@ -32,8 +32,9 @@ class FileBackedResourceCache : public ResourceCache {
       absl::string_view base_dir,
       absl::string_view cache_dir,
       LogManager* log_manager,
-      fcp::Clock* clock,
-      int64_t max_cache_size_bytes) {
+      absl::Clock* clock,
+      int64_t max_cache_size_bytes,
+      bool sanitize_client_cache_id = false) {
     return absl::UnimplementedError("Not implemented in Chromium");
   }
 

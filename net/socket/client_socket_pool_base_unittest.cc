@@ -237,18 +237,24 @@ class MockClientSocketFactory : public ClientSocketFactory {
 
   std::unique_ptr<DatagramClientSocket> CreateDatagramClientSocket(
       DatagramSocket::BindType bind_type,
+      handles::NetworkHandle target_network,
       NetLog* net_log,
       const NetLogSource& source) override {
+    // This is used only for testing in scenarios that do not involve multiple
+    // networks. With that in mind, it's safe to ignore `target_network`.
     NOTREACHED();
   }
 
   std::unique_ptr<TransportClientSocket> CreateTransportClientSocket(
       const AddressList& addresses,
+      handles::NetworkHandle target_network,
       std::unique_ptr<
           SocketPerformanceWatcher> /* socket_performance_watcher */,
       NetworkQualityEstimator* /* network_quality_estimator */,
       NetLog* /* net_log */,
       const NetLogSource& /*source*/) override {
+    // This is used only for testing in scenarios that do not involve multiple
+    // networks. With that in mind, it's safe to ignore `target_network`.
     allocation_count_++;
     return nullptr;
   }
@@ -367,7 +373,8 @@ class TestConnectJob : public ConnectJob {
   int ConnectInternal() override {
     AddressList ignored;
     client_socket_factory_->CreateTransportClientSocket(
-        ignored, nullptr, nullptr, nullptr, NetLogSource());
+        ignored, handles::kInvalidNetworkHandle, nullptr, nullptr, nullptr,
+        NetLogSource());
     switch (job_type_) {
       case kMockJob:
         return DoConnect(true /* successful */, false /* sync */,
@@ -906,6 +913,12 @@ TEST_F(ClientSocketPoolBaseTest, GroupSeparation) {
   const SecureDnsPolicy kSecureDnsPolicys[] = {SecureDnsPolicy::kAllow,
                                                SecureDnsPolicy::kDisable};
 
+  const handles::NetworkHandle kNetworks[] = {
+      handles::kInvalidNetworkHandle,
+      kDefaultNetworkForTests,
+      kNewNetworkForTests,
+  };
+
   int total_idle_sockets = 0;
 
   // Walk through each GroupId, making sure that requesting a socket for one
@@ -921,59 +934,62 @@ TEST_F(ClientSocketPoolBaseTest, GroupSeparation) {
           SCOPED_TRACE(network_anonymization_key.ToDebugString());
           for (const auto& secure_dns_policy : kSecureDnsPolicys) {
             SCOPED_TRACE(static_cast<int>(secure_dns_policy));
+            for (const auto& target_network : kNetworks) {
+              SCOPED_TRACE(target_network);
 
-            connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
+              connect_job_factory_->set_job_type(
+                  TestConnectJob::kMockPendingJob);
 
-            ClientSocketPool::GroupId group_id(
-                url::SchemeHostPort(scheme, host_port_pair.host(),
-                                    host_port_pair.port()),
-                privacy_mode, network_anonymization_key, secure_dns_policy,
-                /*disable_cert_network_fetches=*/false,
-                handles::kInvalidNetworkHandle);
+              ClientSocketPool::GroupId group_id(
+                  url::SchemeHostPort(scheme, host_port_pair.host(),
+                                      host_port_pair.port()),
+                  privacy_mode, network_anonymization_key, secure_dns_policy,
+                  /*disable_cert_network_fetches=*/false, target_network);
 
-            EXPECT_FALSE(pool_->HasGroupForTesting(group_id));
+              EXPECT_FALSE(pool_->HasGroupForTesting(group_id));
 
-            TestCompletionCallback callback;
-            ClientSocketHandle handle;
+              TestCompletionCallback callback;
+              ClientSocketHandle handle;
 
-            // Since the group is empty, requesting a socket should not complete
-            // synchronously.
-            EXPECT_THAT(handle.Init(group_id, params_, std::nullopt,
-                                    DEFAULT_PRIORITY, SocketTag(),
-                                    ClientSocketPool::RespectLimits::ENABLED,
-                                    callback.callback(),
-                                    ClientSocketPool::ProxyAuthCallback(),
-                                    pool_.get(), NetLogWithSource()),
-                        IsError(ERR_IO_PENDING));
-            EXPECT_TRUE(pool_->HasGroupForTesting(group_id));
-            EXPECT_EQ(total_idle_sockets, pool_->IdleSocketCount());
+              // Since the group is empty, requesting a socket should not
+              // complete synchronously.
+              EXPECT_THAT(handle.Init(group_id, params_, std::nullopt,
+                                      DEFAULT_PRIORITY, SocketTag(),
+                                      ClientSocketPool::RespectLimits::ENABLED,
+                                      callback.callback(),
+                                      ClientSocketPool::ProxyAuthCallback(),
+                                      pool_.get(), NetLogWithSource()),
+                          IsError(ERR_IO_PENDING));
+              EXPECT_TRUE(pool_->HasGroupForTesting(group_id));
+              EXPECT_EQ(total_idle_sockets, pool_->IdleSocketCount());
 
-            EXPECT_THAT(callback.WaitForResult(), IsOk());
-            EXPECT_TRUE(handle.socket());
-            EXPECT_TRUE(pool_->HasGroupForTesting(group_id));
-            EXPECT_EQ(total_idle_sockets, pool_->IdleSocketCount());
+              EXPECT_THAT(callback.WaitForResult(), IsOk());
+              EXPECT_TRUE(handle.socket());
+              EXPECT_TRUE(pool_->HasGroupForTesting(group_id));
+              EXPECT_EQ(total_idle_sockets, pool_->IdleSocketCount());
 
-            // Return socket to pool.
-            handle.Reset();
-            EXPECT_EQ(total_idle_sockets + 1, pool_->IdleSocketCount());
+              // Return socket to pool.
+              handle.Reset();
+              EXPECT_EQ(total_idle_sockets + 1, pool_->IdleSocketCount());
 
-            // Requesting a socket again should return the same socket as
-            // before, so should complete synchronously.
-            EXPECT_THAT(handle.Init(group_id, params_, std::nullopt,
-                                    DEFAULT_PRIORITY, SocketTag(),
-                                    ClientSocketPool::RespectLimits::ENABLED,
-                                    callback.callback(),
-                                    ClientSocketPool::ProxyAuthCallback(),
-                                    pool_.get(), NetLogWithSource()),
-                        IsOk());
-            EXPECT_TRUE(handle.socket());
-            EXPECT_EQ(total_idle_sockets, pool_->IdleSocketCount());
+              // Requesting a socket again should return the same socket as
+              // before, so should complete synchronously.
+              EXPECT_THAT(handle.Init(group_id, params_, std::nullopt,
+                                      DEFAULT_PRIORITY, SocketTag(),
+                                      ClientSocketPool::RespectLimits::ENABLED,
+                                      callback.callback(),
+                                      ClientSocketPool::ProxyAuthCallback(),
+                                      pool_.get(), NetLogWithSource()),
+                          IsOk());
+              EXPECT_TRUE(handle.socket());
+              EXPECT_EQ(total_idle_sockets, pool_->IdleSocketCount());
 
-            // Return socket to pool again.
-            handle.Reset();
-            EXPECT_EQ(total_idle_sockets + 1, pool_->IdleSocketCount());
+              // Return socket to pool again.
+              handle.Reset();
+              EXPECT_EQ(total_idle_sockets + 1, pool_->IdleSocketCount());
 
-            ++total_idle_sockets;
+              ++total_idle_sockets;
+            }
           }
         }
       }

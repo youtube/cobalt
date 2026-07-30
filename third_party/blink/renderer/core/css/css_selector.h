@@ -418,7 +418,6 @@ class CORE_EXPORT CSSSelector {
     kPseudoScrollButton,
 
     // Overscroll gesture support.
-    kPseudoOverscrollTarget,
     kPseudoOverscrollAreaParent,
     kPseudoOverscrollOpen,
 

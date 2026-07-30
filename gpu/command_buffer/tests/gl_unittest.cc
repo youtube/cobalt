@@ -240,11 +240,11 @@ class GL3MultisampleCopyTexImageTest : public GL3Test {
     GLTestHelper::CheckGLError("SetUpImplicitResolveTextureFBO", __LINE__);
   }
 
-  void SetUpMultisampleRenderbufferFBO() {
+  void SetUpMultisampleRenderbufferFBO(GLsizei samples = 4) {
     glGenRenderbuffers(1, &sample_rb_);
     glBindRenderbuffer(GL_RENDERBUFFER, sample_rb_);
-    glRenderbufferStorageMultisampleCHROMIUM(GL_RENDERBUFFER, 4, GL_RGBA8, 16,
-                                             16);
+    glRenderbufferStorageMultisampleCHROMIUM(GL_RENDERBUFFER, samples, GL_RGBA8,
+                                             16, 16);
     glGenFramebuffers(1, &sample_fbo_);
     glBindFramebuffer(GL_FRAMEBUFFER, sample_fbo_);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
@@ -370,6 +370,38 @@ TEST_F(GL3MultisampleCopyTexImageTest,
     GTEST_SKIP() << "GL_CHROMIUM_framebuffer_multisample not supported";
   }
   SetUpMultisampleRenderbufferFBO();
+  SetUpDestTexture3D();
+  glCopyTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0, 0, 0, 2, 2);
+  VerifyCopyBlocked(GL_TEXTURE_3D);
+}
+
+// Multisample Renderbuffer with Sample Count 1
+TEST_F(GL3MultisampleCopyTexImageTest,
+       CopyTexImage2DMultisampleRenderbufferSampleCount1) {
+  if (!GLTestHelper::HasExtension("GL_CHROMIUM_framebuffer_multisample")) {
+    GTEST_SKIP() << "GL_CHROMIUM_framebuffer_multisample not supported";
+  }
+  SetUpMultisampleRenderbufferFBO(/*samples=*/1);
+  SetUpDestTexture2D();
+  glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 0, 0, 2, 2, 0);
+  VerifyCopyBlocked(GL_TEXTURE_2D);
+}
+TEST_F(GL3MultisampleCopyTexImageTest,
+       CopyTexSubImage2DMultisampleRenderbufferSampleCount1) {
+  if (!GLTestHelper::HasExtension("GL_CHROMIUM_framebuffer_multisample")) {
+    GTEST_SKIP() << "GL_CHROMIUM_framebuffer_multisample not supported";
+  }
+  SetUpMultisampleRenderbufferFBO(/*samples=*/1);
+  SetUpDestTexture2D();
+  glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, 2, 2);
+  VerifyCopyBlocked(GL_TEXTURE_2D);
+}
+TEST_F(GL3MultisampleCopyTexImageTest,
+       CopyTexSubImage3DMultisampleRenderbufferSampleCount1) {
+  if (!GLTestHelper::HasExtension("GL_CHROMIUM_framebuffer_multisample")) {
+    GTEST_SKIP() << "GL_CHROMIUM_framebuffer_multisample not supported";
+  }
+  SetUpMultisampleRenderbufferFBO(/*samples=*/1);
   SetUpDestTexture3D();
   glCopyTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0, 0, 0, 2, 2);
   VerifyCopyBlocked(GL_TEXTURE_3D);

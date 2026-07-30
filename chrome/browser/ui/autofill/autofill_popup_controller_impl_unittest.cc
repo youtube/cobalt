@@ -100,7 +100,7 @@ class AutofillPopupControllerImplTest
     // 1. Prepare the backend mock results.
     std::vector<accessibility_annotator::MemorySearchResult> entries;
     for (const auto& value : results) {
-      entries.emplace_back(accessibility_annotator::EntryType::kNameFull,
+      entries.emplace_back(accessibility_annotator::MemoryDataType::kNameFull,
                            u"Name", value);
     }
     accessibility_annotator::MemorySearchResults search_results(
@@ -109,7 +109,7 @@ class AutofillPopupControllerImplTest
 
     // 2. Setup the backend expectation if the query is non-empty.
     if (!query.empty()) {
-      EXPECT_CALL(*client().accessibility_query_service(),
+      EXPECT_CALL(*client().at_memory_query_service(),
                   Query(std::u16string_view(query), _))
           .WillOnce(base::test::RunOnceCallback<1>(std::move(search_results)));
     }

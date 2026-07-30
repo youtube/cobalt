@@ -133,15 +133,9 @@ SharingDeviceSourceSync::FilterDeviceCandidates(
 
   std::erase_if(devices, [accepted_features, can_send_via_sender_id,
                           local_device](const syncer::DeviceInfo* device) {
-    // TODO(crbug.com/522788942): Make this filtering unconditional once the
-    // legacy ClickToCall and SharedClipboard features are removed or their
-    // tests are fixed. Currently, filtering by GUID unconditionally breaks
-    // browser tests because they rely on the local device not being filtered
-    // out (due to name mismatch in test setup).
-    if (base::FeatureList::IsEnabled(syncer::kSyncSimplifyDeviceNaming)) {
-      if (local_device && device->guid() == local_device->guid()) {
-        return true;
-      }
+    // Filter out local device.
+    if (local_device && device->guid() == local_device->guid()) {
+      return true;
     }
 
     // Checks if |last_updated_timestamp| is not too old.

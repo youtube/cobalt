@@ -480,8 +480,11 @@ void ChromeNewWindowClient::ShowShortcutCustomizationApp() {
   ash::ShowShortcutCustomizationApp(ProfileManager::GetActiveUserProfile());
 }
 
-void ChromeNewWindowClient::ShowTaskManager() {
-  chrome::OpenTaskManager(nullptr, task_manager::StartAction::kShortcut);
+void ChromeNewWindowClient::ShowTaskManager(bool from_context_menu) {
+  ::task_manager::StartAction chrome_start_action =
+      from_context_menu ? ::task_manager::StartAction::kContextMenu
+                        : ::task_manager::StartAction::kShortcut;
+  chrome::OpenTaskManager(nullptr, chrome_start_action);
 }
 
 void ChromeNewWindowClient::OpenDiagnostics() {

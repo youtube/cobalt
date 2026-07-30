@@ -10,6 +10,7 @@
 
 #include "base/containers/fixed_flat_set.h"
 #include "base/no_destructor.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "components/webapps/isolated_web_apps/scheme.h"
 #include "url/origin.h"
 
@@ -31,6 +32,10 @@ std::vector<std::string_view>& GetTestAllowlist() {
 }  // namespace
 
 bool CanOriginAccessCrosIwaApi(const url::Origin& origin) {
+  if (!chromeos::features::IsCrosIsolatedWebAppSetShapeAllowlistEnabled()) {
+    return false;
+  }
+
   if (origin.scheme() != webapps::kIsolatedAppScheme) {
     return false;
   }

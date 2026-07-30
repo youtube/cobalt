@@ -48,6 +48,7 @@
 <translation id="1129383337808748948">Обновите "<ph name="CONTENT_TITLE" />"</translation>
 <translation id="1142002900084379065">Недавние фотографии</translation>
 <translation id="114221662579355151">Доступ к камере получат приложения "<ph name="APP1_NAME" />" и "<ph name="APP2_NAME" />", а также все приложения и сайты с разрешением "Камера". Возможно, потребуется обновить веб-страницу или перезапустить приложение.</translation>
+<translation id="1145593918056169051">Сбой в работе принтера</translation>
 <translation id="1147991416141538220">Чтобы запросить доступ, обратитесь к администратору устройства.</translation>
 <translation id="1148499908455722006">Открыть диалоговое окно с информацией об аккаунте <ph name="USER_NAME" /></translation>
 <translation id="1150989369772528668">Календарь</translation>
@@ -151,6 +152,7 @@
 <translation id="1383876407941801731">Поиск</translation>
 <translation id="1388728792929436380">После установки обновлений <ph name="DEVICE_TYPE" /> перезагрузится.</translation>
 <translation id="1390113502208199250">Чтобы использовать возможности лицензии Chrome Education, сбросьте настройки этого устройства.</translation>
+<translation id="1390907927270446471">У пользователя <ph name="PROFILE_USERNAME" /> нет прав для печати на принтере "<ph name="PRINTER_NAME" />". Обратитесь к администратору.</translation>
 <translation id="1391102559483454063">Включено</translation>
 <translation id="1394698770495054737">Полное размытие</translation>
 <translation id="1395878931462960119">{DAYS,plural, =1{1 день назад}one{# день назад}few{# дня назад}many{# дней назад}other{# дня назад}}</translation>
@@ -169,6 +171,7 @@
 <translation id="1426410128494586442">Да</translation>
 <translation id="142655739075382478">Приложение "<ph name="APP_NAME" />" заблокировано</translation>
 <translation id="142765311413773645">Срок действия лицензии <ph name="APP_NAME" /> истек</translation>
+<translation id="1430915738399379752">Печать</translation>
 <translation id="1435537621343861112">Невозможно начать голосовой ввод. Микрофон отключен.</translation>
 <translation id="1445031758921122223">Файлы для функции отслеживания лица скачаны</translation>
 <translation id="1447907279406111651">Проходит сейчас · Окончание: <ph name="END_TIME" /></translation>
@@ -229,6 +232,7 @@
 <translation id="1597880963776148053">Шаг <ph name="STEP" /> из <ph name="TOTAL_STEPS" />. На панели запуска в нижней части экрана находятся закрепленные и открытые приложения. Чтобы перейти к ним, нажмите Alt + Shift + L, а затем Tab.</translation>
 <translation id="1602085790802918092">Запуск виртуальной машины</translation>
 <translation id="1602874809115667351"><ph name="LAUNCHER_KEY_NAME" /> + Стрелка вниз</translation>
+<translation id="1604432177629086300">Ошибка печати. Проверьте принтер и повторите попытку.</translation>
 <translation id="1604857178818051494">Приостановить воспроизведение</translation>
 <translation id="1607312127821884567">Не настраивать просмотр приложений с телефона</translation>
 <translation id="1610778689852195798">"Отменить"</translation>
@@ -372,6 +376,7 @@
 <translation id="2053312383184521053">Данные о состоянии бездействия</translation>
 <translation id="2064048859448024834">Предварительный просмотр для камеры включен</translation>
 <translation id="2067220651560163985">Использовать градусы Цельсия</translation>
+<translation id="206960706005837784">Приложение "<ph name="APP_NAME" />" завершило печать на принтере "<ph name="PRINTER_NAME" />".</translation>
 <translation id="2075520525463668108">Включить или отключить функцию "<ph name="CAPTURE_MEDIUM" />". Функция "<ph name="CAPTURE_MEDIUM" />" <ph name="CAPTURE_STATE" />.</translation>
 <translation id="2079545284768500474">Отмена</translation>
 <translation id="2086334242442703436">Открыть окно выбора эмодзи</translation>
@@ -441,6 +446,7 @@
 <translation id="2328561734797404498">Чтобы использовать <ph name="APP_NAME" />, перезапустите устройство.</translation>
 <translation id="2335091074961603075">На вашем устройстве устаревшая версия Bluetooth. Воспользуйтесь встроенным микрофоном для более высокого качества звука.</translation>
 <translation id="2336214675195760012">{NUM_DAYS,plural, =1{По правилам, заданным <ph name="MANAGER" />, вам нужно сегодня скачать обновление по Wi-Fi. Если хотите, используйте подключение с тарификацией, но в этом случае может взиматься плата за передачу данных.}one{По правилам, заданным <ph name="MANAGER" />, до истечения срока вам нужно скачать обновление по Wi-Fi. Если хотите, используйте подключение с тарификацией, но в этом случае может взиматься плата за передачу данных.}few{По правилам, заданным <ph name="MANAGER" />, до истечения срока вам нужно скачать обновление по Wi-Fi. Если хотите, используйте подключение с тарификацией, но в этом случае может взиматься плата за передачу данных.}many{По правилам, заданным <ph name="MANAGER" />, до истечения срока вам нужно скачать обновление по Wi-Fi. Если хотите, используйте подключение с тарификацией, но в этом случае может взиматься плата за передачу данных.}other{По правилам, заданным <ph name="MANAGER" />, до истечения срока вам нужно скачать обновление по Wi-Fi. Если хотите, используйте подключение с тарификацией, но в этом случае может взиматься плата за передачу данных.}}</translation>
+<translation id="2336258397628212480">Приложение "<ph name="APP_NAME" />" печатает одну страницу на принтере "<ph name="PRINTER_NAME" />".</translation>
 <translation id="2336381494582898602">Powerwash</translation>
 <translation id="2339073806695260576">Нажмите кнопку стилуса на панели запуска, чтобы создать заметку, сделать скриншот или использовать стилус в качестве лупы или лазерной указки.</translation>
 <translation id="2341729377289034582">Заблокировано в вертикальном положении</translation>
@@ -755,6 +761,7 @@
 <translation id="3206735939915734551">Включить или отключить Caps Lock</translation>
 <translation id="3207953481422525583">Пользовательские настройки</translation>
 <translation id="3208321278970793882">Приложение</translation>
+<translation id="32101887417650595">Не удается подключиться к принтеру</translation>
 <translation id="3212221635583599601">Необходимо подключение к интернету.</translation>
 <translation id="3213571860604332401">Добавить ссылку в закладки</translation>
 <translation id="3217205077783620295">Звук включен. Нажмите эту кнопку, чтобы отключить его.</translation>
@@ -823,6 +830,7 @@
 <translation id="3431517721463707585">Рабочий стол 14</translation>
 <translation id="3433507769937235446">Блокировать, если вас нет рядом</translation>
 <translation id="3434107140712555581"><ph name="BATTERY_PERCENTAGE" />%</translation>
+<translation id="343578350365773421">Закончилась бумага</translation>
 <translation id="3435967511775410570">Отпечаток распознан</translation>
 <translation id="3437677362970530951">Игры из Google Play и с других платформ</translation>
 <translation id="3439896670700055005">Обновить текущую страницу без использования кешированного контента</translation>
@@ -999,6 +1007,7 @@
 <translation id="3848526302597027234">Получение доступа к разрешениям ниже</translation>
 <translation id="385051799172605136">Назад</translation>
 <translation id="385300504083504382">В начало</translation>
+<translation id="3854976556788175030">Выходной лоток заполнен</translation>
 <translation id="3857807444929313943">Отпустите и нажмите снова</translation>
 <translation id="3859364108019690">Ошибка трансляции приложений</translation>
 <translation id="3861638017150647085">Имя пользователя "<ph name="USERNAME" />" недоступно.</translation>
@@ -1051,6 +1060,7 @@
 <translation id="401993194061514265">Фломастер недоступен. Закройте и снова откройте Screencast.</translation>
 <translation id="4021716437419160885">Прокрутить вниз</translation>
 <translation id="4022497978915111141">Заблокировать устройство</translation>
+<translation id="4023048917751563912">Приложение "<ph name="APP_NAME" />" печатает страницы (<ph name="PAGE_NUMBER" />) на принтере "<ph name="PRINTER_NAME" />".</translation>
 <translation id="4024840464866786680">Если вы забыли PIN-код и пароль аккаунта Google или недавно сменили его, попробуйте восстановить пользователя.</translation>
 <translation id="4026843240379844265">Переместить активное окно между экранами</translation>
 <translation id="4028481283645788203">В качестве дополнительной меры безопасности введите пароль.</translation>
@@ -1583,6 +1593,7 @@
 <translation id="5491186829646618080">Доступны обновления</translation>
 <translation id="5503884284981862082">Открыть или закрыть Google Ассистента</translation>
 <translation id="550391772491508736">Возобновить трансляцию</translation>
+<translation id="5505307013568720083">Закончились чернила</translation>
 <translation id="5506975627792768506">Включить или отключить лупу</translation>
 <translation id="5507778598655387680"><ph name="VOLUME_LEVEL" />. Чтобы отключить звук, нажмите клавишу "Ввод".</translation>
 <translation id="5512042095225963688">Удалить предыдущее слово</translation>
@@ -1694,12 +1705,14 @@
 <translation id="5791926618942305301">Параметры записи экрана: <ph name="SOURCE" />, <ph name="TYPE" />. Чтобы изменить тип записи, нажмите Tab. Чтобы начать запись, нажмите Ввод. Чтобы выбрать определенную область, в качестве типа записи нужно установить скриншот части экрана. Если нужная область экрана ещё не активна, для перехода к ней используйте клавишу Пробел.</translation>
 <translation id="579415080077680903">Тихий режим</translation>
 <translation id="5802516411616338943">Открыть быстрые настройки</translation>
+<translation id="5804241973901381774">Разрешения</translation>
 <translation id="5804651031882187592">Отключите блокировку SIM-карты</translation>
 <translation id="5805809050170488595">Нажмите, чтобы активировать <ph name="NETWORK_NAME" /></translation>
 <translation id="5818796501620225415">Можно добавить время или выйти из режима концентрации внимания.</translation>
 <translation id="5819918159912280082">Устройство Chromebook было перезагружено. Откройте предыдущие окна и приложения.</translation>
 <translation id="5823239091726045201">Google Задачи (веб-версия)</translation>
 <translation id="5825969630400862129">Настройки подключенных устройств</translation>
+<translation id="5828633471261496623">Печать...</translation>
 <translation id="5830180081891717894">ещё <ph name="WINDOWS" /></translation>
 <translation id="5830205393314753525">Не удалось открыть приложение "<ph name="APP_NAME" />"</translation>
 <translation id="583281660410589416">Неизвестно</translation>
@@ -1724,6 +1737,7 @@
 <translation id="5892014525522223653">Нет интернета.</translation>
 <translation id="5895138241574237353">Перезапустить</translation>
 <translation id="589817443623831496">Точечное сканирование</translation>
+<translation id="5901494423252125310">Дверца принтера открыта</translation>
 <translation id="5901630391730855834">Желтый</translation>
 <translation id="5904614460720589786">Не удалось настроить <ph name="APP_NAME" /> из-за проблем с конфигурацией. Обратитесь к администратору. Код ошибки: <ph name="ERROR_CODE" />.</translation>
 <translation id="5910726859585389579">Устройство <ph name="DEVICE_TYPE" /> не подключено к Интернету</translation>
@@ -1788,6 +1802,7 @@
         <ph name="BEGIN_PARAGRAPH2" />Если отключить эту функцию, устройство все равно будет отправлять Google данные, необходимые для работы основных служб, таких как средства защиты и обновления системы.<ph name="END_PARAGRAPH2" />
         <ph name="BEGIN_PARAGRAPH3" />Управлять параметрами этой функции можно в меню "Настройки &gt; Дополнительные настройки &gt; Автоматически отправлять статистику использования и данные диагностики в Google".<ph name="END_PARAGRAPH3" />
         <ph name="BEGIN_PARAGRAPH4" />Если в аккаунте Google ребенка включена дополнительная история приложений и веб-поиска, в нем может сохраняться эта информация. Узнать больше об этих параметрах и о том, как их настроить, можно на странице families.google.com.<ph name="END_PARAGRAPH4" /></translation>
+<translation id="6052261338768299955">Приложение "<ph name="APP_NAME" />" пытается распечатать страницы на принтере "<ph name="PRINTER_NAME" />".</translation>
 <translation id="6054305421211936131">Войти с помощью смарт-карты</translation>
 <translation id="6059276912018042191">Недавние вкладки в Chrome</translation>
 <translation id="606147842285839995">Клавиша ExpressKey 3</translation>
@@ -1894,6 +1909,7 @@
 <translation id="6337159624125741244">Полноэкранная лупа включена</translation>
 <translation id="6338485349199627913">Сеансом "<ph name="DISPLAY_NAME" />" управляет <ph name="MANAGER" /></translation>
 <translation id="6340148837564298498">Если вы забыли PIN-код, попробуйте восстановить аккаунт этого пользователя.</translation>
+<translation id="634208815998129842">Диспетчер задач</translation>
 <translation id="6344138931392227467">Подключено устройство "<ph name="DEVICE_NAME" />".</translation>
 <translation id="6345418402353744910">Чтобы администратор мог настроить вашу сеть, прокси-серверу <ph name="PROXY" /> требуется ваше имя и пароль.</translation>
 <translation id="6348449481487610270"><ph name="MODIFIER_ONE" /><ph name="MODIFIER_TWO" /><ph name="KEY_ONE" />, затем <ph name="MODIFIER_THREE" /><ph name="KEY_TWO" /> или <ph name="KEY_THREE" /></translation>
@@ -2099,6 +2115,7 @@
 <translation id="6921427376813842559">Установите обновления</translation>
 <translation id="6929081673585394903">Показать элементы управления</translation>
 <translation id="6931576957638141829">Сохранить в</translation>
+<translation id="6935286146439255109">Отсутствует лоток для бумаги</translation>
 <translation id="6935857786205183008">Вертикальное расположение</translation>
 <translation id="6942518653766415536">Меню форматов записи</translation>
 <translation id="6945221475159498467">Выбрать</translation>
@@ -2121,6 +2138,7 @@
 <translation id="6988094684494323731">Запуск контейнера Linux</translation>
 <translation id="7000027735917578303">Настройки окон и рабочих столов</translation>
 <translation id="7001036685275644873">Резервное копирование приложений и файлов Linux…</translation>
+<translation id="7001066449188684145">Для печати на принтере "<ph name="PRINTER_NAME" />" требуется идентификация. Обратитесь к администратору.</translation>
 <translation id="7004910047186208204">Подключиться к мобильному интернету</translation>
 <translation id="7005239792648594238">Чтобы начать, откройте приложение</translation>
 <translation id="7014684956566476813">Установлено подключение к устройству "<ph name="DEVICE_NAME" />"</translation>
@@ -2160,6 +2178,7 @@
 <translation id="7108254681523785542">Выберите элемент, который нужно вставить. Чтобы открыть историю буфера обмена, нажмите <ph name="SHORTCUT_KEY_NAME" /> + V.</translation>
 <translation id="7108338896283013870">Скрыть</translation>
 <translation id="7108933416628942903">Заблокировать</translation>
+<translation id="7116554090938189816">Срок действия SSL-сертификата принтера истек. Перезапустите принтер и повторите попытку.</translation>
 <translation id="7116969082764510092">Рабочий стол 11</translation>
 <translation id="7118268675952955085">скриншот</translation>
 <translation id="7118597077555700347">Открыть результат "<ph name="SEARCH_RESULT_TEXT" />"</translation>
@@ -2211,6 +2230,7 @@
 <translation id="7312210124139670355">Администратор выполняет сброс eSIM. Это может занять несколько минут.</translation>
 <translation id="7312761820869643657">Вернитесь к предыдущей версии ОС</translation>
 <translation id="7313193732017069507">Показать кнопку изменения размера</translation>
+<translation id="7325209047678309347">Бумага застряла</translation>
 <translation id="7327989755579928735">Отладка с помощью ADB отключена администратором (<ph name="MANAGER" />). После перезагрузки устройства <ph name="DEVICE_TYPE" /> вы не сможете устанавливать приложения из неизвестных источников.</translation>
 <translation id="73289266812733869">Не выбрано</translation>
 <translation id="7330397557116570022">Чтобы использовать голосовой ввод, перейдите к текстовому полю</translation>
@@ -2585,6 +2605,7 @@
 <translation id="8339706171276328417"><ph name="ACTION_DESCRIPTION" /> · <ph name="TIME" /></translation>
 <translation id="834414266279889566">Плохой результат</translation>
 <translation id="8345019317483336363">Выбрано окно "<ph name="WINDOW_TITLE" />"</translation>
+<translation id="8347227221149377169">Задания печати</translation>
 <translation id="8349826889576450703">Launcher</translation>
 <translation id="8349964124165471584">Открыть ссылку в новом окне</translation>
 <translation id="8351131234907093545">Создать заметку</translation>
@@ -2623,6 +2644,7 @@
 <translation id="8458259704995116343">Ошибка при запуске ВМ.</translation>
 <translation id="84613761564611563">Отправлен запрос на получение интерфейса конфигурации сети. Подождите…</translation>
 <translation id="8462305545768648477">Остановить озвучивание при нажатии</translation>
+<translation id="8463001014623882202">Ошибка авторизации</translation>
 <translation id="8466665972451889002">Показать элементы группы "<ph name="GROUP_NAME" />"</translation>
 <translation id="8468806060683421065">срок сдачи: <ph name="DUE_DATE_AND_TIME" /></translation>
 <translation id="8473301994082929012">Организация <ph name="ORGANIZATION_NAME" /> <ph name="FEATURE_STATE" /> функцию "<ph name="FEATURE_NAME" />".</translation>

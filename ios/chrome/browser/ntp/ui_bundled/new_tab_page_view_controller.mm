@@ -78,9 +78,10 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
 @property(nonatomic, strong)
     OverscrollActionsController* overscrollActionsController;
 
-// Whether or not the fake omnibox is pinned to the top of the NTP. Redefined
-// to make readwrite.
 @property(nonatomic, assign) BOOL isFakeboxPinned;
+
+// Layout guide for NTP modules.
+@property(nonatomic, readonly) UILayoutGuide* moduleLayoutGuide;
 
 // Array of constraints used to pin the fake Omnibox header into the top of the
 // view.
@@ -116,9 +117,6 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
 
 // Array of all objects (views or view controllers) above the feed.
 @property(nonatomic, strong) NSMutableArray<id>* objectsAboveFeed;
-
-// Identity disc shown in the NTP.
-@property(nonatomic, weak) NTPIdentityDiscButton* identityDiscButton;
 
 // Tap gesture recognizer when the omnibox is focused.
 @property(nonatomic, strong) UITapGestureRecognizer* tapGestureRecognizer;
@@ -261,9 +259,6 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
 
   [self layoutContentInParentCollectionView];
 
-  self.identityDiscButton = [self.headerView identityDiscButton];
-  DCHECK(self.identityDiscButton);
-
   self.viewDidFinishLoading = YES;
 
   NSArray<UITrait>* traits = @[
@@ -356,12 +351,6 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
       [self.helpHandler presentInProductHelpWithType:
                             InProductHelpType::kHomeCustomizationMenu];
     }
-  }
-
-  // Scrolls NTP into feed initially if `shouldScrollIntoFeed`.
-  if (self.shouldScrollIntoFeed) {
-    [self scrollIntoFeed];
-    self.shouldScrollIntoFeed = NO;
   }
 
   [self updateFeedSigninPromoIsVisible];

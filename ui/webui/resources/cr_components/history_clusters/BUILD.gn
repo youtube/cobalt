@@ -24,7 +24,6 @@ build_webui("build") {
   grd_prefix = "cr_components_history_clusters"
 
   ts_files = [
-    "browser_proxy.ts",
     "cluster.html.ts",
     "cluster.ts",
     "cluster_menu.html.ts",

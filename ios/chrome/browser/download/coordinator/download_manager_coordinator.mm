@@ -120,11 +120,8 @@
 - (void)restart {
   CHECK(self.presenter, base::NotFatalUntil::M150);
   CHECK(self.browser, base::NotFatalUntil::M150);
-  if (IsGeminiCopresenceEnabled()) {
-    _geminiHandler = HandlerForProtocol(self.browser->GetCommandDispatcher(),
-                                        GeminiCommands);
-  }
-
+  _geminiHandler =
+      HandlerForProtocol(self.browser->GetCommandDispatcher(), GeminiCommands);
   if (_stopped && self.presenter.presentedViewController) {
     // Stopping animation is still in progress. Wait until it is done to
     // restart.
@@ -364,11 +361,9 @@
 #pragma mark - ContainedPresenterDelegate
 
 - (void)containedPresenterWillPresent:(id<ContainedPresenter>)presenter {
-  if (IsGeminiCopresenceEnabled()) {
-    [_geminiHandler
-        hideFloatyIfInvokedAnimated:NO
-                         fromSource:gemini::FloatyUpdateSource::Banner];
-  }
+  [_geminiHandler
+      hideFloatyIfInvokedAnimated:NO
+                       fromSource:gemini::FloatyUpdateSource::Banner];
 }
 
 - (void)containedPresenterDidPresent:(id<ContainedPresenter>)presenter {
@@ -385,12 +380,10 @@
     [self start];
   }
 
-  if (IsGeminiCopresenceEnabled()) {
-    [_geminiHandler
-        updateFloatyVisibilityIfEligibleAnimated:NO
-                                      fromSource:gemini::FloatyUpdateSource::
-                                                     Banner];
-  }
+  [_geminiHandler
+      updateFloatyVisibilityIfEligibleAnimated:NO
+                                    fromSource:gemini::FloatyUpdateSource::
+                                                   Banner];
 }
 
 #pragma mark - DownloadManagerViewControllerDelegate

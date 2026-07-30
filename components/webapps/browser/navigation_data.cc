@@ -4,9 +4,12 @@
 
 #include "components/webapps/browser/navigation_data.h"
 
+#include "components/services/app_service/public/cpp/app_launch_util.h"
+
 namespace webapps {
 
-NavigationData::NavigationData() = default;
+NavigationData::NavigationData()
+    : launch_source_(apps::LaunchSource::kUnknown) {}
 NavigationData::~NavigationData() = default;
 NavigationData::NavigationData(NavigationData&&) = default;
 
@@ -24,6 +27,14 @@ std::optional<LaunchParams> NavigationData::launch_params() const {
 
 void NavigationData::SetLaunchParams(LaunchParams launch_params) {
   launch_params_ = std::move(launch_params);
+}
+
+apps::LaunchSource NavigationData::launch_source() const {
+  return launch_source_;
+}
+
+void NavigationData::SetLaunchSource(apps::LaunchSource launch_source) {
+  launch_source_ = launch_source;
 }
 
 }  // namespace webapps

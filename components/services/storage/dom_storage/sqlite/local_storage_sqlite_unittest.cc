@@ -95,8 +95,8 @@ void LocalStorageSqliteTest::GetDatabasePath(base::FilePath* result) {
   if (!temp_dir_.IsValid()) {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
   }
-  *result = DomStorageDatabase::GetPath(StorageType::kLocalStorage,
-                                        temp_dir_.GetPath());
+  *result = DomStorageDatabase::GetSqlitePath(StorageType::kLocalStorage,
+                                              temp_dir_.GetPath());
 }
 
 base::PassKey<DomStorageDatabaseFactory> LocalStorageSqliteTest::GetPassKey() {

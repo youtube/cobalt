@@ -41,6 +41,10 @@ BASE_FEATURE(kDsePreload2OnSuggestNonDefalutMatch,
              "kDsePreload2OnSuggestNonDefalutMatch",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// An empty string means that do not use initial No-Vary-Search hint.
+const base::FeatureParam<std::string> kDsePreload2InitialNoVarySearchHint{
+    &kDsePreload2, "dse_preload2_initial_no_vary_search_hint", ""};
+
 bool IsDsePreload2Enabled() {
   return base::FeatureList::IsEnabled(kDsePreload2) &&
          static_cast<size_t>(

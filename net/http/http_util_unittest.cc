@@ -423,6 +423,21 @@ TEST(HttpUtilTest, LocateEndOfAdditionalHeaders) {
     EXPECT_EQ(test.expected_result, eoh);
   }
 }
+
+TEST(HttpUtilTest, LocateStartOfStatusLine) {
+  EXPECT_EQ(0u, HttpUtil::LocateStartOfStatusLine(
+                    base::byte_span_from_cstring("HTTP")));
+  EXPECT_EQ(0u, HttpUtil::LocateStartOfStatusLine(
+                    base::byte_span_from_cstring("HTTP/1.1 200 OK")));
+  EXPECT_EQ(4u, HttpUtil::LocateStartOfStatusLine(
+                    base::byte_span_from_cstring("xxxxHTTP/1.1 200 OK")));
+  EXPECT_EQ(std::string::npos,
+            HttpUtil::LocateStartOfStatusLine(
+                base::byte_span_from_cstring("xxxxxHTTP/1.1 200 OK")));
+  EXPECT_EQ(std::string::npos, HttpUtil::LocateStartOfStatusLine(
+                                   base::byte_span_from_cstring("HTT")));
+}
+
 TEST(HttpUtilTest, AssembleRawHeaders) {
   // clang-format off
   struct {
@@ -737,6 +752,12 @@ TEST(HttpUtilTest, AssembleRawHeaders) {
       "Bar: 2\n\n",
       "HTTP/1.0 200 OK|Foo: 1|Blah: 3|Bar: 2||"
     },
+
+    // Leading slop before the status line.
+    {
+      "xxxHTTP/1.0 200 OK\r\nFoo: 1\r\n\r\n",
+      "HTTP/1.0 200 OK|Foo: 1||"
+    },
   };
   // clang-format on
   for (const auto& test : tests) {
@@ -810,6 +831,13 @@ TEST(HttpUtilTest, GenerateAcceptLanguageHeader) {
   EXPECT_EQ(
       std::string("en-US,fr;q=0.9,de;q=0.8,ko;q=0.7,zh-CN;q=0.6,ja;q=0.5"),
       header);
+
+  header = HttpUtil::GenerateAcceptLanguageHeader(
+      "en,fr,de,ko,zh-CN,ja,es,it,pt,nl,sv");
+  EXPECT_EQ(std::string("en,fr;q=0.9,de;q=0.8,ko;q=0.7,zh-CN;q=0.6,"
+                        "ja;q=0.5,es;q=0.4,it;q=0.3,pt;q=0.2,nl;q=0.1,"
+                        "sv;q=0.1"),
+            header);
 }
 
 // HttpResponseHeadersTest.GetMimeType also tests ParseContentType.
@@ -1165,6 +1193,30 @@ TEST(HttpUtilTest, ParseContentRangeHeader) {
     EXPECT_EQ(test.expected_instance_length, instance_length)
         << test.content_range_header_spec;
   }
+}
+
+TEST(HttpUtilTest, ParseRangeHeader) {
+  std::vector<HttpByteRange> ranges;
+  ASSERT_TRUE(HttpUtil::ParseRangeHeader("bytes=0-99", &ranges));
+  ASSERT_EQ(1u, ranges.size());
+  EXPECT_EQ(0, ranges[0].first_byte_position());
+  EXPECT_EQ(99, ranges[0].last_byte_position());
+
+  ranges.clear();
+  ASSERT_TRUE(HttpUtil::ParseRangeHeader("bytes=100-", &ranges));
+  ASSERT_EQ(1u, ranges.size());
+  EXPECT_EQ(100, ranges[0].first_byte_position());
+  EXPECT_FALSE(ranges[0].HasLastBytePosition());
+
+  ranges.clear();
+  ASSERT_TRUE(HttpUtil::ParseRangeHeader("bytes=-50", &ranges));
+  ASSERT_EQ(1u, ranges.size());
+  EXPECT_TRUE(ranges[0].IsSuffixByteRange());
+  EXPECT_EQ(50, ranges[0].suffix_length());
+
+  ranges.clear();
+  EXPECT_FALSE(HttpUtil::ParseRangeHeader("bytes", &ranges));
+  EXPECT_FALSE(HttpUtil::ParseRangeHeader("bytes=100", &ranges));
 }
 
 TEST(HttpUtilTest, ParseRetryAfterHeader) {
@@ -1605,6 +1657,24 @@ TEST(HttpUtilTest, HasValidators) {
   EXPECT_TRUE(HttpUtil::HasValidators(v1_1, kEtagEmpty, kLastModifiedInvalid));
 }
 
+TEST(HttpUtilTest, HasStrongValidators) {
+  const HttpVersion v1_1 = HttpVersion(1, 1);
+  const char* const kWeakEtag = "W/\"weak\"";
+  const char* const kStrongEtag = "\"strong\"";
+  const char* const kLastModified = "Tue, 15 Nov 1994 12:45:26 GMT";
+  const char* const kDateAfter59Seconds = "Tue, 15 Nov 1994 12:46:25 GMT";
+  const char* const kDateAfter60Seconds = "Tue, 15 Nov 1994 12:46:26 GMT";
+
+  EXPECT_TRUE(HttpUtil::HasStrongValidators(v1_1, kStrongEtag, std::nullopt,
+                                            std::nullopt));
+  EXPECT_FALSE(HttpUtil::HasStrongValidators(v1_1, kWeakEtag, std::nullopt,
+                                             std::nullopt));
+  EXPECT_FALSE(HttpUtil::HasStrongValidators(v1_1, std::nullopt, kLastModified,
+                                             kDateAfter59Seconds));
+  EXPECT_TRUE(HttpUtil::HasStrongValidators(v1_1, std::nullopt, kLastModified,
+                                            kDateAfter60Seconds));
+}
+
 TEST(HttpUtilTest, IsValidHeaderValue) {
   const char* const invalid_values[] = {
       "X-Requested-With: chrome${NUL}Sec-Unsafe: injected",
@@ -1656,6 +1726,17 @@ TEST(HttpUtilTest, IsToken) {
   EXPECT_FALSE(HttpUtil::IsToken("\x7F"));
   EXPECT_FALSE(HttpUtil::IsToken("\x80"));
   EXPECT_FALSE(HttpUtil::IsToken("\xff"));
+}
+
+TEST(HttpUtilTest, IsParmName) {
+  EXPECT_TRUE(HttpUtil::IsParmName("filename"));
+  EXPECT_TRUE(HttpUtil::IsParmName("filename.ext"));
+
+  EXPECT_FALSE(HttpUtil::IsParmName(""));
+  EXPECT_FALSE(HttpUtil::IsParmName("file*"));
+  EXPECT_FALSE(HttpUtil::IsParmName("file'name"));
+  EXPECT_FALSE(HttpUtil::IsParmName("file%20name"));
+  EXPECT_FALSE(HttpUtil::IsParmName("file name"));
 }
 
 TEST(HttpUtilTest, IsLWS) {

@@ -498,5 +498,14 @@ TEST(ModelInterfaceTest, VerifyOutputsEquivalent) {
   }
 }
 
+TEST(ModelInterfaceTest, TooLongPieceModelTest) {
+  ModelProto model_proto;
+  auto *sp = model_proto.add_pieces();
+  std::string s(10000, 'a');
+  sp->set_piece(s);
+  auto model = ModelFactory::Create(model_proto);
+  EXPECT_FALSE(model->status().ok());
+}
+
 }  // namespace
 }  // namespace sentencepiece

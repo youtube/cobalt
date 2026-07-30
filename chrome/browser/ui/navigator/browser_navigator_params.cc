@@ -54,6 +54,7 @@ void NavigateParams::FillNavigateParamsFromOpenURLParams(
   this->initiator_frame_token = params.initiator_frame_token;
   this->initiator_process_id = params.initiator_process_id;
   this->initiator_origin = params.initiator_origin;
+  this->initiator_navigation_state = params.initiator_navigation_state;
   this->referrer = params.referrer;
   this->reload_type = params.reload_type;
   this->source_site_instance = params.source_site_instance;

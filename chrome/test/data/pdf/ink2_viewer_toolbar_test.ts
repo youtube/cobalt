@@ -9,7 +9,7 @@ import {isMac} from 'chrome://resources/js/platform.js';
 import {keyDownOn} from 'chrome://webui-test/keyboard_mock_interactions.js';
 import {eventToPromise, isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
-import {assertCheckboxMenuButton, createTextBox, enterFullscreenWithUserGesture, finishInkStroke, getRequiredElement, openToolbarMenu, setupMockMetricsPrivate, setupTestMockPluginForInk, startFinishModifiedInkStroke, startInkStroke} from './test_util.js';
+import {assertCheckboxMenuButton, createTextBox, enterFullscreenWithUserGesture, finishInkStroke, getRequiredElement, getTextBox, openToolbarMenu, setupMockMetricsPrivate, setupTestMockPluginForInk, startFinishModifiedInkStroke, startInkStroke} from './test_util.js';
 
 const viewer = document.body.querySelector('pdf-viewer')!;
 const viewerToolbar = viewer.$.toolbar;
@@ -406,7 +406,7 @@ chrome.test.runTests([
     chrome.test.assertTrue(redoButton.disabled);
 
     // Create a textbox. The undo button should now be disabled.
-    const textBox = viewer.shadowRoot.querySelector('ink-text-box');
+    const textBox = getTextBox(viewer);
     chrome.test.assertTrue(!!textBox);
     chrome.test.assertFalse(isVisible(textBox));
     await createTextBoxAndWaitForStateChange(textBox);
@@ -720,7 +720,7 @@ chrome.test.runTests([
 
     // Shortcuts don't work when there is an active text box (instead, they
     // are handled by the native <textarea> element).
-    const textBox = viewer.shadowRoot.querySelector('ink-text-box');
+    const textBox = getTextBox(viewer);
     chrome.test.assertTrue(!!textBox);
     await createTextBoxAndWaitForStateChange(textBox);
     sendUndoShortcutKey(viewerToolbar);

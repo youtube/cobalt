@@ -17,6 +17,7 @@
 
 #include "model_interface.h"
 #include "sentencepiece_model.pb.h"
+#include "absl/strings/string_view.h"
 
 namespace sentencepiece {
 namespace bpe {
@@ -29,7 +30,7 @@ namespace bpe {
 // https://en.wikipedia.org/wiki/Byte_pair_encoding
 class Model : public ModelInterface {
  public:
-  explicit Model(const ModelProto &model_proto);
+  explicit Model(const ModelProto& model_proto);
   ~Model() override;
 
   EncodeResult Encode(absl::string_view normalized) const override {

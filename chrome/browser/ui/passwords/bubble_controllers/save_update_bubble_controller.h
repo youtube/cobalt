@@ -60,6 +60,14 @@ class SaveUpdateBubbleController
   // Returns the domain to be used as a subhead if the title requires it.
   std::optional<std::u16string> GetDomainForSubhead() const;
 
+  // Returns true if the trusted vault error should be fixed in order to save
+  // credentials.
+  bool IsSavingBlockedByTrustedVaultError() const;
+
+  // Starts the UI flow for fixing the trusted vault error and saves credentials
+  // after the error is fixed.
+  void OnTrustedVaultUnlockClicked();
+
 #if defined(UNIT_TEST)
   void set_clock(base::Clock* clock) { clock_ = clock; }
 

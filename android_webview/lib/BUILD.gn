@@ -31,6 +31,7 @@ source_set("lib") {
     "//components/gwp_asan/common:crash_keys",
     "//components/memory_system",
     "//components/metrics",
+    "//components/metrics:call_stack_profile_builder",
     "//components/payments/content/android",
     "//components/safe_browsing/android:safe_browsing_api_handler",
     "//components/sampling_profiler:profile_params",

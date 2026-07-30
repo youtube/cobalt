@@ -213,6 +213,9 @@ class BLINK_EXPORT WebDocument : public WebNode {
   // document's ResourceFetcher.
   size_t ActiveResourceRequestCount() const;
 
+  // Returns the number of times the document's cookies have been modified.
+  uint64_t CookieModificationCount() const;
+
   // Executes a script tool with the given `name` and `input_arguments`.
   //
   // The associated callback is invoked once the async execution of the tool is

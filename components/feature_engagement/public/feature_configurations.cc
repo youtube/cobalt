@@ -347,6 +347,42 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
     return config;
   }
 
+  if (kIPHSmartTabSharingTryItFeature.name == feature->name) {
+    FeatureConfig config;
+    config.valid = true;
+    config.availability = Comparator(ANY, 0);
+    config.session_rate = Comparator(ANY, 0);
+    // Show the promo max 3 times total (per year), once per week.
+    config.trigger = EventConfig("smart_tab_sharing_try_it_trigger",
+                                 Comparator(EQUAL, 0), 7, 7);
+    config.event_configs.insert(EventConfig("smart_tab_sharing_try_it_trigger",
+                                            Comparator(LESS_THAN, 3), 360,
+                                            360));
+    config.used = EventConfig("smart_tab_sharing_try_it_used",
+                              Comparator(EQUAL, 0), 360, 360);
+    return config;
+  }
+
+  if (kIPHSmartTabSharingDefaultOnFeature.name == feature->name) {
+    FeatureConfig config;
+    config.valid = true;
+    config.availability = Comparator(ANY, 0);
+    config.session_rate = Comparator(ANY, 0);
+    // Show the promo max 3 times total (per year), once per week.
+    // Repeated activation of smart tab sharing is also required.
+    config.trigger = EventConfig("smart_tab_sharing_default_on_trigger",
+                                 Comparator(EQUAL, 0), 7, 7);
+    config.event_configs.insert(
+        EventConfig("smart_tab_sharing_default_on_trigger",
+                    Comparator(LESS_THAN, 3), 360, 360));
+    config.event_configs.insert(
+        EventConfig("smart_tab_sharing_activated",
+                    Comparator(GREATER_THAN_OR_EQUAL, 3), 360, 360));
+    config.used = EventConfig("smart_tab_sharing_default_on_used",
+                              Comparator(EQUAL, 0), 360, 360);
+    return config;
+  }
+
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   if (kIPHExtensionsMenuFeature.name == feature->name) {
     FeatureConfig config;

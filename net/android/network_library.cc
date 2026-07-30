@@ -112,6 +112,19 @@ bool IsCleartextPermitted(std::string_view host) {
   return Java_AndroidNetworkLibrary_isCleartextPermitted(env, host_string);
 }
 
+EchMode GetEchMode(std::string_view host) {
+  // DomainEncryptionMode was introduced in Android CINNAMON_BUN.
+  // Return default value early to avoid JNI overhead.
+  if (base::android::android_info::sdk_int() <
+      base::android::android_info::SDK_VERSION_CINNAMON_BUN) {
+    return EchMode::kOpportunistic;
+  }
+
+  JNIEnv* env = AttachCurrentThread();
+  return static_cast<EchMode>(
+      Java_AndroidNetworkLibrary_getEchMode(env, std::string(host)));
+}
+
 bool HaveOnlyLoopbackAddresses() {
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
                                                 base::BlockingType::MAY_BLOCK);

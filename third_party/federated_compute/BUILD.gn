@@ -21,7 +21,6 @@ config("compat_no_flock") {
 source_set("base") {
   public = [
     "src/fcp/base/base_name.h",
-    "src/fcp/base/clock.h",
     "src/fcp/base/compression.h",
     "src/fcp/base/digest.h",
     "src/fcp/base/monitoring.h",
@@ -34,10 +33,8 @@ source_set("base") {
 
   sources = [
     "src/fcp/base/base_name.cc",
-    "src/fcp/base/clock.cc",
     "src/fcp/base/compression.cc",
     "src/fcp/base/digest.cc",
-    "src/fcp/base/monitoring.cc",
     "src/fcp/base/platform.cc",
     "src/fcp/base/random_token.cc",
     "src/fcp/base/scheduler.cc",
@@ -75,9 +72,7 @@ proto_library("confidential_compute_proto") {
     "//third_party/protobuf:timestamp_proto",
   ]
 
-  import_dirs = [
-    "//third_party/oak/chromium",
-  ]
+  import_dirs = [ "//third_party/oak/chromium" ]
 
   proto_in_dir = "src"
 
@@ -183,7 +178,6 @@ proto_library("client_proto") {
     "chromium",
     "//third_party/federated_compute/third_party/googleapis/src",
     "//third_party/oak/chromium",
-    "//third_party/protobuf/src",
   ]
 
   proto_in_dir = "src"
@@ -198,12 +192,12 @@ source_set("fl_runner") {
     "src/fcp/client/flags.h",
     "src/fcp/client/log_manager.h",
     "src/fcp/client/secagg_event_publisher.h",
+    "src/fcp/client/simple_task_environment.h",
     "src/fcp/client/stats.h",
   ]
 
   sources = [
     "chromium/fcp/client/cache/file_backed_resource_cache.h",
-    "chromium/fcp/client/opstats/pds_backed_opstats_db.cc",
     "chromium/fcp/client/secagg_runner.cc",
     "src/fcp/client/attestation/attestation_verifier.cc",
     "src/fcp/client/attestation/attestation_verifier.h",
@@ -249,6 +243,7 @@ source_set("fl_runner") {
     "src/fcp/client/opstats/opstats_logger_impl.h",
     "src/fcp/client/opstats/opstats_utils.cc",
     "src/fcp/client/opstats/opstats_utils.h",
+    "src/fcp/client/opstats/pds_backed_opstats_db.cc",
     "src/fcp/client/opstats/pds_backed_opstats_db.h",
     "src/fcp/client/phase_logger.h",
     "src/fcp/client/phase_logger_impl.cc",
@@ -256,7 +251,6 @@ source_set("fl_runner") {
     "src/fcp/client/runner_common.h",
     "src/fcp/client/secagg_runner.h",
     "src/fcp/client/simple_task_environment.cc",
-    "src/fcp/client/simple_task_environment.h",
     "src/fcp/client/tensorflow/tensorflow_runner.h",
     "src/fcp/client/tensorflow/tensorflow_runner_factory.cc",
     "src/fcp/client/tensorflow/tensorflow_runner_factory.h",

@@ -1403,14 +1403,14 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewGlassFrameTest,
   ASSERT_TRUE(base::test::RunUntil(
       [&]() { return state_controller()->IsCollapsed(); }));
   RunScheduledLayouts();
-  EXPECT_EQ(background->alpha(), 1.0f);
+  EXPECT_EQ(background->primary_color().opacity, 1.0f);
 
   region_view()->RequestFocus();
   ASSERT_TRUE(base::test::RunUntil(
       [&]() { return region_view()->is_expanded_on_hover(); }));
   ASSERT_TRUE(base::test::RunUntil([&]() { return !IsAnimatingSize(); }));
   RunScheduledLayouts();
-  EXPECT_EQ(background->alpha(), 1.0f);
+  EXPECT_EQ(background->primary_color().opacity, 1.0f);
 
   state_controller()->SetExpandOnHoverEnabled(false);
   state_controller()->RequestCollapse(false);
@@ -1419,5 +1419,5 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewGlassFrameTest,
            !state_controller()->IsCollapsed();
   }));
   RunScheduledLayouts();
-  EXPECT_EQ(background->alpha(), 0.0f);
+  EXPECT_EQ(background->primary_color().opacity, 0.0f);
 }

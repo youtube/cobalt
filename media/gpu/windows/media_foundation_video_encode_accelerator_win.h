@@ -111,6 +111,12 @@ class MEDIA_GPU_EXPORT MediaFoundationVideoEncodeAccelerator
  protected:
   ~MediaFoundationVideoEncodeAccelerator() override;
 
+  void InitializeForTesting(
+      Client* client,
+      std::unique_ptr<MediaLog> media_log,
+      const gfx::Size& input_visible_size,
+      scoped_refptr<DXGIDeviceManager> dxgi_device_manager);
+
  private:
   // Holds output buffers coming from the client ready to be filled.
   struct BitstreamBufferRef;
@@ -189,6 +195,8 @@ class MEDIA_GPU_EXPORT MediaFoundationVideoEncodeAccelerator
 
   void SendOutputBuffer(const BitstreamBufferMetadata& metadata,
                         base::span<uint8_t> output_buffer_span);
+
+  void DropFrame(base::TimeDelta timestamp);
 
   // Processes the input video frame for the encoder.
   HRESULT ProcessInput(const PendingInput& input, bool& is_drop_frame);

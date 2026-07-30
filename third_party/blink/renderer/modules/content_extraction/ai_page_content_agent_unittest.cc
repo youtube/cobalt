@@ -265,6 +265,18 @@ class AIPageContentAgentTest : public testing::Test {
               mojom::blink::AIPageContentAttributeType::kContainer);
   }
 
+  void CheckModalDialogNode(const mojom::blink::AIPageContentNode& node) {
+    const auto& attributes = *node.content_attributes;
+    EXPECT_EQ(attributes.attribute_type,
+              mojom::blink::AIPageContentAttributeType::kDialogModal);
+  }
+
+  void CheckModelessDialogNode(const mojom::blink::AIPageContentNode& node) {
+    const auto& attributes = *node.content_attributes;
+    EXPECT_EQ(attributes.attribute_type,
+              mojom::blink::AIPageContentAttributeType::kDialogModeless);
+  }
+
   void CheckHeadingNode(const mojom::blink::AIPageContentNode& node) {
     const auto& attributes = *node.content_attributes;
     EXPECT_EQ(attributes.attribute_type,
@@ -2226,7 +2238,7 @@ TEST_F(AIPageContentAgentTest, Anchors) {
   CheckTextNode(link_with_rel_text, "YouTube");
 }
 
-TEST_F(AIPageContentAgentTest, TopLayerContainer) {
+TEST_F(AIPageContentAgentTest, NativeModalDialog) {
   frame_test_helpers::LoadHTMLString(
       helper_.LocalMainFrame(),
       "<body>"
@@ -2249,11 +2261,100 @@ TEST_F(AIPageContentAgentTest, TopLayerContainer) {
   CheckContainerNode(backdrop);
 
   const auto& dialog = *root.children_nodes[1];
-  CheckContainerNode(dialog);
+  CheckModalDialogNode(dialog);
 
   ASSERT_EQ(dialog.children_nodes.size(), 1u);
   const auto& dialog_text = *dialog.children_nodes[0];
   CheckTextNode(dialog_text, "This is a dialog.");
+}
+
+TEST_F(AIPageContentAgentTest, NativeModelessDialog) {
+  frame_test_helpers::LoadHTMLString(
+      helper_.LocalMainFrame(),
+      "<body>"
+      "  <dialog id='welcomeDialog'>This is a modeless dialog.</dialog>"
+      "  <script>"
+      "    const dialog = document.getElementById('welcomeDialog');"
+      "    dialog.show();"
+      "  </script>"
+      "</body>",
+      url_test_helpers::ToKURL("http://foobar.com"));
+
+  GetAIPageContent();
+
+  const auto& root = ContentRootNode();
+  ASSERT_EQ(root.children_nodes.size(), 1u);
+
+  const auto& dialog = *root.children_nodes[0];
+  CheckModelessDialogNode(dialog);
+
+  ASSERT_EQ(dialog.children_nodes.size(), 1u);
+  const auto& dialog_text = *dialog.children_nodes[0];
+  CheckTextNode(dialog_text, "This is a modeless dialog.");
+}
+
+TEST_F(AIPageContentAgentTest, AriaModalDialog) {
+  frame_test_helpers::LoadHTMLString(
+      helper_.LocalMainFrame(),
+      "<body>"
+      "  <div role='dialog' aria-modal='true'>This is an ARIA modal dialog."
+      "</div>"
+      "</body>",
+      url_test_helpers::ToKURL("http://foobar.com"));
+
+  GetAIPageContent();
+
+  const auto& root = ContentRootNode();
+  ASSERT_EQ(root.children_nodes.size(), 1u);
+
+  const auto& dialog = *root.children_nodes[0];
+  CheckModalDialogNode(dialog);
+
+  ASSERT_EQ(dialog.children_nodes.size(), 1u);
+  const auto& dialog_text = *dialog.children_nodes[0];
+  CheckTextNode(dialog_text, "This is an ARIA modal dialog.");
+}
+
+TEST_F(AIPageContentAgentTest, AriaModelessDialog) {
+  frame_test_helpers::LoadHTMLString(
+      helper_.LocalMainFrame(),
+      "<body>"
+      "  <div role='dialog'>This is an ARIA modeless dialog.</div>"
+      "</body>",
+      url_test_helpers::ToKURL("http://foobar.com"));
+
+  GetAIPageContent();
+
+  const auto& root = ContentRootNode();
+  ASSERT_EQ(root.children_nodes.size(), 1u);
+
+  const auto& dialog = *root.children_nodes[0];
+  CheckModelessDialogNode(dialog);
+
+  ASSERT_EQ(dialog.children_nodes.size(), 1u);
+  const auto& dialog_text = *dialog.children_nodes[0];
+  CheckTextNode(dialog_text, "This is an ARIA modeless dialog.");
+}
+
+TEST_F(AIPageContentAgentTest, AriaAlertDialogDefaultsToModal) {
+  frame_test_helpers::LoadHTMLString(
+      helper_.LocalMainFrame(),
+      "<body>"
+      "  <div role='alertdialog'>This is an ARIA alert dialog.</div>"
+      "</body>",
+      url_test_helpers::ToKURL("http://foobar.com"));
+
+  GetAIPageContent();
+
+  const auto& root = ContentRootNode();
+  ASSERT_EQ(root.children_nodes.size(), 1u);
+
+  const auto& dialog = *root.children_nodes[0];
+  CheckModalDialogNode(dialog);
+
+  ASSERT_EQ(dialog.children_nodes.size(), 1u);
+  const auto& dialog_text = *dialog.children_nodes[0];
+  CheckTextNode(dialog_text, "This is an ARIA alert dialog.");
 }
 
 TEST_F(AIPageContentAgentTest, TableWithAnonymousCells) {

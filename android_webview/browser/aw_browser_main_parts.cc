@@ -20,6 +20,7 @@
 #include "android_webview/browser/network_service/aw_network_change_notifier_factory.h"
 #include "android_webview/common/aw_cached_flags.h"
 #include "android_webview/common/aw_descriptors.h"
+#include "android_webview/common/aw_features.h"
 #include "android_webview/common/aw_paths.h"
 #include "android_webview/common/aw_resource.h"
 #include "android_webview/common/aw_switches.h"
@@ -32,6 +33,7 @@
 #include "base/base_paths_android.h"
 #include "base/byte_size.h"
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/callback_helpers.h"
@@ -46,6 +48,8 @@
 #include "components/crash/core/common/crash_key.h"
 #include "components/embedder_support/origin_trials/component_updater_utils.h"
 #include "components/embedder_support/origin_trials/origin_trials_settings_storage.h"
+#include "components/heap_profiling/in_process/browser_process_snapshot_controller.h"
+#include "components/heap_profiling/in_process/mojom/snapshot_controller.mojom.h"
 #include "components/heap_profiling/multi_process/supervisor.h"
 #include "components/metrics/android_metrics_helper.h"
 #include "components/metrics/content/subprocess_metrics_provider.h"
@@ -59,14 +63,17 @@
 #include "components/variations/variations_ids_provider.h"
 #include "components/version_info/version_info_values.h"
 #include "content/public/browser/android/synchronous_compositor.h"
+#include "content/public/browser/browser_child_process_host.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/child_process_host.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/synthetic_trial_syncer.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/result_codes.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "net/android/network_change_notifier_factory_android.h"
 #include "net/base/network_change_notifier.h"
 #include "third_party/blink/public/common/origin_trials/origin_trials_settings_provider.h"
@@ -76,6 +83,22 @@
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "android_webview/browser_jni_headers/AwBrowserMainParts_jni.h"
 #include "android_webview/browser_jni_headers/AwInterfaceRegistrar_jni.h"
+
+namespace {
+
+void BindHeapSnapshotControllerToProcessHost(
+    int child_process_id,
+    mojo::PendingReceiver<heap_profiling::mojom::SnapshotController> receiver) {
+  if (auto* bcph = content::BrowserChildProcessHost::FromID(child_process_id)) {
+    bcph->GetHost()->BindReceiver(std::move(receiver));
+  } else if (auto* rph = content::RenderProcessHost::FromID(child_process_id)) {
+    if (!rph->GetBrowserContext()->IsOffTheRecord()) {
+      rph->BindReceiver(std::move(receiver));
+    }
+  }
+}
+
+}  // namespace
 
 namespace android_webview {
 
@@ -410,6 +433,14 @@ void AwBrowserMainParts::WillRunMainMessageLoop(
 }
 
 void AwBrowserMainParts::PostCreateThreads() {
+  if (base::FeatureList::IsEnabled(features::kWebViewMemoryProfilingClient)) {
+    if (auto* snapshot_controller =
+            heap_profiling::BrowserProcessSnapshotController::GetInstance()) {
+      snapshot_controller->SetBindRemoteForChildProcessCallback(
+          base::BindRepeating(&BindHeapSnapshotControllerToProcessHost));
+    }
+  }
+
   heap_profiling::Mode mode = heap_profiling::GetModeForStartup();
   if (mode != heap_profiling::Mode::kNone)
     heap_profiling::Supervisor::GetInstance()->Start(base::NullCallback());

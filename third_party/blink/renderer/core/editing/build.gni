@@ -391,6 +391,7 @@ blink_core_tests_editing = [
   "character_range_mapper_test.cc",
   "commands/apply_block_element_command_test.cc",
   "commands/apply_style_command_test.cc",
+  "commands/clipboard_commands_test.cc",
   "commands/composite_edit_command_test.cc",
   "commands/delete_selection_command_test.cc",
   "commands/editing_command_test.cc",

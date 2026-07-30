@@ -74,7 +74,6 @@ source_set("internal") {
       "//chrome/browser/skills:public",
       "//chrome/browser/tab_group_sync:factories",
       "//chrome/browser/ui:browser_actions",
-      "//chrome/browser/ui:tab_search_feature",
       "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui/animation",
       "//chrome/browser/ui/bookmarks",
@@ -177,6 +176,15 @@ source_set("internal") {
 
   if (enable_extensions_core) {
     deps += [ "//chrome/browser/extensions" ]
+  }
+
+  if (!is_android) {
+    deps += [
+      "//chrome/browser/ui:breadcrumb_manager_browser_agent",
+      "//chrome/browser/ui:browser_instant_controller",
+      "//chrome/browser/ui:browser_location_bar_model_delegate",
+      "//chrome/browser/ui:browser_select_file_dialog_controller",
+    ]
   }
 }
 

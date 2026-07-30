@@ -21,6 +21,7 @@
 #include "base/scoped_observation.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/current_thread.h"
@@ -30,6 +31,7 @@
 #include "base/test/test_mock_time_task_runner.h"
 #include "base/test/with_feature_override.h"
 #include "base/time/time.h"
+#include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/apps/platform_apps/shortcut_manager.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
@@ -121,6 +123,8 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
+#include "components/signin/public/identity_manager/access_token_fetcher.h"
+#include "components/signin/public/identity_manager/access_token_info.h"
 #include "crypto/scoped_fake_unexportable_key_provider.h"
 #endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 
@@ -865,6 +869,173 @@ IN_PROC_BROWSER_TEST_F(DiceBrowserTestWithBoundSessionCredentialsEnabled,
   SendRefreshTokenResponse();
   EXPECT_TRUE(GetIdentityManager()->HasAccountWithBoundRefreshToken(
       GetMainAccountID()));
+}
+
+class DiceBrowserTestWithTokenBindingUpgrade : public DiceBrowserTest {
+ public:
+  DiceBrowserTestWithTokenBindingUpgrade() {
+    const std::string test_name =
+        testing::UnitTest::GetInstance()->current_test_info()->name();
+    if (base::StartsWith(test_name, "PRE_PRE_")) {
+      // We need to run the first step of the test with disabled token binding.
+      feature_list_.InitWithFeatures(
+          {}, {switches::kEnableChromeRefreshTokenBindingUpgrade,
+               switches::kEnableChromeRefreshTokenBinding});
+    } else {
+      feature_list_.InitWithFeatures(
+          {switches::kEnableChromeRefreshTokenBindingUpgrade,
+           switches::kEnableChromeRefreshTokenBinding},
+          {});
+    }
+
+    https_server_.RegisterDefaultHandler(base::BindRepeating(
+        &DiceBrowserTestWithTokenBindingUpgrade::HandleIssueToken,
+        base::Unretained(this)));
+    https_server_.RegisterDefaultHandler(base::BindRepeating(
+        &DiceBrowserTestWithTokenBindingUpgrade::HandleUpgradeToken,
+        base::Unretained(this)));
+  }
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    DiceBrowserTest::SetUpCommandLine(command_line);
+    // TODO(crbug.com/525502425): Revisit this. The base class `DiceBrowserTest`
+    // should ideally have a default handler for issuetoken requests so that
+    // setting this switch globally in the base class doesn't break other tests
+    // that trigger background token fetches.
+    command_line->AppendSwitchASCII(switches::kOAuthAccountManagerUrl,
+                                    https_server_.base_url().spec());
+  }
+
+  std::unique_ptr<HttpResponse> HandleIssueToken(const HttpRequest& request) {
+    if (request.relative_url != "/v1/issuetoken") {
+      return nullptr;
+    }
+
+    auto response = std::make_unique<BasicHttpResponse>();
+    response->set_code(net::HTTP_OK);
+    response->set_content_type("application/json");
+
+    auto response_dict = base::DictValue()
+                             .Set("issueAdvice", "auto")
+                             .Set("token", "test_access_token")
+                             .Set("expiresIn", "3600")
+                             .Set("grantedScopes", "email");
+
+    if (request.content.find("check_bound_token_upgrade_eligibility=true") !=
+        std::string::npos) {
+      response_dict.Set(
+          "boundTokenUpgradeInfo",
+          base::DictValue()
+              .Set("challenge", "test_upgrade_challenge")
+              .Set("supportedAlgorithms",
+                   base::ListValue().Append("ES256").Append("RS256")));
+    }
+
+    response->set_content(*base::WriteJson(response_dict));
+    return response;
+  }
+
+  std::unique_ptr<HttpResponse> HandleUpgradeToken(const HttpRequest& request) {
+    if (request.relative_url != "/v1/upgradetoken") {
+      return nullptr;
+    }
+
+    auto response = std::make_unique<BasicHttpResponse>();
+    response->set_code(net::HTTP_OK);
+
+    if (upgrade_token_loop_closure_) {
+      std::move(upgrade_token_loop_closure_).Run();
+    }
+    return response;
+  }
+
+  void WaitForTokenBindingKeyReady() {
+    base::RunLoop run_loop;
+    // `GenerateBindingKeyRegistrationToken()` triggers generation of a binding
+    // key which is going to be reused for the upgrade flow. Completion of this
+    // callback ensures that we're ready for the upgrade flow.
+    bool success = GetIdentityManager()->GenerateBindingKeyRegistrationToken(
+        {crypto::SignatureVerifier::ECDSA_SHA256}, "dummy_auth_code",
+        base::IgnoreArgs<
+            std::optional<signin::BindingKeyRegistrationTokenResult>>(
+            run_loop.QuitClosure()));
+    ASSERT_TRUE(success);
+    run_loop.Run();
+  }
+
+ protected:
+  // This needs to be a consumer with a scope that is not requested
+  // automatically after sign-in.
+  static constexpr signin::OAuthConsumerId kTestConsumerId =
+      signin::OAuthConsumerId::kExtensionsIdentityAPI;
+
+  base::test::ScopedFeatureList feature_list_;
+  crypto::ScopedFakeUnexportableKeyProvider scoped_key_provider_;
+
+  base::OnceClosure upgrade_token_loop_closure_;
+};
+
+IN_PROC_BROWSER_TEST_F(DiceBrowserTestWithTokenBindingUpgrade,
+                       PRE_PRE_DiceSigninWithUpgradeBinding) {
+  ASSERT_FALSE(
+      base::FeatureList::IsEnabled(switches::kEnableChromeRefreshTokenBinding));
+
+  // Sign-in to Chrome with an unbound LST.
+  ASSERT_NO_FATAL_FAILURE(SetupSignedInAccounts());
+  ASSERT_TRUE(
+      GetIdentityManager()->HasAccountWithRefreshToken(GetMainAccountID()));
+  ASSERT_FALSE(GetIdentityManager()->HasAccountWithBoundRefreshToken(
+      GetMainAccountID()));
+}
+
+IN_PROC_BROWSER_TEST_F(DiceBrowserTestWithTokenBindingUpgrade,
+                       PRE_DiceSigninWithUpgradeBinding) {
+  ASSERT_TRUE(
+      base::FeatureList::IsEnabled(switches::kEnableChromeRefreshTokenBinding));
+  ASSERT_TRUE(base::FeatureList::IsEnabled(
+      switches::kEnableChromeRefreshTokenBindingUpgrade));
+
+  // 1. Make sure that we are still signed in with unbound LST.
+  ASSERT_TRUE(
+      GetIdentityManager()->HasAccountWithRefreshToken(GetMainAccountID()));
+  ASSERT_FALSE(GetIdentityManager()->HasAccountWithBoundRefreshToken(
+      GetMainAccountID()));
+
+  // 2. Wait for the background key generation task to finish.
+  WaitForTokenBindingKeyReady();
+
+  base::RunLoop upgrade_token_loop;
+  upgrade_token_loop_closure_ = upgrade_token_loop.QuitClosure();
+
+  // 3. Trigger an IssueToken flow.
+  base::test::TestFuture<GoogleServiceAuthError, signin::AccessTokenInfo>
+      future;
+  std::unique_ptr<signin::AccessTokenFetcher> fetcher =
+      GetIdentityManager()->CreateAccessTokenFetcherForAccount(
+          GetMainAccountID(), kTestConsumerId, future.GetCallback(),
+          signin::AccessTokenFetcher::Mode::kImmediate);
+
+  EXPECT_EQ(future.Get<GoogleServiceAuthError>(),
+            GoogleServiceAuthError::AuthErrorNone());
+
+  // Wait for the upgrade token request to be sent and completed.
+  upgrade_token_loop.Run();
+
+  // Verify that a new binding key is saved in memory.
+  EXPECT_TRUE(GetIdentityManager()->HasAccountWithBoundRefreshToken(
+      GetMainAccountID()));
+  EXPECT_FALSE(GetIdentityManager()->GetWrappedBindingKey().empty());
+}
+
+IN_PROC_BROWSER_TEST_F(DiceBrowserTestWithTokenBindingUpgrade,
+                       DiceSigninWithUpgradeBinding) {
+  ASSERT_TRUE(
+      base::FeatureList::IsEnabled(switches::kEnableChromeRefreshTokenBinding));
+
+  // Verify that the token loaded from the database is still bound.
+  EXPECT_TRUE(GetIdentityManager()->HasAccountWithBoundRefreshToken(
+      GetMainAccountID()));
+  EXPECT_FALSE(GetIdentityManager()->GetWrappedBindingKey().empty());
 }
 #endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 

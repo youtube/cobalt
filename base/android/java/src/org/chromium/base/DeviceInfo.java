@@ -4,9 +4,6 @@
 
 package org.chromium.base;
 
-import static android.content.Context.UI_MODE_SERVICE;
-
-import android.app.UiModeManager;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
@@ -319,11 +316,9 @@ public final class DeviceInfo {
         Context appContext = ContextUtils.getApplicationContext();
         PackageManager pm = appContext.getPackageManager();
         // See https://developer.android.com/training/tv/start/hardware.html#runtime-check.
-        UiModeManager uiModeManager = (UiModeManager) appContext.getSystemService(UI_MODE_SERVICE);
+        int uiMode = appContext.getResources().getConfiguration().uiMode;
         mIDeviceInfo.isTv =
-                uiModeManager != null
-                        && uiModeManager.getCurrentModeType()
-                                == Configuration.UI_MODE_TYPE_TELEVISION;
+                (uiMode & Configuration.UI_MODE_TYPE_MASK) == Configuration.UI_MODE_TYPE_TELEVISION;
         if (sIsTVForTesting != null) {
             mIDeviceInfo.isTv = sIsTVForTesting;
         }

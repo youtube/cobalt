@@ -118,30 +118,25 @@ DrainableIOBuffer::~DrainableIOBuffer() {
 GrowableIOBuffer::GrowableIOBuffer() = default;
 
 void GrowableIOBuffer::SetCapacity(int capacity) {
-  CHECK_GE(capacity, 0);
-
   // The span will be set again in `set_offset()`. Need to clear raw pointers to
   // the data before reallocating the buffer.
   ClearSpan();
 
-  // realloc will crash if it fails.
-  real_data_.reset(
-      static_cast<uint8_t*>(realloc(real_data_.release(), capacity)));
+  real_data_.resize(base::checked_cast<size_t>(capacity));
 
-  capacity_ = capacity;
-  if (offset_ > capacity)
+  if (offset_ > capacity) {
     set_offset(capacity);
-  else
+  } else {
     set_offset(offset_);  // The pointer may have changed.
+  }
 }
 
 void GrowableIOBuffer::set_offset(int offset) {
   CHECK_GE(offset, 0);
-  CHECK_LE(offset, capacity_);
+  CHECK_LE(offset, capacity());
   offset_ = offset;
 
-  UNSAFE_TODO(SetSpan(base::span<uint8_t>(
-      real_data_.get() + offset, static_cast<size_t>(capacity_ - offset))));
+  SetSpan(base::span(real_data_).subspan(static_cast<size_t>(offset)));
 }
 
 void GrowableIOBuffer::DidConsume(int bytes) {
@@ -155,17 +150,11 @@ int GrowableIOBuffer::RemainingCapacity() {
 }
 
 base::span<uint8_t> GrowableIOBuffer::everything() {
-  return base::as_writable_bytes(
-      // SAFETY: The capacity_ is the size of the allocation.
-      UNSAFE_BUFFERS(
-          base::span(real_data_.get(), base::checked_cast<size_t>(capacity_))));
+  return real_data_;
 }
 
 base::span<const uint8_t> GrowableIOBuffer::everything() const {
-  return base::as_bytes(
-      // SAFETY: The capacity_ is the size of the allocation.
-      UNSAFE_BUFFERS(
-          base::span(real_data_.get(), base::checked_cast<size_t>(capacity_))));
+  return real_data_;
 }
 
 base::span<uint8_t> GrowableIOBuffer::span_before_offset() {

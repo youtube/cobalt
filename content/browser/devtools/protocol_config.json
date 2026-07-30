@@ -151,7 +151,7 @@
             },
             {
                 "domain": "Overlay",
-                "include": ["enable", "setInspectMode", "setPausedInDebuggerMessage"]
+                "include": ["setInspectMode", "setPausedInDebuggerMessage"]
             },
             {
                 "domain": "Page",

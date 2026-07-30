@@ -25,6 +25,10 @@ base::expected<void, Result> VerifyEVT(const sdjwt::SdJwt& sd_jwt,
                                        const url::Origin& issuer,
                                        const std::string& email,
                                        const sdjwt::Jwk& holder_pub_key) {
+  if (header.typ != "evt+jwt") {
+    return base::unexpected(Result::kSdJwtInvalidTyp);
+  }
+
   if (header.alg != "EdDSA" && header.alg != "RS256" && header.alg != "ES256") {
     return base::unexpected(Result::kSdJwtUnsupportedHeaderAlg);
   }

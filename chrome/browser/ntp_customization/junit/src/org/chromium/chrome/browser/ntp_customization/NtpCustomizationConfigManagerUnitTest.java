@@ -48,6 +48,7 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.RobolectricUtil;
+import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -70,6 +71,7 @@ import org.chromium.chrome.browser.ui.theme.ChromeSemanticColorUtils;
 import org.chromium.url.JUnitTestGURLs;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.concurrent.Executor;
 
 /** Unit tests for {@link NtpCustomizationConfigManager}. */
@@ -124,9 +126,8 @@ public class NtpCustomizationConfigManagerUnitTest {
 
         // Removes the newly generated file and cleans up SharedPreference.
         NtpCustomizationUtils.resetSharedPreferenceForTesting();
-        NtpCustomizationUtils.deleteBackgroundImageFileImpl(
-                NtpCustomizationUtils.createBackgroundImageFile());
-        NtpCustomizationUtils.deleteBackgroundImageFileImpl(
+        NtpCustomizationUtils.maybeDeleteFile(NtpCustomizationUtils.createBackgroundImageFile());
+        NtpCustomizationUtils.maybeDeleteFile(
                 NtpCustomizationUtils.createDailyRefreshBackgroundImageFile());
         NtpCustomizationConfigManager.setInstanceForTesting(null);
     }
@@ -226,6 +227,7 @@ public class NtpCustomizationConfigManagerUnitTest {
     }
 
     @Test
+    @DisableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_THEME_SYNC)
     public void testOnUploadedImageSelected_persistsStateAndNotifiesListener() {
         int initialBackgroundType = mNtpCustomizationConfigManager.getBackgroundType();
         mNtpCustomizationConfigManager.addListener(mListener, mContext, /* skipNotify= */ false);
@@ -233,16 +235,13 @@ public class NtpCustomizationConfigManagerUnitTest {
         NtpBackgroundDataUploadImage uploadImageData =
                 new NtpBackgroundDataUploadImage(
                         PlatformType.ANDROID_LOCAL,
-                        /* lastUploadImageFilePath= */ "",
                         mBackgroundImageInfo,
                         mBitmap,
                         /* primaryColor= */ null,
-                        FILE_ID_HASH);
+                        null);
         mNtpCustomizationConfigManager.onBackgroundDataChanged(mContext, uploadImageData);
         RobolectricUtil.runAllBackgroundAndUi();
 
-        // Verifies that the image file are saved to the disk and matrices are persisted to prefs.
-        assertTrue(NtpCustomizationUtils.createBackgroundImageFile().exists());
         assertNotNull(
                 ChromeSharedPreferences.getInstance()
                         .readString(
@@ -272,6 +271,8 @@ public class NtpCustomizationConfigManagerUnitTest {
         assertEquals(
                 NtpBackgroundType.IMAGE_FROM_DISK,
                 mNtpCustomizationConfigManager.getBackgroundType());
+        // Verifies that the image file are saved to the disk and matrices are persisted to prefs.
+        assertTrue(NtpCustomizationUtils.createBackgroundImageFile().exists());
     }
 
     @Test
@@ -279,11 +280,10 @@ public class NtpCustomizationConfigManagerUnitTest {
         ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2,
         ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_THEME_SYNC
     })
-    public void testOnUploadedImageSelected_syncsToDataManager() {
+    public void testOnUploadedImageSelected_sync() {
         NtpBackgroundDataUploadImage uploadImageData =
                 new NtpBackgroundDataUploadImage(
                         PlatformType.ANDROID_LOCAL,
-                        /* lastUploadImageFilePath= */ "",
                         mBackgroundImageInfo,
                         mBitmap,
                         /* primaryColor= */ null,
@@ -294,6 +294,11 @@ public class NtpCustomizationConfigManagerUnitTest {
         verify(mNtpBackgroundDataManager)
                 .saveUserSelectedBackgroundTypeToSharedPreference(
                         any(NtpBackgroundDataUploadImage.class));
+        // Verifies that the image file are saved to the disk and matrices are persisted to prefs.
+        assertTrue(NtpCustomizationUtils.createUploadImageFileInDir(FILE_ID_HASH).exists());
+        assertEquals(
+                NtpCustomizationUtils.createUploadImageFileInDir(FILE_ID_HASH).getAbsolutePath(),
+                NtpCustomizationUtils.getBackgroundImageFilePathFromSharedPreference());
     }
 
     @Test
@@ -589,7 +594,6 @@ public class NtpCustomizationConfigManagerUnitTest {
         NtpBackgroundDataUploadImage uploadImageData =
                 new NtpBackgroundDataUploadImage(
                         PlatformType.ANDROID_LOCAL,
-                        /* lastUploadImageFilePath= */ "",
                         mBackgroundImageInfo,
                         mBitmap,
                         /* primaryColor= */ null,
@@ -600,7 +604,7 @@ public class NtpCustomizationConfigManagerUnitTest {
                 NtpBackgroundType.IMAGE_FROM_DISK,
                 mNtpCustomizationConfigManager.getBackgroundType());
 
-        File imageFile = NtpCustomizationUtils.createBackgroundImageFile();
+        File imageFile = NtpCustomizationUtils.createUploadImageFileInDir(FILE_ID_HASH);
         assertTrue(imageFile.exists());
 
         // Test case for resetting to the default color.
@@ -819,6 +823,63 @@ public class NtpCustomizationConfigManagerUnitTest {
                 expectedImageType,
                 NtpCustomizationUtils.getNtpBackgroundTypeFromSharedPreference());
         assertEquals(imageInfo, mNtpCustomizationConfigManager.getBackgroundImageInfoForTesting());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
+    @DisableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_THEME_SYNC)
+    public void testInitialize_imageFromDisk() throws IOException {
+        testInitialize_imageFromDiskImpl(/* isSyncEnabled= */ false);
+    }
+
+    @Test
+    @EnableFeatures({
+        ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2,
+        ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_THEME_SYNC
+    })
+    public void testInitialize_syncEnabled_imageFromDisk() throws IOException {
+        testInitialize_imageFromDiskImpl(/* isSyncEnabled= */ true);
+    }
+
+    private void testInitialize_imageFromDiskImpl(boolean isSyncEnabled) throws IOException {
+        SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
+        prefsManager.writeInt(
+                ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_TYPE,
+                NtpBackgroundType.IMAGE_FROM_DISK);
+
+        if (isSyncEnabled) {
+            File customImageFile = NtpCustomizationUtils.createUploadImageFileInDir(FILE_ID_HASH);
+            NtpCustomizationUtils.saveBitmapImageToFile(mBitmap, customImageFile);
+            NtpCustomizationUtils.setBackgroundImageFilePathToSharedPreference(
+                    customImageFile.getAbsolutePath());
+        } else {
+            File defaultImageFile = NtpCustomizationUtils.createBackgroundImageFile();
+            NtpCustomizationUtils.saveBitmapImageToFile(mBitmap, defaultImageFile);
+        }
+
+        NtpCustomizationUtils.saveBackgroundInfo(
+                /* customBackgroundInfo= */ null,
+                mBitmap,
+                mBackgroundImageInfo,
+                /* skipSavingPrimaryColor= */ true,
+                /* ntpBackgroundData= */ null);
+
+        NtpCustomizationConfigManager manager =
+                ThreadUtils.runOnUiThreadBlocking(NtpCustomizationConfigManager::new);
+        manager.setNtpBackgroundDataManagerForTesting(mNtpBackgroundDataManager);
+
+        manager.addListener(mListener, mContext, /* skipNotify= */ false);
+        RobolectricUtil.runAllBackgroundAndUi(); // Wait for async read operation.
+
+        verify(mListener)
+                .onBackgroundImageChanged(
+                        mBitmapCaptor.capture(),
+                        any(),
+                        /* fromInitialization= */ eq(true),
+                        anyInt(),
+                        anyInt());
+
+        assertTrue(mBitmap.sameAs(mBitmapCaptor.getValue()));
     }
 
     private Bitmap createBitmap() {

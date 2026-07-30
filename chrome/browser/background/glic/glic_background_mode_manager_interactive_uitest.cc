@@ -11,6 +11,7 @@
 #include "chrome/browser/background/glic/glic_background_mode_manager.h"
 #include "chrome/browser/background/glic/glic_launcher_configuration.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/glic/common/local_hotkey_manager.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
@@ -165,7 +166,8 @@ IN_PROC_BROWSER_TEST_F(GlicBackgroundModeManagerUiTest,
                                                true);
   GlicBackgroundModeManager* const manager =
       g_browser_process->GetFeatures()->glic_background_mode_manager();
-  EXPECT_EQ(GlicLauncherConfiguration::GetDefaultHotkey(),
+  EXPECT_EQ(LocalHotkeyManager::GetDefaultAccelerator(
+                LocalHotkeyManager::Command::kPanelToggle),
             manager->RegisteredHotkeyForTesting().at(static_cast<size_t>(
                 GlicBackgroundModeManager::HotkeyIndex::kPanelKey)));
 
@@ -275,8 +277,8 @@ IN_PROC_BROWSER_TEST_F(GlicBackgroundModeManagerUiTest, HotkeyPressed) {
   GlicBackgroundModeManager* const manager =
       g_browser_process->GetFeatures()->glic_background_mode_manager();
 
-  ui::Accelerator default_hotkey =
-      GlicLauncherConfiguration::GetDefaultHotkey();
+  ui::Accelerator default_hotkey = LocalHotkeyManager::GetDefaultAccelerator(
+      LocalHotkeyManager::Command::kPanelToggle);
   EXPECT_EQ(default_hotkey,
             manager->RegisteredHotkeyForTesting().at(static_cast<size_t>(
                 GlicBackgroundModeManager::HotkeyIndex::kPanelKey)));

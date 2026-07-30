@@ -38,11 +38,11 @@ void SafeAreaInsetsHost::BindReceiver(
 
 void SafeAreaInsetsHost::NotifyViewportFitChanged(
     blink::mojom::ViewportFit value) {
-  ViewportFitChangedForFrame(receivers_.GetCurrentTargetFrame(), value);
+  ViewportFitChangedForFrame(&receivers_.CurrentTargetFrame(), value);
 }
 
 void SafeAreaInsetsHost::NotifyComplexSafeAreaConstraintChanged(bool value) {
-  ComplexSafeAreaConstraintChangedForFrame(receivers_.GetCurrentTargetFrame(),
+  ComplexSafeAreaConstraintChangedForFrame(&receivers_.CurrentTargetFrame(),
                                            value);
 }
 

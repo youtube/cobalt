@@ -95,7 +95,6 @@ BrowserWindowModalDialogDelegate::GetWebContentsModalDialogHost(
     content::WebContents* web_contents) {
   // Use BrowserWindow::GetWebContentsModalDialogHostFor which handles both
   // tab and non-tab WebContents (e.g. DevTools) with correct fallback.
-  return browser_->GetBrowserForMigrationOnly()
-      ->window()
-      ->GetWebContentsModalDialogHostFor(web_contents);
+  return BrowserWindow::FromBrowser(browser_)->GetWebContentsModalDialogHostFor(
+      web_contents);
 }

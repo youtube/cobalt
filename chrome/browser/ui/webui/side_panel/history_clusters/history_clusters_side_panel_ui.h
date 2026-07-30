@@ -18,7 +18,7 @@
 #include "content/public/common/url_constants.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
-#include "ui/webui/resources/cr_components/history_clusters/history_clusters.mojom-forward.h"
+#include "ui/webui/resources/cr_components/history_clusters/history_clusters.mojom.h"
 #include "ui/webui/resources/cr_components/history_embeddings/history_embeddings.mojom.h"
 
 namespace history_clusters {
@@ -52,7 +52,8 @@ class HistoryClustersSidePanelUIConfig
 class HistoryClustersSidePanelUI
     : public TopChromeWebUIController,
       public content::WebContentsObserver,
-      public history_embeddings::mojom::PageHandlerFactory {
+      public history_embeddings::mojom::PageHandlerFactory,
+      public history_clusters::mojom::PageHandlerFactory {
  public:
   explicit HistoryClustersSidePanelUI(content::WebUI* web_ui);
   HistoryClustersSidePanelUI(const HistoryClustersSidePanelUI&) = delete;
@@ -66,8 +67,9 @@ class HistoryClustersSidePanelUI
 
   // Instantiates the implementor of the mojom::PageHandlerFactory mojo
   // interface passing the pending receiver that will be internally bound.
-  void BindInterface(mojo::PendingReceiver<history_clusters::mojom::PageHandler>
-                         pending_page_handler);
+  void BindInterface(
+      mojo::PendingReceiver<history_clusters::mojom::PageHandlerFactory>
+          pending_page_handler_factory);
   void BindInterface(
       mojo::PendingReceiver<page_image_service::mojom::PageImageServiceHandler>
           pending_page_handler);
@@ -111,6 +113,11 @@ class HistoryClustersSidePanelUI
       mojo::PendingRemote<history_embeddings::mojom::Page> page,
       mojo::PendingReceiver<history_embeddings::mojom::PageHandler> receiver)
       override;
+  // history_clusters::mojom::PageHandlerFactory:
+  void CreatePageHandler(
+      mojo::PendingRemote<history_clusters::mojom::Page> page,
+      mojo::PendingReceiver<history_clusters::mojom::PageHandler> receiver)
+      override;
 
   std::unique_ptr<HistoryEmbeddingsHandler> history_embeddings_handler_;
 
@@ -123,6 +130,8 @@ class HistoryClustersSidePanelUI
 
   mojo::Receiver<history_embeddings::mojom::PageHandlerFactory>
       history_embeddings_handler_factory_receiver_{this};
+  mojo::Receiver<history_clusters::mojom::PageHandlerFactory>
+      history_clusters_handler_factory_receiver_{this};
 
   // Used for `GetWeakPtr()`.
   base::WeakPtrFactory<HistoryClustersSidePanelUI> weak_ptr_factory_{this};

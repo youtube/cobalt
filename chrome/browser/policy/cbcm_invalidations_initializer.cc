@@ -31,12 +31,10 @@ class CBCMInvalidationsInitializer::MachineLevelDeviceAccountInitializerHelper
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory)
       : service_account_email_(service_account_email),
         policy_client_(policy_client),
-        callback_(std::move(callback)),
-        url_loader_factory_(url_loader_factory) {
-    DCHECK(url_loader_factory_);
-
-    device_account_initializer_ =
-        std::make_unique<DeviceAccountInitializer>(policy_client_, this);
+        callback_(std::move(callback)) {
+    CHECK(url_loader_factory);
+    device_account_initializer_ = std::make_unique<DeviceAccountInitializer>(
+        std::move(url_loader_factory), policy_client_, this);
     device_account_initializer_->FetchToken();
   }
 
@@ -96,16 +94,10 @@ class CBCMInvalidationsInitializer::MachineLevelDeviceAccountInitializerHelper
     };
   }
 
-  scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory()
-      override {
-    return url_loader_factory_;
-  }
-
   std::string service_account_email_;
   raw_ptr<policy::CloudPolicyClient> policy_client_;
   std::unique_ptr<DeviceAccountInitializer> device_account_initializer_;
   Callback callback_;
-  scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
 };
 
 CBCMInvalidationsInitializer::CBCMInvalidationsInitializer(Delegate* delegate)

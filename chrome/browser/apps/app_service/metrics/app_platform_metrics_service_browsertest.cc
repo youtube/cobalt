@@ -1557,7 +1557,7 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
 
   FastForwardBy(base::Minutes(20));
   // Set the browser window running in the background by minimizing it.
-  browser1->window()->Minimize();
+  browser1->GetWindow()->Minimize();
 
   FastForwardBy(base::Minutes(10));
   VerifyAppRunningDuration(base::Minutes(30), AppTypeName::kChromeBrowser);
@@ -1614,7 +1614,7 @@ IN_PROC_BROWSER_TEST_F(AppPlatformMetricsServiceBrowserTest,
   FastForwardBy(base::Hours(1));
 
   // Set the browser window running in the background by minimizing it.
-  browser->window()->Minimize();
+  browser->GetWindow()->Minimize();
 
   // Test one ARC app.
   std::string app_id = "aa";

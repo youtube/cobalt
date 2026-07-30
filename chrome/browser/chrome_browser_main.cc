@@ -1846,6 +1846,14 @@ int ChromeBrowserMainParts::PreMainMessageLoopRunImpl() {
   // Desktop construction occurs here, (required before profile creation).
   PreProfileInit();
 
+  // Register WebUI configs before profile creation, so that profile-level
+  // prewarming has access to registered WebUI data sources. Also login manager
+  // on CrOS is called inside `PostProfileInit()`.
+  content::WebUIControllerFactory::RegisterFactory(
+      ChromeWebUIControllerFactory::GetInstance());
+  RegisterChromeWebUIConfigs();
+  RegisterChromeUntrustedWebUIConfigs();
+
   // This step is costly and is already measured in Startup.CreateFirstProfile
   // and more directly Profile.CreateAndInitializeProfile.
   StartupProfileInfo profile_info = CreateInitialProfile(
@@ -1875,13 +1883,6 @@ int ChromeBrowserMainParts::PreMainMessageLoopRunImpl() {
     language::GeoLanguageProvider::GetInstance()->StartUp(
         browser_process_->local_state());
   }
-
-  // Needs to be done before PostProfileInit, since login manager on CrOS is
-  // called inside PostProfileInit.
-  content::WebUIControllerFactory::RegisterFactory(
-      ChromeWebUIControllerFactory::GetInstance());
-  RegisterChromeWebUIConfigs();
-  RegisterChromeUntrustedWebUIConfigs();
 
 #if BUILDFLAG(IS_ANDROID)
   page_info::SetPageInfoClient(new ChromePageInfoClient());

@@ -35,7 +35,6 @@
 #include "build/build_config.h"
 #include "components/viz/common/features.h"
 #include "content/browser/back_forward_cache/back_forward_cache_metrics.h"
-#include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
 #include "content/browser/preloading/prefetch/prefetch_features.h"
 #include "content/browser/process_lock.h"
@@ -63,6 +62,7 @@
 #include "content/browser/renderer_host/render_widget_host_view_child_frame.h"
 #include "content/browser/renderer_host/spare_render_process_host_manager_impl.h"
 #include "content/browser/security/coop/cross_origin_opener_policy_reporter.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/browser/site_info.h"
 #include "content/browser/site_instance_impl.h"
 #include "content/browser/webui/web_ui_controller_factory_registry.h"
@@ -844,6 +844,7 @@ void RenderFrameHostManager::InitRoot(
               // hashes of hosts for insecure request upgrades
               std::vector<uint32_t>(),
               false /* has_potentially_trustworthy_unique_origin */,
+              false /* is_secure_context_root */,
               false /* has_active_user_gesture */,
               false /* has_received_user_gesture_before_nav */,
               false /* is_ad_frame */),
@@ -899,6 +900,7 @@ void RenderFrameHostManager::InitChild(
               // hashes of hosts for insecure request upgrades
               std::vector<uint32_t>(),
               false /* has_potentially_trustworthy_unique_origin */,
+              false /* is_secure_context_root */,
               false /* has_active_user_gesture */,
               false /* has_received_user_gesture_before_nav */,
               false /* is_ad_frame */),
@@ -1993,7 +1995,7 @@ RenderFrameHostManager::GetFrameHostForNavigation(
   // A subframe should always be in the same BrowsingInstance as the parent
   // (see also https://crbug.com/1107269).
   //
-  // TODO(https://crbug.com/497761255): CHECK-exclusion: Convert to CHECK once
+  // TODO(https://crbug.com/526542490): CHECK-exclusion: Convert to CHECK once
   // we are sure this isn't hit.
   RenderFrameHostImpl* parent = frame_tree_node_->parent();
   DCHECK(!parent ||
@@ -2535,7 +2537,7 @@ RenderFrameHostManager::UnsetSpeculativeRenderFrameHost(
                   kSpeculativeMainFrameForNavigationCancelled);
   } else {
     // TODO(dcheng): Upgrade this to a CHECK()?
-    // TODO(https://crbug.com/503784536): CHECK-exclusion: Convert to CHECK once
+    // TODO(https://crbug.com/526543099): CHECK-exclusion: Convert to CHECK once
     // we are sure this isn't hit.
     DCHECK_EQ(speculative_render_frame_host_->lifecycle_state(),
               LifecycleStateImpl::kPendingCommit);
@@ -3299,7 +3301,9 @@ RenderFrameHostManager::GetSiteInstanceForNavigation(
   // If |new_instance| is a new SiteInstance for a subframe or a fenced frame
   // that require a dedicated process, set its process reuse policy so that such
   // subframes and fenced frames are consolidated into existing processes for
-  // that site. Avoid aggressive process reuse for PDF content frames.
+  // that site. Avoid aggressive process reuse for content with embedder-imposed
+  // isolation (PDF viewers and unique-instance content such as MimeHandler
+  // extensions).
   // TODO(crbug.com/40230422): The model described in fenced frames process
   // isolation explainer is still in the design stage. Determining correctness
   // here will also involve resolving on the FF process model plan (see
@@ -3307,7 +3311,7 @@ RenderFrameHostManager::GetSiteInstanceForNavigation(
   // frame/blob/master/explainer/process_isolation.md).
   if (!frame_tree_node_->IsOutermostMainFrame() &&
       !new_instance->HasProcess() && new_instance->RequiresDedicatedProcess() &&
-      !new_instance->IsPdf()) {
+      new_instance->GetSiteInfo().embedder_isolation_info().is_none()) {
     // Also give the embedder and user-specifiable feature a chance to override
     // this decision. Certain frames have different enough workloads so that
     // it's better to avoid placing a subframe into an existing process for
@@ -3435,7 +3439,7 @@ RenderFrameHostManager::GetSiteInstanceForNavigation(
   }
 
   if (process_to_reuse) {
-    // TODO(https://crbug.com/497761255): CHECK-exclusion: Convert to CHECK once
+    // TODO(https://crbug.com/526542622): CHECK-exclusion: Convert to CHECK once
     // we are sure this isn't hit.
     DCHECK(frame_tree_node_->IsMainFrame());
     new_instance->ReuseExistingProcessIfPossible(process_to_reuse);
@@ -4675,7 +4679,7 @@ RenderFrameHostManager::CreateSpeculativeRenderFrame(
         ->Hide();
   }
 
-  // TODO(https://crbug.com/503784536): CHECK-exclusion: Convert to CHECK once
+  // TODO(https://crbug.com/526543245): CHECK-exclusion: Convert to CHECK once
   // we are sure this isn't hit.
   DCHECK(render_view_host->IsRenderViewLive());
   // RenderViewHost for |instance| might exist prior to calling
@@ -4751,7 +4755,7 @@ void RenderFrameHostManager::CreateRenderFrameProxy(
       SCOPED_CRASH_KEY_STRING64("Bug1400009", "parent_lifecycle",
                                 RenderFrameHostImpl::LifecycleStateImplToString(
                                     parent_rfh->lifecycle_state()));
-      // TODO(https://crbug.com/497761255): CHECK-exclusion: Convert to CHECK
+      // TODO(https://crbug.com/526542464): CHECK-exclusion: Convert to CHECK
       // once we are sure this isn't hit.
       DCHECK(render_view_host);
     }
@@ -5912,7 +5916,7 @@ void RenderFrameHostManager::CreateOpenerProxies(
 
     auto opener_frame_token =
         node->render_manager()->GetOpenerFrameToken(group);
-    // TODO(https://crbug.com/497761255): CHECK-exclusion: Convert to CHECK once
+    // TODO(https://crbug.com/526543318): CHECK-exclusion: Convert to CHECK once
     // we are sure this isn't hit.
     DCHECK(opener_frame_token);
     proxy->GetAssociatedRemoteFrame()->UpdateOpener(opener_frame_token);

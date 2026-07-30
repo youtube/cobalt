@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <optional>
 
 #include "base/check.h"
 #include "base/containers/adapters.h"
@@ -47,6 +48,7 @@
 #include "third_party/blink/renderer/core/html/forms/option_list.h"
 #include "third_party/blink/renderer/core/html/forms/text_control_element.h"
 #include "third_party/blink/renderer/core/html/html_anchor_element.h"
+#include "third_party/blink/renderer/core/html/html_dialog_element.h"
 #include "third_party/blink/renderer/core/html/html_head_element.h"
 #include "third_party/blink/renderer/core/html/html_image_element.h"
 #include "third_party/blink/renderer/core/html/html_meta_element.h"
@@ -1476,6 +1478,49 @@ bool ProcessAriaFormControlNode(
   return true;
 }
 
+// Returns a modal/modeless dialog attribute type if relevant.
+std::optional<mojom::blink::AIPageContentAttributeType> GetDialogAttributeType(
+    const Element* element) {
+  using AttributeType = mojom::blink::AIPageContentAttributeType;
+
+  // Layout objects without DOM elements cannot be dialogs.
+  if (!element) {
+    return std::nullopt;
+  }
+
+  // Native <dialog> tracks whether showModal() placed it in modal state.
+  if (const auto* dialog = DynamicTo<HTMLDialogElement>(element)) {
+    if (!dialog->IsOpen()) {
+      return std::nullopt;
+    }
+
+    return dialog->IsModal() ? AttributeType::kDialogModal
+                             : AttributeType::kDialogModeless;
+  }
+
+  // Map ARIA dialogs.
+  const ax::mojom::blink::Role aria_role =
+      AXObject::DetermineRawAriaRole(*element);
+  if (!ui::IsDialog(aria_role)) {
+    return std::nullopt;
+  }
+
+  // alertdialog defaults to modal unless aria-modal is explicitly set.
+  bool is_aria_modal = false;
+  const bool has_aria_modal = AXObject::AriaBooleanAttribute(
+      *element, html_names::kAriaModalAttr, &is_aria_modal);
+  if (has_aria_modal) {
+    return is_aria_modal ? AttributeType::kDialogModal
+                         : AttributeType::kDialogModeless;
+  }
+
+  if (aria_role == ax::mojom::blink::Role::kAlertDialog) {
+    return AttributeType::kDialogModal;
+  }
+
+  return AttributeType::kDialogModeless;
+}
+
 void ProcessFormControlNode(const HTMLFormControlElement& form_control_element,
                             mojom::blink::AIPageContentAttributes& attributes) {
   attributes.attribute_type =
@@ -2581,6 +2626,8 @@ AIPageContentAgent::ContentBuilder::MaybeGenerateContentNodeImpl(
   } else if (const auto* form_control =
                  DynamicTo<HTMLFormControlElement>(object.GetNode())) {
     ProcessFormControlNode(*form_control, attributes);
+  } else if (auto dialog_attribute_type = GetDialogAttributeType(element)) {
+    attributes.attribute_type = *dialog_attribute_type;
   } else if (element &&
              ProcessAriaFormControlNode(object, *element, attributes)) {
     // ProcessAriaFormControlNode sets the attribute type and data.

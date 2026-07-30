@@ -62,7 +62,13 @@ class BrokeredTcpClientSocketTest : public testing::Test,
         net::IPAddress::IPv4Localhost(), local_address.port());
 
     socket_ = client_socket_factory_.CreateTransportClientSocket(
-        addr, nullptr, nullptr, net::NetLog::Get(), net::NetLogSource());
+        addr,
+        // Currently, multi-networking is supported only on Android, where
+        // `BrokeredClientSocketFactory` is not used. This makes it safe to
+        // always target the default network. If `BrokeredClientSocketFactory`
+        // starts being used in Android, this should be revisited.
+        net::handles::kInvalidNetworkHandle, nullptr, nullptr,
+        net::NetLog::Get(), net::NetLogSource());
 
     // Confirm that we fail gracefully when making certain calls before
     // connecting.
@@ -164,7 +170,13 @@ TEST_F(BrokeredTcpClientSocketTest, MAYBE_FailedBind) {
       net::IPAddress::IPv6Localhost(), local_address.port());
 
   socket_ = client_socket_factory_.CreateTransportClientSocket(
-      addr, nullptr, nullptr, net::NetLog::Get(), net::NetLogSource());
+      addr,
+      // Currently, multi-networking is supported only on Android, where
+      // `BrokeredClientSocketFactory` is not used. This makes it safe to
+      // always target the default network. If `BrokeredClientSocketFactory`
+      // starts being used in Android, this should be revisited.
+      net::handles::kInvalidNetworkHandle, nullptr, nullptr, net::NetLog::Get(),
+      net::NetLogSource());
 
   // Bind to an ipv4 address
   EXPECT_THAT(

@@ -188,7 +188,7 @@ AccountInfo::GetLastAuthenticationAccessPoint() const {
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 const AccountCapabilities& AccountInfo::GetAccountCapabilities() const {
-  return capabilities;
+  return capabilities_;
 }
 
 signin::Tribool AccountInfo::IsChildAccount() const {
@@ -235,7 +235,7 @@ bool AccountInfo::UpdateWith(const AccountInfo& other) {
                           std::optional<signin_metrics::AccessPoint>());
   modified |= UpdateField(&is_under_advanced_protection,
                           other.is_under_advanced_protection);
-  modified |= capabilities.UpdateWith(other.capabilities);
+  modified |= capabilities_.UpdateWith(other.capabilities_);
 
   return modified;
 }
@@ -248,7 +248,7 @@ signin::Tribool AccountInfo::IsManaged(const std::string& hosted_domain) {
 }
 
 bool AccountInfo::IsMemberOfFlexOrg() const {
-  return capabilities.is_subject_to_enterprise_features() ==
+  return capabilities_.is_subject_to_enterprise_features() ==
              signin::Tribool::kTrue &&
          IsManaged(hosted_domain_) != signin::Tribool::kTrue;
 }
@@ -263,14 +263,14 @@ signin::Tribool AccountInfo::CanApplyAccountLevelEnterprisePolicies() const {
 
 #if !BUILDFLAG(IS_IOS)
 bool AccountInfo::IsEduAccount() const {
-  return capabilities.can_use_edu_features() == signin::Tribool::kTrue &&
+  return capabilities_.can_use_edu_features() == signin::Tribool::kTrue &&
          IsManaged() == signin::Tribool::kTrue;
 }
 
 bool AccountInfo::CanHaveEmailAddressDisplayed() const {
-  return capabilities.can_have_email_address_displayed() ==
+  return capabilities_.can_have_email_address_displayed() ==
              signin::Tribool::kTrue ||
-         capabilities.can_have_email_address_displayed() ==
+         capabilities_.can_have_email_address_displayed() ==
              signin::Tribool::kUnknown;
 }
 #endif  // !BUILDFLAG(IS_IOS)
@@ -402,7 +402,7 @@ AccountInfo::Builder& AccountInfo::Builder::SetIsChildAccount(
 
 AccountInfo::Builder& AccountInfo::Builder::UpdateAccountCapabilitiesWith(
     const AccountCapabilities& other) {
-  account_info_.capabilities.UpdateWith(other);
+  account_info_.capabilities_.UpdateWith(other);
   return *this;
 }
 

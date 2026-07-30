@@ -160,10 +160,12 @@ void Gamepad::SetTouchEvents(base::span<const device::GamepadTouch> data) {
     return;
   }
 
-  if (touch_events_.size() != data.size()) {
+  const wtf_size_t touch_events_size =
+      base::checked_cast<wtf_size_t>(data.size());
+  if (touch_events_.size() != touch_events_size) {
     touch_events_.clear();
-    touch_events_.resize(base::checked_cast<wtf_size_t>(data.size()));
-    for (size_t i = 0; i < data.size(); ++i) {
+    touch_events_.resize(touch_events_size);
+    for (wtf_size_t i = 0; i < touch_events_size; ++i) {
       touch_events_[i] = MakeGarbageCollected<GamepadTouch>();
     }
   }
@@ -171,7 +173,7 @@ void Gamepad::SetTouchEvents(base::span<const device::GamepadTouch> data) {
   if (client_) {
     client_->SetTouchEvents(*this, touch_events_, data);
   } else {
-    for (size_t i = 0; i < data.size(); ++i) {
+    for (wtf_size_t i = 0; i < touch_events_size; ++i) {
       touch_events_[i]->UpdateValuesFrom(data[i], data[i].touch_id);
     }
   }
@@ -189,13 +191,14 @@ void Gamepad::SetButtons(base::span<const device::GamepadButton> data) {
   if (skip_update)
     return;
 
-  if (buttons_.size() != data.size()) {
-    buttons_.resize(base::checked_cast<wtf_size_t>(data.size()));
-    for (size_t i = 0; i < data.size(); ++i) {
+  const wtf_size_t buttons_size = base::checked_cast<wtf_size_t>(data.size());
+  if (buttons_.size() != buttons_size) {
+    buttons_.resize(buttons_size);
+    for (wtf_size_t i = 0; i < buttons_size; ++i) {
       buttons_[i] = MakeGarbageCollected<GamepadButton>();
     }
   }
-  for (size_t i = 0; i < data.size(); ++i) {
+  for (wtf_size_t i = 0; i < buttons_size; ++i) {
     buttons_[i]->UpdateValuesFrom(data[i]);
   }
   is_button_data_dirty_ = true;

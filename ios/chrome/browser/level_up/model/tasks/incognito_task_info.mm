@@ -29,7 +29,7 @@ class IncognitoTaskInfo : public TaskInfo {
   std::string GetTriggerUserAction() const override {
     return "IncognitoMode_Started";
   }
-  base::RepeatingClosure GetNavigationAction() const override {
+  TaskInfo::NavigationAction GetNavigationAction() const override {
     return base::DoNothing();
   }
 };

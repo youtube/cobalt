@@ -317,6 +317,7 @@ void EnrollmentLauncherImpl::DoEnroll(policy::DMAuth auth_data) {
   attestation_flow_ = CreateAttestationFlow();
 
   enrollment_handler_ = std::make_unique<policy::EnrollmentHandler>(
+      &local_state_.get(), shared_url_loader_factory_,
       policy_manager->device_store(), InstallAttributes::Get(),
       browser_policy_connector_ash_->GetStateKeysBroker(),
       attestation_flow_.get(), std::move(client),

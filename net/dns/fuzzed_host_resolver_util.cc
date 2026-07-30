@@ -413,9 +413,12 @@ class FuzzedHostResolverManager : public HostResolverManager {
  private:
   // HostResolverManager implementation:
   int StartGloballyReachableCheck(const IPAddress& dest,
+                                  handles::NetworkHandle target_network,
                                   const NetLogWithSource& net_log,
                                   ClientSocketFactory* client_socket_factory,
                                   CompletionOnceCallback callback) override {
+    // This is used only for testing in scenarios that do not involve multiple
+    // networks. With that in mind, it's safe to ignore `target_network`.
     int reachable_rv = is_globally_reachable_ ? OK : ERR_FAILED;
     if (start_globally_reachable_async_) {
       base::SequencedTaskRunner::GetCurrentDefault()->PostTask(

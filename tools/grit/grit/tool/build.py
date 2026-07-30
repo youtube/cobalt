@@ -738,9 +738,12 @@ Duplicate actual output files:
                                  outputs[0].GetOutputFilename())
 
     output_file = os.path.relpath(output_file, depdir)
-    # The path prefix to prepend to dependencies in the depfile.
-    prefix = os.path.relpath(os.getcwd(), depdir)
-    deps_text = ' '.join([os.path.join(prefix, i) for i in infiles])
+
+    # List each dependency by its shortest path relative to depdir, so a
+    # generated file under the output dir becomes "gen/foo" instead of
+    # "../../out/<name>/gen/foo".
+    deps_text = ' '.join(
+        os.path.relpath(os.path.abspath(i), depdir) for i in infiles)
 
     depfile_contents = output_file + ': ' + deps_text
     self.MakeDirectoriesTo(depfile)

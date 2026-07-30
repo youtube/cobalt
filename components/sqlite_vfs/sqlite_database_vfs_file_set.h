@@ -80,6 +80,7 @@ class COMPONENT_EXPORT(SQLITE_VFS) SqliteVfsFileSet {
 
   bool is_single_connection() const { return !shared_lock_.IsValid(); }
 
+  bool has_journal_file() const { return !!journal_file_; }
   bool has_wal_file() const { return !!wal_journal_file_; }
 
   // Permanently marks this file set's database as no longer suitable for use by

@@ -9,7 +9,7 @@
 
 #import "ios/chrome/browser/presenters/ui_bundled/contained_presenter.h"
 
-class OmniboxPositionBrowserAgent;
+@class LayoutState;
 
 /// Presenter that displays accessories over or next to the toolbar. Note that
 /// there are different presentations styles for iPhone (Compact Toolbar) vs.
@@ -29,8 +29,7 @@ class OmniboxPositionBrowserAgent;
 @property(nonatomic, strong) UILayoutGuide* bottomToolbarLayoutGuide;
 
 - (instancetype)initWithIsIncognito:(BOOL)isIncognito
-        omniboxPositionBrowserAgent:
-            (OmniboxPositionBrowserAgent*)omniboxPositionBrowserAgent
+                        layoutState:(LayoutState*)layoutState
     NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)init NS_UNAVAILABLE;

@@ -290,8 +290,7 @@ void PrintJobSubmitter::StartPrintJob() {
   uint32_t page_count = flatten_pdf_result->page_count;
   print_job_controller_->CreatePrintJob(
       std::move(flatten_pdf_result->flattened_pdf), std::move(settings_),
-      page_count, crosapi::mojom::PrintJob::Source::kExtension,
-      extension_->id(),
+      page_count, printing::PrintJob::Source::kExtension, extension_->id(),
       base::BindOnce(&PrintJobSubmitter::OnPrintJobCreated,
                      weak_ptr_factory_.GetWeakPtr()));
 }

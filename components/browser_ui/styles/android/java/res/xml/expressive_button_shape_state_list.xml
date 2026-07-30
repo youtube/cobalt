@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2026 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<selector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item android:state_pressed="true"
+        app:shapeAppearance="?attr/containerShapePressed"/>
+    <item android:state_selected="true"
+        app:shapeAppearance="?attr/containerShapeChecked"/>
+    <item android:state_checkable="true" android:state_checked="true"
+        app:shapeAppearance="?attr/containerShapeChecked"/>
+    <item app:shapeAppearance="@style/ShapeAppearance.Material3.Corner.Full"/>
+</selector>

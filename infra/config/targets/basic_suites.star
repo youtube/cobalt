@@ -1552,15 +1552,20 @@ _CHROME_AI_WPT_TEST_CONFIG = targets.legacy_test_config(
         "has_native_resultdb_integration",
         "blink_tests_write_run_histories",
     ],
+    # Hardcoded '--child-processes=1' to enforce sequential execution by default
+    # and prevent timeouts. Overridden to 3 on x64 bots using the
+    # 'mac_x64_wpt_child_processes' mixin.
     args = [
         "--release",
+        "--timeout-multiplier=5",
+        "--child-processes=1",
     ],
     mac_args = [
         "--driver-name",
         "Google Chrome",
     ],
     swarming = targets.swarming(
-        shards = 1,
+        shards = 4,
     ),
 )
 

@@ -111,4 +111,4 @@ class JetStream2NoFieldTrial(JetStream2):
 
   def SetExtraBrowserOptions(self, options):
     options.AppendExtraBrowserArgs('--disable-field-trial-config')
-    options.RemoveExtraBrowserArg('--enable-field-trial-config')
+    self.RemoveExtraBrowserArgWithValues(options, '--enable-field-trial-config')

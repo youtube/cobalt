@@ -342,6 +342,8 @@ void PageNodeImpl::SetLoadingState(LoadingState loading_state) {
 
 void PageNodeImpl::SetType(PageType type) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK_NE(type, PageType::kUnknown);
+  CHECK_EQ(type_.value(), PageType::kUnknown);
   type_.SetAndMaybeNotify(this, type);
 }
 
@@ -381,10 +383,10 @@ void PageNodeImpl::SetUkmSourceId(ukm::SourceId ukm_source_id) {
   ukm_source_id_.SetAndMaybeNotify(this, ukm_source_id);
 }
 
-void PageNodeImpl::OnFaviconUpdated() {
+void PageNodeImpl::OnFaviconUpdated(blink::mojom::FaviconUpdateReason reason) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   for (auto& observer : GetObservers()) {
-    observer.OnFaviconUpdated(this);
+    observer.OnFaviconUpdated(this, reason);
   }
 }
 

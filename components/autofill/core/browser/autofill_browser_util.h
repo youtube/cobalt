@@ -14,14 +14,6 @@ namespace autofill {
 class AutofillClient;
 class FormStructure;
 
-// Checks whether a given form is considered insecure (by origin or action).
-bool IsFormOrClientNonSecure(const AutofillClient& client,
-                             const FormData& form);
-
-// Checks whether a given form is considered insecure (by origin or action).
-bool IsFormOrClientNonSecure(const AutofillClient& client,
-                             const FormStructure& form);
-
 // Checks whether a given form is considered mixed content. A form is mixed
 // content if is displayed on a secure context, but submits to an insecure one.
 bool IsFormMixedContent(const AutofillClient& client, const FormData& form);

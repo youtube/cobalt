@@ -15,6 +15,8 @@ ONNXTensorElementDataType WebnnToOnnxDataType(OperandDataType data_type);
 
 OrtHardwareDeviceType WebnnToOrtDeviceType(mojom::Device device_type);
 
+mojom::Device OrtToWebnnDeviceType(OrtHardwareDeviceType device_type);
+
 std::vector<int64_t> WebnnToOnnxShape(base::span<const uint32_t> shape);
 
 }  // namespace webnn::ort

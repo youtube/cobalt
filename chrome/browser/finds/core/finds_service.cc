@@ -338,6 +338,7 @@ void FindsService::ExecuteModelAndScheduleNotification(
   history::QueryOptions options;
   options.begin_time = base::Time::Now() - GetHistoryTimeWindowTimeDelta();
   options.max_count = finds::features::kMaxHistoryEntries.Get();
+  options.restrict_to_synced_urls = true;
 
   history_service_->QueryHistory(
       std::u16string(), options,

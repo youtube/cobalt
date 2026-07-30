@@ -122,6 +122,11 @@ void RecordGameInputTriggerRumbleSupport(bool has_trigger_rumble) {
                             has_trigger_rumble);
 }
 
+// Record the HRESULT returned by the GameInputCreate function.
+void RecordGameInputCreateResult(HRESULT hr) {
+  base::UmaHistogramSparse("Gamepad.Win.GameInput.GameInputCreateResult", hr);
+}
+
 // Record a guide button press in the GameInput data fetcher. Uses a boolean
 // histogram as a counter (always records true).
 void RecordGameInputGuideButtonPress() {
@@ -174,7 +179,9 @@ void GameInputDataFetcher::OnAddedToProvider() {
   }
 
   if (!gameinput_) {
-    if (FAILED(create_gameinput_function.Run(&gameinput_))) {
+    HRESULT hr = create_gameinput_function.Run(&gameinput_);
+    RecordGameInputCreateResult(hr);
+    if (FAILED(hr)) {
       initialization_state_ = InitializationState::kCreateGameInputFailed;
       RecordGameInputInitializationResult(
           GameInputInitializationResult::kCreateGameInputFailed);

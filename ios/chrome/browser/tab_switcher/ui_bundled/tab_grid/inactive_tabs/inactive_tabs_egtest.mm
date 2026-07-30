@@ -918,7 +918,8 @@ id<GREYMatcher> GetMatcherForUserEducationSettingsButton() {
 
 // Checks that the bottom bar is positioned above the App Bar in portrait mode
 // when ChromeNextIA is enabled.
-- (void)testBottomBarLayoutWithChromeNextIA {
+// TODO(crbug.com/525850722): Re-enable when the crash during teardown is fixed.
+- (void)DISABLED_testBottomBarLayoutWithChromeNextIA {
   if ([ChromeEarlGrey isIPadIdiom]) {
     EARL_GREY_TEST_SKIPPED(@"Test not applicable for iPad.");
   }

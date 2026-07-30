@@ -7,6 +7,7 @@
 #include "base/check.h"
 #include "base/types/expected.h"
 #include "components/browser_apis/tab_drag/adapters/tab_drag_window_adapter.h"
+#include "components/browser_apis/tab_drag/sessions/drop_target_registry.h"
 #include "components/browser_apis/tab_drag/sessions/tab_drag_session_injector.h"
 #include "components/browser_apis/tab_drag/sessions/tab_drag_session_manager.h"
 #include "mojo/public/mojom/base/error.mojom.h"
@@ -24,14 +25,19 @@ TabDragServiceImpl::TabDragServiceImpl(
 
 TabDragServiceImpl::~TabDragServiceImpl() {
   if (session_manager_ && window_adapter_) {
-    session_manager_->GetDropTargetRegistry().UnregisterDropTarget(
-        window_adapter_.get());
+    DropTargetRegistry& registry = session_manager_->GetDropTargetRegistry();
+    DropTargetId target_id =
+        registry.FindTargetForWindow(window_adapter_->GetWindowId());
+    if (target_id) {
+      registry.UnregisterDropTarget(target_id);
+    }
   }
 }
 
 void TabDragServiceImpl::Accept(
-    mojo::PendingReceiver<mojom::TabDragService> receiver) {
-  receivers_.Add(&bridge_, std::move(receiver));
+    mojo::PendingReceiver<mojom::TabDragService> receiver,
+    gfx::NativeView context_view) {
+  receivers_.Add(&bridge_, std::move(receiver), context_view);
 }
 
 mojom::TabDragService::StartDragResult TabDragServiceImpl::StartDrag(
@@ -46,8 +52,10 @@ TabDragServiceImpl::RegisterDropTarget(
     mojo::PendingAssociatedRemote<mojom::DropTarget> target,
     mojo::PendingAssociatedReceiver<mojom::DropTargetRegistration>
         registration) {
+  gfx::NativeView native_view = receivers_.current_context();
   session_manager_->GetDropTargetRegistry().RegisterDropTarget(
-      window_adapter_.get(), std::move(target), std::move(registration));
+      window_adapter_.get(), native_view, std::move(target),
+      std::move(registration));
   return std::monostate();
 }
 

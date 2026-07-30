@@ -71,6 +71,8 @@ Applied the following changes:
 - Add a getter for testing and replace
   StringPiece with std::string_view.
 - Refactor zxcvbn RankedDicts to be thread-safe.
+- Use memory-safe base::MemoryMappedFile::bytes() instead of data()
+  and length().
 
 Ran the following commands to generate adjacency graphs:
 $ python ./data-scripts/build_keyboard_adjacency_graphs.py ./native-src/zxcvbn/adjacency_graphs.hpp

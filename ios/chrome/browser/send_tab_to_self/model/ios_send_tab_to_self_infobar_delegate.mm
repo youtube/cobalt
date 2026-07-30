@@ -6,6 +6,7 @@
 
 #import <Foundation/Foundation.h>
 
+#import "base/feature_list.h"
 #import "base/memory/ptr_util.h"
 #import "base/metrics/histogram_macros.h"
 #import "base/strings/sys_string_conversions.h"
@@ -118,7 +119,22 @@ void IOSSendTabToSelfInfoBarDelegate::InfoBarDismissed() {
   Cancel();
 }
 
+std::u16string IOSSendTabToSelfInfoBarDelegate::GetTitleText() const {
+  if (base::FeatureList::IsEnabled(send_tab_to_self::kSendTabToSelfAutoOpen)) {
+    return l10n_util::GetStringUTF16(
+        IDS_SEND_TAB_TO_SELF_INFOBAR_AUTO_OPEN_TITLE);
+  }
+  return std::u16string();
+}
+
 std::u16string IOSSendTabToSelfInfoBarDelegate::GetMessageText() const {
+  if (base::FeatureList::IsEnabled(send_tab_to_self::kSendTabToSelfAutoOpen)) {
+    const SendTabToSelfEntry* entry = model_->GetEntryByGUID(guid_);
+    return entry ? l10n_util::GetStringFUTF16(
+                       IDS_SEND_TAB_TO_SELF_INFOBAR_AUTO_OPEN_SUBTITLE,
+                       base::UTF8ToUTF16(entry->GetDeviceName()))
+                 : std::u16string();
+  }
   return l10n_util::GetStringUTF16(IDS_SEND_TAB_TO_SELF_INFOBAR_MESSAGE);
 }
 
@@ -127,8 +143,13 @@ bool IOSSendTabToSelfInfoBarDelegate::Accept() {
   const SendTabToSelfEntry* entry = model_->GetEntryByGUID(guid_);
   if (entry) {
     model_->MarkEntryOpened(guid_);
-    [scene_handler_
-        openURLInNewTab:send_tab_to_self::CreateOpenNewTabCommand(entry)];
+    if (base::FeatureList::IsEnabled(
+            send_tab_to_self::kSendTabToSelfAutoOpen)) {
+      [scene_handler_ displayTabGridInMode:TabGridOpeningMode::kRegular];
+    } else {
+      [scene_handler_
+          openURLInNewTab:send_tab_to_self::CreateOpenNewTabCommand(entry)];
+    }
   }
 
   SendConclusionNotification();

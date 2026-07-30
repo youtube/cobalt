@@ -889,7 +889,6 @@ Jika kebijakan ini disetel ke aktif, perangkat <ph name="PRODUCT_OS_NAME" /> And
 Catatan: Kebijakan ini hanya berlaku setelah pengguna login dan tidak berlaku untuk layar login.</translation>
 <translation id="1597684038583138808">Aktifkan Definisi Jawaban Instan</translation>
 <translation id="1598258379228800626">Aktifkan sorotan fokus keyboard di layar login</translation>
-<translation id="1599424828227887013">Mengaktifkan Isolasi Situs untuk asal yang ditentukan di perangkat Android</translation>
 <translation id="159946228300522107">Jika kebijakan ditetapkan ke Benar (True), Chrome akan memaksimalkan jendela pertama yang ditampilkan saat pertama kali dijalankan.
 
       Jika kebijakan ditetapkan ke Salah (False) atau tidak ditetapkan, Chrome mungkin akan memaksimalkan jendela pertama, tergantung ukuran layar.</translation>
@@ -2204,17 +2203,6 @@ Jika kebijakan ini disetel ke aktif atau tidak disetel, pengguna dapat memilih f
 <translation id="2402537890732357732">Selalu tampilkan label pengelolaan</translation>
 <translation id="2402547085566757554">Jangan gunakan Halaman Tab Baru sebagai halaman beranda</translation>
 <translation id="2405765347317553213">Setelan Tab Compare</translation>
-<translation id="240713331529749993">Jika kebijakan ini disetel, setiap asal bernama dalam daftar yang dipisahkan koma akan berjalan dalam proses khusus di Android. Setiap proses asal bernama hanya akan diizinkan untuk memuat dokumen dari asal tersebut dan subdomainnya. Misalnya, menentukan https://a1.example.com/ akan mengizinkan https://a2.a1.example.com/ dalam proses yang sama, tetapi tidak mengizinkan https://example.com atau https://b.example.com. Perlu diketahui bahwa Android akan mengisolasi situs sensitif tertentu secara default mulai <ph name="PRODUCT_NAME" /> versi 77, dan kebijakan ini memperluas mode tersebut untuk mengisolasi asal tambahan tertentu.
-
-      Sejak <ph name="PRODUCT_NAME" /> 77, Anda juga dapat menentukan rentang asal yang akan diisolasi menggunakan karakter pengganti. Misalnya, menentukan https://[*.]corp.example.com akan memberi setiap asal di bawah https://corp.example.com proses khususnya sendiri, termasuk https://corp.example.com itu sendiri, https://a1.corp.example.com, dan https://a2.a1.corp.example.com.
-
-      Perhatikan bahwa asal yang diisolasi oleh kebijakan ini tidak akan dapat membuat skrip asal lain di situs yang sama, yang justru dapat dilakukan jika dua dokumen situs yang sama mengubah nilai document.domain-nya agar cocok. Administrator harus mengonfirmasi bahwa perilaku yang tidak biasa ini tidak digunakan pada asal sebelum mengisolasinya.
-
-      Jika kebijakan ini disetel ke Nonaktif, semua bentuk isolasi situs akan dinonaktifkan, termasuk isolasi situs sensitif dan uji coba kolom IsolateOriginsAndroid, SitePerProcessAndroid, dan mode isolasi situs lainnya. Pengguna masih dapat mengaktifkan IsolateOrigins secara manual melalui tanda command line.
-
-      Jika kebijakan ini tidak disetel, pengguna dapat mengubah setelan ini.
-
-      Catatan: Mengisolasi terlalu banyak situs di Android dapat menyebabkan masalah performa, terutama pada perangkat dengan memori rendah. Kebijakan ini hanya berlaku di Chrome pada perangkat Android dengan RAM lebih dari 1 GB. Untuk menerapkan kebijakan ini di platform non-Android, gunakan <ph name="ISOLATE_ORIGINS_POLICY_NAME" />.</translation>
 <translation id="2407758458436268630">Izinkan model redup smart untuk memperpanjang waktu hingga layar meredup</translation>
 <translation id="2410163749464044777">Setelan penyimpanan data pengguna lokal</translation>
 <translation id="2411629345938804022">Jika kebijakan disetel ke 3, situs akan meminta akses ke perangkat Bluetooth di sekitar. Jika kebijakan disetel ke 2, akses ke perangkat Bluetooth di sekitar akan ditolak.
@@ -4186,21 +4174,6 @@ Jika kebijakan ini disetel ke Aktif, SwiftShader akan digunakan sebagai penggant
 Jika kebijakan ini disetel ke Nonaktif atau tidak disetel, pembuatan konteks WebGL mungkin gagal jika akselerasi GPU hardware tidak tersedia. Halaman web mungkin tidak berfungsi dengan baik jika tidak menangani kegagalan pembuatan konteks WebGL dengan baik.
 
 Kebijakan ini adalah kebijakan sementara yang akan dihapus di masa mendatang.</translation>
-<translation id="3607939601300521364">Mengontrol apakah agen <ph name="GEMINI_SPARK_PRODUCT_NAME" /> diizinkan untuk terhubung ke <ph name="PRODUCT_NAME" /> dan menggunakan penjelajahan otomatis.
-
-Nilai 0 = <ph name="GEMINI_SPARK_PRODUCT_NAME" /> diizinkan untuk terhubung ke dan menggunakan penjelajahan otomatis <ph name="PRODUCT_NAME" />
-
-Nilai 1 = <ph name="GEMINI_SPARK_PRODUCT_NAME" /> tidak diizinkan untuk terhubung ke atau menggunakan penjelajahan otomatis <ph name="PRODUCT_NAME" />
-
-Peringatan: Mengizinkan <ph name="GEMINI_SPARK_PRODUCT_NAME" /> terhubung ke <ph name="PRODUCT_NAME" /> dan menggunakan penjelajahan otomatis mengizinkan agen <ph name="GEMINI_SPARK_PRODUCT_NAME" /> untuk melakukan tindakan multilangkah secara otonom di klien <ph name="PRODUCT_NAME" /> menggunakan sesi penjelajahan aktif. Hal ini menimbulkan risiko keamanan yang signifikan, termasuk risiko kredensial, Ingress Jaringan Lokal, dan hilangnya sinyal kontekstual. Kontrol pengelolaan dan keamanan yang ada mungkin tidak dipatuhi.
-
-Administrator disarankan untuk mengevaluasi dengan cermat model ancaman jaringan, kepatuhan, dan privasi organisasi sebelum mengaktifkan fitur ini.
-
-Kebijakan ini tidak akan berpengaruh jika kebijakan aplikasi <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> atau penjelajahan otomatis <ph name="PRODUCT_NAME" /> dinonaktifkan. Misalnya, <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> dapat dinonaktifkan oleh kebijakan <ph name="GEMINI_SETTINGS_POLICY_NAME" />. Untuk mendapatkan informasi selengkapnya tentang <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> di <ph name="PRODUCT_NAME" />, lihat https://support.google.com/chrome/a?p=gemini_in_chrome.
-
-Penjelajahan otomatis <ph name="PRODUCT_NAME" /> dan <ph name="GEMINI_SPARK_PRODUCT_NAME" /> hanya tersedia di negara atau bahasa tertentu. Jika kebijakan ini disetel ke 0 - Aktif, tidak ada jaminan bahwa fitur akan diaktifkan; fitur tetap bergantung pada ketersediaan. Untuk mendapatkan info selengkapnya tentang peluncuran, baca Catatan Rilis Enterprise: https://chromeenterprise.google/resources/release-notes/
-
-Jika kebijakan ini tidak disetel, perilakunya akan ditentukan oleh kebijakan <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.</translation>
 <translation id="3608206578291537084">Aktifkan Pipeline Pelaporan Terenkripsi</translation>
 <translation id="3608281460204780443">Tampilkan ikon Chrome Web Store di peluncur <ph name="PRODUCT_OS_NAME" /> dan di halaman tab baru</translation>
 <translation id="3612482251405108708">Memulai otomatis autentikasi ulang online di layar kunci</translation>
@@ -5160,17 +5133,6 @@ Lihat https://chromium.googlesource.com/chromium/src/+/main/docs/security/autoup
 
 Kebijakan ini digunakan untuk menonaktifkan upgrade otomatis konten campuran di iOS. Kebijakan ini kini tidak digunakan lagi dan tidak didukung.</translation>
 <translation id="4252522848899331223">Izinkan pengguna mengabaikan peringatan Safe Browsing</translation>
-<translation id="4260027436474745627">Jika kebijakan ini disetel, setiap asal bernama dalam daftar yang dipisahkan koma akan berjalan dalam proses khusus. Setiap proses asal bernama hanya akan diizinkan untuk memuat dokumen dari asal tersebut dan subdomainnya. Misalnya, menentukan https://a1.example.com/ akan mengizinkan https://a2.a1.example.com/ dalam proses yang sama, tetapi tidak mengizinkan https://example.com atau https://b.example.com.
-
-      Sejak <ph name="PRODUCT_NAME" /> 77, Anda juga dapat menentukan rentang asal yang akan diisolasi menggunakan karakter pengganti. Misalnya, menentukan https://[*.]corp.example.com akan memberi setiap asal di bawah https://corp.example.com proses khususnya sendiri, termasuk https://corp.example.com itu sendiri, https://a1.corp.example.com, dan https://a2.a1.corp.example.com.
-
-      Perhatikan bahwa semua situs (yaitu, skema plus eTLD+1, seperti https://example.com) sudah diisolasi secara default pada platform Desktop, seperti yang tercantum dalam kebijakan <ph name="SITE_PER_PROCESS_POLICY_NAME" />. Kebijakan <ph name="ISOLATE_ORIGINS_POLICY_NAME" /> ini berguna untuk mengisolasi asal tertentu pada tingkat perincian yang lebih baik (misalnya, https://a.example.com).
-
-      Perhatikan juga bahwa asal yang diisolasi oleh kebijakan ini tidak akan dapat membuat skrip asal lain di situs yang sama, yang justru dapat dilakukan jika dua dokumen situs yang sama mengubah nilai document.domain-nya agar cocok. Administrator harus mengonfirmasi bahwa perilaku yang tidak biasa ini tidak digunakan pada asal sebelum mengisolasinya.
-
-      Jika kebijakan ini disetel ke nonaktif atau tidak disetel, pengguna dapat mengubah setelan ini.
-
-      Catatan: Untuk Android, gunakan kebijakan <ph name="ISOLATE_ORIGINS_ANDROID_POLICY_NAME" />.</translation>
 <translation id="4261641564041253502">Pilih sertifikat klien yang cocok dengan filter secara otomatis untuk laporan sinyal keamanan <ph name="PRODUCT_NAME" />.</translation>
 <translation id="4261820385751181068">Lokal layar login perangkat</translation>
 <translation id="4263788921751326798">Nonaktifkan pelaporan informasi laporan kerusakan perangkat</translation>
@@ -7673,6 +7635,7 @@ Jika kebijakan ini disetel ke nonaktif atau tidak disetel, widget Sekilas Info t
 <translation id="5775235485119094648">Mengisi daya baterai saat tingkat daya berada dalam rentang yang ditetapkan.</translation>
 <translation id="5776485039795852974">Tanyakan setiap kali situs ingin menampilkan pemberitahuan desktop</translation>
 <translation id="5776508475264864949">Jangan izinkan aplikasi Gemini mengambil tindakan di halaman web.</translation>
+<translation id="5779185945203505880">Tanyakan setiap kali situs ingin mengakses sensor</translation>
 <translation id="5783009211970309878">Cetak Header dan Footer</translation>
 <translation id="5786913136266632175">Izinkan Chrome Finds dan tingkatkan kualitas model AI.</translation>
 <translation id="5789288985554424301">Memungkinkan Anda menetapkan apakah situs diizinkan menggunakan Idle Detection API.
@@ -11130,6 +11093,9 @@ Perilaku ini sama dengan <ph name="POLICY_VALUE_PRIMARY_ACCOUNT_KEEP_EXISTING_DA
 <translation id="7816326058023670173">Rahasia dibagikan antara perangkat anak dan orang tua.</translation>
 <translation id="7818131573217430250">Menyetel status default mode kontras tinggi di layar masuk</translation>
 <translation id="7821864705813933283">Mengizinkan item menu penelusuran region <ph name="GOOGLE_LENS_PRODUCT_NAME" /> ditampilkan di menu konteks jika didukung.</translation>
+<translation id="7822068288960631707">Jika kebijakan disetel ke 1, situs akan dapat mengakses dan menggunakan sensor seperti sensor gerakan dan cahaya. Jika kebijakan disetel ke 2, akses ke sensor akan ditolak. Jika kebijakan ini disetel ke 3, pengguna akan diminta untuk menentukan kapan situs meminta akses ke sensor jika tombol fitur tiga status diaktifkan. Jika tidak, kebijakan ini akan secara default mengizinkan akses ke sensor.
+
+      Jika kebijakan tidak disetel, <ph name="ALLOW_SENSORS_POLICY_NAME" /> akan berlaku, tetapi pengguna dapat mengubah setelan ini.</translation>
 <translation id="7823902813460802031">Jika kebijakan ini disetel ke Aktif, <ph name="PRODUCT_OS_NAME" /> akan menghentikan perangkat beralih ke mode Developer.
 
        Jika kebijakan ini disetel ke Nonaktif atau tidak disetel, mode Developer akan tersedia untuk perangkat.</translation>

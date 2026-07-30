@@ -14,6 +14,15 @@ class Profile;
 class ProfileAttributesEntry;
 struct AccountInfo;
 
+namespace gfx {
+class ImageSkia;
+}
+
+namespace ui {
+class ColorProvider;
+class ImageModel;
+}  // namespace ui
+
 // Navigates to the Google Account page.
 void NavigateToGoogleAccountPage(Profile* profile, const std::string& email);
 
@@ -48,5 +57,10 @@ bool IsOtherProfileCommand(int command_id);
 // True if the UI may present an affordance to open `url` into an OTR context
 // (e.g. a menu option to open the link in a new incognito window).
 bool IsOpenLinkOTREnabled(Profile* source_profie, const GURL& url);
+
+// Returns the avatar image with the AI subscription ring.
+gfx::ImageSkia GetAvatarWithAiRing(const ui::ImageModel& avatar_image,
+                                   const ui::ColorProvider& color_provider,
+                                   int avatar_size);
 
 #endif  // CHROME_BROWSER_UI_PROFILES_PROFILE_VIEW_UTILS_H_

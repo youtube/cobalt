@@ -61,7 +61,7 @@ IN_PROC_BROWSER_TEST_F(SadTabSplitViewBrowserTest,
       split_tabs::SplitTabCreatedSource::kToolbarButton);
 
   // Verify split view is active.
-  EXPECT_TRUE(browser()->tab_strip_model()->IsActiveTabSplit());
+  EXPECT_TRUE(browser()->tab_strip_model()->GetActiveTab()->IsSplit());
 
   // Find SadTabView among the visible ContentsWebViews.
   SadTabView* sad_tab_view = nullptr;

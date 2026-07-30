@@ -54,7 +54,8 @@ class DomStorageDatabaseTest : public testing::Test {
   }
 
   void OpenLocalStorageLevelDB(std::unique_ptr<LocalStorageLevelDB>* result) {
-    auto instance = std::make_unique<LocalStorageLevelDB>(GetPassKey());
+    auto instance = std::make_unique<LocalStorageLevelDB>(
+        GetPassKey(), /*write_exp_tag=*/false);
     DbStatus status = instance->Open(/*directory=*/base::FilePath(),
                                      /*memory_dump_id=*/std::nullopt);
     ASSERT_TRUE(status.ok()) << status.ToString();
@@ -72,7 +73,8 @@ class DomStorageDatabaseTest : public testing::Test {
 
   void OpenSessionStorageLevelDB(
       std::unique_ptr<SessionStorageLevelDB>* result) {
-    auto instance = std::make_unique<SessionStorageLevelDB>(GetPassKey());
+    auto instance = std::make_unique<SessionStorageLevelDB>(
+        GetPassKey(), /*write_exp_tag=*/false);
     DbStatus status = instance->Open(
         /*directory=*/base::FilePath(),
         /*memory_dump_id=*/std::nullopt);

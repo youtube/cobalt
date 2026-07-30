@@ -93,9 +93,8 @@ using base::SysNSStringToUTF8;
   return self;
 }
 
-- (void)configureCell:(ManualFillCardCell*)cell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:cell withStyler:styler];
+- (void)configureCell:(ManualFillCardCell*)cell {
+  [super configureCell:cell];
   [cell setUpWithCreditCard:self.card
                   contentInjector:self.contentInjector
                navigationDelegate:self.navigationDelegate

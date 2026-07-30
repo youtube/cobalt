@@ -111,9 +111,9 @@ TEST_F(ApplyBlockElementCommandTest, IndentHeadingIntoBlockquote) {
       "<blockquote style=\"margin: 0 0 0 40px; border: none; padding: 0px;\">"
       "<h6><button></button></h6>"
       "<h6><button><table></table></button></h6>"
+      "<object></object>"
       "</blockquote>"
       "<br>"
-      "<object></object>"
       "</div>",
       GetDocument().body()->GetInnerHTMLString());
 }
@@ -130,8 +130,9 @@ TEST_F(ApplyBlockElementCommandTest, InsertPlaceHolderAtDisconnectedPosition) {
                                                            html_names::kPreTag);
   // Crash happens here.
   EXPECT_TRUE(command->Apply());
+  // Selection collapses because input is disconnected during formatting.
   EXPECT_EQ(
-      "<pre>^<input>|</pre><input class=\"input\" style=\"position:absolute\">",
+      "<pre><input>|</pre><input class=\"input\" style=\"position:absolute\">",
       GetSelectionTextFromBody());
 }
 
@@ -165,9 +166,10 @@ TEST_F(ApplyBlockElementCommandTest,
   auto* command = MakeGarbageCollected<FormatBlockCommand>(GetDocument(),
                                                            html_names::kPreTag);
   EXPECT_TRUE(command->Apply());
+  // Selection ends after kbd because user-modify boundary stops formatting.
   EXPECT_EQ(
-      "<pre><table>|</table></pre>"
-      "<kbd style=\"-webkit-user-modify:read-only\"><button></button></kbd>",
+      "<pre><table></table></pre>"
+      "<kbd style=\"-webkit-user-modify:read-only\"><button></button></kbd>|",
       GetSelectionTextFromBody());
 }
 
@@ -188,6 +190,7 @@ TEST_F(ApplyBlockElementCommandTest, FormatBlockWithDirectChildrenOfRoot) {
                                                            html_names::kPreTag);
   // Shouldn't crash here.
   EXPECT_FALSE(command->Apply());
+  // Selection extends to end of root because SelectAllChildren includes 'c'.
   const SelectionInDomTree& selection = Selection().GetSelectionInDomTree();
   EXPECT_EQ("^a<div>b</div>c|",
             SelectionSample::GetSelectionText(*root, selection));
@@ -394,9 +397,9 @@ TEST_F(ApplyBlockElementCommandTest, IndentHeadingIntoBlockquoteDomApi) {
       "<blockquote style=\"margin: 0 0 0 40px; border: none; padding: 0px;\">"
       "<h6><button></button></h6>"
       "<h6><button><table></table></button></h6>"
+      "<object></object>"
       "</blockquote>"
       "<br>"
-      "<object></object>"
       "</div>",
       GetDocument().body()->GetInnerHTMLString());
 }
@@ -415,9 +418,35 @@ TEST_F(ApplyBlockElementCommandTest,
   auto* command = MakeGarbageCollected<FormatBlockCommand>(GetDocument(),
                                                            html_names::kPreTag);
   EXPECT_TRUE(command->Apply());
+  // Selection ends after kbd because user-modify boundary stops formatting.
   EXPECT_EQ(
-      "<pre><table>|</table></pre>"
-      "<kbd style=\"-webkit-user-modify:read-only\"><button></button></kbd>",
+      "<pre><table></table></pre>"
+      "<kbd style=\"-webkit-user-modify:read-only\"><button></button></kbd>|",
+      GetSelectionTextFromBody());
+}
+
+TEST_F(ApplyBlockElementCommandTest, ParagraphBoundaryAdjustmentDomApi) {
+  ScopedEditingUseDomPositionApiForTest scoped_dom_position(true);
+
+  // Selection ends at the start of the second paragraph, triggering the
+  // paragraph boundary adjustment in DoApply().
+  Selection().SetSelection(SetSelectionTextToBody("<div contenteditable>"
+                                                  "^first paragraph<br>"
+                                                  "|second paragraph"
+                                                  "</div>"),
+                           SetSelectionOptions());
+
+  auto* command = MakeGarbageCollected<IndentOutdentCommand>(
+      GetDocument(), IndentOutdentCommand::kIndent);
+  EXPECT_TRUE(command->Apply());
+
+  EXPECT_EQ(
+      "<div contenteditable>"
+      "<blockquote style=\"margin: 0 0 0 40px; border: none; padding: 0px;\">"
+      "^first paragraph|"
+      "</blockquote>"
+      "second paragraph"
+      "</div>",
       GetSelectionTextFromBody());
 }
 

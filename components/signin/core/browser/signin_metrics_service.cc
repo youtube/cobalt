@@ -205,6 +205,7 @@ void MaybeRecordWebSigninToChromeSigninTimes(
     case signin_metrics::AccessPoint::kDeepLinkDefault:
     case signin_metrics::AccessPoint::kAgeMismatchSignout:
     case signin_metrics::AccessPoint::kOverflowMenu:
+    case signin_metrics::AccessPoint::kLevelUp:
       return;
   }
 

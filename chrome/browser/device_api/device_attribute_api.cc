@@ -19,11 +19,8 @@
 #endif
 
 using blink::mojom::DeviceAPIService;
-using blink::mojom::DeviceAttributeResultPtr;
 
 namespace {
-
-using Result = blink::mojom::DeviceAttributeResult;
 
 constexpr char kNotAffiliatedErrorMessage[] =
     "This web API is not allowed if the current profile is not affiliated.";
@@ -43,14 +40,14 @@ DeviceAttributeApiImpl::DeviceAttributeApiImpl() = default;
 DeviceAttributeApiImpl::~DeviceAttributeApiImpl() = default;
 
 void DeviceAttributeApiImpl::ReportNotAffiliatedError(
-    base::OnceCallback<void(DeviceAttributeResultPtr)> callback) {
-  std::move(callback).Run(Result::NewErrorMessage(kNotAffiliatedErrorMessage));
+    NotificationCallback callback) {
+  std::move(callback).Run(base::unexpected(kNotAffiliatedErrorMessage));
 }
 
 void DeviceAttributeApiImpl::ReportNotAllowedError(
-    base::OnceCallback<void(DeviceAttributeResultPtr)> callback) {
+    NotificationCallback callback) {
   std::move(callback).Run(
-      Result::NewErrorMessage(kNoDeviceAttributesPermissionErrorMessage));
+      base::unexpected(kNoDeviceAttributesPermissionErrorMessage));
 }
 
 void DeviceAttributeApiImpl::GetDirectoryId(
@@ -60,13 +57,13 @@ void DeviceAttributeApiImpl::GetDirectoryId(
                                     ->browser_policy_connector_ash()
                                     ->GetDirectoryApiID();
   if (attribute.empty()) {
-    std::move(callback).Run(Result::NewAttribute(std::optional<std::string>()));
+    std::move(callback).Run(
+        blink::mojom::DeviceAttributeValue::New(std::nullopt));
   } else {
-    std::move(callback).Run(Result::NewAttribute(attribute));
+    std::move(callback).Run(blink::mojom::DeviceAttributeValue::New(attribute));
   }
 #else  // Other platforms
-  std::move(callback).Run(
-      Result::NewErrorMessage(kNotSupportedPlatformErrorMessage));
+  std::move(callback).Run(base::unexpected(kNotSupportedPlatformErrorMessage));
 #endif
 }
 
@@ -78,10 +75,9 @@ void DeviceAttributeApiImpl::GetHostname(
           ->browser_policy_connector_ash()
           ->GetDeviceNamePolicyHandler()
           ->GetHostnameChosenByAdministrator();
-  std::move(callback).Run(Result::NewAttribute(attribute));
+  std::move(callback).Run(blink::mojom::DeviceAttributeValue::New(attribute));
 #else  // Other platforms
-  std::move(callback).Run(
-      Result::NewErrorMessage(kNotSupportedPlatformErrorMessage));
+  std::move(callback).Run(base::unexpected(kNotSupportedPlatformErrorMessage));
 #endif
 }
 
@@ -90,13 +86,12 @@ void DeviceAttributeApiImpl::GetSerialNumber(
 #if BUILDFLAG(IS_CHROMEOS)
   const std::optional<std::string_view> attribute =
       ash::system::StatisticsProvider::GetInstance()->GetMachineID();
-  std::move(callback).Run(Result::NewAttribute(
+  std::move(callback).Run(blink::mojom::DeviceAttributeValue::New(
       attribute ? std::optional<std::string>(attribute.value())
                 : std::nullopt));
 
 #else  // Other platforms
-  std::move(callback).Run(
-      Result::NewErrorMessage(kNotSupportedPlatformErrorMessage));
+  std::move(callback).Run(base::unexpected(kNotSupportedPlatformErrorMessage));
 #endif
 }
 
@@ -107,13 +102,13 @@ void DeviceAttributeApiImpl::GetAnnotatedAssetId(
                                     ->browser_policy_connector_ash()
                                     ->GetDeviceAssetID();
   if (attribute.empty()) {
-    std::move(callback).Run(Result::NewAttribute(std::optional<std::string>()));
+    std::move(callback).Run(
+        blink::mojom::DeviceAttributeValue::New(std::nullopt));
   } else {
-    std::move(callback).Run(Result::NewAttribute(attribute));
+    std::move(callback).Run(blink::mojom::DeviceAttributeValue::New(attribute));
   }
 #else  // Other platforms
-  std::move(callback).Run(
-      Result::NewErrorMessage(kNotSupportedPlatformErrorMessage));
+  std::move(callback).Run(base::unexpected(kNotSupportedPlatformErrorMessage));
 #endif
 }
 
@@ -124,12 +119,12 @@ void DeviceAttributeApiImpl::GetAnnotatedLocation(
                                     ->browser_policy_connector_ash()
                                     ->GetDeviceAnnotatedLocation();
   if (attribute.empty()) {
-    std::move(callback).Run(Result::NewAttribute(std::optional<std::string>()));
+    std::move(callback).Run(
+        blink::mojom::DeviceAttributeValue::New(std::nullopt));
   } else {
-    std::move(callback).Run(Result::NewAttribute(attribute));
+    std::move(callback).Run(blink::mojom::DeviceAttributeValue::New(attribute));
   }
 #else  // Other platforms
-  std::move(callback).Run(
-      Result::NewErrorMessage(kNotSupportedPlatformErrorMessage));
+  std::move(callback).Run(base::unexpected(kNotSupportedPlatformErrorMessage));
 #endif
 }

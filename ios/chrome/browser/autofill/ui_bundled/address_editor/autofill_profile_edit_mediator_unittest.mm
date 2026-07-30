@@ -140,18 +140,17 @@ class AutofillProfileEditMediatorTest : public PlatformTest {
     return GetApplicationContext()->GetLocalState();
   }
 
-  AutofillProfileEditMediator* autofill_profile_edit_mediator_;
-  FakeAutofillProfileEditConsumer* fake_consumer_;
-  FakeAutofillProfileEditMediatorDelegate*
-      fake_autofill_profile_edit_mediator_delegate_;
-
- private:
+ protected:
   web::WebTaskEnvironment task_environment_;
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
   std::unique_ptr<TestProfileIOS> profileIOS_;
   raw_ptr<autofill::PersonalDataManager> personal_data_manager_;
   autofill::CountryComboboxModel country_model_;
   std::unique_ptr<autofill::AutofillProfile> profile_;
+  AutofillProfileEditMediator* autofill_profile_edit_mediator_;
+  FakeAutofillProfileEditConsumer* fake_consumer_;
+  FakeAutofillProfileEditMediatorDelegate*
+      fake_autofill_profile_edit_mediator_delegate_;
 };
 
 // Tests that the consumer is initialised and informed of the required fields on

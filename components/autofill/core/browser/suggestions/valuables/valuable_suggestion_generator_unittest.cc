@@ -812,5 +812,29 @@ TEST_F(ValuableSuggestionGeneratorTest,
               l10n_util::GetStringUTF16(IDS_AUTOFILL_MANAGE_ADDRESSES))));
 }
 
+// Tests that loyalty card suggestions are not generated when payments is
+// blocked by the AutofillSettings policy.
+TEST_F(ValuableSuggestionGeneratorTest, AutofillSettingsBlocked) {
+  base::test::ScopedFeatureList scoped_feature_list{
+      features::kAutofillEnableAutofillSettingsEnterprisePolicy};
+
+  test_autofill_client().SetAutofillTypeBlockedByPolicy(
+      AutofillClient::AutofillPolicyDataCategory::kPayments, true);
+
+  base::MockCallback<
+      base::OnceCallback<void(SuggestionGenerator::ReturnedSuggestions)>>
+      suggestions_generated_callback;
+
+  LoyaltyCardSuggestionGenerator generator((PasswordFormClassification()));
+
+  EXPECT_CALL(
+      suggestions_generated_callback,
+      Run(testing::Pair(SuggestionGenerator::SuggestionDataSource::kLoyaltyCard,
+                        testing::IsEmpty())));
+  generator.GenerateSuggestions(form().ToFormData(), field(), &form(), &field(),
+                                test_autofill_client(),
+                                suggestions_generated_callback.Get());
+}
+
 }  // namespace
 }  // namespace autofill

@@ -194,11 +194,6 @@ BASE_FEATURE(kVSyncAlignedPresentationForScrolling,
 BASE_FEATURE(kVSyncAlignedPresentation, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
-// If enabled, other frame sinks are throttled when a frame sink is handling
-// user interaction.
-BASE_FEATURE(kThrottleFrameSinksOnInteraction,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kAllowUndamagedNonrootRenderPassToSkip,
 #if BUILDFLAG(IS_MAC)
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -260,6 +255,7 @@ const base::FeatureParam<int>
 // If enabled, DisplayScheduler will attempt to select a future deadline if the
 // preferred deadline is not achievable.
 BASE_FEATURE(kSelectFutureFrameDeadline, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAllowMultipleSwapsPerVsync, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 // If enabled, DisplayScheduler will use a custom FrameDeadlineDecider to
@@ -467,11 +463,6 @@ bool ShouldOnBeginFrameThrottleVideo() {
   return base::FeatureList::IsEnabled(features::kOnBeginFrameThrottleVideo);
 }
 
-bool ShouldThrottleWhenInteractiveFrameSinks() {
-  return base::FeatureList::IsEnabled(
-      features::kThrottleFrameSinksOnInteraction);
-}
-
 bool ShouldAckOnSurfaceActivationWhenInteractive() {
   return base::FeatureList::IsEnabled(
       features::kAckOnSurfaceActivationWhenInteractive);
@@ -527,12 +518,11 @@ bool ShouldRemoveRedirectionBitmap() {
     return false;
   }
 
-  // Some users set ANGLE backend to D3D9 or OpenGL via chrome://flags and in
+  // Some users set ANGLE backend to OpenGL via chrome://flags and in
   // that case too we would also use an ANGLE EGLSurface.
   const std::string angle_backend =
       command_line->GetSwitchValueASCII(switches::kUseANGLE);
-  if (angle_backend == gl::kANGLEImplementationD3D9Name ||
-      angle_backend == gl::kANGLEImplementationOpenGLName) {
+  if (angle_backend == gl::kANGLEImplementationOpenGLName) {
     return false;
   }
 

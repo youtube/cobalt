@@ -183,7 +183,7 @@ class CONTENT_EXPORT DocumentAssociatedData : public base::SupportsUserData {
   void set_keep_alive_url_loader_factory_context(
       base::WeakPtr<KeepAliveURLLoaderService::FactoryContext>
           factory_context) {
-    DCHECK(!keep_alive_url_loader_factory_context_);
+    CHECK(!keep_alive_url_loader_factory_context_, base::NotFatalUntil::M152);
     keep_alive_url_loader_factory_context_ = factory_context;
   }
 

@@ -48,6 +48,7 @@
 <translation id="1129383337808748948">Освежи: <ph name="CONTENT_TITLE" /></translation>
 <translation id="1142002900084379065">Неодамнешни фотографии</translation>
 <translation id="114221662579355151">Ова овозможува пристап до камерата за <ph name="APP1_NAME" />, <ph name="APP2_NAME" /> и сите апликации и веб-сајтови со дозвола за камерата. Можеби ќе треба да ја освежите веб-страницата или да ја рестартирате апликацијата.</translation>
+<translation id="1145593918056169051">Печатачот запре</translation>
 <translation id="1147991416141538220">За да побарате пристап, контактирајте со администраторот на уредов.</translation>
 <translation id="1148499908455722006">Отворете го дијалогот со податоци за <ph name="USER_NAME" /></translation>
 <translation id="1150989369772528668">Календар</translation>
@@ -151,6 +152,7 @@
 <translation id="1383876407941801731">Барај</translation>
 <translation id="1388728792929436380"><ph name="DEVICE_TYPE" /> ќе се рестартира кога ќе завршат ажурирањата.</translation>
 <translation id="1390113502208199250">Ќе треба да го ресетирате уредов на фабрички поставки за да ги користите функциите на Chrome Education Upgrade.</translation>
+<translation id="1390907927270446471"><ph name="PROFILE_USERNAME" /> нема овластување да печати на <ph name="PRINTER_NAME" />. Контактирајте со администраторот.</translation>
 <translation id="1391102559483454063">Вклучено</translation>
 <translation id="1394698770495054737">Целосно замаглување</translation>
 <translation id="1395878931462960119">{DAYS,plural, =1{Пред 1 ден}one{пред # ден}other{пред # дена}}</translation>
@@ -169,6 +171,7 @@
 <translation id="1426410128494586442">Да</translation>
 <translation id="142655739075382478"><ph name="APP_NAME" /> е блокирана</translation>
 <translation id="142765311413773645">Лиценцата на <ph name="APP_NAME" /> е истечена</translation>
+<translation id="1430915738399379752">Печати</translation>
 <translation id="1435537621343861112">Не може да започне „Диктирање“. Микрофонот е исклучен.</translation>
 <translation id="1445031758921122223">Датотеките за „Контрола со лик“ се преземени</translation>
 <translation id="1447907279406111651">Сега · Завршува во <ph name="END_TIME" /></translation>
@@ -229,6 +232,7 @@
 <translation id="1597880963776148053">Чекор <ph name="STEP" /> од <ph name="TOTAL_STEPS" />. Вашите закачени и отворени апликации се на „Полицата“ најдолу на екранот. Притиснете Alt + Shift + L, а потоа Tab за да се фокусирате на ставките на „Полицата“.</translation>
 <translation id="1602085790802918092">Се стартува виртуелната машина</translation>
 <translation id="1602874809115667351"><ph name="LAUNCHER_KEY_NAME" /> + стрелка надолу</translation>
+<translation id="1604432177629086300">Не може да се отпечати. Проверете го печатачот и обидете се повторно.</translation>
 <translation id="1604857178818051494">Паузирање аудиовизуелни содржини</translation>
 <translation id="1607312127821884567">Отфрлете го поставувањето прегледување на апликациите на телефонот</translation>
 <translation id="1610778689852195798">„Врати“</translation>
@@ -372,6 +376,7 @@
 <translation id="2053312383184521053">Податоци во состојба на неактивност</translation>
 <translation id="2064048859448024834">Вклучен е преглед на камерата</translation>
 <translation id="2067220651560163985">Прикажувај ја температурата во Целзиусови степени</translation>
+<translation id="206960706005837784"><ph name="APP_NAME" /> заврши со печатење на <ph name="PRINTER_NAME" /></translation>
 <translation id="2075520525463668108">Вклучи/исклучи <ph name="CAPTURE_MEDIUM" />. <ph name="CAPTURE_MEDIUM" /> е <ph name="CAPTURE_STATE" /></translation>
 <translation id="2079545284768500474">Врати</translation>
 <translation id="2086334242442703436">Отвори го избирачот на емоџија</translation>
@@ -441,6 +446,7 @@
 <translation id="2328561734797404498">Рестартирајте го уредот за да го користите <ph name="APP_NAME" />.</translation>
 <translation id="2335091074961603075">Вашиот Chromebook или уредот со Bluetooth користи постара верзија на Bluetooth. Користете го внатрешниот микрофон за подобар аудиоквалитет.</translation>
 <translation id="2336214675195760012">{NUM_DAYS,plural, =1{<ph name="MANAGER" /> бара да се поврзете на Wi-Fi денес за да преземете ажурирање. Може да го преземете и преку врска што се плаќа (може да ви се наплати).}one{<ph name="MANAGER" /> бара да се поврзете на Wi-Fi и да преземете ажурирање пред рокот. Може да го преземете и преку врска што се плаќа (може да ви се наплати).}other{<ph name="MANAGER" /> бара да се поврзете на Wi-Fi и да преземете ажурирање пред рокот. Може да го преземете и преку врска што се плаќа (може да ви се наплати).}}</translation>
+<translation id="2336258397628212480"><ph name="APP_NAME" /> печати 1 страница на <ph name="PRINTER_NAME" /></translation>
 <translation id="2336381494582898602">Фабричко ресетирање</translation>
 <translation id="2339073806695260576">Допрете го копчето за пенкало на полицата за да напишете белешка, да направите слика од екранот, да го користите ласерскиот покажувач или лупата.</translation>
 <translation id="2341729377289034582">Заклучен вертикално</translation>
@@ -755,6 +761,7 @@
 <translation id="3206735939915734551">Вклучува/Исклучува големи букви</translation>
 <translation id="3207953481422525583">Кориснички поставки</translation>
 <translation id="3208321278970793882">Апликација</translation>
+<translation id="32101887417650595">Не може да се поврземе со печатачот</translation>
 <translation id="3212221635583599601">Поврзете се на интернет за повеќе</translation>
 <translation id="3213571860604332401">Зачувува линк како обележувач</translation>
 <translation id="3217205077783620295">Јачината на звук е вклучена. Ако смените, ќе се исклучи звукот на аудиото.</translation>
@@ -823,6 +830,7 @@
 <translation id="3431517721463707585">Работна површина 14</translation>
 <translation id="3433507769937235446">Заклучи при излегување</translation>
 <translation id="3434107140712555581"><ph name="BATTERY_PERCENTAGE" />%</translation>
+<translation id="343578350365773421">Нема хартија</translation>
 <translation id="3435967511775410570">Отпечатокот е препознаен</translation>
 <translation id="3437677362970530951">Игри во Play Store и други платформи за игри</translation>
 <translation id="3439896670700055005">Ја вчитува тековната страница без користење кеширани содржини</translation>
@@ -1000,6 +1008,7 @@
 <translation id="3848526302597027234">да пристапува до следниве дозволи:</translation>
 <translation id="385051799172605136">Назад</translation>
 <translation id="385300504083504382">Почеток</translation>
+<translation id="3854976556788175030">Излезната фиока е полна</translation>
 <translation id="3857807444929313943">Подигнете и допрете повторно</translation>
 <translation id="3859364108019690">Не може да се стримуваат апликации</translation>
 <translation id="3861638017150647085">Корисничкото име „<ph name="USERNAME" />“ не е достапно</translation>
@@ -1052,6 +1061,7 @@
 <translation id="401993194061514265">Означувачот не е достапен. Отворете ја повторно Screencast.</translation>
 <translation id="4021716437419160885">Оди надолу</translation>
 <translation id="4022497978915111141">Заклучете уред</translation>
+<translation id="4023048917751563912"><ph name="APP_NAME" /> печати <ph name="PAGE_NUMBER" /> страници на <ph name="PRINTER_NAME" /></translation>
 <translation id="4024840464866786680">Ако сте ги заборавиле PIN-кодот и лозинката или неодамна сте ја промениле лозинката за сметката на Google, обидете се да го вратите корисников.</translation>
 <translation id="4026843240379844265">Премести го активниот прозорец помеѓу екраните</translation>
 <translation id="4028481283645788203">Потребна е лозинка за поголема безбедност</translation>
@@ -1582,6 +1592,7 @@
 <translation id="5491186829646618080">Има ажурирања за фирмверот</translation>
 <translation id="5503884284981862082">Отворете/затворете го „Помошникот на Google“</translation>
 <translation id="550391772491508736">Продолжи со емитување</translation>
+<translation id="5505307013568720083">Нема мастило</translation>
 <translation id="5506975627792768506">Вклучете/исклучете ја лупата</translation>
 <translation id="5507778598655387680"><ph name="VOLUME_LEVEL" />, звукот на аудиото ќе се исклучи со притискање Enter.</translation>
 <translation id="5512042095225963688">Го брише претходниот збор</translation>
@@ -1693,12 +1704,14 @@
 <translation id="5791926618942305301">Во „Снимање на екранот“, поставете на <ph name="SOURCE" /> <ph name="TYPE" />. Притиснете Tab за да го изберете типот снимање. Притиснете Enter за да снимате. За да ја изберете областа на снимање, поставете на „Делумна слика од екранот“. Ако не е веќе активен, притиснете Space за да изберете регион.</translation>
 <translation id="579415080077680903">Стиши</translation>
 <translation id="5802516411616338943">Отворете „Брзи поставки“</translation>
+<translation id="5804241973901381774">Дозволи</translation>
 <translation id="5804651031882187592">Исклучете ја поставката „Заклучи SIM“</translation>
 <translation id="5805809050170488595">Кликнете за активирање на <ph name="NETWORK_NAME" /></translation>
 <translation id="5818796501620225415">Додајте време или заврш. ја сесијата на „Режим за концентрација“</translation>
 <translation id="5819918159912280082">Вашиот Chromebook се рестартираше неочекувано. Отворете ги претходните прозорци и апликации.</translation>
 <translation id="5823239091726045201">Задачи во Google Tasks на интернет</translation>
 <translation id="5825969630400862129">Поставки за поврзани уреди</translation>
+<translation id="5828633471261496623">Се печати…</translation>
 <translation id="5830180081891717894">уште <ph name="WINDOWS" /></translation>
 <translation id="5830205393314753525">Не може да се отвори <ph name="APP_NAME" /></translation>
 <translation id="583281660410589416">Непознат</translation>
@@ -1723,6 +1736,7 @@
 <translation id="5892014525522223653">Офлајн сте.</translation>
 <translation id="5895138241574237353">Рестартирај</translation>
 <translation id="589817443623831496">Скенирање по точки</translation>
+<translation id="5901494423252125310">Отворена е вратата на печатачот</translation>
 <translation id="5901630391730855834">Жолта боја</translation>
 <translation id="5904614460720589786">Не може да се постави <ph name="APP_NAME" /> поради конфигурациски проблем. Контактирајте со администраторот. Код за грешка: <ph name="ERROR_CODE" />.</translation>
 <translation id="5910726859585389579"><ph name="DEVICE_TYPE" /> е офлајн</translation>
@@ -1787,6 +1801,7 @@
         <ph name="BEGIN_PARAGRAPH2" />Исклучувањето на функцијава нема да влијае врз способноста на уредов да ги испраќа податоците што се потребни за основните услуги, како што се системските ажурирања и безбедноста.<ph name="END_PARAGRAPH2" />
         <ph name="BEGIN_PARAGRAPH3" />Сопственикот може да ја контролира функцијава од „Поставки &gt; Напредни &gt; Автоматски испраќај дијагностички податоци и податоци за користењето до Google“.<ph name="END_PARAGRAPH3" />
         <ph name="BEGIN_PARAGRAPH4" />Ако е вклучена дополнителната „Активност на интернет и апликации“ за вашето дете, овие податоци може да се зачувуваат во неговата сметка на Google. Дознајте повеќе за поставкиве и за тоа како да ги приспособите на families.google.com.<ph name="END_PARAGRAPH4" /></translation>
+<translation id="6052261338768299955"><ph name="APP_NAME" /> се обидува да печати на <ph name="PRINTER_NAME" /></translation>
 <translation id="6054305421211936131">Најавете се со паметна картичка</translation>
 <translation id="6059276912018042191">Неодамнешни картички на Chrome</translation>
 <translation id="606147842285839995">ExpressKey 3</translation>
@@ -1891,6 +1906,7 @@
 <translation id="6337159624125741244">„Лупата за цел екран“ е вклучена</translation>
 <translation id="6338485349199627913"><ph name="DISPLAY_NAME" /> е управувана сесија со којашто управува <ph name="MANAGER" /></translation>
 <translation id="6340148837564298498">Ако сте го заборавиле PIN-кодот, обидете се да го вратите овој корисник.</translation>
+<translation id="634208815998129842">Управник со задачи</translation>
 <translation id="6344138931392227467"><ph name="DEVICE_NAME" /> – поврзано</translation>
 <translation id="6345418402353744910">Корисничкото име и лозинката се задолжителни за прокси-серверот <ph name="PROXY" /> за да може администраторот да ја конфигурира вашата мрежа</translation>
 <translation id="6348449481487610270"><ph name="MODIFIER_ONE" /><ph name="MODIFIER_TWO" /><ph name="KEY_ONE" />, а потоа <ph name="MODIFIER_THREE" /><ph name="KEY_TWO" /> или <ph name="KEY_THREE" /></translation>
@@ -2096,6 +2112,7 @@
 <translation id="6921427376813842559">Ажурирајте го уредот</translation>
 <translation id="6929081673585394903">Прикажи ги контролите</translation>
 <translation id="6931576957638141829">Зачувај во</translation>
+<translation id="6935286146439255109">Недостасува фиока за хартија</translation>
 <translation id="6935857786205183008">Портрет</translation>
 <translation id="6942518653766415536">Мени за формат на снимање</translation>
 <translation id="6945221475159498467">Избери</translation>
@@ -2118,6 +2135,7 @@
 <translation id="6988094684494323731">Се стартува контејнерот за Linux</translation>
 <translation id="7000027735917578303">Поставки за прозорци и работни површини</translation>
 <translation id="7001036685275644873">Се прави копија на апликациите и датотеките на Linux</translation>
+<translation id="7001066449188684145">Потребна е идентификација за да печатите на <ph name="PRINTER_NAME" />. Контактирајте со администраторот.</translation>
 <translation id="7004910047186208204">Поврзете се на мобилен интернет</translation>
 <translation id="7005239792648594238">Отворете апликација за да започнете</translation>
 <translation id="7014684956566476813">Поврзано со уред именуван „<ph name="DEVICE_NAME" />“</translation>
@@ -2157,6 +2175,7 @@
 <translation id="7108254681523785542">Изберете ставка за да ја залепите. Привремената меморија може да ја видите со притискање <ph name="SHORTCUT_KEY_NAME" /> + v.</translation>
 <translation id="7108338896283013870">Скриј</translation>
 <translation id="7108933416628942903">Заклучи сега</translation>
+<translation id="7116554090938189816">SSL-сертификатот на печатачот е истечен. Рестартирајте го печатачот, па обидете се повторно.</translation>
 <translation id="7116969082764510092">Работна површина 11</translation>
 <translation id="7118268675952955085">слика од екранот</translation>
 <translation id="7118597077555700347">Отворете го резултатот <ph name="SEARCH_RESULT_TEXT" /></translation>
@@ -2208,6 +2227,7 @@
 <translation id="7312210124139670355">Администраторот ја ресетира вашата eSIM. Може да потрае неколку минути.</translation>
 <translation id="7312761820869643657">Вратете го уредот на претходна верзија</translation>
 <translation id="7313193732017069507">Прошири ја камерата</translation>
+<translation id="7325209047678309347">Хартијата е заглавена</translation>
 <translation id="7327989755579928735"><ph name="MANAGER" /> го оневозможи отстранувањето грешки на ADB Откако ќе го рестартирате вашиот <ph name="DEVICE_TYPE" />, нема да може да инсталирате апликации од непознат извор.</translation>
 <translation id="73289266812733869">Неизбран</translation>
 <translation id="7330397557116570022">Одете на текстуално поле за да користите „Диктирање“</translation>
@@ -2582,6 +2602,7 @@
 <translation id="8339706171276328417"><ph name="ACTION_DESCRIPTION" /> · <ph name="TIME" /></translation>
 <translation id="834414266279889566">Лоши излезни податоци</translation>
 <translation id="8345019317483336363">Избран е прозорецот <ph name="WINDOW_TITLE" /></translation>
+<translation id="8347227221149377169">Налози за печатење</translation>
 <translation id="8349826889576450703">стартер</translation>
 <translation id="8349964124165471584">Отвора линк во нов прозорец</translation>
 <translation id="8351131234907093545">Создајте белешка</translation>
@@ -2620,6 +2641,7 @@
 <translation id="8458259704995116343">Стартувањето на VM не успеа.</translation>
 <translation id="84613761564611563">Го побаравме корисничкиот интерфејс за конфигурација на мрежата, ве молиме почекајте…</translation>
 <translation id="8462305545768648477">Затворете ја функцијата „Изберете за говор“</translation>
+<translation id="8463001014623882202">Овластувањето не успеа</translation>
 <translation id="8466665972451889002">Прикажи ги ставките во <ph name="GROUP_NAME" /></translation>
 <translation id="8468806060683421065">рок: <ph name="DUE_DATE_AND_TIME" /></translation>
 <translation id="8473301994082929012"><ph name="ORGANIZATION_NAME" /> има <ph name="FEATURE_STATE" /> <ph name="FEATURE_NAME" />.</translation>

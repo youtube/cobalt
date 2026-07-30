@@ -153,6 +153,7 @@ NSString* const kAirplaneUpRightSymbol = @"airplane.up.right";
 NSString* const kSuitcaseSymbol = @"suitcase";
 NSString* const kCarSymbol = @"car";
 NSString* const kCreditCardSymbol = @"creditcard";
+NSString* const kWalletBifoldSymbol = @"wallet.bifold";
 NSString* const kMicrophoneFillSymbol = @"mic.fill";
 NSString* const kMicrophoneSymbol = @"mic";
 NSString* const kMagnifyingglassSymbol = @"magnifyingglass";

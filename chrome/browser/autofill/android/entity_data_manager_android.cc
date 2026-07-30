@@ -91,7 +91,8 @@ EntityDataManagerAndroid::EntityDataManagerAndroid(
 EntityDataManagerAndroid::~EntityDataManagerAndroid() = default;
 
 bool EntityDataManagerAndroid::IsPersonalContextPreferenceVisible(JNIEnv* env) {
-  if (!autofill::AreAutofillPersonalContextFeaturesSupported()) {
+  if (!autofill::AreAutofillPersonalContextFeaturesSupported(
+          google_groups_manager_)) {
     return false;
   }
 
@@ -309,8 +310,8 @@ EntityDataManagerAndroid::GetEntitiesWithLabels(JNIEnv* env) {
   // Entity labels should be generated based on other entities of the same
   // type. This is because the disambiguation values of attributes are only
   // relevant inside a specific entity type.
-  base::span<const EntityInstance> entities =
-      entity_data_manager().GetEntityInstances();
+  const std::vector<EntityInstance> entities =
+      GetEntityInstancesForSettings(entity_data_manager().GetEntityInstances());
   std::map<EntityType, std::vector<const EntityInstance*>> entities_per_type;
   for (const EntityInstance& entity : entities) {
     entities_per_type[entity.type()].push_back(&entity);

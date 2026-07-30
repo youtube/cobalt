@@ -184,13 +184,13 @@ void GlicInstanceImpl::NotifyVisibilityChange() {
   }
 }
 
-void GlicInstanceImpl::NotifyConversationTitleChanged() {
+void GlicInstanceImpl::NotifyInstanceChanged() {
 #if BUILDFLAG(IS_ANDROID)
-  // Notify bound helpers that the instance info (title) changed.
+  // Notify bound helpers that the instance info changed.
   for (const auto& [key, entry] : embedders_) {
     if (auto* const* tab_ptr = std::get_if<tabs::TabInterface*>(&key)) {
       if (auto* helper = GlicInstanceHelper::From(*tab_ptr)) {
-        helper->OnConversationTitleChanged();
+        helper->OnInstanceChanged();
       }
     }
   }
@@ -603,7 +603,7 @@ void GlicInstanceImpl::RegisterConversation(
   }
 
   conversation_info_ = std::move(info);
-  NotifyConversationTitleChanged();
+  NotifyInstanceChanged();
   conversation_info_changed_callback_list_.Notify(*conversation_info_);
 
   std::move(callback).Run(std::nullopt);
@@ -890,6 +890,11 @@ std::string GlicInstanceImpl::conversation_title() const {
   return conversation_info_->conversation_title;
 }
 
+std::optional<int> GlicInstanceImpl::task_id() const {
+  return actor_task_manager_ ? actor_task_manager_->current_task_id()
+                             : std::nullopt;
+}
+
 std::vector<tabs::TabInterface*> GlicInstanceImpl::GetBoundTabs() const {
   std::vector<tabs::TabInterface*> tabs;
   for (const auto& [key, entry] : embedders_) {
@@ -1075,7 +1080,7 @@ void GlicInstanceImpl::MaybeShowShortcutSnoozePromo() {
           kIPHGlicTrustFirstOnboardingShortcutSnoozePromoFeature);
   params.body_params = l10n_util::GetStringFUTF16(
       IDS_GLIC_SHORTCUT_IPH_TEXT,
-      glic::GlicLauncherConfiguration::GetGlobalHotkey().GetShortcutText());
+      glic::GlicLauncherConfiguration::GetToggleHotkey().GetShortcutText());
 
   BrowserUserEducationInterface::From(browser)->MaybeShowFeaturePromo(
       std::move(params));
@@ -1117,6 +1122,7 @@ void GlicInstanceImpl::OnBoundTabActivated(tabs::TabInterface* tab) {
   if (embedder && embedder->IsShowingOrBackgrounded()) {
     // Ensure that the side panel in this tab becomes the active embedder.
     SidePanelShowOptions side_panel_options{*tab};
+    side_panel_options.suppress_opening_animation = true;
     side_panel_options.prefer_peek = true;
     Show(ShowOptions{side_panel_options});
   }
@@ -1605,6 +1611,10 @@ void GlicInstanceImpl::OnTabAddedToTask(
   }
   instance_metrics_.OnDaisyChain(DaisyChainSource::kActorAddTab,
                                  /*success=*/true, tab);
+}
+
+void GlicInstanceImpl::OnTaskIdChanged(std::optional<int> task_id) {
+  NotifyInstanceChanged();
 }
 
 bool GlicInstanceImpl::HasFocus() {

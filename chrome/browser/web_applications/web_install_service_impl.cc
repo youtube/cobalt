@@ -12,6 +12,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notimplemented.h"
 #include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
@@ -310,6 +311,13 @@ void WebInstallServiceImpl::InstallFromElement(
     InstallCallback callback) {
   InstallInternal(std::move(options), std::move(callback),
                   /*triggered_from_element=*/true);
+}
+
+void WebInstallServiceImpl::InstallFromManifest(
+    blink::mojom::ManifestInstallOptionsPtr options,
+    InstallFromManifestCallback callback) {
+  NOTIMPLEMENTED();
+  std::move(callback).Run(blink::mojom::WebInstallServiceResult::kAbortError);
 }
 
 void WebInstallServiceImpl::InstallInternal(

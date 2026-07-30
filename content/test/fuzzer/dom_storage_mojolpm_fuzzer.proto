@@ -35,12 +35,32 @@ message NewSessionStorageAreaAction {
   optional RendererProcessId renderer_id = 3 [default = RENDERER_A];
 }
 
+// Posts a no-op to the named thread (UI or IO) and waits for the reply,
+// draining work already queued on that thread before the fuzzer continues.
+// This is not intended to create a specific ordering, but to allow the fuzzer
+// to delay a later task until previous tasks have completed.
+message RunThreadAction {
+  enum ThreadId {
+    UI = 0;
+    IO = 1;
+  }
+  required ThreadId id = 1;
+}
+
+// Ask the DOMStorageContextWrapper to commit any pending writes to the backing
+// store. This drives StorageAreaImpl::ScheduleImmediateCommit through the
+// storage service and exercises the post-commit callback paths. Pair with
+// RunThreadAction { id: IO } to drain the resulting replies.
+message FlushStorageAction {}
+
 // Actions that can be performed by the fuzzer.
 message Action {
   oneof action {
     NewLocalStorageAreaAction new_local_storage_area = 1;
     mojolpm.blink.mojom.StorageArea.RemoteAction storage_area_remote_action = 2;
     NewSessionStorageAreaAction new_session_storage_area = 3;
+    RunThreadAction run_thread = 4;
+    FlushStorageAction flush_storage = 5;
   }
 }
 

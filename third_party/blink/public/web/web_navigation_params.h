@@ -639,6 +639,12 @@ struct BLINK_EXPORT WebNavigationParams {
   // The string should contain only the selector value (the part after
   // "text=" in a URL directive), not the "text=" prefix itself.
   std::optional<WebString> internal_scroll_to_text_fragment;
+
+  // Browser-authoritative per-frame secure-context-root bit. Sourced from
+  // `ContentBrowserClient::IsSecureContextRoot()` at navigation commit via
+  // CommitNavigationParams. Same-process descendants'
+  // HasInsecureContextInAncestors() stops at frames with this bit set.
+  bool is_secure_context_root = false;
 };
 
 }  // namespace blink

@@ -25,10 +25,10 @@ void OpenAccountMenu();
 void OpenManageAccountsView();
 
 // Opens the account menu on the NTP (which must already be visible), then
-// taps on the sign-out button, and dismisses the signout snackabr.
+// taps on the sign-out button, and dismisses the sign-out snackbar.
 void SignoutFromAccountMenu();
 
-// Waits for the enterprise oboarding screen to become sufficiently visible.
+// Waits for the enterprise onboarding screen to become sufficiently visible.
 void WaitForEnterpriseOnboardingScreen();
 
 id<GREYMatcher> SigninScreenMatcher();

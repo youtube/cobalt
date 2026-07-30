@@ -515,15 +515,15 @@ DocumentFragment* CreateFragmentFromMarkupWithContext(
 
 String CreateMarkup(const Node* node,
                     ChildrenOnly children_only,
-                    AbsoluteURLs should_resolve_urls,
+                    ResolveUrls should_resolve_urls,
                     const ShadowRootInclusion& shadow_root_inclusion) {
   if (!node)
     return "";
 
   MarkupAccumulator accumulator(should_resolve_urls,
                                 IsA<HTMLDocument>(node->GetDocument())
-                                    ? SerializationType::kHTML
-                                    : SerializationType::kXML,
+                                    ? SerializationType::kHtml
+                                    : SerializationType::kXml,
                                 shadow_root_inclusion);
   return accumulator.SerializeNodes<EditingStrategy>(*node, children_only);
 }
@@ -851,7 +851,7 @@ String CreateStrictlyProcessedMarkupWithContext(
     unsigned fragment_end,
     const String& base_url,
     ChildrenOnly children_only,
-    AbsoluteURLs should_resolve_urls,
+    ResolveUrls should_resolve_urls,
     const ShadowRootInclusion& shadow_root_inclusion) {
   if (raw_markup.empty())
     return String();

@@ -6,9 +6,12 @@
 #define CHROME_BROWSER_DEVICE_API_DEVICE_SERVICE_IMPL_H_
 
 #include <memory>
+#include <optional>
+#include <string>
 
 #include "base/functional/callback_forward.h"
 #include "base/scoped_observation.h"
+#include "base/types/expected.h"
 #include "chrome/browser/device_api/device_attribute_api.h"
 #include "chrome/browser/web_applications/web_app_install_manager.h"
 #include "chrome/browser/web_applications/web_app_install_manager_observer.h"
@@ -28,8 +31,8 @@ class DeviceServiceImpl final
       public web_app::WebAppInstallManagerObserver,
       public content_settings::Observer {
  public:
-  using DeviceAttributeCallback =
-      base::OnceCallback<void(blink::mojom::DeviceAttributeResultPtr)>;
+  using DeviceAttributeCallback = base::OnceCallback<void(
+      base::expected<blink::mojom::DeviceAttributeValuePtr, std::string>)>;
 
   // Tries to attach this mojo service to |host| for trusted web applications.
   // Will dynamically disconnect if the trustness status is revoked.

@@ -25,6 +25,8 @@
 #include "chrome/browser/web_applications/test/web_app_test_utils.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
+#include "chrome/browser/webauthn/enclave_manager_factory.h"
+#include "chrome/browser/webauthn/mock_enclave_manager.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/affiliations/core/browser/fake_affiliation_service.h"
@@ -119,6 +121,12 @@ class PromoCardBaseTest : public ChromeRenderViewHostTestHarness {
         profile(), base::BindOnce([](content::BrowserContext*) {
           return std::make_unique<affiliations::FakeAffiliationService>();
         }));
+    EnclaveManagerFactory::GetInstance()->SetTestingFactory(
+        profile(),
+        base::BindRepeating(
+            [](content::BrowserContext*) -> std::unique_ptr<KeyedService> {
+              return std::make_unique<MockEnclaveManager>();
+            }));
   }
 
   PrefService* pref_service() { return profile()->GetPrefs(); }

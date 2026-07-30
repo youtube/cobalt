@@ -260,6 +260,14 @@ BASE_FEATURE(kActorUiThemed, base::FEATURE_ENABLED_BY_DEFAULT);
 // Controls whether UI bug fixes for the Task Icon are enabled.
 BASE_FEATURE(kGlicActorUiTaskIconUiFixes, base::FEATURE_ENABLED_BY_DEFAULT);
 
+// If enabled, delays showing the Actor task list bubble to allow layout
+// animations to settle.
+BASE_FEATURE(kGlicActorUiTaskListBubbleDelayShow,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kGlicActorUiTaskListBubbleDelayMs{
+    &kGlicActorUiTaskListBubbleDelayShow, "delay_ms", 250};
+
 // If enabled, post tasks in the window controller to fix re-entrancy crash.
 BASE_FEATURE(kGlicActorPostTaskUiUpdateEnabled,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -987,6 +995,10 @@ BASE_FEATURE_PARAM(base::TimeDelta,
 BASE_FEATURE(kGlicActorAutofillOneTimePassword,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Whether to click a field before filling it in Glic actor autofill.
+// This feature is also gated by |kGlicActorAutofill|.
+BASE_FEATURE(kGlicActorAutofillPreClick, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Whether to enable the section label in Glic actor autofill.
 // This feature is also gated by |kGlicActorAutofill|.
 BASE_FEATURE(kGlicActorAutofillSectionLabel, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1205,6 +1217,19 @@ const base::FeatureParam<base::TimeDelta>
 
 // Enables HTTPS-First Mode by default in Incognito Mode.
 BASE_FEATURE(kHttpsFirstModeIncognito, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Enables the Incoming Call Notifications scenario. When created by an
+// installed origin, an incoming call notification should have increased
+// priority, colored buttons, a ringtone, and a default "close" button.
+// Otherwise, if the origin is not installed, it should behave like the default
+// notifications, but with the added "Close" button. See
+// https://github.com/MicrosoftEdge/MSEdgeExplainers/blob/main/Notifications/notifications_actions_customization.md
+BASE_FEATURE(kIncomingCallNotifications,
+#if BUILDFLAG(IS_WIN)
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN)
 
 // Experimental image replacement feature. b/482792874
 BASE_FEATURE(kIndigo, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1819,9 +1844,15 @@ const base::FeatureParam<bool> kWebUIReloadButtonDeferBrowserViewShow{
 // initialization.
 const base::FeatureParam<bool> kWebUIReloadButtonPrewarmWebUI{
     &kWebUIReloadButton, "WebUIReloadButtonPrewarmWebUI", false};
-// When this is enabled, the pre-warmed WebUI will also navigate immediately.
+// When this is enabled, the pre-warmed WebUI will also navigate immediately. It
+// only takes effect when `WebUIReloadButtonPrewarmWebUI` is enabled.
 const base::FeatureParam<bool> kWebUIReloadButtonPrewarmWebUIPreNavigate{
     &kWebUIReloadButton, "WebUIReloadButtonPrewarmWebUIPreNavigate", false};
+// When this is enabled, the WebUI toolbar will be pre-warmed at profile ready
+// time instead of browser initialization time. It only takes effect when
+// `WebUIReloadButtonPrewarmWebUI` is enabled.
+const base::FeatureParam<bool> kWebUIReloadButtonProfilePrewarming{
+    &kWebUIReloadButton, "WebUIReloadButtonProfilePrewarming", false};
 // When this is enabled, the reload button will be marked as visible until its
 // first non-empty paint.
 const base::FeatureParam<bool> kWebUIReloadButtonKeepVisibleUntilPaint{

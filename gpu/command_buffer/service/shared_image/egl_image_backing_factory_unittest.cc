@@ -49,7 +49,10 @@
 #if BUILDFLAG(USE_DAWN) && BUILDFLAG(DAWN_ENABLE_BACKEND_OPENGLES)
 #include <dawn/dawn_proc.h>
 #include <dawn/native/DawnNative.h>
+#include <dawn/native/OpenGLBackend.h>
 #include <dawn/webgpu_cpp.h>
+
+#include "ui/gl/gl_implementation.h"
 #endif  // BUILDFLAG(USE_DAWN) && BUILDFLAG(DAWN_ENABLE_BACKEND_OPENGLES)
 
 using testing::AtLeast;
@@ -391,9 +394,11 @@ TEST_P(EGLImageBackingFactoryThreadSafeTest, OneWriterOneReader) {
   EXPECT_EQ(dst_pixels[3], 255);
 }
 
+#if BUILDFLAG(USE_DAWN) && BUILDFLAG(DAWN_ENABLE_BACKEND_OPENGLES)
+
 // TODO(crbug.com/332947916): fix these tests to run on Android/GLES
-#if BUILDFLAG(USE_DAWN) && BUILDFLAG(DAWN_ENABLE_BACKEND_OPENGLES) && \
-    !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID)
+
 // Test to check interaction between Dawn and skia GL representations.
 TEST_P(EGLImageBackingFactoryThreadSafeTest, Dawn_SkiaGL) {
   // Find a Dawn GLES adapter
@@ -640,6 +645,113 @@ return textureSample(tex, smp, tex_coord);
   // Shut down Dawn
 
   dawnProcSetProcs(nullptr);
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+// Verify that DawnEGLImageRepresentation::BeginAccess includes `internal_usage`
+// when computing the inner GL access mode.
+TEST_P(EGLImageBackingFactoryThreadSafeTest, Dawn_WriteUnderReadLock_POC) {
+  // 1) Create the backing on the original GL context BEFORE touching Dawn,
+  //    so EGLImage creation uses a known-good current context.
+  ASSERT_TRUE(context_state_->MakeCurrent(surface_.get(), /*needs_gl=*/true));
+
+  const auto mailbox = Mailbox::Generate();
+  const auto format = viz::SinglePlaneFormat::kRGBA_8888;
+  const gfx::Size size(4, 4);
+  const auto color_space = gfx::ColorSpace::CreateSRGB();
+  const gpu::SharedImageUsageSet usage =
+      SHARED_IMAGE_USAGE_WEBGPU_READ | SHARED_IMAGE_USAGE_WEBGPU_WRITE |
+      SHARED_IMAGE_USAGE_GLES2_READ | SHARED_IMAGE_USAGE_DISPLAY_READ;
+
+  auto backing = backing_factory_->CreateSharedImage(
+      mailbox,
+      {format, size, color_space, kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType,
+       usage, "POC_WriteUnderReadLock"},
+      gpu::kNullSurfaceHandle, /*is_thread_safe=*/true);
+  ASSERT_NE(backing, nullptr);
+  // Leave it uncleared so Dawn will lazy-clear (an internal write) on first
+  // sample. IsCleared()==false is what a renderer using WEBGPU_MAILBOX_DISCARD
+  // would arrange.
+  ASSERT_FALSE(backing->IsCleared());
+
+  std::unique_ptr<SharedImageRepresentationFactoryRef> factory_ref =
+      shared_image_manager_->Register(std::move(backing),
+                                      memory_type_tracker_.get());
+
+  // 2) Create a Dawn GLES device. featureLevel=Compatibility is required for
+  //    GLES adapter enumeration to succeed.
+  DawnProcTable procs = dawn::native::GetProcs();
+  dawnProcSetProcs(&procs);
+
+  dawn::native::Instance instance;
+  wgpu::RequestAdapterOptions adapter_options;
+  adapter_options.backendType = wgpu::BackendType::OpenGLES;
+  adapter_options.featureLevel = wgpu::FeatureLevel::Compatibility;
+  // Share Chrome's EGL display & GL proc loader with Dawn so the EGLImage
+  // created on Chrome's ANGLE display is importable by Dawn (this mirrors
+  // what WebGPUDecoderImpl does in production).
+  dawn::native::opengl::RequestAdapterOptionsGetGLProc get_gl_proc = {};
+  get_gl_proc.getProc = gl::GetGLProcAddress;
+  gl::GLDisplayEGL* gl_display = gl::GLSurfaceEGL::GetGLDisplayEGL();
+  get_gl_proc.display = gl_display ? gl_display->GetDisplay() : EGL_NO_DISPLAY;
+  adapter_options.nextInChain = &get_gl_proc;
+  std::vector<dawn::native::Adapter> adapters =
+      instance.EnumerateAdapters(&adapter_options);
+  ASSERT_FALSE(adapters.empty()) << "No Dawn GLES adapter";
+
+  wgpu::FeatureName dawn_internal_usage = wgpu::FeatureName::DawnInternalUsages;
+  wgpu::DeviceDescriptor device_descriptor;
+  device_descriptor.requiredFeatureCount = 1;
+  device_descriptor.requiredFeatures = &dawn_internal_usage;
+  wgpu::Device device =
+      wgpu::Device::Acquire(adapters[0].CreateDevice(&device_descriptor));
+  ASSERT_NE(device, nullptr);
+
+  // Dawn made its own EGL context current; restore ours so ProduceDawn (which
+  // creates a GL sibling on the current context) and subsequent GL work use
+  // the original display/context.
+  ASSERT_TRUE(context_state_->MakeCurrent(surface_.get(), /*needs_gl=*/true));
+
+  // 3) Produce the DawnEGLImageRepresentation and begin a scoped access with
+  //    a read-only public `usage` but a write-capable `internal_usage`.
+  auto dawn_representation = shared_image_representation_factory_->ProduceDawn(
+      mailbox, device, wgpu::BackendType::OpenGLES, {}, context_state_);
+  ASSERT_TRUE(dawn_representation);
+
+  const wgpu::TextureUsage kReadOnlyUsage = wgpu::TextureUsage::TextureBinding;
+  const wgpu::TextureUsage kWritableInternal =
+      wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopyDst;
+
+  auto dawn_access = dawn_representation->BeginScopedAccess(
+      kReadOnlyUsage, kWritableInternal,
+      SharedImageRepresentation::AllowUnclearedAccess::kYes);
+  ASSERT_TRUE(dawn_access)
+      << "DawnEGLImageRepresentation::BeginAccess failed (egl wrap)";
+
+  // 4) While the Dawn access (which authorises internal writes) is open, a
+  //    second GL representation tries to begin READ access on the same
+  //    backing. With correct locking this MUST be rejected (concurrent
+  //    reader during a write).
+  auto gl_reader =
+      shared_image_representation_factory_->ProduceGLTexturePassthrough(
+          mailbox);
+  ASSERT_TRUE(gl_reader);
+
+  auto reader_access = gl_reader->BeginScopedAccess(
+      GL_SHARED_IMAGE_ACCESS_MODE_READ_CHROMIUM,
+      SharedImageRepresentation::AllowUnclearedAccess::kYes);
+  bool concurrent_read_admitted = (reader_access != nullptr);
+
+  EXPECT_FALSE(concurrent_read_admitted);
+  reader_access.reset();
+
+  gl_reader.reset();
+  dawn_access.reset();
+  dawn_representation.reset();
+
+  device = wgpu::Device();
+  dawnProcSetProcs(nullptr);
+  factory_ref.reset();
 }
 #endif  // BUILDFLAG(USE_DAWN) && BUILDFLAG(DAWN_ENABLE_BACKEND_OPENGLES)
 

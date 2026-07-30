@@ -17,6 +17,7 @@
 #import "ios/chrome/browser/settings/autofill/autofill_ai/ui/autofill_ai_entity_edit_mutator.h"
 #import "ios/chrome/browser/settings/autofill/autofill_ai/ui/autofill_ai_entity_edit_table_view_controller+testing.h"
 #import "ios/chrome/browser/settings/autofill/autofill_ai/ui/autofill_ai_entity_edit_table_view_controller_delegate.h"
+#import "ios/chrome/browser/settings/autofill/autofill_ai/utils/autofill_ai_date_util.h"
 #import "ios/chrome/browser/shared/ui/list_model/list_model.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_link_header_footer_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_controller_test.h"
@@ -25,7 +26,6 @@
 #import "testing/gtest_mac.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
-#import "ui/base/device_form_factor.h"
 #import "ui/base/l10n/l10n_util.h"
 
 @interface FakeMutator : NSObject <AutofillAIEntityEditMutator>
@@ -374,7 +374,7 @@ TEST_F(AutofillAIEntityEditTableViewControllerTest, TestSelectDateItem) {
 
   id mock_view_controller = OCMPartialMock(view_controller);
 
-  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
+  if (ShouldUsePopoverForDatePicker()) {
     OCMExpect([mock_view_controller
         presentViewController:[OCMArg checkWithBlock:^BOOL(
                                           UIViewController* viewController) {
@@ -395,7 +395,7 @@ TEST_F(AutofillAIEntityEditTableViewControllerTest, TestSelectDateItem) {
   [mock_view_controller tableView:view_controller.tableView
           didSelectRowAtIndexPath:indexPath];
 
-  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
+  if (ShouldUsePopoverForDatePicker()) {
     [mock_view_controller verify];
   }
 }

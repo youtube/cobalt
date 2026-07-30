@@ -16,10 +16,10 @@ namespace accessibility_annotator {
 TEST(MemorySearchResultTest, ObfuscatesIban) {
   std::u16string raw_iban = u"DE91 1000 0000 0123 4567 89";
   std::u16string obfuscated_value = u"DE\u2006\u2022\u20226789";
-  MemorySearchResult result(EntryType::kIban, u"IBAN", obfuscated_value);
+  MemorySearchResult result(MemoryDataType::kIban, u"IBAN", obfuscated_value);
   result.is_obfuscated = true;
 
-  EXPECT_EQ(result.type, EntryType::kIban);
+  EXPECT_EQ(result.type, MemoryDataType::kIban);
   EXPECT_TRUE(result.is_obfuscated);
 
   EXPECT_EQ(result.value, obfuscated_value);
@@ -27,9 +27,9 @@ TEST(MemorySearchResultTest, ObfuscatesIban) {
 
 TEST(MemorySearchResultTest, DoesNotObfuscateNonSpiiValue) {
   std::u16string value = u"Some other value";
-  MemorySearchResult result(EntryType::kNameFull, u"Name", value);
+  MemorySearchResult result(MemoryDataType::kNameFull, u"Name", value);
 
-  EXPECT_EQ(result.type, EntryType::kNameFull);
+  EXPECT_EQ(result.type, MemoryDataType::kNameFull);
   EXPECT_FALSE(result.is_obfuscated);
   EXPECT_EQ(result.value, value);
 }

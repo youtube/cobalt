@@ -11,13 +11,13 @@
 #import "components/autofill/ios/browser/autofill_driver_ios.h"
 #import "components/keyed_service/core/service_access_type.h"
 #import "ios/chrome/browser/autofill/manual_fill/model/manual_fill_injection_handler.h"
+#import "ios/chrome/browser/autofill/manual_fill/public/manual_fill_constants.h"
 #import "ios/chrome/browser/autofill/manual_fill/ui/fallback_view_controller.h"
 #import "ios/chrome/browser/autofill/model/personal_data_manager_factory.h"
 #import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_controller.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_navigation_controller.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/public/provider/chrome/browser/keyboard/keyboard_api.h"
-#import "ui/base/device_form_factor.h"
 
 @interface FallbackCoordinator () <UIPopoverPresentationControllerDelegate>
 
@@ -37,15 +37,15 @@
 }
 
 - (BOOL)dismissIfNecessaryThenDoCompletion:(void (^)(void))completion {
-  // On iPad, dismiss the popover before the settings are presented.
-  if ((ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) &&
+  // Dismiss the popover before the settings are presented.
+  if ([ManualFillUtil shouldUsePopover] &&
       self.viewController.presentingViewController) {
-    // On tablets, fallback coordinators are coordinators of subviews of the
-    // expanded manual fill view, so they can't dismiss the entire popup,
-    // otherwise changing the type of autofill data between passwords, addresses
-    // or credit cards would dismiss the entire popup. In this case, only the
-    // completion block is executed. The popup will be dismissed when the
-    // expanded manual fill coordinator stops.
+    // When using a popover view, fallback coordinators are coordinators of
+    // subviews of the expanded manual fill view, so they can't dismiss the
+    // entire popup, otherwise changing the type of autofill data between
+    // passwords, addresses or credit cards would dismiss the entire popup. In
+    // this case, only the completion block is executed. The popup will be
+    // dismissed when the expanded manual fill coordinator stops.
     if (completion) {
       completion();
     }
@@ -53,7 +53,7 @@
   } else {
     if (completion) {
       completion();
-      if ((ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET)) {
+      if ([ManualFillUtil shouldUsePopover]) {
         [self.delegate fallbackCoordinatorDidDismissPopover:self];
       }
     }
@@ -89,7 +89,7 @@
   [super stop];
   if (![self dismissIfNecessaryThenDoCompletion:nil]) {
     // dismissIfNecessaryThenDoCompletion dismisses, via the UIKit API, only
-    // for popovers (iPads). For iPhones we need to remove the view.
+    // for popovers. For input views we need to remove the view.
     [self.viewController.view removeFromSuperview];
   }
 }

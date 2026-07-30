@@ -4,10 +4,8 @@
 
 #include "chrome/browser/ui/views/tabs/vertical/root_tab_collection_node.h"
 
-#include <algorithm>
 
 #include "base/stl_util.h"
-#include "base/types/pass_key.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/tabs/vertical/tab_collection_node.h"

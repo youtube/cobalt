@@ -7,6 +7,7 @@
 
 #import <optional>
 
+#import "base/observer_list_types.h"
 #import "components/keyed_service/core/keyed_service.h"
 
 namespace gemini {
@@ -16,7 +17,18 @@ struct IneligibilityReasons;
 // Interface for GeminiService.
 class GeminiService : public KeyedService {
  public:
+  // Observer interface for GeminiService.
+  class Observer : public base::CheckedObserver {
+   public:
+    // Called when the Gemini Enterprise eligibility check finishes or changes.
+    virtual void OnGeminiEligibilityChanged() {}
+  };
+
   ~GeminiService() override = default;
+
+  // Adds/removes an observer.
+  virtual void AddObserver(Observer* observer) = 0;
+  virtual void RemoveObserver(Observer* observer) = 0;
 
   // Returns whether the current profile is eligible for Gemini.
   virtual bool IsProfileEligibleForGemini() = 0;

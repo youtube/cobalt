@@ -7,11 +7,12 @@ package org.chromium.chrome.browser.omnibox;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import static org.chromium.ui.test.util.MockitoHelper.clearInvocations;
 
 import androidx.test.core.app.ApplicationProvider;
 
@@ -92,7 +93,6 @@ public class HintTextUpdaterTest {
     private SearchEngineNameObserver mSearchEngineNameObserver;
 
     @Before
-    @SuppressWarnings("unchecked")
     public void setUp() {
         when(mLocationBarDataProvider.getFuseboxSessionState()).thenReturn(mFuseboxSessionState);
         when(mLocationBarDataProvider.getDefaultRequestType())
@@ -178,7 +178,6 @@ public class HintTextUpdaterTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void testGetOmniboxHintText_FuseboxSessionState() {
         OmniboxFeatures.sShowModelPicker.setForTesting(true);
         when(mSearchEngineService.getSearchEngineName()).thenReturn("Google");
@@ -265,7 +264,6 @@ public class HintTextUpdaterTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void testGetOmniboxHintText_ModelPickerDisabled() {
         when(mSearchEngineService.getSearchEngineName()).thenReturn("Google");
         when(mSearchEngineService.isDefaultSearchEngineGoogle()).thenReturn(true);
@@ -284,7 +282,6 @@ public class HintTextUpdaterTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void testGetOmniboxHintText_UseAskHintForNtp() {
         when(mSearchEngineService.getSearchEngineName()).thenReturn("Google");
         when(mSearchEngineService.isDefaultSearchEngineGoogle()).thenReturn(true);
@@ -309,7 +306,6 @@ public class HintTextUpdaterTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void testAimActivationHint_ShowHint() {
         when(mTracker.shouldTriggerHelpUi(FeatureConstants.AIM_ACTIVATION_HINT)).thenReturn(true);
         mFuseboxStateSupplier.set(FuseboxState.COMPACT);
@@ -325,7 +321,6 @@ public class HintTextUpdaterTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void testAimActivationHint_ShowEmptyHintWhenTrackerSaysNo() {
         when(mTracker.shouldTriggerHelpUi(FeatureConstants.AIM_ACTIVATION_HINT)).thenReturn(false);
         mFuseboxStateSupplier.set(FuseboxState.COMPACT);
@@ -363,7 +358,6 @@ public class HintTextUpdaterTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void testAimActivationHint_FallbackToDefaultIfChipNotVisible() {
         when(mSearchEngineService.getSearchEngineName()).thenReturn("Google");
         mFuseboxStateSupplier.set(FuseboxState.COMPACT);

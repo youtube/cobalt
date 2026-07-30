@@ -40,6 +40,7 @@ android_library("internal_java") {
 
   deps = [
     "//base:base_java",
+    "//base:service_loader_java",
     "//build/android:build_java",
     "//components/browser_ui/modaldialog/android:java",
     "//components/embedder_support/android:context_menu_java",

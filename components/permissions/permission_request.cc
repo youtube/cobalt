@@ -63,8 +63,8 @@ bool PermissionRequest::IsDuplicateOf(PermissionRequest* other_request) const {
          requesting_origin() == other_request->requesting_origin();
 }
 
-base::WeakPtr<PermissionRequest> PermissionRequest::GetWeakPtr() {
-  return weak_factory_.GetWeakPtr();
+base::SafeRef<PermissionRequest> PermissionRequest::GetSafeRef() {
+  return weak_factory_.GetSafeRef();
 }
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)

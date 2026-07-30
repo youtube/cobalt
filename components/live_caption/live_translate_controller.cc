@@ -129,8 +129,7 @@ void LiveTranslateController::OnOnDeviceTranslated(
                             translate_event.has_value());
   if (!translate_event.has_value() && google_api_dispatcher_) {
     google_api_dispatcher_->GetTranslation(
-        std::string(result), std::string(source_language),
-        std::string(target_language),
+        result, source_language, target_language,
         base::BindOnce(&LiveTranslateController::OnGoogleApiTranslated,
                        weak_factory_.GetWeakPtr(), std::move(callback),
                        total_start_time, base::TimeTicks::Now()));

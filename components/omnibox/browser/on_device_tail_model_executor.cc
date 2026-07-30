@@ -11,6 +11,7 @@
 
 #include "base/base64.h"
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/files/file_util.h"
 #include "base/hash/hash.h"
 #include "base/logging.h"
@@ -268,10 +269,10 @@ bool OnDeviceTailModelExecutor::InitModelInterpreter(
   }
   model_fb_ = std::move(model_fb);
 
+  const base::span<const uint8_t> model_data = model_fb_->bytes();
   std::unique_ptr<tflite::FlatBufferModel> model =
       tflite::FlatBufferModel::VerifyAndBuildFromBuffer(
-          reinterpret_cast<const char*>(model_fb_->data()),
-          model_fb_->length());
+          reinterpret_cast<const char*>(model_data.data()), model_data.size());
 
   if (model == nullptr) {
     DVLOG(1) << "Could not create flat buffer model for file "

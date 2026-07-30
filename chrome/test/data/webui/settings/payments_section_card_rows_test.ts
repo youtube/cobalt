@@ -36,6 +36,7 @@ suite('PaymentsSectionCardRows', function() {
       migrationEnabled: true,
       showIbansSettings: true,
       autofillEnableWalletBranding: true,
+      autofillEnableGradientGoogleLogos: false,
     });
     metricsBrowserProxy = new TestMetricsBrowserProxy();
     MetricsBrowserProxyImpl.setInstance(metricsBrowserProxy);
@@ -1155,6 +1156,64 @@ suite('PaymentsSectionCardRows', function() {
                   .querySelector<HTMLElement>(
                       '#summarySublabel')!.textContent.trim());
         });
+  });
+
+  test('verifyGooglePayLogoWithGradient', async function() {
+    loadTimeData.overrideValues({
+      autofillEnableGradientGoogleLogos: true,
+    });
+    const creditCard = createCreditCardEntry();
+    creditCard.metadata!.isLocal = false;
+    const section = await createPaymentsSection(
+        [creditCard], /*ibans=*/[], /*payOverTimeIssuers=*/[],
+        /*prefValues=*/ {});
+    const rowShadowRoot = getCardRowShadowRoot(section.$.paymentsList);
+    const paymentsIcon = rowShadowRoot.querySelector('#paymentsIcon');
+    // #paymentsIcon is only present in Google Chrome branded builds.
+    if (paymentsIcon) {
+      const source = paymentsIcon.querySelector('source');
+      const img = paymentsIcon.querySelector('img');
+      assertTrue(!!source);
+      assertTrue(!!img);
+      assertTrue(source.srcset.includes(
+          'IDR_AUTOFILL_GOOGLE_PAY_WITH_GRADIENT_DARK_SMALL'));
+      assertTrue(img.srcset.includes(
+          'IDR_AUTOFILL_GOOGLE_PAY_WITH_GRADIENT_SMALL'));
+    } else {
+      const textIndicator =
+          rowShadowRoot.querySelector('#paymentsIndicator .sub-label');
+      assertTrue(!!textIndicator);
+      assertTrue(isVisible(textIndicator));
+    }
+  });
+
+  test('verifyGooglePayLogoWithoutGradient', async function() {
+    loadTimeData.overrideValues({
+      autofillEnableGradientGoogleLogos: false,
+    });
+    const creditCard = createCreditCardEntry();
+    creditCard.metadata!.isLocal = false;
+    const section = await createPaymentsSection(
+        [creditCard], /*ibans=*/[], /*payOverTimeIssuers=*/[],
+        /*prefValues=*/ {});
+    const rowShadowRoot = getCardRowShadowRoot(section.$.paymentsList);
+    const paymentsIcon = rowShadowRoot.querySelector('#paymentsIcon');
+    // #paymentsIcon is only present in Google Chrome branded builds.
+    if (paymentsIcon) {
+      const source = paymentsIcon.querySelector('source');
+      const img = paymentsIcon.querySelector('img');
+      assertTrue(!!source);
+      assertTrue(!!img);
+      assertTrue(source.srcset.includes(
+          'IDR_AUTOFILL_GOOGLE_PAY_DARK_SMALL'));
+      assertTrue(img.srcset.includes(
+          'IDR_AUTOFILL_GOOGLE_PAY_SMALL'));
+    } else {
+      const textIndicator =
+          rowShadowRoot.querySelector('#paymentsIndicator .sub-label');
+      assertTrue(!!textIndicator);
+      assertTrue(isVisible(textIndicator));
+    }
   });
 });
 

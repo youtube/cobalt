@@ -8,9 +8,7 @@ import("//third_party/jni_zero/jni_zero.gni")
 import("//tools/grit/grit_rule.gni")
 
 generate_jni("jni") {
-  sources = [
-    "java/src/org/chromium/chrome/browser/touch_to_fill/TouchToFillBridge.java",
-  ]
+  sources = [ "java/src/org/chromium/chrome/browser/touch_to_fill/TouchToFillPasswordManagerBridge.java" ]
 }
 
 android_library("java") {
@@ -55,13 +53,13 @@ android_library("java") {
   ]
 
   sources = [
-    "java/src/org/chromium/chrome/browser/touch_to_fill/TouchToFillBridge.java",
-    "java/src/org/chromium/chrome/browser/touch_to_fill/TouchToFillCoordinator.java",
-    "java/src/org/chromium/chrome/browser/touch_to_fill/TouchToFillMediator.java",
-    "java/src/org/chromium/chrome/browser/touch_to_fill/TouchToFillProperties.java",
-    "java/src/org/chromium/chrome/browser/touch_to_fill/TouchToFillView.java",
-    "java/src/org/chromium/chrome/browser/touch_to_fill/TouchToFillViewBinder.java",
-    "java/src/org/chromium/chrome/browser/touch_to_fill/TouchToFillViewHolder.java",
+    "java/src/org/chromium/chrome/browser/touch_to_fill/TouchToFillPasswordManagerBridge.java",
+    "java/src/org/chromium/chrome/browser/touch_to_fill/TouchToFillPasswordManagerCoordinator.java",
+    "java/src/org/chromium/chrome/browser/touch_to_fill/TouchToFillPasswordManagerMediator.java",
+    "java/src/org/chromium/chrome/browser/touch_to_fill/TouchToFillPasswordManagerProperties.java",
+    "java/src/org/chromium/chrome/browser/touch_to_fill/TouchToFillPasswordManagerView.java",
+    "java/src/org/chromium/chrome/browser/touch_to_fill/TouchToFillPasswordManagerViewBinder.java",
+    "java/src/org/chromium/chrome/browser/touch_to_fill/TouchToFillPasswordManagerViewHolder.java",
   ]
 
   resources_package = "org.chromium.chrome.browser.touch_to_fill"

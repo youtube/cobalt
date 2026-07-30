@@ -11,6 +11,7 @@
 #include <bitset>
 
 #include "base/containers/span.h"
+#include "base/synchronization/lock.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/deque.h"
@@ -160,7 +161,8 @@ class PLATFORM_EXPORT ICUScriptData final : public ScriptData {
   // For each script we've seen so far, a bitmap specifying which characters
   // are acceptable in that script and can be simply skipped (and that are not
   // brackets). Allowed to have false negatives.
-  mutable HashMap<UScriptCode, std::unique_ptr<UnicodeBitSet>> bits_cache_;
+  mutable HashMap<UScriptCode, std::unique_ptr<UnicodeBitSet>> bits_cache_
+      GUARDED_BY(bits_cache_lock_);
 
   // There are some characters that have primary script USCRIPT_INHERITED
   // but a nonempty script extension list (scx); this means that is inherits
@@ -181,6 +183,8 @@ class PLATFORM_EXPORT ICUScriptData final : public ScriptData {
   // bitmap and this (because its scx contains the given script); if so,
   // the former takes precedence.
   mutable UnicodeBitSet inherited_not_common_chars_;
+
+  mutable base::Lock bits_cache_lock_;
 };
 }  // namespace blink
 

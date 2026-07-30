@@ -15,6 +15,7 @@
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/run_loop.h"
+#include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
@@ -31,6 +32,7 @@
 #include "media/cast/encoding/encoding_support.h"
 #include "media/cast/test/openscreen_test_helpers.h"
 #include "media/cast/test/utility/default_config.h"
+#include "media/media_buildflags.h"
 #include "media/video/video_decode_accelerator.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -248,6 +250,9 @@ class OpenscreenSessionHostTest : public mojom::ResourceProvider,
     }
 
     OnOutboundMessage(parsed_message.value().type);
+    if (run_loop_quit_closure_) {
+      std::move(run_loop_quit_closure_).Run();
+    }
   }
 
   // mojom::ResourceProvider overrides.
@@ -675,6 +680,10 @@ class OpenscreenSessionHostTest : public mojom::ResourceProvider,
     return *last_sent_offer_;
   }
 
+  void set_run_loop_quit_closure(base::OnceClosure closure) {
+    run_loop_quit_closure_ = std::move(closure);
+  }
+
   base::test::TaskEnvironment& task_environment() { return task_environment_; }
 
   void PushAudioEncoderStatus(const media::cast::FrameSenderConfig& config,
@@ -717,6 +726,21 @@ class OpenscreenSessionHostTest : public mojom::ResourceProvider,
         }));
   }
 
+  void AssertCodecWasNotOffered(media::VideoCodec codec) {
+    const auto& offer = std::get<Offer>(last_sent_offer().body);
+    ASSERT_FALSE(std::any_of(
+        offer.video_streams.begin(), offer.video_streams.end(),
+        [codec](const VideoStream& stream) {
+          return stream.codec == media::cast::ToOpenscreenVideoCodec(codec);
+        }));
+
+    ASSERT_FALSE(std::any_of(
+        LastOfferedVideoConfigs().begin(), LastOfferedVideoConfigs().end(),
+        [codec](const media::cast::FrameSenderConfig& config) {
+          return config.video_codec() == codec;
+        }));
+  }
+
  protected:
   std::unique_ptr<FakeVideoCaptureHost> video_host_;
 
@@ -744,6 +768,7 @@ class OpenscreenSessionHostTest : public mojom::ResourceProvider,
 
   int next_receiver_ssrc_{35336};
   std::optional<openscreen::cast::SenderMessage> last_sent_offer_;
+  base::OnceClosure run_loop_quit_closure_;
 };
 
 TEST_F(OpenscreenSessionHostTest, AudioOnlyMirroring) {
@@ -987,7 +1012,7 @@ TEST_F(OpenscreenSessionHostTest, Vp9CodecEnabledInOffer) {
 
 TEST_F(OpenscreenSessionHostTest, Av1CodecEnabledInOffer) {
 // Cast streaming of AV1 is desktop only.
-#if !BUILDFLAG(IS_ANDROID) && defined(ENABLE_LIBAOM)
+#if !BUILDFLAG(IS_ANDROID) && BUILDFLAG(ENABLE_LIBAOM)
   base::test::ScopedFeatureList feature_list(media::kCastStreamingAv1);
   CreateSession(SessionType::VIDEO_ONLY);
   AssertCodecWasOffered(media::VideoCodec::kAV1);
@@ -1003,10 +1028,57 @@ TEST_F(OpenscreenSessionHostTest, ShouldEnableHardwareVp8EncodingIfSupported) {
           media::VideoEncodeAccelerator::SupportedProfile(
               media::VideoCodecProfile::VP8PROFILE_ANY,
               gfx::Size{1920, 1080})});
+  base::RunLoop run_loop;
+  set_run_loop_quit_closure(run_loop.QuitClosure());
   NegotiateMirroring();
-  task_environment().RunUntilIdle();
+  run_loop.Run();
 
   AssertCodecWasOffered(media::VideoCodec::kVP8, true);
+}
+
+TEST_F(OpenscreenSessionHostTest, ShouldEnableHardwareAv1EncodingIfSupported) {
+  base::test::ScopedFeatureList feature_list(media::kCastStreamingAv1);
+  CreateSession(SessionType::VIDEO_ONLY);
+
+  // Mock the profiles to enable AV1 hardware encode.
+  SetSupportedProfiles(
+      std::vector<media::VideoEncodeAccelerator::SupportedProfile>{
+          media::VideoEncodeAccelerator::SupportedProfile(
+              media::VideoCodecProfile::AV1PROFILE_PROFILE_MAIN,
+              gfx::Size{1920, 1080})});
+  base::RunLoop run_loop;
+  set_run_loop_quit_closure(run_loop.QuitClosure());
+  NegotiateMirroring();
+  run_loop.Run();
+
+  AssertCodecWasOffered(media::VideoCodec::kAV1, true);
+}
+
+TEST_F(OpenscreenSessionHostTest,
+       ShouldDisableHardwareAv1EncodingIfSwitchPresent) {
+  base::test::ScopedFeatureList feature_list(media::kCastStreamingAv1);
+  base::test::ScopedCommandLine scoped_command_line;
+  scoped_command_line.GetProcessCommandLine()->AppendSwitch(
+      switches::kCastStreamingForceDisableHardwareAv1);
+  CreateSession(SessionType::VIDEO_ONLY);
+
+  // Mock the profiles to enable AV1 hardware encode.
+  SetSupportedProfiles(
+      std::vector<media::VideoEncodeAccelerator::SupportedProfile>{
+          media::VideoEncodeAccelerator::SupportedProfile(
+              media::VideoCodecProfile::AV1PROFILE_PROFILE_MAIN,
+              gfx::Size{1920, 1080})});
+  base::RunLoop run_loop;
+  set_run_loop_quit_closure(run_loop.QuitClosure());
+  NegotiateMirroring();
+  run_loop.Run();
+
+#if BUILDFLAG(ENABLE_LIBAOM)
+  // We should have offered AV1 with hardware DISABLED because of the switch.
+  AssertCodecWasOffered(media::VideoCodec::kAV1, false);
+#else
+  AssertCodecWasNotOffered(media::VideoCodec::kAV1);
+#endif
 }
 
 TEST_F(OpenscreenSessionHostTest,
@@ -1050,10 +1122,50 @@ TEST_F(OpenscreenSessionHostTest, ShouldEnableHardwareH264EncodingIfSupported) {
           media::VideoEncodeAccelerator::SupportedProfile(
               media::VideoCodecProfile::H264PROFILE_MIN,
               gfx::Size{1920, 1080})});
+  base::RunLoop run_loop;
+  set_run_loop_quit_closure(run_loop.QuitClosure());
   NegotiateMirroring();
-  task_environment().RunUntilIdle();
+  run_loop.Run();
 
   AssertCodecWasOffered(media::VideoCodec::kH264, true);
+}
+
+TEST_F(OpenscreenSessionHostTest, ShouldEnableHardwareHevcEncodingIfSupported) {
+  base::test::ScopedFeatureList feature_list(media::kCastStreamingHardwareHevc);
+  CreateSession(SessionType::VIDEO_ONLY);
+
+  SetSupportedProfiles(
+      std::vector<media::VideoEncodeAccelerator::SupportedProfile>{
+          media::VideoEncodeAccelerator::SupportedProfile(
+              media::VideoCodecProfile::HEVCPROFILE_MAIN,
+              gfx::Size{1920, 1080})});
+  base::RunLoop run_loop;
+  set_run_loop_quit_closure(run_loop.QuitClosure());
+  NegotiateMirroring();
+  run_loop.Run();
+
+  AssertCodecWasOffered(media::VideoCodec::kHEVC, true);
+}
+
+TEST_F(OpenscreenSessionHostTest,
+       ShouldDisableHardwareHevcEncodingIfSwitchPresent) {
+  base::test::ScopedFeatureList feature_list(media::kCastStreamingHardwareHevc);
+  base::test::ScopedCommandLine scoped_command_line;
+  scoped_command_line.GetProcessCommandLine()->AppendSwitch(
+      switches::kCastStreamingForceDisableHardwareHevc);
+  CreateSession(SessionType::VIDEO_ONLY);
+
+  SetSupportedProfiles(
+      std::vector<media::VideoEncodeAccelerator::SupportedProfile>{
+          media::VideoEncodeAccelerator::SupportedProfile(
+              media::VideoCodecProfile::HEVCPROFILE_MAIN,
+              gfx::Size{1920, 1080})});
+  base::RunLoop run_loop;
+  set_run_loop_quit_closure(run_loop.QuitClosure());
+  NegotiateMirroring();
+  run_loop.Run();
+
+  AssertCodecWasNotOffered(media::VideoCodec::kHEVC);
 }
 
 TEST_F(OpenscreenSessionHostTest, GetStatsDefault) {

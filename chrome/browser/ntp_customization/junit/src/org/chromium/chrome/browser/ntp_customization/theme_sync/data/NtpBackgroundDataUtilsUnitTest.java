@@ -18,6 +18,7 @@ import static org.mockito.Mockito.when;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.database.Cursor;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Point;
@@ -36,10 +37,15 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.annotation.Config;
 
+import org.chromium.base.Callback;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType;
 import org.chromium.chrome.browser.ntp_customization.R;
 import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataBase.PlatformType;
+
+import java.io.File;
 
 /** Tests for {@link NtpBackgroundDataUtils}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -201,6 +207,46 @@ public class NtpBackgroundDataUtilsUnitTest {
 
         if (cursor != null && !expectQueryException) {
             verify(cursor).close();
+        }
+    }
+
+    @Test
+    public void testLoadImage_defaultPath() {
+        testLoadImageImpl(/* filePath= */ null);
+    }
+
+    @Test
+    public void testLoadImage_customPath() {
+        File customFile = NtpCustomizationUtils.createUploadImageFileInDir("customImage.png");
+        testLoadImageImpl(customFile.getAbsolutePath());
+    }
+
+    private void testLoadImageImpl(@Nullable String filePath) {
+        Bitmap bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+        File targetFile;
+        if (filePath == null || filePath.isEmpty()) {
+            targetFile = NtpCustomizationUtils.createBackgroundImageFile();
+        } else {
+            targetFile = new File(filePath);
+        }
+        NtpCustomizationUtils.saveBitmapImageToFile(bitmap, targetFile);
+        RobolectricUtil.runAllBackgroundAndUi();
+
+        final Bitmap[] receivedBitmap = new Bitmap[1];
+        Callback<Bitmap> callback =
+                (result) -> {
+                    receivedBitmap[0] = result;
+                };
+        NtpBackgroundDataUtils.loadImage(callback, filePath);
+        RobolectricUtil.runAllBackgroundAndUi();
+
+        assertNotNull(receivedBitmap[0]);
+        assertTrue(bitmap.sameAs(receivedBitmap[0]));
+
+        if (filePath == null || filePath.isEmpty()) {
+            NtpCustomizationUtils.maybeDeleteFile(targetFile);
+        } else {
+            NtpCustomizationUtils.deleteUploadImageFileDir();
         }
     }
 }

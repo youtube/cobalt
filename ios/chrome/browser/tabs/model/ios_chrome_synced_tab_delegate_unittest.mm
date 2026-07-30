@@ -139,6 +139,10 @@ class FakeSyncSessionsClient : public sync_sessions::SyncSessionsClient {
     return nullptr;
   }
   base::WeakPtr<SyncSessionsClient> AsWeakPtr() override { return nullptr; }
+  std::optional<std::string> GetSessionDisplayNameFromDeviceInfo(
+      const std::string& session_tag) const override {
+    return std::nullopt;
+  }
 
   sync_sessions::TestSyncedWindowDelegatesGetter window_delegates_getter_;
 };

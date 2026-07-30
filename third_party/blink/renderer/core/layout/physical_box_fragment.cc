@@ -804,9 +804,11 @@ gfx::Vector2d PhysicalBoxFragment::PixelSnappedOverscrollContentOffset() const {
   if (auto* tracker = To<Element>(GetLayoutObject()->GetNode())
                           ->GetOverscrollAreaTracker()) {
     for (const Element* element : tracker->DOMSortedElements()) {
-      offset += element->GetPseudoElement(kPseudoIdOverscrollAreaParent)
-                    ->GetLayoutBox()
-                    ->PixelSnappedScrolledContentOffset();
+      PseudoElement* pseudo =
+          element->GetPseudoElement(kPseudoIdOverscrollAreaParent);
+      if (LayoutBox* layout_box = pseudo->GetLayoutBox()) {
+        offset += layout_box->PixelSnappedScrolledContentOffset();
+      }
     }
   }
   return offset;

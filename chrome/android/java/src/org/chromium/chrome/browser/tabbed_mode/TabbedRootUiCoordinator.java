@@ -1526,6 +1526,10 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                         || RequestDesktopUtils.maybeShowDefaultEnableGlobalSettingMessage(
                                 profile, mMessageDispatcher, mActivity);
 
+        if (mBottomBarHostManager != null) {
+            mBottomBarHostManager.onStartupPromoFlowFinished(didTriggerPromo);
+        }
+
         if (didTriggerPromo) {
             TrackerFactory.getTrackerForProfile(profile)
                     .notifyEvent(EventConstants.ANDROID_STARTUP_PROMO_SHOWN);
@@ -1668,6 +1672,11 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
 
     @VisibleForTesting
     boolean maybeShowGlicPromo() {
+        if (CommandLine.getInstance().hasSwitch(ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE)
+                || CommandLine.getInstance().hasSwitch(ChromeSwitches.DISABLE_STARTUP_PROMOS)) {
+            return false;
+        }
+
         Profile profile = mProfileSupplier.get();
         if (profile == null
                 || mActivity == null
@@ -2180,8 +2189,6 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                             mWindowAndroid),
                     SidePanelRegistryBridgeFactory::createWindowScopedBridge);
 
-            mSidePanelContainerCoordinator.init(sidePanelCoordinatorAndroid);
-
             // TODO(crbug.com/489548570): Remove SidePanelDevFeature when it's not needed.
             mSidePanelDevFeature =
                     SidePanelDevFeatureFactory.create(
@@ -2189,7 +2196,10 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                             mSidePanelContainerCoordinator,
                             mWindowAndroid,
                             mActivityTabProvider);
+
+            mSidePanelContainerCoordinator.init(sidePanelCoordinatorAndroid, mSidePanelDevFeature);
         }
+
         if (VerticalTabUtils.isVerticalTabsEligible(mActivity)) {
             mVerticalTabsSideUiCoordinator =
                     new VerticalTabsSideUiCoordinator(
@@ -2202,7 +2212,11 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                                     mVerticalTabsActionDelegate,
                                     mWindowAndroid,
                                     assumeNonNull(mMultiInstanceManager),
-                                    assumeNonNull(mSnackbarManagerSupplier.get())),
+                                    assumeNonNull(mSnackbarManagerSupplier.get()),
+                                    getDesktopWindowStateManager(),
+                                    mShareDelegateSupplier,
+                                    mDataSharingTabManager,
+                                    mIsVerticalTabsActiveSupplier),
                             mIsVerticalTabsActiveSupplier);
             mSideUiCoordinator.registerSideUiContainer(mVerticalTabsSideUiCoordinator);
         }
@@ -2231,6 +2245,20 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                             assumeNonNull(mToolbarManager).getTabStripTransitionCoordinator();
                     assumeNonNull(transitionCoordinator).suppressTabStrip(active);
                 });
+
+        var transitionCoordinator =
+                assumeNonNull(mToolbarManager).getTabStripTransitionCoordinator();
+        if (transitionCoordinator != null) {
+            transitionCoordinator.addObserver(
+                    success -> {
+                        if (VerticalTabUtils.isVerticalTabsEnabled(mActivity)) {
+                            if (mVerticalTabsSideUiCoordinator != null) {
+                                mVerticalTabsSideUiCoordinator.setVisible(true);
+                            }
+                        }
+                    });
+        }
+
         if (useVerticalLayoutOnLaunch) {
             assumeNonNull(mVerticalTabsSideUiCoordinator).setVisible(true);
         }
@@ -2258,7 +2286,13 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         ChromeSharedPreferences.getInstance()
                 .writeBoolean(ChromePreferenceKeys.VERTICAL_TABS_ENABLED, shouldShowVerticalTabs);
 
-        assumeNonNull(mVerticalTabsSideUiCoordinator).setVisible(shouldShowVerticalTabs);
+        var transitionCoordinator =
+                assumeNonNull(mToolbarManager).getTabStripTransitionCoordinator();
+        if (shouldShowVerticalTabs) {
+            assumeNonNull(transitionCoordinator).suppressTabStrip(true);
+        } else {
+            assumeNonNull(mVerticalTabsSideUiCoordinator).setVisible(false);
+        }
     }
 
     private void destroySideUi() {
@@ -2487,6 +2521,10 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             UserEducationUtils.recordOptionalPromoType(OptionalPromoType.PWA_RESTORE_PROMO);
             return true;
         }
+
+        if (mBottomBarHostManager != null && mBottomBarHostManager.maybeShowPromoDialog(profile)) {
+            return true;
+        }
         if (FullscreenSigninPromoLauncher.launchPromoIfNeeded(
                 mActivity,
                 profile,
@@ -2549,7 +2587,8 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                             mTopControlsStacker,
                             mActivityTabProvider.asObservable(),
                             getTopUiThemeColorProvider(),
-                            mSideUiStateProviderSupplier);
+                            mSideUiStateProviderSupplier,
+                            mTabObscuringHandlerSupplier.get());
             if (mBookmarkBarVisibilityProvider != null) {
                 mBookmarkBarVisibilityProvider.addObserver(mBookmarkBarCoordinator);
             }

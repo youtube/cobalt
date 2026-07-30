@@ -69,7 +69,7 @@ class URLLoaderFactoryParamsHelper {
       network::mojom::TrustTokenOperationPolicyVerdict
           trust_token_redemption_policy,
       net::CookieSettingOverrides cookie_setting_overrides,
-      const std::optional<base::UnguessableToken>& network_restrictions_id,
+      const base::UnguessableToken& network_restrictions_id,
       std::string_view debug_tag);
 
   // Creates URLLoaderFactoryParams to be used by |isolated_world_origin| hosted
@@ -93,7 +93,7 @@ class URLLoaderFactoryParamsHelper {
       RenderFrameHostImpl* frame,
       network::mojom::ClientSecurityStatePtr client_security_state,
       net::CookieSettingOverrides cookie_setting_overrides,
-      const std::optional<base::UnguessableToken>& network_restrictions_id);
+      const base::UnguessableToken& network_restrictions_id);
 
   // Creates URLLoaderFactoryParams for either fetching the worker script or for
   // fetches initiated from a worker.
@@ -109,7 +109,7 @@ class URLLoaderFactoryParamsHelper {
           url_loader_network_observer,
       mojo::PendingRemote<network::mojom::DevToolsObserver> devtools_observer,
       network::mojom::ClientSecurityStatePtr client_security_state,
-      const std::optional<base::UnguessableToken>& network_restrictions_id,
+      const base::UnguessableToken& network_restrictions_id,
       std::string_view debug_tag,
       bool require_cross_site_request_for_cookies,
       bool is_for_service_worker);

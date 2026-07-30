@@ -203,9 +203,11 @@ source_set("com_google_audio_tools") {
     ":mediapipe_shims",
   ]
 
-  # With clang modules, these are unneccesary.
-  if (is_win && !use_clang_modules) {
-    cflags = [ "-permissive" ]
+  if (is_win) {
+    if (!use_clang_modules) {
+      # With clang modules, this is unneccesary.
+      cflags = [ "-permissive" ]
+    }
     defines = [ "_USE_MATH_DEFINES" ]
   }
   public_deps = [ "//third_party/abseil-cpp:absl" ]

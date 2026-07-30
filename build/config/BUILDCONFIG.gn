@@ -162,13 +162,14 @@ declare_args() {
 
 declare_args() {
   # Component build. Setting to true compiles targets declared as "components"
-  # as shared libraries loaded dynamically. This speeds up development time.
-  # When false, components will be linked statically.
+  # as shared libraries loaded dynamically. This can sometimes speed up
+  # development time by having smaller link steps. When false, components will
+  # be linked statically.
   #
   # For more information see
   # https://chromium.googlesource.com/chromium/src/+/main/docs/component_build.md
-  is_component_build =
-      is_debug && current_os != "ios" && current_os != "watchos"
+  is_component_build = is_debug && current_os != "android" &&
+                       current_os != "ios" && current_os != "watchos"
 }
 
 assert(!(is_debug && is_official_build), "Can't do official debug builds")

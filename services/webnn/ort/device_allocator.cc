@@ -16,28 +16,17 @@ namespace webnn::ort {
 
 namespace {
 
-// The 4096 alignment is needed by Intel NPU hardware on OpenVINO.
-// According to:
-// https://github.com/openvinotoolkit/openvino/blob/14bf903270f78592c4572c88c936bdf0120e2fb9/src/plugins/intel_npu/src/utils/include/intel_npu/utils/utils.hpp#L15
-constexpr size_t kIntelNpuStandardPageSize = 4096;
-
-// Creates memory info for a specific EP. Currently, the device allocator only
-// supports OpenVINO. Returns an invalid memory info if not supported.
-ScopedOrtMemoryInfo CreateMemoryInfo(const OrtApi* ort_api,
-                                     base::cstring_view ep_name) {
-  ScopedOrtMemoryInfo memory_info;
+// Returns the host-accessible memory info from the EP device. Currently only
+// OpenVINO EP is supported. Returns nullptr for unsupported EPs.
+const OrtMemoryInfo* GetMemoryInfo(const OrtApi* ort_api,
+                                   const OrtEpDevice* ep_device,
+                                   base::cstring_view ep_name) {
   if (ep_name == kOpenVINOExecutionProvider) {
-    // "OpenVINO_shared" memory info represents shared CPU memory for OpenVINO
-    // EP.
-    CHECK_STATUS(ort_api->CreateMemoryInfo_V2(
-        "OpenVINO_shared", OrtMemoryInfoDeviceType_CPU, /*vendor_id*/ 0x8086,
-        /*device_id*/ 0, OrtDeviceMemoryType_HOST_ACCESSIBLE,
-        /*alignment*/ kIntelNpuStandardPageSize, OrtDeviceAllocator,
-        ScopedOrtMemoryInfo::Receiver(memory_info).get()));
-    CHECK(memory_info.get());
+    return ort_api->EpDevice_MemoryInfo(ep_device,
+                                        OrtDeviceMemoryType_HOST_ACCESSIBLE);
   }
 
-  return memory_info;
+  return nullptr;
 }
 
 }  // namespace
@@ -52,12 +41,17 @@ scoped_refptr<DeviceAllocator> DeviceAllocator::Create(
 
   const char* ep_name = ort_api->EpDevice_EpName(first_selected_device);
   // SAFETY: ORT guarantees that `ep_name` is valid and null-terminated.
-  ScopedOrtMemoryInfo memory_info =
-      CreateMemoryInfo(ort_api, UNSAFE_BUFFERS(base::cstring_view(ep_name)));
-  if (!memory_info.is_valid()) {
+  const OrtMemoryInfo* memory_info =
+      GetMemoryInfo(ort_api, first_selected_device,
+                    UNSAFE_BUFFERS(base::cstring_view(ep_name)));
+  if (!memory_info) {
     return nullptr;
   }
 
+  // TODO(crbug.com/519646879): Remove the trivial session once WinML ships
+  // ORT 1.27+, which supports getting a shared allocator directly from
+  // OrtEnv without creating a session.
+  //
   // Trivial ONNX model that returns a single float constant.
   // Used to create a trivial session for obtaining a device allocator.
   // Model bytes are copied from onnxruntime-genai:
@@ -80,7 +74,7 @@ scoped_refptr<DeviceAllocator> DeviceAllocator::Create(
 
   ScopedOrtAllocator device_allocator;
   if (ORT_CALL_FAILED(ort_api->CreateAllocator(
-          trivial_session.get(), memory_info.get(),
+          trivial_session.get(), memory_info,
           ScopedOrtAllocator::Receiver(device_allocator).get()))) {
     return nullptr;
   }

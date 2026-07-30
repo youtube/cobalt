@@ -7,6 +7,7 @@
 
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -155,6 +156,11 @@ class ReloadButton : public ToolbarButton, public ReloadControl {
   // The initial WebUI metrics manager for the window this button is in.
   // Not owned and might be null.
   const raw_ptr<InitialWebUIWindowMetricsManager> window_metrics_manager_;
+  // The profile associated with this button. Used to retrieve the
+  // WaapUIMetricsService for logging interaction-to-reload metrics.
+  // Not owned by this button; the Profile's lifetime is guaranteed to outlive
+  // this View.
+  const raw_ref<Profile> profile_;
 
   // Must be the last member.
   base::WeakPtrFactory<ReloadButton> weak_ptr_factory_{this};

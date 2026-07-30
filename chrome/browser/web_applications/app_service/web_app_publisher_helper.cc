@@ -134,7 +134,6 @@
 #include "components/services/app_service/public/cpp/app_registry_cache.h"
 #include "components/services/app_service/public/cpp/preferred_apps_list_handle.h"
 #include "components/sessions/core/session_id.h"
-#include "extensions/browser/api/file_handlers/mime_util.h"  // nogncheck
 #include "ui/message_center/public/cpp/notification.h"
 #include "ui/message_center/public/cpp/notifier_id.h"
 #endif
@@ -163,6 +162,9 @@ const ContentSettingsType kSupportedPermissionTypes[] = {
 
 // Mime Type for plain text.
 const char kTextPlain[] = "text/plain";
+#if BUILDFLAG(IS_CHROMEOS)
+constexpr char kMimeTypeInodeDirectory[] = "inode/directory";
+#endif
 
 bool GetContentSettingsType(apps::PermissionType permission_type,
                             ContentSettingsType& content_setting_type) {
@@ -853,11 +855,11 @@ apps::AppPtr WebAppPublisherHelper::CreateWebApp(const WebApp* web_app) {
 
 #if BUILDFLAG(IS_CHROMEOS)
   if (web_app->app_id() == guest_os::kTerminalSystemAppId) {
-    app->intent_filters->push_back(apps_util::CreateFileFilter(
-        {apps_util::kIntentActionView},
-        /*mime_types=*/
-        {extensions::app_file_handler_util::kMimeTypeInodeDirectory},
-        /*file_extensions=*/{}));
+    app->intent_filters->push_back(
+        apps_util::CreateFileFilter({apps_util::kIntentActionView},
+                                    /*mime_types=*/
+                                    {kMimeTypeInodeDirectory},
+                                    /*file_extensions=*/{}));
   }
 #endif
 

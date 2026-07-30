@@ -77,6 +77,7 @@
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
+#include "services/network/public/mojom/web_sandbox_flags.mojom.h"
 #include "third_party/blink/public/common/features_generated.h"
 #include "third_party/blink/public/common/mediastream/media_stream_request.h"
 #include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom.h"
@@ -94,11 +95,6 @@
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "url/android/gurl_android.h"
 #include "url/origin.h"
-
-#if BUILDFLAG(ENABLE_PRINTING)
-#include "components/printing/browser/print_composite_client.h"
-#endif
-
 #if BUILDFLAG(ENABLE_PAINT_PREVIEW)
 #include "components/paint_preview/browser/paint_preview_client.h"
 #endif
@@ -282,6 +278,15 @@ bool TabWebContentsDelegateAndroid::IsWebContentsCreationOverridden(
     // tab. Note, we do this even if the task isn't active (e.g. paused) so that
     // a user action on behalf of the actor has the same behavior since the
     // resumed task will still be fixed to the tab.
+
+    // However, if the opener is sandboxed and restricted from top-level
+    // navigation, we cannot force a same-tab redirection as it would violate
+    // the sandbox. Instead, we decline to override creation, allowing the
+    // browser to safely open a new popup window (since kPopups is allowed).
+    if (opener &&
+        opener->IsSandboxed(network::mojom::WebSandboxFlags::kTopNavigation)) {
+      return false;
+    }
     return true;
   }
 
@@ -577,18 +582,6 @@ void TabWebContentsDelegateAndroid::GetAIPageContent(
         return result->proto.SerializeAsString();
       }).Then(std::move(callback)));
 }
-
-#if BUILDFLAG(ENABLE_PRINTING)
-void TabWebContentsDelegateAndroid::PrintCrossProcessSubframe(
-    content::WebContents* web_contents,
-    const gfx::Rect& rect,
-    int document_cookie,
-    content::RenderFrameHost* subframe_host) const {
-  auto* client = printing::PrintCompositeClient::FromWebContents(web_contents);
-  if (client)
-    client->PrintCrossProcessSubframe(rect, document_cookie, subframe_host);
-}
-#endif
 
 #if BUILDFLAG(ENABLE_PAINT_PREVIEW)
 void TabWebContentsDelegateAndroid::CapturePaintPreviewOfSubframe(

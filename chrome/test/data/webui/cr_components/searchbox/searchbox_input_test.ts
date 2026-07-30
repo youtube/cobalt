@@ -4,34 +4,15 @@
 
 import 'chrome://resources/cr_components/searchbox/searchbox_input.js';
 
+import {createSearchMatchForTesting, SearchboxBrowserProxy} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import type {SearchboxIconElement} from 'chrome://resources/cr_components/searchbox/searchbox_icon.js';
 import type {SearchboxInputElement} from 'chrome://resources/cr_components/searchbox/searchbox_input.js';
-import {createAutocompleteMatch, createSearchMatchForTesting, SearchboxBrowserProxy} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import type {AutocompleteMatch} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
-import {assertStyle} from './searchbox_test_utils.js';
+import {assertStyle, createClipboardEvent, createUrlMatch} from './searchbox_test_utils.js';
 import {TestSearchboxBrowserProxy} from './test_searchbox_browser_proxy.js';
-
-function createClipboardEvent(name: string): ClipboardEvent {
-  return new ClipboardEvent(
-      name, {cancelable: true, clipboardData: new DataTransfer()});
-}
-
-function createUrlMatch(modifiers: Partial<AutocompleteMatch> = {}):
-    AutocompleteMatch {
-  return createAutocompleteMatch({
-    swapContentsAndDescription: true,
-    contents: 'helloworld.com',
-    contentsClass: [{offset: 0, style: 1}],
-    destinationUrl: 'https://helloworld.com/',
-    fillIntoEdit: 'https://helloworld.com',
-    type: 'url-what-you-typed',
-    ...modifiers,
-  });
-}
 
 async function createInput(properties: Partial<SearchboxInputElement> = {}):
     Promise<SearchboxInputElement> {

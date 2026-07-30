@@ -13,6 +13,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
+#include "base/time/time.h"
 #include "components/private_ai/private_ai_common.h"
 #include "components/private_ai/proto_utils/google_rpc_code.h"
 #include "components/private_ai/transport.h"
@@ -88,6 +89,7 @@ class WebSocketClient : public Transport,
   void OnClosingHandshake() override;
 
   State state_ = State::kInitialized;
+  base::TimeTicks connection_open_time_;
   const GURL service_url_;
   const raw_ptr<network::mojom::NetworkContext> network_context_;
   const raw_ptr<PrivateAiLogger> logger_;

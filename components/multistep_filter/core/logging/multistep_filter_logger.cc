@@ -12,8 +12,8 @@ namespace multistep_filter {
 ScopedLogMessage::ScopedLogMessage(MultistepFilterLogRouter* logger,
                                    int64_t navigation_id,
                                    LogEventType type,
-                                   std::string_view source_etld_plus_1)
-    : logger_(logger), entry_(navigation_id, type, source_etld_plus_1) {}
+                                   std::string_view host)
+    : logger_(logger), entry_(navigation_id, type, host) {}
 
 ScopedLogMessage::~ScopedLogMessage() {
   if (logger_) {

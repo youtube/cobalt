@@ -96,6 +96,7 @@ gfx::Rect GetLocationForFindBarView(gfx::Rect view_location,
   } else {
     view_location.set_x(std::max(view_location.x(), clipping_box.x()));
   }
+  view_location.set_y(std::max(view_location.y(), clipping_box.y()));
 
   gfx::Rect new_pos = view_location;
 
@@ -560,10 +561,6 @@ void FindBarHost::MoveWindowIfNecessaryWithRect(
 
   gfx::Rect new_pos = GetDialogPosition(selection_rect);
   SetDialogPosition(new_pos);
-
-  // May need to redraw our frame to accommodate bookmark bar styles.
-  view_->DeprecatedLayoutImmediately();  // Bounds may have changed.
-  view_->SchedulePaint();
 }
 
 void FindBarHost::SaveFocusTracker() {

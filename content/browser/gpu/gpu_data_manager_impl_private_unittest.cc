@@ -518,8 +518,14 @@ TEST_F(GpuDataManagerImplPrivateTest,
   manager->UpdateGpuPreferences(&prefs, GPU_PROCESS_KIND_SANDBOXED);
 
   EXPECT_EQ(gpu::GrContextType::kGraphiteDawn, prefs.gr_context_type);
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
   ASSERT_EQ(prefs.fallback_gr_context_types.size(), 1u);
   EXPECT_EQ(prefs.fallback_gr_context_types[0], gpu::GrContextType::kGL);
+#else
+  ASSERT_EQ(prefs.fallback_gr_context_types.size(), 2u);
+  EXPECT_EQ(prefs.fallback_gr_context_types[0], gpu::GrContextType::kGL);
+  EXPECT_EQ(prefs.fallback_gr_context_types[1], gpu::GrContextType::kNone);
+#endif
 }
 
 // GL mode: gr_context_type is kGL and there are no hardware fallbacks left.
@@ -541,11 +547,16 @@ TEST_F(GpuDataManagerImplPrivateTest,
   manager->UpdateGpuPreferences(&prefs, GPU_PROCESS_KIND_SANDBOXED);
 
   EXPECT_EQ(gpu::GrContextType::kGL, prefs.gr_context_type);
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
   EXPECT_TRUE(prefs.fallback_gr_context_types.empty());
+#else
+  ASSERT_EQ(prefs.fallback_gr_context_types.size(), 1u);
+  EXPECT_EQ(prefs.fallback_gr_context_types[0], gpu::GrContextType::kNone);
+#endif
 }
 
-// After falling back from Graphite to GL, fallback_gr_context_types is empty
-// since no hardware modes remain.
+// After falling back from Graphite to GL, fallback_gr_context_types has no hardware
+// types since no hardware modes remain.
 TEST_F(GpuDataManagerImplPrivateTest,
        UpdateGpuPreferences_AfterGraphiteFallbackToGL) {
   base::CommandLine::ForCurrentProcess()->AppendSwitch(
@@ -566,7 +577,12 @@ TEST_F(GpuDataManagerImplPrivateTest,
   manager->UpdateGpuPreferences(&prefs, GPU_PROCESS_KIND_SANDBOXED);
 
   EXPECT_EQ(gpu::GrContextType::kGL, prefs.gr_context_type);
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
   EXPECT_TRUE(prefs.fallback_gr_context_types.empty());
+#else
+  ASSERT_EQ(prefs.fallback_gr_context_types.size(), 1u);
+  EXPECT_EQ(prefs.fallback_gr_context_types[0], gpu::GrContextType::kNone);
+#endif
 }
 
 // Graphite mode with Vulkan also enabled: fallback list contains both kVulkan
@@ -591,9 +607,16 @@ TEST_F(GpuDataManagerImplPrivateTest,
 
   EXPECT_EQ(gpu::GrContextType::kGraphiteDawn, prefs.gr_context_type);
   // kVulkan is at front (tried first); kGL is at back.
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
   ASSERT_EQ(prefs.fallback_gr_context_types.size(), 2u);
   EXPECT_EQ(prefs.fallback_gr_context_types[0], gpu::GrContextType::kVulkan);
   EXPECT_EQ(prefs.fallback_gr_context_types[1], gpu::GrContextType::kGL);
+#else
+  ASSERT_EQ(prefs.fallback_gr_context_types.size(), 3u);
+  EXPECT_EQ(prefs.fallback_gr_context_types[0], gpu::GrContextType::kVulkan);
+  EXPECT_EQ(prefs.fallback_gr_context_types[1], gpu::GrContextType::kGL);
+  EXPECT_EQ(prefs.fallback_gr_context_types[2], gpu::GrContextType::kNone);
+#endif
 }
 #endif  // !(BUILDFLAG(IS_MAC) && defined(ARCH_CPU_ARM64))
 

@@ -17,7 +17,6 @@
 #include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/values.h"
-#include "chromeos/crosapi/mojom/local_printer.mojom.h"
 #include "chromeos/printing/printer_configuration.h"
 #include "components/cloud_devices/common/cloud_device_description.h"
 #include "components/cloud_devices/common/printer_description.h"

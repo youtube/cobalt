@@ -226,6 +226,9 @@ bool IsCoreSchedulingAvailable();
 int NumberOfPhysicalCores();
 }  // namespace system
 }  // namespace chromeos
+namespace client_certificates {
+class KcerPrivateKey;
+}  // namespace client_certificates
 namespace content {
 class BrowserGpuChannelHostFactory;
 class BrowserMainLoop;
@@ -769,6 +772,7 @@ class BASE_EXPORT ScopedAllowBaseSyncPrimitives {
   friend class blink::WorkerThread;
   friend class blink::scheduler::NonMainThreadImpl;
   friend class cc::CategorizedWorkerPoolJob;
+  friend class client_certificates::KcerPrivateKey;
   friend class content::BrowserMainLoop;
   friend class content::BrowserProcessIOThread;
   friend class content::DWriteFontCollectionProxy;

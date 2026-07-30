@@ -687,7 +687,7 @@ bool Host::IsWidgetShowing(GlicWebClientAccess* client) const {
   return delegate_->IsShowing();
 }
 
-mojom::PanelState Host::GetPanelState(GlicWebClientAccess* client) const {
+mojom::PanelState Host::GetPanelState() const {
   return glic_instance_ ? glic_instance_->GetPanelState() : mojom::PanelState();
 }
 

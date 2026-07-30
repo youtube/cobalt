@@ -55,7 +55,7 @@ base::FileErrorOr<int> FileSystemAccessRegularFileDelegate::Read(
   CHECK_GE(offset, 0);
 
   if (std::optional<size_t> bytes_read = backing_file_.Read(offset, data)) {
-    return bytes_read.value();
+    return base::checked_cast<int>(bytes_read.value());
   }
   return base::unexpected(base::File::GetLastFileError());
 }
@@ -93,7 +93,7 @@ base::FileErrorOr<int> FileSystemAccessRegularFileDelegate::Write(
 
   // Only return an error if no bytes were written. Partial writes should return
   // the number of bytes written.
-  return bytes_written.has_value() ? *bytes_written
+  return bytes_written.has_value() ? base::checked_cast<int>(*bytes_written)
                                    : base::File::GetLastFileError();
 }
 

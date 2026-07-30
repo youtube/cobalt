@@ -24,7 +24,6 @@
 #include "ui/events/event.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/image/image_skia_operations.h"
-#include "ui/gfx/vector_icon_types.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/animation/ink_drop.h"
 #include "ui/views/animation/ink_drop_host.h"
@@ -37,7 +36,6 @@
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/paint_info.h"
 #include "ui/views/style/typography.h"
-#include "ui/views/vector_icons.h"
 #include "ui/views/view_class_properties.h"
 
 namespace {

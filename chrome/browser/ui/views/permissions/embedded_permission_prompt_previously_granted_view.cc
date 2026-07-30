@@ -19,9 +19,9 @@ DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(
 
 EmbeddedPermissionPromptPreviouslyGrantedView::
     EmbeddedPermissionPromptPreviouslyGrantedView(
-        Browser* browser,
+        content::WebContents* web_contents,
         base::WeakPtr<EmbeddedPermissionPromptViewDelegate> delegate)
-    : EmbeddedPermissionPromptBaseView(browser, delegate) {}
+    : EmbeddedPermissionPromptBaseView(web_contents, delegate) {}
 
 EmbeddedPermissionPromptPreviouslyGrantedView::
     ~EmbeddedPermissionPromptPreviouslyGrantedView() = default;

@@ -15,6 +15,7 @@ import org.chromium.chrome.browser.omnibox.UrlBar.UrlBarDelegate;
 import org.chromium.chrome.browser.omnibox.UrlBar.UrlBarTextContextMenuDelegate;
 import org.chromium.components.omnibox.TextSelection;
 import org.chromium.ui.modelutil.PropertyKey;
+import org.chromium.ui.modelutil.PropertyModel.ReadableObjectPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableBooleanPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableIntPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableObjectPropertyKey;
@@ -136,8 +137,8 @@ class UrlBarProperties {
             new WritableObjectPropertyKey<>();
 
     /** The callback to be notified on focus changes. */
-    public static final WritableObjectPropertyKey<Callback<Boolean>> FOCUS_CHANGE_CALLBACK =
-            new WritableObjectPropertyKey<>();
+    public static final ReadableObjectPropertyKey<Callback<Boolean>> FOCUS_CHANGE_CALLBACK =
+            new ReadableObjectPropertyKey<>();
 
     /** Specifies whether suggestions are showing below the URL bar. */
     public static final WritableBooleanPropertyKey HAS_URL_SUGGESTIONS =

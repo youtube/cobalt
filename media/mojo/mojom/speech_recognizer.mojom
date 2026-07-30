@@ -17,6 +17,11 @@ enum AvailabilityStatus {
   kDownloadable,
   kDownloading,
   kAvailable,
+  // The language pack is downloadable, and the installation can be triggered
+  // without requiring a transient user activation (gesture) in the renderer.
+  // This relaxation is typically authorized by the browser when the origin
+  // has microphone permission and the language is in the user's Accept-Languages list.
+  kDownloadableWithoutUserActivation,
 };
 
 enum SpeechRecognitionQuality {

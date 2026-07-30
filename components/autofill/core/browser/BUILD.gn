@@ -115,10 +115,12 @@ executable("country_native_names_generator") {
 
 compiled_action("generate_country_native_names") {
   tool = ":country_native_names_generator"
+  inputs = [ "$root_build_dir/icudtl.dat" ]
   outputs = [ "$target_gen_dir/geo/country_native_names_inl.h" ]
   args = [ "--output-file-path=" +
            rebase_path("$target_gen_dir/geo/country_native_names_inl.h",
                        root_build_dir) ]
+  deps = [ "//third_party/icu:copy_icudata($default_toolchain)" ]
 }
 
 proto_library("amount_extraction_heuristic_regexes_proto") {
@@ -126,6 +128,9 @@ proto_library("amount_extraction_heuristic_regexes_proto") {
 }
 
 static_library("browser") {
+  _configs = configs
+  configs = []
+  configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
   sources = [
     "at_memory/at_memory_data_type.cc",
     "at_memory/at_memory_data_type.h",
@@ -721,6 +726,8 @@ static_library("browser") {
     "payments/webauthn_callback_types.h",
     "permissions/autofill_ai/autofill_ai_permission_utils.cc",
     "permissions/autofill_ai/autofill_ai_permission_utils.h",
+    "permissions/enterprise_policy/autofill_enterprise_policy_service.cc",
+    "permissions/enterprise_policy/autofill_enterprise_policy_service.h",
     "single_field_fillers/autocomplete/autocomplete_history_manager.cc",
     "single_field_fillers/autocomplete/autocomplete_history_manager.h",
     "single_field_fillers/payments/merchant_promo_code_manager.cc",
@@ -1680,6 +1687,7 @@ source_set("unit_tests") {
     "integrators/autofill_ai/autofill_ai_labels_unittest.cc",
     "integrators/autofill_ai/autofill_ai_manager_unittest.cc",
     "integrators/autofill_ai/autofill_ai_wallet_utils_unittest.cc",
+    "integrators/autofill_ai/management_utils_unittest.cc",
     "integrators/autofill_ai/metrics/autofill_ai_logger_unittest.cc",
     "integrators/one_time_tokens/metrics/otp_form_event_logger_unittest.cc",
     "integrators/one_time_tokens/otp_field_detector_unittest.cc",
@@ -1879,6 +1887,10 @@ source_set("unit_tests") {
         [ "payments/credit_card_access_manager_mandatory_reauth_unittest.cc" ]
   }
 
+  if (is_win || is_mac || is_linux || is_chromeos) {
+    sources += [ "at_memory_promo_tracker_unittest.cc" ]
+  }
+
   if (!is_ios && !is_android) {
     sources += [
       "payments/desktop_bnpl_strategy_unittest.cc",
@@ -1891,6 +1903,7 @@ source_set("unit_tests") {
       "filling/autofill_ai/autofill_ai_access_manager_unittest.cc",
       "filling/autofill_ai/field_filling_entity_util_unittest.cc",
       "permissions/autofill_ai/autofill_ai_permission_utils_unittest.cc",
+      "permissions/enterprise_policy/autofill_enterprise_policy_service_unittest.cc",
     ]
   }
 
@@ -2001,8 +2014,8 @@ source_set("unit_tests") {
     deps += [ "//components/autofill/ios/common" ]
   }
 
-  if (is_win || is_mac || is_linux || is_chromeos) {
-    sources += [ "at_memory_promo_tracker_unittest.cc" ]
+  if (!is_fuchsia) {
+    deps += [ "//components/variations/service" ]
   }
 
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and

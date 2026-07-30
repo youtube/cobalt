@@ -478,16 +478,20 @@ export class GlicInternalsAppElement extends CrLitElement {
     const debugInfo = this.data_.debugInfo;
     const settings: Array<{label: string, value: string | boolean}> = [
       {
-        label: 'Glic Feature Flag',
-        value: debugInfo.glicFeatureEnabled,
-      },
-      {
         label: 'GlicActor Feature Flag',
         value: debugInfo.glicActorFeatureEnabled,
       },
       {
         label: 'GlicRollout Feature Flag',
         value: debugInfo.glicRolloutFeatureEnabled,
+      },
+      {
+        label: 'GlicTieredRollout Feature Flag',
+        value: debugInfo.glicTieredRolloutFeatureEnabled,
+      },
+      {
+        label: 'GlicTieredRolloutV2 Feature Flag',
+        value: debugInfo.glicTieredRolloutV2FeatureEnabled,
       },
       {
         label: 'Platform',
@@ -500,6 +504,34 @@ export class GlicInternalsAppElement extends CrLitElement {
       {
         label: 'OS Hotkey',
         value: debugInfo.hotkey || 'None',
+      },
+      {
+        label: 'Locale',
+        value: debugInfo.locale || 'None',
+      },
+      {
+        label: 'Permanent Country Code',
+        value: debugInfo.permanentCountryCode || 'None',
+      },
+      {
+        label: 'Session Country Code',
+        value: debugInfo.sessionCountryCode || 'None',
+      },
+      {
+        label: 'System Requirement Met',
+        value: debugInfo.systemRequirementMet,
+      },
+      {
+        label: 'OS Version Supported',
+        value: debugInfo.osVersionSupported,
+      },
+      {
+        label: 'Anchor Entrypoint Override Active',
+        value: debugInfo.anchorEntrypointOverrideActive,
+      },
+      {
+        label: 'Primary Account Needs Signed In',
+        value: debugInfo.primaryAccountNeedsSignedIn,
       },
     ];
 

@@ -302,7 +302,7 @@ LRESULT CALLBACK WindowImpl::WndProc(HWND hwnd,
   }
 
   if (!window)
-    return 0;
+    return DefWindowProc(hwnd, message, w_param, l_param);
 
   auto logger =
       CrashIdHelper::Get()->OnWillProcessMessages(window->debugging_id_);

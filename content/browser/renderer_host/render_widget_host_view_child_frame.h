@@ -362,6 +362,10 @@ class CONTENT_EXPORT RenderWidgetHostViewChildFrame
   // The surface client ID of the parent RenderWidgetHostView.  0 if none.
   viz::FrameSinkId parent_frame_sink_id_;
 
+  // True if there is an active frame sink hierarchy registration for
+  // `parent_frame_sink_id_` and `frame_sink_id_`.
+  bool has_frame_sink_hierarchy_registered_ = false;
+
   gfx::Insets insets_;
 
   std::unique_ptr<TouchSelectionControllerClientChildFrame>

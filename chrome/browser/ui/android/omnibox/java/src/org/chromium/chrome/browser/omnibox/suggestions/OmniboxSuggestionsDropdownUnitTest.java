@@ -10,7 +10,6 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -19,6 +18,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+
+import static org.chromium.ui.test.util.MockitoHelper.clearInvocations;
 
 import android.content.Context;
 import android.view.ContextThemeWrapper;
@@ -395,7 +396,6 @@ public class OmniboxSuggestionsDropdownUnitTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void testActivationChip() {
         doReturn(mChipVisibilitySupplier)
                 .when(mFuseboxCoordinator)
@@ -425,8 +425,8 @@ public class OmniboxSuggestionsDropdownUnitTest {
                 KeyEvent.KEYCODE_ENTER, new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER));
         verify(mFuseboxCoordinator).onActivationChipClicked();
 
-        clearInvocations(mFuseboxCoordinator);
         mChipVisibilitySupplier.set(false);
+        clearInvocations(mFuseboxCoordinator);
 
         controller.setPosition(1);
         verify(mFuseboxCoordinator, never()).onActivationChipSelectionChanged(anyBoolean());

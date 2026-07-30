@@ -58,7 +58,7 @@ class TabModelObserverJniBridge {
 
   void WillAddTab(JNIEnv* env, TabAndroid* tab, int type);
 
-  void DidAddTab(JNIEnv* env, TabAndroid* tab, int type);
+  void DidAddTab(JNIEnv* env, TabAndroid* tab, int type, int index);
 
   void DidMoveTab(JNIEnv* env, TabAndroid* tab, int new_index, int cur_index);
 
@@ -66,9 +66,11 @@ class TabModelObserverJniBridge {
                          const std::vector<TabAndroid*>& tabs,
                          int source);
 
-  void TabClosureUndone(JNIEnv* env, TabAndroid* tab);
+  void TabClosureUndone(JNIEnv* env, TabAndroid* tab, int index);
 
-  void OnTabCloseUndone(JNIEnv* env, const std::vector<TabAndroid*>& tabs);
+  void OnTabCloseUndone(JNIEnv* env,
+                        const std::vector<TabAndroid*>& tabs,
+                        const std::vector<int>& indices);
 
   void OnTabsSelectionChanged(JNIEnv* env);
 

@@ -63,13 +63,12 @@ enum class RegexFeature : uint8_t {
   // features are added and removed.
   kUnusedDummyFeature = 0,
   kAutofillGreekRegexes = 1,
-  kAutofillSupportPhoneticNameForJP = 2,
-  kAutofillSupportSplitZipCode = 3,
-  kAutofillDisallowMoreHyphenLikeLabels = 4,
-  kAutofillFixStateCountryMisclassification = 5,
-  kAutofillFixCivilStateMisclassificationForESPT = 6,
-  kAutofillNewRegexForPhoneCountryCode = 7,
-  kAutofillSupportCombinedZipAndCityFR = 8,
+  kAutofillSupportSplitZipCode = 2,
+  kAutofillDisallowMoreHyphenLikeLabels = 3,
+  kAutofillFixStateCountryMisclassification = 4,
+  kAutofillFixCivilStateMisclassificationForESPT = 5,
+  kAutofillNewRegexForPhoneCountryCode = 6,
+  kAutofillSupportCombinedZipAndCityFR = 7,
   kMaxValue = kAutofillSupportCombinedZipAndCityFR,
 };
 

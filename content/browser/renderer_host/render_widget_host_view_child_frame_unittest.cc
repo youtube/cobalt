@@ -218,6 +218,18 @@ class RenderWidgetHostViewChildFrameTest
     return static_cast<MockChildFrameInputHelper*>(view_->input_helper_.get());
   }
 
+  void SetParentFrameSinkId(const viz::FrameSinkId& parent_frame_sink_id) {
+    view_->SetParentFrameSinkId(parent_frame_sink_id);
+  }
+
+  bool ConnectionHasRegisteredHierarchy() const {
+    return view_->has_frame_sink_hierarchy_registered_;
+  }
+
+  viz::FrameSinkId GetParentFrameSinkId() const {
+    return view_->parent_frame_sink_id_;
+  }
+
  protected:
   std::unique_ptr<MockRenderProcessHost> process_host_;
   scoped_refptr<SiteInstanceGroup> site_instance_group_;
@@ -521,6 +533,33 @@ TEST_F(RenderWidgetHostViewChildFrameTest,
        InvalidateLocalSurfaceIdAndAllocationGroup) {
   // Calling this method on a child frame should be a no-op and not crash.
   view_->InvalidateLocalSurfaceIdAndAllocationGroup();
+}
+
+TEST_F(RenderWidgetHostViewChildFrameTest,
+       SetParentFrameSinkIdFailedRegistration) {
+  // Create a parent FrameSinkId. We do NOT register it in HostFrameSinkManager,
+  // so hierarchy registration should fail.
+  viz::FrameSinkId parent_frame_sink_id(99, 99);
+
+  // Initially, hierarchy should not be registered.
+  EXPECT_FALSE(ConnectionHasRegisteredHierarchy());
+
+  // Call SetParentFrameSinkId with the unregistered parent ID.
+  // This should attempt to register but fail, leaving the flag false.
+  SetParentFrameSinkId(parent_frame_sink_id);
+  EXPECT_FALSE(ConnectionHasRegisteredHierarchy());
+  EXPECT_EQ(parent_frame_sink_id, GetParentFrameSinkId());
+
+  // Call SetParentFrameSinkId again with an invalid ID.
+  // This should attempt to unregister the previous parent.
+  // If we didn't track the registration state, this would call
+  // UnregisterFrameSinkHierarchy and crash because the parent was never
+  // registered.
+  // With the fix, it should notice registration failed and NOT call
+  // UnregisterFrameSinkHierarchy.
+  SetParentFrameSinkId(viz::FrameSinkId());
+  EXPECT_FALSE(ConnectionHasRegisteredHierarchy());
+  EXPECT_FALSE(GetParentFrameSinkId().is_valid());
 }
 
 }  // namespace content

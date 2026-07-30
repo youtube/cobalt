@@ -11,6 +11,7 @@
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/containers/fixed_flat_map.h"
+#include "base/files/file_path.h"
 #include "base/memory/raw_span.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/strcat.h"
@@ -23,6 +24,7 @@
 #include "base/types/zip.h"
 #include "base/version.h"
 #include "services/webnn/ort/logging.h"
+#include "services/webnn/ort/ort_data_type.h"
 #include "services/webnn/ort/ort_status.h"
 #include "services/webnn/ort/platform_functions_ort.h"
 #include "services/webnn/public/mojom/webnn_service_introspection.mojom-forward.h"
@@ -510,16 +512,17 @@ std::vector<const OrtEpDevice*> SortEpDevices(
   return sorted_devices;
 }
 
-// Indicates the information of an execution provider device.
-struct EpDeviceInfo {
+// Indicates the information of a user-specified execution provider device
+// parsed from the --webnn-ort-ep-device command line switch.
+struct SpecifiedEpDeviceInfo {
   std::string ep_name;
   uint32_t hardware_vendor_id;
   uint32_t hardware_device_id;
 };
 
-// Parses the value of --webnn-ort-ep-device switch into an EpDeviceInfo.
-// Returns an error string if the value is invalid.
-base::expected<EpDeviceInfo, std::string> ParseEpDeviceSwitch(
+// Parses the value of --webnn-ort-ep-device switch into a
+// SpecifiedEpDeviceInfo. Returns an error string if the value is invalid.
+base::expected<SpecifiedEpDeviceInfo, std::string> ParseEpDeviceSwitch(
     std::string_view value) {
   std::vector<std::string> parts = base::SplitString(
       value, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
@@ -530,7 +533,7 @@ base::expected<EpDeviceInfo, std::string> ParseEpDeviceSwitch(
         "hardware_vendor_id and hardware_device_id are hexadecimal strings.");
   }
 
-  EpDeviceInfo info;
+  SpecifiedEpDeviceInfo info;
   info.ep_name = parts[0];
 
   if (!base::HexStringToUInt(parts[1], &info.hardware_vendor_id) ||
@@ -543,9 +546,9 @@ base::expected<EpDeviceInfo, std::string> ParseEpDeviceSwitch(
   return info;
 }
 
-// Returns true if the device matches the user-specified EpDeviceInfo.
+// Returns true if the device matches the user-specified SpecifiedEpDeviceInfo.
 bool MatchSpecifiedEpDevice(const OrtEpDevice* ep_device,
-                            const EpDeviceInfo& ep_device_info,
+                            const SpecifiedEpDeviceInfo& ep_device_info,
                             const OrtApi* ort_api) {
   std::string_view ep_name = ort_api->EpDevice_EpName(ep_device);
   uint32_t hardware_vendor_id =
@@ -563,7 +566,7 @@ bool MatchSpecifiedEpDevice(const OrtEpDevice* ep_device,
 const OrtEpDevice* SelectUserSpecifiedEpDevice(
     base::span<const OrtEpDevice* const> available_devices,
     std::string_view switch_value) {
-  base::expected<EpDeviceInfo, std::string> ep_device_info_result =
+  base::expected<SpecifiedEpDeviceInfo, std::string> ep_device_info_result =
       ParseEpDeviceSwitch(switch_value);
   if (!ep_device_info_result.has_value()) {
     LOG(ERROR)
@@ -572,7 +575,8 @@ const OrtEpDevice* SelectUserSpecifiedEpDevice(
     return nullptr;
   }
 
-  const EpDeviceInfo& specified_ep_device = ep_device_info_result.value();
+  const SpecifiedEpDeviceInfo& specified_ep_device =
+      ep_device_info_result.value();
   const OrtApi* ort_api = PlatformFunctions::GetInstance()->ort_api();
   // Find the first matching device.
   auto it = std::find_if(available_devices.begin(), available_devices.end(),
@@ -655,6 +659,20 @@ Environment::GetOrCreateInstance(
 }
 
 // static
+// TODO(crbug.com/502249078): Replace this function with CreateForCompiler() and
+// ensure the Compiler process only calls it once per its lifetime.
+base::expected<scoped_refptr<Environment>, std::string>
+Environment::GetOrCreateInstanceForCompiler(
+    const std::string& ep_name,
+    const base::FilePath& ep_library_path) {
+  base::AutoLock auto_lock(GetLock());
+  if (instance_) {
+    return base::WrapRefCounted(instance_);
+  }
+  return CreateForCompiler(ep_name, ep_library_path);
+}
+
+// static
 base::expected<scoped_refptr<Environment>, std::string> Environment::Create(
     const base::flat_map<std::string, mojom::EpPackageInfoPtr>&
         ep_package_info_map) {
@@ -718,6 +736,67 @@ base::expected<scoped_refptr<Environment>, std::string> Environment::Create(
     CALL_ORT_FUNC(ort_api->RegisterExecutionProviderLibrary(
         env.get(), ep_name.c_str(),
         package_info->library_path.value().c_str()));
+  }
+
+  if (ort_logging_level == ORT_LOGGING_LEVEL_VERBOSE ||
+      ort_logging_level == ORT_LOGGING_LEVEL_INFO) {
+    // Logs all registered EP devices in this environment.
+    LogEpDevices(ort_api, GetRegisteredEpDevicesImpl(ort_api, env.get()),
+                 "Registered OrtEpDevice");
+  }
+
+  return base::MakeRefCounted<Environment>(base::PassKey<Environment>(),
+                                           std::move(env));
+}
+
+// static
+base::expected<scoped_refptr<Environment>, std::string>
+Environment::CreateForCompiler(const std::string& ep_name,
+                               const base::FilePath& ep_library_path) {
+  if (!PlatformFunctions::EnsureInitialized()) {
+    return base::unexpected("Failed to get ONNX Runtime platform functions.");
+  }
+
+  const auto* platform_functions = PlatformFunctions::GetInstance();
+  const OrtApi* ort_api = platform_functions->ort_api();
+  const OrtLoggingLevel ort_logging_level = GetOrtLoggingLevel();
+
+  OrtEnvCreationOptions env_options = {
+      .version = ORT_API_VERSION,
+      .logging_severity_level = static_cast<int32_t>(ort_logging_level),
+      .log_id = "WebNN",
+      .custom_logging_function = OrtCustomLoggingFunction,
+      .custom_logging_param = nullptr,
+      .threading_options = nullptr,
+      .config_entries = nullptr,
+  };
+
+  ScopedOrtEnv env;
+  if (ORT_CALL_FAILED(ort_api->CreateEnvWithOptions(
+          &env_options, ScopedOrtEnv::Receiver(env).get()))) {
+    return base::unexpected("Failed to create the ONNX Runtime environment.");
+  }
+
+  std::string ep_name_to_register = ep_name;
+  base::FilePath ep_library_path_to_register = ep_library_path;
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kWebNNOrtEpLibraryPathForTesting)) {
+    std::wstring value =
+        base::CommandLine::ForCurrentProcess()->GetSwitchValueNative(
+            switches::kWebNNOrtEpLibraryPathForTesting);
+    auto result = ParseEpLibraryPathSwitch(value);
+    CHECK(result.has_value())
+        << "[WebNN] Invalid value of the switch "
+        << switches::kWebNNOrtEpLibraryPathForTesting << ": " << result.error();
+    ep_name_to_register = std::move(result.value().first);
+    ep_library_path_to_register = std::move(result.value().second);
+  }
+
+  if (ORT_CALL_FAILED(ort_api->RegisterExecutionProviderLibrary(
+          env.get(), ep_name_to_register.c_str(),
+          ep_library_path_to_register.value().c_str()))) {
+    return base::unexpected(
+        "Failed to register the execution provider library.");
   }
 
   if (ort_logging_level == ORT_LOGGING_LEVEL_VERBOSE ||
@@ -797,6 +876,35 @@ std::vector<const OrtEpDevice*> Environment::SelectEpDevices(
   }
 
   return selected_devices;
+}
+
+std::optional<EpDeviceInfo> Environment::SelectEpDeviceForCompiler(
+    OrtHardwareDeviceType device_type) {
+  std::vector<const OrtEpDevice*> selected_devices =
+      SelectEpDevices(GetRegisteredEpDevices(), device_type);
+  if (selected_devices.empty()) {
+    return std::nullopt;
+  }
+  // Select the first available EP device.
+  const OrtEpDevice* selected_ep_device = selected_devices[0];
+
+  const OrtApi* ort_api = PlatformFunctions::GetInstance()->ort_api();
+
+  std::string_view ep_name = ort_api->EpDevice_EpName(selected_ep_device);
+  // Only allow selecting from EPs listed in `kKnownEPs`.
+  if (kKnownEPs.find(ep_name) == kKnownEPs.end()) {
+    return std::nullopt;
+  }
+
+  const OrtHardwareDevice* hardware_device =
+      ort_api->EpDevice_Device(selected_ep_device);
+  const OrtHardwareDeviceType hardware_device_type =
+      ort_api->HardwareDevice_Type(hardware_device);
+  uint32_t device_id = ort_api->HardwareDevice_DeviceId(hardware_device);
+
+  return EpDeviceInfo{.ep_name = std::string(ep_name),
+                      .device_type = OrtToWebnnDeviceType(hardware_device_type),
+                      .device_id = device_id};
 }
 
 // static

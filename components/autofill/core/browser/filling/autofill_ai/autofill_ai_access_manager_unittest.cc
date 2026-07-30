@@ -68,19 +68,19 @@ class TestAutofillClientForAccessManager : public TestAutofillClient {
 class AutofillAiAccessManagerTest : public testing::Test {
  public:
   AutofillAiAccessManagerTest() : client_(&mock_authenticator_) {
+    personal_context_manager_ =
+        std::make_unique<NiceMock<MockPersonalContextAccessManager>>();
+    client_.set_personal_context_access_manager(
+        personal_context_manager_.get());
     client_.set_entity_data_manager(std::make_unique<EntityDataManager>(
         client_.GetPrefs(), client_.GetIdentityManager(),
         client_.GetSyncService(), helper_.autofill_webdata_service(),
-        /*history_service=*/nullptr,
+        /*history_service=*/nullptr, personal_context_manager_.get(),
         /*strike_database=*/nullptr,
         /*variation_country_code=*/GeoIpCountryCode("US")));
     client_.SetUpPrefsAndIdentityForAutofillAi();
     client_.set_wallet_pass_access_manager(
         std::make_unique<NiceMock<MockWalletPassAccessManager>>());
-    personal_context_manager_ =
-        std::make_unique<NiceMock<MockPersonalContextAccessManager>>();
-    client_.set_personal_context_access_manager(
-        personal_context_manager_.get());
 
     driver_ = std::make_unique<TestAutofillDriver>(&client_);
     manager_ = std::make_unique<TestBrowserAutofillManager>(driver_.get());
@@ -94,8 +94,16 @@ class AutofillAiAccessManagerTest : public testing::Test {
   }
 
   void AddOrUpdateEntityInstance(EntityInstance entity) {
-    edm().AddOrUpdateEntityInstance(std::move(entity));
-    helper_.WaitUntilIdle();
+    switch (entity.record_type()) {
+      case EntityInstance::RecordType::kLocal:
+      case EntityInstance::RecordType::kServerWallet:
+        edm().AddOrUpdateEntityInstance(entity);
+        helper_.WaitUntilIdle();
+        break;
+      case EntityInstance::RecordType::kPersonalContext:
+        edm().OnPrefetchContextComplete(personal_context_manager(), {entity});
+        break;
+    }
   }
 
   TestAutofillClientForAccessManager& client() { return client_; }
@@ -120,11 +128,11 @@ class AutofillAiAccessManagerTest : public testing::Test {
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   test::AutofillUnitTestEnvironment autofill_environment_;
+  std::unique_ptr<MockPersonalContextAccessManager> personal_context_manager_;
   TestAutofillClientForAccessManager client_;
   AutofillWebDataServiceTestHelper helper_{std::make_unique<EntityTable>()};
   std::unique_ptr<TestAutofillDriver> driver_;
   std::unique_ptr<TestBrowserAutofillManager> manager_;
-  std::unique_ptr<MockPersonalContextAccessManager> personal_context_manager_;
 };
 
 // Tests that when no re-authentication is required, FetchEntityInstance

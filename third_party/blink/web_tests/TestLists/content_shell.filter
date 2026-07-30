@@ -26,7 +26,7 @@ virtual/unload-allowed/wpt_internal/*
 virtual/indexeddb_leveldb/wpt_internal/*
 virtual/cpu-compositing/wpt_internal/*
 virtual/gpu/wpt_internal/*
-virtual/unbounded-element-disabled/wpt_internal/*
+virtual/unbounded-element/wpt_internal/*
 
 # Blocklisted tests fail unexpectedly on headless shell for at least one
 # platform, so continue running them on content shell.
@@ -39,29 +39,9 @@ external/wpt/client-hints/viewport-size/viewport-size-window-different-dimension
 external/wpt/compat/webkit-box-clamp-bottom-border.html
 external/wpt/compat/webkit-box-horizontal-rtl-variants.html
 external/wpt/compat/webkit-box-rtl-flex.html
-external/wpt/console/console-log-large-array.any.html
 external/wpt/content-security-policy/report-hash/*
-external/wpt/cookiestore/cookieStore_subscribe_arguments.https.any.html
-external/wpt/cookies/attributes/attributes-ctl.sub.html
-external/wpt/cookies/attributes/domain.sub.html
-external/wpt/css/compositing/mix-blend-mode/mix-blend-mode-animation.html
-external/wpt/css/compositing/mix-blend-mode/mix-blend-mode-blended-element-interposed.html
 external/wpt/css/compositing/mix-blend-mode/mix-blend-mode-blended-with-transform-and-perspective.html
-external/wpt/css/compositing/mix-blend-mode/mix-blend-mode-border-image.html
 external/wpt/css/compositing/mix-blend-mode/mix-blend-mode-both-parent-and-blended-with-3D-transform.html
-external/wpt/css/compositing/mix-blend-mode/mix-blend-mode-canvas-parent.html
-external/wpt/css/compositing/mix-blend-mode/mix-blend-mode-canvas-sibling.html
-external/wpt/css/compositing/mix-blend-mode/mix-blend-mode-filter.html
-external/wpt/css/compositing/mix-blend-mode/mix-blend-mode-iframe-parent.html
-external/wpt/css/compositing/mix-blend-mode/mix-blend-mode-iframe-sibling.html
-external/wpt/css/compositing/mix-blend-mode/mix-blend-mode-mask.html
-external/wpt/css/compositing/mix-blend-mode/mix-blend-mode-paragraph-background-image.html
-external/wpt/css/compositing/mix-blend-mode/mix-blend-mode-paragraph.html
-external/wpt/css/compositing/mix-blend-mode/mix-blend-mode-parent-with-text.html
-external/wpt/css/compositing/mix-blend-mode/mix-blend-mode-script.html
-external/wpt/css/compositing/mix-blend-mode/mix-blend-mode-simple.html
-external/wpt/css/compositing/mix-blend-mode/mix-blend-mode-stacking-context-001.html
-external/wpt/css/compositing/mix-blend-mode/mix-blend-mode-svg.html
 external/wpt/css/compositing/mix-blend-mode/mix-blend-mode-with-transform-and-preserve-3D.html
 external/wpt/css/compositing/root-element-opacity-change.html
 external/wpt/css/compositing/svg/mix-blend-mode-svg-rectangle.html
@@ -392,13 +372,7 @@ external/wpt/css/css-writing-modes/mongolian-orientation-002.html
 external/wpt/css/css-writing-modes/relpos-inline-overflowing-block-vrl.html
 external/wpt/css/css-writing-modes/sizing-orthog-htb-*
 external/wpt/css/css-writing-modes/wm-propagation-*
-external/wpt/css/filter-effects/css-filters-animation-opacity.html
 external/wpt/css/filter-effects/drop-shadow-currentcolor-dynamic-003.html
-external/wpt/css/filter-effects/clip-under-filter-001.html
-external/wpt/css/filter-effects/clip-under-filter-002.html
-external/wpt/css/filter-effects/effect-reference-on-span.html
-external/wpt/css/filter-effects/filtered-html-is-not-container.html
-external/wpt/css/filter-effects/repaint-added-backdrop-filter.html
 external/wpt/css/mediaqueries/test_media_queries.html
 external/wpt/css/motion/offset-path-*
 external/wpt/css/selectors/dir-style-04.html
@@ -412,7 +386,6 @@ external/wpt/density-size-correction/density-corrected-image-in-canvas.html
 external/wpt/dom/events/scrolling/input-text-scroll-event-when-using-arrow-keys.html
 external/wpt/dom/events/scrolling/scrollend-event-fired-after-snap.html
 external/wpt/dom/events/scrolling/scrollend-event-fires-on-visual-viewport.html
-external/wpt/dom/events/scrolling/scrollend-event-fires-to-iframe-window.html
 external/wpt/dom/events/scrolling/wheel-event-transactions-basic.html?include=scroll-over-scrollable-child
 external/wpt/dom/events/scrolling/wheel-event-transactions-basic.html?include=target-basic
 external/wpt/dom/events/scrolling/wheel-event-transactions-target-display-change.html?include=contents

@@ -6,15 +6,20 @@
 #define CONTENT_BROWSER_WEBNN_WEBNN_COMPILER_PROCESS_HOST_H_
 
 #include "base/containers/flat_map.h"
+#include "base/memory/weak_ptr.h"
 #include "content/common/content_export.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "services/webnn/public/cpp/context_properties.h"
+#include "services/webnn/public/cpp/ep_device_info.h"
 #include "services/webnn/public/mojom/ep_package_info.mojom.h"
 #include "services/webnn/public/mojom/webnn_compiler_service.mojom.h"
 
+namespace webnn {
+struct ContextProperties;
+}
+
 namespace content {
 
-// Manages the WebNN Compiler utility process lifecycle and related behavior.
+// Manages the WebNN Compiler utility processes lifecycle and related behavior.
 // Examples include process launch-on-demand, disconnect handling, crash
 // throttling, and brokered CompilerContext creation. Owned by GpuProcessHost.
 //
@@ -32,23 +37,38 @@ class CONTENT_EXPORT WebNNCompilerProcessHost {
 
   ~WebNNCompilerProcessHost();
 
-  // Requests a new CompilerContext from the Compiler process, launching
-  // the process if needed. Calls |callback| with a null remote/receiver
-  // on failure.
+  // Requests a new CompilerContext for `target_device` from its Compiler
+  // process. Each EP device has its own Compiler process, which is launched on
+  // demand if not already running. On failure, `callback` is run with a null
+  // remote and receiver.
   void RequestCompilerContext(
       webnn::mojom::CreateContextOptionsPtr context_options,
       const webnn::ContextProperties& context_properties,
-      base::flat_map<std::string, webnn::mojom::EpPackageInfoPtr>
-          ep_package_info,
+      const webnn::EpDeviceInfo& target_device,
       RequestCallback callback);
 
  private:
   // Launches the WebNN Compiler utility process and returns its mojo remote.
   mojo::Remote<webnn::mojom::WebNNCompilerService> LaunchCompilerProcess();
 
-  void OnDisconnected(uint32_t reason, const std::string& description);
+  void OnEpsResolvedForCompilerContext(
+      webnn::mojom::CreateContextOptionsPtr context_options,
+      const webnn::ContextProperties& context_properties,
+      const webnn::EpDeviceInfo& target_device,
+      RequestCallback callback,
+      base::flat_map<std::string, webnn::mojom::EpPackageInfoPtr>
+          ep_package_info_map);
 
-  mojo::Remote<webnn::mojom::WebNNCompilerService> remote_;
+  void OnDisconnected(const webnn::EpDeviceInfo& device_info,
+                      uint32_t reason,
+                      const std::string& description);
+
+  // Per-EP-device remotes to Compiler processes.
+  base::flat_map<webnn::EpDeviceInfo,
+                 mojo::Remote<webnn::mojom::WebNNCompilerService>>
+      webnn_compiler_remotes_;
+
+  base::WeakPtrFactory<WebNNCompilerProcessHost> weak_ptr_factory_{this};
 };
 
 }  // namespace content

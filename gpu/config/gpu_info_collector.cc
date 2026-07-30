@@ -167,8 +167,6 @@ std::string GetDisplayTypeString(gl::DisplayType type) {
       return "SWIFT_SHADER";
     case gl::ANGLE_WARP:
       return "ANGLE_WARP";
-    case gl::ANGLE_D3D9:
-      return "ANGLE_D3D9";
     case gl::ANGLE_D3D11:
       return "ANGLE_D3D11";
     case gl::ANGLE_OPENGL:

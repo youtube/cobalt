@@ -1369,6 +1369,9 @@ void NativeWidgetNSWindowBridge::OnWindowWillClose() {
   [window_ setCommandDispatcherDelegate:nil];
 
   ui::CATransactionCoordinator::Get().RemovePreCommitObserver(this);
+  // This is the standard teardown path when the NSWindow is closing.
+  // Notify the host process that the window is closing so that it can
+  // tear down the browser-side widget/window structures.
   host_->OnWindowWillClose();
 
   // Ensure NativeWidgetNSWindowBridge does not have capture, otherwise
@@ -2237,6 +2240,7 @@ void NativeWidgetNSWindowBridge::ShowAsModalSheet() {
               // key window, it would try to show us as a new modal sheet.
               wants_to_be_visible_ = false;
               [window orderOut:nil];
+              // Notify that the sheet window is closing.
               OnWindowWillClose();
             }];
   });

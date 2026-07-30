@@ -35,9 +35,8 @@
   return self;
 }
 
-- (void)configureCell:(ManualFillActionCell*)cell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:cell withStyler:styler];
+- (void)configureCell:(ManualFillActionCell*)cell {
+  [super configureCell:cell];
   cell.accessibilityIdentifier = nil;
   [cell setUpWithTitle:self.title
        accessibilityID:self.accessibilityIdentifier

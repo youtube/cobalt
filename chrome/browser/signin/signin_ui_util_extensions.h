@@ -10,6 +10,7 @@
 #include "base/auto_reset.h"
 #include "build/buildflag.h"
 #include "components/signin/public/base/signin_buildflags.h"
+#include "extensions/buildflags/buildflags.h"
 
 class Profile;
 
@@ -23,10 +24,8 @@ void ShowExtensionSigninPrompt(Profile* profile,
                                bool enable_sync,
                                const std::string& email_hint);
 
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
 base::AutoReset<signin_ui_util::SigninUiDelegate*>
 SetSigninUiDelegateForExtensionsTesting(
     signin_ui_util::SigninUiDelegate* delegate);
-#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 #endif  // CHROME_BROWSER_SIGNIN_SIGNIN_UI_UTIL_EXTENSIONS_H_

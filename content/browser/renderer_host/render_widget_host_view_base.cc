@@ -20,7 +20,6 @@
 #include "components/input/render_widget_host_input_event_router.h"
 #include "components/input/render_widget_host_view_input_observer.h"
 #include "components/viz/common/features.h"
-#include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "components/viz/common/surfaces/subtree_capture_id.h"
 #include "components/viz/host/host_frame_sink_manager.h"
 #include "content/browser/compositor/surface_utils.h"
@@ -43,6 +42,7 @@
 #include "content/common/features.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/common/page_visibility_state.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/frame/intrinsic_sizing_info.mojom.h"
 #include "third_party/blink/public/mojom/unbounded_element/unbounded_element.mojom.h"
 #include "ui/base/ui_base_types.h"
@@ -211,47 +211,67 @@ void RenderWidgetHostViewBase::CopyMainAndPopupFromSurface(
          "DelegatedFrameHostAndroid::CopyFromCompositingSurface directly, "
          "and popups are not supported.";
 #else
-  if (!popup_host || !popup_frame_host) {
-    // No popup - just call CopyFromCompositingSurface once.
+  RenderWidgetHostViewBase* main_view =
+      main_host ? static_cast<RenderWidgetHostViewBase*>(main_host->GetView())
+                : nullptr;
+  UnboundedSurfaceWindow* unbounded_window =
+      main_view && main_view->HasActiveUnboundedSurface()
+          ? main_view->GetUnboundedSurfaceWindow()
+          : nullptr;
+  const bool has_popup = popup_host && popup_frame_host;
+  CHECK(!has_popup || !unbounded_window);
+
+  if (!has_popup && !unbounded_window) {
+    // No popup or unbounded window - just call CopyFromCompositingSurface
+    // once.
     main_frame_host->CopyFromCompositingSurface(src_subrect, dst_size, timeout,
                                                 std::move(callback));
     return;
   }
 
-  // First locate the popup relative to the main page, in DIPs
+  // First locate the secondary window relative to the main page, in DIPs
   const gfx::Point parent_location =
-      main_host->GetView()->GetViewBounds().origin();
-  const gfx::Point popup_location =
-      popup_host->GetView()->GetViewBounds().origin();
+      main_view ? main_view->GetViewBounds().origin() : gfx::Point();
+  gfx::Point secondary_location;
+  if (popup_host && popup_frame_host) {
+    secondary_location = popup_host->GetView()->GetViewBounds().origin();
+  } else if (unbounded_window) {
+    DCHECK(base::FeatureList::IsEnabled(blink::features::kUnboundedElement));
+    secondary_location = unbounded_window->GetBounds().origin();
+  }
 
   const gfx::Point offset_dips =
-      PointAtOffsetFromOrigin(popup_location - parent_location);
+      PointAtOffsetFromOrigin(secondary_location - parent_location);
   const gfx::Vector2d offset_physical =
       ScaleToFlooredPoint(offset_dips, scale_factor).OffsetFromOrigin();
 
   // Queue up the request for the MAIN frame image first, but with a
-  // callback that launches a second request for the popup image.
-  //  1. Call CopyFromCompositingSurface for the main frame, with callback
-  //     |main_image_done_callback|. Inside |main_image_done_callback|:
-  //    a. Call CopyFromCompositingSurface again, this time on the popup
-  //       frame. For this call, build a new callback, |popup_done_callback|,
-  //       which:
-  //      i. Takes the main image as a parameter, combines the main image with
-  //         the just-acquired popup image, and then calls the original
-  //         (outer) callback with the combined image.
+  // callback that launches a second request for the secondary image.
   auto main_image_done_callback = base::BindOnce(
       [](base::OnceCallback<void(const content::CopyFromSurfaceResult&)>
              final_callback,
-         const gfx::Vector2d offset,
+         const gfx::Vector2d offset, const bool was_capturing_popup,
+         base::WeakPtr<RenderWidgetHostImpl> main_host,
+         base::WeakPtr<RenderWidgetHostImpl> popup_host,
          base::WeakPtr<DelegatedFrameHost> popup_frame_host,
          const gfx::Rect src_subrect, const gfx::Size dst_size,
          base::TimeDelta timeout,
          const content::CopyFromSurfaceResult& main_result) {
-        if (!popup_frame_host) {
+        RenderWidgetHostViewBase* main_view =
+            main_host
+                ? static_cast<RenderWidgetHostViewBase*>(main_host->GetView())
+                : nullptr;
+        UnboundedSurfaceWindow* unbounded_window =
+            main_view && main_view->HasActiveUnboundedSurface()
+                ? main_view->GetUnboundedSurfaceWindow()
+                : nullptr;
+
+        const bool has_popup = popup_host && popup_frame_host;
+        const bool secondary_surface_available =
+            was_capturing_popup ? has_popup : !!unbounded_window;
+        if (!secondary_surface_available) {
           if (base::FeatureList::IsEnabled(
                   features::kCopyFromSurfaceAlwaysCallCallback)) {
-            // There was a popup but it went away before we could capture it, so
-            // there's no need to capture more images.
             std::move(final_callback).Run(main_result);
           }
           return;
@@ -272,8 +292,8 @@ void RenderWidgetHostViewBase::CopyMainAndPopupFromSurface(
               }
 
               if (popup_result.has_value()) {
-                // Draw popup_image into main_image only if popup_image is
-                // valid.
+                // Draw secondary image into main_image only if secondary_image
+                // is valid.
                 SkCanvas canvas(main_result->bitmap, SkSurfaceProps{});
                 canvas.drawImage(popup_result->bitmap.asImage(), offset.x(),
                                  offset.y());
@@ -283,13 +303,25 @@ void RenderWidgetHostViewBase::CopyMainAndPopupFromSurface(
             },
             std::move(final_callback), offset, main_result);
 
-        // Second, request the popup image.
-        gfx::Rect popup_subrect(src_subrect - offset);
-        popup_frame_host->CopyFromCompositingSurface(
-            popup_subrect, dst_size, timeout, std::move(popup_done_callback));
+        // Second, request the secondary image.
+        if (was_capturing_popup) {
+          CHECK(has_popup);
+          gfx::Rect popup_subrect(src_subrect - offset);
+          popup_frame_host->CopyFromCompositingSurface(
+              popup_subrect, dst_size, timeout, std::move(popup_done_callback));
+          return;
+        } else {
+          CHECK(unbounded_window);
+          DCHECK(
+              base::FeatureList::IsEnabled(blink::features::kUnboundedElement));
+          gfx::Rect popup_subrect(src_subrect - offset);
+          unbounded_window->CopyFromSurface(popup_subrect, dst_size, timeout,
+                                            std::move(popup_done_callback));
+          return;
+        }
       },
-      std::move(callback), offset_physical, popup_frame_host, src_subrect,
-      dst_size, timeout);
+      std::move(callback), offset_physical, has_popup, main_host, popup_host,
+      popup_frame_host, src_subrect, dst_size, timeout);
 
   // Request the main image (happens first).
   main_frame_host->CopyFromCompositingSurface(

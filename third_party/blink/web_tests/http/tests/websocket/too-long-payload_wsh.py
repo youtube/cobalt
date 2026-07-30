@@ -1,7 +1,7 @@
 import struct
 import time
-from mod_pywebsocket import common
-from mod_pywebsocket import util
+from pywebsocket3 import common
+from pywebsocket3 import util
 
 
 def web_socket_do_extra_handshake(request):

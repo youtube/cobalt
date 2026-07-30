@@ -14,6 +14,15 @@ import type {BrokerStateInfo} from './model_broker_debug.mojom-webui.js';
 import {browserProxyFactory} from './on_device_internals_page.mojom-webui.js';
 import type {BrowserProxy} from './on_device_internals_page.mojom-webui.js';
 
+const MANIFEST_CRITERIA_NAMES = [
+  'Enabled by feature flag',
+  'Enabled by enterprise policy',
+  'Enabled by user setting',
+  'Enough VRAM',
+  'Device Capable',
+  'Disk space available',
+];
+
 export class OnDeviceInternalsBrokerStateElement extends CrLitElement {
   static get is() {
     return 'on-device-internals-broker-state';
@@ -38,7 +47,20 @@ export class OnDeviceInternalsBrokerStateElement extends CrLitElement {
     assets: [],
     useCases: [],
     models: [],
+    modelCrashCount: null,
+    maxModelCrashCount: null,
   };
+
+  protected get manifestCriteria() {
+    return MANIFEST_CRITERIA_NAMES
+        .map(name => this.state_.properties.find(p => p.description === name))
+        .filter(p => p !== undefined);
+  }
+
+  protected get otherProperties() {
+    return this.state_.properties.filter(
+        p => !MANIFEST_CRITERIA_NAMES.includes(p.description));
+  }
 
   private proxy_: BrowserProxy = browserProxyFactory.getInstance();
   private brokerDebug_ = new ModelBrokerDebugRemote();
@@ -56,6 +78,11 @@ export class OnDeviceInternalsBrokerStateElement extends CrLitElement {
 
   protected async onUninstallModelsClick_() {
     await this.brokerDebug_.uninstallModels();
+    this.getBrokerState_();
+  }
+
+  protected async onResetCrashCountClick_() {
+    await this.brokerDebug_.resetModelCrashCount();
     this.getBrokerState_();
   }
 

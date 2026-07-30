@@ -547,6 +547,12 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
       const base::android::ScopedJavaLocalRef<jobject>& obj,
       BrowserAccessibilityAndroid* node);
 
+  void PopulateAccessibilityNodeInfoMathAttributes(
+      JNIEnv* env,
+      const base::android::JavaRef<jobject>& info,
+      const base::android::ScopedJavaLocalRef<jobject>& obj,
+      BrowserAccessibilityAndroid* node);
+
   void UpdateAccessibilityNodeInfoBoundsRect(
       JNIEnv* env,
       const base::android::ScopedJavaLocalRef<jobject>& obj,

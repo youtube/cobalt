@@ -263,9 +263,10 @@ PresentationReceiverWindowView::GetContentSettingBubbleModelDelegate() {
   NOTREACHED();
 }
 
-void PresentationReceiverWindowView::ExecuteCommandWithDisposition(
+void PresentationReceiverWindowView::HandleCommandWithDisposition(
     int id,
-    WindowOpenDisposition disposition) {
+    WindowOpenDisposition disposition,
+    base::TimeTicks time_stamp) {
   NOTREACHED();
 }
 

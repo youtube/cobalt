@@ -9,6 +9,7 @@
 
 #include "base/barrier_closure.h"
 #include "base/files/file_util.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/sequenced_task_runner.h"
@@ -99,6 +100,30 @@ PrivateVerificationTokensStore::public_keys() const {
 const std::map<std::string, TokenWithId>&
 PrivateVerificationTokensStore::tokens() const {
   return tokens_;
+}
+
+void PrivateVerificationTokensStore::DeleteAllTokens() {
+  DeleteTokens(std::nullopt, std::nullopt, base::DoNothing());
+  tokens_.clear();
+}
+
+void PrivateVerificationTokensStore::DeleteTokens(
+    std::optional<base::Time> delete_begin,
+    std::optional<std::string> etld_plus_one,
+    base::OnceClosure callback) {
+  database_.AsyncCall(&PrivateVerificationTokensDatabase::DeleteTokens)
+      .WithArgs(delete_begin, etld_plus_one)
+      .Then(base::BindOnce(&PrivateVerificationTokensStore::OnTokensDeleted,
+                           weak_ptr_factory_.GetWeakPtr(),
+                           std::move(callback)));
+}
+
+void PrivateVerificationTokensStore::OnTokensDeleted(base::OnceClosure callback,
+                                                     bool success) {
+  database_.AsyncCall(&PrivateVerificationTokensDatabase::GetTokensFromEach)
+      .Then(base::BindOnce(&PrivateVerificationTokensStore::CacheTokens,
+                           weak_ptr_factory_.GetWeakPtr())
+                .Then(std::move(callback)));
 }
 
 PrivateVerificationTokensStore::~PrivateVerificationTokensStore() = default;

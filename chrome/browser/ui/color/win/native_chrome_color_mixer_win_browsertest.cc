@@ -34,7 +34,7 @@ IN_PROC_BROWSER_TEST_F(NativeChromeColorMixerWinBrowserTest,
       ThemeServiceFactory::GetForProfile(browser()->profile());
   theme_service->UseDeviceTheme(false);
   const auto get_header_color = [&] {
-    return browser()->window()->GetColorProvider()->GetColor(
+    return BrowserWindow::FromBrowser(browser())->GetColorProvider()->GetColor(
         ui::kColorSysHeader);
   };
   const SkColor initial_header_color = get_header_color();
@@ -80,7 +80,7 @@ IN_PROC_BROWSER_TEST_F(NativeChromeColorMixerWinBrowserTest,
   EXPECT_EQ(kAccentColor, ui::NativeTheme::GetInstanceForWeb()->user_color());
 
   const auto get_header_color = [&] {
-    return browser()->window()->GetColorProvider()->GetColor(
+    return BrowserWindow::FromBrowser(browser())->GetColorProvider()->GetColor(
         ui::kColorSysHeader);
   };
   const SkColor header_color_without_prevalence = get_header_color();

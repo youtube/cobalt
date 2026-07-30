@@ -4,81 +4,118 @@
 
 #include "components/browser_apis/tab_drag/sessions/drop_target_registry_impl.h"
 
-#include <functional>
 #include <memory>
+#include <utility>
 
+#include "base/check.h"
 #include "components/browser_apis/tab_drag/adapters/tab_drag_window_adapter.h"
+#include "components/browser_apis/tab_drag/sessions/drop_target.h"
 #include "mojo/public/cpp/bindings/self_owned_associated_receiver.h"
-#include "ui/gfx/geometry/rect.h"
 
 namespace tabs_api {
 
 class DropTargetRegistrationMojoImpl : public mojom::DropTargetRegistration {
  public:
-  DropTargetRegistrationMojoImpl(
-      base::WeakPtr<DropTargetRegistryImpl> registry,
-      base::WeakPtr<TabDragWindowAdapter> window_adapter)
-      : registry_(registry), window_adapter_(window_adapter) {}
+  DropTargetRegistrationMojoImpl(base::WeakPtr<DropTargetRegistryImpl> registry,
+                                 DropTargetId target_id)
+      : registry_(registry), target_id_(target_id) {}
 
   ~DropTargetRegistrationMojoImpl() override {
-    if (registry_ && window_adapter_) {
-      registry_->UnregisterDropTarget(window_adapter_.get());
-    }
+    CHECK(registry_);
+    registry_->UnregisterDropTarget(target_id_);
+  }
+
+  // mojom::DropTargetRegistration:
+  void OnBoundsChanged(const gfx::Rect& bounds) override {
+    CHECK(registry_);
+    registry_->UpdateTargetBounds(target_id_, bounds);
   }
 
  private:
   base::WeakPtr<DropTargetRegistryImpl> registry_;
-  base::WeakPtr<TabDragWindowAdapter> window_adapter_;
+  DropTargetId target_id_;
 };
 
 DropTargetRegistryImpl::DropTargetRegistryImpl() = default;
 DropTargetRegistryImpl::~DropTargetRegistryImpl() = default;
 
-void DropTargetRegistryImpl::RegisterDropTarget(
-    TabDragWindowAdapter* window_adapter,
+DropTargetId DropTargetRegistryImpl::RegisterDropTarget(
+    TabDragWindowAdapter* window,
+    gfx::NativeView native_view,
     mojo::PendingAssociatedRemote<mojom::DropTarget> target,
     mojo::PendingAssociatedReceiver<mojom::DropTargetRegistration>
         registration) {
-  drop_targets_[window_adapter] =
-      mojo::AssociatedRemote<mojom::DropTarget>(std::move(target));
+  CHECK(window);
+  DropTargetId id = id_generator_.GenerateNextId();
+  drop_targets_[id] =
+      std::make_unique<DropTarget>(id, window, native_view, std::move(target));
 
   mojo::MakeSelfOwnedAssociatedReceiver(
-      std::make_unique<DropTargetRegistrationMojoImpl>(
-          AsWeakPtr(), window_adapter->AsWeakPtr()),
+      std::make_unique<DropTargetRegistrationMojoImpl>(AsWeakPtr(), id),
       std::move(registration));
+  return id;
 }
 
-void DropTargetRegistryImpl::UnregisterDropTarget(
-    TabDragWindowAdapter* window_adapter) {
-  drop_targets_.erase(window_adapter);
+void DropTargetRegistryImpl::UnregisterDropTarget(DropTargetId target_id) {
+  drop_targets_.erase(target_id);
 }
 
-std::optional<std::reference_wrapper<TabDragWindowAdapter>>
-DropTargetRegistryImpl::FindTargetWindow(
+DropTargetId DropTargetRegistryImpl::FindTargetAtPoint(
     const gfx::Point& screen_point,
-    TabDragWindowAdapter* exclude_window) const {
-  for (const auto& [window_adapter, drop_target] : drop_targets_) {
-    if (window_adapter == exclude_window) {
+    DropTargetId exclude_target) const {
+  for (const auto& [target_id, target] : drop_targets_) {
+    if (target_id == exclude_target) {
       continue;
     }
-    if (window_adapter->GetBoundsInScreen().Contains(screen_point)) {
-      return std::ref(*window_adapter);
+    TabDragWindowAdapter* window_adapter = target->window();
+    if (!window_adapter) {
+      continue;
+    }
+
+    // Pass the target's native_view for coordinate conversion
+    gfx::Point local_point = window_adapter->ConvertScreenPointToLocal(
+        target->native_view(), screen_point);
+    auto bounds_opt = target->cached_bounds();
+    if (bounds_opt) {
+      if (bounds_opt->Contains(local_point)) {
+        return target_id;
+      }
     }
   }
-  return std::nullopt;
+  return DropTargetId();
 }
 
-std::optional<std::reference_wrapper<mojom::DropTarget>>
-DropTargetRegistryImpl::GetDropTarget(
-    TabDragWindowAdapter* window_adapter) const {
-  auto it = drop_targets_.find(window_adapter);
-  if (it != drop_targets_.end()) {
-    mojom::DropTarget* target = it->second.get();
-    if (target) {
-      return std::ref(*target);
+DropTargetId DropTargetRegistryImpl::FindTargetForWindow(
+    TabDragWindowId window_id) const {
+  for (const auto& [target_id, target] : drop_targets_) {
+    if (target->window_id() == window_id) {
+      return target_id;
     }
   }
-  return std::nullopt;
+  return DropTargetId();
+}
+
+DropTarget* DropTargetRegistryImpl::GetDropTarget(
+    DropTargetId target_id) const {
+  auto it = drop_targets_.find(target_id);
+  if (it != drop_targets_.end()) {
+    return it->second.get();
+  }
+  return nullptr;
+}
+
+std::optional<gfx::Rect> DropTargetRegistryImpl::GetCachedBounds(
+    DropTargetId target_id) const {
+  auto* target = GetDropTarget(target_id);
+  return target ? target->cached_bounds() : std::nullopt;
+}
+
+void DropTargetRegistryImpl::UpdateTargetBounds(DropTargetId target_id,
+                                                const gfx::Rect& bounds) {
+  auto* target = GetDropTarget(target_id);
+  if (target) {
+    target->set_cached_bounds(bounds);
+  }
 }
 
 }  // namespace tabs_api

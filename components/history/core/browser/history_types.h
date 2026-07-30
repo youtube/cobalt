@@ -447,6 +447,9 @@ struct QueryOptions {
   // Defaults to true.
   bool include_user_visits = true;
 
+  // If true, the query will restrict visits to only those known to sync.
+  bool restrict_to_synced_urls = false;
+
   // Helpers to get the effective parameters values, since a value of 0 means
   // "unspecified".
   int EffectiveMaxCount() const;

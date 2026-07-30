@@ -1467,23 +1467,9 @@ bool TabStripModel::IsTabInForeground(int index) const {
   return active_index() == index;
 }
 
-bool TabStripModel::IsTabClosable(int index) const {
-  return PolicyAllowsTabClosing(GetWebContentsAt(index));
-}
-
-bool TabStripModel::IsTabClosable(const content::WebContents* contents) const {
-  return IsTabClosable(GetIndexOfWebContents(contents));
-}
-
 std::optional<tab_groups::TabGroupId> TabStripModel::GetTabGroupForTab(
     int index) const {
   return ContainsIndex(index) ? GetTabAtIndex(index)->GetGroup() : std::nullopt;
-}
-
-std::optional<tab_groups::TabGroupId> TabStripModel::GetActiveTabGroupId()
-    const {
-  const tabs::TabInterface* active_tab = selection_model_.active_tab();
-  return active_tab ? active_tab->GetGroup() : std::nullopt;
 }
 
 std::optional<tab_groups::TabGroupId> TabStripModel::GetSurroundingTabGroup(
@@ -1552,7 +1538,8 @@ void TabStripModel::SelectTabAt(int index) {
 
   tabs::TabStripModelSelectionState new_model = selection_model_;
 
-  if (std::optional<split_tabs::SplitTabId> split_id = GetSplitForTab(index);
+  if (std::optional<split_tabs::SplitTabId> split_id =
+          tab_to_select->GetSplit();
       split_id.has_value()) {
     std::vector<tabs::TabInterface*> tabs =
         GetSplitData(split_id.value())->ListTabs();
@@ -1586,7 +1573,7 @@ void TabStripModel::DeselectTabAt(int index) {
 
   tabs::TabStripModelSelectionState new_model = selection_model_;
 
-  if (std::optional<split_tabs::SplitTabId> split_id = GetSplitForTab(index);
+  if (std::optional<split_tabs::SplitTabId> split_id = tab->GetSplit();
       split_id.has_value()) {
     for (auto [t, _] : GetTabsAndIndicesInSplit(split_id.value())) {
       new_model.RemoveTabFromSelection(t);
@@ -1874,11 +1861,6 @@ std::set<split_tabs::SplitTabId> TabStripModel::ListSplits() const {
 
 bool TabStripModel::ContainsSplit(split_tabs::SplitTabId split_id) const {
   return contents_data_->GetSplitTabCollection(split_id);
-}
-
-bool TabStripModel::IsActiveTabSplit() const {
-  const tabs::TabInterface* active_tab = GetActiveTab();
-  return active_tab && active_tab->IsSplit();
 }
 
 void TabStripModel::UpdateSplitLayout(
@@ -2388,10 +2370,6 @@ const tabs::TabCollection* TabStripModel::Root() const {
   return contents_data_.get();
 }
 
-const tabs::TabCollection* TabStripModel::GetRootForTesting() const {
-  return contents_data_.get();
-}
-
 std::optional<const tab_groups::TabGroupId> TabStripModel::FindGroupIdFor(
     const tabs::TabCollection::Handle& collection_handle,
     base::PassKey<tabs_api::TabStripModelAdapterImpl>) const {
@@ -2636,7 +2614,8 @@ void TabStripModel::ExecuteContextMenuCommand(int context_index,
       base::UmaHistogramCounts1000(
           "Tab.ContextMenu.SendTabToSelf.SelectedTabsCount",
           selection_model_.size());
-      send_tab_to_self::ShowBubble(GetWebContentsAt(context_index));
+      send_tab_to_self::ShowBubble(GetWebContentsAt(context_index),
+                                   send_tab_to_self::ShareEntryPoint::kTabMenu);
       break;
     }
 
@@ -3629,11 +3608,12 @@ void TabStripModel::CloseTabs(base::span<content::WebContents* const> items,
                               uint32_t close_types) {
   std::vector<content::WebContents*> filtered_items;
   for (content::WebContents* contents : items) {
-    if (IsTabClosable(contents)) {
+    tabs::TabInterface* tab = GetTabForWebContents(contents);
+    if (IsTabClosable(tab)) {
       filtered_items.push_back(contents);
     } else {
       for (auto& observer : observers_) {
-        observer.OnTabCloseCancelled(GetTabForWebContents(contents));
+        observer.OnTabCloseCancelled(tab);
       }
     }
   }
@@ -5269,16 +5249,16 @@ void TabStripModel::OnActiveTabChanged(
   }
 }
 
-bool TabStripModel::PolicyAllowsTabClosing(
-    content::WebContents* contents) const {
-  if (!contents) {
+bool TabStripModel::IsTabClosable(const tabs::TabInterface* tab) const {
+  if (!tab) {
     return true;
   }
 
   web_app::WebAppProvider* provider =
-      web_app::WebAppProvider::GetForWebContents(contents);
+      web_app::WebAppProvider::GetForWebContents(tab->GetContents());
   // Can be null if there is no tab helper or app id.
-  const webapps::AppId* app_id = web_app::WebAppTabHelper::GetAppId(contents);
+  const webapps::AppId* app_id =
+      web_app::WebAppTabHelper::GetAppId(tab->GetContents());
   if (!app_id) {
     return true;
   }

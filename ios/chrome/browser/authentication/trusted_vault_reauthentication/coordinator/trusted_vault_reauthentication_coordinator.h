@@ -28,8 +28,8 @@ typedef NS_ENUM(NSUInteger, SigninTrustedVaultDialogIntent) {
   SigninTrustedVaultDialogIntentDegradedRecoverability,
 };
 
-// Coordinates the Trusted Vault re-authentication dialog. Trusted Valut is
-// managed by IOSTrustedValueClient.
+// Coordinates the Trusted Vault re-authentication dialog. Trusted Vault is
+// managed by IOSTrustedVaultClient.
 @interface TrustedVaultReauthenticationCoordinator : ChromeCoordinator
 
 @property(nonatomic, weak) id<TrustedVaultReauthenticationCoordinatorDelegate>

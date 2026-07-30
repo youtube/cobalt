@@ -46,6 +46,9 @@ static_library("sync_sessions") {
   public_deps = [
     "//components/sessions",
     "//components/sync",
+
+    # TODO(crbug.com/525218330): Remove this dependency by moving DeviceType and
+    # FormFactor enums from DeviceInfo to components/sync/base.
     "//components/sync_device_info",
   ]
 

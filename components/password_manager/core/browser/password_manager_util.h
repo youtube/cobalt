@@ -78,6 +78,11 @@ void UserTriggeredManualGenerationFromContextMenu(
 // Checks if password saving is possible at a storage level.
 bool IsAbleToSavePasswords(password_manager::PasswordManagerClient* client);
 
+// Returns true if the only blocking error is a trusted vault error.
+bool IsSavingBlockedByTrustedVaultError(
+    const password_manager::PasswordManagerClient* client,
+    const password_manager::PasswordFormManagerForUI* form_manager);
+
 // Excluding protocol from a signon_realm means to remove from the signon_realm
 // what is before the web origin (with the protocol excluded as well). For
 // example if the signon_realm is "https://www.google.com/", after

@@ -6,7 +6,7 @@
 #define UI_WM_CORE_SCOPED_ANIMATION_DISABLER_H_
 
 #include "base/component_export.h"
-#include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 
 namespace aura {
 class Window;
@@ -25,7 +25,7 @@ class COMPONENT_EXPORT(UI_WM) ScopedAnimationDisabler {
   ~ScopedAnimationDisabler();
 
  private:
-  const raw_ptr<aura::Window> window_;
+  base::WeakPtr<aura::Window> window_;
   bool was_animation_enabled_ = false;
 };
 

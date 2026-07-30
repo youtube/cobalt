@@ -36,6 +36,15 @@ std::unique_ptr<PopupRowContentView> CreatePopupRowContentView(
     FillingProduct main_filling_product,
     std::optional<AutofillPopupController::SuggestionFilterMatch> filter_match);
 
+// Creates the content view for virtual card (VCN) and IBAN suggestions.
+// This function (currently) is only for VCNs and IBANs.
+std::unique_ptr<PopupRowContentView>
+CreateAlternativePaymentMethodPopupRowContentView(
+    const Suggestion& suggestion,
+    std::optional<user_education::DisplayNewBadge> show_new_badge,
+    FillingProduct main_filling_product,
+    std::optional<AutofillPopupController::SuggestionFilterMatch> filter_match);
+
 // Creates a row view depending on the suggestion type at `line_number`.
 // If `filter_match` is provided, it is used for highlighting the suggestion
 // label parts accordingly.

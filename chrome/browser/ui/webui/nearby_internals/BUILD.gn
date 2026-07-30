@@ -1,0 +1,65 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+assert(is_chromeos)
+
+source_set("nearby_internals") {
+  sources = [
+    "nearby_internals_contact_handler.cc",
+    "nearby_internals_http_handler.cc",
+    "nearby_internals_logs_handler.cc",
+    "nearby_internals_prefs_handler.cc",
+    "nearby_internals_ui.cc",
+    "nearby_internals_ui_presence_handler.cc",
+    "nearby_internals_ui_trigger_handler.cc",
+    "quick_pair/quick_pair_handler.cc",
+  ]
+  public = [
+    "nearby_internals_contact_handler.h",
+    "nearby_internals_http_handler.h",
+    "nearby_internals_logs_handler.h",
+    "nearby_internals_prefs_handler.h",
+    "nearby_internals_ui.h",
+    "nearby_internals_ui_presence_handler.h",
+    "nearby_internals_ui_trigger_handler.h",
+    "quick_pair/quick_pair_handler.h",
+  ]
+  public_deps = [ "//chrome/browser:browser_public_dependencies" ]
+  deps = [
+    "//ash/quick_pair/common",
+    "//ash/quick_pair/repository",
+    "//ash/quick_pair/ui",
+    "//base",
+    "//chrome/browser/ash/nearby",
+    "//chrome/browser/ash/nearby/presence",
+    "//chrome/browser/nearby_sharing",
+    "//chrome/browser/nearby_sharing/client",
+    "//chrome/browser/nearby_sharing/common",
+    "//chrome/browser/nearby_sharing/contacts",
+    "//chrome/browser/nearby_sharing/local_device_data",
+    "//chrome/browser/nearby_sharing/logging:util",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/push_notification",
+    "//chrome/browser/resources/chromeos/nearby_internals:resources",
+    "//chrome/common",
+    "//chromeos/ash/components/nearby/common/connections_manager",
+    "//chromeos/ash/components/nearby/presence",
+    "//chromeos/ash/components/nearby/presence:enums",
+    "//chromeos/ash/components/nearby/presence:nearby_presence_connections_manager",
+    "//chromeos/ash/components/nearby/presence/credentials",
+    "//chromeos/ash/services/nearby/public/mojom",
+    "//components/cross_device/logging",
+    "//components/prefs",
+    "//components/push_notification",
+    "//content/public/browser",
+    "//content/public/common",
+    "//third_party/nearby:certificate_rpc_proto",
+    "//third_party/nearby:contact_rpc_proto",
+    "//third_party/nearby:device_rpc_proto",
+    "//third_party/nearby:rpc_resources_proto",
+    "//ui/gfx",
+    "//ui/message_center",
+    "//ui/webui",
+  ]
+}

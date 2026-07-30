@@ -24,6 +24,41 @@ extern const base::FeatureParam<base::TimeDelta> kPrivateInsightsUploadInterval;
 COMPONENT_EXPORT(PRIVATE_INSIGHTS)
 BASE_DECLARE_FEATURE(kPrivateInsightsPaicErrorReporting);
 
+// FCP client configuration parameters.
+
+COMPONENT_EXPORT(PRIVATE_INSIGHTS)
+extern const base::FeatureParam<base::TimeDelta> kFcpConditionPollingPeriod;
+
+COMPONENT_EXPORT(PRIVATE_INSIGHTS)
+extern const base::FeatureParam<bool> kFcpLogTensorflowErrorMessages;
+
+COMPONENT_EXPORT(PRIVATE_INSIGHTS)
+extern const base::FeatureParam<base::TimeDelta>
+    kFcpExecutionTeardownGracePeriod;
+
+COMPONENT_EXPORT(PRIVATE_INSIGHTS)
+extern const base::FeatureParam<base::TimeDelta>
+    kFcpExecutionTeardownExtendedPeriod;
+
+COMPONENT_EXPORT(PRIVATE_INSIGHTS)
+extern const base::FeatureParam<int> kFcpHttpRetryMaxAttempts;
+
+COMPONENT_EXPORT(PRIVATE_INSIGHTS)
+extern const base::FeatureParam<base::TimeDelta> kFcpHttpRetryDelay;
+
+COMPONENT_EXPORT(PRIVATE_INSIGHTS)
+extern const base::FeatureParam<bool> kFcpDisableHttpRequestBodyCompression;
+
+COMPONENT_EXPORT(PRIVATE_INSIGHTS)
+extern const base::FeatureParam<base::TimeDelta>
+    kFcpWaitingPeriodForCancellation;
+
+COMPONENT_EXPORT(PRIVATE_INSIGHTS)
+extern const base::FeatureParam<base::TimeDelta> kFcpTransientErrorsRetryDelay;
+
+COMPONENT_EXPORT(PRIVATE_INSIGHTS)
+extern const base::FeatureParam<base::TimeDelta> kFcpPermanentErrorsRetryDelay;
+
 }  // namespace private_insights
 
 #endif  // COMPONENTS_METRICS_PRIVATE_METRICS_PRIVATE_INSIGHTS_PRIVATE_INSIGHTS_FEATURES_H_

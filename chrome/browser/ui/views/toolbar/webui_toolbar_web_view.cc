@@ -18,6 +18,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/state_transitions.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
@@ -52,6 +53,8 @@
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/browser/ui/webui/webui_toolbar/adapters/browser_controls_adapter_impl.h"
 #include "chrome/browser/ui/webui/webui_toolbar/adapters/navigation_controls_state_fetcher_impl.h"
+#include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_drag_state.h"
+#include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_extensions_container.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
@@ -69,6 +72,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/drop_data.h"
 #include "content/public/common/result_codes.h"
+#include "content/public/common/url_constants.h"
 #include "mojo/public/mojom/base/error.mojom.h"
 #include "net/base/filename_util.h"
 #include "third_party/blink/public/common/features.h"
@@ -142,6 +146,46 @@ class WebUIToolbarInternalWebView : public views::WebView {
       cached_dragged_file_path_ = drop_data.filenames.front().path;
       cached_dragged_file_position_ = client_pt;
     }
+    webui_toolbar::WebUIToolbarDragState::GetOrCreateForWebContents(
+        web_contents())
+        ->set_drag_originated_from_renderer(
+            drop_data.did_originate_from_renderer);
+  }
+
+  bool CanDragEnter(content::WebContents* source,
+                    const content::DropData& data,
+                    blink::DragOperationsMask operations_allowed) override {
+    // Cache the drag origin on the WebContents. This is needed because the
+    // subsequent Mojo navigation calls (Navigate/NavigateText) do not receive
+    // did_originate_from_renderer information from the drop event directly.
+    webui_toolbar::WebUIToolbarDragState::GetOrCreateForWebContents(
+        web_contents())
+        ->set_drag_originated_from_renderer(data.did_originate_from_renderer);
+
+    // For plain text drops, inspect the content during the dragover phase.
+    // Note that we don't inspect or block webpage-initiated link drops (e.g.
+    // chrome:// or javascript: URLs) or OS file drops here. Link drops are
+    // allowed to hover (showing the copy badge) to preserve drag-and-drop
+    // visual feedback, but are securely redirected to about:blank#blocked
+    // on navigation (inside BrowserControlsAdapterImpl::Navigate). File drops
+    // are local and always allowed.
+    if (data.url_infos.empty() && data.text && !data.text->empty()) {
+      GURL url(base::UTF16ToUTF8(*data.text));
+      if (url.is_valid()) {
+        // Block all javascript: text drags to prevent self-XSS.
+        if (url.SchemeIs(url::kJavaScriptScheme)) {
+          return false;
+        }
+        // For web-initiated plain text drags, only allow HTTP and HTTPS
+        // schemes. Block other schemes (like file://, chrome://, data://) from
+        // showing the drop cursor (i.e., hide the green plus sign badge).
+        if (data.did_originate_from_renderer && !url.SchemeIsHTTPOrHTTPS()) {
+          return false;
+        }
+      }
+    }
+
+    return true;
   }
 
   void RendererUnresponsive(
@@ -201,13 +245,6 @@ WebUIToolbarWebView::WebUIToolbarWebView(
     std::unique_ptr<WebUILocationBar> location_bar)
     : browser_(browser),
       controller_(controller),
-      // `controller` may be nullptr in unit tests.
-      browser_controls_adapter_(
-          controller ? std::make_unique<
-                           browser_controls_api::BrowserControlsAdapterImpl>(
-                           browser,
-                           controller)
-                     : nullptr),
       icon_table_(this),
       reload_control_(this),
       split_tabs_control_(this),
@@ -319,6 +356,13 @@ WebUIToolbarWebView::WebUIToolbarWebView(
 
   // The accessibility and tooltip attributes are handled by the WebUI.
   SetProperty(views::kElementIdentifierKey, kWebUIToolbarElementIdentifier);
+
+  // `controller` may be nullptr in unit tests.
+  if (controller) {
+    browser_controls_adapter_ =
+        std::make_unique<browser_controls_api::BrowserControlsAdapterImpl>(
+            browser, controller, web_contents);
+  }
 }
 
 WebUIToolbarWebView::~WebUIToolbarWebView() = default;
@@ -921,12 +965,19 @@ views::WebView* WebUIToolbarWebView::GetWebViewForTesting() {
   return web_view_;
 }
 
-WebUIToolbarUI* WebUIToolbarWebView::GetWebUIToolbarUI() {
-  return GetWebUIToolbarUIFromWebContents(web_view_->web_contents());
+WebUIToolbarUI* WebUIToolbarWebView::GetWebUIToolbarUI() const {
+  // web_contents() is const-safe and automatically returns nullptr
+  // when the observed WebContents begins destruction.
+  return GetWebUIToolbarUIFromWebContents(web_contents());
 }
 
 void WebUIToolbarWebView::PermitLaunchUrl() {
   ExternalProtocolHandler::PermitLaunchUrl();
+}
+
+base::TimeTicks WebUIToolbarWebView::GetNavigationStartTicks() const {
+  auto* ui = GetWebUIToolbarUI();
+  return ui ? ui->navigation_start_ticks() : base::TimeTicks();
 }
 
 void WebUIToolbarWebView::OnHomeButtonDropUrl(const GURL& url) {

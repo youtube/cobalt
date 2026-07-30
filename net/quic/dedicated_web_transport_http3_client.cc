@@ -645,8 +645,8 @@ int DedicatedWebTransportHttp3Client::DoConnect() {
   // (which currently has a lot of code specific to QuicChromiumClientSession).
   socket_ = context_->GetNetworkSessionContext()
                 ->client_socket_factory->CreateDatagramClientSocket(
-                    DatagramSocket::DEFAULT_BIND, net_log_.net_log(),
-                    net_log_.source());
+                    DatagramSocket::DEFAULT_BIND, target_network_,
+                    net_log_.net_log(), net_log_.source());
   if (quic_context_->params()->enable_socket_recv_optimization)
     socket_->EnableRecvOptimization();
   socket_->UseNonBlockingIO();

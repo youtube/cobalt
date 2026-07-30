@@ -198,10 +198,13 @@ class MockDataSourceFactory : public CrossOriginDataSource::Factory {
   ~MockDataSourceFactory() override;
   MockDataSourceFactory();
 
+  using MockCreateResponse = std::optional<std::tuple<std::string, bool>>;
+
   // The return value of MockCreate represents a redirecting MockDataSource.
   // if it doesn't return anything (the default), then `uri` from the `Create`
-  // function is used as the UrlAfterRedirects.
-  MOCK_METHOD(std::optional<std::string>,
+  // function is used as the UrlAfterRedirects. If it does, use the string as
+  // the redirect url, and the boolean as an origin tainting flag.
+  MOCK_METHOD(MockCreateResponse,
               MockCreate,
               (const GURL&, DataSource::CacheMode, DataSource::EncodingMode));
   void Create(const GURL& uri,

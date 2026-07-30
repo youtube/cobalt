@@ -22,6 +22,8 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/devtools/devtools_file_watcher.h"
 #include "chrome/browser/download/download_prefs.h"
+#include "chrome/browser/file_system_access/chrome_file_system_access_permission_context.h"  // nogncheck
+#include "chrome/browser/file_system_access/file_system_access_permission_context_factory.h"  // nogncheck
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
@@ -300,6 +302,47 @@ void DevToolsFileHelper::ConnectAutomaticFileSystem(
     return;
   }
 
+  auto* permission_context =
+      FileSystemAccessPermissionContextFactory::GetForProfile(profile_);
+  if (permission_context) {
+    content::PathInfo path_info(path);
+    permission_context->ConfirmSensitiveEntryAccess(
+        url::Origin(), path_info,
+        content::FileSystemAccessPermissionContext::HandleType::kDirectory,
+        content::FileSystemAccessPermissionContext::UserAction::kNone,
+        content::GlobalRenderFrameHostId(),
+        base::BindOnce(
+            &DevToolsFileHelper::CheckBlocklistAndConnectAutomaticFileSystem,
+            weak_factory_.GetWeakPtr(), file_system_path, file_system_uuid,
+            add_if_missing, handle_permissions_callback,
+            std::move(connect_callback)));
+    return;
+  }
+
+  // If there is no permission context to check the path against a blocklist,
+  // deny access.
+  CheckBlocklistAndConnectAutomaticFileSystem(
+      file_system_path, file_system_uuid, add_if_missing,
+      handle_permissions_callback, std::move(connect_callback),
+      content::FileSystemAccessPermissionContext::SensitiveEntryResult::kAbort);
+}
+
+void DevToolsFileHelper::CheckBlocklistAndConnectAutomaticFileSystem(
+    const std::string& file_system_path,
+    const base::Uuid& file_system_uuid,
+    bool add_if_missing,
+    const HandlePermissionsCallback& handle_permissions_callback,
+    ConnectCallback connect_callback,
+    content::FileSystemAccessPermissionContext::SensitiveEntryResult result) {
+  if (result != content::FileSystemAccessPermissionContext::
+                    SensitiveEntryResult::kAllowed) {
+    LOG(ERROR) << "Rejected automatic file system " << file_system_path
+               << " with UUID " << file_system_uuid << " (sensitive path).";
+    std::move(connect_callback).Run(false);
+    FailedToAddFileSystem(kIllegalPath);
+    return;
+  }
+
   // Check if the automatic file system is already known, and potentially
   // already connected (in this session).
   if (IsUserConfirmedAutomaticFileSystem(file_system_path, file_system_uuid)) {
@@ -329,6 +372,7 @@ void DevToolsFileHelper::ConnectAutomaticFileSystem(
 
   // Ensure that the |path| refers to an existing directory first (since this
   // is a blocking call, we need to perform this operation asynchronously).
+  base::FilePath path = base::FilePath::FromUTF8Unsafe(file_system_path);
   file_task_runner_->PostTaskAndReplyWithResult(
       FROM_HERE, BindOnce(&base::DirectoryExists, path),
       BindOnce(&DevToolsFileHelper::ConnectMissingAutomaticFileSystem,

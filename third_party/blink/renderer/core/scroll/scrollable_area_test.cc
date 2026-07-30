@@ -359,10 +359,9 @@ class ScrollableAreaOverscrollTest : public testing::Test,
 TEST_F(ScrollableAreaOverscrollTest, ScrollableAreaTraversalVisitsContainer) {
   SetInnerHTML(R"HTML(
     <div id="container" overscrollcontainer style="height: 100px; width: 100px;">
-      <div id="menu"></div>
+      <div id="menu" overscrollarea></div>
       <div id="content"></div>
     </div>
-    <button command="toggle-overscroll" commandfor="menu">
   )HTML");
   UpdateAllLifecyclePhasesForTest();
 

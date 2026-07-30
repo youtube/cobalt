@@ -20,6 +20,14 @@ SecurityMetadata SecurityMetadata::CreateForTesting(std::string url,
   };
 }
 
+bool SecurityMetadata::IsSafeLoadFromManifestOrigin(
+    const url::Origin& origin) const {
+  if (response_origins.size() != 1) {
+    return false;
+  }
+  return *response_origins.begin() == origin;
+}
+
 void SecurityMetadata::MergeFrom(const SecurityMetadata& other) {
   would_taint_origin |= other.would_taint_origin;
   did_redirect |= other.did_redirect;

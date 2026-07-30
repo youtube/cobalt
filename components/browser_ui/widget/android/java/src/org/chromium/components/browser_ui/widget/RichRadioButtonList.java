@@ -8,51 +8,36 @@ import android.content.Context;
 import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
-import androidx.annotation.IntDef;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A composite widget that displays a list of {@link RichRadioButton}s either in a single vertical
- * column or in a two-column grid layout, managing its own RecyclerView and Adapter.
+ * A composite widget that displays a list of {@link RichRadioButton}s in a single vertical column,
+ * managing its own RecyclerView and Adapter.
  */
 @NullMarked
 public class RichRadioButtonList extends FrameLayout {
 
-    /** The layout mode for the RichRadioButtonList. */
-    @IntDef({LayoutMode.VERTICAL_SINGLE_COLUMN, LayoutMode.TWO_COLUMN_GRID})
-    @Retention(RetentionPolicy.SOURCE)
-    public @interface LayoutMode {
-        int VERTICAL_SINGLE_COLUMN = 0;
-        int TWO_COLUMN_GRID = 1;
-    }
-
     private @Nullable RichRadioButtonAdapter mAdapter;
 
     private @Nullable List<RichRadioButtonData> mCurrentOptions;
-    private @LayoutMode int mCurrentLayoutMode;
     private final RecyclerView mRecyclerView;
     private boolean mInitialized;
 
-    public RichRadioButtonList(@NonNull Context context) {
+    public RichRadioButtonList(Context context) {
         this(context, null);
     }
 
-    public RichRadioButtonList(@NonNull Context context, @Nullable AttributeSet attrs) {
+    public RichRadioButtonList(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
         inflate(context, R.layout.rich_radio_button_list, this);
         mRecyclerView = findViewById(R.id.rich_radio_button_list_recycler_view);
@@ -64,49 +49,30 @@ public class RichRadioButtonList extends FrameLayout {
      * to be called only once after the component is created.
      *
      * @param options The list of RichRadioButtonData items to display.
-     * @param layoutMode The desired layout mode (single column or two-column grid).
+     * @param listener The listener for selection changes.
      */
     @Initializer
     public void initialize(
-            @NonNull List<RichRadioButtonData> options,
-            @LayoutMode int layoutMode,
-            @NonNull RichRadioButtonAdapter.OnItemSelectedListener listener) {
+            List<RichRadioButtonData> options,
+            RichRadioButtonAdapter.OnItemSelectedListener listener) {
         if (mInitialized) {
             throw new IllegalStateException("RichRadioButtonList can only be initialized once.");
         }
         mInitialized = true;
 
         mCurrentOptions = options;
-        mCurrentLayoutMode = layoutMode;
 
-        RecyclerView.LayoutManager layoutManager;
-
-        if (layoutMode == LayoutMode.VERTICAL_SINGLE_COLUMN) {
-            int verticalSpacingPx =
-                    getContext()
-                            .getResources()
-                            .getDimensionPixelSize(R.dimen.rich_radio_button_list_vertical_spacing);
-            layoutManager =
-                    new LinearLayoutManager(getContext(), LinearLayoutManager.VERTICAL, false);
-            clearItemDecorations();
-            mRecyclerView.addItemDecoration(new SimpleItemDecoration(verticalSpacingPx, 0));
-            mRecyclerView.getLayoutParams().width = ViewGroup.LayoutParams.MATCH_PARENT;
-        } else {
-            int horizontalSpacingPx =
-                    getContext()
-                            .getResources()
-                            .getDimensionPixelSize(
-                                    R.dimen.rich_radio_button_list_horizontal_spacing);
-
-            layoutManager = new GridLayoutManager(getContext(), /* spanCount= */ 2);
-            clearItemDecorations();
-            mRecyclerView.addItemDecoration(
-                    new SimpleItemDecoration(horizontalSpacingPx, horizontalSpacingPx));
-            mRecyclerView.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
-        }
+        int verticalSpacingPx =
+                getContext()
+                        .getResources()
+                        .getDimensionPixelSize(R.dimen.rich_radio_button_list_vertical_spacing);
+        RecyclerView.LayoutManager layoutManager =
+                new LinearLayoutManager(getContext(), LinearLayoutManager.VERTICAL, false);
+        clearItemDecorations();
+        mRecyclerView.addItemDecoration(new SimpleItemDecoration(verticalSpacingPx));
         mRecyclerView.setLayoutManager(layoutManager);
 
-        mAdapter = new RichRadioButtonAdapter(mCurrentOptions, listener, mCurrentLayoutMode);
+        mAdapter = new RichRadioButtonAdapter(mCurrentOptions, listener);
         mRecyclerView.setAdapter(mAdapter);
     }
 
@@ -115,7 +81,7 @@ public class RichRadioButtonList extends FrameLayout {
      *
      * @param itemId The ID of the item to select.
      */
-    public void setSelectedItem(@NonNull String itemId) {
+    public void setSelectedItem(String itemId) {
         if (!mInitialized) {
             return;
         }
@@ -136,52 +102,26 @@ public class RichRadioButtonList extends FrameLayout {
         }
     }
 
-    /**
-     * ItemDecoration for spacing between items. GridLayouts have a built-in "space-between"
-     * spacing.
-     */
+    /** ItemDecoration for spacing between items. */
     private static class SimpleItemDecoration extends RecyclerView.ItemDecoration {
         private final int mVerticalSpaceHeightPx;
-        private final int mHorizontalSpaceWidthPx;
 
-        public SimpleItemDecoration(int verticalSpaceHeightPx, int horizontalSpaceWidthPx) {
+        public SimpleItemDecoration(int verticalSpaceHeightPx) {
             mVerticalSpaceHeightPx = verticalSpaceHeightPx;
-            mHorizontalSpaceWidthPx = horizontalSpaceWidthPx;
         }
 
         @Override
         public void getItemOffsets(
-                @NonNull Rect outRect,
-                @NonNull View view,
-                @NonNull RecyclerView parent,
-                @NonNull RecyclerView.State state) {
+                Rect outRect, View view, RecyclerView parent, RecyclerView.State state) {
             super.getItemOffsets(outRect, view, parent, state);
 
             int position = parent.getChildAdapterPosition(view);
             if (position == RecyclerView.NO_POSITION || parent.getAdapter() == null) return;
 
             int itemCount = parent.getAdapter().getItemCount();
-            int spanCount = 1;
-            if (parent.getLayoutManager() instanceof GridLayoutManager) {
-                spanCount = ((GridLayoutManager) parent.getLayoutManager()).getSpanCount();
-                int column = position % spanCount;
-                outRect.left = column * mHorizontalSpaceWidthPx / spanCount;
-                outRect.right =
-                        mHorizontalSpaceWidthPx
-                                - (column + 1) * mHorizontalSpaceWidthPx / spanCount;
 
-                if (position < itemCount - spanCount) {
-                    outRect.bottom = mVerticalSpaceHeightPx;
-                }
-                return;
-            }
-
-            if (position < itemCount - spanCount) {
+            if (position < itemCount - 1) {
                 outRect.bottom = mVerticalSpaceHeightPx;
-            }
-
-            if ((position + 1) % spanCount != 0) {
-                outRect.right = mHorizontalSpaceWidthPx;
             }
         }
     }

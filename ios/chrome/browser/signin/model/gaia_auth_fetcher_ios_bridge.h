@@ -19,7 +19,7 @@ class GURL;
 // Interface for fetching Gaia auth requests that include the cookies on iOS.
 class GaiaAuthFetcherIOSBridge {
  public:
-  // Delegate class receive notification whent the request is done.
+  // Delegate class receives notification when the request is done.
   class GaiaAuthFetcherIOSBridgeDelegate {
    public:
     GaiaAuthFetcherIOSBridgeDelegate();

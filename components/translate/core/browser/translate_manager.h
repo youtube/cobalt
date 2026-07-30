@@ -141,7 +141,7 @@ class TranslateManager {
   // Returns true iff the current page could be manually translated.
   // Logging should only be performed when this method is called to show the
   // Full Page Translate menu item.
-  bool CanManuallyTranslate(bool menuLogging = false);
+  bool CanManuallyTranslate(bool menu_logging = false);
 
   // Whether or not partial translation is supported for the current target
   // language. Partial translate supports a subset of translation languages,

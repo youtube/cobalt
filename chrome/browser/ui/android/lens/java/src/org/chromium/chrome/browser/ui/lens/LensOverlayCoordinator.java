@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.ui.lens;
 
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.text.TextUtils;
 
 import androidx.annotation.VisibleForTesting;
 
@@ -20,6 +21,7 @@ import org.chromium.base.UserData;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.lens.LensController;
 import org.chromium.chrome.browser.lens.LensEntryPoint;
 import org.chromium.chrome.browser.lens.LensIdentityUtils;
@@ -39,6 +41,9 @@ import java.util.UUID;
 @NullMarked
 public class LensOverlayCoordinator implements UserData {
     private static final String TAG = "LensOverlay";
+    static final String LENS_OVERLAY_IMPL_INTENT = "intent";
+    static final String LENS_OVERLAY_IMPL_WEBUI = "webui";
+    static final String LENS_OVERLAY_IMPL_DEFAULT = LENS_OVERLAY_IMPL_INTENT;
 
     private final Tab mTab;
     private long mNativeLensOverlayControllerAndroid;
@@ -111,8 +116,28 @@ public class LensOverlayCoordinator implements UserData {
      */
     @CalledByNative
     void onScreenshotCaptured(@JniType("SkBitmap") Bitmap bitmap) {
-        Log.i(TAG, "onScreenshotCaptured called in Java");
+        String implType =
+                ChromeFeatureList.getFieldTrialParamByFeature(
+                        ChromeFeatureList.LENS_OVERLAY_ANDROID, "implementation_type");
 
+        if (TextUtils.isEmpty(implType)) {
+            implType = LENS_OVERLAY_IMPL_DEFAULT;
+        }
+
+        if (LENS_OVERLAY_IMPL_INTENT.equals(implType)) {
+            Log.d(TAG, "Lens Overlay " + implType + " implementation started");
+            startIntentFlow(bitmap);
+        } else if (LENS_OVERLAY_IMPL_WEBUI.equals(implType)) {
+            // No-op for "webui" for now.
+            Log.d(TAG, "Lens Overlay " + implType + " implementation is no-op");
+            setShowing(false);
+        } else {
+            Log.e(TAG, "Unrecognized implementation type: " + implType);
+            setShowing(false);
+        }
+    }
+
+    private void startIntentFlow(Bitmap bitmap) {
         WebContents webContents = mTab.getWebContents();
         if (webContents == null) {
             setShowing(false);

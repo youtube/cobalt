@@ -18,6 +18,11 @@ SingleInvalidConfiguration::SingleInvalidConfiguration() {
 
 SingleInvalidConfiguration::~SingleInvalidConfiguration() = default;
 
+bool SingleInvalidConfiguration::HasFeatureConfig(
+    const base::Feature& feature) const {
+  return true;
+}
+
 const FeatureConfig& SingleInvalidConfiguration::GetFeatureConfig(
     const base::Feature& feature) const {
   return invalid_feature_config_;

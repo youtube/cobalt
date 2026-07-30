@@ -640,8 +640,16 @@ public class XrImmersiveOverlay
         // the status bar, which doesn't happen when gesture navigation is enabled. This ensures
         // that we properly take up the entire screen, as we expect we do in the `surfaceChanged`
         // callback.
+        // We also consume IME (keyboard) insets here. In 3-button navigation mode, showing the
+        // keyboard forces the navigation bar to become visible for safety/accessibility. This
+        // temporarily exits the immersive fullscreen layout state, triggering Android's fallback
+        // 'adjustResize' behavior which shrinks the View (and squishes the WebGL canvas).
+        // Consuming the IME insets here forces the View to ignore the keyboard size and maintain
+        // its size, preserving the layout viewport. In gesture mode, this is less of an issue as
+        // the immersive state is preserved without navigation buttons to restore.
         return new WindowInsetsCompat.Builder(insets)
                 .setInsets(WindowInsetsCompat.Type.statusBars(), Insets.NONE)
+                .setInsets(WindowInsetsCompat.Type.ime(), Insets.NONE)
                 .build();
     }
 

@@ -57,13 +57,16 @@ BASE_DECLARE_FEATURE(kSendTabToSelfExtraEntryPoints);
 // If this feature is enabled, physical double-tap gestures will be detected
 // and used to trigger sending tabs to self on Android devices.
 BASE_DECLARE_FEATURE(kSendTabToSelfGesture);
-
-// If this feature is enabled, the target device picker on Android will use
-// an enhanced bottom sheet UI.
-BASE_DECLARE_FEATURE(kSendTabToSelfEnhancedBottomsheet);
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+// If this feature is enabled, the target device picker will use an enhanced
+// bottom sheet UI.
+BASE_DECLARE_FEATURE(kSendTabToSelfEnhancedBottomsheet);
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+
 #if BUILDFLAG(IS_IOS)
+
 // If this feature is enabled, users can schedule tab reminder iOS push
 // notifications.
 BASE_DECLARE_FEATURE(kIOSTabReminders);

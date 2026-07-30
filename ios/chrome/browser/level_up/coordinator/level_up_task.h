@@ -35,9 +35,8 @@ class TaskInfo;
 // The category grouping this task belongs to.
 @property(nonatomic, assign, readonly) LevelUpTaskCategory category;
 
-// The action executed when the task is selected to navigate to the relevant
-// destination inside Chrome, enabling the user to perform the task.
-@property(nonatomic, copy, readonly) void (^navigationAction)(void);
+// The backing C++ task info model.
+@property(nonatomic, assign, readonly) const TaskInfo* taskInfo;
 
 - (instancetype)initWithTaskInfo:(const TaskInfo*)taskInfo
                        completed:(BOOL)completed NS_DESIGNATED_INITIALIZER;

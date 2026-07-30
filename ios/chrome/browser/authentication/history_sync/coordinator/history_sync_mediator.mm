@@ -89,8 +89,8 @@
   // (see crbug.com/366198713).
   // The mediator listens for IdentityManagerObserverBridgeDelegate to know
   // if the user is signed out. If it happens, the dialog is supposed to be
-  // dissmissed automatically.
-  // to understand if there is a difference between AuthenticationService and
+  // dismissed automatically.
+  // To understand if there is a difference between AuthenticationService and
   // IdentityManager, the CHECK logs if there is primary identity
   // from AuthenticationService and from IdentityManager.
   CHECK(identity) << "IdentityManager has primary identity: "

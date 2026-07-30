@@ -202,10 +202,6 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
   return [ChromeEarlGreyAppInterface isCurrentLayoutBottomOmnibox];
 }
 
-- (BOOL)isAskGeminiChipEnabled {
-  return [ChromeEarlGreyAppInterface isAskGeminiChipEnabled];
-}
-
 - (BOOL)isComposeboxIOSEnabled {
   return [ChromeEarlGreyAppInterface isComposeboxIOSEnabled];
 }

@@ -254,6 +254,31 @@ const int kWebMTrackTypeAudio = 2;
 const int kWebMTrackTypeSubtitlesOrCaptions = 0x11;
 const int kWebMTrackTypeDescriptionsOrMetadata = 0x21;
 
+// Values for StereoMode are spec'd here:
+// https://www.matroska.org/technical/elements.html#StereoMode
+const int kWebMStereoModeMono = 0;
+const int kWebMStereoModeLeftRight = 1;
+const int kWebMStereoModeBottomTop = 2;
+const int kWebMStereoModeTopBottom = 3;
+const int kWebMStereoModeCheckerboardRL = 4;
+const int kWebMStereoModeCheckerboardLR = 5;
+const int kWebMStereoModeRowInterleavedRL = 6;
+const int kWebMStereoModeRowInterleavedLR = 7;
+const int kWebMStereoModeColInterleavedRL = 8;
+const int kWebMStereoModeColInterleavedLR = 9;
+const int kWebMStereoModeAnaglyphCyanRed = 10;
+const int kWebMStereoModeRightLeft = 11;
+const int kWebMStereoModeAnaglyphGreenMag = 12;
+const int kWebMStereoModeBothEyesBlockLR = 13;
+const int kWebMStereoModeBothEyesBlockRL = 14;
+
+// Values for ProjectionType are spec'd here:
+// https://www.matroska.org/technical/elements.html#ProjectionType
+const int kWebMProjectionTypeRectangular = 0;
+const int kWebMProjectionTypeEquirectangular = 1;
+const int kWebMProjectionTypeCubemap = 2;
+const int kWebMProjectionTypeMesh = 3;
+
 MEDIA_EXPORT extern const char kWebMCodecSubtitles[];
 MEDIA_EXPORT extern const char kWebMCodecCaptions[];
 MEDIA_EXPORT extern const char kWebMCodecDescriptions[];

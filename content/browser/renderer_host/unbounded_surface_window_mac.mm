@@ -7,11 +7,14 @@
 #import <Cocoa/Cocoa.h>
 
 #include "base/apple/owned_objc.h"
+#include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "components/input/render_widget_host_input_event_router.h"
 #include "components/input/web_input_event_builders_mac.h"
+#include "components/viz/common/frame_sinks/copy_output_request.h"
+#include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "components/viz/host/host_frame_sink_manager.h"
 #import "content/app_shim_remote_cocoa/render_widget_host_view_cocoa.h"
 #include "content/browser/compositor/surface_utils.h"
@@ -20,6 +23,7 @@
 #include "content/browser/renderer_host/render_widget_host_view_base.h"
 #include "content/browser/renderer_host/render_widget_host_view_mac.h"
 #include "content/public/browser/context_factory.h"
+#include "third_party/blink/public/common/features.h"
 #include "ui/accelerated_widget_mac/display_ca_layer_tree.h"
 #include "ui/base/cocoa/remote_layer_api.h"
 #include "ui/compositor/recyclable_compositor_mac.h"
@@ -95,6 +99,7 @@ UnboundedSurfaceWindowMac::UnboundedSurfaceWindowMac(
     const gfx::Rect& bounds_in_dips)
     : parent_view_(parent_view),
       frame_sink_id_(content::AllocateFrameSinkId()) {
+  DCHECK(base::FeatureList::IsEnabled(blink::features::kUnboundedElement));
   if (host.is_valid()) {
     receiver_.Bind(std::move(host));
     receiver_.set_disconnect_handler(base::BindOnce(
@@ -108,6 +113,10 @@ UnboundedSurfaceWindowMac::UnboundedSurfaceWindowMac(
 
 bool UnboundedSurfaceWindowMac::is_valid() const {
   return window_ != nil;
+}
+
+gfx::NativeWindow UnboundedSurfaceWindowMac::GetNativeWindow() const {
+  return gfx::NativeWindow(window_);
 }
 
 UnboundedSurfaceWindowMac::~UnboundedSurfaceWindowMac() {
@@ -286,6 +295,54 @@ gfx::Rect UnboundedSurfaceWindowMac::GetBounds() const {
   return gfx::ScreenRectFromNSRect([window_ frame]);
 }
 
+void UnboundedSurfaceWindowMac::CopyFromSurface(
+    const gfx::Rect& src_subrect,
+    const gfx::Size& dst_size,
+    base::TimeDelta timeout,
+    base::OnceCallback<void(const content::CopyFromSurfaceResult&)> callback) {
+  auto request = std::make_unique<viz::CopyOutputRequest>(
+      viz::CopyOutputRequest::ResultFormat::RGBA,
+      viz::CopyOutputRequest::ResultDestination::kSystemMemory,
+      base::BindOnce(
+          [](base::OnceCallback<void(const content::CopyFromSurfaceResult&)>
+                 callback,
+             std::unique_ptr<viz::CopyOutputResult> result) {
+            std::move(callback).Run(
+                ToCopyFromSurfaceResult(result->ScopedAccessSkBitmap()
+                                            .GetOutScopedBitmapAndMetadata()));
+          },
+          std::move(callback)));
+  request->set_result_task_runner(
+      base::SingleThreadTaskRunner::GetCurrentDefault());
+
+  if (recyclable_compositor_ && recyclable_compositor_->compositor() &&
+      recyclable_compositor_->compositor()->root_layer()) {
+    recyclable_compositor_->compositor()->root_layer()->RequestCopyOfOutput(
+        std::move(request));
+    recyclable_compositor_->compositor()->ScheduleFullRedraw();
+  } else if (root_layer_) {
+    root_layer_->RequestCopyOfOutput(std::move(request));
+  }
+}
+
+void UnboundedSurfaceWindowMac::EnsureSurfaceSynchronizedForWebTest() {
+  if (root_layer_) {
+    root_layer_->SetShowSurface(
+        viz::SurfaceId(frame_sink_id_, GetLocalSurfaceId()),
+        root_layer_->bounds().size(), SK_ColorTRANSPARENT,
+        cc::DeadlinePolicy::UseInfiniteDeadline(),
+        /*stretch_content_to_fill_bounds=*/false);
+  }
+  if (recyclable_compositor_ && recyclable_compositor_->compositor()) {
+    DisplayInfo display_info = GetDisplayInfo();
+    gfx::Size size_pixels = gfx::ToRoundedSize(gfx::ConvertSizeToPixels(
+        root_layer_->bounds().size(), display_info.scale_factor));
+    recyclable_compositor_->UpdateSurface(
+        size_pixels, display_info.scale_factor,
+        display_info.display_color_spaces, display_info.display_id);
+  }
+}
+
 void UnboundedSurfaceWindowMac::RouteMouseEvent(NSEvent* ns_event) {
   RouteMouseEvent(
       input::WebMouseEventBuilder::Build(ns_event, window_.contentView));
@@ -332,9 +389,6 @@ void UnboundedSurfaceWindowMac::RouteKeyboardEvent(NSEvent* ns_event) {
   }
 }
 
-void UnboundedSurfaceWindowMac::OnWindowResignedKey() {
-  Dismiss();
-}
 
 void UnboundedSurfaceWindowMac::UpdateBounds(const gfx::Rect& bounds) {
   if (!parent_view_) {

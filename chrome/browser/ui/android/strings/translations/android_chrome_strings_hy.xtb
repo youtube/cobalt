@@ -117,6 +117,7 @@
 <translation id="1435593198351412143">Ավտոմատ բացել PDF ֆայլերը</translation>
 <translation id="1437543266176261764">Կատարվում է <ph name="APP_NAME" />-ում</translation>
 <translation id="1448440926884431741">Էջանիշներում դասավորեք ապրանքները, որոնց հետևում եք</translation>
+<translation id="1452651021404174820">Ընտրեք սարք</translation>
 <translation id="1455845192930279203">Ներբեռնե՞լ «<ph name="FILE_NAME" />» ֆայլը (<ph name="FILE_SIZE" />) <ph name="DOWNLOAD_DOMAIN" /> կայքից</translation>
 <translation id="1460751212339734034">Տնտեսեք ժամանակը, մուտքագրեք ավելի քիչ</translation>
 <translation id="146522654774760805">Գաղտնաբառեր և ինքնալրացում</translation>
@@ -124,6 +125,7 @@
 <translation id="1477626028522505441"><ph name="FILE_NAME" /> ֆայլի ներբեռնումը ձախողվեց՝ սերվերի հետ կապված խնդրի պատճառով:</translation>
 <translation id="147982357559798527">Փոխվել է</translation>
 <translation id="1480287803138246127">Պատմության որոշ մասը կարող է չցուցադրվել այստեղ։ Բոլոր տվյալները տեսնելու համար բացեք Chrome-ի ամբողջական պատմությունը։</translation>
+<translation id="1483493594462132177">Ուղարկել</translation>
 <translation id="1495677929897281669">Վերադառնալ ներդիր</translation>
 <translation id="1496514951988037011">օգտանուն</translation>
 <translation id="1501480321619201731">Ջնջել խումբը</translation>
@@ -1273,6 +1275,7 @@
 <translation id="634208815998129842">Խնդիրների կառավարիչ</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 ու առաքման ևս <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> հասցե}one{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 ու առաքման ևս <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> հասցե}other{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 ու առաքման ևս <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> հասցե}}</translation>
 <translation id="6345878117466430440">Նշել որպես կարդացված</translation>
+<translation id="6350745006329795504">Կառավարել սարքերը</translation>
 <translation id="6356893102071098867">Համոզվեք, որ ընտրել եք ճիշտ հաշիվը</translation>
 <translation id="6364438453358674297">Հեռացնե՞լ առաջարկը պատմությունից:</translation>
 <translation id="6380100320871303656">Chrome-ը հիմնականում նախաբեռնում է այն էջերը, որոնք առավել հավանական է, որ կայցելեք։ Այս կարգավորումը կարող է մեծացնել թրաֆիկի օգտագործման ծավալը։</translation>

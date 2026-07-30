@@ -12281,11 +12281,16 @@ bool GLES2DecoderImpl::ClearLevelUsingGL(Texture* texture,
     result = true;
   }
   RestoreClearState();
-  api()->glDeleteFramebuffersEXTFn(1, &fb);
+  // Restore the previous framebuffer binding *before* deleting the temporary
+  // FBO. Some Imagination/PowerVR drivers retain an internal reference to the
+  // previously-bound FBO across bind transitions; deleting it while bound and
+  // then rebinding can dereference freed driver state. See the
+  // ensure_previous_framebuffer_not_deleted workaround.
   Framebuffer* framebuffer = GetFramebufferInfoForTarget(fb_target);
   GLuint fb_service_id =
       framebuffer ? framebuffer->service_id() : GetBackbufferServiceId();
   BindFramebuffer(fb_target, fb_service_id);
+  api()->glDeleteFramebuffersEXTFn(1, &fb);
   return result;
 }
 
@@ -13091,6 +13096,10 @@ error::Error GLES2DecoderImpl::HandleTexImage2D(uint32_t immediate_data_size,
   // Set as failed for now, but if it successed, this will be set to not failed.
   texture_state_.tex_image_failed = true;
   GLenum target = static_cast<GLenum>(c.target);
+  if (!validators_->texture_target.IsValid(target)) {
+    LOCAL_SET_GL_ERROR_INVALID_ENUM(func_name, target, "target");
+    return error::kNoError;
+  }
   TextureRef* texture_ref =
       texture_manager()->GetTextureInfoForTarget(&state_, target);
   ScopedDepthStencilReattacher reattacher(this, texture_ref);
@@ -13187,6 +13196,10 @@ error::Error GLES2DecoderImpl::HandleTexImage3D(uint32_t immediate_data_size,
   // Set as failed for now, but if it successed, this will be set to not failed.
   texture_state_.tex_image_failed = true;
   GLenum target = static_cast<GLenum>(c.target);
+  if (!validators_->texture_3_d_target.IsValid(target)) {
+    LOCAL_SET_GL_ERROR_INVALID_ENUM(func_name, target, "target");
+    return error::kNoError;
+  }
   TextureRef* texture_ref =
       texture_manager()->GetTextureInfoForTarget(&state_, target);
   ScopedDepthStencilReattacher reattacher(this, texture_ref);

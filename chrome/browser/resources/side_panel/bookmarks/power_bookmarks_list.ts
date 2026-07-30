@@ -32,6 +32,7 @@ import type {BookmarksApiProxy} from './bookmarks_api_proxy.js';
 import {BookmarksApiProxyImpl} from './bookmarks_api_proxy.js';
 import {KeyArrowNavigationService} from './keyboard_arrow_navigation_service.js';
 import {BOOKMARK_ROW_LOAD_EVENT} from './power_bookmark_row.js';
+import type {PowerBookmarkRowElement} from './power_bookmark_row.js';
 import type {PowerBookmarksDragDelegate} from './power_bookmarks_drag_manager.js';
 import {PowerBookmarksDragManager} from './power_bookmarks_drag_manager.js';
 import {getCss} from './power_bookmarks_list.css.js';
@@ -184,7 +185,7 @@ export class PowerBookmarksListElement extends CrLitElement implements
   private shownBookmarksResizeObserver_?: ResizeObserver;
   private recordCountMetricsOnNextUpdate_: boolean = false;
   private rebuildNavigationElementsTimerId_: number = -1;
-  private expandedFolderIds_: Set<string> = new Set();
+  protected expandedFolderIds_: Set<string> = new Set();
 
   accessor activeFolderPath: BookmarksTreeNode[] = [];
   protected accessor activeSortIndex: number = 0;
@@ -347,7 +348,10 @@ export class PowerBookmarksListElement extends CrLitElement implements
         getAnnouncerInstance().announce(loadTimeData.getStringF(
             'bookmarkFolderCreated', getBookmarkName(bookmark)));
       }
-      this.scrollToBookmark_(bookmark);
+      this.updateComplete.then(async () => {
+        await this.$.list.updateComplete;
+        this.scrollToBookmark_(bookmark);
+      });
     }
     this.updatedElementIds_ = [bookmark.id, parent.id];
   }
@@ -518,6 +522,11 @@ export class PowerBookmarksListElement extends CrLitElement implements
       return this.activeFolderPath[this.activeFolderPath.length - 1];
     }
     return undefined;
+  }
+
+  getBookmarkRowElement(id: string): PowerBookmarkRowElement|null {
+    return this.shadowRoot.querySelector<PowerBookmarkRowElement>(
+        `#bookmark-${id}`);
   }
 
   protected getBookmarksListRole_(): string {

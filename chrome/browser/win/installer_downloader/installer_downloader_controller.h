@@ -10,6 +10,7 @@
 #include <optional>
 
 #include "base/callback_list.h"
+#include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "chrome/browser/win/installer_downloader/installer_downloader_active_browser_window_tracker.h"
 #include "components/infobars/core/infobar_manager.h"
@@ -113,6 +114,7 @@ class InstallerDownloaderController final
   void OnDownloadCompleted(std::unique_ptr<ScopedProfileKeepAlive> keep_alive,
                            bool success);
 
+  void RegisterInfoBar();
   void RegisterBrowserWindowEvents();
 
   void OnActiveBrowserWindowChanged(BrowserWindowInterface* bwi);
@@ -149,6 +151,13 @@ class InstallerDownloaderController final
   // actual browser session. As a result, the infobar should no longer be
   // visible until the next browser session.
   bool infobar_closed_ = false;
+
+  // Tracks whether the centralized infobar has been shown in this session.
+  bool infobar_shown_ = false;
+
+  // Cached destination for the installer download when using centralized
+  // infobars.
+  std::optional<base::FilePath> destination_;
 
   // Accept/Dismiss callbacks are invoked before the infobar get removed. This
   // flag will indicated that the close event has been initiate by the user or

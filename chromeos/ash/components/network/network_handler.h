@@ -86,6 +86,10 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkHandler {
   // Returns true if the global instance has been initialized.
   static bool IsInitialized();
 
+  // Returns true if the global instance has ever been initialized, even if
+  // Shutdown() was called.
+  static bool HasEverBeenInitialized();
+
   // Called whenever the pref services change, e.g. on login. Initializes
   // services with PrefService dependencies (i.e. ui_proxy_config_service).
   // |logged_in_profile_prefs| is the PrefService associated with the logged

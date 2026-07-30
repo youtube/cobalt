@@ -44,6 +44,34 @@ bool ValidateStacking(aura::Window* parent, base::span<const int> ids) {
   return true;
 }
 
+class DeleteWindowOnTouchCancelDelegate
+    : public aura::test::TestWindowDelegate {
+ public:
+  DeleteWindowOnTouchCancelDelegate() = default;
+  ~DeleteWindowOnTouchCancelDelegate() override = default;
+  DeleteWindowOnTouchCancelDelegate(const DeleteWindowOnTouchCancelDelegate&) =
+      delete;
+  DeleteWindowOnTouchCancelDelegate& operator=(
+      const DeleteWindowOnTouchCancelDelegate&) = delete;
+
+  void SetWindowToDelete(std::unique_ptr<aura::Window> w) {
+    window_to_delete_ = std::move(w);
+  }
+
+  bool IsWindowDeleted() const { return !window_to_delete_; }
+
+  // Overridden from aura::test::TestWindowDelegate.
+  void OnTouchEvent(ui::TouchEvent* event) override {
+    if (event->type() == ui::EventType::kTouchCancelled) {
+      window_to_delete_.reset();
+    }
+    aura::test::TestWindowDelegate::OnTouchEvent(event);
+  }
+
+ private:
+  std::unique_ptr<aura::Window> window_to_delete_;
+};
+
 }  // namespace
 
 // Creates three windows, w1, w11, and w12. w11 is a non-modal transient, w12 is
@@ -724,6 +752,32 @@ TEST_F(WindowModalityControllerTest, ChildModalAncestor) {
 
   wm::ActivateWindow(w4.get());
   EXPECT_TRUE(wm::IsActiveWindow(w4.get()));
+}
+
+// Verifies that destroying a modal window during the touch cancellation
+// (dispatched synchronously when the modal window becomes visible) is handled
+// gracefully and does not cause a UAF crash.
+TEST_F(WindowModalityControllerTest, DeleteModalWindowDuringTouchCancel) {
+  DeleteWindowOnTouchCancelDelegate d1;
+  std::unique_ptr<aura::Window> w1(
+      CreateTestWindowInShell({.delegate = &d1, .bounds = {100, 100}}));
+
+  aura::test::TestWindowDelegate d2;
+  std::unique_ptr<aura::Window> w2(CreateTestWindowInShell(
+      {.delegate = &d2, .bounds = {20, 20, 20, 20}, .show = false}));
+  w2->SetProperty(aura::client::kModalKey, ui::mojom::ModalType::kWindow);
+  ::wm::AddTransientChild(w1.get(), w2.get());
+
+  ui::test::EventGenerator generator(Shell::GetPrimaryRootWindow(),
+                                     gfx::Point(10, 10));
+  generator.PressTouch();
+
+  aura::Window* w2_ptr = w2.get();
+  d1.SetWindowToDelete(std::move(w2));
+
+  w2_ptr->Show();
+
+  EXPECT_TRUE(d1.IsWindowDeleted());
 }
 
 }  // namespace ash

@@ -76,7 +76,7 @@ class HeightTransitionHandler {
     private boolean mTabStripVisible;
 
     /**
-     * The tab strip was suppressed by {@link suppressTapStrip()}. The method is called when the tab
+     * The tab strip was suppressed by {@link suppressTabStrip()}. The method is called when the tab
      * strip needs hiding in favor of other UI such as vertical tab.
      */
     private boolean mTabStripSuppressed;
@@ -183,6 +183,8 @@ class HeightTransitionHandler {
 
     /** Called when the tab strip is suppressed in favor of other UI such as vertical tab. */
     void suppressTabStrip(boolean suppress) {
+        if (mTabStripSuppressed == suppress) return;
+
         mTabStripSuppressed = suppress;
         requestTransition();
     }
@@ -334,8 +336,9 @@ class HeightTransitionHandler {
 
         mTabStripVisible = showTabStrip;
         int newHeight =
-                (mUpdateStripVisibility && showTabStrip)
-                                || (!mUpdateStripVisibility && mForceUpdateHeight)
+                !mTabStripSuppressed
+                                && ((mUpdateStripVisibility && showTabStrip)
+                                        || (!mUpdateStripVisibility && mForceUpdateHeight))
                         ? calculateTabStripHeight()
                         : 0;
 

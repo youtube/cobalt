@@ -826,7 +826,7 @@ IN_PROC_BROWSER_TEST_F(ShelfPlatformAppBrowserTest, MultipleBrowsers) {
   Browser* const browser2 = CreateBrowser(profile());
   ASSERT_TRUE(browser2);
   EXPECT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());
-  EXPECT_NE(browser1->GetWindow(), browser2->window());
+  EXPECT_NE(browser1->GetWindow(), browser2->GetWindow());
   EXPECT_TRUE(browser2->GetWindow()->IsActive());
 
   const Extension* app = LoadAndLaunchPlatformApp("launch", "Launched");
@@ -2038,7 +2038,7 @@ IN_PROC_BROWSER_TEST_F(ShelfAppBrowserTestNoDefaultBrowser,
   Browser* browser2 = CreateBrowser(profile());
 
   EXPECT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());
-  EXPECT_NE(browser1->GetWindow(), browser2->window());
+  EXPECT_NE(browser1->GetWindow(), browser2->GetWindow());
   EXPECT_TRUE(browser2->GetWindow()->IsActive());
 
   // Activate multiple times the switcher to see that the windows get activated.
@@ -2053,7 +2053,7 @@ IN_PROC_BROWSER_TEST_F(ShelfAppBrowserTestNoDefaultBrowser,
 
   EXPECT_EQ(3u, GlobalBrowserCollection::GetInstance()->GetSize());
   EXPECT_NE(browser1->GetWindow(), browser3->GetWindow());
-  EXPECT_NE(browser2->window(), browser3->window());
+  EXPECT_NE(browser2->GetWindow(), browser3->GetWindow());
   EXPECT_TRUE(browser3->GetWindow()->IsActive());
 
   SelectItem(browser_id, ui::EventType::kKeyReleased);

@@ -52,6 +52,11 @@ GetTaskExecutionStrategiesResponse CreateTaskExecutionStrategiesResponse(
   auto* execution = new TaskExecution();
   execution->set_allocated_url_navigation(url_nav);
   strategy->set_allocated_execution(execution);
+
+  auto* suggestion_msg = strategy->mutable_suggestion_message();
+  suggestion_msg->set_short_text("Template");
+  suggestion_msg->set_detailed_text("Template");
+
   return response;
 }
 

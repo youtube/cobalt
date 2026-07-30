@@ -815,6 +815,8 @@ Called by update_extension_histograms.py.-->
   <int value="573"
       label="PASSWORDS_PRIVATE_ON_PASSWORD_MANAGER_ACTIONABLE_ERROR_CHANGED"/>
   <int value="574" label="INDIGO_PRIVATE_ON_REGENERATE_STARTED"/>
+  <int value="575" label="DICTATION_PRIVATE_ON_START_STREAM"/>
+  <int value="576" label="DICTATION_PRIVATE_ON_END_STREAM"/>
 </enum>
 
 <!-- LINT.ThenChange(//extensions/browser/extension_event_histogram_value.h:HistogramValue) -->
@@ -2912,6 +2914,8 @@ Called by update_extension_histograms.py.-->
   <int value="1973" label="GLICPRIVATE_ACTIVATETABWITHCONVERSATION"/>
   <int value="1974" label="CONTEXTUALTASKSPRIVATE_GETSTATE"/>
   <int value="1975" label="CONTEXTUALTASKSPRIVATE_LAUNCHPANELINNEWTAB"/>
+  <int value="1976" label="DICTATIONPRIVATE_UPDATETRANSCRIPTION"/>
+  <int value="1977" label="DICTATIONPRIVATE_SETSTREAMSTATE"/>
 </enum>
 
 <!-- LINT.ThenChange(//extensions/browser/extension_function_histogram_value.h:HistogramValue) -->
@@ -3301,6 +3305,7 @@ Called by update_extension_permission.py.-->
   <int value="266" label="kGlicPrivateInvoke"/>
   <int value="267" label="kIndigoPrivate"/>
   <int value="268" label="kContextualTasksPrivate"/>
+  <int value="269" label="kDictationPrivate"/>
 </enum>
 
 <enum name="ExtensionPolicyReinstallReason">

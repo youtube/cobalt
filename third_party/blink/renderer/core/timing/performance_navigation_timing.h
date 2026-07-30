@@ -80,6 +80,13 @@ class CORE_EXPORT PerformanceNavigationTiming final
 
   DocumentLoader* GetDocumentLoader() const;
 
+  // Computes whether redirect timing (redirectCount, redirectStart and
+  // redirectEnd) should be exposed for this navigation, per
+  // https://html.spec.whatwg.org/#create-the-navigation-timing-entry
+  static bool ComputeExposeCrossOriginRedirectTiming(
+      LocalDOMWindow& window,
+      const DocumentLoadTimingValues& timing_values);
+
   NotRestoredReasons* BuildNotRestoredReasons(
       const mojom::blink::BackForwardCacheNotRestoredReasonsPtr& reasons) const;
   PerformanceTimingConfidence* GetConfidence() const;
@@ -89,6 +96,9 @@ class CORE_EXPORT PerformanceNavigationTiming final
 
   Member<DocumentTimingValues> document_timing_values_;
   Member<DocumentLoadTimingValues> document_load_timing_values_;
+
+  // Whether redirect timing is exposed for this navigation.
+  const bool expose_cross_origin_redirect_timing_;
 };
 }  // namespace blink
 

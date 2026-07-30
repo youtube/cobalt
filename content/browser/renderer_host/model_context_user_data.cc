@@ -244,6 +244,11 @@ void ModelContextUserData::GetScriptTools(
     return RenderFrameHost::FrameIterationAction::kContinue;
   });
 
+  std::ranges::sort(all_tools, [](const blink::mojom::ScriptToolPtr& a,
+                                  const blink::mojom::ScriptToolPtr& b) {
+    return a->name < b->name;
+  });
+
   std::move(callback).Run(std::move(all_tools));
 }
 

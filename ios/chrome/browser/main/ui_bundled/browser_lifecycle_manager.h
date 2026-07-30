@@ -10,6 +10,7 @@
 #import "ios/chrome/browser/shared/model/browser/browser_provider_interface.h"
 
 class ProfileIOS;
+@protocol GeminiCommands;
 @protocol SceneCommands;
 @class SceneState;
 @protocol SettingsCommands;
@@ -26,13 +27,13 @@ class ProfileIOS;
 //
 // `sceneState` is the scene state that will be associated with any Browsers
 // created.
-// `sceneEndpoint`, `settingsEndpoint, and `browsingDataEndpoint` are the
-// objects that methods in the respective command protocols should be
-// dispatched to.
+// `sceneEndpoint`, `settingsEndpoint` and `geminiEndpoint` are the objects that
+// methods in the respective command protocols should be dispatched to.
 - (instancetype)initWithProfile:(ProfileIOS*)profile
                      sceneState:(SceneState*)sceneState
                   sceneEndpoint:(id<SceneCommands>)sceneEndpoint
                settingsEndpoint:(id<SettingsCommands>)settingsEndpoint
+                 geminiEndpoint:(id<GeminiCommands>)geminiEndpoint
     NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)init NS_UNAVAILABLE;

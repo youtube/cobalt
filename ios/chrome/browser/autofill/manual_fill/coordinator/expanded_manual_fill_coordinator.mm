@@ -20,7 +20,6 @@
 #import "ios/chrome/common/ui/reauthentication/reauthentication_module.h"
 #import "ios/public/provider/chrome/browser/keyboard/keyboard_api.h"
 #import "ios/web/public/web_state.h"
-#import "ui/base/device_form_factor.h"
 #import "url/gurl.h"
 
 using manual_fill::ManualFillDataType;
@@ -76,8 +75,8 @@ using manual_fill::ManualFillDataType;
 - (void)stop {
   [super stop];
 
-  // On iPad, dismiss the popover.
-  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET &&
+  // Dismiss the popover.
+  if ([ManualFillUtil shouldUsePopover] &&
       self.viewController.presentingViewController) {
     [self.viewController dismissViewControllerAnimated:true completion:nil];
   }
@@ -132,10 +131,9 @@ using manual_fill::ManualFillDataType;
 
 - (void)fallbackCoordinatorDidDismissPopover:
     (FallbackCoordinator*)fallbackCoordinator {
-  // No-op. On phones, the expanded manual fill view is never presented as a
-  // popover. On tablets, it can be presented as a popoover, but fallback
-  // coordinators are subviews of the expanded manual fill view controller and
-  // can't dismiss this popup.
+  // No-op. When presented as an input view, there's no popover view to dismiss.
+  // When presented as a popoover, fallback coordinators are subviews of the
+  // expanded manual fill view controller and can't dismiss this popup.
 }
 
 #pragma mark - FormInputInteractionDelegate

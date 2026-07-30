@@ -120,12 +120,6 @@ class StorageAreaImpl : public blink::mojom::StorageArea,
       Delegate* delegate,
       const Options& options);
 
-  // Cancels all pending load tasks. Useful for emergency destructions. If the
-  // area is unloaded (initialized() returns false), this will DROP all
-  // pending changes to the database, and any uninitialized areas created
-  // through `ForkToNewMap()` will stay BROKEN and unresponsive.
-  void CancelAllPendingRequests();
-
   // The total bytes used by items which counts towards the quota.
   size_t storage_used() const { return storage_used_; }
   // The physical memory used by the cache.
@@ -175,6 +169,11 @@ class StorageAreaImpl : public blink::mojom::StorageArea,
   // Sets cache mode to either store only keys or keys and values. See
   // SetCacheMode().
   void SetCacheModeForTesting(CacheMode cache_mode);
+
+  // Enables tests to register a callback that runs when `map_state_` becomes
+  // `LOADING_FROM_DATABASE`.  Tests can use this callback to verify shutdown
+  // while maps are loading.
+  void SetLoadingStartedCallbackForTesting(base::RepeatingClosure callback);
 
   // blink::mojom::StorageArea:
   void AddObserver(
@@ -332,7 +331,6 @@ class StorageAreaImpl : public blink::mojom::StorageArea,
   // database.
   scoped_refptr<DomStorageDatabase::SharedMapLocator> map_locator_;
 
-  mojo::ReceiverSet<blink::mojom::StorageArea> receivers_;
   mojo::RemoteSet<blink::mojom::StorageAreaObserver> observers_;
   raw_ptr<Delegate, DanglingUntriaged> delegate_;
   raw_ptr<AsyncDomStorageDatabase> database_;
@@ -346,6 +344,13 @@ class StorageAreaImpl : public blink::mojom::StorageArea,
 
   // These are always consumed & cleared when the map is loaded.
   std::vector<OnLoadCompleteTask> on_load_complete_tasks_;
+
+  // To avoid dropped mojo response DCHECKs, `receivers_` must destruct before
+  // `on_load_complete_tasks_`, which contains mojo response callbacks.
+  mojo::ReceiverSet<blink::mojom::StorageArea> receivers_;
+
+  // Runs when `map_state_` becomes `LOADING_FROM_DATABASE`.
+  base::RepeatingClosure loading_started_callback_for_testing_;
 
   size_t storage_used_;
   size_t max_size_;

@@ -90,12 +90,6 @@
 - (void)highlightPageControlItem:(TabGridPage)page;
 // Removes the last highlighted page, if there is one.
 - (void)resetLastPageControlHighlight;
-
-// Hides components and uses a black background color for tab grid transition
-// animation.
-- (void)hide;
-// Recovers the normal appearance for tab grid transition animation.
-- (void)show;
 // Updates the appearance of the this toolbar, based on whether the content
 // below it is `scrolledToEdge` or not.
 - (void)setScrollViewScrolledToEdge:(BOOL)scrolledToEdge;

@@ -8,6 +8,7 @@
 #include "third_party/blink/public/common/frame/frame_policy.h"
 #include "third_party/blink/public/mojom/css/preferred_color_scheme.mojom-blink.h"
 #include "third_party/blink/public/mojom/frame/color_scheme.mojom-blink.h"
+#include "third_party/blink/public/mojom/frame/frame_owner_properties.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/scroll/scrollbar_mode.mojom-blink.h"
 #include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -68,6 +69,7 @@ class CORE_EXPORT FrameOwner : public GarbageCollectedMixin {
   virtual bool AllowFullscreen() const = 0;
   virtual bool AllowPaymentRequest() const = 0;
   virtual bool IsDisplayNone() const = 0;
+  virtual mojom::blink::FrameResponsiveSizing GetResponsiveSizing() const = 0;
   virtual mojom::blink::ColorScheme GetColorScheme() const = 0;
   virtual mojom::blink::PreferredColorScheme GetPreferredColorScheme()
       const = 0;

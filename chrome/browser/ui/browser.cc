@@ -24,7 +24,6 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
-#include "base/no_destructor.h"
 #include "base/notimplemented.h"
 #include "base/process/process_info.h"
 #include "base/strings/string_number_conversions.h"
@@ -157,7 +156,6 @@
 #include "chrome/browser/ui/webui/signin/login_ui_service.h"
 #include "chrome/browser/ui/webui/signin/login_ui_service_factory.h"
 #include "chrome/browser/ui/window_feature_controller/window_feature_controller.h"
-#include "chrome/browser/ui/window_metadata/window_metadata_controller.h"
 #include "chrome/browser/ui/window_sizer/window_sizer.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
@@ -701,23 +699,6 @@ GURL Browser::GetNewTabURL() const {
   return chrome::ChromeUINewTabURLAsGURL();
 }
 
-const std::string& Browser::user_title() const {
-  // WindowMetadataController may not be registered in tests using
-  // skip_window_init_for_testing, which skips BrowserWindowFeatures::Init().
-  auto* controller = WindowMetadataController::From(this);
-  if (!controller) {
-    static const base::NoDestructor<std::string> empty;
-    return *empty;
-  }
-  return controller->user_title();
-}
-
-std::u16string Browser::GetWindowTitleForCurrentTab(
-    bool include_app_name) const {
-  return WindowMetadataController::From(this)->GetWindowTitleForCurrentTab(
-      include_app_name);
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 // Browser, OnBeforeUnload handling:
 
@@ -793,10 +774,6 @@ void Browser::ResetTryToCloseWindow() {
 
 bool Browser::IsAttemptingToCloseBrowser() const {
   return UnloadController::From(this)->is_attempting_to_close_browser();
-}
-
-void Browser::SetWindowUserTitle(const std::string& user_title) {
-  WindowMetadataController::From(this)->SetWindowUserTitle(user_title);
 }
 
 BrowserWindowInterface* Browser::GetBrowserForOpeningWebUi() {
@@ -947,14 +924,6 @@ BrowserActions* Browser::GetActions() {
 
 BrowserWindowInterface::Type Browser::GetType() const {
   return type_;
-}
-
-web_app::AppBrowserController* Browser::app_controller() {
-  return web_app::AppBrowserController::From(this);
-}
-
-const web_app::AppBrowserController* Browser::app_controller() const {
-  return web_app::AppBrowserController::From(this);
 }
 
 std::vector<tabs::TabInterface*> Browser::GetAllTabInterfaces() {

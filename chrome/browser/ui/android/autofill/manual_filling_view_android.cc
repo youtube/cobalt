@@ -352,6 +352,22 @@ static void JNI_ManualFillingComponentBridge_CachePasswordSheetDataForTesting(
 }
 
 // static
+static void JNI_ManualFillingComponentBridge_OnOptionSelectedForWebContents(
+    JNIEnv* env,
+    const base::android::JavaRef<jobject>& j_web_contents,
+    int32_t j_selected_action) {
+  content::WebContents* web_contents =
+      content::WebContents::FromJavaWebContents(j_web_contents);
+  if (!web_contents) {
+    return;
+  }
+  if (auto controller = ManualFillingController::GetOrCreate(web_contents)) {
+    controller->OnOptionSelected(
+        static_cast<autofill::AccessoryAction>(j_selected_action));
+  }
+}
+
+// static
 static void JNI_ManualFillingComponentBridge_NotifyFocusedFieldTypeForTesting(
     JNIEnv* env,
     const base::android::JavaRef<jobject>& j_web_contents,

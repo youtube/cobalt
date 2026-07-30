@@ -40,6 +40,7 @@ import org.chromium.chrome.browser.share.android_share_sheet.AndroidShareSheetCo
 import org.chromium.chrome.browser.share.android_share_sheet.TabGroupSharingController;
 import org.chromium.chrome.browser.share.link_to_text.LinkToTextHelper;
 import org.chromium.chrome.browser.share.send_tab_to_self.SendTabToSelfCoordinator;
+import org.chromium.chrome.browser.share.send_tab_to_self.ShareEntryPoint;
 import org.chromium.chrome.browser.share.share_sheet.ShareSheetCoordinator;
 import org.chromium.chrome.browser.tab.SadTab;
 import org.chromium.chrome.browser.tab.Tab;
@@ -456,7 +457,8 @@ public class ShareDelegateImpl implements ShareDelegate {
                         mSigninAndHistorySyncActivityLauncher,
                         mActivityResultTracker,
                         mModalDialogManagerSupplier,
-                        mSnackbarManager);
+                        mSnackbarManager,
+                        ShareEntryPoint.SHARE_SHEET);
         sttsCoordinator.show();
     }
 

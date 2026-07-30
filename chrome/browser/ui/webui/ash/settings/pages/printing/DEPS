@@ -20,7 +20,6 @@ include_rules = [
   "+chrome/browser/ui/select_file_policy/chrome_select_file_policy.h",
   "+chrome/browser/ui/webui/ash/settings/pages",
   "+chrome/browser/ui/webui/ash/settings/search",
-  "+chrome/browser/ui/webui/settings",
   "+chrome/common",
   "+chrome/grit",
   "+chrome/test",

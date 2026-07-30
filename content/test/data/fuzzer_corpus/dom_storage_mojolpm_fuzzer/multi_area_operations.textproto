@@ -65,11 +65,13 @@ actions {
 actions { storage_area_remote_action { id: 0  m_get_all {} } }
 # actions[13]: GetAll on id 2.
 actions { storage_area_remote_action { id: 2  m_get_all {} } }
+# actions[14]: Drain UI thread.
+actions { run_thread { id: UI } }
 
 # Sequence 0: Local two bindings same origin, Put from both, delete from first.
 sequences { action_indexes: [0, 1, 7, 8, 11] }
-# Sequence 1: Local two origins, Put to both, GetAll both.
-sequences { action_indexes: [0, 2, 7, 9, 12, 13] }
+# Sequence 1: Local two origins, Put to both, drain UI, GetAll both.
+sequences { action_indexes: [0, 2, 7, 9, 14, 12, 13] }
 # Sequence 2: Local two renderers same origin, Put from both.
 sequences { action_indexes: [0, 3, 7, 10, 12] }
 # Sequence 3: Session two origins, Put + GetAll on both.

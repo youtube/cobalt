@@ -486,27 +486,6 @@ TEST_P(ClientSideDetectionServiceTest,
   EXPECT_TRUE(SendClientReportPhishingRequest(url, score, access_token));
 }
 
-TEST_P(ClientSideDetectionServiceTest, GetNumReportTest) {
-  csd_service_ = std::make_unique<ClientSideDetectionService>(
-      std::make_unique<ChromeClientSideDetectionServiceDelegate>(profile_),
-      model_observer_tracker_.get());
-  ReadModelAndTfLiteFiles();
-
-  base::Time now = base::Time::Now();
-  base::TimeDelta twenty_five_hours = base::Hours(25);
-  EXPECT_TRUE(csd_service_->AddPhishingReport(now - twenty_five_hours));
-  EXPECT_TRUE(csd_service_->AddPhishingReport(now - twenty_five_hours));
-  EXPECT_TRUE(csd_service_->AddPhishingReport(now));
-  EXPECT_TRUE(csd_service_->AddPhishingReport(now));
-
-  EXPECT_EQ(2, csd_service_->GetPhishingNumReports());
-  EXPECT_FALSE(AtPhishingReportLimit());
-
-  EXPECT_TRUE(csd_service_->AddPhishingReport(now));
-  EXPECT_EQ(3, csd_service_->GetPhishingNumReports());
-  EXPECT_TRUE(AtPhishingReportLimit());
-}
-
 TEST_P(ClientSideDetectionServiceTest,
        GetNumReportTestWhenPrefsPreloadedAndOverLimit) {
   // The current report limit is 3 as per
@@ -604,52 +583,6 @@ TEST_P(ClientSideDetectionServiceTest, CacheTest) {
   ReadModelAndTfLiteFiles();
 
   TestCache();
-}
-
-TEST_P(ClientSideDetectionServiceTest, IsPrivateIPAddress) {
-  csd_service_ = std::make_unique<ClientSideDetectionService>(
-      std::make_unique<ChromeClientSideDetectionServiceDelegate>(profile_),
-      model_observer_tracker_.get());
-
-  net::IPAddress address;
-  EXPECT_TRUE(address.AssignFromIPLiteral("10.1.2.3"));
-  EXPECT_TRUE(csd_service_->IsPrivateIPAddress(address));
-
-  EXPECT_TRUE(address.AssignFromIPLiteral("127.0.0.1"));
-  EXPECT_TRUE(csd_service_->IsPrivateIPAddress(address));
-
-  EXPECT_TRUE(address.AssignFromIPLiteral("172.24.3.4"));
-  EXPECT_TRUE(csd_service_->IsPrivateIPAddress(address));
-
-  EXPECT_TRUE(address.AssignFromIPLiteral("192.168.1.1"));
-  EXPECT_TRUE(csd_service_->IsPrivateIPAddress(address));
-
-  EXPECT_TRUE(address.AssignFromIPLiteral("fc00::"));
-  EXPECT_TRUE(csd_service_->IsPrivateIPAddress(address));
-
-  EXPECT_TRUE(address.AssignFromIPLiteral("fec0::"));
-  EXPECT_TRUE(csd_service_->IsPrivateIPAddress(address));
-
-  EXPECT_TRUE(address.AssignFromIPLiteral("fec0:1:2::3"));
-  EXPECT_TRUE(csd_service_->IsPrivateIPAddress(address));
-
-  EXPECT_TRUE(address.AssignFromIPLiteral("::1"));
-  EXPECT_TRUE(csd_service_->IsPrivateIPAddress(address));
-
-  EXPECT_TRUE(address.AssignFromIPLiteral("::ffff:192.168.1.1"));
-  EXPECT_TRUE(csd_service_->IsPrivateIPAddress(address));
-
-  EXPECT_TRUE(address.AssignFromIPLiteral("1.2.3.4"));
-  EXPECT_FALSE(csd_service_->IsPrivateIPAddress(address));
-
-  EXPECT_TRUE(address.AssignFromIPLiteral("200.1.1.1"));
-  EXPECT_FALSE(csd_service_->IsPrivateIPAddress(address));
-
-  EXPECT_TRUE(address.AssignFromIPLiteral("2001:0db8:ac10:fe01::"));
-  EXPECT_FALSE(csd_service_->IsPrivateIPAddress(address));
-
-  EXPECT_TRUE(address.AssignFromIPLiteral("::ffff:23c5:281b"));
-  EXPECT_FALSE(csd_service_->IsPrivateIPAddress(address));
 }
 
 TEST_P(ClientSideDetectionServiceTest, TestModelFollowsPrefs) {

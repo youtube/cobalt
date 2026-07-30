@@ -970,36 +970,33 @@ D3DImageBackingFactory::CreateSharedBufferD3D12(const Mailbox& mailbox,
       return nullptr;
     }
 
-    // If adapter supports UMA, create the custom heap with equivalent heap
-    // type. Otherwise, use shared cross-adapter heaps for a discrete (NUMA)
-    // adapter. This is currently required for ORT interop since ORT can only
-    // import mapped buffers.
-    // TODO(crbug.com/6064345): support D3D12_HEAP_TYPE_DEFAULT for NUMA.
-    if (arch.UMA == TRUE) {
-      // Default to UPLOAD heap to enable CPU read-write access. This is
-      // currently required for ORT interop.
-      D3D12_HEAP_TYPE target_heap_type = D3D12_HEAP_TYPE_UPLOAD;
-      if (usage.Has(SHARED_IMAGE_USAGE_WEBNN_SHARED_TENSOR_READ)) {
-        target_heap_type = D3D12_HEAP_TYPE_READBACK;
-      }
-      heap_desc.Properties =
-          d3d12_device_->GetCustomHeapProperties(0, target_heap_type);
-    } else {
-      // Discrete adapters cannot directly create shared cross-adapter heaps
-      // that are accessible to the CPU. We allocate the backing memory
-      // ourselves and open the heap from it to bypass this restriction.
-      DWORD page_protection = PAGE_READWRITE;
-      if (usage.Has(SHARED_IMAGE_USAGE_WEBNN_SHARED_TENSOR_WRITE)) {
-        page_protection |= PAGE_WRITECOMBINE;
-      }
+    // Using OpenExistingHeapFromAddress for both UMA and NUMA adapters.
+    //
+    // For UMA adapters, OpenExistingHeapFromAddress is the only way to create a
+    // heap that is both CPU accessible and SHARED. SHARED is required by the
+    // ORT interop API, and CPU accessibility is required for zero-copy
+    // reads/writes as well as the fallback path when an ORT EP does not support
+    // the interop API.
+    //
+    // For NUMA adapter, OpenExistingHeapFromAddress is currently required
+    // because the ORT interop API is not supported by all ORT EPs and we can't
+    // use the fallback path with D3D12_HEAP_TYPE_DEFAULT heaps.
+    // TODO(crbug.com/481268786): support D3D12_HEAP_TYPE_DEFAULT for NUMA.
 
-      d3d12_heap_memory.reset(::VirtualAlloc(nullptr, heap_desc.SizeInBytes,
-                                             MEM_RESERVE | MEM_COMMIT,
-                                             page_protection));
-      if (!d3d12_heap_memory) {
-        PLOG(ERROR) << "Failed to allocate D3D12 heap backing memory.";
-        return nullptr;
-      }
+    DWORD page_protection = PAGE_READWRITE;
+    // UMA adapters with cache coherency can use write-back for better write
+    // performance.
+    if ((!arch.UMA || !arch.CacheCoherentUMA) &&
+        usage.Has(SHARED_IMAGE_USAGE_WEBNN_SHARED_TENSOR_WRITE)) {
+      page_protection |= PAGE_WRITECOMBINE;
+    }
+
+    d3d12_heap_memory.reset(::VirtualAlloc(nullptr, heap_desc.SizeInBytes,
+                                           MEM_RESERVE | MEM_COMMIT,
+                                           page_protection));
+    if (!d3d12_heap_memory) {
+      PLOG(ERROR) << "Failed to allocate D3D12 heap backing memory.";
+      return nullptr;
     }
   } else {
     // Standard WebGPU uses default.

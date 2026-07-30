@@ -326,7 +326,9 @@
                           id<SystemIdentity> identity) {
                [weakSelf doSigninCompletionWithResult:result identity:identity];
              }];
-
+  command.confirmChangeProfile = ^(void (^completion)(BOOL)) {
+    [weakSelf confirmChangeProfileWithCompletion:completion];
+  };
   _signinCoordinator =
       [SigninCoordinator signinCoordinatorWithCommand:command
                                               browser:self.browser
@@ -361,6 +363,48 @@
   id<SaveToDriveCommands> saveToDriveHandler = HandlerForProtocol(
       self.browser->GetCommandDispatcher(), SaveToDriveCommands);
   [saveToDriveHandler hideSaveToDrive];
+}
+
+// Shows an alert letting the user know that switching profiles will cancel the
+// current save operation and asking them to confirm.
+- (void)confirmChangeProfileWithCompletion:(void (^)(BOOL))completion {
+  _alertController = [UIAlertController
+      alertControllerWithTitle:
+          l10n_util::GetNSString(
+              IDS_IOS_SAVE_TO_DRIVE_CONFIRM_CHANGE_PROFILE_TITLE)
+                       message:
+                           l10n_util::GetNSString(
+                               IDS_IOS_SAVE_TO_DRIVE_CONFIRM_CHANGE_PROFILE_MESSAGE)
+                preferredStyle:UIAlertControllerStyleAlert];
+  __weak __typeof(self) weakSelf = self;
+  UIAlertAction* cancelAction = [UIAlertAction
+      actionWithTitle:l10n_util::GetNSString(IDS_CANCEL)
+                style:UIAlertActionStyleCancel
+              handler:^(UIAlertAction* action) {
+                [weakSelf handleConfirmChangeProfile:NO completion:completion];
+              }];
+  UIAlertAction* confirmChangeProfileAction = [UIAlertAction
+      actionWithTitle:l10n_util::GetNSString(
+                          IDS_IOS_SAVE_TO_DRIVE_CONFIRM_CHANGE_PROFILE_BUTTON)
+                style:UIAlertActionStyleDestructive
+              handler:^(UIAlertAction* action) {
+                [weakSelf handleConfirmChangeProfile:YES completion:completion];
+              }];
+  [_alertController addAction:cancelAction];
+  [_alertController addAction:confirmChangeProfileAction];
+  [self.baseViewController.presentedViewController
+      presentViewController:_alertController
+                   animated:YES
+                 completion:nil];
+}
+
+// Handles the user's response to the confirm change profile alert.
+- (void)handleConfirmChangeProfile:(BOOL)proceed
+                        completion:(void (^)(BOOL))completion {
+  CHECK(completion);
+  [_alertController dismissViewControllerAnimated:YES completion:nil];
+  _alertController = nil;
+  completion(proceed);
 }
 
 @end

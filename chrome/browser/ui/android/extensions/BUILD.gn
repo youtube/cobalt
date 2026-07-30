@@ -152,17 +152,6 @@ if (enable_extensions_core) {
   }
 }
 
-java_cpp_template("generate_buildflags") {
-  sources = [ "java/templates/ExtensionsBuildflags.template" ]
-  if (enable_desktop_android_extensions) {
-    defines = [ "_ENABLE_DESKTOP_ANDROID_EXTENSIONS" ]
-  }
-}
-
-android_library("buildflags_java") {
-  srcjar_deps = [ ":generate_buildflags" ]
-}
-
 android_library("test_support_java") {
   testonly = true
   sources = [
@@ -170,12 +159,12 @@ android_library("test_support_java") {
     "javatests/src/org/chromium/chrome/browser/ui/extensions/FakeExtensionUiBackendRule.java",
   ]
   deps = [
-    ":buildflags_java",
     ":java",
     "//base:base_java",
     "//base:base_java_test_support",
     "//chrome/browser/profiles/android:java",
     "//content/public/android:content_java",
+    "//extensions/buildflags:buildflags_java",
     "//third_party/junit",
     "//ui/android:ui_no_recycler_view_java",
   ]

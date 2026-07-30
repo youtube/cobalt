@@ -20,6 +20,11 @@ LanguageTag CreateChecked(std::string_view tag) {
 
 }  // namespace
 
+const base::LanguageTag& UNDEFINED() {
+  static const base::NoDestructor<LanguageTag> kundefined(CreateChecked("und"));
+  return *kundefined;
+}
+
 #define IMPL_LANGUAGECODE_TAG_NAME(tag, name)                               \
   const base::LanguageTag& name() {                                         \
     static const base::NoDestructor<LanguageTag> kname(CreateChecked(tag)); \

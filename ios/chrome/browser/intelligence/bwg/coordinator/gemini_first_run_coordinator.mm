@@ -14,6 +14,7 @@
 #import "ios/chrome/browser/intelligence/bwg/coordinator/gemini_first_run_mediator.h"
 #import "ios/chrome/browser/intelligence/bwg/coordinator/gemini_first_run_mediator_delegate.h"
 #import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_browser_agent.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_tab_helper.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/gemini_consent_configuration.h"
@@ -204,32 +205,21 @@
 // needed.
 - (void)handleLiveMicPermission {
   CHECK(_firstRunType == GeminiFirstRunType::kLive);
-  AVAuthorizationStatus status =
-      [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio];
-  switch (status) {
-    case AVAuthorizationStatusNotDetermined: {
-      __weak __typeof(self) weakSelf = self;
-      [AVCaptureDevice
-          requestAccessForMediaType:AVMediaTypeAudio
-                  completionHandler:^(BOOL granted) {
-                    __strong __typeof(weakSelf) strongSelf = weakSelf;
-                    if (!strongSelf) {
-                      return;
-                    }
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                      [strongSelf handleLiveMicPermissionResult:granted];
-                    });
-                  }];
-      break;
-    }
-    case AVAuthorizationStatusAuthorized:
-      [self handleLiveMicPermissionResult:YES];
-      break;
-    case AVAuthorizationStatusDenied:
-    case AVAuthorizationStatusRestricted:
-      [self showMicrophoneSettingsAlert];
-      break;
+  GeminiBrowserAgent* geminiBrowserAgent =
+      GeminiBrowserAgent::FromBrowser(self.browser);
+  if (!geminiBrowserAgent) {
+    [self handleLiveMicPermissionResult:NO];
+    return;
   }
+  __weak __typeof(self) weakSelf = self;
+  geminiBrowserAgent->ShowGeminiLiveMicrophoneAlert(
+      _viewController ? _viewController : self.baseViewController,
+      ^(BOOL granted) {
+        __strong __typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf) {
+          [strongSelf handleLiveMicPermissionResult:granted];
+        }
+      });
 }
 
 // Handles the result of the microphone permission request.
@@ -250,55 +240,8 @@
     _viewController = nil;
   } else {
     _consentCompletion = nil;
+    [_mediator didRefuseLiveMicPermission];
   }
-}
-
-// Shows a custom alert directing the user to iOS Settings to enable the
-// microphone.
-- (void)showMicrophoneSettingsAlert {
-  UIAlertController* alert = [UIAlertController
-      alertControllerWithTitle:l10n_util::GetNSString(
-                                   IDS_IOS_GEMINI_LIVE_MICROPHONE_ALERT_TITLE)
-                       message:l10n_util::GetNSString(
-                                   IDS_IOS_GEMINI_LIVE_MICROPHONE_ALERT_DETAIL)
-                preferredStyle:UIAlertControllerStyleAlert];
-
-  __weak __typeof(self) weakSelf = self;
-  [alert
-      addAction:
-          [UIAlertAction
-              actionWithTitle:
-                  l10n_util::GetNSString(
-                      IDS_IOS_GEMINI_LIVE_MICROPHONE_ALERT_GO_TO_SETTINGS)
-                        style:UIAlertActionStyleDefault
-                      handler:^(UIAlertAction* action) {
-                        NSURL* settingsURL = [NSURL
-                            URLWithString:UIApplicationOpenSettingsURLString];
-                        [[UIApplication sharedApplication] openURL:settingsURL
-                                                           options:@{}
-                                                 completionHandler:nil];
-                        __strong __typeof(weakSelf) strongSelf = weakSelf;
-                        if (strongSelf) {
-                          [strongSelf dismissPresentedViewWithCompletion:nil];
-                          strongSelf->_viewController = nil;
-                        }
-                      }]];
-
-  [alert addAction:[UIAlertAction
-                       actionWithTitle:
-                           l10n_util::GetNSString(
-                               IDS_IOS_GEMINI_LIVE_MICROPHONE_ALERT_NO_THANKS)
-                                 style:UIAlertActionStyleCancel
-                               handler:^(UIAlertAction* action) {
-                                 __strong __typeof(weakSelf) strongSelf =
-                                     weakSelf;
-                                 if (strongSelf) {
-                                   [strongSelf
-                                       dismissPresentedViewWithCompletion:nil];
-                                   strongSelf->_viewController = nil;
-                                 }
-                               }]];
-  [_viewController presentViewController:alert animated:YES completion:nil];
 }
 
 // Dismisses presented view.

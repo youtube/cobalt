@@ -17,11 +17,9 @@
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/background/glic/glic_launcher_configuration.h"
-#include "chrome/browser/glic/browser_ui/glic_button_controller_delegate.h"
 #include "chrome/browser/glic/browser_ui/glic_vector_icon_manager.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/suggestions/contextual_cueing_features.h"
-#include "chrome/browser/private_ai/private_ai_service.h"
 #include "chrome/browser/private_ai/private_ai_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -36,6 +34,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/private_ai/client.h"
 #include "components/private_ai/features.h"
+#include "components/private_ai/private_ai_service.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/resource/resource_bundle.h"
@@ -689,7 +688,7 @@ class GlicButton : public GlicBaseShim<T>,
   void AnnounceNudgeShown() {
     auto announcement = l10n_util::GetStringFUTF16(
         IDS_GLIC_CONTEXTUAL_CUEING_ANNOUNCEMENT,
-        GlicLauncherConfiguration::GetGlobalHotkey().GetShortcutText());
+        GlicLauncherConfiguration::GetToggleHotkey().GetShortcutText());
     this->GetViewAccessibility().AnnounceAlert(announcement);
   }
 

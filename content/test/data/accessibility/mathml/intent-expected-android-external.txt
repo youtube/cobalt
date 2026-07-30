@@ -1,0 +1,6 @@
+WebView focusable focused actions:[CLEAR_FOCUS, AX_FOCUS] bundle:[chromeRole="rootWebArea"]
+++View actions:[AX_FOCUS] bundle:[chromeRole="genericContainer"]
+++++View actions:[AX_FOCUS] bundle:[chromeRole="mathMLMath", roleDescription="math"] MathInfo:[tag="math"]
+++++++View actions:[AX_FOCUS] bundle:[chromeRole="mathMLRow"] MathInfo:[tag="mrow", intent="power(base, exponent)"]
+++++++++View text:"𝑥" actions:[AX_FOCUS, NEXT, PREVIOUS] bundle:[chromeRole="mathMLIdentifier"] MathInfo:[tag="mi", arg="base"]
+++++++++View text:"2" actions:[AX_FOCUS, NEXT, PREVIOUS] bundle:[chromeRole="mathMLNumber"] MathInfo:[tag="mn", arg="exponent"]

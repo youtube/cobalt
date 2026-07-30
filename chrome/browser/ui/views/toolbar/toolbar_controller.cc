@@ -100,7 +100,7 @@ ToolbarController::PopOutHandler::~PopOutHandler() = default;
 
 void ToolbarController::PopOutHandler::OnElementShown(
     ui::TrackedElement* element) {
-  controller_->PopOut(identifier_);
+  controller_->PopOut(identifier_, /*show_synchronously=*/false);
 }
 
 void ToolbarController::PopOutHandler::OnElementHidden(
@@ -264,7 +264,8 @@ ToolbarController::GetDefaultResponsiveElements(Browser* browser) {
               IDS_OVERFLOW_MENU_ITEM_TEXT_SPLIT_VIEW,
               &(features::IsRoundedIconsEnabled() ? kSplitSceneIcon
                                                   : kSplitSceneOldIcon),
-              kToolbarSplitTabsToolbarButtonElementId},
+              kToolbarSplitTabsToolbarButtonElementId,
+              kToolbarSplitTabsMenuElementId},
           /*is_section_end=*/true),
       ToolbarController::ResponsiveElementInfo(
           ToolbarController::ElementIdInfo{
@@ -429,7 +430,8 @@ std::string ToolbarController::GetActionNameFromElementIdentifier(
                              it->second});
 }
 
-bool ToolbarController::PopOut(ui::ElementIdentifier identifier) {
+bool ToolbarController::PopOut(ui::ElementIdentifier identifier,
+                               bool show_synchronously) {
   auto* const element =
       FindToolbarElementWithId(toolbar_container_view_, identifier);
 
@@ -470,6 +472,9 @@ bool ToolbarController::PopOut(ui::ElementIdentifier identifier) {
   }
 
   element->parent()->InvalidateLayout();
+  if (show_synchronously) {
+    toolbar_container_view_->DeprecatedLayoutImmediately();
+  }
   return true;
 }
 

@@ -354,10 +354,9 @@ void LogManualFallbackEntryThroughExpandIcon(ManualFillDataType data_type,
 // Invoked after the user taps any of the `manual fill` buttons.
 - (void)manualFillButtonPressed:(UIButton*)button
                     forDataType:(manual_fill::ManualFillDataType)dataType {
-  // Hide the keyboard accessory while the expanded view is visible (iPhone
-  // only).
-  self.formInputAccessoryView.hidden =
-      ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_TABLET;
+  // Hide the keyboard accessory while the expanded view is visible and not
+  // presented in a popover.
+  self.formInputAccessoryView.hidden = ![ManualFillUtil shouldUsePopover];
 
   [_formInputAccessoryViewControllerDelegate
       formInputAccessoryViewController:self
@@ -374,9 +373,10 @@ void LogManualFallbackEntryThroughExpandIcon(ManualFillDataType data_type,
       self.formAccessoryVisible;
 }
 
-// Returns the manual fill symbol used for the current device form factor.
+// Returns the manual fill symbol used for the manual fill menu (input view VS
+// popover).
 UIImage* GetManualFillSymbol() {
-  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
+  if ([ManualFillUtil shouldUsePopover]) {
     return DefaultSymbolWithPointSize(kListBulletSymbol,
                                       kManualFillSymbolPointSize);
   }
@@ -410,18 +410,8 @@ UIImage* GetManualFillSymbol() {
   BOOL isTabletFormFactor =
       ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET;
 
-  UIImage* closeButtonSymbol = nil;
-  // When using liquid glass (on iOS 26+), the close button symbol uses the
-  // default checkmark symbol with the exception that a two-bubble experiment
-  // can supply a parameter to use the keyboard down symbol.
-  bool useKeyboardDownSymbol =
-      !IsLiquidGlassEffectEnabled() ||
-      (IsIOSKeyboardAccessoryTwoBubbleEnabled() &&
-       kIOSKeyboardAccessoryTwoBubbleKeyboardIconParam.Get());
-  if (useKeyboardDownSymbol) {
-    closeButtonSymbol =
-        DefaultSymbolWithPointSize(kKeyboardDownSymbol, kSymbolActionPointSize);
-  }
+  UIImage* closeButtonSymbol =
+      DefaultSymbolWithPointSize(kKeyboardDownSymbol, kSymbolActionPointSize);
 
   [formInputAccessoryView
             setUpWithLeadingView:self.leadingView
@@ -434,7 +424,6 @@ UIImage* GetManualFillSymbol() {
          addressManualFillSymbol:CustomSymbolWithPointSize(
                                      kLocationSymbol, kSymbolActionPointSize)
                closeButtonSymbol:closeButtonSymbol
-                splitViewEnabled:IsIOSKeyboardAccessoryTwoBubbleEnabled()
               isTabletFormFactor:isTabletFormFactor];
   [formInputAccessoryView setIsCompact:[self isCompact]];
 
@@ -642,11 +631,9 @@ UIImage* GetManualFillSymbol() {
     [self updateOmniboxTypingShieldVisibility];
   }
 
-  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
-    BOOL isCompact = [self isCompact];
-    [self.formInputAccessoryView setIsCompact:isCompact];
-    [self.formSuggestionView setIsCompact:isCompact];
-  }
+  BOOL isCompact = [self isCompact];
+  [self.formInputAccessoryView setIsCompact:isCompact];
+  [self.formSuggestionView setIsCompact:isCompact];
 
   [self forceUserInterfaceStyle];
 }

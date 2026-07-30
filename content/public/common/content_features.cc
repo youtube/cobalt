@@ -233,9 +233,18 @@ BASE_FEATURE(kBypassRedirectChecksPerRequest, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kCacheControlNoStoreEnterBackForwardCache,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables the experimental Rust implementation of
-// ChildProcessSecurityPolicy. See https://crbug.com/482216433.
+// Enables the experimental Rust implementation of ChildProcessSecurityPolicy.
+// This includes managing global state but not per-process ProcessState (which
+// is handled by the ChildProcessSecurityPolicyRustProcessState feature). See
+// https://crbug.com/482216433.
 BASE_FEATURE(kChildProcessSecurityPolicyRust,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Controls whether the Rust implementation of ChildProcessSecurityPolicy
+// manages per-process ProcessState. Only takes effect if
+// ChildProcessSecurityPolicyRust is also enabled (for the global state). See
+// https://crbug.com/522872468
+BASE_FEATURE(kChildProcessSecurityPolicyRustProcessState,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Clear the window.name property for the top-level cross-site navigations that
@@ -784,6 +793,13 @@ BASE_FEATURE(kPrefetchRequestStatusListenerAsync,
 // Killswitch for UA override issue fix (crbug.com/441612842) in preloading.
 BASE_FEATURE(kPreloadingRespectUserAgentOverride,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Triggers prefetch ahead of prerender for Speculation Rules.
+// See https://crbug.com/342089123 for more details.
+//
+// Enabled except for Android WebView.
+BASE_FEATURE(kPrerender2FallbackPrefetchSpecRules,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, the feature allows the prerender host to be reused for the
 // future same-site page prerender if marked as reusable.
@@ -1424,11 +1440,11 @@ BASE_FEATURE(kAccessibilityManageBroadcastReceiverOnBackground,
 
 // Enables the ability to specify a platform-specific zoom scaling that will
 // apply transparently to all pages.
-BASE_FEATURE(kAndroidDesktopZoomScaling, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAndroidDesktopZoomScaling, base::FEATURE_ENABLED_BY_DEFAULT);
 const base::FeatureParam<int> kAndroidDesktopZoomScalingFactor{
-    &kAndroidDesktopZoomScaling, "desktop-zoom-scaling-factor", 100};
+    &kAndroidDesktopZoomScaling, "desktop-zoom-scaling-factor", 109};
 const base::FeatureParam<int> kAndroidMonitorZoomScalingFactor{
-    &kAndroidDesktopZoomScaling, "monitor-zoom-scaling-factor", 100};
+    &kAndroidDesktopZoomScaling, "monitor-zoom-scaling-factor", 120};
 
 // Implementation of the DisplayCursor API in RenderWidgetHostViewInput on
 // Android.

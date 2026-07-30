@@ -7,6 +7,7 @@
 #include "base/feature_list.h"
 #include "chrome/browser/dictation/dictation_keyed_service_factory.h"
 #include "chrome/browser/dictation/features.h"
+#include "chrome/browser/dictation/listener_stream_provider.h"
 #include "chrome/browser/dictation/session_controller.h"
 #include "chrome/browser/dictation/session_ui_impl.h"
 #include "chrome/browser/dictation/target.h"
@@ -41,7 +42,7 @@ void DictationKeyedService::Shutdown() {
 
 std::unique_ptr<StreamProvider> DictationKeyedService::CreateStreamProvider(
     SessionController& controller) const {
-  return nullptr;
+  return std::make_unique<ListenerStreamProvider>(profile_, controller);
 }
 
 std::unique_ptr<SessionUi> DictationKeyedService::CreateUi(
@@ -55,7 +56,7 @@ std::unique_ptr<SessionUi> DictationKeyedService::CreateUi(
 }
 
 void DictationKeyedService::StartSession(BrowserWindowInterface& window,
-                                         Target* target) {
+                                         std::unique_ptr<Target> target) {
   CHECK(!session_);
 
   session_.emplace(*this, window.GetWeakPtr());
@@ -63,7 +64,7 @@ void DictationKeyedService::StartSession(BrowserWindowInterface& window,
   session_->controller_.Initialize();
 
   if (target) {
-    session_->controller_.StartDictationStream(*target);
+    session_->controller_.StartDictationStream(std::move(target));
   }
 }
 
@@ -76,7 +77,9 @@ bool DictationKeyedService::ShouldShowContextMenuItem() const {
 }
 
 void DictationKeyedService::ContextMenuHandler(BrowserWindowInterface& window) {
-  StartSession(window, /*target=*/nullptr);
+  // TODO(crbug.com/508729855) Populate target with information about the
+  // targeted field from context menu params.
+  StartSession(window, std::make_unique<Target>());
 }
 
 }  // namespace dictation

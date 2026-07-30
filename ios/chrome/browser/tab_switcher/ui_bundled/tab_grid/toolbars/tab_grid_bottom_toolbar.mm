@@ -187,16 +187,6 @@ CGFloat CompactButtonHorizontalPadding() {
   }
 }
 
-- (void)hide {
-  _smallNewTabButton.alpha = 0.0;
-  _largeNewTabButton.alpha = 0.0;
-}
-
-- (void)show {
-  _smallNewTabButton.alpha = 1.0;
-  _largeNewTabButton.alpha = 1.0;
-}
-
 - (void)setScrollViewScrolledToEdge:(BOOL)scrolledToEdge {
   if (scrolledToEdge == _scrolledToEdge) {
     return;

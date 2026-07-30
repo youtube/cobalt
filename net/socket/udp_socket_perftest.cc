@@ -120,8 +120,13 @@ void UDPSocketPerfTest::WriteBenchmark(bool use_nonblocking_io) {
   // Setup the client.
   IPEndPoint server_address;
   CreateUDPAddress("127.0.0.1", kPort, &server_address);
-  auto client = std::make_unique<UDPClientSocket>(DatagramSocket::DEFAULT_BIND,
-                                                  nullptr, NetLogSource());
+  auto client = std::make_unique<UDPClientSocket>(
+      DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource(),
+      // Currently no tests that rely on this test multi-network scenarios.
+      // This makes it safe to always target the default network. Consider
+      // exposing a `target_network` parameter to this method if
+      // this changes.
+      handles::kInvalidNetworkHandle);
   if (use_nonblocking_io)
     client->UseNonBlockingIO();
   rv = client->Connect(server_address);

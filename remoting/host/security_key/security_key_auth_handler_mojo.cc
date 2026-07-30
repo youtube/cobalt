@@ -130,7 +130,6 @@ void SecurityKeyAuthHandlerMojo::OnSecurityKeyRequest(
     const std::string& request_data,
     OnSecurityKeyRequestCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK(send_message_callback_);
 
   int connection_id = receiver_set_.current_context();
   auto iter = active_connections_.find(connection_id);
@@ -141,6 +140,12 @@ void SecurityKeyAuthHandlerMojo::OnSecurityKeyRequest(
     CloseSecurityKeyRequestConnection(connection_id);
     return;
   }
+  if (!send_message_callback_) {
+    LOG(ERROR) << "send_message_callback_ is null, dropping request.";
+    CloseSecurityKeyRequestConnection(connection_id);
+    return;
+  }
+
   // Reset the timer to give the client a chance to send the response.
   connection.disconnect_timer.Start(FROM_HERE, kSecurityKeyRequestTimeout,
                                     GetCloseConnectionClosure(connection_id));

@@ -47,7 +47,6 @@ public class CastBrowserHelper {
                         /* startGpuProcess= */ false,
                         /* startMinimalBrowser= */ false,
                         /* singleProcess= */ false,
-                        /* scheduleFlushStartupTasks= */ false,
                         new BrowserStartupController.StartupCallback() {
                             @Override
                             public void onSuccess(@Nullable StartupMetrics metrics) {

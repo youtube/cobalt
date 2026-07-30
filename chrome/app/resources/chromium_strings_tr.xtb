@@ -72,6 +72,7 @@
 <translation id="1820835682567584003">Chromium şunu yapmaya çalışıyor: <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="183031085822326697"><ph name="DEVICE_TYPE" /> cihazınızda, Chromium'u bir sonraki açışınızda Google Şifre Yöneticisi'ni kullanmanız için bir istem görürsünüz.</translation>
 <translation id="1838374766361614909">Aramayı temizle</translation>
+<translation id="1846849503013521481">Kuruluşunuz, Chromium'daki çalışmalarınızın güvenliğini sağlamak için belirli bilgileri görüntüleyebilir veya yönetebilir.</translation>
 <translation id="18552579716432081">Tarama verilerini yalnızca bu cihazdan silip Google Hesabınızda tutmak için <ph name="BEGIN_LINK" />Chromium oturumunu kapatın<ph name="END_LINK" />.</translation>
 <translation id="1857749206890802997">Hareket halindeyken sekme gruplarını açmak veya yenilerini oluşturmak için telefonunuza Chromium'u indirin.</translation>
 <translation id="185970820835152459">Oturum açılmış Google Hesaplarınızı yönetebilirsiniz. Google Hesaplarınız; Chromium tarayıcı, Play Store, Gmail ve daha başka yerlerde kullanılır. Aile üyesi gibi başka bir kullanıcı için hesap eklemek isterseniz bunun yerine <ph name="DEVICE_TYPE" /> cihazınıza yeni bir kişi ekleyin. <ph name="LINK_BEGIN" />Daha fazla bilgi<ph name="LINK_END" /></translation>
@@ -432,6 +433,7 @@ Bu sayfa beklendiği gibi çalışmıyorsa optimizasyona izin vermeyi deneyin.</
 <translation id="5953657885167112863">Chromium'u Kendinize Uyarlayın</translation>
 <translation id="5960071705175224773">Ayarlarınız bilinmeyen bir uygulama tarafından değiştirildi</translation>
 <translation id="5968400720580217226">AI Modu</translation>
+<translation id="5977420883993828287">Sabitlendi. Araç çubuğundan Bağlamsal Görevler'i tekrar kullanın</translation>
 <translation id="5986585015444752010">{COUNT,plural, =1{Kuruluşunuz, 1 dakika kullanılmadığında Chromium'u otomatik olarak kapatır.}other{Kuruluşunuz, # dakika kullanılmadığında Chromium'u otomatik olarak kapatır.}}</translation>
 <translation id="5987687638152509985">Senkronizasyonu başlatmak için Chromium'u güncelleyin</translation>
 <translation id="6003112304606738118">İndiriliyor... <ph name="HOURS" /> saat kaldı</translation>
@@ -536,6 +538,17 @@ Bazı özellikler kullanılamayabilir. Lütfen farklı bir profil dizini belirti
 <translation id="6896758677409633944">Kopyala</translation>
 <translation id="6901631050894301805">Chromium'u varsayılan tarayıcınız olarak ayarlayın ve görev çubuğunuza sabitleyin</translation>
 <translation id="6909503629704372277">&amp;Chromium profillerini yönetin</translation>
+<translation id="6919942714452658456">Bu işlem ile:
+          <ph name="LINE_BREAKS" />
+            • Başlangıç sayfanız, yeni sekme sayfanız, arama motorunuz ve sabit sekmeleriniz sıfırlanır.
+            <ph name="LINE_BREAK" />
+            • Uzantılar devre dışı bırakılır.
+            <ph name="LINE_BREAK" />
+            • Çerezler ve diğer geçici site verileri silinir.
+            <ph name="LINE_BREAK" />
+            • Chromium kısayolları sıfırlanır.
+            <ph name="LINE_BREAKS" />
+            Yer işaretleri, geçmiş ve kayıtlı şifreler etkilenmez.</translation>
 <translation id="6934579572334859869">Görsel aramaya bu görsel hakkında soru sorun</translation>
 <translation id="6948031725951063910">Chromium'un <ph name="BOOKMARK_LIMIT" /> yer işareti sınırına ulaştınız. Bu nedenle, yer işaretlerinizden bazıları henüz Google Hesabınıza kaydedilmedi.
 
@@ -605,6 +618,7 @@ Chromium ayarlarınızı kurtaramıyor.</translation>
 <translation id="7686590090926151193">Chromium varsayılan tarayıcınız değil</translation>
 <translation id="7689606757190482937">Chromium'u cihazlarınız arasında senkronize edin ve kişiselleştirin</translation>
 <translation id="7699779824407626136">Chromium güncellemesi</translation>
+<translation id="7700735928747402058">Çalışmanız Chromium'da güvende</translation>
 <translation id="7716950018788545737">Görevler sonlandırıldı.</translation>
 <translation id="77283119132245232"><ph name="BROWSER_NAME" /> için sistem izleme hizmetleri sağlar. Bu hizmet devre dışı bırakılırsa tarayıcı tarafından oluşturulan performans izleri, bağlam geçişi ve hazır iş parçacığı etkinlikleri gibi sistem genelindeki etkinlikleri içermez.</translation>
 <translation id="7745317241717453663">Bu işlem tarama verilerinizi bu cihazdan silecektir. Verilerinizi daha sonra geri almak için Chromium'da <ph name="USER_EMAIL" /> hesabıyla oturum açın.</translation>
@@ -636,6 +650,7 @@ Chromium ayarlarınızı kurtaramıyor.</translation>
 <translation id="8031714377769448844">Chromium'a istediğiniz zaman hızlıca erişmek için görev çubuğunuza sabitleyin</translation>
 <translation id="80471789339884597">Yüklediğiniz için teşekkür ederiz. <ph name="BUNDLE_NAME" /> uygulamasını kullanmadan önce tüm tarayıcılarınızı yeniden başlatmanız gerekir.</translation>
 <translation id="8054112667659782652">Görsel Arama kısayolunu her zaman göster</translation>
+<translation id="8069447462453318634">"Araç çubuğuna sabitle"yi seçin</translation>
 <translation id="8077498902115777962">Uygulamalar için Chromium'un arka planda çalışmasını devre dışı bırak</translation>
 <translation id="80790299200510644">Görsel Arama</translation>
 <translation id="8086881907087796310">Bilgisayarınız minimum donanım gereksinimlerini karşılamadığından yükleme işlemi başarısız oldu.</translation>
@@ -717,6 +732,15 @@ Chromium ayarlarınızı kurtaramıyor.</translation>
 <translation id="8907580949721785412">Chromium şifreleri göstermeye çalışıyor. Buna izin vermek için Windows şifrenizi yazın.</translation>
 <translation id="8932992523185907506">Chromium artık varsayılan tarayıcınız değil. Chromium varsayılan tarayıcı olsun mu?</translation>
 <translation id="8941642502866065432">Chromium güncellenemiyor</translation>
+<translation id="8944232836376404813">Bu işlem ile:
+          <ph name="LINE_BREAKS" />
+            • Başlangıç sayfanız, yeni sekme sayfanız, arama motorunuz ve sabit sekmeleriniz sıfırlanır.
+            <ph name="LINE_BREAK" />
+            • Uzantılar devre dışı bırakılır.
+            <ph name="LINE_BREAK" />
+            • Çerezler ve diğer geçici site verileri silinir.
+            <ph name="LINE_BREAKS" />
+            Yer işaretleri, geçmiş ve kayıtlı şifreler etkilenmez.</translation>
 <translation id="897581876605952338">Chromium Enterprise logosu</translation>
 <translation id="8981150672034878610">Profiliniz açılırken bir hata oluştuğundan Chromium başlatılamıyor. Chromium'u yeniden başlatmayı deneyin.</translation>
 <translation id="8988036198400390003">Chromium profillerini yönetin</translation>

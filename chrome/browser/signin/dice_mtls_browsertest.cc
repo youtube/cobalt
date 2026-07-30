@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "base/containers/flat_map.h"
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
@@ -28,9 +29,7 @@
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "content/public/test/browser_test.h"
-#include "google_apis/gaia/gaia_config.h"
-#include "google_apis/gaia/gaia_switches.h"
-#include "google_apis/gaia/gaia_urls.h"
+#include "google_apis/gaia/gaia_urls_overrider_for_testing.h"
 #include "net/cert/test_root_certs.h"
 #include "net/ssl/client_cert_identity_test_util.h"
 #include "net/ssl/client_cert_store.h"
@@ -223,7 +222,7 @@ class DiceMtlsBrowserTest : public InProcessBrowserTest {
 
   void TearDownOnMainThread() override {
     second_server_.reset();
-    GaiaUrls::SetInstanceForTesting(nullptr);
+    gaia_urls_overrider_.reset();
     InProcessBrowserTest::TearDownOnMainThread();
   }
 
@@ -236,8 +235,7 @@ class DiceMtlsBrowserTest : public InProcessBrowserTest {
 
   void SetupMtlsEnvironment(Profile* profile);
 
-  base::ScopedClosureRunner scoped_config_;
-  std::unique_ptr<GaiaUrls> test_gaia_urls_;
+  std::unique_ptr<GaiaUrlsOverriderForTesting> gaia_urls_overrider_;
 };
 
 void DiceMtlsBrowserTest::SetupMtlsEnvironment(Profile* profile) {
@@ -253,21 +251,11 @@ void DiceMtlsBrowserTest::SetupMtlsEnvironment(Profile* profile) {
       "https://oauthaccountmanager.mtls.googleapis.com:%d/v1/issuetoken",
       https_port);
 
-  base::DictValue urls_dict;
-  urls_dict.Set("gaia_url", base::DictValue().Set("url", gaia_url));
-  urls_dict.Set("mtls_oauth2_token_url",
-                base::DictValue().Set("url", mtls_url));
-  urls_dict.Set("mtls_oauth2_issue_token_url",
-                base::DictValue().Set("url", mtls_issue_token_url));
-
-  base::DictValue config_dict;
-  config_dict.Set("urls", std::move(urls_dict));
-
-  scoped_config_ = GaiaConfig::SetScopedConfigForTesting(
-      std::make_unique<GaiaConfig>(std::move(config_dict)));
-
-  test_gaia_urls_ = std::make_unique<GaiaUrls>();
-  GaiaUrls::SetInstanceForTesting(test_gaia_urls_.get());
+  gaia_urls_overrider_ = std::make_unique<GaiaUrlsOverriderForTesting>(
+      base::flat_map<std::string, std::string>{
+          {"gaia_url", gaia_url},
+          {"mtls_oauth2_token_url", mtls_url},
+          {"mtls_oauth2_issue_token_url", mtls_issue_token_url}});
 
   // Setup client cert store using static files.
   base::FilePath certs_dir = net::GetTestCertsDirectory();

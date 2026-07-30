@@ -3698,9 +3698,6 @@ public class ExternalNavigationHandlerTest {
         public void returnAsActivityResult(GURL url) {}
 
         @Override
-        public void maybeRecordExternalNavigationSchemeHistogram(GURL url) {}
-
-        @Override
         public void notifyCctPasswordSavingRecorderOfExternalNavigation() {}
 
         @Override

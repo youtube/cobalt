@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/containers/heap_array.h"
+#include "base/containers/span.h"
 #include "base/files/memory_mapped_file.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
@@ -323,7 +324,6 @@ sk_sp<SkTypeface> FontDataManager::CreateTypefaceFromMatchResult(
     mojom::MatchFamilyNameResultPtr match_result) const {
   // Create the resulting typeface from the data received from the font
   // service.
-  std::unique_ptr<base::MemoryMappedFile> mapped_font_file;
   sk_sp<SkTypeface> typeface;
   if (match_result && match_result->typeface_data) {
     // Attempt to create the SkFontArguments args.
@@ -376,9 +376,9 @@ sk_sp<SkTypeface> FontDataManager::CreateTypefaceFromMatchResult(
       }
 
       if (file_mapping) {
+        const base::span<const uint8_t> font_data = file_mapping->bytes();
         typeface = onMakeFromStreamArgs(
-            SkMemoryStream::MakeDirect(file_mapping->data(),
-                                       file_mapping->length()),
+            SkMemoryStream::MakeDirect(font_data.data(), font_data.size()),
             args);
       }
     } else if (match_result->typeface_data->is_region() &&

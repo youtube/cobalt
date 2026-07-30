@@ -1202,10 +1202,9 @@ TEST_F(CullRectUpdaterTest, OverscrollAreaCullRect) {
       }
     </style>
     <div id="container" overscrollcontainer>
-      <div id="menu"></div>
+      <div id="menu" overscrollarea></div>
       <div style="height: 1000px"></div>
     </div>
-    <button id="button" command="toggle-overscroll" commandfor="menu"></button>
   )HTML");
 
   auto* menu = GetElementById("menu");

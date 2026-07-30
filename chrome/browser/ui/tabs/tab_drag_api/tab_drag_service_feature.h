@@ -9,6 +9,7 @@
 
 #include "components/browser_apis/tab_drag/tab_drag_api.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "ui/gfx/native_ui_types.h"
 
 namespace tabs_api {
 class TabDragServiceImpl;
@@ -27,7 +28,8 @@ class TabDragServiceFeature {
   TabDragServiceFeature& operator=(const TabDragServiceFeature&) = delete;
 
   void AcceptDragService(
-      mojo::PendingReceiver<tabs_api::mojom::TabDragService> client);
+      mojo::PendingReceiver<tabs_api::mojom::TabDragService> client,
+      gfx::NativeView context_view);
 
  private:
   std::unique_ptr<tabs_api::TabDragServiceImpl> tab_drag_service_;

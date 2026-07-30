@@ -144,6 +144,7 @@ import org.chromium.chrome.browser.keyboard_accessory.ManualFillingComponent;
 import org.chromium.chrome.browser.keyboard_accessory.ManualFillingComponentFactory;
 import org.chromium.chrome.browser.keyboard_accessory.ManualFillingComponentSupplier;
 import org.chromium.chrome.browser.layouts.LayoutManagerAppUtils;
+import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.media.FullscreenVideoPictureInPictureController;
 import org.chromium.chrome.browser.merchant_viewer.PageInfoStoreInfoController.StoreInfoActionHandler;
@@ -177,6 +178,7 @@ import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.provider.PageContentProviderImpl;
 import org.chromium.chrome.browser.provider.PageContentProviderMetrics;
 import org.chromium.chrome.browser.readaloud.ReadAloudController;
+import org.chromium.chrome.browser.screenshot_protection.ScreenshotProtectionController;
 import org.chromium.chrome.browser.selection.SelectionPopupBackPressHandler;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.browser.share.ShareDelegate;
@@ -318,6 +320,9 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     @SuppressWarnings("HidingField")
     protected final SettableMonotonicObservableSupplier<EdgeToEdgeController>
             mEdgeToEdgeControllerSupplier = ObservableSuppliers.createMonotonic();
+
+    protected final SettableMonotonicObservableSupplier<ScreenshotProtectionController>
+            mScreenshotProtectionControllerSupplier = ObservableSuppliers.createMonotonic();
 
     protected final SettableMonotonicObservableSupplier<ManualFillingComponent>
             mManualFillingComponentSupplier = ObservableSuppliers.createMonotonic();
@@ -1097,9 +1102,6 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             @Nullable MultiInstanceManager multiInstanceManager) {
         try (TraceEvent e = TraceEvent.scoped("ChromeActivity.initializeChromeAndroidTask")) {
             var chromeAndroidTaskTracker = ChromeAndroidTaskTrackerFactory.getInstance();
-            if (chromeAndroidTaskTracker == null) {
-                return;
-            }
 
             // 1. Obtain ChromeAndroidTask dependencies.
             var activityWindowAndroid = getWindowAndroid();
@@ -2197,6 +2199,16 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
         getProfileProviderSupplier().runSyncOrOnAvailable(this::initializeManualFillingComponent);
 
+        if (ChromeFeatureList.sEnableAndroidEnterpriseScreenshotProtection.isEnabled()) {
+            mScreenshotProtectionControllerSupplier.set(
+                    new ScreenshotProtectionController(
+                            this,
+                            getLifecycleDispatcher(),
+                            getTabModelSelector(),
+                            isCustomTab(),
+                            SupplierUtils.upcast(
+                                    mLayoutManagerSupplier, LayoutStateProvider.class)));
+        }
         mTabReparentingControllerSupplier.set(
                 new TabReparentingController(
                         ReparentingDelegateFactory.createReparentingControllerDelegate(
@@ -2379,6 +2391,15 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     @Override
     public MonotonicObservableSupplier<EdgeToEdgeController> getEdgeToEdgeSupplier() {
         return mEdgeToEdgeControllerSupplier;
+    }
+
+    /**
+     * Returns a supplier of the {@link ScreenshotProtectionController} instance, if enabled from
+     * the EnableAndroidEnterpriseScreenshotProtection flag
+     */
+    public MonotonicObservableSupplier<ScreenshotProtectionController>
+            getScreenshotProtectionController() {
+        return mScreenshotProtectionControllerSupplier;
     }
 
     @Override

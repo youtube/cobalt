@@ -7,6 +7,10 @@ import("//third_party/mediapipe/features.gni")
 visibility = [ "//components/optimization_guide/core/*" ]
 
 static_library("op_resolver") {
+  _configs = configs
+  configs = []
+  configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
+
   # TODO: crbug.com/422803641 - Move these files to this directory.
   sources = [
     "../tflite_op_resolver.cc",
@@ -27,6 +31,9 @@ static_library("op_resolver") {
 }
 
 static_library("inference") {
+  _configs = configs
+  configs = []
+  configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
   sources = [
     "base_model_executor.h",
     "base_model_executor_helpers.h",
@@ -92,6 +99,9 @@ static_library("test_support") {
 }
 
 source_set("unit_tests") {
+  _configs = configs
+  configs = []
+  configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
   testonly = true
   sources = [
     "bert_model_executor_unittest.cc",

@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <vector>
+
 #include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/global_features.h"
+#include "chrome/browser/infobars/infobar_features.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/views/infobars/confirm_infobar.h"
 #include "chrome/browser/win/installer_downloader/installer_downloader_controller.h"
@@ -26,12 +29,19 @@ DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kSecondTabContents);
 constexpr char kUrlTemplate[] =
     "https://example.com/installer.exe?iid=IIDGUID&stats=STATS";
 
-class InstallerDownloaderInteractiveUiTest : public InteractiveBrowserTest {
+class InstallerDownloaderInteractiveUiTest
+    : public InteractiveBrowserTest,
+      public testing::WithParamInterface<bool> {
  protected:
   void SetUp() override {
-    feature_list_.InitAndEnableFeatureWithParameters(
-        kInstallerDownloader,
-        {{kInstallerUrlTemplateParam.name, kUrlTemplate}});
+    std::vector<base::test::FeatureRefAndParams> enabled_features = {
+        {kInstallerDownloader,
+         {{kInstallerUrlTemplateParam.name, kUrlTemplate}}}};
+    if (GetParam()) {
+      enabled_features.push_back({infobars::kCentralizedInfoBarFramework,
+                                  {{"installer_downloader", "true"}}});
+    }
+    feature_list_.InitWithFeaturesAndParameters(enabled_features, {});
     InteractiveBrowserTest::SetUp();
   }
 
@@ -75,7 +85,7 @@ class InstallerDownloaderInteractiveUiTest : public InteractiveBrowserTest {
   base::test::ScopedFeatureList feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(InstallerDownloaderInteractiveUiTest,
+IN_PROC_BROWSER_TEST_P(InstallerDownloaderInteractiveUiTest,
                        AcceptRemovesInfobarFromAllTabs) {
   TriggerInfobar();
   RunTestSequence(WaitForShow(ConfirmInfoBar::kInfoBarElementId),
@@ -84,7 +94,7 @@ IN_PROC_BROWSER_TEST_F(InstallerDownloaderInteractiveUiTest,
                   VerifyNoInfobarInAnyTab());
 }
 
-IN_PROC_BROWSER_TEST_F(InstallerDownloaderInteractiveUiTest,
+IN_PROC_BROWSER_TEST_P(InstallerDownloaderInteractiveUiTest,
                        DismissRemovesInfobarFromAllTabs) {
   TriggerInfobar();
   RunTestSequence(WaitForShow(ConfirmInfoBar::kInfoBarElementId),
@@ -93,7 +103,7 @@ IN_PROC_BROWSER_TEST_F(InstallerDownloaderInteractiveUiTest,
                   VerifyNoInfobarInAnyTab());
 }
 
-IN_PROC_BROWSER_TEST_F(InstallerDownloaderInteractiveUiTest,
+IN_PROC_BROWSER_TEST_P(InstallerDownloaderInteractiveUiTest,
                        InfobarVisibleInFullscreen) {
   TriggerInfobar();
   RunTestSequence(WaitForShow(ConfirmInfoBar::kInfoBarElementId), Do([&]() {
@@ -102,7 +112,7 @@ IN_PROC_BROWSER_TEST_F(InstallerDownloaderInteractiveUiTest,
                   EnsurePresent(ConfirmInfoBar::kInfoBarElementId));
 }
 
-IN_PROC_BROWSER_TEST_F(InstallerDownloaderInteractiveUiTest,
+IN_PROC_BROWSER_TEST_P(InstallerDownloaderInteractiveUiTest,
                        AcceptRemovesInfobarAcrossWindows) {
   TriggerInfobar();
   RunTestSequence(WaitForShow(ConfirmInfoBar::kInfoBarElementId),
@@ -111,7 +121,7 @@ IN_PROC_BROWSER_TEST_F(InstallerDownloaderInteractiveUiTest,
                   VerifyNoInfobarInAnyContext());
 }
 
-IN_PROC_BROWSER_TEST_F(InstallerDownloaderInteractiveUiTest,
+IN_PROC_BROWSER_TEST_P(InstallerDownloaderInteractiveUiTest,
                        DismissRemovesInfobarAcrossWindows) {
   TriggerInfobar();
   RunTestSequence(WaitForShow(ConfirmInfoBar::kInfoBarElementId),
@@ -120,7 +130,7 @@ IN_PROC_BROWSER_TEST_F(InstallerDownloaderInteractiveUiTest,
                   VerifyNoInfobarInAnyContext());
 }
 
-IN_PROC_BROWSER_TEST_F(InstallerDownloaderInteractiveUiTest,
+IN_PROC_BROWSER_TEST_P(InstallerDownloaderInteractiveUiTest,
                        MetricsAcceptPath) {
   base::HistogramTester histograms;
 
@@ -135,7 +145,7 @@ IN_PROC_BROWSER_TEST_F(InstallerDownloaderInteractiveUiTest,
                                 /*sample=*/1, /*expected_bucket_count=*/1);
 }
 
-IN_PROC_BROWSER_TEST_F(InstallerDownloaderInteractiveUiTest,
+IN_PROC_BROWSER_TEST_P(InstallerDownloaderInteractiveUiTest,
                        MetricsDismissPath) {
   base::HistogramTester histograms;
 
@@ -150,7 +160,7 @@ IN_PROC_BROWSER_TEST_F(InstallerDownloaderInteractiveUiTest,
                                 /*sample=*/0, /*expected_bucket_count=*/1);
 }
 
-IN_PROC_BROWSER_TEST_F(InstallerDownloaderInteractiveUiTest,
+IN_PROC_BROWSER_TEST_P(InstallerDownloaderInteractiveUiTest,
                        Metrics_InfobarShownOnceAcrossTabsAndWindows) {
   base::HistogramTester histograms;
 
@@ -163,6 +173,13 @@ IN_PROC_BROWSER_TEST_F(InstallerDownloaderInteractiveUiTest,
   histograms.ExpectUniqueSample("Windows.InstallerDownloader.InfobarShown",
                                 /*sample=*/1, /*expected_bucket_count=*/1);
 }
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         InstallerDownloaderInteractiveUiTest,
+                         testing::Bool(),
+                         [](const testing::TestParamInfo<bool>& info) {
+                           return info.param ? "Migrated" : "Legacy";
+                         });
 
 }  // namespace
 }  // namespace installer_downloader

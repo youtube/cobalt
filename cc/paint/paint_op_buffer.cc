@@ -498,7 +498,8 @@ PaintOpBuffer::BufferData PaintOpBuffer::ReallocBuffer(size_t new_size) {
   return old_data;
 }
 
-void* PaintOpBuffer::AllocatePaintOpSlowPath(uint16_t aligned_size) {
+base::span<uint8_t> PaintOpBuffer::AllocatePaintOpSlowPath(
+    uint16_t aligned_size) {
   DCHECK(is_mutable());
 
   size_t required_size = used_ + aligned_size;

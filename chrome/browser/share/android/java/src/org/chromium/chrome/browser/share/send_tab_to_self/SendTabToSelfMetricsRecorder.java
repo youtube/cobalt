@@ -95,6 +95,10 @@ public class SendTabToSelfMetricsRecorder {
         SendTabToSelfMetricsRecorderJni.get().recordScrollPositionSelectorLength(length);
     }
 
+    public static void recordEntryPointInvoked(@ShareEntryPoint int entryPoint) {
+        SendTabToSelfMetricsRecorderJni.get().recordEntryPointInvoked(entryPoint);
+    }
+
     @NativeMethods
     interface Natives {
         void recordNotificationShown();
@@ -114,5 +118,7 @@ public class SendTabToSelfMetricsRecorder {
         void recordScrollPositionGenerationTime(long durationMs);
 
         void recordScrollPositionSelectorLength(int length);
+
+        void recordEntryPointInvoked(int entryPoint);
     }
 }

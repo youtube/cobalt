@@ -63,7 +63,7 @@ IN_PROC_BROWSER_TEST_F(PaymentHandlerWindowSizeTest, ValidateDialogSize) {
 
   // Adjust the expected PH window height based on the browser content height.
   int browser_window_content_height =
-      browser()->window()->GetContentsSize().height();
+      BrowserWindow::FromBrowser(browser())->GetContentsSize().height();
   gfx::Size expected_payment_handler_dialog_size = gfx::Size(
       kPreferredPaymentHandlerDialogWidth,
       std::max(kDialogHeight, std::min(kPreferredPaymentHandlerDialogHeight,

@@ -23,6 +23,7 @@
 
 #include "build/build_config.h"
 #include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
+#include "third_party/blink/public/resources/grit/blink_resources.h"
 #include "third_party/blink/public/strings/grit/blink_strings.h"
 #include "third_party/blink/public/web/blink.h"
 #include "third_party/blink/renderer/core/css_value_keywords.h"
@@ -58,6 +59,7 @@
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/core/style/computed_style_initial_values.h"
+#include "third_party/blink/renderer/platform/data_resource_helper.h"
 #include "third_party/blink/renderer/platform/file_metadata.h"
 #include "third_party/blink/renderer/platform/fonts/font_selector.h"
 #include "third_party/blink/renderer/platform/graphics/touch_action.h"
@@ -65,7 +67,6 @@
 #include "third_party/blink/renderer/platform/text/writing_mode.h"
 #include "third_party/blink/renderer/platform/theme/web_theme_engine_helper.h"
 #include "third_party/blink/renderer/platform/web_test_support.h"
-#include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/color/color_provider.h"
 #include "ui/gfx/color_utils.h"
@@ -189,8 +190,6 @@ Color LayoutTheme::inactive_list_box_selection_background_color_dark_mode_ =
     Color::FromRGBA32(0x4D3B3B3B);
 Color LayoutTheme::inactive_list_box_selection_foreground_color_dark_mode_ =
     Color::FromRGBA32(0xFF323232);
-
-LayoutTheme::LayoutTheme() : has_custom_focus_ring_color_(false) {}
 
 AppearanceValue LayoutTheme::AdjustAppearanceWithAuthorStyle(
     AppearanceValue appearance,
@@ -318,14 +317,19 @@ void LayoutTheme::AdjustStyle(const Element& element,
   // After this point, a Node must be non-null Element if
   // EffectiveAppearance() != AppearanceValue::kNone.
 
-  AdjustControlPartStyle(builder);
-
-  // Call the appropriate style adjustment method based off the appearance
-  // value.
+  // Call the appropriate style adjustment method based off the appearance.
   switch (appearance) {
+    case AppearanceValue::kCheckbox:
+      return AdjustCheckboxStyle(builder);
+    case AppearanceValue::kInnerSpinButton:
+      return AdjustInnerSpinButtonStyle(builder);
     case AppearanceValue::kMenulist:
     case AppearanceValue::kMenulistButton:
       return AdjustMenuListStyle(builder);
+    case AppearanceValue::kPushButton:
+      return AdjustPushButtonStyle(builder);
+    case AppearanceValue::kRadio:
+      return AdjustRadioStyle(builder);
     case AppearanceValue::kSliderThumbHorizontal:
     case AppearanceValue::kSliderThumbVertical:
       return AdjustSliderThumbStyle(builder);
@@ -341,10 +345,13 @@ void LayoutTheme::AdjustStyle(const Element& element,
 }
 
 String LayoutTheme::ExtraDefaultStyleSheet() {
-  // If you want to add something depending on a runtime flag here,
-  // please consider using `@supports blink-feature(flag-name)` in a
-  // stylesheet resource file.
-  return "@namespace 'http://www.w3.org/1999/xhtml';\n";
+  // If you want to add something depending on a runtime flag here, please
+  // consider using `@supports blink-feature(flag-name)` in a stylesheet
+  // resource file.
+  return RuntimeEnabledFeatures::InputMultipleFieldsUIEnabled()
+             ? UncompressResourceAsASCIIString(
+                   IDR_UASTYLE_THEME_INPUT_MULTIPLE_FIELDS_CSS)
+             : String();
 }
 
 String LayoutTheme::ExtraFullscreenStyleSheet() {
@@ -536,9 +543,26 @@ void LayoutTheme::AdjustRadioStyle(ComputedStyleBuilder& builder) const {
   builder.SetInlineBlockBaselineEdge(EInlineBlockBaselineEdge::kBorderBox);
 }
 
-void LayoutTheme::AdjustButtonStyle(ComputedStyleBuilder&) const {}
+void LayoutTheme::AdjustPushButtonStyle(ComputedStyleBuilder& builder) const {
+  builder.SetLineHeight(ComputedStyleInitialValues::InitialLineHeight());
+}
 
-void LayoutTheme::AdjustInnerSpinButtonStyle(ComputedStyleBuilder&) const {}
+void LayoutTheme::AdjustInnerSpinButtonStyle(
+    ComputedStyleBuilder& builder) const {
+  const Length size =
+      Length::Fixed(WebThemeEngineHelper::GetNativeThemeEngine()
+                        ->GetSize(WebThemeEngine::kPartInnerSpinButton)
+                        .width() *
+                    builder.EffectiveZoom());
+
+  if (IsHorizontalWritingMode(builder.GetWritingMode())) {
+    builder.SetWidth(size);
+    builder.SetMinWidth(size);
+  } else {
+    builder.SetHeight(size);
+    builder.SetMinHeight(size);
+  }
+}
 
 void LayoutTheme::AdjustMenuListStyle(ComputedStyleBuilder& builder) const {
   if (!RuntimeEnabledFeatures::SelectUsesUAClipEnabled()) {
@@ -555,7 +579,21 @@ void LayoutTheme::AdjustSliderThumbStyle(ComputedStyleBuilder& builder) const {
   AdjustSliderThumbSize(builder);
 }
 
-void LayoutTheme::AdjustSliderThumbSize(ComputedStyleBuilder&) const {}
+void LayoutTheme::AdjustSliderThumbSize(ComputedStyleBuilder& builder) const {
+  const gfx::SizeF size = ScaleSize(
+      gfx::SizeF(WebThemeEngineHelper::GetNativeThemeEngine()->GetSize(
+          WebThemeEngine::kPartSliderThumb)),
+      builder.EffectiveZoom());
+
+  const AppearanceValue appearance = builder.EffectiveAppearance();
+  if (appearance == AppearanceValue::kSliderThumbHorizontal) {
+    builder.SetWidth(Length::Fixed(size.width()));
+    builder.SetHeight(Length::Fixed(size.height()));
+  } else if (appearance == AppearanceValue::kSliderThumbVertical) {
+    builder.SetWidth(Length::Fixed(size.height()));
+    builder.SetHeight(Length::Fixed(size.width()));
+  }
+}
 
 void LayoutTheme::AdjustSearchFieldCancelButtonStyle(
     ComputedStyleBuilder&) const {}
@@ -865,19 +903,17 @@ Color LayoutTheme::PlatformTextSearchColor(
 }
 
 void LayoutTheme::SetCustomFocusRingColor(const Color& c) {
-  const bool changed =
-      !has_custom_focus_ring_color_ || custom_focus_ring_color_ != c;
-  custom_focus_ring_color_ = c;
-  has_custom_focus_ring_color_ = true;
-  if (changed) {
-    Page::PlatformColorsChanged();
+  if (c == custom_focus_ring_color_) {
+    return;
   }
+  custom_focus_ring_color_ = c;
+  Page::PlatformColorsChanged();
 }
 
 Color LayoutTheme::FocusRingColor(
     mojom::blink::ColorScheme color_scheme) const {
-  return has_custom_focus_ring_color_ ? custom_focus_ring_color_
-                                      : GetTheme().PlatformFocusRingColor();
+  constexpr Color default_focus_ring_color = Color::FromRGBA32(0xFFE59700);
+  return custom_focus_ring_color_.value_or(default_focus_ring_color);
 }
 
 String LayoutTheme::DisplayNameForFile(const File& file) const {
@@ -889,33 +925,6 @@ bool LayoutTheme::SupportsCalendarPicker(InputType::Type type) const {
   return type == InputType::Type::kTime || type == InputType::Type::kDate ||
          type == InputType::Type::kDateTimeLocal ||
          type == InputType::Type::kMonth || type == InputType::Type::kWeek;
-}
-
-void LayoutTheme::AdjustControlPartStyle(ComputedStyleBuilder& builder) {
-  // Call the appropriate style adjustment method based off the appearance
-  // value.
-  switch (builder.EffectiveAppearance()) {
-    case AppearanceValue::kCheckbox:
-      return AdjustCheckboxStyle(builder);
-    case AppearanceValue::kRadio:
-      return AdjustRadioStyle(builder);
-    case AppearanceValue::kPushButton:
-    case AppearanceValue::kSquareButton:
-    case AppearanceValue::kButton:
-      return AdjustButtonStyle(builder);
-    case AppearanceValue::kInnerSpinButton:
-      return AdjustInnerSpinButtonStyle(builder);
-    default:
-      break;
-  }
-}
-
-bool LayoutTheme::HasCustomFocusRingColor() const {
-  return has_custom_focus_ring_color_;
-}
-
-Color LayoutTheme::GetCustomFocusRingColor() const {
-  return custom_focus_ring_color_;
 }
 
 bool LayoutTheme::IsAccentColorCustomized(

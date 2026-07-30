@@ -656,6 +656,10 @@ bool VisitDatabase::PrepareVisibleVisitsQuery(
   binding_values.push_back(options.EffectiveBeginTime());
   binding_values.push_back(options.EffectiveEndTime());
 
+  if (options.restrict_to_synced_urls) {
+    where_clauses.push_back("visits.is_known_to_sync = 1");
+  }
+
   // This must be the last where clause added, as the App ID string is bound
   // manually after the integer values in `binding_values` are bound.
   if (options.app_id) {

@@ -491,6 +491,42 @@ TEST_F(DefaultSearchManagerTest,
   ExpectSimilar(&expected_engine, result);
 }
 
+TEST_F(DefaultSearchManagerTest,
+       GetDefaultSearchEngineIgnoringExtensions_Reconciliation) {
+  auto manager = create_manager();
+  auto* builtin_engine = manager->GetDefaultSearchEngine(nullptr);
+
+  // Set user selected DSE with prepopulate_id, which should be reconciled.
+  auto supplied_engine = GenerateDummyTemplateURLData(
+      base::UTF16ToUTF8(builtin_engine->keyword()));
+  supplied_engine->prepopulate_id = builtin_engine->prepopulate_id;
+  // Needed by ExpectSimilar.
+  supplied_engine->favicon_url = builtin_engine->favicon_url;
+
+  // Store in preferences directly.
+  pref_service()->SetDict(
+      DefaultSearchManager::kDefaultSearchProviderDataPrefName,
+      TemplateURLDataToDictionary(*supplied_engine));
+
+  // Set an extension-controlled default search provider to override the user
+  // pref.
+  std::unique_ptr<TemplateURLData> extension_data =
+      GenerateDummyTemplateURLData("ext");
+  SetExtensionDefaultSearchInPrefs(pref_service(), *extension_data);
+
+  // GetDefaultSearchEngine() should return the extension engine.
+  DefaultSearchManager::Source source = DefaultSearchManager::FROM_FALLBACK;
+  ExpectSimilar(extension_data.get(), manager->GetDefaultSearchEngine(&source));
+  EXPECT_EQ(DefaultSearchManager::FROM_EXTENSION, source);
+
+  // GetDefaultSearchEngineIgnoringExtensions() should return the user engine,
+  // AND it should be fully reconciled (builtin_engine).
+  std::unique_ptr<TemplateURLData> ignored_extension_engine =
+      manager->GetDefaultSearchEngineIgnoringExtensions();
+  ASSERT_TRUE(ignored_extension_engine);
+  ExpectSimilar(builtin_engine, ignored_extension_engine.get());
+}
+
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 TEST_F(DefaultSearchManagerTest, DefaultSearchReset) {
   base::test::ScopedFeatureList feature_list{

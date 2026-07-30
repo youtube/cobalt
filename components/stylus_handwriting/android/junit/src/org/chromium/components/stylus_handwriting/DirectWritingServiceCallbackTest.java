@@ -47,7 +47,6 @@ import org.chromium.blink.mojom.StylusWritingGestureData;
 import org.chromium.blink_public.web.WebTextInputFlags;
 import org.chromium.blink_public.web.WebTextInputMode;
 import org.chromium.content.browser.input.ImeUtils;
-import org.chromium.content_public.browser.HtmlMetadata;
 import org.chromium.content_public.browser.StylusWritingImeCallback;
 import org.chromium.mojo_base.mojom.String16;
 import org.chromium.ui.base.ime.TextInputAction;
@@ -318,7 +317,6 @@ public class DirectWritingServiceCallbackTest {
                 index,
                 index,
                 SAMPLE_INPUT,
-                HtmlMetadata.EMPTY,
                 editorInfo);
         mDwServiceCallback.updateEditorInfo(editorInfo);
         assertEquals(editorInfo.privateImeOptions, mDwServiceCallback.getPrivateImeOptions());

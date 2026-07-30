@@ -32,6 +32,11 @@ IN_PROC_BROWSER_TEST_F(FlagsUiBrowserTest, UrlWithInvalidHash) {
           "runMochaSuite('UrlWithInvalidReferencedFlagHashTest')");
 }
 
+IN_PROC_BROWSER_TEST_F(FlagsUiBrowserTest, UrlWithRedirectedHash) {
+  RunTest("flags/url_test.js",
+          "runMochaSuite('UrlWithRedirectedFlagHashTest')");
+}
+
 class FlagsDeprecatedUiBrowserTest : public WebUIMochaBrowserTest {
  protected:
   FlagsDeprecatedUiBrowserTest() {

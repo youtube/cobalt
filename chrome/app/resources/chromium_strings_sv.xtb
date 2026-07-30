@@ -75,6 +75,7 @@ Vissa funktioner kanske inte är tillgängliga och ändringar i inställningarna
 <translation id="1820835682567584003">Chromium försöker att <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="183031085822326697">Nästa gång du öppnar Chromium på din <ph name="DEVICE_TYPE" /> visas en uppmaning om att använda Google Lösenordshantering.</translation>
 <translation id="1838374766361614909">Rensa sökning</translation>
+<translation id="1846849503013521481">För att skydda ditt arbete i Chromium kan organisationen visa eller hantera viss information</translation>
 <translation id="18552579716432081"><ph name="BEGIN_LINK" />Logga ut från Chromium<ph name="END_LINK" /> om du vill radera webbinformation från enheten utan att ta bort den från Google-kontot.</translation>
 <translation id="1857749206890802997">Ladda ned Chromium på telefonen för att öppna eller skapa nya flikgrupper när du är på språng.</translation>
 <translation id="185970820835152459">Du kan hantera dina inloggade Google-konton. Dina Google-konton används för webbläsaren Chromium, Play Butik, Gmail med mera. Om du vill lägga till ett konto åt någon annan, till exempel en familjemedlem, lägger du till en ny person på <ph name="DEVICE_TYPE" /> i stället. <ph name="LINK_BEGIN" />Läs mer<ph name="LINK_END" /></translation>
@@ -437,6 +438,7 @@ Om sidan inte fungerar som förväntat kan du testa att tillåta optimering.</tr
 <translation id="5953657885167112863">Gör Chromium till din egen</translation>
 <translation id="5960071705175224773">Dina inställningar har ändrats av en okänd app</translation>
 <translation id="5968400720580217226">AI-läge</translation>
+<translation id="5977420883993828287">Fäst! Använd sammanhangsbaserade uppgifter igen från verktygsfältet</translation>
 <translation id="5986585015444752010">{COUNT,plural, =1{Organisationen avslutar Chromium automatiskt när det inte har använts på 1 minut.}other{Organisationen avslutar Chromium automatiskt när det inte har använts på # minuter.}}</translation>
 <translation id="5987687638152509985">Du måste uppdatera Chromium innan synkroniseringen kan starta</translation>
 <translation id="6003112304606738118">Laddar ned … <ph name="HOURS" /> timme/timmar kvar</translation>
@@ -541,6 +543,17 @@ Vissa funktioner är kanske inte tillgängliga. Ange en annan profilkatalog elle
 <translation id="6896758677409633944">Kopiera</translation>
 <translation id="6901631050894301805">Ställ in Chromium som standardwebbläsare och fäst den på aktivitetsfältet</translation>
 <translation id="6909503629704372277">&amp;Hantera Chromium-profiler</translation>
+<translation id="6919942714452658456">Den här åtgärden kommer att
+          <ph name="LINE_BREAKS" />
+            • återställa startfliken, sidan Ny flik, sökmotorn och fästa flikar
+            <ph name="LINE_BREAK" />
+            • inaktivera tillägg
+            <ph name="LINE_BREAK" />
+            • radera cookies och annan tillfällig webbplatsdata
+            <ph name="LINE_BREAK" />
+            • återställa Chromium-genvägar.
+            <ph name="LINE_BREAKS" />
+            Bokmärken, historiken och sparade lösenord påverkas inte.</translation>
 <translation id="6934579572334859869">Fråga bildsökning om den här bilden</translation>
 <translation id="6948031725951063910">Du har nått gränsen på <ph name="BOOKMARK_LIMIT" /> bokmärken i Chromium, så vissa av dina bokmärken har inte sparats i Google-kontot ännu.
 
@@ -610,6 +623,7 @@ Chromium kan inte återställa dina inställningar.</translation>
 <translation id="7686590090926151193">Chromium är inte din standardwebbläsare</translation>
 <translation id="7689606757190482937">Synkronisera och anpassa Chromium på alla enheter du använder</translation>
 <translation id="7699779824407626136">Chromium-uppdatering</translation>
+<translation id="7700735928747402058">Ditt arbete är säkert i Chromium</translation>
 <translation id="7716950018788545737">Uppgiften/uppgifterna har avslutats.</translation>
 <translation id="77283119132245232">Tillhandahåller systemspårningstjänster för <ph name="BROWSER_NAME" />. Om tjänsten är inaktiverad innehåller prestandaspårning som skapas av webbläsaren inte systemhändelser som kontextbyten och färdiga trådhändelser.</translation>
 <translation id="7745317241717453663">Webbinformationen raderas från enheten. Logga in i Chromium som <ph name="USER_EMAIL" /> om du vill kunna återställa datan senare.</translation>
@@ -641,6 +655,7 @@ Chromium kan inte återställa dina inställningar.</translation>
 <translation id="8031714377769448844">Fäst Chromium i aktivitetsfältet så att du snabbt kan komma åt den när du vill</translation>
 <translation id="80471789339884597">Tack för att du installerat programmet. Du måste starta om alla webbläsare innan du använder <ph name="BUNDLE_NAME" />.</translation>
 <translation id="8054112667659782652">Visa alltid genvägen för bildsökning</translation>
+<translation id="8069447462453318634">Välj Fäst i verktygsfältet</translation>
 <translation id="8077498902115777962">Inaktivera att Chromium körs i bakgrunden för appar</translation>
 <translation id="80790299200510644">Bildsökning</translation>
 <translation id="8086881907087796310">Installationen misslyckades eftersom datorn inte uppfyller minimikraven för hårdvara.</translation>
@@ -722,6 +737,15 @@ Chromium kan inte återställa dina inställningar.</translation>
 <translation id="8907580949721785412">Skriv ditt lösenord i Windows om du vill tillåta att lösenord visas i Chromium.</translation>
 <translation id="8932992523185907506">Chromium är inte längre din standardwebbläsare. Vill du använda Chromium som standardwebbläsare?</translation>
 <translation id="8941642502866065432">Det gick inte att uppdatera Chromium</translation>
+<translation id="8944232836376404813">Den här åtgärden kommer att
+          <ph name="LINE_BREAKS" />
+            • återställa startfliken, sidan Ny flik, sökmotorn och fästa flikar
+            <ph name="LINE_BREAK" />
+            • inaktivera tillägg
+            <ph name="LINE_BREAK" />
+            • radera cookies och annan tillfällig webbplatsdata.
+            <ph name="LINE_BREAKS" />
+            Bokmärken, historiken och sparade lösenord påverkas inte.</translation>
 <translation id="897581876605952338">Logotypen för Chromium Enterprise</translation>
 <translation id="8981150672034878610">Det går inte att starta Chromium eftersom något gick fel när profilen öppnades. Testa att starta om Chromium.</translation>
 <translation id="8988036198400390003">Hantera Chromium-profiler</translation>

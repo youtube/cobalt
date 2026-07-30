@@ -84,7 +84,7 @@ bool IOSPromoController::CanShowIOSPromo(PromoType promo_type) {
     return false;
   }
 
-  BrowserWindow* window = browser_->window();
+  BrowserWindow* window = BrowserWindow::FromBrowser(browser_);
   // Don't show the promo if the toolbar is not visible.
   if (!window || !window->IsToolbarVisible()) {
     return false;

@@ -8,8 +8,10 @@
 #include <string>
 
 #include "base/functional/callback.h"
+#include "base/gtest_prod_util.h"
 #include "base/values.h"
 #include "base/win/scoped_handle.h"
+#include "url/gurl.h"
 
 namespace credential_provider {
 
@@ -50,6 +52,8 @@ class ScopedUserProfile {
 
  private:
   friend class FakeScopedUserProfileFactory;
+  FRIEND_TEST_ALL_PREFIXES(ScopedUserProfileStaticTest, IsValidPictureUrl);
+  FRIEND_TEST_ALL_PREFIXES(ScopedUserProfileStaticTest, BuildProfilePictureUrl);
 
   bool IsValid();
 
@@ -69,6 +73,17 @@ class ScopedUserProfile {
                     const std::wstring& password);
 
   bool WaitForProfileCreation(const std::wstring& sid);
+
+  // Returns true if the given `picture_url` is a valid Google user content URL.
+  static bool IsValidPictureUrl(const std::wstring& picture_url);
+
+  // Updates the profile pictures for the user with the given `sid`.
+  static HRESULT UpdateProfilePictures(const std::wstring& sid,
+                                       const std::wstring& picture_url,
+                                       bool force_update);
+
+  // Builds a profile picture URL with the specified `size`.
+  static std::string BuildProfilePictureUrl(const GURL& url, size_t size);
 
   base::win::ScopedHandle token_;
 

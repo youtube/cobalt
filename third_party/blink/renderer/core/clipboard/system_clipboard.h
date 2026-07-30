@@ -98,6 +98,17 @@ class CORE_EXPORT SystemClipboard final
   // with an empty BigBuffer. Tracks crbug.com/474131935.
   void ReadPng(mojom::blink::ClipboardBuffer buffer,
                mojom::blink::ClipboardHost::ReadPngCallback callback);
+
+  // Reads the PNG on the currently-active buffer (`buffer_`) and wraps it as
+  // an <img src="data:image/png;base64,..."> markup string. Mirrors
+  // ReadHTML()/ReadPlainText()/ReadRtf() in honouring SetSelectionMode().
+  // Editor-paste call sites must use this overload.
+  String ReadImageAsImageMarkup();
+
+  // Explicit-buffer overload. Reserved for callers that legitimately address
+  // a specific OS buffer (e.g. the Async Clipboard API, which carries the
+  // buffer on its Web Platform contract). Editor paste must NOT use this
+  // overload; it bypasses the SetSelectionMode() invariant.
   String ReadImageAsImageMarkup(mojom::blink::ClipboardBuffer);
 
   // Write the image and its associated tag (bookmark/HTML types).

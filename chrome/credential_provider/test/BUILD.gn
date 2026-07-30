@@ -21,6 +21,7 @@ test("gcp_unittests") {
     "../gaiacp/gem_device_details_manager_unittest.cc",
     "../gaiacp/os_gaia_user_manager_unittest.cc",
     "../gaiacp/reauth_credential_unittest.cc",
+    "../gaiacp/scoped_user_profile_unittest.cc",
     "../gaiacp/user_policies_manager_unittest.cc",
     "../gaiacp/win_http_url_fetcher_unittest.cc",
     "com_fakes.cc",
@@ -74,7 +75,7 @@ test("gcp_unittests") {
 
   data = [
     "//net/tools/testserver/",
-    "//third_party/pywebsocket3/src/mod_pywebsocket/",
+    "//third_party/pywebsocket3/src/pywebsocket3/",
   ]
 
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and

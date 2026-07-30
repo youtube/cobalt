@@ -643,5 +643,54 @@ TEST_F(BufferTest, SurfaceTreeHostDiscardFrameNotReclaimInUseResources) {
   ASSERT_EQ(release_call_count, 1);
 }
 
+TEST_F(BufferTest, CreateBitmapFailure) {
+  // Create a valid but too small shared memory region.
+  base::UnsafeSharedMemoryRegion region =
+      base::UnsafeSharedMemoryRegion::Create(1);
+  ASSERT_TRUE(region.IsValid());
+  gfx::GpuMemoryBufferHandle handle(std::move(region));
+  handle.stride = 1024;
+
+  // Create a buffer with invalid handle.
+  auto buffer = test::ExoTestHelper::CreateBufferFromGMBHandle(
+      std::move(handle), gfx::Size(256, 256),
+      viz::SinglePlaneFormat::kRGBA_8888);
+
+  ASSERT_TRUE(buffer);
+
+  // This should not crash and return an empty bitmap.
+  SkBitmap bitmap = buffer->CreateBitmap();
+  EXPECT_TRUE(bitmap.drawsNothing());
+}
+
+TEST_F(BufferTest, ProduceTransferableResourceFailure) {
+  // Create a valid but too small shared memory region.
+  base::UnsafeSharedMemoryRegion region =
+      base::UnsafeSharedMemoryRegion::Create(1);
+  ASSERT_TRUE(region.IsValid());
+  gfx::GpuMemoryBufferHandle handle(std::move(region));
+  handle.stride = 1024;
+
+  // Create a buffer with invalid handle.
+  auto buffer = test::ExoTestHelper::CreateBufferFromGMBHandle(
+      std::move(handle), gfx::Size(256, 256),
+      viz::SinglePlaneFormat::kRGBA_8888);
+
+  ASSERT_TRUE(buffer);
+
+  buffer->OnAttach();
+
+  auto surface_tree_host = std::make_unique<SurfaceTreeHost>("BufferTest");
+  LayerTreeFrameSinkHolder* frame_sink_holder =
+      surface_tree_host->layer_tree_frame_sink_holder();
+
+  // This should not crash and return std::nullopt.
+  std::optional<viz::TransferableResource> resource =
+      buffer->ProduceTransferableResource(frame_sink_holder->resource_manager(),
+                                          false, gfx::ColorSpace::CreateSRGB(),
+                                          nullptr);
+  EXPECT_FALSE(resource.has_value());
+}
+
 }  // namespace
 }  // namespace exo

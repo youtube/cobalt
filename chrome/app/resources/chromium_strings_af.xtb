@@ -75,6 +75,7 @@ Sommige kenmerke kan dalk nie beskikbaar wees nie en veranderings aan voorkeure 
 <translation id="1820835682567584003">Chromium probeer tans om <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="183031085822326697">Jy sal ’n porboodskap sien om Google Wagwoordbestuurder te gebruik wanneer jy volgende keer Chromium op jou <ph name="DEVICE_TYPE" /> oopmaak.</translation>
 <translation id="1838374766361614909">Vee soektog uit</translation>
+<translation id="1846849503013521481">Jou organisasie sal sekere inligting kan bekyk of bestuur om jou werk op Chromium te beveilig</translation>
 <translation id="18552579716432081"><ph name="BEGIN_LINK" />Meld by Chromium af<ph name="END_LINK" /> om blaaierdata net van hierdie toestel af uit te vee terwyl jy dit in jou Google-rekening hou.</translation>
 <translation id="1857749206890802997">Laai Chromium op jou foon af om nuwe oortjiegroepe oop te maak of te skep terwyl jy aan die beweeg is.</translation>
 <translation id="185970820835152459">Jy kan jou aangemelde Google-rekeninge bestuur. Jou Google-rekeninge word gebruik vir Chromium-blaaier, Play Winkel, Gmail en meer. As jy 'n rekening vir iemand anders, soos 'n gesinslid, wil byvoeg, kan jy 'n nuwe persoon eerder by jou <ph name="DEVICE_TYPE" /> voeg. <ph name="LINK_BEGIN" />Kom meer te wete<ph name="LINK_END" /></translation>
@@ -437,6 +438,7 @@ Probeer om optimering toe te laat as hierdie bladsy nie werk soos verwag nie.</t
 <translation id="5953657885167112863">Maak Chromium joune</translation>
 <translation id="5960071705175224773">Jou instellings is deur ’n onbekende app verander</translation>
 <translation id="5968400720580217226">KI-modus</translation>
+<translation id="5977420883993828287">Vasgespeld! Gebruik weer Kontekstuele Take vanaf die nutsbalk</translation>
 <translation id="5986585015444752010">{COUNT,plural, =1{Jou organisasie maak Chromium outomaties toe nadat dit 1 minuut lank nie gebruik is nie.}other{Jou organisasie maak Chromium outomaties toe nadat dit # minute lank nie gebruik is nie.}}</translation>
 <translation id="5987687638152509985">Dateer Chromium op om sinkronisering te begin</translation>
 <translation id="6003112304606738118">Laai tans af … <ph name="HOURS" /> uur oor</translation>
@@ -541,6 +543,17 @@ Sommige kenmerke sal dalk nie beskikbaar wees nie. Spesifiseer 'n ander profielg
 <translation id="6896758677409633944">Kopieer</translation>
 <translation id="6901631050894301805">Stel Chromium as jou verstekblaaier en speld dit aan jou taakbalk vas</translation>
 <translation id="6909503629704372277">&amp;Bestuur Chromium-profiele</translation>
+<translation id="6919942714452658456">Hierdie handeling sal:
+          <ph name="LINE_BREAKS" />
+            • Jou afskopbladsy, Nuwe Oortjie-bladsy, soekenjin en vasgespelde oortjies terugstel
+            <ph name="LINE_BREAK" />
+            • Uitbreidings deaktiveer
+            <ph name="LINE_BREAK" />
+            • Webkoekies en ander tydelike werfdata uitvee
+            <ph name="LINE_BREAK" />
+            • Chromium-kortpaaie terugstel
+            <ph name="LINE_BREAKS" />
+            Boekmerke, geskiedenis en gestoorde wagwoorde sal nie geraak word nie.</translation>
 <translation id="6934579572334859869">Vra Prentsoektog oor hierdie prent</translation>
 <translation id="6948031725951063910">Jy het Chromium se limiet van <ph name="BOOKMARK_LIMIT" /> boekmerke bereik, en daarom is sommige van jou boekmerke nog nie in jou Google-rekening gestoor nie.
 
@@ -610,6 +623,7 @@ Chromium kan nie jou instellings herwin nie.</translation>
 <translation id="7686590090926151193">Chromium is nie jou verstekblaaier nie</translation>
 <translation id="7689606757190482937">Sinkroniseer en personaliseer Chromium op al jou toestelle</translation>
 <translation id="7699779824407626136">Chromium-opdatering</translation>
+<translation id="7700735928747402058">Jou werk is veilig op Chromium</translation>
 <translation id="7716950018788545737">Taak(take) het geëindig.</translation>
 <translation id="77283119132245232">Verskaf stelselnasporingdienste vir <ph name="BROWSER_NAME" />. As hierdie diens gedeaktiveer is, sal prestasiespore wat deur die blaaier geskep word, nie stelselwye gevalle soos kontekswisseling en gespreksdraadgevalle wat gereed is, insluit nie.</translation>
 <translation id="7745317241717453663">Dit sal jou blaaierdata op hierdie toestel uitvee. Meld as <ph name="USER_EMAIL" /> by Chromium aan om jou data later op te haal.</translation>
@@ -641,6 +655,7 @@ Chromium kan nie jou instellings herwin nie.</translation>
 <translation id="8031714377769448844">Speld Chromium vas op jou taakbalk om enige tyd vinnig daarby uit te kom</translation>
 <translation id="80471789339884597">Dankie dat jy geïnstalleer het. Jy moet al jou blaaiers herbegin voordat jy <ph name="BUNDLE_NAME" /> gebruik.</translation>
 <translation id="8054112667659782652">Wys altyd kortpad vir Prentsoektog</translation>
+<translation id="8069447462453318634">Kies “Speld aan nutsbalk vas”</translation>
 <translation id="8077498902115777962">Deaktiveer Chromium wat op die agtergrond vir apps loop</translation>
 <translation id="80790299200510644">Prentsoektog</translation>
 <translation id="8086881907087796310">Installering het misluk omdat jou rekenaar nie aan die minimum hardewarevereistes voldoen nie.</translation>
@@ -722,6 +737,15 @@ Chromium kan nie jou instellings herwin nie.</translation>
 <translation id="8907580949721785412">Chromium probeer tans om wagwoorde te wys. Tik jou Windows-wagwoord in om dit toe te laat.</translation>
 <translation id="8932992523185907506">Chromium is nie meer jou verstekblaaier nie. Maak Chromium die verstekblaaier?</translation>
 <translation id="8941642502866065432">Kan nie Chromium opdateer nie</translation>
+<translation id="8944232836376404813">Hierdie handeling sal:
+          <ph name="LINE_BREAKS" />
+            • Jou afskopbladsy, Nuwe Oortjie-bladsy, soekenjin en vasgespelde oortjies terugstel
+            <ph name="LINE_BREAK" />
+            • Uitbreidings deaktiveer
+            <ph name="LINE_BREAK" />
+            • Webkoekies en ander tydelike werfdata uitvee
+            <ph name="LINE_BREAKS" />
+            Boekmerke, geskiedenis en gestoorde wagwoorde sal nie geraak word nie.</translation>
 <translation id="897581876605952338">Chromium Enterprise-logo</translation>
 <translation id="8981150672034878610">Kan nie Chromium begin nie omdat iets skeefgeloop het toe jou profiel oopgemaak is. Probeer om Chromium te herbegin.</translation>
 <translation id="8988036198400390003">Bestuur Chromium-profiele</translation>

@@ -109,8 +109,11 @@ inline constexpr char kWebNNOrtDisableCpuFallback[] =
 #endif  // BUILDFLAG(IS_WIN)
 
 extern base::span<const char* const> GetWebNNSwitchesCopiedFromGpuProcessHost();
-// extern const base::span<const char* const>
-//     kWebNNSwitchesCopiedFromGpuProcessHost;
+
+// Returns the list of WebNN switches forwarded from the browser process to
+// the renderer process. Only backends that actually run inside the renderer
+// should appear here.
+extern base::span<const char* const> GetWebNNSwitchesForRendererProcess();
 
 }  // namespace switches
 

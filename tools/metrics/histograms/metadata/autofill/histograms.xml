@@ -138,6 +138,12 @@ chromium-metrics-reviews@google.com.
   <variant name="Curinos" summary="Curinos"/>
 </variants>
 
+<variants name="Autofill.CreditCardBenefitType">
+  <variant name="Category" summary="Category benefits"/>
+  <variant name="FlatRate" summary="Flat rate benefits"/>
+  <variant name="Merchant" summary="Merchant benefits"/>
+</variants>
+
 <variants name="Autofill.CreditCardIssuerId">
   <variant name="Amex" summary="card issued by American Express"/>
   <variant name="Anz" summary="card issued by ANZ"/>
@@ -3930,7 +3936,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.EmailPredictionCorrectness.Precision"
-    enum="EmailPredictionConfusionMatrix" expires_after="2026-10-11">
+    enum="EmailPredictionConfusionMatrix" expires_after="2026-12-16">
   <owner>vizcay@chromium.org</owner>
   <owner>jkeitel@chromium.org</owner>
   <owner>src/components/autofill/OWNERS</owner>
@@ -3941,7 +3947,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.EmailPredictionCorrectness.Recall"
-    enum="EmailPredictionConfusionMatrix" expires_after="2026-10-11">
+    enum="EmailPredictionConfusionMatrix" expires_after="2026-12-16">
   <owner>vizcay@chromium.org</owner>
   <owner>jkeitel@chromium.org</owner>
   <owner>src/components/autofill/OWNERS</owner>
@@ -4388,6 +4394,24 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   <token key="CardBenefitSource" variants="Autofill.CreditCardBenefitSource"/>
 </histogram>
 
+<histogram
+    name="Autofill.FormEvents.CreditCard.Benefits.{CardBenefitSource}.{CardBenefitType}"
+    enum="CardBenefitFormEvent" expires_after="2027-04-30">
+  <owner>ferny@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Autofill form events for credit card forms that contain at least one
+    suggestion where a card benefit is available. This includes logging for when
+    card suggestions with benefits are shown, selected, filled, and submitted,
+    and logs at each of those times. Log emission pertains to credit cards where
+    the benefit source is {CardBenefitSource} and the benefit type is
+    {CardBenefitType}. Each CardBenefitFormEvent metric can be recorded once per
+    page load.
+  </summary>
+  <token key="CardBenefitSource" variants="Autofill.CreditCardBenefitSource"/>
+  <token key="CardBenefitType" variants="Autofill.CreditCardBenefitType"/>
+</histogram>
+
 <histogram name="Autofill.FormEvents.CreditCard.Bnpl" enum="BnplFormEvent"
     expires_after="2027-04-30">
   <owner>yiwenqian@google.com</owner>
@@ -4730,7 +4754,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram
     name="Autofill.Funnel.NotClassifiedAsTargetFilling.FillAfterSuggestion.Password"
-    enum="BooleanAutofillFillAfterSuggestion" expires_after="2026-10-11">
+    enum="BooleanAutofillFillAfterSuggestion" expires_after="2026-12-16">
   <owner>brunobraga@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -5126,6 +5150,17 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </summary>
 </histogram>
 
+<histogram name="Autofill.iOS.FormSubmission.BlockedReason"
+    enum="SubmissionBlockedReasonIOS" expires_after="2026-11-29">
+  <owner>sugoi@chromium.org</owner>
+  <owner>bling-transactions@google.com</owner>
+  <summary>
+    Records the reason why a form submission was blocked or ignored by Autofill
+    on iOS. Recorded when the browser process decides to ignore a form
+    submission.
+  </summary>
+</histogram>
+
 <histogram name="Autofill.iOS.FormSubmission.IsProgrammatic" enum="Boolean"
     expires_after="2026-11-29">
   <owner>eic@google.com</owner>
@@ -5168,7 +5203,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.iOS.TriggeredFormExtractionFromDriver.{Range}"
-    units="count" expires_after="2026-10-12">
+    units="count" expires_after="2026-12-16">
   <owner>vincb@google.com</owner>
   <owner>tmartino@chromium.org</owner>
   <owner>bling-transactions@google.com</owner>
@@ -6695,6 +6730,18 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </summary>
 </histogram>
 
+<histogram name="Autofill.ProfileImport.SilentUpdateFieldMergeCategoryBitmask"
+    enum="AutofillSilentUpdateFieldMergeCategory" expires_after="2027-05-05">
+  <owner>perkowski@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <summary>
+    Records the reasons for the `kSilentUpdate` type import. If the value is 0,
+    then there was no known reason for silent update. Metadata-only silent
+    updates don't record this metric. Emitted once per silently updated profile
+    at the end of an import process once the import decision is final.
+  </summary>
+</histogram>
+
 <histogram name="Autofill.ProfileImport.SilentUpdatesProfileImportType"
     enum="AutofillProfileImportType" expires_after="2026-11-15">
   <owner>koerber@google.com</owner>
@@ -6889,7 +6936,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 <!-- LINT.ThenChange(/components/autofill/core/browser/metrics/profile_import_metrics.cc:GetImportTypeMetricsString) -->
 
 <histogram name="Autofill.ProfileImportValidCandidate.ZipCode.Length"
-    units="units" expires_after="2026-10-11">
+    units="units" expires_after="2026-12-16">
   <owner>mmaryia@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -6900,7 +6947,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.ProfileImportValidCandidate.ZipCode.Separator"
-    enum="AutofillZipCodeSeparators" expires_after="2026-10-11">
+    enum="AutofillZipCodeSeparators" expires_after="2026-12-16">
   <owner>mmaryia@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -8014,7 +8061,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.Settings.EditedAlternativeNameContainsASeparator"
-    enum="BooleanYesNo" expires_after="2026-10-04">
+    enum="BooleanYesNo" expires_after="2026-12-16">
   <owner>jsobiech@google.com</owner>
   <owner>sygiet@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
@@ -10001,14 +10048,27 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <!-- TODO(crbug.com/491115361): Rename YourSavedInfoSettingsPage to AddressesSettingsPage -->
 
+<histogram
+    name="Autofill.YourSavedInfoSettingsPage.AutofillSettingsCategoryClick"
+    enum="Boolean" expires_after="2026-10-28">
+  <owner>jsobiech@google.com</owner>
+  <owner>chrome-autofill-team@google.com</owner>
+  <summary>
+    Records when the user clicks on the Autofill Settings category link on the
+    'Your saved info' settings page. iOS only.
+  </summary>
+</histogram>
+
+<!-- TODO(crbug.com/491115361): Rename YourSavedInfoSettingsPage to AddressesSettingsPage -->
+
 <histogram name="Autofill.YourSavedInfoSettingsPage.CategoryLinkClick"
     enum="YourSavedInfoDataCategory" expires_after="2026-10-28">
   <owner>mikhe@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
     Records clicks on data categories in the 'Your saved info' settings page.
-    Emitted on every click on such a data category. Recorded on Desktop and
-    Android.
+    Emitted on every click on such a data category. Recorded on Desktop,
+    Android, and iOS.
   </summary>
 </histogram>
 

@@ -12,28 +12,29 @@ import '/shared/settings/prefs/prefs.js';
 import '../relaunch_confirmation_dialog.js';
 // </if>
 import '../settings_page/settings_section.js';
-import '../settings_shared.css.js';
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
 import 'chrome://resources/cr_elements/icons.html.js';
-import 'chrome://resources/cr_elements/cr_shared_style.css.js';
 
-import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
+import {PrefServiceObserverMixinLit} from '/shared/settings/prefs2/pref_service_observer_mixin_lit.js';
+import {I18nMixinLit} from 'chrome://resources/cr_elements/i18n_mixin_lit.js';
+import {WebUiListenerMixinLit} from 'chrome://resources/cr_elements/web_ui_listener_mixin_lit.js';
 import {assert} from 'chrome://resources/js/assert.js';
 // <if expr="_google_chrome">
 import {OpenWindowProxyImpl} from 'chrome://resources/js/open_window_proxy.js';
 // </if>
 import {sanitizeInnerHtml} from 'chrome://resources/js/parse_html_subset.js';
-import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
+import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
 import {loadTimeData} from '../i18n_setup.js';
-import {RelaunchMixin, RestartType} from '../relaunch_mixin.js';
+import {RelaunchMixinLit, RestartType} from '../relaunch_mixin_lit.js';
 import type {SettingsPlugin} from '../settings_main/settings_plugin.js';
 
-import {getTemplate} from './about_page.html.js';
+import {getCss} from './about_page.css.js';
+import {getHtml} from './about_page.html.js';
 import type {AboutPageBrowserProxy, UpdateStatusChangedEvent} from './about_page_browser_proxy.js';
 import {AboutPageBrowserProxyImpl, UpdateStatus} from './about_page_browser_proxy.js';
 // clang-format off
@@ -47,8 +48,19 @@ export const ABOUT_PAGE_PRIVACY_POLICY_URL: string =
     'https://policies.google.com/privacy';
 // </if>
 
+export interface SettingsAboutPageElement {
+  $: {
+    productLogo: HTMLImageElement,
+    // <if expr="not is_chromeos">
+    deprecationWarning: HTMLElement,
+    updateStatusMessage: HTMLElement,
+    // </if>
+  };
+}
+
 const SettingsAboutPageElementBase =
-    RelaunchMixin(WebUiListenerMixin(I18nMixin(PolymerElement)));
+    RelaunchMixinLit(PrefServiceObserverMixinLit(
+        WebUiListenerMixinLit(I18nMixinLit(CrLitElement))));
 
 export class SettingsAboutPageElement extends SettingsAboutPageElementBase
     implements SettingsPlugin {
@@ -56,99 +68,66 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
     return 'settings-about-page';
   }
 
-  static get template() {
-    return getTemplate();
+  static override get styles() {
+    return getCss();
   }
 
-  static get properties() {
+  override render() {
+    return getHtml.bind(this)();
+  }
+
+  static override get properties() {
     return {
-      currentUpdateStatusEvent_: {
-        type: Object,
-        value: {
-          message: '',
-          progress: 0,
-          rollback: false,
-          status: UpdateStatus.DISABLED,
-        },
-      },
-
-      /**
-       * Whether the browser/ChromeOS is managed by their organization
-       * through enterprise policies.
-       */
-      isManaged_: {
-        type: Boolean,
-        value() {
-          return loadTimeData.getBoolean('isManaged');
-        },
-      },
-
-      /**
-       * The name of the icon to display in the management card.
-       * Should only be read if isManaged_ is true.
-       */
-      managedByIcon_: {
-        type: String,
-        value() {
-          return loadTimeData.getString('managedByIcon');
-        },
-      },
+      currentUpdateStatusEvent_: {type: Object},
+      isManaged_: {type: Boolean},
+      managedByIcon_: {type: String},
 
       // <if expr="_google_chrome and is_macosx">
-      promoteUpdaterStatus_: Object,
+      promoteUpdaterStatus_: {type: Object},
       // </if>
 
       // <if expr="not is_chromeos">
-      obsoleteSystemInfo_: {
-        type: Object,
-        value() {
-          return {
-            obsolete: loadTimeData.getBoolean('aboutObsoleteNowOrSoon'),
-            endOfLine: loadTimeData.getBoolean('aboutObsoleteEndOfTheLine'),
-          };
-        },
-      },
-
-      showUpdateStatus_: {
-        type: Boolean,
-        value: false,
-      },
-
-      showButtonContainer_: Boolean,
-
-      showRelaunch_: {
-        type: Boolean,
-        value: false,
-      },
+      obsoleteSystemInfo_: {type: Object},
+      showUpdateStatus_: {type: Boolean},
+      showButtonContainer_: {type: Boolean},
+      showRelaunch_: {type: Boolean},
       // </if>
+
+      feedbackAllowedPref_: {type: Object},
     };
   }
 
-  // <if expr="not is_chromeos">
-  static get observers() {
-    return [
-      'updateShowUpdateStatus_(' +
-          'obsoleteSystemInfo_, currentUpdateStatusEvent_)',
-      'updateShowRelaunch_(currentUpdateStatusEvent_)',
-      'updateShowButtonContainer_(showRelaunch_)',
-    ];
-  }
-  // </if>
-
-  declare private currentUpdateStatusEvent_: UpdateStatusChangedEvent|null;
-  declare private isManaged_: boolean;
-  declare private managedByIcon_: string;
+  private accessor currentUpdateStatusEvent_: UpdateStatusChangedEvent|null = {
+    message: '',
+    progress: 0,
+    status: UpdateStatus.DISABLED,
+  };
+  protected accessor isManaged_: boolean = loadTimeData.getBoolean('isManaged');
+  protected accessor managedByIcon_: string =
+      loadTimeData.getString('managedByIcon');
 
   // <if expr="_google_chrome and is_macosx">
-  declare private promoteUpdaterStatus_: PromoteUpdaterStatus;
+  protected accessor promoteUpdaterStatus_: PromoteUpdaterStatus = {
+    hidden: true,
+    disabled: true,
+    actionable: false,
+    text: '',
+  };
   // </if>
 
   // <if expr="not is_chromeos">
-  declare private obsoleteSystemInfo_: {obsolete: boolean, endOfLine: boolean};
-  declare private showUpdateStatus_: boolean;
-  declare private showButtonContainer_: boolean;
-  declare private showRelaunch_: boolean;
+  protected accessor obsoleteSystemInfo_:
+      {obsolete: boolean, endOfLine: boolean} = {
+        obsolete: loadTimeData.getBoolean('aboutObsoleteNowOrSoon'),
+        endOfLine: loadTimeData.getBoolean('aboutObsoleteEndOfTheLine'),
+      };
+  protected accessor showUpdateStatus_: boolean = false;
+  protected accessor showButtonContainer_: boolean = false;
+  protected accessor showRelaunch_: boolean = false;
   // </if>
+
+  protected accessor feedbackAllowedPref_:
+      chrome.settingsPrivate.PrefObject<boolean>|undefined;
 
   private aboutBrowserProxy_: AboutPageBrowserProxy =
       AboutPageBrowserProxyImpl.getInstance();
@@ -161,9 +140,37 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
     // <if expr="not is_chromeos">
     this.startListening_();
     // </if>
+
+    // <if expr="_google_chrome">
+    this.mirrorPref('feedback_allowed', 'feedbackAllowedPref_');
+    // </if>
   }
 
-  private getPromoteUpdaterClass_(): string {
+  // <if expr="not is_chromeos">
+  override willUpdate(changedProperties: PropertyValues<this>) {
+    super.willUpdate(changedProperties);
+
+    const changedPrivateProperties =
+        changedProperties as Map<PropertyKey, unknown>;
+
+    if (changedPrivateProperties.has('obsoleteSystemInfo_') ||
+        changedPrivateProperties.has('currentUpdateStatusEvent_')) {
+      this.updateShowUpdateStatus_();
+    }
+
+    if (changedPrivateProperties.has('currentUpdateStatusEvent_')) {
+      this.showRelaunch_ = this.checkStatus_(UpdateStatus.NEARLY_UPDATED);
+    }
+
+    if (changedPrivateProperties.has('showRelaunch_')) {
+      // Hide the button container if all buttons are hidden, otherwise the
+      // container displays an unwanted border (see separator class).
+      this.showButtonContainer_ = this.showRelaunch_;
+    }
+  }
+  // </if>
+
+  protected getPromoteUpdaterClass_(): string {
     // <if expr="_google_chrome and is_macosx">
     if (this.promoteUpdaterStatus_.disabled) {
       return 'cr-secondary-text';
@@ -198,7 +205,7 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
   /**
    * If #promoteUpdater isn't disabled, trigger update promotion.
    */
-  private onPromoteUpdaterClick_() {
+  protected onPromoteUpdaterClick_() {
     // This is necessary because #promoteUpdater is not a button, so by default
     // disable doesn't do anything.
     if (this.promoteUpdaterStatus_.disabled) {
@@ -208,17 +215,17 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
   }
   // </if>
 
-  private onLearnMoreClick_(event: Event) {
+  protected onLearnMoreClick_(event: Event) {
     // Stop the propagation of events, so that clicking on links inside
     // actionable items won't trigger action.
     event.stopPropagation();
   }
 
-  private onHelpClick_() {
+  protected onHelpClick_() {
     this.aboutBrowserProxy_.openHelpPage();
   }
 
-  private onRelaunchClick_() {
+  protected onRelaunchClick_() {
     this.performRestart(RestartType.RELAUNCH);
   }
 
@@ -232,23 +239,11 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
         this.currentUpdateStatusEvent_!.status !== UpdateStatus.DISABLED;
   }
 
-  /**
-   * Hide the button container if all buttons are hidden, otherwise the
-   * container displays an unwanted border (see separator class).
-   */
-  private updateShowButtonContainer_() {
-    this.showButtonContainer_ = this.showRelaunch_;
-  }
-
-  private updateShowRelaunch_() {
-    this.showRelaunch_ = this.checkStatus_(UpdateStatus.NEARLY_UPDATED);
-  }
-
-  private shouldShowLearnMoreLink_(): boolean {
+  protected shouldShowLearnMoreLink_(): boolean {
     return this.currentUpdateStatusEvent_!.status === UpdateStatus.FAILED;
   }
 
-  private getUpdateStatusMessage_(): TrustedHTML {
+  protected getUpdateStatusMessage_(): TrustedHTML {
     switch (this.currentUpdateStatusEvent_!.status) {
       case UpdateStatus.CHECKING:
       case UpdateStatus.NEED_PERMISSION_TO_UPDATE:
@@ -287,7 +282,7 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
     }
   }
 
-  private getUpdateStatusIcon_(): string {
+  protected getUpdateStatusIcon_(): string {
     // If this platform has reached the end of the line, display an error icon
     // and ignore UpdateStatus.
     if (this.obsoleteSystemInfo_.endOfLine) {
@@ -307,7 +302,7 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
     }
   }
 
-  private shouldShowThrobber_(): boolean {
+  protected shouldShowThrobber_(): boolean {
     if (this.obsoleteSystemInfo_.endOfLine) {
       return false;
     }
@@ -326,12 +321,12 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
     return this.currentUpdateStatusEvent_!.status === status;
   }
 
-  private onManagementPageClick_() {
+  protected onManagementPageClick_() {
     window.location.href = loadTimeData.getString('managementPageUrl');
   }
 
-  private onProductLogoClick_() {
-    this.$['product-logo'].animate(
+  protected onProductLogoClick_() {
+    this.$.productLogo.animate(
         {
           transform: ['none', 'rotate(-10turn)'],
         },
@@ -342,17 +337,17 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
   }
 
   // <if expr="_google_chrome">
-  private onReportIssueClick_() {
+  protected onReportIssueClick_() {
     this.aboutBrowserProxy_.openFeedbackDialog();
   }
 
-  private onPrivacyPolicyClick_() {
+  protected onPrivacyPolicyClick_() {
     OpenWindowProxyImpl.getInstance().openUrl(ABOUT_PAGE_PRIVACY_POLICY_URL);
   }
   // </if>
 
   // <if expr="not is_chromeos">
-  private shouldShowIcons_(): boolean {
+  protected shouldShowIcons_(): boolean {
     if (this.obsoleteSystemInfo_.endOfLine) {
       return true;
     }

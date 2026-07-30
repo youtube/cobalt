@@ -205,8 +205,7 @@ NSString* const kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID =
   NSLayoutConstraint* _splitViewSpacingConstraint;
   // Trailing constraint in compact mode (tablet only).
   NSLayoutConstraint* _compactTrailingConstraint;
-  // Whether split view is enabled.
-  BOOL _splitViewEnabled;
+
   // The close button for closing the keyboard accessory.
   UIButton* _closeButton;
   // Current subitem group that is visible.
@@ -242,12 +241,10 @@ NSString* const kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID =
     creditCardManualFillSymbol:(UIImage*)creditCardManualFillSymbol
        addressManualFillSymbol:(UIImage*)addressManualFillSymbol
              closeButtonSymbol:(UIImage*)closeButtonSymbol
-              splitViewEnabled:(BOOL)splitViewEnabled
             isTabletFormFactor:(BOOL)isTabletFormFactor {
   DCHECK(manualFillSymbol);
   _largeAccessoryViewEnabled = YES;
   _isTabletFormFactor = isTabletFormFactor;
-  _splitViewEnabled = splitViewEnabled;
   [self setUpWithLeadingView:leadingView
               customTrailingView:nil
               navigationDelegate:delegate
@@ -360,7 +357,7 @@ NSString* const kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID =
 
 // Whether split view is in use.
 - (BOOL)isSplitViewActive {
-  return [self isLiquidGlassEffectEnabled] && _splitViewEnabled;
+  return [self isLiquidGlassEffectEnabled];
 }
 
 // Sets up split view.

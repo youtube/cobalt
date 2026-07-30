@@ -1110,7 +1110,7 @@ bool HTMLTokenizer::NextTokenImpl(SegmentedString& source) {
 
     HTML_BEGIN_STATE(kProcessingInstructionOpenState) {
       CHECK(RuntimeEnabledFeatures::HTMLProcessingInstructionEnabled());
-      if (IsAsciiAlpha(cc)) {
+      if (cc == '_' || IsAsciiAlpha(cc)) {
         token_.BeginProcessingInstruction();
         HTML_RECONSUME_IN(kProcessingInstructionTargetState);
       } else if (cc == kEndOfFileMarker) {
@@ -1137,7 +1137,7 @@ bool HTMLTokenizer::NextTokenImpl(SegmentedString& source) {
       if (cc == kEndOfFileMarker) {
         ParseError();
         return EmitEndOfFile(source);
-      } else if (cc == '-' || IsAsciiAlphanumeric(cc)) {
+      } else if (cc == '-' || cc == '_' || IsAsciiAlphanumeric(cc)) {
         token_.AppendToProcessingInstructionTarget(ToLowerCaseIfAlpha(cc));
         temporary_buffer_.AddChar(cc);
         HTML_CONSUME(kProcessingInstructionTargetState);

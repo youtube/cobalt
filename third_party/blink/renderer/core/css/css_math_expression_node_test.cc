@@ -748,54 +748,42 @@ TEST(CSSMathExpressionNode, TestColorChannelExpressionWithoutSubstitution) {
           Flags({Flag::AllowPercent}), kCSSAnchorQueryTypesNone,
           color_channel_map);
   EXPECT_EQ(css_node->Category(), CalculationResultCategory::kCalcAngle);
-  EXPECT_TRUE(css_node->IsOperation());
+
+  // We are simplified to calc(h * 1deg) (serialized as calc(1deg * h)).
+  // We only check that the h remains.
+  ASSERT_TRUE(css_node->IsOperation());
   const CSSMathExpressionOperation* css_op =
       To<CSSMathExpressionOperation>(css_node);
   const CSSMathExpressionNode* operand = css_op->GetOperands()[0];
-  EXPECT_TRUE(operand->IsOperation());
-  const CSSMathExpressionOperation* inner_css_op =
-      To<CSSMathExpressionOperation>(operand);
-  const CSSMathExpressionNode* inner_operand = inner_css_op->GetOperands()[0];
-  EXPECT_TRUE(inner_operand->IsKeywordLiteral());
+  ASSERT_TRUE(operand->IsKeywordLiteral());
   const CSSMathExpressionKeywordLiteral* keyword =
-      To<CSSMathExpressionKeywordLiteral>(inner_operand);
+      To<CSSMathExpressionKeywordLiteral>(operand);
   EXPECT_EQ(keyword->GetValue(), CSSValueID::kH);
   EXPECT_EQ(keyword->GetContext(),
             CSSMathExpressionKeywordLiteral::Context::kColorChannel);
 
   CSSToLengthConversionData resolver{/*element=*/nullptr};
+
+  // We should resolve to a calculation expression (h * 1px),
+  // matching the calc() expression except that the unit disappears.
   const CalculationExpressionNode* node =
       css_node->ToCalculationExpression(resolver);
-  EXPECT_TRUE(node->IsOperation());
+  ASSERT_TRUE(node->IsOperation());
   const CalculationExpressionOperationNode* operation_node =
       To<CalculationExpressionOperationNode>(node);
   EXPECT_EQ(operation_node->GetOperator(), CalculationOperator::kMultiply);
   const CalculationExpressionOperationNode::Children& operands =
       operation_node->GetChildren();
-  EXPECT_EQ(operands.size(), 2u);
-  EXPECT_TRUE(operands[0]->IsOperation());
+  ASSERT_EQ(operands.size(), 2u);
 
-  const CalculationExpressionOperationNode* inner_operation_node =
-      To<CalculationExpressionOperationNode>(operands[0].Get());
-  const CalculationExpressionOperationNode::Children& inner_operands =
-      inner_operation_node->GetChildren();
-  EXPECT_EQ(inner_operation_node->GetOperator(),
-            CalculationOperator::kMultiply);
-  EXPECT_EQ(inner_operands.size(), 2u);
-  EXPECT_TRUE(inner_operands[0]->IsColorChannelKeyword());
-  EXPECT_EQ(
-      To<CalculationExpressionColorChannelKeywordNode>(inner_operands[0].Get())
-          ->Value(),
-      ColorChannelKeyword::kH);
-  EXPECT_TRUE(inner_operands[1]->IsNumber());
-  EXPECT_EQ(
-      To<CalculationExpressionNumberNode>(inner_operands[1].Get())->Value(),
-      (1.f / 360.f));
-
-  EXPECT_TRUE(operands[1]->IsPixelsAndPercent());
+  ASSERT_TRUE(operands[0]->IsColorChannelKeyword());
+  EXPECT_EQ(To<CalculationExpressionColorChannelKeywordNode>(operands[0].Get())
+                ->Value(),
+            ColorChannelKeyword::kH);
+  ASSERT_TRUE(operands[1]->IsPixelsAndPercent());
   EXPECT_EQ(To<CalculationExpressionPixelsAndPercentNode>(operands[1].Get())
                 ->Pixels(),
-            360.f);
+            1.f);
 }
 
 TEST(CSSMathExpressionNode, CSSMathTypeSum) {

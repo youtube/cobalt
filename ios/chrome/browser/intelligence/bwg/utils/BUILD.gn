@@ -16,9 +16,11 @@ source_set("prefs") {
     "gemini_prefs.mm",
   ]
   deps = [
+    "//base",
     "//components/pref_registry",
     "//components/prefs",
     "//ios/chrome/browser/intelligence/bwg/utils:constants",
+    "//ios/chrome/browser/intelligence/features",
     "//ios/chrome/browser/shared/model/prefs:pref_names",
   ]
 }
@@ -38,9 +40,13 @@ source_set("feature_availability") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "gemini_feature_availability_unittest.mm" ]
+  sources = [
+    "gemini_feature_availability_unittest.mm",
+    "gemini_prefs_unittest.mm",
+  ]
   deps = [
     ":feature_availability",
+    ":prefs",
     "//base",
     "//base/test:test_support",
     "//components/signin/public/identity_manager",

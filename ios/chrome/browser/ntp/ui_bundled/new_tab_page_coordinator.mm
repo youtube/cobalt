@@ -303,8 +303,6 @@
   SafariDataImportExportCoordinator* _safariDataImportExportCoordinator;
 }
 
-// Synthesize NewTabPageConfiguring properties.
-@synthesize shouldScrollIntoFeed = _shouldScrollIntoFeed;
 @synthesize baseViewController = _baseViewController;
 
 #pragma mark - ChromeCoordinator
@@ -558,15 +556,6 @@
   [self.NTPViewController omniboxDidEndEditing];
 }
 
-- (void)constrainNamedGuideForFeedIPH {
-  if (self.isOffTheRecord) {
-    return;
-  }
-  [LayoutGuideCenterForBrowser(self.browser)
-      referenceView:self.headerView.customizationMenuButton
-          underName:kFeedIPHNamedGuide];
-}
-
 - (void)handleFeedModelDidEndUpdates:(FeedLayoutUpdateType)updateType {
   DCHECK(self.NTPViewController);
   if (!self.feedViewController) {
@@ -691,19 +680,17 @@
   id<NewTabPageComponentFactoryProtocol> componentFactory =
       self.componentFactory;
   self.NTPViewController = [componentFactory NTPViewController];
-  self.NTPViewController.engagementTracker =
-      feature_engagement::TrackerFactory::GetForProfile(self.profile);
-  self.NTPViewController.incognitoDisabled =
-      IsIncognitoModeDisabled(self.prefService);
   self.headerView = [componentFactory headerViewForProfile:self.profile];
   self.NTPMediator = [componentFactory NTPMediatorForBrowser:browser
                                     identityDiscImageUpdater:nil];
-  self.NTPViewController.mutator = self.NTPMediator;
   self.contentSuggestionsCoordinator =
       [componentFactory contentSuggestionsCoordinatorForBrowser:browser];
   self.feedMetricsRecorder =
       [componentFactory feedMetricsRecorderForBrowser:browser];
   self.NTPMetricsRecorder = [[NewTabPageMetricsRecorder alloc] init];
+
+  self.NTPViewController.headerView = self.headerView;
+  self.NTPViewController.mutator = self.NTPMediator;
 }
 
 #pragma mark - Configurators
@@ -721,8 +708,6 @@
   self.feedHeaderViewController.feedControlDelegate = self;
   self.feedHeaderViewController.NTPDelegate = self;
   self.feedHeaderViewController.feedMetricsRecorder = self.feedMetricsRecorder;
-  self.NTPViewController.feedHeaderViewController =
-      self.feedHeaderViewController;
 
   // Requests feeds here if the correct flags and prefs are enabled.
   if ([self.NTPMediator isFeedHeaderVisible]) {
@@ -756,7 +741,6 @@
 
   headerView.commandHandler = self;
   headerView.delegate = self.NTPViewController;
-  self.NTPViewController.headerView = headerView;
   headerView.layoutGuideCenter = LayoutGuideCenterForBrowser(self.browser);
   headerView.scribbleForwardingTarget =
       [self.toolbarDelegate fakeboxScribbleForwardingTarget];
@@ -795,17 +779,35 @@
   [NTPMediator setUp];
 }
 
+// Binds properties to the New Tab Page view controller.
+- (void)configureViewControllerProperties:
+    (NewTabPageViewController*)NTPViewController {
+  NTPViewController.incognitoDisabled =
+      IsIncognitoModeDisabled(self.prefService);
+  NTPViewController.mutator = self.NTPMediator;
+  NTPViewController.feedHeaderViewController = self.feedHeaderViewController;
+  NTPViewController.headerView = self.headerView;
+  NTPViewController.magicStackCollectionView =
+      self.contentSuggestionsCoordinator.magicStackCollectionView;
+  NTPViewController.contentSuggestionsViewController =
+      self.contentSuggestionsCoordinator.viewController;
+  NTPViewController.NTPShortcutsHandler = self;
+  NTPViewController.feedVisible = [self isFeedVisible];
+  NTPViewController.feedTopSectionViewController =
+      [self isFeedVisible] ? self.feedTopSectionCoordinator.viewController
+                           : nil;
+  NTPViewController.feedWrapperViewController = self.feedWrapperViewController;
+  NTPViewController.overscrollDelegate = self;
+  NTPViewController.NTPContentDelegate = self;
+  NTPViewController.feedMetricsRecorder = self.feedMetricsRecorder;
+  NTPViewController.helpHandler =
+      HandlerForProtocol(self.browser->GetCommandDispatcher(), HelpCommands);
+}
+
 // Configures `self.NTPViewController` and sets it up as the main ViewController
 // managed by this Coordinator.
 - (void)configureNTPViewController {
   DCHECK(self.NTPViewController);
-
-  self.NTPViewController.magicStackCollectionView =
-      self.contentSuggestionsCoordinator.magicStackCollectionView;
-  self.NTPViewController.contentSuggestionsViewController =
-      self.contentSuggestionsCoordinator.viewController;
-  self.NTPViewController.NTPShortcutsHandler = self;
-  self.NTPViewController.feedVisible = [self isFeedVisible];
 
   self.feedWrapperViewController = [self.componentFactory
       feedWrapperViewControllerWithDelegate:self
@@ -815,20 +817,9 @@
   self.NTPMediator.screenSize =
       self.browser->GetSceneState().scene.screen.bounds.size;
 
-  if ([self isFeedVisible]) {
-    self.NTPViewController.feedTopSectionViewController =
-        self.feedTopSectionCoordinator.viewController;
-  }
-
-  self.NTPViewController.feedWrapperViewController =
-      self.feedWrapperViewController;
-  self.NTPViewController.overscrollDelegate = self;
-  self.NTPViewController.NTPContentDelegate = self;
+  [self configureViewControllerProperties:self.NTPViewController];
 
   [self configureMainViewControllerUsing:self.NTPViewController];
-  self.NTPViewController.feedMetricsRecorder = self.feedMetricsRecorder;
-  self.NTPViewController.helpHandler =
-      HandlerForProtocol(self.browser->GetCommandDispatcher(), HelpCommands);
 }
 
 // Configures the `_tabGroupIndicatorCoordinator` and sets the
@@ -1168,6 +1159,7 @@
                                                        SigninContextStyle::
                                                            kDefault
                                                     accessPoint:accessPoint
+                                           confirmChangeProfile:nil
                                            prepareChangeProfile:nil
                                            continuationProvider:
                                                DoNothingContinuationProvider()];
@@ -1639,8 +1631,6 @@
 
   [self.feedTopSectionCoordinator stop];
 
-  self.NTPViewController.feedWrapperViewController = nil;
-  self.NTPViewController.feedTopSectionViewController = nil;
   self.feedWrapperViewController = nil;
   self.feedViewController = nil;
   self.feedTopSectionCoordinator = nil;
@@ -1650,25 +1640,17 @@
   if ([self.NTPMediator isFeedHeaderVisible]) {
     [self configureFeedAndHeader];
   } else {
-    self.NTPViewController.feedHeaderViewController = nil;
     self.feedHeaderViewController = nil;
   }
-
-  if ([self isFeedVisible]) {
-    self.NTPViewController.feedTopSectionViewController =
-        self.feedTopSectionCoordinator.viewController;
-  }
-
-  self.NTPViewController.feedVisible = [self isFeedVisible];
 
   self.feedWrapperViewController = [self.componentFactory
       feedWrapperViewControllerWithDelegate:self
                          feedViewController:self.feedViewController];
 
-  self.NTPViewController.feedWrapperViewController =
-      self.feedWrapperViewController;
   self.NTPMediator.contentCollectionView =
       self.feedWrapperViewController.contentCollectionView;
+
+  [self configureViewControllerProperties:self.NTPViewController];
 
   [self.NTPViewController layoutContentInParentCollectionView];
 

@@ -24,6 +24,10 @@
 #![allow(clippy::result_unit_err)]
 
 extern crate alloc;
+extern crate cbor;
+
+use alloc::vec::Vec;
+use cbor::cbor;
 
 pub const NONCE_LEN: usize = 12;
 pub const SHA1_OUTPUT_LEN: usize = 20;
@@ -34,6 +38,27 @@ pub const P256_X962_LENGTH: usize = 65;
 
 /// The length of a P-256 scalar value.
 pub const P256_SCALAR_LENGTH: usize = 32;
+
+// COSE Key Common Parameters (RFC 8152).
+const COSE_KEY_PARAMETER_KTY: i64 = 1;
+const COSE_KEY_PARAMETER_ALG: i64 = 3;
+
+// COSE Key Type Values.
+const COSE_KEY_TYPE_EC2: i64 = 2;
+
+// COSE Algorithm Values.
+const COSE_ALGORITHM_ES256: i64 = -7;
+
+// COSE Elliptic Curve Parameters (RFC 8152).
+const COSE_EC_PARAMETER_CRV: i64 = -1;
+const COSE_EC_PARAMETER_X: i64 = -2;
+const COSE_EC_PARAMETER_Y: i64 = -3;
+
+// COSE Elliptic Curve Values.
+const COSE_ELLIPTIC_CURVE_P256: i64 = 1;
+
+// X9.62 Uncompressed Point Format Prefix.
+const X962_UNCOMPRESSED_PREFIX: u8 = 0x04;
 
 #[cfg(feature = "rustcrypto")]
 pub use crate::rustcrypto::{
@@ -56,6 +81,22 @@ pub use crate::bsslimpl::{
     rand_bytes, rsa_verify, sha1_two_part, sha256, sha256_two_part, EcdsaKeyPair, P256Scalar,
     RsaKeyPair,
 };
+
+/// Encodes an X9.62 uncompressed ECDSA P-256 public key (65 bytes) as a COSE ES256 public key.
+pub fn cose_encode_ecdsa_public_key(public_key_bytes: &[u8]) -> Result<Vec<u8>, ()> {
+    if public_key_bytes.len() != P256_X962_LENGTH || public_key_bytes[0] != X962_UNCOMPRESSED_PREFIX
+    {
+        return Err(());
+    }
+    Ok(cbor!({
+        COSE_KEY_PARAMETER_KTY: COSE_KEY_TYPE_EC2,
+        COSE_KEY_PARAMETER_ALG: COSE_ALGORITHM_ES256,
+        COSE_EC_PARAMETER_CRV: COSE_ELLIPTIC_CURVE_P256,
+        COSE_EC_PARAMETER_X: (&public_key_bytes[1..33]),
+        COSE_EC_PARAMETER_Y: (&public_key_bytes[33..65]),
+    })
+    .to_bytes())
+}
 
 #[cfg(feature = "rustcrypto")]
 mod rustcrypto {

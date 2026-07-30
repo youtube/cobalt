@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.tab.state;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -25,6 +26,7 @@ import org.robolectric.RuntimeEnvironment;
 
 import org.chromium.base.UserDataHost;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabObserver;
 import org.chromium.chrome.browser.tab.TabSelectionType;
@@ -43,6 +45,7 @@ public class SendTabToSelfTabCardLabelDataUnitTest {
 
     @Before
     public void setUp() {
+        PersistedTabDataConfiguration.setUseTestConfig(true);
         mContext = RuntimeEnvironment.application;
         mUserDataHost = new UserDataHost();
         when(mTab.getUserDataHost()).thenReturn(mUserDataHost);
@@ -53,34 +56,33 @@ public class SendTabToSelfTabCardLabelDataUnitTest {
         mUserDataHost.destroy();
     }
 
+    private SendTabToSelfTabCardLabelData createAndSetLabelData() {
+        SendTabToSelfTabCardLabelData data =
+                new SendTabToSelfTabCardLabelData(mTab, DEVICE_NAME, System.currentTimeMillis());
+        mUserDataHost.setUserData(SendTabToSelfTabCardLabelData.class, data);
+        return data;
+    }
+
     @Test
     public void testUserData() {
         // Ensure no label data exists by default.
         assertNull(SendTabToSelfTabCardLabelData.get(mTab));
 
         // Attach active label data to the tab.
-        SendTabToSelfTabCardLabelData data =
-                new SendTabToSelfTabCardLabelData(mTab, DEVICE_NAME, System.currentTimeMillis());
-        mUserDataHost.setUserData(SendTabToSelfTabCardLabelData.class, data);
+        createAndSetLabelData();
 
         // Verify the label data is successfully retrieved and formatted.
-        assertNotNull(SendTabToSelfTabCardLabelData.get(mTab));
-        assertEquals("From " + DEVICE_NAME, data.getLabelText(mContext));
+        SendTabToSelfTabCardLabelData retrievedData = SendTabToSelfTabCardLabelData.get(mTab);
+        assertNotNull(retrievedData);
+        assertEquals("From Example Phone", retrievedData.getLabelText(mContext));
     }
 
     @Test
     public void testUserData_Expired() {
         // Attach expired label data exceeding the 5-day window.
-        SendTabToSelfTabCardLabelData data =
-                new SendTabToSelfTabCardLabelData(
-                        mTab,
-                        DEVICE_NAME,
-                        // Setting an expired timestamp will cause an assertion failure, so that's
-                        // done separately via a setter.
-                        System.currentTimeMillis());
+        SendTabToSelfTabCardLabelData data = createAndSetLabelData();
         data.setAdditionTimestampMsForTesting(
                 System.currentTimeMillis() - 6L * 24 * 60 * 60 * 1000); // 6 days old
-        mUserDataHost.setUserData(SendTabToSelfTabCardLabelData.class, data);
 
         // Verify accessing expired data automatically removes it from the host.
         assertNull(SendTabToSelfTabCardLabelData.get(mTab));
@@ -91,9 +93,7 @@ public class SendTabToSelfTabCardLabelDataUnitTest {
     public void testUserData_Interacted() {
         // Attach active label data and capture the registered TabObserver.
         ArgumentCaptor<TabObserver> captor = ArgumentCaptor.forClass(TabObserver.class);
-        SendTabToSelfTabCardLabelData data =
-                new SendTabToSelfTabCardLabelData(mTab, DEVICE_NAME, System.currentTimeMillis());
-        mUserDataHost.setUserData(SendTabToSelfTabCardLabelData.class, data);
+        createAndSetLabelData();
         verify(mTab).addObserver(captor.capture());
 
         assertNotNull(SendTabToSelfTabCardLabelData.get(mTab));
@@ -103,6 +103,68 @@ public class SendTabToSelfTabCardLabelDataUnitTest {
 
         // Verify the user interaction removes the UserData and unregisters the observer.
         assertNull(mUserDataHost.getUserData(SendTabToSelfTabCardLabelData.class));
-        verify(mTab).removeObserver(data);
+        verify(mTab).removeObserver(captor.getValue());
+    }
+
+    @Test
+    public void testUserData_Restore() {
+        when(mTab.getId()).thenReturn(1);
+        when(mTab.isInitialized()).thenReturn(true);
+
+        // Create active label data and save it to mock storage.
+        SendTabToSelfTabCardLabelData data = createAndSetLabelData();
+
+        // Simulate a browser restart by removing the in-memory UserData object.
+        mUserDataHost.removeUserData(SendTabToSelfTabCardLabelData.class);
+        assertNull(SendTabToSelfTabCardLabelData.get(mTab));
+
+        // Verify from() successfully restores the persisted label data from mock storage.
+        SendTabToSelfTabCardLabelData.from(
+                mTab,
+                (res) -> {
+                    assertNotNull(res);
+                    assertEquals("From Example Phone", res.getLabelText(mContext));
+                });
+        // Flush pending tasks to ensure the callback is executed.
+        RobolectricUtil.runAllBackgroundAndUi();
+    }
+
+    @Test
+    public void testUserData_IdempotentDeleteAndDestroy() {
+        when(mTab.getId()).thenReturn(1);
+        when(mTab.isInitialized()).thenReturn(true);
+
+        // Call from() twice for an uninitialized/empty tab (which triggers deleteAndDestroy)
+        SendTabToSelfTabCardLabelData.from(mTab, (res) -> {});
+        SendTabToSelfTabCardLabelData.from(mTab, (res) -> {});
+
+        // Flushing tasks will execute both callbacks in sequence and should not crash.
+        RobolectricUtil.runAllBackgroundAndUi();
+    }
+
+    @Test
+    public void testUserData_NegativeCache() {
+        when(mTab.getId()).thenReturn(1);
+        when(mTab.isInitialized()).thenReturn(true);
+
+        // from() should return the negative cache instance.
+        SendTabToSelfTabCardLabelData.from(
+                mTab,
+                (res) -> {
+                    assertNotNull(res);
+                    assertTrue(res.isNegativeCache());
+                });
+        RobolectricUtil.runAllBackgroundAndUi();
+
+        // Verify that a SendTabToSelfTabCardLabelData IS attached to the tab as negative cache.
+        SendTabToSelfTabCardLabelData attachedData =
+                mUserDataHost.getUserData(SendTabToSelfTabCardLabelData.class);
+        assertNotNull(attachedData);
+        assertTrue(attachedData.isNegativeCache());
+
+        // Verify that get() returns the negative cache instance.
+        SendTabToSelfTabCardLabelData retrieved = SendTabToSelfTabCardLabelData.get(mTab);
+        assertNotNull(retrieved);
+        assertTrue(retrieved.isNegativeCache());
     }
 }

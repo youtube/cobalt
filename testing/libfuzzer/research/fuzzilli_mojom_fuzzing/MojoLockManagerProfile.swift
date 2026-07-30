@@ -3,6 +3,12 @@
 // found in the LICENSE file.
 
 private enum MojoStrings {
+    /// Profiles declare this method, a wrapper method around `getRemote` that follows
+    /// the Singleton pattern, in `codePrefix`. This method ensures: (1) `getRemote`
+    /// is only called once, and (2) the remote is saved to a global variable so it
+    /// can be closed at the end of the program.
+    static let getOrCreatePrimaryRemote = "getOrCreatePrimaryRemote"
+
     static let lockManager = "blink.mojom.LockManager"
     static let lockManagerRemote = "blink.mojom.LockManagerRemote"
     static let lockManagerRemoteWrapper = "LockManagerRemoteWrapper"
@@ -29,8 +35,7 @@ extension ILType {
     // LockManager
     fileprivate static let jsLockManager: ILType = .object(
         ofGroup: MojoStrings.lockManager,
-        withProperties: ["$interfaceName"],
-        withMethods: ["getRemote"])
+        withProperties: ["$interfaceName"])
     fileprivate static let jsLockManagerRemote: ILType = .object(
         ofGroup: MojoStrings.lockManagerRemote,
         withProperties: ["$"],
@@ -96,9 +101,7 @@ extension ObjectGroup {
         properties: [
             "$interfaceName": .string
         ],
-        methods: [
-            "getRemote": [] => .jsLockManagerRemote
-        ]
+        methods: [:]
     )
 
     fileprivate static let lockManagerRemote = ObjectGroup(
@@ -223,27 +226,14 @@ extension ObjectGroup {
 }
 
 private let mojoBuiltins: [String: ILType] = [
+    MojoStrings.getOrCreatePrimaryRemote: .function([] => .jsLockManagerRemote),
+
     MojoStrings.lockManager: .jsLockManager,
     MojoStrings.lockRequestCallbackRouter: .constructor(
         [] => .jsLockRequestCallbackRouter),
     MojoStrings.lockHandleCallbackRouter: .constructor(
         [] => .jsLockHandleCallbackRouter),
 ]
-
-// Program Template to force Mojo usage
-private let MojoLockManagerFuzzer = ProgramTemplate("MojoLockManagerFuzzer") {
-    b in
-    b.buildPrefix()
-
-    // Get the LockManager remote
-    let managerStatic = b.createNamedVariable(
-        forBuiltin: MojoStrings.lockManager)
-    let manager = b.callMethod(
-        "getRemote", on: managerStatic, withArgs: [])
-
-    // Generate random code to use the objects further
-    b.build(n: 20)
-}
 
 /// Emits code for adding a callback to a callback router. Since correctly
 /// doing so involves many things (a callback, a property retrieval followed by
@@ -297,10 +287,8 @@ private let MojoMethodCallGenerator = CodeGenerator("MojoMethodCallGenerator") {
 
     // If we can't find a Mojo object in scope, create the LockManager remote
     guard let obj = targetVar else {
-        let primaryStatic = b.createNamedVariable(
-            forBuiltin: MojoStrings.lockManager)
-        b.callMethod(
-            "getRemote", on: primaryStatic, withArgs: [])
+        let getRemoteFunc = b.createNamedVariable(forBuiltin: MojoStrings.getOrCreatePrimaryRemote)
+        b.callFunction(getRemoteFunc, withArgs: [])
         return
     }
 
@@ -350,8 +338,16 @@ let mojoLockManagerProfile = Profile(
     ],
     maxExecsBeforeRespawn: 1000,
     timeout: Timeout.interval(11000, 11000),
-    codePrefix: "",
-    codeSuffix: "",
+    codePrefix: """
+        let globalRemote = null;
+        function getOrCreatePrimaryRemote() {
+            if (!globalRemote) {
+                globalRemote = blink.mojom.LockManager.getRemote();
+            }
+            return globalRemote;
+        }
+        """,
+    codeSuffix: "if (globalRemote) {globalRemote.$.close()}",
     ecmaVersion: v8Profile.ecmaVersion,
     startupTests: [
         ("fuzzilli('FUZZILLI_PRINT', 'test')", .shouldSucceed),
@@ -366,10 +362,7 @@ let mojoLockManagerProfile = Profile(
         (MojoPropertyRetrievalGenerator, 10000),
         (MojoRouterListenerGenerator, 5000),
     ] + commonMojoCodeGenerators,
-    additionalProgramTemplates: WeightedList([
-        // Heavily bias Fuzzilli to use the ProgramTemplate that establishes a Mojo connection.
-        (MojoLockManagerFuzzer, 1000)
-    ]),
+    additionalProgramTemplates: WeightedList([]),
     disabledCodeGenerators: mojoDisabledGenerators,
     disabledMutators: v8Profile.disabledMutators,
     additionalBuiltins: mojoBuiltins.merging(commonMojoBuiltins) { (existing, _) in existing },

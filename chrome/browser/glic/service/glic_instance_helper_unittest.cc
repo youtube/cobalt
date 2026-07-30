@@ -26,6 +26,7 @@ class FakeGlicInstance : public GlicInstanceHelper::Instance {
   std::string conversation_title() const override {
     return "test_conversation_title";
   }
+  std::optional<int> task_id() const override { return std::nullopt; }
 
  private:
   InstanceId id_;

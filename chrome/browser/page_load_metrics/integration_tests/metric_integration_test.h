@@ -40,8 +40,6 @@ class MetricIntegrationTest : public InProcessBrowserTest {
   MetricIntegrationTest();
   ~MetricIntegrationTest() override;
 
-  static bool IsWebUISource(const ukm::UkmSource* source);
-
   // Override of BrowserTestBase::SetUpOnMainThread.
   void SetUpOnMainThread() override;
 

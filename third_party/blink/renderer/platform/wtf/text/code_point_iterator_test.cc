@@ -4,7 +4,6 @@
 
 #include "third_party/blink/renderer/platform/wtf/text/code_point_iterator.h"
 
-#include "base/compiler_specific.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_view.h"
@@ -64,18 +63,14 @@ TEST_P(CodePointIteratorParamTest, Length) {
   const auto& test = GetParam();
   const String string = test.ToString();
   wtf_size_t count = 0;
-  // SAFETY: required for test.
-  for (auto iterator = string.begin(); iterator != string.end();
-       UNSAFE_BUFFERS(++iterator)) {
+  for (auto iterator = string.begin(); iterator != string.end(); ++iterator) {
     ++count;
   }
   EXPECT_EQ(count, test.chars.size());
 
   const StringView view(string);
   count = 0;
-  // SAFETY: required for test.
-  for (auto iterator = view.begin(); iterator != view.end();
-       UNSAFE_BUFFERS(++iterator)) {
+  for (auto iterator = view.begin(); iterator != view.end(); ++iterator) {
     ++count;
   }
   EXPECT_EQ(count, test.chars.size());

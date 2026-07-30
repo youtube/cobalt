@@ -23,7 +23,8 @@ enum class BeginMainFrameReason {
   kRAF = kRAFOrServiceScriptedAnimations,
   kServiceScriptedAnimations = kRAFOrServiceScriptedAnimations,
   kVideoFrameCallback = 2,
-  kCSSAnimation = 3,
+  kAnimation = 3,
+  kCSSAnimation = kAnimation,
   // These three are relatively infrequent, so group them all together for now.
   kStylePaintOrLayoutInvalidation = 4,
   kStyleInvalidation = kStylePaintOrLayoutInvalidation,

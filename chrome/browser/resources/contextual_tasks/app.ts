@@ -278,6 +278,7 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
         type: Boolean,
         reflect: true,
       },
+      onboardingTooltipShowing_: {type: Boolean},
     };
   }
 
@@ -287,6 +288,7 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
       loadTimeData.getBoolean('showOnboardingTooltip');
   protected accessor showSmartTabSharingTryItIph_: boolean = false;
   protected accessor showSmartTabSharingDefaultOnIph_: boolean = false;
+  protected accessor onboardingTooltipShowing_: boolean = false;
   protected accessor userName_: string =
       loadTimeData.getString('friendlyZeroStateGaiaName');
   protected accessor friendlyZeroStateTitleBeforeName_: string =
@@ -827,8 +829,13 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
     const crComposebox = this.composebox_.getComposebox();
     if (tooltip && crComposebox) {
       tooltip.updateTooltipVisibility(composeboxContainer, crComposebox);
+      this.onboardingTooltipShowing_ = tooltip.shouldShow;
     }
     // </if>
+  }
+
+  protected onOnboardingTooltipDismissed_() {
+    this.onboardingTooltipShowing_ = false;
   }
 
   private playZeroStateAnimations_() {
@@ -991,6 +998,7 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
     this.forcedComposeboxBounds_ = null;
     this.occluders_ = null;
     this.isInputHidden_ = false;
+    this.isDomContentLoaded_ = false;
 
     // Set frame loading to true initially to avoid race conditions.
     this.isFrameLoading = true;
@@ -1012,7 +1020,7 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
 
     if (isAiPage && isZeroState) {
       this.isZeroState_ = true;
-      if (!this.isInitialFrameLoad_) {
+      if (!this.isInitialFrameLoad_ && this.isDomContentLoaded_) {
         this.playZeroStateAnimations_();
       }
     }

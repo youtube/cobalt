@@ -486,7 +486,15 @@ TestPaymentsAutofillClient::GetOmniboxAutofillDelegate() {
   return omnibox_autofill_delegate_.get();
 }
 
-void TestPaymentsAutofillClient::ShowOmniboxAutofillChip() {
+void TestPaymentsAutofillClient::ShowOmniboxAutofillChip(
+    std::vector<Suggestion> suggestions,
+    base::RepeatingCallback<void(base::span<const Suggestion>)>
+        on_suggestions_shown,
+    base::RepeatingCallback<void(const Suggestion&)> did_select_suggestion,
+    base::RepeatingCallback<
+        void(const Suggestion&,
+             const AutofillSuggestionDelegate::SuggestionMetadata&)>
+        did_accept_suggestion) {
   omnibox_autofill_chip_shown_ = true;
   omnibox_autofill_chip_hidden_ = false;
 }

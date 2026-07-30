@@ -34,6 +34,7 @@
 #include <cmath>
 #include <memory>
 
+#include "base/debug/dump_without_crashing.h"
 #include "cc/animation/animation_id_provider.h"
 #include "cc/animation/filter_animation_curve.h"
 #include "cc/animation/keyframe_effect.h"
@@ -294,6 +295,10 @@ CompositorAnimations::CheckCanStartEffectOnCompositor(
                       WebFeature::kStaticPropertyInAnimation);
   }
 
+  const bool missing_style_or_layout =
+      !layout_object ||
+      target_element.GetStyleChangeType() != StyleChangeType::kNoStyleChange;
+
   // Limit to one native property and one CSS custom property per animation.
   for (const auto& property : properties) {
     if (!property.IsCSSProperty()) {
@@ -450,31 +455,43 @@ CompositorAnimations::CheckCanStartEffectOnCompositor(
           break;
         }
         default:
-          // We skip the rest of the loop in this case because
-          // |GetCompositorKeyframeValue()| will be false so we will
-          // accidentally count this as kInvalidAnimationOrEffect as well.
+          // We skip the rest of the loop in this case because a
+          // compositor keyframe value is not expected.
           DefaultToUnsupportedProperty(unsupported_properties_for_tracing,
                                        property, &reasons);
           continue;
       }
 
-      // The compositor animation for paint worklet animations do not snapshot
-      // the individual keyframes. Instead the keyframes are interpolated within
-      // the worklet based on the overall animation progress.
+      // Do not check for snapshots for NPWs (which do not use snapshots) and
+      // for animations that are no-op due display lock (as we don't know
+      // whether snapshots will be missing when the target is unlocked).
       const bool needs_compositor_keyframe_value =
+          !missing_style_or_layout &&
           CompositedPropertyRequiresSnapshot(property);
-      // If an element does not have style, then it will never have taken a
-      // snapshot of its (non-existent) value for the compositor to use.
+
       if (needs_compositor_keyframe_value &&
           !keyframe->GetCompositorKeyframeValue()) {
+        // We cannot create a compositor animation without a compositor keyframe
+        // value.
         reasons |= kInvalidAnimationOrEffect;
+
+        // In theory, this should never be true, but due to the complexity of
+        // the document lifecycle, it's possible that this occurs in the wild.
+        // We track these cases to better understand them.
+        if (!(reasons & kUnsupportedCSSProperty)) {
+          if (RuntimeEnabledFeatures::DumpForAbsentKeyframeSnapshotsEnabled()) {
+            base::debug::DumpWithoutCrashing();
+          }
+          UseCounter::Count(target_element.GetDocument(),
+                            WebFeature::kCompositorKeyframeSnapshotMissing);
+        }
       }
     }
   }
 
-  if (CompositorPropertyAnimationsHaveNoEffect(target_element, animation_to_add,
-                                               effect,
-                                               paint_artifact_compositor)) {
+  if (missing_style_or_layout || CompositorPropertyAnimationsHaveNoEffect(
+                                     target_element, animation_to_add, effect,
+                                     paint_artifact_compositor)) {
     reasons |= kAnimationHasNoVisibleChange;
   }
 
@@ -700,13 +717,6 @@ void CompositorAnimations::StartAnimationOnCompositor(
     bool is_monotonic_timeline,
     bool is_boundary_aligned) {
   DCHECK(started_keyframe_model_ids.empty());
-  // TODO(petermayo): Pass the PaintArtifactCompositor before
-  // BlinkGenPropertyTrees is always on.
-  DCHECK_EQ(CheckCanStartAnimationOnCompositor(
-                timing, normalized_timing, element, animation, effect, nullptr,
-                animation_playback_rate),
-            kNoFailure);
-
   const auto& keyframe_effect = To<KeyframeEffectModelBase>(effect);
 
   Vector<std::unique_ptr<cc::KeyframeModel>> keyframe_models;

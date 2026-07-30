@@ -438,8 +438,7 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
     }
 
     private void maybeCreateAppHeaderCoordinator(@Nullable Bundle savedInstanceState) {
-        if (!ChromeFeatureList.sSearchInSettings.isEnabled()
-                || Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
             return;
         }
 
@@ -541,32 +540,27 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
 
     @RequiresNonNull("mMultiColumnSettings")
     private void createMultiColumnTitleUpdater(@Nullable Bundle savedInstanceState) {
-        if (!ChromeFeatureList.sSearchInSettings.isEnabled()) {
-            createMultiColumTitleUpdaterInternal(
-                    savedInstanceState, findViewById(R.id.settings_detailed_pane_title));
-        } else {
-            getSupportFragmentManager()
-                    .registerFragmentLifecycleCallbacks(
-                            new FragmentManager.FragmentLifecycleCallbacks() {
+        getSupportFragmentManager()
+                .registerFragmentLifecycleCallbacks(
+                        new FragmentManager.FragmentLifecycleCallbacks() {
 
-                                @Override
-                                public void onFragmentViewCreated(
-                                        @NonNull FragmentManager fm,
-                                        @NonNull Fragment f,
-                                        @NonNull View v,
-                                        @Nullable Bundle savedFragmentState) {
-                                    assert mMultiColumnSettings != null;
+                            @Override
+                            public void onFragmentViewCreated(
+                                    @NonNull FragmentManager fm,
+                                    @NonNull Fragment f,
+                                    @NonNull View v,
+                                    @Nullable Bundle savedFragmentState) {
+                                assert mMultiColumnSettings != null;
 
-                                    // Pass the Activity's bundle, as the title updater state is
-                                    // tied to the activity lifecycle.
-                                    createMultiColumTitleUpdaterInternal(
-                                            savedInstanceState,
-                                            v.findViewById(R.id.settings_title_in_detailed_pane));
-                                    fm.unregisterFragmentLifecycleCallbacks(this);
-                                }
-                            },
-                            false);
-        }
+                                // Pass the Activity's bundle, as the title updater state is
+                                // tied to the activity lifecycle.
+                                createMultiColumTitleUpdaterInternal(
+                                        savedInstanceState,
+                                        v.findViewById(R.id.settings_title_in_detailed_pane));
+                                fm.unregisterFragmentLifecycleCallbacks(this);
+                            }
+                        },
+                        false);
     }
 
     @RequiresNonNull("mMultiColumnSettings")
@@ -585,8 +579,6 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
     }
 
     private void createSearchCoordinator(@Nullable Bundle savedState) {
-        if (!ChromeFeatureList.sSearchInSettings.isEnabled()) return;
-
         Callback<Integer> updateFirstVisibleTitle =
                 isMultiColumnSettingEnabled()
                         ? this::updateFirstVisibleTitle

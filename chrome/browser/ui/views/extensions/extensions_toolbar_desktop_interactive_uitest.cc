@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
 #include <string>
 
+#include "base/auto_reset.h"
 #include "base/command_line.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
@@ -1627,8 +1629,9 @@ class ExtensionsToolbarDesktopFeatureInteractiveTest
     InteractiveBrowserTest::SetUpOnMainThread();
     ASSERT_TRUE(embedded_test_server()->Start());
 
-    extensions::HostAccessRequestsHelper::SetCooldownForTesting(
-        base::TimeDelta());
+    cooldown_reset_.emplace(
+        extensions::HostAccessRequestsHelper::SetCooldownForTesting(
+            base::TimeDelta()));
 
     permissions_manager_ = PermissionsManager::Get(browser()->profile());
   }
@@ -1695,6 +1698,7 @@ class ExtensionsToolbarDesktopFeatureInteractiveTest
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
   raw_ptr<PermissionsManager> permissions_manager_;
+  std::optional<base::AutoReset<base::TimeDelta>> cooldown_reset_;
 };
 
 // Verifies extensions can add site access requests on active and inactive tabs,

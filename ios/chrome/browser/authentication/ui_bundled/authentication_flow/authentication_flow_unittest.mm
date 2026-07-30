@@ -322,6 +322,21 @@ class AuthenticationFlowTest : public PlatformTest {
                                       kForceSeparateProfileDataByPolicy])
           .andDo(showManagedConfirmationForHostedDomainCallback);
 
+      OCMStub([performer_mock_ confirmChangeProfile:[OCMArg any]
+                                        forIdentity:identity])
+          .andDo(^(NSInvocation* invocation) {
+            __unsafe_unretained void (^confirmChangeProfile)(void (^)(BOOL));
+            [invocation getArgument:&confirmChangeProfile atIndex:2];
+            if (confirmChangeProfile) {
+              confirmChangeProfile(^(BOOL proceed) {
+                [authentication_flow_
+                    didConfirmChangeProfileCanProceed:proceed];
+              });
+            } else {
+              [authentication_flow_ didConfirmChangeProfileCanProceed:YES];
+            }
+          });
+
       __block ChangeProfileContinuation continuation;
       auto switchToProfileWithIdentityCallback = ^(NSInvocation*) {
         base::OnceClosure completion = base::BindOnce(
@@ -639,6 +654,143 @@ TEST_F(AuthenticationFlowTest, TestSignInNotAllowed) {
   CheckSignInCompletion(/*expected_signed_in=*/false);
   EXPECT_EQ(signin_ui::CancelationReason::kSignInNotAllowed,
             cancelation_reason_);
+}
+
+// Tests that `confirmChangeProfile` is called and that if `proceed` is YES
+// then the flow does proceed.
+TEST_F(AuthenticationFlowTest, TestConfirmChangeProfileProceed) {
+  signin_result_ = signin::Tribool::kUnknown;
+  run_loop_ = std::make_unique<base::RunLoop>();
+
+  id<SystemIdentity> identity = managed_identity1_;
+  CreateAuthenticationFlow(PostSignInActionSet(), identity,
+                           signin_metrics::AccessPoint::kSettings,
+                           /*shouldHandOverToFlowInProfile=*/NO);
+
+  __block BOOL confirmChangeProfileCalled = NO;
+  authentication_flow_.confirmChangeProfile = ^(void (^callback)(BOOL)) {
+    confirmChangeProfileCalled = YES;
+    callback(YES);
+  };
+
+  NSString* hosted_domain = GetHostedDomainFromEmail(identity.userEmail);
+
+  OCMExpect([performer_mock_ fetchManagedStatus:personal_profile_.get()
+                                    forIdentity:identity])
+      .andDo(^(NSInvocation*) {
+        [authentication_flow_ didFetchManagedStatus:hosted_domain];
+      });
+
+  OCMStub([performer_mock_
+              fetchProfileSeparationPolicies:personal_profile_.get()
+                                 forIdentity:identity])
+      .andDo(^(NSInvocation*) {
+        [authentication_flow_
+            didFetchProfileSeparationPolicies:policy::ALWAYS_SEPARATE];
+      });
+
+  OCMStub([performer_mock_
+              showManagedConfirmationForHostedDomain:hosted_domain
+                                            identity:identity
+                                      viewController:view_controller_mock_
+                                             browser:personal_browser_.get()
+                          managedProfileCreationMode:
+                              signin::ManagedAccountSigninMode::
+                                  kForceSeparateProfileDataByPolicy])
+      .andDo(^(NSInvocation*) {
+        [authentication_flow_
+            didAcceptManagedConfirmationWithBrowsingDataSeparate:YES];
+      });
+
+  OCMExpect([performer_mock_ confirmChangeProfile:[OCMArg any]
+                                      forIdentity:identity])
+      .andDo(^(NSInvocation* invocation) {
+        __unsafe_unretained void (^confirmChangeProfile)(void (^)(BOOL));
+        [invocation getArgument:&confirmChangeProfile atIndex:2];
+        confirmChangeProfile(^(BOOL proceed) {
+          [authentication_flow_ didConfirmChangeProfileCanProceed:proceed];
+        });
+      });
+
+  OCMExpect(
+      [performer_mock_
+          switchToProfileWithIdentity:identity
+                           sceneState:personal_browser_->GetSceneState()
+                               reason:ChangeProfileReason::kManagedAccountSignIn
+                             delegate:[OCMArg any]
+                    postSignInActions:PostSignInActionSet()
+                          accessPoint:signin_metrics::AccessPoint::kSettings])
+      .ignoringNonObjectArgs()
+      .andDo(^(NSInvocation*) {
+        run_loop_->Quit();
+      });
+
+  [authentication_flow_ startSignIn];
+  run_loop_->Run();
+
+  EXPECT_TRUE(confirmChangeProfileCalled);
+}
+
+// Tests that `confirmChangeProfile` is called and that if `proceed` is NO
+// then the flow is indeed cancelled.
+TEST_F(AuthenticationFlowTest, TestConfirmChangeProfileCancel) {
+  signin_result_ = signin::Tribool::kUnknown;
+  run_loop_ = std::make_unique<base::RunLoop>();
+
+  id<SystemIdentity> identity = managed_identity1_;
+  CreateAuthenticationFlow(PostSignInActionSet(), identity,
+                           signin_metrics::AccessPoint::kSettings,
+                           /*shouldHandOverToFlowInProfile=*/NO);
+
+  __block BOOL confirmChangeProfileCalled = NO;
+  authentication_flow_.confirmChangeProfile = ^(void (^callback)(BOOL)) {
+    confirmChangeProfileCalled = YES;
+    callback(NO);
+  };
+
+  NSString* hosted_domain = GetHostedDomainFromEmail(identity.userEmail);
+
+  OCMExpect([performer_mock_ fetchManagedStatus:personal_profile_.get()
+                                    forIdentity:identity])
+      .andDo(^(NSInvocation*) {
+        [authentication_flow_ didFetchManagedStatus:hosted_domain];
+      });
+
+  OCMStub([performer_mock_
+              fetchProfileSeparationPolicies:personal_profile_.get()
+                                 forIdentity:identity])
+      .andDo(^(NSInvocation*) {
+        [authentication_flow_
+            didFetchProfileSeparationPolicies:policy::ALWAYS_SEPARATE];
+      });
+
+  OCMStub([performer_mock_
+              showManagedConfirmationForHostedDomain:hosted_domain
+                                            identity:identity
+                                      viewController:view_controller_mock_
+                                             browser:personal_browser_.get()
+                          managedProfileCreationMode:
+                              signin::ManagedAccountSigninMode::
+                                  kForceSeparateProfileDataByPolicy])
+      .andDo(^(NSInvocation*) {
+        [authentication_flow_
+            didAcceptManagedConfirmationWithBrowsingDataSeparate:YES];
+      });
+
+  OCMExpect([performer_mock_ confirmChangeProfile:[OCMArg any]
+                                      forIdentity:identity])
+      .andDo(^(NSInvocation* invocation) {
+        __unsafe_unretained void (^confirmChangeProfile)(void (^)(BOOL));
+        [invocation getArgument:&confirmChangeProfile atIndex:2];
+        confirmChangeProfile(^(BOOL proceed) {
+          [authentication_flow_ didConfirmChangeProfileCanProceed:proceed];
+        });
+      });
+
+  [authentication_flow_ startSignIn];
+  CheckSignInCompletion(/*expected_signed_in=*/false);
+
+  EXPECT_TRUE(confirmChangeProfileCalled);
 }
 
 }  // namespace

@@ -322,12 +322,14 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
     _observer = std::make_unique<autofill::PersonalDataManagerObserverBridge>(
         _personalDataManager, self);
 
-    _entityDataManager = IOSAutofillEntityDataManagerFactory::GetForProfile(
-        _browser->GetProfile());
-    if (_entityDataManager) {
-      _entityDataManagerObserver = std::make_unique<
-          autofill::IOSAutofillEntityDataManagerObserverBridge>(
-          _entityDataManager, self);
+    if (!IsYourSavedInfoSettingsPageIosEnabled()) {
+      _entityDataManager = IOSAutofillEntityDataManagerFactory::GetForProfile(
+          _browser->GetProfile());
+      if (_entityDataManager) {
+        _entityDataManagerObserver = std::make_unique<
+            autofill::IOSAutofillEntityDataManagerObserverBridge>(
+            _entityDataManager, self);
+      }
     }
 
     _reauthenticationModule =
@@ -338,8 +340,10 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
     _prefObserverBridge.emplace(self);
     // Register to observe any changes on Perf backed values displayed by the
     // screen.
-    _prefObserverBridge->ObserveChangesForPreference(
-        autofill::prefs::kAutofillAiOptInStatus, &_prefChangeRegistrar);
+    if (!IsYourSavedInfoSettingsPageIosEnabled()) {
+      _prefObserverBridge->ObserveChangesForPreference(
+          autofill::prefs::kAutofillAiOptInStatus, &_prefChangeRegistrar);
+    }
   }
   return self;
 }
@@ -375,8 +379,10 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
   [model setFooter:[self addressSwitchFooter]
       forSectionWithIdentifier:SectionIdentifierSwitches];
 
-  bool isEnhancedAutofillEnabled = base::FeatureList::IsEnabled(
-      autofill::features::kAutofillAiWithDataSchema);
+  bool isEnhancedAutofillEnabled =
+      !IsYourSavedInfoSettingsPageIosEnabled() &&
+      base::FeatureList::IsEnabled(
+          autofill::features::kAutofillAiWithDataSchema);
   if (isEnhancedAutofillEnabled) {
     [model addSectionWithIdentifier:SectionIdentifierEnhancedAutofill];
     BOOL addressManagedAndDisabled = autofill::prefs::IsAutofillProfileManaged(
@@ -409,8 +415,9 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
     return;
   }
 
-  base::span<const autofill::EntityInstance> instances =
-      _entityDataManager->GetEntityInstances();
+  std::vector<autofill::EntityInstance> instances =
+      autofill::GetEntityInstancesForSettings(
+          _entityDataManager->GetEntityInstances());
 
   if (instances.empty()) {
     return;
@@ -451,7 +458,8 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
   item.guid = instance.guid();
   item.entityTypeName = instance.type().name();
 
-  if (instance.IsServerInstance()) {
+  if (instance.record_type() ==
+      autofill::EntityInstance::RecordType::kServerWallet) {
     item.isServerWalletItem = YES;
     item.trailingText = l10n_util::GetNSString(IDS_IOS_AUTOFILL_WALLET_TEXT);
   }
@@ -632,15 +640,17 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
                                         .empty();
 }
 
-// Checks if there are any local entities.
+// Checks if there are any local entities available in settings.
 - (BOOL)hasLocalEntities {
   if (_settingsAreDismissed || !_entityDataManager) {
     return NO;
   }
   return std::ranges::any_of(
-      _entityDataManager->GetEntityInstances(), [](const auto& instance) {
-        return instance.record_type() !=
-               autofill::EntityInstance::RecordType::kServerWallet;
+      autofill::GetEntityInstancesForSettings(
+          _entityDataManager->GetEntityInstances()),
+      [](const auto& instance) {
+        return instance.record_type() ==
+               autofill::EntityInstance::RecordType::kLocal;
       });
 }
 
@@ -670,12 +680,18 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
 // Returns whether to show the Enhanced Autofill toggle to enable
 // reauthentication before filling sensitive information.
 - (BOOL)shouldShowVerificationSwitch {
+  if (IsYourSavedInfoSettingsPageIosEnabled()) {
+    return NO;
+  }
   return base::FeatureList::IsEnabled(
       autofill::features::kAutofillAiReauthRequired);
 }
 
 // Returns YES if the Google Wallet promotion should be shown.
 - (BOOL)shouldShowWalletPromo {
+  if (IsYourSavedInfoSettingsPageIosEnabled()) {
+    return NO;
+  }
   return autofill::CanPerformAutofillAiAction(
       _browser->GetProfile(),
       autofill::AutofillAiAction::kWalletDataSharingPromotion);
@@ -683,6 +699,9 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
 
 // Returns YES if the user can modify the Enhanced Autofill setting.
 - (BOOL)canModifyEnhancedAutofill {
+  if (IsYourSavedInfoSettingsPageIosEnabled()) {
+    return NO;
+  }
   return autofill::CanPerformAutofillAiAction(
       _browser->GetProfile(), autofill::AutofillAiAction::kOptIn);
 }
@@ -996,6 +1015,9 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
 
 // Opens a URL to Google Wallet for users to manage their passes data.
 - (void)openGoogleWallet {
+  if (IsYourSavedInfoSettingsPageIosEnabled()) {
+    return;
+  }
   OpenNewTabCommand* command =
       [OpenNewTabCommand commandWithURLFromChrome:GURL(kWalletUrlString)];
   [self.sceneHandler closePresentedViewsAndOpenURL:command];
@@ -1066,6 +1088,9 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
 }
 
 - (void)verificationSwitchChanged:(UISwitch*)switchView {
+  if (IsYourSavedInfoSettingsPageIosEnabled()) {
+    return;
+  }
   if (![_reauthenticationModule canAttemptReauth]) {
     // This should normally not happen: the switch should not even be enabled.
     // Early return to fallback gracefully just in case.
@@ -1677,6 +1702,9 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
         [self buildAddEntitiesMenuWithProfileEnabled:profileEnabled];
     _addButtonInToolbar.enabled = YES;
   } else {
+    _addButtonInToolbar.menu = nil;
+    _addButtonInToolbar.target = self;
+    _addButtonInToolbar.action = @selector(handleAddAddress);
     _addButtonInToolbar.enabled = profileEnabled;
   }
 }

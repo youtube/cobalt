@@ -312,6 +312,9 @@ class CONTENT_EXPORT PrerenderHost {
   // Returns true if the given `url` is the same site as the initial_url.
   bool IsUrlSameSite(const GURL& url) const;
 
+  // Returns true if the prerender is allowed to reuse the initiator's process.
+  bool ShouldAllowProcessReuse() const;
+
   bool IsReusable() const { return attributes_.allow_reuse; }
 
   // Called when the prerender pages asks the client to change the Accept Client

@@ -236,8 +236,8 @@ class PopoverCloseWatcherEventListener : public NativeEventListener {
 class NameInHeapSnapshotBuilder : public MarkupAccumulator {
  public:
   NameInHeapSnapshotBuilder()
-      : MarkupAccumulator(kDoNotResolveURLs,
-                          SerializationType::kHTML,
+      : MarkupAccumulator(ResolveUrls::kNone,
+                          SerializationType::kHtml,
                           ShadowRootInclusion(),
                           MarkupAccumulator::AttributesMode::kUnsynchronized) {}
   String GetStartTag(const Element& element) {
@@ -864,27 +864,6 @@ void HTMLElement::AttributeChanged(const AttributeModificationParams& params) {
     return;
   }
 
-  if (params.name == html_names::kCommandAttr) {
-    bool old_is_overscroll = IsOverscrollCommand(
-        GetCommandEventType(params.old_value, GetExecutionContext()));
-    bool new_is_overscroll = IsOverscrollCommand(
-        GetCommandEventType(params.new_value, GetExecutionContext()));
-    if (isConnected() && old_is_overscroll != new_is_overscroll) {
-      if (new_is_overscroll) {
-        GetDocument().AddOverscrollCommandInvoker(*this);
-      } else {
-        GetDocument().RemoveOverscrollCommandInvoker(*this);
-      }
-      GetDocument().MarkOverscrollCommandTargetsDirty();
-    }
-  } else if (params.name == html_names::kCommandforAttr) {
-    if (isConnected() && IsOverscrollCommand(GetCommandEventType(
-                             FastGetAttribute(html_names::kCommandAttr),
-                             GetExecutionContext()))) {
-      GetDocument().MarkOverscrollCommandTargetsDirty();
-    }
-  }
-
   // adjustedFocusedElementInTreeScope() is not trivial. We should check
   // attribute names, then call adjustedFocusedElementInTreeScope().
   if (params.name == html_names::kHiddenAttr && !params.new_value.IsNull()) {
@@ -1135,10 +1114,14 @@ void HTMLElement::ApplyAlignmentAttributeToStyle(
     vertical_align_value = CSSValueID::kTop;
   } else if (EqualIgnoringAsciiCase(alignment, "top")) {
     vertical_align_value = CSSValueID::kTop;
-  } else if (EqualIgnoringAsciiCase(alignment, "middle")) {
-    vertical_align_value = CSSValueID::kWebkitBaselineMiddle;
-  } else if (EqualIgnoringAsciiCase(alignment, "center")) {
-    vertical_align_value = CSSValueID::kMiddle;
+  } else if (EqualIgnoringAsciiCase(alignment, "middle") ||
+             EqualIgnoringAsciiCase(alignment, "center")) {
+    if (RuntimeEnabledFeatures::EmbeddedContentCenterAlignBaselineEnabled() ||
+        EqualIgnoringAsciiCase(alignment, "middle")) {
+      vertical_align_value = CSSValueID::kWebkitBaselineMiddle;
+    } else {
+      vertical_align_value = CSSValueID::kMiddle;
+    }
   } else if (EqualIgnoringAsciiCase(alignment, "bottom")) {
     vertical_align_value = CSSValueID::kBaseline;
   } else if (EqualIgnoringAsciiCase(alignment, "texttop")) {
@@ -1767,6 +1750,10 @@ void HTMLElement::ShowPopoverInternal(Element* invoker,
   auto* event = ToggleEvent::Create(
       event_type_names::kBeforetoggle, Event::Cancelable::kYes,
       /*old_state*/ keywords::kClosed, /*new_state*/ keywords::kOpen, invoker);
+  if (invoker && RuntimeEnabledFeatures::ShadowRootReferenceTargetEnabled(
+                     invoker->GetExecutionContext())) {
+    event->SetComposed(true);
+  }
   CHECK(!event->bubbles());
   CHECK(event->cancelable());
   CHECK_EQ(event->oldState(), keywords::kClosed);
@@ -2005,6 +1992,10 @@ void HTMLElement::ShowPopoverInternal(Element* invoker,
   ToggleEvent* after_event = ToggleEvent::Create(
       event_type_names::kToggle, Event::Cancelable::kNo, old_state,
       /*new_state*/ keywords::kOpen, invoker);
+  if (invoker && RuntimeEnabledFeatures::ShadowRootReferenceTargetEnabled(
+                     invoker->GetExecutionContext())) {
+    after_event->SetComposed(true);
+  }
   CHECK_EQ(after_event->newState(), keywords::kOpen);
   CHECK_EQ(after_event->oldState(), old_state);
   CHECK(!after_event->bubbles());
@@ -2358,6 +2349,10 @@ PopoverHideResult HTMLElement::HidePopoverInternal(
     auto* event = ToggleEvent::Create(
         event_type_names::kBeforetoggle, Event::Cancelable::kNo,
         /*old_state*/ keywords::kOpen, /*new_state*/ keywords::kClosed, invoker);
+    if (invoker && RuntimeEnabledFeatures::ShadowRootReferenceTargetEnabled(
+                       invoker->GetExecutionContext())) {
+      event->SetComposed(true);
+    }
     CHECK(!event->bubbles());
     CHECK(!event->cancelable());
     CHECK_EQ(event->oldState(), keywords::kOpen);
@@ -2428,6 +2423,10 @@ PopoverHideResult HTMLElement::HidePopoverInternal(
     ToggleEvent* after_event = ToggleEvent::Create(
         event_type_names::kToggle, Event::Cancelable::kNo, old_state,
         /*new_state*/ keywords::kClosed, invoker);
+    if (invoker && RuntimeEnabledFeatures::ShadowRootReferenceTargetEnabled(
+                       invoker->GetExecutionContext())) {
+      after_event->SetComposed(true);
+    }
     CHECK_EQ(after_event->newState(), keywords::kClosed);
     CHECK_EQ(after_event->oldState(), old_state);
     CHECK(!after_event->bubbles());
@@ -3165,6 +3164,10 @@ bool HTMLElement::HandleCommandForActivation() {
   }
   Event* command_event =
       CommandEvent::Create(event_type_names::kCommand, action, this);
+  if (RuntimeEnabledFeatures::ShadowRootReferenceTargetEnabled(
+          GetExecutionContext())) {
+    command_event->SetComposed(true);
+  }
   command_target->DispatchEvent(*command_event);
   if (!command_event->defaultPrevented() &&
       command_event_type != CommandEventType::kCustom) {
@@ -3364,6 +3367,58 @@ const AtomicString& HTMLElement::autocapitalize() const {
 
 void HTMLElement::setAutocapitalize(const AtomicString& value) {
   setAttribute(html_names::kAutocapitalizeAttr, value);
+}
+
+bool HTMLElement::IsAutocapitalizeOrAutocorrectInheriting() const {
+  // https://html.spec.whatwg.org/multipage/interaction.html#autocapitalize-and-autocorrect-inheriting-element
+  // The set is exactly button, fieldset, input, output, select, and textarea,
+  // which are the instantiable HTMLFormControlElement subclasses in Blink.
+  return IsA<HTMLFormControlElement>(*this);
+}
+
+bool HTMLElement::autocorrect() const {
+  // https://html.spec.whatwg.org/multipage/interaction.html#autocorrection
+  // return true if the element's used autocorrection state is On and false if
+  // the element's used autocorrection state is Off.
+
+  // 1. If element is an input element whose type attribute is in one of the
+  // URL, Email, or Password states, then return Off.
+  if (auto* input_element = DynamicTo<HTMLInputElement>(*this)) {
+    switch (input_element->FormControlType()) {
+      case FormControlType::kInputUrl:
+      case FormControlType::kInputEmail:
+      case FormControlType::kInputPassword:
+        return false;
+      default:
+        break;
+    }
+  }
+
+  // 2. If the autocorrect content attribute is present on element, then return
+  // the state of the attribute.
+  if (FastHasAttribute(html_names::kAutocorrectAttr)) {
+    const AtomicString& value = FastGetAttribute(html_names::kAutocorrectAttr);
+    // The attribute's invalid value default, missing value default, and empty
+    // value default are all the On state.
+    return !EqualIgnoringAsciiCase(value, keywords::kOff);
+  }
+
+  // 3. If element is an autocapitalize-and-autocorrect inheriting element and
+  // has a non-null form owner, then return the state of element's form owner's
+  // autocorrect attribute.
+  if (IsAutocapitalizeOrAutocorrectInheriting()) {
+    if (const HTMLFormElement* form = formOwner()) {
+      return form->autocorrect();
+    }
+  }
+
+  // 4. Return On.
+  return true;
+}
+
+void HTMLElement::setAutocorrect(bool enable) {
+  setAttribute(html_names::kAutocorrectAttr,
+               enable ? keywords::kOn : keywords::kOff);
 }
 
 bool HTMLElement::isContentEditableForBinding() const {
@@ -3642,13 +3697,6 @@ Node::InsertionNotificationRequest HTMLElement::InsertedInto(
   if (IsFormAssociatedCustomElement())
     EnsureElementInternals().InsertedInto(insertion_point);
 
-  if (insertion_point.isConnected() &&
-      IsOverscrollCommand(GetCommandEventType(
-          FastGetAttribute(html_names::kCommandAttr), GetExecutionContext()))) {
-    GetDocument().AddOverscrollCommandInvoker(*this);
-    GetDocument().MarkOverscrollCommandTargetsDirty();
-  }
-
   return kInsertionDone;
 }
 
@@ -3675,13 +3723,6 @@ void HTMLElement::RemovedFrom(ContainerNode& insertion_point) {
   Element::RemovedFrom(insertion_point);
   if (IsFormAssociatedCustomElement())
     EnsureElementInternals().RemovedFrom(insertion_point);
-
-  if (was_in_document &&
-      IsOverscrollCommand(GetCommandEventType(
-          FastGetAttribute(html_names::kCommandAttr), GetExecutionContext()))) {
-    GetDocument().RemoveOverscrollCommandInvoker(*this);
-    GetDocument().MarkOverscrollCommandTargetsDirty();
-  }
 }
 
 void HTMLElement::DidMoveToNewDocument(Document& old_document) {
@@ -4144,6 +4185,16 @@ void HTMLElement::OnNonceAttrChanged(
 
 void HTMLElement::OnContainerTimingAttrChanged(
     const AttributeModificationParams& params) {
+  // Count attribute adoption, but ignore attributes in user agent shadow DOM
+  // (consistent with the generic attribute use-counting in ParseAttribute).
+  if (!params.new_value.IsNull() && !IsInUserAgentShadowRoot()) {
+    UseCounter::Count(GetDocument(), WebFeature::kContainerTimingAttribute);
+    if (!params.new_value.empty()) {
+      UseCounter::Count(GetDocument(),
+                        WebFeature::kContainerTimingAttributeHasRootName);
+    }
+  }
+
   if (!RuntimeEnabledFeatures::ContainerTimingEnabled(GetExecutionContext())) {
     return;
   }
@@ -4173,6 +4224,11 @@ void HTMLElement::OnContainerTimingAttrChanged(
 
 void HTMLElement::OnContainerTimingIgnoreAttrChanged(
     const AttributeModificationParams& params) {
+  if (!params.new_value.IsNull() && !IsInUserAgentShadowRoot()) {
+    UseCounter::Count(GetDocument(),
+                      WebFeature::kContainerTimingIgnoreAttribute);
+  }
+
   if (!RuntimeEnabledFeatures::ContainerTimingEnabled(GetExecutionContext())) {
     return;
   }

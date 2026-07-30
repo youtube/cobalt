@@ -183,6 +183,20 @@ pub struct DeviceAuthorizationKey {
     pub key: Vec<u8>,
 }
 
+/// The result of a device authorization key fetching performed by the host.
+/// This serves as an external input to `device_authorization_keys/wrap`
+/// commands.
+#[derive(Clone)]
+pub enum DeviceAuthorizationKeyContext {
+    /// Successfully obtained keys to be wrapped and returned to the client.
+    Keys(Vec<DeviceAuthorizationKey>),
+    /// URL of a ReAuth challenge to be passed the client before another
+    /// attempt is made.
+    ReauthURL(String),
+    /// No attempt at fetching device authorization keys was made.
+    None,
+}
+
 /// ExternalContext contains context about a client request that comes from
 /// server-side components outside of this enclave.
 #[derive(Clone)]
@@ -200,7 +214,7 @@ pub struct ExternalContext {
     /// the enclave. Each entry consists of a version and key. The client
     /// must pass an authentication check in order for the host to fetch and
     /// pass these values. Otherwise they are unset.
-    pub device_authorization_keys: Vec<DeviceAuthorizationKey>,
+    pub device_auth_keys_ctx: DeviceAuthorizationKeyContext,
 }
 
 // These constants are map keys used within the CBOR. For each map key constant
@@ -230,6 +244,7 @@ map_keys! {
     DEVICE_ID, DEVICE_ID_KEY = "device_id",
     DEVICES, DEVICES_KEY = "devices",
     DEVICE_AUTH_KEYS, DEVICE_AUTH_KEYS_KEY = "wrapped_device_auth_keys",
+    DEVICE_AUTH_KEYS_REAUTH_URL, DEVICE_AUTH_KEYS_REAUTH_URL_KEY = "device_auth_keys_reauth_url",
     ENCODED_REQUESTS, ENCODED_REQUESTS_KEY = "encoded_requests",
     EXTERNAL_DEVICE_IDENTIFIER, EXTERNAL_DEVICE_IDENTIFIER_KEY = "ext_device_id",
     KEY, KEY_KEY = "key",
@@ -908,12 +923,9 @@ fn do_request(
             ext_ctx.current_time_epoch_millis,
             request,
         ),
-        "device_auth_keys/wrap" => do_wrap_device_auth_keys(
-            metrics,
-            auth,
-            state,
-            ext_ctx.device_authorization_keys.as_slice(),
-        ),
+        "device_auth_keys/wrap" => {
+            do_wrap_device_auth_keys(metrics, auth, state, &ext_ctx.device_auth_keys_ctx)
+        }
         _ => debug("unknown command"),
     }
 }
@@ -1156,12 +1168,14 @@ fn do_device_forget(
 // wrapped_device_auth_key = [ int, bstr ]  ; version and wrapped key
 // response = {
 //   wrapped_device_auth_keys: [ * wrapped_device_auth_key ]
+// } / {
+//   device_auth_keys_reauth_url: tstr
 // }
 fn do_wrap_device_auth_keys(
     metrics: &mut MetricsUpdate,
     auth: &Authentication,
     state: &mut DirtyFlag<ParsedState>,
-    device_authorization_keys: &[DeviceAuthorizationKey],
+    device_authorization_key_ctx: &DeviceAuthorizationKeyContext,
 ) -> Result<cbor::Value, RequestError> {
     let device_id: &Vec<u8> = match auth {
         Authentication::Device(device_id, _, _, _) => device_id,
@@ -1169,6 +1183,15 @@ fn do_wrap_device_auth_keys(
         Authentication::None => {
             return debug("device identity required");
         }
+    };
+    let device_authorization_keys = match device_authorization_key_ctx {
+        DeviceAuthorizationKeyContext::Keys(keys) => keys,
+        DeviceAuthorizationKeyContext::ReauthURL(reauth_url) => {
+            return Ok(cbor!({
+                DEVICE_AUTH_KEYS_REAUTH_URL: (reauth_url.as_bytes()),
+            }));
+        }
+        DeviceAuthorizationKeyContext::None => return debug("device auth keys required"),
     };
     let mut wrapped_device_auth_keys = Vec::with_capacity(device_authorization_keys.len());
     for key in device_authorization_keys.iter() {
@@ -1295,7 +1318,7 @@ mod tests {
         current_time_epoch_millis: TIMESTAMP,
         client_device_identifier: Vec::new(),
         is_reauthenticated: false,
-        device_authorization_keys: Vec::new(),
+        device_auth_keys_ctx: DeviceAuthorizationKeyContext::Keys(Vec::new()),
     };
 
     pub const TEST_PIN_HASH: [u8; 32] = [1u8; 32];
@@ -1444,22 +1467,15 @@ mod tests {
             };
 
             chromesync::pb::WebauthnCredentialSpecifics {
-                sync_id: None,
                 credential_id: Some(vec![4, 3, 2, 1]),
-                rp_id: None,
                 user_id: Some(vec![1, 2, 3, 4]),
-                newly_shadowed_credential_ids: vec![],
-                creation_time: None,
-                user_name: None,
-                user_display_name: None,
-                third_party_payments_support: None,
-                last_used_time_windows_epoch_micros: None,
                 key_version: Some(1),
                 encrypted_data: Some(
                     chromesync::pb::webauthn_credential_specifics::EncryptedData::Encrypted(
                         encrypted.clone(),
                     ),
                 ),
+                ..Default::default()
             }
             .encode_to_vec()
         };
@@ -2626,26 +2642,49 @@ mod tests {
     }
 
     #[test]
-    fn test_wrap_device_auth_keys() {
+    fn test_device_auth_keys_wrap() {
         let msg: Vec<u8> = sign_request(cbor!({
             CMD: "device_auth_keys/wrap",
         }));
         let mut metrics = MetricsUpdate::default();
 
-        // Wrapping device auth keys with no keys provided should yield an empty
-        // response.
+        // Wrapping device auth keys with no keys and no reauth URL should yield an error.
         let (output, state_update) = process_client_msg(
             REGISTERED_STATE.clone(),
             &mut metrics,
             ExternalContext {
                 is_reauthenticated: true,
+                device_auth_keys_ctx: DeviceAuthorizationKeyContext::None,
                 ..EXTERNAL_CONTEXT.clone()
             },
             TEST_HANDSHAKE_HASH.as_slice(),
             msg.clone(),
         )
         .unwrap();
+        assert!(
+            single_error_string(&output)
+                .unwrap()
+                .contains("device auth keys required"),
+            "{:?}",
+            output
+        );
+        let StateUpdate::Minor(_) = state_update else {
+            panic!("{:?}", state_update);
+        };
 
+        // Empty Keys passed by the host from external context should be wrapped and returned.
+        let (output, state_update) = process_client_msg(
+            REGISTERED_STATE.clone(),
+            &mut metrics,
+            ExternalContext {
+                is_reauthenticated: true,
+                device_auth_keys_ctx: DeviceAuthorizationKeyContext::Keys(Vec::new()),
+                ..EXTERNAL_CONTEXT.clone()
+            },
+            TEST_HANDSHAKE_HASH.as_slice(),
+            msg.clone(),
+        )
+        .unwrap();
         let Value::Map(response) = ok_value(&output).unwrap() else {
             panic!("{:?}", output);
         };
@@ -2663,7 +2702,9 @@ mod tests {
             &mut metrics,
             ExternalContext {
                 is_reauthenticated: false,
-                device_authorization_keys: DEVICE_AUTHORIZATION_KEYS_UNWRAPPED.to_vec(),
+                device_auth_keys_ctx: DeviceAuthorizationKeyContext::Keys(
+                    DEVICE_AUTHORIZATION_KEYS_UNWRAPPED.to_vec(),
+                ),
                 ..EXTERNAL_CONTEXT.clone()
             },
             TEST_HANDSHAKE_HASH.as_slice(),
@@ -3595,7 +3636,7 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_wrap_device_auth_keys() {
+    fn test_invalid_device_auth_keys_wrap() {
         let request = cbor!({
             CMD: "device_auth_keys/wrap",
         });

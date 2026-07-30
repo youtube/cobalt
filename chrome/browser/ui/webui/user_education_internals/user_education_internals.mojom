@@ -93,6 +93,13 @@ interface UserEducationInternalsPageHandler {
   // Returns an error message if the operation fails; empty string on success.
   ClearFeaturePromoData(string feature_name) => (string error_message);
 
+  // Get the list of all available non-IPH promos.
+  GetNonIphPromos() => (array<FeaturePromoDemoPageInfo> non_iph_promos);
+
+  // Clears the feature_engagement data associated with a non-IPH promo.
+  // Returns an error message if the operation fails; empty string on success.
+  ClearNonIphPromoData(string feature_name) => (string error_message);
+
   // Clears all session-related User Education data.
   // Returns an error message if the operation fails; empty string on success.
   ClearSessionData() => (string error_message);

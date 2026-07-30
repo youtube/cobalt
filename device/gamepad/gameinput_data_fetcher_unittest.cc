@@ -6,6 +6,8 @@
 
 #include <winerror.h>
 
+#include <optional>
+
 #include "base/containers/flat_map.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
@@ -392,22 +394,27 @@ struct InitializationFailureParam {
   GameInputTestErrorCode error_code;
   GameInputDataFetcher::InitializationState expected_state;
   GameInputInitializationResult expected_histogram_result;
+  std::optional<HRESULT> expected_create_hresult;
 };
 
 const InitializationFailureParam kInitializationFailures[] = {
     {GameInputTestErrorCode::kGetProcAddressFailed,
      GameInputDataFetcher::InitializationState::kGetProcAddressFailed,
-     GameInputInitializationResult::kGetProcAddressFailed},
+     GameInputInitializationResult::kGetProcAddressFailed,
+     /*expected_create_hresult=*/std::nullopt},
     {GameInputTestErrorCode::kGameInputCreateFailed,
      GameInputDataFetcher::InitializationState::kCreateGameInputFailed,
-     GameInputInitializationResult::kCreateGameInputFailed},
+     GameInputInitializationResult::kCreateGameInputFailed,
+     /*expected_create_hresult=*/E_FAIL},
     {GameInputTestErrorCode::kDeviceCallbackRegistrationFailed,
      GameInputDataFetcher::InitializationState::kFailedDeviceEnumeration,
-     GameInputInitializationResult::kDeviceEnumerationFailed},
+     GameInputInitializationResult::kDeviceEnumerationFailed,
+     /*expected_create_hresult=*/S_OK},
     {GameInputTestErrorCode::kGuideButtonCallbackRegistrationFailed,
      GameInputDataFetcher::InitializationState::
          kFailedGuideButtonCallbackRegistration,
-     GameInputInitializationResult::kGuideButtonCallbackRegistrationFailed},
+     GameInputInitializationResult::kGuideButtonCallbackRegistrationFailed,
+     /*expected_create_hresult=*/S_OK},
 };
 
 class GameInputInitializationFailureTest
@@ -426,9 +433,21 @@ TEST_P(GameInputInitializationFailureTest, VerifyInitializationFailure) {
   SetUpTestEnvCommon(std::move(create_fn));
   EXPECT_EQ(fetcher().GetInitializationState(), param.expected_state);
 
+  histogram_tester.ExpectTotalCount(
+      "Gamepad.Win.GameInput.InitializationResult", 1);
   histogram_tester.ExpectBucketCount(
       "Gamepad.Win.GameInput.InitializationResult",
       param.expected_histogram_result, 1);
+  if (param.expected_create_hresult.has_value()) {
+    histogram_tester.ExpectTotalCount(
+        "Gamepad.Win.GameInput.GameInputCreateResult", 1);
+    histogram_tester.ExpectBucketCount(
+        "Gamepad.Win.GameInput.GameInputCreateResult",
+        param.expected_create_hresult.value(), 1);
+  } else {
+    histogram_tester.ExpectTotalCount(
+        "Gamepad.Win.GameInput.GameInputCreateResult", 0);
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(GameInputInitializationFailures,

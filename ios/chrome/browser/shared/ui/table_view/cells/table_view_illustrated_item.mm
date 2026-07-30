@@ -7,7 +7,6 @@
 #import "base/apple/foundation_util.h"
 #import "base/ios/ios_util.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 
 namespace {
@@ -40,9 +39,8 @@ constexpr CGFloat kButtonTopPadding = 14.0;
   return self;
 }
 
-- (void)configureCell:(LegacyTableViewCell*)tableCell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:tableCell withStyler:styler];
+- (void)configureCell:(LegacyTableViewCell*)tableCell {
+  [super configureCell:tableCell];
   TableViewIllustratedCell* cell =
       base::apple::ObjCCastStrict<TableViewIllustratedCell>(tableCell);
   if ([self.accessibilityIdentifier length]) {
@@ -82,10 +80,6 @@ constexpr CGFloat kButtonTopPadding = 14.0;
   [UIView setAnimationsEnabled:NO];
   cell.backgroundColor = nil;
   [UIView setAnimationsEnabled:animationsWereEnabled];
-
-  if (styler.cellTitleColor) {
-    cell.titleLabel.textColor = styler.cellTitleColor;
-  }
 }
 
 @end

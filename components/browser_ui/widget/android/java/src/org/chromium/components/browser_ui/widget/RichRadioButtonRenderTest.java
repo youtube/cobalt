@@ -64,18 +64,6 @@ public class RichRadioButtonRenderTest {
 
     private final boolean mIsRightToLeftLayout;
 
-    private String veryLongTitle() {
-        return mIsRightToLeftLayout
-                ? "هذا عنوان طويل للغاية، ولا يمكن أن يتسع في سطر واحد."
-                : "This is an extremely long title, which cannot possibly fit in one line.";
-    }
-
-    private String veryLongDescription() {
-        return mIsRightToLeftLayout
-                ? "وهذا وصف طويل جداً، لا يمكن أن يتسع في سطر واحد."
-                : "And this is a very long description, which cannot possibly fit in one line.";
-    }
-
     private String preciseLocation() {
         return mIsRightToLeftLayout ? "الموقع الدقيق" : "Precise Location";
     }
@@ -117,7 +105,6 @@ public class RichRadioButtonRenderTest {
     private RichRadioButton mRichRbHorizontalFullUnchecked;
     private RichRadioButton mRichRbHorizontalTitleChecked;
     private RichRadioButton mRichRbHorizontalMinimalUnchecked;
-    private RichRadioButton mRichRbVerticalFullUnchecked;
 
     private Activity mActivity;
 
@@ -174,8 +161,6 @@ public class RichRadioButtonRenderTest {
                             mLayout.findViewById(R.id.rich_rb_horizontal_title_checked);
                     mRichRbHorizontalMinimalUnchecked =
                             mLayout.findViewById(R.id.rich_rb_horizontal_minimal_unchecked);
-                    mRichRbVerticalFullUnchecked =
-                            mLayout.findViewById(R.id.rich_rb_vertical_full_unchecked);
                 });
 
         Assert.assertNotNull(mLayout);
@@ -193,8 +178,7 @@ public class RichRadioButtonRenderTest {
                     mRichRbHorizontalFullUnchecked.setItemData(
                             R.drawable.test_location_precise,
                             preciseLocation(),
-                            preciseLocationDescription(),
-                            false);
+                            preciseLocationDescription());
                     mRichRbHorizontalFullUnchecked.setChecked(false);
                 });
         mRenderTestRule.render(mRichRbHorizontalFullUnchecked, "rich_rb_horizontal_full_unchecked");
@@ -208,7 +192,7 @@ public class RichRadioButtonRenderTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mRichRbHorizontalTitleChecked.setItemData(
-                            R.drawable.test_location_precise, simpleOption(), null, false);
+                            R.drawable.test_location_precise, simpleOption(), null);
                     mRichRbHorizontalTitleChecked.setChecked(true);
                 });
         mRenderTestRule.render(mRichRbHorizontalTitleChecked, "rich_rb_horizontal_title_checked");
@@ -220,7 +204,7 @@ public class RichRadioButtonRenderTest {
     public void testRichRbHorizontalMinimalUnchecked() throws Exception {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    mRichRbHorizontalMinimalUnchecked.setItemData(0, minimalOption(), null, false);
+                    mRichRbHorizontalMinimalUnchecked.setItemData(0, minimalOption(), null);
                     mRichRbHorizontalMinimalUnchecked.setChecked(false);
                 });
         mRenderTestRule.render(
@@ -237,27 +221,10 @@ public class RichRadioButtonRenderTest {
                     mRichRbHorizontalFullUnchecked.setItemData(
                             R.drawable.test_location_precise,
                             checkedItem(),
-                            checkedItemDescription(),
-                            false);
+                            checkedItemDescription());
                     mRichRbHorizontalFullUnchecked.setChecked(true);
                 });
         mRenderTestRule.render(mRichRbHorizontalFullUnchecked, "rich_rb_horizontal_full_checked");
-    }
-
-    @Test
-    @SmallTest
-    @Feature({"RenderTest", "RichRadioButton"})
-    public void testRichRbVerticalFullUnchecked() throws Exception {
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    mRichRbVerticalFullUnchecked.setItemData(
-                            R.drawable.test_location_precise,
-                            veryLongTitle(),
-                            veryLongDescription(),
-                            true);
-                    mRichRbVerticalFullUnchecked.setChecked(false);
-                });
-        mRenderTestRule.render(mRichRbVerticalFullUnchecked, "rich_rb_vertical_full_unchecked");
     }
 
     @Test
@@ -287,16 +254,15 @@ public class RichRadioButtonRenderTest {
 
                     // Set with icon, then without, then with again.
                     mRichRbHorizontalFullUnchecked.setItemData(
-                            R.drawable.test_location_precise, "Title A", "Description A", false);
+                            R.drawable.test_location_precise, "Title A", "Description A");
 
                     mRichRbHorizontalFullUnchecked.setItemData(
                             0, // No icon
                             "Title B",
-                            "Description B",
-                            false);
+                            "Description B");
 
                     mRichRbHorizontalFullUnchecked.setItemData(
-                            R.drawable.test_location_precise, "Title C", "Description C", false);
+                            R.drawable.test_location_precise, "Title C", "Description C");
 
                     // Assert that the layout params for the root layout , title and radio button
                     // are the same as their initial values.

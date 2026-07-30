@@ -624,7 +624,7 @@ TEST_F(ContextHostResolverTest, ResolveFromCache) {
   host_cache->Set(
       HostCache::Key("example.com", DnsQueryType::UNSPECIFIED,
                      0 /* host_resolver_flags */, HostResolverSource::ANY,
-                     NetworkAnonymizationKey()),
+                     NetworkAnonymizationKey(), handles::kInvalidNetworkHandle),
       HostCache::Entry(OK, expected,
                        /*aliases=*/std::set<std::string>({"example.com"}),
                        HostCache::Entry::SOURCE_DNS, base::Days(1)),
@@ -736,13 +736,15 @@ TEST_F(ContextHostResolverTest, ResultsAddedToCacheWithNetworkIsolationKey) {
 
   HostCache::Key cache_key("example.com", DnsQueryType::UNSPECIFIED,
                            0 /* host_resolver_flags */, HostResolverSource::ANY,
-                           kNetworkAnonymizationKey);
+                           kNetworkAnonymizationKey,
+                           handles::kInvalidNetworkHandle);
   EXPECT_TRUE(
       resolver->GetHostCache()->Lookup(cache_key, base::TimeTicks::Now()));
 
   HostCache::Key cache_key_with_empty_nak(
       "example.com", DnsQueryType::UNSPECIFIED, 0 /* host_resolver_flags */,
-      HostResolverSource::ANY, NetworkAnonymizationKey());
+      HostResolverSource::ANY, NetworkAnonymizationKey(),
+      handles::kInvalidNetworkHandle);
   EXPECT_FALSE(resolver->GetHostCache()->Lookup(cache_key_with_empty_nak,
                                                 base::TimeTicks::Now()));
 }

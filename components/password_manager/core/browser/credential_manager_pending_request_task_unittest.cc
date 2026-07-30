@@ -7,6 +7,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/task_environment.h"
+#include "components/device_reauth/device_authenticator.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_manager_test_utils.h"
 #include "components/password_manager/core/browser/password_store/password_form_converters.h"
@@ -56,6 +57,10 @@ class MockPasswordManagerClient : public StubPasswordManagerClient {
               GetAccountPasswordStore,
               (),
               (const, override));
+  MOCK_METHOD(bool,
+              IsReauthBeforeFillingRequired,
+              (device_reauth::DeviceAuthenticator * authenticator),
+              (override));
   MOCK_METHOD(PrefService*, GetPrefs, (), (const, override));
 };
 
@@ -327,9 +332,7 @@ TEST_F(CredentialManagerPendingRequestTaskTest,
 
 TEST_F(CredentialManagerPendingRequestTaskTest,
        SilentRequestFailsIfBiometricReauthEnabled) {
-  ON_CALL(*client()->GetPasswordFeatureManager(),
-          IsBiometricAuthenticationBeforeFillingEnabled)
-      .WillByDefault(Return(true));
+  ON_CALL(*client(), IsReauthBeforeFillingRequired).WillByDefault(Return(true));
 
   form_.in_store = PasswordForm::Store::kProfileStore;
   profile_store_->AddLogin(password_manager::FromPasswordForm(form_));
@@ -352,9 +355,7 @@ TEST_F(CredentialManagerPendingRequestTaskTest,
 
 TEST_F(CredentialManagerPendingRequestTaskTest,
        NoAutosigninIfBiometricReauthEnabled) {
-  ON_CALL(*client()->GetPasswordFeatureManager(),
-          IsBiometricAuthenticationBeforeFillingEnabled)
-      .WillByDefault(Return(true));
+  ON_CALL(*client(), IsReauthBeforeFillingRequired).WillByDefault(Return(true));
 
   profile_store_->AddLogin(password_manager::FromPasswordForm(form_));
   RunAllPendingTasks();

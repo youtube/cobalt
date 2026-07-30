@@ -1499,7 +1499,8 @@ UrlLoadParams UpdateParamsForDinoGame(UrlLoadParams params) {
       [[BrowserLifecycleManager alloc] initWithProfile:profile
                                             sceneState:sceneState
                                          sceneEndpoint:_mainCoordinator
-                                      settingsEndpoint:_mainCoordinator];
+                                      settingsEndpoint:_mainCoordinator
+                                        geminiEndpoint:_mainCoordinator];
 
   // Create and start the BVC.
   [self.browserLifecycleManager createMainCoordinatorAndInterface];

@@ -17,6 +17,7 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab_bottom_sheet.CoBrowseComponentProvider;
 import org.chromium.chrome.browser.tab_bottom_sheet.TabBottomSheetContent;
+import org.chromium.components.browser_ui.widget.text.TextViewWithCompoundDrawables;
 
 /**
  * Concrete implementation of {@link CoBrowseComponentProvider} for Glic. Returns specialized
@@ -33,8 +34,14 @@ public class GlicBottomSheetComponentProvider implements CoBrowseComponentProvid
         return new GlicBottomSheetComponentProvider(profile);
     }
 
-    private GlicBottomSheetComponentProvider(Profile profile) {
+    GlicBottomSheetComponentProvider(Profile profile) {
         mProfile = profile;
+    }
+
+    @Override
+    public boolean setupPlaceholderView(TextViewWithCompoundDrawables placeholder) {
+        GlicUiUtils.setupPlaceholderView(placeholder);
+        return true;
     }
 
     @Override
@@ -44,7 +51,6 @@ public class GlicBottomSheetComponentProvider implements CoBrowseComponentProvid
             @ColorInt int backgroundColor,
             @Px int peekViewHeight,
             @IdRes int peekViewContainerId,
-            @IdRes int emptyPlaceholderContainerId,
             Runnable onBackPressed) {
         return new GlicBottomSheetContent(
                 contentView,
@@ -52,7 +58,6 @@ public class GlicBottomSheetComponentProvider implements CoBrowseComponentProvid
                 backgroundColor,
                 peekViewHeight,
                 peekViewContainerId,
-                emptyPlaceholderContainerId,
                 onBackPressed,
                 mProfile);
     }

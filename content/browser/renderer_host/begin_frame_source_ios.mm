@@ -14,7 +14,7 @@ namespace content {
 BeginFrameSourceIOS::BeginFrameSourceIOS(ui::Compositor* compositor)
     : compositor_(compositor),
       begin_frame_source_(viz::BackToBackBeginFrameSource::kNotRestartableId) {
-  DCHECK(compositor_);
+  CHECK(compositor_, base::NotFatalUntil::M152);
   compositor_->SetExternalBeginFrameControllerClientFactory(this);
 }
 

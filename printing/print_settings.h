@@ -32,7 +32,7 @@
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_CHROMEOS)
-#include "chromeos/crosapi/mojom/local_printer.mojom.h"
+#include "printing/cups_printer_status_reason_ash.h"
 #include "printing/printing_features.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
@@ -335,11 +335,10 @@ class COMPONENT_EXPORT(PRINTING_SETTINGS) PrintSettings {
   bool printer_manually_selected() const { return printer_manually_selected_; }
 
   void set_printer_status_reason(
-      crosapi::mojom::StatusReason::Reason printer_status_reason) {
+      CupsPrinterStatusReason printer_status_reason) {
     printer_status_reason_ = printer_status_reason;
   }
-  std::optional<crosapi::mojom::StatusReason::Reason> printer_status_reason()
-      const {
+  std::optional<CupsPrinterStatusReason> printer_status_reason() const {
     return printer_status_reason_;
   }
 
@@ -487,7 +486,7 @@ class COMPONENT_EXPORT(PRINTING_SETTINGS) PrintSettings {
 
   // The printer status reason shown for the selected printer at the time print
   // is requested. Only local CrOS printers set printer statuses.
-  std::optional<crosapi::mojom::StatusReason::Reason> printer_status_reason_;
+  std::optional<CupsPrinterStatusReason> printer_status_reason_;
 
   // Print scaling type.
   mojom::PrintScalingType print_scaling_ =

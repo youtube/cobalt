@@ -34,6 +34,7 @@
 #include "chrome/browser/ash/policy/remote_commands/user_commands_factory_ash.h"
 #include "chrome/browser/ash/policy/reporting/arc_app_install_event_log_uploader.h"
 #include "chrome/browser/ash/policy/skyvault/local_files_cleanup.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/enterprise/reporting/report_scheduler_desktop.h"
 #include "chrome/browser/enterprise/reporting/reporting_delegate_factory_desktop.h"
 #include "chrome/browser/invalidation/profile_invalidation_provider_factory.h"
@@ -277,7 +278,9 @@ void UserCloudPolicyManagerAsh::OnAccessTokenAvailable(
   access_token_ = access_token;
 
   if (!wildcard_username_.empty()) {
-    wildcard_login_checker_ = std::make_unique<WildcardLoginChecker>();
+    // TODO(crbug.com/404133022): Avoid using g_browser_process.
+    wildcard_login_checker_ = std::make_unique<WildcardLoginChecker>(
+        g_browser_process->shared_url_loader_factory());
     // Safe to set a callback with an unretained pointer because the
     // WildcardLoginChecker is owned by this object and won't invoke the
     // callback after we destroy it.

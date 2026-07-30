@@ -32,5 +32,7 @@ pub mod ffi {
             service_out: &mut UniquePtr<PlusSevenMathService>,
             remote_out: &mut UniquePtr<ScopedMessagePipeHandleWrapper>,
         );
+
+        fn CreateCppAssociatedSender(handle: UniquePtr<ScopedMessagePipeHandleWrapper>);
     }
 }

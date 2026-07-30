@@ -134,4 +134,44 @@ TEST_F(ServiceWorkerNewScriptFetcherTest, Basic) {
       base::WrapRefCounted(context_wrapper()), version->version_id());
 }
 
+TEST_F(ServiceWorkerNewScriptFetcherTest, StorageDisabled) {
+  // Create a brand new ServiceWorkerVersion which is about to be registered.
+  scoped_refptr<ServiceWorkerVersion> version = CreateNewVersion(kScriptUrl);
+
+  // Disable storage.
+  base::RunLoop disable_loop;
+  context()->GetStorageControl()->Disable(disable_loop.QuitClosure());
+  disable_loop.Run();
+
+  FakeNetworkURLLoaderFactory fake_factory{
+      "HTTP/1.1 200 OK\nContent-Type: text/javascript\n\n", "/* body */",
+      /*network_accessed=*/true, net::OK};
+  auto fetch_client_settings_object =
+      blink::mojom::FetchClientSettingsObject::New();
+  fetch_client_settings_object->policy_container_policies =
+      blink::mojom::PolicyContainerPolicies::New();
+  auto fetcher = std::make_unique<ServiceWorkerNewScriptFetcher>(
+      *context(), version,
+      base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
+          &fake_factory),
+      std::move(fetch_client_settings_object),
+      /*requesting_frame_id=*/GlobalRenderFrameHostId());
+
+  // Start a fetcher and wait to get the result. It should fail (nullopt)
+  // because storage is disabled and GetNewResourceId returns an invalid ID.
+  std::optional<WorkerScriptFetcherResult> fetcher_result;
+  bool callback_called = false;
+  base::RunLoop loop;
+  fetcher->Start(base::BindLambdaForTesting(
+      [&](std::optional<WorkerScriptFetcherResult> result) {
+        fetcher_result = std::move(result);
+        callback_called = true;
+        loop.Quit();
+      }));
+  loop.Run();
+
+  EXPECT_TRUE(callback_called);
+  EXPECT_FALSE(fetcher_result.has_value());
+}
+
 }  // namespace content

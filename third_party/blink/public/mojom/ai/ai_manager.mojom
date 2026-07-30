@@ -147,6 +147,9 @@ interface AIManagerCreateSemanticEmbedderClient {
 };
 
 // The manager that could create a new session for the model.
+//
+// This interface is implemented by the browser process and called by the
+// renderer process (untrusted).
 interface AIManager {
   // Returns language model availability info from the underlying service.
   CanCreateLanguageModel(AILanguageModelCreateOptions options) =>
@@ -210,4 +213,12 @@ interface AIManager {
   CreateClassifier(pending_remote<AIManagerCreateClassifierClient> client,
                    AIClassifierCreateOptions options,
                    pending_remote<on_device_model.mojom.DownloadObserver>? monitor);
+
+  // Returns embedder model availability info from the underlying service.
+  CanCreateSemanticEmbedder() => (ModelAvailabilityCheckResult result);
+
+  // Creates an embedder, passing the result or error to the client.
+  // Creation will be aborted if the client is disconnected.
+  CreateSemanticEmbedder(
+      pending_remote<AIManagerCreateSemanticEmbedderClient> client);
 };

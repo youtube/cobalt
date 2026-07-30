@@ -45,9 +45,9 @@ if (is_android) {
     ]
     deps = [
       "//components/vrp_flags:buildflags",
-      "//third_party/rust/font_types/v0_11:lib",
-      "//third_party/rust/read_fonts/v0_39:lib",
-      "//third_party/rust/skrifa/v0_42:lib",
+      "//third_party/rust/font_types/v0_12:lib",
+      "//third_party/rust/read_fonts/v0_40:lib",
+      "//third_party/rust/skrifa/v0_43:lib",
     ]
   }
 }
@@ -58,9 +58,9 @@ rust_static_library("child_process_security_policy_impl") {
   # finer-grained controls that allow unsafe code only for FFI code while
   # disallowing it by default for other code.
   allow_unsafe = true
-  crate_root = "child_process_security_policy_impl.rs"
-  sources = [ "child_process_security_policy_impl.rs" ]
-  cxx_bindings = [ "child_process_security_policy_impl.rs" ]
+  crate_root = "security/cpsp/child_process_security_policy_impl.rs"
+  sources = [ "security/cpsp/child_process_security_policy_impl.rs" ]
+  cxx_bindings = [ "security/cpsp/child_process_security_policy_impl.rs" ]
   visibility = [ ":browser" ]
   configs += [ "//content:content_implementation" ]
   deps = [
@@ -499,6 +499,8 @@ source_set("browser") {
     "ai/echo_ai_proofreader.h",
     "ai/echo_ai_rewriter.cc",
     "ai/echo_ai_rewriter.h",
+    "ai/echo_ai_semantic_embedder.cc",
+    "ai/echo_ai_semantic_embedder.h",
     "ai/echo_ai_summarizer.cc",
     "ai/echo_ai_summarizer.h",
     "ai/echo_ai_writer.cc",
@@ -830,8 +832,6 @@ source_set("browser") {
     "child_process_launcher.h",
     "child_process_launcher_helper.cc",
     "child_process_launcher_helper.h",
-    "child_process_security_policy_impl.cc",
-    "child_process_security_policy_impl.h",
     "client_hints/client_hints.cc",
     "client_hints/client_hints.h",
     "client_hints/critical_client_hints_throttle.cc",
@@ -869,6 +869,10 @@ source_set("browser") {
     "cpu_performance/cpu_performance.h",
     "data_url_loader_factory.cc",
     "data_url_loader_factory.h",
+    "declarative_performance_observer/declarative_performance_observer.cc",
+    "declarative_performance_observer/declarative_performance_observer.h",
+    "declarative_performance_observer/declarative_performance_observer_coordinator.cc",
+    "declarative_performance_observer/declarative_performance_observer_coordinator.h",
     "device/device_service.cc",
     "device_posture/device_posture_platform_provider.cc",
     "device_posture/device_posture_platform_provider.h",
@@ -1404,10 +1408,6 @@ source_set("browser") {
     "media/capture/desktop_capture_device_uma_types.h",
     "media/capture/desktop_streams_registry_impl.cc",
     "media/capture/desktop_streams_registry_impl.h",
-    "network/declarative_performance_observer.cc",
-    "network/declarative_performance_observer.h",
-    "network/declarative_performance_observer_coordinator.cc",
-    "network/declarative_performance_observer_coordinator.h",
     "permissions/permission_descriptor_util.cc",
     "web_contents_based_canceller.cc",
     "web_contents_based_canceller.h",
@@ -1721,6 +1721,8 @@ source_set("browser") {
     "preloading/prefetcher.h",
     "preloading/preload_activation_report_manager.cc",
     "preloading/preload_activation_report_manager.h",
+    "preloading/preload_activation_report_utils.cc",
+    "preloading/preload_activation_report_utils.h",
     "preloading/preload_pipeline_info_impl.cc",
     "preloading/preload_pipeline_info_impl.h",
     "preloading/preload_serving_metrics.cc",
@@ -1896,6 +1898,8 @@ source_set("browser") {
     "renderer_host/http_error_navigation_throttle.h",
     "renderer_host/indexed_db_client_state_checker_factory.cc",
     "renderer_host/indexed_db_client_state_checker_factory.h",
+    "renderer_host/initiator_navigation_state_impl.cc",
+    "renderer_host/initiator_navigation_state_impl.h",
     "renderer_host/input/fling_scheduler.cc",
     "renderer_host/input/fling_scheduler.h",
     "renderer_host/input/input_injector_impl.cc",
@@ -2172,6 +2176,8 @@ source_set("browser") {
     "security/coop/cross_origin_opener_policy_reporter.h",
     "security/coop/cross_origin_opener_policy_status.cc",
     "security/coop/cross_origin_opener_policy_status.h",
+    "security/cpsp/child_process_security_policy_impl.cc",
+    "security/cpsp/child_process_security_policy_impl.h",
     "security/dip/document_isolation_policy_reporter.cc",
     "security/dip/document_isolation_policy_reporter.h",
     "serial/serial_service.cc",
@@ -3223,6 +3229,7 @@ source_set("browser") {
     deps += [
       "//components/app_launch_prefetch",
       "//content/utility:delegate_data",
+      "//services/webnn/public/cpp:win",
       "//third_party/blink/public/common:font_unique_name_table_proto",
       "//third_party/iaccessible2",
       "//third_party/isimpledom",

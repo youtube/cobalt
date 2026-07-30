@@ -25,3 +25,5 @@ errors.
 - We added a call to Object.defineProperty(d,"parentNode",...) to avoid runtime
 errors when setting the `parentNode` property.
 - SRE is explicitly exported since it is imported into ChromeVox as a module.
+- Changed an errant comparison between array references (no effect) to an array
+length, discovered by the TypeScript compiler.

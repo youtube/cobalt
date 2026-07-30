@@ -25,7 +25,6 @@ GL_EXPORT extern const char kGLImplementationStubName[];
 GL_EXPORT extern const char kGLImplementationDisabledName[];
 
 GL_EXPORT extern const char kANGLEImplementationDefaultName[];
-GL_EXPORT extern const char kANGLEImplementationD3D9Name[];
 GL_EXPORT extern const char kANGLEImplementationD3D11Name[];
 GL_EXPORT extern const char kANGLEImplementationD3D11on12Name[];
 GL_EXPORT extern const char kANGLEImplementationD3D11WarpName[];

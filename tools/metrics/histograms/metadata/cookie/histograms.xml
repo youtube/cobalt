@@ -67,7 +67,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cookie.CookiePartitionSizeKibibytes" units="kibibytes"
-    expires_after="2026-10-18">
+    expires_after="2026-12-20">
   <owner>dylancutler@google.com</owner>
   <owner>src/net/cookies/OWNERS</owner>
   <summary>
@@ -139,7 +139,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cookie.CreateDatabaseEarly" enum="BooleanCreated"
-    expires_after="2026-10-18">
+    expires_after="2026-12-20">
   <owner>yoichio@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -320,24 +320,6 @@ chromium-metrics-reviews@google.com.
     Cookie.ExpirationDurationMinutesSecure.Subsampled to 400 days in minutes as
     that's the cap on cookie max-age.
   </summary>
-</histogram>
-
-<histogram name="Cookie.FirstPartySets.EnqueueingDelay.{QueryType}" units="ms"
-    expires_after="2026-08-04">
-  <owner>cfredric@chromium.org</owner>
-  <owner>kaustubhag@chromium.org</owner>
-  <summary>
-    The amount of time an asynchronous {QueryType} query was delayed before it
-    was answered.
-
-    Recorded once for each query that is answered asynchronously, when the
-    callback is invoked. Recorded for all clients, even those with
-    low-resolution clocks.
-  </summary>
-  <token key="QueryType">
-    <variant name="ComputeMetadata3"/>
-    <variant name="ContextConfig2"/>
-  </token>
 </histogram>
 
 <histogram name="Cookie.FirstPartySets.{Context}.DelayedQueriesCount"
@@ -1065,7 +1047,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cookie.TimeOpsBlockedDueToGlobalOp" units="ms"
-    expires_after="2026-10-18">
+    expires_after="2026-12-20">
   <owner>morlovich@chromium.org</owner>
   <owner>src/net/cookies/OWNERS</owner>
   <summary>

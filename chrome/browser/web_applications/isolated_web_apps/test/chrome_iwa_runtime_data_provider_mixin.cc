@@ -7,6 +7,7 @@
 #include "chrome/browser/chrome_browser_main.h"
 #include "chrome/browser/chrome_browser_main_extra_parts.h"
 #include "chrome/browser/web_applications/isolated_web_apps/runtime_data/chrome_iwa_runtime_data_provider.h"
+#include "components/webapps/isolated_web_apps/public/iwa_runtime_data_provider.h"
 
 namespace web_app {
 
@@ -21,13 +22,12 @@ class ChromeIwaRuntimeDataProviderInitializer
 
  protected:
   void PreCreateThreads() override {
-    resetter_ =
-        ChromeIwaRuntimeDataProvider::SetInstanceForTesting(&*data_provider_);
+    resetter_ = IwaRuntimeDataProvider::SetInstanceForTesting(&*data_provider_);
   }
 
  private:
   raw_ref<ChromeIwaRuntimeDataProvider> data_provider_;
-  std::optional<base::AutoReset<ChromeIwaRuntimeDataProvider*>> resetter_;
+  std::optional<base::AutoReset<IwaRuntimeDataProvider*>> resetter_;
 };
 }  // namespace
 

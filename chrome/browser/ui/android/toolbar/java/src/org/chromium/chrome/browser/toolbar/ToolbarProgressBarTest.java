@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.toolbar;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.times;
@@ -41,6 +42,7 @@ import org.chromium.base.MathUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features;
+import org.chromium.build.BuildConfig;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.widget.ClipDrawableProgressBar.ProgressBarObserver;
@@ -318,6 +320,9 @@ public class ToolbarProgressBarTest {
     @Feature({"Android-Progress-Bar"})
     @SmallTest
     public void testProgressBarHideWithBrowserControls() {
+        // TODO(crbug.com/525121768): Failing on Desktop Android.
+        assumeFalse(BuildConfig.IS_DESKTOP_ANDROID);
+
         mProgressBar.setAlpha(1.0f);
         mProgressBar.onAndroidControlsVisibilityChanged(View.INVISIBLE);
 

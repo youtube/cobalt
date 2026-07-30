@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 
+#include "base/component_export.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
@@ -47,7 +48,7 @@ namespace net {
 // - overridden DoCommit() to actually handle the logic of committing
 //   pending operations to the database,
 // - optionally overridden Record*() to record the appropriate metrics.
-class SQLitePersistentStoreBackendBase
+class COMPONENT_EXPORT(NET_EXTRAS) SQLitePersistentStoreBackendBase
     : public base::RefCountedThreadSafe<SQLitePersistentStoreBackendBase> {
  public:
   SQLitePersistentStoreBackendBase(const SQLitePersistentStoreBackendBase&) =
@@ -67,6 +68,7 @@ class SQLitePersistentStoreBackendBase
   void SetBeforeCommitCallback(base::RepeatingClosure callback);
 
   bool IsInitializedForTesting() const { return initialized_; }
+  bool IsClosedForTesting() const { return closed_; }
 
  protected:
   friend class base::RefCountedThreadSafe<SQLitePersistentStoreBackendBase>;
@@ -182,6 +184,9 @@ class SQLitePersistentStoreBackendBase
 
   // Whether the KillDatabase callback has been scheduled.
   bool corruption_detected_ = false;
+
+  // Whether Close() has been called.
+  bool closed_ = false;
 
   // Current version number of the database. Must be greater than 0.
   const int current_version_number_;

@@ -305,8 +305,10 @@ void WaylandSurface::set_surface_buffer_scale(float scale) {
       // It's safe to cast the result of GetWaylandScale to an integer here
       // because the buffer scale should always be integer when viewporter
       // surface scaling is disabled.
-      wl_surface_set_buffer_scale(
-          surface_.get(), static_cast<int32_t>(GetWaylandScale(state_)));
+      const float wayland_scale = GetWaylandScale(state_);
+      CHECK_GE(wayland_scale, 1.f);
+      wl_surface_set_buffer_scale(surface_.get(),
+                                  static_cast<int32_t>(wayland_scale));
     }
   }
 }
@@ -357,9 +359,9 @@ void WaylandSurface::set_input_region(
 }
 
 float WaylandSurface::GetWaylandScale(const State& state) {
-  return wl::ClampScale(use_viewporter_surface_scaling_
-                            ? state.buffer_scale_float
-                            : std::ceil(state.buffer_scale_float));
+  return use_viewporter_surface_scaling_
+             ? state.buffer_scale_float
+             : wl::ClampScale(std::ceil(state.buffer_scale_float));
 }
 
 bool WaylandSurface::IsViewportScaled(const State& state) {

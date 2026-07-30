@@ -56,7 +56,8 @@
   CHECK(entityDataManager);
 
   _mediator = [[IdentityDocsMediator alloc]
-      initWithEntityDataManager:entityDataManager];
+      initWithEntityDataManager:entityDataManager
+                    prefService:self.browser->GetProfile()->GetPrefs()];
   _mediator.consumer = _viewController;
   _mediator.delegate = self;
   _viewController.mutator = _mediator;

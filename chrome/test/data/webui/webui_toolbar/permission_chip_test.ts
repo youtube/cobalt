@@ -40,6 +40,12 @@ class TestToolbarUiHandler extends TestBrowserProxy implements
   showContentSettingsBubble() {
     return new Promise<never>(() => {});
   }
+  onPageActionClick() {
+    return new Promise<never>(() => {});
+  }
+  onPageActionChipShowingChanged() {
+    return new Promise<never>(() => {});
+  }
   invokePinnedToolbarAction() {}
   onHomeButtonDropUrl() {}
   onHomeButtonDropFile() {}
@@ -112,6 +118,9 @@ class TestBrowserControlsHandler extends TestBrowserProxy implements
   navigate() {
     return new Promise<never>(() => {});
   }
+  navigateText() {
+    return new Promise<never>(() => {});
+  }
 }
 
 class TestToolbarBrowserProxy extends TestBrowserProxy implements BrowserProxy {
@@ -150,7 +159,7 @@ suite('PermissionChipTest', function() {
       accessibilityName: 'Camera',
       tooltip: 'Camera in use',
       isVisible: true,
-      iconName: 'kVideocamChromeRefreshIcon',
+      iconName: 'kVideocamChromeRefreshOldIcon',
       theme: PermissionChipTheme.kNormalVisibility,
       promptStyle: PermissionPromptStyle.kChip,
       userDecision: PermissionAction.kGranted,

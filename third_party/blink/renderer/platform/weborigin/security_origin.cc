@@ -36,6 +36,8 @@
 #include <string_view>
 #include <utility>
 
+#include "base/feature_list.h"
+#include "net/base/schemeful_site.h"
 #include "net/base/url_util.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
 #include "third_party/blink/public/common/features.h"
@@ -60,6 +62,9 @@
 namespace blink {
 
 namespace {
+
+BASE_FEATURE(kCachedSchemefulSiteInSecurityOrigin,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 const String& EnsureNonNull(const String& string) {
   if (string.IsNull())
@@ -303,6 +308,20 @@ url::Origin SecurityOrigin::ToUrlOrigin() const {
       std::move(scheme), std::move(host), port);
   CHECK(!result.opaque());
   return result;
+}
+
+const net::SchemefulSite& SecurityOrigin::GetSchemefulSite() const {
+  if (!cached_schemeful_site_) {
+    cached_schemeful_site_ =
+        std::make_unique<net::SchemefulSite>(ToUrlOrigin());
+  } else if (!base::FeatureList::IsEnabled(
+                 kCachedSchemefulSiteInSecurityOrigin)) {
+    // Recompute into the cached backing storage to maintain reference lifetime
+    // while effectively disabling the caching.
+    *cached_schemeful_site_ = net::SchemefulSite(ToUrlOrigin());
+  }
+
+  return *cached_schemeful_site_;
 }
 
 scoped_refptr<SecurityOrigin> SecurityOrigin::CreateWithNonce(

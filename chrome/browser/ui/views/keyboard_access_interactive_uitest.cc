@@ -218,7 +218,7 @@ void KeyboardAccessTest::TestMenuKeyboardAccess(bool alternate_key_sequence,
 
   ui_test_utils::TabAddedWaiter tab_add(browser());
 
-  BrowserView* browser_view = static_cast<BrowserView*>(browser()->window());
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   SendKeysMenuListener menu_listener(
       views::AsViewClass<AppMenuButton>(
           views::ElementTrackerViews::GetInstance()->GetFirstMatchingView(
@@ -227,7 +227,7 @@ void KeyboardAccessTest::TestMenuKeyboardAccess(bool alternate_key_sequence,
       browser(), false);
 
   if (focus_omnibox) {
-    browser()->window()->GetLocationBar()->FocusLocation(
+    BrowserWindow::FromBrowser(browser())->GetLocationBar()->FocusLocation(
         /*is_user_initiated=*/false, /*clear_focus_if_failed=*/false);
   }
 
@@ -397,14 +397,14 @@ void KeyboardAccessTest::TestMenuKeyboardAccessAndDismiss() {
 
   int original_view_id = GetFocusedViewID();
 
-  BrowserView* browser_view = static_cast<BrowserView*>(browser()->window());
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   SendKeysMenuListener menu_listener(
       views::AsViewClass<AppMenuButton>(
           views::ElementTrackerViews::GetInstance()->GetFirstMatchingView(
               kToolbarAppMenuButtonElementId,
               views::ElementTrackerViews::GetContextForView(browser_view))),
       browser(), true);
-  browser()->window()->GetLocationBar()->FocusLocation(
+  BrowserWindow::FromBrowser(browser())->GetLocationBar()->FocusLocation(
       /*is_user_initiated=*/false, /*clear_focus_if_failed=*/false);
 
   ASSERT_TRUE(ui_test_utils::SendKeyPressSync(browser(), ui::VKEY_F10, false,

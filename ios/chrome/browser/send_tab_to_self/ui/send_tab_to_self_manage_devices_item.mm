@@ -123,9 +123,8 @@ const CGFloat kAvatarSize = 24;
   return self;
 }
 
-- (void)configureCell:(LegacyTableViewCell*)cell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:cell withStyler:styler];
+- (void)configureCell:(LegacyTableViewCell*)cell {
+  [super configureCell:cell];
   SendTabtoSelfManageDevicesCell* accountCell =
       base::apple::ObjCCastStrict<SendTabtoSelfManageDevicesCell>(cell);
 

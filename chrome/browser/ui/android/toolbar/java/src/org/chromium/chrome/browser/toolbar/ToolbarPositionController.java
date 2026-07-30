@@ -579,29 +579,7 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
             updateLayerVisibility(animatingToTop);
             mControlContainer.getView().setTranslationY(0);
             mToolbarProgressBarContainer.setTranslationY(0);
-            Runnable progressBarChangeRunnable =
-                    () -> {
-                        // Bail out if there was a state change while we waited for the runnable to
-                        // execute.
-                        if (mCurrentPosition.get() != ControlsPosition.TOP) return;
-                        LayoutParams progressBarLayoutParams =
-                                (LayoutParams) mToolbarProgressBarContainer.getLayoutParams();
-                        progressBarLayoutParams.setAnchorId(mControlContainer.getView().getId());
-                        progressBarLayoutParams.anchorGravity = Gravity.BOTTOM;
-                        if (ChromeFeatureList.sAndroidAnimatedProgressBarInBrowser.isEnabled()
-                                && ChromeFeatureList.sAndroidApb144Patch4.isEnabled()) {
-                            progressBarLayoutParams.gravity = Gravity.BOTTOM;
-                        } else {
-                            progressBarLayoutParams.gravity = Gravity.CENTER;
-                        }
-                        mToolbarProgressBarContainer.setLayoutParams(progressBarLayoutParams);
-                    };
-
-            if (((ViewGroup) mToolbarProgressBarContainer.getParent()).isInLayout()) {
-                mHandler.post(progressBarChangeRunnable);
-            } else {
-                progressBarChangeRunnable.run();
-            }
+            updateProgressBarAnchor();
         } else {
             maybeForceBottomToolbarLayoutUpdateAndCapture(ntpShowing);
 
@@ -1007,5 +985,31 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
 
     public boolean getIsFirstPositionChangeForTesting() {
         return mIsFirstPositionChange;
+    }
+
+    private void updateProgressBarAnchor() {
+        Runnable progressBarChangeRunnable =
+                () -> {
+                    // Bail out if there was a state change while we waited for the runnable to
+                    // execute.
+                    if (mCurrentPosition.get() != ControlsPosition.TOP) return;
+                    LayoutParams progressBarLayoutParams =
+                            (LayoutParams) mToolbarProgressBarContainer.getLayoutParams();
+                    progressBarLayoutParams.setAnchorId(mControlContainer.getView().getId());
+                    progressBarLayoutParams.anchorGravity = Gravity.BOTTOM;
+                    if (ChromeFeatureList.sAndroidAnimatedProgressBarInBrowser.isEnabled()
+                            && ChromeFeatureList.sAndroidApb144Patch4.isEnabled()) {
+                        progressBarLayoutParams.gravity = Gravity.BOTTOM;
+                    } else {
+                        progressBarLayoutParams.gravity = Gravity.CENTER;
+                    }
+                    mToolbarProgressBarContainer.setLayoutParams(progressBarLayoutParams);
+                };
+
+        if (((ViewGroup) mToolbarProgressBarContainer.getParent()).isInLayout()) {
+            mHandler.post(progressBarChangeRunnable);
+        } else {
+            progressBarChangeRunnable.run();
+        }
     }
 }

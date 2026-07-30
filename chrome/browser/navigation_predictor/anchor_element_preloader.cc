@@ -118,6 +118,7 @@ void AnchorElementPreloader::MaybePreconnect(const GURL& target) {
   auto network_anonymization_key =
       render_frame_host_->GetIsolationInfoForSubresources()
           .network_anonymization_key();
-  loading_predictor->PreconnectURLIfAllowed(target, /*allow_credentials=*/true,
-                                            network_anonymization_key);
+  loading_predictor->PreconnectURLIfAllowed(
+      target, /*allow_credentials=*/true, network_anonymization_key,
+      render_frame_host_->GetNetworkRestrictionsID());
 }

@@ -18,12 +18,17 @@ PrivateVerificationTokensToken::PrivateVerificationTokensToken(
     SerializedToken token,
     uint32_t key_id,
     base::Time expiration,
-    uint32_t version)
+    uint32_t version,
+    base::Time creation_time)
     : etld_plus_one_(std::move(etld_plus_one)),
       token_(std::move(token)),
       key_id_(key_id),
       expiration_(expiration),
-      version_(version) {}
+      version_(version),
+      creation_time_(
+          base::Time::UnixEpoch() +
+          base::Seconds(
+              (creation_time - base::Time::UnixEpoch()).InSeconds())) {}
 
 PrivateVerificationTokensToken::PrivateVerificationTokensToken(
     const PrivateVerificationTokensToken&) = default;
@@ -57,6 +62,10 @@ base::Time PrivateVerificationTokensToken::expiration() const {
 
 uint32_t PrivateVerificationTokensToken::version() const {
   return version_;
+}
+
+base::Time PrivateVerificationTokensToken::creation_time() const {
+  return creation_time_;
 }
 
 }  // namespace private_verification_tokens

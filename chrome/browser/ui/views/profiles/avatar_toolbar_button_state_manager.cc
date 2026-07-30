@@ -1824,7 +1824,9 @@ class SigninPendingStateProvider : public StateProvider,
   }
 
   void ClearForTesting() override {
-    display_text_delay_timer_.FireNow();
+    if (display_text_delay_timer_.IsRunning()) {
+      display_text_delay_timer_.FireNow();
+    }
     display_text_delay_timer_.Stop();
   }
 
@@ -2099,9 +2101,10 @@ void StateProvider::OnIPHPromoChanged(bool has_promo) {}
 void StateProvider::OnButtonStateChanged(std::optional<ButtonState> old_state,
                                          ButtonState new_state) {}
 
-void StateProvider::ClearForTesting() {
-  NOTREACHED();
-}
+// Can be called during tests even if the state is not active or has already
+// timed out naturally (e.g. from test helpers), so it is a no-op by default
+// instead of crashing.
+void StateProvider::ClearForTesting() {}
 
 Profile& StateProvider::profile() const {
   return profile_.get();
@@ -2841,16 +2844,24 @@ AvatarToolbarButtonStateManager::
 }
 
 void AvatarToolbarButtonStateManager::ForceShowingPromoForTesting() {
+  auto it = states_.find(ButtonState::kPromo);
+  if (it == states_.end() || !it->second) {
+    return;
+  }
   PromoStateProvider* promo_state_provider =
-      static_cast<PromoStateProvider*>(states_[ButtonState::kPromo].get());
+      static_cast<PromoStateProvider*>(it->second.get());
   promo_state_provider->GetCoordinatorForTesting()
       .ForceShowingPromoForTesting();
 }
 
 bool AvatarToolbarButtonStateManager::
     GetStateAndFireSignedOutTriggerDelayTimerForTesting() {
+  auto it = states_.find(ButtonState::kPromo);
+  if (it == states_.end() || !it->second) {
+    return false;
+  }
   PromoStateProvider* promo_state_provider =
-      static_cast<PromoStateProvider*>(states_[ButtonState::kPromo].get());
+      static_cast<PromoStateProvider*>(it->second.get());
   return promo_state_provider->GetCoordinatorForTesting()
       .GetStateAndFireSignedOutTriggerDelayTimerForTesting();
 }

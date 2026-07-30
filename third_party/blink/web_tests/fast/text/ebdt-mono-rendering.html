@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<!--
+  Exercises Skia's Fontations backend rasterization of monochrome (1bpp) EBDT
+  (Embedded Bitmap Data Table) glyphs across all four supported formats:
+    fmt 1: byte-aligned, with per-glyph metrics
+    fmt 2: bit-aligned,  with per-glyph metrics
+    fmt 6: byte-aligned, with big glyph metrics
+    fmt 7: bit-aligned,  with big glyph metrics
+
+  Each font ships an EBDT strike at ppem 64, so rendering at font-size: 64px
+  selects that strike and hits the 1bpp bitmap decode path.
+
+  Bug: crbug.com/388557912
+-->
+<meta charset="utf-8">
+<title>EBDT monochrome bitmap rendering (fmt 1, 2, 6, 7)</title>
+<style>
+  @font-face {
+    font-family: 'EbdtMonoFmt1';
+    src: url('../../third_party/EbdtMono/ebdt_fmt1.ttf') format('truetype');
+  }
+  @font-face {
+    font-family: 'EbdtMonoFmt2';
+    src: url('../../third_party/EbdtMono/ebdt_fmt2.ttf') format('truetype');
+  }
+  @font-face {
+    font-family: 'EbdtMonoFmt6';
+    src: url('../../third_party/EbdtMono/ebdt_fmt6.ttf') format('truetype');
+  }
+  @font-face {
+    font-family: 'EbdtMonoFmt7';
+    src: url('../../third_party/EbdtMono/ebdt_fmt7.ttf') format('truetype');
+  }
+  body { margin: 0; background: #ffffff; }
+  .row { font-size: 64px; line-height: 80px; margin: 0; }
+  .fmt1 { font-family: 'EbdtMonoFmt1'; }
+  .fmt2 { font-family: 'EbdtMonoFmt2'; }
+  .fmt6 { font-family: 'EbdtMonoFmt6'; }
+  .fmt7 { font-family: 'EbdtMonoFmt7'; }
+</style>
+<script>
+  if (window.testRunner) {
+    testRunner.waitUntilDone();
+  }
+  document.fonts.ready.then(() => {
+    if (window.testRunner) {
+      testRunner.notifyDone();
+    }
+  });
+</script>
+<div class="row fmt1">&#x2662;</div>
+<div class="row fmt2">&#x2662;</div>
+<div class="row fmt6">&#x2662;</div>
+<div class="row fmt7">&#x2662;</div>

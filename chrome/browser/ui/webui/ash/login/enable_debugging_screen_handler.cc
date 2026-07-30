@@ -7,11 +7,11 @@
 #include <string>
 
 #include "ash/constants/ash_login_pref_names.h"
+#include "ash/login/resources/grit/ash_login_strings.h"
 #include "base/logging.h"
 #include "chrome/browser/ash/login/oobe_screen.h"
 #include "chrome/browser/ash/login/screens/enable_debugging_screen.h"
 #include "chrome/grit/branded_strings.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/login/localized_values_builder.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/strings/grit/components_strings.h"

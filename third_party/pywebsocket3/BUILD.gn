@@ -5,6 +5,6 @@
 # pwebsocket is a Python program. Depend on this to get the data deps necessary
 # to run it in the test environment.
 group("pywebsocket3") {
-  # For now, depend on the mod_pywebsocket directory.
-  data = [ "//third_party/pywebsocket3/src/mod_pywebsocket/" ]
+  # For now, depend on the pywebsocket3 directory.
+  data = [ "//third_party/pywebsocket3/src/pywebsocket3/" ]
 }

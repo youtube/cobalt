@@ -21,8 +21,9 @@ import android.view.accessibility.AccessibilityEvent;
 
 import androidx.annotation.Px;
 
-import org.chromium.base.Callback;
 import org.chromium.base.Log;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableNullableObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.context_sharing.R;
@@ -36,7 +37,6 @@ import org.chromium.components.browser_ui.bottomsheet.EmptyBottomSheetObserver;
 import org.chromium.components.browser_ui.widget.RoundedCornerOutlineProvider;
 import org.chromium.components.browser_ui.widget.TouchEventObserver;
 import org.chromium.components.browser_ui.widget.TouchEventProvider;
-import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.KeyboardVisibilityDelegate.KeyboardVisibilityListener;
 import org.chromium.ui.base.ViewUtils;
@@ -139,8 +139,8 @@ public class TabBottomSheetCoordinator {
                 }
             };
 
-    private final Callback<@Nullable WebContents> mWebContentsObserver =
-            ignored -> updateInactivePlaceholder();
+    private final SettableNullableObservableSupplier<Boolean> mPlaceholderAllowedSupplier =
+            ObservableSuppliers.createNullable(false);
 
     private final Context mContext;
     private final BottomSheetController mBottomSheetController;
@@ -213,7 +213,7 @@ public class TabBottomSheetCoordinator {
                 mContext.getResources()
                         .getDimensionPixelSize(R.dimen.tab_bottom_sheet_peek_corner_radius);
         mOutlineProvider = new RoundedCornerOutlineProvider(radius);
-        mCoBrowseViews.getWebContentsSupplier().addSyncObserver(mWebContentsObserver);
+        mCoBrowseViews.setPlaceholderAllowedSupplier(mPlaceholderAllowedSupplier);
     }
 
     /** Tries to show the bottom sheet. */
@@ -221,8 +221,6 @@ public class TabBottomSheetCoordinator {
         if (mIsShowingTabBottomSheet || mSheetEventsCallback == null) {
             return false;
         }
-        assert mSheetContent == null;
-        assert mViewBinder == null;
         if (mCoBrowseViews.hasPeekView()) {
             mMediator.onSheetStateChanged(startsExpanded ? SheetState.FULL : SheetState.PEEK);
         }
@@ -240,8 +238,8 @@ public class TabBottomSheetCoordinator {
                                 .getResources()
                                 .getDimensionPixelSize(R.dimen.tab_bottom_sheet_peek_height_total),
                         R.id.peek_view_container,
-                        R.id.empty_placeholder_container,
                         mOnBackPressed);
+        assert mSheetContent != null : "TabBottomSheetContent must not be null";
         mViewBinder =
                 PropertyModelChangeProcessor.create(
                         mModel, mContentView, TabBottomSheetViewBinder::bind);
@@ -361,7 +359,6 @@ public class TabBottomSheetCoordinator {
 
     // Cleanup methods.
     void destroy() {
-        mCoBrowseViews.getWebContentsSupplier().removeObserver(mWebContentsObserver);
         if (mIsShowingTabBottomSheet && mSheetContent != null) {
             mBottomSheetController.hideContent(mSheetContent, false, StateChangeReason.NONE);
         }
@@ -436,7 +433,8 @@ public class TabBottomSheetCoordinator {
                         || mSheetEventsCallback == null
                         || !mIsShowingTabBottomSheet) return;
                 mMediator.onSheetStateChanged(state);
-                updateInactivePlaceholder();
+                mPlaceholderAllowedSupplier.set(
+                        state == SheetState.HALF || state == SheetState.FULL);
                 // We only send the opened notification when the sheet is not hidden and not in the
                 // middle of a closing/hiding flow.
                 if (state != SheetState.HIDDEN && !mBottomSheetController.isSheetHiding()) {
@@ -530,18 +528,6 @@ public class TabBottomSheetCoordinator {
                         mMediator.onSheetStateChanged(BottomSheetController.SheetState.HIDDEN);
                         mSheetEventsCallback.onBottomSheetClosed();
                         stopObservingCompositorViewInteractions();
-
-                        // Destroy sheet content and view binder when the sheet hides so that they
-                        // do not remain active while hidden, and can be cleanly recreated if the
-                        // sheet is reshown after suppression.
-                        if (mSheetContent != null) {
-                            mSheetContent.destroy();
-                            mSheetContent = null;
-                        }
-                        if (mViewBinder != null) {
-                            mViewBinder.destroy();
-                            mViewBinder = null;
-                        }
                     }
                     mIsShowingTabBottomSheet = false;
                 }
@@ -735,20 +721,5 @@ public class TabBottomSheetCoordinator {
 
     @Nullable TabBottomSheetContent getSheetContentForTesting() {
         return mSheetContent;
-    }
-
-    private void updateInactivePlaceholder() {
-        if (mSheetContent == null || mContentView == null) return;
-
-        View placeholder = mContentView.findViewById(R.id.empty_placeholder_container);
-        if (placeholder == null) return;
-
-        @SheetState int state = mBottomSheetController.getSheetState();
-        boolean isExpanded = state == SheetState.HALF || state == SheetState.FULL;
-        boolean usePlaceholder = mSheetContent.usePlaceholder();
-        boolean webContentsNull = mCoBrowseViews.getWebContentsSupplier().get() == null;
-
-        boolean showPlaceholder = usePlaceholder && isExpanded && webContentsNull;
-        placeholder.setVisibility(showPlaceholder ? View.VISIBLE : View.GONE);
     }
 }

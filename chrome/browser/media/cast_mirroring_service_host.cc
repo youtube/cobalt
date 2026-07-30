@@ -76,12 +76,16 @@ constexpr gfx::Size kMaxResolution(1920, 1080);
 
 // Command line arguments that should be passed to the mirroring service.
 static const char* kPassthroughSwitches[]{
-    switches::kCastStreamingForceEnableHardwareH264,
-    switches::kCastStreamingForceEnableHardwareVp8,
-    switches::kCastStreamingForceEnableHardwareVp9,
+    switches::kCastStreamingForceDisableHardwareAv1,
     switches::kCastStreamingForceDisableHardwareH264,
+    switches::kCastStreamingForceDisableHardwareHevc,
     switches::kCastStreamingForceDisableHardwareVp8,
-    switches::kCastStreamingForceDisableHardwareVp9};
+    switches::kCastStreamingForceDisableHardwareVp9,
+    switches::kCastStreamingForceEnableHardwareAv1,
+    switches::kCastStreamingForceEnableHardwareH264,
+    switches::kCastStreamingForceEnableHardwareHevc,
+    switches::kCastStreamingForceEnableHardwareVp8,
+    switches::kCastStreamingForceEnableHardwareVp9};
 
 mojo::SelfOwnedReceiverRef<media::mojom::VideoCaptureHost>
 CreateVideoCaptureHostOnIO(

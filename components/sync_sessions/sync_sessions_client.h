@@ -6,6 +6,7 @@
 #define COMPONENTS_SYNC_SESSIONS_SYNC_SESSIONS_CLIENT_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/memory/weak_ptr.h"
@@ -29,6 +30,14 @@ class SyncSessionsClient {
   SyncSessionsClient& operator=(const SyncSessionsClient&) = delete;
 
   virtual ~SyncSessionsClient();
+
+  // Returns a user-friendly display name for the session with the given tag,
+  // typically resolved from DEVICE_INFO.
+  // If this function returns a non-nullopt value, it overrides the original
+  // session name in SESSIONS (which is often a raw hardware model). If it
+  // returns nullopt, the client should fall back to the original session name.
+  virtual std::optional<std::string> GetSessionDisplayNameFromDeviceInfo(
+      const std::string& session_tag) const = 0;
 
   // Getters for services that sessions depends on.
   virtual SessionSyncPrefs* GetSessionSyncPrefs() = 0;

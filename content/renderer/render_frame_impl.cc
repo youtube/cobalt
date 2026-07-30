@@ -1013,6 +1013,8 @@ void FillMiscNavigationParams(
   }
 
   navigation_params->is_browser_initiated = commit_params.is_browser_initiated;
+  navigation_params->is_secure_context_root =
+      commit_params.is_secure_context_root;
 
   navigation_params->is_cross_site_cross_browsing_context_group =
       commit_params.is_cross_site_cross_browsing_context_group;
@@ -6378,7 +6380,20 @@ void RenderFrameImpl::BeginNavigationInternal(
             prev_common_params.should_replace_current_entry &&
         begin_params->headers == prev_begin_params.headers &&
         begin_params->has_rel_opener == prev_begin_params.has_rel_opener) {
-      is_duplicate_navigation = true;
+      // Note: The renderer-initiated duplicate navigation cookie check differs
+      // from the browser-initiated check. To prevent cross-site leaks, we only
+      // check here for changes to non-HttpOnly cookies made by this document.
+      DuplicateNavsCookieStatus cookie_status;
+      if (navigation_client_impl_->cookie_modification_count() ==
+          frame_->GetDocument().CookieModificationCount()) {
+        cookie_status = DuplicateNavsCookieStatus::kCookiesNotChanged;
+        is_duplicate_navigation = true;
+      } else {
+        cookie_status = DuplicateNavsCookieStatus::kCookiesChanged;
+      }
+      base::UmaHistogramEnumeration(
+          "Navigation.RendererInitiated.DuplicateNavCookieStatus",
+          cookie_status);
       nav_start_diff = (common_params->navigation_start -
                         prev_common_params.navigation_start);
     }
@@ -6472,6 +6487,8 @@ void RenderFrameImpl::BeginNavigationInternal(
       renderer_cancellation_listener_receiver.InitWithNewPipeAndPassRemote(),
       renderer_ignore_duplicate_navigation_listener_receiver
           .InitWithNewPipeAndPassRemote());
+  navigation_client_impl_->SetCookieModificationCount(
+      frame_->GetDocument().CookieModificationCount());
 
   GetFrameHost()->BeginNavigation(
       std::move(common_params), std::move(begin_params),

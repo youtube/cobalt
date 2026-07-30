@@ -5,12 +5,12 @@
 #include "chrome/browser/ui/webui/ash/login/gemini_intro_screen_handler.h"
 
 #include "ash/constants/ash_features.h"
+#include "ash/login/resources/grit/ash_login_strings.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/branding_buildflags.h"
 #include "chrome/browser/ui/webui/ash/login/base_screen_handler.h"
 #include "chrome/grit/chrome_unscaled_resources.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/login/localized_values_builder.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/chromeos/devicetype_utils.h"

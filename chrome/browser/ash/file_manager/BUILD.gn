@@ -478,6 +478,7 @@ source_set("browser_tests") {
     "//chrome/browser/sync",
     "//chrome/browser/sync_file_system",
     "//chrome/browser/ui",
+    "//chrome/browser/ui:browser_select_file_dialog_controller",
     "//chrome/browser/ui/ash/cast_config",
     "//chrome/browser/ui/ash/sharesheet",
     "//chrome/browser/ui/ash/system_web_apps",

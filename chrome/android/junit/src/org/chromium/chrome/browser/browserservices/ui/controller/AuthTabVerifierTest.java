@@ -130,7 +130,7 @@ public class AuthTabVerifierTest {
         HistogramWatcher histograms =
                 HistogramWatcher.newBuilder()
                         .expectIntRecord(
-                                "CustomTabs.AuthTab.TimeToDalVerification.SinceStart", 1000)
+                                "CustomTabs.AuthTab.TimeToDalVerification.SinceStart2", 1000)
                         .build();
 
         String url = REDIRECT_URL;
@@ -149,7 +149,8 @@ public class AuthTabVerifierTest {
     public void validatedHttpsReturnsResult_failure() {
         HistogramWatcher histograms =
                 HistogramWatcher.newBuilder()
-                        .expectIntRecord("CustomTabs.AuthTab.TimeToDalVerification.SinceStart", 300)
+                        .expectIntRecord(
+                                "CustomTabs.AuthTab.TimeToDalVerification.SinceStart2", 300)
                         .build();
         String url = REDIRECT_URL;
         mDelegate.onFinishNativeInitialization();
@@ -168,9 +169,10 @@ public class AuthTabVerifierTest {
         HistogramWatcher histograms =
                 HistogramWatcher.newBuilder()
                         .expectIntRecord(
-                                "CustomTabs.AuthTab.TimeToDalVerification.SinceStart", 5300)
+                                "CustomTabs.AuthTab.TimeToDalVerification.SinceStart2", 5300)
                         .expectIntRecord(
-                                "CustomTabs.AuthTab.TimeToDalVerification.SinceFlowCompletion", 300)
+                                "CustomTabs.AuthTab.TimeToDalVerification.SinceFlowCompletion2",
+                                300)
                         .build();
 
         String url = REDIRECT_URL;
@@ -198,9 +200,9 @@ public class AuthTabVerifierTest {
     public void returnsResultLaterForDelayedNetworkResponse_timeout() {
         HistogramWatcher histograms =
                 HistogramWatcher.newBuilder()
-                        .expectAnyRecord("CustomTabs.AuthTab.TimeToDalVerification.SinceStart")
+                        .expectAnyRecord("CustomTabs.AuthTab.TimeToDalVerification.SinceStart2")
                         .expectAnyRecord(
-                                "CustomTabs.AuthTab.TimeToDalVerification.SinceFlowCompletion")
+                                "CustomTabs.AuthTab.TimeToDalVerification.SinceFlowCompletion2")
                         .build();
         String url = REDIRECT_URL;
         GURL gurl = new GURL(url);

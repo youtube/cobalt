@@ -279,6 +279,8 @@ bool IsAutofillProfileManaged(const PrefService* prefs);
 
 bool IsAutofillCreditCardManaged(const PrefService* prefs);
 
+bool IsAutofillTypesBlockedManaged(const PrefService* prefs);
+
 bool IsAutofillProfileEnabled(const PrefService* prefs);
 
 void SetAutofillProfileEnabled(PrefService* prefs, bool enabled);

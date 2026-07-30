@@ -10,13 +10,13 @@ import {loadTimeData} from '//resources/js/load_time_data.js';
 import type {BitmapN32} from '//resources/mojo/skia/public/mojom/bitmap.mojom-webui.js';
 
 import {ContentSettingsType} from '../../content_settings_types.mojom-webui.js';
-import type {CaptureRegionErrorReason as CaptureRegionErrorReasonMojo, CaptureRegionObserver, CaptureRegionResult as CaptureRegionResultMojo, OpenSettingsOptions as OpenSettingsOptionsMojo, PinCandidate as PinCandidateMojo, PinCandidatesObserver, ScrollToSelector as ScrollToSelectorMojo, TabDataHandlerInterface, TabDataMojoType, TabFaviconHandlerInterface, WebClientHandlerInterface} from '../../glic.mojom-webui.js';
 import {CaptureRegionObserverReceiver, ClientErrorDialogType as ClientErrorDialogTypeMojo, PinCandidatesObserverReceiver, ResponseStopCause as ResponseStopCauseMojo, SettingsPageField as SettingsPageFieldMojo, SkillSource as SkillSourceMojo, TabDataHandlerReceiver, TabFaviconHandlerReceiver, WebClientReceiver} from '../../glic.mojom-webui.js';
-import type {CaptureRegionParams, ClientErrorDialogType, ConversationInfo, CounterAbuseVerdict, CreateSkillRequest, ExperimentalTriggeringUpdate, GetPinCandidatesOptions, MicrophoneStatus, OnResponseStoppedDetails, OpenSettingsOptions, PinTabsOptions, Screenshot, ScrollToParams, Skill, SkillsWebClientEvent, TabContextOptions, UnpinTabsOptions, UpdateSkillRequest, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../../glic_api/glic_api.js';
-import {CaptureScreenshotErrorReason, ClientCapabilities, ResponseStopCause, ScrollToErrorReason} from '../../glic_api/glic_api.js';
+import type {CaptureRegionErrorReason as CaptureRegionErrorReasonMojo, CaptureRegionObserver, CaptureRegionResult as CaptureRegionResultMojo, OpenSettingsOptions as OpenSettingsOptionsMojo, PinCandidate as PinCandidateMojo, PinCandidatesObserver, TabDataHandlerInterface, TabDataMojoType, TabFaviconHandlerInterface, WebClientHandlerInterface} from '../../glic.mojom-webui.js';
+import {CaptureScreenshotErrorReason, ClientCapabilities, ResponseStopCause} from '../../glic_api/glic_api.js';
+import type {CaptureRegionParams, ClientErrorDialogType, ConversationInfo, CounterAbuseVerdict, CreateSkillRequest, ExperimentalTriggeringUpdate, GetPinCandidatesOptions, MicrophoneStatus, OnResponseStoppedDetails, OpenSettingsOptions, PinTabsOptions, Screenshot, Skill, SkillsWebClientEvent, TabContextOptions, UnpinTabsOptions, UpdateSkillRequest, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../../glic_api/glic_api.js';
 import {replaceProperties} from '../conversions.js';
 import {enumFromClient, enumToClient} from '../enum_conversions.js';
-import type {ActorClient, ActorHost, GlicException, ImageBytesResultPrivate, RgbaImage, TabContextResultPrivate, WebClientHost, WebClientInitialStatePrivate, WebClientPinCandidatesObserver, WebClientRegionCapture, WebClientTabDataObserver, WebClientTabFaviconObserver} from '../request_types.js';
+import type {ActorClient, ActorHost, AnnotationHost, GlicException, ImageBytesResultPrivate, RgbaImage, TabContextResultPrivate, WebClientHost, WebClientInitialStatePrivate, WebClientPinCandidatesObserver, WebClientRegionCapture, WebClientTabDataObserver, WebClientTabFaviconObserver} from '../request_types.js';
 import {ErrorWithReasonImpl, exceptionFromTransferable, SubscriberObservationType} from '../request_types.js';
 import {ResponseExtras} from '../transport/messaging.js';
 import type {PendingReceiver, PendingRemote, PostMessageHandler, PostMessageRemote, PostMessageRouter} from '../transport/post_message_transport.js';
@@ -81,7 +81,7 @@ export class HostMessageHandler implements PostMessageHandler<WebClientHost> {
     webClientImpl.markCreated();
 
     conversionSettings.platform = enumToClient(initialState.platform);
-    const actorPipes = this.host.setInitialState(initialState);
+    const initialPipes = this.host.setInitialState(initialState);
     const chromeVersion = initialState.chromeVersion.components;
     const hostCapabilities = initialState.hostCapabilities;
     this.host.setInstanceIsActive(initialState.instanceIsActive);
@@ -107,9 +107,15 @@ export class HostMessageHandler implements PostMessageHandler<WebClientHost> {
             loadTimeData.getBoolean('sendResponsesForAllRequests'),
         hostCapabilities: hostCapabilitiesToClient(hostCapabilities),
       }),
-      actorRemote: actorPipes.actorRemote,
-      actorReceiver: actorPipes.actorReceiver,
+      actorRemote: initialPipes.actorRemote,
+      actorReceiver: initialPipes.actorReceiver,
     };
+  }
+
+  createAnnotationHandler(
+      request: {annotationReceiver: PendingReceiver<AnnotationHost>},
+      _extras: ResponseExtras): void {
+    this.host.createAnnotationHandler(request.annotationReceiver);
   }
 
   webClientInitialized(request: {success: boolean, exception?: GlicException}) {
@@ -560,70 +566,6 @@ export class HostMessageHandler implements PostMessageHandler<WebClientHost> {
     this.handler.onClosedCaptionsShown();
   }
 
-  async scrollTo(request: {params: ScrollToParams}): Promise<void> {
-    const {params} = request;
-
-    function getMojoSelector(): ScrollToSelectorMojo {
-      const {selector} = params;
-      if (selector.exactText !== undefined) {
-        if (selector.exactText.searchRangeStartNodeId !== undefined &&
-            params.documentId === undefined) {
-          throw new ErrorWithReasonImpl(
-              'scrollTo', ScrollToErrorReason.NOT_SUPPORTED,
-              'searchRangeStartNodeId without documentId');
-        }
-        return {
-          exactTextSelector: {
-            text: selector.exactText.text,
-            searchRangeStartNodeId:
-                selector.exactText.searchRangeStartNodeId ?? null,
-          },
-        };
-      }
-      if (selector.textFragment !== undefined) {
-        if (selector.textFragment.searchRangeStartNodeId !== undefined &&
-            params.documentId === undefined) {
-          throw new ErrorWithReasonImpl(
-              'scrollTo', ScrollToErrorReason.NOT_SUPPORTED,
-              'searchRangeStartNodeId without documentId');
-        }
-        return {
-          textFragmentSelector: {
-            textStart: selector.textFragment.textStart,
-            textEnd: selector.textFragment.textEnd,
-            searchRangeStartNodeId:
-                selector.textFragment.searchRangeStartNodeId ?? null,
-          },
-        };
-      }
-      if (selector.node !== undefined) {
-        if (params.documentId === undefined) {
-          throw new ErrorWithReasonImpl(
-              'scrollTo', ScrollToErrorReason.NOT_SUPPORTED,
-              'nodeId without documentId');
-        }
-        return {
-          nodeSelector: {
-            nodeId: selector.node.nodeId,
-          },
-        };
-      }
-      throw new ErrorWithReasonImpl(
-          'scrollTo', ScrollToErrorReason.NOT_SUPPORTED);
-    }
-
-    const mojoParams = {
-      highlight: params.highlight === undefined ? true : params.highlight,
-      selector: getMojoSelector(),
-      documentId: params.documentId ?? null,
-      url: params.url ? urlFromClient(params.url) : null,
-    };
-    const {errorReason} = (await this.handler.scrollTo(mojoParams));
-    if (errorReason !== null) {
-      throw new ErrorWithReasonImpl('scrollTo', enumToClient(errorReason));
-    }
-    return;
-  }
 
   setSyntheticExperimentState(request: {
     trialName: string,
@@ -726,9 +668,6 @@ export class HostMessageHandler implements PostMessageHandler<WebClientHost> {
     } else {
       return {suggestions: zeroStateSuggestionsToClient(zeroStateData)};
     }
-  }
-  dropScrollToHighlight(): void {
-    this.handler.dropScrollToHighlight();
   }
 
   maybeRefreshUserStatus(): void {

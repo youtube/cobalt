@@ -283,3 +283,114 @@ source_set("impl") {
     deps += [ "//chrome/browser/chrome_for_testing:browser" ]
   }
 }
+
+source_set("test_support") {
+  testonly = true
+
+  sources = [
+    "privacy_sandbox_attestations_component_installer_test_util.cc",
+    "privacy_sandbox_attestations_component_installer_test_util.h",
+  ]
+
+  deps = [
+    ":component_updater",
+    "//base",
+    "//components/component_updater",
+    "//components/privacy_sandbox/privacy_sandbox_attestations/proto",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+
+  # These tests pre-date strict sign-comparison warnings; relax to the warning
+  # posture they had while compiled in //chrome/test.
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+
+  sources = [
+    "chrome_component_updater_configurator_unittest.cc",
+    "crl_set_component_installer_unittest.cc",
+    "indigo_component_installer_unittest.cc",
+    "origin_trials_component_installer_unittest.cc",
+    "pki_metadata_component_installer_unittest.cc",
+    "platform_runtime_component_installer_unittest.cc",
+    "privacy_sandbox_attestations_component_installer_unittest.cc",
+    "private_verification_tokens_installer_unittest.cc",
+    "subresource_filter_component_installer_unittest.cc",
+  ]
+
+  deps = [
+    ":component_updater",
+    ":impl",
+    ":test_support",
+    "//base",
+    "//base/test:test_support",
+    "//chrome/test:test_support",
+    "//components/certificate_transparency",
+    "//components/certificate_transparency:proto_gen",
+    "//components/component_updater",
+    "//components/component_updater:test_support",
+    "//components/privacy_sandbox/privacy_sandbox_attestations:metrics",
+    "//content/test:test_support",
+    "//services/cert_verifier:lib",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+
+  if (!is_android) {
+    sources += [
+      "captcha_provider_component_installer_unittest.cc",
+      "soda_component_installer_unittest.cc",
+      "soda_language_pack_component_installer_unittest.cc",
+      "zxcvbn_data_component_installer_unittest.cc",
+    ]
+    deps += [
+      "//components/live_caption:constants",
+      "//third_party/zxcvbn-cpp",
+    ]
+  }
+
+  if (is_chromeos) {
+    sources += [
+      "cros_component_installer_chromeos_unittest.cc",
+      "metadata_table_chromeos_unittest.cc",
+    ]
+    deps += [
+      "//chrome/browser:browser_process_platform_part",
+      "//chromeos/ash/components/dbus/image_loader",
+    ]
+  }
+}
+
+if (!is_android) {
+  source_set("browser_tests") {
+    testonly = true
+
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+
+    # These tests pre-date strict sign-comparison warnings; relax to the warning
+    # posture they had while compiled in //chrome/test.
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    sources = [ "pki_metadata_component_installer_browsertest.cc" ]
+
+    deps = [
+      ":component_updater",
+      ":impl",
+      "//base",
+      "//chrome/browser/ssl:test_support",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//components/certificate_transparency",
+      "//components/certificate_transparency:proto_gen",
+      "//components/metrics:content",
+      "//content/test:test_support",
+      "//testing/gtest",
+    ]
+  }
+}

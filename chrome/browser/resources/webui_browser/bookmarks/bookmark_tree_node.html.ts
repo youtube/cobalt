@@ -17,12 +17,15 @@ ${this.node.folder ? html`
       <button @click="${this.onAddFolderClick}">+Folder</button>
       ${this.node.folder.id?.value ? html`
         <button @click="${this.onEditClick}">Edit</button>
+        <button @click="${this.onMoveClick}">Move</button>
         <button @click="${this.onDeleteClick}">Delete</button>
       ` : ''}
     </summary>
     <div class="folder-children">
       ${this.node.folder.children.map(item => html`
-        <webui-browser-bookmark-tree-node .node="${item}">
+        <webui-browser-bookmark-tree-node
+            id="${item.folder?.id?.value || item.url?.id?.value}"
+            .node="${item}">
         </webui-browser-bookmark-tree-node>
       `)}
     </div>
@@ -30,10 +33,15 @@ ${this.node.folder ? html`
 ` : ''}
 ${this.node.url ? html`
   <div class="bookmark-item">
+    ${this.node.url.faviconUrl ? html`
+      <img src="${this.node.url.faviconUrl}" width="16" height="16"
+           style="margin-right: 4px; vertical-align: middle;">
+    ` : ''}
     <a href="${this.node.url.url}" target="_blank">
       ${this.node.url.title || this.node.url.url}
     </a>
     <button @click="${this.onEditClick}">Edit</button>
+    <button @click="${this.onMoveClick}">Move</button>
     <button @click="${this.onDeleteClick}">Delete</button>
   </div>
 ` : ''}

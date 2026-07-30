@@ -17,6 +17,7 @@
 
 #include "base/check.h"
 #include "base/check_op.h"
+#include "base/containers/span.h"
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/stringprintf.h"
@@ -26,7 +27,7 @@
 #include "components/autofill/core/common/autofill_prefs.h"
 #include "components/autofill/core/common/signatures.h"
 #include "components/prefs/pref_service.h"
-#include "crypto/hkdf.h"
+#include "crypto/kdf.h"
 
 namespace autofill {
 
@@ -83,7 +84,11 @@ std::string GetPseudoRandomBits(std::string_view secret,
   DVLOG(1) << "Generating pseudo-random bits from " << info;
 
   // Generate the pseudo-random bits.
-  return crypto::HkdfSha256(secret, {}, info, encoding_length_in_bytes);
+  std::string result(encoding_length_in_bytes, '\0');
+  crypto::kdf::Hkdf(crypto::hash::kSha256, base::as_byte_span(secret), {},
+                    base::as_byte_span(info),
+                    base::as_writable_byte_span(result));
+  return result;
 }
 
 // Returns the "random" encoding type to use for encoding.

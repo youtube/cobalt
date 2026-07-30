@@ -30,7 +30,8 @@ const CGFloat kCardShadowAlpha = 0.05;
 const CGFloat kLayoutSpacing = 16.0;
 }  // namespace
 
-#pragma mark - LevelUpTaskCollectionViewCell
+@interface LevelUpTaskCollectionViewCell () <LevelUpTaskRowViewDelegate>
+@end
 
 @implementation LevelUpTaskCollectionViewCell {
   UILabel* _titleLabel;
@@ -156,6 +157,7 @@ const CGFloat kLayoutSpacing = 16.0;
 - (void)addRows:(NSArray<LevelUpTask*>*)tasks hidden:(BOOL)hidden {
   for (LevelUpTask* task in tasks) {
     LevelUpTaskRowView* row = [[LevelUpTaskRowView alloc] init];
+    row.delegate = self;
     BOOL showSeparator = (task != tasks.lastObject);
     [row configureWithTask:task showSeparator:showSeparator];
     row.hidden = hidden;
@@ -236,6 +238,12 @@ const CGFloat kLayoutSpacing = 16.0;
 // Target executed when user taps the completed header.
 - (void)didTapCompletedHeader {
   [self.delegate taskCollectionViewDidTapCompletedHeader:self];
+}
+
+#pragma mark - LevelUpTaskRowViewDelegate
+
+- (void)taskRowView:(LevelUpTaskRowView*)rowView didTapTask:(LevelUpTask*)task {
+  [self.delegate taskCollectionViewCell:self didTapTask:task];
 }
 
 @end

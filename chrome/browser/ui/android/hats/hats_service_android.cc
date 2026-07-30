@@ -60,6 +60,10 @@ void HatsServiceAndroid::DelayedSurveyTask::Launch() {
   CHECK(web_contents());
   if (!web_contents() ||
       web_contents()->GetVisibility() != content::Visibility::VISIBLE) {
+    if (!failure_callback_.is_null()) {
+      std::move(failure_callback_).Run();
+    }
+    hats_service_->RemoveTask(*this);
     return;
   }
 
@@ -172,7 +176,7 @@ HatsServiceAndroid::HatsServiceAndroid(Profile* profile)
 
 HatsServiceAndroid::~HatsServiceAndroid() = default;
 
-void HatsServiceAndroid::LaunchSurvey(
+HatsService::LaunchError HatsServiceAndroid::LaunchSurvey(
     const std::string& trigger,
     base::OnceClosure success_callback,
     base::OnceClosure failure_callback,
@@ -181,9 +185,10 @@ void HatsServiceAndroid::LaunchSurvey(
     const std::optional<std::string>& supplied_trigger_id,
     const SurveyOptions& survey_options) {
   NOTIMPLEMENTED();
+  return LaunchError::kError;
 }
 
-void HatsServiceAndroid::LaunchSurveyForWebContents(
+HatsService::LaunchError HatsServiceAndroid::LaunchSurveyForWebContents(
     const std::string& trigger,
     content::WebContents* web_contents,
     const SurveyBitsData& product_specific_bits_data,
@@ -194,23 +199,23 @@ void HatsServiceAndroid::LaunchSurveyForWebContents(
     const SurveyOptions& survey_options) {
   // By using a delayed survey with a delay of 0, we can centralize the object
   // lifecycle management duties for native clank survey triggers.
-  LaunchDelayedSurveyForWebContents(
+  return LaunchDelayedSurveyForWebContents(
       trigger, web_contents, 0, product_specific_bits_data,
       product_specific_string_data, HatsService::NavigationBehavior::ALLOW_ANY,
       std::move(success_callback), std::move(failure_callback),
       supplied_trigger_id, survey_options);
 }
 
-bool HatsServiceAndroid::LaunchDelayedSurvey(
+HatsService::LaunchError HatsServiceAndroid::LaunchDelayedSurvey(
     const std::string& trigger,
     int timeout_ms,
     const SurveyBitsData& product_specific_bits_data,
     const SurveyStringData& product_specific_string_data) {
   NOTIMPLEMENTED();
-  return false;
+  return LaunchError::kError;
 }
 
-bool HatsServiceAndroid::LaunchDelayedSurveyForWebContents(
+HatsService::LaunchError HatsServiceAndroid::LaunchDelayedSurveyForWebContents(
     const std::string& trigger,
     content::WebContents* web_contents,
     int timeout_ms,
@@ -229,16 +234,25 @@ bool HatsServiceAndroid::LaunchDelayedSurveyForWebContents(
     if (!failure_callback.is_null()) {
       std::move(failure_callback).Run();
     }
-    return false;
+    return LaunchError::kNoTriggerConfig;
+  }
+  // Check for duplicate task before moving callbacks.
+  auto duplicate_it =
+      std::ranges::find_if(pending_tasks_, [&](const DelayedSurveyTask& task) {
+        return task.web_contents() == web_contents && task.trigger() == trigger;
+      });
+  if (duplicate_it != pending_tasks_.end()) {
+    if (!failure_callback.is_null()) {
+      std::move(failure_callback).Run();
+    }
+    return LaunchError::kSurveyInProgress;
   }
   auto result = pending_tasks_.emplace(
       this, trigger, web_contents, product_specific_bits_data,
       product_specific_string_data, navigation_behavior,
       std::move(success_callback), std::move(failure_callback),
       supplied_trigger_id, survey_options);
-  if (!result.second) {
-    return false;
-  }
+  CHECK(result.second);
   auto success =
       base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
           FROM_HERE,
@@ -249,8 +263,9 @@ bool HatsServiceAndroid::LaunchDelayedSurveyForWebContents(
           base::Milliseconds(timeout_ms));
   if (!success) {
     pending_tasks_.erase(result.first);
+    return LaunchError::kError;
   }
-  return success;
+  return LaunchError::kNone;
 }
 
 bool HatsServiceAndroid::CanShowAnySurvey(bool user_prompted) const {

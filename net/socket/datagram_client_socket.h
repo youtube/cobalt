@@ -87,9 +87,12 @@ class NET_EXPORT_PRIVATE DatagramClientSocket : public DatagramSocket,
   // ConnectUsingNetwork() or ConnectUsingDefaultNetwork().
   virtual handles::NetworkHandle GetBoundNetwork() const = 0;
 
-  // Reads one or more datagrams. Depending on the ratio of `buf_len` to
-  // `max_message_size`, this may read a single datagram, or multiple datagrams
-  // via recvmmsg.
+  // Reads one or more datagrams from a connected socket. Depending on the
+  // ratio of `buf_len` to `max_message_size`, this may read a single
+  // datagram, or multiple datagrams via recvmmsg (on supported platforms like
+  // Linux, ChromeOS, and Android). On platforms where recvmmsg is not
+  // supported (e.g., macOS, iOS, Fuchsia, or Windows), the implementation
+  // may fall back to reading a single datagram using recvmsg/recvfrom.
   //
   // Calling Semantics:
   // This method returns either the actual value (`DatagramsMetadata`) or an

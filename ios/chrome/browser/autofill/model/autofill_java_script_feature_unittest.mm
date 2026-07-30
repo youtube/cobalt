@@ -177,7 +177,7 @@ TEST_F(AutofillJavaScriptFeatureTest, ExtractForms) {
         @"should_autocomplete" : @true,
         @"is_checkable" : @false,
         @"is_focusable" : @true,
-        @"is_user_edited_deprecated" : @true,
+        @"is_user_edited_deprecated" : @false,
         @"value" : @"",
         @"label" : @"First Name",
         @"renderer_id" : @"2"
@@ -195,7 +195,7 @@ TEST_F(AutofillJavaScriptFeatureTest, ExtractForms) {
         @"should_autocomplete" : @true,
         @"is_checkable" : @false,
         @"is_focusable" : @true,
-        @"is_user_edited_deprecated" : @true,
+        @"is_user_edited_deprecated" : @false,
         @"value" : @"",
         @"label" : @"Last Name",
         @"renderer_id" : @"3"
@@ -213,7 +213,7 @@ TEST_F(AutofillJavaScriptFeatureTest, ExtractForms) {
         @"should_autocomplete" : @true,
         @"is_checkable" : @false,
         @"is_focusable" : @true,
-        @"is_user_edited_deprecated" : @true,
+        @"is_user_edited_deprecated" : @false,
         @"value" : @"",
         @"label" : @"",
         @"renderer_id" : @"4"
@@ -276,7 +276,7 @@ TEST_F(AutofillJavaScriptFeatureTest, ExtractForms2) {
         @"should_autocomplete" : @true,
         @"is_checkable" : @false,
         @"is_focusable" : @true,
-        @"is_user_edited_deprecated" : @true,
+        @"is_user_edited_deprecated" : @false,
         @"value" : @"",
         @"label" : @"First Name",
         @"renderer_id" : @"2"
@@ -294,7 +294,7 @@ TEST_F(AutofillJavaScriptFeatureTest, ExtractForms2) {
         @"should_autocomplete" : @true,
         @"is_checkable" : @false,
         @"is_focusable" : @true,
-        @"is_user_edited_deprecated" : @true,
+        @"is_user_edited_deprecated" : @false,
         @"value" : @"",
         @"label" : @"Last Name",
         @"renderer_id" : @"3"
@@ -312,7 +312,7 @@ TEST_F(AutofillJavaScriptFeatureTest, ExtractForms2) {
         @"should_autocomplete" : @true,
         @"is_checkable" : @false,
         @"is_focusable" : @true,
-        @"is_user_edited_deprecated" : @true,
+        @"is_user_edited_deprecated" : @false,
         @"value" : @"",
         @"label" : @"",
         @"renderer_id" : @"4"

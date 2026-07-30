@@ -46,6 +46,7 @@
 #include "net/base/load_timing_info.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_status_code.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/cpp/cross_origin_embedder_policy.h"
 #include "services/network/public/cpp/document_isolation_policy.h"
 #include "services/network/public/cpp/features.h"
@@ -56,11 +57,18 @@
 #include "third_party/blink/public/common/service_worker/service_worker_loader_helpers.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_fetch_handler_bypass_option.mojom-shared.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-shared.h"
+#include "third_party/perfetto/include/perfetto/tracing/track.h"
 #include "third_party/perfetto/include/perfetto/tracing/track_event_args.h"
 
 namespace content {
 
 namespace {
+
+perfetto::NamedTrack GetTracingTrack(
+    const ServiceWorkerMainResourceLoader* loader) {
+  return perfetto::NamedTrack::FromPointer(
+      "content::ServiceWorkerMainResourceLoader", loader);
+}
 
 using SyntheticResponseStatus =
     ServiceWorkerSyntheticResponseManager::SyntheticResponseStatus;
@@ -121,6 +129,12 @@ void MaybeSetFetchHandlerBypassOptionForsyntheticResponse(
   if (bypass_subresource) {
     client->set_fetch_handler_bypass_option(option);
   }
+}
+
+void RecordAutoPreloadDispatchResult(
+    ServiceWorkerAutoPreloadDispatchResult result) {
+  base::UmaHistogramEnumeration("ServiceWorker.AutoPreload.DispatchResult",
+                                result);
 }
 
 }  // namespace
@@ -467,16 +481,22 @@ bool ServiceWorkerMainResourceLoader::MaybeStartAutoPreload(
     scoped_refptr<ServiceWorkerContextWrapper> context,
     scoped_refptr<ServiceWorkerVersion> version) {
   if (!base::FeatureList::IsEnabled(features::kServiceWorkerAutoPreload)) {
+    RecordAutoPreloadDispatchResult(
+        ServiceWorkerAutoPreloadDispatchResult::kFeatureDisabled);
     return false;
   }
 
   if (!GetContentClient()->browser()->IsServiceWorkerAutoPreloadAllowed(
           context->browser_context())) {
+    RecordAutoPreloadDispatchResult(
+        ServiceWorkerAutoPreloadDispatchResult::kNotAllowedByBrowser);
     return false;
   }
 
   // AutoPreload is triggered only in a main frame.
   if (!resource_request_.is_outermost_main_frame) {
+    RecordAutoPreloadDispatchResult(
+        ServiceWorkerAutoPreloadDispatchResult::kNotOutermostMainFrame);
     return false;
   }
 
@@ -485,6 +505,8 @@ bool ServiceWorkerMainResourceLoader::MaybeStartAutoPreload(
   if (base::FeatureList::IsEnabled(
           features::kOptimizeWebRequestProxyForServiceWorkerAutoPreload) &&
       context->storage_partition()->is_guest()) {
+    RecordAutoPreloadDispatchResult(
+        ServiceWorkerAutoPreloadDispatchResult::kGuestStoragePartition);
     return false;
   }
 
@@ -494,30 +516,12 @@ bool ServiceWorkerMainResourceLoader::MaybeStartAutoPreload(
   // `OnErrorOccurred()`, while that is not actually an error.
   if (GetContentClient()->browser()->HasWebRequestAPIProxy(
           context->browser_context())) {
+    RecordAutoPreloadDispatchResult(
+        ServiceWorkerAutoPreloadDispatchResult::kWebRequestAPIProxy);
     return false;
   }
 
-  // Hosts to disable AutoPreload feature. This mechanism is needed to address
-  // the case when the AutoPreload behavior is problematic for some websites and
-  // those should be opted out from the feature.
-  const static base::NoDestructor<base::flat_set<std::string>> blocked_hosts(
-      base::SplitString(
-          base::GetFieldTrialParamValueByFeature(
-              features::kServiceWorkerAutoPreload, "blocked_hosts"),
-          ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY));
-  if (blocked_hosts->contains(resource_request_.url.GetHost())) {
-    return false;
-  }
-
-  // If |enable_only_when_service_worker_not_running| is true, preload requests
-  // are dispatched only when the ServiceWorker is not running. When it's
-  // running, preload requests for both main resource and subresources are not
-  // dispatched.
-  if (base::GetFieldTrialParamByFeatureAsBool(
-          features::kServiceWorkerAutoPreload,
-          "enable_only_when_service_worker_not_running",
-          /*default_value=*/true) &&
-      version->running_status() == blink::EmbeddedWorkerStatus::kRunning) {
+  if (version->running_status() == blink::EmbeddedWorkerStatus::kRunning) {
     return false;
   }
 
@@ -531,6 +535,11 @@ bool ServiceWorkerMainResourceLoader::MaybeStartAutoPreload(
     // handler result is fallback. The fallback case is handled after
     // receiving the fetch handler result.
     SetCommitResponsibility(FetchResponseFrom::kServiceWorker);
+    RecordAutoPreloadDispatchResult(
+        ServiceWorkerAutoPreloadDispatchResult::kDispatched);
+  } else {
+    RecordAutoPreloadDispatchResult(
+        ServiceWorkerAutoPreloadDispatchResult::kStartFailed);
   }
 
   return result;
@@ -559,7 +568,6 @@ bool ServiceWorkerMainResourceLoader::StartRaceNetworkRequest(
   if (!service_worker_client_) {
     return false;
   }
-
   // Create URLLoader related assets to handle the request triggered by
   // RaceNetworkRequset.
   mojo::PendingRemote<network::mojom::URLLoaderClient> forwarding_client;
@@ -572,7 +580,8 @@ bool ServiceWorkerMainResourceLoader::StartRaceNetworkRequest(
       service_worker_client_->CreateNetworkURLLoaderFactory(
           ServiceWorkerClient::CreateNetworkURLLoaderFactoryType::
               kRaceNetworkRequest,
-          context->storage_partition(), resource_request_, std::nullopt),
+          context->storage_partition(), resource_request_,
+          network::GetNoOpNetworkRestrictionsId()),
       /*is_main_resource=*/true);
   CHECK(!race_network_request_url_loader_client_);
   race_network_request_url_loader_client_.emplace(
@@ -601,12 +610,14 @@ bool ServiceWorkerMainResourceLoader::StartRaceNetworkRequest(
   mojo::PendingRemote<network::mojom::URLLoaderClient> client_to_pass;
   race_network_request_url_loader_client_->Bind(&client_to_pass);
   CHECK(!race_network_request_url_loader_factory_);
-  // This is also for the race network request, so we pass std::nullopt.
+  // This is also for the race network request, so we pass
+  // network::GetNoOpNetworkRestrictionsId().
   race_network_request_url_loader_factory_ =
       service_worker_client_->CreateNetworkURLLoaderFactory(
           ServiceWorkerClient::CreateNetworkURLLoaderFactoryType::
               kRaceNetworkRequest,
-          context->storage_partition(), resource_request_, std::nullopt);
+          context->storage_partition(), resource_request_,
+          network::GetNoOpNetworkRestrictionsId());
 
   // Perform fetch
   CHECK_EQ(commit_responsibility(), FetchResponseFrom::kNoResponseYet);
@@ -1651,11 +1662,10 @@ bool ServiceWorkerMainResourceLoader::IsEligibleForRecordingTimingMetrics() {
 }
 
 void ServiceWorkerMainResourceLoader::RecordFindRegistrationToCompletedTrace() {
-  TRACE_EVENT_BEGIN(
-      "ServiceWorker", kHistogramLoadTiming, perfetto::Track::FromPointer(this),
-      find_registration_start_time_, "url", resource_request_.url);
-  TRACE_EVENT_END("ServiceWorker", perfetto::Track::FromPointer(this),
-                  completion_time_);
+  TRACE_EVENT_BEGIN("ServiceWorker", kHistogramLoadTiming,
+                    GetTracingTrack(this), find_registration_start_time_, "url",
+                    resource_request_.url);
+  TRACE_EVENT_END("ServiceWorker", GetTracingTrack(this), completion_time_);
 }
 
 void ServiceWorkerMainResourceLoader::
@@ -1663,11 +1673,9 @@ void ServiceWorkerMainResourceLoader::
   const base::TimeTicks request_start =
       response_head_->load_timing.request_start;
   TRACE_EVENT_BEGIN("ServiceWorker", "FindRegistrationToRequestStart",
-                    perfetto::Track::FromPointer(this),
-                    find_registration_start_time_, "url",
+                    GetTracingTrack(this), find_registration_start_time_, "url",
                     resource_request_.url);
-  TRACE_EVENT_END("ServiceWorker", perfetto::Track::FromPointer(this),
-                  request_start);
+  TRACE_EVENT_END("ServiceWorker", GetTracingTrack(this), request_start);
 
   base::UmaHistogramMediumTimes(
       base::StrCat({kHistogramLoadTiming, ".FindRegistrationToRequestStart"}),
@@ -1718,9 +1726,8 @@ void ServiceWorkerMainResourceLoader::
                     GetInitialServiceWorkerStatusString()}),
       load_timing.service_worker_start_time - load_timing.request_start);
   TRACE_EVENT_BEGIN("ServiceWorker", "RequestStartToForwardServiceWorker",
-                    perfetto::Track::FromPointer(this),
-                    load_timing.request_start);
-  TRACE_EVENT_END("ServiceWorker", perfetto::Track::FromPointer(this),
+                    GetTracingTrack(this), load_timing.request_start);
+  TRACE_EVENT_END("ServiceWorker", GetTracingTrack(this),
                   load_timing.service_worker_start_time);
 }
 
@@ -1754,16 +1761,16 @@ void ServiceWorkerMainResourceLoader::
            GetInitialServiceWorkerStatusString(), ".", navigation_type_string}),
       time);
   TRACE_EVENT_BEGIN(
-      "ServiceWorker",
-      perfetto::StaticString(
-          base::StrCat({"ForwardServiceWorkerToWorkerReady.",
-                        GetInitialServiceWorkerStatusString(), ".",
-                        navigation_type_string, ".",
-                        is_browser_startup_completed_str})
-              .c_str()),
-      perfetto::Track::FromPointer(this), load_timing.service_worker_start_time,
+      "ServiceWorker", nullptr, GetTracingTrack(this),
+      load_timing.service_worker_start_time,
+      [&](perfetto::EventContext& ctx) {
+        ctx.event()->set_name(base::StrCat(
+            {"ForwardServiceWorkerToWorkerReady.",
+             GetInitialServiceWorkerStatusString(), ".", navigation_type_string,
+             ".", is_browser_startup_completed_str}));
+      },
       "initial_service_worker_status", GetInitialServiceWorkerStatusString());
-  TRACE_EVENT_END("ServiceWorker", perfetto::Track::FromPointer(this),
+  TRACE_EVENT_END("ServiceWorker", GetTracingTrack(this),
                   load_timing.service_worker_ready_time);
 }
 
@@ -1781,9 +1788,9 @@ void ServiceWorkerMainResourceLoader::
       fetch_event_timing_->dispatch_event_time -
           load_timing.service_worker_ready_time);
   TRACE_EVENT_BEGIN("ServiceWorker", "WorkerReadyToFetchHandlerStart",
-                    perfetto::Track::FromPointer(this),
+                    GetTracingTrack(this),
                     load_timing.service_worker_ready_time);
-  TRACE_EVENT_END("ServiceWorker", perfetto::Track::FromPointer(this),
+  TRACE_EVENT_END("ServiceWorker", GetTracingTrack(this),
                   fetch_event_timing_->dispatch_event_time);
 }
 
@@ -1800,9 +1807,9 @@ void ServiceWorkerMainResourceLoader::
                           fetch_event_timing_->respond_with_settled_time -
                               fetch_event_timing_->dispatch_event_time);
   TRACE_EVENT_BEGIN("ServiceWorker", "FetchHandlerStartToFetchHandlerEnd",
-                    perfetto::Track::FromPointer(this),
+                    GetTracingTrack(this),
                     fetch_event_timing_->dispatch_event_time);
-  TRACE_EVENT_END("ServiceWorker", perfetto::Track::FromPointer(this),
+  TRACE_EVENT_END("ServiceWorker", GetTracingTrack(this),
                   fetch_event_timing_->respond_with_settled_time);
 }
 
@@ -1820,9 +1827,9 @@ void ServiceWorkerMainResourceLoader::
       load_timing.receive_headers_end -
           fetch_event_timing_->respond_with_settled_time);
   TRACE_EVENT_BEGIN("ServiceWorker", "FetchHandlerEndToResponseReceived",
-                    perfetto::Track::FromPointer(this),
+                    GetTracingTrack(this),
                     fetch_event_timing_->respond_with_settled_time);
-  TRACE_EVENT_END("ServiceWorker", perfetto::Track::FromPointer(this),
+  TRACE_EVENT_END("ServiceWorker", GetTracingTrack(this),
                   load_timing.receive_headers_end);
 }
 
@@ -1837,13 +1844,11 @@ void ServiceWorkerMainResourceLoader::
                     GetInitialServiceWorkerStatusString()}),
       completion_time_ - load_timing.receive_headers_end);
   TRACE_EVENT_BEGIN(
-      "ServiceWorker", "ResponseReceivedToCompleted",
-      perfetto::Track::FromPointer(this), load_timing.receive_headers_end,
-      "fetch_response_source",
+      "ServiceWorker", "ResponseReceivedToCompleted", GetTracingTrack(this),
+      load_timing.receive_headers_end, "fetch_response_source",
       blink::ServiceWorkerLoaderHelpers::FetchResponseSourceToSuffix(
           response_source_));
-  TRACE_EVENT_END("ServiceWorker", perfetto::Track::FromPointer(this),
-                  completion_time_);
+  TRACE_EVENT_END("ServiceWorker", GetTracingTrack(this), completion_time_);
   // Same as above, breakdown by response source.
   base::UmaHistogramMediumTimes(
       base::StrCat(
@@ -1916,10 +1921,9 @@ void ServiceWorkerMainResourceLoader::
                     GetInitialServiceWorkerStatusString()}),
       completion_time_ - fetch_event_timing_->respond_with_settled_time);
   TRACE_EVENT_BEGIN("ServiceWorker", "FetchHandlerEndToFallbackNetwork",
-                    perfetto::Track::FromPointer(this),
+                    GetTracingTrack(this),
                     fetch_event_timing_->respond_with_settled_time);
-  TRACE_EVENT_END("ServiceWorker", perfetto::Track::FromPointer(this),
-                  completion_time_);
+  TRACE_EVENT_END("ServiceWorker", GetTracingTrack(this), completion_time_);
 }
 
 void ServiceWorkerMainResourceLoader::RecordFetchEventHandlerMetrics(

@@ -92,6 +92,7 @@
 #include "components/omnibox/browser/zero_suggest_provider.h"
 #include "components/omnibox/common/omnibox_feature_configs.h"
 #include "components/omnibox/common/omnibox_features.h"
+#include "components/page_load_metrics/browser/navigation_handle_user_data.h"
 #include "components/profile_metrics/browser_profile_type.h"
 #include "components/safe_browsing/buildflags.h"
 #include "components/search_engines/template_url_service.h"
@@ -899,6 +900,17 @@ void ChromeOmniboxClient::OnAutocompleteAccept(
 
   if (browser_) {
     auto navigation = chrome::OpenCurrentURL(browser_);
+    if (navigation) {
+      if (ui::PageTransitionCoreTypeIs(transition, ui::PAGE_TRANSITION_TYPED)) {
+        page_load_metrics::NavigationHandleUserData::
+            AttachOmniboxDirectUrlInputNavigationHandleUserData(*navigation);
+      } else if (ui::PageTransitionCoreTypeIs(transition,
+                                              ui::PAGE_TRANSITION_GENERATED)) {
+        page_load_metrics::NavigationHandleUserData::
+            AttachOmniboxDefaultSearchEngineNavigationHandleUserData(
+                *navigation);
+      }
+    }
     ChromeOmniboxNavigationObserver::Create(navigation.get(), profile_, text,
                                             match, alternative_nav_match);
     search_engines::MaybeShowSearchEngineResetNotification(browser_,

@@ -52,21 +52,20 @@ class FilterExtractor {
   virtual void ExtractAnnotationFromUrl(
       const GURL& url,
       base::OnceCallback<void(std::optional<base::Uuid>)> callback,
-      int64_t navigation_id,
-      std::string_view domain);
+      int64_t navigation_id);
 
  private:
   // See documentation of `ExtractAnnotationFromUrl()` for more details.
   void OnAnnotationExtracted(
       base::OnceCallback<void(std::optional<base::Uuid>)> callback,
       int64_t navigation_id,
-      std::string_view domain,
+      std::string_view host,
       std::optional<FilterAnnotation> annotation);
   void OnAnnotationStored(
       base::OnceCallback<void(std::optional<base::Uuid>)> callback,
       base::Uuid annotation_id,
       int64_t navigation_id,
-      std::string_view domain,
+      std::string_view host,
       bool success);
 
   // The client used to extract annotations from URLs. This is a non-owning

@@ -2894,6 +2894,12 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_CONTEXTMENU_PRINT_PAGE" desc="This string is shown in the context menu for printing the current page. [CHAR_LIMIT=30]">
         Print
       </message>
+      <message name="IDS_CONTEXTMENU_BACK" desc="This string is shown in the context menu for going to the previous page in history. [CHAR_LIMIT=30]">
+        Back
+      </message>
+      <message name="IDS_CONTEXTMENU_FORWARD" desc="This string is shown in the context menu for going to the next page in history. [CHAR_LIMIT=30]">
+        Forward
+      </message>
       <message name="IDS_CONTEXTMENU_RELOAD" desc="This string is shown in the context menu for reloading the current page. [CHAR_LIMIT=30]">
         Reload
       </message>
@@ -4892,6 +4898,33 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_PDF_DOCUMENT_PROPERTIES" desc="Menu option to view PDF document properties.">
         Document properties
+      </message>
+      <message name="IDS_PDF_PROPERTIES_FILE_NAME" desc="Label for file name in PDF document properties">
+        File name
+      </message>
+      <message name="IDS_PDF_PROPERTIES_FILE_SIZE" desc="Label for file size in PDF document properties">
+        File size
+      </message>
+      <message name="IDS_PDF_PROPERTIES_TITLE" desc="Label for title in PDF document properties">
+        Title
+      </message>
+      <message name="IDS_PDF_PROPERTIES_CREATED" desc="Label for creation date and time in PDF document properties">
+        Created
+      </message>
+      <message name="IDS_PDF_PROPERTIES_MODIFIED" desc="Label for modification date and time in PDF document properties">
+        Modified
+      </message>
+      <message name="IDS_PDF_PROPERTIES_PAGE_COUNT" desc="Label for page count in PDF document properties">
+        Page count
+      </message>
+      <message name="IDS_PDF_PROPERTIES_PAGE_SIZE" desc="Label for page size in PDF document properties">
+        Page size
+      </message>
+      <message name="IDS_PDF_PROPERTIES_VALUE_UNKNOWN" desc="Value used when a PDF property is unknown">
+        Unknown
+      </message>
+      <message name="IDS_PDF_PROPERTIES_CLOSE" desc="Button text to close the PDF properties dialog [CHAR_LIMIT=20]">
+        Close
       </message>
       <message name="IDS_PDF_DOWNLOAD" desc="Menu option to download the PDF document.">
         Download

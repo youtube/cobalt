@@ -241,6 +241,18 @@ bool MimeHandlerStreamManager::IsExtensionHost(
                                     render_frame_host->GetFrameTreeNodeId());
 }
 
+bool MimeHandlerStreamManager::IsExtensionHostForUrl(
+    const content::RenderFrameHost* render_frame_host,
+    const GURL& url) const {
+  if (!IsExtensionHost(render_frame_host)) {
+    return false;
+  }
+  const extensions::StreamInfo* stream_info =
+      GetClaimedStreamInfo(render_frame_host->GetParent());
+  CHECK(stream_info);
+  return url.host() == stream_info->stream()->extension_id();
+}
+
 std::optional<ExtensionId>
 MimeHandlerStreamManager::GetTopLevelHandlerExtensionId() const {
   content::RenderFrameHost* main_rfh = web_contents()->GetPrimaryMainFrame();
@@ -272,6 +284,19 @@ bool MimeHandlerStreamManager::IsExtensionFrameTreeNodeId(
              stream_info->extension_host_frame_tree_node_id() &&
          embedder_host->GetLastCommittedURL().EqualsIgnoringRef(
              stream_info->stream()->original_url());
+}
+
+bool MimeHandlerStreamManager::IsExtensionFrameTreeNodeIdForUrl(
+    const content::RenderFrameHost* embedder_host,
+    content::FrameTreeNodeId frame_tree_node_id,
+    const GURL& url) const {
+  if (!IsExtensionFrameTreeNodeId(embedder_host, frame_tree_node_id)) {
+    return false;
+  }
+  const extensions::StreamInfo* stream_info =
+      GetClaimedStreamInfo(embedder_host);
+  CHECK(stream_info);
+  return url.host() == stream_info->stream()->extension_id();
 }
 
 bool MimeHandlerStreamManager::DidExtensionFrameFinishNavigation(
@@ -689,6 +714,11 @@ void MimeHandlerStreamManager::NavigateToExtensionUrl(
       stream_info->stream()->handler_url());
   params.frame_tree_node_id = extension_host_frame_tree_node_id;
   params.source_site_instance = source_site_instance;
+
+  if (stream_info->delegate()->RequiresPerInstanceProcessIsolation()) {
+    params.requests_unique_instance_isolation = true;
+  }
+
   web_contents()->GetController().LoadURLWithParams(params);
 }
 

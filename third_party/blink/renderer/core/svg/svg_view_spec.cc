@@ -80,7 +80,7 @@ bool SVGViewSpec::ParseViewSpec(const String& spec) {
 
 const SVGViewSpec* SVGViewSpec::CreateFromSpatialFragment(
     const String& fragment,
-    const gfx::SizeF natural_size) {
+    const NaturalSizingInfo& sizing_info) {
   // Use MediaFragmentURIParser for spatial dimension parsing.
   MediaFragmentURIParser media_parser(fragment);
 
@@ -94,33 +94,36 @@ const SVGViewSpec* SVGViewSpec::CreateFromSpatialFragment(
   gfx::RectF clip_rect(spatial_clip.rect);
 
   if (spatial_clip.unit == SpatialClip::Unit::kPercent) {
-    // Percent units resolve against the SVG's concrete object size. If that
-    // size is empty (the SVG has no natural width/height that can be resolved
-    // against a 0x0 default object size) there is no basis to resolve
-    // percentages, so reject the fragment.
+    // For percent-based fragments, resolve against the concrete object size
+    // using the default object size of 300x150 [1].
     //
-    // TODO(dmangal): The Media Fragments spec does not define how percent
-    // units should behave when the resource has no natural size; revisit
-    // once that has been clarified.
-    if (natural_size.IsEmpty()) {
-      return nullptr;
-    }
-    clip_rect.Scale(natural_size.width() / 100.0f,
-                    natural_size.height() / 100.0f);
-  }
+    // [1] https://www.w3.org/TR/css-images-3/#default-sizing
+    const gfx::SizeF percent_base =
+        blink::ConcreteObjectSize(sizing_info, gfx::SizeF(300, 150));
+    clip_rect.Scale(percent_base.width() / 100.0f,
+                    percent_base.height() / 100.0f);
+  } else {
+    // Compute the concrete object size without any fallback — this represents
+    // the SVG's actual resolved dimensions and is used for clamping.
+    const gfx::SizeF natural_size =
+        blink::ConcreteObjectSize(sizing_info, gfx::SizeF());
 
-  // Clamp the clip rect to the SVG's natural bounds per the Media
-  // Fragments spec, 6.1.2 [1] and 6.3.3 [2]. This prevents the
-  // viewBox from mapping an oversized coordinate region into the
-  // rendering box, which would distort the aspect ratio.
-  //
-  // Skip the clamp when the resource has no resolvable natural size
-  // (pixel-based fragment on an SVG without a concrete object size).
-  //
-  // [1] https://www.w3.org/TR/media-frags/#valid-uri-spatial
-  // [2] https://www.w3.org/TR/media-frags/#error-media-spatial
-  if (!natural_size.IsEmpty()) {
-    clip_rect.Intersect(gfx::RectF(natural_size));
+    // Clamp the clip rect to the SVG's natural bounds per the Media
+    // Fragments spec, 6.1.2 [1] and 6.3.3 [2]. This prevents the
+    // viewBox from mapping an oversized coordinate region into the
+    // rendering box, which would distort the aspect ratio.
+    //
+    // Skip the clamp when the concrete object size is empty. This covers
+    // both "no natural size" (no width/height attributes) and "explicit
+    // zero size" (width="0" height="0"). These cases could in theory be
+    // distinguished via NaturalSizingInfo::has_width/has_height, but we
+    // treat them the same for simplicity.
+    //
+    // [1] https://www.w3.org/TR/media-frags/#valid-uri-spatial
+    // [2] https://www.w3.org/TR/media-frags/#error-media-spatial
+    if (!natural_size.IsEmpty()) {
+      clip_rect.Intersect(gfx::RectF(natural_size));
+    }
   }
 
   if (clip_rect.IsEmpty()) {

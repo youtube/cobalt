@@ -78,7 +78,7 @@ class AutofillAccessibilityWinBrowserTest : public InProcessBrowserTest {
 
   HWND GetWebPageHwnd() const {
     return browser()
-        ->window()
+        ->GetWindow()
         ->GetNativeWindow()
         ->GetHost()
         ->GetAcceleratedWidget();

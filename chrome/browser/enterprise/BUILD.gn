@@ -235,6 +235,11 @@ source_set("enterprise") {
       "client_certificates/certificate_store_factory.h",
       "client_certificates/profile_context_delegate.h",
     ]
+
+    if (is_chromeos) {
+      public += [ "client_certificates/ash/kcer_certificate_store.h" ]
+      public_deps += [ "//chromeos/ash/components/kcer" ]
+    }
   }
 
   if (is_linux || is_win || is_mac || is_chromeos || is_android) {
@@ -664,6 +669,17 @@ source_set("impl") {
       "//components/enterprise/client_certificates/core:dm_server_client",
       "//components/enterprise/client_certificates/core:management_delegate",
     ]
+
+    if (is_chromeos) {
+      sources += [ "client_certificates/ash/kcer_certificate_store.cc" ]
+      deps += [
+        "//chrome/browser/ash/kcer",
+        "//chrome/browser/ash/profiles",
+        "//chromeos/ash/components/kcer",
+        "//components/user_manager",
+        "//net",
+      ]
+    }
   }
 
   if (is_linux || is_win || is_mac || is_chromeos || is_android) {

@@ -10,13 +10,16 @@
 
 set -eo pipefail
 
-# When running inside the Docker container in CI, we don't copy `tools/.cargo`.
-CONFIG_ARGS=()
-if [[ -f "tools/.cargo/config.toml" ]]; then
-  CONFIG_ARGS=("--config" "tools/.cargo/config.toml")
-fi
+ZEROCOPY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+REPO_DIR="$(dirname "$ZEROCOPY_DIR")"
 
 # Build `cargo-zerocopy` without any RUSTFLAGS or CARGO_TARGET_DIR set in the
-# environment
-env -u RUSTFLAGS -u CARGO_TARGET_DIR cargo +stable build "${CONFIG_ARGS[@]}" --manifest-path tools/cargo-zerocopy/Cargo.toml -p cargo-zerocopy -q
-./tools/target/debug/cargo-zerocopy "$@"
+# environment. Build it from the repository root so that Zerocopy's vendoring
+# config does not apply to the unvendored tools workspace.
+(
+  cd "$REPO_DIR"
+  env -u RUSTFLAGS -u CARGO_TARGET_DIR cargo +stable build --manifest-path tools/cargo-zerocopy/Cargo.toml -p cargo-zerocopy -q
+)
+
+cd "$ZEROCOPY_DIR"
+exec "$REPO_DIR/tools/target/debug/cargo-zerocopy" "$@"

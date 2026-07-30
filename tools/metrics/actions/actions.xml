@@ -685,9 +685,13 @@ should be able to be added at any place in this file.
       summary="For PasswordSuggestions feature."/>
   <variant name="_PasswordsWebAppProfileSwitch"
       summary="For PasswordsWebAppProfileSwitch feature."/>
+  <variant name="_PdfGlicSummarizeFeature"
+      summary="For PDF Glic Summarize feature."/>
   <variant name="_PdfInkSignatures" summary="For PDF Ink Signatures feature."/>
   <variant name="_PdfPageDownload" summary="For the PdfPageDownload feature."/>
   <variant name="_PdfSearchifyFeature" summary="For PDF Searchify feature."/>
+  <variant name="_PdfTextAnnotations"
+      summary="For PDF Text Annotations feature."/>
   <variant name="_PerformanceInterventionDialog"
       summary="For triggering the performance intervention dialog and toolbar
                button feature."/>
@@ -787,6 +791,8 @@ should be able to be added at any place in this file.
       summary="For side by side split view pinning feature."/>
   <variant name="_SideBySideTabSwitchFeature"
       summary="For switching between tabs many times for split view feature."/>
+  <variant name="_SidePanelContextualTasksPinnableFeature"
+      summary="contextual tasks side panel pinnable"/>
   <variant name="_SidePanelGenericPinnableFeature"
       summary="For Side Panel Pinning pin feature."/>
   <variant name="_SidePanelLensOverlayPinnableFeature"
@@ -882,8 +888,6 @@ should be able to be added at any place in this file.
   <variant name="_WebUiHelpBubbleTest"
       summary="For WebUiHelpBubbleTest feature."/>
   <variant name="_WhatsNewUpdated" summary="For what's new updated content."/>
-  <variant name="IPH_SidePanelContextualTasksPinnableFeature"
-      summary="contextual tasks side panel pinnable"/>
 </variants>
 
 <variants name="MerchantTrust_Type">
@@ -11487,12 +11491,17 @@ should be able to be added at any place in this file.
     <variant name=".OpenMyActivity"
         summary="The user opened the My Activity page."/>
     <variant name=".OpenNewThread" summary="The user opened a new thread."/>
+    <variant name=".OpenOverflowMenu"
+        summary="The user opened the overflow menu."/>
     <variant name=".OpenSourcesMenu"
         summary="The user opened the sources menu."/>
     <variant name=".OpenThreadHistory"
         summary="The user opened the thread history."/>
+    <variant name=".PinSidePanel" summary="The user pinned the side panel."/>
     <variant name=".TabFromSourcesMenuClicked"
         summary="The user clicked on a tab from the sources menu."/>
+    <variant name=".UnpinSidePanel"
+        summary="The user unpinned the side panel."/>
   </token>
 </action>
 
@@ -26619,6 +26628,40 @@ should be able to be added at any place in this file.
   <description>Reported when the user taps the New Feature Badge</description>
 </action>
 
+<action name="MobileAutofillAndPasswordsSettingsBack">
+  <owner>jsobiech@google.com</owner>
+  <owner>chrome-autofill-team@google.com</owner>
+  <description>
+    Reported when user goes back from Autofill and Passwords Settings UI to root
+    Settings screen. iOS only.
+  </description>
+</action>
+
+<action name="MobileAutofillAndPasswordsSettingsClose">
+  <owner>jsobiech@google.com</owner>
+  <owner>chrome-autofill-team@google.com</owner>
+  <description>
+    Reported when Autofill and Passwords Settings UI was dismissed. iOS only.
+  </description>
+</action>
+
+<action name="MobileAutofillSettingsBack">
+  <owner>jsobiech@google.com</owner>
+  <owner>chrome-autofill-team@google.com</owner>
+  <description>
+    Reported when user goes back from Autofill Settings UI to Autofill and
+    Passwords Settings screen. iOS only.
+  </description>
+</action>
+
+<action name="MobileAutofillSettingsClose">
+  <owner>jsobiech@google.com</owner>
+  <owner>chrome-autofill-team@google.com</owner>
+  <description>
+    Reported when Autofill Settings UI was dismissed. iOS only.
+  </description>
+</action>
+
 <action name="MobileBandwidthSettingsBack">
   <owner>gambard@chromium.org</owner>
   <owner>sczs@chromium.org</owner>
@@ -28285,6 +28328,23 @@ should be able to be added at any place in this file.
   <owner>gambard@chromium.org</owner>
   <description>
     User confirmed provided credentials in HTTP Authentication dialog. iOS only.
+  </description>
+</action>
+
+<action name="MobileIdentityDocsSettingsBack">
+  <owner>jsobiech@google.com</owner>
+  <owner>chrome-autofill-team@google.com</owner>
+  <description>
+    Reported when user goes back from Identity Docs Settings UI to Autofill and
+    Passwords Settings screen. iOS only.
+  </description>
+</action>
+
+<action name="MobileIdentityDocsSettingsClose">
+  <owner>jsobiech@google.com</owner>
+  <owner>chrome-autofill-team@google.com</owner>
+  <description>
+    Reported when Identity Docs Settings UI was dismissed. iOS only.
   </description>
 </action>
 
@@ -33538,9 +33598,11 @@ should be able to be added at any place in this file.
     <variant name=".Shown.MultiTab"
         summary="Recorded when the tab context menu is shown with multiple
                  tabs selected."/>
-    <variant name=".ShowTabsVertically"
-        summary="User switched the layout to the vertical tabs view via the
-                 tab context menu on tab strip on Android."/>
+    <variant name=".ToggleTabLayout"
+        summary="Recorded when the user taps 'Show tabs vertically' in the
+                 Android tab strip context menu or 'Show tabs horizontally'
+                 in the Android Vertical Tabs context menu to switch the tab
+                 layout."/>
     <variant name=".UnmuteSite"
         summary="User unmuted a site via the tab context menu on tab strip on
                  Android."/>
@@ -33671,6 +33733,23 @@ should be able to be added at any place in this file.
   <owner>sdefresne@chromium.org</owner>
   <description>
     Reported when Translate Settings UI was dismissed. iOS only.
+  </description>
+</action>
+
+<action name="MobileTravelInfoSettingsBack">
+  <owner>jsobiech@google.com</owner>
+  <owner>chrome-autofill-team@google.com</owner>
+  <description>
+    Reported when user goes back from Travel Info Settings UI to Autofill and
+    Passwords Settings screen. iOS only.
+  </description>
+</action>
+
+<action name="MobileTravelInfoSettingsClose">
+  <owner>jsobiech@google.com</owner>
+  <owner>chrome-autofill-team@google.com</owner>
+  <description>
+    Reported when Travel Info Settings UI was dismissed. iOS only.
   </description>
 </action>
 
@@ -44588,6 +44667,14 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Shelf_ContextMenu_Task_Manager">
+  <owner>oshima@chromium.org</owner>
+  <owner>cros-system-ui-eng@google.com</owner>
+  <description>
+    User selected Task Manager from the shelf context menu on ChromeOS.
+  </description>
+</action>
+
 <action name="Shelf_ItemPinned">
   <owner>mmourgos@chromium.org</owner>
   <owner>gzadina@google.com</owner>
@@ -47046,6 +47133,15 @@ should be able to be added at any place in this file.
   <description>
     Recorded on sign in start from access point
     signin_metrics::AccessPoint::kIosGeminiButtonToolbar. iOS only.
+  </description>
+</action>
+
+<action name="Signin_Signin_FromLevelUp">
+  <owner>pabouchard@google.com</owner>
+  <owner>bling-mony-pod@google.com</owner>
+  <description>
+    Recorded on sign in start from access point
+    signin_metrics::AccessPoint::kLevelUp. iOS only.
   </description>
 </action>
 

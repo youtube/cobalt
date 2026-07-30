@@ -594,9 +594,6 @@ class HoldingSpaceKeyedServiceTest : public BrowserWithTestWindowTest {
             FileSuggestKeyedServiceFactory::GetInstance(),
             base::BindRepeating(
                 &MockFileSuggestKeyedService::BuildMockFileSuggestKeyedService,
-                TestingBrowserProcess::GetGlobal()
-                    ->GetFeatures()
-                    ->application_locale_storage(),
                 temp_dir_.GetPath())}};
   }
 

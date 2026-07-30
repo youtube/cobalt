@@ -137,22 +137,9 @@ class MandatoryReauthManager {
 
   PaymentsDataManager& GetPaymentsDataManager();
 
-  void SetDeviceAuthenticatorPtrForTesting(
-      std::unique_ptr<device_reauth::DeviceAuthenticator>
-          device_authenticator) {
-    device_authenticator_ = std::move(device_authenticator);
-  }
-
-  device_reauth::DeviceAuthenticator* GetDeviceAuthenticatorPtrForTesting() {
-    return device_authenticator_.get();
-  }
-
  private:
   // Raw pointer to the web content's AutofillClient.
   raw_ptr<AutofillClient> client_;
-
-  // Used for authentication related to mandatory re-auth.
-  std::unique_ptr<device_reauth::DeviceAuthenticator> device_authenticator_;
 
   // Used to store the opt in source for logging purposes.
   autofill_metrics::MandatoryReauthOptInOrOutSource opt_in_source_ =

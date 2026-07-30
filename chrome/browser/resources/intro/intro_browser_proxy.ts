@@ -6,6 +6,7 @@ import {IntroPageCallbackRouter, IntroPageHandlerFactory} from './intro.mojom-we
 
 export interface IntroBrowserProxy {
   callbackRouter: IntroPageCallbackRouter;
+  matchMedia(query: string): MediaQueryList;
 }
 
 export class IntroBrowserProxyImpl implements IntroBrowserProxy {
@@ -24,6 +25,10 @@ export class IntroBrowserProxyImpl implements IntroBrowserProxy {
 
   static setInstance(proxy: IntroBrowserProxy) {
     instance = proxy;
+  }
+
+  matchMedia(query: string): MediaQueryList {
+    return window.matchMedia(query);
   }
 }
 

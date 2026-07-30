@@ -65,7 +65,6 @@
 #import "components/autofill/ios/browser/password_autofill_agent.h"
 #import "components/autofill/ios/common/features.h"
 #import "components/autofill/ios/common/field_data_manager_factory_ios.h"
-#import "components/autofill/ios/form_util/autofill_form_features_injector.h"
 #import "components/autofill/ios/form_util/autofill_form_features_java_script_feature.h"
 #import "components/autofill/ios/form_util/form_activity_observer_bridge.h"
 #import "components/autofill/ios/form_util/form_activity_params.h"
@@ -91,7 +90,6 @@
 #import "ui/gfx/image/image.h"
 #import "url/gurl.h"
 
-using autofill::AutofillFormFeaturesInjector;
 using autofill::AutofillFormFeaturesJavaScriptFeature;
 using autofill::AutofillJavaScriptFeature;
 using autofill::FieldDataManager;
@@ -232,9 +230,6 @@ bool HasGuid(const Suggestion::Payload& payload) {
 
   // ID of the last Autofill query made. Used to discard outdated suggestions.
   FieldGlobalId _lastQueriedFieldID;
-
-  // Helper for setting feature flags in page content world WebFrames.
-  std::unique_ptr<AutofillFormFeaturesInjector> _page_world_features_injector;
 }
 
 @end
@@ -266,12 +261,6 @@ bool HasGuid(const Suggestion::Payload& payload) {
         autofill::prefs::kAutofillCreditCardEnabled, &_prefChangeRegistrar);
     _prefObserverBridge->ObserveChangesForPreference(
         autofill::prefs::kAutofillProfileEnabled, &_prefChangeRegistrar);
-
-    // Inject feature flags in the page content world. Feature flags are needed
-    // for the form submission hook that is injected in that the page world.
-    _page_world_features_injector =
-        std::make_unique<AutofillFormFeaturesInjector>(
-            webState, web::ContentWorld::kPageContentWorld);
   }
   return self;
 }
@@ -708,8 +697,10 @@ bool HasGuid(const Suggestion::Payload& payload) {
       case SuggestionType::kAutocompleteAtMemoryButton:
       case SuggestionType::kOpenGemini:
       case SuggestionType::kAtMemoryNoConnection:
+      case SuggestionType::kAtMemoryGenericError:
       case SuggestionType::kPersonalContextNotice:
       case SuggestionType::kFetchingAmbientData:
+      case SuggestionType::kMaximizeCreditCardBenefitsEntry:
         break;
     }
 
@@ -730,16 +721,16 @@ bool HasGuid(const Suggestion::Payload& payload) {
         (popup_suggestion.field_by_field_filling_type_used
              ? *popup_suggestion.field_by_field_filling_type_used
              : autofill::FieldType::EMPTY_TYPE);
-    FormSuggestion* suggestion = [FormSuggestion
-                suggestionWithValue:value
-                         minorValue:minorValue
-                 displayDescription:displayDescription
-                               icon:icon
-                               type:popup_suggestion.type
-                            payload:popup_suggestion.payload
-        fieldByFieldFillingTypeUsed:fieldByFieldFillingTypeUsed
-                     requiresReauth:NO
-         acceptanceA11yAnnouncement:acceptanceA11yAnnouncement];
+    FormSuggestion* suggestion =
+        [FormSuggestion suggestionWithValue:value
+                                 minorValue:minorValue
+                         displayDescription:displayDescription
+                                       icon:icon
+                                       type:popup_suggestion.type
+                                    payload:popup_suggestion.payload
+                fieldByFieldFillingTypeUsed:fieldByFieldFillingTypeUsed
+                             requiresReauth:NO
+                 acceptanceA11yAnnouncement:acceptanceA11yAnnouncement];
 
     suggestion.featureForIPH = SuggestionFeatureForIPH::kUnknown;
     suggestion.suggestionIconType = suggestionIconType;
@@ -786,7 +777,6 @@ bool HasGuid(const Suggestion::Payload& payload) {
 - (bool)isLastQueriedField:(FieldGlobalId)fieldID {
   return fieldID == _lastQueriedFieldID;
 }
-
 
 #pragma mark - CRWWebStateObserver
 
@@ -925,13 +915,31 @@ bool HasGuid(const Suggestion::Payload& payload) {
                    hasUserGesture:(BOOL)hasUserGesture
                           inFrame:(web::WebFrame*)frame
                    perfectFilling:(BOOL)perfectFilling {
-  if (![self isAutofillEnabled] || !frame) {
+  if (![self isAutofillEnabled]) {
+    base::UmaHistogramEnumeration(
+        "Autofill.iOS.FormSubmission.BlockedReason",
+        autofill::SubmissionBlockedReason::kAutofillDisabled);
+    return;
+  }
+  if (!frame) {
+    base::UmaHistogramEnumeration("Autofill.iOS.FormSubmission.BlockedReason",
+                                  autofill::SubmissionBlockedReason::kNoFrame);
+    return;
+  }
+  if (!hasUserGesture &&
+      base::FeatureList::IsEnabled(
+          kAutofillRejectFormSubmissionsWithoutUserGesture)) {
+    base::UmaHistogramEnumeration(
+        "Autofill.iOS.FormSubmission.BlockedReason",
+        autofill::SubmissionBlockedReason::kNoUserGesture);
     return;
   }
 
   auto* driver =
       autofill::AutofillDriverIOS::FromWebStateAndWebFrame(webState, frame);
   if (!driver) {
+    base::UmaHistogramEnumeration("Autofill.iOS.FormSubmission.BlockedReason",
+                                  autofill::SubmissionBlockedReason::kNoDriver);
     return;
   }
 
@@ -1400,12 +1408,6 @@ bool HasGuid(const Suggestion::Payload& payload) {
     return;
   }
   driver->set_processed(true);
-
-  // Inject feature flags in frame directly to make sure the flags are set
-  // before triggering form extraction. We could use
-  // AutofillFormFeaturesInjector but there is no guarantee that it will inject
-  // the flags before this code is run.
-  autofill::SetAutofillFormFeatureFlags(frame);
 
   if (frame->IsMainFrame()) {
     _suggestionDelegate.reset();

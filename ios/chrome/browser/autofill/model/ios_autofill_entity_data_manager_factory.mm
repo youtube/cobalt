@@ -60,6 +60,7 @@ IOSAutofillEntityDataManagerFactory::BuildServiceInstanceFor(
           profile, ServiceAccessType::EXPLICIT_ACCESS),
       ios::HistoryServiceFactory::GetForProfile(
           profile, ServiceAccessType::EXPLICIT_ACCESS),
+      /*pcontext_manager=*/nullptr,
       autofill::StrikeDatabaseFactory::GetForProfile(profile),
       autofill::GeoIpCountryCode(autofill::GetCountryCodeFromVariations()));
 }

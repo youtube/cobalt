@@ -17,7 +17,6 @@ enum GLImplementation {
 // Maps to its namesake in ui/gl/gl_implementation.h.
 enum ANGLEImplementation {
   kNone,
-  kD3D9,
   kD3D11,
   kOpenGL,
   kOpenGLES,

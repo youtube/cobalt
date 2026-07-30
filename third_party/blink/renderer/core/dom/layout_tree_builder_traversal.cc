@@ -442,6 +442,9 @@ static inline bool AreBoxTreeOrderSiblings(const Node& current, Node* sibling) {
     if (style && !style->ScrollMarkerGroupNone()) {
       return false;
     }
+    if (element->HasScrollButtonOrMarkerGroupPseudos()) {
+      return false;
+    }
   }
   if (Element* sibling_element = DynamicTo<Element>(sibling)) {
     if (sibling_element->IsScrollMarkerGroupPseudoElement()) {
@@ -480,7 +483,7 @@ static inline bool AreBoxTreeOrderSiblings(const Node& current, Node* sibling) {
 // layout object is either previous or next sibling of its originating element,
 // but still a node child of it, as a pseudo-element.
 // Layout tree:
-//        (PS) (SMGB) (OE) (SMGA) (NS)
+//        (PS) (SMGB) (OE) (SB) (SMGA) (NS)
 //                  (B)  (A)
 // OE - originating element
 // PS - previous sibling of OE
@@ -512,53 +515,64 @@ static Node* NextLayoutSiblingInBoxTreeOrder(const Node& node) {
   if (next_element && next_element->IsScrollMarkerGroupPseudoElement()) {
     return LayoutTreeBuilderTraversal::NextSibling(*next_element);
   }
-  // From OE with SMGA to NS, return SMGA.
-  const Element* element = DynamicTo<Element>(node);
+  // Unified traversal logic using sibling sequence order:
+  const Element* element = DynamicTo<Element>(&node);
   if (!element) {
     return next;
   }
-  if (element->GetComputedStyle() &&
-      element->GetComputedStyle()->HasScrollMarkerGroupAfter()) {
-    if (Element* pseudo = To<Element>(node).GetPseudoElement(
-            kPseudoIdScrollMarkerGroupAfter)) {
+
+  const Element* originating =
+      element->IsPseudoElement() ? element->parentElement() : element;
+  if (!originating) {
+    return next;
+  }
+
+  static constexpr std::array kBoxTreeOrder{
+      kPseudoIdScrollMarkerGroupBefore, kPseudoIdNone,
+      kPseudoIdScrollButtonBlockStart,  kPseudoIdScrollButtonInlineStart,
+      kPseudoIdScrollButtonInlineEnd,   kPseudoIdScrollButtonBlockEnd,
+      kPseudoIdScrollMarkerGroupAfter,
+  };
+
+  PseudoId current_id =
+      element->IsPseudoElement() ? element->GetPseudoId() : kPseudoIdNone;
+
+  auto it = std::find(kBoxTreeOrder.begin(), kBoxTreeOrder.end(), current_id);
+  if (it == kBoxTreeOrder.end()) {
+    return next;
+  }
+
+  // If we matched kPseudoIdNone, ensure we are actually the originating element
+  // (meaning we have scroll-buttons or scroll-marker-groups generated).
+  if (current_id == kPseudoIdNone &&
+      !originating->HasScrollButtonOrMarkerGroupPseudos()) {
+    return next;
+  }
+
+  for (auto next_it = std::next(it); next_it != kBoxTreeOrder.end();
+       ++next_it) {
+    PseudoId pseudo_id = *next_it;
+    if (pseudo_id == kPseudoIdNone) {
+      return const_cast<Element*>(originating);
+    }
+    if (Element* pseudo = originating->GetPseudoElement(pseudo_id)) {
       return pseudo;
     }
   }
-  // From SMGB.
-  if (element->IsScrollMarkerGroupBeforePseudoElement()) {
-    // return SB, if found.
-    if (next && next->IsScrollButtonPseudoElement()) {
-      return next;
-    }
-    // return OE, if not.
-    return element->parentNode();
-  }
-  // From SB.
-  if (element->IsScrollButtonPseudoElement()) {
-    // return next SB, if found.
-    if (next && next->IsScrollButtonPseudoElement()) {
-      return next;
-    }
-    // return OE, if not.
-    return element->parentNode();
-  }
-  // From SMGA, return NS, but check if NS has SMGB, then return NS's SMGB.
-  if (element->IsScrollMarkerGroupAfterPseudoElement()) {
-    Node* originating_next =
-        LayoutTreeBuilderTraversal::NextSibling(*element->parentNode());
-    Element* originating_next_element = DynamicTo<Element>(originating_next);
-    if (originating_next_element &&
-        originating_next_element->GetComputedStyle() &&
-        originating_next_element->GetComputedStyle()
-            ->HasScrollMarkerGroupBefore()) {
-      if (Element* pseudo = originating_next_element->GetPseudoElement(
-              kPseudoIdScrollMarkerGroupBefore)) {
+
+  // Fallthrough: traverse to originating's next sibling (checking for SMGB)
+  Node* originating_next =
+      LayoutTreeBuilderTraversal::NextSibling(*originating);
+  if (Element* next_el = DynamicTo<Element>(originating_next)) {
+    if (next_el->GetComputedStyle() &&
+        next_el->GetComputedStyle()->HasScrollMarkerGroupBefore()) {
+      if (Element* pseudo =
+              next_el->GetPseudoElement(kPseudoIdScrollMarkerGroupBefore)) {
         return pseudo;
       }
     }
-    return originating_next;
   }
-  return next;
+  return originating_next;
 }
 
 static Node* NextLayoutSiblingInternal(Node* node) {

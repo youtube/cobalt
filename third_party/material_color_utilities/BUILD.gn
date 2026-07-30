@@ -12,6 +12,15 @@ config("material_color_utilities_config") {
 source_set("material_color_utilities") {
   public_configs = [ ":material_color_utilities_config" ]
 
+  # Use no_chromium_code to avoid compilation errors from upstream syntax
+  # (e.g. extra semicolons) that violate Chromium's style guide.
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+
+  if (!is_win) {
+    cflags_cc = [ "-Wno-extra-semi" ]
+  }
+
   sources = [
     "src/cpp/blend/blend.cc",
     "src/cpp/blend/blend.h",
@@ -23,7 +32,8 @@ source_set("material_color_utilities") {
     "src/cpp/cam/hct_solver.h",
     "src/cpp/cam/viewing_conditions.cc",
     "src/cpp/cam/viewing_conditions.h",
-    "src/cpp/palettes/core.cc",
+    "src/cpp/contrast/contrast.cc",
+    "src/cpp/contrast/contrast.h",
     "src/cpp/palettes/core.h",
     "src/cpp/palettes/tones.cc",
     "src/cpp/palettes/tones.h",
@@ -35,8 +45,6 @@ source_set("material_color_utilities") {
     "src/cpp/quantize/wsmeans.h",
     "src/cpp/quantize/wu.cc",
     "src/cpp/quantize/wu.h",
-    "src/cpp/scheme/scheme.cc",
-    "src/cpp/scheme/scheme.h",
     "src/cpp/score/score.cc",
     "src/cpp/score/score.h",
     "src/cpp/utils/utils.cc",

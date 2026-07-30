@@ -157,4 +157,11 @@ void PrintTo(const InkTextBoxAttributes& info, std::ostream* os) {
       << ",\n  text=" << info.text << "\n}";
 }
 
+bool InkTextInfoEquals(const InkTextInfo& lhs, const InkTextInfo& rhs) {
+  return lhs.font_id == rhs.font_id && lhs.glyphs == rhs.glyphs &&
+         lhs.glyph_positions == rhs.glyph_positions &&
+         lhs.location == rhs.location &&
+         lhs.is_horizontal == rhs.is_horizontal && lhs.text == rhs.text;
+}
+
 }  // namespace chrome_pdf

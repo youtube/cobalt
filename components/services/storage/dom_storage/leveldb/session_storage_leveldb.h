@@ -72,9 +72,9 @@ class SessionStorageLevelDB : public DomStorageDatabase {
   using PassKey = base::PassKey<DomStorageDatabaseFactory>;
 
  public:
-  // Use `DomStorageDatabaseFactory::Create()` to construct a
+  // Use `DomStorageDatabaseFactory::Open()` to construct a
   // `base::SequenceBound<DomStorageDatabase>`.
-  explicit SessionStorageLevelDB(PassKey);
+  SessionStorageLevelDB(PassKey, bool write_exp_tag);
   ~SessionStorageLevelDB() override;
 
   SessionStorageLevelDB(const SessionStorageLevelDB&) = delete;
@@ -134,6 +134,7 @@ class SessionStorageLevelDB : public DomStorageDatabase {
       const;
 
   std::unique_ptr<DomStorageDatabaseLevelDB> leveldb_;
+  bool write_exp_tag_ = false;
 };
 
 }  // namespace storage

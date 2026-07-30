@@ -231,8 +231,6 @@ TEST_F(AddressFormattingTest,
 
 TEST_F(AddressFormattingTest,
        GetEnvelopeStyleAddressHasDiffereceInUiWhenAlternativeFullnameDiffers) {
-  base::test::ScopedFeatureList feature_list{
-      features::kAutofillSupportPhoneticNameForJP};
   AutofillProfile profile1 = test::GetFullProfile(AddressCountryCode("JP"));
   profile1.SetInfo(ALTERNATIVE_FULL_NAME, u"", "ja-JP");
 

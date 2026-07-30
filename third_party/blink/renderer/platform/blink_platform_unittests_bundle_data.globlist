@@ -25,6 +25,7 @@
 ../../web_tests/images/jpeg-suite/**/*.jpg
 ../../web_tests/third_party/**/*.ttf
 ../../web_tests/third_party/**/*.otf
+../../web_tests/resources/EbdtMono/*.ttf
 # pop(ignore-relative)
 
 image-decoders/testing/**

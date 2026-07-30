@@ -91,7 +91,7 @@ class BrowserViewTest : public InProcessBrowserTest {
 }  // namespace
 
 IN_PROC_BROWSER_TEST_F(BrowserViewTest, FullscreenClearsFocus) {
-  BrowserView* browser_view = static_cast<BrowserView*>(browser()->window());
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   LocationBarView* location_bar_view = browser_view->GetLocationBarView();
   FocusManager* focus_manager = browser_view->GetFocusManager();
 
@@ -206,7 +206,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest,
 // correctly in browser fullscreen mode.
 IN_PROC_BROWSER_TEST_F(BrowserViewTest, BrowserFullscreenShowTopView) {
   BrowserView* const browser_view =
-      static_cast<BrowserView*>(browser()->window());
+      BrowserView::GetBrowserViewForBrowser(browser());
 
   // The top view should always show up in regular mode.
   EXPECT_FALSE(browser_view->IsFullscreen());
@@ -308,7 +308,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, BrowserFullscreenShowTopView) {
 // Test whether the top view including toolbar and tab strip appears or hides
 // correctly in tab fullscreen mode.
 IN_PROC_BROWSER_TEST_F(BrowserViewTest, TabFullscreenShowTopView) {
-  BrowserView* browser_view = static_cast<BrowserView*>(browser()->window());
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
 
   // The top view should always show up in regular mode.
   EXPECT_FALSE(browser_view->IsFullscreen());
@@ -346,7 +346,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, TabFullscreenHideSplitView) {
       {1}, split_tabs::SplitTabVisualData(),
       split_tabs::SplitTabCreatedSource::kToolbarButton);
 
-  BrowserView* browser_view = static_cast<BrowserView*>(browser()->window());
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
 
   // Split view should be open
   EXPECT_FALSE(browser_view->IsFullscreen());
@@ -378,7 +378,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, TabFullscreenHideSplitView) {
 
 // Test whether bookmark bar shows up or hides correctly for fullscreen modes.
 IN_PROC_BROWSER_TEST_F(BrowserViewTest, FullscreenShowBookmarkBar) {
-  BrowserView* browser_view = static_cast<BrowserView*>(browser()->window());
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
 
   // If the bookmark bar is not showing, enable showing it so that we can check
   // its state.
@@ -531,7 +531,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewFullscreenTest, MAYBE_Fullscreen) {
   }
 #endif
 
-  BrowserView* browser_view = static_cast<BrowserView*>(browser()->window());
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
 
   // The top view should always show up in regular mode.
   EXPECT_FALSE(browser_view->IsFullscreen());

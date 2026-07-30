@@ -150,6 +150,7 @@ bool IsSupportedAccessPoint(signin_metrics::AccessPoint access_point) {
     case signin_metrics::AccessPoint::kDeepLinkDefault:
     case signin_metrics::AccessPoint::kAgeMismatchSignout:
     case signin_metrics::AccessPoint::kOverflowMenu:
+    case signin_metrics::AccessPoint::kLevelUp:
       return false;
   }
 }
@@ -264,6 +265,7 @@ void RecordImpressionsTilSigninButtonsHistogramForAccessPoint(
     case signin_metrics::AccessPoint::kDeepLinkDefault:
     case signin_metrics::AccessPoint::kAgeMismatchSignout:
     case signin_metrics::AccessPoint::kOverflowMenu:
+    case signin_metrics::AccessPoint::kLevelUp:
       NOTREACHED() << "Unexpected value for access point "
                    << static_cast<int>(access_point);
   }
@@ -379,6 +381,7 @@ void RecordImpressionsTilXButtonHistogramForAccessPoint(
     case signin_metrics::AccessPoint::kDeepLinkDefault:
     case signin_metrics::AccessPoint::kAgeMismatchSignout:
     case signin_metrics::AccessPoint::kOverflowMenu:
+    case signin_metrics::AccessPoint::kLevelUp:
       NOTREACHED() << "Unexpected value for access point "
                    << static_cast<int>(access_point);
   }
@@ -479,6 +482,7 @@ const char* DisplayedCountPreferenceKey(
     case signin_metrics::AccessPoint::kDeepLinkDefault:
     case signin_metrics::AccessPoint::kAgeMismatchSignout:
     case signin_metrics::AccessPoint::kOverflowMenu:
+    case signin_metrics::AccessPoint::kLevelUp:
       return nullptr;
   }
 }
@@ -578,6 +582,7 @@ const char* AlreadySeenSigninViewPreferenceKey(
     case signin_metrics::AccessPoint::kDeepLinkDefault:
     case signin_metrics::AccessPoint::kAgeMismatchSignout:
     case signin_metrics::AccessPoint::kOverflowMenu:
+    case signin_metrics::AccessPoint::kLevelUp:
       return nullptr;
   }
 }
@@ -664,9 +669,9 @@ id<SystemIdentity> GetDisplayedIdentity(
 @implementation SigninPromoViewMediator {
   // Authentication Service for the user's signed-in state.
   raw_ptr<AuthenticationService> _authService;
-  // AccountManager Service used to retrive identities.
+  // AccountManager Service used to retrieve identities.
   raw_ptr<ChromeAccountManagerService> _accountManagerService;
-  // IdentityManager used to retrive identities.
+  // IdentityManager used to retrieve identities.
   raw_ptr<signin::IdentityManager> _identityManager;
   std::unique_ptr<signin::IdentityManagerObserverBridge>
       _identityManagerObserver;
@@ -1058,8 +1063,8 @@ id<SystemIdentity> GetDisplayedIdentity(
 
 #pragma mark - Private
 
-// Sends the update notification to the consummer if the signin-in is not in
-// progress. This is to avoid to update the sign-in promo view in the
+// Sends the update notification to the consumer if the sign-in is not in
+// progress. This is to avoid updating the sign-in promo view in the
 // background.
 - (void)sendConsumerNotificationWithIdentityChanged:(BOOL)identityChanged {
   if (self.showSpinner) {

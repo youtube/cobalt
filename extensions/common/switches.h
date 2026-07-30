@@ -80,6 +80,10 @@ extern const char kLoadGuestModeTestExtension[];
 // Allows the use of the `testing` reason in offscreen documents.
 extern const char kOffscreenDocumentTesting[];
 
+// Forces component extensions' service workers to be re-registered on every
+// load, instead of reusing the registration persisted in the profile.
+extern const char kRefreshComponentExtensionServiceWorkers[];
+
 // Set the parameters for ExtensionURLLoaderThrottleBrowserTest.
 extern const char kSetExtensionThrottleTestParams[];
 

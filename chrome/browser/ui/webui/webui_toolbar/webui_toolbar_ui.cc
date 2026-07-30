@@ -19,6 +19,7 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_widget.h"
 #include "chrome/browser/ui/views/permissions/chip/permission_chip_view.h"
+#include "chrome/browser/ui/views/toolbar/avatar_toolbar_button_interface.h"
 #include "chrome/browser/ui/webui/metrics_handler.h"
 #include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter_service.h"
 #include "chrome/browser/ui/webui/theme_colors_source_manager.h"
@@ -43,6 +44,7 @@
 #include "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api.mojom.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/user_education/webui/help_bubble_handler.h"
+#include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
@@ -60,6 +62,7 @@ WebUIToolbarUI::WebUIToolbarUI(content::WebUI* web_ui)
     : TopChromeWebUIController(web_ui,
                                /*enable_chrome_send=*/true,
                                /*enable_chrome_histograms=*/true),
+      content::WebContentsObserver(web_ui->GetWebContents()),
       toolbar_channel_service_end_(
           toolbar_channel_client_end_.InitWithNewPipeAndPassReceiver()),
       browser_controls_channel_service_end_(
@@ -106,8 +109,12 @@ WebUIToolbarUI::WebUIToolbarUI(content::WebUI* web_ui)
                      features::IsWebUIPinnedToolbarActionsEnabled());
   source->AddBoolean("enableAppMenuButton",
                      features::IsWebUIAppMenuButtonEnabled());
-  source->AddBoolean("enableAvatarButton",
-                     features::IsWebUIAvatarButtonEnabled());
+  source->AddBoolean(
+      "enableAvatarButton",
+      features::IsWebUIAvatarButtonEnabled() &&
+          AvatarToolbarButtonInterface::CanShowForProfile(
+              Profile::FromBrowserContext(
+                  web_ui->GetWebContents()->GetBrowserContext())));
   source->AddBoolean("enableExtensionsContainer",
                      features::IsWebUIExtensionsContainerEnabled());
   source->AddBoolean(
@@ -219,9 +226,10 @@ void WebUIToolbarUI::InitBrowserControlsService(
           std::move(browser_controls_channel_service_end_),
           std::make_unique<browser_controls_api::BrowserControlsAdapterImpl>(
               webui::GetBrowserWindowInterface(web_contents),
-              dependency_provider.GetCommandUpdater()),
+              dependency_provider.GetCommandUpdater(), web_contents),
           metrics_service->metrics_reporter(),
-          dependency_provider.GetBrowserControlsDelegate());
+          dependency_provider.GetBrowserControlsDelegate(),
+          web_ui()->GetRenderFrameHost());
 }
 
 void WebUIToolbarUI::InitToolbarUIService(
@@ -261,6 +269,17 @@ void WebUIToolbarUI::WebUIRenderFrameCreated(
 content::WebUIController::DisplayDisposition
 WebUIToolbarUI::GetDisplayDisposition() const {
   return content::WebUIController::DisplayDisposition::kUIElement;
+}
+
+void WebUIToolbarUI::DidFinishNavigation(
+    content::NavigationHandle* navigation_handle) {
+  if (navigation_handle->HasCommitted() &&
+      navigation_handle->IsInPrimaryMainFrame() &&
+      !navigation_handle->IsSameDocument()) {
+    // Cache the navigation start time. This is the single source of truth
+    // for the active document's time origin.
+    navigation_start_ticks_ = navigation_handle->NavigationStart();
+  }
 }
 
 void WebUIToolbarUI::PopulateLocalResourceLoaderConfig(

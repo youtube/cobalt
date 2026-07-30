@@ -612,6 +612,12 @@ ScriptPromise<IDLUndefined> CookieStore::DoWrite(
   probe::ShouldApplyDevtoolsCookieSettingOverrides(
       GetExecutionContext(), &should_apply_devtools_overrides);
 
+  if (auto* window = DynamicTo<LocalDOMWindow>(context)) {
+    if (Document* document = window->document()) {
+      document->IncrementCookieModificationCount();
+    }
+  }
+
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
   backend_->SetCanonicalCookie(

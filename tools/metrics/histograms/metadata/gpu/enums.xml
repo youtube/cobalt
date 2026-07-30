@@ -390,7 +390,7 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Default"/>
   <int value="1" label="SwiftShader"/>
   <int value="2" label="ANGLE WARP"/>
-  <int value="3" label="ANGLE D3D9"/>
+  <int value="3" label="ANGLE D3D9 (deprecated)"/>
   <int value="4" label="ANGLE D3D11"/>
   <int value="5" label="ANGLE OpenGL"/>
   <int value="6" label="ANGLE OpenGL ES"/>

@@ -88,7 +88,6 @@ import static org.chromium.content.browser.accessibility.AccessibilityNodeInfoBu
 import static org.chromium.content.browser.accessibility.WebContentsAccessibilityImpl.EXTRA_DATA_ABSOLUTE_DRAWING_ORDER_KEY;
 import static org.chromium.ui.accessibility.AccessibilityState.EVENT_TYPE_MASK_NONE;
 import static org.chromium.ui.accessibility.AccessibilityState.KNOWN_SCREEN_READER_SERVICE_IDS;
-import static org.chromium.ui.accessibility.AccessibilityState.StateIdentifierForTesting.EVENT_TYPE_MASK;
 
 import android.annotation.SuppressLint;
 import android.content.ClipData;
@@ -845,8 +844,7 @@ public class WebContentsAccessibilityTest {
         // Set the relevant features and screen reader state, set event type masks to empty.
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    AccessibilityState.setStateMaskForTesting(
-                            EVENT_TYPE_MASK, EVENT_TYPE_MASK_NONE);
+                    AccessibilityState.setEventMaskForTesting(EVENT_TYPE_MASK_NONE);
                     AccessibilityState.setIsComplexUserInteractionServiceEnabledForTesting(true);
                     AccessibilityState.setIsOnlyPasswordManagersEnabledForTesting(false);
                 });
@@ -888,8 +886,7 @@ public class WebContentsAccessibilityTest {
         // Set the relevant features and screen reader state, set event type masks to empty.
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    AccessibilityState.setStateMaskForTesting(
-                            EVENT_TYPE_MASK, EVENT_TYPE_MASK_NONE);
+                    AccessibilityState.setEventMaskForTesting(EVENT_TYPE_MASK_NONE);
                     AccessibilityState.setIsComplexUserInteractionServiceEnabledForTesting(false);
                     AccessibilityState.setIsOnlyPasswordManagersEnabledForTesting(true);
                 });
@@ -928,8 +925,7 @@ public class WebContentsAccessibilityTest {
         // Set the relevant features and screen reader state, set event type masks to empty.
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    AccessibilityState.setStateMaskForTesting(
-                            EVENT_TYPE_MASK, EVENT_TYPE_MASK_NONE);
+                    AccessibilityState.setEventMaskForTesting(EVENT_TYPE_MASK_NONE);
                     AccessibilityState.setIsComplexUserInteractionServiceEnabledForTesting(false);
                     AccessibilityState.setIsOnlyPasswordManagersEnabledForTesting(false);
                 });

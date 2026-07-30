@@ -233,7 +233,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorPolicyCheckerBrowserTestBase,
                        IsEnterpriseAccountCheck_NonEnterprise) {
   // Signed in with a non-enterprise account.
   SimulatePrimaryAccountChangedSignIn(&kNonEnterpriseAccount);
-  EXPECT_FALSE(GlicActorPolicyChecker::IsEnterpriseAccount(
+  EXPECT_FALSE(GlicActorPolicyChecker::IsEnterpriseAccountForActor(
       *GetProfile(), GetActorService().GetJournal()));
 }
 
@@ -241,7 +241,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorPolicyCheckerBrowserTestBase,
                        IsEnterpriseAccountCheck_Enterprise) {
   // Signed in with an enterprise account.
   SimulatePrimaryAccountChangedSignIn(&kEnterpriseAccount);
-  EXPECT_TRUE(GlicActorPolicyChecker::IsEnterpriseAccount(
+  EXPECT_TRUE(GlicActorPolicyChecker::IsEnterpriseAccountForActor(
       *GetProfile(), GetActorService().GetJournal()));
 }
 
@@ -336,7 +336,7 @@ IN_PROC_BROWSER_TEST_P(GlicActorPolicyCheckerBrowserTestNonManagedBrowser,
 
 IN_PROC_BROWSER_TEST_P(GlicActorPolicyCheckerBrowserTestNonManagedBrowser,
                        IsBrowserManagedCheck) {
-  EXPECT_FALSE(GlicActorPolicyChecker::IsBrowserManaged(*GetProfile()));
+  EXPECT_FALSE(GlicActorPolicyChecker::IsBrowserManagedForActor(*GetProfile()));
 }
 
 INSTANTIATE_TEST_SUITE_P(/* no prefix */,
@@ -484,7 +484,7 @@ class GlicActorPolicyCheckerBrowserTestManagedBrowser
 
 IN_PROC_BROWSER_TEST_F(GlicActorPolicyCheckerBrowserTestManagedBrowser,
                        IsBrowserManagedCheck) {
-  EXPECT_TRUE(GlicActorPolicyChecker::IsBrowserManaged(*GetProfile()));
+  EXPECT_TRUE(GlicActorPolicyChecker::IsBrowserManagedForActor(*GetProfile()));
 }
 
 IN_PROC_BROWSER_TEST_F(GlicActorPolicyCheckerBrowserTestManagedBrowser,

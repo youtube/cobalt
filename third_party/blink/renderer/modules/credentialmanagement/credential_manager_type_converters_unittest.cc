@@ -25,8 +25,6 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_prf_inputs.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_prf_outputs.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_prf_values.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_supplemental_pub_keys_inputs.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_supplemental_pub_keys_outputs.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_identity_credential_request_options_context.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_identity_provider_account.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_identity_provider_request_options.h"
@@ -207,25 +205,6 @@ TEST(CredentialManagerTypeConvertersTest,
   EXPECT_TRUE(blink_type->hasGetCredBlob());
   EXPECT_THAT(blink_type->getCredBlob(),
               DOMArrayBufferEqualTo(Vector<uint8_t>{1, 2, 3}));
-}
-
-TEST(CredentialManagerTypeConvertersTest,
-     AuthenticationExtensionsClientOutputs_supplementalPubKeys) {
-  auto mojo_type =
-      blink::mojom::blink::AuthenticationExtensionsClientOutputs::New();
-  mojo_type->supplemental_pub_keys =
-      blink::mojom::blink::SupplementalPubKeysResponse::New(
-          /*signatures=*/Vector<Vector<uint8_t>>{{1, 2, 3}, {4, 5, 6}});
-
-  auto* blink_type =
-      ConvertTo<blink::AuthenticationExtensionsClientOutputs*>(mojo_type);
-
-  EXPECT_TRUE(blink_type->hasSupplementalPubKeys());
-  ASSERT_EQ(blink_type->supplementalPubKeys()->signatures().size(), 2u);
-  EXPECT_THAT(blink_type->supplementalPubKeys()->signatures()[0],
-              DOMArrayBufferEqualTo(Vector<uint8_t>{1, 2, 3}));
-  EXPECT_THAT(blink_type->supplementalPubKeys()->signatures()[1],
-              DOMArrayBufferEqualTo(Vector<uint8_t>{4, 5, 6}));
 }
 
 TEST(CredentialManagerTypeConvertersTest,
@@ -416,34 +395,6 @@ TEST(CredentialManagerTypeConvertersTest,
   ASSERT_TRUE(
       mojo_type->remote_desktop_client_override->origin->IsSameOriginWith(
           &*expected->origin));
-}
-
-TEST(CredentialManagerTypeConvertersTest,
-     AuthenticationExtensionsClientInputsTest_supplementalPubKeys) {
-  blink::AuthenticationExtensionsClientInputs* blink_type =
-      blink::AuthenticationExtensionsClientInputs::Create();
-  blink::AuthenticationExtensionsSupplementalPubKeysInputs*
-      supplemental_pub_keys =
-          blink::AuthenticationExtensionsSupplementalPubKeysInputs::Create();
-
-  const char attestation_format[] = "format";
-  supplemental_pub_keys->setAttestation("indirect");
-  supplemental_pub_keys->setAttestationFormats(
-      Vector({blink::String::FromUtf8(attestation_format)}));
-  supplemental_pub_keys->setScopes(
-      Vector<blink::String>({"device", "provider"}));
-  blink_type->setSupplementalPubKeys(supplemental_pub_keys);
-
-  blink::mojom::blink::AuthenticationExtensionsClientInputsPtr mojo_type =
-      ConvertTo<blink::mojom::blink::AuthenticationExtensionsClientInputsPtr>(
-          *blink_type);
-
-  auto expected = blink::mojom::blink::SupplementalPubKeysRequest::New(
-      /*device_scope_requested=*/true,
-      /*provider_scope_requested=*/true,
-      blink::mojom::blink::AttestationConveyancePreference::INDIRECT,
-      Vector<blink::String>({blink::String::FromUtf8(attestation_format)}));
-  ASSERT_EQ(*(mojo_type->supplemental_pub_keys), *expected);
 }
 
 static ::testing::Matcher<const mojo::InlinedStructPtr<

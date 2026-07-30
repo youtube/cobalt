@@ -23,6 +23,7 @@
 #include "components/autofill/core/browser/payments/legal_message_line.h"
 #include "components/autofill/core/browser/payments/risk_data_loader.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
+#include "components/autofill/core/browser/ui/autofill_suggestion_delegate.h"
 #include "url/origin.h"
 
 #if !BUILDFLAG(IS_IOS)
@@ -817,9 +818,17 @@ class PaymentsAutofillClient : public RiskDataLoader {
   // Omnibox is the trigger point.
   virtual OmniboxAutofillDelegate* GetOmniboxAutofillDelegate() = 0;
 
-  // Shows the "Autofill payments" omnibox chip that appears for relevant
-  // payment checkout forms.
-  virtual void ShowOmniboxAutofillChip() = 0;
+  // Shows the "Autofill payments" omnibox chip and initializes the bubble
+  // controller with the given suggestions and callbacks.
+  virtual void ShowOmniboxAutofillChip(
+      std::vector<Suggestion> suggestions,
+      base::RepeatingCallback<void(base::span<const Suggestion>)>
+          on_suggestions_shown,
+      base::RepeatingCallback<void(const Suggestion&)> did_select_suggestion,
+      base::RepeatingCallback<
+          void(const Suggestion&,
+               const AutofillSuggestionDelegate::SuggestionMetadata&)>
+          did_accept_suggestion) = 0;
 
   // Hides the "Autofill payments" omnibox chip that appears for relevant
   // payment checkout forms.

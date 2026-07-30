@@ -97,10 +97,12 @@ void MockDataSourceFactory::Create(
   // A test can return a string when expecting a call to MockCreate - this will
   // become the new URL after redirects.
   GURL uri_after_redirects = uri;
-  std::optional<std::string> redirect_override =
+  bool redirect_tainted = false;
+  std::optional<std::tuple<std::string, bool>> redirect_override =
       MockCreate(uri, cache_mode, encoding_mode);
   if (redirect_override) {
-    uri_after_redirects = GURL(*redirect_override);
+    uri_after_redirects = GURL(std::get<0>(*redirect_override));
+    redirect_tainted = std::get<1>(*redirect_override);
   }
 
   if (!next_mock_) {
@@ -120,6 +122,12 @@ void MockDataSourceFactory::Create(
   if (!next_mock_has_redirection_) {
     EXPECT_CALL(*next_mock_, GetUrlAfterRedirects())
         .WillRepeatedly(testing::Return(uri_after_redirects));
+    if (redirect_override.has_value()) {
+      EXPECT_CALL(*next_mock_, DidRedirect())
+          .WillRepeatedly(testing::Return(true));
+      EXPECT_CALL(*next_mock_, WouldTaintOrigin())
+          .WillRepeatedly(testing::Return(redirect_tainted));
+    }
   }
 
   std::move(cb).Run(std::move(next_mock_));

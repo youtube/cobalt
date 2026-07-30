@@ -1,7 +1,6 @@
 ci/ASAN Debug
 ci/ASAN Release
 ci/ASAN Release Media
-ci/ASan Debug (32-bit x86 with V8-ARM)
 ci/ASan Release (32-bit x86 with V8-ARM)
 ci/ASan Release Media (32-bit x86 with V8-ARM)
 ci/Centipede High End Upload Linux ASan

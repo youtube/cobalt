@@ -31,6 +31,7 @@
 #include "media/base/timestamp_constants.h"
 #include "media/base/video_codecs.h"
 #include "media/base/video_decoder_config.h"
+#include "media/base/video_spatial_format.h"
 #include "media/base/video_util.h"
 #include "media/formats/mp4/box_definitions.h"
 #include "media/formats/mp4/box_reader.h"
@@ -837,6 +838,8 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       if (!entry.hdr_metadata.IsEmpty() && entry.hdr_metadata.IsValid()) {
         video_config.set_hdr_metadata(entry.hdr_metadata);
       }
+
+      video_config.set_spatial_format(entry.video_spatial_format);
 
       DVLOG(1) << "video_track_id=" << video_track_id
                << " config=" << video_config.AsHumanReadableString();

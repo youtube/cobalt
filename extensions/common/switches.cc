@@ -39,6 +39,8 @@ const char kLoadGuestModeTestExtension[] = "load-guest-mode-test-extension";
 #endif
 
 const char kOffscreenDocumentTesting[] = "offscreen-document-testing";
+const char kRefreshComponentExtensionServiceWorkers[] =
+    "refresh-component-extension-service-workers";
 const char kSetExtensionThrottleTestParams[] =
     "set-extension-throttle-test-params";
 const char kShowComponentExtensionOptions[] =

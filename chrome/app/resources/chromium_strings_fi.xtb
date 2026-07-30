@@ -73,6 +73,7 @@
 <translation id="1820835682567584003">Chromium yrittää seuraavaa: <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="183031085822326697">Seuraavan kerran kun avaat Chromiumin laitteella (<ph name="DEVICE_TYPE" />), näet kehotteen käyttää Googlen salasanoja.</translation>
 <translation id="1838374766361614909">Tyhjennä haku</translation>
+<translation id="1846849503013521481">Organisaatiosi voi nähdä tai ylläpitää tiettyjä tietoja Chromiumin käytön turvaamiseksi</translation>
 <translation id="18552579716432081">Jos haluat poistaa selausdatan vain tältä laitteelta, mutta säilyttää sen Google-tililläsi, <ph name="BEGIN_LINK" />kirjaudu ulos Chromiumista<ph name="END_LINK" />.</translation>
 <translation id="1857749206890802997">Lataa Chromium puhelimelle, niin voit avata tai luoda uusia välilehtiryhmiä missä tahansa.</translation>
 <translation id="185970820835152459">Voit ylläpitää sisäänkirjautuneita Google-tilejäsi. Google-tilejäsi käytetään Chromium-selaimella, Play Kaupassa ja muualla. Jos haluat lisätä tilin jollekulle toiselle, esim. perheenjäsenelle, lisää tämän sijasta uusi henkilö laitteelle (<ph name="DEVICE_TYPE" />). <ph name="LINK_BEGIN" />Lue lisää<ph name="LINK_END" /></translation>
@@ -435,6 +436,7 @@ Jos tämä sivu ei toimi odotetulla tavalla, kokeile sallia optimointi.</transla
 <translation id="5953657885167112863">Tee Chromiumista näköisesi</translation>
 <translation id="5960071705175224773">Tuntematon sovellus on muuttanut asetuksiasi</translation>
 <translation id="5968400720580217226">Tekoälytila</translation>
+<translation id="5977420883993828287">Kiinnitetty! Käytä kontekstuaalisia tehtäviä uudelleen yläpalkista</translation>
 <translation id="5986585015444752010">{COUNT,plural, =1{Organisaatiosi sulkee Chromiumin automaattisesti, kun sitä ei ole käytetty 1 minuuttiin.}other{Organisaatiosi sulkee Chromiumin automaattisesti, kun sitä ei ole käytetty # minuuttiin.}}</translation>
 <translation id="5987687638152509985">Aloita synkronointi päivittämällä Chromium.</translation>
 <translation id="6003112304606738118">Ladataan… <ph name="HOURS" /> tuntia jäljellä</translation>
@@ -539,6 +541,17 @@ Kaikki ominaisuudet eivät ehkä ole käytettävissä. Määritä jokin muu prof
 <translation id="6896758677409633944">Kopioi</translation>
 <translation id="6901631050894301805">Valitse Chromium oletusselaimeksi ja kiinnitä se tehtäväpalkkiin</translation>
 <translation id="6909503629704372277">&amp;Ylläpidä Chromium-profiileja</translation>
+<translation id="6919942714452658456">Tämä
+          <ph name="LINE_BREAKS" />
+            • nollaa aloitussivun, uusi välilehti ‑sivun, hakukoneen ja kiinnitetyt välilehdet
+            <ph name="LINE_BREAK" />
+            • poistaa laajennukset käytöstä
+            <ph name="LINE_BREAK" />
+            • poistaa evästeet ja muun tilapäisen sivustodatan
+            <ph name="LINE_BREAK" />
+            • nollaa Chromiumin pikakuvakkeet.
+            <ph name="LINE_BREAKS" />
+            Tämä ei vaikuta kirjanmerkkeihin, historiaan eikä tallennettuihin salasanoihin.</translation>
 <translation id="6934579572334859869">Kysy tästä kuvasta kuvahausta</translation>
 <translation id="6948031725951063910">Olet saavuttanut Chromiumin <ph name="BOOKMARK_LIMIT" /> kirjanmerkin rajan, joten kaikkia kirjanmerkkejäsi ei ole vielä tallennettu Google-tilillesi.
 
@@ -608,6 +621,7 @@ Chromium ei voi palauttaa asetuksiasi.</translation>
 <translation id="7686590090926151193">Chromium ei ole oletusselain.</translation>
 <translation id="7689606757190482937">Voit synkronoida Chromiumin ja tehdä siitä yksilöllisemmän kaikilla laitteilla.</translation>
 <translation id="7699779824407626136">Chromium-päivitys</translation>
+<translation id="7700735928747402058">Työsi on turvassa Chromiumissa</translation>
 <translation id="7716950018788545737">Tehtävät päättyivät.</translation>
 <translation id="77283119132245232">Tarjoaa järjestelmän seurantapalveluja (<ph name="BROWSER_NAME" />). Jos tämä palvelu on poissa käytöstä, selaimen luomat tulosten jäljet eivät sisällä järjestelmänlaajuisia tapahtumia, kuten kontekstin vaihtoa ja valmiita säietapahtumia.</translation>
 <translation id="7745317241717453663">Tämä poistaa selaustiedot pysyvästi laitteelta. Jos haluat palauttaa tiedot myöhemmin, kirjaudu Chromiumiin käyttäjänä <ph name="USER_EMAIL" />.</translation>
@@ -639,6 +653,7 @@ Chromium ei voi palauttaa asetuksiasi.</translation>
 <translation id="8031714377769448844">Kiinnitä Chromium tehtäväpalkkiin, niin voit käyttää sitä nopeasti milloin tahansa</translation>
 <translation id="80471789339884597">Kiitos asennuksesta. Kaikki selaimet pitää käynnistää uudelleen ennen kuin <ph name="BUNDLE_NAME" /> otetaan käyttöön.</translation>
 <translation id="8054112667659782652">Näytä aina kuvahaun pikanäppäin</translation>
+<translation id="8069447462453318634">Valitse "Kiinnitä työkalupalkkiin"</translation>
 <translation id="8077498902115777962">Poista käytöstä Chromiumin taustalla toimiminen sovelluksissa</translation>
 <translation id="80790299200510644">Kuvahaku</translation>
 <translation id="8086881907087796310">Asennus epäonnistui, koska tietokoneesi ei täytä laitteiston vähimmäisvaatimuksia.</translation>
@@ -720,6 +735,15 @@ Chromium ei voi palauttaa asetuksiasi.</translation>
 <translation id="8907580949721785412">Chromium yrittää näyttää salasanat. Salli tämä kirjoittamalla Windows-salasanasi.</translation>
 <translation id="8932992523185907506">Chromium ei ole enää oletusselaimesi. Haluatko tehdä Chromiumista oletusselaimen?</translation>
 <translation id="8941642502866065432">Chromiumin päivitys epäonnistui</translation>
+<translation id="8944232836376404813">Tämä
+          <ph name="LINE_BREAKS" />
+            • nollaa aloitussivun, uusi välilehti ‑sivun, hakukoneen ja kiinnitetyt välilehdet
+            <ph name="LINE_BREAK" />
+            • poistaa laajennukset käytöstä
+            <ph name="LINE_BREAK" />
+            • poistaa evästeet ja muun tilapäisen sivustodatan.
+            <ph name="LINE_BREAKS" />
+            Tämä ei vaikuta kirjanmerkkeihin, historiaan eikä tallennettuihin salasanoihin.</translation>
 <translation id="897581876605952338">Chromium Enterprise ‑logo</translation>
 <translation id="8981150672034878610">Chromiumia ei voi käynnistää, koska jotain meni pieleen profiilia avattaessa. Kokeile käynnistää Chromium uudelleen.</translation>
 <translation id="8988036198400390003">Ylläpidä Chromium-profiileja</translation>

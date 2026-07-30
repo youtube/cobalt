@@ -19,7 +19,6 @@ found in the LICENSE file.
     android:clickable="true"
     android:focusable="true">
 
-
     <!-- Group Title text -->
     <TextView
         android:id="@+id/group_title"

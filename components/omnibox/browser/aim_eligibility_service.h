@@ -141,15 +141,41 @@ class AimEligibilityService
   // Virtual for testing purposes.
   virtual bool IsServerEligibilityEnabled() const;
 
+  // TODO(b:525018060): The API to check AIM eligibility has gotten confusing:
+  //     - public `IsAimAllowedByDse()`
+  //     - public `IsAimAllowedByFeatureAndPolicy()`
+  //     - public `IsAimLocallyEligible()`
+  //     - public `IsAimEligible()`
+  //     - multiple public `Is<Feature>Eligible()`
+  //     - private `IsEligibleByServer()`.
+  //   It's not clear which a caller should call. We should:
+  //   a) move some of the internal helpers from public to private; many of them
+  //      are public only to make testing easier, but we shouldn't make code
+  //      more confusing for the sake of testing convenience, especially since
+  //      `friend` exists.
+  //   b) We should also rename them; e.g. both `IsEligibleByServer()` &
+  //      `IsAimEligible()` actually incorporate local and server eligibility.
+  //      The check hierarchy is something like:
+  //        Is<Feature>Eligible
+  //          IsEligibleByServer
+  //            IsAimEligible
+  //              IsAimLocallyEligible
+  //                IsAimAllowedByDse
+  //                IsAimAllowedByFeatureAndPolicy
+
   // Checks if AIM is allowed by default search engine (Google DSE).
   // Virtual for testing purposes.
   virtual bool IsAimAllowedByDse() const;
 
-  // Checks if user is locally eligible for AI mode (excludes server checks).
+  // Checks `kAimEnabled` feature and `kAIModeSettings` policy.
+  // Virtual for testing purposes.
+  virtual bool IsAimAllowedByFeatureAndPolicy() const;
+
+  // Checks `IsAimAllowedByDse()` & `IsAimAllowedByFeatureAndPolicy()`.
   // Virtual for testing purposes.
   virtual bool IsAimLocallyEligible() const;
 
-  // Checks if user is eligible for AI mode (includes server checks).
+  // Checks `IsAimLocallyEligible()` and server eligibility `is_eligible` param.
   // Virtual for testing purposes.
   virtual bool IsAimEligible() const;
 
@@ -236,7 +262,6 @@ class AimEligibilityService
   virtual void FetchEligibility(RequestSource source);
 
  protected:
-
   // Returns the locale in the BCP 47 IETF standard.
   // Natively enforces that the result from platform overrides does not contain
   // underscores.
@@ -276,7 +301,7 @@ class AimEligibilityService
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/omnibox/enums.xml:AimEligibilityRequestStatus)
 
-  // Returns server eligibility if the feature is AIM eligible.
+  // Checks `IsAimEligible()` and `server_eligibility`.
   bool IsEligibleByServer(bool server_eligibility) const;
 
   // signin::IdentityManager::Observer:

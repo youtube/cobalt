@@ -22,7 +22,7 @@
 
 namespace {
 
-// In this file, we uses classes that implements the two following traits.
+// In this file, we use classes that implement the following two traits.
 // Predicate to decide which identity to filter.
 // class Filter {
 // public:
@@ -36,7 +36,7 @@ namespace {
 // class Collector {
 //   // Returns whether iteration should continue or stop.
 //   virtual IteratorResult ForEach(id<SystemIdentity> identity);
-//   // Returns the result gathered thorugh the iteration.
+//   // Returns the result gathered through the iteration.
 //   virtual ResultType Result() const;
 // }
 
@@ -219,7 +219,7 @@ ChromeAccountManagerService::ChromeAccountManagerService(
         base::BindRepeating(&ChromeAccountManagerService::UpdateRestriction,
                             base::Unretained(this)));
 
-    // Force initialisation of `restriction_`.
+    // Force initialization of `restriction_`.
     UpdateRestriction();
   }
   GetApplicationContext()->GetAccountProfileMapper()->AddObserver(

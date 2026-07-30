@@ -19,10 +19,12 @@
 #import "ios/chrome/browser/policy/model/policy_util.h"
 #import "ios/chrome/browser/saved_tab_groups/model/ios_tab_group_sync_util.h"
 #import "ios/chrome/browser/saved_tab_groups/ui/tab_group_utils.h"
+#import "ios/chrome/browser/send_tab_to_self/model/send_tab_to_self_tab_card_label_data.h"
 #import "ios/chrome/browser/share_kit/model/share_kit_service.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/tab_group.h"
+#import "ios/chrome/browser/shared/model/web_state_list/tab_utils.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/quick_delete_commands.h"
@@ -384,6 +386,29 @@ using ScopedTabGroupSyncObservation =
   ActivityLabelData* data = [[ActivityLabelData alloc] init];
   data.labelString =
       l10n_util::GetNSString(IDS_IOS_TAB_GROUP_NEW_ACTIVITY_LABEL_TEXT);
+  return data;
+}
+
+- (ActivityLabelData*)activityLabelDataForTab:(web::WebStateID)webStateID {
+  // Retrieve the WebState corresponding to the given ID. Note that GetWebState
+  // performs a linear search, but this is cheap as this method is only called
+  // on-demand for visible cells.
+  web::WebState* webState = GetWebState(
+      self.webStateList, WebStateSearchCriteria{.identifier = webStateID});
+  if (!webState) {
+    return nil;
+  }
+
+  // If the WebState has SendTabToSelfTabCardLabelData attached (indicating it
+  // was auto-opened via SendTabToSelf), return the formatted label (e.g., "From
+  // <device>").
+  SendTabToSelfTabCardLabelData* labelData =
+      SendTabToSelfTabCardLabelData::FromWebState(webState);
+  if (!labelData) {
+    return nil;
+  }
+  ActivityLabelData* data = [[ActivityLabelData alloc] init];
+  data.labelString = labelData->GetLabelText();
   return data;
 }
 

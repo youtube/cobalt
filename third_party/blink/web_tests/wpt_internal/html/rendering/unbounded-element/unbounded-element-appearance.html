@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta charset="utf-8">
+<link rel="author" href="mailto:masonf@chromium.org">
+<link rel="help" href="https://crbug.com/508672616">
+<link rel="match" href="unbounded-element-appearance-ref.html">
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+
+<style>
+  #target {
+    position: absolute;
+    top: 100px;
+    left: 100px;
+    width: 200px;
+    height: 200px;
+    background: green;
+  }
+  #cover {
+    position: absolute;
+    top: 100px;
+    left: 100px;
+    width: 200px;
+    height: 200px;
+    background: red;
+    margin: 0;
+    border: 0;
+    padding: 0;
+  }
+</style>
+
+<div id="target" unbounded></div>
+<div id="cover" popover></div>
+
+<script>
+(async () => {
+  await test_driver.bless("show unbounded");
+  try {
+    await target.showUnboundedElement();
+  } catch (e) {}
+  cover.showPopover();
+  await new Promise(requestAnimationFrame);
+  await new Promise(requestAnimationFrame);
+  document.documentElement.classList.remove('reftest-wait');
+})();
+</script>

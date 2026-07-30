@@ -64,7 +64,7 @@ class ChromeAccountManagerService : public KeyedService,
     virtual void OnRefreshTokenUpdated(id<SystemIdentity> identity) {}
 
     // Handles access token refresh failed events.
-    // `identity` is the the identity for which the access token refresh failed.
+    // `identity` is the identity for which the access token refresh failed.
     // `error` is an opaque type containing information about the error.
     virtual void OnAccessTokenRefreshFailed(
         id<SystemIdentity> identity,

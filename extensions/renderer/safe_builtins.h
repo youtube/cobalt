@@ -44,6 +44,7 @@ class SafeBuiltins {
   v8::Local<v8::Object> GetString() const;
   v8::Local<v8::Object> GetError() const;
   v8::Local<v8::Object> GetPromise() const;
+  v8::Local<v8::Object> GetSymbol() const;
 
  private:
   raw_ptr<ScriptContext> context_;

@@ -107,9 +107,6 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 // Returns whether the current layout is showing the bottom omnibox.
 - (BOOL)isCurrentLayoutBottomOmnibox;
 
-// Returns whether the Ask Gemini Chip feature is enabled.
-- (BOOL)isAskGeminiChipEnabled;
-
 // Returns whether the ComposeboxIOS feature is enabled.
 - (BOOL)isComposeboxIOSEnabled;
 

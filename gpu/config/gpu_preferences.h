@@ -234,8 +234,6 @@ struct GPU_CONFIG_EXPORT GpuPreferences {
   // so that we have a list of gr_context_type to try starting from the default
   // type. This would involve refactoring the consumers of this struct, which
   // currently use gr_context_type in many places.
-  // TODO(crbug.com/511049071): This contains hardware accelerated context type
-  // only (e.g. kGL, kVulkan, kGraphiteDawn). kNone won't be included.
   base::circular_deque<GrContextType> fallback_gr_context_types;
 
   // ===================================

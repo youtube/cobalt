@@ -85,7 +85,7 @@ void FragmentItems::FinalizeAfterLayout(
     FragmentItemPtr(const FragmentItem& item,
                     const PhysicalBoxFragment& fragment,
                     const Span& items)
-        : fragment_(fragment), index_(&item - items.data()) {
+        : fragment_(fragment), index_(CheckedDistance(items.data(), &item)) {
 #if EXPENSIVE_DCHECKS_ARE_ON()
       DCHECK_EQ(fragment.Items()->Items().data(), items.data());
 #endif  // EXPENSIVE_DCHECKS_ARE_ON()

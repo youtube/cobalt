@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/modules/managed_device/navigator_managed_data.h"
 
+#include "base/types/expected_macros.h"
 #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-blink.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -180,7 +181,7 @@ ScriptPromise<IDLNullable<IDLString>> NavigatorManagedData::getDirectoryId(
   pending_promises_.insert(resolver);
   auto promise = resolver->Promise();
 
-  GetService()->GetDirectoryId(BindOnce(
+  GetService()->GetDirectoryId(blink::BindOnce(
       &NavigatorManagedData::OnAttributeReceived, WrapWeakPersistent(this),
       WrapPersistent(script_state), WrapPersistent(resolver)));
   return promise;
@@ -199,7 +200,7 @@ ScriptPromise<IDLNullable<IDLString>> NavigatorManagedData::getHostname(
   pending_promises_.insert(resolver);
   auto promise = resolver->Promise();
 
-  GetService()->GetHostname(BindOnce(
+  GetService()->GetHostname(blink::BindOnce(
       &NavigatorManagedData::OnAttributeReceived, WrapWeakPersistent(this),
       WrapPersistent(script_state), WrapPersistent(resolver)));
   return promise;
@@ -218,7 +219,7 @@ ScriptPromise<IDLNullable<IDLString>> NavigatorManagedData::getSerialNumber(
   pending_promises_.insert(resolver);
   auto promise = resolver->Promise();
 
-  GetService()->GetSerialNumber(BindOnce(
+  GetService()->GetSerialNumber(blink::BindOnce(
       &NavigatorManagedData::OnAttributeReceived, WrapWeakPersistent(this),
       WrapPersistent(script_state), WrapPersistent(resolver)));
   return promise;
@@ -237,7 +238,7 @@ ScriptPromise<IDLNullable<IDLString>> NavigatorManagedData::getAnnotatedAssetId(
   pending_promises_.insert(resolver);
   auto promise = resolver->Promise();
 
-  GetService()->GetAnnotatedAssetId(BindOnce(
+  GetService()->GetAnnotatedAssetId(blink::BindOnce(
       &NavigatorManagedData::OnAttributeReceived, WrapWeakPersistent(this),
       WrapPersistent(script_state), WrapPersistent(resolver)));
   return promise;
@@ -256,7 +257,7 @@ NavigatorManagedData::getAnnotatedLocation(ScriptState* script_state,
   pending_promises_.insert(resolver);
   auto promise = resolver->Promise();
 
-  GetService()->GetAnnotatedLocation(BindOnce(
+  GetService()->GetAnnotatedLocation(blink::BindOnce(
       &NavigatorManagedData::OnAttributeReceived, WrapWeakPersistent(this),
       WrapPersistent(script_state), WrapPersistent(resolver)));
   return promise;
@@ -315,15 +316,16 @@ void NavigatorManagedData::OnConfigurationReceived(
 void NavigatorManagedData::OnAttributeReceived(
     ScriptState* script_state,
     ScriptPromiseResolver<IDLNullable<IDLString>>* resolver,
-    mojom::blink::DeviceAttributeResultPtr result) {
+    base::expected<mojom::blink::DeviceAttributeValuePtr, String> result) {
   pending_promises_.erase(resolver);
 
-  if (result->is_error_message()) {
-    resolver->Reject(MakeGarbageCollected<DOMException>(
-        DOMExceptionCode::kUnknownError, result->get_error_message()));
-  } else {
-    resolver->Resolve(result->get_attribute());
-  }
+  ASSIGN_OR_RETURN(mojom::blink::DeviceAttributeValuePtr attribute_value,
+                   std::move(result), [&](const String& error_message) {
+                     resolver->Reject(MakeGarbageCollected<DOMException>(
+                         DOMExceptionCode::kUnknownError, error_message));
+                   });
+
+  resolver->Resolve(attribute_value->value);
 }
 
 void NavigatorManagedData::OnConfigurationChanged() {

@@ -152,7 +152,7 @@ void NavigationThrottleRunner::ResumeProcessingNavigationEvent(
 void NavigationThrottleRunner::ProcessInternal() {
   TRACE_EVENT("navigation", "NavigationThrottleRunner::ProcessInternal",
               "current_event", current_event_);
-  // TODO(https://crbug.com/497761255): CHECK-exclusion: Convert to CHECK once
+  // TODO(https://crbug.com/526542430): CHECK-exclusion: Convert to CHECK once
   // we are sure this isn't hit.
   DCHECK_NE(NavigationThrottleEvent::kNoEvent, current_event_);
   base::Time start_time = base::Time::Now();

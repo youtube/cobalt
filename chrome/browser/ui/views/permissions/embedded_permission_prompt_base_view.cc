@@ -12,9 +12,11 @@
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/chrome_widget_sublevel.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/browser/ui/views/permissions/permission_prompt_observer.h"
 #include "chrome/browser/ui/views/sub_apps_permission_explanation.h"
 #include "components/permissions/features.h"
+#include "components/permissions/permission_uma_util.h"
 #include "components/permissions/permission_util.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
@@ -33,6 +35,7 @@
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/throbber.h"
+#include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/view_class_properties.h"
 #include "ui/views/widget/widget.h"
@@ -87,26 +90,20 @@ int GetPermissionIconSize() {
   return 20;
 }
 
-float GetScreenScaleFactor(Browser* browser) {
-  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
-  return browser_view ? display::Screen::Get()
-                            ->GetPreferredScaleFactorForWindow(
-                                browser_view->GetNativeWindow())
-                            .value_or(1.0f)
-                      : 1.0f;
-}
-
-views::View* GetContentsWebView(Browser* browser) {
-  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
-  return browser_view ? browser_view->contents_web_view() : nullptr;
+views::View* GetContentsWebView(gfx::NativeWindow native_window) {
+  auto* tracker = views::ElementTrackerViews::GetInstance();
+  auto* widget = views::Widget::GetWidgetForNativeWindow(native_window);
+  return tracker->GetFirstMatchingView(
+      ContentsWebView::kContentsWebViewElementId,
+      tracker->GetContextForWidget(widget));
 }
 
 }  // namespace
 
 EmbeddedPermissionPromptBaseView::EmbeddedPermissionPromptBaseView(
-    Browser* browser,
+    content::WebContents* web_contents,
     base::WeakPtr<EmbeddedPermissionPromptViewDelegate> delegate)
-    : PermissionPromptBaseView(browser,
+    : PermissionPromptBaseView(web_contents,
                                delegate->GetPermissionPromptDelegate()),
       delegate_(delegate) {
   SetProperty(views::kElementIdentifierKey, kMainViewId);
@@ -126,11 +123,14 @@ EmbeddedPermissionPromptBaseView::EmbeddedPermissionPromptBaseView(
   }
 
   // Scale the element position according to the device scale factor.
-  element_rect_ = gfx::ScaleToEnclosedRect(element_rect_,
-                                           1.f / GetScreenScaleFactor(browser));
+  const float scale_factor =
+      display::Screen::Get()
+          ->GetPreferredScaleFactorForWindow(GetNativeWindow())
+          .value_or(1.0f);
+  element_rect_ = gfx::ScaleToEnclosedRect(element_rect_, 1.f / scale_factor);
 
   // Convert the position into screen coordinates.
-  auto* content_view = GetContentsWebView(browser);
+  auto* content_view = GetContentsWebView(GetNativeWindow());
   views::View::ConvertRectToScreen(content_view, &element_rect_);
 }
 
@@ -157,7 +157,7 @@ bool EmbeddedPermissionPromptBaseView::ShowLoadingIcon() const {
 }
 
 void EmbeddedPermissionPromptBaseView::CreateWidget() {
-  DCHECK(browser()->window());
+  DCHECK(GetNativeWindow());
   views::Widget* widget = views::BubbleDialogDelegateView::CreateBubble(this);
 
   widget->SetZOrderSublevel(ChromeWidgetSublevel::kSublevelSecurity);
@@ -226,15 +226,14 @@ void EmbeddedPermissionPromptBaseView::AddedToWidget() {
   GetBubbleFrameView()->SetTitleView(std::move(title_container));
 
   // Observe size changes of embedded permission prompt widget.
-  if (GetWidget()) {
-    GetWidget()->AddObserver(this);
-  }
+  widget_observation_.Observe(GetWidget());
 }
 
 void EmbeddedPermissionPromptBaseView::OnWidgetBoundsChanged(
     views::Widget* widget,
     const gfx::Rect& new_bounds) {
-  if (!delegate_) {
+  if (!delegate_ || !widget_observation_.IsObserving() ||
+      !widget_observation_.IsObservingSource(widget)) {
     return;
   }
 
@@ -253,16 +252,15 @@ void EmbeddedPermissionPromptBaseView::OnWidgetBoundsChanged(
   }
 }
 
-void EmbeddedPermissionPromptBaseView::OnWidgetDestroying(
-    views::Widget* widget) {
-  // Remove observer of widget.
-  widget->RemoveObserver(this);
-}
-
 // For going out of focus of the PEPC permission prompt:
 void EmbeddedPermissionPromptBaseView::OnWidgetVisibilityChanged(
     views::Widget* widget,
     bool visible) {
+  if (!widget_observation_.IsObserving() ||
+      !widget_observation_.IsObservingSource(widget)) {
+    return;
+  }
+
   // `web_contents_` is a WeakPtr and could be null if the tab/WebContents was
   // destroyed. Additionally, we check it defensively in case visibility changes
   // before the first layout bounds change occurs.

@@ -22,7 +22,7 @@ using SigninCompletionBlock = void (^)(id<SystemIdentity>, NSError*);
 // re-authentication, the screen to enter the credential will have the email
 // field pre-entered.
 //
-// The activity will fail is there already an authentication activity in
+// The activity will fail if there is already an authentication activity in
 // progress.
 //
 // The activity will be displayed in `viewController`, if `userEmail` is set
@@ -33,14 +33,14 @@ using SigninCompletionBlock = void (^)(id<SystemIdentity>, NSError*);
 // `nullptr`.
 //
 // Note that, with implementation as of July 2025 and up to iOS18, the view may
-// disappear if the user turn off their screen, without calling the completion
+// disappear if the user turns off their screen, without calling the completion
 // block, due to a bug in UIKit. See crbug.com/395959814.
 - (void)startAuthActivityWithViewController:(UIViewController*)viewController
                                   userEmail:(NSString*)userEmail
                                  completion:(SigninCompletionBlock)completion;
 
 // Cancels and dismisses any currently active operation. `animated` controls
-// whether the dimissal is animated or not.
+// whether the dismissal is animated or not.
 - (void)cancelAuthActivityAnimated:(BOOL)animated;
 
 @end

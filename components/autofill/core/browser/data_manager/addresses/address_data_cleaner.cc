@@ -262,28 +262,6 @@ void ApplyDeduplicationRoutine(
   DeduplicateProfiles(app_locale, profiles_with_action);
 }
 
-// Migrates the phonetic names that were stored in the regular name fields to
-// alternative name fields. Modifies `profiles_with_action` in place to
-// reflect the migrated phonetic names.
-// TODO(crbug.com/359768803): Remove this method once the migration is done.
-void MarkProfilesForPhoneticNameMigration(
-    std::vector<ProfileWithAction>& profiles_with_action) {
-  if (!base::FeatureList::IsEnabled(
-          features::kAutofillSupportPhoneticNameForJP)) {
-    return;
-  }
-  size_t migrated_names = 0;
-  for (auto& [profile, action] : profiles_with_action) {
-    if (action != ProfileAction::kRemove &&
-        profile.GetNameInfo().HasNameEligibleForPhoneticNameMigration()) {
-      profile.MigrateRegularNameToPhoneticName();
-      action = ProfileAction::kUpdate;
-      ++migrated_names;
-    }
-  }
-  autofill_metrics::LogNumberOfNamesMigratedDuringCleanup(migrated_names);
-}
-
 // Mark profiles from `profiles_with_action` that were unused for at least
 // `kDisusedDataModelDeletionTimeDelta` for deletion.
 void MarkDisusedProfilesForDeletion(
@@ -315,9 +293,6 @@ std::vector<ProfileWithAction> CleanupAddressData(
     std::vector<ProfileWithAction> profiles_with_action) {
   // Disused profiles are marked for cleanup on every browser start.
   MarkDisusedProfilesForDeletion(profiles_with_action);
-
-  // Profiles are marked for phonetic name migration on every browser start.
-  MarkProfilesForPhoneticNameMigration(profiles_with_action);
 
   if (should_run_deduplication) {
     ApplyDeduplicationRoutine(app_locale, profiles_with_action);

@@ -126,84 +126,6 @@ FillDataType GetFillDataTypeFromFillingPayload(
       filling_payload);
 }
 
-// Given `filling_product`, returns the types supported for filling by this
-// FillingProduct, or std::nullopt if `filling_product` is independent of field
-// classifications.
-std::optional<FieldTypeSet> GetFieldTypesToFillFromFillingProduct(
-    FillingProduct filling_product) {
-  switch (filling_product) {
-    case FillingProduct::kAddress: {
-      static constexpr FieldTypeSet kFieldTypes = []() {
-        FieldTypeSet field_types;
-        for (FieldType field_type : FieldTypeSet::all()) {
-          if (IsAddressType(field_type)) {
-            field_types.insert(field_type);
-          }
-        }
-        return field_types;
-      }();
-      return kFieldTypes;
-    }
-    case FillingProduct::kCreditCard: {
-      static constexpr FieldTypeSet kFieldTypes = []() {
-        FieldTypeSet field_types;
-        for (FieldType field_type : FieldTypeSet::all()) {
-          if (FieldTypeGroupSet({FieldTypeGroup::kCreditCard,
-                                 FieldTypeGroup::kStandaloneCvcField})
-                  .contains(GroupTypeOfFieldType(field_type))) {
-            field_types.insert(field_type);
-          }
-        }
-        return field_types;
-      }();
-      return kFieldTypes;
-    }
-    case FillingProduct::kAutofillAi: {
-      static constexpr auto kFieldTypes = []() {
-        FieldTypeSet result;
-        for (AttributeType type : DenseSet<AttributeType>::all()) {
-          result.insert_all(type.field_subtypes());
-        }
-        return result;
-      }();
-      return kFieldTypes;
-    }
-    case FillingProduct::kPassword: {
-      static constexpr FieldTypeSet kFieldTypes = []() {
-        FieldTypeSet field_types;
-        for (FieldType field_type : FieldTypeSet::all()) {
-          if (FieldTypeGroupSet({FieldTypeGroup::kUsernameField,
-                                 FieldTypeGroup::kPasswordField})
-                  .contains(GroupTypeOfFieldType(field_type))) {
-            field_types.insert(field_type);
-          }
-        }
-        return field_types;
-      }();
-      return kFieldTypes;
-    }
-    case FillingProduct::kMerchantPromoCode:
-      return FieldTypeSet{MERCHANT_PROMO_CODE};
-    case FillingProduct::kIban:
-      return FieldTypeSet{IBAN_VALUE};
-    case FillingProduct::kLoyaltyCard:
-      return FieldTypeSet{LOYALTY_MEMBERSHIP_ID};
-    case FillingProduct::kIdentityCredential:
-      return FieldTypeSet{EMAIL_ADDRESS, NAME_FIRST, NAME_FULL};
-    case FillingProduct::kAutocomplete:
-    case FillingProduct::kCompose:
-    case FillingProduct::kDataList:
-    case FillingProduct::kPasskey:
-    case FillingProduct::kAtMemory:
-      return std::nullopt;
-    case FillingProduct::kOneTimePassword:
-      return FieldTypeSet{ONE_TIME_CODE};
-    case FillingProduct::kNone:
-      NOTREACHED();
-  }
-  NOTREACHED();
-}
-
 // Returns how many fields with type |field_type| may be filled in a form at
 // maximum.
 size_t TypeValueFormFillingLimit(FieldType field_type) {
@@ -618,7 +540,6 @@ DenseSet<FieldFillingSkipReason> FormFiller::GetFillingSkipReasonsForField(
     const RefillOptions& refill_options,
     base::flat_map<FieldType, size_t>& type_count,
     const base::flat_set<FieldGlobalId>& blocked_fields,
-    FillingProduct filling_product,
     AutofillTriggerSource trigger_source,
     AutocompleteUnrecognizedBehavior ac_unrecognized_behavior) {
   DenseSet<FieldFillingSkipReason> skip_reasons;
@@ -694,13 +615,6 @@ DenseSet<FieldFillingSkipReason> FormFiller::GetFillingSkipReasonsForField(
            FieldFillingSkipReason::kFillingLimitReachedType);
   }
 
-  std::optional<FieldTypeSet> supported_types =
-      GetFieldTypesToFillFromFillingProduct(filling_product);
-  // This ensures that a filling product only operates on fields of supported
-  // types.
-  add_if(supported_types && !supported_types->contains_any(field_types),
-         FieldFillingSkipReason::kFieldTypeUnrelated);
-
   // Don't fill meaningfully pre-filled fields but overwrite placeholders.
   add_if(
       ShouldSkipFieldBecauseOfMeaningfulInitialValue(field, is_trigger_field),
@@ -758,7 +672,7 @@ FormFiller::GetFieldFillingSkipReasons(
     DenseSet<FieldFillingSkipReason> field_skip_reasons =
         GetFillingSkipReasonsForField(
             *field, trigger_field, refill_options, type_count, blocked_fields,
-            filling_product, trigger_source, GetAcUnrecognizedBehavior(client));
+            trigger_source, GetAcUnrecognizedBehavior(client));
 
     // Usually, `skip_reasons[field_id].empty()` before executing the line
     // below. It may not be the case though because FieldGlobalIds may not be

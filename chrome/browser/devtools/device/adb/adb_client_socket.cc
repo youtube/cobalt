@@ -19,6 +19,7 @@
 #include "base/strings/stringprintf.h"
 #include "net/base/ip_address.h"
 #include "net/base/net_errors.h"
+#include "net/base/network_handle.h"
 #include "net/log/net_log_source.h"
 #include "net/socket/tcp_client_socket.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
@@ -187,7 +188,11 @@ void AdbClientSocket::Connect(net::CompletionOnceCallback callback) {
   net::AddressList address_list =
       net::AddressList::CreateFromIPAddress(ip_address, port_);
   socket_ = std::make_unique<net::TCPClientSocket>(
-      address_list, nullptr, nullptr, nullptr, net::NetLogSource());
+      address_list, nullptr, nullptr, nullptr, net::NetLogSource(),
+      // There are currently no use cases for targeting a network when
+      // forwarding via devtools. This will need to be reconsidered if a need
+      // arises.
+      net::handles::kInvalidNetworkHandle);
   connect_callback_ = std::move(callback);
   int result = socket_->Connect(base::BindOnce(
       &AdbClientSocket::RunConnectCallback, base::Unretained(this)));

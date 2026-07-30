@@ -2,5 +2,6 @@ include_rules = [
   # keep-sorted start
   "+components/sync/protocol",
   "+components/webauthn",
+  "+net/base/registry_controlled_domains",
   # keep-sorted end
 ]

@@ -26,12 +26,13 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "content/browser/child_process_security_policy_impl.h"
+#include "content/browser/renderer_host/initiator_navigation_state_impl.h"
 #include "content/browser/renderer_host/navigation_controller_impl.h"
 #include "content/browser/renderer_host/navigation_entry_impl.h"
 #include "content/browser/renderer_host/navigation_request.h"
 #include "content/browser/renderer_host/navigator.h"
 #include "content/browser/renderer_host/render_frame_proxy_host.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/browser/site_info.h"
 #include "content/browser/site_instance_group.h"
 #include "content/browser/site_instance_impl.h"
@@ -242,7 +243,8 @@ class PluginFaviconMessageObserver : public WebContentsObserver {
 
   void DidUpdateFaviconURL(
       RenderFrameHost* render_frame_host,
-      const std::vector<blink::mojom::FaviconURLPtr>& candidates) override {
+      const std::vector<blink::mojom::FaviconURLPtr>& candidates,
+      blink::mojom::FaviconUpdateReason reason) override {
     favicon_received_ = true;
   }
 
@@ -547,6 +549,8 @@ class RenderFrameHostManagerTest
             !entry->is_renderer_initiated(), false /* was_opener_suppressed */,
             std::nullopt /* initiator_frame_token */,
             ChildProcessHost::kInvalidUniqueID /* initiator_process_id */,
+            nullptr /* initiator_navigation_state */,
+            false /* should_ignore_initiator_policies_for_inheritance */,
             entry->extra_headers(), frame_entry, entry, is_form_submission,
             nullptr /* navigation_ui_data */, std::nullopt /* impression */,
             false /* started_with_transient_activation */,
@@ -688,7 +692,8 @@ TEST_P(RenderFrameHostManagerTest, FilterMessagesWhileSwappedOut) {
   // Send an update favicon message and make sure it works.
   {
     PluginFaviconMessageObserver observer(contents());
-    ntp_rfh->UpdateFaviconURL(std::move(icons));
+    ntp_rfh->UpdateFaviconURL(std::move(icons),
+                              blink::mojom::FaviconUpdateReason::kPageLoad);
     EXPECT_TRUE(observer.favicon_received());
   }
   // Create one more frame in the same SiteInstanceGroup where ntp_rfh
@@ -708,7 +713,8 @@ TEST_P(RenderFrameHostManagerTest, FilterMessagesWhileSwappedOut) {
   // The new RVH should be able to update its favicon.
   {
     PluginFaviconMessageObserver observer(contents());
-    dest_rfh->UpdateFaviconURL(std::move(icons));
+    dest_rfh->UpdateFaviconURL(std::move(icons),
+                               blink::mojom::FaviconUpdateReason::kPageLoad);
     EXPECT_TRUE(observer.favicon_received());
   }
 
@@ -716,7 +722,8 @@ TEST_P(RenderFrameHostManagerTest, FilterMessagesWhileSwappedOut) {
   // filtered out and not take effect.
   {
     PluginFaviconMessageObserver observer(contents());
-    ntp_rfh->UpdateFaviconURL(std::move(icons));
+    ntp_rfh->UpdateFaviconURL(std::move(icons),
+                              blink::mojom::FaviconUpdateReason::kPageLoad);
     EXPECT_FALSE(observer.favicon_received());
   }
 }
@@ -737,7 +744,8 @@ TEST_P(RenderFrameHostManagerTest, UpdateFaviconURLWhilePendingUnload) {
   // Send an update favicon message and make sure it works.
   {
     PluginFaviconMessageObserver observer(contents());
-    ntp_rfh->UpdateFaviconURL(std::move(icons));
+    ntp_rfh->UpdateFaviconURL(std::move(icons),
+                              blink::mojom::FaviconUpdateReason::kPageLoad);
     EXPECT_TRUE(observer.favicon_received());
   }
 
@@ -757,7 +765,8 @@ TEST_P(RenderFrameHostManagerTest, UpdateFaviconURLWhilePendingUnload) {
   // The new RFH should be able to update its favicons.
   {
     PluginFaviconMessageObserver observer(contents());
-    dest_rfh->UpdateFaviconURL(std::move(icons));
+    dest_rfh->UpdateFaviconURL(std::move(icons),
+                               blink::mojom::FaviconUpdateReason::kPageLoad);
     EXPECT_TRUE(observer.favicon_received());
   }
 
@@ -765,7 +774,8 @@ TEST_P(RenderFrameHostManagerTest, UpdateFaviconURLWhilePendingUnload) {
   // be ignored.
   {
     PluginFaviconMessageObserver observer(contents());
-    ntp_rfh->UpdateFaviconURL(std::move(icons));
+    ntp_rfh->UpdateFaviconURL(std::move(icons),
+                              blink::mojom::FaviconUpdateReason::kPageLoad);
     EXPECT_FALSE(observer.favicon_received());
   }
 }

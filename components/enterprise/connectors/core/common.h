@@ -392,7 +392,10 @@ enum class DeepScanAccessPoint {
   // A deep scan was initiated from an actor/agent action.
   ACTOR,
 
-  kMaxValue = ACTOR,
+  // A deep scan was initiated from copying text.
+  COPY,
+
+  kMaxValue = COPY,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/enterprise/histograms.xml:DeepScanAccessPoint)
 

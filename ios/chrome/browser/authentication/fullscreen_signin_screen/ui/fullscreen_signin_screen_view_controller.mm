@@ -25,7 +25,7 @@
 
 namespace {
 
-// Top margin for the managed icon in the enteprised image view
+// Top margin for the managed icon in the enterprise image view.
 constexpr CGFloat kTopMarginForManagedIcon = 16.;
 
 // Point size of enterprise icon in the bottom view.

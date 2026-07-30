@@ -15,10 +15,10 @@ SecurePaymentConfirmationCredential::SecurePaymentConfirmationCredential() =
 
 SecurePaymentConfirmationCredential::SecurePaymentConfirmationCredential(
     std::vector<uint8_t> credential_id,
-    const std::string& relying_party_id,
+    std::string relying_party_id,
     std::vector<uint8_t> user_id)
     : credential_id(std::move(credential_id)),
-      relying_party_id(relying_party_id),
+      relying_party_id(std::move(relying_party_id)),
       user_id(std::move(user_id)) {}
 
 SecurePaymentConfirmationCredential::~SecurePaymentConfirmationCredential() =

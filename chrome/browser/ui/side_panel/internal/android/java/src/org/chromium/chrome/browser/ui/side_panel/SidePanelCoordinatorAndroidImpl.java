@@ -17,7 +17,6 @@ import org.jni_zero.NativeMethods;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTaskFeature.InitInfo;
 import org.chromium.chrome.browser.ui.side_panel_container.SidePanelContainerCoordinator;
 import org.chromium.chrome.browser.ui.side_panel_container.SidePanelContent;
 
@@ -65,6 +64,18 @@ public final class SidePanelCoordinatorAndroidImpl implements SidePanelCoordinat
     }
 
     @Override
+    public boolean hasContentToShow() {
+        boolean hasContentToShow =
+                mNativeSidePanelCoordinatorAndroid != 0
+                        ? SidePanelCoordinatorAndroidImplJni.get()
+                                .hasContentToShow(mNativeSidePanelCoordinatorAndroid)
+                        : false;
+
+        log(TAG, "hasContentToShow", hasContentToShow);
+        return hasContentToShow;
+    }
+
+    @Override
     public void init() {
         log(TAG, "init");
         if (mNativeSidePanelCoordinatorAndroid != 0) {
@@ -109,36 +120,41 @@ public final class SidePanelCoordinatorAndroidImpl implements SidePanelCoordinat
     }
 
     /**
-     * Populates the side panel with content.
+     * Starts populating the side panel with content.
      *
      * @param sidePanelNativeView The view to show.
      * @param x The x coordinate of the starting bounds, or -1 if none.
      * @param y The y coordinate of the starting bounds, or -1 if none.
      * @param width The width of the starting bounds, or -1 if none.
      * @param height The height of the starting bounds, or -1 if none.
+     * @param suppressAnimations Whether animations should be suppressed when showing the panel.
      */
     @CalledByNative
-    private void populateSidePanel(
+    private void startPopulatingContent(
             View sidePanelNativeView,
             int x,
             int y,
             int width,
             int height,
             boolean suppressAnimations) {
-        log(TAG, "populateSidePanel", sidePanelNativeView, x, y, width, height);
-        mSidePanelContainerCoordinator.populateContent(
+        log(TAG, "startPopulatingContent", sidePanelNativeView, x, y, width, height);
+        mSidePanelContainerCoordinator.startPopulatingContent(
                 new SidePanelContent(sidePanelNativeView),
-                result -> notifyOpenAnimationFinished(null),
+                () -> onContentPopulated(),
                 createRectFromCoordinates(x, y, width, height),
                 suppressAnimations || mDisableAnimationsForTesting);
     }
 
+    /**
+     * Starts removing content and closing the side panel.
+     *
+     * @param suppressAnimations Whether animations should be suppressed when closing the panel.
+     */
     @CalledByNative
-    private void removeContentAndClose(boolean suppressAnimations) {
-        log(TAG, "removeContentAndClose", suppressAnimations);
-        mSidePanelContainerCoordinator.removeContentAndClose(
-                result -> notifyCloseAnimationFinished(null),
-                suppressAnimations || mDisableAnimationsForTesting);
+    private void startRemovingContent(boolean suppressAnimations) {
+        log(TAG, "startRemovingContent", suppressAnimations);
+        mSidePanelContainerCoordinator.startRemovingContent(
+                () -> onContentRemoved(), suppressAnimations || mDisableAnimationsForTesting);
     }
 
     @CalledByNativeForTesting
@@ -160,19 +176,19 @@ public final class SidePanelCoordinatorAndroidImpl implements SidePanelCoordinat
         return new Rect(x, y, x + width, y + height);
     }
 
-    private void notifyOpenAnimationFinished(@Nullable Void unused) {
-        log(TAG, "notifyOpenAnimationFinished");
+    private void onContentPopulated() {
+        log(TAG, "onContentPopulated");
         if (mNativeSidePanelCoordinatorAndroid != 0) {
             SidePanelCoordinatorAndroidImplJni.get()
-                    .notifyOpenAnimationFinished(mNativeSidePanelCoordinatorAndroid);
+                    .onContentPopulated(mNativeSidePanelCoordinatorAndroid);
         }
     }
 
-    private void notifyCloseAnimationFinished(@Nullable Void unused) {
-        log(TAG, "notifyCloseAnimationFinished");
+    private void onContentRemoved() {
+        log(TAG, "onContentRemoved");
         if (mNativeSidePanelCoordinatorAndroid != 0) {
             SidePanelCoordinatorAndroidImplJni.get()
-                    .notifyCloseAnimationFinished(mNativeSidePanelCoordinatorAndroid);
+                    .onContentRemoved(mNativeSidePanelCoordinatorAndroid);
         }
     }
 
@@ -196,20 +212,20 @@ public final class SidePanelCoordinatorAndroidImpl implements SidePanelCoordinat
         void destroy(long nativeSidePanelCoordinatorAndroid);
 
         /**
-         * Notifies the underlying native object that animations for closing have finished.
+         * Notifies the underlying native object that the content has been removed.
          *
          * @param nativeSidePanelCoordinatorAndroid The address of the native {@code
          *     SidePanelCoordinatorAndroid}.
          */
-        void notifyCloseAnimationFinished(long nativeSidePanelCoordinatorAndroid);
+        void onContentRemoved(long nativeSidePanelCoordinatorAndroid);
 
         /**
-         * Notifies the underlying native object that animations for opening have finished.
+         * Notifies the underlying native object that the content has been populated.
          *
          * @param nativeSidePanelCoordinatorAndroid The address of the native {@code
          *     SidePanelCoordinatorAndroid}.
          */
-        void notifyOpenAnimationFinished(long nativeSidePanelCoordinatorAndroid);
+        void onContentPopulated(long nativeSidePanelCoordinatorAndroid);
 
         /**
          * See {@link SidePanelCoordinatorAndroid#onWindowResized(boolean).
@@ -227,5 +243,14 @@ public final class SidePanelCoordinatorAndroidImpl implements SidePanelCoordinat
          *     SidePanelCoordinatorAndroid}.
          */
         void init(long nativeSidePanelCoordinatorAndroid);
+
+        /**
+         * Returns whether the native coordinator has content to show.
+         *
+         * @param nativeSidePanelCoordinatorAndroid The address of the native {@code
+         *     SidePanelCoordinatorAndroid}.
+         * @see org.chromium.chrome.browser.ui.side_ui.SideUiContainer#hasContentToShow
+         */
+        boolean hasContentToShow(long nativeSidePanelCoordinatorAndroid);
     }
 }

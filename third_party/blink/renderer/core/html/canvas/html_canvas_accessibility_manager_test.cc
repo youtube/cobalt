@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/core/html/canvas/html_canvas_accessibility_manager.h"
 
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
@@ -12,6 +13,7 @@
 #include "third_party/blink/renderer/core/html/html_element.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
+#include "ui/accessibility/accessibility_features.h"
 #include "ui/gfx/geometry/size_f.h"
 
 namespace blink {
@@ -229,6 +231,51 @@ TEST_F(HTMLCanvasAccessibilityManagerTest, InitiallyIgnoredBecomesVisible) {
   EXPECT_EQ(canvas_element_->GetAccessibilityManagerForTesting()
                 ->GetHeuristicResultForTesting(),
             HTMLCanvasAccessibilityManager::HeuristicResult::kNeedsA11ySupport);
+}
+
+TEST_F(HTMLCanvasAccessibilityManagerTest, RecordAndSortRenderedText) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(::features::kAccessibilityCanvas);
+
+  SetUpCanvas("<body><canvas id='c' width=300 height=200></canvas></body>");
+  canvas_element_->OnAxObjectIgnoredStateChanged(/*is_ignored=*/false);
+  WaitForAccessibilityManagerUpdate();
+
+  HTMLCanvasAccessibilityManager* manager =
+      canvas_element_->GetAccessibilityManagerForTesting();
+  ASSERT_TRUE(manager);
+  EXPECT_TRUE(manager->ShouldCaptureRenderedText());
+
+  // Record text runs out of order.
+  // "World" is lower (larger Y) so it should come second.
+  manager->RecordRenderedText("World", gfx::RectF(0, 50, 100, 20), 12.0f);
+  // "Hello" is higher (smaller Y) so it should come first.
+  manager->RecordRenderedText("Hello", gfx::RectF(0, 0, 100, 20), 12.0f);
+  manager->UpdateAnnotation();
+  EXPECT_EQ(manager->CanvasAnnotation(), "Hello World");
+
+  // Record another run on the same line as "World" to test horizontal sorting.
+  // "Again" is to the right of "World" (bounds.x() = 110).
+  manager->RecordRenderedText("Again", gfx::RectF(110, 50, 100, 20), 12.0f);
+  manager->UpdateAnnotation();
+  EXPECT_EQ(manager->CanvasAnnotation(), "Hello World Again");
+
+  // Test overwrite: recording text in a sufficiently overlapping area should
+  // overwrite the existing run instead of adding a new one.
+  manager->RecordRenderedText("Hi", gfx::RectF(0, 0, 100, 20), 12.0f);
+  manager->UpdateAnnotation();
+  EXPECT_EQ(manager->CanvasAnnotation(), "Hi World Again");
+
+  // Test clearing a specific region.
+  // This rect intersects mainly with the "World" run (at Y=50).
+  manager->ClearRenderedText(gfx::RectF(-10, 40, 120, 30));
+  manager->UpdateAnnotation();
+  EXPECT_EQ(manager->CanvasAnnotation(), "Hi Again");
+
+  // Test full clear.
+  manager->ClearRenderedText();
+  manager->UpdateAnnotation();
+  EXPECT_TRUE(manager->CanvasAnnotation().empty());
 }
 
 }  // namespace blink

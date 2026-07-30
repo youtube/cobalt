@@ -13,7 +13,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/null_task_runner.h"
-#include "content/browser/child_process_security_policy_impl.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/public/common/child_process_id.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/drop_data.h"

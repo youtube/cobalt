@@ -169,6 +169,7 @@ public class SearchActivityUnitTest {
 
         mControlContainer = new View(mActivity);
         doReturn(mControlContainer).when(mActivity).findViewById(R.id.control_container);
+        mActivity.setControlContainerForTesting(mControlContainer);
 
         mActivity.setLocationBarCoordinatorForTesting(mLocationBarCoordinator);
 

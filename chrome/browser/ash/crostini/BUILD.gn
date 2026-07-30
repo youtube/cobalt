@@ -44,8 +44,6 @@ static_library("crostini") {
     "crostini_manager_factory.h",
     "crostini_metrics_service.cc",
     "crostini_metrics_service.h",
-    "crostini_mount_provider.cc",
-    "crostini_mount_provider.h",
     "crostini_port_forwarder.cc",
     "crostini_port_forwarder.h",
     "crostini_port_forwarder_factory.cc",

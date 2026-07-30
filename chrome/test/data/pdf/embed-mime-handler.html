@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head><title>Embed PDF</title></head>
+<body>
+<!--
+  Test harness for the MIME-handler-OOPIF *embedded* case: an HTML
+  page (served over HTTP, non-trustworthy) that explicitly iframes
+  a PDF. The PDF iframe triggers MIME-handler dispatch and the chrome-
+  extension viewer commits inside the iframe as a process-isolated
+  OOPIF. `IsSecureContextRoot()` returns true for the OOPIF in both
+  the full-page and embedded shapes; descendants' ancestor walks stop
+  at the OOPIF boundary, so the HTTP embedder above is never visible
+  to them.
+
+  The chrome-extension OOPIF itself always reports
+  `window.isSecureContext === true` because chrome-extension URLs
+  bypass Blink's ancestor-walk via the scheme allowlist:
+  https://source.chromium.org/chromium/chromium/src/+/main:chrome/common/secure_origin_allowlist.cc;l=23;drc=4a8573cb240df29b0e4d9820303538fb28e31d84
+  The observable effect is that HTTPS descendants of the OOPIF also
+  see `isSecureContext === true`: their ancestor secure-context walk
+  stops at the OOPIF boundary in both shapes. An HTTPS inner.html URL is
+  passed as `?inner=<URL>` and injected into the PDF iframe's
+  fragment so handler.js loads the inner probe the same way the
+  full-page test does.
+-->
+<script>
+  const params = new URLSearchParams(location.search);
+  const innerUrl = params.get('inner') || '';
+  const iframe = document.createElement('iframe');
+  iframe.src =
+      '/test.pdf' + (innerUrl ? '#' + encodeURIComponent(innerUrl) : '');
+  document.body.appendChild(iframe);
+</script>
+</body>
+</html>

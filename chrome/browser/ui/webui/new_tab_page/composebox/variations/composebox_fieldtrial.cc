@@ -190,11 +190,6 @@ const base::FeatureParam<bool> kShowContextMenuTabPreviews(
     "NtpComposeboxShowContextMenuTabPreviews",
     false);
 
-const base::FeatureParam<bool> kShowContextMenuDescription(
-    &kNtpComposebox,
-    "NtpComposeboxShowContextMenuDescription",
-    true);
-
 const base::FeatureParam<bool> kShowContextMenuHeaders(&kNtpComposebox,
                                                        "ShowContextMenuHeaders",
                                                        true);

@@ -626,6 +626,12 @@ void RemoteFrame::SetReplicatedIsAdFrame(bool is_ad_frame) {
   }
 }
 
+void RemoteFrame::SetReplicatedIsSecureContextRoot(
+    bool is_secure_context_root) {
+  TRACE_EVENT("navigation", "RemoteFrame::SetReplicatedIsSecureContextRoot");
+  security_context_.SetIsSecureContextRoot(is_secure_context_root);
+}
+
 void RemoteFrame::SetReplicatedName(const String& name,
                                     const String& unique_name) {
   TRACE_EVENT("navigation", "RemoteFrame::SetReplicatedName");

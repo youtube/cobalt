@@ -11,6 +11,8 @@ namespace personal_context {
 class PersonalContextEnablementService;
 }
 
+class GoogleGroupsManager;
+
 namespace autofill {
 
 // Returns true if the Personal Context setting should be shown in the
@@ -20,7 +22,8 @@ bool ShouldShowPersonalContextAutofillSetting(
 
 // Returns true if either Autofill Ambient Autofill or Autofill AtMemory is
 // enabled.
-bool AreAutofillPersonalContextFeaturesSupported();
+[[nodiscard]] bool AreAutofillPersonalContextFeaturesSupported(
+    const GoogleGroupsManager* google_groups_manager);
 
 }  // namespace autofill
 

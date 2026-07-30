@@ -1,7 +1,7 @@
 Name: bytes
 URL: https://crates.io/crates/bytes
-Version: 1.11.1
-Revision: 417dccdeff249e0c011327de7d92e0d6fbe7cc43
+Version: 1.12.0
+Revision: 91402cee605b21bf530ac07ede463599182b5d32
 Update Mechanism: Manual (https://crbug.com/449898466)
 License: MIT
 License File: //third_party/rust/chromium_crates_io/vendor/bytes-v1/LICENSE

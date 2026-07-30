@@ -258,27 +258,11 @@ ParseStatus::Or<scoped_refptr<MediaPlaylist>> MediaPlaylist::Parse(
             if (!resource_uri.is_valid()) {
               return ParseStatusCode::kInvalidUri;
             }
-            auto key_location =
-                MediaSegment::EncryptionData::KeyLocation::kUnsafeOrigin;
-            if (resource_uri.scheme() == "data") {
-              // Note that blob: is unacceptable as a safe origin since it may
-              // be populated by an opaque fetch response.
-              key_location =
-                  MediaSegment::EncryptionData::KeyLocation::kSafeOrigin;
-            } else if (url::Origin::Create(resource_uri)
-                           .IsSameOriginWith(
-                               url::Origin::Create(resolution_uri))) {
-              // Same-origin URLs (including resolved path-only URLs) are
-              // considered safe as well.
-              key_location =
-                  MediaSegment::EncryptionData::KeyLocation::kSafeOrigin;
-            }
-
             new_encryption_data = true;
             encryption_data =
                 base::MakeRefCounted<MediaSegment::EncryptionData>(
                     std::move(resource_uri), value.method, value.keyformat,
-                    value.iv, key_location);
+                    value.iv);
           }
 
           break;

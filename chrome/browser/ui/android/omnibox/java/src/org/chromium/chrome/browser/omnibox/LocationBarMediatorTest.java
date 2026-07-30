@@ -850,6 +850,7 @@ public class LocationBarMediatorTest {
 
         verify(mView).requestFocus();
         verify(mAutocompleteCoordinator).endInput();
+        verify(mUrlCoordinator).endInput();
     }
 
     public void testLoadUrlWithAutocompleteLoadCallback_base() {
@@ -1224,6 +1225,7 @@ public class LocationBarMediatorTest {
             assertTrue(mMediator.handleEscPress());
             verify(mAutocompleteCoordinator).stopAutocomplete();
             verify(mAutocompleteCoordinator, never()).endInput();
+            verify(mUrlCoordinator, never()).endInput();
         }
 
         {
@@ -1234,6 +1236,7 @@ public class LocationBarMediatorTest {
             verify(mLocationBarLayout).setDeleteButtonVisibility(false);
             assertEquals(input.getUserText(), input.getInitialUserText());
             verify(mAutocompleteCoordinator, never()).endInput();
+            verify(mUrlCoordinator, never()).endInput();
         }
 
         {
@@ -1241,6 +1244,7 @@ public class LocationBarMediatorTest {
             // canceled.
             assertTrue(mMediator.handleEscPress());
             verify(mAutocompleteCoordinator).endInput();
+            verify(mUrlCoordinator).endInput();
         }
 
         {
@@ -1364,6 +1368,9 @@ public class LocationBarMediatorTest {
 
     @Test
     public void testSetUrl() {
+        mProfileSupplier.set(mProfile);
+        mMediator.onFinishNativeInitialization();
+
         var url = JUnitTestGURLs.BLUE_1;
         UrlBarData urlBarData = UrlBarData.forUrl(url);
         mMediator.setUrl(url, urlBarData);
@@ -1371,6 +1378,7 @@ public class LocationBarMediatorTest {
         // Assume that the URL bar is now focused without focus animations.
         doReturn(true).when(mUrlCoordinator).hasFocus();
         mMediator.setIsUrlBarFocusedWithoutAnimationsForTesting(true);
+        mMediator.beginOrResumeInput(/* activateNewSession= */ true);
         mMediator.setUrl(url, urlBarData);
 
         // Verify that setUrl() never clears focus when the URL bar is focused without animations.
@@ -1427,6 +1435,7 @@ public class LocationBarMediatorTest {
                 ArgumentCaptor.forClass(FuseboxSessionState.class);
         verify(mFuseboxCoordinator).beginInput(captor.capture());
         verify(mStatusCoordinator).beginInput(captor.getValue());
+        verify(mUrlCoordinator).beginInput(captor.getValue().getAutocompleteInput());
 
         assertEquals(
                 OmniboxFocusReason.NTP_AI_MODE,
@@ -1447,6 +1456,7 @@ public class LocationBarMediatorTest {
         ArgumentCaptor<FuseboxSessionState> captor =
                 ArgumentCaptor.forClass(FuseboxSessionState.class);
         verify(mAutocompleteCoordinator).beginInput(captor.capture());
+        verify(mUrlCoordinator).beginInput(captor.getValue().getAutocompleteInput());
         assertEquals("pastedText", captor.getValue().getAutocompleteInput().getUserText());
     }
 
@@ -1575,6 +1585,7 @@ public class LocationBarMediatorTest {
         assertFalse(mTabletMediator.isUrlBarFocused());
         verify(mStatusCoordinator).setShouldAnimateIconChanges(false);
         verify(mStatusCoordinator).endInput();
+        verify(mUrlCoordinator).endInput();
         verify(mUrlCoordinator).onUrlFocusChange(false);
         verify(mUrlCoordinator, atLeastOnce())
                 .setUrlBarData(
@@ -2957,6 +2968,7 @@ public class LocationBarMediatorTest {
         mMediator.onFinishNativeInitialization();
         mProfileSupplier.set(mProfile);
         mMediator.beginInput(new AutocompleteInput());
+        clearInvocations(mScrimHandler);
 
         // Show scrim in all contexts if there are any suggestions to show.
         mMediator.onSuggestionsChanged(null, true);
@@ -3210,5 +3222,23 @@ public class LocationBarMediatorTest {
         verify(mSuggestionsContainer).addView(mLocationBarLayout, 0, layoutParams);
         verify(mUrlCoordinator).startReparenting();
         verify(mUrlCoordinator).finishReparenting(true);
+    }
+
+    @Test
+    public void testStandbyEndsWithRequestTypeChanged() {
+        mMediator.onFinishNativeInitialization();
+        mProfileSupplier.set(mProfile);
+        AutocompleteInput input = mSessionState.getAutocompleteInput();
+        input.setAutocompleteState(AutocompleteState.STANDBY);
+        mMediator.beginInput(input);
+        verify(mLocationBarLayout, atLeastOnce()).setIsInStandby(true);
+        verify(mLocationBarLayout, never()).setIsInStandby(false);
+        clearInvocations(mLocationBarLayout);
+
+        input.setAutocompleteState(AutocompleteState.ENABLED);
+        input.setRequestType(AutocompleteRequestType.AI_MODE);
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+
+        verify(mLocationBarLayout).setIsInStandby(false);
     }
 }

@@ -1601,7 +1601,8 @@ def _EnsureSystemSettings(device):
   # See https://crbug.com/443782461 for more details.
   if device.build_version_sdk >= version_codes.BAKLAVA:
     # On desktop, we do not want to force the soft keyboard.
-    if not device.is_desktop:
+    if (not device.is_desktop
+        and device.IsApplicationInstalled(device_utils.GBOARD_PKG)):
       logging.info('Update Gboard preferences.')
       with device.GboardPreferences() as gboard_prefs:
         # Disable the stylus.

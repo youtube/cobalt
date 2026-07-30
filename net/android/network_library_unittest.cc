@@ -149,4 +149,19 @@ TEST(NetworkLibraryTest, BindToNetwork) {
   }
 }
 
+TEST(NetworkLibraryTest, GetEchMode) {
+  // Verifies that GetEchMode can be called without crashing and returns
+  // the expected default on current test environments.
+  EchMode mode = GetEchMode("example.com");
+
+  if (base::android::android_info::sdk_int() <=
+      base::android::android_info::SDK_VERSION_BAKLAVA) {
+    EXPECT_EQ(EchMode::kOpportunistic, mode);
+  } else {
+    // On API 37+, just verify it's a valid enum value.
+    EXPECT_TRUE(mode == EchMode::kDisabled || mode == EchMode::kOpportunistic ||
+                mode == EchMode::kStrict);
+  }
+}
+
 }  // namespace net::android

@@ -53,9 +53,7 @@ class TabModalDialogHost : public web_modal::WebContentsModalDialogHost,
   // a split. This the bottom of the toolbar, minus a small overlap.
   int GetToolbarOverlappingYCoordinate();
 
-  int GetDialogYCoordinate(
-      const gfx::Rect& contents_container_view_coordinates_in_browser,
-      int dialog_height);
+  int GetDialogYCoordinate(int contents_container_view_y, int dialog_height);
   void NotifyPositionRequiresUpdate();
 
   bool IsBottomTabInSplit();

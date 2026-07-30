@@ -8,9 +8,14 @@
 #include <memory>
 
 #include "base/functional/callback.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/values.h"
 #include "components/policy/core/common/cloud/user_info_fetcher.h"
 #include "google_apis/gaia/google_service_auth_error.h"
+
+namespace network {
+class SharedURLLoaderFactory;
+}  // namespace network
 
 namespace policy {
 
@@ -30,7 +35,9 @@ class WildcardLoginChecker : public UserInfoFetcher::Delegate {
 
   using StatusCallback = base::OnceCallback<void(Result)>;
 
-  WildcardLoginChecker();
+  // `url_loader_factory` must be non-null.
+  explicit WildcardLoginChecker(
+      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory);
 
   WildcardLoginChecker(const WildcardLoginChecker&) = delete;
   WildcardLoginChecker& operator=(const WildcardLoginChecker&) = delete;
@@ -59,6 +66,8 @@ class WildcardLoginChecker : public UserInfoFetcher::Delegate {
 
   // Handles the response of the check and calls ReportResult().
   void OnCheckCompleted(Result result);
+
+  const scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
 
   StatusCallback callback_;
 

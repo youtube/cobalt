@@ -13423,9 +13423,10 @@ TEST_F(HttpCacheTest, GetResourceURLFromHttpCacheKey) {
 
       // Invalid input, producing garbage, without crashing.
       {"", ""},
-      {"0/a.com", "0/a.com"},
+      {"0/a.com", ""},
       {"https://a.com/", "a.com/"},
       {"0/https://a.com/", "/a.com/"},
+      {"0/0/_dk_https://a.com", ""},
   };
 
   for (const auto& test : kTestCase) {

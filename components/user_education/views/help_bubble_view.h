@@ -74,7 +74,7 @@ class HelpBubbleView : public views::BubbleDialogDelegateView {
   static constexpr int kMinWidthDip = 200;
 
   // Maximum width of the bubble. Longer strings will cause wrapping.
-  static constexpr int kMaxWidthDip = 340;
+  static constexpr int kMaxWidthDip = 350;
 
   HelpBubbleView(const HelpBubbleView&) = delete;
   HelpBubbleView& operator=(const HelpBubbleView&) = delete;

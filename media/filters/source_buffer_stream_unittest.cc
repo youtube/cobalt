@@ -4588,6 +4588,28 @@ TEST_F(SourceBufferStreamTest, Audio_Opus_SeekToJustBeforeRangeStart) {
   CheckNoNextBuffer();
 }
 
+TEST_F(SourceBufferStreamTest, Video_KeepDuplicateZeroDurationBuffers) {
+  Seek(0);
+  NewCodedFrameGroupAppend("497D0K 497D0K 497D0K");
+  CheckExpectedRangesByTimestamp("{ [497000,497001) }",
+                                 TimeGranularity::kMicrosecond);
+  CheckExpectedBuffers("497000K 497000K 497000K",
+                       TimeGranularity::kMicrosecond);
+  CheckNoNextBuffer();
+}
+
+TEST_F(SourceBufferStreamTest, Video_AccumulateDuplicateZeroDurationBuffers) {
+  Seek(0);
+  NewCodedFrameGroupAppend("497D0K");
+  CheckExpectedRangesByTimestamp("{ [497000,497001) }",
+                                 TimeGranularity::kMicrosecond);
+  AppendBuffers("497D0K");
+  CheckExpectedRangesByTimestamp("{ [497000,497001) }",
+                                 TimeGranularity::kMicrosecond);
+  CheckExpectedBuffers("497000K 497000K", TimeGranularity::kMicrosecond);
+  CheckNoNextBuffer();
+}
+
 TEST_F(SourceBufferStreamTest, BFrames) {
   Seek(0);
   NewCodedFrameGroupAppend("0K 120|30 30|60 60|90 90|120");

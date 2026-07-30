@@ -35,6 +35,25 @@ CRYPTO_EXPORT std::optional<std::vector<uint8_t>> ConvertEcdsaDerSignatureToRaw(
     const EC_GROUP* group,
     base::span<const uint8_t> der_signature);
 
+// Converts a fixed-width signature defined in IEEE P1363 (concatenation of
+// big-endian padded `r` and `s` components) to a DER-encoded ECDSA-Sig-Value.
+// The length of `r` and `s` is determined by the curve of the public key.
+CRYPTO_EXPORT std::optional<std::vector<uint8_t>> ConvertEcdsaRawSignatureToDer(
+    const keypair::PublicKey& public_key,
+    base::span<const uint8_t> raw_signature);
+
+// The same as above but uses `EC_GROUP` to determine the length of the
+// signature.
+CRYPTO_EXPORT std::optional<std::vector<uint8_t>> ConvertEcdsaRawSignatureToDer(
+    const EC_GROUP* group,
+    base::span<const uint8_t> raw_signature);
+
+// Converts raw `r` and `s` big-endian components of an ECDSA signature
+// to a DER-encoded ECDSA-Sig-Value.
+CRYPTO_EXPORT std::optional<std::vector<uint8_t>>
+ConvertEcdsaRawComponentsToDer(base::span<const uint8_t> r,
+                               base::span<const uint8_t> s);
+
 }  // namespace crypto
 
 #endif  // CRYPTO_ECDSA_UTILS_H_

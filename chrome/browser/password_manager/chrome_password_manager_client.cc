@@ -191,6 +191,7 @@
 #endif  // BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS) || BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
+#include "chrome/browser/signin/dice_tab_helper.h"
 #include "chrome/browser/signin/dice_web_signin_interceptor_factory.h"
 #endif
 
@@ -1380,6 +1381,15 @@ bool ChromePasswordManagerClient::IsNewTabPage() const {
          origin == chrome::ChromeUINewTabURLAsGURL().DeprecatedGetOriginAsURL();
 }
 
+bool ChromePasswordManagerClient::IsChromeSigninPage() const {
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  DiceTabHelper* tab_helper = DiceTabHelper::FromWebContents(web_contents());
+  return tab_helper && tab_helper->IsChromeSigninPage();
+#else
+  return false;
+#endif
+}
+
 password_manager::WebAuthnCredentialsDelegate*
 ChromePasswordManagerClient::GetWebAuthnCredentialsDelegateForDriver(
     PasswordManagerDriver* driver) {
@@ -1504,20 +1514,20 @@ void ChromePasswordManagerClient::TriggerSignIn(
 
 void ChromePasswordManagerClient::AutomaticGenerationAvailable(
     const autofill::password_generation::PasswordGenerationUIData& ui_data) {
-  content::RenderFrameHost* rfh =
-      password_generation_driver_receivers_.GetCurrentTargetFrame();
+  content::RenderFrameHost& rfh =
+      password_generation_driver_receivers_.CurrentTargetFrame();
   if (!password_manager::bad_message::CheckChildProcessSecurityPolicyForURL(
-          rfh, ui_data.form_data.url(),
+          &rfh, ui_data.form_data.url(),
           BadMessageReason::
               CPMD_BAD_ORIGIN_AUTOMATIC_GENERATION_STATUS_CHANGED)) {
     return;
   }
-  if (!CheckFrameActiveAndNotPrerendering(rfh)) {
+  if (!CheckFrameActiveAndNotPrerendering(&rfh)) {
     return;
   }
   password_manager::ContentPasswordManagerDriver* driver =
       password_manager::ContentPasswordManagerDriver::GetForRenderFrameHost(
-          rfh);
+          &rfh);
   // This method is called over Mojo via a RenderFrameHostReceiverSet; the
   // current target frame must be live.
   CHECK(driver);
@@ -1537,12 +1547,11 @@ void ChromePasswordManagerClient::AutomaticGenerationAvailable(
   PasswordGenerationController* generation_controller =
       PasswordGenerationController::GetOrCreate(web_contents());
 
-  gfx::RectF element_bounds_in_screen_space = TransformToRootCoordinates(
-      password_generation_driver_receivers_.GetCurrentTargetFrame(),
-      ui_data.bounds);
+  gfx::RectF element_bounds_in_screen_space =
+      TransformToRootCoordinates(&rfh, ui_data.bounds);
 
   auto has_saved_credentials =
-      !credential_cache_.GetCredentialStore(rfh->GetLastCommittedOrigin())
+      !credential_cache_.GetCredentialStore(rfh.GetLastCommittedOrigin())
            .GetCredentials()
            .empty();
   generation_controller->OnAutomaticGenerationAvailable(
@@ -1582,20 +1591,20 @@ void ChromePasswordManagerClient::AutomaticGenerationAvailable(
 void ChromePasswordManagerClient::PresaveGeneratedPassword(
     const autofill::FormData& form_data,
     const std::u16string& password_value) {
-  content::RenderFrameHost* rfh =
-      password_generation_driver_receivers_.GetCurrentTargetFrame();
+  content::RenderFrameHost& rfh =
+      password_generation_driver_receivers_.CurrentTargetFrame();
   if (!password_manager::bad_message::CheckChildProcessSecurityPolicyForURL(
-          rfh, form_data.url(),
+          &rfh, form_data.url(),
           BadMessageReason::CPMD_BAD_ORIGIN_PRESAVE_GENERATED_PASSWORD)) {
     return;
   }
-  if (!CheckFrameActiveAndNotPrerendering(rfh)) {
+  if (!CheckFrameActiveAndNotPrerendering(&rfh)) {
     return;
   }
 
   PasswordManagerDriver* driver =
       password_manager::ContentPasswordManagerDriver::GetForRenderFrameHost(
-          rfh);
+          &rfh);
 
 #if !BUILDFLAG(IS_ANDROID)
   if (popup_controller_ && popup_controller_->driver().get() == driver) {
@@ -1608,34 +1617,31 @@ void ChromePasswordManagerClient::PresaveGeneratedPassword(
   CHECK(driver);
   password_manager_.OnPresaveGeneratedPassword(
       driver,
-      password_manager::GetFormWithFrameAndFormMetaData(
-          password_generation_driver_receivers_.GetCurrentTargetFrame(),
-          form_data),
+      password_manager::GetFormWithFrameAndFormMetaData(&rfh, form_data),
       password_value);
 }
 
 void ChromePasswordManagerClient::PasswordNoLongerGenerated(
     const autofill::FormData& form_data) {
-  content::RenderFrameHost* rfh =
-      password_generation_driver_receivers_.GetCurrentTargetFrame();
+  content::RenderFrameHost& rfh =
+      password_generation_driver_receivers_.CurrentTargetFrame();
   if (!password_manager::bad_message::CheckChildProcessSecurityPolicyForURL(
-          rfh, form_data.url(),
+          &rfh, form_data.url(),
           BadMessageReason::CPMD_BAD_ORIGIN_PASSWORD_NO_LONGER_GENERATED)) {
     return;
   }
-  if (!CheckFrameActiveAndNotPrerendering(rfh)) {
+  if (!CheckFrameActiveAndNotPrerendering(&rfh)) {
     return;
   }
   PasswordManagerDriver* driver =
       password_manager::ContentPasswordManagerDriver::GetForRenderFrameHost(
-          rfh);
+          &rfh);
   // This method is called over Mojo via a RenderFrameHostReceiverSet; the
   // current target frame must be live.
   CHECK(driver);
   password_manager_.OnPasswordNoLongerGenerated(
-      driver, password_manager::GetFormWithFrameAndFormMetaData(
-                  password_generation_driver_receivers_.GetCurrentTargetFrame(),
-                  form_data));
+      driver,
+      password_manager::GetFormWithFrameAndFormMetaData(&rfh, form_data));
 
 #if !BUILDFLAG(IS_ANDROID)
   PasswordGenerationPopupController* controller = popup_controller_.get();
@@ -1653,38 +1659,33 @@ void ChromePasswordManagerClient::ShowPasswordEditingPopup(
     const autofill::FormData& form_data,
     autofill::FieldRendererId field_renderer_id,
     const std::u16string& password_value) {
-  content::RenderFrameHost* rfh =
-      password_generation_driver_receivers_.GetCurrentTargetFrame();
-  if (!CheckFrameActiveAndNotPrerendering(rfh)) {
+  content::RenderFrameHost& rfh =
+      password_generation_driver_receivers_.CurrentTargetFrame();
+  if (!CheckFrameActiveAndNotPrerendering(&rfh)) {
     return;
   }
-  if (!password_manager::bad_message::CheckGeneratedPassword(rfh,
+  if (!password_manager::bad_message::CheckGeneratedPassword(&rfh,
                                                              password_value)) {
     return;
   }
   auto* driver =
       password_manager::ContentPasswordManagerDriver::GetForRenderFrameHost(
-          rfh);
+          &rfh);
   // This method is called over Mojo via a RenderFrameHostReceiverSet; the
   // current target frame must be live.
   CHECK(driver);
 
   gfx::RectF element_bounds_in_screen_space =
-      GetBoundsInScreenSpace(TransformToRootCoordinates(
-          password_generation_driver_receivers_.GetCurrentTargetFrame(),
-          bounds));
+      GetBoundsInScreenSpace(TransformToRootCoordinates(&rfh, bounds));
   autofill::password_generation::PasswordGenerationUIData ui_data(
       bounds, /*max_length=*/0, /*generation_element=*/std::u16string(),
       field_renderer_id,
       /*is_generation_element_password_type=*/true, base::i18n::TextDirection(),
-      password_manager::GetFormWithFrameAndFormMetaData(
-          password_generation_driver_receivers_.GetCurrentTargetFrame(),
-          form_data),
+      password_manager::GetFormWithFrameAndFormMetaData(&rfh, form_data),
       /*input_field_empty=*/false);
   popup_controller_ = PasswordGenerationPopupControllerImpl::GetOrCreate(
       popup_controller_, element_bounds_in_screen_space, ui_data,
-      driver->AsWeakPtr(), observer_, web_contents(),
-      password_generation_driver_receivers_.GetCurrentTargetFrame());
+      driver->AsWeakPtr(), observer_, web_contents(), &rfh);
   CHECK(!password_value.empty());
   popup_controller_->UpdateGeneratedPassword(password_value);
   popup_controller_->Show(
@@ -1692,9 +1693,9 @@ void ChromePasswordManagerClient::ShowPasswordEditingPopup(
 }
 
 void ChromePasswordManagerClient::PasswordGenerationRejectedByTyping() {
-  content::RenderFrameHost* rfh =
-      password_generation_driver_receivers_.GetCurrentTargetFrame();
-  if (!CheckFrameActiveAndNotPrerendering(rfh)) {
+  content::RenderFrameHost& rfh =
+      password_generation_driver_receivers_.CurrentTargetFrame();
+  if (!CheckFrameActiveAndNotPrerendering(&rfh)) {
     return;
   }
   if (popup_controller_) {
@@ -1703,9 +1704,9 @@ void ChromePasswordManagerClient::PasswordGenerationRejectedByTyping() {
 }
 
 void ChromePasswordManagerClient::FrameWasScrolled() {
-  content::RenderFrameHost* rfh =
-      password_generation_driver_receivers_.GetCurrentTargetFrame();
-  if (!CheckFrameActiveAndNotPrerendering(rfh)) {
+  content::RenderFrameHost& rfh =
+      password_generation_driver_receivers_.CurrentTargetFrame();
+  if (!CheckFrameActiveAndNotPrerendering(&rfh)) {
     return;
   }
   if (popup_controller_) {
@@ -1714,9 +1715,9 @@ void ChromePasswordManagerClient::FrameWasScrolled() {
 }
 
 void ChromePasswordManagerClient::GenerationElementLostFocus() {
-  content::RenderFrameHost* rfh =
-      password_generation_driver_receivers_.GetCurrentTargetFrame();
-  if (!CheckFrameActiveAndNotPrerendering(rfh)) {
+  content::RenderFrameHost& rfh =
+      password_generation_driver_receivers_.CurrentTargetFrame();
+  if (!CheckFrameActiveAndNotPrerendering(&rfh)) {
     return;
   }
   // TODO(crbug.com/40629608): Look into removing this since FocusedInputChanged
@@ -1957,7 +1958,7 @@ void ChromePasswordManagerClient::OnNonPasswordLoginDetected() {
           ? ChromePasswordManagerClient::FromWebContents(opener_web_contents)
           : nullptr;
   if (opener_client) {
-    opener_client->OnNonPasswordLoginDetected();
+    opener_client->password_manager_.OnNonPasswordLoginDetected();
     return;
   }
 

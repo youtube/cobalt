@@ -206,7 +206,6 @@
   "blackbox_fuzzing_targets": {
     "label": "//:blackbox_fuzzing_targets",
     "type": "additional_compile_target",
-    "skip_usage_check": True,
   },
   "blink_common_unittests": {
     "label": "//third_party/blink/common:blink_common_unittests",

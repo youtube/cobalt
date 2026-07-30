@@ -1304,10 +1304,34 @@ using `CrashReportPrivate.reportError()`. If you do so, be sure to override
 page; this will avoid generating redundant error reports.
 
 ### Are JavaScript errors actually crashes?
-JavaScript errors are not "crashes" in the C++ sense. They do not stop a process
-from running, they do not cause a "sad tab" page. Some tooling refers to them as
-crashes because they are going through the same pipeline as the C++ crashes, and
-that pipeline was originally designed to handle crashes.
+By default, JavaScript errors are not "crashes" in the C++ sense (unless you
+opt in; see [Optionally crash the browser on JavaScript errors](#optionally-crash-the-browser-on-javascript-errors)).
+They do not stop a process from running, and they do not cause a "sad tab"
+page. Some tooling refers to them as crashes because they are sent through the
+same pipeline as C++ crashes, which was originally designed to handle actual
+crashes.
+
+### Optionally crash the browser on JavaScript errors
+In development builds, you can opt in to having JavaScript errors actually crash
+the browser. This helps catch errors during development or in automated tests.
+Note that this will not crash the browser in official (Canary/Dev/Beta/Stable)
+builds!
+
+To opt in, override [ShouldCrashOnJavascriptErrorInDevelopmentBuild()](https://source.chromium.org/chromium/chromium/src/+/main:content/public/browser/webui_config.h;l=56;drc=202535bf687e3d52636f0722b529ff31962f2c05)
+in your `WebUIConfig` to return `true`:
+
+```cpp
+class MyUIConfig : public content::WebUIConfig {
+  ...
+  bool ShouldCrashOnJavascriptErrorInDevelopmentBuild() const override {
+    return true;
+  }
+};
+```
+
+If you need to bypass this crash behavior when running a development build,
+launch the browser with the `--disable-crash-on-webui-js-error` command-line
+flag.
 
 ### How much impact does this JavaScript error have?
 That depends on the JavaScript error. In some cases, the errors have no user

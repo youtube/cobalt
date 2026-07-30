@@ -24,6 +24,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands_mac.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
@@ -1202,15 +1203,15 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, SplitViewTabRevealFullscreen) {
                   .IsSelected(1));
 
   ui_test_utils::ToggleFullscreenModeAndWait(browser());
-  ASSERT_FALSE(browser()->window()->IsToolbarShowing());
+  ASSERT_FALSE(BrowserWindow::FromBrowser(browser())->IsToolbarShowing());
 
   // Switching between split tabs does not reveal top container.
   browser()->tab_strip_model()->ActivateTabAt(1);
-  ASSERT_FALSE(browser()->window()->IsToolbarShowing());
+  ASSERT_FALSE(BrowserWindow::FromBrowser(browser())->IsToolbarShowing());
 
   // Switching to tab not in split should reveal top container.
   browser()->tab_strip_model()->ActivateTabAt(2);
-  ASSERT_TRUE(browser()->window()->IsToolbarShowing());
+  ASSERT_TRUE(BrowserWindow::FromBrowser(browser())->IsToolbarShowing());
 }
 #endif
 

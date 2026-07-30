@@ -7,7 +7,6 @@
 #include "base/strings/stringprintf.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/values_test_util.h"
-#include "chromeos/crosapi/mojom/local_printer.mojom.h"
 #include "chromeos/printing/printer_configuration.h"
 #include "printing/backend/print_backend.h"
 #include "printing/mojom/print.mojom.h"

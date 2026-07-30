@@ -29,7 +29,7 @@ class PinTabsTaskInfo : public TaskInfo {
   std::string GetTriggerUserAction() const override {
     return "MobileTabPinned";
   }
-  base::RepeatingClosure GetNavigationAction() const override {
+  TaskInfo::NavigationAction GetNavigationAction() const override {
     return base::DoNothing();
   }
 };

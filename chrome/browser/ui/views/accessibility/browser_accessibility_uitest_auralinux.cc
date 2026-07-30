@@ -44,7 +44,8 @@ class AuraLinuxAccessibilityInProcessBrowserTest : public InProcessBrowserTest {
 IN_PROC_BROWSER_TEST_F(AuraLinuxAccessibilityInProcessBrowserTest,
                        IndexInParent) {
   AtkObject* native_view_accessible =
-      static_cast<BrowserView*>(browser()->window())->GetNativeViewAccessible();
+      BrowserView::GetBrowserViewForBrowser(browser())
+          ->GetNativeViewAccessible();
   EXPECT_NE(nullptr, native_view_accessible);
 
   int n_children = atk_object_get_n_accessible_children(native_view_accessible);
@@ -134,7 +135,8 @@ static AtkObject* FindParentFrame(AtkObject* object) {
 
 void AuraLinuxAccessibilityInProcessBrowserTest::VerifyEmbedRelationships() {
   AtkObject* native_view_accessible =
-      static_cast<BrowserView*>(browser()->window())->GetNativeViewAccessible();
+      BrowserView::GetBrowserViewForBrowser(browser())
+          ->GetNativeViewAccessible();
   EXPECT_NE(nullptr, native_view_accessible);
 
   AtkObject* window = FindParentFrame(native_view_accessible);

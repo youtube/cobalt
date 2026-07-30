@@ -29,7 +29,6 @@ import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Features.DisableFeatures;
-import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -42,7 +41,6 @@ import java.util.concurrent.atomic.AtomicReference;
 /** Tests for the Search in Settings. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @DoNotBatch(reason = "Tests cannot run batched because they launch a Settings activity.")
-@EnableFeatures(ChromeFeatureList.SEARCH_IN_SETTINGS)
 public class SettingsSearchCoordinatorTest {
     @Rule
     public SettingsActivityTestRule<?> mSettingsActivityTestRule =

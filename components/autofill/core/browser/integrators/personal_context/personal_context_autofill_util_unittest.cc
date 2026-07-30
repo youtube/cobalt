@@ -60,7 +60,8 @@ TEST(PersonalContextAutofillUtilTest,
         /*enabled_features=*/{},
         /*disabled_features=*/{features::kAutofillAmbientAutofill,
                                features::kAutofillAtMemory});
-    EXPECT_FALSE(AreAutofillPersonalContextFeaturesSupported());
+    EXPECT_FALSE(AreAutofillPersonalContextFeaturesSupported(
+        /*google_groups_manager=*/nullptr));
   }
 
   // 2. AmbientAutofill enabled
@@ -69,7 +70,8 @@ TEST(PersonalContextAutofillUtilTest,
     feature_list.InitWithFeatures(
         /*enabled_features=*/{features::kAutofillAmbientAutofill},
         /*disabled_features=*/{features::kAutofillAtMemory});
-    EXPECT_TRUE(AreAutofillPersonalContextFeaturesSupported());
+    EXPECT_TRUE(AreAutofillPersonalContextFeaturesSupported(
+        /*google_groups_manager=*/nullptr));
   }
 
   // 3. AtMemory enabled
@@ -78,7 +80,8 @@ TEST(PersonalContextAutofillUtilTest,
     feature_list.InitWithFeatures(
         /*enabled_features=*/{features::kAutofillAtMemory},
         /*disabled_features=*/{features::kAutofillAmbientAutofill});
-    EXPECT_TRUE(AreAutofillPersonalContextFeaturesSupported());
+    EXPECT_TRUE(AreAutofillPersonalContextFeaturesSupported(
+        /*google_groups_manager=*/nullptr));
   }
 
   // 4. Both enabled
@@ -88,7 +91,8 @@ TEST(PersonalContextAutofillUtilTest,
         /*enabled_features=*/{features::kAutofillAmbientAutofill,
                               features::kAutofillAtMemory},
         /*disabled_features=*/{});
-    EXPECT_TRUE(AreAutofillPersonalContextFeaturesSupported());
+    EXPECT_TRUE(AreAutofillPersonalContextFeaturesSupported(
+        /*google_groups_manager=*/nullptr));
   }
 }
 

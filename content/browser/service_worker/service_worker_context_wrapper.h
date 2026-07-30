@@ -424,8 +424,7 @@ class CONTENT_EXPORT ServiceWorkerContextWrapper
   scoped_refptr<network::SharedURLLoaderFactory> GetLoaderFactoryForUpdateCheck(
       const GURL& scope,
       network::mojom::ClientSecurityStatePtr client_security_state,
-      const std::optional<base::UnguessableToken>&
-          creator_network_restrictions_id);
+      const base::UnguessableToken& creator_network_restrictions_id);
 
   // Returns nullptr on failure.
   // Note: This is currently only used for plzServiceWorker.
@@ -434,8 +433,7 @@ class CONTENT_EXPORT ServiceWorkerContextWrapper
       const GURL& scope,
       int64_t version_id,
       network::mojom::ClientSecurityStatePtr client_security_state,
-      const std::optional<base::UnguessableToken>&
-          creator_network_restrictions_id);
+      const base::UnguessableToken& creator_network_restrictions_id);
 
   const base::FilePath& user_data_directory() { return user_data_directory_; }
 
@@ -574,8 +572,7 @@ class CONTENT_EXPORT ServiceWorkerContextWrapper
       const GURL& scope,
       std::optional<int64_t> version_id,
       network::mojom::ClientSecurityStatePtr client_security_state,
-      const std::optional<base::UnguessableToken>&
-          creator_network_restrictions_id);
+      const base::UnguessableToken& creator_network_restrictions_id);
 
   // Observers of `context_core_` which live within content's implementation
   // boundary. Shared with `context_core_`.

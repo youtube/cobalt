@@ -610,10 +610,7 @@ def main():
         'targets',
         nargs=argparse.REMAINDER,
         help='Targets to include in the blueprint (e.g., "//:perfetto_tests")')
-    parser.add_argument(
-        '--suffix',
-        help='The suffix to the Android.bp filename. Pass "" if no suffix.',
-        default='.gn2bp')
+
     parser.add_argument(
         '--channel',
         help='The channel this Android.bp generation is being performed for.',
@@ -683,9 +680,9 @@ def main():
 """ % (Path(__file__).name)
 
     for (path, blueprint) in final_blueprints.items():
-        # Copybara only includes the Android.bp files generated with .gn2bp suffix
-        filename = "Android.bp" + args.suffix
-        android_bp_file = Path(os.path.join(args.repo_root, path, filename))
+        android_bp_file = Path(os.path.join(args.repo_root, path,
+                                            "Android.bp"))
+        android_bp_file.parent.mkdir(parents=True, exist_ok=True)
         android_bp_file.write_text("\n".join(
             [header] + translation_config.BLUEPRINTS_EXTRAS.get(path, []) +
             blueprint.to_string(

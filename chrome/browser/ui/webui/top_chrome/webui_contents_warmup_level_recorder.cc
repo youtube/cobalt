@@ -8,10 +8,8 @@
 
 #include "chrome/browser/ui/webui/top_chrome/webui_contents_preload_manager.h"
 #include "chrome/browser/ui/webui/top_chrome/webui_contents_warmup_level.h"
-#include "chrome/common/webui_url_utils.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
-#include "content/public/browser/security_principal.h"
-#include "content/public/browser/site_instance.h"
 #include "content/public/browser/spare_render_process_host_manager.h"
 #include "content/public/browser/web_contents.h"
 
@@ -27,14 +25,13 @@ bool IsFirstWebContentsOnProcess(
     return false;
   }
 
-  // Count the number of top-level Top Chrome documents on the process.
+  // Count all top-level frames on this process. Top Chrome WebUIs share a
+  // dedicated process (enforced by process lock and WebUI bindings checks), so
+  // any top-level frame on this process is a Top Chrome document.
   size_t top_chrome_frames = 0;
   web_contents->GetPrimaryMainFrame()->GetProcess()->ForEachRenderFrameHost(
       [&top_chrome_frames](content::RenderFrameHost* rfh) {
-        top_chrome_frames += rfh->GetOutermostMainFrame() == rfh &&
-                             IsTopChromeWebUIURL(rfh->GetSiteInstance()
-                                                     ->GetSecurityPrincipal()
-                                                     .GetDeprecatedSiteURL());
+        top_chrome_frames += rfh->GetOutermostMainFrame() == rfh;
       });
   const size_t has_preloaded_contents =
       WebUIContentsPreloadManager::GetInstance()->preloaded_web_contents() ? 1

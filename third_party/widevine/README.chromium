@@ -2,7 +2,7 @@ Name: Widevine Content Decryption Module
 Short Name: Widevine CDM
 URL: https://chrome-internal.googlesource.com/chrome/deps/widevine/scripts.git
 Version: N/A
-Revision: c96f53fde16f37b1a6cc2b6c468af3c4a364f426
+Revision: 6a0f9d00e79c6453d33dcccaf7c4e701e0eba4e8
 Update Mechanism: Manual
 License: Commercial
 License File: LICENSE

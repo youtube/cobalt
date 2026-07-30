@@ -7,7 +7,7 @@
 
 #import <Foundation/Foundation.h>
 
-#import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_state_provider.h"
+#import "ios/chrome/browser/omnibox/model/omnibox_focus/omnibox_state_provider.h"
 
 /// A provider that aggregates omnibox state from multiple sources (e.g.
 /// location bar, composebox).

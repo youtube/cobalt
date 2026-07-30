@@ -27,6 +27,7 @@
 #include "components/services/storage/dom_storage/db_status.h"
 #include "components/services/storage/dom_storage/dom_storage_constants.h"
 #include "components/services/storage/dom_storage/dom_storage_database.h"
+#include "components/services/storage/dom_storage/dom_storage_histogram_helper.h"
 #include "components/services/storage/dom_storage/features.h"
 #include "components/services/storage/dom_storage/leveldb_status_helper.h"
 #include "components/services/storage/dom_storage/storage_area_impl.h"
@@ -280,37 +281,25 @@ void LocalStorageImpl::Flush() {
     it.second->storage_area()->ScheduleImmediateCommit();
 }
 
-void LocalStorageImpl::FlushStorageKeyForTesting(
+StorageAreaImpl* LocalStorageImpl::GetStorageAreaForTesting(
     const blink::StorageKey& storage_key) {
-  if (connection_state_ != CONNECTION_FINISHED)
-    return;
-  const auto& it = areas_.find(storage_key);
-  if (it == areas_.end())
-    return;
-  it->second->storage_area()->ScheduleImmediateCommit();
-}
-
-void LocalStorageImpl::PutValueForTesting(
-    const blink::StorageKey& storage_key,
-    const std::vector<uint8_t>& key,
-    const std::vector<uint8_t>& value,
-    base::OnceCallback<void(bool)> callback) {
   if (connection_state_ != CONNECTION_FINISHED) {
-    return;
+    return nullptr;
   }
-
   const auto& it = areas_.find(storage_key);
   if (it == areas_.end()) {
-    return;
+    return nullptr;
   }
-
-  it->second->storage_area()->Put(key, value, /*client_old_value=*/std::nullopt,
-                                  /*source=*/nullptr, std::move(callback));
+  return it->second->storage_area();
 }
 
-base::FilePath LocalStorageImpl::GetDatabasePath() const {
-  return DomStorageDatabase::GetPath(StorageType::kLocalStorage,
-                                     storage_partition_directory_);
+void LocalStorageImpl::FlushStorageKeyForTesting(
+    const blink::StorageKey& storage_key) {
+  StorageAreaImpl* storage_area = GetStorageAreaForTesting(storage_key);
+  if (!storage_area) {
+    return;
+  }
+  storage_area->ScheduleImmediateCommit();
 }
 
 void LocalStorageImpl::ShutDown() {
@@ -321,12 +310,7 @@ void LocalStorageImpl::ShutDown() {
     // Flush any uncommitted data.
     for (const auto& it : areas_) {
       auto* area = it.second->storage_area();
-      base::UmaHistogramBoolean("Storage.LocalStorage.ShutdownDroppedChanges",
-                                area->has_pending_load_read_write_tasks());
       area->ScheduleImmediateCommit();
-      // TODO(crbug.com/503422295): Monitor the above histogram, and if dropping
-      // changes is common then handle that here.
-      area->CancelAllPendingRequests();
     }
 
     if (database_ && !force_keep_session_state_ &&
@@ -396,16 +380,18 @@ bool LocalStorageImpl::OnMemoryDump(
       base::StringPrintf("site_storage/localstorage/0x%" PRIXPTR,
                          reinterpret_cast<uintptr_t>(this));
 
-  // Account for database memory usage, which actually lives in the file
-  // service.
-  auto* global_dump = pmd->CreateSharedGlobalAllocatorDump(memory_dump_id_);
-  // The size of the database dump will be added by the database service.
-  auto* db_mad = pmd->CreateAllocatorDump(
-      context_name +
-      (ShouldUseSqliteBackend(in_memory_) ? "/sqlite" : "/leveldb"));
-  // Specifies that the current context is responsible for keeping memory alive.
-  int kImportance = 2;
-  pmd->AddOwnershipEdge(db_mad->guid(), global_dump->guid(), kImportance);
+  if (database_) {
+    // Account for database memory usage, which actually lives in the file
+    // service.
+    auto* global_dump = pmd->CreateSharedGlobalAllocatorDump(memory_dump_id_);
+    // The size of the database dump will be added by the database service.
+    auto* db_mad = pmd->CreateAllocatorDump(
+        context_name + (database_->is_sqlite() ? "/sqlite" : "/leveldb"));
+    // Specifies that the current context is responsible for keeping memory
+    // alive.
+    int kImportance = 2;
+    pmd->AddOwnershipEdge(db_mad->guid(), global_dump->guid(), kImportance);
+  }
 
   if (args.level_of_detail ==
       base::trace_event::MemoryDumpLevelOfDetail::kBackground) {
@@ -472,12 +458,6 @@ void LocalStorageImpl::RunWhenConnected(base::OnceClosure callback) {
   std::move(callback).Run();
 }
 
-void LocalStorageImpl::PurgeAllStorageAreas() {
-  for (const auto& it : areas_)
-    it.second->storage_area()->CancelAllPendingRequests();
-  areas_.clear();
-}
-
 void LocalStorageImpl::InitiateConnection(bool in_memory_only) {
   CHECK_EQ(connection_state_, CONNECTION_IN_PROGRESS);
 
@@ -486,7 +466,8 @@ void LocalStorageImpl::InitiateConnection(bool in_memory_only) {
     // We were given a subdirectory to write to, so use a disk-backed database.
     in_memory_ = false;
     database_ = AsyncDomStorageDatabase::Open(
-        StorageType::kLocalStorage, GetDatabasePath(), memory_dump_id_,
+        StorageType::kLocalStorage, storage_partition_directory_,
+        memory_dump_id_,
         base::BindOnce(&LocalStorageImpl::OnDatabaseOpened,
                        weak_ptr_factory_.GetWeakPtr()));
     return;
@@ -496,7 +477,7 @@ void LocalStorageImpl::InitiateConnection(bool in_memory_only) {
   in_memory_ = true;
   database_ = AsyncDomStorageDatabase::Open(
       StorageType::kLocalStorage,
-      /*database_path=*/base::FilePath(), memory_dump_id_,
+      /*storage_partition_dir=*/base::FilePath(), memory_dump_id_,
       base::BindOnce(&LocalStorageImpl::OnDatabaseOpened,
                      weak_ptr_factory_.GetWeakPtr()));
 }
@@ -558,13 +539,17 @@ void LocalStorageImpl::DeleteAndRecreateDatabase(
 
   // We're about to set database_ to null, so delete the StorageAreaImpls
   // that might still be using the old database.
-  PurgeAllStorageAreas();
+  areas_.clear();
 
   // Reset state to be in process of connecting. This will cause requests for
   // StorageAreas to be queued until the connection is complete.
   connection_state_ = CONNECTION_IN_PROGRESS;
   RecordCommitErrorCountAtReset("LocalStorage", commit_error_count_);
   commit_error_count_ = 0;
+  // Capture `metrics_type` before resetting `database_` so `OnDBDestroyed`
+  // can log with the right histogram suffix.
+  CHECK(database_);
+  DatabaseMetricsType metrics_type = database_->metrics_type();
   database_.reset();
 
   bool recreate_in_memory = false;
@@ -585,9 +570,10 @@ void LocalStorageImpl::DeleteAndRecreateDatabase(
   // Destroy database, and try again.
   if (!in_memory_) {
     DomStorageDatabaseFactory::Destroy(
-        GetDatabasePath(),
+        StorageType::kLocalStorage, storage_partition_directory_,
         base::BindOnce(&LocalStorageImpl::OnDBDestroyed,
-                       weak_ptr_factory_.GetWeakPtr(), recreate_in_memory));
+                       weak_ptr_factory_.GetWeakPtr(), recreate_in_memory,
+                       metrics_type));
   } else {
     // No directory, so nothing to destroy. Retrying to recreate will probably
     // fail, but try anyway.
@@ -595,10 +581,14 @@ void LocalStorageImpl::DeleteAndRecreateDatabase(
   }
 }
 
-void LocalStorageImpl::OnDBDestroyed(bool recreate_in_memory, DbStatus status) {
-  // Destroy is only called when the database is on disk (see !in_memory_ guard
-  // in DeleteAndRecreateDatabase), so in_memory is always false here.
-  status.Log("Storage.LocalStorage.DestroyDatabase", /*in_memory=*/false);
+void LocalStorageImpl::OnDBDestroyed(bool recreate_in_memory,
+                                     DatabaseMetricsType metrics_type,
+                                     DbStatus status) {
+  // Destroy is only invoked from the `!in_memory_` branch of
+  // `DeleteAndRecreateDatabase`, so the destroyed database must not be
+  // in-memory.
+  CHECK_NE(metrics_type, DatabaseMetricsType::kInMemory);
+  status.Log("Storage.LocalStorage.DestroyDatabase", metrics_type);
   recovery_state_.value().AddDestroyResult(status.ok());
   InitiateConnection(recreate_in_memory);
 }

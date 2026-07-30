@@ -19,6 +19,7 @@
 #import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/chrome_overlay_window/chrome_overlay_container_view.h"
+#import "ios/chrome/browser/shared/ui/util/layout_constants.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/common/ui/util/ui_util.h"
@@ -100,6 +101,11 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
 
   // Manages accessibility properties and actions.
   AssistantContainerAccessibilityManager* _accessibilityManager;
+
+  // The current bottom corner radius.
+  CGFloat _bottomCornerRadius;
+  // The current bottom margin.
+  CGFloat _bottomMargin;
 }
 
 @synthesize isAnimating = _isAnimating;
@@ -277,6 +283,7 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
 
   if (duration <= 0) {
     [self executeAlongsideAnimationWithPercentage:targetPercentage];
+    [self updateLayoutStateCutoutRadius];
     [self didCompleteDetentAnimationWithDetent:detentIdentifier];
     return;
   }
@@ -287,10 +294,16 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
       options:options
       animations:^{
         [weakSelf executeAlongsideAnimationWithPercentage:targetPercentage];
+        [weakSelf updateLayoutStateCutoutRadius];
       }
       completion:^(BOOL finished) {
         [weakSelf didCompleteDetentAnimationWithDetent:detentIdentifier];
       }];
+}
+
+- (void)animateAlongsideTransitionPresented:(BOOL)presented {
+  self.layoutState.assistantContainerCutoutRadius =
+      presented ? (_bottomCornerRadius + _bottomMargin) : 0.0;
 }
 
 #pragma mark - Properties
@@ -315,6 +328,10 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
     return;
   }
   _presentationContext = presentationContext;
+
+  if (_presentationContext != AssistantPresentationContext::kSheet) {
+    self.layoutState.assistantContainerCutoutRadius = 0.0;
+  }
 
   if ([self.delegate respondsToSelector:@selector(assistantContainer:
                                                     didChangeContext:)]) {
@@ -503,6 +520,17 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
   ContainerMorphingConstraints constraints = CalculateMorphingConstraints(
       height, minimizedHeight, mediumHeight, largeHeight);
 
+  if (IsChromeNextIaEnabled()) {
+    BOOL isAppBarAtBottom =
+        self.layoutState.appBarPosition == AppBarPosition::kBottom;
+    BOOL isToolbarAtTop =
+        self.layoutState.toolbarPosition == ToolbarPosition::kTop;
+    if (isAppBarAtBottom && isToolbarAtTop) {
+      constraints.bottom_corner_radius =
+          std::max(kAppBarCornerRadius, constraints.bottom_corner_radius);
+    }
+  }
+
   if (IsRegularXRegularSizeClass(self.traitCollection)) {
     // iPad floating sheet always has 4 rounded corners and a bottom margin.
     constraints.top_corner_radius = kMorphingBaseCornerRadius;
@@ -518,6 +546,28 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
       updateTopCornerRadius:constraints.top_corner_radius
          bottomCornerRadius:constraints.bottom_corner_radius];
   _dimmingView.alpha = constraints.background_dimming_alpha;
+
+  _bottomCornerRadius = constraints.bottom_corner_radius;
+  _bottomMargin = constraints.bottom_margin;
+
+  // Guard layout updates to prevent transition animations from being
+  // overwritten by intermediate layout passes.
+  if (_hasAppeared && !self.isAnimating) {
+    [self updateLayoutStateCutoutRadius];
+  }
+}
+
+// Updates the App Bar cutout radius on LayoutState using the current styling
+// values.
+- (void)updateLayoutStateCutoutRadius {
+  CGFloat radius = 0.0;
+  if (self.presentationContext == AssistantPresentationContext::kSheet) {
+    radius = _bottomCornerRadius + _bottomMargin;
+  }
+  if (IsCornerRadiusChangeSignificant(
+          self.layoutState.assistantContainerCutoutRadius, radius)) {
+    self.layoutState.assistantContainerCutoutRadius = radius;
+  }
 }
 
 // Updates the accessibility identifier of the container view based on the
@@ -988,6 +1038,11 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
   [self updatePresentationContextForSupportedState:supported];
 }
 
+- (void)layoutState:(LayoutState*)layoutState
+    didChangeToolbarPosition:(ToolbarPosition)toolbarPosition {
+  [self updateContainerStylingForHeight:_heightConstraint.constant];
+}
+
 // Configures the constraints for the panel layout.
 - (void)applyPanelLayoutConstraints {
   UIView* view = self.view;
@@ -1090,6 +1145,7 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
               UIViewAnimationOptionBeginFromCurrentState
       animations:^{
         [weakSelf executeAlongsideAnimationWithPercentage:targetPercentage];
+        [weakSelf updateLayoutStateCutoutRadius];
       }
       completion:^(BOOL finished) {
         weakSelf.isAnimating = NO;

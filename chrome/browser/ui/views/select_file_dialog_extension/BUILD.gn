@@ -52,6 +52,7 @@ source_set("browser_tests") {
     "//chrome/browser/chromeos/policy/dlp",
     "//chrome/browser/chromeos/policy/dlp/test:test_support",
     "//chrome/browser/ui",
+    "//chrome/browser/ui:browser_select_file_dialog_controller",
     "//chrome/browser/ui/ash/keyboard",
     "//chrome/browser/ui/navigator",
     "//chrome/common:constants",

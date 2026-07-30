@@ -698,10 +698,7 @@ void CommerceUiTabHelper::UpdatePageActionIconView(PageActionIconType type) {
     return;
   }
 
-  // TODO(https://crbug.com/376283687): Remove GetBrowserForMigrationOnly during
-  // the Discounts Page Actions Post Migration Cleanups since it will no longer
-  // be needed.
-  bwi->GetBrowserForMigrationOnly()->window()->UpdatePageActionIcon(type);
+  BrowserWindow::FromBrowser(bwi)->UpdatePageActionIcon(type);
 }
 
 }  // namespace commerce

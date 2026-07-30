@@ -120,7 +120,8 @@ class SiteDataRecorder : public GraphOwned, public PageNodeObserver {
   void OnIsVisibleChanged(const PageNode* page_node) override;
   void OnIsAudibleChanged(const PageNode* page_node) override;
   void OnTitleUpdated(const PageNode* page_node) override;
-  void OnFaviconUpdated(const PageNode* page_node) override;
+  void OnFaviconUpdated(const PageNode* page_node,
+                        blink::mojom::FaviconUpdateReason reason) override;
 
  private:
   // (Un)registers the various node observer flavors of this object with the

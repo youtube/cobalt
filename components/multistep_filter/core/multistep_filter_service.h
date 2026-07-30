@@ -94,7 +94,7 @@ class MultistepFilterService : public KeyedService,
   // Deletes all annotations for the given `task_type`.
   virtual void DeleteAnnotationsForTask(std::string_view task_type,
                                         int64_t navigation_id,
-                                        std::string_view domain);
+                                        std::string_view host);
 
   // history::HistoryServiceObserver:
   void OnHistoryDeletions(history::HistoryService* history_service,
@@ -114,8 +114,7 @@ class MultistepFilterService : public KeyedService,
   // Callback for when `GetSupportedTaskForUrl` finishes for extraction.
   void OnUrlAllowedForExtraction(const GURL& url,
                                  std::vector<std::string> supported_task_types,
-                                 int64_t navigation_id,
-                                 std::string_view domain);
+                                 int64_t navigation_id);
 
   // Callback for when `GetSupportedTaskForUrl` finishes for suggestion
   // generation.
@@ -123,21 +122,19 @@ class MultistepFilterService : public KeyedService,
       const GURL& url,
       base::OnceCallback<void(std::optional<UrlFilterSuggestion>)> callback,
       std::vector<std::string> supported_task_types,
-      int64_t navigation_id,
-      std::string_view domain);
+      int64_t navigation_id);
 
   // Checks if the user has provided consent (signed in, URL-keyed data
   // collection enabled, and history sync enabled), and logs the eligibility
   // check.
-  bool HasUserProvidedConsent(int64_t navigation_id, std::string_view domain);
+  bool HasUserProvidedConsent(int64_t navigation_id, std::string_view host);
 
   // Asynchronously retrieves the supported task types for `url` via the
   // annotation index client and returns them via `callback`.
   void GetSupportedTaskForUrl(
       const GURL& url,
       base::OnceCallback<void(std::vector<std::string>)> callback,
-      int64_t navigation_id,
-      std::string_view domain);
+      int64_t navigation_id);
 
   // Returns true if the user is currently signed in. The Multistep Filter
   // feature is only available for signed-in users.

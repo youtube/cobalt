@@ -12,6 +12,7 @@
 #include "base/functional/bind.h"
 #include "base/numerics/safe_conversions.h"
 #include "net/base/net_errors.h"
+#include "net/base/network_handle.h"
 #include "net/log/net_log.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_handle.h"
@@ -130,8 +131,12 @@ void TCPConnectedSocket::Connect(
 
   std::unique_ptr<net::TransportClientSocket> socket =
       client_socket_factory_->CreateTransportClientSocket(
-          remote_addr_list, nullptr /*socket_performance_watcher*/,
-          network_quality_estimator, net_log_, net::NetLogSource());
+          remote_addr_list,
+          // Direct sockets are currently not supported in multi-network
+          // scenarios. Revisit this decision if a need arises.
+          net::handles::kInvalidNetworkHandle,
+          nullptr /*socket_performance_watcher*/, network_quality_estimator,
+          net_log_, net::NetLogSource());
 
   if (local_addr) {
     int result = socket->Bind(local_addr.value());

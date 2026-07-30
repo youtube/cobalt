@@ -268,6 +268,15 @@ class FetchEventServiceWorker : public FakeServiceWorker {
     std::move(finish_callback_)
         .Run(blink::mojom::ServiceWorkerEventStatus::COMPLETED);
   }
+  void FinishRespondWithCustomResponse(
+      blink::mojom::FetchAPIResponsePtr response) {
+    response_callback_->OnResponse(
+        std::move(response),
+        blink::mojom::ServiceWorkerFetchEventTiming::New());
+    response_callback_.FlushForTesting();
+    std::move(finish_callback_)
+        .Run(blink::mojom::ServiceWorkerEventStatus::COMPLETED);
+  }
 
   void ReadRequestBody(std::string* out_string) {
     ASSERT_TRUE(request_body_);
@@ -2155,6 +2164,148 @@ TEST_F(ServiceWorkerMainResourceLoaderTest, SearchPrefetchHitInSyntheticResponse
                 kSyntheticResponse);
 
   SetBrowserClientForTesting(old_browser_client);
+}
+
+// Tests that when the Service Worker fetch handler responds faster than the
+// network request with a 204 No Content, and the network request subsequently
+// receives a 302 redirect, the loader is leaked (default behavior on current
+// branch).
+TEST_F(ServiceWorkerMainResourceLoaderTest,
+       Lifetime_RaceNetworkRequest_Redirect_SW_Wins_204_Leak) {
+  SetupStaticRoutingRules(
+      network::mojom::ServiceWorkerRouterSourceType::kRaceNetworkAndFetchEvent);
+  service_worker_->DeferResponse();
+
+  // Variables to keep the receiver and client alive to simulate the race
+  // request.
+  mojo::PendingReceiver<network::mojom::URLLoader> keep_alive_loader_receiver;
+  mojo::Remote<network::mojom::URLLoaderClient> race_client_remote;
+
+  // Setup SingleRequestURLLoaderFactory to simulate a 302 redirect.
+  auto handler = base::BindLambdaForTesting(
+      [&](const network::ResourceRequest& resource_request,
+          mojo::PendingReceiver<network::mojom::URLLoader> receiver,
+          mojo::PendingRemote<network::mojom::URLLoaderClient> client) {
+        // Keep the receiver alive to prevent premature connection error on the
+        // loader side.
+        keep_alive_loader_receiver = std::move(receiver);
+
+        // Bind the client to a Remote to monitor its connection status.
+        race_client_remote.Bind(std::move(client));
+
+        net::RedirectInfo redirect_info;
+        redirect_info.status_code = 302;
+        redirect_info.new_url = GURL("https://example.com/redirected");
+
+        auto response = network::mojom::URLResponseHead::New();
+        response->headers = base::MakeRefCounted<net::HttpResponseHeaders>(
+            "HTTP/1.1 302 Found\nLocation: https://example.com/redirected\n\n");
+
+        // Send the redirect.
+        race_client_remote->OnReceiveRedirect(redirect_info,
+                                              std::move(response));
+      });
+
+  network_loader_factory_ =
+      base::MakeRefCounted<network::SingleRequestURLLoaderFactory>(
+          std::move(handler));
+
+  StartRequest(CreateRequest());
+  base::WeakPtr<ServiceWorkerMainResourceLoader> loader = loader_->AsWeakPtr();
+  ASSERT_TRUE(loader);
+
+  // Wait for the fetch event to be dispatched to the Service Worker.
+  service_worker_->RunUntilFetchEvent();
+
+  // SW responds with 204 No Content.
+  auto response = blink::mojom::FetchAPIResponse::New();
+  response->status_code = 204;
+  response->status_text = "No Content";
+  response->response_type = network::mojom::FetchResponseType::kDefault;
+
+  service_worker_->FinishRespondWithCustomResponse(std::move(response));
+  client_.RunUntilComplete();
+  EXPECT_TRUE(loader);
+
+  // The navigation is completed and the loader is detached.
+  loader_.release()->DetachedFromRequest();
+
+  // Reset the remote to disconnect the Mojo pipe, which triggers
+  // DeleteIfNeeded() on connection error.
+  loader_remote_.reset();
+
+  // Let the network request (302 redirect) run.
+  base::RunLoop().RunUntilIdle();
+
+  // With the fix, ShouldDelayDeletion() correctly returns false on redirect,
+  // allowing the loader to be cleanly destroyed and the Mojo pipe to be
+  // disconnected.
+  EXPECT_FALSE(loader);
+  EXPECT_FALSE(race_client_remote.is_connected());
+}
+
+TEST_F(ServiceWorkerMainResourceLoaderTest,
+       Lifetime_RaceNetworkRequest_Redirect_SW_Wins_204_Leak_ReverseOrder) {
+  SetupStaticRoutingRules(
+      network::mojom::ServiceWorkerRouterSourceType::kRaceNetworkAndFetchEvent);
+  service_worker_->DeferResponse();
+
+  mojo::PendingReceiver<network::mojom::URLLoader> keep_alive_loader_receiver;
+  mojo::Remote<network::mojom::URLLoaderClient> race_client_remote;
+
+  net::RedirectInfo redirect_info;
+  redirect_info.status_code = 302;
+  redirect_info.new_url = GURL("https://example.com/redirected");
+  auto response_head = network::mojom::URLResponseHead::New();
+  response_head->headers = base::MakeRefCounted<net::HttpResponseHeaders>(
+      "HTTP/1.1 302 Found\nLocation: https://example.com/redirected\n\n");
+
+  auto handler = base::BindLambdaForTesting(
+      [&](const network::ResourceRequest& resource_request,
+          mojo::PendingReceiver<network::mojom::URLLoader> receiver,
+          mojo::PendingRemote<network::mojom::URLLoaderClient> client) {
+        keep_alive_loader_receiver = std::move(receiver);
+        race_client_remote.Bind(std::move(client));
+      });
+
+  network_loader_factory_ =
+      base::MakeRefCounted<network::SingleRequestURLLoaderFactory>(
+          std::move(handler));
+
+  StartRequest(CreateRequest());
+  base::WeakPtr<ServiceWorkerMainResourceLoader> loader = loader_->AsWeakPtr();
+  ASSERT_TRUE(loader);
+
+  service_worker_->RunUntilFetchEvent();
+
+  // 1. SW responds with 204 first.
+  auto response = blink::mojom::FetchAPIResponse::New();
+  response->status_code = 204;
+  response->status_text = "No Content";
+  response->response_type = network::mojom::FetchResponseType::kDefault;
+
+  service_worker_->FinishRespondWithCustomResponse(std::move(response));
+  client_.RunUntilComplete();
+  EXPECT_TRUE(loader);
+
+  // 2. The navigation is completed and the loader is detached.
+  loader_.release()->DetachedFromRequest();
+  loader_remote_.reset();
+
+  // The loader should still be alive because the redirect has not arrived yet.
+  base::RunLoop().RunUntilIdle();
+  EXPECT_TRUE(loader);
+
+  // 3. Now, late-arrive the 302 redirect on the race network request.
+  race_client_remote->OnReceiveRedirect(redirect_info,
+                                        std::move(response_head));
+
+  // This should trigger the completion callback -> DeleteIfNeeded() and cleanly
+  // destroy the loader.
+  base::RunLoop().RunUntilIdle();
+
+  EXPECT_FALSE(loader);
+  EXPECT_FALSE(race_client_remote.is_connected());
 }
 
 }  // namespace service_worker_main_resource_loader_unittest

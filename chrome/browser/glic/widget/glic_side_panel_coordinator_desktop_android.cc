@@ -7,6 +7,7 @@
 #include "base/functional/callback.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/context_sharing/tab_bottom_sheet/android/co_browse_views_bridge.h"
+#include "chrome/browser/glic/android/jni_headers/GlicSidePanelComponentProvider_jni.h"
 #include "chrome/browser/glic/browser_ui/glic_toast.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_instance.h"
@@ -193,10 +194,14 @@ void GlicSidePanelCoordinatorDesktopAndroid::OnGlicEnabledChanged() {
 SidePanelNativeView GlicSidePanelCoordinatorDesktopAndroid::CreateView(
     SidePanelEntryScope& scope) {
   if (!cobrowse_views_bridge_) {
+    JNIEnv* env = base::android::AttachCurrentThread();
+    java_component_provider_ =
+        Java_GlicSidePanelComponentProvider_createProvider(env);
     cobrowse_views_bridge_ =
         std::make_unique<context_sharing::CoBrowseViewsBridge>(
             *tab_, context_sharing::TabBottomSheetClientType::kGlic,
-            context_sharing::CoBrowseContainerType::kSidePanel);
+            context_sharing::CoBrowseContainerType::kSidePanel,
+            java_component_provider_);
     cobrowse_views_bridge_->CreateCoBrowseViews(web_contents_.get());
   }
   auto view = context_sharing::CoBrowseViewsBridge::GetViewFromCoBrowseViews(

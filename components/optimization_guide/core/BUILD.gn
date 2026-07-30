@@ -285,6 +285,7 @@ source_set("ondevice") {
     ":features",
     "//base",
     "//base/version_info",
+    "//build:branding_buildflags",
     "//components/optimization_guide:optimization_guide_buildflags",
     "//components/optimization_guide/optimization_guide_internals/webui:mojo_bindings",
     "//components/optimization_guide/proto:optimization_guide_proto",
@@ -391,6 +392,9 @@ source_set("ondevice") {
       "//third_party/re2",
       "//third_party/tflite:buildflags",
     ]
+    if (build_with_internal_optimization_guide) {
+      deps += [ "//services/on_device_model/ml:ml_no_internal" ]
+    }
     if (is_android) {
       sources += [
         "model_execution/android/model_broker_android.cc",
@@ -527,6 +531,8 @@ static_library("prediction") {
     "delivery/prediction_manager.h",
     "delivery/prediction_model_component_configs.cc",
     "delivery/prediction_model_component_configs.h",
+    "delivery/prediction_model_component_update_listener.cc",
+    "delivery/prediction_model_component_update_listener.h",
     "delivery/prediction_model_download_manager.cc",
     "delivery/prediction_model_download_manager.h",
     "delivery/prediction_model_download_observer.h",
@@ -794,6 +800,7 @@ source_set("delivery_unit_tests") {
     "delivery/model_util_unittest.cc",
     "delivery/prediction_manager_unittest.cc",
     "delivery/prediction_model_component_configs_unittest.cc",
+    "delivery/prediction_model_component_update_listener_unittest.cc",
     "delivery/prediction_model_download_manager_unittest.cc",
     "delivery/prediction_model_fetch_timer_unittest.cc",
     "delivery/prediction_model_fetcher_unittest.cc",
@@ -849,7 +856,9 @@ source_set("model_execution_unit_tests") {
     "//testing/gtest",
   ]
 
-  if (build_with_model_execution) {
+  # CfT bypasses On Device model installation throttling breaking most of the
+  # tests below. See https://crbug.com/514435730.
+  if (build_with_model_execution && !is_chrome_for_testing) {
     sources += [
       "model_execution/aqa_response_parser_unittest.cc",
       "model_execution/fieldwise_response_parser_unittest.cc",

@@ -58,6 +58,16 @@ public class ActorPictureInPictureIntegrationTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     Profile profile = mActivityTestRule.getProfile(false);
+
+                    // Setup mock actor task so that getCurrentActingTab returns our tab.
+                    ActorTask mockTask = Mockito.mock(ActorTask.class);
+                    Mockito.when(mockTask.getLastActedTabs())
+                            .thenReturn(Collections.singleton(mTab.getId()));
+                    ActorKeyedService actorService = Mockito.mock(ActorKeyedService.class);
+                    Mockito.when(actorService.getCurrentActiveTask()).thenReturn(mockTask);
+                    Mockito.when(actorService.getActiveTasksCount()).thenReturn(1);
+                    ActorKeyedServiceFactory.setForTesting(actorService);
+
                     mController =
                             new ActorPictureInPictureController(
                                     mActivityTestRule.getActivity(),
@@ -98,15 +108,6 @@ public class ActorPictureInPictureIntegrationTest {
         // but we can invoke the internal logic directly for the integration test.
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    // Setup mock actor task so that getCurrentActingTab returns our tab.
-                    ActorTask mockTask = Mockito.mock(ActorTask.class);
-                    Mockito.when(mockTask.getLastActedTabs())
-                            .thenReturn(Collections.singleton(mTab.getId()));
-                    ActorKeyedService actorService = Mockito.mock(ActorKeyedService.class);
-                    Mockito.when(actorService.getCurrentActiveTask()).thenReturn(mockTask);
-                    Mockito.when(actorService.getActiveTasksCount()).thenReturn(1);
-                    ActorKeyedServiceFactory.setForTesting(actorService);
-
                     mController.onPictureInPictureEvent(
                             PictureInPictureDelegate.Event.ENTERED, null);
                 });

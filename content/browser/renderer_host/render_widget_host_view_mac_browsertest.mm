@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 
+#include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #import "base/mac/mac_util.h"
@@ -24,6 +25,7 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
+#include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_browser_test.h"
@@ -247,6 +249,14 @@ class RenderWidgetHostViewMacTest : public ContentBrowserTest {
         features::kSonomaAccessibilityActivationRefinements);
   }
 
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    ContentBrowserTest::SetUpCommandLine(command_line);
+    // UpdateInputFlags asserts the spec-default autocorrect IME mapping, which
+    // is gated behind the AutocorrectByDefault runtime feature.
+    command_line->AppendSwitchASCII(switches::kEnableBlinkFeatures,
+                                    "AutocorrectByDefault");
+  }
+
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
@@ -307,7 +317,8 @@ IN_PROC_BROWSER_TEST_F(RenderWidgetHostViewMacTest,
 IN_PROC_BROWSER_TEST_F(RenderWidgetHostViewMacTest, UpdateInputFlags) {
   class InputMethodObserver {};
 
-  GURL url("data:text/html,<!doctype html><textarea id=ta></textarea>");
+  GURL url("data:text/html,<!doctype html><textarea id=ta></textarea>"
+           "<input type=email id=em>");
   EXPECT_TRUE(NavigateToURL(shell(), url));
 
   RenderWidgetHostView* rwhv =
@@ -327,6 +338,15 @@ IN_PROC_BROWSER_TEST_F(RenderWidgetHostViewMacTest, UpdateInputFlags) {
   EXPECT_TRUE(ExecJs(
       shell(),
       "ta.setAttribute('autocorrect', 'off'); console.log(ta.outerHTML);"));
+  [flag_change_waiter wait];
+  EXPECT_TRUE(rwhv_cocoa.textInputFlags &
+              blink::kWebTextInputFlagAutocorrectOff);
+
+  // An <input type=email> (and likewise type=url/password) has a used
+  // autocorrection state of Off per spec even without an autocorrect
+  // attribute, so the Off flag is set. Focusing it also changes the
+  // autocapitalize bits, so textInputFlags is observed to change.
+  EXPECT_TRUE(ExecJs(shell(), "em.focus();"));
   [flag_change_waiter wait];
   EXPECT_TRUE(rwhv_cocoa.textInputFlags &
               blink::kWebTextInputFlagAutocorrectOff);

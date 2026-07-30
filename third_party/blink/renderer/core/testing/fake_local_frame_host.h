@@ -110,7 +110,8 @@ class FakeLocalFrameHost : public mojom::blink::LocalFrameHost {
   void RunBeforeUnloadConfirm(bool is_reload,
                               RunBeforeUnloadConfirmCallback callback) override;
   void UpdateFaviconURL(
-      Vector<blink::mojom::blink::FaviconURLPtr> favicon_urls) override;
+      Vector<blink::mojom::blink::FaviconURLPtr> favicon_urls,
+      blink::mojom::blink::FaviconUpdateReason reason) override;
   void DownloadURL(mojom::blink::DownloadURLParamsPtr params) override;
   void FocusedElementChanged(bool is_editable_element,
                              bool is_richly_editable_element,

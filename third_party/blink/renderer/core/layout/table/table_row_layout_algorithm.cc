@@ -139,7 +139,7 @@ const LayoutResult* TableRowLayoutAlgorithm::Layout() {
     BlockChildIterator child_iterator(Node().FirstChild(), GetBreakToken(),
                                       /* calculate_child_idx */ true);
     for (auto entry = child_iterator.NextChild();
-         BlockNode cell = To<BlockNode>(entry.node);
+         BlockNode cell = To<BlockNode>(entry.block_node);
          entry = child_iterator.NextChild()) {
       const auto* cell_break_token = To<BlockBreakToken>(entry.token);
       const auto& cell_style = cell.Style();

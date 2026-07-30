@@ -13,6 +13,7 @@
 #include "content/browser/ai/echo_ai_language_model.h"
 #include "content/browser/ai/echo_ai_proofreader.h"
 #include "content/browser/ai/echo_ai_rewriter.h"
+#include "content/browser/ai/echo_ai_semantic_embedder.h"
 #include "content/browser/ai/echo_ai_summarizer.h"
 #include "content/browser/ai/echo_ai_writer.h"
 #include "content/public/browser/browser_context.h"
@@ -350,6 +351,21 @@ void EchoAIManagerImpl::CreateClassifier(
 
   CreateClient<blink::mojom::AIManagerCreateClassifierClient,
                blink::mojom::AIClassifier, EchoAIClassifier>(
+      std::move(client_remote));
+}
+
+void EchoAIManagerImpl::CanCreateSemanticEmbedder(
+    CanCreateSemanticEmbedderCallback callback) {
+  CanCreateClient<CanCreateSemanticEmbedderCallback>(std::move(callback));
+}
+
+void EchoAIManagerImpl::CreateSemanticEmbedder(
+    mojo::PendingRemote<blink::mojom::AIManagerCreateSemanticEmbedderClient>
+        client) {
+  mojo::Remote<blink::mojom::AIManagerCreateSemanticEmbedderClient>
+      client_remote(std::move(client));
+  CreateClient<blink::mojom::AIManagerCreateSemanticEmbedderClient,
+               blink::mojom::AISemanticEmbedder, EchoAISemanticEmbedder>(
       std::move(client_remote));
 }
 

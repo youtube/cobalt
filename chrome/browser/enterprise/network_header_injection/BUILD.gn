@@ -3,16 +3,80 @@
 # found in the LICENSE file.
 
 static_library("network_header_injection") {
-  sources = [
-    "http_header_injection_service_factory.cc",
+  public = [
+    "http_header_injection_client.h",
+    "http_header_injection_proxying_url_loader_factory.h",
     "http_header_injection_service_factory.h",
+    "http_header_injection_url_loader_header_client.h",
+    "http_header_injection_utils.h",
+  ]
+
+  sources = [
+    "http_header_injection_client.cc",
+    "http_header_injection_proxying_url_loader_factory.cc",
+    "http_header_injection_service_factory.cc",
+    "http_header_injection_url_loader_header_client.cc",
+    "http_header_injection_utils.cc",
+  ]
+
+  public_deps = [
+    "//base",
+    "//chrome/browser/profiles:profile",
+    "//services/network/public/mojom",
   ]
 
   deps = [
-    "//base",
-    "//chrome/browser/profiles:profile",
     "//components/enterprise/network_header_injection/core",
     "//components/keyed_service/core",
     "//components/prefs",
+    "//services/network/public/cpp",
+    "//url",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [
+    "http_header_injection_client_unittest.cc",
+    "http_header_injection_proxying_url_loader_factory_unittest.cc",
+    "http_header_injection_url_loader_header_client_unittest.cc",
+  ]
+
+  deps = [
+    ":network_header_injection",
+    "//base",
+    "//base/test:test_support",
+    "//chrome/test:test_support",
+    "//components/enterprise/network_header_injection/core",
+    "//components/prefs:test_support",
+    "//content/test:test_support",
+    "//services/network:test_support",
+    "//services/network/public/cpp",
+    "//testing/gtest",
+  ]
+}
+
+source_set("browser_tests") {
+  testonly = true
+
+  sources = [ "http_header_injection_browsertest.cc" ]
+
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+  deps = [
+    ":network_header_injection",
+    "//base",
+    "//base/test:test_support",
+    "//chrome/browser/extensions",
+    "//chrome/browser/policy:test_support",
+    "//chrome/browser/profiles:profile",
+    "//chrome/test:test_support",
+    "//components/enterprise/network_header_injection/core",
+    "//components/policy/core/common",
+    "//content/test:test_support",
+    "//extensions:test_support",
+    "//net:test_support",
+    "//testing/gtest",
   ]
 }

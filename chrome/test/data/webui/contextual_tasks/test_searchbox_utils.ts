@@ -9,7 +9,7 @@ import type {MockTimer} from 'chrome://webui-test/mock_timer.js';
 import type {TestMock} from 'chrome://webui-test/test_mock.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
-import {fixtureUrl} from './test_utils.js';
+import {fixtureUrl} from './contextual_tasks_test_utils.js';
 
 export const ADD_FILE_CONTEXT_FN = 'addFileContext';
 export const ADD_TAB_CONTEXT_FN = 'addTabContext';

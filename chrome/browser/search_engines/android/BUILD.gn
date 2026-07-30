@@ -223,7 +223,11 @@ robolectric_library("junit") {
     "//url:url_java",
   ]
   if (enable_extensions_core) {
-    sources += [ "junit/src/org/chromium/chrome/browser/search_engines/settings/extensions/ExtensionSearchEngineMediatorUnitTest.java" ]
+    sources += [
+      "junit/src/org/chromium/chrome/browser/search_engines/settings/extensions/ExtensionSearchEngineAdapterUnitTest.java",
+      "junit/src/org/chromium/chrome/browser/search_engines/settings/extensions/ExtensionSearchEngineCoordinatorUnitTest.java",
+      "junit/src/org/chromium/chrome/browser/search_engines/settings/extensions/ExtensionSearchEngineMediatorUnitTest.java",
+    ]
   }
 }
 

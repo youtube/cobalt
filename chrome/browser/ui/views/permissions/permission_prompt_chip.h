@@ -12,8 +12,6 @@
 #include "components/permissions/permission_request_manager.h"
 #include "ui/views/widget/widget_observer.h"
 
-class Browser;
-
 namespace content {
 class WebContents;
 }
@@ -27,9 +25,7 @@ class WebContents;
 // - should be destroyed once the user has made a decision.
 class PermissionPromptChip : public PermissionPromptDesktop {
  public:
-  PermissionPromptChip(Browser* browser,
-                       content::WebContents* web_contents,
-                       Delegate* delegate);
+  PermissionPromptChip(content::WebContents* web_contents, Delegate* delegate);
   ~PermissionPromptChip() override;
   PermissionPromptChip(const PermissionPromptChip&) = delete;
   PermissionPromptChip& operator=(const PermissionPromptChip&) = delete;

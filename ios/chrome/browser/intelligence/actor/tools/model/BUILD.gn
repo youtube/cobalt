@@ -12,6 +12,7 @@ source_set("actor_tool_factory") {
   ]
   deps = [
     ":actor_tool_interface",
+    ":attempt_login_tool",
     ":click_tool",
     ":history_tool",
     ":navigate_tool",
@@ -95,6 +96,21 @@ source_set("wait_tool") {
   sources = [
     "wait_tool.h",
     "wait_tool.mm",
+  ]
+
+  deps = [
+    ":actor_tool_interface",
+    "//base",
+    "//components/optimization_guide/proto:optimization_guide_proto",
+    "//ios/chrome/browser/intelligence/actor/tools/public",
+    "//ios/web/public",
+  ]
+}
+
+source_set("attempt_login_tool") {
+  sources = [
+    "attempt_login_tool.h",
+    "attempt_login_tool.mm",
   ]
 
   deps = [
@@ -346,6 +362,26 @@ source_set("page_stability") {
   ]
 }
 
+source_set("tool_controller") {
+  sources = [
+    "tool_controller.h",
+    "tool_controller.mm",
+  ]
+  deps = [
+    ":actor_tool_factory",
+    ":actor_tool_interface",
+    ":page_stability",
+    "//base",
+    "//components/actor/core:journal",
+    "//ios/chrome/browser/intelligence/actor/public:actor_types",
+    "//ios/chrome/browser/intelligence/actor/tools/public",
+    "//ios/chrome/browser/intelligence/actor/tools/utils:actor_tool_utils",
+    "//ios/chrome/browser/intelligence/actor/tools/utils:logging_util",
+    "//ios/chrome/browser/intelligence/features",
+    "//ios/web/public",
+  ]
+}
+
 source_set("actor_tool_java_script_feature_test_base") {
   testonly = true
   sources = [
@@ -387,6 +423,7 @@ source_set("unit_tests") {
     "select_tool_java_script_feature_unittest.mm",
     "select_tool_js_unittest.mm",
     "select_tool_unittest.mm",
+    "tool_controller_unittest.mm",
     "type_tool_java_script_feature_unittest.mm",
     "type_tool_js_unittest.mm",
     "type_tool_unittest.mm",
@@ -398,6 +435,7 @@ source_set("unit_tests") {
     ":actor_tool_factory",
     ":actor_tool_interface",
     ":actor_tool_java_script_feature_test_base",
+    ":attempt_login_tool",
     ":click_tool",
     ":click_tool_ts",
     ":history_tool",
@@ -409,6 +447,7 @@ source_set("unit_tests") {
     ":scroll_tool_ts",
     ":select_tool",
     ":select_tool_ts",
+    ":tool_controller",
     ":type_tool",
     ":type_tool_ts",
     ":wait_tool",
@@ -422,6 +461,7 @@ source_set("unit_tests") {
     "//components/optimization_guide/proto:optimization_guide_proto",
     "//ios/chrome/browser/intelligence/actor/public:actor_types",
     "//ios/chrome/browser/intelligence/actor/tools/public",
+    "//ios/chrome/browser/intelligence/actor/util:test_support",
     "//ios/chrome/browser/intelligence/features",
     "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/model/browser/test:test_support",

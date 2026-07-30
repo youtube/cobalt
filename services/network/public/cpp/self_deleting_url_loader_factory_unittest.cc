@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "base/functional/bind.h"
+#include "base/memory/self_deleting.h"
 #include "base/run_loop.h"
 #include "base/test/task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -19,8 +20,9 @@ class MockSelfDeletingURLLoaderFactory
  public:
   MockSelfDeletingURLLoaderFactory(
       mojo::PendingReceiver<network::mojom::URLLoaderFactory> pending_receiver,
-      base::OnceClosure callback)
-      : network::SelfDeletingURLLoaderFactory(std::move(pending_receiver)),
+      base::OnceClosure callback,
+      base::SelfDeletingPassKey key)
+      : network::SelfDeletingURLLoaderFactory(std::move(pending_receiver), key),
         callback_(std::move(callback)) {}
 
   // network::mojom::URLLoaderFactory:
@@ -33,9 +35,9 @@ class MockSelfDeletingURLLoaderFactory
       const net::MutableNetworkTrafficAnnotationTag& traffic_annotation)
       override {}
 
+ private:
   ~MockSelfDeletingURLLoaderFactory() override { std::move(callback_).Run(); }
 
- private:
   base::OnceClosure callback_;
 };
 
@@ -53,7 +55,7 @@ TEST_F(SelfDeletingURLLoaderFactoryTest, InitializeAndReset) {
   mojo::PendingRemote<network::mojom::URLLoaderFactory> pending_remote;
   base::RunLoop run_loop;
 
-  new MockSelfDeletingURLLoaderFactory(
+  base::MakeSelfDeleting<MockSelfDeletingURLLoaderFactory>(
       pending_remote.InitWithNewPipeAndPassReceiver(), run_loop.QuitClosure());
 
   pending_remote.reset();

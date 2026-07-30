@@ -53,8 +53,9 @@ class SidePanelCoordinatorAndroid : public SidePanelUIBase {
   // called from Java via JNI, see `SidePanelCoordinatorAndroidImpl.java`.
   void Init(JNIEnv* env);
   void Destroy(JNIEnv* env);
-  void NotifyCloseAnimationFinished(JNIEnv* env);
-  void NotifyOpenAnimationFinished(JNIEnv* env);
+  bool HasContentToShow(JNIEnv* env);
+  void OnContentRemoved(JNIEnv* env);
+  void OnContentPopulated(JNIEnv* env);
   void OnWindowResized(JNIEnv* env, bool can_show_side_panel);
 
   // Implements `SidePanelUI`:
@@ -73,11 +74,6 @@ class SidePanelCoordinatorAndroid : public SidePanelUIBase {
   // Called when a tab is detached from this window's tab strip for reparenting
   // into another window.
   void OnTabReparented(tabs::TabInterface* tab);
-  bool IsClosing() const { return state_ == SidePanelState::kClosing; }
-  bool ShouldClose() const {
-    return state_ == SidePanelState::kShown ||
-           state_ == SidePanelState::kOpening;
-  }
 
   // Functions for testing:
   SidePanelState GetStateForTesting();
@@ -109,11 +105,28 @@ class SidePanelCoordinatorAndroid : public SidePanelUIBase {
   // the window-scoped registry and all contextual (tab-scoped) registries.
   void ClearCachedEntryViews();
 
+  UniqueKey GetCurrentKeyNonNull() const;
+  SidePanelEntry* GetEntryForCurrentKeyNonNull() const;
+
   base::android::ScopedJavaLocalRef<jobject> java_coordinator() const;
 
   // Handles the JNI call to Java to populate the side panel UI.
   void PopulateJavaSidePanel(const base::android::JavaRef<jobject>& view,
                              bool suppress_animations);
+
+  // Handles opening a new entry, when none was previously showing.
+  void PopulateNewEntry(
+      SidePanelEntry* entry,
+      const UniqueKey& unique_key,
+      bool suppress_animations,
+      std::unique_ptr<SidePanelNativeViewAndroid> native_view);
+
+  // Handles replacing the active entry with a new one.
+  void ReplaceActiveEntry(
+      SidePanelEntry* new_entry,
+      const UniqueKey& new_key,
+      std::optional<SidePanelOpenTrigger> open_trigger,
+      std::unique_ptr<SidePanelNativeViewAndroid> native_view);
 
   bool CanShowEntryForKey(const UniqueKey& key) const;
 

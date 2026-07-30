@@ -301,6 +301,11 @@ bool ThemePainter::PaintDecorations(const Node* node,
 
 #undef COUNT_APPEARANCE
 
+// These values must match the -webkit-slider-container rule in html.css.
+static constexpr float kSliderTickInlineSize = 1;
+static constexpr float kSliderTickBlockSize = 4;
+static constexpr float kSliderTickOffset = 7;
+
 void ThemePainter::PaintSliderTicks(const LayoutObject& o,
                                     const PaintInfo& paint_info,
                                     const gfx::Rect& rect) {
@@ -346,7 +351,6 @@ void ThemePainter::PaintSliderTicks(const LayoutObject& o,
         ToFlooredSize(To<LayoutBox>(thumb_layout_object)->StitchedSize());
   }
 
-  gfx::Size tick_size = LayoutTheme::GetTheme().SliderTickSize();
   float zoom_factor = style.EffectiveZoom();
   gfx::RectF tick_rect;
   int tick_region_side_margin = 0;
@@ -362,10 +366,9 @@ void ThemePainter::PaintSliderTicks(const LayoutObject& o,
         ToFlooredSize(To<LayoutBox>(track_layout_object)->StitchedSize()));
   }
 
-  const float tick_offset_from_center =
-      LayoutTheme::GetTheme().SliderTickOffsetFromTrackCenter() * zoom_factor;
-  const float tick_inline_size = tick_size.width() * zoom_factor;
-  const float tick_block_size = tick_size.height() * zoom_factor;
+  const float tick_inline_size = kSliderTickInlineSize * zoom_factor;
+  const float tick_block_size = kSliderTickBlockSize * zoom_factor;
+  const float tick_offset_from_center = kSliderTickOffset * zoom_factor;
   const auto writing_direction = style.GetWritingDirection();
   if (is_horizontal) {
     tick_rect.set_size({floor(tick_inline_size), floor(tick_block_size)});

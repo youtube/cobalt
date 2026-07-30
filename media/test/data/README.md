@@ -1953,3 +1953,9 @@ Generated with Bento4's mp4encrypt:
 #### hat-broken.wav
 
 From https://crbug.com/414508118
+
+#### spherical_frag.mp4
+Spherical video in fragmented MP4, generated with bento4 by the following command:
+```
+mp4fragment spherical.mp4 spherical_frag.mp4
+```

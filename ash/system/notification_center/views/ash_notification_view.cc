@@ -851,7 +851,11 @@ void AshNotificationView::ToggleExpand() {
         "Ash.NotificationView.InlineReply.FadeOut.AnimationSmoothness");
   }
 
+  auto weak_ptr = weak_factory_.GetWeakPtr();
   SetExpanded(target_expanded_state);
+  if (!weak_ptr) {
+    return;
+  }
 
   PerformExpandCollapseAnimation();
 
@@ -1436,7 +1440,11 @@ void AshNotificationView::ToggleInlineSettings(const ui::Event& event) {
   bool should_show_inline_settings = !inline_settings_row()->GetVisible();
   PerformToggleInlineSettingsAnimation(should_show_inline_settings);
 
+  auto weak_ptr = weak_factory_.GetWeakPtr();
   NotificationViewBase::ToggleInlineSettings(event);
+  if (!weak_ptr) {
+    return;
+  }
 
   if (is_grouped_parent_view_) {
     if (shown_in_popup_) {
@@ -1465,7 +1473,11 @@ void AshNotificationView::ToggleSnoozeSettings(const ui::Event& event) {
 
   bool should_show_snooze_settings = !snooze_settings_row()->GetVisible();
 
+  auto weak_ptr = weak_factory_.GetWeakPtr();
   NotificationViewBase::ToggleSnoozeSettings(event);
+  if (!weak_ptr) {
+    return;
+  }
 
   left_content()->SetVisible(!should_show_snooze_settings);
   right_content()->SetVisible(!should_show_snooze_settings);

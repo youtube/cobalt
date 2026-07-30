@@ -23,6 +23,7 @@
 
 namespace net {
 class SSLPrivateKey;
+class X509Certificate;
 }  // namespace net
 
 namespace client_certificates {
@@ -64,6 +65,14 @@ class PrivateKey : public base::RefCountedThreadSafe<PrivateKey> {
   // which a Keychain-backed key reference is required for authentication.
   virtual SecKeyRef GetSecKeyRef() const;
 #endif  // BUILDFLAG(IS_IOS)
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // Returns the certificate bound to this key (matched by SubjectPublicKeyInfo
+  // when the key was loaded), or nullptr if no cert is bound yet. Lets the
+  // certificate store reuse the cert the key factory already located instead of
+  // listing Kcer's certs a second time. Non-Kcer keys return nullptr.
+  virtual scoped_refptr<net::X509Certificate> GetBoundCert() const;
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
  protected:
   PrivateKey(PrivateKeySource source,

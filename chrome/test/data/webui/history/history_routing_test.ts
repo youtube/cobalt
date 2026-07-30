@@ -5,14 +5,14 @@
 import 'chrome://history/history.js';
 
 import type {HistoryAppElement, HistorySideBarElement} from 'chrome://history/history.js';
-import {BrowserProxyImpl, CrRouter, HistoryClustersProxyImpl, historyEmbeddingsBrowserProxyFactory, HistoryEmbeddingsPageHandlerRemote, MetricsProxyImpl} from 'chrome://history/history.js';
+import {BrowserProxyImpl, CrRouter, historyClustersBrowserProxyFactory, historyEmbeddingsBrowserProxyFactory, HistoryEmbeddingsPageHandlerRemote, MetricsProxyImpl, PageHandlerRemote as HistoryClustersPageHandlerRemote} from 'chrome://history/history.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {keyDownOn} from 'chrome://webui-test/keyboard_mock_interactions.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {eventToPromise, isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
-import {TestBrowserProxy as TestHistoryClustersBrowserProxy, TestMetricsProxy} from './history_clusters/utils.js';
+import {TestMetricsProxy} from './history_clusters/utils.js';
 import {TestHistoryBrowserProxy} from './test_browser_proxy.js';
 import {navigateTo} from './test_util.js';
 
@@ -40,8 +40,11 @@ import {navigateTo} from './test_util.js';
       window.history.replaceState({}, '', '/');
       document.body.innerHTML = window.trustedTypes!.emptyHTML;
       CrRouter.resetForTesting();
-      HistoryClustersProxyImpl.setInstance(
-          new TestHistoryClustersBrowserProxy());
+      const clustersHandler =
+          TestMock.fromClass(HistoryClustersPageHandlerRemote);
+      const {instance} =
+          historyClustersBrowserProxyFactory.createForTest(clustersHandler);
+      historyClustersBrowserProxyFactory.setInstance(instance);
       testProxy = new TestHistoryBrowserProxy();
       BrowserProxyImpl.setInstance(testProxy);
       testMetricsProxy = new TestMetricsProxy();
@@ -308,14 +311,18 @@ suite(`routing-test-with-history-embeddings-enabled`, () => {
     CrRouter.resetForTesting();
 
     // Some extra setup of mocking proxies to get the history-app to work.
-    HistoryClustersProxyImpl.setInstance(new TestHistoryClustersBrowserProxy());
+    const clustersHandler =
+        TestMock.fromClass(HistoryClustersPageHandlerRemote);
+    const {instance: clustersProxy} =
+        historyClustersBrowserProxyFactory.createForTest(clustersHandler);
+    historyClustersBrowserProxyFactory.setInstance(clustersProxy);
     BrowserProxyImpl.setInstance(new TestHistoryBrowserProxy());
     MetricsProxyImpl.setInstance(new TestMetricsProxy());
     const handler = TestMock.fromClass(HistoryEmbeddingsPageHandlerRemote);
     handler.setResultFor('search', new Promise(() => {}));
-    const {instance} =
+    const {instance: embeddingsProxy} =
         historyEmbeddingsBrowserProxyFactory.createForTest(handler);
-    historyEmbeddingsBrowserProxyFactory.setInstance(instance);
+    historyEmbeddingsBrowserProxyFactory.setInstance(embeddingsProxy);
 
     app = document.createElement('history-app');
     document.body.appendChild(app);

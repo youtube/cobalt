@@ -9,6 +9,7 @@ import android.graphics.Bitmap;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.components.extensions.ExtensionsBuildflags;
 import org.chromium.content_public.browser.WebContents;
 
 /**
@@ -25,7 +26,7 @@ public class FakeExtensionUiBackend implements ExtensionUiBackend {
     private boolean mEnabled;
 
     public FakeExtensionUiBackend() {
-        mEnabled = ExtensionsBuildflags.ENABLE_DESKTOP_ANDROID_EXTENSIONS;
+        mEnabled = ExtensionsBuildflags.ENABLE_EXTENSIONS_CORE;
     }
 
     /**

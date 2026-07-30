@@ -2,7 +2,7 @@ Name: Headers for the Windows WebAuthn API (webauthn.dll)
 Short Name: Windows webauthn.h
 URL: https://github.com/Microsoft/webauthn/
 Version: N/A
-Revision: 273689d1d54232f0c316b31f596e7928acb1cd5a
+Revision: ef82c157125a0490e05f6ea82a7adb1b8e1bad08
 Update Mechanism: Autoroll
 License: MIT
 License File: LICENSE

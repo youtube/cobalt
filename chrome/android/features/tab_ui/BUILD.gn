@@ -80,6 +80,7 @@ android_resources("java_resources") {
     "java/res/drawable/tablet_tab_group_list_empty_state_illustration.xml",
     "java/res/drawable/tablet_tab_switcher_empty_state_illustration.xml",
     "java/res/drawable/ungroup_bar_background.xml",
+    "java/res/drawable/vertical_tab_ai_indicator_background.xml",
     "java/res/drawable/vertical_tab_item_background.xml",
     "java/res/drawable/vertical_tab_pinned_item_background.xml",
     "java/res/drawable/vertical_tabs_left_rounded_button_background.xml",

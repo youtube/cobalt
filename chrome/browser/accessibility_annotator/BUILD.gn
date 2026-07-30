@@ -5,7 +5,7 @@
 source_set("accessibility_annotator") {
   sources = [
     "accessibility_annotator_backend_factory.h",
-    "accessibility_query_service_factory.h",
+    "at_memory_query_service_factory.h",
   ]
 
   deps = [
@@ -24,9 +24,9 @@ source_set("accessibility_annotator") {
 source_set("impl") {
   sources = [
     "accessibility_annotator_backend_factory.cc",
-    "accessibility_query_service_delegate_impl.cc",
-    "accessibility_query_service_delegate_impl.h",
-    "accessibility_query_service_factory.cc",
+    "at_memory_query_service_delegate_impl.cc",
+    "at_memory_query_service_delegate_impl.h",
+    "at_memory_query_service_factory.cc",
   ]
   deps = [
     ":accessibility_annotator",
@@ -34,10 +34,12 @@ source_set("impl") {
     "//chrome/browser/account_settings",
     "//chrome/browser/autofill",
     "//chrome/browser/history",
+    "//chrome/browser/metrics",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/page_content_annotations:extraction_service",
     "//chrome/browser/page_content_annotations:page_embeddings",
     "//chrome/browser/passage_embeddings",
+    "//chrome/browser/personal_context",
     "//chrome/browser/signin",
     "//chrome/browser/subscription_eligibility",
     "//chrome/browser/sync",
@@ -45,8 +47,7 @@ source_set("impl") {
     "//components/accessibility_annotator/content/live_tab_context",
     "//components/accessibility_annotator/core",
     "//components/accessibility_annotator/core:features",
-    "//components/accessibility_annotator/core/annotation_reducer",
-    "//components/accessibility_annotator/core/annotation_reducer:one_p_resolver",
+    "//components/accessibility_annotator/core/annotation_reducer:personal_context_resolver",
     "//components/accessibility_annotator/core/data_models",
     "//components/accessibility_annotator/core/storage",
     "//components/autofill/core/browser",
@@ -82,7 +83,7 @@ if (!is_android) {
   source_set("browser_tests") {
     testonly = true
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
-    sources = [ "accessibility_query_service_delegate_impl_browsertest.cc" ]
+    sources = [ "at_memory_query_service_delegate_impl_browsertest.cc" ]
     deps = [
       ":accessibility_annotator",
       ":impl",

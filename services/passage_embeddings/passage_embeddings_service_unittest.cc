@@ -5,6 +5,7 @@
 #include "services/passage_embeddings/passage_embeddings_service.h"
 
 #include "base/path_service.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -94,6 +95,73 @@ TEST_F(PassageEmbeddingsServiceTest, RespondsWithEmbeddings) {
   auto results = execute_future.Take();
   EXPECT_EQ(results.size(), 1u);
   EXPECT_EQ(results[0]->embeddings.size(), kEmbeddingsOutputSize);
+}
+
+TEST_F(PassageEmbeddingsServiceTest, HistoryEmbeddingsUsesCache) {
+  base::HistogramTester histogram_tester;
+
+  mojo::Remote<mojom::PassageEmbedder> embedder_remote;
+  base::test::TestFuture<bool> load_models_future;
+  auto model_params =
+      MakeModelParams(embeddings_path_, sp_path_, kInputWindowSize);
+  model_params->execute_for_gemma = false;
+  service()->LoadModels(std::move(model_params), MakeEmbedderParams(),
+                        embedder_remote.BindNewPipeAndPassReceiver(),
+                        load_models_future.GetCallback());
+  EXPECT_TRUE(load_models_future.Get());
+
+  base::test::TestFuture<std::vector<mojom::PassageEmbeddingsResultPtr>>
+      execute_future1;
+  embedder_remote->GenerateEmbeddings({"hello"},
+                                      mojom::PassagePriority::kUserInitiated,
+                                      execute_future1.GetCallback());
+  EXPECT_EQ(execute_future1.Take().size(), 1u);
+  histogram_tester.ExpectUniqueSample("History.Embeddings.Embedder.CacheHit",
+                                      false, 1);
+
+  base::test::TestFuture<std::vector<mojom::PassageEmbeddingsResultPtr>>
+      execute_future2;
+  embedder_remote->GenerateEmbeddings({"hello"},
+                                      mojom::PassagePriority::kUserInitiated,
+                                      execute_future2.GetCallback());
+  EXPECT_EQ(execute_future2.Take().size(), 1u);
+  histogram_tester.ExpectBucketCount("History.Embeddings.Embedder.CacheHit",
+                                     true, 1);
+  histogram_tester.ExpectTotalCount("History.Embeddings.Embedder.CacheHit", 2);
+}
+
+TEST_F(PassageEmbeddingsServiceTest, WebApiBypassesCache) {
+  base::HistogramTester histogram_tester;
+
+  mojo::Remote<mojom::PassageEmbedder> embedder_remote;
+  base::test::TestFuture<bool> load_models_future;
+  auto model_params =
+      MakeModelParams(embeddings_path_, sp_path_, kInputWindowSize);
+  model_params->execute_for_gemma = true;
+  auto embedder_params = MakeEmbedderParams();
+  embedder_params->execute_for_gemma = true;
+  service()->LoadModels(std::move(model_params), std::move(embedder_params),
+                        embedder_remote.BindNewPipeAndPassReceiver(),
+                        load_models_future.GetCallback());
+  EXPECT_TRUE(load_models_future.Get());
+
+  base::test::TestFuture<std::vector<mojom::PassageEmbeddingsResultPtr>>
+      execute_future1;
+  embedder_remote->GenerateEmbeddings({"hello"},
+                                      mojom::PassagePriority::kUserInitiated,
+                                      execute_future1.GetCallback());
+  EXPECT_EQ(execute_future1.Take().size(), 1u);
+
+  base::test::TestFuture<std::vector<mojom::PassageEmbeddingsResultPtr>>
+      execute_future2;
+  embedder_remote->GenerateEmbeddings({"hello"},
+                                      mojom::PassagePriority::kUserInitiated,
+                                      execute_future2.GetCallback());
+  EXPECT_EQ(execute_future2.Take().size(), 1u);
+
+  // No cache checks/puts should occur for Gemma, so the metric is never
+  // recorded.
+  histogram_tester.ExpectTotalCount("History.Embeddings.Embedder.CacheHit", 0);
 }
 
 }  // namespace

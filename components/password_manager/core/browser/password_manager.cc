@@ -1650,9 +1650,16 @@ void PasswordManager::OnLoginSuccessful() {
   bool able_to_save_passwords =
       password_manager_util::IsAbleToSavePasswords(client_);
 
+  bool able_to_save_passwords_after_fixing_trusted_vault_error =
+      password_manager_util::IsSavingBlockedByTrustedVaultError(
+          client_, submitted_manager);
+  // TODO(crbug.com/484367376): Publish a metric for measuring the volume of
+  // cases when saving is blocked by the trusted vault error.
+
   UMA_HISTOGRAM_BOOLEAN("PasswordManager.AbleToSavePasswordsOnSuccessfulLogin",
                         able_to_save_passwords);
-  if (!submitted_manager->IsPasswordUpdate() && !able_to_save_passwords) {
+  if (!submitted_manager->IsPasswordUpdate() && !able_to_save_passwords &&
+      !able_to_save_passwords_after_fixing_trusted_vault_error) {
     return;
   }
 

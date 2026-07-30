@@ -134,46 +134,45 @@ void ExpectNoUpdateSequence(
   if (app_version) {
     app_expectation.Set("version", app_version->GetString());
   }
-  test_server.ExpectOnce({request::GetUpdaterUserAgentMatcher(updater_version),
-                          request::GetJSONContentMatcher(
-                              base::DictValue().SetByDottedPath(
-                                  "request.apps",
-                                  base::ListValue().Append(
-                                      std::move(app_expectation))))},
-                         base::BindRepeating(
-                             [](const std::string& app_id, bool v4) {
-                               return v4 ? base::StringPrintf(
-                                               ")]}'\n"
-                                               R"({"response":{)"
-                                               R"(  "protocol":"4.0",)"
-                                               R"(  "apps":[)"
-                                               R"(    {)"
-                                               R"(      "appid":"%s",)"
-                                               R"(      "status":"ok",)"
-                                               R"(      "updatecheck":{)"
-                                               R"(        "status":"noupdate")"
-                                               R"(      })"
-                                               R"(    })"
-                                               R"(  ])"
-                                               R"(}})",
-                                               app_id)
-                                         : base::StringPrintf(
-                                               ")]}'\n"
-                                               R"({"response":{)"
-                                               R"(  "protocol":"3.1",)"
-                                               R"(  "app":[)"
-                                               R"(    {)"
-                                               R"(      "appid":"%s",)"
-                                               R"(      "status":"ok",)"
-                                               R"(      "updatecheck":{)"
-                                               R"(        "status":"noupdate")"
-                                               R"(      })"
-                                               R"(    })"
-                                               R"(  ])"
-                                               R"(}})",
-                                               app_id);
-                             },
-                             app_id));
+  test_server.ExpectOnce(
+      {request::GetUpdaterUserAgentMatcher(updater_version),
+       request::GetJSONContentMatcher(base::DictValue().SetByDottedPath(
+           "request.apps",
+           base::ListValue().Append(std::move(app_expectation))))},
+      base::BindRepeating(
+          [](const std::string& app_id, bool v4) {
+            return v4 ? base::StringPrintf(
+                            ")]}'\n"
+                            R"({"response":{)"
+                            R"(  "protocol":"4.0",)"
+                            R"(  "apps":[)"
+                            R"(    {)"
+                            R"(      "appid":"%s",)"
+                            R"(      "status":"ok",)"
+                            R"(      "updatecheck":{)"
+                            R"(        "status":"noupdate")"
+                            R"(      })"
+                            R"(    })"
+                            R"(  ])"
+                            R"(}})",
+                            app_id)
+                      : base::StringPrintf(
+                            ")]}'\n"
+                            R"({"response":{)"
+                            R"(  "protocol":"3.1",)"
+                            R"(  "app":[)"
+                            R"(    {)"
+                            R"(      "appid":"%s",)"
+                            R"(      "status":"ok",)"
+                            R"(      "updatecheck":{)"
+                            R"(        "status":"noupdate")"
+                            R"(      })"
+                            R"(    })"
+                            R"(  ])"
+                            R"(}})",
+                            app_id);
+          },
+          app_id));
 }
 
 void ExpectPingRequest(
@@ -2563,6 +2562,18 @@ TEST_F(IntegrationTest, GetAppStates_AppIdsAlwaysLowercase) {
   }
 
   ASSERT_NO_FATAL_FAILURE(GetAppStates(expected_app_states));
+  ASSERT_NO_FATAL_FAILURE(ExpectUninstallPing(test_server));
+  ASSERT_NO_FATAL_FAILURE(Uninstall());
+}
+
+TEST_F(IntegrationTest, InstallAppInvalidAppId) {
+  ScopedServer test_server(test_commands_);
+  ExpectInstallEvent(test_server, kUpdaterAppId);
+  ASSERT_NO_FATAL_FAILURE(Install());
+
+  ASSERT_NO_FATAL_FAILURE(InstallAppViaService(
+      "invalid/appid", base::DictValue().Set("expect_failure", true)));
+
   ASSERT_NO_FATAL_FAILURE(ExpectUninstallPing(test_server));
   ASSERT_NO_FATAL_FAILURE(Uninstall());
 }

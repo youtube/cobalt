@@ -23,28 +23,29 @@
 
 #include "common.h"
 #include "sentencepiece_processor.h"
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 
 namespace sentencepiece {
 namespace filesystem {
 class ReadableFile {
  public:
-  ReadableFile() {}
+  ReadableFile() = default;
   explicit ReadableFile(absl::string_view filename, bool is_binary = false) {}
-  virtual ~ReadableFile() {}
+  virtual ~ReadableFile() = default;
 
-  virtual util::Status status() const = 0;
-  virtual bool ReadLine(std::string *line) = 0;
-  virtual bool ReadAll(std::string *line) = 0;
+  virtual absl::Status status() const = 0;
+  virtual bool ReadLine(std::string* line) = 0;
+  virtual bool ReadAll(std::string* line) = 0;
 };
 
 class WritableFile {
  public:
-  WritableFile() {}
+  WritableFile() = default;
   explicit WritableFile(absl::string_view filename, bool is_binary = false) {}
-  virtual ~WritableFile() {}
+  virtual ~WritableFile() = default;
 
-  virtual util::Status status() const = 0;
+  virtual absl::Status status() const = 0;
   virtual bool Write(absl::string_view text) = 0;
   virtual bool WriteLine(absl::string_view text) = 0;
 };
@@ -56,4 +57,5 @@ std::unique_ptr<WritableFile> NewWritableFile(absl::string_view filename,
 
 }  // namespace filesystem
 }  // namespace sentencepiece
+
 #endif  // FILESYSTEM_H_

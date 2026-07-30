@@ -266,7 +266,7 @@ PolicyContainerHost::~PolicyContainerHost() = default;
 void PolicyContainerHost::AssociateWithFrameToken(
     const blink::LocalFrameToken& frame_token,
     int process_id) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  CHECK_CURRENTLY_ON(BrowserThread::UI, base::NotFatalUntil::M152);
   frame_token_ = frame_token;
   process_id_ = process_id;
 }

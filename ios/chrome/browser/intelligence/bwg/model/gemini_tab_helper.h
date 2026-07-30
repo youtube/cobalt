@@ -49,6 +49,23 @@ class GeminiTabHelper : public web::WebStateObserver,
 
   ~GeminiTabHelper() override;
 
+  // Represents the Gemini contextual eligibility state of the current URL. The
+  // URL can either be ineligible, or eligible via a proactive fetch vs an
+  // on-demand fetch. That depends on a few factors, notably incognito and MSBB
+  // (Make Searches and Browsing Better - see
+  // `//components/unified_consent/README.md` for more info).
+  enum class ContextualEligibility {
+    // The page has not been evaluated, or is ineligible for Gemini contextual
+    // features.
+    kIneligible,
+    // The page is eligible, and the decision was fetched via the standard
+    // proactive path (i.e. MSBB enabled).
+    kEligibleViaProactiveFetch,
+    // The page is eligible, and the decision was fetched via the on-demand
+    // path (i.e. MSBB disabled).
+    kEligibleViaOnDemandFetch,
+  };
+
   // Forces the generation of page context immediately, bypassing any wait for
   // page load completion. Used when the page load timeout is exceeded.
   // This is no op if page has already finished loading.
@@ -72,13 +89,6 @@ class GeminiTabHelper : public web::WebStateObserver,
   // and visible URL.
   bool ShouldShowSuggestionChips();
 
-  // Creates, or updates, a new Gemini session in storage with the current
-  // timestamp, server ID and URL for the associated WebState.
-  void CreateOrUpdateGeminiSessionInStorage(std::string server_id);
-
-  // Removes the associated WebState's session from storage.
-  void DeleteGeminiSessionInStorage();
-
   // Whether Gemini is available for the current web state.
   bool IsGeminiAvailableForWebState();
 
@@ -88,10 +98,8 @@ class GeminiTabHelper : public web::WebStateObserver,
   // Whether Gemini Chat mode is available for the current web state.
   bool IsGeminiChatAvailableForWebState();
 
-  // Gets the client and server IDs for the Gemini session for the associated
-  // WebState. server ID is optional because it may not be found or is expired.
+  // Gets the client ID for the Gemini session for the associated WebState.
   std::string GetClientId();
-  std::optional<std::string> GetServerId();
 
   // Set the Gemini commands handler, used to show/hide the Gemini UI.
   void SetGeminiHandler(id<GeminiCommands> handler);
@@ -108,8 +116,8 @@ class GeminiTabHelper : public web::WebStateObserver,
   // Gets the state of `is_first_run`.
   bool GetIsFirstRun();
 
-  // Returns whether to prevent contextual panel entrypoint based on Gemini IPH
-  // criteria.
+  // Returns whether to prevent contextual panel entrypoint based on Gemini
+  // in-product help criteria.
   bool ShouldPreventContextualPanelEntryPoint();
 
   // Adds an observer.
@@ -170,6 +178,14 @@ class GeminiTabHelper : public web::WebStateObserver,
 
   friend class web::WebStateUserData<GeminiTabHelper>;
 
+  // Adding GeminiTabHelperTest as a friend to facilitate validation of behavior
+  // in tests.
+  friend class GeminiTabHelperTest;
+
+  // TODO(crbug.com/502249229): Refactor GeminiSuggestionHandler to use a
+  // protocol or delegate to avoid needing to be a friend of GeminiTabHelper.
+  friend class GeminiSuggestionHandlerTest;
+
   // The PageContext wrapper used to provide context about a page.
   __strong PageContextWrapper* page_context_wrapper_ = nil;
 
@@ -178,16 +194,20 @@ class GeminiTabHelper : public web::WebStateObserver,
 
   // Computes the actual Gemini eligibility based on the response from
   // `OnGeminiEligibilityDecision`.
-  bool ComputeGeminiEligibility(
+  ContextualEligibility ComputeGeminiEligibility(
       optimization_guide::OptimizationGuideDecision decision,
-      const optimization_guide::OptimizationMetadata& metadata);
+      const optimization_guide::OptimizationMetadata& metadata,
+      const bool was_proactive_fetch_used);
 
   // Callback for the OptimizationGuide with the result of whether the
   // zero-state suggestions should be shown for the current URL.
-  // Shows IPH for image remix if the user has enabled metadata requests (MSBB).
+  // Attempts to show the in-product help tooltip for Image Remix.
+  //
+  // `was_proactive_fetch_used` is true if the proactive fetch from
+  // OptimizationGuide was permitted and used (i.e. MSBB is enabled).
   void OnGeminiEligibilityDecision(
       const GURL& url_without_ref,
-      bool user_enabled_request_metadata,
+      const bool was_proactive_fetch_used,
       optimization_guide::OptimizationGuideDecision decision,
       const optimization_guide::OptimizationMetadata& metadata);
 
@@ -205,22 +225,8 @@ class GeminiTabHelper : public web::WebStateObserver,
       optimization_guide::OptimizationGuideDecision decision,
       const optimization_guide::OptimizationMetadata& metadata);
 
-  // Adding GeminiTabHelperTest as a friend to facilitate validation of behavior
-  // in tests.
-  friend class GeminiTabHelperTest;
-
-  // TODO(crbug.com/502249229): Refactor GeminiSuggestionHandler to use a
-  // protocol or delegate to avoid needing to be a friend of GeminiTabHelper.
-  friend class GeminiSuggestionHandlerTest;
-
-  // Creates a new Gemini session in the prefs, or updates an existing one, with
-  // the current timestamp.
-  void CreateOrUpdateSessionInPrefs(std::string client_id,
-                                    std::string server_id);
-
   // Removes the Gemini session from the prefs.
   void CleanupSessionFromPrefs();
-
 
   // Whether Gemini can extract the current web state's page context.
   bool CanExtractPageContextForGemini();
@@ -238,6 +244,13 @@ class GeminiTabHelper : public web::WebStateObserver,
   // Handles the asynchronous result from PageContextWrapper.
   void OnPageContextWrapperResponse(
       PageContextWrapperCallbackResponse expected_page_context);
+
+  // Presents the in-product help tooltip bubble for Image Remix if the WebState
+  // is visible and not loading, and the page and user are eligible.
+  void MaybePresentImageRemixTooltip();
+
+  // Presents the in-product help tooltip bubble for Image Remix.
+  void PresentImageRemixTooltip();
 
   // Tracks the best-effort extraction timeout.
   base::OneShotTimer page_context_timeout_timer_;
@@ -288,7 +301,8 @@ class GeminiTabHelper : public web::WebStateObserver,
   // Whether Gemini contextual features (such as zero-state suggestions and
   // Image Remix) are eligible to be shown on the current page, based on the
   // optimization guide decision.
-  bool gemini_contextual_eligibility_ = false;
+  ContextualEligibility gemini_contextual_eligibility_ =
+      ContextualEligibility::kIneligible;
 
   // Callback to be run when the page has finished loading.
   base::RepeatingClosure page_loaded_callback_;

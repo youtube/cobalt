@@ -1240,8 +1240,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionWindowCreateTest, MAYBE_AcceptState) {
   // DesktopWindowTreeHostX11::IsMinimized() relies on an asynchronous update
   // from the window server
   views::test::PropertyWaiter minimize_waiter(
-      base::BindRepeating(&BrowserWindow::IsMinimized,
-                          base::Unretained(new_browser->window())),
+      base::BindRepeating(
+          &BrowserWindow::IsMinimized,
+          base::Unretained(BrowserWindow::FromBrowser(new_browser))),
       true, TestTimeouts::action_timeout());
   EXPECT_TRUE(minimize_waiter.Wait());
 #elif BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
@@ -1441,6 +1442,26 @@ class ExtensionIwaTestBase : public InProcessBrowserTest {
     return bundle->InstallChecked(profile());
   }
 
+  BrowserWindowInterface* OpenIwa(
+      const web_app::IsolatedWebAppUrlInfo& url_info) {
+    scoped_refptr<const Extension> extension =
+        ExtensionBuilder("IwaOpenerExtension").Build();
+    auto function = base::MakeRefCounted<WindowsCreateFunction>();
+    function->set_extension(extension);
+
+    std::string args = base::StringPrintf(
+        R"([{"url": "%s"}])", url_info.origin().GetURL().spec().c_str());
+
+    bool result = api_test_utils::RunFunction(
+        function.get(), args, profile(), api_test_utils::FunctionMode::kNone);
+    EXPECT_TRUE(result) << function->GetError();
+
+    BrowserWindowInterface* iwa_browser =
+        GetLastActiveBrowserWindowInterfaceWithAnyProfile();
+    EXPECT_TRUE(iwa_browser);
+    return iwa_browser;
+  }
+
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
   web_app::OsIntegrationManager::ScopedSuppressForTesting os_hooks_suppress_;
@@ -1563,31 +1584,79 @@ INSTANTIATE_TEST_SUITE_P(
     [](const testing::TestParamInfo<ExtensionWindowCreateIwaTest::ParamType>&
            info) { return info.param.test_name; });
 
-class ExtensionApiTabsIwaMoveTest : public ExtensionIwaTestBase {
- public:
-  ExtensionApiTabsIwaMoveTest() = default;
+using ExtensionApiTabsIwaMoveTest = ExtensionIwaTestBase;
 
- protected:
-  BrowserWindowInterface* OpenIwa(
-      const web_app::IsolatedWebAppUrlInfo& url_info) {
-    scoped_refptr<const Extension> extension =
-        ExtensionBuilder("IwaOpenerExtension").Build();
-    auto function = base::MakeRefCounted<WindowsCreateFunction>();
-    function->set_extension(extension);
+using ExtensionApiTabsIwaNavigateTest = ExtensionIwaTestBase;
 
-    std::string args = base::StringPrintf(
-        R"([{"url": "%s"}])", url_info.origin().GetURL().spec().c_str());
+// `tabs.create` does not support `isolated-app:` URLs, even when targeting an
+// existing IWA window. `windows.create` is the supported entry point and
+// always opens IWAs at their `start_url`.
+IN_PROC_BROWSER_TEST_F(ExtensionApiTabsIwaNavigateTest,
+                       TabsCreateRejectsIwaUrl) {
+  auto url_info = InstallAndTrustBundle();
+  BrowserWindowInterface* iwa_browser = OpenIwa(url_info);
+  int iwa_window_id = ExtensionTabUtil::GetWindowId(iwa_browser);
 
-    bool result = api_test_utils::RunFunction(
-        function.get(), args, profile(), api_test_utils::FunctionMode::kNone);
-    EXPECT_TRUE(result) << function->GetError();
+  TabListInterface* iwa_tab_list = TabListInterface::From(iwa_browser);
+  ASSERT_EQ(iwa_tab_list->GetTabCount(), 1);
+  auto* iwa_web_contents = iwa_tab_list->GetActiveTab()->GetContents();
+  content::WaitForLoadStop(iwa_web_contents);
 
-    BrowserWindowInterface* iwa_browser =
-        GetLastActiveBrowserWindowInterfaceWithAnyProfile();
-    EXPECT_TRUE(iwa_browser);
-    return iwa_browser;
-  }
-};
+  GURL deep_url = url_info.origin().GetURL().Resolve("/deep/page.html");
+  std::string args = base::StringPrintf(R"([{"url": "%s", "windowId": %d}])",
+                                        deep_url.spec().c_str(), iwa_window_id);
+
+  scoped_refptr<const Extension> extension =
+      ExtensionBuilder("ExtensionApiTabsIwaNavigateTest").Build();
+  auto function = base::MakeRefCounted<TabsCreateFunction>();
+  function->set_extension(extension);
+
+  std::string error = api_test_utils::RunFunctionAndReturnError(
+      function.get(), args, profile());
+  EXPECT_EQ(error,
+            "URLs with the 'isolated-app:' scheme cannot be opened with "
+            "tabs.create. Use windows.create instead.");
+
+  // Only the original IWA window remains, still showing the start URL.
+  ASSERT_EQ(GlobalBrowserCollection::GetInstance()->GetSize(), 1ul);
+  ASSERT_EQ(iwa_tab_list->GetTabCount(), 1);
+  EXPECT_EQ(iwa_web_contents->GetLastCommittedURL(),
+            url_info.origin().GetURL());
+}
+
+// `tabs.update` cannot be used to navigate any tab (IWA or otherwise) to an
+// `isolated-app:` URL; IWA navigations are only supported via the launch entry
+// point used by `windows.create`.
+IN_PROC_BROWSER_TEST_F(ExtensionApiTabsIwaNavigateTest,
+                       TabsUpdateRejectsIwaUrl) {
+  auto url_info = InstallAndTrustBundle();
+  BrowserWindowInterface* iwa_browser = OpenIwa(url_info);
+
+  TabListInterface* iwa_tab_list = TabListInterface::From(iwa_browser);
+  ASSERT_EQ(iwa_tab_list->GetTabCount(), 1);
+  auto* iwa_web_contents = iwa_tab_list->GetActiveTab()->GetContents();
+  content::WaitForLoadStop(iwa_web_contents);
+  int iwa_tab_id = ExtensionTabUtil::GetTabId(iwa_web_contents);
+
+  GURL deep_url = url_info.origin().GetURL().Resolve("/deep/page.html");
+  std::string args = base::StringPrintf(R"([%d, {"url": "%s"}])", iwa_tab_id,
+                                        deep_url.spec().c_str());
+
+  scoped_refptr<const Extension> extension =
+      ExtensionBuilder("ExtensionApiTabsIwaNavigateTest").Build();
+  auto function = base::MakeRefCounted<TabsUpdateFunction>();
+  function->set_extension(extension);
+
+  std::string error = api_test_utils::RunFunctionAndReturnError(
+      function.get(), args, profile());
+  EXPECT_EQ(error,
+            "Cannot navigate to a URL with the 'isolated-app:' scheme via "
+            "tabs.update. Use windows.create instead.");
+
+  // The IWA tab is still at its start URL.
+  EXPECT_EQ(iwa_web_contents->GetLastCommittedURL(),
+            url_info.origin().GetURL());
+}
 
 IN_PROC_BROWSER_TEST_F(ExtensionApiTabsIwaMoveTest, CannotMoveIwaTab) {
   auto url_info = InstallAndTrustBundle();

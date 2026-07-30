@@ -23,7 +23,7 @@ class MockHatsService : public HatsServiceDesktop {
   explicit MockHatsService(Profile* profile);
   ~MockHatsService() override;
 
-  MOCK_METHOD(void,
+  MOCK_METHOD(HatsService::LaunchError,
               LaunchSurvey,
               (const std::string& trigger,
                base::OnceClosure success_callback,
@@ -33,7 +33,7 @@ class MockHatsService : public HatsServiceDesktop {
                (const std::optional<std::string>&)supplied_trigger_id,
                (const SurveyOptions&)survey_options),
               (override));
-  MOCK_METHOD(void,
+  MOCK_METHOD(HatsService::LaunchError,
               LaunchSurveyForWebContents,
               (const std::string& trigger,
                (content::WebContents*)web_contents,
@@ -44,14 +44,14 @@ class MockHatsService : public HatsServiceDesktop {
                const std::optional<std::string>& supplied_trigger_id,
                const HatsService::SurveyOptions& survey_options),
               (override));
-  MOCK_METHOD(bool,
+  MOCK_METHOD(HatsService::LaunchError,
               LaunchDelayedSurvey,
               (const std::string& trigger,
                int timeout_ms,
                (const SurveyBitsData&)survey_specific_bits_data,
                (const SurveyStringData&)survey_specific_string_data),
               (override));
-  MOCK_METHOD(bool,
+  MOCK_METHOD(HatsService::LaunchError,
               LaunchDelayedSurveyForWebContents,
               (const std::string& trigger,
                content::WebContents* web_contents,

@@ -8,6 +8,9 @@ import("//media/media_options.gni")
 import("//testing/test.gni")
 
 source_set("audio") {
+  _configs = configs
+  configs = []
+  configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
   sources = [
     "audio_manager_power_user.h",
     "debug_recording.cc",
@@ -157,6 +160,9 @@ component("testing_api_support") {
 }
 
 source_set("tests") {
+  _configs = configs
+  configs = []
+  configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
   testonly = true
 
   sources = [

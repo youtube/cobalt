@@ -52,4 +52,13 @@ base::span<const char* const> GetWebNNSwitchesCopiedFromGpuProcessHost() {
 }
 #endif
 
+base::span<const char* const> GetWebNNSwitchesForRendererProcess() {
+#if BUILDFLAG(WEBNN_USE_TFLITE) || BUILDFLAG(WEBNN_USE_LITERT)
+  static constexpr auto flags = std::to_array({kWebNNTfliteDumpModel});
+  return flags;
+#else
+  return {};
+#endif
+}
+
 }  // namespace switches

@@ -165,10 +165,7 @@ public class RichRadioButtonListRenderTest {
         List<RichRadioButtonData> testData = createTestData(3, true, true);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    mRichRadioButtonListView.initialize(
-                            testData,
-                            RichRadioButtonList.LayoutMode.VERTICAL_SINGLE_COLUMN,
-                            (selectedId) -> {});
+                    mRichRadioButtonListView.initialize(testData, (selectedId) -> {});
                     mRichRadioButtonListView.setSelectedItem("item_0");
                 });
         waitForViewToBeRendered(mRichRadioButtonListView);
@@ -178,69 +175,15 @@ public class RichRadioButtonListRenderTest {
     @Test
     @SmallTest
     @Feature({"RenderTest", "RichRadioButtonList"})
-    public void testTwoColumnGridLayoutEven() throws Exception {
-        List<RichRadioButtonData> testData = createTestData(4, true, true);
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    mRichRadioButtonListView.initialize(
-                            testData,
-                            RichRadioButtonList.LayoutMode.TWO_COLUMN_GRID,
-                            (selectedId) -> {});
-                    mRichRadioButtonListView.setSelectedItem("item_1");
-                });
-        waitForViewToBeRendered(mRichRadioButtonListView);
-        mRenderTestRule.render(mRichRadioButtonListView, "rich_rb_list_two_column_grid_even");
-    }
-
-    @Test
-    @SmallTest
-    @Feature({"RenderTest", "RichRadioButtonList"})
-    public void testTwoColumnGridLayoutOdd() throws Exception {
-        List<RichRadioButtonData> testData = createTestData(3, false, true);
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    mRichRadioButtonListView.initialize(
-                            testData,
-                            RichRadioButtonList.LayoutMode.TWO_COLUMN_GRID,
-                            (selectedId) -> {});
-                    mRichRadioButtonListView.setSelectedItem("item_2");
-                });
-        waitForViewToBeRendered(mRichRadioButtonListView);
-        mRenderTestRule.render(mRichRadioButtonListView, "rich_rb_list_two_column_grid_odd");
-    }
-
-    @Test
-    @SmallTest
-    @Feature({"RenderTest", "RichRadioButtonList"})
     public void testVerticalSingleColumnMinimal() throws Exception {
         List<RichRadioButtonData> testData = createTestData(2, false, false);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    mRichRadioButtonListView.initialize(
-                            testData,
-                            RichRadioButtonList.LayoutMode.VERTICAL_SINGLE_COLUMN,
-                            (selectedId) -> {});
+                    mRichRadioButtonListView.initialize(testData, (selectedId) -> {});
                     mRichRadioButtonListView.setSelectedItem("item_0");
                 });
         waitForViewToBeRendered(mRichRadioButtonListView);
         mRenderTestRule.render(
                 mRichRadioButtonListView, "rich_rb_list_vertical_single_column_minimal");
-    }
-
-    @Test
-    @SmallTest
-    @Feature({"RenderTest", "RichRadioButtonList"})
-    public void testTwoColumnGridMinimal() throws Exception {
-        List<RichRadioButtonData> testData = createTestData(2, false, false);
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    mRichRadioButtonListView.initialize(
-                            testData,
-                            RichRadioButtonList.LayoutMode.TWO_COLUMN_GRID,
-                            (selectedId) -> {});
-                    mRichRadioButtonListView.setSelectedItem("item_1");
-                });
-        waitForViewToBeRendered(mRichRadioButtonListView);
-        mRenderTestRule.render(mRichRadioButtonListView, "rich_rb_list_two_column_grid_minimal");
     }
 }

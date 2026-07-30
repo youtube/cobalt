@@ -41,13 +41,17 @@ class BookmarksUtilsTest : public BookmarkIOSUnitTestSupport {
     return GetDefaultBookmarkFolder(prefs_, bookmark_model_);
   }
 
+  // Removes folders for account storage, first resetting raw pointers whose
+  // target objects would be destroyed as a result.
+  void RemoveAccountPermanentFolders() {
+    account_folder_node_ = nullptr;
+    bookmark_model_->RemoveAccountPermanentFolders();
+  }
+
   raw_ptr<PrefService> prefs_ = nullptr;
-  raw_ptr<const bookmarks::BookmarkNode, DanglingUntriaged>
-      account_folder_node_ = nullptr;
-  raw_ptr<const bookmarks::BookmarkNode, DanglingUntriaged> local_folder_node_ =
-      nullptr;
-  raw_ptr<const bookmarks::BookmarkNode, DanglingUntriaged>
-      local_bookmark_node_ = nullptr;
+  raw_ptr<const bookmarks::BookmarkNode> account_folder_node_ = nullptr;
+  raw_ptr<const bookmarks::BookmarkNode> local_folder_node_ = nullptr;
+  raw_ptr<const bookmarks::BookmarkNode> local_bookmark_node_ = nullptr;
 };
 
 // Tests GetDefaultBookmarkFolder() when no default folder was set and account
@@ -64,7 +68,7 @@ TEST_F(BookmarksUtilsTest,
 // bookmarks do not exist.
 TEST_F(BookmarksUtilsTest,
        GetDefaultBookmarkFolderWithNoValueSetAndWithoutAccountBookmarks) {
-  bookmark_model_->RemoveAccountPermanentFolders();
+  RemoveAccountPermanentFolders();
   // Test default folder, with no value set before.
   const bookmarks::BookmarkNode* default_folder_node =
       GetDefaultBookmarkFolderHelper();
@@ -127,7 +131,7 @@ TEST_F(BookmarksUtilsTest, PrimaryPermanentNodes) {
                   bookmark_model_->account_bookmark_bar_node(),
                   bookmark_model_->account_other_node()));
 
-  bookmark_model_->RemoveAccountPermanentFolders();
+  RemoveAccountPermanentFolders();
   EXPECT_THAT(
       PrimaryPermanentNodes(bookmark_model_, BookmarkStorageType::kAccount),
       IsEmpty());

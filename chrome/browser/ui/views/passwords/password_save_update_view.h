@@ -94,6 +94,7 @@ class PasswordSaveUpdateView : public PasswordBubbleViewBase,
   void AddedToWidget() override;
 
   bool IsSaveBubbleDropdownExperimentEnabled() const;
+  bool IsTrustedVaultErrorResolutionEnabled() const;
   void UpdateUsernameAndPasswordInModel();
   void UpdateBubbleUIElements();
   std::unique_ptr<views::View> CreateFooterView();

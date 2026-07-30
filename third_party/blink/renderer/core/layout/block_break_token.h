@@ -7,6 +7,7 @@
 
 #include "base/dcheck_is_on.h"
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/layout/block_node.h"
 #include "third_party/blink/renderer/core/layout/break_token.h"
 #include "third_party/blink/renderer/core/layout/geometry/logical_offset.h"
 #include "third_party/blink/renderer/platform/geometry/layout_unit.h"
@@ -16,6 +17,7 @@
 namespace blink {
 
 class BoxFragmentBuilder;
+class LayoutBox;
 struct BreakTokenAlgorithmData;
 
 // Represents a break token for a block node.
@@ -81,6 +83,9 @@ class CORE_EXPORT BlockBreakToken final : public BreakToken {
   // fragment will become 50px tall, assuming no additional fragmentation (if
   // the fragmentainer is shorter than 50px, for instance).
   LayoutUnit ConsumedBlockSize() const { return consumed_block_size_; }
+
+  // Returns the block node associated with this break token.
+  BlockNode InputNode() const { return BlockNode(box_.Get()); }
 
   // A unique identifier for a fragment that generates a break token. This is
   // unique within the generating layout input node. The break token of the
@@ -257,6 +262,7 @@ class CORE_EXPORT BlockBreakToken final : public BreakToken {
         base::span(base::unchecked, child_break_tokens_, const_num_children_));
   }
 
+  Member<LayoutBox> box_;
   Member<BreakTokenAlgorithmData> data_;
 
   LayoutUnit consumed_block_size_;

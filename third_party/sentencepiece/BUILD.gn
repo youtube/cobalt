@@ -45,7 +45,6 @@ static_library("sentencepiece") {
     "src/src/char_model.cc",
     "src/src/char_model.h",
     "src/src/common.h",
-    "src/src/error.cc",
     "src/src/filesystem.cc",
     "src/src/filesystem.h",
     "src/src/freelist.h",

@@ -78,40 +78,6 @@ AiMode::AiMode() {
           .Get();
 }
 
-AiModeOmniboxEntryPoint::AiModeOmniboxEntryPoint() {
-  enabled = base::FeatureList::IsEnabled(omnibox::kAiModeOmniboxEntryPoint);
-
-  hide_aim_hint_text =
-      base::FeatureParam<bool>(&omnibox::kAiModeOmniboxEntryPoint,
-                               "HideAimHintText", false)
-          .Get();
-
-  hide_aim_hint_text_on_ntp_open =
-      base::FeatureParam<bool>(&omnibox::kAiModeOmniboxEntryPoint,
-                               "HideAimHintTextOnNtpOpen", false)
-          .Get();
-
-  hide_other_page_actions_on_ntp =
-      base::FeatureParam<bool>(&omnibox::kAiModeOmniboxEntryPoint,
-                               "HideOtherPageActionsOnNtp", true)
-          .Get();
-
-  aim_hint_impression_limit_daily =
-      base::FeatureParam<int>(&omnibox::kAiModeOmniboxEntryPoint,
-                              "AimHintImpressionLimitDaily", 3)
-          .Get();
-
-  aim_hint_impression_limit_total =
-      base::FeatureParam<int>(&omnibox::kAiModeOmniboxEntryPoint,
-                              "AimHintImpressionLimitTotal", 15)
-          .Get();
-
-  enable_hint_impression_limits =
-      base::FeatureParam<bool>(&omnibox::kAiModeOmniboxEntryPoint,
-                               "EnableHintImpressionLimits", true)
-          .Get();
-}
-
 BASE_FEATURE(ContextualSearch::kContextualSuggestionsAblateOthersWhenPresent,
              "ContextualSuggestionsAblateOthersWhenPresent",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -384,7 +350,7 @@ DocumentProvider::DocumentProvider() {
           .Get();
   debounce_delay_ms =
       base::FeatureParam<int>(&omnibox::kDocumentProvider,
-                              "DocumentProviderDebounceDelayMs", 300)
+                              "DocumentProviderDebounceDelayMs", 600)
           .Get();
   scope_backoff_to_profile =
       base::FeatureParam<bool>(&omnibox::kDocumentProvider,

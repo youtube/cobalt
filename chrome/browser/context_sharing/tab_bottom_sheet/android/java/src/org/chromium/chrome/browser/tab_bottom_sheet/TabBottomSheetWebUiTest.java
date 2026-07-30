@@ -43,6 +43,12 @@ import org.robolectric.shadows.ShadowLooper;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.intents.BrowserIntentUtils;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceOrchestrator;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceOrchestratorFactory;
+import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.TabLaunchType;
+import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.chrome.browser.tabmodel.TabModelSelectorSupplier;
 import org.chromium.components.embedder_support.contextmenu.ContextMenuItemDelegate;
 import org.chromium.components.embedder_support.contextmenu.ContextMenuPopulatorFactory;
 import org.chromium.components.embedder_support.view.ContentView;
@@ -349,6 +355,90 @@ public class TabBottomSheetWebUiTest {
         assertTrue(delegate.supportsSaveImage());
         assertTrue(delegate.supportsSearchByImage());
         assertTrue(delegate.supportsInspectElement());
+    }
+
+    @Test
+    public void testSetWebContents_ItemDelegate_LinkOpener_SidePanel() {
+        ContextMenuPopulatorFactory mockFactory = mock(ContextMenuPopulatorFactory.class);
+        Context context =
+                new ContextThemeWrapper(
+                        ApplicationProvider.getApplicationContext(),
+                        R.style.Theme_BrowserUI_DayNight);
+        View containerView =
+                LayoutInflater.from(context)
+                        .inflate(
+                                org.chromium.chrome.browser.context_sharing.R.layout
+                                        .tab_bottom_sheet,
+                                null);
+        TabBottomSheetWebUi sidePanelWebUi =
+                new TestTabBottomSheetWebUi(
+                        context,
+                        containerView,
+                        mWindowAndroid,
+                        mockFactory,
+                        mSelectionDropdownMenuDelegate,
+                        Color.WHITE,
+                        mMockContentView,
+                        CoBrowseContainerType.SIDE_PANEL);
+        sidePanelWebUi.setWebContents(mWebContents, true);
+
+        ArgumentCaptor<ContextMenuItemDelegate> delegateCaptor =
+                ArgumentCaptor.forClass(ContextMenuItemDelegate.class);
+        verify(mockFactory).setItemDelegate(delegateCaptor.capture());
+        ContextMenuItemDelegate delegate = delegateCaptor.getValue();
+
+        GURL url = new GURL("https://example.com");
+
+        // Test New Tab
+        delegate.onOpenInNewTab(url, null, false, null);
+        ArgumentCaptor<android.content.Intent> intentCaptor =
+                ArgumentCaptor.forClass(android.content.Intent.class);
+        verify(mMockActivity).startActivity(intentCaptor.capture());
+        assertEquals(android.content.Intent.ACTION_VIEW, intentCaptor.getValue().getAction());
+        assertEquals(url.getSpec(), intentCaptor.getValue().getData().toString());
+
+        // Test New Tab in Group
+        TabModelSelector mockSelector = mock(TabModelSelector.class);
+        TabModelSelectorSupplier.setInstanceForTesting(mockSelector);
+        Tab mockTab = mock(Tab.class);
+        when(mockSelector.getCurrentTab()).thenReturn(mockTab);
+        when(mockTab.isIncognito()).thenReturn(false);
+
+        delegate.onOpenInNewTabInGroup(url, null);
+        verify(mockSelector)
+                .openNewTab(
+                        any(),
+                        eq(TabLaunchType.FROM_LONGPRESS_BACKGROUND_IN_GROUP),
+                        eq(mockTab),
+                        eq(false));
+        TabModelSelectorSupplier.setInstanceForTesting(null);
+
+        Mockito.reset(mMockActivity);
+
+        // Test Incognito Tab
+        delegate.onOpenInNewIncognitoTab(url);
+        verify(mMockActivity).startActivity(intentCaptor.capture());
+        assertTrue(
+                intentCaptor
+                        .getValue()
+                        .getBooleanExtra(BrowserIntentUtils.EXTRA_OPEN_NEW_INCOGNITO_TAB, false));
+
+        MultiInstanceOrchestrator mockOrchestrator = mock(MultiInstanceOrchestrator.class);
+        MultiInstanceOrchestratorFactory.setInstanceForTesting(mockOrchestrator);
+
+        // Test New Window
+        delegate.openInOtherWindow(url, null, false, true);
+        verify(mockOrchestrator)
+                .openUrlInOtherWindow(
+                        eq(mMockActivity), any(), eq(Tab.INVALID_TAB_ID), eq(true), eq(false));
+
+        // Test Incognito Window
+        delegate.openInIncognitoWindow(url);
+        verify(mockOrchestrator)
+                .openUrlInOtherWindow(
+                        eq(mMockActivity), any(), eq(Tab.INVALID_TAB_ID), eq(false), eq(true));
+
+        MultiInstanceOrchestratorFactory.setInstanceForTesting(null);
     }
 
     @Test

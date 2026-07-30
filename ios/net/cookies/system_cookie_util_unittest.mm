@@ -26,11 +26,7 @@ const char kCookieValue[] = "value";
 const char kCookieValueInvalidUtf8[] = "\x81r\xe4\xbd\xa0\xe5\xa5\xbd";
 
 void CheckSystemCookie(const base::Time& expires, bool secure, bool httponly) {
-  net::CookieSameSite same_site = net::CookieSameSite::NO_RESTRICTION;
-  if (@available(iOS 13, *)) {
-    // SamesitePolicy property of NSHTTPCookieStore is available on iOS 13+.
-    same_site = net::CookieSameSite::LAX_MODE;
-  }
+  net::CookieSameSite same_site = net::CookieSameSite::LAX_MODE;
   // Generate a canonical cookie.
   std::unique_ptr<net::CanonicalCookie> canonical_cookie =
       net::CanonicalCookie::CreateUnsafeCookieForTesting(
@@ -55,9 +51,7 @@ void CheckSystemCookie(const base::Time& expires, bool secure, bool httponly) {
   EXPECT_EQ(httponly, [system_cookie isHTTPOnly]);
   EXPECT_EQ(expires.is_null(), [system_cookie isSessionOnly]);
 
-  if (@available(iOS 13, *)) {
-    EXPECT_NSEQ(NSHTTPCookieSameSiteLax, [system_cookie sameSitePolicy]);
-  }
+  EXPECT_NSEQ(NSHTTPCookieSameSiteLax, [system_cookie sameSitePolicy]);
   // Allow 1 second difference as iOS rounds expiry time to the nearest second.
   base::Time system_cookie_expire_date = base::Time::FromSecondsSinceUnixEpoch(
       [[system_cookie expiresDate] timeIntervalSince1970]);
@@ -83,10 +77,7 @@ TEST_F(CookieUtil, CanonicalCookieFromSystemCookie) {
         NSHTTPCookieExpires : system_expire_date,
         @"HttpOnly" : @YES,
       }];
-  if (@available(iOS 13, *)) {
-    // sameSitePolicy is only available on iOS 13+.
-    properties[NSHTTPCookieSameSitePolicy] = NSHTTPCookieSameSiteStrict;
-  }
+  properties[NSHTTPCookieSameSitePolicy] = NSHTTPCookieSameSiteStrict;
 
   NSHTTPCookie* system_cookie =
       [[NSHTTPCookie alloc] initWithProperties:properties];
@@ -107,9 +98,7 @@ TEST_F(CookieUtil, CanonicalCookieFromSystemCookie) {
   EXPECT_FALSE(chrome_cookie->SecureAttribute());
   EXPECT_TRUE(chrome_cookie->IsHttpOnly());
   EXPECT_EQ(net::COOKIE_PRIORITY_DEFAULT, chrome_cookie->Priority());
-  if (@available(iOS 13, *)) {
-    EXPECT_EQ(net::CookieSameSite::STRICT_MODE, chrome_cookie->SameSite());
-  }
+  EXPECT_EQ(net::CookieSameSite::STRICT_MODE, chrome_cookie->SameSite());
 
   // Test session and secure cookie.
   system_cookie = [[NSHTTPCookie alloc] initWithProperties:@{

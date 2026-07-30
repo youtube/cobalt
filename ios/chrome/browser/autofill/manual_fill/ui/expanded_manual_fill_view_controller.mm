@@ -14,7 +14,6 @@
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
-#import "ui/base/device_form_factor.h"
 #import "ui/base/l10n/l10n_util.h"
 
 using manual_fill::ManualFillDataType;
@@ -147,8 +146,7 @@ CGFloat GetHeaderViewTopConstraintConstant(bool is_compact_height) {
   // Negative top padding should be applied only for iOS 26.0 - iOS 26.3.
   if (@available(iOS 26.0, *)) {
     if (!@available(iOS 26.4, *)) {
-      if (!is_compact_height &&
-          ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_TABLET) {
+      if (!is_compact_height && ![ManualFillUtil shouldUsePopover]) {
         return kIOS26HeaderViewTopPadding;
       }
     }
@@ -166,7 +164,7 @@ CGFloat GetHeaderViewTopConstraintConstant(bool is_compact_height) {
 // that can be used to align other UI elements with the cells.
 CGFloat GetUpdatedHorizontalInset(CGFloat inset) {
   if (@available(iOS 26, *)) {
-    if (ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_TABLET) {
+    if (![ManualFillUtil shouldUsePopover]) {
       return inset + kIOS26TableViewCellExtraHorizontalInset;
     }
   }

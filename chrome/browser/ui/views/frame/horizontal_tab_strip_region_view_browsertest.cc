@@ -14,7 +14,6 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/layout_constants.h"
-#include "chrome/browser/ui/tab_search_feature.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_prefs.h"
@@ -306,36 +305,4 @@ IN_PROC_BROWSER_TEST_F(HorizontalTabStripRegionViewTest,
   EXPECT_LT(tab_strip()->width(), tab_strip_region_view()->width());
   EXPECT_FALSE(
       tab_strip()->tab_at(tab_strip()->GetModelCount() - 1)->GetVisible());
-}
-
-class HorizontalTabStripRegionViewWithTabstripTabSearchTest
-    : public HorizontalTabStripRegionViewTest {
- public:
-  HorizontalTabStripRegionViewWithTabstripTabSearchTest() {
-    scoped_feature_list_.InitWithFeaturesAndParameters({}, {features::kGlic});
-  }
-
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    HorizontalTabStripRegionViewTest::SetUpCommandLine(command_line);
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_F(HorizontalTabStripRegionViewWithTabstripTabSearchTest,
-                       TabSearchPositionLoggedOnConstruction) {
-  using TabSearchPositionEnum =
-      HorizontalTabStripRegionView::TabSearchPositionEnum;
-  const bool tab_search_trailing_tabstrip =
-      tabs::GetTabSearchPosition(browser()) ==
-      tabs::TabSearchPosition::kTrailingHorizontalTabstrip;
-  TabSearchPositionEnum expected_enum_val =
-      tab_search_trailing_tabstrip ? TabSearchPositionEnum::kTrailing
-                                   : TabSearchPositionEnum::kLeading;
-
-  base::HistogramTester histogram_tester;
-  tab_strip_region_view()->LogTabSearchPositionForTesting();  // IN-TEST
-  histogram_tester.ExpectUniqueSample("Tabs.TabSearch.PositionInTabstrip2",
-                                      expected_enum_val, 1);
 }

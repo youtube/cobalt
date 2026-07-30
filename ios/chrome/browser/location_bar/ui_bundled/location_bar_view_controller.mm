@@ -1177,9 +1177,6 @@ const CGFloat kGeminiLiveCircleSize = 20.0;
     willDisplayMenuForConfiguration:(UIContextMenuConfiguration*)configuration
                            animator:
                                (id<UIContextMenuInteractionAnimating>)animator {
-  if (!IsGeminiCopresenceEnabled()) {
-    return;
-  }
 
   [self.geminiHandler
       hideFloatyIfInvokedAnimated:YES

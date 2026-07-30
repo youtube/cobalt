@@ -91,6 +91,8 @@ import org.chromium.chrome.browser.ntp_customization.theme.daily_refresh.NtpThem
 import org.chromium.chrome.browser.ntp_customization.theme.theme_collections.CustomBackgroundInfo;
 import org.chromium.chrome.browser.ntp_customization.theme.upload_image.BackgroundImageInfo;
 import org.chromium.chrome.browser.ntp_customization.theme.upload_image.CropImageUtils;
+import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataBase;
+import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataUploadImage;
 import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataUtils;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
@@ -174,6 +176,7 @@ public class NtpCustomizationUtils {
     static final long DEFAULT_DAILY_REFRESH_HOURS_MS = TimeUtils.MILLISECONDS_PER_DAY;
 
     @VisibleForTesting static final String NTP_BACKGROUND_IMAGE_FILE = "ntp_background_image";
+    @VisibleForTesting static final String NTP_UPLOAD_IMAGES_DIR = "upload_images";
 
     @VisibleForTesting
     static final String NTP_BACKGROUND_IMAGE_FILE_FOR_DAILY_REFRESH =
@@ -504,10 +507,18 @@ public class NtpCustomizationUtils {
      * Saves the background image.
      *
      * @param backgroundImageBitmap The bitmap of the background image.
+     * @param ntpBackgroundDataBase The instance of {@link NtpBackgroundDataBase}.
      */
     @VisibleForTesting
-    static void saveBackgroundImageFile(@Nullable Bitmap backgroundImageBitmap) {
-        File file = createBackgroundImageFile();
+    static void saveBackgroundImageFile(
+            @Nullable Bitmap backgroundImageBitmap,
+            @Nullable NtpBackgroundDataBase ntpBackgroundDataBase) {
+        String filePath = null;
+        if (ntpBackgroundDataBase != null
+                && ntpBackgroundDataBase instanceof NtpBackgroundDataUploadImage uploadImageData) {
+            filePath = uploadImageData.getLastUploadImageFilePath();
+        }
+        File file = getBackgroundImageFileFromPath(filePath);
         saveBitmapImageToFile(backgroundImageBitmap, file);
     }
 
@@ -626,6 +637,23 @@ public class NtpCustomizationUtils {
                 ContextUtils.getApplicationContext().getFilesDir(), NTP_BACKGROUND_IMAGE_FILE);
     }
 
+    /**
+     * Creates a file for the upload image with provided file name. The file will be in the sub
+     * directory NTP_UPLOAD_IMAGES_DIR.
+     *
+     * @param fileName The file name of the upload image file to create.
+     */
+    public static File createUploadImageFileInDir(String fileName) {
+        File uploadImageDir =
+                new File(ContextUtils.getApplicationContext().getFilesDir(), NTP_UPLOAD_IMAGES_DIR);
+        // Check if the directory already exists; if not, create it.
+        if (!uploadImageDir.exists()) {
+            uploadImageDir.mkdirs();
+        }
+
+        return new File(uploadImageDir, fileName);
+    }
+
     /** Returns the file to save the NTP's daily refresh background image. */
     @VisibleForTesting
     public static File createDailyRefreshBackgroundImageFile() {
@@ -640,22 +668,44 @@ public class NtpCustomizationUtils {
         new BackgroundOnlyAsyncTask<Void>() {
             @Override
             protected Void doInBackground() {
-                deleteBackgroundImageFileImpl(file);
+                maybeDeleteFile(file);
                 return null;
             }
         }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
     /**
-     * Deletes the given file from disk.
+     * Deletes the given file from disk if exists.
      *
      * @param file The file to be deleted.
      */
-    @VisibleForTesting
-    static void deleteBackgroundImageFileImpl(File file) {
+    public static void maybeDeleteFile(File file) {
         if (file.exists()) {
             file.delete();
         }
+    }
+
+    /** Deletes the entire directory of NTP_UPLOAD_IMAGES_DIR. */
+    public static void deleteUploadImageFileDir() {
+        File uploadImageDir =
+                new File(ContextUtils.getApplicationContext().getFilesDir(), NTP_UPLOAD_IMAGES_DIR);
+        if (uploadImageDir.exists()) {
+            deleteDirectory(uploadImageDir);
+        }
+    }
+
+    private static boolean deleteDirectory(File dirToBeDeleted) {
+        File[] listFiles = dirToBeDeleted.listFiles();
+        if (listFiles != null) {
+            for (File file : listFiles) {
+                // Recursively delete if it contains sub-folders, or just deletes the file if it's
+                // a normal file.
+                deleteDirectory(file);
+            }
+        }
+
+        // Deletes the empty folder itself (or individual file) and returns true if successful.
+        return dirToBeDeleted.delete();
     }
 
     /**
@@ -663,10 +713,28 @@ public class NtpCustomizationUtils {
      *
      * @param callback The callback to notice when the image is loaded.
      * @param executor The executor for the loading task.
+     * @param filePath The absolute file path for the selected image file.
      */
     public static void readNtpBackgroundImage(
-            Callback<@Nullable Bitmap> callback, Executor executor) {
-        readNtpBackgroundImageFromFile(callback, executor, createBackgroundImageFile());
+            Callback<@Nullable Bitmap> callback, Executor executor, @Nullable String filePath) {
+        File file = getBackgroundImageFileFromPath(filePath);
+        readNtpBackgroundImageFromFile(callback, executor, file);
+    }
+
+    /**
+     * If the filePath isn't null, returns the file created from this path. Otherwise, returns the
+     * default background image file.
+     *
+     * @param filePath The absolute file path of the image file.
+     */
+    public static File getBackgroundImageFileFromPath(@Nullable String filePath) {
+        File file;
+        if (filePath == null || filePath.isEmpty()) {
+            file = createBackgroundImageFile();
+        } else {
+            file = new File(filePath);
+        }
+        return file;
     }
 
     /**
@@ -1054,6 +1122,7 @@ public class NtpCustomizationUtils {
         if (deleteImageFile) {
             deleteBackgroundImageFile(createBackgroundImageFile());
             deleteBackgroundImageFile(createDailyRefreshBackgroundImageFile());
+            deleteUploadImageFileDir();
         }
     }
 
@@ -1418,13 +1487,15 @@ public class NtpCustomizationUtils {
      *     landscape transformation matrices of the image.
      * @param skipSavingPrimaryColor True if color selection and saving are deferred until the
      *     bottom sheet is dismissed.
+     * @param ntpBackgroundData The instance of the {@link NtpBackgroundDataBase}.
      */
     public static @Nullable @ColorInt Integer saveBackgroundInfo(
             @Nullable CustomBackgroundInfo customBackgroundInfo,
             Bitmap bitmap,
             BackgroundImageInfo backgroundImageInfo,
-            boolean skipSavingPrimaryColor) {
-        saveBackgroundImageFile(bitmap);
+            boolean skipSavingPrimaryColor,
+            @Nullable NtpBackgroundDataBase ntpBackgroundData) {
+        saveBackgroundImageFile(bitmap, ntpBackgroundData);
 
         if (customBackgroundInfo != null) {
             setCustomBackgroundInfoToSharedPreference(customBackgroundInfo);

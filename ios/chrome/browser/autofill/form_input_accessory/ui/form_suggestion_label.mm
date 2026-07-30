@@ -305,9 +305,11 @@ bool IsPasswordSuggestion(FormSuggestion* suggestion) {
     case SuggestionType::kAutocompleteAtMemoryButton:
     case SuggestionType::kOpenGemini:
     case SuggestionType::kAtMemoryNoConnection:
+    case SuggestionType::kAtMemoryGenericError:
     case SuggestionType::kAtMemorySearchAffordance:
     case SuggestionType::kPersonalContextNotice:
     case SuggestionType::kFetchingAmbientData:
+    case SuggestionType::kMaximizeCreditCardBenefitsEntry:
       return false;
   }
   NOTREACHED();
@@ -450,14 +452,9 @@ bool ShouldShowEditAction(FormSuggestion* suggestion) {
 
     BOOL isTablet = ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET;
 
-    NSString* displayDescription =
-        IsConditionalPasskeyLoginEnabled() && IsPasswordSuggestion(suggestion)
-            ? l10n_util::GetNSString(IDS_IOS_PASSWORD_SUBTEXT)
-            : suggestion.displayDescription;
-
     BOOL hasText = suggestionText.length > 0 ||
                    suggestion.minorValue.length > 0 ||
-                   displayDescription.length > 0;
+                   suggestion.displayDescription.length > 0;
 
     if (hasText) {
       if (isTablet) {
@@ -470,7 +467,8 @@ bool ShouldShowEditAction(FormSuggestion* suggestion) {
         // on the plus side, might actually be more light weight in the end.
         [stackView addArrangedSubview:AttributedTextLabel(
                                           suggestionText, suggestion.minorValue,
-                                          displayDescription, suggestion.icon)];
+                                          suggestion.displayDescription,
+                                          suggestion.icon)];
       } else {
         // On phones, store the suggestion information in a stack view so that
         // it can be selectively truncated if necessary.
@@ -490,9 +488,9 @@ bool ShouldShowEditAction(FormSuggestion* suggestion) {
         // Format the suggestion information using a stack view so that each
         // piece of information can be truncated individually when truncation is
         // needed.
-        NSArray<UIView*>* views =
-            TextViews(suggestionText, suggestion.minorValue, displayDescription,
-                      [self isCreditCardSuggestion]);
+        NSArray<UIView*>* views = TextViews(
+            suggestionText, suggestion.minorValue,
+            suggestion.displayDescription, [self isCreditCardSuggestion]);
         for (UIView* view in views) {
           [stackView addArrangedSubview:view];
         }
@@ -507,10 +505,11 @@ bool ShouldShowEditAction(FormSuggestion* suggestion) {
     [self setClipsToBounds:YES];
     [self setUserInteractionEnabled:YES];
     [self setIsAccessibilityElement:YES];
-    [self setAccessibilityLabel:AccessibilityLabel(
-                                    suggestionText, displayDescription,
-                                    suggestion.type ==
-                                        SuggestionType::kBackupPasswordEntry)];
+    [self
+        setAccessibilityLabel:AccessibilityLabel(
+                                  suggestionText, suggestion.displayDescription,
+                                  suggestion.type ==
+                                      SuggestionType::kBackupPasswordEntry)];
     [self
         setAccessibilityValue:l10n_util::GetNSStringF(
                                   IDS_IOS_AUTOFILL_SUGGESTION_INDEX_VALUE,

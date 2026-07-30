@@ -162,7 +162,8 @@ std::unique_ptr<ui::SimpleMenuModel> STGEverythingMenu::CreateMenuModel(
       TabGroupMenuUtils::GetGroupsForDisplaySortedByCreationTime(
           tab_group_service);
 
-  const auto* const color_provider = browser_->window()->GetColorProvider();
+  const auto* const color_provider =
+      BrowserWindow::FromBrowser(browser_)->GetColorProvider();
   for (size_t i = 0; i < sorted_non_empty_tab_groups_.size(); ++i) {
     const std::optional<SavedTabGroup> tab_group =
         tab_group_service->GetGroup(sorted_non_empty_tab_groups_[i]);

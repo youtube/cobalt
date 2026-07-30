@@ -485,7 +485,8 @@ contextual_search::ContextualSearchSource ContextualSearchSourceFromEntrypoint(
 
 - (void)composeboxViewControllerDidTapDriveButton:
     (ComposeboxInputPlateViewController*)composeboxViewController {
-  // TODO(crbug.com/515377633): Record the Drive attachment metric.
+  [_metricsRecorder
+      recordAttachmentButtonUsed:FuseboxAttachmentButtonType::kDriveFiles];
   if (![_mediator canAddMoreAttachments]) {
     [self showMaxAttachmentSnackbarError];
     return;
@@ -847,6 +848,9 @@ contextual_search::ContextualSearchSource ContextualSearchSourceFromEntrypoint(
   if (results.count == 0) {
     return;
   }
+
+  [_metricsRecorder recordDriveFilesAttached:results.count];
+
   for (ComposeboxPickerDriveResult* result in results) {
     [_mediator processDriveFileWithIdentifier:result.identifier
                                          name:result.fileName

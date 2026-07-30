@@ -666,6 +666,7 @@ TEST_P(CompositingReasonFinderTest, WillChangeScrollPosition) {
 }
 
 TEST_P(CompositingReasonFinderTest, UnboundedElementCompositingReason) {
+  ScopedUnboundedElementForTest unbounded_element_enabled(true);
   SetBodyInnerHTML(R"HTML(
     <div id="target" style="width: 100px; height: 100px;"></div>
   )HTML");

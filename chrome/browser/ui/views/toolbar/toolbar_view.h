@@ -12,9 +12,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/command_observer.h"
-#include "chrome/browser/glic/browser_ui/glic_actor_nudge_delegate.h"
-#include "chrome/browser/glic/browser_ui/glic_button_controller_delegate.h"
-#include "chrome/browser/glic/browser_ui/glic_nudge_delegate.h"
+#include "chrome/browser/glic/browser_ui/glic_split_button_delegate.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/toolbar/app_menu_icon_controller.h"
@@ -76,6 +74,7 @@ namespace glic {
 class ToolbarGlicButton;
 class ToolbarGlicActorTaskIcon;
 class GlicButtonInterface;
+class GlicButtonController;
 }  // namespace glic
 
 class GlicAndActorButtonsContainer;
@@ -96,9 +95,7 @@ class ToolbarView : public views::AccessiblePaneView,
                     public AppMenuIconController::Delegate,
                     public ToolbarButtonProvider,
                     public BrowserRootView::DropTarget,
-                    public glic::GlicButtonControllerDelegate,
-                    public glic::GlicNudgeDelegate,
-                    public glic::GlicActorNudgeDelegate {
+                    public glic::GlicSplitButtonDelegate {
   METADATA_HEADER(ToolbarView, views::AccessiblePaneView)
 
  public:
@@ -187,9 +184,6 @@ class ToolbarView : public views::AccessiblePaneView,
   }
   MediaToolbarButtonView* media_button() const { return media_button_; }
   HomeButton* home_button() const { return home_; }
-  PinnedActionToolbarButton* tab_search_button() const {
-    return tab_search_button_;
-  }
 
   // TODO(crbug.com/513238408): Remove this once toolbar layout/overflow is
   // fixed.
@@ -197,6 +191,7 @@ class ToolbarView : public views::AccessiblePaneView,
   AppMenuIconController* app_menu_icon_controller() {
     return &app_menu_icon_controller_;
   }
+  ToolbarController* toolbar_controller() { return toolbar_controller_.get(); }
   const ToolbarController* toolbar_controller() const {
     return toolbar_controller_.get();
   }
@@ -235,23 +230,22 @@ class ToolbarView : public views::AccessiblePaneView,
 
   friend class AvatarToolbarButtonBaseBrowserTest;
 
-  // GlicNudgeDelegate:
+  // GlicSplitButtonDelegate:
+  void SetGlicShowState(bool show) override;
+  void SetGlicPanelIsOpen(bool open) override;
+  void SetButtonController(glic::GlicButtonController* controller) override;
   // Called when the glic nudge UI needs to be triggered. `label' holds the
   // nudge label. `anchored_message_text` and `prompt_suggestion` are unused in
   // this UI.
   void OnTriggerGlicNudgeUI(glic::NudgeParams params) override;
-  // Called when the glic nudge UI needs to be hidden.
   void OnHideGlicNudgeUI() override;
-  // Called when we want to check if the UI is currently showing.
   bool GetIsShowingGlicNudge() override;
-
-  // GlicActorNudgeDelegate:
   void ShowGlicActorTaskIcon() override;
   void HideGlicActorTaskIcon() override;
   bool GetIsShowingGlicActorTaskIconNudge() override;
+  bool IsGlicAdded() override;
   void SetGlicActorNudgeLabel(const std::u16string& nudge_label) override;
   void TriggerGlicActorNudge(const std::u16string& nudge_text) override;
-  bool IsGlicAdded() override;
   void SetGlicActorNudgePressedState(bool pressed) override;
   void ShowActorTaskListBubble() override;
 
@@ -315,11 +309,6 @@ class ToolbarView : public views::AccessiblePaneView,
   BrowserRootView::DropTarget* GetDropTarget(
       gfx::Point loc_in_local_coords) override;
   views::View* GetViewForDrop() override;
-
-  // GlicButtonControllerDelegate:
-  void SetButtonController(glic::GlicButtonController* controller) override;
-  void SetGlicShowState(bool show) override;
-  void SetGlicPanelIsOpen(bool open) override;
 
   // views::MouseWatcherListener:
   void MouseMovedOutOfHost() override;
@@ -401,7 +390,6 @@ class ToolbarView : public views::AccessiblePaneView,
   raw_ptr<AvatarToolbarButton> avatar_ = nullptr;
   raw_ptr<MediaToolbarButtonView> media_button_ = nullptr;
   raw_ptr<BrowserAppMenuButton> app_menu_button_ = nullptr;
-  raw_ptr<PinnedActionToolbarButton> tab_search_button_ = nullptr;
 
   // The button currently holding the lock to be shown/hidden.
   raw_ptr<glic::GlicButtonInterface> locked_expansion_button_ = nullptr;

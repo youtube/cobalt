@@ -142,6 +142,23 @@ void ToolbarUIService::ShowContentSettingsBubble(
   }
 }
 
+void ToolbarUIService::OnPageActionClick(
+    ::toolbar_ui_api::mojom::PageActionId action_id,
+    ::toolbar_ui_api::mojom::PageActionTrigger trigger,
+    OnPageActionClickCallback callback) {
+  NOTIMPLEMENTED();
+  std::move(callback).Run(
+      base::unexpected(Error::New(Code::kUnimplemented, "Not implemented")));
+}
+
+void ToolbarUIService::OnPageActionChipShowingChanged(
+    ::toolbar_ui_api::mojom::PageActionId action_id,
+    OnPageActionChipShowingChangedCallback callback) {
+  NOTIMPLEMENTED();
+  std::move(callback).Run(
+      base::unexpected(Error::New(Code::kUnimplemented, "Not implemented")));
+}
+
 void ToolbarUIService::InvokePinnedToolbarAction(
     toolbar_ui_api::mojom::PinnedToolbarAction action_id) {
   if (delegate_) {

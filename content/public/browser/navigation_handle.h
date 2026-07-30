@@ -69,6 +69,7 @@ struct GlobalRenderFrameHostId;
 struct GlobalRequestID;
 class NavigationEntry;
 class NavigationThrottle;
+class InitiatorNavigationState;
 class NavigationUIData;
 class ProcessSelectionUserData;
 class RenderFrameHost;
@@ -655,6 +656,11 @@ class CONTENT_EXPORT NavigationHandle : public base::SupportsUserData {
   // the base url of the document that has initiated the navigation for this
   // NavigationHandle. The same caveats apply here as for GetInitiatorOrigin().
   virtual const std::optional<GURL>& GetInitiatorBaseUrl() = 0;
+
+  // Returns, if available, a record of the state of the document that initiated
+  // the navigation for this NavigationHandle.
+  virtual scoped_refptr<InitiatorNavigationState>
+  GetInitiatorNavigationState() = 0;
 
   // Retrieves any DNS aliases for the requested URL. Includes all known
   // aliases, e.g. from A, AAAA, or HTTPS, not just from the address used for

@@ -125,6 +125,18 @@ passkey_keychain_provider("extension") {
   provider_target = ios_passkey_keychain_provider_extension_target
 }
 
+source_set("net_util") {
+  sources = [
+    "net_util.h",
+    "net_util.mm",
+  ]
+  deps = [
+    "//base",
+    "//net/base:registry_controlled_domains",
+  ]
+  frameworks = [ "Foundation.framework" ]
+}
+
 source_set("unit_tests") {
   testonly = true
   sources = [
@@ -134,12 +146,15 @@ source_set("unit_tests") {
     "credential_store_util_unittest.mm",
     "memory_credential_store_unittest.mm",
     "multi_store_credential_store_unittest.mm",
+    "net_util_unittest.mm",
     "user_defaults_credential_store_unittest.mm",
   ]
   deps = [
     ":credential_provider",
+    ":net_util",
     "//base/test:test_support",
     "//components/sync/protocol",
+    "//net/base:registry_controlled_domains",
     "//testing/gtest",
   ]
 }

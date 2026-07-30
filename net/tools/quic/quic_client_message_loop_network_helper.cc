@@ -45,8 +45,11 @@ bool QuicClientMessageLooplNetworkHelper::CreateUDPSocketAndBind(
     quic::QuicSocketAddress server_address,
     quiche::QuicheIpAddress bind_to_address,
     int bind_to_port) {
-  auto socket = std::make_unique<UDPClientSocket>(DatagramSocket::DEFAULT_BIND,
-                                                  nullptr, NetLogSource());
+  auto socket = std::make_unique<UDPClientSocket>(
+      DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource(),
+      // No need to use a target network here. This is an external tool not used
+      // in production by //net.
+      handles::kInvalidNetworkHandle);
 
   if (bind_to_address.IsInitialized()) {
     client_address_ =

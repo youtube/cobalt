@@ -30,6 +30,7 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_utils.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_web_contents_user_data.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_web_view.h"
 #include "chrome/browser/contextual_tasks/entry_point_eligibility_manager.h"
 #include "chrome/browser/devtools/devtools_ui_bindings.h"
@@ -68,10 +69,13 @@
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/glic/browser_ui/glic_nudge_controller.h"
+#include "chrome/browser/ui/actions/chrome_action_id.h"
+#include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/hats/hats_service.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
 #include "chrome/browser/ui/hats/survey_config.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
+#include "ui/actions/actions.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -519,6 +523,20 @@ void ContextualTasksSidePanelCoordinator::OnAiInteraction() {
   in_cobrowsing_session_ = true;
 }
 
+void ContextualTasksSidePanelCoordinator::SetPendingTaskForTab(
+    tabs::TabInterface* tab,
+    const base::Uuid& task_id) {
+  if (tab && tab->GetContents()) {
+    ContextualTasksWebContentsUserData::CreateForWebContents(
+        tab->GetContents());
+    auto* user_data =
+        ContextualTasksWebContentsUserData::FromWebContents(tab->GetContents());
+    if (user_data) {
+      user_data->set_pending_task_id(task_id);
+    }
+  }
+}
+
 contextual_search::ContextualSearchSessionHandle*
 ContextualTasksSidePanelCoordinator::
     GetContextualSearchSessionHandleForPanel() {
@@ -604,6 +622,24 @@ ContextualTasksSidePanelCoordinator::GetCurrentTask() {
       TabListInterface::From(browser_window_)->GetActiveTab();
   if (!active_tab_interface) {
     return std::nullopt;
+  }
+
+  if (active_tab_interface->GetContents()) {
+    auto* user_data = ContextualTasksWebContentsUserData::FromWebContents(
+        active_tab_interface->GetContents());
+    if (user_data && user_data->pending_task_id().has_value()) {
+      base::Uuid task_id = *user_data->pending_task_id();
+      SessionID session_id = sessions::SessionTabHelper::IdForTab(
+          active_tab_interface->GetContents());
+      if (session_id.is_valid()) {
+        if (auto* ui_service = GetUiService()) {
+          ui_service->AssociateWebContentsToTask(
+              active_tab_interface->GetContents(), task_id);
+          user_data->set_pending_task_id(std::nullopt);
+        }
+      }
+      return ContextualTask(task_id, /*is_ephemeral=*/true);
+    }
   }
 
   return contextual_tasks_service_->GetContextualTaskForTab(
@@ -836,6 +872,11 @@ void ContextualTasksSidePanelCoordinator::UpdateContextualTaskUI() {
   if (auto* web_ui_interface = GetWebUiInterface(web_contents)) {
     web_ui_interface->OnActiveTabContextStatusChanged();
   }
+
+  std::optional<ContextualTask> task = GetCurrentTask();
+  if (task) {
+    contextual_tasks_service_->SetLastActiveTask(task->GetTaskId());
+  }
 }
 
 void ContextualTasksSidePanelCoordinator::MaybeDetachWebContents(
@@ -1013,6 +1054,15 @@ void ContextualTasksSidePanelCoordinator::OnEligibilityChange(
     }
     task_id_to_web_contents_cache_.clear();
   }
+#if !BUILDFLAG(IS_ANDROID)
+  if (browser_window_ && browser_window_->GetActions()) {
+    if (auto* action_item = actions::ActionManager::Get().FindAction(
+            kActionSidePanelShowContextualTasks,
+            browser_window_->GetActions()->root_action_item())) {
+      action_item->SetVisible(is_eligible);
+    }
+  }
+#endif
 }
 
 void ContextualTasksSidePanelCoordinator::AddObserver(

@@ -32,7 +32,7 @@ class AutofillTaskInfo : public TaskInfo {
     return LevelUpTaskCategory::kProductivity;
   }
   std::string GetTriggerUserAction() const override { return ""; }
-  base::RepeatingClosure GetNavigationAction() const override {
+  TaskInfo::NavigationAction GetNavigationAction() const override {
     return base::DoNothing();
   }
 };

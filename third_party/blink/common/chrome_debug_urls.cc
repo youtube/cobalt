@@ -4,11 +4,17 @@
 
 #include "third_party/blink/public/common/chrome_debug_urls.h"
 
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "base/compiler_specific.h"
 #include "base/debug/alias.h"
 #include "base/debug/asan_invalid_access.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/logging.h"
 #include "base/process/process.h"
+#include "base/strings/string_split.h"
 #include "base/threading/platform_thread.h"
 #include "build/build_config.h"
 #include "third_party/blink/common/crash_helpers.h"
@@ -27,6 +33,27 @@
 
 namespace blink {
 
+bool ParseCrashURL(const GURL& url,
+                   std::string* process,
+                   std::string* crash_type) {
+  if (!(url.is_valid() && url.SchemeIs("chrome") && url.DomainIs("crash") &&
+        url.has_path())) {
+    return false;
+  }
+  std::string_view path = url.path();
+  if (path.empty() || path[0] != '/') {
+    return false;
+  }
+  std::vector<std::string_view> parts = base::SplitStringPiece(
+      path, "/", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  if (parts.size() != 2) {
+    return false;
+  }
+  *process = std::string(parts[0]);
+  *crash_type = std::string(parts[1]);
+  return true;
+}
+
 bool IsRendererDebugURL(const GURL& url) {
   if (!url.is_valid())
     return false;
@@ -37,6 +64,18 @@ bool IsRendererDebugURL(const GURL& url) {
   if (!url.SchemeIs("chrome"))
     return false;
 
+  std::string process;
+  std::string crash_type;
+  if (ParseCrashURL(url, &process, &crash_type)) {
+    if (process == kAsanRendererProcess) {
+      return (crash_type == kAsanHeapOverflowAction ||
+              crash_type == kAsanHeapUnderflowAction ||
+              crash_type == kAsanUseAfterFreeAction ||
+              crash_type == kAsanMemberDereferenceAfterFreeAction);
+    }
+    return false;
+  }
+
   if (url == kChromeUICheckCrashURL || url == kChromeUIBadCastCrashURL ||
       url == kChromeUICrashURL || url == kChromeUIDumpURL ||
       url == kChromeUIKillURL || url == kChromeUIHangURL ||
@@ -46,10 +85,7 @@ bool IsRendererDebugURL(const GURL& url) {
   }
 
 #if defined(ADDRESS_SANITIZER)
-  if (url == kChromeUICrashHeapOverflowURL ||
-      url == kChromeUICrashHeapUnderflowURL ||
-      url == kChromeUICrashUseAfterFreeURL ||
-      url == kChromeUICrashRustOverflowURL) {
+  if (url == kChromeUICrashRustOverflowURL) {
     return true;
   }
 #endif  // defined(ADDRESS_SANITIZER)
@@ -92,29 +128,21 @@ NOINLINE void ExhaustMemory() {
 NOINLINE void MaybeTriggerAsanError(const GURL& url) {
   // NOTE(rogerm): We intentionally perform an invalid heap access here in
   //     order to trigger an Address Sanitizer (ASAN) error report.
-  if (url == kChromeUICrashHeapOverflowURL) {
-    LOG(ERROR) << "Intentionally causing ASAN heap overflow"
-               << " because user navigated to " << url.spec();
-    base::debug::AsanHeapOverflow();
-  } else if (url == kChromeUICrashHeapUnderflowURL) {
-    LOG(ERROR) << "Intentionally causing ASAN heap underflow"
-               << " because user navigated to " << url.spec();
-    base::debug::AsanHeapUnderflow();
-  } else if (url == kChromeUICrashUseAfterFreeURL) {
-    LOG(ERROR) << "Intentionally causing ASAN heap use-after-free"
-               << " because user navigated to " << url.spec();
-    base::debug::AsanHeapUseAfterFree();
 #if BUILDFLAG(IS_WIN)
-  } else if (url == kChromeUICrashCorruptHeapBlockURL) {
+  if (url == kChromeUICrashCorruptHeapBlockURL) {
     LOG(ERROR) << "Intentionally causing ASAN corrupt heap block"
                << " because user navigated to " << url.spec();
     base::debug::AsanCorruptHeapBlock();
-  } else if (url == kChromeUICrashCorruptHeapURL) {
+    return;
+  }
+  if (url == kChromeUICrashCorruptHeapURL) {
     LOG(ERROR) << "Intentionally causing ASAN corrupt heap"
                << " because user navigated to " << url.spec();
     base::debug::AsanCorruptHeap();
+    return;
+  }
 #endif  // BUILDFLAG(IS_WIN)
-  } else if (url == kChromeUICrashRustOverflowURL) {
+  if (url == kChromeUICrashRustOverflowURL) {
     // Ensure that ASAN works even in Rust code.
     LOG(ERROR) << "Intentionally causing ASAN heap overflow in Rust"
                << " because user navigated to " << url.spec();
@@ -180,6 +208,31 @@ void HandleChromeDebugURL(const GURL& url) {
     LOG(ERROR) << "Intentionally causing CHECK because user navigated to "
                << url.spec();
     CHECK(false);
+  } else {
+    std::string process;
+    std::string crash_type;
+    if (ParseCrashURL(url, &process, &crash_type)) {
+      if (process == kAsanRendererProcess) {
+        if (crash_type == kAsanHeapOverflowAction) {
+          LOG(ERROR) << "Intentionally causing Renderer Heap Overflow"
+                     << " because user navigated to " << url.spec();
+          base::debug::AsanHeapOverflow();
+        } else if (crash_type == kAsanHeapUnderflowAction) {
+          LOG(ERROR) << "Intentionally causing Renderer Heap Underflow"
+                     << " because user navigated to " << url.spec();
+          base::debug::AsanHeapUnderflow();
+        } else if (crash_type == kAsanUseAfterFreeAction) {
+          LOG(ERROR) << "Intentionally causing Renderer Heap UaF"
+                     << " because user navigated to " << url.spec();
+          base::debug::AsanHeapUseAfterFree();
+        } else if (crash_type == kAsanMemberDereferenceAfterFreeAction) {
+          LOG(ERROR)
+              << "Intentionally causing Renderer Heap Member Dereference UaF"
+              << " because user navigated to " << url.spec();
+          base::debug::AsanHeapMemberDereferenceAfterFree();
+        }
+      }
+    }
   }
 
 #if BUILDFLAG(IS_WIN)

@@ -39,8 +39,13 @@ BASE_FEATURE(kBlinkExtensionKiosk, base::FEATURE_DISABLED_BY_DEFAULT);
 // cros-jellybean-team@google.com.
 BASE_FEATURE(kCrosComponents, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables the Blink extension APIs for Isolated Web Apps on ChromeOS.
+// Enables the setShape Blink extension for Isolated Web Apps on ChromeOS.
 BASE_FEATURE(kCrosIsolatedWebAppSetShape, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables the allowlist for the setShape Blink extension for Isolated Web Apps
+// on ChromeOS. This is intended to be used as the kill switch for the feature.
+BASE_FEATURE(kCrosIsolatedWebAppSetShapeAllowlist,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables denying file access to dlp protected files in MyFiles.
 BASE_FEATURE(kDataControlsFileAccessDefaultDeny,
@@ -292,6 +297,10 @@ bool IsCrosComponentsEnabled() {
 
 bool IsCrosIsolatedWebAppSetShapeEnabled() {
   return base::FeatureList::IsEnabled(kCrosIsolatedWebAppSetShape);
+}
+
+bool IsCrosIsolatedWebAppSetShapeAllowlistEnabled() {
+  return base::FeatureList::IsEnabled(kCrosIsolatedWebAppSetShapeAllowlist);
 }
 
 bool IsDataControlsFileAccessDefaultDenyEnabled() {

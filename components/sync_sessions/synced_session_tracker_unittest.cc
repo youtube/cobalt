@@ -885,6 +885,34 @@ TEST_F(SyncedSessionTrackerTest, UpdateTrackerWithHeader) {
   EXPECT_THAT(tracker_.LookupSessionTab(kTag, kTab2), NotNull());
 }
 
+TEST_F(SyncedSessionTrackerTest, UpdateTrackerWithHeader_PreferredDeviceName) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      kSyncSessionsUsePreferredDisplayName);
+
+  constexpr char kOriginalClientName[] = "XPS 13";
+  constexpr char kDeviceInfoClientName[] = "Dell Computer";
+
+  // By default (no device info name available), it should use the raw client
+  // name.
+  sync_pb::SessionSpecifics header;
+  header.set_session_tag(kTag);
+  header.mutable_header()->set_client_name(kOriginalClientName);
+  UpdateTrackerWithSpecifics(header, base::Time::Now(), &tracker_);
+
+  EXPECT_THAT(tracker_.LookupSession(kTag),
+              MatchesSyncedSession(kTag, kOriginalClientName, _));
+
+  // Now set up the mock to return a preferred name.
+  ON_CALL(sessions_client_, GetSessionDisplayNameFromDeviceInfo(kTag))
+      .WillByDefault(Return(kDeviceInfoClientName));
+
+  // Trigger the update again. It should now use the preferred name.
+  UpdateTrackerWithSpecifics(header, base::Time::Now(), &tracker_);
+  EXPECT_THAT(tracker_.LookupSession(kTag),
+              MatchesSyncedSession(kTag, kDeviceInfoClientName, _));
+}
+
 TEST_F(SyncedSessionTrackerTest, UpdateTrackerWithIdenticalHeader) {
   sync_pb::SessionSpecifics header;
   header.set_session_tag(kTag);

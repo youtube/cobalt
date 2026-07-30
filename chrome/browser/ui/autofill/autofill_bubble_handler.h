@@ -27,6 +27,7 @@ class IbanBubbleController;
 class FilledCardInformationBubbleController;
 class VirtualCardEnrollBubbleController;
 class MandatoryReauthBubbleController;
+class OmniboxAutofillBubbleController;
 enum class IbanBubbleType;
 enum class MandatoryReauthBubbleType;
 
@@ -125,6 +126,10 @@ class AutofillBubbleHandler {
   virtual AutofillBubbleBase* ShowSaveIbanConfirmationBubble(
       content::WebContents* web_contents,
       IbanBubbleController* controller) = 0;
+
+  virtual AutofillBubbleBase* ShowOmniboxAutofillBubble(
+      content::WebContents* web_contents,
+      OmniboxAutofillBubbleController* controller) = 0;
 };
 
 }  // namespace autofill

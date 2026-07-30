@@ -20,6 +20,7 @@ mojom("mojom") {
     sources += [
       "desktop_session.mojom",
       "keyboard_layout.mojom",
+      "peer_session.mojom",
       "webrtc_types.mojom",
     ]
     if (is_linux) {

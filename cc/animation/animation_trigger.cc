@@ -203,8 +203,9 @@ void AnimationTrigger::PerformBehavior(Animation& animation,
       PerformPlayBackwards(animation, monotonic_time);
       break;
     case Behavior::kReset:
-      // TODO(crbug.com/451238244): Implement these behaviors.
-      NOTREACHED();
+      // TODO(crbug.com/451238244): Reset is not supported on the compositor
+      // thread yet and is handled on the main thread.
+      break;
     case Behavior::kNone:
       break;
   }

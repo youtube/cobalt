@@ -196,7 +196,7 @@ class ToolbarMediatorTest : public PlatformTest,
         identity_manager,
         builder.Build(base::SysNSStringToUTF8(identity.userEmail)));
 
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator.set_can_use_model_execution_features(capability);
     mutator.set_can_use_gemini_in_chrome(capability);
 

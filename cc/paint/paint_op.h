@@ -177,12 +177,11 @@ class CC_PAINT_EXPORT PaintOp {
   // Returns null on any errors.
   // The PaintOp is deserialized into the `output` buffer and returned
   // if valid.  nullptr is returned if the deserialization fails.
-  // `output_size` must be at least ComputeOpAlignedSize<LargestPaintOp>(),
+  // `output` must be at least ComputeOpAlignedSize<LargestPaintOp>() bytes,
   // to fit all ops.  The caller is responsible for destroying these ops.
   // After reading, it returns the number of bytes read in `read_bytes`.
   static PaintOp* Deserialize(base::span<const volatile uint8_t> input,
-                              void* output,
-                              size_t output_size,
+                              base::span<uint8_t> output,
                               size_t* read_bytes,
                               const DeserializeOptions& options);
   // Similar to the above, but deserializes into `buffer`.

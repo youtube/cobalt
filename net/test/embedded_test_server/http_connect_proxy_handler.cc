@@ -56,7 +56,12 @@ class HttpConnectProxyHandler::ConnectTunnel {
         AddressList::CreateFromIPAddress(IPAddress::IPv4Localhost(), dest_port),
         /*socket_performance_watcher=*/nullptr,
         /*network_quality_estimator=*/nullptr, /*net_log=*/nullptr,
-        NetLogSource());
+        NetLogSource(),
+        // Currently no tests that rely on this test multi-network scenarios.
+        // This makes it safe to always target the default network. Consider
+        // exposing a `target_network` parameter to this method if
+        // this changes.
+        handles::kInvalidNetworkHandle);
 
     int result = dest_socket_->Connect(base::BindOnce(
         &ConnectTunnel::OnConnectComplete, base::Unretained(this)));

@@ -339,7 +339,8 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfPostSendToastBrowserTest,
   TestSendTabToSelfModelObserver observer(
       sync_service->GetSendTabToSelfModel());
 
-  SendTabToSelfContextMenuDelegate delegate(web_contents);
+  SendTabToSelfContextMenuDelegate delegate(web_contents,
+                                            ShareEntryPoint::kContentMenu);
   delegate.ExecuteCommand(IDC_CONTENT_CONTEXT_SEND_TAB_TO_SELF_DEVICE1, 0);
 
   observer.WaitForEntryAdded();
@@ -593,12 +594,47 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfBubbleControllerBrowserTest,
   SendTabToSelfBubbleController* controller =
       SendTabToSelfBubbleController::GetOrCreateForWebContents(web_contents);
 
-  controller->ShowBubble();
+  controller->ShowBubble(ShareEntryPoint::kToolbarIcon);
   EXPECT_TRUE(controller->IsBubbleShown());
 
   // Navigate to a new URL. This should hide the bubble.
   ASSERT_TRUE(content::NavigateToURL(web_contents, GURL("chrome://flags")));
   EXPECT_FALSE(controller->IsBubbleShown());
+}
+
+IN_PROC_BROWSER_TEST_F(SendTabToSelfBubbleControllerBrowserTest,
+                       ShowBubbleRecordsMetrics) {
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(content::NavigateToURL(web_contents, GURL("about:blank")));
+
+  identity_test_env()->MakePrimaryAccountAvailable(
+      "user@gmail.com", signin::ConsentLevel::kSignin);
+
+  StubSendTabToSelfSyncService* sync_service = GetStubSyncService();
+  ASSERT_TRUE(sync_service);
+  sync_service->SetEntryPointDisplayReason(
+      EntryPointDisplayReason::kOfferFeature);
+  // Set up 2 target devices.
+  sync_service->GetFakeSendTabToSelfModel()->SetTargetDeviceInfoSortedList(
+      {TargetDeviceInfo("device_name_0", "device_0",
+                        syncer::DeviceInfo::FormFactor::kDesktop,
+                        base::Time::Now()),
+       TargetDeviceInfo("device_name_1", "device_1",
+                        syncer::DeviceInfo::FormFactor::kDesktop,
+                        base::Time::Now())});
+
+  base::HistogramTester histogram_tester;
+
+  SendTabToSelfBubbleController* controller =
+      SendTabToSelfBubbleController::GetOrCreateForWebContents(web_contents);
+
+  controller->ShowBubble(ShareEntryPoint::kToolbarIcon);
+  EXPECT_TRUE(controller->IsBubbleShown());
+
+  histogram_tester.ExpectUniqueSample(
+      "Sharing.SendTabToSelf.TargetDeviceCount",
+      static_cast<int>(SendTabToSelfDeviceCount::kTwoDevices), 1);
 }
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
@@ -616,7 +652,7 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfBubbleControllerBrowserTest,
   SendTabToSelfBubbleController* controller =
       SendTabToSelfBubbleController::GetOrCreateForWebContents(web_contents);
 
-  controller->ShowBubble();
+  controller->ShowBubble(ShareEntryPoint::kToolbarIcon);
 
   EXPECT_TRUE(controller->IsBubbleShown());
   EXPECT_NE(nullptr, controller->send_tab_to_self_bubble_view());
@@ -637,7 +673,7 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfBubbleControllerBrowserTest,
 
   SendTabToSelfBubbleController* controller =
       SendTabToSelfBubbleController::GetOrCreateForWebContents(web_contents);
-  controller->ShowBubble();
+  controller->ShowBubble(ShareEntryPoint::kToolbarIcon);
 
   ASSERT_TRUE(controller->IsBubbleShown());
   SendTabToSelfBubbleView* bubble = controller->send_tab_to_self_bubble_view();

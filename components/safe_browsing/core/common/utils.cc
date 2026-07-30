@@ -233,6 +233,7 @@ std::string GetThreatTypeStringForInterstitial(
     case SB_THREAT_TYPE_APK_DOWNLOAD:
     case SB_THREAT_TYPE_HIGH_CONFIDENCE_ALLOWLIST:
     case SB_THREAT_TYPE_CSD_DOWNLOAD_ALLOWLIST:
+    case SB_THREAT_TYPE_WARNABLE_SUSPICIOUS_SITE:
       NOTREACHED();
   }
   return {};

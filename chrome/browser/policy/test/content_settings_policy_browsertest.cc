@@ -10,7 +10,10 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+#include "chrome/browser/download/download_core_service.h"
+#include "chrome/browser/download/download_request_limiter.h"
 #include "chrome/browser/policy/policy_test_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
@@ -21,8 +24,10 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings.h"
+#include "components/permissions/permission_request_manager.h"
 #include "components/policy/core/common/policy_map.h"
 #include "components/policy/policy_constants.h"
+#include "content/public/browser/download_manager.h"
 #include "content/public/browser/permission_controller.h"
 #include "content/public/browser/permission_descriptor_util.h"
 #include "content/public/browser/permission_result.h"
@@ -31,6 +36,7 @@
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "content/public/test/download_test_observer.h"
 #include "device/bluetooth/bluetooth_adapter_factory.h"
 #include "device/bluetooth/test/mock_bluetooth_adapter.h"
 #include "services/device/public/cpp/test/fake_usb_device_info.h"
@@ -1357,5 +1363,155 @@ IN_PROC_BROWSER_TEST_F(IdleDetectionPolicyTest, DynamicRefresh) {
   VerifyPermission(kBarUrl, CONTENT_SETTING_ALLOW);
 }
 #endif
+
+class OnCanDownloadDecidedObserver {
+ public:
+  OnCanDownloadDecidedObserver() = default;
+
+  OnCanDownloadDecidedObserver(const OnCanDownloadDecidedObserver&) = delete;
+  OnCanDownloadDecidedObserver& operator=(const OnCanDownloadDecidedObserver&) =
+      delete;
+
+  void WaitForNumberOfDecisions(size_t expected_num_of_decisions) {
+    if (expected_num_of_decisions <= decisions_.size()) {
+      return;
+    }
+
+    expected_num_of_decisions_ = expected_num_of_decisions;
+    base::RunLoop run_loop;
+    completion_closure_ = run_loop.QuitClosure();
+    run_loop.Run();
+  }
+
+  void OnCanDownloadDecided(bool allow) {
+    decisions_.push_back(allow);
+    if (decisions_.size() == expected_num_of_decisions_) {
+      DCHECK(!completion_closure_.is_null());
+      std::move(completion_closure_).Run();
+    }
+  }
+
+  const std::vector<bool>& GetDecisions() const { return decisions_; }
+
+ private:
+  std::vector<bool> decisions_;
+  size_t expected_num_of_decisions_ = 0;
+  base::OnceClosure completion_closure_;
+};
+
+class AutomaticDownloadsPolicyTest : public PolicyTest {
+ public:
+  void SetUpOnMainThread() override {
+    PolicyTest::SetUpOnMainThread();
+    embedded_test_server()->ServeFilesFromSourceDirectory("chrome/test/data");
+    ASSERT_TRUE(embedded_test_server()->Start());
+  }
+
+ protected:
+  void SetPolicy(int setting) {
+    PolicyMap policies;
+    policies.Set(key::kDefaultAutomaticDownloadsSetting, POLICY_LEVEL_MANDATORY,
+                 POLICY_SCOPE_USER, POLICY_SOURCE_CLOUD, base::Value(setting),
+                 nullptr);
+    UpdateProviderPolicy(policies);
+  }
+
+  void SetAllowedUrls(const base::ListValue& urls) {
+    PolicyMap policies;
+    policies.Set(key::kAutomaticDownloadsAllowedForUrls, POLICY_LEVEL_MANDATORY,
+                 POLICY_SCOPE_USER, POLICY_SOURCE_CLOUD,
+                 base::Value(urls.Clone()), nullptr);
+    UpdateProviderPolicy(policies);
+  }
+
+  void SetBlockedUrls(const base::ListValue& urls) {
+    PolicyMap policies;
+    policies.Set(key::kAutomaticDownloadsBlockedForUrls, POLICY_LEVEL_MANDATORY,
+                 POLICY_SCOPE_USER, POLICY_SOURCE_CLOUD,
+                 base::Value(urls.Clone()), nullptr);
+    UpdateProviderPolicy(policies);
+  }
+
+  // Navigates to a page that triggers 2 downloads.
+  // Returns the vector of booleans indicating whether each download was
+  // allowed.
+  std::vector<bool> GetDownloadDecisions(size_t expected_downloads) {
+    permissions::PermissionRequestManager* permission_request_manager =
+        permissions::PermissionRequestManager::FromWebContents(
+            browser()->tab_strip_model()->GetActiveWebContents());
+    permission_request_manager->set_auto_response_for_test(
+        permissions::PermissionRequestManager::DENY_ALL);
+
+    content::DownloadManager* download_manager =
+        browser()->profile()->GetDownloadManager();
+    std::unique_ptr<content::DownloadTestObserver> downloads_observer =
+        std::make_unique<content::DownloadTestObserverTerminal>(
+            download_manager, expected_downloads,
+            content::DownloadTestObserver::ON_DANGEROUS_DOWNLOAD_FAIL);
+
+    OnCanDownloadDecidedObserver can_download_observer;
+    g_browser_process->download_request_limiter()
+        ->SetOnCanDownloadDecidedCallbackForTesting(base::BindRepeating(
+            &OnCanDownloadDecidedObserver::OnCanDownloadDecided,
+            base::Unretained(&can_download_observer)));
+
+    GURL url =
+        embedded_test_server()->GetURL("/downloads/download-a_zip_file.html");
+
+    ui_test_utils::NavigateToURLBlockUntilNavigationsComplete(browser(), url,
+                                                              1);
+
+    // This test page attempts 2 downloads.
+    can_download_observer.WaitForNumberOfDecisions(2);
+
+    // Waits for the allowed downloads to complete.
+    downloads_observer->WaitForFinished();
+
+    // Clear callback
+    g_browser_process->download_request_limiter()
+        ->SetOnCanDownloadDecidedCallbackForTesting(base::NullCallback());
+
+    return can_download_observer.GetDecisions();
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(AutomaticDownloadsPolicyTest, DefaultSettingAsk) {
+  // Not setting the policy should default to ASK, which means the popup is
+  // pending and subsequent downloads are blocked while asking.
+  std::vector<bool> expected_decisions{true, false};
+  EXPECT_EQ(GetDownloadDecisions(1), expected_decisions);
+}
+
+IN_PROC_BROWSER_TEST_F(AutomaticDownloadsPolicyTest, DefaultSettingAllow) {
+  SetPolicy(CONTENT_SETTING_ALLOW);
+  // Setting the policy to ALLOW means all downloads succeed silently.
+  std::vector<bool> expected_decisions{true, true};
+  EXPECT_EQ(GetDownloadDecisions(2), expected_decisions);
+}
+
+IN_PROC_BROWSER_TEST_F(AutomaticDownloadsPolicyTest, DefaultSettingBlock) {
+  SetPolicy(CONTENT_SETTING_BLOCK);
+  // Setting the policy to BLOCK means the first download works (user gesture on
+  // load isn't strictly required to block the first, but multiple downloads are
+  // blocked).
+  std::vector<bool> expected_decisions{true, false};
+  EXPECT_EQ(GetDownloadDecisions(1), expected_decisions);
+}
+
+IN_PROC_BROWSER_TEST_F(AutomaticDownloadsPolicyTest, AllowedForUrls) {
+  base::ListValue urls;
+  urls.Append(base::Value(embedded_test_server()->base_url().spec()));
+  SetAllowedUrls(urls);
+  std::vector<bool> expected_decisions{true, true};
+  EXPECT_EQ(GetDownloadDecisions(2), expected_decisions);
+}
+
+IN_PROC_BROWSER_TEST_F(AutomaticDownloadsPolicyTest, BlockedForUrls) {
+  base::ListValue urls;
+  urls.Append(base::Value(embedded_test_server()->base_url().spec()));
+  SetBlockedUrls(urls);
+  std::vector<bool> expected_decisions{true, false};
+  EXPECT_EQ(GetDownloadDecisions(1), expected_decisions);
+}
 
 }  // namespace policy

@@ -4,6 +4,8 @@
 
 #import "ios/chrome/browser/app_bar/ui/app_bar_container_view_controller.h"
 
+#import <algorithm>
+
 #import "ios/chrome/browser/app_bar/ui/app_bar_constants.h"
 #import "ios/chrome/browser/app_bar/ui/app_bar_container_view.h"
 #import "ios/chrome/browser/app_bar/ui/app_bar_container_view_delegate.h"
@@ -12,6 +14,7 @@
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_animator.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/ui/util/layout_constants.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 
 @interface AppBarContainerViewController () <AppBarContainerViewDelegate,
@@ -39,6 +42,17 @@
 
 - (void)layoutState:(LayoutState*)layoutState
     didChangeAppBarPosition:(AppBarPosition)appBarPosition {
+  [self updateLayout];
+}
+
+- (void)layoutState:(LayoutState*)layoutState
+    didChangeAssistantContainerCutoutRadius:
+        (CGFloat)assistantContainerCutoutRadius {
+  [self updateCutoutRadius:assistantContainerCutoutRadius];
+}
+
+- (void)layoutState:(LayoutState*)layoutState
+    didChangeToolbarPosition:(ToolbarPosition)toolbarPosition {
   [self updateLayout];
 }
 
@@ -166,6 +180,17 @@
   self.view.fullscreenProgress = _fullscreenProgress;
   self.view.appBarPosition = position;
   [_appBar updateForAngle:-angle];
+  [self updateCutoutRadius:self.layoutState.assistantContainerCutoutRadius];
+}
+
+- (void)updateCutoutRadius:(CGFloat)cutoutRadius {
+  CGFloat clampedRadius = kAppBarCornerRadius;
+  if (self.layoutState.appBarPosition == AppBarPosition::kBottom &&
+      self.layoutState.toolbarPosition == ToolbarPosition::kTop) {
+    clampedRadius =
+        std::clamp(cutoutRadius, kAppBarCornerRadius, kAppBarCornerRadiusMax);
+  }
+  [_appBar updateCornerRadius:clampedRadius];
 }
 
 @end

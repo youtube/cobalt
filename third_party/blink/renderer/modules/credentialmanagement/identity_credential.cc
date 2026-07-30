@@ -13,6 +13,7 @@
 #include "third_party/blink/renderer/modules/credentialmanagement/credential_manager_proxy.h"
 #include "third_party/blink/renderer/modules/credentialmanagement/credential_manager_type_converters.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
@@ -136,9 +137,6 @@ ScriptPromise<IDLUndefined> IdentityCredential::disconnect(
     return promise;
   }
 
-  auto* auth_request =
-      CredentialManagerProxy::From(script_state)->FederatedAuthRequest();
-
   ContentSecurityPolicy* policy =
       resolver->GetExecutionContext()
           ->GetContentSecurityPolicyForCurrentWorld();
@@ -148,8 +146,19 @@ ScriptPromise<IDLUndefined> IdentityCredential::disconnect(
 
   mojom::blink::IdentityCredentialDisconnectOptionsPtr disconnect_options =
       blink::mojom::blink::IdentityCredentialDisconnectOptions::From(*options);
-  auth_request->Disconnect(std::move(disconnect_options),
-                           BindOnce(&OnDisconnect, WrapPersistent(resolver)));
+
+  if (RuntimeEnabledFeatures::FedCmMultipleRequestsEnabled(
+          ExecutionContext::From(script_state))) {
+    auto* service =
+        CredentialManagerProxy::From(script_state)->FederatedRequestService();
+    service->Disconnect(std::move(disconnect_options),
+                        BindOnce(&OnDisconnect, WrapPersistent(resolver)));
+  } else {
+    auto* auth_request =
+        CredentialManagerProxy::From(script_state)->FederatedAuthRequest();
+    auth_request->Disconnect(std::move(disconnect_options),
+                             BindOnce(&OnDisconnect, WrapPersistent(resolver)));
+  }
   return promise;
 }
 

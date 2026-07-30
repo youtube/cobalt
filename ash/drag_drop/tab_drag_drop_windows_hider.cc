@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "ash/drag_drop/tab_drag_drop_windows_hider.h"
-#include "base/memory/raw_ptr.h"
 
 #include <vector>
 
@@ -16,7 +15,9 @@
 #include "ash/wallpaper/views/wallpaper_widget_controller.h"
 #include "ash/wm/mru_window_tracker.h"
 #include "ash/wm/overview/overview_controller.h"
+#include "base/memory/raw_ptr.h"
 #include "ui/aura/window.h"
+#include "ui/aura/window_tracker.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
 #include "ui/wm/core/scoped_animation_disabler.h"
 
@@ -35,17 +36,19 @@ TabDragDropWindowsHider::TabDragDropWindowsHider(aura::Window* source_window)
 
   std::vector<raw_ptr<aura::Window, VectorExperimental>> windows =
       Shell::Get()->mru_window_tracker()->BuildMruWindowList(kActiveDesk);
-  for (aura::Window* window : windows) {
+  aura::WindowTracker mru_tracker(windows);
+  while (!mru_tracker.windows().empty()) {
+    aura::Window* window = mru_tracker.Pop();
     if (window == source_window_ || window->GetRootWindow() != root_window_) {
       continue;
     }
 
     window_visibility_map_.emplace(window, window->IsVisible());
+    window->AddObserver(this);
     if (window->IsVisible()) {
       wm::ScopedAnimationDisabler disabler(window);
       window->Hide();
     }
-    window->AddObserver(this);
   }
 
   // Hide the home launcher if it's enabled during dragging.
@@ -69,10 +72,11 @@ TabDragDropWindowsHider::~TabDragDropWindowsHider() {
 
   for (auto iter = window_visibility_map_.begin();
        iter != window_visibility_map_.end(); ++iter) {
-    iter->first->RemoveObserver(this);
+    aura::Window* window = iter->first;
+    window->RemoveObserver(this);
     if (iter->second) {
-      wm::ScopedAnimationDisabler disabler(iter->first);
-      iter->first->Show();
+      wm::ScopedAnimationDisabler disabler(window);
+      window->Show();
     }
   }
 
@@ -118,8 +122,8 @@ void TabDragDropWindowsHider::OnWindowVisibilityChanged(aura::Window* window,
     // Do not let |window| change to visible during the lifetime of |this|.
     // Also update |window_visibility_map_| so that we can restore the window
     // visibility correctly.
-    window->Hide();
     window_visibility_map_[window] = visible;
+    window->Hide();
   }
   // else do nothing. It must come from Hide() function above thus should be
   // ignored.

@@ -91,6 +91,7 @@ extern const HatsConfig kHatsBorealisGamesSurvey;
 extern const HatsConfig kHatsLauncherAppsFindingSurvey;
 extern const HatsConfig kHatsLauncherAppsNeedingSurvey;
 extern const HatsConfig kHatsOfficeSurvey;
+extern const HatsConfig kHatsSlowAndLaggyDeepDive;
 
 }  // namespace ash
 

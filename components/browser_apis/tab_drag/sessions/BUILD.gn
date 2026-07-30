@@ -4,12 +4,16 @@
 
 source_set("sessions") {
   sources = [
+    "drop_target.h",
+    "drop_target_id.h",
+    "drop_target_registry.h",
     "drop_target_registry_impl.h",
     "tab_drag_event_router.h",
     "tab_drag_session.h",
     "tab_drag_session_injector.h",
     "tab_drag_session_listener.h",
     "tab_drag_session_manager.h",
+    "tab_drag_window_registry.h",
   ]
 
   public_deps = [
@@ -29,10 +33,12 @@ source_set("sessions") {
 
 source_set("impl") {
   sources = [
+    "drop_target.cc",
     "drop_target_registry_impl.cc",
     "tab_drag_event_router.cc",
     "tab_drag_session.cc",
     "tab_drag_session_manager.cc",
+    "tab_drag_window_registry.cc",
   ]
 
   deps = [

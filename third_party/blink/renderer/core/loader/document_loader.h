@@ -765,6 +765,11 @@ class CORE_EXPORT DocumentLoader : public GarbageCollected<DocumentLoader>,
   // current document or was browser-initiated.
   bool last_navigation_had_trusted_initiator_ = false;
 
+  // Secure-context-root bit (see
+  // `ContentBrowserClient::IsSecureContextRoot()`), applied to the
+  // window's SecurityContext.
+  bool is_secure_context_root_ = false;
+
   // Whether this load request comes with a sticky user activation. For
   // prerendered pages, this is initially false but could be updated on
   // prerender page activation.

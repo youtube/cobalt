@@ -76,18 +76,7 @@ void HlsNetworkAccessImpl::OnKeyFetch(
     std::move(cb).Run(std::move(result).error().AddHere());
     return;
   }
-
-  bool safe_key = enc_data->GetKeyLocation() ==
-                  hls::MediaSegment::EncryptionData::KeyLocation::kSafeOrigin;
   auto stream = std::move(result).value();
-  auto stream_security = stream->SecurityInfo();
-  if (stream_security.would_taint_origin &&
-      (stream_security.did_redirect || !safe_key)) {
-    std::move(cb).Run({HlsDataSourceProvider::ReadStatus::Codes::kError,
-                       "insecure key request"});
-    return;
-  }
-
   enc_data->ImportKey(stream->AsString());
   enc_data->ImportKeySecurity(stream->SecurityInfo());
   if (enc_data->NeedsKeyFetch()) {
@@ -120,6 +109,55 @@ void HlsNetworkAccessImpl::ReadKey(
   ReadAllInternal(data.GetUri(), std::move(cb));
 }
 
+void HlsNetworkAccessImpl::MediaSegmentSecurityChecks(
+    HlsDataSourceProvider::ReadCb cb,
+    url::Origin manifest_origin,
+    HlsDataSourceProvider::ReadResult result) {
+  if (!result.has_value()) {
+    std::move(cb).Run(std::move(result).error().AddHere());
+    return;
+  }
+
+  auto stream = std::move(result).value();
+
+  // Security considerations:
+  //   - The stream may have data from up to three separate origins, including:
+  //      - a decryption key (EXT-X-KEY)
+  //      - a header (EXT-X-MAP)
+  //      - content (EXTINF)
+  //   - The header and the content might also include byte ranges as part of
+  //     the request. the ranges are not required to have any sort of alignment.
+  //   - Most media can be played in a cross-origin-tainted state in which the
+  //     media is hosted on a different origin than the frame and where the
+  //     media is not served with an appropriate access-control-allow-origin
+  //     header. This is not the case with HLS.
+
+  if (!stream->SecurityInfo().would_taint_origin) {
+    // This request is considered safe entirely - all the requests happened
+    // on either the same origin as the top frame, or the responses included
+    // access-control-allow-origin headers that marked the top frame safe. This
+    // request should be allowed.
+    std::move(cb).Run(std::move(stream));
+    return;
+  }
+
+  // If every single origin in the security metadata is the same as the
+  // manifest's origin, it's also safe to allow, even though the frame will
+  // see it as tainted data. Note that media content with an access header
+  // allowing the manifest origin _will not_ be acceptable here - the origins
+  // must be identical. The prior check for `would_taint_origin` will already
+  // allow content served from multiple origins IFF those network responses
+  // provide access-control-allow-origin headers for the top frame's origin.
+  if (stream->SecurityInfo().IsSafeLoadFromManifestOrigin(manifest_origin)) {
+    std::move(cb).Run(std::move(stream));
+    return;
+  }
+
+  // Anything else is disallowed.
+  std::move(cb).Run({HlsDataSourceProvider::ReadStatus::Codes::kError,
+                     "insecure media request"});
+}
+
 void HlsNetworkAccessImpl::ReadMediaSegment(const hls::MediaSegment& segment,
                                             bool read_chunked,
                                             bool include_init,
@@ -129,6 +167,11 @@ void HlsNetworkAccessImpl::ReadMediaSegment(const hls::MediaSegment& segment,
     std::move(cb).Run(HlsDataSourceProvider::ReadStatus::Codes::kStopped);
     return;
   }
+
+  // Bind security checks
+  cb = base::BindOnce(&HlsNetworkAccessImpl::MediaSegmentSecurityChecks,
+                      weak_factory_.GetWeakPtr(), std::move(cb),
+                      segment.GetManifestOrigin());
 
   if (!read_chunked) {
     cb = base::BindOnce(&HlsNetworkAccessImpl::ReadUntilExhausted,

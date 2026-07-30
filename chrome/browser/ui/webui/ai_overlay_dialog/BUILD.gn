@@ -41,7 +41,11 @@ source_set("ai_overlay_dialog") {
     "//chrome/browser/resources/ai_overlay_dialog:resources",
     "//chrome/browser/search_engines",
     "//chrome/browser/translate",
-    "//chrome/browser/ui",
+
+    # This target includes //chrome/browser/ui:ui's headers, but :ui depends
+    # back on this target (it owns the desktop interface-binders parts file that
+    # registers this dialog), so :ui allows the circular include instead of this
+    # target depending on the :ui monolith directly.
     "//chrome/browser/ui:browser_actions",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/ai_overlay_dialog",

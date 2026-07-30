@@ -5,6 +5,7 @@
 #ifndef EXTENSIONS_BROWSER_HOST_ACCESS_REQUEST_HELPER_H_
 #define EXTENSIONS_BROWSER_HOST_ACCESS_REQUEST_HELPER_H_
 
+#include "base/auto_reset.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
@@ -41,7 +42,9 @@ class HostAccessRequestsHelper : public ExtensionRegistryObserver,
   ~HostAccessRequestsHelper() override;
 
   // Sets the cooldown duration for site access requests.
-  static void SetCooldownForTesting(base::TimeDelta cooldown);
+  [[nodiscard]]
+  static base::AutoReset<base::TimeDelta> SetCooldownForTesting(
+      base::TimeDelta cooldown);
 
   // The result of adding a host access request.
   enum class AddRequestResult {
@@ -57,9 +60,9 @@ class HostAccessRequestsHelper : public ExtensionRegistryObserver,
                               const std::optional<URLPattern>& filter);
 
   // Updates the site access request entry for `extension`. Request will be
-  // matched to `filter, if existent.
-  void UpdateRequest(const Extension& extension,
-                     const std::optional<URLPattern>& filter);
+  // matched to `filter`, if existent. Returns the result of the update.
+  AddRequestResult UpdateRequest(const Extension& extension,
+                                 const std::optional<URLPattern>& filter);
 
   // The result of removing a host access request.
   enum class RemoveRequestResult {
@@ -107,6 +110,13 @@ class HostAccessRequestsHelper : public ExtensionRegistryObserver,
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
   void WebContentsDestroyed() override;
+
+  // Returns whether the request action for `extension_id` is throttled due to
+  // cooldown.
+  bool IsThrottled(const ExtensionId& extension_id) const;
+
+  // Records the current time as the last request time for `extension_id`.
+  void RecordRequest(const ExtensionId& extension_id);
 
   // PermissionsManager owns this object, thus `permissions_manager_` will
   // always be valid.

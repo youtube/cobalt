@@ -11,7 +11,7 @@
 #include "base/containers/flat_set.h"
 #include "base/time/time.h"
 #include "base/values.h"
-#include "chromeos/crosapi/mojom/local_printer.mojom.h"
+#include "printing/cups_printer_status_reason_ash.h"
 
 namespace chromeos {
 
@@ -37,8 +37,8 @@ class COMPONENT_EXPORT(CHROMEOS_PRINTING) CupsPrinterStatus {
   // severity, which is the level of seriousness of that state.
   class COMPONENT_EXPORT(CHROMEOS_PRINTING) CupsPrinterStatusReason {
    public:
-    using Reason = crosapi::mojom::StatusReason::Reason;
-    using Severity = crosapi::mojom::StatusReason::Severity;
+    using Reason = ::printing::CupsPrinterStatusReason;
+    using Severity = ::printing::CupsPrinterStatusSeverity;
 
     CupsPrinterStatusReason(const Reason& reason, const Severity& severity);
     ~CupsPrinterStatusReason();

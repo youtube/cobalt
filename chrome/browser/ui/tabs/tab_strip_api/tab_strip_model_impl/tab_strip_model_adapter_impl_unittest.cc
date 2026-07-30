@@ -112,8 +112,7 @@ TEST_F(TabStripModelAdapterImplTest, GetPathForCollection) {
   ASSERT_GE(path.components().size(), 4u);
   EXPECT_EQ(path.components()[0], NodeId::FromWindowId("1"));
   EXPECT_EQ(path.components()[1],
-            NodeId::FromTabCollectionHandle(
-                model_->GetRootForTesting()->GetHandle()));
+            NodeId::FromTabCollectionHandle(model_->Root()->GetHandle()));
   EXPECT_EQ(path.components().back(),
             NodeId::FromTabCollectionHandle(group_handle));
 }

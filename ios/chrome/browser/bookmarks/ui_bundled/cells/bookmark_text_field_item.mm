@@ -30,9 +30,8 @@
 
 #pragma mark TableViewItem
 
-- (void)configureCell:(LegacyTableViewCell*)tableCell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:tableCell withStyler:styler];
+- (void)configureCell:(LegacyTableViewCell*)tableCell {
+  [super configureCell:tableCell];
 
   BookmarkTextFieldCell* cell =
       base::apple::ObjCCastStrict<BookmarkTextFieldCell>(tableCell);

@@ -138,6 +138,16 @@ GridItems* GridLanesNode::ConstructGridItems(
   }
 
   GridItems* grid_lanes_items = MakeGarbageCollected<GridItems>();
+
+  // Check if the container has alignment in the stacking axis set for its
+  // items.
+  const bool is_for_columns = (grid_axis_direction == kForColumns);
+  const auto& container_alignment =
+      is_for_columns ? style.AlignItems() : style.JustifyItems();
+  if (container_alignment.GetPosition() != ItemPosition::kNormal) {
+    grid_lanes_items->SetHasStackingAxisAlignment();
+  }
+
   {
     bool should_sort_grid_lanes_items_by_order_property = false;
     const int initial_order = ComputedStyleInitialValues::InitialOrder();
@@ -163,6 +173,19 @@ GridItems* GridLanesNode::ConstructGridItems(
       // Check whether we'll need to further append subgridded items.
       if (opt_has_nested_subgrid) {
         *opt_has_nested_subgrid |= grid_lanes_item->IsSubgrid();
+      }
+
+      // Check each item for an explicit self-alignment in the stacking axis.
+      // Items with `auto` (the default) fall back to the container's
+      // alignment property.
+      if (!grid_lanes_items->HasStackingAxisAlignment()) {
+        const auto& self_alignment = is_for_columns
+                                         ? child.Style().AlignSelf()
+                                         : child.Style().JustifySelf();
+        if (self_alignment.GetPosition() != ItemPosition::kAuto &&
+            self_alignment.GetPosition() != ItemPosition::kNormal) {
+          grid_lanes_items->SetHasStackingAxisAlignment();
+        }
       }
 
       AdjustGridItemSpan(*grid_lanes_item, line_resolver, grid_axis_direction);

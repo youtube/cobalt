@@ -9,9 +9,6 @@
 #include "base/functional/callback.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL
-#include "chrome/browser/ui/browser.h"
-#endif
 
 // The intent is to remove functions from this file as things become available
 // on Android.

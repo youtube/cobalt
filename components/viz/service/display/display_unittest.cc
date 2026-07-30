@@ -107,7 +107,7 @@ class TestDisplayScheduler : public DisplayScheduler {
 
   ~TestDisplayScheduler() override = default;
 
-  void OnDisplayDamaged(SurfaceId surface_id) override {
+  void OnDisplayDamaged(SurfaceId surface_id, BeginFrameId frame_id) override {
     damaged_ = true;
     needs_draw_ = true;
   }

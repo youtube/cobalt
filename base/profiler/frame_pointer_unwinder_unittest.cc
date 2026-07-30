@@ -10,12 +10,7 @@
 #include "base/profiler/register_context_registers.h"
 #include "base/profiler/stack_sampling_profiler_test_util.h"
 #include "base/profiler/unwinder.h"
-#include "build/buildflag.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-#if BUILDFLAG(IS_APPLE)
-#include "base/mac/mac_util.h"
-#endif
 
 namespace base {
 
@@ -64,26 +59,19 @@ struct InputStack {
 class FramePointerUnwinderTest : public testing::Test {
  protected:
   FramePointerUnwinderTest() {
-#if BUILDFLAG(IS_APPLE)
-    if (__builtin_available(iOS 12, *)) {
-#else
-    {
-#endif
-      unwinder_ = std::make_unique<FramePointerUnwinder>();
+    unwinder_ = std::make_unique<FramePointerUnwinder>();
 
-      auto test_module =
-          std::make_unique<TestModule>(kModuleStart, kModuleSize);
-      module_ = test_module.get();
-      module_cache_.AddCustomNativeModule(std::move(test_module));
-      auto non_native_module = std::make_unique<TestModule>(
-          kNonNativeModuleStart, kModuleSize, false);
-      non_native_module_ = non_native_module.get();
-      std::vector<std::unique_ptr<const ModuleCache::Module>> wrapper;
-      wrapper.push_back(std::move(non_native_module));
-      module_cache()->UpdateNonNativeModules({}, std::move(wrapper));
+    auto test_module = std::make_unique<TestModule>(kModuleStart, kModuleSize);
+    module_ = test_module.get();
+    module_cache_.AddCustomNativeModule(std::move(test_module));
+    auto non_native_module =
+        std::make_unique<TestModule>(kNonNativeModuleStart, kModuleSize, false);
+    non_native_module_ = non_native_module.get();
+    std::vector<std::unique_ptr<const ModuleCache::Module>> wrapper;
+    wrapper.push_back(std::move(non_native_module));
+    module_cache()->UpdateNonNativeModules({}, std::move(wrapper));
 
-      unwinder_->Initialize(&module_cache_);
-    }
+    unwinder_->Initialize(&module_cache_);
   }
 
   ModuleCache* module_cache() { return &module_cache_; }

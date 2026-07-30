@@ -114,28 +114,6 @@ IN_PROC_BROWSER_TEST_F(SystemMenuModelBuilderGlicTest,
   EXPECT_FALSE(profile_prefs->GetBoolean(prefs::kTabSearchPinnedToTabstrip));
 }
 
-class SystemMenuModelBuilderTabSearchDisabledTest
-    : public InProcessBrowserTest {
- protected:
-  void SetUp() override {
-    scoped_feature_list_.InitWithFeatures(
-        {}, {tabs::kHorizontalTabStripComboButton});
-    InProcessBrowserTest::SetUp();
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_F(SystemMenuModelBuilderTabSearchDisabledTest,
-                       TabSearchPinningHidden) {
-  ui::MenuModel* menu = BrowserView::GetBrowserViewForBrowser(browser())
-                            ->browser_widget()
-                            ->GetSystemMenuModel();
-
-  EXPECT_FALSE(ContainsCommand(menu, IDC_TAB_SEARCH_TOGGLE_PIN, std::nullopt));
-}
-
 class SystemMenuModelBuilderSimplificationTest : public InProcessBrowserTest {
  protected:
   void SetUp() override {

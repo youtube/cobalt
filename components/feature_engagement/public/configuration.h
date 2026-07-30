@@ -295,6 +295,9 @@ class Configuration {
 
   virtual ~Configuration() = default;
 
+  // Returns whether there is a feature config for `feature` present.
+  virtual bool HasFeatureConfig(const base::Feature& feature) const = 0;
+
   // Returns the FeatureConfig for the given |feature|. The |feature| must
   // be registered with the Configuration instance.
   virtual const FeatureConfig& GetFeatureConfig(

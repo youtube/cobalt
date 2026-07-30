@@ -83,7 +83,7 @@
 #
 #     allow_unstable_features: A list of unstable feature names to allow
 #       in a given crate.  (This should be used sparingly - please see
-#       tools/rust/unstable_rust_feature_usage.md for more details.)
+#       docs/rust/unstable_rust_feature_usage.md for more details.)
 #
 #     configs_to_remove / configs_to_add: A list of GN config labels.
 #

@@ -31,7 +31,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_SVG_PROPERTIES_SVG_LIST_PROPERTY_HELPER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_SVG_PROPERTIES_SVG_LIST_PROPERTY_HELPER_H_
 
-#include "base/compiler_specific.h"
 #include "base/memory/stack_allocated.h"
 #include "third_party/blink/renderer/core/svg/properties/svg_list_property.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
@@ -51,33 +50,25 @@ class SVGListPropertyHelper : public SVGListPropertyBase {
     STACK_ALLOCATED();
 
    public:
-    explicit const_iterator(SVGListPropertyBase::const_iterator wrapped)
-        : wrapped_(wrapped) {}
+    const_iterator(const SVGListPropertyHelper* list, uint32_t index)
+        : list_(list), index_(index) {}
 
-    UNSAFE_BUFFER_USAGE const_iterator& operator++() {
-      // SAFETY: This function exposes this unsafety.
-      UNSAFE_BUFFERS(++wrapped_);
+    const_iterator& operator++() {
+      ++index_;
       return *this;
     }
     bool operator==(const const_iterator& other) const {
-      return wrapped_ == other.wrapped_;
+      return index_ == other.index_;
     }
-    const ItemPropertyType* operator->() const {
-      return To<ItemPropertyType>(wrapped_->Get());
-    }
-    const ItemPropertyType* operator*() const {
-      return To<ItemPropertyType>(wrapped_->Get());
-    }
+    const ItemPropertyType* operator->() const { return list_->at(index_); }
+    const ItemPropertyType* operator*() const { return list_->at(index_); }
 
    private:
-    SVGListPropertyBase::const_iterator wrapped_;
+    const SVGListPropertyHelper* list_;
+    uint32_t index_ = 0;
   };
-  const_iterator begin() const {
-    return const_iterator(SVGListPropertyBase::begin());
-  }
-  const_iterator end() const {
-    return const_iterator(SVGListPropertyBase::end());
-  }
+  const_iterator begin() const { return const_iterator(this, 0); }
+  const_iterator end() const { return const_iterator(this, length()); }
 
   using SVGListPropertyBase::IsEmpty;
   using SVGListPropertyBase::length;

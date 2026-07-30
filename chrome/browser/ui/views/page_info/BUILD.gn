@@ -10,6 +10,7 @@ source_set("page_info") {
     "page_info_bubble_view.h",
     "page_info_bubble_view_base.h",
     "page_info_navigation_handler.h",
+    "page_info_view_factory.h",
   ]
 
   public_deps = [

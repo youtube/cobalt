@@ -8,12 +8,10 @@
 #include <string>
 
 #include "base/metrics/user_metrics.h"
-#include "base/strings/string_number_conversions.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
-#include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -193,6 +191,9 @@ void NewTabButtonMenuModel ::AddNewSplitTabItem() {
   TabStripModel* tab_strip_model = browser_->GetTabStripModel();
   CHECK(tab_strip_model);
 
+  const tabs::TabInterface* const active_tab = tab_strip_model->GetActiveTab();
+  bool is_active_tab_split = active_tab && active_tab->IsSplit();
+
   SetEnabledAt(GetIndexOfCommandId(IDC_NEW_SPLIT_TAB).value(),
-               !tab_strip_model->IsActiveTabSplit());
+               !is_active_tab_split);
 }

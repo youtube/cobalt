@@ -899,11 +899,13 @@ PermissionsManager::AddRequestResult PermissionsManager::AddHostAccessRequest(
   }
 
   if (helper->HasRequest(extension.id())) {
-    helper->UpdateRequest(extension, filter);
-    for (auto& observer : observers_) {
-      observer.OnHostAccessRequestUpdated(extension.id(), tab_id);
+    AddRequestResult result = helper->UpdateRequest(extension, filter);
+    if (result == AddRequestResult::kSuccess) {
+      for (auto& observer : observers_) {
+        observer.OnHostAccessRequestUpdated(extension.id(), tab_id);
+      }
     }
-    return AddRequestResult::kSuccess;
+    return result;
   } else {
     AddRequestResult result = helper->AddRequest(extension, filter);
     if (result == AddRequestResult::kSuccess) {

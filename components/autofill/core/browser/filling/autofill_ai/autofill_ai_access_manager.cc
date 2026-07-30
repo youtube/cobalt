@@ -50,10 +50,7 @@ std::u16string GetAuthenticationMessage(const url::Origin& origin) {
 
 AutofillAiAccessManager::AutofillAiAccessManager(
     BrowserAutofillManager* manager)
-    : manager_(CHECK_DEREF(manager)) {
-  authenticator_ =
-      manager_->client().GetDeviceAuthenticator("Autofill.Ai.ReauthToFill");
-}
+    : manager_(CHECK_DEREF(manager)) {}
 
 AutofillAiAccessManager::~AutofillAiAccessManager() = default;
 
@@ -99,6 +96,7 @@ void AutofillAiAccessManager::Reset() {
   weak_ptr_factory_.InvalidateWeakPtrs();
   if (authenticator_ && is_authentication_in_progress_) {
     authenticator_->Cancel();
+    authenticator_.reset();
   }
   is_authentication_in_progress_ = false;
 }
@@ -132,6 +130,10 @@ void AutofillAiAccessManager::MaybeAuthenticate(
 void AutofillAiAccessManager::Authenticate(
     const url::Origin& origin,
     base::OnceCallback<void(bool)> callback) {
+  if (!authenticator_) {
+    authenticator_ =
+        manager_->client().GetDeviceAuthenticator("Autofill.Ai.ReauthToFill");
+  }
   if (!authenticator_ ||
       !authenticator_->CanAuthenticateWithBiometricOrScreenLock()) {
     // If the device is not capable of reauth or not set up, we assume success
@@ -154,6 +156,7 @@ void AutofillAiAccessManager::Authenticate(
               return;
             }
             self->is_authentication_in_progress_ = false;
+            self->authenticator_.reset();
             std::move(callback).Run(auth_succeeded);
           },
           weak_ptr_factory_.GetWeakPtr(), std::move(callback)));

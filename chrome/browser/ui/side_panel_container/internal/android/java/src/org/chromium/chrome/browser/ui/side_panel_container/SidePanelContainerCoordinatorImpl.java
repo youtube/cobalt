@@ -16,12 +16,13 @@ import android.widget.FrameLayout;
 import androidx.annotation.Px;
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.Callback;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.ThreadUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.ui.side_panel.AndroidSidePanelEnabledFn;
 import org.chromium.chrome.browser.ui.side_panel.SidePanelCoordinatorAndroid;
+import org.chromium.chrome.browser.ui.side_panel_container.dev.SidePanelDevFeature;
+import org.chromium.chrome.browser.ui.side_panel_container.dev.SidePanelDevFeatureImpl;
 import org.chromium.chrome.browser.ui.side_ui.SideUiContainer;
 import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator;
 import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.AnchorSide;
@@ -37,12 +38,17 @@ final class SidePanelContainerCoordinatorImpl
 
     private static final @AnchorSide int SIDE_PANEL_DEFAULT_ANCHOR_SIDE = AnchorSide.RIGHT;
 
+    /** Used to override the return value of {@link #hasContentToShow()} for tests. */
+    private static @Nullable Boolean sHasContentToShowForTesting;
+
     private final Activity mParentActivity;
     private final FrameLayout mContainerView;
     private final SideUiCoordinator mSideUiCoordinator;
 
-    // TODO(crbug.com/496407828): Use this to notify native side of events like "animation ended".
+    // TODO(crbug.com/496407828): Use this to notify native side of events like panel opened/closed.
     private @Nullable SidePanelCoordinatorAndroid mSidePanelCoordinatorAndroid;
+
+    private @Nullable SidePanelDevFeatureImpl mSidePanelPureJavaDevFeature;
 
     private @Nullable SidePanelContent mCurrentContent;
 
@@ -64,7 +70,9 @@ final class SidePanelContainerCoordinatorImpl
     }
 
     @Override
-    public void init(SidePanelCoordinatorAndroid sidePanelCoordinatorAndroid) {
+    public void init(
+            SidePanelCoordinatorAndroid sidePanelCoordinatorAndroid,
+            @Nullable SidePanelDevFeature sidePanelDevFeature) {
         log(TAG, "init");
         ThreadUtils.assertOnUiThread();
         mSideUiCoordinator.registerSideUiContainer(this);
@@ -72,49 +80,46 @@ final class SidePanelContainerCoordinatorImpl
         // SidePanelCoordinatorAndroid connects the Java UI with the state management logic in C++.
         // We should _not_ initialize SidePanelCoordinatorAndroid for the pure-Java dev feature,
         // otherwise the pure-Java dev feature will drive the C++ side into invalid states.
-        if (!AndroidSidePanelEnabledFn.isPureJavaDevFeatureEnabled()) {
+        if (sidePanelDevFeature instanceof SidePanelDevFeatureImpl) {
+            mSidePanelPureJavaDevFeature = (SidePanelDevFeatureImpl) sidePanelDevFeature;
+        } else {
             mSidePanelCoordinatorAndroid = sidePanelCoordinatorAndroid;
             mSidePanelCoordinatorAndroid.init();
         }
     }
 
     @Override
-    public void populateContent(
+    public void startPopulatingContent(
             SidePanelContent content,
-            Callback<@Nullable Void> onAnimationFinishedCallback,
+            Runnable onContentPopulated,
             @Nullable Rect startingBounds,
             boolean suppressAnimations) {
-        log(TAG, "populateContent", content, startingBounds, suppressAnimations);
+        log(TAG, "startPopulatingContent", content, startingBounds, suppressAnimations);
         ThreadUtils.assertOnUiThread();
         mCurrentContent = content;
 
         mContainerView.removeAllViews();
         mContainerView.addView(content.mView);
 
-        // It's fine to always _request_ the max width. The final width will be determined in
-        // determineContainerWidth().
-        @Px int sidePanelMaxWidth = ViewUtils.dpToPx(mParentActivity, WIDE_SIDE_PANEL_WIDTH_DP);
         mSideUiCoordinator.requestUpdateContainer(
-                new SideUiContainerProperties(
-                        SideUiId.SIDE_PANEL, SIDE_PANEL_DEFAULT_ANCHOR_SIDE, sidePanelMaxWidth),
+                new SideUiContainerProperties(SideUiId.SIDE_PANEL, SIDE_PANEL_DEFAULT_ANCHOR_SIDE),
                 suppressAnimations);
         // TODO(crbug.com/496407828): Move this around so it actually runs after the animation is
         //  finished.
-        onAnimationFinishedCallback.onResult(null);
+        onContentPopulated.run();
     }
 
     @Override
-    public void removeContentAndClose(
-            Callback<@Nullable Void> onAnimationFinishedCallback, boolean suppressAnimations) {
-        log(TAG, "removeContentAndClose", suppressAnimations);
+    public void startRemovingContent(Runnable onContentRemoved, boolean suppressAnimations) {
+        log(TAG, "startRemovingContent", suppressAnimations);
         ThreadUtils.assertOnUiThread();
+
         mSideUiCoordinator.requestUpdateContainer(
-                new SideUiContainerProperties(
-                        SideUiId.SIDE_PANEL, SIDE_PANEL_DEFAULT_ANCHOR_SIDE, /* width= */ 0),
+                new SideUiContainerProperties(SideUiId.SIDE_PANEL, SIDE_PANEL_DEFAULT_ANCHOR_SIDE),
                 suppressAnimations);
         // TODO(crbug.com/496407828): Move this around so it actually runs after the animation is
         //  finished.
-        onAnimationFinishedCallback.onResult(null);
+        onContentRemoved.run();
     }
 
     @Override
@@ -158,19 +163,14 @@ final class SidePanelContainerCoordinatorImpl
 
     @Override
     @Px
-    public int determineContainerWidth(
-            @Px int requestedWidth, @Px int availableWidth, @Px int windowWidth) {
-        log(TAG, "determineContainerWidth", requestedWidth, availableWidth, windowWidth);
+    public int determineShowableWidth(@Px int availableWidth, @Px int windowWidth) {
+        log(TAG, "determineShowableWidth", availableWidth, windowWidth);
         ThreadUtils.assertOnUiThread();
-
-        if (requestedWidth == 0) {
-            return 0;
-        }
 
         int availableWidthDp = ViewUtils.pxToDp(mParentActivity, availableWidth);
         int windowWidthDp = ViewUtils.pxToDp(mParentActivity, windowWidth);
-        int containerWidthDp = determineContainerWidthDp(availableWidthDp, windowWidthDp);
-        return ViewUtils.dpToPx(mParentActivity, containerWidthDp);
+        int showableWidthDp = determineShowableWidthDp(availableWidthDp, windowWidthDp);
+        return ViewUtils.dpToPx(mParentActivity, showableWidthDp);
     }
 
     @Override
@@ -179,6 +179,26 @@ final class SidePanelContainerCoordinatorImpl
         log(TAG, "getAnchorSide");
         ThreadUtils.assertOnUiThread();
         return SIDE_PANEL_DEFAULT_ANCHOR_SIDE;
+    }
+
+    @Override
+    public boolean hasContentToShow() {
+        ThreadUtils.assertOnUiThread();
+        if (sHasContentToShowForTesting != null) {
+            return sHasContentToShowForTesting;
+        }
+
+        // The pure-Java dev feature doesn't use SidePanelCoordinatorAndroid since
+        // SidePanelCoordinatorAndroid is a bridge to the C++ side panel state management.
+        if (mSidePanelPureJavaDevFeature != null) {
+            return mSidePanelPureJavaDevFeature.hasDevContentToShow();
+        }
+
+        if (mSidePanelCoordinatorAndroid != null) {
+            return mSidePanelCoordinatorAndroid.hasContentToShow();
+        }
+
+        return false;
     }
 
     @Override
@@ -220,7 +240,7 @@ final class SidePanelContainerCoordinatorImpl
      * Returns the final width (in dp) of the side panel given the available width in the window.
      */
     @VisibleForTesting
-    static int determineContainerWidthDp(int availableWidthDp, int windowWidthDp) {
+    static int determineShowableWidthDp(int availableWidthDp, int windowWidthDp) {
         // 1. Check if we can use the fixed, larger width.
         if (windowWidthDp >= MIN_WINDOW_WIDTH_DP_FOR_WIDE_SIDE_PANEL) {
             assert availableWidthDp >= WIDE_SIDE_PANEL_WIDTH_DP;
@@ -240,5 +260,10 @@ final class SidePanelContainerCoordinatorImpl
 
         // 4. Return 0 if available space can't accommodate the minimum side panel width.
         return 0;
+    }
+
+    static void setHasContentToShowForTesting(boolean hasContentToShow) {
+        sHasContentToShowForTesting = hasContentToShow;
+        ResettersForTesting.register(() -> sHasContentToShowForTesting = null);
     }
 }

@@ -9,8 +9,7 @@
 
 #include "base/memory/memory_pressure_listener.h"
 #include "content/common/content_export.h"
-#include "content/common/memory_coordinator/memory_coordinator_policy.h"
-#include "content/common/memory_coordinator/memory_coordinator_policy_state.h"
+#include "content/common/memory_coordinator/predicate_memory_coordinator_policy.h"
 
 namespace content {
 
@@ -20,7 +19,7 @@ namespace content {
 // updates the memory limit of all consumers in the current process and
 // requests them to release memory.
 class CONTENT_EXPORT MemoryPressureListenerPolicy
-    : public MemoryCoordinatorPolicy,
+    : public PredicateMemoryCoordinatorPolicy,
       public base::MemoryPressureListener {
  public:
   explicit MemoryPressureListenerPolicy(
@@ -32,7 +31,6 @@ class CONTENT_EXPORT MemoryPressureListenerPolicy
 
  private:
   base::MemoryPressureListenerRegistration registration_;
-  MemoryCoordinatorPolicyState state_;
 };
 }  // namespace content
 

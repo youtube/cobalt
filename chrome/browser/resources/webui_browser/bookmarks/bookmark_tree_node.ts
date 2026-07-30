@@ -53,6 +53,7 @@ export class BookmarkTreeNodeElement extends CrLitElement {
         id: null,
         title: 'new bookmark',
         url: 'chrome://new-tab-page',
+        faviconUrl: null,
       },
     };
 
@@ -88,6 +89,7 @@ export class BookmarkTreeNodeElement extends CrLitElement {
           id: this.node.url.id!,
           title: 'has been updated',
           url: 'http://updated.somewhere',
+          faviconUrl: null,
         },
       };
 
@@ -102,6 +104,22 @@ export class BookmarkTreeNodeElement extends CrLitElement {
       };
 
       this.bookmarksService_.updateBookmarkNode(updatedNode);
+    }
+  }
+
+  protected onMoveClick(e: Event) {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const host = (this.getRootNode() as ShadowRoot).host;
+
+    if (host &&
+        host.tagName.toLowerCase() === 'webui-browser-bookmark-tree-node') {
+      const id = this.node.url ? this.node.url.id! : this.node.folder!.id!;
+
+      const targetParentId = (host as BookmarkTreeNodeElement).node.folder!.id!;
+      // always move to first element for now.
+      this.bookmarksService_.moveBookmarkNode(id, targetParentId, 0);
     }
   }
 

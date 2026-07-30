@@ -754,7 +754,7 @@ chromium-metrics-reviews@google.com.
       label="OfficeMoveConfirmationShownForCloudToOneDriveSyncable"/>
   <int value="100323" label="PinnedCastMigrationComplete"/>
   <int value="100324" label="AccessibilityAXTreeFixingEnabled"/>
-  <int value="100325" label="TabSearchMigrationComplete"/>
+  <int value="100325" label="(obsolete) TabSearchMigrationComplete"/>
   <int value="100326" label="ReadAloudPlaybackMode"/>
   <int value="100327" label="PinSplitTabButton"/>
   <int value="100328" label="GlicRolloutEligibility"/>
@@ -812,6 +812,10 @@ chromium-metrics-reviews@google.com.
   <int value="100380" label="AppRatingPromptShown"/>
   <int value="100381"
       label="AccessibilityReadAnythingLastOpenedPresentationState"/>
+  <int value="100382" label="ProfileContentSettingsExceptionsInlineCueMenu"/>
+  <int value="100383"
+      label="ProfileContentSettingsPartitionedExceptionsInlineCueMenu"/>
+  <int value="100384" label="ProfileDefaultContentSettingValuesInlineCueMenu"/>
 <!-- LINT.ThenChange(/chrome/browser/sync/prefs/chrome_syncable_prefs_database.cc:ChromeSyncablePref)-->
 
 <!-- LINT.IfChange(IosSyncablePref) -->

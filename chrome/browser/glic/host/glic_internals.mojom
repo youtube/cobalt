@@ -20,9 +20,10 @@ struct InternalsDataPayload {
 
 struct InternalsDebugInfo {
   // Feature flags
-  bool glic_feature_enabled;
   bool glic_actor_feature_enabled;
   bool glic_rollout_feature_enabled;
+  bool glic_tiered_rollout_feature_enabled;
+  bool glic_tiered_rollout_v2_feature_enabled;
 
   // Platform and form factor
   Platform platform;
@@ -31,6 +32,17 @@ struct InternalsDebugInfo {
   // Browser and user settings
   map<string, bool> boolean_settings;
   string hotkey;
+
+  // Locale and country settings
+  string locale;
+  string permanent_country_code;
+  string session_country_code;
+
+  // Additional enablement checks
+  bool system_requirement_met;
+  bool os_version_supported;
+  bool anchor_entrypoint_override_active;
+  bool primary_account_needs_signed_in;
 };
 
 // This determines how invoke will handle waiting for first run experience

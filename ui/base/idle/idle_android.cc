@@ -85,12 +85,6 @@ bool CheckIdleStateIsLocked() {
   return AndroidIdleMonitor::GetInstance()->CheckIdleStateIsLocked();
 }
 
-IdleState CalculateIdleState(int idle_threshold) {
-  // TODO(crbug.com/40591477): implementation pending.
-  NOTIMPLEMENTED();
-  return IdleState::IDLE_STATE_UNKNOWN;
-}
-
 }  // namespace ui
 
 DEFINE_JNI(IdleDetector)

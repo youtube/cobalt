@@ -33,6 +33,7 @@
 #import "ios/chrome/common/material_timing.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/dynamic_type_util.h"
+#import "ios/chrome/common/ui/util/ui_util.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/grit/ios_theme_resources.h"
 #import "skia/ext/skia_utils_ios.h"
@@ -1184,7 +1185,9 @@ const CGFloat kVerticalOffset = 1;
   CGFloat verticalPadding =
       MAX(minVerticalInset * 2.0, (minHeight - lineHeight));
   // Distribute padding.
-  CGFloat topPadding = verticalPadding / 2.0 + kVerticalOffset;
+  CGFloat verticalOffset =
+      IsRegularXRegularSizeClass(self.traitCollection) ? 0.0 : kVerticalOffset;
+  CGFloat topPadding = verticalPadding / 2.0 + verticalOffset;
   CGFloat bottomPadding = verticalPadding - topPadding;
   self.textContainerInset = UIEdgeInsetsMake(topPadding, 0, bottomPadding, 0);
   _placeholderTopConstraint.constant = topPadding;

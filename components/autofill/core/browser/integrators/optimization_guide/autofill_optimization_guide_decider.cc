@@ -101,6 +101,17 @@ GetCardBenefitsOptimizationTypesForCard(
         optimization_guide::proto::BMO_CREDIT_CARD_TRAVEL_BENEFITS);
     optimization_types.push_back(
         optimization_guide::proto::BMO_CREDIT_CARD_WHOLESALE_CLUB_BENEFITS);
+  } else if (
+      card.benefit_source() == kCurinosCardBenefitSource &&
+      base::FeatureList::IsEnabled(
+          features::
+              kAutofillEnableTravelCategoryAndMerchantBenefitsFromCurinos)) {
+    optimization_types.push_back(
+        optimization_guide::proto::CURINOS_CREDIT_CARD_FLIGHT_BENEFITS);
+    optimization_types.push_back(
+        optimization_guide::proto::CURINOS_CREDIT_CARD_HOTEL_BENEFITS);
+    optimization_types.push_back(
+        optimization_guide::proto::CURINOS_CREDIT_CARD_CAR_RENTAL_BENEFITS);
   }
   if (payments_data_manager
           .GetFlatRateBenefitByInstrumentId(
@@ -174,6 +185,7 @@ GetBenefitCategoryForOptimizationType(
   switch (optimization_type) {
     case optimization_guide::proto::
         AMERICAN_EXPRESS_CREDIT_CARD_FLIGHT_BENEFITS:
+    case optimization_guide::proto::CURINOS_CREDIT_CARD_FLIGHT_BENEFITS:
       return CreditCardCategoryBenefit::BenefitCategory::kFlights;
     case optimization_guide::proto::
         AMERICAN_EXPRESS_CREDIT_CARD_SUBSCRIPTION_BENEFITS:
@@ -206,6 +218,10 @@ GetBenefitCategoryForOptimizationType(
       return CreditCardCategoryBenefit::BenefitCategory::kEntertainment;
     case optimization_guide::proto::CAPITAL_ONE_CREDIT_CARD_STREAMING_BENEFITS:
       return CreditCardCategoryBenefit::BenefitCategory::kStreaming;
+    case optimization_guide::proto::CURINOS_CREDIT_CARD_HOTEL_BENEFITS:
+      return CreditCardCategoryBenefit::BenefitCategory::kHotels;
+    case optimization_guide::proto::CURINOS_CREDIT_CARD_CAR_RENTAL_BENEFITS:
+      return CreditCardCategoryBenefit::BenefitCategory::kCarRentals;
     default:
       NOTREACHED();
   }
@@ -383,6 +399,17 @@ AutofillOptimizationGuideDecider::AttemptToGetEligibleCreditCardBenefitCategory(
         optimization_guide::proto::BMO_CREDIT_CARD_TRAVEL_BENEFITS);
     issuer_optimization_types.push_back(
         optimization_guide::proto::BMO_CREDIT_CARD_WHOLESALE_CLUB_BENEFITS);
+  } else if (
+      benefit_source == kCurinosCardBenefitSource &&
+      base::FeatureList::IsEnabled(
+          features::
+              kAutofillEnableTravelCategoryAndMerchantBenefitsFromCurinos)) {
+    issuer_optimization_types.push_back(
+        optimization_guide::proto::CURINOS_CREDIT_CARD_FLIGHT_BENEFITS);
+    issuer_optimization_types.push_back(
+        optimization_guide::proto::CURINOS_CREDIT_CARD_HOTEL_BENEFITS);
+    issuer_optimization_types.push_back(
+        optimization_guide::proto::CURINOS_CREDIT_CARD_CAR_RENTAL_BENEFITS);
   }
 
   for (auto& optimization_type : issuer_optimization_types) {

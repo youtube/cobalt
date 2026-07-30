@@ -194,7 +194,6 @@ source_set("impl") {
     "//chrome/browser/themes",
     "//chrome/browser/ui:browser_actions",
     "//chrome/browser/ui:layout_constants",
-    "//chrome/browser/ui:tab_search_feature",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/actions:actions_headers",
     "//chrome/browser/ui/bookmarks",
@@ -220,6 +219,7 @@ source_set("impl") {
     "//chrome/browser/ui/views/glic",
     "//chrome/browser/ui/views/interaction",
     "//chrome/browser/ui/views/page_action",
+    "//chrome/browser/ui/views/performance_controls",
     "//chrome/browser/ui/views/tabs/glic",
     "//chrome/browser/ui/waap",
     "//chrome/browser/ui/waap:manager",
@@ -337,7 +337,6 @@ if (!is_android) {
       "//base",
       "//chrome/browser:flags",
       "//chrome/browser/ui:browser_actions",
-      "//chrome/browser/ui:tab_search_feature",
       "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui/hats:test_support",
       "//chrome/browser/ui/safety_hub:test_support",
@@ -363,7 +362,10 @@ if (!is_android) {
         "webui_toolbar_web_view_browsertest.cc",
       ]
 
-      deps += [ "//chrome/browser/ui/webui:webui_util" ]
+      deps += [
+        "//chrome/browser/ui/views/performance_controls",
+        "//chrome/browser/ui/webui:webui_util",
+      ]
     }
   }
 }
@@ -383,7 +385,6 @@ if (!is_android && !is_chromeos_device) {
         "reload_button_accessibility_interactive_uitest.cc",
         "reload_button_browsertest.cc",
         "split_tabs_button_interactive_ui_test.cc",
-        "tab_search_toolbar_button_interactive_uitest.cc",
         "toolbar_accessibility_test.cc",
         "toolbar_accessibility_test.h",
         "toolbar_action_hover_card_bubble_view_interactive_uitest.cc",
@@ -412,7 +413,6 @@ if (!is_android && !is_chromeos_device) {
       "//chrome/browser/profiles:misc",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/ui:browser_actions",
-      "//chrome/browser/ui:tab_search_feature",
       "//chrome/browser/ui:test_support",
       "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui/browser_window",
@@ -470,7 +470,6 @@ if (toolkit_views) {
       "//chrome/browser/sessions",
       "//chrome/browser/ui:browser_actions",
       "//chrome/browser/ui:layout_constants",
-      "//chrome/browser/ui:tab_search_feature",
       "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui/actions",
       "//chrome/browser/ui/actions:actions_headers",

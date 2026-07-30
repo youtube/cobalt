@@ -7,11 +7,15 @@
 #include <utility>
 
 #include "base/command_line.h"
+#include "base/functional/bind.h"
 #include "base/path_service.h"
 #include "build/build_config.h"
 #include "chrome/browser/bookmarks/bookmark_merged_surface_service.h"
 #include "chrome/browser/bookmarks/bookmark_merged_surface_service_factory.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/infobars/browser_infobar_manager.h"
+#include "chrome/browser/infobars/infobar_features.h"
+#include "chrome/browser/infobars/infobar_spec.h"
 #include "chrome/browser/net/system_network_context_manager.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_account_storage_move_dialog.h"
 #include "chrome/browser/ui/views/chrome_constrained_window_views_client.h"
@@ -20,12 +24,19 @@
 #include "chrome/browser/ui/views/media_router/media_router_dialog_controller_views.h"
 #include "chrome/browser/ui/views/relaunch_notification/relaunch_notification_controller.h"
 #include "chrome/common/chrome_paths.h"
+#include "chrome/grit/generated_resources.h"
 #include "components/constrained_window/constrained_window_views.h"
+#include "components/infobars/core/infobar_delegate.h"
 #include "components/media_router/browser/media_router_dialog_controller.h"
 #include "components/ui_devtools/devtools_server.h"
 #include "components/ui_devtools/switches.h"
 #include "components/ui_devtools/views/server_holder.h"
+#include "components/vector_icons/vector_icons.h"
+#include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/web_contents.h"
 #include "sandbox/policy/switches.h"
+#include "ui/base/l10n/l10n_util.h"
+#include "ui/base/ui_base_features.h"
 
 #if defined(USE_AURA)
 #include "base/run_loop.h"
@@ -177,10 +188,43 @@ void ChromeBrowserMainExtraPartsViews::PostProfileInit(
   }
 }
 
+void ChromeBrowserMainExtraPartsViews::
+    RegisterInfobars() {
+  if (infobars::IsInfoBarMigrated(
+          infobars::InfoBarDelegate::COLLECTED_COOKIES_INFOBAR_DELEGATE)) {
+    auto* browser_infobar_manager =
+        infobars::BrowserInfoBarManager::From(g_browser_process);
+    if (browser_infobar_manager) {
+      auto spec =
+          infobars::InfoBarSpec::Builder(
+              infobars::InfoBarDelegate::COLLECTED_COOKIES_INFOBAR_DELEGATE)
+              .SetMessageText(l10n_util::GetStringUTF16(
+                  IDS_COLLECTED_COOKIES_INFOBAR_MESSAGE))
+              .SetIcon(features::IsRoundedIconsEnabled()
+                           ? vector_icons::kSettingsIcon
+                           : vector_icons::kSettingsChromeRefreshOldIcon)
+              .SetScope(infobars::InfoBarScope::kCurrentTab)
+              .AddOkButton(
+                  l10n_util::GetStringUTF16(
+                      IDS_COLLECTED_COOKIES_INFOBAR_BUTTON),
+                  base::BindRepeating([](content::WebContents* web_contents) {
+                    if (web_contents) {
+                      web_contents->GetController().Reload(
+                          content::ReloadType::NORMAL, true);
+                    }
+                  }))
+              .Build();
+      browser_infobar_manager->Register(std::move(spec));
+    }
+  }
+}
+
 void ChromeBrowserMainExtraPartsViews::PostBrowserStart() {
   relaunch_notification_controller_ =
       std::make_unique<RelaunchNotificationController>(
           UpgradeDetector::GetInstance());
+
+  RegisterInfobars();
 }
 
 void ChromeBrowserMainExtraPartsViews::PostMainMessageLoopRun() {

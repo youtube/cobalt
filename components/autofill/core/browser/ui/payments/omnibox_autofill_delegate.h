@@ -9,8 +9,10 @@
 
 #include "base/containers/span.h"
 #include "base/memory/raw_ref.h"
+#include "base/memory/weak_ptr.h"
 #include "components/autofill/core/browser/foundations/autofill_manager.h"
 #include "components/autofill/core/browser/foundations/scoped_autofill_managers_observation.h"
+#include "components/autofill/core/browser/ui/autofill_suggestion_delegate.h"
 #include "components/autofill/core/common/unique_ids.h"
 
 namespace autofill {
@@ -18,8 +20,12 @@ namespace autofill {
 class AutofillClient;
 class AutofillDriver;
 
-class OmniboxAutofillDelegate : public AutofillManager::Observer {
+class OmniboxAutofillDelegate : public AutofillManager::Observer,
+                                public AutofillSuggestionDelegate {
  public:
+  using AutofillManager::Observer::OnSuggestionsHidden;
+  using AutofillManager::Observer::OnSuggestionsShown;
+
   explicit OmniboxAutofillDelegate(AutofillClient* autofill_client);
 
   OmniboxAutofillDelegate(const OmniboxAutofillDelegate&) = delete;
@@ -39,6 +45,22 @@ class OmniboxAutofillDelegate : public AutofillManager::Observer {
   void OnAfterFormsSeen(AutofillManager& manager,
                         base::span<const FormGlobalId> updated_forms,
                         base::span<const FormGlobalId> removed_forms) override;
+
+  // AutofillSuggestionDelegate:
+  bool OnFilterChanged(const std::u16string& filter) override;
+  bool OnSearchSubmitted(const std::u16string& filter) override;
+  bool IsSearching() const override;
+  std::variant<AutofillDriver*, password_manager::PasswordManagerDriver*>
+  GetDriver() override;
+  void OnSuggestionsShown(base::span<const Suggestion> suggestions) override;
+  void OnSuggestionsHidden(SuggestionHidingReason reason) override;
+  void DidSelectSuggestion(const Suggestion& suggestion) override;
+  void DidAcceptSuggestion(const Suggestion& suggestion,
+                           const SuggestionMetadata& metadata) override;
+  bool RemoveSuggestion(const Suggestion& suggestion) override;
+  void ClearPreviewedForm() override;
+  FillingProduct GetMainFillingProduct() const override;
+  void OnTabSelected(TabbedPaneTabType tab_type) override;
 
   void OnGetIntersectionObserverInfo(bool is_visible);
 
@@ -67,6 +89,8 @@ class OmniboxAutofillDelegate : public AutofillManager::Observer {
   const raw_ref<AutofillClient> client_;
 
   ScopedAutofillManagersObservation autofill_managers_observation_{this};
+
+  base::WeakPtrFactory<OmniboxAutofillDelegate> weak_ptr_factory_{this};
 };
 
 }  // namespace autofill

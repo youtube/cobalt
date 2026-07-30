@@ -17,6 +17,7 @@ import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.MediumTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -135,6 +136,19 @@ public class TabSuspensionTest {
                                     mTokenTracker,
                                     mSuspensionTracker,
                                     mActivity.getTabContentManagerSupplier());
+                });
+    }
+
+    @After
+    public void tearDown() {
+        // PageViewObserver no longer self-registers with the ActivityLifecycleDispatcher; the
+        // caller is responsible for destroying it. Doing so here also releases references to the
+        // owning Activity so it can be GC'd. See the leak path documented on the
+        // PageViewObserver fields.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    if (mPageViewObserver != null) mPageViewObserver.destroy();
+                    if (mPageViewObserver2 != null) mPageViewObserver2.destroy();
                 });
     }
 

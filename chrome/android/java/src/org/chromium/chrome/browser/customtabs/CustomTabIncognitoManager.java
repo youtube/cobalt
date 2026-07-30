@@ -14,6 +14,7 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
 import org.chromium.chrome.browser.customtabs.content.CustomTabActivityNavigationController;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.DestroyObserver;
 import org.chromium.chrome.browser.lifecycle.NativeInitObserver;
@@ -80,8 +81,10 @@ public class CustomTabIncognitoManager implements NativeInitObserver, DestroyObs
     }
 
     private void maybeCreateIncognitoTabSnapshotController() {
-        new IncognitoCustomTabSnapshotController(
-                mActivity, () -> mIntentDataProvider.getCustomTabMode() == INCOGNITO);
+        if (!ChromeFeatureList.sEnableAndroidEnterpriseScreenshotProtection.isEnabled()) {
+            new IncognitoCustomTabSnapshotController(
+                    mActivity, () -> mIntentDataProvider.getCustomTabMode() == INCOGNITO);
+        }
     }
 
     /**

@@ -159,11 +159,9 @@ const CGFloat kButtonImageInset = 3;
     willDisplayMenuForConfiguration:(UIContextMenuConfiguration*)configuration
                            animator:
                                (id<UIContextMenuInteractionAnimating>)animator {
-  if (IsGeminiCopresenceEnabled()) {
-    [self.geminiHandler
-        hideFloatyIfInvokedAnimated:NO
-                         fromSource:gemini::FloatyUpdateSource::ContextMenu];
-  }
+  [self.geminiHandler
+      hideFloatyIfInvokedAnimated:NO
+                       fromSource:gemini::FloatyUpdateSource::ContextMenu];
 
   [super contextMenuInteraction:interaction
       willDisplayMenuForConfiguration:configuration

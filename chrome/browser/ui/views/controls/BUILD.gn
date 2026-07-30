@@ -7,14 +7,42 @@ import("//build/config/ui.gni")
 assert(toolkit_views)
 
 source_set("controls") {
-  sources = [
+  public = [
     "hover_button.h",
+    "hover_button_controller.h",
     "page_switcher_view.h",
+    "rich_controls_container_view.h",
+    "rich_hover_button.h",
+    "site_icon_text_and_origin_view.h",
+    "subpage_view.h",
+  ]
+  sources = [
+    "hover_button.cc",
+    "hover_button_controller.cc",
+    "page_switcher_view.cc",
+    "rich_controls_container_view.cc",
+    "rich_hover_button.cc",
+    "site_icon_text_and_origin_view.cc",
+    "subpage_view.cc",
   ]
   public_deps = [
     "//base",
     "//chrome/browser/ui/views:layout_provider",
+    "//components/content_settings/core/common",
     "//ui/base",
     "//ui/views",
+  ]
+  deps = [
+    "//chrome/browser/ui:layout_constants",
+    "//chrome/browser/ui:ui_features",
+    "//chrome/browser/ui/color:color_headers",
+    "//chrome/browser/ui/views/accessibility",
+    "//chrome/browser/ui/views/page_info",
+    "//chrome/browser/ui/views/web_apps",
+    "//components/constrained_window",
+    "//components/content_settings/browser/ui",
+    "//components/strings:components_strings",
+    "//components/web_modal",
+    "//content/public/browser",
   ]
 }

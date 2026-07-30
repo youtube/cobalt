@@ -119,6 +119,14 @@ function expose(publicClass, privateClass, exposed) {
     constructor: publicClass,
   };
 
+  $Object.defineProperty(publicClassPrototype, $Symbol.toStringTag, {
+    __proto__: null,
+    configurable: true,
+    enumerable: false,
+    value: publicClass.name,
+    writable: false,
+  });
+
   if ('functions' in exposed) {
     $Array.forEach(exposed.functions, function(func) {
       publicClassPrototype[func] = function() {

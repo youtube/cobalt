@@ -12,22 +12,15 @@
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ash/crosapi/crosapi_id.h"
 #include "chromeos/crosapi/mojom/crosapi.mojom.h"
-#include "chromeos/crosapi/mojom/telemetry_diagnostic_routine_service.mojom.h"
 #include "media/gpu/buildflags.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "printing/buildflags/buildflags.h"
 
-namespace ash {
-class ProbeServiceAsh;
-class TelemetryDiagnosticsRoutineServiceAsh;
-
-namespace auth {
+namespace ash::auth {
 class InSessionAuth;
-}  // namespace auth
-
-}  // namespace ash
+}  // namespace ash::auth
 
 namespace crosapi {
 
@@ -73,20 +66,11 @@ class CrosapiAsh : public mojom::Crosapi {
   void BindSensorHalClient(
       mojo::PendingRemote<chromeos::sensors::mojom::SensorHalClient> remote)
       override;
-  void BindTelemetryDiagnosticRoutinesService(
-      mojo::PendingReceiver<mojom::TelemetryDiagnosticRoutinesService> receiver)
-      override;
 
-
-  ash::ProbeServiceAsh* probe_service_ash() { return probe_service_ash_.get(); }
 
  private:
   // Called when a connection is lost.
   void OnDisconnected();
-
-  std::unique_ptr<ash::TelemetryDiagnosticsRoutineServiceAsh>
-      telemetry_diagnostic_routine_service_ash_;
-  std::unique_ptr<ash::ProbeServiceAsh> probe_service_ash_;
 
   mojo::ReceiverSet<mojom::Crosapi, CrosapiId> receiver_set_;
   std::map<mojo::ReceiverId, base::OnceClosure> disconnect_handler_map_;

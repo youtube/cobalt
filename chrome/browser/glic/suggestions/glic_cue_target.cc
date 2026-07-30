@@ -12,6 +12,7 @@
 #include "chrome/browser/contextual_cueing/contextual_cueing_controller.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_metrics.h"
 #include "chrome/browser/contextual_cueing/cueing_log.h"
+#include "chrome/browser/contextual_cueing/features.h"
 #include "chrome/browser/glic/browser_ui/glic_vector_icon_manager.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/public/features.h"
@@ -26,6 +27,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "components/optimization_guide/proto/features/contextual_cueing.pb.h"
+#include "components/pdf/common/constants.h"
 #include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_handle_factory.h"
 #include "ui/base/models/image_model.h"
@@ -86,9 +88,32 @@ void GlicCueTarget::CheckEligibility(
 bool GlicCueTarget::IsPageEligible(
     const page_content_annotations::PageContentAnnotationsResult& result,
     content::WebContents* active_web_contents) const {
-  // TODO(b/520159219): Placeholder stub. Glic eligibility logic is wired up
-  // in upcoming CLs.
-  return false;
+  if (!active_web_contents) {
+    return false;
+  }
+
+  bool passes_edu = false;
+  bool passes_shopping = false;
+  for (const page_content_annotations::Category& category :
+       result.GetCategoryResults()) {
+    if (category.category_type ==
+            page_content_annotations::CategoryType::kEducation &&
+        category.score > contextual_cueing::kEduClassifierThreshold.Get()) {
+      passes_edu = true;
+    }
+    if (category.category_type ==
+            page_content_annotations::CategoryType::kShopping &&
+        category.score >
+            contextual_cueing::kShoppingClassifierThreshold.Get()) {
+      passes_shopping = true;
+    }
+  }
+
+  if (contextual_cueing::kDiscardShoppingPdfs.Get() &&
+      active_web_contents->GetContentsMimeType() == pdf::kPDFMimeType) {
+    return passes_edu && !passes_shopping;
+  }
+  return passes_edu || passes_shopping;
 }
 
 bool GlicCueTarget::IsEligible() const {

@@ -429,7 +429,6 @@ class GtestTestInstance(test_instance.TestInstance):
     self._shard_timeout = args.shard_timeout
     self._store_tombstones = args.store_tombstones
     self._suite = args.suite_name[0]
-    self._symbolizer = stack_symbolizer.Symbolizer(None)
     self._total_external_shards = args.test_launcher_total_shards
     self._wait_for_java_debugger = args.wait_for_java_debugger
     self._use_existing_test_data = args.use_existing_test_data
@@ -480,6 +479,9 @@ class GtestTestInstance(test_instance.TestInstance):
         self._shard_timeout = 10 * self._shard_timeout
       if args.wait_for_java_debugger:
         self._extras[EXTRA_SHARD_NANO_TIMEOUT] = int(1e15)  # Forever
+
+    self._symbolizer = stack_symbolizer.Symbolizer(
+        self._apk_helper.path if self._apk_helper else None)
 
     if not self._apk_helper and not self._exe_dist_dir:
       error_func('Could not find apk or executable for %s' % self._suite)

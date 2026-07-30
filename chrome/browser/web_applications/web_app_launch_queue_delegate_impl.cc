@@ -10,7 +10,6 @@
 #include "components/webapps/browser/launch_queue/launch_params.h"
 #include "content/public/browser/file_system_access_permission_context.h"
 #include "content/public/browser/web_contents.h"
-#include "extensions/common/constants.h"
 #include "storage/browser/file_system/external_mount_points.h"
 
 namespace web_app {
@@ -20,7 +19,7 @@ namespace {
 // TODO(crbug.com/40169582): Consider adding an {extension, pwa} enum to
 // `launch_params` instead of checking the scheme specifically for extensions?
 bool IsExtensionURL(const GURL& gurl) {
-  return gurl.SchemeIs(extensions::kExtensionScheme);
+  return gurl.SchemeIs("chrome-extension");
 }
 
 }  // namespace

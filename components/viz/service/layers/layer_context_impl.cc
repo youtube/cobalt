@@ -240,6 +240,12 @@ base::expected<void, std::string> UpdatePropertyTreeNode(
     cc::PropertyTrees& trees,
     cc::TransformNode& node,
     const mojom::TransformNode& wire) {
+  if (wire.id == cc::kSecondaryRootPropertyNodeId &&
+      wire.parent_id == cc::kInvalidPropertyNodeId) {
+    return base::unexpected(
+        "Invalid parent_id for non-root property tree node");
+  }
+
   auto& tree = trees.transform_tree_mutable();
   if (!IsOptionalPropertyTreeIndexValid(tree, wire.parent_frame_id)) {
     return base::unexpected("Invalid parent_frame_id");
@@ -1635,15 +1641,8 @@ base::expected<void, std::string> DeserializeAnimation(
                 *wire_model, *animation));
         break;
       case mojom::AnimationKeyframeValue::Tag::kSize:
-        RETURN_IF_ERROR(
-            DeserializeAnimationCurve<gfx::KeyframedSizeAnimationCurve>(
-                *wire_model, *animation));
-        break;
       case mojom::AnimationKeyframeValue::Tag::kRect:
-        RETURN_IF_ERROR(
-            DeserializeAnimationCurve<gfx::KeyframedRectAnimationCurve>(
-                *wire_model, *animation));
-        break;
+        return base::unexpected("Unsupported keyframe value type");
       case mojom::AnimationKeyframeValue::Tag::kTransform:
         RETURN_IF_ERROR(
             DeserializeAnimationCurve<gfx::KeyframedTransformAnimationCurve>(

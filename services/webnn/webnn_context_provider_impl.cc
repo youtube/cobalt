@@ -631,6 +631,7 @@ void WebNNContextProviderImpl::CreateWeightsFile(
 
 #if BUILDFLAG(IS_WIN)
 void WebNNContextProviderImpl::OnDispatchContextCreated(
+    EpDeviceInfo target_device,
     CreateWebNNContextCallback callback,
     mojo::PendingRemote<mojom::WebNNContext> remote,
     mojo::ScopedDataPipeProducerHandle write_tensor_producer,
@@ -661,8 +662,7 @@ void WebNNContextProviderImpl::OnDispatchContextCreated(
   // Compiler process if needed and create the context atomically within a
   // single message handler, avoiding races with Compiler crashes.
   gpu_host_->RequestWebNNCompilerContext(
-      std::move(options_clone), context_properties,
-      CloneEpPackageInfoForCompiler(),
+      std::move(options_clone), context_properties, target_device,
       base::BindOnce(
           [](CreateWebNNContextCallback callback,
              mojo::PendingRemote<mojom::WebNNContext> remote,
@@ -704,16 +704,6 @@ void WebNNContextProviderImpl::OnDispatchContextCreated(
           std::move(owning_task_runner), command_buffer_id.GetUnsafeValue()));
 }
 
-base::flat_map<std::string, mojom::EpPackageInfoPtr>
-WebNNContextProviderImpl::CloneEpPackageInfoForCompiler() const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(main_sequence_checker_);
-  std::vector<std::pair<std::string, mojom::EpPackageInfoPtr>> pairs;
-  pairs.reserve(ep_package_info_for_compiler_.size());
-  for (const auto& [name, info] : ep_package_info_for_compiler_) {
-    pairs.emplace_back(name, info.Clone());
-  }
-  return base::flat_map<std::string, mojom::EpPackageInfoPtr>(std::move(pairs));
-}
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(WEBNN_USE_TFLITE)
@@ -806,7 +796,10 @@ void WebNNContextProviderImpl::OnOrtEnvCreated(
   const gpu::SequenceId sequence_id = gpu_task_scheduler->sequence_id();
   const gpu::CommandBufferId command_buffer_id =
       gpu_task_scheduler->command_buffer_id();
-  if (env_creation_results.has_value()) {
+  if (!env_creation_results.has_value()) {
+    LOG(ERROR) << "[WebNN] Failed to create ONNX Runtime environment: "
+               << env_creation_results.error();
+  } else {
     auto env = std::move(env_creation_results.value());
 
     // Create session options before posting context creation, so that
@@ -814,11 +807,19 @@ void WebNNContextProviderImpl::OnOrtEnvCreated(
     OrtHardwareDeviceType device_type =
         ort::WebnnToOrtDeviceType(options->device);
     auto session_options_result = ort::SessionOptions::Create(device_type, env);
-    if (session_options_result.has_value()) {
-      // When the Compiler process is enabled, create a dispatch-only context.
-      // Graph building and compilation happen in the Compiler process.
-      if (base::FeatureList::IsEnabled(
-              mojom::features::kWebNNCompilerProcess)) {
+
+    if (!session_options_result.has_value()) {
+      LOG(ERROR) << "[WebNN] Failed to create ONNX Runtime session options: "
+                 << session_options_result.error();
+    } else if (base::FeatureList::IsEnabled(
+                   mojom::features::kWebNNCompilerProcess)) {
+      // When the Compiler process is enabled, create a dispatch-only context
+      // that delegates graph building/compilation to a per-EP-device Compiler
+      // process. Fall back to another backend if no compatible EP device is
+      // found.
+      std::optional<EpDeviceInfo> selected_device =
+          env->SelectEpDeviceForCompiler(device_type);
+      if (selected_device.has_value()) {
         scoped_trace.AddStep("ort::DispatchContextImplOrt::Create");
         task_runner->PostTaskAndReplyWithResult(
             FROM_HERE,
@@ -832,38 +833,34 @@ void WebNNContextProviderImpl::OnOrtEnvCreated(
                            base::Unretained(shared_image_manager_.get()),
                            main_thread_task_runner_, std::move(scoped_trace)),
             base::BindOnce(&WebNNContextProviderImpl::OnDispatchContextCreated,
-                           AsWeakPtr(), std::move(callback), std::move(remote),
+                           AsWeakPtr(), std::move(*selected_device),
+                           std::move(callback), std::move(remote),
                            std::move(write_tensor_producer),
                            std::move(read_tensor_consumer), sequence_id));
-      } else {
-        scoped_trace.AddStep("ort::ContextImplOrt::Create");
-        // Safe to use base::Unretained for shared_image_manager_ since it
-        // lives on the GPU service, which is guaranteed to outlive the provider
-        // and its contexts.
-        task_runner->PostTaskAndReplyWithResult(
-            FROM_HERE,
-            base::BindOnce(
-                &ort::ContextImplOrt::Create, std::move(receiver), AsWeakPtr(),
-                std::move(options), std::move(write_tensor_consumer),
-                std::move(read_tensor_producer), std::move(env),
-                std::move(session_options_result.value()),
-                std::move(gpu_task_scheduler), std::move(memory_tracker),
-                task_runner, base::Unretained(shared_image_manager_.get()),
-                main_thread_task_runner_, std::move(scoped_trace)),
-            base::BindOnce(&WebNNContextProviderImpl::OnCreateWebNNContextImpl,
-                           AsWeakPtr(), std::move(callback), std::move(remote),
-                           std::move(write_tensor_producer),
-                           std::move(read_tensor_consumer), sequence_id,
-                           command_buffer_id));
+        return;
       }
+    } else {
+      scoped_trace.AddStep("ort::ContextImplOrt::Create");
+      // Safe to use base::Unretained for shared_image_manager_ since it
+      // lives on the GPU service, which is guaranteed to outlive the provider
+      // and its contexts.
+      task_runner->PostTaskAndReplyWithResult(
+          FROM_HERE,
+          base::BindOnce(
+              &ort::ContextImplOrt::Create, std::move(receiver), AsWeakPtr(),
+              std::move(options), std::move(write_tensor_consumer),
+              std::move(read_tensor_producer), std::move(env),
+              std::move(session_options_result.value()),
+              std::move(gpu_task_scheduler), std::move(memory_tracker),
+              task_runner, base::Unretained(shared_image_manager_.get()),
+              main_thread_task_runner_, std::move(scoped_trace)),
+          base::BindOnce(&WebNNContextProviderImpl::OnCreateWebNNContextImpl,
+                         AsWeakPtr(), std::move(callback), std::move(remote),
+                         std::move(write_tensor_producer),
+                         std::move(read_tensor_consumer), sequence_id,
+                         command_buffer_id));
       return;
     }
-
-    LOG(ERROR) << "[WebNN] Failed to create ONNX Runtime session options: "
-               << session_options_result.error();
-  } else {
-    LOG(ERROR) << "[WebNN] Failed to create ONNX Runtime environment: "
-               << env_creation_results.error();
   }
 
 #if BUILDFLAG(WEBNN_USE_TFLITE) || BUILDFLAG(WEBNN_USE_LITERT)
@@ -925,20 +922,6 @@ void WebNNContextProviderImpl::DidEnsureWebNNExecutionProvidersReady(
     base::flat_map<std::string, mojom::EpPackageInfoPtr> ep_package_info) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(main_sequence_checker_);
   scoped_trace.AddStep("ort::Environment::GetInstance");
-
-  // Store a copy of the EP package info for forwarding to the Compiler process.
-  // Always update the cached copy because EPs in `NotPresent` state may be
-  // added asynchronously after initialization, so later calls may contain
-  // more entries than earlier ones.
-  if (!ep_package_info.empty()) {
-    std::vector<std::pair<std::string, mojom::EpPackageInfoPtr>> pairs;
-    pairs.reserve(ep_package_info.size());
-    for (const auto& [name, info] : ep_package_info) {
-      pairs.emplace_back(name, info.Clone());
-    }
-    ep_package_info_for_compiler_ =
-        base::flat_map<std::string, mojom::EpPackageInfoPtr>(std::move(pairs));
-  }
 
   task_runner->PostTaskAndReplyWithResult(
       FROM_HERE,

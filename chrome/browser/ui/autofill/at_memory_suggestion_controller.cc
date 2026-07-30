@@ -151,6 +151,10 @@ void AtMemorySuggestionController::UpdateDataListValues(
 }
 
 void AtMemorySuggestionController::HideViewAndDie() {
+  if (auto* client =
+          ChromeAutofillClient::FromWebContents(web_contents_.get())) {
+    client->HideAtMemoryBottomSheet();
+  }
   ui_session_id_ = std::nullopt;
 
   // Invalidates in particular ChromeAutofillClient's WeakPtr to `this`, which

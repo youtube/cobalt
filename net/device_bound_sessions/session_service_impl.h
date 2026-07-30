@@ -10,10 +10,8 @@
 #include <optional>
 #include <ranges>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
-#include "base/containers/unique_ptr_adapters.h"
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/timer/elapsed_timer.h"
@@ -26,6 +24,8 @@
 #include "net/device_bound_sessions/session.h"
 #include "net/device_bound_sessions/session_key.h"
 #include "net/device_bound_sessions/session_service.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 
 namespace net {
 class URLRequest;
@@ -42,14 +42,6 @@ namespace net::device_bound_sessions {
 class SessionStore;
 
 struct DeferredURLRequest {
-  DeferredURLRequest(base::WeakPtr<URLRequest> request,
-                     SessionService::RefreshCompleteCallback callback);
-  DeferredURLRequest(DeferredURLRequest&& other) noexcept;
-
-  DeferredURLRequest& operator=(DeferredURLRequest&& other) noexcept;
-
-  ~DeferredURLRequest();
-
   // A weak pointer to the deferred request. Stored to allow resiliently
   // selecting a new triggering request if the original triggering request is
   // canceled during asynchronous key restoration.
@@ -161,28 +153,22 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
 
   // The key is the site (eTLD+1) of the session's origin and the
   // session id.
+  // NOTE: This map needs to be ordered, and thus is not a hash map.
   using SessionsMap = std::map<SessionKey, std::unique_ptr<Session>>;
   using DeferredRequestsMap =
-      std::map<SessionKey, absl::InlinedVector<DeferredURLRequest, 1>>;
-  using ProactiveRefreshMap = std::map<SessionKey, base::ElapsedTimer>;
+      absl::flat_hash_map<SessionKey,
+                          absl::InlinedVector<DeferredURLRequest, 1>>;
+  using ProactiveRefreshMap =
+      absl::flat_hash_map<SessionKey, base::ElapsedTimer>;
   using LatestSignedRefreshChallengesMap =
-      std::map<SessionKey, SignedRefreshChallenge>;
+      absl::flat_hash_map<SessionKey, SignedRefreshChallenge>;
 
   struct Observer {
-    Observer(const GURL& url,
-             base::RepeatingCallback<void(const SessionAccess&)> callback);
-
-    Observer(const Observer&) = delete;
-    Observer& operator=(const Observer&) = delete;
-
-    ~Observer();
-
     GURL url;
     base::RepeatingCallback<void(const SessionAccess&)> callback;
   };
 
-  using ObserverSet =
-      std::set<std::unique_ptr<Observer>, base::UniquePtrComparator>;
+  using ObserverSet = absl::flat_hash_set<std::unique_ptr<Observer>>;
 
   enum class RefreshTrigger {
     // Refresh due to a request missing a bound cookie.
@@ -390,7 +376,7 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
   SessionsMap unpartitioned_sessions_;
 
   // All observers of sessions.
-  std::map<net::SchemefulSite, ObserverSet> observers_by_site_;
+  absl::flat_hash_map<net::SchemefulSite, ObserverSet> observers_by_site_;
 
   // Observers for DBSC events. Used for DevTools.
   base::RepeatingCallbackList<void(const SessionEvent&)> event_callbacks_;
@@ -398,11 +384,12 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
   // Per-site session refresh quota. In order to be robust across
   // session parameter changes, we enforce refresh quota for a site.
   // This functionality is being replaced with `signing_times_`.
-  std::map<net::SchemefulSite, std::vector<base::Time>> refresh_times_;
+  absl::flat_hash_map<net::SchemefulSite, std::vector<base::Time>>
+      refresh_times_;
 
   // Per-site record of the most recent refresh result. This is used
   // for histograms.
-  std::map<net::SchemefulSite, SessionError> refresh_last_result_;
+  absl::flat_hash_map<net::SchemefulSite, SessionError> refresh_last_result_;
 
   // Per-site session signing quota. In order to be robust across
   // session parameter changes, we enforce signing quota for a site.
@@ -412,13 +399,14 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
   // `base::TimeTicks` pauses during system sleep on macOS
   // (crbug.com/489704854), which would prevent the quota from decaying
   // overnight.
-  std::map<net::SchemefulSite, std::vector<base::Time>> signing_times_;
+  absl::flat_hash_map<net::SchemefulSite, std::vector<base::Time>>
+      signing_times_;
 
   // The latest signed challenges per session.
   LatestSignedRefreshChallengesMap latest_signed_refresh_challenges_;
 
   // Holds all currently live registration fetchers.
-  std::set<std::unique_ptr<RegistrationFetcher>, base::UniquePtrComparator>
+  absl::flat_hash_set<std::unique_ptr<RegistrationFetcher>>
       registration_fetchers_;
 
   // List of sites that are restricted from starting Device Bound

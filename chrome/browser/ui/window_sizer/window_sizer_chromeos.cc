@@ -90,7 +90,7 @@ bool WindowSizerChromeOS::GetBrowserBounds(
   }
 
   // This should not be called on a Browser that already has a window.
-  DCHECK(!browser()->window());
+  DCHECK(!browser()->GetWindow());
 
   bool determined = false;
   if (bounds->IsEmpty()) {

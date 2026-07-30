@@ -9,9 +9,10 @@
 namespace enterprise_connectors {
 
 TEST(EnterpriseConnectorsProtoTest, AnalysisConnectorEnum) {
-  EXPECT_EQ(enterprise_connectors::AnalysisConnector_ARRAYSIZE, 6);
+  EXPECT_EQ(enterprise_connectors::AnalysisConnector_ARRAYSIZE, 7);
+  // TODO(eliashomsi): Add DATA_COPIED to the SDK proto.
   EXPECT_EQ(enterprise_connectors::AnalysisConnector_ARRAYSIZE,
-            content_analysis::sdk::AnalysisConnector_ARRAYSIZE);
+            content_analysis::sdk::AnalysisConnector_ARRAYSIZE + 1);
 
   EXPECT_EQ((int)enterprise_connectors::ANALYSIS_CONNECTOR_UNSPECIFIED,
             (int)content_analysis::sdk::ANALYSIS_CONNECTOR_UNSPECIFIED);
@@ -76,8 +77,9 @@ using ChromiumReason = enterprise_connectors::ContentAnalysisRequest;
 using SdkReason = content_analysis::sdk::ContentAnalysisRequest;
 
 TEST(EnterpriseConnectorsProtoTest, ReasonEnum) {
-  EXPECT_EQ(ChromiumReason::Reason_ARRAYSIZE, 8);
-  EXPECT_EQ(ChromiumReason::Reason_ARRAYSIZE, SdkReason::Reason_ARRAYSIZE);
+  EXPECT_EQ(ChromiumReason::Reason_ARRAYSIZE, 9);
+  // TODO(eliashomsi): Add CLIPBOARD_COPY to the SDK proto.
+  EXPECT_EQ(ChromiumReason::Reason_ARRAYSIZE, SdkReason::Reason_ARRAYSIZE + 1);
 
   EXPECT_EQ((int)ChromiumReason::UNKNOWN, (int)SdkReason::UNKNOWN);
   EXPECT_EQ((int)ChromiumReason::CLIPBOARD_PASTE,

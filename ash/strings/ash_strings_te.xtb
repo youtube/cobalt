@@ -48,6 +48,7 @@
 <translation id="1129383337808748948"><ph name="CONTENT_TITLE" />‌ను రిఫ్రెష్ చేయండి</translation>
 <translation id="1142002900084379065">ఇటీవలి ఫోటోలు</translation>
 <translation id="114221662579355151">కెమెరా అనుమతితో ఇది <ph name="APP1_NAME" />, <ph name="APP2_NAME" />, ఇంకా అన్ని యాప్‌లు, వెబ్‌సైట్‌లకు యాక్సెస్‌ను అనుమతిస్తుంది. మీరు వెబ్ పేజీని రిఫ్రెష్ చేయాల్సి రావచ్చు లేదా యాప్‌ను రీస్టార్ట్ చేయాల్సి రావచ్చు.</translation>
+<translation id="1145593918056169051">ప్రింటర్ ఆపివేయబడింది</translation>
 <translation id="1147991416141538220">యాక్సెస్‌ను అడగడానికి, ఈ పరికరం యొక్క నిర్వాహకులను సంప్రదించండి.</translation>
 <translation id="1148499908455722006"><ph name="USER_NAME" /> కోసం సమాచార డైలాగ్‌ను తెరవండి</translation>
 <translation id="1150989369772528668">క్యాలెండర్</translation>
@@ -151,6 +152,7 @@
 <translation id="1383876407941801731">సెర్చ్</translation>
 <translation id="1388728792929436380">అప్‌డేట్‌లు పూర్తయినప్పుడు <ph name="DEVICE_TYPE" /> రీస్టార్ట్ అవుతుంది.</translation>
 <translation id="1390113502208199250">Chrome Education అప్‌గ్రేడ్ ఫీచర్‌లను ఉపయోగించడానికి మీరు ఈ డివైజ్‌ను ఫ్యాక్టరీ రీసెట్ చేయవలసి ఉంటుంది.</translation>
+<translation id="1390907927270446471"><ph name="PRINTER_NAME" />కు ప్రింట్ చేయడానికి <ph name="PROFILE_USERNAME" />కు అధికారం లేదు. దయచేసి మీ అడ్మినిస్ట్రేటర్‌ను సంప్రదించండి.</translation>
 <translation id="1391102559483454063">ఆన్</translation>
 <translation id="1394698770495054737">పూర్తిగా బ్లర్</translation>
 <translation id="1395878931462960119">{DAYS,plural, =1{1 రోజు క్రితం}other{# రోజుల క్రితం}}</translation>
@@ -169,6 +171,7 @@
 <translation id="1426410128494586442">అవును</translation>
 <translation id="142655739075382478"><ph name="APP_NAME" /> బ్లాక్ చేయబడింది</translation>
 <translation id="142765311413773645"><ph name="APP_NAME" /> లైసెన్స్ గడువు ముగిసింది</translation>
+<translation id="1430915738399379752">ప్రింట్</translation>
 <translation id="1435537621343861112">డిక్టేషన్ ప్రారంభించడం సాధ్యం కాదు. మీ మైక్ ఆఫ్‌లో ఉంది.</translation>
 <translation id="1445031758921122223">ఫేస్ కంట్రోల్ ఫైళ్లు డౌన్‌లోడ్ అయ్యాయి</translation>
 <translation id="1447907279406111651">ఇప్పుడు ⋅ <ph name="END_TIME" /> సమయానికి ముగుస్తుంది</translation>
@@ -229,6 +232,7 @@
 <translation id="1597880963776148053"><ph name="TOTAL_STEPS" /> దశలలో <ph name="STEP" />వ దానిని చూడండి. మీరు పిన్ చేసిన, తెరిచిన యాప్‌లు మీ స్క్రీన్ కింద ఉన్న షెల్ఫ్‌లో ఉన్నాయి. షెల్ఫ్ ఐటెమ్‌లపై ఫోకస్ చేయడానికి Alt + Shift + L ఆపై ట్యాబ్‌లను నొక్కండి.</translation>
 <translation id="1602085790802918092">వర్చువల్ మెషిన్‌ను ప్రారంభిస్తోంది</translation>
 <translation id="1602874809115667351"><ph name="LAUNCHER_KEY_NAME" /> + కింది వైపు బాణం గుర్తు</translation>
+<translation id="1604432177629086300">ముద్రించడం సాధ్యపడలేదు. ప్రింటర్‌ను పరిశీలించి, మళ్ళీ ప్రయత్నించండి.</translation>
 <translation id="1604857178818051494">మీడియాను పాజ్ చేయండి</translation>
 <translation id="1607312127821884567">మీ ఫోన్‌లోని యాప్‌లను చూసే సదుపాయాన్ని సెటప్ చేయడాన్ని విస్మరించండి</translation>
 <translation id="1610778689852195798">"చర్య రద్దు చేయండి"</translation>
@@ -372,6 +376,7 @@
 <translation id="2053312383184521053">నిష్క్రియ స్థితి డేటా</translation>
 <translation id="2064048859448024834">కెమెరా ప్రివ్యూ ఆన్‌లో ఉంది</translation>
 <translation id="2067220651560163985">టెంపరేచర్‌ను సెల్సియస్‌లో చూపండి</translation>
+<translation id="206960706005837784"><ph name="APP_NAME" />, <ph name="PRINTER_NAME" />‌కు ప్రింటింగ్‌ను పూర్తి చేసింది</translation>
 <translation id="2075520525463668108"><ph name="CAPTURE_MEDIUM" />ను టోగుల్ చేయండి. <ph name="CAPTURE_MEDIUM" /> <ph name="CAPTURE_STATE" />లో ఉంది</translation>
 <translation id="2079545284768500474">చర్య రద్దు</translation>
 <translation id="2086334242442703436">ఎమోజి పికర్‌ను తెరవండి</translation>
@@ -441,6 +446,7 @@
 <translation id="2328561734797404498"><ph name="APP_NAME" />ను ఉపయోగించడానికి దయచేసి మీ డివైజ్‌ను రీస్టార్ట్ చేయండి.</translation>
 <translation id="2335091074961603075">మీ Chromebook లేదా బ్లూటూత్ పరికరం, బ్లూటూత్ పాత వెర్షన్‌ను ఉపయోగిస్తున్నాయి. మెరుగైన ఆడియో క్వాలిటీ కోసం అంతర్గత మైక్రోఫోన్‌ను ఉపయోగించండి.</translation>
 <translation id="2336214675195760012">{NUM_DAYS,plural, =1{అప్‌డేట్‌ను డౌన్‌లోడ్ చేయడానికి మీరు ఈరోజే Wi-Fiకి కనెక్ట్ అవ్వమని <ph name="MANAGER" /> కోరుతోంది. లేదా డేటా నియంత్రణ ఉన్న కనెక్షన్ నుండి డౌన్‌లోడ్ చేయండి (ఛార్జీలు వర్తించవచ్చు).}other{అప్‌డేట్‌ను డౌన్‌లోడ్ చేయడానికి మీరు గడువు తేదీలోపు Wi-Fiకి కనెక్ట్ అవ్వమని <ph name="MANAGER" /> కోరుతోంది. లేదా డేటా నియంత్రణ ఉన్న కనెక్షన్ నుండి డౌన్‌లోడ్ చేయండి (ఛార్జీలు వర్తించవచ్చు).}}</translation>
+<translation id="2336258397628212480"><ph name="APP_NAME" />, <ph name="PRINTER_NAME" />‌కు 1 పేజీని ప్రింట్ చేస్తోంది</translation>
 <translation id="2336381494582898602">పవర్‌వాష్ చేయి</translation>
 <translation id="2339073806695260576">గమనికను రాయడానికి, స్క్రీన్‌షాట్‌ను తీయడానికి, లేజర్ పాయింటర్ లేదా భూతద్దాన్ని ఉపయోగించడానికి అరలో స్టయిలస్ బటన్‌ను నొక్కండి.</translation>
 <translation id="2341729377289034582">నిలువు ప్రదర్శనకు లాక్ చేయబడింది</translation>
@@ -755,6 +761,7 @@
 <translation id="3206735939915734551">Caps Lockను ఆన్ చేయండి/ఆఫ్ చేయండి</translation>
 <translation id="3207953481422525583">యూజర్ సెట్టింగ్‌లు</translation>
 <translation id="3208321278970793882">యాప్</translation>
+<translation id="32101887417650595">ప్రింటర్‌కు కనెక్ట్ చేయడం సాధ్యపడలేదు</translation>
 <translation id="3212221635583599601">మరిన్నింటి కోసం ఇంటర్నెట్‌కు కనెక్ట్ అవ్వండి</translation>
 <translation id="3213571860604332401">లింక్‌ను బుక్‌మార్క్‌గా సేవ్ చేయండి</translation>
 <translation id="3217205077783620295">వాల్యూమ్ ఆన్‌లో ఉంది, టోగుల్ చేయడం వలన ఆడియో మ్యూట్ అవుతుంది.</translation>
@@ -823,6 +830,7 @@
 <translation id="3431517721463707585">డెస్క్ 14</translation>
 <translation id="3433507769937235446">వదిలి వెళ్లినప్పుడు లాక్ చేయండి</translation>
 <translation id="3434107140712555581"><ph name="BATTERY_PERCENTAGE" />%</translation>
+<translation id="343578350365773421">పేపర్ లేదు</translation>
 <translation id="3435967511775410570">వేలిముద్ర గుర్తించబడింది</translation>
 <translation id="3437677362970530951">Play Storeలో, ఇతర గేమింగ్ ప్లాట్‌ఫామ్‌లలో గేమ్‌లు</translation>
 <translation id="3439896670700055005">కాష్ చేసిన కంటెంట్‌ను ఉపయోగించకుండా ప్రస్తుత పేజీని రీలోడ్ చేయండి</translation>
@@ -1000,6 +1008,7 @@
 <translation id="3848526302597027234">ఈ కింది అనుమతులను యాక్సెస్ చేయండి:</translation>
 <translation id="385051799172605136">వెనుకకు</translation>
 <translation id="385300504083504382">ప్రారంభం</translation>
+<translation id="3854976556788175030">అవుట్‌పుట్ ట్రే నిండిపోయింది</translation>
 <translation id="3857807444929313943">పైకి ఎత్తి, మళ్లీ తాకండి</translation>
 <translation id="3859364108019690">యాప్‌లను స్ట్రీమ్ చేయడం సాధ్యపడదు</translation>
 <translation id="3861638017150647085">"<ph name="USERNAME" />" యూజర్‌నేమ్ అందుబాటులో లేదు</translation>
@@ -1052,6 +1061,7 @@
 <translation id="401993194061514265">మార్కర్ అందుబాటులో లేదు. స్క్రీన్‌కాస్ట్‌ను మళ్లీ తెరవండి.</translation>
 <translation id="4021716437419160885">కిందికి స్క్రోల్ చేయి</translation>
 <translation id="4022497978915111141">డివైజ్‌ను లాక్ చేయండి</translation>
+<translation id="4023048917751563912"><ph name="APP_NAME" />, <ph name="PRINTER_NAME" />‌కు <ph name="PAGE_NUMBER" /> పేజీలను ప్రింట్ చేస్తోంది</translation>
 <translation id="4024840464866786680">మీరు మీ PIN, పాస్‌వర్డ్‌ను మరిచిపోతే లేదా ఇటీవల మీ Google ఖాతా పాస్‌వర్డ్‌ను మార్చినట్లయితే, ఈ యూజర్‌ను రికవర్ చేయడానికి ట్రై చేయండి.</translation>
 <translation id="4026843240379844265">యాక్టివ్ విండోను డిస్‌ప్లేల మధ్య తరల్చండి</translation>
 <translation id="4028481283645788203">మరింత సెక్యూరిటీ కోసం పాస్‌వర్డ్‌ కావాలి</translation>
@@ -1581,6 +1591,7 @@
 <translation id="5491186829646618080">ఫర్మ్‌వేర్ అప్‌డేట్‌లు అందుబాటులో ఉన్నాయి</translation>
 <translation id="5503884284981862082">Google assistantను తెరవండి/మూసివేయండి</translation>
 <translation id="550391772491508736">ప్రసారాన్ని కొనసాగించండి</translation>
+<translation id="5505307013568720083">ఇంక్ లేదు</translation>
 <translation id="5506975627792768506">మ్యాగ్నిఫైయర్‌ను ఆన్ లేదా ఆఫ్ చేయండి</translation>
 <translation id="5507778598655387680"><ph name="VOLUME_LEVEL" />, enter నొక్కితే ఆడియో మ్యూట్ అవుతుంది.</translation>
 <translation id="5512042095225963688">మునుపటి పదాన్ని తొలగించండి</translation>
@@ -1692,12 +1703,14 @@
 <translation id="5791926618942305301">స్క్రీన్ క్యాప్చర్‌లో, <ph name="SOURCE" /> <ph name="TYPE" />‌కు సెట్ చేయండి. క్యాప్చర్ రకాన్ని ఎంచుకోవడానికి ట్యాబ్‌ను నొక్కండి. క్యాప్చర్ చేయడానికి Enterను నొక్కండి. క్యాప్చర్ చేసిన ప్రాంతాన్ని ఎంచుకోవడానికి, పాక్షిక స్క్రీన్‌షాట్‌కు సెట్ చేయండి. ఇప్పటికే యాక్టివ్‌గా లేకపోతే, ప్రాంతాన్ని ఎంచుకోవడానికి స్పేస్‌ను నొక్కండి.</translation>
 <translation id="579415080077680903">నిశ్శబ్దం</translation>
 <translation id="5802516411616338943">క్విక్ సెట్టింగ్‌లను తెరవండి</translation>
+<translation id="5804241973901381774">అనుమతులు</translation>
 <translation id="5804651031882187592">"లాక్ SIM" సెట్టింగ్‌ను ఆఫ్ చేయండి</translation>
 <translation id="5805809050170488595"><ph name="NETWORK_NAME" />ను యాక్టివేట్ చేయడానికి క్లిక్ చేయండి</translation>
 <translation id="5818796501620225415">మరింత సమయాన్ని జోడించండి, లేదా మీ ఫోకస్ సెషన్‌ను ముగించండి</translation>
 <translation id="5819918159912280082">మీ Chromebook అనుకోకుండా రీస్టార్ట్ అయింది. మీ మునుపటి విండోలను, యాప్‌లను తెరవండి.</translation>
 <translation id="5823239091726045201">వెబ్‌లో Google టాస్క్‌లు</translation>
 <translation id="5825969630400862129">కనెక్ట్ చేయబడిన పరికరాల సెట్టింగ్‌లు</translation>
+<translation id="5828633471261496623">ముద్రిస్తోంది...</translation>
 <translation id="5830180081891717894">మరో <ph name="WINDOWS" /></translation>
 <translation id="5830205393314753525"><ph name="APP_NAME" />‌ను తెరవడం సాధ్యపడదు</translation>
 <translation id="583281660410589416">తెలియని</translation>
@@ -1722,6 +1735,7 @@
 <translation id="5892014525522223653">మీరు ఆఫ్‌లైన్‌లో ఉన్నారు.</translation>
 <translation id="5895138241574237353">మళ్ళీ ప్రారంభించండి</translation>
 <translation id="589817443623831496">పాయింట్ స్కానింగ్</translation>
+<translation id="5901494423252125310">ప్రింటర్ తలుపు తెరుచుకుని ఉంది</translation>
 <translation id="5901630391730855834">పసుపు</translation>
 <translation id="5904614460720589786">కాన్ఫిగరేషన్ సమస్య కారణంగా <ph name="APP_NAME" />ను సెటప్ చేయడం సాధ్యపడలేదు. దయచేసి మీ అడ్మినిస్ట్రేటర్‌ను సంప్రదించండి. ఎర్రర్ కోడ్: <ph name="ERROR_CODE" />.</translation>
 <translation id="5910726859585389579"><ph name="DEVICE_TYPE" /> ఆఫ్‌లైన్‌లో ఉంది</translation>
@@ -1786,6 +1800,7 @@
         <ph name="BEGIN_PARAGRAPH2" />ఈ ఫీచర్‌ను ఆఫ్ చేయడం వలన సిస్టమ్ అప్‌డేట్‌లు, సెక్యూరిటీ లాంటి ప్రధాన సర్వీస్‌లకు అవసరమైన సమాచారాన్ని పంపగల ఈ డివైజ్ సామర్థ్యం ప్రభావితం కాదు.<ph name="END_PARAGRAPH2" />
         <ph name="BEGIN_PARAGRAPH3" />ఓనర్ ఈ ఫీచర్‌ను, సెట్టింగ్‌లు &gt; అడ్వాన్స్‌డ్ సెట్టింగ్‌లు &gt; సమస్య విశ్లేషణలకు సంబంధించిన డేటాను, వినియోగ డేటాను ఆటోమేటిక్‌గా Googleకు పంపండి అనే ఆప్షన్ ద్వారా కంట్రోల్ చేయవచ్చు.<ph name="END_PARAGRAPH3" />
         <ph name="BEGIN_PARAGRAPH4" />మీ చిన్నారి విషయంలో అదనపు వెబ్ &amp; యాప్ యాక్టివిటీ సెట్టింగ్‌ను ఆన్ చేసినట్లయితే, ఈ డేటా వారి Google ఖాతాలో సేవ్ అయ్యే అవకాశముంది. ఈ సెట్టింగ్‌ల గురించి, వాటిని ఎలా సర్దుబాటు చేయాలనే దాని గురించి families.google.com లింక్‌లో మరింత తెలుసుకోండి.<ph name="END_PARAGRAPH4" /></translation>
+<translation id="6052261338768299955"><ph name="APP_NAME" />, <ph name="PRINTER_NAME" />‌కు ప్రింట్ చేయడానికి ట్రై చేస్తోంది</translation>
 <translation id="6054305421211936131">స్మార్ట్ కార్డ్‌తో సైన్ ఇన్ చేయండి</translation>
 <translation id="6059276912018042191">ఇటీవలి Chrome ట్యాబ్‌లు</translation>
 <translation id="606147842285839995">ExpressKey 3</translation>
@@ -1889,6 +1904,7 @@
 <translation id="6337159624125741244">ఫుల్ స్క్రీన్ మ్యాగ్నిఫైయర్ ఆన్‌లో ఉంది</translation>
 <translation id="6338485349199627913"><ph name="DISPLAY_NAME" /> అనేది ఒక మేనేజ్ చేయబడిన సెషన్, దీనిని <ph name="MANAGER" /> మేనేజ్ చేస్తోంది</translation>
 <translation id="6340148837564298498">మీ PINను మీరు మర్చిపోతే, ఈ యూజర్‌ను రికవర్ చేయడానికి ట్రై చేయండి.</translation>
+<translation id="634208815998129842">విధి నిర్వాహికి</translation>
 <translation id="6344138931392227467"><ph name="DEVICE_NAME" /> కనెక్ట్ చేయబడింది</translation>
 <translation id="6345418402353744910">మీ నెట్‌వర్క్‌ను అడ్మిన్ కాన్ఫిగర్ చేయడానికి, ప్రాక్సీ <ph name="PROXY" /> కోసం మీ యూజర్‌నేమ్, పాస్‌వర్డ్ అవసరం</translation>
 <translation id="6348449481487610270"><ph name="MODIFIER_ONE" /><ph name="MODIFIER_TWO" /><ph name="KEY_ONE" /> తర్వాత <ph name="MODIFIER_THREE" /><ph name="KEY_TWO" /> లేదా <ph name="KEY_THREE" /></translation>
@@ -2094,6 +2110,7 @@
 <translation id="6921427376813842559">డివైజ్‌ను అప్‌డేట్ చేయండి</translation>
 <translation id="6929081673585394903">కంట్రోల్స్‌ను చూడండి</translation>
 <translation id="6931576957638141829">దీనిలో సేవ్ చేయండి</translation>
+<translation id="6935286146439255109">పేపర్ ట్రే అందించలేదు</translation>
 <translation id="6935857786205183008">పోర్ట్రెయిట్</translation>
 <translation id="6942518653766415536">రికార్డింగ్ ఫార్మాట్ మెనూ</translation>
 <translation id="6945221475159498467">ఎంచుకోండి</translation>
@@ -2116,6 +2133,7 @@
 <translation id="6988094684494323731">Linux కంటెయినర్‌ను ప్రారంభిస్తోంది</translation>
 <translation id="7000027735917578303">విండోలు, డెస్క్‌ల సెట్టింగ్‌లు</translation>
 <translation id="7001036685275644873">Linux యాప్‌లు, ఫైళ్లను బ్యాకప్ చేస్తోంది</translation>
+<translation id="7001066449188684145"><ph name="PRINTER_NAME" />కు ప్రింట్ చేయడానికి ఐడెంటిఫికేషన్ అవసరం. దయచేసి మీ అడ్మినిస్ట్రేటర్‌ను సంప్రదించండి.</translation>
 <translation id="7004910047186208204">మొబైల్ డేటాకు కనెక్ట్ చేయండి</translation>
 <translation id="7005239792648594238">యాప్‌ను తెరిచి ప్రారంభించండి</translation>
 <translation id="7014684956566476813"><ph name="DEVICE_NAME" /> అనే పేరుతో ఉన్న పరికరానికి కనెక్ట్ చేయబడింది</translation>
@@ -2155,6 +2173,7 @@
 <translation id="7108254681523785542">పేస్ట్ చేయడానికి ఒక ఐటెమ్‌ను ఎంచుకోండి. '<ph name="SHORTCUT_KEY_NAME" /> + v'ని నొక్కి, మీరు క్లిప్‌బోర్డ్‌ను చూడవచ్చు.</translation>
 <translation id="7108338896283013870">దాచిపెట్టు</translation>
 <translation id="7108933416628942903">ఇప్పుడు లాక్ చేయి</translation>
+<translation id="7116554090938189816">ప్రింటర్ SSL సర్టిఫికెట్ గడువు ముగిసింది. ప్రింటర్‌ను రీస్టార్ట్ చేసి, మళ్లీ ట్రై చేయండి.</translation>
 <translation id="7116969082764510092">డెస్క్ 11</translation>
 <translation id="7118268675952955085">స్క్రీన్‌షాట్</translation>
 <translation id="7118597077555700347"><ph name="SEARCH_RESULT_TEXT" />‌ను తెరవండి</translation>
@@ -2206,6 +2225,7 @@
 <translation id="7312210124139670355">మీ అడ్మినిస్ట్రేటర్ మీ eSIMను రీసెట్ చేస్తున్నారు. దీనికి కొన్ని నిమిషాలు పట్టవచ్చు.</translation>
 <translation id="7312761820869643657">డివైజ్‌ను మునుపటి వెర్షన్‌కు అప్‌డేట్ చేయండి</translation>
 <translation id="7313193732017069507">కెమెరాను విస్తరించండి</translation>
+<translation id="7325209047678309347">పేపర్ జామ్ అయింది</translation>
 <translation id="7327989755579928735"><ph name="MANAGER" />, ADB డీబగ్గింగ్‌ను డిజేబుల్ చేసింది. ఒకసారి మీరు మీ <ph name="DEVICE_TYPE" />ను రీస్టార్ట్ చేశాక, మీరు యాప్‌లను సైడ్‌లోడ్ చేయలేరు.</translation>
 <translation id="73289266812733869">ఎంచుకోబడలేదు</translation>
 <translation id="7330397557116570022">డిక్టేషన్‌ను ఉపయోగించడానికి టెక్స్ట్ ఫీల్డ్‌కు వెళ్లండి</translation>
@@ -2580,6 +2600,7 @@
 <translation id="8339706171276328417"><ph name="ACTION_DESCRIPTION" /> · <ph name="TIME" /></translation>
 <translation id="834414266279889566">అవుట్‌పుట్ బాగా లేదు</translation>
 <translation id="8345019317483336363"><ph name="WINDOW_TITLE" /> విండో ఎంచుకోబడింది</translation>
+<translation id="8347227221149377169">ప్రింట్ టాస్క్‌లు</translation>
 <translation id="8349826889576450703">లాంచర్</translation>
 <translation id="8349964124165471584">లింక్‌ను కొత్త విండోలో తెరవండి</translation>
 <translation id="8351131234907093545">గమనికను క్రియేట్ చేయండి</translation>
@@ -2618,6 +2639,7 @@
 <translation id="8458259704995116343">VMని ప్రారంభించడం విఫలమైంది.</translation>
 <translation id="84613761564611563">నెట్‌వర్క్ కాన్ఫిగర్ UI రిక్వెస్ట్ చేయబడింది. దయచేసి వేచి ఉండండి...</translation>
 <translation id="8462305545768648477">'వినడానికి ఎంచుకోండి'ను మూసివేయండి</translation>
+<translation id="8463001014623882202">ప్రామాణీకరణ విఫలమైంది</translation>
 <translation id="8466665972451889002"><ph name="GROUP_NAME" />‌లో ఐటెమ్‌లను చూడండి</translation>
 <translation id="8468806060683421065">గడువు తేదీ <ph name="DUE_DATE_AND_TIME" /></translation>
 <translation id="8473301994082929012"><ph name="ORGANIZATION_NAME" /> <ph name="FEATURE_NAME" />ను <ph name="FEATURE_STATE" />.</translation>

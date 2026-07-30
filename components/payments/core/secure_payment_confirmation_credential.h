@@ -20,10 +20,10 @@ struct SecurePaymentConfirmationCredential {
   SecurePaymentConfirmationCredential();
 
   // Constructs a credential with the given fields. Please use `std::move()`
-  // when passing the `credential_id` and `user_id` byte arrays to avoid
-  // excessive copying.
+  // when passing the `credential_id`, `relying_party_id`, and `user_id` fields
+  // to avoid excessive copying.
   SecurePaymentConfirmationCredential(std::vector<uint8_t> credential_id,
-                                      const std::string& relying_party_id,
+                                      std::string relying_party_id,
                                       std::vector<uint8_t> user_id);
 
   ~SecurePaymentConfirmationCredential();

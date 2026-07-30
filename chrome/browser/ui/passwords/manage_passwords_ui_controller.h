@@ -138,6 +138,9 @@ class ManagePasswordsUIController
   void OnLoginsRetained(password_manager::PasswordStoreInterface* store,
                         const std::vector<password_manager::StoredCredential>&
                             retained_passwords) override;
+  void OnErrorStateChanged(
+      password_manager::PasswordStoreInterface* store,
+      password_manager::ActionableError new_state) override;
 
   // Called if the password change flow finishes successfully. It ensures the
   // correct state after the flow.
@@ -211,6 +214,14 @@ class ManagePasswordsUIController
   void NavigateToPasswordChangeSettings() override;
   void OnMouseEntered() override;
   void OnMouseExited() override;
+  // Returns true if the only blocking error is a trusted vault error.
+  bool IsSavingBlockedByTrustedVaultError() const override;
+  // Ensures that the password will be saved after resolution of the trusted
+  // vault error (or saves the password immediately if the trusted vault error
+  // is already resolved).
+  void SavePasswordAfterTrustedVaultErrorResolution() override;
+  // Starts the UI flow that allows to fix the trusted vault error.
+  void StartTrustedVaultErrorResolutionFlow() override;
   // Skips user os level authentication during the life time of the returned
   // object. To be used in tests of flows that require user authentication.
   [[nodiscard]] std::unique_ptr<base::AutoReset<bool>>
@@ -428,7 +439,6 @@ class ManagePasswordsUIController
 
   password_manager::ui::State last_page_action_state_ =
       password_manager::ui::INACTIVE_STATE;
-  bool last_page_action_is_blocklisted_ = false;
 
   // Whether the mouse is currently hovering over the bubble.
   bool is_mouse_hovered_ = false;
@@ -436,6 +446,12 @@ class ManagePasswordsUIController
   // Bool to indicate that the bubble is shown by the user gesture. This value
   // is cached when the bubble is requested to be shown.
   bool user_action_ = false;
+
+  // The current class observes the changes of the password manager's storage
+  // error state. If this bool is true, we will save the password upon receiving
+  // the notification that the error state is fixed (and the trusted vault error
+  // is resolved).
+  bool save_password_after_trusted_vault_error_resolution_ = false;
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
   bool was_biometric_authentication_for_filling_promo_shown_ = false;

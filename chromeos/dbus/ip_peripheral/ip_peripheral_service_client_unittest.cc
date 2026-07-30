@@ -128,14 +128,15 @@ TEST_F(IpPeripheralServiceClientTest, SetZoomDBusMessage) {
   base::RunLoop().RunUntilIdle();
 }
 
-std::vector<uint8_t> google_guid_le = {0x24, 0xE9, 0xD7, 0x74, 0xC9, 0x49,
-                                       0x45, 0x4A, 0x98, 0xA3, 0x8A, 0x9F,
-                                       0x60, 0x06, 0x1E, 0x83};
+std::vector<uint8_t> GetGoogleGuidLe() {
+  return {0x24, 0xE9, 0xD7, 0x74, 0xC9, 0x49, 0x45, 0x4A,
+          0x98, 0xA3, 0x8A, 0x9F, 0x60, 0x06, 0x1E, 0x83};
+}
 
 TEST_F(IpPeripheralServiceClientTest, GetControlDBusMessage) {
   EXPECT_CALL(*mock_proxy_.get(),
               CallMethod(HasMember(ip_peripheral::kGetControlMethod), _, _));
-  client_->GetControl("192.168.17.204", google_guid_le, 9, 1,
+  client_->GetControl("192.168.17.204", GetGoogleGuidLe(), 9, 1,
                       base::DoNothing());
   base::RunLoop().RunUntilIdle();
 }
@@ -145,7 +146,7 @@ TEST_F(IpPeripheralServiceClientTest, SetControlDBusMessage) {
               CallMethod(HasMember(ip_peripheral::kSetControlMethod), _, _));
   std::vector<uint8_t> control_setting = {0x00, 0x00, 0x00, 0x00,
                                           0x00, 0x00, 0x00, 0x00};
-  client_->SetControl("192.168.17.204", google_guid_le, 9, control_setting,
+  client_->SetControl("192.168.17.204", GetGoogleGuidLe(), 9, control_setting,
                       base::DoNothing());
   base::RunLoop().RunUntilIdle();
 }

@@ -227,10 +227,10 @@ void AccountConsistencyBrowserAgent::OnGoIncognito(const GURL& url,
   }
 
   // The user taps on go incognito from the mobile U-turn webpage (the web
-  // page that displays all users accounts available in the content area). As
+  // page that displays all user accounts available in the content area). As
   // the user chooses to go to incognito, the mobile U-turn page is no longer
-  // neeeded. The current solution is to go back in history. This has the
-  // advantage of keeping the current browsing session and give a good user
+  // needed. The current solution is to go back in history. This has the
+  // advantage of keeping the current browsing session and giving a good user
   // experience when the user comes back from incognito.
   WebNavigationBrowserAgent::FromBrowser(browser_)->GoBack();
 

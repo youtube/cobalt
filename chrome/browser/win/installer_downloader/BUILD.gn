@@ -35,7 +35,9 @@ source_set("controller") {
     ":prefs",
     "//base/version_info",
     "//chrome//browser:global_features",
+    "//chrome/app:branded_strings_grit",
     "//chrome/browser:browser_process",
+    "//chrome/browser/infobars",
     "//chrome/browser/profiles",
     "//chrome/browser/profiles/keep_alive",
     "//chrome/browser/ui/browser_window",
@@ -45,9 +47,12 @@ source_set("controller") {
     "//components/download/public/common:public",
     "//components/infobars/content",
     "//components/infobars/core",
+    "//components/omnibox/browser:vector_icons",
     "//components/prefs",
     "//components/tabs:public",
+    "//components/vector_icons",
     "//content/public/browser",
+    "//ui/base",
   ]
 }
 
@@ -138,6 +143,7 @@ source_set("interactive_ui_tests") {
     ":prefs",
     "//chrome/browser:browser_process",
     "//chrome/browser:global_features",
+    "//chrome/browser/infobars",
     "//chrome/browser/ui",
     "//chrome/browser/ui:browser_element_identifiers",
     "//chrome/browser/ui/views/infobars",

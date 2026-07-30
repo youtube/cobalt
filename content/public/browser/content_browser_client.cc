@@ -1810,6 +1810,13 @@ RenderFrameHost* ContentBrowserClient::GetPostMessageTargetOverride(
   return nullptr;
 }
 
+bool ContentBrowserClient::IsSecureContextRoot(
+    RenderFrameHost* parent_frame,
+    FrameTreeNodeId frame_tree_node_id,
+    const GURL& url) {
+  return false;
+}
+
 bool ContentBrowserClient::IsCrossOriginSubframeAllowedToShowFilePicker(
     RenderFrameHost* render_frame_host,
     const url::Origin& requesting_origin) {

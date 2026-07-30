@@ -2008,7 +2008,7 @@ TEST_P(
     PasswordManagerTest,
     FormSubmitWhenPasswordsCannotBeSavedToAccountStoreBecauseOfTrustedVaultKey) {
   base::test::ScopedFeatureList feature_list{
-      password_manager::features::kInFlowTrustedVaultKeyRetrievalAndroid};
+      password_manager::features::kPasswordSaveInContextErrorResolution};
 
   // Set up the sync service to sync passwords such that the account store would
   // be used.

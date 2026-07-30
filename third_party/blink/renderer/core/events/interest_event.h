@@ -39,11 +39,20 @@ class InterestEvent final : public Event {
   void Trace(Visitor*) const override;
 
   Element* source() const;
-  Element* SourceElement() const override { return source_.Get(); }
-  void SetSource(Element* source) { source_ = source; }
+
+  EventTarget* relatedTarget() const override { return related_target_.Get(); }
+  void SetRelatedTarget(EventTarget* related_target) override {
+    related_target_ = related_target;
+  }
+
+  DispatchEventResult DispatchEvent(EventDispatcher&) override;
 
  private:
+  // crbug.com/346835896: When ShadowRootReferenceTargetEnabled ships, the
+  // event's source will be managed by `related_target_` instead of `source_`.
+  // When the flag is cleaned up the `source_` member will be removed.
   Member<Element> source_;
+  Member<EventTarget> related_target_;
 };
 
 }  // namespace blink

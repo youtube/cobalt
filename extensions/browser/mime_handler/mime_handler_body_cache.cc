@@ -4,13 +4,11 @@
 
 #include "extensions/browser/mime_handler/mime_handler_body_cache.h"
 
-#include <algorithm>
 #include <utility>
 
 #include "base/auto_reset.h"
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
-#include "base/task/sequenced_task_runner.h"
 #include "mojo/public/cpp/system/data_pipe_producer.h"
 #include "mojo/public/cpp/system/string_data_source.h"
 
@@ -46,8 +44,7 @@ scoped_refptr<MimeHandlerBodyCache> MimeHandlerBodyCache::Create(
     *out_forwarding_pipe = std::move(source);
     return nullptr;
   }
-  cache->drainer_ =
-      std::make_unique<mojo::DataPipeDrainer>(cache.get(), std::move(source));
+  cache->StartReading(std::move(source));
   return cache;
 }
 
@@ -59,22 +56,17 @@ MimeHandlerBodyCache::SetMaxCacheBytesForTesting(  // IN-TEST
 }
 
 MimeHandlerBodyCache::MimeHandlerBodyCache()
-    : forwarding_watcher_(FROM_HERE,
+    : source_watcher_(FROM_HERE, mojo::SimpleWatcher::ArmingPolicy::MANUAL),
+      forwarding_watcher_(FROM_HERE,
                           mojo::SimpleWatcher::ArmingPolicy::MANUAL) {}
 
 MimeHandlerBodyCache::~MimeHandlerBodyCache() = default;
 
 bool MimeHandlerBodyCache::InitializeForwarding(
     mojo::ScopedDataPipeConsumerHandle* out_forwarding_pipe) {
-  MojoCreateDataPipeOptions options;
-  options.struct_size = sizeof(MojoCreateDataPipeOptions);
-  options.flags = MOJO_CREATE_DATA_PIPE_FLAG_NONE;
-  options.element_num_bytes = 1;
-  options.capacity_num_bytes = kDefaultPipeCapacity;
-
   mojo::ScopedDataPipeConsumerHandle consumer;
-  if (mojo::CreateDataPipe(&options, forwarding_producer_, consumer) !=
-      MOJO_RESULT_OK) {
+  if (mojo::CreateDataPipe(kDefaultPipeCapacity, forwarding_producer_,
+                           consumer) != MOJO_RESULT_OK) {
     return false;
   }
 
@@ -89,8 +81,39 @@ bool MimeHandlerBodyCache::InitializeForwarding(
   return true;
 }
 
-void MimeHandlerBodyCache::OnDataAvailable(base::span<const uint8_t> data) {
+void MimeHandlerBodyCache::StartReading(
+    mojo::ScopedDataPipeConsumerHandle source) {
+  source_ = std::move(source);
+  source_watcher_.Watch(
+      source_.get(), MOJO_HANDLE_SIGNAL_READABLE,
+      MOJO_TRIGGER_CONDITION_SIGNALS_SATISFIED,
+      base::BindRepeating(&MimeHandlerBodyCache::OnSourceReadable,
+                          weak_factory_.GetWeakPtr()));
+  source_watcher_.ArmOrNotify();
+}
+
+void MimeHandlerBodyCache::OnSourceReadable(
+    MojoResult result,
+    const mojo::HandleSignalsState& state) {
+  if (result != MOJO_RESULT_OK) {
+    OnSourceDone();
+    return;
+  }
+
+  base::span<const uint8_t> data;
+  MojoResult read_result =
+      source_->BeginReadData(MOJO_READ_DATA_FLAG_NONE, data);
+  if (read_result == MOJO_RESULT_SHOULD_WAIT) {
+    source_watcher_.ArmOrNotify();
+    return;
+  }
+  if (read_result != MOJO_RESULT_OK) {
+    OnSourceDone();
+    return;
+  }
+
   if (state_ == State::kAbandoned) {
+    source_->EndReadData(data.size());
     return;
   }
   if (buffer_.size() + data.size() > g_max_cache_bytes) {
@@ -102,34 +125,27 @@ void MimeHandlerBodyCache::OnDataAvailable(base::span<const uint8_t> data) {
     buffer_.shrink_to_fit();
     forwarding_producer_.reset();
     forwarding_watcher_.Cancel();
-    // Stop pulling more bytes from the source. Destruction is deferred
-    // because `mojo::DataPipeDrainer::ReadData()` accesses its source
-    // pipe right after this `OnDataAvailable()` returns, so resetting
-    // the unique_ptr synchronously would UAF. The bound `scoped_refptr`
-    // keeps this cache alive until the drainer is destroyed; without
-    // it, a pending watcher signal in the drainer could re-enter
-    // `OnDataAvailable()` on a freed client if the last external
-    // reference is dropped before the deferred task runs.
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE,
-        base::BindOnce([](scoped_refptr<MimeHandlerBodyCache>,
-                          std::unique_ptr<mojo::DataPipeDrainer>) {},
-                       base::WrapRefCounted(this), std::move(drainer_)));
+    source_->EndReadData(data.size());
+    source_watcher_.Cancel();
+    source_.reset();
     return;
   }
   buffer_.insert(buffer_.end(), data.begin(), data.end());
+  source_->EndReadData(data.size());
 
   if (forwarding_producer_.is_valid()) {
     WritePendingToForwarding();
   }
+  source_watcher_.ArmOrNotify();
 }
 
-void MimeHandlerBodyCache::OnDataComplete() {
+void MimeHandlerBodyCache::OnSourceDone() {
+  source_watcher_.Cancel();
+  source_.reset();
   if (state_ == State::kAbandoned) {
     return;
   }
   state_ = State::kComplete;
-  drainer_.reset();
 
   if (forwarding_producer_.is_valid()) {
     WritePendingToForwarding();
@@ -189,14 +205,7 @@ mojo::ScopedDataPipeConsumerHandle MimeHandlerBodyCache::CreatePipe() {
 
   mojo::ScopedDataPipeProducerHandle producer_handle;
   mojo::ScopedDataPipeConsumerHandle consumer;
-
-  MojoCreateDataPipeOptions options;
-  options.struct_size = sizeof(MojoCreateDataPipeOptions);
-  options.flags = MOJO_CREATE_DATA_PIPE_FLAG_NONE;
-  options.element_num_bytes = 1;
-  options.capacity_num_bytes = kDefaultPipeCapacity;
-
-  if (mojo::CreateDataPipe(&options, producer_handle, consumer) !=
+  if (mojo::CreateDataPipe(kDefaultPipeCapacity, producer_handle, consumer) !=
       MOJO_RESULT_OK) {
     return mojo::ScopedDataPipeConsumerHandle();
   }

@@ -38,9 +38,6 @@ extern const base::FeatureParam<bool> kContextMenuEnableMultiTabSelection;
 
 // The maximum number of file attachments to upload.
 extern const base::FeatureParam<int> kMaxNumFiles;
-// Whether or not to show a description in the context menu entrypoint, or just
-// the icon.
-extern const base::FeatureParam<bool> kShowContextMenuDescription;
 // Whether to show section headers in the context menu.
 extern const base::FeatureParam<bool> kShowContextMenuHeaders;
 

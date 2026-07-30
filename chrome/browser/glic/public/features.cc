@@ -40,6 +40,8 @@ const base::FeatureParam<bool> kGlicSelectionPromptEnablePinning{
     &kGlicSelectionPrompt, "enable_pinning", false};
 const base::FeatureParam<std::string> kGlicSelectionTopCueOnlyList{
     &kGlicSelectionPrompt, "top_cue_only_list", ""};
+const base::FeatureParam<bool> kGlicSelectionEnableSiteSettings{
+    &kGlicSelectionPrompt, "enable_site_settings", false};
 
 BASE_FEATURE(kGlicClearTurnIdOnPanelWillOpen,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -128,8 +130,6 @@ const base::FeatureParam<GlicToolbarButtonLocation>
         &kGlicToolbarButtonLocation, "glic-toolbar-button-location",
         GlicToolbarButtonLocation::kLeftOfProfileChip,
         &kGlicButtonLocationOptions};
-
-BASE_FEATURE(kGlicButtonAutoSummarize, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicGetTabFaviconById, base::FEATURE_ENABLED_BY_DEFAULT);
 

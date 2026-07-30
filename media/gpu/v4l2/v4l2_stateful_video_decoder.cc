@@ -775,6 +775,21 @@ bool V4L2StatefulVideoDecoder::InitializeCAPTUREQueue() {
           << chosen_modifier << std::dec << "). Using " << v4l2_num_buffers
           << " |CAPTURE_queue_| slots.";
 
+  // We successfully picked the output format. Now setup output format again.
+  std::optional<struct v4l2_format> format =
+      CAPTURE_queue_->SetFormat(chosen_fourcc.ToV4L2PixFmt(), chosen_size, 0);
+  if (!format) {
+    LOGF(ERROR) << "Failed to set output format.";
+    return false;
+  }
+  gfx::Size adjusted_size(format->fmt.pix_mp.width, format->fmt.pix_mp.height);
+  if (!gfx::Rect(adjusted_size).Contains(gfx::Rect(chosen_size))) {
+    LOGF(ERROR) << "The adjusted coded size (" << adjusted_size.ToString()
+                << ") should contain the original coded size("
+                << chosen_size.ToString() << ").";
+    return false;
+  }
+
   const auto allocated_buffers = CAPTURE_queue_->AllocateBuffers(
       v4l2_num_buffers, buffer_type, /*incoherent=*/false);
   if (allocated_buffers < v4l2_num_buffers) {

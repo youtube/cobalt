@@ -18,13 +18,17 @@
 // To do this, it is covering the whole screen and then manage the rotation
 // itself. It needs to be centered in the window to work.
 @interface AppBarContainerViewController
-    : UIViewController <FullscreenUIElement, FullscreenBrowserAgentObserving>
+    : UIViewController <FullscreenBrowserAgentObserving, FullscreenUIElement>
 
 // The layout state.
 @property(nonatomic, weak) LayoutState* layoutState;
 
 // Sets the App Bar view controller to be contained.
 - (void)setAppBar:(AppBarViewController*)appBar;
+
+// Updates the corner radius of the app bar cutout to match the container
+// layout. Clamps the radius between the default and max corner radius.
+- (void)updateCutoutRadius:(CGFloat)cutoutRadius;
 
 @end
 

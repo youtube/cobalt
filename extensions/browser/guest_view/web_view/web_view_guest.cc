@@ -1654,7 +1654,11 @@ std::optional<content::PermissionResult> WebViewGuest::OverridePermissionResult(
     // is.
     const blink::PermissionType permission_type =
         permissions::PermissionUtil::ContentSettingsTypeToPermissionType(type);
-    if (permission_type == blink::PermissionType::GEOLOCATION) {
+    if (permission_type == blink::PermissionType::GEOLOCATION ||
+        permission_type == blink::PermissionType::AUDIO_CAPTURE ||
+        permission_type == blink::PermissionType::VIDEO_CAPTURE ||
+        permission_type == blink::PermissionType::CLIPBOARD_READ_WRITE ||
+        permission_type == blink::PermissionType::CLIPBOARD_SANITIZED_WRITE) {
       return content::PermissionResult(
           content::PermissionStatus::ASK,
           content::PermissionStatusSource::UNSPECIFIED);

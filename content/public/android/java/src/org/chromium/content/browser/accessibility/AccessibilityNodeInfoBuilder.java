@@ -49,6 +49,7 @@ import android.os.Bundle;
 import android.os.SystemClock;
 import android.text.ParcelableSpan;
 import android.text.SpannableString;
+import android.text.TextUtils;
 import android.text.style.AbsoluteSizeSpan;
 import android.text.style.BackgroundColorSpan;
 import android.text.style.ForegroundColorSpan;
@@ -1016,5 +1017,83 @@ public class AccessibilityNodeInfoBuilder {
         } else if (rect.right < clippedLeft) {
             rect.right = clippedLeft;
         }
+    }
+
+    private @Nullable String getAndroidMathTagFromHtmlTag(String htmlTag) {
+        switch (htmlTag) {
+            case "math":
+                return AccessibilityNodeInfoCompat.MathInfoCompat.MATH_TAG_MATH;
+            case "mfrac":
+                return AccessibilityNodeInfoCompat.MathInfoCompat.MATH_TAG_FRACTION;
+            case "mi":
+                return AccessibilityNodeInfoCompat.MathInfoCompat.MATH_TAG_IDENTIFIER;
+            case "mmultiscripts":
+                return AccessibilityNodeInfoCompat.MathInfoCompat.MATH_TAG_MULTISCRIPTS;
+            case "none":
+                return AccessibilityNodeInfoCompat.MathInfoCompat.MATH_TAG_NONE_SCRIPT;
+            case "mn":
+                return AccessibilityNodeInfoCompat.MathInfoCompat.MATH_TAG_NUMBER;
+            case "mo":
+                return AccessibilityNodeInfoCompat.MathInfoCompat.MATH_TAG_OPERATOR;
+            case "mover":
+                return AccessibilityNodeInfoCompat.MathInfoCompat.MATH_TAG_OVER;
+            case "mprescripts":
+                return AccessibilityNodeInfoCompat.MathInfoCompat.MATH_TAG_PRESCRIPT_DELIMITER;
+            case "mroot":
+                return AccessibilityNodeInfoCompat.MathInfoCompat.MATH_TAG_ROOT;
+            case "mrow":
+                return AccessibilityNodeInfoCompat.MathInfoCompat.MATH_TAG_ROW;
+            case "msqrt":
+                return AccessibilityNodeInfoCompat.MathInfoCompat.MATH_TAG_SQUARE_ROOT;
+            case "ms":
+                return AccessibilityNodeInfoCompat.MathInfoCompat.MATH_TAG_STRING_LITERAL;
+            case "msub":
+                return AccessibilityNodeInfoCompat.MathInfoCompat.MATH_TAG_SUB;
+            case "msubsup":
+                return AccessibilityNodeInfoCompat.MathInfoCompat.MATH_TAG_SUB_SUP;
+            case "msup":
+                return AccessibilityNodeInfoCompat.MathInfoCompat.MATH_TAG_SUP;
+            case "mtable":
+                return AccessibilityNodeInfoCompat.MathInfoCompat.MATH_TAG_TABLE;
+            case "mtd":
+                return AccessibilityNodeInfoCompat.MathInfoCompat.MATH_TAG_TABLE_CELL;
+            case "mtr":
+                return AccessibilityNodeInfoCompat.MathInfoCompat.MATH_TAG_TABLE_ROW;
+            case "mtext":
+                return AccessibilityNodeInfoCompat.MathInfoCompat.MATH_TAG_TEXT;
+            case "munder":
+                return AccessibilityNodeInfoCompat.MathInfoCompat.MATH_TAG_UNDER;
+            case "munderover":
+                return AccessibilityNodeInfoCompat.MathInfoCompat.MATH_TAG_UNDER_OVER;
+            default:
+                return null;
+        }
+    }
+
+    @CalledByNative
+    private void setAccessibilityNodeInfoMathAttributes(
+            AccessibilityNodeInfoCompat node,
+            String mathHtmlTag,
+            @Nullable String mathIntent,
+            @Nullable String mathArg) {
+        String androidMathTag = getAndroidMathTagFromHtmlTag(mathHtmlTag);
+
+        // If the role is not a supported math tag, do nothing.
+        if (androidMathTag == null) return;
+
+        AccessibilityNodeInfoCompat.MathInfoCompat mathInfo =
+                new AccessibilityNodeInfoCompat.MathInfoCompat(androidMathTag);
+
+        if (!TextUtils.isEmpty(mathIntent)) {
+            mathInfo.putAttribute(
+                    AccessibilityNodeInfoCompat.MathInfoCompat.MATH_ATTRIBUTE_INTENT, mathIntent);
+        }
+
+        if (!TextUtils.isEmpty(mathArg)) {
+            mathInfo.putAttribute(
+                    AccessibilityNodeInfoCompat.MathInfoCompat.MATH_ATTRIBUTE_ARG, mathArg);
+        }
+
+        node.setStructuredDataInfo(mathInfo);
     }
 }

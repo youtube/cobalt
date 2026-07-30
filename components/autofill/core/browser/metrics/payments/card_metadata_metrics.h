@@ -17,6 +17,7 @@
 #include "base/time/time.h"
 #include "base/types/strong_alias.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
+#include "components/autofill/core/browser/data_model/payments/credit_card_benefit.h"
 #include "components/autofill/core/browser/metrics/form_events/form_events.h"
 
 namespace autofill::autofill_metrics {
@@ -162,6 +163,13 @@ struct CardMetadataLoggingContext {
   CardMetadataLoggingContext& operator=(CardMetadataLoggingContext&&);
   ~CardMetadataLoggingContext();
 
+  struct CardBenefitLoggingContext {
+    std::string benefit_source;
+    CreditCardBenefitType benefit_type = CreditCardBenefitType::kUnknown;
+
+    bool operator==(const CardBenefitLoggingContext&) const = default;
+  };
+
   // Returns if any shown suggestion's card has a benefit available.
   bool DidShowCardWithBenefitAvailable() const;
 
@@ -202,13 +210,16 @@ struct CardMetadataLoggingContext {
   std::optional<base::flat_map<std::string, bool>>
       selected_issuer_or_network_to_metadata_availability;
 
-  // Keeps record of the instrument ids to benefit sources for credit card
-  // suggestions shown to the user with a card benefit.
-  base::flat_map<int64_t, std::string>
-      instrument_ids_to_available_benefit_sources;
+  // Keeps record of the instrument ids to benefit sources and types for credit
+  // card suggestions shown to the user with a card benefit.
+  base::flat_map<int64_t, CardBenefitLoggingContext>
+      instrument_ids_to_available_benefit_context;
 
   // Keeps record of the selected card benefit source for later events logging.
   std::string selected_benefit_source;
+
+  // Keeps record of the selected card benefit type for later events logging.
+  CreditCardBenefitType selected_benefit_type = CreditCardBenefitType::kUnknown;
 
   // Keeps record of the selected card instrument id for later events logging.
   int64_t selected_card_instrument_id;
@@ -224,6 +235,10 @@ std::string_view GetCardIssuerIdOrNetworkSuffix(
 // Get histogram suffix based on a given card benefit source.
 std::string_view GetCardBenefitSourceSuffix(
     std::string_view card_benefit_source);
+
+// Get histogram suffix based on a given card benefit type.
+std::string_view GetCardBenefitTypeSuffix(
+    CreditCardBenefitType card_benefit_type);
 
 // Get the CardMetadataLoggingContext for the given credit cards.
 CardMetadataLoggingContext GetMetadataLoggingContext(
@@ -252,17 +267,20 @@ void LogAcceptanceLatency(base::TimeDelta latency,
 void LogIsCreditCardBenefitsEnabledAtStartup(bool enabled);
 
 // Log the given `event` to the general benefit histogram, as well as to the
-// benefit-source-specific subhistogram for all benefit sources present in the
-// suggestion list.
+// benefit-source-specific and benefit-type-specific subhistograms for all
+// benefits present in the suggestion list.
 void LogBenefitFormEventToAllBenefitHistograms(
-    const base::flat_map<int64_t, std::string>&
-        instrument_ids_to_available_benefit_sources,
+    const base::flat_map<int64_t,
+                         CardMetadataLoggingContext::CardBenefitLoggingContext>&
+        instrument_ids_to_available_benefit_context,
     CardBenefitFormEvent event);
 
 // Log the given `event` to the general benefit histogram, as well as to the
-// `benefit_source`'s specific subhistogram.
-void LogBenefitFormEventToAllBenefitHistograms(std::string_view benefit_source,
-                                               CardBenefitFormEvent event);
+// `benefit_source`'s and `benefit_type`'s specific subhistograms.
+void LogBenefitFormEventToAllBenefitHistograms(
+    std::string_view benefit_source,
+    CreditCardBenefitType benefit_type,
+    CardBenefitFormEvent event);
 
 }  // namespace autofill::autofill_metrics
 

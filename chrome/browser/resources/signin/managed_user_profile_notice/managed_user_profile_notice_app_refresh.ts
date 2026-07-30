@@ -105,7 +105,8 @@ export class ManagedUserProfileNoticeAppRefreshElement extends
   protected accessor errorSubtitle_: string = '';
   protected accessor disableProceedButton_: boolean = false;
   protected accessor currentState_: State = State.DISCLOSURE;
-  protected accessor appMode_: AppMode = AppMode.FIRST_RUN;
+  protected accessor appMode_: AppMode = this.getAppModeFromScreenType(
+      loadTimeData.getInteger('screenType') as ScreenType);
   protected accessor revampEnabled_: boolean =
       loadTimeData.getBoolean('isFirstRunDesktopRevampEnabled');
   protected accessor processingSubtitle_: string =
@@ -141,7 +142,6 @@ export class ManagedUserProfileNoticeAppRefreshElement extends
     this.managedUserProfileNoticeBrowserProxy_.initialized().then(info => {
       this.updateProfileInfo_(info);
       this.updateCurrentState_(loadTimeData.getInteger('initialState'));
-      this.updateAppMode_(loadTimeData.getInteger('screenType') as ScreenType);
 
       // Prefer using |document.body.offsetHeight| instead of
       // |document.body.scrollHeight| as it returns the correct height of the
@@ -204,17 +204,15 @@ export class ManagedUserProfileNoticeAppRefreshElement extends
     this.currentState_ = state;
   }
 
-  private updateAppMode_(screenType: ScreenType) {
+  private getAppModeFromScreenType(screenType: ScreenType): AppMode {
     switch (screenType) {
       case ScreenType.PROFILE_PICKER:
       case ScreenType.ENTERPRISE_ACCOUNT_SYNC_ENABLED:
       case ScreenType.ENTERPRISE_ACCOUNT_SYNC_DISABLED:
       case ScreenType.CONSUMER_ACCOUNT_SYNC_DISABLED:
-        this.appMode_ = AppMode.PROFILE_PICKER;
-        break;
+        return AppMode.PROFILE_PICKER;
       case ScreenType.FIRST_RUN:
-        this.appMode_ = AppMode.FIRST_RUN;
-        break;
+        return AppMode.FIRST_RUN;
       case ScreenType.ENTERPRISE_ACCOUNT_CREATION:
       case ScreenType.ENTERPRISE_OIDC:
       case ScreenType.DEVICE_SIGNALS_DISCLAIMER:

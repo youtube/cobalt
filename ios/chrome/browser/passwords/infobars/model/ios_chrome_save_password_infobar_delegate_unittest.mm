@@ -90,6 +90,7 @@ class IOSChromeSavePasswordInfoBarDelegateTest : public PlatformTest {
   void InitializeDelegate(bool password_update,
                           password_manager::ActionableError error =
                               password_manager::ActionableError::kNoError) {
+    form_manager_ptr_ = nullptr;
     delegate_.reset();
     profile_store_ = base::MakeRefCounted<
         NiceMock<password_manager::MockPasswordStoreInterface>>();
@@ -165,8 +166,8 @@ class IOSChromeSavePasswordInfoBarDelegateTest : public PlatformTest {
   // Infobar delegate to test.
   std::unique_ptr<IOSChromeSavePasswordInfoBarDelegate> delegate_;
   // Pointer to the infobar's form manager.
-  raw_ptr<password_manager::MockPasswordFormManagerForUI, DanglingUntriaged>
-      form_manager_ptr_;
+  raw_ptr<password_manager::MockPasswordFormManagerForUI> form_manager_ptr_ =
+      nullptr;
 
   id mock_sync_presenter_;
 };
@@ -320,7 +321,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
        GetButtonLabel_ButtonOk_WhenActionableError) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(
-      password_manager::features::kInFlowTrustedVaultKeyRetrievalIos);
+      password_manager::features::kPasswordSaveInContextErrorResolution);
 
   InitializeDelegate(/*password_update=*/false,
                      password_manager::ActionableError::kSignInNeeded);
@@ -332,7 +333,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
        GetButtonLabel_ButtonCancel_WhenActionableError) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(
-      password_manager::features::kInFlowTrustedVaultKeyRetrievalIos);
+      password_manager::features::kPasswordSaveInContextErrorResolution);
 
   InitializeDelegate(/*password_update=*/false,
                      password_manager::ActionableError::kSignInNeeded);
@@ -344,7 +345,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
        GetButtonLabel_WhenActionableErrorAndFeatureDisabled) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndDisableFeature(
-      password_manager::features::kInFlowTrustedVaultKeyRetrievalIos);
+      password_manager::features::kPasswordSaveInContextErrorResolution);
 
   InitializeDelegate(/*password_update=*/false,
                      password_manager::ActionableError::kSignInNeeded);
@@ -759,6 +760,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
   task_environment_.AdvanceClock(duration);
 
   // Trigger metrics recording from deletion.
+  form_manager_ptr_ = nullptr;
   delegate_.reset();
 
   histogram_tester.ExpectUniqueTimeSample(
@@ -805,6 +807,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
   task_environment_.AdvanceClock(duration);
 
   // Trigger metrics recording from deletion.
+  form_manager_ptr_ = nullptr;
   delegate_.reset();
 
   histogram_tester.ExpectUniqueTimeSample(
@@ -826,6 +829,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
   task_environment_.AdvanceClock(duration);
 
   // Delete delegate object to trigger metrics recording.
+  form_manager_ptr_ = nullptr;
   delegate_.reset();
 
   // Verify that the duration is recorded.
@@ -843,6 +847,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
   base::HistogramTester histogram_tester;
 
   // Delete delegate object to trigger metrics recording.
+  form_manager_ptr_ = nullptr;
   delegate_.reset();
 
   // Verify that duration and dismissal metrics aren't recorded.
@@ -900,7 +905,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
        Accept_ActionableError_SignInNeeded) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(
-      password_manager::features::kInFlowTrustedVaultKeyRetrievalIos);
+      password_manager::features::kPasswordSaveInContextErrorResolution);
 
   InitializeDelegate(
       /*password_update=*/false,
@@ -920,7 +925,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
        Accept_ActionableError_NeedsPassphrase) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(
-      password_manager::features::kInFlowTrustedVaultKeyRetrievalIos);
+      password_manager::features::kPasswordSaveInContextErrorResolution);
 
   InitializeDelegate(
       /*password_update=*/false,
@@ -952,7 +957,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
        Accept_ActionableError_TrustedVaultKeyNeeded) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(
-      password_manager::features::kInFlowTrustedVaultKeyRetrievalIos);
+      password_manager::features::kPasswordSaveInContextErrorResolution);
 
   InitializeDelegate(
       /*password_update=*/false,
@@ -975,7 +980,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
        Accept_ActionableError_SignInNeeded_FeatureDisabled) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndDisableFeature(
-      password_manager::features::kInFlowTrustedVaultKeyRetrievalIos);
+      password_manager::features::kPasswordSaveInContextErrorResolution);
 
   InitializeDelegate(
       /*password_update=*/false,
@@ -992,7 +997,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
        Accept_ActionableError_SignInNeeded_ResolveErrorOnCompletion) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(
-      password_manager::features::kInFlowTrustedVaultKeyRetrievalIos);
+      password_manager::features::kPasswordSaveInContextErrorResolution);
 
   InitializeDelegate(
       /*password_update=*/false,
@@ -1022,6 +1027,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
   // The password manager should save and the infobar should be removed.
   EXPECT_CALL(*form_manager_ptr_, Save).Times(1);
   EXPECT_CALL(mock_infobar_manager, RemoveInfoBar(infobar)).Times(1);
+  form_manager_ptr_ = nullptr;
   captured_completion();
 }
 
@@ -1029,7 +1035,7 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
        Accept_ActionableError_SignInNeeded_ErrorUnresolvedOnCompletion) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(
-      password_manager::features::kInFlowTrustedVaultKeyRetrievalIos);
+      password_manager::features::kPasswordSaveInContextErrorResolution);
 
   InitializeDelegate(
       /*password_update=*/false,
@@ -1060,13 +1066,14 @@ TEST_F(IOSChromeSavePasswordInfoBarDelegateTest,
   // removed.
   EXPECT_CALL(*form_manager_ptr_, Save).Times(0);
   EXPECT_CALL(mock_infobar_manager, RemoveInfoBar(infobar)).Times(0);
+  form_manager_ptr_ = nullptr;
   captured_completion();
 }
 
 TEST_F(IOSChromeSavePasswordInfoBarDelegateTest, IsHandlingPasswordError) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(
-      password_manager::features::kInFlowTrustedVaultKeyRetrievalIos);
+      password_manager::features::kPasswordSaveInContextErrorResolution);
 
   InitializeDelegate(
       /*password_update=*/false,

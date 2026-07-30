@@ -4571,4 +4571,97 @@ TEST_F(AdTrackerSimTest, NewFunctionDetected) {
   EXPECT_TRUE(child_frame->IsFrameCreatedByAdScript());
 }
 
+// Regression test for https://crbug.com/501591293.
+//
+// This test verifies that the AdTracker's monkey-patch heuristic safely aborts
+// and falls back to standard stack-based ad detection if it encounters an
+// author-defined JavaScript getter. This ensures that the tracker evaluates the
+// actual state of the object without handing control over to the script it is
+// trying to evaluate, preventing evasion, side effects, or crashes.
+//
+// This test overrides `window.Node` with a getter that attempts to
+// synchronously mutate the DOM. It asserts that the monkey patch heuristic
+// bails out (defaulting to 'not a monkeypatch') and flags the frame as an ad,
+// without actually evaluating the getter and causing a DOM mutation.
+TEST_F(AdTrackerSimTest, NoScriptExecutionDuringAdTrackerMonkeyPatchCheck) {
+  String ad_script_url = "https://example.com/script.js?ad=true";
+  String vanilla_script_url = "https://example.com/script.js";
+  SimSubresourceRequest ad_script(ad_script_url, "text/javascript");
+  SimSubresourceRequest vanilla_script(vanilla_script_url, "text/javascript");
+
+  main_resource_->Complete(R"HTML(
+    <body><script src="script.js?ad=true"></script>
+          <script src="script.js"></script></body>
+  )HTML");
+
+  // The ad script defines a getter on `window.Node`.
+  // It also monkey-patches appendChild so that the ad script is on the stack
+  // when appendChild is called, triggering the monkey-patch heuristic.
+  ad_script.Complete(R"SCRIPT(
+    window.getterFired = false;
+    let originalNode = window.Node;
+
+    const originalAppendChild = originalNode.prototype.appendChild;
+    originalNode.prototype.appendChild = function(child) {
+      return originalAppendChild.call(this, child);
+    };
+
+    Object.defineProperty(window, 'Node', {
+      configurable: true,
+      get() {
+        console.log("Getter executing!");
+        window.getterFired = true;
+        // Malicious payload: mutate the DOM tree synchronously.
+        // If this runs during AdTracker's inspection (which happens in the
+        // middle of a C++ node insertion loop), it will cause a DOM mutation
+        // re-entrancy and hard-crash the renderer.
+        if (window.iframeElement) {
+          document.body.appendChild(window.iframeElement);
+        }
+        return originalNode;
+      }
+    });
+    )SCRIPT");
+
+  // The vanilla script calls the monkey-patched appendChild.
+  vanilla_script.Complete(R"SCRIPT(
+    let fragment = document.createDocumentFragment();
+    let video = document.createElement("video");
+    window.iframeElement = document.createElement("iframe");
+
+    // 1. The <video> element is necessary because its 'InsertedInto' lifecycle
+    //    triggers the AdTracker to inspect for monkey-patches (evaluating
+    //    window.Node).
+    fragment.appendChild(video);
+
+    // 2. The <iframe> is included in the fragment so that the outer C++
+    //    insertion loop intends to process it *after* the video. If the getter
+    //    above secretly inserts it first, the C++ loop will try to insert it a
+    //    second time, corrupting the tree and crashing the browser.
+    fragment.appendChild(window.iframeElement);
+
+    // Call the monkey-patched appendChild, putting ad script on the stack
+    document.body.appendChild(fragment);
+
+    console.log(window.getterFired ? "Getter Fired" : "Getter Not Fired");
+    )SCRIPT");
+
+  base::RunLoop().RunUntilIdle();
+
+  // The getter should NOT have fired during the check.
+  ASSERT_EQ(1u, ConsoleMessages().size());
+  EXPECT_EQ("Getter Not Fired", ConsoleMessages()[0]);
+
+  // Verify that the iframe is created.
+  auto* child_frame =
+      To<LocalFrame>(GetDocument().GetFrame()->Tree().FirstChild());
+  ASSERT_TRUE(child_frame);
+
+  // Since we bailed out of the monkey-patch check, the exception should be
+  // denied, meaning it falls back to the stack. Since the ad script is on the
+  // stack (via the monkey-patched appendChild), the frame should be correctly
+  // flagged as an ad frame.
+  EXPECT_TRUE(child_frame->IsFrameCreatedByAdScript());
+}
+
 }  // namespace blink

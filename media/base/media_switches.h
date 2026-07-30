@@ -42,10 +42,14 @@ MEDIA_EXPORT extern const char kUserGestureRequiredPolicy[];
 MEDIA_EXPORT extern const char kAudioBufferSize[];
 MEDIA_EXPORT extern const char kAutoGrantCapturedSurfaceControlPrompt[];
 MEDIA_EXPORT extern const char kAutoplayPolicy[];
+MEDIA_EXPORT extern const char kCastStreamingForceDisableHardwareAv1[];
 MEDIA_EXPORT extern const char kCastStreamingForceDisableHardwareH264[];
+MEDIA_EXPORT extern const char kCastStreamingForceDisableHardwareHevc[];
 MEDIA_EXPORT extern const char kCastStreamingForceDisableHardwareVp8[];
 MEDIA_EXPORT extern const char kCastStreamingForceDisableHardwareVp9[];
+MEDIA_EXPORT extern const char kCastStreamingForceEnableHardwareAv1[];
 MEDIA_EXPORT extern const char kCastStreamingForceEnableHardwareH264[];
+MEDIA_EXPORT extern const char kCastStreamingForceEnableHardwareHevc[];
 MEDIA_EXPORT extern const char kCastStreamingForceEnableHardwareVp8[];
 MEDIA_EXPORT extern const char kCastStreamingForceEnableHardwareVp9[];
 MEDIA_EXPORT extern const char kClearKeyCdmPathForTesting[];
@@ -311,6 +315,9 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kPlatformHEVCDecoderSupport);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kPlatformHEVCEncoderSupport);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(ENABLE_PLATFORM_HEVC)
+#if BUILDFLAG(IS_APPLE)
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kVTVideoEncodeAcceleratorCalculatePSNR);
+#endif  // BUILDFLAG(IS_APPLE)
 #if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaRecorderHEVCSupport);
 #endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)

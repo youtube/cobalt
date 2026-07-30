@@ -63,6 +63,12 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeFluent
       State state,
       const ScrollbarThumbExtraParams& extra_params) const override;
   float GetScrollbarPartContrastRatioForState(State state) const override;
+  SkColor GetScrollbarArrowBackgroundColor(
+      const ScrollbarArrowExtraParams& extra_params,
+      State state,
+      bool dark_mode,
+      PreferredContrast contrast,
+      const ColorProvider* color_provider) const override;
   void PaintArrowButton(
       cc::PaintCanvas* canvas,
       const ColorProvider* color_provider,

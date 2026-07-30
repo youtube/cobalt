@@ -90,7 +90,7 @@ class GPU_GLES2_EXPORT SharedImageManager
       const Mailbox& mailbox,
       MemoryTypeTracker* ref,
       scoped_refptr<SharedContextState> context_state,
-      SharedImageUsageSet required_usages = {});
+      SharedImageUsageSet required_usages);
 
   // ProduceDawn must also be called using same |device| if
   // using the same |mailbox|. This is because the underlying shared image

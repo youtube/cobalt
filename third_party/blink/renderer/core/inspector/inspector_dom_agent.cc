@@ -1289,7 +1289,7 @@ protocol::Response InspectorDOMAgent::getOuterHTML(
           ? ShadowRootInclusion::Behavior::kIncludeAllShadowRootsForInspector
           : ShadowRootInclusion::Behavior::kOnlyProvidedShadowRoots};
   *outer_html =
-      CreateMarkup(node, kIncludeNode, kDoNotResolveURLs, shadow_roots);
+      CreateMarkup(node, kIncludeNode, ResolveUrls::kNone, shadow_roots);
   return protocol::Response::Success();
 }
 

@@ -54,6 +54,7 @@
 #include "net/quic/quic_session_pool.h"
 #include "net/shared_dictionary/shared_dictionary_network_transaction_factory.h"
 #include "net/socket/network_binding_client_socket_factory.h"
+#include "net/ssl/ech_mode_getter.h"
 #include "net/ssl/ssl_config_service_defaults.h"
 #include "net/url_request/static_http_user_agent_settings.h"
 #include "net/url_request/url_request_context.h"
@@ -69,6 +70,7 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/android_info.h"
+#include "net/ssl/ech_mode_getter_android.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
@@ -385,8 +387,12 @@ std::unique_ptr<URLRequestContext> URLRequestContextBuilder::Build() {
   if (ssl_config_service_) {
     context->set_ssl_config_service(std::move(ssl_config_service_));
   } else {
+    std::unique_ptr<net::EchModeGetter> ech_mode_getter;
+#if BUILDFLAG(IS_ANDROID)
+    ech_mode_getter = std::make_unique<net::EchModeGetterAndroid>();
+#endif
     context->set_ssl_config_service(
-        std::make_unique<SSLConfigServiceDefaults>());
+        std::make_unique<SSLConfigServiceDefaults>(std::move(ech_mode_getter)));
   }
 
   if (http_auth_handler_factory_) {

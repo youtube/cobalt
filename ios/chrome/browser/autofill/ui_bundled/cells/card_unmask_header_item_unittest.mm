@@ -7,7 +7,6 @@
 #import "base/apple/foundation_util.h"
 #import "base/test/scoped_feature_list.h"
 #import "components/autofill/core/common/autofill_payments_features.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
@@ -41,9 +40,7 @@ TEST_F(CardUnmaskHeaderItemTest, ConfigureHeaderFooterView) {
       base::apple::ObjCCastStrict<CardUnmaskHeaderView>(view);
   EXPECT_EQ(0U, header_view.titleLabel.text.length);
   EXPECT_EQ(0U, header_view.instructionsLabel.text.length);
-
-  ChromeTableViewStyler* styler = [[ChromeTableViewStyler alloc] init];
-  [header_item configureHeaderFooterView:header_view withStyler:styler];
+  [header_item configureHeaderFooterView:header_view];
   EXPECT_NSEQ(title_text, header_view.titleLabel.text);
   EXPECT_NSEQ(instructions_text, header_view.instructionsLabel.text);
 }

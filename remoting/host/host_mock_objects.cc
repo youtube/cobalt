@@ -63,6 +63,11 @@ MockSecurityKeyAuthHandler::GetSendMessageCallback() {
   return callback_;
 }
 
+base::WeakPtr<MockSecurityKeyAuthHandler>
+MockSecurityKeyAuthHandler::GetWeakPtr() {
+  return weak_factory_.GetWeakPtr();
+}
+
 MockMouseCursorMonitor::MockMouseCursorMonitor() = default;
 
 MockMouseCursorMonitor::~MockMouseCursorMonitor() = default;

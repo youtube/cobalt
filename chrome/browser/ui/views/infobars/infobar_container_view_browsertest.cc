@@ -331,7 +331,7 @@ class InfoBarContainerSplitTabTest : public InfoBarContainerViewBrowserTest {
   // Switches focus between the two panes of the active split tab.
   void SwitchSplitTabFocus() {
     TabStripModel* tab_strip_model = browser()->tab_strip_model();
-    ASSERT_TRUE(tab_strip_model->IsActiveTabSplit());
+    ASSERT_TRUE(tab_strip_model->GetActiveTab()->IsSplit());
 
     // In this test setup with exactly two tabs (0 and 1) involved in a split,
     // switching focus simply means activating the other index.
@@ -369,7 +369,7 @@ IN_PROC_BROWSER_TEST_F(InfoBarContainerSplitTabTest,
   SplitTabWithActive(0);
   // The tabs are now split but remain as distinct indices in the model.
   ASSERT_EQ(2, tab_strip_model->count());
-  ASSERT_TRUE(tab_strip_model->IsActiveTabSplit());
+  ASSERT_TRUE(tab_strip_model->GetActiveTab()->IsSplit());
 
   // 4. Verify the infobars are still visible in the active pane (Tab 1).
   EXPECT_EQ(GURL("chrome://version"),

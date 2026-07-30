@@ -8,10 +8,12 @@ source_set("autofill_and_passwords_item_utils") {
     "autofill_and_passwords_item_utils.mm",
   ]
   deps = [
+    "//build:branding_buildflags",
     "//components/strings",
     "//ios/chrome/app/strings",
     "//ios/chrome/browser/settings/ui_bundled:constants",
     "//ios/chrome/browser/settings/ui_bundled:settings_root_constants",
+    "//ios/chrome/browser/settings/ui_bundled/autofill:constants",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/browser/shared/ui/table_view/cells",

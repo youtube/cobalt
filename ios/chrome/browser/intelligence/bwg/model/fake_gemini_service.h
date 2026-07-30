@@ -7,16 +7,19 @@
 
 #import <optional>
 
+#import "base/observer_list.h"
 #import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_service.h"
 
 // Fake GeminiService for testing.
 class FakeGeminiService : public GeminiService {
  public:
-  FakeGeminiService() = default;
-  ~FakeGeminiService() override = default;
+  FakeGeminiService();
+  ~FakeGeminiService() override;
 
-  // BwgService:
+  // GeminiService:
+  void AddObserver(GeminiService::Observer* observer) override;
+  void RemoveObserver(GeminiService::Observer* observer) override;
   bool IsProfileEligibleForGemini() override;
   std::optional<gemini::IneligibilityReasons> GeminiIneligibilityForProfile()
       override;
@@ -25,6 +28,7 @@ class FakeGeminiService : public GeminiService {
 
   // Test helpers:
   void SetIsEligible(bool is_eligible) {
+    bool changed = (IsProfileEligibleForGemini() != is_eligible);
     if (is_eligible) {
       ineligibility_reasons_ = std::nullopt;
     } else {
@@ -32,15 +36,43 @@ class FakeGeminiService : public GeminiService {
       reasons.chrome_enterprise = true;
       ineligibility_reasons_ = reasons;
     }
+    if (changed) {
+      for (auto& observer : observers_) {
+        observer.OnGeminiEligibilityChanged();
+      }
+    }
   }
 
   void SetIneligibilityReasons(
       std::optional<gemini::IneligibilityReasons> reasons) {
+    bool changed = false;
+    if (ineligibility_reasons_.has_value() != reasons.has_value()) {
+      changed = true;
+    } else if (ineligibility_reasons_.has_value() && reasons.has_value()) {
+      changed =
+          ineligibility_reasons_->workspace != reasons->workspace ||
+          ineligibility_reasons_->chrome_enterprise !=
+              reasons->chrome_enterprise ||
+          ineligibility_reasons_->account_capability !=
+              reasons->account_capability ||
+          ineligibility_reasons_->authentication != reasons->authentication;
+    }
     ineligibility_reasons_ = reasons;
+    if (changed) {
+      for (auto& observer : observers_) {
+        observer.OnGeminiEligibilityChanged();
+      }
+    }
   }
 
   void SetWorkspacePolicyCheckPending(bool pending) {
+    bool changed = (workspace_policy_check_pending_ != pending);
     workspace_policy_check_pending_ = pending;
+    if (changed) {
+      for (auto& observer : observers_) {
+        observer.OnGeminiEligibilityChanged();
+      }
+    }
   }
 
   bool HasGeminiInChromeCapability() override;
@@ -56,6 +88,7 @@ class FakeGeminiService : public GeminiService {
   }
 
  private:
+  base::ObserverList<GeminiService::Observer> observers_;
   std::optional<gemini::IneligibilityReasons> ineligibility_reasons_;
   bool workspace_policy_check_pending_ = false;
   bool has_gemini_in_chrome_capability_ = true;

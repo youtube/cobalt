@@ -62,7 +62,7 @@ class MockTracker : public Tracker {
                void(const base::Feature& feature,
                     const ConfigurationProvider* provider));
 #endif
-  MOCK_CONST_METHOD0(GetConfigurationForTesting, const Configuration*());
+  MOCK_CONST_METHOD0(GetConfiguration, const Configuration*());
   MOCK_METHOD2(SetClockForTesting,
                void(const base::Clock& clock, base::Time initial_now));
   MOCK_CONST_METHOD0(IsInFeatureTestMode, bool());

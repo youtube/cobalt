@@ -8,7 +8,6 @@
 #import <UIKit/UIKit.h>
 
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_context_menu/tab_cell.h"
-#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/legacy_grid_to_tab_transition_view.h"
 
 namespace web {
 class WebStateID;
@@ -35,23 +34,6 @@ class WebStateID;
 - (void)showActivityIndicator;
 // Stops the activity indicator animation.
 - (void)hideActivityIndicator;
-
-@end
-
-// A "copy" of a PinnedCell to be used in the animated transitions. Some
-// of the properties of PinnedTransitionCell are tweaked (compared to the
-// PinnedCell) in order to provide a smooth transition animation.
-//
-// Note: This class is put into the same header/implementation file with
-// the PinnedCell class in order to maintain the consistency with
-// GridTransitionCell. Also this way PinnedTransitionCell has easier access to
-// some of the internal properties of the PinnedCell. If PinnedTransitionCell
-// is moved into its own file the same should be done with GridTransitionCell.
-@interface PinnedTransitionCell : PinnedCell <LegacyGridToTabTransitionView>
-
-// Returns a cell with the same theme, icon, snapshot, title, and frame as
-// `cell` (but no delegate or identifier) for use in animated transitions.
-+ (instancetype)transitionCellFromCell:(PinnedCell*)cell;
 
 @end
 

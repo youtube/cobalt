@@ -339,15 +339,16 @@ ContentDirectoryLoaderFactory::Create() {
   // The ContentDirectoryLoaderFactory will delete itself when there are no more
   // receivers - see the network::SelfDeletingURLLoaderFactory::OnDisconnect
   // method.
-  new ContentDirectoryLoaderFactory(
+  base::MakeSelfDeleting<ContentDirectoryLoaderFactory>(
       pending_remote.InitWithNewPipeAndPassReceiver());
 
   return pending_remote;
 }
 
 ContentDirectoryLoaderFactory::ContentDirectoryLoaderFactory(
-    mojo::PendingReceiver<network::mojom::URLLoaderFactory> factory_receiver)
-    : network::SelfDeletingURLLoaderFactory(std::move(factory_receiver)),
+    mojo::PendingReceiver<network::mojom::URLLoaderFactory> factory_receiver,
+    base::SelfDeletingPassKey key)
+    : network::SelfDeletingURLLoaderFactory(std::move(factory_receiver), key),
       task_runner_(base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
            base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN})) {}

@@ -1751,8 +1751,9 @@ ExtensionFunction::ResponseAction DownloadsSetShelfEnabledFunction::Run() {
     // API will eventually be deprecated (replaced by the SetUiOptions API
     // below).
     Browser* browser = window->GetBrowser();
-    if (browser->window()->GetDownloadBubbleUIController()) {
-      browser->window()->GetDownloadBubbleUIController()->HideDownloadUi();
+    BrowserWindow* browser_window = BrowserWindow::FromBrowser(browser);
+    if (browser_window->GetDownloadBubbleUIController()) {
+      browser_window->GetDownloadBubbleUIController()->HideDownloadUi();
     }
 #endif
   }
@@ -1801,8 +1802,9 @@ ExtensionFunction::ResponseAction DownloadsSetUiOptionsFunction::Run() {
 
 #if !BUILDFLAG(IS_CHROMEOS) && BUILDFLAG(ENABLE_EXTENSIONS)
     Browser* browser = window->GetBrowser();
-    if (browser->window()->GetDownloadBubbleUIController()) {
-      browser->window()->GetDownloadBubbleUIController()->HideDownloadUi();
+    BrowserWindow* browser_window = BrowserWindow::FromBrowser(browser);
+    if (browser_window->GetDownloadBubbleUIController()) {
+      browser_window->GetDownloadBubbleUIController()->HideDownloadUi();
     }
 #endif
   }

@@ -287,7 +287,7 @@ bool EmbeddedPermissionPromptAndroid::ShouldUseRequestingOriginFavicon() const {
   return false;
 }
 
-const std::vector<base::WeakPtr<permissions::PermissionRequest>>&
+const std::vector<base::SafeRef<permissions::PermissionRequest>>&
 EmbeddedPermissionPromptAndroid::Requests() const {
   return prompt_model_->requests();
 }

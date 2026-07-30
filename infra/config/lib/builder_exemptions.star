@@ -390,7 +390,6 @@ exempted_from_description_builders = {
         "chromeos-amd64-generic-asan-rel",
         "chromeos-amd64-generic-cfi-thin-lto-rel",
         "chromeos-amd64-generic-dbg",
-        "chromeos-amd64-generic-rel-compilator",
         "chromeos-arm-generic-dbg",
         "chromeos-arm-generic-rel",
         "chromeos-arm64-generic-rel",

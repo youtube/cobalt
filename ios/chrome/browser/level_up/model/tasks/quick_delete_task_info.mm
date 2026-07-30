@@ -27,7 +27,7 @@ class QuickDeleteTaskInfo : public TaskInfo {
     return LevelUpTaskCategory::kSafety;
   }
   std::string GetTriggerUserAction() const override { return ""; }
-  base::RepeatingClosure GetNavigationAction() const override {
+  TaskInfo::NavigationAction GetNavigationAction() const override {
     return base::DoNothing();
   }
 };

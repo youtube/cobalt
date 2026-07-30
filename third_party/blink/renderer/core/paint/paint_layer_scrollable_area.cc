@@ -2870,7 +2870,8 @@ void PaintLayerScrollableArea::DidUpdateVisualViewport() {
 bool PaintLayerScrollableArea::ScheduleAnimation() {
   if (ChromeClient* client =
           GetLayoutBox()->GetFrameView()->GetChromeClient()) {
-    client->ScheduleAnimation(GetLayoutBox()->GetFrameView());
+    client->ScheduleAnimation(GetLayoutBox()->GetFrameView(),
+                              cc::BeginMainFrameReason::kMainThreadScroll);
     return true;
   }
   return false;

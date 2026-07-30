@@ -174,10 +174,15 @@ base::expected<SessionParams, SessionError> ParseSessionInstructionJson(
     }
   }
 
-  return SessionParams(*session_id, fetcher_url,
-                       refresh_url ? *refresh_url : "", std::move(scope),
-                       std::move(credentials), key_id,
-                       std::move(allowed_refresh_initiators));
+  return SessionParams{
+      .session_id = *session_id,
+      .fetcher_url = fetcher_url,
+      .refresh_url = refresh_url ? *refresh_url : "",
+      .scope = std::move(scope),
+      .credentials = std::move(credentials),
+      .key_id = key_id,
+      .allowed_refresh_initiators = std::move(allowed_refresh_initiators),
+  };
 }
 
 std::optional<WellKnownParams> ParseWellKnownJson(

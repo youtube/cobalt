@@ -20,6 +20,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/views/accessibility/caption_bubble_context_views.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -916,10 +917,12 @@ IN_PROC_BROWSER_TEST_P(CaptionBubbleControllerViewsTest,
   browser()->profile()->GetPrefs()->SetString(prefs::kLiveCaptionLanguageCode,
                                               "fr");
 
-  SkColor default_color = browser()->window()->GetColorProvider()->GetColor(
-      ui::kColorLiveCaptionBubbleForegroundDefault);
+  SkColor default_color =
+      BrowserWindow::FromBrowser(browser())->GetColorProvider()->GetColor(
+          ui::kColorLiveCaptionBubbleForegroundDefault);
   SkColor language_label_color =
-      browser()->window()->GetColorProvider()->GetColor(ui::kColorRefPrimary80);
+      BrowserWindow::FromBrowser(browser())->GetColorProvider()->GetColor(
+          ui::kColorRefPrimary80);
   ui::CaptionStyle caption_style;
 
   GetController()->UpdateCaptionStyle(std::nullopt);
@@ -1000,8 +1003,9 @@ IN_PROC_BROWSER_TEST_P(CaptionBubbleControllerViewsTest,
 
 IN_PROC_BROWSER_TEST_P(CaptionBubbleControllerViewsTest,
                        UpdateCaptionStyleBackgroundColor) {
-  SkColor default_color = browser()->window()->GetColorProvider()->GetColor(
-      ui::kColorLiveCaptionBubbleBackgroundDefault);
+  SkColor default_color =
+      BrowserWindow::FromBrowser(browser())->GetColorProvider()->GetColor(
+          ui::kColorLiveCaptionBubbleBackgroundDefault);
   ui::CaptionStyle caption_style;
 
   GetController()->UpdateCaptionStyle(std::nullopt);

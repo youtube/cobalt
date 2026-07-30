@@ -9,6 +9,10 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "chrome/browser/printing/print_job_manager.h"
+#include "chrome/browser/printing/printer_query.h"
+#include "content/public/browser/browser_thread.h"
+#include "content/public/browser/render_process_host.h"
 #include "printing/printing_context_android.h"
 #include "ui/android/window_android.h"
 #endif
@@ -65,6 +69,35 @@ void PrintViewManagerBasic::BindPrintManagerHost(
 }
 
 #if BUILDFLAG(IS_ANDROID)
+void PrintViewManagerBasic::SetupScriptedPrintAndroid(
+    SetupScriptedPrintAndroidCallback callback) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  content::RenderFrameHost* rfh = GetCurrentTargetFrame();
+  DCHECK(rfh->IsRenderFrameLive());
+
+  // Start Printing Flow via PrinterQuery
+  std::unique_ptr<PrinterQuery> printer_query =
+      queue()->CreatePrinterQuery(rfh->GetGlobalId());
+  auto* printer_query_ptr = printer_query.get();
+
+  printer_query_ptr->GetSettingsFromUser(
+      /*expected_page_count=*/0, /*has_selection=*/false,
+      mojom::MarginType::kDefaultMargins, /*is_scripted=*/true,
+      /*is_modifiable=*/true,
+      base::BindOnce(&PrintViewManagerBasic::OnSetupScriptedPrintAndroidDone,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback),
+                     std::move(printer_query)));
+}
+
+void PrintViewManagerBasic::OnSetupScriptedPrintAndroidDone(
+    SetupScriptedPrintAndroidCallback callback,
+    std::unique_ptr<PrinterQuery> printer_query) {
+  std::move(callback).Run();
+  // Note: `printer_query` is intentionally dropped here. On Android, the print
+  // dialog manages the actual print request natively, so the `PrinterQuery`
+  // does not need to be queued for the renderer's `ScriptedPrint` IPC.
+}
+
 void PrintViewManagerBasic::PdfWritingDone(int page_count) {
   pdf_writing_done_callback().Run(page_count);
 }

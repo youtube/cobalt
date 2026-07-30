@@ -67,6 +67,8 @@ import org.chromium.chrome.browser.ui.appmenu.AppMenuItemProperties;
 import org.chromium.chrome.browser.webapps.WebappRegistry;
 import org.chromium.components.bookmarks.BookmarkId;
 import org.chromium.components.browser_ui.accessibility.PageZoomUtils;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerProvider;
 import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridge;
 import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni;
 import org.chromium.components.commerce.core.CommerceFeatureUtils;
@@ -83,6 +85,7 @@ import org.chromium.components.webapps.AppBannerManager;
 import org.chromium.components.webapps.AppBannerManagerJni;
 import org.chromium.content_public.browser.NavigationController;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.MVCListAdapter;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.url.GURL;
@@ -448,6 +451,42 @@ public class AppMenuPropertiesDelegateUnitTest {
 
         when(mDomDistillerUrlUtilsJni.isDistilledPage(any())).thenReturn(false);
         assertFalse(mAppMenuPropertiesDelegate.isReaderModeShowing(mTab));
+    }
+
+    @Mock private BottomSheetController mBottomSheetControllerMock;
+
+    @Test
+    public void testPageZoomMenuItem_hiddenWhenBottomSheetOpen() {
+        // Setup: Bottom sheet controller is available and sheet is open
+        BottomSheetControllerProvider.setInstanceForTesting(mBottomSheetControllerMock);
+        when(mBottomSheetControllerMock.isSheetOpen()).thenReturn(true);
+        PageZoomUtils.setShouldShowMenuItemForTesting(true);
+
+        // Stub dependent tab setup
+        when(mTab.getWindowAndroid()).thenReturn(mock(WindowAndroid.class));
+        doReturn(true)
+                .when(mAppMenuPropertiesDelegate)
+                .shouldShowWebContentsDependentMenuItem(any());
+
+        // Verify the zoom item is NOT shown
+        assertFalse(mAppMenuPropertiesDelegate.shouldShowPageZoomItem(mTab));
+    }
+
+    @Test
+    public void testPageZoomMenuItem_visibleWhenBottomSheetClosed() {
+        // Setup: Bottom sheet controller is available and sheet is closed
+        BottomSheetControllerProvider.setInstanceForTesting(mBottomSheetControllerMock);
+        when(mBottomSheetControllerMock.isSheetOpen()).thenReturn(false);
+        PageZoomUtils.setShouldShowMenuItemForTesting(true);
+
+        // Stub dependent tab setup
+        when(mTab.getWindowAndroid()).thenReturn(mock(WindowAndroid.class));
+        doReturn(true)
+                .when(mAppMenuPropertiesDelegate)
+                .shouldShowWebContentsDependentMenuItem(any());
+
+        // Verify the zoom item IS shown
+        assertTrue(mAppMenuPropertiesDelegate.shouldShowPageZoomItem(mTab));
     }
 
     private void setUpMocksForPageMenu() {

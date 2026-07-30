@@ -4,17 +4,20 @@
 
 #include "android_webview/browser/aw_print_manager.h"
 
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 #include <utility>
 
-#include "base/files/file.h"
 #include "base/files/file_util.h"
-#include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/read_only_shared_memory_region.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
+#include "base/test/run_until.h"
 #include "base/test/task_environment.h"
 #include "components/printing/common/print.mojom.h"
 #include "content/public/browser/web_contents.h"
@@ -68,59 +71,20 @@ class AwPrintManagerTest : public testing::Test {
   std::unique_ptr<content::WebContents> web_contents_;
 };
 
-TEST_F(AwPrintManagerTest, FdIsResetOncePrintingStarts) {
-  auto* print_manager = AwPrintManager::FromWebContents(web_contents());
-  ASSERT_TRUE(print_manager);
-
-  int test_fd = 123;
-  auto settings = std::make_unique<printing::PrintSettings>();
-
-  bool callback_called = false;
-  print_manager->UpdateParam(
-      std::move(settings), test_fd,
-      base::BindLambdaForTesting(
-          [&callback_called](int page_count) { callback_called = true; }));
-
-  auto params = printing::mojom::DidPrintDocumentParams::New();
-  params->document_cookie = 0;  // Wrong cookie to fail early
-  params->content = printing::mojom::DidPrintContentParams::New();
-
-  auto* host = static_cast<printing::mojom::PrintManagerHost*>(print_manager);
-
-  bool did_print_callback_called = false;
-
-  // We pass a wrong cookie, which causes DidPrintDocument to fail early.
-  // DidPrintDocument will call PdfWritingDone(0).
-  // Inside PdfWritingDone(), it CHECKs that fd_ is set to base::kInvalidFd.
-  // If fd_ was not reset when printing started (i.e. at the beginning of
-  // DidPrintDocument), the test will crash.
-  host->DidPrintDocument(
-      std::move(params),
-      base::BindLambdaForTesting([&did_print_callback_called](bool success) {
-        did_print_callback_called = true;
-        EXPECT_FALSE(success);
-      }));
-
-  EXPECT_TRUE(callback_called);
-  EXPECT_TRUE(did_print_callback_called);
-}
-
 TEST_F(AwPrintManagerTest, FdIsResetAfterSuccessfulPrint) {
   auto* print_manager = AwPrintManager::FromWebContents(web_contents());
   ASSERT_TRUE(print_manager);
 
-  base::ScopedTempDir temp_dir;
-  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
-  base::FilePath temp_file;
-  ASSERT_TRUE(base::CreateTemporaryFileInDir(temp_dir.GetPath(), &temp_file));
-  base::File file(temp_file, base::File::FLAG_OPEN | base::File::FLAG_WRITE);
-  int valid_fd = file.GetPlatformFile();
+  int fds[2];
+  ASSERT_EQ(0, pipe2(fds, O_CLOEXEC));
+  base::ScopedFD read_fd(fds[0]);
+  base::ScopedFD write_fd(fds[1]);
 
   auto settings = std::make_unique<printing::PrintSettings>();
 
   bool callback_called = false;
   print_manager->UpdateParam(
-      std::move(settings), valid_fd,
+      std::move(settings), std::move(write_fd),
       base::BindLambdaForTesting([&callback_called](int page_count) {
         callback_called = true;
         EXPECT_EQ(1, page_count);
@@ -160,6 +124,123 @@ TEST_F(AwPrintManagerTest, FdIsResetAfterSuccessfulPrint) {
 
   EXPECT_TRUE(callback_called);
   EXPECT_TRUE(did_print_callback_called);
+
+  // Verify that the data was written to the pipe successfully.
+  std::string read_buf;
+  char buf[128];
+  ssize_t bytes_read;
+  while ((bytes_read = read(read_fd.get(), buf, sizeof(buf))) > 0) {
+    read_buf.append(buf, bytes_read);
+  }
+  EXPECT_EQ(read_buf, std::string(reinterpret_cast<const char*>(test_data),
+                                  sizeof(test_data)));
+}
+
+TEST_F(AwPrintManagerTest,
+       FdLifecycleManagedByBackgroundTaskEvenIfManagerDestroyed) {
+  auto* print_manager = AwPrintManager::FromWebContents(web_contents());
+  ASSERT_TRUE(print_manager);
+
+  int fds[2];
+  ASSERT_EQ(0, pipe2(fds, O_CLOEXEC));
+  base::ScopedFD read_fd(fds[0]);
+  base::ScopedFD write_fd(fds[1]);
+  ASSERT_TRUE(base::SetNonBlocking(read_fd.get()));
+
+  auto settings = std::make_unique<printing::PrintSettings>();
+
+  bool callback_called = false;
+  print_manager->UpdateParam(
+      std::move(settings), std::move(write_fd),
+      base::BindLambdaForTesting(
+          [&callback_called](int page_count) { callback_called = true; }));
+
+  auto params = printing::mojom::DidPrintDocumentParams::New();
+  params->document_cookie = PrintManagerPeer::GetCookie(print_manager);
+
+  auto content = printing::mojom::DidPrintContentParams::New();
+  const uint8_t test_data[] = "test data for lifecycle test";
+  base::MappedReadOnlyRegion mapped_region =
+      base::ReadOnlySharedMemoryRegion::Create(sizeof(test_data));
+  ASSERT_TRUE(mapped_region.IsValid());
+  mapped_region.mapping.GetMemoryAsSpan<uint8_t>().copy_from(test_data);
+
+  content->metafile_data_region = std::move(mapped_region.region);
+  params->content = std::move(content);
+
+  auto* host = static_cast<printing::mojom::PrintManagerHost*>(print_manager);
+
+  host->DidGetPrintedPagesCount(PrintManagerPeer::GetCookie(print_manager), 1);
+
+  host->DidPrintDocument(std::move(params),
+                         base::BindLambdaForTesting([](bool success) {
+                           ADD_FAILURE() << "Callback should not run";
+                         }));
+
+  // Destroy the print manager before running the background task.
+  TearDown();
+
+  // Since the print manager is destroyed, the completion callback will not run.
+  // We use RunUntil to wait for the background file writing task to complete.
+  // Note: RunUntilIdle() is a banned pattern and cannot be used here.
+  std::string read_buf;
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    char buf[128];
+    ssize_t bytes_read = read(read_fd.get(), buf, sizeof(buf));
+    if (bytes_read > 0) {
+      read_buf.append(buf, bytes_read);
+    }
+    return read_buf == std::string(reinterpret_cast<const char*>(test_data),
+                                   sizeof(test_data));
+  }));
+}
+
+// Verifies that when DidPrintDocument fails early (e.g., due to a cookie
+// mismatch), the file descriptor is properly closed. This also implicitly
+// verifies that the print manager resets/extracts the fd_ when printing starts,
+// because PdfWritingDone(0) CHECKs that fd_ is invalid.
+TEST_F(AwPrintManagerTest, FdIsClosedOnCookieMismatch) {
+  auto* print_manager = AwPrintManager::FromWebContents(web_contents());
+  ASSERT_TRUE(print_manager);
+
+  int fds[2];
+  ASSERT_EQ(0, pipe2(fds, O_CLOEXEC));
+  base::ScopedFD read_fd(fds[0]);
+  base::ScopedFD write_fd(fds[1]);
+  ASSERT_TRUE(base::SetNonBlocking(read_fd.get()));
+
+  auto settings = std::make_unique<printing::PrintSettings>();
+
+  bool callback_called = false;
+  print_manager->UpdateParam(
+      std::move(settings), std::move(write_fd),
+      base::BindLambdaForTesting([&callback_called](int page_count) {
+        callback_called = true;
+        EXPECT_EQ(0, page_count);
+      }));
+
+  auto params = printing::mojom::DidPrintDocumentParams::New();
+  params->document_cookie =
+      PrintManagerPeer::GetCookie(print_manager) + 1;  // Wrong cookie
+  params->content = printing::mojom::DidPrintContentParams::New();
+
+  auto* host = static_cast<printing::mojom::PrintManagerHost*>(print_manager);
+
+  bool did_print_callback_called = false;
+  host->DidPrintDocument(
+      std::move(params),
+      base::BindLambdaForTesting([&did_print_callback_called](bool success) {
+        did_print_callback_called = true;
+        EXPECT_FALSE(success);
+      }));
+
+  EXPECT_TRUE(callback_called);
+  EXPECT_TRUE(did_print_callback_called);
+
+  // The write_fd should be closed now due to cookie mismatch, meaning a read
+  // on read_fd should return 0 (EOF).
+  char buf;
+  EXPECT_EQ(0, read(read_fd.get(), &buf, 1));
 }
 
 }  // namespace android_webview

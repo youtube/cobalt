@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "components/optimization_guide/core/delivery/optimization_guide_model_provider.h"
 #include "components/optimization_guide/core/model_execution/on_device_asset_manager.h"
@@ -85,6 +86,7 @@ class ModelBrokerState final : public OnDeviceCapability,
   void SetUseCaseRequested(const std::string& use_case,
                            bool requested) override;
   void UninstallModels() override;
+  void ResetModelCrashCount() override;
 
  private:
   // Ensure any delayed initialization tasks are complete, then call `callback`.
@@ -97,6 +99,7 @@ class ModelBrokerState final : public OnDeviceCapability,
       base::OnceCallback<
           void(optimization_guide::OnDeviceModelEligibilityReason)> callback);
 
+  raw_ref<PrefService> local_state_;
   on_device_model::ServiceClient service_client_;
   OnDeviceModelDownloadProgressManager download_progress_manager_;
   UsageTracker usage_tracker_;

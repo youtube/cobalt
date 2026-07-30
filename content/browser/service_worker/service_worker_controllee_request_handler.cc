@@ -39,6 +39,7 @@
 #include "services/network/public/cpp/resource_request_body.h"
 #include "third_party/blink/public/common/loader/resource_type_util.h"
 #include "third_party/blink/public/common/service_worker/service_worker_loader_helpers.h"
+#include "third_party/perfetto/include/perfetto/tracing/track.h"
 
 #if BUILDFLAG(ENABLE_OFFLINE_PAGES)
 #include "components/offline_pages/core/request_header/offline_page_header.h"
@@ -246,11 +247,13 @@ void ServiceWorkerControlleeRequestHandler::ContinueWithRegistration(
         "ServiceWorker.FoundServiceWorkerRegistrationOnNavigation",
         status == blink::ServiceWorkerStatusCode::kOk);
 
+    auto track = perfetto::NamedTrack::FromPointer(
+        "ServiceWorker.MaybeCreateLoaderToContinueWithRegistration", this);
     TRACE_EVENT_BEGIN(
         "ServiceWorker",
-        "ServiceWorker.MaybeCreateLoaderToContinueWithRegistration",
-        perfetto::Track::FromPointer(this), find_registration_start_time);
-    TRACE_EVENT_END("ServiceWorker", perfetto::Track::FromPointer(this), now);
+        "ServiceWorker.MaybeCreateLoaderToContinueWithRegistration", track,
+        find_registration_start_time);
+    TRACE_EVENT_END("ServiceWorker", track, now);
   }
 
   if (status != blink::ServiceWorkerStatusCode::kOk) {

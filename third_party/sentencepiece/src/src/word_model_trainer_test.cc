@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.!
 
+#include "word_model_trainer.h"
+
 #include <string>
 #include <vector>
 
@@ -21,7 +23,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "util.h"
-#include "word_model_trainer.h"
 
 namespace sentencepiece {
 namespace word {
@@ -31,8 +32,7 @@ namespace {
 #define WS "\xE2\x96\x81"
 
 std::string RunTrainer(const std::vector<std::string> &input, int size) {
-  const std::string input_file =
-      util::JoinPath(::testing::TempDir(), "input");
+  const std::string input_file = util::JoinPath(::testing::TempDir(), "input");
   const std::string model_prefix =
       util::JoinPath(::testing::TempDir(), "model");
   {
@@ -75,6 +75,49 @@ std::string RunTrainer(const std::vector<std::string> &input, int size) {
 TEST(TrainerTest, BasicTest) {
   EXPECT_EQ(WS "I " WS "apple " WS "have " WS "pen",
             RunTrainer({"I have a pen", "I have an apple", "apple pen"}, 10));
+}
+
+TEST(TrainerTest, UserDefinedSymbolsAreTokenizedInWordModel) {
+  const std::string input_file = util::JoinPath(::testing::TempDir(), "input");
+  const std::string model_prefix =
+      util::JoinPath(::testing::TempDir(), "word_user_defined");
+  {
+    auto output = filesystem::NewWritableFile(input_file);
+    output->WriteLine("hello . world");
+    output->WriteLine("hello . test");
+  }
+
+  TrainerSpec trainer_spec;
+  trainer_spec.set_model_type(TrainerSpec::WORD);
+  trainer_spec.add_input(input_file);
+  trainer_spec.set_model_prefix(model_prefix);
+  trainer_spec.set_vocab_size(8);
+  trainer_spec.add_user_defined_symbols(".");
+  trainer_spec.set_hard_vocab_limit(false);
+
+  NormalizerSpec normalizer_spec;
+  normalizer_spec.set_name("identity");
+  normalizer_spec.set_add_dummy_prefix(true);
+
+  NormalizerSpec denormalizer_spec;
+
+  Trainer trainer(trainer_spec, normalizer_spec, denormalizer_spec);
+  ASSERT_TRUE(trainer.Train().ok());
+
+  SentencePieceProcessor processor;
+  ASSERT_TRUE(processor.Load(model_prefix + ".model").ok());
+
+  std::vector<std::string> pieces;
+  ASSERT_TRUE(processor.Encode("hello . world", &pieces).ok());
+  ASSERT_EQ(3, pieces.size());
+  EXPECT_EQ(WS "hello", pieces[0]);
+  EXPECT_EQ(WS ".", pieces[1]);
+  EXPECT_EQ(WS "world", pieces[2]);
+
+  std::vector<int> ids;
+  ASSERT_TRUE(processor.Encode("hello . world", &ids).ok());
+  ASSERT_EQ(3, ids.size());
+  EXPECT_FALSE(processor.IsUnknown(ids[1]));
 }
 }  // namespace word
 }  // namespace sentencepiece

@@ -65,6 +65,7 @@ OpenURLParams OpenURLParams::FromNavigationHandle(NavigationHandle* handle) {
 
   params.initiator_origin = handle->GetInitiatorOrigin();
   params.initiator_base_url = handle->GetInitiatorBaseUrl();
+  params.initiator_navigation_state = handle->GetInitiatorNavigationState();
   params.source_site_instance = handle->GetSourceSiteInstance();
   params.user_gesture = handle->HasUserGesture();
   params.started_from_context_menu = handle->WasStartedFromContextMenu();

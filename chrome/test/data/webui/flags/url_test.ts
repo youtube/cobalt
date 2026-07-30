@@ -64,13 +64,17 @@ let app: FlagsAppElement;
 let browserProxy: TestFlagsBrowserProxy;
 
 function createFlagsAppElement(
-    featureType: 'supportedFeatures'|'unsupportedFeatures') {
+    featureType: 'supportedFeatures'|'unsupportedFeatures',
+    redirects?: Record<string, string>) {
   document.body.innerHTML = window.trustedTypes!.emptyHTML;
   browserProxy = new TestFlagsBrowserProxy();
   browserProxy.setFeatureData(Object.assign(
       {}, experimentalFeaturesData, {[featureType]: mockFeatures}));
   FlagsBrowserProxyImpl.setInstance(browserProxy);
   app = document.createElement('flags-app');
+  if (redirects) {
+    app.setFlagRedirectsForTesting(redirects);
+  }
   document.body.appendChild(app);
   app.setAnnounceStatusDelayMsForTesting(0);
   app.setSearchDebounceDelayMsForTesting(0);
@@ -119,5 +123,20 @@ suite('UrlWithInvalidReferencedFlagHashTest', function() {
     await createFlagsAppElement('supportedFeatures');
 
     assertEquals('', window.location.hash);
+  });
+});
+
+suite('UrlWithRedirectedFlagHashTest', function() {
+  test('check legacy referenced flag hash is redirected', async function() {
+    window.location.hash = '#test-feature-old-name';
+
+    // Reload page with redirects overridden.
+    const redirects = {'#test-feature-old-name': '#test-feature'};
+    await createFlagsAppElement('supportedFeatures', redirects);
+
+    assertEquals('#test-feature', window.location.hash);
+    const referencedExperiment =
+        app.getRequiredElement<ExperimentElement>('#test-feature');
+    assertTrue(referencedExperiment.classList.contains('referenced'));
   });
 });

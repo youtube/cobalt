@@ -195,6 +195,7 @@ class GlicInstanceImpl : public GlicInstance,
   void SetIdForRestoration(InstanceId id);
   std::optional<std::string> conversation_id() const override;
   std::string conversation_title() const override;
+  std::optional<int> task_id() const override;
   std::vector<tabs::TabInterface*> GetBoundTabs() const;
   base::CallbackListSubscription AddConversationInfoChangedCallback(
       base::RepeatingCallback<void(const mojom::ConversationInfo&)> callback);
@@ -283,6 +284,7 @@ class GlicInstanceImpl : public GlicInstance,
   // GlicActorTaskManager::Delegate:
   void OnTabAddedToTask(actor::TaskId task_id,
                         const tabs::TabInterface::Handle& tab_handle) override;
+  void OnTaskIdChanged(std::optional<int> task_id) override;
 
  private:
   struct EmbedderEntry {
@@ -298,7 +300,7 @@ class GlicInstanceImpl : public GlicInstance,
   };
 
   void NotifyVisibilityChange();
-  void NotifyConversationTitleChanged();
+  void NotifyInstanceChanged();
 
   GlicUiEmbedder* GetEmbedderForKey(EmbedderKey key);
   EmbedderEntry* GetEmbedderEntry(EmbedderKey key);

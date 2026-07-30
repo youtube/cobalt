@@ -182,12 +182,10 @@ class SessionStorageNamespaceImpl final
       const std::map<std::string, std::unique_ptr<SessionStorageNamespaceImpl>>&
           namespaces_map);
 
+  StorageAreaImpl* GetStorageAreaForTesting(
+      const blink::StorageKey& storage_key);
   void FlushAreasForTesting();
   void FlushStorageKeyForTesting(const blink::StorageKey& storage_key);
-  void PutValueForTesting(const blink::StorageKey& storage_key,
-                          const std::vector<uint8_t>& key,
-                          const std::vector<uint8_t>& value,
-                          base::OnceCallback<void(bool)> callback);
 
  private:
   FRIEND_TEST_ALL_PREFIXES(SessionStorageImplTest,

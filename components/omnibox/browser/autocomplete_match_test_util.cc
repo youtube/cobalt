@@ -221,16 +221,6 @@ AutocompleteMatch CreateBoostedShortcutMatch(std::string name,
                                  true, traditional_relevance, ml_output);
 }
 
-AutocompleteMatch CreateKeywordHintMatch(std::string name,
-                                         int traditional_relevance) {
-  auto match = CreateAutocompleteMatch(
-      name, AutocompleteMatchType::SEARCH_SUGGEST, false, false,
-      traditional_relevance, std::nullopt);
-  match.keyword = u"keyword";
-  match.associated_keyword = u"keyword";
-  return match;
-}
-
 AutocompleteMatch CreateHistoryClusterMatch(std::string name,
                                             int traditional_relevance) {
   return CreateAutocompleteMatch(name, AutocompleteMatchType::HISTORY_CLUSTER,

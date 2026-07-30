@@ -79,15 +79,12 @@ WebDatabaseTable::TypeKey WebAppManifestSectionTable::GetTypeKey() const {
 }
 
 bool WebAppManifestSectionTable::CreateTablesIfNecessary() {
-  if (!db()->Execute("CREATE TABLE IF NOT EXISTS web_app_manifest_section ( "
-                     "expire_date INTEGER NOT NULL DEFAULT 0, "
-                     "id VARCHAR, "
-                     "min_version INTEGER NOT NULL DEFAULT 0, "
-                     "fingerprints BLOB) ")) {
-    NOTREACHED();
-  }
-
-  return true;
+  return db()->Execute(
+      "CREATE TABLE IF NOT EXISTS web_app_manifest_section ( "
+      "expire_date INTEGER NOT NULL DEFAULT 0, "
+      "id VARCHAR, "
+      "min_version INTEGER NOT NULL DEFAULT 0, "
+      "fingerprints BLOB) ");
 }
 
 bool WebAppManifestSectionTable::MigrateToVersion(

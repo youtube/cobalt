@@ -9,15 +9,18 @@
 
 #include "base/functional/bind.h"
 #include "base/test/gmock_callback_support.h"
+#include "base/test/gmock_move_support.h"
 #include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
+#include "base/types/expected.h"
 #include "base/types/expected_macros.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/tools/attempt_form_filling_tool_metrics.h"
 #include "chrome/browser/actor/tools/attempt_form_filling_tool_request.h"
+#include "chrome/browser/actor/tools/click_tool_request.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/browser/actor/tools/tools_test_util.h"
 #include "chrome/browser/autofill/actor/mock_actor_form_filling_service.h"
@@ -152,6 +155,10 @@ class MockExecutionEngine : public ExecutionEngine {
   MOCK_METHOD(autofill::ActorFormFillingService&,
               GetActorFormFillingService,
               (),
+              (override));
+  MOCK_METHOD(void,
+              EnqueueFollowupAction,
+              (std::unique_ptr<ToolRequest>),
               (override));
 };
 
@@ -1002,6 +1009,86 @@ IN_PROC_BROWSER_TEST_F(AttemptFormFillingToolTest, SectionLabelIsPropagated) {
   ActResultFuture result;
   actor_task().Act(ToRequestList(std::move(action)), result.GetCallback());
   ExpectErrorResult(result, mojom::ActionResultCode::kFormFillingDialogError);
+}
+
+class AttemptFormFillingToolPreClickTest : public AttemptFormFillingToolTest {
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_pre_click_{
+      features::kGlicActorAutofillPreClick};
+};
+
+// Test that AttemptFormFillingTool enqueues a ClickToolRequest followed by an
+// AttemptFormFillingToolRequest with enqueued_click=true.
+IN_PROC_BROWSER_TEST_F(AttemptFormFillingToolPreClickTest,
+                       EnqueuesClickBeforeFill) {
+  const GURL url = embedded_https_test_server().GetURL(
+      "example.com", "/autofill/autofill_test_form.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
+  WaitForTabObservation();
+  std::optional<DomNode> address_home_line1 =
+      GetDomNodeOnPage(*main_frame(), "#ADDRESS_HOME_LINE1");
+  ASSERT_TRUE(address_home_line1);
+
+  std::unique_ptr<ToolRequest> enqueued_fill;
+  std::unique_ptr<ToolRequest> enqueued_click;
+
+  EXPECT_CALL(mock_execution_engine(), EnqueueFollowupAction(_))
+      .Times(2)
+      .WillOnce(MoveArg<0>(&enqueued_fill))
+      .WillOnce(MoveArg<0>(&enqueued_click));
+
+  std::unique_ptr<ToolRequest> action = MakeAttemptFormFillingRequest(
+      *active_tab(), {PageTarget(*address_home_line1)});
+  ActResultFuture result;
+  actor_task().Act(ToRequestList(std::move(action)), result.GetCallback());
+  ExpectOkResult(result);
+
+  ASSERT_TRUE(enqueued_fill);
+  EXPECT_EQ(enqueued_fill->Name(), AttemptFormFillingToolRequest::kName);
+  EXPECT_TRUE(static_cast<AttemptFormFillingToolRequest*>(enqueued_fill.get())
+                  ->enqueued_click());
+
+  ASSERT_TRUE(enqueued_click);
+  EXPECT_EQ(enqueued_click->Name(), ClickToolRequest::kName);
+}
+
+class AttemptFormFillingToolNoPreClickTest : public AttemptFormFillingToolTest {
+ public:
+  AttemptFormFillingToolNoPreClickTest() {
+    scoped_feature_list_no_pre_click_.InitAndDisableFeature(
+        features::kGlicActorAutofillPreClick);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_no_pre_click_;
+};
+
+// Test that AttemptFormFillingTool does not enqueue any follow up actions.
+IN_PROC_BROWSER_TEST_F(AttemptFormFillingToolNoPreClickTest,
+                       DoesNotEnqueueFollowUpActions) {
+  const GURL url = embedded_https_test_server().GetURL(
+      "example.com", "/autofill/autofill_test_form.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
+  WaitForTabObservation();
+  std::optional<DomNode> address_home_line1 =
+      GetDomNodeOnPage(*main_frame(), "#ADDRESS_HOME_LINE1");
+  ASSERT_TRUE(address_home_line1);
+
+  EXPECT_CALL(mock_execution_engine(),
+              EnqueueFollowupAction(Pointee(
+                  Property(&ToolRequest::Name, Eq(ClickToolRequest::kName)))))
+      .Times(0);
+
+  EXPECT_CALL(mock_form_filling_service(), GetSuggestions(_, _, _))
+      .WillOnce(RunOnceCallback<2>(
+          base::unexpected(autofill::ActorFormFillingError::kNoSuggestions)));
+
+  std::unique_ptr<ToolRequest> action = MakeAttemptFormFillingRequest(
+      *active_tab(), {PageTarget(*address_home_line1)});
+  ActResultFuture result;
+  actor_task().Act(ToRequestList(std::move(action)), result.GetCallback());
+  ExpectErrorResult(
+      result, mojom::ActionResultCode::kFormFillingNoSuggestionsAvailable);
 }
 
 }  // namespace

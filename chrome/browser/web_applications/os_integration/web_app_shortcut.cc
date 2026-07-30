@@ -39,9 +39,9 @@
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/common/chrome_constants.h"
+#include "chrome/grit/app_icon_resources.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
-#include "extensions/grit/extensions_browser_resources.h"
 #include "skia/ext/image_operations.h"
 #include "third_party/protobuf/src/google/protobuf/repeated_field.h"
 #include "third_party/re2/src/re2/re2.h"
@@ -432,7 +432,7 @@ gfx::ImageSkia CreateDefaultApplicationIcon(int size) {
   // use IDR_WEB_APP_DEFAULT_ICON here.
   gfx::Image default_icon =
       ui::ResourceBundle::GetSharedInstance().GetImageNamed(
-          IDR_APP_DEFAULT_ICON);
+          IDR_WEB_APP_DEFAULT_ICON);
   SkBitmap bmp = skia::ImageOperations::Resize(
       *default_icon.ToSkBitmap(), skia::ImageOperations::RESIZE_BEST, size,
       size);

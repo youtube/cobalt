@@ -39,7 +39,6 @@
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/recent_activity_coordinator.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_group_coordinator.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_group_view_controller.h"
-#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/legacy_grid_transition_layout.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_group_action_type.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_group_confirmation_coordinator.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -119,10 +118,6 @@ using collaboration::CollaborationControllerDelegate;
       [GridItemIdentifier groupIdentifier:tabGroup];
   [self.gridViewController bringItemIntoView:groupIdentifier animated:animated];
   return YES;
-}
-
-- (LegacyGridTransitionLayout*)legacyTransitionLayout {
-  NOTREACHED() << "This should be implemented in subclasses.";
 }
 
 - (TabGridTransitionLayout*)transitionLayout {
@@ -221,38 +216,6 @@ using collaboration::CollaborationControllerDelegate;
   return _tabGroupCoordinator;
 }
 
-- (LegacyGridTransitionLayout*)
-    combineTransitionLayout:(LegacyGridTransitionLayout*)primaryLayout
-       withTransitionLayout:(LegacyGridTransitionLayout*)secondaryLayout {
-  NSArray<LegacyGridTransitionItem*>* primaryInactiveItems =
-      primaryLayout.inactiveItems;
-  NSArray<LegacyGridTransitionItem*>* secondaryInactiveItems =
-      secondaryLayout.inactiveItems;
-
-  NSArray<LegacyGridTransitionItem*>* inactiveItems =
-      [self combineInactiveItems:primaryInactiveItems
-               withInactiveItems:secondaryInactiveItems];
-
-  LegacyGridTransitionActiveItem* primaryActiveItem = primaryLayout.activeItem;
-  LegacyGridTransitionActiveItem* secondaryActiveItem =
-      secondaryLayout.activeItem;
-
-  // Prefer primary active item.
-  LegacyGridTransitionActiveItem* activeItem =
-      primaryActiveItem ? primaryActiveItem : secondaryActiveItem;
-
-  LegacyGridTransitionItem* primarySelectionItem = primaryLayout.selectionItem;
-  LegacyGridTransitionItem* secondarySelectionItem =
-      secondaryLayout.selectionItem;
-
-  // Prefer primary selection item.
-  LegacyGridTransitionItem* selectionItem =
-      primarySelectionItem ? primarySelectionItem : secondarySelectionItem;
-
-  return [LegacyGridTransitionLayout layoutWithInactiveItems:inactiveItems
-                                                  activeItem:activeItem
-                                               selectionItem:selectionItem];
-}
 
 #pragma mark - ChromeCoordinator
 
@@ -515,21 +478,6 @@ using collaboration::CollaborationControllerDelegate;
   self.mediator.baseDelegate = _tabGroupCoordinator;
 }
 
-// Combines two arrays of inactive items into one. The `primaryInactiveItems`
-// (if any) would be placed in the front of the resulting array, whether the
-// `secondaryInactiveItems` would be placed in the back.
-- (NSArray<LegacyGridTransitionItem*>*)
-    combineInactiveItems:
-        (NSArray<LegacyGridTransitionItem*>*)primaryInactiveItems
-       withInactiveItems:
-           (NSArray<LegacyGridTransitionItem*>*)secondaryInactiveItems {
-  if (primaryInactiveItems == nil) {
-    primaryInactiveItems = @[];
-  }
-
-  return [primaryInactiveItems
-      arrayByAddingObjectsFromArray:secondaryInactiveItems];
-}
 
 // Helper method to execute a corresponded action to `actionType` and dismiss
 // the confirmation coordinator.

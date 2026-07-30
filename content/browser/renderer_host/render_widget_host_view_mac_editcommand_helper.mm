@@ -127,7 +127,8 @@ const auto kEditCommands =
 // The WebFrame is in the Chrome glue layer and forwards the message to WebCore.
 void EditCommandImp(id self, SEL _cmd, id sender) {
   // Make sure |self| is the right type.
-  DCHECK([self respondsToSelector:@selector(renderWidgetHostNSViewHost)]);
+  CHECK([self respondsToSelector:@selector(renderWidgetHostNSViewHost)],
+        base::NotFatalUntil::M152);
 
   // SEL -> command name string.
   NSString* command_name_ns =
@@ -137,7 +138,7 @@ void EditCommandImp(id self, SEL _cmd, id sender) {
   // Forward the edit command string down the pipeline.
   remote_cocoa::mojom::RenderWidgetHostNSViewHost* host =
       [self renderWidgetHostNSViewHost];
-  DCHECK(host);
+  CHECK(host, base::NotFatalUntil::M152);
   host->ExecuteEditCommand(command);
 }
 

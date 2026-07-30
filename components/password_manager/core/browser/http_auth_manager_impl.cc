@@ -120,7 +120,7 @@ void HttpAuthManagerImpl::Autofill(const PasswordForm& preferred_match,
   std::u16string message;
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
   const std::u16string origin = base::UTF8ToUTF16(
-      GetShownOrigin(url::Origin::Create(client_->GetLastCommittedURL())));
+      GetShownOrigin(url::Origin::Create(form_manager_->GetURL())));
   message =
       l10n_util::GetStringFUTF16(IDS_PASSWORD_MANAGER_FILLING_REAUTH, origin);
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)

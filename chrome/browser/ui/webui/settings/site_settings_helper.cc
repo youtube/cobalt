@@ -135,6 +135,7 @@ constexpr auto kContentSettingsTypeGroupNames = std::to_array<
     {ContentSettingsType::BACKGROUND_SYNC, "background-sync"},
     {ContentSettingsType::ADS, "ads"},
     {ContentSettingsType::SOUND, "sound"},
+    {ContentSettingsType::INLINE_CUE_MENU, "inline-cue-menu"},
     {ContentSettingsType::CLIPBOARD_READ_WRITE, "clipboard"},
     {ContentSettingsType::SENSORS, "sensors"},
     {ContentSettingsType::PAYMENT_HANDLER, "payment-handler"},

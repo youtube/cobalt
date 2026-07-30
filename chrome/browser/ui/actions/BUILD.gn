@@ -17,6 +17,8 @@ source_set("actions_headers") {
 
 source_set("actions") {
   sources = [
+    "chrome_action_properties.cc",
+    "chrome_action_properties.h",
     "chrome_actions.cc",
     "chrome_actions.h",
   ]
@@ -24,7 +26,20 @@ source_set("actions") {
   deps = [
     ":actions_headers",
     "//ui/actions",
+    "//ui/base",
   ]
+
+  if (!is_android) {
+    sources += [
+      "command_action_updater.cc",
+      "command_action_updater.h",
+    ]
+    deps += [
+      "//chrome/browser:command_updater_impl",
+      "//chrome/browser:primitives",
+      "//chrome/browser/ui/browser_window",
+    ]
+  }
 }
 
 source_set("actions_util") {
@@ -60,4 +75,28 @@ source_set("unit_tests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+}
+
+if (!is_android) {
+  source_set("browser_tests") {
+    testonly = true
+
+    sources = [ "command_action_updater_browsertest.cc" ]
+
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    deps = [
+      ":actions",
+      "//base",
+      "//base/test:test_support",
+      "//chrome/browser/ui",
+      "//chrome/browser/ui:browser_actions",
+      "//chrome/browser/ui:ui_features",
+      "//chrome/test:test_support",
+      "//content/test:test_support",
+      "//testing/gmock",
+      "//testing/gtest",
+      "//ui/actions",
+    ]
+  }
 }

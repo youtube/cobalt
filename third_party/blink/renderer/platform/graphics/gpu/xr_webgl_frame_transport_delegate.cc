@@ -33,20 +33,6 @@ void XRWebGLFrameTransportDelegate::WaitOnFence(gfx::GpuFence* fence) {
   gl->DestroyGpuFenceCHROMIUM(id);
 }
 
-gpu::SyncToken XRWebGLFrameTransportDelegate::GenerateSyncToken() {
-  gpu::SyncToken sync_token;
-  if (!context_provider_) {
-    return sync_token;
-  }
-  gpu::gles2::GLES2Interface* gl = context_provider_->ContextGL();
-  if (!gl) {
-    return sync_token;
-  }
-
-  gl->GenSyncTokenCHROMIUM(sync_token.GetData());
-  return sync_token;
-}
-
 void XRWebGLFrameTransportDelegate::VerifySyncToken(
     gpu::SyncToken& sync_token) {
   if (!context_provider_) {

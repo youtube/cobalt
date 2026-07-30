@@ -24,7 +24,8 @@ import {isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestContextualTasksBrowserProxy} from './test_contextual_tasks_browser_proxy.js';
 import {ADD_TAB_CONTEXT_FN, setupAutocompleteResults, uploadFileAndVerify} from './test_searchbox_utils.js';
-import {assertStyle, FAKE_TOKEN_STRING, FAKE_TOKEN_STRING_2, fixtureUrl, getSubmitButton, getSubmitContainer, installMock, simulateUserInput} from './test_utils.js';
+import {assertStyle, createCtComposeboxApp, FAKE_TOKEN_STRING, FAKE_TOKEN_STRING_2, fixtureUrl, getSubmitButton, getSubmitContainer, installMock, simulateUserInput} from './contextual_tasks_test_utils.js';
+import type {CtComposeboxAppParts} from './contextual_tasks_test_utils.js';
 
 function pressEnter(element: HTMLElement) {
   element.dispatchEvent(new KeyboardEvent('keydown', {
@@ -234,33 +235,6 @@ suite('ContextualTasksComposeboxSubmitTest', () => {
     assertEquals(
         null, composebox.getDropdownElement().result,
         'Matches should be cleared');
-  });
-
-  test('ComposeboxSubmitSendsQueryBeforeAutocomplete', async () => {
-    mockTimer.install();
-    const TEST_QUERY = 'test query';
-
-    const inputElement = composebox.getInputElement().$.input;
-    assertTrue(
-        isVisible(inputElement), 'Composebox input element should be visible');
-
-    // User types text
-    simulateUserInput(inputElement, TEST_QUERY);
-    await composebox.updateComplete;
-
-    // User immediately presses Enter before any autocomplete results arrive
-    pressEnter(inputElement);
-
-    // Verify submitQuery is called with the typed text
-    const [query] = await mockSearchboxPageHandler.whenCalled('submitQuery');
-    assertEquals(TEST_QUERY, query);
-
-    await composebox.updateComplete;
-    await contextualTasksApp.updateComplete;
-
-    assertEquals(
-        '', inputElement.value,
-        'Input should be cleared, but input = ' + inputElement.value);
   });
 
   test('InjectInputSubmitAfterInjectionTrue', async () => {
@@ -1281,5 +1255,114 @@ suite('ContextualTasksComposeboxSubmitTest', () => {
         const submitButton: HTMLButtonElement|null = getSubmitButton(composebox);
         assertTrue(!!submitButton, 'Submit button should exist');
         assertFalse(submitButton?.disabled, 'Button should be enabled');
+      });
+});
+
+// =============================================================================
+// Fork DUAL-PATH BASIC INPUT/SUBMIT/CLEAR SUITE
+// Basic submit behavior is implemented by both the legacy <cr-composebox> and
+// the <contextual-tasks-inner-composebox>, so this suite runs on both paths.
+// Submit tests depending on behavior the fork does not implement yet
+// (selected-match submit, files, inject input, deep search, voice) stay in the
+// flag-off suites above.
+// =============================================================================
+[true, false].forEach(useFork => {
+  suite(
+      `ContextualTasksComposeboxForkSmokeTest (useContextualTasksComposeboxFork =
+        ${useFork})`,
+      () => {
+        let testProxy: TestContextualTasksBrowserProxy;
+        let mockComposeboxPageHandler: TestMock<ComposeboxPageHandlerRemote>;
+        let mockSearchboxPageHandler: TestMock<SearchboxPageHandlerRemote>;
+        let parts: CtComposeboxAppParts;
+        let mockTimer: MockTimer;
+
+        setup(async () => {
+          const win = window as any;
+
+          if (!win.chrome) {
+            Object.assign(window, {chrome: {}});
+          }
+
+          if (!win.chrome.histograms) {
+            win.chrome.histograms = {
+              recordEnumerationValue: () => {},
+              recordUserAction: () => {},
+              recordBoolean: () => {},
+              };
+          }
+
+          document.body.innerHTML = win.trustedTypes!.emptyHTML;
+
+          mockTimer = new MockTimer();
+
+          loadTimeData.overrideValues({
+            contextualMenuUsePecApi: false,
+            composeboxSmartTabSharingVisible: false,
+            enableComposeboxJumpFix: false,
+            composeboxShowTypedSuggest: true,
+            composeboxShowZps: true,
+            enableBasicModeZOrder: true,
+            composeboxShowContextMenu: true,
+          });
+
+          testProxy = new TestContextualTasksBrowserProxy(fixtureUrl);
+          BrowserProxyImpl.setInstance(testProxy);
+
+          mockComposeboxPageHandler =
+              TestMock.fromClass(ComposeboxPageHandlerRemote);
+          mockComposeboxPageHandler.setResultFor(
+              'getSmartTabSharingActive', Promise.resolve({active: false}));
+          mockSearchboxPageHandler =
+              TestMock.fromClass(SearchboxPageHandlerRemote);
+          mockSearchboxPageHandler.setResultFor(
+              'getInputState', Promise.resolve({state: new MockInputState()}));
+          mockSearchboxPageHandler.setResultFor(
+              'getPageClassification',
+              Promise.resolve({metricSource: 'CO_BROWSING_COMPOSEBOX'}));
+          const searchboxCallbackRouter = new SearchboxPageCallbackRouter();
+          searchboxCallbackRouter.$.bindNewPipeAndPassRemote();
+          ComposeboxProxyImpl.setInstance(new ComposeboxProxyImpl(
+              mockComposeboxPageHandler as any,
+              new ComposeboxPageCallbackRouter(),
+              mockSearchboxPageHandler as any, searchboxCallbackRouter));
+
+          parts = await createCtComposeboxApp(useFork);
+        });
+
+        teardown(() => {
+          mockTimer.uninstall();
+        });
+
+        test('ComposeboxSubmitSendsQueryBeforeAutocomplete', async () => {
+          mockTimer.install();
+          const TEST_QUERY = 'test query';
+          const {app, innerComposebox} = parts;
+
+          const inputElement = innerComposebox.getInputElement().$.input;
+          assertTrue(
+              isVisible(inputElement),
+              'Composebox input element should be visible');
+
+          // User types text
+          simulateUserInput(inputElement, TEST_QUERY);
+          await innerComposebox.updateComplete;
+
+          // User immediately presses Enter before any autocomplete results
+          // arrive
+          pressEnter(inputElement);
+
+          // Verify submitQuery is called with the typed text
+          const [query] =
+              await mockSearchboxPageHandler.whenCalled('submitQuery');
+          assertEquals(TEST_QUERY, query);
+
+          await innerComposebox.updateComplete;
+          await app.updateComplete;
+
+          assertEquals(
+              '', inputElement.value,
+              'Input should be cleared, but input = ' + inputElement.value);
+        });
       });
 });

@@ -68,6 +68,7 @@ TEST_F(PasskeySuggestionUtilsTest, FormSuggestionsFromPasskeyCredentials) {
   EXPECT_EQ(
       std::get<autofill::Suggestion::Guid>(suggestions[0].payload).value(),
       base::Base64Encode(passkeys[0].credential_id()));
+  EXPECT_NSEQ(suggestions[0].minorValue, base::SysUTF8ToNSString(kRpId));
 }
 
 // Tests that converting a PasskeyCredential with a display name results in a

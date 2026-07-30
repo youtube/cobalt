@@ -134,6 +134,7 @@ static_library("login") {
   deps = [
     "//ash",
     "//ash/constants",
+    "//ash/login/resources:login_strings",
     "//ash/strings",
     "//ash/webui/help_app_ui:help_app_ui_pref",
     "//build:branding_buildflags",

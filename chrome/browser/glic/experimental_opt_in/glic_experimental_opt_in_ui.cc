@@ -121,6 +121,9 @@ GlicExperimentalOptInUI::GlicExperimentalOptInUI(content::WebUI* web_ui)
   source->AddString(
       "glicExperimentalTriggeringOptInURL",
       GetExperimentalTriggeringOptInURL(profile, required_state_).spec());
+  source->AddBoolean(
+      "glicDevEnabled",
+      base::CommandLine::ForCurrentProcess()->HasSwitch(::switches::kGlicDev));
 
   static constexpr webui::LocalizedString kStrings[] = {
       {"offlineNoticeHeader", IDS_GLIC_OFFLINE_NOTICE_HEADER},

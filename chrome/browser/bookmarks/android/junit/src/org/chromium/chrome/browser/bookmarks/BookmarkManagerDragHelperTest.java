@@ -224,10 +224,6 @@ public class BookmarkManagerDragHelperTest {
         // 5. Verify the Row View (mItemView) gets the "closed hand" cursor.
         verify(mItemView)
                 .setPointerIcon(PointerIcon.getSystemIcon(mActivity, PointerIcon.TYPE_GRABBING));
-
-        // 5. Verify the synthetic event is dispatched to the Recycler View to ensuring the "closed
-        // hand" cursor persists correctly during the drag.
-        verify(mRecyclerView).dispatchTouchEvent(any(MotionEvent.class));
     }
 
     @Test

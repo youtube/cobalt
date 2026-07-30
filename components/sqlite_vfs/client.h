@@ -13,6 +13,7 @@ namespace sqlite_vfs {
 enum class Client {
   kCodeCache,
   kShaderCache,
+  kSharedCacheIsolated,
   kTest,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/persistent_cache/histograms.xml:VfsClient)

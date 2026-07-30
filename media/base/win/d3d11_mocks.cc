@@ -6,6 +6,9 @@
 
 namespace media {
 
+DXGIKeyedMutexMock::DXGIKeyedMutexMock() = default;
+DXGIKeyedMutexMock::~DXGIKeyedMutexMock() = default;
+
 D3D11Texture2DMock::D3D11Texture2DMock() = default;
 D3D11Texture2DMock::~D3D11Texture2DMock() = default;
 

@@ -68,6 +68,8 @@ class MockAddressSorter : public AddressSorter {
               Sort,
               (const std::vector<IPEndPoint>& endpoints,
                const NetworkAnonymizationKey& anonymization_key,
+
+               handles::NetworkHandle target_network,
                CallbackType callback),
               (const, override));
 };
@@ -369,17 +371,18 @@ TEST_F(HostResolverDnsTaskTest, PlatformAttemptCorruptResponseFailsParsing) {
 TEST_F(HostResolverDnsTaskTest,
        PlatformAttemptMultipleQueriesResultsAreSorted) {
   if (__builtin_available(android 29, *)) {
+    constexpr int64_t kTargetNetwork = 123;
     base::ScopedFD fd_a =
         MockAndroidDnsPlatformAttemptDelegate::CreateFdWithUnreadData();
     base::ScopedFD fd_aaaa =
         MockAndroidDnsPlatformAttemptDelegate::CreateFdWithUnreadData();
 
     EXPECT_CALL(mock_dns_platform_android_attempt_delegate_,
-                Query(NETWORK_UNSPECIFIED, StrEq("www.google.com"),
+                Query(net_handle_t{kTargetNetwork}, StrEq("www.google.com"),
                       dns_protocol::kTypeA))
         .WillOnce(Return(fd_a.get()));
     EXPECT_CALL(mock_dns_platform_android_attempt_delegate_,
-                Query(NETWORK_UNSPECIFIED, StrEq("www.google.com"),
+                Query(net_handle_t{kTargetNetwork}, StrEq("www.google.com"),
                       dns_protocol::kTypeAAAA))
         .WillOnce(Return(fd_aaaa.get()));
 
@@ -427,9 +430,10 @@ TEST_F(HostResolverDnsTaskTest,
     // need to ensure that HostResolverDnsTask does end up calling relying on
     // it.
     auto prefer_ipv6_address_sorter = std::make_unique<MockAddressSorter>();
-    EXPECT_CALL(*prefer_ipv6_address_sorter, Sort(_, _, _))
+    EXPECT_CALL(*prefer_ipv6_address_sorter, Sort(_, _, kTargetNetwork, _))
         .WillOnce([](const std::vector<IPEndPoint>& endpoints,
                      const NetworkAnonymizationKey& anonymization_key,
+                     handles::NetworkHandle target_network,
                      AddressSorter::CallbackType callback) {
           EXPECT_THAT(endpoints,
                       UnorderedElementsAre(
@@ -460,7 +464,7 @@ TEST_F(HostResolverDnsTaskTest,
         HostResolver::Host(url::SchemeHostPort(GURL("http://www.google.com"))),
         NetworkAnonymizationKey(), types, resolve_context_.get(),
         DnsTransactionFactory::AttemptMode::kPlatform,
-        SecureDnsMode::kAutomatic, handles::kInvalidNetworkHandle,
+        SecureDnsMode::kAutomatic, handles::NetworkHandle{kTargetNetwork},
         &mock_dns_task_delegate_, NetLogWithSource(), &tick_clock,
         /*fallback_available=*/false, HostResolver::HttpsSvcbOptions());
     EXPECT_EQ(task->num_additional_transactions_needed(), 2);
@@ -502,7 +506,10 @@ class DelayingAddressSorter : public AddressSorter {
   // AddressSorter:
   void Sort(const std::vector<IPEndPoint>& endpoints,
             const NetworkAnonymizationKey& anonymization_key,
+            handles::NetworkHandle target_network,
             CallbackType callback) const override {
+    // This is used only for testing in scenarios that do not involve multiple
+    // networks. With that in mind, it's safe to ignore `target_network`.
     in_progress_.emplace_back(endpoints, std::move(callback));
 
     if (on_sort_called_) {

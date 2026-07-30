@@ -28,6 +28,7 @@ public class AtMemoryBottomSheetCoordinator {
     private final BottomSheetController mBottomSheetController;
 
     public static final int ITEM_TYPE_SUGGESTION = 1;
+    public static final int ITEM_TYPE_SEARCH_TILE = 2;
 
     private final BottomSheetObserver mBottomSheetObserver =
             new EmptyBottomSheetObserver() {
@@ -47,9 +48,7 @@ public class AtMemoryBottomSheetCoordinator {
 
         void onQuerySubmitted(String query);
 
-        void onSuggestionClicked(AutofillSuggestion suggestion);
-
-        void onFlyoutClicked(AutofillSuggestion suggestion);
+        void onSuggestionClicked(int position);
     }
 
     AtMemoryBottomSheetCoordinator(
@@ -61,16 +60,22 @@ public class AtMemoryBottomSheetCoordinator {
                         .with(AtMemoryBottomSheetProperties.VISIBLE, false)
                         .build();
 
-        ModelList modelList = new ModelList();
-        mMediator = new AtMemoryBottomSheetMediator(delegate, model, modelList);
-
         AtMemoryBottomSheetView view = new AtMemoryBottomSheetView(context);
+
+        ModelList modelList = new ModelList();
+        mMediator =
+                new AtMemoryBottomSheetMediator(
+                        context, delegate, model, modelList, view::hideKeyboardAndClearFocus);
 
         SimpleRecyclerViewAdapter adapter = new SimpleRecyclerViewAdapter(modelList);
         adapter.registerType(
                 ITEM_TYPE_SUGGESTION,
                 new LayoutViewBuilder<>(R.layout.at_memory_bottom_sheet_suggestion_item),
                 AtMemoryBottomSheetSuggestionViewBinder::bind);
+        adapter.registerType(
+                ITEM_TYPE_SEARCH_TILE,
+                new LayoutViewBuilder<>(R.layout.at_memory_bottom_sheet_search_item),
+                AtMemoryBottomSheetSearchTileViewBinder::bind);
         view.setRecyclerViewAdapter(adapter);
 
         mContent = new AtMemoryBottomSheetContent(view.getContentView(), mBottomSheetController);

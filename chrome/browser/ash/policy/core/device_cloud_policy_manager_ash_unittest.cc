@@ -795,16 +795,15 @@ class DeviceCloudPolicyManagerAshEnrollmentTest
         test_url_loader_factory_.GetSafeWeakWrapper(),
         CloudPolicyClient::DeviceDMTokenCallback());
 
-    const auto& local_state =
+    auto& local_state =
         CHECK_DEREF(TestingBrowserProcess::GetGlobal()->local_state());
     enrollment_handler_ = std::make_unique<EnrollmentHandler>(
-        store_, install_attributes_.get(), &state_keys_broker_,
-        &mock_attestation_flow_, std::move(client),
-        base::SingleThreadTaskRunner::GetCurrentDefault(), enrollment_config,
-        std::move(auth), install_attributes_->GetDeviceId(),
+        &local_state, test_url_loader_factory_.GetSafeWeakWrapper(), store_,
+        install_attributes_.get(), &state_keys_broker_, &mock_attestation_flow_,
+        std::move(client), base::SingleThreadTaskRunner::GetCurrentDefault(),
+        enrollment_config, std::move(auth), install_attributes_->GetDeviceId(),
         EnrollmentRequisitionManager::GetDeviceRequisition(local_state),
         EnrollmentRequisitionManager::GetSubOrganization(local_state),
-
         base::BindOnce(&DeviceCloudPolicyManagerAshEnrollmentTest::Done,
                        base::Unretained(this)));
     enrollment_handler_->SetSigningServiceProviderForTesting(

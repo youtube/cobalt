@@ -9,6 +9,7 @@
 
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
+#include "build/build_config.h"
 #include "chrome/browser/default_browser/default_browser_setter.h"
 #include "url/gurl.h"
 
@@ -68,8 +69,10 @@ BASE_DECLARE_FEATURE(kDefaultBrowserSetterSelection);
 BASE_DECLARE_FEATURE_PARAM(DefaultBrowserSetterType,
                            kDefaultBrowserSetterParam);
 
+#if BUILDFLAG(IS_WIN)
 // Parameter for the URL used by the visual guided setter.
 BASE_DECLARE_FEATURE_PARAM(std::string, kDefaultBrowserVisualGuideUrlParam);
+#endif
 
 }  // namespace default_browser
 

@@ -35,6 +35,7 @@
 #include "components/sync_device_info/device_info_sync_service.h"
 #include "components/sync_device_info/device_info_tracker.h"
 #include "components/sync_device_info/device_info_util.h"
+#include "components/sync_device_info/device_name_util.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_launcher.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -345,6 +346,58 @@ IN_PROC_BROWSER_TEST_P(SingleClientDeviceInfoSyncTest, DownloadRemoteDevices) {
                            ModelEntryHasCacheGuid(CacheGuidForSuffix(1)),
                            ModelEntryHasCacheGuid(CacheGuidForSuffix(2))));
 }
+
+class SingleClientDeviceInfoSyncTestWithServerDeterminedName
+    : public SingleClientDeviceInfoSyncTest {
+ public:
+  SingleClientDeviceInfoSyncTestWithServerDeterminedName() {
+    feature_list_.InitWithFeatures(
+        /*enabled_features=*/{syncer::kSyncSimplifyDeviceNaming,
+                              syncer::kSyncUseServerDeterminedDeviceName},
+        /*disabled_features=*/{});
+  }
+
+ protected:
+  static constexpr char kServerDeterminedModelName[] = "Galaxy S22 Ultra";
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(SingleClientDeviceInfoSyncTestWithServerDeterminedName,
+                       UseServerDeterminedDeviceName) {
+  // Inject a remote Android device with a server-determined model name.
+  sync_pb::DeviceInfoSpecifics specifics = CreateSpecifics(/*suffix=*/1);
+  specifics.set_os_type(sync_pb::SyncEnums_OsType_OS_TYPE_ANDROID);
+  specifics.set_device_form_factor(
+      sync_pb::SyncEnums_DeviceFormFactor_DEVICE_FORM_FACTOR_PHONE);
+  specifics.set_server_determined_model_name(kServerDeterminedModelName);
+  InjectDeviceInfoSpecificsToServer(specifics);
+
+  ASSERT_TRUE(SetupSync());
+
+  // Verify the remote device is downloaded.
+  ASSERT_THAT(
+      GetDeviceInfoTracker()->GetAllDeviceInfo(),
+      UnorderedElementsAre(ModelEntryHasCacheGuid(GetLocalCacheGuid()),
+                           ModelEntryHasCacheGuid(CacheGuidForSuffix(1))));
+
+  // Get the remote device info.
+  const syncer::DeviceInfo* remote_device =
+      GetDeviceInfoTracker()->GetDeviceInfo(CacheGuidForSuffix(1));
+  ASSERT_TRUE(remote_device);
+  EXPECT_EQ(remote_device->server_determined_model_name(),
+            kServerDeterminedModelName);
+
+  // Verify the display name uses the server-determined name.
+  EXPECT_EQ(syncer::GetDeviceDisplayName(remote_device),
+            kServerDeterminedModelName);
+}
+
+INSTANTIATE_TEST_SUITE_P(,
+                         SingleClientDeviceInfoSyncTestWithServerDeterminedName,
+                         GetSyncTestModes(),
+                         testing::PrintToStringParamName());
 
 IN_PROC_BROWSER_TEST_P(SingleClientDeviceInfoSyncTest,
                        DownloadRemoteDeviceWithoutChromeVersion) {

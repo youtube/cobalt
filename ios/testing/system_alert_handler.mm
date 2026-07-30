@@ -68,6 +68,8 @@ NSDictionary<NSString*, NSArray<NSString*>*>* TextToButtonsOfKnownSystemAlerts(
       @"Not Installed" : @[ @"OK" ],
       @"No SIM Card Installed" : @[ @"OK" ],
       @"Set Up Cellular" : @[ @"Not Now" ],
+      @"to add photos and videos to your photo library" :
+          @[ @"Allow", @"OK", @"Add Photos Only" ],
     };
   });
   return text_to_buttons;

@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/strings/utf_string_conversions.h"
 #include "third_party/skia/include/core/SkColor.h"
@@ -127,7 +128,8 @@ namespace views::examples {
 
 namespace {
 
-void RemoveViewAndChildrenFromTracking(View* view, std::set<View*>& tracking) {
+void RemoveViewAndChildrenFromTracking(View* view,
+                                       std::set<raw_ptr<View>>& tracking) {
   for (View* child : view->children()) {
     RemoveViewAndChildrenFromTracking(child, tracking);
   }
@@ -303,7 +305,7 @@ bool IsViewParent(View* parent, View* view) {
 
 View* GetDesignerChild(View* child_view,
                        View* designer,
-                       const std::set<View*>& designer_views) {
+                       const std::set<raw_ptr<View>>& designer_views) {
   while (child_view && child_view != designer &&
          !designer_views.count(child_view)) {
     child_view = child_view->parent();

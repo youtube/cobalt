@@ -43,6 +43,7 @@ enum SdkVersion {
   SDK_VERSION_U = 34,
   SDK_VERSION_V = 35,
   SDK_VERSION_BAKLAVA = 36,
+  SDK_VERSION_CINNAMON_BUN = 37,
 };
 
 // This enumeration maps to the values returned by AndroidInfo::sdk_int_full(),

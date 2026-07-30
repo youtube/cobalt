@@ -9,7 +9,7 @@
 #include "third_party/tflite/buildflags.h"
 
 #if BUILDFLAG(USE_LITERT_TFLITE)
-#include "third_party/litert/src/tflite/quantization/common/quantization_lib/quantization_config.h"
+#include "third_party/litert/src/tflite/converter/quantization/common/quantization_lib/quantization_config.h"
 #else
 #include_next "tensorflow/compiler/mlir/lite/quantization/common/quantization_lib/quantization_config.h"
 #endif

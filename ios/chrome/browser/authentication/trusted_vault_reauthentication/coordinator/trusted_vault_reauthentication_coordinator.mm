@@ -87,7 +87,7 @@ using l10n_util::GetNSStringF;
   [super start];
   // TODO(crbug.com/40105436): Should test if reauth is still needed. If still
   // needed, the reauth should be really started.
-  // If not, the coordinator can be closed successfuly, by calling
+  // If not, the coordinator can be closed successfully, by calling
   // -[TrustedVaultReauthenticationCoordinator
   // reauthentificationCompletedWithSuccess:]
   self.identity = _authService->GetPrimaryIdentity();

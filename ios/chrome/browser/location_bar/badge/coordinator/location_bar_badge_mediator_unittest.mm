@@ -28,6 +28,7 @@
 #import "ios/chrome/browser/contextual_panel/sample/model/sample_panel_item_configuration.h"
 #import "ios/chrome/browser/contextual_panel/utils/contextual_panel_metrics.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
+#import "ios/chrome/browser/fullscreen/ui_bundled/test/test_fullscreen_controller.h"
 #import "ios/chrome/browser/infobars/model/infobar_badge_tab_helper.h"
 #import "ios/chrome/browser/infobars/model/infobar_manager_impl.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_browser_agent.h"
@@ -150,10 +151,7 @@ class LocationBarBadgeMediatorTest : public PlatformTest {
  protected:
   LocationBarBadgeMediatorTest() {
     scoped_feature_list_.InitWithFeaturesAndParameters(
-        {{kPageActionMenu, {}},
-         {kAskGeminiChip, {{kAskGeminiChipPrepopulateFloaty, "true"}}},
-         {kLocationBarBadgeMigration, {}}},
-        {kGeminiCopresence});
+        {{kPageActionMenu, {}}, {kLocationBarBadgeMigration, {}}}, {});
 
     iph_feature_list_.InitAndEnableFeatures(
         {feature_engagement::kIPHiOSContextualPanelSampleModelFeature});
@@ -206,6 +204,9 @@ class LocationBarBadgeMediatorTest : public PlatformTest {
         std::move(web_state),
         WebStateList::InsertionParams::Automatic().Activate());
 
+    // Seed a fake FullscreenController to satisfy the GeminiBrowserAgent's
+    // dependency without crashing.
+    TestFullscreenController::CreateForBrowser(browser_.get());
     GeminiBrowserAgent::CreateForBrowser(browser_.get());
 
     mediator_ = [[LocationBarBadgeMediator alloc]
@@ -388,9 +389,7 @@ TEST_F(LocationBarBadgeMediatorTest, TestGeminiChipTapped) {
       startGeminiFlowWithStartupState:[OCMArg checkWithBlock:^BOOL(
                                                   GeminiStartupState* state) {
         return state.entryPoint == gemini::EntryPoint::OmniboxChip &&
-               [state.prepopulatedPrompt
-                   isEqualToString:l10n_util::GetNSString(
-                                       IDS_IOS_ASK_GEMINI_CHIP_PREFILL_PROMPT)];
+               state.prepopulatedPrompt == nil;
       }]]);
 
   EXPECT_CALL(

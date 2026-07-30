@@ -127,6 +127,13 @@ public class HistoryPage extends BasicNativePage {
         super.destroy();
     }
 
+    @Override
+    public void reload() {
+        if (mHistoryManager != null) {
+            mHistoryManager.reload();
+        }
+    }
+
     public @Nullable HistoryManager getHistoryManagerForTesting() {
         return mHistoryManager;
     }

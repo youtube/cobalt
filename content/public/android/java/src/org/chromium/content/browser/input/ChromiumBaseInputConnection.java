@@ -14,7 +14,6 @@ import androidx.annotation.VisibleForTesting;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.content_public.browser.HtmlMetadata;
 
 /** An interface to help switch between AdapterInputConnection and ChromiumInputConnection. */
 @NullMarked
@@ -31,7 +30,6 @@ public interface ChromiumBaseInputConnection extends InputConnection {
                 int selectionStart,
                 int selectionEnd,
                 String lastText,
-                HtmlMetadata htmlMetadata,
                 EditorInfo outAttrs);
 
         @VisibleForTesting

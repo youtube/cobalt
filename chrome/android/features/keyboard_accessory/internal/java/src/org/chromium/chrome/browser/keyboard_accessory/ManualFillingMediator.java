@@ -59,6 +59,7 @@ import org.chromium.chrome.browser.keyboard_accessory.sheet_tabs.AccessorySheetT
 import org.chromium.chrome.browser.keyboard_accessory.sheet_tabs.AddressAccessorySheetCoordinator;
 import org.chromium.chrome.browser.keyboard_accessory.sheet_tabs.CreditCardAccessorySheetCoordinator;
 import org.chromium.chrome.browser.keyboard_accessory.sheet_tabs.PasswordAccessorySheetCoordinator;
+import org.chromium.chrome.browser.keyboard_accessory.utils.ManualFillingMetricsRecorder;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
@@ -233,6 +234,7 @@ class ManualFillingMediator
         assert mActivity != null;
         mWindowAndroid = windowAndroid;
         mKeyboardAccessory = keyboardAccessory;
+        mKeyboardAccessory.setAtMemoryCallback(this::onAtMemoryClicked);
         mBottomSheetController = sheetController;
         mIsContextualSearchOpened = isContextualSearchOpened;
         mSoftKeyboardDelegate = keyboardDelegate;
@@ -488,9 +490,13 @@ class ManualFillingMediator
         hideSoftKeyboard();
     }
 
-    void setAtMemoryCallback(Runnable callback) {
-        if (mKeyboardAccessory != null) {
-            mKeyboardAccessory.setAtMemoryCallback(callback);
+    private void onAtMemoryClicked() {
+        WebContents webContents = mActivity.getCurrentWebContents();
+        if (webContents != null && !webContents.isDestroyed()) {
+            ManualFillingMetricsRecorder.recordActionSelected(
+                    AccessoryAction.SHOW_AT_MEMORY_BOTTOMSHEET);
+            ManualFillingComponentBridge.onOptionSelectedForWebContents(
+                    webContents, AccessoryAction.SHOW_AT_MEMORY_BOTTOMSHEET);
         }
     }
 

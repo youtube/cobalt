@@ -69,6 +69,8 @@ class HatsServiceAndroid : public HatsService {
     // Returns a weak pointer to this object.
     base::WeakPtr<DelayedSurveyTask> GetWeakPtr();
 
+    const std::string& trigger() const { return trigger_; }
+
     bool operator<(const HatsServiceAndroid::DelayedSurveyTask& other) const {
       return trigger_ < other.trigger_ ? true
                                        : web_contents() < other.web_contents();
@@ -129,15 +131,16 @@ class HatsServiceAndroid : public HatsService {
 
   ~HatsServiceAndroid() override;
 
-  void LaunchSurvey(const std::string& trigger,
-                    base::OnceClosure success_callback,
-                    base::OnceClosure failure_callback,
-                    const SurveyBitsData& product_specific_bits_data,
-                    const SurveyStringData& product_specific_string_data,
-                    const std::optional<std::string>& supplied_trigger_id,
-                    const SurveyOptions& survey_options) override;
+  LaunchError LaunchSurvey(
+      const std::string& trigger,
+      base::OnceClosure success_callback,
+      base::OnceClosure failure_callback,
+      const SurveyBitsData& product_specific_bits_data,
+      const SurveyStringData& product_specific_string_data,
+      const std::optional<std::string>& supplied_trigger_id,
+      const SurveyOptions& survey_options) override;
 
-  void LaunchSurveyForWebContents(
+  LaunchError LaunchSurveyForWebContents(
       const std::string& trigger,
       content::WebContents* web_contents,
       const SurveyBitsData& product_specific_bits_data,
@@ -147,7 +150,7 @@ class HatsServiceAndroid : public HatsService {
       const std::optional<std::string>& supplied_trigger_id,
       const SurveyOptions& survey_options) override;
 
-  bool LaunchDelayedSurvey(
+  LaunchError LaunchDelayedSurvey(
       const std::string& trigger,
       int timeout_ms,
       const SurveyBitsData& product_specific_bits_data,
@@ -156,7 +159,7 @@ class HatsServiceAndroid : public HatsService {
   // Surface the overloaded method from the base class.
   using HatsService::LaunchDelayedSurveyForWebContents;
 
-  bool LaunchDelayedSurveyForWebContents(
+  LaunchError LaunchDelayedSurveyForWebContents(
       const std::string& trigger,
       content::WebContents* web_contents,
       int timeout_ms,

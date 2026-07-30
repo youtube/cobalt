@@ -229,13 +229,16 @@ class CustomSpaceStatisticsReceiverImpl final
 
   ~CustomSpaceStatisticsReceiverImpl() final {
     DCHECK(node_bytes_.has_value());
+    DCHECK(element_bytes_.has_value());
     DCHECK(css_bytes_.has_value());
-    std::move(callback_).Run(*node_bytes_, *css_bytes_);
+    std::move(callback_).Run(*node_bytes_ + *element_bytes_, *css_bytes_);
   }
 
   void AllocatedBytes(cppgc::CustomSpaceIndex space_index, size_t bytes) final {
     if (space_index.value == NodeSpace::kSpaceIndex.value) {
       node_bytes_ = bytes;
+    } else if (space_index.value == ElementSpace::kSpaceIndex.value) {
+      element_bytes_ = bytes;
     } else {
       DCHECK_EQ(space_index.value, CSSValueSpace::kSpaceIndex.value);
       css_bytes_ = bytes;
@@ -247,6 +250,7 @@ class CustomSpaceStatisticsReceiverImpl final
                           size_t allocated_css_bytes)>
       callback_;
   std::optional<size_t> node_bytes_;
+  std::optional<size_t> element_bytes_;
   std::optional<size_t> css_bytes_;
 };
 
@@ -256,6 +260,7 @@ void ThreadState::CollectNodeAndCssStatistics(
     base::OnceCallback<void(size_t allocated_node_bytes,
                             size_t allocated_css_bytes)> callback) {
   std::vector<cppgc::CustomSpaceIndex> spaces{NodeSpace::kSpaceIndex,
+                                              ElementSpace::kSpaceIndex,
                                               CSSValueSpace::kSpaceIndex};
   cpp_heap().CollectCustomSpaceStatisticsAtLastGC(
       std::move(spaces),

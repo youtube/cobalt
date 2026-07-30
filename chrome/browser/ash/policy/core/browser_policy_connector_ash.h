@@ -24,6 +24,7 @@ class PrefRegistrySimple;
 class PrefService;
 
 namespace ash {
+class DeviceWeeklyScheduledSuspendController;
 class InstallAttributes;
 
 namespace cert_provisioning {
@@ -201,6 +202,11 @@ class BrowserPolicyConnectorAsh : public ChromeBrowserPolicyConnector,
     return adb_sideloading_allowance_mode_policy_handler_.get();
   }
 
+  ash::DeviceWeeklyScheduledSuspendController*
+  GetDeviceWeeklyScheduledSuspendControllerForTesting() const {
+    return device_weekly_scheduled_suspend_controller_.get();
+  }
+
   // Return a pointer to the device-wide client certificate provisioning
   // scheduler. The callers do not take ownership of that pointer.
   ash::cert_provisioning::CertProvisioningScheduler*
@@ -311,6 +317,8 @@ class BrowserPolicyConnectorAsh : public ChromeBrowserPolicyConnector,
   std::unique_ptr<RebootNotificationsScheduler> reboot_notifications_scheduler_;
   std::unique_ptr<DeviceScheduledRebootHandler>
       device_scheduled_reboot_handler_;
+  std::unique_ptr<ash::DeviceWeeklyScheduledSuspendController>
+      device_weekly_scheduled_suspend_controller_;
   std::unique_ptr<DeviceDlcPredownloadListPolicyHandler>
       device_dlc_predownload_list_policy_handler_;
 

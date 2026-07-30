@@ -180,7 +180,7 @@ password_manager::ActionableError GetPasswordStoreActionableError(
     password_manager::PasswordStoreInterface* profile_store,
     password_manager::PasswordStoreInterface* account_store) {
   if (!base::FeatureList::IsEnabled(
-          password_manager::features::kInFlowTrustedVaultKeyRetrievalIos)) {
+          password_manager::features::kPasswordSaveInContextErrorResolution)) {
     return password_manager::ActionableError::kNoError;
   }
   password_manager::ActionableError error =

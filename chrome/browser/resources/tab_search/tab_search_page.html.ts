@@ -28,7 +28,7 @@ export function getHtml(this: TabSearchPageElement) {
           @search="${this.onSearchTermSearch}"
           @input="${this.onSearchTermInput}"
           type="search" spellcheck="false" role="combobox"
-          aria-activedescendant="${this.activeSelectionId_ || nothing}"
+          aria-activedescendant="${this.getAriaActivedescendant_() || nothing}"
           aria-controls="tabsList" aria-owns="tabsList">
     </div>
   </div>
@@ -78,6 +78,8 @@ export function getHtml(this: TabSearchPageElement) {
             @close="${this.onItemClose_}"
             @focus="${this.onItemFocus_}"
             @keydown="${this.onItemKeydown_}"
+            aria-setsize="${this.selectableItemCount_()}"
+            aria-posinset="${this.itemIndexToTabIndex_(index) + 1}"
             role="option"
             tabindex="0">
         </tab-search-item>`;
@@ -92,6 +94,8 @@ export function getHtml(this: TabSearchPageElement) {
             @click="${this.onItemClick_}"
             @focus="${this.onItemFocus_}"
             @keydown="${this.onItemKeydown_}"
+            aria-setsize="${this.selectableItemCount_()}"
+            aria-posinset="${this.itemIndexToTabIndex_(index) + 1}"
             role="option" tabindex="0">
         </tab-search-group-item>`;
        case 'SplitViewData':
@@ -106,6 +110,8 @@ export function getHtml(this: TabSearchPageElement) {
             @close="${this.onItemClose_}"
             @focus="${this.onItemFocus_}"
             @keydown="${this.onItemKeydown_}"
+            aria-setsize="${this.selectableItemCount_()}"
+            aria-posinset="${this.itemIndexToTabIndex_(index) + 1}"
             role="option" tabindex="0">
         </tab-search-split-item>`;
        default:

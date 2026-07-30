@@ -1374,13 +1374,13 @@ TEST_F(ExtensionManagementServiceTest, ToolbarPinModeParsing) {
   EXPECT_EQ(GetToolbarPinMode(kTargetExtension3),
             extensions::ManagedToolbarPinMode::kForcePinned);
 
-  // Test with no value set, should default to kDefaultUnpinned.
+  // Test with no value set. It should return kNotSet.
   SetExampleDictPref(base::StringPrintf(R"({
     "%s": {}
   })",
                                         kTargetExtension5));
   EXPECT_EQ(GetToolbarPinMode(kTargetExtension5),
-            extensions::ManagedToolbarPinMode::kDefaultUnpinned);
+            extensions::ManagedToolbarPinMode::kNotSet);
 }
 
 TEST_F(ExtensionManagementServiceTest, ToolbarPinModeParsingFailsForInvalid) {

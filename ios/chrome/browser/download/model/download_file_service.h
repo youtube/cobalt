@@ -36,7 +36,10 @@ class DownloadFileService : public KeyedService {
 
   ~DownloadFileService() override;
 
-  // Asynchronously moves a download file from source to destination.
+  // Asynchronously moves a download file from source to destination. If a file
+  // already exists at `destination_path`, the next available uniquified name
+  // in the same directory is used instead. The actual destination is reported
+  // through `callback`.
   // Must be called on the main thread. Callback runs on the main thread.
   void MoveDownloadFile(const std::string& download_id,
                         const base::FilePath& source_path,
@@ -58,14 +61,15 @@ class DownloadFileService : public KeyedService {
 
  private:
   // Called on the main thread when the file move operation completes.
+  // `final_path` is the path the file was moved to, or empty on failure.
   void OnFileMoveComplete(const std::string& download_id,
                           const base::FilePath& source_path,
-                          const base::FilePath& destination_path,
                           MoveCompleteCallback callback,
-                          bool move_success);
+                          base::FilePath final_path);
 
-  // Performs the actual file move on the background thread.
-  static bool DoMoveFileOnBackgroundThread(
+  // Performs the actual file move on the background thread. Returns the path
+  // the file was moved to, or an empty path on failure.
+  static base::FilePath DoMoveFileOnBackgroundThread(
       scoped_refptr<base::SequencedTaskRunner> file_task_runner,
       const base::FilePath& source_path,
       const base::FilePath& destination_path);

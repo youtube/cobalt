@@ -249,7 +249,7 @@ std::unique_ptr<KeyedService> BuildSyncService(ProfileIOS* profile) {
   }
 
   if (base::FeatureList::IsEnabled(
-          password_manager::features::kInFlowTrustedVaultKeyRetrievalIos)) {
+          password_manager::features::kPasswordSaveInContextErrorResolution)) {
     scoped_refptr<password_manager::PasswordStoreInterface>
         profile_password_store =
             IOSChromeProfilePasswordStoreFactory::GetForProfile(

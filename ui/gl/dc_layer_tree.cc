@@ -23,6 +23,7 @@
 #include "ui/gfx/overlay_layer_id.h"
 #include "ui/gl/direct_composition_support.h"
 #include "ui/gl/gl_switches.h"
+#include "ui/gl/solid_color_pool_base.h"
 #include "ui/gl/swap_chain_presenter.h"
 
 namespace gl {
@@ -72,12 +73,6 @@ D2D_MATRIX_4X4_F TransformToD2D_MATRIX_4X4_F(const gfx::Transform& transform) {
                           t.rc(0, 3), t.rc(1, 3), t.rc(2, 3), t.rc(3, 3));
 }
 
-// The size the surfaces in the pool. Used in |VisualSubtree::Update| to
-// determine how to scale the background color visual. This can be any size
-// since we need a non-empty surface to display the background fill, so 1x1
-// is fine.
-constexpr gfx::Size kSolidColorSurfaceSize = gfx::Size(1, 1);
-
 #if DCHECK_IS_ON()
 bool VisualTreeValid(
     std::vector<std::optional<size_t>>& subtree_index_to_overlay,
@@ -109,195 +104,6 @@ void VideoProcessorWrapper::SizeSmoother::SizeSmoother::PutSize(
 
 gfx::Size VideoProcessorWrapper::SizeSmoother::GetSize() const {
   return gfx::Size(width_.Max(), height_.Max());
-}
-
-// Owns a |IDCompositionSurface| filled with a solid color.
-class SolidColorSurface final {
- public:
-  SolidColorSurface() = delete;
-  SolidColorSurface(SolidColorSurface&&) = default;
-  SolidColorSurface& operator=(SolidColorSurface&&) = default;
-  ~SolidColorSurface() = default;
-
-  IDCompositionSurface* surface() const { return surface_.Get(); }
-
- private:
-  friend class SolidColorSurfacePool;
-
-  explicit SolidColorSurface(
-      Microsoft::WRL::ComPtr<IDCompositionSurface> surface)
-      : surface_(std::move(surface)) {
-    CHECK(surface_);
-  }
-
-  // Fill the surface with the opaque part of |color|.
-  base::expected<void, CommitError> FillColor(ID3D11Device* d3d11_device,
-                                              SkColor4f color) {
-    HRESULT hr = S_OK;
-    RECT update_rect = D2D1::Rect(0, 0, kSolidColorSurfaceSize.width(),
-                                  kSolidColorSurfaceSize.height());
-    Microsoft::WRL::ComPtr<ID3D11Texture2D> draw_texture;
-    POINT update_offset;
-    hr = surface_->BeginDraw(&update_rect, IID_PPV_ARGS(&draw_texture),
-                             &update_offset);
-    if (FAILED(hr)) {
-      LOG(ERROR) << "BeginDraw failed: "
-                 << logging::SystemErrorCodeToString(hr);
-      return base::unexpected(
-          CommitError{CommitError::Reason::kSolidColorSurfaceBeginDraw, hr});
-    }
-
-    Microsoft::WRL::ComPtr<ID3D11RenderTargetView> rtv;
-    hr =
-        d3d11_device->CreateRenderTargetView(draw_texture.Get(), nullptr, &rtv);
-    if (FAILED(hr)) {
-      LOG(ERROR) << "CreateRenderTargetView failed: "
-                 << logging::SystemErrorCodeToString(hr);
-      return base::unexpected(CommitError{
-          CommitError::Reason::kSolidColorSurfaceCreateRenderTargetView, hr});
-    }
-
-    Microsoft::WRL::ComPtr<ID3D11DeviceContext> immediate_context;
-    d3d11_device->GetImmediateContext(&immediate_context);
-    immediate_context->ClearRenderTargetView(rtv.Get(),
-                                             color.makeOpaque().vec());
-
-    hr = surface_->EndDraw();
-    if (FAILED(hr)) {
-      LOG(ERROR) << "EndDraw failed: " << logging::SystemErrorCodeToString(hr);
-      return base::unexpected(
-          CommitError{CommitError::Reason::kSolidColorSurfaceEndDraw, hr});
-    }
-
-    color_ = color;
-
-    return base::ok();
-  }
-
-  // A surface with |DXGI_ALPHA_MODE_IGNORE|, filled with the opaque parts of
-  // |color_|.
-  Microsoft::WRL::ComPtr<IDCompositionSurface> surface_;
-
-  // Only set if |surface_| was successfully filled to this color.
-  std::optional<SkColor4f> color_;
-};
-
-SolidColorSurfacePool::SolidColorSurfacePool(
-    Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device,
-    Microsoft::WRL::ComPtr<IDCompositionDevice3> dcomp_device)
-    : d3d11_device_(std::move(d3d11_device)),
-      dcomp_device_(std::move(dcomp_device)) {
-  CHECK(d3d11_device_);
-  CHECK(dcomp_device_);
-}
-SolidColorSurfacePool::~SolidColorSurfacePool() = default;
-
-base::expected<IDCompositionSurface*, CommitError>
-SolidColorSurfacePool::GetSolidColorSurface(const SkColor4f& color) {
-  stats_since_last_trim_.num_surfaces_requested += 1;
-
-  HRESULT hr = S_OK;
-
-  auto first_unused_surface_it =
-      std::next(tracked_surfaces_.begin(), num_used_this_frame_);
-
-  if (auto found_color_it = std::ranges::find(tracked_surfaces_, color,
-                                              &SolidColorSurface::color_);
-      found_color_it != tracked_surfaces_.end()) {
-    // We found an existing surface in the pool that already has the requested
-    // color.
-
-    if (found_color_it >= first_unused_surface_it) {
-      // If the surface is in the "unused" portion of |tracked_surfaces_|, make
-      // it be tracked now.
-      std::swap(*first_unused_surface_it, *found_color_it);
-      found_color_it = first_unused_surface_it;
-      num_used_this_frame_++;
-    } else {
-      // The surface is already used by another overlay in this frame, so we can
-      // just share it with no extra work.
-    }
-
-    return found_color_it->surface();
-  }
-
-  // There is no surface that already contains the requested |color|, so we'll
-  // need to fill one.
-  auto surface_to_fill_it = first_unused_surface_it;
-  if (surface_to_fill_it == tracked_surfaces_.end()) {
-    // If there are no existing allocations, we'll need to create a new one.
-    Microsoft::WRL::ComPtr<IDCompositionSurface> dcomp_surface;
-    hr = dcomp_device_->CreateSurface(
-        kSolidColorSurfaceSize.width(), kSolidColorSurfaceSize.height(),
-        gfx::ColorSpaceWin::GetDXGIFormat(gfx::ColorSpace::CreateSRGB()),
-        DXGI_ALPHA_MODE_IGNORE, &dcomp_surface);
-    if (FAILED(hr)) {
-      LOG(ERROR) << "CreateSurface failed: "
-                 << logging::SystemErrorCodeToString(hr);
-      return base::unexpected(CommitError{
-          CommitError::Reason::kSolidColorSurfacePoolCreateSurface, hr});
-    }
-
-    surface_to_fill_it = tracked_surfaces_.insert(
-        first_unused_surface_it, SolidColorSurface(std::move(dcomp_surface)));
-  }
-
-  // The surface we want to use doesn't have the right color at this point.
-  RETURN_IF_ERROR(surface_to_fill_it->FillColor(d3d11_device_.Get(), color));
-
-  // Update the partitioning index after |FillColor| succeeds. In the case of
-  // failure, |tracked_surfaces_[num_used_this_frame_]| will still have a valid
-  // surface, just not filled to any color yet.
-  num_used_this_frame_++;
-
-  stats_since_last_trim_.num_surfaces_recolored += 1;
-
-  return surface_to_fill_it->surface();
-}
-
-void SolidColorSurfacePool::TrimAfterCommit() {
-  // The is the maximum number of solid color surfaces (both in use and not in
-  // use) that we will retain between frames. If we are actively using more than
-  // this, this value will be ignored.
-  //
-  // The value is copied from gbm_surfaceless_wayland.cc's
-  // |kMaxSolidColorBuffers|, which picks this value based on observationally
-  // seeing max 9 in-flight buffers + some margin. However, this can be any
-  // value. If the value is smaller than the number of overlays commonly seen
-  // in a frame, we may thrash on allocations. If the value is too large, we
-  // will end up wasting space.
-  static constexpr size_t kMaxSolidColorSurfacesToRetain = 12;
-
-  // Preserve up to |kMaxSolidColorSurfacesToRetain| surfaces, even if they
-  // aren't used this frame.
-  size_t trim_target_size =
-      std::max(num_used_this_frame_, kMaxSolidColorSurfacesToRetain);
-  // Protect against the case where there are fewer tracked surfaces than
-  // |kMaxSolidColorSurfacesToRetain|.
-  trim_target_size = std::min(trim_target_size, tracked_surfaces_.size());
-
-  DVLOG(3) << "SolidColorSurfacePool stats before trim: " << "requested="
-           << stats_since_last_trim_.num_surfaces_requested << ", "
-           << "recolored=" << stats_since_last_trim_.num_surfaces_recolored
-           << ", " << "in-use/total=" << num_used_this_frame_ << "/"
-           << tracked_surfaces_.size()
-           << (num_used_this_frame_ > kMaxSolidColorSurfacesToRetain
-                   ? " (in-use exceeds kMaxSolidColorSurfacesToRetain)"
-                   : "")
-           << ", will trim to " << trim_target_size;
-
-  auto first_surface_to_remove =
-      std::next(tracked_surfaces_.begin(), trim_target_size);
-  tracked_surfaces_.erase(first_surface_to_remove, tracked_surfaces_.end());
-
-  // Reset for the next frame.
-  num_used_this_frame_ = 0;
-  stats_since_last_trim_ = {};
-}
-
-size_t SolidColorSurfacePool::GetNumSurfacesInPoolForTesting() const {
-  CHECK_IS_TEST();
-  return tracked_surfaces_.size();
 }
 
 DCLayerTree::DCLayerTree(bool disable_nv12_dynamic_textures,
@@ -343,8 +149,15 @@ void DCLayerTree::Initialize(
     dcomp_device_6_ = std::move(dcomp_device6);
   }
 
-  solid_color_surface_pool_ =
-      std::make_unique<SolidColorSurfacePool>(d3d11_device_, dcomp_device_);
+  SolidColorPoolFactory factory = GetDirectCompositionSolidColorPoolFactory();
+  CHECK(factory) << "DCLayerTree requires a solid-color content provider "
+                    "factory; one must be registered via "
+                    "InitializeDirectComposition.";
+  // The factory captures whatever GPU handles it needs (e.g. the Dawn
+  // `wgpu::Device` and `ID3D12CommandQueue`, or an `ID3D11Device`) by value
+  // at GPU service startup, so we just hand it the DComp device.
+  solid_color_content_provider_ = factory.Run(dcomp_device_.Get());
+  CHECK(solid_color_content_provider_);
 
   Microsoft::WRL::ComPtr<IDCompositionDesktopDevice> desktop_device;
   dcomp_device_.As(&desktop_device);
@@ -533,6 +346,13 @@ DCLayerTree::VisualTree::VisualSubtree::~VisualSubtree() {
     HRESULT hr = content_visual_->SetContent(nullptr);
     CHECK_EQ(S_OK, hr);
   }
+  if (background_color_visual_) {
+    // Null out the content pointer to remove this reference to the
+    // IDCompositionTexture to make the availability fence available immediately
+    // after Commit, rather than some time later.
+    HRESULT hr = background_color_visual_->SetContent(nullptr);
+    CHECK_EQ(S_OK, hr);
+  }
 }
 
 bool DCLayerTree::VisualTree::VisualSubtree::Update(
@@ -541,7 +361,7 @@ bool DCLayerTree::VisualTree::VisualSubtree::Update(
     uint64_t dcomp_surface_serial,
     const gfx::Size& image_size,
     const gfx::RectF& content_rect,
-    Microsoft::WRL::ComPtr<IDCompositionSurface> background_color_surface,
+    Microsoft::WRL::ComPtr<IUnknown> background_color_content,
     const SkColor4f& background_color,
     const gfx::Rect& quad_rect,
     bool nearest_neighbor_filter,
@@ -578,8 +398,8 @@ bool DCLayerTree::VisualTree::VisualSubtree::Update(
       SetField(dcomp_surface_serial_, dcomp_surface_serial);
   const bool image_size_changed = SetField(image_size_, image_size);
   const bool content_rect_changed = SetField(content_rect_, content_rect);
-  const bool background_color_surface_changed =
-      SetField(background_color_surface_, background_color_surface);
+  const bool background_color_content_changed =
+      SetField(background_color_content_, background_color_content);
   const bool background_color_changed =
       SetField(background_color_, background_color);
   const bool quad_rect_changed = SetField(quad_rect_, quad_rect);
@@ -813,9 +633,9 @@ bool DCLayerTree::VisualTree::VisualSubtree::Update(
     // update. No visual changes are needed in this case.
   }
 
-  if (quad_rect_changed || background_color_surface_changed ||
+  if (quad_rect_changed || background_color_content_changed ||
       background_color_changed) {
-    if (!background_color_surface_ || background_color.fA == 0.0) {
+    if (!background_color_content_ || background_color.fA == 0.0) {
       // A fully transparent color is the same as no background fill.
       hr = background_color_visual_->SetContent(nullptr);
       CHECK_EQ(hr, S_OK);
@@ -828,7 +648,7 @@ bool DCLayerTree::VisualTree::VisualSubtree::Update(
       CHECK_EQ(hr, S_OK);
 
       hr =
-          background_color_visual_->SetContent(background_color_surface_.Get());
+          background_color_visual_->SetContent(background_color_content_.Get());
       CHECK_EQ(hr, S_OK);
 
       hr = CheckedCastToVisual3(background_color_visual_)
@@ -975,16 +795,16 @@ base::expected<void, CommitError> DCLayerTree::VisualTree::BuildTree(
                                      ? overlays[i].overlay_image->size()
                                      : gfx::Size();
 
-    // Only get a background color surface if we have a non-transparent
+    // Only get a background color content if we have a non-transparent
     // background color.
-    IDCompositionSurface* background_color_surface = nullptr;
+    IUnknown* background_color_content = nullptr;
     if (overlays[i].background_color &&
         overlays[i].background_color->fA != 0.0) {
       // TODO(http://crbug.com/1380822): Refactor to remove early exits. They
       // may leave visual_subtrees_ corrupted.
       ASSIGN_OR_RETURN(
-          background_color_surface,
-          dc_layer_tree_->solid_color_surface_pool_->GetSolidColorSurface(
+          background_color_content,
+          dc_layer_tree_->solid_color_content_provider_->GetSolidColorContent(
               overlays[i].background_color.value()));
     }
 
@@ -1008,7 +828,7 @@ base::expected<void, CommitError> DCLayerTree::VisualTree::BuildTree(
     const bool visual_needs_commit = visual_subtrees[i]->Update(
         dc_layer_tree_->dcomp_device_.Get(), dcomp_visual_content,
         dcomp_surface_serial, image_size, overlays[i].content_rect,
-        background_color_surface,
+        background_color_content,
         overlays[i].background_color.value_or(SkColors::kTransparent),
         overlays[i].quad_rect, overlays[i].nearest_neighbor_filter,
         overlays[i].transform, overlays[i].rounded_corner_bounds,
@@ -1038,6 +858,12 @@ base::expected<void, CommitError> DCLayerTree::VisualTree::BuildTree(
                        num_layers_modified);
 
   if (needs_commit) {
+    // Submit any GPU work recorded by `GetSolidColorContent` calls earlier in
+    // the frame, so the queue we pass to `PresentCompositionTextures` already
+    // holds the fences signaling fill completion. No-op for the D3D11 path.
+    RETURN_IF_ERROR(dc_layer_tree_->solid_color_content_provider_
+                        ->FlushPendingFillsBeforeCommit());
+
     if (dc_layer_tree_->dcomp_device_6_) {
       // First call `PresentCompositionTextures` to specify the queue that the
       // next `Commit` call uses to actually present the composition textures.
@@ -1054,7 +880,8 @@ base::expected<void, CommitError> DCLayerTree::VisualTree::BuildTree(
       }
     }
 
-    TRACE_EVENT0("gpu", "DCLayerTree::CommitAndClearPendingOverlays::Commit");
+    TRACE_EVENT("gpu", "DCLayerTree::CommitAndClearPendingOverlays::Commit",
+                "num_layers_modified", num_layers_modified);
     base::ScopedUmaHistogramTimer scoped_timer(
         "GPU.DirectComposition.DCompCommitDuration",
         base::ScopedUmaHistogramTimer::ScopedHistogramTiming::
@@ -1442,8 +1269,10 @@ base::expected<void, CommitError> DCLayerTree::CommitAndClearPendingOverlays(
 
   ink_renderer_->ReportPointsDrawn();
 
-  // Clean up excess surfaces so the pool will not grow unbounded.
-  solid_color_surface_pool_->TrimAfterCommit();
+  // Clean up excess entries so the pool will not grow unbounded. Called on
+  // both success and failure paths so that providers that defer GPU work can
+  // discard pending state from a failed/short-circuited frame.
+  solid_color_content_provider_->TrimAfterCommit();
 
   return status;
 }
@@ -1493,17 +1322,16 @@ IDCompositionVisual2* DCLayerTree::GetContentVisualForTesting(
   return visual_tree_->GetContentVisualForTesting(layer_id);  // IN-TEST
 }
 
-IDCompositionSurface* DCLayerTree::GetBackgroundColorSurfaceForTesting(
+IUnknown* DCLayerTree::GetBackgroundColorContentForTesting(
     const gfx::OverlayLayerId& layer_id) const {
   CHECK_IS_TEST();
-  return visual_tree_->GetBackgroundColorSurfaceForTesting(  // IN-TEST
+  return visual_tree_->GetBackgroundColorContentForTesting(  // IN-TEST
       layer_id);
 }
 
-size_t DCLayerTree::GetNumSurfacesInPoolForTesting() const {
+size_t DCLayerTree::GetNumEntriesInSolidColorPoolForTesting() const {
   CHECK_IS_TEST();
-  return solid_color_surface_pool_
-      ->GetNumSurfacesInPoolForTesting();  // IN-TEST
+  return solid_color_content_provider_->GetNumEntriesForTesting();  // IN-TEST
 }
 
 #if DCHECK_IS_ON()
@@ -1551,12 +1379,11 @@ IDCompositionVisual2* DCLayerTree::VisualTree::GetContentVisualForTesting(
       ->container_visual();
 }
 
-IDCompositionSurface*
-DCLayerTree::VisualTree::GetBackgroundColorSurfaceForTesting(
+IUnknown* DCLayerTree::VisualTree::GetBackgroundColorContentForTesting(
     const gfx::OverlayLayerId& layer_id) const {
   CHECK_IS_TEST();
   return GetSubtreeFromLayerIdForTesting(layer_id)  // IN-TEST
-      ->background_color_surface_for_testing();     // IN-TEST
+      ->background_color_content_for_testing();     // IN-TEST
 }
 
 #if DCHECK_IS_ON()

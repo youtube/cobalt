@@ -76,22 +76,7 @@ std::string IOSContentBrowserClient::GetUserAgent() {
 }
 
 blink::UserAgentMetadata IOSContentBrowserClient::GetUserAgentMetadata() {
-  blink::UserAgentMetadata metadata;
-
-  metadata.brand_version_list.emplace_back(
-      std::string(version_info::GetProductName()), "113");
-  metadata.brand_full_version_list.emplace_back(
-      std::string(version_info::GetProductName()),
-      std::string(version_info::GetVersionNumber()));
-  metadata.full_version = std::string(version_info::GetVersionNumber());
-  metadata.platform = "Unknown";
-  metadata.architecture = embedder_support::GetCpuArchitecture();
-  metadata.model = embedder_support::BuildModelInfo();
-
-  metadata.bitness = embedder_support::GetCpuBitness();
-  metadata.wow64 = embedder_support::IsWoW64();
-
-  return metadata;
+  return embedder_support::GetUserAgentMetadata();
 }
 
 std::unique_ptr<content::WebContentsViewDelegate>

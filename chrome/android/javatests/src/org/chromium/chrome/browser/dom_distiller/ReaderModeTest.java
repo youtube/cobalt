@@ -4,9 +4,14 @@
 
 package org.chromium.chrome.browser.dom_distiller;
 
+import static androidx.test.espresso.action.ViewActions.swipeLeft;
+import static androidx.test.espresso.action.ViewActions.swipeRight;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.hamcrest.Matchers.is;
+
+import static org.chromium.base.test.transit.Triggers.noopTo;
 
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.MediumTest;
@@ -31,6 +36,10 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.dom_distiller.ReaderModeBottomSheetExpandedFacility;
+import org.chromium.chrome.test.transit.dom_distiller.ReaderModeBottomSheetPeekFacility;
+import org.chromium.chrome.test.transit.dom_distiller.ReaderModeConditions.TabBackgroundColorCondition;
+import org.chromium.chrome.test.transit.dom_distiller.ReaderModeConditions.TabFontSizeCondition;
 import org.chromium.chrome.test.transit.page.CtaPageStation;
 import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.components.dom_distiller.core.DistilledPagePrefs;
@@ -67,6 +76,16 @@ public class ReaderModeTest {
     private static final String PAGE_TITLE = "Test Page Title" + TITLE_SUFFIX;
     private static final String CONTENT = "Lorem ipsum";
 
+    // Expected theme background colors defined in distilledpage_common.css.
+    private static final String EXPECTED_DARK_BG_COLOR = "\"rgb(32, 33, 36)\"";
+    private static final String EXPECTED_SEPIA_BG_COLOR = "\"rgb(254, 247, 224)\"";
+    private static final String EXPECTED_LIGHT_BG_COLOR = "\"rgb(255, 255, 255)\"";
+
+    // Expected font sizes (base is 16px, phone max scaling is 1.75x = 28px, tablet is 2.0x = 32px).
+    private static final String EXPECTED_DEFAULT_FONT_SIZE = "\"16px\"";
+    private static final String EXPECTED_MAX_PHONE_FONT_SIZE = "\"28px\"";
+    private static final String EXPECTED_MAX_TABLET_FONT_SIZE = "\"32px\"";
+
     private EmbeddedTestServer mTestServer;
 
     private String mURL;
@@ -88,6 +107,60 @@ public class ReaderModeTest {
 
         Tab originalTab = mPage.getTab();
         waitForDistillation(PAGE_TITLE, originalTab);
+    }
+
+    @Test
+    @MediumTest
+    public void testPreferenceInTab() throws TimeoutException {
+        mPage = mActivityTestRule.startOnUrl(mURL).openRegularTabAppMenu().enterReaderMode();
+
+        Tab tab = mPage.getTab();
+        waitForDistillation(PAGE_TITLE, tab);
+
+        // Wait for bottom sheet to peek automatically.
+        ReaderModeBottomSheetPeekFacility peekSheet =
+                noopTo().enterFacility(new ReaderModeBottomSheetPeekFacility());
+
+        // Expand bottom sheet.
+        ReaderModeBottomSheetExpandedFacility expandedSheet = peekSheet.expand();
+
+        // Test setting background color to dark
+        expandedSheet
+                .darkModeButton
+                .clickTo()
+                .waitFor(new TabBackgroundColorCondition(tab, EXPECTED_DARK_BG_COLOR));
+
+        // Test setting background color to sepia
+        expandedSheet
+                .sepiaModeButton
+                .clickTo()
+                .waitFor(new TabBackgroundColorCondition(tab, EXPECTED_SEPIA_BG_COLOR));
+
+        // Test setting background color to light
+        expandedSheet
+                .lightModeButton
+                .clickTo()
+                .waitFor(new TabBackgroundColorCondition(tab, EXPECTED_LIGHT_BG_COLOR));
+
+        // Test setting font scaling via the slider.
+        boolean isTablet =
+                DeviceFormFactor.isNonMultiDisplayContextOnTablet(mActivityTestRule.getActivity());
+        String expectedMaxFontSize =
+                isTablet ? EXPECTED_MAX_TABLET_FONT_SIZE : EXPECTED_MAX_PHONE_FONT_SIZE;
+
+        noopTo().waitFor(new TabFontSizeCondition(tab, EXPECTED_DEFAULT_FONT_SIZE));
+        expandedSheet
+                .fontSizeSlider
+                .performViewActionTo(swipeRight())
+                .waitFor(new TabFontSizeCondition(tab, expectedMaxFontSize));
+
+        expandedSheet
+                .fontSizeSlider
+                .performViewActionTo(swipeLeft())
+                .waitFor(new TabFontSizeCondition(tab, EXPECTED_DEFAULT_FONT_SIZE));
+
+        // Collapse the bottom sheet.
+        expandedSheet.collapse();
     }
 
     @Test

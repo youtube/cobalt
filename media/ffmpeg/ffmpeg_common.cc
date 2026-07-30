@@ -769,6 +769,7 @@ bool AVStreamToVideoDecoderConfig(const AVStream* stream,
   }
 
   VideoTransformation video_transformation = VideoTransformation();
+  VideoSpatialFormat spatial_format;
   for (const auto& side_data :
        AVCodecParametersCodedSideToSpan(stream->codecpar)) {
     switch (side_data.type) {
@@ -871,6 +872,55 @@ bool AVStreamToVideoDecoderConfig(const AVStream* stream,
         break;
       }
 #endif  // BUILDFLAG(ENABLE_PLATFORM_DOLBY_VISION)
+      case AV_PKT_DATA_STEREO3D: {
+        const AVStereo3D* stereo =
+            reinterpret_cast<const AVStereo3D*>(side_data.data);
+        // We do not support inverted stereoscopic layouts yet.
+        if ((stereo->flags & AV_STEREO3D_FLAG_INVERT) != 0) {
+          spatial_format.stereo_mode = VideoStereoMode::kMono;
+          break;
+        }
+        switch (stereo->type) {
+          case AV_STEREO3D_SIDEBYSIDE:
+            spatial_format.stereo_mode = VideoStereoMode::kSideBySideLeftFirst;
+            break;
+          case AV_STEREO3D_TOPBOTTOM:
+            spatial_format.stereo_mode = VideoStereoMode::kTopBottomLeftFirst;
+            break;
+          default:
+            spatial_format.stereo_mode = VideoStereoMode::kMono;
+            break;
+        }
+        break;
+      }
+      case AV_PKT_DATA_SPHERICAL: {
+        const AVSphericalMapping* spherical =
+            reinterpret_cast<const AVSphericalMapping*>(side_data.data);
+        switch (spherical->projection) {
+          case AV_SPHERICAL_EQUIRECTANGULAR:
+            spatial_format.projection_type = VideoProjectionType::kEquirect360;
+            break;
+          case AV_SPHERICAL_HALF_EQUIRECTANGULAR:
+            spatial_format.projection_type = VideoProjectionType::kEquirect180;
+            break;
+          case AV_SPHERICAL_EQUIRECTANGULAR_TILE: {
+            const uint32_t kEquirect180Threshold = 0x30000000;
+            if (spherical->bound_left >= kEquirect180Threshold &&
+                spherical->bound_right >= kEquirect180Threshold) {
+              spatial_format.projection_type =
+                  VideoProjectionType::kEquirect180;
+            } else {
+              spatial_format.projection_type =
+                  VideoProjectionType::kEquirect360;
+            }
+            break;
+          }
+          default:
+            spatial_format.projection_type = VideoProjectionType::kNone;
+            break;
+        }
+        break;
+      }
       default:
         break;
     }
@@ -882,6 +932,7 @@ bool AVStreamToVideoDecoderConfig(const AVStream* stream,
                      natural_size, extra_data, GetEncryptionScheme(stream));
   // Set the aspect ratio explicitly since our version hasn't been rounded.
   config->set_aspect_ratio(aspect_ratio);
+  config->set_spatial_format(spatial_format);
 
   if (hdr_metadata.IsValid()) {
     config->set_hdr_metadata(hdr_metadata);

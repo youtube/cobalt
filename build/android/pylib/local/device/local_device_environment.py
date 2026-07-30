@@ -218,7 +218,8 @@ class LocalDeviceEnvironment(environment.Environment):
       # See https://crbug.com/443782461 for more details.
       if d.build_version_sdk >= version_codes.BAKLAVA and d.HasRoot():
         # On desktop, we do not want to force the soft keyboard.
-        if not d.is_desktop:
+        if (not d.is_desktop
+            and d.IsApplicationInstalled(device_utils.GBOARD_PKG)):
           with d.GboardPreferences() as gboard_prefs:
             # Disable the stylus.
             gboard_prefs.SetBoolean('enable_scribe', False)

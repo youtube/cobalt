@@ -343,7 +343,7 @@ struct DeprecationState {
 // `enum ChromeAppDeprecationLaunchOutcome` in
 // `tools/metrics/histograms/metadata/apps/enums.xml`.
 // Entries should not be renumbered and numeric values should never be reused.
-// LINT.IfChange(ChromeAppDeprecationLaunchOutcome)
+// LINT.IfChange(DeprecationCheckOutcome)
 enum class DeprecationCheckOutcome {
   kUserInstalledAllowedByFlag = 0,
   kUserInstalledAllowedByAllowlist = 1,
@@ -359,7 +359,8 @@ enum class DeprecationCheckOutcome {
   kAllowedNotChromeApp = 11,
   kAllowedDefault = 12,
   kBlockedDefault = 13,
-  kMaxValue = kBlockedDefault
+  kKioskModeBlockedButAllowedByAdminPolicy = 14,
+  kMaxValue = kKioskModeBlockedButAllowedByAdminPolicy
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/apps/enums.xml:ChromeAppDeprecationLaunchOutcome)
 
@@ -498,18 +499,20 @@ DeprecationStatus HandleKioskSessionApp(const extensions::Extension& app,
     return DeprecationStatus::kLaunchAllowed;
   }
 
-  if (profile->GetPrefs()->GetBoolean(
-          ash::prefs::kKioskChromeAppsForceAllowed)) {
-    ReportMetric(DeprecationCheckOutcome::kKioskModeAllowedByAdminPolicy);
-    return DeprecationStatus::kLaunchAllowed;
-  }
+  bool allowed_by_admin_policy =
+      profile->GetPrefs()->GetBoolean(ash::prefs::kKioskChromeAppsForceAllowed);
 
   if (base::FeatureList::IsEnabled(kAllowChromeAppsInKioskSessions)) {
-    ReportMetric(DeprecationCheckOutcome::kKioskModeAllowedByFlag);
+    ReportMetric(allowed_by_admin_policy
+                     ? DeprecationCheckOutcome::kKioskModeAllowedByAdminPolicy
+                     : DeprecationCheckOutcome::kKioskModeAllowedByFlag);
     return DeprecationStatus::kLaunchAllowed;
   }
 
-  ReportMetric(DeprecationCheckOutcome::kKioskModeBlocked);
+  ReportMetric(
+      allowed_by_admin_policy
+          ? DeprecationCheckOutcome::kKioskModeBlockedButAllowedByAdminPolicy
+          : DeprecationCheckOutcome::kKioskModeBlocked);
   return DeprecationStatus::kLaunchBlocked;
 }
 

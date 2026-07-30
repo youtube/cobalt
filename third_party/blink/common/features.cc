@@ -76,11 +76,7 @@ BASE_FEATURE(kAvoidTrustedParamsCopies, base::FEATURE_ENABLED_BY_DEFAULT);
 // When enabled, fast-exits the mixed-content checks for secure URLs.
 BASE_FEATURE(kOptimizeMixedContentChecks, base::FEATURE_ENABLED_BY_DEFAULT);
 
-#if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kUnthrottleAsyncTouchMoves, base::FEATURE_ENABLED_BY_DEFAULT);
-#else
-BASE_FEATURE(kUnthrottleAsyncTouchMoves, base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
 
 const base::FeatureParam<AsyncTouchMoveThrottlingPolicy>::Option
     async_touch_move_throttling_policies[] = {
@@ -1094,6 +1090,11 @@ BASE_FEATURE_PARAM(bool,
                    "enable_for_default_hint",
                    true);
 
+// Gating the migration of Android IME cursor anchor updates from Mojo IPC to
+// RenderFrameMetadata.
+BASE_FEATURE(kInputCursorAnchorInfoMigration,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kInputPredictorTypeChoice, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, wake ups from throttleable TaskQueues are limited to 1 per
@@ -1912,6 +1913,8 @@ BASE_FEATURE_PARAM(int,
 
 BASE_FEATURE(kMHTML_Improvements, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kMoveResizeWindowToIPCs, base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Used to control the collection of anchor element metrics (crbug.com/856683).
 // If kNavigationPredictor is enabled, then metrics of anchor elements
 // in the first viewport after the page load and the metrics of the clicked
@@ -1991,10 +1994,6 @@ BASE_FEATURE_PARAM(int,
                    &kDedicatedWorkerAblationStudyEnabled,
                    "DedicatedWorkerStartDelayInMs",
                    0);
-
-// Fix for https://crbug.com/454354290.
-BASE_FEATURE(kUpdatedDeviceMemoryLimitsFor2026,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kUseAncestorRenderFrameForWorker,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -2726,6 +2725,11 @@ BASE_FEATURE(kWebRtcAllowDataChannelRecordingInWebrtcInternals,
 
 // Kill switch for https://crbug.com/338955051.
 BASE_FEATURE(kWebUSBTransferSizeLimit, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Restricts the sharing of USBDevice instances across different V8
+// worlds (e.g., main world and isolated worlds) to prevent cross-world
+// leaks.
+BASE_FEATURE(kWebUSBWorldIsolatedCache, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables small accelerated canvases for webview (crbug.com/1004304)
 BASE_FEATURE(kWebviewAccelerateSmallCanvases,

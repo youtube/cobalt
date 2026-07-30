@@ -25,7 +25,7 @@
 #include "url/origin.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
-#include "chrome/browser/touch_to_fill/password_manager/android/internal/jni/TouchToFillBridge_jni.h"
+#include "chrome/browser/touch_to_fill/password_manager/android/internal/jni/TouchToFillPasswordManagerBridge_jni.h"
 #include "chrome/browser/touch_to_fill/password_manager/android/jni_headers/Credential_jni.h"
 #include "chrome/browser/touch_to_fill/password_manager/android/jni_headers/WebauthnCredential_jni.h"
 
@@ -90,8 +90,8 @@ TouchToFillPasswordManagerViewImpl::TouchToFillPasswordManagerViewImpl(
 TouchToFillPasswordManagerViewImpl::~TouchToFillPasswordManagerViewImpl() {
   if (java_object_internal_) {
     // Don't create an object just for destruction.
-    Java_TouchToFillBridge_destroy(AttachCurrentThread(),
-                                   java_object_internal_);
+    Java_TouchToFillPasswordManagerBridge_destroy(AttachCurrentThread(),
+                                                  java_object_internal_);
   }
 }
 
@@ -112,12 +112,13 @@ bool TouchToFillPasswordManagerViewImpl::Show(
   // to show it together with |url| to the user.
   JNIEnv* env = AttachCurrentThread();
   base::android::ScopedJavaLocalRef<jobjectArray> credential_array =
-      Java_TouchToFillBridge_createCredentialArray(env, credentials.size());
+      Java_TouchToFillPasswordManagerBridge_createCredentialArray(
+          env, credentials.size());
 
   for (size_t i = 0; i < credentials.size(); ++i) {
     if (auto* credential =
             std::get_if<password_manager::UiCredential>(&credentials[i])) {
-      Java_TouchToFillBridge_insertCredential(
+      Java_TouchToFillPasswordManagerBridge_insertCredential(
           env, credential_array, i,
           ConvertUTF16ToJavaString(env, credential->username()),
           ConvertUTF16ToJavaString(env, credential->password()),
@@ -135,7 +136,7 @@ bool TouchToFillPasswordManagerViewImpl::Show(
     } else {
       const PasskeyCredential& passkey_credential =
           std::get<PasskeyCredential>(credentials[i]);
-      Java_TouchToFillBridge_insertWebAuthnCredential(
+      Java_TouchToFillPasswordManagerBridge_insertWebAuthnCredential(
           env, credential_array, i,
           ConvertUTF8ToJavaString(env, passkey_credential.rp_id()),
           base::android::ToJavaByteArray(env,
@@ -146,7 +147,7 @@ bool TouchToFillPasswordManagerViewImpl::Show(
     }
   }
 
-  Java_TouchToFillBridge_showCredentials(
+  Java_TouchToFillPasswordManagerBridge_showCredentials(
       env, java_object_internal_, url::GURLAndroid::FromNativeGURL(env, url),
       is_origin_secure.value(), credential_array,
       !!(flags & TouchToFillPasswordManagerView::kTriggerSubmission),
@@ -201,16 +202,16 @@ bool TouchToFillPasswordManagerViewImpl::RecreateJavaObject() {
     return false;  // No window attached (yet or anymore).
   }
   if (java_object_internal_) {
-    Java_TouchToFillBridge_destroy(AttachCurrentThread(),
-                                   java_object_internal_);
+    Java_TouchToFillPasswordManagerBridge_destroy(AttachCurrentThread(),
+                                                  java_object_internal_);
   }
-  java_object_internal_ = Java_TouchToFillBridge_create(
+  java_object_internal_ = Java_TouchToFillPasswordManagerBridge_create(
       AttachCurrentThread(), reinterpret_cast<intptr_t>(this),
       controller_->GetProfile()->GetJavaObject(),
       controller_->GetNativeView()->GetWindowAndroid()->GetJavaObject());
   return !!java_object_internal_;
 }
 
-DEFINE_JNI(TouchToFillBridge)
+DEFINE_JNI(TouchToFillPasswordManagerBridge)
 DEFINE_JNI(Credential)
 DEFINE_JNI(WebauthnCredential)

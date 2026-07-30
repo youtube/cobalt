@@ -185,7 +185,7 @@ class VIEWS_EXAMPLES_EXPORT DesignerExample : public ExampleBase,
   GrabHandles grab_handles_;
 
   std::vector<std::unique_ptr<BaseClassRegistration>> class_registrations_;
-  std::set<View*> designer_views_;
+  std::set<raw_ptr<View>> designer_views_;
 
   views::ViewTracker tracker_;
 

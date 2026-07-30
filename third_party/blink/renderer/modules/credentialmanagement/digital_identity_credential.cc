@@ -27,6 +27,7 @@
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/dom/scoped_abort_state.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
+#include "third_party/blink/renderer/core/frame/deprecation/deprecation.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
@@ -168,9 +169,10 @@ bool IsSerializable(ScriptState* script_state, ScriptObject data) {
 
 }  // anonymous namespace
 
-bool CheckSupportedProtocol(ExecutionContext* execution_context,
-                            const String& protocol,
-                            DigitalCredentialExchangeType type) {
+bool CheckDigitalCredentialSupportedProtocol(
+    ExecutionContext* execution_context,
+    const String& protocol,
+    DigitalCredentialExchangeType type) {
   struct ProtocolEntry {
     const char* protocol;
     WebFeature feature;
@@ -196,7 +198,7 @@ bool CheckSupportedProtocol(ExecutionContext* execution_context,
   WebFeature feature = WebFeature::kDigitalCredentialsProtocolUnknown;
 
   if (type == DigitalCredentialExchangeType::kPresentation ||
-      type == DigitalCredentialExchangeType::kAny) {
+      type == DigitalCredentialExchangeType::kQuery) {
     for (const auto& entry : kPresentationProtocols) {
       if (protocol == entry.protocol) {
         is_supported = true;
@@ -207,7 +209,7 @@ bool CheckSupportedProtocol(ExecutionContext* execution_context,
   }
 
   if (!is_supported && (type == DigitalCredentialExchangeType::kIssuance ||
-                        type == DigitalCredentialExchangeType::kAny)) {
+                        type == DigitalCredentialExchangeType::kQuery)) {
     for (const auto& entry : kIssuanceProtocols) {
       if (protocol == entry.protocol) {
         is_supported = true;
@@ -217,7 +219,15 @@ bool CheckSupportedProtocol(ExecutionContext* execution_context,
     }
   }
 
-  UseCounter::Count(execution_context, feature);
+  // Record protocol metrics for get/create calls only.
+  if (type != DigitalCredentialExchangeType::kQuery) {
+    if (!is_supported) {
+      execution_context->CountDeprecation(
+          WebFeature::kDigitalCredentialsProtocolUnknown);
+    } else {
+      UseCounter::Count(execution_context, feature);
+    }
+  }
 
   if (!RuntimeEnabledFeatures::DigitalCredentialsProtocolFilterEnabled(
           execution_context)) {
@@ -263,9 +273,9 @@ void DiscoverDigitalIdentityCredentialFromExternalSource(
   Vector<blink::mojom::blink::DigitalCredentialGetRequestPtr> requests;
   ScriptState* script_state = resolver->GetScriptState();
   for (const auto& request : options.digital()->requests()) {
-    if (!CheckSupportedProtocol(resolver->GetExecutionContext(),
-                                request->protocol(),
-                                DigitalCredentialExchangeType::kPresentation)) {
+    if (!CheckDigitalCredentialSupportedProtocol(
+            resolver->GetExecutionContext(), request->protocol(),
+            DigitalCredentialExchangeType::kPresentation)) {
       continue;
     }
     if (!IsSerializable(script_state, request->data())) {
@@ -386,9 +396,9 @@ void CreateDigitalIdentityCredentialInExternalSource(
   Vector<blink::mojom::blink::DigitalCredentialCreateRequestPtr> requests;
   ScriptState* script_state = resolver->GetScriptState();
   for (const auto& request : options.digital()->requests()) {
-    if (!CheckSupportedProtocol(resolver->GetExecutionContext(),
-                                request->protocol(),
-                                DigitalCredentialExchangeType::kIssuance)) {
+    if (!CheckDigitalCredentialSupportedProtocol(
+            resolver->GetExecutionContext(), request->protocol(),
+            DigitalCredentialExchangeType::kIssuance)) {
       continue;
     }
     if (!IsSerializable(script_state, request->data())) {

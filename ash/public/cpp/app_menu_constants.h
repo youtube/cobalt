@@ -12,6 +12,7 @@ namespace ash {
 // enum with the intention that it will be logged, add checks to ensure
 // stability of the enum and update the ChromeOSUICommands enum listing in
 // tools/metrics/histograms/enums.xml.
+// LINT.IfChange(CommandId)
 enum CommandId {
   // Used by ShelfContextMenu.
   // Superseded by LAUNCH_NEW.
@@ -98,6 +99,7 @@ enum CommandId {
 
   COMMAND_ID_COUNT
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/apps/enums.xml:ChromeOSUICommands)
 
 // The size of app context menu items' icons.
 constexpr int kAppContextMenuIconSize = 20;

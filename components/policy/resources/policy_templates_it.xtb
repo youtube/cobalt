@@ -884,7 +884,6 @@ Se questa policy viene attivata, il tuo dispositivo <ph name="PRODUCT_OS_NAME" /
 Nota: questa policy ha effetto solo dopo l'accesso di un utente e non si applica alla schermata di accesso.</translation>
 <translation id="1597684038583138808">Attiva definizioni di Risposte rapide</translation>
 <translation id="1598258379228800626">Attiva l'evidenziazione dell'elemento attivo tramite tastiera nella schermata di accesso</translation>
-<translation id="1599424828227887013">Attiva isolamento dei siti per origini specificate su dispositivi Android</translation>
 <translation id="159946228300522107">Se la policy è impostata su True, Chrome ingrandisce la prima finestra mostrata alla prima esecuzione.
 
       Se la policy è impostata su False o se non viene configurata, Chrome potrebbe ingrandire la prima finestra in base alle dimensioni dello schermo.</translation>
@@ -2167,17 +2166,6 @@ L'utente può scegliere un'immagine di Google Foto come sfondo se questa policy 
 <translation id="2402537890732357732">Mostra sempre l'etichetta di gestione</translation>
 <translation id="2402547085566757554">Non usare la pagina Nuova scheda come home page</translation>
 <translation id="2405765347317553213">Impostazioni Confronta schede</translation>
-<translation id="240713331529749993">Se la policy viene configurata, ciascuna delle origini denominate in un elenco separato da virgole viene eseguita in un processo dedicato su Android. Il processo di ogni origine denominata potrà contenere solo documenti provenienti da tale origine e i relativi sottodomini. Ad esempio, specificare https://a1.example.com/ consente https://a2.a1.example.com/ nello stesso processo, ma non https://example.com o https://b.example.com. Tieni presente che Android isola alcuni siti sensibili per impostazione predefinita a partire da <ph name="PRODUCT_NAME" /> 77 e la policy estende questa modalità per isolare origini aggiuntive specifiche.
-
-      A partire da <ph name="PRODUCT_NAME" /> 77, puoi specificare anche un intervallo di origini da isolare utilizzando un carattere jolly. Ad esempio, specificare https://[*.]corp.example.com consentirà a ogni origine al di sotto di https://corp.example.com il proprio processo dedicato, inclusi https://corp.example.com stesso, https://a1.corp.example.com e https://a2.a1.corp.example.com.
-
-      Tieni presente che le origini isolate da questa policy non potranno scrivere altre origini nello stesso sito, processo possibile se due documenti dello stesso sito modificano i propri valori document.docmani affinché corrispondano. Gli amministratori devono confermare che questo comportamento non comune non venga utilizzato su un'origine prima di isolarla.
-
-      Se la policy viene impostata su Disattivata, vengono disattivati tutti i tipi di isolamento dei siti, inclusi quelli di siti sensibili, prove sul campo di IsolateOriginsAndroid, SitePerProcessAndroid e altre modalità di isolamento dei siti. Gli utenti possono comunque attivare IsolateOrigins manualmente usando il flag della riga di comando.
-
-      Se la policy non viene configurata, gli utenti possono modificare questa impostazione.
-
-      Nota: se vengono isolati troppi siti su Android, potrebbero verificarsi problemi di prestazioni, in particolare sui dispositivi con poca memoria. Questa policy viene applicata solo a Chrome su dispositivi Android con più di 1 GB di RAM. Per applicare la policy a piattaforme non Androd, utilizza <ph name="ISOLATE_ORIGINS_POLICY_NAME" />.</translation>
 <translation id="2407758458436268630">Consenti al modello di oscuramento smart di estendere il tempo di oscuramento dello schermo</translation>
 <translation id="2410163749464044777">Impostazioni spazio di archiviazione dei dati utente locale</translation>
 <translation id="2411629345938804022">Se la policy è impostata su 3, i siti web possono chiedere l'accesso ai dispositivi Bluetooth nelle vicinanze. Se la policy è impostata su 2, l'accesso ai dispositivi Bluetooth nelle vicinanze viene negato.
@@ -4106,21 +4094,6 @@ Se la policy viene impostata su Attivata, SwiftShader verrà utilizzato come ele
 Se la policy viene impostata su Disattivata o se non viene configurata, la creazione del contesto di WebGL potrebbe non andare a buon fine se l'accelerazione GPU hardware non è disponibile. Le pagine web potrebbero non funzionare correttamente se non gestiscono in modo appropriato l'errore di creazione del contesto di WebGL.
 
 Si tratta di una policy temporanea che verrà rimossa in futuro.</translation>
-<translation id="3607939601300521364">Controlla se l'agente <ph name="GEMINI_SPARK_PRODUCT_NAME" /> può connettersi a <ph name="PRODUCT_NAME" /> e utilizzare la navigazione automatica.
-
-0 = <ph name="GEMINI_SPARK_PRODUCT_NAME" /> può connettersi e utilizzare la navigazione automatica di <ph name="PRODUCT_NAME" />
-
-1 = <ph name="GEMINI_SPARK_PRODUCT_NAME" /> non può connettersi e utilizzare la navigazione automatica di <ph name="PRODUCT_NAME" />
-
-Avviso: se consenti a <ph name="GEMINI_SPARK_PRODUCT_NAME" /> di connettersi a <ph name="PRODUCT_NAME" /> e di utilizzare la navigazione automatica, l'agente <ph name="GEMINI_SPARK_PRODUCT_NAME" /> potrà eseguire azioni autonome in più passaggi sui client <ph name="PRODUCT_NAME" /> utilizzando la sessione del browser attiva. Ciò comporta rischi significativi per la sicurezza, tra cui rischi relativi alle credenziali, l'accesso in ingresso alla rete locale e la perdita di indicatori sensibili al contesto. I controlli di gestione e sicurezza esistenti potrebbero non essere rispettati.
-
-Si consiglia agli amministratori di valutare attentamente il modello di minaccia di rete, la conformità e le indicazioni sulla privacy della propria organizzazione prima di abilitare questa funzionalità.
-
-Questa policy non ha effetto se l'app <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> è disattivata o se le policy relative alla navigazione automatica di <ph name="PRODUCT_NAME" /> sono disattivate. Ad esempio, l'app <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> può essere disattivata dalla policy <ph name="GEMINI_SETTINGS_POLICY_NAME" />. Per saperne di più su <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> in <ph name="PRODUCT_NAME" />, visita la pagina https://support.google.com/chrome/a?p=gemini_in_chrome.
-
-La navigazione automatica di <ph name="PRODUCT_NAME" /> e <ph name="GEMINI_SPARK_PRODUCT_NAME" /> non sono disponibili in tutti i paesi o in tutte le lingue. L'impostazione di questa policy su 0 - Attivata non garantisce l'attivazione della funzionalità, che rimane soggetta a disponibilità. Per maggiori informazioni sull'implementazione, consulta le note di rilascio di Chrome Enterprise: https://chromeenterprise.google/resources/release-notes/
-
-Se la policy non viene configurata, il suo comportamento è determinato dalla policy<ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.</translation>
 <translation id="3608206578291537084">Abilita la Pipeline di reporting criptato</translation>
 <translation id="3608281460204780443">Visualizza l'icona di Chrome Web Store in Avvio app di <ph name="PRODUCT_OS_NAME" /> e nella pagina Nuova scheda</translation>
 <translation id="3612482251405108708">Avvio automatico della riautenticazione online nella schermata di blocco</translation>
@@ -5053,17 +5026,6 @@ Per informazioni dettagliate, visita la pagina https://chromium.googlesource.com
 
 Questa policy è stata utilizzata per disattivare l'upgrade automatico dei contenuti misti su iOS. La policy è deprecata e non è supportata.</translation>
 <translation id="4252522848899331223">Consenti agli utenti di bypassare l'avviso di Navigazione sicura</translation>
-<translation id="4260027436474745627">Se la policy viene configurata, ciascuna delle origini denominate in un elenco separato da virgole viene eseguita in un processo dedicato. Il processo di ogni origine denominata potrà contenere solo documenti provenienti da tale origine e i relativi sottodomini. Ad esempio, specificare https://a1.example.com/ consente https://a2.a1.example.com/ nello stesso processo, ma non https://example.com o https://b.example.com.
-
-      A partire da <ph name="PRODUCT_NAME" /> 77, puoi specificare anche un intervallo di origini da isolare utilizzando un carattere jolly. Ad esempio, specificare https://[*.]corp.example.com consentirà a ogni origine al di sotto di https://corp.example.com il proprio processo dedicato, inclusi https://corp.example.com stesso, https://a1.corp.example.com e https://a2.a1.corp.example.com.
-
-      Tieni presente che tutti i siti (vale a dire schema più eTLD+1, come https://example.com) sono già isolati per impostazione predefinita sulle piattaforme desktop, come specificato nella policy <ph name="SITE_PER_PROCESS_POLICY_NAME" />. La policy <ph name="ISOLATE_ORIGINS_POLICY_NAME" /> è utile per isolare origini specifiche a una granularità maggiore (ad es. https://a.example.com).
-
-      Tieni anche presente che le origini isolate da questa policy non potranno scrivere altre origini nello stesso sito, processo possibile se due documenti dello stesso sito modificano i propri valori document.docmani affinché corrispondano. Gli amministratori devono confermare che questo comportamento non comune non venga utilizzato su un'origine prima di isolarla.
-
-      Se la policy viene disattivata o non viene configurata, gli utenti possono modificare questa impostazione.
-
-      Nota: per Android, utilizza invece la policy <ph name="ISOLATE_ORIGINS_ANDROID_POLICY_NAME" />.</translation>
 <translation id="4261641564041253502">Seleziona automaticamente i certificati client corrispondenti ai filtri per i report sugli indicatori di sicurezza di <ph name="PRODUCT_NAME" />.</translation>
 <translation id="4261820385751181068">Lingua della schermata di accesso del dispositivo</translation>
 <translation id="4263788921751326798">Disattiva i report relativi alle informazioni sul report sugli arresti anomali del dispositivo</translation>
@@ -7493,6 +7455,7 @@ Se questa policy viene disattivata o se non viene configurata, i Glanceables non
 <translation id="5775235485119094648">Carica la batteria mentre si trova in un intervallo stabilito.</translation>
 <translation id="5776485039795852974">Chiedi ogni volta che un sito desidera mostrare le notifiche desktop</translation>
 <translation id="5776508475264864949">Non consentire all'app Gemini di eseguire azioni sulle pagine web.</translation>
+<translation id="5779185945203505880">Chiedi ogni volta che un sito vuole accedere ai sensori</translation>
 <translation id="5783009211970309878">Stampa intestazioni e piè di pagina</translation>
 <translation id="5786913136266632175">Consenti Chrome Finds e migliora i modelli di AI.</translation>
 <translation id="5789288985554424301">Consente di stabilire se i siti web possono utilizzare l'API Idle Detection.
@@ -7817,6 +7780,7 @@ A partire dalla versione 147 di <ph name="PRODUCT_NAME" />, questa policy verrà
 <translation id="5962271004971310788">Estensioni di cui l'utente deve consentire l'esecuzione in incognito per poter navigare in questa modalità</translation>
 <translation id="5963752574792883406">porta 990 (può essere sbloccata fino al 01/02/2022)</translation>
 <translation id="596523880465577341">Questa policy è stata deprecata e non è supportata. Utilizza la policy <ph name="EXTENSION_INSTALL_ALLOWLIST_POLICY_NAME" />.</translation>
+<translation id="5965344524743236327">L'ID o il numero del progetto <ph name="GOOGLE_CLOUD_PRODUCT_NAME" /> corrispondente all'istanza <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> da attivare. Scopri di più sugli ID progetto su https://docs.cloud.google.com/resource-manager/docs/creating-managing-projects.</translation>
 <translation id="5966615072639944554">Estensioni autorizzate a utilizzare l'API di attestazione da remoto</translation>
 <translation id="596732417280023843">Il nome del profilo di certificato.</translation>
 <translation id="5972538402066550344">Consenti i controlli di reporting granulare</translation>
@@ -8235,6 +8199,7 @@ Se la policy <ph name="ALLOWED_INPUT_METHODS_POLICY_NAME" /> non viene configura
 <translation id="6264247808139384018">Se la policy viene impostata su Attivata o se non viene configurata, gli utenti che hanno effettuato l'autenticazione con una password possono bloccare lo schermo.
 
 Se viene impostata su Disattivata, gli utenti non possono bloccare lo schermo e possono soltanto uscire dalla sessione utente.</translation>
+<translation id="6265114688953151459">L'identificatore univoco del motore <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" />. Il formato deve contenere da 1 a 63 caratteri corrispondenti al pattern [a-z0-9][a-z0-9-_]*. Scopri di più su https://docs.cloud.google.com/gemini/enterprise/docs/reference/rest/v1/projects.locations.collections.engines#Engine.</translation>
 <translation id="6265892395051519509">Consenti l'accesso ai sensori su questi siti</translation>
 <translation id="6266043141694454734">Determina se verranno utilizzati Chrome Root Store e lo strumento di verifica dei certificati integrato per verificare i certificati del server</translation>
 <translation id="6266686172120601139">Attiva il buffering adattivo per Web Audio</translation>
@@ -10839,6 +10804,9 @@ Questo è lo stesso comportamento di <ph name="POLICY_VALUE_PRIMARY_ACCOUNT_KEEP
 <translation id="7816326058023670173">Stesso secret per dispositivi di figli e genitori.</translation>
 <translation id="7818131573217430250">Impostazione stato predefinito modalità ad alto contrasto nella schermata di accesso</translation>
 <translation id="7821864705813933283">Consenti la visualizzazione della voce di menu per la ricerca per sezione di <ph name="GOOGLE_LENS_PRODUCT_NAME" /> nel menu contestuale se supportata.</translation>
+<translation id="7822068288960631707">Se la policy viene impostata su 1, i siti web possono accedere ai sensori, ad esempio di movimento e di luce, e usarli. Se la policy viene impostata su 2, viene negato l'accesso ai sensori. Se la policy viene impostata su 3, all'utente verrà chiesta l'autorizzazione ogni volta che un sito richiede l'accesso ai sensori se il flag funzionalità a tre stati è abilitato. In caso contrario, l'accesso ai sensori verrà consentito per impostazione predefinita.
+
+      Se non viene impostata, si applica la policy <ph name="ALLOW_SENSORS_POLICY_NAME" />, ma gli utenti possono modificare questa impostazione.</translation>
 <translation id="7823902813460802031">Se la policy viene impostata su Attivata, <ph name="PRODUCT_OS_NAME" /> impedisce al dispositivo di avviare la modalità sviluppatore.
 
        Se la policy viene impostata su Disattivata o se non viene configurata, la modalità sviluppatore continua a essere disponibile per il dispositivo.</translation>

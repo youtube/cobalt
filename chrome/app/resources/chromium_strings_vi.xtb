@@ -73,6 +73,7 @@
 <translation id="1820835682567584003">Chromium đang cố gắng <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="183031085822326697">Lần tới, khi mở Chromium trên <ph name="DEVICE_TYPE" />, bạn sẽ thấy lời nhắc sử dụng Trình quản lý mật khẩu của Google.</translation>
 <translation id="1838374766361614909">Xóa tìm kiếm</translation>
+<translation id="1846849503013521481">Để bảo mật công việc của bạn trên Chromium, tổ chức bạn sẽ có thể xem hoặc quản lý một số thông tin</translation>
 <translation id="18552579716432081">Để xoá dữ liệu duyệt web chỉ trên thiết bị này mà không xoá trong Tài khoản Google, hãy <ph name="BEGIN_LINK" />đăng xuất khỏi Chromium<ph name="END_LINK" />.</translation>
 <translation id="1857749206890802997">Tải Chromium xuống điện thoại để mở hoặc tạo nhóm thẻ mới trong khi di chuyển.</translation>
 <translation id="185970820835152459">Bạn có thể quản lý các Tài khoản Google đã đăng nhập của mình. Tài khoản Google của bạn được sử dụng cho trình duyệt Chromium, Cửa hàng Play, Gmail, v.v. Nếu bạn muốn thêm tài khoản cho người khác, chẳng hạn như thành viên gia đình, hãy thêm người dùng mới trên chiếc <ph name="DEVICE_TYPE" /> của bạn. <ph name="LINK_BEGIN" />Tìm hiểu thêm<ph name="LINK_END" /></translation>
@@ -435,6 +436,7 @@ Nếu trang này không hoạt động như mong đợi, hãy thử cho phép t�
 <translation id="5953657885167112863">Biến Chromium thành trình duyệt của riêng bạn</translation>
 <translation id="5960071705175224773">Một ứng dụng lạ đã thay đổi chế độ cài đặt của bạn</translation>
 <translation id="5968400720580217226">Chế độ AI</translation>
+<translation id="5977420883993828287">Đã ghim! Bạn có thể sử dụng lại tính năng Tác vụ theo bối cảnh trên thanh công cụ</translation>
 <translation id="5986585015444752010">{COUNT,plural, =1{Tổ chức sẽ tự động đóng Chromium sau 1 phút bạn không dùng đến.}other{Tổ chức sẽ tự động đóng Chromium sau # phút bạn không dùng đến.}}</translation>
 <translation id="5987687638152509985">Cập nhật Chromium để bắt đầu đồng bộ hóa</translation>
 <translation id="6003112304606738118">Đang tải xuống... Còn <ph name="HOURS" /> giờ.</translation>
@@ -539,6 +541,17 @@ Một số tính năng có thể không khả dụng. Hãy chỉ định thư m�
 <translation id="6896758677409633944">Sao chép</translation>
 <translation id="6901631050894301805">Đặt Chromium làm trình duyệt mặc định và ghim Chromium vào thanh tác vụ</translation>
 <translation id="6909503629704372277">&amp;Quản lý hồ sơ trên Chromium</translation>
+<translation id="6919942714452658456">Hành động này sẽ:
+          <ph name="LINE_BREAKS" />
+            • Đặt lại trang khởi động, trang thẻ mới, công cụ tìm kiếm và các thẻ được ghim.
+            <ph name="LINE_BREAK" />
+            • Tắt tiện ích
+            <ph name="LINE_BREAK" />
+            • Xoá cookie và dữ liệu trang web tạm thời khác
+            <ph name="LINE_BREAK" />
+            • Đặt lại phím tắt Chromium
+            <ph name="LINE_BREAKS" />
+            Dấu trang, nhật ký và mật khẩu đã lưu sẽ không bị ảnh hưởng.</translation>
 <translation id="6934579572334859869">Hỏi tính năng Tìm kiếm hình ảnh về hình ảnh này</translation>
 <translation id="6948031725951063910">Bạn đã đạt đến hạn mức <ph name="BOOKMARK_LIMIT" /> dấu trang của Chromium nên một số dấu trang chưa được lưu vào Tài khoản Google của bạn.
 
@@ -608,6 +621,7 @@ Chromium không thể khôi phục cài đặt của bạn.</translation>
 <translation id="7686590090926151193">Chromium không phải là trình duyệt mặc định của bạn</translation>
 <translation id="7689606757190482937">Đồng bộ hóa và cá nhân hóa Chromium trên các thiết bị của bạn</translation>
 <translation id="7699779824407626136">Cập nhật Chromium</translation>
+<translation id="7700735928747402058">Bảo mật công việc của bạn trên Chromium</translation>
 <translation id="7716950018788545737">Nhiệm vụ đã kết thúc.</translation>
 <translation id="77283119132245232">Cung cấp dịch vụ theo dõi hệ thống cho <ph name="BROWSER_NAME" />. Nếu dịch vụ này bị vô hiệu hoá thì dấu vết hiệu suất do trình duyệt tạo ra sẽ không bao gồm các sự kiện trên toàn hệ thống như chuyển đổi ngữ cảnh và sự kiện luồng ở trạng thái sẵn sàng.</translation>
 <translation id="7745317241717453663">Thao tác này sẽ xóa dữ liệu duyệt web của bạn khỏi thiết bị này. Để truy xuất dữ liệu của bạn sau, hãy đăng nhập vào Chromium dưới dạng <ph name="USER_EMAIL" />.</translation>
@@ -639,6 +653,7 @@ Chromium không thể khôi phục cài đặt của bạn.</translation>
 <translation id="8031714377769448844">Ghim Chromium vào thanh tác vụ để truy cập nhanh bất cứ lúc nào</translation>
 <translation id="80471789339884597">Cảm ơn bạn đã cài đặt. Bạn phải khởi động lại tất cả trình duyệt trước khi sử dụng <ph name="BUNDLE_NAME" />.</translation>
 <translation id="8054112667659782652">Luôn hiện lối tắt Tìm kiếm hình ảnh</translation>
+<translation id="8069447462453318634">Chọn "Ghim vào thanh công cụ"</translation>
 <translation id="8077498902115777962">Tắt Chromium đối với các ứng dụng chạy trong nền</translation>
 <translation id="80790299200510644">Tìm kiếm hình ảnh</translation>
 <translation id="8086881907087796310">Cài đặt không thành công vì máy tính của bạn không đáp ứng được các yêu cầu tối thiểu về phần cứng.</translation>
@@ -720,6 +735,15 @@ Chromium không thể khôi phục cài đặt của bạn.</translation>
 <translation id="8907580949721785412">Chromium đang cố gắng hiển thị mật khẩu. Nhập mật khẩu Windows của bạn để cho phép thực hiện việc này.</translation>
 <translation id="8932992523185907506">Chromium không còn là trình duyệt mặc định của bạn. Đặt Chromium làm trình duyệt mặc định?</translation>
 <translation id="8941642502866065432">Không thể cập nhật Chromium</translation>
+<translation id="8944232836376404813">Hành động này sẽ:
+          <ph name="LINE_BREAKS" />
+            • Đặt lại trang khởi động, trang thẻ mới, công cụ tìm kiếm và các thẻ được ghim
+            <ph name="LINE_BREAK" />
+            • Tắt tiện ích
+            <ph name="LINE_BREAK" />
+            • Xoá cookie và dữ liệu trang web tạm thời khác
+            <ph name="LINE_BREAKS" />
+            Dấu trang, nhật ký và mật khẩu đã lưu sẽ không bị ảnh hưởng.</translation>
 <translation id="897581876605952338">Biểu tượng Chromium Enterprise</translation>
 <translation id="8981150672034878610">Không thể khởi động Chromium vì đã xảy ra lỗi khi mở hồ sơ của bạn. Hãy thử khởi động lại Chromium.</translation>
 <translation id="8988036198400390003">Quản lý hồ sơ trên Chromium</translation>

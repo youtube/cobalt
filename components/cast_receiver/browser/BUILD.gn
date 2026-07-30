@@ -43,6 +43,8 @@ if (enable_cast_receiver) {
       "streaming_controller_mirroring.h",
       "streaming_controller_remoting.cc",
       "streaming_controller_remoting.h",
+      "streaming_input_capabilities_observer.cc",
+      "streaming_input_capabilities_observer.h",
       "streaming_input_observer.cc",
       "streaming_input_observer.h",
       "streaming_receiver_channel.cc",
@@ -83,6 +85,7 @@ if (enable_cast_receiver) {
       "//net",
       "//third_party/abseil-cpp:absl",
       "//ui/base",
+      "//ui/events/devices",
       "//url",
     ]
     friend = [ ":unit_tests" ]
@@ -128,8 +131,11 @@ source_set("unit_tests") {
       "//components/cast/message_port:test_message_port_receiver",
       "//content/public/browser",
       "//content/test:test_support",
+      "//ui/events/devices",
+      "//ui/events/devices:test_support",
     ]
     sources += [
+      "streaming_input_capabilities_observer_unittest.cc",
       "streaming_input_observer_unittest.cc",
       "streaming_receiver_channel_unittest.cc",
       "streaming_receiver_session_client_unittest.cc",

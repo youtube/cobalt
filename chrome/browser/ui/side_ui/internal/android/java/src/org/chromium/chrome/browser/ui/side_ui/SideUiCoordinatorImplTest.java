@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.ui.side_ui;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -16,7 +17,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import static org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.MIN_WEB_CONTENTS_WIDTH_DP;
-import static org.chromium.chrome.browser.ui.side_ui.TestSideUiContainer.TEST_SIDE_UI_WIDTH;
 
 import android.app.Activity;
 import android.content.res.Configuration;
@@ -64,10 +64,9 @@ import java.util.Map;
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(qualifiers = "w1920dp-h1080dp-mdpi" /* windowWidth = 1920dp; 1920dp = 1920px (mdpi) */)
 public class SideUiCoordinatorImplTest {
-    private static final @Px int WINDOW_WIDTH = 1920;
 
     /** Window size in this test; it must match {@code @Config}. */
-    private static final Size WINDOW_SIZE_PX = new Size(WINDOW_WIDTH, 1080);
+    private static final Size WINDOW_SIZE_PX = new Size(1920, 1080);
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -80,7 +79,6 @@ public class SideUiCoordinatorImplTest {
             ObservableSuppliers.createNonNull(0);
 
     private Activity mTestActivity;
-    private FrameLayout mAnchorContainerParent;
     private ViewGroup mLeftAnchorContainer;
     private ViewGroup mRightAnchorContainer;
     private View mSideUiContainerView;
@@ -91,9 +89,9 @@ public class SideUiCoordinatorImplTest {
         mTestActivity = Robolectric.buildActivity(TestActivity.class).setup().get();
 
         // Set up the parent View of side UI anchor containers.
-        mAnchorContainerParent = new FrameLayout(mTestActivity);
+        FrameLayout anchorContainerParent = new FrameLayout(mTestActivity);
         mTestActivity.addContentView(
-                mAnchorContainerParent,
+                anchorContainerParent,
                 new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
 
         // Set up anchor containers.
@@ -105,10 +103,10 @@ public class SideUiCoordinatorImplTest {
                 (ViewGroup)
                         LayoutInflater.from(mTestActivity)
                                 .inflate(R.layout.side_ui_anchor_container, /* root= */ null);
-        mAnchorContainerParent.addView(
+        anchorContainerParent.addView(
                 mLeftAnchorContainer,
                 new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT));
-        mAnchorContainerParent.addView(
+        anchorContainerParent.addView(
                 mRightAnchorContainer,
                 new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT));
 
@@ -120,7 +118,7 @@ public class SideUiCoordinatorImplTest {
                 new SideUiCoordinatorImpl(
                         mTestActivity,
                         mActivityLifecycleDispatcher,
-                        mAnchorContainerParent,
+                        anchorContainerParent,
                         mLeftAnchorContainerStub,
                         mRightAnchorContainerStub,
                         mTopMarginSupplier);
@@ -132,8 +130,8 @@ public class SideUiCoordinatorImplTest {
         RobolectricUtil.runAllBackgroundAndUi();
 
         // mAnchorContainerParent should have the size specified in @Config.
-        assertEquals(WINDOW_SIZE_PX.getWidth(), mAnchorContainerParent.getWidth());
-        assertEquals(WINDOW_SIZE_PX.getHeight(), mAnchorContainerParent.getHeight());
+        assertEquals(WINDOW_SIZE_PX.getWidth(), anchorContainerParent.getWidth());
+        assertEquals(WINDOW_SIZE_PX.getHeight(), anchorContainerParent.getHeight());
     }
 
     @Test
@@ -178,23 +176,24 @@ public class SideUiCoordinatorImplTest {
         mCoordinator.addObserver(mSideUiObserver);
         clearInvocations(mSideUiObserver);
 
-        int width = TEST_SIDE_UI_WIDTH;
         mCoordinator.requestUpdateContainer(
                 new SideUiContainerProperties(
-                        sideUiContainer.getSideUiId(), sideUiContainer.getAnchorSide(), width),
+                        sideUiContainer.getSideUiId(), sideUiContainer.getAnchorSide()),
                 /* suppressAnimations= */ true);
         RobolectricUtil.runAllBackgroundAndUi();
 
         // Verify observers notified.
+        @Px
+        int expectedLeftSideUiWidth = ViewUtils.dpToPx(mTestActivity, sideUiContainer.mMaxWidthDp);
         Map<@AnchorSide Integer, Integer> sideUiWidths = new ArrayMap<>();
-        sideUiWidths.put(AnchorSide.LEFT, width);
+        sideUiWidths.put(AnchorSide.LEFT, expectedLeftSideUiWidth);
         sideUiWidths.put(AnchorSide.RIGHT, 0);
         SideUiSpecs expectedSideUiSpecs = new SideUiSpecs(sideUiWidths);
         verify(mSideUiObserver).onSideUiSpecsChanged(eq(expectedSideUiSpecs));
 
         // Verify view attached to left container.
         assertEquals(mLeftAnchorContainer, mSideUiContainerView.getParent());
-        assertEquals(width, getSideUiContainerViewWidth());
+        assertEquals(expectedLeftSideUiWidth, getSideUiContainerViewWidth());
     }
 
     @Test
@@ -206,27 +205,33 @@ public class SideUiCoordinatorImplTest {
         mCoordinator.addObserver(mSideUiObserver);
         clearInvocations(mSideUiObserver);
 
-        int width = TEST_SIDE_UI_WIDTH;
         mCoordinator.requestUpdateContainer(
                 new SideUiContainerProperties(
-                        sideUiContainer.getSideUiId(), sideUiContainer.getAnchorSide(), width),
+                        sideUiContainer.getSideUiId(), sideUiContainer.getAnchorSide()),
                 /* suppressAnimations= */ true);
         RobolectricUtil.runAllBackgroundAndUi();
 
         // Verify observers notified.
+        @Px
+        int expectedRightSideUiWidth = ViewUtils.dpToPx(mTestActivity, sideUiContainer.mMaxWidthDp);
         Map<@AnchorSide Integer, Integer> sideUiWidths = new ArrayMap<>();
         sideUiWidths.put(AnchorSide.LEFT, 0);
-        sideUiWidths.put(AnchorSide.RIGHT, width);
+        sideUiWidths.put(AnchorSide.RIGHT, expectedRightSideUiWidth);
         SideUiSpecs expectedSideUiSpecs = new SideUiSpecs(sideUiWidths);
         verify(mSideUiObserver).onSideUiSpecsChanged(eq(expectedSideUiSpecs));
 
         // Verify view attached to right container.
         assertEquals(mRightAnchorContainer, mSideUiContainerView.getParent());
-        assertEquals(width, getSideUiContainerViewWidth());
+        assertEquals(expectedRightSideUiWidth, getSideUiContainerViewWidth());
     }
 
     @Test
     public void testRequestUpdateContainer_hideLowerPriorityContainer() {
+        int windowWidthDp = ViewUtils.pxToDp(mTestActivity, WINDOW_SIZE_PX.getWidth());
+
+        // Arrange: Register the right SideUiContainer.
+        // Note that the container's max & min widths ensure the window will only have enough space
+        // for this container.
         View rightUiContainerView = new FrameLayout(mTestActivity);
         var rightUiContainer =
                 new TestSideUiContainer(
@@ -234,9 +239,13 @@ public class SideUiCoordinatorImplTest {
                         rightUiContainerView,
                         SideUiId.SIDE_UI_FOR_TESTING_LOW_PRIORITY,
                         AnchorSide.RIGHT);
+        rightUiContainer.mMinWidthDp = windowWidthDp - SideUiCoordinator.MIN_WEB_CONTENTS_WIDTH_DP;
+        rightUiContainer.mMaxWidthDp = rightUiContainer.mMinWidthDp;
         mCoordinator.registerSideUiContainer(rightUiContainer);
-        rightUiContainer.mMinWidthDp = 200;
 
+        // Arrange: Register the left SideUiContainer.
+        // Note that the container's max & min widths ensure the window will only have enough space
+        // for this container.
         View leftUiContainerView = new FrameLayout(mTestActivity);
         var leftUiContainer =
                 new TestSideUiContainer(
@@ -244,49 +253,44 @@ public class SideUiCoordinatorImplTest {
                         leftUiContainerView,
                         SideUiId.SIDE_UI_FOR_TESTING_HIGH_PRIORITY,
                         AnchorSide.LEFT);
-
-        assertTrue(
-                "Left container should have the higher priority",
-                leftUiContainer.getSideUiId() < rightUiContainer.getSideUiId());
-
+        leftUiContainer.mMinWidthDp = windowWidthDp - SideUiCoordinator.MIN_WEB_CONTENTS_WIDTH_DP;
+        leftUiContainer.mMaxWidthDp = leftUiContainer.mMinWidthDp;
         mCoordinator.registerSideUiContainer(leftUiContainer);
-        mCoordinator.addObserver(mSideUiObserver);
-        clearInvocations(mSideUiObserver);
 
-        int width = TEST_SIDE_UI_WIDTH;
+        // Arrange: Show only the right SideUiContainer.
+        rightUiContainer.mHasContentToShow = true;
+        leftUiContainer.mHasContentToShow = false;
         mCoordinator.requestUpdateContainer(
                 new SideUiContainerProperties(
-                        rightUiContainer.getSideUiId(), rightUiContainer.getAnchorSide(), width),
-                /* suppressAnimations= */ true);
-        mCoordinator.requestUpdateContainer(
-                new SideUiContainerProperties(
-                        leftUiContainer.getSideUiId(), leftUiContainer.getAnchorSide(), width),
+                        rightUiContainer.getSideUiId(), rightUiContainer.getAnchorSide()),
                 /* suppressAnimations= */ true);
         RobolectricUtil.runAllBackgroundAndUi();
-        SideUiSpecs expectedSideUiSpecs = new SideUiSpecs(width, width);
+
+        // Assert: The right SideUiContainer is shown.
+        @Px
+        int expectedRightSideUiWidth =
+                ViewUtils.dpToPx(mTestActivity, rightUiContainer.mMaxWidthDp);
+        SideUiSpecs expectedSideUiSpecs = new SideUiSpecs(0, expectedRightSideUiWidth);
         SideUiSpecs currentSideUiSpecs = mCoordinator.getCurrentSideUiSpecs();
         assertEquals(expectedSideUiSpecs, currentSideUiSpecs);
-        assertEquals(width, leftUiContainerView.getLayoutParams().width);
-        assertEquals(width, rightUiContainerView.getLayoutParams().width);
+        assertEquals(expectedRightSideUiWidth, rightUiContainerView.getLayoutParams().width);
 
-        // The left container requests width bigger than the right one can keep its current width.
-        @Px
-        int threshold =
-                ViewUtils.dpToPx(
-                        mTestActivity,
-                        SideUiCoordinator.MIN_WEB_CONTENTS_WIDTH_DP + rightUiContainer.mMinWidthDp);
-        @Px int leftWidth = WINDOW_WIDTH - threshold + 1;
+        // Act: Attempt to show both SideUiContainers.
+        rightUiContainer.mHasContentToShow = true;
+        leftUiContainer.mHasContentToShow = true;
         mCoordinator.requestUpdateContainer(
                 new SideUiContainerProperties(
-                        leftUiContainer.getSideUiId(), leftUiContainer.getAnchorSide(), leftWidth),
+                        leftUiContainer.getSideUiId(), leftUiContainer.getAnchorSide()),
                 /* suppressAnimations= */ true);
-
-        // Verify the right container gets hidden.
         RobolectricUtil.runAllBackgroundAndUi();
-        expectedSideUiSpecs = new SideUiSpecs(leftWidth, 0);
+
+        // Assert: The left SideUiContainer is shown, but the right container is hidden.
+        @Px
+        int expectedLeftSideUiWidth = ViewUtils.dpToPx(mTestActivity, leftUiContainer.mMaxWidthDp);
+        expectedSideUiSpecs = new SideUiSpecs(expectedLeftSideUiWidth, 0);
         currentSideUiSpecs = mCoordinator.getCurrentSideUiSpecs();
         assertEquals(expectedSideUiSpecs, currentSideUiSpecs);
-        assertEquals(leftWidth, leftUiContainerView.getLayoutParams().width);
+        assertEquals(expectedLeftSideUiWidth, leftUiContainerView.getLayoutParams().width);
         assertEquals(0, rightUiContainerView.getLayoutParams().width);
     }
 
@@ -298,44 +302,36 @@ public class SideUiCoordinatorImplTest {
         mCoordinator.registerSideUiContainer(sideUiContainer);
 
         // First attach.
-        mCoordinator.requestUpdateContainer(
+        SideUiContainerProperties sideUiProperties =
                 new SideUiContainerProperties(
-                        sideUiContainer.getSideUiId(),
-                        sideUiContainer.getAnchorSide(),
-                        TEST_SIDE_UI_WIDTH),
-                /* suppressAnimations= */ true);
+                        sideUiContainer.getSideUiId(), sideUiContainer.getAnchorSide());
+        mCoordinator.requestUpdateContainer(sideUiProperties, /* suppressAnimations= */ true);
         RobolectricUtil.runAllBackgroundAndUi();
         assertEquals(mRightAnchorContainer, mSideUiContainerView.getParent());
 
         // Then update to width 0.
-        mCoordinator.requestUpdateContainer(
-                new SideUiContainerProperties(
-                        sideUiContainer.getSideUiId(),
-                        sideUiContainer.getAnchorSide(),
-                        /* width= */ 0),
-                /* suppressAnimations= */ true);
+        sideUiContainer.mHasContentToShow = false;
+        mCoordinator.requestUpdateContainer(sideUiProperties, /* suppressAnimations= */ true);
         RobolectricUtil.runAllBackgroundAndUi();
         assertNull(mSideUiContainerView.getParent());
         assertEquals(0, getSideUiContainerViewWidth());
     }
 
     @Test
-    public void testRequestUpdateContainer_InvokeDetermineContainerWidth() {
+    public void testRequestUpdateContainer_InvokeDetermineShowableWidth() {
         var sideUiContainer =
                 new TestSideUiContainer(
                         mCoordinator, mSideUiContainerView, SideUiId.SIDE_PANEL, AnchorSide.RIGHT);
         mCoordinator.registerSideUiContainer(sideUiContainer);
 
-        int width = TEST_SIDE_UI_WIDTH;
         mCoordinator.requestUpdateContainer(
                 new SideUiContainerProperties(
-                        sideUiContainer.getSideUiId(), sideUiContainer.getAnchorSide(), width),
+                        sideUiContainer.getSideUiId(), sideUiContainer.getAnchorSide()),
                 /* suppressAnimations= */ true);
         RobolectricUtil.runAllBackgroundAndUi();
 
-        // Verify SideUiContainer#determineContainerWidth() is invoked with correct parameters.
+        // Verify SideUiContainer#determineShowableWidth() is invoked with correct parameters.
         int minWebContentsWidthPx = ViewUtils.dpToPx(mTestActivity, MIN_WEB_CONTENTS_WIDTH_DP);
-        assertEquals(Integer.valueOf(width), sideUiContainer.mLastRequestedWidth);
         assertEquals(
                 Integer.valueOf(WINDOW_SIZE_PX.getWidth() - minWebContentsWidthPx),
                 sideUiContainer.mLastAvailableWidth);
@@ -355,23 +351,17 @@ public class SideUiCoordinatorImplTest {
         assertEquals(unexpectedRight, View.GONE, mRightAnchorContainer.getVisibility());
 
         // Start at LEFT.
-        mCoordinator.requestUpdateContainer(
+        var sideUiProperties =
                 new SideUiContainerProperties(
-                        sideUiContainer.getSideUiId(),
-                        sideUiContainer.getAnchorSide(),
-                        TEST_SIDE_UI_WIDTH),
-                /* suppressAnimations= */ true);
+                        sideUiContainer.getSideUiId(), sideUiContainer.getAnchorSide());
+        mCoordinator.requestUpdateContainer(sideUiProperties, /* suppressAnimations= */ true);
         RobolectricUtil.runAllBackgroundAndUi();
         assertEquals(unexpectedLeft, View.VISIBLE, mLeftAnchorContainer.getVisibility());
         assertEquals(unexpectedRight, View.GONE, mRightAnchorContainer.getVisibility());
 
         // Detach.
-        mCoordinator.requestUpdateContainer(
-                new SideUiContainerProperties(
-                        sideUiContainer.getSideUiId(),
-                        sideUiContainer.getAnchorSide(),
-                        /* width= */ 0),
-                /* suppressAnimations= */ true);
+        sideUiContainer.mHasContentToShow = false;
+        mCoordinator.requestUpdateContainer(sideUiProperties, /* suppressAnimations= */ true);
         RobolectricUtil.runAllBackgroundAndUi();
         assertEquals(unexpectedLeft, View.GONE, mLeftAnchorContainer.getVisibility());
         assertEquals(unexpectedRight, View.GONE, mRightAnchorContainer.getVisibility());
@@ -391,23 +381,17 @@ public class SideUiCoordinatorImplTest {
         assertEquals(unexpectedRight, View.GONE, mRightAnchorContainer.getVisibility());
 
         // Start at RIGHT.
-        mCoordinator.requestUpdateContainer(
+        var sideUiProperties =
                 new SideUiContainerProperties(
-                        sideUiContainer.getSideUiId(),
-                        sideUiContainer.getAnchorSide(),
-                        TEST_SIDE_UI_WIDTH),
-                /* suppressAnimations= */ true);
+                        sideUiContainer.getSideUiId(), sideUiContainer.getAnchorSide());
+        mCoordinator.requestUpdateContainer(sideUiProperties, /* suppressAnimations= */ true);
         RobolectricUtil.runAllBackgroundAndUi();
         assertEquals(unexpectedLeft, View.GONE, mLeftAnchorContainer.getVisibility());
         assertEquals(unexpectedRight, View.VISIBLE, mRightAnchorContainer.getVisibility());
 
         // Detach.
-        mCoordinator.requestUpdateContainer(
-                new SideUiContainerProperties(
-                        sideUiContainer.getSideUiId(),
-                        sideUiContainer.getAnchorSide(),
-                        /* width= */ 0),
-                /* suppressAnimations= */ true);
+        sideUiContainer.mHasContentToShow = false;
+        mCoordinator.requestUpdateContainer(sideUiProperties, /* suppressAnimations= */ true);
         RobolectricUtil.runAllBackgroundAndUi();
         assertEquals(unexpectedLeft, View.GONE, mLeftAnchorContainer.getVisibility());
         assertEquals(unexpectedRight, View.GONE, mRightAnchorContainer.getVisibility());
@@ -445,14 +429,12 @@ public class SideUiCoordinatorImplTest {
         // Open a side UI.
         mCoordinator.requestUpdateContainer(
                 new SideUiContainerProperties(
-                        sideUiContainer.getSideUiId(),
-                        sideUiContainer.getAnchorSide(),
-                        TEST_SIDE_UI_WIDTH),
+                        sideUiContainer.getSideUiId(), sideUiContainer.getAnchorSide()),
                 /* suppressAnimations= */ true);
         RobolectricUtil.runAllBackgroundAndUi();
 
         // Simulate a configuration change that the window becomes too narrow.
-        // The new configuration should force TestSideUiContainer#determineContainerWidth() to
+        // The new configuration should force TestSideUiContainer#determineShowableWidth() to
         // return 0.
         int minWindowWidthDpForVisibleSideUi =
                 MIN_WEB_CONTENTS_WIDTH_DP + sideUiContainer.mMinWidthDp;
@@ -465,7 +447,7 @@ public class SideUiCoordinatorImplTest {
         assertEquals(0, getSideUiContainerViewWidth());
 
         // Simulate another configuration change that the window becomes wide enough again.
-        // The new configuration should make TestSideUiContainer#determineContainerWidth() return
+        // The new configuration should make TestSideUiContainer#determineShowableWidth() return
         // a positive value.
         RuntimeEnvironment.setQualifiers(
                 "w" + minWindowWidthDpForVisibleSideUi + "dp-h1080dp-mdpi");
@@ -486,13 +468,9 @@ public class SideUiCoordinatorImplTest {
         mCoordinator.addObserver(mSideUiObserver);
 
         // Open a side UI.
-        // Note the initial side UI width is larger than the minimum width.
-        @Px int initialSideUiWidth = sideUiContainer.mMinWidthDp + 100;
         mCoordinator.requestUpdateContainer(
                 new SideUiContainerProperties(
-                        sideUiContainer.getSideUiId(),
-                        sideUiContainer.getAnchorSide(),
-                        initialSideUiWidth),
+                        sideUiContainer.getSideUiId(), sideUiContainer.getAnchorSide()),
                 /* suppressAnimations= */ true);
         RobolectricUtil.runAllBackgroundAndUi();
 
@@ -508,14 +486,16 @@ public class SideUiCoordinatorImplTest {
         RobolectricUtil.runAllBackgroundAndUi();
 
         // Verify that observers are notified with the updated specs.
+        @Px
+        int expectedRightSideUiWidth = ViewUtils.dpToPx(mTestActivity, sideUiContainer.mMinWidthDp);
         Map<@AnchorSide Integer, Integer> sideUiWidths = new ArrayMap<>();
         sideUiWidths.put(AnchorSide.LEFT, 0);
-        sideUiWidths.put(AnchorSide.RIGHT, sideUiContainer.mMinWidthDp);
+        sideUiWidths.put(AnchorSide.RIGHT, expectedRightSideUiWidth);
         SideUiSpecs expectedSideUiSpecs = new SideUiSpecs(sideUiWidths);
         verify(mSideUiObserver).onSideUiSpecsChanged(eq(expectedSideUiSpecs));
 
         // Verify the container view's width is updated.
-        assertEquals(sideUiContainer.mMinWidthDp, getSideUiContainerViewWidth());
+        assertEquals(expectedRightSideUiWidth, getSideUiContainerViewWidth());
     }
 
     @Test
@@ -527,21 +507,18 @@ public class SideUiCoordinatorImplTest {
         mCoordinator.addObserver(mSideUiObserver);
 
         // Open a side UI.
-        @Px int initialSideUiWidth = TEST_SIDE_UI_WIDTH;
         mCoordinator.requestUpdateContainer(
                 new SideUiContainerProperties(
-                        sideUiContainer.getSideUiId(),
-                        sideUiContainer.getAnchorSide(),
-                        initialSideUiWidth),
+                        sideUiContainer.getSideUiId(), sideUiContainer.getAnchorSide()),
                 /* suppressAnimations= */ true);
         RobolectricUtil.runAllBackgroundAndUi();
+        @Px int sideUiWidth = getSideUiContainerViewWidth();
 
         // Simulate a configuration change.
         // The new configuration should still have enough width for the initial side UI width.
         clearInvocations(mSideUiObserver);
-        @Px int minWebContentsWidth = ViewUtils.dpToPx(mTestActivity, MIN_WEB_CONTENTS_WIDTH_DP);
-        RuntimeEnvironment.setQualifiers(
-                "w" + (minWebContentsWidth + initialSideUiWidth) + "dp-h1080dp-mdpi");
+        int newWindowWidthDp = MIN_WEB_CONTENTS_WIDTH_DP + sideUiContainer.mMaxWidthDp;
+        RuntimeEnvironment.setQualifiers("w" + newWindowWidthDp + "dp-h1080dp-mdpi");
         mCoordinator.onConfigurationChanged(new Configuration());
         RobolectricUtil.runAllBackgroundAndUi();
 
@@ -555,7 +532,7 @@ public class SideUiCoordinatorImplTest {
         verify(mSideUiObserver, never()).onSideUiSpecsChanged(any());
 
         // Verify the container view's width is unchanged.
-        assertEquals(initialSideUiWidth, getSideUiContainerViewWidth());
+        assertEquals(sideUiWidth, getSideUiContainerViewWidth());
     }
 
     @Test
@@ -567,7 +544,7 @@ public class SideUiCoordinatorImplTest {
         mCoordinator.registerSideUiContainer(sideUiContainer);
 
         // 1. Initially, window is wide (1920dp). Should be able to show SideUi.
-        assertEquals(true, mCoordinator.canShowSideUi(sideUiContainer.getSideUiId()));
+        assertTrue(mCoordinator.canShowSideUi(sideUiContainer.getSideUiId()));
 
         // 2. Shrink window below threshold: minWebContentsWidth (412) + minSidePanelWidth (200) =
         // 612dp.
@@ -578,7 +555,7 @@ public class SideUiCoordinatorImplTest {
         mCoordinator.onConfigurationChanged(new Configuration());
 
         // Should not be able to show side UI.
-        assertEquals(false, mCoordinator.canShowSideUi(sideUiContainer.getSideUiId()));
+        assertFalse(mCoordinator.canShowSideUi(sideUiContainer.getSideUiId()));
     }
 
     @Test
@@ -621,7 +598,7 @@ public class SideUiCoordinatorImplTest {
         assertTrue(showabilityCaptor.getValue().mUnshowableSideUiIds.isEmpty());
     }
 
-    private int getSideUiContainerViewWidth() {
+    private @Px int getSideUiContainerViewWidth() {
         return mSideUiContainerView.getLayoutParams().width;
     }
 }

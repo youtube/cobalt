@@ -215,6 +215,14 @@ void AddLockScreenPageStrings(content::WebUIDataSource* html_source,
        IDS_ASH_SETTINGS_LOCK_SCREEN_NOTIFICATION_SHOW},
       {"lockScreenPinOrPassword",
        IDS_SETTINGS_PEOPLE_LOCK_SCREEN_PIN_OR_PASSWORD},
+      {"lockScreenPinOnly", IDS_SETTINGS_PEOPLE_LOCK_SCREEN_PIN_ONLY},
+      {"lockScreenPasswordOrFingerprint",
+       IDS_SETTINGS_PEOPLE_LOCK_SCREEN_PASSWORD_OR_FINGERPRINT},
+      {"lockScreenPinOrFingerprint",
+       IDS_SETTINGS_PEOPLE_LOCK_SCREEN_PIN_OR_FINGERPRINT},
+      {"lockScreenPasswordOrPinOrFingerprint",
+       IDS_SETTINGS_PEOPLE_LOCK_SCREEN_PASSWORD_OR_PIN_OR_FINGERPRINT},
+      {"lockScreenNoAuthFactor", IDS_SETTINGS_PEOPLE_LOCK_SCREEN_NO_AUTH},
       {"lockScreenPinMoreButtonAriaLabel",
        IDS_SETTINGS_PEOPLE_LOCK_SCREEN_PIN_MORE_BUTTON_ARIA_LABEL},
       {"lockScreenPinAutoSubmit",
@@ -314,11 +322,6 @@ void AddLockScreenPageStrings(content::WebUIDataSource* html_source,
       "quickUnlockDisabledByPolicy",
       quick_unlock::IsPinDisabledByPolicy(profile->GetPrefs(),
                                           quick_unlock::Purpose::kAny));
-  html_source->AddBoolean("lockScreenNotificationsEnabled",
-                          ash::features::IsLockScreenNotificationsEnabled());
-  html_source->AddBoolean(
-      "lockScreenHideSensitiveNotificationsSupported",
-      ash::features::IsLockScreenHideSensitiveNotificationsSupported());
   html_source->AddString(
       "lockScreenSwitchLocalPasswordDescription",
       l10n_util::GetStringFUTF16(

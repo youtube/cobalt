@@ -8,20 +8,14 @@
 
 #include "base/check.h"
 #include "chrome/browser/performance_manager/public/user_tuning/performance_detection_manager.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/performance_controls/performance_controls_metrics.h"
 #include "chrome/browser/ui/performance_controls/performance_intervention_bubble_observer.h"
 #include "chrome/browser/ui/performance_controls/tab_list_model.h"
 
 PerformanceInterventionBubbleDelegate::PerformanceInterventionBubbleDelegate(
-    Browser* browser,
     std::unique_ptr<TabListModel> tab_list_model,
     PerformanceInterventionBubbleObserver* observer)
-    : browser_(browser),
-      tab_list_model_(std::move(tab_list_model)),
-      observer_(observer) {
-  CHECK(browser);
-}
+    : tab_list_model_(std::move(tab_list_model)), observer_(observer) {}
 
 PerformanceInterventionBubbleDelegate::
     ~PerformanceInterventionBubbleDelegate() = default;

@@ -23,6 +23,7 @@
 #include "base/values.h"
 #include "net/base/net_export.h"
 #include "net/base/network_anonymization_key.h"
+#include "net/base/network_handle.h"
 #include "net/dns/public/dns_query_type.h"
 #include "net/dns/public/host_resolver_source.h"
 
@@ -79,6 +80,7 @@ class NET_EXPORT HostResolverCache final {
   const HostResolverInternalResult* Lookup(
       std::string_view domain_name,
       const NetworkAnonymizationKey& network_anonymization_key,
+      handles::NetworkHandle target_network,
       DnsQueryType query_type = DnsQueryType::UNSPECIFIED,
       HostResolverSource source = HostResolverSource::ANY,
       std::optional<bool> secure = std::nullopt) const;
@@ -99,6 +101,7 @@ class NET_EXPORT HostResolverCache final {
   std::optional<StaleLookupResult> LookupStale(
       std::string_view domain_name,
       const NetworkAnonymizationKey& network_anonymization_key,
+      handles::NetworkHandle target_network,
       DnsQueryType query_type = DnsQueryType::UNSPECIFIED,
       HostResolverSource source = HostResolverSource::ANY,
       std::optional<bool> secure = std::nullopt) const;
@@ -109,6 +112,7 @@ class NET_EXPORT HostResolverCache final {
   // `DnsQueryType::UNSPECIFIED`.
   void Set(std::unique_ptr<HostResolverInternalResult> result,
            const NetworkAnonymizationKey& network_anonymization_key,
+           handles::NetworkHandle target_network,
            HostResolverSource source,
            bool secure);
 
@@ -151,6 +155,7 @@ class NET_EXPORT HostResolverCache final {
 
     std::string domain_name;
     NetworkAnonymizationKey network_anonymization_key;
+    handles::NetworkHandle target_network = handles::kInvalidNetworkHandle;
   };
 
   struct KeyRef {
@@ -158,6 +163,7 @@ class NET_EXPORT HostResolverCache final {
 
     std::string_view domain_name;
     const raw_ref<const NetworkAnonymizationKey> network_anonymization_key;
+    handles::NetworkHandle target_network = handles::kInvalidNetworkHandle;
   };
 
   // Allow comparing Key to KeyRef to allow refs for entry lookup.
@@ -167,18 +173,24 @@ class NET_EXPORT HostResolverCache final {
     ~KeyComparator() = default;
 
     bool operator()(const Key& lhs, const Key& rhs) const {
-      return std::tie(lhs.domain_name, lhs.network_anonymization_key) <
-             std::tie(rhs.domain_name, rhs.network_anonymization_key);
+      return std::tie(lhs.domain_name, lhs.network_anonymization_key,
+                      lhs.target_network) <
+             std::tie(rhs.domain_name, rhs.network_anonymization_key,
+                      rhs.target_network);
     }
 
     bool operator()(const Key& lhs, const KeyRef& rhs) const {
-      return std::tie(lhs.domain_name, lhs.network_anonymization_key) <
-             std::tie(rhs.domain_name, *rhs.network_anonymization_key);
+      return std::tie(lhs.domain_name, lhs.network_anonymization_key,
+                      lhs.target_network) <
+             std::tie(rhs.domain_name, *rhs.network_anonymization_key,
+                      rhs.target_network);
     }
 
     bool operator()(const KeyRef& lhs, const Key& rhs) const {
-      return std::tie(lhs.domain_name, *lhs.network_anonymization_key) <
-             std::tie(rhs.domain_name, rhs.network_anonymization_key);
+      return std::tie(lhs.domain_name, *lhs.network_anonymization_key,
+                      lhs.target_network) <
+             std::tie(rhs.domain_name, rhs.network_anonymization_key,
+                      rhs.target_network);
     }
   };
 
@@ -214,12 +226,14 @@ class NET_EXPORT HostResolverCache final {
   std::vector<EntryMap::const_iterator> LookupInternal(
       std::string_view domain_name,
       const NetworkAnonymizationKey& network_anonymization_key,
+      handles::NetworkHandle target_network,
       DnsQueryType query_type,
       HostResolverSource source,
       std::optional<bool> secure) const;
 
   void Set(std::unique_ptr<HostResolverInternalResult> result,
            const NetworkAnonymizationKey& network_anonymization_key,
+           handles::NetworkHandle target_network,
            HostResolverSource source,
            bool secure,
            bool replace_existing,
@@ -227,14 +241,15 @@ class NET_EXPORT HostResolverCache final {
 
   void EvictEntries();
 
-  // If `require_persistable_anonymization_key` is true, will not serialize
-  // any entries that do not have an anonymization key that supports
-  // serialization and restoration. If false, will serialize all entries, but
-  // the result may contain anonymization keys that are malformed for
-  // restoration.
-  base::Value SerializeEntries(
-      bool serialize_staleness_generation,
-      bool require_persistable_anonymization_key) const;
+  // If `serialize_non_persistable_parameters` is false this will:
+  // - Only serialize entries that have persistable parameters (e.g.,
+  //     non-transient network anonymization keys, default target networks).
+  // - Don't include the staleness generation value.
+  // This is useful to make sure that serialized data can later be restored and
+  // utilized.
+  // If `serialize_non_persistable_parameters` is true, all entries will be
+  // included. This is useful for debugging.
+  base::Value SerializeEntries(bool serialize_non_persistable_parameters) const;
 
   EntryMap entries_;
   size_t max_entries_;

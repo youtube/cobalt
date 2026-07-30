@@ -35,13 +35,16 @@
 #include <optional>
 #include <utility>
 
+#include "base/check.h"
 #include "base/debug/alias.h"
+#include "base/feature_list.h"
 #include "build/build_config.h"
 #include "cc/animation/animation_host.h"
 #include "cc/animation/animation_timeline.h"
 #include "cc/layers/picture_layer.h"
 #include "cc/trees/layer_tree_host.h"
 #include "cc/trees/paint_holding_reason.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
 #include "third_party/blink/public/common/widget/constants.h"
 #include "third_party/blink/public/mojom/input/focus_type.mojom-blink.h"
@@ -227,6 +230,7 @@ void ChromeClientImpl::ChromeDestroyed() {
 
 void ChromeClientImpl::SetWindowRect(const gfx::Rect& requested_rect,
                                      LocalFrame& frame) {
+  CHECK(!base::FeatureList::IsEnabled(features::kMoveResizeWindowToIPCs));
   DCHECK(web_view_);
   DCHECK_EQ(&frame, web_view_->MainFrameImpl()->GetFrame());
 
@@ -248,6 +252,27 @@ void ChromeClientImpl::SetWindowRect(const gfx::Rect& requested_rect,
   // store unadjusted pending window rects if that will not break many sites.
   web_view_->MainFrameViewWidget()->SetWindowRect(rect_adjusted_for_minimum,
                                                   adjusted_rect);
+}
+
+void ChromeClientImpl::MoveWindowTo(const gfx::Point& origin,
+                                    LocalFrame& frame) {
+  CHECK(base::FeatureList::IsEnabled(features::kMoveResizeWindowToIPCs));
+  DCHECK(web_view_);
+  DCHECK_EQ(&frame, web_view_->MainFrameImpl()->GetFrame());
+  web_view_->MainFrameViewWidget()->MoveWindowTo(origin);
+}
+
+void ChromeClientImpl::ResizeWindowTo(const gfx::Size& requested_size,
+                                      LocalFrame& frame) {
+  CHECK(base::FeatureList::IsEnabled(features::kMoveResizeWindowToIPCs));
+  DCHECK(web_view_);
+  DCHECK_EQ(&frame, web_view_->MainFrameImpl()->GetFrame());
+  const int minimum_size = DisplayModeIsUnframed(frame)
+                               ? blink::kMinimumUnframedWindowSize
+                               : blink::kMinimumWindowSize;
+  gfx::Size size(std::max(minimum_size, requested_size.width()),
+                 std::max(minimum_size, requested_size.height()));
+  web_view_->MainFrameViewWidget()->ResizeWindowTo(size);
 }
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)

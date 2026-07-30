@@ -130,10 +130,7 @@ public class RichRadioButtonListUnitTest {
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    mRichRadioButtonList.initialize(
-                            options,
-                            RichRadioButtonList.LayoutMode.VERTICAL_SINGLE_COLUMN,
-                            mMockListener);
+                    mRichRadioButtonList.initialize(options, mMockListener);
                 });
 
         verify(mMockListener, times(1)).onItemSelected(mStringCaptor.capture());
@@ -164,10 +161,7 @@ public class RichRadioButtonListUnitTest {
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    mRichRadioButtonList.initialize(
-                            options,
-                            RichRadioButtonList.LayoutMode.VERTICAL_SINGLE_COLUMN,
-                            mMockListener);
+                    mRichRadioButtonList.initialize(options, mMockListener);
                     clearInvocations(mMockListener);
                     mRichRadioButtonList.setSelectedItem("id_opt2");
                 });
@@ -200,10 +194,7 @@ public class RichRadioButtonListUnitTest {
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    mRichRadioButtonList.initialize(
-                            options,
-                            RichRadioButtonList.LayoutMode.VERTICAL_SINGLE_COLUMN,
-                            mMockListener);
+                    mRichRadioButtonList.initialize(options, mMockListener);
                     mRichRadioButtonList.setSelectedItem("id_optA");
                 });
         InstrumentationRegistry.getInstrumentation().waitForIdleSync();
@@ -250,63 +241,6 @@ public class RichRadioButtonListUnitTest {
     @Test
     @SmallTest
     @Feature({"RichRadioButtonList", "Selection"})
-    public void testSelectionWithinTwoColumnGrid() throws Exception {
-        List<RichRadioButtonData> options =
-                Arrays.asList(
-                        new RichRadioButtonData.Builder("grid_top_left", "TL").build(),
-                        new RichRadioButtonData.Builder("grid_top_right", "TR").build(),
-                        new RichRadioButtonData.Builder("grid_bottom_left", "BL").build(),
-                        new RichRadioButtonData.Builder("grid_bottom_right", "BR").build());
-
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    mRichRadioButtonList.initialize(
-                            options, RichRadioButtonList.LayoutMode.TWO_COLUMN_GRID, mMockListener);
-                    mRichRadioButtonList.setSelectedItem("grid_top_left");
-                });
-        InstrumentationRegistry.getInstrumentation().waitForIdleSync();
-
-        Assert.assertEquals(
-                "Initial selected item ID should be 'grid_top_left'.",
-                "grid_top_left",
-                getSelectedItemIdFromAdapter());
-
-        clearInvocations(mMockListener);
-
-        performClickOnItem(1);
-        verify(mMockListener, times(1)).onItemSelected(mStringCaptor.capture());
-        Assert.assertEquals(
-                "Listener should be notified for 'grid_top_right' selection.",
-                "grid_top_right",
-                mStringCaptor.getValue());
-        Assert.assertEquals(
-                "Selected item ID should be 'grid_top_right' after first grid click.",
-                "grid_top_right",
-                getSelectedItemIdFromAdapter());
-        Assert.assertEquals(
-                "Selected position should be 1 after first grid click.",
-                1,
-                getSelectedPositionFromAdapter());
-
-        performClickOnItem(2);
-        verify(mMockListener, times(2)).onItemSelected(mStringCaptor.capture());
-        Assert.assertEquals(
-                "Listener should be notified for 'grid_bottom_left' selection.",
-                "grid_bottom_left",
-                mStringCaptor.getValue());
-        Assert.assertEquals(
-                "Selected item ID should be 'grid_bottom_left' after second grid click.",
-                "grid_bottom_left",
-                getSelectedItemIdFromAdapter());
-        Assert.assertEquals(
-                "Selected position should be 2 after second grid click.",
-                2,
-                getSelectedPositionFromAdapter());
-    }
-
-    @Test
-    @SmallTest
-    @Feature({"RichRadioButtonList", "Selection"})
     public void testSelectingAlreadySelectedItem() throws Exception {
         List<RichRadioButtonData> options =
                 Arrays.asList(
@@ -315,10 +249,7 @@ public class RichRadioButtonListUnitTest {
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    mRichRadioButtonList.initialize(
-                            options,
-                            RichRadioButtonList.LayoutMode.VERTICAL_SINGLE_COLUMN,
-                            mMockListener);
+                    mRichRadioButtonList.initialize(options, mMockListener);
                     clearInvocations(mMockListener);
                     mRichRadioButtonList.setSelectedItem("item1");
                 });
@@ -349,10 +280,7 @@ public class RichRadioButtonListUnitTest {
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    mRichRadioButtonList.initialize(
-                            options,
-                            RichRadioButtonList.LayoutMode.VERTICAL_SINGLE_COLUMN,
-                            mMockListener);
+                    mRichRadioButtonList.initialize(options, mMockListener);
                     clearInvocations(mMockListener);
                 });
 

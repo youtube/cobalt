@@ -117,6 +117,7 @@
 <translation id="1435593198351412143">PDF-ების ავტომატურად გახსნა</translation>
 <translation id="1437543266176261764">გაშვებულია <ph name="APP_NAME" />-ში</translation>
 <translation id="1448440926884431741">ორგანიზებულად დაალაგეთ თვალმიდევნებული პროდუქტები „სანიშნეებში“</translation>
+<translation id="1452651021404174820">მოწყობილობის არჩევა</translation>
 <translation id="1455845192930279203">მაინც გსურთ, ჩამოტვირთოთ „<ph name="FILE_NAME" />“ (<ph name="FILE_SIZE" />) <ph name="DOWNLOAD_DOMAIN" />-დან?</translation>
 <translation id="1460751212339734034">დაზოგეთ დრო, აკრიფეთ ნაკლები</translation>
 <translation id="146522654774760805">პაროლები და ავტომატური შევსება</translation>
@@ -124,6 +125,7 @@
 <translation id="1477626028522505441"><ph name="FILE_NAME" /> ვერ ჩამოიტვირთა სერვერთან დაკავშირებული პრობლემების გამო.</translation>
 <translation id="147982357559798527">შეიცვალა</translation>
 <translation id="1480287803138246127">თქვენი ისტორიის ნაწილი, შესაძლოა, აქ არ გამოჩნდეს. Chrome-ის მთლიანი ისტორიის სანახავად გახსენით Chrome-ის სრული ისტორია.</translation>
+<translation id="1483493594462132177">გაგზავნა</translation>
 <translation id="1495677929897281669">ჩანართზე დაბრუნება</translation>
 <translation id="1496514951988037011">მომხმარებლის სახელი</translation>
 <translation id="1501480321619201731">ჯგუფის წაშლა</translation>
@@ -1273,6 +1275,7 @@
 <translation id="634208815998129842">ამოცანების მმართველი</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 და <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> სხვა}other{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 და <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> სხვა}}</translation>
 <translation id="6345878117466430440">წაკითხულად მონიშვნა</translation>
+<translation id="6350745006329795504">თქვენი მოწყობილობების მართვა</translation>
 <translation id="6356893102071098867">შეამოწმეთ, სწორი ანგარიში აირჩიეთ თუ არა</translation>
 <translation id="6364438453358674297">ამოიშალოს შემოთავაზება ისტორიიდან?</translation>
 <translation id="6380100320871303656">უფრო ხშირად ჩატვირთავს წინასწარ გვერდებს, რომლებიც, Chrome-ის გათვლებით, შეიძლება მოინახულოთ. ამ პარამეტრმა შეიძლება გამოიწვიოს მონაცემთა გაზრდილი მოხმარება.</translation>

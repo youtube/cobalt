@@ -45,7 +45,6 @@ import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConf
 import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConfig.NoAccountSigninMode;
 import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConfig.WithAccountSigninMode;
 import org.chromium.chrome.browser.ui.signin.FullscreenSigninAndHistorySyncConfig;
-import org.chromium.chrome.browser.ui.signin.SigninAndHistorySyncCoordinator.SigninFlow;
 import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerBottomSheetStrings;
 import org.chromium.chrome.browser.ui.signin.history_sync.HistorySyncConfig;
 import org.chromium.chrome.browser.ui.signin.history_sync.HistorySyncHelper;
@@ -76,7 +75,7 @@ public class SigninAndHistorySyncActivityLauncherImplTest {
     private static final AccountPickerBottomSheetStrings BOTTOM_SHEET_STRINGS =
             new AccountPickerBottomSheetStrings.Builder("title").build();
     private static final FullscreenSigninAndHistorySyncConfig FULLSCREEN_CONFIG =
-            new FullscreenSigninAndHistorySyncConfig.Builder(
+            FullscreenSigninAndHistorySyncConfig.builder(
                             "title",
                             "subtitle",
                             "dismiss",
@@ -84,14 +83,13 @@ public class SigninAndHistorySyncActivityLauncherImplTest {
                             "history sync subtitle")
                     .build();
     private static final FullscreenSigninAndHistorySyncConfig FULLSCREEN_SWITCH_ACCOUNT_CONFIG =
-            new FullscreenSigninAndHistorySyncConfig.Builder(
+            FullscreenSigninAndHistorySyncConfig.builderForSwitchAccountFlow(
                             "title",
                             "subtitle",
                             "dismiss",
                             "history sync title",
-                            "history sync subtitle")
-                    .selectedAccountEmail(TestAccounts.ACCOUNT1.getEmail())
-                    .signinFlow(SigninFlow.SWITCH_ACCOUNT)
+                            "history sync subtitle",
+                            TestAccounts.ACCOUNT1.getEmail())
                     .build();
     private static final BottomSheetSigninAndHistorySyncConfig BOTTOM_SHEET_CONFIG =
             new BottomSheetSigninAndHistorySyncConfig.Builder(

@@ -47,7 +47,7 @@ int RunAllTests();
 // the execution of an assertion.
 class Tester {
  public:
-  Tester(const char *fname, int line) : ok_(true), fname_(fname), line_(line) {}
+  Tester(const char* fname, int line) : ok_(true), fname_(fname), line_(line) {}
 
   ~Tester() {
     if (!ok_) {
@@ -57,7 +57,7 @@ class Tester {
     }
   }
 
-  Tester &Is(bool b, const char *msg) {
+  Tester& Is(bool b, const char* msg) {
     if (!b) {
       ss_ << " failed: " << msg;
       ok_ = false;
@@ -65,8 +65,8 @@ class Tester {
     return *this;
   }
 
-  Tester &IsNear(double val1, double val2, double abs_error, const char *msg1,
-                 const char *msg2) {
+  Tester& IsNear(double val1, double val2, double abs_error, const char* msg1,
+                 const char* msg2) {
     const double diff = std::fabs(val1 - val2);
     if (diff > abs_error) {
       ss_ << "The difference between (" << msg1 << ") and (" << msg2 << ") is "
@@ -80,7 +80,7 @@ class Tester {
 
 #define BINARY_OP(name, op)                                                  \
   template <class X, class Y>                                                \
-  Tester &name(const X &x, const Y &y, const char *msg1, const char *msg2) { \
+  Tester& name(const X& x, const Y& y, const char* msg1, const char* msg2) { \
     if (!(x op y)) {                                                         \
       ss_ << " failed: " << msg1 << (" " #op " ") << msg2;                   \
       ok_ = false;                                                           \
@@ -98,7 +98,7 @@ class Tester {
 
   // Attach the specified value to the error message if an error has occurred
   template <class V>
-  Tester &operator<<(const V &value) {
+  Tester& operator<<(const V& value) {
     if (!ok_) {
       ss_ << " " << value;
     }
@@ -107,7 +107,7 @@ class Tester {
 
  private:
   bool ok_;
-  const char *fname_;
+  const char* fname_;
   int line_;
   std::stringstream ss_;
 };
@@ -133,8 +133,9 @@ class Tester {
   sentencepiece::test::Tester(__FILE__, __LINE__).IsLt((a), (b), #a, #b)
 #define EXPECT_NEAR(a, b, c) \
   sentencepiece::test::Tester(__FILE__, __LINE__).IsNear((a), (b), (c), #a, #b)
-#define EXPECT_OK(c) EXPECT_EQ(c, ::sentencepiece::util::OkStatus())
-#define EXPECT_NOT_OK(c) EXPECT_NE(c, ::sentencepiece::util::OkStatus())
+#define EXPECT_OK(c) EXPECT_TRUE((c).ok())
+#define EXPECT_NOT_OK(c) EXPECT_FALSE((c).ok())
+#define ASSERT_OK(c) ASSERT_TRUE((c).ok())
 
 #define ASSERT_TRUE EXPECT_TRUE
 #define ASSERT_FALSE EXPECT_FALSE
@@ -159,7 +160,7 @@ class TestWithParam {
 };
 
 template <typename T>
-std::vector<T> ValuesIn(const std::vector<T> &v) {
+std::vector<T> ValuesIn(const std::vector<T>& v) {
   return v;
 }
 
@@ -193,12 +194,12 @@ std::vector<T> ValuesIn(const std::vector<T> &v) {
       return TCONCAT(base, _get_params_, base)();                   \
     }                                                               \
     ParamType param_;                                               \
-    void SetParam(const ParamType &param) { param_ = param; }       \
+    void SetParam(const ParamType& param) { param_ = param; }       \
     ParamType GetParam() const { return param_; }                   \
     void _Run();                                                    \
     static void _RunIt() {                                          \
       TCONCAT(base, _Test_p_, name) t;                              \
-      for (const auto &param : t.GetParams()) {                     \
+      for (const auto& param : t.GetParams()) {                     \
         t.SetParam(param);                                          \
         t.SetUp();                                                  \
         t._Run();                                                   \
@@ -213,7 +214,7 @@ std::vector<T> ValuesIn(const std::vector<T> &v) {
 
 // Register the specified test.  Typically not used directly, but
 // invoked via the macro expansion of TEST.
-extern bool RegisterTest(const char *base, const char *name, void (*func)());
+extern bool RegisterTest(const char* base, const char* name, void (*func)());
 }  // namespace test
 }  // namespace sentencepiece
 #endif  // TESTHARNESS_H_

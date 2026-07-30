@@ -9,6 +9,7 @@
 #include <string_view>
 #include <vector>
 
+#include "base/test/task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/zxcvbn-cpp/native-src/zxcvbn/adjacency_graphs.hpp"
@@ -159,6 +160,7 @@ bool operator==(const Match& lhs, const ExpectedDateMatch& rhs) {
 }  // namespace
 
 TEST(ZxcvbnTest, DictionaryMatching) {
+  base::test::TaskEnvironment task_environment;
   std::vector<std::vector<std::string_view>> test_dicts = {
       {"motherboard", "mother", "board", "abcd", "cdef"},
       {"z", "8", "99", "$", "asdf1234&*"},
@@ -927,6 +929,7 @@ TEST(ZxcvbnTest, DateMatching) {
 }
 
 TEST(ZxcvbnTest, Omnimatch) {
+  base::test::TaskEnvironment task_environment;
   EXPECT_THAT(omnimatch(""), IsEmpty());
 
   SetRankedDicts(RankedDicts({{"rosebud", "maelstrom"}}));

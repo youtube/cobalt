@@ -1150,17 +1150,11 @@ IN_PROC_BROWSER_TEST_F(
 //   - Prefetch matching fails due to lack of No-Vary-Search hint and "pf=cs"
 //     param.
 // - Prefetch is not used.
-// TODO(crbug.com/434918482): Re-enable this test on Mac, Linux, and Windows.
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
-#define MAYBE_TriggersPrefetchAndPrerenderButPrerenderFailsDueToNoVarySearchHint \
-  DISABLED_TriggersPrefetchAndPrerenderButPrerenderFailsDueToNoVarySearchHint
-#else
-#define MAYBE_TriggersPrefetchAndPrerenderButPrerenderFailsDueToNoVarySearchHint \
-  TriggersPrefetchAndPrerenderButPrerenderFailsDueToNoVarySearchHint
-#endif
+//
+// TODO(crbug.com/434918482): Re-enable this test.
 IN_PROC_BROWSER_TEST_F(
     SearchPreloadBrowserTest,
-    MAYBE_TriggersPrefetchAndPrerenderButPrerenderFailsDueToNoVarySearchHint) {
+    DISABLED_TriggersPrefetchAndPrerenderButPrerenderFailsDueToNoVarySearchHint) {
   HistogramTesterWrapper uma_tester;
   SetUpTemplateURLService();
   SetUpSearchPreloadService({
@@ -1949,6 +1943,37 @@ IN_PROC_BROWSER_TEST_F(SearchPreloadBrowserTest_Throttle,
   uma_tester.ExpectUma(
       "Omnibox.DsePreload.SignalResult.OnPress.Prefetch",
       {SearchPreloadSignalResult::kNotTriggeredThrottledByPrewarm});
+}
+
+// Browser tests for Search Preload with initial No-Vary-Search hint.
+class SearchPreloadBrowserTest_InitialNoVarySearch
+    : public SearchPreloadBrowserTestBase {
+  void InitFeatures(
+      base::test::ScopedFeatureList& scoped_feature_list) override {
+    scoped_feature_list.InitWithFeaturesAndParameters(
+        {
+            {
+                features::kDsePreload2,
+                {
+                    {"kDsePreload2DeviceMemoryThresholdMiB", "0"},
+                    {"dse_preload2_initial_no_vary_search_hint",
+                     "key-order, params, except=(\"q\")"},
+                },
+            },
+        },
+        /*disabled_features=*/{});
+  }
+};
+
+// Verifies that the initial No-Vary-Search hint is loaded from the feature
+// parameter.
+IN_PROC_BROWSER_TEST_F(SearchPreloadBrowserTest_InitialNoVarySearch,
+                       InitialHintLoaded) {
+  std::optional<net::HttpNoVarySearchData> expected =
+      ParseNoVarySearchData(R"(key-order, params, except=("q"))");
+  ASSERT_TRUE(expected.has_value());
+  EXPECT_EQ(GetSearchPreloadService().GetNoVarySearchDataCacheForTesting(),
+            expected);
 }
 
 }  // namespace

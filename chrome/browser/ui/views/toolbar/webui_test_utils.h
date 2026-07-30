@@ -18,12 +18,17 @@ class AvatarToolbarButtonInterface;
 class Browser;
 class BrowserWindowInterface;
 class WebUIAvatarToolbarButton;
+enum class AvatarToolbarButtonState;
 class WebUIToolbarWebView;
 
 namespace ui {
 class ElementIdentifier;
 class TrackedElement;
 }  // namespace ui
+
+namespace content {
+class WebContents;
+}
 
 namespace views {
 class WebView;
@@ -59,18 +64,33 @@ class AvatarToolbarButtonTestAccessor {
   explicit AvatarToolbarButtonTestAccessor(BrowserWindowInterface* browser);
   ~AvatarToolbarButtonTestAccessor();
   void WaitForAvatarButton();
+  bool WaitForText(const std::u16string& text);
+  bool WaitForTextNotEqual(const std::u16string& text);
+  bool WaitForState(AvatarToolbarButtonState state);
+  AvatarToolbarButtonState GetState();
+  bool WaitForImageUrl(const std::string& image_url);
+  bool WaitForRenderedTooltipText(const std::u16string& text);
+  bool WaitForAccessibilityLabel(const std::u16string& text);
+  bool WaitForAccessibilityDescription(const std::u16string& text);
+  bool WaitForVisible(bool visible);
+  bool WaitForEnabled(bool enabled);
   bool GetEnabled();
   bool GetVisible();
   std::u16string GetText();
   views::Widget* GetWidget();
   gfx::ImageSkia GetImage(views::Button::ButtonState state);
+  std::string GetImageUrl();
   std::u16string GetRenderedTooltipText(const gfx::Point& p);
+  std::u16string GetAccessibilityLabel();
+  std::u16string GetAccessibilityDescription();
   void Click();
   void SetAnnounceCallbackForTesting(
       base::OnceCallback<void(std::u16string)> callback);
 
  private:
+  content::WebContents* GetWebContents();
   AvatarToolbarButtonInterface* GetInterface();
+  bool ShouldUseCppFallback(WebUIAvatarToolbarButton* button);
   ButtonVariant GetButton();
 
   raw_ptr<BrowserWindowInterface> browser_;

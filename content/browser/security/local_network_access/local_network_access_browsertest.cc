@@ -253,8 +253,7 @@ std::string GetContentRangeHeader(const net::HttpByteRange& range,
 
 // An `EmbeddedTestServer` request handler function.
 //
-// Knows how to respond to CORS and PNA preflight requests, as well as regular
-// and range requests.
+// Knows how to respond to CORS requests, as well as regular and range requests.
 //
 // Route: /echorange?<body>
 std::unique_ptr<net::test_server::HttpResponse> HandleRangeRequest(

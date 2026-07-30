@@ -13,6 +13,7 @@
 #include <utility>
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
 #include "ash/strings/grit/ash_strings.h"
 #include "base/files/file_path.h"
@@ -561,7 +562,8 @@ bool AreArcAllOptInPreferencesIgnorableForProfile(const Profile* profile) {
   if (ash::features::IsCrosPrivacyHubLocationEnabled()) {
     // When PH is enabled, location toggle is no longer ARC specific (applies to
     // entire ChromeOS);
-    return prefs->IsManagedPreference(prefs::kArcBackupRestoreEnabled);
+    return prefs->IsManagedPreference(prefs::kArcBackupRestoreEnabled) &&
+           prefs->IsManagedPreference(ash::prefs::kUserGeolocationAccessLevel);
   } else {
     return prefs->IsManagedPreference(prefs::kArcBackupRestoreEnabled) &&
            prefs->IsManagedPreference(prefs::kArcLocationServiceEnabled);

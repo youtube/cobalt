@@ -1280,12 +1280,15 @@ void SourceBufferStream::PrepareRangesForNextAppend(
   //   B. Type is audio and overlapped duration is 0. We've encountered Vorbis
   //      streams containing zero-duration buffers (i.e. no real overlap). For
   //      non-zero duration removing overlapped frames is important to preserve
-  //      A/V sync (see AudioClock).
+  //      A/V sync (see AudioClock). However, if both the previous and new
+  //      buffers are zero-duration, they are duplicates and we want to
+  //      overwrite them to prevent infinite accumulation.
   const bool exclude_start =
       highest_timestamp_in_append_sequence_ ==
           new_buffers.front()->timestamp() &&
       (GetType() == SourceBufferStreamType::kVideo ||
-       last_appended_buffer_duration_ == base::TimeDelta());
+       (last_appended_buffer_duration_ == base::TimeDelta() &&
+        new_buffers.front()->duration() != base::TimeDelta()));
 
   // Finally do the deletion of overlap.
   RemoveInternal(buffers_start_timestamp, buffers_end_timestamp, exclude_start,

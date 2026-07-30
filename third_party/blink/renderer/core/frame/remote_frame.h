@@ -171,6 +171,7 @@ class CORE_EXPORT RemoteFrame final : public Frame,
       const scoped_refptr<const SecurityOrigin>& origin,
       bool is_potentially_trustworthy_unique_origin) override;
   void SetReplicatedIsAdFrame(bool is_ad_frame) override;
+  void SetReplicatedIsSecureContextRoot(bool is_secure_context_root) override;
   void SetReplicatedName(const String& name,
                          const String& unique_name) override;
   void DispatchLoadEventForFrameOwner() override;

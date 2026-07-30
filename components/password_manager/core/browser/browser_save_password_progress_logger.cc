@@ -429,6 +429,14 @@ void BrowserSavePasswordProgressLogger::LogPasswordSaveAndUpdate(
                                           StoreToString(store)}));
 }
 
+void BrowserSavePasswordProgressLogger::LogNumberResultsForStore(
+    PasswordForm::Store store,
+    size_t count) {
+  LogString(STRING_NUMBER_RESULTS,
+            base::StrCat({" ", StoreToString(store), ": ",
+                          base::NumberToString(count)}));
+}
+
 void BrowserSavePasswordProgressLogger::LogSuccessfulSubmissionIndicatorEvent(
     autofill::mojom::SubmissionIndicatorEvent event) {
   std::ostringstream submission_event_string_stream;

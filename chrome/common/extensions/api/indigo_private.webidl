@@ -2,9 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// The WebIDL compiler autogenerates an enum value called kNone, so we can't use
+// "none" here to represent "object-fit: none".
+enum ObjectFit {
+  "fill",
+  "contain",
+  "cover",
+  "object-fit-none",
+  "scale-down"
+};
+
 dictionary ImageData {
   // The image data, either as webp bytes or a data URL.
   (ArrayBuffer or DOMString) value;
+  // The object-fit attribute of the image.
+  ObjectFit objectFit;
 };
 
 // Use the <code>chrome.indigoPrivate</code> API for specific browser

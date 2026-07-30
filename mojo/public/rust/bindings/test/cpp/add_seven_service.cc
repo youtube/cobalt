@@ -8,7 +8,15 @@ namespace bindings_unittests::mojom {
 
 PlusSevenMathService::PlusSevenMathService(
     mojo::PendingReceiver<MathService> receiver)
-    : receiver_(this, std::move(receiver)) {}
+    : receiver_(std::in_place_type<mojo::Receiver<MathService>>,
+                this,
+                std::move(receiver)) {}
+
+PlusSevenMathService::PlusSevenMathService(
+    mojo::PendingAssociatedReceiver<MathService> receiver)
+    : receiver_(std::in_place_type<mojo::AssociatedReceiver<MathService>>,
+                this,
+                std::move(receiver)) {}
 
 PlusSevenMathService::~PlusSevenMathService() = default;
 

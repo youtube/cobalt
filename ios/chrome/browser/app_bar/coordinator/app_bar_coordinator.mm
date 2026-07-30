@@ -42,9 +42,9 @@
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 
 @interface AppBarCoordinator () <AccountMenuCoordinatorDelegate,
-                                 GuidedTourCommands,
                                  AppBarCommands,
-                                 AppBarMediatorDelegate>
+                                 AppBarMediatorDelegate,
+                                 GuidedTourCommands>
 @end
 
 @implementation AppBarCoordinator {

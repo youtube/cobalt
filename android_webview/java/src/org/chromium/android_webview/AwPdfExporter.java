@@ -32,7 +32,6 @@ public class AwPdfExporter {
     // potential errors: invalid print parameters, already pending, IO error
     private AwPdfExporterCallback mResultCallback;
     private PrintAttributes mAttributes;
-    private ParcelFileDescriptor mFd;
     // Maintain a reference to the top level object (i.e. WebView) since in a common
     // use case (offscreen webview) application may expect the framework's print manager
     // to own the Webview (via PrintDocumentAdapter).
@@ -88,9 +87,8 @@ public class AwPdfExporter {
         }
         mResultCallback = resultCallback;
         mAttributes = attributes;
-        mFd = fd;
         AwPdfExporterJni.get()
-                .exportToPdf(mNativeAwPdfExporter, this, mFd.getFd(), pages, cancellationSignal);
+                .exportToPdf(mNativeAwPdfExporter, this, fd.detachFd(), pages, cancellationSignal);
     }
 
     @CalledByNative
@@ -131,8 +129,6 @@ public class AwPdfExporter {
         mResultCallback.pdfWritingDone(pageCount);
         mResultCallback = null;
         mAttributes = null;
-        // The caller should close the file.
-        mFd = null;
     }
 
     @CalledByNative

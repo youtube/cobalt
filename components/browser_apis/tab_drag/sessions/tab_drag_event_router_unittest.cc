@@ -11,8 +11,9 @@
 #include "base/memory/weak_ptr.h"
 #include "base/test/run_until.h"
 #include "base/test/task_environment.h"
-#include "components/browser_apis/tab_drag/adapters/tab_drag_window_adapter.h"
+#include "components/browser_apis/tab_drag/sessions/drop_target_registry.h"
 #include "components/browser_apis/tab_drag/sessions/drop_target_registry_impl.h"
+#include "components/browser_apis/tab_drag/sessions/tab_drag_window_registry.h"
 #include "components/browser_apis/tab_drag/testing/toy_drop_target.h"
 #include "components/browser_apis/tab_drag/testing/toy_tab_drag_window_adapter.h"
 #include "components/browser_apis/tab_strip/types/node_id.h"
@@ -21,6 +22,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/native_ui_types.h"
 
 namespace tabs_api {
 
@@ -30,12 +32,14 @@ class TabDragEventRouterTest : public ::testing::Test {
   ~TabDragEventRouterTest() override = default;
 
   base::test::SingleThreadTaskEnvironment task_environment_;
+  TabDragWindowRegistry window_registry_;
   DropTargetRegistryImpl registry_;
   TabDragEventRouter router_;
 };
 
 TEST_F(TabDragEventRouterTest, RouteMoveEvents) {
-  ToyTabDragWindowAdapter window(gfx::Rect(10, 10, 100, 100));
+  ToyTabDragWindowAdapter window(gfx::Rect(10, 10, 100, 100),
+                                 &window_registry_);
   ToyDropTarget target;
 
   mojo::AssociatedRemote<mojom::DropTarget> remote;
@@ -44,14 +48,12 @@ TEST_F(TabDragEventRouterTest, RouteMoveEvents) {
   mojo::AssociatedRemote<mojom::DropTargetRegistration> registration;
 
   registry_.RegisterDropTarget(
-      &window, remote.Unbind(),
+      &window, gfx::NativeView(), remote.Unbind(),
       registration.BindNewEndpointAndPassDedicatedReceiver());
 
   std::vector<NodeId> tabs = {NodeId(NodeId::Type::kContent, "tab1")};
-  router_.OnSessionStarted(tabs, nullptr);
+  router_.OnSessionStarted(tabs, window.GetWindowId(), gfx::Point(50, 50));
 
-  // Simulate entering the window
-  router_.OnTargetWindowChanged(&window, gfx::Point(50, 50));
   ASSERT_TRUE(
       base::test::RunUntil([&]() { return target.events().size() == 1u; }));
   EXPECT_EQ(ToyDropTarget::ReceivedEvent::Type::kEntered,
@@ -67,7 +69,7 @@ TEST_F(TabDragEventRouterTest, RouteMoveEvents) {
   EXPECT_EQ(gfx::Point(50, 60), target.events()[1].local_point);
 
   // Simulate leaving the window
-  router_.OnTargetWindowChanged(nullptr, gfx::Point(5, 5));
+  router_.OnTargetChanged(DropTargetId(), gfx::Point(5, 5));
   ASSERT_TRUE(
       base::test::RunUntil([&]() { return target.events().size() == 3u; }));
   EXPECT_EQ(ToyDropTarget::ReceivedEvent::Type::kLeave,
@@ -77,28 +79,29 @@ TEST_F(TabDragEventRouterTest, RouteMoveEvents) {
 }
 
 TEST_F(TabDragEventRouterTest, MultiWindowRouting) {
-  ToyTabDragWindowAdapter window_a(gfx::Rect(0, 0, 100, 100));
+  ToyTabDragWindowAdapter window_a(gfx::Rect(0, 0, 100, 100),
+                                   &window_registry_);
   ToyDropTarget target_a;
   mojo::AssociatedRemote<mojom::DropTarget> remote_a;
   mojo::AssociatedReceiver<mojom::DropTarget> bound_receiver_a(
       &target_a, remote_a.BindNewEndpointAndPassDedicatedReceiver());
   mojo::AssociatedRemote<mojom::DropTargetRegistration> reg_a;
-  registry_.RegisterDropTarget(&window_a, remote_a.Unbind(),
+  registry_.RegisterDropTarget(&window_a, gfx::NativeView(), remote_a.Unbind(),
                                reg_a.BindNewEndpointAndPassDedicatedReceiver());
 
-  ToyTabDragWindowAdapter window_b(gfx::Rect(200, 0, 100, 100));
+  ToyTabDragWindowAdapter window_b(gfx::Rect(200, 0, 100, 100),
+                                   &window_registry_);
   ToyDropTarget target_b;
   mojo::AssociatedRemote<mojom::DropTarget> remote_b;
   mojo::AssociatedReceiver<mojom::DropTarget> bound_receiver_b(
       &target_b, remote_b.BindNewEndpointAndPassDedicatedReceiver());
   mojo::AssociatedRemote<mojom::DropTargetRegistration> reg_b;
-  registry_.RegisterDropTarget(&window_b, remote_b.Unbind(),
-                               reg_b.BindNewEndpointAndPassDedicatedReceiver());
+  DropTargetId id_b = registry_.RegisterDropTarget(
+      &window_b, gfx::NativeView(), remote_b.Unbind(),
+      reg_b.BindNewEndpointAndPassDedicatedReceiver());
 
-  router_.OnSessionStarted({}, nullptr);
+  router_.OnSessionStarted({}, window_a.GetWindowId(), gfx::Point(50, 50));
 
-  // Enter A
-  router_.OnTargetWindowChanged(&window_a, gfx::Point(50, 50));
   ASSERT_TRUE(
       base::test::RunUntil([&]() { return target_a.events().size() == 1u; }));
   EXPECT_EQ(ToyDropTarget::ReceivedEvent::Type::kEntered,
@@ -106,7 +109,7 @@ TEST_F(TabDragEventRouterTest, MultiWindowRouting) {
   EXPECT_EQ(0u, target_b.events().size());
 
   // Transition to B
-  router_.OnTargetWindowChanged(&window_b, gfx::Point(250, 50));
+  router_.OnTargetChanged(id_b, gfx::Point(250, 50));
   ASSERT_TRUE(base::test::RunUntil([&]() {
     return target_a.events().size() == 2u && target_b.events().size() == 1u;
   }));
@@ -124,19 +127,17 @@ TEST_F(TabDragEventRouterTest, MultiWindowRouting) {
 }
 
 TEST_F(TabDragEventRouterTest, DropEvent) {
-  ToyTabDragWindowAdapter window(gfx::Rect(0, 0, 100, 100));
+  ToyTabDragWindowAdapter window(gfx::Rect(0, 0, 100, 100), &window_registry_);
   ToyDropTarget target;
   mojo::AssociatedRemote<mojom::DropTarget> remote;
   mojo::AssociatedReceiver<mojom::DropTarget> bound_receiver(
       &target, remote.BindNewEndpointAndPassDedicatedReceiver());
   mojo::AssociatedRemote<mojom::DropTargetRegistration> reg;
-  registry_.RegisterDropTarget(&window, remote.Unbind(),
+  registry_.RegisterDropTarget(&window, gfx::NativeView(), remote.Unbind(),
                                reg.BindNewEndpointAndPassDedicatedReceiver());
 
   std::vector<NodeId> tabs = {NodeId(NodeId::Type::kContent, "tab1")};
-  router_.OnSessionStarted(tabs, nullptr);
-
-  router_.OnTargetWindowChanged(&window, gfx::Point(50, 50));
+  router_.OnSessionStarted(tabs, window.GetWindowId(), gfx::Point(50, 50));
   router_.OnSessionDropped(gfx::Point(60, 60));
 
   ASSERT_TRUE(
@@ -149,18 +150,16 @@ TEST_F(TabDragEventRouterTest, DropEvent) {
 }
 
 TEST_F(TabDragEventRouterTest, CancelEvent) {
-  ToyTabDragWindowAdapter window(gfx::Rect(0, 0, 100, 100));
+  ToyTabDragWindowAdapter window(gfx::Rect(0, 0, 100, 100), &window_registry_);
   ToyDropTarget target;
   mojo::AssociatedRemote<mojom::DropTarget> remote;
   mojo::AssociatedReceiver<mojom::DropTarget> bound_receiver(
       &target, remote.BindNewEndpointAndPassDedicatedReceiver());
   mojo::AssociatedRemote<mojom::DropTargetRegistration> reg;
-  registry_.RegisterDropTarget(&window, remote.Unbind(),
+  registry_.RegisterDropTarget(&window, gfx::NativeView(), remote.Unbind(),
                                reg.BindNewEndpointAndPassDedicatedReceiver());
 
-  router_.OnSessionStarted({}, nullptr);
-
-  router_.OnTargetWindowChanged(&window, gfx::Point(50, 50));
+  router_.OnSessionStarted({}, window.GetWindowId(), gfx::Point(50, 50));
   router_.OnSessionCancelled();
 
   ASSERT_TRUE(

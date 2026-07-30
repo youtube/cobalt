@@ -31,9 +31,6 @@ std::string_view GetSkipFieldFillLogMessage(
       return "Skipped: Refill field group different from initial filling group";
     case FieldFillingSkipReason::kFillingLimitReachedType:
       return "Skipped: Field type filling limit reached";
-    case FieldFillingSkipReason::kFieldTypeUnrelated:
-      return "Skipped: The field type is not related to the data used for "
-             "filling.";
     case FieldFillingSkipReason::kNoValueToFill:
       return "Skipped: No value to fill.";
     case FieldFillingSkipReason::kAutofilledValueDidNotChange:

@@ -49,9 +49,9 @@ TEST_F(GlicLauncherConfigurationTest, IsEnabled) {
   EXPECT_TRUE(GlicLauncherConfiguration::IsEnabled());
 }
 
-TEST_F(GlicLauncherConfigurationTest, GetGlobalHotkey_Default) {
+TEST_F(GlicLauncherConfigurationTest, GetToggleHotkey_Default) {
   const ui::Accelerator accelerator =
-      GlicLauncherConfiguration::GetGlobalHotkey();
+      GlicLauncherConfiguration::GetToggleHotkey();
   EXPECT_EQ(accelerator.key_code(), ui::VKEY_G);
 #if BUILDFLAG(IS_MAC)
   EXPECT_TRUE(accelerator.IsCtrlDown());
@@ -68,11 +68,11 @@ TEST_F(GlicLauncherConfigurationTest, GetGlobalHotkey_Default) {
 #endif
 }
 
-TEST_F(GlicLauncherConfigurationTest, GetGlobalHotkey_Invalid) {
+TEST_F(GlicLauncherConfigurationTest, GetToggleHotkey_Invalid) {
   const ui::Accelerator invalid_hotkey(ui::VKEY_G, ui::EF_NONE);
   local_state()->SetString(prefs::kGlicLauncherHotkey,
                            ui::Command::AcceleratorToString(invalid_hotkey));
-  EXPECT_EQ(GlicLauncherConfiguration::GetGlobalHotkey(), ui::Accelerator());
+  EXPECT_EQ(GlicLauncherConfiguration::GetToggleHotkey(), ui::Accelerator());
 }
 
 TEST_F(GlicLauncherConfigurationTest, Observer) {

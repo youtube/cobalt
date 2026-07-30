@@ -94,6 +94,13 @@ public class MediaSessionHelper implements MediaImageCallback {
     // static getter {@link MediaSession#fromWebContents()}.
     @VisibleForTesting public static @Nullable MediaSession sOverriddenMediaSession;
 
+    public static void setOverriddenMediaSessionForTesting(@Nullable MediaSession mediaSession) {
+        sOverriddenMediaSession = mediaSession;
+        if (mediaSession != null) {
+            ResettersForTesting.register(() -> sOverriddenMediaSession = null);
+        }
+    }
+
     public static @Nullable MediaSessionHelper sInstanceForTesting;
 
     public ScreenStateReceiver.ScreenStateObserver getScreenStateObserverForTesting() {

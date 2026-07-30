@@ -176,7 +176,7 @@ Refer to README.md for content description and update process.
  <item id="safe_browsing_binary_upload_app" added_in_milestone="87" content_hash_code="04d2c017" os_list="linux,windows,chromeos,android" file_path="components/enterprise/connectors/core/cloud_content_scanning/cloud_binary_upload_service_base.cc" />
  <item id="safe_browsing_binary_upload_connector" added_in_milestone="87" content_hash_code="025fdb96" os_list="linux,windows,chromeos,android" file_path="components/enterprise/connectors/core/cloud_content_scanning/cloud_binary_upload_service_base.cc" />
  <item id="safe_browsing_cache_collector" added_in_milestone="62" content_hash_code="02320d08" os_list="linux,windows,chromeos,android" file_path="components/safe_browsing/content/browser/threat_details_cache.cc" />
- <item id="safe_browsing_client_side_phishing_detector" added_in_milestone="62" content_hash_code="060f72a0" os_list="linux,windows,chromeos,android" file_path="components/safe_browsing/content/browser/client_side_detection_service.cc" />
+ <item id="safe_browsing_client_side_phishing_detector" added_in_milestone="62" content_hash_code="062b13c8" os_list="linux,windows,chromeos,android" file_path="components/safe_browsing/content/browser/client_side_detection_service.cc" />
  <item id="safe_browsing_extended_reporting" added_in_milestone="62" content_hash_code="0011b995" os_list="linux,windows,chromeos,android" file_path="components/safe_browsing/core/browser/ping_manager.cc" />
  <item id="safe_browsing_feedback" added_in_milestone="62" content_hash_code="019dc52e" os_list="linux,windows,chromeos" file_path="chrome/browser/safe_browsing/download_protection/download_feedback.cc" />
  <item id="safe_browsing_incident" added_in_milestone="62" content_hash_code="006f7d23" os_list="linux,windows,chromeos" file_path="chrome/browser/safe_browsing/incident_reporting/incident_report_uploader_impl.cc" />
@@ -251,9 +251,7 @@ Refer to README.md for content description and update process.
  <item id="remote_apps_image_downloader" added_in_milestone="98" content_hash_code="039bbcf1" os_list="chromeos" file_path="chrome/browser/ash/remote_apps/remote_apps_manager.cc" />
  <item id="smb_netbios_name_query" added_in_milestone="98" content_hash_code="03d9baa0" os_list="chromeos" file_path="chrome/browser/ash/smb_client/discovery/netbios_client.cc" />
  <item id="wallpaper_fetcher" added_in_milestone="98" content_hash_code="0419c2d5" os_list="chromeos" file_path="chrome/browser/chromeos/extensions/wallpaper/wallpaper_api.cc" />
- <item id="network_traversal_ice_config_fetcher" added_in_milestone="98" content_hash_code="0065f89d" os_list="chromeos" file_path="chrome/browser/nearby_sharing/network_traversal_ice_config_fetcher.cc" />
  <item id="tachyon_ice_config_fetcher" added_in_milestone="98" content_hash_code="01e878b0" os_list="chromeos" file_path="chrome/browser/nearby_sharing/tachyon_ice_config_fetcher.cc" />
- <item id="launcher_item_suggest" added_in_milestone="98" content_hash_code="04a4041e" os_list="chromeos" file_path="chrome/browser/ash/file_suggest/item_suggest_cache.cc" />
  <item id="ambient_client" added_in_milestone="98" content_hash_code="062d821f" os_list="chromeos" file_path="chrome/browser/ash/ambient/ambient_client_impl.cc" />
  <item id="calendar_get_events" added_in_milestone="98" content_hash_code="03c75d6f" os_list="chromeos" file_path="chrome/browser/ash/calendar/calendar_keyed_service.cc" />
  <item id="edu_account_login_profile_image_fetcher" added_in_milestone="98" content_hash_code="0689301c" os_list="chromeos" file_path="chrome/browser/ui/webui/signin/ash/edu_account_login_handler.cc" />

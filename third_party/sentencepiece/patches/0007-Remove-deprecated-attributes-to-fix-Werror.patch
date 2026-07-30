@@ -1,0 +1,193 @@
+From 4edce256bc79965b2c99d79cb8de712814790ebe Mon Sep 17 00:00:00 2001
+From: Nathan Memmott <memmott@chromium.org>
+Date: Wed, 17 Jun 2026 13:25:42 -0700
+Subject: [PATCH 7/7] Remove deprecated attributes to fix -Werror
+
+---
+ .../src/src/sentencepiece_processor.h         | 65 ++-----------------
+ 1 file changed, 6 insertions(+), 59 deletions(-)
+
+diff --git a/third_party/sentencepiece/src/src/sentencepiece_processor.h b/third_party/sentencepiece/src/src/sentencepiece_processor.h
+index 9ac8134b0f7ab..487a342c03327 100644
+--- a/third_party/sentencepiece/src/src/sentencepiece_processor.h
++++ b/third_party/sentencepiece/src/src/sentencepiece_processor.h
+@@ -273,24 +273,15 @@ class SentencePieceProcessor {
+ 
+   // Restricts the vocabulary set.
+   // The input sentences are encoded into the tokens in `valid_vocab`.
+-  [[deprecated(
+-      "WARNING: This method is deprecated. "
+-      "It mutates the underlying model and may cause race conditions if the "
+-      "model is shared (using shared_ptr<>) with other users.")]]
+   virtual absl::Status SetVocabulary(
+       const std::vector<absl::string_view>& valid_vocab);
+ 
+   // Reverts the vocabulary restriction.
+-  [[deprecated(
+-      "WARNING: This method is deprecated. "
+-      "It mutates the underlying model and may cause race conditions if the "
+-      "model is shared (using shared_ptr<>) with other users.")]]
+   virtual absl::Status ResetVocabulary();
+ 
+   // Loads the valid vocabulary set from `filename` in TSV format.
+   // Format:  <token> <tab> <freq>.
+   // Any token with frequency < threshold will be treated as OOV.
+-  [[deprecated("WARNING: LoadVocabulary is deprecated and will be removed.")]]
+   virtual absl::Status LoadVocabulary(absl::string_view filename,
+                                       int threshold);
+ 
+@@ -318,25 +309,16 @@ class SentencePieceProcessor {
+                               std::string* detokenized) const;
+ 
+   // Backward compatibility overloads for std::vector.
+-  [[deprecated(
+-      "WARNING: Decode with std::vector<> input is deprecated and will be "
+-      "removed.")]]
+   virtual absl::Status Decode(const std::vector<std::string>& pieces,
+                               std::string* detokenized) const {
+     return Decode(absl::MakeConstSpan(pieces), detokenized);
+   }
+ 
+-  [[deprecated(
+-      "WARNING: Decode with std::vector<> input is deprecated and will be "
+-      "removed.")]]
+   virtual absl::Status Decode(const std::vector<absl::string_view>& pieces,
+                               std::string* detokenized) const {
+     return Decode(absl::MakeConstSpan(pieces), detokenized);
+   }
+ 
+-  [[deprecated(
+-      "WARNING: Decode with std::vector<> input is deprecated and will be "
+-      "removed.")]]
+   virtual absl::Status Decode(const std::vector<int>& ids,
+                               std::string* detokenized) const {
+     return Decode(absl::MakeConstSpan(ids), detokenized);
+@@ -397,16 +379,12 @@ class SentencePieceProcessor {
+   // `include_best`: If `include_best` is true, the best tokenisation is always
+   // included in the sample, and the remaining elements are sampled excluding
+   // the best.
+-  [[deprecated(
+-      "WARNING: SampleEncodeAndScore is deprecated and will be removed.")]]
+   virtual absl::Status SampleEncodeAndScore(
+       absl::string_view input, int num_samples, float alpha, bool wor,
+       bool include_best,
+       std::vector<std::pair<std::vector<std::string>, float>>* pieces) const;
+ 
+   // Same as above, but returns a sequence of ids.
+-  [[deprecated(
+-      "WARNING: SampleEncodeAndScore is deprecated and will be removed.")]]
+   virtual absl::Status SampleEncodeAndScore(
+       absl::string_view input, int num_samples, float alpha, bool wor,
+       bool include_best,
+@@ -417,7 +395,6 @@ class SentencePieceProcessor {
+   //
+   // This only available in model_type=unigram.
+   // Calculate entropy of possible tokenisations
+-  [[deprecated("WARNING: CalculateEntropy is deprecated and will be removed.")]]
+   virtual absl::Status CalculateEntropy(absl::string_view input, float alpha,
+                                         float* entropy) const;
+ 
+@@ -443,8 +420,6 @@ class SentencePieceProcessor {
+   virtual absl::Status SampleEncode(absl::string_view input, int nbest_size,
+                                     float alpha, SentencePieceText* spt) const;
+ 
+-  [[deprecated(
+-      "WARNING: SampleEncodeAndScore is deprecated and will be removed.")]]
+   virtual absl::Status SampleEncodeAndScore(
+       absl::string_view input, int num_samples, float alpha, bool wor,
+       bool include_best, NBestSentencePieceText* samples_spt) const;
+@@ -460,25 +435,16 @@ class SentencePieceProcessor {
+                               SentencePieceText* spt) const;
+ 
+   // Backward compatibility overloads for std::vector.
+-  [[deprecated(
+-      "WARNING: Decode with std::vector<> input is deprecated and will be "
+-      "removed.")]]
+   virtual absl::Status Decode(const std::vector<std::string>& pieces,
+                               SentencePieceText* spt) const {
+     return Decode(absl::MakeConstSpan(pieces), spt);
+   }
+ 
+-  [[deprecated(
+-      "WARNING: Decode with std::vector<> input is deprecated and will be "
+-      "removed.")]]
+   virtual absl::Status Decode(const std::vector<absl::string_view>& pieces,
+                               SentencePieceText* spt) const {
+     return Decode(absl::MakeConstSpan(pieces), spt);
+   }
+ 
+-  [[deprecated(
+-      "WARNING: Decode with std::vector<> input is deprecated and will be "
+-      "removed.")]]
+   virtual absl::Status Decode(const std::vector<int>& ids,
+                               SentencePieceText* spt) const {
+     return Decode(absl::MakeConstSpan(ids), spt);
+@@ -666,28 +632,19 @@ class SentencePieceProcessor {
+     DEFINE_SPP_IMMUTABLE_PROTO_IMPL(Encode, ImmutableSentencePieceText, input);
+   }
+ 
+-  [[nodiscard]] [[deprecated(
+-      "WARNING: SampleEncodeAsImmutableProto is deprecated and will be "
+-      "removed.")]]
+-  virtual ImmutableSentencePieceText SampleEncodeAsImmutableProto(
++  [[nodiscard]] virtual ImmutableSentencePieceText SampleEncodeAsImmutableProto(
+       absl::string_view input, int nbest_size, float alpha) const {
+     DEFINE_SPP_IMMUTABLE_PROTO_IMPL(SampleEncode, ImmutableSentencePieceText,
+                                     input, nbest_size, alpha);
+   }
+ 
+-  [[nodiscard]] [[deprecated(
+-      "WARNING: NBestEncodeAsImmutableProto is deprecated and will be "
+-      "removed.")]]
+-  virtual ImmutableNBestSentencePieceText NBestEncodeAsImmutableProto(
++  [[nodiscard]] virtual ImmutableNBestSentencePieceText NBestEncodeAsImmutableProto(
+       absl::string_view input, int nbest_size) const {
+     DEFINE_SPP_IMMUTABLE_PROTO_IMPL(
+         NBestEncode, ImmutableNBestSentencePieceText, input, nbest_size);
+   }
+ 
+-  [[nodiscard]] [[deprecated(
+-      "WARNING: SampleEncodeAndScoreAsImmutableProto is deprecated and will be "
+-      "removed.")]]
+-  virtual ImmutableNBestSentencePieceText SampleEncodeAndScoreAsImmutableProto(
++  [[nodiscard]] virtual ImmutableNBestSentencePieceText SampleEncodeAndScoreAsImmutableProto(
+       absl::string_view input, int num_samples, float alpha, bool wor,
+       bool include_best) const {
+     DEFINE_SPP_IMMUTABLE_PROTO_IMPL(SampleEncodeAndScore,
+@@ -702,18 +659,12 @@ class SentencePieceProcessor {
+   }
+ 
+   // TODO(taku): Remove this API and use std::vector<std::string_view>
+-  [[nodiscard]] [[deprecated(
+-      "WARNING: DecodePiecesAsImmutableProto is deprecated and will be "
+-      "removed.")]]
+-  virtual ImmutableSentencePieceText DecodePiecesAsImmutableProto(
++  [[nodiscard]] virtual ImmutableSentencePieceText DecodePiecesAsImmutableProto(
+       const std::vector<std::string>& pieces) const {
+     DEFINE_SPP_IMMUTABLE_PROTO_IMPL(Decode, ImmutableSentencePieceText, pieces);
+   }
+ 
+-  [[nodiscard]] [[deprecated(
+-      "WARNING: DecodePiecesAsImmutableProto is deprecated and will be "
+-      "removed.")]]
+-  virtual ImmutableSentencePieceText DecodePiecesAsImmutableProto(
++  [[nodiscard]] virtual ImmutableSentencePieceText DecodePiecesAsImmutableProto(
+       const std::vector<absl::string_view>& pieces) const {
+     DEFINE_SPP_IMMUTABLE_PROTO_IMPL(Decode, ImmutableSentencePieceText, pieces);
+   }
+@@ -812,11 +763,7 @@ class SentencePieceProcessor {
+   // Returns mutable normalizer_spec.
+   // Updating the intenral normalization during the encoding/decoding are not
+   // recommended and may result in unexpected behavior. Use at your own risk.
+-  [[nodiscard]] [[deprecated(
+-      "WARNING: This method is deprecated. "
+-      "It mutates the underlying model and may cause race conditions if the "
+-      "model is shared (using shared_ptr<>) with other users.")]]
+-  NormalizerSpec* mutable_normalizer_spec() const;
++  [[nodiscard]] NormalizerSpec* mutable_normalizer_spec() const;
+ 
+  private:
+   enum ExtraOption { REVERSE, BOS, EOS, UNK_PIECE };
+-- 
+2.54.0.1189.g8c84645362-goog
+

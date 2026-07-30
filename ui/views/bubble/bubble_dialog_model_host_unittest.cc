@@ -16,10 +16,12 @@
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/interaction/element_tracker_views.h"
+#include "ui/views/layout/box_layout_view.h"
 #include "ui/views/metadata/view_factory.h"
 #include "ui/views/test/views_test_base.h"
 #include "ui/views/test/widget_test.h"
 #include "ui/views/view_class_properties.h"
+#include "ui/views/view_utils.h"
 
 class BubbleDialogModelHostTestPassKey {
  public:
@@ -501,6 +503,105 @@ TEST_F(BubbleDialogModelHostTest, ShouldAllowKeyEventsDuringInputProtection) {
       std::move(dialog_model_false), anchor_widget->GetContentsView(),
       BubbleBorder::Arrow::TOP_RIGHT);
   EXPECT_FALSE(host_false->ShouldAllowKeyEventsDuringInputProtection());
+}
+
+// Test that checkbox is wrapped in a container that prevents it from stretching
+// to the full width of the dialog. This verifies the fix for the issue where
+// the checkbox clickable area extended beyond the label text.
+TEST_F(BubbleDialogModelHostTest, CheckboxWrappedInContainer) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kCheckboxId);
+
+  std::unique_ptr<Widget> anchor_widget = CreateTestWidget(
+      Widget::InitParams::CLIENT_OWNS_WIDGET, Widget::InitParams::TYPE_WINDOW);
+  anchor_widget->Show();
+
+  auto host_unique = std::make_unique<BubbleDialogModelHost>(
+      ui::DialogModel::Builder()
+          .AddCheckbox(kCheckboxId, ui::DialogModelLabel(u"Test checkbox"),
+                       ui::DialogModelCheckbox::Params())
+          .Build(),
+      anchor_widget->GetContentsView(), BubbleBorder::Arrow::TOP_RIGHT);
+
+  Widget* const bubble_widget = BubbleDialogDelegate::CreateBubbleDeprecated(
+      std::move(host_unique), Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
+  test::WidgetVisibleWaiter waiter(bubble_widget);
+  bubble_widget->Show();
+  waiter.Wait();
+
+  // Find the checkbox view
+  const ui::ElementContext context =
+      views::ElementTrackerViews::GetContextForWidget(bubble_widget);
+  View* checkbox = views::ElementTrackerViews::GetInstance()->GetUniqueView(
+      kCheckboxId, context);
+
+  ASSERT_NE(checkbox, nullptr);
+
+  // The checkbox should be wrapped in a BoxLayoutView container
+  BoxLayoutView* container =
+      views::AsViewClass<BoxLayoutView>(checkbox->parent());
+  ASSERT_NE(container, nullptr)
+      << "Checkbox should be wrapped in a BoxLayoutView container";
+
+  // Verify the container has horizontal orientation
+  EXPECT_EQ(container->GetOrientation(), BoxLayout::Orientation::kHorizontal);
+
+  // Verify the container has kStart cross-axis alignment
+  // This prevents the checkbox from stretching to full width
+  EXPECT_EQ(container->GetCrossAxisAlignment(),
+            BoxLayout::CrossAxisAlignment::kStart);
+
+  // Verify the container has exactly one child (the checkbox)
+  EXPECT_EQ(container->children().size(), 1u);
+
+  bubble_widget->CloseNow();
+}
+
+// Test that checkbox does not stretch to full dialog width.
+// This test verifies that the checkbox's preferred width is less than the
+// dialog width, ensuring the clickable area is limited to the label text.
+TEST_F(BubbleDialogModelHostTest, CheckboxDoesNotStretchToFullWidth) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kCheckboxId);
+
+  std::unique_ptr<Widget> anchor_widget = CreateTestWidget(
+      Widget::InitParams::CLIENT_OWNS_WIDGET, Widget::InitParams::TYPE_WINDOW);
+  anchor_widget->Show();
+
+  auto host_unique = std::make_unique<BubbleDialogModelHost>(
+      ui::DialogModel::Builder()
+          .AddCheckbox(kCheckboxId, ui::DialogModelLabel(u"Short label"),
+                       ui::DialogModelCheckbox::Params())
+          .Build(),
+      anchor_widget->GetContentsView(), BubbleBorder::Arrow::TOP_RIGHT);
+
+  Widget* const bubble_widget = BubbleDialogDelegate::CreateBubbleDeprecated(
+      std::move(host_unique), Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
+  test::WidgetVisibleWaiter waiter(bubble_widget);
+  bubble_widget->Show();
+  waiter.Wait();
+
+  // Find the checkbox field view
+  const ui::ElementContext context =
+      views::ElementTrackerViews::GetContextForWidget(bubble_widget);
+  View* checkbox_field =
+      views::ElementTrackerViews::GetInstance()->GetUniqueView(kCheckboxId,
+                                                               context);
+
+  ASSERT_NE(checkbox_field, nullptr);
+
+  // Get the dialog content width
+  View* content_view = bubble_widget->GetContentsView();
+  int dialog_content_width = content_view->width();
+
+  // Get the checkbox container's preferred width
+  gfx::Size checkbox_preferred_size =
+      checkbox_field->GetPreferredSize(SizeBounds());
+  int checkbox_preferred_width = checkbox_preferred_size.width();
+
+  // The checkbox's preferred width should be less than the dialog content width
+  // This ensures the checkbox doesn't stretch to fill the entire dialog
+  EXPECT_LT(checkbox_preferred_width, dialog_content_width);
+
+  bubble_widget->CloseNow();
 }
 
 }  // namespace views

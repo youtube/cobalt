@@ -591,9 +591,7 @@ bool NameInfo::MergeNames(const NameInfo& new_name_info,
   MergeNameComponents(new_name_info, new_country_code, old_name_info,
                       old_country_code, NAME_FULL, *name_full,
                       newer_was_more_recently_used);
-  if (new_name_info.IsAlternativeNameSupported() &&
-      base::FeatureList::IsEnabled(
-          features::kAutofillSupportPhoneticNameForJP)) {
+  if (new_name_info.IsAlternativeNameSupported()) {
     alternative_full_name = std::make_unique<AlternativeFullName>();
     MergeNameComponents(new_name_info, new_country_code, old_name_info,
                         old_country_code, ALTERNATIVE_FULL_NAME,
@@ -619,11 +617,6 @@ bool NameInfo::AreAlternativeNamesMergeable(
     const AddressCountryCode country_code_1,
     const NameInfo& name_info_2,
     const AddressCountryCode country_code_2) {
-  if (!base::FeatureList::IsEnabled(
-          features::kAutofillSupportPhoneticNameForJP)) {
-    return true;
-  }
-
   if (!name_info_1.IsAlternativeNameSupported() &&
       !name_info_2.IsAlternativeNameSupported()) {
     return true;
@@ -640,9 +633,7 @@ bool NameInfo::AreAlternativeNamesMergeable(
 bool NameInfo::MergeStructuredName(const NameInfo& newer,
                                    bool newer_was_more_recently_used) {
   if (name_->MergeWithComponent(*newer.name_, newer_was_more_recently_used)) {
-    if (IsAlternativeNameSupported() && newer.IsAlternativeNameSupported() &&
-        base::FeatureList::IsEnabled(
-            features::kAutofillSupportPhoneticNameForJP)) {
+    if (IsAlternativeNameSupported() && newer.IsAlternativeNameSupported()) {
       return alternative_name_->MergeWithComponent(
           *newer.alternative_name_, newer_was_more_recently_used);
     }
@@ -653,9 +644,7 @@ bool NameInfo::MergeStructuredName(const NameInfo& newer,
 
 void NameInfo::MergeStructuredNameValidationStatuses(const NameInfo& newer) {
   name_->MergeVerificationStatuses(*newer.name_);
-  if (IsAlternativeNameSupported() && newer.IsAlternativeNameSupported() &&
-      base::FeatureList::IsEnabled(
-          features::kAutofillSupportPhoneticNameForJP)) {
+  if (IsAlternativeNameSupported() && newer.IsAlternativeNameSupported()) {
     alternative_name_->MergeVerificationStatuses(*newer.alternative_name_);
   }
 }
@@ -748,9 +737,7 @@ bool NameInfo::IsStructuredNameMergeable(const NameInfo& newer) const {
     return false;
   }
 
-  if (IsAlternativeNameSupported() && newer.IsAlternativeNameSupported() &&
-      base::FeatureList::IsEnabled(
-          features::kAutofillSupportPhoneticNameForJP)) {
+  if (IsAlternativeNameSupported() && newer.IsAlternativeNameSupported()) {
     return name_->IsMergeableWithComponent(*newer.name_) &&
            alternative_name_->IsMergeableWithComponent(
                *newer.alternative_name_);
@@ -760,9 +747,7 @@ bool NameInfo::IsStructuredNameMergeable(const NameInfo& newer) const {
 
 bool NameInfo::FinalizeAfterImport() {
   bool result = FinalizeNameAddressComponent(name_.get());
-  if (IsAlternativeNameSupported() &&
-      base::FeatureList::IsEnabled(
-          features::kAutofillSupportPhoneticNameForJP)) {
+  if (IsAlternativeNameSupported()) {
     result &= FinalizeNameAddressComponent(alternative_name_.get());
   }
   return result;
@@ -774,15 +759,11 @@ bool NameInfo::operator==(const NameInfo& other) const {
 
   // If only one of the profiles supports the alternative name, the two
   // `NameInfo`s are different.
-  if (!HaveSimilarAlternativeNameSupport(other) &&
-      base::FeatureList::IsEnabled(
-          features::kAutofillSupportPhoneticNameForJP)) {
+  if (!HaveSimilarAlternativeNameSupport(other)) {
     return false;
   }
 
-  if (IsAlternativeNameSupported() &&
-      base::FeatureList::IsEnabled(
-          features::kAutofillSupportPhoneticNameForJP)) {
+  if (IsAlternativeNameSupported()) {
     return name_->SameAs(*other.name_) &&
            alternative_name_->SameAs(*other.alternative_name_);
   }
@@ -809,9 +790,7 @@ void NameInfo::SetRawInfoWithVerificationStatus(FieldType type,
 
 FieldTypeSet NameInfo::GetSupportedTypes() const {
   FieldTypeSet supported_types = name_->GetSupportedTypes();
-  if (IsAlternativeNameSupported() &&
-      base::FeatureList::IsEnabled(
-          features::kAutofillSupportPhoneticNameForJP)) {
+  if (IsAlternativeNameSupported()) {
     supported_types.insert_all(alternative_name_->GetSupportedTypes());
   }
   return supported_types;
@@ -828,9 +807,7 @@ bool NameInfo::SetInfoWithVerificationStatus(const AutofillType& type,
                                              VerificationStatus status) {
   const FieldType ft = type.GetAddressType();
   if (ft == NAME_FULL ||
-      (ft == ALTERNATIVE_FULL_NAME && IsAlternativeNameSupported() &&
-       base::FeatureList::IsEnabled(
-           features::kAutofillSupportPhoneticNameForJP))) {
+      (ft == ALTERNATIVE_FULL_NAME && IsAlternativeNameSupported())) {
     // If the set string is token equivalent to the old one, the value can
     // just be updated, otherwise create a new name record and complete it in
     // the end.
@@ -877,19 +854,11 @@ void NameInfo::CreateAlternativeNameTree() {
   if (alternative_name_) {
     return;
   }
-  if (!base::FeatureList::IsEnabled(
-          features::kAutofillSupportPhoneticNameForJP)) {
-    return;
-  }
 
   alternative_name_ = std::make_unique<AlternativeFullName>();
 }
 
 void NameInfo::DeleteAlternativeNameTree() {
-  if (!base::FeatureList::IsEnabled(
-          features::kAutofillSupportPhoneticNameForJP)) {
-    return;
-  }
   alternative_name_.reset();
 }
 

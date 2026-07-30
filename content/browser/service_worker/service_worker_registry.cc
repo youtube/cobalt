@@ -120,35 +120,23 @@ void CheckForClientWriteFailure(
   }
 }
 
-void FindRegistrationForClientUrlTraceEventBegin(int64_t trace_event_id,
-                                                 const GURL& client_url) {
-  CHECK(client_url.is_valid());
-  TRACE_EVENT_BEGIN("ServiceWorker",
-                    "ServiceWorkerRegistry::FindRegistrationForClientUrl",
-                    perfetto::NamedTrack(
-                        "ServiceWorkerRegistry::FindRegistrationForClientUrl",
-                        trace_event_id),
-                    "URL", client_url.spec());
-}
-
-void FindRegistrationForClientUrlTraceEventEnd(
+void FindRegistrationForClientUrlTraceEventStatus(
     int64_t trace_event_id,
     blink::ServiceWorkerStatusCode status,
     std::optional<std::string> info) {
   // ServiceWorkerRegistry::FindRegistrationForClientUrl
   if (info) {
-    TRACE_EVENT_END("ServiceWorker",
-                    perfetto::NamedTrack(
-                        "ServiceWorkerRegistry::FindRegistrationForClientUrl",
-                        trace_event_id),
-                    "Status", blink::ServiceWorkerStatusToString(status),
-                    "Info", *info);
+    TRACE_EVENT(
+        "ServiceWorker",
+        "ServiceWorkerRegistry::FindRegistrationForClientUrlStatus",
+        perfetto::Flow::ProcessScoped(trace_event_id, "ServiceWorkerRegistry"),
+        "Status", blink::ServiceWorkerStatusToString(status), "Info", *info);
   } else {
-    TRACE_EVENT_END("ServiceWorker",
-                    perfetto::NamedTrack(
-                        "ServiceWorkerRegistry::FindRegistrationForClientUrl",
-                        trace_event_id),
-                    "Status", blink::ServiceWorkerStatusToString(status));
+    TRACE_EVENT(
+        "ServiceWorker",
+        "ServiceWorkerRegistry::FindRegistrationForClientUrlStatus",
+        perfetto::Flow::ProcessScoped(trace_event_id, "ServiceWorkerRegistry"),
+        "Status", blink::ServiceWorkerStatusToString(status));
   }
 }
 
@@ -403,8 +391,7 @@ void ServiceWorkerRegistry::FindRegistrationForClientUrl(
       // Since FindFromLiveRegistrationsForId() can return std::nullopt or
       // nullptr, both cases must be checked.
       if (registration.has_value() && registration.value()) {
-        FindRegistrationForClientUrlTraceEventBegin(trace_event_id, client_url);
-        FindRegistrationForClientUrlTraceEventEnd(
+        FindRegistrationForClientUrlTraceEventStatus(
             trace_event_id, blink::ServiceWorkerStatusCode::kOk, std::nullopt);
         CompleteFindNow(std::move(*registration),
                         blink::ServiceWorkerStatusCode::kOk,
@@ -428,8 +415,6 @@ void ServiceWorkerRegistry::FindRegistrationForClientUrl(
     // `RunFindRegistrationCallbacks()`.
     callback = base::DoNothing();
   }
-
-  FindRegistrationForClientUrlTraceEventBegin(trace_event_id, client_url);
 
   if (service_worker_loader_helpers::IsEligibleForSyntheticResponse(
           context_->wrapper()->browser_context(),
@@ -1330,10 +1315,9 @@ void ServiceWorkerRegistry::DidFindRegistrationForClientUrl(
     storage::mojom::ServiceWorkerDatabaseStatus database_status,
     storage::mojom::ServiceWorkerFindRegistrationResultPtr result,
     const std::optional<std::vector<GURL>>& scopes) {
-  TRACE_EVENT("ServiceWorker",
-              "ServiceWorkerRegistry::DidFindRegistrationForClientUrl",
-              perfetto::TerminatingFlow::ProcessScoped(
-                  trace_event_id, "ServiceWorkerRegistry"));
+  TRACE_EVENT(
+      "ServiceWorker", "ServiceWorkerRegistry::DidFindRegistrationForClientUrl",
+      perfetto::Flow::ProcessScoped(trace_event_id, "ServiceWorkerRegistry"));
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   // Discard RegistrationScopes from storage_shared_buffer.
   storage_shared_buffer().TakeRegistrationScopes();
@@ -1369,7 +1353,7 @@ void ServiceWorkerRegistry::DidFindRegistrationForClientUrl(
           installing_registration->is_deleted()
               ? blink::ServiceWorkerStatusCode::kErrorNotFound
               : blink::ServiceWorkerStatusCode::kOk;
-      FindRegistrationForClientUrlTraceEventEnd(
+      FindRegistrationForClientUrlTraceEventStatus(
           trace_event_id, status,
           (installing_status == blink::ServiceWorkerStatusCode::kOk)
               ? "Installing registration is found"
@@ -1405,8 +1389,8 @@ void ServiceWorkerRegistry::DidFindRegistrationForClientUrl(
     }
   }
 
-  FindRegistrationForClientUrlTraceEventEnd(trace_event_id, status,
-                                            std::nullopt);
+  FindRegistrationForClientUrlTraceEventStatus(trace_event_id, status,
+                                               std::nullopt);
   if (kServiceWorkerMergeFindRegistrationForClientUrlEnabled) {
     RunFindRegistrationCallbacks(client_url, key, std::move(registration),
                                  status);

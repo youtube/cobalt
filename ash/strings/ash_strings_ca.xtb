@@ -48,6 +48,7 @@
 <translation id="1129383337808748948">Actualitza <ph name="CONTENT_TITLE" /></translation>
 <translation id="1142002900084379065">Fotos recents</translation>
 <translation id="114221662579355151">Permet l'accés a la càmera a <ph name="APP1_NAME" />, <ph name="APP2_NAME" /> i a totes les aplicacions i llocs web amb permís per accedir a la càmera. És possible que hagis d'actualitzar la pàgina web o reiniciar l'aplicació.</translation>
+<translation id="1145593918056169051">La impressora s'ha aturat</translation>
 <translation id="1147991416141538220">Per demanar accés, contacta amb l'administrador d'aquest dispositiu.</translation>
 <translation id="1148499908455722006">Obre el quadre de diàleg d'informació per a <ph name="USER_NAME" /></translation>
 <translation id="1150989369772528668">Calendari</translation>
@@ -151,6 +152,7 @@
 <translation id="1383876407941801731">Cerca</translation>
 <translation id="1388728792929436380"><ph name="DEVICE_TYPE" /> es reiniciarà quan les actualitzacions s'hagin completat.</translation>
 <translation id="1390113502208199250">Hauràs de restablir les dades de fàbrica d'aquest dispositiu per poder utilitzar les funcions de la Llicència de Chrome Education.</translation>
+<translation id="1390907927270446471"><ph name="PROFILE_USERNAME" /> no té autorització per imprimir a <ph name="PRINTER_NAME" />. Contacta amb l'administrador.</translation>
 <translation id="1391102559483454063">Activada</translation>
 <translation id="1394698770495054737">Desenfocament complet</translation>
 <translation id="1395878931462960119">{DAYS,plural, =1{Fa 1 dia}other{Fa # dies}}</translation>
@@ -169,6 +171,7 @@
 <translation id="1426410128494586442">Sí</translation>
 <translation id="142655739075382478">L'aplicació <ph name="APP_NAME" /> està bloquejada</translation>
 <translation id="142765311413773645">La llicència de l'aplicació <ph name="APP_NAME" /> ha caducat</translation>
+<translation id="1430915738399379752">Imprimeix</translation>
 <translation id="1435537621343861112">No es pot iniciar el dictat. El micròfon està desactivat.</translation>
 <translation id="1445031758921122223">S'han baixat els fitxers de control facial</translation>
 <translation id="1447907279406111651">Ara ⋅ Acaba a les <ph name="END_TIME" /></translation>
@@ -229,6 +232,7 @@
 <translation id="1597880963776148053">Pas <ph name="STEP" /> de <ph name="TOTAL_STEPS" /> de la visita. Les aplicacions fixades i les obertes són al prestatge situat a la part inferior de la pantalla. Prem Alt+Maj+L i, a continuació, el tabulador per posar el focus en elements del prestatge.</translation>
 <translation id="1602085790802918092">S'està iniciant la màquina virtual</translation>
 <translation id="1602874809115667351"><ph name="LAUNCHER_KEY_NAME" />+fletxa avall</translation>
+<translation id="1604432177629086300">No s'ha pogut imprimir. Comprova la impressora i torna-ho a provar.</translation>
 <translation id="1604857178818051494">Posa en pausa el contingut multimèdia</translation>
 <translation id="1607312127821884567">Ignora la configuració de visualització de les aplicacions del telèfon</translation>
 <translation id="1610778689852195798">"Desfés"</translation>
@@ -372,6 +376,7 @@
 <translation id="2053312383184521053">Dades de l'estat d'inactivitat</translation>
 <translation id="2064048859448024834">La previsualització de la càmera està activada</translation>
 <translation id="2067220651560163985">Mostra la temperatura en graus Celsius</translation>
+<translation id="206960706005837784"><ph name="APP_NAME" /> ha acabat d'imprimir a <ph name="PRINTER_NAME" /></translation>
 <translation id="2075520525463668108">Commuta <ph name="CAPTURE_MEDIUM" />. <ph name="CAPTURE_MEDIUM" /> està <ph name="CAPTURE_STATE" />.</translation>
 <translation id="2079545284768500474">Desfés</translation>
 <translation id="2086334242442703436">Obre el selector d'emojis</translation>
@@ -441,6 +446,7 @@
 <translation id="2328561734797404498">Reinicia el dispositiu per utilitzar <ph name="APP_NAME" />.</translation>
 <translation id="2335091074961603075">El Chromebook o el dispositiu Bluetooth utilitza una versió anterior de Bluetooth. Fes servir el micròfon intern per millorar la qualitat de l'àudio.</translation>
 <translation id="2336214675195760012">{NUM_DAYS,plural, =1{<ph name="MANAGER" /> requereix que et connectis a la Wi-Fi avui per baixar una actualització. També pots baixar-la amb una connexió mesurada (s'hi poden aplicar càrrecs).}other{<ph name="MANAGER" /> requereix que et connectis a la Wi-Fi i que baixis una actualització abans de la data límit. També pots baixar-la amb una connexió mesurada (s'hi poden aplicar càrrecs).}}</translation>
+<translation id="2336258397628212480"><ph name="APP_NAME" /> està imprimint 1 pàgina a <ph name="PRINTER_NAME" /></translation>
 <translation id="2336381494582898602">Powerwash</translation>
 <translation id="2339073806695260576">Toca el botó del llapis òptic al prestatge per escriure una nota, fer una captura de pantalla o bé utilitzar-lo com a punter làser o lupa.</translation>
 <translation id="2341729377289034582">Bloquejada en vertical</translation>
@@ -755,6 +761,7 @@ Si no, el ratolí tàctil integrat es tornarà a activar d'aquí a <ph name="TIM
 <translation id="3206735939915734551">Activa o desactiva la tecla de bloqueig de majúscules</translation>
 <translation id="3207953481422525583">Configuració d'usuari</translation>
 <translation id="3208321278970793882">Aplicació</translation>
+<translation id="32101887417650595">No es pot connectar amb la impressora</translation>
 <translation id="3212221635583599601">Connecta't a Internet per fer més</translation>
 <translation id="3213571860604332401">Desa l'enllaç com a adreça d'interès</translation>
 <translation id="3217205077783620295">El volum està activat. En commutar-lo, se silenciarà l'àudio.</translation>
@@ -823,6 +830,7 @@ Si no, el ratolí tàctil integrat es tornarà a activar d'aquí a <ph name="TIM
 <translation id="3431517721463707585">Escriptori 14</translation>
 <translation id="3433507769937235446">Bloqueja en sortir</translation>
 <translation id="3434107140712555581"><ph name="BATTERY_PERCENTAGE" />%</translation>
+<translation id="343578350365773421">No queda paper</translation>
 <translation id="3435967511775410570">S'ha reconegut l'empremta digital</translation>
 <translation id="3437677362970530951">Jocs a Play Store i en altres plataformes de videojocs</translation>
 <translation id="3439896670700055005">Torna a carregar la pàgina actual sense utilitzar contingut desat a la memòria cau</translation>
@@ -999,6 +1007,7 @@ Connecta el dispositiu a l'alimentació.</translation>
 <translation id="3848526302597027234">Accedeix als permisos següents:</translation>
 <translation id="385051799172605136">Enrere</translation>
 <translation id="385300504083504382">Principi</translation>
+<translation id="3854976556788175030">La safata de sortida està plena</translation>
 <translation id="3857807444929313943">Aixeca el dit i toca de nou</translation>
 <translation id="3859364108019690">No es poden reproduir aplicacions en continu</translation>
 <translation id="3861638017150647085">El nom d'usuari "<ph name="USERNAME" />" no està disponible</translation>
@@ -1051,6 +1060,7 @@ Connecta el dispositiu a l'alimentació.</translation>
 <translation id="401993194061514265">El marcador no està disponible. Torna a obrir Gravació de pantalla.</translation>
 <translation id="4021716437419160885">Desplaça't cap avall</translation>
 <translation id="4022497978915111141">Bloqueja el dispositiu</translation>
+<translation id="4023048917751563912"><ph name="APP_NAME" /> està imprimint <ph name="PAGE_NUMBER" /> pàgines a <ph name="PRINTER_NAME" /></translation>
 <translation id="4024840464866786680">Si has oblidat el PIN i la contrasenya o has canviat la contrasenya del Compte de Google fa poc, prova de recuperar aquest usuari.</translation>
 <translation id="4026843240379844265">Mou la finestra activa entre pantalles</translation>
 <translation id="4028481283645788203">Cal introduir la contrasenya per disposar de més seguretat</translation>
@@ -1580,6 +1590,7 @@ No hi ha cap dispositiu connectat.</translation>
 <translation id="5491186829646618080">Hi ha actualitzacions de microprogramari disponibles</translation>
 <translation id="5503884284981862082">Obre/Tanca l'Assistent de Google</translation>
 <translation id="550391772491508736">Reprèn l'emissió</translation>
+<translation id="5505307013568720083">No queda tinta</translation>
 <translation id="5506975627792768506">Activa o desactiva la lupa</translation>
 <translation id="5507778598655387680"><ph name="VOLUME_LEVEL" />; en prémer la tecla Retorn, se silenciarà l'àudio.</translation>
 <translation id="5512042095225963688">Suprimeix la paraula anterior</translation>
@@ -1691,12 +1702,14 @@ No hi ha cap dispositiu connectat.</translation>
 <translation id="5791926618942305301">A la captura de pantalla, estableix en <ph name="TYPE" /> <ph name="SOURCE" />. Prem el tabulador per triar el tipus de captura. Prem Retorn per capturar. Per seleccionar l'àrea de captura, estableix en captura de pantalla parcial. Si encara no està activa, prem la barra espaiadora per seleccionar la regió.</translation>
 <translation id="579415080077680903">Silenci</translation>
 <translation id="5802516411616338943">Obre la configuració ràpida</translation>
+<translation id="5804241973901381774">Permisos</translation>
 <translation id="5804651031882187592">Desactiva l'opció de configuració Bloqueja la SIM</translation>
 <translation id="5805809050170488595">Fes clic per activar <ph name="NETWORK_NAME" /></translation>
 <translation id="5818796501620225415">Pots afegir més temps o finalitzar la sessió de Concentració</translation>
 <translation id="5819918159912280082">El Chromebook s'ha reiniciat de manera inesperada. Obre les finestres i les aplicacions anteriors.</translation>
 <translation id="5823239091726045201">Google Tasks al web</translation>
 <translation id="5825969630400862129">Configuració dels dispositius connectats</translation>
+<translation id="5828633471261496623">S'està imprimint...</translation>
 <translation id="5830180081891717894"><ph name="WINDOWS" /> més</translation>
 <translation id="5830205393314753525">No es pot obrir <ph name="APP_NAME" /></translation>
 <translation id="583281660410589416">Desconegut</translation>
@@ -1721,6 +1734,7 @@ No hi ha cap dispositiu connectat.</translation>
 <translation id="5892014525522223653">No tens connexió.</translation>
 <translation id="5895138241574237353">Reinicia</translation>
 <translation id="589817443623831496">Cerca per punt</translation>
+<translation id="5901494423252125310">La porta de la impressora és oberta</translation>
 <translation id="5901630391730855834">Groc</translation>
 <translation id="5904614460720589786">No s'ha pogut configurar <ph name="APP_NAME" /> a causa d'un problema de configuració. Contacta amb l'administrador. Codi d'error: <ph name="ERROR_CODE" />.</translation>
 <translation id="5910726859585389579"><ph name="DEVICE_TYPE" /> no té connexió</translation>
@@ -1785,6 +1799,7 @@ No hi ha cap dispositiu connectat.</translation>
         <ph name="BEGIN_PARAGRAPH2" />Desactivar aquesta funció no afectarà la capacitat d'aquest dispositiu d'enviar la informació necessària per rebre serveis essencials, com ara opcions de seguretat i actualitzacions del sistema.<ph name="END_PARAGRAPH2" />
         <ph name="BEGIN_PARAGRAPH3" />El propietari pot controlar aquesta funció des de Configuració &gt; Configuració avançada &gt; Envia automàticament dades de diagnòstic i d'ús a Google.<ph name="END_PARAGRAPH3" />
         <ph name="BEGIN_PARAGRAPH4" />Si l'opció de configuració Activitat al web i en aplicacions addicional està activada per al teu fill o filla, és possible que aquestes dades es desin al seu Compte de Google. Per obtenir més informació sobre aquestes opcions de configuració i sobre com pots ajustar-les, ves a families.google.com.<ph name="END_PARAGRAPH4" /></translation>
+<translation id="6052261338768299955"><ph name="APP_NAME" /> està provant d'imprimir a <ph name="PRINTER_NAME" /></translation>
 <translation id="6054305421211936131">Inicia la sessió amb la targeta intel·ligent</translation>
 <translation id="6059276912018042191">Pestanyes de Chrome recents</translation>
 <translation id="606147842285839995">ExpressKey 3</translation>
@@ -1888,6 +1903,7 @@ No hi ha cap dispositiu connectat.</translation>
 <translation id="6337159624125741244">La lupa de pantalla completa està activada</translation>
 <translation id="6338485349199627913"><ph name="DISPLAY_NAME" /> és una sessió gestionada per <ph name="MANAGER" /></translation>
 <translation id="6340148837564298498">Si has oblidat el PIN, prova de recuperar aquest usuari.</translation>
+<translation id="634208815998129842">Gestor de tasques</translation>
 <translation id="6344138931392227467">Dispositiu <ph name="DEVICE_NAME" /> connectat</translation>
 <translation id="6345418402353744910">El servidor intermediari <ph name="PROXY" /> requereix el teu nom d'usuari i la teva contrasenya perquè l'administrador pugui configurar la xarxa</translation>
 <translation id="6348449481487610270"><ph name="MODIFIER_ONE" /><ph name="MODIFIER_TWO" /><ph name="KEY_ONE" /> i després <ph name="MODIFIER_THREE" /><ph name="KEY_TWO" /> o <ph name="KEY_THREE" /></translation>
@@ -2093,6 +2109,7 @@ Instal·lació nova</translation>
 <translation id="6921427376813842559">Actualitza el dispositiu</translation>
 <translation id="6929081673585394903">Mostra els controls</translation>
 <translation id="6931576957638141829">Desa a</translation>
+<translation id="6935286146439255109">Falta una safata de paper</translation>
 <translation id="6935857786205183008">Vertical</translation>
 <translation id="6942518653766415536">Menú de format de gravació</translation>
 <translation id="6945221475159498467">Selecciona</translation>
@@ -2115,6 +2132,7 @@ Instal·lació nova</translation>
 <translation id="6988094684494323731">S'està iniciant el contenidor de Linux</translation>
 <translation id="7000027735917578303">Configuració de finestres i d'escriptoris</translation>
 <translation id="7001036685275644873">S'està creant la còpia de seguretat dels fitxers i de les aplicacions de Linux</translation>
+<translation id="7001066449188684145">Cal tenir una identificació per imprimir a <ph name="PRINTER_NAME" />. Contacta amb l'administrador.</translation>
 <translation id="7004910047186208204">Cal connectar-se a dades mòbils</translation>
 <translation id="7005239792648594238">Obre una aplicació per començar</translation>
 <translation id="7014684956566476813">Connectat a un dispositiu Bluetooth anomenat <ph name="DEVICE_NAME" /></translation>
@@ -2154,6 +2172,7 @@ Instal·lació nova</translation>
 <translation id="7108254681523785542">Selecciona un element per enganxar-lo. Pots veure el porta-retalls prement <ph name="SHORTCUT_KEY_NAME" />+v.</translation>
 <translation id="7108338896283013870">Amaga</translation>
 <translation id="7108933416628942903">Bloqueja ara</translation>
+<translation id="7116554090938189816">El certificat SSL de la impressora ha caducat. Reinicia la impressora i torna-ho a provar.</translation>
 <translation id="7116969082764510092">Escriptori 11</translation>
 <translation id="7118268675952955085">captura de pantalla</translation>
 <translation id="7118597077555700347">Obre <ph name="SEARCH_RESULT_TEXT" /></translation>
@@ -2205,6 +2224,7 @@ Instal·lació nova</translation>
 <translation id="7312210124139670355">L'administrador està restablint l'eSIM. Aquest procés pot tardar uns minuts.</translation>
 <translation id="7312761820869643657">Actualitza el dispositiu a la versió anterior</translation>
 <translation id="7313193732017069507">Desplega la càmera</translation>
+<translation id="7325209047678309347">El paper s'ha encallat</translation>
 <translation id="7327989755579928735"><ph name="MANAGER" /> ha desactivat la depuració d'ADB. Quan reiniciïs el teu dispositiu <ph name="DEVICE_TYPE" />, no podràs instal·lar aplicacions externament.</translation>
 <translation id="73289266812733869">Ja no està seleccionat</translation>
 <translation id="7330397557116570022">Ves a un camp de text per utilitzar el dictat</translation>
@@ -2579,6 +2599,7 @@ Per apagar el dispositiu, torna a mantenir premut el botó d'engegada.</translat
 <translation id="8339706171276328417"><ph name="ACTION_DESCRIPTION" /> · <ph name="TIME" /></translation>
 <translation id="834414266279889566">Mala sortida</translation>
 <translation id="8345019317483336363">S'ha seleccionat <ph name="WINDOW_TITLE" /> finestra</translation>
+<translation id="8347227221149377169">Tasques d'impressió</translation>
 <translation id="8349826889576450703">menú d'aplicacions</translation>
 <translation id="8349964124165471584">Obre l'enllaç en una finestra nova</translation>
 <translation id="8351131234907093545">Crea una nota</translation>
@@ -2617,6 +2638,7 @@ Per apagar el dispositiu, torna a mantenir premut el botó d'engegada.</translat
 <translation id="8458259704995116343">No s'ha pogut iniciar la VM.</translation>
 <translation id="84613761564611563">La interfície d'usuari per configurar la xarxa s'ha sol·licitat. Espera…</translation>
 <translation id="8462305545768648477">Tanca Escolta la selecció</translation>
+<translation id="8463001014623882202">Hi ha hagut un error en l'autorització</translation>
 <translation id="8466665972451889002">Mostra els elements de <ph name="GROUP_NAME" /></translation>
 <translation id="8468806060683421065">venç el dia <ph name="DUE_DATE_AND_TIME" /></translation>
 <translation id="8473301994082929012"><ph name="ORGANIZATION_NAME" /> té la funció <ph name="FEATURE_NAME" /> <ph name="FEATURE_STATE" />.</translation>

@@ -48,12 +48,22 @@ export class SettingsCreditCardListEntryElement extends
         },
         readOnly: true,
       },
+
+      autofillEnableGradientGoogleLogosEnabled_: {
+        type: Boolean,
+        value() {
+          return loadTimeData.getBoolean('autofillEnableGradientGoogleLogos');
+        },
+        readOnly: true,
+      },
     };
   }
 
   declare creditCard: chrome.autofillPrivate.CreditCardEntry;
 
   declare private autofillEnableWalletBrandingEnabled_: boolean;
+
+  declare private autofillEnableGradientGoogleLogosEnabled_: boolean;
 
   get dotsMenu(): HTMLElement|null {
     return this.shadowRoot!.getElementById('creditCardMenu');
@@ -274,6 +284,22 @@ export class SettingsCreditCardListEntryElement extends
    */
   private getScaledSrcSet_(url: string): string {
     return `${url} 1x, ${url}@2x 2x`;
+  }
+
+  private getGooglePayLightModeLogoSrcSet_(
+      isGradientGoogleLogosEnabled: boolean): string {
+    const logoId = isGradientGoogleLogosEnabled ?
+        'chrome://theme/IDR_AUTOFILL_GOOGLE_PAY_WITH_GRADIENT_SMALL' :
+        'chrome://theme/IDR_AUTOFILL_GOOGLE_PAY_SMALL';
+    return this.getScaledSrcSet_(logoId);
+  }
+
+  private getGooglePayDarkModeLogoSrcSet_(
+      isGradientGoogleLogosEnabled: boolean): string {
+    const logoId = isGradientGoogleLogosEnabled ?
+        'chrome://theme/IDR_AUTOFILL_GOOGLE_PAY_WITH_GRADIENT_DARK_SMALL' :
+        'chrome://theme/IDR_AUTOFILL_GOOGLE_PAY_DARK_SMALL';
+    return this.getScaledSrcSet_(logoId);
   }
 }
 

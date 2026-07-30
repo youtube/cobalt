@@ -62,13 +62,13 @@ class GaiaId;
 @property(strong, nonatomic, strong, readonly)
     NSDictionary<NSString*, NSNumber*>* capabilities;
 
-// Initialises a TestAccountInfo.
+// Initializes a TestAccountInfo.
 // `userEmail`: cannot be `nil` or empty.
-// `gaiaID`: if is nil or empty, the gaia is the email address (with `@`
+// `gaiaID`: if nil or empty, the gaia is the email address (with `@`
 // replaced by `_`).
 // `userFullName` and `userGivenName`: if empty or nil, the name of the email
 // address is used as the full name or/and the given name.
-// `capabilities`: if is nil, `+[TestAccountInfo defaultCapabilityValues]` is
+// `capabilities`: if nil, `+[TestAccountInfo defaultCapabilityValues]` is
 // used.
 - (instancetype)initWithUserEmail:(NSString*)userEmail
                            gaiaID:(const GaiaId&)gaiaID

@@ -117,7 +117,6 @@
 <translation id="1178821169867863726">‏‎12 x 16 انچ</translation>
 <translation id="1181037720776840403">ہٹائیں</translation>
 <translation id="1185331130467528132">‫<ph name="URL" /> آپ کے مقامی نیٹ ورک پر موجود دیگر آلات تک رسائی حاصل کرنا چاہتا ہے</translation>
-<translation id="1185343831726846924">ورچوئل کارڈ کی توثیق کرنے کی سہولت کو آن نہیں کیا جا سکتا</translation>
 <translation id="1186201132766001848">پاس ورڈز چیک کریں</translation>
 <translation id="1187430513518041110">آٹوز اور گاڑیاں</translation>
 <translation id="1188817995162638216">فائل کو محفوظ کرنے کا عمل منسوخ کریں؟</translation>
@@ -301,7 +300,7 @@
 <translation id="1445896388055045436">چیک آؤٹ پر دستیاب کارڈ کے فوائد اور انعامات دکھائیں۔ جاری کنندہ کی شرائط لاگو ہوتی ہیں۔</translation>
 <translation id="1447067628680007684">(x86_64)</translation>
 <translation id="1448166547804028941">کلیدیں "<ph name="DATA_CONTROLS_FIRST_KEY_SET" />" "<ph name="DATA_CONTROLS_SECOND_KEY_SET" />" کلیدوں کی طرح ایک ہی ڈکشنری میں سیٹ نہیں کی جا سکتیں</translation>
-<translation id="1449251255954293933">‏Google والٹ میں ریڈریس نمبر محفوظ کریں</translation>
+<translation id="1449251255954293933">‏‫Google والٹ میں ریڈریس نمبر محفوظ کریں</translation>
 <translation id="1455413310270022028">صافی</translation>
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{‫0 جائزے ملاحظہ کریں}=1{‫1 جائزہ ملاحظہ کریں}other{سبھی # جائزے ملاحظہ کریں}}</translation>
 <translation id="1458059624921545588">لوگ اور معاشرہ</translation>
@@ -1262,7 +1261,6 @@
 <translation id="297173220375858963">ڈیسک ٹاپ پبلشنگ</translation>
 <translation id="2972581237482394796">&amp;واپس لائیں</translation>
 <translation id="2974468223369775963">‏یہ IBAN آپ کے Google اکاؤنٹ میں محفوظ نہیں ہو سکا۔ اس کی بجائے اسے اس آلہ پر Chrome میں محفوظ کر دیا گیا ہے۔ اگلی بار آپ کے اس IBAN کو استعمال کرنے پر Chrome آپ سے دوبارہ پوچھے گا۔</translation>
-<translation id="2976162850019490782">‏آن ہونے پر، Chrome اس ونڈو میں موجود تمام ٹیبز کا اشتراک کرے گا تاکہ آپ کو مزید متعلقہ جوابات حاصل کرنے میں مدد مل سکے۔ آپ اسے ترتیبات میں تمام تھریڈز کیلئے آن کر سکتے ہیں۔</translation>
 <translation id="297667759942911166">ٹیب گروپس میں تعاون کریں</translation>
 <translation id="2977665033722899841"><ph name="ROW_NAME" />، فی الحال منتخب کردہ۔ <ph name="ROW_CONTENT" /></translation>
 <translation id="2978824962390592855">اوپیرا</translation>
@@ -1672,7 +1670,6 @@
 <translation id="361438452008624280">فہرست کا اندراج "<ph name="LANGUAGE_ID" />": نامعلوم یا غیر تعاون یافتہ زبان۔</translation>
 <translation id="3614934205542186002">‏<ph name="RUN_CHROME_SAFETY_CHECK_FOCUSED_FRIENDLY_MATCH_TEXT" />، Chrome کی ترتیبات میں موجود سیفٹی چیک چلانے کے لئے ٹیب پھر Enter دبائیں</translation>
 <translation id="3615309852743236517">مینی کیورز اور پیڈیکیورز</translation>
-<translation id="3620034424637552643">اکثر ڈائریکشنز، ڈیلیوریز اور مزید کے لیے استعمال کیا جاتا ہے</translation>
 <translation id="3620239073311576716">یونیفارم اور کام پر پہننے کا لباس</translation>
 <translation id="3620865353340165509">‏اس IBAN کو Google والٹ میں محفوظ نہیں کیا جا سکا۔ اس کی بجائے اسے اس آلہ پر Chrome میں محفوظ کر دیا گیا ہے۔ اگلی بار آپ کے اس IBAN کو استعمال کرنے پر Chrome آپ سے دوبارہ پوچھے گا۔</translation>
 <translation id="3621401353678567613">آپ جن پروڈکٹس کو ٹریک کر رہے ہیں، ان کی قیمت میں کمی سے متعلق الرٹس حاصل کرنے کیلئے ترتیبات میں اطلاعات کو آن کریں۔</translation>
@@ -2221,7 +2218,6 @@
 <translation id="4434045419905280838">پوپ اپس اور ری ڈائریکٹس</translation>
 <translation id="443673843213245140">پراکسی کا استعمال غیر فعال کر دیا گیا ہے لیکن ایک واضح پراکسی کنفیگریشن متعین کی گئی ہے۔</translation>
 <translation id="4438821706955556403">عمومی قیمت</translation>
-<translation id="4439687924334332880">اس ونڈو میں کھلے ٹیبز کا خودکار طور پر اشتراک کر کے مزید موزوں ریسپانسز حاصل کریں اگر وہ اس سلسلے سے متعلق ہیں۔ آپ اسے ترتیبات میں تمام سلسلوں کیلئے آن کر سکتے ہیں۔</translation>
 <translation id="4441832193888514600">نظر انداز کر دیا گیا کیونکہ پالیسی صرف کلاؤڈ صارف کی پالیسی کے بطور سیٹ کی جا سکتی ہے۔</translation>
 <translation id="4444062564459679679">‏آپ کے <ph name="DEVICE_NAME" /> پر Chrome کو پہلے ہی بھیج دیا گیا ہے</translation>
 <translation id="4445694043187340808">‏‫<ph name="STARTER_PACK_TABS_FOCUSED_FRIENDLY_MATCH_TEXT" />، ٹیبز کو تلاش کرنے کے لیے Enter دبائیں</translation>
@@ -2310,7 +2306,7 @@
 <translation id="46128681529823442">ساکر کے ساز و سامان</translation>
 <translation id="4612904677925722054">اس سائٹ پر بالغانہ مواد ہو سکتا ہے۔ والدین یا سرپرست کو یہ کہنا ہوگا کہ آپ کیلئے یہ ویب سائٹ دیکھنا ٹھیک ہے۔</translation>
 <translation id="4619564267100705184">توثیق کریں کہ یہ آپ ہیں</translation>
-<translation id="4619669610757527494">‏Google والٹ میں ڈرائیونگ لائسنس محفوظ کریں</translation>
+<translation id="4619669610757527494">‏‫Google والٹ میں ڈرائیونگ لائسنس محفوظ کریں</translation>
 <translation id="4622292761762557753">بہر حال منتقل کریں</translation>
 <translation id="4622647778991854660">اطلاع کے مرکز میں اطلاعات کو فعال کریں۔ <ph name="LINK" /> کھولیں۔</translation>
 <translation id="4623894491222334521">شناختی دستاویزات</translation>
@@ -2355,6 +2351,7 @@
 <translation id="4691093235373904540">چھت سازی</translation>
 <translation id="4692623383562244444">سرچ انجنز</translation>
 <translation id="4695702626068620848"><ph name="KEYWORD" /> - <ph name="KEYWORD_SHORT_NAME" /> سے پوچھیں</translation>
+<translation id="4697071790493980729">کوئی نتیجہ نہیں ملا</translation>
 <translation id="4698308118265482293">پاسپورٹ کی معلومات اپ ڈیٹ کریں</translation>
 <translation id="4698692901173737941">مقابلہ آرائی کے کھیل کود</translation>
 <translation id="4701488924964507374"><ph name="SENTENCE1" /> <ph name="SENTENCE2" /></translation>
@@ -2702,7 +2699,6 @@
 <translation id="5238301240406177137">اکاؤنٹ میں محفوظ کریں</translation>
 <translation id="5239119062986868403">عمومی قیمت</translation>
 <translation id="5239623327352565343">مقام کی اجازت ہے</translation>
-<translation id="5241048084654737238">کارڈ سے متعلق معلومات کی توثیق کے عمل کو محفوظ نہیں کیا جا سکتا</translation>
 <translation id="5242610955375133957">ڈرائی فلم</translation>
 <translation id="5243004157379865295">پتہ اپ ڈیٹ کریں</translation>
 <translation id="5244521145258281926">‏Google اکاؤنٹ کا نظم کریں، اپنے Google اکاؤنٹ میں اپنی معلومات، رازداری اور سیکیورٹی کا نظم کرنے کے لیے فعال کریں</translation>
@@ -2840,7 +2836,7 @@
 <translation id="543656192084990644">موشن سینسرز کی اجازت نہیں ہے</translation>
 <translation id="5441409130426352029"><ph name="ATTRIBUTE_VALUE" />، <ph name="PREVIOUS_VALUE" /> تھی</translation>
 <translation id="5443468954631487277">اُلٹ ترتیب میں، صفحات کا رُخ اوپر کی جانب</translation>
-<translation id="5447103258548475868">‏Google والٹ میں پاسپورٹ محفوظ کریں</translation>
+<translation id="5447103258548475868">‏‫Google والٹ میں پاسپورٹ محفوظ کریں</translation>
 <translation id="5447235695608032700"><ph name="SITE" /> کو ان معلومات کو استعمال کرنے کی اجازت دیں جو انہوں نے آپ کے بارے میں محفوظ کی ہیں</translation>
 <translation id="5447973833955560753">بازیابی پاس ورڈ</translation>
 <translation id="5451331376824595378">‏جب سیکیورٹی ایونٹس پر Chrome پرچم لگاتا ہے تو ان ایونٹس سے متعلقہ ڈیٹا آپ کے منتظم کو بھیجا جاتا ہے۔ اس میں Chrome میں آپ کے ذریعے ملاحظہ کیے جانے والے صفحات کے URLs، ان صفحات کے URLs جن سے آپ نے ڈیٹا کاپی کیا ہے، فائل کے نام یا میٹا ڈیٹا، IP پتے، براؤز یا ٹیب کی ناکامیاں اور وہ صارف نام جس کا استعمال آپ ویب پر مبنی ایپلیکیشنز اپنے آلے اور Chrome میں سائن ان کرنے کے لیے کرتے ہیں، شامل ہو سکتے ہیں۔</translation>
@@ -3359,6 +3355,7 @@
 <translation id="6246316216123107851"><ph name="NUM_DAYS" /> دن پہلے</translation>
 <translation id="6246382863801034910">گاڑی</translation>
 <translation id="6246868321321344665">آپ کی تنظیم دفتری اور ذاتی پروفائلز دونوں میں براؤزنگ ڈیٹا، جیسے پاس ورڈز اور سرگزشت دیکھ سکتی ہے</translation>
+<translation id="6248479108671123143">‫<ph name="MEMBER_FIRST_NAME" /> نے یہ ٹیب تبدیل کیا، <ph name="TAB_TITLE" /></translation>
 <translation id="6248988683584659830">تلاش کی ترتیبات</translation>
 <translation id="6250932670816326647">غسل اور جسمانی پروڈکٹس</translation>
 <translation id="6251906504834538140">{0,plural, =1{فائل کو منتقل ہونے سے مسدود کر دیا گیا}other{<ph name="FILE_COUNT" /> فائلز کو منتقل ہونے سے مسدود کر دیا گیا}}</translation>
@@ -3715,6 +3712,7 @@
 <translation id="6798066466127540426">فہرست میں کوئی درست تلاش فراہم کنندہ نہیں ہے۔</translation>
 <translation id="6798460514924505775">‏Chou 3 لفافہ</translation>
 <translation id="6799145206637008376">‏اس ورچوئل کارڈ کے لیے CVC پُر کریں</translation>
+<translation id="6800773453940486492">‫<ph name="MEMBER_FIRST_NAME" /> نے یہ ٹیب شامل کیا، <ph name="TAB_TITLE" /></translation>
 <translation id="6801920212017470190">چلتے پھرتے اپنی تمام قیمتوں میں کمی سے باخبر رہیں</translation>
 <translation id="6805030849054648206">‏B6/C4 لفافہ</translation>
 <translation id="6807791860691150411">تعلیم</translation>
@@ -4243,7 +4241,7 @@
 <translation id="7599089013883397081">ڈاؤن لوڈ کا وقت ختم ہو گیا</translation>
 <translation id="7602868996817972616">‏اس صفحہ کے بارے میں Google سے پوچھیں</translation>
 <translation id="7606123685356405076">‏‫Gemini 3 ماڈلز</translation>
-<translation id="760632772920590778">‏Google والٹ میں گاڑی کی معلومات محفوظ کریں</translation>
+<translation id="760632772920590778">‏‫Google والٹ میں گاڑی کی معلومات محفوظ کریں</translation>
 <translation id="7610193165460212391">قدر رینج سے باہر کی ہے <ph name="VALUE" />۔</translation>
 <translation id="761261689936461781">موٹا</translation>
 <translation id="7613889955535752492">‏اختتامی تاریخ: ‎<ph name="EXPIRATION_MONTH" />/<ph name="EXPIRATION_YEAR" />‎</translation>
@@ -4274,7 +4272,7 @@
 <translation id="7648133459447652947">اپنا کرسر دکھانے کے لیے، ایپس کو سوئچ کریں، صفحہ کو دوبارہ لوڈ کریں یا واپس جائیں</translation>
 <translation id="764847582138410250">اپنے فون سے سائن ان کرنے کے لیے اسکین کریں</translation>
 <translation id="7648527891719919697">‏یہ سائٹ مسدود رہے گی کیونکہ آپ نے <ph name="BEGIN_ANDROID_SETTINGS_LINK" />Android کی ترتیبات<ph name="END_ANDROID_SETTINGS_LINK" /> میں اعلی تحفظ کو آن کیا ہے۔ <ph name="BEGIN_LEARN_MORE_LINK" />اس وارننگ کے بارے میں مزید جانیں<ph name="END_LEARN_MORE_LINK" /></translation>
-<translation id="7648900539798595789">‏Google والٹ میں معلوم مسافر نمبر محفوظ کریں</translation>
+<translation id="7648900539798595789">‏‫Google والٹ میں معلوم مسافر نمبر محفوظ کریں</translation>
 <translation id="7648992873808071793">فائلیں اس آلہ پر اسٹور کریں</translation>
 <translation id="7649070708921625228">مدد</translation>
 <translation id="7650141368285545431">کسی اور آلے سے پاس کی استعمال کریں</translation>
@@ -4367,7 +4365,7 @@
 <translation id="7773005668374414287">اسی ترتیب میں، صفحات کا رُخ اوپر کی جانب</translation>
 <translation id="7779418012194492374"><ph name="DEVICE_NAME" /> کیلئے رسائی کو منسوخ کریں</translation>
 <translation id="7781829728241885113">گزشتہ کل</translation>
-<translation id="7782228658217918863">‏Google والٹ میں شناختی کارڈ محفوظ کریں</translation>
+<translation id="7782228658217918863">‏‫Google والٹ میں شناختی کارڈ محفوظ کریں</translation>
 <translation id="7782465647372057580">اکاؤنٹ کی معلومات مرموز کردہ ہے اور نجی رکھی جاتی ہے</translation>
 <translation id="7785471469930192436">قابل اطلاق ہونے پر اپنی تلاش کی سرگزشت کو حذف کرنے کے لیے اپنے سرچ انجن کی ہدایات دیکھیں</translation>
 <translation id="7785790577395078482">یہ ٹیبلیٹ</translation>
@@ -4717,6 +4715,7 @@
 <translation id="8351131234907093545">نوٹ بنائیں</translation>
 <translation id="8352849934814541340">اس آلے کے منتظم نے اضافی فنکشنز کیلئے ایپلیکیشنز انسٹال کی ہیں۔ ایپلیکیشنز کو آپ کے کچھ ڈیٹا تک رسائی حاصل ہوتی ہے۔</translation>
 <translation id="8355270400102541638">مقامی ناکامی کا سیاق و سباق:</translation>
+<translation id="8362914115861174987">اس میں ترجمہ کریں</translation>
 <translation id="8363502534493474904">ہوائی جہاز وض‏ع کو آف کیا جا رہا ہے</translation>
 <translation id="8363929499301563123">ویب سائٹ کوکیز (حال ہی میں ملاحظہ کردہ ویب سائٹس پر سائن ان کی حالت کو محفوظ رکھا جائے گا)</translation>
 <translation id="8364627913115013041">سیٹ نہیں ہے۔</translation>
@@ -4736,7 +4735,6 @@
 <translation id="8381674639488873545">یہ چارجز ایک بار یا بار بار عائد ہو سکتے ہیں اور ہو سکتا ہے کہ واضح نہ ہوں۔ <ph name="BEGIN_LINK" />بہر صورت دکھائیں<ph name="END_LINK" /></translation>
 <translation id="8382097126743287270">خودکار مکمل اسکرین</translation>
 <translation id="838307841291975086">اسٹیشن ویگنز</translation>
-<translation id="838953173259347825">اس ونڈو میں کھلے ٹیبز کا خودکار طور پر اشتراک کر کے مزید موزوں ریسپانسز حاصل کریں اگر وہ اس سلسلے سے متعلق ہیں۔ آپ اسے ترتیبات میں تمام سلسلوں کیلئے آن کر سکتے ہیں</translation>
 <translation id="8389532092404711541">عام طور پر <ph name="LOW_PRICE" /></translation>
 <translation id="8389940864052787379">حسب ضرورت اور کارکردگی والی گاڑیاں</translation>
 <translation id="8390725133630534698">منتظم کی پالیسی کے ذریعے <ph name="ORIGIN_NAME" /> سے <ph name="VM_NAME" /> پر اشتراک کرنے کو مسدود کر دیا گیا ہے</translation>
@@ -4902,6 +4900,7 @@
 <translation id="8671519637524426245"><ph name="SECURE_DNS_SALT" /> کی قدر سائز کے تقاضوں کو پورا نہیں کرتی ہے۔</translation>
 <translation id="867224526087042813">دستخط</translation>
 <translation id="8672535691554698269">کمپیوٹر نیٹ ورکس</translation>
+<translation id="8673710317985154384">{NUM_TABS,plural, =1{ٹیب کے اشتراک کی تفصیلات دکھائیں۔ {WEBSITE_LIST_STR} سے 1 ٹیب کا اشتراک کیا جا رہا ہے}other{ٹیب کے اشتراک کی تفصیلات دکھائیں۔ {WEBSITE_LIST_STR} سے {NUM_TABS} ٹیبز کا اشتراک کیا جا رہا ہے}}</translation>
 <translation id="8675446170353411473">آپ کی فائلز <ph name="CLOUD_PROVIDER" /> میں اپ لوڈ ہو رہی ہیں</translation>
 <translation id="8676424191133491403">کوئی تاخیر نہیں</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />، جواب، <ph name="ANSWER" /></translation>
@@ -5155,7 +5154,6 @@
 <translation id="9090243919347147717">منسلکات</translation>
 <translation id="9090548458280093580">‏‫AI کے ذریعے تقویت یافتہ اپنی سرگزشت تلاش کریں</translation>
 <translation id="9090993752571911635">‏انٹرنیٹ سروس پرووائیڈرز (ISPs)</translation>
-<translation id="9092305980625216393">اکثر موسم، مقامی خبروں اور مزید کے لیے استعمال کیا جاتا ہے</translation>
 <translation id="9093723786115107672">شب خوابی کا لباس</translation>
 <translation id="9094424186948667194">اس آلے پر موجود دیگر ایپس اور سروسز تک رسائی حاصل کریں</translation>
 <translation id="9094544726794842788">اظہار ناپسندیدگی آپ کو ان نتائج کو ناپسند کرنے کے بارے میں تفصیلی تاثرات جمع کرانے کے لیے ایک فارم کھولتا ہے</translation>
@@ -5281,7 +5279,6 @@
 <translation id="964050462028070434">پاس ورڈز اور پاس کیز کا نظم کریں…</translation>
 <translation id="964681140808832181">ہاں، میں منسوخ کرنا چاہتا ہوں</translation>
 <translation id="969892804517981540">آفیشل بلڈ</translation>
-<translation id="970182982363142444">‏آن ہونے پر، Chrome اس ونڈو میں موجود تمام ٹیبز کا اشتراک کرے گا تاکہ آپ کو مزید متعلقہ جوابات حاصل کرنے میں مدد مل سکے۔ آپ اسے درج ذیل میں تمام چیٹس کیلئے آن کر سکتے ہیں</translation>
 <translation id="97054401902912338">مواد کے فلٹرز کے بارے میں مزید جانیں</translation>
 <translation id="973788791897303708">یہ ٹیب گروپ بھرا ہوا ہے</translation>
 <translation id="975560348586398090">{COUNT,plural, =0{کوئی سائٹ نہیں}=1{1 آئٹم}other{# آئٹمز}}</translation>

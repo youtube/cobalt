@@ -30,10 +30,10 @@
 #include "content/browser/browser_context_impl.h"
 #include "content/browser/browser_main_loop.h"
 #include "content/browser/browsing_topics/browsing_topics_document_host.h"
-#include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/contacts/contacts_manager_impl.h"
 #include "content/browser/content_index/content_index_service_impl.h"
 #include "content/browser/cookie_store/cookie_store_manager.h"
+#include "content/browser/declarative_performance_observer/declarative_performance_observer.h"
 #include "content/browser/device_posture/device_posture_provider_impl.h"
 #include "content/browser/eye_dropper_chooser_impl.h"
 #include "content/browser/handwriting/handwriting_recognition_service_factory.h"
@@ -46,7 +46,6 @@
 #include "content/browser/media/media_web_contents_observer.h"
 #include "content/browser/media/midi_host.h"
 #include "content/browser/media/session/media_session_service_impl.h"
-#include "content/browser/network/declarative_performance_observer.h"
 #include "content/browser/network/reporting_service_proxy.h"
 #include "content/browser/picture_in_picture/picture_in_picture_service_impl.h"
 #include "content/browser/preloading/anchor_element_interaction_host_impl.h"
@@ -66,6 +65,7 @@
 #include "content/browser/renderer_host/media/video_capture_host.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/renderer_host/render_process_host_impl.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/browser/service_worker/service_worker_context_core.h"
 #include "content/browser/service_worker/service_worker_host.h"
 #include "content/browser/shared_storage/shared_storage_worklet_host.h"
@@ -969,9 +969,26 @@ void PopulateBinderMapWithContext(
   map->Add<blink::mojom::IdleManager>(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::BindIdleManager>);
 
+#if BUILDFLAG(IS_P2P_ENABLED) || BUILDFLAG(ENABLE_MDNS)
+  // TODO(447954811): Remove the fenced frames check if we end up supporting
+  // Connection Allowlist for fenced frames.
+  bool should_ban_p2p_for_connection_allowlist =
+      host->HasPolicyContainerHost() &&
+      host->policy_container_host()
+          ->connection_allowlists()
+          .enforced.has_value() &&
+      host->policy_container_host()
+              ->connection_allowlists()
+              .enforced->webrtc_behavior ==
+          network::ConnectionAllowlist::WebRtcBehavior::kBlock &&
+      !host->IsNestedWithinFencedFrame();
+# endif  // BUILDFLAG(IS_P2P_ENABLED) || BUILDFLAG(ENABLE_MDNS)
+
 #if BUILDFLAG(ENABLE_MDNS)
-  map->Add<network::mojom::MdnsResponder>(
+  if (!should_ban_p2p_for_connection_allowlist) {
+    map->Add<network::mojom::MdnsResponder>(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::CreateMdnsResponder>);
+  }
 #endif  // BUILDFLAG(ENABLE_MDNS)
 
   // BrowserMainLoop::GetInstance() may be null on unit tests.
@@ -996,15 +1013,6 @@ void PopulateBinderMapWithContext(
           blink::features::kFencedFramesLocalUnpartitionedDataAccess) &&
       host->IsNestedWithinFencedFrame();
 
-  bool should_ban_p2p_for_connection_allowlist =
-      host->HasPolicyContainerHost() &&
-      host->policy_container_host()
-          ->connection_allowlists()
-          .enforced.has_value() &&
-      host->policy_container_host()
-              ->connection_allowlists()
-              .enforced->webrtc_behavior ==
-          network::ConnectionAllowlist::WebRtcBehavior::kBlock;
   if (!should_ban_p2p_for_fenced_frames &&
       !should_ban_p2p_for_connection_allowlist) {
     map->Add<network::mojom::P2PSocketManager>(&BindSocketManager);

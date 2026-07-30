@@ -4,6 +4,7 @@
 
 #include "components/permissions/contexts/midi_permission_context.h"
 
+#include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/permissions/permissions_client.h"

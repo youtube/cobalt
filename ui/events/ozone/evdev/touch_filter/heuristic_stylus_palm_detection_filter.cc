@@ -57,7 +57,7 @@ HeuristicStylusPalmDetectionFilter::HeuristicStylusPalmDetectionFilter(
       hold_stroke_count_(hold_stroke_count),
       time_after_stylus_to_hold_(hold),
       time_after_stylus_to_cancel_(cancel) {
-  touch_started_time_.resize(kNumTouchEvdevSlots, base::TimeTicks::UnixEpoch());
+  touch_started_time_.resize(kNumTouchEvdevSlots, base::TimeTicks());
   stroke_length_.resize(kNumTouchEvdevSlots, 0);
   DCHECK(hold >= cancel) << "Expected hold time to be longer than cancel time.";
 }

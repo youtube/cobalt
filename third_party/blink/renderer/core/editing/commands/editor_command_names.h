@@ -115,7 +115,7 @@ namespace blink {
   V(OverWrite)                                    \
   V(Paste)                                        \
   V(PasteAndMatchStyle)                           \
-  V(PasteFromImageURL)                            \
+  V(PasteFromImageUrl)                            \
   V(PasteGlobalSelection)                         \
   V(Print)                                        \
   V(Redo)                                         \

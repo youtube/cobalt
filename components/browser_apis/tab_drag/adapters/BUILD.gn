@@ -10,6 +10,7 @@ source_set("adapters") {
 
   public_deps = [
     "//components/browser_apis/tab_strip/types",
+    "//ui/gfx",
     "//ui/gfx/geometry",
   ]
 

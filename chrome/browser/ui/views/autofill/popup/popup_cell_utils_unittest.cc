@@ -70,7 +70,7 @@ TEST(PopupCellUtilsTest,
 TEST(PopupCellUtilsTest,
      GetExpandableMenuIcon_NonComposeSuggestions_ReturnSubMenuArrowIcon) {
   EXPECT_EQ(GetExpandableMenuIconNameFromSuggestionType(
-                SuggestionType::kAddressEntry),
+                SuggestionType::kPasswordEntry),
             ::features::IsRoundedIconsEnabled()
                 ? vector_icons::kKeyboardArrowRightFlippableIcon.name
                 : vector_icons::kSubmenuArrowChromeRefreshOldIcon.name);

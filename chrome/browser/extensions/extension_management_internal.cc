@@ -255,7 +255,7 @@ void IndividualSettings::Reset() {
   policy_blocked_hosts.ClearPatterns();
   policy_allowed_hosts.ClearPatterns();
   blocked_install_message.clear();
-  toolbar_pin = ManagedToolbarPinMode::kDefaultUnpinned;
+  toolbar_pin = ManagedToolbarPinMode::kNotSet;
 }
 
 GlobalSettings::GlobalSettings() = default;

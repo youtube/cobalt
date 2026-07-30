@@ -260,6 +260,8 @@ const CGFloat kClearButtonWidthAndHeight = 40;
 
   tabGroupTextField.accessibilityIdentifier =
       kCreateTabGroupTextFieldIdentifier;
+  tabGroupTextField.accessibilityLabel = l10n_util::GetNSString(
+      IDS_IOS_TAB_GROUP_CREATION_TEXT_FIELD_ACCESSIBILITY_LABEL);
   tabGroupTextField.text = _title;
 
   [tabGroupTextField addTarget:self

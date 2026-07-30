@@ -11,6 +11,7 @@
 #import "ios/chrome/test/earl_grey/chrome_earl_grey_ui.h"
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
 #import "ios/chrome/test/earl_grey/chrome_test_case.h"
+#import "ios/chrome/test/earl_grey/chrome_xcui_actions.h"
 #import "ios/testing/earl_grey/app_launch_manager.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
 
@@ -35,35 +36,7 @@ id<GREYMatcher> RegularCellAtIndex(unsigned int index) {
       nil);
 }
 
-// Finds the element with the given `identifier` of given `type`.
-XCUIElement* GetElementMatchingIdentifier(XCUIApplication* app,
-                                          NSString* identifier,
-                                          XCUIElementType type) {
-  XCUIElementQuery* query = [[app.windows.firstMatch
-      descendantsMatchingType:type] matchingIdentifier:identifier];
-  return [query elementBoundByIndex:0];
-}
 
-// Drags and drops the cell with the given `src_cell_identifier` to the
-// `dst_cell_identifier` position.
-void DragDropTabStripTabCellInTabStripView(NSString* src_cell_identifier,
-                                           NSString* dst_cell_identifier) {
-  XCUIApplication* app = [[XCUIApplication alloc] init];
-  XCUIElement* src_element = GetElementMatchingIdentifier(
-      app, src_cell_identifier, XCUIElementTypeCell);
-  XCUICoordinate* start_point =
-      [src_element coordinateWithNormalizedOffset:CGVectorMake(0.5, 0.5)];
-
-  XCUIElement* dst_element = GetElementMatchingIdentifier(
-      app, dst_cell_identifier, XCUIElementTypeCell);
-  XCUICoordinate* end_point =
-      [dst_element coordinateWithNormalizedOffset:CGVectorMake(0.5, 0.5)];
-
-  [start_point pressForDuration:1.5
-           thenDragToCoordinate:end_point
-                   withVelocity:XCUIGestureVelocityDefault
-            thenHoldForDuration:1.0];
-}
 
 // Checks that the regular cell matching `tab_title` moved to `tab_index`
 void AssertRegularCellMovedToNewPosition(unsigned int tab_index,
@@ -109,8 +82,10 @@ void AssertRegularCellMovedToNewPosition(unsigned int tab_index,
   // Tab2: About Version
 
   // Move Tab0 to Tab2.
-  DragDropTabStripTabCellInTabStripView(IdentifierForRegularCellAtIndex(0),
-                                        IdentifierForRegularCellAtIndex(2));
+  chrome_test_util::LongPressCellAndDragToOffsetOf(
+      IdentifierForRegularCellAtIndex(0), /*src_window_number=*/0,
+      IdentifierForRegularCellAtIndex(2), /*dst_window_number=*/0,
+      CGVectorMake(0.5, 0.5));
   AssertRegularCellMovedToNewPosition(/*tab_index*/ 2,
                                       /*tab_title*/ @"New Tab");
 
@@ -119,8 +94,10 @@ void AssertRegularCellMovedToNewPosition(unsigned int tab_index,
   // Tab2: New Tab
 
   // Move Tab1 to Tab0.
-  DragDropTabStripTabCellInTabStripView(IdentifierForRegularCellAtIndex(1),
-                                        IdentifierForRegularCellAtIndex(0));
+  chrome_test_util::LongPressCellAndDragToOffsetOf(
+      IdentifierForRegularCellAtIndex(1), /*src_window_number=*/0,
+      IdentifierForRegularCellAtIndex(0), /*dst_window_number=*/0,
+      CGVectorMake(0.5, 0.5));
   AssertRegularCellMovedToNewPosition(/*tab_index*/ 0,
                                       /*tab_title*/ @"About Version");
 }

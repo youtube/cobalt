@@ -3,20 +3,9 @@
 // found in the LICENSE file.
 
 import type {ClusterAction, MetricsProxy, RelatedSearchAction, VisitAction, VisitType} from 'chrome://history/history.js';
-import {PageCallbackRouter, PageHandlerRemote} from 'chrome://history/history.js';
 import {TestBrowserProxy as BaseTestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
-import {TestMock} from 'chrome://webui-test/test_mock.js';
 
-export class TestBrowserProxy extends BaseTestBrowserProxy {
-  handler: TestMock<PageHandlerRemote>&PageHandlerRemote;
-  callbackRouter: PageCallbackRouter;
 
-  constructor() {
-    super([]);
-    this.handler = TestMock.fromClass(PageHandlerRemote);
-    this.callbackRouter = new PageCallbackRouter();
-  }
-}
 
 export class TestMetricsProxy extends BaseTestBrowserProxy implements
     MetricsProxy {

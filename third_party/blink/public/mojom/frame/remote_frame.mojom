@@ -330,6 +330,11 @@ interface RemoteFrame {
   // as an ad frame by Ad Tagging.
   SetReplicatedIsAdFrame(bool is_ad_frame);
 
+  // Update the replicated is-secure-context-root bit. Sourced from
+  // `ContentBrowserClient::IsSecureContextRoot()` at navigation commit;
+  // descendants' ancestor-walks stop at frames with this bit set.
+  SetReplicatedIsSecureContextRoot(bool is_secure_context_root);
+
   // Sets the replicated name and unique name for the frame. Used when the
   // name of a frame changes.
   SetReplicatedName(string name, string unique_name);

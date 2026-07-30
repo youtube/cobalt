@@ -1367,9 +1367,7 @@ class PlatformNotificationServiceIncomingCallTest
   // InProcessBrowserTest overrides.
   void SetUpInProcessBrowserTestFixture() override {
     scoped_feature_list_.InitWithFeatures(
-        {blink::features::kIncomingCallNotifications,
-         features::kIncomingCallNotifications},
-        {});
+        {features::kIncomingCallNotifications}, {});
   }
 
  private:

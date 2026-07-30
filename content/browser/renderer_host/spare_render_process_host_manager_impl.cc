@@ -456,8 +456,8 @@ RenderProcessHost* SpareRenderProcessHostManagerImpl::WarmupSpare(
   RenderProcessHost* spare_rph =
       !spare_rphs_.empty() ? spare_rphs_.at(0) : nullptr;
   if (spare_rph && spare_rph->GetBrowserContext() == browser_context) {
-    DCHECK_EQ(browser_context->GetDefaultStoragePartition(),
-              spare_rph->GetStoragePartition());
+    CHECK_EQ(browser_context->GetDefaultStoragePartition(),
+             spare_rph->GetStoragePartition(), base::NotFatalUntil::M152);
 
     // Use the new timeout if the specified timeout will be triggered after the
     // current timeout (or not triggered at all).
@@ -876,7 +876,8 @@ void SpareRenderProcessHostManagerImpl::SetDeferTimerTaskRunnerForTesting(
 
 void SpareRenderProcessHostManagerImpl::SetIsBrowserIdleForTesting(
     bool is_browser_idle) {
-  DCHECK(!PerformanceScenarioObserverList::GetForScope(ScenarioScope::kGlobal));
+  CHECK(!PerformanceScenarioObserverList::GetForScope(ScenarioScope::kGlobal),
+        base::NotFatalUntil::M152);
   SetIsBrowserIdle(is_browser_idle);
 }
 

@@ -614,6 +614,10 @@ test("gpu_unittests") {
 
   if (skia_use_dawn) {
     sources += [ "command_buffer/service/graphite_shared_context_unittest.cc" ]
+
+    if (is_win) {
+      sources += [ "ipc/service/dawn_texture_solid_color_pool_unittest.cc" ]
+    }
   }
 
   configs += [ "//build/config:precompiled_headers" ]
@@ -677,6 +681,10 @@ test("gpu_unittests") {
       "//third_party/dawn/src/dawn:proc",
       "//third_party/dawn/src/dawn/native",
     ]
+  }
+
+  if (skia_use_dawn && is_win) {
+    deps += [ "//media/base/win:test_support" ]
   }
 
   if (use_ozone) {

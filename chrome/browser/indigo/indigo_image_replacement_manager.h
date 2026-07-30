@@ -78,8 +78,7 @@ class IndigoImageReplacementManager
   // blink::mojom::ImageReplacementHost implementation:
   void ReplacementFrameAttached(
       const blink::LocalFrameToken& replacement_frame_token,
-      blink::mojom::ImageDataPtr original_image,
-      const std::optional<base::Token>& tracked_element_id) override;
+      blink::mojom::ReplacementDataPtr replacement_data) override;
 
  private:
   friend class content::PageUserData<IndigoImageReplacementManager>;

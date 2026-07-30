@@ -6,6 +6,6 @@ include_rules = [
   "+components/version_info",
   '+mojo/core/embedder/embedder.h',
   "+mojo/core/embedder/scoped_ipc_support.h",
-  '+mojo/proxy/switches.h',
+  "+chromeos/ash/components/mojo_proxy/service/switches.h",
   "+services/accessibility/android/public/mojom",
 ]

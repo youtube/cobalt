@@ -182,9 +182,10 @@ void BrowserCommandHandler::ExecuteCommand(Command command_id,
   std::move(callback).Run(command_executed);
 }
 
-void BrowserCommandHandler::ExecuteCommandWithDisposition(
+void BrowserCommandHandler::HandleCommandWithDisposition(
     int id,
-    WindowOpenDisposition disposition) {
+    WindowOpenDisposition disposition,
+    base::TimeTicks time_stamp) {
   const auto command = static_cast<Command>(id);
   base::UmaHistogramEnumeration(kPromoBrowserCommandHistogramName, command);
 

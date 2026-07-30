@@ -22,7 +22,9 @@ XRFrameRequestCallbackCollection::XRFrameRequestCallbackCollection(
 XRFrameRequestCallbackCollection::CallbackId
 XRFrameRequestCallbackCollection::RegisterCallback(
     V8XRFrameRequestCallback* callback) {
-  CallbackId id = ++next_callback_id_;
+  while (!IsValidCallbackId(++previous_callback_id_)) {
+  }
+  CallbackId id = previous_callback_id_;
   TRACE_EVENT_BEGIN("xr", "frameRequest", perfetto::Track(trace_id_base_ + id));
   auto add_result_frame_request = callback_frame_requests_.Set(id, callback);
   auto add_result_async_task = callback_async_tasks_.Set(

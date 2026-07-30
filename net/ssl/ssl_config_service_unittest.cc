@@ -27,6 +27,10 @@ class MockSSLConfigService : public SSLConfigService {
   // SSLConfigService implementation
   SSLContextConfig GetSSLContextConfig() override { return config_; }
 
+  EchMode GetEchMode(std::string_view hostname) const override {
+    return EchMode::kOpportunistic;
+  }
+
   bool CanShareConnectionWithClientCerts(
       std::string_view hostname) const override {
     return false;

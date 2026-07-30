@@ -52,7 +52,11 @@ class SocketBIOAdapterTest : public testing::TestWithParam<ReadIfReadySupport>,
     data->set_connect_data(MockConnect(SYNCHRONOUS, OK));
     factory_.AddSocketDataProvider(data);
     std::unique_ptr<StreamSocket> socket = factory_.CreateTransportClientSocket(
-        AddressList(), nullptr, nullptr, nullptr, NetLogSource());
+        AddressList(),
+        // No need to use a target network here. This is used only for testing
+        // in non-multi-network scenarios.
+        handles::kInvalidNetworkHandle, nullptr, nullptr, nullptr,
+        NetLogSource());
     CHECK_EQ(OK, socket->Connect(CompletionOnceCallback()));
     return socket;
   }

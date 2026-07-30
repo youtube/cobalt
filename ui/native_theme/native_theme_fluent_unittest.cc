@@ -269,6 +269,20 @@ TEST_F(NativeThemeFluentTest, GetArrowForegroundColor) {
           kColorWebNativeControlScrollbarArrowForegroundDisabled),
       GetScrollbarArrowForegroundColor(bg_color, NativeTheme::kDisabled,
                                        kNoExtraParams, color_provider.get()));
+  // When there is a css color set in the extra params, we modify the color
+  // when it is hovered or pressed to signal the change in state.
+  static constexpr auto kCssColor = SK_ColorGREEN;
+  static constexpr NativeTheme::ScrollbarArrowExtraParams kColorParams = {
+      .thumb_color = kCssColor};
+  EXPECT_EQ(kCssColor, GetScrollbarArrowForegroundColor(
+                           bg_color, NativeTheme::kNormal, kColorParams,
+                           color_provider.get()));
+  EXPECT_NE(kCssColor, GetScrollbarArrowForegroundColor(
+                           bg_color, NativeTheme::kHovered, kColorParams,
+                           color_provider.get()));
+  EXPECT_NE(kCssColor, GetScrollbarArrowForegroundColor(
+                           bg_color, NativeTheme::kPressed, kColorParams,
+                           color_provider.get()));
 }
 
 // Verify that GetScrollbarArrowBackgroundColor returns the correct color. The
@@ -295,6 +309,19 @@ TEST_F(NativeThemeFluentTest, GetArrowBackgroundColor) {
             pressed_color);
   EXPECT_EQ(normal_color, hovered_color);
   EXPECT_EQ(normal_color, pressed_color);
+  // The background color should not change regardless of the state.
+  static constexpr auto kCssColor = SK_ColorBLUE;
+  static constexpr NativeTheme::ScrollbarArrowExtraParams kColorParams = {
+      .track_color = kCssColor};
+  EXPECT_EQ(kCssColor,
+            GetScrollbarArrowBackgroundColor(NativeTheme::kNormal, kColorParams,
+                                             color_provider.get()));
+  EXPECT_EQ(kCssColor,
+            GetScrollbarArrowBackgroundColor(
+                NativeTheme::kHovered, kColorParams, color_provider.get()));
+  EXPECT_EQ(kCssColor,
+            GetScrollbarArrowBackgroundColor(
+                NativeTheme::kPressed, kColorParams, color_provider.get()));
 }
 
 INSTANTIATE_TEST_SUITE_P(All,

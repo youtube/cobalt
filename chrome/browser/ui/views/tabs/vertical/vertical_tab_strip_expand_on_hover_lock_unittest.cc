@@ -8,7 +8,6 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/views/test/views_test_base.h"
-#include "ui/views/view.h"
 
 class VerticalTabStripExpandOnHoverLockTest : public views::ViewsTestBase {
  public:

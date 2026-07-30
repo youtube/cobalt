@@ -2462,7 +2462,7 @@ class InterestGroupLocalNetworkBrowserTest : public InterestGroupBrowserTest {
   // "Content-Security-Policy: treat-as-public-address", because that's not
   // implemented in the network stack, and is only applied after getting the
   // response (i.e., not when establishing a new connection and deciding if it
-  // needs PNA preflights).
+  // needs LNA permissions).
   //
   // embedded_https_test_server() is also served from a localhost IP address,
   // but without the command line switch, that's considered

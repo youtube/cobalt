@@ -18,6 +18,7 @@
 #include "chrome/browser/actor/actor_metrics.h"
 #include "chrome/browser/actor/actor_proto_conversion.h"
 #include "chrome/browser/actor/actor_tab_data.h"
+#include "chrome/browser/actor/actor_util.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_mojom_traits.h"
@@ -27,6 +28,7 @@
 #include "components/content_extraction/content/browser/inner_text.h"
 #include "components/favicon/content/content_favicon_driver.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
+#include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/page_content_annotations/content/page_context_fetcher.h"
 #include "components/tabs/public/tab_interface.h"
 #include "mojo/public/cpp/base/proto_wrapper.h"
@@ -156,9 +158,23 @@ void HandleFetchPageResult(
   }
   if (page_context.screenshot_result.has_value()) {
     if (journal) {
+      std::optional<std::vector<uint8_t>> iframe_screenshot = std::nullopt;
+      if (page_context.annotated_page_content_result.has_value() &&
+          page_context.annotated_page_content_result->proto
+                  .gemini_in_chrome_page_metadata()
+                  .screenshot_info()
+                  .iframe_info_size() > 0) {
+        iframe_screenshot = actor::GetScreenshotWithIframeBoundingBoxes(
+            page_context.screenshot_result->screenshot_data,
+            page_context.screenshot_result->mime_type,
+            page_context.annotated_page_content_result->proto
+                .gemini_in_chrome_page_metadata()
+                .screenshot_info());
+      }
       journal->LogScreenshot(tab_context->tab_data->url, task_id,
                              page_context.screenshot_result->mime_type,
-                             page_context.screenshot_result->screenshot_data);
+                             page_context.screenshot_result->screenshot_data,
+                             iframe_screenshot);
     }
 
     tab_context->viewport_screenshot = glic::mojom::Screenshot::New(

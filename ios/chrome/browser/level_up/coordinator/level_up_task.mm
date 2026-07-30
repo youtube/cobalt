@@ -48,11 +48,8 @@
   return _taskInfo->GetCategory();
 }
 
-- (void (^)(void))navigationAction {
-  base::RepeatingClosure navClosure = _taskInfo->GetNavigationAction();
-  return [^{
-    navClosure.Run();
-  } copy];
+- (const TaskInfo*)taskInfo {
+  return _taskInfo.get();
 }
 
 @end

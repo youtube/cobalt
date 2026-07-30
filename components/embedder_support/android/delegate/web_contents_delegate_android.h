@@ -151,6 +151,11 @@ class WebContentsDelegateAndroid : public content::WebContentsDelegate {
   // reference instead.
   void SetContentsBounds(content::WebContents* source,
                          const gfx::Rect& bounds) override;
+  void PrintCrossProcessSubframe(
+      content::WebContents* web_contents,
+      const gfx::Rect& rect,
+      int document_cookie,
+      content::RenderFrameHost* subframe_host) const override;
 
  protected:
   base::android::ScopedJavaLocalRef<jobject> GetJavaDelegate(JNIEnv* env) const;

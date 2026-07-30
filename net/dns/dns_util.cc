@@ -12,7 +12,6 @@
 #include <cstring>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <vector>
 
 #include "base/check_op.h"
@@ -26,6 +25,7 @@
 #include "net/dns/public/doh_provider_entry.h"
 #include "net/dns/public/util.h"
 #include "net/third_party/uri_template/uri_template.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
 #if BUILDFLAG(IS_POSIX)
 #include <net/if.h>
@@ -70,9 +70,10 @@ DohProviderEntry::List GetDohProviderEntriesFromNameservers(
 
 }  // namespace
 
-std::string GetURLFromTemplateWithoutParameters(const string& server_template) {
+std::string GetURLFromTemplateWithoutParameters(
+    const std::string& server_template) {
   std::string url_string;
-  std::unordered_map<string, string> parameters;
+  absl::flat_hash_map<std::string, std::string> parameters;
   uri_template::Expand(server_template, parameters, &url_string);
   return url_string;
 }

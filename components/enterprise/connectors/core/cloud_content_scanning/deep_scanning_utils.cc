@@ -606,6 +606,8 @@ DeepScanAccessPoint AccessPointFromRequest(
         return DeepScanAccessPoint::PASTE;
       }
       return DeepScanAccessPoint::UPLOAD;
+    case DATA_COPIED:
+      return DeepScanAccessPoint::COPY;
     case BULK_DATA_ENTRY:
       return DeepScanAccessPoint::PASTE;
     case PRINT:

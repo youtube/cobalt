@@ -501,6 +501,21 @@ TEST_F(FindsServiceTest, VerifyMaxHistoryEntriesDefault) {
   service_->ExecuteModelAndScheduleNotification(base::DoNothing());
 }
 
+TEST_F(FindsServiceTest, VerifyRestrictToSyncedUrls) {
+  EXPECT_CALL(*history_service_, QueryHistory(_, _, _, _))
+      .WillOnce([](const std::u16string& text_query,
+                   const history::QueryOptions& options,
+                   history::HistoryService::QueryHistoryCallback callback,
+                   base::CancelableTaskTracker* tracker) {
+        EXPECT_TRUE(options.restrict_to_synced_urls);
+        history::QueryResults results;
+        std::move(callback).Run(std::move(results));
+        return base::CancelableTaskTracker::kBadTaskId;
+      });
+
+  service_->ExecuteModelAndScheduleNotification(base::DoNothing());
+}
+
 TEST_F(FindsServiceTest, EmptyNotificationService) {
   auto service = std::make_unique<FindsService>(opt_guide_service_.get(),
                                                 history_service_.get(), &prefs_,

@@ -113,14 +113,14 @@ void OfflinePageTabHelper::NotifyMhtmlPageLoadAttempted(
     MHTMLLoadResult load_result,
     const GURL& main_frame_url,
     base::Time date) {
-  auto* current_target_frame =
-      mhtml_page_notifier_receivers_.GetCurrentTargetFrame();
-  if (current_target_frame != current_target_frame->GetOutermostMainFrame()) {
+  content::RenderFrameHost& current_target_frame =
+      mhtml_page_notifier_receivers_.CurrentTargetFrame();
+  if (&current_target_frame != current_target_frame.GetOutermostMainFrame()) {
     // Only handle loads from outermost main frames.
     return;
   }
-  if (!current_target_frame->IsInPrimaryMainFrame() &&
-      !current_target_frame->IsInLifecycleState(
+  if (!current_target_frame.IsInPrimaryMainFrame() &&
+      !current_target_frame.IsInLifecycleState(
           content::RenderFrameHost::LifecycleState::kPendingCommit)) {
     // The MHTML load notification attempt is sent in the middle of committing
     // the MHTML document in the renderer. The RenderFrameHost that hosts that

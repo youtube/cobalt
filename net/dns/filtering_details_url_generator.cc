@@ -7,7 +7,6 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 
 #include "base/no_destructor.h"
 #include "net/third_party/uri_template/uri_template.h"
@@ -95,7 +94,7 @@ std::optional<std::string> FilteringDetailsUrlGenerator::GenerateUrl(
       !base::FeatureList::IsEnabled(*it->second.feature)) {
     return std::nullopt;
   }
-  std::unordered_map<std::string, std::string> params = {
+  absl::flat_hash_map<std::string, std::string> params = {
       {"id", std::string(id)}};
   std::string url;
   bool success = uri_template::Expand(it->second.url_template, params, &url);

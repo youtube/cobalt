@@ -156,7 +156,7 @@ InlineItemSegments::Iterator InlineItemSegments::Ranges(
       &InlineItemSegment::EndOffset);
   CheckOffset(start_offset, base::to_address(iter));
   return Iterator(start_offset, end_offset, span,
-                  std::distance(segments_.data(), base::to_address(iter)));
+                  CheckedDistance(segments_.data(), base::to_address(iter)));
 }
 
 void InlineItemSegments::ComputeSegments(

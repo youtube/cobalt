@@ -8,8 +8,6 @@ import type {ViewerThumbnailElement} from './viewer_thumbnail.js';
 
 export function getHtml(this: ViewerThumbnailElement) {
   return html`
-<div id="thumbnail" @click="${this.onClick_}" role="button">
-  <div id="canvas-container"></div>
-</div>
+<div id="thumbnail" @click="${this.onClick_}" role="button"></div>
 <div id="pageNumber">${this.pageNumber}</div>`;
 }

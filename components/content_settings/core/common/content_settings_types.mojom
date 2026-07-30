@@ -487,5 +487,8 @@ enum ContentSettingsType {
   // - ALLOW: Skip the prompt and allow adding sub apps.
   // - BLOCK: Skip the prompt and block adding sub apps.
   SUB_APPS_WITHOUT_PROMPTS,
+
+  // Controls the display of the inline cue menu in a website.
+  INLINE_CUE_MENU,
 };
 // LINT.ThenChange(//components/content_settings/core/browser/content_settings_uma_util.cc:kHistogramValue)

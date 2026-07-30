@@ -44,6 +44,7 @@ import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.layouts.LayoutManager;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.TabObscuringHandler;
 import org.chromium.chrome.browser.theme.TopUiThemeColorProvider;
 import org.chromium.chrome.browser.ui.side_ui.SideUiStateProvider;
 import org.chromium.chrome.test.ChromeJUnit4RunnerDelegate;
@@ -100,6 +101,7 @@ public class BookmarkBarRenderTest {
 
     // TODO(crbug.com/496407828): Add render tests for side panel logic
     @Mock private OneshotSupplierImpl<SideUiStateProvider> mSideUiStateProviderSupplier;
+    @Mock private TabObscuringHandler mTabObscuringHandler;
 
     private BookmarkBar mView;
 
@@ -142,7 +144,8 @@ public class BookmarkBarRenderTest {
                             mTopControlsStacker,
                             ObservableSuppliers.alwaysNull(),
                             mTopUiThemeColorProvider,
-                            mSideUiStateProviderSupplier);
+                            mSideUiStateProviderSupplier,
+                            mTabObscuringHandler);
 
                     assertNotNull(mView);
                     ChromeRenderTestRule.sanitize(mView);

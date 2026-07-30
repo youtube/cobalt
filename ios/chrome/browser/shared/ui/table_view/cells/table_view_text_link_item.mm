@@ -7,7 +7,6 @@
 #import "base/apple/foundation_util.h"
 #import "base/ios/ns_range.h"
 #import "ios/chrome/browser/net/model/crurl.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/string_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
@@ -26,9 +25,8 @@
   return self;
 }
 
-- (void)configureCell:(LegacyTableViewCell*)tableCell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:tableCell withStyler:styler];
+- (void)configureCell:(LegacyTableViewCell*)tableCell {
+  [super configureCell:tableCell];
   TableViewTextLinkCell* cell =
       base::apple::ObjCCastStrict<TableViewTextLinkCell>(tableCell);
   [cell setText:self.text linkURLs:self.linkURLs linkRanges:self.linkRanges];

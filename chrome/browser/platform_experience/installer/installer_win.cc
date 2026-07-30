@@ -7,16 +7,14 @@
 #include "base/command_line.h"
 #include "base/enterprise_util.h"
 #include "base/files/file_path.h"
-#include "base/files/file_util.h"
-#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/path_service.h"
 #include "base/process/launch.h"
 #include "base/win/scoped_variant.h"
 #include "base/win/windows_version.h"
 #include "chrome/browser/google/google_update_app_command.h"
-#include "chrome/common/chrome_paths.h"
-#include "chrome/install_static/install_details.h"
+#include "chrome/browser/platform_experience/delegated_tasks/peh_launcher.h"
+#include "chrome/install_static/install_util.h"
 #include "chrome/installer/util/install_util.h"
 
 namespace {
@@ -26,25 +24,12 @@ platform_experience::InstallerLauncherDelegate*
 
 // Switch used to install platform_experience_helper
 constexpr char kPlatformExperienceHelperForceInstallSwitch[] = "force-install";
-// Directory under which platform_experience_helper is installed
-constexpr wchar_t kPlatformExperienceHelperDir[] = L"PlatformExperienceHelper";
-// Name of the platform_experience_helper executable
-constexpr wchar_t kPlatformExperienceHelperExe[] =
-    L"platform_experience_helper.exe";
 
 // This function might block.
 // Returns true if the platform_experience_helper is installed.
 // Returns true if it can't determine whether it's installed or not.
 bool PlatformExperienceHelperMightBeInstalled() {
-  base::FilePath peh_base_dir = base::PathService::CheckedGet(
-      install_static::IsSystemInstall()
-          ? static_cast<int>(base::DIR_EXE)
-          : static_cast<int>(chrome::DIR_USER_DATA));
-
-  base::FilePath peh_exe_path =
-      peh_base_dir.Append(kPlatformExperienceHelperDir)
-          .Append(kPlatformExperienceHelperExe);
-  return base::PathExists(peh_exe_path);
+  return !platform_experience::PehLauncher().GetBinaryPath().empty();
 }
 
 // This function might block.

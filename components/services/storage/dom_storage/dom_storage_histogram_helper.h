@@ -86,6 +86,16 @@ void LogDomStorageRecoveryOutcome(std::string_view storage_type_prefix,
 void RecordCommitErrorCountAtReset(std::string_view storage_type_prefix,
                                    int commit_error_count);
 
+// Classifies the histogram suffix for DomStorage metrics.
+enum class DatabaseMetricsType {
+  kInMemory,            // ".InMemory"
+  kOnDisk,              // ".OnDisk"
+  kOnDiskExperimental,  // ".OnDiskExperimental"
+};
+
+// Returns the histogram suffix string for the given metrics type.
+std::string_view GetHistogramSuffix(DatabaseMetricsType type);
+
 }  // namespace storage
 
 #endif  // COMPONENTS_SERVICES_STORAGE_DOM_STORAGE_DOM_STORAGE_HISTOGRAM_HELPER_H_

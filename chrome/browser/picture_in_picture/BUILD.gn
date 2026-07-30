@@ -179,6 +179,10 @@ source_set("impl") {
   if (use_ozone) {
     deps += [ "//ui/ozone" ]
   }
+
+  if (!is_android) {
+    deps += [ "//chrome/browser/ui:browser_tab_strip_tracker" ]
+  }
 }
 
 source_set("unit_tests") {

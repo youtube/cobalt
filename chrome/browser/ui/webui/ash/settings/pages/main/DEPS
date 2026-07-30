@@ -24,7 +24,6 @@ include_rules = [
   "+chrome/browser/ui/webui/plural_string_handler.h",
   "+chrome/browser/ui/webui/policy_indicator_localized_strings_provider.h",
   "+chrome/browser/ui/webui/settings",
-  "+chrome/common",
   "+chrome/grit",
   "+chrome/test",
 ]

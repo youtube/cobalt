@@ -53,7 +53,7 @@ class CORE_EXPORT MarkupAccumulator {
     kUnsynchronized,
   };
 
-  MarkupAccumulator(AbsoluteURLs,
+  MarkupAccumulator(ResolveUrls,
                     SerializationType,
                     const ShadowRootInclusion&,
                     AttributesMode = AttributesMode::kSynchronized);
@@ -102,7 +102,7 @@ class CORE_EXPORT MarkupAccumulator {
   ShadowRootInclusion shadow_root_inclusion_;
 
  private:
-  bool SerializeAsHTML() const;
+  bool SerializeAsHtml() const;
   String ToString() { return markup_.ToString(); }
 
   void AppendString(const String&);
@@ -118,7 +118,7 @@ class CORE_EXPORT MarkupAccumulator {
   void AppendStartTagClose(const Element&);
   void AppendNamespace(const AtomicString& prefix,
                        const AtomicString& namespace_uri);
-  void AppendAttributeAsXMLWithNamespace(const Element& element,
+  void AppendAttributeAsXmlWithNamespace(const Element& element,
                                          const Attribute& attribute,
                                          const String& value);
   bool ShouldAddNamespaceAttribute(const Attribute& attribute,
@@ -132,7 +132,7 @@ class CORE_EXPORT MarkupAccumulator {
   AtomicString RetrievePreferredPrefixString(const AtomicString& ns,
                                              const AtomicString& prefix);
   void AddPrefix(const AtomicString& prefix, const AtomicString& namespace_uri);
-  AtomicString LookupNamespaceURI(const AtomicString& prefix);
+  AtomicString LookupNamespaceUri(const AtomicString& prefix);
   AtomicString GeneratePrefix(const AtomicString& new_namespace);
 
   virtual void AppendCustomAttributes(const Element&);

@@ -1,7 +1,6 @@
 ci/ASAN Debug
 ci/ASAN Release
 ci/ASAN Release Media
-ci/ASan Debug (32-bit x86 with V8-ARM)
 ci/ASan Release (32-bit x86 with V8-ARM)
 ci/ASan Release Media (32-bit x86 with V8-ARM)
 ci/Android FYI Experimental Release (Pixel 6)
@@ -325,7 +324,6 @@ ci/chromeos-amd64-generic-cfi-thin-lto-rel
 ci/chromeos-amd64-generic-dbg
 ci/chromeos-amd64-generic-rel
 ci/chromeos-amd64-generic-rel-gtest
-ci/chromeos-amd64-generic-rel-tast
 ci/chromeos-arm-generic-dbg
 ci/chromeos-arm-generic-rel
 ci/chromeos-arm64-generic-rel
@@ -501,8 +499,6 @@ try/chromeos-amd64-generic-asan-rel
 try/chromeos-amd64-generic-cfi-thin-lto-rel
 try/chromeos-amd64-generic-dbg
 try/chromeos-amd64-generic-rel
-try/chromeos-amd64-generic-rel-gtest
-try/chromeos-amd64-generic-rel-gtest-and-tast
 try/chromeos-arm-generic-dbg
 try/chromeos-arm-generic-rel
 try/chromeos-arm64-generic-rel
@@ -607,7 +603,6 @@ try/linux-asan-dbg
 try/linux-asan-media-rel
 try/linux-asan-media-v8-arm-rel
 try/linux-asan-rel
-try/linux-asan-v8-arm-dbg
 try/linux-asan-v8-arm-rel
 try/linux-bfcache-rel
 try/linux-blink-asan-rel

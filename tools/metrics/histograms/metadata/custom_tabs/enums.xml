@@ -35,12 +35,6 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/contextmenu/ChromeContextMenuPopulator.java:ContextualCustomActionType) -->
 
-<enum name="CustomTabsAuthScheme">
-  <int value="0" label="Other/Custom"/>
-  <int value="1" label="HTTP"/>
-  <int value="2" label="HTTPS"/>
-</enum>
-
 <enum name="CustomTabsBrandingAppIdType">
   <summary>Used by CustomTabs.Branding.AppIdType</summary>
   <int value="0" label="INVALID"/>
@@ -208,6 +202,39 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!--LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/customtabs/CustomTabTabPersistencePolicy.java:CustomTabsOpenType) -->
+
+<enum name="CustomTabsPageContentEligibility">
+  <int value="0" label="ELIGIBILITY_CHECK_STARTED"/>
+  <int value="1" label="ELIGIBLE_ENABLED_BY_CHROME"/>
+  <int value="2" label="ELIGIBLE_ENABLED_BY_EMBEDDER"/>
+  <int value="3" label="ELIGIBLE_REUSED_ENABLED_BY_CHROME"/>
+  <int value="4" label="ELIGIBLE_REUSED_ENABLED_BY_EMBEDDER"/>
+  <int value="5" label="NOT_ELIGIBLE_NO_PAGE_CONTENT_REQUEST_AFTER_PARSING"/>
+  <int value="6" label="NOT_ELIGIBLE_NO_PAGE_CONTENT_REQUEST_EXTRA"/>
+  <int value="7" label="NOT_ELIGIBLE_NO_PERMISSIONS"/>
+  <int value="8" label="NOT_ELIGIBLE_NOT_ENABLED"/>
+  <int value="9" label="NOT_ELIGIBLE_NOT_VERIFIED"/>
+  <int value="10" label="NOT_ELIGIBLE_REUSED"/>
+</enum>
+
+<enum name="CustomTabsPageContentExtractionResult">
+  <int value="0" label="FAILED_CURRENT_TAB_NULL"/>
+  <int value="1" label="FAILED_NO_CONTENT_RETURNED"/>
+  <int value="2" label="FAILED_NO_REQUESTS"/>
+  <int value="3" label="FAILED_NO_REQUESTS_FOR_VIEW_ID"/>
+  <int value="4" label="FAILED_SHOULD_NOT_ADD_PAGE_CONTENT_FOR_CURRENT_TAB"/>
+  <int value="5" label="SUCCESS_APC"/>
+  <int value="6" label="SUCCESS_APC_PLUS_IMAGE"/>
+  <int value="7" label="SUCCESS_IMAGE"/>
+  <int value="8" label="SUCCESS_PDF"/>
+  <int value="9" label="SUCCESS_PDF_IMAGE"/>
+</enum>
+
+<enum name="CustomTabsPageContentRequestedType">
+  <int value="0" label="Annotated Page Content"/>
+  <int value="1" label="PDF"/>
+  <int value="2" label="Screenshot"/>
+</enum>
 
 <enum name="CustomTabsParallelRequestStatusOnStart">
   <int value="0" label="No Parallel Request was requested"/>

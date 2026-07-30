@@ -1363,10 +1363,11 @@ bool PreReadFile(const FilePath& file_path,
     return false;
   }
 
+  const base::span<uint8_t> bytes = mapped_file.mutable_bytes();
   const ::SIZE_T length =
       std::min(base::saturated_cast<::SIZE_T>(max_bytes),
-               base::saturated_cast<::SIZE_T>(mapped_file.length()));
-  ::_WIN32_MEMORY_RANGE_ENTRY address_range = {mapped_file.data(), length};
+               base::saturated_cast<::SIZE_T>(bytes.size()));
+  ::_WIN32_MEMORY_RANGE_ENTRY address_range = {bytes.data(), length};
   // Use ::PrefetchVirtualMemory(). This is better than a
   // simple data file read, more from a RAM perspective than CPU. This is
   // because reading the file as data results in double mapping to

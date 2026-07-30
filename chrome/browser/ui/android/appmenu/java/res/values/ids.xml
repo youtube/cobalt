@@ -8,4 +8,5 @@ found in the LICENSE file.
 <resources>
     <!-- App menu item custom tags -->
     <item type="id" name="menu_item_enter_anim_id" />
+    <item type="id" name="empty_item_menu_id" />
 </resources>

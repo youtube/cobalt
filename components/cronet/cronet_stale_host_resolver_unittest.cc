@@ -204,7 +204,8 @@ class CronetStaleHostResolverTest : public testing::Test {
     base::TimeDelta ttl(base::Seconds(kCacheEntryTTLSec));
     net::HostCache::Key key(kHostname, net::DnsQueryType::UNSPECIFIED, 0,
                             net::HostResolverSource::ANY,
-                            net::NetworkAnonymizationKey());
+                            net::NetworkAnonymizationKey(),
+                            net::handles::kInvalidNetworkHandle);
     net::HostCache::Entry entry(
         error,
         error == net::OK ? MakeEndpoints(kCacheAddress)
@@ -228,7 +229,8 @@ class CronetStaleHostResolverTest : public testing::Test {
 
     net::HostCache::Key key(kHostname, net::DnsQueryType::UNSPECIFIED, 0,
                             net::HostResolverSource::ANY,
-                            net::NetworkAnonymizationKey());
+                            net::NetworkAnonymizationKey(),
+                            net::handles::kInvalidNetworkHandle);
     base::TimeTicks now = tick_clock_.NowTicks();
     net::HostCache::EntryStaleness stale;
     EXPECT_TRUE(resolver_->GetHostCache()->LookupStale(key, now, &stale));

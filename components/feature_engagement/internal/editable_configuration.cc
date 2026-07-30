@@ -37,6 +37,12 @@ void EditableConfiguration::AddAllowedEventPrefix(const std::string& prefix) {
   event_prefixes_.insert(prefix);
 }
 
+bool EditableConfiguration::HasFeatureConfig(
+    const base::Feature& feature) const {
+  const auto it = configs_.find(feature.name);
+  return it != configs_.end() && it->second.valid;
+}
+
 const FeatureConfig& EditableConfiguration::GetFeatureConfig(
     const base::Feature& feature) const {
   auto it = configs_.find(feature.name);

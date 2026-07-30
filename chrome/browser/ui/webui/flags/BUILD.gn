@@ -19,6 +19,7 @@ source_set("flags") {
     "//chrome/browser:flags",
     "//chrome/browser/lifetime",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/ui:ui_features",
     "//components/infobars/content",
     "//components/infobars/core",
     "//components/pref_registry",
@@ -52,6 +53,7 @@ source_set("unit_tests") {
   deps = [
     ":flags",
     "//base/test:test_support",
+    "//chrome/browser/ui:ui_features",
     "//components/webui/flags",
     "//content/public/common",
     "//content/test:test_support",

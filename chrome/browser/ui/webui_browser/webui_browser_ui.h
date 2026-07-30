@@ -95,7 +95,7 @@ class WebUIBrowserUI : public ui::MojoWebUIController,
 
   Browser* browser() { return browser_; }
   WebUIBrowserWindow* browser_window() {
-    return static_cast<WebUIBrowserWindow*>(browser_->window());
+    return WebUIBrowserWindow::FromBrowser(browser_);
   }
 
   webui_browser::mojom::Page* page() {

@@ -67,6 +67,7 @@ class ManifestBrokerState final : public OnDeviceCapability,
   void SetUseCaseRequested(const std::string& use_case,
                            bool requested) override;
   void UninstallModels() override;
+  void ResetModelCrashCount() override;
 
   PerformanceClassifier& performance_classifier() {
     return performance_classifier_;

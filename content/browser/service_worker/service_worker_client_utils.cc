@@ -646,6 +646,7 @@ void NavigateClient(
           ? rfhi->GetProcess()->GetDeprecatedID()
           : ChildProcessHost::kInvalidUniqueID /* initiator_process_id */,
       url::Origin::Create(script_url), /* initiator_base_url= */ std::nullopt,
+      set_initiator ? rfhi->CreateInitiatorStateFromCurrentFrame() : nullptr,
       nullptr /* post_body */, std::string() /* extra_headers */,
       Referrer::SanitizeForRequest(
           url, Referrer(script_url, network::mojom::ReferrerPolicy::kDefault)),

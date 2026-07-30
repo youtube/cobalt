@@ -15,8 +15,8 @@ pub fn shared_brotli_decode_c(
     shared_dictionary: Option<&[u8]>,
     max_uncompressed_length: usize,
 ) -> Result<Vec<u8>, DecodeError> {
-    // Safety: Both `alloc_func` and `free_func` are `None` which is allowed. This
-    // also makes the `opaque` (3rd argument) irrelevant.
+    // Safety: Both `alloc_func` and `free_func` are `None` which is allowed. This also makes the
+    // `opaque` (3rd argument) irrelevant.
     let decoder = NonNull::new(unsafe { BrotliDecoderCreateInstance(None, None, ptr::null_mut()) })
         .ok_or(DecodeError::InitFailure)?;
     let res = decode(decoder, encoded, shared_dictionary, max_uncompressed_length);
@@ -33,9 +33,8 @@ fn decode(
     max_uncompressed_length: usize,
 ) -> Result<Vec<u8>, DecodeError> {
     if let Some(shared_dictionary) = shared_dictionary {
-        // Safety: Decoder points to a valid `BrotliDecoderState` object. The shared
-        // dictionary pointer and length are valid as they come from a Rust
-        // slice.
+        // Safety: Decoder points to a valid `BrotliDecoderState` object. The shared dictionary
+        // pointer and length are valid as they come from a Rust slice.
         let attach_dictionary_succeeded = unsafe {
             BrotliDecoderAttachDictionary(
                 decoder.as_ptr(),
@@ -60,8 +59,8 @@ fn decode(
     loop {
         // Safety: All pointers are valid and non-null. `next_out` is a pointer with at
         // `available_in` bytes available within `sink`. This is managed by
-        // `BrotliDecoderDecompressStream` itself and the variables are not mutated
-        // outside of this context.
+        // `BrotliDecoderDecompressStream` itself and the variables are not mutated outside of this
+        // context.
         let result = unsafe {
             BrotliDecoderDecompressStream(
                 decoder.as_ptr(),

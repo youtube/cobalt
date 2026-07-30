@@ -7,6 +7,8 @@
 #import "base/run_loop.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
+#import "ios/web/js_messaging/web_view_web_state_map.h"
+#import "ios/web/public/test/fakes/fake_web_state.h"
 #import "ios/web/public/test/web_test.h"
 #import "ios/web/public/webui/web_ui_ios_controller.h"
 #import "ios/web/public/webui/web_ui_ios_controller_factory.h"
@@ -147,6 +149,10 @@ TEST_F(CRWWebUISchemeManagerTest, StartTaskWithCorrectURL) {
   request.mainDocumentURL = GetWebUIURL();
   OCMStub([web_view URL]).andReturn(request.mainDocumentURL);
 
+  web::FakeWebState web_state;
+  web_state.SetCurrentURL(net::GURLWithNSURL(request.mainDocumentURL));
+  web::SetAssociatedWebViewForWebState(web_view, &web_state);
+
   url_scheme_task.request = request;
 
   [scheme_handler webView:web_view startURLSchemeTask:url_scheme_task];
@@ -154,6 +160,8 @@ TEST_F(CRWWebUISchemeManagerTest, StartTaskWithCorrectURL) {
   RespondWithData(net::GURLWithNSURL(request.URL), "{}");
   EXPECT_TRUE(url_scheme_task.receivedData);
   EXPECT_FALSE(url_scheme_task.receivedError);
+
+  web::ClearAssociatedWebViewForWebState(web_view, &web_state);
 }
 
 // Tests that the error returned is the same as the error from the factory.
@@ -170,6 +178,10 @@ TEST_F(CRWWebUISchemeManagerTest, ErrorReceived) {
   url_scheme_task.request = request;
   OCMStub([web_view URL]).andReturn(request.URL);
 
+  web::FakeWebState web_state;
+  web_state.SetCurrentURL(net::GURLWithNSURL(request.mainDocumentURL));
+  web::SetAssociatedWebViewForWebState(web_view, &web_state);
+
   [scheme_handler webView:web_view startURLSchemeTask:url_scheme_task];
 
   RespondWithData(net::GURLWithNSURL(request.URL), "{}");
@@ -181,12 +193,17 @@ TEST_F(CRWWebUISchemeManagerTest, ErrorReceived) {
   request.mainDocumentURL = [NSURL URLWithString:@"invalidScheme://page"];
   OCMStub([web_view URL]).andReturn(request.mainDocumentURL);
   url_scheme_task.request = request;
+
+  web_state.SetCurrentURL(net::GURLWithNSURL(request.mainDocumentURL));
+
   [scheme_handler webView:web_view startURLSchemeTask:url_scheme_task];
 
   RespondWithData(net::GURLWithNSURL(request.URL), "{}");
   EXPECT_FALSE(url_scheme_task.receivedData);
   EXPECT_TRUE(url_scheme_task.receivedError);
   EXPECT_EQ(NSURLErrorUnsupportedURL, url_scheme_task.error.code);
+
+  web::ClearAssociatedWebViewForWebState(web_view, &web_state);
 }
 
 // Tests that calling start on the scheme handler returns an error when the URL
@@ -201,11 +218,17 @@ TEST_F(CRWWebUISchemeManagerTest, StartTaskWithWrongMainDocumentURL) {
   OCMStub([web_view URL]).andReturn(request.mainDocumentURL);
   url_scheme_task.request = request;
 
+  web::FakeWebState web_state;
+  web_state.SetCurrentURL(net::GURLWithNSURL(request.mainDocumentURL));
+  web::SetAssociatedWebViewForWebState(web_view, &web_state);
+
   [scheme_handler webView:web_view startURLSchemeTask:url_scheme_task];
 
   RespondWithData(net::GURLWithNSURL(request.URL), "{}");
   EXPECT_FALSE(url_scheme_task.receivedData);
   EXPECT_TRUE(url_scheme_task.receivedError);
+
+  web::ClearAssociatedWebViewForWebState(web_view, &web_state);
 }
 
 // Tests that same-origin logic blocks subresource requests from non-WebUI pages
@@ -226,6 +249,10 @@ TEST_F(CRWWebUISchemeManagerTest, WebUISourcesBlockedDuringProvisionalLoads) {
   OCMStub([web_view backForwardList]).andReturn(bf_list);
   OCMStub([web_view URL]).andReturn(provisional_url);
 
+  web::FakeWebState web_state;
+  web_state.SetCurrentURL(net::GURLWithNSURL(committed_url));
+  web::SetAssociatedWebViewForWebState(web_view, &web_state);
+
   // Attacker-crafted subresource task from evil.com targeting chrome://version
   FakeSchemeTask* url_scheme_task = [[FakeSchemeTask alloc] init];
   NSMutableURLRequest* request = [NSMutableURLRequest
@@ -240,6 +267,8 @@ TEST_F(CRWWebUISchemeManagerTest, WebUISourcesBlockedDuringProvisionalLoads) {
   EXPECT_FALSE(url_scheme_task.receivedData);
   EXPECT_TRUE(url_scheme_task.receivedError);
   EXPECT_EQ(NSURLErrorNoPermissionsToReadFile, url_scheme_task.error.code);
+
+  web::ClearAssociatedWebViewForWebState(web_view, &web_state);
 }
 
 // Tests that calling stop right after start prevent the handler from returning
@@ -254,12 +283,18 @@ TEST_F(CRWWebUISchemeManagerTest, StopTask) {
   OCMStub([web_view URL]).andReturn(request.mainDocumentURL);
   url_scheme_task.request = request;
 
+  web::FakeWebState web_state;
+  web_state.SetCurrentURL(net::GURLWithNSURL(request.mainDocumentURL));
+  web::SetAssociatedWebViewForWebState(web_view, &web_state);
+
   [scheme_handler webView:web_view startURLSchemeTask:url_scheme_task];
   [scheme_handler webView:web_view stopURLSchemeTask:url_scheme_task];
 
   RespondWithData(net::GURLWithNSURL(request.URL), "{}");
   EXPECT_FALSE(url_scheme_task.receivedData);
   EXPECT_FALSE(url_scheme_task.receivedError);
+
+  web::ClearAssociatedWebViewForWebState(web_view, &web_state);
 }
 
 // Tests that proper mime-type is returned for a given chrome:// request.
@@ -267,6 +302,10 @@ TEST_F(CRWWebUISchemeManagerTest, CheckMimetypeOfChromeScheme) {
   CRWWebUISchemeHandler* scheme_handler = CreateSchemeHandler();
   id web_view = OCMClassMock([WKWebView class]);
   FakeSchemeTask* url_scheme_task = [[FakeSchemeTask alloc] init];
+
+  web::FakeWebState web_state;
+  web_state.SetCurrentURL(GURL("chrome://clown/"));
+  web::SetAssociatedWebViewForWebState(web_view, &web_state);
 
   // Check javascript
   NSMutableURLRequest* request = [NSMutableURLRequest
@@ -320,6 +359,8 @@ TEST_F(CRWWebUISchemeManagerTest, CheckMimetypeOfChromeScheme) {
   EXPECT_TRUE([url_scheme_task responseHasMimetype:@"text/html"]);
   EXPECT_TRUE(url_scheme_task.receivedData);
   EXPECT_FALSE(url_scheme_task.receivedError);
+
+  web::ClearAssociatedWebViewForWebState(web_view, &web_state);
 }
 
 }  // namespace web

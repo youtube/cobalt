@@ -1258,9 +1258,6 @@ class COMPONENT_EXPORT(SQL) Database {
   // The number of blobs open for streaming, tracked for debugging purposes.
   size_t outstanding_blob_count_ GUARDED_BY_CONTEXT(sequence_checker_) = 0;
 
-  // When non-zero, indicates that `this` is inside `OnSqliteError()`.
-  size_t handling_error_nesting_ GUARDED_BY_CONTEXT(sequence_checker_) = 0;
-
   // Number of currently-nested transactions.
   int transaction_nesting_ GUARDED_BY_CONTEXT(sequence_checker_) = 0;
 
@@ -1306,6 +1303,9 @@ class COMPONENT_EXPORT(SQL) Database {
   // after the Database instance goes out of scope. set_error_callback() makes
   // this guarantee.
   ErrorCallback error_callback_ GUARDED_BY_CONTEXT(sequence_checker_);
+
+  // `true` if `error_callback_` is executing.
+  bool executing_error_callback_ GUARDED_BY_CONTEXT(sequence_checker_) = false;
 
   // Developer-friendly database ID used in logging output and memory dumps.
   const std::string histogram_tag_;

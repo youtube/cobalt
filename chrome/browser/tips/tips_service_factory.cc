@@ -5,6 +5,7 @@
 #include "chrome/browser/tips/tips_service_factory.h"
 
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/segmentation_platform/segmentation_platform_service_factory.h"
 #include "chrome/browser/tips/core/tips_service.h"
 
 namespace tips {
@@ -28,14 +29,21 @@ TipsServiceFactory::TipsServiceFactory()
               .WithRegular(ProfileSelection::kOriginalOnly)
               .WithGuest(ProfileSelection::kOriginalOnly)
               .WithAshInternals(ProfileSelection::kNone)
-              .Build()) {}
+              .Build()) {
+  DependsOn(
+      segmentation_platform::SegmentationPlatformServiceFactory::GetInstance());
+}
 
 TipsServiceFactory::~TipsServiceFactory() = default;
 
 std::unique_ptr<KeyedService>
 TipsServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return std::make_unique<TipsService>();
+  Profile* profile = Profile::FromBrowserContext(context);
+  return std::make_unique<TipsService>(
+      profile->GetPrefs(),
+      segmentation_platform::SegmentationPlatformServiceFactory::GetForProfile(
+          profile));
 }
 
 }  // namespace tips

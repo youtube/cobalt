@@ -55,7 +55,7 @@ declare_args() {
   # toolchain should work, but this build configuration is community-supported
   # and not tested by Chromium CQ. In particular, Chromium build may depend on
   # using a *nightly* version of Rust toolchain (see
-  # `tools/rust/unstable_rust_feature_usage.md`) although other projects (e.g.
+  # `docs/rust/unstable_rust_feature_usage.md`) although other projects (e.g.
   # V8) may be compatible with the stable version of Rust toolchain.
   rust_sysroot_absolute = ""
 

@@ -158,7 +158,8 @@ BrowserURLLoaderThrottle::~BrowserURLLoaderThrottle() {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   if (deferred_) {
     TRACE_EVENT_END("safe_browsing", /* Deferred */
-                    perfetto::Track::FromPointer(this));
+                    perfetto::NamedTrack::FromPointer(
+                        "safe_browsing::BrowserURLLoaderThrottle", this));
   }
   if (was_async_faster_than_sync_.has_value()) {
     base::UmaHistogramBoolean(
@@ -432,7 +433,8 @@ void BrowserURLLoaderThrottle::WillProcessResponse(
   defer_start_time_ = base::TimeTicks::Now();
   *defer = true;
   TRACE_EVENT_BEGIN("safe_browsing", "Deferred",
-                    perfetto::Track::FromPointer(this));
+                    perfetto::NamedTrack::FromPointer(
+                        "safe_browsing::BrowserURLLoaderThrottle", this));
 }
 
 const char* BrowserURLLoaderThrottle::NameForLoggingWillProcessResponse() {
@@ -493,7 +495,8 @@ void BrowserURLLoaderThrottle::OnCompleteSyncCheck(
     if (pending_sync_checks_ == 0 && deferred_) {
       deferred_ = false;
       TRACE_EVENT_END("safe_browsing", /* Deferred */
-                      perfetto::Track::FromPointer(this));
+                      perfetto::NamedTrack::FromPointer(
+                          "safe_browsing::BrowserURLLoaderThrottle", this));
       delegate_->Resume();
       MaybeTransferAsyncChecker();
     }

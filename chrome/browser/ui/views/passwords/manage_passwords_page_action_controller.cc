@@ -26,14 +26,7 @@
 
 namespace {
 
-const gfx::VectorIcon& GetVectorIconForState(password_manager::ui::State state,
-                                             bool is_blocklisted) {
-  if (is_blocklisted &&
-      base::FeatureList::IsEnabled(features::kSavePasswordsContextualUi)) {
-    return features::IsRoundedIconsEnabled()
-               ? vector_icons::kPasswordManagerOffIcon
-               : vector_icons::kPasswordManagerOffOldIcon;
-  }
+const gfx::VectorIcon& GetVectorIconForState() {
   return features::IsRoundedIconsEnabled()
              ? vector_icons::kPasswordManagerIcon
              : vector_icons::kPasswordManagerOldIcon;
@@ -44,8 +37,7 @@ const gfx::VectorIcon& GetVectorIconForState(password_manager::ui::State state,
 // static
 std::u16string
 ManagePasswordsPageActionController::GetManagePasswordsTooltipText(
-    password_manager::ui::State state,
-    bool is_blocklisted) {
+    password_manager::ui::State state) {
   std::u16string result;
   switch (state) {
     case password_manager::ui::INACTIVE_STATE:
@@ -86,11 +78,6 @@ ManagePasswordsPageActionController::GetManagePasswordsTooltipText(
           IDS_PASSWORD_MANAGER_TOOLTIP_KEYCHAIN_ERROR);
       break;
   }
-  if (is_blocklisted &&
-      base::FeatureList::IsEnabled(features::kSavePasswordsContextualUi)) {
-    result += u" - " +
-              l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_TOOLTIP_BLOCKED);
-  }
   return result;
 }
 
@@ -103,13 +90,12 @@ ManagePasswordsPageActionController::~ManagePasswordsPageActionController() =
 
 void ManagePasswordsPageActionController::UpdateVisibility(
     password_manager::ui::State state,
-    bool is_blocklisted,
     ManagePasswordsUIController& passwords_ui_controller,
     actions::ActionItem& passwords_action_item) {
   bool should_be_visible = state != password_manager::ui::INACTIVE_STATE;
   if (should_be_visible) {
     page_action_controller_->Show(kActionShowPasswordsBubbleOrPage);
-    const gfx::VectorIcon& icon = GetVectorIconForState(state, is_blocklisted);
+    const gfx::VectorIcon& icon = GetVectorIconForState();
     // Checks for if the bubble is showing or is about to be showing as there
     // should be no tooltip if bubble is open.
     bool bubble_is_or_will_be_showing =
@@ -118,10 +104,9 @@ void ManagePasswordsPageActionController::UpdateVisibility(
              ->GetWidget()
              ->IsVisible()) ||
         passwords_ui_controller.IsAutomaticallyOpeningBubble();
-    std::u16string tooltip =
-        bubble_is_or_will_be_showing
-            ? std::u16string()
-            : GetManagePasswordsTooltipText(state, is_blocklisted);
+    std::u16string tooltip = bubble_is_or_will_be_showing
+                                 ? std::u16string()
+                                 : GetManagePasswordsTooltipText(state);
     page_action_controller_->OverrideImage(
         kActionShowPasswordsBubbleOrPage, ui::ImageModel::FromVectorIcon(icon));
     page_action_controller_->OverrideTooltip(kActionShowPasswordsBubbleOrPage,

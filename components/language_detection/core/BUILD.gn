@@ -8,6 +8,9 @@ import("//build/config/features.gni")
 # singleton instance of the model. Without a component, we end up an
 # instance in each component that uses the library.
 component("core") {
+  _configs = configs
+  configs = []
+  configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
   sources = [
     "background_file.cc",
     "background_file.h",
@@ -38,6 +41,9 @@ component("core") {
 }
 
 static_library("internals") {
+  _configs = configs
+  configs = []
+  configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
   visibility = [
     ":core",
     ":unit_tests",

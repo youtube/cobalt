@@ -21,19 +21,18 @@ struct NetLogSource;
 // A client socket that uses UDP as the transport layer.
 class NET_EXPORT_PRIVATE UDPClientSocket final : public DatagramClientSocket {
  public:
-  // If `network` is specified, the socket will be bound to it. All data traffic
-  // on the socket will be sent and received via `network`. Communication using
-  // this socket will fail if `network` disconnects.
-  UDPClientSocket(
-      DatagramSocket::BindType bind_type,
-      net::NetLog* net_log,
-      const net::NetLogSource& source,
-      handles::NetworkHandle network = handles::kInvalidNetworkHandle);
+  // If `target_network` is not `handles::kInvalidNetworkHandle`, the socket
+  // will be bound to it. All data traffic on the socket will be sent and
+  // received via `target_network`. Communication using this socket will fail if
+  // `target_network` disconnects.
+  UDPClientSocket(DatagramSocket::BindType bind_type,
+                  net::NetLog* net_log,
+                  const net::NetLogSource& source,
+                  handles::NetworkHandle target_network);
 
-  UDPClientSocket(
-      DatagramSocket::BindType bind_type,
-      NetLogWithSource source_net_log,
-      handles::NetworkHandle network = handles::kInvalidNetworkHandle);
+  UDPClientSocket(DatagramSocket::BindType bind_type,
+                  NetLogWithSource source_net_log,
+                  handles::NetworkHandle target_network);
 
   UDPClientSocket(const UDPClientSocket&) = delete;
   UDPClientSocket& operator=(const UDPClientSocket&) = delete;
@@ -118,8 +117,12 @@ class NET_EXPORT_PRIVATE UDPClientSocket final : public DatagramClientSocket {
   bool adopted_opened_socket_ = false;
   bool connect_called_ = false;
   // The network the socket is currently bound to.
+  // TODO(crbug.com/518753285): Once QUIC is no longer handling bindToNetwork
+  // calls in a unique way, merge `network_` and `connect_using_network_`
+  // into a single `target_network_`.
   handles::NetworkHandle network_ = handles::kInvalidNetworkHandle;
-  handles::NetworkHandle connect_using_network_;
+  handles::NetworkHandle connect_using_network_ =
+      handles::kInvalidNetworkHandle;
 };
 
 }  // namespace net

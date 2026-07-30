@@ -215,10 +215,12 @@ void AggregatedJournal::AddEndEvent(
                                std::move(details))));
 }
 
-void AggregatedJournal::LogScreenshot(const GURL& url,
-                                      TaskId task_id,
-                                      std::string_view mime_type,
-                                      base::span<const uint8_t> data) {
+void AggregatedJournal::LogScreenshot(
+    const GURL& url,
+    TaskId task_id,
+    std::string_view mime_type,
+    base::span<const uint8_t> data,
+    std::optional<base::span<const uint8_t>> iframe_data) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   auto entry = std::make_unique<Entry>(
       url.possibly_invalid_spec(),
@@ -227,6 +229,9 @@ void AggregatedJournal::LogScreenshot(const GURL& url,
           "Screenshot", MakeBrowserTrackUUID(task_id),
           /*details=*/std::vector<mojom::JournalDetailsPtr>()));
   entry->screenshot.emplace(data.begin(), data.end());
+  if (iframe_data.has_value()) {
+    entry->iframe_screenshot.emplace(iframe_data->begin(), iframe_data->end());
+  }
   AddEntry(std::move(entry));
 }
 

@@ -18,6 +18,7 @@
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted_memory.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
 #include "base/observer_list.h"
 #include "base/one_shot_event.h"
@@ -910,6 +911,8 @@ void ThemeService::ClearThemeData(bool reset_all_settings) {
 }
 
 void ThemeService::InitFromPrefs() {
+  base::UmaHistogramEnumeration("ChromeColors.ColorSchemeOnLoad",
+                                GetBrowserColorScheme());
   FixInconsistentPreferencesIfNeeded();
   absl::Cleanup set_ready_cleanup = [this] { this->set_ready(); };
 

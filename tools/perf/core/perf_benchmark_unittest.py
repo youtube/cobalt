@@ -99,13 +99,14 @@ class PerfBenchmarkTest(unittest.TestCase):
 
     benchmark.CustomizeOptions(options)
 
-    # For non-Android, we expect to just pass the "--enable-field-trial-config"
-    # flag. For Android, due to binary size constraints, the flag cannot be
-    # used. We instead expect generated browser args from the testing config
-    # file. See the FIELDTRIAL_TESTING_ENABLED buildflag definition in
+    # For non-Android, we expect to pass the
+    # "--enable-field-trial-config=benchmarking" flag. For Android, due to
+    # binary size constraints, the flag cannot be used. We instead expect
+    # generated browser args from the testing config file. See the
+    # FIELDTRIAL_TESTING_ENABLED buildflag definition in
     # components/variations/service/BUILD.gn for more details.
     if not perf_benchmark.PerfBenchmark.IsAndroid(possible_browser):
-      expected_args = ['--enable-field-trial-config']
+      expected_args = ['--enable-field-trial-config=benchmarking']
     else:
       expected_args = [
           "--enable-features=Feature1<TestStudy,Feature2<TestStudy",

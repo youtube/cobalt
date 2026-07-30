@@ -61,12 +61,10 @@ bool HasExtraText(permissions::PermissionPrompt::Delegate& delegate) {
 }  // namespace
 
 PermissionPromptBubbleTwoOriginsView::PermissionPromptBubbleTwoOriginsView(
-    Browser* browser,
+    content::WebContents* web_contents,
     base::WeakPtr<permissions::PermissionPrompt::Delegate> delegate,
     PermissionPromptStyle prompt_style)
-    : PermissionPromptBubbleBaseView(browser,
-                                     delegate,
-                                     prompt_style) {
+    : PermissionPromptBubbleBaseView(web_contents, delegate, prompt_style) {
   SetTitle(CreateWindowTitle());
 
   auto extra_text = GetExtraTextTwoOrigin(*delegate);
@@ -89,11 +87,11 @@ PermissionPromptBubbleTwoOriginsView::PermissionPromptBubbleTwoOriginsView(
   CreateFaviconRow();
   MaybeAddLink();
 
-  CHECK(browser);
+  CHECK(GetBrowser());
 
   // Initializing favicon service.
   favicon::FaviconService* const favicon_service =
-      FaviconServiceFactory::GetForProfile(browser->profile(),
+      FaviconServiceFactory::GetForProfile(GetBrowser()->GetProfile(),
                                            ServiceAccessType::EXPLICIT_ACCESS);
   favicon_tracker_ = std::make_unique<base::CancelableTaskTracker>();
 

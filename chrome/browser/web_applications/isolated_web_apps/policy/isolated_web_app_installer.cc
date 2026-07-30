@@ -14,6 +14,7 @@
 #include "base/strings/to_string.h"
 #include "base/types/expected_macros.h"
 #include "base/types/optional_util.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/callback_utils.h"
 #include "chrome/browser/web_applications/isolated_web_apps/commands/install_isolated_web_app_command.h"
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_external_install_options.h"
@@ -24,6 +25,7 @@
 #include "chrome/common/chrome_features.h"
 #include "components/webapps/isolated_web_apps/download/bundle_downloader.h"
 #include "components/webapps/isolated_web_apps/types/source.h"
+#include "content/public/browser/storage_partition.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -317,7 +319,8 @@ void IwaInstaller::DownloadUpdateManifest(
 
   update_manifest_fetcher_ = std::make_unique<UpdateManifestFetcher>(
       install_options_.update_manifest_url(),
-      kUpdateManifestFetchTrafficAnnotation, url_loader_factory_);
+      kUpdateManifestFetchTrafficAnnotation, url_loader_factory_,
+      provider_->profile()->GetDefaultStoragePartition()->GetNetworkContext());
   update_manifest_fetcher_->FetchUpdateManifest(base::BindOnce(
       &IwaInstaller::OnUpdateManifestParsed, weak_factory_.GetWeakPtr(),
       std::move(next_step_callback)));
@@ -367,6 +370,7 @@ void IwaInstaller::DownloadWebBundle(
   bundle_downloader_ = IsolatedWebAppDownloader::CreateAndStartDownloading(
       std::move(web_bundle_url), bundle_.path(),
       kWebBundleDownloadTrafficAnnotation, url_loader_factory_,
+      provider_->profile()->GetDefaultStoragePartition()->GetNetworkContext(),
       base::BindOnce(&IwaInstaller::OnWebBundleDownloaded,
                      // If `this` is deleted, `bundle_downloader_` is deleted
                      // as well, and thus the callback will never run.

@@ -60,6 +60,17 @@
 <translation id="1587223624401073077">Google Chrome がカメラを使用しています。</translation>
 <translation id="1587325591171447154"><ph name="FILE_NAME" /> は危険なファイルであるため、Chrome でブロックしました。</translation>
 <translation id="1597911401261118146">パスワードにデータ侵害などセキュリティに関する問題がないかどうかを確認するには、<ph name="BEGIN_LINK" />Chrome にログイン<ph name="END_LINK" />してください。</translation>
+<translation id="1619639070275605589">この操作を行うと、次のようになります。
+          <ph name="LINE_BREAKS" />
+            • 起動ページ、新しいタブページ、検索エンジン、固定タブがリセットされます
+            <ph name="LINE_BREAK" />
+            • 拡張機能が無効になります
+            <ph name="LINE_BREAK" />
+            • Cookie や他の一時的なサイトデータが削除されます
+            <ph name="LINE_BREAK" />
+            • Chrome のショートカットがリセットされます
+            <ph name="LINE_BREAKS" />
+            ブックマーク、履歴、保存したパスワードへの影響はありません。</translation>
 <translation id="1619887657840448962">Chrome をより安全にご利用いただくために、<ph name="IDS_EXTENSION_WEB_STORE_TITLE" />で提供していない次の拡張機能を無効にしました。これは知らないうちに追加された可能性があります。</translation>
 <translation id="1628000112320670027">Chrome のヘルプを見る</translation>
 <translation id="1640672724030957280">ダウンロードしています...</translation>
@@ -136,6 +147,7 @@
 <translation id="2472092250898121027">この拡張機能にはマルウェアが含まれており、安全ではありません。アクセスしたサイトでユーザーデータ（個人情報を含む）が参照、変更されないように、Chrome からこの拡張機能を削除してください。</translation>
 <translation id="2485422356828889247">アンインストール</translation>
 <translation id="2513154137948333830">再起動が必要です: <ph name="INSTALL_SUCCESS" /></translation>
+<translation id="2523492931736391680">Chrome で作業データを保護</translation>
 <translation id="2534365042754120737">データを保護するため、最近アクセスしていないサイトから権限を自動で削除します。通知は停止されません。</translation>
 <translation id="2556847002339236023"><ph name="TIMEOUT_DURATION" /> 使用しなかったため、Chrome は組織によって終了されます。閲覧データは削除されました。これには、履歴、自動入力、ダウンロードが含まれます。</translation>
 <translation id="2563121210305478421">Chrome を再起動しますか？</translation>
@@ -238,6 +250,7 @@
 <translation id="345171907106878721">Chrome に自分を追加</translation>
 <translation id="3453763134178591239">ChromeOS 利用規約</translation>
 <translation id="3503306920980160878">このサイトで現在地を共有するには、Chrome で位置情報の使用を許可する必要があります</translation>
+<translation id="3512495006767217696">Chrome に組み込まれており、安全なパスワードを作成、保存、自動入力できます。ショートカットを追加すると、簡単にアクセスできます。</translation>
 <translation id="3539955434060988644">Chrome のシークレット ウインドウでリンクを開く(&amp;G)</translation>
 <translation id="3576528680708590453">システム管理者が、<ph name="TARGET_URL_HOSTNAME" /> へのアクセスに代替ブラウザを開くよう Google Chrome を設定しています。</translation>
 <translation id="3582972582564653026">同期してカスタマイズした Chrome をどのデバイスでも使用できます</translation>
@@ -299,6 +312,7 @@
 <translation id="4149882025268051530">インストーラー アーカイブを解凍できませんでした。Google Chrome をダウンロードし直してください。</translation>
 <translation id="415112847282352845">すべてのデバイスでアドレスやその他の設定を使用するには、Chrome にログインしてください。このアドレスは、ログイン後に Google アカウントに保存されます。</translation>
 <translation id="4153934450158521343">Chrome はまもなく終了し、データが削除されます</translation>
+<translation id="4159985264221160808">Chrome での作業を保護するため、組織は特定の情報を表示または管理できます</translation>
 <translation id="4173512894976930765">ほとんどの場合、サイトは適切に機能します。Chrome のウィンドウをすべて閉じると、ほとんどのサイトからログアウトします。ただし Chrome にログインしている場合、Google アカウントからはログアウトしません。</translation>
 <translation id="4175922240926474352">このダウンロードは Chrome でブロックされました。サイトで安全な接続が使用されておらず、ファイルが改ざんされている可能性があります</translation>
 <translation id="4191857738314598978">{0,plural, =1{1 日以内に Chrome を再起動してください}other{# 日以内に Chrome を再起動してください}}</translation>
@@ -330,6 +344,7 @@
 <translation id="4493028449971051158">起動エラー: 管理者としてインストーラを実行してください。</translation>
 <translation id="4501471624619070934">お住まいの国ではアクセスが制限されているため、インストールに失敗しました。</translation>
 <translation id="4571503333518166079">Chrome の通知設定に移動</translation>
+<translation id="4580939929828762295">Google パスワード マネージャーで安全を確保</translation>
 <translation id="4592634244097223647">Google でこの画像について質問する</translation>
 <translation id="459622048091363950">Chrome にアクセスを許可すると、ウェブサイトからアクセスをリクエストできるようになります。</translation>
 <translation id="4598116752460667024">リストからプロセスを検索します。</translation>
@@ -514,6 +529,7 @@
 <translation id="6438015621983209660">スマートフォンの Chrome でセーフ ブラウジング保護強化機能を有効にする</translation>
 <translation id="6442774133615368941">Chrome iOS アプリで、カメラに映ったものを購入、翻訳、特定できます</translation>
 <translation id="6448835208126432197">Gemini in Chrome で画面の一部を選択するときに、キーボード ショートカットを使用します。</translation>
+<translation id="6473659734176498825">Chrome の Google パスワード マネージャーのエントリ ポイントを示す簡略化された画像</translation>
 <translation id="6473905796280459355">Chrome についてのページに移動</translation>
 <translation id="6481963882741794338">パーソナライズなどの目的で、Chrome と他の Google サービスをリンクします</translation>
 <translation id="648319183876919572">セーフ ブラウジング保護強化機能では、危険なウェブサイトやダウンロードから高いセキュリティ強度で保護されます</translation>
@@ -685,6 +701,7 @@
 <translation id="8064965390968184078">1. 下の [<ph name="BUTTON_LABEL" />] をクリックします
 2.Windows の設定で [<ph name="BUTTON_2" />] をクリックします
 3.Windows の通知で [<ph name="BUTTON_3" />] をクリックすると、Chrome がタスクバーに固定され、すばやくアクセスできるようになります</translation>
+<translation id="8069447462453318634">[ツールバーに固定] を選択します</translation>
 <translation id="8074398340364918139">Chrome の特定の機能や拡張機能を検索するには、アドレスバーに該当のショートカットを入力して、選択したキーボードキーを押します</translation>
 <translation id="8077579734294125741">その他の Chrome プロファイル</translation>
 <translation id="8086881907087796310">パソコンがハードウェアの最小要件を満たしていないため、インストールできませんでした。</translation>
@@ -770,6 +787,15 @@
 <translation id="8922998289262614701">Chrome からこのアプリのデータを削除する</translation>
 <translation id="8925636929359899517">情報はこのサービスの改善に役立てられます。<ph name="BEGIN_LINK1" />プライバシー ポリシー<ph name="END_LINK1" />と<ph name="BEGIN_LINK2" />利用規約<ph name="END_LINK2" />をご確認ください。</translation>
 <translation id="8936233353620149764">Gemini in Chrome を切り替える</translation>
+<translation id="8944232836376404813">この操作を行うと、次のようになります。
+          <ph name="LINE_BREAKS" />
+            • 起動ページ、新しいタブページ、検索エンジン、固定タブがリセットされます
+            <ph name="LINE_BREAK" />
+            • 拡張機能が無効になります
+            <ph name="LINE_BREAK" />
+            • Cookie や他の一時的なサイトデータが削除されます
+            <ph name="LINE_BREAKS" />
+            ブックマーク、履歴、保存したパスワードへの影響はありません。</translation>
 <translation id="8948460679427074738">この拡張機能は、データの収集方法や使用方法などのプライバシー保護の取り組みを公開していません。削除することをおすすめします。</translation>
 <translation id="8958307504142971576">Chrome で新機能をご利用いただけるようになりました</translation>
 <translation id="8991530961471831170">Gemini in Chrome を開く</translation>

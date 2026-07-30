@@ -20,7 +20,6 @@ source_set("ui_bundled") {
     "//components/feature_engagement/public",
     "//components/prefs",
     "//ios/chrome/app/strings",
-    "//ios/chrome/browser/app_bar/ui:constants",
     "//ios/chrome/browser/bookmarks/model",
     "//ios/chrome/browser/drag_and_drop/model",
     "//ios/chrome/browser/feature_engagement/model",

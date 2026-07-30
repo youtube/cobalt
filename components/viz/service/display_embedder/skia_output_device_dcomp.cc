@@ -351,9 +351,9 @@ SkiaOutputDeviceDComp::BeginOverlayAccess(const gpu::Mailbox& mailbox) {
   if (!overlay)
     return std::nullopt;
 
-  TRACE_EVENT2("gpu", "SkiaOutputDeviceDComp::BeginOverlayAccess",
-               "debug_label", overlay->debug_label(), "image_size",
-               overlay->size().ToString());
+  TRACE_EVENT("gpu", "SkiaOutputDeviceDComp::BeginOverlayAccess", "mailbox",
+              mailbox.ToDebugString(), "debug_label", overlay->debug_label(),
+              "image_size", overlay->size().ToString());
 
   std::tie(it, std::ignore) = overlays_.emplace(mailbox, std::move(overlay));
   return it->second.BeginOverlayAccess();

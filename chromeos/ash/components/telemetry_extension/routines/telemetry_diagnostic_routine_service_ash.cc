@@ -45,17 +45,12 @@ TelemetryDiagnosticsRoutineServiceAsh::Factory*
 
 // static
 std::unique_ptr<crosapi::TelemetryDiagnosticRoutinesService>
-TelemetryDiagnosticsRoutineServiceAsh::Factory::Create(
-    mojo::PendingReceiver<crosapi::TelemetryDiagnosticRoutinesService>
-        receiver) {
+TelemetryDiagnosticsRoutineServiceAsh::Factory::Create() {
   if (test_factory_) {
-    return test_factory_->CreateInstance(std::move(receiver));
+    return test_factory_->CreateInstance();
   }
 
-  auto routine_service =
-      std::make_unique<TelemetryDiagnosticsRoutineServiceAsh>();
-  routine_service->BindReceiver(std::move(receiver));
-  return routine_service;
+  return std::make_unique<TelemetryDiagnosticsRoutineServiceAsh>();
 }
 
 // static
@@ -77,12 +72,6 @@ TelemetryDiagnosticsRoutineServiceAsh::
     }
   }
   routine_controls_and_observers_.clear();
-}
-
-void TelemetryDiagnosticsRoutineServiceAsh::BindReceiver(
-    mojo::PendingReceiver<crosapi::TelemetryDiagnosticRoutinesService>
-        receiver) {
-  receivers_.Add(this, std::move(receiver));
 }
 
 void TelemetryDiagnosticsRoutineServiceAsh::CreateRoutine(

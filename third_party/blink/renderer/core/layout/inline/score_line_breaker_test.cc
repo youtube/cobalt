@@ -503,4 +503,44 @@ TEST_F(ScoreLineBreakerTest, UseCountNotCountedForBalance) {
   EXPECT_FALSE(GetDocument().IsUseCounted(WebFeature::kTextWrapPretty));
 }
 
+TEST_F(ScoreLineBreakerTest, LineCountMismatchFallback) {
+  LoadAhem();
+  // Construct a case where the optimal layout might prefer a different line
+  // count than the greedy layout.
+  SetBodyInnerHTML(R"HTML(
+    <!DOCTYPE html>
+    <style>
+    #target {
+      font-family: Ahem;
+      font-size: 10px;
+      width: 10ch;
+      text-align: justify;
+      text-wrap: pretty;
+    }
+    </style>
+    <div id="target">
+      123 567&shy;90 123 567 90 123&shy;56 890 12 45 7890
+    </div>
+  )HTML");
+
+  const InlineNode node = GetInlineNodeByElementId("target");
+  const LayoutUnit width = FragmentWidth(node);
+  ConstraintSpace space = ConstraintSpaceForAvailableSize(width);
+  LineWidths line_widths(width);
+  ScoreLineBreakContextOf<kMaxLinesForOptimal> context;
+  const InlineBreakToken* break_token = nullptr;
+  ExclusionSpace exclusion_space;
+  ScoreLineBreaker optimizer(node, space, line_widths, break_token,
+                             &exclusion_space);
+  LeadingFloats empty_leading_floats;
+  optimizer.OptimalBreakPoints(empty_leading_floats, context);
+
+  // If a mismatch was detected, it should have safely fallen back to greedy,
+  // leaving the break points empty. If it succeeded, the sizes must match.
+  if (!context.GetLineBreakPoints().empty()) {
+    EXPECT_EQ(context.GetLineInfoList().Size(),
+              context.GetLineBreakPoints().size());
+  }
+}
+
 }  // namespace blink

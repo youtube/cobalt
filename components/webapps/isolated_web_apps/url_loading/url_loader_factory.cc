@@ -17,6 +17,7 @@
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/memory/self_deleting.h"
 #include "base/memory/weak_ptr.h"
 #include "base/no_destructor.h"
 #include "base/scoped_observation.h"
@@ -282,8 +283,9 @@ class IsolatedWebAppURLLoaderFactoryImpl
       std::optional<url::Origin> app_origin,
       std::optional<content::FrameTreeNodeId> frame_tree_node_id,
       bool enforce_same_origin,
-      mojo::PendingReceiver<network::mojom::URLLoaderFactory> factory_receiver)
-      : network::SelfDeletingURLLoaderFactory(std::move(factory_receiver)),
+      mojo::PendingReceiver<network::mojom::URLLoaderFactory> factory_receiver,
+      base::SelfDeletingPassKey key)
+      : network::SelfDeletingURLLoaderFactory(std::move(factory_receiver), key),
         browser_context_(content::AreIsolatedWebAppsEnabled(browser_context)
                              ? browser_context
                              : nullptr),
@@ -510,7 +512,7 @@ mojo::PendingRemote<network::mojom::URLLoaderFactory> CreateInternal(
   // The IsolatedWebAppURLLoaderFactoryImpl will delete itself when there are no
   // more receivers - see the
   // network::SelfDeletingURLLoaderFactory::OnDisconnect method.
-  new IsolatedWebAppURLLoaderFactoryImpl(
+  base::MakeSelfDeleting<IsolatedWebAppURLLoaderFactoryImpl>(
       browser_context, std::move(app_origin), frame_tree_node_id,
       enforce_same_origin, pending_remote.InitWithNewPipeAndPassReceiver());
 

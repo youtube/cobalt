@@ -40,6 +40,7 @@
 #include "chrome/grit/theme_resources.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/feature_engagement/public/tracker.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/base/signin_prefs.h"
 #include "components/signin/public/identity_manager/account_info.h"
@@ -391,12 +392,23 @@ PasswordSaveUpdateView::PasswordSaveUpdateView(
       (dialog->controller_.*func)();
     };
 
-    SetAcceptCallbackWithClose(
-        base::BindRepeating(button_clicked, base::Unretained(this),
-                            &Controller::OnSaveClicked)
-            .Then(base::BindRepeating(
-                &PasswordSaveUpdateView::CloseOrReplaceWithPromo,
-                base::Unretained(this))));
+    if (IsTrustedVaultErrorResolutionEnabled() &&
+        controller_.IsSavingBlockedByTrustedVaultError()) {
+      SetAcceptCallbackWithClose(
+          base::BindRepeating(button_clicked, base::Unretained(this),
+                              &Controller::OnTrustedVaultUnlockClicked)
+              .Then(base::BindRepeating([]() {
+                // Closing the bubble after opening a trusted vault unlock page:
+                return true;
+              })));
+    } else {
+      SetAcceptCallbackWithClose(
+          base::BindRepeating(button_clicked, base::Unretained(this),
+                              &Controller::OnSaveClicked)
+              .Then(base::BindRepeating(
+                  &PasswordSaveUpdateView::CloseOrReplaceWithPromo,
+                  base::Unretained(this))));
+    }
 
     if (is_update_bubble_) {
       SetCancelCallback(base::BindOnce(button_clicked, base::Unretained(this),
@@ -491,6 +503,11 @@ bool PasswordSaveUpdateView::IsSaveBubbleDropdownExperimentEnabled() const {
   return !is_update_bubble_ &&
          base::FeatureList::IsEnabled(
              features::kPasswordSaveUpdateDropdownMenuExperiment);
+}
+
+bool PasswordSaveUpdateView::IsTrustedVaultErrorResolutionEnabled() const {
+  return base::FeatureList::IsEnabled(
+      password_manager::features::kPasswordSaveInContextErrorResolution);
 }
 
 PasswordBubbleControllerBase* PasswordSaveUpdateView::GetController() {
@@ -633,6 +650,10 @@ void PasswordSaveUpdateView::UpdateBubbleUIElements() {
   std::u16string ok_button_text = l10n_util::GetStringUTF16(
       controller_.IsCurrentStateUpdate() ? IDS_PASSWORD_MANAGER_UPDATE_BUTTON
                                          : IDS_PASSWORD_MANAGER_SAVE_BUTTON);
+  if (IsTrustedVaultErrorResolutionEnabled() &&
+      controller_.IsSavingBlockedByTrustedVaultError()) {
+    ok_button_text = l10n_util::GetStringUTF16(IDS_CONTINUE);
+  }
   SetButtonLabel(ui::mojom::DialogButton::kOk, ok_button_text);
   if (is_update_bubble_) {
     SetButtonLabel(
@@ -684,10 +705,17 @@ void PasswordSaveUpdateView::UpdateBubbleUIElements() {
   // readers.
   bool should_announce_save_update_change = GetWindowTitle() != title;
   SetTitle(title);
-  if (IsSaveBubbleDropdownExperimentEnabled()) {
+  if (IsTrustedVaultErrorResolutionEnabled() &&
+      controller_.IsSavingBlockedByTrustedVaultError()) {
+    SetSubtitle(l10n_util::GetStringUTF16(
+        IDS_PASSWORD_BUBBLES_SUBTITLE_TRUSTED_VAULT_ERROR));
+  } else if (IsSaveBubbleDropdownExperimentEnabled()) {
     std::optional<std::u16string> domain_subhead =
         controller_.GetDomainForSubhead();
     SetSubtitle(domain_subhead.value_or(std::u16string()));
+  } else {
+    // In other cases the subtitle is absent.
+    SetSubtitle(std::u16string());
   }
   // Nothing to do if the bubble isn't visible yet.
   if (!GetWidget()) {
@@ -708,6 +736,15 @@ std::unique_ptr<views::View> PasswordSaveUpdateView::CreateFooterView() {
             password_manager::ManagePasswordsReferrer::kSaveUpdateBubble);
       },
       base::Unretained(this));
+  if (IsTrustedVaultErrorResolutionEnabled() &&
+      controller_.IsSavingBlockedByTrustedVaultError()) {
+    return CreateGooglePasswordManagerLabel(
+        /*text_message_id=*/
+        IDS_PASSWORD_BUBBLES_FOOTER_TRUSTED_VAULT_ERROR,
+        /*link_message_id=*/
+        IDS_PASSWORD_BUBBLES_PASSWORD_MANAGER_LINK_TEXT_SYNCED_TO_ACCOUNT,
+        controller_.GetPrimaryAccountEmail(), open_password_manager_closure);
+  }
   if (controller_.IsCurrentStateAffectingPasswordsStoredInTheGoogleAccount()) {
     return CreateGooglePasswordManagerLabel(
         /*text_message_id=*/

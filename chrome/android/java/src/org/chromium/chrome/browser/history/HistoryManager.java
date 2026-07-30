@@ -451,6 +451,13 @@ public class HistoryManager
                 : mActivity.getString(R.string.history_manager_no_results, defaultSearchEngineName);
     }
 
+    /** Reloads the history items. */
+    public void reload() {
+        if (mContentManager != null) {
+            mContentManager.startLoadingItems();
+        }
+    }
+
     /**
      * @return The view that shows the main browsing history UI.
      */

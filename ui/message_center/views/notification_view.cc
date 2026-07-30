@@ -566,7 +566,11 @@ void NotificationView::ToggleInlineSettings(const ui::Event& event) {
   // Toggling should reset the state.
   dont_block_button_->SetChecked(true);
 
+  auto weak_ptr = weak_ptr_factory_.GetWeakPtr();
   NotificationViewBase::ToggleInlineSettings(event);
+  if (!weak_ptr) {
+    return;
+  }
   PreferredSizeChanged();
 
   if (inline_settings_row()->GetVisible())

@@ -43,7 +43,7 @@ bool ClearD3D11TextureToColor(
   return true;
 }
 
-wgpu::Texture CreateDawnSharedTexture(
+GPU_GLES2_EXPORT wgpu::Texture CreateDawnSharedTexture(
     const wgpu::SharedTextureMemory& shared_texture_memory,
     wgpu::TextureUsage usage,
     wgpu::TextureUsage internal_usage,
@@ -119,7 +119,7 @@ wgpu::SharedTextureMemory CreateDawnSharedTextureMemory(
   return shared_texture_memory;
 }
 
-wgpu::SharedTextureMemory CreateDawnSharedTextureMemory(
+GPU_GLES2_EXPORT wgpu::SharedTextureMemory CreateDawnSharedTextureMemory(
     const wgpu::Device& device,
     Microsoft::WRL::ComPtr<ID3D12Resource> resource) {
   wgpu::SharedTextureMemory shared_texture_memory;
@@ -178,7 +178,7 @@ wgpu::SharedBufferMemory CreateDawnSharedBufferMemory(
   return shared_buffer_memory;
 }
 
-wgpu::SharedFence CreateDawnSharedFence(
+GPU_GLES2_EXPORT wgpu::SharedFence CreateDawnSharedFence(
     const wgpu::Device& device,
     scoped_refptr<gfx::D3DSharedFence> fence) {
   wgpu::SharedFence shared_fence;

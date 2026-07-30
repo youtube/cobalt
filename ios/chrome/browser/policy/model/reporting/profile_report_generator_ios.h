@@ -55,7 +55,10 @@ class ProfileReportGeneratorIOS : public ProfileReportGenerator::Delegate {
       bool is_machine_scope) override;
 
  private:
-  raw_ptr<ProfileIOS, DanglingUntriaged> profile_;
+  // The associated profile. Must outlive this object. This is guaranteed since
+  // this class is owned by `ReportScheduler`, which is owned by the
+  // KeyedService `CloudProfileReportingServiceIOS`.
+  raw_ptr<ProfileIOS> profile_ = nullptr;
 };
 
 }  // namespace enterprise_reporting

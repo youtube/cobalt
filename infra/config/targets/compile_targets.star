@@ -36,8 +36,6 @@ targets.compile_target(
 targets.compile_target(
     name = "blackbox_fuzzing_targets",
     label = "//:blackbox_fuzzing_targets",
-    # All references have been moved to starlark
-    skip_usage_check = True,
 )
 
 targets.compile_target(

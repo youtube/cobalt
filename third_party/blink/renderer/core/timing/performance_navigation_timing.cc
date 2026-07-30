@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/core/timing/performance_navigation_timing.h"
 
+#include "services/network/public/mojom/timing_allow_origin.mojom-blink.h"
 #include "services/network/public/mojom/url_response_head.mojom-blink.h"
 #include "third_party/blink/public/mojom/confidence_level.mojom-blink.h"
 #include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink-forward.h"
@@ -26,6 +27,7 @@
 #include "third_party/blink/renderer/platform/loader/fetch/resource_timing_utils.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
+#include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 
 namespace blink {
 
@@ -62,7 +64,56 @@ PerformanceNavigationTiming::PerformanceNavigationTiming(
       document_load_timing_values_(window.document()
                                        ->Loader()
                                        ->GetTiming()
-                                       .GetDocumentLoadTimingValues()) {}
+                                       .GetDocumentLoadTimingValues()),
+      expose_cross_origin_redirect_timing_(
+          ComputeExposeCrossOriginRedirectTiming(
+              window,
+              *document_load_timing_values_)) {}
+
+// https://html.spec.whatwg.org/#create-the-navigation-timing-entry
+// static
+bool PerformanceNavigationTiming::ComputeExposeCrossOriginRedirectTiming(
+    LocalDOMWindow& window,
+    const DocumentLoadTimingValues& timing_values) {
+  // For a same-origin redirect chain (or no redirects at all), redirect timing
+  // is always exposed.
+  if (!timing_values.has_cross_origin_redirect) {
+    return true;
+  }
+
+  // When the feature is disabled, retain the legacy behavior of never exposing
+  // redirect timing for cross-origin redirect chains.
+  if (!RuntimeEnabledFeatures::NavigationTimingRedirectTimingViaTAOEnabled()) {
+    return false;
+  }
+
+  // If the navigation has no referrer ("no-referrer"), redirect timing is not
+  // exposed, even if the redirect chain opts in via `Timing-Allow-Origin`.
+  DocumentLoader* loader =
+      window.document() ? window.document()->Loader() : nullptr;
+  if (!loader || loader->GetReferrer().empty()) {
+    return false;
+  }
+
+  // https://fetch.spec.whatwg.org/#concept-navigation-tao-check
+  // Every redirect response in the chain must opt in to the destination origin,
+  // either via "*" or by listing it explicitly.
+  const SecurityOrigin* destination_origin = window.GetSecurityOrigin();
+  const String destination =
+      destination_origin ? destination_origin->ToString() : String();
+  for (const network::mojom::blink::TimingAllowOriginPtr& tao :
+       timing_values.navigation_timing_allow_check_list) {
+    if (tao && tao->is_all()) {
+      continue;
+    }
+    if (tao && tao->is_serialized_origins() && !destination.empty() &&
+        tao->get_serialized_origins().Contains(destination)) {
+      continue;
+    }
+    return false;
+  }
+  return true;
+}
 
 PerformanceNavigationTiming::~PerformanceNavigationTiming() = default;
 
@@ -183,7 +234,7 @@ AtomicString PerformanceNavigationTiming::deliveryType() const {
 }
 
 uint16_t PerformanceNavigationTiming::redirectCount() const {
-  if (document_load_timing_values_->has_cross_origin_redirect) {
+  if (!expose_cross_origin_redirect_timing_) {
     return 0;
   }
 
@@ -191,7 +242,7 @@ uint16_t PerformanceNavigationTiming::redirectCount() const {
 }
 
 DOMHighResTimeStamp PerformanceNavigationTiming::redirectStart() const {
-  if (document_load_timing_values_->has_cross_origin_redirect) {
+  if (!expose_cross_origin_redirect_timing_) {
     return 0;
   }
   return Performance::MonotonicTimeToDOMHighResTimeStamp(
@@ -200,7 +251,7 @@ DOMHighResTimeStamp PerformanceNavigationTiming::redirectStart() const {
 }
 
 DOMHighResTimeStamp PerformanceNavigationTiming::redirectEnd() const {
-  if (document_load_timing_values_->has_cross_origin_redirect) {
+  if (!expose_cross_origin_redirect_timing_) {
     return 0;
   }
   return Performance::MonotonicTimeToDOMHighResTimeStamp(

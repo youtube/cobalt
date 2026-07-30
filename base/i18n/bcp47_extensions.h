@@ -6,10 +6,15 @@
 #define BASE_I18N_BCP47_EXTENSIONS_H_
 
 #include <concepts>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <vector>
 
+#include "base/containers/flat_map.h"
+#include "base/containers/flat_set.h"
+#include "base/containers/span.h"
 #include "base/i18n/base_i18n_export.h"
 #include "base/types/pass_key.h"
 
@@ -74,42 +79,114 @@ class BASE_I18N_EXPORT PrivateUseSubtags {
 
 // Represents a Unicode BCP47 extension ('u-').
 // Unicode extensions have a specific internal structure defined by UTS #35,
-// containing keywords and attributes.
-class BASE_I18N_EXPORT UnicodeExtension : public Extension {
+// containing keywords/types and attributes. Please see the specification for
+// more details: https://www.rfc-editor.org/info/rfc6067
+class BASE_I18N_EXPORT UnicodeExtension {
  public:
+  UnicodeExtension(const UnicodeExtension&);
+  UnicodeExtension& operator=(const UnicodeExtension&);
+  UnicodeExtension(UnicodeExtension&&);
+  UnicodeExtension& operator=(UnicodeExtension&&);
+  ~UnicodeExtension();
+
+  // Method that parses the extension string into `UnicodeExtension`. The
+  // constructor itself is made private.
+  //
+  // If a keyword appears more than once in the input, only its first definition
+  // is considered; subsequent occurrences are ignored as per RFC 6067.
+  static std::optional<UnicodeExtension> FromString(std::string_view extension);
+
+  // Returns the value (collection of zero or more types) for the given key, if
+  // present. Keys are exactly 2 characters. Types are from 3-8 characters.
+  // Reference:  https://www.rfc-editor.org/info/rfc6067/#section-2.1
+  std::optional<std::string_view> GetKeywordValue(std::string_view key) const;
+
+  // Removes the keyword if present.
+  void remove_keyword(std::string_view key) { keywords_.erase(key); }
+
+  // Sets or updates the value for the given keyword.
+  // `key` must be exactly 2 alphanumeric characters.
+  // `value` must be a dash-separated string of types (3-8 alphanumeric chars).
+  // Returns true if the keyword was updated, false otherwise.
+  bool SetKeyword(std::string_view key, std::string_view type_subtags);
+
+  // Attributes come before any keyword/value and have length between 3 and 8.
+  bool has_attribute(std::string_view attribute) const {
+    return attributes_.contains(attribute);
+  }
+
+  // Removes the attribute if present.
+  void remove_attribute(std::string_view attribute) {
+    attributes_.erase(attribute);
+  }
+
+  // Adds the attribute if not present.
+  // `attribute` must be between 3 and 8 alphanumeric characters.
+  // Returns true if the attribute was added (or already present), false if
+  // invalid.
+  bool AddAttribute(std::string_view attribute);
+
+  // Returns all attributes as a single, dash-separated string.
+  // The attributes are sorted alphabetically.
+  base::span<const std::string> attributes() const {
+    return base::span(attributes_);
+  }
+
+  // Returns all keyword keys.
+  // The keys are sorted alphabetically.
+  std::vector<std::string> GetKeywordKeys() const;
+
+  // Returns all attributes and keywords as a single, dash-separated string.
+  // This does NOT include the singleton ('u') and the leading separator.
+  // The output is canonical: attributes (sorted alphabetically) precede
+  // keywords (sorted by key alphabetically).
+  std::string ToString() const;
+
+ private:
   // These objects are managed by LanguageTag and cannot be constructed
   // manually.
   // |extension| must be a valid Unicode extension string (e.g.,
   // "u-ca-gregory").
-  UnicodeExtension(base::PassKey<base::LanguageTag>,
-                   std::string_view extension);
-  ~UnicodeExtension() = default;
+  explicit UnicodeExtension(
+      base::flat_set<std::string> attributes,
+      base::flat_map<std::string, std::string> key_values);
 
-  UnicodeExtension(const UnicodeExtension&) = default;
-  UnicodeExtension& operator=(const UnicodeExtension&) = default;
-  UnicodeExtension(UnicodeExtension&&) = default;
-  UnicodeExtension& operator=(UnicodeExtension&&) = default;
+  base::flat_set<std::string, std::less<>> attributes_;
+  // The unicode extension keywords map.
+  base::flat_map<std::string, std::string, std::less<>> keywords_;
 };
 
 // A traits used to map an extension key (e.g., 'u') to its corresponding
 // result type (e.g., UnicodeExtension).
 template <char extid>
-struct BASE_I18N_EXPORT Traits {
+struct Traits {
   using type = Extension;
+  static constexpr auto Factory = [](base::PassKey<LanguageTag> pass_key,
+                                     std::string_view private_use) {
+    return Extension(pass_key, private_use);
+  };
   static constexpr char key = extid;
 };
 
 // Specialization for the Unicode extension ('u').
 template <>
-struct BASE_I18N_EXPORT Traits<'u'> {
+struct Traits<'u'> {
   using type = UnicodeExtension;
+  static constexpr auto Factory = [](base::PassKey<LanguageTag>,
+                                     std::string_view extension) {
+    return UnicodeExtension::FromString(extension);
+  };
   static constexpr char key = 'u';
 };
 
 // Specialization for private use subtags ('x').
 template <>
-struct BASE_I18N_EXPORT Traits<'x'> {
+struct Traits<'x'> {
   using type = PrivateUseSubtags;
+  static constexpr auto Factory = [](base::PassKey<LanguageTag> pass_key,
+                                     std::string_view private_use) {
+    return PrivateUseSubtags(pass_key, private_use);
+  };
   static constexpr char key = 'x';
 };
 

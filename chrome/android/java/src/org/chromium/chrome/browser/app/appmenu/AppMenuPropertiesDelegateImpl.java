@@ -85,6 +85,8 @@ import org.chromium.components.browser_ui.accessibility.PageZoomManager;
 import org.chromium.components.browser_ui.accessibility.PageZoomMenuItemCoordinator;
 import org.chromium.components.browser_ui.accessibility.PageZoomProperties;
 import org.chromium.components.browser_ui.accessibility.PageZoomUtils;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerProvider;
 import org.chromium.components.commerce.core.CommerceFeatureUtils;
 import org.chromium.components.commerce.core.CommerceSubscription;
 import org.chromium.components.commerce.core.IdentifierType;
@@ -98,6 +100,7 @@ import org.chromium.components.webapk.lib.client.WebApkValidator;
 import org.chromium.components.webapps.AppBannerManager;
 import org.chromium.components.webapps.WebappsUtils;
 import org.chromium.ui.base.DeviceFormFactor;
+import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.LayoutViewBuilder;
 import org.chromium.ui.modelutil.MVCListAdapter;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
@@ -590,6 +593,24 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
                 .build();
     }
 
+    protected MVCListAdapter.ListItem createStandardListItem(
+            PropertyModel model, boolean showIcon) {
+        return new MVCListAdapter.ListItem(
+                showIcon
+                        ? AppMenuHandler.AppMenuItemType.STANDARD
+                        : AppMenuHandler.AppMenuItemType.STANDARD_NO_ICON,
+                model);
+    }
+
+    protected MVCListAdapter.ListItem createMenuItemWithSubmenuListItem(
+            PropertyModel model, boolean showIcon) {
+        return new MVCListAdapter.ListItem(
+                showIcon
+                        ? AppMenuHandler.AppMenuItemType.MENU_ITEM_WITH_SUBMENU
+                        : AppMenuHandler.AppMenuItemType.MENU_ITEM_WITH_SUBMENU_NO_ICON,
+                model);
+    }
+
     /**
      * @param currentTab The currentTab for which the app menu is showing.
      * @return Whether reader mode is currently showing.
@@ -601,15 +622,15 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
     }
 
     /** Construct the reader mode menu item. */
-    protected MVCListAdapter.ListItem buildReaderModeItem(Tab currentTab) {
-        return new MVCListAdapter.ListItem(
-                AppMenuHandler.AppMenuItemType.STANDARD,
+    protected MVCListAdapter.ListItem buildReaderModeItem(Tab currentTab, boolean showIcon) {
+        return createStandardListItem(
                 buildModelForStandardMenuItem(
                         R.id.reader_mode_menu_id,
                         DomDistillerUrlUtils.isDistilledPage(currentTab.getUrl())
                                 ? R.string.hide_reading_mode_text
                                 : R.string.show_reading_mode_text,
-                        shouldShowIconBeforeItem() ? R.drawable.ic_mobile_friendly_24dp : 0));
+                        showIcon ? R.drawable.ic_mobile_friendly_24dp : 0),
+                showIcon);
     }
 
     /**
@@ -800,14 +821,15 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
     }
 
     /** Construct the page info menu item. */
-    protected MVCListAdapter.ListItem buildPageInfoItem(@Nullable Tab currentTab) {
+    protected MVCListAdapter.ListItem buildPageInfoItem(
+            @Nullable Tab currentTab, boolean showIcon) {
         MVCListAdapter.ListItem item =
-                new MVCListAdapter.ListItem(
-                        AppMenuHandler.AppMenuItemType.STANDARD,
+                createStandardListItem(
                         buildModelForStandardMenuItem(
                                 R.id.info_menu_id,
                                 R.string.menu_site_controls,
-                                shouldShowIconBeforeItem() ? R.drawable.ic_settings_tune_24dp : 0));
+                                showIcon ? R.drawable.ic_settings_tune_24dp : 0),
+                        showIcon);
         item.model.set(AppMenuItemProperties.ENABLED, currentTab != null);
         return item;
     }
@@ -863,7 +885,9 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
             // This is the 'webapp is already installed' case, so we offer to open the webapp.
             String appName = resolveInfo.loadLabel(mContext.getPackageManager()).toString();
             return new ListItem(
-                    AppMenuItemType.STANDARD,
+                    showIcon
+                            ? AppMenuHandler.AppMenuItemType.STANDARD
+                            : AppMenuHandler.AppMenuItemType.STANDARD_NO_ICON,
                     buildBaseModelForTextItem(R.id.open_webapk_id)
                             .with(
                                     AppMenuItemProperties.TITLE,
@@ -877,7 +901,9 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
                             .build());
         } else {
             return new ListItem(
-                    AppMenuItemType.STANDARD,
+                    showIcon
+                            ? AppMenuHandler.AppMenuItemType.STANDARD
+                            : AppMenuHandler.AppMenuItemType.STANDARD_NO_ICON,
                     buildModelForStandardMenuItem(
                             R.id.universal_install,
                             R.string.menu_install_create_shortcut,
@@ -1386,17 +1412,19 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
                     buildModelForMenuItemWithSecondaryButton(
                             R.id.share_menu_id,
                             R.string.menu_share_page,
-                            showIcon ? R.drawable.ic_share_white_24dp : 0,
+                            showIcon ? R.drawable.ic_share_white_24dp : Resources.ID_NULL,
                             R.id.direct_share_menu_id,
                             directShareTitle,
                             directShare.first));
         } else {
             return new ListItem(
-                    AppMenuItemType.STANDARD,
+                    showIcon
+                            ? AppMenuHandler.AppMenuItemType.STANDARD
+                            : AppMenuHandler.AppMenuItemType.STANDARD_NO_ICON,
                     buildModelForStandardMenuItem(
                             R.id.share_menu_id,
                             R.string.menu_share_page,
-                            showIcon ? R.drawable.ic_share_white_24dp : 0));
+                            showIcon ? R.drawable.ic_share_white_24dp : Resources.ID_NULL));
         }
     }
 
@@ -1477,8 +1505,19 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
 
     @Contract("null -> false")
     protected boolean shouldShowPageZoomItem(@Nullable Tab currentTab) {
-        return currentTab != null
-                && shouldShowWebContentsDependentMenuItem(currentTab)
+        if (currentTab == null) return false;
+
+        // If the bottom sheet is currently expanded, remove the menu option.
+        WindowAndroid windowAndroid = currentTab.getWindowAndroid();
+        if (windowAndroid != null) {
+            BottomSheetController bottomSheetController =
+                    BottomSheetControllerProvider.from(windowAndroid);
+            if (bottomSheetController != null && bottomSheetController.isSheetOpen()) {
+                return false;
+            }
+        }
+
+        return shouldShowWebContentsDependentMenuItem(currentTab)
                 && PageZoomUtils.shouldShowZoomMenuItem();
     }
 

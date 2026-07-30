@@ -18,7 +18,9 @@
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_file_util.h"
 #include "base/time/time.h"
@@ -120,55 +122,10 @@ std::vector<TestParams> GetTestParams() {
 
 }  // namespace
 
-const char kPushedUrl[] = "https://www.example.org/foo.dat";
-
-class SpdyNetworkTransactionTest
-    : public TestWithTaskEnvironment,
-      public ::testing::WithParamInterface<TestParams> {
- protected:
-  explicit SpdyNetworkTransactionTest(
-      std::vector<base::test::FeatureRef> disabled_features = {})
-      : TestWithTaskEnvironment(
-            base::test::TaskEnvironment::TimeSource::MOCK_TIME,
-            disabled_features),
-        default_url_(kDefaultUrl),
-        host_port_pair_(HostPortPair::FromURL(default_url_)),
-        spdy_util_(/*use_priority_header=*/true) {
-    std::vector<base::test::FeatureRef> enabled_features;
-
-    if (HappyEyeballsV2Enabled()) {
-      enabled_features.emplace_back(features::kHappyEyeballsV2);
-    } else {
-      disabled_features.emplace_back(features::kHappyEyeballsV2);
-    }
-    if (HappyEyeballsV3Enabled()) {
-      enabled_features.emplace_back(features::kHappyEyeballsV3);
-    } else {
-      disabled_features.emplace_back(features::kHappyEyeballsV3);
-    }
-
-    feature_list_.InitWithFeatures(enabled_features, disabled_features);
-  }
-
-  ~SpdyNetworkTransactionTest() override {
-    // Clear raw_ptr to upload pointer prior to deleting it, to avoid triggering
-    // danling raw_ptr warning.
-    request_.upload_data_stream = nullptr;
-
-    // UploadDataStream may post a deletion task back to the message loop on
-    // destruction.
-    upload_data_stream_.reset();
-    base::RunLoop().RunUntilIdle();
-  }
-
-  void SetUp() override {
-    request_.method = "GET";
-    request_.url = GURL(kDefaultUrl);
-    request_.traffic_annotation =
-        net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS);
-    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
-  }
-
+// Base class containing shared helper classes and common setup/teardown logic
+// for SPDY network transaction tests.
+class SpdyNetworkTransactionTestBase : public TestWithTaskEnvironment {
+ public:
   struct TransactionHelperResult {
     int rv;
     std::string status_line;
@@ -357,6 +314,83 @@ class SpdyNetworkTransactionTest
     const NetLogWithSource log_;
   };
 
+ protected:
+  explicit SpdyNetworkTransactionTestBase(
+      std::vector<base::test::FeatureRef> disabled_features = {})
+      : TestWithTaskEnvironment(
+            base::test::TaskEnvironment::TimeSource::MOCK_TIME,
+            std::move(disabled_features)),
+        default_url_(kDefaultUrl),
+        host_port_pair_(HostPortPair::FromURL(default_url_)),
+        spdy_util_(/*use_priority_header=*/true) {}
+
+  ~SpdyNetworkTransactionTestBase() override {
+    // Clear raw_ptr to upload pointer prior to deleting it, to avoid triggering
+    // danling raw_ptr warning.
+    request_.upload_data_stream = nullptr;
+
+    // UploadDataStream may post a deletion task back to the message loop on
+    // destruction.
+    upload_data_stream_.reset();
+    base::RunLoop().RunUntilIdle();
+  }
+
+  void SetUp() override {
+    request_.method = "GET";
+    request_.url = GURL(kDefaultUrl);
+    request_.traffic_annotation =
+        net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS);
+    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
+  }
+
+  const GURL default_url_;
+  const HostPortPair host_port_pair_;
+  const NetLogWithSource log_;
+  HttpRequestInfo request_;
+  SpdyTestUtil spdy_util_;
+  base::ScopedTempDir temp_dir_;
+  std::unique_ptr<UploadDataStream> upload_data_stream_;
+};
+
+const char kPushedUrl[] = "https://www.example.org/foo.dat";
+
+class SpdyNetworkTransactionTest
+    : public SpdyNetworkTransactionTestBase,
+      public ::testing::WithParamInterface<TestParams> {
+ protected:
+  explicit SpdyNetworkTransactionTest(
+      std::vector<base::test::FeatureRef> disabled_features = {})
+      : SpdyNetworkTransactionTestBase(disabled_features) {
+    std::vector<base::test::FeatureRef> enabled_features;
+
+    if (HappyEyeballsV2Enabled()) {
+      enabled_features.emplace_back(features::kHappyEyeballsV2);
+    } else {
+      disabled_features.emplace_back(features::kHappyEyeballsV2);
+    }
+    if (HappyEyeballsV3Enabled()) {
+      enabled_features.emplace_back(features::kHappyEyeballsV3);
+    } else {
+      disabled_features.emplace_back(features::kHappyEyeballsV3);
+    }
+
+    feature_list_.InitWithFeatures(enabled_features, disabled_features);
+  }
+
+  ~SpdyNetworkTransactionTest() override {
+    // Clear raw_ptr to upload pointer prior to deleting it, to avoid triggering
+    // dangling raw_ptr warning.
+    request_.upload_data_stream = nullptr;
+  }
+
+  void SetUp() override {
+    request_.method = "GET";
+    request_.url = GURL(kDefaultUrl);
+    request_.traffic_annotation =
+        net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS);
+    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
+  }
+
   void ConnectStatusHelperWithExpectedStatus(const MockRead& status,
                                              int expected_status);
 
@@ -544,16 +578,7 @@ class SpdyNetworkTransactionTest
     return GetParam().happy_eyeballs_version == 3;
   }
 
-  const GURL default_url_;
-  const HostPortPair host_port_pair_;
-
-  const NetLogWithSource log_;
   std::unique_ptr<ChunkedUploadDataStream> upload_chunked_data_stream_;
-  std::unique_ptr<UploadDataStream> upload_data_stream_;
-  HttpRequestInfo request_;
-  SpdyTestUtil spdy_util_;
-
-  base::ScopedTempDir temp_dir_;
   base::test::ScopedFeatureList feature_list_;
 };
 
@@ -9580,6 +9605,219 @@ TEST_P(SpdyNetworkTransactionTest, AlpsFramingError) {
   histogram_tester.ExpectTotalCount("Net.SpdySession.AlpsAcceptChEntries", 0);
   histogram_tester.ExpectTotalCount("Net.SpdySession.AlpsSettingParameterCount",
                                     0);
+}
+
+namespace {
+
+// A helper class used to initialize ScopedFeatureList before the
+// TestWithTaskEnvironment base class constructor runs.
+//
+// By inheriting from this class *first* in the inheritance list of the test
+// fixture, we guarantee that the features (such as NetTaskScheduler) are
+// initialized and active before TestWithTaskEnvironment sets up the task
+// environment.
+//
+// This is critical because TestWithTaskEnvironment sets up the task scheduler
+// depending on the value of the NetTaskScheduler feature during its constructor
+// execution. If the feature is not initialized first, the scheduler will not
+// be configured correctly.
+//
+// Do NOT move this initialization to a member variable, as member variables
+// are initialized *after* all base classes, violating this ordering
+// requirement.
+class ScopedFeatureListInitializer {
+ public:
+  ScopedFeatureListInitializer(
+      const std::vector<base::test::FeatureRef>& enabled_features,
+      const std::vector<base::test::FeatureRef>& disabled_features) {
+    feature_list_.InitWithFeatures(enabled_features, disabled_features);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+}  // namespace
+
+// Test fixture for verifying NetTaskScheduler behaviors and interactions with
+// priority-sensitive features, specifically focusing on priority starvation.
+//
+// The fixture is parameterized on a std::tuple<bool, bool> representing:
+// - scheduler_enabled (index 0): Whether NetTaskScheduler is enabled.
+// - synchronous_drain_enabled (index 1): Whether synchronous draining on
+//   remote endpoint disconnect is enabled.
+//
+// CRITICAL: We inherit from ScopedFeatureListInitializer *first* in the list
+// to ensure features are initialized before SpdyNetworkTransactionTestBase (and
+// thus TestWithTaskEnvironment) constructor runs.
+class SpdyNetworkTransactionSchedulerTest
+    : private ScopedFeatureListInitializer,
+      public SpdyNetworkTransactionTestBase,
+      public ::testing::WithParamInterface<std::tuple<bool, bool>> {
+ protected:
+  static bool IsSchedulerEnabled() { return std::get<0>(GetParam()); }
+
+  static bool IsSynchronousDrainEnabled() { return std::get<1>(GetParam()); }
+
+  static std::vector<base::test::FeatureRef> GetEnabledFeatures() {
+    std::vector<base::test::FeatureRef> enabled;
+    enabled.push_back(features::kAsyncRetryOnTooManyConnectionErrors);
+    if (IsSchedulerEnabled()) {
+      enabled.push_back(features::kNetTaskScheduler);
+      enabled.push_back(features::kNetworkServicePerPriorityTaskQueues);
+    }
+    if (IsSynchronousDrainEnabled()) {
+      enabled.push_back(
+          features::kDrainSpdySessionSynchronouslyOnRemoteEndpointDisconnect);
+    }
+    return enabled;
+  }
+
+  static std::vector<base::test::FeatureRef> GetDisabledFeatures() {
+    std::vector<base::test::FeatureRef> disabled;
+    if (!IsSchedulerEnabled()) {
+      disabled.push_back(features::kNetTaskScheduler);
+      disabled.push_back(features::kNetworkServicePerPriorityTaskQueues);
+    }
+    if (!IsSynchronousDrainEnabled()) {
+      disabled.push_back(
+          features::kDrainSpdySessionSynchronouslyOnRemoteEndpointDisconnect);
+    }
+    return disabled;
+  }
+
+  SpdyNetworkTransactionSchedulerTest()
+      : ScopedFeatureListInitializer(GetEnabledFeatures(),
+                                     GetDisabledFeatures()) {}
+
+  ~SpdyNetworkTransactionSchedulerTest() override = default;
+};
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         SpdyNetworkTransactionSchedulerTest,
+                         ::testing::Combine(::testing::Bool(),
+                                            ::testing::Bool()));
+
+// This test verifies that priority starvation does not occur when a pooled
+// SPDY session is silently disconnected while idle, and a new high-priority
+// transaction attempts to reuse it under the NetTaskScheduler.
+//
+// Starvation Scenario (The Bug):
+// 1. A SPDY session is established and pooled.
+// 2. The session's socket is disconnected by the remote endpoint while idle,
+//    but the SpdySession is not yet aware of it (it is waiting for an async
+//    read callback to deliver the disconnect event on the default task queue).
+// 3. The session becomes a "zombie": pooled but actually dead.
+// 4. A new HIGHEST priority transaction attempts to connect and reuse this
+//    zombie session.
+// 5. Because the session is dead, the transaction fails and triggers a retry.
+// 6. With NetTaskScheduler enabled, these retry tasks are posted to the
+//    HIGHEST priority queue.
+// 7. Meanwhile, the task to resume the socket and deliver the disconnect
+//    error (which would drain and clean up the zombie session) is queued on
+//    the default priority queue.
+// 8. Because the HIGHEST queue is constantly busy retrying, the default
+//    queue is starved, preventing the disconnect error from being delivered.
+//    This leads to an infinite dead-loop/hang.
+//
+// Expected Behaviors:
+// - If scheduler is OFF, or synchronous drain is ON:
+//   No starvation occurs. The session is cleaned up immediately or the
+//   resume task runs without starvation. The transaction fails quickly.
+// - If scheduler is ON and synchronous drain is OFF (Buggy State):
+//   The starvation loop occurs, but is eventually broken after 24 retries
+//   by the AsyncRetryOnTooManyConnectionErrors mitigation, which forces
+//   an asynchronous retry and allows the default queue to run.
+TEST_P(SpdyNetworkTransactionSchedulerTest, PriorityStarvation) {
+  base::HistogramTester histogram_tester;
+
+  // We set up a simulated socket connection.
+  // The goal is to successfully complete a first transaction, keep the
+  // connection pooled, and then simulate a silent disconnect that occurs
+  // while the connection is idle.
+  spdy::SpdySerializedFrame req1(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, HIGHEST));
+  spdy::SpdySerializedFrame resp1(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
+  spdy::SpdySerializedFrame body1(spdy_util_.ConstructSpdyDataFrame(1, true));
+
+  MockRead reads1[] = {
+      CreateMockRead(resp1, 1),
+      CreateMockRead(body1, 2),
+      MockRead(ASYNC, ERR_IO_PENDING, 3),
+      MockRead(ASYNC, ERR_SOCKET_NOT_CONNECTED, 4),
+  };
+  MockWrite writes1[] = {CreateMockWrite(req1, 0)};
+
+  SequencedSocketData data1(reads1, writes1);
+
+  MockConnect connect2(ASYNC, ERR_SOCKET_NOT_CONNECTED);
+  SequencedSocketData data2(connect2, base::span<MockRead>(),
+                            base::span<MockWrite>());
+
+  // Run the first transaction to pool the SpdySession.
+  NormalSpdyTransactionHelper helper1(request_, HIGHEST, log_, nullptr);
+  helper1.RunPreTestSetup();
+  helper1.AddData(&data1);
+  helper1.RunDefaultTest();
+  EXPECT_THAT(helper1.output().rv, IsOk());
+  EXPECT_EQ("hello!", helper1.output().response_data);
+
+  // Set up the priority starvation trap.
+  // Register data2 to fail immediately if a new connection is attempted.
+  helper1.AddData(&data2);
+
+  // Force GetPeerAddress() to fail, turning the session into a "zombie".
+  data1.set_force_get_peer_address_failure(true);
+
+  // Verify that the socket is indeed paused at Seq 3 (ERR_IO_PENDING), waiting
+  // for new data or a disconnect event.
+  EXPECT_TRUE(data1.IsPaused());
+
+  // Post a default-priority task to resume the socket (delivers disconnect
+  // error). Under NetTaskScheduler, this will be starved if the HIGHEST
+  // priority retry loop continues indefinitely.
+  bool resume_called = false;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindLambdaForTesting([&]() {
+        data1.Resume();
+        resume_called = true;
+      }));
+
+  // Start second transaction (HIGHEST) to trigger the loop ---
+  HttpNetworkTransaction trans2(HIGHEST, helper1.session());
+
+  TestCompletionCallback callback2;
+  int rv2 = trans2.Start(&request_, callback2.callback(), log_);
+  EXPECT_EQ(ERR_IO_PENDING, rv2);
+
+  // Run the loop until both the transaction completes and the resume task runs.
+  ASSERT_TRUE(base::test::RunUntil([&]() { return callback2.have_result(); }));
+  ASSERT_TRUE(base::test::RunUntil([&]() { return resume_called; }));
+  int final_result = callback2.WaitForResult();
+  EXPECT_THAT(final_result, IsError(ERR_SOCKET_NOT_CONNECTED));
+
+  // Verify if the starvation mitigation triggered.
+  //
+  // If the scheduler is enabled and synchronous drain is disabled, the
+  // priority starvation loop occurs, and the async retry mitigation is
+  // triggered once (after some retries).
+  // Otherwise (scheduler disabled or synchronous drain enabled), the session
+  // is drained synchronously or no starvation occurs, so the mitigation is
+  // never triggered.
+  size_t expected_retry_count = 0;
+  if (IsSchedulerEnabled() && !IsSynchronousDrainEnabled()) {
+    expected_retry_count = 1;
+  }
+
+  histogram_tester.ExpectTotalCount(
+      HttpNetworkTransaction::
+          kAsyncRetryOnTooManyConnectionErrorsFirstHistogram,
+      expected_retry_count);
+
+  // Verify that all mock data has been fully consumed
+  // now that the test is complete.
+  helper1.VerifyDataConsumed();
 }
 
 }  // namespace net

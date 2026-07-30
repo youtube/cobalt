@@ -421,7 +421,7 @@ TEST_F(AIProofreaderTest, InputLimitExceededError) {
   auto proofreader_remote = GetAIProofreaderRemote();
 
   fake_broker_->settings().set_size_in_tokens(
-      blink::mojom::kWritingAssistanceMaxInputTokenSize + 1);
+      blink::mojom::kTinyModelMaxInputTokenSize + 1);
 
   AITestUtils::TestStreamingResponder responder;
   proofreader_remote->Proofread(kInputString, responder.BindRemote());
@@ -429,9 +429,9 @@ TEST_F(AIProofreaderTest, InputLimitExceededError) {
   EXPECT_EQ(responder.error_status(),
             blink::mojom::ModelStreamingResponseStatus::kErrorInputTooLarge);
   ASSERT_EQ(responder.quota_error_info().requested,
-            blink::mojom::kWritingAssistanceMaxInputTokenSize + 1);
+            blink::mojom::kTinyModelMaxInputTokenSize + 1);
   ASSERT_EQ(responder.quota_error_info().quota,
-            blink::mojom::kWritingAssistanceMaxInputTokenSize);
+            blink::mojom::kTinyModelMaxInputTokenSize);
 }
 
 TEST_F(AIProofreaderTest, ProofreadMultipleResponse) {

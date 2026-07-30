@@ -49,7 +49,7 @@ void DownloadFileService::MoveDownloadFile(
                      file_task_runner_, source_path, destination_path),
       base::BindOnce(&DownloadFileService::OnFileMoveComplete,
                      weak_ptr_factory_.GetWeakPtr(), download_id, source_path,
-                     destination_path, std::move(callback)));
+                     std::move(callback)));
 }
 
 void DownloadFileService::ResolveAvailableFilePath(
@@ -75,29 +75,26 @@ void DownloadFileService::CheckFileExists(
       std::move(callback));
 }
 
-void DownloadFileService::OnFileMoveComplete(
-    const std::string& download_id,
-    const base::FilePath& source_path,
-    const base::FilePath& destination_path,
-    MoveCompleteCallback callback,
-    bool move_success) {
+void DownloadFileService::OnFileMoveComplete(const std::string& download_id,
+                                             const base::FilePath& source_path,
+                                             MoveCompleteCallback callback,
+                                             base::FilePath final_path) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(main_sequence_checker_);
 
+  const bool move_success = !final_path.empty();
   if (move_success && download_record_service_) {
     // Convert absolute path to relative path for storage.
-    base::FilePath relative_path =
-        ConvertToRelativeDownloadPath(destination_path);
+    base::FilePath relative_path = ConvertToRelativeDownloadPath(final_path);
     download_record_service_->UpdateDownloadFilePathAsync(download_id,
                                                           relative_path);
   }
 
   if (callback) {
-    std::move(callback).Run(move_success, download_id, source_path,
-                            destination_path);
+    std::move(callback).Run(move_success, download_id, source_path, final_path);
   }
 }
 
-bool DownloadFileService::DoMoveFileOnBackgroundThread(
+base::FilePath DownloadFileService::DoMoveFileOnBackgroundThread(
     scoped_refptr<base::SequencedTaskRunner> file_task_runner,
     const base::FilePath& source_path,
     const base::FilePath& destination_path) {
@@ -105,21 +102,30 @@ bool DownloadFileService::DoMoveFileOnBackgroundThread(
 
   // Check if source file exists.
   if (!base::PathExists(source_path)) {
-    return false;
+    return base::FilePath();
   }
 
   // Create destination directory if it doesn't exist.
   base::FilePath destination_dir = destination_path.DirName();
   if (!base::CreateDirectory(destination_dir)) {
-    return false;
+    return base::FilePath();
+  }
+
+  // If a file already exists at the requested destination (e.g. another
+  // download with the same suggested name completed first), pick the next
+  // available name so the existing file is not overwritten.
+  base::FilePath final_path = destination_path;
+  if (base::PathExists(final_path)) {
+    final_path = FindAvailableDownloadFilePath(
+        file_task_runner, destination_dir, destination_path.BaseName());
   }
 
   // Move the file.
-  if (!base::Move(source_path, destination_path)) {
-    return false;
+  if (!base::Move(source_path, final_path)) {
+    return base::FilePath();
   }
 
-  return true;
+  return final_path;
 }
 
 base::FilePath DownloadFileService::FindAvailableDownloadFilePath(

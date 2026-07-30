@@ -156,27 +156,27 @@ void OmniboxPopupFullPresenter::SynchronizePopupBounds() {
     return;
   }
 
+  // Calculate the bounds of the "content area" which includes the location bar
+  // and any results, plus the alignment insets to cover the focus ring.
   gfx::Rect widget_bounds = location_bar()->BoundsInScreen();
+  widget_bounds.Inset(
+      -RoundedOmniboxResultsFrame::GetLocationBarAlignmentInsets());
+
+  const int default_height = widget_bounds.height();
+  bool has_results = !controller()->autocomplete_controller()->result().empty();
 
   auto* results_frame =
       views::AsViewClass<FullWebUIOmniboxFrame>(GetResultsFrame());
   CHECK(results_frame);
+  results_frame->SetElevation(
+      has_results ? RoundedOmniboxResultsFrame::kDefaultElevation : 0);
 
-  bool has_results = !controller()->autocomplete_controller()->result().empty();
-  if (!has_results) {
-    // The WebUI content should be the same height as the location bar when
-    // there are no results, so we don't need to update `widget_bounds`. We
-    // also don't apply alignment insets to avoid shifting.
-    results_frame->SetElevation(0);
-  } else {
-    widget_bounds.Inset(
-        -RoundedOmniboxResultsFrame::GetLocationBarAlignmentInsets());
-    widget_bounds.set_height(content_height_);
-    results_frame->SetElevation(RoundedOmniboxResultsFrame::kDefaultElevation);
-  }
+  // Use the content height reported by WebUI. This avoids premature shrinking
+  // before the WebUI has had a chance to update its content.
+  widget_bounds.set_height(std::max(content_height_, default_height));
 
-  // Set width and height to at least their minimums, or if larger,
-  // their calculated versions.
+  // Set width and height to at least their minimums (e.g. for permission
+  // prompts).
   widget_bounds.set_width(
       std::max(get_minimum_size().width(), widget_bounds.width()));
   widget_bounds.set_height(
@@ -207,8 +207,11 @@ void OmniboxPopupFullPresenter::OnWidgetActivationChanged(views::Widget* widget,
     // TODO(b/519724566): Look into using popup_closer here.
     controller()->StopAutocomplete(/*clear_result=*/true);
 
-    controller()->popup_state_manager()->SetPopupState(
-        OmniboxPopupState::kNone);
+    // If the user is currently typing do not close the popup.
+    if (!controller()->edit_model()->user_input_in_progress()) {
+      controller()->popup_state_manager()->SetPopupState(
+          OmniboxPopupState::kNone);
+    }
   }
 }
 

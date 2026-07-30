@@ -12,9 +12,11 @@
 #include <utility>
 #include <vector>
 
+#include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
 #include "base/check.h"
 #include "base/check_op.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
@@ -25,6 +27,8 @@
 #include "chromeos/ash/components/policy/weekly_time/weekly_time_interval.h"
 #include "chromeos/dbus/power/power_manager_client.h"
 #include "components/prefs/pref_service.h"
+#include "components/session_manager/core/session_manager.h"
+#include "components/user_manager/user_manager.h"
 #include "third_party/cros_system_api/dbus/power_manager/dbus-constants.h"
 
 namespace ash {
@@ -32,6 +36,33 @@ namespace ash {
 using ::policy::WeeklyTimeInterval;
 
 namespace {
+
+bool IsPolicyApplicable() {
+  if (!user_manager::UserManager::IsInitialized()) {
+    return false;
+  }
+  auto* user_manager = user_manager::UserManager::Get();
+  if (user_manager->IsLoggedInAsAnyKioskApp()) {
+    return true;
+  }
+
+  if (!base::FeatureList::IsEnabled(
+          ash::features::kDeviceWeeklyScheduledSuspendMgs)) {
+    return false;
+  }
+
+  if (user_manager->IsLoggedInAsManagedGuestSession()) {
+    return true;
+  }
+
+  if (session_manager::SessionManager::Get() &&
+      session_manager::SessionManager::Get()->session_state() ==
+          session_manager::SessionState::LOGIN_PRIMARY) {
+    return true;
+  }
+
+  return false;
+}
 
 // Extracts a vector of WeeklyTimeInterval objects from the policy config.
 // Returns a vector containing nullptr for invalid dictionary entries.
@@ -107,6 +138,23 @@ DeviceWeeklyScheduledSuspendController::DeviceWeeklyScheduledSuspendController(
       base::BindRepeating(&DeviceWeeklyScheduledSuspendController::
                               OnDeviceWeeklyScheduledSuspendUpdate,
                           weak_factory_.GetWeakPtr()));
+}
+
+DeviceWeeklyScheduledSuspendController::
+    ~DeviceWeeklyScheduledSuspendController() = default;
+
+void DeviceWeeklyScheduledSuspendController::InitUserManagerObservation(
+    user_manager::UserManager* user_manager) {
+  user_manager_observation_.Observe(user_manager);
+  OnDeviceWeeklyScheduledSuspendUpdate();
+}
+
+void DeviceWeeklyScheduledSuspendController::InitSessionObservation() {
+  if (session_manager::SessionManager::Get()) {
+    session_manager_observation_.Observe(
+        session_manager::SessionManager::Get());
+    OnDeviceWeeklyScheduledSuspendUpdate();
+  }
 
   if (chromeos::PowerManagerClient::Get()) {
     // If the power manager service is already available then as soon as an
@@ -114,10 +162,11 @@ DeviceWeeklyScheduledSuspendController::DeviceWeeklyScheduledSuspendController(
     // observer method is called immediately.
     power_manager_observer_.Observe(chromeos::PowerManagerClient::Get());
   }
-}
 
-DeviceWeeklyScheduledSuspendController::
-    ~DeviceWeeklyScheduledSuspendController() = default;
+  if (ui::UserActivityDetector::Get()) {
+    user_activity_observation_.Observe(ui::UserActivityDetector::Get());
+  }
+}
 
 void DeviceWeeklyScheduledSuspendController::PowerManagerBecameAvailable(
     bool available) {
@@ -131,11 +180,22 @@ void DeviceWeeklyScheduledSuspendController::PowerManagerBecameAvailable(
   OnDeviceWeeklyScheduledSuspendUpdate();
 }
 
+void DeviceWeeklyScheduledSuspendController::SuspendImminent(
+    power_manager::SuspendImminent::Reason reason) {
+  resuspend_timer_.Stop();
+}
+
 void DeviceWeeklyScheduledSuspendController::SuspendDone(
     base::TimeDelta sleep_duration) {
-  // Full resumes are signaled by a SuspendDone call, and any full resume
-  // triggered by third-parties will also cancel our full resume.
-  resume_after_ = std::nullopt;
+  if (resume_after_ && resume_after_.value() > clock_->Now()) {
+    StartResuspendTimer();
+  } else {
+    // Full resumes are signaled by a `SuspendDone` call. If it's a full resume
+    // at the end of the interval or triggered by a third-party outside of our
+    // interval, we just clear our suspend state.
+    resume_after_ = std::nullopt;
+    resuspend_timer_.Stop();
+  }
 }
 
 void DeviceWeeklyScheduledSuspendController::DarkSuspendImminent() {
@@ -150,8 +210,18 @@ void DeviceWeeklyScheduledSuspendController::DarkSuspendImminent() {
 
   // Trigger a full resume.
   resume_after_ = std::nullopt;
+  resuspend_timer_.Stop();
   chromeos::PowerManagerClient::Get()->NotifyUserActivity(
       power_manager::USER_ACTIVITY_OTHER);
+}
+
+void DeviceWeeklyScheduledSuspendController::OnSessionStateChanged() {
+  OnDeviceWeeklyScheduledSuspendUpdate();
+}
+
+void DeviceWeeklyScheduledSuspendController::ActiveUserChanged(
+    user_manager::User* active_user) {
+  OnDeviceWeeklyScheduledSuspendUpdate();
 }
 
 const WeeklyIntervalTimers&
@@ -175,13 +245,21 @@ void DeviceWeeklyScheduledSuspendController::
     OnDeviceWeeklyScheduledSuspendUpdate() {
   // Early return in case the policy is set before power manager is available.
   if (!power_manager_available_) {
+    VLOG(1) << "Power manager not available";
     return;
   }
+
+  device_suspension_timers_.clear();
+  resume_after_ = std::nullopt;
+  resuspend_timer_.Stop();
+
+  if (!IsPolicyApplicable()) {
+    return;
+  }
+
   const base::ListValue& policy_config =
       pref_change_registrar_.prefs()->GetList(
           ash::prefs::kDeviceWeeklyScheduledSuspend);
-
-  device_suspension_timers_.clear();
 
   if (!AllWeeklyTimeIntervalsAreValid(policy_config)) {
     return;
@@ -196,22 +274,60 @@ void DeviceWeeklyScheduledSuspendController::
 
 void DeviceWeeklyScheduledSuspendController::OnWeeklyIntervalStart(
     base::TimeDelta duration) {
-  // Suspend the device for the specified duration. The device does NOT fully
-  // resume automatically; rather, the powerd wake alarm triggers a dark resume
-  // (signaled by a `DarkSuspendImminent` call) and we then need to trigger the
-  // full resume ourselves. Note that we suspend to RAM, to ensure consistent
-  // behavior across models. For more info about dark/full resumes, see:
-  // https://chromium.googlesource.com/chromiumos/platform2/+/HEAD/power_manager/docs/dark_resume.md
-  chromeos::PowerManagerClient::Get()->RequestSuspend(
-      /*wakeup_count=*/std::nullopt, duration.InSeconds(),
-      power_manager::REQUEST_SUSPEND_TO_RAM);
-
   // We want any dark resume that happens within `tolerance` of the wake time
   // to trigger a full resume. Tolerance is an arbitrary duration that reduces
   // the chance of missing the end of a sleep interval due to random timing
   // issues, and is otherwise imperceptible if it causes an early full resume.
   constexpr auto tolerance = base::Seconds(2);
   resume_after_ = clock_->Now() + duration - tolerance;
+
+  SuspendToRam();
+}
+
+void DeviceWeeklyScheduledSuspendController::OnUserActivity(
+    const ui::Event* event) {
+  if (resume_after_) {
+    if (resume_after_.value() > clock_->Now()) {
+      StartResuspendTimer();
+    } else {
+      resume_after_ = std::nullopt;
+      resuspend_timer_.Stop();
+    }
+  }
+}
+
+void DeviceWeeklyScheduledSuspendController::StartResuspendTimer() {
+  int delay_ms = pref_change_registrar_.prefs()->GetInteger(
+      ash::prefs::kDeviceWeeklyScheduledResuspendDelayMs);
+  if (delay_ms < 0) {
+    resume_after_ = std::nullopt;
+    resuspend_timer_.Stop();
+    return;
+  }
+  resuspend_timer_.Start(FROM_HERE, base::Milliseconds(delay_ms), this,
+                         &DeviceWeeklyScheduledSuspendController::SuspendToRam);
+}
+
+void DeviceWeeklyScheduledSuspendController::SuspendToRam() {
+  // Suspend the device for the specified duration. The device does NOT fully
+  // resume automatically; rather, the powerd wake alarm triggers a dark resume
+  // (signaled by a `DarkSuspendImminent` call) and we then need to trigger the
+  // full resume ourselves. Note that we suspend to RAM, to ensure consistent
+  // behavior across models. For more info about dark/full resumes, see:
+  // https://chromium.googlesource.com/chromiumos/platform2/+/HEAD/power_manager/docs/dark_resume.md
+  if (resume_after_ && resume_after_.value() <= clock_->Now()) {
+    resume_after_ = std::nullopt;
+    resuspend_timer_.Stop();
+  }
+  if (!resume_after_) {
+    return;
+  }
+
+  base::TimeDelta duration =
+      resume_after_.value() - clock_->Now() + base::Seconds(2);
+  chromeos::PowerManagerClient::Get()->RequestSuspend(
+      /*wakeup_count=*/std::nullopt, duration.InSeconds(),
+      power_manager::REQUEST_SUSPEND_TO_RAM);
 }
 
 }  // namespace ash

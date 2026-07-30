@@ -94,6 +94,9 @@ class TestConfiguration : public Configuration {
   ~TestConfiguration() override = default;
 
   // Configuration implementation.
+  bool HasFeatureConfig(const base::Feature& feature) const override {
+    return true;
+  }
   const FeatureConfig& GetFeatureConfig(
       const base::Feature& feature) const override {
     return config_;

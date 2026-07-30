@@ -7,10 +7,11 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
+#include "base/observer_list.h"
 #include "base/time/time.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/permissions/permission_request_enums.h"
-#include "components/permissions/permission_uma_util.h"
+#include "components/permissions/permission_uma_constants.h"
 #include "components/permissions/permission_util.h"
 #include "components/permissions/prediction_service/prediction_request_features.h"
 #include "components/pref_registry/pref_registry_syncable.h"

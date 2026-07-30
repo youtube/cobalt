@@ -18,9 +18,8 @@
   return self;
 }
 
-- (void)configureHeaderFooterView:(WhatsNewTableViewSubtitleCell*)footer
-                       withStyler:(ChromeTableViewStyler*)styler {
-  [super configureHeaderFooterView:footer withStyler:styler];
+- (void)configureHeaderFooterView:(WhatsNewTableViewSubtitleCell*)footer {
+  [super configureHeaderFooterView:footer];
 
   footer.textLabel.text = self.title;
 }

@@ -37,6 +37,7 @@ class EntityInstanceCleanerTest : public testing::Test {
         /*sync_service=*/&sync_service(),
         webdata_helper_.autofill_webdata_service(),
         /*history_service=*/nullptr,
+        /*pcontext_manager=*/nullptr,
         /*strike_database=*/nullptr,
         /*variation_country_code=*/GeoIpCountryCode("US"));
     cleaner_ = std::make_unique<EntityInstanceCleaner>(

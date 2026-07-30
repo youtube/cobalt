@@ -18,7 +18,8 @@ namespace blink {
 namespace {
 
 struct SameSizeAsBlockBreakToken : BreakToken {
-  Member<LayoutBox> data;
+  Member<LayoutBox> box;
+  Member<BreakTokenAlgorithmData> data;
   LayoutUnit consumed_block_size;
   LayoutUnit monolithic_overflow;
   LogicalOffset oof_start_offset;
@@ -63,6 +64,7 @@ BlockBreakToken* BlockBreakToken::CreateForBreakInRepeatedFragment(
 
 BlockBreakToken::BlockBreakToken(PassKey key, BoxFragmentBuilder* builder)
     : BreakToken(kBlockBreakToken, builder->node_),
+      box_(builder->node_.GetLayoutBox()),
       const_num_children_(builder->child_break_tokens_.size()) {
   has_seen_all_children_ = builder->has_seen_all_children_;
   is_caused_by_column_spanner_ = builder->FoundColumnSpanner();
@@ -81,12 +83,16 @@ BlockBreakToken::BlockBreakToken(PassKey key, BoxFragmentBuilder* builder)
   // step is run after in-flow child layout, the OOF fragments themselves will
   // still end up after in-flow siblings.
   if (RuntimeEnabledFeatures::FragmentedOofInCbEnabled()) {
+    auto is_oof = [](const Member<const BreakToken>& token) {
+      // Only block break tokens can carry an OOF node.
+      const auto* block_token = DynamicTo<BlockBreakToken>(token.Get());
+      return block_token && block_token->InputNode().IsOutOfFlowPositioned();
+    };
     std::stable_sort(builder->child_break_tokens_.begin(),
                      builder->child_break_tokens_.end(),
-                     [](const Member<const BreakToken>& a,
-                        const Member<const BreakToken>& b) {
-                       return !a->InputNode().IsOutOfFlowPositioned() <
-                              !b->InputNode().IsOutOfFlowPositioned();
+                     [&is_oof](const Member<const BreakToken>& a,
+                               const Member<const BreakToken>& b) {
+                       return !is_oof(a) < !is_oof(b);
                      });
   }
 
@@ -99,6 +105,7 @@ BlockBreakToken::BlockBreakToken(PassKey key, BoxFragmentBuilder* builder)
 
 BlockBreakToken::BlockBreakToken(PassKey key, LayoutInputNode node)
     : BreakToken(kBlockBreakToken, node),
+      box_(node.GetLayoutBox()),
       const_num_children_(0) {}
 
 void BlockBreakToken::MutableForOofFragmentation::Merge(
@@ -156,6 +163,7 @@ String BlockBreakToken::ToString(bool skip_node_info) const {
 }
 
 void BlockBreakToken::TraceAfterDispatch(Visitor* visitor) const {
+  visitor->Trace(box_);
   visitor->Trace(data_);
   // Looking up |ChildBreakTokensInternal()| in Trace() here is safe because
   // |const_num_children_| is const.

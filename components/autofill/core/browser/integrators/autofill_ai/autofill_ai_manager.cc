@@ -44,6 +44,8 @@
 #include "components/autofill/core/browser/form_processing/autofill_ai/determine_attribute_types.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
+#include "components/autofill/core/browser/foundations/autofill_driver.h"
+#include "components/autofill/core/browser/foundations/autofill_driver_factory.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_import_utils.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_wallet_utils.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/metrics/autofill_ai_logger.h"
@@ -238,7 +240,16 @@ void AutofillAiManager::OnAutofillAiSuggestionsShown(
     const FormStructure& form,
     const AutofillField& field,
     base::span<const Suggestion> shown_suggestions,
-    ukm::SourceId ukm_source_id) {
+    ukm::SourceId ukm_source_id,
+    UpdateSuggestionsCallback update_suggestions_callback) {
+  if (update_suggestions_callback) {
+    generate_suggestions_and_update_popup_callback_ =
+        base::BindRepeating(&AutofillAiManager::GenerateAndUpdateSuggestions,
+                            GetWeakPtr(), form.global_id(), field.global_id(),
+                            std::move(update_suggestions_callback));
+  } else {
+    generate_suggestions_and_update_popup_callback_.Reset();
+  }
   if (last_logged_ukm_source_id_ != ukm_source_id &&
       !form.server_predictions_received_timestamp().is_null()) {
     base::TimeDelta duration =
@@ -341,12 +352,22 @@ void AutofillAiManager::OnAfterLoadedServerPredictions(
   if (PersonalContextAccessManager* access_manager =
           client_->GetPersonalContextAccessManager()) {
     base::flat_set<EntityType> requested_types(std::from_range, relevant_types);
-    access_manager->PrefetchAmbientAutofillContext(requested_types);
+    access_manager->PrefetchContext(requested_types);
   }
 }
 
-void AutofillAiManager::OnPrefetchAmbientAutofillContextComplete(bool success) {
-  // TODO(crbug.com/503303085): Implement.
+void AutofillAiManager::OnPrefetchContextComplete(
+    const PersonalContextAccessManager& manager,
+    base::span<const EntityInstance> entities) {
+  if (!std::ranges::contains(client_->GetAutofillSuggestions(),
+                             SuggestionType::kFetchingAmbientData,
+                             &Suggestion::type)) {
+    return;
+  }
+
+  if (generate_suggestions_and_update_popup_callback_) {
+    generate_suggestions_and_update_popup_callback_.Run();
+  }
 }
 
 void AutofillAiManager::UpdateLoggerReadinessData(const FormStructure& form) {
@@ -963,4 +984,24 @@ AutofillAiManager::GetMigratePromptCandidates(
 
   return migrate_candidates;
 }
+
+void AutofillAiManager::GenerateAndUpdateSuggestions(
+    FormGlobalId form_id,
+    FieldGlobalId field_id,
+    UpdateSuggestionsCallback callback) {
+  const FormStructure* form = nullptr;
+  for (AutofillDriver* driver :
+       client_->GetAutofillDriverFactory().GetExistingDrivers()) {
+    if ((form = driver->GetAutofillManager().FindCachedFormById(form_id))) {
+      break;
+    }
+  }
+  if (!form) {
+    return;
+  }
+  if (const AutofillField* field = form->GetFieldById(field_id)) {
+    callback.Run(GetSuggestions(*form, *field));
+  }
+}
+
 }  // namespace autofill

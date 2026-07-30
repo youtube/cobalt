@@ -74,6 +74,17 @@
     display: block;
   }
 
+  .title-icon-container-standalone {
+    display: flex;
+    align-items: center;
+  }
+
+  .title-icon-container-standalone img {
+    height: 24px;
+    width: 24px;
+    display: block;
+  }
+
   #validation-error-top {
     color: var(--cr-fallback-color-error);
     margin-bottom: 16px;
@@ -92,15 +103,24 @@
 
     <template is="dom-if" if="[[shouldShowWalletBranding_(entityInstance)]]">
       <if expr="_google_chrome">
-        <div class="title-icon-container">
-          <picture id="branding-image">
-            <source srcset="[[getScaledSrcSet_('chrome://theme/IDR_AUTOFILL_GOOGLE_WALLET_DARK')]]"
-                media="(prefers-color-scheme: dark)">
-            <img srcset="[[getScaledSrcSet_('chrome://theme/IDR_AUTOFILL_GOOGLE_WALLET')]]"
+        <template is="dom-if" if="[[isWalletPassBranding2026Enabled_]]">
+          <div class="title-icon-container-standalone">
+            <img srcset="[[getScaledSrcSet_('chrome://theme/IDR_AUTOFILL_GOOGLE_WALLET_ICON')]]"
                 alt=""
                 role="presentation">
-          </picture>
-        </div>
+          </div>
+        </template>
+        <template is="dom-if" if="[[!isWalletPassBranding2026Enabled_]]">
+          <div class="title-icon-container">
+            <picture id="branding-image">
+              <source srcset="[[getScaledSrcSet_('chrome://theme/IDR_AUTOFILL_GOOGLE_WALLET_DARK')]]"
+                  media="(prefers-color-scheme: dark)">
+              <img srcset="[[getScaledSrcSet_('chrome://theme/IDR_AUTOFILL_GOOGLE_WALLET')]]"
+                  alt=""
+                  role="presentation">
+            </picture>
+          </div>
+        </template>
       </if>
     </template>
   </div>

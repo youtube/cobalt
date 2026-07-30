@@ -23,7 +23,7 @@
 
 namespace speech {
 
-constexpr base::TimeDelta kFinalResultTimerDuration = base::Seconds(1);
+constexpr base::TimeDelta kFinalResultTimerDuration = base::Seconds(5);
 
 SodaSpeechRecognizerImpl::SodaSpeechRecognizerImpl(
     bool continuous,
@@ -37,6 +37,7 @@ SodaSpeechRecognizerImpl::SodaSpeechRecognizerImpl(
     mojo::PendingReceiver<media::mojom::SpeechRecognitionAudioForwarder>
         audio_forwarder)
     : endpointer_(sample_rate),
+      continuous_(continuous),
       sample_rate_(sample_rate),
       task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       session_client_(std::move(session_client)),
@@ -64,13 +65,6 @@ SodaSpeechRecognizerImpl::SodaSpeechRecognizerImpl(
         base::Time::kMicrosecondsPerSecond * kLongSpeechCompleteSilenceLength);
     endpointer_.set_long_speech_length(base::Time::kMicrosecondsPerSecond *
                                        kLongSpeechLength);
-  } else {
-    // In continuous recognition, the session is automatically ended after 15
-    // seconds of silence.
-    constexpr float kSpeechInputCompleteSilenceLength = 15.0f;
-    endpointer_.set_speech_input_complete_silence_length(
-        base::Time::kMicrosecondsPerSecond * kSpeechInputCompleteSilenceLength);
-    endpointer_.set_long_speech_length(0);  // Use only a single timeout.
   }
   endpointer_.StartSession();
 
@@ -118,8 +112,8 @@ void SodaSpeechRecognizerImpl::OnSpeechRecognitionRecognitionEvent(
   waiting_for_final_result_ = !recognition_result.is_final;
 
   if (state_ == STATE_WAITING_FINAL_RESULT && !recognition_result.is_final) {
-    // Extend the timer by another second if we are still waiting for a final
-    // result and just received a partial one.
+    // Extend the timer if we are still waiting for a final result and just
+    // received a partial one.
     final_result_timer_.Start(
         FROM_HERE, kFinalResultTimerDuration,
         base::BindOnce(&SodaSpeechRecognizerImpl::OnFinalResultTimeout,
@@ -143,9 +137,18 @@ void SodaSpeechRecognizerImpl::OnSpeechRecognitionRecognitionEvent(
 
   FSMEventArgs event_args(EVENT_ENGINE_RESULT);
   event_args.engine_results = mojo::Clone(results);
+
+  // We must post the engine result event before calling StopCapture() (which
+  // posts EVENT_STOP_CAPTURE). This ensures the final result is processed
+  // by the FSM while still in STATE_RECOGNIZING, before transitioning to
+  // STATE_ENDED.
   task_runner_->PostTask(
       FROM_HERE, base::BindOnce(&SodaSpeechRecognizerImpl::DispatchEvent,
                                 weak_ptr_factory_.GetWeakPtr(), event_args));
+
+  if (recognition_result.is_final && !continuous_) {
+    StopCapture();
+  }
 }
 
 void SodaSpeechRecognizerImpl::OnSpeechRecognitionError() {
@@ -299,12 +302,14 @@ SodaSpeechRecognizerImpl::DetectUserSpeechOrTimeout(const FSMEventArgs&) {
     return STATE_RECOGNIZING;
   }
 
-  // Use an arbitrary time out duration of 8 seconds.
-  constexpr base::TimeDelta kNoSpeechTimeout = base::Milliseconds(8000);
-  if (GetElapsedTime() >= kNoSpeechTimeout) {
-    return Abort(media::mojom::SpeechRecognitionError(
-        media::mojom::SpeechRecognitionErrorCode::kNoSpeech,
-        media::mojom::SpeechAudioErrorDetails::kNone));
+  if (!continuous_) {
+    // Use an arbitrary time out duration of 8 seconds.
+    constexpr base::TimeDelta kNoSpeechTimeout = base::Milliseconds(8000);
+    if (GetElapsedTime() >= kNoSpeechTimeout) {
+      return Abort(media::mojom::SpeechRecognitionError(
+          media::mojom::SpeechRecognitionErrorCode::kNoSpeech,
+          media::mojom::SpeechAudioErrorDetails::kNone));
+    }
   }
 
   return STATE_WAITING_FOR_SPEECH;
@@ -312,7 +317,7 @@ SodaSpeechRecognizerImpl::DetectUserSpeechOrTimeout(const FSMEventArgs&) {
 
 SodaSpeechRecognizerImpl::FSMState SodaSpeechRecognizerImpl::DetectEndOfSpeech(
     const FSMEventArgs& event_args) {
-  if (endpointer_.speech_input_complete()) {
+  if (!continuous_ && endpointer_.speech_input_complete()) {
     return StopCaptureAndWaitForResult(event_args);
   }
   return STATE_RECOGNIZING;
@@ -321,6 +326,10 @@ SodaSpeechRecognizerImpl::FSMState SodaSpeechRecognizerImpl::DetectEndOfSpeech(
 SodaSpeechRecognizerImpl::FSMState
 SodaSpeechRecognizerImpl::StopCaptureAndWaitForResult(const FSMEventArgs&) {
   DCHECK(state_ >= STATE_ESTIMATING_ENVIRONMENT && state_ <= STATE_RECOGNIZING);
+  if (speech_recognition_recognizer_.is_bound()) {
+    speech_recognition_recognizer_->MarkDone();
+  }
+
   if (state_ > STATE_WAITING_FOR_SPEECH) {
     session_client_->SoundEnded();
     sound_started_ = false;
@@ -329,7 +338,7 @@ SodaSpeechRecognizerImpl::StopCaptureAndWaitForResult(const FSMEventArgs&) {
   session_client_->AudioEnded();
 
   if (waiting_for_final_result_) {
-    // If a final result is not received in 1 second, end the session.
+    // If a final result is not received within the timeout, end the session.
     final_result_timer_.Start(
         FROM_HERE, kFinalResultTimerDuration,
         base::BindOnce(&SodaSpeechRecognizerImpl::OnFinalResultTimeout,

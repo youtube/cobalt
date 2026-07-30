@@ -98,6 +98,7 @@ TEST_F(CriticalUserJourneyServiceTest, HaTSSurveyLogging) {
                       const HatsService::SurveyOptions& survey_options) {
             std::move(success_callback).Run();
             run_loop.Quit();
+            return HatsService::LaunchError::kNone;
           });
 
   // Trigger the journey steps.

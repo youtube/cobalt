@@ -7,6 +7,7 @@ package org.chromium.ui.base;
 import static android.view.View.MeasureSpec.EXACTLY;
 import static android.view.View.MeasureSpec.makeMeasureSpec;
 
+import android.animation.Animator;
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
@@ -359,5 +360,29 @@ public final class ViewUtils {
         parent.removeViewInLayout(oldChild);
         parent.addView(newChild, index);
         return newChild;
+    }
+
+    /**
+     * Attaches a permanent OnAttachStateChangeListener to the given view that cancels the animator
+     * currently stored in the specified tag when the view is detached from the window.
+     *
+     * <p>Note: This observer remains attached permanently to support view recycling. Ensure this is
+     * called only once per view.
+     *
+     * @param view The view to attach the listener to.
+     * @param tagId The resource ID of the tag holding the animator.
+     */
+    public static void cancelAnimatorOnDetach(View view, int tagId) {
+        view.addOnAttachStateChangeListener(
+                new View.OnAttachStateChangeListener() {
+                    @Override
+                    public void onViewAttachedToWindow(View v) {}
+
+                    @Override
+                    public void onViewDetachedFromWindow(View v) {
+                        Animator a = (Animator) v.getTag(tagId);
+                        if (a != null) a.cancel();
+                    }
+                });
     }
 }

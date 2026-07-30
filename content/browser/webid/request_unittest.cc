@@ -17,6 +17,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/run_loop.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
@@ -1480,11 +1481,13 @@ class RequestTest : public RenderViewHostImplTestHarness {
         blink::mojom::IdentityCredentialDisconnectOptions::New();
     options->config = blink::mojom::IdentityProviderConfig::New();
     options->config->config_url = GURL(kProviderUrlFull);
-    request_->disconnect_request_ = DisconnectRequest::Create(
+    RequestService* service =
+        RequestService::GetOrCreateForCurrentDocument(main_test_rfh());
+    service->disconnect_request_ = DisconnectRequest::Create(
         std::move(network_request_manager), test_permission_delegate_.get(),
         main_test_rfh(), std::move(fedcm_metrics), std::move(options));
-    request_->disconnect_request_->callback_ = base::DoNothing();
-    request_->disconnect_request_->Complete(
+    service->disconnect_request_->callback_ = base::DoNothing();
+    service->disconnect_request_->Complete(
         blink::mojom::DisconnectStatus::kSuccess, DisconnectStatus::kSuccess);
   }
 
@@ -9077,6 +9080,31 @@ TEST_F(RequestTest, DismissIgnoredDuringRedirectTo) {
   histogram_tester.ExpectUniqueSample(
       "Blink.FedCm.Status.RequestIdToken",
       static_cast<int>(RequestIdTokenStatus::kSuccessUsingRedirectTo), 1);
+}
+
+TEST_F(RequestTest, DisconnectViaFederatedRequestService) {
+  mojo::Remote<blink::mojom::FederatedRequestService> federated_request_service;
+  RequestService* service =
+      RequestService::GetOrCreateForCurrentDocument(main_test_rfh());
+  service->BindFederatedRequestService(
+      federated_request_service.BindNewPipeAndPassReceiver());
+
+  auto options = blink::mojom::IdentityCredentialDisconnectOptions::New();
+  options->config = blink::mojom::IdentityProviderConfig::New();
+  options->config->config_url = GURL(kProviderUrlFull);
+  options->config->client_id = kClientId;
+  options->account_hint = "hint";
+
+  base::RunLoop run_loop;
+  federated_request_service->Disconnect(
+      std::move(options),
+      base::BindLambdaForTesting([&](blink::mojom::DisconnectStatus status) {
+        // Checking that the callback resolves (even if with an expected error
+        // status due to test environment setup) proves that the IPC routing
+        // works.
+        run_loop.Quit();
+      }));
+  run_loop.Run();
 }
 
 }  // namespace content::webid

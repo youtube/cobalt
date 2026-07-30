@@ -33,15 +33,8 @@ enum class SearchEngineLogoState;
                                           SearchEngineLogoConsumer,
                                           NewTabPageHeaderConsumer,
                                           FakeboxButtonsSnapshotProvider>
-
 // Returns the toolbar view.
 @property(nonatomic, readonly) UIView* toolBarView;
-
-// The Identity Disc showing the current user's avatar on NTP.
-@property(nonatomic, strong) NTPIdentityDiscButton* identityDiscButton;
-
-// The entrypoint for the Home customization menu.
-@property(nonatomic, strong) UIButton* customizationMenuButton;
 
 // The layout guide center for the current scene. Owned by this view's owning
 // view controller.
@@ -51,7 +44,7 @@ enum class SearchEngineLogoState;
 @property(nonatomic, weak) TabGroupIndicatorView* tabGroupIndicatorView;
 
 // Sets whether Google is the default search engine.
-- (void)setIsGoogleDefaultSearchEngine:(BOOL)isGoogleDefaultSearchEngine;
+@property(nonatomic, assign) BOOL isGoogleDefaultSearchEngine;
 
 // Name of the default search engine. Used for the omnibox placeholder text.
 @property(nonatomic, copy) NSString* placeholderText;
@@ -99,55 +92,12 @@ enum class SearchEngineLogoState;
 - (instancetype)initWithFrame:(CGRect)frame NS_UNAVAILABLE;
 - (instancetype)initWithCoder:(NSCoder*)coder NS_UNAVAILABLE;
 
-// Adds the separator to the searchField. Must be called after the searchField
-// is added as a subview.
-- (void)addSeparatorToSearchField:(UIView*)searchField;
-
-// Adds the `toolbarView` to the view implementing this protocol.
-// Can only be added once.
-- (void)addToolbarView:(UIView*)toolbarView;
 
 // Sets up the subviews (fake omnibox, tap view) after properties are set.
 - (void)setupSubviews;
 
-// Returns the progress of the search field position along
-// `ntp_header::kAnimationDistance` as the offset changes.
-- (CGFloat)searchFieldProgressForOffset:(CGFloat)offset;
-
-// Changes the constraints of searchField based on its initialFrame and the
-// scroll view's y `offset`. Also adjust the alpha values for `_searchBoxBorder`
-// and `_shadow` and the constant values for the `constraints`. `screenWidth` is
-// the width of the screen, including the space outside the safe area. The
-// `safeAreaInsets` is relative to the view used to calculate the `width`.
-- (void)updateSearchFieldWidth:(NSLayoutConstraint*)widthConstraint
-                        height:(NSLayoutConstraint*)heightConstraint
-                     topMargin:(NSLayoutConstraint*)topMarginConstraint
-                     forOffset:(CGFloat)offset
-                   screenWidth:(CGFloat)screenWidth
-                safeAreaInsets:(UIEdgeInsets)safeAreaInsets;
-
-// Sets the Home customization menu entrypoint with a conditional "new feature"
-// badge.
-- (void)setCustomizationMenuButton:(UIButton*)customizationMenuButton
-                      withNewBadge:(BOOL)hasNewBadge;
-
 // Hides the new feature badge on the Home customization menu's entrypoint.
 - (void)hideBadgeOnCustomizationMenu;
-
-// Updates the `tabGroupIndicatorView` availability.
-// `offset` represents the scroll view's y `offset`.
-- (void)updateTabGroupIndicatorAvailabilityWithOffset:(CGFloat)offset;
-
-// Returns a snapshot view of the fakebox's buttons to be used during focus
-// and defocus animations.
-- (UIView*)fakeboxButtonsSnapshot;
-
-// Whether to show the plus button.
-- (BOOL)shouldShowPlusButton;
-
-// Resets the resizing of this view for scroll progress in split toolbar mode.
-// Should be called on rotations.
-- (void)resetSplitToolbarResizing;
 
 // Animation to expand this header in response to focusing the omnibox.
 - (void)expandHeaderForFocus;

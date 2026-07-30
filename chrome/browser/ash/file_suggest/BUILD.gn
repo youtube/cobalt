@@ -6,8 +6,6 @@ assert(is_chromeos)
 
 static_library("file_suggest") {
   sources = [
-    "drive_file_suggestion_provider.cc",
-    "drive_file_suggestion_provider.h",
     "drive_recent_file_suggestion_provider.cc",
     "drive_recent_file_suggestion_provider.h",
     "file_suggest_keyed_service.cc",
@@ -18,8 +16,6 @@ static_library("file_suggest") {
     "file_suggest_util.h",
     "file_suggestion_provider.cc",
     "file_suggestion_provider.h",
-    "item_suggest_cache.cc",
-    "item_suggest_cache.h",
     "local_file_suggestion_provider.cc",
     "local_file_suggestion_provider.h",
   ]
@@ -31,8 +27,6 @@ static_library("file_suggest") {
     "//ash/constants",
     "//ash/public/cpp",
     "//base",
-    "//chrome/browser:browser_process",
-    "//chrome/browser:global_features",
     "//chrome/browser/ash/app_list",
     "//chrome/browser/ash/app_list/search/files",
     "//chrome/browser/ash/app_list/search/ranking",
@@ -44,7 +38,6 @@ static_library("file_suggest") {
     "//chrome/browser/signin",
     "//chromeos/ash/components/drivefs",
     "//chromeos/ash/components/drivefs/mojom",
-    "//components/application_locale_storage",
     "//components/drive",
     "//components/google/core/common",
     "//components/prefs",
@@ -85,7 +78,6 @@ source_set("unit_tests") {
   sources = [
     "drive_recent_file_suggestion_provider_unittest.cc",
     "file_suggest_keyed_service_unittest.cc",
-    "item_suggest_cache_unittest.cc",
     "local_file_suggestion_provider_unittest.cc",
   ]
 

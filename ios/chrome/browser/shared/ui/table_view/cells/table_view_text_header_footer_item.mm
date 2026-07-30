@@ -42,9 +42,8 @@ const CGFloat kHorizontalSpacingToAlignWithItems = 16.0;
 
 #pragma mark CollectionViewItem
 
-- (void)configureHeaderFooterView:(TableViewTextHeaderFooterView*)headerFooter
-                       withStyler:(ChromeTableViewStyler*)styler {
-  [super configureHeaderFooterView:headerFooter withStyler:styler];
+- (void)configureHeaderFooterView:(TableViewTextHeaderFooterView*)headerFooter {
+  [super configureHeaderFooterView:headerFooter];
 
   if ([self.URLs count] != 0) {
     headerFooter.URLs = self.URLs;

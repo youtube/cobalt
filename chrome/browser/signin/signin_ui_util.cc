@@ -21,6 +21,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/feature_engagement/tracker_factory.h"
+#include "chrome/browser/metrics/profile_metrics_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -265,6 +266,8 @@ void SignInFromSingleAccountPromo(Profile* profile,
   }
 
   // If the account's refresh token are fine, sign in directly.
+  signin_metrics::LogSignInStarted(
+      access_point, *ProfileMetricsServiceFactory::GetForProfile(profile));
   IdentityManagerFactory::GetForProfile(profile)
       ->GetPrimaryAccountMutator()
       ->SetPrimaryAccount(account.account_id, signin::ConsentLevel::kSignin,
@@ -329,12 +332,12 @@ void EnableSyncFromMultiAccountPromo(Profile* profile,
     return;
   }
 
-  signin_metrics::LogSigninAccessPointStarted(access_point,
-                                              existing_account_promo_action);
   signin_metrics::RecordSigninUserActionForAccessPoint(access_point);
 
   if (syncer::IsReplaceSyncPromosWithSignInPromosEnabled()) {
     if (!identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
+      signin_metrics::LogSignInStarted(
+          access_point, *ProfileMetricsServiceFactory::GetForProfile(profile));
       identity_manager->GetPrimaryAccountMutator()->SetPrimaryAccount(
           account.account_id, signin::ConsentLevel::kSignin, access_point);
     }
@@ -375,6 +378,8 @@ void EnableSyncFromMultiAccountPromo(Profile* profile,
   // account in the profile.
   if (is_sync_promo &&
       !identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
+    signin_metrics::LogSignInStarted(
+        access_point, *ProfileMetricsServiceFactory::GetForProfile(profile));
     identity_manager->GetPrimaryAccountMutator()->SetPrimaryAccount(
         account.account_id, signin::ConsentLevel::kSignin, access_point);
   }

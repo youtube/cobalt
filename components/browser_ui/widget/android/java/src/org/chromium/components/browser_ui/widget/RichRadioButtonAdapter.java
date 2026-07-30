@@ -7,11 +7,10 @@ package org.chromium.components.browser_ui.widget;
 import android.view.View;
 import android.view.ViewGroup;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.List;
@@ -29,31 +28,26 @@ public class RichRadioButtonAdapter
 
     /** A listener interface for notifying the host of selected item changes. */
     public interface OnItemSelectedListener {
-        void onItemSelected(@NonNull String selectedId);
+        void onItemSelected(String selectedId);
     }
 
-    private final @NonNull OnItemSelectedListener mListener;
-    private final @NonNull Map<String, Integer> mIdToPositionMap;
-    private  final @NonNull List<RichRadioButtonData> mOptions;
+    private final OnItemSelectedListener mListener;
+    private final Map<String, Integer> mIdToPositionMap;
+    private final List<RichRadioButtonData> mOptions;
 
     private @Nullable String mSelectedItemId;
-    private @RichRadioButtonList.LayoutMode int mCurrentLayoutMode;
     private int mSelectedPosition;
 
     /**
-     * Creates a new RichRadioButtonAdapter with the given options and layout mode.
+     * Creates a new RichRadioButtonAdapter with the given options.
      *
      * @param options The list of options to display.
      * @param listener The listener for selection changes.
-     * @param layoutMode The layout mode to use.
      */
     public RichRadioButtonAdapter(
-            @NonNull List<RichRadioButtonData> options,
-            @NonNull OnItemSelectedListener listener,
-            @RichRadioButtonList.LayoutMode int layoutMode) {
+            List<RichRadioButtonData> options, OnItemSelectedListener listener) {
         mOptions = options;
         mListener = listener;
-        mCurrentLayoutMode = layoutMode;
         mIdToPositionMap = new HashMap<>();
 
         initOptions();
@@ -72,15 +66,6 @@ public class RichRadioButtonAdapter
         if (mSelectedItemId == null && !mOptions.isEmpty()) {
             setSelection(0, mOptions.get(0).id);
         }
-    }
-
-    /**
-     * Updates the current layout mode of the adapter.
-     *
-     * @param layoutMode The new layout mode.
-     */
-    public void setLayoutMode(@RichRadioButtonList.LayoutMode int layoutMode) {
-        mCurrentLayoutMode = layoutMode;
     }
 
     /**
@@ -106,7 +91,7 @@ public class RichRadioButtonAdapter
      *
      * @param itemId The ID of the item to select.
      */
-    public void setSelectedItem(@NonNull String itemId) {
+    public void setSelectedItem(String itemId) {
         Integer newPositionWrapper = mIdToPositionMap.get(itemId);
 
         assert newPositionWrapper != null
@@ -149,9 +134,8 @@ public class RichRadioButtonAdapter
         return 0;
     }
 
-    @NonNull
     @Override
-    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+    public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
         View itemView = new RichRadioButton(parent.getContext());
 
         itemView.setLayoutParams(
@@ -162,16 +146,13 @@ public class RichRadioButtonAdapter
     }
 
     @Override
-    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+    public void onBindViewHolder(ViewHolder holder, int position) {
         RichRadioButtonData data = mOptions.get(position);
         RichRadioButton singleButton = (RichRadioButton) holder.itemView;
 
         singleButton.setChecked(false);
 
-        boolean isInternalVertical =
-                (mCurrentLayoutMode == RichRadioButtonList.LayoutMode.TWO_COLUMN_GRID);
-
-        singleButton.setItemData(data.iconResId, data.title, data.description, isInternalVertical);
+        singleButton.setItemData(data.iconResId, data.title, data.description);
         singleButton.setChecked(data.id.equals(mSelectedItemId));
 
         singleButton.setOnClickListener(
@@ -188,7 +169,7 @@ public class RichRadioButtonAdapter
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        public ViewHolder(@NonNull View itemView) {
+        public ViewHolder(View itemView) {
             super(itemView);
         }
     }

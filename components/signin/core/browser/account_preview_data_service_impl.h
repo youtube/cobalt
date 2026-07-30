@@ -65,10 +65,6 @@ class AccountPreviewDataServiceImpl : public AccountPreviewDataService,
       const CoreAccountInfo& account_info) override;
   void OnRefreshTokenRemovedForAccount(
       const CoreAccountId& account_id) override;
-  void OnPrimaryAccountChanged(const PrimaryAccountChangeEvent& event) override;
-  void OnAccountsInCookieUpdated(
-      const AccountsInCookieJarInfo& accounts_in_cookie_jar_info,
-      const GoogleServiceAuthError& error) override;
   void OnRefreshTokensLoaded() override;
   void OnIdentityManagerShutdown(IdentityManager* identity_manager) override;
 
@@ -78,8 +74,6 @@ class AccountPreviewDataServiceImpl : public AccountPreviewDataService,
   void StartFetch(const GaiaId& gaia_id);
   void OnFetchCompleted(const GaiaId& gaia_id,
                         std::optional<AccountPreviewData> data);
-  void MaybeClearInvalidAccountPreviewData(
-      const AccountsInCookieJarInfo& accounts_in_cookie_jar_info);
 
   raw_ptr<IdentityManager> identity_manager_ = nullptr;
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;

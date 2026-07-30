@@ -186,9 +186,7 @@ class ProtocolHandlerLaunchDialogIwaTest
     EXPECT_TRUE(content::ExecJs(iwa_contents,
                                 base::ReplaceStringPlaceholders(
                                     R"(
-              navigator.subApps.add({
-                "$1": {"installURL": "$1"}
-              })
+              window.subApps.add(["$1"]);
             )",
                                     {std::string(install_url)}, nullptr)));
 

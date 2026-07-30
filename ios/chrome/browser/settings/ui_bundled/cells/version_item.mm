@@ -32,9 +32,8 @@ const CGFloat kVerticalSpacing = 16;
 
 #pragma mark - TableViewHeaderFooterItem
 
-- (void)configureHeaderFooterView:(VersionFooter*)headerFooter
-                       withStyler:(ChromeTableViewStyler*)styler {
-  [super configureHeaderFooterView:headerFooter withStyler:styler];
+- (void)configureHeaderFooterView:(VersionFooter*)headerFooter {
+  [super configureHeaderFooterView:headerFooter];
   headerFooter.textLabel.text = self.text;
 }
 

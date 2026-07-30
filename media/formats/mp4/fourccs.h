@@ -159,6 +159,18 @@ enum FourCC {
   FOURCC_DDTS = 0x64647473,  // "ddts"
   FOURCC_UDTS = 0x75647473,  // "udts"
 #endif                       // BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
+  FOURCC_ST3D = 0x73743364,  // "st3d"
+  FOURCC_SV3D = 0x73763364,  // "sv3d"
+  FOURCC_SVHD = 0x73766864,  // "svhd"
+  FOURCC_PROJ = 0x70726f6a,  // "proj"
+  FOURCC_PRHD = 0x70726864,  // "prhd"
+  FOURCC_EQUI = 0x65717569,  // "equi"
+  FOURCC_CBMP = 0x63626d70,  // "cbmp"
+  FOURCC_MSHP = 0x6d736870,  // "mshp"
+  FOURCC_YTMP = 0x79746d70,  // "ytmp"
+  FOURCC_MESH = 0x6d657368,  // "mesh"
+  FOURCC_DFL8 = 0x64666c38,  // "dfl8"
+  FOURCC_RAW = 0x72617720,   // "raw "
 };
 
 MEDIA_EXPORT std::string FourCCToString(FourCC fourcc);

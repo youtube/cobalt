@@ -25,9 +25,7 @@
 
 namespace ash::enhanced_network_tts {
 
-BASE_FEATURE(kEnhancedNetworkTtsOverride, base::FEATURE_DISABLED_BY_DEFAULT);
 
-constexpr base::FeatureParam<std::string> EnhancedNetworkTtsImpl::kApiKey;
 
 const net::NetworkTrafficAnnotationTag traffic_annotation =
     net::DefineNetworkTrafficAnnotation("enhanced_network_tts", R"(
@@ -84,8 +82,7 @@ EnhancedNetworkTtsImpl& EnhancedNetworkTtsImpl::GetInstance() {
 }
 
 EnhancedNetworkTtsImpl::EnhancedNetworkTtsImpl()
-    : api_key_(kApiKey.Get().empty() ? google_apis::GetReadAloudAPIKey()
-                                     : kApiKey.Get()),
+    : api_key_(google_apis::GetReadAloudAPIKey()),
       char_limit_per_request_(mojom::kEnhancedNetworkTtsMaxCharacterSize) {}
 EnhancedNetworkTtsImpl::~EnhancedNetworkTtsImpl() = default;
 

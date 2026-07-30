@@ -257,6 +257,17 @@
     "channel": "stable",
     "extension_types": ["extension", "platform_app"]
   },
+  "dictationPrivate": {
+    "channel": "stable",
+    "extension_types": ["extension"],
+    "location": "component",
+    "component_extensions_auto_granted": false,
+    "allowlist": [
+      "C811DB5C295612ABA7EBB8380EAE8380E30800D9"  // Dictation Component Extension
+    ],
+    // TODO(crbug.com/502587072): Support "desktop_android".
+    "platforms": ["chromeos", "linux", "mac", "win"]
+  },
   "documentScan": {
     "channel": "stable",
     "extension_types": ["extension", "platform_app"],

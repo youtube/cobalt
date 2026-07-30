@@ -302,6 +302,14 @@ public class ChromeTabModalPresenter extends TabModalPresenter
             mScrimModel = null;
         }
 
+        if (mContainerParent != null
+                && mContainerParent.getId() != R.id.coordinator
+                && mContainerParent.getParent() instanceof ViewGroup coordinator) {
+            View nextSibling = coordinator.findViewById(R.id.constrained_views_container);
+            UiUtils.removeViewFromParent(mContainerParent);
+            UiUtils.insertBefore(coordinator, mContainerParent, assumeNonNull(nextSibling));
+        }
+
         super.removeDialogView(model);
     }
 
@@ -355,6 +363,19 @@ public class ChromeTabModalPresenter extends TabModalPresenter
             assumeNonNull(mDefaultNextSiblingView);
             UiUtils.removeViewFromParent(dialogContainer);
             UiUtils.insertBefore(mContainerParent, dialogContainer, mDefaultNextSiblingView);
+        }
+
+        if (mContainerParent != null
+                && mContainerParent.getId() != R.id.coordinator
+                && mContainerParent.getParent() instanceof ViewGroup coordinator) {
+            if (toFront) {
+                mContainerParent.bringToFront();
+            } else {
+                View controlContainer = coordinator.findViewById(R.id.control_container);
+                UiUtils.removeViewFromParent(mContainerParent);
+                UiUtils.insertBefore(
+                        coordinator, mContainerParent, assumeNonNull(controlContainer));
+            }
         }
     }
 

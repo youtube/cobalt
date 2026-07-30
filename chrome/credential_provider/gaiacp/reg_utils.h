@@ -248,13 +248,13 @@ void GetChildrenAtPath(const wchar_t* path,
 
 // Gets a specific account picture registry key in HKEY_LOCAL_MACHINE
 HRESULT GetAccountPictureRegString(const std::wstring& user_sid,
-                                   int image_size,
+                                   size_t image_size,
                                    wchar_t* value,
                                    ULONG* length);
 
 // Sets a specific account picture registry key in HKEY_LOCAL_MACHINE
 HRESULT SetAccountPictureRegString(const std::wstring& user_sid,
-                                   int image_size,
+                                   size_t image_size,
                                    const std::wstring& value);
 
 // Retrieves an identifier that is stored under

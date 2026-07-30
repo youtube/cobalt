@@ -122,17 +122,7 @@ BASE_DECLARE_FEATURE(kFetchChangePasswordUrlForPasswordChange);
 // selection, rather than autofilling on page load, with highlighting of fields.
 BASE_DECLARE_FEATURE(kFillOnAccountSelect);
 
-#if BUILDFLAG(IS_ANDROID)
-// When enabled, the user can be prompted to retrieve the trusted vault key
-// during a password saving flow.
-BASE_DECLARE_FEATURE(kInFlowTrustedVaultKeyRetrievalAndroid);
-#endif  // BUILDFLAG(IS_ANDROID)
-
 #if BUILDFLAG(IS_IOS)
-// When enabled, the user can be prompted to retrieve the trusted vault key
-// during a password saving flow.
-BASE_DECLARE_FEATURE(kInFlowTrustedVaultKeyRetrievalIos);
-
 // Enables the clean up of hanging form extraction requests made by the
 // password suggestion helper. This is to fix the cases where the suggestions
 // pipeline is broken because the pipeline is waiting for password suggestions
@@ -178,9 +168,9 @@ BASE_DECLARE_FEATURE(kPasswordFormClientsideClassifier);
 // Enables offering credentials for filling across grouped domains.
 BASE_DECLARE_FEATURE(kPasswordFormGroupedAffiliations);
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)  // Desktop
-BASE_DECLARE_FEATURE(kPasswordSaveInContextErrorResolutionOnDesktop);
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+// When enabled, the user can resolve actionable errors in context during a
+// password save flow.
+BASE_DECLARE_FEATURE(kPasswordSaveInContextErrorResolution);
 
 // When enabled, the password store triggers the `OnErrorStateChanged`
 // notifications.

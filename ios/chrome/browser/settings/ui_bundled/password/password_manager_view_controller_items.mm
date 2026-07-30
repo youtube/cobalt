@@ -19,7 +19,6 @@
 #import "ios/chrome/browser/net/model/crurl.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/passwords_table_view_constants.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_favicon_data_source.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/favicon/favicon_attributes.h"
@@ -221,9 +220,8 @@
   return self;
 }
 
-- (void)configureCell:(LegacyTableViewCell*)tableCell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:tableCell withStyler:styler];
+- (void)configureCell:(LegacyTableViewCell*)tableCell {
+  [super configureCell:tableCell];
 
   PasswordFormContentCell* cell =
       base::apple::ObjCCastStrict<PasswordFormContentCell>(tableCell);
@@ -235,9 +233,6 @@
   // TODO(crbug.com/40860113): Use AffiliationGroup::GetIconURL() instead.
   cell.faviconPageURL = self.affiliatedGroup.GetCredentials().begin()->GetURL();
   cell.localOnlyIcon.hidden = !self.showLocalOnlyIcon;
-  if (styler.cellTitleColor) {
-    cell.titleLabel.textColor = styler.cellTitleColor;
-  }
 }
 
 - (NSString*)title {
@@ -266,10 +261,9 @@
   return self;
 }
 
-- (void)configureCell:(LegacyTableViewCell*)tableCell
-           withStyler:(ChromeTableViewStyler*)styler {
+- (void)configureCell:(LegacyTableViewCell*)tableCell {
   CHECK(self.credential.blocked_by_user);
-  [super configureCell:tableCell withStyler:styler];
+  [super configureCell:tableCell];
 
   PasswordFormContentCell* cell =
       base::apple::ObjCCastStrict<PasswordFormContentCell>(tableCell);
@@ -279,9 +273,6 @@
   cell.detailLabel.hidden = !cell.detailLabel.text.length;
   cell.faviconPageURL = self.credential.GetURL();
   cell.localOnlyIcon.hidden = YES;
-  if (styler.cellTitleColor) {
-    cell.titleLabel.textColor = styler.cellTitleColor;
-  }
 }
 
 - (NSString*)title {

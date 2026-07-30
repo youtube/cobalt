@@ -96,7 +96,8 @@ public class SendTabToSelfBottomSheetRenderTest {
                                             mBottomSheetController,
                                             devices,
                                             mProfile,
-                                            () -> null);
+                                            () -> null,
+                                            ShareEntryPoint.SHARE_SHEET);
                             activity.setContentView(sheetContent.getContentView());
                             return sheetContent.getContentView();
                         });
@@ -126,7 +127,8 @@ public class SendTabToSelfBottomSheetRenderTest {
                                     mBottomSheetController,
                                     devices,
                                     mProfile,
-                                    () -> null);
+                                    () -> null,
+                                    ShareEntryPoint.SHARE_SHEET);
                     activity.setContentView(sheetContent.getContentView());
                 });
         onView(withText(account.getEmail())).check(doesNotExist());
@@ -194,7 +196,8 @@ public class SendTabToSelfBottomSheetRenderTest {
                                     devices,
                                     mProfile,
                                     () -> null,
-                                    model);
+                                    model,
+                                    ShareEntryPoint.SHARE_SHEET);
                             PropertyModelChangeProcessor.create(
                                     model, viewContent, EnhancedTargetDevicePickerViewBinder::bind);
                             activity.setContentView(viewContent.getContentView());

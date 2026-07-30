@@ -12,18 +12,9 @@ found in the LICENSE file.
     android:layout_height="wrap_content"
     android:orientation="vertical">
 
-    <androidx.appcompat.widget.SearchView
-        android:id="@+id/search_query_input"
-        android:layout_width="match_parent"
-        android:layout_height="@dimen/at_memory_search_bar_height"
-        android:background="@drawable/at_memory_search_bar_background"
-        app:iconifiedByDefault="false"
-        app:queryHint="@string/at_memory_search_hint"
-        app:searchIcon="@drawable/search_spark"
-        android:importantForAutofill="no"
-        android:inputType="text"
-        app:queryBackground="@null"
-        app:submitBackground="@null" />
+    <include
+        android:id="@+id/search_query_input_container"
+        layout="@layout/at_memory_search_bar" />
 
     <FrameLayout
         android:layout_width="match_parent"

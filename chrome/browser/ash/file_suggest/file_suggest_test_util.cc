@@ -4,63 +4,12 @@
 
 #include "chrome/browser/ash/file_suggest/file_suggest_test_util.h"
 
-#include "base/json/json_writer.h"
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/ash/file_suggest/file_suggest_keyed_service.h"
 #include "chrome/browser/ash/file_suggest/file_suggest_util.h"
 
 namespace ash {
-
-std::string CreateItemSuggestUpdateJsonString(
-    const std::vector<SuggestItemMetadata>& item_data_array,
-    const std::string& session_id) {
-  // JSON structure for each item is:
-  //
-  //   {
-  //     "itemId": "...",
-  //     "displayText": "...",
-  //     "justification": {
-  //       "unstructuredJustificationDescription": {
-  //         "textSegment": [
-  //           {
-  //             "text": "..."
-  //           }
-  //         ]
-  //       }
-  //     }
-  //   }
-
-  base::ListValue list_value;
-  for (const auto& data : item_data_array) {
-    base::DictValue dict_value;
-    dict_value.Set("itemId", data.item_id);
-    dict_value.Set("displayText", data.display_text);
-
-    base::DictValue text;
-    text.Set("text", data.prediction_reason);
-
-    base::ListValue text_segment;
-    text_segment.Append(std::move(text));
-
-    base::DictValue unstructured_description;
-    unstructured_description.Set("textSegment", std::move(text_segment));
-
-    base::DictValue justification;
-    justification.Set("unstructuredJustificationDescription",
-                      std::move(unstructured_description));
-
-    dict_value.Set("justification", std::move(justification));
-
-    list_value.Append(std::move(dict_value));
-  }
-
-  base::DictValue suggest_item_update;
-  suggest_item_update.Set("item", std::move(list_value));
-  suggest_item_update.Set("suggestionSessionId", session_id);
-
-  return base::WriteJson(suggest_item_update).value_or("");
-}
 
 void WaitForFileSuggestionUpdate(
     const testing::NiceMock<MockFileSuggestKeyedServiceObserver>& mock,

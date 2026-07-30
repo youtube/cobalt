@@ -48,6 +48,7 @@
 <translation id="1129383337808748948">Actualizar <ph name="CONTENT_TITLE" /></translation>
 <translation id="1142002900084379065">Fotos recentes</translation>
 <translation id="114221662579355151">Desta forma, <ph name="APP1_NAME" />, <ph name="APP2_NAME" /> e todas as aplicacións e sitios web que teñan permisos de cámara poderán acceder a ela. É posible que teñas que actualizar a páxina web ou reiniciar a aplicación.</translation>
+<translation id="1145593918056169051">A impresora deixou de funcionar</translation>
 <translation id="1147991416141538220">Para solicitar acceso, ponte en contacto co administrador deste dispositivo.</translation>
 <translation id="1148499908455722006">Abrir cadro de diálogo de información para <ph name="USER_NAME" /></translation>
 <translation id="1150989369772528668">Calendario</translation>
@@ -151,6 +152,7 @@
 <translation id="1383876407941801731">Buscar</translation>
 <translation id="1388728792929436380"><ph name="DEVICE_TYPE" /> reiniciarase cando se completen as actualizacións.</translation>
 <translation id="1390113502208199250">Terás que restablecer a configuración de fábrica deste dispositivo para usar as funcións de Chrome Education Upgrade.</translation>
+<translation id="1390907927270446471"><ph name="PROFILE_USERNAME" /> non ten a autorización necesaria para enviar documentos á impresora <ph name="PRINTER_NAME" />. Ponte en contacto co teu administrador.</translation>
 <translation id="1391102559483454063">Activada</translation>
 <translation id="1394698770495054737">Desenfoque completo</translation>
 <translation id="1395878931462960119">{DAYS,plural, =1{Hai 1 día}other{Hai # días}}</translation>
@@ -169,6 +171,7 @@
 <translation id="1426410128494586442">Si</translation>
 <translation id="142655739075382478">A aplicación <ph name="APP_NAME" /> está bloqueada</translation>
 <translation id="142765311413773645">Caducou a licenza de <ph name="APP_NAME" /></translation>
+<translation id="1430915738399379752">Imprimir</translation>
 <translation id="1435537621343861112">Non se puido iniciar o ditado. O micrófono está desactivado.</translation>
 <translation id="1445031758921122223">Descargáronse os ficheiros de control facial</translation>
 <translation id="1447907279406111651">Agora ⋅ Remata á/s <ph name="END_TIME" /></translation>
@@ -229,6 +232,7 @@
 <translation id="1597880963776148053">Paso <ph name="STEP" /> de <ph name="TOTAL_STEPS" /> da visita. As túas aplicacións fixadas e abertas están no andel, na parte inferior da pantalla. Preme Alt + Maiúsculas + L e, a continuación, a tecla Tabulador para enfocar os elementos do andel.</translation>
 <translation id="1602085790802918092">Iniciando máquina virtual</translation>
 <translation id="1602874809115667351"><ph name="LAUNCHER_KEY_NAME" /> + frecha abaixo</translation>
+<translation id="1604432177629086300">Non se puido imprimir. Comproba a impresora e téntao de novo.</translation>
 <translation id="1604857178818051494">Pór en pausa o contido multimedia</translation>
 <translation id="1607312127821884567">Pechar a configuración de visualización das aplicacións do teu teléfono</translation>
 <translation id="1610778689852195798">"Desfai"</translation>
@@ -372,6 +376,7 @@
 <translation id="2053312383184521053">Datos do estado inactivo</translation>
 <translation id="2064048859448024834">A vista previa da cámara está activada</translation>
 <translation id="2067220651560163985">Mostrar temperatura en Celsius</translation>
+<translation id="206960706005837784"><ph name="APP_NAME" /> rematou de imprimir con: <ph name="PRINTER_NAME" /></translation>
 <translation id="2075520525463668108">Activar ou desactivar <ph name="CAPTURE_MEDIUM" />. A función <ph name="CAPTURE_MEDIUM" /> está <ph name="CAPTURE_STATE" /></translation>
 <translation id="2079545284768500474">Desfacer</translation>
 <translation id="2086334242442703436">Abrir selector de emojis</translation>
@@ -441,6 +446,7 @@
 <translation id="2328561734797404498">Reinicia o teu dispositivo para utilizar <ph name="APP_NAME" />.</translation>
 <translation id="2335091074961603075">O teu dispositivo Chromebook ou Bluetooth usa unha versión antiga de Bluetooth. Para gozar dunha mellor calidade de audio, usa o micrófono interno.</translation>
 <translation id="2336214675195760012">{NUM_DAYS,plural, =1{<ph name="MANAGER" /> require que te conectes hoxe á wifi para descargar unha actualización. Tamén podes descargala desde unha conexión de pago por consumo (pódense aplicar cargos).}other{<ph name="MANAGER" /> require que te conectes á wifi e descargues unha actualización antes de que acabe o prazo. Tamén podes descargala desde unha conexión de pago por consumo (pódense aplicar cargos).}}</translation>
+<translation id="2336258397628212480"><ph name="APP_NAME" /> está imprimindo unha páxina con: <ph name="PRINTER_NAME" /></translation>
 <translation id="2336381494582898602">Powerwash</translation>
 <translation id="2339073806695260576">Toca o botón do lapis óptico no estante para crear unha nota, facer unha captura de pantalla, utilizar o punteiro láser ou aplicar a lupa.</translation>
 <translation id="2341729377289034582">Pantalla bloqueada en posición vertical</translation>
@@ -755,6 +761,7 @@ Se non o fas, o panel táctil volverá activarse dentro de <ph name="TIMEOUT_SEC
 <translation id="3206735939915734551">Activar ou desactivar bloqueo de maiúsculas</translation>
 <translation id="3207953481422525583">Configuración do usuario</translation>
 <translation id="3208321278970793882">Aplicación</translation>
+<translation id="32101887417650595">Non se pode establecer conexión coa impresora</translation>
 <translation id="3212221635583599601">Conéctate a Internet para obter máis información</translation>
 <translation id="3213571860604332401">Garda a ligazón como marcador</translation>
 <translation id="3217205077783620295">O volume está activado. Utiliza o botón para silencialo.</translation>
@@ -823,6 +830,7 @@ Se non o fas, o panel táctil volverá activarse dentro de <ph name="TIMEOUT_SEC
 <translation id="3431517721463707585">Escritorio 14</translation>
 <translation id="3433507769937235446">Bloquear ao apartarse</translation>
 <translation id="3434107140712555581"><ph name="BATTERY_PERCENTAGE" /> %</translation>
+<translation id="343578350365773421">Non hai papel</translation>
 <translation id="3435967511775410570">Recoñeceuse a impresión dixital</translation>
 <translation id="3437677362970530951">Xogos de Play Store e doutras plataformas de videoxogos</translation>
 <translation id="3439896670700055005">Volver cargar páxina actual sen usar o contido almacenado na memoria caché</translation>
@@ -1000,6 +1008,7 @@ Todos os usuarios deben pechar sesión para poder continuar.</translation>
 <translation id="3848526302597027234">Accede aos seguintes permisos:</translation>
 <translation id="385051799172605136">Atrás</translation>
 <translation id="385300504083504382">Comezo</translation>
+<translation id="3854976556788175030">A bandexa de saída está chea</translation>
 <translation id="3857807444929313943">Levanta o dedo e volve tocar o sensor</translation>
 <translation id="3859364108019690">Non se pode reproducir en tempo real o contido das aplicacións</translation>
 <translation id="3861638017150647085">O nome de usuario "<ph name="USERNAME" />" non está dispoñible</translation>
@@ -1052,6 +1061,7 @@ Todos os usuarios deben pechar sesión para poder continuar.</translation>
 <translation id="401993194061514265">O marcador non está dispoñible. Volve abrir Gravación da pantalla.</translation>
 <translation id="4021716437419160885">Desprazarse cara abaixo</translation>
 <translation id="4022497978915111141">Bloquear dispositivo</translation>
+<translation id="4023048917751563912"><ph name="APP_NAME" /> está imprimindo <ph name="PAGE_NUMBER" /> páxinas con: <ph name="PRINTER_NAME" /></translation>
 <translation id="4024840464866786680">Se esqueciches o PIN e o contrasinal ou cambiaches o da Conta de Google recentemente, proba a recuperar este usuario.</translation>
 <translation id="4026843240379844265">Mover ventá activa entre as pantallas</translation>
 <translation id="4028481283645788203">É necesario escribir o contrasinal para obter seguranza adicional</translation>
@@ -1581,6 +1591,7 @@ Non hai ningún dispositivo conectado.</translation>
 <translation id="5491186829646618080">Hai actualizacións de firmware dispoñibles</translation>
 <translation id="5503884284981862082">Abrir ou pechar Asistente de Google</translation>
 <translation id="550391772491508736">Retomar emisión</translation>
+<translation id="5505307013568720083">Non hai tinta</translation>
 <translation id="5506975627792768506">Activar ou desactivar lupa</translation>
 <translation id="5507778598655387680"><ph name="VOLUME_LEVEL" />, ao pulsar Introducir silenciarase o audio.</translation>
 <translation id="5512042095225963688">Elimina a palabra anterior</translation>
@@ -1692,12 +1703,14 @@ Non hai ningún dispositivo conectado.</translation>
 <translation id="5791926618942305301">En Captura de pantalla, define o seguinte: <ph name="TYPE" /> <ph name="SOURCE" />. Preme Tabulador para elixir o tipo de captura. Preme Introducir para facer a captura. Para seleccionar a área, establece a opción de captura de pantalla parcial. Se aínda non está activa, preme Espazo para seleccionar a rexión.</translation>
 <translation id="579415080077680903">Silenciar</translation>
 <translation id="5802516411616338943">Abrir Configuración rápida</translation>
+<translation id="5804241973901381774">Permisos</translation>
 <translation id="5804651031882187592">Desactivar a opción Bloquear SIM</translation>
 <translation id="5805809050170488595">Facer clic para activar <ph name="NETWORK_NAME" /></translation>
 <translation id="5818796501620225415">Podes engadir máis tempo ou finalizar a sesión Sen distraccións</translation>
 <translation id="5819918159912280082">O teu Chromebook reiniciouse inesperadamente. Abre as ventás e aplicacións anteriores.</translation>
 <translation id="5823239091726045201">Tarefas de Google na Web</translation>
 <translation id="5825969630400862129">Configuración de dispositivos conectados</translation>
+<translation id="5828633471261496623">Imprimindo...</translation>
 <translation id="5830180081891717894"><ph name="WINDOWS" /> máis</translation>
 <translation id="5830205393314753525">Non se puido abrir a aplicación <ph name="APP_NAME" /></translation>
 <translation id="583281660410589416">Descoñecido</translation>
@@ -1722,6 +1735,7 @@ Non hai ningún dispositivo conectado.</translation>
 <translation id="5892014525522223653">Estás sen conexión.</translation>
 <translation id="5895138241574237353">Reiniciar</translation>
 <translation id="589817443623831496">Exploración por punto</translation>
+<translation id="5901494423252125310">A porta da impresora está aberta</translation>
 <translation id="5901630391730855834">Amarelo</translation>
 <translation id="5904614460720589786">Non se puido configurar a aplicación <ph name="APP_NAME" /> debido a un problema de configuración. Ponte en contacto co teu administrador. Código de erro: <ph name="ERROR_CODE" />.</translation>
 <translation id="5910726859585389579"><ph name="DEVICE_TYPE" /> está sen conexión</translation>
@@ -1786,6 +1800,7 @@ Non hai ningún dispositivo conectado.</translation>
         <ph name="BEGIN_PARAGRAPH2" />A desactivación desta función non afecta á capacidade deste dispositivo de enviar a información necesaria para servizos esenciais, como as actualizacións do sistema e a seguranza.<ph name="END_PARAGRAPH2" />
         <ph name="BEGIN_PARAGRAPH3" />A persoa propietaria pode controlar esta función en Configuración &gt; Avanzada &gt; Enviar de forma automática datos de uso e diagnóstico a Google.<ph name="END_PARAGRAPH3" />
         <ph name="BEGIN_PARAGRAPH4" />Se está activada a opción de configuración Actividade web e das aplicacións adicional para o teu fillo ou filla, estes datos pódense gardar na súa Conta de Google. Obtén máis información acerca destas opcións de configuración e sobre como axustalas en families.google.com.<ph name="END_PARAGRAPH4" /></translation>
+<translation id="6052261338768299955"><ph name="APP_NAME" /> está tentando imprimir con: <ph name="PRINTER_NAME" /></translation>
 <translation id="6054305421211936131">Inicia sesión coa tarxeta intelixente</translation>
 <translation id="6059276912018042191">Pestanas recentes de Chrome</translation>
 <translation id="606147842285839995">ExpressKey 3</translation>
@@ -1889,6 +1904,7 @@ Non hai ningún dispositivo conectado.</translation>
 <translation id="6337159624125741244">A lupa de pantalla completa está activada</translation>
 <translation id="6338485349199627913"><ph name="MANAGER" /> xestiona esta sesión (<ph name="DISPLAY_NAME" />)</translation>
 <translation id="6340148837564298498">Se esqueciches o PIN, proba a recuperar este usuario.</translation>
+<translation id="634208815998129842">Xestor de tarefas</translation>
 <translation id="6344138931392227467">Conectouse o dispositivo (<ph name="DEVICE_NAME" />)</translation>
 <translation id="6345418402353744910">O proxy <ph name="PROXY" /> necesita o teu nome de usuario e contrasinal para que o administrador poida configurar a rede</translation>
 <translation id="6348449481487610270"><ph name="MODIFIER_ONE" /><ph name="MODIFIER_TWO" /><ph name="KEY_ONE" /> e despois <ph name="MODIFIER_THREE" /><ph name="KEY_TWO" /> ou <ph name="KEY_THREE" /></translation>
@@ -2094,6 +2110,7 @@ Nova instalación</translation>
 <translation id="6921427376813842559">Cambia a versión no dispositivo</translation>
 <translation id="6929081673585394903">Mostrar os controis</translation>
 <translation id="6931576957638141829">Gardar en</translation>
+<translation id="6935286146439255109">Falta unha bandexa de papel</translation>
 <translation id="6935857786205183008">Vertical</translation>
 <translation id="6942518653766415536">Menú de formato da gravación</translation>
 <translation id="6945221475159498467">Seleccionar</translation>
@@ -2116,6 +2133,7 @@ Nova instalación</translation>
 <translation id="6988094684494323731">Iniciando contedor de Linux</translation>
 <translation id="7000027735917578303">Configuración de ventás e escritorios</translation>
 <translation id="7001036685275644873">Creando copia de seguranza das aplicacións e dos ficheiros de Linux</translation>
+<translation id="7001066449188684145">É necesario identificarse para enviar documentos á impresora <ph name="PRINTER_NAME" />. Ponte en contacto co teu administrador.</translation>
 <translation id="7004910047186208204">Conéctate aos datos móbiles</translation>
 <translation id="7005239792648594238">Abre unha aplicación para comezar</translation>
 <translation id="7014684956566476813">Conexión establecida cun dispositivo chamado "<ph name="DEVICE_NAME" />"</translation>
@@ -2155,6 +2173,7 @@ Nova instalación</translation>
 <translation id="7108254681523785542">Selecciona o elemento que queiras pegar. Para ver o portapapeis, preme <ph name="SHORTCUT_KEY_NAME" /> + v.</translation>
 <translation id="7108338896283013870">Ocultar</translation>
 <translation id="7108933416628942903">Bloquear agora</translation>
+<translation id="7116554090938189816">O certificado SSL da impresora caducou. Reinicia a impresora e téntao de novo.</translation>
 <translation id="7116969082764510092">Escritorio 11</translation>
 <translation id="7118268675952955085">captura de pantalla</translation>
 <translation id="7118597077555700347">Abrir <ph name="SEARCH_RESULT_TEXT" /></translation>
@@ -2206,6 +2225,7 @@ Nova instalación</translation>
 <translation id="7312210124139670355">O teu administrador está restablecendo a eSIM. Esta acción pode tardar uns minutos.</translation>
 <translation id="7312761820869643657">Restaura a versión anterior no dispositivo</translation>
 <translation id="7313193732017069507">Despregar a cámara</translation>
+<translation id="7325209047678309347">O papel está atascado</translation>
 <translation id="7327989755579928735"><ph name="MANAGER" /> desactivou a depuración de ADB. Unha vez que reinicies o dispositivo (<ph name="DEVICE_TYPE" />), non poderás instalar aplicacións externamente.</translation>
 <translation id="73289266812733869">Deseleccionado</translation>
 <translation id="7330397557116570022">Vai a un campo de texto para usar a función de ditado</translation>
@@ -2580,6 +2600,7 @@ Para apagar o dispositivo, mantén premido de novo o botón de acendido.</transl
 <translation id="8339706171276328417"><ph name="ACTION_DESCRIPTION" /> · <ph name="TIME" /></translation>
 <translation id="834414266279889566">Mal resultado</translation>
 <translation id="8345019317483336363">Ventá seleccionada: <ph name="WINDOW_TITLE" /></translation>
+<translation id="8347227221149377169">Traballos de impresión</translation>
 <translation id="8349826889576450703">menú de aplicacións</translation>
 <translation id="8349964124165471584">Abre a ligazón nunha ventá nova</translation>
 <translation id="8351131234907093545">Crear nota</translation>
@@ -2618,6 +2639,7 @@ Para apagar o dispositivo, mantén premido de novo o botón de acendido.</transl
 <translation id="8458259704995116343">Produciuse un erro ao iniciar a máquina virtual.</translation>
 <translation id="84613761564611563">Solicitouse a IU de configuración da rede, agarda...</translation>
 <translation id="8462305545768648477">Pechar Escoitar selección</translation>
+<translation id="8463001014623882202">Produciuse un erro de autorización</translation>
 <translation id="8466665972451889002">Mostrar os elementos de <ph name="GROUP_NAME" /></translation>
 <translation id="8468806060683421065">Data límite: <ph name="DUE_DATE_AND_TIME" /></translation>
 <translation id="8473301994082929012"><ph name="ORGANIZATION_NAME" /> <ph name="FEATURE_STATE" /> <ph name="FEATURE_NAME" />.</translation>

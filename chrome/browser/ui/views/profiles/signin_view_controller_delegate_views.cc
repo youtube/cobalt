@@ -100,10 +100,11 @@ void CloseModalSigninInBrowser(
 
   browser->GetFeatures().signin_view_controller()->CloseModalSignin();
   if (show_supervised_user_iph) {
-    browser->window()->MaybeShowSupervisedUserProfileSignInIPH();
+    BrowserWindow::FromBrowser(browser.get())
+        ->MaybeShowSupervisedUserProfileSignInIPH();
   }
   if (show_profile_switch_iph) {
-    browser->window()->MaybeShowProfileSwitchIPH();
+    BrowserWindow::FromBrowser(browser.get())->MaybeShowProfileSwitchIPH();
   }
 }
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
@@ -357,7 +358,7 @@ content::WebContents* SigninViewControllerDelegateViews::AddNewContents(
 web_modal::WebContentsModalDialogHost*
 SigninViewControllerDelegateViews::GetWebContentsModalDialogHost(
     content::WebContents* web_contents) {
-  return browser_->window()->GetWebContentsModalDialogHost();
+  return BrowserWindow::FromBrowser(browser_)->GetWebContentsModalDialogHost();
 }
 
 void SigninViewControllerDelegateViews::OnViewAddedToWidget(

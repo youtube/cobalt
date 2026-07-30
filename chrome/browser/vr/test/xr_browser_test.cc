@@ -27,6 +27,7 @@
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test_utils.h"
 #include "device/vr/buildflags/buildflags.h"
+#include "third_party/blink/public/common/features_generated.h"
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -74,6 +75,7 @@ XrBrowserTestBase::XrBrowserTestBase() : env_(base::Environment::Create()) {
   enable_features_.push_back(device::features::kWebXrVisibleBlurred);
 #if BUILDFLAG(IS_ANDROID)
   enable_features_.push_back(device::features::kWebXRLayers);
+  enable_features_.push_back(blink::features::kWebXRMediaBinding);
 #endif
 #endif
 }

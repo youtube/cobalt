@@ -1036,7 +1036,11 @@ TEST_F(ChromePaymentsAutofillClientOmniboxTest, ShowOmniboxAutofillChip) {
               ShowSuggestionChip(kActionAutofillPayment, _))
       .Times(1);
 
-  chrome_payments_client()->ShowOmniboxAutofillChip();
+  chrome_payments_client()->ShowOmniboxAutofillChip(
+      /*suggestions=*/{},
+      /*on_suggestions_shown=*/base::DoNothing(),
+      /*did_select_suggestion=*/base::DoNothing(),
+      /*did_accept_suggestion=*/base::DoNothing());
 }
 
 TEST_F(ChromePaymentsAutofillClientOmniboxTest, HideOmniboxAutofillChip) {

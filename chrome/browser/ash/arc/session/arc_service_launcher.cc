@@ -112,7 +112,6 @@
 #include "chromeos/ash/experiences/arc/session/arc_session.h"
 #include "chromeos/ash/experiences/arc/session/arc_session_runner.h"
 #include "chromeos/ash/experiences/arc/system_ui/arc_system_ui_bridge.h"
-#include "chromeos/ash/experiences/arc/timer/arc_timer_bridge.h"
 #include "chromeos/ash/experiences/arc/usb/usb_host_bridge.h"
 #include "chromeos/ash/experiences/arc/video/gpu_arc_video_service_host.h"
 #include "chromeos/ash/experiences/arc/volume_mounter/arc_volume_mounter_bridge.h"
@@ -403,7 +402,6 @@ void ArcServiceLauncher::OnPrimaryUserProfilePrepared(Profile* profile) {
     }
   } else {
     // ARC Container-only services.
-    ArcTimerBridge::GetForBrowserContext(profile);
     ArcAppfuseBridge::GetForBrowserContext(profile);
     ArcObbMounterBridge::GetForBrowserContext(profile);
   }
@@ -557,7 +555,6 @@ void ArcServiceLauncher::EnsureFactoriesBuilt() {
   ArcSurveyService::EnsureFactoryBuilt();
   ArcSystemUIBridge::EnsureFactoryBuilt();
   ArcSystemStateBridge::EnsureFactoryBuilt();
-  ArcTimerBridge::EnsureFactoryBuilt();
   ArcTracingBridge::EnsureFactoryBuilt();
   ArcTtsService::EnsureFactoryBuilt();
   ArcUsbHostBridge::EnsureFactoryBuilt();

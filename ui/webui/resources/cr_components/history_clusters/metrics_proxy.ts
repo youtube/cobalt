@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {BrowserProxyImpl} from './browser_proxy.js';
 import type {URLVisit} from './history_cluster_types.mojom-webui.js';
 import {Annotation} from './history_cluster_types.mojom-webui.js';
+import {browserProxyFactory, VisitType} from './history_clusters.mojom-webui.js';
 import type {ClusterAction, RelatedSearchAction, VisitAction} from './history_clusters.mojom-webui.js';
-import {VisitType} from './history_clusters.mojom-webui.js';
 
 /**
  * @fileoverview This file provides an abstraction layer for logging metrics for
@@ -22,20 +21,21 @@ export interface MetricsProxy {
 
 export class MetricsProxyImpl implements MetricsProxy {
   recordClusterAction(action: ClusterAction, index: number) {
-    BrowserProxyImpl.getInstance().handler.recordClusterAction(action, index);
+    browserProxyFactory.getInstance().handler.recordClusterAction(
+        action, index);
   }
 
   recordRelatedSearchAction(action: RelatedSearchAction, index: number) {
-    BrowserProxyImpl.getInstance().handler.recordRelatedSearchAction(
+    browserProxyFactory.getInstance().handler.recordRelatedSearchAction(
         action, index);
   }
 
   recordToggledVisibility(visible: boolean) {
-    BrowserProxyImpl.getInstance().handler.recordToggledVisibility(visible);
+    browserProxyFactory.getInstance().handler.recordToggledVisibility(visible);
   }
 
   recordVisitAction(action: VisitAction, index: number, type: VisitType) {
-    BrowserProxyImpl.getInstance().handler.recordVisitAction(
+    browserProxyFactory.getInstance().handler.recordVisitAction(
         action, index, type);
   }
 

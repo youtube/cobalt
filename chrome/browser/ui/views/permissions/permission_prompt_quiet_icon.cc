@@ -9,10 +9,9 @@
 #include "content/public/browser/web_contents.h"
 
 PermissionPromptQuietIcon::PermissionPromptQuietIcon(
-    Browser* browser,
     content::WebContents* web_contents,
     Delegate* delegate)
-    : PermissionPromptDesktop(browser, web_contents, delegate) {
+    : PermissionPromptDesktop(web_contents, delegate) {
   content_settings::UpdateLocationBarUiForWebContents(web_contents);
 }
 

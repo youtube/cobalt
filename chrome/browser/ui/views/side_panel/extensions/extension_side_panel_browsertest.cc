@@ -2777,7 +2777,8 @@ IN_PROC_BROWSER_TEST_F(ExtensionOnClosedEventSidePanelBrowserTest,
   // Get the new browser window.
   Browser* new_browser = observer.Wait();
   ASSERT_TRUE(new_browser);
-  EXPECT_NE(browser()->window(), new_browser->window());
+  EXPECT_NE(BrowserWindow::FromBrowser(browser()),
+            BrowserWindow::FromBrowser(new_browser));
 
   // Get the session IDs for the new window and its active tab.
   const int new_window_id = new_browser->GetSessionID().id();

@@ -43,6 +43,7 @@ absl_test("fixed_array_test") {
     ":test_instance_tracker",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:exception_testing",
+    "//third_party/abseil-cpp/absl/base:hardening",
     "//third_party/abseil-cpp/absl/base:iterator_traits_test_helper",
     "//third_party/abseil-cpp/absl/hash:hash_testing",
     "//third_party/abseil-cpp/absl/memory",
@@ -97,6 +98,7 @@ absl_test("inlined_vector_test") {
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:exception_testing",
+    "//third_party/abseil-cpp/absl/base:hardening",
     "//third_party/abseil-cpp/absl/base:iterator_traits_test_helper",
     "//third_party/abseil-cpp/absl/hash:hash_testing",
     "//third_party/abseil-cpp/absl/log:check",
@@ -753,6 +755,7 @@ absl_test("chunked_queue_test") {
     ":chunked_queue",
     ":test_allocator",
     "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/base:hardening",
     "//third_party/abseil-cpp/absl/strings",
   ]
 }

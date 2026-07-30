@@ -448,6 +448,7 @@ source_set("unit_tests") {
     "//components/endpoint_fetcher",
     "//components/lens:enterprise_policy",
     "//components/lens:features",
+    "//components/omnibox/browser:test_support",
     "//components/optimization_guide/content/browser:page_context_eligibility",
     "//components/tabs:test_support",
     "//content/public/browser",

@@ -53,9 +53,6 @@ COMPONENT_EXPORT(UI_BASE) void SetLocalePaksStoredInApk(bool value);
 // based on whether non-webview locale .pak files exist.
 COMPONENT_EXPORT(UI_BASE) void DetectAndSetLoadNonWebViewLocalePaks();
 
-// Called in test when there are no locale pak files available.
-COMPONENT_EXPORT(UI_BASE) void SetNoAvailableLocalePaksForTest();
-
 // Called by ResourceBundle::UnloadLocaleResources() to clear Android-specific
 // locale state.
 COMPONENT_EXPORT(UI_BASE) void UnloadAndroidLocaleResources();

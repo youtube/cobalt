@@ -77,9 +77,7 @@ class MultiContentsViewTabDragEntrypointsUiTest
                                  DropTargetConstants::GetHideWidth(),
                              0);
       case MultiContentsDropTargetView::DropSide::BOTTOM:
-        return bounds.bottom_center() -
-               gfx::Vector2d(0, MultiContentsViewDropTargetController::
-                                    kReservedHeightForScrollingDown);
+        return bounds.bottom_center() - gfx::Vector2d(0, 1);
       default:
         NOTREACHED();
     }

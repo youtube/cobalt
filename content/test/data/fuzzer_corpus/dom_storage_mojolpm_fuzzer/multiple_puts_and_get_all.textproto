@@ -1,0 +1,125 @@
+# Seed for run_thread: issues several Puts and then GetAll on a StorageArea,
+# with UI and IO run_thread actions placed between the Puts and the GetAll.
+# The point is the run_thread actions: they drain whatever else is queued on
+# those threads at that moment, so this Put/GetAll flow gets exercised with
+# other thread work running in between.
+
+# actions[0]: Bind local storage on ORIGIN_A.
+actions {
+  new_local_storage_area {
+    id: 0
+    origin_id: ORIGIN_A
+    renderer_id: RENDERER_A
+  }
+}
+# actions[1]: Bind session storage on ORIGIN_A (binds id 1 as session).
+actions {
+  new_session_storage_area {
+    id: 1
+    origin_id: ORIGIN_A
+    renderer_id: RENDERER_A
+  }
+}
+# actions[2]: Put key 65 = value 49,50,51,52 on id 0.
+actions {
+  storage_area_remote_action {
+    id: 0
+    m_put {
+      m_key { values { value: 65 } }
+      m_value {
+        values { value: 49 }
+        values { value: 50 }
+        values { value: 51 }
+        values { value: 52 }
+      }
+    }
+  }
+}
+# actions[3]: Put key 66 = value 53,54,55,56 on id 0.
+actions {
+  storage_area_remote_action {
+    id: 0
+    m_put {
+      m_key { values { value: 66 } }
+      m_value {
+        values { value: 53 }
+        values { value: 54 }
+        values { value: 55 }
+        values { value: 56 }
+      }
+    }
+  }
+}
+# actions[4]: Put key 67 = value 57,58 on id 0.
+actions {
+  storage_area_remote_action {
+    id: 0
+    m_put {
+      m_key { values { value: 67 } }
+      m_value {
+        values { value: 57 }
+        values { value: 58 }
+      }
+    }
+  }
+}
+# actions[5]: Put key 65 = value 49,50,51,52 on id 1 (session).
+actions {
+  storage_area_remote_action {
+    id: 1
+    m_put {
+      m_key { values { value: 65 } }
+      m_value {
+        values { value: 49 }
+        values { value: 50 }
+        values { value: 51 }
+        values { value: 52 }
+      }
+    }
+  }
+}
+# actions[6]: Put key 66 = value 53,54,55,56 on id 1 (session).
+actions {
+  storage_area_remote_action {
+    id: 1
+    m_put {
+      m_key { values { value: 66 } }
+      m_value {
+        values { value: 53 }
+        values { value: 54 }
+        values { value: 55 }
+        values { value: 56 }
+      }
+    }
+  }
+}
+# actions[7]: Put key 67 = value 57,58 on id 1 (session).
+actions {
+  storage_area_remote_action {
+    id: 1
+    m_put {
+      m_key { values { value: 67 } }
+      m_value {
+        values { value: 57 }
+        values { value: 58 }
+      }
+    }
+  }
+}
+# actions[8..9]: One UI and one IO drain.
+actions { run_thread { id: UI } }
+actions { run_thread { id: IO } }
+# actions[10]: GetAll on id 0 (observes cached local values).
+actions { storage_area_remote_action { id: 0  m_get_all {} } }
+# actions[11]: GetAll on id 1 (observes cached session values).
+actions { storage_area_remote_action { id: 1  m_get_all {} } }
+
+# Sequence 0: Multiple Puts then GetAll on local storage. The trailing index 8
+# reuses the UI drain to add scheduling unpredictability after the read.
+sequences { action_indexes: [0, 2, 3, 4, 8, 9, 10, 8] }
+# Sequence 1: Multiple Puts then GetAll on session storage.
+sequences { action_indexes: [1, 5, 6, 7, 8, 9, 11, 8] }
+# Sequence 2: Interleaved local + session Puts then GetAll on both.
+sequences { action_indexes: [0, 1, 2, 5, 3, 6, 4, 7, 8, 9, 10, 11, 8] }
+
+sequence_indexes: [0, 1, 2]

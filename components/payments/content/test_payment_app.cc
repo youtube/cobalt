@@ -6,9 +6,8 @@
 
 namespace payments {
 
-TestPaymentApp::TestPaymentApp(const std::string& method)
-    : PaymentApp(/*icon_resource_id=*/0, PaymentApp::Type::SERVICE_WORKER_APP),
-      method_(method) {}
+TestPaymentApp::TestPaymentApp(const std::string& method, PaymentApp::Type type)
+    : PaymentApp(/*icon_resource_id=*/0, type), method_(method) {}
 
 TestPaymentApp::~TestPaymentApp() = default;
 

@@ -225,18 +225,20 @@ content::WebContents* WebAppLaunchProcess::Run() {
 
   NavigateResult navigate_result =
       MaybeNavigateBrowser(launch_url, share_target);
+
   content::WebContents* web_contents = navigate_result.web_contents;
-  if (!web_contents) {
-    return nullptr;
+  if (!navigate_result.did_navigate) {
+    CHECK(web_contents);
+    webapps::LaunchParams launch_params;
+    launch_params.set_started_new_navigation(false);
+    launch_params.set_app_id(web_app_->app_id());
+    launch_params.set_target_url(launch_url);
+    launch_params.set_paths(is_file_handling ? params_->launch_files
+                                             : std::vector<base::FilePath>());
+    WebAppLaunchNavigationHandleUserData::DispatchLaunchParams(
+        web_contents, std::move(launch_params), params_->container,
+        params_->launch_source);
   }
-
-  MaybeEnqueueWebLaunchParams(
-      launch_url, is_file_handling, web_contents,
-      /*started_new_navigation=*/navigate_result.did_navigate);
-
-  UpdateLaunchStats(web_contents, params_->app_id, launch_url);
-  RecordLaunchMetrics(params_->app_id, params_->container,
-                      params_->launch_source, launch_url, web_contents);
 
   return web_contents;
 }
@@ -454,32 +456,10 @@ WebAppLaunchProcess::NavigateResult WebAppLaunchProcess::MaybeNavigateBrowser(
   launch_params.set_target_url(launch_url);
   launch_params.set_paths(params_->launch_files);
   nav_params.web_app_navigation_data->SetLaunchParams(std::move(launch_params));
+  nav_params.web_app_navigation_data->SetLaunchSource(params_->launch_source);
 
   return {.web_contents = NavigateWebAppUsingParams(nav_params),
           .did_navigate = true};
-}
-
-void WebAppLaunchProcess::MaybeEnqueueWebLaunchParams(
-    const GURL& launch_url,
-    bool is_file_handling,
-    content::WebContents* web_contents,
-    bool started_new_navigation) {
-  if (started_new_navigation) {
-    // If we started a new navigation, the launch parameters have already been
-    // attached to the NavigateParams and will be committed once
-    // DidFinishNavigation() is called.
-    return;
-  }
-
-  webapps::LaunchParams launch_params;
-  launch_params.set_started_new_navigation(false);
-  launch_params.set_app_id(web_app_->app_id());
-  launch_params.set_target_url(launch_url);
-  launch_params.set_paths(is_file_handling ? params_->launch_files
-                                           : std::vector<base::FilePath>());
-
-  WebAppLaunchNavigationHandleUserData::DispatchLaunchParams(
-      web_contents, std::move(launch_params));
 }
 
 }  // namespace web_app

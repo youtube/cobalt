@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
+
 /* AUTO GENERATED - DO NOT EDIT BY HAND */
 #ifndef WEBDRIVER_ATOMS_H
 #define WEBDRIVER_ATOMS_H
 
-#include <string>  // For std::(w)string.
+#include <string>    // For std::(w)string.
 
 namespace webdriver {
 namespace atoms {

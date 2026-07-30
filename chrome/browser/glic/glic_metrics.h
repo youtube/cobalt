@@ -19,6 +19,7 @@
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/public/glic_instance.h"
 #include "chrome/browser/glic/public/glic_instance_metrics_backwards_compatibility.h"
+#include "components/prefs/pref_change_registrar.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "ui/display/display.h"
 
@@ -314,6 +315,9 @@ class GlicMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   // Called when kGlicCompletedFre or GlicEnabling::IsAllowed() changes.
   void OnMaybeEnabledAndConsentForProfileChanged();
 
+  // Called when kGlicPinnedToTabstrip changes.
+  void OnPinningPrefChanged();
+
   // Records the time from startup until Glic was enabled for the profile.
   void RecordStartupEnablement();
 
@@ -387,6 +391,11 @@ class GlicMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   bool recorded_startup_enablement_ = false;
 
   std::vector<base::CallbackListSubscription> subscriptions_;
+
+  // Cache the last value of the kGlicPinnedToTabstrip pref so that we only emit
+  // metrics for changes to the last value.
+  bool is_pinned_ = false;
+  PrefChangeRegistrar pref_registrar_;
 
   // The following two variables are used together for recording metrics and are
   // reset together after the metric is recorded.

@@ -105,9 +105,7 @@ bool AutofillProfileComparator::Compare(
   // TODO(crbug.com/359768803): Extract alternative name transliteration and
   // remove `type` parameter. Japanese alternative names are stored in Hiragana
   // only. We transliterate Katakana to ensure correct comparison.
-  if (type.has_value() && IsAlternativeNameType(type.value()) &&
-      base::FeatureList::IsEnabled(
-          features::kAutofillSupportPhoneticNameForJP)) {
+  if (type.has_value() && IsAlternativeNameType(type.value())) {
     normalized_text1 = TransliterateAlternativeName(normalized_text1);
     normalized_text2 = TransliterateAlternativeName(normalized_text2);
   }
@@ -449,9 +447,7 @@ bool AutofillProfileComparator::ProfilesHaveDifferentSettingsVisibleValues(
   // Return true if at least one value corresponding to the settings visible
   // types is different between the two profiles.
   return std::ranges::any_of(p1.GetUserVisibleTypes(), [&](FieldType type) {
-    if (IsAlternativeNameType(type) &&
-        base::FeatureList::IsEnabled(
-            features::kAutofillSupportPhoneticNameForJP)) {
+    if (IsAlternativeNameType(type)) {
       // Consider two alternative names that differ only in the character set
       // equal.
       const AddressCountryCode common_country_code =

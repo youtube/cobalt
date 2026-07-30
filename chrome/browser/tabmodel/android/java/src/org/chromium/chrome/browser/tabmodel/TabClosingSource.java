@@ -15,7 +15,8 @@ import java.lang.annotation.RetentionPolicy;
 @IntDef({
     TabClosingSource.UNKNOWN,
     TabClosingSource.TABLET_TAB_STRIP,
-    TabClosingSource.KEYBOARD_SHORTCUT
+    TabClosingSource.KEYBOARD_SHORTCUT,
+    TabClosingSource.VERTICAL_TAB_STRIP
 })
 @Retention(RetentionPolicy.SOURCE)
 @NullMarked
@@ -28,4 +29,7 @@ public @interface TabClosingSource {
 
     /** Tab closing is from keyboard shortcut. */
     int KEYBOARD_SHORTCUT = 2;
+
+    /** Tab closing is from vertical tab strip. */
+    int VERTICAL_TAB_STRIP = 3;
 }

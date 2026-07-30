@@ -487,7 +487,7 @@ class WebCodecsIntegrationTest(gpu_integration_test.GpuIntegrationTest):
 
   @staticmethod
   def CameraCanShowFourColors(os_name: str) -> bool:
-    return os_name not in ('android', 'chromeos')
+    return os_name not in ('android', 'chromeos', 'fuchsia')
 
   @classmethod
   def GetBrowserArguments(cls, enable_d3d12_encoder: bool) -> list[str]:

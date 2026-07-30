@@ -152,6 +152,13 @@ ID3D11Device* g_d3d11_device = nullptr;
 // SharedImage code to queue work when it runs in D3D12 mode.
 ID3D12CommandQueue* g_d3d12_command_queue = nullptr;
 
+// Factory that produces a `SolidColorPoolBase` matching the active
+// GPU backend.
+SolidColorPoolFactory& GetSolidColorPoolFactoryRef() {
+  static base::NoDestructor<SolidColorPoolFactory> factory;
+  return *factory;
+}
+
 // Preferred overlay format set when detecting overlay support during
 // initialization.  Set to NV12 by default so that it's used when enabling
 // overlays using command line flags.
@@ -700,8 +707,11 @@ HRESULT DCompositionGetStatistics(COMPOSITION_FRAME_ID frameId,
 
 void InitializeDirectComposition(
     Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device,
-    Microsoft::WRL::ComPtr<ID3D12CommandQueue> d3d12_command_queue) {
+    Microsoft::WRL::ComPtr<ID3D12CommandQueue> d3d12_command_queue,
+    SolidColorPoolFactory solid_color_content_provider_factory) {
   CHECK(!g_dcomp_device);
+  CHECK(!GetSolidColorPoolFactoryRef());
+
   if (!d3d11_device) {
     return;
   }
@@ -770,6 +780,9 @@ void InitializeDirectComposition(
 
   g_d3d11_device = d3d11_device.Detach();
 
+  GetSolidColorPoolFactoryRef() =
+      std::move(solid_color_content_provider_factory);
+
   Microsoft::WRL::ComPtr<EXPERIMENTAL_IDCompositionDevice6> dcomp_device6;
   hr = g_dcomp_device->QueryInterface(IID_PPV_ARGS(&dcomp_device6));
   if (SUCCEEDED(hr)) {
@@ -817,7 +830,12 @@ void ShutdownDirectComposition() {
       g_d3d12_command_queue->Release();
       g_d3d12_command_queue = nullptr;
     }
+    GetSolidColorPoolFactoryRef().Reset();
   }
+}
+
+SolidColorPoolFactory GetDirectCompositionSolidColorPoolFactory() {
+  return GetSolidColorPoolFactoryRef();
 }
 
 IDCompositionDevice3* GetDirectCompositionDevice() {

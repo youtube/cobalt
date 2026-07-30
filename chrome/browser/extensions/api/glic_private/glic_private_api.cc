@@ -10,6 +10,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/values.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_utils.h"
+#include "chrome/browser/extensions/glic_util.h"
 #include "chrome/browser/glic/actor/glic_actor_policy_checker.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
@@ -336,6 +337,20 @@ content::RenderFrameHost* GetRfhForDocumentId(
 }
 
 }  // namespace
+
+GlicPrivateFunction::GlicPrivateFunction() = default;
+GlicPrivateFunction::~GlicPrivateFunction() = default;
+
+bool GlicPrivateFunction::PreRunValidation(std::string* error) {
+  if (!ExtensionFunction::PreRunValidation(error)) {
+    return false;
+  }
+  if (!IsApiGlicPrivateEnabled()) {
+    *error = "glicPrivate API is not enabled.";
+    return false;
+  }
+  return true;
+}
 
 GlicPrivateGetStateFunction::GlicPrivateGetStateFunction() = default;
 GlicPrivateGetStateFunction::~GlicPrivateGetStateFunction() = default;

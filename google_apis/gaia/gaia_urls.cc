@@ -73,6 +73,9 @@ const char kSigninChromeSyncKeysRetrievalUrl[] = "encryption/unlock/desktop";
 const char kSigninChromeSyncKeysRecoverabilityUrlSuffix[] =
     "?kdi=CAIaDgoKY2hyb21lc3luYxAB";
 
+const char kSigninChromePasskeyUnlockDesktopEmbeddedUrl[] =
+    "encryption/unlock/desktopembedded";
+
 // This kdi parameter allows to open the passkey unlock flow.
 // The kdi parameter here was generated from the following protobuf:
 //
@@ -299,6 +302,17 @@ GURL GaiaUrls::SigninChromeSyncKeysRecoverabilityDegradedUrl(
       base::NumberToString(account_index));
 }
 
+GURL GaiaUrls::SigninChromePasskeyUnlockDesktopEmbeddedUrl(
+    size_t account_index) const {
+  if (!base::FeatureList::IsEnabled(
+          gaia::features::kSigninChromePasskeyUnlockUrlUsesAccountIndex)) {
+    return signin_chrome_passkey_unlock_desktop_embedded_url_;
+  }
+  return net::AppendQueryParameter(
+      signin_chrome_passkey_unlock_desktop_embedded_url_, "authuser",
+      base::NumberToString(account_index));
+}
+
 const GURL& GaiaUrls::service_logout_url() const {
   return service_logout_url_;
 }
@@ -496,6 +510,10 @@ void GaiaUrls::InitializeDefault() {
       &signin_chrome_sync_keys_recoverability_degraded_url_, gaia_url,
       base::StrCat({kSigninChromeSyncKeysRetrievalUrl,
                     kSigninChromeSyncKeysRecoverabilityUrlSuffix}));
+  ResolveURLIfInvalid(
+      &signin_chrome_passkey_unlock_desktop_embedded_url_, gaia_url,
+      base::StrCat({kSigninChromePasskeyUnlockDesktopEmbeddedUrl,
+                    "?kdi=", kPasskeyUnlockUrlKdiParameter}));
   ResolveURLIfInvalid(&service_logout_url_, gaia_url, kServiceLogoutUrlSuffix);
   ResolveURLIfInvalid(&blank_page_url_, gaia_url, kBlankPageSuffix);
   ResolveURLIfInvalid(&oauth_multilogin_url_, gaia_url, kOAuthMultiloginSuffix);
@@ -586,6 +604,8 @@ void GaiaUrls::InitializeFromConfig() {
       URL_KEY_AND_PTR(signin_chrome_sync_keys_retrieval_url));
   config->GetURLIfExists(
       URL_KEY_AND_PTR(signin_chrome_sync_keys_recoverability_degraded_url));
+  config->GetURLIfExists(
+      URL_KEY_AND_PTR(signin_chrome_passkey_unlock_desktop_embedded_url));
   config->GetURLIfExists(URL_KEY_AND_PTR(service_logout_url));
   config->GetURLIfExists(URL_KEY_AND_PTR(blank_page_url));
   config->GetURLIfExists(URL_KEY_AND_PTR(oauth_multilogin_url));

@@ -167,4 +167,61 @@ IN_PROC_BROWSER_TEST_F(BlinkExtensionsAllowlistTest,
   EXPECT_EQ(base::Value(), result);
 }
 
+// Verifies the behavior when the allowlist is disabled.
+class BlinkExtensionsAllowlistDisabledTest
+    : public web_app::IsolatedWebAppBrowserTestHarness {
+ public:
+  BlinkExtensionsAllowlistDisabledTest() {
+    feature_list_.InitWithFeatures(
+        {blink::features::kUnframedIwa},
+        {chromeos::features::kCrosIsolatedWebAppSetShapeAllowlist});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(BlinkExtensionsAllowlistDisabledTest,
+                       AllowlistDoesNotWork) {
+  web_app::IsolatedWebAppUrlInfo url_info =
+      InstallIsolatedWebAppAndReturnUrlInfo(profile());
+
+  auto allowlist_override =
+      SetAllowlistedCrosIwaApiOriginsForTesting({url_info.origin().host()});
+
+  content::RenderFrameHost* frame = OpenApp(url_info.app_id());
+
+  EXPECT_EQ(false, content::EvalJs(frame, "'chromeos' in window"));
+}
+
+// Verifies the `kCrosIsolatedWebAppSetShape` flag grants access even if the
+// allowlist is disabled.
+class BlinkExtensionsAllowlistDisabledWithMainFlagEnabledTest
+    : public web_app::IsolatedWebAppBrowserTestHarness {
+ public:
+  BlinkExtensionsAllowlistDisabledWithMainFlagEnabledTest() {
+    feature_list_.InitWithFeatures(
+        {chromeos::features::kCrosIsolatedWebAppSetShape,
+         blink::features::kUnframedIwa},
+        {chromeos::features::kCrosIsolatedWebAppSetShapeAllowlist});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(BlinkExtensionsAllowlistDisabledWithMainFlagEnabledTest,
+                       IsolatedWebAppCanAccessExtensions) {
+  web_app::IsolatedWebAppUrlInfo url_info =
+      InstallIsolatedWebAppAndReturnUrlInfo(profile());
+
+  content::RenderFrameHost* frame = OpenApp(url_info.app_id());
+
+  ASSERT_EQ(true, content::EvalJs(frame, "'chromeos' in window"));
+  ASSERT_EQ(true,
+            content::EvalJs(frame, "'isolatedWebApp' in window.chromeos"));
+  ASSERT_EQ(true, content::EvalJs(
+                      frame, "'setShape' in window.chromeos.isolatedWebApp"));
+}
+
 }  // namespace ash

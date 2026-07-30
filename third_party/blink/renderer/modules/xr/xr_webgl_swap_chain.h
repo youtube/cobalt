@@ -20,6 +20,34 @@ namespace blink {
 class WebGLRenderingContextBase;
 class WebGLUnownedTexture;
 
+class ScopedXRWebGLStateRestorer {
+  STACK_ALLOCATED();
+
+ public:
+  ScopedXRWebGLStateRestorer(WebGLRenderingContextBase* context,
+                             GLenum source_texture_target);
+  ~ScopedXRWebGLStateRestorer();
+
+  ScopedXRWebGLStateRestorer(const ScopedXRWebGLStateRestorer&) = delete;
+  ScopedXRWebGLStateRestorer& operator=(const ScopedXRWebGLStateRestorer&) =
+      delete;
+
+ private:
+  WebGLRenderingContextBase* context_;
+  gpu::gles2::GLES2Interface* gl_;
+  GLenum source_texture_target_;
+
+  std::array<GLint, 4> viewport_ = {0, 0, 0, 0};
+  bool depth_test_enabled_ = false;
+  bool stencil_test_enabled_ = false;
+  bool culling_enabled_ = false;
+  bool blend_enabled_ = false;
+  bool dither_enabled_ = false;
+
+  GLenum polygon_mode_ = GL_FILL_ANGLE;
+  bool polygon_mode_extension_enabled_ = false;
+};
+
 class XRWebGLSwapChain : public XRSwapChain<WebGLUnownedTexture> {
  public:
   struct Descriptor {

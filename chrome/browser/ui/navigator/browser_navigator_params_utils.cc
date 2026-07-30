@@ -34,6 +34,8 @@ content::NavigationController::LoadURLParams LoadURLParamsFromNavigateParams(
   load_url_params.initiator_process_id = params->initiator_process_id;
   load_url_params.initiator_origin = params->initiator_origin;
   load_url_params.initiator_base_url = params->initiator_base_url;
+  load_url_params.initiator_navigation_state =
+      params->initiator_navigation_state;
   load_url_params.source_site_instance = params->source_site_instance;
   load_url_params.referrer = params->referrer;
   load_url_params.frame_name = params->frame_name;

@@ -76,7 +76,7 @@ class CONTENT_EXPORT DisconnectRequest {
   // Owned by |BrowserContext|
   raw_ptr<FederatedIdentityPermissionContextDelegate> permission_delegate_ =
       nullptr;
-  // Owned by |Request|
+  // Owned by |RequestService|
   raw_ptr<RenderFrameHost, DanglingUntriaged> render_frame_host_;
 
   std::unique_ptr<Metrics> fedcm_metrics_;

@@ -75,11 +75,12 @@ void CookieJar::Trace(Visitor* visitor) const {
   visitor->Trace(document_);
 }
 
-void CookieJar::SetCookie(const String& value) {
+bool CookieJar::SetCookie(const String& value) {
   TRACE_EVENT("blink", "CookieJar::SetCookie");
   KURL cookie_url = document_->CookieURL();
-  if (cookie_url.IsEmpty())
-    return;
+  if (cookie_url.IsEmpty()) {
+    return false;
+  }
 
   base::ElapsedTimer timer;
   RequestRestrictedCookieManagerIfNeeded();
@@ -109,6 +110,7 @@ void CookieJar::SetCookie(const String& value) {
   if (is_first_operation_) {
     LogFirstCookieRequest(FirstCookieRequest::kFirstOperationWasSet);
   }
+  return true;
 }
 
 void CookieJar::OnBackendDisconnect() {

@@ -68,9 +68,12 @@ std::optional<SqliteVfsFileSet> SqliteVfsFileSet::Bind(
       client, FileType::kMainDb, std::move(pending_file_set.db_file),
       access_rights, std::move(shared_locks), shared_locks_id,
       std::move(pending_file_set.wal_index_file));
-  auto journal_file = std::make_unique<SandboxedFile>(
-      client, FileType::kMainJournal, std::move(pending_file_set.journal_file),
-      access_rights);
+  std::unique_ptr<SandboxedFile> journal_file;
+  if (pending_file_set.journal_file.IsValid()) {
+    journal_file = std::make_unique<SandboxedFile>(
+        client, FileType::kMainJournal,
+        std::move(pending_file_set.journal_file), access_rights);
+  }
   std::unique_ptr<SandboxedFile> wal_file;
   if (pending_file_set.wal_file.IsValid()) {
     wal_file = std::make_unique<SandboxedFile>(
@@ -106,11 +109,17 @@ SqliteVfsFileSet::SqliteVfsFileSet(
       read_only_(db_file_->access_rights() ==
                  SandboxedFile::AccessRights::kReadOnly),
       wal_mode_(wal_mode) {
-  // WAL-mode requires a WAL file (but one might be provided when false to
-  // migrate from WAL-mode to a rollback journal).
-  CHECK(!wal_mode_ || wal_journal_file_);
+  // A rollback journal is required when not opening in WAL-mode. It is optional
+  // otherwise to support migrating from WAL-mode to using a rollback journal.
+  CHECK(journal_file_ || wal_mode_);
+  // A write-ahead log file is required when opening in WAL-mode. It is optional
+  // otherwise to support migrating to WAL-mode.
+  CHECK(wal_journal_file_ || !wal_mode_);
+
   // It makes no sense to have one file writeable and not the other(s).
-  CHECK_EQ(db_file_->access_rights(), journal_file_->access_rights());
+  if (journal_file_) {
+    CHECK_EQ(db_file_->access_rights(), journal_file_->access_rights());
+  }
   if (wal_journal_file_) {
     CHECK_EQ(db_file_->access_rights(), wal_journal_file_->access_rights());
   }
@@ -161,6 +170,7 @@ const base::File& SqliteVfsFileSet::GetDbFile() const {
 }
 
 const base::File& SqliteVfsFileSet::GetJournalFile() const {
+  CHECK(has_journal_file());
   return journal_file_->GetFile();
 }
 

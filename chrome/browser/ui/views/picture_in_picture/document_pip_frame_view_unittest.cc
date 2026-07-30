@@ -396,8 +396,9 @@ TEST_F(DocumentPipFrameViewTest, SecurityIconHasImage) {
   EXPECT_FALSE(GetSecurityIcon(frame_view)->GetImageModel().IsEmpty());
 }
 
-// NonClientHitTest returns HTCLIENT for the origin chip bounds.
-TEST_F(DocumentPipFrameViewTest, HitTestOriginChip_ReturnsClient) {
+// NonClientHitTest returns HTCLIENT for the security icon bounds (opens Page
+// Info on click).
+TEST_F(DocumentPipFrameViewTest, HitTestSecurityIcon_ReturnsClient) {
   content::WebContentsTester::For(opener())->NavigateAndCommit(
       GURL("https://example.com/"));
 
@@ -417,6 +418,30 @@ TEST_F(DocumentPipFrameViewTest, HitTestOriginChip_ReturnsClient) {
                                     &center);
 
   EXPECT_EQ(HTCLIENT, frame_view->NonClientHitTest(center));
+}
+
+// NonClientHitTest returns HTCAPTION for the origin label bounds (draggable,
+// matching browser-backed PiP behavior where the window title is draggable).
+TEST_F(DocumentPipFrameViewTest, HitTestOriginLabel_ReturnsCaption) {
+  content::WebContentsTester::For(opener())->NavigateAndCommit(
+      GURL("https://example.com/"));
+
+  auto* frame_view =
+      CreatePipAndGetFrameView(/*disallow_return_to_opener=*/false);
+
+  auto* widget = frame_view->GetWidget();
+  widget->SetBounds(gfx::Rect(0, 0, 400, 300));
+  widget->LayoutRootViewIfNecessary();
+
+  views::Label* origin_label = GetOriginLabel(frame_view);
+  ASSERT_TRUE(origin_label);
+  ASSERT_FALSE(origin_label->bounds().IsEmpty());
+
+  gfx::Point center = origin_label->bounds().CenterPoint();
+  views::View::ConvertPointToTarget(origin_label->parent(), frame_view,
+                                    &center);
+
+  EXPECT_EQ(HTCAPTION, frame_view->NonClientHitTest(center));
 }
 
 // The frame renders the active state by default.

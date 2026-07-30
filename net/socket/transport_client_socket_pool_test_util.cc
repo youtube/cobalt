@@ -373,18 +373,24 @@ MockTransportClientSocketFactory::~MockTransportClientSocketFactory() = default;
 std::unique_ptr<DatagramClientSocket>
 MockTransportClientSocketFactory::CreateDatagramClientSocket(
     DatagramSocket::BindType bind_type,
+    handles::NetworkHandle target_network,
     NetLog* net_log,
     const NetLogSource& source) {
+  // Currently this is not used to test any multi-network scenarios. This means
+  // that it is safe to always ignore `target_network`.
   NOTREACHED();
 }
 
 std::unique_ptr<TransportClientSocket>
 MockTransportClientSocketFactory::CreateTransportClientSocket(
     const AddressList& addresses,
+    handles::NetworkHandle target_network,
     std::unique_ptr<SocketPerformanceWatcher> /* socket_performance_watcher */,
     NetworkQualityEstimator* /* network_quality_estimator */,
     NetLog* /* net_log */,
     const NetLogSource& /* source */) {
+  // Currently this is not used to test any multi-network scenarios. This means
+  // that it is safe to always ignore `target_network`.
   allocation_count_++;
 
   Rule rule(client_socket_type_);

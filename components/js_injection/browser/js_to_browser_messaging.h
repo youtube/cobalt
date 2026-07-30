@@ -72,11 +72,9 @@ class JsToBrowserMessaging : public mojom::JsToBrowserMessaging {
   std::unique_ptr<WebMessageHost> host_;
   mojo::SharedAssociatedRemote<mojom::BrowserToJsMessagingFactory>
       browser_to_js_factory_;
-#if DCHECK_IS_ON()
   std::string top_level_origin_string_;
   std::string origin_string_;
   bool is_main_frame_;
-#endif
 };
 
 }  // namespace js_injection

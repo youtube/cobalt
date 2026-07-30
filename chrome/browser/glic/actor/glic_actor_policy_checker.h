@@ -55,11 +55,11 @@ class GlicActorPolicyChecker : public actor::EnterprisePolicyChecker,
   // Returns true if Glic Actor considers the profile to belong to a managed
   // Enterprise account. This check is specific to Glic Actor and should not
   // be used as a generic check for managed Enterprise accounts.
-  static bool IsEnterpriseAccount(Profile& profile,
-                                  actor::AggregatedJournal& journal);
+  static bool IsEnterpriseAccountForActor(Profile& profile,
+                                          actor::AggregatedJournal& journal);
 
   // Returns true if the Chrome browser is managed by an IT administrator.
-  static bool IsBrowserManaged(Profile& profile);
+  static bool IsBrowserManagedForActor(Profile& profile);
 
   // Adds a callback to run whenever the value of CanActOnWeb changes.
   using CanActOnWebChangedCallback =

@@ -47,25 +47,6 @@ class ManualFillingComponentBridge {
         mNativeView = nativeView;
         mWindowAndroid = windowAndroid;
         mWebContents = webContents;
-
-        initializeAtMemoryCallback();
-    }
-
-    private void initializeAtMemoryCallback() {
-        if (getManualFillingComponent() != null) {
-            getManualFillingComponent()
-                    .setAtMemoryCallback(
-                            () -> {
-                                if (mNativeView != 0) {
-                                    ManualFillingMetricsRecorder.recordActionSelected(
-                                            AccessoryAction.SHOW_AT_MEMORY_BOTTOMSHEET);
-                                    ManualFillingComponentBridgeJni.get()
-                                            .onOptionSelected(
-                                                    mNativeView,
-                                                    AccessoryAction.SHOW_AT_MEMORY_BOTTOMSHEET);
-                                }
-                            });
-        }
     }
 
     Provider<AccessorySheetData> getOrCreateProvider(@AccessoryTabType int tabType) {
@@ -155,7 +136,6 @@ class ManualFillingComponentBridge {
     private void destroy() {
         if (getManualFillingComponent() != null) {
             getManualFillingComponent().removeObserver(mDestructionObserver);
-            getManualFillingComponent().setAtMemoryCallback(null);
         }
         for (int i = 0; i < mProviders.size(); ++i) {
             mProviders.valueAt(i).notifyObservers(null);
@@ -466,6 +446,11 @@ class ManualFillingComponentBridge {
         ManualFillingComponentBridgeJni.get().onOptionSelected(mNativeView, action.getActionType());
     }
 
+    static void onOptionSelectedForWebContents(WebContents webContents, int accessoryAction) {
+        ManualFillingComponentBridgeJni.get()
+                .onOptionSelectedForWebContents(webContents, accessoryAction);
+    }
+
     @NativeMethods
     interface Natives {
         void onFillingTriggered(
@@ -477,6 +462,8 @@ class ManualFillingComponentBridge {
                 @JniType("std::vector<uint8_t>") byte[] passkeyId);
 
         void onOptionSelected(long nativeManualFillingViewAndroid, int accessoryAction);
+
+        void onOptionSelectedForWebContents(WebContents webContents, int accessoryAction);
 
         void onToggleChanged(
                 long nativeManualFillingViewAndroid, int accessoryAction, boolean enabled);

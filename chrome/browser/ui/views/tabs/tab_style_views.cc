@@ -16,39 +16,31 @@
 #include "base/strings/string_util.h"
 #include "cc/paint/paint_flags.h"
 #include "cc/paint/paint_record.h"
-#include "cc/paint/paint_shader.h"
 #include "chrome/browser/themes/theme_properties.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tabs/tab_style.h"
-#include "chrome/browser/ui/tabs/tab_types.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_frame_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/themed_background.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/browser/ui/views/tabs/tab/glow_hover_controller.h"
-#include "chrome/browser/ui/views/tabs/tab/tab_close_button.h"
 #include "chrome/browser/ui/views/tabs/tab_group_underline.h"
 #include "chrome/browser/ui/views/tabs/tab_slot_controller.h"
-#include "chrome/browser/ui/views/tabs/tab_slot_view.h"
 #include "chrome/grit/theme_resources.h"
-#include "components/tab_groups/tab_group_visual_data.h"
 #include "third_party/skia/include/core/SkPath.h"
 #include "third_party/skia/include/core/SkPathBuilder.h"
 #include "third_party/skia/include/core/SkRRect.h"
-#include "third_party/skia/include/core/SkScalar.h"
 #include "third_party/skia/include/pathops/SkPathOps.h"
 #include "ui/base/theme_provider.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/favicon_size.h"
-#include "ui/gfx/font_list.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/gfx/scoped_canvas.h"
-#include "ui/views/controls/focus_ring.h"
 #include "ui/views/widget/widget.h"
 
 namespace {
@@ -140,11 +132,6 @@ class TabStyleViewsImpl : public TabStyleViews {
   // Returns the opacity of the hover effect that should be drawn, which may not
   // be the same as GetHoverAnimationValue.
   float GetHoverOpacity() const;
-
-  // In some platforms, the window caption buttons and tab search may not be on
-  // the left side of the tabstrip. The leading edge should be modified for
-  // those cases.
-  bool ShouldCompactLeadingEdge(TabStyle::PathType path_type) const;
 
   // Painting helper functions:
   void PaintTabBackground(gfx::Canvas* canvas,
@@ -347,16 +334,8 @@ SkPath TabStyleViewsImpl::GetPath(TabStyle::PathType path_type,
     tab_bottom -= 0.5f * stroke_adjustment;
     extension_corner_radius -= 0.5f * stroke_adjustment;
   }
-  const bool compact_left_to_bottom = ShouldCompactLeadingEdge(path_type);
 
   float left_extension_corner_radius = extension_corner_radius;
-  if (compact_left_to_bottom) {
-    left_extension_corner_radius =
-        (tab_style()->GetBottomCornerRadius() -
-         GetLayoutConstant(LayoutConstant::kToolbarCornerRadius)) *
-        scale;
-  }
-
   if (IsLeftSplitTab(tab())) {
     top_right_corner_radius = 0;
     // Assign half of the tab overlap to each of the split tabs.
@@ -906,14 +885,6 @@ TabStyle::TabSelectionState TabStyleViewsImpl::GetSelectionState() const {
   }
 
   return TabStyle::TabSelectionState::kInactive;
-}
-
-bool TabStyleViewsImpl::ShouldCompactLeadingEdge(
-    TabStyle::PathType path_type) const {
-  // If the tab is the first in the list
-  return tab_->controller()->GetTabCount() > 0 &&
-         tab_->controller()->tab_at(0) == tab_ &&
-         tab_->controller()->ShouldCompactLeadingEdge();
 }
 
 void TabStyleViewsImpl::PaintTabBackground(gfx::Canvas* canvas,

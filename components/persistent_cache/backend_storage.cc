@@ -70,14 +70,14 @@ BackendStorage::BackendStorage(Client client,
 
 BackendStorage::~BackendStorage() = default;
 
-std::optional<PendingBackend> BackendStorage::MakePendingBackend(
-    const base::FilePath& base_name,
-    bool single_connection,
-    bool journal_mode_wal) {
+base::expected<PendingBackend, TransactionError>
+BackendStorage::MakePendingBackend(const base::FilePath& base_name,
+                                   bool single_connection,
+                                   bool journal_mode_wal) {
   return is_valid_ ? delegate_->MakePendingBackend(client_, directory_,
                                                    base_name, single_connection,
                                                    journal_mode_wal)
-                   : std::nullopt;
+                   : base::unexpected(TransactionError::kPermanent);
 }
 
 base::expected<std::unique_ptr<Backend>, TransactionError>

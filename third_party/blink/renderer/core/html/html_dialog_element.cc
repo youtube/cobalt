@@ -712,10 +712,15 @@ bool HTMLDialogElement::DispatchToggleEvents(bool opening,
   String old_state = opening ? keywords::kClosed : keywords::kOpen;
   String new_state = opening ? keywords::kOpen : keywords::kClosed;
 
-  if (DispatchEvent(*ToggleEvent::Create(
-          event_type_names::kBeforetoggle,
-          opening ? Event::Cancelable::kYes : Event::Cancelable::kNo, old_state,
-          new_state, source)) != DispatchEventResult::kNotCanceled) {
+  auto* before_event = ToggleEvent::Create(
+      event_type_names::kBeforetoggle,
+      opening ? Event::Cancelable::kYes : Event::Cancelable::kNo, old_state,
+      new_state, source);
+  if (source && RuntimeEnabledFeatures::ShadowRootReferenceTargetEnabled(
+                    source->GetExecutionContext())) {
+    before_event->SetComposed(true);
+  }
+  if (DispatchEvent(*before_event) != DispatchEventResult::kNotCanceled) {
     return false;
   }
   if (opening) {
@@ -733,6 +738,10 @@ bool HTMLDialogElement::DispatchToggleEvents(bool opening,
   pending_toggle_event_ =
       ToggleEvent::Create(event_type_names::kToggle, Event::Cancelable::kNo,
                           old_state, new_state, source);
+  if (source && RuntimeEnabledFeatures::ShadowRootReferenceTargetEnabled(
+                    source->GetExecutionContext())) {
+    pending_toggle_event_->SetComposed(true);
+  }
   pending_toggle_event_task_ = PostCancellableTask(
       *GetDocument().GetTaskRunner(TaskType::kDOMManipulation), FROM_HERE,
       BindOnce(&HTMLDialogElement::DispatchPendingToggleEvent,

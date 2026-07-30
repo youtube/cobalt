@@ -6,6 +6,7 @@
 #define CONTENT_BROWSER_SERIAL_SERIAL_SERVICE_H_
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/memory/weak_ptr.h"
@@ -76,6 +77,9 @@ class SerialService : public blink::mojom::SerialService,
   // `port.token` with one from `token_map_` if `port` can provide a persistent
   // identifier and be found in `token_map_`.
   blink::mojom::SerialPortInfoPtr ToBlinkType(
+      const device::mojom::SerialPortInfo& port);
+
+  static std::optional<std::string> GetPersistentIdentifier(
       const device::mojom::SerialPortInfo& port);
 
   mojo::ReceiverSet<blink::mojom::SerialService> receivers_;

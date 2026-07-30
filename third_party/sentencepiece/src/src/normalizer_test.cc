@@ -14,11 +14,16 @@
 
 #include "normalizer.h"
 
+#include <set>
+#include <string>
 #include <vector>
 
 #include "builder.h"
 #include "sentencepiece_trainer.h"
 #include "testharness.h"
+#include "absl/status/status.h"
+#include "absl/strings/string_view.h"
+#include "third_party/darts_clone/darts.h"
 #include "util.h"
 
 namespace sentencepiece {
@@ -70,7 +75,7 @@ TEST(NormalizerTest, NormalizeTest) {
   EXPECT_EQ("", normalizer.Normalize(string_util::UnicodeCharToUTF8(0x8F)));
   EXPECT_EQ("", normalizer.Normalize(string_util::UnicodeCharToUTF8(0x9F)));
   EXPECT_EQ("", normalizer.Normalize(string_util::UnicodeCharToUTF8(0x0B)));
-  for (char32 c = 0x10; c <= 0x1F; ++c) {
+  for (char32_t c = 0x10; c <= 0x1F; ++c) {
     EXPECT_EQ("", normalizer.Normalize(string_util::UnicodeCharToUTF8(c)));
   }
 }
@@ -150,12 +155,12 @@ TEST(NormalizerTest, NormalizeWithoutEscapeWhitespacesTest) {
 TEST(NormalizeTest, NomalizeWithSpaceContainedRules) {
   Builder::CharsMap charsmap;
 
-  auto AddRule = [&](const std::string &src, const std::string &trg) {
+  auto AddRule = [&](const std::string& src, const std::string& trg) {
     Builder::Chars src_chars, trg_chars;
-    for (const char32 c : string_util::UTF8ToUnicodeText(src)) {
+    for (const char32_t c : string_util::UTF8ToUnicodeText(src)) {
       src_chars.push_back(c);
     }
-    for (const char32 c : string_util::UTF8ToUnicodeText(trg)) {
+    for (const char32_t c : string_util::UTF8ToUnicodeText(trg)) {
       trg_chars.push_back(c);
     }
     charsmap[src_chars] = trg_chars;
@@ -241,8 +246,8 @@ TEST(NormalizeTest, NomalizeWithSpaceContainedRules) {
     bool add_dummy_prefix;
     bool remove_extra_whitespaces;
     bool escape_whitespaces;
-    const char *input;
-    const char *expected;
+    const char* input;
+    const char* expected;
   };
 
   constexpr SpacePattern kSpacePatternData[] = {
@@ -255,7 +260,7 @@ TEST(NormalizeTest, NomalizeWithSpaceContainedRules) {
       {true, false, false, " ", "  "},  {true, false, true, " ", WS WS},
       {true, true, false, " ", ""},     {true, true, true, " ", ""}};
 
-  for (const auto &c : kSpacePatternData) {
+  for (const auto& c : kSpacePatternData) {
     spec.set_add_dummy_prefix(c.add_dummy_prefix);
     spec.set_remove_extra_whitespaces(c.remove_extra_whitespaces);
     spec.set_escape_whitespaces(c.escape_whitespaces);
@@ -383,7 +388,7 @@ TEST(NormalizerTest, EncodeDecodePrecompiledCharsMapTest) {
       test_trie_blob, test_normalized_blob);
   std::string buf;
   absl::string_view trie_blob, normalized_blob;
-  util::Status status = Normalizer::DecodePrecompiledCharsMap(
+  absl::Status status = Normalizer::DecodePrecompiledCharsMap(
       blob, &trie_blob, &normalized_blob, &buf);
   ASSERT_TRUE(status.ok());
   EXPECT_EQ(test_trie_blob, trie_blob);
@@ -391,6 +396,68 @@ TEST(NormalizerTest, EncodeDecodePrecompiledCharsMapTest) {
   EXPECT_FALSE(Normalizer::DecodePrecompiledCharsMap("", &trie_blob,
                                                      &normalized_blob, &buf)
                    .ok());
+}
+
+TEST(NormalizerTest, ManySharedPrefixesTest) {
+  // A precompiled charsmap loaded from a model is not subject to the
+  // build-time kMaxTrieResultsSize check, so its trie may have more
+  // shared-prefix rules than the on-stack result buffer can hold. Normalizing
+  // an input that matches all of them must not read past the buffer.
+  // More than Normalizer::kMaxTrieResultsSize (32) shared-prefix rules.
+  const int kNumKeys = 40;
+  std::vector<std::string> keys;
+  std::vector<const char*> kptr;
+  std::vector<int> values;
+  for (int i = 1; i <= kNumKeys; ++i) keys.emplace_back(std::string(i, 'a'));
+  for (auto& k : keys) {
+    kptr.push_back(k.c_str());
+    values.push_back(0);
+  }
+
+  Darts::DoubleArray trie;
+  ASSERT_EQ(0, trie.build(kptr.size(), const_cast<char**>(kptr.data()), nullptr,
+                          values.data()));
+  absl::string_view trie_blob(static_cast<const char*>(trie.array()),
+                              trie.size() * trie.unit_size());
+
+  std::string normalized_block = "a";
+  normalized_block += '\0';
+
+  // EncodePrecompiledCharsMap stores the blob in little-endian, matching how a
+  // real model proto is serialised, so the test works on big-endian hosts too.
+  const std::string blob =
+      Normalizer::EncodePrecompiledCharsMap(trie_blob, normalized_block);
+
+  NormalizerSpec spec;
+  spec.set_precompiled_charsmap(blob);
+  spec.set_add_dummy_prefix(false);
+  spec.set_remove_extra_whitespaces(false);
+  spec.set_escape_whitespaces(false);
+
+  const Normalizer normalizer(spec);
+  ASSERT_TRUE(normalizer.status().ok());
+  // Matches all kNumKeys nested rules at position 0. Every rule maps to the
+  // single-character normalized form "a", so the output only contains 'a'.
+  const std::string input(kNumKeys, 'a');
+  const std::string output = normalizer.Normalize(input);
+  EXPECT_FALSE(output.empty());
+  EXPECT_EQ(std::string(output.size(), 'a'), output);
+}
+
+TEST(PrefixMatcherTest, ManySharedPrefixesTest) {
+  // PrefixMatcher builds its trie from a model's user-defined symbols, which
+  // can also exceed the on-stack result buffer.
+  std::vector<std::string> keys;
+  for (int i = 1; i <= 70; ++i) keys.emplace_back(std::string(i, 'b'));
+  std::set<absl::string_view> dic(keys.begin(), keys.end());
+
+  const PrefixMatcher matcher(dic);
+  bool found = false;
+  const std::string input(70, 'b');
+  const int mblen = matcher.PrefixMatch(input, &found);
+  EXPECT_TRUE(found);
+  EXPECT_GT(mblen, 0);
+  EXPECT_LE(mblen, static_cast<int>(input.size()));
 }
 
 TEST(NormalizerTest, StatusTest) {

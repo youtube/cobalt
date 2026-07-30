@@ -11,7 +11,9 @@
 #include "android_webview/browser/aw_print_manager.h"
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
+#include "base/files/scoped_file.h"
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "content/public/browser/browser_thread.h"
 #include "printing/print_settings.h"
 #include "printing/units.h"
@@ -66,6 +68,11 @@ void AwPdfExporter::ExportToPdf(JNIEnv* env,
                                 const JavaRef<jintArray>& pages,
                                 const JavaRef<jobject>& cancel_signal) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+
+  // Wrap the file descriptor in a ScopedFD to take ownership, since we are
+  // responsible for closing it when we are done (after Java detached it).
+  base::ScopedFD scoped_fd(fd);
+
   printing::PageRanges page_ranges;
   JNI_AwPdfExporter_GetPageRanges(env, pages, &page_ranges);
 
@@ -77,7 +84,8 @@ void AwPdfExporter::ExportToPdf(JNIEnv* env,
   // Update the parameters of the current print manager.
   AwPrintManager* print_manager =
       AwPrintManager::FromWebContents(web_contents_);
-  print_manager->UpdateParam(CreatePdfSettings(env, obj, page_ranges), fd,
+  print_manager->UpdateParam(CreatePdfSettings(env, obj, page_ranges),
+                             std::move(scoped_fd),
                              base::BindRepeating(&AwPdfExporter::DidExportPdf,
                                                  base::Unretained(this)));
 

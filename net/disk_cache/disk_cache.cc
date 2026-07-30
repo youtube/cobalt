@@ -11,6 +11,7 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram_functions.h"
@@ -531,6 +532,20 @@ void FlushCacheThreadAsynchronouslyForTesting(base::OnceClosure callback) {
 
   // Block backend.
   BackendImpl::FlushAsynchronouslyForTesting(repeating_callback);
+}
+
+void WaitForBackendCleanupForTesting(const base::FilePath& path,  // IN-TEST
+                                     base::OnceClosure callback) {
+  auto [callback_1, callback_2] = base::SplitOnceCallback(std::move(callback));
+  // TryCreate will return an instance only if there is no active tracker. In
+  // this case, `callback_1` will not be run and no extra waiting is necessary,
+  // so post `callback_2` to the current sequence to run soon. Otherwise, if
+  // `TryCreate` returns null, `callback_1` has been added to its list of
+  // callbacks to run when cleanup completes.
+  if (BackendCleanupTracker::TryCreate(path, std::move(callback_1))) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, std::move(callback_2));
+  }
 }
 
 int64_t Backend::CalculateSizeOfEntriesBetween(

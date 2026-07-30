@@ -9,7 +9,9 @@
 #include "base/containers/flat_set.h"
 #include "base/containers/to_vector.h"
 #include "base/memory/raw_ptr.h"
+#include "base/notreached.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
 #include "base/trace_event/trace_event.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/sync/base/features.h"
@@ -21,35 +23,36 @@ namespace syncer {
 
 namespace {
 
-std::string GetDeviceType(DeviceInfo::FormFactor form_factor) {
-  int device_type_message_id = -1;
-
+// Returns the localized string resource ID of the device type based on its
+// form factor.
+int GetSharingDeviceTypeStringId(DeviceInfo::FormFactor form_factor) {
   switch (form_factor) {
     case DeviceInfo::FormFactor::kDesktop:
-      device_type_message_id = IDS_SHARING_DEVICE_TYPE_COMPUTER;
-      break;
-
+      return IDS_SHARING_DEVICE_TYPE_COMPUTER;
+    case DeviceInfo::FormFactor::kPhone:
+      return IDS_SHARING_DEVICE_TYPE_PHONE;
+    case DeviceInfo::FormFactor::kTablet:
+      return IDS_SHARING_DEVICE_TYPE_TABLET;
     case DeviceInfo::FormFactor::kAutomotive:
     case DeviceInfo::FormFactor::kWearable:
     case DeviceInfo::FormFactor::kTv:
     case DeviceInfo::FormFactor::kUnknown:
-      device_type_message_id = IDS_SHARING_DEVICE_TYPE_DEVICE;
-      break;
-
-    case DeviceInfo::FormFactor::kPhone:
-      device_type_message_id = IDS_SHARING_DEVICE_TYPE_PHONE;
-      break;
-
-    case DeviceInfo::FormFactor::kTablet:
-      device_type_message_id = IDS_SHARING_DEVICE_TYPE_TABLET;
-      break;
+      return IDS_SHARING_DEVICE_TYPE_DEVICE;
   }
-
-  return l10n_util::GetStringUTF8(device_type_message_id);
+  NOTREACHED();
 }
 
-std::string CapitalizeWords(const std::string& sentence) {
+// Capitalizes the first letter of the string and any letter that immediately
+// follows a non-alphabetic character, if the string is entirely ASCII.
+// Non-ASCII strings are returned as-is.
+std::string CapitalizeWordsIfASCII(const std::string& sentence) {
+  if (!base::IsStringASCII(sentence)) {
+    return sentence;
+  }
+
   std::string capitalized_sentence;
+  capitalized_sentence.reserve(sentence.size());
+
   bool use_upper_case = true;
   for (char ch : sentence) {
     capitalized_sentence +=
@@ -60,16 +63,13 @@ std::string CapitalizeWords(const std::string& sentence) {
   return capitalized_sentence;
 }
 
-}  // namespace
+bool IsClientNameHighQuality(const DeviceInfo* device) {
+  const std::string model = device->model_name();
+  const std::string client_name = device->client_name();
 
-DisplayNameCandidates GetDisplayNameCandidates(const DeviceInfo* device) {
-  TRACE_EVENT0("sync", "syncer::GetDisplayNameCandidates");
-  DCHECK(device);
-  std::string model = device->model_name();
-  std::string client_name = device->client_name();
-
-  bool client_name_is_high_quality =
-      !client_name.empty() && client_name != model;
+  if (client_name.empty() || client_name == model) {
+    return false;
+  }
 
   // On iOS 16+, the default client name is "iPhone" or "iPad". It is not a
   // high-quality name, so we shouldn't treat it as a custom name.
@@ -77,18 +77,51 @@ DisplayNameCandidates GetDisplayNameCandidates(const DeviceInfo* device) {
   // https://developer.apple.com/documentation/uikit/uidevice/name#Discussion
   if (device->os_type() == DeviceInfo::OsType::kIOS) {
     if (client_name == "iPhone" || client_name == "iPad") {
-      client_name_is_high_quality = false;
+      return false;
     }
   }
+
+  return true;
+}
+
+}  // namespace
+
+DisplayNameCandidates GetDisplayNameCandidates(const DeviceInfo* device) {
+  TRACE_EVENT0("sync", "syncer::GetDisplayNameCandidates");
+  DCHECK(device);
+
+  if (device->server_determined_model_name().has_value() &&
+      !device->server_determined_model_name()->empty() &&
+      base::FeatureList::IsEnabled(kSyncUseServerDeterminedDeviceName)) {
+    std::string preferred_name = *device->server_determined_model_name();
+
+    // Using the marketing name as the fallback as well, as naming collisions
+    // are less likely with specific marketing names (e.g., "Galaxy S21" and
+    // "Galaxy S17" instead of two "Samsung Phone"s).
+    //
+    // Additionally, appending the model name could result in redundant names
+    // (e.g., "Pixel 9 Pixel 9") if the OEM has already populated the model
+    // field with the marketing name.
+    //
+    // TODO(crbug.com/522788942): Remove this fallback construction once
+    // kSyncUseServerDeterminedDeviceName and kSyncSimplifyDeviceNaming are
+    // fully launched.
+    return {.preferred_name_if_unique = preferred_name,
+            .fallback_full_name = preferred_name};
+  }
+
+  const std::string model = device->model_name();
+  const bool client_name_is_high_quality = IsClientNameHighQuality(device);
 
   // 1. Skip renaming for M78- devices where HardwareInfo is not available.
   // 2. Skip renaming if client_name is high quality.
   if (model.empty() || client_name_is_high_quality) {
-    return {.preferred_name_if_unique = client_name,
-            .fallback_full_name = client_name};
+    return {.preferred_name_if_unique = device->client_name(),
+            .fallback_full_name = device->client_name()};
   }
 
-  std::string manufacturer = CapitalizeWords(device->manufacturer_name());
+  std::string manufacturer =
+      CapitalizeWordsIfASCII(device->manufacturer_name());
 
   // For chromeOS, return manufacturer + model.
   if (device->os_type() == DeviceInfo::OsType::kChromeOsAsh) {
@@ -105,8 +138,13 @@ DisplayNameCandidates GetDisplayNameCandidates(const DeviceInfo* device) {
             .fallback_full_name = model};
   }
 
+  // TODO(crbug.com/522788942): This string concatenation is an i18n
+  // anti-pattern. It should be refactored to use a translatable string template
+  // with placeholders.
   std::string preferred_name_if_unique =
-      base::StrCat({manufacturer, " ", GetDeviceType(device->form_factor())});
+      base::StrCat({manufacturer, " ",
+                    l10n_util::GetStringUTF8(
+                        GetSharingDeviceTypeStringId(device->form_factor()))});
   std::string fallback_full_name =
       base::StrCat({preferred_name_if_unique, " ", model});
   return {.preferred_name_if_unique = preferred_name_if_unique,

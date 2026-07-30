@@ -366,13 +366,16 @@ class CORE_EXPORT CanvasRenderingContext
   void RenderTaskEnded();
   bool did_draw_in_current_task_ = false;
   bool did_print_in_current_task_ = false;
-  bool accessibility_ukm_recorded_ = false;
+  bool did_record_accessibility_ukm_ = false;
+  bool did_schedule_accessibility_ukm_recording_ = false;
   bool did_process_task_ = false;
   bool did_draw_text_ = false;
 
   const CanvasRenderingAPI canvas_rendering_type_;
 
   bool is_context_being_restored_ = false;
+
+  void RecordUKMCanvasAccessibility();
 };
 
 }  // namespace blink

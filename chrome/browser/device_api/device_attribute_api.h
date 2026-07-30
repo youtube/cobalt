@@ -5,7 +5,11 @@
 #ifndef CHROME_BROWSER_DEVICE_API_DEVICE_ATTRIBUTE_API_H_
 #define CHROME_BROWSER_DEVICE_API_DEVICE_ATTRIBUTE_API_H_
 
+#include <optional>
+#include <string>
+
 #include "base/functional/callback_forward.h"
+#include "base/types/expected.h"
 #include "third_party/blink/public/mojom/device/device.mojom.h"
 
 class DeviceAttributeApi {
@@ -15,12 +19,11 @@ class DeviceAttributeApi {
   DeviceAttributeApi& operator=(const DeviceAttributeApi&) = delete;
   virtual ~DeviceAttributeApi() = default;
 
-  virtual void ReportNotAffiliatedError(
-      base::OnceCallback<void(blink::mojom::DeviceAttributeResultPtr)>
-          callback) = 0;
-  virtual void ReportNotAllowedError(
-      base::OnceCallback<void(blink::mojom::DeviceAttributeResultPtr)>
-          callback) = 0;
+  using NotificationCallback = base::OnceCallback<void(
+      base::expected<blink::mojom::DeviceAttributeValuePtr, std::string>)>;
+
+  virtual void ReportNotAffiliatedError(NotificationCallback callback) = 0;
+  virtual void ReportNotAllowedError(NotificationCallback callback) = 0;
   virtual void GetDirectoryId(
       blink::mojom::DeviceAPIService::GetDirectoryIdCallback callback) = 0;
   virtual void GetHostname(
@@ -39,12 +42,8 @@ class DeviceAttributeApiImpl : public DeviceAttributeApi {
   DeviceAttributeApiImpl();
   ~DeviceAttributeApiImpl() override;
 
-  void ReportNotAffiliatedError(
-      base::OnceCallback<void(blink::mojom::DeviceAttributeResultPtr)> callback)
-      override;
-  void ReportNotAllowedError(
-      base::OnceCallback<void(blink::mojom::DeviceAttributeResultPtr)> callback)
-      override;
+  void ReportNotAffiliatedError(NotificationCallback callback) override;
+  void ReportNotAllowedError(NotificationCallback callback) override;
   void GetDirectoryId(
       blink::mojom::DeviceAPIService::GetDirectoryIdCallback callback) override;
   void GetHostname(

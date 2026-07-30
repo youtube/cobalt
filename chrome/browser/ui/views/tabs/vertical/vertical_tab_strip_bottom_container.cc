@@ -17,7 +17,6 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/views/actions/action_view_controller.h"
 #include "ui/views/controls/menu/menu_runner.h"
-#include "ui/views/layout/flex_layout_view.h"
 #include "ui/views/view_class_properties.h"
 
 VerticalTabStripBottomContainer::VerticalTabStripBottomContainer(

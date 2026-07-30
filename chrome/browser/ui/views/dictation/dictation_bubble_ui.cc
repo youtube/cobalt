@@ -38,6 +38,8 @@ DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(DictationBubbleUi,
                                       kViewElementIdForTesting);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(DictationBubbleUi,
                                       kCloseButtonElementIdForTesting);
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(DictationBubbleUi,
+                                      kDoneButtonElementIdForTesting);
 
 namespace {
 
@@ -45,21 +47,27 @@ namespace {
 class DictationToastView : public views::View {
   METADATA_HEADER(DictationToastView, views::View)
  public:
-  explicit DictationToastView(base::RepeatingClosure close_callback);
+  explicit DictationToastView(
+      base::RepeatingClosure close_callback,
+      base::RepeatingClosure toggle_active_stream_callback);
   ~DictationToastView() override;
 
   void Init();
 
  private:
   base::RepeatingClosure close_callback_;
+  base::RepeatingClosure toggle_active_stream_callback_;
 };
 
 }  // namespace
 
 // --- DictationToastView ---
 
-DictationToastView::DictationToastView(base::RepeatingClosure close_callback)
-    : close_callback_(std::move(close_callback)) {
+DictationToastView::DictationToastView(
+    base::RepeatingClosure close_callback,
+    base::RepeatingClosure toggle_active_stream_callback)
+    : close_callback_(std::move(close_callback)),
+      toggle_active_stream_callback_(std::move(toggle_active_stream_callback)) {
   SetProperty(views::kElementIdentifierKey,
               DictationBubbleUi::kViewElementIdForTesting);
 }
@@ -98,7 +106,7 @@ void DictationToastView::Init() {
 
   views::MdTextButton* done_button =
       AddChildView(std::make_unique<views::MdTextButton>(
-          base::RepeatingClosure(), l10n_util::GetStringUTF16(IDS_DONE)));
+          toggle_active_stream_callback_, l10n_util::GetStringUTF16(IDS_DONE)));
   done_button->SetEnabledTextColors(ui::kColorToastButton);
   done_button->SetBgColorIdOverride(ui::kColorToastBackgroundProminent);
   done_button->SetStrokeColorIdOverride(ui::kColorToastButton);
@@ -113,6 +121,8 @@ void DictationToastView::Init() {
           lp->GetDistanceMetric(
               DISTANCE_TOAST_BUBBLE_BETWEEN_LABEL_ACTION_BUTTON_SPACING),
           0, 0));
+  done_button->SetProperty(views::kElementIdentifierKey,
+                           DictationBubbleUi::kDoneButtonElementIdForTesting);
 
   views::ImageButton* close_button =
       AddChildView(views::CreateVectorImageButtonWithNativeTheme(
@@ -142,8 +152,10 @@ END_METADATA
 
 // --- DictationToastBubbleDelegate ---
 
-DictationBubbleUi::DictationBubbleUi(views::View* anchor_view,
-                                     base::RepeatingClosure close_callback)
+DictationBubbleUi::DictationBubbleUi(
+    views::View* anchor_view,
+    base::RepeatingClosure close_callback,
+    base::RepeatingClosure toggle_active_stream_callback)
     : BubbleDialogDelegate(anchor_view, views::BubbleBorder::NONE) {
   SetBackgroundColor(ui::kColorToastBackgroundProminent);
   SetShowCloseButton(false);
@@ -151,7 +163,8 @@ DictationBubbleUi::DictationBubbleUi(views::View* anchor_view,
   set_corner_radius(ChromeLayoutProvider::Get()->GetDistanceMetric(
       DISTANCE_TOAST_BUBBLE_HEIGHT));
   set_close_on_deactivate(false);
-  SetContentsView(std::make_unique<DictationToastView>(close_callback));
+  SetContentsView(std::make_unique<DictationToastView>(
+      std::move(close_callback), std::move(toggle_active_stream_callback)));
 
   // TODO(crbug.com/509983464): Update this to call an undeprecated factory
   // function when this bug is fixed.

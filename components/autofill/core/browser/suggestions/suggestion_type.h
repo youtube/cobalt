@@ -179,7 +179,7 @@ enum class SuggestionType {
   // Throbber suggestion to indicate loading state.
   kLoadingThrobber = 77,
 
-  // Memory search result for @memory feature.
+  // Memory search result for AtMemory feature.
   kAtMemorySearchResult = 78,
 
   // Buy-Now-Pay-Later footnote suggestion to display the privacy notice with
@@ -196,7 +196,7 @@ enum class SuggestionType {
   // Suggestion to open Gemini in the sidebar.
   kOpenGemini = 82,
 
-  // Suggestion to display when @memory search fails to connect to the server.
+  // Suggestion to display when AtMemory search fails to connect to the server.
   kAtMemoryNoConnection = 83,
 
   // Suggestion that triggers AtMemory search when accepted.
@@ -209,8 +209,16 @@ enum class SuggestionType {
   // Suggestion shown when fetching Ambient Autofill suggestions is in progress.
   kFetchingAmbientData = 87,
 
-  // Next ID: 88
-  kMaxValue = kFetchingAmbientData
+  // Suggestion to display when AtMemory search fails due to an unexpected or
+  // generic error.
+  kAtMemoryGenericError = 88,
+
+  // Maximize Credit Card Benefits suggestion that, when clicked, prompts Gemini
+  // to recommend credit cards for autofill
+  kMaximizeCreditCardBenefitsEntry = 89,
+
+  // Next ID: 90
+  kMaxValue = kMaximizeCreditCardBenefitsEntry
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:SuggestionType)
 

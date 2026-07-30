@@ -49,11 +49,11 @@ class AccountProfileMapper {
     virtual void OnIdentityOnDeviceUpdated(id<SystemIdentity> identity) {}
 
     // Called on identity refresh token updated events.
-    // `identity` is the the identity for which the refresh token was updated.
+    // `identity` is the identity for which the refresh token was updated.
     virtual void OnIdentityRefreshTokenUpdated(id<SystemIdentity> identity) {}
 
     // Called on access token refresh failed events.
-    // `identity` is the the identity for which the access token refresh failed.
+    // `identity` is the identity for which the access token refresh failed.
     // `error` is an opaque type containing information about the error.
     virtual void OnIdentityAccessTokenRefreshFailed(
         id<SystemIdentity> identity,

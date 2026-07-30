@@ -10,7 +10,9 @@
 #include <sys/types.h>
 
 #include <memory>
+#include <utility>
 
+#include "base/containers/span.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
@@ -92,6 +94,13 @@ class NET_EXPORT UDPSocketPosix {
   // has been connected.
   int Read(IOBuffer* buf, int buf_len, CompletionOnceCallback callback);
 
+  // Reads multiple datagrams from a connected socket.
+  // Only usable after the socket has been connected.
+  // The number of packets read is determined by the ratio of |buf_len| to
+  // |maximum_packet_size|.
+  // On platforms supporting recvmmsg (Linux, ChromeOS, Android), it uses it
+  // to read multiple datagrams. On other POSIX platforms (e.g., macOS,
+  // Fuchsia), it falls back to reading a single datagram using recvmsg.
   base::expected<DatagramsMetadata, Error> ReadMultiple(
       IOBuffer* buffer,
       size_t buf_len,
@@ -351,8 +360,14 @@ class NET_EXPORT UDPSocketPosix {
   };
 
   void DoReadCallback(int rv);
+  void DoReadMultipleCallback(base::expected<DatagramsMetadata, Error> rv);
   void DoWriteCallback(int rv);
   void DidCompleteRead();
+  void DidCompleteMultipleRead();
+  void OnFallbackReadComplete(
+      base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)>
+          callback,
+      int rv);
   void DidCompleteWrite();
 
   // Handles stats and logging. |result| is the number of bytes transferred, on
@@ -363,6 +378,7 @@ class NET_EXPORT UDPSocketPosix {
                const char* bytes,
                socklen_t addr_len,
                const sockaddr* addr);
+  void LogRead(int result, const char* bytes, const IPEndPoint* address);
   void LogWrite(int result, const char* bytes, const IPEndPoint* address);
 
   // Same as SendTo(), except that address is passed by pointer
@@ -388,6 +404,20 @@ class NET_EXPORT UDPSocketPosix {
   int InternalRecvFromConnectedSocket(IOBuffer* buf,
                                       int buf_len,
                                       IPEndPoint* address);
+  base::expected<DatagramsMetadata, Error> InternalReadMultiple(
+      IOBuffer* buffer,
+      size_t buf_len,
+      size_t maximum_packet_size);
+  // recvmmsg() is only available on Linux, ChromeOS, and Android.
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+  base::expected<DatagramsMetadata, Error> InternalRecvMmsg(
+      IOBuffer* buffer,
+      size_t num_messages,
+      size_t maximum_packet_size);
+  static base::expected<DatagramsMetadata, Error> ProcessRecvMmsgResults(
+      base::span<struct mmsghdr> mmsg,
+      size_t maximum_packet_size);
+#endif
 
   // An implementation of the InternalRecvFrom() method for reading data
   // from non-connected sockets. Internally the method uses the recvmsg()
@@ -461,6 +491,10 @@ class NET_EXPORT UDPSocketPosix {
   int read_buf_len_ = 0;
   raw_ptr<IPEndPoint> recv_from_address_ = nullptr;
 
+  // The maximum packet size passed to ReadMultiple(), used to retrieve the
+  // packet size when completing an asynchronous ReadMultiple() operation.
+  size_t read_multiple_maximum_packet_size_ = 0;
+
   // The buffer used by InternalWrite() to retry Write requests
   scoped_refptr<IOBuffer> write_buf_;
   int write_buf_len_ = 0;
@@ -468,6 +502,8 @@ class NET_EXPORT UDPSocketPosix {
 
   // External callback; called when read is complete.
   CompletionOnceCallback read_callback_;
+  base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)>
+      read_multiple_callback_;
 
   // External callback; called when write is complete.
   CompletionOnceCallback write_callback_;

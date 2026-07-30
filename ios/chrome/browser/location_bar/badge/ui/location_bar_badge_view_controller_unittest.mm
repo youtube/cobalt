@@ -50,7 +50,7 @@ TEST_F(LocationBarBadgeViewControllerTest,
   // the Proactive Suggestions Framework supports other contextual panel badges.
   base::test::ScopedFeatureList feature_list;
   feature_list.InitWithFeatures(
-      {kProactiveSuggestionsFramework, kPageActionMenu}, {kAskGeminiChip});
+      {kProactiveSuggestionsFramework, kPageActionMenu}, {});
 
   [view_controller_ view];
   ContextualPanelItemConfiguration configuration(

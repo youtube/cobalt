@@ -8,20 +8,17 @@
 #include "base/test/mock_callback.h"
 #include "build/branding_buildflags.h"
 #include "chrome/app/vector_icons/vector_icons.h"
-#include "chrome/browser/ui/views/tabs/projects/layout_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/contextual_tasks/public/contextual_task.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/ui_base_features.h"
-#include "ui/color/color_id.h"
 #include "ui/events/test/event_generator.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/test/button_test_api.h"
 #include "ui/views/test/views_test_base.h"
-#include "ui/views/view_utils.h"
 
 namespace {
 

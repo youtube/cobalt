@@ -29,8 +29,8 @@ static_library("in_session_password_change") {
 
   deps = [
     "//ash/constants",
+    "//ash/login/resources:login_strings",
     "//ash/webui/common:trusted_types_util",
-    "//chrome/app:generated_resources",
     "//chrome/browser:resources",
     "//chrome/browser/ash/login",
     "//chrome/browser/ash/policy/core",

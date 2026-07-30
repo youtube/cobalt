@@ -64,10 +64,7 @@
 #include "third_party/blink/renderer/core/frame/local_frame_client.h"
 #include "third_party/blink/renderer/core/html/canvas/html_canvas_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
-#include "third_party/blink/renderer/core/html/forms/html_label_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_text_area_element.h"
-#include "third_party/blink/renderer/core/html/forms/labels_node_list.h"
-#include "third_party/blink/renderer/core/html/html_element.h"
 #include "third_party/blink/renderer/core/input/context_menu_allowed_scope.h"
 #include "third_party/blink/renderer/core/input/event_handler.h"
 #include "third_party/blink/renderer/core/input_type_names.h"
@@ -76,42 +73,13 @@
 #include "third_party/blink/renderer/core/layout/layout_theme.h"
 #include "third_party/blink/renderer/core/page/focus_controller.h"
 #include "third_party/blink/renderer/core/page/page.h"
-#include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
 using mojom::blink::FormControlType;
 
 namespace {
-
-String GetElementLabels(Element* element) {
-  if (!element) {
-    return String();
-  }
-  auto* html_element = DynamicTo<HTMLElement>(element);
-  if (!html_element) {
-    return String();
-  }
-  LabelsNodeList* labels = html_element->labels();
-  if (!labels || labels->length() == 0) {
-    return String();
-  }
-
-  StringBuilder builder;
-  for (unsigned i = 0; i < labels->length(); ++i) {
-    Node* label_node = labels->item(i);
-    if (auto* label_element = DynamicTo<HTMLLabelElement>(label_node)) {
-      String text = label_element->TextContentExcludingLabelable();
-      if (!text.empty()) {
-        if (!builder.empty()) {
-          builder.Append(" ");
-        }
-        builder.Append(text);
-      }
-    }
-  }
-  return builder.ReleaseString();
-}
 
 bool NeedsIncrementalInsertion(const LocalFrame& frame,
                                const String& new_text) {
@@ -1784,15 +1752,6 @@ WebTextInputInfo InputMethodController::TextInputInfo() const {
   info.virtual_keyboard_policy = VirtualKeyboardPolicyOfFocusedElement();
   info.type = TextInputType();
   info.flags = TextInputFlags();
-
-  if (Element* focused_element = GetDocument().FocusedElement()) {
-    info.label = GetElementLabels(focused_element);
-    info.name = focused_element->FastGetAttribute(html_names::kNameAttr);
-    info.id = focused_element->GetIdAttribute();
-    info.placeholder =
-        focused_element->FastGetAttribute(html_names::kPlaceholderAttr);
-  }
-
   if (info.type == kWebTextInputTypeNone)
     return info;
 
@@ -1860,12 +1819,33 @@ int InputMethodController::TextInputFlags() const {
     }
   }
 
-  if (const AtomicString& autocorrect =
-          element->FastGetAttribute(html_names::kAutocorrectAttr)) {
-    if (EqualIgnoringAsciiCase(autocorrect, keywords::kOn)) {
-      flags |= kWebTextInputFlagAutocorrectOn;
-    } else if (EqualIgnoringAsciiCase(autocorrect, keywords::kOff)) {
-      flags |= kWebTextInputFlagAutocorrectOff;
+  if (RuntimeEnabledFeatures::AutocorrectByDefaultEnabled()) {
+    if (auto* html_element = DynamicTo<HTMLElement>(element)) {
+      // https://html.spec.whatwg.org/multipage/interaction.html#autocorrection
+      // The used autocorrection state is always On or Off (HTMLElement::
+      // autocorrect()), but several IME backends honor only the Off flag and
+      // otherwise apply their own (enabled) default. Treat Off as authoritative
+      // while emitting On only when the element explicitly requests it.
+      if (!html_element->autocorrect()) {
+        flags |= kWebTextInputFlagAutocorrectOff;
+      } else if (html_element->FastHasAttribute(html_names::kAutocorrectAttr)) {
+        // An explicit attribute that is present here resolves to On: an "off"
+        // value (or a URL/Email/Password type) already took the Off branch
+        // above, and the attribute's invalid and empty value defaults are both
+        // On.
+        flags |= kWebTextInputFlagAutocorrectOn;
+      }
+    }
+  } else {
+    // Without the feature, only an explicit autocorrect attribute sets a flag;
+    // the used-state defaulting and form-owner inheritance are not applied.
+    if (const AtomicString& autocorrect =
+            element->FastGetAttribute(html_names::kAutocorrectAttr)) {
+      if (EqualIgnoringAsciiCase(autocorrect, keywords::kOn)) {
+        flags |= kWebTextInputFlagAutocorrectOn;
+      } else if (EqualIgnoringAsciiCase(autocorrect, keywords::kOff)) {
+        flags |= kWebTextInputFlagAutocorrectOff;
+      }
     }
   }
 

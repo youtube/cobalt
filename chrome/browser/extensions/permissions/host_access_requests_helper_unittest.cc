@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
+#include "base/auto_reset.h"
+#include "base/time/time.h"
 #include "chrome/browser/extensions/extension_service_test_base.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/extensions/tab_helper.h"
@@ -61,16 +65,19 @@ class HostAccessRequestsHelperUnittest : public ExtensionServiceTestBase {
  private:
   std::vector<std::unique_ptr<content::WebContents>> web_contents_collection_;
   raw_ptr<PermissionsManager> permissions_manager_ = nullptr;
+  std::optional<base::AutoReset<base::TimeDelta>> cooldown_reset_;
 };
 
 void HostAccessRequestsHelperUnittest::SetUp() {
   ExtensionServiceTestBase::SetUp();
   InitializeEmptyExtensionService();
   permissions_manager_ = PermissionsManager::Get(profile());
-  HostAccessRequestsHelper::SetCooldownForTesting(base::Seconds(0));
+  cooldown_reset_.emplace(
+      HostAccessRequestsHelper::SetCooldownForTesting(base::Seconds(0)));
 }
 
 void HostAccessRequestsHelperUnittest::TearDown() {
+  cooldown_reset_.reset();
   web_contents_collection_.clear();
   permissions_manager_ = nullptr;
   ExtensionServiceTestBase::TearDown();

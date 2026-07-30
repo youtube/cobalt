@@ -53,6 +53,10 @@ class DISPLAY_EXPORT VSyncProviderMac {
   // Whether the task runner of VSyncProviderMac belongs to the current thread.
   bool BelongsToCurrentThread();
 
+  std::vector<int64_t> GetSupportedDisplayLinkIds();
+
+  bool IsConnectedToBrowser() { return !needs_begin_frame_callback_.is_null(); }
+
  private:
   friend class base::NoDestructor<VSyncProviderMac>;
 

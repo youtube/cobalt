@@ -1,0 +1,31 @@
+description: Verify GN dependency debugging code changes.
+owner: huangkaixiang.1124@bytedance.com
+prompts:
+  - 'file://prompt.md'
+providers:
+  - id: python:../../../testing/gemini_provider.py
+    config:
+      timeoutSeconds: 600
+      skills:
+        - gn-deps-debugging
+      changes:
+        - apply: agents/prompts/eval/gn_deps_debugging/missing_header_dep.patch
+tests:
+  - assert:
+    - type: python
+      value: file://../../../testing/asserts/check_changes.py:check_file_content
+      config:
+        files:
+          - path: base/strings/gn_deps_debugging_eval.h
+            present:
+              - 'class PrefService;'
+              - 'PrefService* prefs'
+            absent:
+              - '#include "components/prefs/pref_service.h"'
+              - 'nogncheck'
+          - path: base/BUILD.gn
+            absent:
+              - '//components/prefs'
+    metadata:
+      tags:
+        - stable

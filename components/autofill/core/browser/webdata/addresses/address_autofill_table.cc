@@ -421,12 +421,7 @@ bool AddProfileTypeTokensToTable(sql::Database* db,
     // Alternative names should always be converted to Hiragana for
     // storage.
     if (IsAlternativeNameType(type)) {
-      if (base::FeatureList::IsEnabled(
-              features::kAutofillSupportPhoneticNameForJP)) {
-        value = TransliterateAlternativeName(value);
-      } else {
-        continue;
-      }
+      value = TransliterateAlternativeName(value);
     }
 
     s.BindString(0, profile.guid());

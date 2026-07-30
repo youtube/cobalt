@@ -13,6 +13,9 @@ proto_library("prediction_service_messages_proto") {
 }
 
 source_set("prediction_service") {
+  _configs = configs
+  configs = []
+  configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
   sources = [
     "permission_ui_selector.cc",
     "permission_ui_selector.h",

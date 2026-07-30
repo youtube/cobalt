@@ -22,7 +22,6 @@ import android.text.style.ReplacementSpan;
 import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.ContextMenu;
-import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -59,6 +58,7 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.toolbar.ToolbarVariationUtils;
 import org.chromium.components.browser_ui.share.ShareHelper;
 import org.chromium.components.browser_ui.util.FirstDrawDetector;
+import org.chromium.components.omnibox.OmniboxCapabilities;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.omnibox.TextSelection;
 import org.chromium.ui.KeyboardVisibilityDelegate;
@@ -75,7 +75,6 @@ import java.lang.annotation.RetentionPolicy;
 public class UrlBar extends AutocompleteEditText {
     private static final String TAG = "UrlBar";
     private static final String ACCESSIBILITY_WARNING_FORMAT = "%s. %s";
-    @VisibleForTesting static final float LINE_HEIGHT_FACTOR = 1.15f;
 
     private static final boolean DEBUG = false;
 
@@ -94,9 +93,10 @@ public class UrlBar extends AutocompleteEditText {
     // The text must be at least this long to be truncated. Safety measure to prevent accidentally
     // over truncating text for large tablets and external displays. Also, tests can continue to
     // check for text equality, instead of worrying about partial equality with truncated text.
-    static final int MIN_LENGTH_FOR_TRUNCATION = 100;
+    private static final int MIN_LENGTH_FOR_TRUNCATION = 100;
 
-    static final int MULTILINE_EDIT_MAX_LINES = 5;
+    @VisibleForTesting static final int MULTILINE_EDIT_MAX_LINES = 5;
+    @VisibleForTesting static final int DESKTOP_MULTILINE_EDIT_MAX_LINES = 8;
 
     /**
      * The text direction of the URL or query: LAYOUT_DIRECTION_LOCALE, LAYOUT_DIRECTION_LTR, or
@@ -294,7 +294,10 @@ public class UrlBar extends AutocompleteEditText {
                     // `multiline`, however the moment we do that - Android applies other
                     // incompatible defaults (and starts wrapping URLs).
                     setSingleLine(false);
-                    setMaxLines(MULTILINE_EDIT_MAX_LINES);
+                    setMaxLines(
+                            OmniboxCapabilities.isDesktopPlatform()
+                                    ? DESKTOP_MULTILINE_EDIT_MAX_LINES
+                                    : MULTILINE_EDIT_MAX_LINES);
                     setHorizontallyScrolling(true);
                 });
 
@@ -303,11 +306,6 @@ public class UrlBar extends AutocompleteEditText {
                 getResources().getDimensionPixelSize(R.dimen.url_bar_vertical_padding);
         int endPadding = getResources().getDimensionPixelSize(R.dimen.url_bar_end_padding);
         setPaddingRelative(0, verticalPadding, endPadding, verticalPadding);
-
-        // Always select all content if the focus is triggered by the user.
-        // Software triggered focus can apply selection at will, but when focus comes from
-        // the click/touch - the OS overrides.
-        setSelectAllOnFocus(true);
 
         setTextClassifier(TextClassifier.NO_OP);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -596,41 +594,19 @@ public class UrlBar extends AutocompleteEditText {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        if (event.getActionMasked() == MotionEvent.ACTION_UP) {
+        // We need to suppress the OS from taking ownership of initial focus.
+        // This is because the TextView not only requests focus, but also manipulates
+        // selection and cursor placement.
+        // This overrides any information we persisted in AutocompleteInput; if we
+        // persist user selection ahead of suspending input, we cannot resume from where the
+        // user left off.
+        if (!isFocused() && event.getActionMasked() == MotionEvent.ACTION_UP) {
             performClick();
+            event = MotionEvent.obtain(event);
+            event.setAction(MotionEvent.ACTION_CANCEL);
         }
-        boolean handledTouchEvent = super.onTouchEvent(event);
 
-        // mouse/touchpad might not fire a focus request from the super.onTouchEvent() call, so
-        // may need to explicitly do so.
-        ensureMouseTouchpadFocusFired(event);
-
-        return handledTouchEvent;
-    }
-
-    protected void ensureMouseTouchpadFocusFired(MotionEvent event) {
-        // TLDR: this is to ensure focus is fired for mouse/touchpad, which framework side has
-        // an issue and may not work reliably.
-        //
-        // This is to handle the case where touchpad or mouse input has a slight
-        // movement during a click.
-        // This results in three fired events instead of two:
-        // 1) ACTION_DOWN (2) ACTION_MOVE (3) ACTION_UP  <-- where ACTION_MOVE is the
-        // additional event.
-        // For touchscreen input, the combo of the 3 movements may indicate touch scrolling or a
-        // click, so there is logic in place (View) to differentiate this (i.e. tiny movements do
-        // not count as a scroll).
-        // For mouse/touchpad input, it shares the same touchscroll/click detection logic as the
-        // above, but the problem is that the ACTION_MOVE may be intercepted by child UI components
-        // (e.g. TextView) to be a drag event (e.g. drag to select text), and hence the
-        // touchscroll/click differentiation logic in the View component cannot kick in.
-        // TODO: Remove this once framework fix lands: crbug.com/376184128
-        if ((event.getSource() == InputDevice.SOURCE_TOUCHPAD
-                        || event.getSource() == InputDevice.SOURCE_MOUSE) &&
-                        !isFocused()
-                && event.getActionMasked() == MotionEvent.ACTION_UP) {
-            requestFocus();
-        }
+        return super.onTouchEvent(event);
     }
 
     @Override
@@ -652,6 +628,7 @@ public class UrlBar extends AutocompleteEditText {
             mUrlBarDelegate.onTouchAfterFocus();
         }
 
+        requestFocus();
         return result;
     }
 
@@ -1143,21 +1120,6 @@ public class UrlBar extends AutocompleteEditText {
             scrollPos = Math.max(0, endPointX - measuredWidth + width);
         }
         scrollTo((int) scrollPos, 0);
-    }
-
-    @Override
-    public void setSelection(int start, int end) {
-        // TODO(crbug.com/483451424): This is needed to address a regression in M146 that has since
-        // been addressed in M147. The change resolving the regression may not meet the quality bar
-        // to be cherrypicked to M146.
-        // The problem is linked to `setSelection` being still exposed in M146 via
-        // UrlBarCoordinator. Anyone calling setSelection makes certain assumptions about the
-        // contents of the Omnibox (specifically - the length of the text) which may or may not
-        // hold true. The logic below ensures that bounds passed by caller are not exceeded.
-        int textLength = getText().length();
-        if (start > textLength) start = textLength;
-        if (end > textLength) end = textLength;
-        super.setSelection(start, end);
     }
 
     /**

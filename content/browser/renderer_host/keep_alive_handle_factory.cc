@@ -100,7 +100,7 @@ KeepAliveHandleFactory::KeepAliveHandleFactory(RenderProcessHost* process_host,
       timeout_(timeout) {}
 
 KeepAliveHandleFactory::~KeepAliveHandleFactory() {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  CHECK_CURRENTLY_ON(BrowserThread::UI, base::NotFatalUntil::M152);
   // Extend the lifetime of `context_` a bit. Note that `context_` has an
   // ability to extend the lifetime of the associated render process.
   GetUIThreadTaskRunner({})->PostDelayedTask(

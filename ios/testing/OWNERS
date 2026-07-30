@@ -1,2 +1,5 @@
 # Anyone can update the test bundle data filelists.
 per-file *.filelist=*
+
+# Anyone can approve changes to test expectations.
+per-file test_expectations.txt=*

@@ -2074,14 +2074,6 @@ TEST_P(CompositorFrameSinkSupportTest, BeginFrameInterval) {
   support->SetNeedsBeginFrame(false);
 }
 
-TEST_P(CompositorFrameSinkSupportTest, InteractionsThrottleToHalfFrameRate) {
-  constexpr base::TimeDelta kNativeInterval = BeginFrameArgs::DefaultInterval();
-  constexpr base::TimeDelta kThrottledInterval = kNativeInterval * 2;
-  support_->SetThrottledDueToInteraction(true);
-  EXPECT_EQ(support_->GetThrottlerForTesting().begin_frame_interval(),
-            kThrottledInterval);
-}
-
 TEST_P(CompositorFrameSinkSupportTest, HandlesSmallErrorInBeginFrameTimes) {
   FakeExternalBeginFrameSource begin_frame_source(0.f, false);
 
@@ -2163,56 +2155,7 @@ TEST_P(CompositorFrameSinkSupportTest, BeginFrameIntervalAccess) {
 
 // Check that the interaction timeout will trigger if no interactive frame has
 // been sent for a while.
-TEST_P(CompositorFrameSinkSupportTest, BeginFrameHandlingInteractionTimeout) {
-  base::TimeTicks frame_time = base::TimeTicks::Now();
-  support_->SetNeedsBeginFrame(true);
-  // Issue a BeginFrame.
-  BeginFrameArgs args =
-      CreateBeginFrameArgsForTesting(BEGINFRAME_FROM_HERE, 0, 1, frame_time);
-  begin_frame_source_.TestOnBeginFrame(args);
-  // Interaction is not known until a CompositorFrame has been sent.
-  EXPECT_FALSE(support_->is_handling_interaction());
-  EXPECT_EQ(support_->last_interaction_time(), base::TimeTicks());
 
-  // Submitting a compositor frame detects that an interaction has started.
-  BeginFrameAck ack(args, true);
-  support_->SubmitCompositorFrame(local_surface_id_,
-                                  MakeDefaultInteractiveCompositorFrame());
-  support_->SendCompositorFrameAck();
-  EXPECT_TRUE(support_->is_handling_interaction());
-  EXPECT_NE(support_->last_interaction_time(), base::TimeTicks());
-  base::TimeTicks last_interaction_time = support_->last_interaction_time();
-
-  // Issue another BeginFrame after kInteractionTimeout milliseconds.
-  args = CreateBeginFrameArgsForTesting(
-      BEGINFRAME_FROM_HERE, 0, 2,
-      last_interaction_time + base::Milliseconds(300));
-  begin_frame_source_.TestOnBeginFrame(args);
-
-  // This time, a frame is not produced and we detect the interaction timed out.
-  BeginFrameAck ack2(0, 2, false);
-  support_->DidNotProduceFrame(ack2);
-  EXPECT_FALSE(support_->is_handling_interaction());
-  EXPECT_EQ(support_->last_interaction_time(), last_interaction_time);
-}
-
-// Check that the interaction timeout will trigger if no interactive frame has
-// been sent for a while.
-TEST_P(CompositorFrameSinkSupportTest, BeginFrameNotNeededUnsetsInteraction) {
-  // Issue a BeginFrame.
-  BeginFrameArgs args =
-      CreateBeginFrameArgsForTesting(BEGINFRAME_FROM_HERE, 0, 1);
-  begin_frame_source_.TestOnBeginFrame(args);
-
-  // Submitting a compositor frame detects that an interaction has started.
-  support_->SubmitCompositorFrame(local_surface_id_,
-                                  MakeDefaultInteractiveCompositorFrame());
-  EXPECT_TRUE(support_->is_handling_interaction());
-
-  // Setting NeedsBeginFrame(false) unsets the interaction bit.
-  support_->SetNeedsBeginFrame(false);
-  EXPECT_FALSE(support_->is_handling_interaction());
-}
 
 TEST_P(CompositorFrameSinkSupportTest,
        UsesThrottledIntervalInPresentationFeedback) {

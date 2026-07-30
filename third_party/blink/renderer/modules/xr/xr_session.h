@@ -253,8 +253,8 @@ class XRSession final : public EventTarget,
   // available, the method returns nullopt.
   std::optional<ReferenceSpaceInformation> GetStationaryReferenceSpace() const;
 
-  int requestAnimationFrame(V8XRFrameRequestCallback* callback);
-  void cancelAnimationFrame(int id);
+  uint32_t requestAnimationFrame(V8XRFrameRequestCallback* callback);
+  void cancelAnimationFrame(uint32_t id);
 
   XRInputSourceArray* inputSources(ScriptState*) const;
 

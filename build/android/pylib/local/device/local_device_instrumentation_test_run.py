@@ -670,7 +670,9 @@ class LocalDeviceInstrumentationTestRun(
         is_desktop = dev.is_desktop or any('--force-desktop-android' in f
                                            for f in flags)
 
-        if is_desktop:
+        if not dev.IsApplicationInstalled(device_utils.GBOARD_PKG):
+          pass
+        elif is_desktop:
           logging.info('Disabling Gboard for desktop environment')
           dev.SetAppEnabled(device_utils.GBOARD_PKG, False)
           # Disable Voice IME to prevent it from appearing as fallback.
@@ -1584,7 +1586,9 @@ class LocalDeviceInstrumentationTestRun(
           stream_name, 'logcat', output_manager.Datatype.TEXT,
           self._test_instance.GetLogcatPackageNames()) as logcat_file:
         symbolizer = stack_symbolizer.PassThroughSymbolizerPool(
-            device.product_cpu_abi)
+            device.product_cpu_abi,
+            os.path.dirname(self._test_instance.apk_under_test.path)
+            if self._test_instance.apk_under_test else None)
         with symbolizer:
           with logcat_monitor.LogcatMonitor(
               device.adb,

@@ -6,6 +6,9 @@ import("//media/media_options.gni")
 import("//third_party/webrtc/webrtc.gni")
 
 component("webrtc") {
+  _configs = configs
+  configs = []
+  configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
   output_name = "media_webrtc"
 
   sources = [

@@ -17,7 +17,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.net.Uri;
+import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 
 import androidx.fragment.app.FragmentActivity;
 import androidx.pdf.PdfDocument;
@@ -41,9 +43,11 @@ import org.robolectric.annotation.Config;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.shadow.api.Shadow;
+import org.robolectric.shadows.ShadowDialog;
 import org.robolectric.shadows.ShadowLooper;
 import org.robolectric.shadows.ShadowView;
 
+import org.chromium.base.task.PostTask;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -54,8 +58,15 @@ import org.chromium.chrome.browser.util.ChromeFileProvider;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.base.PageTransition;
 import org.chromium.ui.base.TestActivity;
+import org.chromium.ui.modaldialog.ModalDialogManager.ModalDialogType;
+import org.chromium.ui.modaldialog.ModalDialogProperties;
+import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.ui.test.util.modaldialog.FakeModalDialogManager;
 import org.chromium.url.GURL;
 import org.chromium.url.Origin;
+
+import java.io.File;
+import java.io.FileWriter;
 
 @RunWith(BaseRobolectricTestRunner.class)
 @DisableFeatures(ChromeFeatureList.PDF_REUSE_FRAGMENT)
@@ -88,11 +99,13 @@ public class PdfCoordinatorUnitTest {
         mActivityScenarioRule.getScenario().onActivity(activity -> mActivity = activity);
         PdfCoordinator.skipLoadPdfForTesting(true);
         ChromeFileProvider.setGeneratedUriForTesting(Uri.parse(PDF_URL));
+        PostTask.setPrenativeThreadPoolExecutorForTesting(Runnable::run);
     }
 
     @After
     public void tearDown() {
         ChromeFileProvider.setGeneratedUriForTesting(null);
+        PostTask.setPrenativeThreadPoolExecutorForTesting(null);
     }
 
     private void createPdfCoordinator() {
@@ -476,6 +489,231 @@ public class PdfCoordinatorUnitTest {
         createPdfCoordinator();
         mPdfCoordinator.print();
         verify(mNativePageHost).print();
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.INLINE_PDF_V2)
+    public void testFragmentOnEnterExitEditMode() {
+        createPdfCoordinator();
+
+        View editButton = mPdfCoordinator.getView().findViewById(R.id.edit_button);
+        assertNotNull("Edit button should exist", editButton);
+        assertFalse("Edit button should not be selected initially", editButton.isSelected());
+
+        // Simulate fragment entering edit mode
+        mPdfCoordinator.mChromePdfViewerFragment.onEnterEditMode();
+        assertTrue("Edit button should be selected after onEnterEditMode", editButton.isSelected());
+
+        // Simulate fragment exiting edit mode
+        mPdfCoordinator.mChromePdfViewerFragment.onExitEditMode();
+        assertFalse(
+                "Edit button should not be selected after onExitEditMode", editButton.isSelected());
+    }
+
+    public static class TestModalDialogActivity extends org.chromium.ui.base.TestActivity
+            implements org.chromium.ui.modaldialog.ModalDialogManagerHolder {
+        private org.chromium.ui.modaldialog.ModalDialogManager mModalDialogManager;
+
+        public void setModalDialogManager(org.chromium.ui.modaldialog.ModalDialogManager manager) {
+            mModalDialogManager = manager;
+        }
+
+        @Override
+        public org.chromium.ui.modaldialog.ModalDialogManager getModalDialogManager() {
+            return mModalDialogManager;
+        }
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.INLINE_PDF_V2)
+    @Config(shadows = {ShadowPdfView.class})
+    @SuppressWarnings("unchecked")
+    public void testShowDocumentProperties_AlertDialog() throws Exception {
+        File tempFile = File.createTempFile("test_pdf", ".pdf");
+        tempFile.deleteOnExit();
+        FileWriter writer = new FileWriter(tempFile);
+        writer.write("dummy pdf content");
+        writer.close();
+
+        mPdfCoordinator =
+                new PdfCoordinator(
+                        mNativePageHost,
+                        mProfile,
+                        mActivity,
+                        tempFile.getAbsolutePath(),
+                        PDF_TITLE,
+                        TAB_ID,
+                        PDF_URL,
+                        mPdfFragmentViewTracker);
+        mPdfView = new PdfView(mActivity);
+        mPdfCoordinator.mChromePdfViewerFragment.setPdfViewForTesting(mPdfView);
+        ViewGroup contentView = mActivity.findViewById(android.R.id.content);
+        contentView.addView(mPdfCoordinator.getView());
+        ShadowPdfView shadowPdfView = Shadow.extract(mPdfView);
+        PdfDocument mockPdfDocument =
+                (PdfDocument)
+                        java.lang.reflect.Proxy.newProxyInstance(
+                                PdfDocument.class.getClassLoader(),
+                                new Class[] {PdfDocument.class},
+                                (proxy, method, args) -> {
+                                    if (method.getName().equals("getPageInfo")
+                                            && args != null
+                                            && args.length == 2) {
+                                        Continuation<PageInfo> continuation =
+                                                (Continuation<PageInfo>) args[1];
+                                        PageInfo realPageInfo =
+                                                new PageInfo(
+                                                        0,
+                                                        400,
+                                                        200,
+                                                        java.util.Collections.emptyList());
+                                        continuation.resumeWith(realPageInfo);
+                                        return null;
+                                    }
+                                    if (method.getName().equals("getPageCount")) {
+                                        return 5;
+                                    }
+                                    Class<?> returnType = method.getReturnType();
+                                    if (returnType.equals(Void.TYPE)) return null;
+                                    if (returnType.equals(Boolean.TYPE)) return false;
+                                    if (returnType.equals(Integer.TYPE)) return 0;
+                                    if (returnType.equals(Long.TYPE)) return 0L;
+                                    if (returnType.equals(Float.TYPE)) return 0f;
+                                    return null;
+                                });
+        shadowPdfView.mPdfDocument = mockPdfDocument;
+
+        mPdfCoordinator.showDocumentProperties();
+
+        // Run background thread properties loader and then post to UI thread
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        ShadowLooper.idleMainLooper();
+
+        androidx.appcompat.app.AlertDialog latestDialog =
+                (androidx.appcompat.app.AlertDialog) ShadowDialog.getLatestDialog();
+        assertNotNull("Dialog should be shown", latestDialog);
+        assertTrue("Dialog should be showing", latestDialog.isShowing());
+
+        TextView fileNameValue = latestDialog.findViewById(R.id.file_name_value);
+        TextView fileSizeValue = latestDialog.findViewById(R.id.file_size_value);
+        TextView titleValue = latestDialog.findViewById(R.id.title_value);
+        TextView pageCountValue = latestDialog.findViewById(R.id.page_count_value);
+        TextView pageSizeValue = latestDialog.findViewById(R.id.page_size_value);
+
+        assertNotNull(fileNameValue);
+        assertNotNull(fileSizeValue);
+        assertNotNull(titleValue);
+        assertNotNull(pageCountValue);
+        assertNotNull(pageSizeValue);
+
+        assertEquals(tempFile.getName(), fileNameValue.getText().toString());
+        assertEquals(PDF_TITLE, titleValue.getText().toString());
+        assertEquals("5", pageCountValue.getText().toString());
+        assertEquals("17 B", fileSizeValue.getText().toString());
+        assertEquals("2.78 × 5.56 in (71 × 141 mm)", pageSizeValue.getText().toString());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.INLINE_PDF_V2)
+    @Config(shadows = {ShadowPdfView.class})
+    @SuppressWarnings("unchecked")
+    public void testShowDocumentProperties_ModalDialog() throws Exception {
+        try (var controller =
+                org.robolectric.Robolectric.buildActivity(TestModalDialogActivity.class)) {
+            TestModalDialogActivity customActivity = controller.get();
+            customActivity.setTheme(org.chromium.chrome.R.style.Theme_BrowserUI_DayNight);
+            controller.setup();
+            FakeModalDialogManager fakeModalDialogManager =
+                    new FakeModalDialogManager(ModalDialogType.APP);
+            customActivity.setModalDialogManager(fakeModalDialogManager);
+
+            File tempFile = File.createTempFile("test_pdf", ".pdf");
+            tempFile.deleteOnExit();
+            FileWriter writer = new FileWriter(tempFile);
+            writer.write("dummy pdf content");
+            writer.close();
+
+            PdfCoordinator pdfCoordinator =
+                    new PdfCoordinator(
+                            mNativePageHost,
+                            mProfile,
+                            customActivity,
+                            tempFile.getAbsolutePath(),
+                            PDF_TITLE,
+                            TAB_ID,
+                            PDF_URL,
+                            mPdfFragmentViewTracker);
+            PdfView pdfView = new PdfView(customActivity);
+            pdfCoordinator.mChromePdfViewerFragment.setPdfViewForTesting(pdfView);
+            ViewGroup contentView = customActivity.findViewById(android.R.id.content);
+            contentView.addView(pdfCoordinator.getView());
+            ShadowPdfView shadowPdfView = Shadow.extract(pdfView);
+            PdfDocument mockPdfDocument =
+                    (PdfDocument)
+                            java.lang.reflect.Proxy.newProxyInstance(
+                                    PdfDocument.class.getClassLoader(),
+                                    new Class[] {PdfDocument.class},
+                                    (proxy, method, args) -> {
+                                        if (method.getName().equals("getPageInfo")
+                                                && args != null
+                                                && args.length == 2) {
+                                            Continuation<PageInfo> continuation =
+                                                    (Continuation<PageInfo>) args[1];
+                                            PageInfo realPageInfo =
+                                                    new PageInfo(
+                                                            0,
+                                                            400,
+                                                            200,
+                                                            java.util.Collections.emptyList());
+                                            continuation.resumeWith(realPageInfo);
+                                            return null;
+                                        }
+                                        if (method.getName().equals("getPageCount")) {
+                                            return 5;
+                                        }
+                                        Class<?> returnType = method.getReturnType();
+                                        if (returnType.equals(Void.TYPE)) return null;
+                                        if (returnType.equals(Boolean.TYPE)) return false;
+                                        if (returnType.equals(Integer.TYPE)) return 0;
+                                        if (returnType.equals(Long.TYPE)) return 0L;
+                                        if (returnType.equals(Float.TYPE)) return 0f;
+                                        return null;
+                                    });
+            shadowPdfView.mPdfDocument = mockPdfDocument;
+
+            pdfCoordinator.showDocumentProperties();
+
+            // Run background thread properties loader and then post to UI thread
+            ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+            ShadowLooper.idleMainLooper();
+
+            PropertyModel dialogModel = fakeModalDialogManager.getShownDialogModel();
+            assertNotNull("Modal dialog should be shown", dialogModel);
+            assertEquals(
+                    customActivity.getString(R.string.pdf_document_properties),
+                    dialogModel.get(ModalDialogProperties.TITLE));
+
+            android.view.View dialogCustomView = dialogModel.get(ModalDialogProperties.CUSTOM_VIEW);
+            assertNotNull(dialogCustomView);
+
+            TextView fileNameValue = dialogCustomView.findViewById(R.id.file_name_value);
+            TextView fileSizeValue = dialogCustomView.findViewById(R.id.file_size_value);
+            TextView titleValue = dialogCustomView.findViewById(R.id.title_value);
+            TextView pageCountValue = dialogCustomView.findViewById(R.id.page_count_value);
+            TextView pageSizeValue = dialogCustomView.findViewById(R.id.page_size_value);
+
+            assertNotNull(fileNameValue);
+            assertNotNull(fileSizeValue);
+            assertNotNull(titleValue);
+            assertNotNull(pageCountValue);
+            assertNotNull(pageSizeValue);
+
+            assertEquals(tempFile.getName(), fileNameValue.getText().toString());
+            assertEquals(PDF_TITLE, titleValue.getText().toString());
+            assertEquals("5", pageCountValue.getText().toString());
+            assertEquals("17 B", fileSizeValue.getText().toString());
+            assertEquals("2.78 × 5.56 in (71 × 141 mm)", pageSizeValue.getText().toString());
+        }
     }
 
     @Implements(PdfView.class)

@@ -8,7 +8,6 @@
 
 #import "ios/chrome/browser/price_notifications/ui_bundled/cells/price_notifications_price_chip_view.h"
 #import "ios/chrome/browser/price_notifications/ui_bundled/cells/price_notifications_track_button_util.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
@@ -133,7 +132,7 @@ TEST_F(PriceNotificationsTableViewItemTest,
             initWithStyle:UITableViewCellStyleDefault
           reuseIdentifier:nil];
 
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
 
   EXPECT_NSEQ(item.title, cell.titleLabel.text);
   EXPECT_NSEQ(cell.URLLabel.text, @"example.com");

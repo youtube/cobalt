@@ -287,25 +287,120 @@ if (is_android) {
 source_set("test_support") {
   testonly = true
 
+  sources = [
+    "mock_web_contents_task_manager.cc",
+    "mock_web_contents_task_manager.h",
+  ]
+
+  deps = [
+    ":task_manager",
+    "//chrome/app:generated_resources",
+    "//content/public/browser",
+    "//testing/gtest",
+  ]
+
   if (enable_extensions) {
-    sources = [
+    sources += [
       "task_manager_browsertest_util.cc",
       "task_manager_browsertest_util.h",
       "task_manager_tester.cc",
       "task_manager_tester.h",
     ]
-    deps = [
-      ":task_manager",
+    deps += [
       "//base/test:test_config",
       "//chrome/browser:browser_process",
       "//chrome/browser/ui/dialogs:browser_dialogs",
       "//chrome/common:constants",
       "//extensions/strings",
-      "//testing/gtest",
     ]
 
     # TODO(crbug.com/429171097): Remove this dependency when
     # `task_manager_tester.h` gets modularized.
     public_deps = [ "//chrome/browser/ui/task_manager" ]
+  }
+}
+
+source_set("unit_tests") {
+  testonly = true
+
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+
+  sources = [
+    "providers/browser_process_task_unittest.cc",
+    "providers/child_process_task_unittest.cc",
+    "providers/fallback_task_provider_unittest.cc",
+    "providers/spare_render_process_host_task_unittest.cc",
+  ]
+
+  deps = [
+    ":task_manager",
+    "//base",
+    "//base/test:test_support",
+    "//chrome/browser/task_manager/common",
+    "//chrome/test:test_support",
+    "//content/public/browser",
+    "//content/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+
+  if (!is_android) {
+    sources += [
+      "sampling/task_group_unittest.cc",
+      "sampling/task_manager_impl_unittest.cc",
+      "task_manager_metrics_recorder_unittest.cc",
+      "task_manager_observer_unittest.cc",
+      "test_task_manager.cc",
+      "test_task_manager.h",
+    ]
+  }
+
+  if (is_win) {
+    sources += [ "sampling/shared_sampler_win_unittest.cc" ]
+  }
+}
+
+if (!is_android) {
+  source_set("browser_tests") {
+    testonly = true
+
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    sources = [
+      "providers/web_contents/background_contents_tag_browsertest.cc",
+      "providers/web_contents/devtools_tag_browsertest.cc",
+      "providers/web_contents/subframe_task_browsertest.cc",
+      "providers/web_contents/tab_contents_tag_browsertest.cc",
+      "providers/web_contents/web_app_tag_browsertest.cc",
+      "providers/worker_task_provider_browsertest.cc",
+      "task_manager_browsertest.cc",
+    ]
+
+    deps = [
+      ":task_manager",
+      ":test_support",
+      "//base",
+      "//base/test:test_support",
+      "//chrome/browser/background:test_support",
+      "//chrome/browser/devtools:test_support",
+      "//chrome/browser/task_manager/common",
+      "//chrome/browser/ui",
+      "//chrome/browser/ui/task_manager",
+      "//chrome/browser/web_applications:web_applications_test_support",
+      "//chrome/browser/web_applications/extensions",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//components/embedder_support",
+      "//components/favicon/content",
+      "//components/infobars/content",
+      "//content/public/browser",
+      "//content/test:browsertest_support",
+      "//content/test:test_support",
+      "//pdf:features",
+      "//services/strings",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
   }
 }

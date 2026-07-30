@@ -12,7 +12,6 @@
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#include "chrome/browser/ui/tab_search_feature.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -342,11 +341,6 @@ void CustomizeToolbarHandler::ListActions(ListActionsCallback callback) {
   add_action(kActionClearBrowsingData,
              side_panel::customize_chrome::mojom::CategoryId::kYourChrome);
 
-  if (!base::FeatureList::IsEnabled(tabs::kHorizontalTabStripComboButton) &&
-      features::HasTabSearchToolbarButton()) {
-    add_action(kActionTabSearch,
-               side_panel::customize_chrome::mojom::CategoryId::kTools);
-  }
   add_action(kActionPrint,
              side_panel::customize_chrome::mojom::CategoryId::kTools);
   add_action(kActionSidePanelShowLensOverlayResults,

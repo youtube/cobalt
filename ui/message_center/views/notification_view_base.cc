@@ -778,7 +778,11 @@ bool NotificationViewBase::IsExpanded() const {
 }
 
 void NotificationViewBase::SetExpanded(bool expanded) {
+  auto weak_ptr = weak_ptr_factory_.GetWeakPtr();
   MessageView::SetExpanded(expanded);
+  if (!weak_ptr) {
+    return;
+  }
   if (expanded_ == expanded)
     return;
   expanded_ = expanded;

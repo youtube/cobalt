@@ -29,6 +29,7 @@
 
 #include "base/gtest_prod_util.h"
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/loader/image_loader.h"
 #include "third_party/blink/renderer/core/loader/resource/image_resource_content.h"
 #include "third_party/blink/renderer/core/style/style_image.h"
 
@@ -59,8 +60,10 @@ class CORE_EXPORT LayoutImageResource
 
   // Kept as the legacy reset path when SvgImageAnimationReset is disabled.
   // The enabled path resets the image directly and uses InvalidatePaint().
-  void ResetAnimation();
   void InvalidatePaint();
+
+  void ResetAnimation(
+      ImageLoader::ResetTimeline = ImageLoader::ResetTimeline::kAll);
   bool MaybeAnimated() const;
 
   virtual scoped_refptr<Image> GetImage(const gfx::SizeF&) const;

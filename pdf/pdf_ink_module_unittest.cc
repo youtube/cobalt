@@ -294,6 +294,7 @@ class FakeClient : public PdfInkModuleClient {
               (int page_index,
                InkTextId id,
                base::span<const InkTextInfo> text_info,
+               float ascent,
                double pdf_zoom,
                const InkTextBoxAttributes& attributes),
               (override));
@@ -1099,6 +1100,7 @@ class PdfInkModuleTextTest : public testing::Test {
   static base::BlobStorage SampleInkTextInfoBlob(FontId typeface_id) {
     auto mojo_text_info = pdf::mojom::InkTextInfo::New();
     mojo_text_info->effective_zoom = 10.0f;
+    mojo_text_info->primary_ascent = 5.0f;
     auto mojo_text_run = pdf::mojom::InkTextRun::New();
     mojo_text_run->location = gfx::RectF(100.0f, 200.0f, 300.0f, 400.0f);
     auto mojo_typeface_run = pdf::mojom::InkTypefaceRun::New();
@@ -1198,12 +1200,14 @@ TEST_F(PdfInkModuleTextTest, HandleEditTextAnnotationMessage) {
   static constexpr FontId kFontId(123);
   static constexpr double kPdfZoom = 2.0;
   static constexpr InkTextId kBackendId(0);
+  static constexpr float kAscent = 0.5f;
 
   {
     base::DictValue data = SampleFinishTextAnnotationData(kFrontendId, kFontId,
                                                           kPageIndex, kPdfZoom);
 
-    EXPECT_CALL(client(), DrawText(kPageIndex, kBackendId, _, kPdfZoom, _));
+    EXPECT_CALL(client(),
+                DrawText(kPageIndex, kBackendId, _, kAscent, kPdfZoom, _));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
     EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(_, _)).Times(0);
 
@@ -1216,7 +1220,7 @@ TEST_F(PdfInkModuleTextTest, HandleEditTextAnnotationMessage) {
     EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kBackendId),
                                                         /*active=*/false));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
-    EXPECT_CALL(client(), DrawText(_, _, _, _, _)).Times(0);
+    EXPECT_CALL(client(), DrawText(_, _, _, _, _, _)).Times(0);
 
     EXPECT_TRUE(
         ink_module().OnMessage(CreateEditTextAnnotationMessage(kFrontendId)));
@@ -1232,6 +1236,7 @@ TEST_F(PdfInkModuleTextTest, HandleFinishTextAnnotationMessageNew) {
   static constexpr auto kTypefaceBlob =
       std::to_array<const uint8_t>({1, 2, 3, 4});
   static constexpr InkTextId kTextId(0);
+  static constexpr float kAscent = 0.5f;
 
   base::DictValue data = SampleFinishTextAnnotationData(kFrontendId, kFontId,
                                                         kPageIndex, kPdfZoom);
@@ -1244,8 +1249,9 @@ TEST_F(PdfInkModuleTextTest, HandleFinishTextAnnotationMessageNew) {
   EXPECT_CALL(client(), AddFont(kFontId, ElementsAreArray(kTypefaceBlob)));
   EXPECT_CALL(client(),
               DrawText(kPageIndex, kTextId,
-                       ElementsAre(SampleInkTextInfoMatcher(kFontId)), kPdfZoom,
-                       SampleInkTextBoxAttributesMatcher()));
+                       ElementsAre(SampleInkTextInfoMatcher(kFontId)), kAscent,
+                       kPdfZoom, SampleInkTextBoxAttributesMatcher()));
+  EXPECT_CALL(client(), RequestThumbnail(kPageIndex, _));
   EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(_, _)).Times(0);
 
   EXPECT_TRUE(ink_module().OnMessage(
@@ -1260,6 +1266,7 @@ TEST_F(PdfInkModuleTextTest, HandleFinishTextAnnotationMessageNoEdit) {
   static constexpr auto kTypefaceBlob =
       std::to_array<const uint8_t>({1, 2, 3, 4});
   static constexpr InkTextId kTextId0(0);
+  static constexpr float kAscent = 0.5f;
 
   {
     base::DictValue data = SampleFinishTextAnnotationData(kFrontendId, kFontId,
@@ -1271,10 +1278,12 @@ TEST_F(PdfInkModuleTextTest, HandleFinishTextAnnotationMessageNoEdit) {
 
     InSequence seq;
     EXPECT_CALL(client(), AddFont(kFontId, ElementsAreArray(kTypefaceBlob)));
-    EXPECT_CALL(client(),
-                DrawText(kPageIndex, kTextId0,
-                         ElementsAre(SampleInkTextInfoMatcher(kFontId)),
-                         kPdfZoom, SampleInkTextBoxAttributesMatcher()));
+    EXPECT_CALL(
+        client(),
+        DrawText(kPageIndex, kTextId0,
+                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kAscent,
+                 kPdfZoom, SampleInkTextBoxAttributesMatcher()));
+    EXPECT_CALL(client(), RequestThumbnail(kPageIndex, _));
     EXPECT_CALL(client(), DiscardText(_)).Times(0);
     EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(_, _)).Times(0);
 
@@ -1292,7 +1301,8 @@ TEST_F(PdfInkModuleTextTest, HandleFinishTextAnnotationMessageNoEdit) {
                                                         /*active=*/true));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
     EXPECT_CALL(client(), DiscardText(_)).Times(0);
-    EXPECT_CALL(client(), DrawText(_, _, _, _, _)).Times(0);
+    EXPECT_CALL(client(), DrawText(_, _, _, _, _, _)).Times(0);
+    EXPECT_CALL(client(), RequestThumbnail(_, _)).Times(0);
 
     EXPECT_TRUE(ink_module().OnMessage(
         CreateFinishTextAnnotationMessage(std::move(data))));
@@ -1309,6 +1319,7 @@ TEST_F(PdfInkModuleTextTest, HandleFinishTextAnnotationMessageEdit) {
       std::to_array<const uint8_t>({1, 2, 3, 4});
   static constexpr InkTextId kTextId0(0);
   static constexpr InkTextId kTextId1(1);
+  static constexpr float kAscent = 0.5f;
 
   {
     base::DictValue data = SampleFinishTextAnnotationData(kFrontendId, kFontId,
@@ -1320,10 +1331,12 @@ TEST_F(PdfInkModuleTextTest, HandleFinishTextAnnotationMessageEdit) {
 
     InSequence seq;
     EXPECT_CALL(client(), AddFont(kFontId, ElementsAreArray(kTypefaceBlob)));
-    EXPECT_CALL(client(),
-                DrawText(kPageIndex, kTextId0,
-                         ElementsAre(SampleInkTextInfoMatcher(kFontId)),
-                         kPdfZoom, SampleInkTextBoxAttributesMatcher()));
+    EXPECT_CALL(
+        client(),
+        DrawText(kPageIndex, kTextId0,
+                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kAscent,
+                 kPdfZoom, SampleInkTextBoxAttributesMatcher()));
+    EXPECT_CALL(client(), RequestThumbnail(kPageIndex, _));
     EXPECT_CALL(client(), DiscardText(_)).Times(0);
     EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(_, _)).Times(0);
 
@@ -1343,7 +1356,8 @@ TEST_F(PdfInkModuleTextTest, HandleFinishTextAnnotationMessageEdit) {
     EXPECT_CALL(
         client(),
         DrawText(kPageIndex, kTextId1,
-                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kPdfZoom,
+                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kAscent,
+                 kPdfZoom,
                  InkTextBoxAttributesEq(
                      /*rect=*/gfx::RectF(10.0f, 20.0f, 100.0f, 15.0f),
                      /*color=*/SkColorSetRGB(255, 111, 99),
@@ -1355,6 +1369,7 @@ TEST_F(PdfInkModuleTextTest, HandleFinishTextAnnotationMessageEdit) {
                      /*is_bold=*/true,
                      /*is_italic=*/true,
                      /*text=*/"ah")));
+    EXPECT_CALL(client(), RequestThumbnail(kPageIndex, _));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
 
     EXPECT_TRUE(ink_module().OnMessage(
@@ -1371,6 +1386,7 @@ TEST_F(PdfInkModuleTextTest, HandleFinishTextAnnotationMessageDelete) {
   static constexpr auto kTypefaceBlob =
       std::to_array<const uint8_t>({1, 2, 3, 4});
   static constexpr InkTextId kTextId(0);
+  static constexpr float kAscent = 0.5f;
 
   {
     base::DictValue data = SampleFinishTextAnnotationData(kFrontendId, kFontId,
@@ -1382,10 +1398,12 @@ TEST_F(PdfInkModuleTextTest, HandleFinishTextAnnotationMessageDelete) {
 
     InSequence seq;
     EXPECT_CALL(client(), AddFont(kFontId, ElementsAreArray(kTypefaceBlob)));
-    EXPECT_CALL(client(),
-                DrawText(kPageIndex, kTextId,
-                         ElementsAre(SampleInkTextInfoMatcher(kFontId)),
-                         kPdfZoom, SampleInkTextBoxAttributesMatcher()));
+    EXPECT_CALL(
+        client(),
+        DrawText(kPageIndex, kTextId,
+                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kAscent,
+                 kPdfZoom, SampleInkTextBoxAttributesMatcher()));
+    EXPECT_CALL(client(), RequestThumbnail(kPageIndex, _));
     EXPECT_CALL(client(), DiscardText(_)).Times(0);
     EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(_, _)).Times(0);
 
@@ -1403,8 +1421,9 @@ TEST_F(PdfInkModuleTextTest, HandleFinishTextAnnotationMessageDelete) {
     EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kTextId),
                                                         /*active=*/false));
     EXPECT_CALL(client(), DiscardText(kTextId));
+    EXPECT_CALL(client(), RequestThumbnail(kPageIndex, _));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
-    EXPECT_CALL(client(), DrawText(_, _, _, _, _)).Times(0);
+    EXPECT_CALL(client(), DrawText(_, _, _, _, _, _)).Times(0);
 
     EXPECT_TRUE(ink_module().OnMessage(
         CreateFinishTextAnnotationMessage(std::move(data))));
@@ -1422,6 +1441,7 @@ TEST_F(PdfInkModuleTextTest,
       std::to_array<const uint8_t>({1, 2, 3, 4});
   static constexpr InkTextId kTextId0(0);
   static constexpr InkTextId kTextId1(1);
+  static constexpr float kAscent = 0.5f;
 
   {
     // Draw text annotation `kTextId0`.
@@ -1434,10 +1454,12 @@ TEST_F(PdfInkModuleTextTest,
 
     InSequence seq;
     EXPECT_CALL(client(), AddFont(kFontId, ElementsAreArray(kTypefaceBlob)));
-    EXPECT_CALL(client(),
-                DrawText(kPageIndex, kTextId0,
-                         ElementsAre(SampleInkTextInfoMatcher(kFontId)),
-                         kPdfZoom, SampleInkTextBoxAttributesMatcher()));
+    EXPECT_CALL(
+        client(),
+        DrawText(kPageIndex, kTextId0,
+                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kAscent,
+                 kPdfZoom, SampleInkTextBoxAttributesMatcher()));
+    EXPECT_CALL(client(), RequestThumbnail(kPageIndex, _));
     EXPECT_CALL(client(), DiscardText(_)).Times(0);
     EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(_, _)).Times(0);
 
@@ -1457,8 +1479,9 @@ TEST_F(PdfInkModuleTextTest,
     EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kTextId0),
                                                         /*active=*/false));
     EXPECT_CALL(client(), DiscardText(kTextId0));
+    EXPECT_CALL(client(), RequestThumbnail(kPageIndex, _));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
-    EXPECT_CALL(client(), DrawText(_, _, _, _, _)).Times(0);
+    EXPECT_CALL(client(), DrawText(_, _, _, _, _, _)).Times(0);
 
     EXPECT_TRUE(ink_module().OnMessage(
         CreateFinishTextAnnotationMessage(std::move(data))));
@@ -1472,10 +1495,12 @@ TEST_F(PdfInkModuleTextTest,
         kFrontendId, kFontId, kPageIndex, kPdfZoom, /*source=*/"redo");
 
     InSequence seq;
-    EXPECT_CALL(client(),
-                DrawText(kPageIndex, kTextId0,
-                         ElementsAre(SampleInkTextInfoMatcher(kFontId)),
-                         kPdfZoom, SampleInkTextBoxAttributesMatcher()));
+    EXPECT_CALL(
+        client(),
+        DrawText(kPageIndex, kTextId0,
+                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kAscent,
+                 kPdfZoom, SampleInkTextBoxAttributesMatcher()));
+    EXPECT_CALL(client(), RequestThumbnail(kPageIndex, _));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
     EXPECT_CALL(client(), DiscardText(_)).Times(0);
     EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(_, _)).Times(0);
@@ -1496,10 +1521,12 @@ TEST_F(PdfInkModuleTextTest,
     EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kTextId0),
                                                         /*active=*/false));
     EXPECT_CALL(client(), DiscardText(kTextId0));
-    EXPECT_CALL(client(),
-                DrawText(kPageIndex, kTextId1,
-                         ElementsAre(SampleInkTextInfoMatcher(kFontId)),
-                         kPdfZoom, SampleInkTextBoxAttributesMatcher()));
+    EXPECT_CALL(
+        client(),
+        DrawText(kPageIndex, kTextId1,
+                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kAscent,
+                 kPdfZoom, SampleInkTextBoxAttributesMatcher()));
+    EXPECT_CALL(client(), RequestThumbnail(kPageIndex, _));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
 
     EXPECT_TRUE(ink_module().OnMessage(
@@ -1517,10 +1544,12 @@ TEST_F(PdfInkModuleTextTest,
     EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kTextId1),
                                                         /*active=*/false));
     EXPECT_CALL(client(), DiscardText(kTextId1));
-    EXPECT_CALL(client(),
-                DrawText(kPageIndex, kTextId0,
-                         ElementsAre(SampleInkTextInfoMatcher(kFontId)),
-                         kPdfZoom, SampleInkTextBoxAttributesMatcher()));
+    EXPECT_CALL(
+        client(),
+        DrawText(kPageIndex, kTextId0,
+                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kAscent,
+                 kPdfZoom, SampleInkTextBoxAttributesMatcher()));
+    EXPECT_CALL(client(), RequestThumbnail(kPageIndex, _));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
 
     EXPECT_TRUE(ink_module().OnMessage(
@@ -1540,8 +1569,9 @@ TEST_F(PdfInkModuleTextTest,
     EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kTextId0),
                                                         /*active=*/false));
     EXPECT_CALL(client(), DiscardText(kTextId0));
+    EXPECT_CALL(client(), RequestThumbnail(kPageIndex, _));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
-    EXPECT_CALL(client(), DrawText(_, _, _, _, _)).Times(0);
+    EXPECT_CALL(client(), DrawText(_, _, _, _, _, _)).Times(0);
 
     EXPECT_TRUE(ink_module().OnMessage(
         CreateFinishTextAnnotationMessage(std::move(data))));
@@ -1557,10 +1587,12 @@ TEST_F(PdfInkModuleTextTest,
                                                           kPageIndex, kPdfZoom);
 
     InSequence seq;
-    EXPECT_CALL(client(),
-                DrawText(kPageIndex, kTextId0,
-                         ElementsAre(SampleInkTextInfoMatcher(kFontId)),
-                         kPdfZoom, SampleInkTextBoxAttributesMatcher()));
+    EXPECT_CALL(
+        client(),
+        DrawText(kPageIndex, kTextId0,
+                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kAscent,
+                 kPdfZoom, SampleInkTextBoxAttributesMatcher()));
+    EXPECT_CALL(client(), RequestThumbnail(kPageIndex, _));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
     EXPECT_CALL(client(), DiscardText(_)).Times(0);
     EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(_, _)).Times(0);
@@ -1580,6 +1612,7 @@ TEST_F(PdfInkModuleTextTest,
   static constexpr auto kTypefaceBlob =
       std::to_array<const uint8_t>({1, 2, 3, 4});
   static constexpr InkTextId kTextId0(0);
+  static constexpr float kAscent = 0.5f;
 
   {
     // Draw text annotation `kTextId0`.
@@ -1592,10 +1625,11 @@ TEST_F(PdfInkModuleTextTest,
 
     InSequence seq;
     EXPECT_CALL(client(), AddFont(kFontId, ElementsAreArray(kTypefaceBlob)));
-    EXPECT_CALL(client(),
-                DrawText(kPageIndex, kTextId0,
-                         ElementsAre(SampleInkTextInfoMatcher(kFontId)),
-                         kPdfZoom, SampleInkTextBoxAttributesMatcher()));
+    EXPECT_CALL(
+        client(),
+        DrawText(kPageIndex, kTextId0,
+                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kAscent,
+                 kPdfZoom, SampleInkTextBoxAttributesMatcher()));
     EXPECT_CALL(client(), DiscardText(_)).Times(0);
     EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(_, _)).Times(0);
 
@@ -1615,7 +1649,7 @@ TEST_F(PdfInkModuleTextTest,
                                                         /*active=*/false));
     EXPECT_CALL(client(), DiscardText(kTextId0));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
-    EXPECT_CALL(client(), DrawText(_, _, _, _, _)).Times(0);
+    EXPECT_CALL(client(), DrawText(_, _, _, _, _, _)).Times(0);
 
     EXPECT_TRUE(ink_module().OnMessage(
         CreateFinishTextAnnotationMessage(std::move(data))));
@@ -1627,10 +1661,11 @@ TEST_F(PdfInkModuleTextTest,
     base::DictValue data = SampleFinishTextAnnotationDataWithSource(
         kFrontendId, kFontId, kPageIndex, kPdfZoom, /*source=*/"undo");
 
-    EXPECT_CALL(client(),
-                DrawText(kPageIndex, kTextId0,
-                         ElementsAre(SampleInkTextInfoMatcher(kFontId)),
-                         kPdfZoom, SampleInkTextBoxAttributesMatcher()));
+    EXPECT_CALL(
+        client(),
+        DrawText(kPageIndex, kTextId0,
+                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kAscent,
+                 kPdfZoom, SampleInkTextBoxAttributesMatcher()));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
     EXPECT_CALL(client(), DiscardText(_)).Times(0);
     EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(_, _)).Times(0);
@@ -1652,7 +1687,7 @@ TEST_F(PdfInkModuleTextTest,
                                                         /*active=*/false));
     EXPECT_CALL(client(), DiscardText(kTextId0));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
-    EXPECT_CALL(client(), DrawText(_, _, _, _, _)).Times(0);
+    EXPECT_CALL(client(), DrawText(_, _, _, _, _, _)).Times(0);
 
     EXPECT_TRUE(ink_module().OnMessage(
         CreateFinishTextAnnotationMessage(std::move(data))));
@@ -1671,6 +1706,7 @@ TEST_F(PdfInkModuleTextTest,
   static constexpr InkTextId kNewTextId(0);
   static constexpr char kOriginalText[] = "hi";
   static constexpr char kModifiedText[] = "modified";
+  static constexpr float kAscent = 0.5f;
 
   LoadSampleTextAnnotation();
 
@@ -1684,7 +1720,8 @@ TEST_F(PdfInkModuleTextTest,
     // Deactivate loaded text and draw new text.
     EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kLoadedTextId),
                                                         /*active=*/false));
-    EXPECT_CALL(client(), DrawText(kPageIndex, kNewTextId, _, kPdfZoom, _));
+    EXPECT_CALL(client(),
+                DrawText(kPageIndex, kNewTextId, _, kAscent, kPdfZoom, _));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
     EXPECT_CALL(client(), DiscardText(_)).Times(0);
 
@@ -1708,7 +1745,7 @@ TEST_F(PdfInkModuleTextTest,
     EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kLoadedTextId),
                                                         /*active=*/true));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
-    EXPECT_CALL(client(), DrawText(_, _, _, _, _)).Times(0);
+    EXPECT_CALL(client(), DrawText(_, _, _, _, _, _)).Times(0);
 
     EXPECT_TRUE(ink_module().OnMessage(
         CreateFinishTextAnnotationMessage(std::move(data))));
@@ -1726,7 +1763,8 @@ TEST_F(PdfInkModuleTextTest,
     // Deactivate loaded text and draw new text.
     EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kLoadedTextId),
                                                         /*active=*/false));
-    EXPECT_CALL(client(), DrawText(kPageIndex, kNewTextId, _, kPdfZoom, _));
+    EXPECT_CALL(client(),
+                DrawText(kPageIndex, kNewTextId, _, kAscent, kPdfZoom, _));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
     EXPECT_CALL(client(), DiscardText(_)).Times(0);
 
@@ -1749,6 +1787,7 @@ TEST_F(PdfInkModuleTextTest,
   static constexpr InkLoadedTextId kLoadedTextId(0);
   static constexpr char kOriginalText[] = "hi";
   static constexpr char kModifiedText[] = "modified";
+  static constexpr float kAscent = 0.5f;
 
   // Set viewport to 90 degrees CW.
   client().set_orientation(PageOrientation::kClockwise90);
@@ -1770,12 +1809,12 @@ TEST_F(PdfInkModuleTextTest,
     EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kLoadedTextId),
                                                         /*active=*/false));
     EXPECT_CALL(client(), AddFont(kFontId, ElementsAreArray(kTypefaceBlob)));
-    EXPECT_CALL(
-        client(),
-        DrawText(kPageIndex, kTextId0,
-                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kPdfZoom,
-                 SampleInkTextBoxAttributesMatcherWith(
-                     kModifiedText, PageOrientation::kClockwise90)));
+    EXPECT_CALL(client(),
+                DrawText(kPageIndex, kTextId0,
+                         ElementsAre(SampleInkTextInfoMatcher(kFontId)),
+                         kAscent, kPdfZoom,
+                         SampleInkTextBoxAttributesMatcherWith(
+                             kModifiedText, PageOrientation::kClockwise90)));
 
     EXPECT_TRUE(ink_module().OnMessage(
         CreateFinishTextAnnotationMessage(std::move(data))));
@@ -1816,12 +1855,12 @@ TEST_F(PdfInkModuleTextTest,
     InSequence seq;
     EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kLoadedTextId),
                                                         /*active=*/false));
-    EXPECT_CALL(
-        client(),
-        DrawText(kPageIndex, kTextId0,
-                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kPdfZoom,
-                 SampleInkTextBoxAttributesMatcherWith(
-                     kModifiedText, PageOrientation::kClockwise90)));
+    EXPECT_CALL(client(),
+                DrawText(kPageIndex, kTextId0,
+                         ElementsAre(SampleInkTextInfoMatcher(kFontId)),
+                         kAscent, kPdfZoom,
+                         SampleInkTextBoxAttributesMatcherWith(
+                             kModifiedText, PageOrientation::kClockwise90)));
 
     EXPECT_TRUE(ink_module().OnMessage(
         CreateFinishTextAnnotationMessage(std::move(data))));
@@ -1839,6 +1878,7 @@ TEST_F(PdfInkModuleTextTest,
   static constexpr auto kTypefaceBlob =
       std::to_array<const uint8_t>({1, 2, 3, 4});
   static constexpr InkTextId kTextId0(0);
+  static constexpr float kAscent = 0.5f;
 
   // Set viewport to 90 degrees CW.
   client().set_orientation(PageOrientation::kClockwise90);
@@ -1855,12 +1895,12 @@ TEST_F(PdfInkModuleTextTest,
 
     InSequence seq;
     EXPECT_CALL(client(), AddFont(kFontId, ElementsAreArray(kTypefaceBlob)));
-    EXPECT_CALL(
-        client(),
-        DrawText(kPageIndex, kTextId0,
-                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kPdfZoom,
-                 SampleInkTextBoxAttributesMatcherWith(
-                     "hi", PageOrientation::kClockwise90)));
+    EXPECT_CALL(client(),
+                DrawText(kPageIndex, kTextId0,
+                         ElementsAre(SampleInkTextInfoMatcher(kFontId)),
+                         kAscent, kPdfZoom,
+                         SampleInkTextBoxAttributesMatcherWith(
+                             "hi", PageOrientation::kClockwise90)));
 
     EXPECT_TRUE(ink_module().OnMessage(
         CreateFinishTextAnnotationMessage(std::move(data))));
@@ -1894,12 +1934,12 @@ TEST_F(PdfInkModuleTextTest,
         kFrontendId, kFontId, kPageIndex, kPdfZoom, /*source=*/"redo");
     data.Set("viewportOrientation", 1);
 
-    EXPECT_CALL(
-        client(),
-        DrawText(kPageIndex, kTextId0,
-                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kPdfZoom,
-                 SampleInkTextBoxAttributesMatcherWith(
-                     "hi", PageOrientation::kClockwise90)));
+    EXPECT_CALL(client(),
+                DrawText(kPageIndex, kTextId0,
+                         ElementsAre(SampleInkTextInfoMatcher(kFontId)),
+                         kAscent, kPdfZoom,
+                         SampleInkTextBoxAttributesMatcherWith(
+                             "hi", PageOrientation::kClockwise90)));
 
     EXPECT_TRUE(ink_module().OnMessage(
         CreateFinishTextAnnotationMessage(std::move(data))));
@@ -1917,6 +1957,7 @@ TEST_F(PdfInkModuleTextTest,
   static constexpr auto kTypefaceBlob =
       std::to_array<const uint8_t>({1, 2, 3, 4});
   static constexpr InkTextId kTextId0(0);
+  static constexpr float kAscent = 0.5f;
 
   // Start editing at original view.
   client().set_orientation(PageOrientation::kOriginal);
@@ -1936,12 +1977,12 @@ TEST_F(PdfInkModuleTextTest,
 
     InSequence seq;
     EXPECT_CALL(client(), AddFont(kFontId, ElementsAreArray(kTypefaceBlob)));
-    EXPECT_CALL(
-        client(),
-        DrawText(kPageIndex, kTextId0,
-                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kPdfZoom,
-                 SampleInkTextBoxAttributesMatcherWith(
-                     "hi", PageOrientation::kClockwise270)));
+    EXPECT_CALL(client(),
+                DrawText(kPageIndex, kTextId0,
+                         ElementsAre(SampleInkTextInfoMatcher(kFontId)),
+                         kAscent, kPdfZoom,
+                         SampleInkTextBoxAttributesMatcherWith(
+                             "hi", PageOrientation::kClockwise270)));
 
     EXPECT_TRUE(ink_module().OnMessage(
         CreateFinishTextAnnotationMessage(std::move(data))));
@@ -1974,12 +2015,12 @@ TEST_F(PdfInkModuleTextTest,
         kFrontendId, kFontId, kPageIndex, kPdfZoom, /*source=*/"redo");
     data.Set("viewportOrientation", 3);
 
-    EXPECT_CALL(
-        client(),
-        DrawText(kPageIndex, kTextId0,
-                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kPdfZoom,
-                 SampleInkTextBoxAttributesMatcherWith(
-                     "hi", PageOrientation::kClockwise270)));
+    EXPECT_CALL(client(),
+                DrawText(kPageIndex, kTextId0,
+                         ElementsAre(SampleInkTextInfoMatcher(kFontId)),
+                         kAscent, kPdfZoom,
+                         SampleInkTextBoxAttributesMatcherWith(
+                             "hi", PageOrientation::kClockwise270)));
 
     EXPECT_TRUE(ink_module().OnMessage(
         CreateFinishTextAnnotationMessage(std::move(data))));
@@ -2012,22 +2053,23 @@ class PdfInkModuleStrokeTest : public PdfInkModuleTest {
   void SetUp() override {
     PdfInkModuleTest::SetUp();
 
-    EXPECT_CALL(client(), PostMessage)
-        .WillRepeatedly([&](const base::DictValue& dict) {
+    ON_CALL(client(), PostMessage)
+        .WillByDefault([&](const base::DictValue& dict) {
           const std::string* type = dict.FindString("type");
           ASSERT_TRUE(type);
-          if (*type != "updateInk2Thumbnail") {
+          if (*type != "updateThumbnail") {
             return;
           }
 
           std::optional<int> page_number = dict.FindInt("pageNumber");
           ASSERT_TRUE(page_number.has_value());
 
-          std::optional<bool> is_ink = dict.FindBool("isInk");
-          ASSERT_TRUE(is_ink.has_value());
-          auto& updated = is_ink.value() ? updated_ink_thumbnail_page_indices_
-                                         : updated_pdf_thumbnail_page_indices_;
-          updated.push_back(page_number.value() - 1);
+          updated_thumbnail_page_indices_.push_back(page_number.value() - 1);
+        });
+
+    ON_CALL(client(), RequestThumbnail)
+        .WillByDefault([](int page_index, SendThumbnailCallback callback) {
+          std::move(callback).Run(Thumbnail(gfx::SizeF(100, 100), 1.0f));
         });
   }
 
@@ -2300,11 +2342,8 @@ class PdfInkModuleStrokeTest : public PdfInkModuleTest {
     EXPECT_EQ(unmodified_finished, client().unmodified_stroke_finished_count());
   }
 
-  const std::vector<int>& updated_ink_thumbnail_page_indices() const {
-    return updated_ink_thumbnail_page_indices_;
-  }
-  const std::vector<int>& updated_pdf_thumbnail_page_indices() const {
-    return updated_pdf_thumbnail_page_indices_;
+  const std::vector<int>& updated_thumbnail_page_indices() const {
+    return updated_thumbnail_page_indices_;
   }
 
  private:
@@ -2513,14 +2552,13 @@ class PdfInkModuleStrokeTest : public PdfInkModuleTest {
               client().modified_stroke_finished_count());
     EXPECT_EQ(0, client().unmodified_stroke_finished_count());
     if (expect_stroke_success) {
-      EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0));
+      EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0));
     } else {
-      EXPECT_TRUE(updated_ink_thumbnail_page_indices().empty());
+      EXPECT_TRUE(updated_thumbnail_page_indices().empty());
     }
   }
 
-  std::vector<int> updated_ink_thumbnail_page_indices_;
-  std::vector<int> updated_pdf_thumbnail_page_indices_;
+  std::vector<int> updated_thumbnail_page_indices_;
 };
 
 TEST_P(PdfInkModuleStrokeTest, NoAnnotationWithMouseIfNotEnabled) {
@@ -2932,7 +2970,7 @@ TEST_P(PdfInkModuleStrokeTest, EraseStroke) {
       ElementsAre(Pair(0, ElementsAre(ElementsAreArray(kMousePoints)))));
   ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/1,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0));
 
   // Stroke with the eraser tool.
   SelectEraserTool();
@@ -2943,7 +2981,7 @@ TEST_P(PdfInkModuleStrokeTest, EraseStroke) {
   // Erasing increments the modified stroke count.
   ExpectStrokeCounts(/*started=*/2, /*modified_finished=*/2,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0, 0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 0));
 
   // Stroke again. The stroke that have already been erased should stay erased.
   ApplyStrokeWithMouseAtMouseDownPoint();
@@ -2954,10 +2992,7 @@ TEST_P(PdfInkModuleStrokeTest, EraseStroke) {
   // unmodified stroke count goes up by 1 instead.
   ExpectStrokeCounts(/*started=*/3, /*modified_finished=*/2,
                      /*unmodified_finished=*/1);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0, 0));
-
-  // PDF thumbnail never needed to be updated.
-  EXPECT_TRUE(updated_pdf_thumbnail_page_indices().empty());
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 0));
 }
 
 TEST_P(PdfInkModuleStrokeTest, EraseOnPageWithoutStrokes) {
@@ -2976,7 +3011,7 @@ TEST_P(PdfInkModuleStrokeTest, EraseOnPageWithoutStrokes) {
   EXPECT_TRUE(VisibleStrokeInputPositions().empty());
   ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/0,
                      /*unmodified_finished=*/1);
-  EXPECT_TRUE(updated_ink_thumbnail_page_indices().empty());
+  EXPECT_TRUE(updated_thumbnail_page_indices().empty());
 }
 
 TEST_P(PdfInkModuleStrokeTest, EraseStrokeEntirelyOffPage) {
@@ -2989,7 +3024,7 @@ TEST_P(PdfInkModuleStrokeTest, EraseStrokeEntirelyOffPage) {
       ElementsAre(Pair(0, ElementsAre(ElementsAreArray(kMousePoints)))));
   ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/1,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0));
 
   // Stroke with the eraser tool outside of the page.
   SelectEraserTool();
@@ -3004,7 +3039,7 @@ TEST_P(PdfInkModuleStrokeTest, EraseStrokeEntirelyOffPage) {
       ElementsAre(Pair(0, ElementsAre(ElementsAreArray(kMousePoints)))));
   ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/1,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0));
 }
 
 TEST_P(PdfInkModuleStrokeTest, EraseStrokeErasesTwoStrokes) {
@@ -3028,7 +3063,7 @@ TEST_P(PdfInkModuleStrokeTest, EraseStrokeErasesTwoStrokes) {
   EXPECT_THAT(VisibleStrokeInputPositions(), kVisibleStrokesMatcher);
   ExpectStrokeCounts(/*started=*/2, /*modified_finished=*/2,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0, 0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 0));
 
   // Stroke with the eraser tool at `kEraseMissPoint`, where it should not
   // intersect with either stroke.
@@ -3043,7 +3078,7 @@ TEST_P(PdfInkModuleStrokeTest, EraseStrokeErasesTwoStrokes) {
   EXPECT_THAT(VisibleStrokeInputPositions(), kVisibleStrokesMatcher);
   ExpectStrokeCounts(/*started=*/3, /*modified_finished=*/2,
                      /*unmodified_finished=*/1);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0, 0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 0));
 
   // Stroke with the eraser tool again, but follow the stroke inputs. This will
   // intersect with both strokes and erase them.
@@ -3060,7 +3095,7 @@ TEST_P(PdfInkModuleStrokeTest, EraseStrokeErasesTwoStrokes) {
   EXPECT_TRUE(VisibleStrokeInputPositions().empty());
   ExpectStrokeCounts(/*started=*/5, /*modified_finished=*/4,
                      /*unmodified_finished=*/1);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0, 0, 0, 0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 0, 0, 0));
 }
 
 TEST_P(PdfInkModuleStrokeTest, EraseStrokesAcrossTwoPages) {
@@ -3071,7 +3106,7 @@ TEST_P(PdfInkModuleStrokeTest, EraseStrokesAcrossTwoPages) {
   EXPECT_TRUE(StrokeInputPositions().empty());
   ExpectStrokeCounts(/*started=*/0, /*modified_finished=*/0,
                      /*unmodified_finished=*/0);
-  EXPECT_TRUE(updated_ink_thumbnail_page_indices().empty());
+  EXPECT_TRUE(updated_thumbnail_page_indices().empty());
 
   ExpectStrokesAdded(/*strokes_affected=*/2);
   ExpectNoUpdateStrokeActive();
@@ -3084,7 +3119,7 @@ TEST_P(PdfInkModuleStrokeTest, EraseStrokesAcrossTwoPages) {
   EXPECT_THAT(StrokeInputPositions(), ElementsAre(Pair(0, SizeIs(1))));
   ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/1,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0));
 
   // A stroke in the second page generates a stroke only for that page.
   ApplyStrokeWithMouseAtPoints(
@@ -3095,7 +3130,7 @@ TEST_P(PdfInkModuleStrokeTest, EraseStrokesAcrossTwoPages) {
               ElementsAre(Pair(0, SizeIs(1)), Pair(1, SizeIs(1))));
   ExpectStrokeCounts(/*started=*/2, /*modified_finished=*/2,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0, 1));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 1));
 
   // Erasing across the two pages should erase everything.
   SelectEraserTool();
@@ -3110,7 +3145,7 @@ TEST_P(PdfInkModuleStrokeTest, EraseStrokesAcrossTwoPages) {
   EXPECT_TRUE(VisibleStrokeInputPositions().empty());
   ExpectStrokeCounts(/*started=*/3, /*modified_finished=*/3,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0, 1, 0, 1));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 1, 0, 1));
 }
 
 TEST_P(PdfInkModuleStrokeTest, EraseStrokePageExitAndReentry) {
@@ -3134,7 +3169,7 @@ TEST_P(PdfInkModuleStrokeTest, EraseStrokePageExitAndReentry) {
                           kTwoPageVerticalLayoutPageExitAndReentrySegment2)))));
   ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/1,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0));
 
   // Select the eraser tool and call ApplyStrokeWithMouseAtPoints() again with
   // the same arguments.
@@ -3156,7 +3191,7 @@ TEST_P(PdfInkModuleStrokeTest, EraseStrokePageExitAndReentry) {
   // Erasing increments the modified stroke count.
   ExpectStrokeCounts(/*started=*/2, /*modified_finished=*/2,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0, 0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 0));
 }
 
 TEST_P(PdfInkModuleStrokeTest, EraseStrokeWithTouch) {
@@ -3169,7 +3204,7 @@ TEST_P(PdfInkModuleStrokeTest, EraseStrokeWithTouch) {
       ElementsAre(Pair(0, ElementsAre(ElementsAreArray(kMousePoints)))));
   ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/1,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0));
 
   // Stroke with the eraser tool.
   SelectEraserTool();
@@ -3185,7 +3220,7 @@ TEST_P(PdfInkModuleStrokeTest, EraseStrokeWithTouch) {
   // Erasing increments the modified stroke count.
   ExpectStrokeCounts(/*started=*/2, /*modified_finished=*/2,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0, 0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 0));
 
   // Stroke again. The stroke that have already been erased should stay erased.
   ApplyStrokeWithTouchAtPoints(base::span_from_ref(kMouseDownPoint),
@@ -3198,7 +3233,7 @@ TEST_P(PdfInkModuleStrokeTest, EraseStrokeWithTouch) {
   // unmodified stroke count goes up by 1 instead.
   ExpectStrokeCounts(/*started=*/3, /*modified_finished=*/2,
                      /*unmodified_finished=*/1);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0, 0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 0));
 
   // Stroke again with the mouse gets the same results.
   ApplyStrokeWithMouseAtMouseDownPoint();
@@ -3209,7 +3244,7 @@ TEST_P(PdfInkModuleStrokeTest, EraseStrokeWithTouch) {
   // unmodified stroke count goes up by 1 instead.
   ExpectStrokeCounts(/*started=*/4, /*modified_finished=*/2,
                      /*unmodified_finished=*/2);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0, 0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 0));
 }
 
 TEST_P(PdfInkModuleStrokeTest, EraseStrokeWithPen) {
@@ -3222,7 +3257,7 @@ TEST_P(PdfInkModuleStrokeTest, EraseStrokeWithPen) {
       ElementsAre(Pair(0, ElementsAre(ElementsAreArray(kMousePoints)))));
   ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/1,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0));
 
   // Stroke with the eraser tool.
   SelectEraserTool();
@@ -3238,7 +3273,7 @@ TEST_P(PdfInkModuleStrokeTest, EraseStrokeWithPen) {
   // Erasing increments the modified stroke count.
   ExpectStrokeCounts(/*started=*/2, /*modified_finished=*/2,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0, 0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 0));
 
   // Stroke again. The stroke that have already been erased should stay erased.
   ApplyStrokeWithPenAtPoints(base::span_from_ref(kMouseDownPoint),
@@ -3251,7 +3286,7 @@ TEST_P(PdfInkModuleStrokeTest, EraseStrokeWithPen) {
   // unmodified stroke count goes up by 1 instead.
   ExpectStrokeCounts(/*started=*/3, /*modified_finished=*/2,
                      /*unmodified_finished=*/1);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0, 0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 0));
 
   // Stroke again with the mouse gets the same results.
   ApplyStrokeWithMouseAtMouseDownPoint();
@@ -3262,7 +3297,7 @@ TEST_P(PdfInkModuleStrokeTest, EraseStrokeWithPen) {
   // unmodified stroke count goes up by 1 instead.
   ExpectStrokeCounts(/*started=*/4, /*modified_finished=*/2,
                      /*unmodified_finished=*/2);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0, 0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 0));
 }
 
 TEST_P(PdfInkModuleStrokeTest, EraserTipTemporarilySwitchesToEraseMode) {
@@ -3843,7 +3878,7 @@ TEST_P(PdfInkModuleUndoRedoTest, UndoRedoBasic) {
   // RunStrokeCheckTest() performed the only stroke.
   ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/1,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0));
 
   PerformUndo();
   EXPECT_THAT(StrokeInputPositions(), kMatcher);
@@ -3851,7 +3886,7 @@ TEST_P(PdfInkModuleUndoRedoTest, UndoRedoBasic) {
   // Undo/redo here and below do not trigger StrokeFinished().
   ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/1,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0, 0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 0));
 
   // Spurious undo message is a no-op.
   VerifyAndClearExpectations();
@@ -3862,7 +3897,7 @@ TEST_P(PdfInkModuleUndoRedoTest, UndoRedoBasic) {
   EXPECT_TRUE(VisibleStrokeInputPositions().empty());
   ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/1,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0, 0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 0));
 
   VerifyAndClearExpectations();
   ExpectNoStrokeAdded();
@@ -3872,7 +3907,7 @@ TEST_P(PdfInkModuleUndoRedoTest, UndoRedoBasic) {
   EXPECT_THAT(VisibleStrokeInputPositions(), kMatcher);
   ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/1,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0, 0, 0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 0, 0));
 
   // Spurious redo message is a no-op.
   VerifyAndClearExpectations();
@@ -3883,7 +3918,7 @@ TEST_P(PdfInkModuleUndoRedoTest, UndoRedoBasic) {
   EXPECT_THAT(VisibleStrokeInputPositions(), kMatcher);
   ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/1,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0, 0, 0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 0, 0));
 }
 
 TEST_P(PdfInkModuleUndoRedoTest, UndoRedoInvalidationsBasic) {
@@ -3969,7 +4004,7 @@ TEST_P(PdfInkModuleUndoRedoTest, UndoRedoAnnotationModeDisabled) {
   // RunStrokeCheckTest() performed the only stroke.
   ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/1,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0));
 
   // Disable annotation mode. Undo/redo should still work.
   EXPECT_TRUE(ink_module().OnMessage(
@@ -3981,14 +4016,14 @@ TEST_P(PdfInkModuleUndoRedoTest, UndoRedoAnnotationModeDisabled) {
   EXPECT_TRUE(VisibleStrokeInputPositions().empty());
   ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/1,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0, 0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 0));
 
   PerformRedo();
   EXPECT_THAT(StrokeInputPositions(), kMatcher);
   EXPECT_THAT(VisibleStrokeInputPositions(), kMatcher);
   ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/1,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0, 0, 0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 0, 0));
 }
 
 TEST_P(PdfInkModuleUndoRedoTest, UndoRedoBetweenDraws) {
@@ -4196,8 +4231,7 @@ TEST_P(PdfInkModuleUndoRedoTest, UndoRedoEraseLoadedV2Shapes) {
 
   InitializeSimpleSinglePageBasicLayout();
   EnableDrawAnnotationMode();
-  EXPECT_TRUE(updated_ink_thumbnail_page_indices().empty());
-  EXPECT_TRUE(updated_pdf_thumbnail_page_indices().empty());
+  EXPECT_TRUE(updated_thumbnail_page_indices().empty());
 
   EXPECT_CALL(client(), RequestThumbnail)
       .WillRepeatedly([&](int page_index, SendThumbnailCallback callback) {
@@ -4211,7 +4245,7 @@ TEST_P(PdfInkModuleUndoRedoTest, UndoRedoEraseLoadedV2Shapes) {
   ApplyStrokeWithMouseAtPoints(
       gfx::PointF(), base::span_from_ref(gfx::PointF()), gfx::PointF());
   VerifyAndClearExpectations();
-  EXPECT_TRUE(updated_pdf_thumbnail_page_indices().empty());
+  EXPECT_TRUE(updated_thumbnail_page_indices().empty());
 
   // Stroke twice where `shape0` is, and that should deactivate only that shape
   // and only once.
@@ -4225,7 +4259,7 @@ TEST_P(PdfInkModuleUndoRedoTest, UndoRedoEraseLoadedV2Shapes) {
   ApplyStrokeWithMouseAtPoints(
       kMouseDownPoint, base::span_from_ref(kMouseMovePoint), kMouseUpPoint);
   VerifyAndClearExpectations();
-  EXPECT_THAT(updated_pdf_thumbnail_page_indices(), ElementsAre(0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0));
 
   // Undo should reactivate `shape0`.
   ExpectNoStrokeAdded();
@@ -4235,7 +4269,7 @@ TEST_P(PdfInkModuleUndoRedoTest, UndoRedoEraseLoadedV2Shapes) {
   EXPECT_CALL(client(), UpdateShapeActive(_, kShapeId1, _)).Times(0);
   PerformUndo();
   VerifyAndClearExpectations();
-  EXPECT_THAT(updated_pdf_thumbnail_page_indices(), ElementsAre(0, 0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 0));
 
   // Redo should deactivate `shape0`.
   ExpectNoStrokeAdded();
@@ -4244,8 +4278,7 @@ TEST_P(PdfInkModuleUndoRedoTest, UndoRedoEraseLoadedV2Shapes) {
               UpdateShapeActive(kPageIndex, kShapeId0, /*active=*/false));
   EXPECT_CALL(client(), UpdateShapeActive(_, kShapeId1, _)).Times(0);
   PerformRedo();
-  EXPECT_TRUE(updated_ink_thumbnail_page_indices().empty());
-  EXPECT_THAT(updated_pdf_thumbnail_page_indices(), ElementsAre(0, 0, 0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 0, 0));
 }
 
 // Regression test for crbug.com/378724153.
@@ -4748,7 +4781,7 @@ class PdfInkModuleTextHighlightTest : public PdfInkModuleUndoRedoTest {
       float expected_size) {
     ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/1,
                        /*unmodified_finished=*/0);
-    EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0));
+    EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0));
 
     std::optional<ink::StrokeInputBatch> expected_batch =
         CreateInkInputBatch(expected_inputs);
@@ -4807,7 +4840,7 @@ TEST_P(PdfInkModuleTextHighlightTest, PenDoesNotSelectText) {
 
   ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/1,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0));
 
   // The stroke inputs should match exactly.
   std::optional<ink::StrokeInputBatch> expected_batch = CreateInkInputBatch(
@@ -4963,7 +4996,7 @@ TEST_P(PdfInkModuleTextHighlightTest, MultipleSelection) {
 
   ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/1,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0));
 
   std::optional<ink::StrokeInputBatch> expected_selection0_batch =
       CreateInkInputBatch({PdfInkInputData(gfx::PointF(15.0, 20.0)),
@@ -5013,7 +5046,7 @@ TEST_P(PdfInkModuleTextHighlightTest, OneClickCount) {
 
   ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/0,
                      /*unmodified_finished=*/1);
-  EXPECT_TRUE(updated_ink_thumbnail_page_indices().empty());
+  EXPECT_TRUE(updated_thumbnail_page_indices().empty());
 
   EXPECT_TRUE(CollectVisibleStrokes().empty());
 }
@@ -5043,7 +5076,7 @@ TEST_P(PdfInkModuleTextHighlightTest, TwoClickCount) {
 
   ExpectStrokeCounts(/*started=*/2, /*modified_finished=*/1,
                      /*unmodified_finished=*/1);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0));
 
   std::optional<ink::StrokeInputBatch> expected_batch =
       CreateInkInputBatch({PdfInkInputData(gfx::PointF(15.0, 20.0)),
@@ -5101,7 +5134,7 @@ TEST_P(PdfInkModuleTextHighlightTest, ThreeClickCount) {
   // undo, and another from the triple-click rect.
   ExpectStrokeCounts(/*started=*/3, /*modified_finished=*/2,
                      /*unmodified_finished=*/1);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0, 0, 0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 0, 0));
 
   std::optional<ink::StrokeInputBatch> expected_batch =
       CreateInkInputBatch({PdfInkInputData(gfx::PointF(11.0, 21.0)),
@@ -5159,7 +5192,7 @@ TEST_P(PdfInkModuleTextHighlightTest, MouseUpOnNonSelection) {
 
   ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/1,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0));
 
   std::optional<ink::StrokeInputBatch> expected_batch =
       CreateInkInputBatch({PdfInkInputData(gfx::PointF(11.0, 16.0)),
@@ -5216,7 +5249,7 @@ TEST_P(PdfInkModuleTextHighlightTest, MultiplePages) {
   // All the selection strokes are considered one stroke.
   ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/1,
                      /*unmodified_finished=*/0);
-  EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0, 1));
+  EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0, 1));
 
   std::optional<ink::StrokeInputBatch> expected_page0_batch =
       CreateInkInputBatch({PdfInkInputData(gfx::PointF(10.0, 15.0)),
@@ -5291,7 +5324,7 @@ TEST_P(PdfInkModuleTextHighlightTest, TouchOneClickCount) {
 
   ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/0,
                      /*unmodified_finished=*/1);
-  EXPECT_TRUE(updated_ink_thumbnail_page_indices().empty());
+  EXPECT_TRUE(updated_thumbnail_page_indices().empty());
 
   EXPECT_TRUE(CollectVisibleStrokes().empty());
 }
@@ -5349,7 +5382,7 @@ TEST_P(PdfInkModuleTextHighlightTest, PenOneClickCount) {
 
   ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/0,
                      /*unmodified_finished=*/1);
-  EXPECT_TRUE(updated_ink_thumbnail_page_indices().empty());
+  EXPECT_TRUE(updated_thumbnail_page_indices().empty());
 
   EXPECT_TRUE(CollectVisibleStrokes().empty());
 }
@@ -5512,9 +5545,9 @@ TEST_P(PdfInkModuleTextHighlightTest, IgnoreVerySmallTextSelection) {
 
   // The test case should not crash. Instead, the very small text selection
   // simply gets ignored.
-  ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/1,
-                     /*unmodified_finished=*/0);
-  EXPECT_TRUE(updated_ink_thumbnail_page_indices().empty());
+  ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/0,
+                     /*unmodified_finished=*/1);
+  EXPECT_TRUE(updated_thumbnail_page_indices().empty());
   EXPECT_TRUE(CollectVisibleStrokes().empty());
 }
 
@@ -5885,7 +5918,7 @@ class PdfInkModuleTextHighlightCaretTest
 
     ExpectStrokeCounts(/*started=*/1, /*modified_finished=*/1,
                        /*unmodified_finished=*/0);
-    EXPECT_THAT(updated_ink_thumbnail_page_indices(), ElementsAre(0));
+    EXPECT_THAT(updated_thumbnail_page_indices(), ElementsAre(0));
 
     std::optional<ink::StrokeInputBatch> expected_batch =
         CreateInkInputBatch(expected_inputs);

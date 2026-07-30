@@ -18,7 +18,7 @@
 #include "base/task/lazy_thread_pool_task_runner.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
-#include "content/browser/child_process_security_policy_impl.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -151,7 +151,7 @@ scoped_refptr<storage::FileSystemContext> CreateFileSystemContext(
   for (const storage::FileSystemType& type :
        file_system_context->GetFileSystemTypes()) {
     // This can safely be called without a ChildProcessSecurityPolicy::Handle
-    // because it does not involve per-process SecurityState.
+    // because it does not involve per-process ProcessState.
     ChildProcessSecurityPolicyImpl::GetInstance()
         ->RegisterFileSystemPermissionPolicy(
             type, storage::FileSystemContext::GetPermissionPolicy(type));
@@ -191,7 +191,7 @@ void DoGetPlatformPath(scoped_refptr<storage::FileSystemContext> context,
   // path to the file).
   //
   // The access check for `url` runs on the UI thread using a duplicated
-  // ChildProcessSecurityPolicy::Handle, ensuring the SecurityState exists when
+  // ChildProcessSecurityPolicy::Handle, ensuring the ProcessState exists when
   // the task runs. If the access check passes, the file thread will determine
   // the platform path, then another Handle (which can be the one that was
   // passed to this function) is needed on the UI thread to check and grant

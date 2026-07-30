@@ -4,8 +4,6 @@
 
 package org.chromium.ui.base;
 
-import android.app.UiModeManager;
-import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.os.Build;
@@ -152,12 +150,8 @@ public class TouchDevice {
         if (DeviceInfo.isDesktop()) { // nocheck
             return true;
         }
-        UiModeManager uiModeManager =
-                (UiModeManager)
-                        ContextUtils.getApplicationContext()
-                                .getSystemService(Context.UI_MODE_SERVICE);
-        return uiModeManager != null
-                && uiModeManager.getCurrentModeType() == Configuration.UI_MODE_TYPE_DESK;
+        int uiMode = ContextUtils.getApplicationContext().getResources().getConfiguration().uiMode;
+        return (uiMode & Configuration.UI_MODE_TYPE_MASK) == Configuration.UI_MODE_TYPE_DESK;
     }
 
     private static boolean hasSource(int sources, int inputDeviceSource) {

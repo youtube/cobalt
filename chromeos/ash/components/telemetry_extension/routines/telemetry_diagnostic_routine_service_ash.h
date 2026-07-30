@@ -13,7 +13,6 @@
 #include "chromeos/crosapi/mojom/telemetry_diagnostic_routine_service.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
-#include "mojo/public/cpp/bindings/receiver_set.h"
 
 namespace ash {
 
@@ -28,8 +27,7 @@ class TelemetryDiagnosticsRoutineServiceAsh
   class Factory {
    public:
     static std::unique_ptr<crosapi::mojom::TelemetryDiagnosticRoutinesService>
-    Create(mojo::PendingReceiver<
-           crosapi::mojom::TelemetryDiagnosticRoutinesService> receiver);
+    Create();
 
     static void SetForTesting(Factory* test_factory);
 
@@ -37,9 +35,7 @@ class TelemetryDiagnosticsRoutineServiceAsh
 
    protected:
     virtual std::unique_ptr<crosapi::mojom::TelemetryDiagnosticRoutinesService>
-    CreateInstance(
-        mojo::PendingReceiver<
-            crosapi::mojom::TelemetryDiagnosticRoutinesService> receiver) = 0;
+    CreateInstance() = 0;
 
    private:
     static Factory* test_factory_;
@@ -51,10 +47,6 @@ class TelemetryDiagnosticsRoutineServiceAsh
   TelemetryDiagnosticsRoutineServiceAsh& operator=(
       const TelemetryDiagnosticsRoutineServiceAsh&) = delete;
   ~TelemetryDiagnosticsRoutineServiceAsh() override;
-
-  void BindReceiver(
-      mojo::PendingReceiver<crosapi::mojom::TelemetryDiagnosticRoutinesService>
-          receiver);
 
   // `TelemetryDiagnosticRoutinesService`:
   void CreateRoutine(
@@ -73,10 +65,6 @@ class TelemetryDiagnosticsRoutineServiceAsh
   // The routine controls and observers created for each running routine.
   std::vector<base::WeakPtr<SelfOwnedMojoProxyInterface>>
       routine_controls_and_observers_;
-
-  // Support any number of connections.
-  mojo::ReceiverSet<crosapi::mojom::TelemetryDiagnosticRoutinesService>
-      receivers_;
 };
 
 }  // namespace ash

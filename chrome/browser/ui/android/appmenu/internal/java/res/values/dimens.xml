@@ -28,4 +28,8 @@ found in the LICENSE file.
 
     <!-- Lateral margin for the app menu when anchored to the bottom bar. -->
     <dimen name="bottom_bar_app_menu_lateral_margin">12dp</dimen>
+
+    <!-- Menu header dimensions. -->
+    <dimen name="menu_header_height">26dp</dimen>
+    <dimen name="menu_header_padding_bottom">2dp</dimen>
 </resources>

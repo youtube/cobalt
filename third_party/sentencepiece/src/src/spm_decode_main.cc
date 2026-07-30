@@ -75,12 +75,12 @@ int main(int argc, char *argv[]) {
   if (absl::GetFlag(FLAGS_input_format) == "piece") {
     if (absl::GetFlag(FLAGS_output_format) == "string") {
       process = [&](const std::vector<std::string> &pieces) {
-        ABSL_CHECK_OK(sp.Decode(pieces, &detok));
+        ABSL_QCHECK_OK(sp.Decode(pieces, &detok));
         output->WriteLine(detok);
       };
     } else if (absl::GetFlag(FLAGS_output_format) == "proto") {
       process = [&](const std::vector<std::string> &pieces) {
-        ABSL_CHECK_OK(sp.Decode(pieces, &spt));
+        ABSL_QCHECK_OK(sp.Decode(pieces, &spt));
       };
     } else {
       ABSL_LOG(FATAL) << "Unknown output format: "
@@ -89,12 +89,12 @@ int main(int argc, char *argv[]) {
   } else if (absl::GetFlag(FLAGS_input_format) == "id") {
     if (absl::GetFlag(FLAGS_output_format) == "string") {
       process = [&](const std::vector<std::string> &pieces) {
-        ABSL_CHECK_OK(sp.Decode(ToIds(pieces), &detok));
+        ABSL_QCHECK_OK(sp.Decode(ToIds(pieces), &detok));
         output->WriteLine(detok);
       };
     } else if (absl::GetFlag(FLAGS_output_format) == "proto") {
       process = [&](const std::vector<std::string> &pieces) {
-        ABSL_CHECK_OK(sp.Decode(ToIds(pieces), &spt));
+        ABSL_QCHECK_OK(sp.Decode(ToIds(pieces), &spt));
       };
     } else {
       ABSL_LOG(FATAL) << "Unknown output format: "

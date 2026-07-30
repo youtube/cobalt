@@ -44,6 +44,7 @@ export class AvatarButtonElement extends AvatarButtonElementBase {
     tooltip: '',
     accessibilityName: '',
     accessibilityDescription: '',
+    enabled: true,
   };
 
   protected getTooltip_(): string {

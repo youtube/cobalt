@@ -87,11 +87,7 @@
       ],
       "mirroring_builder_group_and_names": [
         {
-          "builder": "chromeos-amd64-generic-rel-gtest",
-          "group": "tryserver.chromium.chromiumos"
-        },
-        {
-          "builder": "chromeos-amd64-generic-rel-gtest-and-tast",
+          "builder": "chromeos-amd64-generic-rel",
           "group": "tryserver.chromium.chromiumos"
         }
       ],

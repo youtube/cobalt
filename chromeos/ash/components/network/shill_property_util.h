@@ -91,6 +91,7 @@ bool DoIdentifyingPropertiesMatch(const base::DictValue& new_properties,
 // should always be treated as sensitive data, but sometimes they end up
 // attached to public issues so this helps prevent accidents, but it should not
 // be relied upon).
+COMPONENT_EXPORT(CHROMEOS_NETWORK)
 bool IsLoggableShillProperty(std::string_view key);
 
 }  // namespace shill_property_util

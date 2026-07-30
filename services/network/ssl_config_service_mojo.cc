@@ -33,8 +33,10 @@ bool IsSubdomain(std::string_view hostname, std::string_view pattern) {
 
 SSLConfigServiceMojo::SSLConfigServiceMojo(
     mojom::SSLConfigPtr initial_config,
-    mojo::PendingReceiver<mojom::SSLConfigClient> ssl_config_client_receiver)
-    : client_cert_pooling_policy_(
+    mojo::PendingReceiver<mojom::SSLConfigClient> ssl_config_client_receiver,
+    std::unique_ptr<net::EchModeGetter> ech_mode_getter)
+    : ech_mode_getter_(std::move(ech_mode_getter)),
+      client_cert_pooling_policy_(
           initial_config ? initial_config->client_cert_pooling_policy
                          : std::vector<std::string>()) {
   if (initial_config) {
@@ -74,6 +76,13 @@ void SSLConfigServiceMojo::OnSSLConfigUpdated(mojom::SSLConfigPtr ssl_config) {
 
 net::SSLContextConfig SSLConfigServiceMojo::GetSSLContextConfig() {
   return ssl_context_config_;
+}
+
+net::EchMode SSLConfigServiceMojo::GetEchMode(std::string_view hostname) const {
+  if (ech_mode_getter_) {
+    return ech_mode_getter_->GetEchMode(hostname);
+  }
+  return net::EchMode::kOpportunistic;
 }
 
 bool SSLConfigServiceMojo::CanShareConnectionWithClientCerts(

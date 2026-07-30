@@ -5,9 +5,8 @@
 #ifndef COMPONENTS_SQLITE_VFS_VFS_UTILS_H_
 #define COMPONENTS_SQLITE_VFS_VFS_UTILS_H_
 
-#include <optional>
-
-#include "base/component_export.h"
+#include "base/types/expected.h"
+#include "components/sqlite_vfs/file_set_error.h"
 #include "components/sqlite_vfs/pending_file_set.h"
 
 namespace base {
@@ -31,14 +30,14 @@ class SqliteVfsFileSet;
 // If `journal_mode_wal` is true, a sql::Database connection to a bound file set
 // must enable WAL mode via `sql::DatabaseOptions::set_wal_mode(true)`.
 //
-// Returns no value in case of error (e.g., if the backing files are already
-// open, there is insufficient access to open them, or if there is insufficient
-// disk space to create them). In particular, attempting to recreate a file set
-// after destroying one for a given `directory` and `base_name` will fail until
-// all parties with which a connection has been shared have destroyed their file
-// set.
+// Returns a FileSetError in case of error (e.g., if the backing files are
+// already open, there is insufficient access to open them, or if there is
+// insufficient disk space to create them). In particular, attempting to
+// recreate a file set after destroying one for a given `directory` and
+// `base_name` will fail until all parties with which a connection has been
+// shared have destroyed their file set.
 COMPONENT_EXPORT(SQLITE_VFS)
-std::optional<PendingFileSet> MakePendingFileSet(
+base::expected<PendingFileSet, FileSetError> MakePendingFileSet(
     Client client,
     const base::FilePath& directory,
     const base::FilePath& base_name,
@@ -59,11 +58,16 @@ std::optional<PendingFileSet> MakePendingFileSet(
 // not match the original files, the returned `PendingFileSet` will point to
 // different files, potentially leading to data corruption or other undefined
 // behavior.
+//
+// Returns a FileSetError on error. This could be a result of handle/fd
+// exhaustion (FileSetError::kTransient) or permissions issues on POSIX
+// (FileSetError::kPermanent).
 COMPONENT_EXPORT(SQLITE_VFS)
-std::optional<PendingFileSet> ShareConnection(const base::FilePath& directory,
-                                              const base::FilePath& base_name,
-                                              const SqliteVfsFileSet& file_set,
-                                              bool read_write);
+base::expected<PendingFileSet, FileSetError> ShareConnection(
+    const base::FilePath& directory,
+    const base::FilePath& base_name,
+    const SqliteVfsFileSet& file_set,
+    bool read_write);
 
 // Returns the base name for a database file, or an empty path if `file` is not
 // a database file.

@@ -86,7 +86,7 @@ class CORE_EXPORT ClipboardCommands {
                                         Event*,
                                         EditorCommandSource,
                                         const String&);
-  static bool ExecutePasteFromImageURL(LocalFrame&,
+  static bool ExecutePasteFromImageUrl(LocalFrame&,
                                        Event*,
                                        EditorCommandSource,
                                        const String&);
@@ -134,7 +134,7 @@ class CORE_EXPORT ClipboardCommands {
   static void PasteFromClipboard(LocalFrame&,
                                  EditorCommandSource,
                                  DataTransfer* = nullptr);
-  static void PasteFromImageURL(LocalFrame&, EditorCommandSource, String);
+  static void PasteFromImageUrl(LocalFrame&, EditorCommandSource, String);
 
   using FragmentAndPlainText = std::pair<DocumentFragment*, const bool>;
   static FragmentAndPlainText GetFragmentFromClipboard(LocalFrame&);

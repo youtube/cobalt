@@ -266,7 +266,8 @@ class AuthenticationService : public KeyedService,
   // Clears the account settings prefs of all removed accounts from device.
   void ClearAccountSettingsPrefsOfRemovedAccounts();
 
-  // Returns whether the
+  // Returns whether the service’s profile is personal (that is: a profile that
+  // does not contains any managed account).
   bool IsPersonalProfile();
 
   // Returns the active identities for MDM.

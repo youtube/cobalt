@@ -8,7 +8,7 @@
 #include <optional>
 #include <string>
 
-#include "components/accessibility_annotator/core/annotation_reducer/entry_type.h"
+#include "components/accessibility_annotator/core/annotation_reducer/memory_data_type.h"
 #include "components/accessibility_annotator/core/data_models/entity.h"
 #include "components/accessibility_annotator/core/data_models/entity_types.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
@@ -36,10 +36,12 @@ std::optional<EntityInstance> FromAccessibilityAnnotator(
     const accessibility_annotator::Entity& entity);
 
 // Translates Autofill attribute names to entry types.
-accessibility_annotator::EntryType AttributeTypeToEntryType(AttributeType type);
+accessibility_annotator::MemoryDataType AttributeTypeToMemoryDataType(
+    AttributeType type);
 
 // Returns the localized name of the entry type.
-std::u16string GetEntryTypeNameForI18n(accessibility_annotator::EntryType type);
+std::u16string GetMemoryDataTypeNameForI18n(
+    accessibility_annotator::MemoryDataType type);
 
 }  // namespace autofill
 

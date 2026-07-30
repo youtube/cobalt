@@ -68,7 +68,6 @@ import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.ui.signin.ForcedSigninStatusProvider;
 import org.chromium.chrome.browser.ui.signin.FullscreenSigninAndHistorySyncConfig;
-import org.chromium.chrome.browser.ui.signin.SigninAndHistorySyncCoordinator;
 import org.chromium.chrome.browser.ui.signin.SigninUtils;
 import org.chromium.chrome.browser.ui.signin.fullscreen_signin.FullscreenSigninMediator;
 import org.chromium.chrome.browser.ui.signin.history_sync.HistorySyncConfig;
@@ -790,12 +789,12 @@ public class FullscreenSigninAndHistorySyncIntegrationTest {
         when(mHistorySyncHelperMock.shouldDisplayHistorySync()).thenReturn(true);
         // Create a config which only uses non-default resource values to test customization.
         FullscreenSigninAndHistorySyncConfig config =
-                new FullscreenSigninAndHistorySyncConfig.Builder(
+                FullscreenSigninAndHistorySyncConfig.builder(
                                 "custom title",
                                 "custom subtitle",
                                 "custom dismiss",
-                                "custom hystory sync title",
-                                "custom hystory sync subtitle")
+                                "custom history sync title",
+                                "custom history sync subtitle")
                         .signinLogoId(R.drawable.ic_globe_24dp)
                         .build();
         launchActivity(/* shouldReplaceProgressBars= */ true, config);
@@ -892,10 +891,7 @@ public class FullscreenSigninAndHistorySyncIntegrationTest {
         mSigninTestRule.addAccountThenSignin(TestAccounts.ACCOUNT1);
         mSigninTestRule.addAccount(TestAccounts.ACCOUNT2);
         FullscreenSigninAndHistorySyncConfig config =
-                getDefaultConfigBuilder()
-                        .selectedAccountEmail(TestAccounts.ACCOUNT2.getEmail())
-                        .signinFlow(SigninAndHistorySyncCoordinator.SigninFlow.SWITCH_ACCOUNT)
-                        .build();
+                getSwitchAccountConfigBuilder(TestAccounts.ACCOUNT2.getEmail()).build();
 
         launchActivity(/* shouldReplaceProgressBars= */ true, config);
 
@@ -918,10 +914,7 @@ public class FullscreenSigninAndHistorySyncIntegrationTest {
         mSigninTestRule.addAccountThenSignin(TestAccounts.ACCOUNT1);
         mSigninTestRule.addAccount(TestAccounts.ACCOUNT2);
         FullscreenSigninAndHistorySyncConfig config =
-                getDefaultConfigBuilder()
-                        .selectedAccountEmail(TestAccounts.ACCOUNT2.getEmail())
-                        .signinFlow(SigninAndHistorySyncCoordinator.SigninFlow.SWITCH_ACCOUNT)
-                        .build();
+                getSwitchAccountConfigBuilder(TestAccounts.ACCOUNT2.getEmail()).build();
 
         launchActivity(/* shouldReplaceProgressBars= */ true, config);
 
@@ -988,7 +981,18 @@ public class FullscreenSigninAndHistorySyncIntegrationTest {
     }
 
     private FullscreenSigninAndHistorySyncConfig.Builder getDefaultConfigBuilder() {
-        return new FullscreenSigninAndHistorySyncConfig.Builder(
-                "title", "subtitle", "dismiss", "hystory sync title", "hystory sync subtitle");
+        return FullscreenSigninAndHistorySyncConfig.builder(
+                "title", "subtitle", "dismiss", "history sync title", "history sync subtitle");
+    }
+
+    private FullscreenSigninAndHistorySyncConfig.Builder getSwitchAccountConfigBuilder(
+            String selectedAccountEmail) {
+        return FullscreenSigninAndHistorySyncConfig.builderForSwitchAccountFlow(
+                "title",
+                "subtitle",
+                "dismiss",
+                "history sync title",
+                "history sync subtitle",
+                selectedAccountEmail);
     }
 }

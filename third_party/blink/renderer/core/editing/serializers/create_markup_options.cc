@@ -13,9 +13,8 @@ CreateMarkupOptions::Builder::SetConstrainingAncestor(const Node* node) {
 }
 
 CreateMarkupOptions::Builder&
-CreateMarkupOptions::Builder::SetShouldResolveURLs(
-    AbsoluteURLs should_resolve_urls) {
-  data_.should_resolve_urls_ = should_resolve_urls;
+CreateMarkupOptions::Builder::SetShouldResolveUrls(ResolveUrls resolve_urls) {
+  data_.should_resolve_urls_ = resolve_urls;
   return *this;
 }
 

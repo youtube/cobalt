@@ -174,7 +174,9 @@ SyncedSessionTracker::TrackedSession::TrackedSession() = default;
 SyncedSessionTracker::TrackedSession::~TrackedSession() = default;
 
 SyncedSessionTracker::SyncedSessionTracker(SyncSessionsClient* sessions_client)
-    : sessions_client_(sessions_client) {}
+    : sessions_client_(sessions_client) {
+  CHECK(sessions_client_);
+}
 
 SyncedSessionTracker::~SyncedSessionTracker() = default;
 
@@ -753,6 +755,18 @@ void SyncedSessionTracker::Clear() {
   local_session_tag_.clear();
 }
 
+void SyncedSessionTracker::TryUpdateSessionNameFromDeviceInfo(
+    const std::string& session_tag) {
+  CHECK(sessions_client_);
+  CHECK(LookupSession(session_tag));
+
+  std::optional<std::string> preferred_name =
+      sessions_client_->GetSessionDisplayNameFromDeviceInfo(session_tag);
+  if (preferred_name.has_value()) {
+    GetSession(session_tag)->SetSessionName(*preferred_name);
+  }
+}
+
 void UpdateTrackerWithSpecifics(const sync_pb::SessionSpecifics& specifics,
                                 base::Time modification_time,
                                 SyncedSessionTracker* tracker) {
@@ -779,6 +793,9 @@ void UpdateTrackerWithSpecifics(const sync_pb::SessionSpecifics& specifics,
 
     PopulateSyncedSessionFromSpecifics(session_tag, header, modification_time,
                                        session, tracker);
+    if (base::FeatureList::IsEnabled(kSyncSessionsUsePreferredDisplayName)) {
+      tracker->TryUpdateSessionNameFromDeviceInfo(session_tag);
+    }
 
     // Delete any closed windows and unused tabs as necessary. We exclude the
     // local session here because it should be cleaned up explicitly with

@@ -129,7 +129,7 @@ TEST_F(PermissionPromptIOSTest, RequestsAreCopiedToWeakPointers) {
   const auto& requests = prompt->Requests();
 
   EXPECT_EQ(1u, requests.size());
-  EXPECT_EQ(request_ptr, requests[0].get());
+  EXPECT_EQ(request_ptr, &*requests[0]);
 }
 
 }  // namespace permissions

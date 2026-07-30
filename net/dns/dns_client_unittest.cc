@@ -42,8 +42,11 @@ class AlwaysFailSocketFactory : public MockClientSocketFactory {
  public:
   std::unique_ptr<DatagramClientSocket> CreateDatagramClientSocket(
       DatagramSocket::BindType bind_type,
+      handles::NetworkHandle target_network,
       NetLog* net_log,
       const NetLogSource& source) override {
+    // This is used only for testing in scenarios that do not involve multiple
+    // networks. With that in mind, it's safe to ignore `target_network`.
     return std::make_unique<MockUDPClientSocket>();
   }
 };

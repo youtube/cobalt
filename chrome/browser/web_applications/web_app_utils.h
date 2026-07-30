@@ -159,7 +159,8 @@ enum class AppSettingsPageEntryPoint {
   kSubAppsInstallPrompt = 3,
   kNotificationSettingsButton = 4,
   kSiteDataDialog = 5,
-  kMaxValue = kSiteDataDialog,
+  kNavigationCapturingIphBubble = 6,
+  kMaxValue = kNavigationCapturingIphBubble,
 };
 
 apps::LaunchContainer ConvertDisplayModeToAppLaunchContainer(

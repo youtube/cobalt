@@ -234,7 +234,8 @@ void OnscreenContentProvider::DidUpdateTitle(
 
 void OnscreenContentProvider::DidUpdateFaviconURL(
     content::RenderFrameHost* render_frame_host,
-    const std::vector<blink::mojom::FaviconURLPtr>& candidates) {
+    const std::vector<blink::mojom::FaviconURLPtr>& candidates,
+    blink::mojom::FaviconUpdateReason reason) {
   if (ContentCaptureReceiver::
           disable_get_favicon_from_web_contents_for_testing()) {
     return;

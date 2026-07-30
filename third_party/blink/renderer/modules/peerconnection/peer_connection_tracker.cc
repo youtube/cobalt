@@ -855,7 +855,7 @@ void PeerConnectionTracker::TrackTransceiver(
       StrCat({"transceiver", String::FromUtf8(callback_type_ending)});
   std::unique_ptr<JSONObject> json = SerializeTransceiver(transceiver);
   json->SetString("reason", GetTransceiverUpdatedReasonString(reason));
-  json->SetInteger("transceiverIndex", transceiver_index);
+  json->SetInteger("transceiverIndex", static_cast<int>(transceiver_index));
 
   StringBuilder value;
   json->WriteJSON(&value);

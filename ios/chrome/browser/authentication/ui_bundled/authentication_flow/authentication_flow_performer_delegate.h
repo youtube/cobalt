@@ -82,6 +82,9 @@ class Browser;
 // Indicates that the personal profile was converted to a managed one.
 - (void)didMakePersonalProfileManaged;
 
+// Indicates whether the user confirmed changing profile can proceed.
+- (void)didConfirmChangeProfileCanProceed:(BOOL)canProceed;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_AUTHENTICATION_UI_BUNDLED_AUTHENTICATION_FLOW_AUTHENTICATION_FLOW_PERFORMER_DELEGATE_H_

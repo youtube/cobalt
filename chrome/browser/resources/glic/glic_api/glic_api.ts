@@ -3093,6 +3093,7 @@ export enum InvocationSource {
   // User clicked on text selection widget.
   TEXT_SELECTION_WIDGET = 25,
   // Automatic summarization upon opening.
+  // Deprecated.
   ZERO_STATE_AUTO_SUMMARIZE = 26,
   // From the universal cart.
   UNIVERSAL_CART = 27,

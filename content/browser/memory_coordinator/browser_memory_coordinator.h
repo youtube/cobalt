@@ -11,6 +11,7 @@
 #include "content/common/buildflags.h"
 #include "content/common/content_export.h"
 #include "content/common/memory_coordinator/memory_consumer_registry.h"
+#include "content/common/memory_coordinator/memory_coordinator_policy.h"
 #include "content/common/memory_coordinator/memory_coordinator_policy_manager.h"
 #include "content/common/memory_coordinator/memory_pressure_listener_policy.h"
 #include "content/common/memory_coordinator/mojom/memory_coordinator.mojom.h"
@@ -71,6 +72,9 @@ class CONTENT_EXPORT BrowserMemoryCoordinator {
 
   MemoryPressureListenerPolicy memory_pressure_listener_policy_{
       policy_manager_};
+  MemoryCoordinatorPolicyRegistration<MemoryPressureListenerPolicy>
+      pressure_listener_registration_{policy_manager_,
+                                      memory_pressure_listener_policy_};
 
 #if BUILDFLAG(ENABLE_MEMORY_COORDINATOR_INTERNALS)
   size_t diagnostic_observer_count_ = 0u;

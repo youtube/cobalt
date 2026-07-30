@@ -29,8 +29,8 @@ enum class ReauthResult : int {
 @protocol SigninReauthCoordinatorDelegate
 
 // The result of the reauth process. If the result is success, `gaiaID` must be
-// the id of the account passed to the init method. `gaiaID` may be a distinct
-// ID than the one used in the init method if the user authentified with a
+// the ID of the account passed to the init method. `gaiaID` may be a different
+// ID from the one used in the init method if the user authenticated with a
 // different account.
 - (void)reauthFinishedWithResult:(ReauthResult)result
                           gaiaID:(const GaiaId*)gaiaID;

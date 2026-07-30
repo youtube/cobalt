@@ -142,6 +142,16 @@ enum class AddressValidZipCodeSeparatorMetric {
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:AutofillZipCodeSeparators)
 
+// These values are persisted to UMA logs. Entries should not be renumbered
+// and numeric values should never be reused. Represents the categories of
+// field updates during profile merge.
+enum class FieldMergeCategory {
+  kCapitalizationUpdate = 1 << 0,
+  kDiacriticAndCapitalizationUpdate = 1 << 1,
+  kEmptyToNonEmpty = 1 << 2,
+  kMaxValue = kEmptyToNonEmpty,
+};
+
 // Logs the address profile import UKM after the form submission.
 // `user_decision` is the user's decision based on the storage prompt, if
 // presented. `num_edited_fields` is the number of fields that were edited by
@@ -168,6 +178,10 @@ void LogAddressFormImportRequirementMetric(const AutofillProfile& profile);
 
 // Logs the overall status of an address import upon form submission.
 void LogAddressFormImportStatusMetric(AddressProfileImportStatusMetric metric);
+
+// Logs details about silent profile updates.
+void LogSilentUpdateMergeCategory(const AutofillProfile& old_profile,
+                                  const AutofillProfile& new_profile);
 
 // Logs the type of a profile import.
 void LogProfileImportType(AutofillProfileImportType import_type);

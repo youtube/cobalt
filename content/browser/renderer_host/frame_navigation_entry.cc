@@ -115,24 +115,27 @@ void FrameNavigationEntry::UpdateEntry(
 void FrameNavigationEntry::set_item_sequence_number(
     int64_t item_sequence_number) {
   // Once assigned, the item sequence number shouldn't change.
-  DCHECK(item_sequence_number_ == -1 ||
-         item_sequence_number_ == item_sequence_number);
+  CHECK(item_sequence_number_ == -1 ||
+            item_sequence_number_ == item_sequence_number,
+        base::NotFatalUntil::M152);
   item_sequence_number_ = item_sequence_number;
 }
 
 void FrameNavigationEntry::set_document_sequence_number(
     int64_t document_sequence_number) {
   // Once assigned, the document sequence number shouldn't change.
-  DCHECK(document_sequence_number_ == -1 ||
-         document_sequence_number_ == document_sequence_number);
+  CHECK(document_sequence_number_ == -1 ||
+            document_sequence_number_ == document_sequence_number,
+        base::NotFatalUntil::M152);
   document_sequence_number_ = document_sequence_number;
 }
 
 void FrameNavigationEntry::set_navigation_api_key(
     const std::string& navigation_api_key) {
   // Once assigned, the navigation API key shouldn't change.
-  DCHECK(navigation_api_key_.empty() ||
-         navigation_api_key_ == navigation_api_key);
+  CHECK(
+      navigation_api_key_.empty() || navigation_api_key_ == navigation_api_key,
+      base::NotFatalUntil::M152);
   navigation_api_key_ = navigation_api_key;
 }
 

@@ -29,6 +29,10 @@ namespace content {
 class WebContents;
 }
 
+namespace policy {
+class AutomaticDownloadsPolicyTest;
+}
+
 // DownloadRequestLimiter is responsible for determining whether a download
 // should be allowed or not. It is designed to keep pages from downloading
 // multiple files without user interaction. DownloadRequestLimiter is invoked
@@ -272,6 +276,7 @@ class DownloadRequestLimiter
       AutomaticDownloads_LastVisited);
   friend class base::RefCountedThreadSafe<DownloadRequestLimiter>;
   friend class BackgroundFetchBrowserTest;
+  friend class policy::AutomaticDownloadsPolicyTest;
   friend class ContentSettingBubbleDialogTest;
   friend class DownloadRequestLimiterTest;
   friend class TabDownloadState;

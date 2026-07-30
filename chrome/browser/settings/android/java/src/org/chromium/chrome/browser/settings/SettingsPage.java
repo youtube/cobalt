@@ -6,8 +6,8 @@ package org.chromium.chrome.browser.settings;
 
 import android.app.Activity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.FrameLayout;
-import android.widget.TextView;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -18,8 +18,18 @@ import org.chromium.components.embedder_support.util.UrlConstants;
 /** A native page holding the Chrome settings UI in a tab. */
 @NullMarked
 public class SettingsPage extends BasicNativePage {
+    /** Delegate to embed settings fragments into the settings page. */
+    public interface FragmentDelegate {
+        /** Initialize settings fragment inside the container. */
+        void initSettings(ViewGroup containerView);
+
+        /** Destroy settings fragment. */
+        void destroySettings();
+    }
+
     private final String mTitle;
     private final FrameLayout mContentView;
+    private final FragmentDelegate mFragmentDelegate;
 
     /**
      * Create a new instance of the settings page.
@@ -27,26 +37,25 @@ public class SettingsPage extends BasicNativePage {
      * @param activity The current {@link Activity} used to obtain resources or inflate views.
      * @param profile The Profile associated with the settings UI.
      * @param host A NativePageHost to load urls.
+     * @param fragmentDelegate The delegate to initialize and destroy settings fragments.
      */
-    public SettingsPage(Activity activity, Profile profile, NativePageHost host) {
+    public SettingsPage(
+            Activity activity,
+            Profile profile,
+            NativePageHost host,
+            FragmentDelegate fragmentDelegate) {
         super(host);
 
         mTitle = activity.getString(R.string.settings);
         mContentView = new FrameLayout(activity);
         mContentView.setId(View.generateViewId());
 
-        // TODO(crbug.com/521895796): Add actual settings UI here. For now, just add a placeholder.
-        TextView label = new TextView(activity);
-        label.setText(R.string.settings);
-        label.setTextSize(16.f);
-        label.setTextColor(android.graphics.Color.BLACK);
-        FrameLayout.LayoutParams layoutParams =
-                new FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.WRAP_CONTENT,
-                        FrameLayout.LayoutParams.WRAP_CONTENT);
-        layoutParams.setMargins(48, 48, 48, 48);
-        label.setLayoutParams(layoutParams);
-        mContentView.addView(label);
+        // TODO(crbug.com/521895796): Center the settings widgets in the middle of the tab.
+        // TODO(crbug.com/521895796): Add "back" navigation support.
+        // TODO(crbug.com/521895796): Add SettingsNavigation support (to launch settings from other
+        // parts of the app).
+        mFragmentDelegate = fragmentDelegate;
+        mFragmentDelegate.initSettings(mContentView);
 
         initWithView(mContentView);
     }
@@ -59,5 +68,11 @@ public class SettingsPage extends BasicNativePage {
     @Override
     public String getHost() {
         return UrlConstants.SETTINGS_HOST;
+    }
+
+    @Override
+    public void destroy() {
+        mFragmentDelegate.destroySettings();
+        super.destroy();
     }
 }

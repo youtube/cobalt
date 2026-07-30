@@ -35,7 +35,9 @@ class CORE_EXPORT CookieJar : public GarbageCollected<CookieJar> {
   virtual ~CookieJar();
   void Trace(Visitor* visitor) const;
 
-  void SetCookie(const String& value);
+  // Sets a cookie in the cookie jar. Returns true if the cookie was set
+  // successfully, false otherwise.
+  bool SetCookie(const String& value);
   String Cookies();
   bool CookiesEnabled();
   void SetCookieManager(

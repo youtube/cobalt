@@ -62,6 +62,17 @@ Vissa funktioner kanske inte är tillgängliga och ändringar i inställningarna
 <translation id="1587223624401073077">Google Chrome använder din kamera.</translation>
 <translation id="1587325591171447154"><ph name="FILE_NAME" /> är skadlig och har blockerats av Chrome.</translation>
 <translation id="1597911401261118146"><ph name="BEGIN_LINK" />Logga in i Chrome<ph name="END_LINK" /> om du vill kontrollera att dina lösenord skyddas från dataintrång och andra säkerhetsproblem.</translation>
+<translation id="1619639070275605589">Den här åtgärden kommer att
+          <ph name="LINE_BREAKS" />
+            • återställa startfliken, sidan Ny flik, sökmotorn och fästa flikar
+            <ph name="LINE_BREAK" />
+            • inaktivera tillägg
+            <ph name="LINE_BREAK" />
+            • radera cookies och annan tillfällig webbplatsdata
+            <ph name="LINE_BREAK" />
+            • återställa genvägar i Chrome.
+            <ph name="LINE_BREAKS" />
+            Bokmärken, historiken och sparade lösenord påverkas inte.</translation>
 <translation id="1619887657840448962">Vi har gjort Chromium säkrare genom att inaktivera följande tillägg som inte anges i <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> och som kan ha lagts till utan att du vet om det.</translation>
 <translation id="1628000112320670027">Få hjälp med Chrome</translation>
 <translation id="1640672724030957280">Hämtar ...</translation>
@@ -140,6 +151,7 @@ Vissa funktioner kanske inte är tillgängliga och ändringar i inställningarna
 <translation id="2472092250898121027">Tillägget innehåller skadlig kod och är osäkert. Ta bort det från Chrome så att det inte längre kan se och ändra data, inklusive dina personliga uppgifter, på webbplatser du besöker.</translation>
 <translation id="2485422356828889247">Avinstallera</translation>
 <translation id="2513154137948333830">Omstart krävs: <ph name="INSTALL_SUCCESS" /></translation>
+<translation id="2523492931736391680">Ditt arbete är säkert i Chrome</translation>
 <translation id="2534365042754120737">Låt Chrome ta bort behörigheter från webbplatser som du inte har besökt nyligen för att skydda din data. Detta stoppar inte aviseringar.</translation>
 <translation id="2556847002339236023">Organisationen avslutar Chrome när det inte har använts på <ph name="TIMEOUT_DURATION" />. Webbinformation har raderats. Detta kan innefatta historik, autofyll och nedladdningar.</translation>
 <translation id="2563121210305478421">Vill du starta om Chrome?</translation>
@@ -244,6 +256,7 @@ Om sidan inte fungerar som förväntat kan du testa att tillåta optimering.</tr
 <translation id="345171907106878721">Lägg till dig själv i Chrome</translation>
 <translation id="3453763134178591239">Villkor för ChromeOS</translation>
 <translation id="3503306920980160878">Du behöver ge Chrome åtkomst till din plats om den ska kunna delas med webbplatsen</translation>
+<translation id="3512495006767217696">Inbyggt i Chrome för att hjälpa dig att skapa, spara och fylla i starka lösenord automatiskt. Lägg till genvägen för enkel åtkomst</translation>
 <translation id="3539955434060988644">Öppna länken i ett inko&amp;gnitofönster i Chrome</translation>
 <translation id="3576528680708590453">Systemadministratören har konfigurerat Google Chrome så att <ph name="TARGET_URL_HOSTNAME" /> öppnas i en annan webbläsare.</translation>
 <translation id="3582972582564653026">Synkronisera och anpassa Chrome på alla enheter du använder</translation>
@@ -306,6 +319,7 @@ Om sidan inte fungerar som förväntat kan du testa att tillåta optimering.</tr
 <translation id="4149882025268051530">Det gick inte att packa upp arkivet med installationsfilen. Ladda ned Google Chrome igen.</translation>
 <translation id="415112847282352845">Logga in i Chrome om du vill få tillgång till dina adresser med mera på alla dina enheter. Adressen sparas i ditt Google-konto när du har loggat in.</translation>
 <translation id="4153934450158521343">Chrome avslutas snart och data raderas</translation>
+<translation id="4159985264221160808">För att skydda ditt arbete i Chrome kan organisationen visa eller hantera viss information</translation>
 <translation id="4173512894976930765">Webbplatser bör fungera som förväntat. Du loggas ut från de flesta webbplatser när du stänger alla fönster i Chrome, med undantag för Google-kontot om du är inloggad i Chrome.</translation>
 <translation id="4175922240926474352">Den här nedladdningen blockerades av Chrome eftersom webbplatsen inte använder en säker anslutning och filen kan ha manipulerats</translation>
 <translation id="4191857738314598978">{0,plural, =1{Starta om Chrome inom en dag}other{Starta om Chrome inom # dagar}}</translation>
@@ -337,6 +351,7 @@ Om sidan inte fungerar som förväntat kan du testa att tillåta optimering.</tr
 <translation id="4493028449971051158">Startfel: Kör installationsprogrammet som administratör.</translation>
 <translation id="4501471624619070934">Installationen misslyckades eftersom åtkomsten är begränsad i det här landet.</translation>
 <translation id="4571503333518166079">Öppna aviseringsinställningarna för Chrome</translation>
+<translation id="4580939929828762295">Skydda dig med Google Lösenordshantering</translation>
 <translation id="4592634244097223647">Fråga Google om den här bilden</translation>
 <translation id="459622048091363950">När du har gett Chrome åtkomst kan webbplatser begära att få åtkomst.</translation>
 <translation id="4598116752460667024">Sök efter en process i listan.</translation>
@@ -525,6 +540,7 @@ Google Chrome kan inte återställa dina inställningar.</translation>
 <translation id="6438015621983209660">Förbättrad säker webbsökning når längre med Chrome på telefonen</translation>
 <translation id="6442774133615368941">Shoppa, översätt och identifiera det du ser med kameran i Chrome-appen för iOS</translation>
 <translation id="6448835208126432197">Använd kortkommandot för att välja en del av skärmen i Gemini i Chrome.</translation>
+<translation id="6473659734176498825">En förenklad bild som visar ingångspunkten för Google Lösenordshantering i Chrome</translation>
 <translation id="6473905796280459355">Öppna sidan Om Chrome</translation>
 <translation id="6481963882741794338">Länka Chrome och andra tjänster från Google för anpassning och andra syften</translation>
 <translation id="648319183876919572">Förbättrad säker webbsökning gör mer för att skydda dig mot farliga webbplatser och nedladdningar</translation>
@@ -696,6 +712,7 @@ Google Chrome kan inte återställa dina inställningar.</translation>
 <translation id="8064965390968184078">1. Klicka på <ph name="BUTTON_LABEL" /> nedan
 2. Klicka på <ph name="BUTTON_2" /> i Windows-inställningarna
 3. Klicka på <ph name="BUTTON_3" /> i Windows-aviseringen för att fästa Chrome i aktivitetsfältet för snabb åtkomst</translation>
+<translation id="8069447462453318634">Välj Fäst i verktygsfältet</translation>
 <translation id="8074398340364918139">Om du vill söka efter en specifik funktion eller ett specifikt tillägg i Chrome skriver du kortkommandot i adressfältet följt av önskad tangent</translation>
 <translation id="8077579734294125741">Andra Chrome-profiler</translation>
 <translation id="8086881907087796310">Installationen misslyckades eftersom datorn inte uppfyller minimikraven för hårdvara.</translation>
@@ -781,6 +798,15 @@ Nya bokmärken kan inte sparas i ditt konto förrän du har raderat några. Om d
 <translation id="8922998289262614701">Ta bort datan för den här appen från Chrome</translation>
 <translation id="8925636929359899517">Vi använder informationen för att förbättra tjänsten. Läs <ph name="BEGIN_LINK1" />integritetspolicyn<ph name="END_LINK1" /> och <ph name="BEGIN_LINK2" />användarvillkoren<ph name="END_LINK2" />.</translation>
 <translation id="8936233353620149764">Aktivera/inaktivera Gemini i Chrome</translation>
+<translation id="8944232836376404813">Den här åtgärden kommer att
+          <ph name="LINE_BREAKS" />
+            • återställa startfliken, sidan Ny flik, sökmotorn och fästa flikar
+            <ph name="LINE_BREAK" />
+            • inaktivera tillägg
+            <ph name="LINE_BREAK" />
+            • radera cookies och annan tillfällig webbplatsdata.
+            <ph name="LINE_BREAKS" />
+            Bokmärken, historiken och sparade lösenord påverkas inte.</translation>
 <translation id="8948460679427074738">Tillägget har ingen publicerad integritetspraxis, till exempel hur det samlar in och använder data. Vi rekommenderar att du tar bort det.</translation>
 <translation id="8958307504142971576">Nu finns fler funktioner tillgängliga i Chrome</translation>
 <translation id="8991530961471831170">Öppna Gemini i Chrome</translation>

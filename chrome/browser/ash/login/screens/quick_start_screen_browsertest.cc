@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "ash/login/resources/grit/ash_login_strings.h"
 #include "ash/public/cpp/login_screen_test_api.h"
 #include "ash/shell.h"
 #include "base/memory/scoped_refptr.h"

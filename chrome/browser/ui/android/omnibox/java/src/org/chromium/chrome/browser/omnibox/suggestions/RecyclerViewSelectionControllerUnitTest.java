@@ -6,10 +6,10 @@ package org.chromium.chrome.browser.omnibox.suggestions;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
@@ -17,6 +17,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+
+import static org.chromium.ui.test.util.MockitoHelper.clearInvocations;
 
 import android.view.View;
 
@@ -389,5 +391,32 @@ public class RecyclerViewSelectionControllerUnitTest {
         verify(mChildView2).setSelected(true);
 
         verifyNoInteractions(mVirtualCallback);
+    }
+
+    @Test
+    public void virtualViews_removeCurrentlySelectedVirtualView() {
+        mSelectionController.addVirtualView(1, mVirtualCallback);
+        mSelectionController.setPosition(1);
+        assertEquals(Integer.valueOf(1), mSelectionController.getPosition());
+        verify(mVirtualCallback).onResult(true);
+
+        clearInvocations(mVirtualCallback);
+        mSelectionController.removeVirtualView(1);
+        assertEquals(Integer.valueOf(0), mSelectionController.getPosition());
+        verify(mVirtualCallback).onResult(false);
+        verify(mChildView1).setSelected(true);
+    }
+
+    @Test
+    public void virtualViews_removeCurrentlySelectedVirtualView_withSentinel() {
+        mSelectionControllerWithSentinel.addVirtualView(1, mVirtualCallback);
+        mSelectionControllerWithSentinel.setPosition(1);
+        assertEquals(Integer.valueOf(1), mSelectionControllerWithSentinel.getPosition());
+        verify(mVirtualCallback).onResult(true);
+
+        clearInvocations(mVirtualCallback);
+        mSelectionControllerWithSentinel.removeVirtualView(1);
+        assertNull(mSelectionControllerWithSentinel.getPosition());
+        verify(mVirtualCallback).onResult(false);
     }
 }

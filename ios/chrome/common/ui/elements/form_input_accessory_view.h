@@ -122,7 +122,6 @@ extern NSString* const
 // - The background color is set to grey.
 // If `closeButtonSymbol` is nil, the close button will use the default text.
 // Otherwise, it will use `closeButtonSymbol` as the image instead.
-// `splitViewEnabled` indicates whether two-bubble feature flag is enabled.
 // `isTabletFormFactor` modifies the appearance of the manual fill button.
 - (void)setUpWithLeadingView:(UIView*)leadingView
             navigationDelegate:(id<FormInputAccessoryViewDelegate>)delegate
@@ -131,7 +130,6 @@ extern NSString* const
     creditCardManualFillSymbol:(UIImage*)creditCardManualFillSymbol
        addressManualFillSymbol:(UIImage*)addressManualFillSymbol
              closeButtonSymbol:(UIImage*)closeButtonSymbol
-              splitViewEnabled:(BOOL)splitViewEnabled
             isTabletFormFactor:(BOOL)isTabletFormFactor;
 
 // Sets the height of the omnibox typing shield. Set a height of 0 to hide the

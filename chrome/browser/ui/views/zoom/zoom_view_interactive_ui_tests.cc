@@ -36,12 +36,10 @@ namespace {
 class ZoomViewInteractiveUiTest : public InteractiveBrowserTest {
  public:
   ZoomViewInteractiveUiTest() {
-    // TODO(crbug.com/441102004): Update ShowAndHideZoomBubbleByClickWithMouse
-    //   to support kAiModeOmniboxEntryPoint.
     scoped_feature_list_.InitWithFeaturesAndParameters(
         {{features::kPageActionsMigration,
           {{features::kPageActionsMigrationZoom.name, "true"}}}},
-        {omnibox::kAiModeOmniboxEntryPoint});
+        {});
   }
 
   ZoomViewInteractiveUiTest(const ZoomViewInteractiveUiTest&) = delete;

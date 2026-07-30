@@ -223,7 +223,8 @@ class BridgedNativeWidgetHostDummy
   void ValidateUserInterfaceItem(
       int32_t command,
       ValidateUserInterfaceItemCallback callback) override {
-    remote_cocoa::mojom::ValidateUserInterfaceItemResultPtr result;
+    remote_cocoa::mojom::ValidateUserInterfaceItemResultPtr result =
+        remote_cocoa::mojom::ValidateUserInterfaceItemResult::New();
     std::move(callback).Run(std::move(result));
   }
   void WillExecuteCommand(int32_t command,
@@ -555,7 +556,9 @@ void NativeWidgetMacNSWindowHost::CloseWindowNow() {
   }
 
   // If it is out-of-process, then simulate the calls that would have been
-  // during window closure.
+  // received during window closure. Because the window closure is initiated
+  // synchronously from the browser process, we immediately run the window
+  // tear-down notifications.
   if (is_out_of_process) {
     OnWindowWillClose();
     while (!children_.empty()) {
@@ -1077,8 +1080,10 @@ void NativeWidgetMacNSWindowHost::OnApplicationHostDestroying(
   application_host_->RemoveObserver(this);
   application_host_ = nullptr;
 
-  // Because the process hosting this window has ended, close the window by
-  // sending the window close messages that the bridge would have sent.
+  // Because the process hosting this window has ended/disconnected, we will
+  // never receive the asynchronous window close message from the helper
+  // process. We must immediately and synchronously run the window tear-down
+  // notifications.
   OnWindowWillClose();
   // Explicitly propagate this message to all children (they are also observers,
   // but may not be destroyed before |this| is destroyed, which would violate
@@ -1508,6 +1513,11 @@ void NativeWidgetMacNSWindowHost::OnWindowDisplayChanged(
 }
 
 void NativeWidgetMacNSWindowHost::OnWindowWillClose() {
+  if (window_will_close_called_) {
+    return;
+  }
+  window_will_close_called_ = true;
+
   Widget* widget = GetWidget();
   if (widget && widget->widget_delegate() &&
       widget->widget_delegate()->AsDialogDelegate()) {

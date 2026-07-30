@@ -24,8 +24,8 @@
 #include "base/types/optional_ref.h"
 #include "chrome/browser/web_applications/isolated_web_apps/key_distribution/features.h"
 #include "chrome/browser/web_applications/isolated_web_apps/key_distribution/iwa_key_distribution_histograms.h"
-#include "chrome/browser/web_applications/isolated_web_apps/key_distribution/proto/key_distribution.pb.h"
-#include "chrome/browser/web_applications/isolated_web_apps/runtime_data/iwa_entitlements.h"
+#include "components/webapps/isolated_web_apps/key_distribution/proto/key_distribution.pb.h"
+#include "components/webapps/isolated_web_apps/public/iwa_entitlements.h"
 #include "components/webapps/isolated_web_apps/public/iwa_runtime_data_provider.h"
 
 namespace web_app {

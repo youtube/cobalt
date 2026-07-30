@@ -23,6 +23,7 @@ source_set("tasks") {
     "//ios/chrome/app/strings",
     "//ios/chrome/browser/level_up/model:task_info",
     "//ios/chrome/browser/ntp/shared/metrics:constants",
+    "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/ui:buildflags",
     "//ios/chrome/browser/shared/ui/symbols",
     "//ui/base",

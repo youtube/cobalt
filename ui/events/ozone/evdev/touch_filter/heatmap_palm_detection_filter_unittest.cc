@@ -58,7 +58,7 @@ TEST_F(HeatmapPalmDetectionFilterStrokeTest, SampleTest) {
 
   // Add first sample at time = T
   touch_.tracking_id = tracking_id_;
-  base::TimeTicks down_time = base::TimeTicks::UnixEpoch() + base::Seconds(30);
+  base::TimeTicks down_time = base::TimeTicks() + base::Seconds(30);
   HeatmapPalmFilterSample sample1 = {touch_.tracking_id, down_time};
   stroke.ProcessSample(sample1);
   ASSERT_THAT(stroke.samples(), ElementsAre(sample1));
@@ -149,8 +149,7 @@ TEST_F(HeatmapPalmDetectionFilterTest, CallFilterTest) {
   touch_[0].tracking_id = 500;
   touch_[0].slot = 0;
 
-  base::TimeTicks touch_time =
-      base::TimeTicks::UnixEpoch() + base::Milliseconds(10.0);
+  base::TimeTicks touch_time = base::TimeTicks() + base::Milliseconds(10.0);
   palm_detection_filter_->Filter(touch_, touch_time, &actual_held,
                                  &actual_cancelled);
   EXPECT_TRUE(actual_held.none());

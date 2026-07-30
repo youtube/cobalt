@@ -7,7 +7,6 @@
 #include "base/check.h"
 #include "base/notreached.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/views/media_preview/media_preview_metrics.h"
 #include "chrome/browser/ui/views/media_preview/scroll_media_preview.h"
 
@@ -33,7 +32,7 @@ MediaCoordinator::ViewType ComputePreviewType(
 }  // namespace
 
 PermissionPromptPreviewsCoordinator::PermissionPromptPreviewsCoordinator(
-    Browser* browser,
+    Profile* profile,
     views::View* parent_view,
     size_t index,
     std::vector<std::string> requested_audio_capture_device_ids,
@@ -41,8 +40,7 @@ PermissionPromptPreviewsCoordinator::PermissionPromptPreviewsCoordinator(
     : view_type_(ComputePreviewType(requested_audio_capture_device_ids,
                                     requested_video_capture_device_ids)) {
   CHECK(parent_view);
-  CHECK(browser);
-  CHECK(browser->profile());
+  CHECK(profile);
 
   auto* container_view =
       scroll_media_preview::CreateScrollViewAndGetContents(*parent_view, index);
@@ -56,11 +54,10 @@ PermissionPromptPreviewsCoordinator::PermissionPromptPreviewsCoordinator(
       media_coordinator::GetPreviewTypeFromMediaCoordinatorViewType(
           view_type_));
 
-  media_preview_coordinator_.emplace(view_type_, *container_view,
-                                     /*is_subsection=*/false, eligible_devices,
-                                     browser->profile()->GetWeakPtr(),
-                                     /*allow_device_selection=*/true,
-                                     metrics_context);
+  media_preview_coordinator_.emplace(
+      view_type_, *container_view,
+      /*is_subsection=*/false, eligible_devices, profile->GetWeakPtr(),
+      /*allow_device_selection=*/true, metrics_context);
 
   start_time_ = base::TimeTicks::Now();
 }

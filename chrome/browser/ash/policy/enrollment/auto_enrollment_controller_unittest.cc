@@ -23,6 +23,7 @@
 #include "chrome/browser/ash/policy/enrollment/auto_enrollment_type_checker.h"
 #include "chrome/browser/ash/policy/enrollment/enrollment_state_fetcher.h"
 #include "chrome/browser/ash/policy/server_backed_state/server_backed_state_keys_broker.h"
+#include "chrome/test/base/testing_browser_process.h"
 #include "chromeos/ash/components/dbus/device_management/fake_install_attributes_client.h"
 #include "chromeos/ash/components/dbus/session_manager/fake_session_manager_client.h"
 #include "chromeos/ash/components/install_attributes/stub_install_attributes.h"
@@ -171,14 +172,14 @@ class AutoEnrollmentControllerTest : public testing::Test {
  protected:
   AutoEnrollmentControllerForTesting CreateController() {
     return AutoEnrollmentControllerForTesting(
+        TestingBrowserProcess::GetGlobal()->local_state(),
+        test_url_loader_factory_.GetSafeWeakWrapper(),
         &mock_device_settings_service_, &fake_dm_service_,
         &mock_state_keys_broker_, testing_network_.network_state_handler(),
         AutoEnrollmentController::RlweClientFactory(),
         // The factory will stay alive until the test is destroyed.
         base::BindRepeating(&MockEnrollmentStateFetcherFactory::Create,
-                            base::Unretained(&state_fetcher_factory_)),
-        base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
-            &test_url_loader_factory_));
+                            base::Unretained(&state_fetcher_factory_)));
   }
 
   void RunAndWaitForStateUpdate(AutoEnrollmentController& controller,

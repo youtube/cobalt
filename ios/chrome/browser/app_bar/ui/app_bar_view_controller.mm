@@ -25,6 +25,7 @@
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/buildflags.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
+#import "ios/chrome/browser/shared/ui/util/layout_constants.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
@@ -48,8 +49,8 @@ constexpr CGFloat kButtonShadowRadius = 3;
 constexpr CGFloat kButtonShadowOpacity = 0.2;
 // The shadow offset for the buttons.
 constexpr CGFloat kButtonShadowOffset = 1;
-// The duration of the animation to update the TabGrid button.
-constexpr CGFloat kTabGridAnimationDuration = 0.25;
+// The duration of animations in the App Bar.
+constexpr CGFloat kAppBarAnimationDuration = 0.25;
 // Spacing between tab grid button and the tab grid spotlight view anchor.
 constexpr CGFloat kSpotlightViewHorizontalInset = 12;
 constexpr CGFloat kSpotlightViewVerticalInset = 2;
@@ -59,6 +60,8 @@ constexpr CGFloat kTabGroupLabelOffset = 3;
 // The size of the assistant button highlight.
 constexpr CGFloat kAssistantHighlightWidth = 44;
 constexpr CGFloat kAssistantHighlightHeight = 30;
+// The animation configuration for the assistant button highlight.
+constexpr CGFloat kAssistantHighlightDuration = 0.2;
 
 // The spacing inside the stack view.
 constexpr CGFloat kStackViewSpacing = 4;
@@ -117,6 +120,11 @@ UIFont* ButtonFontSize(UITraitCollection* traitCollection) {
 CGFloat ButtonHighlightAlpha(UIButton* button) {
   BOOL useEnabledColor = button.enabled && !button.isHighlighted;
   return useEnabledColor ? 1.0 : 0.5;
+}
+
+// Returns the background color of the assistant button highlight.
+UIColor* AssistantHighlightBackgroundColor() {
+  return [UIColor colorWithWhite:1.0 alpha:0.15];
 }
 
 }  // namespace
@@ -221,6 +229,9 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
   // block.
   [self setButtonsTitleAlpha:_fullscreenProgress animationDuration:0];
   [self updateTabSwitcherGuide];
+  if (appBarPosition != AppBarPosition::kBottom) {
+    _backgroundView.cornerRadius = kAppBarCornerRadius;
+  }
 }
 
 #pragma mark - Accessors & Mutators
@@ -288,6 +299,14 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
   [self setNeedsUpdateConfiguration:_tabGridButton animationDuration:0];
   [_stackView setNeedsLayout];
   [_stackView layoutIfNeeded];
+}
+
+- (void)updateCornerRadius:(CGFloat)cornerRadius {
+  if (self.layoutState.appBarPosition != AppBarPosition::kBottom) {
+    _backgroundView.cornerRadius = kAppBarCornerRadius;
+    return;
+  }
+  _backgroundView.cornerRadius = cornerRadius;
 }
 
 - (void)toggleSpotlightView:(BOOL)shouldShow {
@@ -398,8 +417,10 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
     [_backgroundView.trailingAnchor
         constraintEqualToAnchor:view.trailingAnchor],
     [_backgroundView.bottomAnchor constraintEqualToAnchor:view.bottomAnchor],
+    // Ensures the background view has enough height to animate the corner
+    // radius changes.
     [_backgroundView.topAnchor constraintEqualToAnchor:view.topAnchor
-                                              constant:-kAppBarCornerRadius],
+                                              constant:-kAppBarCornerRadiusMax],
     _stackViewLeadingConstraint,
     [_stackView.topAnchor constraintEqualToAnchor:view.topAnchor],
     _stackViewTrailingConstraint,
@@ -486,13 +507,26 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
                         enabled:(BOOL)enabled
                          avatar:(UIImage*)avatar
                        signedIn:(BOOL)signedIn {
+  BOOL imageChanged =
+      (_assistantButtonState != state || _assistantButtonAvatar != avatar);
+
   _assistantButtonState = state;
   _assistantButtonHighlighted = highlighted;
   _assistantButtonEnabled = enabled;
   _assistantButtonAvatar = avatar;
   _signedIn = signedIn;
 
-  [self updateAssistantButton];
+  if (imageChanged && self.view.window) {
+    [UIView transitionWithView:_assistantButton
+                      duration:kAppBarAnimationDuration
+                       options:UIViewAnimationOptionTransitionCrossDissolve
+                    animations:^{
+                      [self updateAssistantButton];
+                    }
+                    completion:nil];
+  } else {
+    [self updateAssistantButton];
+  }
 }
 
 - (void)setTabGroupsPageVisible:(BOOL)tabGroupsPageVisible {
@@ -548,6 +582,13 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
 }
 
 #pragma mark - Private
+
+// Clears the currently previewed button and updates its configuration.
+- (void)clearPreviewedButtonForInteraction:
+    (UIContextMenuInteraction*)interaction {
+  _previewedButton = nil;
+  [interaction.view setNeedsUpdateConfiguration];
+}
 
 // Conditionally registers the Tab Switcher layout guide.
 // It should only be registered to the App Bar if the App Bar is visible.
@@ -714,25 +755,7 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
   configuration.title = title;
   configuration.image = image ? image : CustomAppBarSymbol(kCameraLensSymbol);
 
-  // Set up custom background view if not already done
-  if (_assistantButtonHighlighted && !configuration.background.customView) {
-    UIView* customBackgroundView = [[UIView alloc] init];
-    customBackgroundView.backgroundColor = [UIColor clearColor];
-
-    _assistantHighlightView = [[UIView alloc] init];
-    _assistantHighlightView.translatesAutoresizingMaskIntoConstraints = NO;
-    _assistantHighlightView.backgroundColor = [UIColor colorWithWhite:1.0
-                                                                alpha:0.15];
-    _assistantHighlightView.layer.cornerRadius =
-        kAssistantHighlightHeight / 2.0;
-    _assistantHighlightView.layer.masksToBounds = YES;
-    _assistantHighlightView.hidden = YES;
-
-    [customBackgroundView addSubview:_assistantHighlightView];
-    configuration.background.backgroundColor = [UIColor clearColor];
-    configuration.background.customView = customBackgroundView;
-  }
-  _assistantHighlightView.hidden = !_assistantButtonHighlighted;
+  [self animateAssistantButtonHighlight:_assistantButtonHighlighted];
 
   if (_assistantButtonHighlighted) {
     configuration.baseForegroundColor = [UIColor whiteColor];
@@ -764,6 +787,9 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
 
   _assistantButton.enabled =
       _buttonsEnabled && _assistantButtonEnabled && !_incognito;
+  // Force a configuration update to refresh accessibility traits.
+  [_assistantButton setNeedsUpdateConfiguration];
+  [_assistantButton layoutIfNeeded];
 }
 
 // Returns a new "Assistant" button.
@@ -776,6 +802,7 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
   button.accessibilityIdentifier = kAppBarAssistantButtonId;
 
   _assistantButton = button;
+
   [self updateAssistantButton];
 
   [button
@@ -827,10 +854,58 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
                                   bottomInset, kButtonHorizontalPadding);
 }
 
+// Updates the accessibility traits for the button based on its state.
+- (void)updateAccessibilityTraitsForButton:(UIButton*)button {
+  UIAccessibilityTraits accessibilityTraits = UIAccessibilityTraitButton;
+  if (!button.enabled) {
+    accessibilityTraits |= UIAccessibilityTraitNotEnabled;
+  }
+
+  BOOL selected = NO;
+  if (button == _assistantButton) {
+    selected = _assistantButtonHighlighted;
+  } else if (button == _tabGridButton) {
+    selected = _isTabGridVisible;
+  }
+
+  if (selected) {
+    accessibilityTraits |= UIAccessibilityTraitSelected;
+  }
+
+  button.accessibilityTraits = accessibilityTraits;
+}
+
+// Animates the visibility of the assistant button highlight.
+- (void)animateAssistantButtonHighlight:(BOOL)shouldShow {
+  if (shouldShow && !_assistantHighlightView) {
+    _assistantHighlightView = [[UIView alloc] init];
+    _assistantHighlightView.translatesAutoresizingMaskIntoConstraints = NO;
+    _assistantHighlightView.backgroundColor =
+        AssistantHighlightBackgroundColor();
+    _assistantHighlightView.layer.cornerRadius =
+        kAssistantHighlightHeight / 2.0;
+    _assistantHighlightView.layer.masksToBounds = YES;
+    _assistantHighlightView.alpha = 0.0;
+    [_assistantButton insertSubview:_assistantHighlightView atIndex:0];
+  }
+
+  CGFloat targetAlpha = shouldShow ? 1.0 : 0.0;
+  if (_assistantHighlightView.alpha == targetAlpha) {
+    return;
+  }
+  UIView* highlightView = _assistantHighlightView;
+  [UIView animateWithDuration:kAssistantHighlightDuration
+                   animations:^{
+                     highlightView.alpha = targetAlpha;
+                   }];
+}
+
 // Updates the configuration for standard buttons.
 - (void)updateStandardButtonConfiguration:(UIButton*)button {
   UIButtonConfiguration* config = button.configuration;
   CGFloat highlightAlpha = ButtonHighlightAlpha(button);
+
+  [self updateAccessibilityTraitsForButton:button];
 
   BOOL isAssistantButtonHighlighted =
       (button == _assistantButton && _assistantButtonHighlighted);
@@ -868,6 +943,8 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
   config.imageColorTransformer = ^UIColor*(UIColor* color) {
     return UIColor.clearColor;
   };
+
+  [self updateAccessibilityTraitsForButton:button];
 
   CGFloat highlightAlpha = ButtonHighlightAlpha(button);
 
@@ -992,7 +1069,6 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
       [UIButtonConfiguration plainButtonConfiguration];
   UIButton* button = [UIButton buttonWithConfiguration:configuration
                                          primaryAction:nil];
-  button.accessibilityTraits = UIAccessibilityTraitButton;
   configuration = button.configuration;
   configuration.imagePlacement = NSDirectionalRectEdgeTop;
   configuration.imagePadding = kButtonImagePadding;
@@ -1098,11 +1174,7 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
   _tabGridButton.accessibilityLabel = l10n_util::GetNSString(
       shouldShowTabGroupSymbol ? IDS_IOS_TOOLBAR_SHOW_TAB_GROUP
                                : IDS_IOS_APP_BAR_ALL_TABS);
-  if (_isTabGridVisible) {
-    _tabGridButton.accessibilityTraits |= UIAccessibilityTraitSelected;
-  } else {
-    _tabGridButton.accessibilityTraits &= ~UIAccessibilityTraitSelected;
-  }
+  [self setNeedsUpdateConfiguration:_tabGridButton animationDuration:0];
   if (shouldShowTabGroupSymbol) {
     [NSLayoutConstraint
         deactivateConstraints:_tabGridButtonNormalStateConstraints];
@@ -1118,7 +1190,7 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
   UIColor* labelColor =
       _isTabGridVisible ? UIColor.blackColor : ButtonsForegroundColor();
   [UIView transitionWithView:label
-                    duration:kTabGridAnimationDuration
+                    duration:kAppBarAnimationDuration
                      options:UIViewAnimationOptionTransitionCrossDissolve
                   animations:^{
                     label.textColor = labelColor;
@@ -1262,11 +1334,7 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
   if (interaction.view == _previewedButton) {
     __weak __typeof(self) weakSelf = self;
     [animator addAnimations:^{
-      __strong __typeof(weakSelf) strongSelf = weakSelf;
-      if (strongSelf) {
-        strongSelf->_previewedButton = nil;
-        [interaction.view setNeedsUpdateConfiguration];
-      }
+      [weakSelf clearPreviewedButtonForInteraction:interaction];
     }];
   }
 }

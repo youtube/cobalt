@@ -210,8 +210,8 @@ void SecurityInterstitialTabHelper::SetBlockingPage(
 
 SecurityInterstitialPage*
 SecurityInterstitialTabHelper::GetBlockingPageForCurrentTargetFrame() {
-  auto* render_frame_host = receivers_.GetCurrentTargetFrame();
-  content::FrameTreeNodeId id = render_frame_host->GetFrameTreeNodeId();
+  content::RenderFrameHost& render_frame_host = receivers_.CurrentTargetFrame();
+  content::FrameTreeNodeId id = render_frame_host.GetFrameTreeNodeId();
   if (!IsInterstitialCommittedForFrame(id)) {
     // TODO(crbug.com/376688788): Remove this condition. This method should not
     // be invoked if there is no blocking page for the current target frame.

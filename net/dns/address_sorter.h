@@ -11,6 +11,7 @@
 #include "base/functional/callback.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_export.h"
+#include "net/base/network_handle.h"
 
 namespace net {
 
@@ -32,10 +33,15 @@ class NET_EXPORT AddressSorter {
   virtual ~AddressSorter() = default;
 
   // Sorts `endpoints`, which must include at least one IPv6 address.
+  // `target_network` is necessary to correctly sort in multi-network scenarios:
+  // sorting can require connecting an UDP socket, which requires knowledge
+  // about the target network to be performed correctly.
   // Calls `callback` upon completion. Could complete synchronously. Could
   // complete after this AddressSorter is destroyed.
+
   virtual void Sort(const std::vector<IPEndPoint>& endpoints,
                     const NetworkAnonymizationKey& anonymization_key,
+                    handles::NetworkHandle target_network,
                     CallbackType callback) const = 0;
 
   // Creates platform-dependent AddressSorter.

@@ -28,6 +28,8 @@ inline constexpr char kManagedDefaultAdsSetting[] =
     "profile.managed_default_content_settings.ads";
 inline constexpr char kManagedDefaultClipboardSetting[] =
     "profile.managed_default_content_settings.clipboard";
+inline constexpr char kManagedDefaultAutomaticDownloadsSetting[] =
+    "profile.managed_default_content_settings.automatic_downloads";
 inline constexpr char kManagedDefaultCookiesSetting[] =
     "profile.managed_default_content_settings.cookies";
 inline constexpr char kManagedDefaultGeolocationSetting[] =
@@ -90,6 +92,10 @@ inline constexpr char kManagedDefaultDeviceAttributesSetting[] =
 
 // Preferences that are exclusively used to store managed content settings
 // patterns.
+inline constexpr char kManagedAutomaticDownloadsAllowedForUrls[] =
+    "profile.managed_automatic_downloads_allowed_for_urls";
+inline constexpr char kManagedAutomaticDownloadsBlockedForUrls[] =
+    "profile.managed_automatic_downloads_blocked_for_urls";
 inline constexpr char kManagedAutomaticFullscreenAllowedForUrls[] =
     "profile.managed_automatic_fullscreen_allowed_for_urls";
 inline constexpr char kManagedAutomaticFullscreenBlockedForUrls[] =

@@ -117,6 +117,7 @@
 - (void)stop {
   _sharedViewController = nil;
   _viewController = nil;
+  [_mediator disconnect];
   _mediator = nil;
 }
 

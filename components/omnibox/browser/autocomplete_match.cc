@@ -271,7 +271,6 @@ AutocompleteMatch::AutocompleteMatch(const AutocompleteMatch& match)
       entity_id(match.entity_id),
       website_uri(match.website_uri),
       document_type(match.document_type),
-      starter_pack_id(match.starter_pack_id),
       enterprise_search_aggregator_type(
           match.enterprise_search_aggregator_type),
       tail_suggest_common_prefix(match.tail_suggest_common_prefix),
@@ -394,7 +393,6 @@ AutocompleteMatch& AutocompleteMatch::operator=(
   history_embeddings_answer_header_loading =
       std::move(match.history_embeddings_answer_header_loading);
   feedback_type = std::move(match.feedback_type);
-  starter_pack_id = std::move(match.starter_pack_id);
   matching_tab_group_uuid = std::move(match.matching_tab_group_uuid);
 #if BUILDFLAG(IS_ANDROID)
   android_tab_id = std::move(match.android_tab_id);
@@ -480,7 +478,6 @@ AutocompleteMatch& AutocompleteMatch::operator=(
   history_embeddings_answer_header_loading =
       match.history_embeddings_answer_header_loading;
   feedback_type = match.feedback_type;
-  starter_pack_id = match.starter_pack_id;
   matching_tab_group_uuid = match.matching_tab_group_uuid;
 
 #if BUILDFLAG(IS_ANDROID)
@@ -573,7 +570,7 @@ const gfx::VectorIcon& AutocompleteMatch::GetVectorIcon(
   if (is_bookmark && type != Type::HISTORY_EMBEDDINGS_ANSWER &&
       type != Type::STARTER_PACK) {
     return features::IsRoundedIconsEnabled()
-               ? omnibox::kStarIcon
+               ? omnibox::kStarCustomIcon
                : omnibox::kBookmarkChromeRefreshOldIcon;
   }
 
@@ -728,7 +725,7 @@ const gfx::VectorIcon& AutocompleteMatch::GetVectorIcon(
         switch (turl->GetBuiltinEngineType()) {
           case KEYWORD_MODE_STARTER_PACK_BOOKMARKS:
             return features::IsRoundedIconsEnabled()
-                       ? omnibox::kStarFilledIcon
+                       ? omnibox::kStarFilledCustomIcon
                        : omnibox::kStarActiveChromeRefreshOldIcon;
           case KEYWORD_MODE_STARTER_PACK_HISTORY:
             return features::IsRoundedIconsEnabled()
@@ -1371,11 +1368,8 @@ bool AutocompleteMatch::HasInstantKeyword(
 
 bool AutocompleteMatch::ShouldHideBasedOnStarterPack(
     const TemplateURLService* template_url_service) const {
-  const TemplateURL* turl =
-      template_url_service->GetTemplateURLForKeyword(keyword);
-  return from_keyword && turl &&
-         turl->starter_pack_id() ==
-             template_url_starter_pack_data::StarterPackId::kGemini;
+  return StarterPackId(template_url_service) ==
+         template_url_starter_pack_data::StarterPackId::kGemini;
 }
 
 void AutocompleteMatch::GetKeywordUiState(
@@ -1457,6 +1451,17 @@ std::u16string AutocompleteMatch::GetKeywordPlaceholder(
 TemplateURL* AutocompleteMatch::GetTemplateURL(
     TemplateURLService* template_url_service) const {
   return GetTemplateURLWithKeyword(template_url_service, keyword, "");
+}
+
+template_url_starter_pack_data::StarterPackId AutocompleteMatch::StarterPackId(
+    const TemplateURLService* template_url_service) const {
+  if (!from_keyword) {
+    return template_url_starter_pack_data::StarterPackId::kNone;
+  }
+  const TemplateURL* turl =
+      GetTemplateURLWithKeyword(template_url_service, keyword, "");
+  return turl ? turl->starter_pack_id()
+              : template_url_starter_pack_data::StarterPackId::kNone;
 }
 
 GURL AutocompleteMatch::ImageUrl() const {

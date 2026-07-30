@@ -32,6 +32,7 @@
 #include "components/sync/base/deletion_origin.h"
 #include "components/sync/model/data_type_local_change_processor.h"
 #include "components/sync/model/entity_change.h"
+#include "components/sync/model/in_memory_metadata_change_list.h"
 #include "components/sync/model/metadata_batch.h"
 #include "components/sync/model/metadata_change_list.h"
 #include "components/sync/model/mutable_data_batch.h"
@@ -323,6 +324,14 @@ void WifiConfigurationBridge::ApplyDisableSyncChanges(
   weak_ptr_factory_.InvalidateWeakPtrs();
 }
 
+std::unique_ptr<syncer::MetadataChangeList>
+WifiConfigurationBridge::CreateMetadataChangeList() {
+  // MetadataChangeList can be destroyed without applying changes due to using
+  // PostTask() to propagate changes, e.g. on browser shutdown.
+  return std::make_unique<syncer::InMemoryMetadataChangeList>(
+      /*ignore_changes_on_destruction=*/true);
+}
+
 void WifiConfigurationBridge::RecordNetworkMetrics() {
   metrics_recorder_->RecordTotalCount(entries_.size());
   // If zero networks are synced log the reason.
@@ -431,8 +440,9 @@ void WifiConfigurationBridge::OnReadAllMetadata(
 
 void WifiConfigurationBridge::OnCommit(
     const std::optional<syncer::ModelError>& error) {
-  if (error)
+  if (error) {
     change_processor()->ReportError(*error);
+  }
 }
 
 void WifiConfigurationBridge::Commit(
@@ -444,8 +454,9 @@ void WifiConfigurationBridge::Commit(
 
 std::vector<NetworkIdentifier> WifiConfigurationBridge::GetAllIdsForTesting() {
   std::vector<NetworkIdentifier> ids;
-  for (const auto& [storage_key, specifics] : entries_)
+  for (const auto& [storage_key, specifics] : entries_) {
     ids.push_back(NetworkIdentifier::FromProto(specifics));
+  }
 
   return ids;
 }
@@ -474,8 +485,9 @@ void WifiConfigurationBridge::OnFirstConnectionToNetwork(
 void WifiConfigurationBridge::OnNetworkUpdate(
     const std::string& guid,
     const base::DictValue* set_properties) {
-  if (!set_properties)
+  if (!set_properties) {
     return;
+  }
 
   if (synced_network_updater_->IsUpdateInProgress(guid) ||
       network_metadata_store_->GetIsConfiguredBySync(guid)) {

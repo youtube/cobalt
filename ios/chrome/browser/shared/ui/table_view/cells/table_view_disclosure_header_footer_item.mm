@@ -6,7 +6,6 @@
 
 #import "base/apple/foundation_util.h"
 #import "base/numerics/math_constants.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/browser/shared/ui/util/rtl_geometry.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
@@ -29,9 +28,8 @@ constexpr float kRotationNinetyCW = (90 / 180.0) * M_PI;
   return self;
 }
 
-- (void)configureHeaderFooterView:(UITableViewHeaderFooterView*)headerFooter
-                       withStyler:(ChromeTableViewStyler*)styler {
-  [super configureHeaderFooterView:headerFooter withStyler:styler];
+- (void)configureHeaderFooterView:(UITableViewHeaderFooterView*)headerFooter {
+  [super configureHeaderFooterView:headerFooter];
   TableViewDisclosureHeaderFooterView* header =
       base::apple::ObjCCastStrict<TableViewDisclosureHeaderFooterView>(
           headerFooter);

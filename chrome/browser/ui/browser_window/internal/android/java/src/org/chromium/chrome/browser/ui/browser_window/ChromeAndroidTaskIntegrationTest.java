@@ -1072,7 +1072,6 @@ public class ChromeAndroidTaskIntegrationTest {
                         () ->
                                 (ChromeAndroidTaskTrackerImpl)
                                         ChromeAndroidTaskTrackerFactory.getInstance());
-        assertNotNull(taskTracker);
         taskTracker.pausePendingTaskActivityCreationForTesting();
 
         // Act : Request SHOW_INACTIVE on pending task.
@@ -1136,9 +1135,8 @@ public class ChromeAndroidTaskIntegrationTest {
                 ThreadUtils.runOnUiThreadBlocking(
                         () -> {
                             var taskTracker =
-                                    assumeNonNull(
-                                            (ChromeAndroidTaskTrackerImpl)
-                                                    ChromeAndroidTaskTrackerFactory.getInstance());
+                                    (ChromeAndroidTaskTrackerImpl)
+                                            ChromeAndroidTaskTrackerFactory.getInstance();
                             taskTracker.pausePendingTaskActivityCreationForTesting();
                             return taskTracker;
                         });
@@ -1195,9 +1193,8 @@ public class ChromeAndroidTaskIntegrationTest {
                 ThreadUtils.runOnUiThreadBlocking(
                         () -> {
                             var taskTracker =
-                                    assumeNonNull(
-                                            (ChromeAndroidTaskTrackerImpl)
-                                                    ChromeAndroidTaskTrackerFactory.getInstance());
+                                    (ChromeAndroidTaskTrackerImpl)
+                                            ChromeAndroidTaskTrackerFactory.getInstance();
                             taskTracker.pausePendingTaskActivityCreationForTesting();
                             return taskTracker;
                         });
@@ -1303,8 +1300,7 @@ public class ChromeAndroidTaskIntegrationTest {
     private @Nullable ChromeAndroidTaskImpl getChromeAndroidTask(int taskId) {
         return ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    var chromeAndroidTaskTracker =
-                            assumeNonNull(ChromeAndroidTaskTrackerFactory.getInstance());
+                    var chromeAndroidTaskTracker = ChromeAndroidTaskTrackerFactory.getInstance();
                     return (ChromeAndroidTaskImpl) chromeAndroidTaskTracker.get(taskId);
                 });
     }

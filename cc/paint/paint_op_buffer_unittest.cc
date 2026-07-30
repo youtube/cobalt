@@ -1421,7 +1421,6 @@ class DeserializerIterator {
       return;
     }
     deserialized_op_ = PaintOp::Deserialize(remaining_, paint_op_buffer_data_,
-                                            std::size(paint_op_buffer_data_),
                                             &last_bytes_read_, options_);
   }
 
@@ -1429,8 +1428,8 @@ class DeserializerIterator {
   base::span<const uint8_t> remaining_;
   size_t last_bytes_read_ = 0u;
   PaintOp::DeserializeOptions options_;
-  alignas(PaintOpBuffer::kPaintOpAlign) char paint_op_buffer_data_
-      [kLargestPaintOpAlignedSize];
+  alignas(PaintOpBuffer::kPaintOpAlign) uint8_t
+      paint_op_buffer_data_[kLargestPaintOpAlignedSize];
   raw_ptr<PaintOp> deserialized_op_ = nullptr;
 };
 
@@ -2222,10 +2221,10 @@ TEST_P(PaintOpSerializationTest, DeserializationFailures) {
       PaintOpWriter::WriteHeaderForTesting(output_.subspan(current_offset),
                                            serialized_type, read_size);
       size_t bytes_read = 0;
-      PaintOp* written = PaintOp::Deserialize(
-          full_span.subspan(current_offset, read_size),
-          deserialize_buffer.data(), kOutputOpSize, &bytes_read,
-          options_provider->deserialize_options());
+      PaintOp* written =
+          PaintOp::Deserialize(full_span.subspan(current_offset, read_size),
+                               deserialize_buffer.as_span(), &bytes_read,
+                               options_provider->deserialize_options());
 
       // Deserialize buffers with valid ops until the last op. This verifies
       // that the complete buffer is invalidated on encountering the first
@@ -2292,16 +2291,16 @@ TEST_P(PaintOpSerializationTest, UsesOverridenFlags) {
   ResizeOutputBuffer();
 
   TestOptionsProvider options_provider;
-  alignas(PaintOpBuffer::kPaintOpAlign) char
-      deserialized[kLargestPaintOpAlignedSize];
+  alignas(PaintOpBuffer::kPaintOpAlign)
+      uint8_t deserialized[kLargestPaintOpAlignedSize];
   for (const PaintOp& op : buffer_) {
     size_t bytes_written =
         op.Serialize(output_, options_provider.serialize_options(), nullptr,
                      SkM44(), SkM44());
     size_t bytes_read = 0u;
     PaintOp* written = PaintOp::Deserialize(
-        output_.first(bytes_written), deserialized, std::size(deserialized),
-        &bytes_read, options_provider.deserialize_options());
+        output_.first(bytes_written), deserialized, &bytes_read,
+        options_provider.deserialize_options());
     ASSERT_TRUE(written) << PaintOpTypeToString(GetParamType());
     EXPECT_TRUE(op.EqualsForTesting(*written))
         << "\n    Written:  " << PaintOpHelper::ToString(*written)
@@ -2315,7 +2314,7 @@ TEST_P(PaintOpSerializationTest, UsesOverridenFlags) {
     bytes_written = op.Serialize(output_, options_provider.serialize_options(),
                                  &override_flags, SkM44(), SkM44());
     written = PaintOp::Deserialize(output_.first(bytes_written), deserialized,
-                                   std::size(deserialized), &bytes_read,
+                                   &bytes_read,
                                    options_provider.deserialize_options());
     ASSERT_TRUE(written);
     ASSERT_TRUE(written->IsPaintOpWithFlags());
@@ -2524,7 +2523,8 @@ TEST(PaintOpBufferSerializationTest, AlphaFoldingDuringSerialization) {
 // Test generic PaintOp deserializing failure cases.
 TEST(PaintOpBufferTest, PaintOpDeserialize) {
   auto input = AllocateSerializedBuffer(kSerializedBytesPerOp);
-  alignas(PaintOpBuffer::kPaintOpAlign) char output[kLargestPaintOpAlignedSize];
+  alignas(PaintOpBuffer::kPaintOpAlign)
+      uint8_t output[kLargestPaintOpAlignedSize];
 
   PaintOpBuffer buffer;
   buffer.push<DrawColorOp>(SkColors::kMagenta, SkBlendMode::kSrc);
@@ -2543,9 +2543,9 @@ TEST(PaintOpBufferTest, PaintOpDeserialize) {
 
   // Can deserialize from exactly the right size.
   size_t bytes_read = 0;
-  PaintOp* success = PaintOp::Deserialize(
-      input_span.first(bytes_written), output, std::size(output), &bytes_read,
-      options_provider.deserialize_options());
+  PaintOp* success =
+      PaintOp::Deserialize(input_span.first(bytes_written), output, &bytes_read,
+                           options_provider.deserialize_options());
   ASSERT_TRUE(success);
   EXPECT_EQ(bytes_written, bytes_read);
   success->DestroyThis();
@@ -2553,8 +2553,7 @@ TEST(PaintOpBufferTest, PaintOpDeserialize) {
   // Fail to deserialize if serialized_size goes past input size (the
   // DeserializationFailures test above tests if the serialized_size is lying).
   for (size_t i = 0; i < bytes_written - 1; ++i) {
-    EXPECT_FALSE(PaintOp::Deserialize(input_span.first(i), output,
-                                      std::size(output), &bytes_read,
+    EXPECT_FALSE(PaintOp::Deserialize(input_span.first(i), output, &bytes_read,
                                       options_provider.deserialize_options()));
   }
 
@@ -2568,7 +2567,7 @@ TEST(PaintOpBufferTest, PaintOpDeserialize) {
   PaintOpWriter::WriteHeaderForTesting(input, serialized_type,
                                        serialized_size - 1);
   EXPECT_FALSE(PaintOp::Deserialize(input_span.first(bytes_written), output,
-                                    std::size(output), &bytes_read,
+                                    &bytes_read,
                                     options_provider.deserialize_options()));
 
   // Bogus types fail to deserialize.
@@ -2576,7 +2575,7 @@ TEST(PaintOpBufferTest, PaintOpDeserialize) {
       input, static_cast<uint8_t>(PaintOpType::kLastPaintOpType) + 1,
       serialized_size);
   EXPECT_FALSE(PaintOp::Deserialize(input_span.first(bytes_written), output,
-                                    std::size(output), &bytes_read,
+                                    &bytes_read,
                                     options_provider.deserialize_options()));
 }
 
@@ -2585,8 +2584,8 @@ TEST(PaintOpBufferTest, PaintOpDeserialize) {
 // them to the SkCanvas API.
 TEST(PaintOpBufferTest, ValidateRects) {
   auto serialized = AllocateSerializedBuffer(kSerializedBytesPerOp);
-  alignas(PaintOpBuffer::kPaintOpAlign) char
-      deserialized[kLargestPaintOpAlignedSize];
+  alignas(PaintOpBuffer::kPaintOpAlign)
+      uint8_t deserialized[kLargestPaintOpAlignedSize];
   // We may read uninitialized gaps in this test. Initialize the buffer with a
   // special value to avoid MSAN errors.
   base::span<uint8_t> serialized_span = serialized.as_span();
@@ -2624,9 +2623,9 @@ TEST(PaintOpBufferTest, ValidateRects) {
     size_t bytes_read = 0;
     base::span<const uint8_t> written_span =
         serialized_span.first(bytes_written);
-    PaintOp* deserialized_op = PaintOp::Deserialize(
-        written_span, deserialized, std::size(deserialized), &bytes_read,
-        options_provider.deserialize_options());
+    PaintOp* deserialized_op =
+        PaintOp::Deserialize(written_span, deserialized, &bytes_read,
+                             options_provider.deserialize_options());
     EXPECT_TRUE(deserialized_op) << op_idx;
     deserialized_op->DestroyThis();
 
@@ -2639,9 +2638,9 @@ TEST(PaintOpBufferTest, ValidateRects) {
         break;
       }
     }
-    deserialized_op = PaintOp::Deserialize(
-        written_span, deserialized, std::size(deserialized), &bytes_read,
-        options_provider.deserialize_options());
+    deserialized_op =
+        PaintOp::Deserialize(written_span, deserialized, &bytes_read,
+                             options_provider.deserialize_options());
     EXPECT_FALSE(deserialized_op) << op_idx;
 
     ++op_idx;

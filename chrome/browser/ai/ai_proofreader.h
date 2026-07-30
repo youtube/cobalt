@@ -46,6 +46,9 @@ class AIProofreader : public AIContextBoundObject,
   static std::unique_ptr<optimization_guide::proto::ProofreadOptions>
   ToProtoOptions(const blink::mojom::AIProofreaderCreateOptionsPtr& options);
 
+  static uint32_t GetInputContextLimit(
+      const blink::mojom::AIProofreaderCreateOptionsPtr& options);
+
   // Returns a set of BCP 47 base language codes that are supported and enabled,
   // or nullopt if all languages are enabled (e.g. via local flags).
   static std::optional<base::flat_set<std::string>>

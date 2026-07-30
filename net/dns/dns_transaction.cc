@@ -691,8 +691,8 @@ class DnsTransactionImpl final : public DnsTransaction {
         resolve_context_->url_request_context()
             ->GetNetworkSessionContext()
             ->client_socket_factory->CreateDatagramClientSocket(
-                DatagramSocket::RANDOM_BIND, net_log_.net_log(),
-                net_log_.source());
+                DatagramSocket::RANDOM_BIND, target_network_,
+                net_log_.net_log(), net_log_.source());
 
     attempts_.push_back(std::make_unique<DnsUDPAttempt>(
         server_index, std::move(socket), config.nameservers[server_index],
@@ -791,8 +791,8 @@ class DnsTransactionImpl final : public DnsTransaction {
         resolve_context_->url_request_context()
             ->GetNetworkSessionContext()
             ->client_socket_factory->CreateTransportClientSocket(
-                AddressList(config.nameservers[server_index]), nullptr,
-                network_quality_estimator, net_log_.net_log(),
+                AddressList(config.nameservers[server_index]), target_network_,
+                nullptr, network_quality_estimator, net_log_.net_log(),
                 net_log_.source());
 
     uint32_t attempt_number = attempts_.size();

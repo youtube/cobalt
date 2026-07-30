@@ -17,13 +17,15 @@
 #include <algorithm>
 
 #include "sentencepiece_model.pb.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
+#include "absl/strings/string_view.h"
 #include "util.h"
 
 namespace sentencepiece {
 
-ModelInterface::ModelInterface(const ModelProto &model_proto)
-    : model_proto_(&model_proto), status_(util::OkStatus()) {}
+ModelInterface::ModelInterface(const ModelProto& model_proto)
+    : model_proto_(&model_proto), status_(absl::OkStatus()) {}
 ModelInterface::~ModelInterface() {}
 
 #define RETURN_PIECE(name, default_value)                                \
@@ -49,18 +51,20 @@ absl::string_view ModelInterface::pad_piece() const {
 #undef RETURN_PIECE
 
 int ModelInterface::PieceToId(absl::string_view piece) const {
-  auto it = reserved_id_map_.find(piece);
-  if (it != reserved_id_map_.end()) {
+  if (auto it = reserved_id_map_.find(piece); it != reserved_id_map_.end()) {
     return it->second;
   }
-  auto it2 = pieces_.find(piece);
-  if (it2 != pieces_.end()) {
-    return it2->second;
+  return PieceToIdNoReserved(piece);
+}
+
+int ModelInterface::PieceToIdNoReserved(absl::string_view piece) const {
+  if (auto it = pieces_.find(piece); it != pieces_.end()) {
+    return it->second;
   }
   return unk_id_;
 }
 
-void ModelInterface::InitializePieces() {
+void ModelInterface::InitializePieces(bool use_reserved_id_map) {
   pieces_.clear();
   reserved_id_map_.clear();
   unk_id_ = -1;
@@ -71,12 +75,17 @@ void ModelInterface::InitializePieces() {
   int pieces_size = 0;
   int reserved_id_map_size = 0;
   for (int i = 0; i < model_proto_->pieces_size(); ++i) {
-    const auto &sp = model_proto_->pieces(i);
+    const auto& sp = model_proto_->pieces(i);
+    static constexpr size_t kMaxPieceSize = 8000;
+    if (sp.piece().size() >= kMaxPieceSize) {
+      status_ = absl::InternalError("piece is too long.");
+      return;
+    }
     const bool is_normal_piece =
         (sp.type() == ModelProto::SentencePiece::NORMAL ||
          sp.type() == ModelProto::SentencePiece::USER_DEFINED ||
          sp.type() == ModelProto::SentencePiece::UNUSED);
-    if (is_normal_piece) {
+    if (is_normal_piece || !use_reserved_id_map) {
       ++pieces_size;
     } else {
       ++reserved_id_map_size;
@@ -86,19 +95,29 @@ void ModelInterface::InitializePieces() {
   reserved_id_map_.reserve(reserved_id_map_size);
 
   for (int i = 0; i < model_proto_->pieces_size(); ++i) {
-    const auto &sp = model_proto_->pieces(i);
+    const auto& sp = model_proto_->pieces(i);
     if (sp.piece().empty()) {
-      status_ = util::InternalError("piece must not be empty.");
+      status_ = absl::InternalError("piece must not be empty.");
       return;
     }
-
-    const bool is_normal_piece =
-        (sp.type() == ModelProto::SentencePiece::NORMAL ||
-         sp.type() == ModelProto::SentencePiece::USER_DEFINED ||
-         sp.type() == ModelProto::SentencePiece::UNUSED);
-    if (!port::InsertIfNotPresent(
-            is_normal_piece ? &pieces_ : &reserved_id_map_, sp.piece(), i)) {
-      status_ = util::InternalError(sp.piece() + " is already defined.");
+    if (sp.piece().find('\0') != absl::string_view::npos) {
+      status_ = absl::InternalError("piece must not include null character.");
+      return;
+    }
+    if (use_reserved_id_map) {
+      const bool is_normal_piece =
+          (sp.type() == ModelProto::SentencePiece::NORMAL ||
+           sp.type() == ModelProto::SentencePiece::USER_DEFINED ||
+           sp.type() == ModelProto::SentencePiece::UNUSED);
+      if (!port::InsertIfNotPresent(
+              is_normal_piece ? &pieces_ : &reserved_id_map_, sp.piece(), i)) {
+        status_ = absl::InternalError(
+            absl::StrCat(sp.piece(), " is already defined."));
+        return;
+      }
+    } else if (!port::InsertIfNotPresent(&pieces_, sp.piece(), i)) {
+      status_ =
+          absl::InternalError(absl::StrCat(sp.piece(), " is already defined."));
       return;
     }
 
@@ -108,7 +127,7 @@ void ModelInterface::InitializePieces() {
 
     if (sp.type() == ModelProto::SentencePiece::UNKNOWN) {
       if (unk_id_ >= 0) {
-        status_ = util::InternalError("unk is already defined.");
+        status_ = absl::InternalError("unk is already defined.");
         return;
       }
       unk_id_ = i;
@@ -116,24 +135,24 @@ void ModelInterface::InitializePieces() {
 
     if (sp.type() == ModelProto::SentencePiece::BYTE) {
       if (!model_proto_->trainer_spec().byte_fallback()) {
-        status_ =
-            util::InternalError("byte piece " + sp.piece() +
-                                " is found although `byte_fallback` is false.");
+        status_ = absl::InternalError(
+            absl::StrCat("byte piece ", sp.piece(),
+                         " is found although `byte_fallback` is false."));
         return;
       }
       const int byte = PieceToByte(sp.piece());
       if (0 <= byte && byte < 256) {
         byte_found[byte] = true;
       } else {
-        status_ =
-            util::InternalError("byte piece " + sp.piece() + " is invalid.");
+        status_ = absl::InternalError(
+            absl::StrCat("byte piece ", sp.piece(), " is invalid."));
         return;
       }
     }
   }
 
   if (unk_id_ == -1) {
-    status_ = util::InternalError("unk is not defined.");
+    status_ = absl::InternalError("unk is not defined.");
     return;
   }
 
@@ -141,7 +160,7 @@ void ModelInterface::InitializePieces() {
     // Checks that there are 256 byte pieces.
     if (std::find(byte_found.begin(), byte_found.end(), false) !=
         byte_found.end()) {
-      status_ = util::InternalError(
+      status_ = absl::InternalError(
           "there are not 256 byte pieces although `byte_fallback` is true.");
       return;
     }
@@ -153,16 +172,18 @@ void ModelInterface::InitializePieces() {
 std::vector<absl::string_view> SplitIntoWords(absl::string_view text,
                                               bool treat_ws_as_suffix,
                                               bool allow_ws_only_pieces) {
-  const char *begin = text.data();
-  const char *end = text.data() + text.size();
+  const char* begin = text.data();
+  const char* end = text.data() + text.size();
 
   // Space symbol (U+2581)
-  const absl::string_view kSpaceSymbol = "\xe2\x96\x81";
+  constexpr absl::string_view kSpaceSymbol = "\xe2\x96\x81";
   bool in_ws_sequence = false;
 
   std::vector<absl::string_view> result;
   if (treat_ws_as_suffix) {  // put ws tokens at the end of non-ws sequences.
-    if (begin < end) result.emplace_back(begin, 0);
+    if (begin < end) {
+      result.emplace_back(begin, 0);
+    }
     while (begin < end) {
       const int mblen =
           std::min<int>(string_util::OneCharLen(begin), end - begin);
@@ -171,7 +192,9 @@ std::vector<absl::string_view> SplitIntoWords(absl::string_view text,
       if (is_ws) {  // keep track of sequences consecutive ws tokens.
         in_ws_sequence = true;
       } else if (in_ws_sequence) {
-        if (allow_ws_only_pieces) result.emplace_back(begin, 0);
+        if (allow_ws_only_pieces) {
+          result.emplace_back(begin, 0);
+        }
 
         in_ws_sequence = false;
       }
@@ -180,8 +203,9 @@ std::vector<absl::string_view> SplitIntoWords(absl::string_view text,
           absl::string_view(result.back().data(), result.back().size() + mblen);
       begin += mblen;
 
-      if (begin < end && is_ws && !allow_ws_only_pieces)
+      if (begin < end && is_ws && !allow_ws_only_pieces) {
         result.emplace_back(begin, 0);
+      }
     }
   } else {
     while (begin < end) {
@@ -196,7 +220,9 @@ std::vector<absl::string_view> SplitIntoWords(absl::string_view text,
         in_ws_sequence = true;
       }
 
-      if (in_ws_sequence && !is_ws) in_ws_sequence = false;
+      if (in_ws_sequence && !is_ws) {
+        in_ws_sequence = false;
+      }
 
       result.back() =
           absl::string_view(result.back().data(), result.back().size() + mblen);
@@ -207,25 +233,32 @@ std::vector<absl::string_view> SplitIntoWords(absl::string_view text,
   return result;
 }
 
-std::string ByteToPiece(unsigned char c) {
-  return absl::StrFormat("<0x%02X>", c);
+const std::string& ByteToPiece(unsigned char c) {
+  static const std::vector<std::string>* const kBytePieces = [] {
+    auto* v = new std::vector<std::string>(256);
+    for (int i = 0; i < 256; ++i) {
+      (*v)[i] = absl::StrFormat("<0x%02X>", i);
+    }
+    return v;
+  }();
+  return (*kBytePieces)[c];
 }
 
 int PieceToByte(absl::string_view piece) {
-  using PieceToByteMap = absl::flat_hash_map<std::string, unsigned char>;
-  static const auto *const kMap = []() -> PieceToByteMap * {
-    auto *m = new PieceToByteMap();
+  using PieceToByteMap = absl::flat_hash_map<absl::string_view, unsigned char>;
+  static const auto* const kMap = []() -> PieceToByteMap* {
+    auto* m = new PieceToByteMap();
     for (int i = 0; i < 256; ++i) {
       (*m)[ByteToPiece(i)] = i;
     }
     return m;
   }();
-  const auto it = kMap->find(std::string(piece));
-  if (it == kMap->end()) {
-    return -1;
-  } else {
+
+  if (const auto it = kMap->find(piece); it != kMap->end()) {
     return it->second;
   }
+
+  return -1;
 }
 
 }  // namespace sentencepiece

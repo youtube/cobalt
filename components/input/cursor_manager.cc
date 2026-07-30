@@ -17,12 +17,15 @@
 namespace input {
 
 CursorManager::CursorManager(RenderWidgetHostViewInput* root)
-    : view_under_cursor_(root), root_view_(root) {}
+    : view_under_cursor_(root), root_view_(root) {
+  AddObservation(root);
+}
 
 CursorManager::~CursorManager() = default;
 
 void CursorManager::UpdateCursor(RenderWidgetHostViewInput* view,
                                  const ui::Cursor& cursor) {
+  AddObservation(view);
   cursor_map_[view] = cursor;
   if (view == view_under_cursor_) {
     UpdateCursor();
@@ -33,6 +36,8 @@ void CursorManager::UpdateViewUnderCursor(
     RenderWidgetHostViewInput* view) {
   if (view == view_under_cursor_)
     return;
+
+  AddObservation(view);
 
   // Whenever we switch from one view to another, clear the tooltip: as the
   // mouse moves, the view now controlling the cursor will send a new tooltip,
@@ -46,6 +51,7 @@ void CursorManager::UpdateViewUnderCursor(
 
 void CursorManager::ViewBeingDestroyed(RenderWidgetHostViewInput* view) {
   cursor_map_.erase(view);
+  RemoveObservation(view);
 
   // If the view right under the mouse is going away, use the root's cursor
   // until UpdateViewUnderCursor is called again.
@@ -124,6 +130,23 @@ void CursorManager::UpdateCursor() {
   last_set_cursor_type_for_testing_ = cursor.type();
 
   root_view_->DisplayCursor(cursor);
+}
+
+void CursorManager::OnRenderWidgetHostViewInputDestroyed(
+    RenderWidgetHostViewInput* view) {
+  ViewBeingDestroyed(view);
+}
+
+void CursorManager::AddObservation(RenderWidgetHostViewInput* view) {
+  if (view && !observations_.IsObservingSource(view)) {
+    observations_.AddObservation(view);
+  }
+}
+
+void CursorManager::RemoveObservation(RenderWidgetHostViewInput* view) {
+  if (view && observations_.IsObservingSource(view)) {
+    observations_.RemoveObservation(view);
+  }
 }
 
 }  // namespace input

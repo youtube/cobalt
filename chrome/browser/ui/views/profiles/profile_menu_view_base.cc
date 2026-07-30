@@ -27,6 +27,7 @@
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/profiles/profile_colors_util.h"
+#include "chrome/browser/ui/profiles/profile_view_utils.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
@@ -201,11 +202,13 @@ class AvatarImageView : public views::ImageView {
                   const ProfileMenuViewBase* root_view,
                   int image_size,
                   int border_size,
-                  bool has_dotted_ring)
+                  bool has_dotted_ring,
+                  int ai_subscription_tier)
       : avatar_image_(avatar_image),
         image_size_(image_size),
         border_size_(border_size),
         has_dotted_ring_(has_dotted_ring),
+        ai_subscription_tier_(ai_subscription_tier),
         root_view_(root_view) {
     if (avatar_image_.IsEmpty()) {
       // This can happen if the account image hasn't been fetched yet, if there
@@ -223,7 +226,15 @@ class AvatarImageView : public views::ImageView {
     DCHECK(!avatar_image_.IsEmpty());
     ui::ColorProvider* color_provider = GetColorProvider();
     CHECK(color_provider);
+
+    const bool is_ai_ring_enabled =
+        base::FeatureList::IsEnabled(
+            features::kEnableAiSubscriptionAvatarRing) &&
+        ai_subscription_tier_ > 0;
+
     gfx::ImageSkia sized_avatar_image;
+    bool should_crop = true;
+
     if (has_dotted_ring_) {
       const int size_with_border = image_size_ + 2 * border_size_;
       sized_avatar_image = profiles::GetAvatarWithDottedRing(
@@ -232,6 +243,12 @@ class AvatarImageView : public views::ImageView {
       // Dotted ring avatar does not support a border, as the border is already
       // included with the dotted ring.
       CHECK_EQ(border_size_, 0);
+    } else if (is_ai_ring_enabled) {
+      // Keep the avatar's size identical with the no-ring case, the ring
+      // expands outwards.
+      sized_avatar_image =
+          GetAvatarWithAiRing(avatar_image_, *color_provider, image_size_);
+      should_crop = false;
     } else {
       if (border_size_ > 0) {
         // Total image size is `image_size_ + 2 * border_size_`.
@@ -248,12 +265,16 @@ class AvatarImageView : public views::ImageView {
       sized_avatar_image = profiles::AddBackgroundToImage(sized_avatar_image,
                                                           GetBackgroundColor());
     }
-    gfx::Image circular_sized_avatar_image = profiles::GetSizedAvatarIcon(
-        gfx::Image(sized_avatar_image), sized_avatar_image.size().width(),
-        sized_avatar_image.size().height(),
-        profiles::AvatarShape::SHAPE_CIRCLE);
-    SetImage(ui::ImageModel::FromImageSkia(
-        *circular_sized_avatar_image.ToImageSkia()));
+
+    if (should_crop) {
+      gfx::Image circular_sized_avatar_image = profiles::GetSizedAvatarIcon(
+          gfx::Image(sized_avatar_image), sized_avatar_image.size().width(),
+          sized_avatar_image.size().height(),
+          profiles::AvatarShape::SHAPE_CIRCLE);
+      sized_avatar_image = *circular_sized_avatar_image.ToImageSkia();
+    }
+
+    SetImage(ui::ImageModel::FromImageSkia(sized_avatar_image));
   }
 
  private:
@@ -265,6 +286,7 @@ class AvatarImageView : public views::ImageView {
   const int image_size_;
   const int border_size_;
   const bool has_dotted_ring_;
+  const int ai_subscription_tier_;
   raw_ptr<const ProfileMenuViewBase> root_view_;
 };
 
@@ -512,7 +534,8 @@ void ProfileMenuViewBase::SetProfileIdentityWithCallToAction(
           std::make_unique<AvatarImageView>(
               params.profile_image, this,
               kIdentityInfoImageSize - 2 * params.profile_image_padding,
-              params.profile_image_padding, params.has_dotted_ring))
+              params.profile_image_padding, params.has_dotted_ring,
+              params.ai_subscription_tier))
           .SetProperty(views::kMarginsKey,
                        gfx::Insets().set_top(kAvatarTopMargin))
           .Build());

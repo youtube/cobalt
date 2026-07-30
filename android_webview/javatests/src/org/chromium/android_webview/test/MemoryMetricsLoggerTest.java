@@ -34,6 +34,8 @@ public class MemoryMetricsLoggerTest extends AwParameterizedTest {
     private HistogramWatcher mHistogramExpectationRendererSingle;
     private HistogramWatcher mHistogramExpectationTotal;
 
+    private HistogramWatcher mHistogramExpectationBrowserPAAllocatedObjects;
+
     public MemoryMetricsLoggerTest(AwSettingsMutation param) {
         this.mActivityTestRule = new AwActivityTestRule(param.getMutation());
     }
@@ -66,6 +68,13 @@ public class MemoryMetricsLoggerTest extends AwParameterizedTest {
                         .expectAnyRecordTimes("Memory.Total.ResidentSet", 1)
                         .allowExtraRecordsForHistogramsAbove()
                         .build();
+
+        mHistogramExpectationBrowserPAAllocatedObjects =
+                HistogramWatcher.newBuilder()
+                        .expectAnyRecordTimes(
+                                "Memory.Browser.PartitionAlloc.Malloc.AllocatedObjects", 1)
+                        .allowExtraRecordsForHistogramsAbove()
+                        .build();
         TestAwContentsClient contentsClient = new TestAwContentsClient();
         AwTestContainerView testContainerView =
                 mActivityTestRule.createAwTestContainerViewOnMainSync(contentsClient);
@@ -85,6 +94,8 @@ public class MemoryMetricsLoggerTest extends AwParameterizedTest {
         mHistogramExpectationBrowser.assertExpected();
         mHistogramExpectationRendererMulti.assertExpected();
         mHistogramExpectationTotal.assertExpected();
+
+        mHistogramExpectationBrowserPAAllocatedObjects.assertExpected();
     }
 
     @Test
@@ -96,5 +107,7 @@ public class MemoryMetricsLoggerTest extends AwParameterizedTest {
         // Verify no renderer record in single process mode.
         mHistogramExpectationRendererSingle.assertExpected();
         mHistogramExpectationTotal.assertExpected();
+
+        mHistogramExpectationBrowserPAAllocatedObjects.assertExpected();
     }
 }

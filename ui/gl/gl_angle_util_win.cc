@@ -77,16 +77,4 @@ Microsoft::WRL::ComPtr<ID3D11Device> QueryD3D11DeviceObjectFromANGLE() {
   return d3d11_device;
 }
 
-Microsoft::WRL::ComPtr<IDirect3DDevice9> QueryD3D9DeviceObjectFromANGLE() {
-  auto* display = GLSurfaceEGL::GetGLDisplayEGL();
-  if (!display) {
-    return nullptr;
-  }
-  Microsoft::WRL::ComPtr<IDirect3DDevice9> d3d9_device =
-      reinterpret_cast<IDirect3DDevice9*>(QueryDeviceObjectFromANGLE(
-          display->GetDisplay(), EGL_D3D9_DEVICE_ANGLE,
-          "EGL_ANGLE_device_d3d9"));
-  return d3d9_device;
-}
-
 }  // namespace gl

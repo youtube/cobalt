@@ -391,6 +391,22 @@ try_.builder(
 )
 
 try_.builder(
+    name = "android-16-x64-leakcanary-rel",
+    description_html = "Try builder mirroring android-16-x64-leakcanary-rel CI builder.",
+    mirrors = [
+        "ci/android-16-x64-leakcanary-rel",
+    ],
+    gn_args = gn_args.config(
+        configs = [
+            "ci/android-16-x64-leakcanary-rel",
+            "release_try_builder",
+        ],
+    ),
+    contact_team_email = "clank-engprod@google.com",
+    siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
+)
+
+try_.builder(
     name = "android-16-x64-leakcanary-fyi-rel",
     description_html = "FYI try builder mirroring android-16-x64-leakcanary-fyi-rel CI builder.",
     mirrors = [
@@ -682,6 +698,7 @@ try_.builder(
     experiments = {
         # crbug/940930
         "chromium.enable_cleandead": 50,
+        "luci.buildbucket.run_in_turboci": 100,
     },
     main_list_view = "try",
 )
@@ -1114,6 +1131,8 @@ try_.orchestrator_builder(
         "chromium.add_one_test_shard": 10,
         # crbug/940930
         "chromium.enable_cleandead": 100,
+        # TODO(https://crbug.com/521401232): Increase to 100
+        "luci.buildbucket.run_in_turboci": 50,
     },
     main_list_view = "try",
     # TODO(crbug.com/20485794): Experimentally disabled. Enable after getting

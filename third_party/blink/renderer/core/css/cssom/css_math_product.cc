@@ -18,8 +18,8 @@ CSSNumericSumValue::UnitMap MultiplyUnitMaps(
     const CSSNumericSumValue::UnitMap& b) {
   for (const auto& unit_exponent : b) {
     DCHECK_NE(unit_exponent.value, 0);
-    const auto old_value =
-        a.Contains(unit_exponent.key) ? a.at(unit_exponent.key) : 0;
+    const auto it = a.find(unit_exponent.key);
+    const auto old_value = it != a.end() ? it->value : 0;
 
     // Remove any zero entries
     if (old_value + unit_exponent.value == 0) {

@@ -13,6 +13,7 @@
 #include "base/test/values_test_util.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/chrome_content_browser_client.h"
+#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/controlled_frame/controlled_frame_permission_request_test_base.h"
 #include "chrome/browser/hid/chrome_hid_delegate.h"
 #include "chrome/browser/hid/hid_chooser_context_factory.h"
@@ -20,6 +21,8 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/hid/hid_chooser_controller.h"
 #include "chrome/common/pref_names.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/download/public/common/download_item.h"
 #include "components/permissions/mock_chooser_controller_view.h"
@@ -506,6 +509,61 @@ IN_PROC_BROWSER_TEST_P(ControlledFramePermissionRequestWebHidTest,
 
   EXPECT_EQ("SUCCESS: NO_DEVICES",
             content::EvalJs(controlled_frame, kTestScript).ExtractString());
+}
+
+class ControlledFramePermissionStatusLeakTest : public ControlledFrameTestBase {
+ protected:
+  void SetPermission(const GURL& url,
+                     ContentSettingsType type,
+                     ContentSetting setting) {
+    HostContentSettingsMapFactory::GetForProfile(profile())
+        ->SetContentSettingDefaultScope(url, url, type, setting);
+  }
+
+  std::string QueryPermission(content::RenderFrameHost* frame,
+                              const std::string& name) {
+    return content::EvalJs(frame, content::JsReplace(R"(
+      navigator.permissions.query({name: $1}).then(r => r.state);
+    )",
+                                                     name))
+        .ExtractString();
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(ControlledFramePermissionStatusLeakTest,
+                       PermissionsStatusDoNotLeak) {
+  GURL guest_url =
+      embedded_https_test_server().GetURL("guest.com", "/empty.html");
+  url::Origin guest_origin = url::Origin::Create(guest_url);
+
+  // Set profile-wide permissions for the guest origin.
+  SetPermission(guest_url, ContentSettingsType::MEDIASTREAM_CAMERA,
+                CONTENT_SETTING_ALLOW);
+  SetPermission(guest_url, ContentSettingsType::MEDIASTREAM_MIC,
+                CONTENT_SETTING_BLOCK);
+  SetPermission(guest_url, ContentSettingsType::GEOLOCATION,
+                CONTENT_SETTING_ALLOW);
+  SetPermission(guest_url, ContentSettingsType::CLIPBOARD_READ_WRITE,
+                CONTENT_SETTING_ALLOW);
+
+  // Install and open IWA, then create ControlledFrame pointing to the guest
+  // origin.
+  auto [app_frame, controlled_frame] =
+      InstallAndOpenIwaThenCreateControlledFrame(
+          /*controlled_frame_host_name=*/"guest.com", "/empty.html");
+  ASSERT_TRUE(app_frame);
+  ASSERT_TRUE(controlled_frame);
+  ASSERT_EQ(controlled_frame->GetLastCommittedOrigin(), guest_origin);
+
+  // Geolocation (control case, already overridden to ASK, should return
+  // "prompt")
+  EXPECT_EQ("prompt", QueryPermission(controlled_frame, "geolocation"));
+
+  // Camera, Microphone and Clipboard should also be isolated and return
+  // "prompt". Before the fix, these will leak.
+  EXPECT_EQ("prompt", QueryPermission(controlled_frame, "camera"));
+  EXPECT_EQ("prompt", QueryPermission(controlled_frame, "microphone"));
+  EXPECT_EQ("prompt", QueryPermission(controlled_frame, "clipboard-read"));
 }
 
 class ControlledFramePermissionRequestPEPCTest

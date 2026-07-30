@@ -9,15 +9,18 @@ import {assert} from '//resources/js/assert.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 
 import type {BrowserProxy} from '../../browser_proxy.js';
-import {ActorClientReceiver, ActorHandlerRemote, WebClientHandlerRemote} from '../../glic.mojom-webui.js';
+import {ActorClientReceiver, ActorHandlerRemote, AnnotationHandlerRemote, WebClientHandlerRemote} from '../../glic.mojom-webui.js';
 import type {ExperimentalTriggeringUpdatesHandlerRemote, WebClientInitialState} from '../../glic.mojom-webui.js';
 import type {ClientCapabilities} from '../../glic_api/glic_api.js';
 import {ObservableValue} from '../../observable.js';
 import type {ObservableValueReadOnly} from '../../observable.js';
 import {TaskQueue} from '../../task_queue.js';
 import {OneShotTimer} from '../../timer.js';
-import {ActorHostMessageHandler} from '../actor/actor_host.js';
+import {ActorClientImpl, ActorHostMessageHandler} from '../actor/actor_host.js';
 import {ActorClientDef, ActorHostDef} from '../actor/actor_types.js';
+import {AnnotationHostMessageHandler} from '../annotation/annotation_host.js';
+import {AnnotationHostDef} from '../annotation/annotation_types.js';
+import type {AnnotationHost} from '../annotation/annotation_types.js';
 import type {ResponseExtras} from '../transport/messaging.js';
 import type {InterfaceDef, PendingReceiver, PendingRemote, PostMessageHandler, PostMessageLifecycleObserver, PostMessageReceiver, PostMessageRemote, PostMessageRequestReceiver, PostMessageRequestSender, PostMessageRouter} from '../transport/post_message_transport.js';
 import {createBidirectionalPostMessageTransport} from '../transport/post_message_transport.js';
@@ -27,7 +30,6 @@ import type {ActorClient, ActorHost, WebClient, WebClientHost} from './../reques
 import {urlFromClient} from './conversions.js';
 import {HostMessageHandler} from './host_from_client.js';
 import type {CaptureRegionObserverImpl, PinCandidatesObserverImpl} from './host_from_client.js';
-import {ActorClientImpl} from './host_to_client.js';
 import {PanelOpenState} from './types.js';
 
 
@@ -188,7 +190,6 @@ type HandlerFunction = (payload: unknown, extras: ResponseExtras) =>
 export class GlicApiHost implements PostMessageLifecycleObserver {
   hostMessageHandler: HostMessageHandler;
   sender: PostMessageRemote<WebClient>;
-  actorSender?: PostMessageRemote<ActorClient>;
   panelIsActive = false;
 
   private handler: WebClientHandlerRemote;
@@ -212,6 +213,7 @@ export class GlicApiHost implements PostMessageLifecycleObserver {
   captureRegionObserver?: CaptureRegionObserverImpl;
 
   actorHandler?: ActorHandlerRemote;
+  annotationHandler?: AnnotationHandlerRemote;
   private isSubscribedToZoomLevel = false;
   private experimentalTriggeringUpdatesHandler =
       new Map<number, ExperimentalTriggeringUpdatesHandlerRemote>();
@@ -258,6 +260,10 @@ export class GlicApiHost implements PostMessageLifecycleObserver {
       this.actorHandler.$.close();
       this.actorHandler = undefined;
     }
+    if (this.annotationHandler) {
+      this.annotationHandler.$.close();
+      this.annotationHandler = undefined;
+    }
     for (const handler of this.experimentalTriggeringUpdatesHandler.values()) {
       handler.$.close();
     }
@@ -276,9 +282,8 @@ export class GlicApiHost implements PostMessageLifecycleObserver {
     this.actorHandler = new ActorHandlerRemote();
     const {remote: clientRemote, receiver: actorReceiver} =
         this.communicator.router.newPipeWithRemote(ActorClientDef);
-    this.actorSender = clientRemote;
     const actorClientReceiver =
-        new ActorClientReceiver(new ActorClientImpl(this.actorSender));
+        new ActorClientReceiver(new ActorClientImpl(clientRemote));
     this.handler.createActorHandler(
         this.actorHandler.$.bindNewPipeAndPassReceiver(),
         actorClientReceiver.$.bindNewPipeAndPassRemote());
@@ -294,6 +299,16 @@ export class GlicApiHost implements PostMessageLifecycleObserver {
     };
   }
 
+  createAnnotationHandler(receiver: PendingReceiver<AnnotationHost>): void {
+    assert(!this.annotationHandler);
+    this.annotationHandler = new AnnotationHandlerRemote();
+    this.handler.createAnnotationHandler(
+        this.annotationHandler.$.bindNewPipeAndPassReceiver());
+    const annotationHostMessageHandler =
+        new AnnotationHostMessageHandler(this.annotationHandler);
+    this.communicator.router.newReceiver(
+        receiver, annotationHostMessageHandler, AnnotationHostDef);
+  }
 
   async subscribeToZoomLevel() {
     this.isSubscribedToZoomLevel = true;

@@ -1989,8 +1989,8 @@ static const EditorInternalCommand* InternalCommand(
       {EditingCommandType::kAlignCenter, ExecuteJustifyCenter,
        SupportedFromMenuOrKeyBinding, EnabledInRichlyEditableText, StateNone,
        ValueJustifyOrStateOrNull, kNotTextInsertion, CanNotExecuteWhenDisabled},
-      {EditingCommandType::kPasteFromImageURL,
-       ClipboardCommands::ExecutePasteFromImageURL,
+      {EditingCommandType::kPasteFromImageUrl,
+       ClipboardCommands::ExecutePasteFromImageUrl,
        SupportedFromMenuOrKeyBinding, EnabledInEditableText, StateNone,
        ValueStateOrNull, kNotTextInsertion, CanNotExecuteWhenDisabled},
   });

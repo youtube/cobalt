@@ -6,17 +6,33 @@ source_set("public") {
   sources = [
     "header_utils.cc",
     "header_utils.h",
+    "iwa_entitlements.cc",
+    "iwa_entitlements.h",
     "iwa_runtime_data_provider.cc",
     "iwa_runtime_data_provider.h",
   ]
   public_deps = [
     "//base",
+    "//components/webapps/isolated_web_apps/key_distribution/proto",
     "//net",
     "//services/network/public/mojom:url_loader_base",
     "//url",
   ]
   deps = [
     "//components/webapps/isolated_web_apps/types",
+    "//services/network/public/cpp",
     "//services/network/public/cpp:web_platform",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "iwa_entitlements_unittest.cc" ]
+  deps = [
+    ":public",
+    "//base",
+    "//components/webapps/isolated_web_apps/key_distribution/proto",
+    "//services/network/public/cpp",
+    "//testing/gtest",
   ]
 }

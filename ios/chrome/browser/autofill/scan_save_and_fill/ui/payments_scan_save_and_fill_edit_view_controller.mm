@@ -25,7 +25,6 @@
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_edit_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_edit_item_delegate.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
@@ -203,8 +202,7 @@ void StyleButtonForConfirmation(UIButtonConfiguration* config) {
                                           TableViewItem* item) {
              TableViewTextEditCell* cell =
                  DequeueTableViewCell<TableViewTextEditCell>(tableView);
-             [item configureCell:cell
-                      withStyler:[[ChromeTableViewStyler alloc] init]];
+             [item configureCell:cell];
              cell.selectionStyle = UITableViewCellSelectionStyleNone;
              return cell;
            }];

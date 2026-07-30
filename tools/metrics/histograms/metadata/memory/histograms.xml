@@ -266,6 +266,8 @@ chromium-metrics-reviews@google.com.
   <variant name=".Malloc.Fragmentation.After24H"
       summary="Fragmentation of PartitionAlloc for processes older than 1
                day."/>
+  <variant name=".Malloc.IntendedLeakSize"
+      summary="Intended leaked size for LeakedSanitizedObjects."/>
   <variant name=".Malloc.MaxAllocatedSize"
       summary="Highwatermark for allocated memory for malloc(). Recorded only
                when PartitionAlloc is used as malloc()."/>
@@ -1013,7 +1015,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="HeapProfiling.InProcess.SampledAddressCacheBucketLengths{Process}"
-    units="nodes" expires_after="2026-10-11">
+    units="nodes" expires_after="2026-12-16">
   <owner>joenotcharles@google.com</owner>
   <owner>chrome-memory@google.com</owner>
   <summary>
@@ -1079,7 +1081,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="HeapProfiling.InProcess.SampledAddressCacheUniformity{Process}"
-    units="%" expires_after="2026-10-11">
+    units="%" expires_after="2026-12-16">
   <owner>joenotcharles@google.com</owner>
   <owner>chrome-memory@google.com</owner>
   <summary>
@@ -1093,7 +1095,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="HeapProfiling.InProcess.SamplesPerSnapshot{Process}"
-    units="samples" expires_after="2026-10-11">
+    units="samples" expires_after="2026-12-16">
   <owner>joenotcharles@google.com</owner>
   <owner>chrome-memory@google.com</owner>
   <summary>
@@ -1104,7 +1106,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="HeapProfiling.InProcess.SamplingIntervalVariance{Process}"
-    units="%" expires_after="2026-08-26">
+    units="%" expires_after="2026-12-16">
   <owner>joenotcharles@google.com</owner>
   <owner>chrome-memory@google.com</owner>
   <summary>
@@ -1209,7 +1211,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.Browser.MemoryFootprint.Background" units="MB"
-    expires_after="2026-10-18">
+    expires_after="2026-12-20">
   <owner>justincohen@chromium.org</owner>
   <owner>bling-fundamentals@google.com</owner>
   <summary>
@@ -1272,6 +1274,22 @@ chromium-metrics-reviews@google.com.
     This metric is only recorded on iOS. Same as Memory.Browser.MemoryFootprint
     but recorded during startup after the deferred initialization blocks queue
     becomes empty.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Browser.PartitionAlloc.Malloc.AllocatedObjects"
+    units="MB" expires_after="2027-05-28">
+  <owner>colibie@google.com</owner>
+  <owner>src/android_webview/OWNERS</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    WARNING: Android WebView Only at the moment.
+
+    The total active memory (bytes currently occupied by live objects) managed
+    by PartitionAlloc-as-Malloc in the browser process.
+
+    Recorded at Poisson sampled time intervals with a mean of 5 minutes on
+    Android (WebView).
   </summary>
 </histogram>
 
@@ -1741,7 +1759,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.Experimental.Gpu2.Small{ProcessMemoryAllocatorSmall2}"
-    units="KB" expires_after="2026-10-11">
+    units="KB" expires_after="2026-12-16">
   <owner>erikchen@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <owner>lizeb@chromium.org</owner>
@@ -2003,7 +2021,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.Experimental.Renderer2{ProcessMemoryAllocator2}"
-    units="MB" expires_after="2026-10-11">
+    units="MB" expires_after="2026-12-16">
   <owner>erikchen@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <owner>lizeb@chromium.org</owner>
@@ -2334,7 +2352,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.MemoryDumpOutcome" enum="RequestOutcome"
-    expires_after="2026-10-18">
+    expires_after="2026-12-20">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>

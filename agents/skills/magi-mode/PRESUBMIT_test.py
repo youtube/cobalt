@@ -1,0 +1,922 @@
+#!/usr/bin/env vpython3
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+"""Unit tests for MAGI presubmit checks."""
+
+import json
+import os
+import re
+import unittest
+from unittest.mock import MagicMock, patch
+
+import PRESUBMIT
+
+
+class MockAffectedFile:
+
+    def __init__(self, local_path, action='M'):
+        self._path = local_path
+        self._action = action
+
+    def LocalPath(self):
+        return self._path
+
+    def AbsoluteLocalPath(self):
+        return os.path.normpath(
+            os.path.join(os.path.abspath('fake_repo'), self._path))
+
+    def Action(self):
+        return self._action
+
+
+class MockInputApi:
+
+    def __init__(self):
+        self.is_test = True
+        self.change = MagicMock()
+        self.change.RepositoryRoot.return_value = os.path.abspath('fake_repo')
+        self.affected_files = []
+        self.os_path = os.path
+        self.os = os
+        self.files_content = {}
+
+    def AffectedFiles(self, file_filter=None, include_deletes=False):
+        del include_deletes  # Unused.
+        return [
+            f for f in self.affected_files if not file_filter or file_filter(f)
+        ]
+
+    def ReadFile(self, affected_file):
+        return self.files_content.get(affected_file.LocalPath(), "")
+
+    def PresubmitLocalPath(self):
+        return os.path.normpath(
+            os.path.join(os.path.abspath('fake_repo'),
+                         'agents/skills/magi-mode'))
+
+    def FilterSourceFile(self, affected_file, files_to_check=None):
+        if not files_to_check:
+            return True
+        return any(
+            re.match(pattern, affected_file.LocalPath())
+            for pattern in files_to_check)
+
+
+class MagiPresubmitTest(unittest.TestCase):
+
+    def setUp(self):
+        self.mock_input = MockInputApi()
+        self.mock_output = MagicMock()
+        self.mock_output.PresubmitError = lambda x: f"ERROR: {x}"
+        self.mock_output.PresubmitPromptWarning = lambda x: f"WARN: {x}"
+
+    @patch('os.path.exists')
+    @patch('os.path.getsize')
+    @patch('os.walk')
+    def testReachability(self, mock_walk, mock_getsize, mock_exists):
+        # Setup filesystem: SKILL.md -> LINKED.md, ORPHAN.md
+        magi_dir = os.path.normpath(
+            os.path.join(os.path.abspath('fake_repo'),
+                         'agents/skills/magi-mode'))
+        mock_walk.return_value = [(magi_dir, [],
+                                   ['SKILL.md', 'LINKED.md', 'ORPHAN.md'])]
+        mock_getsize.return_value = 100
+        mock_exists.return_value = True
+
+        self.mock_input.affected_files = [
+            MockAffectedFile('agents/skills/magi-mode/SKILL.md')
+        ]
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/SKILL.md':
+            ('[link](LINKED.md)\n'
+             'TONE MANDATE (SIGNAL-TO-NOISE):\n'
+             'Zero Preamble/Postamble\n'
+             'Artifacts Only\n'
+             'ADD_FAILURE("NOT IMPLEMENTED");\n'),
+            'agents/skills/magi-mode/LINKED.md':
+            'content\n',
+            'agents/skills/magi-mode/ORPHAN.md':
+            'content\n',
+        }
+
+        # We need to mock 'open' for unmodified files (LINKED and ORPHAN)
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data='content\n')):
+            results = PRESUBMIT.CheckMarkdownFiles(self.mock_input,
+                                                   self.mock_output)
+
+        # Expect 1 warning for ORPHAN.md (it's unmodified debt)
+        orphans = [r for r in results if 'Unreachable' in r]
+        self.assertEqual(len(orphans), 1)
+        self.assertIn('ORPHAN.md', orphans[0])
+
+    def testCodeBlockExclusion(self):
+        # 100 char line inside code block should be ignored
+        long_line = '```\n' + 'A' * 100 + '\n```\n'
+        self.mock_input.affected_files = [
+            MockAffectedFile('agents/skills/magi-mode/SKILL.md')
+        ]
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/SKILL.md': long_line
+        }
+
+        magi_dir = os.path.normpath(
+            os.path.join(os.path.abspath('fake_repo'),
+                         'agents/skills/magi-mode'))
+        with patch('os.walk', return_value=[(magi_dir, [], ['SKILL.md'])]), \
+                patch('os.path.getsize', return_value=100):
+            results = PRESUBMIT.CheckMarkdownFiles(self.mock_input,
+                                                   self.mock_output)
+
+        warnings = [r for r in results if 'exceeds 80 characters' in r]
+        self.assertEqual(len(warnings), 0)
+
+    def testIndentedBlockRobustness(self):
+        # Multiple indented lines after an empty line should be ignored
+        content = ('\n\n    Line 1 is long ' + 'A' * 70 +
+                   '\n    Line 2 is also long ' + 'B' * 70 + '\n\nText')
+        self.mock_input.affected_files = [
+            MockAffectedFile('agents/skills/magi-mode/SKILL.md')
+        ]
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/SKILL.md': content
+        }
+
+        magi_dir = os.path.normpath(
+            os.path.join(os.path.abspath('fake_repo'),
+                         'agents/skills/magi-mode'))
+        with patch('os.walk', return_value=[(magi_dir, [], ['SKILL.md'])]), \
+                patch('os.path.getsize', return_value=100):
+            results = PRESUBMIT.CheckMarkdownFiles(self.mock_input,
+                                                   self.mock_output)
+
+        warnings = [r for r in results if 'exceeds 80 characters' in r]
+        self.assertEqual(len(warnings), 0)
+
+    def testMarkdownContentMandates(self):
+        # Missing Tone Mandate
+        content_missing = 'Some text\n'
+        self.mock_input.affected_files = [
+            MockAffectedFile('agents/skills/magi-mode/SKILL.md')
+        ]
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/SKILL.md': content_missing
+        }
+
+        magi_dir = os.path.normpath(
+            os.path.join(os.path.abspath('fake_repo'),
+                         'agents/skills/magi-mode'))
+        with patch('os.walk', return_value=[(magi_dir, [], ['SKILL.md'])]), \
+                patch('os.path.getsize', return_value=100):
+            results = PRESUBMIT.CheckMarkdownFiles(self.mock_input,
+                                                   self.mock_output)
+
+        self.assertTrue(
+            any('must contain the "TONE MANDATE '
+                '(SIGNAL-TO-NOISE):" section' in r for r in results))
+
+        # Missing Artifacts Only
+        content_partial = ('TONE MANDATE (SIGNAL-TO-NOISE):\n'
+                           'Zero Preamble/Postamble\n')
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/SKILL.md': content_partial
+        }
+        with patch('os.walk', return_value=[(magi_dir, [], ['SKILL.md'])]), \
+                patch('os.path.getsize', return_value=100):
+            results = PRESUBMIT.CheckMarkdownFiles(self.mock_input,
+                                                   self.mock_output)
+
+        self.assertTrue(
+            any('must explicitly enforce "Zero Preamble/'
+                'Postamble" and "Artifacts Only"' in r for r in results))
+
+        # Missing TDD mandate
+        content_no_tdd = ('TONE MANDATE (SIGNAL-TO-NOISE):\n'
+                          'Zero Preamble/Postamble\nArtifacts Only\n')
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/SKILL.md': content_no_tdd
+        }
+        with patch('os.walk', return_value=[(magi_dir, [], ['SKILL.md'])]), \
+                patch('os.path.getsize', return_value=100):
+            results = PRESUBMIT.CheckMarkdownFiles(self.mock_input,
+                                                   self.mock_output)
+
+        self.assertTrue(
+            any('must contain the TDD mandate' in r for r in results))
+
+        # Valid (with TDD mandate)
+        content_valid = ('TONE MANDATE (SIGNAL-TO-NOISE):\n'
+                         'Zero Preamble/Postamble\nArtifacts Only\n'
+                         'ADD_FAILURE("NOT IMPLEMENTED");\n')
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/SKILL.md': content_valid
+        }
+        with patch('os.walk', return_value=[(magi_dir, [], ['SKILL.md'])]), \
+                patch('os.path.getsize', return_value=100):
+            results = PRESUBMIT.CheckMarkdownFiles(self.mock_input,
+                                                   self.mock_output)
+
+        self.assertFalse(
+            any('must contain the "TONE MANDATE '
+                '(SIGNAL-TO-NOISE):" section' in r for r in results))
+        self.assertFalse(any('must explicitly enforce' in r for r in results))
+        self.assertFalse(
+            any('must contain the TDD mandate' in r for r in results))
+
+    def testPersonaNamingConvention(self):
+        # Invalid persona name (with _expert suffix)
+        self.mock_input.affected_files = [
+            MockAffectedFile(
+                'agents/skills/magi-mode/personas/core/security_expert.json')
+        ]
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/personas/core/security_expert.json':
+            '{"checklist": {}}'
+        }
+        schema_json = '{"definitions": {"PersonaDef": {"required": []}}}'
+
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertTrue(
+                any('uses the redundant "_expert" suffix' in r
+                    for r in results))
+
+        # Valid persona name
+        self.mock_input.affected_files = [
+            MockAffectedFile(
+                'agents/skills/magi-mode/personas/core/security.json')
+        ]
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/personas/core/security.json':
+            '{"checklist": {}}'
+        }
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertFalse(
+                any('uses the redundant "_expert" suffix' in r
+                    for r in results))
+
+    def testJsonStateBlockValidation(self):
+        # Valid state block
+        valid_json = (
+            '{"checklist": {"checked_xyz": true}, "unlisted_issues_found": [], '
+            '"iteration": 1, "oscillation_detected": false, '
+            '"active_constraints": [], "resolved_constraints": [], '
+            '"conflict_report": [], '
+            '"state_transport": "EPHEMERAL_WITH_LOGS", '
+            '"next_stage": "CRITIQUE"}')
+        self.mock_input.affected_files = [
+            MockAffectedFile('agents/skills/magi-mode/state_block.magi.json'),
+            MockAffectedFile(
+                'agents/skills/magi-mode/personas/core/security.json')
+        ]
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/state_block.magi.json':
+            valid_json,
+            'agents/skills/magi-mode/personas/core/security.json':
+            ('{"checklist": {"checked_xyz": "Desc"}}')
+        }
+
+        # We need to mock the schema file
+        schema_json = (
+            '{"definitions": {"ChecklistObject": {"type": "object", '
+            '"patternProperties": {"^.*$": {"type": "boolean"}}}, '
+            '"StateBlock": {"required": ["checklist", "iteration", '
+            '"oscillation_detected", "active_constraints", '
+            '"resolved_constraints", '
+            '"state_transport", "next_stage"], '
+            '"properties": {"checklist": '
+            '{"$ref": "#/definitions/ChecklistObject"}, '
+            '"unlisted_issues_found": {"type": "array"}, "iteration": '
+            '{"type": "integer"}, "oscillation_detected": '
+            '{"type": "boolean"}, '
+            '"active_constraints": {"type": "array"}, "resolved_constraints": '
+            '{"type": "array"}, "conflict_report": {"type": "array"}, '
+            '"next_stage": {"type": "string", "enum": ["CRITIQUE", '
+            '"SCAFFOLDING", "PREPARATION", "IMPLEMENTATION", "SYNTHESIS", '
+            '"TEST_FILLING", "TRAINING", '
+            '"VALIDATION", "DEPLOYMENT", "ESCALATION"]}, '
+            '"state_transport": {"type": "string", "enum": '
+            '["FILE_IO", "EPHEMERAL_WITH_LOGS"]}}}}}')
+
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertEqual(len(results), 0)
+
+        # Missing required key
+        invalid_json = '{"iteration": 1, "active_constraints": []}'
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/state_block.magi.json': invalid_json
+        }
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertTrue(any('missing required keys' in r for r in results))
+
+        # Invalid next_stage for state block
+        invalid_stage_json = (
+            '{"checklist": {}, "unlisted_issues_found": [], '
+            '"iteration": 1, "oscillation_detected": false, '
+            '"active_constraints": [], "resolved_constraints": [], '
+            '"conflict_report": [], '
+            '"state_transport": "EPHEMERAL_WITH_LOGS", '
+            '"next_stage": "INVALID_STAGE"}')
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/state_block.magi.json': invalid_stage_json
+        }
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertTrue(
+                any("key 'next_stage' must be one of" in r for r in results))
+
+        # Wrong type
+        wrong_type_json = (
+            '{"iteration": "1", "oscillation_detected": false, '
+            '"active_constraints": [], "resolved_constraints": [], '
+            '"conflict_report": [], '
+            '"state_transport": "EPHEMERAL_WITH_LOGS", '
+            '"next_stage": "CRITIQUE"}')
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/state_block.magi.json': wrong_type_json
+        }
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertTrue(
+                any("key 'iteration' should be integer" in r for r in results))
+
+    def testJsonStateBlockInvalidChecklistValue(self):
+        # Non-boolean value in checklist ("checked_xyz": "not_a_boolean")
+        invalid_checklist_json = (
+            '{"checklist": {"checked_xyz": "not_a_boolean"}, '
+            '"unlisted_issues_found": [], "iteration": 1, '
+            '"oscillation_detected": false, "active_constraints": [], '
+            '"resolved_constraints": [], "conflict_report": [], '
+            '"state_transport": "EPHEMERAL_WITH_LOGS", '
+            '"next_stage": "CRITIQUE"}')
+        self.mock_input.affected_files = [
+            MockAffectedFile('agents/skills/magi-mode/state_block.magi.json'),
+            MockAffectedFile(
+                'agents/skills/magi-mode/personas/core/security.json')
+        ]
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/state_block.magi.json':
+            (invalid_checklist_json),
+            'agents/skills/magi-mode/personas/core/security.json':
+            ('{"checklist": {"checked_xyz": "Desc"}}')
+        }
+        schema_json = (
+            '{"definitions": {"ChecklistObject": {"type": "object", '
+            '"patternProperties": {"^.*$": {"type": "boolean"}}}, '
+            '"StateBlock": {"required": ["checklist", "iteration", '
+            '"oscillation_detected", "active_constraints", '
+            '"resolved_constraints", '
+            '"state_transport", "next_stage"], '
+            '"properties": {"checklist": '
+            '{"$ref": "#/definitions/ChecklistObject"}, '
+            '"unlisted_issues_found": {"type": "array"}, "iteration": '
+            '{"type": "integer"}, "oscillation_detected": '
+            '{"type": "boolean"}, '
+            '"active_constraints": {"type": "array"}, "resolved_constraints": '
+            '{"type": "array"}, "conflict_report": {"type": "array"}, '
+            '"next_stage": {"type": "string"}, '
+            '"state_transport": {"type": "string", "enum": '
+            '["FILE_IO", "EPHEMERAL_WITH_LOGS"]}}}}}')
+
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertTrue(
+                any('checklist key "checked_xyz" must be a boolean' in r
+                    for r in results))
+
+    def testJsonProjectSpecValidation(self):
+        # Valid project spec
+        valid_json = (
+            '{"task_type": "IMPLEMENTATION", "unlisted_issues_found": [], '
+            '"goal": "Test", "target_files": ["foo.cc"], "anti_goals": [], '
+            '"edge_cases": [], "context_resolved": true, '
+            '"approach_confirmed": true, "ambiguity_level": "LOW", '
+            '"execution_path": "RIGOR_PATH", '
+            '"complexity_level": "MEDIUM", '
+            '"environment": {"repo_type": "CHROMIUM", "vcs": "JJ", '
+            '"harness": "JETSKI", "output_directory": "out/Default", '
+            '"temp_directory": "agents/skills/magi-mode/.temp"}}')
+        self.mock_input.affected_files = [
+            MockAffectedFile('agents/skills/magi-mode/project.magi.json')
+        ]
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/project.magi.json': valid_json
+        }
+
+        # We need to mock the schema file
+        schema_json = (
+            '{"definitions": {"ProjectSpec": {"required": ["task_type", '
+            '"goal", "target_files", '
+            '"context_resolved", "approach_confirmed", "ambiguity_level", '
+            '"execution_path", "complexity_level", "environment"], '
+            '"properties": {"task_type": {"type": "string", "enum": '
+            '["IMPLEMENTATION", "REVIEW", "AUDIT"]}, '
+            '"unlisted_issues_found": {"type": "array"}, '
+            '"goal": {"type": "string"}, "target_files": {"type": "array"}, '
+            '"anti_goals": {"type": "array"}, "edge_cases": {"type": "array"}, '
+            '"context_resolved": {"type": "boolean"}, '
+            '"approach_confirmed": {"type": "boolean"}, '
+            '"ambiguity_level": {"type": "string", "enum": ["LOW", "HIGH"]}, '
+            '"execution_path": {"type": "string"}, '
+            '"complexity_level": {"type": "string"}, '
+            '"environment": {"type": "object"}}}}}')
+
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertEqual(len(results), 0)
+
+        # Missing required key
+        invalid_json = '{"goal": "Test"}'
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/project.magi.json': invalid_json
+        }
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertTrue(any('missing required keys' in r for r in results))
+
+    def testJsonReviewFeedbackValidation(self):
+        # Valid review feedback
+        valid_json = (
+            '{"checklist": {}, "verdict": "REJECT", "reasoning": ["Bad"], '
+            '"comments": [{"file": "foo.cc", "line": 10, '
+            '"comment": "Fix this"}]}')
+        self.mock_input.affected_files = [
+            MockAffectedFile(
+                'agents/skills/magi-mode/review.security.magi.1.json')
+        ]
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/review.security.magi.1.json': valid_json
+        }
+
+        schema_json = (
+            '{"definitions": {"ReviewFeedback": {"required": ["checklist", '
+            '"verdict", "reasoning"], "properties": {'
+            '"checklist": {"type": "object"}, '
+            '"verdict": {"type": "string", "enum": ["ACCEPT", "REJECT"]}, '
+            '"reasoning": {"type": "array"}, '
+            '"comments": {"type": "array"}}}} }')
+
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertEqual(len(results), 0)
+
+        # Invalid verdict
+        invalid_verdict_json = (
+            '{"checklist": {}, "unlisted_issues_found": [], '
+            '"verdict": "MAYBE", "reasoning": []}')
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/review.security.magi.1.json':
+            invalid_verdict_json
+        }
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertTrue(any('must be one of' in r for r in results))
+
+    def testJsonConstraintsValidation(self):
+        # Valid constraints
+        valid_json = ('{"iteration": 2, "constraints": ["Rule 1", "Rule 2"], '
+                      '"oscillation_detected": false, "conflict_report": [], '
+                      '"next_stage": "SYNTHESIS"}')
+        self.mock_input.affected_files = [
+            MockAffectedFile('agents/skills/magi-mode/constraints.magi.2.json')
+        ]
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/constraints.magi.2.json': valid_json
+        }
+
+        schema_json = (
+            '{"definitions": {"Constraints": {"required": ["iteration", '
+            '"constraints", "oscillation_detected", "conflict_report", '
+            '"next_stage"], '
+            '"properties": {"iteration": {"type": "integer"}, '
+            '"constraints": {"type": "array"}, '
+            '"oscillation_detected": {"type": "boolean"}, '
+            '"conflict_report": {"type": "array"}, '
+            '"next_stage": {"type": "string", "enum": ["SYNTHESIS", '
+            '"VALIDATION", "ESCALATION"]}}}}}')
+
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertEqual(len(results), 0)
+
+    def testDecisionGraphValidation(self):
+        # Invalid handoff for constraints
+        invalid_constraints = (
+            '{"iteration": 1, "constraints": [], '
+            '"oscillation_detected": false, "conflict_report": [], '
+            '"next_stage": "CRITIQUE"}')
+        self.mock_input.affected_files = [
+            MockAffectedFile('agents/skills/magi-mode/constraints.magi.1.json')
+        ]
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/constraints.magi.1.json':
+            invalid_constraints
+        }
+        schema_json = (
+            '{"definitions": {"Constraints": {"required": ["iteration", '
+            '"constraints", "oscillation_detected", "conflict_report"], '
+            '"properties": {"iteration": '
+            '{"type": "integer"}, "constraints": {"type": "array"}, '
+            '"oscillation_detected": {"type": "boolean"}, '
+            '"conflict_report": {"type": "array"}, '
+            '"next_stage": {"type": "string"}}}}}')
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertTrue(
+                any('must signal SYNTHESIS, VALIDATION, or ESCALATION' in r
+                    for r in results))
+
+    def testJsonPersonaDefValidation(self):
+        valid_json = (
+            '{"role": "Test Role", "mandate": "Test Mandate", '
+            '"checklist": {"check_1": "Desc 1", "check_2": "Desc 2"}}')
+        self.mock_input.affected_files = [
+            MockAffectedFile('agents/skills/magi-mode/personas/test.json')
+        ]
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/personas/test.json': valid_json
+        }
+
+        schema_json = ('{"definitions": {"PersonaDef": {"required": ["role", '
+                       '"mandate", "checklist"], "properties": {"role": '
+                       '{"type": "string"}, "mandate": {"type": "string"}, '
+                       '"checklist": {"type": "object", "patternProperties": '
+                       '{"^.*$": {"type": "string"}}}}}}}')
+
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertEqual(len(results), 0)
+
+        # Missing required key
+        invalid_json = '{"role": "Test Role", "mandate": "Test Mandate"}'
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/personas/test.json': invalid_json
+        }
+
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertTrue(any('missing required keys' in r for r in results))
+
+    def testJsonPersonaDirectoryDepth(self):
+        valid_json = '{"role": "Test", "mandate": "Test", "checklist": {}}'
+        schema_json = '{"definitions": {"PersonaDef": {"required": []}}}'
+
+        # Depth 5 (valid)
+        self.mock_input.affected_files = [
+            MockAffectedFile('agents/skills/magi-mode/personas/1/2/3/4/5.json')
+        ]
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/personas/1/2/3/4/5.json': valid_json
+        }
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertEqual(len(results), 0)
+
+        # Depth 6 (invalid)
+        self.mock_input.affected_files = [
+            MockAffectedFile(
+                'agents/skills/magi-mode/personas/1/2/3/4/5/6.json')
+        ]
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/personas/1/2/3/4/5/6.json': valid_json
+        }
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertTrue(
+                any('exceeds maximum persona directory depth of 5' in r
+                    for r in results))
+
+    def testJsonProjectSpecBuildTargets(self):
+        # Invalid build_targets type (string instead of array)
+        invalid_type_json = (
+            '{"checklist": {}, "goal": "Test", "target_files": [], '
+            '"anti_goals": [], "edge_cases": [], '
+            '"build_targets": "//remoting/host:host"}')
+        self.mock_input.affected_files = [
+            MockAffectedFile('agents/skills/magi-mode/project.magi.json')
+        ]
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/project.magi.json': invalid_type_json
+        }
+        schema_json = ('{"definitions": {"ProjectSpec": {"required": [], '
+                       '"properties": {"build_targets": {"type": "array", '
+                       '"items": {"type": "string"}}}}}}')
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertTrue(
+                any("key 'build_targets' should be array" in r
+                    for r in results))
+
+        # Invalid element in build_targets (integer instead of string)
+        invalid_elem_json = (
+            '{"task_type": "IMPLEMENTATION", "goal": "Test", '
+            '"target_files": [], "anti_goals": [], "edge_cases": [], '
+            '"build_targets": [123]}')
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/project.magi.json': invalid_elem_json
+        }
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertTrue(
+                any("list contains a non-string element" in r
+                    for r in results))
+
+    def testJsonProjectSpecEnvironment(self):
+        # Missing repo_type
+        invalid_env_1 = (
+            '{"task_type": "IMPLEMENTATION", "goal": "Test", '
+            '"target_files": [], "anti_goals": [], "edge_cases": [], '
+            '"environment": {"vcs": "JJ", "harness": "JETSKI"}}')
+        self.mock_input.affected_files = [
+            MockAffectedFile('agents/skills/magi-mode/project.magi.json')
+        ]
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/project.magi.json': invalid_env_1
+        }
+        schema_json = '{"definitions": {"ProjectSpec": {"required": []}}}'
+
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertTrue(
+                any('environment is missing required key "repo_type"' in r
+                    for r in results))
+
+        # Invalid repo_type
+        invalid_env_2 = (
+            '{"task_type": "IMPLEMENTATION", "goal": "Test", '
+            '"target_files": [], "anti_goals": [], "edge_cases": [], '
+            '"environment": {"vcs": "JJ", "harness": "JETSKI", '
+            '"repo_type": "INVALID"}}'
+        )
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/project.magi.json': invalid_env_2
+        }
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertTrue(
+                any('environment.repo_type must be CHROMIUM or GOOGLE_INTERNAL'
+                    in r for r in results))
+
+        # Invalid output_directory type
+        invalid_env_3 = (
+            '{"task_type": "IMPLEMENTATION", "goal": "Test", '
+            '"target_files": [], "anti_goals": [], "edge_cases": [], '
+            '"environment": {"vcs": "JJ", "harness": "JETSKI", '
+            '"repo_type": "CHROMIUM", "output_directory": 123}}')
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/project.magi.json': invalid_env_3
+        }
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertTrue(
+                any('environment.output_directory must be a string' in r
+                    for r in results))
+
+        # Missing temp_directory
+        invalid_env_4 = (
+            '{"task_type": "IMPLEMENTATION", "goal": "Test", '
+            '"target_files": [], "anti_goals": [], "edge_cases": [], '
+            '"environment": {"vcs": "JJ", "harness": "JETSKI", '
+            '"repo_type": "CHROMIUM", "output_directory": "out/Default"}}')
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/project.magi.json': invalid_env_4
+        }
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertTrue(
+                any('environment is missing required key "temp_directory"' in r
+                    for r in results))
+
+        # Invalid temp_directory type
+        invalid_env_5 = (
+            '{"task_type": "IMPLEMENTATION", "goal": "Test", '
+            '"target_files": [], "anti_goals": [], "edge_cases": [], '
+            '"environment": {"vcs": "JJ", "harness": "JETSKI", '
+            '"repo_type": "CHROMIUM", "output_directory": "out/Default", '
+            '"temp_directory": 123}}')
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/project.magi.json': invalid_env_5
+        }
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertTrue(
+                any('environment.temp_directory must be a string' in r
+                    for r in results))
+
+    def testCheckTestJsonFiles(self):
+        # Valid test JSON
+        valid_json = ('{"name": "Test", "base_inputs": {}, "cases": ['
+                      '{"name": "Case 1", "expected_outputs": {}}]}')
+        self.mock_input.affected_files = [
+            MockAffectedFile(
+                'agents/skills/magi-mode/tests/magi_stage_generate_tests.json')
+        ]
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/tests/magi_stage_generate_tests.json':
+            valid_json
+        }
+        results = PRESUBMIT.CheckTestJsonFiles(self.mock_input,
+                                               self.mock_output)
+        self.assertEqual(len(results), 0)
+
+        # Missing required key in scenario
+        invalid_json = '{"name": "Test", "cases": []}'
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/tests/magi_stage_generate_tests.json':
+            invalid_json
+        }
+        results = PRESUBMIT.CheckTestJsonFiles(self.mock_input,
+                                               self.mock_output)
+        self.assertTrue(any('missing required key' in r for r in results))
+
+        # Invalid override_inputs
+        invalid_override_json = (
+            '{"name": "Test", "base_inputs": {}, "cases": [{'
+            '"name": "Case 1", "expected_outputs": {}, '
+            '"override_inputs": {"invalid_key": {}}}]}')
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/tests/magi_stage_generate_tests.json':
+            invalid_override_json
+        }
+        results = PRESUBMIT.CheckTestJsonFiles(self.mock_input,
+                                               self.mock_output)
+        self.assertTrue(any('contains invalid property' in r for r in results))
+
+    def testJsonTempDirectory(self):
+        self.mock_input.affected_files = [
+            MockAffectedFile('agents/skills/magi-mode/.temp/log.json')
+        ]
+        results = PRESUBMIT.CheckTempDirectory(self.mock_input,
+                                               self.mock_output)
+        self.assertTrue(any('is in the .temp/ directory' in r
+                            for r in results))
+
+    def testSchemaHealth(self):
+        # Validate that the actual magi_schema.json on disk is valid.
+        schema_path = os.path.join(os.path.dirname(__file__),
+                                   'magi_schema.json')
+        with open(schema_path, 'r', encoding='utf-8') as f:
+            schema = json.load(f)
+
+        self.assertIn('definitions', schema)
+        self.assertIn('ProjectSpec', schema['definitions'])
+        self.assertIn('StateBlock', schema['definitions'])
+        self.assertIn('PersonaDef', schema['definitions'])
+
+    def testTestDataConsistency(self):
+        # Ensure our testdata/project.magi.json is valid against the real
+        # schema.
+        magi_dir = os.path.dirname(__file__)
+        schema_path = os.path.join(magi_dir, 'magi_schema.json')
+        project_path = os.path.join(magi_dir, 'tests', 'testdata',
+                                    'project.magi.json')
+
+        with open(schema_path, 'r', encoding='utf-8') as f:
+            schema = json.load(f)
+        with open(project_path, 'r', encoding='utf-8') as f:
+            project = json.load(f)
+
+        # Mock the InputApi to use the real files
+        self.mock_input.affected_files = [
+            MockAffectedFile(
+                'agents/skills/magi-mode/tests/testdata/project.magi.json')
+        ]
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/tests/testdata/project.magi.json':
+            json.dumps(project)
+        }
+
+        # We need to mock 'builtins.open' because PRESUBMIT.py reads the
+        # schema from disk.
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=json.dumps(schema))):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+
+        self.assertEqual(
+            len(results), 0,
+            f"Test data is inconsistent with real schema: {results}")
+
+    def testColdLogicStaticAnalysis(self):
+        # Missing MANDATE: prefix
+        invalid_mandate = '{"role": "R", "mandate": ["Bad"], "checklist": {}}'
+        self.mock_input.affected_files = [
+            MockAffectedFile('agents/skills/magi-mode/personas/test.json')
+        ]
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/personas/test.json': invalid_mandate
+        }
+        schema_json = '{"definitions": {"PersonaDef": {"required": []}}}'
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertTrue(
+                any('must start with "MANDATE:"' in r for r in results))
+
+        # Conversational filler
+        filler_json = (
+            '{"role": "R", "mandate": ["MANDATE: X", "Please do Y"], '
+            '"checklist": {}}')
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/personas/test.json': filler_json
+        }
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertTrue(
+                any('contains conversational filler' in r for r in results))
+
+    def testOscillationDetection(self):
+        # Oscillation but no report
+        invalid_json = (
+            '{"checklist": {}, "iteration": 1, '
+            '"oscillation_detected": true, "conflict_report": [], '
+            '"active_constraints": [], "resolved_constraints": [], '
+            '"state_transport": "FILE_IO", "next_stage": "ESCALATION"}')
+        self.mock_input.affected_files = [
+            MockAffectedFile('agents/skills/magi-mode/state_block.magi.json')
+        ]
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/state_block.magi.json': invalid_json
+        }
+        schema_json = '{"definitions": {"StateBlock": {"required": []}}}'
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertTrue(
+                any('conflict_report is empty' in r for r in results))
+
+        # Oscillation but wrong stage
+        wrong_stage_json = (
+            '{"checklist": {}, "iteration": 1, '
+            '"oscillation_detected": true, "conflict_report": ["Conflict"], '
+            '"active_constraints": [], "resolved_constraints": [], '
+            '"state_transport": "FILE_IO", "next_stage": "SYNTHESIS"}')
+        self.mock_input.files_content = {
+            'agents/skills/magi-mode/state_block.magi.json': wrong_stage_json
+        }
+        with patch('builtins.open',
+                   unittest.mock.mock_open(read_data=schema_json)):
+            results = PRESUBMIT.CheckJsonFiles(self.mock_input,
+                                               self.mock_output)
+            self.assertTrue(
+                any('next_stage is not ESCALATION' in r for r in results))
+
+
+if __name__ == '__main__':
+    unittest.main()

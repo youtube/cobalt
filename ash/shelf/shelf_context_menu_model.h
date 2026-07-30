@@ -27,6 +27,7 @@ class ASH_EXPORT ShelfContextMenuModel : public ui::SimpleMenuModel,
   // intention that it will be logged, add checks to ensure stability of the
   // enum and update the ChromeOSUICommands enum listing in
   // tools/metrics/histograms/enums.xml.
+  // LINT.IfChange(CommandId)
   enum CommandId {
     MENU_ASH_START = 500,  // Offset to avoid conflicts with other menus.
     MENU_AUTO_HIDE = MENU_ASH_START,
@@ -40,8 +41,10 @@ class ASH_EXPORT ShelfContextMenuModel : public ui::SimpleMenuModel,
     MENU_SHOW_CONTINUE_SECTION = 508,
     MENU_HIDE_DESK_NAME = 509,
     MENU_SHOW_DESK_NAME = 510,
+    MENU_TASK_MANAGER = 511,
     MENU_ASH_END
   };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/apps/enums.xml:ChromeOSUICommands)
 
   ShelfContextMenuModel(ShelfItemDelegate* delegate,
                         int64_t display_id,

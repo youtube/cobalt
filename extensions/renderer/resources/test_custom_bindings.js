@@ -300,6 +300,74 @@ apiBridge.registerCustomHook(function(api) {
   let pendingPromiseRejections = 0;
   let runTestsResolve = null;
   let runTestsReject = null;
+  // Stores the original, framework-defined `chrome.test.fail` function.
+  // This is used to detect if a test has mocked `chrome.test.fail` (e.g. to
+  // capture assertion failures without terminating the test). An example of
+  // this is the `TestAPITest.ApiTest` test case which mocks `chrome.test.fail`
+  // to verify `assertEq` failure messages.
+  // TODO(crbug.com/519961697): Consider if we should adjust
+  // `TestAPITest.ApiTest` to not require mocking to do its assertions.
+  let originalChromeTestFail = null;
+
+  function failInternal(message, failRelativePoint) {
+    // If the test has overridden `chrome.test.fail`, delegate to the mock
+    // so that the test's mock logic can capture the failure and continue
+    // execution.
+    if (originalChromeTestFail && chromeTest.fail !== originalChromeTestFail) {
+      chromeTest.fail(message);
+      return;
+    }
+    testsFailed++;
+    chromeTest.log(`(  FAILED  ) ${testName(currentTest)}`);
+
+    let stack = {};
+    Error.captureStackTrace(stack, failRelativePoint || failInternal);
+
+    const assertionDescription = message || 'Assertion FAIL';
+    const fullMessage = `${assertionDescription} \n ${stack.stack}`;
+
+    console.log(`[FAIL] ${testName(currentTest)}: ${fullMessage}`);
+    if (chromeTest.onTestFinished) {
+      chromeTest.onTestFinished.dispatch({
+        testName: testName(currentTest),
+        result: false,
+        remainingTests: chromeTest.tests.length,
+        assertionDescription: assertionDescription,
+        message: fullMessage
+      });
+    }
+    chromeTest.notifyTestFinished(
+        testName(currentTest), /* result= */ false,
+        /* remainingTests= */ chromeTest.tests.length, assertionDescription,
+        /* message= */ fullMessage);
+    testDone();
+    throw kFailureException;
+  }
+
+  function succeedInternal() {
+    chromeTest.assertEq(
+        0, pendingPromiseRejections,
+        'Test had pending promise rejections. This is likely the result of \
+not waiting for the promise returned by `assertPromiseRejects()` to \
+resolve. Instead, use `await assertPromiseRejects(...)` or \
+`assertPromiseRejects(...).then(...).`.');
+    console.log(`[SUCCESS] ${testName(currentTest)}`);
+    chromeTest.log('(  SUCCESS )');
+    if (chromeTest.onTestFinished) {
+      chromeTest.onTestFinished.dispatch({
+        testName: testName(currentTest),
+        result: true,
+        remainingTests: chromeTest.tests.length,
+        assertionDescription: `${testName(currentTest)} PASS`
+      });
+    }
+    chromeTest.notifyTestFinished(
+        testName(currentTest), /* result= */ true,
+        /* remainingTests= */ chromeTest.tests.length,
+        /* assertionDescription= */ `${testName(currentTest)} PASS`,
+        /* message= */ '');
+    testDone();
+  }
 
   function safeFunctionApply(func, args) {
     try {
@@ -338,16 +406,75 @@ apiBridge.registerCustomHook(function(api) {
       chromeTest.notifyTestStarted(testName(currentTest));
       bindingUtil.setExceptionHandler(function(message, e) {
         if (e !== kFailureException) {
-          chromeTest.fail(
+          failInternal(
               `Exception running ${testName(currentTest)}: ${message}`);
         }
       });
       const result = $Function.call(currentTest);
-      if (result instanceof Promise) {
-        result.catch(e => handleException(e.message, e));
+
+      if (useStandardizedApiBehavior) {
+        handleImplicitTestResult(result);
+      } else {
+        handleExplicitTestResult(result);
       }
     } catch (e) {
       handleException(e.message, e);
+    }
+  }
+
+  /**
+   * Handles the result of a test function when implicit test results are
+   * enabled.
+   *
+   * As specified in the W3C WebExtensions browser.test proposal:
+   * https://github.com/w3c/webextensions/blob/main/proposals/browser_test_api.md
+   * "Tests pass when they either return `undefined` or when a promise returned
+   * by the test resolves. They fail if they:
+   * - Throw an exception
+   * - Return a promise that rejects
+   * - Trigger an assertion failure"
+   *
+   * @param {*} result The return value of the test function.
+   */
+  function handleImplicitTestResult(result) {
+    if (result instanceof Promise) {
+      result
+          .then(() => {
+            succeedInternal();
+          })
+          .catch(e => handleException(e.message, e));
+      return;
+    }
+
+    if (result !== undefined) {
+      failInternal(
+          'Test functions with implicit passing enabled must return ' +
+          'undefined or a Promise.');
+      return;
+    }
+
+    if (pendingCallbacks > 0) {
+      failInternal(
+          'Test returned undefined but has pending callbacks. ' +
+          'Did you forget to return a Promise?');
+      return;
+    }
+
+    succeedInternal();
+  }
+
+  /**
+   * Handles the result of a test function when implicit test results is
+   * disabled.
+   *
+   * This handles test failures for `async` test functions that throw errors.
+   * The catch here ensures that we fail the test when this happens.
+   *
+   * @param {*} result The return value of the test function.
+   */
+  function handleExplicitTestResult(result) {
+    if (result instanceof Promise) {
+      result.catch(e => handleException(e.message, e));
     }
   }
 
@@ -396,105 +523,67 @@ apiBridge.registerCustomHook(function(api) {
   function assertBool(test, expected, message) {
     logging.CHECK(typeof expected === 'boolean');
     if (typeof test !== 'boolean') {
-      chromeTest.fail(
+      failInternal(
           `API Test Error in ${testName(currentTest)}: ` +
           'assertTrue and assertFalse require a boolean condition.');
     }
     if (test !== expected) {
-      chromeTest.fail(message);
+      failInternal(message);
     }
   }
 
   apiFunctions.setHandleRequest('callbackAdded', function() {
     pendingCallbacks++;
 
-    let called = null;
+    let previousCallStack = null;
     return function() {
-      if (called != null) {
-        const redundantPrefixLength = 'Error\n'.length;
-        chromeTest.fail(
-          'Callback has already been run. ' +
-          'First call:\n' +
-          $String.slice(called, redundantPrefixLength) + '\n' +
-          'Second call:\n' +
-          $String.slice(new Error().stack, redundantPrefixLength));
+      if (previousCallStack != null) {
+        const prefixLength = 'Error\n'.length;
+        const currentStack = new Error().stack;
+
+        const trimmedPreviousStack =
+            $String.slice(previousCallStack, prefixLength);
+        const trimmedCurrentStack = $String.slice(currentStack, prefixLength);
+
+        failInternal(
+            'Callback has already been run. ' +
+            `First call:\n${trimmedPreviousStack}\n` +
+            `Second call:\n${trimmedCurrentStack}`);
+        return;
       }
-      called = new Error().stack;
+      previousCallStack = new Error().stack;
 
       pendingCallbacks--;
       if (pendingCallbacks == 0) {
-        chromeTest.succeed();
+        succeedInternal();
       }
     };
   });
 
   apiFunctions.setHandleRequest('fail', function failHandler(message) {
-    chromeTest.log(`(  FAILED  ) ${testName(currentTest)}`);
-
-    let stack = {};
-    // NOTE(devlin): captureStackTrace() populates a stack property of the
-    // passed-in object with the stack trace. The second parameter (failHandler)
-    // represents a function to serve as a relative point, and is removed from
-    // the trace (so that everything doesn't include failHandler in the trace
-    // itself). This (and other APIs) are documented here:
-    // https://github.com/v8/v8/wiki/Stack%20Trace%20API. If we wanted to be
-    // really fancy, there may be more sophisticated ways of doing this.
-    Error.captureStackTrace(stack, failHandler);
-
-    const assertionDescription = message || 'Assertion FAIL';
-    const fullMessage = `${assertionDescription} \n ${stack.stack}`;
-
-    console.log(`[FAIL] ${testName(currentTest)}: ${fullMessage}`);
-    // Notify this script context (if it's listening) that the test finished and
-    // failed.
-    if (chromeTest.onTestFinished) {
-      chromeTest.onTestFinished.dispatch({
-        testName: testName(currentTest),
-        result: false,
-        remainingTests: chromeTest.tests.length,
-        assertionDescription: assertionDescription,
-        message: fullMessage
-      });
+    if (useStandardizedApiBehavior) {
+      let failureMessage =
+          'chrome.test.fail() is not allowed when implicit test results are ' +
+          'enabled. Use assertions, throw exceptions, or return a ' +
+          'promise that rejects instead.';
+      if (message) {
+        failureMessage += ` Original failure message: ${message}`;
+      }
+      failInternal(failureMessage, failHandler);
+    } else {
+      failInternal(message, failHandler);
     }
-    // Notify other renderer script contexts that the test finished and failed.
-    chromeTest.notifyTestFinished(
-        testName(currentTest), /* result= */ false,
-        /* remainingTests= */ chromeTest.tests.length, assertionDescription,
-        /* message= */ fullMessage);
-    testsFailed++;
-    testDone();
-
-    // Interrupt the rest of the test.
-    throw kFailureException;
   });
 
   apiFunctions.setHandleRequest('succeed', function() {
-    chromeTest.assertEq(
-        0, pendingPromiseRejections,
-        'Test had pending promise rejections. This is likely the result of ' +
-        'not waiting for the promise returned by `assertPromiseRejects()` to ' +
-        'resolve. Instead, use `await assertPromiseRejects(...)` or ' +
-        '`assertPromiseRejects(...).then(...).`.');
-    console.log(`[SUCCESS] ${testName(currentTest)}`);
-    chromeTest.log('(  SUCCESS )');
-    // Notify this script context (if it's listening) that the test finished and
-    // succeeded.
-    if (chromeTest.onTestFinished) {
-      chromeTest.onTestFinished.dispatch({
-        testName: testName(currentTest),
-        result: true,
-        remainingTests: chromeTest.tests.length,
-        assertionDescription: `${testName(currentTest)} PASS`
-      });
+    if (useStandardizedApiBehavior) {
+      failInternal(
+          'chrome.test.succeed() is not allowed when implicit test results ' +
+          'are enabled. Either return a promise that resolves or return ' +
+          'undefined to indicate test passing.');
+    } else {
+      succeedInternal();
     }
-    // Notify other renderer script contexts that the test finished and
-    // succeeded.
-    chromeTest.notifyTestFinished(
-        testName(currentTest), /* result= */ true,
-        /* remainingTests= */ chromeTest.tests.length,
-        /* assertionDescription= */ `${testName(currentTest)} PASS`,
-        /* message= */ '');
-    testDone();
   });
 
   apiFunctions.setHandleRequest('getModuleSystem', function(context) {
@@ -535,7 +624,7 @@ apiBridge.registerCustomHook(function(api) {
                 typeof other_value}`;
           }
         }
-        chromeTest.fail(errorMsg);
+        failInternal(errorMsg);
       });
 
   apiFunctions.setHandleRequest(
@@ -551,13 +640,12 @@ apiBridge.registerCustomHook(function(api) {
 
         errorMsg +=
             '\nExpected unequal values, but both are ' + $JSON.stringify(value);
-        chromeTest.fail(errorMsg);
+        failInternal(errorMsg);
       });
 
   apiFunctions.setHandleRequest('assertNoLastError', function() {
     if (chrome.runtime.lastError != undefined) {
-      chromeTest.fail('lastError.message == ' +
-                       chrome.runtime.lastError.message);
+      failInternal(`lastError.message == ${chrome.runtime.lastError.message}`);
     }
   });
 
@@ -574,7 +662,7 @@ apiBridge.registerCustomHook(function(api) {
     chromeTest.assertTrue(typeof fn == 'function');
     try {
       fn.apply(self, args);
-      chromeTest.fail('Did not throw error: ' + fn);
+      failInternal(`Did not throw error: ${fn}`);
     } catch (e) {
       if (e != kFailureException && message !== undefined) {
         if (message instanceof RegExp) {
@@ -629,8 +717,8 @@ apiBridge.registerCustomHook(function(api) {
           pendingPromiseRejections--;
           chromeTest.assertTrue(pendingPromiseRejections >= 0,
                                 'Negative pending promise rejection count!');
-          chromeTest.fail(
-              'Promise did not reject. Expected error: ' + expectedMessage);
+          failInternal(
+              `Promise did not reject. Expected error: ${expectedMessage}`);
         },
         (e) => {
           pendingPromiseRejections--;
@@ -762,6 +850,9 @@ apiBridge.registerCustomHook(function(api) {
     chromeTest.assertEq(typeof(callback), 'function');
     bindingUtil.setExceptionHandler(callback);
   });
+
+  // Store the original wrapper for mock detection.
+  originalChromeTestFail = chromeTest.fail;
 
   environmentSpecificBindings.registerHooks(api);
 });

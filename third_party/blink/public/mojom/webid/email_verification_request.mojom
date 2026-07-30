@@ -67,5 +67,7 @@ enum EmailVerificationRequestResult {
   kTokenVerificationKbInvalidSdHash = 54,
   kTokenVerificationKbMissingCnf = 55,
   kTokenVerificationKbSignatureFailed = 56,
+  kTokenVerificationSdJwtInvalidTyp = 57,
 };
+
 // LINT.ThenChange(//tools/metrics/histograms/metadata/blink/enums.xml:EvpRequestStatus)

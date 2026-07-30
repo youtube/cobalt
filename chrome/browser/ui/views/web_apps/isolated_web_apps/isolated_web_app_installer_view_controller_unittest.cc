@@ -175,8 +175,7 @@ class IsolatedWebAppInstallerViewControllerTest : public ::testing::Test {
         {});
     ASSERT_TRUE(scoped_temp_dir_.CreateUniqueTempDir());
 
-    resetter_ =
-        ChromeIwaRuntimeDataProvider::SetInstanceForTesting(&data_provider_);
+    resetter_ = IwaRuntimeDataProvider::SetInstanceForTesting(&data_provider_);
 
     TestingProfile::Builder profile_builder;
     profile_ = profile_builder.Build();
@@ -266,7 +265,7 @@ class IsolatedWebAppInstallerViewControllerTest : public ::testing::Test {
   data_decoder::test::InProcessDataDecoder in_process_data_decoder_;
   std::unique_ptr<TestingProfile> profile_;
   FakeIwaRuntimeDataProvider data_provider_;
-  std::optional<base::AutoReset<ChromeIwaRuntimeDataProvider*>> resetter_;
+  std::optional<base::AutoReset<IwaRuntimeDataProvider*>> resetter_;
 };
 
 TEST_F(IsolatedWebAppInstallerViewControllerTest,

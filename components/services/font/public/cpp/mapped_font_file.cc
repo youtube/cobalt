@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/containers/span.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/trace_event/trace_event.h"
 #include "skia/ext/skia_utils_base.h"
@@ -13,8 +14,7 @@
 #include "third_party/skia/include/core/SkRefCnt.h"
 #include "third_party/skia/include/core/SkStream.h"
 
-namespace font_service {
-namespace internal {
+namespace font_service::internal {
 
 MappedFontFile::MappedFontFile(uint32_t font_id) : font_id_(font_id) {}
 
@@ -25,9 +25,9 @@ bool MappedFontFile::Initialize(base::File file) {
 
 SkMemoryStream* MappedFontFile::CreateMemoryStream() {
   DCHECK(mapped_font_file_.IsValid());
-  sk_sp<SkData> data =
-      SkData::MakeWithProc(mapped_font_file_.data(), mapped_font_file_.length(),
-                           &MappedFontFile::ReleaseProc, this);
+  const base::span<const uint8_t> font_data = mapped_font_file_.bytes();
+  sk_sp<SkData> data = SkData::MakeWithProc(font_data.data(), font_data.size(),
+                                            &MappedFontFile::ReleaseProc, this);
   if (!data)
     return nullptr;
   AddRef();
@@ -45,5 +45,5 @@ void MappedFontFile::ReleaseProc(const void* ptr, void* context) {
   static_cast<MappedFontFile*>(context)->Release();
 }
 
-}  // namespace internal
-}  // namespace font_service
+}  // namespace font_service::internal
+

@@ -159,7 +159,7 @@ class ConfigurationPolicyHandlerListTest : public ::testing::Test {
   PolicyMap policies_;
   PoliciesSet deprecated_policies_;
   PoliciesSet future_policies_;
-  PolicyDetails details_{false, false, kProfile, kSourceRestrictionNone, 0, {}};
+  PolicyDetails details_{false, false, false, kProfile, kSourceRestrictionNone, 0, {}};
 
   std::unique_ptr<ConfigurationPolicyHandlerList> handler_list_;
 };

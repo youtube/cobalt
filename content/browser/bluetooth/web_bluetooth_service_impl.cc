@@ -855,6 +855,10 @@ void WebBluetoothServiceImpl::GetDevices(GetDevicesCallback callback) {
 void WebBluetoothServiceImpl::ForgetDevice(
     const blink::WebBluetoothDeviceId& device_id,
     ForgetDeviceCallback callback) {
+  if (GetBluetoothAllowed() != blink::mojom::WebBluetoothResult::SUCCESS) {
+    std::move(callback).Run();
+    return;
+  }
   CHECK(back_forward_cache_feature_handle_.IsValid());
   if (!base::FeatureList::IsEnabled(
           features::kWebBluetoothNewPermissionsBackend)) {

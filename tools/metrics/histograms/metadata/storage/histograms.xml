@@ -34,6 +34,9 @@ chromium-metrics-reviews@google.com.
 <variants name="DomStorageBackingStoreLifetime">
   <variant name="InMemory" summary="in-memory database"/>
   <variant name="OnDisk" summary="on-disk database"/>
+  <variant name="OnDiskExperimental"
+      summary="experimental (belongs to the treatment or control group of an
+               experiment targeting on-disk databases for new databases)"/>
 </variants>
 
 <variants name="DomStorageRecoveryReason">
@@ -225,7 +228,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="API.TopLevelStorageAccess.RequestStorageAccessFor2"
-    enum="RequestStorageResult" expires_after="2026-10-11">
+    enum="RequestStorageResult" expires_after="2026-12-16">
   <owner>cfredric@chromium.org</owner>
   <owner>mreichhoff@chromium.org</owner>
   <summary>
@@ -1030,17 +1033,25 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="LocalStorage.DatabaseOnDiskSizeKB" units="KB"
-    expires_after="2026-11-22">
+<histogram
+    name="LocalStorage.DatabaseOnDiskSizeKB{DomStorageSqliteRolloutStage}"
+    units="KB" expires_after="2026-11-22">
   <owner>fergal@chromium.org</owner>
   <owner>rahsin@microsoft.com</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
     Records the on disk size of the LocalStorage database for a given browser
-    Profile. This is reported when the DomStorageContextWrapper is created in
-    the Browser process and binds the LocalStorage endpoint in the Storage
-    process.
+    Profile. Recorded once per LocalStorage backend per attempt to open the
+    on-disk database in the Storage process, regardless of open outcome.
   </summary>
+  <token key="DomStorageSqliteRolloutStage">
+    <variant name=""
+        summary="on-disk database not participating in the SQLite rollout
+                 experiment"/>
+    <variant name=".OnDiskExperimental"
+        summary="experimental (belongs to the treatment or control group of
+                 the SQLite rollout experiment)"/>
+  </token>
 </histogram>
 
 <histogram name="LocalStorage.DaysSinceLastModified" units="days"
@@ -2405,7 +2416,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Storage.SharedStorage.OnShutdown.NumSqlErrors" units="Errors"
-    expires_after="2026-10-18">
+    expires_after="2026-12-20">
   <owner>cammie@chromium.org</owner>
   <owner>yaoxia@chromium.org</owner>
   <owner>chrome-ads-histograms@google.com</owner>
@@ -2596,7 +2607,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Storage.SharedStorage.Worklet.Error.Type"
-    enum="SharedStorageWorkletErrorType" expires_after="2026-10-18">
+    enum="SharedStorageWorkletErrorType" expires_after="2026-12-20">
   <owner>cammie@chromium.org</owner>
   <owner>yaoxia@chromium.org</owner>
   <owner>chrome-ads-histograms@google.com</owner>
@@ -2815,7 +2826,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Storage.SharedStorage.Worklet.Timing.Set" units="ms"
-    expires_after="2026-10-18">
+    expires_after="2026-12-20">
   <owner>cammie@chromium.org</owner>
   <owner>yaoxia@chromium.org</owner>
   <owner>chrome-ads-histograms@google.com</owner>

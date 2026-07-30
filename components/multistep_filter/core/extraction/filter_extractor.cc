@@ -16,7 +16,6 @@
 #include "components/multistep_filter/core/annotation_index/annotation_index_client.h"
 #include "components/multistep_filter/core/data_models/filter_annotation.h"
 #include "components/multistep_filter/core/logging/multistep_filter_logger.h"
-#include "components/multistep_filter/core/multistep_filter_util.h"
 #include "components/multistep_filter/core/storage/filter_store.h"
 #include "url/gurl.h"
 
@@ -26,28 +25,28 @@ namespace {
 
 void LogExtractionFailed(MultistepFilterLogRouter* log_router,
                          int64_t navigation_id,
-                         std::string_view domain,
+                         std::string_view host,
                          std::string_view detail_key) {
   MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                       LogEventType::kAnnotationsExtracted, domain)
-      << LogDetail{std::string(detail_key), false};
+                       LogEventType::kAnnotationsExtracted, host)
+      << LogDetail{detail_key, false};
 }
 
 void LogAnnotationFetched(MultistepFilterLogRouter* log_router,
                           int64_t navigation_id,
-                          std::string_view domain,
+                          std::string_view host,
                           const FilterAnnotation& annotation) {
   MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                       LogEventType::kAnnotationsExtracted, domain)
+                       LogEventType::kAnnotationsExtracted, host)
       << LogDetail{"fetched", true}
       << LogDetail{"annotation", annotation.ToString()};
 }
 
 void LogAnnotationStored(MultistepFilterLogRouter* log_router,
                          int64_t navigation_id,
-                         std::string_view domain) {
+                         std::string_view host) {
   MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                       LogEventType::kAnnotationsExtracted, domain)
+                       LogEventType::kAnnotationsExtracted, host)
       << LogDetail{"stored", true};
 }
 
@@ -65,32 +64,31 @@ FilterExtractor::~FilterExtractor() = default;
 void FilterExtractor::ExtractAnnotationFromUrl(
     const GURL& url,
     base::OnceCallback<void(std::optional<base::Uuid>)> callback,
-    int64_t navigation_id,
-    std::string_view domain) {
+    int64_t navigation_id) {
   annotation_index_client_->ExtractFilterAnnotation(
       url,
       base::BindOnce(&FilterExtractor::OnAnnotationExtracted,
                      weak_ptr_factory_.GetWeakPtr(), std::move(callback),
-                     navigation_id, std::string(domain)),
+                     navigation_id, url.GetHost()),
       navigation_id);
 }
 
 void FilterExtractor::OnAnnotationExtracted(
     base::OnceCallback<void(std::optional<base::Uuid>)> callback,
     int64_t navigation_id,
-    std::string_view domain,
+    std::string_view host,
     std::optional<FilterAnnotation> annotation) {
   if (annotation) {
-    LogAnnotationFetched(log_router_, navigation_id, domain, *annotation);
+    LogAnnotationFetched(log_router_, navigation_id, host, *annotation);
     base::Uuid annotation_id = annotation->id;
     filter_store_->StoreAnnotation(
         *annotation,
         base::BindOnce(&FilterExtractor::OnAnnotationStored,
                        weak_ptr_factory_.GetWeakPtr(), std::move(callback),
                        std::move(annotation_id), navigation_id,
-                       std::string(domain)));
+                       std::string(host)));
   } else {
-    LogExtractionFailed(log_router_, navigation_id, domain, "extracted");
+    LogExtractionFailed(log_router_, navigation_id, host, "extracted");
     std::move(callback).Run(std::nullopt);
   }
 }
@@ -99,13 +97,13 @@ void FilterExtractor::OnAnnotationStored(
     base::OnceCallback<void(std::optional<base::Uuid>)> callback,
     base::Uuid annotation_id,
     int64_t navigation_id,
-    std::string_view domain,
+    std::string_view host,
     bool success) {
   if (!success) {
-    LogExtractionFailed(log_router_, navigation_id, domain, "stored");
+    LogExtractionFailed(log_router_, navigation_id, host, "stored");
     std::move(callback).Run(std::nullopt);
   } else {
-    LogAnnotationStored(log_router_, navigation_id, domain);
+    LogAnnotationStored(log_router_, navigation_id, host);
     std::move(callback).Run(std::move(annotation_id));
   }
 }

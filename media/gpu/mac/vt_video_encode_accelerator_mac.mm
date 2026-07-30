@@ -7,6 +7,7 @@
 #import <Foundation/Foundation.h>
 
 #include <algorithm>
+#include <cmath>
 #include <memory>
 #include <optional>
 
@@ -38,6 +39,7 @@
 #include "media/base/video_frame.h"
 #include "media/base/video_types.h"
 #include "media/gpu/gpu_video_encode_accelerator_helpers.h"
+#include "media/gpu/mac/vt_config_util.h"
 #include "media/video/video_encode_accelerator.h"
 
 using base::apple::CFToNSPtrCast;
@@ -563,6 +565,7 @@ EncoderStatus VTVideoEncodeAccelerator::Initialize(
                                 << GetProfileName(config.output_profile);
     return {EncoderStatus::Codes::kEncoderInitializationError};
   }
+  input_format_ = config.input_format;
   profile_ = config.output_profile;
   codec_ = VideoCodecProfileToVideoCodec(config.output_profile);
   client_ = client;
@@ -981,6 +984,41 @@ void VTVideoEncodeAccelerator::ReturnBitstreamBuffer(
     md.qp = encode_output->qp.value();
   }
 
+  if (calculate_psnr_) {
+    if (@available(macOS 14.4, *)) {
+      NSDictionary* quality_metrics = [sample_attachments
+          objectForKey:CFToNSPtrCast(kVTSampleAttachmentKey_QualityMetrics)];
+      if (quality_metrics) {
+        NSNumber* luma_mse = [quality_metrics
+            objectForKey:
+                CFToNSPtrCast(
+                    kVTSampleAttachmentQualityMetricsKey_LumaMeanSquaredError)];
+        NSNumber* chroma_blue_mse = [quality_metrics
+            objectForKey:
+                CFToNSPtrCast(
+                    kVTSampleAttachmentQualityMetricsKey_ChromaBlueMeanSquaredError)];
+        NSNumber* chroma_red_mse = [quality_metrics
+            objectForKey:
+                CFToNSPtrCast(
+                    kVTSampleAttachmentQualityMetricsKey_ChromaRedMeanSquaredError)];
+        if (luma_mse && chroma_blue_mse && chroma_red_mse) {
+          // YUV isn't the same as YCbCr, but we don't have a good way to report
+          // the latter and in practice the difference will be small (luma vs
+          // chroma is still a valid comparison).
+          double y_mse = [luma_mse doubleValue];
+          double cb_mse = [chroma_blue_mse doubleValue];
+          double cr_mse = [chroma_red_mse doubleValue];
+
+          md.yuv_psnr = YuvPsnr{
+              .y = CalculatePsnr(y_mse, input_format_),
+              .u = CalculatePsnr(cb_mse, input_format_),  // Cb -> U
+              .v = CalculatePsnr(cr_mse, input_format_),  // Cr -> V
+          };
+        }
+      }
+    }
+  }
+
   client_->BitstreamBufferReady(buffer_ref->id, std::move(md));
   MaybeRunFlushCallback();
 }
@@ -1081,6 +1119,21 @@ bool VTVideoEncodeAccelerator::ConfigureCompressionSession(VideoCodec codec) {
     }
   } else {
     DLOG(WARNING) << "MaxFrameDelayCount is not supported";
+  }
+
+  if (@available(macOS 14.4, *)) {
+    if (session_property_setter.IsSupported(
+            kVTCompressionPropertyKey_CalculateMeanSquaredError) &&
+        base::FeatureList::IsEnabled(kVTVideoEncodeAcceleratorCalculatePSNR)) {
+      if (session_property_setter.Set(
+              kVTCompressionPropertyKey_CalculateMeanSquaredError, true)) {
+        calculate_psnr_ = true;
+      } else {
+        DLOG(WARNING) << "Failed to set CalculateMeanSquaredError property";
+      }
+    } else {
+      DVLOG(1) << "CalculateMeanSquaredError is not supported or not enabled";
+    }
   }
 
   if (num_temporal_layers_ != 2) {
@@ -1207,6 +1260,26 @@ base::TimeDelta VTVideoEncodeAccelerator::AssignMonotonicTimestamp() {
   auto result = next_timestamp_;
   next_timestamp_ += step;
   return result;
+}
+
+// static
+double VTVideoEncodeAccelerator::CalculatePsnr(double mse,
+                                               VideoPixelFormat format) {
+  DCHECK_GE(mse, 0.0);
+  DCHECK(format == PIXEL_FORMAT_I420 || format == PIXEL_FORMAT_NV12);
+  constexpr double max_value = 255.0;
+  if (mse == 0.0) {
+    return 128.0;
+  }
+  double psnr = 10.0 * std::log10((max_value * max_value) / mse);
+  return std::min(psnr, 128.0);
+}
+
+// static
+double VTVideoEncodeAccelerator::CalculatePsnrForTesting(
+    double mse,
+    VideoPixelFormat format) {
+  return CalculatePsnr(mse, format);
 }
 
 }  // namespace media

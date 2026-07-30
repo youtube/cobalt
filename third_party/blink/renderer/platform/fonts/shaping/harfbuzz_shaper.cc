@@ -312,7 +312,8 @@ inline bool ShapeRange(hb_buffer_t* buffer,
                        UScriptCode current_run_script,
                        hb_direction_t direction,
                        hb_language_t language,
-                       float specified_size) {
+                       float specified_size,
+                       VariationSelectorMode variation_selector_mode) {
   const FontPlatformData& platform_data = current_font->PlatformData();
   HarfBuzzFace* face = platform_data.GetHarfBuzzFace();
   if (!face) {
@@ -345,6 +346,7 @@ inline bool ShapeRange(hb_buffer_t* buffer,
                               ? HarfBuzzFace::kPrepareForVerticalLayout
                               : HarfBuzzFace::kNoVerticalLayout,
                           specified_size);
+  face->SetVariationSelectorMode(variation_selector_mode);
   hb_shape_full(hb_font, buffer,
                 FontFeatureRange::ToHarfBuzzData(argument_features.data()),
                 argument_features.size(), ShapingBackend());
@@ -998,13 +1000,9 @@ void HarfBuzzShaper::ShapeSegment(
   FallbackFontStage fallback_stage = kIntermediate;
   // Variation selector mode should be always set to default at the
   // beginning of the segment shaping run.
-  DCHECK(HarfBuzzFace::GetVariationSelectorMode() ==
-         kUseSpecifiedVariationSelector);
-  if (font_description.VariantEmoji() != kNormalVariantEmoji) {
-    HarfBuzzFace::SetVariationSelectorMode(
-        GetVariationSelectorModeFromFontVariantEmoji(
-            font_description.VariantEmoji()));
-  }
+  VariationSelectorMode variation_selector_mode =
+      GetVariationSelectorModeFromFontVariantEmoji(
+          font_description.VariantEmoji());
   while (!range_data->reshape_queue.empty()) {
     ReshapeQueueItem current_queue_item = range_data->reshape_queue.TakeFirst();
 
@@ -1018,7 +1016,7 @@ void HarfBuzzShaper::ShapeSegment(
         DCHECK_EQ(fallback_stage, kLastWithVS);
         fallback_iterator.Reset();
         fallback_stage = kIntermediateIgnoreVS;
-        HarfBuzzFace::SetVariationSelectorMode(kIgnoreVariationSelector);
+        variation_selector_mode = kIgnoreVariationSelector;
       }
 
       if (!CollectFallbackHintChars(range_data->reshape_queue,
@@ -1119,7 +1117,8 @@ void HarfBuzzShaper::ShapeSegment(
     if (!ShapeRange(range_data->buffer.Get(), range_data->font_features,
                     adjusted_font, current_font_data_for_range_set->Ranges(),
                     segment.script, direction, language,
-                    font_description.SpecifiedSize())) {
+                    font_description.SpecifiedSize(),
+                    variation_selector_mode)) {
       DLOG(ERROR) << "Shaping range failed.";
     }
 
@@ -1142,9 +1141,6 @@ void HarfBuzzShaper::ShapeSegment(
   }
 
   han_kerning.DidShapeSegment(*result);
-
-  // Set variation selector mode to the default state.
-  HarfBuzzFace::SetVariationSelectorMode(kUseSpecifiedVariationSelector);
 }
 
 ShapeResult* HarfBuzzShaper::Shape(const Font* font,

@@ -9,8 +9,10 @@ found in the LICENSE file.
     xmlns:android="http://schemas.android.com/apk/res/android"
     style="@style/AppMenuItem"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="@dimen/menu_header_height"
     android:orientation="horizontal"
+    android:gravity="bottom"
+    android:paddingBottom="@dimen/menu_header_padding_bottom"
     android:focusable="false"
     android:clickable="false" >
 
@@ -20,8 +22,6 @@ found in the LICENSE file.
         android:textAppearance="@style/TextAppearance.TextSmallThick.Primary"
         android:layout_weight="1"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_gravity="start"
-        android:minHeight="?attr/listItemHeight" />
+        android:layout_height="wrap_content" />
 
 </LinearLayout>

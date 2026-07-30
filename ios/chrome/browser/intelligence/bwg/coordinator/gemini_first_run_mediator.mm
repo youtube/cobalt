@@ -201,7 +201,7 @@ const CGFloat kPromoMaxImpressionCount = 3;
 
 // Did consent to Live Gemini.
 - (void)didConsentToLiveGemini {
-  gemini::UpdateUserConsentPrefs(YES, _prefService);
+  gemini::UpdateUserConsentToLivePrefs(YES, _prefService);
   __weak __typeof(self) weakSelf = self;
   [_delegate dismissGeminiConsentUIWithCompletion:^{
     [weakSelf handleFRECompletion:YES];

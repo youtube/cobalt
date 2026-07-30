@@ -408,4 +408,22 @@ public class PdfToolbarCoordinatorUnitTest {
         printButton.performClick();
         verify(mDelegate).print();
     }
+
+    @Test
+    public void testEditButtonClick() {
+        View editButton = mPdfPageView.findViewById(R.id.edit_button);
+        org.junit.Assert.assertNotNull("Edit button should not be null", editButton);
+
+        // Initial state: EDIT_MODE_ACTIVE is false (default)
+        // Click should toggle it to true, calling setEditMode(true)
+        editButton.performClick();
+        verify(mDelegate).setEditMode(true);
+
+        // Now set the model to active (simulating delegate callback -> coordinator -> model update)
+        mPdfToolbarCoordinator.setEditModeActive(true);
+
+        // Click again should toggle it to false, calling setEditMode(false)
+        editButton.performClick();
+        verify(mDelegate).setEditMode(false);
+    }
 }

@@ -38,6 +38,7 @@ constexpr char kManifest[] =
 // TODO(devlin): Investigate using WebContentsConsoleObserver to watch for
 // specific errors / patterns.
 constexpr char kExpectedFailureMessage[] = "Failed 1 of 1 tests";
+constexpr char kExpectedFailureMessageOneOfTwoTests[] = "Failed 1 of 2 tests";
 
 }  // namespace
 
@@ -809,14 +810,30 @@ IN_PROC_BROWSER_TEST_P(TestStandardizedAPITest, assertEq) {
   for (const auto& c : cases) {
     SCOPED_TRACE(base::StringPrintf("Case: %s", c.title.c_str()));
     ResultCatcher result_catcher;
-    std::string script = base::StringPrintf(
-        R"(chrome.test.runTests([
-             function test() {
-               %s
-               chrome.test.succeed();
-             }
-           ]);)",
-        c.test_case.c_str());
+    // When `standardized_behavior_enabled` is true, the test relies on implicit
+    // passing (returning undefined or a resolved Promise) and calling the JS
+    // API `chrome.test.succeed()` is disallowed and will fail the test.
+    // Otherwise, we must explicitly call `chrome.test.succeed()` to signal
+    // pass.
+    std::string script;
+    if (standardized_behavior_enabled) {
+      script = base::StringPrintf(
+          R"(chrome.test.runTests([
+               function test() {
+                 %s
+               }
+             ]);)",
+          c.test_case.c_str());
+    } else {
+      script = base::StringPrintf(
+          R"(chrome.test.runTests([
+               function test() {
+                 %s
+                 chrome.test.succeed();
+               }
+             ]);)",
+          c.test_case.c_str());
+    }
 
     ASSERT_TRUE(LoadExtensionWithScript(script.c_str()));
 
@@ -836,6 +853,242 @@ IN_PROC_BROWSER_TEST_P(TestStandardizedAPITest, assertEq) {
 }
 
 INSTANTIATE_TEST_SUITE_P(All, TestStandardizedAPITest, testing::Bool());
+
+using TestStandardizedImplicitTestPassing = TestStandardizedAPITest;
+
+// Verifies that a synchronous test with a passing assertion passes.
+IN_PROC_BROWSER_TEST_P(TestStandardizedImplicitTestPassing,
+                       SyncAssertion_Pass) {
+  ResultCatcher result_catcher;
+  constexpr char kBackgroundJs[] =
+      R"(
+         chrome.test.runTests([
+           function syncPass() {
+             chrome.test.assertTrue(true);
+           }
+         ]);)";
+  ASSERT_TRUE(LoadExtensionWithScript(kBackgroundJs));
+  EXPECT_TRUE(result_catcher.GetNextResult());
+}
+
+// Verifies that a synchronous test returning undefined passes.
+IN_PROC_BROWSER_TEST_P(TestStandardizedImplicitTestPassing,
+                       SyncUndefinedReturn_Pass) {
+  ResultCatcher result_catcher;
+  constexpr char kBackgroundJs[] =
+      R"(
+         chrome.test.runTests([
+           function syncUndefinedPass() {}
+         ]);)";
+  ASSERT_TRUE(LoadExtensionWithScript(kBackgroundJs));
+  EXPECT_TRUE(result_catcher.GetNextResult());
+}
+
+// Verifies that a synchronous test with a failing assertion fails.
+IN_PROC_BROWSER_TEST_P(TestStandardizedImplicitTestPassing,
+                       SyncAssertion_Fail) {
+  ResultCatcher result_catcher;
+  constexpr char kBackgroundJs[] =
+      R"(
+         chrome.test.runTests([
+           function syncFail() {
+             chrome.test.assertTrue(false);
+           }
+         ]);)";
+  ASSERT_TRUE(LoadExtensionWithScript(kBackgroundJs));
+  EXPECT_FALSE(result_catcher.GetNextResult());
+  EXPECT_EQ(kExpectedFailureMessage, result_catcher.message());
+}
+
+// Verifies that a test returning a resolved Promise passes.
+IN_PROC_BROWSER_TEST_P(TestStandardizedImplicitTestPassing,
+                       PromiseResolve_Pass) {
+  ResultCatcher result_catcher;
+  constexpr char kBackgroundJs[] =
+      R"(
+         chrome.test.runTests([
+           async function promisePass() {
+             chrome.test.assertTrue(true);
+           }
+         ]);)";
+  ASSERT_TRUE(LoadExtensionWithScript(kBackgroundJs));
+  EXPECT_TRUE(result_catcher.GetNextResult());
+}
+
+// Verifies that a test returning a Promise that fails an assertion fails.
+IN_PROC_BROWSER_TEST_P(TestStandardizedImplicitTestPassing,
+                       PromiseAssertionFail_Fail) {
+  ResultCatcher result_catcher;
+  constexpr char kBackgroundJs[] =
+      R"(
+         chrome.test.runTests([
+           async function promiseFail() {
+             chrome.test.assertTrue(false);
+           }
+         ]);)";
+  ASSERT_TRUE(LoadExtensionWithScript(kBackgroundJs));
+  EXPECT_FALSE(result_catcher.GetNextResult());
+  EXPECT_EQ(kExpectedFailureMessage, result_catcher.message());
+}
+
+// Verifies that a test returning a rejected Promise fails.
+IN_PROC_BROWSER_TEST_P(TestStandardizedImplicitTestPassing,
+                       PromiseReject_Fail) {
+  ResultCatcher result_catcher;
+  constexpr char kBackgroundJs[] =
+      R"(
+         chrome.test.runTests([
+           async function promiseReject() {
+             throw new Error('Rejected');
+           }
+         ]);)";
+  ASSERT_TRUE(LoadExtensionWithScript(kBackgroundJs));
+  EXPECT_FALSE(result_catcher.GetNextResult());
+  EXPECT_EQ(kExpectedFailureMessage, result_catcher.message());
+}
+
+// Verifies that the test suite fails when a synchronous test case throws
+// an uncaught error (first of two tests).
+IN_PROC_BROWSER_TEST_P(TestStandardizedImplicitTestPassing,
+                       SyncThrowFirst_Fail) {
+  ResultCatcher result_catcher;
+  constexpr char kBackgroundJs[] =
+      R"(
+         chrome.test.runTests([
+           function syncError() {
+             throw new Error('fail');
+           },
+           function syncPass() {}
+         ]);)";
+  ASSERT_TRUE(LoadExtensionWithScript(kBackgroundJs));
+  EXPECT_FALSE(result_catcher.GetNextResult());
+  EXPECT_EQ(kExpectedFailureMessageOneOfTwoTests, result_catcher.message());
+}
+
+// Verifies that the test suite fails when a synchronous test case throws
+// an uncaught error (second of two tests).
+IN_PROC_BROWSER_TEST_P(TestStandardizedImplicitTestPassing,
+                       SyncThrowSecond_Fail) {
+  ResultCatcher result_catcher;
+  constexpr char kBackgroundJs[] =
+      R"(
+         chrome.test.runTests([
+           function syncPass() {},
+           function syncError() {
+             throw new Error('fail');
+           },
+         ]);)";
+  ASSERT_TRUE(LoadExtensionWithScript(kBackgroundJs));
+  EXPECT_FALSE(result_catcher.GetNextResult());
+  EXPECT_EQ(kExpectedFailureMessageOneOfTwoTests, result_catcher.message());
+}
+
+// Verifies that a synchronous test fails if it returns a non-undefined value.
+IN_PROC_BROWSER_TEST_P(TestStandardizedImplicitTestPassing,
+                       SyncReturnsValue_Fail) {
+  ResultCatcher result_catcher;
+  constexpr char kBackgroundJs[] =
+      R"(
+         chrome.test.runTests([
+           function syncReturnsValue() {
+             return 'some string';
+           }
+         ]);)";
+  ASSERT_TRUE(LoadExtensionWithScript(kBackgroundJs));
+  EXPECT_FALSE(result_catcher.GetNextResult());
+  EXPECT_EQ(kExpectedFailureMessage, result_catcher.message());
+}
+
+// Verifies that a test returning a Promise that resolves asynchronously passes.
+IN_PROC_BROWSER_TEST_P(TestStandardizedImplicitTestPassing,
+                       PromiseAsyncResolve_Pass) {
+  ResultCatcher result_catcher;
+  constexpr char kBackgroundJs[] =
+      R"(
+         chrome.test.runTests([
+           async function promisePass() {
+             await Promise.resolve();
+             chrome.test.assertTrue(true);
+           }
+         ]);)";
+  ASSERT_TRUE(LoadExtensionWithScript(kBackgroundJs));
+  EXPECT_TRUE(result_catcher.GetNextResult());
+}
+
+// Verifies that a test returning a Promise that rejects asynchronously fails.
+IN_PROC_BROWSER_TEST_P(TestStandardizedImplicitTestPassing,
+                       PromiseAsyncReject_Fail) {
+  ResultCatcher result_catcher;
+  constexpr char kBackgroundJs[] =
+      R"(
+         chrome.test.runTests([
+           async function promiseReject() {
+             await Promise.resolve();
+             throw new Error('Rejected Async');
+           }
+         ]);)";
+  ASSERT_TRUE(LoadExtensionWithScript(kBackgroundJs));
+  EXPECT_FALSE(result_catcher.GetNextResult());
+  EXPECT_EQ(kExpectedFailureMessage, result_catcher.message());
+}
+
+// Verifies that calling chrome.test.succeed() explicitly fails the test.
+IN_PROC_BROWSER_TEST_P(TestStandardizedImplicitTestPassing,
+                       ExplicitSucceed_Fail) {
+  ResultCatcher result_catcher;
+  constexpr char kBackgroundJs[] =
+      R"(
+         chrome.test.runTests([
+           function syncPass() {
+             chrome.test.succeed();
+           }
+         ]);)";
+  ASSERT_TRUE(LoadExtensionWithScript(kBackgroundJs));
+  EXPECT_FALSE(result_catcher.GetNextResult());
+  EXPECT_EQ(kExpectedFailureMessage, result_catcher.message());
+}
+
+// Verifies that calling chrome.test.fail() explicitly fails the test.
+IN_PROC_BROWSER_TEST_P(TestStandardizedImplicitTestPassing, ExplicitFail_Fail) {
+  ResultCatcher result_catcher;
+  constexpr char kBackgroundJs[] =
+      R"(
+         chrome.test.runTests([
+           function syncFail() {
+             chrome.test.fail('some message');
+           }
+         ]);)";
+  ASSERT_TRUE(LoadExtensionWithScript(kBackgroundJs));
+  EXPECT_FALSE(result_catcher.GetNextResult());
+  EXPECT_EQ(kExpectedFailureMessage, result_catcher.message());
+}
+
+// Verifies that a synchronous test fails if it returns undefined but has
+// pending callbacks.
+IN_PROC_BROWSER_TEST_P(TestStandardizedImplicitTestPassing,
+                       SyncPendingCallbacks_Fail) {
+  ResultCatcher result_catcher;
+  constexpr char kBackgroundJs[] =
+      R"(
+         chrome.test.runTests([
+           function syncPendingCallbacks() {
+             // We use chrome.test.sendMessage here as an example of an API
+             // that takes a callback (wrapped in callbackPass to increment
+             // pendingCallbacks), but we are not testing sendMessage behavior.
+             chrome.test.sendMessage('ping',
+                 chrome.test.callbackPass(() => {}));
+           }
+         ]);)";
+  ASSERT_TRUE(LoadExtensionWithScript(kBackgroundJs));
+  EXPECT_FALSE(result_catcher.GetNextResult());
+  EXPECT_EQ(kExpectedFailureMessage, result_catcher.message());
+}
+
+// We only test with the standardized behavior on because non-standardized
+// testing behavior is already thoroughly covered by other test cases.
+INSTANTIATE_TEST_SUITE_P(All,
+                         TestStandardizedImplicitTestPassing,
+                         testing::Values(true));
 
 class TestHarnessEventsBrowserTest : public TestAPITest {
  protected:

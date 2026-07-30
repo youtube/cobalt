@@ -4,24 +4,106 @@
 
 #include "components/autofill/core/browser/ui/payments/omnibox_autofill_delegate.h"
 
+#include <algorithm>
 #include <memory>
 #include <set>
 
 #include "base/check_deref.h"
+#include "base/notimplemented.h"
+#include "base/notreached.h"
 #include "components/autofill/core/browser/autofill_browser_util.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/foundations/autofill_manager.h"
+#include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
 #include "components/autofill/core/browser/foundations/scoped_autofill_managers_observation.h"
 #include "components/autofill/core/browser/integrators/optimization_guide/autofill_optimization_guide_decider.h"
 #include "components/autofill/core/browser/metrics/payments/omnibox_autofill_metrics.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
+#include "components/autofill/core/browser/suggestions/payments/credit_card_suggestion_generator.h"
+#include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/common/unique_ids.h"
 #include "url/origin.h"
 
 namespace autofill {
+
+namespace {
+
+bool IsValidOmniboxAutofillSuggestion(SuggestionType type) {
+  switch (type) {
+    case SuggestionType::kCreditCardEntry:
+    case SuggestionType::kVirtualCreditCardEntry:
+      return true;
+    case SuggestionType::kAccountStoragePasswordEntry:
+    case SuggestionType::kAddressEntry:
+    case SuggestionType::kAddressEntryOnTyping:
+    case SuggestionType::kAddressFieldByFieldFilling:
+    case SuggestionType::kAllLoyaltyCardsEntry:
+    case SuggestionType::kAllSavedPasswordsEntry:
+    case SuggestionType::kAtMemoryInactivityNudge:
+    case SuggestionType::kAtMemoryNoConnection:
+    case SuggestionType::kAtMemoryGenericError:
+    case SuggestionType::kAtMemorySearchAffordance:
+    case SuggestionType::kAtMemorySearchResult:
+    case SuggestionType::kAutocompleteAtMemoryButton:
+    case SuggestionType::kAutocompleteEntry:
+    case SuggestionType::kBackupPasswordEntry:
+    case SuggestionType::kBnplEntry:
+    case SuggestionType::kBnplFootnote:
+    case SuggestionType::kComposeDisable:
+    case SuggestionType::kComposeGoToSettings:
+    case SuggestionType::kComposeNeverShowOnThisSiteAgain:
+    case SuggestionType::kComposeProactiveNudge:
+    case SuggestionType::kComposeResumeNudge:
+    case SuggestionType::kComposeSavedStateNotification:
+    case SuggestionType::kDatalistEntry:
+    case SuggestionType::kDevtoolsTestAddressByCountry:
+    case SuggestionType::kDevtoolsTestAddressEntry:
+    case SuggestionType::kDevtoolsTestAddresses:
+    case SuggestionType::kFetchingAmbientData:
+    case SuggestionType::kFillAutofillAi:
+    case SuggestionType::kFillPassword:
+    case SuggestionType::kFreeformFooter:
+    case SuggestionType::kGeneratePasswordEntry:
+    case SuggestionType::kIbanEntry:
+    case SuggestionType::kIdentityCredential:
+    case SuggestionType::kInsecureContextPaymentDisabledMessage:
+    case SuggestionType::kLoadingThrobber:
+    case SuggestionType::kLoyaltyCardEntry:
+    case SuggestionType::kManageAddress:
+    case SuggestionType::kManageAutofillAi:
+    case SuggestionType::kManageAutofillAiIdentityDocs:
+    case SuggestionType::kManageAutofillAiTravel:
+    case SuggestionType::kManageCreditCard:
+    case SuggestionType::kManageIban:
+    case SuggestionType::kManageLoyaltyCard:
+    case SuggestionType::kMaximizeCreditCardBenefitsEntry:
+    case SuggestionType::kMerchantPromoCodeEntry:
+    case SuggestionType::kMixedFormMessage:
+    case SuggestionType::kOneTimePasswordEntry:
+    case SuggestionType::kOpenGemini:
+    case SuggestionType::kPasswordFieldByFieldFilling:
+    case SuggestionType::kPasswordEntry:
+    case SuggestionType::kPendingStateSignin:
+    case SuggestionType::kPersonalContextNotice:
+    case SuggestionType::kSaveAndFillCreditCardEntry:
+    case SuggestionType::kScanCreditCard:
+    case SuggestionType::kSeePromoCodeDetails:
+    case SuggestionType::kSeparator:
+    case SuggestionType::kTitle:
+    case SuggestionType::kTroubleSigningInEntry:
+    case SuggestionType::kUndoOrClear:
+    case SuggestionType::kViewPasswordDetails:
+    case SuggestionType::kWebauthnCredential:
+    case SuggestionType::kWebauthnPasskeyQrCode:
+    case SuggestionType::kWebauthnSignInWithAnotherDevice:
+      return false;
+  }
+}
+
+}  // namespace
 
 using autofill_metrics::OmniboxAutofillShowChipDecisionPart1;
 
@@ -87,7 +169,7 @@ void OmniboxAutofillDelegate::OnFieldTypesDetermined(
   }
 
   // The client context and credit card form must be secure (not HTTP).
-  if (IsFormOrClientNonSecure(*client_, *form_structure)) {
+  if (!client_->IsContextSecure()) {
     LogOmniboxAutofillShowChipDecisionPart1(
         OmniboxAutofillShowChipDecisionPart1::kFormOrClientContextNotSecure);
     return;
@@ -176,11 +258,126 @@ void OmniboxAutofillDelegate::OnAfterFormsSeen(
   }
 }
 
+bool OmniboxAutofillDelegate::OnFilterChanged(const std::u16string& filter) {
+  return false;
+}
+
+bool OmniboxAutofillDelegate::OnSearchSubmitted(const std::u16string& filter) {
+  return false;
+}
+
+bool OmniboxAutofillDelegate::IsSearching() const {
+  return false;
+}
+
+std::variant<AutofillDriver*, password_manager::PasswordManagerDriver*>
+OmniboxAutofillDelegate::GetDriver() {
+  auto* manager = client_->GetAutofillManagerForPrimaryMainFrame();
+  if (manager) {
+    return &manager->driver();
+  }
+  return static_cast<AutofillDriver*>(nullptr);
+}
+
+void OmniboxAutofillDelegate::OnSuggestionsShown(
+    base::span<const Suggestion> suggestions) {
+  // TODO(crbug.com/490214497): Implement when payment method suggestion list is
+  // shown.
+  NOTIMPLEMENTED();
+}
+
+void OmniboxAutofillDelegate::OnSuggestionsHidden(
+    SuggestionHidingReason reason) {
+  NOTIMPLEMENTED();
+}
+
+void OmniboxAutofillDelegate::DidSelectSuggestion(
+    const Suggestion& suggestion) {
+  // TODO(crbug.com/490214497): Implement when payment method suggestion list is
+  // hovered.
+  NOTIMPLEMENTED();
+}
+
+void OmniboxAutofillDelegate::DidAcceptSuggestion(
+    const Suggestion& suggestion,
+    const SuggestionMetadata& metadata) {
+  // TODO(crbug.com/490214497): Implement when payment method suggestion list is
+  // clicked.
+  NOTIMPLEMENTED();
+}
+
+bool OmniboxAutofillDelegate::RemoveSuggestion(const Suggestion& suggestion) {
+  return false;
+}
+
+void OmniboxAutofillDelegate::ClearPreviewedForm() {
+  auto* manager = client_->GetAutofillManagerForPrimaryMainFrame();
+  if (manager) {
+    manager->driver().RendererShouldClearPreviewedForm();
+  }
+}
+
+FillingProduct OmniboxAutofillDelegate::GetMainFillingProduct() const {
+  return FillingProduct::kCreditCard;
+}
+
+void OmniboxAutofillDelegate::OnTabSelected(TabbedPaneTabType tab_type) {
+  // Tabbed panes do not exist for Omnibox Autofill.
+  NOTREACHED();
+}
+
 void OmniboxAutofillDelegate::OnGetIntersectionObserverInfo(bool is_visible) {
   if (!is_visible) {
     return;
   }
-  client_->GetPaymentsAutofillClient()->ShowOmniboxAutofillChip();
+
+  auto* manager = static_cast<BrowserAutofillManager*>(
+      client_->GetAutofillManagerForPrimaryMainFrame());
+  if (!manager) {
+    return;
+  }
+
+  const FormStructure* form =
+      manager->FindCachedFormById(trigger_form_global_id_);
+  if (!form) {
+    return;
+  }
+
+  const AutofillField* trigger_field =
+      form->GetFieldById(trigger_field_global_id_);
+  if (!trigger_field) {
+    return;
+  }
+
+  // TODO(crbug.com/523396583): This generates the full list of suggestions and
+  // then filters some out. Not all suggestions returned will be displayed on
+  // the Omnibox Autofill bubble, which is why we should not generate them in
+  // the first place.
+  std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
+      form->ToFormData(), *form, *trigger_field, *trigger_field, *client_,
+      /*four_digit_combinations_in_dom=*/{},
+      &manager->GetAmountExtractionManager(), manager->GetPaymentsBnplManager(),
+      manager->GetCreditCardFormEventLogger(),
+      client_->GetPersonalDataManager()
+          .payments_data_manager()
+          .GetPaymentsSigninStateForMetrics(),
+      /*exclude_virtual_cards=*/false);
+
+  std::erase_if(suggestions, [](const Suggestion& suggestion) {
+    return !IsValidOmniboxAutofillSuggestion(suggestion.type);
+  });
+
+  // Shows the "Autofill payment" chip and initializes the bubble.
+  client_->GetPaymentsAutofillClient()->ShowOmniboxAutofillChip(
+      std::move(suggestions),
+      base::BindRepeating(static_cast<void (OmniboxAutofillDelegate::*)(
+                              base::span<const Suggestion>)>(
+                              &OmniboxAutofillDelegate::OnSuggestionsShown),
+                          weak_ptr_factory_.GetWeakPtr()),
+      base::BindRepeating(&OmniboxAutofillDelegate::DidSelectSuggestion,
+                          weak_ptr_factory_.GetWeakPtr()),
+      base::BindRepeating(&OmniboxAutofillDelegate::DidAcceptSuggestion,
+                          weak_ptr_factory_.GetWeakPtr()));
 }
 
 bool OmniboxAutofillDelegate::IsOutermostMainFrameActiveAutofillManager(

@@ -147,6 +147,7 @@
 <translation id="2472092250898121027">Esta extensão contém software malicioso e não é segura. Remova-a do Chrome para que deixe de poder ver e alterar os seus dados nos sites que visita, incluindo as suas informações pessoais.</translation>
 <translation id="2485422356828889247">Desinstalar</translation>
 <translation id="2513154137948333830">Reinício necessário: <ph name="INSTALL_SUCCESS" /></translation>
+<translation id="2523492931736391680">O seu trabalho está seguro no Chrome</translation>
 <translation id="2534365042754120737">Para proteger os seus dados, permita que o Chrome remova as autorizações de sites que não visitou recentemente. Esta opção não para as notificações.</translation>
 <translation id="2556847002339236023">A sua organização fecha o Chrome quando este não é usado durante <ph name="TIMEOUT_DURATION" />. Os dados de navegação foram eliminados. Estes dados podem incluir o histórico, o preenchimento automático e as transferências.</translation>
 <translation id="2563121210305478421">Reiniciar o Chrome?</translation>
@@ -251,6 +252,7 @@ Se esta página não estiver a funcionar conforme esperado, experimente permitir
 <translation id="345171907106878721">Adicionar-se ao Chrome</translation>
 <translation id="3453763134178591239">Termos do ChromeOS</translation>
 <translation id="3503306920980160878">O Chrome necessita de acesso à sua localização para a partilhar com este site.</translation>
+<translation id="3512495006767217696">Integrado no Chrome para ajudar a criar, guardar e preencher automaticamente palavras-passe fortes. Adicione o atalho para facilitar o acesso</translation>
 <translation id="3539955434060988644">Abrir link numa janela de nave&amp;gação anónima do Chrome</translation>
 <translation id="3576528680708590453">O administrador do seu sistema configurou o Google Chrome para abrir um navegador alternativo, de modo a aceder a <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="3582972582564653026">Sincronizar e personalizar o Chrome em todos os dispositivos</translation>
@@ -313,6 +315,7 @@ Se esta página não estiver a funcionar conforme esperado, experimente permitir
 <translation id="4149882025268051530">Houve uma falha no programa de instalação ao descompactar o arquivo. Descarregue de novo o Google Chrome.</translation>
 <translation id="415112847282352845">Para aceder aos seus endereços e muito mais em todos os seus dispositivos, inicie sessão no Chrome. Este endereço é guardado na sua Conta Google depois de iniciar sessão.</translation>
 <translation id="4153934450158521343">O Chrome vai ser fechado e vai eliminar os dados em breve</translation>
+<translation id="4159985264221160808">Para proteger o seu trabalho no Chrome, a sua organização vai poder ver ou gerir determinadas informações</translation>
 <translation id="4173512894976930765">É provável que os sites funcionem conforme esperado. A sua sessão é terminada na maioria dos sites quando fecha todas as janelas do Chrome, exceto na sua Conta Google se tiver sessão iniciada no Chrome.</translation>
 <translation id="4175922240926474352">O Chrome bloqueou esta transferência porque o site não está a usar uma ligação segura e o ficheiro pode ter sido adulterado</translation>
 <translation id="4191857738314598978">{0,plural, =1{Reinicie o Chrome dentro de um dia}other{Reinicie o Chrome dentro de # dias}}</translation>
@@ -344,6 +347,7 @@ Se esta página não estiver a funcionar conforme esperado, experimente permitir
 <translation id="4493028449971051158">Erro de arranque: execute o instalador como administrador.</translation>
 <translation id="4501471624619070934">A instalação falhou porque o acesso é restrito neste país.</translation>
 <translation id="4571503333518166079">Aceder às definições de notificação do Chrome</translation>
+<translation id="4580939929828762295">Mantenha-se em segurança com o Gestor de Palavras-passe da Google</translation>
 <translation id="4592634244097223647">Pergunte ao Google acerca desta imagem</translation>
 <translation id="459622048091363950">Assim que o Chrome tiver acesso, os Websites poderão solicitar-lhe o acesso.</translation>
 <translation id="4598116752460667024">Pesquise qualquer processo na lista.</translation>
@@ -528,6 +532,7 @@ Se esta página não estiver a funcionar conforme esperado, experimente permitir
 <translation id="6438015621983209660">Expanda a Navegação segura melhorada com o Chrome no seu telemóvel</translation>
 <translation id="6442774133615368941">Compre, traduza e identifique o que vê com a câmara na app Chrome para iOS</translation>
 <translation id="6448835208126432197">Para selecionar parte do ecrã no Gemini no Chrome, use o atalho de teclado.</translation>
+<translation id="6473659734176498825">Uma imagem simplificada que mostra o ponto de entrada do Gestor de Palavras-passe da Google no Chrome</translation>
 <translation id="6473905796280459355">Aceder à página Acerca do Chrome</translation>
 <translation id="6481963882741794338">Associe o Chrome e outros serviços Google para personalização e outras finalidades</translation>
 <translation id="648319183876919572">A Navegação segura melhorada faz mais para proteger contra transferências e Websites perigosos</translation>
@@ -699,6 +704,7 @@ Se esta página não estiver a funcionar conforme esperado, experimente permitir
 <translation id="8064965390968184078">1. Clique em <ph name="BUTTON_LABEL" /> abaixo
 2. Clique em <ph name="BUTTON_2" /> nas definições do Windows
 3. Clique em <ph name="BUTTON_3" /> na notificação do Windows para afixar o Chrome à barra de tarefas para um acesso rápido</translation>
+<translation id="8069447462453318634">Selecione "Fixar na barra de ferramentas"</translation>
 <translation id="8074398340364918139">Para pesquisar uma extensão ou uma funcionalidade específica do Chrome, introduza o respetivo atalho na barra de endereço, seguido da tecla do teclado selecionada</translation>
 <translation id="8077579734294125741">Outros perfis do Chrome</translation>
 <translation id="8086881907087796310">A instalação falhou porque o seu computador não cumpre os requisitos mínimos de hardware.</translation>

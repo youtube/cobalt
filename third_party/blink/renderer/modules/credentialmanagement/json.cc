@@ -17,7 +17,6 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_prf_outputs.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_prf_values.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_prf_values_js_on.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_supplemental_pub_keys_outputs.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_public_key_credential_creation_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_public_key_credential_creation_options_js_on.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_public_key_credential_descriptor.h"
@@ -201,9 +200,6 @@ AuthenticationExtensionsClientInputsFromJSON(
   if (json.hasRemoteDesktopClientOverride()) {
     result->setRemoteDesktopClientOverride(json.remoteDesktopClientOverride());
   }
-  if (json.hasSupplementalPubKeys()) {
-    result->setSupplementalPubKeys(json.supplementalPubKeys());
-  }
   if (json.hasPrf()) {
     auto* prf = AuthenticationExtensionsPRFInputs::Create();
     if (json.prf()->hasEval()) {
@@ -299,16 +295,6 @@ AuthenticationExtensionsClientOutputsToJSON(
       }
     }
     json->setPrf(builder.ToScriptObject());
-  }
-  if (in.hasSupplementalPubKeys()) {
-    const AuthenticationExtensionsSupplementalPubKeysOutputs&
-        supplemental_pub_keys = *in.supplementalPubKeys();
-    V8ObjectBuilder builder(script_state);
-    if (supplemental_pub_keys.hasSignatures()) {
-      builder.AddVector<DOMArrayBuffer>("signatures",
-                                        supplemental_pub_keys.signatures());
-    }
-    json->setSupplementalPubKeys(builder.ToScriptObject());
   }
   if (in.hasCrossDeviceFallbackUrl()) {
     json->setCrossDeviceFallbackUrl(in.crossDeviceFallbackUrl());

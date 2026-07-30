@@ -560,7 +560,7 @@ void DataTransfer::DeclareAndWriteDragImage(Element* element,
 
   // Put img tag on the clipboard referencing the image
   data_object_->SetData(ui::kMimeTypeHtml,
-                        CreateMarkup(element, kIncludeNode, kResolveAllURLs));
+                        CreateMarkup(element, kIncludeNode, ResolveUrls::kAll));
 }
 
 void DataTransfer::WriteURL(Node* node, const KURL& url, const String& title) {
@@ -575,7 +575,7 @@ void DataTransfer::WriteURL(Node* node, const KURL& url, const String& title) {
 
   // The URL can also be used as an HTML fragment.
   data_object_->SetHTMLAndBaseURL(
-      CreateMarkup(node, kIncludeNode, kResolveAllURLs), url);
+      CreateMarkup(node, kIncludeNode, ResolveUrls::kAll), url);
 }
 
 void DataTransfer::WriteSelection(const FrameSelection& selection) {

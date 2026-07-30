@@ -819,7 +819,7 @@ SkiaOutputSurfaceImplOnGpu::CreateSharedImageRepresentationSkia(
       gpu::SharedImageInfo(format, size, color_space, kTopLeft_GrSurfaceOrigin,
                            kPremul_SkAlphaType,
                            CopyOutputResult::kDefaultSharedImageUsage,
-                           std::string(debug_label)),
+                           debug_label),
       gpu::kNullSurfaceHandle);
   if (!result) {
     DLOG(ERROR) << "Failed to create shared image.";

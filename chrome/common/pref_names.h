@@ -736,11 +736,6 @@ inline constexpr char kExtensionCommands[] = "extensions.commands";
 inline constexpr char kPluginsAlwaysOpenPdfExternally[] =
     "plugins.always_open_pdf_externally";
 
-// Int64 containing the internal value of the time at which the default browser
-// infobar was last dismissed by the user.
-inline constexpr char kDefaultBrowserInfobarLastDeclined[] =
-    "browser.default_browser_infobar_last_declined";
-
 // base::Time containing time at which the default browser infobar was last
 // dismissed by the user.
 inline constexpr char kDefaultBrowserInfobarLastDeclinedTime[] =
@@ -1214,25 +1209,10 @@ inline constexpr char kSidePanelIdToWidth[] = "side_panel.id_to_width";
 // Corresponds to the enterprise policy.
 inline constexpr char kGoogleSearchSidePanelEnabled[] =
     "side_panel.google_search_side_panel_enabled";
-// Boolean determining the side the tab search will be appear on (left / right).
-// True when the tab search button is on the right side of the tab strip even in
-// RTL.
-inline constexpr char kTabSearchRightAligned[] = "tab_search.is_right_aligned";
 
 // Boolean determining whether the tab search button is pinned to the tab strip.
 inline constexpr char kTabSearchPinnedToTabstrip[] =
     "tab_search.pinned_to_tabstrip";
-
-// Boolean indicating whether the tab search pinning migration to the tab strip
-// is complete.
-inline constexpr char kTabSearchPinnedToTabstripMigrationComplete[] =
-    "tab_search.pinned_to_tabstrip_migration_complete";
-
-// Boolean indicating whether the tab search pinning migration to the tab strip
-// is complete. This was created to fix a bug in the initial implementation,
-// which referenced kTabSearchPinnedToTabstripMigrationComplete.
-inline constexpr char kTabSearchPinnedToTabstripMigrationComplete2[] =
-    "tab_search.pinned_to_tabstrip_migration_complete_2";
 
 // Boolean determining whether the projects panel button is pinned to the tab
 // strip.
@@ -1601,6 +1581,16 @@ inline constexpr char kPreSmartRestartSessionState[] =
 
 // Whether Extensions are enabled.
 inline constexpr char kDisableExtensions[] = "extensions.disabled";
+
+#if BUILDFLAG(IS_ANDROID)
+// Dictionary pref for custom background information.
+inline constexpr char kNtpAndroidCustomBackgroundDict[] =
+    "ntp.android_custom_background_dict";
+
+// Boolean pref for whether the custom background is local to device.
+inline constexpr char kNtpAndroidCustomBackgroundLocalToDevice[] =
+    "ntp.android_custom_background_local_to_device";
+#endif  // BUILDFLAG(IS_ANDROID)
 
 // Keeps track of which sessions are collapsed in the Other Devices menu.
 inline constexpr char kNtpCollapsedForeignSessions[] =

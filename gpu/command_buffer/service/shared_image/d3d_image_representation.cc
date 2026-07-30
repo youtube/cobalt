@@ -207,6 +207,11 @@ WebNND3DTensorRepresentation::GetD3D12Buffer() const {
   return static_cast<D3DImageBacking*>(backing())->GetD3D12Buffer();
 }
 
+base::win::ScopedHandle WebNND3DTensorRepresentation::GetD3D12HeapHandle()
+    const {
+  return static_cast<D3DImageBacking*>(backing())->GetD3D12HeapHandle();
+}
+
 scoped_refptr<gfx::D3DSharedFence>
 WebNND3DTensorRepresentation::GetAcquireFence() const {
   return acquire_fence_;

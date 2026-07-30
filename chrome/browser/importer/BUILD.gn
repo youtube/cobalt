@@ -121,6 +121,7 @@ source_set("unit_tests") {
     "//chrome/browser",
     "//chrome/browser/bookmarks",
     "//chrome/browser/history",
+    "//chrome/browser/password_manager:test_support",
     "//chrome/browser/search_engines",
     "//chrome/common:constants",
     "//chrome/common/importer",

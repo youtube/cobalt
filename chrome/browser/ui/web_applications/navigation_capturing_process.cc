@@ -1438,13 +1438,11 @@ NavigationCapturingProcess::HandleRedirectImpl() {
       launch_params.set_time_navigation_started_for_enqueue(
           time_navigation_started_);
       WebAppLaunchNavigationHandleUserData::DispatchLaunchParams(
-          pre_existing_contents, std::move(launch_params));
+          pre_existing_contents, std::move(launch_params),
+          apps::LaunchContainer::kLaunchContainerWindow,
+          apps::LaunchSource::kFromNavigationCapturing);
       MaybeShowNavigationCaptureIph(*target_app_id, &*profile_,
                                     client_mode_and_browser.browser);
-      RecordLaunchMetrics(*target_app_id,
-                          apps::LaunchContainer::kLaunchContainerWindow,
-                          apps::LaunchSource::kFromNavigationCapturing,
-                          final_url, pre_existing_contents);
       RecordNavigationCapturingDisplayModeMetrics(
           *target_app_id, pre_existing_contents, !is_web_app_browser);
       debug_data_.Set("!redirection_result", "cancel, focus-existing");
@@ -1990,15 +1988,11 @@ NavigationCapturingProcess::CapturedFocusExisting(Browser* browser,
   launch_params.set_time_navigation_started_for_enqueue(
       time_navigation_started_);
   WebAppLaunchNavigationHandleUserData::DispatchLaunchParams(
-      contents, std::move(launch_params));
+      contents, std::move(launch_params),
+      apps::LaunchContainer::kLaunchContainerWindow,
+      apps::LaunchSource::kFromNavigationCapturing);
 
   MaybeShowNavigationCaptureIph(app_id, &*profile_, browser);
-
-  // TODO(crbug.com/336371044): Update RecordLaunchMetrics() to also work
-  // with apps that open in a new browser tab.
-  RecordLaunchMetrics(app_id, apps::LaunchContainer::kLaunchContainerWindow,
-                      apps::LaunchSource::kFromNavigationCapturing, url,
-                      contents);
 
   RecordNavigationCapturingDisplayModeMetrics(app_id, contents,
                                               !is_current_container_window);

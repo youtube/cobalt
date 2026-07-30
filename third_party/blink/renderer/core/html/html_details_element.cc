@@ -336,6 +336,10 @@ bool HTMLDetailsElement::HandleCommandInternal(HTMLElement& invoker,
                                             : Event::Cancelable::kNo,
         pending_toggle_event_->oldState(), pending_toggle_event_->newState(),
         &invoker);
+    if (RuntimeEnabledFeatures::ShadowRootReferenceTargetEnabled(
+            invoker.GetExecutionContext())) {
+      pending_toggle_event_->SetComposed(true);
+    }
   }
 
   return true;

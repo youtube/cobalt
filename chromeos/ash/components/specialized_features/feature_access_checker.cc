@@ -109,7 +109,7 @@ FeatureAccessFailureSet FeatureAccessChecker::Check() const {
                  ->FindExtendedAccountInfoByAccountId(
                      identity_manager_->GetPrimaryAccountId(
                          signin::ConsentLevel::kSignin))
-                 .capabilities) != signin::Tribool::kTrue)) {
+                 .GetAccountCapabilities()) != signin::Tribool::kTrue)) {
       failures.Put(kAccountCapabilitiesCheckFailed);
     }
   }

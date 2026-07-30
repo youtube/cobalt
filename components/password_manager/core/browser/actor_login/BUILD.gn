@@ -15,6 +15,8 @@ source_set("common") {
     "federated_permission.h",
   ]
 
+  public_deps = [ "//components/actor/public/mojom:mojo_bindings" ]
+
   deps = [
     "//base",
     "//components/keyed_service/core",

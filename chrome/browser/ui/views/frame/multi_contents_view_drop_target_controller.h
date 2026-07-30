@@ -42,7 +42,6 @@ class MultiContentsViewDropTargetController final
   static constexpr double kNudgeShowRatio = 0.4;
   static constexpr int kNudgeShownLimit = 6;
   static constexpr int kNudgeUsedLimit = 1;
-  static constexpr int kReservedHeightForScrollingDown = 10;
 
   struct DropTargetConstants {
     static int GetHideWidth();

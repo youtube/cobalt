@@ -14,9 +14,11 @@
 #include "base/containers/flat_map.h"
 #include "base/containers/span.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "base/time/time.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
+#include "components/autofill/core/browser/data_model/payments/credit_card_benefit.h"
 #include "components/autofill/core/browser/payments/constants.h"
 #include "components/autofill/core/common/credit_card_network_identifiers.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
@@ -44,11 +46,22 @@ void LogBenefitFormEventToMainBenefitHistogram(CardBenefitFormEvent event) {
                                 event);
 }
 
-void LogBenefitFormEventToBenefitSubhistogram(std::string_view benefit_source,
-                                              CardBenefitFormEvent event) {
+void LogBenefitFormEventToBenefitSourceHistogram(
+    std::string_view benefit_source,
+    CardBenefitFormEvent event) {
   base::UmaHistogramEnumeration(
       base::StrCat(
           {"Autofill.FormEvents.CreditCard.Benefits.", benefit_source}),
+      event);
+}
+
+void LogBenefitFormEventToBenefitSourceAndTypeHistogram(
+    std::string_view benefit_source,
+    std::string_view benefit_type,
+    CardBenefitFormEvent event) {
+  base::UmaHistogramEnumeration(
+      base::StrCat({"Autofill.FormEvents.CreditCard.Benefits.", benefit_source,
+                    ".", benefit_type}),
       event);
 }
 
@@ -66,11 +79,11 @@ CardMetadataLoggingContext& CardMetadataLoggingContext::operator=(
 CardMetadataLoggingContext::~CardMetadataLoggingContext() = default;
 
 bool CardMetadataLoggingContext::DidShowCardWithBenefitAvailable() const {
-  return !instrument_ids_to_available_benefit_sources.empty();
+  return !instrument_ids_to_available_benefit_context.empty();
 }
 
 bool CardMetadataLoggingContext::SelectedCardHasBenefitAvailable() const {
-  return instrument_ids_to_available_benefit_sources.contains(
+  return instrument_ids_to_available_benefit_context.contains(
       selected_card_instrument_id);
 }
 
@@ -83,6 +96,11 @@ void CardMetadataLoggingContext::SetSelectedCardInfo(
     const CreditCard& credit_card) {
   selected_card_instrument_id = credit_card.instrument_id();
   selected_benefit_source = credit_card.benefit_source();
+  if (auto it = instrument_ids_to_available_benefit_context.find(
+          selected_card_instrument_id);
+      it != instrument_ids_to_available_benefit_context.end()) {
+    selected_benefit_type = it->second.benefit_type;
+  }
 
   selected_issuer_or_network_to_metadata_availability = {
       {credit_card.issuer_id(), SelectedCardHasMetadataAvailable()},
@@ -132,6 +150,20 @@ std::string_view GetCardBenefitSourceSuffix(
     return kCurinos;
   } else {
     return "";
+  }
+}
+
+std::string_view GetCardBenefitTypeSuffix(
+    CreditCardBenefitType card_benefit_type) {
+  switch (card_benefit_type) {
+    case CreditCardBenefitType::kFlatRate:
+      return "FlatRate";
+    case CreditCardBenefitType::kCategory:
+      return "Category";
+    case CreditCardBenefitType::kMerchant:
+      return "Merchant";
+    case CreditCardBenefitType::kUnknown:
+      NOTREACHED();
   }
 }
 
@@ -278,11 +310,11 @@ void LogCardBenefitFormEventMetrics(CardMetadataLoggingEvent event,
   switch (event) {
     case CardMetadataLoggingEvent::kShown: {
       LogBenefitFormEventToAllBenefitHistograms(
-          context.instrument_ids_to_available_benefit_sources,
+          context.instrument_ids_to_available_benefit_context,
           CardBenefitFormEvent::kSuggestionWithBenefitShown);
       if (context.masked_server_card_count >= 2) {
         LogBenefitFormEventToAllBenefitHistograms(
-            context.instrument_ids_to_available_benefit_sources,
+            context.instrument_ids_to_available_benefit_context,
             CardBenefitFormEvent::
                 kSuggestionWithBenefitShownWithMultipleServerCards);
       }
@@ -291,11 +323,11 @@ void LogCardBenefitFormEventMetrics(CardMetadataLoggingEvent event,
     case CardMetadataLoggingEvent::kSelected:
       if (context.SelectedCardHasBenefitAvailable()) {
         LogBenefitFormEventToAllBenefitHistograms(
-            context.selected_benefit_source,
+            context.selected_benefit_source, context.selected_benefit_type,
             CardBenefitFormEvent::kSuggestionWithBenefitSelected);
         if (context.masked_server_card_count >= 2) {
           LogBenefitFormEventToAllBenefitHistograms(
-              context.selected_benefit_source,
+              context.selected_benefit_source, context.selected_benefit_type,
               CardBenefitFormEvent::
                   kSuggestionWithBenefitSelectedWithMultipleServerCards);
         }
@@ -310,11 +342,11 @@ void LogCardBenefitFormEventMetrics(CardMetadataLoggingEvent event,
     case CardMetadataLoggingEvent::kFilled:
       if (context.SelectedCardHasBenefitAvailable()) {
         LogBenefitFormEventToAllBenefitHistograms(
-            context.selected_benefit_source,
+            context.selected_benefit_source, context.selected_benefit_type,
             CardBenefitFormEvent::kSuggestionWithBenefitFilled);
         if (context.masked_server_card_count >= 2) {
           LogBenefitFormEventToAllBenefitHistograms(
-              context.selected_benefit_source,
+              context.selected_benefit_source, context.selected_benefit_type,
               CardBenefitFormEvent::
                   kSuggestionWithBenefitFilledWithMultipleServerCards);
         }
@@ -329,11 +361,11 @@ void LogCardBenefitFormEventMetrics(CardMetadataLoggingEvent event,
     case CardMetadataLoggingEvent::kSubmitted:
       if (context.SelectedCardHasBenefitAvailable()) {
         LogBenefitFormEventToAllBenefitHistograms(
-            context.selected_benefit_source,
+            context.selected_benefit_source, context.selected_benefit_type,
             CardBenefitFormEvent::kSuggestionWithBenefitSubmitted);
         if (context.masked_server_card_count >= 2) {
           LogBenefitFormEventToAllBenefitHistograms(
-              context.selected_benefit_source,
+              context.selected_benefit_source, context.selected_benefit_type,
               CardBenefitFormEvent::
                   kSuggestionWithBenefitSubmittedWithMultipleServerCards);
         }
@@ -383,39 +415,60 @@ void LogIsCreditCardBenefitsEnabledAtStartup(bool enabled) {
 }
 
 void LogBenefitFormEventToAllBenefitHistograms(
-    const base::flat_map<int64_t, std::string>&
-        instrument_ids_to_available_benefit_sources,
+    const base::flat_map<int64_t,
+                         CardMetadataLoggingContext::CardBenefitLoggingContext>&
+        instrument_ids_to_available_benefit_context,
     CardBenefitFormEvent event) {
   // `benefit_sources_logged` holds all credit card benefit sources that were
   // shown with benefits available to the user and logged for the `event`.
   absl::flat_hash_set<std::string_view> benefit_sources_logged;
-  for (const auto& [instrument_id, benefit_source] :
-       instrument_ids_to_available_benefit_sources) {
+  // `benefit_source_and_types_logged` holds all credit card benefit source and
+  // type combinations that were shown with benefits available to the user and
+  // logged for the `event`.
+  absl::flat_hash_set<std::string> benefit_source_and_types_logged;
+  for (const auto& [instrument_id, benefit_logging_context] :
+       instrument_ids_to_available_benefit_context) {
     std::string_view benefit_source_suffix =
-        GetCardBenefitSourceSuffix(benefit_source);
+        GetCardBenefitSourceSuffix(benefit_logging_context.benefit_source);
     if (benefit_source_suffix.empty()) {
       continue;
     }
+    std::string_view benefit_type_suffix =
+        GetCardBenefitTypeSuffix(benefit_logging_context.benefit_type);
     if (benefit_sources_logged.insert(benefit_source_suffix).second) {
-      LogBenefitFormEventToBenefitSubhistogram(benefit_source_suffix, event);
+      LogBenefitFormEventToBenefitSourceHistogram(benefit_source_suffix, event);
+    }
+    if (benefit_source_and_types_logged
+            .insert(
+                base::StrCat({benefit_source_suffix, ".", benefit_type_suffix}))
+            .second) {
+      LogBenefitFormEventToBenefitSourceAndTypeHistogram(
+          benefit_source_suffix, benefit_type_suffix, event);
     }
   }
-  // Only log to the main benefit histogram if a valid benefit source was logged
-  // to the benefit subhistogram.
-  if (!benefit_sources_logged.empty()) {
+
+  // Only log to the main benefit histogram if a valid benefit source and type
+  // was logged to the benefit subhistograms.
+  if (!benefit_sources_logged.empty() &&
+      !benefit_source_and_types_logged.empty()) {
     LogBenefitFormEventToMainBenefitHistogram(event);
   }
 }
 
-void LogBenefitFormEventToAllBenefitHistograms(std::string_view benefit_source,
-                                               CardBenefitFormEvent event) {
+void LogBenefitFormEventToAllBenefitHistograms(
+    std::string_view benefit_source,
+    CreditCardBenefitType benefit_type,
+    CardBenefitFormEvent event) {
   std::string_view benefit_source_suffix =
       GetCardBenefitSourceSuffix(benefit_source);
   if (benefit_source_suffix.empty()) {
     return;
   }
+  std::string_view benefit_type_suffix = GetCardBenefitTypeSuffix(benefit_type);
   LogBenefitFormEventToMainBenefitHistogram(event);
-  LogBenefitFormEventToBenefitSubhistogram(benefit_source_suffix, event);
+  LogBenefitFormEventToBenefitSourceHistogram(benefit_source_suffix, event);
+  LogBenefitFormEventToBenefitSourceAndTypeHistogram(
+      benefit_source_suffix, benefit_type_suffix, event);
 }
 
 }  // namespace autofill::autofill_metrics

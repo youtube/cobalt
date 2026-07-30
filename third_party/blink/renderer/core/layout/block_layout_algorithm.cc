@@ -976,9 +976,13 @@ inline const LayoutResult* BlockLayoutAlgorithm::Layout(
 
   BlockNode placeholder_child(nullptr);
   BlockChildIterator::Entry entry;
-  for (entry = child_iterator.NextChild(); LayoutInputNode child = entry.node;
+  for (entry = child_iterator.NextChild(); !entry.AtEnd();
        entry = child_iterator.NextChild(previous_inline_break_token)) {
     const BreakToken* child_break_token = entry.token;
+    DCHECK(entry.block_node || !child_break_token ||
+           child_break_token->IsInlineType());
+    LayoutInputNode child =
+        entry.block_node ? entry.block_node : Node().FirstChild();
 
     if (child.IsOutOfFlowPositioned()) {
       HandleOutOfFlowPositioned(previous_inflow_position, To<BlockNode>(child),
@@ -1038,7 +1042,7 @@ inline const LayoutResult* BlockLayoutAlgorithm::Layout(
       // in front of that one. Otherwise we'll just resume after all the
       // children.
       for (entry = child_iterator.NextChild();
-           LayoutInputNode sibling = entry.node;
+           LayoutInputNode sibling = entry.block_node;
            entry = child_iterator.NextChild()) {
         DCHECK(!entry.token);
         if (sibling.IsColumnSpanAll())
@@ -1127,7 +1131,7 @@ inline const LayoutResult* BlockLayoutAlgorithm::Layout(
         offset_and_status.logical_block_offset;
   }
 
-  if (!child_iterator.NextChild(previous_inline_break_token).node) {
+  if (child_iterator.NextChild(previous_inline_break_token).AtEnd()) {
     // We've gone through all the children. This doesn't necessarily mean that
     // we're done fragmenting, as there may be parallel flows [1] (visible
     // overflow) still needing more space than what the current fragmentainer

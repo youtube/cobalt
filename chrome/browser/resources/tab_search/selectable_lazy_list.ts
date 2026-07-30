@@ -48,7 +48,7 @@ export class SelectableLazyListElement<T = any> extends CrLitElement {
   override render() {
     // Render items into light DOM using the client provided template
     render(
-        html`<cr-lazy-list id="list" .scrollTarget="${this}"
+        html`<cr-lazy-list id="list" .scrollTarget="${this}" role="presentation"
           .listItemHost="${(this.getRootNode() as ShadowRoot).host}"
           .itemSize="${this.itemSize}" .items="${this.items}"
           .minViewportHeight="${this.maxHeight}"

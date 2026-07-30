@@ -3,7 +3,7 @@ AXWebArea
 ++++AXHeading AXTitle='Personal Information' AXValue=3
 ++++++AXButton AXTitle='Personal Information'
 ++++AXGroup AXSubrole=AXLandmarkRegion AXTitle='Personal Information'
-++++++AXGroup AXSubrole=AXApplicationGroup
+++++++AXGroup AXSubrole=AXFieldset
 ++++++++AXGroup
 ++++++++++AXGroup
 ++++++++++++AXStaticText AXValue='Name '

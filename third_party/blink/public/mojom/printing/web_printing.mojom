@@ -246,19 +246,9 @@ enum GetPrintersError {
   kUserPermissionDenied,
 };
 
-union GetPrintersResult {
-  array<WebPrinterInfo> printers;
-  GetPrintersError error;
-};
-
 enum WebPrinterFetchError {
   kPrinterUnreachable,
   kUserPermissionDenied,
-};
-
-union WebPrinterFetchResult {
-  WebPrinterAttributes printer_attributes;
-  WebPrinterFetchError error;
 };
 
 enum WebPrintError {
@@ -268,25 +258,20 @@ enum WebPrintError {
   kUserPermissionDenied,
 };
 
-union WebPrintResult {
-  WebPrintJobInfo print_job_info;
-  WebPrintError error;
-};
-
 // Interface for interactions with a particular printer from the render process.
 // The implementation is responsible for checking access permissions.
 interface WebPrinter {
   // Fetches full attributes of this printer.
-  FetchAttributes() => (WebPrinterFetchResult result);
+  FetchAttributes() => result<WebPrinterAttributes, WebPrinterFetchError>;
 
   // Sends a print job to a printer.
   Print(pending_remote<blink.mojom.Blob> document,
-        WebPrintJobTemplateAttributes attributes) => (WebPrintResult result);
+        WebPrintJobTemplateAttributes attributes) => result<WebPrintJobInfo, WebPrintError>;
 };
 
 // Interface for accessing printers from the render process.
 // The implementation is responsible for checking access permissions.
 interface WebPrintingService {
   // Returns a list of local printers for this device.
-  GetPrinters() => (GetPrintersResult result);
+  GetPrinters() => result<array<WebPrinterInfo>, GetPrintersError>;
 };

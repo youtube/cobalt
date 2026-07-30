@@ -7,7 +7,28 @@ module browser_controls_api.mojom;
 import "components/browser_apis/browser_controls/browser_controls_api_data_model.mojom";
 import "mojo/public/mojom/base/empty.mojom";
 import "mojo/public/mojom/base/error.mojom";
+import "mojo/public/mojom/base/time.mojom";
 import "url/mojom/url.mojom";
+
+// Represents the physical input modality used to trigger the reload button
+// interaction.
+[Extensible]
+enum ReloadInputType {
+  [Default] kUnspecified,
+  kMouseRelease,
+  kKeyPress,
+};
+
+// Telemetry metadata about the user interaction with the reload button,
+// used to calculate and log the interaction latency UMA metric.
+struct ReloadInteractionMetadata {
+  // The time delta from the WebUI document's navigation start to the physical
+  // user interaction.
+  mojo_base.mojom.TimeDelta interaction_time_offset;
+
+  // The input modality of the interaction.
+  ReloadInputType input_type;
+};
 
 // BrowserControlsService defines methods to be called from the WebUI to the
 // browser-side. This interface consolidates various browser control actions.
@@ -27,8 +48,12 @@ interface BrowserControlsService {
   // Note for reload button, the shift key and ctrl key are used to determine
   // whether the reload is a bypass_cache reload, and will not be passed via
   // `click_flags`.
-  ReloadFromClick(
-      bool bypass_cache, array<EventDispositionFlag> click_flags)
+  // `metadata` is optional telemetry metadata about the user interaction
+  // (relative timestamp offset and input modality) used for recording latency
+  // UMA. If null, the reload proceeds but no metric is recorded.
+  ReloadFromClick(bool bypass_cache,
+                  array<EventDispositionFlag> click_flags,
+                  ReloadInteractionMetadata? metadata)
       => result<mojo_base.mojom.Empty, mojo_base.mojom.Error>;
 
   // Enters split view mode for the active tab. Only called when not in split.
@@ -51,5 +76,10 @@ interface BrowserControlsService {
 
   // Navigates the current tab to `url`.
   Navigate(url.mojom.Url url)
+      => result<mojo_base.mojom.Empty, mojo_base.mojom.Error>;
+
+  // Navigates the current tab to the query URL if `text` is a search query,
+  // or `text` itself if it is a valid URL.
+  NavigateText(string text)
       => result<mojo_base.mojom.Empty, mojo_base.mojom.Error>;
 };

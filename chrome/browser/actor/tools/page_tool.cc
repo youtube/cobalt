@@ -447,32 +447,9 @@ mojom::ActionResultPtr PageTool::ComputeObservedTargetAndValidateFrame(
     }
   }
 
-  std::optional<TargetNodeInfo> observed_target_node_info;
-  if (std::holds_alternative<gfx::Point>(request_->GetTarget())) {
-    gfx::Point target_blink_pixels;
-
-    // Convert the tool's `coordinate_dip` into APC geometry coordinates
-    // (visual-viewport-relative BlinkSpace/device pixels) before calling APC
-    // hit testing. See optimization_guide::FindNodeAtPoint() for the canonical
-    // coordinate space contract.
-    display::Screen* screen = display::Screen::Get();
-    float scale_factor = screen
-                             ->GetPreferredScaleFactorForWindow(
-                                 tab->GetContents()->GetTopLevelNativeWindow())
-                             .value();
-    target_blink_pixels = gfx::ScaleToRoundedPoint(
-        std::get<gfx::Point>(request_->GetTarget()), scale_factor);
-
-    // TODO(crbug.com/426021822): FindNodeAtPoint does not handle corner cases
-    // like clip paths. Need more checks to ensure we don't drop actions
-    // unnecessarily.
-    observed_target_node_info = FindLastObservedNodeForActionTargetPoint(
-        last_observation, target_blink_pixels);
-  } else {
-    CHECK(std::holds_alternative<DomNode>(request_->GetTarget()));
-    observed_target_node_info = FindLastObservedNodeForActionTargetId(
-        last_observation, std::get<DomNode>(request_->GetTarget()));
-  }
+  std::optional<TargetNodeInfo> observed_target_node_info =
+      FindLastObservedNodeForActionTarget(last_observation,
+                                          request_->GetTarget(), tab);
 
   if (!observed_target_node_info) {
     journal().Log(JournalURL(), task_id(), "ComputeObservedTarget",

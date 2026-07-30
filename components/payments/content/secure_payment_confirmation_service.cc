@@ -182,7 +182,7 @@ void SecurePaymentConfirmationService::
     ContinueStorePaymentCredentialAfterRpIdCheck(
         mojo::ReportBadMessageCallback bad_message_callback,
         std::vector<uint8_t> credential_id,
-        const std::string& rp_id,
+        std::string rp_id,
         std::vector<uint8_t> user_id,
         StorePaymentCredentialCallback callback,
         blink::mojom::AuthenticatorStatus rp_id_validation_result) {
@@ -208,7 +208,7 @@ void SecurePaymentConfirmationService::
 
   web_data_service_->AddSecurePaymentConfirmationCredential(
       std::make_unique<SecurePaymentConfirmationCredential>(
-          std::move(credential_id), rp_id, std::move(user_id)),
+          std::move(credential_id), std::move(rp_id), std::move(user_id)),
       base::BindOnce([](WebDataServiceBase::Handle h,
                         std::unique_ptr<WDTypedResult> result) {
         return result && static_cast<WDResult<bool>*>(result.get())->GetValue()

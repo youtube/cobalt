@@ -2,7 +2,6 @@ include_rules = [
   # keep-sorted start
   "+ios/chrome/browser/ai_prototyping/coordinator",
   "+ios/chrome/browser/app_bar/coordinator",
-  "+ios/chrome/browser/app_bar/ui",
   "+ios/chrome/browser/assistant/coordinator",
   "+ios/chrome/browser/authentication/account_menu",
   "+ios/chrome/browser/authentication/enterprise/managed_profile_creation/coordinator",
@@ -17,8 +16,8 @@ include_rules = [
   "+ios/chrome/browser/incognito_interstitial/ui_bundled",
   "+ios/chrome/browser/incognito_reauth/ui_bundled",
   "+ios/chrome/browser/infobars/model",
-  "+ios/chrome/browser/intelligence/bwg/model",
-  "+ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h",
+  "+ios/chrome/browser/intelligence/bwg",
+  "+ios/chrome/browser/intelligence/features/features.h",
   "+ios/chrome/browser/mailto_handler/model",
   "+ios/chrome/browser/main/ui",
   "+ios/chrome/browser/policy/ui_bundled",

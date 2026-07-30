@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/modules/printing/web_printing_manager.h"
 
 #include "base/task/single_thread_task_runner.h"
+#include "base/types/expected_macros.h"
 #include "printing/buildflags/buildflags.h"
 #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-shared.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
@@ -87,7 +88,7 @@ ScriptPromise<IDLSequence<WebPrinter>> WebPrintingManager::getPrinters(
   auto* resolver =
       MakeGarbageCollected<ScriptPromiseResolver<IDLSequence<WebPrinter>>>(
           script_state, exception_state.GetContext());
-  service->GetPrinters(resolver->WrapCallbackInScriptScope(BindOnce(
+  service->GetPrinters(resolver->WrapCallbackInScriptScope(blink::BindOnce(
       &WebPrintingManager::OnPrintersRetrieved, WrapPersistent(this))));
   return resolver->Promise();
 }
@@ -114,19 +115,20 @@ mojom::blink::WebPrintingService* WebPrintingManager::GetPrintingService() {
 
 void WebPrintingManager::OnPrintersRetrieved(
     ScriptPromiseResolver<IDLSequence<WebPrinter>>* resolver,
-    mojom::blink::GetPrintersResultPtr result) {
-  if (result->is_error()) {
-    switch (result->get_error()) {
-      case mojom::blink::GetPrintersError::kUserPermissionDenied:
-        resolver->RejectWithDOMException(
-            DOMExceptionCode::kNotAllowedError,
-            "User denied access to Web Printing API.");
-        break;
-    }
-    return;
-  }
+    mojom::blink::WebPrintingService::GetPrintersResult printers_result) {
+  ASSIGN_OR_RETURN(
+      auto printers_info, std::move(printers_result), [&](auto error) {
+        switch (error) {
+          case mojom::blink::GetPrintersError::kUserPermissionDenied:
+            resolver->RejectWithDOMException(
+                DOMExceptionCode::kNotAllowedError,
+                "User denied access to Web Printing API.");
+            break;
+        }
+      });
+
   HeapVector<Member<WebPrinter>> printers;
-  for (auto& printer_info : result->get_printers()) {
+  for (auto& printer_info : printers_info) {
     printers.push_back(MakeGarbageCollected<WebPrinter>(
         GetExecutionContext(), std::move(printer_info)));
   }

@@ -116,7 +116,7 @@ class ImmersiveModeControllerMacInteractiveTest : public InProcessBrowserTest {
   void ActivateSecondBrowserWindow() {
     views::test::PropertyWaiter activate_waiter(
         base::BindRepeating(&ui::BaseWindow::IsActive,
-                            base::Unretained(second_browser_->window())),
+                            base::Unretained(second_browser_->GetWindow())),
         true);
     second_browser_->GetWindow()->Activate();
     EXPECT_TRUE(activate_waiter.Wait());
@@ -130,7 +130,7 @@ class ImmersiveModeControllerMacInteractiveTest : public InProcessBrowserTest {
   }
 
   bool SecondBrowserWindowIsOnTheActiveSpace() {
-    return second_browser_->window()
+    return second_browser_->GetWindow()
         ->GetNativeWindow()
         .GetNativeNSWindow()
         .onActiveSpace;
@@ -293,7 +293,7 @@ IN_PROC_BROWSER_TEST_F(ImmersiveModeControllerMacInteractiveTest,
   // testing.
   views::test::PropertyWaiter activate_waiter(
       base::BindRepeating(&ui::BaseWindow::IsActive,
-                          base::Unretained(browser()->window())),
+                          base::Unretained(browser()->GetWindow())),
       true);
   EXPECT_FALSE(activate_waiter.Wait());
 

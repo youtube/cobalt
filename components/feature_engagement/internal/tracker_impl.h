@@ -87,7 +87,7 @@ class TrackerImpl : public Tracker {
   void UpdateConfig(const base::Feature& feature,
                     const ConfigurationProvider* provider) override;
 #endif
-  const Configuration* GetConfigurationForTesting() const override;
+  const Configuration* GetConfiguration() const override;
   void SetClockForTesting(const base::Clock& clock,
                           base::Time initial_now) override;
   bool IsInFeatureTestMode() const override;

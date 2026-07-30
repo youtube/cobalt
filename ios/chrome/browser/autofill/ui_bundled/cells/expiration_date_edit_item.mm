@@ -8,7 +8,6 @@
 #import "ios/chrome/browser/autofill/ui_bundled/cells/expiration_date_edit_item+Testing.h"
 #import "ios/chrome/browser/autofill/ui_bundled/cells/expiration_date_edit_item_delegate.h"
 #import "ios/chrome/browser/autofill/ui_bundled/expiration_date_picker.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ui/base/l10n/l10n_util.h"
 
@@ -30,9 +29,8 @@
   return self;
 }
 
-- (void)configureCell:(ExpirationDateEditCell*)cell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:cell withStyler:styler];
+- (void)configureCell:(ExpirationDateEditCell*)cell {
+  [super configureCell:cell];
 
   cell.textLabel.text = self.fieldNameLabelText;
   [cell setMonth:self.month year:self.year];
@@ -42,13 +40,10 @@
         [NSString stringWithFormat:@"%@_textField", self.fieldNameLabelText];
   }
 
-  if (styler.cellBackgroundColor) {
-    cell.textLabel.backgroundColor = styler.cellBackgroundColor;
-    cell.textField.backgroundColor = styler.cellBackgroundColor;
-  } else {
-    cell.textLabel.backgroundColor = styler.tableViewBackgroundColor;
-    cell.textField.backgroundColor = styler.tableViewBackgroundColor;
-  }
+  cell.textLabel.backgroundColor =
+      [UIColor colorNamed:kGroupedSecondaryBackgroundColor];
+  cell.textField.backgroundColor =
+      [UIColor colorNamed:kGroupedSecondaryBackgroundColor];
 
   cell.textField.textColor = [UIColor colorNamed:kTextPrimaryColor];
   cell.textField.enabled = YES;

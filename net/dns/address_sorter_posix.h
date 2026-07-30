@@ -6,6 +6,7 @@
 #define NET_DNS_ADDRESS_SORTER_POSIX_H_
 
 #include <map>
+#include <tuple>
 #include <vector>
 
 #include "base/containers/lru_cache.h"
@@ -16,6 +17,7 @@
 #include "net/base/net_export.h"
 #include "net/base/network_anonymization_key.h"
 #include "net/base/network_change_notifier.h"
+#include "net/base/network_handle.h"
 #include "net/dns/address_sorter.h"
 #include "net/socket/datagram_client_socket.h"
 
@@ -73,6 +75,7 @@ class NET_EXPORT_PRIVATE AddressSorterPosix
   // AddressSorter:
   void Sort(const std::vector<IPEndPoint>& endpoints,
             const NetworkAnonymizationKey& anonymization_key,
+            handles::NetworkHandle target_network,
             CallbackType callback) const override;
 
   bool IsConnectCacheEmptyForTesting() const;
@@ -119,8 +122,10 @@ class NET_EXPORT_PRIVATE AddressSorterPosix
       sort_contexts_;
 
   // Key type for the cache of results of UDP connect() calls. Includes the NAK
-  // to avoid cross-origin information leakage attacks.
-  using CacheKey = std::pair<IPAddress, NetworkAnonymizationKey>;
+  // to avoid cross-origin information leakage attacks, and the target network
+  // to avoid cross-network cache pollution.
+  using CacheKey =
+      std::tuple<IPAddress, NetworkAnonymizationKey, handles::NetworkHandle>;
 
   // Cache of the result of UDP connect() calls. Cleared when a change to
   // network interfaces is detected.

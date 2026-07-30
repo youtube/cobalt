@@ -57,75 +57,11 @@ content::RenderFrameHost& GetPrimaryMainFrameOfTab(tabs::TabHandle tab_handle) {
   return *tab_handle.Get()->GetContents()->GetPrimaryMainFrame();
 }
 
-mojom::ActionResultCode LoginErrorToActorError(
-    actor_login::ActorLoginError login_error) {
-  switch (login_error) {
-    case actor_login::ActorLoginError::kServiceBusy:
-      return mojom::ActionResultCode::kLoginTooManyRequests;
-    case actor_login::ActorLoginError::kInvalidTabInterface:
-      return mojom::ActionResultCode::kTabWentAway;
-    case actor_login::ActorLoginError::kFillingNotAllowed:
-      return mojom::ActionResultCode::kLoginFillingNotAllowed;
-    case actor_login::ActorLoginError::kFeatureDisabled:
-      return mojom::ActionResultCode::kLoginFeatureDisabled;
-  }
-}
-
 std::string MaybeTargetDebugString(const std::optional<PageTarget>& target) {
   return target ? DebugString(*target) : "null";
 }
 
 }  // namespace
-
-// static
-mojom::ActionResultCode AttemptLoginTool::LoginResultToActorResult(
-    actor_login::LoginStatusResult login_result) {
-  // TODO(crbug.com/427817201): Re-assess whether all success statuses should
-  // map to kOk or if differentiation is needed.
-  switch (login_result) {
-    case actor_login::LoginStatusResult::kSuccessUsernameAndPasswordFilled:
-    case actor_login::LoginStatusResult::kSuccessUsernameFilled:
-    case actor_login::LoginStatusResult::kSuccessPasswordFilled:
-    case actor_login::LoginStatusResult::kSuccessFederated:
-      return mojom::ActionResultCode::kOk;
-    case actor_login::LoginStatusResult::kErrorNoSigninForm:
-      return mojom::ActionResultCode::kLoginNotLoginPage;
-    case actor_login::LoginStatusResult::kErrorInvalidCredential:
-      return mojom::ActionResultCode::kLoginNoCredentialsAvailable;
-    case actor_login::LoginStatusResult::kErrorNoFillableFields:
-      return mojom::ActionResultCode::kLoginNoFillableFields;
-    case actor_login::LoginStatusResult::kErrorDeviceReauthRequired:
-      return mojom::ActionResultCode::kLoginDeviceReauthRequired;
-    case actor_login::LoginStatusResult::kErrorDeviceReauthFailed:
-      return mojom::ActionResultCode::kLoginDeviceReauthFailed;
-    case actor_login::LoginStatusResult::kErrorFederatedContinuation:
-      return mojom::ActionResultCode::kLoginFederatedContinuation;
-    case actor_login::LoginStatusResult::kErrorFederatedAccountNotLoggedIn:
-      return mojom::ActionResultCode::kLoginFederatedAccountNotLoggedIn;
-    case actor_login::LoginStatusResult::kErrorFederatedAccountIsSignUp:
-      return mojom::ActionResultCode::kLoginFederatedAccountIsSignUp;
-    case actor_login::LoginStatusResult::kErrorFederatedAccountNotAvailable:
-      return mojom::ActionResultCode::kLoginFederatedAccountNotAvailable;
-    case actor_login::LoginStatusResult::kErrorFederatedIdpReturnedError:
-      return mojom::ActionResultCode::kLoginFederatedIdpReturnedError;
-    case actor_login::LoginStatusResult::kErrorFederatedIdpNetworkError:
-      return mojom::ActionResultCode::kLoginFederatedIdpNetworkError;
-    case actor_login::LoginStatusResult::kErrorFederatedTokenRequestAborted:
-      return mojom::ActionResultCode::kLoginFederatedTokenRequestAborted;
-    case actor_login::LoginStatusResult::kErrorFederatedFrameNotActive:
-      return mojom::ActionResultCode::kLoginFederatedFrameNotActive;
-    case actor_login::LoginStatusResult::
-        kErrorFederatedExpectedAccountNotPresent:
-      return mojom::ActionResultCode::kLoginFederatedExpectedAccountNotPresent;
-    case actor_login::LoginStatusResult::kErrorFederatedTimeout:
-      return mojom::ActionResultCode::kLoginFederatedTimeout;
-    case actor_login::LoginStatusResult::kRequiresButtonClick:
-      // TODO(crbug.com/479505793): Consider adding a more specific error code.
-      return mojom::ActionResultCode::kArgumentsInvalid;
-    case actor_login::LoginStatusResult::kErrorPageChangedDuringFilling:
-      return mojom::ActionResultCode::kLoginPasswordFillingPageChanged;
-  }
-}
 
 AttemptLoginTool::AttemptLoginTool(
     TaskId task_id,
@@ -257,8 +193,9 @@ void AttemptLoginTool::Invoke(ToolCallback callback) {
 void AttemptLoginTool::OnGetCredentials(
     actor_login::CredentialsOrError credentials) {
   if (!credentials.has_value()) {
-    PostResponseTask(std::move(invoke_callback_),
-                     MakeResult(LoginErrorToActorError(credentials.error())));
+    PostResponseTask(
+        std::move(invoke_callback_),
+        MakeResult(actor_login::LoginErrorToActorResult(credentials.error())));
     return;
   }
 
@@ -502,8 +439,9 @@ void AttemptLoginTool::OnAttemptLogin(
     bool should_store_permission,
     actor_login::LoginStatusResultOrError login_status) {
   if (!login_status.has_value()) {
-    PostResponseTask(std::move(invoke_callback_),
-                     MakeResult(LoginErrorToActorError(login_status.error())));
+    PostResponseTask(
+        std::move(invoke_callback_),
+        MakeResult(actor_login::LoginErrorToActorResult(login_status.error())));
     return;
   }
 
@@ -555,7 +493,8 @@ void AttemptLoginTool::OnAttemptLogin(
     return;
   }
 
-  mojom::ActionResultCode code = LoginResultToActorResult(login_status.value());
+  mojom::ActionResultCode code =
+      actor_login::LoginResultToActorResult(login_status.value());
   PostResponseTask(std::move(invoke_callback_),
                    IsOk(code) ? MakeOkResult() : MakeResult(code));
 }

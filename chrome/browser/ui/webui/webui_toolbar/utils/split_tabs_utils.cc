@@ -63,8 +63,14 @@ void PopulateSplitTabsDataSource(content::WebUIDataSource* source,
                      features::IsWebUISplitTabsButtonEnabled());
 
   static constexpr webui::LocalizedString kStrings[] = {
-      {"splitTabsButtonAccNameEnabled",
-       IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED},
+      {"splitTabsButtonAccNameEnabledLeft",
+       IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED_LEFT_ACTIVE},
+      {"splitTabsButtonAccNameEnabledRight",
+       IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED_RIGHT_ACTIVE},
+      {"splitTabsButtonAccNameEnabledTop",
+       IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED_TOP_ACTIVE},
+      {"splitTabsButtonAccNameEnabledBottom",
+       IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED_BOTTOM_ACTIVE},
       {"splitTabsButtonAccNamePinned",
        IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_PINNED},
   };

@@ -17,6 +17,7 @@
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/thread_safe_ref_counted.h"
+#include "third_party/blink/renderer/platform/wtf/vector.h"
 
 // Higher values produce more debugging output.
 #define DEBUG_AUDIONODE_REFERENCES 0
@@ -224,6 +225,12 @@ class MODULES_EXPORT AudioHandler : public ThreadSafeRefCounted<AudioHandler> {
 
   void EnableOutputsIfNecessary();
   void DisableOutputsIfNecessary();
+
+  // Enables the outputs of this node and all downstream nodes iteratively.
+  void EnableOutputs();
+
+  // Disables the outputs of this node and all downstream nodes iteratively.
+  // This is the entry point for disabling propagation.
   void DisableOutputs();
 
   unsigned ChannelCount() const;
@@ -296,6 +303,14 @@ class MODULES_EXPORT AudioHandler : public ThreadSafeRefCounted<AudioHandler> {
 
   // https://chromium.googlesource.com/chromium/src/+/refs/heads/main/docs/media/capture/README.md#logs
   void SendLogMessage(const String& function_name, const String& message);
+
+  // Enables this node's outputs and enqueues downstream handlers that might
+  // need enabling into `worklist`. Called by `EnableOutputs()`.
+  void EnableOutputsInternal(Vector<scoped_refptr<AudioHandler>>& worklist);
+
+  // Disables this node's outputs and enqueues downstream handlers that might
+  // need disabling into `worklist`. Called by `DisableOutputs()`.
+  void DisableOutputsInternal(Vector<scoped_refptr<AudioHandler>>& worklist);
 
   bool is_initialized_ = false;
   NodeType node_type_ = NodeType::kNodeTypeUnknown;

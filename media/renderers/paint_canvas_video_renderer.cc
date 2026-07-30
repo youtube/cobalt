@@ -1523,6 +1523,10 @@ bool PaintCanvasVideoRenderer::CopyVideoFrameYUVDataToGLTexture(
 
   // On the destination GL context, do a copy (with cropping) into the
   // destination texture.
+  destination_gl->BindTexture(target, texture);
+  destination_gl->TexImage2D(
+      target, level, internal_format, video_frame->visible_rect().width(),
+      video_frame->visible_rect().height(), 0, format, type, nullptr);
   rgb_sync_token = destination_gl->CopySharedImageToGLTextureViaTextureCopy(
       video_frame->visible_rect(), rgb_shared_image.get(),
       post_conversion_sync_token, target, texture, internal_format, format,

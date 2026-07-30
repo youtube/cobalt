@@ -671,4 +671,46 @@ suite('TreeView', () => {
         indexOf22 > indexOf6,
         'Bookmark 22 should be below folder 6 after move');
   });
+
+  test('FolderExpansionStatePreservedOnDataChanged', async () => {
+    bookmarksApi = new TestBookmarksApiProxy();
+    bookmarksApi.setAllBookmarks(structuredClone(nestedBookmarks));
+    BookmarksApiProxyImpl.setInstance(bookmarksApi);
+    powerBookmarksApp = await initializeAppUi(bookmarksApi);
+
+    const folder5 = getPowerBookmarksRowElement(powerBookmarksApp, '5')!;
+    assertTrue(!!folder5, 'Folder 5 should exist');
+    assertFalse(folder5.toggleExpand, 'Folder 5 should initially be collapsed');
+
+    // Expand Folder 5.
+    const folderItem5 =
+        getPowerBookmarksRowItemElement(powerBookmarksApp, '5')!;
+    const metricsLogged = eventToPromise(
+        'bookmark-count-recorded', powerBookmarksApp.$.bookmarksList);
+    folderItem5.shadowRoot.querySelector<HTMLElement>('#expandButton')!.click();
+    await metricsLogged;
+    await microtasksFinished();
+
+    // Verify it is expanded.
+    assertTrue(folder5.toggleExpand, 'Folder 5 should be expanded');
+
+    // Add a new bookmark at the beginning of the list, which shifts the index
+    // of Folder 5 and forces row recycling.
+    bookmarksApi.callbackRouterRemote.onBookmarkNodeAdded({
+      id: '999',
+      title: 'New bookmark',
+      index: 0,
+      parentId: 'SIDE_PANEL_OTHER_BOOKMARKS_ID',
+      url: 'http://new/bookmark',
+      children: null,
+      dateAdded: null,
+      dateLastUsed: null,
+      unmodifiable: false,
+    });
+    await microtasksFinished();
+
+    // Verify that Folder 5 remains expanded after the list re-renders.
+    const updatedFolder5 = getPowerBookmarksRowElement(powerBookmarksApp, '5')!;
+    assertTrue(updatedFolder5.toggleExpand, 'Folder 5 should remain expanded');
+  });
 });

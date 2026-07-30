@@ -542,7 +542,13 @@ void WaylandToplevelWindow::HandleToplevelConfigureWithOrigin(
   // bounds.
   gfx::Rect bounds_dip(
       pending_configure_state_.bounds_dip.value_or(gfx::Rect()));
-  if (width_dip > 1 && height_dip > 1) {
+  if (window_state == PlatformWindowState::kMinimized) {
+    // Keep the current (restored) bounds while minimized. Otherwise the bounds
+    // shrink to the no-shadow configure size, the throttled renderer keeps that
+    // smaller buffer, and on un-minimize it is briefly shown mismatched against
+    // the retained window geometry, shifting the content (Wayland-only).
+    bounds_dip = GetBoundsInDIP();
+  } else if (width_dip > 1 && height_dip > 1) {
     bounds_dip.SetRect(x, y, width_dip, height_dip);
     const auto& insets = delegate()->CalculateInsetsInDIP(window_state);
     if (ShouldSetBounds(window_state) && !insets.IsEmpty()) {
@@ -661,6 +667,16 @@ void WaylandToplevelWindow::SetWindowGeometry(
   DCHECK(connection()->SupportsSetWindowGeometry());
 
   if (!xdg_toplevel_) {
+    return;
+  }
+
+  // While minimized the window is not visible, and the compositor retains the
+  // last committed window geometry. Skipping the update keeps the geometry at
+  // its restored value (incl. the shadow-offset origin), so un-minimizing does
+  // not move the geometry origin. Otherwise the origin flips to (0,0) here and
+  // back on restore, and without a compensating wl_surface.offset the content
+  // visibly jumps for a frame (Wayland-only).
+  if (state.window_state == PlatformWindowState::kMinimized) {
     return;
   }
 

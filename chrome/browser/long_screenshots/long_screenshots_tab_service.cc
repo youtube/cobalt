@@ -13,6 +13,7 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/memory_coordinator/traits.h"
 #include "base/memory_coordinator/utils.h"
 #include "base/metrics/histogram_functions.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
@@ -59,6 +60,13 @@ static void JNI_LongScreenshotsTabService_ReleaseCaptureResultPtr(
   delete reinterpret_cast<paint_preview::CaptureResult*>(j_capture_result_ptr);
 }
 
+namespace {
+
+constexpr base::MemoryConsumerTraits kLongScreenshotsMemoryConsumerTraits(
+    base::MemoryConsumerTraits::ConsumerType::kPassive);
+
+}  // namespace
+
 LongScreenshotsTabService::LongScreenshotsTabService(
     std::unique_ptr<paint_preview::PaintPreviewFileMixin> file_mixin,
     std::unique_ptr<paint_preview::PaintPreviewPolicy> policy,
@@ -69,11 +77,9 @@ LongScreenshotsTabService::LongScreenshotsTabService(
       google_amp_cache_path_regex_(kGoogleAmpCachePathPattern),
       google_amp_viewer_path_regex_(kGoogleAmpViewerPathPattern),
       google_news_path_regex_(kGoogleNewsPathPattern),
-      memory_consumer_registration_(
-          "LongScreenshotsTabService",
-          // TODO(crbug.com/489671163): Use correct traits.
-          std::nullopt,
-          this) {
+      memory_consumer_registration_("LongScreenshotsTabService",
+                                    kLongScreenshotsMemoryConsumerTraits,
+                                    this) {
   DCHECK(google_amp_cache_path_regex_.ok());
   DCHECK(google_amp_viewer_path_regex_.ok());
   DCHECK(google_news_path_regex_.ok());

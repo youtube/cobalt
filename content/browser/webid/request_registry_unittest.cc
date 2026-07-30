@@ -22,9 +22,13 @@
 #include "content/browser/webid/test/mock_modal_dialog_view_delegate.h"
 #include "content/browser/webid/test/mock_permission_delegate.h"
 #include "content/public/common/content_features.h"
+#include "content/public/test/navigation_simulator.h"
 #include "content/test/test_render_view_host.h"
 #include "content/test/test_web_contents.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "mojo/public/cpp/test_support/test_utils.h"
+#include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
@@ -99,8 +103,15 @@ class RequestRegistryTest : public RenderViewHostImplTestHarness {
     mock_permission_delegate_ =
         std::make_unique<StrictMock<MockPermissionDelegate>>();
 
-    static_cast<TestWebContents*>(web_contents())
-        ->NavigateAndCommit(GURL(kIdpUrl), ui::PAGE_TRANSITION_LINK);
+    std::unique_ptr<NavigationSimulator> simulator =
+        NavigationSimulator::CreateRendererInitiated(GURL(kIdpUrl),
+                                                     main_test_rfh());
+    network::ParsedPermissionsPolicy policy(1);
+    policy[0].feature =
+        network::mojom::PermissionsPolicyFeature::kIdentityCredentialsGet;
+    policy[0].matches_all_origins = true;
+    simulator->SetPermissionsPolicyHeader(std::move(policy));
+    simulator->Commit();
 
     mock_auto_reauthn_permission_delegate_ =
         std::make_unique<NiceMock<MockAutoReauthnPermissionDelegate>>();
@@ -120,10 +131,15 @@ class RequestRegistryTest : public RenderViewHostImplTestHarness {
     std::unique_ptr<TestIdpNetworkRequestManager> network_request_manager =
         std::make_unique<TestIdpNetworkRequestManager>();
     request_->SetNetworkManagerForTests(std::move(network_request_manager));
+
+    RequestService::GetOrCreateForCurrentDocument(main_test_rfh())
+        ->BindFederatedRequestService(
+            request_service_remote_.BindNewPipeAndPassReceiver());
   }
 
   void TearDown() override {
     request_ = nullptr;
+    request_service_remote_.reset();
     RenderViewHostImplTestHarness::TearDown();
   }
 
@@ -131,6 +147,7 @@ class RequestRegistryTest : public RenderViewHostImplTestHarness {
   base::test::ScopedFeatureList feature_list_;
 
   mojo::Remote<blink::mojom::FederatedAuthRequest> request_remote_;
+  mojo::Remote<blink::mojom::FederatedRequestService> request_service_remote_;
   raw_ptr<Request> request_;
 
   std::unique_ptr<TestApiPermissionDelegate> test_api_permission_delegate_;
@@ -237,6 +254,162 @@ TEST_F(RequestRegistryTest, UnregistersIdP) {
         loop.Quit();
       }));
   loop.Run();
+}
+
+// Test Registering an IdP via FederatedRequestService.
+TEST_F(RequestRegistryTest, RequestServiceRegisterIdP) {
+  GURL config_url = GURL(kIdpUrl);
+
+  feature_list_.InitAndEnableFeature(features::kFedCmIdPRegistration);
+
+  EXPECT_CALL(*mock_permission_delegate_, RegisterIdP(_)).WillOnce(Return());
+
+  base::RunLoop loop;
+  request_service_remote_->RegisterIdP(
+      std::move(config_url),
+      base::BindLambdaForTesting([&loop](RegisterIdpStatus result) {
+        EXPECT_EQ(RegisterIdpStatus::kSuccess, result);
+        loop.Quit();
+      }));
+  loop.Run();
+}
+
+// Test Unregistering an IdP via FederatedRequestService.
+TEST_F(RequestRegistryTest, RequestServiceUnregisterIdP) {
+  GURL config_url = GURL(kIdpUrl);
+
+  feature_list_.InitAndEnableFeature(features::kFedCmIdPRegistration);
+
+  EXPECT_CALL(*mock_permission_delegate_, UnregisterIdP(_)).WillOnce(Return());
+
+  base::RunLoop loop;
+  request_service_remote_->UnregisterIdP(
+      std::move(config_url), base::BindLambdaForTesting([&loop](bool result) {
+        EXPECT_EQ(true, result);
+        loop.Quit();
+      }));
+  loop.Run();
+}
+
+// Test PreventSilentAccess via FederatedRequestService.
+TEST_F(RequestRegistryTest, RequestServicePreventSilentAccess) {
+  EXPECT_CALL(*mock_permission_delegate_, HasSharingPermission(_))
+      .WillOnce(Return(false));
+  EXPECT_CALL(*mock_auto_reauthn_permission_delegate_,
+              SetRequiresUserMediation(_, true))
+      .WillOnce(Return());
+  EXPECT_CALL(*mock_permission_delegate_, OnSetRequiresUserMediation(_, _))
+      .WillOnce(::testing::WithArg<1>(
+          [](base::OnceClosure callback) { std::move(callback).Run(); }));
+
+  base::RunLoop loop;
+  request_service_remote_->PreventSilentAccess(
+      base::BindLambdaForTesting([&loop]() { loop.Quit(); }));
+  loop.Run();
+}
+
+// Test RequestUserInfo via FederatedRequestService.
+TEST_F(RequestRegistryTest, RequestServiceRequestUserInfoFailure) {
+  // Append a child frame (iframe) with identity-credentials-get policy.
+  network::ParsedPermissionsPolicy frame_policy(1);
+  frame_policy[0].feature =
+      network::mojom::PermissionsPolicyFeature::kIdentityCredentialsGet;
+  frame_policy[0].matches_all_origins = true;
+  frame_policy[0].matches_opaque_src = false;
+  TestRenderFrameHost* child_rfh =
+      static_cast<TestRenderFrameHost*>(web_contents()->GetPrimaryMainFrame())
+          ->AppendChildWithPolicy("child_frame", frame_policy);
+
+  // Navigate child frame to same-origin with IDP.
+  auto simulator =
+      NavigationSimulator::CreateRendererInitiated(GURL(kIdpUrl), child_rfh);
+  simulator->Commit();
+  child_rfh =
+      static_cast<TestRenderFrameHost*>(simulator->GetFinalRenderFrameHost());
+
+  // Set up child service and bind Mojo interfaces.
+  mojo::Remote<blink::mojom::FederatedAuthRequest> child_request_remote;
+  mojo::Remote<blink::mojom::FederatedRequestService>
+      child_request_service_remote;
+
+  RequestService::GetOrCreateForCurrentDocument(child_rfh)
+      ->CreateRequestForTesting(
+          child_request_remote.BindNewPipeAndPassReceiver(),
+          test_api_permission_delegate_.get(),
+          mock_auto_reauthn_permission_delegate_.get(),
+          mock_permission_delegate_.get(), mock_identity_registry_.get());
+
+  RequestService::GetOrCreateForCurrentDocument(child_rfh)
+      ->BindFederatedRequestService(
+          child_request_service_remote.BindNewPipeAndPassReceiver());
+
+  auto provider = blink::mojom::IdentityProviderConfig::New();
+  provider->config_url = GURL(kIdpUrl);
+  provider->client_id = "client_id";
+
+  EXPECT_CALL(*mock_permission_delegate_, GetIdpSigninStatus(_))
+      .WillOnce(Return(false));
+
+  base::RunLoop loop;
+  child_request_service_remote->RequestUserInfo(
+      std::move(provider),
+      base::BindLambdaForTesting(
+          [&loop](blink::mojom::RequestUserInfoResultPtr result) {
+            EXPECT_TRUE(result->is_status());
+            EXPECT_EQ(blink::mojom::RequestUserInfoStatus::kError,
+                      result->get_status());
+            loop.Quit();
+          }));
+  loop.Run();
+}
+
+// Test RequestUserInfo with denied Permissions Policy.
+TEST_F(RequestRegistryTest,
+       RequestServiceRequestUserInfoPermissionsPolicyDenied) {
+  // Append a child frame (iframe) but do NOT delegate identity-credentials-get.
+  // This means the feature will be disabled for this iframe.
+  network::ParsedPermissionsPolicy frame_policy(1);
+  frame_policy[0].feature =
+      network::mojom::PermissionsPolicyFeature::kIdentityCredentialsGet;
+  frame_policy[0].matches_all_origins = false;  // Denied!
+  frame_policy[0].matches_opaque_src = false;
+  TestRenderFrameHost* child_rfh =
+      static_cast<TestRenderFrameHost*>(web_contents()->GetPrimaryMainFrame())
+          ->AppendChildWithPolicy("child_frame", frame_policy);
+
+  // Navigate child frame to same-origin with IDP.
+  auto simulator =
+      NavigationSimulator::CreateRendererInitiated(GURL(kIdpUrl), child_rfh);
+  simulator->Commit();
+  child_rfh =
+      static_cast<TestRenderFrameHost*>(simulator->GetFinalRenderFrameHost());
+
+  // Set up child service and bind Mojo interfaces.
+  mojo::Remote<blink::mojom::FederatedAuthRequest> child_request_remote;
+  mojo::Remote<blink::mojom::FederatedRequestService>
+      child_request_service_remote;
+
+  RequestService::GetOrCreateForCurrentDocument(child_rfh)
+      ->CreateRequestForTesting(
+          child_request_remote.BindNewPipeAndPassReceiver(),
+          test_api_permission_delegate_.get(),
+          mock_auto_reauthn_permission_delegate_.get(),
+          mock_permission_delegate_.get(), mock_identity_registry_.get());
+
+  RequestService::GetOrCreateForCurrentDocument(child_rfh)
+      ->BindFederatedRequestService(
+          child_request_service_remote.BindNewPipeAndPassReceiver());
+
+  auto provider = blink::mojom::IdentityProviderConfig::New();
+  provider->config_url = GURL(kIdpUrl);
+  provider->client_id = "client_id";
+
+  mojo::test::BadMessageObserver bad_message_observer;
+  child_request_service_remote->RequestUserInfo(std::move(provider),
+                                                base::DoNothing());
+
+  EXPECT_EQ("identity-credentials-get permissions policy not enabled",
+            bad_message_observer.WaitForBadMessage());
 }
 
 }  // namespace content::webid

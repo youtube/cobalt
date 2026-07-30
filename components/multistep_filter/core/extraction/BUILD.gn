@@ -8,7 +8,6 @@ source_set("extraction") {
 
   deps = [
     "//base",
-    "//components/multistep_filter/core:util",
     "//components/multistep_filter/core/annotation_index",
     "//components/multistep_filter/core/data_models",
     "//components/multistep_filter/core/logging",

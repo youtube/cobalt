@@ -10,15 +10,19 @@ single binary.
 In a component build, many smaller shared libraries will be generated. This
 speeds up link times, and means that many changes only require that the local
 shared library be linked rather than the full executable, but at the expense of
-program load-time performance.
+program load-time performance and binary size.
 
-The component build is currently the default for debug non-iOS builds (it
-doesn’t work for iOS). You can force it on for release builds using the
+The component build is currently the default for debug non-Android, non-iOS
+builds (they don't work for iOS, and the increased binary size leads to slow
+APK installs on Android). You can force it on for release builds using the
 [GN build arg](https://www.chromium.org/developers/gn-build-configuration):
 
 ```python
 is_component_build = true
 ```
+
+There are *many* gotchas with component builds and they are being tracked in
+[crbug/40280306](https://crbug.com/40280306)
 
 ### How to make a component
 

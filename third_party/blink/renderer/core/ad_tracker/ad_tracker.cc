@@ -85,6 +85,13 @@ ApiFunctionInfo GetApiFunctionInfo(v8::Isolate* isolate,
   v8::Local<v8::Value> current_value = context->Global();
   const base::span<const char* const> property_path = GetApiPropertyPath(api);
 
+  // Prevent script execution (e.g., via author-defined getters or proxy traps)
+  // during prototype chain traversal to avoid evasion, side effects, or DOM
+  // mutation re-entrancy crashes.
+  v8::Isolate::DisallowJavascriptExecutionScope disallow_js(
+      isolate, v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+  v8::TryCatch try_catch(isolate);
+
   // Traverse the property path (e.g., global object -> `history` ->
   // `pushState`).
   for (const char* property_name : property_path) {

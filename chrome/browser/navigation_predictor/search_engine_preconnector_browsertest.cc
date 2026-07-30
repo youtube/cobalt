@@ -1314,9 +1314,16 @@ INSTANTIATE_TEST_SUITE_P(
     SearchEnginePreconnectorWithBindReceiversEverytimeFeatureBrowserTest,
     ::testing::Bool());
 
+// TODO(crbug.com/506949513): Flaky on Linux.
+#if BUILDFLAG(IS_LINUX)
+#define MAYBE_BindNewRemoteOnEachPreconnect \
+  DISABLED_BindNewRemoteOnEachPreconnect
+#else
+#define MAYBE_BindNewRemoteOnEachPreconnect BindNewRemoteOnEachPreconnect
+#endif
 IN_PROC_BROWSER_TEST_P(
     SearchEnginePreconnectorWithBindReceiversEverytimeFeatureBrowserTest,
-    BindNewRemoteOnEachPreconnect) {
+    MAYBE_BindNewRemoteOnEachPreconnect) {
   constexpr char16_t kShortName[] = u"test";
   TemplateURLService* model =
       TemplateURLServiceFactory::GetForProfile(browser()->profile());

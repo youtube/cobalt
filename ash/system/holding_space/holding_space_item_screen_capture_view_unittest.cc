@@ -134,7 +134,7 @@ TEST_P(HoldingSpaceItemScreenCaptureViewTest, OverlayIcon) {
            item()->type() == HoldingSpaceItem::Type::kScreenRecordingGif
                ? kGifIcon
            : ::features::IsRoundedIconsEnabled()
-               ? vector_icons::kPlayArrowFilledIcon
+               ? vector_icons::kPlayArrowFilledFlippableIcon
                : vector_icons::kPlayArrowOldIcon,
            kColorAshButtonIconColor, kHoldingSpaceIconSize)
            .Rasterize(color_provider)

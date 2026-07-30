@@ -19,9 +19,8 @@
   return self;
 }
 
-- (void)configureCell:(TableViewStackedDetailsCell*)cell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:cell withStyler:styler];
+- (void)configureCell:(TableViewStackedDetailsCell*)cell {
+  [super configureCell:cell];
 
   cell.titleLabel.text = self.titleText;
 

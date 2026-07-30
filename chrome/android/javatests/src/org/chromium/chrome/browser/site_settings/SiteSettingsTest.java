@@ -1159,7 +1159,7 @@ public class SiteSettingsTest {
                             (SingleWebsiteSettings) settingsActivity.getMainFragment();
                     websitePreferences.resetSite();
                 });
-        settingsActivity.finish();
+        ApplicationTestUtils.finishActivity(settingsActivity);
     }
 
     private void resetGroup(List<WebsiteAddress> addresses) {
@@ -1177,7 +1177,7 @@ public class SiteSettingsTest {
                             (GroupedWebsitesSettings) settingsActivity.getMainFragment();
                     websitePreferences.resetGroup();
                 });
-        settingsActivity.finish();
+        ApplicationTestUtils.finishActivity(settingsActivity);
     }
 
     /** Sets Allow Popups Enabled to be false and make sure it is set correctly. */

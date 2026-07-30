@@ -552,6 +552,7 @@ const CGFloat kCustomLeadingViewAnimationDuration = 0.3;
 
 - (void)setLocationLabelPlaceholderText:(NSString*)string {
   _isShowingPlaceholder = YES;
+  self.locationLabel.lineBreakMode = NSLineBreakByTruncatingTail;
   self.locationLabel.textColor = self.colorScheme.placeholderColor;
   self.locationLabel.text = string;
   [self updateContainerConstraints];

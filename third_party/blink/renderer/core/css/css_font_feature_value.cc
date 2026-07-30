@@ -25,6 +25,7 @@
 
 #include "third_party/blink/renderer/core/css/css_font_feature_value.h"
 
+#include "third_party/blink/renderer/core/css/css_markup.h"
 #include "third_party/blink/renderer/core/css/css_numeric_literal_value.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
@@ -37,9 +38,7 @@ CSSFontFeatureValue::CSSFontFeatureValue(const AtomicString& tag,
 
 String CSSFontFeatureValue::CustomCSSText() const {
   StringBuilder builder;
-  builder.Append('"');
-  builder.Append(tag_);
-  builder.Append('"');
+  SerializeString(tag_, builder);
   // Omit the value if it's 1 as 1 is implied by default.
   if (!value_->IsNumericLiteralValue() ||
       ClampTo<int>(To<CSSNumericLiteralValue>(*value_).ClampedDoubleValue()) !=

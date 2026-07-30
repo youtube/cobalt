@@ -5,7 +5,6 @@
 #ifndef EXTENSIONS_BROWSER_MIME_HANDLER_MIME_HANDLER_BODY_CACHE_H_
 #define EXTENSIONS_BROWSER_MIME_HANDLER_MIME_HANDLER_BODY_CACHE_H_
 
-#include <memory>
 #include <vector>
 
 #include "base/auto_reset.h"
@@ -13,7 +12,6 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "mojo/public/cpp/system/data_pipe.h"
-#include "mojo/public/cpp/system/data_pipe_drainer.h"
 #include "mojo/public/cpp/system/simple_watcher.h"
 
 namespace extensions {
@@ -28,8 +26,7 @@ namespace extensions {
 // buffer is released and the forwarding pipe (if any) is torn down,
 // which aborts the live load. `is_complete()` stays false so the
 // fallback path refetches from the network.
-class MimeHandlerBodyCache : public base::RefCounted<MimeHandlerBodyCache>,
-                             public mojo::DataPipeDrainer::Client {
+class MimeHandlerBodyCache : public base::RefCounted<MimeHandlerBodyCache> {
  public:
   // Creates a cache that drains `source` into memory. If
   // `out_forwarding_pipe` is non-null, the cache also forwards live
@@ -70,19 +67,27 @@ class MimeHandlerBodyCache : public base::RefCounted<MimeHandlerBodyCache>,
 
  private:
   friend class base::RefCounted<MimeHandlerBodyCache>;
-  ~MimeHandlerBodyCache() override;
+  ~MimeHandlerBodyCache();
 
   // Lifecycle of the buffered drain.
-  enum class State { kDraining, kComplete, kAbandoned };
+  enum class State { kCaching, kComplete, kAbandoned };
 
   // Creates the forwarding data pipe and stores the producer end.
   // Returns false on pipe creation failure.
   bool InitializeForwarding(
       mojo::ScopedDataPipeConsumerHandle* out_forwarding_pipe);
 
-  // mojo::DataPipeDrainer::Client:
-  void OnDataAvailable(base::span<const uint8_t> data) override;
-  void OnDataComplete() override;
+  // Takes ownership of `source` and starts pumping it.
+  void StartReading(mojo::ScopedDataPipeConsumerHandle source);
+
+  // Source watcher callback: reads the next chunk, appends it to
+  // `buffer_` (or abandons on overflow), ends the read, and re-arms.
+  void OnSourceReadable(MojoResult result,
+                        const mojo::HandleSignalsState& state);
+
+  // Handles source EOF (or a broken source pipe, which is
+  // indistinguishable and treated the same way).
+  void OnSourceDone();
 
   // Flushes already-buffered bytes that have not yet been written to the
   // forwarding pipe. Re-arms the watcher when the pipe is back-pressured.
@@ -93,14 +98,17 @@ class MimeHandlerBodyCache : public base::RefCounted<MimeHandlerBodyCache>,
   void OnForwardingPipeWritable(MojoResult result,
                                 const mojo::HandleSignalsState& state);
 
-  // Drains the source pipe into `buffer_`.
-  std::unique_ptr<mojo::DataPipeDrainer> drainer_;
+  // Source pipe being pumped into `buffer_`.
+  mojo::ScopedDataPipeConsumerHandle source_;
+
+  // Watches `source_` for readability.
+  mojo::SimpleWatcher source_watcher_;
 
   // Bytes accumulated from the source pipe; replayed by `CreatePipe()`.
   std::vector<uint8_t> buffer_;
 
   // Current state of the drain.
-  State state_ = State::kDraining;
+  State state_ = State::kCaching;
 
   // Producer end of the forwarding pipe, or invalid if forwarding is
   // not requested or has been torn down.

@@ -12,6 +12,7 @@
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
+#include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
@@ -170,6 +171,53 @@ TEST_F(SigninPromoUrlTest, SigninURLForDiceMagiChromeExperiments) {
       "https://accounts.google.com/signin/chrome/sync?ssp=1&"
       "theme=mn&magichrome_fre_exp_branch=test_branch",
       GetChromeSyncURLForDice({}));
+}
+
+TEST(SigninPromoTest, IsHybridTransportSupportedForQrCodeSignin) {
+  base::test::SingleThreadTaskEnvironment task_environment;
+
+  // Case 1: LE is not supported.
+  {
+    auto bluetooth_override_values =
+        device::BluetoothAdapterFactory::Get()->InitGlobalOverrideValues();
+    bluetooth_override_values->SetLESupported(false);
+
+    base::test::TestFuture<bool> future;
+    IsHybridTransportSupportedForQrCodeSignin(future.GetCallback());
+    EXPECT_FALSE(future.Get());
+  }
+
+  // Case 2: LE is supported, Bluetooth adapter is present.
+  {
+    auto mock_adapter =
+        base::MakeRefCounted<testing::NiceMock<device::MockBluetoothAdapter>>();
+    ON_CALL(*mock_adapter, IsPresent()).WillByDefault(testing::Return(true));
+    device::BluetoothAdapterFactory::SetAdapterForTesting(mock_adapter);
+
+    auto bluetooth_override_values =
+        device::BluetoothAdapterFactory::Get()->InitGlobalOverrideValues();
+    bluetooth_override_values->SetLESupported(true);
+
+    base::test::TestFuture<bool> future;
+    IsHybridTransportSupportedForQrCodeSignin(future.GetCallback());
+    EXPECT_TRUE(future.Get());
+  }
+
+  // Case 3: LE is supported, Bluetooth adapter is NOT present.
+  {
+    auto mock_adapter =
+        base::MakeRefCounted<testing::NiceMock<device::MockBluetoothAdapter>>();
+    ON_CALL(*mock_adapter, IsPresent()).WillByDefault(testing::Return(false));
+    device::BluetoothAdapterFactory::SetAdapterForTesting(mock_adapter);
+
+    auto bluetooth_override_values =
+        device::BluetoothAdapterFactory::Get()->InitGlobalOverrideValues();
+    bluetooth_override_values->SetLESupported(true);
+
+    base::test::TestFuture<bool> future;
+    IsHybridTransportSupportedForQrCodeSignin(future.GetCallback());
+    EXPECT_FALSE(future.Get());
+  }
 }
 
 TEST(SigninPromoTest, IsSignInPromo_AutofillTypes) {

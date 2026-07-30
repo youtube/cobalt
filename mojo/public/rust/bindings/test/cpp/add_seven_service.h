@@ -5,6 +5,9 @@
 #ifndef MOJO_PUBLIC_RUST_BINDINGS_TEST_CPP_ADD_SEVEN_SERVICE_H_
 #define MOJO_PUBLIC_RUST_BINDINGS_TEST_CPP_ADD_SEVEN_SERVICE_H_
 
+#include <variant>
+
+#include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/rust/bindings/test/test_util/bindings_unittests.test-mojom.h"
@@ -14,6 +17,8 @@ namespace bindings_unittests::mojom {
 class PlusSevenMathService : public MathService {
  public:
   explicit PlusSevenMathService(mojo::PendingReceiver<MathService> receiver);
+  explicit PlusSevenMathService(
+      mojo::PendingAssociatedReceiver<MathService> receiver);
   PlusSevenMathService(const PlusSevenMathService&) = delete;
   PlusSevenMathService& operator=(const PlusSevenMathService&) = delete;
   ~PlusSevenMathService() override;
@@ -23,8 +28,11 @@ class PlusSevenMathService : public MathService {
   void AddTwoInts(TwoIntsPtr ns, AddTwoIntsCallback callback) override;
 
  private:
-  // This class follows the standard C++ practice of holding its own receiver
-  mojo::Receiver<MathService> receiver_;
+  // This class follows the standard C++ practice of holding its own receiver.
+  // It can hold either a regular or an associated receiver.
+  std::variant<mojo::Receiver<MathService>,
+               mojo::AssociatedReceiver<MathService>>
+      receiver_;
 };
 
 }  // namespace bindings_unittests::mojom

@@ -86,6 +86,7 @@ static_library("login") {
 
   deps = [
     "//ash/constants",
+    "//ash/login/resources:login_strings",
     "//ash/webui/settings/public/constants:mojom",
     "//base:i18n",
     "//chrome/app:generated_resources",

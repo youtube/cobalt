@@ -13,7 +13,7 @@
 #include "chrome/browser/web_applications/web_app_constants.h"
 #include "components/webapps/common/web_app_id.h"
 
-class Profile;
+class PrefService;
 
 namespace base {
 class Value;
@@ -26,7 +26,7 @@ class WebAppProvider;
 
 class WebAppInstallManager {
  public:
-  explicit WebAppInstallManager(Profile* profile);
+  explicit WebAppInstallManager(PrefService* pref_service);
   WebAppInstallManager(const WebAppInstallManager&) = delete;
   WebAppInstallManager& operator=(const WebAppInstallManager&) = delete;
   ~WebAppInstallManager();
@@ -50,7 +50,7 @@ class WebAppInstallManager {
                             const webapps::AppId& target_app_id);
 
  private:
-  const raw_ptr<Profile, DanglingUntriaged> profile_;
+  const raw_ptr<PrefService, DanglingUntriaged> pref_service_;
   raw_ptr<WebAppProvider> provider_ = nullptr;
 
   base::ObserverList<WebAppInstallManagerObserver, /*check_empty=*/true>

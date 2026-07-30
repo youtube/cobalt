@@ -542,6 +542,30 @@ TEST_P(SliderTest, SliderRaisesA11yEvents) {
   EXPECT_EQ(1, ax_counter.GetCount(ax::mojom::Event::kValueChanged));
 }
 
+// Verifies that a slider can have its value set before being added to a
+// widget hierarchy.
+TEST_P(SliderTest, SetValueBeforeHostedByWidget) {
+  auto slider_unique = std::make_unique<views::Slider>();
+  views::Slider* slider = slider_unique.get();
+
+  // Set value on the slider before it is visible/parented
+  slider->SetValue(0.1f);
+
+  auto widget = std::make_unique<views::Widget>();
+  views::Widget::InitParams params =
+      CreateParams(views::Widget::InitParams::TYPE_WINDOW_FRAMELESS);
+  params.ownership = views::Widget::InitParams::CLIENT_OWNS_WIDGET;
+  widget->Init(std::move(params));
+  widget->SetBounds(gfx::Rect(0, 0, 100, 40));
+  widget->Show();
+
+  widget->SetContentsView(std::move(slider_unique));
+  ui::test::EventGenerator generator(GetContext(), widget->GetNativeWindow());
+  generator.MoveMouseTo(slider->GetBoundsInScreen().CenterPoint());
+
+  generator.ClickLeftButton();
+}
+
 #endif  // !BUILDFLAG(IS_MAC) || defined(USE_AURA)
 
 INSTANTIATE_TEST_SUITE_P(All,

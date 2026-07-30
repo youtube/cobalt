@@ -443,7 +443,7 @@ IN_PROC_BROWSER_TEST_F(PopupBlockerBrowserTest,
       "data:text/html,<title>Popup Success!</title>you should not see this "
       "message if popup blocker is enabled";
   ui_test_utils::SendToOmniboxAndSubmit(browser(), kSearchString);
-  auto* location_bar = browser()->window()->GetLocationBar();
+  auto* location_bar = BrowserWindow::FromBrowser(browser())->GetLocationBar();
   AutocompleteMatch match =
       location_bar->GetOmniboxController()->edit_model()->CurrentMatch();
   EXPECT_EQ(GURL(kSearchString), match.destination_url);

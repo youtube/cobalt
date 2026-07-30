@@ -128,6 +128,7 @@ ts_library("build_ts") {
     "//chrome/test/data/webui/bookmarks:build_ts",
     "//chrome/test/data/webui/certificate_manager:build_ts",
     "//chrome/test/data/webui/cr_components:build_ts",
+    "//chrome/test/data/webui/cr_components/composebox:build_ts",
     "//chrome/test/data/webui/cr_components/cr_shortcut_input:build_ts",
     "//chrome/test/data/webui/cr_components/custom_help_bubble:build_ts",
     "//chrome/test/data/webui/cr_components/help_bubble:build_ts",
@@ -238,10 +239,16 @@ ts_library("build_ts") {
   ]
 
   path_mappings = [
+    "lit/directives/repeat.js|" +
+        rebase_path("${node_modules}/lit/directives/repeat.d.ts",
+                    target_gen_dir),
     "lit/index.js|" +
         rebase_path("${node_modules}/lit/index.d.ts", target_gen_dir),
     "lit-html/async-directive.js|" +
         rebase_path("${node_modules}/lit-html/async-directive.d.ts",
+                    target_gen_dir),
+    "lit-html/directives/repeat.js|" +
+        rebase_path("${node_modules}/lit-html/directives/repeat.d.ts",
                     target_gen_dir),
     "lit-html/directive.js|" +
         rebase_path("${node_modules}/lit-html/directive.d.ts", target_gen_dir),

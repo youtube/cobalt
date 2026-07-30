@@ -26,12 +26,15 @@ function getAllPolicyTables() {
 }
 
 function getAllPolicyRows(policyTable: PolicyTableElement) {
-  return policyTable.shadowRoot!.querySelectorAll('policy-row');
+  return policyTable.shadowRoot.querySelectorAll('policy-row');
 }
 
 function getAllPolicyRowDivs(policyRow: PolicyRowElement) {
-  const row = policyRow.shadowRoot!.querySelector('.policy.row');
-  return row!.querySelectorAll('div');
+  const row = policyRow.shadowRoot ?
+      policyRow.shadowRoot.querySelector('.policy.row') :
+      null;
+  return row ? row.querySelectorAll('div') :
+               [] as unknown as NodeListOf<HTMLDivElement>;
 }
 
 function getPrecedenceRowValue() {
@@ -39,9 +42,9 @@ function getPrecedenceRowValue() {
   let precedenceRow = null;
   tables.forEach(table => {
     const row: PolicyPrecedenceRowElement|null =
-        table.shadowRoot!.querySelector('policy-precedence-row');
+        table.shadowRoot.querySelector('policy-precedence-row');
     if (row) {
-      precedenceRow = row.shadowRoot!.querySelector('.value');
+      precedenceRow = row.shadowRoot.querySelector('.value');
     }
   });
   return precedenceRow;

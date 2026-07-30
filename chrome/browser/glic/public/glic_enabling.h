@@ -23,6 +23,7 @@
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/signin/public/identity_manager/tribool.h"
 #include "components/subscription_eligibility/subscription_eligibility_service.h"
 #include "components/sync_device_info/device_info.h"
 #include "content/public/browser/web_contents.h"
@@ -136,6 +137,14 @@ class GlicEnabling final : public signin::IdentityManager::Observer,
   // Returns whether the global Glic feature is enabled for Chrome. This status
   // will not change at runtime.
   static bool IsEnabledByGlobalCriteria();
+
+  // Unified helper methods for checking enterprise account and device/browser
+  // management state.
+  static bool IsBrowserManaged(Profile* profile);
+  static bool IsDeviceManaged();
+  static bool IsAccountDataProtected(Profile* profile);
+  static signin::Tribool IsAccountManaged(Profile* profile);
+  static bool IsEnterpriseAccount(Profile* profile);
 
   // Checks whether this client is likely a dogfooder, taking the ignore dogfood
   // feature into account.
@@ -502,6 +511,8 @@ class GlicEnabling final : public signin::IdentityManager::Observer,
   // IdentityManagerObserver:
   void OnPrimaryAccountChanged(
       const signin::PrimaryAccountChangeEvent& event_details) override;
+  void OnIdentityManagerShutdown(
+      signin::IdentityManager* identity_manager) override;
 
   // subscription_eligibility::SubscriptionEligibilityService::Observer:
   void OnAiSubscriptionTierUpdated(int32_t new_subscription_tier) override;

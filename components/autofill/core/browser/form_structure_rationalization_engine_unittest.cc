@@ -828,9 +828,7 @@ TEST(FormStructureRationalizationEngine,
 TEST(FormStructureRationalizationEngine, TestJPAlternativeNames) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitWithFeatures(
-      {kTestFeatureForFormStructureRationalizationEngine,
-       features::kAutofillSupportPhoneticNameForJP},
-      {});
+      {kTestFeatureForFormStructureRationalizationEngine}, {});
 
   // Most common order of name fields in JP.
   std::vector<std::unique_ptr<AutofillField>> fields = CreateFields(

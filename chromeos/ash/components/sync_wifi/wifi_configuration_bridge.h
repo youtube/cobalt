@@ -26,6 +26,7 @@ class PrefService;
 
 namespace syncer {
 class DataTypeLocalChangeProcessor;
+class MetadataChangeList;
 }  // namespace syncer
 
 namespace ash::timer_factory {
@@ -88,6 +89,8 @@ class WifiConfigurationBridge : public syncer::DataTypeSyncBridge,
   bool IsEntityDataValid(const syncer::EntityData& entity_data) const override;
   void ApplyDisableSyncChanges(std::unique_ptr<syncer::MetadataChangeList>
                                    delete_metadata_change_list) override;
+  std::unique_ptr<syncer::MetadataChangeList> CreateMetadataChangeList()
+      override;
 
   // NetworkMetadataObserver:
   void OnFirstConnectionToNetwork(const std::string& guid) override;

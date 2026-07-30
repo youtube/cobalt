@@ -57,6 +57,10 @@ namespace autofill {
 class AccountNameEmailStore : public signin::IdentityManager::Observer,
                               public syncer::SyncServiceObserver {
  public:
+  // The number of times the user has to not select the kAccountNameEmail
+  // profile suggestion before the `AutofillProfile` is removed.
+  static constexpr int kNotSelectedThreshold = 10;
+
   AccountNameEmailStore(AddressDataManager& address_data_manager,
                         signin::IdentityManager& identity_manager,
                         syncer::SyncService& sync_service,

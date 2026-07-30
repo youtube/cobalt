@@ -262,7 +262,7 @@ TEST_F(AudioManagerCrasTest, EnumerateOutputDevices) {
 }
 
 AudioParameters GetPreferredOutputStreamParameters(
-    const ChannelLayoutConfig& channel_layout_config,
+    ChannelLayoutConfig channel_layout_config,
     int32_t user_buffer_size = 0) {
   // Generated AudioParameters should follow the same rule as in
   // AudioManagerCras::GetPreferredOutputStreamParameters().

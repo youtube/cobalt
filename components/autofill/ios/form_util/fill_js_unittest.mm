@@ -15,7 +15,6 @@
 #import "base/test/scoped_feature_list.h"
 #import "components/autofill/ios/common/features.h"
 #import "components/autofill/ios/common/javascript_feature_util.h"
-#import "components/autofill/ios/form_util/autofill_form_features_injector.h"
 #import "components/autofill/ios/form_util/autofill_form_features_java_script_feature.h"
 #import "components/autofill/ios/form_util/autofill_test_with_web_state.h"
 #import "ios/web/public/js_messaging/content_world.h"
@@ -384,8 +383,6 @@ TEST_F(FillJsTest, GetUniqueIDReturnsNotSetWhenInvalidIDInDOM) {
 TEST_F(FillJsTest, SanitizeValueForInputElement) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(kAutofillSupportDateInput);
-  AutofillFormFeaturesInjector injector(web_state(),
-                                        web::ContentWorld::kIsolatedWorld);
   LoadHtml(@"<input id='input' type='date'/>");
 
   id result = ExecuteJavaScript(

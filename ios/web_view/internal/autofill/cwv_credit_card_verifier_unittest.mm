@@ -53,12 +53,8 @@ class FakeCardUnmaskDelegate : public autofill::CardUnmaskDelegate {
     unmask_details_ = unmask_details;
     // Fake the actual verification and just respond with success.
     web::GetUIThreadTaskRunner({})->PostTask(
-        FROM_HERE, base::BindOnce(^{
-          autofill::payments::PaymentsAutofillClient::PaymentsRpcResult result =
-              autofill::payments::PaymentsAutofillClient::PaymentsRpcResult::
-                  kSuccess;
-          [credit_card_verifier_ didReceiveUnmaskVerificationResult:result];
-        }));
+        FROM_HERE, base::BindOnce(&FakeCardUnmaskDelegate::RespondSuccess,
+                                  weak_factory_.GetWeakPtr()));
   }
   void OnUnmaskPromptCancelled() override {}
   bool ShouldOfferFidoAuth() const override { return false; }
@@ -76,6 +72,14 @@ class FakeCardUnmaskDelegate : public autofill::CardUnmaskDelegate {
   }
 
  private:
+  void RespondSuccess() {
+    if (credit_card_verifier_) {
+      [credit_card_verifier_ didReceiveUnmaskVerificationResult:
+                                 autofill::payments::PaymentsAutofillClient::
+                                     PaymentsRpcResult::kSuccess];
+    }
+  }
+
   // Used to pass fake verification result back.
   __weak CWVCreditCardVerifier* credit_card_verifier_;
 

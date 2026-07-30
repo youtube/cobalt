@@ -46,6 +46,9 @@ bool VisitedLinkCommon::IsVisited(std::string_view canonical_url) const {
   if (!hash_table_ || table_length_ == 0) {
     return false;
   }
+  if (is_pseudo_partitioned_) {
+    return IsVisited(ComputePseudoPartitionedFingerprint(canonical_url));
+  }
   return IsVisited(ComputeURLFingerprint(canonical_url));
 }
 
@@ -149,6 +152,18 @@ VisitedLinkCommon::Fingerprint VisitedLinkCommon::ComputePartitionedFingerprint(
   // Add the serialized frame origin.
   md5.Update(frame_origin.Serialize());
   return ConvertDigestToFingerprint(md5.Finish());
+}
+
+// static
+VisitedLinkCommon::Fingerprint
+VisitedLinkCommon::ComputePseudoPartitionedFingerprint(
+    std::string_view canonical_url) {
+  GURL gurl(canonical_url);
+  net::SchemefulSite top_level_site(gurl);
+  url::Origin frame_origin = url::Origin::Create(gurl);
+  return ComputePartitionedFingerprint(canonical_url, top_level_site,
+                                       frame_origin,
+                                       kPseudoPartitionedConstantSalt);
 }
 
 }  // namespace visitedlink

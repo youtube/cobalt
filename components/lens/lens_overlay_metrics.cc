@@ -703,4 +703,20 @@ void RecordTimeToWebuiBound(base::TimeDelta duration) {
                                 /*max=*/base::Minutes(10), /*buckets=*/50);
 }
 
+void RecordContextualTasksQueryEligibility(
+    LensContextualTasksQueryEligibility eligibility,
+    std::optional<LensOverlayInvocationSource> invocation_source) {
+  base::UmaHistogramEnumeration("Lens.Overlay.ContextualTasks.QueryEligibility",
+                                eligibility);
+
+  std::string invocation_source_string =
+      invocation_source.has_value()
+          ? InvocationSourceToString(*invocation_source)
+          : "Unknown";
+  base::UmaHistogramEnumeration(
+      "Lens.Overlay.ContextualTasks.QueryEligibility.ByInvocationSource." +
+          invocation_source_string,
+      eligibility);
+}
+
 }  // namespace lens

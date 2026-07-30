@@ -5117,7 +5117,8 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, DISABLED_DownloadAndWait) {
   DownloadAndWait(browser(), url);
 
   // The download surface should be visible.
-  EXPECT_TRUE(IsDownloadDetailedUiVisible(browser()->window()));
+  EXPECT_TRUE(
+      IsDownloadDetailedUiVisible(BrowserWindow::FromBrowser(browser())));
 }
 
 // Flaky. crbug.com/40877586
@@ -5140,10 +5141,12 @@ IN_PROC_BROWSER_TEST_F(DownloadTest,
   DownloadAndWait(incognito, url);
 
   // Verify that the download surface is showing for the Incognito window.
-  EXPECT_TRUE(IsDownloadDetailedUiVisible(incognito->window()));
+  EXPECT_TRUE(
+      IsDownloadDetailedUiVisible(BrowserWindow::FromBrowser(incognito)));
 
   // Verify that the regular window does not have a download surface.
-  EXPECT_FALSE(IsDownloadDetailedUiVisible(browser()->window()));
+  EXPECT_FALSE(
+      IsDownloadDetailedUiVisible(BrowserWindow::FromBrowser(browser())));
 }
 
 // Download a file in a new window.
@@ -5177,14 +5180,16 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, MAYBE_NewWindow) {
   ExpectWindowCountAfterDownload(2);
   EXPECT_EQ(1, browser()->tab_strip_model()->count());
   // Download surface should close.
-  EXPECT_FALSE(IsDownloadDetailedUiVisible(browser()->window()));
+  EXPECT_FALSE(
+      IsDownloadDetailedUiVisible(BrowserWindow::FromBrowser(browser())));
 
   // The download surface SHOULD be visible in the second window.
   Browser* download_browser = ui_test_utils::GetBrowserNotInSet({browser()});
   ASSERT_TRUE(download_browser);
   EXPECT_NE(download_browser, browser());
   EXPECT_EQ(1, download_browser->tab_strip_model()->count());
-  EXPECT_TRUE(IsDownloadDetailedUiVisible(download_browser->window()));
+  EXPECT_TRUE(IsDownloadDetailedUiVisible(
+      BrowserWindow::FromBrowser(download_browser)));
 
   // Close the new window.
   ui_test_utils::BrowserDestroyedObserver observer(download_browser);
@@ -5195,7 +5200,8 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, MAYBE_NewWindow) {
 
   EXPECT_EQ(1, browser()->tab_strip_model()->count());
   // Download surface should close.
-  EXPECT_FALSE(IsDownloadDetailedUiVisible(browser()->window()));
+  EXPECT_FALSE(
+      IsDownloadDetailedUiVisible(BrowserWindow::FromBrowser(browser())));
 
   base::FilePath file(FILE_PATH_LITERAL("download-test1.lib"));
   CheckDownload(browser(), file, file);
@@ -5253,7 +5259,8 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, DownloadTest_History) {
 
   // Downloads that were restored from history shouldn't cause the download
   // surface to be displayed.
-  EXPECT_FALSE(IsDownloadDetailedUiVisible(browser()->window()));
+  EXPECT_FALSE(
+      IsDownloadDetailedUiVisible(BrowserWindow::FromBrowser(browser())));
 }
 
 IN_PROC_BROWSER_TEST_F(DownloadTest, HiddenDownload) {
@@ -5279,7 +5286,8 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, HiddenDownload) {
   observer->WaitForFinished();
 
   // Verify that download surface is not shown.
-  EXPECT_FALSE(IsDownloadDetailedUiVisible(browser()->window()));
+  EXPECT_FALSE(
+      IsDownloadDetailedUiVisible(BrowserWindow::FromBrowser(browser())));
 }
 
 // High flake rate; https://crbug.com/40789909.
@@ -5295,7 +5303,8 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, DISABLED_AutoOpenClosesSurface) {
   DownloadAndWait(browser(), url);
 
   // Download surface should close.
-  EXPECT_FALSE(IsDownloadDetailedUiVisible(browser()->window()));
+  EXPECT_FALSE(
+      IsDownloadDetailedUiVisible(BrowserWindow::FromBrowser(browser())));
 }
 
 IN_PROC_BROWSER_TEST_F(DownloadTest, CrxDenyInstallClosesSurface) {
@@ -5318,7 +5327,8 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, CrxDenyInstallClosesSurface) {
   observer->WaitForFinished();
 
   // Download surface should close.
-  EXPECT_FALSE(IsDownloadDetailedUiVisible(browser()->window()));
+  EXPECT_FALSE(
+      IsDownloadDetailedUiVisible(BrowserWindow::FromBrowser(browser())));
 }
 
 // Test that the download UI surface only shows on the appropriate window for a
@@ -5336,8 +5346,8 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, WebAppDownloadOnlyShowsUiInWebAppWindow) {
 
   DownloadAndWait(app_browser, url);
 
-  EXPECT_FALSE(IsDownloadUiVisible(browser()->window()));
-  EXPECT_TRUE(IsDownloadUiVisible(app_browser->window()));
+  EXPECT_FALSE(IsDownloadUiVisible(BrowserWindow::FromBrowser(browser())));
+  EXPECT_TRUE(IsDownloadUiVisible(BrowserWindow::FromBrowser(app_browser)));
 }
 
 // Test that the download UI surface only does not show in a web app window
@@ -5356,8 +5366,8 @@ IN_PROC_BROWSER_TEST_F(DownloadTest,
 
   DownloadAndWait(browser(), url);
 
-  EXPECT_TRUE(IsDownloadUiVisible(browser()->window()));
-  EXPECT_FALSE(IsDownloadUiVisible(app_browser->window()));
+  EXPECT_TRUE(IsDownloadUiVisible(BrowserWindow::FromBrowser(browser())));
+  EXPECT_FALSE(IsDownloadUiVisible(BrowserWindow::FromBrowser(app_browser)));
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 

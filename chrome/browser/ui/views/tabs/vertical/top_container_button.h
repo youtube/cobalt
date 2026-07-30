@@ -14,9 +14,12 @@ class TopContainerButton : public views::LabelButton {
   METADATA_HEADER(TopContainerButton, views::LabelButton)
  public:
   TopContainerButton();
-  ~TopContainerButton() override = default;
+  ~TopContainerButton() override;
 
   void UpdateIcon(const ui::ImageModel& icon_image);
+
+  void SetDelayIconUpdates(bool delay);
+  void ApplyPendingIcon();
 
   // views::LabelButton:
   gfx::Size CalculatePreferredSize(
@@ -29,6 +32,9 @@ class TopContainerButton : public views::LabelButton {
   void RemovedFromWidget() override;
 
   ui::ColorId GetForegroundColor() const;
+
+  bool delay_icon_updates_ = false;
+  std::optional<ui::ImageModel> pending_icon_image_;
 
   base::CallbackListSubscription paint_as_active_subscription_;
 };

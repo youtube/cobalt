@@ -55,6 +55,7 @@ using ::testing::IsEmpty;
 using ::testing::IsSupersetOf;
 using ::testing::Matcher;
 using ::testing::NiceMock;
+using ::testing::Not;
 using ::testing::Return;
 using ::testing::WithArg;
 
@@ -673,6 +674,42 @@ TEST_F(AutofillOptimizationGuideDeciderTest,
   guide().OnDidParseForm(form_structure, payments_data_manager());
 }
 
+// Test that the Curinos category-benefit optimization types are registered when
+// a credit card form is present and the user has a card with benefits from
+// Curinos.
+TEST_F(AutofillOptimizationGuideDeciderTest,
+       CreditCardFormFound_CurinosCategoryBenefits) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      /*enabled_features=*/
+      {features::kAutofillEnableCardBenefitsSync,
+       features::kAutofillEnableTravelCategoryAndMerchantBenefitsFromCurinos},
+      /*disabled_features=*/{});
+
+  FormStructure form_structure{
+      CreateTestCreditCardFormData(/*is_https=*/true,
+                                   /*use_month_type=*/true)};
+  test_api(form_structure)
+      .SetFieldTypes({CREDIT_CARD_NAME_FULL, CREDIT_CARD_NUMBER,
+                      CREDIT_CARD_EXP_MONTH, CREDIT_CARD_VERIFICATION_CODE});
+  payments_data_manager().AddServerCreditCard(GetVcnEnrolledCard(
+      /*network=*/kMasterCard,
+      /*virtual_card_enrollment_type=*/
+      CreditCard::VirtualCardEnrollmentType::kNetwork,
+      /*issuer_id=*/kDiscoverCardIssuerId,
+      /*benefit_source=*/kCurinosCardBenefitSource));
+
+  EXPECT_CALL(
+      decider(),
+      RegisterOptimizationTypes(IsSupersetOf(
+          {optimization_guide::proto::CURINOS_CREDIT_CARD_FLIGHT_BENEFITS,
+           optimization_guide::proto::CURINOS_CREDIT_CARD_HOTEL_BENEFITS,
+           optimization_guide::proto::
+               CURINOS_CREDIT_CARD_CAR_RENTAL_BENEFITS})));
+
+  guide().OnDidParseForm(form_structure, payments_data_manager());
+}
+
 // Test that the Amex category-benefit optimization types are not registered
 // when the `kAutofillEnableCardBenefitsSync` experiment is disabled.
 TEST_F(AutofillOptimizationGuideDeciderTest,
@@ -700,6 +737,43 @@ TEST_F(AutofillOptimizationGuideDeciderTest,
                    optimization_guide::proto::
                        AMERICAN_EXPRESS_CREDIT_CARD_SUBSCRIPTION_BENEFITS})))
       .Times(0);
+
+  guide().OnDidParseForm(form_structure, payments_data_manager());
+}
+
+// Test that the Curinos category-benefit optimization types are not registered
+// when the `kAutofillEnableTravelCategoryAndMerchantBenefitsFromCurinos`
+// experiment is disabled.
+TEST_F(AutofillOptimizationGuideDeciderTest,
+       CreditCardFormFound_CurinosCategoryBenefits_ExperimentDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      /*enabled_features=*/
+      {features::kAutofillEnableCardBenefitsSync},
+      /*disabled_features=*/{
+          features::
+              kAutofillEnableTravelCategoryAndMerchantBenefitsFromCurinos});
+
+  FormStructure form_structure{
+      CreateTestCreditCardFormData(/*is_https=*/true,
+                                   /*use_month_type=*/true)};
+  test_api(form_structure)
+      .SetFieldTypes({CREDIT_CARD_NAME_FULL, CREDIT_CARD_NUMBER,
+                      CREDIT_CARD_EXP_MONTH, CREDIT_CARD_VERIFICATION_CODE});
+  payments_data_manager().AddServerCreditCard(GetVcnEnrolledCard(
+      /*network=*/kMasterCard,
+      /*virtual_card_enrollment_type=*/
+      CreditCard::VirtualCardEnrollmentType::kNetwork,
+      /*issuer_id=*/kDiscoverCardIssuerId,
+      /*benefit_source=*/kCurinosCardBenefitSource));
+
+  EXPECT_CALL(
+      decider(),
+      RegisterOptimizationTypes(Not(Contains(
+          AnyOf(optimization_guide::proto::CURINOS_CREDIT_CARD_FLIGHT_BENEFITS,
+                optimization_guide::proto::CURINOS_CREDIT_CARD_HOTEL_BENEFITS,
+                optimization_guide::proto::
+                    CURINOS_CREDIT_CARD_CAR_RENTAL_BENEFITS)))));
 
   guide().OnDidParseForm(form_structure, payments_data_manager());
 }
@@ -1439,6 +1513,8 @@ class BenefitOptimizationToBenefitCategoryTest
 
  private:
   CreditCard card_;
+  base::test::ScopedFeatureList scoped_feature_list_{
+      features::kAutofillEnableTravelCategoryAndMerchantBenefitsFromCurinos};
 };
 
 // Tests that the correct benefit category is returned when a benefit
@@ -1511,6 +1587,18 @@ INSTANTIATE_TEST_SUITE_P(
         BenefitOptimizationToBenefitCategoryTestCase{
             "bmo",
             optimization_guide::proto::BMO_CREDIT_CARD_WHOLESALE_CLUB_BENEFITS,
-            CreditCardCategoryBenefit::BenefitCategory::kWholesaleClubs}));
+            CreditCardCategoryBenefit::BenefitCategory::kWholesaleClubs},
+        BenefitOptimizationToBenefitCategoryTestCase{
+            "curinos",
+            optimization_guide::proto::CURINOS_CREDIT_CARD_FLIGHT_BENEFITS,
+            CreditCardCategoryBenefit::BenefitCategory::kFlights},
+        BenefitOptimizationToBenefitCategoryTestCase{
+            "curinos",
+            optimization_guide::proto::CURINOS_CREDIT_CARD_HOTEL_BENEFITS,
+            CreditCardCategoryBenefit::BenefitCategory::kHotels},
+        BenefitOptimizationToBenefitCategoryTestCase{
+            "curinos",
+            optimization_guide::proto::CURINOS_CREDIT_CARD_CAR_RENTAL_BENEFITS,
+            CreditCardCategoryBenefit::BenefitCategory::kCarRentals}));
 
 }  // namespace autofill

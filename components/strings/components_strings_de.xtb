@@ -117,7 +117,6 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="1178821169867863726">12 × 16 Zoll</translation>
 <translation id="1181037720776840403">Entfernen</translation>
 <translation id="1185331130467528132"><ph name="URL" /> möchte auf andere Geräte in deinem lokalen Netzwerk zugreifen</translation>
-<translation id="1185343831726846924">Bestätigung, dass die virtuelle Karte nicht aktiviert werden kann</translation>
 <translation id="1186201132766001848">Passwörter prüfen</translation>
 <translation id="1187430513518041110">Fahrzeuge</translation>
 <translation id="1188817995162638216">Speichern der Datei abbrechen?</translation>
@@ -301,6 +300,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="1445896388055045436">Beim Bezahlen verfügbare Vorteile und Prämien der Karte anzeigen. Es gelten die Bedingungen des Ausstellers.</translation>
 <translation id="1447067628680007684">(x86_64)</translation>
 <translation id="1448166547804028941">Die Schlüssel „<ph name="DATA_CONTROLS_FIRST_KEY_SET" />“ können nicht im selben Wörterbuch festgelegt werden wie die Schlüssel „<ph name="DATA_CONTROLS_SECOND_KEY_SET" />“</translation>
+<translation id="1449251255954293933">Redress Number in Google Wallet speichern</translation>
 <translation id="1455413310270022028">Radierer</translation>
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{0 Rezensionen ansehen}=1{1 Rezension ansehen}other{Alle # Rezensionen ansehen}}</translation>
 <translation id="1458059624921545588">Mensch und Gesellschaft</translation>
@@ -1157,6 +1157,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="2782088940970074970">Mietwagen</translation>
 <translation id="278436560439594386">Haushaltsgeräte</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
+<translation id="2784795832957740711">Passwörter · Passkeys</translation>
 <translation id="2784949926578158345">Verbindung wurde zurückgesetzt.</translation>
 <translation id="2786008859124691917">Fahrräder und Zubehör</translation>
 <translation id="2792012897584536778">Administratoren dieses Geräts haben Sicherheitszertifikate eingerichtet, die es ihnen möglicherweise erlauben, Inhalte der von dir besuchten Websites anzuzeigen.</translation>
@@ -1260,7 +1261,6 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="297173220375858963">Desktop-Publishing</translation>
 <translation id="2972581237482394796">&amp;Wiederholen</translation>
 <translation id="2974468223369775963">Diese IBAN konnte nicht in deinem Google-Konto gespeichert werden. Sie wurde stattdessen in Chrome auf diesem Gerät gespeichert. Wenn du diese IBAN das nächste Mal verwendest, fragt Chrome dich noch einmal.</translation>
-<translation id="2976162850019490782">Wenn diese Option aktiviert ist, teilt Chrome alle Tabs in diesem Fenster, damit du relevantere Antworten erhältst. Du kannst sie in den Einstellungen für alle Threads aktivieren.</translation>
 <translation id="297667759942911166">In Tabgruppen gemeinsam arbeiten</translation>
 <translation id="2977665033722899841"><ph name="ROW_NAME" />, aktuell ausgewählt. <ph name="ROW_CONTENT" /></translation>
 <translation id="2978824962390592855">Oper</translation>
@@ -1668,7 +1668,6 @@ Wenn du die Optionen für „Später bezahlen“ ausblenden möchtest, rufe die 
 <translation id="361438452008624280">Listeneintrag "<ph name="LANGUAGE_ID" />": Unbekannte oder nicht unterstützte Sprache.</translation>
 <translation id="3614934205542186002"><ph name="RUN_CHROME_SAFETY_CHECK_FOCUSED_FRIENDLY_MATCH_TEXT" /> – drücke die Tabulatortaste und dann die Eingabetaste, um den Sicherheitscheck in den Chrome-Einstellungen auszuführen</translation>
 <translation id="3615309852743236517">Maniküre und Pediküre</translation>
-<translation id="3620034424637552643">Wird häufig für Wegbeschreibungen, Lieferungen und mehr verwendet</translation>
 <translation id="3620239073311576716">Uniformen und Arbeitskleidung</translation>
 <translation id="3620865353340165509">Diese IBAN konnte nicht in Google Wallet gespeichert werden. Sie wurde stattdessen in Chrome auf diesem Gerät gespeichert. Wenn du diese IBAN das nächste Mal verwendest, fragt Chrome dich noch einmal.</translation>
 <translation id="3621401353678567613">Wenn du Benachrichtigungen zu Preissenkungen für Produkte erhalten möchtest, die du beobachtest, musst du in den Einstellungen Benachrichtigungen aktivieren.</translation>
@@ -1890,7 +1889,7 @@ Wenn du die Optionen für „Später bezahlen“ ausblenden möchtest, rufe die 
 <translation id="3950820424414687140">Anmelden</translation>
 <translation id="3953505489397572035">Dieser Preis entspricht dem Normalpreis</translation>
 <translation id="3958057596965527988">4 × 4 Zoll</translation>
-<translation id="3959969108528118741">Inhaber</translation>
+<translation id="3959969108528118741">Eigentümer</translation>
 <translation id="3961148744525529027">Das Dokument zur Zahlungsabwicklung ist zur Hälfte geöffnet</translation>
 <translation id="3962859241508114581">Vorheriger Titel</translation>
 <translation id="3963721102035795474">Lesemodus</translation>
@@ -2216,7 +2215,6 @@ Wenn du die Optionen für „Später bezahlen“ ausblenden möchtest, rufe die 
 <translation id="4434045419905280838">Pop-ups und Weiterleitungen</translation>
 <translation id="443673843213245140">Die Proxy-Nutzung ist deaktiviert, es ist jedoch eine explizite Proxy-Konfiguration festgelegt.</translation>
 <translation id="4438821706955556403">Normalpreis</translation>
-<translation id="4439687924334332880">Wenn du geöffnete Tabs in diesem Fenster automatisch teilst, wenn sie mit diesem Thread zusammenhängen, erhältst du besser auf dich zugeschnittene Antworten. Du kannst dies in den Einstellungen für alle Threads aktivieren.</translation>
 <translation id="4441832193888514600">Ignoriert, da die Richtlinie nur als Cloud-Nutzerrichtlinie festgelegt werden kann.</translation>
 <translation id="4444062564459679679">Bereits über dein Gerät (<ph name="DEVICE_NAME" />) an Chrome gesendet</translation>
 <translation id="4445694043187340808"><ph name="STARTER_PACK_TABS_FOCUSED_FRIENDLY_MATCH_TEXT" /> – drücke die Eingabetaste, um nach Tabs zu suchen</translation>
@@ -2305,6 +2303,7 @@ Wenn du die Optionen für „Später bezahlen“ ausblenden möchtest, rufe die 
 <translation id="46128681529823442">Fußballausrüstung</translation>
 <translation id="4612904677925722054">Diese Website enthält möglicherweise nicht jugendfreie Inhalte. Ein Elternteil oder Erziehungsberechtigter muss dir erlauben, diese Website zu besuchen.</translation>
 <translation id="4619564267100705184">Identität bestätigen</translation>
+<translation id="4619669610757527494">Führerschein in Google Wallet speichern</translation>
 <translation id="4622292761762557753">Trotzdem übertragen</translation>
 <translation id="4622647778991854660">Hier kannst du Benachrichtigungen im Benachrichtigungscenter aktivieren. Öffne „<ph name="LINK" />“.</translation>
 <translation id="4623894491222334521">Ausweisdokumente</translation>
@@ -2349,6 +2348,7 @@ Wenn du die Optionen für „Später bezahlen“ ausblenden möchtest, rufe die 
 <translation id="4691093235373904540">Dachdeckerei</translation>
 <translation id="4692623383562244444">Suchmaschinen</translation>
 <translation id="4695702626068620848"><ph name="KEYWORD" /> – <ph name="KEYWORD_SHORT_NAME" /> fragen</translation>
+<translation id="4697071790493980729">Keine Ergebnisse gefunden</translation>
 <translation id="4698308118265482293">Reisepass aktualisieren</translation>
 <translation id="4698692901173737941">Kampfsport</translation>
 <translation id="4701488924964507374"><ph name="SENTENCE1" /> <ph name="SENTENCE2" /></translation>
@@ -2600,7 +2600,7 @@ Wenn du die Optionen für „Später bezahlen“ ausblenden möchtest, rufe die 
 <translation id="5087580092889165836">Karte hinzufügen</translation>
 <translation id="5088142053160410913">Nachricht an den Bediener</translation>
 <translation id="5088534251099454936">PKCS #1 SHA-512 mit RSA-Verschlüsselung</translation>
-<translation id="5089810972385038852">Bundesstaat</translation>
+<translation id="5089810972385038852">Bundesstaat/-land</translation>
 <translation id="5093232627742069661">Z-Faltung</translation>
 <translation id="5093417502834168387">Anmeldeprobleme? Andere Option wählen</translation>
 <translation id="5094747076828555589">Dieser Server konnte nicht beweisen, dass er <ph name="DOMAIN" /> ist. Sein Sicherheitszertifikat wird von Chromium als nicht vertrauenswürdig eingestuft. Mögliche Gründe sind eine fehlerhafte Konfiguration oder ein Angreifer, der deine Verbindung abfängt.</translation>
@@ -2696,7 +2696,6 @@ Wenn du die Optionen für „Später bezahlen“ ausblenden möchtest, rufe die 
 <translation id="5238301240406177137">Im Konto speichern</translation>
 <translation id="5239119062986868403">Normalpreis</translation>
 <translation id="5239623327352565343">Berechtigung zur Standortermittlung gewährt</translation>
-<translation id="5241048084654737238">Bestätigung, dass Kartendaten nicht gespeichert werden können</translation>
 <translation id="5242610955375133957">Trockenfilm</translation>
 <translation id="5243004157379865295">Adresse aktualisieren</translation>
 <translation id="5244521145258281926">Button „Google-Konto verwalten“ – aktivieren, um Daten, Datenschutz- und Sicherheits­einstellungen in deinem Google-Konto zu verwalten</translation>
@@ -2834,6 +2833,7 @@ Wenn du die Optionen für „Später bezahlen“ ausblenden möchtest, rufe die 
 <translation id="543656192084990644">Zugriff auf Bewegungssensoren nicht erlaubt</translation>
 <translation id="5441409130426352029"><ph name="ATTRIBUTE_VALUE" />, zuvor: <ph name="PREVIOUS_VALUE" /></translation>
 <translation id="5443468954631487277">Umgekehrte Reihenfolge mit der Vorderseite nach oben</translation>
+<translation id="5447103258548475868">Reisepass in Google Wallet speichern</translation>
 <translation id="5447235695608032700"><ph name="SITE" /> erlauben, Informationen, die zu deiner Person gespeichert wurden, zu verwenden</translation>
 <translation id="5447973833955560753">Wiederherstellungspasswort</translation>
 <translation id="5451331376824595378">Wenn Chrome Sicherheitshinweise meldet, werden relevante Informationen an deinen Administrator gesendet. Dazu gehören z. B. URLs der von dir in Chrome besuchten Seiten, URLs von Seiten, von denen du Daten kopiert hast, Dateinamen oder Metadaten, IP-Adressen, Browser- oder Tab-Abstürze sowie der Nutzername, den du zum Anmelden in Webanwendungen, auf deinem Gerät und in Chrome verwendest.</translation>
@@ -3154,7 +3154,7 @@ Wenn du die Optionen für „Später bezahlen“ ausblenden möchtest, rufe die 
 <translation id="5950901984834744590">Rasierer</translation>
 <translation id="5951495562196540101">Registrierung mit Kundenkonto nicht möglich (Paketlizenz verfügbar).</translation>
 <translation id="5952076224478208938">Marke</translation>
-<translation id="5952196777020238475">Lizenznummer</translation>
+<translation id="5952196777020238475">Führerscheinnummer</translation>
 <translation id="5953516610448771166">Die Funktion „Automatische Untertitel“ ist für diesen Inhalt nicht verfügbar. Wenn du Untertitel nutzen möchtest, blockiere <ph name="CONTENT_SETTINGS" /> für diese Website.</translation>
 <translation id="5960795367348889467">Bestätigung</translation>
 <translation id="5963413905009737549">Section-Element</translation>
@@ -3193,7 +3193,7 @@ Wenn du die Optionen für „Später bezahlen“ ausblenden möchtest, rufe die 
 <translation id="6012135807160718387">Google-Verschlüsselung schützt deine Daten</translation>
 <translation id="6014801569448771146">Passwörter prüfen</translation>
 <translation id="6014851866995737824">Ignoriert, da die „enable“- oder „disable“-Liste fehlt.</translation>
-<translation id="6015796118275082299">Jahr</translation>
+<translation id="6015796118275082299">Baujahr</translation>
 <translation id="6017514345406065928">Grün</translation>
 <translation id="6018650639991193045">In den Chrome-Einstellungen Browserverlauf, Cookies und andere Daten löschen sowie Cache leeren</translation>
 <translation id="6019118530636932154">Google Apps Script</translation>
@@ -3351,6 +3351,7 @@ Wenn du die Optionen für „Später bezahlen“ ausblenden möchtest, rufe die 
 <translation id="6246316216123107851">Vor <ph name="NUM_DAYS" /> Tagen</translation>
 <translation id="6246382863801034910">Fahrzeug</translation>
 <translation id="6246868321321344665">Deine Organisation kann Browserdaten wie Passwörter und den Verlauf sowohl in deinem Arbeitsprofil als auch in deinem privaten Profil sehen</translation>
+<translation id="6248479108671123143">Tab „<ph name="TAB_TITLE" />“ wurde von <ph name="MEMBER_FIRST_NAME" /> geändert</translation>
 <translation id="6248988683584659830">In den Einstellungen suchen</translation>
 <translation id="6250932670816326647">Bade- und Körperpflegeprodukte</translation>
 <translation id="6251906504834538140">{0,plural, =1{Datei kann nicht verschoben werden}other{<ph name="FILE_COUNT" /> Dateien können nicht verschoben werden}}</translation>
@@ -3707,6 +3708,7 @@ Wenn du die Optionen für „Später bezahlen“ ausblenden möchtest, rufe die 
 <translation id="6798066466127540426">Die Liste enthält keinen gültigen Suchanbieter.</translation>
 <translation id="6798460514924505775">Umschlag Chou 3</translation>
 <translation id="6799145206637008376">CVC für diese virtuelle Karte eingeben</translation>
+<translation id="6800773453940486492">Tab „<ph name="TAB_TITLE" />“ wurde von <ph name="MEMBER_FIRST_NAME" /> hinzugefügt</translation>
 <translation id="6801920212017470190">Lass dich unterwegs über alle Preissenkungen informieren</translation>
 <translation id="6805030849054648206">Umschlag B6/C4</translation>
 <translation id="6807791860691150411">Bildung</translation>
@@ -3768,7 +3770,7 @@ Wenn du die Optionen für „Später bezahlen“ ausblenden möchtest, rufe die 
 <translation id="6900702165119149418">Du bist abgemeldet</translation>
 <translation id="6907458757809079309">Fitness</translation>
 <translation id="691024665142758461">Mehrere Dateien herunterladen</translation>
-<translation id="691046363691324218">Redress-Nummer</translation>
+<translation id="691046363691324218">Redress Number</translation>
 <translation id="6915804003454593391">Nutzer: </translation>
 <translation id="6916193791494646625">Gib den Grund für das Herunterladen an (erforderlich)</translation>
 <translation id="6917795328362592458">Das eingegebene Passwort wurde in einer Datenpanne gefunden. Zum besseren Schutz deiner Konten empfiehlt der Passwortmanager, deine gespeicherten Passwörter zu prüfen.</translation>
@@ -4236,6 +4238,7 @@ Weitere Details:
 <translation id="7599089013883397081">Zeitüberschreitung beim Herunterladen</translation>
 <translation id="7602868996817972616">Google Fragen zu dieser Seite stellen</translation>
 <translation id="7606123685356405076">Gemini 3-Modelle</translation>
+<translation id="760632772920590778">Fahrzeug in Google Wallet speichern</translation>
 <translation id="7610193165460212391">Wert liegt außerhalb des zulässigen Bereichs (<ph name="VALUE" />).</translation>
 <translation id="761261689936461781">Dick</translation>
 <translation id="7613889955535752492">Gültig bis: <ph name="EXPIRATION_MONTH" />/<ph name="EXPIRATION_YEAR" /></translation>
@@ -4266,6 +4269,7 @@ Weitere Details:
 <translation id="7648133459447652947">Zum Einblenden des Cursors wechsle zu einer anderen App, lade die Seite neu oder gehe zurück</translation>
 <translation id="764847582138410250">Zum Anmelden mit dem Smartphone scannen</translation>
 <translation id="7648527891719919697">Diese Website bleibt gesperrt, weil du das erweiterte Sicherheitsprogramm in den <ph name="BEGIN_ANDROID_SETTINGS_LINK" />Android-Einstellungen<ph name="END_ANDROID_SETTINGS_LINK" /> aktiviert hast. <ph name="BEGIN_LEARN_MORE_LINK" />Weitere Informationen zu dieser Warnung<ph name="END_LEARN_MORE_LINK" /></translation>
+<translation id="7648900539798595789">Known Traveler Number in Google Wallet speichern</translation>
 <translation id="7648992873808071793">Dateien auf diesem Gerät speichern</translation>
 <translation id="7649070708921625228">Hilfe</translation>
 <translation id="7650141368285545431">Passkey eines anderen Geräts verwenden</translation>
@@ -4358,6 +4362,7 @@ Weitere Details:
 <translation id="7773005668374414287">Gleiche Reihenfolge Vorderseite nach oben</translation>
 <translation id="7779418012194492374">Zugriff für <ph name="DEVICE_NAME" /> widerrufen</translation>
 <translation id="7781829728241885113">Gestern</translation>
+<translation id="7782228658217918863">Amtlichen Ausweis in Google Wallet speichern</translation>
 <translation id="7782465647372057580">Kontoinformationen werden verschlüsselt und vertraulich behandelt</translation>
 <translation id="7785471469930192436">Informationen zum Löschen deines Suchverlaufs findest du in der Anleitung deiner Suchmaschine</translation>
 <translation id="7785790577395078482">diesem Tablet</translation>
@@ -4707,6 +4712,7 @@ Weitere Details:
 <translation id="8351131234907093545">Notiz erstellen</translation>
 <translation id="8352849934814541340">Der Administrator dieses Geräts hat Anwendungen für zusätzliche Funktionen installiert. Diese Anwendungen können auf einige deiner Daten zugreifen.</translation>
 <translation id="8355270400102541638">Kontext für lokalen Absturz:</translation>
+<translation id="8362914115861174987">Zielsprache</translation>
 <translation id="8363502534493474904">Flugmodus ausschalten</translation>
 <translation id="8363929499301563123">Website-Cookies (angemeldeter Status auf zuletzt besuchten Websites wird beibehalten)</translation>
 <translation id="8364627913115013041">Nicht eingerichtet</translation>
@@ -4726,7 +4732,6 @@ Weitere Details:
 <translation id="8381674639488873545">Diese Kosten können einmalig oder wiederkehrend sein und sind vielleicht nicht klar zu erkennen. <ph name="BEGIN_LINK" />Trotzdem anzeigen<ph name="END_LINK" /></translation>
 <translation id="8382097126743287270">Automatischer Vollbildmodus</translation>
 <translation id="838307841291975086">Kombis</translation>
-<translation id="838953173259347825">Wenn du geöffnete Tabs in diesem Fenster automatisch teilst, wenn sie mit diesem Thread zusammenhängen, erhältst du besser auf dich zugeschnittene Antworten. Du kannst dies in den Einstellungen für alle Threads aktivieren.</translation>
 <translation id="8389532092404711541">In der Regel <ph name="LOW_PRICE" /></translation>
 <translation id="8389940864052787379">Autotuning</translation>
 <translation id="8390725133630534698">Die Administratorrichtlinie blockiert das Teilen von <ph name="ORIGIN_NAME" /> mit <ph name="VM_NAME" /></translation>
@@ -4893,6 +4898,7 @@ Weitere Details:
 <translation id="8671519637524426245">Der <ph name="SECURE_DNS_SALT" />-Wert erfüllt nicht die Größenanforderungen.</translation>
 <translation id="867224526087042813">Signatur</translation>
 <translation id="8672535691554698269">Computernetzwerke</translation>
+<translation id="8673710317985154384">{NUM_TABS,plural, =1{Details zur Tabfreigabe anzeigen. 1 Tab von {WEBSITE_LIST_STR} wird geteilt.}other{Details zur Tabfreigabe anzeigen. {NUM_TABS} Tabs von {WEBSITE_LIST_STR} werden geteilt.}}</translation>
 <translation id="8675446170353411473">Deine Dateien werden in <ph name="CLOUD_PROVIDER" /> hochgeladen</translation>
 <translation id="8676424191133491403">Keine Verzögerung</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />, Antwort, <ph name="ANSWER" /></translation>
@@ -4981,7 +4987,7 @@ Weitere Details:
 <translation id="8811725516933141693">Gib @gemini ein, um mit Gemini zu chatten</translation>
 <translation id="8813277370772331957">Später erinnern</translation>
 <translation id="8814707942599948500">Umschlag C8</translation>
-<translation id="881559332211266856">Redress-Nummer aktualisieren</translation>
+<translation id="881559332211266856">Redress Number aktualisieren</translation>
 <translation id="8816395686387277279"><ph name="UPDATE_CHROME_FOCUSED_FRIENDLY_MATCH_TEXT" /> – drücke die Tabulatortaste und dann die Eingabetaste, um Chrome über die Chrome-Einstellungen zu aktualisieren</translation>
 <translation id="8819155700324279105">Du kannst dich durch zusätzliche Schutzmaßnahmen besser vor Onlinebedrohungen schützen lassen</translation>
 <translation id="8819855907485254989">Fahrkarte in Wallet speichern</translation>
@@ -5147,7 +5153,6 @@ Weitere Details:
 <translation id="9090243919347147717">Anhänge</translation>
 <translation id="9090548458280093580">Im Verlauf suchen – mithilfe von KI</translation>
 <translation id="9090993752571911635">Internetanbieter (ISPs)</translation>
-<translation id="9092305980625216393">Wird häufig für Wetterberichte, lokale Nachrichten und mehr verwendet</translation>
 <translation id="9093723786115107672">Schlafbekleidung</translation>
 <translation id="9094424186948667194">Auf andere Apps und Dienste auf diesem Gerät zugreifen</translation>
 <translation id="9094544726794842788">Wenn du „Mag ich nicht“ auswählst, wird ein Formular geöffnet, über das du detailliertes Feedback dazu geben kannst, warum dir diese Ergebnisse nicht gefallen.</translation>
@@ -5272,7 +5277,6 @@ Weitere Details:
 <translation id="964050462028070434">Passwörter und Passkeys verwalten…</translation>
 <translation id="964681140808832181">Ja, ich möchte abbrechen</translation>
 <translation id="969892804517981540">Offizieller Build</translation>
-<translation id="970182982363142444">Wenn diese Option aktiviert ist, teilt Chrome alle Tabs in diesem Fenster, damit du relevantere Antworten erhältst. Du kannst sie für alle Chats aktivieren in:</translation>
 <translation id="97054401902912338">Weitere Informationen zu Inhaltsfiltern</translation>
 <translation id="973788791897303708">Diese Tabgruppe ist voll</translation>
 <translation id="975560348586398090">{COUNT,plural, =0{Keine}=1{1 Element}other{# Elemente}}</translation>

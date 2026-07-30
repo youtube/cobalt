@@ -914,9 +914,7 @@ int AddressComponent::
 
   // Only count non-empty nodes, unless they were user verified.
   if (!GetValue().empty() ||
-      (base::FeatureList::IsEnabled(
-           features::kAutofillSupportPhoneticNameForJP) &&
-       GetVerificationStatus() == VerificationStatus::kUserVerified)) {
+      GetVerificationStatus() == VerificationStatus::kUserVerified) {
     ++result;
   }
 

@@ -129,7 +129,8 @@ class PageLiveStateDecorator
   void OnPageNodeAdded(const PageNode* page_node) override;
   void OnBeforePageNodeRemoved(const PageNode* page_node) override;
   void OnTitleUpdated(const PageNode* page_node) override;
-  void OnFaviconUpdated(const PageNode* page_node) override;
+  void OnFaviconUpdated(const PageNode* page_node,
+                        blink::mojom::FaviconUpdateReason reason) override;
   void OnAboutToBeDiscarded(const PageNode* page_node,
                             const PageNode* new_page_node) override;
 

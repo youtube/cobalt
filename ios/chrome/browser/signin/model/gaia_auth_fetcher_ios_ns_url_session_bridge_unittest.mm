@@ -52,7 +52,7 @@ NSString* GetStringWithCanonicalCookie(net::CanonicalCookie cookie) {
                        cookie.Domain().c_str()];
 }
 
-// Delegate classe to test GaiaAuthFetcherIOSNSURLSessionBridge.
+// Delegate class to test GaiaAuthFetcherIOSNSURLSessionBridge.
 class FakeGaiaAuthFetcherIOSBridgeDelegate
     : public GaiaAuthFetcherIOSBridge::GaiaAuthFetcherIOSBridgeDelegate {
  public:

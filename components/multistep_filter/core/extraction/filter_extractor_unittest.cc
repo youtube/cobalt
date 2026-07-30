@@ -19,7 +19,7 @@ namespace {
 
 using ::testing::_;
 
-constexpr char kTestDomain[] = "example.com";
+constexpr char kTestHost[] = "example.com";
 constexpr char kTestAttributeKey[] = "category";
 constexpr char kTestAttributeValue[] = "shoes";
 constexpr char kTestUrl[] = "https://example.com/search?q=shoes";
@@ -61,7 +61,7 @@ TEST_F(FilterExtractorTest, ExtractAnnotationFromUrl_Success) {
   base::Uuid id = base::Uuid::GenerateRandomV4();
   std::vector<FilterAttribute> attributes = {
       {kTestAttributeKey, kTestAttributeValue}};
-  FilterAnnotation annotation(id, kTestTask, kTestDomain, "sub.example.com",
+  FilterAnnotation annotation(id, kTestTask, kTestHost,
                               base::Time::Now(), attributes);
 
   EXPECT_CALL(mock_client(),
@@ -73,7 +73,7 @@ TEST_F(FilterExtractorTest, ExtractAnnotationFromUrl_Success) {
 
   base::test::TestFuture<std::optional<base::Uuid>> extract_future;
   extractor().ExtractAnnotationFromUrl(test_url, extract_future.GetCallback(),
-                                       kTestNavigationId, kTestDomain);
+                                       kTestNavigationId);
 
   std::optional<base::Uuid> annotation_id = extract_future.Get();
   ASSERT_TRUE(annotation_id.has_value());
@@ -86,7 +86,7 @@ TEST_F(FilterExtractorTest, ExtractAnnotationFromUrl_StoreFailed) {
   base::Uuid id = base::Uuid::GenerateRandomV4();
   std::vector<FilterAttribute> attributes = {
       {kTestAttributeKey, kTestAttributeValue}};
-  FilterAnnotation annotation(id, kTestTask, kTestDomain, "sub.example.com",
+  FilterAnnotation annotation(id, kTestTask, kTestHost,
                               base::Time::Now(), attributes);
 
   EXPECT_CALL(mock_client(),
@@ -98,7 +98,7 @@ TEST_F(FilterExtractorTest, ExtractAnnotationFromUrl_StoreFailed) {
 
   base::test::TestFuture<std::optional<base::Uuid>> extract_future;
   extractor().ExtractAnnotationFromUrl(test_url, extract_future.GetCallback(),
-                                       kTestNavigationId, kTestDomain);
+                                       kTestNavigationId);
 
   std::optional<base::Uuid> annotation_id = extract_future.Get();
   EXPECT_FALSE(annotation_id.has_value());
@@ -116,7 +116,7 @@ TEST_F(FilterExtractorTest, ExtractAnnotationFromUrl_EmptyResult) {
 
   base::test::TestFuture<std::optional<base::Uuid>> extract_future;
   extractor().ExtractAnnotationFromUrl(test_url, extract_future.GetCallback(),
-                                       kTestNavigationId, kTestDomain);
+                                       kTestNavigationId);
 
   std::optional<base::Uuid> annotation_id = extract_future.Get();
   EXPECT_FALSE(annotation_id.has_value());

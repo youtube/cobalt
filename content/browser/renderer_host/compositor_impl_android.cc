@@ -189,14 +189,14 @@ Compositor* Compositor::CreateOffscreen(CompositorClient* client,
 
 // static
 void Compositor::Initialize() {
-  DCHECK(!CompositorImpl::IsInitialized());
+  CHECK(!CompositorImpl::IsInitialized(), base::NotFatalUntil::M152);
   g_initialized = true;
 }
 
 // static
 void Compositor::CreateContextProvider(
     ContextProviderCallback callback) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  CHECK_CURRENTLY_ON(BrowserThread::UI, base::NotFatalUntil::M152);
   BrowserGpuChannelHostFactory::instance()->EstablishGpuChannel(base::BindOnce(
       &CreateContextProviderAfterGpuChannelEstablished, std::move(callback)));
 }
@@ -219,7 +219,7 @@ CompositorImpl::CompositorImpl(CompositorClient* client,
       pending_frames_(0U),
       layer_tree_frame_sink_request_pending_(false),
       lock_manager_(base::SingleThreadTaskRunner::GetCurrentDefault()) {
-  DCHECK(client);
+  CHECK(client, base::NotFatalUntil::M152);
 
   SetRootWindow(root_window);
 
@@ -258,15 +258,15 @@ ui::ResourceManager& CompositorImpl::GetResourceManager() {
 }
 
 void CompositorImpl::SetRootWindow(gfx::NativeWindow root_window) {
-  DCHECK(root_window);
-  DCHECK(!root_window->GetLayer());
+  CHECK(root_window, base::NotFatalUntil::M152);
+  CHECK(!root_window->GetLayer(), base::NotFatalUntil::M152);
 
   // TODO(mthiesse): Right now we only support swapping the root window without
   // a surface. If we want to support swapping with a surface we need to
   // handle visibility, swapping begin frame sources, etc.
   // These checks ensure we have no begin frame source, and that we don't need
   // to register one on the new window.
-  DCHECK(!window_ || is_offscreen_rendering_);
+  CHECK(!window_ || is_offscreen_rendering_, base::NotFatalUntil::M152);
 
   scoped_refptr<cc::slim::Layer> root_layer;
   if (root_window_) {
@@ -333,15 +333,15 @@ std::optional<gpu::SurfaceHandle> CompositorImpl::SetSurface(
 }
 
 void CompositorImpl::SetBackgroundColor(int color) {
-  DCHECK(host_);
+  CHECK(host_, base::NotFatalUntil::M152);
   host_->set_background_color(SkColor4f::FromColor(color));
 }
 
 void CompositorImpl::CreateLayerTreeHost() {
-  DCHECK(!host_);
+  CHECK(!host_, base::NotFatalUntil::M152);
 
   host_ = cc::slim::LayerTree::Create(this);
-  DCHECK(!host_->IsVisible());
+  CHECK(!host_->IsVisible(), base::NotFatalUntil::M152);
   host_->SetViewportRectAndScale(gfx::Rect(size_), root_window_->GetDipScale(),
                                  GenerateLocalSurfaceId());
   OnUpdateOverlayTransform();
@@ -354,7 +354,7 @@ void CompositorImpl::SetVisible(bool visible) {
   TRACE_EVENT1("cc", "CompositorImpl::SetVisible", "visible", visible);
 
   if (!visible) {
-    DCHECK(host_->IsVisible());
+    CHECK(host_->IsVisible(), base::NotFatalUntil::M152);
     // Tear down the display first, synchronously completing any pending
     // draws/readbacks if possible.
     TearDownDisplayAndUnregisterRootFrameSink();
@@ -369,7 +369,7 @@ void CompositorImpl::SetVisible(bool visible) {
     // completed.
     CompositorDependenciesAndroid::Get().OnCompositorHidden(this);
   } else {
-    DCHECK(!host_->IsVisible());
+    CHECK(!host_->IsVisible(), base::NotFatalUntil::M152);
     CompositorDependenciesAndroid::Get().OnCompositorVisible(this);
     RegisterRootFrameSink();
     host_->SetVisible(true);
@@ -494,7 +494,7 @@ void CompositorImpl::DidFailToInitializeLayerTreeFrameSink() {
 }
 
 void CompositorImpl::HandlePendingLayerTreeFrameSinkRequest() {
-  DCHECK(layer_tree_frame_sink_request_pending_);
+  CHECK(layer_tree_frame_sink_request_pending_, base::NotFatalUntil::M152);
 
   // We might have been made invisible now.
   if (!host_->IsVisible()) {

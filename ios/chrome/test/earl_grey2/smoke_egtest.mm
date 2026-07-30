@@ -343,4 +343,9 @@
   [ChromeEarlGrey userStringPref:prefs::kDefaultCharset];
 }
 
+// A test designed to fail, to verify test expectations.
+- (void)testFailingMethod {
+  GREYAssertTrue(NO, @"This test is expected to fail.");
+}
+
 @end

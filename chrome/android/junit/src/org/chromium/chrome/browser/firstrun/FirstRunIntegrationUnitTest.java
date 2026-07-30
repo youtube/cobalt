@@ -63,7 +63,6 @@ public final class FirstRunIntegrationUnitTest {
 
     @Mock private ChromeBrowserInitializer mChromeBrowserInitializer;
 
-    private static final String BROWSER_WINDOW_INTERFACE_MOBILE = "BrowserWindowInterfaceMobile";
     private final List<ActivityController> mActivityControllerList = new ArrayList<>();
 
     private Context mContext;
@@ -76,7 +75,6 @@ public final class FirstRunIntegrationUnitTest {
 
         ChromeBrowserInitializer.setForTesting(mChromeBrowserInitializer);
 
-        FeatureOverrides.newBuilder().enable(BROWSER_WINDOW_INTERFACE_MOBILE).apply();
         FeatureOverrides.newBuilder()
                 .enable(UiAndroidFeatures.ANDROID_UPDATE_DISPLAY_FOR_CONTEXT)
                 .apply();

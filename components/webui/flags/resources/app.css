@@ -394,3 +394,7 @@ cr-tabs {
     padding-top: 1.5rem;
   }
 }
+
+.actions-container cr-icon-button {
+  margin-inline-start: 8px;
+}

@@ -17,8 +17,8 @@
 #include "base/strings/stringprintf.h"
 #include "base/time/time.h"
 #include "base/types/expected.h"
-#include "chrome/browser/private_ai/private_ai_service.h"
 #include "chrome/browser/ui/webui/private_ai_internals/private_ai_internals.mojom.h"
+#include "chrome/common/channel_info.h"
 #include "components/optimization_guide/core/model_execution/private_ai_utils.h"
 #include "components/optimization_guide/core/optimization_guide_proto_util.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
@@ -33,6 +33,7 @@
 #include "components/private_ai/content/private_ai_oak_session_driver_content.h"
 #include "components/private_ai/features.h"
 #include "components/private_ai/phosphor/token_manager.h"
+#include "components/private_ai/private_ai_service.h"
 #include "components/private_ai/proto/private_ai.ostream.h"
 #include "components/private_ai/proto/private_ai.pb.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -111,7 +112,7 @@ void PrivateAiInternalsPageHandler::Connect(const std::string& url,
                                             ConnectCallback callback) {
   std::string effective_api_key = api_key;
   if (effective_api_key == kApiKeyPlaceholder) {
-    effective_api_key = PrivateAiService::GetApiKey();
+    effective_api_key = PrivateAiService::GetApiKey(chrome::GetChannel());
   }
 
   webui_client_ =

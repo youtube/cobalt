@@ -26,10 +26,6 @@ typedef NS_ENUM(NSInteger, FeedLayoutUpdateType);
 @class NewTabPageViewController;
 @protocol OverscrollActionsControllerDelegate;
 
-namespace feature_engagement {
-class Tracker;
-}
-
 // View controller containing all the content presented on a standard,
 // non-incognito new tab page.
 @interface NewTabPageViewController
@@ -80,9 +76,6 @@ class Tracker;
 // remains YES if viewDidAppear has been called.
 @property(nonatomic, assign) BOOL viewDidAppear;
 
-// Whether the NTP should initially be scrolled into the feed.
-@property(nonatomic, assign) BOOL shouldScrollIntoFeed;
-
 // `YES` if the omnibox should be focused on when the view appears for voice
 // over.
 @property(nonatomic, assign) BOOL focusAccessibilityOmniboxWhenViewAppears;
@@ -93,9 +86,6 @@ class Tracker;
 // Whether or not the fake omnibox is pinned to the top of the NTP.
 @property(nonatomic, readonly) BOOL isFakeboxPinned;
 
-// Layout guide for NTP modules.
-@property(nonatomic, readonly) UILayoutGuide* moduleLayoutGuide;
-
 // Handles the actions for the NTP shortcuts, like Lens or voice search.
 @property(nonatomic, weak) id<NewTabPageShortcutsHandler> NTPShortcutsHandler;
 
@@ -104,9 +94,6 @@ class Tracker;
 
 // Whether incognito is disabled (e.g. by privacy policy).
 @property(nonatomic, assign) BOOL incognitoDisabled;
-
-// Engagement tracker to use for checking whether IPH should show.
-@property(nonatomic, assign) feature_engagement::Tracker* engagementTracker;
 
 // Initializes the new tab page view controller.
 - (instancetype)init NS_DESIGNATED_INITIALIZER;
@@ -130,9 +117,6 @@ class Tracker;
 // the scroll position from the top the same.
 - (void)updateHeightAboveFeed;
 
-// Returns whether the NTP is scrolled to the top or not.
-- (BOOL)isNTPScrolledToTop;
-
 // Lays out and re-configures the NTP content after changing the containing
 // collection view, such as when changing feeds.
 - (void)layoutContentInParentCollectionView;
@@ -151,10 +135,6 @@ class Tracker;
 // is beyond the top of the feed. In that case, sets the scroll position to the
 // top of the feed.
 - (void)setContentOffsetToTopOfFeedOrLess:(CGFloat)contentOffset;
-
-// Checks the content size of the feed and updates the bottom content inset to
-// ensure the feed is still scrollable to the minimum height.
-- (void)updateFeedInsetsForMinimumHeight;
 
 // Updates the scroll position to account for the feed promo being removed.
 - (void)updateScrollPositionForFeedTopSectionClosed;

@@ -19,6 +19,7 @@ export function getHtml(this: ContextualTasksAppElement) {
           .isAiPage="${this.isAiPage_}"
           .isAimEligible="${this.isAimEligible_}"
           .enableOpenInNewTabButton="${this.isAiPage_ && !this.isErrorPageVisible_}"
+          .onboardingTooltipShowing="${this.onboardingTooltipShowing_}"
           @new-thread-click="${this.onNewThreadClick_}">
       </top-toolbar>
     </div>
@@ -49,7 +50,8 @@ export function getHtml(this: ContextualTasksAppElement) {
     </div>
 <if expr="not is_android">
     ${this.showOnboardingTooltip_ ? html`
-      <contextual-tasks-onboarding-tooltip id="onboardingTooltip">
+      <contextual-tasks-onboarding-tooltip id="onboardingTooltip"
+          @onboarding-tooltip-dismissed="${this.onOnboardingTooltipDismissed_}">
       </contextual-tasks-onboarding-tooltip>
     ` : ''}
     ${this.showSmartTabSharingTryItIph_ ? html`

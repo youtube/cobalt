@@ -21,8 +21,6 @@ proto_library("google_type_datetime_proto") {
 
   deps = [ "//third_party/protobuf:duration_proto" ]
 
-  import_dirs = [ "//third_party/protobuf/src" ]
-
   proto_in_dir = "src"
   cc_generator_options = "lite"
 }
@@ -46,8 +44,6 @@ proto_library("google_rpc_status_proto") {
 
   deps = [ "//third_party/protobuf:any_proto" ]
 
-  import_dirs = [ "//third_party/protobuf/src" ]
-
   proto_in_dir = "src"
   cc_generator_options = "lite"
 }
@@ -60,8 +56,6 @@ proto_library("google_longrunning_operations_proto") {
     "//third_party/protobuf:any_proto",
     "//third_party/protobuf:duration_proto",
   ]
-
-  import_dirs = [ "//third_party/protobuf/src" ]
 
   proto_in_dir = "src"
   cc_generator_options = "lite"

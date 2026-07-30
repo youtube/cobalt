@@ -750,8 +750,8 @@ void AccountProfileMapper::Assigner::FetchHostedDomainNow() {
   // `identity` to the front of the array to note it’s the identity currently
   // being fetched and, in case of failure, ensure it’s only fetched once all
   // other identities are fetched. While inserting at index 0 in an array is
-  // inneficient, the array should be small enough that the lost computation
-  // time is negligeable compared to the time taken by the fetch request.
+  // inefficient, the array should be small enough that the lost computation
+  // time is negligible compared to the time taken by the fetch request.
   [system_identities_to_fetch_ removeLastObject];
   [system_identities_to_fetch_ insertObject:identity atIndex:0];
   system_identity_manager_->GetHostedDomain(

@@ -47,6 +47,7 @@ specific_include_rules = {
   ".*test.*": [
     "!ash",
     "+ash/constants",
+    "+ash/webui/settings/public/constants/routes.mojom.h",
     "+ash/multi_user/multi_user_window_manager.h",
     "+ash/public",
     "+ash/strings",

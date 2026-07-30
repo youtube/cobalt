@@ -223,7 +223,8 @@ base::expected<void, std::string> IsValidTensorSize(
       return base::unexpected("Tensor size is too large.");
     }
     if (descriptor.Rank() > 1) {
-      int height = descriptor.NumberOfElements() / width;
+      int height =
+          base::checked_cast<int>(descriptor.NumberOfElements() / width);
       if (height > max_texture_size) {
         return base::unexpected("Tensor size is too large.");
       }
@@ -1651,6 +1652,12 @@ ScriptPromise<IDLUndefined> MLContext::readTensor(
   if (src_tensor->context() != this) {
     exception_state.ThrowTypeError(
         "The source tensor wasn't created with this context.");
+    return EmptyPromise();
+  }
+
+  if (!src_tensor->Usage().Has(webnn::MLTensorUsageFlags::kRead)) {
+    exception_state.ThrowTypeError(
+        "The source tensor doesn't have read access.");
     return EmptyPromise();
   }
 

@@ -100,10 +100,11 @@ TEST_P(ShelfContextMenuModelTest, Basic) {
   ShelfContextMenuModel menu(nullptr, GetPrimaryDisplay().id(),
                              /*menu_in_shelf=*/false);
 
-  ASSERT_EQ(3u, menu.GetItemCount());
+  ASSERT_EQ(4u, menu.GetItemCount());
   EXPECT_EQ(CommandId::MENU_AUTO_HIDE, menu.GetCommandIdAt(0));
   EXPECT_EQ(CommandId::MENU_ALIGNMENT_MENU, menu.GetCommandIdAt(1));
   EXPECT_EQ(CommandId::MENU_PERSONALIZATION_HUB, menu.GetCommandIdAt(2));
+  EXPECT_EQ(CommandId::MENU_TASK_MANAGER, menu.GetCommandIdAt(3));
   for (size_t i = 0; i < menu.GetItemCount(); ++i) {
     EXPECT_TRUE(menu.IsEnabledAt(i));
     EXPECT_TRUE(menu.IsVisibleAt(i));
@@ -222,16 +223,17 @@ TEST_P(ShelfContextMenuModelTest, ExcludeClamshellOptionsOnTabletMode) {
   // options because other options are disabled.
   tablet_mode_controller->SetEnabledForTest(true);
   ShelfContextMenuModel menu1(nullptr, primary_id, /*menu_in_shelf=*/false);
-  EXPECT_EQ(2u, menu1.GetItemCount());
+  EXPECT_EQ(3u, menu1.GetItemCount());
   EXPECT_EQ(ShelfContextMenuModel::MENU_AUTO_HIDE, menu1.GetCommandIdAt(0));
   EXPECT_EQ(ShelfContextMenuModel::MENU_PERSONALIZATION_HUB,
             menu1.GetCommandIdAt(1));
+  EXPECT_EQ(ShelfContextMenuModel::MENU_TASK_MANAGER, menu1.GetCommandIdAt(2));
 
   // Test that a menu shown out of tablet mode includes all three options:
   // MENU_AUTO_HIDE, MENU_ALIGNMENT_MENU.
   tablet_mode_controller->SetEnabledForTest(false);
   ShelfContextMenuModel menu2(nullptr, primary_id, /*menu_in_shelf=*/false);
-  EXPECT_EQ(3u, menu2.GetItemCount());
+  EXPECT_EQ(4u, menu2.GetItemCount());
 
   // Test the auto hide option.
   EXPECT_EQ(ShelfContextMenuModel::MENU_AUTO_HIDE, menu2.GetCommandIdAt(0));
@@ -274,13 +276,13 @@ TEST_P(ShelfContextMenuModelTest, CommandIdsMatchEnumsForHistograms) {
 }
 
 TEST_P(ShelfContextMenuModelTest, ShelfContextMenuOptions) {
-  // Tests that there are exactly 3 shelf context menu options. If you're adding
+  // Tests that there are exactly 4 shelf context menu options. If you're adding
   // a context menu option ensure that you have added the enum to
-  // tools/metrics/histograms/enums.xml and that you haven't modified the order
-  // of the existing enums.
+  // tools/metrics/histograms/metadata/apps/enums.xml and that you haven't
+  // modified the order of the existing enums.
   ShelfContextMenuModel menu(nullptr, GetPrimaryDisplay().id(),
                              /*menu_in_shelf=*/false);
-  EXPECT_EQ(3u, menu.GetItemCount());
+  EXPECT_EQ(4u, menu.GetItemCount());
 }
 
 TEST_P(ShelfContextMenuModelTest, NotificationContainerEnabled) {
@@ -317,10 +319,11 @@ TEST_P(DeskButtonContextMenuModelTest, Basic) {
   // Not on the shelf, the context menu should have the default items.
   ShelfContextMenuModel shelf_menu(nullptr, GetPrimaryDisplay().id(),
                                    /*menu_in_shelf=*/false);
-  ASSERT_EQ(3u, shelf_menu.GetItemCount());
+  ASSERT_EQ(4u, shelf_menu.GetItemCount());
   EXPECT_EQ(CommandId::MENU_AUTO_HIDE, shelf_menu.GetCommandIdAt(0));
   EXPECT_EQ(CommandId::MENU_ALIGNMENT_MENU, shelf_menu.GetCommandIdAt(1));
   EXPECT_EQ(CommandId::MENU_PERSONALIZATION_HUB, shelf_menu.GetCommandIdAt(2));
+  EXPECT_EQ(CommandId::MENU_TASK_MANAGER, shelf_menu.GetCommandIdAt(3));
   for (size_t i = 0; i < shelf_menu.GetItemCount(); ++i) {
     EXPECT_TRUE(shelf_menu.IsEnabledAt(i));
     EXPECT_TRUE(shelf_menu.IsVisibleAt(i));
@@ -330,12 +333,13 @@ TEST_P(DeskButtonContextMenuModelTest, Basic) {
   // option.
   ShelfContextMenuModel non_shelf_menu(nullptr, GetPrimaryDisplay().id(),
                                        /*menu_in_shelf=*/true);
-  ASSERT_EQ(4u, non_shelf_menu.GetItemCount());
+  ASSERT_EQ(5u, non_shelf_menu.GetItemCount());
   EXPECT_EQ(CommandId::MENU_AUTO_HIDE, non_shelf_menu.GetCommandIdAt(0));
   EXPECT_EQ(CommandId::MENU_ALIGNMENT_MENU, non_shelf_menu.GetCommandIdAt(1));
   EXPECT_EQ(CommandId::MENU_PERSONALIZATION_HUB,
             non_shelf_menu.GetCommandIdAt(2));
   EXPECT_EQ(CommandId::MENU_SHOW_DESK_NAME, non_shelf_menu.GetCommandIdAt(3));
+  EXPECT_EQ(CommandId::MENU_TASK_MANAGER, non_shelf_menu.GetCommandIdAt(4));
   for (size_t i = 0; i < non_shelf_menu.GetItemCount(); ++i) {
     EXPECT_TRUE(non_shelf_menu.IsEnabledAt(i));
     EXPECT_TRUE(non_shelf_menu.IsVisibleAt(i));
@@ -347,9 +351,11 @@ TEST_P(DeskButtonContextMenuModelTest, Basic) {
 TEST_P(DeskButtonContextMenuModelTest, ShowHide) {
   ShelfContextMenuModel menu_when_button_hidden(
       nullptr, GetPrimaryDisplay().id(), /*menu_in_shelf=*/true);
-  ASSERT_EQ(4u, menu_when_button_hidden.GetItemCount());
+  ASSERT_EQ(5u, menu_when_button_hidden.GetItemCount());
   EXPECT_EQ(CommandId::MENU_SHOW_DESK_NAME,
             menu_when_button_hidden.GetCommandIdAt(3));
+  EXPECT_EQ(CommandId::MENU_TASK_MANAGER,
+            menu_when_button_hidden.GetCommandIdAt(4));
   EXPECT_TRUE(menu_when_button_hidden.IsEnabledAt(3));
   EXPECT_TRUE(menu_when_button_hidden.IsVisibleAt(3));
 
@@ -359,9 +365,11 @@ TEST_P(DeskButtonContextMenuModelTest, ShowHide) {
   // Ensure the new context menu shows the option to hide the desk button.
   ShelfContextMenuModel menu_when_button_shown(
       nullptr, GetPrimaryDisplay().id(), /*menu_in_shelf=*/true);
-  ASSERT_EQ(4u, menu_when_button_shown.GetItemCount());
+  ASSERT_EQ(5u, menu_when_button_shown.GetItemCount());
   EXPECT_EQ(CommandId::MENU_HIDE_DESK_NAME,
             menu_when_button_shown.GetCommandIdAt(3));
+  EXPECT_EQ(CommandId::MENU_TASK_MANAGER,
+            menu_when_button_shown.GetCommandIdAt(4));
   EXPECT_TRUE(menu_when_button_shown.IsEnabledAt(3));
   EXPECT_TRUE(menu_when_button_shown.IsVisibleAt(3));
 }

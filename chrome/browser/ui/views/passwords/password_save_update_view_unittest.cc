@@ -17,10 +17,12 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/passwords/password_bubble_view_test_base.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/mock_password_feature_manager.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_manager_test_utils.h"
 #include "components/password_manager/core/browser/password_store/mock_password_store_interface.h"
+#include "components/strings/grit/components_strings.h"
 #include "components/sync/test/test_sync_service.h"
 #include "content/public/test/navigation_simulator.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -29,6 +31,7 @@
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/combobox/combobox.h"
 #include "ui/views/controls/editable_combobox/editable_password_combobox.h"
+#include "ui/views/controls/styled_label.h"
 #include "ui/views/interaction/interaction_test_util_views.h"
 #include "ui/views/view_tracker.h"
 #include "ui/views/view_utils.h"
@@ -595,6 +598,24 @@ TEST_F(PasswordDropdownExperimentTest,
   ASSERT_TRUE(cancel_button);
   EXPECT_EQ(views::AsViewClass<views::MdTextButton>(cancel_button)->GetText(),
             NeverButtonCaption());
+}
+
+TEST_P(PasswordSaveUpdateViewTest, TrustedVaultErrorUiState) {
+  base::test::ScopedFeatureList scoped_feature_list{
+      password_manager::features::kPasswordSaveInContextErrorResolution};
+  SimulateSignIn();
+  ON_CALL(*model_delegate_mock(), IsSavingBlockedByTrustedVaultError)
+      .WillByDefault(Return(true));
+
+  CreateViewAndShow();
+
+  EXPECT_EQ(view()->GetSubtitle(),
+            l10n_util::GetStringUTF16(
+                IDS_PASSWORD_BUBBLES_SUBTITLE_TRUSTED_VAULT_ERROR));
+  views::MdTextButton* ok_button = view()->GetOkButtonForTesting();
+  ASSERT_TRUE(ok_button);
+  EXPECT_EQ(ok_button->GetText(), l10n_util::GetStringUTF16(IDS_CONTINUE));
+  ASSERT_TRUE(view()->GetFootnoteViewForTesting());
 }
 
 // These tests are parameterized to run in the original two-button layout,

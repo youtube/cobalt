@@ -22,10 +22,6 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
-<variants name="AccessibilityAnnotator.MemoryDataProvider">
-  <variant name="AutofillDataProvider" summary="The Autofill data provider."/>
-</variants>
-
 <variants name="AccessibilityAnnotator.ValueClassifierType">
   <variant name="Semantic" summary="The semantic value classifier."/>
   <variant name="TitleKeyword" summary="The title keyword value classifier."/>
@@ -33,17 +29,15 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram
-    name="AccessibilityAnnotator.AccessibilityQueryService.ProviderResultCount.{MemoryDataProvider}"
+    name="AccessibilityAnnotator.AtMemoryQueryService.ProviderResultCount.AutofillDataProvider"
     units="count" expires_after="2026-08-01">
   <owner>victorshu@google.com</owner>
   <owner>zelarabaty@google.com</owner>
   <summary>
-    Records the number of search results returned by the {MemoryDataProvider}.
-    Recorded when the accessibility query service finishes retrieving data from
-    a provider.
+    Records the number of search results returned by the Autofill data provider.
+    Recorded when the at-memory query service finishes retrieving data from a
+    provider.
   </summary>
-  <token key="MemoryDataProvider"
-      variants="AccessibilityAnnotator.MemoryDataProvider"/>
 </histogram>
 
 <histogram

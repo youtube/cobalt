@@ -172,6 +172,30 @@ uint32_t EnumToBitmask(enumType outcome) {
   return 1 << static_cast<uint8_t>(outcome);
 }
 
+// Populates context menu data common to all anchor element types (HTML <a>,
+// SVG <a>, etc.): suggested download filename, referrer policy suppression,
+// and link text.
+template <typename AnchorType>
+void PopulateAnchorContextMenuData(AnchorType* anchor,
+                                   const QualifiedName& download_attr,
+                                   LocalFrame* selected_frame,
+                                   ContextMenuData& data) {
+  // Extract suggested filename for same-origin URLs for saving file.
+  const SecurityOrigin* origin =
+      selected_frame->GetSecurityContext()->GetSecurityOrigin();
+  if (origin->CanReadContent(anchor->Url())) {
+    data.suggested_filename = anchor->FastGetAttribute(download_attr).Utf8();
+  }
+
+  // If the anchor wants to suppress the referrer, update the referrerPolicy
+  // accordingly.
+  if (AnchorElementUtils::HasRel(anchor->GetLinkRelations(),
+                                 kRelationNoReferrer)) {
+    data.referrer_policy = network::mojom::ReferrerPolicy::kNever;
+  }
+  data.link_text = anchor->innerText().Utf8();
+}
+
 }  // namespace
 
 ContextMenuController::ContextMenuController(Page* page) : page_(page) {}
@@ -800,22 +824,11 @@ bool ContextMenuController::ShowContextMenu(
 
   // TODO(crbug.com/369219144): Should this be DynamicTo<HTMLAnchorElementBase>?
   if (auto* anchor = DynamicTo<HTMLAnchorElement>(result.URLElement())) {
-    // Extract suggested filename for same-origin URLS for saving file.
-    const SecurityOrigin* origin =
-        selected_frame->GetSecurityContext()->GetSecurityOrigin();
-    if (origin->CanReadContent(anchor->Url())) {
-      data.suggested_filename =
-          anchor->FastGetAttribute(html_names::kDownloadAttr).Utf8();
-    }
-
-    // If the anchor wants to suppress the referrer, update the referrerPolicy
-    // accordingly.
-    if (AnchorElementUtils::HasRel(anchor->GetLinkRelations(),
-                                   kRelationNoReferrer)) {
-      data.referrer_policy = network::mojom::ReferrerPolicy::kNever;
-    }
-
-    data.link_text = anchor->innerText().Utf8();
+    PopulateAnchorContextMenuData(anchor, html_names::kDownloadAttr,
+                                  selected_frame, data);
+  } else if (auto* svg_anchor = DynamicTo<SVGAElement>(result.URLElement())) {
+    PopulateAnchorContextMenuData(svg_anchor, svg_names::kDownloadAttr,
+                                  selected_frame, data);
   }
 
   if (auto* anchor = DynamicTo<HTMLAnchorElementBase>(result.URLElement())) {
@@ -824,29 +837,6 @@ bool ContextMenuController::ShowContextMenu(
       data.impression = attribution_src_loader->PrepareContextMenuNavigation(
           result.AbsoluteLinkURL(), anchor);
     }
-  }
-
-  // TODO(crbug.com/40589293): Merge with the equivalent block in
-  // HTMLAnchorElement. The logic is nearly identical aside from runtime flag
-  // checks. Consider using a templated helper once the flag is removed.
-  if (auto* anchor = DynamicTo<SVGAElement>(result.URLElement())) {
-    if (RuntimeEnabledFeatures::SvgAnchorElementDownloadAttributeEnabled()) {
-      // Extract suggested filename for same-origin URLS for saving file.
-      const SecurityOrigin* origin =
-          selected_frame->GetSecurityContext()->GetSecurityOrigin();
-      if (origin->CanReadContent(anchor->Url())) {
-        data.suggested_filename =
-            anchor->FastGetAttribute(svg_names::kDownloadAttr).Utf8();
-      }
-    }
-
-    // If the anchor wants to suppress the referrer, update the referrerPolicy
-    // accordingly.
-    if (AnchorElementUtils::HasRel(anchor->GetLinkRelations(),
-                                   kRelationNoReferrer)) {
-      data.referrer_policy = network::mojom::ReferrerPolicy::kNever;
-    }
-    data.link_text = anchor->innerText().Utf8();
   }
 
   data.selection_rect = ComputeSelectionRect(selected_frame);

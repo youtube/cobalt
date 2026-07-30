@@ -33,7 +33,7 @@ PermissionPromptAndroid::PermissionPromptAndroid(
   std::transform(delegate_->Requests().begin(), delegate_->Requests().end(),
                  std::back_inserter(requests_),
                  [](const std::unique_ptr<PermissionRequest>& request_ptr) {
-                   return request_ptr->GetWeakPtr();
+                   return request_ptr->GetSafeRef();
                  });
 }
 
@@ -144,14 +144,14 @@ size_t PermissionPromptAndroid::PermissionCount() const {
 
 ContentSettingsType PermissionPromptAndroid::GetContentSettingType(
     size_t position) const {
-  const std::vector<base::WeakPtr<PermissionRequest>>& requests = Requests();
+  const std::vector<base::SafeRef<PermissionRequest>>& requests = Requests();
   CHECK_LT(position, requests.size());
   return requests[position]->GetContentSettingsType();
 }
 
 static bool IsValidMediaRequestGroup(
-    const std::vector<base::WeakPtr<PermissionRequest>>& requests) {
-  if (requests.size() < 2 || !requests[0] || !requests[1]) {
+    const std::vector<base::SafeRef<PermissionRequest>>& requests) {
+  if (requests.size() < 2) {
     return false;
   }
   return ((requests[0]->request_type() == RequestType::kMicStream &&
@@ -161,13 +161,13 @@ static bool IsValidMediaRequestGroup(
 }
 
 void PermissionPromptAndroid::CheckValidRequestGroup(
-    const std::vector<base::WeakPtr<PermissionRequest>>& requests) const {
+    const std::vector<base::SafeRef<PermissionRequest>>& requests) const {
   DCHECK_EQ(static_cast<size_t>(2u), requests.size());
   DCHECK((IsValidMediaRequestGroup(requests)));
 }
 
 int PermissionPromptAndroid::GetIconId() const {
-  const std::vector<base::WeakPtr<PermissionRequest>>& requests = Requests();
+  const std::vector<base::SafeRef<PermissionRequest>>& requests = Requests();
   if (requests.size() == 1) {
     if (requests[0]->request_type() == RequestType::kStorageAccess) {
       return IDR_ANDROID_GLOBE;
@@ -180,7 +180,7 @@ int PermissionPromptAndroid::GetIconId() const {
 
 PermissionRequest::AnnotatedMessageText
 PermissionPromptAndroid::GetAnnotatedMessageText() const {
-  const std::vector<base::WeakPtr<PermissionRequest>>& requests = Requests();
+  const std::vector<base::SafeRef<PermissionRequest>>& requests = Requests();
   if (requests.size() == 1) {
     return requests[0]->GetDialogAnnotatedMessageText(
         delegate_->GetEmbeddingOrigin());
@@ -200,7 +200,7 @@ PermissionPromptAndroid::GetAnnotatedMessageText() const {
 }
 
 bool PermissionPromptAndroid::ShouldUseRequestingOriginFavicon() const {
-  const std::vector<base::WeakPtr<PermissionRequest>>& requests = Requests();
+  const std::vector<base::SafeRef<PermissionRequest>>& requests = Requests();
   CHECK_GT(requests.size(), 0U);
 
   return requests[0]->request_type() == RequestType::kStorageAccess;
@@ -210,7 +210,7 @@ GURL PermissionPromptAndroid::GetRequestingOrigin() const {
   return delegate_->GetRequestingOrigin();
 }
 
-const std::vector<base::WeakPtr<permissions::PermissionRequest>>&
+const std::vector<base::SafeRef<permissions::PermissionRequest>>&
 PermissionPromptAndroid::Requests() const {
   return requests_;
 }

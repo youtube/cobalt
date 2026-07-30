@@ -379,16 +379,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Sharing.SendTabToSelf.AndroidDevicePickerTargetCount"
-    units="devices" expires_after="2027-06-16">
-  <owner>mtatarski@google.com</owner>
-  <owner>src/components/sync/OWNERS</owner>
-  <summary>
-    The number of target devices shown in the Android device picker UI. Recorded
-    when the device picker bottom sheet is shown to the user.
-  </summary>
-</histogram>
-
 <histogram name="Sharing.SendTabToSelf.AutoOpenOutcome"
     enum="SendTabToSelfAutoOpenOutcome" expires_after="2027-03-30">
   <owner>ankushkush@google.com</owner>
@@ -409,6 +399,17 @@ chromium-metrics-reviews@google.com.
     Records the form factor combination of the sending (local) device and the
     target (destination) device when a tab is sent. Recorded on the sending
     device at the moment the tab is sent.
+  </summary>
+</histogram>
+
+<histogram name="Sharing.SendTabToSelf.InvokedEntryPoint"
+    enum="SendTabToSelfShareEntryPoint" expires_after="2027-06-01">
+  <owner>treib@chromium.org</owner>
+  <owner>src/chrome/browser/share/OWNERS</owner>
+  <summary>
+    Records the entry point (UI surface) from which Send Tab To Self was invoked
+    by the user on the sending device. Logged when the share bubble/sheet/dialog
+    is first shown to the user.
   </summary>
 </histogram>
 
@@ -483,7 +484,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Sharing.SendTabToSelf.ScrollPosition.GenerationOutcome"
     enum="SendTabToSelfScrollPositionGenerationOutcome"
-    expires_after="2026-10-01">
+    expires_after="2026-12-16">
   <owner>mtatarski@google.com</owner>
   <owner>src/components/sync/OWNERS</owner>
   <summary>
@@ -513,6 +514,51 @@ chromium-metrics-reviews@google.com.
     for scroll position restoration when a user sends a tab to themselves.
     Recorded only for successful generations.
   </summary>
+</histogram>
+
+<histogram name="Sharing.SendTabToSelf.SendResult" enum="SendTabToSelfResult"
+    expires_after="2027-06-22">
+  <owner>mtatarski@google.com</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Records the result of attempting to send a tab to another device. Recorded
+    when the send attempt completes.
+  </summary>
+</histogram>
+
+<histogram name="Sharing.SendTabToSelf.SentEntryPoint"
+    enum="SendTabToSelfShareEntryPoint" expires_after="2027-06-01">
+  <owner>treib@chromium.org</owner>
+  <owner>src/chrome/browser/share/OWNERS</owner>
+  <summary>
+    Records the entry point (UI surface) from which Send Tab To Self was invoked
+    by the user on the sending device. Logged when the user selects a target
+    device and the sending is triggered.
+  </summary>
+</histogram>
+
+<histogram name="Sharing.SendTabToSelf.TargetDeviceCount{ShareEntryPoint}"
+    enum="SendTabToSelfDeviceCount" expires_after="2027-06-17">
+  <owner>mtatarski@google.com</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    The number of target devices when the Send Tab to Self UI is invoked from
+    {ShareEntryPoint}. Recorded when the UI is shown (or signed-out promo or no
+    target devices promo is shown).
+  </summary>
+  <token key="ShareEntryPoint">
+    <variant name="" summary="any entry point"/>
+    <variant name=".ContentMenu" summary="the context menu on a WebContents"/>
+    <variant name=".Gesture" summary="a physical gesture"/>
+    <variant name=".LinkMenu" summary="the context menu on a link"/>
+    <variant name=".OmniboxMenu" summary="the context menu on the Omnibox"/>
+    <variant name=".ShareMenu" summary="the Share menu in the 3-dot menu"/>
+    <variant name=".ShareSheet" summary="the OS-level Share Sheet"/>
+    <variant name=".TabMenu"
+        summary="the context menu on a tab (in the tab strip or tab switcher)"/>
+    <variant name=".ToolbarIcon"
+        summary="the icon in the toolbar next to the Omnibox"/>
+  </token>
 </histogram>
 
 <histogram name="Sharing.SendTabToSelf.TimeSentToOpened" units="ms"
@@ -643,7 +689,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sharing.SmsFetcherScreenOnAndUnlocked" enum="Boolean"
-    expires_after="2026-10-18">
+    expires_after="2026-12-20">
   <owner>yigu@chromium.org</owner>
   <owner>src/content/browser/sms/OWNERS</owner>
   <summary>

@@ -90,7 +90,7 @@ const char* help_msg =
     "  --vmodule             enable verbose mode for the specified module.\n";
 
 base::FilePath BuildSourceFilePath(const base::FilePath& filename) {
-  return media::g_source_directory.Append(filename);
+  return media::GetSourceDir().Append(filename);
 }
 
 constexpr char kNV12Image720P[] =
@@ -876,9 +876,9 @@ int main(int argc, char** argv) {
     }
 
     if (it->first == "source_directory") {
-      media::g_source_directory = base::FilePath(it->second);
+      media::GetSourceDir() = base::FilePath(it->second);
     } else if (it->first == "output_directory") {
-      media::g_output_directory = base::FilePath(it->second);
+      media::GetOutputDir() = base::FilePath(it->second);
     } else {
       std::cout << "unknown option: --" << it->first << "\n"
                 << media::usage_msg;

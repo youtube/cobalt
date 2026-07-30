@@ -9,7 +9,7 @@
 #include "third_party/tflite/buildflags.h"
 
 #if BUILDFLAG(USE_LITERT_TFLITE)
-#include "third_party/litert/src/tflite/tools/optimize/reduced_precision_metadata.h"
+#include "third_party/litert/src/tflite/converter/tools/optimize/reduced_precision_metadata.h"
 #else
 #include_next "tensorflow/compiler/mlir/lite/tools/optimize/reduced_precision_metadata.h"
 #endif

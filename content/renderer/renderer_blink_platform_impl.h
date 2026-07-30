@@ -131,6 +131,8 @@ class CONTENT_EXPORT RendererBlinkPlatformImpl : public BlinkPlatformImpl {
   bool IsLcdTextEnabled() override;
   bool IsElasticOverscrollEnabledOnRoot() override;
   bool IsElasticOverscrollSupported() override;
+  bool IsElasticOverscrollEnabledForSubscroll() override;
+
   bool IsScrollAnimatorEnabled() override;
   double AudioHardwareSampleRate() override;
   size_t AudioHardwareBufferSize() override;

@@ -252,11 +252,11 @@ IN_PROC_BROWSER_TEST_F(BrowserCommandsTest, OnlyCloseActiveTabInSplitView) {
                                      1.0f),
       split_tabs::SplitTabCreatedSource::kToolbarButton);
 
-  EXPECT_TRUE(browser()->tab_strip_model()->IsActiveTabSplit());
+  EXPECT_TRUE(browser()->tab_strip_model()->GetActiveTab()->IsSplit());
 
   EXPECT_TRUE(chrome::ExecuteCommand(browser(), IDC_CLOSE_TAB));
 
-  EXPECT_FALSE(browser()->tab_strip_model()->IsActiveTabSplit());
+  EXPECT_FALSE(browser()->tab_strip_model()->GetActiveTab()->IsSplit());
   EXPECT_EQ(2, browser()->tab_strip_model()->count());
 }
 
@@ -278,7 +278,7 @@ IN_PROC_BROWSER_TEST_F(BrowserCommandsTest, CloseAllTabsInSelectionModel) {
                                      1.0f),
       split_tabs::SplitTabCreatedSource::kToolbarButton);
 
-  EXPECT_TRUE(browser()->tab_strip_model()->IsActiveTabSplit());
+  EXPECT_TRUE(browser()->tab_strip_model()->GetActiveTab()->IsSplit());
 
   // Add a non-split tab to the selection model.
   browser()->tab_strip_model()->SelectTabAt(kTabCount - 3);
@@ -286,7 +286,7 @@ IN_PROC_BROWSER_TEST_F(BrowserCommandsTest, CloseAllTabsInSelectionModel) {
   EXPECT_TRUE(chrome::ExecuteCommand(browser(), IDC_CLOSE_TAB));
 
   // Only one, non-split tab should remain.
-  EXPECT_FALSE(browser()->tab_strip_model()->IsActiveTabSplit());
+  EXPECT_FALSE(browser()->tab_strip_model()->GetActiveTab()->IsSplit());
   EXPECT_EQ(1, browser()->tab_strip_model()->count());
 }
 

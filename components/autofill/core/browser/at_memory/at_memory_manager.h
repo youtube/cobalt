@@ -31,9 +31,9 @@ namespace autofill {
 
 class BrowserAutofillManager;
 
-// Manager for the accessibility annotator search feature. It handles queries
-// to the AccessibilityQueryService and manages session-based metrics.
-// Owned by `BrowserAutofillManager`, its lifetime is tied to it.
+// Manager for the AtMemory feature. It handles queries to the
+// `AtMemoryQueryService` and manages session-based metrics. Owned by
+// `BrowserAutofillManager`, its lifetime is tied to it.
 class AtMemoryManager {
  public:
   using UpdateSuggestionsCallback =

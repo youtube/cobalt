@@ -1,0 +1,145 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// This file exposes C++ bindings for the low-level TPM operations implemented
+// in Rust (see //crypto/tpm.rs). C++ client code should use the APIs defined
+// in this file rather than calling the auto-generated Rust bindings directly.
+
+#ifndef CRYPTO_TPM_PARSER_H_
+#define CRYPTO_TPM_PARSER_H_
+
+#include <stdint.h>
+
+#include <optional>
+#include <vector>
+
+#include "base/check_op.h"
+#include "base/containers/span.h"
+#include "base/types/expected.h"
+#include "crypto/crypto_export.h"
+
+namespace crypto::tpm {
+
+// Various errors returned during TPM certify response parsing.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// NOTE: Since the certify response parsing happens completely on the Rust side,
+// this is a strict subset of the enum defined in tpm.rs. We purposefully drop
+// the kOk option, so that it's a true error enum.
+struct CRYPTO_EXPORT CertifyResponseError {
+  // LINT.IfChange(TpmCertifyParseResult)
+  enum class Type : uint8_t {
+    kBufferTooSmall = 1,
+    kTrailingBytes = 2,
+    kTpmErrorResponse = 3,
+    kBadMagicNumber = 4,
+    kWrongType = 5,
+    kChallengeMismatch = 6,
+    kMaxValue = kChallengeMismatch
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/net/enums.xml:TpmCertifyParseResult)
+
+  const Type type = Type::kBufferTooSmall;
+  // Only populated if `type` is `Type::kTpmErrorResponse`.
+  const std::optional<uint32_t> tpm_error_code;
+
+  explicit CertifyResponseError(
+      Type type,
+      std::optional<uint32_t> tpm_error_code = std::nullopt)
+      : type(type), tpm_error_code(tpm_error_code) {
+    CHECK_EQ(type == Type::kTpmErrorResponse, tpm_error_code.has_value());
+  }
+
+  friend bool operator==(const CertifyResponseError&,
+                         const CertifyResponseError&) = default;
+};
+
+template <typename T>
+using CertifyResponseErrorOr = base::expected<T, CertifyResponseError>;
+
+inline constexpr auto kNoCertifyResponseErrorForMetrics =
+    static_cast<CertifyResponseError::Type>(0);
+
+// Various errors returned during TPM signature verification.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// NOTE: While signature parsing happens in Rust, signature verification is
+// implemented in C++. This means this enum extends the Rust version with
+// possible verification errors, but also drops the kOk option to make it a true
+// error enum.
+//
+enum class SignatureError : uint8_t {
+  kBufferTooSmall = 1,
+  kTrailingBytes = 2,
+  kUnsupportedSignatureAlgorithm = 3,
+  kUnsupportedHashAlgorithm = 4,
+  kInvalidPublicKey = 5,
+  kInvalidSignature = 6,
+  kMaxValue = kInvalidSignature
+};
+
+template <typename T>
+using SignatureErrorOr = base::expected<T, SignatureError>;
+
+inline constexpr auto kNoSignatureErrorForMetrics =
+    static_cast<SignatureError>(0);
+
+// Response components extracted from a parsed TPM2_Certify response.
+struct CRYPTO_EXPORT CertifyResponse {
+  std::vector<uint8_t> statement;
+  std::vector<uint8_t> signature;
+
+  friend bool operator==(const CertifyResponse&,
+                         const CertifyResponse&) = default;
+};
+
+// TPM algorithm IDs returned by the parser, solely for telemetry.
+struct CRYPTO_EXPORT SignatureAlgorithms {
+  uint16_t sig_alg = 0;
+  uint16_t hash_alg = 0;
+
+  friend bool operator==(const SignatureAlgorithms&,
+                         const SignatureAlgorithms&) = default;
+};
+
+// Builds a serialized TPM2_Certify command buffer.
+//
+// * `object_handle` - The TPM handle of the key to be certified.
+// * `sign_handle` - The TPM handle of the attestation key used to sign the
+// certification.
+// * `challenge` - A security challenge/nonce to prevent replay attacks.
+CRYPTO_EXPORT std::vector<uint8_t> BuildCertifyCommand(
+    uint32_t object_handle,
+    uint32_t sign_handle,
+    base::span<const uint8_t> challenge);
+
+// Parses a serialized TPM2_Certify response and extracts the certified
+// statement and signature.
+//
+// * `response_blob` - The raw byte response from the TPM2_Certify command.
+// * `challenge` - The challenge expected in the attestation's extra data to
+// prevent replay.
+CRYPTO_EXPORT CertifyResponseErrorOr<CertifyResponse> ParseCertifyResponse(
+    base::span<const uint8_t> response_blob,
+    base::span<const uint8_t> challenge);
+
+// Parses a serialized `TPMT_SIGNATURE` and returns the signature and hash
+// algorithms used, solely for telemetry.
+CRYPTO_EXPORT SignatureErrorOr<SignatureAlgorithms> GetSignatureAlgorithms(
+    base::span<const uint8_t> signature_blob);
+
+// Verifies a TPM signature over the given statement using the provided public
+// key.
+//
+// * `spki` - The Subject Public Key Info of the certifying key.
+// * `statement` - The attestation statement bytes to verify.
+// * `signature_blob` - The serialized TPMT_SIGNATURE bytes returned by the TPM.
+CRYPTO_EXPORT SignatureErrorOr<void> VerifySignature(
+    base::span<const uint8_t> spki,
+    base::span<const uint8_t> statement,
+    base::span<const uint8_t> signature_blob);
+
+}  // namespace crypto::tpm
+
+#endif  // CRYPTO_TPM_PARSER_H_

@@ -6,6 +6,8 @@
 
 #import <Foundation/Foundation.h>
 
+#include <utility>
+
 #include "base/notreached.h"
 #include "chrome/grit/generated_resources.h"
 #include "ui/base/l10n/l10n_util_mac.h"
@@ -14,7 +16,7 @@ namespace AppleScript {
 
 void SetError(Error error_code) {
   NSScriptCommand* current_command = [NSScriptCommand currentCommand];
-  current_command.scriptErrorNumber = static_cast<int>(error_code);
+  current_command.scriptErrorNumber = std::to_underlying(error_code);
 
   NSString* error_string = @"";
   switch (error_code) {
@@ -64,8 +66,10 @@ void SetError(Error error_code) {
       error_string = l10n_util::GetNSString(
           IDS_JAVASCRIPT_UNSUPPORTED_ERROR_APPLESCRIPT_MAC);
       break;
-    default:
-      NOTREACHED();
+    case Error::kDevToolsUnsupported:
+      error_string =
+          l10n_util::GetNSString(IDS_DEV_TOOLS_NOT_ALLOWED_APPLESCRIPT_MAC);
+      break;
   }
   current_command.scriptErrorString = error_string;
 }

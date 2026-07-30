@@ -11,7 +11,20 @@
 
 namespace extensions {
 
-class GlicPrivateGetStateFunction : public ExtensionFunction {
+class GlicPrivateFunction : public ExtensionFunction {
+ public:
+  GlicPrivateFunction();
+  GlicPrivateFunction(const GlicPrivateFunction&) = delete;
+  GlicPrivateFunction& operator=(const GlicPrivateFunction&) = delete;
+
+ protected:
+  ~GlicPrivateFunction() override;
+
+  // ExtensionFunction:
+  bool PreRunValidation(std::string* error) override;
+};
+
+class GlicPrivateGetStateFunction : public GlicPrivateFunction {
  public:
   DECLARE_EXTENSION_FUNCTION("glicPrivate.getState", GLICPRIVATE_GETSTATE)
 
@@ -27,7 +40,7 @@ class GlicPrivateGetStateFunction : public ExtensionFunction {
   ResponseAction Run() override;
 };
 
-class GlicPrivateInvokeFunction : public ExtensionFunction {
+class GlicPrivateInvokeFunction : public GlicPrivateFunction {
  public:
   DECLARE_EXTENSION_FUNCTION("glicPrivate.invoke", GLICPRIVATE_INVOKE)
 
@@ -54,7 +67,7 @@ class GlicPrivateInvokeFunction : public ExtensionFunction {
                          std::optional<std::string> prompt);
 };
 
-class GlicPrivateHasConversationFunction : public ExtensionFunction {
+class GlicPrivateHasConversationFunction : public GlicPrivateFunction {
  public:
   DECLARE_EXTENSION_FUNCTION("glicPrivate.hasConversation",
                              GLICPRIVATE_HASCONVERSATION)
@@ -73,7 +86,7 @@ class GlicPrivateHasConversationFunction : public ExtensionFunction {
 };
 
 class GlicPrivateActivateTabWithConversationFunction
-    : public ExtensionFunction {
+    : public GlicPrivateFunction {
  public:
   DECLARE_EXTENSION_FUNCTION("glicPrivate.activateTabWithConversation",
                              GLICPRIVATE_ACTIVATETABWITHCONVERSATION)

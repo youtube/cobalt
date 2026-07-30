@@ -138,13 +138,16 @@ public class NtpBackgroundDataUtils {
      * Loads the NTP background image from disk asynchronously.
      *
      * @param onImageLoadedCallback The callback to invoke when the image is loaded.
+     * @param filePath The path of the image file to load.
      */
-    static void loadImage(Callback<@Nullable Bitmap> onImageLoadedCallback) {
+    static void loadImage(
+            Callback<@Nullable Bitmap> onImageLoadedCallback, @Nullable String filePath) {
         NtpCustomizationUtils.readNtpBackgroundImage(
                 (bitmap) -> {
                     onImageLoadedCallback.onResult(bitmap);
                 },
-                NtpCustomizationConfigManager.EXECUTOR);
+                NtpCustomizationConfigManager.EXECUTOR,
+                filePath);
     }
 
     /**

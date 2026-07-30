@@ -117,6 +117,7 @@
 <translation id="1435593198351412143">PDFs ස්වයංක්‍රීයව විවෘත කරන්න</translation>
 <translation id="1437543266176261764"><ph name="APP_NAME" /> තුළ ධාවනය වෙයි</translation>
 <translation id="1448440926884431741">Bookmarks තුළ ඔබගේ හඹා ගිය නිෂ්පාදන සංවිධානය කරන්න</translation>
+<translation id="1452651021404174820">උපාංගයක් තෝරා ගන්න</translation>
 <translation id="1455845192930279203">ඔබට කෙසේ හෝ <ph name="DOWNLOAD_DOMAIN" /> වෙතින් "<ph name="FILE_NAME" />" (<ph name="FILE_SIZE" />) බාගත කිරීමට අවශ්‍ය ද?</translation>
 <translation id="1460751212339734034">කාලය ඉතිරි කරන්න, අඩුවෙන් ටයිප් කරන්න</translation>
 <translation id="146522654774760805">මුරපද සහ ස්වයං පිරවීම</translation>
@@ -124,6 +125,7 @@
 <translation id="1477626028522505441">සේවාදායකයේ දෝෂ නිසා <ph name="FILE_NAME" /> බාගැනීම අසාර්ථක විය.</translation>
 <translation id="147982357559798527">වෙනස් කළා</translation>
 <translation id="1480287803138246127">ඔබේ සමහර වෙබ් ඉතිහාසය මෙහි දින් නොවීමට ඉඩ ඇත. ඔබේ සියලුම Chrome ඉතිහාසය බැලීමට, සම්පූර්ණ Chrome ඉතිහාසය විවෘත කරන්න.</translation>
+<translation id="1483493594462132177">යවන්න</translation>
 <translation id="1495677929897281669">ආපසු පටිත්ත වෙත</translation>
 <translation id="1496514951988037011">පරිශීලක නාමය</translation>
 <translation id="1501480321619201731">සමූහය මකන්න</translation>
@@ -1273,6 +1275,7 @@
 <translation id="634208815998129842">කාර්ය කළමණාකරු</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{<ph name="SHIPPING_ADDRESS_PREVIEW" />... සහ තවත් <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" />}one{<ph name="SHIPPING_ADDRESS_PREVIEW" />... සහ තවත් <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" />}other{<ph name="SHIPPING_ADDRESS_PREVIEW" />... සහ තවත් <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" />}}</translation>
 <translation id="6345878117466430440">කියවූ ලෙස ලකුණු කරන්න</translation>
+<translation id="6350745006329795504">ඔබේ උපාංග කළමනාකරණය කරන්න</translation>
 <translation id="6356893102071098867">ඔබ නිවැරදි ගිණුම තෝරා ගෙන තිබේ දැයි පරීක්ෂා කරන්න</translation>
 <translation id="6364438453358674297">යෝජනාව ඉතිහාසය වෙතින් ඉවත් කරන්නද?</translation>
 <translation id="6380100320871303656">ඔබ පිවිසීමට ඉඩ ඇතැයි Chrome සිතන පිටු වඩාත් නිතර පූර්ව පූරණය කරයි. මෙම සැකසීම දත්ත භාවිතය වැඩි වීමට හේතු විය හැකිය.</translation>

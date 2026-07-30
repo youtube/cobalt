@@ -134,6 +134,24 @@ struct ScopedOrtTypeTraitsHelper<OrtModelCompilationOptions*> {
   }
 };
 
+template <>
+struct ScopedOrtTypeTraitsHelper<OrtExternalResourceImporter*> {
+  static void Free(OrtExternalResourceImporter* value) {
+    PlatformFunctions::GetInstance()
+        ->ort_interop_api()
+        ->ReleaseExternalResourceImporter(value);
+  }
+};
+
+template <>
+struct ScopedOrtTypeTraitsHelper<OrtExternalMemoryHandle*> {
+  static void Free(OrtExternalMemoryHandle* value) {
+    PlatformFunctions::GetInstance()
+        ->ort_interop_api()
+        ->ReleaseExternalMemoryHandle(value);
+  }
+};
+
 template <typename T>
 using ScopedOrtType = base::ScopedGeneric<T*, ScopedOrtTypeTraits<T*>>;
 
@@ -156,6 +174,10 @@ using ScopedOrtModel = internal::ScopedOrtType<OrtModel>;
 using ScopedOrtAllocator = internal::ScopedOrtType<OrtAllocator>;
 using ScopedOrtModelCompilationOptions =
     internal::ScopedOrtType<OrtModelCompilationOptions>;
+using ScopedOrtExternalResourceImporter =
+    internal::ScopedOrtType<OrtExternalResourceImporter>;
+using ScopedOrtExternalMemoryHandle =
+    internal::ScopedOrtType<OrtExternalMemoryHandle>;
 
 }  // namespace webnn::ort
 

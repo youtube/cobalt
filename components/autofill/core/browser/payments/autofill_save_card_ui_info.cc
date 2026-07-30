@@ -246,13 +246,18 @@ AutofillSaveCardUiInfo AutofillSaveCardUiInfo::CreateForUploadSave(
       base::FeatureList::IsEnabled(features::kAutofillEnableWalletBranding);
   bool is_wallet_branding_v2_enabled =
       base::FeatureList::IsEnabled(features::kAutofillEnableWalletBrandingV2);
+  bool is_gradient_google_logos_enabled = base::FeatureList::IsEnabled(
+      features::kAutofillEnableGradientGoogleLogos);
   switch (options.card_save_type) {
     case CardSaveType::kCardSaveOnly: {
       if (is_chrome_branding_enabled) {
         if (is_wallet_branding_enabled) {
-          save_card_icon_id = is_wallet_branding_v2_enabled
-                                  ? IDR_AUTOFILL_GOOGLE_WALLET_ICON
-                                  : IDR_AUTOFILL_GOOGLE_WALLET;
+          save_card_icon_id =
+              is_wallet_branding_v2_enabled
+                  ? (is_gradient_google_logos_enabled
+                         ? IDR_AUTOFILL_GOOGLE_WALLET_ICON_WITH_GRADIENT
+                         : IDR_AUTOFILL_GOOGLE_WALLET_ICON)
+                  : IDR_AUTOFILL_GOOGLE_WALLET;
           save_card_icon_description_text = l10n_util::GetStringUTF16(
               IDS_AUTOFILL_GOOGLE_WALLET_LOGO_ACCESSIBLE_NAME);
           description_text = l10n_util::GetStringUTF16(
@@ -280,9 +285,12 @@ AutofillSaveCardUiInfo AutofillSaveCardUiInfo::CreateForUploadSave(
     case CardSaveType::kCardSaveWithCvc: {
       if (is_chrome_branding_enabled) {
         if (is_wallet_branding_enabled) {
-          save_card_icon_id = is_wallet_branding_v2_enabled
-                                  ? IDR_AUTOFILL_GOOGLE_WALLET_ICON
-                                  : IDR_AUTOFILL_GOOGLE_WALLET;
+          save_card_icon_id =
+              is_wallet_branding_v2_enabled
+                  ? (is_gradient_google_logos_enabled
+                         ? IDR_AUTOFILL_GOOGLE_WALLET_ICON_WITH_GRADIENT
+                         : IDR_AUTOFILL_GOOGLE_WALLET_ICON)
+                  : IDR_AUTOFILL_GOOGLE_WALLET;
           save_card_icon_description_text = l10n_util::GetStringUTF16(
               IDS_AUTOFILL_GOOGLE_WALLET_LOGO_ACCESSIBLE_NAME);
           description_text = l10n_util::GetStringUTF16(

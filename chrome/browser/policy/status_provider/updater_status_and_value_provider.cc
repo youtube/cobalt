@@ -22,6 +22,7 @@
 #include "chrome/browser/updater/updater.h"
 #include "components/policy/core/browser/policy_conversions.h"
 #include "components/policy/core/browser/webui/policy_status_provider.h"
+#include "components/policy/resources/webui/mojom/policy.mojom.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/web_contents.h"
@@ -56,8 +57,31 @@ base::DictValue UpdaterStatusAndValueProvider::GetStatus() {
              GetTimeSinceLastActionString(updater_status_->last_checked_time));
   }
 
+  if (dict.empty()) {
+    return {};
+  }
+
   dict.Set(policy::kPolicyDescriptionKey, kUpdaterPolicyStatusDescription);
   return dict;
+}
+
+policy::mojom::StatusPtr UpdaterStatusAndValueProvider::GetStatusMojo() {
+  auto status = policy::mojom::Status::New();
+  if (!domain_.empty()) {
+    status->domain = domain_;
+  }
+  if (!updater_status_) {
+    return status;
+  }
+  if (!updater_status_->version.empty()) {
+    status->version = updater_status_->version;
+  }
+  if (!updater_status_->last_checked_time.is_null()) {
+    status->time_since_last_refresh = base::UTF16ToUTF8(
+        GetTimeSinceLastActionString(updater_status_->last_checked_time));
+  }
+  status->policy_description_key = kUpdaterPolicyStatusDescription;
+  return status;
 }
 
 base::DictValue UpdaterStatusAndValueProvider::GetValues() {

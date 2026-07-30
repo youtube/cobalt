@@ -38,13 +38,6 @@
 @property(nonatomic, strong, readonly)
     BaseGridViewController* gridViewController;
 
-// Combines two transition layouts into one. The `primaryLayout` has the
-// priority over `secondaryLayout`. This means that in case there are two
-// activeItems and/or two selectionItems available, only the ones from
-// `primaryLayout` would be picked for a combined layout.
-- (LegacyGridTransitionLayout*)
-    combineTransitionLayout:(LegacyGridTransitionLayout*)primaryLayout
-       withTransitionLayout:(LegacyGridTransitionLayout*)secondaryLayout;
 
 // Hides the potentially displayed Tab Group view.
 - (void)hideTabGroup;

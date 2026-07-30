@@ -29,9 +29,10 @@ impl std::fmt::Display for DecodeError {
             }
             DecodeError::InvalidDictionary => write!(f, "Shared dictionary format is invalid."),
             DecodeError::MaxSizeExceeded => write!(f, "Decompressed size greater than maximum."),
-            DecodeError::ExcessInputData => {
-                write!(f, "There is unconsumed data in the input stream after decoding.")
-            }
+            DecodeError::ExcessInputData => write!(
+                f,
+                "There is unconsumed data in the input stream after decoding."
+            ),
             DecodeError::IoError(kind) => write!(f, "Generic IO error: {}", kind),
         }
     }

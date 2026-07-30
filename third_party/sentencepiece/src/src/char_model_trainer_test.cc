@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.!
 
+#include "char_model_trainer.h"
+
 #include <string>
 #include <vector>
 
-#include "char_model_trainer.h"
 #include "filesystem.h"
 #include "sentencepiece_processor.h"
 #include "testharness.h"
@@ -31,8 +32,7 @@ namespace {
 #define WS "\xE2\x96\x81"
 
 std::string RunTrainer(const std::vector<std::string> &input, int size) {
-  const std::string input_file =
-      util::JoinPath(::testing::TempDir(), "input");
+  const std::string input_file = util::JoinPath(::testing::TempDir(), "input");
   const std::string model_prefix =
       util::JoinPath(::testing::TempDir(), "model");
   {

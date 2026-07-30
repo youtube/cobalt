@@ -206,6 +206,7 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge {
                                     tabGroupId,
                                     restoredTabGroup,
                                     tab.getIsPinned());
+            invalidateCache();
 
             decrementClosingTabsCount();
 
@@ -310,6 +311,12 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge {
     // counterparts.
     private final Map<Integer, Tab> mTabIdToTabs = new HashMap<>();
 
+    // Actively-maintained cache of all active tabs in their correct order.
+    // If null, the cache is dirty/invalid and must be re-populated from native on the next read.
+    // All reads must go through getTabList() to ensure the cache is valid.
+    // All modifications must call invalidateCache() to mark the cache as dirty.
+    private @Nullable List<Tab> mTabsList;
+
     private final @TabModelType int mTabModelType;
     private final TabCreator mRegularTabCreator;
     private final TabCreator mIncognitoTabCreator;
@@ -403,6 +410,7 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge {
         if (mNativeTabCollectionTabModelImplPtr != 0) {
             TabCollectionTabModelImplJni.get().destroy(mNativeTabCollectionTabModelImplPtr);
             mNativeTabCollectionTabModelImplPtr = 0;
+            invalidateCache();
         }
 
         for (Tab tab : tabs) {
@@ -443,28 +451,21 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge {
     @Override
     public int getCount() {
         assertOnUiThread();
-        if (mNativeTabCollectionTabModelImplPtr == 0) return 0;
-        return TabCollectionTabModelImplJni.get()
-                .getTabCountRecursive(mNativeTabCollectionTabModelImplPtr);
+        return getAllTabs().size();
     }
 
     @Override
     public @Nullable Tab getTabAt(int index) {
         assertOnUiThread();
-        if (mNativeTabCollectionTabModelImplPtr == 0) return null;
-        return TabCollectionTabModelImplJni.get()
-                .getTabAtIndexRecursive(mNativeTabCollectionTabModelImplPtr, index);
+        if (index < 0 || index >= getAllTabs().size()) return null;
+        return getAllTabs().get(index);
     }
 
     @Override
     public int indexOf(@Nullable Tab tab) {
         assertOnUiThread();
-        if (tab == null || mNativeTabCollectionTabModelImplPtr == 0) {
-            return TabList.INVALID_TAB_INDEX;
-        }
-        assert tab.isInitialized();
-        return TabCollectionTabModelImplJni.get()
-                .getIndexOfTabRecursive(mNativeTabCollectionTabModelImplPtr, tab);
+        if (tab == null) return TabList.INVALID_TAB_INDEX;
+        return getAllTabs().indexOf(tab);
     }
 
     @Override
@@ -872,6 +873,7 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge {
         assert mNativeTabCollectionTabModelImplPtr == 0;
         mNativeTabCollectionTabModelImplPtr =
                 TabCollectionTabModelImplJni.get().init(this, getProfile());
+        invalidateCache();
     }
 
     @Override
@@ -912,6 +914,8 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge {
 
         if (finalIndex == curIndex) return;
 
+        invalidateCache();
+
         for (int i = 0; i < tabs.size(); i++) {
             Tab tab = tabs.get(i);
             for (TabModelObserver observer : mTabModelObservers) {
@@ -933,6 +937,30 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge {
 
     @Override
     protected List<Tab> getAllTabs() {
+        assertOnUiThread();
+        if (mTabsList == null) {
+            List<Tab> rawList = null;
+            if (mNativeTabCollectionTabModelImplPtr != 0) {
+                rawList =
+                        TabCollectionTabModelImplJni.get()
+                                .getAllTabs(mNativeTabCollectionTabModelImplPtr);
+            }
+            if (rawList == null) {
+                mTabsList = Collections.emptyList();
+            } else {
+                mTabsList = Collections.unmodifiableList(rawList);
+            }
+        }
+        return mTabsList;
+    }
+
+    private void invalidateCache() {
+        assertOnUiThread();
+        mTabsList = null;
+    }
+
+    @VisibleForTesting
+    List<Tab> getAllTabsFromNativeForTesting() {
         assertOnUiThread();
         if (mNativeTabCollectionTabModelImplPtr == 0) return Collections.emptyList();
         return TabCollectionTabModelImplJni.get().getAllTabs(mNativeTabCollectionTabModelImplPtr);
@@ -1616,6 +1644,7 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge {
                                 tabGroupId,
                                 createNewGroup,
                                 tab.getIsPinned());
+        invalidateCache();
 
         // When adding the first background tab make sure to select it.
         if (shouldSelectBackgroundTab) {
@@ -1777,7 +1806,7 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge {
 
         final List<Tab> tabsToClose;
         if (params.isAllTabs) {
-            tabsToClose = getAllTabs();
+            tabsToClose = new ArrayList<>(getAllTabs());
             if (canHideTabGroups) {
                 for (Token tabGroupId : getAllTabGroupIds()) {
                     mHidingTabGroups.add(tabGroupId);
@@ -2098,6 +2127,7 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge {
             tab.onRemovedFromTabModel(mCurrentTabSupplier, detachReason);
             mTabIdToTabs.remove(tab.getId());
         }
+        invalidateCache();
         mTabCountSupplier.set(getCount());
 
         if (nextTab != currentTabInModel) {
@@ -2475,6 +2505,7 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge {
                                 newIndex,
                                 newTabGroupId,
                                 isPinned);
+        invalidateCache();
 
         // Ensure the current tab is always the last shown tab in its group.
         Tab currentTab = mCurrentTabSupplier.get();

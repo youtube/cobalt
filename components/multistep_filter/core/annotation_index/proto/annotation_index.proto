@@ -108,6 +108,19 @@ message TaskExecutionStrategy {
 
   // The execution strategy the client should use to actuate the task.
   TaskExecution execution = 3;
+
+  // UI strings to display to the user.
+  SuggestionMessage suggestion_message = 4;
+}
+
+// UI strings to display to the user for the suggestion.
+message SuggestionMessage {
+  // The short cue string to display in the Omnibox (e.g., "Find Stays?").
+  string short_text = 1;
+
+  // The detailed cue string to display (e.g., "Find Stays? New York • Dec 11-14
+  // • 2 adults").
+  string detailed_text = 2;
 }
 
 // Response containing all valid strategies generated from the request

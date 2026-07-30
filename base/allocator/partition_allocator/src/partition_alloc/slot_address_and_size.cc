@@ -80,6 +80,9 @@ SlotAddressAndSize SlotAddressAndSize::From(uintptr_t address,
   size_t offset_in_slot_span = address - slot_span_start.value();
 
   auto* bucket = slot_span->bucket;
+  if (!bucket) {
+    return {.slot_start = internal::UntaggedSlotStart::Unchecked(0u)};
+  }
   return SlotAddressAndSize{
       .slot_start = internal::UntaggedSlotStart::Unchecked(
           slot_span_start.value() +

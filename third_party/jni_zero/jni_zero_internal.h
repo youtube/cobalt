@@ -46,7 +46,8 @@ LazyGetClass(JNIEnv* env,
              const char* class_name,
              std::atomic<jclass>* atomic_class_id);
 
-jclass GetClassInternal(JNIEnv* env, const char* class_name);
+JNI_ZERO_COMPONENT_BUILD_EXPORT jclass GetClassInternal(JNIEnv* env,
+                                                        const char* class_name);
 
 // This class is a wrapper for JNIEnv Get(Static)FieldID.
 class JNI_ZERO_COMPONENT_BUILD_EXPORT FieldID {

@@ -48,6 +48,7 @@
 <translation id="1129383337808748948">Թարմացնել «<ph name="CONTENT_TITLE" />» էջը</translation>
 <translation id="1142002900084379065">Վերջին լուսանկարները</translation>
 <translation id="114221662579355151">Սա հասանելի է դարձնում տեսախցիկը <ph name="APP1_NAME" /> և <ph name="APP2_NAME" /> հավելվածներին, ինչպես նաև բոլոր հավելվածներին և կայքերին, որոնք ունեն տեսախցիկի օգտագործման թույլտվություն։ Հնարավոր է՝ անհրաժեշտ լինի թարմացնել վեբ էջը կամ վերագործարկել հավելվածը։</translation>
+<translation id="1145593918056169051">Տպիչի աշխատանքն ընդհատվեց</translation>
 <translation id="1147991416141538220">Օգտագործելու թույլտվություն խնդրելու համար կապվեք այս սարքի ադմինիստրատորի հետ:</translation>
 <translation id="1148499908455722006">Բացել <ph name="USER_NAME" /> հաշվի տեղեկությունների երկխոսության պատուհանը</translation>
 <translation id="1150989369772528668">Օրացույց</translation>
@@ -151,6 +152,7 @@
 <translation id="1383876407941801731">Որոնում</translation>
 <translation id="1388728792929436380">Հենց որ թարմացումները տեղադրվեն, <ph name="DEVICE_TYPE" /> սարքը կվերագործարկվի։</translation>
 <translation id="1390113502208199250">Chrome Education-ի լիցենզիայի գործառույթներից օգտվելու համար հարկավոր է վերականգնել այս սարքի գործարանային կարգավորումները։</translation>
+<translation id="1390907927270446471"><ph name="PROFILE_USERNAME" /> օգտատերը <ph name="PRINTER_NAME" /> տպիչի միջոցով տպելու թույլտվություն չունի։ Դիմեք ձեր ադմինիստրատորին։</translation>
 <translation id="1391102559483454063">Միացված է</translation>
 <translation id="1394698770495054737">Լրիվ շաղում</translation>
 <translation id="1395878931462960119">{DAYS,plural, =1{1 օր առաջ}one{# օր առաջ}other{# օր առաջ}}</translation>
@@ -169,6 +171,7 @@
 <translation id="1426410128494586442">Այո</translation>
 <translation id="142655739075382478"><ph name="APP_NAME" /> հավելվածն արգելափակված է</translation>
 <translation id="142765311413773645"><ph name="APP_NAME" /> հավելվածի հավաստագրի գործողության ժամկետը սպառվել է</translation>
+<translation id="1430915738399379752">Տպում</translation>
 <translation id="1435537621343861112">Հնարավոր չէ սկսել թելադրումը։ Խոսափողն անջատված է։</translation>
 <translation id="1445031758921122223">Դեմքի հետագծման ֆայլերը ներբեռնվեցին</translation>
 <translation id="1447907279406111651">Հիմա · Ավարտը՝ <ph name="END_TIME" /></translation>
@@ -229,6 +232,7 @@
 <translation id="1597880963776148053">Ուղեցույցի քայլ <ph name="STEP" />՝ <ph name="TOTAL_STEPS" />-ից։ Ձեր ամրացված և բացված հավելվածները էկրանի ներքևում գտնվող դարակում են։ Սեղմեք Alt + Shift + L, այնուհետև Tab՝ դարակի տարրերը ֆոկուսի մեջ վերցնելու համար։</translation>
 <translation id="1602085790802918092">Վիրտուալ մեքենան գործարկվում է</translation>
 <translation id="1602874809115667351"><ph name="LAUNCHER_KEY_NAME" /> + ներքև սլաք</translation>
+<translation id="1604432177629086300">Չհաջողվեց տպել: Ստուգեք տպիչը և նորից փորձեք:</translation>
 <translation id="1604857178818051494">Դադարեցնել</translation>
 <translation id="1607312127821884567">Բաց թողնել հեռախոսի հավելվածների դիտման կարգավորումը</translation>
 <translation id="1610778689852195798">«Undo» (հետարկել)</translation>
@@ -372,6 +376,7 @@
 <translation id="2053312383184521053">Անգործուն վիճակի տվյալներ</translation>
 <translation id="2064048859448024834">Տեսախցիկի նախադիտումը միացված է</translation>
 <translation id="2067220651560163985">Ջերմաստիճանը ցուցադրել Ցելսիուսով</translation>
+<translation id="206960706005837784"><ph name="APP_NAME" /> հավելվածն ավարտեց տպումը <ph name="PRINTER_NAME" /> տպիչում</translation>
 <translation id="2075520525463668108">Միացնել/անջատել <ph name="CAPTURE_MEDIUM" />ը։ <ph name="CAPTURE_MEDIUM" />ը <ph name="CAPTURE_STATE" /></translation>
 <translation id="2079545284768500474">Հետարկել</translation>
 <translation id="2086334242442703436">Բացել էմոջիների ընտրիչը</translation>
@@ -441,6 +446,7 @@
 <translation id="2328561734797404498"><ph name="APP_NAME" /> հավելվածն օգտագործելու համար վերագործարկեք ձեր սարքը։</translation>
 <translation id="2335091074961603075">Ձեր Chromebook-ը կամ Bluetooth սարքն օգտագործում է Bluetooth-ի ավելի հին տարբերակ։ Օգտագործեք ներքին խոսափողը, որպեսզի ձայնի որակն ավելի լավը լինի։</translation>
 <translation id="2336214675195760012">{NUM_DAYS,plural, =1{Տիրույթի (<ph name="MANAGER" />) կանոնների համաձայն՝ դուք պետք է այսօր միանաք Wi-Fi-ին և ներբեռնեք թարմացումը կամ օգտվեք վճարովի կապից (կարող է գումար գանձվել)։}one{Տիրույթի (<ph name="MANAGER" />) կանոնների համաձայն՝ դուք պետք է մինչև վերջնաժամկետը միանաք Wi-Fi-ին և ներբեռնեք թարմացումը կամ օգտվեք վճարովի կապից (կարող է գումար գանձվել)։}other{Տիրույթի (<ph name="MANAGER" />) կանոնների համաձայն՝ դուք պետք է մինչև վերջնաժամկետը միանաք Wi-Fi-ին և ներբեռնեք թարմացումը կամ օգտվեք վճարովի կապից (կարող է գումար գանձվել)։}}</translation>
+<translation id="2336258397628212480"><ph name="APP_NAME" /> հավելվածը 1 էջ է տպում <ph name="PRINTER_NAME" /> տպիչում</translation>
 <translation id="2336381494582898602">Powerwash</translation>
 <translation id="2339073806695260576">Հպեք դարակի վրայի ստիլուսի կոճակին՝ գրառում կատարելու կամ սքրինշոթ լուսանկարելու համար, ինչպես նաև լազերային ցուցիչը կամ խոշորացույցն օգտագործելու համար:</translation>
 <translation id="2341729377289034582">Միայն ուղղաձիգ</translation>
@@ -755,6 +761,7 @@
 <translation id="3206735939915734551">Միացնել/անջատել Caps Lock-ը</translation>
 <translation id="3207953481422525583">Օգտատիրոջ կարգավորումներ</translation>
 <translation id="3208321278970793882">Հավելված</translation>
+<translation id="32101887417650595">Չհաջողվեց միացնել տպիչը</translation>
 <translation id="3212221635583599601">Միացեք ինտերնետին ավելին իմանալու համար</translation>
 <translation id="3213571860604332401">Պահել հղումը որպես էջանիշ</translation>
 <translation id="3217205077783620295">Ձայնը միացված է։ Անջատելու համար սեղմեք այս կոճակը։</translation>
@@ -823,6 +830,7 @@
 <translation id="3431517721463707585">Աշխատասեղան 14</translation>
 <translation id="3433507769937235446">Կողպել, եթե մոտ չեք</translation>
 <translation id="3434107140712555581"><ph name="BATTERY_PERCENTAGE" />%</translation>
+<translation id="343578350365773421">Թուղթ չկա</translation>
 <translation id="3435967511775410570">Մատնահետքը ճանաչվեց</translation>
 <translation id="3437677362970530951">Խաղեր Play Խանութում կամ այլ խաղային հարթակներում</translation>
 <translation id="3439896670700055005">Վերաբեռնել ընթացիկ էջը՝ առանց հիշապահեստի բովանդակությունն օգտագործելու</translation>
@@ -999,6 +1007,7 @@
 <translation id="3848526302597027234">Ստանալ հետևյալ թույլտվությունները՝</translation>
 <translation id="385051799172605136">Հետ</translation>
 <translation id="385300504083504382">Սկիզբ</translation>
+<translation id="3854976556788175030">Արտածման պնակը լցված է</translation>
 <translation id="3857807444929313943">Բարձրացրեք մատը և նորից փորձեք</translation>
 <translation id="3859364108019690">Չհաջողվեց հեռարձակել հավելվածները</translation>
 <translation id="3861638017150647085">«<ph name="USERNAME" />» օգտանունը հասանելի չէ</translation>
@@ -1051,6 +1060,7 @@
 <translation id="401993194061514265">Նշիչը հասանելի չէ։ Նորից բացեք Screencast-ը։</translation>
 <translation id="4021716437419160885">Թերթել ներքև</translation>
 <translation id="4022497978915111141">Կողպել սարքը</translation>
+<translation id="4023048917751563912"><ph name="APP_NAME" /> հավելվածը <ph name="PAGE_NUMBER" /> էջ է տպում <ph name="PRINTER_NAME" /> տպիչում</translation>
 <translation id="4024840464866786680">Եթե մոռացել եք ձեր PIN կոդը և գաղտնաբառը կամ վերջերս փոխել եք Google հաշվի գաղտնաբառը, փորձեք վերականգնել այս օգտատիրոջը։</translation>
 <translation id="4026843240379844265">Տեղափոխել ակտիվ պատուհանը էկրանների միջև</translation>
 <translation id="4028481283645788203">Անվտանգության նկատառումներից ելնելով անհրաժեշտ է մուտքագրել գաղտնաբառը</translation>
@@ -1581,6 +1591,7 @@
 <translation id="5491186829646618080">Հասանելի են ներկառուցված ծրագրի թարմացումներ</translation>
 <translation id="5503884284981862082">Բացել/փակել Google Օգնականը</translation>
 <translation id="550391772491508736">Վերսկսել հեռարձակումը</translation>
+<translation id="5505307013568720083">Թանաքը վերջացել է</translation>
 <translation id="5506975627792768506">Միացնել կամ անջատել խոշորացույցը</translation>
 <translation id="5507778598655387680"><ph name="VOLUME_LEVEL" />, Եթե սեղմեք Enter, ձայնը կանջատվի։</translation>
 <translation id="5512042095225963688">Ջնջել նախորդ բառը</translation>
@@ -1692,12 +1703,14 @@
 <translation id="5791926618942305301">Էկրանի տեսագրման պարամետրեր՝ <ph name="SOURCE" />, <ph name="TYPE" />։ Տեսագրման տեսակն ընտրելու համար սեղմեք Tab։ Տեսագրումը սկսելու համար սեղմեք Enter։ Տեսագրման տարածքն ընտրելու համար նշեք մասնակի սքրինշոթի ընդգրկույթը։ Եթե դեռ ակտիվ չէ, սեղմեք բացատի ստեղնը՝ ընդգրկույթը նշելու համար։</translation>
 <translation id="579415080077680903">Անձայն ռեժիմ</translation>
 <translation id="5802516411616338943">Բացել արագ կարգավորումները</translation>
+<translation id="5804241973901381774">Թույլտվություններ</translation>
 <translation id="5804651031882187592">Անջատեք SIM քարտի կողպման կարգավորումը</translation>
 <translation id="5805809050170488595">Սեղմել՝ <ph name="NETWORK_NAME" /> ցանցն ակտիվացնելու համար</translation>
 <translation id="5818796501620225415">Կարող եք ժամանակ ավելացնել կամ ավարտել առանց շեղումների ռեժիմը</translation>
 <translation id="5819918159912280082">Ձեր Chromebook-ը անսպասելիորեն վերագործարկվեց։ Բացեք նախորդ պատուհանները և հավելվածները։</translation>
 <translation id="5823239091726045201">Google Tasks-ի առաջադրանքները դիտարկիչում</translation>
 <translation id="5825969630400862129">Կապակցված սարքերի կարգավորումներ</translation>
+<translation id="5828633471261496623">Տպում…</translation>
 <translation id="5830180081891717894">ևս <ph name="WINDOWS" /></translation>
 <translation id="5830205393314753525">Չհաջողվեց բացել <ph name="APP_NAME" /> հավելվածը</translation>
 <translation id="583281660410589416">Անհայտ</translation>
@@ -1722,6 +1735,7 @@
 <translation id="5892014525522223653">Դուք միացած չեք համացանցին։</translation>
 <translation id="5895138241574237353">Վերագործարկել</translation>
 <translation id="589817443623831496">Կետերի որոնում</translation>
+<translation id="5901494423252125310">Տպիչի դռնակը բաց է</translation>
 <translation id="5901630391730855834">Դեղին</translation>
 <translation id="5904614460720589786">Կազմաձևման խնդրի պատճառով չհաջողվեց կարգավորել <ph name="APP_NAME" /> հավելվածը։ Դիմեք ձեր ադմինիստրատորին։ Սխալի կոդը՝ <ph name="ERROR_CODE" />։</translation>
 <translation id="5910726859585389579"><ph name="DEVICE_TYPE" /> սարքը միացած չէ ինտերնետին</translation>
@@ -1786,6 +1800,7 @@
         <ph name="BEGIN_PARAGRAPH2" />Այս գործառույթն անջատելու դեպքում այս սարքը նախկինի պես կուղարկի տվյալներ, որոնք անհրաժեշտ են հիմնական ծառայություններին (օրինակ՝ համակարգային թարմացումներին ու անվտանգությանը)։<ph name="END_PARAGRAPH2" />
         <ph name="BEGIN_PARAGRAPH3" />Սեփականատերը կարող է կառավարել այս գործառույթը՝ անցնելով Կարգավորումներ &gt; Լրացուցիչ &gt; Ավտոմատ ուղարկել ախտորոշման և օգտագործման տվյալները Google-ին։<ph name="END_PARAGRAPH3" />
         <ph name="BEGIN_PARAGRAPH4" />Եթե Վեբ որոնման և հավելվածների լրացուցիչ պատմությունը միացված է, այս տվյալները կպահվեն երեխայի Google հաշվում։ Այս կարգավորումների մասին ավելին իմանալու և դրանք ըստ ձեր հայեցողության փոփոխելու համար անցեք families.google.com էջ։<ph name="END_PARAGRAPH4" /></translation>
+<translation id="6052261338768299955"><ph name="APP_NAME" /> հավելվածը փորձում է տպել <ph name="PRINTER_NAME" /> տպիչում</translation>
 <translation id="6054305421211936131">Մտնել հաշիվ խելացի քարտի օգնությամբ</translation>
 <translation id="6059276912018042191">Վերջերս բացված Chrome-ի ներդիրներ</translation>
 <translation id="606147842285839995">ExpressKey 3</translation>
@@ -1890,6 +1905,7 @@
 <translation id="6337159624125741244">Լիաէկրան խոշորացույցը միացված է</translation>
 <translation id="6338485349199627913"><ph name="DISPLAY_NAME" /> աշխատաշրջանը կառավարվում է <ph name="MANAGER" />-ի կողմից</translation>
 <translation id="6340148837564298498">Եթե մոռացել եք ձեր PIN կոդը, փորձեք վերականգնել այս օգտատիրոջ հաշիվը։</translation>
+<translation id="634208815998129842">Խնդիրների կառավարիչ</translation>
 <translation id="6344138931392227467">Զուգակցվեց <ph name="DEVICE_NAME" /> սարքը</translation>
 <translation id="6345418402353744910">Ձեր օգտանունն ու գաղտնաբառը անհրաժեշտ են <ph name="PROXY" /> պրոքսի սերվերի համար, որպեսզի ադմինիստրատորը կարողանա կարգավորել ձեր ցանցը։</translation>
 <translation id="6348449481487610270"><ph name="MODIFIER_ONE" /><ph name="MODIFIER_TWO" /><ph name="KEY_ONE" />, ապա՝ <ph name="MODIFIER_THREE" /><ph name="KEY_TWO" />, ապա <ph name="KEY_THREE" /></translation>
@@ -2095,6 +2111,7 @@
 <translation id="6921427376813842559">Թարմացրեք սարքը</translation>
 <translation id="6929081673585394903">Ցույց տալ կառավարման տարրերը</translation>
 <translation id="6931576957638141829">Պահել…</translation>
+<translation id="6935286146439255109">Թղթի պնակը բացակայում է</translation>
 <translation id="6935857786205183008">Ուղղաձիգ</translation>
 <translation id="6942518653766415536">Տեսագրման ձևաչափի ընտրացանկ</translation>
 <translation id="6945221475159498467">Ընտրել</translation>
@@ -2117,6 +2134,7 @@
 <translation id="6988094684494323731">Լինուքսի կոնտեյները գործարկվում է</translation>
 <translation id="7000027735917578303">Windows-ի և աշխատասեղանի կարգավորումներ</translation>
 <translation id="7001036685275644873">Լինուքսի հավելվածների ու ֆայլերի պահուստավորում</translation>
+<translation id="7001066449188684145">Պահանջվում է նույնականացում՝ <ph name="PRINTER_NAME" /> տպիչի միջոցով տպելու համար։ Դիմեք ձեր ադմինիստրատորին։</translation>
 <translation id="7004910047186208204">Միացեք բջջային ինտերնետին</translation>
 <translation id="7005239792648594238">Սկսելու համար բացեք որևէ հավելված</translation>
 <translation id="7014684956566476813">Կապ է հաստատվել «<ph name="DEVICE_NAME" />» սարքի հետ</translation>
@@ -2156,6 +2174,7 @@
 <translation id="7108254681523785542">Ընտրեք տարր՝ տեղադրելու համար։ Սեղմատախտակը տեսնելու համար սեղմեք <ph name="SHORTCUT_KEY_NAME" /> + v։</translation>
 <translation id="7108338896283013870">Թաքցնել</translation>
 <translation id="7108933416628942903">Կողպել հիմա</translation>
+<translation id="7116554090938189816">Տպիչի SSL հավաստագրի ժամկետը լրացել է։ Վերագործարկեք տպիչը և նորից փորձեք։</translation>
 <translation id="7116969082764510092">Աշխատասեղան 11</translation>
 <translation id="7118268675952955085">սքրինշոթ</translation>
 <translation id="7118597077555700347">Բացել «<ph name="SEARCH_RESULT_TEXT" />» որոնման արդյունքը</translation>
@@ -2207,6 +2226,7 @@
 <translation id="7312210124139670355">Ադմինիստրատորը վերակայում է ձեր eSIM-ը։ Դա կարող է մի քանի րոպե տևել։</translation>
 <translation id="7312761820869643657">Վերադարձեք սարքի օպերացիոն համակարգի նախորդ տարբերակին</translation>
 <translation id="7313193732017069507">Ծավալել տեսախցիկը</translation>
+<translation id="7325209047678309347">Թուղթը խցանվել է</translation>
 <translation id="7327989755579928735"><ph name="MANAGER" /> կայքն անջատել է ADB վրիպազերծումը։ Ձեր <ph name="DEVICE_TYPE" /> սարքը վերագործարկելուց հետո դուք չեք կարողանա բեռնել հավելվածներ անհայտ աղբյուրներից։</translation>
 <translation id="73289266812733869">Ընտրությունը չեղարկված է</translation>
 <translation id="7330397557116570022">Թելադրումն օգտագործելու համար անցեք տեքստային դաշտ</translation>
@@ -2581,6 +2601,7 @@
 <translation id="8339706171276328417"><ph name="ACTION_DESCRIPTION" /> · <ph name="TIME" /></translation>
 <translation id="834414266279889566">Վատ արդյունք</translation>
 <translation id="8345019317483336363">Ընտրված է «<ph name="WINDOW_TITLE" />» պատուհանը</translation>
+<translation id="8347227221149377169">Տպելու առաջադրանքներ</translation>
 <translation id="8349826889576450703">գործարկիչ</translation>
 <translation id="8349964124165471584">Բացել հղումը նոր պատուհանում</translation>
 <translation id="8351131234907093545">Գրառման ստեղծում</translation>
@@ -2619,6 +2640,7 @@
 <translation id="8458259704995116343">Չհաջողվեց գործարկել վիրտուալ մեքենան։</translation>
 <translation id="84613761564611563">Ցանցի կարգավորման միջերեսի սպասում...</translation>
 <translation id="8462305545768648477">Փակել «Ընտրեք և լսեք» գործառույթը</translation>
+<translation id="8463001014623882202">Չհաջողվեց թույլատրել</translation>
 <translation id="8466665972451889002">Ցույց տալ տարրերը <ph name="GROUP_NAME" /> խմբում</translation>
 <translation id="8468806060683421065">վերջնաժամկետը՝ <ph name="DUE_DATE_AND_TIME" /></translation>
 <translation id="8473301994082929012"><ph name="ORGANIZATION_NAME" />-ն ունի <ph name="FEATURE_STATE" /> <ph name="FEATURE_NAME" />:</translation>

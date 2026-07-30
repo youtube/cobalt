@@ -376,6 +376,7 @@
 <translation id="5313228254328109263">Servei intern de l'actualitzador de Chromium</translation>
 <translation id="5324450571874973775">Utilitza-les juntament amb altres funcions de Gemini a Chromium</translation>
 <translation id="5346389065299425353">Aprofundeix en la cerca afegint diverses pestanyes, fitxers i eines</translation>
+<translation id="5348677704241861105">Obtén una visió general ràpida d'aquest document i fes preguntes amb Gemini a Chromium</translation>
 <translation id="5352264705793813212">Chromium ha trobat algunes recomanacions de seguretat que hauries de revisar</translation>
 <translation id="5352361688875342522">Altres perfils de Chromium</translation>
 <translation id="535243042947607642">ChromiumOS no ha pogut desar les dades de Chromium al teu Compte de Google perquè els detalls d'inici de sessió del compte no estan actualitzats</translation>
@@ -484,6 +485,7 @@ Si aquesta pàgina no funciona de la manera prevista, prova de permetre l'optimi
 <translation id="6390800440335263989">Per continuar, inicia la sessió a Chromium com a <ph name="EMAIL" />. D'aquesta manera, podem garantir que s'apliquen les polítiques de la teva organització.</translation>
 <translation id="6400112897226594999">Logotip de Chromium a l'interior d'una pantalla d'ordinador.</translation>
 <translation id="6403826409255603130">Chromium és un navegador web que executa les pàgines web i les aplicacions a gran velocitat. És ràpid, estable i fàcil d'utilitzar. Navegueu per Internet amb més seguretat amb protecció inserida a Chromium contra el programari maliciós i contra la pesca de credencials.</translation>
+<translation id="6414624068245092115">Per assegurar-te que puguis fer servir i desar sempre les dades de Chromium al teu Compte de Google, verifica la teva identitat</translation>
 <translation id="642132557830635295">Chromium s'executa més ràpidament i les funcions que utilitzen JavaScript haurien de funcionar tal com es van dissenyar</translation>
 <translation id="6436260184216827876">La cerca d'imatges no està disponible. Torna-ho a provar més tard.</translation>
 <translation id="6442900851116057561">Reinicia Chromium OS</translation>
@@ -537,6 +539,17 @@ Si aquesta pàgina no funciona de la manera prevista, prova de permetre l'optimi
 <translation id="6896758677409633944">Copia</translation>
 <translation id="6901631050894301805">Defineix Chromium com a navegador predeterminat i fixa'l a la barra de tasques</translation>
 <translation id="6909503629704372277">&amp;Gestiona els perfils de Chromium</translation>
+<translation id="6919942714452658456">Amb aquesta acció:
+          <ph name="LINE_BREAKS" />
+            • Es restabliran la pàgina d'arrencada, la pàgina Pestanya nova, el motor de cerca i les pestanyes fixades.
+            <ph name="LINE_BREAK" />
+            • Es desactivaran les extensions.
+            <ph name="LINE_BREAK" />
+            • Se suprimiran les galetes i altres dades temporals dels llocs web.
+            <ph name="LINE_BREAK" />
+            • Es restabliran les dreceres de Chromium.
+            <ph name="LINE_BREAKS" />
+            Les adreces d'interès, l'historial i les contrasenyes desades no es veuran afectats.</translation>
 <translation id="6934579572334859869">Pregunta a la cerca d'imatges sobre aquesta imatge</translation>
 <translation id="6948031725951063910">Has arribat al límit de <ph name="BOOKMARK_LIMIT" /> adreces d'interès de Chromium, de manera que algunes encara no s'han desat al teu Compte de Google.
 
@@ -718,6 +731,15 @@ Chromium no pot recuperar la configuració.</translation>
 <translation id="8907580949721785412">Chromium està provant de mostrar contrasenyes. Escriviu la vostra contrasenya de Windows per permetre-ho.</translation>
 <translation id="8932992523185907506">Chromium ja no és el teu navegador predeterminat. Vols establir Chromium com a navegador predeterminat?</translation>
 <translation id="8941642502866065432">Chromium no es pot actualitzar</translation>
+<translation id="8944232836376404813">Amb aquesta acció:
+          <ph name="LINE_BREAKS" />
+            • Es restabliran la pàgina d'arrencada, la pàgina Pestanya nova, el motor de cerca i les pestanyes fixades.
+            <ph name="LINE_BREAK" />
+            • Es desactivaran les extensions.
+            <ph name="LINE_BREAK" />
+            • Se suprimiran les galetes i altres dades temporals dels llocs web.
+            <ph name="LINE_BREAKS" />
+            Les adreces d'interès, l'historial i les contrasenyes desades no es veuran afectats.</translation>
 <translation id="897581876605952338">Logotip de Chromium Enterprise</translation>
 <translation id="8981150672034878610">No es pot iniciar Chromium perquè hi ha hagut un error en obrir el teu perfil. Prova de reiniciar Chromium.</translation>
 <translation id="8988036198400390003">Gestiona els perfils de Chromium</translation>

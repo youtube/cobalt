@@ -34,15 +34,14 @@ std::string FilterAttributeUiLabel::ToString() const {
 
 UrlFilterSuggestion::UrlFilterSuggestion(Params params)
     : navigation_url(std::move(params.navigation_url)),
-      source_domain(std::move(params.source_domain)),
       source_host(std::move(params.source_host)),
       extraction_timestamp(params.extraction_timestamp),
       attribute_ui_labels(std::move(params.attribute_ui_labels)),
       triggering_navigation_id(params.triggering_navigation_id),
-      triggering_domain(std::move(params.triggering_domain)),
       triggering_host(std::move(params.triggering_host)),
       task_type(std::move(params.task_type)),
-      suggestion_message(std::move(params.suggestion_message)) {}
+      suggestion_message(std::move(params.suggestion_message)),
+      short_suggestion_message(std::move(params.short_suggestion_message)) {}
 
 UrlFilterSuggestion::UrlFilterSuggestion(const UrlFilterSuggestion&) = default;
 UrlFilterSuggestion::UrlFilterSuggestion(UrlFilterSuggestion&&) = default;
@@ -65,18 +64,23 @@ std::string UrlFilterSuggestion::ToString() const {
                           base::UTF16ToUTF8(suggestion_message)})
           : "";
 
+  std::string short_message_suffix =
+      !short_suggestion_message.empty()
+          ? base::StrCat({", short_suggestion_message=",
+                          base::UTF16ToUTF8(short_suggestion_message)})
+          : "";
+
   return base::StrCat(
       {"UrlFilterSuggestion(navigation_url=", navigation_url.spec(),
-       ", source_domain=", base::UTF16ToUTF8(source_domain),
        ", source_host=", base::UTF16ToUTF8(source_host),
        ", extraction_timestamp=",
        base::NumberToString(
            extraction_timestamp.ToDeltaSinceWindowsEpoch().InMicroseconds()),
        ", attribute_ui_labels=[", base::JoinString(attribute_strings, ", "),
        "], triggering_navigation_id=",
-       base::NumberToString(triggering_navigation_id), ", triggering_domain=",
-       triggering_domain, ", triggering_host=", triggering_host,
-       ", task_type=", task_type, message_suffix, ")"});
+       base::NumberToString(triggering_navigation_id),
+       ", triggering_host=", triggering_host, ", task_type=", task_type,
+       message_suffix, short_message_suffix, ")"});
 }
 
 }  // namespace multistep_filter

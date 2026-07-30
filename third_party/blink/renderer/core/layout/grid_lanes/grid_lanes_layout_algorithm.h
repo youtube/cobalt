@@ -10,6 +10,7 @@
 #include "third_party/blink/renderer/core/layout/grid/grid_track_sizing_algorithm.h"
 #include "third_party/blink/renderer/core/layout/grid_lanes/grid_lanes_item_group.h"
 #include "third_party/blink/renderer/core/layout/grid_lanes/grid_lanes_node.h"
+#include "third_party/blink/renderer/core/layout/grid_lanes/grid_lanes_running_positions.h"
 #include "third_party/blink/renderer/core/layout/layout_algorithm.h"
 
 namespace blink {
@@ -23,7 +24,6 @@ class GridLineResolver;
 class GridSizingTrackCollection;
 class GridSizingSubtree;
 class GridSizingTree;
-class GridLanesRunningPositions;
 class SubgriddedItemData;
 enum class GridItemContributionType;
 struct BoxStrut;
@@ -153,6 +153,26 @@ class CORE_EXPORT GridLanesLayoutAlgorithm
       PlacementPhase placement_phase,
       BaselineAccumulator* baseline_accumulator,
       GridLanesRunningPositions& running_positions);
+
+  // Creates a constraint space for relaying out a stretch-aligned item with
+  // its stretched stacking-axis size.
+  ConstraintSpace CreateConstraintSpaceForStretch(
+      const GridLanesRunningPositions::AlignmentCandidate& candidate);
+
+  // Re-lays out a single item with stretch alignment in the stacking axis to
+  // fill the track opening after it.
+  void RelayoutStackingAxisStretchItem(
+      const GridLanesRunningPositions::AlignmentCandidate& candidate,
+      GridLanesRunningPositions& running_positions);
+
+  // Finalizes track opening sizes, computes and applies stacking axis alignment
+  // offsets, and relayouts items that are stretch aligned with their stretched
+  // size. `effective_stacking_axis_size` is the size of the container's
+  // stacking axis, and `stacking_axis_gap` is the size of the gap between items
+  // in the container specified by the `gap` property.
+  void ApplyStackingAxisAlignment(GridLanesRunningPositions& running_positions,
+                                  LayoutUnit effective_stacking_axis_size,
+                                  LayoutUnit stacking_axis_gap);
 
   // Places all out-of-flow (OOF) grid-lanes items. For each item, this method
   // computes the size and location of the containing block rectangle within the
@@ -311,7 +331,8 @@ class CORE_EXPORT GridLanesLayoutAlgorithm
       const SubgriddedItemData& subgridded_item,
       std::optional<LayoutUnit> opt_fixed_inline_size = std::nullopt,
       bool make_grid_axis_definite = false,
-      bool is_for_min_max_sizing = false) const;
+      bool is_for_min_max_sizing = false,
+      const GridLayoutSubtree* opt_layout_subtree = nullptr) const;
 
   // Computes the shared baseline for items within a single virtual item group
   // (i.e., items that share the same span and baseline alignment). Returns the

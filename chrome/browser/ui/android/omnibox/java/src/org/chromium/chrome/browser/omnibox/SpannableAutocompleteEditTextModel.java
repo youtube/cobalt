@@ -102,7 +102,9 @@ public class SpannableAutocompleteEditTextModel
             return null;
         }
         if (DEBUG) Log.i(TAG, "onCreateInputConnection");
-        mInputConnection = new AutocompleteInputConnection(this);
+        if (mInputConnection == null) {
+            mInputConnection = new AutocompleteInputConnection(this);
+        }
         mInputConnection.setTarget(inputConnection);
         return mInputConnection;
     }

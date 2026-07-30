@@ -17,7 +17,7 @@ class MockBackendStorageDelegate : public BackendStorage::Delegate {
   MockBackendStorageDelegate();
   ~MockBackendStorageDelegate() override;
 
-  MOCK_METHOD(std::optional<PendingBackend>,
+  MOCK_METHOD((base::expected<PendingBackend, TransactionError>),
               MakePendingBackend,
               (Client client,
                const base::FilePath& directory,

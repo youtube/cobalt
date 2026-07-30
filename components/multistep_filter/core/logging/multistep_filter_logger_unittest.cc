@@ -70,7 +70,7 @@ TEST(MultistepFilterLoggerTest, ScopedLogMessage) {
   const LogEntry& entry = router.entries().front();
   EXPECT_EQ(entry.navigation_id, kTestNavigationId1);
   EXPECT_EQ(entry.event_type, LogEventType::kSuggestionShown);
-  EXPECT_EQ(entry.source_etld_plus_1, "example.com");
+  EXPECT_EQ(entry.host, "example.com");
 }
 
 TEST(MultistepFilterLoggerTest, ScopedLogMessageWithDetail) {
@@ -106,7 +106,7 @@ TEST(MultistepFilterLoggerTest, MacroLoggingEnabled) {
   const LogEntry& entry = router.entries().front();
   EXPECT_EQ(entry.navigation_id, kTestNavigationId2);
   EXPECT_EQ(entry.event_type, LogEventType::kSuggestionAccepted);
-  EXPECT_EQ(entry.source_etld_plus_1, "test.com");
+  EXPECT_EQ(entry.host, "test.com");
 
   auto* detail = entry.details.FindString("detail_key");
   ASSERT_TRUE(detail);

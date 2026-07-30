@@ -22,6 +22,7 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
+#include "absl/strings/string_view.h"
 #include "util.h"
 
 using sentencepiece::NormalizerSpec;
@@ -162,7 +163,7 @@ ABSL_FLAG(std::uint64_t, differential_privacy_clipping_threshold, 0,
           "Threshold for"
           " clipping the counts for DP");
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   sentencepiece::ScopedResourceDestructor cleaner;
   sentencepiece::ParseCommandLineFlags(argv[0], &argc, &argv, true);
 
@@ -181,7 +182,7 @@ int main(int argc, char *argv[]) {
   auto load_lines = [](absl::string_view filename) {
     std::vector<std::string> lines;
     auto input = sentencepiece::filesystem::NewReadableFile(filename);
-    ABSL_CHECK_OK(input->status());
+    ABSL_QCHECK_OK(input->status());
     std::string line;
     while (input->ReadLine(&line)) lines.emplace_back(line);
     return lines;
@@ -202,7 +203,7 @@ int main(int argc, char *argv[]) {
 
 #define SetRepeatedTrainerSpecFromFlag(name)                                \
   if (!absl::GetFlag(FLAGS_##name).empty()) {                               \
-    for (const auto &v :                                                    \
+    for (const auto& v :                                                    \
          sentencepiece::util::StrSplitAsCSV(absl::GetFlag(FLAGS_##name))) { \
       trainer_spec.add_##name(v);                                           \
     }                                                                       \
@@ -210,7 +211,7 @@ int main(int argc, char *argv[]) {
 
 #define SetRepeatedTrainerSpecFromFile(name)                               \
   if (!absl::GetFlag(FLAGS_##name##_file).empty()) {                       \
-    for (const auto &v : load_lines(absl::GetFlag(FLAGS_##name##_file))) { \
+    for (const auto& v : load_lines(absl::GetFlag(FLAGS_##name##_file))) { \
       trainer_spec.add_##name(v);                                          \
     }                                                                      \
   }
@@ -278,10 +279,10 @@ int main(int argc, char *argv[]) {
     denormalizer_spec.set_escape_whitespaces(false);
   }
 
-  ABSL_CHECK_OK(sentencepiece::SentencePieceTrainer::PopulateModelTypeFromString(
+  ABSL_QCHECK_OK(sentencepiece::SentencePieceTrainer::PopulateModelTypeFromString(
       absl::GetFlag(FLAGS_model_type), &trainer_spec));
 
-  ABSL_CHECK_OK(sentencepiece::SentencePieceTrainer::Train(
+  ABSL_QCHECK_OK(sentencepiece::SentencePieceTrainer::Train(
       trainer_spec, normalizer_spec, denormalizer_spec));
 
   return 0;

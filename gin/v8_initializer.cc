@@ -78,8 +78,8 @@ bool GenerateEntropy(unsigned char* buffer, size_t amount) {
 void GetMappedFileData(base::MemoryMappedFile* mapped_file,
                        v8::StartupData* data) {
   if (mapped_file) {
-    data->data = reinterpret_cast<const char*>(mapped_file->data());
-    data->raw_size = static_cast<int>(mapped_file->length());
+    data->data = reinterpret_cast<const char*>(mapped_file->bytes().data());
+    data->raw_size = static_cast<int>(mapped_file->bytes().size());
   } else {
     data->data = nullptr;
     data->raw_size = 0;

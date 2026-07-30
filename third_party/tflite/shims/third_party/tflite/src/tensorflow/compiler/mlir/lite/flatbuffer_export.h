@@ -9,7 +9,7 @@
 #include "third_party/tflite/buildflags.h"
 
 #if BUILDFLAG(USE_LITERT_TFLITE)
-#include "third_party/litert/src/tflite/flatbuffer_export.h"
+#include "third_party/litert/src/tflite/converter/flatbuffer_export.h"
 #else
 #include_next "tensorflow/compiler/mlir/lite/flatbuffer_export.h"
 #endif

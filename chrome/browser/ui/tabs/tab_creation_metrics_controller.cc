@@ -57,9 +57,8 @@ void TabCreationMetricsController::ScheduleRecordTabGroupingTransition() {
   }
 
   if (!last_active_group_id.has_value()) {
-    last_active_group_id = tab_->GetBrowserWindowInterface()
-                               ->GetTabStripModel()
-                               ->GetActiveTabGroupId();
+    tabs::TabInterface* active_tab = tab_strip_model->GetActiveTab();
+    last_active_group_id = active_tab ? active_tab->GetGroup() : std::nullopt;
   }
 
   task_runner_->PostDelayedTask(

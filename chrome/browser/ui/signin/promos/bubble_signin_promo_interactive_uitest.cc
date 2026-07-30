@@ -19,6 +19,7 @@
 #include "chrome/browser/signin/signin_util.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/extensions/extension_post_install_dialog.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
 #include "chrome/browser/ui/hats/mock_hats_service.h"
@@ -329,7 +330,8 @@ BubbleSignInPromoInteractiveUITest::SaveAndShowBookmarkBubble(
       BookmarkModelFactory::GetForBrowserContext(browser()->profile());
   const bookmarks::BookmarkNode* bookmark =
       model->AddURL(parent, 0, std::u16string(), kUrl);
-  browser()->window()->ShowBookmarkBubble(bookmark->url(), false);
+  BrowserWindow::FromBrowser(browser())->ShowBookmarkBubble(bookmark->url(),
+                                                            false);
 
   // Adds the new bookmarks into the local storage to be retrieved from the
   // Sync Service.
@@ -566,7 +568,8 @@ IN_PROC_BROWSER_TEST_F(BubbleSignInPromoInteractiveUITest,
   // Signin metrics - WebSignin (WithDefault) metrics are also recorded.
   histogram_tester.ExpectBucketCount(
       "Signin.SignIn.Offered", signin_metrics::AccessPoint::kPasswordBubble, 1);
-  histogram_tester.ExpectTotalCount("Signin.SignIn.Started", 0);
+  histogram_tester.ExpectBucketCount(
+      "Signin.SignIn.Started", signin_metrics::AccessPoint::kPasswordBubble, 1);
   histogram_tester.ExpectBucketCount(
       "Signin.SignIn.Completed", signin_metrics::AccessPoint::kPasswordBubble,
       1);
@@ -812,7 +815,8 @@ IN_PROC_BROWSER_TEST_F(BubbleSignInPromoInteractiveUITest,
   // Signin metrics - WebSignin (WithDefault) metrics are also recorded.
   histogram_tester.ExpectBucketCount(
       "Signin.SignIn.Offered", signin_metrics::AccessPoint::kAddressBubble, 1);
-  histogram_tester.ExpectTotalCount("Signin.SignIn.Started", 0);
+  histogram_tester.ExpectBucketCount(
+      "Signin.SignIn.Started", signin_metrics::AccessPoint::kAddressBubble, 1);
   histogram_tester.ExpectBucketCount(
       "Signin.SignIn.Completed", signin_metrics::AccessPoint::kAddressBubble,
       1);
@@ -1147,7 +1151,8 @@ IN_PROC_BROWSER_TEST_F(BubbleSignInPromoInteractiveUITest,
   // Signin metrics - WebSignin (WithDefault) metrics are also recorded.
   histogram_tester.ExpectBucketCount(
       "Signin.SignIn.Offered", signin_metrics::AccessPoint::kBookmarkBubble, 1);
-  histogram_tester.ExpectTotalCount("Signin.SignIn.Started", 0);
+  histogram_tester.ExpectBucketCount(
+      "Signin.SignIn.Started", signin_metrics::AccessPoint::kBookmarkBubble, 1);
   histogram_tester.ExpectBucketCount(
       "Signin.SignIn.Completed", signin_metrics::AccessPoint::kBookmarkBubble,
       1);
@@ -1480,7 +1485,9 @@ IN_PROC_BROWSER_TEST_F(BubbleSignInPromoInteractiveUITest,
   histogram_tester.ExpectBucketCount(
       "Signin.SignIn.Offered",
       signin_metrics::AccessPoint::kExtensionInstallBubble, 1);
-  histogram_tester.ExpectTotalCount("Signin.SignIn.Started", 0);
+  histogram_tester.ExpectBucketCount(
+      "Signin.SignIn.Started",
+      signin_metrics::AccessPoint::kExtensionInstallBubble, 1);
   histogram_tester.ExpectBucketCount(
       "Signin.SignIn.Completed",
       signin_metrics::AccessPoint::kExtensionInstallBubble, 1);
@@ -1766,7 +1773,7 @@ IN_PROC_BROWSER_TEST_F(BubbleSignInPromoInteractiveUITestWithoutPhase2FollowUp,
       BookmarkModelFactory::GetForBrowserContext(browser()->profile());
   const bookmarks::BookmarkNode* bookmark =
       model->AddURL(model->other_node(), 0, std::u16string(), kUrl);
-  browser()->window()->ShowBookmarkBubble(kUrl, false);
+  BrowserWindow::FromBrowser(browser())->ShowBookmarkBubble(kUrl, false);
   ASSERT_EQ(1u, model->other_node()->children().size());
   SetLocalDataDescription(syncer::DataType::BOOKMARKS, bookmark->id());
 
@@ -1854,7 +1861,7 @@ IN_PROC_BROWSER_TEST_F(BubbleSignInPromoInteractiveUITestWithoutPhase2FollowUp,
       BookmarkModelFactory::GetForBrowserContext(browser()->profile());
   const bookmarks::BookmarkNode* bookmark =
       model->AddURL(model->other_node(), 0, std::u16string(), kUrl);
-  browser()->window()->ShowBookmarkBubble(kUrl, false);
+  BrowserWindow::FromBrowser(browser())->ShowBookmarkBubble(kUrl, false);
   ASSERT_EQ(1u, model->other_node()->children().size());
   SetLocalDataDescription(syncer::DataType::BOOKMARKS, bookmark->id());
 
@@ -1896,7 +1903,8 @@ IN_PROC_BROWSER_TEST_F(BubbleSignInPromoInteractiveUITestWithoutPhase2FollowUp,
   // Signin metrics - WebSignin (WithDefault) metrics are also recorded.
   histogram_tester.ExpectBucketCount(
       "Signin.SignIn.Offered", signin_metrics::AccessPoint::kBookmarkBubble, 1);
-  histogram_tester.ExpectTotalCount("Signin.SignIn.Started", 0);
+  histogram_tester.ExpectBucketCount(
+      "Signin.SignIn.Started", signin_metrics::AccessPoint::kBookmarkBubble, 1);
   histogram_tester.ExpectBucketCount(
       "Signin.SignIn.Completed", signin_metrics::AccessPoint::kBookmarkBubble,
       1);
@@ -1936,7 +1944,7 @@ IN_PROC_BROWSER_TEST_F(BubbleSignInPromoInteractiveUITestWithoutPhase2FollowUp,
       BookmarkModelFactory::GetForBrowserContext(browser()->profile());
   const bookmarks::BookmarkNode* bookmark =
       model->AddURL(model->other_node(), 0, std::u16string(), kUrl);
-  browser()->window()->ShowBookmarkBubble(kUrl, false);
+  BrowserWindow::FromBrowser(browser())->ShowBookmarkBubble(kUrl, false);
   ASSERT_EQ(1u, model->other_node()->children().size());
   SetLocalDataDescription(syncer::DataType::BOOKMARKS, bookmark->id());
 

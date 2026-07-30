@@ -48,6 +48,7 @@
 <translation id="1129383337808748948">إعادة تحميل "<ph name="CONTENT_TITLE" />"</translation>
 <translation id="1142002900084379065">الصور الحديثة</translation>
 <translation id="114221662579355151">يتيح هذا الإجراء إمكانية الوصول إلى الكاميرا لكلّ من تطبيقَي "<ph name="APP1_NAME" />" و"<ph name="APP2_NAME" />" ولجميع التطبيقات والمواقع الإلكترونية التي لديها هذا الإذن. قد تحتاج إلى إعادة تحميل صفحة الويب أو إعادة تشغيل التطبيق.</translation>
+<translation id="1145593918056169051">توقفت الطابعة</translation>
 <translation id="1147991416141538220">لطلب إذن الوصول إلى التطبيق، يُرجى التواصل مع مشرف هذا الجهاز.</translation>
 <translation id="1148499908455722006">فتح مربع حوار المعلومات لـ <ph name="USER_NAME" /></translation>
 <translation id="1150989369772528668">تقويم</translation>
@@ -151,6 +152,7 @@
 <translation id="1383876407941801731">البحث</translation>
 <translation id="1388728792929436380">ستتم إعادة تشغيل جهاز <ph name="DEVICE_TYPE" /> عند اكتمال التحديثات.</translation>
 <translation id="1390113502208199250">‏يجب إعادة ضبط هذا الجهاز على الإعدادات الأصلية لاستخدام ميزات "ترقية Chrome Education".</translation>
+<translation id="1390907927270446471">غير مسموح لحساب <ph name="PROFILE_USERNAME" /> باستخدام الطابعة <ph name="PRINTER_NAME" />. يُرجى التواصل مع المشرف.</translation>
 <translation id="1391102559483454063">مُفعَّلة</translation>
 <translation id="1394698770495054737">تمويه كامل</translation>
 <translation id="1395878931462960119">{DAYS,plural, =1{قبل يوم واحد}zero{قبل # يوم}two{قبل يومين}few{قبل # أيام}many{قبل # يومًا}other{قبل # يوم}}</translation>
@@ -169,6 +171,7 @@
 <translation id="1426410128494586442">نعم</translation>
 <translation id="142655739075382478"><ph name="APP_NAME" /> محظور</translation>
 <translation id="142765311413773645">انتهت صلاحية ترخيص <ph name="APP_NAME" /></translation>
+<translation id="1430915738399379752">طباعة</translation>
 <translation id="1435537621343861112">يتعذّر بدء الإملاء بسبب إيقاف الميكروفون.</translation>
 <translation id="1445031758921122223">‏تم تنزيل ملفات التحكّم في ميزة FaceGaze</translation>
 <translation id="1447907279406111651">الحدث جارٍ الآن وينتهي الساعة <ph name="END_TIME" /></translation>
@@ -230,6 +233,7 @@
 <translation id="1597880963776148053">‏الخطوة <ph name="STEP" /> من إجمالي <ph name="TOTAL_STEPS" />: يمكنك العثور على تطبيقاتك المثبَّتة والمفتوحة على الرف أسفل الشاشة. اضغط على Alt + Shift + L ثم مفتاح التبويب (Tab) للتركيز على عناصر الرف.</translation>
 <translation id="1602085790802918092">جارٍ بدء تشغيل الآلة الافتراضية</translation>
 <translation id="1602874809115667351">‫<ph name="LAUNCHER_KEY_NAME" /> + السهم المتّجه للأسفل</translation>
+<translation id="1604432177629086300">تعذّرت الطباعة. يُرجى التحقق من الطابعة وإعادة المحاولة.</translation>
 <translation id="1604857178818051494">الإيقاف المؤقت للوسائط</translation>
 <translation id="1607312127821884567">عدم إعداد ميزة عرض التطبيقات في هاتفك</translation>
 <translation id="1610778689852195798">"تراجع"</translation>
@@ -373,6 +377,7 @@
 <translation id="2053312383184521053">بيانات حالة الخمول</translation>
 <translation id="2064048859448024834">يتم عرض معاينة الكاميرا</translation>
 <translation id="2067220651560163985">عرض درجة الحرارة بالدرجة المئوية</translation>
+<translation id="206960706005837784">أكمَل "<ph name="APP_NAME" />" مَهمة الطباعة باستخدام "<ph name="PRINTER_NAME" />"</translation>
 <translation id="2075520525463668108">انقر لتفعيل/إيقاف "<ph name="CAPTURE_MEDIUM" />". "<ph name="CAPTURE_MEDIUM" />" - <ph name="CAPTURE_STATE" /></translation>
 <translation id="2079545284768500474">تراجع</translation>
 <translation id="2086334242442703436">فتح "أداة اختيار رموز الإيموجي"</translation>
@@ -442,6 +447,7 @@
 <translation id="2328561734797404498">يُرجى إعادة تشغيل الجهاز للتمكّن من استخدام <ph name="APP_NAME" />.</translation>
 <translation id="2335091074961603075">‏يتم حاليًا استخدام إصدار قديم من البلوتوث في جهاز Chromebook أو جهازك الذي يتضمّن بلوتوث. لتحسين جودة الصوت، عليك استخدام الميكروفون الداخلي.</translation>
 <translation id="2336214675195760012">{NUM_DAYS,plural, =1{‏يتطلّب <ph name="MANAGER" /> منك تنزيل تحديث للجهاز اليوم، إما عبر شبكة Wi-Fi أو شبكة تفرض تكلفة استخدام (قد يتم تحصيل رسوم).}zero{‏يتطلّب <ph name="MANAGER" /> منك تنزيل تحديث للجهاز قبل الموعد النهائي، إما عبر شبكة Wi-Fi أو شبكة تفرض تكلفة استخدام (قد يتم تحصيل رسوم).}two{‏يتطلّب <ph name="MANAGER" /> منك تنزيل تحديث للجهاز قبل الموعد النهائي، إما عبر شبكة Wi-Fi أو شبكة تفرض تكلفة استخدام (قد يتم تحصيل رسوم).}few{‏يتطلّب <ph name="MANAGER" /> منك تنزيل تحديث للجهاز قبل الموعد النهائي، إما عبر شبكة Wi-Fi أو شبكة تفرض تكلفة استخدام (قد يتم تحصيل رسوم).}many{‏يتطلّب <ph name="MANAGER" /> منك تنزيل تحديث للجهاز قبل الموعد النهائي، إما عبر شبكة Wi-Fi أو شبكة تفرض تكلفة استخدام (قد يتم تحصيل رسوم).}other{‏يتطلّب <ph name="MANAGER" /> منك تنزيل تحديث للجهاز قبل الموعد النهائي، إما عبر شبكة Wi-Fi أو شبكة تفرض تكلفة استخدام (قد يتم تحصيل رسوم).}}</translation>
+<translation id="2336258397628212480">يطبع "<ph name="APP_NAME" />" صفحة واحدة باستخدام "<ph name="PRINTER_NAME" />"</translation>
 <translation id="2336381494582898602">Powerwash</translation>
 <translation id="2339073806695260576">انقر على زر قلم الشاشة على الرف لتدوين ملاحظة أو للحصول على لقطة شاشة أو لاستخدام مؤشر الليزر أو العدسة المكبرة.</translation>
 <translation id="2341729377289034582">تم القفل على الوضع العمودي</translation>
@@ -752,6 +758,7 @@
 <translation id="3206735939915734551">‏تشغيل مفتاح Caps Lock أو إيقافه</translation>
 <translation id="3207953481422525583">إعدادات المستخدم</translation>
 <translation id="3208321278970793882">التطبيق</translation>
+<translation id="32101887417650595">يتعذّر الاتصال بالطباعة</translation>
 <translation id="3212221635583599601">الاتصال بالإنترنت لمزيد من الإجراءات</translation>
 <translation id="3213571860604332401">حفظ الرابط كإشارة مرجعية</translation>
 <translation id="3217205077783620295">تم تفعيل الصوت، وسيؤدي التبديل إلى كتم الصوت</translation>
@@ -820,6 +827,7 @@
 <translation id="3431517721463707585">سطح المكتب 14</translation>
 <translation id="3433507769937235446">قفل الشاشة عند الابتعاد عن الجهاز</translation>
 <translation id="3434107140712555581"><ph name="BATTERY_PERCENTAGE" />%</translation>
+<translation id="343578350365773421">نفد الورق</translation>
 <translation id="3435967511775410570">تمّ التعرّف على البصمة.</translation>
 <translation id="3437677362970530951">‏الألعاب على "متجر Play" ومنصات الألعاب الأخرى</translation>
 <translation id="3439896670700055005">إعادة تحميل الصفحة الحالية بدون استخدام المحتوى المخزَّن مؤقتًا</translation>
@@ -997,6 +1005,7 @@
 <translation id="3848526302597027234">الحصول على الأذونات التالية:</translation>
 <translation id="385051799172605136">رجوع</translation>
 <translation id="385300504083504382">البداية</translation>
+<translation id="3854976556788175030">درج الإخراج ممتلئ</translation>
 <translation id="3857807444929313943">ارفع الإصبع، ثم المس أداة الاستشعار مرة أخرى</translation>
 <translation id="3859364108019690">يتعذّر بث محتوى التطبيقات</translation>
 <translation id="3861638017150647085">اسم المستخدم "<ph name="USERNAME" />" غير متوفر.</translation>
@@ -1049,6 +1058,7 @@
 <translation id="401993194061514265">‏أداة التحديد غير متاحة. يُرجى إعادة تشغيل تطبيق Screencast.</translation>
 <translation id="4021716437419160885">التمرير لأسفل</translation>
 <translation id="4022497978915111141">قفل الجهاز</translation>
+<translation id="4023048917751563912">يطبع "<ph name="APP_NAME" />"‏ <ph name="PAGE_NUMBER" /> صفحة باستخدام "<ph name="PRINTER_NAME" />"</translation>
 <translation id="4024840464866786680">‏إذا نسيت رقم التعريف الشخصي وكلمة المرور أو غيّرت كلمة مرور حسابك على Google مؤخرًا، جرِّب استرداد حساب هذا المستخدم.</translation>
 <translation id="4026843240379844265">نقل نافذة نشطة بين شاشات العرض</translation>
 <translation id="4028481283645788203">يجب إدخال كلمة المرور لمزيد من الأمان.</translation>
@@ -1582,6 +1592,7 @@
 <translation id="5491186829646618080">تتوفّر تحديثات للبرامج الثابتة</translation>
 <translation id="5503884284981862082">‏فتح/إغلاق "مساعد Google"</translation>
 <translation id="550391772491508736">استئناف البث</translation>
+<translation id="5505307013568720083">نفد الحبر</translation>
 <translation id="5506975627792768506">تفعيل المكبِّر أو إيقافه</translation>
 <translation id="5507778598655387680">‏‫<ph name="VOLUME_LEVEL" />، يؤدي الضغط على مفتاح Enter إلى كتم الصوت.</translation>
 <translation id="5512042095225963688">حذف الكلمة السابقة</translation>
@@ -1693,12 +1704,14 @@
 <translation id="5791926618942305301">‏في ميزة "لقطة الشاشة"، عليك ضبط الإعدادات على "<ph name="SOURCE" />" من النوع "<ph name="TYPE" />". يُرجى الضغط على مفتاح Tab لاختيار نوع الالتقاط، ثم الضغط على مفتاح Enter لالتقاط صورة. لاختيار منطقة الالتقاط، عليك الضبط على لقطة شاشة جزئية. وإذا لم تكن الميزة مفعّلة، عليك الضغط على مفتاح المسافة لاختيار المنطقة.</translation>
 <translation id="579415080077680903">صامت</translation>
 <translation id="5802516411616338943">فتح "الإعدادات السريعة"</translation>
+<translation id="5804241973901381774">الأذونات</translation>
 <translation id="5804651031882187592">‏إيقاف الإعداد "قفل شريحة SIM"</translation>
 <translation id="5805809050170488595">انقر لتفعيل <ph name="NETWORK_NAME" />.</translation>
 <translation id="5818796501620225415">يمكنك إضافة المزيد من الوقت أو إنهاء جلسة التركيز</translation>
 <translation id="5819918159912280082">‏تمت إعادة تشغيل جهاز Chromebook بشكل غير متوقّع. يمكنك فتح النوافذ والتطبيقات السابقة.</translation>
 <translation id="5823239091726045201">‏"مهام Google" على الويب</translation>
 <translation id="5825969630400862129">إعدادات الأجهزة المتّصلة</translation>
+<translation id="5828633471261496623">الطباعة جارية...</translation>
 <translation id="5830180081891717894">و<ph name="WINDOWS" /> نافذة أخرى</translation>
 <translation id="5830205393314753525">يتعذّر فتح <ph name="APP_NAME" /></translation>
 <translation id="583281660410589416">غير معروف</translation>
@@ -1723,6 +1736,7 @@
 <translation id="5892014525522223653">جهازك غير متصل بالإنترنت.</translation>
 <translation id="5895138241574237353">إعادة التشغيل</translation>
 <translation id="589817443623831496">مسح النقاط</translation>
+<translation id="5901494423252125310">باب الطابعة مفتوح</translation>
 <translation id="5901630391730855834">أصفر</translation>
 <translation id="5904614460720589786">تعذّر إعداد <ph name="APP_NAME" /> بسبب مشكلة في الضبط. يُرجى التواصل مع مشرفك. رمز الخطأ: <ph name="ERROR_CODE" />.</translation>
 <translation id="5910726859585389579"><ph name="DEVICE_TYPE" /> غير متصل</translation>
@@ -1787,6 +1801,7 @@
         <ph name="BEGIN_PARAGRAPH2" />لن يؤثر إيقاف هذه الميزة في قدرة هذا الجهاز على إرسال المعلومات المطلوبة للحصول على خدمات أساسية، مثل تحديثات النظام والأمان.<ph name="END_PARAGRAPH2" />
         <ph name="BEGIN_PARAGRAPH3" />يمكن للمالك التحكّم بهذه الميزة من خلال الانتقال إلى "الإعدادات" &gt; "الإعدادات المتقدّمة" &gt; "إرسال بيانات التشخيص والاستخدام إلى Google تلقائيًا".<ph name="END_PARAGRAPH3" />
         <ph name="BEGIN_PARAGRAPH4" />في حال تفعيل إعداد "النشاط الإضافي على الويب وفي التطبيقات" لحساب طفلك، قد يتم حفظ هذه البيانات في حسابك على Google. للمزيد حول هذه الإعدادات وطريقة ضبطها، يُرجى الانتقال إلى families.google.com.<ph name="END_PARAGRAPH4" /></translation>
+<translation id="6052261338768299955">يحاول "<ph name="APP_NAME" />" الطباعة باستخدام "<ph name="PRINTER_NAME" />"</translation>
 <translation id="6054305421211936131">تسجيل الدخول باستخدام البطاقة الذكية</translation>
 <translation id="6059276912018042191">‏علامات تبويب Chrome الأخيرة</translation>
 <translation id="606147842285839995">ExpressKey 3</translation>
@@ -1894,6 +1909,7 @@
 <translation id="6337159624125741244">"المكبِّر بملء الشاشة" مفعَّل</translation>
 <translation id="6338485349199627913"><ph name="DISPLAY_NAME" /> هي جلسة تتم إدارتها من خلال <ph name="MANAGER" />.</translation>
 <translation id="6340148837564298498">إذا نسيت رقم التعريف الشخصي، جرِّب استرداد حساب هذا المستخدم.</translation>
+<translation id="634208815998129842">إدارة المهام</translation>
 <translation id="6344138931392227467">تم توصيل <ph name="DEVICE_NAME" />.</translation>
 <translation id="6345418402353744910">يطلب الخادم الوكيل <ph name="PROXY" /> اسم المستخدم وكلمة المرور الخاصَّين بك حتى يتمكّن المشرف من إعداد الشبكة.</translation>
 <translation id="6348449481487610270">‏‫‎<ph name="MODIFIER_ONE" /><ph name="MODIFIER_TWO" /><ph name="KEY_ONE" /> ثم ‎<ph name="MODIFIER_THREE" /><ph name="KEY_TWO" /> أو <ph name="KEY_THREE" /></translation>
@@ -2099,6 +2115,7 @@
 <translation id="6921427376813842559">تحديث الجهاز</translation>
 <translation id="6929081673585394903">عرض عناصر التحكّم</translation>
 <translation id="6931576957638141829">حفظ في</translation>
+<translation id="6935286146439255109">درج الورق غير متاح</translation>
 <translation id="6935857786205183008">عمودي</translation>
 <translation id="6942518653766415536">قائمة صيَغ التسجيل</translation>
 <translation id="6945221475159498467">تحديد</translation>
@@ -2121,6 +2138,7 @@
 <translation id="6988094684494323731">‏جارٍ بدء تشغيل حاوية نظام التشغيل Linux</translation>
 <translation id="7000027735917578303">إعدادات النوافذ وأسطح المكتب</translation>
 <translation id="7001036685275644873">‏الاحتفاظ بنسخة احتياطية من تطبيقات وملفات Linux</translation>
+<translation id="7001066449188684145">تحديد الهوية مطلوب لاستخدام الطابعة <ph name="PRINTER_NAME" />. يُرجى التواصل مع المشرف.</translation>
 <translation id="7004910047186208204">الاتصال بشبكة بيانات الجوّال</translation>
 <translation id="7005239792648594238">للبدء، افتح تطبيقًا.</translation>
 <translation id="7014684956566476813">تم الربط بالجهاز الذي يحمل الاسم <ph name="DEVICE_NAME" />.</translation>
@@ -2160,6 +2178,7 @@
 <translation id="7108254681523785542">‏اختَر عنصرًا من أجل لصقه. ويمكنك الاطّلاع على الحافظة بالضغط على مفتاح ‎<ph name="SHORTCUT_KEY_NAME" /> + V.</translation>
 <translation id="7108338896283013870">إخفاء</translation>
 <translation id="7108933416628942903">قفل الآن</translation>
+<translation id="7116554090938189816">‏انتهت صلاحية شهادة طبقة المقابس الآمنة (SSL) للطابعة. يُرجى إعادة تشغيل الطابعة والمحاولة مرة أخرى.</translation>
 <translation id="7116969082764510092">سطح المكتب 11</translation>
 <translation id="7118268675952955085">لقطة شاشة</translation>
 <translation id="7118597077555700347">فتح "<ph name="SEARCH_RESULT_TEXT" />"</translation>
@@ -2212,6 +2231,7 @@
 <translation id="7312210124139670355">‏المشرف يعيد ضبط شريحة eSIM حاليًا. قد تستغرق هذه العملية بضع دقائق.</translation>
 <translation id="7312761820869643657">إعادة الجهاز إلى الإصدار السابق</translation>
 <translation id="7313193732017069507">توسيع الكاميرا</translation>
+<translation id="7325209047678309347">الورقة عالقة</translation>
 <translation id="7327989755579928735">‏أوقَف <ph name="MANAGER" /> إعداد "تصحيح الأخطاء عبر ADB". بعد إعادة تشغيل الجهاز <ph name="DEVICE_TYPE" />، لن تتمكّن من تثبيت تطبيقات من مصادر غير معروفة.</translation>
 <translation id="73289266812733869">غير محدد</translation>
 <translation id="7330397557116570022">انتقِل إلى حقل نصي لاستخدام ميزة "إملاء".</translation>
@@ -2586,6 +2606,7 @@
 <translation id="8339706171276328417">‏<ph name="ACTION_DESCRIPTION" /> · بتاريخ ‎<ph name="TIME" /></translation>
 <translation id="834414266279889566">نتيجة غير مناسبة</translation>
 <translation id="8345019317483336363">تم اختيار النافذة <ph name="WINDOW_TITLE" />.</translation>
+<translation id="8347227221149377169">مهام الطباعة</translation>
 <translation id="8349826889576450703">launcher</translation>
 <translation id="8349964124165471584">فتح الرابط في نافذة جديدة</translation>
 <translation id="8351131234907093545">إنشاء ملاحظة</translation>
@@ -2624,6 +2645,7 @@
 <translation id="8458259704995116343">‏تعذّر بدء تشغيل الجهاز الافتراضي (VM).</translation>
 <translation id="84613761564611563">تم طلب واجهة المستخدم لإعداد الشبكة، يُرجى الانتظار...</translation>
 <translation id="8462305545768648477">إيقاف ميزة "سماع الاختيار"</translation>
+<translation id="8463001014623882202">تعذَّرت المصادقة</translation>
 <translation id="8466665972451889002">إظهار العناصر في "<ph name="GROUP_NAME" />"</translation>
 <translation id="8468806060683421065">‏الموعد المحدّد للتسليم: ‎<ph name="DUE_DATE_AND_TIME" /></translation>
 <translation id="8473301994082929012">الميزة <ph name="FEATURE_NAME" /> حالتها <ph name="FEATURE_STATE" /> في <ph name="ORGANIZATION_NAME" />.</translation>

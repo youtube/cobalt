@@ -28,6 +28,9 @@ namespace visitedlink {
 
 class VisitedLinkDelegate;
 
+// TODO(crbug.com/517136103): Rewrite this documentation once the
+// unpartitioned class has been removed.
+//
 // PartitionedVisitedLinkWriter constructs and writes to the partitioned
 // :visited links hashtable. There should only be one instance of
 // PartitionedVisitedLinkWriter, and it must be initialized before use.
@@ -75,13 +78,15 @@ class PartitionedVisitedLinkWriter : public VisitedLinkCommon {
   };
 
   PartitionedVisitedLinkWriter(content::BrowserContext* browser_context,
-                               VisitedLinkDelegate* delegate);
+                               VisitedLinkDelegate* delegate,
+                               bool use_constant_salt = false);
 
   // This constructor is used by unit tests.
   PartitionedVisitedLinkWriter(std::unique_ptr<Listener> listener,
                                VisitedLinkDelegate* delegate,
                                bool suppress_build,
-                               int32_t default_table_size);
+                               int32_t default_table_size,
+                               bool use_constant_salt = false);
 
   ~PartitionedVisitedLinkWriter() override;
 
@@ -99,10 +104,19 @@ class PartitionedVisitedLinkWriter : public VisitedLinkCommon {
   // Clears all VisitedLinks from the hashtable.
   void DeleteAllVisitedLinks();
 
+  // Pseudo-partitioned methods that construct VisitedLinks by cloning the URL
+  // to all three components, and then add/delete them to/from the hashtable.
+  // Used in Android WebView, which does not truly partition visited links.
+  void AddPseudoPartitionedVisitedLink(const GURL& link_url);
+  void AddPseudoPartitionedVisitedLinks(const std::vector<GURL>& link_urls);
+  void DeletePseudoPartitionedVisitedLinks(const std::vector<GURL>& link_urls);
+
   // Return the salt used to hash visited links from this origin. If we have not
   // visited this origin before, a new <origin, salt> pair will be added to the
-  // map, and that new salt value will be retuned. Will return
-  // std::optional if the table is currently being built or rebuilt.
+  // map, and that new salt value will be returned. Will return
+  // std::optional if the table is currently being built or rebuilt. In Android
+  // WebView, the constant salt kPseudoPartitionedConstantSalt is returned
+  // instead because we do not store per-origin salts in that case.
   //
   // NOTE: THIS FUNCTION MAY ONLY BE CALLED ON THE MAIN (UI) THREAD.
   std::optional<uint64_t> GetOrAddOriginSalt(const url::Origin& origin);
@@ -265,25 +279,33 @@ class PartitionedVisitedLinkWriter : public VisitedLinkCommon {
   // VisitedLinkEventListener to handle incoming events.
   std::unique_ptr<Listener> listener_;
 
-  // Contains every per-origin salt used in creating the hashtable. Callers
-  // should only access on the main (UI) thread.
+  // Contains every per-origin salt used in creating the hashtable. Empty for
+  // Android WebView because the constant salt kPseudoPartitionedConstantSalt is
+  // used instead of per-origin salts. Callers should only access on the main
+  // (UI) thread.
   //
   // NOTE: When VisitedLinkWriter is created, `salts_` is initially empty.
-  // The <origin, salt> pairs populating the map are calculated on a background
-  // thread and assigned on the main thread. When this is happening,
-  // `table_builder_` is non-null, and `salts_` CANNOT be added to or accessed
-  // by the UI thread.
+  // The <origin, salt> pairs populating the map are calculated on a
+  // background thread and assigned on the main thread. When this is
+  // happening, `table_builder_` is non-null, and `salts_` CANNOT be added
+  // to or accessed by the UI thread.
   //
-  // Once initialization is complete and `table_builder_` is set to null again,
-  // `salts_` can be added to and accessed by the UI thread, whether we are
-  // adding new visits via the History Service or sending salt values via the
-  // VisitedLinksNavigationThrottle.
+  // Once initialization is complete and `table_builder_` is set to null
+  // again, `salts_` can be added to and accessed by the UI thread, whether
+  // we are adding new visits via the History Service or sending salt values
+  // via the VisitedLinksNavigationThrottle.
   //
-  // TODO(crbug.com/330548738): Currently we store all salts relevant to this
-  // profile in this one map, but there can be many StoragePartitions per
-  // profile. We should revisit in a future phase to take into account which
-  // StoragePartition each origin is being committed to.
+  // TODO(crbug.com/330548738): Currently we store all salts relevant to
+  // this profile in this one map, but there can be many StoragePartitions
+  // per profile. We should revisit in a future phase to take into account
+  // which StoragePartition each origin is being committed to.
   std::map<url::Origin, uint64_t> salts_;
+
+  // If true, we will use a constant salt (kPseudoPartitionedConstantSalt) for
+  // all origin salt lookups. This is used by Android WebView to emulate
+  // partitioned visited links in the hashtable. See crbug.com/506963484 for
+  // more context.
+  const bool use_constant_salt_;
 
   // Testing values ----------------------------------------------------------
 

@@ -478,14 +478,16 @@ void CastMediaSinkServiceImpl::OpenChannel(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   const net::IPEndPoint& ip_endpoint = cast_sink.cast_data().ip_endpoint;
-  if (!allow_all_ips_ && ip_endpoint.address().IsPubliclyRoutable()) {
+  if (!allow_all_ips_ && (ip_endpoint.address().IsPubliclyRoutable() ||
+                          ip_endpoint.address().IsLoopback())) {
     LoggerList::GetInstance()->Log(
         LoggerImpl::Severity::kWarning, mojom::LogCategory::kDiscovery,
         kLoggerComponent,
         base::StrCat({"Did not open a channel to the IP endpoint: ",
-                      ip_endpoint.ToString(),
-                      " because it is publicly "
-                      "routable."}),
+                      ip_endpoint.ToString(), " because it is ",
+                      ip_endpoint.address().IsPubliclyRoutable()
+                          ? "publicly routable."
+                          : "a loopback address."}),
         cast_sink.sink().id(), "", "");
     if (callback) {
       std::move(callback).Run(false);

@@ -72,7 +72,6 @@ source_set("nearby_sharing") {
     "nearby_sharing_service.h",
     "nearby_sharing_service_factory.h",
     "nearby_sharing_service_impl.h",
-    "network_traversal_ice_config_fetcher.h",
     "outgoing_share_target_info.h",
     "paired_key_verification_runner.h",
     "payload_tracker.h",
@@ -163,7 +162,6 @@ source_set("impl") {
     "nearby_share_transfer_profiler.cc",
     "nearby_sharing_service_factory.cc",
     "nearby_sharing_service_impl.cc",
-    "network_traversal_ice_config_fetcher.cc",
     "outgoing_share_target_info.cc",
     "paired_key_verification_runner.cc",
     "payload_tracker.cc",
@@ -274,4 +272,147 @@ fuzzer_test("nearby_sharing_instantmessaging_stream_parser_fuzzer") {
     "//chrome/browser",
     "//components/exo/wayland:ui_controls_protocol_stub",
   ]
+}
+
+source_set("test_support") {
+  testonly = true
+  if (is_chromeos) {
+    sources = [
+      "instantmessaging/fake_token_fetcher.cc",
+      "instantmessaging/fake_token_fetcher.h",
+      "mock_nearby_sharing_service.cc",
+      "mock_nearby_sharing_service.h",
+      "wifi_network_configuration/fake_wifi_network_configuration_handler.cc",
+      "wifi_network_configuration/fake_wifi_network_configuration_handler.h",
+    ]
+    deps = [
+      "//base",
+      "//chrome/browser/nearby_sharing",
+      "//chrome/browser/nearby_sharing:impl",
+      "//content/test:test_support",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
+}
+
+source_set("unit_tests") {
+  testonly = true
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # remove this.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+  if (is_chromeos) {
+    sources = [
+      "bluetooth_advertising_interval_client_unittest.cc",
+      "fast_initiation/fast_initiation_advertiser_unittest.cc",
+      "fast_initiation/fast_initiation_scanner_feature_usage_metrics_unittest.cc",
+      "fast_initiation/fast_initiation_scanner_unittest.cc",
+      "file_attachment_unittest.cc",
+      "firewall_hole/nearby_connections_firewall_hole_factory_unittest.cc",
+      "incoming_frames_reader_unittest.cc",
+      "instantmessaging/receive_messages_express_unittest.cc",
+      "instantmessaging/send_message_express_unittest.cc",
+      "instantmessaging/stream_parser_unittest.cc",
+      "mdns/nearby_connections_mdns_manager_unittest.cc",
+      "nearby_confirmation_manager_unittest.cc",
+      "nearby_notification_manager_unittest.cc",
+      "nearby_per_session_discovery_manager_unittest.cc",
+      "nearby_receive_manager_unittest.cc",
+      "nearby_share_delegate_impl_unittest.cc",
+      "nearby_share_feature_usage_metrics_unittest.cc",
+      "nearby_share_settings_unittest.cc",
+      "nearby_share_transfer_profiler_unittest.cc",
+      "nearby_sharing_service_impl_unittest.cc",
+      "paired_key_verification_runner_unittest.cc",
+      "payload_tracker_unittest.cc",
+      "sharesheet/nearby_share_action_unittest.cc",
+      "tachyon_ice_config_fetcher_unittest.cc",
+      "tcp_socket/nearby_connections_tcp_socket_factory_unittest.cc",
+      "text_attachment_unittest.cc",
+      "webrtc_request_builder_unittest.cc",
+      "webrtc_signaling_messenger_unittest.cc",
+      "wifi_credentials_attachment_unittest.cc",
+      "wifi_network_configuration/wifi_network_configuration_handler_unittest.cc",
+    ]
+    deps = [
+      ":test_support",
+      "//ash/public/cpp",
+      "//base",
+      "//base:i18n",
+      "//base/test:test_support",
+      "//chrome/browser/ash/file_manager",
+      "//chrome/browser/ash/login/users:test_support",
+      "//chrome/browser/download",
+      "//chrome/browser/local_discovery",
+      "//chrome/browser/local_discovery:test_support",
+      "//chrome/browser/nearby_sharing",
+      "//chrome/browser/nearby_sharing:impl",
+      "//chrome/browser/nearby_sharing/certificates:test_support",
+      "//chrome/browser/nearby_sharing/common",
+      "//chrome/browser/nearby_sharing/contacts",
+      "//chrome/browser/nearby_sharing/contacts:test_support",
+      "//chrome/browser/nearby_sharing/local_device_data:test_support",
+      "//chrome/browser/nearby_sharing/proto:tachyon_proto",
+      "//chrome/browser/notifications",
+      "//chrome/browser/ui/ash/holding_space",
+      "//chrome/browser/ui/ash/holding_space:test_support",
+      "//chrome/browser/ui/ash/session:test_support",
+      "//chrome/browser/ui/webui/nearby_share:mojom",
+      "//chrome/common:constants",
+      "//chrome/services/sharing/nearby/decoder",
+      "//chrome/services/sharing/public/cpp",
+      "//chrome/test:test_support",
+      "//chromeos/ash/components/browser_context_helper",
+      "//chromeos/ash/components/feature_usage",
+      "//chromeos/ash/components/nearby/common/connections_manager",
+      "//chromeos/ash/components/nearby/common/connections_manager:test_support",
+      "//chromeos/ash/components/network",
+      "//chromeos/ash/components/network:test_support",
+      "//chromeos/ash/components/system",
+      "//chromeos/ash/services/nearby/public/cpp:tcp_server_socket_port",
+      "//chromeos/ash/services/nearby/public/cpp:test_support",
+      "//chromeos/ash/services/nearby/public/mojom",
+      "//chromeos/ash/services/network_config",
+      "//chromeos/ash/services/network_config:in_process_instance",
+      "//chromeos/constants",
+      "//chromeos/dbus/permission_broker",
+      "//components/account_id",
+      "//components/prefs:test_support",
+      "//components/signin/public/identity_manager:test_support",
+      "//components/sync_preferences:test_support",
+      "//components/user_manager",
+      "//components/user_manager:test_support",
+      "//content/test:test_support",
+      "//device/bluetooth",
+      "//device/bluetooth:mocks",
+      "//google_apis",
+      "//mojo/public/cpp/bindings",
+      "//net",
+      "//net:test_support",
+      "//net/base:registry_controlled_domains",
+      "//net/traffic_annotation",
+      "//net/traffic_annotation:test_support",
+      "//services/data_decoder/public/cpp:test_support",
+      "//services/network:test_support",
+      "//services/network/public/cpp",
+      "//skia:skia_core_public_headers",
+      "//storage/browser",
+      "//storage/common",
+      "//testing/gmock",
+      "//testing/gtest",
+      "//third_party/icu:icui18n",
+      "//third_party/nearby:wire_format_proto",
+      "//ui/base",
+      "//ui/base/clipboard",
+      "//ui/base/clipboard:clipboard_test_support",
+      "//ui/gfx",
+      "//ui/gfx:gfx_skia",
+      "//ui/gfx:test_support",
+      "//ui/gfx/codec",
+    ]
+    if (is_internal_chrome_branded) {
+      deps += [ "//chrome/browser/nearby_sharing/internal/icons:vector_icons" ]
+    }
+  }
 }

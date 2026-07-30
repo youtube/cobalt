@@ -12,10 +12,12 @@
 #import "base/test/ios/wait_util.h"
 #import "base/test/scoped_feature_list.h"
 #import "components/autofill/core/common/autofill_constants.h"
+#import "components/autofill/core/common/autofill_features.h"
 #import "components/autofill/ios/browser/autofill_java_script_feature.h"
 #import "components/autofill/ios/browser/autofill_util.h"
 #import "components/autofill/ios/common/features.h"
 #import "components/autofill/ios/form_util/autofill_form_features_java_script_feature.h"
+#import "components/autofill/ios/form_util/autofill_test_with_web_state.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/web/model/chrome_web_client.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
@@ -725,6 +727,14 @@ class AutofillControllerJsTest : public web::JavascriptTest {
   void SetUp() override {
     JavascriptTest::SetUp();
 
+    // Inject default feature flag placeholders before loading scripts.
+    NSString* const placeholders = autofill::test::GetAutofillTestPlaceholders();
+    WKUserScript* script = [[WKUserScript alloc]
+          initWithSource:placeholders
+           injectionTime:WKUserScriptInjectionTimeAtDocumentStart
+        forMainFrameOnly:NO];
+    [web_view().configuration.userContentController addUserScript:script];
+
     AddGCrWebScript();
     AddUserScript(@"autofill_form_features");
     AddUserScript(@"fill_util_test");
@@ -809,6 +819,10 @@ class AutofillControllerJsTest : public web::JavascriptTest {
   // one NSString.
   NSString* RollupJavaScriptWithUserScript(NSString* java_script,
                                            NSString* user_script);
+
+  // Re-injects user scripts with specific feature flag placeholder values.
+  void InjectUserScriptsWithPlaceholders(
+      const autofill::test::AutofillPlaceholderConfig& config);
 
   web::ScopedTestingWebClient web_client_;
   web::WebTaskEnvironment task_environment_;
@@ -899,6 +913,23 @@ NSString* AutofillControllerJsTest::RollupJavaScriptWithUserScript(
   }
   [rollup_script appendString:java_script];
   return rollup_script;
+}
+
+void AutofillControllerJsTest::InjectUserScriptsWithPlaceholders(
+    const autofill::test::AutofillPlaceholderConfig& config) {
+  [web_view().configuration.userContentController removeAllUserScripts];
+
+  NSString* const placeholders =
+      autofill::test::GetAutofillTestPlaceholders(config);
+  WKUserScript* script = [[WKUserScript alloc]
+        initWithSource:placeholders
+         injectionTime:WKUserScriptInjectionTimeAtDocumentStart
+      forMainFrameOnly:NO];
+  [web_view().configuration.userContentController addUserScript:script];
+
+  AddGCrWebScript();
+  AddUserScript(@"autofill_form_features");
+  AddUserScript(@"fill_util_test");
 }
 
 TEST_F(AutofillControllerJsTest, HasTagName) {
@@ -1095,7 +1126,8 @@ TEST_F(AutofillControllerJsTest, InferLabelFromDivTable) {
 
 TEST_F(AutofillControllerJsTest, InferLabelFromDefinitionList) {
   TestInputElementDataEvaluation(
-      @"__gCrWeb.getRegisteredApi('fill_test_api').getFunction('inferLabelFromDefinitionList')",
+      @"__gCrWeb.getRegisteredApi('fill_test_api').getFunction('"
+      @"inferLabelFromDefinitionList')",
       @"label", GetTestFormInputElementWithLabelFromDefinitionList(), @"input");
 }
 
@@ -1118,9 +1150,10 @@ TEST_F(AutofillControllerJsTest, InferLabelForElement) {
     GetTestFormInputElementWithLabelFromDefinitionList(),
   ];
   for (NSArray* testingElement in testingElements) {
-    TestInputElementDataEvaluation(@"__gCrWeb.getRegisteredApi('fill_test_api')."
-                                   @"getFunction('inferLabelForElement')",
-                                   @"label", testingElement, @"input");
+    TestInputElementDataEvaluation(
+        @"__gCrWeb.getRegisteredApi('fill_test_api')."
+        @"getFunction('inferLabelForElement')",
+        @"label", testingElement, @"input");
   }
 
   TestInputElementDataEvaluation(@"__gCrWeb.getRegisteredApi('fill_test_api')."
@@ -1246,12 +1279,13 @@ TEST_F(AutofillControllerJsTest, ExtractAutofillableElements_Date) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(kAutofillSupportDateInput);
 
+  autofill::test::AutofillPlaceholderConfig config;
+  config.autofill_support_date_input = true;
+  InjectUserScriptsWithPlaceholders(config);
+
   NSString* html = @"<html><body><form><input type='date' name='bday' "
                    @"id='bday'></form></body></html>";
   web::test::LoadHtml(html, web_state());
-
-  autofill::AutofillFormFeaturesJavaScriptFeature::GetInstance()
-      ->SetAutofillSupportDateInput(WaitForMainFrame(), /*enabled=*/true);
 
   NSString* parameter = @"window.document.getElementsByTagName('form')[0]";
   id result = ExecuteJavaScript([NSString
@@ -1267,12 +1301,13 @@ TEST_F(AutofillControllerJsTest, ExtractAutofillableElements_Date_Disabled) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndDisableFeature(kAutofillSupportDateInput);
 
+  autofill::test::AutofillPlaceholderConfig config;
+  config.autofill_support_date_input = false;
+  InjectUserScriptsWithPlaceholders(config);
+
   NSString* html = @"<html><body><form><input type='date' name='bday' "
                    @"id='bday'></form></body></html>";
   web::test::LoadHtml(html, web_state());
-
-  autofill::AutofillFormFeaturesJavaScriptFeature::GetInstance()
-      ->SetAutofillSupportDateInput(WaitForMainFrame(), /*enabled=*/false);
 
   NSString* parameter = @"window.document.getElementsByTagName('form')[0]";
   id result = ExecuteJavaScript([NSString
@@ -1668,7 +1703,7 @@ TEST_F(AutofillControllerJsTest, ExtractForms) {
         @"should_autocomplete" : @true,
         @"is_checkable" : @false,
         @"is_focusable" : @true,
-        @"is_user_edited_deprecated" : @true,
+        @"is_user_edited_deprecated" : @false,
         @"value" : @"John",
         @"label" : @"* First name:"
       },
@@ -1686,7 +1721,7 @@ TEST_F(AutofillControllerJsTest, ExtractForms) {
         @"should_autocomplete" : @true,
         @"is_checkable" : @false,
         @"is_focusable" : @true,
-        @"is_user_edited_deprecated" : @true,
+        @"is_user_edited_deprecated" : @false,
         @"value" : @"John",
         @"label" : @"* First name:"
       },
@@ -1704,7 +1739,7 @@ TEST_F(AutofillControllerJsTest, ExtractForms) {
         @"should_autocomplete" : @true,
         @"is_checkable" : @false,
         @"is_focusable" : @true,
-        @"is_user_edited_deprecated" : @true,
+        @"is_user_edited_deprecated" : @false,
         @"value" : @"john@example.com",
         @"label" : @"Email:"
       },
@@ -1723,7 +1758,7 @@ TEST_F(AutofillControllerJsTest, ExtractForms) {
         @"should_autocomplete" : @false,
         @"is_checkable" : @false,
         @"is_focusable" : @true,
-        @"is_user_edited_deprecated" : @true,
+        @"is_user_edited_deprecated" : @false,
         @"value" : @"",
         @"label" : @"* Password:"
       },
@@ -1740,7 +1775,7 @@ TEST_F(AutofillControllerJsTest, ExtractForms) {
         @"placeholder_attribute" : @"",
         @"max_length" : @0,
         @"is_focusable" : @1,
-        @"is_user_edited_deprecated" : @true,
+        @"is_user_edited_deprecated" : @false,
         @"option_values" : @[ @"CA", @"TX" ],
         @"option_texts" : @[ @"California", @"Texas" ],
         @"should_autocomplete" : @1,
@@ -1820,12 +1855,6 @@ TEST_F(AutofillControllerJsTest, ExtractForms_UserEdited_FixEnabled) {
                     "</body></html>";
   web::test::LoadHtml(html, web_state());
 
-  // Enable the fix for the is_user_edited_deprecated bit once the frame is
-  // loaded.
-  autofill::AutofillFormFeaturesJavaScriptFeature::GetInstance()
-      ->SetAutofillCorrectUserEditedBitInParsedField(WaitForMainFrame(),
-                                                     /*enabled=*/true);
-
   // Emulate a user input on the first input element.
   EXPECT_NSEQ(@YES, ExecuteJavaScript(
                         @"document.getElementById('input1').dispatchEvent(new "
@@ -1859,9 +1888,6 @@ TEST_F(AutofillControllerJsTest,
                     "</body></html>";
   web::test::LoadHtml(html, web_state());
 
-  autofill::AutofillFormFeaturesJavaScriptFeature::GetInstance()
-      ->SetAutofillAcrossIframes(WaitForMainFrame(), /*enabled=*/true);
-
   // Verify that the form with child frames was extracted.
   NSString* verifying_javascript =
       @"forms.length === 1 && forms[0].id_attribute === 'testform' && "
@@ -1885,9 +1911,6 @@ TEST_F(AutofillControllerJsTest,
                     "</body></html>";
   web::test::LoadHtml(html, web_state());
 
-  autofill::AutofillFormFeaturesJavaScriptFeature::GetInstance()
-      ->SetAutofillAcrossIframes(WaitForMainFrame(), /*enabled=*/true);
-
   // Verify that the form with child frames was extracted.
   NSString* verifying_javascript =
       @"forms.length === 1 && forms[0].child_frames.length === 1;";
@@ -1898,8 +1921,6 @@ TEST_F(AutofillControllerJsTest,
                                     "getFunction('extractNewForms')(false); %@",
                                    verifying_javascript]));
 }
-
-
 
 TEST_F(AutofillControllerJsTest, FillActiveFormField) {
   web::test::LoadHtml(kHTMLForTestingElements, web_state());

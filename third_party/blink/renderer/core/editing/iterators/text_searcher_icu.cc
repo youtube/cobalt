@@ -29,6 +29,7 @@
 
 #include <unicode/usearch.h>
 
+#include "base/numerics/safe_conversions.h"
 #include "third_party/blink/renderer/platform/text/character.h"
 #include "third_party/blink/renderer/platform/text/text_boundaries.h"
 #include "third_party/blink/renderer/platform/text/text_break_iterator_internal_icu.h"
@@ -169,9 +170,10 @@ void TextSearcherICU::SetPattern(const StringView& pattern,
 
 void TextSearcherICU::SetText(base::span<const UChar> text) {
   UErrorCode status = U_ZERO_ERROR;
-  usearch_setText(searcher_, text.data(), text.size(), &status);
+  usearch_setText(searcher_, text.data(),
+                  base::checked_cast<int32_t>(text.size()), &status);
   DCHECK_EQ(status, U_ZERO_ERROR);
-  text_length_ = text.size();
+  text_length_ = base::checked_cast<wtf_size_t>(text.size());
 }
 
 void TextSearcherICU::SetOffset(wtf_size_t offset) {
@@ -242,7 +244,8 @@ bool TextSearcherICU::IsCorrectKanaMatch(base::span<const UChar> text,
 
 void TextSearcherICU::SetPattern(base::span<const UChar> pattern) {
   UErrorCode status = U_ZERO_ERROR;
-  usearch_setPattern(searcher_, pattern.data(), pattern.size(), &status);
+  usearch_setPattern(searcher_, pattern.data(),
+                     base::checked_cast<int32_t>(pattern.size()), &status);
   DCHECK(U_SUCCESS(status));
 }
 

@@ -59,7 +59,6 @@
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
-#include "pdf/buildflags.h"
 #include "services/metrics/public/cpp/metrics_utils.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -618,6 +617,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   content::WebContents* active_web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_TRUE(active_web_contents);
+  cue_target_->page_eligible = false;
   contextual_cueing_controller()->OnPageContentAnnotated(
       page_content_annotations::HistoryVisit(
           active_web_contents->GetController()
@@ -1124,7 +1124,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   browser()->tab_strip_model()->AddToNewSplit(
       {1}, split_tabs::SplitTabVisualData(),
       split_tabs::SplitTabCreatedSource::kToolbarButton);
-  ASSERT_TRUE(browser()->tab_strip_model()->IsActiveTabSplit());
+  ASSERT_TRUE(browser()->tab_strip_model()->GetActiveTab()->IsSplit());
 
   SimulateFilterPassed();
 
@@ -1661,127 +1661,6 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
       static_cast<int64_t>(ContextualCueingInteraction::kCueClicked));
 }
 
-#if BUILDFLAG(ENABLE_PDF)
-
-IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
-                       PdfEduOnlyIsSupported) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-  GURL pdf_url = embedded_test_server()->GetURL("/pdf/test.pdf");
-
-  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-      browser(), pdf_url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
-
-  base::HistogramTester histogram_tester;
-  ukm::TestAutoSetUkmRecorder ukm_recorder;
-  SeedExecutionResult(MakeCompleteResponse());
-
-  content::WebContents* active_web_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
-  ASSERT_TRUE(active_web_contents);
-  EXPECT_EQ(active_web_contents->GetContentsMimeType(), "application/pdf");
-
-  contextual_cueing_controller()->OnPageContentAnnotated(
-      page_content_annotations::HistoryVisit(
-          active_web_contents->GetController()
-              .GetLastCommittedEntry()
-              ->GetTimestamp(),
-          pdf_url),
-      page_content_annotations::PageContentAnnotationsResult::
-          CreateCategoryResults({
-              page_content_annotations::Category(
-                  page_content_annotations::CategoryType::kEducation, 0.9),
-              page_content_annotations::Category(
-                  page_content_annotations::CategoryType::kShopping, 0.2),
-          }));
-
-  optimization_guide::RetryForHistogramUntilCountReached(
-      &histogram_tester, "ContextualCueing.V2.Decision", 1);
-  histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
-                                      ContextualCueingDecision::kSuccess, 1);
-  VerifyProactiveCueDecision(ukm_recorder, ContextualCueingDecision::kSuccess);
-}
-
-IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
-                       PdfShoppingOnlyIsNotSupported) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-  GURL pdf_url = embedded_test_server()->GetURL("/pdf/test.pdf");
-
-  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-      browser(), pdf_url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
-
-  base::HistogramTester histogram_tester;
-  ukm::TestAutoSetUkmRecorder ukm_recorder;
-
-  content::WebContents* active_web_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
-  ASSERT_TRUE(active_web_contents);
-
-  contextual_cueing_controller()->OnPageContentAnnotated(
-      page_content_annotations::HistoryVisit(
-          active_web_contents->GetController()
-              .GetLastCommittedEntry()
-              ->GetTimestamp(),
-          pdf_url),
-      page_content_annotations::PageContentAnnotationsResult::
-          CreateCategoryResults({
-              page_content_annotations::Category(
-                  page_content_annotations::CategoryType::kEducation, 0.2),
-              page_content_annotations::Category(
-                  page_content_annotations::CategoryType::kShopping, 0.9),
-          }));
-
-  optimization_guide::RetryForHistogramUntilCountReached(
-      &histogram_tester, "ContextualCueing.V2.Decision", 1);
-  histogram_tester.ExpectUniqueSample(
-      "ContextualCueing.V2.Decision",
-      ContextualCueingDecision::kFailedCategoryClassification, 1);
-  VerifyProactiveCueDecision(
-      ukm_recorder, ContextualCueingDecision::kFailedCategoryClassification);
-}
-
-IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
-                       PdfEduAndShoppingIsNotSupported) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-  GURL pdf_url = embedded_test_server()->GetURL("/pdf/test.pdf");
-
-  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-      browser(), pdf_url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
-
-  base::HistogramTester histogram_tester;
-  ukm::TestAutoSetUkmRecorder ukm_recorder;
-
-  content::WebContents* active_web_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
-  ASSERT_TRUE(active_web_contents);
-
-  contextual_cueing_controller()->OnPageContentAnnotated(
-      page_content_annotations::HistoryVisit(
-          active_web_contents->GetController()
-              .GetLastCommittedEntry()
-              ->GetTimestamp(),
-          pdf_url),
-      page_content_annotations::PageContentAnnotationsResult::
-          CreateCategoryResults({
-              page_content_annotations::Category(
-                  page_content_annotations::CategoryType::kEducation, 0.9),
-              page_content_annotations::Category(
-                  page_content_annotations::CategoryType::kShopping, 0.9),
-          }));
-
-  optimization_guide::RetryForHistogramUntilCountReached(
-      &histogram_tester, "ContextualCueing.V2.Decision", 1);
-  histogram_tester.ExpectUniqueSample(
-      "ContextualCueing.V2.Decision",
-      ContextualCueingDecision::kFailedCategoryClassification, 1);
-  VerifyProactiveCueDecision(
-      ukm_recorder, ContextualCueingDecision::kFailedCategoryClassification);
-}
-
-#endif  // BUILDFLAG(ENABLE_PDF)
-
 class ContextualCueingControllerBrowserTestWithAgeRestriction
     : public ContextualCueingControllerBrowserTest {
  public:
@@ -1844,136 +1723,6 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTestWithAgeRestriction,
   VerifyProactiveCueDecision(ukm_recorder, ContextualCueingDecision::kSuccess);
 }
 
-#if BUILDFLAG(ENABLE_PDF)
-
-class ContextualCueingControllerDoNotDiscardShoppingPdfsTest
-    : public ContextualCueingControllerBrowserTest {
- public:
-  void InitializeFeatureList() override {
-    scoped_feature_list_.InitWithFeaturesAndParameters(
-        {{kContextualCueingV2,
-          {{"ContextualCueingV2DiscardShoppingPdfs", "false"}}}},
-        /*disabled_features=*/{kContextualCueingV2EnforceAgeRestriction});
-  }
-};
-
-IN_PROC_BROWSER_TEST_F(ContextualCueingControllerDoNotDiscardShoppingPdfsTest,
-                       PdfEduOnlyIsSupported) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-  GURL pdf_url = embedded_test_server()->GetURL("/pdf/test.pdf");
-
-  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-      browser(), pdf_url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
-
-  base::HistogramTester histogram_tester;
-  ukm::TestAutoSetUkmRecorder ukm_recorder;
-  SeedExecutionResult(MakeCompleteResponse());
-
-  content::WebContents* active_web_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
-  ASSERT_TRUE(active_web_contents);
-  EXPECT_EQ(active_web_contents->GetContentsMimeType(), "application/pdf");
-
-  contextual_cueing_controller()->OnPageContentAnnotated(
-      page_content_annotations::HistoryVisit(
-          active_web_contents->GetController()
-              .GetLastCommittedEntry()
-              ->GetTimestamp(),
-          pdf_url),
-      page_content_annotations::PageContentAnnotationsResult::
-          CreateCategoryResults({
-              page_content_annotations::Category(
-                  page_content_annotations::CategoryType::kEducation, 0.9),
-              page_content_annotations::Category(
-                  page_content_annotations::CategoryType::kShopping, 0.2),
-          }));
-
-  optimization_guide::RetryForHistogramUntilCountReached(
-      &histogram_tester, "ContextualCueing.V2.Decision", 1);
-  histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
-                                      ContextualCueingDecision::kSuccess, 1);
-  VerifyProactiveCueDecision(ukm_recorder, ContextualCueingDecision::kSuccess);
-}
-
-IN_PROC_BROWSER_TEST_F(ContextualCueingControllerDoNotDiscardShoppingPdfsTest,
-                       PdfShoppingOnlyIsSupported) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-  GURL pdf_url = embedded_test_server()->GetURL("/pdf/test.pdf");
-
-  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-      browser(), pdf_url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
-
-  base::HistogramTester histogram_tester;
-  ukm::TestAutoSetUkmRecorder ukm_recorder;
-  SeedExecutionResult(MakeCompleteResponse());
-
-  content::WebContents* active_web_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
-  ASSERT_TRUE(active_web_contents);
-
-  contextual_cueing_controller()->OnPageContentAnnotated(
-      page_content_annotations::HistoryVisit(
-          active_web_contents->GetController()
-              .GetLastCommittedEntry()
-              ->GetTimestamp(),
-          pdf_url),
-      page_content_annotations::PageContentAnnotationsResult::
-          CreateCategoryResults({
-              page_content_annotations::Category(
-                  page_content_annotations::CategoryType::kEducation, 0.2),
-              page_content_annotations::Category(
-                  page_content_annotations::CategoryType::kShopping, 0.9),
-          }));
-
-  optimization_guide::RetryForHistogramUntilCountReached(
-      &histogram_tester, "ContextualCueing.V2.Decision", 1);
-  histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
-                                      ContextualCueingDecision::kSuccess, 1);
-  VerifyProactiveCueDecision(ukm_recorder, ContextualCueingDecision::kSuccess);
-}
-
-IN_PROC_BROWSER_TEST_F(ContextualCueingControllerDoNotDiscardShoppingPdfsTest,
-                       PdfEduAndShoppingIsNotSupported) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-  GURL pdf_url = embedded_test_server()->GetURL("/pdf/test.pdf");
-
-  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-      browser(), pdf_url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
-
-  base::HistogramTester histogram_tester;
-  ukm::TestAutoSetUkmRecorder ukm_recorder;
-  SeedExecutionResult(MakeCompleteResponse());
-
-  content::WebContents* active_web_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
-  ASSERT_TRUE(active_web_contents);
-
-  contextual_cueing_controller()->OnPageContentAnnotated(
-      page_content_annotations::HistoryVisit(
-          active_web_contents->GetController()
-              .GetLastCommittedEntry()
-              ->GetTimestamp(),
-          pdf_url),
-      page_content_annotations::PageContentAnnotationsResult::
-          CreateCategoryResults({
-              page_content_annotations::Category(
-                  page_content_annotations::CategoryType::kEducation, 0.9),
-              page_content_annotations::Category(
-                  page_content_annotations::CategoryType::kShopping, 0.9),
-          }));
-
-  optimization_guide::RetryForHistogramUntilCountReached(
-      &histogram_tester, "ContextualCueing.V2.Decision", 1);
-  histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
-                                      ContextualCueingDecision::kSuccess, 1);
-  VerifyProactiveCueDecision(ukm_recorder, ContextualCueingDecision::kSuccess);
-}
-
-#endif
-
 class ContextualCueingControllerShowInSplitViewBrowserTest
     : public ContextualCueingControllerBrowserTestBase {
  public:
@@ -2011,7 +1760,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerShowInSplitViewBrowserTest,
   browser()->tab_strip_model()->AddToNewSplit(
       {1}, split_tabs::SplitTabVisualData(),
       split_tabs::SplitTabCreatedSource::kToolbarButton);
-  ASSERT_TRUE(browser()->tab_strip_model()->IsActiveTabSplit());
+  ASSERT_TRUE(browser()->tab_strip_model()->GetActiveTab()->IsSplit());
 
   SimulateFilterPassed();
 

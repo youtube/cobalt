@@ -1713,6 +1713,9 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   // Set to true if the widget is in the process of being destroyed.
   bool is_destroying_ = false;
 
+  // Set to true after HandleWidgetDestroying called.
+  bool widget_destroying_ = false;
+
   // Set to true after OnWidgetDestroyed called.
   bool native_widget_destroyed_ = false;
 

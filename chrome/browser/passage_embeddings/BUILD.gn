@@ -6,6 +6,8 @@ source_set("passage_embeddings") {
   sources = [
     "chrome_passage_embeddings_service_controller.cc",
     "chrome_passage_embeddings_service_controller.h",
+    "chrome_passage_embeddings_service_launcher.cc",
+    "chrome_passage_embeddings_service_launcher.h",
     "cpu_histogram_logger.cc",
     "cpu_histogram_logger.h",
     "passage_embedder_model_observer_factory.cc",

@@ -406,6 +406,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="ChromeColors.ColorSchemeOnLoad" enum="BrowserColorScheme"
+    expires_after="2027-06-01">
+  <owner>dpenning@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <summary>
+    Recorded every time the theme service is initialized from prefs (happens
+    once per profile load). Records the browser color scheme mode (Light, Dark,
+    System).
+  </summary>
+</histogram>
+
 <histogram name="ChromeColors.ColorType" enum="ChromeColorType"
     expires_after="2026-11-01">
   <owner>tiborg@chromium.org</owner>

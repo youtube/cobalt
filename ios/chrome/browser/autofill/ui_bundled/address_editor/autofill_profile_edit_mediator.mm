@@ -52,11 +52,10 @@ constexpr std::array<autofill::FieldType, 3> kStaticFieldsTypes = {
 @end
 
 @implementation AutofillProfileEditMediator {
-  raw_ptr<autofill::AutofillProfile, DanglingUntriaged> _autofillProfile;
+  raw_ptr<autofill::AutofillProfile> _autofillProfile;
 
   // Used for editing autofill profile.
-  raw_ptr<autofill::PersonalDataManager, DanglingUntriaged>
-      _personalDataManager;
+  raw_ptr<autofill::PersonalDataManager> _personalDataManager;
 
   // This property is for an interface which sends a response about saving the
   // edited profile.
@@ -145,6 +144,11 @@ constexpr std::array<autofill::FieldType, 3> kStaticFieldsTypes = {
 }
 
 #pragma mark - Public
+
+- (void)disconnect {
+  _autofillProfile = nullptr;
+  _personalDataManager = nullptr;
+}
 
 - (void)didSelectCountry:(CountryItem*)countryItem {
   if ([_selectedCountryCode isEqualToString:countryItem.countryCode]) {

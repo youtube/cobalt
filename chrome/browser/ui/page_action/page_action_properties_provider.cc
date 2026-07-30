@@ -12,6 +12,7 @@
 #include "ui/actions/action_id.h"
 
 namespace {
+// LINT.IfChange(kPageActionProperties)
 constexpr auto kPageActionProperties = base::MakeFixedFlatMap<
     actions::ActionId,
     page_actions::PageActionProperties>({
@@ -320,6 +321,7 @@ constexpr auto kPageActionProperties = base::MakeFixedFlatMap<
         },
     },
 });
+// LINT.ThenChange(//components/browser_apis/ui_controllers/toolbar/toolbar_ui_api_data_model.mojom:PageActionId)
 
 constexpr bool CheckIgnoreFlagUsage() {
   for (const auto& [action_id, properties] : kPageActionProperties) {

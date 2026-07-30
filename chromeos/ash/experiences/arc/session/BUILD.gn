@@ -57,6 +57,7 @@ static_library("session") {
     "//chromeos/ash/components/dbus/spaced",
     "//chromeos/ash/components/dbus/upstart",
     "//chromeos/ash/components/memory",
+    "//chromeos/ash/components/mojo_proxy/service:switches",
     "//chromeos/ash/components/mojo_service_manager",
     "//chromeos/ash/components/system",
     "//chromeos/ash/experiences/arc:arc_base_utils",
@@ -69,7 +70,6 @@ static_library("session") {
     "//components/user_manager",
     "//components/version_info",
     "//content/public/browser",
-    "//mojo/proxy:switches",
     "//services/accessibility/android/public/mojom",
     "//ui/display/manager",
   ]

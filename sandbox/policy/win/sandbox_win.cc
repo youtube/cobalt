@@ -342,6 +342,8 @@ std::string_view GetAppContainerNameFromType(Sandbox sandbox_type) {
       return "cr.sb.prnc";
     case Sandbox::kProxyResolver:
       return "cr.sb.pxy";
+    case Sandbox::kWebNNModelCompilation:
+      return "cr.sb.wnn";
     default:
       return {};
   }
@@ -385,7 +387,8 @@ ResultCode SetupAppContainerProfile(AppContainer* container,
       !(sandbox_type == Sandbox::kPrintCompositor &&
         base::FeatureList::IsEnabled(
             sandbox::policy::features::kPrintCompositorLPAC)) &&
-      sandbox_type != Sandbox::kProxyResolver) {
+      sandbox_type != Sandbox::kProxyResolver &&
+      sandbox_type != Sandbox::kWebNNModelCompilation) {
     return SBOX_ERROR_UNSUPPORTED;
   }
 
@@ -452,6 +455,15 @@ ResultCode SetupAppContainerProfile(AppContainer* container,
     container->SetEnableLowPrivilegeAppContainer(true);
   }
 
+  if (sandbox_type == Sandbox::kWebNNModelCompilation) {
+    // Needed at impersonation time for access checks against Chrome's
+    // install directory (DLLs alongside chrome.exe, including the
+    // bundled ONNX Runtime and execution-provider framework packages
+    // which carry both the regular and LPAC chromeInstallFiles ACEs).
+    container->AddImpersonationCapability(kChromeInstallFiles);
+    container->SetEnableLowPrivilegeAppContainer(true);
+  }
+
   return SBOX_ALL_OK;
 }
 
@@ -500,6 +512,7 @@ ResultCode GenerateConfigForSandboxedProcess(const base::CommandLine& cmd_line,
 
     if (sandbox_type == Sandbox::kNetwork || sandbox_type == Sandbox::kAudio ||
         sandbox_type == Sandbox::kIconReader ||
+        sandbox_type == Sandbox::kWebNNModelCompilation ||
         (sandbox_type == Sandbox::kSpeechRecognition &&
          base::FeatureList::IsEnabled(
              features::kSpeechRecognitionSandboxHardening))) {
@@ -821,6 +834,10 @@ bool SandboxWin::IsAppContainerEnabledForSandbox(
   }
 
   if (sandbox_type == Sandbox::kProxyResolver) {
+    return true;
+  }
+
+  if (sandbox_type == Sandbox::kWebNNModelCompilation) {
     return true;
   }
 

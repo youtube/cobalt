@@ -22,7 +22,8 @@ class PrivateVerificationTokensToken {
                                  SerializedToken token,
                                  uint32_t key_id,
                                  base::Time expiration,
-                                 uint32_t version);
+                                 uint32_t version,
+                                 base::Time creation_time = base::Time::Now());
   PrivateVerificationTokensToken(const PrivateVerificationTokensToken&);
   PrivateVerificationTokensToken& operator=(
       const PrivateVerificationTokensToken&);
@@ -53,6 +54,8 @@ class PrivateVerificationTokensToken {
   // elements (compressed vs not). Version is used when retrieving tokens from
   // the database as well.
   uint32_t version() const;
+  // Creation time of the token.
+  base::Time creation_time() const;
 
   bool operator==(const PrivateVerificationTokensToken&) const = default;
 
@@ -62,6 +65,7 @@ class PrivateVerificationTokensToken {
   uint32_t key_id_;
   base::Time expiration_;
   uint32_t version_;
+  base::Time creation_time_;
 };
 
 }  // namespace private_verification_tokens

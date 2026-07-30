@@ -555,8 +555,7 @@ void TrackerImpl::UpdateConfig(const base::Feature& feature,
 }
 #endif
 
-const Configuration* TrackerImpl::GetConfigurationForTesting() const {
-  CHECK_IS_TEST();
+const Configuration* TrackerImpl::GetConfiguration() const {
   return configuration_.get();
 }
 

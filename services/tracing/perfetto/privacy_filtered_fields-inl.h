@@ -69,7 +69,7 @@ constexpr MessageInfo kChromeCompositorStateMachine = {
     kChromeCompositorStateMachineComplexMessages};
 
 // Proto Message: SourceLocation
-constexpr int kSourceLocationIndices[] = {1, 2, 3, -1};
+constexpr int kSourceLocationIndices[] = {1, 2, 3, 4, -1};
 constexpr MessageInfo kSourceLocation = {kSourceLocationIndices, nullptr};
 
 // Proto Message: BeginFrameArgs
@@ -632,6 +632,10 @@ constexpr MessageInfo kFrameIntervalDecider = {
 constexpr int kBeginFrameArgsV2Indices[] = {4, 6, -1};
 constexpr MessageInfo kBeginFrameArgsV2 = {kBeginFrameArgsV2Indices, nullptr};
 
+// Proto Message: MacVoucherRelease
+constexpr int kMacVoucherReleaseIndices[] = {1, 2, 3, 4, 5, 6, 7, -1};
+constexpr MessageInfo kMacVoucherRelease = {kMacVoucherReleaseIndices, nullptr};
+
 // Proto Message: TrackEvent
 constexpr int kTrackEventIndices[] = {
     1,    2,    3,    5,    6,    9,    10,   11,   12,   16,   17,   22,
@@ -642,7 +646,7 @@ constexpr int kTrackEventIndices[] = {
     1031, 1032, 1033, 1034, 1036, 1038, 1039, 1040, 1041, 1042, 1046, 1047,
     1048, 1049, 1050, 1051, 1052, 1053, 1054, 1055, 1056, 1057, 1058, 1059,
     1060, 1061, 1064, 1065, 1066, 1067, 1068, 1069, 1070, 1071, 1075, 1076,
-    1077, 1078, 1079, 1080, 1081, 1082, -1};
+    1077, 1078, 1079, 1080, 1081, 1082, 1083, -1};
 constexpr MessageInfo const* kTrackEventComplexMessages[] = {
     nullptr,
     nullptr,
@@ -745,7 +749,8 @@ constexpr MessageInfo const* kTrackEventComplexMessages[] = {
     &kMemoryDumpProvider,
     &kChromeAccessibilityWinNotifyWinEvent,
     &kFrameIntervalDecider,
-    &kBeginFrameArgsV2};
+    &kBeginFrameArgsV2,
+    &kMacVoucherRelease};
 constexpr MessageInfo kTrackEvent = {kTrackEventIndices,
                                      kTrackEventComplexMessages};
 
@@ -961,22 +966,22 @@ constexpr MessageInfo kFileIoCreateEtwEvent = {kFileIoCreateEtwEventIndices,
                                                nullptr};
 
 // Proto Message: FileIoDirEnumEtwEvent
-constexpr int kFileIoDirEnumEtwEventIndices[] = {1, 2, 3, 4, 5, 6, 7, -1};
+constexpr int kFileIoDirEnumEtwEventIndices[] = {1, 2, 3, 4, 5, 6, 7, 9, -1};
 constexpr MessageInfo kFileIoDirEnumEtwEvent = {kFileIoDirEnumEtwEventIndices,
                                                 nullptr};
 
 // Proto Message: FileIoInfoEtwEvent
-constexpr int kFileIoInfoEtwEventIndices[] = {1, 2, 3, 4, 5, 6, -1};
+constexpr int kFileIoInfoEtwEventIndices[] = {1, 2, 3, 4, 5, 6, 7, -1};
 constexpr MessageInfo kFileIoInfoEtwEvent = {kFileIoInfoEtwEventIndices,
                                              nullptr};
 
 // Proto Message: FileIoReadWriteEtwEvent
-constexpr int kFileIoReadWriteEtwEventIndices[] = {1, 2, 3, 4, 5, 6, 7, -1};
+constexpr int kFileIoReadWriteEtwEventIndices[] = {1, 2, 3, 4, 5, 6, 7, 8, -1};
 constexpr MessageInfo kFileIoReadWriteEtwEvent = {
     kFileIoReadWriteEtwEventIndices, nullptr};
 
 // Proto Message: FileIoSimpleOpEtwEvent
-constexpr int kFileIoSimpleOpEtwEventIndices[] = {1, 2, 3, 4, -1};
+constexpr int kFileIoSimpleOpEtwEventIndices[] = {1, 2, 3, 4, 5, -1};
 constexpr MessageInfo kFileIoSimpleOpEtwEvent = {kFileIoSimpleOpEtwEventIndices,
                                                  nullptr};
 
@@ -985,9 +990,14 @@ constexpr int kFileIoOpEndEtwEventIndices[] = {1, 2, 3, -1};
 constexpr MessageInfo kFileIoOpEndEtwEvent = {kFileIoOpEndEtwEventIndices,
                                               nullptr};
 
+// Proto Message: FileIoPathOperationEtwEvent
+constexpr int kFileIoPathOperationEtwEventIndices[] = {1, 2, 3, 4, 5, 6, 8, -1};
+constexpr MessageInfo kFileIoPathOperationEtwEvent = {
+    kFileIoPathOperationEtwEventIndices, nullptr};
+
 // Proto Message: EtwTraceEvent
-constexpr int kEtwTraceEventIndices[] = {1, 2, 3,  4,  5,  6, 7,
-                                         8, 9, 10, 11, 12, -1};
+constexpr int kEtwTraceEventIndices[] = {1, 2, 3,  4,  5,  6,  7,
+                                         8, 9, 10, 11, 12, 14, -1};
 constexpr MessageInfo const* kEtwTraceEventComplexMessages[] = {
     nullptr,
     &kCSwitchEtwEvent,
@@ -1000,7 +1010,8 @@ constexpr MessageInfo const* kEtwTraceEventComplexMessages[] = {
     &kFileIoInfoEtwEvent,
     &kFileIoReadWriteEtwEvent,
     &kFileIoSimpleOpEtwEvent,
-    &kFileIoOpEndEtwEvent};
+    &kFileIoOpEndEtwEvent,
+    &kFileIoPathOperationEtwEvent};
 constexpr MessageInfo kEtwTraceEvent = {kEtwTraceEventIndices,
                                         kEtwTraceEventComplexMessages};
 

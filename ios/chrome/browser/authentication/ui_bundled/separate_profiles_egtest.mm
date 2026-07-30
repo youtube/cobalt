@@ -162,7 +162,7 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
       performAction:grey_tap()];
 
   // Wait for the browsing data management screen to disappear, and the
-  // enteprise onboarding screen to appear again.
+  // enterprise onboarding screen to appear again.
   WaitForEnterpriseOnboardingScreen();
 
   // We are still signed out before accepting enterprise management.
@@ -260,7 +260,7 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
       performAction:grey_tap()];
 
   // Wait for the browsing data management screen to disappear, and the
-  // enteprise onboarding screen to appear again.
+  // enterprise onboarding screen to appear again.
   WaitForEnterpriseOnboardingScreen();
 
   // We are still signed out before accepting enterprise management.

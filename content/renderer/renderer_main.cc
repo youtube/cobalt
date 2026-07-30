@@ -224,7 +224,8 @@ int RendererMain(MainFunctionParams parameters) {
 
   std::optional<LastResortGCPolicy> last_resort_gc_policy;
   if (base::FeatureList::IsEnabled(kMemoryCoordinatorLastResortGC)) {
-    last_resort_gc_policy.emplace(ChildMemoryCoordinator::Get());
+    last_resort_gc_policy.emplace(
+        ChildMemoryCoordinator::Get().policy_manager());
   }
 
   {

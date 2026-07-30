@@ -347,7 +347,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BackForwardCache.Eviction.Renderer"
-    enum="BackForwardCacheRendererEvictionReason" expires_after="2026-10-11">
+    enum="BackForwardCacheRendererEvictionReason" expires_after="2026-12-16">
   <owner>rakina@chromium.org</owner>
   <owner>bfcache-dev@chromium.org</owner>
   <summary>
@@ -357,7 +357,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BackForwardCache.Eviction.TimeUntilProcessKilled" units="ms"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>fergal@chromium.org</owner>
   <owner>bfcache-dev@chromium.org</owner>
   <summary>
@@ -566,7 +566,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BackForwardCache.NewPageNavHasPotentialMatch" enum="Boolean"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>rakina@chromium.org</owner>
   <owner>bfcache-dev@chromium.org</owner>
   <summary>
@@ -890,19 +890,6 @@ chromium-metrics-reviews@google.com.
     Records the reason why the navigation blur transition (Android only) was
     terminated. This helps track the success rate and failure modes of the
     transition animation.
-  </summary>
-</histogram>
-
-<histogram name="Navigation.BrowserInitiated.DuplicateNavCookieStatus"
-    enum="DuplicateNavsCookieStatus" expires_after="2026-10-18">
-  <owner>annasato@google.com</owner>
-  <owner>rakina@google.com</owner>
-  <owner>chrome-navigation@google.com</owner>
-  <summary>
-    Records the cookie change status only for potential duplicate navigations
-    where criteria such as URL, initiator, method, and transition match. It
-    distinguishes whether a CookieChangeListener was missing, cookies actually
-    changed since the ongoing navigation started, or cookies remained the same.
   </summary>
 </histogram>
 
@@ -1283,7 +1270,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Navigation.GestureTransition.CacheHitOrMissReason"
-    enum="NavigationTransitionCacheHitOrMissReason" expires_after="2026-10-18">
+    enum="NavigationTransitionCacheHitOrMissReason" expires_after="2026-12-20">
   <owner>liuwilliam@google.com</owner>
   <owner>baranerf@google.com</owner>
   <owner>chrome-seamless-core@google.com</owner>
@@ -1320,7 +1307,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Navigation.GestureTransition.ScreenshotCacheSize" units="MB"
-    expires_after="2026-10-18">
+    expires_after="2026-12-20">
   <owner>acondor@google.com</owner>
   <owner>liuwilliam@google.com</owner>
   <owner>baranerf@google.com</owner>
@@ -1785,7 +1772,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Navigation.OnBeforeUnloadOverheadTime" units="ms"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>clamy@chromium.org</owner>
   <owner>nasko@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -2151,7 +2138,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Navigation.ProcessSwap.V8Optimizer.WouldSwapRendererInitiatedAboutBlankNavigation"
-    enum="BooleanOccurred" expires_after="2026-10-18">
+    enum="BooleanOccurred" expires_after="2026-12-20">
   <owner>tiffanysong@google.com</owner>
   <owner>jacastro@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
@@ -2503,7 +2490,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Navigation.RequiresDedicatedProcess.HTTPOrHTTPS"
-    enum="NavigationRequiresDedicatedProcess" expires_after="2026-06-24">
+    enum="NavigationRequiresDedicatedProcess" expires_after="2027-06-24">
   <owner>alexmos@chromium.org</owner>
   <owner>lukasza@chromium.org</owner>
   <summary>
@@ -3216,7 +3203,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Navigation.URLLoader.OnAcceptCHFrameReceived.ExecutionTime"
-    units="microseconds" expires_after="2026-10-11">
+    units="microseconds" expires_after="2026-12-16">
   <owner>yyanagisawa@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -3645,6 +3632,20 @@ chromium-metrics-reviews@google.com.
     engaged sites data. Recorded whenever a navigation is deferred waiting for
     engaged sites.
   </summary>
+</histogram>
+
+<histogram name="Navigation{Initiator}.DuplicateNavCookieStatus"
+    enum="DuplicateNavsCookieStatus" expires_after="2026-12-20">
+  <owner>annasato@google.com</owner>
+  <owner>rakina@google.com</owner>
+  <owner>chrome-navigation@google.com</owner>
+  <summary>
+    Records the cookie change status only for potential duplicate navigations
+    where criteria such as URL, initiator, method, and transition match. It
+    distinguishes whether a CookieChangeListener was missing, cookies actually
+    changed since the ongoing navigation started, or cookies remained the same.
+  </summary>
+  <token key="Initiator" variants="Initiator"/>
 </histogram>
 
 <histogram name="Navigation{Initiator}.DuplicateNavigationInputStartPresence2"
@@ -4176,7 +4177,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Prerender.PrerenderTimeSaved" units="ms"
-    expires_after="2026-07-13">
+    expires_after="2027-07-13">
   <owner>gambard@chromium.org</owner>
   <owner>justincohen@chromium.org</owner>
   <summary>

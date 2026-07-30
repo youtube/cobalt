@@ -772,44 +772,64 @@ ScriptPromise<IDLUndefined> AudioContext::suspendContext(
                           "Cannot suspend a closed AudioContext."));
   }
 
+  ScriptPromise<IDLUndefined> promise;
+  base::OnceClosure callback;
+
+  // If resume() is called before the async transition to "suspended" runs,
+  // it will clear suspended_by_user_ to make that task a no-op.
+  suspended_by_user_ = true;
+
+  pending_transition_to_suspend_ = true;
+
   if (RuntimeEnabledFeatures::AudioContextAsyncStateTransitionsEnabled()) {
     // The transition to "suspended" is executed asynchronously to prevent race
     // conditions when suspend() is called immediately after construction.
     // https://webaudio.github.io/web-audio-api/#dom-audiocontext-suspend
     auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
         script_state, exception_state.GetContext());
-    auto promise = resolver->Promise();
+    promise = resolver->Promise();
 
     {
       DeferredTaskHandler::GraphAutoLocker locker(GetDeferredTaskHandler());
       pending_suspend_resolvers_.push_back(resolver);
     }
 
-    // If resume() is called before the async transition to "suspended" runs,
-    // it will clear this flag to make that task a no-op.
-    suspended_by_user_ = true;
-
     // Probe reports the user action to the inspector synchronously.
     probe::DidSuspendAudioContext(GetExecutionContext());
 
-    // The actual state transition will happen asynchronously.
-    ScheduleTransitionToSuspended();
-    return promise;
+    callback = blink::BindOnce(&AudioContext::PerformTransitionToSuspended,
+                               WrapWeakPersistent(this));
+  } else {
+    // Stop rendering now.
+    if (destination()) {
+      SuspendRendering();
+    }
+
+    // Probe reports the suspension only when the promise is resolved.
+    probe::DidSuspendAudioContext(GetExecutionContext());
+
+    // Since we don't have any way of knowing when the hardware actually stops,
+    // we'll just resolve the promise now.
+    promise = ToResolvedUndefinedPromise(script_state);
+
+    // Clear pending_transition_to_suspend_ asynchronously for the
+    // kAudioContextAsyncTransitionToSuspendedStateRead use counter.
+    callback = blink::BindOnce(
+        [](AudioContext* context) {
+          if (context) {
+            DCHECK_CALLED_ON_VALID_SEQUENCE(
+                context->main_thread_sequence_checker_);
+            context->pending_transition_to_suspend_ = false;
+          }
+        },
+        WrapWeakPersistent(this));
   }
 
-  suspended_by_user_ = true;
+  GetExecutionContext()
+      ->GetTaskRunner(TaskType::kMediaElementEvent)
+      ->PostTask(FROM_HERE, std::move(callback));
 
-  // Stop rendering now.
-  if (destination()) {
-    SuspendRendering();
-  }
-
-  // Probe reports the suspension only when the promise is resolved.
-  probe::DidSuspendAudioContext(GetExecutionContext());
-
-  // Since we don't have any way of knowing when the hardware actually stops,
-  // we'll just resolve the promise now.
-  return ToResolvedUndefinedPromise(script_state);
+  return promise;
 }
 
 ScriptPromise<IDLUndefined> AudioContext::resumeContext(
@@ -826,6 +846,7 @@ ScriptPromise<IDLUndefined> AudioContext::resumeContext(
 
   // Clear this flag to cancel any pending async transition to "suspended".
   suspended_by_user_ = false;
+  pending_transition_to_suspend_ = false;  // Cancel the pending suspend window.
 
   if (ContextState() == V8AudioContextState::Enum::kInterrupted) {
     return ScriptPromise<IDLUndefined>::RejectWithDOMException(
@@ -951,6 +972,8 @@ ScriptPromise<IDLUndefined> AudioContext::closeContext(
 void AudioContext::DidClose() {
   // Cancel any pending async transition to the "running" state.
   pending_initial_transition_to_running_ = false;
+  // Clear the pending state transition to the "suspended" state.
+  pending_transition_to_suspend_ = false;
 
   EnsureAudioContextManagerService();
   if (audio_context_manager_.is_bound()) {
@@ -1054,18 +1077,10 @@ void AudioContext::PerformInitialTransitionToRunning() {
   }
 }
 
-void AudioContext::ScheduleTransitionToSuspended() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(main_thread_sequence_checker_);
-
-  GetExecutionContext()
-      ->GetTaskRunner(TaskType::kMediaElementEvent)
-      ->PostTask(FROM_HERE,
-                 blink::BindOnce(&AudioContext::PerformTransitionToSuspended,
-                                 WrapWeakPersistent(this)));
-}
-
 void AudioContext::PerformTransitionToSuspended() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(main_thread_sequence_checker_);
+
+  pending_transition_to_suspend_ = false;
 
   HeapVector<Member<ScriptPromiseResolver<IDLUndefined>>> resolvers;
   {
@@ -1145,18 +1160,24 @@ void AudioContext::SetVolumeMultiplier(double multiplier) {
 }
 
 V8AudioContextState AudioContext::state() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(main_thread_sequence_checker_);
+
   // Track state reads during pending async transitions after construction and
-  // after suspend(). Previously the state was updated immediately, but now we
-  // return the old state until the transition completes.
-  if (pending_initial_transition_to_running_) {
-    UseCounter::Count(
-        GetExecutionContext(),
-        WebFeature::kAudioContextAsyncTransitionToRunningStateRead);
-  } else if (suspended_by_user_ &&
-             ContextState() == V8AudioContextState::Enum::kRunning) {
+  // after suspend(). Previously the state was updated immediately, but when
+  // the AudioContextAsyncStateTransitions feature is enabled, the old state
+  // is returned until the transition completes.
+  // To measure existing usage even with the feature disabled, construction
+  // and suspend() set the two flags (pending_initial_transition_to_running_,
+  // pending_transition_to_suspend_) and clear them asynchronously to keep
+  // the pending state transition window.
+  if (pending_transition_to_suspend_) {
     UseCounter::Count(
         GetExecutionContext(),
         WebFeature::kAudioContextAsyncTransitionToSuspendedStateRead);
+  } else if (pending_initial_transition_to_running_) {
+    UseCounter::Count(
+        GetExecutionContext(),
+        WebFeature::kAudioContextAsyncTransitionToRunningStateRead);
   }
   return BaseAudioContext::state();
 }
@@ -2022,6 +2043,7 @@ void AudioContext::HandleRenderError() {
 
       DispatchEvent(*Event::Create(event_type_names::kError));
       suspended_by_user_ = false;
+      pending_transition_to_suspend_ = false;
       SetContextState(V8AudioContextState::Enum::kSuspended);
       return;
     case V8AudioContextState::Enum::kSuspended:

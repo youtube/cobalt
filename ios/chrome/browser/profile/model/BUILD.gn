@@ -186,6 +186,8 @@ source_set("keyed_service_factories") {
     "//ios/chrome/browser/https_upgrades/model",
     "//ios/chrome/browser/image_fetcher/model",
     "//ios/chrome/browser/intelligence/actor/model",
+    "//ios/chrome/browser/intelligence/bwg/model:gemini_capabilities_manager",
+    "//ios/chrome/browser/intelligence/bwg/model:gemini_capabilities_manager_factory",
     "//ios/chrome/browser/intelligence/bwg/model:gemini_service_factory",
     "//ios/chrome/browser/intelligence/persist_tab_context/model",
     "//ios/chrome/browser/invalidation/model",

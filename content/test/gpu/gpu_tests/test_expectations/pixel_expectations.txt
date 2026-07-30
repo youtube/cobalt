@@ -388,7 +388,6 @@ crbug.com/486121429 [ linux amd ] Pixel_SVGHuge [ Slow ]
 # Mac Asan timeouts
 crbug.com/338200323 [ mac angle-opengl asan graphite-disabled intel-0x3e9b passthrough ] Pixel_WebGPUToDataURL [ Slow ]
 crbug.com/338200323 crbug.com/479387364 [ mac angle-metal asan passthrough ] Pixel_WebGLSadCanvas [ Failure ]
-crbug.com/338200323 crbug.com/479387364 [ angle-metal asan graphite-disabled intel-0x3e9b mac passthrough ] Pixel_WebGLFloat [ Failure ]
 crbug.com/338200323 [ sonoma angle-metal asan passthrough ] Pixel_OffscreenCanvasWebGLSoftwareCompositing [ Slow ]
 crbug.com/338200323 [ sonoma angle-metal asan passthrough ] Pixel_OffscreenCanvasWebGLSoftwareCompositingWorker [ Slow ]
 crbug.com/338200323 [ mac angle-metal asan passthrough ] Pixel_OffscreenCanvasTransferToImageBitmapSoftwareCompositing [ Slow ]

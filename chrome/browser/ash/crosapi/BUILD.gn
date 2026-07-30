@@ -123,7 +123,6 @@ static_library("crosapi") {
     "//chromeos/ash/components/telemetry_extension/diagnostics",
     "//chromeos/ash/components/telemetry_extension/events",
     "//chromeos/ash/components/telemetry_extension/routines",
-    "//chromeos/ash/components/telemetry_extension/telemetry",
     "//chromeos/ash/experiences/arc",
     "//chromeos/ash/experiences/arc:arc_base_utils",
     "//chromeos/ash/experiences/arc/intent_helper",

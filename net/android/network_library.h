@@ -19,6 +19,7 @@
 #include "base/containers/span.h"
 #include "base/functional/callback.h"
 #include "net/android/cert_verify_result_android.h"
+#include "net/base/ech_mode.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/mime_util.h"
 #include "net/base/net_export.h"
@@ -53,6 +54,11 @@ void ClearTestRootCertificates();
 // Returns true if cleartext traffic to |host| is allowed by the app. Always
 // true on L and older.
 bool IsCleartextPermitted(std::string_view host);
+
+// Returns the ECH mode for `host` as determined by Android's
+// `NetworkSecurityPolicy.getDomainEncryptionMode`.
+// Always returns `kOpportunistic` on BAKLAVA and older.
+NET_EXPORT_PRIVATE EchMode GetEchMode(std::string_view host);
 
 // Returns true if it can determine that only loopback addresses are configured.
 // i.e. if only 127.0.0.1 and ::1 are routable.

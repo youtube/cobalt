@@ -119,12 +119,22 @@ class UsbIdsTable {
     return StringAt(vendor->entry.name_off);
   }
 
-  const char* GetProductName(uint16_t vendor_id, uint16_t product_id) const {
+  UsbIdNames GetVendorAndProductName(uint16_t vendor_id,
+                                     uint16_t product_id) const {
     std::optional<FoundVendor> vendor = FindVendor(vendor_id);
     if (!vendor.has_value()) {
-      return nullptr;
+      return {};
     }
-    const VendorEntry& v = vendor->entry;
+    return {.vendor_name = StringAt(vendor->entry.name_off),
+            .product_name = FindProductName(*vendor, product_id)};
+  }
+
+ private:
+  // Returns the product name for |product_id| within an already located
+  // |vendor|, or nullptr if the product does not exist.
+  const char* FindProductName(const FoundVendor& vendor,
+                              uint16_t product_id) const {
+    const VendorEntry& v = vendor.entry;
     if (v.product_count == 0 || v.products_off == 0) {
       return nullptr;
     }
@@ -141,7 +151,7 @@ class UsbIdsTable {
     if (product_string_start > blob_.size()) {
       return nullptr;
     }
-    const size_t product_block_end = FindProductBlockEnd(vendor->index);
+    const size_t product_block_end = FindProductBlockEnd(vendor.index);
     if (product_string_start > product_block_end) {
       return nullptr;
     }
@@ -171,7 +181,6 @@ class UsbIdsTable {
     return StringAt(product_strings, p.name_off);
   }
 
- private:
   // Returns the vendor whose id == |vendor_id|, or nullopt.
   std::optional<FoundVendor> FindVendor(uint16_t vendor_id) const {
     size_t lo = 0;
@@ -261,9 +270,11 @@ const char* UsbIds::GetVendorName(uint16_t vendor_id) {
 }
 
 // static
-const char* UsbIds::GetProductName(uint16_t vendor_id, uint16_t product_id) {
+UsbIdNames UsbIds::GetVendorAndProductName(uint16_t vendor_id,
+                                           uint16_t product_id) {
   const UsbIdsTable* table = GetTable();
-  return table ? table->GetProductName(vendor_id, product_id) : nullptr;
+  return table ? table->GetVendorAndProductName(vendor_id, product_id)
+               : UsbIdNames{};
 }
 
 }  // namespace device

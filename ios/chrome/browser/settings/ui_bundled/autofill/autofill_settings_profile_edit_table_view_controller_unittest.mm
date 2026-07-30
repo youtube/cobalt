@@ -162,11 +162,11 @@ class AutofillSettingsProfileEditTableViewControllerTest
     }
   }
 
+  std::unique_ptr<autofill::AutofillProfile> profile_;
+  std::unique_ptr<autofill::TestPersonalDataManager> personal_data_manager_;
   AutofillProfileEditTableViewHelper*
       autofill_profile_edit_table_view_controller_;
   AutofillProfileEditMediator* autofill_profile_edit_mediator_;
-  std::unique_ptr<autofill::AutofillProfile> profile_;
-  std::unique_ptr<autofill::TestPersonalDataManager> personal_data_manager_;
   id delegate_mock_;
 };
 

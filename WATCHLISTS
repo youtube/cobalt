@@ -2661,7 +2661,6 @@
     'aura_compositor': ['jbauman+watch@chromium.org'],
     'autofill_payments': ['armalhotra+autofillwatch@google.com',
                           'osaul+autofillwatch@google.com',
-                          'shgar+autofillwatch@google.com',
                           'siashah+autofillwatch@chromium.org',
                           'siyua+autofillwatch@chromium.org',
                           'vinnypersky+autofillwatch@google.com'],

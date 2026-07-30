@@ -157,11 +157,6 @@ void LocalFileSuggestionProvider::GetSuggestFileData(
                      weak_factory_.GetWeakPtr()));
 }
 
-void LocalFileSuggestionProvider::MaybeUpdateItemSuggestCache(
-    base::PassKey<FileSuggestKeyedService>) {
-  NOTREACHED();
-}
-
 void LocalFileSuggestionProvider::OnFilesOpened(
     const std::vector<FileOpenEvent>& file_opens) {
   if (!files_ranker_) {

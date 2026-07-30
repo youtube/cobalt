@@ -603,7 +603,8 @@ IN_PROC_BROWSER_TEST_F(DocumentPictureInPictureWindowControllerBrowserTest,
 // maximum size.
 IN_PROC_BROWSER_TEST_F(DocumentPictureInPictureWindowControllerBrowserTest,
                        MaximumWindowOuterBounds) {
-  const BrowserWindow* const browser_window = browser()->window();
+  const BrowserWindow* const browser_window =
+      BrowserWindow::FromBrowser(browser());
   const gfx::NativeWindow native_window = browser_window->GetNativeWindow();
   const display::Screen* const screen = display::Screen::Get();
   const display::Display display =
@@ -845,7 +846,8 @@ INSTANTIATE_TEST_SUITE_P(WindowSizes,
 // Test that the document PiP window margins are correct.
 IN_PROC_BROWSER_TEST_P(DocumentPictureInPictureWindowControllerBrowserTest,
                        MAYBE_VerifyWindowMargins) {
-  const BrowserWindow* const browser_window = browser()->window();
+  const BrowserWindow* const browser_window =
+      BrowserWindow::FromBrowser(browser());
   const gfx::NativeWindow native_window = browser_window->GetNativeWindow();
   const display::Screen* const screen = display::Screen::Get();
   const display::Display display =

@@ -11,12 +11,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+
+import static org.chromium.ui.test.util.MockitoHelper.clearInvocations;
 
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
@@ -150,7 +151,6 @@ public final class OmniboxImageSupplierUnitTest {
      * Confirm no unexpected calls were made to any of our data producers or consumers and clear all
      * counters.
      */
-    @SuppressWarnings("unchecked")
     private void verifyNoOtherInteractionsAndClearInteractions() {
         verifyNoMoreInteractions(mLargeIconBridgeJni);
         clearInvocations(mLargeIconBridgeJni);

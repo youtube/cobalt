@@ -48,12 +48,12 @@ void TestAutofillExternalDelegate::OnQuery(
 }
 
 void TestAutofillExternalDelegate::OnSuggestionsReturned(
-    FieldGlobalId field_id,
+    const FormFieldData& trigger_field,
     const std::vector<Suggestion>& suggestions) {
   on_suggestions_returned_seen_ = true;
-  field_id_ = field_id;
+  field_id_ = trigger_field.global_id();
   suggestions_ = suggestions;
-  AutofillExternalDelegate::OnSuggestionsReturned(field_id, suggestions);
+  AutofillExternalDelegate::OnSuggestionsReturned(trigger_field, suggestions);
 }
 
 bool TestAutofillExternalDelegate::HasActiveScreenReader() const {

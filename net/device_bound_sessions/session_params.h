@@ -5,6 +5,7 @@
 #ifndef NET_DEVICE_BOUND_SESSIONS_SESSION_PARAMS_H_
 #define NET_DEVICE_BOUND_SESSIONS_SESSION_PARAMS_H_
 
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -26,7 +27,7 @@ struct NET_EXPORT SessionParams final {
     struct NET_EXPORT Specification {
       enum class Type { kExclude, kInclude };
       bool operator==(const Specification&) const = default;
-      Type type;
+      Type type = Type::kInclude;
       std::string domain;
       std::string path;
     };
@@ -35,11 +36,6 @@ struct NET_EXPORT SessionParams final {
     bool include_site = false;
     std::vector<Specification> specifications;
     std::string origin;
-
-    Scope();
-    Scope(Scope&& other) noexcept;
-    Scope& operator=(Scope&& other) noexcept;
-    ~Scope();
   };
 
   // Credential section of the session instruction.
@@ -49,19 +45,6 @@ struct NET_EXPORT SessionParams final {
     std::string attributes;
   };
 
-  SessionParams();
-  SessionParams(std::string id,
-                GURL fetcher_url,
-                std::string refresh_url,
-                Scope scope,
-                std::vector<Credential> creds,
-                unexportable_keys::UnexportableSigningKeyId key_id,
-                std::vector<std::string> allowed_refresh_initiators);
-  SessionParams(SessionParams&& other) noexcept;
-  SessionParams& operator=(SessionParams&& other) noexcept;
-
-  ~SessionParams();
-
   std::string session_id;
   // The `fetcher_url` is the registration or refresh endpoint that was called
   // into that returned the session instructions.
@@ -69,6 +52,8 @@ struct NET_EXPORT SessionParams final {
   std::string refresh_url;
   Scope scope;
   std::vector<Credential> credentials;
+  // TODO(crbug.com/501306421): Consider making this a std::optional, so that
+  // forgetting to set it won't result in a random key id.
   unexportable_keys::UnexportableSigningKeyId key_id;
   std::vector<std::string> allowed_refresh_initiators;
 };
@@ -76,11 +61,6 @@ struct NET_EXPORT SessionParams final {
 
 // Struct to contain the parameters from the .well-known JSON.
 struct NET_EXPORT WellKnownParams {
-  WellKnownParams();
-  ~WellKnownParams();
-  WellKnownParams(WellKnownParams&& other) noexcept;
-  WellKnownParams& operator=(WellKnownParams&& other) noexcept;
-
   std::optional<std::vector<std::string>> registering_origins;
   std::optional<std::vector<std::string>> relying_origins;
   std::optional<std::string> provider_origin;

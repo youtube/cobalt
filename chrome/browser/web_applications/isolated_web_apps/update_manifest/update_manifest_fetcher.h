@@ -12,12 +12,20 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/types/expected.h"
+#include "net/base/address_list.h"
+#include "net/dns/public/host_resolver_results.h"
+#include "net/dns/public/resolve_error_info.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "services/network/public/cpp/simple_host_resolver.h"
+#include "services/network/public/mojom/ip_address_space.mojom.h"
 #include "url/gurl.h"
 
 namespace network {
 class SimpleURLLoader;
 class SharedURLLoaderFactory;
+namespace mojom {
+class NetworkContext;
+}  // namespace mojom
 }  // namespace network
 
 namespace web_app {
@@ -40,6 +48,7 @@ class UpdateManifestFetcher {
       GURL url,
       net::PartialNetworkTrafficAnnotationTag partial_traffic_annotation,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+      network::mojom::NetworkContext* network_context,
       bool report_histogram_manifest_result = false);
 
   ~UpdateManifestFetcher();
@@ -48,7 +57,13 @@ class UpdateManifestFetcher {
   void FetchUpdateManifest(FetchCallback fetch_callback);
 
  private:
-  void DownloadUpdateManifest();
+  void OnHostResolved(
+      int result,
+      const net::ResolveErrorInfo& resolve_error_info,
+      const net::AddressList& resolved_addresses,
+      const net::HostResolverEndpointResults& alternative_endpoints);
+
+  void DownloadUpdateManifest(network::mojom::IPAddressSpace client_space);
 
   void OnUpdateManifestDownloaded(
       std::optional<std::string> update_manifest_content);
@@ -62,6 +77,7 @@ class UpdateManifestFetcher {
 
   FetchCallback fetch_callback_;
 
+  std::unique_ptr<network::SimpleHostResolver> host_resolver_;
   std::unique_ptr<network::SimpleURLLoader> simple_url_loader_;
 
   base::WeakPtrFactory<UpdateManifestFetcher> weak_factory_{this};

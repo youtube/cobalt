@@ -67,7 +67,6 @@ public class ChromeCachedFlags {
             List.of(
                     ChromeFeatureList.sParamsCached,
                     JavalessRenderersFeatureList.sParamsCached,
-                    ContentFeatureList.sParamsCached,
                     OmniboxFeatures.getFeatureParamsToCache(),
                     PermissionsAndroidFeatureList.getFeatureParamsToCache(),
                     UiAndroidFeatureList.sParamsCached);
@@ -83,7 +82,6 @@ public class ChromeCachedFlags {
             List.of(
                     ChromeFeatureList.sParamsCached,
                     JavalessRenderersFeatureList.sParamsCached,
-                    ContentFeatureList.sParamsCached,
                     OmniboxFeatures.getFeatureParamsToCache(),
                     PermissionsAndroidFeatureList.getFeatureParamsToCache(),
                     UiAndroidFeatureList.sParamsCached);

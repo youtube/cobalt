@@ -39,6 +39,9 @@ class MEDIA_EXPORT FuchsiaVideoEncodeAccelerator final
 
   // VideoEncodeAccelerator implementation.
   SupportedProfiles GetSupportedProfiles() override;
+  // Initializes the encoder. Returning a failure status will abort
+  // initialization, preventing the encoder stream from starting, and return
+  // an error to the JavaScript layer.
   EncoderStatus Initialize(const Config& config,
                            VideoEncodeAccelerator::Client* client,
                            std::unique_ptr<MediaLog> media_log) override;

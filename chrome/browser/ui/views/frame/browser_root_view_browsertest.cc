@@ -41,7 +41,8 @@ class BrowserRootViewBrowserTest : public InProcessBrowserTest {
       delete;
 
   BrowserRootView* browser_root_view() {
-    BrowserView* browser_view = static_cast<BrowserView*>(browser()->window());
+    BrowserView* browser_view =
+        BrowserView::GetBrowserViewForBrowser(browser());
     return static_cast<BrowserRootView*>(
         browser_view->GetWidget()->GetRootView());
   }

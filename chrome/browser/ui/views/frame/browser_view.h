@@ -1048,9 +1048,6 @@ class BrowserView : public BrowserWindow,
   // whenever the touch mode changes.
   void MaybeShowReadingListInSidePanelIPH();
 
-  // Attempts to show IPH promo for the tab search toolbar button.
-  void MaybeShowTabStripToolbarButtonIPH();
-
   // Attempts showing the IPH promo listing benefits for signed-in users
   // after the sync-to-signin migration.
   void MaybeShowSignInBenefitsIPH();

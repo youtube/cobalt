@@ -40,7 +40,6 @@ BASE_DECLARE_FEATURE(kLauncherImageSearchDebug);
 // into any issues.
 BASE_DECLARE_FEATURE(kLauncherSearchFileScan);
 
-bool IsLauncherGameSearchEnabled();
 bool IsLauncherImageSearchEnabled();
 bool IsLauncherImageSearchIcaEnabled();
 bool IsLauncherImageSearchOcrEnabled();

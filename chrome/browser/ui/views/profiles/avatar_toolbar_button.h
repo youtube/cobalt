@@ -26,6 +26,7 @@ class AvatarToolbarButtonStateManager;
 class BrowserView;
 struct AccountInfo;
 class StateProvider;
+class AvatarToolbarButtonTestAccessor;
 
 // This class takes care the Profile Avatar Button.
 // Primarily applies UI configuration.
@@ -95,6 +96,8 @@ class AvatarToolbarButton : public ToolbarButton,
   void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
 
  private:
+  // Used by tests to access the private state_manager_ for verification.
+  friend class ::AvatarToolbarButtonTestAccessor;
   FRIEND_TEST_ALL_PREFIXES(AvatarToolbarButtonTest,
                            HighlightMeetsMinimumContrast);
 

@@ -128,7 +128,8 @@ SessionStorageLevelDBTest::SessionStorageLevelDBTest()
 void SessionStorageLevelDBTest::OpenInMemory(
     std::unique_ptr<SessionStorageLevelDB>* result) {
   auto instance = std::make_unique<SessionStorageLevelDB>(
-      DomStorageDatabaseFactory::CreatePassKeyForTesting());
+      DomStorageDatabaseFactory::CreatePassKeyForTesting(),
+      /*write_exp_tag=*/false);
 
   DbStatus status = instance->Open(
       /*directory=*/base::FilePath(),

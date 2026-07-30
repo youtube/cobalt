@@ -73,7 +73,7 @@ VIDEOS = [
         'fps': 30
     },
     {
-        'name': '1080p60fpsHEVC_boat_sync.mp4',
+        'name': '1080p60fpsHEVC_boat_yt_sync.mp4',
         'fps': 60
     },
     {
@@ -403,13 +403,6 @@ def install_and_setup_chrome(args, chrome_version):
         chrome_zip = chrome_url.split('/')[-1]
         driver_zip = driver_url.split('/')[-1]
 
-        subprocess.run(
-            f"curl -L {chrome_url} -o {tmp_dir}/{chrome_zip} && "
-            f"curl -L {driver_url} -o {tmp_dir}/{driver_zip} && "
-            f"unzip -o {tmp_dir}/{chrome_zip} -d {tmp_dir} && "
-            f"unzip -o {tmp_dir}/{driver_zip} -d {tmp_dir}",
-            shell=True, check=True, timeout=120)
-
         chrome_dir = chrome_zip.replace('.zip', '')
         driver_dir = driver_zip.replace('.zip', '')
         remote_app_path = (f"{tmp_dir}/{chrome_dir}/"
@@ -418,6 +411,19 @@ def install_and_setup_chrome(args, chrome_version):
              remote_app_path = f"{tmp_dir}/{chrome_dir}/chrome"
 
         remote_chromedriver_path = f"{tmp_dir}/{driver_dir}/chromedriver"
+
+        if (os.path.exists(remote_app_path)
+                and os.path.exists(remote_chromedriver_path)):
+             logging.info(
+                 "Chrome and Chromedriver already installed locally. "
+                 "Skipping download/extract.")
+        else:
+             subprocess.run(
+                 f"curl -L {chrome_url} -o {tmp_dir}/{chrome_zip} && "
+                 f"curl -L {driver_url} -o {tmp_dir}/{driver_zip} && "
+                 f"unzip -o {tmp_dir}/{chrome_zip} -d {tmp_dir} && "
+                 f"unzip -o {tmp_dir}/{driver_zip} -d {tmp_dir}",
+                 shell=True, check=True, timeout=120)
 
         subprocess.run(f'chmod +x {remote_chromedriver_path}',
                        shell=True, check=True)
@@ -436,26 +442,41 @@ def install_and_setup_chrome(args, chrome_version):
         remote_tmp_dir = '/tmp'
         chrome_zip = chrome_url.split('/')[-1]
         driver_zip = driver_url.split('/')[-1]
-
-        send_ssh_command(
-            args.sender, args.username,
-            (f"curl -L {chrome_url} -o {remote_tmp_dir}/{chrome_zip} && "
-             f"curl -L {driver_url} -o {remote_tmp_dir}/{driver_zip} && "
-             f"unzip -o {remote_tmp_dir}/{chrome_zip} -d {remote_tmp_dir} && "
-             f"unzip -o {remote_tmp_dir}/{driver_zip} -d {remote_tmp_dir}"),
-            blocking=True)
-
+        chrome_dir = chrome_zip.replace('.zip', '')
+        driver_dir = driver_zip.replace('.zip', '')
         remote_app_path = (
-            f"{remote_tmp_dir}/{chrome_zip.replace('.zip', '')}/Google "
+            f"{remote_tmp_dir}/{chrome_dir}/Google "
             "Chrome for Testing.app")
         remote_chromedriver_path = (
-            f"{remote_tmp_dir}/{driver_zip.replace('.zip', '')}/chromedriver")
+            f"{remote_tmp_dir}/{driver_dir}/chromedriver")
 
-        send_ssh_command(
-            args.sender, args.username,
-            (f"xattr -cr {remote_tmp_dir}/{chrome_zip.replace('.zip', '')} && "
-             f"xattr -cr {remote_tmp_dir}/{driver_zip.replace('.zip', '')}"),
-            blocking=True)
+        check_installed_cmd = (
+            f"[ -d '{remote_app_path}' ] && "
+            f"[ -f '{remote_chromedriver_path}' ] && "
+            "echo 'EXISTS' || echo 'MISSING'"
+        )
+        check_result = send_ssh_command(
+            args.sender, args.username, check_installed_cmd, blocking=True)
+        if check_result.stdout.strip() == 'EXISTS':
+            logging.info(
+                "Chrome and Chromedriver already installed on remote Mac. "
+                "Skipping download/extract.")
+        else:
+            send_ssh_command(
+                args.sender, args.username,
+                (f"curl -L {chrome_url} -o {remote_tmp_dir}/{chrome_zip} && "
+                 f"curl -L {driver_url} -o {remote_tmp_dir}/{driver_zip} && "
+                 f"unzip -o {remote_tmp_dir}/{chrome_zip} "
+                 f"-d {remote_tmp_dir} && "
+                 f"unzip -o {remote_tmp_dir}/{driver_zip} "
+                 f"-d {remote_tmp_dir}"),
+                blocking=True)
+
+            send_ssh_command(
+                args.sender, args.username,
+                (f"xattr -cr {remote_tmp_dir}/{chrome_dir} && "
+                 f"xattr -cr {remote_tmp_dir}/{driver_dir}"),
+                blocking=True)
 
         send_ssh_command(args.sender, args.username,
                          f'chmod +x {remote_chromedriver_path}',
@@ -472,19 +493,32 @@ def install_and_setup_chrome(args, chrome_version):
         remote_tmp_dir = '/tmp'
         chrome_zip = chrome_url.split('/')[-1]
         driver_zip = driver_url.split('/')[-1]
-
-        send_ssh_command(
-            args.sender, args.username,
-            (f"curl -L {chrome_url} -o {remote_tmp_dir}/{chrome_zip} && "
-             f"curl -L {driver_url} -o {remote_tmp_dir}/{driver_zip} && "
-             f"unzip -o {remote_tmp_dir}/{chrome_zip} -d {remote_tmp_dir} && "
-             f"unzip -o {remote_tmp_dir}/{driver_zip} -d {remote_tmp_dir}"),
-            blocking=True)
-
         chrome_dir = chrome_zip.replace('.zip', '')
         driver_dir = driver_zip.replace('.zip', '')
         remote_app_path = f"{remote_tmp_dir}/{chrome_dir}/chrome"
         remote_chromedriver_path = f"{remote_tmp_dir}/{driver_dir}/chromedriver"
+
+        check_installed_cmd = (
+            f"[ -f '{remote_app_path}' ] && "
+            f"[ -f '{remote_chromedriver_path}' ] && "
+            "echo 'EXISTS' || echo 'MISSING'"
+        )
+        check_result = send_ssh_command(
+            args.sender, args.username, check_installed_cmd, blocking=True)
+        if check_result.stdout.strip() == 'EXISTS':
+            logging.info(
+                "Chrome and Chromedriver already installed on remote Linux. "
+                "Skipping download/extract.")
+        else:
+            send_ssh_command(
+                args.sender, args.username,
+                (f"curl -L {chrome_url} -o {remote_tmp_dir}/{chrome_zip} && "
+                 f"curl -L {driver_url} -o {remote_tmp_dir}/{driver_zip} && "
+                 f"unzip -o {remote_tmp_dir}/{chrome_zip} "
+                 f"-d {remote_tmp_dir} && "
+                 f"unzip -o {remote_tmp_dir}/{driver_zip} "
+                 f"-d {remote_tmp_dir}"),
+                blocking=True)
 
         send_ssh_command(args.sender, args.username,
                          f'chmod +x {remote_chromedriver_path}',
@@ -501,21 +535,29 @@ def install_and_setup_chrome(args, chrome_version):
         remote_tmp_dir = '/usr/local/tmp'
         chrome_zip = chrome_url.split('/')[-1]
         driver_zip = driver_url.split('/')[-1]
-
-        # Download and unzip on the device.
-        send_ssh_command(
-            args.sender, args.username,
-            (f"curl -L {chrome_url} -o {remote_tmp_dir}/{chrome_zip} && "
-             f"curl -L {driver_url} -o {remote_tmp_dir}/{driver_zip} && "
-             f"unzip -o {remote_tmp_dir}/{chrome_zip} -d {remote_tmp_dir} && "
-             f"unzip -o {remote_tmp_dir}/{driver_zip} -d {remote_tmp_dir}"),
-            blocking=True)
-
         chrome_dir = chrome_zip.replace('.zip', '')
         driver_dir = driver_zip.replace('.zip', '')
         remote_app_path = f"{remote_tmp_dir}/{chrome_dir}/chrome"
-        # Chromedriver process is NOT started here for 'cros',
-        # as Crossbench handles it via SSH directly.
+
+        check_installed_cmd = (
+            f"[ -f '{remote_app_path}' ] && echo 'EXISTS' || echo 'MISSING'"
+        )
+        check_result = send_ssh_command(
+            args.sender, args.username, check_installed_cmd, blocking=True)
+        if check_result.stdout.strip() == 'EXISTS':
+            logging.info(
+                "Chrome already installed on ChromeOS. "
+                "Skipping download/extract.")
+        else:
+            send_ssh_command(
+                args.sender, args.username,
+                (f"curl -L {chrome_url} -o {remote_tmp_dir}/{chrome_zip} && "
+                 f"curl -L {driver_url} -o {remote_tmp_dir}/{driver_zip} && "
+                 f"unzip -o {remote_tmp_dir}/{chrome_zip} "
+                 f"-d {remote_tmp_dir} && "
+                 f"unzip -o {remote_tmp_dir}/{driver_zip} "
+                 f"-d {remote_tmp_dir}"),
+                blocking=True)
 
     elif args.sender_os == 'win':
         remote_tmp_dir = WIN_REMOTE_TMP_DIR
@@ -532,27 +574,43 @@ def install_and_setup_chrome(args, chrome_version):
         driver_zip_name = driver_url.split('/')[-1]
         chrome_zip_path = f"{remote_tmp_dir}/{chrome_zip_name}"
         driver_zip_path = f"{remote_tmp_dir}/{driver_zip_name}"
-
-        # Download and Unzip using a single robust PowerShell command
-        logging.info("Downloading and unzipping Chrome and Chromedriver...")
-        setup_cmd = (
-            f"powershell -Command \"$ErrorActionPreference = 'Stop'; "
-            f"curl.exe -L '{chrome_url}' -o '{chrome_zip_path}'; "
-            f"curl.exe -L '{driver_url}' -o '{driver_zip_path}'; "
-            f"Expand-Archive -Path '{chrome_zip_path}' "
-            f"-DestinationPath '{remote_tmp_dir}' -Force; "
-            f"Expand-Archive -Path '{driver_zip_path}' "
-            f"-DestinationPath '{remote_tmp_dir}' -Force\""
-        )
-        result = send_ssh_command(args.sender, args.username, setup_cmd,
-                                  blocking=True)
-        if result.returncode != 0:
-            raise RuntimeError(f"Failed to setup Chrome/Chromedriver on "
-                               f"Windows: {result.stderr}")
-
         chrome_dir = chrome_zip_name.replace('.zip', '')
         driver_dir = driver_zip_name.replace('.zip', '')
         remote_app_path = f'{remote_tmp_dir}/{chrome_dir}/chrome.exe'
+        remote_chromedriver_path = (
+            f'{remote_tmp_dir}/{driver_dir}/chromedriver.exe'
+        )
+
+        check_installed_cmd = (
+            f"powershell -Command \"if ((Test-Path '{remote_app_path}') -and "
+            f"(Test-Path '{remote_chromedriver_path}')) "
+            f"{{ Write-Output 'EXISTS' }} else {{ Write-Output 'MISSING' }}\""
+        )
+        check_result = send_ssh_command(
+            args.sender, args.username, check_installed_cmd, blocking=True)
+        if check_result.stdout.strip() == 'EXISTS':
+            logging.info(
+                "Chrome and Chromedriver already installed on Windows. "
+                "Skipping download/extract.")
+        else:
+            # Download and Unzip using a single robust PowerShell command
+            logging.info("Downloading and unzipping Chrome/Chromedriver...")
+            setup_cmd = (
+                "powershell -Command \"Set-Variable -Name "
+                "ErrorActionPreference -Value Stop; Set-Variable -Name "
+                "ProgressPreference -Value SilentlyContinue; "
+                f"curl.exe -L '{chrome_url}' -o '{chrome_zip_path}'; "
+                f"curl.exe -L '{driver_url}' -o '{driver_zip_path}'; "
+                f"Expand-Archive -Path '{chrome_zip_path}' "
+                f"-DestinationPath '{remote_tmp_dir}' -Force; "
+                f"Expand-Archive -Path '{driver_zip_path}' "
+                f"-DestinationPath '{remote_tmp_dir}' -Force\""
+            )
+            result = send_ssh_command(args.sender, args.username, setup_cmd,
+                                      blocking=True)
+            if result.returncode != 0:
+                raise RuntimeError(f"Failed to setup Chrome/Chromedriver on "
+                                   f"Windows: {result.stderr}")
 
         # Create and run the batch script
         batch_script_content = (
@@ -600,15 +658,35 @@ def install_and_setup_chrome(args, chrome_version):
     return remote_app_path, chrome_version_actual
 
 
-def dump_remote_logs(args):
+def dump_remote_logs(args, chrome_version=None, codec_name=None):
     """Tries to dump the remote Chromedriver console logs to the local log."""
     logging.error("Dumping remote console logs:")
+    codec_suffix = f"_{codec_name}" if codec_name else ""
+    log_file_name = f"chromedriver_console{codec_suffix}.log"
+
     if args.sender_os == 'win':
-        # On Windows, the log is in the temp dir under a dynamic driver dir.
-        log_cmd = (f'powershell -Command "Get-Content {WIN_REMOTE_TMP_DIR}/'
-                   '*/chromedriver_console.log"')
+        # On Windows, logs are written under:
+        # C:/cft_temp/<version>/chromedriver-win64/
+        if chrome_version:
+            log_cmd = (
+                'powershell -Command '
+                f'"Get-Content {WIN_REMOTE_TMP_DIR}/{chrome_version}/'
+                f'chromedriver-win64/{log_file_name}"'
+            )
+        else:
+            log_cmd = (
+                'powershell -Command '
+                f'"Get-Content {WIN_REMOTE_TMP_DIR}/*/'
+                f'chromedriver-win64/{log_file_name}"'
+            )
     else:
-        log_cmd = 'cat /tmp/chromedriver_console.log'
+        tmp_dir = '/usr/local/tmp' if args.sender_os == 'cros' else '/tmp'
+        if chrome_version:
+            log_cmd = (
+                f'cat {tmp_dir}/{chrome_version}/{log_file_name}'
+            )
+        else:
+            log_cmd = f'cat {tmp_dir}/*/{log_file_name}'
 
     log_result = send_ssh_command(args.sender,
                                   args.username,
@@ -619,7 +697,7 @@ def dump_remote_logs(args):
                       log_result.stdout, log_result.stderr)
 
 
-def wait_for_chromedriver(args):
+def wait_for_chromedriver(args, chrome_version=None, codec_name=None):
     """Waits for the new chromedriver to be ready by checking its status URL."""
     logging.info("Starting Chromedriver status check...")
     for i in range(10):
@@ -644,7 +722,7 @@ def wait_for_chromedriver(args):
 
     # If we reached here, Chromedriver failed to start. Try to dump logs.
     logging.error("Chromedriver failed to start.")
-    dump_remote_logs(args)
+    dump_remote_logs(args, chrome_version, codec_name)
     raise RuntimeError("Chromedriver still not ready after multiple attempts.")
 
 def start_ssh_tunnel(args):
@@ -729,21 +807,18 @@ def teardown_test_environment(driver, tunnel_proc, args):
 
     cleanup_command = {
         'mac': (
-            "rm -rf /tmp/chrome-mac-* /tmp/chromedriver-mac-* "
-            "/tmp/*.zip"
+            "rm -f /tmp/*.zip"
         ),
         'win': (
-            f'powershell -Command "Remove-Item -Path {WIN_REMOTE_TMP_DIR} '
-            '-Recurse -Force -ErrorAction SilentlyContinue"'
+            'powershell -Command "Remove-Item -Path '
+            f'{WIN_REMOTE_TMP_DIR}/*.zip '
+            '-Force -ErrorAction SilentlyContinue"'
         ),
         'linux': (
-            "rm -rf /tmp/chrome-linux64-* /tmp/chromedriver-linux64-* "
-            "/tmp/*.zip"
+            "rm -f /tmp/*.zip"
         ),
         'cros': (
-            "rm -rf /usr/local/tmp/chrome-linux64-* "
-            "/usr/local/tmp/chromedriver-linux64-* "
-            "/usr/local/tmp/*.zip"
+            "rm -f /usr/local/tmp/*.zip"
         ),
     }
 
@@ -1011,3 +1086,38 @@ def finalize_results(chrome_version=None):
             logging.info("Metrics uploaded successfully.")
         except Exception as e:
             logging.error("Failed to upload metrics to ResultSink: %s", e)
+
+
+def cleanup_binaries(args, chrome_version):
+    """Cleans up version-specific directories on remote/local machine."""
+    if not chrome_version:
+        return
+
+    import shutil
+
+    logging.info("Cleaning up version-specific binaries for version: %s",
+                 chrome_version)
+    if args.sender in ['localhost', '127.0.0.1', None]:
+        # Local cleanup
+        import tempfile
+        tmp_dir = tempfile.gettempdir()
+        version_dir = f"{tmp_dir}/{chrome_version}"
+        if os.path.exists(version_dir):
+            shutil.rmtree(version_dir, ignore_errors=True)
+            logging.info("Cleaned up local directory: %s", version_dir)
+        return
+
+    cleanup_command = {
+        'mac': f"rm -rf /tmp/{chrome_version}",
+        'linux': f"rm -rf /tmp/{chrome_version}",
+        'cros': f"rm -rf /usr/local/tmp/{chrome_version}",
+        'win': (
+            'powershell -Command "Remove-Item -Path '
+            f'{WIN_REMOTE_TMP_DIR}/{chrome_version} '
+            '-Recurse -Force -ErrorAction SilentlyContinue"'
+        ),
+    }
+
+    send_ssh_command(args.sender, args.username,
+                     cleanup_command[args.sender_os])
+    logging.info("Cleaned up remote version-specific directory.")

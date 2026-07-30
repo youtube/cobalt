@@ -112,7 +112,7 @@ class ASH_PUBLIC_EXPORT NewWindowDelegate {
   virtual void ShowShortcutCustomizationApp() = 0;
 
   // Shows the task manager window.
-  virtual void ShowTaskManager() = 0;
+  virtual void ShowTaskManager(bool from_context_menu = false) = 0;
 
   // Opens the feedback page for "Report Issue".
   // |source| indicates the source of the feedback request, which is Ash by

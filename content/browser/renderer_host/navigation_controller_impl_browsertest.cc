@@ -32,7 +32,6 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/process_lock.h"
 #include "content/browser/renderer_host/frame_navigation_entry.h"
 #include "content/browser/renderer_host/frame_tree.h"
@@ -44,6 +43,7 @@
 #include "content/browser/renderer_host/render_process_host_impl.h"
 #include "content/browser/renderer_host/renderer_cancellation_throttle.h"
 #include "content/browser/renderer_host/spare_render_process_host_manager_impl.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/browser/site_info.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/browser/web_contents/web_contents_view.h"
@@ -24355,6 +24355,248 @@ IN_PROC_BROWSER_TEST_P(IgnoreDuplicateNavsBrowserTest,
   EXPECT_TRUE(WaitForLoadStop(shell()->web_contents()));
   EXPECT_EQ(link_url, root->current_frame_host()->GetLastCommittedURL());
 }
+
+// Tests that a duplicate link click navigation is not ignored if the document's
+// cookie modification count changed (via document.cookie) after the first
+// navigation started.
+IN_PROC_BROWSER_TEST_P(IgnoreDuplicateNavsBrowserTest,
+                       DuplicateLinkClickIsNotIgnored_CookieChange) {
+  GURL main_url(embedded_test_server()->GetURL(
+      "/navigation_controller/page_with_links.html"));
+  GURL link_url(embedded_test_server()->GetURL(
+      "/navigation_controller/simple_page_1.html"));
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+  FrameTreeNode* root = static_cast<WebContentsImpl*>(shell()->web_contents())
+                            ->GetPrimaryFrameTree()
+                            .root();
+
+  // 1. Click the link to start the first navigation to `link_url`.
+  TestNavigationManager nav_manager(shell()->web_contents(), link_url);
+  EXPECT_TRUE(ExecJs(contents(), "document.getElementById('thelink').click()"));
+  // Pause the navigation at request start.
+  EXPECT_TRUE(nav_manager.WaitForRequestStart());
+  int link_click_nav_id = nav_manager.GetNavigationHandle()->GetNavigationId();
+  EXPECT_NE(link_click_nav_id, root->current_frame_host()->navigation_id());
+
+  // Modify cookie to trigger cookie modification count change.
+  EXPECT_TRUE(ExecJs(contents(), "document.cookie = 'foo=bar';"));
+
+  // 2. Click the link again, and assert that the first link click navigation is
+  // overridden by the second navigation because cookie modification count
+  // changed.
+  EXPECT_TRUE(ExecJs(contents(), "document.getElementById('thelink').click()"));
+  // Run script to ensure that the second link click is already processed.
+  EXPECT_TRUE(ExecJs(shell(), "console.log('Success');"));
+
+  // Wait for the first link click navigation to finish.
+  EXPECT_TRUE(nav_manager.WaitForNavigationFinished());
+  // Ensure that the first link click didn't commit.
+  EXPECT_FALSE(nav_manager.was_committed());
+
+  // Ensure that the second link click navigation isn't ignored and eventually
+  // commits.
+  if (root->navigation_request()) {
+    int second_nav_id = root->navigation_request()->GetNavigationId();
+    EXPECT_NE(link_click_nav_id, second_nav_id);
+  }
+  EXPECT_TRUE(WaitForLoadStop(shell()->web_contents()));
+  EXPECT_EQ(link_url, root->current_frame_host()->GetLastCommittedURL());
+}
+
+// Tests that a duplicate link click navigation is not ignored if the document's
+// cookie modification count changed (via CookieStore) after the first
+// navigation started.
+IN_PROC_BROWSER_TEST_P(IgnoreDuplicateNavsBrowserTest,
+                       DuplicateLinkClickIsNotIgnored_CookieStoreChange) {
+  GURL main_url(embedded_test_server()->GetURL(
+      "/navigation_controller/page_with_links.html"));
+  GURL link_url(embedded_test_server()->GetURL(
+      "/navigation_controller/simple_page_1.html"));
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+  FrameTreeNode* root = static_cast<WebContentsImpl*>(shell()->web_contents())
+                            ->GetPrimaryFrameTree()
+                            .root();
+
+  // 1. Click the link to start the first navigation to `link_url`.
+  TestNavigationManager nav_manager(shell()->web_contents(), link_url);
+  EXPECT_TRUE(ExecJs(contents(), "document.getElementById('thelink').click()"));
+  // Pause the navigation at request start.
+  EXPECT_TRUE(nav_manager.WaitForRequestStart());
+  int link_click_nav_id = nav_manager.GetNavigationHandle()->GetNavigationId();
+  EXPECT_NE(link_click_nav_id, root->current_frame_host()->navigation_id());
+
+  // Modify cookie via CookieStore to trigger cookie modification count change.
+  EXPECT_TRUE(ExecJs(contents(), "cookieStore.set('foo', 'bar');"));
+
+  // 2. Click the link again, and assert that the first link click navigation is
+  // overridden by the second navigation because cookie modification count
+  // changed.
+  EXPECT_TRUE(ExecJs(contents(), "document.getElementById('thelink').click()"));
+  // Run script to ensure that the second link click is already processed.
+  EXPECT_TRUE(ExecJs(shell(), "console.log('Success');"));
+
+  // Wait for the first link click navigation to finish.
+  EXPECT_TRUE(nav_manager.WaitForNavigationFinished());
+  // Ensure that the first link click didn't commit.
+  EXPECT_FALSE(nav_manager.was_committed());
+
+  // Ensure that the second link click navigation isn't ignored and eventually
+  // commits.
+  if (root->navigation_request()) {
+    int second_nav_id = root->navigation_request()->GetNavigationId();
+    EXPECT_NE(link_click_nav_id, second_nav_id);
+  }
+  EXPECT_TRUE(WaitForLoadStop(shell()->web_contents()));
+  EXPECT_EQ(link_url, root->current_frame_host()->GetLastCommittedURL());
+}
+
+// Tests that a duplicate link click navigation is ignored even if a fetch
+// request modified cookies via response headers, as it does not affect the
+// document's cookie modification count.
+IN_PROC_BROWSER_TEST_P(IgnoreDuplicateNavsBrowserTest,
+                       DuplicateLinkClickIsIgnored_FetchCookieChange) {
+  GURL main_url(embedded_test_server()->GetURL(
+      "/navigation_controller/page_with_links.html"));
+  GURL link_url(embedded_test_server()->GetURL(
+      "/navigation_controller/simple_page_1.html"));
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+  FrameTreeNode* root = static_cast<WebContentsImpl*>(shell()->web_contents())
+                            ->GetPrimaryFrameTree()
+                            .root();
+
+  // 1. Click the link to start the first navigation to `link_url`.
+  TestNavigationManager nav_manager(shell()->web_contents(), link_url);
+  EXPECT_TRUE(ExecJs(contents(), "document.getElementById('thelink').click()"));
+  // Pause the navigation at request start.
+  EXPECT_TRUE(nav_manager.WaitForRequestStart());
+  int link_click_nav_id = nav_manager.GetNavigationHandle()->GetNavigationId();
+  EXPECT_NE(link_click_nav_id, root->current_frame_host()->navigation_id());
+
+  // Perform a fetch to /set-cookie?foo=bar. This modifies the cookie via
+  // response headers, so it should NOT affect the document's cookie
+  // modification count.
+  GURL fetch_url = embedded_test_server()->GetURL("/set-cookie?foo=bar");
+  EXPECT_TRUE(ExecJs(contents(), JsReplace("fetch($1);", fetch_url)));
+
+  // 2. Click the link again. The first link click navigation should be kept
+  // (and eventually commit) and the second click should be ignored because the
+  // document's cookie modification count was not affected by the fetch.
+  EXPECT_TRUE(ExecJs(contents(), "document.getElementById('thelink').click()"));
+  // Run script to ensure that the second link click is already processed.
+  EXPECT_TRUE(ExecJs(shell(), "console.log('Success');"));
+
+  EXPECT_TRUE(nav_manager.WaitForNavigationFinished());
+
+  if (ignore_duplicate_nav()) {
+    EXPECT_TRUE(nav_manager.was_committed());
+    EXPECT_EQ(link_url, root->current_frame_host()->GetLastCommittedURL());
+    EXPECT_EQ(link_click_nav_id, root->current_frame_host()->navigation_id());
+  } else {
+    EXPECT_FALSE(nav_manager.was_committed());
+    EXPECT_TRUE(WaitForLoadStop(shell()->web_contents()));
+    EXPECT_EQ(link_url, root->current_frame_host()->GetLastCommittedURL());
+    EXPECT_NE(link_click_nav_id, root->current_frame_host()->navigation_id());
+  }
+}
+
+// Tests that a duplicate link click navigation is ignored even if another
+// document modifies cookies, as it does not affect the main document's cookie
+// modification count.
+IN_PROC_BROWSER_TEST_P(IgnoreDuplicateNavsBrowserTest,
+                       DuplicateLinkClickIsIgnored_OtherDocumentCookieChange) {
+  GURL main_url(embedded_test_server()->GetURL(
+      "/navigation_controller/page_with_links.html"));
+  GURL link_url(embedded_test_server()->GetURL(
+      "/navigation_controller/simple_page_1.html"));
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+  FrameTreeNode* root = static_cast<WebContentsImpl*>(shell()->web_contents())
+                            ->GetPrimaryFrameTree()
+                            .root();
+
+  // Create a second tab (same-site) to represent another document.
+  Shell* second_shell =
+      Shell::CreateNewWindow(shell()->web_contents()->GetBrowserContext(),
+                             main_url, nullptr, gfx::Size());
+  EXPECT_TRUE(WaitForLoadStop(second_shell->web_contents()));
+
+  // 1. Click the link to start the first navigation to `link_url`.
+  TestNavigationManager nav_manager(shell()->web_contents(), link_url);
+  EXPECT_TRUE(ExecJs(contents(), "document.getElementById('thelink').click()"));
+  // Pause the navigation at request start.
+  EXPECT_TRUE(nav_manager.WaitForRequestStart());
+  int link_click_nav_id = nav_manager.GetNavigationHandle()->GetNavigationId();
+  EXPECT_NE(link_click_nav_id, root->current_frame_host()->navigation_id());
+
+  // Modify cookies in the second tab's document. This should not affect the
+  // main document's cookie modification count.
+  EXPECT_TRUE(
+      ExecJs(second_shell->web_contents(), "document.cookie = 'foo=bar';"));
+
+  // 2. Click the link again in the main frame. It should be ignored because the
+  // main document's cookie modification count was not affected by the second
+  // tab's change.
+  EXPECT_TRUE(ExecJs(contents(), "document.getElementById('thelink').click()"));
+  EXPECT_TRUE(ExecJs(shell(), "console.log('Success');"));
+
+  EXPECT_TRUE(nav_manager.WaitForNavigationFinished());
+
+  if (ignore_duplicate_nav()) {
+    EXPECT_TRUE(nav_manager.was_committed());
+    EXPECT_EQ(link_url, root->current_frame_host()->GetLastCommittedURL());
+    EXPECT_EQ(link_click_nav_id, root->current_frame_host()->navigation_id());
+  } else {
+    EXPECT_FALSE(nav_manager.was_committed());
+    EXPECT_TRUE(WaitForLoadStop(shell()->web_contents()));
+    EXPECT_EQ(link_url, root->current_frame_host()->GetLastCommittedURL());
+    EXPECT_NE(link_click_nav_id, root->current_frame_host()->navigation_id());
+  }
+}
+
+// Tests that a duplicate link click navigation is ignored even if an HttpOnly
+// cookie is set, as HttpOnly cookie changes do not affect the document's cookie
+// modification count.
+IN_PROC_BROWSER_TEST_P(IgnoreDuplicateNavsBrowserTest,
+                       DuplicateLinkClickIsIgnored_HttpOnlyCookieChange) {
+  GURL main_url(embedded_test_server()->GetURL(
+      "/navigation_controller/page_with_links.html"));
+  GURL link_url(embedded_test_server()->GetURL(
+      "/navigation_controller/simple_page_1.html"));
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+  FrameTreeNode* root = static_cast<WebContentsImpl*>(shell()->web_contents())
+                            ->GetPrimaryFrameTree()
+                            .root();
+
+  // 1. Click the link to start the first navigation to `link_url`.
+  TestNavigationManager nav_manager(shell()->web_contents(), link_url);
+  EXPECT_TRUE(ExecJs(contents(), "document.getElementById('thelink').click()"));
+  // Pause the navigation at request start.
+  EXPECT_TRUE(nav_manager.WaitForRequestStart());
+  int link_click_nav_id = nav_manager.GetNavigationHandle()->GetNavigationId();
+  EXPECT_NE(link_click_nav_id, root->current_frame_host()->navigation_id());
+
+  // Perform a fetch to set an HttpOnly cookie.
+  GURL fetch_url =
+      embedded_test_server()->GetURL("/set-cookie?foo=bar;HttpOnly");
+  EXPECT_TRUE(ExecJs(contents(), JsReplace("fetch($1);", fetch_url)));
+
+  // 2. Click the link again. The second click should be ignored because the
+  // document's modification count is not affected by setting an HttpOnly
+  // cookie.
+  EXPECT_TRUE(ExecJs(contents(), "document.getElementById('thelink').click()"));
+  EXPECT_TRUE(ExecJs(shell(), "console.log('Success');"));
+
+  EXPECT_TRUE(nav_manager.WaitForNavigationFinished());
+
+  if (ignore_duplicate_nav()) {
+    EXPECT_TRUE(nav_manager.was_committed());
+    EXPECT_EQ(link_click_nav_id, root->current_frame_host()->navigation_id());
+  } else {
+    EXPECT_FALSE(nav_manager.was_committed());
+    EXPECT_TRUE(WaitForLoadStop(shell()->web_contents()));
+    EXPECT_NE(link_click_nav_id, root->current_frame_host()->navigation_id());
+  }
+}
+
 
 class RestrictDuplicateNavsToOriginsBrowserTest
     : public NavigationControllerBrowserTestBase,

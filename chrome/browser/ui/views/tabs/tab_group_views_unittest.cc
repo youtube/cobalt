@@ -8,11 +8,7 @@
 #include <string>
 #include <utility>
 
-#include "base/feature_list.h"
-#include "base/i18n/rtl.h"
-#include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
-#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/tabs/fake_base_tab_strip_controller.h"
 #include "chrome/browser/ui/views/tabs/fake_tab_slot_controller.h"
 #include "chrome/browser/ui/views/tabs/tab_group_header.h"

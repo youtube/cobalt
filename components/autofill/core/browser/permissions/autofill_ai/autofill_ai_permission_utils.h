@@ -81,11 +81,11 @@ enum class AutofillAiAction {
   // Whether the user should see a promotion to allow Wallet to share data with
   // Chrome.
   kWalletDataSharingPromotion,
-  // Whether ambient autofill filling is enabled.
-  kAmbientAutofillFilling,
+  // Whether ambient autofill is enabled.
+  kAmbientAutofill,
   // Returns true if the entity type supports personal context data.
-  kTypeSupportsPersonalContextData,
-  kMaxValue = kTypeSupportsPersonalContextData,
+  kTypeSupportsAmbientAutofillData,
+  kMaxValue = kTypeSupportsAmbientAutofillData,
 };
 
 // Opt-in status for the AutofillAI feature.
@@ -115,7 +115,7 @@ enum class AutofillAiOptInStatus {
 // - Account state (sign-in status).
 // - Whether the `action` can be performed for the `entity_type`.
 //   `entity_type` is only considered to kFilling, kIphForOptIn, kImport,
-//   kImportToWallet, kTypeSupportsPersonalContextData and must be non-empty in
+//   kImportToWallet, kTypeSupportsAmbientAutofillData and must be non-empty in
 //   these cases.
 // - Miscellaneous state (OTR, locale, GeoIP).
 //

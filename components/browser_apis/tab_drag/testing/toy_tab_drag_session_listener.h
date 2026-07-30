@@ -8,13 +8,13 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "components/browser_apis/tab_drag/adapters/tab_drag_window_adapter.h"
+#include "components/browser_apis/tab_drag/sessions/drop_target_id.h"
 #include "components/browser_apis/tab_drag/sessions/tab_drag_session_listener.h"
 #include "components/browser_apis/tab_strip/types/node_id.h"
 #include "ui/gfx/geometry/point.h"
 
 namespace tabs_api {
-
-class TabDragWindowAdapter;
 
 class ToyTabDragSessionListener : public TabDragSessionListener {
  public:
@@ -27,7 +27,8 @@ class ToyTabDragSessionListener : public TabDragSessionListener {
       kCancelled,
     };
     Type type;
-    raw_ptr<TabDragWindowAdapter> window = nullptr;
+    TabDragWindowId window_id;
+    DropTargetId target;
     gfx::Point point;
     std::vector<tabs_api::NodeId> dragged_tabs;
   };
@@ -37,10 +38,12 @@ class ToyTabDragSessionListener : public TabDragSessionListener {
 
   // TabDragSessionListener:
   void OnSessionStarted(std::vector<tabs_api::NodeId> dragged_tabs,
-                        TabDragWindowAdapter* source_window) override;
-  void OnTargetWindowChanged(TabDragWindowAdapter* new_target,
-                             const gfx::Point& screen_point) override;
+                        TabDragWindowId source_window_id,
+                        const gfx::Point& start_point) override;
+  void OnTargetChanged(DropTargetId new_target,
+                       const gfx::Point& screen_point) override;
   void OnDragMoved(const gfx::Point& screen_point) override;
+
   void OnSessionDropped(const gfx::Point& screen_point) override;
   void OnSessionCancelled() override;
 

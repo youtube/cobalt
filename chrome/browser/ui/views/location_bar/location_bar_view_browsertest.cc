@@ -48,6 +48,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/lens/lens_features.h"
+#include "components/omnibox/browser/aim_eligibility_service_features.h"
 #include "components/omnibox/browser/location_bar_model_impl.h"
 #include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
@@ -531,7 +532,7 @@ class LocationBarViewPageActionsMigrationTest
         {{::features::kPageActionsMigration,
           {{::features::kPageActionsMigrationBookmarkStar.name, "false"}}},
          {lens::features::kLensOverlayOmniboxEntryPoint, {}}},
-        {omnibox::kAiModeOmniboxEntryPoint});
+        {});
   }
   ~LocationBarViewPageActionsMigrationTest() override = default;
 

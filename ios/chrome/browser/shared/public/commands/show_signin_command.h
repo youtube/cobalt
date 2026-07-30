@@ -168,6 +168,12 @@ enum class AuthenticationOperation {
 // The user action from the sign-in promo to trigger the sign-in operation.
 @property(nonatomic, readonly) signin_metrics::PromoAction promoAction;
 
+// A block called if the successful authentication flow would cause a profile
+// switch in order to get the user to decide whether they want this switch to
+// occur or not.
+@property(nonatomic, copy)
+    SigninChangeProfileConfirmationBlock confirmChangeProfile;
+
 // A block to execute before the change of profile.
 @property(nonatomic, readonly) ProceduralBlock prepareChangeProfile;
 

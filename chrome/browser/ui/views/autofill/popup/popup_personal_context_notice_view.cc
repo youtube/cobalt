@@ -6,6 +6,8 @@
 
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ui/autofill/autofill_popup_controller.h"
+#include "chrome/browser/ui/views/autofill/popup/popup_row_content_view.h"
+#include "chrome/browser/ui/views/autofill/popup/popup_row_view.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -19,9 +21,18 @@
 namespace autofill {
 
 PopupPersonalContextNoticeView::PopupPersonalContextNoticeView(
+    PopupRowView::AccessibilitySelectionDelegate& a11y_selection_delegate,
+    PopupRowView::SelectionDelegate& selection_delegate,
     base::WeakPtr<AutofillPopupController> controller,
-    int line_number)
-    : controller_(std::move(controller)), line_number_(line_number) {
+    int line_number,
+    std::unique_ptr<PopupRowContentView> content_view)
+    : PopupRowView(a11y_selection_delegate,
+                   selection_delegate,
+                   controller,
+                   line_number,
+                   std::move(content_view)),
+      controller_(std::move(controller)),
+      line_number_(line_number) {
   SetLayoutManager(std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kVertical));
 

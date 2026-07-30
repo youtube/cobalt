@@ -163,7 +163,7 @@ TEST_F(GeminiFirstRunCoordinatorTest, FullscreenNotExitedOnAIHubEntryPoint) {
 TEST_F(GeminiFirstRunCoordinatorTest, FullscreenExitedOnPromoEntryPoint) {
   feature_list_.InitWithFeatures(
       {feature_engagement::kIPHiOSGeminiFullscreenPromoFeature,
-       kGeminiNavigationPromo, kAskGeminiChip, kPageActionMenu},
+       kGeminiNavigationPromo, kPageActionMenu},
       {});
   auto* tracker = static_cast<feature_engagement::test::MockTracker*>(
       feature_engagement::TrackerFactory::GetForProfile(

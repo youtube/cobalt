@@ -137,7 +137,7 @@ class SystemIdentityManager {
   // completes.
   using FetchCapabilitiesCompletion = base::OnceClosure;
 
-  // Callback invoked when `HandleMDMNotification` completes. Is is invoked
+  // Callback invoked when `HandleMDMNotification` completes. It is invoked
   // with a boolean indicating whether the device is blocked or not.
   using HandleMDMCallback = base::OnceCallback<void(bool)>;
 
@@ -209,7 +209,7 @@ class SystemIdentityManager {
   // Creates a new SystemIdentityInteractionManager instance.
   virtual id<SystemIdentityInteractionManager> CreateInteractionManager() = 0;
 
-  // Iterates over all known identities, sortted by the ordering used in
+  // Iterates over all known identities, sorted by the ordering used in
   // account manager, which is typically based on the keychain ordering
   // of the accounts.
   virtual void IterateOverIdentities(IdentityIteratorCallback callback) = 0;

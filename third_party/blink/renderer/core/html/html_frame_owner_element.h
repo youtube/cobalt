@@ -24,6 +24,7 @@
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "services/network/public/mojom/trust_tokens.mojom-blink-forward.h"
 #include "third_party/blink/public/common/frame/frame_owner_element_type.h"
+#include "third_party/blink/public/mojom/frame/frame_owner_properties.mojom-blink.h"
 #include "third_party/blink/public/mojom/scroll/scrollbar_mode.mojom-blink.h"
 #include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -140,6 +141,7 @@ class CORE_EXPORT HTMLFrameOwnerElement : public HTMLElement,
   bool AllowFullscreen() const override { return false; }
   bool AllowPaymentRequest() const override { return false; }
   bool IsDisplayNone() const override { return !embedded_content_view_; }
+  mojom::blink::FrameResponsiveSizing GetResponsiveSizing() const override;
   mojom::blink::ColorScheme GetColorScheme() const override;
   mojom::blink::PreferredColorScheme GetPreferredColorScheme() const override;
   bool ShouldLazyLoadChildren() const final;
@@ -267,7 +269,10 @@ class CORE_EXPORT HTMLFrameOwnerElement : public HTMLElement,
   std::optional<NaturalSizingInfo> last_natural_sizing_info_;
   bool should_lazy_load_children_;
   bool is_swapping_frames_{false};
-  mojom::blink::PreferredColorScheme preferred_color_scheme_;
+  mojom::blink::FrameResponsiveSizing responsive_sizing_{
+      mojom::blink::FrameResponsiveSizing::kNone};
+  mojom::blink::PreferredColorScheme preferred_color_scheme_{
+      mojom::blink::PreferredColorScheme::kLight};
 };
 
 class SubframeLoadingDisabler {

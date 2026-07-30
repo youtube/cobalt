@@ -282,7 +282,8 @@ void DiscardsGraphDumpImpl::OnEmbedderFrameNodeChanged(
 }
 
 void DiscardsGraphDumpImpl::OnFaviconUpdated(
-    const performance_manager::PageNode* page_node) {
+    const performance_manager::PageNode* page_node,
+    blink::mojom::FaviconUpdateReason reason) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   StartPageFaviconRequest(page_node);
 }

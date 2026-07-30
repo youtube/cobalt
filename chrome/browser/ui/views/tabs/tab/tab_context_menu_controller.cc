@@ -4,7 +4,6 @@
 
 #include "chrome/browser/ui/views/tabs/tab/tab_context_menu_controller.h"
 
-#include "base/functional/callback_helpers.h"
 #include "chrome/browser/ui/tabs/tab_menu_model.h"
 #include "extensions/buildflags/buildflags.h"
 #include "ui/gfx/geometry/rect.h"

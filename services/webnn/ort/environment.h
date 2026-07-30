@@ -5,12 +5,12 @@
 #ifndef SERVICES_WEBNN_ORT_ENVIRONMENT_H_
 #define SERVICES_WEBNN_ORT_ENVIRONMENT_H_
 
+#include <optional>
 #include <string>
 #include <string_view>
 
 #include "base/containers/flat_map.h"
 #include "base/containers/span.h"
-#include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/no_destructor.h"
@@ -19,10 +19,15 @@
 #include "base/types/expected.h"
 #include "base/types/pass_key.h"
 #include "services/webnn/ort/scoped_ort_types.h"
+#include "services/webnn/public/cpp/ep_device_info.h"
 #include "services/webnn/public/cpp/execution_providers_info.h"
 #include "services/webnn/public/mojom/ep_package_info.mojom.h"
 #include "services/webnn/public/mojom/webnn_service_introspection.mojom.h"
 #include "third_party/windows_app_sdk_headers/src/inc/abi/winml/winml/onnxruntime_c_api.h"
+
+namespace base {
+class FilePath;
+}
 
 namespace webnn::ort {
 
@@ -46,6 +51,13 @@ class Environment : public base::subtle::RefCountedThreadSafeBase {
       const base::flat_map<std::string, mojom::EpPackageInfoPtr>&
           ep_package_info_map);
 
+  // Creates an `Environment` instance for the Compiler process, which targets
+  // a single EP device. The returned instance is shared by all sessions in
+  // WebNN within that process.
+  static base::expected<scoped_refptr<Environment>, std::string>
+  GetOrCreateInstanceForCompiler(const std::string& ep_name,
+                                 const base::FilePath& ep_library_path);
+
   Environment(base::PassKey<Environment> pass_key, ScopedOrtEnv env);
   Environment(const Environment&) = delete;
   Environment& operator=(const Environment&) = delete;
@@ -64,6 +76,11 @@ class Environment : public base::subtle::RefCountedThreadSafeBase {
   // devices will be selected.
   static std::vector<const OrtEpDevice*> SelectEpDevices(
       base::span<const OrtEpDevice* const> available_devices,
+      OrtHardwareDeviceType device_type);
+
+  // Selects the first registered EP device matching `device_type` for use by
+  // the Compiler process. Returns nullopt if no matching device is found.
+  std::optional<EpDeviceInfo> SelectEpDeviceForCompiler(
       OrtHardwareDeviceType device_type);
 
   // Returns true if the execution provider name of `device` matches any of the
@@ -113,6 +130,10 @@ class Environment : public base::subtle::RefCountedThreadSafeBase {
   static base::expected<scoped_refptr<Environment>, std::string> Create(
       const base::flat_map<std::string, mojom::EpPackageInfoPtr>&
           ep_package_info_map);
+
+  static base::expected<scoped_refptr<Environment>, std::string>
+  CreateForCompiler(const std::string& ep_name,
+                    const base::FilePath& ep_library_path);
 
   ~Environment();
 

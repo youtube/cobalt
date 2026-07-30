@@ -74,7 +74,7 @@ void InputKeys(Browser* browser, const std::vector<ui::KeyboardCode>& keys) {
 }
 
 LocationBar* GetLocationBar(Browser* browser) {
-  return browser->window()->GetLocationBar();
+  return BrowserWindow::FromBrowser(browser)->GetLocationBar();
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -981,11 +981,8 @@ IN_PROC_BROWSER_TEST_F(OmniboxApiTest, MAYBE_PassEmptySuggestions) {
 class UnscopedOmniboxApiTest : public OmniboxApiTest {
  public:
   UnscopedOmniboxApiTest() {
-    // TODO(crbug.com/441102004): Update UnscopedExtensionZeroSuggest to support
-    //   kAiModeOmniboxEntryPoint.
-    scoped_feature_list_.InitWithFeatures(
-        {extensions_features::kExperimentalOmniboxLabs},
-        {omnibox::kAiModeOmniboxEntryPoint});
+    scoped_feature_list_.InitAndEnableFeature(
+        extensions_features::kExperimentalOmniboxLabs);
   }
 
   // Helper function to set the stop timer duration for the autocomplete

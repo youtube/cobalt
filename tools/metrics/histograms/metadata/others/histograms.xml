@@ -2770,7 +2770,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ClientHints.AcceptCHFrame" enum="AcceptCHFrameRestart"
-    expires_after="2026-10-18">
+    expires_after="2026-12-20">
   <owner>victortan@chromium.org</owner>
   <owner>miketaylr@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
@@ -2813,7 +2813,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ClientHints.StoreLatency" units="ms"
-    expires_after="2026-10-12">
+    expires_after="2026-12-16">
   <owner>victortan@chromium.org</owner>
   <owner>miketaylr@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
@@ -2824,7 +2824,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ClientHints.UpdateEventCount" units="count"
-    expires_after="2026-10-12">
+    expires_after="2026-12-16">
   <owner>victortan@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
   <summary>
@@ -2834,7 +2834,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ClientHints.UpdateSize" units="count"
-    expires_after="2026-10-12">
+    expires_after="2026-12-16">
   <owner>victortan@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
   <summary>
@@ -2885,6 +2885,27 @@ chromium-metrics-reviews@google.com.
   <owner>src/components/component_updater/OWNERS</owner>
   <summary>
     Chrome OS only. The installation result of the cros component manager.
+  </summary>
+</histogram>
+
+<histogram name="ComponentUpdater.PlatformRuntime.InstallTrigger"
+    enum="PlatformRuntimeInstallTrigger" expires_after="2026-09-16">
+  <owner>marwant@google.com</owner>
+  <owner>src/chrome/browser/component_updater/OWNERS</owner>
+  <summary>
+    Counts the different reasons/ways the platform runtime component got
+    installed: either on startup due to being missing, or on startup due to
+    being stale, or via the background updater process.
+  </summary>
+</histogram>
+
+<histogram name="ComponentUpdater.PlatformRuntime.RequestHeaderIntegrityResult"
+    enum="PlatformRuntimeIntegrityResult" expires_after="2026-09-16">
+  <owner>quarz@chromium.org</owner>
+  <owner>src/chrome/common/platform_runtime/OWNERS</owner>
+  <summary>
+    Counts the different outcomes when processing request headers for integrity
+    checks.
   </summary>
 </histogram>
 
@@ -2943,7 +2964,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ComponentUpdater.UpdateCompleteTime" units="ms"
-    expires_after="2026-10-18">
+    expires_after="2026-12-20">
   <owner>sorin@chromium.org</owner>
   <owner>src/components/component_updater/OWNERS</owner>
   <summary>
@@ -3758,12 +3779,14 @@ chromium-metrics-reviews@google.com.
   <token key="SurveyName">
     <variant name="BeforeFirstRunDesktopRefreshSurvey"/>
     <variant name="FirstRunDesktopRefreshSurvey"/>
+    <variant name="FirstRunDesktopRevampNoFeatureShowcaseSurvey"/>
+    <variant name="FirstRunDesktopRevampSurvey"/>
     <variant name="PerformanceControlsPPMSurvey"/>
   </token>
 </histogram>
 
 <histogram name="Feedback.NotAllowed.RequestSource" enum="FeedbackSource"
-    expires_after="2026-10-18">
+    expires_after="2026-12-20">
   <owner>jlebel@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -3854,7 +3877,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Feedback.RequestSource" enum="FeedbackSource"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>afakhry@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -4462,6 +4485,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Gamepad.Win.GameInput.GameInputCreateResult" enum="Hresult"
+    expires_after="2026-11-18">
+  <owner>mattreynolds@chromium.org</owner>
+  <owner>gabrielbrito@microsoft.com</owner>
+  <summary>
+    The HRESULT returned by GameInputCreate in the Windows GameInput data
+    fetcher. Recorded once when the data fetcher is added to the gamepad
+    provider and attempts to create the GameInput instance.
+  </summary>
+</histogram>
+
 <histogram name="Gamepad.Win.GameInput.GamepadAddedResult"
     enum="GameInputGamepadAddedResult" expires_after="2026-11-18">
   <owner>mattreynolds@chromium.org</owner>
@@ -4847,7 +4881,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Manifest.HasProperty{ManifestProperties}" enum="Boolean"
-    expires_after="2026-09-27">
+    expires_after="2026-12-16">
   <owner>mgiuca@chromium.org</owner>
   <summary>
     Tracks which properties of a Manifest were present when it was parsed. If a
@@ -5155,7 +5189,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NativeSmbFileShare.AuthenticationMethod"
-    enum="NativeSmbFileShare_AuthMethod" expires_after="2026-10-11">
+    enum="NativeSmbFileShare_AuthMethod" expires_after="2026-12-16">
   <owner>simmonsjosh@google.com</owner>
   <owner>src/chrome/browser/ash/smb_client/OWNERS</owner>
   <summary>
@@ -5982,7 +6016,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PushMessaging.DeliveryStatus" enum="PushEventStatus"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>peter@chromium.org</owner>
   <owner>knollr@chromium.org</owner>
   <summary>
@@ -6400,7 +6434,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SB2.DownloadUrlCheckDuration" units="ms"
-    expires_after="2026-10-15">
+    expires_after="2026-12-16">
   <owner>xinghuilu@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -6678,7 +6712,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="Shutdown.OtherExit.Time2" units="ms"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>etienneb@chromium.org</owner>
   <owner>gab@chromium.org</owner>
   <summary>
@@ -7540,7 +7574,7 @@ should be kept until we use this API.  -->
 </histogram>
 
 <histogram name="Tracing.ElevatedTracingService.LaunchResult.{Stage}"
-    enum="Hresult" expires_after="2026-10-11">
+    enum="Hresult" expires_after="2026-12-16">
   <owner>etiennep@chromium.org</owner>
   <owner>grt@chromium.org</owner>
   <summary>
@@ -7623,7 +7657,7 @@ should be kept until we use this API.  -->
 </histogram>
 
 <histogram name="UpdateClient.DownloadTime2{AppID}" units="ms"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>noahrose@google.com</owner>
   <owner>sorin@chromium.org</owner>
   <summary>
@@ -8132,7 +8166,7 @@ regressions. -->
 </histogram>
 
 <histogram name="WebUsb.DetachKernelDriverOutcome"
-    enum="DetachKernelDriverOutcome" expires_after="2026-10-18">
+    enum="DetachKernelDriverOutcome" expires_after="2026-12-20">
   <owner>ovn@google.com</owner>
   <owner>lt-web-apps-team@google.com</owner>
   <summary>

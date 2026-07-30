@@ -5,16 +5,17 @@
 import {assert, assertNotReachedCase} from 'chrome://resources/js/assert.js';
 import {EventTracker} from 'chrome://resources/js/event_tracker.js';
 import {isMac} from 'chrome://resources/js/platform.js';
+import {PromiseResolver} from 'chrome://resources/js/promise_resolver.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
 import type {TextAnnotation, TextAttributes, TextBoxRect} from '../constants.js';
 import {TextTypeface} from '../constants.js';
 import {colorsEqual, Ink2Manager, MIN_TEXTBOX_SIZE_PX, stylesEqual} from '../ink2_manager.js';
-import type {TextBoxInit, ViewportParams} from '../ink2_manager.js';
 import {convertRotatedCoordinates} from '../ink_text_annotation_utils.js';
 import {PdfViewerPrivateProxyImpl} from '../pdf_viewer_private_proxy.js';
 import {colorToHex, hasCtrlModifier} from '../pdf_viewer_utils.js';
+import type {Viewport, ViewportRect} from '../viewport.js';
 
 import {getCss} from './ink_text_box.css.js';
 import {getHtml} from './ink_text_box.html.js';
@@ -79,6 +80,9 @@ export class InkTextBoxElement extends InkTextBoxElementBase {
       viewportRotations_: {type: Number},
       width_: {type: Number},
       zoom_: {type: Number},
+      viewport: {type: Object},
+      annotation: {type: Object},
+      pageDimensions: {type: Object},
     };
   }
 
@@ -96,6 +100,9 @@ export class InkTextBoxElement extends InkTextBoxElementBase {
   private accessor viewportRotations_: number = 0;
   private accessor width_: number = MIN_TEXTBOX_SIZE_PX;
   private accessor zoom_: number = 1.0;
+  accessor viewport: Viewport|null = null;
+  accessor annotation: TextAnnotation|null = null;
+  accessor pageDimensions: ViewportRect|null = null;
 
   private attributes_?: TextAttributes;
   private currentArrowKey_: string|null = null;
@@ -115,23 +122,10 @@ export class InkTextBoxElement extends InkTextBoxElementBase {
   private pageY_: number = 0;
   private pointerStart_: {x: number, y: number}|null = null;
   private startPosition_: TextBoxRect|null = null;
-  // Force commitTextAnnotation() calls to happen in order
-  private whenTextAnnotationsCommitted_: Promise<void> = Promise.resolve();
+  private promiseResolver_: PromiseResolver<void>|null = null;
 
   override connectedCallback() {
     super.connectedCallback();
-    this.eventTracker_.add(
-        Ink2Manager.getInstance(), 'initialize-text-box',
-        (e: Event) =>
-            this.onInitializeTextBox_((e as CustomEvent<TextBoxInit>).detail));
-    this.eventTracker_.add(
-        Ink2Manager.getInstance(), 'deactivate-text-box',
-        () => this.commitTextAnnotation());
-    this.onViewportChanged_(Ink2Manager.getInstance().getViewportParams());
-    this.eventTracker_.add(
-        Ink2Manager.getInstance(), 'viewport-changed',
-        (e: Event) =>
-            this.onViewportChanged_((e as CustomEvent<ViewportParams>).detail));
     this.eventTracker_.add(
         this, 'pointerdown', (e: PointerEvent) => this.onPointerDown_(e));
     this.eventTracker_.add(
@@ -145,6 +139,16 @@ export class InkTextBoxElement extends InkTextBoxElementBase {
 
   override willUpdate(changedProperties: PropertyValues<this>) {
     super.willUpdate(changedProperties);
+
+    if (changedProperties.has('annotation') ||
+        changedProperties.has('pageDimensions')) {
+      if (this.annotation && this.pageDimensions) {
+        this.initializeFromProperties_();
+      } else {
+        this.state_ = TextBoxState.INACTIVE;
+      }
+    }
+
     const changedPrivateProperties =
         changedProperties as Map<PropertyKey, unknown>;
     if (changedPrivateProperties.has('minHeight_')) {
@@ -158,7 +162,6 @@ export class InkTextBoxElement extends InkTextBoxElementBase {
     if (changedPrivateProperties.has('state_')) {
       this.hidden = this.state_ === TextBoxState.INACTIVE;
       this.fire('state-changed', this.state_);
-      Ink2Manager.getInstance().setTextBoxActive(!this.hidden);
     }
 
     if (changedPrivateProperties.has('viewportRotations_') ||
@@ -217,7 +220,7 @@ export class InkTextBoxElement extends InkTextBoxElementBase {
       return;
     }
 
-    Ink2Manager.getInstance().textBoxFocused({
+    this.fire('textbox-focused', {
       height: this.height_,
       locationX: this.locationX_,
       locationY: this.locationY_,
@@ -293,96 +296,101 @@ export class InkTextBoxElement extends InkTextBoxElementBase {
     }
   }
 
-  async commitTextAnnotation() {
-    this.whenTextAnnotationsCommitted_ =
-        this.whenTextAnnotationsCommitted_
-            .then(async () => {
-              // If the user is still dragging the box by holding down a key or
-              // pointer, reset location to the start of the drag and remove
-              // listeners before deactivating the box and committing the
-              // annotation.
-              this.resetDrag_();
+  commitTextAnnotation(): Promise<void> {
+    if (this.promiseResolver_) {
+      return this.promiseResolver_.promise;
+    }
 
-              // If this is a new/inactive box or a new box edited to empty,
-              // nothing to do unless it was initialized from an existing
-              // annotation. If this was an existing annotation, we need to
-              // notify the backend to re-render it, if unchanged, or delete it,
-              // if the text was set to empty.
-              if ((this.state_ !== TextBoxState.EDITED ||
-                   this.textValue_ === '') &&
-                  !this.existing_) {
-                this.state_ = TextBoxState.INACTIVE;
-                return;
-              }
+    this.promiseResolver_ = new PromiseResolver<void>();
+    const promise = this.promiseResolver_.promise;
 
-              // Save the existing state with dummy mojoTextInfo.
-              assert(this.attributes_);
-              const isEdited = this.state_ === TextBoxState.EDITED;
-              const annotation: TextAnnotation = {
-                id: this.id_,
-                mojoTextInfo: new ArrayBuffer(0),
-                pageIndex: this.pageIndex_,
-                pdfZoom: this.zoom_,
-                text: this.textValue_,
-                textAttributes: structuredClone(this.attributes_),
-                textBoxRect: {
-                  height: this.height_,
-                  locationX: this.locationX_,
-                  locationY: this.locationY_,
-                  width: this.width_,
-                },
-                textOrientation: this.textOrientation_,
-                viewportOrientation: this.viewportRotations_,
-              };
+    this.resetDrag_();
 
-              const result =
-                  await PdfViewerPrivateProxyImpl.getInstance().getTextInfo(
-                      this.$.textbox,
-                      Ink2Manager.getInstance().getKnownFontIds());
+    if ((this.state_ !== TextBoxState.EDITED || this.textValue_ === '') &&
+        !this.existing_) {
+      this.state_ = TextBoxState.INACTIVE;
+      this.promiseResolver_.resolve();
+      this.promiseResolver_ = null;
+      return promise;
+    }
 
-              for (const typeface of result.typefaces) {
-                Ink2Manager.getInstance().addKnownFontId(typeface.uniqueId);
-              }
+    // Save the existing state with dummy mojoTextInfo.
+    assert(this.attributes_);
+    const isEdited = this.state_ === TextBoxState.EDITED;
+    const annotation: TextAnnotation = {
+      id: this.id_,
+      mojoTextInfo: new ArrayBuffer(0),
+      pageIndex: this.pageIndex_,
+      pdfZoom: this.zoom_,
+      text: this.textValue_,
+      textAttributes: structuredClone(this.attributes_),
+      textBoxRect: {
+        height: this.height_,
+        locationX: this.locationX_,
+        locationY: this.locationY_,
+        width: this.width_,
+      },
+      textOrientation: this.textOrientation_,
+      viewportOrientation: this.viewportRotations_,
+    };
 
-              // Notify the backend and set state to inactive so that a new
-              // annotation can be created.
-              annotation.mojoTextInfo = result.mojoTextInfo;
-              Ink2Manager.getInstance().commitTextAnnotation(
-                  annotation, isEdited, result.typefaces);
-              this.state_ = TextBoxState.INACTIVE;
-            })
-            .catch(e => {
-              console.error('Error committing text annotation:', e);
-              this.state_ = TextBoxState.INACTIVE;
-            });
-    return this.whenTextAnnotationsCommitted_;
+    (async () => {
+      try {
+        const result =
+            await PdfViewerPrivateProxyImpl.getInstance().getTextInfo(
+                this.$.textbox, Ink2Manager.getInstance().getKnownFontIds());
+
+        for (const typeface of result.typefaces) {
+          Ink2Manager.getInstance().addKnownFontId(typeface.uniqueId);
+        }
+
+        annotation.mojoTextInfo = result.mojoTextInfo;
+        Ink2Manager.getInstance().commitTextAnnotation(
+            annotation, isEdited, result.typefaces);
+        this.state_ = TextBoxState.INACTIVE;
+      } catch (e) {
+        console.error('Error committing text annotation:', e);
+        this.state_ = TextBoxState.INACTIVE;
+      } finally {
+        assert(this.promiseResolver_);
+        this.promiseResolver_.resolve();
+        this.promiseResolver_ = null;
+      }
+    })();
+
+    return promise;
   }
 
-  private async onInitializeTextBox_(data: TextBoxInit) {
-    // If we are already editing an annotation, commit it first before
-    // switching to the new one.
-    if (this.state_ !== TextBoxState.INACTIVE) {
-      await this.commitTextAnnotation();
+  private initializeFromProperties_() {
+    const annotation = this.annotation;
+    const pageDimensions = this.pageDimensions;
+    if (!annotation || !pageDimensions) {
+      return;
+    }
+
+    if (this.viewport) {
+      this.zoom_ = this.viewport.getZoom();
+      this.viewportRotations_ = this.viewport.getClockwiseRotations();
     }
 
     // Update is in screen coordinates.
-    this.pageX_ = data.pageDimensions.x;
-    this.pageY_ = data.pageDimensions.y;
-    this.pageWidth_ = data.pageDimensions.width;
-    this.pageHeight_ = data.pageDimensions.height;
-    this.width_ = data.annotation.textBoxRect.width;
-    this.height_ = data.annotation.textBoxRect.height;
+    this.pageX_ = pageDimensions.x;
+    this.pageY_ = pageDimensions.y;
+    this.pageWidth_ = pageDimensions.width;
+    this.pageHeight_ = pageDimensions.height;
+    this.width_ = annotation.textBoxRect.width;
+    this.height_ = annotation.textBoxRect.height;
     this.minHeight_ = MIN_TEXTBOX_SIZE_PX;
     this.minWidth_ = MIN_TEXTBOX_SIZE_PX;
-    this.locationX_ = data.annotation.textBoxRect.locationX;
-    this.locationY_ = data.annotation.textBoxRect.locationY;
+    this.locationX_ = annotation.textBoxRect.locationX;
+    this.locationY_ = annotation.textBoxRect.locationY;
     this.state_ = TextBoxState.NEW;
-    this.existing_ = data.annotation.text !== '';
-    this.textValue_ = data.annotation.text;
-    this.id_ = data.annotation.id;
-    this.pageIndex_ = data.annotation.pageIndex;
-    this.textOrientation_ = data.annotation.textOrientation;
-    this.updateTextAttributes_(data.annotation.textAttributes);
+    this.existing_ = annotation.text !== '';
+    this.textValue_ = annotation.text;
+    this.id_ = annotation.id;
+    this.pageIndex_ = annotation.pageIndex;
+    this.textOrientation_ = annotation.textOrientation;
+    this.updateTextAttributes_(annotation.textAttributes);
 
     this.focusTextboxWhenReady_();
   }
@@ -395,41 +403,46 @@ export class InkTextBoxElement extends InkTextBoxElementBase {
     }, 0);
   }
 
-  private onViewportChanged_(update: ViewportParams) {
+  viewportChanged() {
+    if (!this.viewport || this.pageIndex_ === -1) {
+      return;
+    }
+    const zoom = this.viewport.getZoom();
+    const clockwiseRotations = this.viewport.getClockwiseRotations();
+    const pageDimensions = this.viewport.getPageScreenRect(this.pageIndex_);
+
     // Convert width, height, locationX, locationY to the new screen
     // coordinates.
 
     // Note that this.pageX_ and this.pageY_ are in the old screen
     // coordinates, i.e. they were using the old zoom value.
     const adjusted = {
-      locationX: (this.locationX_ - this.pageX_) * update.zoom / this.zoom_,
-      locationY: (this.locationY_ - this.pageY_) * update.zoom / this.zoom_,
-      width:
-          Math.max(this.width_ * update.zoom / this.zoom_, MIN_TEXTBOX_SIZE_PX),
-      height: Math.max(
-          this.height_ * update.zoom / this.zoom_, MIN_TEXTBOX_SIZE_PX),
+      locationX: (this.locationX_ - this.pageX_) * zoom / this.zoom_,
+      locationY: (this.locationY_ - this.pageY_) * zoom / this.zoom_,
+      width: Math.max(this.width_ * zoom / this.zoom_, MIN_TEXTBOX_SIZE_PX),
+      height: Math.max(this.height_ * zoom / this.zoom_, MIN_TEXTBOX_SIZE_PX),
     };
     const rotated = convertRotatedCoordinates(
-        adjusted, this.viewportRotations_, update.clockwiseRotations,
-        update.pageDimensions.width, update.pageDimensions.height);
+        adjusted, this.viewportRotations_, clockwiseRotations,
+        pageDimensions.width, pageDimensions.height);
     // Flip min height and width if we've switched orientation.
-    if (this.viewportRotations_ % 2 !== update.clockwiseRotations % 2) {
+    if (this.viewportRotations_ % 2 !== clockwiseRotations % 2) {
       const min = this.minHeight_;
       this.minHeight_ = this.minWidth_;
       this.minWidth_ = min;
     }
-    this.locationX_ = rotated.locationX + update.pageDimensions.x;
-    this.locationY_ = rotated.locationY + update.pageDimensions.y;
+    this.locationX_ = rotated.locationX + pageDimensions.x;
+    this.locationY_ = rotated.locationY + pageDimensions.y;
     this.width_ = rotated.width;
     this.height_ = rotated.height;
 
     // Update properties to the new values.
-    this.viewportRotations_ = update.clockwiseRotations;
-    this.zoom_ = update.zoom;
-    this.pageX_ = update.pageDimensions.x;
-    this.pageY_ = update.pageDimensions.y;
-    this.pageWidth_ = update.pageDimensions.width;
-    this.pageHeight_ = update.pageDimensions.height;
+    this.viewportRotations_ = clockwiseRotations;
+    this.zoom_ = zoom;
+    this.pageX_ = pageDimensions.x;
+    this.pageY_ = pageDimensions.y;
+    this.pageWidth_ = pageDimensions.width;
+    this.pageHeight_ = pageDimensions.height;
   }
 
   private onDocumentKeyDown_(e: KeyboardEvent) {
@@ -480,6 +493,9 @@ export class InkTextBoxElement extends InkTextBoxElementBase {
     if (!['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
       return;
     }
+
+    e.preventDefault();
+    e.stopPropagation();
 
     // Reset state if this is a new arrow key.
     if (this.currentArrowKey_ !== null && this.currentArrowKey_ !== e.key) {

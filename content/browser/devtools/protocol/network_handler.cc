@@ -1697,8 +1697,10 @@ NetworkHandler::BuildProtocolReport(const net::ReportingReport& report) {
         .SetInitiatorUrl(report.url.spec())
         .SetDestination(report.group)
         .SetType(report.type)
-        .SetTimestamp(
-            (report.queued - base::TimeTicks::UnixEpoch()).InSecondsF())
+        .SetTimestamp((base::Time::Now() -
+                       (base::TimeTicks::Now() - report.queued) -
+                       base::Time::UnixEpoch())
+                          .InSecondsF())
         .SetDepth(report.depth)
         .SetCompletedAttempts(report.attempts)
         .SetBody(std::make_unique<base::DictValue>(report.body.Clone()))
@@ -4724,7 +4726,7 @@ void NetworkHandler::LoadNetworkResource(
         network::mojom::TrustTokenOperationPolicyVerdict::kForbid,
         network::mojom::TrustTokenOperationPolicyVerdict::kForbid,
         frame->GetCookieSettingOverrides(),
-        /*network_restrictions_id=*/network::GetTODONetworkRestrictionsId(),
+        /*network_restrictions_id=*/frame->GetNetworkRestrictionsID(),
         "NetworkHandler::LoadNetworkResource");
 
     auto factory = CreateNetworkFactoryForDevTools(

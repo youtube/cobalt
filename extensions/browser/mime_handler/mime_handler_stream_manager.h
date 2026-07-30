@@ -140,12 +140,25 @@ class MimeHandlerStreamManager
   // differentiate between the hosts.
   bool IsExtensionHost(const content::RenderFrameHost* render_frame_host) const;
 
+  // Returns true if `render_frame_host` is an extension host (see
+  // `IsExtensionHost()`) whose registered handler extension owns `url`.
+  bool IsExtensionHostForUrl(const content::RenderFrameHost* render_frame_host,
+                             const GURL& url) const;
+
   // Returns true if `frame_tree_node_id` is the frame tree node ID for the
   // extension frame under `embedder_host` and the `embedder_host`'s last
   // committed URL matches the stream's original URL, false otherwise.
   bool IsExtensionFrameTreeNodeId(
       const content::RenderFrameHost* embedder_host,
       content::FrameTreeNodeId frame_tree_node_id) const;
+
+  // Returns true if `frame_tree_node_id` is the extension frame under
+  // `embedder_host` (see `IsExtensionFrameTreeNodeId()`) whose registered
+  // handler extension owns `url`.
+  bool IsExtensionFrameTreeNodeIdForUrl(
+      const content::RenderFrameHost* embedder_host,
+      content::FrameTreeNodeId frame_tree_node_id,
+      const GURL& url) const;
 
   // Returns true if `embedder_host` has an extension frame and it has already
   // finished its navigation, false otherwise.

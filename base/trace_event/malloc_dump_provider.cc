@@ -489,6 +489,9 @@ bool MallocDumpProvider::OnMemoryDump(const MemoryDumpArgs& args,
   ExtremeLUDStats elud_stats_for_large_objects;
 #if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
   partitions_dump = pmd->CreateAllocatorDump("malloc/partitions");
+  partitions_dump->AddScalar("allocated_objects_size",
+                             MemoryAllocatorDump::kUnitsBytes,
+                             pa_only_allocated_objects_size);
   pmd->AddOwnershipEdge(inner_dump->guid(), partitions_dump->guid());
 
   auto& extreme_lud_get_stats_callback = GetExtremeLUDGetStatsCallback();

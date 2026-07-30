@@ -62,9 +62,8 @@
   return self;
 }
 
-- (void)configureCell:(ManualFillAddressCell*)cell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:cell withStyler:styler];
+- (void)configureCell:(ManualFillAddressCell*)cell {
+  [super configureCell:cell];
   [cell setUpWithAddress:self.address
                   contentInjector:self.contentInjector
                       menuActions:self.menuActions

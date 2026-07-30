@@ -25,6 +25,7 @@ struct ImageAnimationData {
   PaintImage::Id paint_id = PaintImage::kInvalidId;
   PaintImage::AnimationSyncSequence sync_sequence =
       PaintImage::AnimationSyncSequence::kShared;
+  PaintImage::AnimationSequenceId reset_sequence = 0;
 };
 
 // An interface for CSS Image Animation per-node state, keyed by

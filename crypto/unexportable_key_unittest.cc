@@ -7,8 +7,10 @@
 #include <limits>
 #include <optional>
 #include <tuple>
+#include <utility>
 
 #include "base/check.h"
+#include "base/compiler_specific.h"
 #include "base/containers/span_reader.h"
 #include "base/containers/span_rust.h"
 #include "base/containers/span_writer.h"
@@ -17,13 +19,14 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "crypto/ecdsa_utils.h"
 #include "crypto/hash.h"
 #include "crypto/keypair.h"
 #include "crypto/mock_unexportable_key.h"
 #include "crypto/scoped_fake_unexportable_key_provider.h"
 #include "crypto/scoped_mock_unexportable_key_provider.h"
 #include "crypto/sign.h"
-#include "crypto/tpm.rs.h"
+#include "crypto/tpm_parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_MAC)
@@ -484,6 +487,8 @@ TEST_P(UnexportableKeyTest, AttestationKeyMock) {
 }
 
 TEST_P(UnexportableKeyTest, FakeAttestationWorkflows) {
+  // TODO(crbug.com/525047253): This only tests SHA256 hash algos. We should add
+  // coverage for SHA1 as well.
   if (provider_type() != Provider::kFake) {
     GTEST_SKIP() << "Test is only for fake provider.";
   }
@@ -508,18 +513,18 @@ TEST_P(UnexportableKeyTest, FakeAttestationWorkflows) {
 
   std::vector<uint8_t> fake_resp =
       ConstructFakeTpmResponse(statement.statement, statement.signature);
-  crypto::tpm::CertifyResponse parsed = crypto::tpm::parse_certify_response(
-      base::SpanToRustSlice(fake_resp), base::SpanToRustSlice(kChallenge));
-  EXPECT_EQ(parsed.result, crypto::tpm::ParseResult::Ok);
-  EXPECT_EQ(parsed.tpm_response_code, 0u);
-  EXPECT_EQ(base::span(parsed.statement), base::span(statement.statement));
-  EXPECT_EQ(base::span(parsed.signature), base::span(statement.signature));
 
-  crypto::tpm::VerificationResult verified = crypto::tpm::verify_signature(
-      base::SpanToRustSlice(parsed.statement),
-      base::SpanToRustSlice(parsed.signature),
-      base::SpanToRustSlice(attestation_key->GetSubjectPublicKeyInfo()));
-  EXPECT_EQ(verified, crypto::tpm::VerificationResult::Ok);
+  // Use C++ type-safe parser.
+  EXPECT_THAT(crypto::tpm::ParseCertifyResponse(fake_resp, kChallenge),
+              base::test::ValueIs(crypto::tpm::CertifyResponse{
+                  .statement = statement.statement,
+                  .signature = statement.signature,
+              }));
+
+  // Verify the signature using the C++ wrapper directly.
+  EXPECT_OK(
+      crypto::tpm::VerifySignature(attestation_key->GetSubjectPublicKeyInfo(),
+                                   statement.statement, statement.signature));
 
   std::vector<uint8_t> wrapped_attestation = attestation_key->GetWrappedKey();
   auto loaded_attestation_key =

@@ -11,8 +11,10 @@
 #include "base/strings/stringprintf.h"
 #include "services/webnn/ort/environment.h"
 #include "services/webnn/ort/logging.h"
+#include "services/webnn/ort/ort_data_type.h"
 #include "services/webnn/ort/ort_status.h"
 #include "services/webnn/ort/platform_functions_ort.h"
+#include "services/webnn/public/cpp/ep_device_info.h"
 #include "services/webnn/public/cpp/webnn_trace.h"
 #include "services/webnn/public/mojom/webnn_error.mojom.h"
 #include "services/webnn/public/mojom/webnn_service_introspection.mojom.h"
@@ -120,15 +122,7 @@ std::optional<uint32_t> GetBatchedMatMulKDimensionLimit(
   return iter->second.workarounds.npu_batched_matmul_k_dimension_limit;
 }
 
-}  // namespace
-
-// static
-base::expected<scoped_refptr<SessionOptions>, std::string>
-SessionOptions::Create(OrtHardwareDeviceType device_type,
-                       scoped_refptr<Environment> env) {
-  ScopedTrace scoped_trace("SessionOptions::Create");
-
-  scoped_trace.AddStep("Create session options");
+ScopedOrtSessionOptions CreateBaseSessionOptions() {
   const OrtApi* ort_api = PlatformFunctions::GetInstance()->ort_api();
   ScopedOrtSessionOptions session_options;
   CHECK_STATUS(ort_api->CreateSessionOptions(
@@ -159,12 +153,6 @@ SessionOptions::Create(OrtHardwareDeviceType device_type,
                                           profile_prefix.c_str()));
   }
 
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kWebNNOrtDisableCpuFallback)) {
-    CHECK_STATUS(ort_api->AddSessionConfigEntry(
-        session_options.get(), kOrtSessionOptionsDisableCPUEPFallback, "1"));
-  }
-
   // Enable strict shape type inference check. All inconsistencies encountered
   // will expose errors during session creation. For example, if the graph
   // output shape set by WebNN is different from ONNX shape inference result,
@@ -186,6 +174,28 @@ SessionOptions::Create(OrtHardwareDeviceType device_type,
       CHECK_STATUS(ort_api->SetSessionGraphOptimizationLevel(
           session_options.get(), ort_graph_optimization_level.value()));
     }
+  }
+
+  return session_options;
+}
+
+}  // namespace
+
+// static
+base::expected<scoped_refptr<SessionOptions>, std::string>
+SessionOptions::Create(OrtHardwareDeviceType device_type,
+                       scoped_refptr<Environment> env) {
+  ScopedTrace scoped_trace("SessionOptions::Create");
+
+  scoped_trace.AddStep("Create session options");
+  ScopedOrtSessionOptions session_options = CreateBaseSessionOptions();
+
+  const OrtApi* ort_api = PlatformFunctions::GetInstance()->ort_api();
+
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kWebNNOrtDisableCpuFallback)) {
+    CHECK_STATUS(ort_api->AddSessionConfigEntry(
+        session_options.get(), kOrtSessionOptionsDisableCPUEPFallback, "1"));
   }
 
   std::vector<SessionConfigEntry> ep_config_entries =
@@ -210,6 +220,69 @@ SessionOptions::Create(OrtHardwareDeviceType device_type,
       std::move(env), selected_ep_devices.front());
 }
 
+// static
+scoped_refptr<SessionOptions> SessionOptions::Create(
+    const EpDeviceInfo& target_device,
+    scoped_refptr<Environment> env) {
+  ScopedOrtSessionOptions session_options = CreateBaseSessionOptions();
+
+  const OrtApi* ort_api = PlatformFunctions::GetInstance()->ort_api();
+
+  // Disable CPU EP fallback to ensure the session will be created on the
+  // expected EP device.
+  CHECK_STATUS(ort_api->AddSessionConfigEntry(
+      session_options.get(), kOrtSessionOptionsDisableCPUEPFallback, "1"));
+
+  const auto ep_it = kKnownEPs.find(target_device.ep_name);
+  if (ep_it != kKnownEPs.end()) {
+    for (const auto& config_entry : ep_it->second.config_entries) {
+      CHECK_STATUS(ort_api->AddSessionConfigEntry(
+          session_options.get(),
+          /*config_key=*/config_entry.key.c_str(),
+          /*config_value=*/config_entry.value.c_str()));
+    }
+  }
+
+  // Ensure the specified EP device is registered in the environment.
+  const OrtEpDevice* target_ort_device = nullptr;
+  base::span<const OrtEpDevice* const> registered_devices =
+      env->GetRegisteredEpDevices();
+  for (const auto* registered_device : registered_devices) {
+    const OrtHardwareDevice* hardware_device =
+        ort_api->EpDevice_Device(registered_device);
+    std::string_view ep_name = ort_api->EpDevice_EpName(registered_device);
+    OrtHardwareDeviceType hardware_device_type =
+        ort_api->HardwareDevice_Type(hardware_device);
+    uint32_t device_id = ort_api->HardwareDevice_DeviceId(hardware_device);
+
+    if (target_device.ep_name == ep_name &&
+        WebnnToOrtDeviceType(target_device.device_type) ==
+            hardware_device_type &&
+        target_device.device_id == device_id) {
+      target_ort_device = registered_device;
+      break;
+    }
+  }
+  CHECK(target_ort_device) << "[WebNN] Target EP device not registered: "
+                           << target_device.ep_name
+                           << " with device type: " << target_device.device_type
+                           << " and ID: 0x" << std::hex
+                           << target_device.device_id;
+
+  // Directly bind the target device to the session options, bypassing the
+  // auto EP selection policy.
+  CHECK_STATUS(ort_api->SessionOptionsAppendExecutionProvider_V2(
+      session_options.get(), const_cast<OrtEnv*>(env->get()),
+      &target_ort_device,
+      /*num_ep_devices=*/1, /*ep_option_keys=*/nullptr,
+      /*ep_option_vals=*/nullptr, /*num_ep_options=*/0));
+
+  return base::MakeRefCounted<SessionOptions>(
+      base::PassKey<SessionOptions>(), std::move(session_options),
+      WebnnToOrtDeviceType(target_device.device_type), std::move(env),
+      target_ort_device);
+}
+
 SessionOptions::SessionOptions(base::PassKey<SessionOptions>,
                                ScopedOrtSessionOptions session_options,
                                OrtHardwareDeviceType device_type,
@@ -218,21 +291,17 @@ SessionOptions::SessionOptions(base::PassKey<SessionOptions>,
     : session_options_(std::move(session_options)),
       device_type_(device_type),
       env_(std::move(env)),
-      first_selected_device_(first_selected_device) {
-  CHECK(session_options_.get());
-  CHECK(first_selected_device_);
-
-  batched_matmul_k_dimension_limit_ =
-      GetBatchedMatMulKDimensionLimit(first_selected_device_);
-
+      first_selected_device_(first_selected_device),
+      batched_matmul_k_dimension_limit_(
+          GetBatchedMatMulKDimensionLimit(first_selected_device)) {
   const OrtApi* ort_api = PlatformFunctions::GetInstance()->ort_api();
-  // SAFETY: Passing `&device_type_` is safe because the delegate is only called
-  // synchronously during session creation, and `device_type_` is a member
-  // variable of this SessionOptions object which outlives the session creation
-  // process.
+  // SAFETY: Passing `&device_type_` is safe because the delegate is only
+  // called synchronously during session creation, and `device_type_` is a
+  // member variable of this SessionOptions object which outlives the session
+  // creation process.
   // NOTE: `const_cast` is safe here because `EpSelectionPolicyDelegate` only
-  // reads the `device_type_` value and never modifies it. The `void*` parameter
-  // is a C API limitation that doesn't preserve const-correctness.
+  // reads the `device_type_` value and never modifies it. The `void*`
+  // parameter is a C API limitation that doesn't preserve const-correctness.
   CHECK_STATUS(ort_api->SessionOptionsSetEpSelectionPolicyDelegate(
       session_options_.get(), EpSelectionPolicyDelegate,
       const_cast<OrtHardwareDeviceType*>(&device_type_)));

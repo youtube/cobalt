@@ -14,9 +14,6 @@ source_set("autofill") {
     "autofill_add_credit_card_view_controller.mm",
     "autofill_add_credit_card_view_controller_delegate.h",
     "autofill_add_credit_card_view_controller_presentation_delegate.h",
-    "autofill_bnpl_consumer.h",
-    "autofill_bnpl_table_view_controller.h",
-    "autofill_bnpl_table_view_controller.mm",
     "autofill_credit_card_edit_table_view_controller.h",
     "autofill_credit_card_edit_table_view_controller.mm",
     "autofill_credit_card_table_view_controller.h",
@@ -38,7 +35,11 @@ source_set("autofill") {
     "enhanced_autofill_table_view_controller.h",
     "enhanced_autofill_table_view_controller.mm",
   ]
-  public_deps = [ "//ios/chrome/browser/settings/autofill/ui" ]
+  public_deps = [
+    "//ios/chrome/browser/settings/autofill/bnpl/coordinator",
+    "//ios/chrome/browser/settings/autofill/bnpl/ui",
+    "//ios/chrome/browser/settings/autofill/ui",
+  ]
   deps = [
     ":constants",
     ":shared_ui",
@@ -68,6 +69,7 @@ source_set("autofill") {
     "//ios/chrome/browser/net/model:crurl",
     "//ios/chrome/browser/settings/autofill/autofill_ai/coordinator",
     "//ios/chrome/browser/settings/autofill/autofill_ai/ui",
+    "//ios/chrome/browser/settings/autofill/autofill_and_passwords/utils:autofill_and_passwords_item_utils",
     "//ios/chrome/browser/settings/autofill/ui",
     "//ios/chrome/browser/settings/autofill/utils:autofill_settings_ui_util",
     "//ios/chrome/browser/settings/ui_bundled:settings_root",
@@ -134,6 +136,7 @@ source_set("unit_tests") {
     "//components/application_locale_storage",
     "//components/autofill/core/browser",
     "//components/autofill/core/browser:test_support",
+    "//components/prefs:test_support",
     "//components/strings",
     "//components/sync:test_support",
     "//ios/chrome/app/strings",
@@ -146,6 +149,7 @@ source_set("unit_tests") {
     "//ios/chrome/browser/autofill/ui_bundled/util",
     "//ios/chrome/browser/net/model:crurl",
     "//ios/chrome/browser/settings/autofill/autofill_ai/ui",
+    "//ios/chrome/browser/settings/autofill/bnpl/coordinator:unit_tests",
     "//ios/chrome/browser/settings/ui_bundled:settings_root",
     "//ios/chrome/browser/settings/ui_bundled:test_support",
     "//ios/chrome/browser/settings/ui_bundled/autofill/cells",

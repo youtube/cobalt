@@ -36,8 +36,6 @@
 namespace content {
 
 // Forwards notifications about the child web contents to the connector.
-// TODO(crbug.com/493315755): Check whether we still need WCObserver now that we
-// call UpdateViewForCurrentRenderFrameHost() during Attach().
 class SurfaceEmbedConnectorImpl::WCObserver : public WebContentsObserver {
  public:
   explicit WCObserver(SurfaceEmbedConnectorImpl* surface_embed_connector,
@@ -46,13 +44,6 @@ class SurfaceEmbedConnectorImpl::WCObserver : public WebContentsObserver {
         surface_embed_connector_(surface_embed_connector) {}
 
   ~WCObserver() override = default;
-
-  // WebContentsObserver:
-  void RenderFrameCreated(RenderFrameHost* render_frame_host) override {
-    if (render_frame_host->IsInPrimaryMainFrame()) {
-      surface_embed_connector_->OnRenderFrameCreated();
-    }
-  }
 
  private:
   raw_ptr<SurfaceEmbedConnectorImpl> surface_embed_connector_;
@@ -709,10 +700,6 @@ void SurfaceEmbedConnectorImpl::ResetRectInParentView() {
   // lines or not.
   rect_in_parent_view_in_dip_ = gfx::Rect();
   last_received_local_frame_size_ = gfx::Size();
-}
-
-void SurfaceEmbedConnectorImpl::OnRenderFrameCreated() {
-  UpdateViewForCurrentRenderFrameHost();
 }
 
 RenderFrameHostImpl* SurfaceEmbedConnectorImpl::current_child_frame_host()

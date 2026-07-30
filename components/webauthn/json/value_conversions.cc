@@ -236,34 +236,6 @@ base::Value ToValue(const device::LargeBlobSupport large_blob) {
   }
 }
 
-base::Value ToValue(
-    const blink::mojom::SupplementalPubKeysRequestPtr& supplemental_pub_keys) {
-  base::ListValue scopes;
-  if (supplemental_pub_keys->device_scope_requested) {
-    scopes.Append("device");
-  }
-  if (supplemental_pub_keys->provider_scope_requested) {
-    scopes.Append("provider");
-  }
-
-  base::DictValue value;
-  value.Set("scopes", std::move(scopes));
-  if (supplemental_pub_keys->attestation !=
-      device::AttestationConveyancePreference::kIndirect) {
-    value.Set("attestation", ToValue(supplemental_pub_keys->attestation));
-  }
-  if (supplemental_pub_keys->attestation_formats.size()) {
-    base::ListValue formats;
-    for (const std::string& format :
-         supplemental_pub_keys->attestation_formats) {
-      formats.Append(format);
-    }
-    value.Set("attestationFormats", std::move(formats));
-  }
-
-  return base::Value(std::move(value));
-}
-
 base::Value ToValue(const std::vector<std::string>& strings) {
   base::ListValue ret;
   ret.reserve(strings.size());
@@ -463,11 +435,6 @@ base::Value ToValue(
     extensions.Set("payment", std::move(payments_value));
   }
 
-  if (options->supplemental_pub_keys) {
-    extensions.Set("supplementalPubKeys",
-                   ToValue(options->supplemental_pub_keys));
-  }
-
   if (!extensions.empty()) {
     value.Set("extensions", std::move(extensions));
   }
@@ -552,11 +519,6 @@ base::Value ToValue(
     extensions.Set("prf", std::move(prf_value));
   }
 
-  if (options->extensions->supplemental_pub_keys) {
-    extensions.Set("supplementalPubKeys",
-                   ToValue(options->extensions->supplemental_pub_keys));
-  }
-
   if (options->extensions->cross_device_fallback_url) {
     extensions.Set("crossDeviceFallbackUrl",
                    options->extensions->cross_device_fallback_url->spec());
@@ -605,30 +567,6 @@ std::optional<blink::mojom::PRFValuesPtr> ParsePRFResults(
       /*id=*/std::nullopt, ToByteVector(*first),
       second ? std::optional<std::vector<uint8_t>>(ToByteVector(*second))
              : std::nullopt);
-}
-
-std::optional<blink::mojom::SupplementalPubKeysResponsePtr>
-ParseSupplementalPubKeys(const base::DictValue* json) {
-  const base::ListValue* signatures = json->FindList("signatures");
-  if (!signatures || signatures->empty()) {
-    return std::nullopt;
-  }
-
-  auto ret = blink::mojom::SupplementalPubKeysResponse::New();
-  for (const base::Value& b64url_signature : *signatures) {
-    if (!b64url_signature.is_string()) {
-      return std::nullopt;
-    }
-    std::optional<std::vector<uint8_t>> signature =
-        Base64UrlDecode(b64url_signature.GetString(),
-                        base::Base64UrlDecodePolicy::DISALLOW_PADDING);
-    if (!signature) {
-      return std::nullopt;
-    }
-    ret->signatures.emplace_back(std::move(*signature));
-  }
-
-  return ret;
 }
 
 std::pair<blink::mojom::MakeCredentialAuthenticatorResponsePtr, std::string>
@@ -810,15 +748,6 @@ MakeCredentialResponseFromValue(const base::Value& value) {
       response->prf_results = std::move(*prf_results);
     }
   }
-  const base::DictValue* supplemental_pub_keys =
-      client_extension_results->FindDict("supplementalPubKeys");
-  if (supplemental_pub_keys) {
-    auto maybe_result = ParseSupplementalPubKeys(supplemental_pub_keys);
-    if (!maybe_result) {
-      return InvalidMakeCredentialField("supplementalPubKeys");
-    }
-    response->supplemental_pub_keys = std::move(*maybe_result);
-  }
 
   return {std::move(response), ""};
 }
@@ -945,15 +874,6 @@ GetAssertionResponseFromValue(const base::Value& value) {
       response->extensions->echo_prf = true;
       response->extensions->prf_results = std::move(*prf_results);
     }
-  }
-  const base::DictValue* supplemental_pub_keys =
-      client_extension_results->FindDict("supplementalPubKeys");
-  if (supplemental_pub_keys) {
-    auto maybe_result = ParseSupplementalPubKeys(supplemental_pub_keys);
-    if (!maybe_result) {
-      return InvalidGetAssertionField("supplementalPubKeys");
-    }
-    response->extensions->supplemental_pub_keys = std::move(*maybe_result);
   }
 
   const std::optional<bool> cross_device_fallback_url =

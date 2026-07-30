@@ -61,7 +61,7 @@
   z-index: -1;
 }
 
-#left-animation {
+#leftAnimation {
   aspect-ratio: 500 / 700;
   height: 65vh;
   left: 0;
@@ -79,7 +79,7 @@
     min(0px, calc(50vw - var(--content-width) / 2 - 50%)), -50%);
 }
 
-#right-animation {
+#rightAnimation {
   aspect-ratio: 500 / 700;
   height: 65vh;
   right: 0;
@@ -101,7 +101,7 @@
   width: auto;
 }
 
-#bottom-animation {
+#bottomAnimation {
   aspect-ratio: 700 / 400;
   bottom: 0;
   height: auto;
@@ -123,7 +123,7 @@
 }
 
 /* For RTL languages, flip the direction */
-:host-context([dir=rtl]) #left-animation {
+:host-context([dir=rtl]) #leftAnimation {
   left: auto;
   right: 0;
   transform: scaleX(-1) translate(
@@ -131,7 +131,7 @@
     -50%);
 }
 
-:host-context([dir=rtl]) #right-animation {
+:host-context([dir=rtl]) #rightAnimation {
   left: 0;
   right: auto;
   transform: scaleX(-1) translate(
@@ -139,7 +139,7 @@
     -50%);
 }
 
-:host-context([dir=rtl]) #bottom-animation {
+:host-context([dir=rtl]) #bottomAnimation {
   left: auto;
   right: 70%;
   transform: scaleX(-1) translate(

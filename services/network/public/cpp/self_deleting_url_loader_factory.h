@@ -7,6 +7,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/component_export.h"
+#include "base/memory/self_deleting.h"
 #include "base/threading/thread_checker.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
@@ -18,7 +19,8 @@ namespace network {
 // managing the lifetime of the URLLoaderFactory implementation
 // which should be owned by the set of its receivers.
 class COMPONENT_EXPORT(NETWORK_CPP) SelfDeletingURLLoaderFactory
-    : public mojom::URLLoaderFactory {
+    : public mojom::URLLoaderFactory,
+      public base::SelfDeleting {
  public:
   SelfDeletingURLLoaderFactory(const SelfDeletingURLLoaderFactory&) = delete;
   SelfDeletingURLLoaderFactory& operator=(const SelfDeletingURLLoaderFactory&) =
@@ -28,8 +30,9 @@ class COMPONENT_EXPORT(NETWORK_CPP) SelfDeletingURLLoaderFactory
   // Constructs SelfDeletingURLLoaderFactory object that will self-delete
   // once all receivers disconnect (including |factory_receiver| below as well
   // as receivers that connect via the Clone method).
-  explicit SelfDeletingURLLoaderFactory(
-      mojo::PendingReceiver<mojom::URLLoaderFactory> factory_receiver);
+  SelfDeletingURLLoaderFactory(
+      mojo::PendingReceiver<mojom::URLLoaderFactory> factory_receiver,
+      base::SelfDeletingPassKey key);
 
   ~SelfDeletingURLLoaderFactory() override;
 

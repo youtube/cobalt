@@ -15,19 +15,18 @@ namespace content {
 
 MemoryPressureListenerPolicy::MemoryPressureListenerPolicy(
     MemoryCoordinatorPolicyManager& manager)
-    : MemoryCoordinatorPolicy(manager),
+    : PredicateMemoryCoordinatorPolicy(
+          manager,
+          base::BindRepeating(
+              [](uint32_t consumer_id,
+                 std::optional<base::MemoryConsumerTraits> traits,
+                 ProcessType process_type,
+                 ChildProcessId child_process_id) {
+                return child_process_id.is_null();
+              })),
       registration_(
           base::MemoryPressureListenerTag::kMemoryPressureListenerPolicy,
-          this),
-      state_(*this,
-             manager,
-             base::BindRepeating(
-                 [](uint32_t consumer_id,
-                    std::optional<base::MemoryConsumerTraits> traits,
-                    ProcessType process_type,
-                    ChildProcessId child_process_id) {
-                   return child_process_id.is_null();
-                 })) {}
+          this) {}
 
 MemoryPressureListenerPolicy::~MemoryPressureListenerPolicy() = default;
 
@@ -40,7 +39,7 @@ void MemoryPressureListenerPolicy::OnMemoryPressure(
   // capping memory usage and actively freeing it.
   bool release_memory = true;
 
-  state_.SetLimit(limit, release_memory);
+  SetLimit(limit, release_memory);
 }
 
 }  // namespace content

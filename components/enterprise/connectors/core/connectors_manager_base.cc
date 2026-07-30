@@ -241,6 +241,7 @@ void ConnectorsManagerBase::StartObservingPrefs(PrefService* pref_service) {
   StartObservingAnalysisPref(AnalysisConnector::FILE_ATTACHED);
   StartObservingAnalysisPref(AnalysisConnector::BULK_DATA_ENTRY);
   StartObservingAnalysisPref(AnalysisConnector::PRINT);
+  StartObservingAnalysisPref(AnalysisConnector::DATA_COPIED);
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)

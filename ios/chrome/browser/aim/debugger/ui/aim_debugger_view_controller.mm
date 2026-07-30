@@ -12,7 +12,6 @@
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_detail_text_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_multi_line_text_edit_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_button_item.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 
@@ -254,7 +253,7 @@ typedef NS_ENUM(NSUInteger, AimDebuggerItemType) {
     case AimDebuggerItemResponse: {
       TableViewMultiLineTextEditCell* cell =
           DequeueTableViewCell<TableViewMultiLineTextEditCell>(tableView);
-      [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+      [item configureCell:cell];
       return cell;
     }
     case AimDebuggerItemActionRequest:
@@ -264,7 +263,7 @@ typedef NS_ENUM(NSUInteger, AimDebuggerItemType) {
     case AimDebuggerItemActionApply: {
       TableViewTextButtonCell* cell =
           DequeueTableViewCell<TableViewTextButtonCell>(tableView);
-      [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+      [item configureCell:cell];
       cell.button.userInteractionEnabled = NO;
       return cell;
     }
@@ -277,7 +276,7 @@ typedef NS_ENUM(NSUInteger, AimDebuggerItemType) {
     default: {
       LegacyTableViewCell* cell =
           DequeueTableViewCell<LegacyTableViewCell>(tableView);
-      [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+      [item configureCell:cell];
       return cell;
     }
   }

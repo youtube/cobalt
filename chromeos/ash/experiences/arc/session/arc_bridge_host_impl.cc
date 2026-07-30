@@ -59,7 +59,6 @@
 #include "chromeos/ash/experiences/arc/mojom/sharesheet.mojom.h"
 #include "chromeos/ash/experiences/arc/mojom/system_state.mojom.h"
 #include "chromeos/ash/experiences/arc/mojom/system_ui.mojom.h"
-#include "chromeos/ash/experiences/arc/mojom/timer.mojom.h"
 #include "chromeos/ash/experiences/arc/mojom/tracing.mojom.h"
 #include "chromeos/ash/experiences/arc/mojom/tts.mojom.h"
 #include "chromeos/ash/experiences/arc/mojom/usb_host.mojom.h"
@@ -397,11 +396,6 @@ void ArcBridgeHostImpl::OnSystemUiInstanceReady(
     mojo::PendingRemote<mojom::SystemUiInstance> system_ui_remote) {
   OnInstanceReady(arc_bridge_service_->system_ui(),
                   std::move(system_ui_remote));
-}
-
-void ArcBridgeHostImpl::OnTimerInstanceReady(
-    mojo::PendingRemote<mojom::TimerInstance> timer_remote) {
-  OnInstanceReady(arc_bridge_service_->timer(), std::move(timer_remote));
 }
 
 void ArcBridgeHostImpl::OnTracingInstanceReady(

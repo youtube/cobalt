@@ -6,7 +6,6 @@
 
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_multi_line_text_edit_item_delegate.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/table_view/table_view_cells_constants.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
@@ -37,16 +36,14 @@ const CGFloat kSymbolSize = 15;
 
 #pragma mark - TableViewItem
 
-- (void)configureCell:(TableViewMultiLineTextEditCell*)cell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:cell withStyler:styler];
+- (void)configureCell:(TableViewMultiLineTextEditCell*)cell {
+  [super configureCell:cell];
   cell.textLabel.text = self.label;
   cell.textView.text = self.text;
   cell.textView.editable = self.editingEnabled;
   cell.textView.delegate = self;
-  cell.textView.backgroundColor = styler.cellBackgroundColor
-                                      ? styler.cellBackgroundColor
-                                      : styler.tableViewBackgroundColor;
+  cell.textView.backgroundColor =
+      [UIColor colorNamed:kGroupedSecondaryBackgroundColor];
 
   if (self.label.length) {
     cell.textView.accessibilityIdentifier =

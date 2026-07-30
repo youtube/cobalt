@@ -1,1 +1,273 @@
-<?xml version="1.0" ?><!DOCTYPE translationbundle><translationbundle lang="nl"></translationbundle>
+<?xml version="1.0" ?>
+<!DOCTYPE translationbundle>
+<translationbundle lang="nl">
+<translation id="1005333234656240382">ADB-foutopsporing aanzetten?</translation>
+<translation id="1076766328672150609">Je kind kan een pincode gebruiken om het apparaat te ontgrendelen.</translation>
+<translation id="1097658378307015415">Voordat je inlogt, log je eerst in als gast om het netwerk <ph name="NETWORK_ID" /> te activeren.</translation>
+<translation id="1111932478203988717">Je kind kan deze pincode gebruiken om in te loggen op hun apparaat</translation>
+<translation id="1122587596907914265">Unieke achtergronden opmaken</translation>
+<translation id="1131201598497838573">De pincode van je kind is geüpdatet</translation>
+<translation id="1147322039136785890">Nu is <ph name="SUPERVISED_USER_NAME" /> aan de beurt</translation>
+<translation id="1176864681932214421">Afbeeldingen maken met AI</translation>
+<translation id="1177073277575830464">Android snel instellen is klaar. Ga verder met instellen op je <ph name="DEVICE_TYPE" />.</translation>
+<translation id="1179902906564467236">Volg de instructies op je telefoon of gebruik de camera-app</translation>
+<translation id="1185924365081634987">Je kunt ook proberen te <ph name="GUEST_SIGNIN_LINK_START" />browsen als gast<ph name="GUEST_SIGNIN_LINK_END" /> om deze netwerkfout op te lossen.</translation>
+<translation id="1201402288615127009">Volgende</translation>
+<translation id="1222835797152767346">Stel een pincode in om makkelijker in te loggen</translation>
+<translation id="1347625331607114917">Laat de code verifiëren op je Android-telefoon</translation>
+<translation id="1347975661240122359">De update wordt gestart wanneer de batterij voor <ph name="BATTERY_LEVEL" />% vol is.</translation>
+<translation id="1375938286942050085">Het instellen is afgerond. Maak je apparaat nu klaar voor games.</translation>
+<translation id="1377600615067678409">Nu overslaan</translation>
+<translation id="1400243387594338234">Je kunt deze pincode gebruiken om in te loggen op je apparaat</translation>
+<translation id="1426410128494586442">Ja</translation>
+<translation id="1473927070149284123">Probeer het opnieuw of maak handmatig verbinding met een netwerk</translation>
+<translation id="1503556098270577657">Je bent ingelogd bij <ph name="USER_EMAIL" /> met je Android-telefoon</translation>
+<translation id="1521442365706402292">Certificaten beheren</translation>
+<translation id="1572876035008611720">Geef je e-mailadres op</translation>
+<translation id="1642494467033190216">Je moet rootfs-beveiliging verwijderen en opnieuw opstarten voordat je andere foutopsporingsfuncties kunt aanzetten.</translation>
+<translation id="1678919064276516737">Het ingevoerde e-mailadres en wachtwoord komen niet overeen</translation>
+<translation id="169675691788639886">Er is een SSH-server ingesteld voor het apparaat. Log niet in met gevoelige accounts.</translation>
+<translation id="1730666151302379551">Oud wachtwoord vergeten</translation>
+<translation id="1826192255355608658">De bookmarks, wachtwoorden, geschiedenis en meer van je Chrome-browser synchroniseren</translation>
+<translation id="1831848493690504725">We kunnen Google niet bereiken via het verbonden netwerk. Kies een ander netwerk of check je netwerkinstellingen of proxyinstellingen (als je een proxy gebruikt).</translation>
+<translation id="1987574314042117472">Populaire apps selecteren en installeren</translation>
+<translation id="2052572566310583903">Geïnstalleerd op je andere apparaten</translation>
+<translation id="2090165459409185032">Als je je accountgegevens wilt herstellen, ga je naar: google.com/accounts/recovery</translation>
+<translation id="2157779167749714207">Je <ph name="DEVICE_TYPE" /> wordt geleverd met Gemini</translation>
+<translation id="2163470535490402084">Maak verbinding met internet om in te loggen op je <ph name="DEVICE_TYPE" />.</translation>
+<translation id="2178585470774851578">Je zet foutopsporingsfuncties aan voor Chrome OS Flex waarmee de sshd daemon wordt ingesteld en opstarten vanaf USB-stations mogelijk wordt.</translation>
+<translation id="2219081237089444028">Stel een <ph name="DEVICE_TYPE" />-wachtwoord in om makkelijker in te loggen</translation>
+<translation id="2296022312651137376"><ph name="DOMAIN_NAME" /> vereist dat het apparaat online is als er wordt ingelogd op <ph name="EMAIL" /></translation>
+<translation id="2317842250900878657"><ph name="PROGRESS_PERCENT" />% klaar</translation>
+<translation id="2319072477089403627">Verbinding maken met je Android-telefoon...</translation>
+<translation id="2328137272841210255">Je pincode resetten</translation>
+<translation id="2342180549977909852">Je kind kan een nummer (pincode) in plaats van een wachtwoord gebruiken om dit apparaat te ontgrendelen. Als je later een pincode wilt instellen, ga je naar Instellingen.</translation>
+<translation id="2359808026110333948">Doorgaan</translation>
+<translation id="2408955596600435184">Je pincode invoeren</translation>
+<translation id="2439152382014731627"><ph name="DEVICE_TYPE" />-wachtwoord resetten</translation>
+<translation id="2450223707519584812">Je kunt geen gebruikers toevoegen omdat Google API-sleutels ontbreken. Bekijk <ph name="DETAILS_URL" /> voor details.</translation>
+<translation id="2582253231918033891"><ph name="PRODUCT_NAME" /> <ph name="PRODUCT_VERSION" /> (Platform <ph name="PLATFORM_VERSION" />) <ph name="DEVICE_SERIAL_NUMBER" /></translation>
+<translation id="2725200716980197196">Netwerkverbinding hersteld</translation>
+<translation id="2731700343119398978">Even geduld...</translation>
+<translation id="2732134891301408122">Extra content <ph name="CURRENT_ELEMENT" /> van <ph name="TOTAL_ELEMENTS" /></translation>
+<translation id="2740531572673183784">OK</translation>
+<translation id="2754825024506485820">Vind de apps die je nodig hebt, van productiviteit tot entertainment, in de Google Play Store. Je kunt apps op elk moment installeren.</translation>
+<translation id="2805539617243680210">Je bent helemaal klaar</translation>
+<translation id="2832124733806557606">Je kind kan een pincode gebruiken om in te loggen op het apparaat of om het te ontgrendelen.</translation>
+<translation id="283669119850230892">Als je het netwerk <ph name="NETWORK_ID" /> wilt gebruiken, moet je eerst hieronder verbinding maken met internet.</translation>
+<translation id="2849767214114481738">Je pincode is toegevoegd</translation>
+<translation id="2893180576842394309">Google kan je geschiedenis gebruiken om Google Zoeken en andere Google-services te personaliseren</translation>
+<translation id="2904210161403910217">Je wachtwoord is gewijzigd sinds de laatste keer dat je hebt ingelogd</translation>
+<translation id="2921081876747860777">Stel een wachtwoord in om je lokale gegevens te beschermen.</translation>
+<translation id="2950666755714083615">Ik wil me aanmelden</translation>
+<translation id="2979966855249721010">Op basis van je interesses kun je onder meer app-aanbevelingen en tips te zien krijgen</translation>
+<translation id="3012917896646559015">Neem onmiddellijk contact op met je hardwarefabrikant om je computer op te sturen voor reparatie.</translation>
+<translation id="3028371505549235127">Je kunt een <ph name="DEVICE_TYPE" />-wachtwoord instellen voor dit apparaat zodat je niet hoeft in te loggen met je Google-accountwachtwoord</translation>
+<translation id="3101924772906986970">Je bookmarks, wachtwoorden, geschiedenis en andere functies van de Chrome-browser worden opgeslagen in je Google-account</translation>
+<translation id="313205617302240621">Wachtwoord vergeten?</translation>
+<translation id="3170072451822350649">Je kunt het inloggen ook overslaan en <ph name="LINK_START" />browsen als gast<ph name="LINK_END" />.</translation>
+<translation id="3196912927885212665">Als je je Chromebook wilt instellen met je Android-telefoon, moet de bluetooth van je Chromebook aanstaan</translation>
+<translation id="3238192140106069382">Verbinden en verifiëren</translation>
+<translation id="3261268979727295785">Je kunt ouderlijk toezicht toevoegen voor andere kinderen nadat je klaar bent met instellen. In de app Ontdekken vind je meer informatie over ouderlijk toezicht.</translation>
+<translation id="3278001907972365362">Je Google-accounts vereisen aandacht</translation>
+<translation id="3283148363895519428">Volg de instructies op je telefoon om door te gaan met instellen. Zorg dat je telefoon in de buurt is en dat bluetooth aanstaat.</translation>
+<translation id="3435896845095436175">Aanzetten</translation>
+<translation id="3462413494201477527">Accountconfiguratie annuleren?</translation>
+<translation id="3473241910002674503">Ga terug of naar de homepage en schakel tussen apps met knoppen in de tabletmodus.</translation>
+<translation id="3491669675709357988">Het account van je kind is niet ingesteld voor ouderlijk toezicht in Family Link. Je kunt ouderlijk toezicht toevoegen nadat je klaar bent met instellen. In de app Ontdekken vind je meer informatie over ouderlijk toezicht.</translation>
+<translation id="3635199270495525546">Trusted Platform Module (TPM) waargenomen</translation>
+<translation id="3661106764436337772">Schrijf sneller en met meer vertrouwen</translation>
+<translation id="3662207097851752847">Je Google-account bevestigen op je telefoon</translation>
+<translation id="3672681487849735243">Er is een fabrieksfout gedetecteerd</translation>
+<translation id="3673097791729989571">Inloggen gehost door <ph name="SAML_DOMAIN" /></translation>
+<translation id="3673287357837016374">Je pincode is geüpdatet</translation>
+<translation id="367645871420407123">laat dit leeg als je het rootwachtwoord wilt instellen op de waarde van de standaard testimage</translation>
+<translation id="3712050472459130149">Accountupdate vereist</translation>
+<translation id="3733296813637058299">We installeren deze apps voor je. In de Play Store vind je nog meer apps voor je <ph name="DEVICE_TYPE" />.</translation>
+<translation id="376841534249795524">Waarvoor wil je je <ph name="DEVICE_TYPE" /> gebruiken?</translation>
+<translation id="3789841737615482174">Installeren</translation>
+<translation id="385051799172605136">Terug</translation>
+<translation id="3897746662269329507">Je <ph name="DEVICE_TYPE" /> is speciaal gebouwd voor games. Hierna wordt de app Ontdekken geopend. Hier vind je honderden van de nieuwste games, gameaanbiedingen en de ingebouwde gamefuncties van je apparaat.</translation>
+<translation id="3910588685973519483">Achtergronden maken met AI</translation>
+<translation id="3950820424414687140">Inloggen</translation>
+<translation id="3994318741694670028">Je computer is ingesteld met een hardware-ID met een onjuiste notatie. Dit zorgt ervoor dat Chrome OS Flex niet kan worden geüpdatet met de nieuwste beveiligingsoplossingen, waardoor je computer <ph name="BEGIN_BOLD" />kwetsbaar kan zijn voor schadelijke aanvallen<ph name="END_BOLD" />.</translation>
+<translation id="4002440992267487163">Pincode instellen</translation>
+<translation id="4044883420905480380">Je hebt verbinding gemaakt met wifi en bent ingelogd bij <ph name="USER_EMAIL" /> met je Android-telefoon</translation>
+<translation id="4062561150282203854">De apps, instellingen en meer van je <ph name="DEVICE_TYPE" /> synchroniseren</translation>
+<translation id="4089743381329341712">De geselecteerde apps worden geïnstalleerd na het instellen. Je kunt later meer aanbevelingen vinden in de app Apps en games.</translation>
+<translation id="4104944259562794668">Je kunt dit later aanzetten via Instellingen &gt; Beveiliging en privacy &gt; Vergrendelscherm en inloggen</translation>
+<translation id="41365691917097717">Als je doorgaat, wordt ADB-foutopsporing aangezet om Android-apps te maken en te testen. Let op: Met deze actie sta je toe dat Android-apps worden geïnstalleerd die niet door Google zijn geverifieerd. Als je deze functie wilt uitzetten, moeten de fabrieksinstellingen van je apparaat worden hersteld.</translation>
+<translation id="4232484478444192782">Je Android-telefoon staat voor je klaar. Je wifi en wachtwoord worden overgezet.</translation>
+<translation id="4242145785130247982">Meerdere clientcertificaten worden niet ondersteund</translation>
+<translation id="4250680216510889253">Nee</translation>
+<translation id="4263223596040212967">Controleer je toetsenbordindeling en probeer het opnieuw.</translation>
+<translation id="4289732974614035569">Een pincode kiezen</translation>
+<translation id="4317733381297736564">In-app aankopen</translation>
+<translation id="4370975561335139969">Het opgegeven e-mailadres en wachtwoord komen niet overeen</translation>
+<translation id="4373418556073552953">Inloggen met je Android-telefoon</translation>
+<translation id="4410545552906060960">Gebruik een nummer (pincode) in plaats van een wachtwoord om je apparaat te ontgrendelen. Als je later een pincode wilt instellen, ga je naar Instellingen.</translation>
+<translation id="4415213869328311284">Je kunt je <ph name="DEVICE_TYPE" /> nu gebruiken.</translation>
+<translation id="4450974146388585462">Diagnose</translation>
+<translation id="445099924538929605"><ph name="DEVICE_OS" /> heeft een actieve TPM waargenomen die je gegevens beter beveiligd kan opslaan.</translation>
+<translation id="4472575034687746823">Aan de slag</translation>
+<translation id="4567512141633030272">Verkeerde inlogoptie?</translation>
+<translation id="4568213207643490790">Google-accounts zijn niet toegestaan op dit apparaat.</translation>
+<translation id="4611759022973144129">Je kunt dit wachtwoord gebruiken om in te loggen bij je <ph name="DEVICE_TYPE" />.</translation>
+<translation id="4727847987444062305">Beheerde gastsessie</translation>
+<translation id="473775607612524610">Updaten</translation>
+<translation id="473936925429402449">Geselecteerd, extra content <ph name="CURRENT_ELEMENT" /> van <ph name="TOTAL_ELEMENTS" /></translation>
+<translation id="4830502475412647084">OS-update installeren</translation>
+<translation id="4837926214103741331">Je beschikt niet over de rechten om dit apparaat te gebruiken. Neem contact op met de eigenaar van het apparaat voor toestemming om in te loggen.</translation>
+<translation id="4864369630010738180">Inloggen...</translation>
+<translation id="4899696330053002588">Bevat advertenties</translation>
+<translation id="4944310289250773232">Deze verificatieservice wordt gehost door <ph name="SAML_DOMAIN" /></translation>
+<translation id="4955710816792587366">Je pincode kiezen</translation>
+<translation id="5029287942302939687">Je wachtwoord is ingesteld</translation>
+<translation id="503155457707535043">Apps downloaden</translation>
+<translation id="5045550434625856497">Onjuist wachtwoord</translation>
+<translation id="5062930723426326933">Inloggen is mislukt. Maak verbinding met internet en probeer het opnieuw.</translation>
+<translation id="5115309401544567011">Sluit je <ph name="DEVICE_TYPE" /> aan op een voedingsbron.</translation>
+<translation id="5147516217412920887">Volg de instructies op je telefoon om de code te laten verifiëren</translation>
+<translation id="5160857336552977725">Log in bij je <ph name="DEVICE_TYPE" /></translation>
+<translation id="523505283826916779">Toegankelijkheidsinstellingen</translation>
+<translation id="5240931875940563122">Inloggen met Android-telefoon</translation>
+<translation id="5255859108402770436">Opnieuw inloggen</translation>
+<translation id="5260508466980570042">Je e-mailadres of wachtwoord kan niet worden geverifieerd. Probeer het opnieuw.</translation>
+<translation id="5264252276333215551">Maak verbinding met internet om je app te openen in de kiosmodus.</translation>
+<translation id="528208740344463258">Als je Android-apps wilt downloaden en gebruiken, moet je eerst deze vereiste update installeren. Je kunt je <ph name="DEVICE_TYPE" /> tijdens het updaten niet gebruiken. Je <ph name="DEVICE_TYPE" /> wordt opnieuw opgestart nadat de installatie is voltooid.</translation>
+<translation id="542948651837270806">Er moet een update voor de Trusted Platform Module-firmware worden geïnstalleerd. Zie <ph name="TPM_FIRMWARE_UPDATE_LINK" /></translation>
+<translation id="5448293924669608770">Er is een fout opgetreden tijdens het inloggen</translation>
+<translation id="5463450804024056231">Aanmelden voor <ph name="DEVICE_TYPE" />-mails</translation>
+<translation id="5527474464531963247">Je kunt ook een ander netwerk selecteren.</translation>
+<translation id="5539070192556911367">Kan Google niet bereiken</translation>
+<translation id="557722062034137776">Als je je apparaat opnieuw instelt, heeft dit geen effect op je Google-accounts of gegevens die zijn gesynchroniseerd met deze accounts. Alle bestanden die lokaal op je apparaat zijn opgeslagen, worden wel verwijderd.</translation>
+<translation id="5626172233890210551">Wachtwoord gebruiken</translation>
+<translation id="5636996382092289526">Als je <ph name="NETWORK_ID" /> wilt gebruiken, moet je mogelijk eerst <ph name="LINK_START" />de inlogpagina van het netwerk bezoeken<ph name="LINK_END" />, die over enkele seconden automatisch wordt geopend. Als de pagina niet wordt geopend, kan het netwerk niet worden gebruikt.</translation>
+<translation id="5659964844710667266">Wachtwoord instellen voor <ph name="DEVICE_TYPE" /></translation>
+<translation id="5684950556880280580">Je wachtwoord is geüpdatet</translation>
+<translation id="5762787084360227629">Google-accountgegevens opgeven</translation>
+<translation id="5764797882307050727">Maak ruimte vrij op je apparaat.</translation>
+<translation id="5765425701854290211">Sommige bestanden zijn beschadigd en de update is mislukt. Je gesynchroniseerde bestanden zijn veilig.</translation>
+<translation id="5770125698810550803">Navigatieknoppen bekijken</translation>
+<translation id="5799478978078236781">Krijg tips, aanbiedingen en updates over <ph name="DEVICE_TYPE" /> en deel je feedback.</translation>
+<translation id="5804259315582798390">Kan herstel van lokale gegevens niet aanzetten</translation>
+<translation id="5810809306422959727">Dit account komt niet in aanmerking voor ouderlijk toezicht</translation>
+<translation id="5852137567692933493">Opnieuw opstarten en Powerwash uitvoeren</translation>
+<translation id="5856721540245522153">Foutopsporingsfuncties aanzetten</translation>
+<translation id="5860491529813859533">Aanzetten</translation>
+<translation id="5895138241574237353">Opnieuw starten</translation>
+<translation id="5895335062901455404">Je opgeslagen voorkeuren en activiteit zijn klaar voor gebruik op elk Chrome OS Flex-apparaat als je inlogt met je Google-account. Je kunt in de instellingen bepalen wat je wilt synchroniseren.</translation>
+<translation id="5939518447894949180">Resetten</translation>
+<translation id="5959471481388474538">Netwerk niet beschikbaar</translation>
+<translation id="6016178549409952427">Navigeren naar extra content <ph name="CURRENT_ELEMENT" /> van <ph name="TOTAL_ELEMENTS" /></translation>
+<translation id="6040143037577758943">Sluiten</translation>
+<translation id="6055544610007596637">Installeer apps voor je <ph name="DEVICE_TYPE" /> via de Google Play Store</translation>
+<translation id="6071181508177083058">wachtwoord bevestigen</translation>
+<translation id="6125479973208104919">Je moet je account opnieuw toevoegen aan deze <ph name="DEVICE_TYPE" />.</translation>
+<translation id="6165508094623778733">Meer informatie</translation>
+<translation id="6170498031581934115">ADB-foutopsporing kan niet worden aangezet. Ga naar Instellingen en probeer het opnieuw.</translation>
+<translation id="6172020488605056255">Klik met de rechtermuisknop om Help me met lezen te gebruiken</translation>
+<translation id="6173623053897475761">Typ je pincode nog een keer</translation>
+<translation id="6202304368170870640">Je kunt je pincode gebruiken om in te loggen of je apparaat te ontgrendelen.</translation>
+<translation id="623261264391834964">Klik met de rechtermuisknop in een tekstvak om Help me met schrijven te gebruiken</translation>
+<translation id="6280215091796946657">Inloggen met een ander account</translation>
+<translation id="6287713404380454515">Je beheerder heeft de pincode en het wachtwoord voor je apparaat uitgezet om beveiligingsredenen. Gebruik vanaf nu je wachtwoord van <ph name="MANAGER" />.</translation>
+<translation id="6314819609899340042">Je hebt foutopsporingsfuncties aangezet voor dit <ph name="IDS_SHORT_PRODUCT_NAME" />-apparaat.</translation>
+<translation id="6380143666419481200">Accepteren en doorgaan</translation>
+<translation id="6418511932144861495">Essentiële update installeren</translation>
+<translation id="6480327114083866287">Beheerd door <ph name="MANAGER" /></translation>
+<translation id="6495266441917713704">Kan wifi niet overzetten</translation>
+<translation id="6515620015470298987">Inloggen is mislukt vanwege een probleem met de controle van de apparaatconfiguratie. Voer een Powerwash uit op je <ph name="DEVICE_TYPE" /> en probeer het opnieuw.</translation>
+<translation id="6532527800157340614">Inloggen mislukt omdat je toegangstoken niet kan worden opgehaald. Controleer de netwerkverbinding en probeer het opnieuw.</translation>
+<translation id="6607890859198268021"><ph name="USER_EMAIL" /> wordt al beheerd door <ph name="DOMAIN" />. Als je ouderlijk toezicht wilt gebruiken met een ander Google-account, log je uit na het instellen en selecteer je 'Persoon toevoegen' op het inlogscherm.</translation>
+<translation id="6648911618876616409">Er is een nieuwe essentiële update beschikbaar. Log in om aan de slag te gaan.</translation>
+<translation id="667752334740867460">Wifi-gegevens ontvangen...</translation>
+<translation id="6680442031740878064">Beschikbaar: <ph name="AVAILABLE_SPACE" /></translation>
+<translation id="6722744767592605627">Je kunt <ph name="EMAIL" /> herstellen, maar lokale gegevens worden verwijderd.</translation>
+<translation id="6789834167207639931">Geef in het volgende scherm het wachtwoord van je Google-account opnieuw op om het herstel af te ronden</translation>
+<translation id="6800893479155997609">Beste apps voor je <ph name="DEVICE_TYPE" /></translation>
+<translation id="6835762382653651563">Maak verbinding met internet om je <ph name="DEVICE_TYPE" /> te updaten.</translation>
+<translation id="6839916869147598086">Inloggegevens zijn gewijzigd</translation>
+<translation id="6903907808598579934">Synchronisatie aanzetten</translation>
+<translation id="6918733588290914545">Snel instellen met Android-telefoon</translation>
+<translation id="6955698182324067397">Je zet foutopsporingsfuncties aan voor Chrome OS, waarmee de sshd daemon wordt ingesteld en opstarten vanaf USB-stations mogelijk wordt.</translation>
+<translation id="6965382102122355670">OK</translation>
+<translation id="6981982820502123353">Toegankelijkheid</translation>
+<translation id="6996245928508281884">Zet bluetooth en wifi op je telefoon uit</translation>
+<translation id="7077829361966535409">De inlogpagina kan niet worden geladen met de huidige proxyinstellingen. <ph name="GAIA_RELOAD_LINK_START" />Probeer opnieuw in te loggen<ph name="GAIA_RELOAD_LINK_END" /> of gebruik andere <ph name="PROXY_SETTINGS_LINK_START" />proxyinstellingen<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
+<translation id="7114054701490058191">Wachtwoorden komen niet overeen</translation>
+<translation id="7135729336746831607">Bluetooth aanzetten?</translation>
+<translation id="7141105143012495934">Inloggen is mislukt omdat je accountgegevens niet kunnen worden opgevraagd. Neem contact op met je beheerder of probeer het opnieuw.</translation>
+<translation id="7144878232160441200">Opnieuw proberen</translation>
+<translation id="7202337678781136582">Scan de QR-code met je Android-telefoon</translation>
+<translation id="7290242001003353852">Deze inlogservice wordt gehost door <ph name="SAML_DOMAIN" /> en heeft toegang tot je camera.</translation>
+<translation id="7329154610228416156">Inloggen is mislukt omdat er een onbeveiligde URL (<ph name="BLOCKED_URL" />) wordt gebruikt. Neem contact op met je beheerder.</translation>
+<translation id="7345706641791090287">Je wachtwoord bevestigen</translation>
+<translation id="7352651011704765696">Er is iets misgegaan</translation>
+<translation id="7476454130948140105">Batterij niet voldoende opgeladen voor update (<ph name="BATTERY_PERCENT" />%)</translation>
+<translation id="7543104066686362383">Foutopsporingsfuncties voor dit <ph name="IDS_SHORT_PRODUCT_NAME" />-apparaat aanzetten</translation>
+<translation id="7553242001898162573">Geef je wachtwoord op</translation>
+<translation id="7556242789364317684"><ph name="SHORT_PRODUCT_NAME" /> kan je instellingen niet herstellen. <ph name="SHORT_PRODUCT_NAME" /> moet je apparaat opnieuw instellen met Powerwash om de fout op te lossen.</translation>
+<translation id="7560756177962144929">Je <ph name="DEVICE_TYPE" /> synchroniseren</translation>
+<translation id="7571643774869182231">Onvoldoende opslagruimte voor update</translation>
+<translation id="7622114377921274169">Opladen.</translation>
+<translation id="7630426712700473382">Dit apparaat wordt beheerd door <ph name="MANAGER" /> en vereist dat je elke keer opnieuw inlogt.</translation>
+<translation id="7639914187072011620">Kan de SAML-omleidings-URL niet ophalen van de server</translation>
+<translation id="7649070708921625228">Hulp</translation>
+<translation id="7658239707568436148">Annuleren</translation>
+<translation id="7659584679870740384">Je beschikt niet over de rechten om dit apparaat te gebruiken. Neem contact op met de beheerder voor toestemming om in te loggen.</translation>
+<translation id="7660116474961254898">Volg de instructies op je telefoon</translation>
+<translation id="7671139479636735732">Klik met de rechtermuisknop om je ideeën makkelijk te visualiseren</translation>
+<translation id="770831926727930011">Je lokale gegevens worden beschermd door je oude wachtwoord. Geef je oude wachtwoord op om lokale gegevens te herstellen.</translation>
+<translation id="7722040605881499779">Nodig voor update: <ph name="NECESSARY_SPACE" /></translation>
+<translation id="7792012425874949788">Er is een fout opgetreden tijdens het inloggen</translation>
+<translation id="780301667611848630">Nee, bedankt</translation>
+<translation id="7803657407897251194">Verbind je <ph name="DEVICE_TYPE" /> met een netwerk om door te gaan met instellen op je Android-apparaat</translation>
+<translation id="7851457902707056880">Er kan alleen worden ingelogd met het account van de eigenaar. Start het apparaat opnieuw op en log in met het account van de eigenaar. Het apparaat wordt over 30 seconden automatisch opnieuw opgestart.</translation>
+<translation id="7870730066603611552">Synchronisatieopties bekijken na de installatie</translation>
+<translation id="7883792253546618164">Je kunt je afmelden wanneer je maar wilt.</translation>
+<translation id="7906440585529721295">Lokale gegevens worden verwijderd</translation>
+<translation id="7943311690198910993">Inlogmethode aangepast</translation>
+<translation id="7968982339740310781">Details bekijken</translation>
+<translation id="7982083145464587921">Start je apparaat opnieuw op om deze fout te verhelpen.</translation>
+<translation id="7990958035181555539">Zet wifi automatisch over vanaf je Android-telefoon</translation>
+<translation id="8054563304616131773">Voer een geldig e-mailadres in</translation>
+<translation id="8065144531309810062">AI van Google gebruiken om creatiever en productiever te zijn</translation>
+<translation id="8098616321286360457">Netwerkverbinding vereist</translation>
+<translation id="8131740175452115882">Bevestigen</translation>
+<translation id="8146177459103116374">Als je al bent geregistreerd op dit apparaat, kun je <ph name="LINK2_START" />inloggen als een bestaande gebruiker<ph name="LINK2_END" />.</translation>
+<translation id="8146793085009540321">Inloggen mislukt. Neem contact op met je beheerder of probeer het opnieuw.</translation>
+<translation id="8202160505685531999">Geef je wachtwoord opnieuw op om je <ph name="DEVICE_TYPE" />-profiel te updaten.</translation>
+<translation id="8241806945692107836">Apparaatconfiguratie bepalen...</translation>
+<translation id="8242426110754782860">Doorgaan</translation>
+<translation id="826905130698769948">Ongeldig clientcertificaat</translation>
+<translation id="8274924778568117936">Je mag je <ph name="DEVICE_TYPE" /> niet uitzetten of sluiten totdat de update is voltooid. Je <ph name="DEVICE_TYPE" /> wordt opnieuw opgestart nadat de installatie is voltooid.</translation>
+<translation id="8281886186245836920">Overslaan</translation>
+<translation id="8304383784961451596">Je hebt geen rechten om dit apparaat te gebruiken. Neem contact op met de beheerder voor toestemming om in te loggen of log in met een Google-account dat onder toezicht staat via Family Link.</translation>
+<translation id="8354034204605718473">De pincode van je kind is toegevoegd</translation>
+<translation id="8366396658833131068">Je netwerkverbinding is hersteld. Selecteer een ander netwerk of druk hieronder op de knop 'Doorgaan' om je kiosk-app te starten.</translation>
+<translation id="8425768983279799676">Je kunt je pincode gebruiken om je apparaat te ontgrendelen.</translation>
+<translation id="843173223122814223">Achtergronden maken met AI</translation>
+<translation id="8452105022015742247">Google-accountgegevens overzetten vanaf je Android-telefoon</translation>
+<translation id="8524841856047224176">Personaliseer de achtergrond van je camera voor onder meer videogesprekken</translation>
+<translation id="8569673829373920831">Meer over <ph name="APP_NAME" /></translation>
+<translation id="8655972064210167941">Het inloggen is mislukt omdat je wachtwoord niet kan worden geverifieerd. Neem contact op met je beheerder of probeer het opnieuw.</translation>
+<translation id="8674903726754070732">Je computer is ingesteld met een hardware-ID met een onjuiste notatie. Dit zorgt ervoor dat Chrome OS niet kan worden geüpdatet met de nieuwste beveiligingsoplossingen, waardoor je computer <ph name="BEGIN_BOLD" />kwetsbaar kan zijn voor schadelijke aanvallen<ph name="END_BOLD" />.</translation>
+<translation id="8695139659682234808">Ouderlijk toezicht toevoegen na het instellen</translation>
+<translation id="8725066075913043281">Opnieuw proberen</translation>
+<translation id="8730621377337864115">Klaar</translation>
+<translation id="8740086188450289493">Wachtwoord van Google-account gebruiken</translation>
+<translation id="8740247629089392745">Je kunt deze Chromebook aan <ph name="SUPERVISED_USER_NAME" /> geven. Het instellen is bijna afgerond. Daarna is het tijd om te verkennen.</translation>
+<translation id="8759753423332885148">Meer informatie.</translation>
+<translation id="8777628254805677039">root-wachtwoord</translation>
+<translation id="8794548468611058947">Je kunt een pincode instellen voor deze <ph name="DEVICE_TYPE" /> zodat je niet hoeft in te loggen met je Google-accountwachtwoord</translation>
+<translation id="8830796635868321089">Het controleren op updates met de huidige proxyinstellingen is mislukt. Pas je <ph name="PROXY_SETTINGS_LINK_START" />proxyinstellingen<ph name="PROXY_SETTINGS_LINK_END" /> aan.</translation>
+<translation id="885746075120788020">Je opgeslagen voorkeuren en activiteit zijn klaar voor gebruik op elk Chrome OS-apparaat als je inlogt met je Google-account. Je kunt in de instellingen bepalen wat je wilt synchroniseren.</translation>
+<translation id="8875221558267407626">Content samenvatten, complexe taal vereenvoudigen of vragen stellen</translation>
+<translation id="8946359700442089734">Foutopsporingsfuncties zijn niet volledig aangezet op dit <ph name="IDS_SHORT_PRODUCT_NAME" />-apparaat.</translation>
+<translation id="8965037249707889821">Oud wachtwoord opgeven</translation>
+<translation id="8975396729541388937">Je kunt je altijd afmelden door op de link te klikken in de e-mails die je krijgt.</translation>
+<translation id="9033765790910064284">Toch doorgaan</translation>
+<translation id="903480517321259405">Typ de pincode nog een keer</translation>
+<translation id="9076523132036239772">Je e-mailadres of wachtwoord kan niet worden geverifieerd. Probeer eerst verbinding met een netwerk te maken.</translation>
+</translationbundle>

@@ -25,8 +25,8 @@
 
 namespace {
 
-bool IsInInstantProcess(content::RenderFrameHost* render_frame) {
-  content::RenderProcessHost* process_host = render_frame->GetProcess();
+bool IsInInstantProcess(content::RenderFrameHost& render_frame) {
+  content::RenderProcessHost* process_host = render_frame.GetProcess();
   const InstantService* instant_service = InstantServiceFactory::GetForProfile(
       Profile::FromBrowserContext(process_host->GetBrowserContext()));
   if (!instant_service) {
@@ -94,8 +94,8 @@ class EmbeddedSearchClientFactoryImpl
 void EmbeddedSearchClientFactoryImpl::Connect(
     mojo::PendingAssociatedReceiver<search::mojom::EmbeddedSearch> receiver,
     mojo::PendingAssociatedRemote<search::mojom::EmbeddedSearchClient> client) {
-  content::RenderFrameHost* frame = factory_receivers_.GetCurrentTargetFrame();
-  const bool is_main_frame = frame->GetParent() == nullptr;
+  content::RenderFrameHost& frame = factory_receivers_.CurrentTargetFrame();
+  const bool is_main_frame = frame.GetParent() == nullptr;
   if (!IsInInstantProcess(frame) || !is_main_frame) {
     return;
   }

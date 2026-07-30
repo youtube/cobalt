@@ -27,6 +27,16 @@ using CreditCardBenefit = std::variant<CreditCardFlatRateBenefit,
                                        CreditCardCategoryBenefit,
                                        CreditCardMerchantBenefit>;
 
+enum class CreditCardBenefitType {
+  kUnknown = 0,
+  kFlatRate = 1,
+  kCategory = 2,
+  kMerchant = 3,
+  kMaxValue = kMerchant,
+};
+
+CreditCardBenefitType GetTypeForCardBenefit(const CreditCardBenefit& benefit);
+
 class CreditCardBenefitBase {
  public:
   using BenefitId = base::StrongAlias<class BenefitIdTag, std::string>;
@@ -125,6 +135,9 @@ class CreditCardFlatRateBenefit : public CreditCardBenefitBase {
 class CreditCardCategoryBenefit : public CreditCardBenefitBase {
  public:
   using BenefitCategory = mojom::BenefitCategory;
+
+  // Returns true if the given `benefit_category` is a travel subcategory.
+  static bool IsTravelSubcategory(BenefitCategory benefit_category);
 
   CreditCardCategoryBenefit(BenefitId benefit_id,
                             LinkedCardInstrumentId linked_card_instrument_id,

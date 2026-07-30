@@ -19,7 +19,7 @@ bool EntryPredicateFromURLsAndTime(
     const base::Time& end_time,
     const disk_cache::Entry* entry) {
   std::string entry_key(entry->GetKey());
-  std::string url_string(
+  std::string_view url_string(
       net::HttpCache::GetResourceURLFromHttpCacheKey(entry_key));
   return (entry->GetLastUsed() >= begin_time &&
           entry->GetLastUsed() < end_time && url_matcher.Run(GURL(url_string)));

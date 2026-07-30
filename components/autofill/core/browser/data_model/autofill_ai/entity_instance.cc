@@ -61,9 +61,10 @@ std::u16string NormalizeAttributeValue(
   return value;
 }
 
-// If `kAutofillAiWalletPrivatePasses` is enabled and either `a1` or `a2` is
-// masked, returns the maximum of the lengths of the non-empty, normalized
-// values of the masked attribute instances. Otherwise, returns `std::nullopt`.
+// If `kAutofillAiWalletPrivatePasses` or `kAutofillAmbientAutofill`
+// is enabled and either `a1` or `a2` is masked, returns the maximum of the
+// lengths of the non-empty, normalized values of the masked attribute
+// instances. Otherwise, returns `std::nullopt`.
 //
 // The product implication of a non-zero suffix length is that equality checks
 // between attribute values only consider the suffix of this length. For
@@ -71,7 +72,8 @@ std::u16string NormalizeAttributeValue(
 // considered equal, but "12345678" and "34567" are not.
 std::optional<size_t> DetermineSuffixLength(const AttributeInstance& a1,
                                             const AttributeInstance& a2) {
-  if (!base::FeatureList::IsEnabled(features::kAutofillAiWalletPrivatePasses)) {
+  if (!base::FeatureList::IsEnabled(features::kAutofillAiWalletPrivatePasses) &&
+      !base::FeatureList::IsEnabled(features::kAutofillAmbientAutofill)) {
     return std::nullopt;
   }
 
@@ -464,6 +466,31 @@ void EntityInstance::RecordEntityUsed(base::Time date) {
   ++metadata_.use_count;
 }
 
+bool EntityInstance::MatchesMergeConstraintsOf(
+    const EntityInstance& other) const {
+  if (type_ != other.type_) {
+    return false;
+  }
+
+  return std::ranges::any_of(
+      type_.merge_constraints(),
+      [&](const DenseSet<AttributeType>& constraints) {
+        return std::ranges::all_of(constraints, [&](AttributeType type) {
+          base::optional_ref<const AttributeInstance> attribute_1 =
+              attribute(type);
+          base::optional_ref<const AttributeInstance> attribute_2 =
+              other.attribute(type);
+          if (!attribute_1 || !attribute_2) {
+            return false;
+          }
+          const std::optional<size_t> suffix_length =
+              DetermineSuffixLength(*attribute_1, *attribute_2);
+          return NormalizeAttributeValue(*attribute_1, suffix_length) ==
+                 NormalizeAttributeValue(*attribute_2, suffix_length);
+        });
+      });
+}
+
 EntityInstance::EntityMergeability EntityInstance::GetEntityMergeability(
     const EntityInstance& newer) const {
   CHECK_EQ(type_, newer.type());
@@ -474,25 +501,7 @@ EntityInstance::EntityMergeability EntityInstance::GetEntityMergeability(
   // will lead to  `newer` being a fresh new entity, otherwise we chose the
   // attribute of `newer` as a mergeable attribute to eventually override the
   // value of `this`.
-  const bool is_same_entity = [&]() {
-    return std::ranges::any_of(
-        type_.merge_constraints(),
-        [&](const DenseSet<AttributeType>& constraints) {
-          return std::ranges::all_of(constraints, [&](AttributeType type) {
-            base::optional_ref<const AttributeInstance> attribute_1 =
-                attribute(type);
-            base::optional_ref<const AttributeInstance> attribute_2 =
-                newer.attribute(type);
-            if (!attribute_1 || !attribute_2) {
-              return false;
-            }
-            const std::optional<size_t> suffix_length =
-                DetermineSuffixLength(*attribute_1, *attribute_2);
-            return NormalizeAttributeValue(*attribute_1, suffix_length) ==
-                   NormalizeAttributeValue(*attribute_2, suffix_length);
-          });
-        });
-  }();
+  const bool is_same_entity = MatchesMergeConstraintsOf(newer);
 
   const bool is_subset = [&]() {
     return std::ranges::all_of(type_.attributes(), [&](AttributeType type) {

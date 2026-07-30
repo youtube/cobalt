@@ -168,6 +168,9 @@ message Shipment {
 
   // The date on which the shipment is estimated to be delivered.
   Date estimated_delivery_date = 5;
+
+  // The zip code of the delivery address.
+  string delivery_zip_code = 6;
 }
 
 // Represents a government-issued driver's license.

@@ -4,10 +4,11 @@
 
 import '/strings.m.js';
 
-import {CustomElement} from 'chrome://resources/js/custom_element.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
-import {getTemplate} from './policy_conflict.html.js';
+import {getCss} from './policy_conflict.css.js';
+import {getHtml} from './policy_conflict.html.js';
 
 export interface Conflict {
   level: string;
@@ -35,7 +36,7 @@ export function stringifyPolicyValue(value: unknown, format?: boolean): string {
 }
 
 // Copies the text content of an element to the clipboard.
-export function copyValue(element: CustomElement) {
+export function copyValue(element: HTMLElement) {
   const selection = window.getSelection();
   const range = window.document.createRange();
   range.selectNodeContents(element);
@@ -47,73 +48,87 @@ export function copyValue(element: CustomElement) {
   });
 }
 
-// Sets the accessibility attributes for the copy button.
-export function setCopyButtonAccessibilityAttributes(
-    button: Element, policyName: string) {
-  const copyLabel = loadTimeData.getStringF('policyCopyValue', policyName);
-  button.setAttribute('title', copyLabel);
-  button.setAttribute('aria-label', copyLabel);
-}
 
-export class PolicyConflictElement extends CustomElement {
-  static override get template() {
-    return getTemplate();
+
+export class PolicyConflictElement extends CrLitElement {
+  static get is() {
+    return 'policy-conflict';
   }
 
-  connectedCallback() {
-    this.toggleAttribute('hidden', true);
-    this.setAttribute('role', 'rowgroup');
-
-    const copyLink = this.shadowRoot!.querySelector('.row .copy-value');
-    if (copyLink) {
-      copyLink.addEventListener('click', () => this.copyValue_());
-    }
+  static override get styles() {
+    return getCss();
   }
 
-  initialize(conflict: Conflict, rowLabel: string, _policyName: string) {
-    const scopeText = loadTimeData.getString(
-        conflict.scope === 'user' ? 'scopeUser' : 'scopeDevice');
-    const levelText = loadTimeData.getString(
-        conflict.level === 'recommended' ? 'levelRecommended' :
-                                           'levelMandatory');
-    const sourceText = loadTimeData.getString(conflict.source);
-    const valueText = stringifyPolicyValue(conflict.value, /*format=*/ true);
-    const nameText = loadTimeData.getString(rowLabel);
+  override render() {
+    return getHtml.bind(this)();
+  }
 
-    const setText = (selector: string, text: string) => {
-      this.shadowRoot!.querySelector(selector)!.textContent = text;
+  static override get properties() {
+    return {
+      conflict: {type: Object},
+      rowLabel: {type: String},
+      policyName: {type: String},
     };
+  }
 
-    setText('.scope', scopeText);
-    setText('.level', levelText);
-    setText('.source', sourceText);
-    setText('.value', valueText);
-    setText('.name', nameText);
+  accessor conflict: Conflict|null = null;
+  accessor rowLabel: string = '';
+  accessor policyName: string = '';
 
-    // Populate the mobile-specific layout elements.
-    // On space-constrained devices, conflicts are displayed as a
-    // vertical stack of rows instead of a single horizontal row with
-    // columns.
-    // <if expr="is_android or is_ios">
-    setText('.value.row .name', nameText);
-    setText('.value.row .value', valueText);
-    setText('.source.row .value', sourceText);
-    setText('.scope.row .value', scopeText);
-    setText('.level.row .value', levelText);
-    // </if>
+  override connectedCallback() {
+    super.connectedCallback();
+    this.setAttribute('role', 'rowgroup');
+  }
 
-    // Set the label for the copy link.
-    const copyLink = this.shadowRoot!.querySelector('.row .copy-value');
-    if (copyLink) {
-      setCopyButtonAccessibilityAttributes(copyLink, _policyName);
+
+
+  protected getRowLabelText(): string {
+    return this.rowLabel ? loadTimeData.getString(this.rowLabel) : '';
+  }
+
+  protected getScopeText(): string {
+    if (!this.conflict) {
+      return '';
     }
+    return loadTimeData.getString(
+        this.conflict.scope === 'user' ? 'scopeUser' : 'scopeDevice');
+  }
+
+  protected getLevelText(): string {
+    if (!this.conflict) {
+      return '';
+    }
+    return loadTimeData.getString(
+        this.conflict.level === 'recommended' ? 'levelRecommended' :
+                                                'levelMandatory');
+  }
+
+  protected getSourceText(): string {
+    if (!this.conflict) {
+      return '';
+    }
+    return loadTimeData.getString(this.conflict.source);
+  }
+
+  protected getFormattedValue(): string {
+    if (!this.conflict) {
+      return '';
+    }
+    return stringifyPolicyValue(this.conflict.value, /*format=*/ true);
+  }
+
+  protected getCopyLabel(): string {
+    return loadTimeData.getStringF('policyCopyValue', this.policyName);
   }
 
   // Copies the policy's conflicting/superseded value to the clipboard.
-  private copyValue_() {
-    const valueDisplay = this.shadowRoot!.querySelector('.row .value');
+  protected onCopyClick(e: Event) {
+    const target = e.currentTarget as HTMLElement;
+    // Walk up the DOM to find the parent .row and then get the .value element.
+    const row = target.closest('.row') || target.closest('.entry');
+    const valueDisplay = row?.querySelector('.value');
     if (valueDisplay) {
-      copyValue(valueDisplay as CustomElement);
+      copyValue(valueDisplay as HTMLElement);
     }
   }
 }
@@ -124,4 +139,4 @@ declare global {
   }
 }
 
-customElements.define('policy-conflict', PolicyConflictElement);
+customElements.define(PolicyConflictElement.is, PolicyConflictElement);

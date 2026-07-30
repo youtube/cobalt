@@ -120,7 +120,7 @@ void WrappingTestTracker::AddOnInitializedCallback(
       FROM_HERE, base::BindOnce(std::move(callback), IsInitialized()));
 }
 
-const Configuration* WrappingTestTracker::GetConfigurationForTesting() const {
+const Configuration* WrappingTestTracker::GetConfiguration() const {
   NOTIMPLEMENTED();
   return nullptr;
 }

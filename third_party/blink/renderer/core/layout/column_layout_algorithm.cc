@@ -164,8 +164,7 @@ void MulticolPartWalker::UpdateCurrent() {
       if (child_break_token->InputNode() == multicol_container_) {
         current_.descendant_node = nullptr;
       } else {
-        current_.descendant_node =
-            To<BlockNode>(child_break_token->InputNode());
+        current_.descendant_node = child_break_token->InputNode();
         DCHECK(current_.descendant_node.IsColumnSpanAll() ||
                (current_.descendant_node.IsOutOfFlowPositioned() &&
                 RuntimeEnabledFeatures::FragmentedOofInCbEnabled()));

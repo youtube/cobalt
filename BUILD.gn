@@ -29,6 +29,7 @@ import("//extensions/buildflags/buildflags.gni")
 import("//gpu/vulkan/features.gni")
 import("//media/gpu/args.gni")
 import("//media/media_options.gni")
+import("//mojo/features.gni")
 import("//pdf/features.gni")
 import("//printing/buildflags/buildflags.gni")
 import("//remoting/remoting_enable.gni")
@@ -474,6 +475,11 @@ group("gn_all") {
         "//sandbox/linux:chrome_sandbox",
         "//sandbox/linux:sandbox_linux_unittests",
       ]
+      if (is_linux && mojo_support_legacy_core) {
+        deps += [
+          "//chromeos/ash/components/mojo_proxy/service:mojo_proxy_unittests",
+        ]
+      }
       if (!is_clang) {
         deps += [ "//testing:empty_main" ]
       }
@@ -1278,7 +1284,7 @@ if (use_blink && !is_cronet_build) {
       "//third_party/blink/web_tests/external/wpt/config.tmpl.json",
       "//third_party/blink/web_tests/resources/",
       "//third_party/blink/web_tests/TestLists/",
-      "//third_party/pywebsocket3/src/mod_pywebsocket/",
+      "//third_party/pywebsocket3/src/pywebsocket3/",
       "//third_party/test_fonts/test_fonts/",
       "//third_party/wpt_tools/",
     ]

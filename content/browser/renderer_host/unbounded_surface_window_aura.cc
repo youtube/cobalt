@@ -9,6 +9,8 @@
 #include "base/task/single_thread_task_runner.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "components/input/render_widget_host_input_event_router.h"
+#include "components/viz/common/frame_sinks/copy_output_request.h"
+#include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "components/viz/host/host_frame_sink_manager.h"
 #include "content/browser/compositor/surface_utils.h"
 #include "content/browser/renderer_host/render_widget_host_impl.h"
@@ -16,10 +18,10 @@
 #include "content/browser/renderer_host/render_widget_host_view_base.h"
 #include "third_party/blink/public/common/input/web_mouse_event.h"
 #include "third_party/blink/public/common/input/web_touch_event.h"
-#include "ui/aura/client/focus_change_observer.h"
 #include "ui/aura/client/screen_position_client.h"
 #include "ui/aura/client/transient_window_client.h"
 #include "ui/aura/client/window_parenting_client.h"
+#include "ui/compositor/compositor.h"
 #include "ui/compositor/layer.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
@@ -89,7 +91,6 @@ UnboundedSurfaceWindowAura::~UnboundedSurfaceWindowAura() {
     root_window_ = nullptr;
   }
   if (window_) {
-    aura::client::SetFocusChangeObserver(window_.get(), nullptr);
     window_.reset();
   }
   if (frame_sink_id_.is_valid()) {
@@ -105,6 +106,10 @@ bool UnboundedSurfaceWindowAura::is_valid() const {
   return window_ != nullptr;
 }
 
+gfx::NativeWindow UnboundedSurfaceWindowAura::GetNativeWindow() const {
+  return window_.get();
+}
+
 viz::FrameSinkId UnboundedSurfaceWindowAura::GetFrameSinkId() const {
   return frame_sink_id_;
 }
@@ -115,6 +120,46 @@ viz::LocalSurfaceId UnboundedSurfaceWindowAura::GetLocalSurfaceId() const {
 
 gfx::Rect UnboundedSurfaceWindowAura::GetBounds() const {
   return window_ ? window_->GetBoundsInScreen() : gfx::Rect();
+}
+
+void UnboundedSurfaceWindowAura::CopyFromSurface(
+    const gfx::Rect& src_subrect,
+    const gfx::Size& dst_size,
+    base::TimeDelta timeout,
+    base::OnceCallback<void(const content::CopyFromSurfaceResult&)> callback) {
+  if (!window_ || !window_->layer()) {
+    std::move(callback).Run(content::CopyFromSurfaceResult());
+    return;
+  }
+  auto request = std::make_unique<viz::CopyOutputRequest>(
+      viz::CopyOutputRequest::ResultFormat::RGBA,
+      viz::CopyOutputRequest::ResultDestination::kSystemMemory,
+      base::BindOnce(
+          [](base::OnceCallback<void(const content::CopyFromSurfaceResult&)>
+                 callback,
+             std::unique_ptr<viz::CopyOutputResult> result) {
+            std::move(callback).Run(
+                ToCopyFromSurfaceResult(result->ScopedAccessSkBitmap()
+                                            .GetOutScopedBitmapAndMetadata()));
+          },
+          std::move(callback)));
+  request->set_result_task_runner(
+      base::SingleThreadTaskRunner::GetCurrentDefault());
+
+  window_->layer()->RequestCopyOfOutput(std::move(request));
+  if (window_->layer()->GetCompositor()) {
+    window_->layer()->GetCompositor()->ScheduleFullRedraw();
+  }
+}
+
+void UnboundedSurfaceWindowAura::EnsureSurfaceSynchronizedForWebTest() {
+  if (window_ && window_->layer()) {
+    window_->layer()->SetShowSurface(
+        viz::SurfaceId(frame_sink_id_, GetLocalSurfaceId()),
+        window_->GetBoundsInScreen().size(), SK_ColorTRANSPARENT,
+        cc::DeadlinePolicy::UseInfiniteDeadline(),
+        /*stretch_content_to_fill_bounds=*/false);
+  }
 }
 
 gfx::Size UnboundedSurfaceWindowAura::GetMinimumSize() const {
@@ -147,7 +192,6 @@ bool UnboundedSurfaceWindowAura::CanFocus() {
 
 void UnboundedSurfaceWindowAura::OnWindowDestroying(aura::Window* window) {
   if (window == window_.get()) {
-    aura::client::SetFocusChangeObserver(window_.get(), nullptr);
     // Relinquish ownership of window_ so that when UnboundedSurfaceWindowAura
     // is destructed, it does not attempt to double-free or re-entrantly destroy
     // the aura::Window.
@@ -186,6 +230,7 @@ bool UnboundedSurfaceWindowAura::InitWindow(const gfx::Rect& bounds_in_dips) {
   window_ =
       std::make_unique<aura::Window>(this, aura::client::WINDOW_TYPE_MENU);
   window_->Init(ui::LayerType::LAYER_SOLID_COLOR);
+  window_->SetTransparent(true);
   // TODO(crbug.com/508672616): Note that we may need to change this to a non-
   // transparent background later, if security issues arise. For example, this
   // allows content to put up a fully transparent (invisible) overlay over site
@@ -215,8 +260,6 @@ bool UnboundedSurfaceWindowAura::InitWindow(const gfx::Rect& bounds_in_dips) {
 
   aura::client::ParentWindowWithContext(window_.get(), root, bounds_in_screen,
                                         display::kInvalidDisplayId);
-
-  aura::client::SetFocusChangeObserver(window_.get(), this);
 
   local_surface_id_allocator_.GenerateId();
 
@@ -413,13 +456,6 @@ void UnboundedSurfaceWindowAura::OnTouchEvent(ui::TouchEvent* event) {
       event->latency() ? *event->latency() : ui::LatencyInfo();
   router->RouteTouchEvent(parent_view_, &touch_event, latency_info);
   event->SetHandled();
-}
-
-void UnboundedSurfaceWindowAura::OnWindowFocused(aura::Window* gained_focus,
-                                                 aura::Window* lost_focus) {
-  if (window_.get() == lost_focus) {
-    Dismiss();
-  }
 }
 
 }  // namespace content

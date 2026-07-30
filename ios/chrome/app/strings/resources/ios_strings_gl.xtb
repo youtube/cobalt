@@ -14,7 +14,6 @@
 <translation id="1036348656032585052">Desactivar</translation>
 <translation id="1036436692654972538">A información gárdase no teu dispositivo</translation>
 <translation id="1041322626941363065">Avisarte se os teus contrasinais quedan expostos debido a unha violación da seguranza dos datos</translation>
-<translation id="104491362976654916">Páxina sen conexión</translation>
 <translation id="1046742265332833834">Tema azul</translation>
 <translation id="1049743911850919806">Modo de incógnito</translation>
 <translation id="1053651653201045802">Pechouse a sesión. Volve iniciar sesión para usar os marcadores, os contrasinais e moito máis na túa conta.</translation>
@@ -117,6 +116,7 @@
 <translation id="1373120905936431262">Carga unha imaxe para facer un remix con Nano Banana</translation>
 <translation id="1377508275003315939">Contrasinais</translation>
 <translation id="1381022135873211423">{count,plural, =1{{position} de {count} enderezo}other{{position} de {count} enderezos}}</translation>
+<translation id="13813615483058219">Produciuse un erro. Comproba a conexión a Internet, sube o volume ou téntao de novo.</translation>
 <translation id="1383876407941801731">Buscar</translation>
 <translation id="138618066238211776">Continuar como <ph name="USER_NAME" /></translation>
 <translation id="138692594145659985">Opcións para gardar unha tarxeta</translation>
@@ -137,6 +137,7 @@
 <translation id="1445276840641906250">Todas as túas pestanas nun navegador</translation>
 <translation id="1447564161241938558">Quen se encarga da administración desactivou a opción de importar contrasinais e claves de acceso</translation>
 <translation id="1450170672351507823">A protección estándar está activada. Se queres unha seguranza aínda maior, utiliza a protección mellorada.</translation>
+<translation id="1452651021404174820">Escolle un dispositivo</translation>
 <translation id="1455660774629812862">Non ocultar</translation>
 <translation id="1456545332132818232">Reseñas de produtos en <ph name="PRODUCT_NAME" />, <ph name="STARS" /> de <ph name="MAX_STARS" />, <ph name="DOMAIN" /></translation>
 <translation id="1460751212339734034">Aforra tempo, escribe menos</translation>
@@ -144,6 +145,7 @@
 <translation id="1469381646033328562">A túa conta está xestionada polo teu pai ou pola túa nai.
 <ph name="BEGIN_LINK" />Máis información<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Cambiada</translation>
+<translation id="1483493594462132177">Enviar</translation>
 <translation id="1486096554574027028">Buscar contrasinais</translation>
 <translation id="1491277525950327607">Toca dúas veces para activar ou desactivar a configuración</translation>
 <translation id="1492417797159476138">Xa gardaches este nome de usuario para este sitio</translation>
@@ -224,7 +226,7 @@
 <translation id="1718835860248848330">Última hora</translation>
 <translation id="1728549374069268714">Pegar e acceder</translation>
 <translation id="1732468323901456775">Activa as notificacións de <ph name="MODULE_NAME" /></translation>
-<translation id="1739364174357629566">Actualiza o número de viaxeiro coñecido</translation>
+<translation id="1739364174357629566">Actualiza o número de viaxeiro coñecido (KTN)</translation>
 <translation id="1740468249224277719">Toca dúas veces para instalar.</translation>
 <translation id="1740650426894359238">Cambiar a outro perfil</translation>
 <translation id="1741219894094057085">Reloxo intelixente</translation>
@@ -405,6 +407,7 @@
 <translation id="2321086116217818302">Preparando contrasinais…</translation>
 <translation id="2323697864063408084">Recibe notificacións na pantalla de bloqueo e como báners para non perder nada do que che importa</translation>
 <translation id="2326302612031521902">Selector de unidades</translation>
+<translation id="2327445548174191329">De <ph name="DEVICE_NAME" /></translation>
 <translation id="2330607597130465898">Sen protección</translation>
 <translation id="233375395665273385">Eliminar e pechar sesión</translation>
 <translation id="2340966584724330791">Google recompila os teus chats e o que compartas con Gemini (por exemplo, ficheiros, vídeos, pantallas e fotos). Así mesmo, recompila os teus comentarios, os detalles dos sitios web que visites con Gemini, os datos de uso do produto e a información de localización (por exemplo, a localización xeral do teu dispositivo, o teu enderezo IP ou os enderezos particular ou do traballo que teñas rexistrados na Conta de Google).</translation>
@@ -500,6 +503,7 @@
 <translation id="2666092431469916601">Parte superior</translation>
 <translation id="2669454659051515572">Calquera que use este dispositivo pode ver os ficheiros descargados</translation>
 <translation id="2671423594960767771">Compartir grupo</translation>
+<translation id="2673183423393669407">Pagar a prazos</translation>
 <translation id="2673508731173059946">Visitar ligazón copiada</translation>
 <translation id="2679659833697380">A túa información gárdase no teu dispositivo</translation>
 <translation id="2681572445246787428">Sinatura de documentos</translation>
@@ -586,7 +590,6 @@
 <translation id="2996291259634659425">Crear contrasinal</translation>
 <translation id="3010025794097054078">Protéxete contra as violacións da seguranza dos datos, os sitios web que non sexan seguros e moito máis.</translation>
 <translation id="3012310354105716927">Algúns datos aínda non se gardaron</translation>
-<translation id="3013922155552460252">Consulta e xestiona a actividade de Gemini, como os teus chats, os comentarios e as solicitudes</translation>
 <translation id="3016518775797983090">Non se puido compartir a páxina</translation>
 <translation id="3020183492814296499">Atallos</translation>
 <translation id="3021342271734507256">Marca co dedo, destaca ou toca calquera cousa da pantalla para buscala</translation>
@@ -927,7 +930,7 @@
 <translation id="4232376164796433044">Contrasinais e autocompletado</translation>
 <translation id="4232817129213135694">Configura as claves de acceso deste dispositivo</translation>
 <translation id="4237377247299956313">Toca <ph name="BEGIN_BOLD" />Default Browser App<ph name="END_BOLD" /> (Aplicación de navegador predeterminada)</translation>
-<translation id="424063167283213501">Garda o número de viaxeiro coñecido</translation>
+<translation id="424063167283213501">Garda o número de viaxeiro coñecido (KTN)</translation>
 <translation id="4241893428331130998">Non hai ningún contrasinal nin clave de acceso gardados</translation>
 <translation id="4242533952199664413">Abrir configuración</translation>
 <translation id="4250432749243022864">{count,plural, =0{Abrir {count} pestanas}=1{Abrir {count} pestana}other{Abrir {count} pestanas}}</translation>
@@ -1168,6 +1171,7 @@
 <translation id="5020732097997376541">Toca a icona de Lens</translation>
 <translation id="5021500396464456616">Ponte en contacto coa persoa que che enviou esta ligazón</translation>
 <translation id="5039804452771397117">Permitir</translation>
+<translation id="5050042263972837708">Nome do grupo</translation>
 <translation id="5050810143224996149">Compartir o contrasinal</translation>
 <translation id="5052499409147950210">Editar sitio</translation>
 <translation id="5055015094595227120">Localización precisa</translation>
@@ -1223,6 +1227,7 @@
 <translation id="5200894869889836319">Opcións para configurar permisos</translation>
 <translation id="5203051773066903947">Introducir</translation>
 <translation id="5206453674369664567">Pechar sesión e borrar datos</translation>
+<translation id="5209320130288484488">Non se atopou ningún dispositivo</translation>
 <translation id="5210365745912300556">Pechar pestana</translation>
 <translation id="5211488077761630279">Queres permitir que "<ph name="SITE_NAME" />" utilice a túa <ph name="PERMISSION" />?</translation>
 <translation id="5217245356412073535">Podes cambiar a vista predeterminada do sitio pola aplicable a ordenadores; tan só tes que acceder a Configuración &gt; Configuración de contido</translation>
@@ -1242,6 +1247,7 @@
 <translation id="5248640482715684545">Este sitio está tentando abrir outra aplicación.</translation>
 <translation id="5250371859659394278">Dunha fonte descoñecida</translation>
 <translation id="525510229763628836">Minimizada</translation>
+<translation id="5260842098960755113">Fío de mensaxes pechado</translation>
 <translation id="5269913829202614649">Personalizar a páxina de inicio</translation>
 <translation id="5271265092610673171">{count,plural, =1{Un campo obrigatorio está en branco. Cúbreo antes de gardar o formulario.}other{Algúns campos obrigatorios están en branco. Cúbreos antes de gardar o formulario.}}</translation>
 <translation id="5271549068863921519">Gardar contrasinal</translation>
@@ -1557,6 +1563,7 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="6327249202318869726">Non podes acceder a Gemini coa túa conta. Fala con quen a administra se necesitas máis información.</translation>
 <translation id="6331836477476466332">Un navegador máis seguro e potente para ti</translation>
 <translation id="6337234675334993532">Encriptado</translation>
+<translation id="6337711171050747395">Mostra as opcións de pago a prazos durante a tramitación da compra</translation>
 <translation id="633809752005859102">Produciuse un erro. Trataremos de solucionalo.</translation>
 <translation id="6339793034470834130">Para usar a ferramenta Web Inspector, conéctate a Safari desde o ordenador mediante un cable e accede ao teu iPhone desde o menú Develop (Programación). Podes activar ese menú desde a sección Advanced (Configuración avanzada) dos axustes de Safari no teu ordenador.</translation>
 <translation id="6340285871011301182">Non está dispoñible a tradución parcial.</translation>
@@ -1568,6 +1575,7 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="6344533709188026708">Un espazo separado para o traballo</translation>
 <translation id="6347953390226388422">{count,plural, =1{Este enderezo eliminarase da túa Conta de Google (<ph name="USER_EMAIL" />) e do dispositivo.}other{Estes enderezos eliminaranse da túa Conta de Google (<ph name="USER_EMAIL" />) e do dispositivo.}}</translation>
 <translation id="634878792104344809">Sincroniza os contrasinais, o historial e máis datos en todos os teus dispositivos</translation>
+<translation id="6350745006329795504">Xestionar os teus dispositivos</translation>
 <translation id="6351147166808964033">Entrar no selector de pestanas</translation>
 <translation id="63519665078626091">Para usar a ferramenta Web Inspector, conéctate a Safari desde o ordenador mediante un cable e accede ao teu iPad desde o menú Develop (Programación). Podes activar ese menú desde a sección Advanced (Configuración avanzada) dos axustes de Safari no teu ordenador.</translation>
 <translation id="6355820183143562453">Ocultar a tarxeta Seguimento de prezos</translation>
@@ -2103,7 +2111,6 @@ Para continuar desde o ordenador, cambia a <ph name="OTHER_EMAIL" />. Obterás o
 <translation id="8114753159095730575">Podes descargar ficheiros. Tes opcións dispoñibles na parte inferior da pantalla.</translation>
 <translation id="8123502380991596210">Ocultar Novidades</translation>
 <translation id="8123953306357309250">Queres cancelar a sincronización? Podes activar a sincronización en calquera momento na configuración.</translation>
-<translation id="8130712116203026166">Fai un resumo dunha liña e fornece información útil máis alá desta páxina. Usa un ton conciso e informal. 100 palabras como máximo.</translation>
 <translation id="81313319706244542">2. Toca Passwords (Contrasinais)</translation>
 <translation id="8131740175452115882">Confirmar</translation>
 <translation id="8132598642024322408">Agora: <ph name="PRICE" />. Antes: <ph name="PREVIOUS_PRICE" />.</translation>
@@ -2149,6 +2156,7 @@ Para continuar desde o ordenador, cambia a <ph name="OTHER_EMAIL" />. Obterás o
 <translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">Completarás a información en <ph name="URL" /></translation>
 <translation id="8275068909952022340">Máis…</translation>
+<translation id="8280797717392145626">Ligazóns recibidas</translation>
 <translation id="8281781826761538115">Idioma predeterminado: <ph name="DEFAULT_LOCALE" /></translation>
 <translation id="8281886186245836920">Omitir</translation>
 <translation id="8282657446819506217">Abrir nun grupo de pestanas</translation>
@@ -2270,7 +2278,6 @@ Para continuar desde o ordenador, cambia a <ph name="OTHER_EMAIL" />. Obterás o
 <translation id="866266761389616183">Vaia, ho!</translation>
 <translation id="8663764600409216912">Estás usando contrasinais difíciles de adiviñar</translation>
 <translation id="8664992138761940052">De forma predeterminada, a pestana actual compártese ao iniciar un novo chat. Cando iso sucede, envíanse a Google o seu contido e os URL. Podes cambiar esta opción en calquera momento.</translation>
-<translation id="8668210798914567634">Gardouse esta páxina na túa lista de lectura.</translation>
 <translation id="8672642291731179042">Traducir páxinas</translation>
 <translation id="8672733398999596205">Activar todo</translation>
 <translation id="8674716540979958118">Tes contrasinais vulnerados.</translation>

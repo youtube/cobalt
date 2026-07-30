@@ -1302,6 +1302,7 @@ LoadState SpdySession::GetLoadState() const {
 
 int SpdySession::GetRemoteEndpoint(IPEndPoint* endpoint) {
   int rv = GetPeerAddress(endpoint);
+  base::UmaHistogramSparse("Net.SpdySession.GetRemoteEndpointResult", -rv);
   if (rv == ERR_SOCKET_NOT_CONNECTED &&
       base::FeatureList::IsEnabled(
           features::kDrainSpdySessionSynchronouslyOnRemoteEndpointDisconnect)) {

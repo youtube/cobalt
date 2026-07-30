@@ -211,7 +211,10 @@ if (is_android) {
   android_library("display_java") {
     sources = [ "java/src/org/chromium/media/DisplayCompat.java" ]
 
-    deps = [ "//third_party/androidx:androidx_annotation_annotation_java" ]
+    deps = [
+      "//base:build_info_java",
+      "//third_party/androidx:androidx_annotation_annotation_java",
+    ]
   }
 
   robolectric_binary("media_base_junit_tests") {

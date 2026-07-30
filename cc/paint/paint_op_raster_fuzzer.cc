@@ -12,6 +12,7 @@
 #include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/logging.h"
+#include "base/memory/aligned_memory.h"
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/process/memory.h"
 #include "base/test/test_discardable_memory_allocator.h"
@@ -106,13 +107,11 @@ void Raster(SkCanvas* canvas,
 
   // Need kHeaderBytes bytes to be able to read the header.
   while (input.size() >= cc::PaintOpWriter::kHeaderBytes) {
-    std::unique_ptr<char, base::AlignedFreeDeleter> deserialized(
-        static_cast<char*>(base::AlignedAlloc(
-            sizeof(cc::LargestPaintOp), cc::PaintOpBuffer::kPaintOpAlign)));
+    auto deserialized = base::AlignedUninit<uint8_t>(
+        sizeof(cc::LargestPaintOp), cc::PaintOpBuffer::kPaintOpAlign);
     size_t bytes_read = 0;
     cc::PaintOp* deserialized_op = cc::PaintOp::Deserialize(
-        input, deserialized.get(), sizeof(cc::LargestPaintOp), &bytes_read,
-        deserialize_options);
+        input, deserialized.as_span(), &bytes_read, deserialize_options);
 
     if (!deserialized_op) {
       break;

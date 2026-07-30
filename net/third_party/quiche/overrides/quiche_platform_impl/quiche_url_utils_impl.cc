@@ -25,13 +25,9 @@ bool ExpandURITemplateImpl(
     const absl::flat_hash_map<std::string, std::string>& parameters,
     std::string* target,
     absl::flat_hash_set<std::string>* vars_found) {
-  std::unordered_map<std::string, std::string> std_parameters;
-  for (const auto& pair : parameters) {
-    std_parameters[pair.first] = pair.second;
-  }
   std::set<std::string> std_vars_found;
   const bool result =
-      uri_template::Expand(uri_template, std_parameters, target,
+      uri_template::Expand(uri_template, parameters, target,
                            vars_found != nullptr ? &std_vars_found : nullptr);
   if (vars_found != nullptr) {
     for (const std::string& var_found : std_vars_found) {

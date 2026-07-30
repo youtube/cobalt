@@ -241,6 +241,12 @@ std::string_view GetStringNameForOptimizationType(
       return "FindsPageTheme";
     case proto::OptimizationType::OMNIBOX_AUTOFILL_IFRAME_ALLOWLIST:
       return "OmniboxAutofillIframeAllowlist";
+    case proto::OptimizationType::CURINOS_CREDIT_CARD_FLIGHT_BENEFITS:
+      return "CurinosCreditCardFlightBenefits";
+    case proto::OptimizationType::CURINOS_CREDIT_CARD_HOTEL_BENEFITS:
+      return "CurinosCreditCardHotelBenefits";
+    case proto::OptimizationType::CURINOS_CREDIT_CARD_CAR_RENTAL_BENEFITS:
+      return "CurinosCreditCardCarRentalBenefits";
   }
 
   // The returned string is used to record histograms for the optimization type.

@@ -36,13 +36,11 @@
 
 <script>
 // Turn off smooth scrolling so wheel scrolls immediately.
-internals.settings.setScrollAnimatorEnabled(false);
+if (window.internals) {
+  internals.settings.setScrollAnimatorEnabled(false);
+}
 
 const scroller = document.getElementById("scroller");
-
-function scrollLeft() {
-  return scroller.scrollLeft;
-}
 
 function wheelScroll(delta, x, y, direction, expectScroll = true) {
   // A mouse wheel scroll comes from mouse input with imprecise delta.
@@ -57,36 +55,39 @@ function wheelScroll(delta, x, y, direction, expectScroll = true) {
   return Promise.all([gesturePromise, scrollPromise]);
 }
 
-promise_test (async t => {
-  await waitForScrollReset(scroller);
-  // scroll just 10px so the current snap point remains closest.
-  await wheelScroll(10 /* pixels to scroll */, 50, 50, 'right');
-  assert_approx_equals(scroller.scrollLeft, 120, 1);
-}, "Wheel scrolling (right) should prefer the next snap point in scroll " +
-   "direction not the closest.");
+window.onload = async () => {
+  await waitForCompositorCommit();
+  promise_test (async t => {
+    await waitForScrollReset(scroller);
+    // scroll just 10px so the current snap point remains closest.
+    await wheelScroll(10 /* pixels to scroll */, 50, 50, 'right');
+    assert_approx_equals(scroller.scrollLeft, 120, 1);
+  }, "Wheel scrolling (right) should prefer the next snap point in scroll " +
+     "direction not the closest.");
 
-promise_test (async t => {
-  await waitForScrollReset(scroller, 120, 0);
-  // Scroll just 10px so the current snap point remains closest.
-  await wheelScroll(10 /* pixels to scroll */, 50, 50, 'left');
-  assert_approx_equals(scroller.scrollLeft, 0, 1);
-}, "Wheel scrolling (left) should prefer the next snap point in scroll " +
-   "direction not the closest.");
+  promise_test (async t => {
+    await waitForScrollReset(scroller, 120, 0);
+    // Scroll just 10px so the current snap point remains closest.
+    await wheelScroll(10 /* pixels to scroll */, 50, 50, 'left');
+    assert_approx_equals(scroller.scrollLeft, 0, 1);
+  }, "Wheel scrolling (left) should prefer the next snap point in scroll " +
+     "direction not the closest.");
 
-promise_test (async t => {
-  await waitForScrollReset(scroller);
-  // Scroll so we pass the second snap point.
-  await wheelScroll(140, 50, 50, 'right');
-  assert_approx_equals(scroller.scrollLeft, 240, 1);
-}, "Wheel scrolling should prefer the next snap point in scroll " +
-   "direction from scroll end position and not the scroll start position.");
+  promise_test (async t => {
+    await waitForScrollReset(scroller);
+    // Scroll so we pass the second snap point.
+    await wheelScroll(140, 50, 50, 'right');
+    assert_approx_equals(scroller.scrollLeft, 240, 1);
+  }, "Wheel scrolling should prefer the next snap point in scroll " +
+     "direction from scroll end position and not the scroll start position.");
 
-promise_test (async t => {
-  await waitForScrollReset(scroller);
-  // Scroll passed the last snap point.
-  await wheelScroll(200, 50, 50, 'right');
-  assert_approx_equals(scroller.scrollLeft, 240, 1);
-}, "Wheel scrolling should prefer the closest scroll offset in the opposite " +
-   "direction when there is no snap point in the scroll direction.");
+  promise_test (async t => {
+    await waitForScrollReset(scroller);
+    // Scroll passed the last snap point.
+    await wheelScroll(200, 50, 50, 'right');
+    assert_approx_equals(scroller.scrollLeft, 240, 1);
+  }, "Wheel scrolling should prefer the closest scroll offset in the " +
+     "opposite direction when there is no snap point in the scroll direction.");
+};
 
 </script>

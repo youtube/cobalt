@@ -92,7 +92,8 @@ class ContentFaviconDriver
   // content::WebContentsObserver implementation.
   void DidUpdateFaviconURL(
       content::RenderFrameHost* rfh,
-      const std::vector<blink::mojom::FaviconURLPtr>& candidates) override;
+      const std::vector<blink::mojom::FaviconURLPtr>& candidates,
+      blink::mojom::FaviconUpdateReason reason) override;
   void DidUpdateWebManifestURL(content::RenderFrameHost* rfh,
                                const GURL& manifest_url) override;
   void DidStartNavigation(

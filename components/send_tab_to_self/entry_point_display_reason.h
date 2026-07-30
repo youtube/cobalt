@@ -33,6 +33,7 @@ enum class EntryPointDisplayReason {
   // target device. In that case the entry point should inform the user they
   // can enjoy the feature by signing in on other devices.
   kInformNoTargetDevice,
+  kMaxValue = kInformNoTargetDevice,
 };
 
 namespace internal {

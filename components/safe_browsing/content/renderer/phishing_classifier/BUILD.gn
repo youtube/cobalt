@@ -8,6 +8,9 @@ import("//third_party/libprotobuf-mutator/fuzzable_proto_library.gni")
 
 if (safe_browsing_mode != 0) {
   source_set("phishing_classifier") {
+    _configs = configs
+    configs = []
+    configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
     sources = [
       "murmurhash3_util.cc",
       "murmurhash3_util.h",

@@ -374,7 +374,7 @@ class Host : public GlicSharingManagerProvider {
   // Returns true if the widget is visible.
   bool IsWidgetShowing(GlicWebClientAccess* client) const;
   // Returns the current panel state.
-  mojom::PanelState GetPanelState(GlicWebClientAccess* client) const;
+  mojom::PanelState GetPanelState() const;
 
   base::WeakPtr<Host> GetWeakPtr() { return weak_ptr_factory_.GetWeakPtr(); }
 

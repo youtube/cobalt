@@ -133,8 +133,8 @@ class PDFDocumentHelper
   // Registers `callback` to be run when document load completes successfully.
   // When the PDF is already loaded, `callback` is invoked immediately. Will not
   // be invoked when the load fails. This is useful to wait for document
-  // metadata to be loaded, before calls to `GetPdfBytes()`, and `GetPageText()`
-  // should be made.
+  // metadata to be loaded, before calls to `GetPdfBytes()`, `GetPageText()`,
+  // and `HasMeaningfulText()` should be made.
   //
   // This `callback` will run before
   // `PDFDocumentHelperClient::OnDocumentLoadComplete()`.
@@ -144,6 +144,11 @@ class PDFDocumentHelper
   // Returns whether document is searchified.
   bool SearchifyStarted() const { return searchify_started_; }
 #endif
+
+  // Queries whether the PDF document has meaningful text. If called before
+  // document is loaded, the callback will be invoked with false.
+  void HasMeaningfulText(
+      pdf::mojom::PdfListener::HasMeaningfulTextCallback callback);
 
  private:
   friend class content::DocumentUserData<PDFDocumentHelper>;

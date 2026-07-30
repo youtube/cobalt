@@ -37,6 +37,7 @@ class GlicInstanceHelper {
     virtual const InstanceId& id() const = 0;
     virtual std::optional<std::string> conversation_id() const = 0;
     virtual std::string conversation_title() const = 0;
+    virtual std::optional<int> task_id() const = 0;
   };
 
   explicit GlicInstanceHelper(tabs::TabInterface* tab);
@@ -47,6 +48,7 @@ class GlicInstanceHelper {
 
   std::optional<std::string> GetConversationId() const;
   std::string GetConversationTitle() const;
+  std::optional<int> GetTaskId() const;
 
   void OnPinnedByInstance(Instance* instance);
   void OnUnpinnedByInstance(Instance* instance);
@@ -61,7 +63,7 @@ class GlicInstanceHelper {
 
 #if BUILDFLAG(IS_ANDROID)
   base::android::ScopedJavaLocalRef<jobject> GetJavaObject();
-  void OnConversationTitleChanged();
+  void OnInstanceChanged();
 #endif
 
  private:
@@ -75,7 +77,7 @@ class GlicInstanceHelper {
 
 #if BUILDFLAG(IS_ANDROID)
   void InitJavaObject();
-  void NotifyJavaInstanceTitleChanged();
+  void NotifyJavaInstanceChanged();
 
   base::android::ScopedJavaGlobalRef<jobject> java_ref_;
 #endif

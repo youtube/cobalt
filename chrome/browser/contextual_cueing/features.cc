@@ -9,6 +9,7 @@ namespace contextual_cueing {
 BASE_FEATURE(kContextualCueingV2, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kContextualCueingV2EnforceAgeRestriction,
              base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kContextualCueingV2MultiSource, base::FEATURE_DISABLED_BY_DEFAULT);
 
 const base::FeatureParam<double> kEduClassifierThreshold(
     &kContextualCueingV2,
@@ -89,6 +90,29 @@ const base::FeatureParam<base::TimeDelta> kClickBackoffTime(
 const base::FeatureParam<bool> kUsePrivateAi(&kContextualCueingV2,
                                              "ContextualCueingV2UsePrivateAi",
                                              true);
+
+// UCB scorer hyperparameters. Defaults are a reasonable starting point;
+// tune via Finch once multi-source experiments are running.
+const base::FeatureParam<double> kUcbExplorationWeight(
+    &kContextualCueingV2MultiSource,
+    "ContextualCueingV2MultiSourceUcbExplorationWeight",
+    1.414);
+const base::FeatureParam<double> kUcbAlpha(
+    &kContextualCueingV2MultiSource,
+    "ContextualCueingV2MultiSourceUcbAlpha",
+    1.0);
+const base::FeatureParam<double> kUcbBeta(
+    &kContextualCueingV2MultiSource,
+    "ContextualCueingV2MultiSourceUcbBeta",
+    0.5);
+const base::FeatureParam<double> kUcbGamma(
+    &kContextualCueingV2MultiSource,
+    "ContextualCueingV2MultiSourceUcbGamma",
+    1.0);
+const base::FeatureParam<int> kUcbMaxExploreImpressions(
+    &kContextualCueingV2MultiSource,
+    "ContextualCueingV2MultiSourceUcbMaxExploreImpressions",
+    50);
 
 const base::FeatureParam<std::string> kHelpCenterArticleLink(
     &kContextualCueingV2,

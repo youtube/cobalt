@@ -1548,10 +1548,12 @@ void PrerenderHostRegistry::OnBackResourceCacheResult(
   std::unique_ptr<network::SimpleURLLoader> http_cache_query_loader =
       std::move(http_cache_query_loader_);
 
-  if (!http_cache_query_loader->LoadedFromCache()) {
-    // If not in the cache, then this cache-only request must have failed.
-    CHECK_NE(http_cache_query_loader->NetError(), net::OK);
-
+  // A LOAD_ONLY_FROM_CACHE request is considered successful only if it is
+  // served from the cache. Note that net::OK may be returned even when
+  // LoadedFromCache() is false (e.g., when a test interceptor satisfies the
+  // request).
+  if (http_cache_query_loader->NetError() != net::OK ||
+      !http_cache_query_loader->LoadedFromCache()) {
     RecordPrerenderBackNavigationEligibility(
         predictor, PrerenderBackNavigationEligibility::kNoHttpCacheEntry,
         attempt.get());

@@ -10,27 +10,58 @@
 
 #include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/to_string.h"
 #include "base/trace_event/trace_event.h"
 #include "base/version_info/version_info.h"
+#include "build/branding_buildflags.h"
+#include "build/build_config.h"
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
 #include "components/optimization_guide/core/optimization_guide_constants.h"
 #include "components/optimization_guide/core/optimization_guide_enums.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
+#include "components/optimization_guide/optimization_guide_buildflags.h"
 #include "components/optimization_guide/public/mojom/model_broker_debug.mojom.h"
 #include "components/prefs/pref_service.h"
 #include "components/variations/synthetic_trials.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
+#if BUILDFLAG(BUILD_WITH_INTERNAL_OPTIMIZATION_GUIDE)
+#include "services/on_device_model/ml/performance_class.h"  // nogncheck
+#endif
 #include "services/on_device_model/public/cpp/cpu.h"
 #include "services/on_device_model/public/cpp/features.h"
 
 namespace optimization_guide {
 
 namespace {
+
+#if BUILDFLAG(BUILD_WITH_INTERNAL_OPTIMIZATION_GUIDE)
+// Returns the minimum VRAM, in MiB, required to satisfy the currently active
+// performance class requirement.
+uint64_t GetMinimumVramRequired() {
+  std::string perf_classes_string =
+      optimization_guide::features::kPerformanceClassListForOnDeviceModel.Get();
+
+  if (optimization_guide::IsPerformanceClassCompatible(
+          perf_classes_string,
+          optimization_guide::OnDeviceModelPerformanceClass::kVeryLow)) {
+    return 0ul;
+  } else if (optimization_guide::IsPerformanceClassCompatible(
+                 perf_classes_string,
+                 optimization_guide::OnDeviceModelPerformanceClass::kLow) ||
+             optimization_guide::IsPerformanceClassCompatible(
+                 perf_classes_string,
+                 optimization_guide::OnDeviceModelPerformanceClass::kMedium)) {
+    return ml::GetLowRamThresholdMb();
+  } else {
+    return ml::GetHighRamThresholdMb();
+  }
+}
+#endif
 
 // Whether image input is enabled for CPU backend.
 BASE_FEATURE(kOnDeviceModelCpuImageInput, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -232,6 +263,12 @@ PerformanceClassifier::PerformanceClassifier(
   TRACE_EVENT("optimization_guide",
               "PerformanceClassifier::PerformanceClassifier");
   OnDeviceModelPerformanceClass override_class = GetPerformanceClassSwitch();
+#if BUILDFLAG(CHROME_FOR_TESTING)
+  // In CfT, the performance class is assumed to be the most generic value.
+  if (override_class == OnDeviceModelPerformanceClass::kUnknown) {
+    override_class = OnDeviceModelPerformanceClass::kGpuBlocked;
+  }
+#endif
   if (override_class != OnDeviceModelPerformanceClass::kUnknown) {
     UpdatePerformanceClassPref(local_state_, override_class);
     performance_class_state_ = PerformanceClassState::kComplete;
@@ -379,6 +416,18 @@ PerformanceClassifier::GetBrokerProperties() const {
       "Performance Class", base::ToString(GetPerformanceClass())));
   props.push_back(mojom::BrokerPropertyInfo::New(
       "Device Capable", base::ToString(IsDeviceCapable())));
+
+#if BUILDFLAG(BUILD_WITH_INTERNAL_OPTIMIZATION_GUIDE)
+  uint64_t vram_mb = local_state_->GetUint64(
+      model_execution::prefs::localstate::kOnDeviceVramMb);
+  uint64_t required_vram = GetMinimumVramRequired();
+  bool enough_vram = vram_mb >= required_vram;
+  props.push_back(mojom::BrokerPropertyInfo::New(
+      "Enough VRAM",
+      base::StrCat({enough_vram ? "true" : "false", " (",
+                    base::NumberToString(vram_mb), " MiB actual, ",
+                    base::NumberToString(required_vram), " MiB required)"})));
+#endif
 
   auto capabilities = GetPossibleOnDeviceCapabilities();
   std::vector<std::string_view> capabilities_strings;

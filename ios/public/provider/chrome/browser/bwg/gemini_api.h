@@ -194,6 +194,10 @@ bool IsProtectedUrl(std::string url);
 // Updates the page context of the floaty.
 void UpdatePageContext(GeminiPageContext* gemini_page_context);
 
+// Updates the floaty's active page context and shared tabs, if any.
+void UpdateActivePageContext(GeminiPageContext* gemini_page_context,
+                             NSArray<GeminiPageContext*>* shared_tabs);
+
 // Returns the Gemini settings that the user is eligible for.
 NSArray<GeminiSettingsMetadata*>* GetEligibleSettings(
     AuthenticationService* auth_service);

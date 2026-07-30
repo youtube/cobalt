@@ -1,5 +1,11 @@
+include_rules = [
+    "+services/network/public/cpp",
+    "+services/network/public/mojom",
+]
+
 specific_include_rules = {
     "bundle_downloader_unittest.cc": [
+        "+services/network/test/test_network_context.h",
         "+services/network/test/test_url_loader_factory.h",
         "+services/network/test/test_utils.h",
     ],

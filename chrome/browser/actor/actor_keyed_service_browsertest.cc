@@ -32,14 +32,17 @@
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/core/filters/optimization_hints_component_update_listener.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
+#include "components/page_content_annotations/content/page_context_fetcher.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/sessions/core/session_id.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_widget_host.h"
 #include "content/public/common/result_codes.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_frame_navigation_observer.h"
 #include "net/dns/mock_host_resolver.h"
+#include "third_party/blink/public/common/features.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/android_info.h"
@@ -62,12 +65,15 @@ using ::base::test::TestFuture;
 namespace actor {
 
 ActorKeyedServiceBrowserTest::ActorKeyedServiceBrowserTest() {
-  scoped_feature_list_.InitWithFeatures(
-      /*enabled_features=*/{features::kGlic,
-#if BUILDFLAG(IS_ANDROID)
-                            chrome::android::kBrowserWindowInterfaceMobile,
-#endif
-                            features::kGlicActor},
+  scoped_feature_list_.InitWithFeaturesAndParameters(
+      /*enabled_features=*/
+      {
+          {features::kGlic, {}},
+          {features::kGlicActor, {}},
+          {blink::features::kAIPageContentTrackedElementsIframe, {}},
+          {page_content_annotations::kGlicTabScreenshotExperiment,
+           {{"screenshot_timeout_ms", "30s"}}},
+      },
       /*disabled_features=*/{features::kGlicWarming});
 }
 
@@ -210,6 +216,75 @@ IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
   EXPECT_EQ(frame_metadata.meta_tags(1).content(), "ruth");
   EXPECT_EQ(frame_metadata.meta_tags(2).name(), "sis");
   EXPECT_EQ(frame_metadata.meta_tags(2).content(), "val");
+
+  actor_keyed_service()->StopTask(task_id,
+                                  ActorTask::StoppedReason::kTaskComplete);
+}
+
+// TODO(b/484011242): Fix flakiness and re-enable this test on Android.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_RequestTabObservation_HasScreenshotInfo \
+  DISABLED_RequestTabObservation_HasScreenshotInfo
+#else
+#define MAYBE_RequestTabObservation_HasScreenshotInfo \
+  RequestTabObservation_HasScreenshotInfo
+#endif
+IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
+                       MAYBE_RequestTabObservation_HasScreenshotInfo) {
+  const GURL url =
+      embedded_https_test_server().GetURL("/actor/simple_iframe.html");
+  ASSERT_TRUE(chrome_test_utils::NavigateToURL(web_contents(), url));
+
+  content::RenderFrameHost* main_frame = web_contents()->GetPrimaryMainFrame();
+
+  // Wait for main frame layout/render.
+  {
+    TestFuture<bool> future;
+    main_frame->GetRenderWidgetHost()->InsertVisualStateCallback(
+        future.GetCallback());
+    ASSERT_TRUE(future.Wait()) << "Timeout waiting for syncing with renderer";
+  }
+
+  // Wait for child frame layout/render.
+  {
+    content::RenderFrameHost* child_frame =
+        content::ChildFrameAt(main_frame, 0);
+    ASSERT_TRUE(child_frame);
+
+    TestFuture<bool> future;
+    child_frame->GetRenderWidgetHost()->InsertVisualStateCallback(
+        future.GetCallback());
+    ASSERT_TRUE(future.Wait())
+        << "Timeout waiting for syncing with subframe renderer";
+  }
+
+  content::WaitForCopyableViewInWebContents(web_contents());
+
+  TaskId task_id = actor_keyed_service()->CreateTask(
+      TestTaskSourceInfo(), NoEnterprisePolicyChecker());
+
+  TestFuture<ActorKeyedService::TabObservationResult> future;
+  actor_keyed_service()->RequestTabObservation(
+      *active_tab(), task_id, std::nullopt, future.GetCallback());
+
+  const ActorKeyedService::TabObservationResult& result = future.Get();
+  ASSERT_TRUE(result.has_value());
+  ASSERT_TRUE(result.value());
+
+  optimization_guide::proto::TabObservation observation;
+  FillInTabObservation(**result, observation);
+
+  ASSERT_TRUE(observation.has_screenshot_info());
+  const auto& screenshot_info = observation.screenshot_info();
+  ASSERT_EQ(screenshot_info.iframe_info_size(), 1);
+  const auto& iframe_info = screenshot_info.iframe_info(0);
+  EXPECT_EQ(iframe_info.url(),
+            embedded_https_test_server().GetURL("/actor/blank.html").spec());
+  EXPECT_TRUE(iframe_info.has_bounding_box());
+  EXPECT_GE(iframe_info.bounding_box().x(), 0);
+  EXPECT_GE(iframe_info.bounding_box().y(), 0);
+  EXPECT_GT(iframe_info.bounding_box().width(), 0);
+  EXPECT_GT(iframe_info.bounding_box().height(), 0);
 
   actor_keyed_service()->StopTask(task_id,
                                   ActorTask::StoppedReason::kTaskComplete);

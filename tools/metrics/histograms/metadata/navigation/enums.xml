@@ -235,7 +235,7 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Cookies Not Changed"/>
 </enum>
 
-<!-- LINT.ThenChange(//content/browser/renderer_host/navigator.cc:DuplicateNavsCookieStatus) -->
+<!-- LINT.ThenChange(//content/common/content_navigation_policy.h:DuplicateNavsCookieStatus) -->
 
 <enum name="EarlyRFHSwapType">
   <int value="0" label="No early swap"/>

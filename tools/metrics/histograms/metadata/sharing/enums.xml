@@ -133,6 +133,23 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(/components/send_tab_to_self/metrics_util.h:FormFieldMatchOutcome) -->
 
+<!-- LINT.IfChange(SendTabToSelfResult) -->
+
+<enum name="SendTabToSelfResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Success (Throttled)"/>
+  <int value="2" label="Failure: Not Tracking Metadata"/>
+  <int value="3" label="Failure: Invalid URL"/>
+  <int value="5" label="Failure: Commit Attempt Failed"/>
+  <int value="6" label="Failure: Commit Attempt Error"/>
+  <int value="7" label="Failure: Sync Disabled"/>
+  <int value="8" label="Failure: Entry Removed"/>
+  <int value="9" label="Failure: Commit Timeout"/>
+  <int value="10" label="Failure: No Internet Connection"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/send_tab_to_self/send_tab_to_self_model.h:SendTabToSelfResult) -->
+
 <!-- LINT.IfChange(SendTabToSelfScrollPositionGenerationOutcome) -->
 
 <enum name="SendTabToSelfScrollPositionGenerationOutcome">
@@ -147,6 +164,21 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(/components/send_tab_to_self/metrics_util.h:ScrollPositionGenerationOutcome) -->
+
+<!-- LINT.IfChange(SendTabToSelfShareEntryPoint) -->
+
+<enum name="SendTabToSelfShareEntryPoint">
+  <int value="0" label="Content Menu"/>
+  <int value="1" label="Link Menu"/>
+  <int value="2" label="Omnibox Icon"/>
+  <int value="3" label="Omnibox Menu"/>
+  <int value="4" label="Share Menu"/>
+  <int value="5" label="Share Sheet"/>
+  <int value="6" label="Tab Menu"/>
+  <int value="7" label="Gesture"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/send_tab_to_self/metrics_util.h:SendTabToSelfShareEntryPoint) -->
 
 <enum name="ShareCustomAction">
   <int value="0" label="COPY"/>

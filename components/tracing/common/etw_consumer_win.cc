@@ -130,11 +130,6 @@ void EtwConsumer::WillClearIncrementalState() {
 void EtwConsumer::ResetEmittedState() {
   interned_callstacks_.ResetEmittedState();
   interned_frames_.ResetEmittedState();
-  FinalizePreviousData();
-  auto trace_packet = trace_writer_->NewTracePacket();
-  trace_packet->set_sequence_flags(
-      perfetto::protos::pbzero::TracePacket::SEQ_INCREMENTAL_STATE_CLEARED);
-  reset_emitted_state_.store(false, std::memory_order_relaxed);
 }
 
 // static
@@ -1239,12 +1234,17 @@ void EtwConsumer::FinalizePreviousData() {
 
 void EtwConsumer::StartNewPacket(uint64_t qpc_timestamp) {
   FinalizePreviousData();
+  auto sequence_flags = perfetto::protos::pbzero::
+      perfetto_pbzero_enum_TracePacket::SEQ_NEEDS_INCREMENTAL_STATE;
+  if (reset_emitted_state_.exchange(false, std::memory_order_relaxed)) {
+    ResetEmittedState();
+    sequence_flags =
+        perfetto::protos::pbzero::TracePacket::SEQ_INCREMENTAL_STATE_CLEARED;
+  }
   packet_handle_ = trace_writer_->NewTracePacket();
   packet_handle_->set_timestamp(GetTimestampNanoseconds(qpc_timestamp));
   // `StackWalk` events require incremental state.
-  packet_handle_->set_sequence_flags(
-      perfetto::protos::pbzero::perfetto_pbzero_enum_TracePacket::
-          SEQ_NEEDS_INCREMENTAL_STATE);
+  packet_handle_->set_sequence_flags(sequence_flags);
 }
 
 }  // namespace tracing

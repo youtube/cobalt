@@ -161,14 +161,6 @@ public interface ExternalNavigationDelegate {
     void returnAsActivityResult(GURL url);
 
     /**
-     * Records the scheme of the external navigation if this is likely a CCT launched for auth
-     * purposes.
-     *
-     * @param url The {@link GURL} of the external navigation.
-     */
-    void maybeRecordExternalNavigationSchemeHistogram(GURL url);
-
-    /**
      * Records metrics relevant to password saving in CCTs if the recorder exists. A recorder might
      * not exist if there was no form submission preceding the external navigation.
      */

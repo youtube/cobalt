@@ -28,14 +28,16 @@ interface TabDragService {
 
 // Interface representing a registered drop target. Dropping this connection
 // will unregister the target.
-interface DropTargetRegistration {};
+interface DropTargetRegistration {
+  // Pushes the current bounds of the drop target relative to the viewport.
+  // Called by the client on startup (after registration) and whenever bounds
+  // change.
+  OnBoundsChanged(gfx.mojom.Rect bounds);
+};
 
 // Interface implemented by the client UI to receive coordinated drag updates
 // globally.
 interface DropTarget {
-  // Retrieves the element's client bounds relative to the viewport bounds.
-  GetBounds() => result<gfx.mojom.Rect, mojo_base.mojom.Error>;
-
   // Called when the dragged nodes crosses boundaries and enters this target
   // bounds. Initiates the tracking sequence; clients will subsequently receive
   // `OnDrag` updates.

@@ -47,7 +47,6 @@
 
 #if BUILDFLAG(IS_WIN)
 #include "services/viz/privileged/mojom/gl/info_collection_gpu_service.mojom.h"
-#include "services/webnn/public/cpp/context_properties.h"
 #include "services/webnn/public/mojom/ep_package_info.mojom.h"
 #include "services/webnn/public/mojom/webnn_context_provider.mojom.h"
 #include "ui/gfx/mojom/dxgi_info.mojom.h"
@@ -61,6 +60,13 @@ namespace gpu {
 class GpuDiskCacheFactory;
 class GpuDiskCache;
 }  // namespace gpu
+
+#if BUILDFLAG(IS_WIN)
+namespace webnn {
+struct ContextProperties;
+struct EpDeviceInfo;
+}  // namespace webnn
+#endif
 
 namespace viz {
 
@@ -120,8 +126,7 @@ class VIZ_HOST_EXPORT GpuHostImpl : public mojom::GpuHost,
     virtual void RequestWebNNCompilerContext(
         webnn::mojom::CreateContextOptionsPtr context_options,
         const webnn::ContextProperties& context_properties,
-        base::flat_map<std::string, webnn::mojom::EpPackageInfoPtr>
-            ep_package_info,
+        const webnn::EpDeviceInfo& target_device,
         RequestWebNNCompilerContextCallback callback);
 #endif
 
@@ -311,8 +316,7 @@ class VIZ_HOST_EXPORT GpuHostImpl : public mojom::GpuHost,
   void RequestWebNNCompilerContext(
       webnn::mojom::CreateContextOptionsPtr context_options,
       const webnn::ContextProperties& context_properties,
-      base::flat_map<std::string, webnn::mojom::EpPackageInfoPtr>
-          ep_package_info,
+      const webnn::EpDeviceInfo& target_device,
       RequestWebNNCompilerContextCallback callback) override;
 #endif
   void CreateWebNNWeightsFile(CreateWebNNWeightsFileCallback cb) override;

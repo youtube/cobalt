@@ -166,6 +166,10 @@ template("generate_installer") {
 
     libs = [ "setupapi.lib" ]
 
+    if (!is_asan) {
+      ldflags = [ "/DEPENDENTLOADFLAG:0x800" ]
+    }
+
     deps = [
              ":$archive_name",
              ":${target_name}_version",

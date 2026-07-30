@@ -1909,6 +1909,10 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
       "autofillAiAvailableByDefault",
       base::FeatureList::IsEnabled(
           autofill::features::kAutofillAiAvailableByDefault));
+  html_source->AddBoolean(
+      "isAutofillAiWalletPassBranding2026Enabled",
+      base::FeatureList::IsEnabled(
+          autofill::features::kAutofillAiWalletPassBranding2026));
   html_source->AddBoolean("isWalletServerStorageEnabled",
                           IsWalletServerStorageEnabled());
   html_source->AddBoolean("AutofillAddOtherDatatypesPrefIsEnabled",

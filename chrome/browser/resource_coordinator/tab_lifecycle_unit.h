@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_RESOURCE_COORDINATOR_TAB_LIFECYCLE_UNIT_H_
 
 #include "base/byte_size.h"
+#include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "chrome/browser/resource_coordinator/lifecycle_unit_base.h"
@@ -200,6 +201,8 @@ class TabLifecycleUnitSource::TabLifecycleUnit
   // Flag to indicate we are currently reloading a previously discarded tab.
   // This ensures we don't log metrics for normal navigations.
   bool is_reloading_from_discard_ = false;
+
+  base::CallbackListSubscription recently_audible_subscription_;
 };
 
 }  // namespace resource_coordinator

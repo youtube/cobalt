@@ -188,11 +188,11 @@ class PaymentsDataManager : public AutofillWebDataServiceObserverOnUISequence,
       CreditCardBenefitBase::LinkedCardInstrumentId instrument_id,
       const url::Origin& merchant_origin) const;
 
-  // Returns an applicable benefit description string to display to the user
-  // based on the combination of `credit_card` and `origin`. However, if
+  // Returns an applicable `CreditCardBenefit` to display to the user based on
+  // the combination of `credit_card` and `origin`. However, if
   // `credit_card.IsCardEligibleForBenefits()` == false, the benefit description
   // will still be returned but not displayed to users.
-  std::u16string GetApplicableBenefitDescriptionForCardAndOrigin(
+  std::optional<CreditCardBenefit> GetApplicableBenefitForCardAndOrigin(
       const CreditCard& credit_card,
       const url::Origin& origin,
       const AutofillOptimizationGuideDecider* optimization_guide) const;

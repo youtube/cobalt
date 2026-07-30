@@ -9,7 +9,7 @@
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/threading/sequence_bound.h"
-#include "chrome/browser/actor/aggregated_journal_serializer.h"
+#include "components/actor/core/aggregated_journal_serializer.h"
 
 namespace actor {
 

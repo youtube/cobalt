@@ -705,8 +705,8 @@ void SQLitePersistentCookieStore::Backend::MaybeInitializeDatabaseEarly() {
 
 void SQLitePersistentCookieStore::Backend::InitializeDatabaseEarly() {
   DCHECK(background_task_runner()->RunsTasksInCurrentSequence());
-  InitializeDatabase();
-  base::UmaHistogramBoolean("Cookie.CreateDatabaseEarly", true);
+  const bool is_initialized = InitializeDatabase();
+  base::UmaHistogramBoolean("Cookie.CreateDatabaseEarly", is_initialized);
 }
 
 void SQLitePersistentCookieStore::Backend::Load(

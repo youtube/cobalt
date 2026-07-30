@@ -14,6 +14,5 @@ include_rules = [
   "+chrome/browser/ui/webui/ash/settings/pages/os_settings_section.h",
   "+chrome/browser/ui/webui/ash/settings/search",
   "+chrome/browser/ui/webui/settings",
-  "+chrome/common",
   "+chrome/grit",
 ]

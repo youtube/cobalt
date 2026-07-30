@@ -28,9 +28,10 @@
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
 #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/web_applications/isolated_web_apps/commands/isolated_web_app_install_command_helper.h"
 #include "chrome/browser/web_applications/isolated_web_apps/commands/isolated_web_app_prepare_and_store_update_command.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
+#include "chrome/browser/web_applications/isolated_web_apps/key_rotation_util.h"
+#include "chrome/browser/web_applications/isolated_web_apps/update/version_change_validator.h"
 #include "chrome/browser/web_applications/isolated_web_apps/update_manifest/update_manifest.h"
 #include "chrome/browser/web_applications/isolated_web_apps/update_manifest/update_manifest_fetcher.h"
 #include "chrome/browser/web_applications/web_app.h"
@@ -42,6 +43,7 @@
 #include "components/webapps/isolated_web_apps/download/bundle_downloader.h"
 #include "components/webapps/isolated_web_apps/types/source.h"
 #include "components/webapps/isolated_web_apps/types/update_channel.h"
+#include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "net/base/net_errors.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -248,7 +250,9 @@ void IsolatedWebAppUpdateCheckAndPrepareTask::Start(
 
   update_manifest_fetcher_ = std::make_unique<UpdateManifestFetcher>(
       task_params_.update_manifest_url(), kUpdateManifestFetchTrafficAnnotation,
-      url_loader_factory_, /*report_histogram_manifest_result=*/true);
+      url_loader_factory_,
+      profile_->GetDefaultStoragePartition()->GetNetworkContext(),
+      /*report_histogram_manifest_result=*/true);
   update_manifest_fetcher_->FetchUpdateManifest(base::BindOnce(
       &IsolatedWebAppUpdateCheckAndPrepareTask::OnUpdateManifestFetched,
       weak_factory_.GetWeakPtr()));
@@ -375,7 +379,9 @@ void IsolatedWebAppUpdateCheckAndPrepareTask::OnUpdateManifestFetched(
     return;
   }
 
-  bundle_downloader_ = IsolatedWebAppDownloader::Create(url_loader_factory_);
+  bundle_downloader_ = IsolatedWebAppDownloader::Create(
+      url_loader_factory_,
+      profile_->GetDefaultStoragePartition()->GetNetworkContext());
   if (!rotated_key) {
     CreateTempFile(std::move(*version_entry));
     return;

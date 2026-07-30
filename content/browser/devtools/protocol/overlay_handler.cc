@@ -9,7 +9,6 @@
 #include <utility>
 
 #include "components/input/render_widget_host_input_event_router.h"
-#include "content/browser/devtools/devtools_session.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 
 namespace content {
@@ -32,11 +31,6 @@ void OverlayHandler::SetRenderer(int process_host_id,
   UpdateCaptureInputEvents();
 }
 
-Response OverlayHandler::Enable() {
-  session()->browser_originating_session_state()->overlay_enabled = true;
-  return Response::FallThrough();
-}
-
 Response OverlayHandler::SetInspectMode(
     const String& in_mode,
     std::unique_ptr<protocol::Overlay::HighlightConfig> in_highlightConfig) {
@@ -47,17 +41,14 @@ Response OverlayHandler::SetInspectMode(
 
 Response OverlayHandler::SetPausedInDebuggerMessage(
     std::optional<String> message) {
-  session()->browser_originating_session_state()->paused_in_debugger_message =
-      message.value_or(std::string());
+  paused_message_ = message.value_or(std::string());
   UpdateCaptureInputEvents();
   return Response::FallThrough();
 }
 
 Response OverlayHandler::Disable() {
   inspect_mode_ = std::string();
-  session()->browser_originating_session_state()->overlay_enabled = false;
-  session()->browser_originating_session_state()->paused_in_debugger_message =
-      std::string();
+  paused_message_ = std::string();
   UpdateCaptureInputEvents();
   return Response::FallThrough();
 }
@@ -68,15 +59,9 @@ void OverlayHandler::UpdateCaptureInputEvents() {
   auto* web_contents = WebContentsImpl::FromRenderFrameHostImpl(host_);
   if (!web_contents)
     return;
-
-  const auto& paused_message = session()
-                                   ->browser_originating_session_state()
-                                   ->paused_in_debugger_message;
-  bool has_paused_message = !paused_message.empty();
-
   bool capture_input =
       inspect_mode_ == Overlay::InspectModeEnum::CaptureAreaScreenshot ||
-      has_paused_message;
+      !paused_message_.empty();
   if (!web_contents->GetInputEventRouter())
     return;
   web_contents->GetInputEventRouter()->set_route_to_root_for_devtools(

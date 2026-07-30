@@ -131,6 +131,8 @@ class DaemonProcessWin : public DaemonProcess {
       int terminal_id,
       const mojom::DesktopSessionOptions& options) override;
   void LaunchNetworkProcess() override;
+  std::unique_ptr<WorkerProcessLauncher::Delegate>
+  CreatePeerConnectionProcessLauncherDelegate(int terminal_id) override;
 
   bool OnInitAfterChannelConnected(int32_t peer_pid) override;
 
@@ -212,6 +214,26 @@ void DaemonProcessWin::LaunchNetworkProcess() {
       UnprivilegedProcessDelegate::IntegrityLevel::kLow);
 
   SetNetworkLauncherDelegate(std::move(delegate));
+}
+
+std::unique_ptr<WorkerProcessLauncher::Delegate>
+DaemonProcessWin::CreatePeerConnectionProcessLauncherDelegate(int terminal_id) {
+  DCHECK(caller_task_runner()->BelongsToCurrentThread());
+
+  base::FilePath host_binary;
+  if (!GetInstalledBinaryPath(kHostBinaryName, &host_binary)) {
+    LOG(ERROR) << "Failed to get installed binary path for PC process.";
+    return nullptr;
+  }
+
+  std::unique_ptr<base::CommandLine> target(new base::CommandLine(host_binary));
+  target->AppendSwitchASCII(kProcessTypeSwitchName, kProcessTypePeerConnection);
+  target->CopySwitchesFrom(*base::CommandLine::ForCurrentProcess(),
+                           kCopiedSwitchNames);
+
+  return std::make_unique<UnprivilegedProcessDelegate>(
+      io_task_runner(), std::move(target),
+      UnprivilegedProcessDelegate::IntegrityLevel::kUntrusted);
 }
 
 std::unique_ptr<DaemonProcess> DaemonProcess::Create(

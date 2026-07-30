@@ -1094,4 +1094,15 @@ void GeneratedCodeCache::CollectStatisticsForTest(
   CollectStatistics(resource_url, origin_lock, status);
 }
 
+void GeneratedCodeCache::ShutdownForTesting(base::OnceClosure callback) {
+  weak_ptr_factory_.InvalidateWeakPtrs();
+  while (!pending_ops_.empty()) {
+    pending_ops_.pop();
+  }
+  active_entries_map_.clear();
+  backend_.reset();
+  disk_cache::WaitForBackendCleanupForTesting(path_,  // IN-TEST
+                                              std::move(callback));
+}
+
 }  // namespace content

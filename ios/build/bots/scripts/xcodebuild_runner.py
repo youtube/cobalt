@@ -321,6 +321,12 @@ class SimulatorParallelTestRunner(test_runner.SimulatorTestRunner):
     else:
       LOGGER.info('No plugins are enabled, test plugin service will not start.')
 
+  @property
+  def xcode_platform_dir_name(self):
+    if self.platform_type == constants.IOSPlatformType.TVOS:
+      return 'AppleTVSimulator.platform'
+    return 'iPhoneSimulator.platform'
+
   def _create_xctest_run_enum_tests(self, include_disabled: bool) -> str:
     """Creates xctestrun file used for enumerating tests.
 
@@ -450,6 +456,7 @@ class SimulatorParallelTestRunner(test_runner.SimulatorTestRunner):
         self.app_path,
         self.all_eg_test_names,
         self.platform_type,
+        xcode_platform_dir_name=self.xcode_platform_dir_name,
         included_tests=self.test_cases,
         env_vars=self.env_vars,
         test_args=self.test_args,
@@ -623,6 +630,10 @@ class DeviceXcodeTestRunner(SimulatorParallelTestRunner,
     self.all_eg_test_names = []
     self.all_eg_test_names = self.fetch_test_names()
     self.resolve_eg_test_cases()
+
+  @property
+  def xcode_platform_dir_name(self):
+    return 'iPhoneOS.platform'
 
   def set_up(self):
     """Performs setup actions which must occur prior to every test launch."""

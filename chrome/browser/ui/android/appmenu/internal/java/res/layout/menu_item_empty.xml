@@ -20,5 +20,6 @@ found in the LICENSE file.
         android:minHeight="?attr/listItemHeight"
         android:duplicateParentState="true"
         android:paddingEnd="0dp"
+        android:textAppearance="@style/TextAppearance.TextMedium.Disabled"
         android:text="@string/menu_empty_submenu" />
 </LinearLayout>

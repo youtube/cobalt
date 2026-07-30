@@ -57,6 +57,9 @@ BASE_DECLARE_FEATURE(kEnableCancelUploadOnContentAnalysis);
 // applied if set.
 BASE_DECLARE_FEATURE(kEnableAuditOnlyNetworkRequestConnector);
 
+// Controls whether copy to clipboard is enabled for content analysis.
+BASE_DECLARE_FEATURE(kContentAnalysisClipboardCopy);
+
 }  // namespace enterprise_connectors
 
 #endif  // COMPONENTS_ENTERPRISE_CONNECTORS_CORE_FEATURES_H_

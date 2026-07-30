@@ -14,7 +14,6 @@
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/observer_list.h"
-#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/install_bounce_metric.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
@@ -22,12 +21,13 @@
 #include "chrome/browser/web_applications/web_app_logging.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
+#include "components/prefs/pref_service.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
 
 namespace web_app {
 
-WebAppInstallManager::WebAppInstallManager(Profile* profile)
-    : profile_(profile) {}
+WebAppInstallManager::WebAppInstallManager(PrefService* pref_service)
+    : pref_service_(pref_service) {}
 
 WebAppInstallManager::~WebAppInstallManager() {
   NotifyWebAppInstallManagerDestroyed();
@@ -99,7 +99,7 @@ void WebAppInstallManager::NotifyWebAppWillBeUninstalled(
   for (WebAppInstallManagerObserver& observer : observers_) {
     observer.OnWebAppWillBeUninstalled(app_id);
   }
-  RecordWebAppUninstallation(profile_->GetPrefs(), app_id);
+  RecordWebAppUninstallation(pref_service_, app_id);
 }
 
 void WebAppInstallManager::NotifyWebAppInstallManagerDestroyed() {

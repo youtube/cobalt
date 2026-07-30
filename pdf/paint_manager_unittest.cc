@@ -84,12 +84,20 @@ class PaintManagerTest : public testing::TestWithParam<bool> {
 
   void SetSizeAndInstall(const gfx::Size& new_size, float device_scale) {
     if (GetParam()) {
-      EXPECT_CALL(client_, InstallBuffer)
-          .WillOnce([this](SkImageInfo image_info, base::span<uint8_t> data) {
-            this->client_bitmap_.installPixels(image_info, data.data(),
-                                               image_info.minRowBytes());
-            return &client_bitmap_;
-          });
+      // This size check matches the one in PaintManager::SetSize(), in the
+      // `kPdfBufferedPaintManager` case, to replicate its behavior.
+      gfx::Size old_image_size =
+          gfx::SkISizeToSize(client_bitmap_.info().dimensions());
+      gfx::Size padded_new_size =
+          PaintManager::GetNewContextSize(old_image_size, new_size);
+      if (old_image_size != padded_new_size || client_bitmap_.empty()) {
+        EXPECT_CALL(client_, InstallBuffer)
+            .WillOnce([this](SkImageInfo image_info, base::span<uint8_t> data) {
+              this->client_bitmap_.installPixels(image_info, data.data(),
+                                                 image_info.minRowBytes());
+              return &client_bitmap_;
+            });
+      }
     }
     paint_manager_.SetSize(new_size, device_scale, kPremul_SkAlphaType);
   }

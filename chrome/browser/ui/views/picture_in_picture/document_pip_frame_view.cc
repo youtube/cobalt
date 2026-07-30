@@ -332,8 +332,9 @@ gfx::Rect DocumentPipFrameView::GetWindowBoundsForClientBounds(
 }
 
 int DocumentPipFrameView::NonClientHitTest(const gfx::Point& point) {
-  // Allow interacting with the origin chip (opens Page Info).
-  if (GetOriginChipBounds().Contains(point)) {
+  // Allow interacting with the security icon (opens Page Info). The origin
+  // label next to it is draggable to match browser-backed PiP behavior.
+  if (GetSecurityIconBounds().Contains(point)) {
     return HTCLIENT;
   }
 
@@ -477,9 +478,9 @@ gfx::Rect DocumentPipFrameView::ConvertControlBoundsToFrame(
   return gfx::ToEnclosingRect(bounds);
 }
 
-gfx::Rect DocumentPipFrameView::GetOriginChipBounds() const {
-  CHECK(origin_chip_);
-  return ConvertControlBoundsToFrame(origin_chip_);
+gfx::Rect DocumentPipFrameView::GetSecurityIconBounds() const {
+  CHECK(security_icon_);
+  return ConvertControlBoundsToFrame(security_icon_);
 }
 
 void DocumentPipFrameView::UpdateOriginAndSecurity() {

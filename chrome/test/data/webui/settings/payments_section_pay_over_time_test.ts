@@ -11,6 +11,7 @@ import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_as
 import {TestOpenWindowProxy} from 'chrome://webui-test/test_open_window_proxy.js';
 import type {SettingsPayOverTimeIssuerListEntryElement} from 'chrome://settings/lazy_load.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
+import {isVisible} from 'chrome://webui-test/test_util.js';
 
 import {createPayOverTimeIssuerEntry} from './autofill_fake_data.js';
 import {createPaymentsSection} from './payments_section_utils.js';
@@ -25,6 +26,7 @@ suite('PaymentsSectionPayOverTime', function() {
     loadTimeData.overrideValues({
       shouldShowPayOverTimeSettings: true,
       autofillEnableWalletBranding: true,
+      autofillEnableGradientGoogleLogos: false,
     });
     openWindowProxy = new TestOpenWindowProxy();
     OpenWindowProxyImpl.setInstance(openWindowProxy);
@@ -175,5 +177,55 @@ suite('PaymentsSectionPayOverTime', function() {
 
     assertTrue(!!payOverTimeItemSummaryLabel);
     assertEquals('hello', payOverTimeItemSummaryLabel.textContent.trim());
+  });
+
+  test('verifyGooglePayLogoWithGradient', async function() {
+    loadTimeData.overrideValues({
+      autofillEnableGradientGoogleLogos: true,
+    });
+    const payOverTimeIssuer = createPayOverTimeIssuerEntry();
+    const entry = await createPayOverTimeIssuerListEntry(payOverTimeIssuer);
+    const paymentsIcon = entry.shadowRoot!.querySelector('#paymentsIcon');
+    // #paymentsIcon is only present in Google Chrome branded builds.
+    if (paymentsIcon) {
+      const source = paymentsIcon.querySelector('source');
+      const img = paymentsIcon.querySelector('img');
+      assertTrue(!!source);
+      assertTrue(!!img);
+      assertTrue(source.srcset.includes(
+          'IDR_AUTOFILL_GOOGLE_PAY_WITH_GRADIENT_DARK_SMALL'));
+      assertTrue(img.srcset.includes(
+          'IDR_AUTOFILL_GOOGLE_PAY_WITH_GRADIENT_SMALL'));
+    } else {
+      const textIndicator =
+          entry.shadowRoot!.querySelector('#paymentsIndicator .sub-label');
+      assertTrue(!!textIndicator);
+      assertTrue(isVisible(textIndicator));
+    }
+  });
+
+  test('verifyGooglePayLogoWithoutGradient', async function() {
+    loadTimeData.overrideValues({
+      autofillEnableGradientGoogleLogos: false,
+    });
+    const payOverTimeIssuer = createPayOverTimeIssuerEntry();
+    const entry = await createPayOverTimeIssuerListEntry(payOverTimeIssuer);
+    const paymentsIcon = entry.shadowRoot!.querySelector('#paymentsIcon');
+    // #paymentsIcon is only present in Google Chrome branded builds.
+    if (paymentsIcon) {
+      const source = paymentsIcon.querySelector('source');
+      const img = paymentsIcon.querySelector('img');
+      assertTrue(!!source);
+      assertTrue(!!img);
+      assertTrue(source.srcset.includes(
+          'IDR_AUTOFILL_GOOGLE_PAY_DARK_SMALL'));
+      assertTrue(img.srcset.includes(
+          'IDR_AUTOFILL_GOOGLE_PAY_SMALL'));
+    } else {
+      const textIndicator =
+          entry.shadowRoot!.querySelector('#paymentsIndicator .sub-label');
+      assertTrue(!!textIndicator);
+      assertTrue(isVisible(textIndicator));
+    }
   });
 });

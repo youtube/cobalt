@@ -113,13 +113,17 @@ MergeUrlResourcesResult MergeUrlResources(
       if (!incoming_res.context_id.has_value()) {
         incoming_res.context_id = existing_res.context_id;
       }
+      incoming_res.has_chrome_tab_data =
+          incoming_res.has_chrome_tab_data || existing_res.has_chrome_tab_data;
 
       // Check if anything changed.
       if (incoming_res.url_id != existing_res.url_id ||
           incoming_res.url != existing_res.url ||
           incoming_res.tab_id != existing_res.tab_id ||
           incoming_res.title != existing_res.title ||
-          incoming_res.context_id != existing_res.context_id) {
+          incoming_res.context_id != existing_res.context_id ||
+          incoming_res.has_chrome_tab_data !=
+              existing_res.has_chrome_tab_data) {
         result.has_changes = true;
         result.added_or_updated_resources.push_back(incoming_res);
       }
@@ -480,6 +484,12 @@ ContextualTasksServiceImpl::GetContextualTaskForTab(SessionID tab_id) const {
       return task_it->second;
     }
   }
+  if (IsStickyConversationEnabled() && last_active_task_id_.has_value()) {
+    auto task_it = tasks_.find(*last_active_task_id_);
+    if (task_it != tasks_.end()) {
+      return task_it->second;
+    }
+  }
   return std::nullopt;
 }
 
@@ -492,6 +502,10 @@ std::vector<SessionID> ContextualTasksServiceImpl::GetTabsAssociatedWithTask(
     }
   }
   return associated_tabs;
+}
+
+void ContextualTasksServiceImpl::SetLastActiveTask(const base::Uuid& task_id) {
+  last_active_task_id_ = task_id;
 }
 
 void ContextualTasksServiceImpl::GetContextForTask(
@@ -794,6 +808,10 @@ void ContextualTasksServiceImpl::RemoveTaskInternal(const base::Uuid& task_id,
   const auto& task = task_it->second;
   for (const auto& tab_id : task.GetTabIds()) {
     tab_to_task_.erase(tab_id);
+  }
+
+  if (last_active_task_id_ == task_id) {
+    last_active_task_id_ = std::nullopt;
   }
 
   tasks_.erase(task_it);

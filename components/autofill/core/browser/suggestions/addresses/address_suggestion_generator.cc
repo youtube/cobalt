@@ -212,9 +212,7 @@ bool ShouldTransliterateMainTextToKatakana(
     const FormFieldData& trigger_field,
     const FieldType& trigger_field_type) {
   return IsAlternativeNameType(trigger_field_type) &&
-         data_util::HasKatakanaCharacter(trigger_field.label()) &&
-         base::FeatureList::IsEnabled(
-             features::kAutofillSupportPhoneticNameForJP);
+         data_util::HasKatakanaCharacter(trigger_field.label());
 }
 
 // In addition to just getting the values out of the profile, this function
@@ -643,9 +641,7 @@ std::vector<Suggestion> CreateSuggestionsFromProfiles(
     }
 
     if (profile.record_type() ==
-            AutofillProfile::RecordType::kAccountNameEmail &&
-        base::FeatureList::IsEnabled(
-            features::kAutofillEnableSupportForNameAndEmail)) {
+        AutofillProfile::RecordType::kAccountNameEmail) {
       suggestion.iph_metadata = Suggestion::IPHMetadata(
           &feature_engagement::kIPHAutofillAccountNameEmailSuggestionFeature);
     }
@@ -999,6 +995,13 @@ void AddressSuggestionGenerator::GenerateSuggestions(
     const AutofillField* trigger_autofill_field,
     AutofillClient& client,
     base::FunctionRef<void(ReturnedSuggestions)> callback) {
+  if (client.IsAutofillTypeBlockedByPolicy(
+          client.GetLastCommittedPrimaryMainFrameURL(),
+          AutofillClient::AutofillPolicyDataCategory::kContactInfo)) {
+    callback({SuggestionDataSource::kAddress, {}});
+    return;
+  }
+
   FieldTypeSet field_types = [&]() -> FieldTypeSet {
     if (!form_structure || !trigger_autofill_field) {
       return {};
@@ -1023,10 +1026,16 @@ void AddressSuggestionGenerator::GenerateSuggestions(
       if (const DenseSet<FieldFillingSkipReason>* field_skip_reasons =
               base::FindOrNull(skip_reasons,
                                form_structure->field(i)->global_id());
-          !field_skip_reasons || field_skip_reasons->empty()) {
-        field_types.insert(form_structure->field(i)->Type().GetAddressType());
+          field_skip_reasons && !field_skip_reasons->empty()) {
+        continue;
+      }
+      if (FieldType address_type =
+              form_structure->field(i)->Type().GetAddressType();
+          address_type != UNKNOWN_TYPE) {
+        field_types.insert(address_type);
       }
     }
+
     return field_types;
   }();
 

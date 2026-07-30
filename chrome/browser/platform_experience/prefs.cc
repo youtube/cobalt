@@ -16,15 +16,18 @@ void RegisterPrefs(PrefRegistrySimple& registry) {
   registry.RegisterBooleanPref(kShouldUsePEHNotificationTextIndexPrefName,
                                false);
   registry.RegisterIntegerPref(kPEHNotificationTextIndexPrefName, 0);
+  registry.RegisterTimePref(kPEHLastSyncTimePrefName, base::Time());
 }
 
 void SetPrefOverrides(PrefService& local_state) {
-  local_state.SetBoolean(
-      kDisablePEHNotificationsPrefName,
-      base::FeatureList::IsEnabled(features::kDisablePEHNotifications));
+  local_state.SetTime(kPEHLastSyncTimePrefName, base::Time::Now());
 
   if (base::FeatureList::IsEnabled(
           features::kLoadLowEngagementPEHFeaturesToPrefs)) {
+    local_state.SetBoolean(
+        kDisablePEHNotificationsPrefName,
+        base::FeatureList::IsEnabled(features::kDisablePEHNotifications));
+
     if (base::FeatureList::IsEnabled(
             features::kShouldUseSpecificPEHNotificationText)) {
       local_state.SetBoolean(kShouldUsePEHNotificationTextIndexPrefName, true);

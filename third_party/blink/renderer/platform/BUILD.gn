@@ -132,11 +132,13 @@ blink_python_runner("color_data") {
 
 compiled_action("character_data") {
   tool = ":character_data_generator"
+  inputs = [ "$root_build_dir/icudtl.dat" ]
   outputs = [
     "$blink_platform_output_dir/character_property_data.cc",
     "$blink_platform_output_dir/text/break_iterator_data_inline_header.h",
   ]
   args = rebase_path(outputs, root_build_dir)
+  deps = [ "//third_party/icu:copy_icudata($default_toolchain)" ]
 }
 
 executable("character_data_generator") {
@@ -190,9 +192,9 @@ rust_static_library("font_format_check") {
   sources = [ crate_root ]
   cxx_bindings = [ crate_root ]
   deps = [
-    "//third_party/rust/font_types/v0_11:lib",
-    "//third_party/rust/read_fonts/v0_39:lib",
-    "//third_party/rust/skrifa/v0_42:lib",
+    "//third_party/rust/font_types/v0_12:lib",
+    "//third_party/rust/read_fonts/v0_40:lib",
+    "//third_party/rust/skrifa/v0_43:lib",
   ]
 }
 
@@ -2658,6 +2660,9 @@ group("blink_platform_unittests_data") {
     "//third_party/blink/web_tests/external/wpt/fonts/",
     "//third_party/blink/web_tests/external/wpt/css/css-fonts/resources",
     "//third_party/blink/web_tests/third_party/",
+
+    # Required by FontFormatCheckTest.EbdtEblc.
+    "//third_party/blink/web_tests/resources/EbdtMono/",
   ]
 
   if (enable_jxl_decoder) {

@@ -273,7 +273,7 @@ class GpuPersistentCacheAsyncTest : public GpuPersistentCacheTest {
     auto pending_backend = backend_storage_->MakePendingBackend(
         base::FilePath(FILE_PATH_LITERAL("test")),
         /*single_connection=*/true, /*journal_mode_wal=*/true);
-    if (!pending_backend) {
+    if (!pending_backend.has_value()) {
       ADD_FAILURE() << "Failed to make pending backend for test cache";
       return nullptr;
     }

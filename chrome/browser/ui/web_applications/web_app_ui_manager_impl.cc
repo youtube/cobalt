@@ -23,6 +23,7 @@
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
 #include "base/one_shot_event.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/types/pass_key.h"
 #include "build/build_config.h"
@@ -41,6 +42,7 @@
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/profiles/profile_error_dialog.h"
+#include "chrome/browser/ui/unload_controller.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/web_apps/web_app_blocked_migration_infobar_delegate.h"
@@ -55,7 +57,9 @@
 #include "chrome/browser/ui/web_applications/web_app_run_on_os_login_notification.h"
 #include "chrome/browser/user_education/user_education_service.h"
 #include "chrome/browser/user_education/user_education_service_factory.h"
+#include "chrome/browser/web_applications/link_capturing_features.h"
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
+#include "chrome/browser/web_applications/web_app_icon_generator.h"
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
 #include "chrome/browser/web_applications/web_app_pref_guardrails.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
@@ -175,18 +179,6 @@ void ShowNonclosableAppToast(const web_app::WebAppRegistrar& registrar,
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-bool IsNavigationCapturingIphEnabled() {
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS)
-  return base::FeatureList::IsEnabled(features::kPwaNavigationCapturing) &&
-         (features::kNavigationCapturingDefaultState.Get() ==
-              features::CapturingState::kReimplDefaultOn ||
-          features::kNavigationCapturingDefaultState.Get() ==
-              features::CapturingState::kReimplOnViaClientMode);
-#else
-  return false;
-#endif
-}
 
 }  // namespace
 
@@ -270,6 +262,11 @@ void WebAppUiManagerImpl::CloseAppWindows(const webapps::AppId& app_id) {
         const auto* const app_controller =
             AppBrowserController::From(browser_window_interface);
         if (app_controller && app_controller->app_id() == app_id) {
+          UnloadController* const unload_controller =
+              UnloadController::From(browser_window_interface);
+          if (unload_controller) {
+            unload_controller->set_force_skip_warning_user_on_close(true);
+          }
           browser_window_interface->GetWindow()->Close();
         }
         return true;
@@ -674,7 +671,7 @@ void WebAppUiManagerImpl::MaybeShowIPHPromoForAppsLaunchedViaLinkCapturing(
     Browser* browser,
     Profile* profile,
     const std::string& app_id) {
-  if (!IsNavigationCapturingIphEnabled()) {
+  if (!apps::features::IsNavigationCapturingOnByDefault()) {
     return;
   }
 
@@ -826,6 +823,33 @@ void WebAppUiManagerImpl::OnIconsReadForUninstall(
     return;
   }
 
+  // If icon reading returned an empty map because of disk I/O operations
+  // failing from the WebAppIconManager side, fallback to generating monogram
+  // icons.
+  if (icon_metadata.icons_map.empty()) {
+    WebAppProvider* provider = WebAppProvider::GetForWebApps(profile_);
+    CHECK(provider);
+    WebAppRegistrar& registrar = provider->registrar_unsafe();
+
+    // If the app was unregistered asynchronously during icon reading, we cannot
+    // construct fallback icons or display the dialog. Cancel uninstallation.
+    if (!registrar.GetInstallState(app_id)) {
+      OnUninstallCancelled(std::move(complete_callback),
+                           std::move(uninstall_scheduled_callback));
+      return;
+    }
+
+    std::string name_to_use_for_icon = registrar.GetAppShortName(app_id);
+    if (name_to_use_for_icon.empty()) {
+      name_to_use_for_icon = registrar.GetAppStartUrl(app_id).spec();
+    }
+
+    for (const auto& [size, bitmap] :
+         GenerateIcons(base::UTF8ToUTF16(name_to_use_for_icon))) {
+      icon_metadata.icons_map[size] = bitmap;
+    }
+  }
+
   ShowWebAppUninstallDialog(
       profile_, app_id, uninstall_source, parent_window,
       std::move(icon_metadata),
@@ -945,8 +969,13 @@ void WebAppUiManagerImpl::ShowIPHPromoForAppsLaunchedViaLinkCapturing(
   // window.
   if (&feature ==
       &feature_engagement::kIPHDesktopPWAsLinkCapturingLaunchAppInTab) {
-    WebAppTabHelper* const tab_helper = WebAppTabHelper::FromWebContents(
-        browser->tab_strip_model()->GetActiveWebContents());
+    content::WebContents* const active_contents =
+        browser->tab_strip_model()->GetActiveWebContents();
+    if (!active_contents) {
+      return;
+    }
+    WebAppTabHelper* const tab_helper =
+        WebAppTabHelper::FromWebContents(active_contents);
     CHECK(tab_helper);
     tab_helper->SetCallbackToRunOnTabChanges(base::BindOnce(
         &WebAppUiManagerImpl::OnTabChangedDuringIph,
@@ -1039,7 +1068,7 @@ void WebAppUiManagerImpl::NotifyDidFinishNavigation(
 
   // Enqueue launch params once the navigation has committed and the navigation
   // was successful.
-  if (navigation_handle->HasCommitted() && !navigation_handle->IsErrorPage()) {
+  if (navigation_handle->HasCommitted()) {
     user_data->MaybePerformAppHandlingTasksInWebContents();
   }
 }

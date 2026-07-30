@@ -112,6 +112,27 @@ function launchWithoutWaitForResponseWithMethods(methodData) {
 }
 
 /**
+ * Launches the payment handler and registers a .complete('success') handler
+ * asynchronously on the promise resolved by show(). Returns 'success'
+ * synchronously.
+ * @param {string} methodNameOverride - Optional payment method identifier.
+ * @return {string} - 'success' or error message on failure.
+ */
+function launchAndComplete(methodNameOverride) {
+  const method =
+      (methodNameOverride !== undefined) ? methodNameOverride : methodName;
+  try {
+    request = new PaymentRequest([{supportedMethods: method}], {
+      total: {label: 'Total', amount: {currency: 'USD', value: '0.01'}},
+    });
+    request.show().then(r => r.complete('success'));
+    return 'success';
+  } catch (e) {
+    return e.toString();
+  }
+}
+
+/**
  * Aborts the on-going payment request.
  * @return {Promise<string>} - 'success' or error message on failure.
  */

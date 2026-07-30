@@ -68,8 +68,7 @@ void SharingBrowserTest::SetUpOnMainThread() {
 }
 
 void SharingBrowserTest::Init(
-    syncer::DeviceInfo::SharingFeature first_device_feature,
-    syncer::DeviceInfo::SharingFeature second_device_feature) {
+    syncer::DeviceInfo::SharingFeature device_feature) {
   ASSERT_TRUE(SetupSync());
 
   GURL url = embedded_test_server()->GetURL("mock.http", GetTestPageURL());
@@ -86,7 +85,7 @@ void SharingBrowserTest::Init(
   sharing_channel_sender->SetSharingMessageBridgeForTesting(
       &fake_sharing_message_bridge_);
 
-  SetUpDevices(first_device_feature, second_device_feature);
+  SetUpDevices(device_feature, device_feature);
 }
 
 void SharingBrowserTest::SetUpDevices(

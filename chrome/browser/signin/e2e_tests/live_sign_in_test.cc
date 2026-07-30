@@ -1049,6 +1049,22 @@ IN_PROC_BROWSER_TEST_F(DeviceBoundSessionsLiveSignInTest,
   // Verify that a new bound session is created.
   EXPECT_THAT(GetAllSessions(),
               HasBoundSession("sidts_session", GURL("https://google.com")));
+
+  // Delete the bound __Secure-1PSIDRTS cookie.
+  DeleteCookie("__Secure-1PSIDRTS", "google.com");
+
+  std::string cookies_after_delete = GetCookies(GURL("https://google.com"));
+  EXPECT_THAT(cookies_after_delete, Not(HasSubstr("__Secure-1PSIDRTS")));
+
+  // Navigate to google.com to trigger cookie refresh.
+  ASSERT_TRUE(
+      ui_test_utils::NavigateToURL(browser(), GURL("https://google.com")));
+
+  // Wait for the bound session to be refreshed.
+  observer().WaitForRefresh();
+
+  std::string cookies_after_refresh = GetCookies(GURL("https://google.com"));
+  EXPECT_THAT(cookies_after_refresh, HasSubstr("__Secure-1PSIDRTS"));
 }
 
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)

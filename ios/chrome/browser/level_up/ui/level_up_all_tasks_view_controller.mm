@@ -143,6 +143,11 @@ NSString* const kCategoriesSectionIdentifier = @"CategoriesSection";
   // Do nothing.
 }
 
+- (void)taskCollectionViewCell:(LevelUpTaskCollectionViewCell*)cell
+                    didTapTask:(LevelUpTask*)task {
+  [self.delegate levelUpAllTasksViewController:self didTapTask:task];
+}
+
 - (void)taskCollectionViewDidTapCompletedHeader:(UICollectionViewCell*)cell {
   LevelUpTaskCollectionViewCell* taskCell =
       (LevelUpTaskCollectionViewCell*)cell;

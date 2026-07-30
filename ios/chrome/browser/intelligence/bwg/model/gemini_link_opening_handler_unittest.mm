@@ -70,31 +70,13 @@ class GeminiLinkOpeningHandlerTest : public PlatformTest {
 TEST_F(GeminiLinkOpeningHandlerTest, TestOpenURLInNewTabWithCopresence) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeatures(
-      /*enabled_features=*/{kGeminiCopresence, kPageActionMenu},
+      /*enabled_features=*/{kPageActionMenu},
       /*disabled_features=*/{});
 
   [link_opening_handler_ openURLInNewTab:@(kTestURL)];
 
   // Verify the URL was passed to the loader.
   EXPECT_EQ(kTestURL, url_loader_->last_params.web_params.url.spec());
-}
-
-// Tests that when Copresence is disabled, openURLInNewTab uses the Scene
-// Command openURLInNewTab to load the correct URL.
-TEST_F(GeminiLinkOpeningHandlerTest, TestOpenURLInNewTabWithoutCopresence) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndDisableFeature(kGeminiCopresence);
-
-  // Expect that openURLInNewTab is called with the correct URL.
-  OCMExpect([mock_scene_commands_handler_
-      closePresentedViewsAndOpenURL:[OCMArg checkWithBlock:^BOOL(
-                                                OpenNewTabCommand* command) {
-        return command.URL.spec() == kTestURL;
-      }]]);
-
-  [link_opening_handler_ openURLInNewTab:@(kTestURL)];
-
-  [mock_scene_commands_handler_ verify];
 }
 
 // Tests that closePresentedViewsAndOpenURLInNewTab calls the Scene Command

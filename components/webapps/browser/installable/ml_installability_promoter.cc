@@ -483,7 +483,8 @@ void MLInstallabilityPromoter::DidUpdateWebManifestURL(
 
 void MLInstallabilityPromoter::DidUpdateFaviconURL(
     content::RenderFrameHost* render_frame_host,
-    const std::vector<blink::mojom::FaviconURLPtr>& candidates) {
+    const std::vector<blink::mojom::FaviconURLPtr>& candidates,
+    blink::mojom::FaviconUpdateReason reason) {
   if (state_ != MLPipelineState::kRunningMetricTasks) {
     return;
   }

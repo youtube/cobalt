@@ -11,6 +11,8 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/scoped_command_line.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/uuid.h"
 #include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
@@ -24,8 +26,10 @@
 #include "components/payments/content/test_content_payment_request_delegate.h"
 #include "components/payments/content/test_payment_app.h"
 #include "components/payments/core/const_csp_checker.h"
+#include "components/payments/core/features.h"
 #include "components/payments/core/journey_logger.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/content_switches.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_browser_context.h"
 #include "content/public/test/test_web_contents_factory.h"
@@ -554,6 +558,83 @@ TEST_F(PaymentRequestStateTest, UserInteractionInWebPaymentApp) {
   state()->set_user_interaction_in_web_payment_app(true);
 
   EXPECT_TRUE(state()->user_interaction_in_web_payment_app());
+}
+
+TEST_F(PaymentRequestStateTest,
+       UserInteractionInWebPaymentAppBypassedByEnableAutomation) {
+  RecreateStateWithOptions(mojom::PaymentOptions::New());
+
+  base::test::ScopedCommandLine scoped_command_line;
+  scoped_command_line.GetProcessCommandLine()->AppendSwitch(
+      switches::kEnableAutomation);
+
+  EXPECT_TRUE(state()->user_interaction_in_web_payment_app());
+}
+
+TEST_F(PaymentRequestStateTest,
+       UserInteractionInWebPaymentAppBypassedByWebDriverTestType) {
+  RecreateStateWithOptions(mojom::PaymentOptions::New());
+
+  base::test::ScopedCommandLine scoped_command_line;
+  scoped_command_line.GetProcessCommandLine()->AppendSwitchASCII(
+      switches::kTestType, "webdriver");
+
+  EXPECT_TRUE(state()->user_interaction_in_web_payment_app());
+}
+
+TEST_F(PaymentRequestStateTest,
+       UserInteractionInWebPaymentAppNotBypassedByOtherTestType) {
+  RecreateStateWithOptions(mojom::PaymentOptions::New());
+
+  base::test::ScopedCommandLine scoped_command_line;
+  scoped_command_line.GetProcessCommandLine()->AppendSwitchASCII(
+      switches::kTestType, "browser");
+
+  EXPECT_FALSE(state()->user_interaction_in_web_payment_app());
+}
+
+class PaymentRequestStateMandatoryUiEnabledTest
+    : public PaymentRequestStateTest {
+ protected:
+  PaymentRequestStateMandatoryUiEnabledTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        features::kPaymentRequestMandatoryPaymentAppUi);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(PaymentRequestStateMandatoryUiEnabledTest,
+       SetUserInteractionResumesStashedPaymentResponse) {
+  RecreateStateWithOptions(mojom::PaymentOptions::New());
+  state()->GeneratePaymentResponse();
+  EXPECT_TRUE(response().is_null());
+
+  state()->set_user_interaction_in_web_payment_app(true);
+
+  EXPECT_FALSE(response().is_null());
+}
+
+class PaymentRequestStateMandatoryUiDisabledTest
+    : public PaymentRequestStateTest {
+ protected:
+  PaymentRequestStateMandatoryUiDisabledTest() {
+    scoped_feature_list_.InitAndDisableFeature(
+        features::kPaymentRequestMandatoryPaymentAppUi);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(PaymentRequestStateMandatoryUiDisabledTest,
+       GeneratePaymentResponseImmediately) {
+  RecreateStateWithOptions(mojom::PaymentOptions::New());
+
+  state()->GeneratePaymentResponse();
+
+  EXPECT_FALSE(response().is_null());
 }
 
 }  // namespace

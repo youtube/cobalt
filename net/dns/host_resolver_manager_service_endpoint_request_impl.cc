@@ -316,7 +316,8 @@ int HostResolverManager::ServiceEndpointRequestImpl::DoCheckIPv6Reachability() {
   // HostResolverManager::RequestImpl::DoIPv6Reachability().
   if (parameters_.source == HostResolverSource::LOCAL_ONLY) {
     int rv = manager_->StartIPv6ReachabilityCheck(
-        net_log_, GetClientSocketFactory(), base::DoNothingAs<void(int)>());
+        target_network_, net_log_, GetClientSocketFactory(),
+        base::DoNothingAs<void(int)>());
     if (rv == ERR_IO_PENDING) {
       next_state_ = State::kNone;
       finalized_result_ = FinalizedResult(/*endpoints=*/{}, /*dns_aliases=*/{});
@@ -326,7 +327,7 @@ int HostResolverManager::ServiceEndpointRequestImpl::DoCheckIPv6Reachability() {
     return OK;
   }
   return manager_->StartIPv6ReachabilityCheck(
-      net_log_, GetClientSocketFactory(),
+      target_network_, net_log_, GetClientSocketFactory(),
       base::BindOnce(&ServiceEndpointRequestImpl::OnIOComplete,
                      weak_ptr_factory_.GetWeakPtr()));
 }

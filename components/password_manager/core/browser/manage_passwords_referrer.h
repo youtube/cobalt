@@ -121,7 +121,7 @@ enum class ManagePasswordsReferrer {
   // clicking on the omnibox icon while the password change is running).
   kPasswordChangeInfoBubble = 29,
 
-  // Corresponds to the Autofill and passwords settings page on Android.
+  // Corresponds to the Autofill and passwords settings page on mobile.
   kChromeSettingsAutofillAndPasswords = 30,
 
   // NOTE: When adding a new value to this enum that applies or could apply to

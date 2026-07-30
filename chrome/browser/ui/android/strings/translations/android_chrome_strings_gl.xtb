@@ -117,6 +117,7 @@ Se queres ver máis opcións de configuración que usen datos para mellorar a t�
 <translation id="1435593198351412143">Abrir PDF automaticamente</translation>
 <translation id="1437543266176261764">Executándose en <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">Organiza os produtos dos que fagas un seguimento en Marcadores</translation>
+<translation id="1452651021404174820">Escolle un dispositivo</translation>
 <translation id="1455845192930279203">Queres descargar o ficheiro "<ph name="FILE_NAME" />" (<ph name="FILE_SIZE" />) de <ph name="DOWNLOAD_DOMAIN" /> de todos os modos?</translation>
 <translation id="1460751212339734034">Aforra tempo, escribe menos</translation>
 <translation id="146522654774760805">Contrasinais e autocompletado</translation>
@@ -124,6 +125,7 @@ Se queres ver máis opcións de configuración que usen datos para mellorar a t�
 <translation id="1477626028522505441">Produciuse un erro ao descargar <ph name="FILE_NAME" /> debido a problemas co servidor.</translation>
 <translation id="147982357559798527">Cambiada</translation>
 <translation id="1480287803138246127">É posible que parte do teu historial non se mostre aquí. Para velo todo, abre o historial completo de Chrome.</translation>
+<translation id="1483493594462132177">Enviar</translation>
 <translation id="1495677929897281669">Volver á pestana</translation>
 <translation id="1496514951988037011">nome de usuario</translation>
 <translation id="1501480321619201731">Eliminar grupo</translation>
@@ -1273,6 +1275,7 @@ Por exemplo, algúns sitios web poden responder a esta solicitude mostrándoche 
 <translation id="634208815998129842">Xestor de tarefas</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 e <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> máis}other{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 e <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> máis}}</translation>
 <translation id="6345878117466430440">Marcar como lido</translation>
+<translation id="6350745006329795504">Xestionar os teus dispositivos</translation>
 <translation id="6356893102071098867">Comproba se seleccionaches a conta correcta</translation>
 <translation id="6364438453358674297">Queres eliminar a suxestión do historial?</translation>
 <translation id="6380100320871303656">Adoita precargar aquelas páxinas que Chrome considera que é probable que visites. Esta opción de configuración pode provocar un maior consumo de datos.</translation>

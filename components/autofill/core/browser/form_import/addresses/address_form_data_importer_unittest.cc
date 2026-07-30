@@ -35,6 +35,7 @@
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 namespace autofill {
 namespace {
@@ -1674,6 +1675,27 @@ TEST_F(AddressFormDataImporterTest,
       test_api(form_data_importer().GetAddressFormDataImporter())
           .GetObservedFieldValues(section_fields),
       ElementsAre(Pair(Eq(ADDRESS_HOME_COUNTRY), Eq(u"United States"))));
+}
+
+// Tests that no address profile is extracted or imported when contact info
+// Autofill is blocked by enterprise policy.
+TEST_F(AddressFormDataImporterTest,
+       EnterprisePolicyBlocksAddressProfileExtraction) {
+  std::unique_ptr<FormStructure> form_structure =
+      ConstructDefaultProfileFormStructure();
+  autofill_client().set_last_committed_primary_main_frame_url(
+      GURL("https://example.com"));
+  autofill_client().SetAutofillTypeBlockedByPolicy(
+      AutofillClient::AutofillPolicyDataCategory::kContactInfo,
+      /*blocked=*/true);
+
+  std::vector<AddressFormDataImporter::ExtractedAddressProfile>
+      extracted_profiles;
+  size_t num_extracted =
+      test_api(GetAddressFormDataImporter())
+          .ExtractAddressProfiles(*form_structure, &extracted_profiles);
+  EXPECT_EQ(0u, num_extracted);
+  EXPECT_TRUE(extracted_profiles.empty());
 }
 
 }  // namespace

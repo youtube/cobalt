@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dictation Test Extension Options</title>
+</head>
+<body>
+  <h1>Dictation Test Extension Options</h1>
+  <div>
+    <label for="cannedResponse">Canned response to use as the transcript (leave blank to use microphone):</label>
+  </div>
+  <textarea id="cannedResponse" name="cannedResponse" rows="6" cols="80"></textarea>
+
+  <p>If set, the canned response is sent as partial transcriptions, advanced word by word, followed by a final transcription.</p>
+
+  <div>
+  <label for="wordDelay">Canned response word delay (ms):</label>
+  </div>
+  <input type="number" id="wordDelay" name="wordDelay" min="0" />
+
+  <div>
+  <label for="finalDelay">Canned response final delay (ms):</label>
+  </div>
+  <input type="number" id="finalDelay" name="finalDelay" min="0" />
+
+  <script src="options.js"></script>
+</body>
+</html>
+

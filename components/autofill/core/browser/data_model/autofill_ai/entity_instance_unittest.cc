@@ -49,6 +49,14 @@ class AutofillEntityInstanceTest : public base::test::WithFeatureOverride,
             features::kAutofillAiWalletPrivatePasses) {}
 };
 
+class AutofillEntityInstanceAmbientAutofillTest
+    : public base::test::WithFeatureOverride,
+      public testing::Test {
+ public:
+  AutofillEntityInstanceAmbientAutofillTest()
+      : base::test::WithFeatureOverride(features::kAutofillAmbientAutofill) {}
+};
+
 TEST_P(AutofillEntityInstanceTest, MaskedAttribute) {
   AttributeInstance attribute((AttributeType(kPassportNumber)));
   EXPECT_FALSE(attribute.masked());
@@ -780,7 +788,64 @@ TEST_P(AutofillEntityInstanceTest, ObfuscatedAttributesAreImportConstraints) {
   }
 }
 
+// Tests that MatchesMergeConstraintsOf correctly identifies matches based on
+// the entity type's merge constraints (e.g., ticket number or confirmation
+// code for flight reservations), including cases where some fields are missing.
+TEST_P(AutofillEntityInstanceTest, MatchesMergeConstraintsOf) {
+  EntityInstance flight1 = test::GetFlightReservationEntityInstance(
+      {.ticket_number = u"123-ABC", .confirmation_code = u"Conf-Code"});
+
+  // flight2 matches via ticket number.
+  EntityInstance flight2 = test::GetFlightReservationEntityInstance(
+      {.ticket_number = u"123-ABC", .confirmation_code = nullptr});
+  EXPECT_TRUE(flight1.MatchesMergeConstraintsOf(flight2));
+  EXPECT_TRUE(flight2.MatchesMergeConstraintsOf(flight1));
+
+  // flight3 matches via confirmation code.
+  EntityInstance flight3 = test::GetFlightReservationEntityInstance(
+      {.ticket_number = nullptr, .confirmation_code = u"Conf-Code"});
+  EXPECT_TRUE(flight1.MatchesMergeConstraintsOf(flight3));
+  EXPECT_TRUE(flight3.MatchesMergeConstraintsOf(flight1));
+
+  // flight4 does not match because it has a different ticket number and
+  // confirmation code.
+  EntityInstance flight4 = test::GetFlightReservationEntityInstance(
+      {.ticket_number = u"999-XYZ", .confirmation_code = u"Other-Conf-Code"});
+  EXPECT_FALSE(flight1.MatchesMergeConstraintsOf(flight4));
+  EXPECT_FALSE(flight4.MatchesMergeConstraintsOf(flight1));
+
+  // flight5 does not match flight3 because flight5 has no confirmation code,
+  // and flight3 has no ticket number, so no overlapping constraint is present
+  // on both.
+  EntityInstance flight5 = test::GetFlightReservationEntityInstance(
+      {.ticket_number = u"123-ABC", .confirmation_code = nullptr});
+  EXPECT_FALSE(flight3.MatchesMergeConstraintsOf(flight5));
+  EXPECT_FALSE(flight5.MatchesMergeConstraintsOf(flight3));
+}
+
+// Tests MatchesMergeConstraintsOf when one entity is masked and the other is
+// not.
+TEST_P(AutofillEntityInstanceAmbientAutofillTest,
+       MatchesMergeConstraintsOf_MixedMasking) {
+  EntityInstance passport_masked =
+      test::MaskEntityInstance(test::GetPassportEntityInstanceWithRandomGuid(
+          {.number = u"1234567890",
+           .record_type = EntityInstance::RecordType::kPersonalContext}));
+  EntityInstance passport_unmasked =
+      test::GetPassportEntityInstanceWithRandomGuid(
+          {.number = u"1234567890",
+           .record_type = EntityInstance::RecordType::kLocal});
+  const bool expected_match = GetParam();
+
+  EXPECT_EQ(passport_masked.MatchesMergeConstraintsOf(passport_unmasked),
+            expected_match);
+  EXPECT_EQ(passport_unmasked.MatchesMergeConstraintsOf(passport_masked),
+            expected_match);
+}
+
 INSTANTIATE_FEATURE_OVERRIDE_TEST_SUITE(AutofillEntityInstanceTest);
+INSTANTIATE_FEATURE_OVERRIDE_TEST_SUITE(
+    AutofillEntityInstanceAmbientAutofillTest);
 
 }  // namespace
 }  // namespace autofill

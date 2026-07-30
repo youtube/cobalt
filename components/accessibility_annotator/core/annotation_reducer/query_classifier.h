@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "base/functional/callback.h"
-#include "components/accessibility_annotator/core/annotation_reducer/entry_type.h"
+#include "components/accessibility_annotator/core/annotation_reducer/memory_data_type.h"
 #include "components/optimization_guide/optimization_guide_buildflags.h"
 
 namespace optimization_guide {
@@ -22,7 +22,7 @@ namespace accessibility_annotator {
 // The result of a query classification, containing the identified intent and
 // any required words extracted from the query.
 struct ClassifiedQuery {
-  explicit ClassifiedQuery(EntryType intent,
+  explicit ClassifiedQuery(MemoryDataType intent,
                            std::vector<std::u16string> filter_words = {});
   ClassifiedQuery(const ClassifiedQuery&);
   ClassifiedQuery& operator=(const ClassifiedQuery&);
@@ -32,7 +32,7 @@ struct ClassifiedQuery {
 
   bool operator==(const ClassifiedQuery& other) const = default;
 
-  EntryType intent = EntryType::kUnknown;
+  MemoryDataType intent = MemoryDataType::kUnknown;
 
   // Words extracted from the query that are used to filter the search results.
   // For example, in the query "home address in San Diego", "san" and "diego"

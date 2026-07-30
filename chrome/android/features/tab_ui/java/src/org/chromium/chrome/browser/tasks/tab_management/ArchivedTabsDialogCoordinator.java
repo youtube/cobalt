@@ -17,6 +17,7 @@ import android.content.Context;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
+import android.text.style.UnderlineSpan;
 import android.util.Size;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -993,13 +994,12 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
                         iphCardSubtitleRes, archiveTimeDeltaDays, autoDeleteTitle, settingsTitle);
 
         SpannableString ss = new SpannableString(description);
+        int start = description.indexOf(settingsTitle);
+        int end = start + settingsTitle.length();
         ForegroundColorSpan fcs =
                 new ForegroundColorSpan(SemanticColorUtils.getDefaultTextColorAccent1(context));
-        ss.setSpan(
-                fcs,
-                description.indexOf(settingsTitle),
-                description.indexOf(settingsTitle) + settingsTitle.length(),
-                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        ss.setSpan(fcs, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        ss.setSpan(new UnderlineSpan(), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         return ss;
     }
 

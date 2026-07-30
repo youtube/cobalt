@@ -4,19 +4,37 @@
 
 #include "chrome/browser/device_api/device_attribute_api.h"
 
+#include "base/test/gmock_expected_support.h"
 #include "base/test/gtest_tags.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/ash/policy/core/device_policy_cros_browser_test.h"
 #include "chromeos/ash/components/system/fake_statistics_provider.h"
 #include "content/public/test/browser_test.h"
+#include "testing/gmock/include/gmock/gmock.h"
 
 namespace {
+
+using ::base::test::ValueIs;
+using ::testing::Eq;
+using ::testing::Field;
+using ::testing::Optional;
+using ::testing::Pointee;
 
 constexpr char kAnnotatedAssetId[] = "annotated_asset_id";
 constexpr char kAnnotatedLocation[] = "annotated_location";
 constexpr char kDirectoryApiId[] = "directory_api_id";
 constexpr char kHostname[] = "hostname";
 constexpr char kSerialNumber[] = "serial_number";
+
+auto DeviceAttributeIs(const std::string& expected_value) {
+  return ValueIs(Pointee(Field(&blink::mojom::DeviceAttributeValue::value,
+                               Optional(expected_value))));
+}
+
+auto DeviceAttributeIsNullopt() {
+  return ValueIs(Pointee(
+      Field(&blink::mojom::DeviceAttributeValue::value, Eq(std::nullopt))));
+}
 
 }  // namespace
 
@@ -40,22 +58,24 @@ class DeviceAttributeAPIUnsetTest : public policy::DevicePolicyCrosBrowserTest {
 };
 
 IN_PROC_BROWSER_TEST_F(DeviceAttributeAPIUnsetTest, AllAttributes) {
-  base::test::TestFuture<blink::mojom::DeviceAttributeResultPtr> future;
+  base::test::TestFuture<
+      base::expected<blink::mojom::DeviceAttributeValuePtr, std::string>>
+      future;
 
   device_attributes_api().GetDirectoryId(future.GetCallback());
-  EXPECT_FALSE(future.Take()->get_attribute().has_value());
+  EXPECT_THAT(future.Take(), DeviceAttributeIsNullopt());
 
   device_attributes_api().GetAnnotatedAssetId(future.GetCallback());
-  EXPECT_FALSE(future.Take()->get_attribute().has_value());
+  EXPECT_THAT(future.Take(), DeviceAttributeIsNullopt());
 
   device_attributes_api().GetAnnotatedLocation(future.GetCallback());
-  EXPECT_FALSE(future.Take()->get_attribute().has_value());
+  EXPECT_THAT(future.Take(), DeviceAttributeIsNullopt());
 
   device_attributes_api().GetSerialNumber(future.GetCallback());
-  EXPECT_FALSE(future.Take()->get_attribute().has_value());
+  EXPECT_THAT(future.Take(), DeviceAttributeIsNullopt());
 
   device_attributes_api().GetHostname(future.GetCallback());
-  EXPECT_FALSE(future.Take()->get_attribute().has_value());
+  EXPECT_THAT(future.Take(), DeviceAttributeIsNullopt());
 }
 
 // This test class provides regular device policy values and statistic data used
@@ -92,20 +112,22 @@ IN_PROC_BROWSER_TEST_F(DeviceAttributeAPITest, AllAttributes) {
   base::AddFeatureIdTagToTestResult(
       "screenplay-163d36ff-e640-48e1-a451-03e14c9e8874");
 
-  base::test::TestFuture<blink::mojom::DeviceAttributeResultPtr> future;
+  base::test::TestFuture<
+      base::expected<blink::mojom::DeviceAttributeValuePtr, std::string>>
+      future;
 
   device_attributes_api().GetDirectoryId(future.GetCallback());
-  EXPECT_EQ(future.Take()->get_attribute(), kDirectoryApiId);
+  EXPECT_THAT(future.Take(), DeviceAttributeIs(kDirectoryApiId));
 
   device_attributes_api().GetAnnotatedAssetId(future.GetCallback());
-  EXPECT_EQ(future.Take()->get_attribute(), kAnnotatedAssetId);
+  EXPECT_THAT(future.Take(), DeviceAttributeIs(kAnnotatedAssetId));
 
   device_attributes_api().GetAnnotatedLocation(future.GetCallback());
-  EXPECT_EQ(future.Take()->get_attribute(), kAnnotatedLocation);
+  EXPECT_THAT(future.Take(), DeviceAttributeIs(kAnnotatedLocation));
 
   device_attributes_api().GetHostname(future.GetCallback());
-  EXPECT_EQ(future.Take()->get_attribute(), kHostname);
+  EXPECT_THAT(future.Take(), DeviceAttributeIs(kHostname));
 
   device_attributes_api().GetSerialNumber(future.GetCallback());
-  EXPECT_EQ(future.Take()->get_attribute(), kSerialNumber);
+  EXPECT_THAT(future.Take(), DeviceAttributeIs(kSerialNumber));
 }

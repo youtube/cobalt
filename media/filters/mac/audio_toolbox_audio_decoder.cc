@@ -399,7 +399,7 @@ bool AudioToolboxAudioDecoder::CreateDecoder(const AudioDecoderConfig& config) {
   // Next, convert back this layout to an audio channel layout with the same
   // channel order description. This let decoder output correct orders.
   auto ordered_layout = ChannelLayoutToAudioChannelLayout(
-      channel_layout, input_format.mChannelsPerFrame);
+      ChannelLayoutConfig(channel_layout, input_format.mChannelsPerFrame));
   if (!ordered_layout) {
     MEDIA_LOG(ERROR, media_log_) << "Failed to create audio channel layout.";
     return false;

@@ -72,6 +72,7 @@
 #include "mojo/public/cpp/base/proto_wrapper.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
+#include "net/base/url_util.h"
 #include "net/http/http_response_headers.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
@@ -399,7 +400,12 @@ class ClientSideDetectionHost::ShouldClassifyUrlRequest {
 
     if (base::FeatureList::IsEnabled(
             kClientSideDetectionLocalResourceCheckFix)) {
-      if (url_.SchemeIsFile()) {
+      // safe_browsing::CanGetReputationOfUrl() is another option to be
+      // comprehensive, but since IsPrivateIPAddress and SchemeIsHTTPOrHTTPS
+      // are checked below, using net::IsLocalhost() is sufficient.
+      // TODO: Consider safe_browsing::CanGetReputationOfUrl() in the future to
+      // have a consolidated preclassification check result.
+      if (url_.SchemeIsFile() || net::IsLocalhost(url_)) {
         DontClassifyForPhishing(
             PreClassificationCheckResult::NO_CLASSIFY_LOCAL_RESOURCE);
       }
@@ -759,8 +765,7 @@ class ClientSideDetectionHost::ShouldClassifyUrlRequest {
                ClientSideDetectionType::TRIGGER_MODELS &&
            host_ && host_->delegate_->GetPrefs() &&
            IsEnhancedProtectionEnabled(*host_->delegate_->GetPrefs()) &&
-           base::RandDouble() <= kProbabilityForSendingSampleRequest &&
-           base::FeatureList::IsEnabled(kClientSideDetectionSamplePing);
+           base::RandDouble() <= kProbabilityForSendingSampleRequest;
   }
 
   bool ShouldAcceptHCAllowlist() {
@@ -2013,9 +2018,11 @@ void ClientSideDetectionHost::MaybeStartIntelligentScanForScamDetection(
     std::optional<bool> did_match_high_confidence_allowlist,
     bool is_invalid_ip) {
   // Use the address of the verdict object as the unique track_id.
-  TRACE_EVENT_BEGIN(/*category=*/"safe_browsing",
-                    /*name=*/"IntelligentScanScamDetection",
-                    perfetto::Track::FromPointer(verdict.get()));
+  TRACE_EVENT_BEGIN(
+      /*category=*/"safe_browsing",
+      /*name=*/"IntelligentScanScamDetection",
+      perfetto::NamedTrack::FromPointer("safe_browsing::ClientPhishingRequest",
+                                        verdict.get()));
 
   if (verdict->client_side_detection_type() ==
       ClientSideDetectionType::FORCE_REQUEST) {
@@ -2185,7 +2192,9 @@ void ClientSideDetectionHost::MaybeGetAccessToken(
     bool is_invalid_ip,
     bool is_intelligent_scan_invoked) {
   TRACE_EVENT_END(
-      /*category=*/"safe_browsing", perfetto::Track::FromPointer(verdict.get()),
+      /*category=*/"safe_browsing",
+      perfetto::NamedTrack::FromPointer("safe_browsing::ClientPhishingRequest",
+                                        verdict.get()),
       /*arg=*/"inquired_intelligent_scan",
       /*value=*/is_intelligent_scan_invoked);
   if (CanGetAccessToken()) {

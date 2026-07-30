@@ -115,6 +115,7 @@
 #include "sandbox/policy/win/sandbox_win.h"
 #include "sandbox/win/src/sandbox_policy.h"
 #include "sandbox/win/src/window.h"
+#include "services/webnn/public/cpp/ep_device_info.h"
 #include "ui/gfx/win/rendering_window_manager.h"
 #endif
 
@@ -696,7 +697,7 @@ void GpuProcessHost::TerminateGpuProcess(const std::string& message) {
 void GpuProcessHost::RequestWebNNCompilerContext(
     webnn::mojom::CreateContextOptionsPtr context_options,
     const webnn::ContextProperties& context_properties,
-    base::flat_map<std::string, webnn::mojom::EpPackageInfoPtr> ep_package_info,
+    const webnn::EpDeviceInfo& target_device,
     RequestWebNNCompilerContextCallback callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
@@ -710,8 +711,8 @@ void GpuProcessHost::RequestWebNNCompilerContext(
   }
 
   webnn_compiler_process_host_->RequestCompilerContext(
-      std::move(context_options), context_properties,
-      std::move(ep_package_info), std::move(callback));
+      std::move(context_options), context_properties, target_device,
+      std::move(callback));
 }
 #endif  // BUILDFLAG(IS_WIN)
 

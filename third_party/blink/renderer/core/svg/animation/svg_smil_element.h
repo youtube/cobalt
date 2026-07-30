@@ -26,6 +26,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_SVG_ANIMATION_SVG_SMIL_ELEMENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_SVG_ANIMATION_SVG_SMIL_ELEMENT_H_
 
+#include "base/containers/span.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/svg/animation/smil_repeat_count.h"
 #include "third_party/blink/renderer/core/svg/animation/smil_time.h"
@@ -57,9 +58,9 @@ class CORE_EXPORT SMILInstanceTimeList {
   wtf_size_t size() const { return instance_times_.size(); }
   bool IsEmpty() const { return instance_times_.empty(); }
 
-  using const_iterator = typename Vector<SMILTimeWithOrigin>::const_iterator;
-  const_iterator begin() const { return instance_times_.begin(); }
-  const_iterator end() const { return instance_times_.end(); }
+  base::span<const SMILTimeWithOrigin> AsSpan() const {
+    return base::span<const SMILTimeWithOrigin>(instance_times_);
+  }
 
  private:
   void RemoveTimeOriginIfNotFound(SMILTimeOrigin origin);

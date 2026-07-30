@@ -129,13 +129,6 @@ BASE_DECLARE_FEATURE(kRemoveExcessNTPs);
 // Feature flag / Kill Switch for TCRex.
 BASE_DECLARE_FEATURE(kTCRexKillSwitch);
 
-// When enabled uses new transitions in the TabGrid.
-BASE_DECLARE_FEATURE(kTabGridNewTransitions);
-
-
-// Whether the new tab grid tabs transitions should be enabled.
-bool IsNewTabGridTransitionsEnabled();
-
 // When enabled, an overflow menu will replace the edit menu on the GTS.
 BASE_DECLARE_FEATURE(kTabSwitcherOverflowMenu);
 
@@ -364,24 +357,9 @@ bool IsLiquidGlassEffectEnabled();
 // Feature flag to enable the default input accessory view.
 BASE_DECLARE_FEATURE(kIOSKeyboardAccessoryDefaultView);
 
-// Feature flag to enable the two-bubble design for the Keyboard Accessory view.
-BASE_DECLARE_FEATURE(kIOSKeyboardAccessoryTwoBubble);
-
 // Returns true if the default input accessory view is enabled.
 bool IsIOSKeyboardAccessoryDefaultViewEnabled();
 
-// Returns true if the two-bubble design for the keyboard accessory view is
-// enabled.
-bool IsIOSKeyboardAccessoryTwoBubbleEnabled();
-
-// Name of the parameter for kIOSKeyboardAccessoryTwoBubble to use a keyboard
-// icon.
-inline constexpr char kIOSKeyboardAccessoryTwoBubbleKeyboardIconParamName[] =
-    "use_keyboard_icon";
-
-// Feature param for kIOSKeyboardAccessoryTwoBubble to use a keyboard icon.
-BASE_DECLARE_FEATURE_PARAM(bool,
-                           kIOSKeyboardAccessoryTwoBubbleKeyboardIconParam);
 
 // Kill switch for disabling the navigations when the application is in
 // foreground inactive state after opening an external app.
@@ -1066,5 +1044,18 @@ BASE_DECLARE_FEATURE(kIdentityAwareness);
 
 // Returns true if the IdentityAwareness feature is enabled.
 bool IsIdentityAwarenessEnabled();
+
+// Display a ring around the avatar if the user has a AI Tier
+BASE_DECLARE_FEATURE(kAiAvatarRingIos);
+
+// Returns true if the AiAvatarRing feature is enabled.
+bool IsAiAvatarRingIosEnabled();
+
+// Feature flag to enable the Infobar Banner Revamp (UI Refactor of the
+// Infobar/Banner Component).
+BASE_DECLARE_FEATURE(kInfobarBannerRevamp);
+
+// Returns true if the InfobarBannerRevamp feature is enabled.
+bool IsInfobarBannerRevampEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

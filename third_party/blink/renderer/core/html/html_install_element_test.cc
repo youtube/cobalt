@@ -95,6 +95,11 @@ class MockWebInstallService : public mojom::blink::WebInstallService {
     called_.SetValue();
   }
 
+  void InstallFromManifest(mojom::blink::ManifestInstallOptionsPtr options,
+                           InstallFromManifestCallback callback) override {
+    NOTIMPLEMENTED();
+  }
+
   // Test helpers:
   void WaitForCall() { EXPECT_TRUE(called_.Wait()); }
 

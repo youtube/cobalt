@@ -237,96 +237,43 @@ void XRWebGLCubemapSwapChain::OnFrameEnd() {
   CHECK_EQ(wrapped_swapchain_->descriptor().width, descriptor().width);
   CHECK_EQ(wrapped_swapchain_->descriptor().height, descriptor().height);
 
-  // Read the old state.
-  std::array<GLint, 4> curr_viewport = {0, 0, 0, 0};
-  gl->GetIntegerv(GL_VIEWPORT, curr_viewport.data());
+  {
+    ScopedXRWebGLStateRestorer restorer(context(), GL_TEXTURE_CUBE_MAP);
 
-  const bool depth_test_enabled = gl->IsEnabled(GL_DEPTH_TEST);
-  const bool stencil_test_enabled = gl->IsEnabled(GL_STENCIL_TEST);
-  const bool culling_enabled = gl->IsEnabled(GL_CULL_FACE);
-  const bool blend_enabled = gl->IsEnabled(GL_BLEND);
-  const bool dither_enabled = gl->IsEnabled(GL_DITHER);
+    gl->ActiveTexture(GL_TEXTURE0);
+    gl->BindTexture(GL_TEXTURE_CUBE_MAP,
+                    source_texture->Object());  // Source cubemap
 
-  gl->Disable(GL_DEPTH_TEST);
-  gl->Disable(GL_STENCIL_TEST);
-  gl->Disable(GL_CULL_FACE);
-  gl->Disable(GL_BLEND);
-  gl->Disable(GL_DITHER);
-  gl->Disable(GL_SCISSOR_TEST);
+    gl->UseProgram(copy_program_);
+    gl->Uniform1i(texture_uniform_, 0);
 
-  if (webgl2()) {
-    gl->Disable(GL_RASTERIZER_DISCARD);
+    gl->BindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer_);
+    gl->BindBuffer(GL_ARRAY_BUFFER, vertex_buffer_);
+
+    // Set up position attribute.
+    gl->VertexAttribPointer(position_handle_, 2, GL_FLOAT, false, 0, nullptr);
+    gl->EnableVertexAttribArray(position_handle_);
+
+    gl->BindFramebuffer(GL_FRAMEBUFFER, GetFramebuffer()->Object());
+    gl->FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                             GL_TEXTURE_2D, target_texture->Object(), 0);
+
+    const GLenum draw_buffers[] = {GL_COLOR_ATTACHMENT0};
+    gl->DrawBuffersEXT(1, draw_buffers);
+
+    // 6 faces are placed as 3 tiles per row.
+    for (int i = 0; i < 6; ++i) {
+      gl->Viewport(descriptor().width * (i % 3), descriptor().height * (i / 3),
+                   descriptor().width, descriptor().height);
+      gl->Uniform1f(face_index_uniform_, i);
+      gl->DrawElements(GL_TRIANGLES, std::size(kQuadIndices), GL_UNSIGNED_SHORT,
+                       nullptr);
+    }
+
+    gl->DisableVertexAttribArray(position_handle_);
+    gl->BindBuffer(GL_ARRAY_BUFFER, 0);
+    gl->BindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   }
-
-  gl->ColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-  gl->DepthMask(GL_FALSE);
-
-  gl->ActiveTexture(GL_TEXTURE0);
-  gl->BindTexture(GL_TEXTURE_CUBE_MAP,
-                  source_texture->Object());  // Source cubemap
-
-  gl->UseProgram(copy_program_);
-  gl->Uniform1i(texture_uniform_, 0);
-
-  gl->BindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer_);
-  gl->BindBuffer(GL_ARRAY_BUFFER, vertex_buffer_);
-
-  // Set up position attribute.
-  gl->VertexAttribPointer(position_handle_, 2, GL_FLOAT, false, 0, nullptr);
-  gl->EnableVertexAttribArray(position_handle_);
-
-  gl->BindFramebuffer(GL_FRAMEBUFFER, GetFramebuffer()->Object());
-  gl->FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-                           target_texture->Object(), 0);
-
-  const GLenum draw_buffers[] = {GL_COLOR_ATTACHMENT0};
-  gl->DrawBuffersEXT(1, draw_buffers);
-
-  // 6 faces are placed as 3 tiles per row.
-  for (int i = 0; i < 6; ++i) {
-    gl->Viewport(descriptor().width * (i % 3), descriptor().height * (i / 3),
-                 descriptor().width, descriptor().height);
-    gl->Uniform1f(face_index_uniform_, i);
-    gl->DrawElements(GL_TRIANGLES, std::size(kQuadIndices), GL_UNSIGNED_SHORT,
-                     nullptr);
-  }
-
-  gl->DisableVertexAttribArray(position_handle_);
-  gl->BindBuffer(GL_ARRAY_BUFFER, 0);
-  gl->BindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-  // Restore the saved old state
-  gl->Viewport(curr_viewport[0], curr_viewport[1], curr_viewport[2],
-               curr_viewport[3]);
-  if (depth_test_enabled) {
-    gl->Enable(GL_DEPTH_TEST);
-  }
-  if (stencil_test_enabled) {
-    gl->Enable(GL_STENCIL_TEST);
-  }
-  if (culling_enabled) {
-    gl->Enable(GL_CULL_FACE);
-  }
-  if (blend_enabled) {
-    gl->Enable(GL_BLEND);
-  }
-  if (dither_enabled) {
-    gl->Enable(GL_DITHER);
-  }
-
-  // WebGLRenderingContextBase inherits from DrawingBuffer::Client, but makes
-  // all the methods private. Downcasting allows us to access them.
-  DrawingBuffer::Client* client =
-      static_cast<DrawingBuffer::Client*>(context());
-  client->DrawingBufferClientRestoreTextureCubeMapBinding();
-  client->DrawingBufferClientRestoreScissorTest();
-  client->DrawingBufferClientRestoreRasterizerDiscard();
-  client->DrawingBufferClientRestoreMaskAndClearValues();
-  client->DrawingBufferClientRestoreFramebufferBinding();
-
-  context()->RestoreVertexArrayObjectBinding();
-  context()->RestoreProgram();
-  context()->RestoreActiveTexture();
 
   wrapped_swapchain_->OnFrameEnd();
 

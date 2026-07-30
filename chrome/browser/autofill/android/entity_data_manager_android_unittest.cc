@@ -53,8 +53,9 @@ class EntityDataManagerAndroidTest : public testing::Test {
     entity_data_manager_ = std::make_unique<EntityDataManager>(
         &prefs_, identity_test_env_.identity_manager(), &sync_service_,
         webdata_helper_.autofill_webdata_service(),
-        /*history_service=*/nullptr, /*strike_database=*/nullptr,
-        GeoIpCountryCode("US"));
+        /*history_service=*/nullptr,
+        /*pcontext_manager=*/nullptr,
+        /*strike_database=*/nullptr, GeoIpCountryCode("US"));
 
     entity_data_manager_android_ = new EntityDataManagerAndroid(
         base::android::AttachCurrentThread(),

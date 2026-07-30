@@ -39,6 +39,7 @@
 #include "chrome/credential_provider/gaiacp/logging.h"
 #include "chrome/credential_provider/gaiacp/reg_utils.h"
 #include "chrome/credential_provider/gaiacp/win_http_url_fetcher.h"
+#include "url/gurl.h"
 
 namespace credential_provider {
 
@@ -51,7 +52,7 @@ namespace {
 // retrying would not be needed, but this notification does not exist.
 const int kWaitForProfileCreationRetryCount = 30;
 
-constexpr int kProfilePictureSizes[] = {32, 40, 48, 96, 192, 240, 448};
+constexpr size_t kProfilePictureSizes[] = {32, 40, 48, 96, 192, 240, 448};
 
 std::string GetEncryptedRefreshToken(
     base::win::ScopedHandle::Handle logon_handle,
@@ -109,7 +110,7 @@ HRESULT GetUserAccountPicturePath(const std::wstring& sid,
 
 base::FilePath GetUserSizedAccountPictureFilePath(
     const base::FilePath& account_picture_path,
-    int size,
+    size_t size,
     const std::wstring& picture_extension) {
   return account_picture_path.Append(
       base::StrCat({L"GoogleAccountPicture_", base::NumberToWString(size),
@@ -263,128 +264,6 @@ HRESULT CreateDirectoryWithRestrictedAccess(const base::FilePath& path) {
   }
 
   return hr;
-}
-
-HRESULT UpdateProfilePictures(const std::wstring& sid,
-                              const std::wstring& picture_url,
-                              bool force_update) {
-  DCHECK(!sid.empty());
-  DCHECK(!picture_url.empty());
-
-  // Try to download profile pictures of all required sizes for windows.
-  // Needed profile picture sizes are in |kProfilePictureSizes|.
-  // The way Windows8+ stores profile pictures is the following:
-  // In |reg_utils.cc:kAccountPicturesRootRegKey| there is a registry key
-  // for each resolution of profile picture needed. The keys are names
-  // "Image[x]" where [x] is the resolution of the picture.
-  // Each key points to a profile picture of the correct resolution on disk.
-  // Generally the profile pictures are stored under:
-  // FOLDERID_PublicUserTiles\\{user sid}
-
-  std::wstring picture_url_path =
-      base::UTF8ToWide(GURL(base::AsStringPiece16(picture_url)).GetPath());
-  if (picture_url_path.size() <= 1) {
-    LOGFN(ERROR) << "Invalid picture url=" << picture_url;
-    return E_FAIL;
-  }
-
-  base::FilePath account_picture_path;
-  HRESULT hr = GetUserAccountPicturePath(sid, &account_picture_path);
-  if (FAILED(hr)) {
-    LOGFN(ERROR) << "Failed to get account picture known folder=" << putHR(hr);
-    return E_FAIL;
-  }
-
-  if (!base::PathExists(account_picture_path)) {
-    hr = CreateDirectoryWithRestrictedAccess(account_picture_path);
-    if (FAILED(hr)) {
-      LOGFN(ERROR) << "Failed to create profile picture directory="
-                   << account_picture_path << " hr=" << putHR(hr);
-      return hr;
-    }
-  }
-
-  std::wstring base_picture_extension = kDefaultProfilePictureFileExtension;
-
-  size_t last_period = picture_url_path.find_last_of('.');
-  if (last_period != std::string::npos)
-    base_picture_extension = picture_url_path.substr(last_period);
-
-  for (auto image_size : kProfilePictureSizes) {
-    base::FilePath target_picture_path = GetUserSizedAccountPictureFilePath(
-        account_picture_path, image_size, base_picture_extension);
-    bool needs_to_save_original =
-        force_update || !base::PathExists(target_picture_path);
-
-    // Skip if the file already exists and an update is not forced.
-    if (!needs_to_save_original) {
-      // Update the reg string for the image if it is not up to date.
-      wchar_t old_picture_path[MAX_PATH];
-      ULONG path_size = std::size(old_picture_path);
-      hr = GetAccountPictureRegString(sid, image_size, old_picture_path,
-                                      &path_size);
-      if (FAILED(hr) || target_picture_path.value() != old_picture_path) {
-        hr = SetAccountPictureRegString(sid, image_size,
-                                        target_picture_path.value());
-        if (FAILED(hr))
-          LOGFN(ERROR) << "SetAccountPictureRegString(pic) hr=" << putHR(hr);
-      }
-      continue;
-    }
-
-    std::size_t found = base::WideToUTF8(picture_url).rfind("=s");
-    std::string current_picture_url;
-    if (found != std::string::npos)
-      current_picture_url = base::WideToUTF8(picture_url).substr(0, found) +
-                            base::StringPrintf("=s%i", image_size);
-    else
-      // Fallback to default picture url if parsing fails.
-      current_picture_url = base::WideToUTF8(picture_url) +
-                            base::StringPrintf("=s%i", image_size);
-
-    auto fetcher = WinHttpUrlFetcher::Create(GURL(current_picture_url));
-    if (!fetcher) {
-      LOGFN(ERROR) << "Failed to create fetcher for=" << current_picture_url;
-      continue;
-    }
-
-    std::vector<char> response;
-    hr = fetcher->Fetch(&response);
-    if (FAILED(hr)) {
-      LOGFN(ERROR) << "fetcher.Fetch hr=" << putHR(hr);
-      continue;
-    }
-
-    if (needs_to_save_original) {
-      SaveProcessedProfilePictureToDisk(
-          target_picture_path, response,
-          base::BindOnce(
-              [](const std::wstring& sid, int image_size,
-                 const base::FilePath& picture_path,
-                 const std::vector<char>& picture_buffer) {
-                HRESULT hr = S_OK;
-                if (!base::WriteFile(picture_path,
-                                     std::string_view(picture_buffer.data(),
-                                                      picture_buffer.size()))) {
-                  LOGFN(ERROR) << "Failed to write profile picture to file="
-                               << picture_path;
-                  hr = HRESULT_FROM_WIN32(::GetLastError());
-                } else {
-                  // Finally update the registry to point to this profile
-                  // picture.
-                  HRESULT reg_hr = SetAccountPictureRegString(
-                      sid, image_size, picture_path.value());
-                  if (FAILED(reg_hr))
-                    LOGFN(ERROR) << "SetAccountPictureRegString(pic) hr="
-                                 << putHR(reg_hr);
-                }
-                return hr;
-              },
-              sid, image_size));
-    }
-  }
-
-  return S_OK;
 }
 
 }  // namespace
@@ -610,6 +489,154 @@ HRESULT ScopedUserProfile::SaveAccountInfo(const base::DictValue& properties) {
     }
   }
   return S_OK;
+}
+
+HRESULT ScopedUserProfile::UpdateProfilePictures(
+    const std::wstring& sid,
+    const std::wstring& picture_url,
+    bool force_update) {
+  DCHECK(!sid.empty());
+  DCHECK(!picture_url.empty());
+
+  // Try to download profile pictures of all required sizes for windows.
+  // Needed profile picture sizes are in |kProfilePictureSizes|.
+  // The way Windows8+ stores profile pictures is the following:
+  // In |reg_utils.cc:kAccountPicturesRootRegKey| there is a registry key
+  // for each resolution of profile picture needed. The keys are names
+  // "Image[x]" where [x] is the resolution of the picture.
+  // Each key points to a profile picture of the correct resolution on disk.
+  // Generally the profile pictures are stored under:
+  // FOLDERID_PublicUserTiles\\{user sid}
+
+  if (!ScopedUserProfile::IsValidPictureUrl(picture_url)) {
+    LOGFN(ERROR) << "Invalid picture url=" << picture_url;
+    return E_FAIL;
+  }
+
+  GURL gurl(base::AsStringPiece16(picture_url));
+  std::wstring picture_url_path = base::UTF8ToWide(gurl.GetPath());
+
+  base::FilePath account_picture_path;
+  HRESULT hr = GetUserAccountPicturePath(sid, &account_picture_path);
+  if (FAILED(hr)) {
+    LOGFN(ERROR) << "Failed to get account picture known folder=" << putHR(hr);
+    return E_FAIL;
+  }
+
+  if (!base::PathExists(account_picture_path)) {
+    hr = CreateDirectoryWithRestrictedAccess(account_picture_path);
+    if (FAILED(hr)) {
+      LOGFN(ERROR) << "Failed to create profile picture directory="
+                   << account_picture_path << " hr=" << putHR(hr);
+      return hr;
+    }
+  }
+
+  std::wstring base_picture_extension = kDefaultProfilePictureFileExtension;
+
+  size_t last_period = picture_url_path.find_last_of('.');
+  if (last_period != std::string::npos) {
+    base_picture_extension = picture_url_path.substr(last_period);
+  }
+
+  for (auto image_size : kProfilePictureSizes) {
+    base::FilePath target_picture_path = GetUserSizedAccountPictureFilePath(
+        account_picture_path, image_size, base_picture_extension);
+    bool needs_to_save_original =
+        force_update || !base::PathExists(target_picture_path);
+
+    // Skip if the file already exists and an update is not forced.
+    if (!needs_to_save_original) {
+      // Update the reg string for the image if it is not up to date.
+      wchar_t old_picture_path[MAX_PATH];
+      ULONG path_size = std::size(old_picture_path);
+      hr = GetAccountPictureRegString(sid, image_size, old_picture_path,
+                                      &path_size);
+      if (FAILED(hr) || target_picture_path.value() != old_picture_path) {
+        hr = SetAccountPictureRegString(sid, image_size,
+                                        target_picture_path.value());
+        if (FAILED(hr)) {
+          LOGFN(ERROR) << "SetAccountPictureRegString(pic) hr=" << putHR(hr);
+        }
+      }
+      continue;
+    }
+
+    std::string current_picture_url =
+        ScopedUserProfile::BuildProfilePictureUrl(gurl, image_size);
+    if (current_picture_url.empty()) {
+      continue;
+    }
+
+    auto fetcher = WinHttpUrlFetcher::Create(GURL(current_picture_url));
+    if (!fetcher) {
+      LOGFN(ERROR) << "Failed to create fetcher for=" << current_picture_url;
+      continue;
+    }
+
+    std::vector<char> response;
+    hr = fetcher->Fetch(&response);
+    if (FAILED(hr)) {
+      LOGFN(ERROR) << "fetcher.Fetch hr=" << putHR(hr);
+      continue;
+    }
+
+    if (needs_to_save_original) {
+      SaveProcessedProfilePictureToDisk(
+          target_picture_path, response,
+          base::BindOnce(
+              [](const std::wstring& sid, size_t image_size,
+                 const base::FilePath& picture_path,
+                 const std::vector<char>& picture_buffer) {
+                HRESULT hr = S_OK;
+                if (!base::WriteFile(picture_path,
+                                     std::string_view(picture_buffer.data(),
+                                                      picture_buffer.size()))) {
+                  LOGFN(ERROR) << "Failed to write profile picture to file="
+                               << picture_path;
+                  hr = HRESULT_FROM_WIN32(::GetLastError());
+                } else {
+                  // Finally update the registry to point to this profile
+                  // picture.
+                  HRESULT reg_hr = SetAccountPictureRegString(
+                      sid, image_size, picture_path.value());
+                  if (FAILED(reg_hr)) {
+                    LOGFN(ERROR) << "SetAccountPictureRegString(pic) hr="
+                                 << putHR(reg_hr);
+                  }
+                }
+                return hr;
+              },
+              sid, image_size));
+    }
+  }
+
+  return S_OK;
+}
+
+// static
+bool ScopedUserProfile::IsValidPictureUrl(const std::wstring& picture_url) {
+  GURL gurl(base::AsStringPiece16(picture_url));
+  if (!gurl.is_valid() || !gurl.DomainIs("googleusercontent.com")) {
+    return false;
+  }
+  return gurl.GetPath().size() > 1;
+}
+
+// static
+std::string ScopedUserProfile::BuildProfilePictureUrl(const GURL& url,
+                                                      size_t size) {
+  if (!url.is_valid()) {
+    return std::string();
+  }
+
+  std::string url_spec = url.spec();
+  std::size_t found = url_spec.rfind("=s");
+  if (found != std::string::npos) {
+    return base::StrCat(
+        {url_spec.substr(0, found), "=s", base::NumberToString(size)});
+  }
+  return base::StrCat({url_spec, "=s", base::NumberToString(size)});
 }
 
 ScopedUserProfile::ScopedUserProfile() = default;

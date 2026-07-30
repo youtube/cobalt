@@ -38,8 +38,7 @@ BrowserWindow* GetBrowserWindow(int window_id) {
   ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
       [window_id, &result](BrowserWindowInterface* browser_window_interface) {
         if (browser_window_interface->GetSessionID().id() == window_id) {
-          result =
-              browser_window_interface->GetBrowserForMigrationOnly()->window();
+          result = BrowserWindow::FromBrowser(browser_window_interface);
           return false;
         }
         return true;

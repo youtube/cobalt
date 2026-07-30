@@ -36,4 +36,8 @@ extern NSString* const kAutofillEditButtonCellId;
 // Accessibility identifier for the Pay Over Time settings entry cell.
 extern NSString* const kAutofillPayOverTimeCellId;
 
+// Accessibility identifier for the BNPL subpage.
+extern NSString* const kAutofillBnplTableViewId;
+extern NSString* const kAutofillBnplSwitchViewId;
+
 #endif  // IOS_CHROME_BROWSER_SETTINGS_UI_BUNDLED_AUTOFILL_AUTOFILL_SETTINGS_CONSTANTS_H_

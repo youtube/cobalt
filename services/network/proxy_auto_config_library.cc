@@ -15,6 +15,7 @@
 #include "mojo/public/cpp/bindings/remote_set.h"
 #include "net/base/address_list.h"
 #include "net/base/ip_address.h"
+#include "net/base/network_handle.h"
 #include "net/base/network_interfaces.h"
 #include "net/dns/host_resolver_proc.h"
 #include "net/dns/host_resolver_system_task.h"
@@ -194,7 +195,10 @@ int MyIpAddressImpl::DoConnectSockets(
     SocketConnectionResult& socket_result = socket_results_.emplace_back();
 
     socket_result.socket = socket_factory->CreateDatagramClientSocket(
-        net::DatagramSocket::DEFAULT_BIND, nullptr, net::NetLogSource());
+        net::DatagramSocket::DEFAULT_BIND,
+        // `MyIpAddressImpl` cannot be correctly supported in multi-network
+        // environments. With that in mind, always target the default network.
+        net::handles::kInvalidNetworkHandle, nullptr, net::NetLogSource());
 
     net::IPEndPoint destination(destination_ip, /*port=*/80);
 

@@ -1714,9 +1714,6 @@ TEST_F(OmniboxEditModelTest, OpenTabMatch) {
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 TEST_F(OmniboxEditModelTest, OpenAiModeTriggersContextualize) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(omnibox::kAiModeOmniboxEntryPoint);
-
   // Create a new model so it initializes QueryContextualizer. We inject our
   // mock contextualizer using the setter to verify interactions.
   auto mock_service =
@@ -1743,9 +1740,6 @@ TEST_F(OmniboxEditModelTest, OpenAiModeTriggersContextualize) {
 }
 
 TEST_F(OmniboxEditModelTest, OpenAiModeTriggersContextualizeWithoutService) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(omnibox::kAiModeOmniboxEntryPoint);
-
   // Inject our mock contextualizer with a null service.
   auto fake_delegate = std::make_unique<FakeQueryContextualizerDelegate>();
   auto mock_contextualizer =
@@ -2263,9 +2257,6 @@ class OmniboxEditModelContextualSearchTest
 
 TEST_F(OmniboxEditModelContextualSearchTest,
        NavigateToAiModeWithSessionCreatesSearchUrl) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(omnibox::kAiModeOmniboxEntryPoint);
-
   auto session_handle =
       std::make_unique<contextual_search::MockContextualSearchSessionHandle>();
   EXPECT_CALL(*session_handle, CreateSearchUrl(_, _)).Times(1);
@@ -2278,9 +2269,6 @@ TEST_F(OmniboxEditModelContextualSearchTest,
 
 TEST_F(OmniboxEditModelContextualSearchTest,
        NavigateToAiModeWithNullSessionCreatesSessionHandleAndSearchUrl) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(omnibox::kAiModeOmniboxEntryPoint);
-
   // Set the testing factory for ContextualSearchService.
   ContextualSearchServiceFactory::GetInstance()->SetTestingFactory(
       profile(), base::BindRepeating([](content::BrowserContext* context)

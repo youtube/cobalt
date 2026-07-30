@@ -135,9 +135,6 @@ class TabSlotController {
   // Returns true if any tab or group header has focus.
   virtual bool IsFocusInTabStrip() const = 0;
 
-  // Returns true if The tab should have a compacted leading edge.
-  virtual bool ShouldCompactLeadingEdge() const = 0;
-
   // Potentially starts a drag for the specified Tab.
   virtual void MaybeStartDrag(TabSlotView* source,
                               const ui::LocatedEvent& event,

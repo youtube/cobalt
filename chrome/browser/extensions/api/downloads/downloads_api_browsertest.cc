@@ -4865,9 +4865,7 @@ class DownloadExtensionBubbleEnabledTest : public DownloadExtensionTest {
   DownloadExtensionBubbleEnabledTest() = default;
 
   DownloadDisplay* GetDownloadToolbarButton() {
-    return current_browser()
-        ->GetBrowserForMigrationOnly()
-        ->window()
+    return BrowserWindow::FromBrowser(current_browser())
         ->GetDownloadBubbleUIController()
         ->GetDownloadDisplayController()
         ->download_display_for_testing();

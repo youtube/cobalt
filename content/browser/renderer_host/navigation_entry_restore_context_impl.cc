@@ -33,7 +33,7 @@ void NavigationEntryRestoreContextImpl::AddFrameNavigationEntry(
   // The checks here should be consistent with GetFrameNavigationEntry and this
   // is only expected to be called after that function fails to find an entry,
   // so we don't expect there to be an entry for this key already.
-  DCHECK(inserted);
+  CHECK(inserted, base::NotFatalUntil::M152);
 }
 
 FrameNavigationEntry*

@@ -19,6 +19,7 @@
 #import "components/profile_metrics/browser_profile_type.h"
 #import "components/search_engines/util.h"
 #import "components/send_tab_to_self/features.h"
+#import "components/send_tab_to_self/metrics_util.h"
 #import "components/send_tab_to_self/send_tab_to_self_sync_service.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/aim/model/ios_chrome_aim_eligibility_service_factory.h"
@@ -67,7 +68,6 @@
 #import "ios/chrome/browser/omnibox/coordinator/omnibox_coordinator.h"
 #import "ios/chrome/browser/omnibox/coordinator/popup/omnibox_popup_coordinator.h"
 #import "ios/chrome/browser/omnibox/model/chrome_omnibox_client_ios.h"
-#import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent.h"
 #import "ios/chrome/browser/omnibox/model/placeholder_service/placeholder_service.h"
 #import "ios/chrome/browser/omnibox/model/placeholder_service/placeholder_service_factory.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_presentation_context.h"
@@ -79,6 +79,8 @@
 #import "ios/chrome/browser/reader_mode/model/reader_mode_web_state_utils.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
+#import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
@@ -294,7 +296,7 @@ struct AIHubBadgeActiveWindowsData : public base::SupportsUserData::Data {
         [self.omniboxCoordinator offsetProvider];
   }
 
-  if (IsAskGeminiChipEnabled() || IsProactiveSuggestionsFrameworkEnabled() ||
+  if (IsPageActionMenuEnabled() || IsProactiveSuggestionsFrameworkEnabled() ||
       IsLocationBarBadgeMigrationEnabled()) {
     self.locationBarBadgeCoordinator = [[LocationBarBadgeCoordinator alloc]
         initWithBaseViewController:self.viewController
@@ -442,10 +444,7 @@ struct AIHubBadgeActiveWindowsData : public base::SupportsUserData::Data {
   self.steadyViewMediator.tracker = _tracker;
 
   if (IsFullscreenRefactoringEnabled()) {
-    if (!IsChromeNextIaEnabled()) {
-      self.mediator.omniboxPositionBrowserAgent =
-          OmniboxPositionBrowserAgent::FromBrowser(self.browser);
-    }
+    self.mediator.layoutState = self.browser->GetSceneState().layoutState;
     _fullscreenBrowserAgentObserver =
         std::make_unique<FullscreenBrowserAgentObserverBridge>(
             self.mediator, FullscreenBrowserAgent::FromBrowser(self.browser));
@@ -488,7 +487,7 @@ struct AIHubBadgeActiveWindowsData : public base::SupportsUserData::Data {
       stopDispatchingToTarget:self.viewController
                                   .pageActionMenuEntryPointHandler];
 
-  if (IsAskGeminiChipEnabled() || IsProactiveSuggestionsFrameworkEnabled() ||
+  if (IsPageActionMenuEnabled() || IsProactiveSuggestionsFrameworkEnabled() ||
       IsLocationBarBadgeMigrationEnabled()) {
     [self.locationBarBadgeCoordinator stop];
     self.locationBarBadgeCoordinator = nil;
@@ -768,7 +767,11 @@ struct AIHubBadgeActiveWindowsData : public base::SupportsUserData::Data {
 
   ExecuteWhenTransitionsComplete(
       ^{
-        [browserCoordinatorHandler showSendTabToSelfUI:url title:title];
+        [browserCoordinatorHandler
+            showSendTabToSelfUI:url
+                          title:title
+                     entryPoint:send_tab_to_self::ShareEntryPoint::
+                                    kOmniboxMenu];
       },
       self.viewController);
 }

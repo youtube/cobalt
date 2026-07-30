@@ -227,7 +227,8 @@ class ToolbarController : public views::MenuDelegate,
 
   // Force the UI element with the identifier to show. Return whether the action
   // is successful.
-  virtual bool PopOut(ui::ElementIdentifier identifier);
+  virtual bool PopOut(ui::ElementIdentifier identifier,
+                      bool show_synchronously);
 
   // End forcing the UI element with the identifier to show. Return whether the
   // action is successful.

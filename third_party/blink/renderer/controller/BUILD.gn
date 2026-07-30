@@ -211,6 +211,7 @@ test("blink_unittests") {
 }
 
 test("blink_perf_tests") {
+  configs += [ "//build/config/compiler:thinlto_optimize_max" ]
   deps = [ ":blink_perf_tests_sources" ]
 }
 

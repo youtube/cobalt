@@ -89,6 +89,29 @@ duration_ms: 40000
 """
 
 
+
+def should_run_vp9_tests(args) -> bool:
+    """Detects whether VP9 tests should be run on the sender."""
+    if args.sender_os == 'win':
+        if args.sender in ['localhost', '127.0.0.1', None]:
+            import platform
+            cpu_name = platform.processor().upper()
+        else:
+            cpu_cmd = (
+                'powershell -Command "(Get-CimInstance Win32_Processor).Name"'
+            )
+            try:
+                cpu_res = common.send_ssh_command(
+                    args.sender, args.username, cpu_cmd, blocking=True)
+                cpu_name = cpu_res.stdout.upper()
+            except Exception as e:
+                logging.warning("Failed to check remote CPU: %s", e)
+                cpu_name = ''
+        if 'RYZEN' in cpu_name:
+            return False
+    return True
+
+
 def connect_to_remote_driver(chrome_options, binary_location):
     """Attempts to connect to the remote chromedriver via the tunnel."""
     logging.info("Attempting connection to %s.", common.REMOTE_URL)
@@ -110,38 +133,47 @@ def connect_to_remote_driver(chrome_options, binary_location):
             time.sleep(2)
     raise RuntimeError("Could not connect to the remote chromedriver.")
 
-def setup_test_environment(args, chrome_version):
+def setup_test_environment(args, chrome_version, chrome_options_list=None,
+                           codec_name=None):
     """
     Sets up the remote chromedriver and SSH tunnel for testing.
 
-    This function terminates any old Chromedriver processes, starts a new one,
-    waits for it to be ready, and then establishes an SSH tunnel to it. It then
-    connects a WebDriver instance to the tunnel and enables Cast discovery.
+    Args:
+        args: Command line arguments.
+        chrome_version (str): The version of Chrome to setup.
+        chrome_options_list (list): Optional list of Chrome options.
+        codec_name (str): The name of the codec being tested.
 
     Returns:
         tuple: A tuple containing the WebDriver, the tunnel process, and the
                actual chrome version used.
     """
+    if chrome_options_list is None:
+        chrome_options_list = CHROME_OPTIONS
+
     if args.sender_os == 'cros':
         driver, cb_platform, actual_version = common.setup_cros_environment(
-            args, chrome_version, CHROME_OPTIONS)
+            args, chrome_version, chrome_options_list)
         enable_tab_mirroring(driver)
         return driver, cb_platform, actual_version
 
     common.terminate_old_chromedriver(args)
     remote_app_path, actual_version = common.install_and_setup_chrome(
         args, chrome_version)
-    common.wait_for_chromedriver(args)
+    common.wait_for_chromedriver(args, actual_version, codec_name)
     tunnel_proc = common.start_ssh_tunnel(args)
 
     chrome_options = ChromeOptions()
-    for option in CHROME_OPTIONS:
+    for option in chrome_options_list:
         chrome_options.add_argument(option)
 
     # Dynamically set the --log-file path.
+    codec_suffix = f"_{codec_name}" if codec_name else ""
     log_file_path = (
-        f'{common.WIN_REMOTE_TMP_DIR}/chrome_debug.log'
-        if args.sender_os == 'win' else '/tmp/chrome_debug.log')
+        f'{common.WIN_REMOTE_TMP_DIR}/chrome_debug{codec_suffix}.log'
+        if args.sender_os == 'win'
+        else f'/tmp/chrome_debug{codec_suffix}.log'
+    )
     chrome_options.add_argument(f'--log-file={log_file_path}')
 
     binary_path = None
@@ -228,7 +260,8 @@ def start_tab_mirroring(driver, args):
     raise RuntimeError("Failed to start tab mirroring.")
 
 # pylint: disable=too-many-locals
-def run_performance_test(video_file: str, driver: webdriver, args):
+def run_performance_test(
+        video_file: str, driver: webdriver, codec_name: str, args):
     """
     Runs a single video performance test by casting and recording the video.
 
@@ -239,16 +272,19 @@ def run_performance_test(video_file: str, driver: webdriver, args):
     Args:
         video_file (str): The name of the video file to be tested.
         driver (webdriver.Remote): The Selenium WebDriver instance.
+        codec_name (str): The mirroring codec configuration name.
         args: The parsed command-line arguments.
 
     Returns:
         subprocess.Popen: The Popen object for the ffmpeg recording process.
     """
-    # force video output to mp4
-    output_file = os.path.join(common.RECORDINGS_DIR,
-                               video_file.replace('.webm', '.mp4'))
+    # force video output to mp4 and include the codec name
+    output_file = os.path.join(
+        common.RECORDINGS_DIR,
+        f"{codec_name}_{video_file.replace('.webm', '.mp4')}")
     receiver_trace_remote_path = (
-        f'{RECEIVER_TRACE_DIR}/{video_file}.perfetto-trace')
+        f'{RECEIVER_TRACE_DIR}/{codec_name}_{video_file}.perfetto-trace')
+    video_key = f"{codec_name}_{video_file}"
 
     host_recording_cmd = [
         'ffmpeg',
@@ -403,7 +439,7 @@ def run_performance_test(video_file: str, driver: webdriver, args):
                 logging.warning(
                     '%s failed to load within timeout. Skipping. State: %s',
                     video_file, v_state)
-                common.measures.average(video_file, 'video_perf', 'playback',
+                common.measures.average(video_key, 'video_perf', 'playback',
                                  'failed_to_load').record(1)
                 # Gracefully stop the recording process since we're skipping.
                 rec_proc_local.terminate()
@@ -430,14 +466,14 @@ def run_performance_test(video_file: str, driver: webdriver, args):
             # If the video_analyzer does not generate any result, treat it as an
             # error and use the default value to filter them out instead of
             # failing the tests.
-            common.measures.average(video_file, 'video_perf', key).record(
+            common.measures.average(video_key, 'video_perf', key).record(
                 results.get(key, common.FAIL_CODE))
 
         for metric in common.METRICS:
             record(metric)
 
         original_video = f"/usr/local/cipd/videostack_videos_30s/{video_file}"
-        common.calculate_psnr_ssim(video_file, output_file, original_video)
+        common.calculate_psnr_ssim(video_key, output_file, original_video)
 
         logging.warning('Video analysis result of %s: %s', video_file, results)
     finally:
@@ -462,7 +498,7 @@ def run_performance_test(video_file: str, driver: webdriver, args):
                 if stream_id:
                     sender_trace_path = os.path.join(
                         common.TRACES_DIR,
-                        f"{video_file}_sender.chrome-trace")
+                        f"{video_key}_sender.chrome-trace")
                     try:
                         with open(
                                 sender_trace_path, 'w',
@@ -512,7 +548,7 @@ def run_performance_test(video_file: str, driver: webdriver, args):
                 logging.info("Collecting Receiver Trace...")
                 receiver_trace_local_path = os.path.join(
                     common.TRACES_DIR,
-                    f"{video_file}_receiver.perfetto-trace")
+                    f"{video_key}_receiver.perfetto-trace")
                 subprocess.run([
                     ADB_PATH, '-s', RECEIVER_IP, 'pull',
                     receiver_trace_remote_path, receiver_trace_local_path
@@ -526,7 +562,7 @@ def run_performance_test(video_file: str, driver: webdriver, args):
         try:
             logging.info("Collecting Receiver Logcat...")
             logcat_path = os.path.join(
-                common.TRACES_DIR, f"{video_file}_receiver_logcat.txt")
+                common.TRACES_DIR, f"{video_key}_receiver_logcat.txt")
             with open(logcat_path, 'w', encoding='utf-8') as f:
                 subprocess.run(
                     [ADB_PATH, '-s', RECEIVER_IP, 'logcat', '-d'],
@@ -542,15 +578,17 @@ def run_performance_test(video_file: str, driver: webdriver, args):
         # Collect the Sender Chrome Log
         try:
             logging.info("Collecting Sender Chrome Log...")
+            codec_suffix = f"_{codec_name}" if codec_name else ""
             if args.sender_os == 'win':
                 # Use standard Windows path with forward slashes for scp.
                 log_file_path = (
-                    f'{common.WIN_REMOTE_TMP_DIR}/chrome_debug.log'
-                    )
+                    f'{common.WIN_REMOTE_TMP_DIR}/'
+                    f'chrome_debug{codec_suffix}.log'
+                )
             else:
-                log_file_path = '/tmp/chrome_debug.log'
+                log_file_path = f'/tmp/chrome_debug{codec_suffix}.log'
             sender_log_local_path = os.path.join(
-                common.TRACES_DIR, f"{video_file}_chrome_debug.log")
+                common.TRACES_DIR, f"{video_key}_chrome_debug.log")
             key_path = os.path.expanduser('~/.ssh/id_ed25519')
             subprocess.run([
                 'scp', '-i', key_path, '-o', 'StrictHostKeyChecking=no',
@@ -594,6 +632,8 @@ def main():
                         help='OS of the sender device.')
     args, _ = parser.parse_known_args()
     cv = args.chrome_version
+    run_vp9_tests = should_run_vp9_tests(args)
+    logging.info("Should run VP9 tests: %s", run_vp9_tests)
 
     if os.path.exists(common.RECORDINGS_DIR):
         shutil.rmtree(common.RECORDINGS_DIR)
@@ -673,31 +713,124 @@ def main():
             "Failed to setup ADB receiver: %s. "
             "Receiver traces will not be collected.", e)
 
+    CODECS = ['H264', 'VP8', 'VP9']
+    COMMON_VIDEOS = [
+        {'name': '1080p30fpsH264_foodmarket_yt_sync.mp4', 'fps': 30},
+        {'name': '1080p60fpsH264_boat_yt_sync.mp4', 'fps': 60}
+    ]
+
+    CONFIGURATIONS = {}
+    for codec in CODECS:
+        config = {
+            'enable_features': ['CastStreaming60fps'],
+            # HEVC and AV1 are currently not supported by *any* receivers.
+            'disable_features': [
+                'CastStreamingHardwareHevc', 'CastStreamingAv1'
+            ],
+            'switches': [],
+            'videos': COMMON_VIDEOS
+        }
+
+        # Isolate the competing codecs
+        other_codecs = [c for c in CODECS if c != codec]
+
+        # 2. Handle Feature Flags (VP8 and VP9 only, as H264 has none)
+        if codec in ['VP8', 'VP9']:
+            config['enable_features'].append(
+                f'CastStreaming{codec.capitalize()}')
+
+        config['disable_features'].extend([
+            f'CastStreaming{c.capitalize()}'
+            for c in other_codecs if c != 'H264'
+        ])
+
+        # 3. Handle Hardware Switches
+        if codec == 'H264':
+            config['switches'].append(
+                f'--cast-streaming-force-enable-hardware-{codec.lower()}'
+            )
+        else:
+            config['switches'].append(
+                f'--cast-streaming-force-disable-hardware-{codec.lower()}'
+            )
+
+        config['switches'].extend([
+            f'--cast-streaming-force-disable-hardware-{c.lower()}'
+            for c in other_codecs
+        ])
+
+        CONFIGURATIONS[codec] = config
+
+    actual_version = None
     try:
-        driver, tunnel_proc, actual_version = setup_test_environment(args, cv)
-        for video in common.VIDEOS:
-            # TODO(b/512198717): Enable HEVC tests on ChromeOS.
-            # Currently these tests are rendering a blank white screen, so we
-            # skip them to bring up the other cros tests.
-            if args.sender_os == 'cros' and 'HEVC' in video['name']:
-                logging.info("Skipping HEVC on ChromeOS: %s", video['name'])
+        for codec_name, config in CONFIGURATIONS.items():
+            if codec_name == 'VP9' and not run_vp9_tests:
+                logging.info(
+                    "Skipping VP9 tests: Sender or receiver does not "
+                    "support VP9 encoding/decoding.")
                 continue
-            logging.info("Starting test for video: %s", video['name'])
-            rec_proc = None
+            logging.info(
+                "Starting tests for codec configuration: %s", codec_name)
+
+            # Dynamically build chrome options for this configuration
+            chrome_options_list = [
+                opt for opt in CHROME_OPTIONS
+                if (not opt.startswith('--enable-features=')
+                    and not opt.startswith('--disable-features='))
+            ]
+            enabled_features = (
+                ['EnableRtcpReporting'] + config.get('enable_features', []))
+            chrome_options_list.append(
+                f"--enable-features={','.join(enabled_features)}")
+
+            disabled_features = config.get('disable_features', [])
+            if disabled_features:
+                chrome_options_list.append(
+                    f"--disable-features={','.join(disabled_features)}")
+
+            for switch in config.get('switches', []):
+                chrome_options_list.append(switch)
+
+            logging.info(
+                "Chrome options for %s: %s", codec_name, chrome_options_list)
+
+            driver = None
+            tunnel_proc = None
             try:
-                rec_proc = run_performance_test(video['name'], driver, args)
-                if rec_proc is None:
-                    logging.warning("Video %s was skipped.", video['name'])
-                    continue
-            except Exception: # pylint: disable=broad-exception-caught
-                logging.exception("Error during video %s test", video['name'])
-                common.dump_remote_logs(args)
-                raise
+                driver, tunnel_proc, actual_version = setup_test_environment(
+                    args, cv, chrome_options_list, codec_name)
+
+                for video in config['videos']:
+                    # TODO(b/512198717): Enable HEVC tests on ChromeOS.
+                    # Currently these tests are rendering a blank white screen,
+                    # so we skip them to bring up the other cros tests.
+                    if args.sender_os == 'cros' and 'HEVC' in video['name']:
+                        logging.info(
+                            "Skipping HEVC on ChromeOS: %s", video['name'])
+                        continue
+                    logging.info("Starting test for video: %s", video['name'])
+                    rec_proc = None
+                    try:
+                        rec_proc = run_performance_test(
+                            video['name'], driver, codec_name, args)
+                        if rec_proc is None:
+                            logging.warning(
+                                "Video %s was skipped.", video['name'])
+                            continue
+                    except Exception: # pylint: disable=broad-exception-caught
+                        logging.exception(
+                            "Error during video %s test", video['name'])
+                        common.dump_remote_logs(
+                            args, actual_version, codec_name)
+                        raise
+                    finally:
+                        common.teardown_recording_process(rec_proc)
             finally:
-                common.teardown_recording_process(rec_proc)
+                if driver or tunnel_proc:
+                    common.teardown_test_environment(driver, tunnel_proc, args)
     finally:
         common.finalize_results(actual_version)
-        common.teardown_test_environment(driver, tunnel_proc, args)
+        common.cleanup_binaries(args, actual_version)
 
 if __name__ == '__main__':
     with common.StartProcess(common.server.start, [common.SERVER_PORT], True):

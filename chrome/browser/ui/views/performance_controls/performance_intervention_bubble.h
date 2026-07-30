@@ -8,7 +8,6 @@
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/views/bubble/bubble_border.h"
 
-class Browser;
 class PerformanceInterventionButton;
 class PerformanceInterventionButtonController;
 
@@ -36,7 +35,6 @@ class PerformanceInterventionBubble {
   // Creates the performance intervention bubble dialog anchored to the
   // intervention toolbar button.
   static views::BubbleDialogModelHost* CreateBubble(
-      Browser* browser,
       PerformanceInterventionButton* anchor_view,
       PerformanceInterventionButtonController* button_controller);
 

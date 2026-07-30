@@ -14,12 +14,7 @@
 #include "content/public/test/nested_message_pump_android.h"
 #include "testing/android/native_test/native_test_launcher.h"
 
-// This is called by the VM when the shared library is first loaded.
-JNI_EXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
-  base::android::InitVM(vm);
-  if (!content::android::OnJNIOnLoadInit())
-    return -1;
-
+bool NativeInitializationHook(base::android::LibraryProcessType process_type) {
   // This needs to be done before base::TestSuite::Initialize() is called,
   // as it also tries to set MessagePumpForUIFactory.
   base::MessagePump::OverrideMessagePumpForUIFactory(
@@ -27,7 +22,18 @@ JNI_EXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
         return std::make_unique<content::NestedMessagePumpAndroid>();
       });
 
+  if (!content::android::OnJNIOnLoadInit()) {
+    return false;
+  }
+
   content::SetContentMainDelegate(
       new content::ContentBrowserTestShellMainDelegate());
+  return true;
+}
+
+// This is called by the VM when the shared library is first loaded.
+JNI_EXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
+  base::android::InitVM(vm);
+  base::android::SetNativeInitializationHook(NativeInitializationHook);
   return JNI_VERSION_1_4;
 }

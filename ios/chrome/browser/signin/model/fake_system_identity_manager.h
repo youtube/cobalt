@@ -39,16 +39,16 @@ class FakeSystemIdentityManager final : public SystemIdentityManager {
   ~FakeSystemIdentityManager() final;
 
   // Converts `manager` into a `FakeSystemIdentityManager*` if possible
-  // or fail if the conversion is not valid. Must be used to get access
+  // or fails if the conversion is not valid. Must be used to get access
   // to FakeSystemIdentityManager API in tests.
   static FakeSystemIdentityManager* FromSystemIdentityManager(
       SystemIdentityManager* manager);
 
-  // Adds `identity` to the available idendities.
+  // Adds `identity` to the available identities.
   // DCHECK failure will be triggered if the identity was already added.
   void AddIdentity(id<SystemIdentity> identity);
 
-  // Adds `identity` to the available idendities without setting up
+  // Adds `identity` to the available identities without setting up
   // capabilities.
   // DCHECK failure will be triggered if the identity was already added.
   void AddIdentityWithUnknownCapabilities(id<SystemIdentity> identity);
@@ -244,7 +244,7 @@ class FakeSystemIdentityManager final : public SystemIdentityManager {
   // to implement `WaitForServiceCallbacksToComplete()`.
   void PostClosure(base::Location from_here, base::OnceClosure closure);
 
-  // Runs `closure` updating the counter of pending callbaks. Resume the
+  // Runs `closure` updating the counter of pending callbacks. Resumes the
   // execution of `WaitForServiceCallbacksToComplete()` when the counter
   // reaches 0.
   void ExecuteClosure(base::OnceClosure closure);

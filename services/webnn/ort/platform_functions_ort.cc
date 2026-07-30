@@ -120,6 +120,11 @@ bool PlatformFunctions::InitializeFromPath(
     LOG(ERROR) << "[WebNN] Failed to get OrtModelEditorApi.";
     return false;
   }
+  const OrtInteropApi* ort_interop_api = ort_api->GetInteropApi();
+  if (!ort_interop_api) {
+    LOG(ERROR) << "[WebNN] Failed to get OrtInteropApi.";
+    return false;
+  }
 
   const OrtCompileApi* ort_compile_api = ort_api->GetCompileApi();
   if (!ort_compile_api) {
@@ -128,7 +133,8 @@ bool PlatformFunctions::InitializeFromPath(
   }
 
   g_instance_ = new PlatformFunctions(std::move(ort_library), ort_api,
-                                      ort_model_editor_api, ort_compile_api);
+                                      ort_model_editor_api, ort_compile_api,
+                                      ort_interop_api);
   return true;
 }
 
@@ -136,11 +142,13 @@ PlatformFunctions::PlatformFunctions(
     base::ScopedNativeLibrary ort_library,
     const OrtApi* ort_api,
     const OrtModelEditorApi* ort_model_editor_api,
-    const OrtCompileApi* ort_compile_api)
+    const OrtCompileApi* ort_compile_api,
+    const OrtInteropApi* ort_interop_api)
     : ort_library_(std::move(ort_library)),
       ort_api_(ort_api),
       ort_model_editor_api_(ort_model_editor_api),
-      ort_compile_api_(ort_compile_api) {}
+      ort_compile_api_(ort_compile_api),
+      ort_interop_api_(ort_interop_api) {}
 
 PlatformFunctions::~PlatformFunctions() = default;
 

@@ -5,6 +5,7 @@
 import '//resources/cr_components/composebox/composebox_dropdown.js';
 import '//resources/cr_components/composebox/composebox_file_inputs.js';
 import '//resources/cr_components/composebox/composebox_input.js';
+import '//resources/cr_components/composebox/composebox_submit.js';
 import '//resources/cr_components/composebox/error_scrim.js';
 import '//resources/cr_components/composebox/file_carousel.js';
 
@@ -24,6 +25,7 @@ import {DragAndDropHandler} from '//resources/cr_components/search/drag_drop_han
 import type {DragAndDropHost} from '//resources/cr_components/search/drag_drop_host.js';
 import {EventTracker} from '//resources/js/event_tracker.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
+import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 
@@ -196,10 +198,43 @@ export class
     this.eventTracker_.removeAll();
   }
 
+  override willUpdate(changedProperties: PropertyValues<this>) {
+    super.willUpdate(changedProperties);
+    if (changedProperties.has('inputPlaceholderOverride')) {
+      this.updateInputPlaceholder();
+    }
+  }
+
   /* Used by drag/drop host interface so the
   drag and drop handler can access addDroppedFiles(). */
   getDropTarget() {
     return this;
+  }
+
+  protected onComposeboxFocusin_(e: FocusEvent) {
+    // Exit early if the focus is still within the composebox.
+    if (this.$.composebox.contains(e.relatedTarget as Node)) {
+      return;
+    }
+    this.pageHandler_.focusChanged(true);
+    this.fire('composebox-focus-in');
+  }
+
+  protected onComposeboxFocusout_(e: FocusEvent) {
+    // Exit early if the focus is still within the composebox.
+    if (this.$.composebox.contains(e.relatedTarget as Node)) {
+      return;
+    }
+    this.pageHandler_.focusChanged(false);
+    this.fire('composebox-focus-out');
+  }
+
+  override updateInputPlaceholder() {
+    if (this.inputPlaceholderOverride) {
+      this.inputPlaceholder = this.inputPlaceholderOverride;
+      return;
+    }
+    super.updateInputPlaceholder();
   }
 
   getAutomaticActiveTabChipElement(): HTMLElement|null {

@@ -1341,6 +1341,68 @@ TEST_F(
   EXPECT_TRUE(error);
 }
 
+TEST_F(
+    PasswordSyncBridgeTest,
+    ShouldMergeSyncRemoteAndLocalPasswordsWithErrorWhenStoreUpdateEntityMetadataFails) {
+  // Simulate failure in UpdateEntityMetadata();
+  ON_CALL(*mock_sync_metadata_store_sync(), UpdateEntityMetadata)
+      .WillByDefault(testing::Return(false));
+
+  const std::string kStorageKey = "1";
+  sync_pb::EntityMetadata metadata;
+  metadata.set_server_id("TestServerId");
+
+  std::unique_ptr<syncer::MetadataChangeList> metadata_changes =
+      bridge()->CreateMetadataChangeList();
+  metadata_changes->UpdateMetadata(kStorageKey, metadata);
+
+  std::optional<syncer::ModelError> error =
+      bridge()->MergeFullSyncData(std::move(metadata_changes), {});
+  EXPECT_TRUE(error.has_value());
+}
+
+TEST_F(
+    PasswordSyncBridgeTest,
+    ShouldApplyIncrementalSyncChangesWithErrorWhenStoreUpdateDataTypeStateFails) {
+  // Simulate failure in UpdateDataTypeState();
+  ON_CALL(*mock_sync_metadata_store_sync(), UpdateDataTypeState)
+      .WillByDefault(testing::Return(false));
+
+  sync_pb::DataTypeState data_type_state;
+  data_type_state.set_initial_sync_state(
+      sync_pb::DataTypeState_InitialSyncState_INITIAL_SYNC_DONE);
+
+  std::unique_ptr<syncer::MetadataChangeList> metadata_changes =
+      bridge()->CreateMetadataChangeList();
+  metadata_changes->UpdateDataTypeState(data_type_state);
+
+  std::optional<syncer::ModelError> error =
+      bridge()->ApplyIncrementalSyncChanges(std::move(metadata_changes),
+                                            syncer::EntityChangeList());
+  EXPECT_TRUE(error.has_value());
+}
+
+TEST_F(
+    PasswordSyncBridgeTest,
+    ShouldApplyIncrementalSyncChangesWithErrorWhenStoreUpdateEntityMetadataFails) {
+  // Simulate failure in UpdateEntityMetadata();
+  ON_CALL(*mock_sync_metadata_store_sync(), UpdateEntityMetadata)
+      .WillByDefault(testing::Return(false));
+
+  const std::string kStorageKey = "1";
+  sync_pb::EntityMetadata metadata;
+  metadata.set_server_id("TestServerId");
+
+  std::unique_ptr<syncer::MetadataChangeList> metadata_changes =
+      bridge()->CreateMetadataChangeList();
+  metadata_changes->UpdateMetadata(kStorageKey, metadata);
+
+  std::optional<syncer::ModelError> error =
+      bridge()->ApplyIncrementalSyncChanges(std::move(metadata_changes),
+                                            syncer::EntityChangeList());
+  EXPECT_TRUE(error.has_value());
+}
+
 TEST_F(PasswordSyncBridgeTest,
        ShouldMergeAndIgnoreAndUntrackRemotePasswordWithInvalidData) {
   fake_db()->SetAddLoginError(AddCredentialError::kConstraintViolation);
@@ -1357,7 +1419,7 @@ TEST_F(PasswordSyncBridgeTest,
       /*storage_key=*/"", SpecificsToEntity(specifics)));
   std::optional<syncer::ModelError> error = bridge()->MergeFullSyncData(
       bridge()->CreateMetadataChangeList(), std::move(entity_change_list));
-  EXPECT_FALSE(error);
+  EXPECT_FALSE(error.has_value());
 }
 
 TEST_F(PasswordSyncBridgeTest,

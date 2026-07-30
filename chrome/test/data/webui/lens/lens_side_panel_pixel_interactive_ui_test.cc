@@ -7,6 +7,7 @@
 #include "chrome/test/data/webui/webui_composebox_pixel_test.h"
 #include "components/lens/lens_features.h"
 #include "components/omnibox/browser/aim_eligibility_service_features.h"
+#include "components/omnibox/common/omnibox_features.h"
 
 // Test fixture for ComposeBox pixel tests.
 class LensSidePanelComposeBoxPixelTest

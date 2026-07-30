@@ -147,12 +147,16 @@ PersistentCacheSandboxedFileFactory::CreateFiles(const CacheIdString& cache_id,
   auto backend = cache_storage.MakePendingBackend(
       base::FilePath(FILE_PATH_LITERAL("cache")), /*single_connection=*/true,
       /*journal_mode_wal=*/true);
-  if (!backend) {
+  if (!backend.has_value()) {
+    // TODO(crbug.com/523884661): Retry after a delay in case of kTransient
+    // error.
     PLOG(ERROR) << "Failed to open persistent cache files in directory \""
-                << cache_dir << "\"";
+                << cache_dir
+                << "\", error: " << static_cast<int>(backend.error());
+    return std::nullopt;
   }
 
-  return backend;
+  return *std::move(backend);
 }
 
 void PersistentCacheSandboxedFileFactory::CreateFilesAsync(

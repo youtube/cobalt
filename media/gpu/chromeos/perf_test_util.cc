@@ -8,15 +8,24 @@
 #include "base/files/file_util.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
+#include "base/no_destructor.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {
 
 media::test::VideoTestEnvironment* g_env;
-base::FilePath g_output_directory =
-    base::FilePath(base::FilePath::kCurrentDirectory);
-base::FilePath g_source_directory =
-    base::FilePath(base::FilePath::kCurrentDirectory);
+
+base::FilePath& GetOutputDir() {
+  static base::NoDestructor<base::FilePath> dir(
+      base::FilePath::kCurrentDirectory);
+  return *dir;
+}
+
+base::FilePath& GetSourceDir() {
+  static base::NoDestructor<base::FilePath> dir(
+      base::FilePath::kCurrentDirectory);
+  return *dir;
+}
 
 void WriteJsonResult(std::vector<std::pair<std::string, double>> data) {
   base::DictValue metrics;
@@ -24,7 +33,7 @@ void WriteJsonResult(std::vector<std::pair<std::string, double>> data) {
     metrics.Set(i.first, i.second);
   }
 
-  const auto output_folder_path = base::FilePath(g_output_directory);
+  const auto output_folder_path = GetOutputDir();
   std::string metrics_str;
   ASSERT_TRUE(base::JSONWriter::WriteWithOptions(
       metrics, base::JSONWriter::OPTIONS_PRETTY_PRINT, &metrics_str));

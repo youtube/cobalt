@@ -63,6 +63,8 @@ class GlicActorTaskManager {
     virtual void OnTabAddedToTask(
         actor::TaskId task_id,
         const tabs::TabInterface::Handle& tab_handle) = 0;
+
+    virtual void OnTaskIdChanged(std::optional<int> task_id) = 0;
   };
   explicit GlicActorTaskManager(
       Profile* profile,
@@ -83,6 +85,9 @@ class GlicActorTaskManager {
   // Returns the last acted tabs for the current task.
   std::vector<tabs::TabInterface*> GetLastActedTabs() const;
 
+  // Returns the ID of the current active task, if any.
+  std::optional<int> current_task_id() const;
+
   // Adds a callback that is run when the actuating state changes.
   base::CallbackListSubscription AddActuatingChangedCallback(
       base::RepeatingCallback<void(bool)> callback);
@@ -97,7 +102,7 @@ class GlicActorTaskManager {
   GlicActorClientSessionInterface* GetClientSessionForTesting();
 
  private:
-  void SetActuating(bool actuating);
+  void MaybeNotifyActuatingChanged();
   friend class GlicActorClientSession;
 
   raw_ptr<Profile> profile_;
@@ -105,7 +110,7 @@ class GlicActorTaskManager {
   const raw_ref<GlicActorPolicyChecker> actor_policy_checker_;
   raw_ptr<GlicInstanceMetrics> instance_metrics_;
   raw_ptr<GlicSharingManagerInternal> sharing_manager_;
-  bool actuating_ = false;
+  bool last_notified_actuating_state_ = false;
   base::RepeatingCallbackList<void(bool)> actuating_changed_callbacks_;
   raw_ptr<Delegate> delegate_;
   std::unique_ptr<GlicActorClientSession> session_;

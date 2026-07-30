@@ -16,11 +16,14 @@ namespace sqlite_vfs {
 // a SqliteVfsFileSet with Bind() and registering it with
 // SqliteSandboxedVfsDelegate::RegisterSandboxedFiles(). A database opened with
 // exclusive locking disabled requires a `PendingFileSet` with the optional
-// `shared_lock` member. A database opened in WAL-mode requires a
-// `PendingFileSet` that includes the optional `wal_file` handle and, if
-// exclusive locking is disabled, the optional `wal_index_file` handle. A
-// read/write file set for a shareable WAL-mode database will also have a
-// `wal_index_file_read_only` handle so that a read-only file set may be shared.
+// `shared_lock` member.
+// A rollback journal handle (`journal_file`) is only required if the database
+// is opened in rollback mode, or is transitioning to/from it.
+// A database opened in WAL-mode requires a `PendingFileSet` that includes the
+// optional `wal_file` handle and, if exclusive locking is disabled, the
+// optional `wal_index_file` handle. A read/write file set for a shareable
+// WAL-mode database will also have a `wal_index_file_read_only` handle so that
+// a read-only file set may be shared.
 struct COMPONENT_EXPORT(PENDING_FILE_SET) PendingFileSet {
   PendingFileSet();
   PendingFileSet(PendingFileSet&&);

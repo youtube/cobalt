@@ -142,8 +142,7 @@ TEST_P(NeuralStylusPalmDetectionFilterTest, ShortTouchPalmAreaTest) {
   touch_[0].y = 55;
   touch_[0].major = 34;  // 34 * 32 = 1088
   touch_[0].minor = 32;
-  base::TimeTicks touch_time =
-      base::TimeTicks::UnixEpoch() + base::Milliseconds(10.0);
+  base::TimeTicks touch_time = base::TimeTicks() + base::Milliseconds(10.0);
   palm_detection_filter_->Filter(touch_, touch_time, &actual_held,
                                  &actual_cancelled);
   EXPECT_TRUE(actual_held.none());
@@ -168,8 +167,7 @@ TEST_P(NeuralStylusPalmDetectionFilterTest, ShortTouchPalmSizeTest) {
   touch_[0].y = 55;
   touch_[0].major = 25;
   touch_[0].minor = 17;
-  base::TimeTicks touch_time =
-      base::TimeTicks::UnixEpoch() + base::Milliseconds(10.0);
+  base::TimeTicks touch_time = base::TimeTicks() + base::Milliseconds(10.0);
   palm_detection_filter_->Filter(touch_, touch_time, &actual_held,
                                  &actual_cancelled);
   EXPECT_TRUE(actual_held.none());
@@ -224,8 +222,7 @@ TEST_P(NeuralStylusPalmDetectionFilterTest, CallFilterTest) {
   touch_[0].x = 15;
   touch_[0].y = 10;
   touch_[0].slot = 0;
-  base::TimeTicks touch_time =
-      base::TimeTicks::UnixEpoch() + base::Milliseconds(10.0);
+  base::TimeTicks touch_time = base::TimeTicks() + base::Milliseconds(10.0);
   palm_detection_filter_->Filter(touch_, touch_time, &actual_held,
                                  &actual_cancelled);
   EXPECT_TRUE(actual_held.none());
@@ -323,8 +320,7 @@ TEST_P(NeuralStylusPalmDetectionFilterTest, CallFilterTestWithAdaptiveHold) {
   touch_[0].x = 15;
   touch_[0].y = 10;
   touch_[0].slot = 0;
-  base::TimeTicks touch_time =
-      base::TimeTicks::UnixEpoch() + base::Milliseconds(10.0);
+  base::TimeTicks touch_time = base::TimeTicks() + base::Milliseconds(10.0);
   palm_detection_filter_->Filter(touch_, touch_time, &actual_held,
                                  &actual_cancelled);
   EXPECT_TRUE(actual_held.none());
@@ -478,8 +474,7 @@ TEST_P(NeuralStylusPalmDetectionFilterTest, CallFilterTestWithAdaptiveHold) {
 
 TEST_P(NeuralStylusPalmDetectionFilterTest, InferenceOnceNotPalm) {
   std::bitset<kNumTouchEvdevSlots> actual_held, actual_cancelled;
-  base::TimeTicks touch_time =
-      base::TimeTicks::UnixEpoch() + base::Milliseconds(10.0);
+  base::TimeTicks touch_time = base::TimeTicks() + base::Milliseconds(10.0);
 
   touch_[0].touching = true;
   touch_[0].tracking_id = 600;
@@ -505,8 +500,7 @@ TEST_P(NeuralStylusPalmDetectionFilterTest, InferenceOnceNotPalm) {
 TEST_P(NeuralStylusPalmDetectionFilterTest, InferenceOncePalm) {
   std::bitset<kNumTouchEvdevSlots> actual_held, actual_cancelled;
   std::bitset<kNumTouchEvdevSlots> expected_cancelled;
-  base::TimeTicks touch_time =
-      base::TimeTicks::UnixEpoch() + base::Milliseconds(10.0);
+  base::TimeTicks touch_time = base::TimeTicks() + base::Milliseconds(10.0);
   expected_cancelled.set(0, true);
   touch_[0].touching = true;
   touch_[0].tracking_id = 600;
@@ -544,8 +538,7 @@ TEST_P(NeuralStylusPalmDetectionFilterTest, DelayShortFingerTouch) {
   // small touch! 39*21 = 819, which is < 1000.
   touch_[0].major = 39;
   touch_[0].minor = 21;
-  base::TimeTicks touch_time =
-      base::TimeTicks::UnixEpoch() + base::Milliseconds(10.0);
+  base::TimeTicks touch_time = base::TimeTicks() + base::Milliseconds(10.0);
   palm_detection_filter_->Filter(touch_, touch_time, &actual_held,
                                  &actual_cancelled);
 
@@ -564,8 +557,7 @@ TEST_P(NeuralStylusPalmDetectionFilterTest, DelayShortPalmTouch) {
   // big touch! 39*30 = 1170, which is > 1000.
   touch_[0].major = 39;
   touch_[0].minor = 30;
-  base::TimeTicks touch_time =
-      base::TimeTicks::UnixEpoch() + base::Milliseconds(10.0);
+  base::TimeTicks touch_time = base::TimeTicks() + base::Milliseconds(10.0);
   palm_detection_filter_->Filter(touch_, touch_time, &actual_held,
                                  &actual_cancelled);
 

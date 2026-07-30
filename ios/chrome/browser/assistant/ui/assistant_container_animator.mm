@@ -15,7 +15,6 @@ namespace {
 constexpr CGFloat kSpringDamping = 0.8;
 constexpr CGFloat kTranslationMargin = 20.0;
 constexpr NSTimeInterval kAssistantSidePanelAnimationDuration = 0.5;
-constexpr NSTimeInterval kAssistantBottomSheetAnimationDuration = 0.4;
 }  // namespace
 
 @interface AssistantContainerAnimator () <LayoutTransitionCoordinating>
@@ -43,20 +42,24 @@ constexpr NSTimeInterval kAssistantBottomSheetAnimationDuration = 0.4;
 - (void)animatePresentation:
             (UIViewController<AssistantContainerAnimatable>*)viewController
                    animated:(BOOL)animated
+                 animations:(void (^)(void))animations
                  completion:(void (^)(void))completion {
   [self animateBottomSheet:viewController
                  presented:YES
                   animated:animated
+                animations:animations
                 completion:completion];
 }
 
 - (void)animateDismissal:
             (UIViewController<AssistantContainerAnimatable>*)viewController
                 animated:(BOOL)animated
+              animations:(void (^)(void))animations
               completion:(void (^)(void))completion {
   [self animateBottomSheet:viewController
                  presented:NO
                   animated:animated
+                animations:animations
                 completion:completion];
 }
 
@@ -176,6 +179,7 @@ constexpr NSTimeInterval kAssistantBottomSheetAnimationDuration = 0.4;
             (UIViewController<AssistantContainerAnimatable>*)viewController
                  presented:(BOOL)presented
                   animated:(BOOL)animated
+                animations:(void (^)(void))animations
                 completion:(void (^)(void))completion {
   UIView* view = viewController.view;
   UIView* containerView = viewController.assistantContainerView;
@@ -210,6 +214,9 @@ constexpr NSTimeInterval kAssistantBottomSheetAnimationDuration = 0.4;
     [UIView performWithoutAnimation:^{
       containerView.transform = targetTransform;
       dimmingView.alpha = targetAlpha;
+      if (animations) {
+        animations();
+      }
     }];
     viewController.isAnimating = NO;
     if (completion) {
@@ -226,6 +233,9 @@ constexpr NSTimeInterval kAssistantBottomSheetAnimationDuration = 0.4;
       animations:^{
         containerView.transform = targetTransform;
         dimmingView.alpha = targetAlpha;
+        if (animations) {
+          animations();
+        }
       }
       completion:^(BOOL finished) {
         viewController.isAnimating = NO;

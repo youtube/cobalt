@@ -1,0 +1,26 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+syntax = "proto2";
+
+option optimize_for = LITE_RUNTIME;
+
+package remoting.protocol;
+
+// Message sent over the security-key data channel.
+message SecurityKeyMessage {
+  // Connection ID used to multiplex multiple security key connections.
+  optional int32 connection_id = 1;
+
+  // The payload data (opaque SSH Agent protocol bytes).
+  // Enforced maximum size is 64KB on both host and client to prevent DoS/OOM.
+  // Note: The host-side local socket (SecurityKeySocket) strictly limits
+  // incoming requests to 16KB. Responses (which contain SSH certificates)
+  // are typically under 8KB. A 64KB (power of two) limit provides ample
+  // headroom while ensuring robust defense against memory exhaustion exploits.
+  optional bytes data = 2;
+
+  // Set to true if an error occurred and the connection should be closed.
+  optional bool error = 3;
+}

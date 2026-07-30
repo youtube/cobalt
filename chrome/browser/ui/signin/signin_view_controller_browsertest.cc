@@ -47,6 +47,8 @@
 #include "components/sync/test/test_sync_service.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_navigation_observer.h"
+#include "device/bluetooth/bluetooth_adapter_factory.h"
+#include "device/bluetooth/test/mock_bluetooth_adapter.h"
 #include "extensions/browser/extension_registry.h"
 #include "google_apis/gaia/google_service_auth_error.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -811,12 +813,54 @@ IN_PROC_BROWSER_TEST_F(SigninViewControllerBrowserTest,
 }
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
+class AsyncMockBluetoothAdapter : public device::MockBluetoothAdapter {
+ public:
+  AsyncMockBluetoothAdapter() = default;
+
+  bool IsInitialized() const override { return is_initialized_; }
+  void SetInitialized(bool initialized) {
+    is_initialized_ = initialized;
+    if (is_initialized_ && init_callback_) {
+      std::move(init_callback_).Run();
+    }
+  }
+
+  void Initialize(base::OnceClosure callback) override {
+    init_callback_ = std::move(callback);
+  }
+
+ private:
+  bool is_initialized_ = false;
+  base::OnceClosure init_callback_;
+  ~AsyncMockBluetoothAdapter() override = default;
+};
+
 class SigninViewControllerSignInBanner
     : public SigninViewControllerBrowserTestBase {
  public:
   SigninViewControllerSignInBanner() {
     feature_list_.InitAndEnableFeature(switches::kMagiChromeSignInBanner);
   }
+
+  void SetUpOnMainThread() override {
+    SigninViewControllerBrowserTestBase::SetUpOnMainThread();
+    mock_bluetooth_adapter_ = base::MakeRefCounted<AsyncMockBluetoothAdapter>();
+    ON_CALL(*mock_bluetooth_adapter_, IsPresent())
+        .WillByDefault(testing::Return(true));
+    device::BluetoothAdapterFactory::SetAdapterForTesting(
+        mock_bluetooth_adapter_);
+    // Other parts of Chrome may keep a reference to the bluetooth adapter.
+    testing::Mock::AllowLeak(mock_bluetooth_adapter_.get());
+
+    bluetooth_override_values_ =
+        device::BluetoothAdapterFactory::Get()->InitGlobalOverrideValues();
+    bluetooth_override_values_->SetLESupported(true);
+  }
+
+ protected:
+  scoped_refptr<AsyncMockBluetoothAdapter> mock_bluetooth_adapter_;
+  std::unique_ptr<device::BluetoothAdapterFactory::GlobalOverrideValues>
+      bluetooth_override_values_;
 
  private:
   base::test::ScopedFeatureList feature_list_;
@@ -825,6 +869,8 @@ class SigninViewControllerSignInBanner
 IN_PROC_BROWSER_TEST_F(SigninViewControllerSignInBanner, Visibility) {
   browser()->GetFeatures().signin_view_controller()->ShowDiceAddAccountTab(
       signin_metrics::AccessPoint::kSettings, std::string());
+
+  mock_bluetooth_adapter_->SetInitialized(true);
 
   content::WebContents* active_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -843,6 +889,28 @@ IN_PROC_BROWSER_TEST_F(SigninViewControllerSignInBanner, Visibility) {
   EXPECT_EQ(0u, infobar_manager->infobars().size());
 }
 
+IN_PROC_BROWSER_TEST_F(SigninViewControllerSignInBanner,
+                       NavigateAwayBeforeBluetoothResolved) {
+  browser()->GetFeatures().signin_view_controller()->ShowDiceAddAccountTab(
+      signin_metrics::AccessPoint::kSettings, std::string());
+
+  content::WebContents* active_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(active_contents);
+
+  // Navigate away immediately before resolving the initialization.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("about:blank")));
+
+  // Resolve the bluetooth check. Since we are no longer on the signin page,
+  // it should not add the banner.
+  mock_bluetooth_adapter_->SetInitialized(true);
+
+  infobars::ContentInfoBarManager* infobar_manager =
+      infobars::ContentInfoBarManager::FromWebContents(active_contents);
+  ASSERT_TRUE(infobar_manager);
+  EXPECT_EQ(0u, infobar_manager->infobars().size());
+}
+
 IN_PROC_BROWSER_TEST_F(SigninViewControllerSignInBanner, WebUIEnabled) {
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -854,6 +922,55 @@ IN_PROC_BROWSER_TEST_F(SigninViewControllerSignInBanner, WebUIEnabled) {
   EXPECT_EQ(web_contents->GetVisibleURL(), chrome::kChromeUISigninQRCodeBarURL);
   EXPECT_NE(web_contents->GetWebUI(), nullptr);
 }
+
+class SigninViewControllerSignInBannerNoBluetooth
+    : public SigninViewControllerBrowserTestBase {
+ public:
+  SigninViewControllerSignInBannerNoBluetooth() {
+    feature_list_.InitAndEnableFeature(switches::kMagiChromeSignInBanner);
+  }
+
+  void SetUpOnMainThread() override {
+    SigninViewControllerBrowserTestBase::SetUpOnMainThread();
+    mock_bluetooth_adapter_ =
+        base::MakeRefCounted<testing::NiceMock<device::MockBluetoothAdapter>>();
+    // Bluetooth is supported (LE is true) but adapter is NOT present.
+    ON_CALL(*mock_bluetooth_adapter_, IsPresent())
+        .WillByDefault(testing::Return(false));
+    device::BluetoothAdapterFactory::SetAdapterForTesting(
+        mock_bluetooth_adapter_);
+
+    bluetooth_override_values_ =
+        device::BluetoothAdapterFactory::Get()->InitGlobalOverrideValues();
+    bluetooth_override_values_->SetLESupported(true);
+  }
+
+ protected:
+  scoped_refptr<testing::NiceMock<device::MockBluetoothAdapter>>
+      mock_bluetooth_adapter_;
+  std::unique_ptr<device::BluetoothAdapterFactory::GlobalOverrideValues>
+      bluetooth_override_values_;
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(SigninViewControllerSignInBannerNoBluetooth,
+                       BluetoothUnavailable) {
+  browser()->GetFeatures().signin_view_controller()->ShowDiceAddAccountTab(
+      signin_metrics::AccessPoint::kSettings, std::string());
+
+  content::WebContents* active_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(active_contents);
+
+  // Check that the infobar is NOT shown because bluetooth is unavailable.
+  infobars::ContentInfoBarManager* infobar_manager =
+      infobars::ContentInfoBarManager::FromWebContents(active_contents);
+  ASSERT_TRUE(infobar_manager);
+  EXPECT_EQ(0u, infobar_manager->infobars().size());
+}
+
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 IN_PROC_BROWSER_TEST_F(SigninViewControllerBrowserTest,

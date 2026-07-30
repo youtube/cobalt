@@ -60,6 +60,17 @@
 <translation id="1587223624401073077">Google Chrome està utilitzant la càmera.</translation>
 <translation id="1587325591171447154">Chrome ha bloquejat <ph name="FILE_NAME" /> perquè és perillós.</translation>
 <translation id="1597911401261118146">Per comprovar si les teves contrasenyes estan protegides contra violacions de les dades i contra altres problemes de seguretat, <ph name="BEGIN_LINK" />inicia la sessió a Chrome<ph name="END_LINK" />.</translation>
+<translation id="1619639070275605589">Amb aquesta acció:
+          <ph name="LINE_BREAKS" />
+            • Es restabliran la pàgina d'arrencada, la pàgina Pestanya nova, el motor de cerca i les pestanyes fixades.
+            <ph name="LINE_BREAK" />
+            • Es desactivaran les extensions.
+            <ph name="LINE_BREAK" />
+            • Se suprimiran les galetes i altres dades temporals dels llocs web.
+            <ph name="LINE_BREAK" />
+            • Es restabliran les dreceres de Chrome.
+            <ph name="LINE_BREAKS" />
+            Les adreces d'interès, l'historial i les contrasenyes desades no es veuran afectats.</translation>
 <translation id="1619887657840448962">Per tal que Chrome sigui més segur, hem desactivat algunes de les extensions que no figuren a <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> i que és possible que s'hagin afegit sense que ho sapigueu.</translation>
 <translation id="1628000112320670027">Obtén ajuda per a Chrome</translation>
 <translation id="1640672724030957280">S'està baixant...</translation>
@@ -148,6 +159,7 @@ Si aquesta pàgina no funciona de la manera prevista, prova de permetre l'optimi
 <translation id="2580411288591421699">No es pot instal·lar la mateixa versió de Google Chrome que s'executa actualment. Tanqueu Google Chrome i torneu-ho a provar.</translation>
 <translation id="2586406160782125153">Amb aquesta acció, se suprimiran les teves dades de navegació d'aquest dispositiu. Per recuperar les teves dades més endavant, inicia la sessió a Chrome com a <ph name="USER_EMAIL" />.</translation>
 <translation id="259935314519650377">No s'ha pogut desar l'instal·lador baixat a la memòria cau. Error: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
+<translation id="2608461706055011366">Obtén una visió general ràpida d'aquest document i fes preguntes amb Gemini a Chrome</translation>
 <translation id="2620436844016719705">Sistema</translation>
 <translation id="263447411082773721">Mantén les contrasenyes, les adreces d'interès i l'historial perfectament sincronitzats en tots els dispositius. Accedeix fàcilment a les funcions que coneixes i que tant t'agraden actualitzant el navegador predeterminat a Chrome. Chrome es fixarà a la barra de tasques perquè hi puguis accedir ràpidament.</translation>
 <translation id="2645435784669275700">ChromeOS</translation>
@@ -239,6 +251,7 @@ Si aquesta pàgina no funciona de la manera prevista, prova de permetre l'optimi
 <translation id="345171907106878721">Afegeix-me a Chrome</translation>
 <translation id="3453763134178591239">Condicions de Chrome OS</translation>
 <translation id="3503306920980160878">Chrome necessita accedir a la teva ubicació per compartir-la amb aquest lloc web</translation>
+<translation id="3512495006767217696">Integrat a Chrome per ajudar-te a crear, desar i emplenar automàticament contrasenyes segures. Afegeix la drecera per accedir-hi fàcilment</translation>
 <translation id="3539955434060988644">Obre l'enllaç en una finestra d'incò&amp;gnit a Chrome</translation>
 <translation id="3576528680708590453">L'administrador del sistema ha configurat Google Chrome perquè obri un navegador alternatiu per accedir a <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="3582972582564653026">Sincronitza i personalitza Chrome en tots els teus dispositius</translation>
@@ -332,6 +345,7 @@ Si aquesta pàgina no funciona de la manera prevista, prova de permetre l'optimi
 <translation id="4493028449971051158">Error d'arrencada: executa l'instal·lador com a administrador.</translation>
 <translation id="4501471624619070934">La instal·lació ha fallat perquè l'accés està restringit en aquest país.</translation>
 <translation id="4571503333518166079">Ves a la configuració de notificacions de Chrome</translation>
+<translation id="4580939929828762295">Protegeix-te amb el gestor de contrasenyes de Google</translation>
 <translation id="4592634244097223647">Pregunta a Google sobre aquesta imatge</translation>
 <translation id="459622048091363950">Un cop Chrome tingui accés, els llocs web et podran demanar accés.</translation>
 <translation id="4598116752460667024">Cerca qualsevol procés de la llista.</translation>
@@ -516,6 +530,7 @@ Si aquesta pàgina no funciona de la manera prevista, prova de permetre l'optimi
 <translation id="6438015621983209660">Amplia la funció Navegació segura millorada amb Chrome al telèfon</translation>
 <translation id="6442774133615368941">Compra, tradueix i identifica el que veus amb la càmera a l'aplicació Chrome per a iOS</translation>
 <translation id="6448835208126432197">Per seleccionar una part de la pantalla a Gemini a Chrome, utilitza les tecles de drecera.</translation>
+<translation id="6473659734176498825">Imatge simplificada que mostra el punt d'entrada del gestor de contrasenyes de Google a Chrome</translation>
 <translation id="6473905796280459355">Ves a la pàgina Sobre Chrome</translation>
 <translation id="6481963882741794338">Enllaça Chrome i altres serveis de Google per a la personalització i altres finalitats</translation>
 <translation id="648319183876919572">La Navegació segura millorada és més eficaç a l'hora de protegir-te de baixades i llocs web perillosos</translation>
@@ -743,6 +758,7 @@ No es poden desar adreces d'interès noves al teu compte fins que no en suprimei
 <translation id="8624541899164515475">Configuració; s'obre en una pestanya nova.</translation>
 <translation id="8625237574518804553">{0,plural, =1{Chrome es reiniciarà d'aquí a 1 minut}other{Chrome es reiniciarà d'aquí a # minuts}}</translation>
 <translation id="8637932705841171563">Per compartir la finestra, permet que Chrome gravi la pantalla a Configuració del sistema</translation>
+<translation id="8642497536370021917">Per assegurar-te que puguis fer servir i desar sempre les dades de Chrome al teu Compte de Google, verifica la teva identitat</translation>
 <translation id="8656634243791296665">Obre Gemini a Chrome Dev</translation>
 <translation id="8669527147644353129">Aplicació d'ajuda de Google Chrome</translation>
 <translation id="8679801911857917785">També controla la pàgina que es mostra quan inicieu Chrome.</translation>
@@ -771,6 +787,15 @@ No es poden desar adreces d'interès noves al teu compte fins que no en suprimei
 <translation id="8922998289262614701">Suprimeix les dades d'aquesta aplicació de Chrome</translation>
 <translation id="8925636929359899517">Utilitzem la informació per millorar aquest servei. Consulta la <ph name="BEGIN_LINK1" />política de privadesa<ph name="END_LINK1" /> i les <ph name="BEGIN_LINK2" />condicions del servei<ph name="END_LINK2" />.</translation>
 <translation id="8936233353620149764">Commuta Gemini a Chrome</translation>
+<translation id="8944232836376404813">Amb aquesta acció:
+          <ph name="LINE_BREAKS" />
+            • Es restabliran la pàgina d'arrencada, la pàgina Pestanya nova, el motor de cerca i les pestanyes fixades.
+            <ph name="LINE_BREAK" />
+            • Es desactivaran les extensions.
+            <ph name="LINE_BREAK" />
+            • Se suprimiran les galetes i altres dades temporals dels llocs web.
+            <ph name="LINE_BREAKS" />
+            Les adreces d'interès, l'historial i les contrasenyes desades no es veuran afectats.</translation>
 <translation id="8948460679427074738">Aquesta extensió no ha publicat les seves pràctiques de privadesa, per exemple, la manera com recull i utilitza les dades. Chrome et recomana que la suprimeixis.</translation>
 <translation id="8958307504142971576">Ara tens més funcions disponibles a Chrome</translation>
 <translation id="8991530961471831170">Obre Gemini a Chrome</translation>

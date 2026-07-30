@@ -300,16 +300,16 @@ FlexLineBreakerResult BalanceBreakFlexItemsIntoLines(
     const LayoutUnit line_break_size,
     const LayoutUnit gap_between_items,
     wtf_size_t min_line_count) {
+  wtf_size_t all_items_size = ClampTo<wtf_size_t>(all_items.size());
   // We can't have more lines than items.
-  min_line_count =
-      std::min(min_line_count, ClampTo<wtf_size_t>(all_items.size()));
+  min_line_count = std::min(min_line_count, all_items_size);
   DCHECK_GE(min_line_count, 1u);
 
   ScoreContext ctx = {
       .gap_between_items = static_cast<uint64_t>(gap_between_items.RawValue()),
       .line_break_size = static_cast<uint64_t>(line_break_size.RawValue()),
-      .sums = Vector<ScoreUnit>(all_items.size(), 0u),
-      .scores = Vector(all_items.size(), ScoreData())};
+      .sums = Vector<ScoreUnit>(all_items_size, 0u),
+      .scores = Vector(all_items_size, ScoreData())};
 
   // Build up the prefix-sums[1], and work out how many lines we have.
   //
@@ -322,7 +322,7 @@ FlexLineBreakerResult BalanceBreakFlexItemsIntoLines(
   //
   // [1] https://en.wikipedia.org/wiki/Prefix_sum
   {
-    for (wtf_size_t i = 0u; i < all_items.size(); ++i) {
+    for (wtf_size_t i = 0u; i < all_items_size; ++i) {
       // NOTE: The prefix-sums array needs to be strictly monotonically
       // increasing for any of the "fast" balancing algorithms to work
       // correctly. Negative margins can potentially break this assumption.
@@ -351,7 +351,7 @@ FlexLineBreakerResult BalanceBreakFlexItemsIntoLines(
   // index which will fit on the line.
   {
     wtf_size_t i = 0;
-    for (wtf_size_t j = 0; j < all_items.size(); ++j) {
+    for (wtf_size_t j = 0; j < all_items_size; ++j) {
       DCHECK_LE(i, j);
 
       auto length = [&ctx](wtf_size_t i, wtf_size_t j) -> ScoreUnit {
@@ -373,13 +373,13 @@ FlexLineBreakerResult BalanceBreakFlexItemsIntoLines(
     }
   }
 
-  Score(all_items.size() - 1, kInfinity, ctx);
+  Score(all_items_size - 1, kInfinity, ctx);
 
   // Next retrieve the number of items on each line (in reverse).
   Vector<wtf_size_t> item_counts;
   {
     item_counts.ReserveInitialCapacity(line_count);
-    wtf_size_t previous_index = all_items.size() - 1;
+    wtf_size_t previous_index = all_items_size - 1;
     wtf_size_t index = ctx.scores[previous_index].best_break;
     while (index != kNotFound) {
       item_counts.push_back(previous_index - index);

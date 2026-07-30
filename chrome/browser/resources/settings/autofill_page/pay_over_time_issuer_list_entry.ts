@@ -40,12 +40,22 @@ export class SettingsPayOverTimeIssuerListEntryElement extends PolymerElement {
         },
         readOnly: true,
       },
+
+      autofillEnableGradientGoogleLogosEnabled_: {
+        type: Boolean,
+        value() {
+          return loadTimeData.getBoolean('autofillEnableGradientGoogleLogos');
+        },
+        readOnly: true,
+      },
     };
   }
 
   declare payOverTimeIssuer: chrome.autofillPrivate.PayOverTimeIssuerEntry;
 
   declare private autofillEnableWalletBrandingEnabled_: boolean;
+
+  declare private autofillEnableGradientGoogleLogosEnabled_: boolean;
 
   /**
    * When the provided `imageSrc` points toward an issuer's default logo art,
@@ -70,6 +80,22 @@ export class SettingsPayOverTimeIssuerListEntryElement extends PolymerElement {
   private onRemoteEditClick_() {
     OpenWindowProxyImpl.getInstance().openUrl(
         loadTimeData.getString('managePaymentMethodsUrl'));
+  }
+
+  private getGooglePayLightModeLogoSrcSet_(
+      isGradientGoogleLogosEnabled: boolean): string {
+    const logoId = isGradientGoogleLogosEnabled ?
+        'chrome://theme/IDR_AUTOFILL_GOOGLE_PAY_WITH_GRADIENT_SMALL' :
+        'chrome://theme/IDR_AUTOFILL_GOOGLE_PAY_SMALL';
+    return this.getScaledSrcSet_(logoId);
+  }
+
+  private getGooglePayDarkModeLogoSrcSet_(
+      isGradientGoogleLogosEnabled: boolean): string {
+    const logoId = isGradientGoogleLogosEnabled ?
+        'chrome://theme/IDR_AUTOFILL_GOOGLE_PAY_WITH_GRADIENT_DARK_SMALL' :
+        'chrome://theme/IDR_AUTOFILL_GOOGLE_PAY_DARK_SMALL';
+    return this.getScaledSrcSet_(logoId);
   }
 }
 

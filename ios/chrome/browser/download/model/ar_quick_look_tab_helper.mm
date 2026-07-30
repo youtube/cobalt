@@ -18,6 +18,7 @@
 #import "ios/chrome/browser/download/model/download_directory_util.h"
 #import "ios/chrome/browser/shared/model/utils/mime_type_util.h"
 #import "ios/web/public/download/download_task.h"
+#import "ios/web/public/navigation/navigation_context.h"
 #import "net/base/apple/url_conversions.h"
 #import "net/base/net_errors.h"
 #import "net/base/url_util.h"
@@ -252,6 +253,15 @@ void ARQuickLookTabHelper::WasShown(web::WebState* web_state) {
                          canonicalURL:pending_preview_->canonical_url
                              webState:web_state_
                   allowContentScaling:pending_preview_->allow_content_scaling];
+    pending_preview_.reset();
+  }
+}
+
+void ARQuickLookTabHelper::DidStartNavigation(
+    web::WebState* web_state,
+    web::NavigationContext* navigation_context) {
+  CHECK_EQ(web_state_, web_state);
+  if (!navigation_context->IsSameDocument()) {
     pending_preview_.reset();
   }
 }

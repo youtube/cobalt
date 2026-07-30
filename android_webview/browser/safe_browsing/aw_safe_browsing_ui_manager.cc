@@ -44,6 +44,7 @@ network::mojom::NetworkContextParamsPtr CreateDefaultNetworkContextParams() {
   network_context_params->cert_verifier_params = content::GetCertVerifierParams(
       cert_verifier::mojom::CertVerifierCreationParams::New());
   network_context_params->user_agent = GetUserAgent();
+  network_context_params->use_platform_ech_policy = true;
   return network_context_params;
 }
 

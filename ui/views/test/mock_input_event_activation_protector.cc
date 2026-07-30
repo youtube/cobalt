@@ -4,9 +4,16 @@
 
 #include "ui/views/test/mock_input_event_activation_protector.h"
 
+#include <utility>
+
+#include "ui/views/input_protection/input_protector_delegate.h"
+
 namespace views {
 MockInputEventActivationProtector::MockInputEventActivationProtector() =
     default;
+MockInputEventActivationProtector::MockInputEventActivationProtector(
+    std::unique_ptr<InputProtectorDelegate> delegate)
+    : InputEventActivationProtector(std::move(delegate)) {}
 MockInputEventActivationProtector::~MockInputEventActivationProtector() =
     default;
 }  // namespace views

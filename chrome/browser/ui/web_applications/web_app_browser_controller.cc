@@ -469,8 +469,8 @@ void WebAppBrowserController::OnRelationshipCheckComplete(
       break;
   }
   is_verified_ = should_show_cct;
-  browser()->window()->UpdateCustomTabBarVisibility(should_show_cct,
-                                                    false /* animate */);
+  BrowserWindow::FromBrowser(browser())->UpdateCustomTabBarVisibility(
+      should_show_cct, false /* animate */);
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
@@ -491,7 +491,7 @@ void WebAppBrowserController::OnWebAppManifestUpdated(
   if (updated_app_id == app_id()) {
     UpdateThemePack();
     app_icon_.reset();
-    browser()->window()->UpdateTitleBar();
+    BrowserWindow::FromBrowser(browser())->UpdateTitleBar();
 
     if (ManifestUpdateAppliedCallbackForTesting()) {
       std::move(ManifestUpdateAppliedCallbackForTesting()).Run();
@@ -764,7 +764,7 @@ bool WebAppBrowserController::IsPreinstalledOnly() const {
 void WebAppBrowserController::Uninstall(
     webapps::WebappUninstallSource webapp_uninstall_source) {
   provider_->ui_manager().PresentUserUninstallDialog(
-      app_id(), webapp_uninstall_source, browser()->window(),
+      app_id(), webapp_uninstall_source, BrowserWindow::FromBrowser(browser()),
       base::DoNothing());
 }
 
@@ -948,7 +948,7 @@ void WebAppBrowserController::OnUpdateDialogResult(
     case WebAppIdentityUpdateResult::kUninstallApp:
       web_app_provider->ui_manager().PresentUserUninstallDialog(
           app_id(), webapps::WebappUninstallSource::kAppMenu,
-          browser()->window(), base::DoNothing());
+          BrowserWindow::FromBrowser(browser()), base::DoNothing());
       return;
     case WebAppIdentityUpdateResult::kCloseApp:
       // kCloseApp is only used for migration dialogs.
@@ -1025,7 +1025,7 @@ void WebAppBrowserController::OnMigrationDialogResult(
               : base::DoNothing();
       web_app_provider->ui_manager().PresentUserUninstallDialog(
           app_id(), webapps::WebappUninstallSource::kAppMenu,
-          browser()->window(), std::move(complete_callback));
+          BrowserWindow::FromBrowser(browser()), std::move(complete_callback));
       return;
     }
     case WebAppIdentityUpdateResult::kCloseApp:

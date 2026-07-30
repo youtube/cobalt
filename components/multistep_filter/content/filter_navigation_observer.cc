@@ -5,6 +5,7 @@
 #include "components/multistep_filter/content/filter_navigation_observer.h"
 
 #include "base/check.h"
+#include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "components/multistep_filter/content/filter_initiated_navigation_marker.h"
 #include "components/multistep_filter/core/logging/log_entry.h"
@@ -12,9 +13,11 @@
 #include "components/multistep_filter/core/multistep_filter_service.h"
 #include "components/multistep_filter/core/multistep_filter_ui_delegate.h"
 #include "components/multistep_filter/core/multistep_filter_util.h"
+#include "components/multistep_filter/core/switches.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
 #include "url/gurl.h"
+#include "url/url_constants.h"
 
 namespace multistep_filter {
 
@@ -26,11 +29,8 @@ namespace {
 struct NavigationMetadata {
   GURL url;
   GURL prev_url;
-  // Caching etld_plus_one upfront avoids multiple expensive public suffix list
-  // registry lookups and repeated heap string allocations during the hot
-  // logging path.
-  std::string etld_plus_one;
-  bool is_valid_http_or_https_navigation;
+  bool is_cryptographic_scheme;
+  bool is_http_allowed_for_testing;
   bool is_error_page_navigation;
   bool has_user_gesture;
   bool was_filter_initiated_navigation;
@@ -39,8 +39,11 @@ struct NavigationMetadata {
   explicit NavigationMetadata(NavigationHandle* handle)
       : url(handle->GetURL()),
         prev_url(handle->GetPreviousPrimaryMainFrameURL()),
-        etld_plus_one(GetEtldPlusOne(url)),
-        is_valid_http_or_https_navigation(url.SchemeIsHTTPOrHTTPS()),
+        is_cryptographic_scheme(url.SchemeIsCryptographic()),
+        is_http_allowed_for_testing(
+            url.SchemeIs(url::kHttpScheme) &&
+            base::CommandLine::ForCurrentProcess()->HasSwitch(
+                switches::kMultistepFilterAllowHttpForTesting)),
         is_error_page_navigation(handle->IsErrorPage()),
         has_user_gesture(handle->HasUserGesture()),
         was_filter_initiated_navigation(
@@ -51,30 +54,30 @@ struct NavigationMetadata {
 
 void LogNavigationStarted(MultistepFilterLogRouter* log_router,
                           int64_t navigation_id,
-                          std::string_view domain) {
+                          std::string_view host) {
   MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                       LogEventType::kNavigationStarted, domain);
+                       LogEventType::kNavigationStarted, host);
 }
 
 void LogSuggestionCleared(MultistepFilterLogRouter* log_router,
                           int64_t navigation_id,
-                          std::string_view domain) {
+                          std::string_view host) {
   MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                       LogEventType::kSuggestionCleared, domain);
+                       LogEventType::kSuggestionCleared, host);
 }
 
 void LogUrlEligibilityCheck(MultistepFilterLogRouter* log_router,
                             int64_t navigation_id,
-                            std::string_view domain,
+                            std::string_view host,
                             bool eligible,
                             std::string_view reason = "") {
   if (reason.empty()) {
     MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                         LogEventType::kUrlEligibilityCheck, domain)
+                         LogEventType::kUrlEligibilityCheck, host)
         << LogDetail{"eligible", eligible};
   } else {
     MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                         LogEventType::kUrlEligibilityCheck, domain)
+                         LogEventType::kUrlEligibilityCheck, host)
         << LogDetail{"eligible", eligible}
         << LogDetail{"reason", std::string(reason)};
   }
@@ -82,42 +85,25 @@ void LogUrlEligibilityCheck(MultistepFilterLogRouter* log_router,
 
 void LogAnnotationExtractionStarted(MultistepFilterLogRouter* log_router,
                                     int64_t navigation_id,
-                                    std::string_view domain) {
+                                    std::string_view host) {
   MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                       LogEventType::kAnnotationExtractionStarted, domain);
-}
-
-void LogExtractionEligibilityCheck(MultistepFilterLogRouter* log_router,
-                                   int64_t navigation_id,
-                                   std::string_view domain,
-                                   bool eligible,
-                                   std::string_view reason = "") {
-  if (reason.empty()) {
-    MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                         LogEventType::kUrlEligibilityCheck, domain)
-        << LogDetail{"extraction_eligible", eligible};
-  } else {
-    MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                         LogEventType::kUrlEligibilityCheck, domain)
-        << LogDetail{"extraction_eligible", eligible}
-        << LogDetail{"reason", std::string(reason)};
-  }
+                       LogEventType::kAnnotationExtractionStarted, host);
 }
 
 void LogSuggestionSuppressed(MultistepFilterLogRouter* log_router,
                              int64_t navigation_id,
-                             std::string_view domain,
+                             std::string_view host,
                              std::string_view reason) {
   MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                       LogEventType::kSuggestionSuppressed, domain)
+                       LogEventType::kSuggestionSuppressed, host)
       << LogDetail{"reason", std::string(reason)};
 }
 
 void LogSuggestionGenerationStarted(MultistepFilterLogRouter* log_router,
                                     int64_t navigation_id,
-                                    std::string_view domain) {
+                                    std::string_view host) {
   MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                       LogEventType::kSuggestionGenerationStarted, domain);
+                       LogEventType::kSuggestionGenerationStarted, host);
 }
 
 }  // namespace
@@ -150,7 +136,7 @@ void FilterNavigationObserver::DidFinishNavigation(
 
   NavigationMetadata metadata(navigation_handle);
   int64_t navigation_id = navigation_handle->GetNavigationId();
-  LogNavigationStarted(log_router_, navigation_id, metadata.etld_plus_one);
+  LogNavigationStarted(log_router_, navigation_id, metadata.url.GetHost());
 
   // Avoid clearing suggestions for same-document navigations or same-URL
   // re-commits (including reloads). These are often intermediate states during
@@ -159,7 +145,7 @@ void FilterNavigationObserver::DidFinishNavigation(
   bool is_same_page =
       metadata.is_same_document_navigation || metadata.url == metadata.prev_url;
   if (!is_same_page) {
-    LogSuggestionCleared(log_router_, navigation_id, metadata.etld_plus_one);
+    LogSuggestionCleared(log_router_, navigation_id, metadata.url.GetHost());
     delegate_->ClearSuggestion();
   }
 
@@ -167,54 +153,51 @@ void FilterNavigationObserver::DidFinishNavigation(
   // Allow same-document navigations as they often represent Single Page
   // Application (SPA) state changes, but ignore other re-commits.
   if (metadata.is_error_page_navigation) {
-    LogUrlEligibilityCheck(log_router_, navigation_id, metadata.etld_plus_one,
+    LogUrlEligibilityCheck(log_router_, navigation_id, metadata.url.GetHost(),
                            /*eligible=*/false, "error_page");
     return;
   }
 
-  if (!metadata.is_valid_http_or_https_navigation) {
-    LogUrlEligibilityCheck(log_router_, navigation_id, metadata.etld_plus_one,
-                           /*eligible=*/false, "non_http_or_https");
+  if (!metadata.is_cryptographic_scheme &&
+      !metadata.is_http_allowed_for_testing) {
+    LogUrlEligibilityCheck(log_router_, navigation_id, metadata.url.GetHost(),
+                           /*eligible=*/false, "non_cryptographic");
     return;
   }
 
   if (metadata.url == metadata.prev_url &&
       !metadata.is_same_document_navigation) {
-    LogUrlEligibilityCheck(log_router_, navigation_id, metadata.etld_plus_one,
+    LogUrlEligibilityCheck(log_router_, navigation_id, metadata.url.GetHost(),
                            /*eligible=*/false, "same_url_non_same_document");
     return;
   }
 
-  LogUrlEligibilityCheck(log_router_, navigation_id, metadata.etld_plus_one,
-                         /*eligible=*/true);
-
   // Ensure the interaction was intentional by the user (e.g., a search button
-  // click, omnibox navigation, or bookmark). This avoids extracting from
-  // automatic client-side redirects.
-  if (metadata.has_user_gesture) {
-    LogAnnotationExtractionStarted(log_router_, navigation_id,
-                                   metadata.etld_plus_one);
-    service_->ExtractAnnotation(navigation_id, metadata.url);
-  } else {
-    LogExtractionEligibilityCheck(log_router_, navigation_id,
-                                  metadata.etld_plus_one, /*eligible=*/false,
-                                  "no_user_gesture_for_extraction");
+  // click, omnibox navigation, or bookmark). This avoids extracting from or
+  // showing suggestions on automatic client-side redirects.
+  if (!metadata.has_user_gesture) {
+    LogUrlEligibilityCheck(log_router_, navigation_id, metadata.url.GetHost(),
+                           /*eligible=*/false, "no_user_gesture");
+    return;
   }
+
+  LogAnnotationExtractionStarted(log_router_, navigation_id,
+                                 metadata.url.GetHost());
+  service_->ExtractAnnotation(navigation_id, metadata.url);
 
   // Prevent showing suggestions for same-site navigations to avoid spamming
   // the user, and don't re-trigger if the navigation was already initiated by
   // the filter UI.
   if (metadata.was_filter_initiated_navigation ||
       IsSameDomainOrHost(metadata.url, metadata.prev_url)) {
-    LogSuggestionSuppressed(log_router_, navigation_id, metadata.etld_plus_one,
+    LogSuggestionSuppressed(log_router_, navigation_id, metadata.url.GetHost(),
                             metadata.was_filter_initiated_navigation
                                 ? "filter_initiated"
-                                : "same_domain");
+                                : "same_site");
     return;
   }
 
-  LogSuggestionGenerationStarted(log_router_, navigation_id,
-                                 metadata.etld_plus_one);
+  LogSuggestionGenerationStarted(log_router_, navigation_id, metadata.url.GetHost());
   service_->GenerateFilterSuggestions(
       navigation_id, metadata.url,
       base::BindOnce(&MultistepFilterUiDelegate::OnSuggestionGenerated,

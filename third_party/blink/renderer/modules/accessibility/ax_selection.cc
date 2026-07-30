@@ -148,6 +148,16 @@ AXSelection AXSelection::FromCurrentSelection(
   const AXObject* ax_text_control = ax_object_cache.Get(&text_control);
   DCHECK(ax_text_control);
 
+  // If the selection offsets are out of sync with the text control's value
+  // length in the accessibility tree (which can happen if the shadow DOM is
+  // mutated directly), return an invalid selection to avoid crashing
+  // downstream.
+  unsigned value_length = ax_text_control->GetValueForControl().length();
+  if (text_control.selectionStart() > value_length ||
+      text_control.selectionEnd() > value_length) {
+    return {};
+  }
+
   // We can't directly use "text_control.Selection()" because the selection it
   // returns is inside the shadow DOM and it's not anchored to the text field
   // itself.

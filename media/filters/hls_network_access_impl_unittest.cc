@@ -23,6 +23,7 @@ enum class InitMode {
 }  // namespace
 
 using testing::_;
+using testing::Return;
 
 class HlsNetworkAccessImplUnittest : public testing::Test {
  public:
@@ -69,10 +70,7 @@ class HlsNetworkAccessImplUnittest : public testing::Test {
       auto key_uri = GURL(*key_location);
       enc_data = base::MakeRefCounted<hls::MediaSegment::EncryptionData>(
           GURL(*key_location), hls::XKeyTagMethod::kAES128,
-          hls::XKeyTagKeyFormat::kIdentity, std::make_tuple(0, 0),
-          key_uri.host() == manifest_uri.host()
-              ? hls::MediaSegment::EncryptionData::KeyLocation::kSafeOrigin
-              : hls::MediaSegment::EncryptionData::KeyLocation::kUnsafeOrigin);
+          hls::XKeyTagKeyFormat::kIdentity, std::make_tuple(0, 0));
     }
     return base::MakeRefCounted<hls::MediaSegment>(
         base::Seconds(1), 0, 0, resource_uri, url::Origin::Create(manifest_uri),
@@ -351,6 +349,59 @@ TEST_F(HlsNetworkAccessImplUnittest, TestSegmentWithCORSKey) {
             // on example.com. The example.net request did not provide a
             // Access-Control-Allow-Origin header in it's request, so the use
             // of the key is blocked, and the segment cannot be decrypted.
+            ASSERT_FALSE(result.has_value());
+          },
+          segment));
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(HlsNetworkAccessImplUnittest, SegmentWithRedirectedManifest) {
+  // The manifest, segment, and key are all hosted on https://example.com.
+  // The manifest request triggers a redirect to a https://example.net
+  auto segment = MakeSegment(std::nullopt, std::nullopt, InitMode::kAbsent,
+                             "https://example.com/enc.key");
+
+  // This actually has to be 16 non-zero bytes.
+  EXPECT_CALL(*factory_, MockCreate(GURL("https://example.com/enc.key"),
+                                    DataSource::CacheMode::kHitCache,
+                                    DataSource::EncodingMode::kIdentity))
+      .Times(1);
+  auto* ds_for_keyfetch =
+      factory_->PregenerateNextMock("https://example.com/enc.key");
+  EXPECT_CALL(*ds_for_keyfetch, Initialize)
+      .WillOnce(base::test::RunOnceCallback<0>(true));
+  EXPECT_CALL(*ds_for_keyfetch, Read(0, SpanSizeEq(16384), _))
+      .WillOnce([](int64_t, base::span<uint8_t> data, DataSource::ReadCB cb) {
+        std::ranges::fill(data.first<16>(), 'x');
+        std::move(cb).Run(16);
+      });
+  EXPECT_CALL(*ds_for_keyfetch, Read(16, SpanSizeEq(16384), _))
+      .WillOnce(base::test::RunOnceCallback<2>(0));
+  EXPECT_CALL(*ds_for_keyfetch, WouldTaintOrigin())
+      .WillRepeatedly(testing::Return(false));
+
+  EXPECT_CALL(*factory_, MockCreate(GURL("https://example.com/content.mp4"),
+                                    DataSource::CacheMode::kHitCache,
+                                    DataSource::EncodingMode::kIdentity))
+      .Times(1)
+      .WillOnce(
+          Return(std::make_tuple("https://example.net/content.mp4", true)));
+
+  // Then expect media content to be read.
+  factory_->AddReadExpectation(0, 16384, 1000);
+  factory_->AddReadExpectation(1000, 16384, 0);
+
+  ASSERT_NE(segment->GetEncryptionData(), nullptr);
+  ASSERT_TRUE(segment->GetEncryptionData()->NeedsKeyFetch());
+
+  network_access_->ReadMediaSegment(
+      *segment, /*read_chunked=*/false, /*include_init_segment=*/true,
+      base::BindOnce(
+          [&](scoped_refptr<hls::MediaSegment> segment,
+              HlsDataSourceProvider::ReadResult result) {
+            // The media data was not hosted on the same origin as the
+            // manifest, and had origin tainting. This is unacceptable for
+            // security reasons.
             ASSERT_FALSE(result.has_value());
           },
           segment));

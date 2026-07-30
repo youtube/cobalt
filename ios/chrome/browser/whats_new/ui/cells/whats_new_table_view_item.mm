@@ -42,9 +42,8 @@ const CGFloat trailingMargin = -24.0;
 
 #pragma mark TableViewItem
 
-- (void)configureCell:(WhatsNewTableViewCell*)cell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:cell withStyler:styler];
+- (void)configureCell:(WhatsNewTableViewCell*)cell {
+  [super configureCell:cell];
 
   self.accessibilityTraits |= UIAccessibilityTraitButton;
 

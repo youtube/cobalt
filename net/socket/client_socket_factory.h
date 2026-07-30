@@ -9,6 +9,7 @@
 #include <string>
 
 #include "net/base/net_export.h"
+#include "net/base/network_handle.h"
 #include "net/http/proxy_client_socket.h"
 #include "net/socket/datagram_socket.h"
 #include "net/socket/socket_performance_watcher.h"
@@ -37,6 +38,7 @@ class NET_EXPORT ClientSocketFactory {
   // if it has one.
   virtual std::unique_ptr<DatagramClientSocket> CreateDatagramClientSocket(
       DatagramSocket::BindType bind_type,
+      handles::NetworkHandle target_network,
       NetLog* net_log,
       const NetLogSource& source) = 0;
 
@@ -45,6 +47,7 @@ class NET_EXPORT ClientSocketFactory {
   // timeouts, or when histogramming the handshake duration.
   virtual std::unique_ptr<TransportClientSocket> CreateTransportClientSocket(
       const AddressList& addresses,
+      handles::NetworkHandle target_network,
       std::unique_ptr<SocketPerformanceWatcher> socket_performance_watcher,
       NetworkQualityEstimator* network_quality_estimator,
       NetLog* net_log,

@@ -7,6 +7,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
@@ -66,7 +67,7 @@ IN_PROC_BROWSER_TEST_F(ZoomBubbleBrowserTest, ContentFullscreen) {
 #endif
 
   BrowserView* const browser_view =
-      static_cast<BrowserView*>(browser()->window());
+      BrowserView::GetBrowserViewForBrowser(browser());
   content::WebContents* web_contents = browser_view->GetActiveWebContents();
 
   // The zoom bubble should be anchored when not in fullscreen.
@@ -120,7 +121,7 @@ IN_PROC_BROWSER_TEST_F(ZoomBubbleImmersiveDisabledBrowserTest,
 #if BUILDFLAG(IS_MAC)
   ui::test::ScopedFakeNSWindowFullscreen fake_fullscreen;
 #endif
-  BrowserView* browser_view = static_cast<BrowserView*>(browser()->window());
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   content::WebContents* web_contents = browser_view->GetActiveWebContents();
 
   zoom_bubble_coordinator_->Show(web_contents, ZoomBubbleView::AUTOMATIC);
@@ -147,7 +148,8 @@ IN_PROC_BROWSER_TEST_F(ZoomBubbleImmersiveDisabledBrowserTest,
 #else
   const bool should_show_toolbar = false;
 #endif
-  EXPECT_EQ(should_show_toolbar, browser()->window()->IsToolbarVisible());
+  EXPECT_EQ(should_show_toolbar,
+            BrowserWindow::FromBrowser(browser())->IsToolbarVisible());
 
   // The zoom bubble should be anchored to the same anchor view if the toolbar
   // shows.
@@ -192,7 +194,7 @@ IN_PROC_BROWSER_TEST_F(ZoomBubbleImmersiveDisabledBrowserTest,
 // immersive fullscreen.
 IN_PROC_BROWSER_TEST_F(ZoomBubbleBrowserTest, ImmersiveFullscreen) {
   BrowserView* const browser_view =
-      static_cast<BrowserView*>(browser()->window());
+      BrowserView::GetBrowserViewForBrowser(browser());
   content::WebContents* web_contents = browser_view->GetActiveWebContents();
 
   auto* const immersive_controller = ImmersiveModeController::From(browser());

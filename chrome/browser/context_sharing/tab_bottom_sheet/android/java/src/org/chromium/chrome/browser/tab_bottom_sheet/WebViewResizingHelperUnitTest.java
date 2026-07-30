@@ -34,9 +34,11 @@ import org.robolectric.annotation.Config;
 import org.chromium.base.ActivityState;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.context_sharing.R;
+import org.chromium.chrome.browser.ui.side_panel_container.SidePanelContainerCoordinator;
 import org.chromium.components.thinwebview.ThinWebView;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.TestActivity;
+import org.chromium.ui.base.ViewUtils;
 import org.chromium.ui.base.WindowAndroid;
 
 /** Unit tests for {@link WebViewResizingHelper}. */
@@ -166,8 +168,9 @@ public class WebViewResizingHelperUnitTest {
         verify(mMockWebContents, never()).setSize(anyInt(), anyInt());
 
         // Case 3: width == mWebContents.getWidth() && height == mWebContents.getHeight()
-        when(mMockWebContents.getWidth()).thenReturn(100);
-        when(mMockWebContents.getHeight()).thenReturn(200);
+        // Use ViewUtils.dpToPx for conversion to match the logic in updateBounds
+        when(mMockWebContents.getWidth()).thenReturn(ViewUtils.pxToDp(mContext, 100));
+        when(mMockWebContents.getHeight()).thenReturn(ViewUtils.pxToDp(mContext, 200));
         container.layout(0, 0, 100, 200);
         verify(mMockThinWebView, never()).resizeWebContents(anyInt(), anyInt());
         verify(mMockWebContents, never()).setSize(anyInt(), anyInt());
@@ -252,5 +255,59 @@ public class WebViewResizingHelperUnitTest {
 
         verify(mMockThinWebView, never()).resizeWebContents(anyInt(), anyInt());
         verify(mMockWebContents, never()).setSize(anyInt(), anyInt());
+    }
+
+    @Test
+    public void testUpdateBounds_SetsThinWebViewSize_BottomSheet() {
+        mHelper.setThinWebView(mMockThinWebView, mMockWebContents);
+        FrameLayout container = (FrameLayout) mHelper.getResizingContainer();
+
+        when(mMockDecorView.getWidth()).thenReturn(1080);
+        when(mMockDecorView.getHeight()).thenReturn(1920);
+
+        container.layout(0, 0, 100, 200);
+
+        FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) mView.getLayoutParams();
+        assertEquals(1080, layoutParams.width);
+        assertEquals(1920, layoutParams.height);
+    }
+
+    @Test
+    public void testUpdateBounds_SidePanel_FallbackSizing() {
+        mHelper = new WebViewResizingHelper(mContainerView, mMockWindowAndroid, Color.WHITE, true);
+        mHelper.setThinWebView(mMockThinWebView, mMockWebContents);
+        FrameLayout container = (FrameLayout) mHelper.getResizingContainer();
+
+        when(mMockWebContents.getWidth()).thenReturn(50);
+        when(mMockWebContents.getHeight()).thenReturn(50);
+        when(mMockDecorView.getHeight()).thenReturn(1000);
+
+        container.layout(0, 0, 0, 0);
+
+        int expectedWidth =
+                ViewUtils.dpToPx(mContext, SidePanelContainerCoordinator.WIDE_SIDE_PANEL_WIDTH_DP);
+        int expectedHeight = 1000;
+
+        verify(mMockThinWebView).resizeWebContents(expectedWidth, expectedHeight);
+        verify(mMockWebContents, never()).setSize(anyInt(), anyInt());
+    }
+
+    @Test
+    public void testUpdateBounds_SidePanel_FallbackSizing_WebContentsOnly() {
+        mHelper = new WebViewResizingHelper(mContainerView, mMockWindowAndroid, Color.WHITE, true);
+        mHelper.setThinWebView(null, mMockWebContents);
+        FrameLayout container = (FrameLayout) mHelper.getResizingContainer();
+
+        when(mMockWebContents.getWidth()).thenReturn(50);
+        when(mMockWebContents.getHeight()).thenReturn(50);
+        when(mMockDecorView.getHeight()).thenReturn(1000);
+
+        container.layout(0, 0, 0, 0);
+
+        int expectedWidth =
+                ViewUtils.dpToPx(mContext, SidePanelContainerCoordinator.WIDE_SIDE_PANEL_WIDTH_DP);
+        int expectedHeight = 1000;
+
+        verify(mMockWebContents).setSize(expectedWidth, expectedHeight);
     }
 }

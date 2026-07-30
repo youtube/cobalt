@@ -25,6 +25,7 @@
 #include "sentencepiece_trainer.h"
 #include "testharness.h"
 #include "absl/container/flat_hash_map.h"
+#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "util.h"
@@ -36,29 +37,30 @@ namespace sentencepiece {
 
 class MockModel : public ModelInterface {
  public:
-  void SetEncodeResult(absl::string_view input, const EncodeResult &output) {
+  void SetEncodeResult(absl::string_view input, const EncodeResult& output) {
     input_ = input;
     output_ = output;
   }
 
   void SetNBestEncodeResult(absl::string_view input,
-                            const NBestEncodeResult &output) {
+                            const NBestEncodeResult& output) {
     input_ = input;
     nbest_output_ = output;
   }
 
-  EncodeResult Encode(absl::string_view normalized) const {
+  EncodeResult Encode(absl::string_view normalized) const override {
     EXPECT_EQ(normalized, input_);
     return output_;
   }
 
-  EncodeResult SampleEncode(absl::string_view normalized, float alpha) const {
+  EncodeResult SampleEncode(absl::string_view normalized,
+                            float alpha) const override {
     EXPECT_EQ(normalized, input_);
     return output_;
   }
 
   NBestEncodeResult NBestEncode(absl::string_view normalized,
-                                int nbest_size) const {
+                                int nbest_size) const override {
     EXPECT_EQ(normalized, input_);
     return nbest_output_;
   }
@@ -67,17 +69,17 @@ class MockModel : public ModelInterface {
 
   bool IsNBestEncodeAvailable() const override { return true; }
 
-  bool IsControl(int id) const { return id == 1 || id == 2; }
+  bool IsControl(int id) const override { return id == 1 || id == 2; }
 
-  bool IsUnknown(int id) const { return id == 0; }
+  bool IsUnknown(int id) const override { return id == 0; }
 
-  int GetPieceSize() const { return 10; }
+  int GetPieceSize() const override { return 10; }
 
-  int PieceToId(absl::string_view piece) const { return 0; }
+  int PieceToId(absl::string_view piece) const override { return 0; }
 
-  const std::string &IdToPiece(int id) const { return kEmptyString; }
+  const std::string& IdToPiece(int id) const override { return kEmptyString; }
 
-  float GetScore(int id) const { return 0.0; }
+  float GetScore(int id) const override { return 0.0; }
 
  private:
   absl::string_view input_;
@@ -91,25 +93,25 @@ class ByteFallbackMockModel : public MockModel {
   bool ByteFallbackEnabled() const override { return true; }
 };
 
-std::vector<std::string> GetSpVec(const EncodeResult &pieces) {
+std::vector<std::string> GetSpVec(const EncodeResult& pieces) {
   std::vector<std::string> sps;
-  for (const auto &p : pieces) {
+  for (const auto& p : pieces) {
     sps.emplace_back(std::string(p.first));
   }
   return sps;
 }
 
-std::vector<int> GetIdVec(const EncodeResult &pieces) {
+std::vector<int> GetIdVec(const EncodeResult& pieces) {
   std::vector<int> ids;
-  for (const auto &p : pieces) {
+  for (const auto& p : pieces) {
     ids.emplace_back(p.second);
   }
   return ids;
 }
 
-std::vector<std::string> GetSpVec(const SentencePieceText &spt) {
+std::vector<std::string> GetSpVec(const SentencePieceText& spt) {
   std::vector<std::string> sps;
-  for (auto &sp : spt.pieces()) {
+  for (auto& sp : spt.pieces()) {
     sps.emplace_back(sp.piece());
   }
   return sps;
@@ -557,7 +559,7 @@ TEST(SentencepieceProcessorTest, DecodeTest) {
       return port::FindWithDefault(kMap, piece, 0);
     }
 
-    const std::string &IdToPiece(int id) const override {
+    const std::string& IdToPiece(int id) const override {
       static std::vector<std::string> kMap = {
           "<unk>", "<s>", "</s>", WS "ABC", WS "DE", "F", "G" WS "H"};
       return kMap[id];
@@ -724,7 +726,7 @@ TEST(SentencepieceProcessorTest, DummyPrefixDecodeTest) {
       return port::FindWithDefault(kMap, piece, 0);
     }
 
-    const std::string &IdToPiece(int id) const override {
+    const std::string& IdToPiece(int id) const override {
       static std::vector<std::string> kMap = {
           "<unk>", "<s>", "</s>", WS "ABC", WS "DE", "F", "G" WS "H", WS};
       return kMap[id];
@@ -809,7 +811,7 @@ TEST(SentencepieceProcessorTest, ByteFallbackDecodeTest) {
       return port::FindWithDefault(kMap, std::string(piece), 0);
     }
 
-    const std::string &IdToPiece(int id) const override {
+    const std::string& IdToPiece(int id) const override {
       static std::vector<std::string> kMap = []() -> std::vector<std::string> {
         std::vector<std::string> m = {"<unk>", "<s>", "</s>", "A", "B", "C"};
         for (int i = 0; i < 256; ++i) {
@@ -943,9 +945,9 @@ TEST(SentencepieceProcessorTest, ByteFallbackDecodeTest) {
   }
 }
 
-void AddPiece(ModelProto *model_proto, absl::string_view piece,
+void AddPiece(ModelProto* model_proto, absl::string_view piece,
               float score = 0.0) {
-  auto *sp = model_proto->add_pieces();
+  auto* sp = model_proto->add_pieces();
   sp->set_piece(std::string(piece));
   sp->set_score(score);
 }
@@ -958,7 +960,7 @@ TEST(SentencePieceProcessorTest, LoadInvalidModelTest) {
 
 TEST(SentencePieceProcessorTest, LoadSerializedProtoTest) {
   ModelProto model_proto;
-  auto *sp1 = model_proto.add_pieces();
+  auto* sp1 = model_proto.add_pieces();
   sp1->set_type(ModelProto::SentencePiece::UNKNOWN);
   sp1->set_piece("<unk>");
   AddPiece(&model_proto, WS, 0.0);
@@ -973,9 +975,9 @@ TEST(SentencePieceProcessorTest, LoadSerializedProtoTest) {
 
 TEST(SentencePieceProcessorTest, EndToEndTest) {
   ModelProto model_proto;
-  auto *sp1 = model_proto.add_pieces();
-  auto *sp2 = model_proto.add_pieces();
-  auto *sp3 = model_proto.add_pieces();
+  auto* sp1 = model_proto.add_pieces();
+  auto* sp2 = model_proto.add_pieces();
+  auto* sp3 = model_proto.add_pieces();
 
   sp1->set_type(ModelProto::SentencePiece::UNKNOWN);
   sp1->set_piece("<unk>");
@@ -999,8 +1001,7 @@ TEST(SentencePieceProcessorTest, EndToEndTest) {
   }
 
   SentencePieceProcessor sp;
-  EXPECT_TRUE(
-      sp.Load(util::JoinPath(::testing::TempDir(), "model")).ok());
+  EXPECT_TRUE(sp.Load(util::JoinPath(::testing::TempDir(), "model")).ok());
 
   EXPECT_EQ(model_proto.SerializeAsString(),
             sp.model_proto().SerializeAsString());
@@ -1080,6 +1081,11 @@ TEST(SentencePieceProcessorTest, EndToEndTest) {
     const std::vector<int> expected_id = {1, 7, 6, 5};
     EXPECT_TRUE(sp.Encode("abc", &ids).ok());
     EXPECT_EQ(expected_id, ids);
+
+    SentencePieceText spt;
+    EXPECT_TRUE(sp.Encode("abc", &spt).ok());
+    EXPECT_EQ(spt.pieces(0).begin(), 0);
+    EXPECT_EQ(spt.pieces(0).end(), 0);
   }
 
   {
@@ -1094,6 +1100,12 @@ TEST(SentencePieceProcessorTest, EndToEndTest) {
     const std::vector<int> expected_id = {7, 6, 5, 2};
     EXPECT_TRUE(sp.Encode("abc", &ids).ok());
     EXPECT_EQ(expected_id, ids);
+
+    SentencePieceText spt;
+    EXPECT_TRUE(sp.Encode("abc", &spt).ok());
+    EXPECT_EQ(spt.pieces(3).piece(), "</s>");
+    EXPECT_EQ(spt.pieces(3).begin(), 3);
+    EXPECT_EQ(spt.pieces(3).end(), 3);
   }
 
   {
@@ -1270,7 +1282,7 @@ TEST(SentencePieceProcessorTest, EndToEndTest) {
   EXPECT_FALSE(sp.SetEncodeExtraOptions("foo").ok());
   EXPECT_FALSE(sp.SetDecodeExtraOptions("foo").ok());
 
-  auto RunTest = [&model_proto](const SentencePieceProcessor &sp) {
+  auto RunTest = [&model_proto](const SentencePieceProcessor& sp) {
     EXPECT_EQ(model_proto.SerializeAsString(),
               sp.model_proto().SerializeAsString());
 
@@ -1347,7 +1359,7 @@ TEST(SentencePieceProcessorTest, EndToEndTest) {
   {
     SentencePieceProcessor sp;
     auto moved = std::make_unique<ModelProto>();
-    const ModelProto *moved_ptr = moved.get();
+    const ModelProto* moved_ptr = moved.get();
     *moved = model_proto;
     EXPECT_TRUE(sp.Load(std::move(moved)).ok());
     EXPECT_EQ(moved_ptr, &sp.model_proto());
@@ -1374,8 +1386,8 @@ TEST(SentencePieceProcessorTest, EndToEndTest) {
 
 TEST(SentencePieceProcessorTest, SkipNormalizationTest) {
   ModelProto model_proto;
-  auto *sp1 = model_proto.add_pieces();
-  auto *sp2 = model_proto.add_pieces();
+  auto* sp1 = model_proto.add_pieces();
+  auto* sp2 = model_proto.add_pieces();
 
   sp1->set_type(ModelProto::SentencePiece::UNKNOWN);
   sp1->set_piece("<unk>");
@@ -1398,7 +1410,7 @@ TEST(SentencePieceProcessorTest, SkipNormalizationTest) {
 
   std::vector<std::string> pieces;
   EXPECT_TRUE(sp.Encode("AB<USER>C<uSEr>", &pieces).ok());
-  for (const auto &sp : pieces) ABSL_LOG(INFO) << sp;
+  for (const auto& sp : pieces) ABSL_LOG(INFO) << sp;
   EXPECT_EQ(std::vector<std::string>(
                 {WS, "a", "b", "<USER>", "c", "<", "u", "s", "e", "r", ">"}),
             pieces);
@@ -1406,7 +1418,7 @@ TEST(SentencePieceProcessorTest, SkipNormalizationTest) {
 
 TEST(SentencePieceProcessorTest, ExtraOptionsUndefinedTest) {
   ModelProto model_proto;
-  auto *sp1 = model_proto.add_pieces();
+  auto* sp1 = model_proto.add_pieces();
 
   // No BOS/EOS.
   sp1->set_type(ModelProto::SentencePiece::UNKNOWN);
@@ -1426,9 +1438,9 @@ TEST(SentencePieceProcessorTest, ExtraOptionsUndefinedTest) {
 
 TEST(SentencePieceProcessorTest, OverrideSpecialPieceTest) {
   ModelProto model_proto;
-  auto *sp1 = model_proto.add_pieces();
-  auto *sp2 = model_proto.add_pieces();
-  auto *sp3 = model_proto.add_pieces();
+  auto* sp1 = model_proto.add_pieces();
+  auto* sp2 = model_proto.add_pieces();
+  auto* sp3 = model_proto.add_pieces();
 
   model_proto.mutable_trainer_spec()->set_unk_piece("__UNK__");
   model_proto.mutable_trainer_spec()->set_bos_piece("__BOS__");
@@ -1460,9 +1472,9 @@ TEST(SentencePieceProcessorTest, OverrideSpecialPieceTest) {
 
 TEST(SentencePieceProcessorTest, VocabularyTest) {
   ModelProto model_proto;
-  auto *sp1 = model_proto.add_pieces();
-  auto *sp2 = model_proto.add_pieces();
-  auto *sp3 = model_proto.add_pieces();
+  auto* sp1 = model_proto.add_pieces();
+  auto* sp2 = model_proto.add_pieces();
+  auto* sp3 = model_proto.add_pieces();
 
   auto GetInlineFilename = [](const std::string content) {
     {
@@ -1561,18 +1573,55 @@ TEST(SentencePieceProcessorTest, VocabularyTest) {
   EXPECT_FALSE(sp.IsUnused(7));
 }
 
+TEST(LoadModelProtoTest, EmptyFilename) {
+  ModelProto model_proto;
+  const auto status = io::LoadModelProto("", &model_proto);
+  EXPECT_FALSE(status.ok());
+  EXPECT_TRUE(absl::StrContains(status.message(),
+                                "model file path should not be empty."));
+}
+
+TEST(LoadModelProtoTest, FileNotParseableAsModelProto) {
+  ModelProto model_proto;
+  const std::string filename = util::JoinPath(::testing::TempDir(), "file");
+  {
+    auto output = filesystem::NewWritableFile(filename, true);
+    ASSERT_TRUE(output->Write("12345"));
+  }
+
+  const auto status = io::LoadModelProto(filename, &model_proto);
+  EXPECT_FALSE(status.ok());
+  EXPECT_TRUE(absl::StrContains(
+      status.message(),
+      absl::StrCat("could not parse ModelProto from ", filename)));
+}
+
+TEST(LoadModelProtoTest, FileLoadsOk) {
+  ModelProto model_proto;
+  AddPiece(&model_proto, "a", 0.0);
+  AddPiece(&model_proto, "b", 0.3);
+  AddPiece(&model_proto, "c", 0.2);
+
+  const std::string filename = util::JoinPath(::testing::TempDir(), "file");
+  {
+    auto output = filesystem::NewWritableFile(filename, true);
+    ASSERT_TRUE(output->Write(model_proto.SerializeAsString()));
+  }
+  EXPECT_OK(io::LoadModelProto(filename, &model_proto));
+}
+
 TEST(SentencePieceProcessorTest, ImmutableSentencePieceTextTest) {
   ImmutableSentencePieceText spt;
   EXPECT_TRUE(spt.text().empty());
   EXPECT_EQ(spt.score(), 0.0);
   EXPECT_TRUE(spt.SerializeAsString().empty());
 
-  auto *v = spt.mutable_proto();
+  auto* v = spt.mutable_proto();
 
   v->set_text("hello world");
   v->set_score(1.0);
   for (int i = 0; i < 10; ++i) {
-    auto *p = v->add_pieces();
+    auto* p = v->add_pieces();
     p->set_surface(absl::StrCat("surface_", i));
     p->set_piece(absl::StrCat("surface_", i));
     p->set_id(i);
@@ -1589,9 +1638,9 @@ TEST(SentencePieceProcessorTest, ImmutableSentencePieceTextTest) {
     EXPECT_EQ(v->pieces(i).end(), spt.pieces(i).end());
   }
 
-  auto check_proto = [&v](const ImmutableSentencePieceText &s) {
+  auto check_proto = [&v](const ImmutableSentencePieceText& s) {
     int n = 0;
-    for (auto &p : s.pieces()) {
+    for (auto& p : s.pieces()) {
       EXPECT_EQ(v->pieces(n).surface(), p.surface());
       EXPECT_EQ(v->pieces(n).piece(), p.piece());
       EXPECT_EQ(v->pieces(n).id(), p.id());
@@ -1626,15 +1675,15 @@ TEST(SentencePieceProcessorTest, ImmutableNBestSentencePieceTextTest) {
   EXPECT_EQ(spt.nbests_size(), 0);
   EXPECT_TRUE(spt.SerializeAsString().empty());
 
-  auto *v = spt.mutable_proto();
+  auto* v = spt.mutable_proto();
 
   for (int i = 0; i < 10; ++i) {
-    auto *p = v->add_nbests();
+    auto* p = v->add_nbests();
     p->set_text(absl::StrCat("text_", i));
     p->set_score(2.0 * i);
   }
 
-  auto check_proto = [&v](const ImmutableNBestSentencePieceText &s) {
+  auto check_proto = [&v](const ImmutableNBestSentencePieceText& s) {
     EXPECT_EQ(v->nbests_size(), s.nbests_size());
     for (int i = 0; i < v->nbests_size(); ++i) {
       EXPECT_EQ(v->nbests(i).text(), s.nbests(i).text());
@@ -1655,13 +1704,13 @@ TEST(SentencePieceProcessorTest, ImmutableNBestSentencePieceTextTest) {
 }
 
 TEST(SentencePieceProcessorTest, ConvertToUnicodeSpansTest) {
-  auto make_spt = [&](const std::vector<std::string> &tokens) {
+  auto make_spt = [&](const std::vector<std::string>& tokens) {
     ImmutableSentencePieceText ispt;
-    auto *spt = ispt.mutable_proto();
+    auto* spt = ispt.mutable_proto();
     int prev = 0;
     std::string text;
-    for (const auto &tok : tokens) {
-      auto *piece = spt->add_pieces();
+    for (const auto& tok : tokens) {
+      auto* piece = spt->add_pieces();
       piece->set_surface(tok);
       piece->set_piece(tok);
       piece->set_begin(prev);

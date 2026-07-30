@@ -38,6 +38,8 @@ build_webui("build") {
     "skills_empty.html.ts",
     "skills_empty.ts",
     "skills_page_browser_proxy.ts",
+    "v2/skills_webview_bridge.ts",
+    "v2/skills_webview_bridge_constants.ts",
     "user_skills_page.html.ts",
     "user_skills_page.ts",
     "v2/skills.ts",
@@ -67,6 +69,11 @@ build_webui("build") {
     "$root_gen_dir/chrome/browser/ui/webui/skills/skills.mojom-webui.ts",
     "$root_gen_dir/components/skills/public/skill.mojom-webui.ts",
     "$root_gen_dir/components/skills/public/skill_metrics.mojom-webui.ts",
+  ]
+
+  ts_definitions = [
+    "//tools/typescript/definitions/chrome_event.d.ts",
+    "//tools/typescript/definitions/webview_tag.d.ts",
   ]
 
   ts_deps = [

@@ -371,13 +371,11 @@ void WebStateDelegateBrowserAgent::ContextMenuConfiguration(
     web::WebState* source,
     const web::ContextMenuParams& params,
     void (^completion_handler)(UIContextMenuConfiguration*)) {
-  if (IsGeminiCopresenceEnabled()) {
-    id<GeminiCommands> geminiHandler =
-        HandlerForProtocol(browser_->GetCommandDispatcher(), GeminiCommands);
-    [geminiHandler
-        hideFloatyIfInvokedAnimated:YES
-                         fromSource:gemini::FloatyUpdateSource::WebContextMenu];
-  }
+  id<GeminiCommands> geminiHandler =
+      HandlerForProtocol(browser_->GetCommandDispatcher(), GeminiCommands);
+  [geminiHandler
+      hideFloatyIfInvokedAnimated:YES
+                       fromSource:gemini::FloatyUpdateSource::WebContextMenu];
 
   UIContextMenuConfiguration* configuration =
       [context_menu_provider_ contextMenuConfigurationForWebState:source

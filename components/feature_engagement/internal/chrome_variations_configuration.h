@@ -28,6 +28,7 @@ class ChromeVariationsConfiguration : public Configuration {
   ~ChromeVariationsConfiguration() override;
 
   // Configuration implementation.
+  bool HasFeatureConfig(const base::Feature& feature) const override;
   const FeatureConfig& GetFeatureConfig(
       const base::Feature& feature) const override;
   const FeatureConfig& GetFeatureConfigByName(

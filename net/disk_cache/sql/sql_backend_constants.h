@@ -131,6 +131,15 @@ inline constexpr std::string_view kSqlDiskCacheBackendHistogramPrefix =
 inline constexpr base::FilePath::CharType
     kSqlBackendSharedCacheIndexFileName[] = FILE_PATH_LITERAL("shared_index");
 
+// The file name prefix of the shared cache isolated database.
+inline constexpr std::string_view kSqlBackendSharedCacheIsolatedFileNamePrefix =
+    "shared_";
+
+// The key used in the meta table of the shared cache isolated database to store
+// the Network Isolation Key (NIK) string.
+inline constexpr std::string_view
+    kSqlBackendSharedCacheIsolatedMetaTableKeyNik = "nik_string";
+
 }  // namespace disk_cache
 
 #endif  // NET_DISK_CACHE_SQL_SQL_BACKEND_CONSTANTS_H_

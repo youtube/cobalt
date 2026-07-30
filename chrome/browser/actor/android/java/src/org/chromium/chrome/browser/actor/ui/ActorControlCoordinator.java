@@ -128,7 +128,7 @@ public class ActorControlCoordinator implements ActorControlStateTracker.Observe
 
     /** Called when the actor control button is clicked. */
     /* package */ void onActorControlClicked() {
-        ActorTask activeTask = mStateTracker.getCurrentActiveTask();
+        ActorTask activeTask = mStateTracker.getActiveTaskAssociatedWithCurrentConversation();
         // TODO(crbug.com/503370476): Use ActorUiStateManager to track when tasks are finished,
         // instead of checking activeTask.
         if (activeTask == null) {

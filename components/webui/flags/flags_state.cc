@@ -59,6 +59,7 @@ const char kOriginListValueSeparator[] = ",";
 
 // A mapping from old flag names to new flag names; used for migration.
 // TODO(crbug.com/524236481): Remove built-in AI API flag entries by June 2027.
+// LINT.IfChange(kRenamedFlags)
 constexpr auto kRenamedFlags =
     base::MakeFixedFlatMap<std::string_view, std::string_view>({
         {"classifier-api-for-tiny-model", "classifier-api"},
@@ -69,6 +70,7 @@ constexpr auto kRenamedFlags =
         {"summarizer-api-for-gemini-nano", "summarizer-api"},
         {"writer-api-for-gemini-nano", "writer-api"},
     });
+// LINT.ThenChange(//components/webui/flags/resources/app.ts:FLAG_REDIRECTS)
 
 const struct {
   unsigned bit;

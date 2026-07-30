@@ -589,8 +589,8 @@ void AppBrowserController::Uninstall(
 }
 
 void AppBrowserController::UpdateCustomTabBarVisibility(bool animate) const {
-  browser()->window()->UpdateCustomTabBarVisibility(ShouldShowCustomTabBar(),
-                                                    animate);
+  BrowserWindow::FromBrowser(browser())->UpdateCustomTabBarVisibility(
+      ShouldShowCustomTabBar(), animate);
 }
 
 void AppBrowserController::DidStartNavigation(
@@ -892,7 +892,8 @@ void AppBrowserController::OnReceivedInitialURL() {
   // Note that any potential fix should take into account that
   // `override_bounds()` represent the outer window bounds, not the content
   // size.
-  browser()->window()->SetContentsSize(browser()->override_bounds().size());
+  BrowserWindow::FromBrowser(browser())->SetContentsSize(
+      browser()->override_bounds().size());
 }
 
 void AppBrowserController::OnTabInserted(content::WebContents* contents) {

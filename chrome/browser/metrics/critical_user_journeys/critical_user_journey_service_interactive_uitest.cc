@@ -174,6 +174,7 @@ IN_PROC_BROWSER_TEST_F(CriticalUserJourneyServiceInteractiveTest,
                    const std::optional<std::string>& supplied_trigger_id,
                    const HatsService::SurveyOptions& survey_options) {
         std::move(success_callback).Run();
+        return HatsService::LaunchError::kNone;
       });
 
   RunTestSequence(

@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head><title>MIME handler secure-context tests</title></head>
+<body>
+<!--
+  handler.js sets `inner.src` at runtime from the originalUrl fragment so
+  the secure-context tests can target an HTTPS inner URL without hard-
+  coding the test server port.
+-->
+<iframe id="inner" name="inner"></iframe>
+<script type="module" src="/handler.js"></script>
+</body>
+</html>

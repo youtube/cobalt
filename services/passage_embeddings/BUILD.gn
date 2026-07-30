@@ -5,6 +5,9 @@
 import("//services/on_device_model/on_device_model.gni")
 
 source_set("passage_embeddings") {
+  _configs = configs
+  configs = []
+  configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
   sources = [
     "passage_embedder.cc",
     "passage_embedder.h",

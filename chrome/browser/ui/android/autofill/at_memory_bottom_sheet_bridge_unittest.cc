@@ -21,6 +21,7 @@ class MockAtMemoryBottomSheetDelegate : public AtMemoryBottomSheetDelegate {
               OnQuerySubmitted,
               (const std::u16string& query),
               (override));
+  MOCK_METHOD(void, OnSuggestionSelected, (int position), (override));
 };
 
 class AtMemoryBottomSheetBridgeTest : public testing::Test {
@@ -40,6 +41,10 @@ TEST_F(AtMemoryBottomSheetBridgeTest, OnDismissedCallsDelegate) {
 
   EXPECT_CALL(*delegate_ptr, OnDismissed());
   bridge_->RequestShowContent(std::move(delegate), {});
+}
+
+TEST_F(AtMemoryBottomSheetBridgeTest, HideDoesNotCrash) {
+  bridge_->Hide();
 }
 
 }  // namespace

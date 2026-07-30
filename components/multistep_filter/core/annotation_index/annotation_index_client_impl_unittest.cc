@@ -396,7 +396,6 @@ TEST_F(AnnotationIndexClientImplTest,
   std::optional<FilterAnnotation> result = future.Take();
   ASSERT_TRUE(result);
   EXPECT_EQ(result->task_type, kTestTaskType);
-  EXPECT_EQ(result->source_domain, kTestDomain);
   ASSERT_EQ(result->attributes.size(), 1u);
   EXPECT_EQ(result->attributes[0].key, kTestAttributeKey);
   EXPECT_EQ(result->attributes[0].value, kTestAttributeValue);

@@ -5,8 +5,10 @@
 package org.chromium.net;
 
 import android.os.Build;
+import android.security.NetworkSecurityPolicy;
 
 import androidx.test.filters.MediumTest;
+import androidx.test.filters.SmallTest;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -37,6 +39,43 @@ public class AndroidNetworkLibraryTest {
         String[] domains = searchDomains.split(",");
         for (String domain : domains) {
             Assert.assertNotEquals("", domain);
+        }
+    }
+
+    @Test
+    @SmallTest
+    @MinAndroidSdkLevel(Build.VERSION_CODES.CINNAMON_BUN)
+    public void testGetEchMode_mapping() {
+        class MockProxy extends AndroidNetworkLibrary.NetworkSecurityPolicyProxy {
+            private int mMode;
+
+            @Override
+            public int getDomainEncryptionMode(String host) {
+                return mMode;
+            }
+
+            public void setMode(int mode) {
+                mMode = mode;
+            }
+        }
+        MockProxy mockProxy = new MockProxy();
+        var originalProxy = AndroidNetworkLibrary.NetworkSecurityPolicyProxy.getInstance();
+        AndroidNetworkLibrary.NetworkSecurityPolicyProxy.setInstanceForTesting(mockProxy);
+
+        try {
+            mockProxy.setMode(NetworkSecurityPolicy.DOMAIN_ENCRYPTION_MODE_ENABLED);
+            Assert.assertEquals(EchMode.OPPORTUNISTIC, AndroidNetworkLibrary.getEchMode("foo.com"));
+
+            mockProxy.setMode(NetworkSecurityPolicy.DOMAIN_ENCRYPTION_MODE_DISABLED);
+            Assert.assertEquals(EchMode.DISABLED, AndroidNetworkLibrary.getEchMode("foo.com"));
+
+            mockProxy.setMode(NetworkSecurityPolicy.DOMAIN_ENCRYPTION_MODE_UNKNOWN);
+            Assert.assertEquals(EchMode.OPPORTUNISTIC, AndroidNetworkLibrary.getEchMode("foo.com"));
+
+            mockProxy.setMode(NetworkSecurityPolicy.DOMAIN_ENCRYPTION_MODE_OPPORTUNISTIC);
+            Assert.assertEquals(EchMode.OPPORTUNISTIC, AndroidNetworkLibrary.getEchMode("foo.com"));
+        } finally {
+            AndroidNetworkLibrary.NetworkSecurityPolicyProxy.setInstanceForTesting(originalProxy);
         }
     }
 }

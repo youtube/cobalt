@@ -167,19 +167,6 @@ void LogProactiveRefreshAttempt(
 
 }  // namespace
 
-DeferredURLRequest::DeferredURLRequest(
-    base::WeakPtr<URLRequest> request,
-    SessionService::RefreshCompleteCallback callback)
-    : request(std::move(request)), callback(std::move(callback)) {}
-
-DeferredURLRequest::DeferredURLRequest(DeferredURLRequest&& other) noexcept =
-    default;
-
-DeferredURLRequest& DeferredURLRequest::operator=(
-    DeferredURLRequest&& other) noexcept = default;
-
-DeferredURLRequest::~DeferredURLRequest() = default;
-
 SessionServiceImpl::SessionServiceImpl(
     unexportable_keys::UnexportableKeyService& key_service,
     const URLRequestContext* request_context,
@@ -401,12 +388,6 @@ void SessionServiceImpl::CheckFederatedProviderKey(
   std::move(callback).Run(provider_session);
 }
 
-SessionServiceImpl::Observer::Observer(
-    const GURL& url,
-    base::RepeatingCallback<void(const SessionAccess&)> callback)
-    : url(url), callback(callback) {}
-SessionServiceImpl::Observer::~Observer() = default;
-
 void SessionServiceImpl::OnLoadSessionsComplete(
     SessionStore::SessionsMap sessions) {
   unpartitioned_sessions_.merge(sessions);
@@ -551,7 +532,8 @@ void SessionServiceImpl::DeferRequestForRefresh(
   // For the first deferring request, create a new vector and add the request.
   auto [it, inserted] = deferred_requests_.try_emplace(session_key);
   // Add the request callback to the deferred list.
-  it->second.emplace_back(request.GetWeakPtr(), std::move(callback));
+  it->second.push_back(
+      {.request = request.GetWeakPtr(), .callback = std::move(callback)});
 
   auto* session = GetSession(session_key);
   CHECK(session);

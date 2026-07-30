@@ -42,7 +42,8 @@
     {
       "name": "LayoutBlockFlow (positioned, relayout-boundary) DIV id='brown3'",
       "bounds": [100, 100],
-      "drawsContent": false,
+      "contentsOpaque": true,
+      "backgroundColor": "#008000",
       "transform": 5
     },
     {
@@ -74,7 +75,8 @@
     {
       "name": "LayoutBlockFlow (positioned, relayout-boundary) DIV id='brown4'",
       "bounds": [100, 100],
-      "drawsContent": false,
+      "contentsOpaque": true,
+      "backgroundColor": "#008000",
       "transform": 6
     },
     {

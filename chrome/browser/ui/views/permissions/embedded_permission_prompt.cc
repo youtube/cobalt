@@ -38,13 +38,11 @@
 using Variant = permissions::EmbeddedPermissionPromptFlowModel::Variant;
 
 EmbeddedPermissionPrompt::EmbeddedPermissionPrompt(
-    Browser* browser,
     content::WebContents* web_contents,
     permissions::PermissionPrompt::Delegate* delegate)
-    : PermissionPromptDesktop(browser, web_contents, delegate),
-      delegate_(delegate) {
-  if (browser) {
-    if (auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser)) {
+    : PermissionPromptDesktop(web_contents, delegate), delegate_(delegate) {
+  if (browser()) {
+    if (auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser())) {
       if (auto* focus_manager = browser_view->GetFocusManager()) {
         previously_focused_view_tracker_.SetView(
             focus_manager->GetFocusedView());
@@ -75,12 +73,12 @@ void EmbeddedPermissionPrompt::CloseCurrentViewAndMaybeShowNext(
   switch (prompt_variant()) {
     case Variant::kAsk:
       prompt_view = new EmbeddedPermissionPromptAskView(
-          browser(), weak_factory_.GetWeakPtr());
+          web_contents(), weak_factory_.GetWeakPtr());
       break;
     case Variant::kPreviouslyGranted:
       if (first_prompt) {
         prompt_view = new EmbeddedPermissionPromptPreviouslyGrantedView(
-            browser(), weak_factory_.GetWeakPtr());
+            web_contents(), weak_factory_.GetWeakPtr());
       } else {
         FinalizePrompt();
         return;
@@ -88,11 +86,11 @@ void EmbeddedPermissionPrompt::CloseCurrentViewAndMaybeShowNext(
       break;
     case Variant::kPreviouslyDenied:
       prompt_view = new EmbeddedPermissionPromptPreviouslyDeniedView(
-          browser(), weak_factory_.GetWeakPtr());
+          web_contents(), weak_factory_.GetWeakPtr());
       break;
     case Variant::kOsPrompt:
       prompt_view = new EmbeddedPermissionPromptShowSystemPromptView(
-          browser(), weak_factory_.GetWeakPtr());
+          web_contents(), weak_factory_.GetWeakPtr());
       prompt_model_->StartFirstDisplayTime();
       // This view has no buttons, so the OS level prompt should be triggered at
       // the same time as the |EmbeddedPermissionPromptShowSystemPromptView|.
@@ -100,17 +98,17 @@ void EmbeddedPermissionPrompt::CloseCurrentViewAndMaybeShowNext(
       break;
     case Variant::kOsSystemSettings:
       prompt_view = new EmbeddedPermissionPromptSystemSettingsView(
-          browser(), weak_factory_.GetWeakPtr());
+          web_contents(), weak_factory_.GetWeakPtr());
       prompt_model_->StartFirstDisplayTime();
       break;
     case Variant::kAdministratorGranted:
       prompt_view = new EmbeddedPermissionPromptPolicyView(
-          browser(), weak_factory_.GetWeakPtr(),
+          web_contents(), weak_factory_.GetWeakPtr(),
           /*is_permission_allowed=*/true);
       break;
     case Variant::kAdministratorDenied:
       prompt_view = new EmbeddedPermissionPromptPolicyView(
-          browser(), weak_factory_.GetWeakPtr(),
+          web_contents(), weak_factory_.GetWeakPtr(),
           /*is_permission_allowed=*/false);
       break;
     case Variant::kUninitialized:
@@ -337,7 +335,7 @@ EmbeddedPermissionPrompt::GetPermissionPromptDelegate() const {
   return delegate_->GetWeakPtr();
 }
 
-const std::vector<base::WeakPtr<permissions::PermissionRequest>>&
+const std::vector<base::SafeRef<permissions::PermissionRequest>>&
 EmbeddedPermissionPrompt::Requests() const {
   return prompt_model_->requests();
 }
@@ -465,6 +463,9 @@ void EmbeddedPermissionPrompt::FocusThenClose() {
   // and incorrectly collapses the omnibox popup and therefore voice search.
   views::View* previously_focused_view =
       previously_focused_view_tracker_.view();
+  // Reset to avoid reuse and any re-entrancy.
+  previously_focused_view_tracker_.SetView(nullptr);
+
   // Only restore focus if the view still exists, is still drawn on screen,
   // and is still capable of receiving focus.
   if (previously_focused_view && previously_focused_view->IsDrawn() &&
@@ -479,6 +480,7 @@ void EmbeddedPermissionPrompt::FocusThenClose() {
     // ambiguous focus release.
     web_contents()->Focus();
   }
+
   CloseViewAndScrim();
 }
 

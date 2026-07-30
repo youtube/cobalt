@@ -37,9 +37,10 @@ void SendTabToSelfPageHandler::SendTabToDevice(
     const std::string& target_device_guid,
     const GURL& url,
     const std::string& title,
-    base::OnceCallback<void(SendTabToSelfResult)> commit_confirmation) {
+    base::OnceCallback<void(SendTabToSelfResult)> commit_confirmation,
+    ShareEntryPoint entry_point) {
   PendingRequest request(target_device_guid, url, title,
-                         std::move(commit_confirmation));
+                         std::move(commit_confirmation), entry_point);
 
   MaybeExtractFormFields(request);
   MaybeExtractNavigationHistory(request);
@@ -91,11 +92,13 @@ SendTabToSelfPageHandler::PendingRequest::PendingRequest(
     const std::string& target_device_guid,
     const GURL& url,
     const std::string& title,
-    base::OnceCallback<void(SendTabToSelfResult)> commit_confirmation)
+    base::OnceCallback<void(SendTabToSelfResult)> commit_confirmation,
+    ShareEntryPoint entry_point)
     : target_device_guid(target_device_guid),
       url(url),
       title(title),
       start_time(base::TimeTicks::Now()),
+      entry_point(entry_point),
       commit_confirmation(std::move(commit_confirmation)) {}
 
 SendTabToSelfPageHandler::PendingRequest::PendingRequest(PendingRequest&&) =
@@ -266,7 +269,7 @@ void SendTabToSelfPageHandler::SendFinalizedRequest(
   model->SendEntry(request.url, request.title, request.target_device_guid,
                    std::move(request.page_context),
                    std::move(request.navigation_history),
-                   std::move(request.commit_confirmation));
+                   std::move(request.commit_confirmation), request.entry_point);
 }
 
 base::TimeDelta SendTabToSelfPageHandler::GetSelectorGenerationTimeout() const {

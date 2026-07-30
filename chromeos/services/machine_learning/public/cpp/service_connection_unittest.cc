@@ -47,12 +47,17 @@ class ServiceConnectionTest : public testing::Test {
  protected:
   static void SetUpTestCase() {
     task_environment_ = new base::test::TaskEnvironment();
-    static base::Thread ipc_thread("ipc");
-    ipc_thread.StartWithOptions(
-        base::Thread::Options(base::MessagePumpType::IO, 0));
-    static mojo::core::ScopedIPCSupport ipc_support(
-        ipc_thread.task_runner(),
-        mojo::core::ScopedIPCSupport::ShutdownPolicy::CLEAN);
+    static base::Thread* ipc_thread = []() {
+      auto* thread = new base::Thread("ipc");
+      thread->StartWithOptions(
+          base::Thread::Options(base::MessagePumpType::IO, 0));
+      return thread;
+    }();
+    [[maybe_unused]] static mojo::core::ScopedIPCSupport* ipc_support = []() {
+      return new mojo::core::ScopedIPCSupport(
+          ipc_thread->task_runner(),
+          mojo::core::ScopedIPCSupport::ShutdownPolicy::CLEAN);
+    }();
     ServiceConnection::GetInstance()->Initialize();
   }
 

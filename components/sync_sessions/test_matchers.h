@@ -66,11 +66,17 @@ testing::Matcher<const sync_pb::SessionSpecifics&> MatchesTabScreenshot(
 
 testing::Matcher<const SyncedSession*> MatchesSyncedSession(
     testing::Matcher<std::string> session_tag,
+    const std::map<int, std::vector<int>>& window_id_to_tabs);
+
+testing::Matcher<const SyncedSession*> MatchesSyncedSession(
+    testing::Matcher<std::string> session_tag,
+    testing::Matcher<std::string> session_name,
     testing::Matcher<std::map<int, std::vector<int>>> window_id_to_tabs);
 
 // Convenience overload.
 testing::Matcher<const SyncedSession*> MatchesSyncedSession(
     testing::Matcher<std::string> session_tag,
+    testing::Matcher<std::string> session_name,
     const std::map<int, std::vector<int>>& window_id_to_tabs);
 
 }  // namespace sync_sessions

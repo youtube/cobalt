@@ -1,0 +1,339 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "net/disk_cache/sql/sql_shared_cache_isolated_database.h"
+
+#include <limits>
+#include <string_view>
+#include <vector>
+
+#include "base/containers/span.h"
+#include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/test/scoped_feature_list.h"
+#include "base/test/task_environment.h"
+#include "base/test/test_file_util.h"
+#include "net/base/features.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+namespace disk_cache {
+
+class SqlSharedCacheIsolatedDatabaseTest : public testing::Test {
+ public:
+  void SetUp() override {
+    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
+    task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
+    feature_list_.InitAndEnableFeature(
+        net::features::kRendererAccessibleHttpCache);
+  }
+
+ protected:
+  base::test::TaskEnvironment task_environment_;
+  base::ScopedTempDir temp_dir_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
+  base::test::ScopedFeatureList feature_list_;
+};
+
+TEST_F(SqlSharedCacheIsolatedDatabaseTest, InitSuccess) {
+  SqlSharedCacheDbId db_id(1);
+  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id,
+                                    task_runner_);
+  EXPECT_TRUE(db.Init().has_value());
+
+  // Verify that the isolated database file is created successfully.
+  base::FilePath expected_file = temp_dir_.GetPath().AppendASCII("shared_1.db");
+  EXPECT_TRUE(base::PathExists(expected_file));
+}
+
+TEST_F(SqlSharedCacheIsolatedDatabaseTest, InitFailureForTesting) {
+  SqlSharedCacheDbId db_id(1);
+  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id,
+                                    task_runner_);
+  db.SetSimulateDbFailureForTesting(true);
+  EXPECT_EQ(db.Init().error(),
+            SqlSharedCacheIsolatedDatabase::Error::kFailedForTesting);
+}
+
+TEST_F(SqlSharedCacheIsolatedDatabaseTest, InitFailedToOpenVfsFileSet) {
+  constexpr std::string_view kNik = "nik";
+  SqlSharedCacheDbId db_id(1);
+
+  {
+    SqlSharedCacheIsolatedDatabase db(std::string(kNik), temp_dir_.GetPath(),
+                                      db_id, task_runner_);
+    EXPECT_TRUE(db.Init().has_value());
+  }
+
+  base::FilePath db_path = temp_dir_.GetPath().AppendASCII("shared_1.db");
+  ASSERT_TRUE(base::MakeFileUnwritable(db_path));
+
+  {
+    SqlSharedCacheIsolatedDatabase db(std::string(kNik), temp_dir_.GetPath(),
+                                      db_id, task_runner_);
+    EXPECT_EQ(db.Init().error(),
+              SqlSharedCacheIsolatedDatabase::Error::kFailedToOpenVfsFileSet);
+  }
+}
+
+TEST_F(SqlSharedCacheIsolatedDatabaseTest, InitializeAndNikMismatch) {
+  constexpr std::string_view kNik1 = "nik1";
+  constexpr std::string_view kNik2 = "nik2";
+  SqlSharedCacheDbId db_id(1);
+
+  CacheEntryKey key("0/0/https://example.com/");
+  auto headers = base::MakeRefCounted<net::IOBufferWithSize>(4);
+  headers->span().copy_from(base::span<const uint8_t>({1, 2, 3, 4}));
+  auto body = base::MakeRefCounted<net::IOBufferWithSize>(3);
+  body->span().copy_from(base::span<const uint8_t>({5, 6, 7}));
+
+  std::optional<SqlSharedCacheRowId> row_id;
+
+  {
+    SqlSharedCacheIsolatedDatabase db(std::string(kNik1), temp_dir_.GetPath(),
+                                      db_id, task_runner_);
+    EXPECT_TRUE(db.Init().has_value());
+
+    auto row_id_or_error = db.Insert(key, headers, 3, body);
+    ASSERT_TRUE(row_id_or_error.has_value());
+    row_id = *row_id_or_error;
+  }
+
+  {
+    // Initialize with the same nik. Data should persist.
+    SqlSharedCacheIsolatedDatabase db(std::string(kNik1), temp_dir_.GetPath(),
+                                      db_id, task_runner_);
+    EXPECT_TRUE(db.Init().has_value());
+
+    auto read_buffer = base::MakeRefCounted<net::IOBufferWithSize>(3);
+    EXPECT_TRUE(db.Read(key, *row_id, /*offset=*/0, read_buffer).has_value());
+    EXPECT_EQ(read_buffer->span(), body->span());
+  }
+
+  {
+    // Initialize with a different nik. It should wipe the database.
+    SqlSharedCacheIsolatedDatabase db(std::string(kNik2), temp_dir_.GetPath(),
+                                      db_id, task_runner_);
+    EXPECT_TRUE(db.Init().has_value());
+
+    auto read_buffer = base::MakeRefCounted<net::IOBufferWithSize>(3);
+    auto read_result = db.Read(key, *row_id, /*offset=*/0, read_buffer);
+    EXPECT_FALSE(read_result.has_value());
+    EXPECT_EQ(read_result.error(),
+              SqlSharedCacheIsolatedDatabase::Error::kEntryNotFound);
+  }
+}
+
+TEST_F(SqlSharedCacheIsolatedDatabaseTest, InsertAndReadSuccess) {
+  SqlSharedCacheDbId db_id(1);
+  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id,
+                                    task_runner_);
+  ASSERT_TRUE(db.Init().has_value());
+
+  CacheEntryKey key("0/0/https://example.com/");
+  auto headers = base::MakeRefCounted<net::IOBufferWithSize>(4);
+  headers->span().copy_from(base::span<const uint8_t>({1, 2, 3, 4}));
+  auto body = base::MakeRefCounted<net::IOBufferWithSize>(3);
+  body->span().copy_from(base::span<const uint8_t>({5, 6, 7}));
+
+  auto row_id_or_error = db.Insert(key, headers, 3, body);
+  ASSERT_TRUE(row_id_or_error.has_value());
+
+  auto read_buffer = base::MakeRefCounted<net::IOBufferWithSize>(3);
+  auto read_result = db.Read(key, *row_id_or_error, /*offset=*/0, read_buffer);
+  ASSERT_TRUE(read_result.has_value());
+  EXPECT_EQ(read_result->read_bytes, 3);
+  EXPECT_EQ(read_buffer->span(), body->span());
+}
+
+TEST_F(SqlSharedCacheIsolatedDatabaseTest, WriteBodyAndRead) {
+  SqlSharedCacheDbId db_id(1);
+  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id,
+                                    task_runner_);
+  ASSERT_TRUE(db.Init().has_value());
+
+  CacheEntryKey key("0/0/https://example.com/");
+  auto headers = base::MakeRefCounted<net::IOBufferWithSize>(4);
+  headers->span().copy_from(base::span<const uint8_t>({1, 2, 3, 4}));
+  auto row_id_or_error = db.Insert(key, headers, 4, nullptr);
+  ASSERT_TRUE(row_id_or_error.has_value());
+
+  auto body_chunk = base::MakeRefCounted<net::IOBufferWithSize>(2);
+  body_chunk->span().copy_from(base::span<const uint8_t>({8, 9}));
+  EXPECT_TRUE(db.WriteBody(key, *row_id_or_error, /*offset=*/1, body_chunk,
+                           /*set_ready=*/true)
+                  .has_value());
+
+  auto read_buffer = base::MakeRefCounted<net::IOBufferWithSize>(2);
+  auto read_result = db.Read(key, *row_id_or_error, /*offset=*/1, read_buffer);
+  ASSERT_TRUE(read_result.has_value());
+  EXPECT_EQ(read_result->read_bytes, 2);
+  EXPECT_EQ(read_buffer->span(), body_chunk->span());
+}
+
+TEST_F(SqlSharedCacheIsolatedDatabaseTest, ReadNotReady) {
+  SqlSharedCacheDbId db_id(1);
+  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id,
+                                    task_runner_);
+  ASSERT_TRUE(db.Init().has_value());
+
+  CacheEntryKey key("0/0/https://example.com/");
+  auto headers = base::MakeRefCounted<net::IOBufferWithSize>(4);
+  headers->span().copy_from(base::span<const uint8_t>({1, 2, 3, 4}));
+  auto row_id_or_error = db.Insert(key, headers, 4, nullptr);
+  ASSERT_TRUE(row_id_or_error.has_value());
+
+  auto read_buffer = base::MakeRefCounted<net::IOBufferWithSize>(2);
+  auto read_result = db.Read(key, *row_id_or_error, /*offset=*/0, read_buffer);
+  EXPECT_FALSE(read_result.has_value());
+  EXPECT_EQ(read_result.error(),
+            SqlSharedCacheIsolatedDatabase::Error::kEntryNotFound);
+}
+
+TEST_F(SqlSharedCacheIsolatedDatabaseTest, ReadKeyMismatch) {
+  SqlSharedCacheDbId db_id(1);
+  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id,
+                                    task_runner_);
+  ASSERT_TRUE(db.Init().has_value());
+
+  CacheEntryKey key("0/0/https://example.com/");
+  auto headers = base::MakeRefCounted<net::IOBufferWithSize>(4);
+  headers->span().copy_from(base::span<const uint8_t>({1, 2, 3, 4}));
+  auto row_id_or_error = db.Insert(key, headers, 0, nullptr);
+  ASSERT_TRUE(row_id_or_error.has_value());
+
+  CacheEntryKey other_key("0/0/https://example.org/");
+  auto read_buffer = base::MakeRefCounted<net::IOBufferWithSize>(2);
+  auto read_result =
+      db.Read(other_key, *row_id_or_error, /*offset=*/0, read_buffer);
+  EXPECT_FALSE(read_result.has_value());
+  EXPECT_EQ(read_result.error(),
+            SqlSharedCacheIsolatedDatabase::Error::kEntryNotFound);
+}
+
+TEST_F(SqlSharedCacheIsolatedDatabaseTest, InsertBodyTooLarge) {
+  SqlSharedCacheDbId db_id(1);
+  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id,
+                                    task_runner_);
+  ASSERT_TRUE(db.Init().has_value());
+
+  CacheEntryKey key("0/0/https://example.com/");
+  auto headers = base::MakeRefCounted<net::IOBufferWithSize>(4);
+  headers->span().copy_from(base::span<const uint8_t>({1, 2, 3, 4}));
+  uint32_t too_large_size =
+      static_cast<uint32_t>(std::numeric_limits<int32_t>::max()) + 1;
+
+  EXPECT_EQ(db.Insert(key, headers, too_large_size, nullptr).error(),
+            SqlSharedCacheIsolatedDatabase::Error::kBodyTooLarge);
+}
+
+TEST_F(SqlSharedCacheIsolatedDatabaseTest, WriteBodyInvalidRange) {
+  SqlSharedCacheDbId db_id(1);
+  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id,
+                                    task_runner_);
+  ASSERT_TRUE(db.Init().has_value());
+
+  CacheEntryKey key("0/0/https://example.com/");
+  auto headers = base::MakeRefCounted<net::IOBufferWithSize>(4);
+  headers->span().copy_from(base::span<const uint8_t>({1, 2, 3, 4}));
+  auto row_id_or_error = db.Insert(key, headers, 4, nullptr);
+  ASSERT_TRUE(row_id_or_error.has_value());
+
+  auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(2);
+  buffer->span().copy_from(base::span<const uint8_t>({1, 2}));
+
+  EXPECT_EQ(db.WriteBody(key, *row_id_or_error, /*offset=*/-1, buffer,
+                         /*set_ready=*/false)
+                .error(),
+            SqlSharedCacheIsolatedDatabase::Error::kInvalidWriteRange);
+
+  EXPECT_EQ(db.WriteBody(key, *row_id_or_error,
+                         /*offset=*/std::numeric_limits<int32_t>::max(), buffer,
+                         /*set_ready=*/false)
+                .error(),
+            SqlSharedCacheIsolatedDatabase::Error::kInvalidWriteRange);
+}
+
+TEST_F(SqlSharedCacheIsolatedDatabaseTest, ReadInvalidRange) {
+  SqlSharedCacheDbId db_id(1);
+  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id,
+                                    task_runner_);
+  ASSERT_TRUE(db.Init().has_value());
+
+  CacheEntryKey key("0/0/https://example.com/");
+  auto headers = base::MakeRefCounted<net::IOBufferWithSize>(4);
+  headers->span().copy_from(base::span<const uint8_t>({1, 2, 3, 4}));
+  auto row_id_or_error = db.Insert(key, headers, 4, nullptr);
+  ASSERT_TRUE(row_id_or_error.has_value());
+
+  auto read_buffer = base::MakeRefCounted<net::IOBufferWithSize>(2);
+
+  EXPECT_EQ(db.Read(key, *row_id_or_error, /*offset=*/-1, read_buffer).error(),
+            SqlSharedCacheIsolatedDatabase::Error::kInvalidReadRange);
+
+  EXPECT_EQ(db.Read(key, *row_id_or_error,
+                    /*offset=*/std::numeric_limits<int32_t>::max(), read_buffer)
+                .error(),
+            SqlSharedCacheIsolatedDatabase::Error::kInvalidReadRange);
+}
+
+TEST_F(SqlSharedCacheIsolatedDatabaseTest,
+       WriteBodyMultipleChunksAndReadAcross) {
+  SqlSharedCacheDbId db_id(1);
+  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id,
+                                    task_runner_);
+  ASSERT_TRUE(db.Init().has_value());
+
+  CacheEntryKey key("0/0/https://example.com/");
+  auto headers = base::MakeRefCounted<net::IOBufferWithSize>(4);
+  headers->span().copy_from(base::span<const uint8_t>({1, 2, 3, 4}));
+  auto row_id_or_error = db.Insert(key, headers, 10, nullptr);
+  ASSERT_TRUE(row_id_or_error.has_value());
+
+  auto chunk1 = base::MakeRefCounted<net::IOBufferWithSize>(4);
+  chunk1->span().copy_from(base::span<const uint8_t>({1, 2, 3, 4}));
+  EXPECT_TRUE(db.WriteBody(key, *row_id_or_error, /*offset=*/0, chunk1,
+                           /*set_ready=*/false)
+                  .has_value());
+
+  auto chunk2 = base::MakeRefCounted<net::IOBufferWithSize>(6);
+  chunk2->span().copy_from(base::span<const uint8_t>({5, 6, 7, 8, 9, 10}));
+  EXPECT_TRUE(db.WriteBody(key, *row_id_or_error, /*offset=*/4, chunk2,
+                           /*set_ready=*/true)
+                  .has_value());
+
+  auto read_buffer = base::MakeRefCounted<net::IOBufferWithSize>(6);
+  auto read_result = db.Read(key, *row_id_or_error, /*offset=*/2, read_buffer);
+  ASSERT_TRUE(read_result.has_value());
+  EXPECT_EQ(read_result->read_bytes, 6);
+  EXPECT_EQ(read_buffer->span(), base::span<const uint8_t>({3, 4, 5, 6, 7, 8}));
+}
+
+TEST_F(SqlSharedCacheIsolatedDatabaseTest, ReadBeyondWrittenBody) {
+  SqlSharedCacheDbId db_id(1);
+  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id,
+                                    task_runner_);
+  ASSERT_TRUE(db.Init().has_value());
+
+  CacheEntryKey key("0/0/https://example.com/");
+  auto headers = base::MakeRefCounted<net::IOBufferWithSize>(4);
+  headers->span().copy_from(base::span<const uint8_t>({1, 2, 3, 4}));
+  auto body = base::MakeRefCounted<net::IOBufferWithSize>(4);
+  body->span().copy_from(base::span<const uint8_t>({1, 2, 3, 4}));
+
+  auto row_id_or_error = db.Insert(key, headers, 4, body);
+  ASSERT_TRUE(row_id_or_error.has_value());
+
+  auto read_buffer = base::MakeRefCounted<net::IOBufferWithSize>(1);
+
+  EXPECT_EQ(db.Read(key, *row_id_or_error, /*offset=*/4, read_buffer).error(),
+            SqlSharedCacheIsolatedDatabase::Error::kFailedToReadBlob);
+
+  auto read_buffer_overflow = base::MakeRefCounted<net::IOBufferWithSize>(3);
+  EXPECT_EQ(db.Read(key, *row_id_or_error, /*offset=*/2, read_buffer_overflow)
+                .error(),
+            SqlSharedCacheIsolatedDatabase::Error::kFailedToReadBlob);
+}
+
+}  // namespace disk_cache

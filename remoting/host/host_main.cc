@@ -61,6 +61,7 @@ int SingleProcessHostProcessMain();
 int NetworkProcessMain();
 int DaemonProcessMain();
 int DesktopProcessMain();
+int PeerConnectionProcessMain();
 #endif
 #if BUILDFLAG(IS_WIN)
 int FileChooserMain();
@@ -195,6 +196,8 @@ MainRoutineFn SelectMainRoutine(const std::string& process_type) {
     main_routine = &DaemonProcessMain;
   } else if (process_type == kProcessTypeDesktop) {
     main_routine = &DesktopProcessMain;
+  } else if (process_type == kProcessTypePeerConnection) {
+    main_routine = &PeerConnectionProcessMain;
 #endif
 #if BUILDFLAG(IS_WIN)
   } else if (process_type == kProcessTypeFileChooser) {

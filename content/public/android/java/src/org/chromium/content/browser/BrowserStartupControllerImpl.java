@@ -212,7 +212,6 @@ public class BrowserStartupControllerImpl implements BrowserStartupController {
             boolean startGpuProcess,
             boolean startMinimalBrowser,
             boolean singleProcess,
-            boolean scheduleFlushStartupTasks,
             final StartupCallback callback) {
         try {
             assert !mIsInClientCall;
@@ -274,7 +273,7 @@ public class BrowserStartupControllerImpl implements BrowserStartupController {
                                         startMinimalBrowser
                                                 ? BrowserStartType.MINIMAL_BROWSER
                                                 : BrowserStartType.FULL_BROWSER;
-                                if (contentStart(scheduleFlushStartupTasks) > 0) {
+                                if (contentStart() > 0) {
                                     // Failed. The callbacks may not have run, so run them.
                                     enqueueCallbackExecutionOnStartupFailure();
                                 }
@@ -285,7 +284,7 @@ public class BrowserStartupControllerImpl implements BrowserStartupController {
                 // If we missed the minimalBrowserStarted() call, launch the full browser now if
                 // needed. Otherwise, minimalBrowserStarted() will handle the full browser launch.
                 mCurrentBrowserStartType = BrowserStartType.FULL_BROWSER;
-                if (contentStart(scheduleFlushStartupTasks) > 0) {
+                if (contentStart() > 0) {
                     enqueueCallbackExecutionOnStartupFailure();
                 }
             }
@@ -324,7 +323,7 @@ public class BrowserStartupControllerImpl implements BrowserStartupController {
                 if (!mHasCalledContentStart
                         || mCurrentBrowserStartType == BrowserStartType.MINIMAL_BROWSER) {
                     mCurrentBrowserStartType = BrowserStartType.FULL_BROWSER;
-                    if (contentStart(/* scheduleFlushStartupTasks= */ false) > 0) {
+                    if (contentStart() > 0) {
                         // Failed. The callbacks may not have run, so run them.
                         enqueueCallbackExecutionOnStartupFailure();
                         startedSuccessfully = false;
@@ -346,7 +345,7 @@ public class BrowserStartupControllerImpl implements BrowserStartupController {
     }
 
     /** Start the browser process by calling ContentMain.start(). */
-    int contentStart(boolean scheduleFlushStartupTasks) {
+    int contentStart() {
         long startTime = SystemClock.uptimeMillis();
         int result = 0;
         if (mContentMainCallbackForTests == null) {
@@ -362,10 +361,6 @@ public class BrowserStartupControllerImpl implements BrowserStartupController {
             mLaunchFullBrowserAfterMinimalBrowserStart = false;
         }
         mHasCalledContentStart = true;
-
-        if (result <= 0 && scheduleFlushStartupTasks) {
-            PostTask.postTask(TaskTraits.UI_STARTUP, this::flushStartupTasks);
-        }
 
         if (!mIsInClientCall) {
             long durationMs = SystemClock.uptimeMillis() - startTime;
@@ -448,7 +443,7 @@ public class BrowserStartupControllerImpl implements BrowserStartupController {
             // If startFullBrowser() fails, execute the callbacks right away. Otherwise,
             // callbacks will be deferred until browser startup completes.
             mCurrentBrowserStartType = BrowserStartType.FULL_BROWSER;
-            if (contentStart(/* scheduleFlushStartupTasks= */ false) > 0) {
+            if (contentStart() > 0) {
                 enqueueCallbackExecutionOnStartupFailure();
             }
             return;

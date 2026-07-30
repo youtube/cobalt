@@ -22,8 +22,8 @@ import {$$, isVisible, microtasksFinished} from 'chrome://webui-test/test_util.j
 
 import {TestContextualTasksBrowserProxy} from './test_contextual_tasks_browser_proxy.js';
 import {setupAutocompleteResults} from './test_searchbox_utils.js';
-import {createCtComposeboxApp, fixtureUrl, getSubmitButton, simulateUserInput} from './test_utils.js';
-import type {CtComposeboxAppParts} from './test_utils.js';
+import {createCtComposeboxApp, fixtureUrl, getSubmitButton, simulateUserInput} from './contextual_tasks_test_utils.js';
+import type {CtComposeboxAppParts} from './contextual_tasks_test_utils.js';
 
 declare global {
   interface Window {
@@ -516,25 +516,6 @@ suite('ContextualTasksComposeboxTest', () => {
         0, mockSearchboxPageHandler.getCallCount('openAutocompleteMatch'));
   });
 
-  test('EnterKeyOnEmptyInputDoesNotAddNewLineOrSubmit', async () => {
-    const innerComposebox = contextualTasksApp.$.composebox.$.composebox;
-    const inputElement = innerComposebox.getInputElement().$.input;
-    const keydownDiv =
-        innerComposebox.shadowRoot.querySelector<HTMLElement>('#composebox');
-    assertTrue(keydownDiv !== null);
-
-    assertEquals('', inputElement.value);
-    mockSearchboxPageHandler.reset();
-
-    // Action: Press Enter on empty input.
-    pressEnter(keydownDiv);
-    await microtasksFinished();
-
-    // Assert: No newline and no submission.
-    assertFalse(inputElement.value.includes('\n'));
-    assertEquals(0, mockSearchboxPageHandler.getCallCount('submitQuery'));
-  });
-
   test('composebox is hidden until isZeroState is not undefined', async () => {
     // Clear the body and reset the mock to test a fresh instance.
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
@@ -731,38 +712,6 @@ suite('ContextualTasksComposeboxTest', () => {
     assertTrue(contextualComposebox.hasAttribute('input-enabled'));
   });
 
-  test('lens overlay showing updates placeholder', async () => {
-    const contextualComposebox = contextualTasksApp.$.composebox;
-    const innerComposebox = contextualComposebox.$.composebox;
-    const inputElement = innerComposebox.getInputElement().$.input;
-
-    // Initially false, placeholder override should be empty.
-    assertFalse(contextualComposebox.isOverlayOpenForAimVisualSearch);
-    await contextualComposebox.updateComplete;
-    await innerComposebox.updateComplete;
-    assertEquals('', innerComposebox.inputPlaceholderOverride);
-
-    const initialPlaceholder = inputElement.placeholder;
-
-    // Set to true.
-    contextualComposebox.isOverlayOpenForAimVisualSearch = true;
-    await contextualComposebox.updateComplete;
-    await innerComposebox.updateComplete;
-
-    assertTrue(contextualComposebox.isOverlayOpenForAimVisualSearch);
-    assertEquals('Test Lens Hint', innerComposebox.inputPlaceholderOverride);
-    assertEquals('Test Lens Hint', inputElement.placeholder);
-
-    // Set back to false.
-    contextualComposebox.isOverlayOpenForAimVisualSearch = false;
-    await contextualComposebox.updateComplete;
-    await innerComposebox.updateComplete;
-
-    assertFalse(contextualComposebox.isOverlayOpenForAimVisualSearch);
-    assertEquals('', innerComposebox.inputPlaceholderOverride);
-    assertEquals(initialPlaceholder, inputElement.placeholder);
-  });
-
   // Test that the Tab key correctly synchronizes the selected index.
   test('TabFocusSyncsSelectedIndex', async () => {
     const contextualComposebox = contextualTasksApp.$.composebox;
@@ -927,140 +876,6 @@ suite('ContextualTasksComposeboxTest', () => {
         'Should be online after reload');
     assertTrue(
         isVisible(composebox), 'Composebox should be visible after reload');
-  });
-
-  test('ClearInputAndFocusClearsMatchesOnSubmit', () => {
-    const contextualComposebox = contextualTasksApp.$.composebox;
-    const innerComposebox = contextualComposebox.$.composebox;
-
-    let clearAutocompleteMatchesCallCount = 0;
-    let queryAutocompleteCallCount = 0;
-
-    innerComposebox.clearAutocompleteMatches = () => {
-      clearAutocompleteMatchesCallCount++;
-    };
-
-    innerComposebox.queryAutocomplete = () => {
-      queryAutocompleteCallCount++;
-    };
-
-    contextualComposebox.isZeroState = true;
-    contextualComposebox.clearInputAndFocus(true);
-    assertEquals(
-        1, clearAutocompleteMatchesCallCount,
-        'querySubmitted = true should clear matches');
-    assertEquals(
-        0, queryAutocompleteCallCount,
-        'querySubmitted = true should not query');
-  });
-
-  test('ClearInputAndFocusClearsMatchesWhenNotZeroState', () => {
-    const contextualComposebox = contextualTasksApp.$.composebox;
-    const innerComposebox = contextualComposebox.$.composebox;
-
-    let clearAutocompleteMatchesCallCount = 0;
-    let queryAutocompleteCallCount = 0;
-
-    innerComposebox.clearAutocompleteMatches = () => {
-      clearAutocompleteMatchesCallCount++;
-    };
-
-    innerComposebox.queryAutocomplete = () => {
-      queryAutocompleteCallCount++;
-    };
-
-    contextualComposebox.isZeroState = false;
-    contextualComposebox.clearInputAndFocus(false);
-    assertEquals(
-        1, clearAutocompleteMatchesCallCount,
-        'isZeroState = false should clear matches');
-    assertEquals(
-        0, queryAutocompleteCallCount, 'isZeroState = false should not query');
-  });
-
-  test('ClearInputAndFocusIgnoresEmptyZeroState', () => {
-    const contextualComposebox = contextualTasksApp.$.composebox;
-    const innerComposebox = contextualComposebox.$.composebox;
-
-    let clearAutocompleteMatchesCallCount = 0;
-    let queryAutocompleteCallCount = 0;
-
-    innerComposebox.clearAutocompleteMatches = () => {
-      clearAutocompleteMatchesCallCount++;
-    };
-
-    innerComposebox.queryAutocomplete = () => {
-      queryAutocompleteCallCount++;
-    };
-
-    contextualComposebox.isZeroState = true;
-    innerComposebox.getInputElement().$.input.value = '';
-    contextualComposebox.clearInputAndFocus(false);
-    assertEquals(
-        0, clearAutocompleteMatchesCallCount,
-        'hadContent = false should not clear matches');
-    assertEquals(
-        0, queryAutocompleteCallCount, 'hadContent = false should not query');
-  });
-
-  test('ClearInputAndFocusQueriesZeroStateWithText', () => {
-    const contextualComposebox = contextualTasksApp.$.composebox;
-    const innerComposebox = contextualComposebox.$.composebox;
-
-    let clearAutocompleteMatchesCallCount = 0;
-    let queryAutocompleteCallCount = 0;
-    let queryAutocompleteClearMatchesArg = false;
-
-    innerComposebox.clearAutocompleteMatches = () => {
-      clearAutocompleteMatchesCallCount++;
-    };
-
-    innerComposebox.queryAutocomplete = (clearMatches: boolean) => {
-      queryAutocompleteCallCount++;
-      queryAutocompleteClearMatchesArg = clearMatches;
-    };
-
-    contextualComposebox.isZeroState = true;
-    innerComposebox.input = 'test';
-    contextualComposebox.clearInputAndFocus(false);
-    assertEquals(
-        0, clearAutocompleteMatchesCallCount,
-        'hadContent = true should not clear matches');
-    assertEquals(
-        1, queryAutocompleteCallCount, 'hadContent = true should query');
-    assertTrue(
-        queryAutocompleteClearMatchesArg, 'should pass clearMatches = true');
-  });
-
-  test('ClearInputAndFocusQueriesZeroStateWithFiles', () => {
-    const contextualComposebox = contextualTasksApp.$.composebox;
-    const innerComposebox = contextualComposebox.$.composebox;
-
-    let clearAutocompleteMatchesCallCount = 0;
-    let queryAutocompleteCallCount = 0;
-    let queryAutocompleteClearMatchesArg = false;
-
-    innerComposebox.clearAutocompleteMatches = () => {
-      clearAutocompleteMatchesCallCount++;
-    };
-
-    innerComposebox.queryAutocomplete = (clearMatches: boolean) => {
-      queryAutocompleteCallCount++;
-      queryAutocompleteClearMatchesArg = clearMatches;
-    };
-
-    contextualComposebox.isZeroState = true;
-    innerComposebox.input = '';
-    innerComposebox.hasFiles = () => true;
-    contextualComposebox.clearInputAndFocus(false);
-    assertEquals(
-        0, clearAutocompleteMatchesCallCount,
-        'hadContent = true (files) should not clear matches');
-    assertEquals(
-        1, queryAutocompleteCallCount,
-        'hadContent = true (files) should query');
-    assertTrue(
-        queryAutocompleteClearMatchesArg, 'should pass clearMatches = true');
   });
 
   test('CanvasChipRemovabilityBasedOnQuerySubmission', async () => {
@@ -1463,6 +1278,302 @@ suite('ContextualTasksComposeboxTest', () => {
                    new CustomEvent('composebox-focus-out'));
                await microtasksFinished();
                assertFalse(wrapper.isComposeboxFocusedForTesting);
+        });
+      });
+});
+
+// =============================================================================
+// Fork DUAL-PATH BASIC INPUT/SUBMIT/CLEAR SUITE
+// Basic input, submit, and clear behavior is implemented by both the legacy
+// <cr-composebox> and the <contextual-tasks-inner-composebox>, so these tests
+// run on both paths. Tests depending on behavior the fork does not implement
+// yet (selected-match submit, dropdown/result-changed, files, voice, ...) stay
+// in the flag-off suites above.
+// =============================================================================
+[true, false].forEach(useFork => {
+  suite(
+      `ContextualTasksComposeboxForkSmokeTest (useContextualTasksComposeboxFork =
+        ${useFork})`,
+      () => {
+        let testProxy: TestContextualTasksBrowserProxy;
+        let mockComposeboxPageHandler: TestMock<ComposeboxPageHandlerRemote>&
+            ComposeboxPageHandlerRemote;
+        let mockSearchboxPageHandler: TestMock<SearchboxPageHandlerRemote>&
+            SearchboxPageHandlerRemote;
+        let parts: CtComposeboxAppParts;
+
+        setup(async () => {
+          if (!window.chrome) {
+            Object.assign(window, {chrome: {}});
+          }
+
+          if (!window.chrome.histograms) {
+            Object.assign(window.chrome, {
+              histograms: {
+                recordEnumerationValue: () => {},
+                recordUserAction: () => {},
+                recordBoolean: () => {},
+              },
+            });
+          }
+          document.body.innerHTML = window.trustedTypes!.emptyHTML;
+
+          loadTimeData.overrideValues({
+            contextualMenuUsePecApi: false,
+            composeboxSmartTabSharingVisible: false,
+            enableComposeboxJumpFix: false,
+            composeboxShowTypedSuggest: true,
+            composeboxShowZps: true,
+            enableBasicModeZOrder: true,
+            composeboxShowContextMenu: true,
+            composeboxHintTextLensOverlay: 'Test Lens Hint',
+            forcedEmbeddedPageHost: '',
+            tabFaviconChipsToCoinsEnabled: false,
+          });
+
+          testProxy = new TestContextualTasksBrowserProxy(fixtureUrl);
+          BrowserProxyImpl.setInstance(testProxy);
+
+          mockComposeboxPageHandler =
+              TestMock.fromClass(ComposeboxPageHandlerRemote);
+          mockComposeboxPageHandler.setResultFor(
+              'getSmartTabSharingActive', Promise.resolve({active: false}));
+          mockComposeboxPageHandler.setResultFor(
+              'canShowNextboxAnimation', Promise.resolve({canShow: true}));
+          mockSearchboxPageHandler =
+              TestMock.fromClass(SearchboxPageHandlerRemote);
+          mockSearchboxPageHandler.setResultFor(
+              'getRecentTabs', Promise.resolve({tabs: []}));
+          mockSearchboxPageHandler.setResultFor(
+              'getPageClassification',
+              Promise.resolve({metricSource: 'CO_BROWSING_COMPOSEBOX'}));
+          mockSearchboxPageHandler.setResultFor(
+              'addTabContext',
+              Promise.resolve({high: BigInt(1), low: BigInt(2)}));
+          mockSearchboxPageHandler.setResultFor(
+              'getInputState', Promise.resolve({state: new MockInputState()}));
+          const searchboxCallbackRouter = new SearchboxPageCallbackRouter();
+          searchboxCallbackRouter.$.bindNewPipeAndPassRemote();
+          ComposeboxProxyImpl.setInstance(new ComposeboxProxyImpl(
+              mockComposeboxPageHandler, new ComposeboxPageCallbackRouter(),
+              mockSearchboxPageHandler, searchboxCallbackRouter));
+
+          parts = await createCtComposeboxApp(useFork);
+        });
+
+        test('EnterKeyOnEmptyInputDoesNotAddNewLineOrSubmit', async () => {
+          const {innerComposebox} = parts;
+          const inputElement = innerComposebox.getInputElement().$.input;
+          const keydownDiv =
+              innerComposebox.shadowRoot.querySelector<HTMLElement>(
+                  '#composebox');
+          assertTrue(keydownDiv !== null);
+
+          assertEquals('', inputElement.value);
+          mockSearchboxPageHandler.reset();
+
+          // Action: Press Enter on empty input.
+          pressEnter(keydownDiv);
+          await microtasksFinished();
+
+          // Assert: No newline and no submission.
+          assertFalse(inputElement.value.includes('\n'));
+          assertEquals(0, mockSearchboxPageHandler.getCallCount('submitQuery'));
+        });
+
+        test(
+            'cancel button click clears input without submitting', async () => {
+              const {innerComposebox} = parts;
+              const inputElement = innerComposebox.getInputElement().$.input;
+              const cancelIcon = innerComposebox.getInputElement().$.cancelIcon;
+
+              // Type text so the composebox has content; with content present,
+              // cancel clears the input instead of closing the composebox.
+              simulateUserInput(inputElement, 'test query');
+              await innerComposebox.updateComplete;
+              assertEquals('test query', innerComposebox.input);
+
+              // Reset so setup / initial ZPS calls do not pollute the counts
+              // below.
+              mockSearchboxPageHandler.reset();
+
+              cancelIcon.click();
+              await innerComposebox.updateComplete;
+              await innerComposebox.getInputElement().updateComplete;
+
+              // Cancel clears the input and its uploaded files, but never
+              // submits.
+              assertEquals('', innerComposebox.input);
+              assertEquals('', inputElement.value);
+              assertEquals(
+                  0, mockSearchboxPageHandler.getCallCount('submitQuery'));
+              assertEquals(
+                  1, mockSearchboxPageHandler.getCallCount('clearFiles'));
+            });
+
+        test('lens overlay showing updates placeholder', async () => {
+          const {wrapper, innerComposebox} = parts;
+          const inputElement = innerComposebox.getInputElement().$.input;
+
+          // Initially false, placeholder override should be empty.
+          assertFalse(wrapper.isOverlayOpenForAimVisualSearch);
+          await wrapper.updateComplete;
+          await innerComposebox.updateComplete;
+          assertEquals('', innerComposebox.inputPlaceholderOverride);
+
+          const initialPlaceholder = inputElement.placeholder;
+
+          // Set to true.
+          wrapper.isOverlayOpenForAimVisualSearch = true;
+          await wrapper.updateComplete;
+          await innerComposebox.updateComplete;
+
+          assertTrue(wrapper.isOverlayOpenForAimVisualSearch);
+          assertEquals(
+              'Test Lens Hint', innerComposebox.inputPlaceholderOverride);
+          assertEquals('Test Lens Hint', inputElement.placeholder);
+
+          // Set back to false.
+          wrapper.isOverlayOpenForAimVisualSearch = false;
+          await wrapper.updateComplete;
+          await innerComposebox.updateComplete;
+
+          assertFalse(wrapper.isOverlayOpenForAimVisualSearch);
+          assertEquals('', innerComposebox.inputPlaceholderOverride);
+          assertEquals(initialPlaceholder, inputElement.placeholder);
+        });
+
+        test('ClearInputAndFocusClearsMatchesOnSubmit', () => {
+          const {wrapper, innerComposebox} = parts;
+
+          let clearAutocompleteMatchesCallCount = 0;
+          let queryAutocompleteCallCount = 0;
+
+          innerComposebox.clearAutocompleteMatches = () => {
+            clearAutocompleteMatchesCallCount++;
+          };
+
+          innerComposebox.queryAutocomplete = () => {
+            queryAutocompleteCallCount++;
+          };
+
+          wrapper.isZeroState = true;
+          wrapper.clearInputAndFocus(true);
+          assertEquals(
+              1, clearAutocompleteMatchesCallCount,
+              'querySubmitted = true should clear matches');
+          assertEquals(
+              0, queryAutocompleteCallCount,
+              'querySubmitted = true should not query');
+        });
+
+        test('ClearInputAndFocusClearsMatchesWhenNotZeroState', () => {
+          const {wrapper, innerComposebox} = parts;
+
+          let clearAutocompleteMatchesCallCount = 0;
+          let queryAutocompleteCallCount = 0;
+
+          innerComposebox.clearAutocompleteMatches = () => {
+            clearAutocompleteMatchesCallCount++;
+          };
+
+          innerComposebox.queryAutocomplete = () => {
+            queryAutocompleteCallCount++;
+          };
+
+          wrapper.isZeroState = false;
+          wrapper.clearInputAndFocus(false);
+          assertEquals(
+              1, clearAutocompleteMatchesCallCount,
+              'isZeroState = false should clear matches');
+          assertEquals(
+              0, queryAutocompleteCallCount,
+              'isZeroState = false should not query');
+        });
+
+        test('ClearInputAndFocusIgnoresEmptyZeroState', () => {
+          const {wrapper, innerComposebox} = parts;
+
+          let clearAutocompleteMatchesCallCount = 0;
+          let queryAutocompleteCallCount = 0;
+
+          innerComposebox.clearAutocompleteMatches = () => {
+            clearAutocompleteMatchesCallCount++;
+          };
+
+          innerComposebox.queryAutocomplete = () => {
+            queryAutocompleteCallCount++;
+          };
+
+          wrapper.isZeroState = true;
+          innerComposebox.getInputElement().$.input.value = '';
+          wrapper.clearInputAndFocus(false);
+          assertEquals(
+              0, clearAutocompleteMatchesCallCount,
+              'hadContent = false should not clear matches');
+          assertEquals(
+              0, queryAutocompleteCallCount,
+              'hadContent = false should not query');
+        });
+
+        test('ClearInputAndFocusQueriesZeroStateWithText', () => {
+          const {wrapper, innerComposebox} = parts;
+
+          let clearAutocompleteMatchesCallCount = 0;
+          let queryAutocompleteCallCount = 0;
+          let queryAutocompleteClearMatchesArg = false;
+
+          innerComposebox.clearAutocompleteMatches = () => {
+            clearAutocompleteMatchesCallCount++;
+          };
+
+          innerComposebox.queryAutocomplete = (clearMatches: boolean) => {
+            queryAutocompleteCallCount++;
+            queryAutocompleteClearMatchesArg = clearMatches;
+          };
+
+          wrapper.isZeroState = true;
+          innerComposebox.input = 'test';
+          wrapper.clearInputAndFocus(false);
+          assertEquals(
+              0, clearAutocompleteMatchesCallCount,
+              'hadContent = true should not clear matches');
+          assertEquals(
+              1, queryAutocompleteCallCount, 'hadContent = true should query');
+          assertTrue(
+              queryAutocompleteClearMatchesArg,
+              'should pass clearMatches = true');
+        });
+
+        test('ClearInputAndFocusQueriesZeroStateWithFiles', () => {
+          const {wrapper, innerComposebox} = parts;
+
+          let clearAutocompleteMatchesCallCount = 0;
+          let queryAutocompleteCallCount = 0;
+          let queryAutocompleteClearMatchesArg = false;
+
+          innerComposebox.clearAutocompleteMatches = () => {
+            clearAutocompleteMatchesCallCount++;
+          };
+
+          innerComposebox.queryAutocomplete = (clearMatches: boolean) => {
+            queryAutocompleteCallCount++;
+            queryAutocompleteClearMatchesArg = clearMatches;
+          };
+
+          wrapper.isZeroState = true;
+          innerComposebox.input = '';
+          innerComposebox.hasFiles = () => true;
+          wrapper.clearInputAndFocus(false);
+          assertEquals(
+              0, clearAutocompleteMatchesCallCount,
+              'hadContent = true (files) should not clear matches');
+          assertEquals(
+              1, queryAutocompleteCallCount,
+              'hadContent = true (files) should query');
+          assertTrue(
+              queryAutocompleteClearMatchesArg,
+              'should pass clearMatches = true');
         });
       });
 });

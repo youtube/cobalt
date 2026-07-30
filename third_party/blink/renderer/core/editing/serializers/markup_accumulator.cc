@@ -133,7 +133,7 @@ class MarkupAccumulator::NamespaceContext final {
     return local_default_namespace;
   }
 
-  AtomicString LookupNamespaceURI(const AtomicString& prefix) const {
+  AtomicString LookupNamespaceUri(const AtomicString& prefix) const {
     auto it = prefix_ns_map_.find(prefix ? prefix : g_empty_atom);
     return it != prefix_ns_map_.end() && !it->value.empty() ? it->value
                                                             : g_null_atom;
@@ -184,7 +184,7 @@ class MarkupAccumulator::ElementSerializationData final {
 };
 
 MarkupAccumulator::MarkupAccumulator(
-    AbsoluteURLs resolve_urls_method,
+    ResolveUrls resolve_urls_method,
     SerializationType serialization_type,
     const ShadowRootInclusion& shadow_root_inclusion,
     AttributesMode attributes_mode)
@@ -240,7 +240,7 @@ AtomicString MarkupAccumulator::AppendElement(const Element& element) {
       attributes_mode_ == AttributesMode::kSynchronized
           ? element.Attributes()
           : element.AttributesWithoutUpdate();
-  if (SerializeAsHTML()) {
+  if (SerializeAsHtml()) {
     // https://html.spec.whatwg.org/C/#html-fragment-serialisation-algorithm
 
     // 3.2. Element: If current node's is value is not null, and the
@@ -286,7 +286,7 @@ MarkupAccumulator::ElementSerializationData
 MarkupAccumulator::AppendStartTagOpen(const Element& element) {
   ElementSerializationData data;
   data.serialized_prefix_ = element.prefix();
-  if (SerializeAsHTML()) {
+  if (SerializeAsHtml()) {
     formatter_.AppendStartTagOpen(markup_, element);
     return data;
   }
@@ -334,7 +334,7 @@ MarkupAccumulator::AppendStartTagOpen(const Element& element) {
   }
   // 12.4. if candidate prefix is not null (a namespace prefix is defined which
   // maps to ns), then:
-  if (!candidate_prefix.IsNull() && LookupNamespaceURI(candidate_prefix)) {
+  if (!candidate_prefix.IsNull() && LookupNamespaceUri(candidate_prefix)) {
     // 12.4.1. Append to qualified name the concatenation of candidate prefix,
     // ":" (U+003A COLON), and node's localName.
     // 12.4.3. Append the value of qualified name to markup.
@@ -410,15 +410,15 @@ void MarkupAccumulator::AppendStartTagClose(const Element& element) {
 
 void MarkupAccumulator::AppendAttribute(const Element& element,
                                         const Attribute& attribute) {
-  String value = formatter_.ResolveURLIfNeeded(element, attribute);
-  if (SerializeAsHTML()) {
-    MarkupFormatter::AppendAttributeAsHTML(markup_, attribute, value);
+  String value = formatter_.ResolveUrlIfNeeded(element, attribute);
+  if (SerializeAsHtml()) {
+    MarkupFormatter::AppendAttributeAsHtml(markup_, attribute, value);
   } else {
-    AppendAttributeAsXMLWithNamespace(element, attribute, value);
+    AppendAttributeAsXmlWithNamespace(element, attribute, value);
   }
 }
 
-void MarkupAccumulator::AppendAttributeAsXMLWithNamespace(
+void MarkupAccumulator::AppendAttributeAsXmlWithNamespace(
     const Element& element,
     const Attribute& attribute,
     const String& value) {
@@ -452,7 +452,7 @@ void MarkupAccumulator::AppendAttributeAsXMLWithNamespace(
     // 3.5.3. Otherwise, the attribute namespace in not the XMLNS namespace.
     // Run these steps:
     if (ShouldAddNamespaceAttribute(attribute, candidate_prefix)) {
-      if (!candidate_prefix || LookupNamespaceURI(candidate_prefix)) {
+      if (!candidate_prefix || LookupNamespaceUri(candidate_prefix)) {
         // 3.5.3.1. Let candidate prefix be the result of generating a prefix
         // providing map, attribute namespace, and prefix index as input.
         candidate_prefix = GeneratePrefix(attribute_namespace);
@@ -484,13 +484,13 @@ bool MarkupAccumulator::ShouldAddNamespaceAttribute(
   if (!candidate_prefix)
     return true;
 
-  return !EqualIgnoringNullity(LookupNamespaceURI(candidate_prefix),
+  return !EqualIgnoringNullity(LookupNamespaceUri(candidate_prefix),
                                attribute.NamespaceURI());
 }
 
 void MarkupAccumulator::AppendNamespace(const AtomicString& prefix,
                                         const AtomicString& namespace_uri) {
-  AtomicString found_uri = LookupNamespaceURI(prefix);
+  AtomicString found_uri = LookupNamespaceUri(prefix);
   if (!EqualIgnoringNullity(found_uri, namespace_uri)) {
     AddPrefix(prefix, namespace_uri);
     if (prefix.empty()) {
@@ -508,8 +508,9 @@ EntityMask MarkupAccumulator::EntityMaskForText(const Text& text) const {
 }
 
 void MarkupAccumulator::PushNamespaces(const Element& element) {
-  if (SerializeAsHTML())
+  if (SerializeAsHtml()) {
     return;
+  }
   DCHECK_GT(namespace_stack_.size(), 0u);
   // TODO(tkent): Avoid to copy the whole map.
   // We can't do |namespace_stack_.emplace_back(namespace_stack_.back())|
@@ -519,8 +520,9 @@ void MarkupAccumulator::PushNamespaces(const Element& element) {
 }
 
 void MarkupAccumulator::PopNamespaces(const Element& element) {
-  if (SerializeAsHTML())
+  if (SerializeAsHtml()) {
     return;
+  }
   namespace_stack_.pop_back();
 }
 
@@ -529,7 +531,7 @@ AtomicString MarkupAccumulator::RetrievePreferredPrefixString(
     const AtomicString& ns,
     const AtomicString& preferred_prefix) {
   DCHECK(!ns.empty()) << ns;
-  AtomicString ns_for_preferred = LookupNamespaceURI(preferred_prefix);
+  AtomicString ns_for_preferred = LookupNamespaceUri(preferred_prefix);
   // Preserve the prefix if the prefix is used in the scope and the namespace
   // for it is matches to the node's one.
   // This is equivalent to the following step in the specification:
@@ -554,7 +556,7 @@ AtomicString MarkupAccumulator::RetrievePreferredPrefixString(
   // We should not get '' for attributes.
   for (const auto& candidate_prefix : base::Reversed(candidate_list)) {
     DCHECK(!candidate_prefix.empty());
-    AtomicString ns_for_candidate = LookupNamespaceURI(candidate_prefix);
+    AtomicString ns_for_candidate = LookupNamespaceUri(candidate_prefix);
     if (EqualIgnoringNullity(ns_for_candidate, ns)) {
       return candidate_prefix;
     }
@@ -574,8 +576,8 @@ void MarkupAccumulator::AddPrefix(const AtomicString& prefix,
   namespace_stack_.back().Add(prefix, namespace_uri);
 }
 
-AtomicString MarkupAccumulator::LookupNamespaceURI(const AtomicString& prefix) {
-  return namespace_stack_.back().LookupNamespaceURI(prefix);
+AtomicString MarkupAccumulator::LookupNamespaceUri(const AtomicString& prefix) {
+  return namespace_stack_.back().LookupNamespaceUri(prefix);
 }
 
 // https://w3c.github.io/DOM-Parsing/#dfn-generating-a-prefix
@@ -589,15 +591,15 @@ AtomicString MarkupAccumulator::GeneratePrefix(
         AtomicString(StrCat({"ns", String::Number(prefix_index_)}));
     // 2. Let the value of prefix index be incremented by one.
     ++prefix_index_;
-  } while (LookupNamespaceURI(generated_prefix));
+  } while (LookupNamespaceUri(generated_prefix));
   // 3. Add to map the generated prefix given the new namespace namespace.
   AddPrefix(generated_prefix, new_namespace);
   // 4. Return the value of generated prefix.
   return generated_prefix;
 }
 
-bool MarkupAccumulator::SerializeAsHTML() const {
-  return formatter_.SerializeAsHTML();
+bool MarkupAccumulator::SerializeAsHtml() const {
+  return formatter_.SerializeAsHtml();
 }
 
 // This serializes the shadow root of this element, if present. The behavior
@@ -717,7 +719,7 @@ void MarkupAccumulator::SerializeNodesWithNamespaces(
     prefix_override = AppendElement(target_element);
 
   bool has_end_tag =
-      !(SerializeAsHTML() && ElementCannotHaveEndTag(target_element));
+      !(SerializeAsHtml() && ElementCannotHaveEndTag(target_element));
   if (has_end_tag) {
     if (emit_choice != EmitElementChoice::kEmitButIgnoreChildren) {
       const Node* parent = &target_element;
@@ -764,7 +766,7 @@ template <typename Strategy>
 CORE_EXPORT String
 MarkupAccumulator::SerializeNodes(const Node& target_node,
                                   ChildrenOnly children_only) {
-  if (!SerializeAsHTML()) {
+  if (!SerializeAsHtml()) {
     // https://w3c.github.io/DOM-Parsing/#dfn-xml-serialization
     DCHECK_EQ(namespace_stack_.size(), 0u);
     // 2. Let prefix map be a new namespace prefix map.

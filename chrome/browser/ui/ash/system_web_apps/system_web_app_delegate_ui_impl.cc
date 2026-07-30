@@ -114,7 +114,9 @@ BrowserDelegate* SystemWebAppDelegate::LaunchAndNavigateSystemWebApp(
       launch_params->set_started_new_navigation(false);
       launch_params->set_target_url(web_contents->GetURL());
       web_app::WebAppLaunchNavigationHandleUserData::DispatchLaunchParams(
-          web_contents, std::move(*launch_params));
+          web_contents, std::move(*launch_params),
+          apps::LaunchContainer::kLaunchContainerNone,
+          apps::LaunchSource::kUnknown);
     }
   }
 

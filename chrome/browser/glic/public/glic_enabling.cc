@@ -560,6 +560,12 @@ GlicEnabling::ProfileEnablement GlicEnabling::EnablementForProfile(
       result.primary_account_is_capable =
           (capability_value == signin::Tribool::kTrue);
 
+      if (!result.primary_account_is_capable && result.fre_is_consented &&
+          base::FeatureList::IsEnabled(
+              features::kGlicAnchorEntryPointForOnboardedUsers)) {
+        result.anchor_entrypoint_override_active = true;
+      }
+
       // If the feature is overridden by a field trial, and the user's
       // eligibility is known and different for the two capabilities, add them
       // to a synthetic trial.
@@ -635,12 +641,9 @@ bool GlicGlobalEnabling::IsSystemRequirementMet() const {
       return false;
     }
 #if BUILDFLAG(IS_CHROMEOS)
-    constexpr base::ByteCount kMinimumMemoryThreshold = base::GiB(8);
-
-    // TODO(b:513258292): Remove the bypassing once Glic is fully launched.
+    constexpr base::ByteCount kMinimumMemoryThreshold = base::GiB(7);
     const bool bypass_cbx_requirement =
-        base::FeatureList::IsEnabled(
-            chromeos::features::kGlicEnableFor8GbDevices) &&
+        GlicEnabling::IsLikelyDogfoodClient() &&
         base::SysInfo::AmountOfTotalPhysicalMemory().AsDeprecatedByteCount() >=
             kMinimumMemoryThreshold;
 
@@ -919,13 +922,8 @@ bool GlicEnabling::ShouldShowWebActuationToggle() const {
     return false;
   }
 
-  bool is_managed = glic::GlicActorPolicyChecker::IsBrowserManaged(*profile_);
-
-  bool is_enterprise_account = false;
-  if (auto* actor_service = actor::ActorKeyedService::Get(profile_)) {
-    is_enterprise_account = glic::GlicActorPolicyChecker::IsEnterpriseAccount(
-        *profile_, actor_service->GetJournal());
-  }
+  bool is_managed = IsBrowserManaged(profile_);
+  bool is_enterprise_account = IsEnterpriseAccount(profile_);
 
   // Enterprise Case: Align toggle visibility with GlicActorPolicyChecker.
   if (is_managed || is_enterprise_account) {
@@ -1096,9 +1094,7 @@ GlicEnabling::GetGeminiEnterpriseSettings(Profile* profile) {
     }
   }
 
-  auto* actor_service = actor::ActorKeyedService::Get(profile);
-  if (!actor_service || !GlicActorPolicyChecker::IsEnterpriseAccount(
-                            *profile, actor_service->GetJournal())) {
+  if (!IsEnterpriseAccount(profile)) {
     return std::nullopt;
   }
 
@@ -1239,6 +1235,85 @@ bool GlicEnabling::GetExperimentalTriggeringEnabled() const {
       prefs::kGlicExperimentalTriggeringEnabled);
 }
 
+// static
+bool GlicEnabling::IsBrowserManaged(Profile* profile) {
+  if (!profile) {
+    return false;
+  }
+  auto* management_service_factory =
+      policy::ManagementServiceFactory::GetInstance();
+  auto* browser_management_service =
+      management_service_factory->GetForProfile(profile);
+  return browser_management_service && browser_management_service->IsManaged();
+}
+
+// static
+bool GlicEnabling::IsDeviceManaged() {
+  auto* management_service_factory =
+      policy::ManagementServiceFactory::GetInstance();
+  auto* platform_management_service =
+      management_service_factory->GetForPlatform();
+  return platform_management_service &&
+         platform_management_service->IsManaged();
+}
+
+// static
+bool GlicEnabling::IsAccountDataProtected(Profile* profile) {
+  if (!profile) {
+    return false;
+  }
+
+  bool is_enterprise_account_data_protected = false;
+  // Ensure that assumptions about when we do or do not update the cached user
+  // status are not broken.
+  // LINT.IfChange(GlicCachedUserStatusScope)
+  if (base::FeatureList::IsEnabled(features::kGlicUserStatusCheck)) {
+    std::optional<glic::CachedUserStatus> cached_user_status =
+        glic::GlicUserStatusFetcher::GetCachedUserStatus(profile);
+    if (cached_user_status.has_value()) {
+      is_enterprise_account_data_protected =
+          cached_user_status->is_enterprise_account_data_protected;
+    } else {
+      // NOTE: Do not return false as a fail-closed here. CachedUserStatus is
+      // only fetched when `is_managed` of
+      // GlicUserStatusFetcher::UpdateUserStatus is true. Returning false means
+      // gating all the non-enterprise accounts from actuation.
+    }
+  }
+  // LINT.ThenChange(//chrome/browser/glic/glic_user_status_fetcher.cc:GlicCachedUserStatusScope)
+
+  return is_enterprise_account_data_protected;
+}
+
+// static
+signin::Tribool GlicEnabling::IsAccountManaged(Profile* profile) {
+  if (!profile) {
+    return signin::Tribool::kUnknown;
+  }
+
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile);
+  if (!identity_manager) {
+    return signin::Tribool::kUnknown;
+  }
+
+  // `account_info` is empty if the user has not signed in.
+  const CoreAccountInfo account_info =
+      identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
+  const AccountInfo extended_account_info =
+      identity_manager->FindExtendedAccountInfoByAccountId(
+          account_info.account_id);
+  return extended_account_info.IsManaged();
+}
+
+// static
+bool GlicEnabling::IsEnterpriseAccount(Profile* profile) {
+  // Note: `IsAccountDataProtected()` and `IsAccountManaged()` check for
+  // Workspace accounts. They are backed by two different Google API endpoints.
+  return IsAccountDataProtected(profile) ||
+         (IsAccountManaged(profile) == signin::Tribool::kTrue);
+}
+
 syncer::DeviceInfo::GlicExperimentalTriggeringState
 GlicEnabling::GetExperimentalTriggeringState() const {
   if (!IsEnabledForProfile(profile_)) {
@@ -1248,67 +1323,12 @@ GlicEnabling::GetExperimentalTriggeringState() const {
   if (!base::FeatureList::IsEnabled(features::kGlicExperimentalTriggering)) {
     return syncer::DeviceInfo::GlicExperimentalTriggeringState::kUnavailable;
   }
-  bool is_device_managed = false;
 
-  // TODO(crbug.com/510420396): Refactor this out as the logic is the same in
-  // glic policy checker
-  // Check if the browser or the device is managed
-  auto* management_service_factory =
-      policy::ManagementServiceFactory::GetInstance();
-  auto* browser_management_service =
-      management_service_factory->GetForProfile(profile_);
-  auto* platform_management_service =
-      management_service_factory->GetForPlatform();
-  if ((browser_management_service && browser_management_service->IsManaged()) ||
-      (platform_management_service &&
-       platform_management_service->IsManaged())) {
-    is_device_managed = true;
-  }
-
-  bool has_managed_account = false;
-
-  // Check if enterprise account
-  if (!is_device_managed) {
-    bool is_enterprise_account_data_protected = false;
-    if (base::FeatureList::IsEnabled(features::kGlicUserStatusCheck)) {
-      std::optional<glic::CachedUserStatus> cached_user_status =
-          glic::GlicUserStatusFetcher::GetCachedUserStatus(profile_);
-      if (cached_user_status.has_value()) {
-        is_enterprise_account_data_protected =
-            cached_user_status->is_enterprise_account_data_protected;
-      } else {
-        // NOTE: Do not return false as a fail-closed here. CachedUserStatus is
-        // only fetched when `is_managed` of
-        // GlicUserStatusFetcher::UpdateUserStatus is true. Returning false
-        // means gating all the non-enterprise accounts from actuation.
-      }
-    }
-
-    signin::Tribool account_is_managed_tribool = signin::Tribool::kUnknown;
-    signin::IdentityManager* identity_manager =
-        IdentityManagerFactory::GetForProfile(profile_);
-    if (identity_manager) {
-      // `account_info` is empty if the user has not signed in.
-      const CoreAccountInfo account_info =
-          identity_manager->GetPrimaryAccountInfo(
-              signin::ConsentLevel::kSignin);
-      const AccountInfo extended_account_info =
-          identity_manager->FindExtendedAccountInfoByAccountId(
-              account_info.account_id);
-
-      account_is_managed_tribool = extended_account_info.IsManaged();
-    }
-
-    has_managed_account = is_enterprise_account_data_protected ||
-                          account_is_managed_tribool == signin::Tribool::kTrue;
-  }
-
-  bool is_managed = is_device_managed || has_managed_account;
+  bool is_managed = IsBrowserManaged(profile_) || IsDeviceManaged() ||
+                    IsEnterpriseAccount(profile_);
 
   // Apply policy if managed, unless it's a dogfood client.
-  bool is_likely_dogfood_client = IsLikelyDogfoodClient();
-
-  if (is_managed && !is_likely_dogfood_client) {
+  if (is_managed && !IsLikelyDogfoodClient()) {
     // Check policy
     auto* pref_service = profile_->GetPrefs();
     auto policy_state = static_cast<glic::prefs::GlicSparkPolicyState>(
@@ -1422,6 +1442,14 @@ void GlicEnabling::OnPrimaryAccountChanged(
   }
 #endif
   UpdateEnabledStatus();
+}
+
+void GlicEnabling::OnIdentityManagerShutdown(
+    signin::IdentityManager* identity_manager) {
+  identity_manager_observation_.Reset();
+  subscription_eligibility_service_observation_.Reset();
+  pref_registrar_.RemoveAll();
+  glic_user_status_fetcher_.reset();
 }
 
 void GlicEnabling::OnExtendedAccountInfoUpdated(const AccountInfo& info) {

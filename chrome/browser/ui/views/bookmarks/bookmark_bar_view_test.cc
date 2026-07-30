@@ -367,7 +367,7 @@ class BookmarkBarViewEventTestBase : public ViewEventTestBase {
     ViewEventTestBase::SetUp();
     ASSERT_TRUE(bb_view_);
 
-    static_cast<TestBrowserWindow*>(browser_->window())
+    static_cast<TestBrowserWindow*>(BrowserWindow::FromBrowser(browser_.get()))
         ->SetNativeWindow(window()->GetNativeWindow());
 
     bookmarks::BookmarkNavigationWrapper::SetInstanceForTesting(&wrapper_);

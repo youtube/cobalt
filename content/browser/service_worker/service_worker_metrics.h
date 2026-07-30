@@ -25,6 +25,22 @@ enum class ServiceWorkerMainScriptRequestValidationResult {
   kMaxValue = kForgedMode,
 };
 
+// LINT.IfChange(ServiceWorkerAutoPreloadDispatchResult)
+
+// Used for UMA. Append-only.
+enum class ServiceWorkerAutoPreloadDispatchResult {
+  kDispatched = 0,
+  kFeatureDisabled = 1,
+  kNotAllowedByBrowser = 2,
+  kNotOutermostMainFrame = 3,
+  kGuestStoragePartition = 4,
+  kWebRequestAPIProxy = 5,
+  kStartFailed = 6,
+  kMaxValue = kStartFailed,
+};
+
+// LINT.ThenChange(/tools/metrics/histograms/enums.xml:ServiceWorkerAutoPreloadDispatchResult)
+
 class ServiceWorkerMetrics {
  public:
   // Used for UMA. Append-only.

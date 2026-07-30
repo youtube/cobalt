@@ -10,7 +10,9 @@
 
 #include "chrome/browser/ui/views/permissions/embedded_permission_prompt_base_view.h"
 
-class Browser;
+namespace content {
+class WebContents;
+}
 
 // A view used to display information to the user that they previously granted
 // permission to a site.
@@ -20,7 +22,7 @@ class EmbeddedPermissionPromptPreviouslyGrantedView
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kContinueAllowingId);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kStopAllowingId);
   EmbeddedPermissionPromptPreviouslyGrantedView(
-      Browser* browser,
+      content::WebContents* web_contents,
       base::WeakPtr<EmbeddedPermissionPromptViewDelegate> delegate);
   EmbeddedPermissionPromptPreviouslyGrantedView(
       const EmbeddedPermissionPromptPreviouslyGrantedView&) = delete;

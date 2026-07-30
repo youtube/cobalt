@@ -42,7 +42,7 @@ import org.chromium.chrome.browser.tab.StorageLoadedData.StorageLoadWarning;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabState;
-import org.chromium.chrome.browser.tab.TabStateAttributes;
+import org.chromium.chrome.browser.tab.TabStateAttributesRegistry;
 import org.chromium.chrome.browser.tab.TabStateStorageService;
 import org.chromium.chrome.browser.tab.TabStateStorageServiceFactory;
 import org.chromium.chrome.browser.tab.WebContentsState;
@@ -313,7 +313,8 @@ public class TabStateStoreUnitTest {
         mTabStateStore.onNativeLibraryReady();
         Tab tab = createMockTabWithParentCollection(1, mProfile);
 
-        TabStateAttributes.createForTab(tab, TabCreationState.LIVE_IN_FOREGROUND);
+        TabStateAttributesRegistry.createAttributesForTab(
+                tab, TabStateStore.class, TabCreationState.LIVE_IN_FOREGROUND);
 
         // Force dirtiness update.
         tab.setIsPinned(true);
@@ -331,7 +332,8 @@ public class TabStateStoreUnitTest {
     public void testSaveState_DoesNotSaveCleanTab() {
         mTabStateStore.onNativeLibraryReady();
         Tab tab = MockTab.createAndInitialize(1, mProfile);
-        TabStateAttributes.createForTab(tab, TabCreationState.LIVE_IN_FOREGROUND);
+        TabStateAttributesRegistry.createAttributesForTab(
+                tab, TabStateStore.class, TabCreationState.LIVE_IN_FOREGROUND);
         mRegularTabSupplier.set(tab);
         mIncognitoTabSupplier.set(null);
 
@@ -642,7 +644,8 @@ public class TabStateStoreUnitTest {
         mTabStateStore.onNativeLibraryReady();
 
         Tab tab = createMockTabWithParentCollection(1, mProfile);
-        TabStateAttributes.createForTab(tab, TabCreationState.FROZEN_ON_RESTORE);
+        TabStateAttributesRegistry.createAttributesForTab(
+                tab, TabStateStore.class, TabCreationState.FROZEN_ON_RESTORE);
 
         mTabStateStore.onTabRegistered(tab);
 
@@ -669,7 +672,8 @@ public class TabStateStoreUnitTest {
         mTabStateStore.onNativeLibraryReady();
 
         Tab tab = createMockTabWithParentCollection(1, mProfile);
-        TabStateAttributes.createForTab(tab, TabCreationState.FROZEN_ON_RESTORE);
+        TabStateAttributesRegistry.createAttributesForTab(
+                tab, TabStateStore.class, TabCreationState.FROZEN_ON_RESTORE);
 
         mTabStateStore.onTabRegistered(tab);
 

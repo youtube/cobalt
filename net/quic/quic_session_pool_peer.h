@@ -14,6 +14,7 @@
 #include "base/time/tick_clock.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/network_anonymization_key.h"
+#include "net/base/network_handle.h"
 #include "net/base/privacy_mode.h"
 #include "net/base/session_usage.h"
 #include "net/quic/quic_session_key.h"
@@ -55,7 +56,8 @@ class QuicSessionPoolPeer {
       const ProxyChain& proxy_chain = ProxyChain::Direct(),
       SessionUsage session_usage = SessionUsage::kDestination,
       bool require_dns_https_alpn = false,
-      bool disable_cert_verification_network_fetches = false);
+      bool disable_cert_verification_network_fetches = false,
+      handles::NetworkHandle target_network = handles::kInvalidNetworkHandle);
 
   static bool HasActiveJob(QuicSessionPool* factory,
                            const quic::QuicServerId& server_id,
@@ -77,7 +79,8 @@ class QuicSessionPoolPeer {
       const ProxyChain& proxy_chain = ProxyChain::Direct(),
       SessionUsage session_usage = SessionUsage::kDestination,
       bool require_dns_https_alpn = false,
-      bool disable_cert_verification_network_fetches = false);
+      bool disable_cert_verification_network_fetches = false,
+      handles::NetworkHandle target_network = handles::kInvalidNetworkHandle);
 
   static bool IsLiveSession(QuicSessionPool* pool,
                             QuicChromiumClientSession* session);

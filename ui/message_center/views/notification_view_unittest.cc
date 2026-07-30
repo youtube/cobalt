@@ -90,6 +90,22 @@ class NotificationTestDelegate : public NotificationDelegate {
   bool disable_notification_called_ = false;
 };
 
+class DeleteOnExpandDelegate : public NotificationDelegate {
+ public:
+  explicit DeleteOnExpandDelegate(base::RepeatingClosure delete_closure)
+      : delete_closure_(delete_closure) {}
+
+  void ExpandStateChanged(bool expanded) override {
+    if (delete_closure_) {
+      delete_closure_.Run();
+    }
+  }
+
+ private:
+  ~DeleteOnExpandDelegate() override = default;
+  base::RepeatingClosure delete_closure_;
+};
+
 }  // namespace
 
 class NotificationViewTest : public views::ViewsTestBase,
@@ -142,6 +158,13 @@ class NotificationViewTest : public views::ViewsTestBase,
   void InkDropRippleAnimationEnded(
       views::InkDropState ink_drop_state) override {
     ink_drop_stopped_ = true;
+  }
+
+  void DeleteNotificationView() {
+    if (notification_view_) {
+      static_cast<views::View*>(notification_view_)->RemoveObserver(this);
+      notification_view_.ExtractAsDangling()->GetWidget()->CloseNow();
+    }
   }
 
  protected:
@@ -786,6 +809,32 @@ TEST_F(NotificationViewTest, UpdateFiresAccessibilityEvents) {
   UpdateNotificationViews(*notification);
   EXPECT_EQ(
       1, counter.GetCount(ax::mojom::Event::kTextChanged, notification_view()));
+}
+
+TEST_F(NotificationViewTest, TestDeleteOnToggleInlineSettings) {
+  base::RepeatingClosure delete_closure = base::BindRepeating(
+      [](NotificationViewTest* test) { test->DeleteNotificationView(); },
+      base::Unretained(this));
+
+  scoped_refptr<DeleteOnExpandDelegate> delegate =
+      base::MakeRefCounted<DeleteOnExpandDelegate>(delete_closure);
+
+  RichNotificationData data;
+  data.settings_button_handler = SettingsButtonHandler::INLINE;
+  std::unique_ptr<Notification> notification = std::make_unique<Notification>(
+      NOTIFICATION_TYPE_SIMPLE, std::string(kDefaultNotificationId), u"title",
+      u"message", ui::ImageModel(), u"display source", GURL(),
+      NotifierId(NotifierType::APPLICATION, "extension_id"), data, delegate);
+
+  UpdateNotificationViews(*notification);
+
+  // Toggle inline settings. This calls SetExpanded, which triggers
+  // ExpandStateChanged in the delegate, deleting the view.
+  // Without the weak ptr check, this will crash/UAF.
+  ToggleInlineSettings();
+
+  message_center::MessageCenter::Get()->RemoveNotification(notification->id(),
+                                                           /*by_user=*/false);
 }
 
 }  // namespace message_center

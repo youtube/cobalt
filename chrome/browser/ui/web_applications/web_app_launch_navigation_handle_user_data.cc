@@ -26,11 +26,18 @@ WebAppLaunchNavigationHandleUserData::~WebAppLaunchNavigationHandleUserData() =
 // static
 void WebAppLaunchNavigationHandleUserData::DispatchLaunchParams(
     content::WebContents* web_contents,
-    webapps::LaunchParams launch_params) {
+    webapps::LaunchParams launch_params,
+    apps::LaunchContainer launch_container,
+    apps::LaunchSource launch_source) {
   CHECK(web_contents);
   WebAppTabHelper* tab_helper = WebAppTabHelper::FromWebContents(web_contents);
   CHECK(tab_helper);
   launch_params.set_started_new_navigation(false);
+
+  UpdateLaunchMetricsAndStats(launch_params.app_id(), launch_container,
+                              launch_source, launch_params.target_url(),
+                              web_contents);
+
   tab_helper->EnqueueLaunchParams(std::move(launch_params));
 }
 
@@ -97,6 +104,13 @@ void WebAppLaunchNavigationHandleUserData::SetLaunchParamsMetadata(
   }
 }
 
+void WebAppLaunchNavigationHandleUserData::SetLaunchSource(
+    apps::LaunchSource launch_source) {
+  if (launch_source != apps::LaunchSource::kUnknown) {
+    launch_source_ = launch_source;
+  }
+}
+
 void WebAppLaunchNavigationHandleUserData::
     MaybePerformAppHandlingTasksInWebContents() {
   if (!launch_params_) {
@@ -118,19 +132,18 @@ void WebAppLaunchNavigationHandleUserData::
 
   launch_params_.reset();
 
-  if (!is_navigation_capturing_) {
-    return;
-  }
-
-  // Perform navigation capturing specific tasks below.
   apps::LaunchContainer container =
       tab_helper->is_in_app_window()
           ? apps::LaunchContainer::kLaunchContainerWindow
           : apps::LaunchContainer::kLaunchContainerTab;
-  RecordLaunchMetrics(app_id, container,
-                      apps::LaunchSource::kFromNavigationCapturing, target_url,
-                      web_contents_);
+  UpdateLaunchMetricsAndStats(app_id, container, launch_source_, target_url,
+                              web_contents_);
 
+  if (!is_navigation_capturing_ || navigation_handle_->IsErrorPage()) {
+    return;
+  }
+
+  // Perform navigation capturing specific tasks below.
   RecordNavigationCapturingDisplayModeMetrics(app_id, web_contents_,
                                               !tab_helper->is_in_app_window());
 

@@ -156,6 +156,11 @@ class ActorEventLog {
       const blobUrl = URL.createObjectURL(blob);
       this.objectUrls.push(blobUrl);
 
+      const container = document.createElement('div');
+      container.style.display = 'flex';
+      container.style.flexDirection = 'column';
+      container.style.gap = '5px';
+
       const img = document.createElement('img');
       img.src = blobUrl; // Use the Blob URL for the small image
       img.style.width = '200px';
@@ -163,13 +168,36 @@ class ActorEventLog {
       img.style.cursor = 'pointer'; // Indicate it's clickable
 
       img.onclick = () => {
-          const newTab = window.open(blobUrl, '_blank');
-          if (newTab) {
-              newTab.focus();
-          }
+        const newTab = window.open(img.src, '_blank');
+        if (newTab) {
+          newTab.focus();
+        }
       };
 
-      detailsCell.appendChild(img);
+      container.appendChild(img);
+
+      if (entry.iframeScreenshot) {
+        const iframeByteArray = new Uint8Array(entry.iframeScreenshot);
+        const iframeBlob = new Blob([iframeByteArray], {type: 'image/jpeg'});
+        const iframeBlobUrl = URL.createObjectURL(iframeBlob);
+        this.objectUrls.push(iframeBlobUrl);
+
+        const toggleButton = document.createElement('button');
+        toggleButton.textContent = 'Show iframes';
+        toggleButton.style.alignSelf = 'flex-start';
+        toggleButton.onclick = () => {
+          if (img.src === blobUrl) {
+            img.src = iframeBlobUrl;
+            toggleButton.textContent = 'Hide iframes';
+          } else {
+            img.src = blobUrl;
+            toggleButton.textContent = 'Show iframes';
+          }
+        };
+        container.appendChild(toggleButton);
+      }
+
+      detailsCell.appendChild(container);
     } else {
       detailsCell.textContent = this.formatMapDetails(new Map(Object.entries(entry.details)));
     }

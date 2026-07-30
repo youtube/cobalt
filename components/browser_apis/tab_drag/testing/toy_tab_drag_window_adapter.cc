@@ -4,18 +4,31 @@
 
 #include "components/browser_apis/tab_drag/testing/toy_tab_drag_window_adapter.h"
 
+#include "components/browser_apis/tab_drag/sessions/tab_drag_window_registry.h"
+
 namespace tabs_api {
 
-ToyTabDragWindowAdapter::ToyTabDragWindowAdapter(const gfx::Rect& bounds)
-    : bounds_(bounds) {}
+ToyTabDragWindowAdapter::ToyTabDragWindowAdapter(
+    const gfx::Rect& bounds,
+    TabDragWindowRegistry* registry)
+    : bounds_(bounds), registry_(registry) {
+  if (registry_) {
+    id_ = registry_->Register(this);
+  }
+}
 
-ToyTabDragWindowAdapter::~ToyTabDragWindowAdapter() = default;
+ToyTabDragWindowAdapter::~ToyTabDragWindowAdapter() {
+  if (registry_ && id_) {
+    registry_->Unregister(id_);
+  }
+}
 
 gfx::Rect ToyTabDragWindowAdapter::GetBoundsInScreen() const {
   return bounds_;
 }
 
 gfx::Point ToyTabDragWindowAdapter::ConvertScreenPointToLocal(
+    gfx::NativeView target_view,
     const gfx::Point& screen_point) const {
   return screen_point - bounds_.OffsetFromOrigin();
 }
@@ -30,10 +43,6 @@ void ToyTabDragWindowAdapter::ReleaseCapture() {
 
 bool ToyTabDragWindowAdapter::HasCapture() const {
   return has_capture_;
-}
-
-base::WeakPtr<TabDragWindowAdapter> ToyTabDragWindowAdapter::AsWeakPtr() {
-  return weak_factory_.GetWeakPtr();
 }
 
 }  // namespace tabs_api

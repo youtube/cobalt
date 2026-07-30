@@ -111,7 +111,8 @@ class ClipboardTextReader final : public ClipboardReader {
     // Encode WTF String to UTF-8, the standard text format for Blobs.
     StringUtf8Adaptor utf8_text(plain_text);
     Vector<uint8_t> utf8_bytes;
-    utf8_bytes.ReserveInitialCapacity(utf8_text.size());
+    utf8_bytes.ReserveInitialCapacity(
+        base::checked_cast<wtf_size_t>(utf8_text.size()));
     utf8_bytes.append_range(utf8_text);
 
     PostCrossThreadTask(
@@ -179,7 +180,7 @@ class ClipboardHtmlReader final : public ClipboardReader {
     String final_html =
         sanitize_html_ ? CreateStrictlyProcessedMarkupWithContext(
                              *frame->GetDocument(), html_string, fragment_start,
-                             fragment_end, url, kIncludeNode, kResolveAllURLs)
+                             fragment_end, url, kIncludeNode, ResolveUrls::kAll)
                        : html_string;
     base::UmaHistogramBoolean("Blink.Clipboard.Reader.ProcessedDataNull",
                               final_html.empty());
@@ -203,7 +204,8 @@ class ClipboardHtmlReader final : public ClipboardReader {
     // Encode WTF String to UTF-8, the standard text format for blobs.
     StringUtf8Adaptor utf8_text(plain_text);
     Vector<uint8_t> utf8_bytes;
-    utf8_bytes.ReserveInitialCapacity(utf8_text.size());
+    utf8_bytes.ReserveInitialCapacity(
+        base::checked_cast<wtf_size_t>(utf8_text.size()));
     utf8_bytes.append_range(utf8_text);
 
     PostCrossThreadTask(
@@ -262,7 +264,7 @@ class ClipboardSvgReader final : public ClipboardReader {
     unsigned fragment_start = 0;
     String strictly_processed_svg = CreateStrictlyProcessedMarkupWithContext(
         *frame->GetDocument(), svg_string, fragment_start, svg_string.length(),
-        url, kIncludeNode, kResolveAllURLs);
+        url, kIncludeNode, ResolveUrls::kAll);
 
     base::UmaHistogramBoolean("Blink.Clipboard.Reader.ProcessedDataNull",
                               strictly_processed_svg.empty());
@@ -287,7 +289,8 @@ class ClipboardSvgReader final : public ClipboardReader {
     // Encode WTF String to UTF-8, the standard text format for Blobs.
     StringUtf8Adaptor utf8_text(plain_text);
     Vector<uint8_t> utf8_bytes;
-    utf8_bytes.ReserveInitialCapacity(utf8_text.size());
+    utf8_bytes.ReserveInitialCapacity(
+        base::checked_cast<wtf_size_t>(utf8_text.size()));
     utf8_bytes.append_range(utf8_text);
 
     PostCrossThreadTask(

@@ -587,6 +587,8 @@ void AwBrowserContext::ConfigureNetworkContextParams(
   // Add proxy settings
   AwProxyConfigMonitor::GetInstance()->AddProxyToNetworkContextParams(
       context_params);
+
+  context_params->use_platform_ech_policy = true;
 }
 
 static base::android::ScopedJavaLocalRef<jobject>

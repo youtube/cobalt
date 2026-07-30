@@ -7,7 +7,7 @@ import 'chrome://tab-search.top-chrome/tab_search.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {MetricsReporterImpl} from 'chrome://resources/js/metrics_reporter/metrics_reporter.js';
 import type {ProfileData, RecentlyClosedTab, Tab, TabSearchItemElement, TabSearchPageElement} from 'chrome://tab-search.top-chrome/tab_search.js';
-import {SEARCH_QUERY_MAX_LENGTH, SplitTabLayout, SplitViewData, TabGroupColor, TabSearchApiProxyImpl} from 'chrome://tab-search.top-chrome/tab_search.js';
+import {SEARCH_QUERY_MAX_LENGTH, SplitTabLayout, SplitViewData, TabGroupColor, TabSearchApiProxyImpl, tokenToString} from 'chrome://tab-search.top-chrome/tab_search.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertGT, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {keyDownOn} from 'chrome://webui-test/keyboard_mock_interactions.js';
 import {MockedMetricsReporter} from 'chrome://webui-test/mocked_metrics_reporter.js';
@@ -978,6 +978,89 @@ suite('TabSearchAppTest', () => {
     assertEquals(expectedLabel, splitViewEl.getAttribute('aria-label'));
   });
 
+  test('group open split tabs gets group info and updates', async () => {
+    const splitToken = sampleToken(1n, 1n);
+    const groupToken = sampleToken(2n, 2n);
+    const tabs = [
+      createTab({
+        tabId: 10,
+        title: 'Tab A',
+        url: 'https://google.com',
+        splitId: splitToken,
+        splitLayout: SplitTabLayout.kSideBySide,
+        groupId: groupToken,
+      }),
+      createTab({
+        tabId: 20,
+        title: 'Tab B',
+        url: 'https://paypal.com',
+        splitId: splitToken,
+        splitLayout: SplitTabLayout.kSideBySide,
+        groupId: groupToken,
+      }),
+    ];
+
+    const tabGroups = [{
+      id: groupToken,
+      color: TabGroupColor.kBlue,
+      title: 'Work Group',
+    }];
+
+    await setupTest(
+        createProfileData({
+          windows: [{
+            active: true,
+            isHostWindow: true,
+            height: SAMPLE_WINDOW_HEIGHT,
+            tabs,
+          }],
+          tabGroups,
+        }),
+        {
+          splitViewTabRestoreEnabled: true,
+        });
+
+    assertEquals(1, queryRows().length);
+
+    let splitViewRow =
+        tabSearchPage.$.tabsList.items.find(
+            item => item instanceof SplitViewData) as SplitViewData;
+    assertTrue(!!splitViewRow);
+    assertTrue(!!splitViewRow.tabGroup);
+    assertEquals('Work Group', splitViewRow.tabGroup.title);
+    assertEquals(TabGroupColor.kBlue, splitViewRow.tabGroup.color);
+
+    const newGroupToken = sampleToken(3n, 3n);
+    tabSearchPage['tabGroupsMap_'].set(tokenToString(newGroupToken), {
+      id: newGroupToken,
+      color: TabGroupColor.kRed,
+      title: 'Personal Group',
+    });
+
+    const updatedTab = createTab({
+      tabId: 10,
+      title: 'Tab A',
+      url: 'https://google.com',
+      splitId: splitToken,
+      splitLayout: SplitTabLayout.kSideBySide,
+      groupId: newGroupToken,
+    });
+
+    testProxy.getCallbackRouterRemote().tabUpdated({
+      inActiveWindow: true,
+      inHostWindow: true,
+      tab: updatedTab,
+    });
+    await microtasksFinished();
+
+    splitViewRow = tabSearchPage.$.tabsList.items.find(
+                       item => item instanceof SplitViewData) as SplitViewData;
+    assertTrue(!!splitViewRow);
+    assertTrue(!!splitViewRow.tabGroup);
+    assertEquals('Personal Group', splitViewRow.tabGroup.title);
+    assertEquals(TabGroupColor.kRed, splitViewRow.tabGroup.color);
+  });
+
   test('search matches across both sub-tab titles', async () => {
     const token = sampleToken(1n, 1n);
     const tabs = [
@@ -1066,5 +1149,67 @@ suite('TabSearchAppTest', () => {
     closeButton.click();
     const [closedTabIds] = await testProxy.whenCalled('closeTabs');
     assertDeepEquals([10, 20], closedTabIds);
+  });
+
+  test('aria-activedescendant updates', async () => {
+    await setupTest(createProfileData());
+    const searchInput = tabSearchPage.$.searchInput;
+
+    // Initially, aria-activedescendant is not set.
+    assertFalse(searchInput.hasAttribute('aria-activedescendant'));
+
+    // Type in search input, it should still not be set.
+    setSearchText('Apple');
+    await microtasksFinished();
+    assertFalse(searchInput.hasAttribute('aria-activedescendant'));
+
+    // Press ArrowDown. This should activate keyboard navigation and set
+    // aria-activedescendant.
+    const searchField = tabSearchPage.$.searchField;
+    keyDownOn(searchField, 0, [], 'ArrowDown');
+    await microtasksFinished();
+
+    assertTrue(searchInput.hasAttribute('aria-activedescendant'));
+    const activeId1 = searchInput.getAttribute('aria-activedescendant');
+    assertTrue(!!activeId1);
+
+    const rows = queryRows();
+    const activeIndex = tabSearchPage.getSelectedTabIndex();
+    const activeElementId = rows[activeIndex]!.id;
+    assertEquals(activeElementId, activeId1);
+
+    // Press ArrowDown again. This should move selection and update
+    // aria-activedescendant.
+    keyDownOn(searchField, 0, [], 'ArrowDown');
+    await microtasksFinished();
+
+    const activeId2 = searchInput.getAttribute('aria-activedescendant');
+    const activeIndex2 = tabSearchPage.getSelectedTabIndex();
+    const activeElementId2 = rows[activeIndex2]!.id;
+    assertEquals(activeElementId2, activeId2, 'hello');
+    assertNotEquals(activeId1, activeId2);
+
+    // Type again. This should remove aria-activedescendant.
+    setSearchText('A');
+    await microtasksFinished();
+    assertFalse(searchInput.hasAttribute('aria-activedescendant'));
+
+    // Reactivate keyboard navigation.
+    keyDownOn(searchField, 0, [], 'ArrowDown');
+    await microtasksFinished();
+    assertTrue(searchInput.hasAttribute('aria-activedescendant'));
+  });
+
+  test('aria-posinset and aria-setsize', async () => {
+    await setupTest(createProfileData());
+
+    await tabSearchPage.$.tabsList.ensureAllDomItemsAvailable();
+    const rows = queryRows();
+
+    assertEquals(6, rows.length);
+    rows.forEach((row, index) => {
+      assertEquals((index + 1).toString(), row.ariaPosInSet);
+      assertEquals('6', row.ariaSetSize);
+    });
   });
 });

@@ -225,17 +225,16 @@ TEST_P(SqliteVfsFileSetTest, AbandonAndReopen) {
   ASSERT_OK_AND_ASSIGN(auto file_set, CreateFilesAndBuildVfsFileSet());
 
   // Share with renderer (read-only).
-  std::optional<PendingFileSet> shared_file_set;
   if (!is_single_connection()) {
-    shared_file_set =
+    ASSERT_OK_AND_ASSIGN(
+        auto shared_file_set,
         ShareConnection(file_set_directory(), base::FilePath(kBaseName),
-                        file_set, /*read_write=*/false);
-    ASSERT_TRUE(shared_file_set.has_value());
-    EXPECT_TRUE(shared_file_set->db_file.IsValid());
-    EXPECT_TRUE(shared_file_set->journal_file.IsValid());
+                        file_set, /*read_write=*/false));
+    EXPECT_TRUE(shared_file_set.db_file.IsValid());
+    EXPECT_TRUE(shared_file_set.journal_file.IsValid());
     if (journal_mode_wal()) {
-      EXPECT_TRUE(shared_file_set->wal_file.IsValid());
-      EXPECT_TRUE(shared_file_set->wal_index_file.IsValid());
+      EXPECT_TRUE(shared_file_set.wal_file.IsValid());
+      EXPECT_TRUE(shared_file_set.wal_index_file.IsValid());
     }
   }
 

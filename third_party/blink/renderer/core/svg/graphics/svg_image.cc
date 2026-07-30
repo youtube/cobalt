@@ -201,16 +201,11 @@ const SVGImageViewInfo* SVGImage::CreateViewInfo(const String& fragment) const {
   // TODO(dmangal): Consider supporting media fragments to regular SVG documents
   // (not just SVG images).
   if (RuntimeEnabledFeatures::SvgSupportMediaFragmentsEnabled()) {
-    // Resolve the concrete object size against a 0x0 default object size so
-    // that an SVG without a natural width and height (even one that has a
-    // natural aspect ratio) yields an empty size and fails percent resolution.
     std::optional<NaturalSizingInfo> sizing_info =
         GetNaturalDimensions(/*override_viewspec=*/nullptr);
-    const gfx::SizeF concrete_size =
-        sizing_info ? blink::ConcreteObjectSize(*sizing_info, gfx::SizeF())
-                    : gfx::SizeF();
     if (const SVGViewSpec* spatial_view_spec =
-            SVGViewSpec::CreateFromSpatialFragment(fragment, concrete_size)) {
+            SVGViewSpec::CreateFromSpatialFragment(
+                fragment, sizing_info.value_or(NaturalSizingInfo::None()))) {
       return MakeGarbageCollected<SVGImageViewInfo>(spatial_view_spec,
                                                     /*target=*/nullptr);
     }

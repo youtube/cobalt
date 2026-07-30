@@ -544,7 +544,7 @@ TEST_F(ContextualTranslateDelegateTest, PayloadWithLangHint) {
   // end.
   ASSERT_EQ(4u, query_set.size());
   EXPECT_EQ("Hello", query_set[0].GetList()[0].GetString());
-  EXPECT_TRUE(query_set[1].is_none());
+  EXPECT_EQ("auto", query_set[1].GetString());
   EXPECT_EQ("es", query_set[2].GetString());
   EXPECT_EQ("en-US", query_set[3].GetString());
 }

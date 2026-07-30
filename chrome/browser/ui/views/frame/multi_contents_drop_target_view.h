@@ -91,6 +91,7 @@ class MultiContentsDropTargetView : public views::View,
   void Hide(bool suppress_animation_ = false);
 
   bool IsClosing() const;
+  bool IsVisibleAndNotClosing() const;
 
   // Returns the maximum width or height that a view should be for the given web
   // contents width or height.

@@ -231,23 +231,39 @@ LRESULT ProgressWnd::OnSize(UINT /*msg*/,
 }
 
 void ProgressWnd::UpdateWindowRgn() {
-
-  RECT rect = {};
-  ::GetWindowRect(hwnd(), &rect);
-  const int width = rect.right - rect.left;
-  const int height = rect.bottom - rect.top;
+  // The window has a non-client area (e.g., system shadow, margins, or standard
+  // borders). To ensure that the rounded window clipping region exactly aligns
+  // with the custom border drawn in `OnEraseBkgnd` (which draws relative to the
+  // client area bounds), we must calculate the client area coordinates relative
+  // to the window coordinates. Using the window coordinates directly would
+  // leave margins showing standard OS borders and un-clipped corners.
+  RECT client_rect = {};
+  ::GetClientRect(hwnd(), &client_rect);
 
   // Defensive check to prevent region creation with invalid or zero
   // coordinates.
-  if (width <= 0 || height <= 0) {
+  if (client_rect.right <= 0 || client_rect.bottom <= 0) {
     return;
   }
+
+  // MapWindowPoints handles RTL window mirroring correctly by swapping
+  // left/right coordinates when mapping a RECT to screen space (null dest HDC).
+  ::MapWindowPoints(hwnd(), nullptr, reinterpret_cast<LPPOINT>(&client_rect),
+                    2);
+
+  RECT window_rect = {};
+  ::GetWindowRect(hwnd(), &window_rect);
+
+  const int left = client_rect.left - window_rect.left;
+  const int top = client_rect.top - window_rect.top;
+  const int right = client_rect.right - window_rect.left;
+  const int bottom = client_rect.bottom - window_rect.top;
 
   // Scale the 11px corner radius based on the current DPI of the window to
   // ensure proportional rounded corners on high-DPI displays.
   const int scaled_radius = GetScaledCornerRadius();
 
-  HRGN rgn = ::CreateRoundRectRgn(0, 0, width, height, scaled_radius * 2,
+  HRGN rgn = ::CreateRoundRectRgn(left, top, right, bottom, scaled_radius * 2,
                                   scaled_radius * 2);
   if (rgn) {
     // SetWindowRgn takes ownership of the HRGN object.
@@ -599,24 +615,10 @@ void ProgressWnd::OnDownloading(
 
   if (is_canceled_) {
     s = GetLocalizedString(IDS_CANCELING_BASE, lang());
-  } else if (!time_remaining) {
-    s = GetLocalizedString(IDS_DOWNLOADING_BASE, lang());
-  } else if (!time_remaining->InSeconds()) {
+  } else if (time_remaining && time_remaining->InSeconds() == 0) {
     s = GetLocalizedString(IDS_DOWNLOADING_COMPLETED_BASE, lang());
-  } else if (!time_remaining->InMinutes()) {
-    // Less than one minute remaining.
-    s = GetLocalizedStringF(IDS_DOWNLOADING_SHORT_BASE,
-                            base::NumberToWString(time_remaining->InSeconds()),
-                            lang());
-  } else if (!time_remaining->InHours()) {
-    // Less than one hour remaining.
-    s = GetLocalizedStringF(IDS_DOWNLOADING_LONG_BASE,
-                            base::NumberToWString(time_remaining->InMinutes()),
-                            lang());
   } else {
-    s = GetLocalizedStringF(IDS_DOWNLOADING_VERY_LONG_BASE,
-                            base::NumberToWString(time_remaining->InHours()),
-                            lang());
+    s = GetLocalizedString(IDS_DOWNLOADING_BASE, lang());
   }
 
   SetControlText(IDC_INSTALLER_STATE_TEXT, s.c_str());

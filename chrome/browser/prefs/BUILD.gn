@@ -202,7 +202,10 @@ source_set("impl") {
   ]
 
   if (enable_print_preview) {
-    deps += [ "//chrome/browser/printing" ]
+    deps += [
+      "//chrome/browser/printing",
+      "//chrome/browser/ui/webui/print_preview",
+    ]
   }
 
   if (enable_extensions_core) {
@@ -359,6 +362,7 @@ source_set("impl") {
       "//chrome/browser/lens",
       "//chrome/browser/notifications",
       "//chrome/browser/notifications:notifications_java_enum_srcjar",
+      "//chrome/browser/ntp_customization",
       "//chrome/browser/partnerbookmarks:android",
       "//chrome/browser/password_manager/android:utils",
       "//chrome/browser/readaloud/android:native",
@@ -448,6 +452,7 @@ source_set("impl") {
       "//chrome/browser/hid",
       "//chrome/browser/ui/read_anything:prefs",
       "//chrome/browser/ui/webui/cr_components/theme_color_picker:impl",
+      "//chrome/browser/ui/webui/history",
       "//chrome/browser/ui/webui/tab_search",
     ]
   }
@@ -462,6 +467,10 @@ source_set("impl") {
 
   if (is_chrome_for_testing) {
     deps += [ "//chrome/browser/chrome_for_testing:prefs" ]
+  }
+
+  if (!is_android) {
+    deps += [ "//chrome/browser/ui:browser_view_prefs" ]
   }
 }
 

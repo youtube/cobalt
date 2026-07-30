@@ -15,12 +15,10 @@
 #include "chrome/browser/glic/selection/selection_overlay_untrusted_ui.h"
 #include "chrome/browser/history_clusters/history_clusters_service_factory.h"
 #include "chrome/browser/history_embeddings/history_embeddings_utils.h"
-#include "chrome/browser/new_tab_page/modules/file_suggestion/drive_suggestion.mojom.h"
 #include "chrome/browser/new_tab_page/modules/file_suggestion/microsoft_files.mojom.h"
 #include "chrome/browser/new_tab_page/modules/v2/authentication/microsoft_auth.mojom.h"
 #include "chrome/browser/new_tab_page/modules/v2/calendar/google_calendar.mojom.h"
 #include "chrome/browser/new_tab_page/modules/v2/calendar/outlook_calendar.mojom.h"
-#include "chrome/browser/new_tab_page/modules/v2/most_relevant_tab_resumption/most_relevant_tab_resumption.mojom.h"
 #include "chrome/browser/new_tab_page/modules/v2/tab_groups/tab_groups.mojom.h"
 #include "chrome/browser/new_tab_page/new_tab_page_util.h"
 #include "chrome/browser/ui/lens/lens_overlay_untrusted_ui.h"
@@ -149,10 +147,12 @@
 #include "chrome/browser/ui/webui/app_home/app_home.mojom.h"
 #include "chrome/browser/ui/webui/app_home/app_home_ui.h"
 #include "chrome/browser/ui/webui/app_settings/web_app_settings_ui.h"
-#include "chrome/browser/ui/webui/intro/intro.mojom.h"
+// The intro mojom targets exist on ChromeOS but these headers are only
+// compiled on Win/Mac/Linux; gn check is static, so suppress it on ChromeOS.
+#include "chrome/browser/ui/webui/intro/intro.mojom.h"  // nogncheck
 #include "chrome/browser/ui/webui/intro/intro_ui.h"
-#include "chrome/browser/ui/webui/intro/sign_in_celebration.mojom.h"
-#include "chrome/browser/ui/webui/intro/sign_in_promo.mojom.h"
+#include "chrome/browser/ui/webui/intro/sign_in_celebration.mojom.h"  // nogncheck
+#include "chrome/browser/ui/webui/intro/sign_in_promo.mojom.h"  // nogncheck
 #include "chrome/browser/ui/webui/on_device_translation_internals/on_device_translation_internals_ui.h"
 #include "chrome/browser/ui/webui/signin/history_sync_optin/history_sync_optin.mojom.h"
 #include "chrome/browser/ui/webui/signin/history_sync_optin/history_sync_optin_ui.h"
@@ -304,11 +304,11 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
       history_clusters_service->is_journeys_feature_flag_enabled()) {
     if (HistorySidePanelCoordinator::IsSupported()) {
       RegisterWebUIControllerInterfaceBinder<
-          history_clusters::mojom::PageHandler, HistoryUI, HistorySidePanelUI>(
-          map);
+          history_clusters::mojom::PageHandlerFactory, HistoryUI,
+          HistorySidePanelUI>(map);
     } else {
       RegisterWebUIControllerInterfaceBinder<
-          history_clusters::mojom::PageHandler, HistoryUI,
+          history_clusters::mojom::PageHandlerFactory, HistoryUI,
           HistoryClustersSidePanelUI>(map);
     }
   }
@@ -414,21 +414,9 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
       map);
 #endif  // !defined(OFFICIAL_BUILD)
 
-  if (IsDriveModuleEnabled()) {
-    RegisterWebUIControllerInterfaceBinder<
-        file_suggestion::mojom::DriveSuggestionHandler, NewTabPageUI>(map);
-  }
-
   if (base::FeatureList::IsEnabled(ntp_features::kNtpTabGroupsModule)) {
     RegisterWebUIControllerInterfaceBinder<ntp::tab_groups::mojom::PageHandler,
                                            NewTabPageUI>(map);
-  }
-
-  if (base::FeatureList::IsEnabled(
-          ntp_features::kNtpMostRelevantTabResumptionModule)) {
-    RegisterWebUIControllerInterfaceBinder<
-        ntp::most_relevant_tab_resumption::mojom::PageHandler, NewTabPageUI>(
-        map);
   }
 
   if (base::FeatureList::IsEnabled(ntp_features::kNtpCalendarModule)) {

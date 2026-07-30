@@ -7865,7 +7865,8 @@ class FaviconWaiter : public WebContentsObserver {
   // WebContentsObserver:
   void DidUpdateFaviconURL(
       RenderFrameHost* render_frame_host,
-      const std::vector<blink::mojom::FaviconURLPtr>& candidates) override {
+      const std::vector<blink::mojom::FaviconURLPtr>& candidates,
+      blink::mojom::FaviconUpdateReason reason) override {
     received_favicon_ = true;
     run_loop_.Quit();
   }
@@ -8688,7 +8689,8 @@ IN_PROC_BROWSER_TEST_F(WebContentsFencedFrameBrowserTest, UpdateFavicon) {
       embedded_test_server()->GetURL("fencedframe.test", "/title1.html");
 
   RenderFrameHost* primary_rfh = web_contents()->GetPrimaryMainFrame();
-  EXPECT_CALL(observer, DidUpdateFaviconURL(primary_rfh, testing::_));
+  EXPECT_CALL(observer,
+              DidUpdateFaviconURL(primary_rfh, testing::_, testing::_));
   ASSERT_TRUE(NavigateToURL(shell(), main_url));
   ASSERT_TRUE(WaitForLoadStop(web_contents()));
 
@@ -8699,7 +8701,8 @@ IN_PROC_BROWSER_TEST_F(WebContentsFencedFrameBrowserTest, UpdateFavicon) {
   RenderFrameHost* inner_fenced_frame_rfh =
       fenced_frame_test_helper().CreateFencedFrame(primary_rfh,
                                                    fenced_frame_url);
-  EXPECT_CALL(observer, DidUpdateFaviconURL(inner_fenced_frame_rfh, testing::_))
+  EXPECT_CALL(observer, DidUpdateFaviconURL(inner_fenced_frame_rfh, testing::_,
+                                            testing::_))
       .Times(0);
 }
 

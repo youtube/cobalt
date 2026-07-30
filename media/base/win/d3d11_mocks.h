@@ -16,6 +16,24 @@
 
 namespace media {
 
+class DXGIKeyedMutexMock
+    : public Microsoft::WRL::RuntimeClass<
+          Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
+          IDXGIKeyedMutex> {
+ public:
+  DXGIKeyedMutexMock();
+  ~DXGIKeyedMutexMock() override;
+
+  MOCK_STDCALL_METHOD2(AcquireSync, HRESULT(UINT64, DWORD));
+  MOCK_STDCALL_METHOD1(ReleaseSync, HRESULT(UINT64));
+  MOCK_STDCALL_METHOD2(GetDevice, HRESULT(REFIID, void**));
+  MOCK_STDCALL_METHOD2(GetParent, HRESULT(REFIID, void**));
+  MOCK_STDCALL_METHOD3(GetPrivateData, HRESULT(REFGUID, UINT*, void*));
+  MOCK_STDCALL_METHOD3(SetPrivateData, HRESULT(REFGUID, UINT, const void*));
+  MOCK_STDCALL_METHOD2(SetPrivateDataInterface,
+                       HRESULT(REFGUID, const IUnknown*));
+};
+
 class D3D11Texture2DMock
     : public Microsoft::WRL::RuntimeClass<
           Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
@@ -23,6 +41,7 @@ class D3D11Texture2DMock
  public:
   D3D11Texture2DMock();
   ~D3D11Texture2DMock() override;
+  MOCK_STDCALL_METHOD2(QueryInterface, HRESULT(REFIID riid, void** ppv));
   MOCK_STDCALL_METHOD1(GetDevice, void(ID3D11Device**));
   MOCK_STDCALL_METHOD3(GetPrivateData, HRESULT(const GUID&, UINT*, void*));
   MOCK_STDCALL_METHOD3(SetPrivateData, HRESULT(const GUID&, UINT, const void*));

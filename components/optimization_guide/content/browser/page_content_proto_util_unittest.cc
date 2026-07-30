@@ -1355,6 +1355,30 @@ TEST_F(PageContentProtoUtilTest, ConvertAnnotatedRoles) {
             optimization_guide::proto::ANNOTATED_ROLE_FOOTER);
 }
 
+TEST_F(PageContentProtoUtilTest, ConvertDialogAttributeTypes) {
+  auto root_content = CreatePageContent();
+  root_content->root_node->children_nodes.emplace_back(CreateContentNode(
+      blink::mojom::AIPageContentAttributeType::kDialogModal));
+  root_content->root_node->children_nodes.emplace_back(CreateContentNode(
+      blink::mojom::AIPageContentAttributeType::kDialogModeless));
+
+  AIPageContentResult page_content;
+  EXPECT_TRUE(
+      ConvertAIPageContentToProto(root_content, page_content).has_value());
+
+  ASSERT_EQ(page_content.proto.root_node().children_nodes_size(), 2);
+  EXPECT_EQ(page_content.proto.root_node()
+                .children_nodes(0)
+                .content_attributes()
+                .attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_DIALOG_MODAL);
+  EXPECT_EQ(page_content.proto.root_node()
+                .children_nodes(1)
+                .content_attributes()
+                .attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_DIALOG_MODELESS);
+}
+
 TEST_F(PageContentProtoUtilTest, ConvertFormData) {
   auto root_content = CreatePageContent();
   auto form_node =

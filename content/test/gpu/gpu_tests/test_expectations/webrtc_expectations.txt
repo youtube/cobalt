@@ -145,6 +145,9 @@ crbug.com/479096333 [ mac amd-0x67ef ] WebRTC_Hardware_Decode_Loopback_VP9 [ Fai
 crbug.com/479096333 [ mac amd-0x67ef ] WebRTC_Hardware_Encode_Loopback_AV1 [ Failure ]
 crbug.com/479096333 [ mac amd-0x67ef ] WebRTC_Hardware_Decode_Loopback_AV1 [ Failure ]
 
+crbug.com/525087041 [ mac intel-0x3e9b ] WebRTC_Hardware_Decode_Loopback_H265 [ Failure ]
+crbug.com/525087041 [ mac intel-0x3e9b ] WebRTC_Hardware_Encode_Loopback_H265 [ Failure ]
+
 #######################################################################
 # Automated Entries After This Point - Do Not Manually Add Below Here #
 #######################################################################

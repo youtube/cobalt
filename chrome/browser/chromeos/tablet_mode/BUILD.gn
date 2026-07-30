@@ -30,6 +30,7 @@ static_library("tablet_mode") {
     "//chrome/browser/chromeos/arc",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/search",
+    "//chrome/browser/ui:browser_tab_strip_tracker",
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/browser/ui/webui/ash/system_web_dialog",
     "//chrome/common",

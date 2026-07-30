@@ -38,6 +38,7 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.ThreadUtils;
+import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.params.BaseJUnit4RunnerDelegate;
 import org.chromium.base.test.params.ParameterAnnotations;
@@ -175,7 +176,8 @@ public class PageZoomBarViewTest {
                             new PageZoomBarCoordinator(
                                     mDelegate,
                                     new PageZoomManager(mPageZoomManagerDelegate),
-                                    mUseSlider);
+                                    mUseSlider,
+                                    ObservableSuppliers.createMonotonic());
                     mSlider = mPageZoomView.findViewById(R.id.page_zoom_slider);
                     mSeekBar = mPageZoomView.findViewById(R.id.page_zoom_slider_legacy);
                     mCoordinator.show(mWebContents);

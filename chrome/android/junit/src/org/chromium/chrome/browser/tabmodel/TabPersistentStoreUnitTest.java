@@ -58,8 +58,8 @@ import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab.TabState;
-import org.chromium.chrome.browser.tab.TabStateAttributes;
 import org.chromium.chrome.browser.tab.TabStateAttributes.DirtinessState;
+import org.chromium.chrome.browser.tab.TabStateAttributesRegistry;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStoreImpl.TabRestoreDetails;
 import org.chromium.chrome.browser.tabpersistence.TabMetadataFileManager;
 import org.chromium.chrome.browser.tabpersistence.TabMetadataFileManager.TabModelSelectorMetadata;
@@ -167,9 +167,11 @@ public class TabPersistentStoreUnitTest {
         Tab emptyNtpTab = mock(Tab.class);
         UserDataHost emptyNtpTabUserDataHost = new UserDataHost();
         when(emptyNtpTab.getUserDataHost()).thenReturn(emptyNtpTabUserDataHost);
-        TabStateAttributes.createForTab(emptyNtpTab, TabCreationState.FROZEN_ON_RESTORE);
+        TabStateAttributesRegistry.createAttributesForTab(
+                emptyNtpTab, TabPersistentStoreImpl.class, TabCreationState.FROZEN_ON_RESTORE);
         when(emptyNtpTab.getUrl()).thenReturn(new GURL(getOriginalNativeNtpUrl()));
-        TabStateAttributes.from(emptyNtpTab).setStateForTesting(DirtinessState.DIRTY);
+        TabStateAttributesRegistry.getAttributesFor(emptyNtpTab, TabPersistentStoreImpl.class)
+                .setStateForTesting(DirtinessState.DIRTY);
 
         mPersistentStore.addTabToSaveQueue(emptyNtpTab);
         assertTrue(mPersistentStore.isTabPendingSave(emptyNtpTab));
@@ -816,13 +818,21 @@ public class TabPersistentStoreUnitTest {
 
         UserDataHost userDataHost = new UserDataHost();
         when(mTab.getUserDataHost()).thenReturn(userDataHost);
-        TabStateAttributes.createForTab(mTab, TabCreationState.LIVE_IN_FOREGROUND);
-        TabStateAttributes.from(mTab).updateIsDirty(DirtinessState.UNTIDY);
-        assertEquals(DirtinessState.UNTIDY, TabStateAttributes.from(mTab).getDirtinessState());
+        TabStateAttributesRegistry.createAttributesForTab(
+                mTab, TabPersistentStoreImpl.class, TabCreationState.LIVE_IN_FOREGROUND);
+        TabStateAttributesRegistry.getAttributesFor(mTab, TabPersistentStoreImpl.class)
+                .updateIsDirty(DirtinessState.UNTIDY);
+        assertEquals(
+                DirtinessState.UNTIDY,
+                TabStateAttributesRegistry.getAttributesFor(mTab, TabPersistentStoreImpl.class)
+                        .getDirtinessState());
 
         mPersistentStore.saveState();
 
-        assertEquals(DirtinessState.CLEAN, TabStateAttributes.from(mTab).getDirtinessState());
+        assertEquals(
+                DirtinessState.CLEAN,
+                TabStateAttributesRegistry.getAttributesFor(mTab, TabPersistentStoreImpl.class)
+                        .getDirtinessState());
     }
 
     @Test

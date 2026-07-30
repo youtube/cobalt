@@ -4,6 +4,7 @@
 
 package org.chromium.android_webview.test;
 
+import android.annotation.SuppressLint;
 import android.graphics.Bitmap;
 import android.util.Pair;
 
@@ -38,6 +39,7 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Tests for the {@link android.webkit.WebView#loadDataWithBaseURL(String, String, String, String,
@@ -558,6 +560,60 @@ public class LoadDataWithBaseUrlTest extends AwParameterizedTest {
                         mAwContents, mContentsClient, "window.gotToEndOfBody"));
     }
 
+    @SuppressLint("SetJavaScriptEnabled")
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView"})
+    public void testOnPageFinishedBaseUrlSpoof() throws Throwable {
+        CountDownLatch stallLatch = new CountDownLatch(1);
+        try (TestWebServer webServer = TestWebServer.start();
+                TestWebServer stallServer = TestWebServer.startAdditional()) {
+            try {
+                stallServer.setResponseWithRunnableAction(
+                        "/stall",
+                        "<html><body>stalled</body></html>",
+                        java.util.Collections.emptyList(),
+                        () -> {
+                            try {
+                                stallLatch.await();
+                            } catch (InterruptedException e) {
+                            }
+                        });
+                String maliciousUrl =
+                        webServer.setResponse(
+                                "/evil.html",
+                                "<html><body>malicious</body></html>",
+                                java.util.Collections.emptyList());
+
+                final String trustedBaseUrl = "https://trusted.example/";
+                final String pageHtml =
+                        "<html><body>"
+                                + "<img src='"
+                                + stallServer.getBaseUrl()
+                                + "stall'>"
+                                + "<script>setTimeout(() => { location.href = '"
+                                + maliciousUrl
+                                + "'; }, 100);</script>"
+                                + "</body></html>";
+
+                mActivityTestRule.getAwSettingsOnUiThread(mAwContents).setJavaScriptEnabled(true);
+
+                TestCallbackHelperContainer.OnPageFinishedHelper onPageFinishedHelper =
+                        mContentsClient.getOnPageFinishedHelper();
+                int callCount = onPageFinishedHelper.getCallCount();
+
+                mActivityTestRule.loadDataWithBaseUrlAsync(
+                        mAwContents, pageHtml, "text/html", false, trustedBaseUrl, null);
+
+                onPageFinishedHelper.waitForCallback(callCount, 2);
+                Assert.assertEquals(maliciousUrl, onPageFinishedHelper.getUrl());
+            } finally {
+                stallLatch.countDown();
+            }
+        }
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
@@ -567,29 +623,47 @@ public class LoadDataWithBaseUrlTest extends AwParameterizedTest {
         // inside NavigationController.
         final String pageHtml = "<html><body>Hello, world!</body></html>";
         final String baseUrl = "http://example.com/";
+        mActivityTestRule.getAwSettingsOnUiThread(mAwContents).setJavaScriptEnabled(true);
         final TestCallbackHelperContainer.OnPageFinishedHelper onPageFinishedHelper =
                 mContentsClient.getOnPageFinishedHelper();
         final int callCount = onPageFinishedHelper.getCallCount();
-        mActivityTestRule.loadDataWithBaseUrlAsync(
-                mAwContents, pageHtml, "text/html", false, baseUrl, null);
-        mActivityTestRule.loadUrlAsync(mAwContents, "javascript:42+42");
+
+        InstrumentationRegistry.getInstrumentation()
+                .runOnMainSync(
+                        () -> {
+                            mAwContents.loadDataWithBaseURL(
+                                    baseUrl, pageHtml, "text/html", "utf-8", null);
+                            // The UI thread does not yield, so the commit IPC cannot be processed.
+                            // This guarantees the javascript URL hits the pending entry.
+                            mAwContents.loadUrl("javascript:42+42");
+                        });
+
         onPageFinishedHelper.waitForCallback(callCount);
         Assert.assertEquals(baseUrl, onPageFinishedHelper.getUrl());
     }
 
+    @SuppressLint("SetJavaScriptEnabled")
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
     public void testOnPageFinishedWithInvalidBaseUrlWhenInterrupted() throws Throwable {
         final String pageHtml = CommonResources.ABOUT_HTML;
         final String invalidBaseUrl = "http://";
+        mActivityTestRule.getAwSettingsOnUiThread(mAwContents).setJavaScriptEnabled(true);
         final TestCallbackHelperContainer.OnPageFinishedHelper onPageFinishedHelper =
                 mContentsClient.getOnPageFinishedHelper();
         final int callCount = onPageFinishedHelper.getCallCount();
-        mActivityTestRule.getAwSettingsOnUiThread(mAwContents).setJavaScriptEnabled(true);
-        mActivityTestRule.loadDataWithBaseUrlAsync(
-                mAwContents, pageHtml, "text/html", false, invalidBaseUrl, null);
-        mActivityTestRule.loadUrlAsync(mAwContents, "javascript:42+42");
+
+        InstrumentationRegistry.getInstrumentation()
+                .runOnMainSync(
+                        () -> {
+                            mAwContents.loadDataWithBaseURL(
+                                    invalidBaseUrl, pageHtml, "text/html", "utf-8", null);
+                            // The UI thread does not yield, so the commit IPC cannot be processed.
+                            // This guarantees the javascript URL hits the pending entry.
+                            mAwContents.loadUrl("javascript:42+42");
+                        });
+
         onPageFinishedHelper.waitForCallback(callCount);
         // Verify that the load succeeds. The actual base url is undefined.
         Assert.assertEquals(

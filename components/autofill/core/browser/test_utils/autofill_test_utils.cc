@@ -28,6 +28,7 @@
 #include "base/uuid.h"
 #include "build/build_config.h"
 #include "components/autofill/core/browser/crowdsourcing/randomized_encoder.h"
+#include "components/autofill/core/browser/data_manager/addresses/account_name_email_store.h"
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/data_manager/test_personal_data_manager.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_i18n_api.h"
@@ -812,7 +813,7 @@ void HideAccountNameEmailProfile(PrefService* pref_service,
   // the kAccountNameEmail profile that matches `info` will be removed.
   pref_service->SetInteger(
       prefs::kAutofillNameAndEmailProfileNotSelectedCounter,
-      features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get() + 1);
+      AccountNameEmailStore::kNotSelectedThreshold + 1);
   pref_service->SetString(
       prefs::kAutofillNameAndEmailProfileSignature,
       base::NumberToString(base::PersistentHash(base::StrCat(
@@ -1071,8 +1072,7 @@ void GenerateTestAutofillPopup(
   std::vector<Suggestion> suggestions;
   suggestions.emplace_back(u"Test suggestion",
                            SuggestionType::kAutocompleteEntry);
-  autofill_external_delegate->OnSuggestionsReturned(field.global_id(),
-                                                    suggestions);
+  autofill_external_delegate->OnSuggestionsReturned(field, suggestions);
 }
 
 std::string ObfuscatedCardDigitsAsUTF8(const std::string& str,

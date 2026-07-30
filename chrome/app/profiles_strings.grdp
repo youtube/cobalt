@@ -567,20 +567,11 @@
   <if expr="not is_android">
 
     <!-- Feature Showcase - Google Password Manager -->
-    <message name="IDS_FEATURE_SHOWCASE_PASSWORD_MANAGER_TITLE" desc="Headline for the password security onboarding screen. It introduces the product name 'Google Password Manager,' which should typically remain in English or follow established brand guidelines for the locale. The intent is to highlight safety and security. (CHAR LIMIT = 50)">
-      Stay safe with Google Password Manager
-    </message>
-    <message name="IDS_FEATURE_SHOWCASE_PASSWORD_MANAGER_SUBTITLE" desc="Description for the Google Password Manager page in the Feature Showcase.">
-      Built into Chrome to help you create, save, and autofill strong passwords. Add the shortcut for easy access
-    </message>
-    <message name="IDS_FEATURE_SHOWCASE_PASSWORD_MANAGER_NO_THANKS" desc="Label for the 'No thanks' button to not pin the Google Password Manager to toolbar.">
+    <message name="IDS_FEATURE_SHOWCASE_PASSWORD_MANAGER_NO_THANKS" desc="Label for the 'No thanks' button to not pin the Password Manager to toolbar.">
       No thanks
     </message>
-    <message name="IDS_FEATURE_SHOWCASE_PASSWORD_MANAGER_ADD_TO_TOOLBAR" desc="Label for the 'Add to toolbar' button to pin the Google Password Manager to toolbar.">
+    <message name="IDS_FEATURE_SHOWCASE_PASSWORD_MANAGER_ADD_TO_TOOLBAR" desc="Label for the 'Add to toolbar' button to pin the Password Manager to toolbar.">
       Add to toolbar
-    </message>
-    <message name="IDS_FEATURE_SHOWCASE_PASSWORD_MANAGER_ILLUSTRATION_A11Y_LABEL" desc="Accessibility label for the illustration on the Google Password Manager page in the Feature Showcase.">
-      A simplified image showing the Google Password Manager entry point in Chrome
     </message>
 
     <!-- Batch Upload Desktop -->
@@ -1217,6 +1208,9 @@
     <message name="IDS_FRE_NATIVE_TOOLBAR_DONT_SIGN_IN_BUTTON_LABEL" desc="A label for a button on the native toolbar to decline a prompt to sign in. Once clicked, the sign-in flow will be cancelled.">
       Don't sign in
     </message>
+    <message name="IDS_FRE_NATIVE_TOOLBAR_START_BROWSING_BUTTON_LABEL" desc="A label for a button on the native toolbar of the first run feature showcase screen to start browsing directly. Once clicked, the first run flow will close and open the New Tab Page.">
+      Start browsing
+    </message>
     <message name="IDS_FRE_NEXT_BUTTON_TITLE" desc="A title for a button that advances a user to the next step (sign in screen) in the first run experience flow.">
       Next
     </message>
@@ -1252,24 +1246,15 @@
       No thanks
     </message>
 
-    <!-- Feature Showcase - Lens -->
-    <message name="IDS_FEATURE_SHOWCASE_GOOGLE_LENS_TITLE" desc="This is the headline for the Google Lens opt-in screen. It introduces the visual search feature. (CHAR LIMIT = 40).">
-      Browse smarter with Google Lens
-    </message>
-    <message name="IDS_FEATURE_SHOWCASE_GOOGLE_LENS_SUBTITLE" desc="This is the subtitle for Google Lens, explaining the primary use cases (shopping, translation, search).">
+    <!-- Feature Showcase - Lens Overlay -->
+    <message name="IDS_FEATURE_SHOWCASE_LENS_OVERLAY_SUBTITLE" desc="This is the subtitle for the Lens Overlay, explaining the primary use cases (shopping, translation, search).">
       Select anything on your screen as you browse to shop, translate, and search using AI
     </message>
-    <message name="IDS_FEATURE_SHOWCASE_GOOGLE_LENS_DISCLOSURE" desc="This is a technical disclosure for Google Lens. It specifies that PDFs are also part of the shared data. The tone should be informative.">
-      When you use Google Lens on desktop, the page title, URL, and content, including PDFs, are sent to Google
-    </message>
-    <message name="IDS_FEATURE_SHOWCASE_GOOGLE_LENS_NOT_NOW" desc="The label for the 'Not now' button to not enable the Google Lens feature.">
+    <message name="IDS_FEATURE_SHOWCASE_LENS_OVERLAY_NOT_NOW" desc="The label for the 'Not now' button to not enable the Lens Overlay feature.">
       Not now
     </message>
-    <message name="IDS_FEATURE_SHOWCASE_GOOGLE_LENS_YES_IM_IN" desc="Label for the 'Yes, I'm in' button to enable the Google Lens feature.">
+    <message name="IDS_FEATURE_SHOWCASE_LENS_OVERLAY_YES_IM_IN" desc="Label for the 'Yes, I'm in' button to enable the Lens Overlay feature.">
       Yes, I'm in
-    </message>
-    <message name="IDS_FEATURE_SHOWCASE_GOOGLE_LENS_ILLUSTRATION_A11Y_LABEL" desc="Accessibility label for the illustration on the Google Lens page in the Feature Showcase.">
-      A simplified image showing how you can use Google Lens to look up a product
     </message>
 
     <!-- Signout Confirmation Dialog Desktop -->

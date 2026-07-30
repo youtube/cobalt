@@ -25,11 +25,17 @@ source_set("unit_tests") {
   data_deps = [ ":platform_runtime_test_lib" ]
 }
 
-shared_library("platform_runtime_test_lib") {
+# TODO(quarz): Use loadble_module everwhere & change GetNativeLibraryName()
+#     to GetLoadableModuleName().
+
+if (is_mac || is_ios) {
+  _target_type = "shared_library"
+} else {
+  _target_type = "loadable_module"
+}
+
+target(_target_type, "platform_runtime_test_lib") {
   testonly = true
   sources = [ "platform_runtime_test_lib.cc" ]
-  deps = [ "//base" ]
-  if (is_android) {
-    configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
-  }
+  deps = [ "//base:compiler_specific" ]
 }

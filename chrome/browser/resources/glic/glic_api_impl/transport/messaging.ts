@@ -31,16 +31,6 @@ export interface RequestDef {
   // The type of response payload. Defaults to 'void', which means the request
   // sends no response payload.
   response?: unknown;
-  /**
-   * Whether the request can be processed in the background.
-   *
-   * If true, the request is allowed to be sent and serviced in the
-   * background.
-   * If false (the default if omitted):
-   * For Host requests, `BACKGROUND_RESPONSES` defines how these are handled.
-   * For Client requests, it affects usage of `GatedSender`.
-   */
-  backgroundAllowed?: boolean;
   // Provides information about the histogram to use for this method.
   // Undefined if no histogram should be recorded.
   histogram?: HistogramInfo;

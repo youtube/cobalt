@@ -9,15 +9,18 @@
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/types/expected.h"
 #include "components/accessibility_annotator/core/annotation_reducer/memory_search_result.h"
+#include "components/personal_context/core/context_memory_error.h"
 
 namespace accessibility_annotator {
 
 // Interface for resolving data from `PersonalContextService`.
 class PersonalContextResolver {
  public:
-  using QueryCallback =
-      base::OnceCallback<void(std::vector<MemorySearchResult>)>;
+  using QueryCallback = base::OnceCallback<void(
+      base::expected<std::vector<MemorySearchResult>,
+                     personal_context::ContextMemoryError>)>;
 
   virtual ~PersonalContextResolver() = default;
 

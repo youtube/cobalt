@@ -12,6 +12,7 @@
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ash/policy/core/device_cloud_policy_validator.h"
@@ -28,6 +29,8 @@
 #include "components/policy/proto/device_management_backend.pb.h"
 #include "google_apis/gaia/gaia_oauth_client.h"
 
+class PrefService;
+
 namespace ash {
 namespace attestation {
 class AttestationFeatures;
@@ -37,6 +40,10 @@ class AttestationFeatures;
 namespace base {
 class SequencedTaskRunner;
 }  // namespace base
+
+namespace network {
+class SharedURLLoaderFactory;
+}  // namespace network
 
 namespace policy {
 
@@ -70,9 +77,13 @@ class EnrollmentHandler : public CloudPolicyClient::Observer,
     virtual std::unique_ptr<SigningService> CreateSigningService() const = 0;
   };
 
+  // `local_state` must be non-null and must outlive `this`.
+  // `shared_url_loader_factory` must be non-null.
   // |store| and |install_attributes| must remain valid for the life time of the
   // enrollment handler.
   EnrollmentHandler(
+      PrefService* local_state,
+      scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
       DeviceCloudPolicyStoreAsh* store,
       ash::InstallAttributes* install_attributes,
       ServerBackedStateKeysBroker* state_keys_broker,
@@ -120,7 +131,6 @@ class EnrollmentHandler : public CloudPolicyClient::Observer,
   enterprise_management::DeviceServiceApiAccessRequest::DeviceType
   GetRobotAuthCodeDeviceType() override;
   std::set<std::string> GetRobotOAuthScopes() override;
-  scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory() override;
 
  private:
   // Indicates what step of the process is currently pending. These steps need
@@ -207,6 +217,10 @@ class EnrollmentHandler : public CloudPolicyClient::Observer,
 
   // Set |enrollment_step_| to |step|.
   void SetStep(EnrollmentStep step);
+
+  const raw_ref<PrefService> local_state_;
+  const scoped_refptr<network::SharedURLLoaderFactory>
+      shared_url_loader_factory_;
 
   raw_ptr<DeviceCloudPolicyStoreAsh> store_;
   raw_ptr<ash::InstallAttributes> install_attributes_;

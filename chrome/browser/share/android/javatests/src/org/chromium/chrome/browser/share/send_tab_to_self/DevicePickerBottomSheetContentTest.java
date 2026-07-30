@@ -94,7 +94,8 @@ public class DevicePickerBottomSheetContentTest {
                         mBottomSheetController,
                         mDevices,
                         mProfile,
-                        () -> mTab);
+                        () -> mTab,
+                        ShareEntryPoint.SHARE_SHEET);
         content.onItemClick(null, null, 0, 0);
 
         verify(mNativeMock)
@@ -104,9 +105,8 @@ public class DevicePickerBottomSheetContentTest {
                         eq("guid"),
                         eq("https://example.com/"),
                         eq("Title"),
-                        any());
+                        any(),
+                        eq(ShareEntryPoint.SHARE_SHEET));
         verify(mBottomSheetController).hideContent(content, true);
     }
-
-
 }

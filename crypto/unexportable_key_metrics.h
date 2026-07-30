@@ -32,6 +32,12 @@ enum class TPMOperation {
   kKeyDeletion,
   // An operation to certify a key with an attestation key.
   kKeyCertification,
+  // An operation to create a new TPM-protected attestation key.
+  kNewAttestationKeyCreation,
+  // An operation to create an attestation key from a wrapped key.
+  kWrappedAttestationKeyCreation,
+  // An operation to export a wrapped attestation key.
+  kWrappedAttestationKeyExport,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/net/histograms.xml:TpmOperation)
 

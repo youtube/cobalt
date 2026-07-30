@@ -231,6 +231,11 @@ class WebAppUiManagerImpl : public BrowserCollectionObserver,
 
   void OnExtensionSystemReady();
 
+  // Triggers the uninstall dialog with the icons read from the disk. If the
+  // icon assets for any size are missing for whatever reason, uses a fallback
+  // behavior of generating the icons from the app's name. This is necessary
+  // for the dialog to show up in high-DPI screens where the icon assets might
+  // not be available in all sizes.
   void OnIconsReadForUninstall(
       const webapps::AppId& app_id,
       webapps::WebappUninstallSource uninstall_source,

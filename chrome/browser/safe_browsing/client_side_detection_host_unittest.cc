@@ -78,6 +78,7 @@
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/test/browser_task_environment.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/mock_render_process_host.h"
 #include "content/public/test/navigation_simulator.h"
@@ -450,7 +451,9 @@ class ClientSideDetectionHostTestBase : public ChromeRenderViewHostTestHarness {
   };
 
   explicit ClientSideDetectionHostTestBase(bool is_incognito)
-      : is_incognito_(is_incognito) {}
+      : ChromeRenderViewHostTestHarness(
+            content::BrowserTaskEnvironment::REAL_IO_THREAD),
+        is_incognito_(is_incognito) {}
 
   void InitTestApi(content::RenderFrameHost* rfh) {
     rfh->GetRemoteAssociatedInterfaces()->OverrideBinderForTesting(
@@ -1615,12 +1618,18 @@ TEST_F(ClientSideDetectionHostTest, TestPreClassificationCheckLocalResource) {
   NavigateAndCommit(url);
   WaitAndCheckPreClassificationChecks();
 
+  GURL localhost_url("http://localhost/");
+  ExpectPreClassificationChecks(localhost_url, &kFalse, nullptr, nullptr,
+                                nullptr);
+  NavigateAndCommit(localhost_url);
+  WaitAndCheckPreClassificationChecks();
+
   histogram_tester.ExpectUniqueSample(
       "SBClientPhishing.PreClassificationCheckResult",
-      PreClassificationCheckResult::NO_CLASSIFY_LOCAL_RESOURCE, 1);
+      PreClassificationCheckResult::NO_CLASSIFY_LOCAL_RESOURCE, 2);
   histogram_tester.ExpectUniqueSample(
       "SBClientPhishing.PreClassificationCheckResult.TriggerModel",
-      PreClassificationCheckResult::NO_CLASSIFY_LOCAL_RESOURCE, 1);
+      PreClassificationCheckResult::NO_CLASSIFY_LOCAL_RESOURCE, 2);
 
   fake_phishing_detector_.CheckMessage(nullptr);
 }

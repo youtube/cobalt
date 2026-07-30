@@ -21,6 +21,7 @@
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "base/version_info/version_info.h"
+#include "components/autofill/core/browser/at_memory/at_memory_enablement_utils.h"
 #include "components/autofill/core/browser/data_quality/validation.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
@@ -64,8 +65,9 @@ void AutocompleteHistoryManager::OnGetSingleFieldSuggestions(
     std::move(on_suggestions_returned).Run(trigger_field.global_id(), {});
     return;
   }
-  suggestion_generator_ =
-      std::make_unique<AutocompleteSuggestionGenerator>(profile_database_);
+  suggestion_generator_ = std::make_unique<AutocompleteSuggestionGenerator>(
+      profile_database_,
+      IsAtMemoryFeatureEnabled(client.GetGoogleGroupsManager()));
 
   auto on_suggestions_generated = base::BindOnce(
       [](SingleFieldFillRouter::OnSuggestionsReturnedCallback callback,

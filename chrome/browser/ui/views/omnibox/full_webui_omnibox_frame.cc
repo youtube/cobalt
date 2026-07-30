@@ -56,16 +56,18 @@ FullWebUIOmniboxFrame::FullWebUIOmniboxFrame(views::View* contents,
 FullWebUIOmniboxFrame::~FullWebUIOmniboxFrame() = default;
 
 void FullWebUIOmniboxFrame::SetElevation(int elevation) {
+  if (elevation == 0) {
+    SetBorder(views::CreateEmptyBorder(GetShadowInsets()));
+    return;
+  }
+
   const int corner_radius = views::LayoutProvider::Get()->GetCornerRadiusMetric(
       views::ShapeContextTokens::kOmniboxExpandedRadius);
   auto border = std::make_unique<views::BubbleBorder>(
       views::BubbleBorder::Arrow::NONE,
-      elevation == 0 ? views::BubbleBorder::Shadow::NO_SHADOW
-                     : views::BubbleBorder::Shadow::STANDARD_SHADOW);
+      views::BubbleBorder::Shadow::STANDARD_SHADOW);
   border->set_rounded_corners(gfx::RoundedCornersF(corner_radius));
-  if (elevation > 0) {
-    border->set_md_shadow_elevation(elevation);
-  }
+  border->set_md_shadow_elevation(elevation);
   SetBorder(std::move(border));
 }
 

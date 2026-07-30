@@ -243,7 +243,9 @@ void SequencedSocketDataTest::Initialize(base::span<const MockRead> reads,
   socket_factory_.AddSocketDataProvider(data_.get());
   sock_ = socket_factory_.CreateTransportClientSocket(
       AddressList(IPEndPoint(IPAddress::IPv4Localhost(), 443)),
-      nullptr /* socket_performance_watcher */,
+      // No need to use a target network here. This is used only for testing in
+      // non-multi-network scenarios.
+      handles::kInvalidNetworkHandle, nullptr /* socket_performance_watcher */,
       nullptr /* network_quality_estimator */, nullptr /* net_log */,
       NetLogSource());
   TestCompletionCallback callback;

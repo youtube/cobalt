@@ -9,7 +9,7 @@
 #include "third_party/tflite/buildflags.h"
 
 #if BUILDFLAG(USE_LITERT_TFLITE)
-#include "third_party/litert/src/tflite/transforms/optimize_pass.h"
+#include "third_party/litert/src/tflite/converter/transforms/optimize_pass.h"
 #else
 #include_next "tensorflow/compiler/mlir/lite/transforms/optimize_pass.h"
 #endif

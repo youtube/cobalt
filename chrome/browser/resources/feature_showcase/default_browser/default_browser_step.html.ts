@@ -15,15 +15,24 @@ export function getHtml(this: FeatureShowcaseDefaultBrowserStepElement) {
   <img slot="illustration" id="illustration" alt="">
   <span slot="title">$i18n{refreshDefaultBrowserTitle}</span>
   <span slot="description">$i18n{refreshDefaultBrowserSubtitle}</span>
-  <cr-button slot="button" id="confirm-button" class="action-button"
-      @click="${this.onConfirmButtonClick_}"
-      ?disabled="${this.buttonsDisabled}">
-    $i18n{refreshDefaultBrowserSetAsDefault}
-  </cr-button>
-  <cr-button slot="button" id="skip-button" @click="${this.onSkipButtonClick_}"
-      ?disabled="${this.buttonsDisabled}">
-    $i18n{refreshDefaultBrowserNoThanks}
-  </cr-button>
+  <if expr="is_win">
+    <cr-button slot="button" id="confirm-button" class="action-button"
+        @click="${this.onConfirmButtonClick_}"
+        ?disabled="${this.buttonsDisabled}">
+      $i18n{refreshDefaultBrowserSetAsDefault}
+    </cr-button>
+  </if>
+    <cr-button slot="button" id="skip-button" @click="${this.onSkipButtonClick_}"
+        ?disabled="${this.buttonsDisabled}">
+      $i18n{refreshDefaultBrowserNoThanks}
+    </cr-button>
+  <if expr="not is_win">
+    <cr-button slot="button" id="confirm-button" class="action-button"
+        @click="${this.onConfirmButtonClick_}"
+        ?disabled="${this.buttonsDisabled}">
+      $i18n{refreshDefaultBrowserSetAsDefault}
+    </cr-button>
+  </if>
 </feature-showcase-step>
 <!--_html_template_end_-->`;
   // clang-format on

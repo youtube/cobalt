@@ -133,7 +133,6 @@ missing_new_fields,chrome/browser/media/webrtc/webrtc_event_log_uploader.cc
 missing_new_fields,chrome/browser/media/webrtc/webrtc_log_uploader.cc
 missing_new_fields,chrome/browser/nearby_sharing/instantmessaging/receive_messages_express.cc
 missing_new_fields,chrome/browser/nearby_sharing/instantmessaging/send_message_express.cc
-missing_new_fields,chrome/browser/nearby_sharing/network_traversal_ice_config_fetcher.cc
 missing_new_fields,chrome/browser/nearby_sharing/tachyon_ice_config_fetcher.cc
 missing_new_fields,chrome/browser/new_tab_page/modules/file_suggestion/drive_service.cc
 missing_new_fields,chrome/browser/new_tab_page/modules/photos/photos_service.cc
@@ -225,7 +224,6 @@ missing_new_fields,components/policy/core/browser/signin/user_cloud_signin_restr
 missing_new_fields,components/policy/core/common/cloud/external_policy_data_fetcher.cc
 missing_new_fields,components/policy/core/common/cloud/user_info_fetcher.cc
 missing_new_fields,components/proxy_config/pref_proxy_config_tracker_impl.cc
-missing_new_fields,components/safe_browsing/content/browser/client_side_detection_service.cc
 missing_new_fields,components/safe_browsing/content/browser/threat_details_cache.cc
 missing_new_fields,components/safe_browsing/core/browser/db/v4_get_hash_protocol_manager.cc
 missing_new_fields,components/safe_browsing/core/browser/db/v4_update_protocol_manager.cc

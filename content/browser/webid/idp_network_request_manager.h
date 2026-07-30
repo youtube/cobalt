@@ -75,11 +75,6 @@ enum class MetricsEndpointErrorCode;
 // the user to interact with the IDP.
 class CONTENT_EXPORT IdpNetworkRequestManager : public NetworkRequestManager {
  public:
-  enum class LogoutResponse {
-    kSuccess,
-    kError,
-  };
-
   // Don't change the meaning or the order of these values because they are
   // being recorded in metrics and in sync with the counterpart in enums.xml.
   // LINT.IfChange(AccountsResponseInvalidReason)
@@ -260,7 +255,6 @@ class CONTENT_EXPORT IdpNetworkRequestManager : public NetworkRequestManager {
       void(FetchStatus, Endpoints, IdentityProviderMetadata)>;
   using FetchClientMetadataCallback =
       base::OnceCallback<void(FetchStatus, ClientMetadata)>;
-  using LogoutCallback = base::OnceCallback<void()>;
   using DisconnectCallback =
       base::OnceCallback<void(FetchStatus, const std::string&)>;
   using TokenRequestCallback =
@@ -345,9 +339,6 @@ class CONTENT_EXPORT IdpNetworkRequestManager : public NetworkRequestManager {
       const GURL& metrics_endpoint_url,
       bool did_show_ui,
       MetricsEndpointErrorCode error_code);
-
-  // Send logout request to a single target.
-  virtual void SendLogout(const GURL& logout_url, LogoutCallback);
 
   // Send a disconnect request to the IDP.
   virtual void SendDisconnectRequest(const GURL& disconnect_url,

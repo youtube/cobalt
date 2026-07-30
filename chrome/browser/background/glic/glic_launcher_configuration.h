@@ -35,15 +35,9 @@ class GlicLauncherConfiguration {
   // pref is the default value.
   static bool IsEnabled(bool* is_default_value = nullptr);
 
-  static ui::Accelerator GetGlobalHotkey();
+  static ui::Accelerator GetToggleHotkey();
 
-  static ui::Accelerator GetSelectionGlobalHotkey();
-
-  // Returns the default hotkey for the glic launcher.
-  static ui::Accelerator GetDefaultHotkey();
-
-  // Return the default selection hotkey.
-  static ui::Accelerator GetDefaultSelectionHotkey();
+  static ui::Accelerator GetSelectionHotkey();
 
   // Checks if the browser is the default browser and enables the launcher if it
   // is.

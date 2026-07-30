@@ -41,8 +41,7 @@ class TestPasswordsPrivateDelegate : public PasswordsPrivateDelegate {
                    const std::u16string& username,
                    const std::u16string& password,
                    const std::u16string& note,
-                   bool use_account_store,
-                   content::WebContents* web_contents) override;
+                   bool use_account_store) override;
   bool ChangeCredential(
       const api::passwords_private::PasswordUiEntry& credential) override;
   void RemoveCredential(
@@ -54,33 +53,28 @@ class TestPasswordsPrivateDelegate : public PasswordsPrivateDelegate {
   void UndoRemoveSavedPasswordOrException() override;
   void RequestPlaintextPassword(int id,
                                 api::passwords_private::PlaintextReason reason,
-                                PlaintextPasswordCallback callback,
-                                content::WebContents* web_contents) override;
+                                PlaintextPasswordCallback callback) override;
   void RequestCredentialsDetails(const std::vector<int>& ids,
                                  UiEntriesCallback callback,
                                  content::WebContents* web_contents) override;
   void CopyPlaintextBackupPassword(
       int id,
-      content::WebContents* web_contents,
       base::OnceCallback<void(bool)> callback) override;
-  void MovePasswordsToAccount(const std::vector<int>& ids,
-                              content::WebContents* web_contents) override;
+  void MovePasswordsToAccount(const std::vector<int>& ids) override;
   void FetchFamilyMembers(FetchFamilyResultsCallback callback) override;
   void SharePassword(int id, const ShareRecipients& recipients) override;
   void ImportPasswords(api::passwords_private::PasswordStoreSet to_store,
                        ImportResultsCallback results_callback,
                        content::WebContents* web_contents) override;
   void ContinueImport(const std::vector<int>& selected_ids,
-                      ImportResultsCallback results_callback,
-                      content::WebContents* web_contents) override;
+                      ImportResultsCallback results_callback) override;
   void ResetImporter(bool delete_file) override;
   void ExportPasswords(base::OnceCallback<void(const std::string&)> callback,
                        content::WebContents* web_contents) override;
   api::passwords_private::ExportProgressStatus GetExportProgressStatus()
       override;
   bool IsAccountStorageActive() override;
-  void SetAccountStorageEnabled(bool enabled,
-                                content::WebContents* web_contents) override;
+  void SetAccountStorageEnabled(bool enabled) override;
   bool ShouldShowAccountStorageSettingToggle() override;
   std::vector<api::passwords_private::PasswordUiEntry> GetInsecureCredentials()
       override;
@@ -102,7 +96,6 @@ class TestPasswordsPrivateDelegate : public PasswordsPrivateDelegate {
       override;
   void RestartAuthTimer() override;
   void SwitchBiometricAuthBeforeFillingState(
-      content::WebContents* web_contents,
       AuthenticationCallback callback) override;
   void ShowAddShortcutDialog(content::WebContents* web_contents) override;
   void ShowLastExportedFileInShell(content::WebContents* web_contents) override;
@@ -113,19 +106,15 @@ class TestPasswordsPrivateDelegate : public PasswordsPrivateDelegate {
       content::WebContents* web_contents,
       base::OnceCallback<void(bool)> pin_available_callback) override;
   void DisconnectCloudAuthenticator(
-      content::WebContents* web_contents,
       base::OnceCallback<void(bool)> success_callback) override;
-  bool IsConnectedToCloudAuthenticator(
-      content::WebContents* web_contents) override;
+  bool IsConnectedToCloudAuthenticator() override;
   password_manager::ActionableError GetActionableError() override;
   void DeleteAllPasswordManagerData(
-      content::WebContents* web_contents,
       base::OnceCallback<void(bool)> success_callback) override;
 
   base::WeakPtr<PasswordsPrivateDelegate> AsWeakPtr() override;
 
   void SetProfile(Profile* profile);
-  void SetAccountStorageEnabled(bool enabled);
   void SetShouldShowAccountStorageSettingToggle(bool enabled);
   void SetActionableError(password_manager::ActionableError error);
   void AddCompromisedCredential(int id);

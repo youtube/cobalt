@@ -19,7 +19,6 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent.GlowSpec;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent.HeightMode;
-import org.chromium.components.browser_ui.widget.text.TextViewWithCompoundDrawables;
 
 /** The bottom sheet content for the tab bottom sheet. */
 @NullMarked
@@ -28,8 +27,6 @@ public abstract class TabBottomSheetContent implements BottomSheetContent {
     private final float mFullHeightRatio;
     private final @ColorInt int mBackgroundColor;
     private final @Px int mPeekViewHeight;
-    private final @IdRes int mEmptyPlaceholderContainerId;
-    private final boolean mUsePlaceholder;
     private final Runnable mOnBackPressed;
 
     /**
@@ -40,7 +37,6 @@ public abstract class TabBottomSheetContent implements BottomSheetContent {
      * @param backgroundColor The background color for the bottom sheet.
      * @param peekViewHeight The height of the peek view in pixels.
      * @param peekViewContainerId The resource ID for the peek view container.
-     * @param emptyPlaceholderContainerId The resource ID for the empty placeholder container.
      * @param onBackPressed Callback run when the back button/swipe is triggered.
      */
     public TabBottomSheetContent(
@@ -49,37 +45,16 @@ public abstract class TabBottomSheetContent implements BottomSheetContent {
             @ColorInt int backgroundColor,
             @Px int peekViewHeight,
             @IdRes int peekViewContainerId,
-            @IdRes int emptyPlaceholderContainerId,
             Runnable onBackPressed) {
         mContentView = contentView;
         mFullHeightRatio = fullHeightRatio;
         mBackgroundColor = backgroundColor;
         mPeekViewHeight = peekViewHeight;
-        mEmptyPlaceholderContainerId = emptyPlaceholderContainerId;
         mOnBackPressed = onBackPressed;
 
         View view = mContentView.findViewById(peekViewContainerId);
         View peekContainer = NullUtil.assertNonNull(view);
         peekContainer.setBackgroundColor(mBackgroundColor);
-
-        TextViewWithCompoundDrawables placeholder =
-                NullUtil.assertNonNull(mContentView.findViewById(mEmptyPlaceholderContainerId));
-        mUsePlaceholder = setupPlaceholder(placeholder);
-    }
-
-    /**
-     * Sets up the visual properties of the inactive state placeholder.
-     *
-     * @param placeholder The empty placeholder text view with compound drawables support.
-     * @return true if the placeholder should be visible, false otherwise.
-     */
-    protected boolean setupPlaceholder(TextViewWithCompoundDrawables placeholder) {
-        return false;
-    }
-
-    /** Returns whether the content uses an empty placeholder. */
-    public boolean usePlaceholder() {
-        return mUsePlaceholder;
     }
 
     @Override
@@ -208,10 +183,5 @@ public abstract class TabBottomSheetContent implements BottomSheetContent {
     @Override
     public boolean shouldRestoreStateOnUnsuppress() {
         return false;
-    }
-
-    public @Nullable TextViewWithCompoundDrawables getPlaceholderViewForTesting() {
-        return (TextViewWithCompoundDrawables)
-                mContentView.findViewById(mEmptyPlaceholderContainerId);
     }
 }

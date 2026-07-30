@@ -58,6 +58,7 @@ source_set("eg_test_support+eg2") {
     "//base",
     "//base/test:test_support",
     "//components/variations",
+    "//ios/testing:base_xc_test_case",
     "//ios/testing:system_alert_handler",
     "//ios/third_party/earl_grey2:test_lib",
     "//ios/third_party/edo",

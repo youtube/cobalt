@@ -9,6 +9,8 @@
 #include <string>
 
 #include "base/containers/lru_cache.h"
+#include "base/memory/raw_ptr.h"
+#include "base/sequence_checker.h"
 #include "base/time/time.h"
 #include "chrome/browser/contextual_cueing/cue_target.h"
 #include "chrome/browser/contextual_cueing/nudge_cap_tracker.h"
@@ -17,13 +19,15 @@
 #include "url/gurl.h"
 #include "url/origin.h"
 
+class PrefService;
+
 namespace contextual_cueing {
 
 enum class ContextualCueingDecision;
 
 class ContextualCueingService : public KeyedService {
  public:
-  ContextualCueingService();
+  explicit ContextualCueingService(PrefService* pref_service);
   ~ContextualCueingService() override;
 
   // Reports a page load occurred. This is used to keep track of quiet
@@ -37,10 +41,20 @@ class ContextualCueingService : public KeyedService {
   void OnCueDismissed(CueTargetType type);
 
   // Called when the cue is shown to the user.
-  void OnCueShown(const GURL& url);
+  void OnCueShown(const GURL& url, CueTargetType type);
 
   // Returns true if a nudge can be shown.
   ContextualCueingDecision CanShowCue(const GURL& url) const;
+
+  // Returns the UCB score for the given target, incorporating per-target
+  // interaction stats and UCB hyperparameters from Finch.
+  double GetUcbScore(CueTargetType type) const;
+
+  // Returns the per-target interaction stats for the given target.
+  const TargetStats& GetStatsForTarget(CueTargetType type) const;
+
+  // Returns the total number of impressions across all targets.
+  int GetTotalImpressions() const;
 
  private:
   // A counter for how many subsequent page load events will be prevented from
@@ -66,6 +80,17 @@ class ContextualCueingService : public KeyedService {
 
   // Maintains the recently visited origins along with their nudge cap tracking.
   base::LRUCache<url::Origin, NudgeCapTracker> recent_visited_origins_;
+
+  // Per-target interaction stats used by the UCB scorer.
+  absl::flat_hash_map<CueTargetType, TargetStats> target_stats_;
+
+  // Writes the stats for `type` to the profile prefs.
+  void WriteStatsToPref(CueTargetType type);
+
+  // Not owned. Guaranteed to outlive this service (profile lifetime).
+  const raw_ptr<PrefService> profile_prefs_;
+
+  SEQUENCE_CHECKER(sequence_checker_);
 };
 
 }  // namespace contextual_cueing

@@ -15,6 +15,7 @@
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_login_pref_names.h"
 #include "ash/constants/ash_pref_names.h"
+#include "ash/login/resources/grit/ash_login_strings.h"
 #include "ash/public/cpp/login_accelerators.h"
 #include "ash/public/cpp/wallpaper/wallpaper_controller.h"
 #include "base/check_deref.h"

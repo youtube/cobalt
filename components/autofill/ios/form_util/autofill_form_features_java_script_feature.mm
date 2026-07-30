@@ -4,10 +4,72 @@
 
 #import "components/autofill/ios/form_util/autofill_form_features_java_script_feature.h"
 
+#import "base/functional/bind.h"
+#import "components/autofill/core/common/autofill_features.h"
+#import "components/autofill/ios/common/features.h"
 #import "ios/web/public/js_messaging/java_script_feature_util.h"
 
 namespace {
 const char kFeaturesScriptName[] = "autofill_form_features";
+
+// Helper function to return the dynamic map of feature placeholders to their
+// corresponding C++ feature states.
+web::JavaScriptFeature::FeatureScript::PlaceholderReplacements
+GetReplacements() {
+  return @{
+    @"gCrWebPlaceholderAutofillAcrossIframesEnabled" :
+            base::FeatureList::IsEnabled(
+                autofill::features::kAutofillAcrossIframesIos)
+        ? @"true"
+        : @"false",
+    @"gCrWebPlaceholderAutofillAcrossIframesThrottling" :
+            base::FeatureList::IsEnabled(
+                autofill::features::kAutofillAcrossIframesIosThrottling)
+        ? @"true"
+        : @"false",
+    @"gCrWebPlaceholderAutofillDisallowMoreHyphenLikeLabels" :
+            base::FeatureList::IsEnabled(
+                autofill::features::kAutofillDisallowMoreHyphenLikeLabels)
+        ? @"true"
+        : @"false",
+    @"gCrWebPlaceholderAutofillIgnoreCheckableElements" :
+            base::FeatureList::IsEnabled(
+                autofill::features::kAutofillIgnoreCheckableElements)
+        ? @"true"
+        : @"false",
+    @"gCrWebPlaceholderAutofillSupportDateInput" :
+            base::FeatureList::IsEnabled(::kAutofillSupportDateInput)
+        ? @"true"
+        : @"false",
+    @"gCrWebPlaceholderAutofillCorrectUserEditedBitInParsedField" :
+            base::FeatureList::IsEnabled(
+                ::kAutofillCorrectUserEditedBitInParsedField)
+        ? @"true"
+        : @"false",
+    @"gCrWebPlaceholderAutofillAllowDefaultPreventedSubmission" :
+            base::FeatureList::IsEnabled(
+                ::kAutofillAllowDefaultPreventedSubmission)
+        ? @"true"
+        : @"false",
+    @"gCrWebPlaceholderAutofillDedupeFormSubmission" :
+            base::FeatureList::IsEnabled(::kAutofillDedupeFormSubmission)
+        ? @"true"
+        : @"false",
+    @"gCrWebPlaceholderAutofillEmailVerification" :
+            base::FeatureList::IsEnabled(::kAutofillEmailVerification)
+        ? @"true"
+        : @"false",
+    @"gCrWebPlaceholderAutofillReportFormSubmissionErrors" :
+            base::FeatureList::IsEnabled(::kAutofillReportFormSubmissionErrors)
+        ? @"true"
+        : @"false",
+    @"gCrWebPlaceholderAutofillCountFormSubmissionInRenderer" :
+            base::FeatureList::IsEnabled(
+                ::kAutofillCountFormSubmissionInRenderer)
+        ? @"true"
+        : @"false",
+  };
+}
 }  // namespace
 
 namespace autofill {
@@ -26,127 +88,13 @@ AutofillFormFeaturesJavaScriptFeature::AutofillFormFeaturesJavaScriptFeature()
               kFeaturesScriptName,
               FeatureScript::InjectionTime::kDocumentStart,
               FeatureScript::TargetFrames::kAllFrames,
-              FeatureScript::ReinjectionBehavior::kInjectOncePerWindow)},
+              FeatureScript::ReinjectionBehavior::kInjectOncePerWindow,
+              base::BindRepeating(&GetReplacements))},
           {
               web::java_script_features::GetBaseJavaScriptFeature(),
           }) {}
 
 AutofillFormFeaturesJavaScriptFeature::
     ~AutofillFormFeaturesJavaScriptFeature() = default;
-
-void AutofillFormFeaturesJavaScriptFeature::SetAutofillAcrossIframes(
-    web::WebFrame* frame,
-    bool enabled) {
-  CHECK(frame);
-  frame->CallJavaScriptFunction(
-      "autofill_form_features.setAutofillAcrossIframes",
-      base::ListValue().Append(enabled));
-}
-
-void AutofillFormFeaturesJavaScriptFeature::
-    SetAutofillDisallowMoreHyphenLikeLabels(web::WebFrame* frame,
-                                            bool enabled) {
-  CHECK(frame);
-  frame->CallJavaScriptFunction(
-      "autofill_form_features.setAutofillDisallowMoreHyphenLikeLabels",
-      base::ListValue().Append(enabled));
-}
-
-void AutofillFormFeaturesJavaScriptFeature::SetAutofillDisallowSlashDotLabels(
-    web::WebFrame* frame,
-    bool enabled) {
-  CHECK(frame);
-  frame->CallJavaScriptFunction(
-      "autofill_form_features.setAutofillDisallowSlashDotLabels",
-      base::ListValue().Append(enabled));
-}
-
-void AutofillFormFeaturesJavaScriptFeature::SetAutofillAcrossIframesThrottling(
-    web::WebFrame* frame,
-    bool enabled) {
-  CHECK(frame);
-  frame->CallJavaScriptFunction(
-      "autofill_form_features.setAutofillAcrossIframesThrottling",
-      base::ListValue().Append(enabled));
-}
-
-void AutofillFormFeaturesJavaScriptFeature::SetAutofillIgnoreCheckableElements(
-    web::WebFrame* frame,
-    bool enabled) {
-  CHECK(frame);
-  frame->CallJavaScriptFunction(
-      "autofill_form_features.setAutofillIgnoreCheckableElements",
-      base::ListValue().Append(enabled));
-}
-
-void AutofillFormFeaturesJavaScriptFeature::SetAutofillSupportDateInput(
-    web::WebFrame* frame,
-    bool enabled) {
-  CHECK(frame);
-  frame->CallJavaScriptFunction(
-      "autofill_form_features.setAutofillSupportDateInput",
-      base::ListValue().Append(enabled));
-}
-
-void AutofillFormFeaturesJavaScriptFeature::SetAutofillIsolatedContentWorld(
-    web::WebFrame* frame,
-    bool enabled) {
-  CHECK(frame);
-  frame->CallJavaScriptFunction(
-      "autofill_form_features.setAutofillIsolatedContentWorld",
-      base::ListValue().Append(enabled));
-}
-
-void AutofillFormFeaturesJavaScriptFeature::
-    SetAutofillCorrectUserEditedBitInParsedField(web::WebFrame* frame,
-                                                 bool enabled) {
-  CHECK(frame);
-  frame->CallJavaScriptFunction(
-      "autofill_form_features.setAutofillCorrectUserEditedBitInParsedField",
-      base::ListValue().Append(enabled));
-}
-
-void AutofillFormFeaturesJavaScriptFeature::
-    SetAutofillAllowDefaultPreventedFormSubmission(web::WebFrame* frame,
-                                                   bool enabled) {
-  CHECK(frame);
-  frame->CallJavaScriptFunction(
-      "autofill_form_features.setAutofillAllowDefaultPreventedSubmission",
-      base::ListValue().Append(enabled));
-}
-
-void AutofillFormFeaturesJavaScriptFeature::SetAutofillDedupeFormSubmission(
-    web::WebFrame* frame,
-    bool enabled) {
-  CHECK(frame);
-  frame->CallJavaScriptFunction(
-      "autofill_form_features.setAutofillDedupeFormSubmission",
-      base::ListValue().Append(enabled));
-}
-
-void AutofillFormFeaturesJavaScriptFeature::SetAutofillEmailVerification(
-    web::WebFrame* frame,
-    bool enabled) {
-  CHECK(frame);
-  frame->CallJavaScriptFunction(
-      "autofill_form_features.setAutofillEmailVerification",
-      base::ListValue().Append(enabled));
-}
-
-// Enables/disables reporting form submission errors.
-void AutofillFormFeaturesJavaScriptFeature::
-    SetAutofillReportFormSubmissionErrors(web::WebFrame* frame, bool enabled) {
-  frame->CallJavaScriptFunction(
-      "autofill_form_features.setAutofillReportFormSubmissionErrors",
-      base::ListValue().Append(enabled));
-}
-
-void AutofillFormFeaturesJavaScriptFeature::
-    SetAutofillCountFormSubmissionInRenderer(web::WebFrame* frame,
-                                             bool enabled) {
-  frame->CallJavaScriptFunction(
-      "autofill_form_features.setAutofillCountFormSubmissionInRenderer",
-      base::ListValue().Append(enabled));
-}
 
 }  // namespace autofill

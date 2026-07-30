@@ -250,6 +250,7 @@ public final class CronetUrlRequest extends ExperimentalUrlRequest {
                                             mDictionaryId,
                                             mNetworkHandle);
                     mRequestContext.onRequestStarted();
+                    CronetPccAuditLogger.maybeWrite(mInitialUrl);
                     if (!CronetUrlRequestJni.get()
                             .setHttpMethod(mUrlRequestAdapter, mInitialMethod)) {
                         throw new IllegalArgumentException("Invalid http method " + mInitialMethod);
@@ -632,7 +633,7 @@ public final class CronetUrlRequest extends ExperimentalUrlRequest {
 
         // Have to do this after creating responseInfo.
         mUrlChain.add(newLocation);
-
+        CronetPccAuditLogger.maybeWrite(newLocation);
         Runnable task =
                 new Runnable() {
                     @Override

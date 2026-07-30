@@ -2954,6 +2954,240 @@ TEST_F(PaymentsDataManagerTest,
 }
 
 // Params:
+// 1. Benefit source.
+// 2. Whether the travel category and merchant benefits experiment is enabled.
+class PaymentsDataManagerIsCardEligibleForBenefitsTest
+    : public PaymentsDataManagerHelper,
+      public testing::Test {
+ public:
+  void SetUp() override {
+    SetUpTest();
+    ResetPaymentsDataManager();
+  }
+  void TearDown() override { TearDownTest(); }
+};
+
+#if BUILDFLAG(IS_IOS)
+
+// Tests that `IsCardEligibleForBenefits` returns `false` for iOS platforms.
+TEST_F(PaymentsDataManagerIsCardEligibleForBenefitsTest, UnsupportedPlatform) {
+  CreditCard card = test::GetMaskedServerCard();
+  card.set_benefit_source(kAmexCardBenefitSource);
+  EXPECT_FALSE(payments_data_manager().IsCardEligibleForBenefits(card));
+}
+
+#endif  // BUILDFLAG(IS_IOS)
+
+#if !BUILDFLAG(IS_IOS)
+
+// Tests that `IsCardEligibleForBenefits` returns `false` when the benefit
+// source is invalid.
+TEST_F(PaymentsDataManagerIsCardEligibleForBenefitsTest, InvalidBenefitSource) {
+  CreditCard card = test::GetMaskedServerCard();
+  card.set_benefit_source("invalid");
+  EXPECT_FALSE(payments_data_manager().IsCardEligibleForBenefits(card));
+}
+
+// Tests that `IsCardEligibleForBenefits` returns `true` when the benefit
+// source is `kAmexCardBenefitSource`.
+TEST_F(PaymentsDataManagerIsCardEligibleForBenefitsTest, AmexBenefitSource) {
+  CreditCard card = test::GetMaskedServerCard();
+  card.set_benefit_source(std::string(kAmexCardBenefitSource));
+  EXPECT_TRUE(payments_data_manager().IsCardEligibleForBenefits(card));
+}
+
+// Tests that `IsCardEligibleForBenefits` returns `true` when the benefit
+// source is `kBmoCardBenefitSource`.
+TEST_F(PaymentsDataManagerIsCardEligibleForBenefitsTest, BmoBenefitSource) {
+  CreditCard card = test::GetMaskedServerCard();
+  card.set_benefit_source(std::string(kBmoCardBenefitSource));
+  EXPECT_TRUE(payments_data_manager().IsCardEligibleForBenefits(card));
+}
+
+// Tests that `IsCardEligibleForBenefits` returns `true` for flat rate benefits
+// sourced from `kCurinosCardBenefitSource`.
+TEST_F(PaymentsDataManagerIsCardEligibleForBenefitsTest,
+       CurinosBenefitSource_FlatRateBenefit) {
+  CreditCard card = test::GetMaskedServerCard();
+  card.set_benefit_source(std::string(kCurinosCardBenefitSource));
+
+  // Add a flat rate benefit to the card.
+  CreditCardFlatRateBenefit flat_rate_benefit =
+      test::GetActiveCreditCardFlatRateBenefit();
+  card.set_instrument_id(*flat_rate_benefit.linked_card_instrument_id());
+  payments_data_manager().AddCreditCardBenefitForTest(
+      std::move(flat_rate_benefit));
+
+  EXPECT_TRUE(payments_data_manager().IsCardEligibleForBenefits(card));
+}
+
+// Tests that `IsCardEligibleForBenefits` returns `true` for merchant benefits
+// sourced from `kCurinosCardBenefitSource`.
+TEST_F(PaymentsDataManagerIsCardEligibleForBenefitsTest,
+       CurinosBenefitSource_MerchantBenefit) {
+  base::test::ScopedFeatureList feature_list(
+      features::kAutofillEnableTravelCategoryAndMerchantBenefitsFromCurinos);
+
+  CreditCard card = test::GetMaskedServerCard();
+  card.set_benefit_source(std::string(kCurinosCardBenefitSource));
+
+  // Add a merchant benefit to the card.
+  CreditCardMerchantBenefit merchant_benefit =
+      test::GetActiveCreditCardMerchantBenefit();
+  card.set_instrument_id(*merchant_benefit.linked_card_instrument_id());
+  payments_data_manager().AddCreditCardBenefitForTest(
+      std::move(merchant_benefit));
+
+  EXPECT_TRUE(payments_data_manager().IsCardEligibleForBenefits(card));
+}
+
+// Tests that `IsCardEligibleForBenefits` returns `false` for merchant benefits
+// sourced from `kCurinosCardBenefitSource` when the flag is disabled.
+TEST_F(PaymentsDataManagerIsCardEligibleForBenefitsTest,
+       CurinosBenefitSource_MerchantBenefit_FlagDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      features::kAutofillEnableTravelCategoryAndMerchantBenefitsFromCurinos);
+
+  CreditCard card = test::GetMaskedServerCard();
+  card.set_benefit_source(std::string(kCurinosCardBenefitSource));
+
+  // Add a merchant benefit to the card.
+  CreditCardMerchantBenefit merchant_benefit =
+      test::GetActiveCreditCardMerchantBenefit();
+  card.set_instrument_id(*merchant_benefit.linked_card_instrument_id());
+  payments_data_manager().AddCreditCardBenefitForTest(
+      std::move(merchant_benefit));
+
+  EXPECT_FALSE(payments_data_manager().IsCardEligibleForBenefits(card));
+}
+
+// Tests that `IsCardEligibleForBenefits` returns `true` for travel category
+// benefits sourced from `kCurinosCardBenefitSource`.
+TEST_F(PaymentsDataManagerIsCardEligibleForBenefitsTest,
+       CurinosBenefitSource_TravelCategoryBenefit) {
+  base::test::ScopedFeatureList feature_list(
+      features::kAutofillEnableTravelCategoryAndMerchantBenefitsFromCurinos);
+
+  CreditCard card = test::GetMaskedServerCard();
+  card.set_benefit_source(std::string(kCurinosCardBenefitSource));
+
+  // Add a travel category benefit to the card.
+  CreditCardCategoryBenefit category_benefit =
+      test::GetActiveCreditCardCategoryBenefit();
+  test_api(category_benefit)
+      .SetLinkedCardInstrumentId(
+          CreditCardBenefitBase::LinkedCardInstrumentId(card.instrument_id()));
+  test_api(category_benefit)
+      .SetBenefitCategory(CreditCardCategoryBenefit::BenefitCategory::kTravel);
+  payments_data_manager().AddCreditCardBenefitForTest(
+      std::move(category_benefit));
+
+  EXPECT_TRUE(payments_data_manager().IsCardEligibleForBenefits(card));
+}
+
+// Tests that `IsCardEligibleForBenefits` returns `false` for travel category
+// benefits sourced from `kCurinosCardBenefitSource` when the flag is disabled.
+TEST_F(PaymentsDataManagerIsCardEligibleForBenefitsTest,
+       CurinosBenefitSource_TravelCategoryBenefit_FlagDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      features::kAutofillEnableTravelCategoryAndMerchantBenefitsFromCurinos);
+
+  CreditCard card = test::GetMaskedServerCard();
+  card.set_benefit_source(std::string(kCurinosCardBenefitSource));
+
+  // Add a travel category benefit to the card.
+  CreditCardCategoryBenefit category_benefit =
+      test::GetActiveCreditCardCategoryBenefit();
+  test_api(category_benefit)
+      .SetLinkedCardInstrumentId(
+          CreditCardBenefitBase::LinkedCardInstrumentId(card.instrument_id()));
+  test_api(category_benefit)
+      .SetBenefitCategory(CreditCardCategoryBenefit::BenefitCategory::kTravel);
+  payments_data_manager().AddCreditCardBenefitForTest(
+      std::move(category_benefit));
+
+  EXPECT_FALSE(payments_data_manager().IsCardEligibleForBenefits(card));
+}
+
+// Tests that `IsCardEligibleForBenefits` returns `false` for non-travel
+// category benefits sourced from `kCurinosCardBenefitSource`.
+TEST_F(PaymentsDataManagerIsCardEligibleForBenefitsTest,
+       CurinosBenefitSource_NonTravelCategoryBenefit) {
+  base::test::ScopedFeatureList feature_list(
+      features::kAutofillEnableTravelCategoryAndMerchantBenefitsFromCurinos);
+
+  CreditCard card = test::GetMaskedServerCard();
+  card.set_benefit_source(std::string(kCurinosCardBenefitSource));
+
+  // Add a non-travel category benefit to the card.
+  CreditCardCategoryBenefit category_benefit =
+      test::GetActiveCreditCardCategoryBenefit();
+  test_api(category_benefit)
+      .SetLinkedCardInstrumentId(
+          CreditCardBenefitBase::LinkedCardInstrumentId(card.instrument_id()));
+  test_api(category_benefit)
+      .SetBenefitCategory(
+          CreditCardCategoryBenefit::BenefitCategory::kOfficeSupplies);
+  payments_data_manager().AddCreditCardBenefitForTest(
+      std::move(category_benefit));
+
+  EXPECT_FALSE(payments_data_manager().IsCardEligibleForBenefits(card));
+}
+
+// Tests that `IsCardEligibleForBenefits` returns `true` for travel subcategory
+// benefits sourced from `kCurinosCardBenefitSource`.
+TEST_F(PaymentsDataManagerIsCardEligibleForBenefitsTest,
+       CurinosBenefitSource_TravelSubcategoryBenefit) {
+  base::test::ScopedFeatureList feature_list(
+      features::kAutofillEnableTravelCategoryAndMerchantBenefitsFromCurinos);
+
+  CreditCard card = test::GetMaskedServerCard();
+  card.set_benefit_source(std::string(kCurinosCardBenefitSource));
+
+  // Add travel subcategory benefit to the card.
+  CreditCardCategoryBenefit category_benefit =
+      test::GetActiveCreditCardCategoryBenefit();
+  test_api(category_benefit)
+      .SetLinkedCardInstrumentId(
+          CreditCardBenefitBase::LinkedCardInstrumentId(card.instrument_id()));
+  test_api(category_benefit)
+      .SetBenefitCategory(CreditCardCategoryBenefit::BenefitCategory::kFlights);
+  payments_data_manager().AddCreditCardBenefitForTest(
+      std::move(category_benefit));
+
+  EXPECT_TRUE(payments_data_manager().IsCardEligibleForBenefits(card));
+}
+
+// Tests that `IsCardEligibleForBenefits` returns `false` for travel subcategory
+// benefits sourced from `kCurinosCardBenefitSource` when the flag is disabled.
+TEST_F(PaymentsDataManagerIsCardEligibleForBenefitsTest,
+       CurinosBenefitSource_TravelSubcategoryBenefit_FlagDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      features::kAutofillEnableTravelCategoryAndMerchantBenefitsFromCurinos);
+
+  CreditCard card = test::GetMaskedServerCard();
+  card.set_benefit_source(std::string(kCurinosCardBenefitSource));
+
+  // Add travel subcategory benefit to the card.
+  CreditCardCategoryBenefit category_benefit =
+      test::GetActiveCreditCardCategoryBenefit();
+  test_api(category_benefit)
+      .SetLinkedCardInstrumentId(
+          CreditCardBenefitBase::LinkedCardInstrumentId(card.instrument_id()));
+  test_api(category_benefit)
+      .SetBenefitCategory(CreditCardCategoryBenefit::BenefitCategory::kFlights);
+  payments_data_manager().AddCreditCardBenefitForTest(
+      std::move(category_benefit));
+
+  EXPECT_FALSE(payments_data_manager().IsCardEligibleForBenefits(card));
+}
+
+#endif  // !BUILDFLAG(IS_IOS)
+
+// Params:
 // 1. App Locale.
 class PaymentsDataManagerShouldBlockBenefitsTest
     : public PaymentsDataManagerHelper,
@@ -2984,7 +3218,7 @@ TEST_P(PaymentsDataManagerShouldBlockBenefitsTest, NonSupportedAppLocale) {
 TEST_P(PaymentsDataManagerShouldBlockBenefitsTest,
        BlockedUrlForFlateRateBenefit) {
   if (app_locale() != "en-US" && app_locale() != "en-GB") {
-    GTEST_SKIP() << "This test should not run for not supported app locale.";
+    GTEST_SKIP() << "This test should not run for unsupported app locales.";
   }
 
   const url::Origin origin =
@@ -3005,11 +3239,11 @@ TEST_P(PaymentsDataManagerShouldBlockBenefitsTest,
   payments_data_manager().AddCreditCardBenefitForTest(
       std::move(flat_rate_benefit));
 
-  EXPECT_TRUE(payments_data_manager()
-                  .GetApplicableBenefitDescriptionForCardAndOrigin(
-                      test::GetMaskedServerCard(), origin,
-                      autofill_client()->GetAutofillOptimizationGuideDecider())
-                  .empty());
+  EXPECT_FALSE(payments_data_manager()
+                   .GetApplicableBenefitForCardAndOrigin(
+                       test::GetMaskedServerCard(), origin,
+                       autofill_client()->GetAutofillOptimizationGuideDecider())
+                   .has_value());
 
   // Add other benefit.
   CreditCardMerchantBenefit merchant_benefit =
@@ -3020,11 +3254,14 @@ TEST_P(PaymentsDataManagerShouldBlockBenefitsTest,
   test_api(merchant_benefit).SetMerchantDomains({origin});
   payments_data_manager().AddCreditCardBenefitForTest(merchant_benefit);
 
-  EXPECT_EQ(
-      payments_data_manager().GetApplicableBenefitDescriptionForCardAndOrigin(
+  std::optional<CreditCardBenefit> benefit =
+      payments_data_manager().GetApplicableBenefitForCardAndOrigin(
           card, origin,
-          autofill_client()->GetAutofillOptimizationGuideDecider()),
-      merchant_benefit.benefit_description());
+          autofill_client()->GetAutofillOptimizationGuideDecider());
+  ASSERT_TRUE(benefit.has_value());
+  EXPECT_EQ(std::get<CreditCardMerchantBenefit>(benefit.value())
+                .benefit_description(),
+            merchant_benefit.benefit_description());
 }
 
 // Tests that card flat rate benefits should not be blocked if the given url is
@@ -3033,7 +3270,7 @@ TEST_P(PaymentsDataManagerShouldBlockBenefitsTest,
 TEST_P(PaymentsDataManagerShouldBlockBenefitsTest,
        BlockedUrlForFlateRateBenefit_BlocklistDisabled) {
   if (app_locale() != "en-US" && app_locale() != "en-GB") {
-    GTEST_SKIP() << "This test should not run for not supported app locale.";
+    GTEST_SKIP() << "This test should not run for unsupported app locales.";
   }
 
   base::test::ScopedFeatureList scoped_feature_list;
@@ -3057,11 +3294,135 @@ TEST_P(PaymentsDataManagerShouldBlockBenefitsTest,
   test_api(payments_data_manager()).AddServerCreditCard(card);
   payments_data_manager().AddCreditCardBenefitForTest(flat_rate_benefit);
 
-  EXPECT_EQ(
-      payments_data_manager().GetApplicableBenefitDescriptionForCardAndOrigin(
+  std::optional<CreditCardBenefit> benefit =
+      payments_data_manager().GetApplicableBenefitForCardAndOrigin(
           card, origin,
-          autofill_client()->GetAutofillOptimizationGuideDecider()),
-      flat_rate_benefit.benefit_description());
+          autofill_client()->GetAutofillOptimizationGuideDecider());
+  ASSERT_TRUE(benefit.has_value());
+  EXPECT_EQ(std::get<CreditCardFlatRateBenefit>(benefit.value())
+                .benefit_description(),
+            flat_rate_benefit.benefit_description());
+}
+
+// Tests that parent category travel benefit is returned when optimization guide
+// suggests a travel subcategory (e.g. flights) but no direct subcategory
+// benefit is available. Also verifies that direct subcategory benefits take
+// precedence if both are available.
+TEST_P(PaymentsDataManagerShouldBlockBenefitsTest,
+       ApplicableBenefitDescriptionForTravelSubcategoryFallback) {
+  if (app_locale() != "en-US" && app_locale() != "en-GB") {
+    GTEST_SKIP() << "This test should not run for unsupported app locales.";
+  }
+
+  base::test::ScopedFeatureList scoped_feature_list(
+      features::kAutofillEnableTravelCategoryAndMerchantBenefitsFromCurinos);
+
+  const url::Origin origin =
+      url::Origin::Create(GURL("https://example-travel.com/"));
+  ON_CALL(*static_cast<MockAutofillOptimizationGuideDecider*>(
+              autofill_client()->GetAutofillOptimizationGuideDecider()),
+          AttemptToGetEligibleCreditCardBenefitCategory)
+      .WillByDefault(testing::Return(
+          CreditCardCategoryBenefit::BenefitCategory::kFlights));
+
+  // Create a card and a generic travel category benefit.
+  CreditCard card = test::GetMaskedServerCard();
+  test_api(payments_data_manager()).AddServerCreditCard(card);
+
+  CreditCardCategoryBenefit travel_benefit =
+      test::GetActiveCreditCardCategoryBenefit();
+  test_api(travel_benefit)
+      .SetLinkedCardInstrumentId(
+          CreditCardBenefitBase::LinkedCardInstrumentId(card.instrument_id()));
+  test_api(travel_benefit)
+      .SetBenefitCategory(CreditCardCategoryBenefit::BenefitCategory::kTravel);
+  std::u16string travel_description = u"5% back on Travel";
+  test_api(travel_benefit).SetBenefitDescription(travel_description);
+
+  payments_data_manager().AddCreditCardBenefitForTest(travel_benefit);
+
+  // Fallback path: returns broad travel benefit description when flight benefit
+  // is missing.
+  std::optional<CreditCardBenefit> benefit =
+      payments_data_manager().GetApplicableBenefitForCardAndOrigin(
+          card, origin,
+          autofill_client()->GetAutofillOptimizationGuideDecider());
+  ASSERT_TRUE(benefit.has_value());
+  EXPECT_EQ(std::get<CreditCardCategoryBenefit>(benefit.value())
+                .benefit_description(),
+            travel_description);
+
+  // Now add a specific flight benefit to the same card.
+  CreditCardCategoryBenefit flight_benefit =
+      test::GetActiveCreditCardCategoryBenefit();
+  test_api(flight_benefit)
+      .SetLinkedCardInstrumentId(
+          CreditCardBenefitBase::LinkedCardInstrumentId(card.instrument_id()));
+  test_api(flight_benefit)
+      .SetBenefitCategory(CreditCardCategoryBenefit::BenefitCategory::kFlights);
+  std::u16string flight_description = u"10% back on Flights";
+  test_api(flight_benefit).SetBenefitDescription(flight_description);
+  // Ensure unique benefit id to avoid overwriting or map collisions.
+  test_api(flight_benefit)
+      .SetBenefitId(CreditCardBenefitBase::BenefitId("flight_benefit_id"));
+
+  payments_data_manager().AddCreditCardBenefitForTest(flight_benefit);
+
+  // Direct path precedence: returns specific flight benefit description.
+  benefit = payments_data_manager().GetApplicableBenefitForCardAndOrigin(
+      card, origin, autofill_client()->GetAutofillOptimizationGuideDecider());
+  ASSERT_TRUE(benefit.has_value());
+  EXPECT_EQ(std::get<CreditCardCategoryBenefit>(benefit.value())
+                .benefit_description(),
+            flight_description);
+}
+
+// Tests that no category benefit is returned when optimization guide
+// suggests a travel subcategory (e.g. flights) but no direct subcategory
+// benefit is available when the Curinos category and merchant benefit flag is
+// disabled.
+TEST_P(
+    PaymentsDataManagerShouldBlockBenefitsTest,
+    ApplicableBenefitDescriptionForTravelSubcategoryFallback_CurinosCategoryBenefitDisabled) {
+  if (app_locale() != "en-US" && app_locale() != "en-GB") {
+    GTEST_SKIP() << "This test should not run for unsupported app locales.";
+  }
+
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      features::kAutofillEnableTravelCategoryAndMerchantBenefitsFromCurinos);
+
+  const url::Origin origin =
+      url::Origin::Create(GURL("https://example-travel.com/"));
+  ON_CALL(*static_cast<MockAutofillOptimizationGuideDecider*>(
+              autofill_client()->GetAutofillOptimizationGuideDecider()),
+          AttemptToGetEligibleCreditCardBenefitCategory)
+      .WillByDefault(testing::Return(
+          CreditCardCategoryBenefit::BenefitCategory::kFlights));
+
+  // Create a card and a generic travel category benefit.
+  CreditCard card = test::GetMaskedServerCard();
+  test_api(payments_data_manager()).AddServerCreditCard(card);
+
+  CreditCardCategoryBenefit travel_benefit =
+      test::GetActiveCreditCardCategoryBenefit();
+  test_api(travel_benefit)
+      .SetLinkedCardInstrumentId(
+          CreditCardBenefitBase::LinkedCardInstrumentId(card.instrument_id()));
+  test_api(travel_benefit)
+      .SetBenefitCategory(CreditCardCategoryBenefit::BenefitCategory::kTravel);
+  std::u16string travel_description = u"5% back on Travel";
+  test_api(travel_benefit).SetBenefitDescription(travel_description);
+
+  payments_data_manager().AddCreditCardBenefitForTest(travel_benefit);
+
+  // Fallback path: returns std::nullopt when flight benefit is missing and
+  // Curinos travel benefits are disabled.
+  std::optional<CreditCardBenefit> benefit =
+      payments_data_manager().GetApplicableBenefitForCardAndOrigin(
+          card, origin,
+          autofill_client()->GetAutofillOptimizationGuideDecider());
+  EXPECT_FALSE(benefit.has_value());
 }
 
 INSTANTIATE_TEST_SUITE_P(

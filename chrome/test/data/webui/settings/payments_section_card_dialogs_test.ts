@@ -414,6 +414,28 @@ suite('PaymentsSectionCardDialogs', function() {
     assertEquals(creditCardDialog.get('nickname_'), creditCard.nickname);
   });
 
+  test('verifyNicknameCharacterCount', async function() {
+    const creditCard = createCreditCardEntry();
+    const creditCardDialog = createCreditCardDialog(creditCard);
+
+    await whenAttributeIs(creditCardDialog.$.dialog, 'open', '');
+
+    const charCount =
+        creditCardDialog.shadowRoot!.querySelector<HTMLElement>('#charCount');
+    assertTrue(!!charCount);
+    assertTrue(charCount.hidden);
+
+    // It should be visible when nickname is present.
+    const nicknameInput = creditCardDialog.$.nicknameInput;
+    await simulateInput(nicknameInput, 'NickName');
+    assertFalse(charCount.hidden);
+    assertEquals('8/25', charCount.textContent.trim());
+
+    // It should be hidden when nickname is empty.
+    await simulateInput(nicknameInput, '');
+    assertTrue(charCount.hidden);
+  });
+
   test('verifyCancelCreditCardEdit', async function() {
     const creditCard = createEmptyCreditCardEntry();
     const creditCardDialog = createCreditCardDialog(creditCard);

@@ -10,9 +10,30 @@
 #include "ui/message_center/message_center.h"
 #include "ui/message_center/public/cpp/notification.h"
 #include "ui/views/controls/label.h"
+#include "ui/views/view_tracker.h"
 #include "ui/views/widget/widget.h"
 
 namespace ash {
+
+namespace {
+
+class DeleteOnExpandDelegate : public message_center::NotificationDelegate {
+ public:
+  explicit DeleteOnExpandDelegate(base::RepeatingClosure delete_closure)
+      : delete_closure_(delete_closure) {}
+
+  void ExpandStateChanged(bool expanded) override {
+    if (delete_closure_) {
+      delete_closure_.Run();
+    }
+  }
+
+ private:
+  ~DeleteOnExpandDelegate() override = default;
+  base::RepeatingClosure delete_closure_;
+};
+
+}  // namespace
 
 class ConversationNotificationViewTest : public AshTestBase {
  public:
@@ -188,6 +209,53 @@ TEST_F(ConversationNotificationViewTest, UpdateTitleAndAppName) {
 
   EXPECT_EQ(expected_title, title()->GetText());
   EXPECT_EQ(expected_app_name, app_name()->GetText());
+}
+
+TEST_F(ConversationNotificationViewTest, TestDeleteOnToggleExpand) {
+  std::unique_ptr<views::Widget> widget =
+      CreateTestWidget(views::Widget::InitParams::CLIENT_OWNS_WIDGET);
+
+  bool allow_deletion = false;
+  base::RepeatingClosure delete_closure = base::BindRepeating(
+      [](std::unique_ptr<views::Widget>* widget_ptr, bool* allow_ptr) {
+        if (*allow_ptr) {
+          widget_ptr->reset();
+        }
+      },
+      base::Unretained(&widget), base::Unretained(&allow_deletion));
+
+  scoped_refptr<DeleteOnExpandDelegate> delegate =
+      base::MakeRefCounted<DeleteOnExpandDelegate>(delete_closure);
+
+  std::vector<message_center::NotificationItem> items = {
+      {u"title", u"message"}, {u"title", u"message"}};
+  message_center::RichNotificationData rich_data;
+  rich_data.items = items;
+  std::unique_ptr<message_center::Notification> notification =
+      std::make_unique<message_center::Notification>(
+          message_center::NOTIFICATION_TYPE_CONVERSATION, "id", u"title",
+          u"test message", ui::ImageModel(), /*display_source=*/u"TestApp",
+          GURL(), message_center::NotifierId(), rich_data, delegate);
+
+  message_center::MessageCenter::Get()->AddNotification(
+      std::make_unique<message_center::Notification>(*notification.get()));
+
+  auto* view = widget->GetContentsView()->AddChildView(
+      std::make_unique<ConversationNotificationView>(*notification.get()));
+  widget->Show();
+
+  views::ViewTracker tracker(view);
+
+  // Toggle expand. This calls SetExpanded, which triggers
+  // ExpandStateChanged in the delegate, deleting the view.
+  // Without the weak ptr check, this will crash/UAF.
+  allow_deletion = true;
+  view->ToggleExpand();
+
+  EXPECT_EQ(tracker.view(), nullptr);
+
+  message_center::MessageCenter::Get()->RemoveNotification("id",
+                                                           /*by_user=*/false);
 }
 
 }  // namespace ash

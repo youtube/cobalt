@@ -14,7 +14,7 @@ struct LogEntry {
   // String representation of the event type, formatted on the C++ side to
   // avoid duplicating the enum definition in TypeScript.
   string event_type;
-  string source_etld_plus_1;
+  string host;
   // Flattened string representation of the log details, formatted on the C++
   // side to simplify WebUI rendering and avoid verbose Mojo wrappers.
   string details;

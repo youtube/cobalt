@@ -16,6 +16,7 @@ static_library("internal") {
     ":*",
     "//chrome/browser",
     "//chrome/browser/segmentation_platform:*",
+    "//chrome/browser/tips/*",
     "//chrome/test:*",
     "//components/segmentation_platform/embedder/*",
     "//components/visited_url_ranking/internal/*",

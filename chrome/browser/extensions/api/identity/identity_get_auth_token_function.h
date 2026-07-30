@@ -218,7 +218,9 @@ class IdentityGetAuthTokenFunction : public ExtensionFunction,
 #endif
 
   // Methods for invoking UI. Overridable for testing.
+#if !BUILDFLAG(IS_CHROMEOS)
   virtual void ShowExtensionLoginPrompt();
+#endif
   virtual void ShowRemoteConsentDialog(
       const RemoteConsentResolutionData& resolution_data);
 

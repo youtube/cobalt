@@ -99,13 +99,13 @@ void TabModelObserverJniBridge::WillAddTab(JNIEnv* env,
 
 void TabModelObserverJniBridge::DidAddTab(JNIEnv* env,
                                           TabAndroid* tab,
-                                          int type) {
+                                          int type,
+                                          int index) {
   CHECK(tab);
   for (auto& observer : model_observers_) {
     observer.DidAddTab(tab, static_cast<TabModel::TabLaunchType>(type));
   }
 
-  int index = tab_model_->GetIndexOfTab(tab->GetHandle());
   for (auto& observer : interface_observers_) {
     observer.OnTabAdded(*tab_model_, tab, index);
   }
@@ -134,27 +134,29 @@ void TabModelObserverJniBridge::OnTabClosePending(
   }
 }
 
-void TabModelObserverJniBridge::TabClosureUndone(JNIEnv* env, TabAndroid* tab) {
+void TabModelObserverJniBridge::TabClosureUndone(JNIEnv* env,
+                                                 TabAndroid* tab,
+                                                 int index) {
   CHECK(tab);
   for (auto& observer : model_observers_) {
     observer.TabClosureUndone(tab);
   }
   for (auto& observer : interface_observers_) {
-    observer.OnTabAdded(*tab_model_, tab,
-                        tab_model_->GetIndexOfTab(tab->GetHandle()));
+    observer.OnTabAdded(*tab_model_, tab, index);
   }
 }
 
 void TabModelObserverJniBridge::OnTabCloseUndone(
     JNIEnv* env,
-    const std::vector<TabAndroid*>& tabs) {
+    const std::vector<TabAndroid*>& tabs,
+    const std::vector<int>& indices) {
+  CHECK_EQ(tabs.size(), indices.size());
   for (auto& observer : model_observers_) {
     observer.OnTabCloseUndone(tabs);
   }
   for (auto& observer : interface_observers_) {
-    for (TabAndroid* tab : tabs) {
-      observer.OnTabAdded(*tab_model_, tab,
-                          tab_model_->GetIndexOfTab(tab->GetHandle()));
+    for (size_t i = 0; i < tabs.size(); ++i) {
+      observer.OnTabAdded(*tab_model_, tabs[i], indices[i]);
     }
   }
 }

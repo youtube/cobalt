@@ -9,10 +9,8 @@
 #include <string>
 
 #include "base/observer_list_types.h"
-#include "base/types/expected.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "components/personal_context/core/context_memory_error.h"
 
 namespace autofill {
 
@@ -24,7 +22,18 @@ class PersonalContextAccessManager : public KeyedService {
  public:
   class Observer : public base::CheckedObserver {
    public:
-    virtual void OnPrefetchAmbientAutofillContextComplete(bool success) {}
+    // Called when asynchronous prefetching of entities through
+    // `PrefetchContext()` finishes. If prefetching succeeded, `entities`
+    // contains the result. In case it failed or the response was empty,
+    // `entities` is empty.
+    virtual void OnPrefetchContextComplete(
+        const PersonalContextAccessManager& manager,
+        base::span<const EntityInstance> entities) {}
+    // Called whenever a prefetched entity reaches its TTL or expires for
+    // another reason (eligibility to pContext changed, etc).
+    virtual void OnMaskedEntityTypeEvicted(
+        const PersonalContextAccessManager& manager,
+        EntityType type) {}
   };
 
   enum class RequestStatus {
@@ -46,19 +55,12 @@ class PersonalContextAccessManager : public KeyedService {
 
   ~PersonalContextAccessManager() override = default;
 
-  // TODO(crbug.com/503303085): Remove "AmbientAutofill" from the name.
-  // Fetches ambient autofill context from the personal context service.
-  virtual void PrefetchAmbientAutofillContext(
+  // Fetches personal context from the personal context service.
+  virtual void PrefetchContext(
       base::span<const EntityType> requested_types) = 0;
 
-  // TODO(crbug.com/503303085): Remove "AmbientAutofill" from the name.
-  virtual RequestStatus GetPrefetchAmbientAutofillStatusByEntityType(
+  virtual RequestStatus GetPrefetchStatusByEntityType(
       EntityType type) const = 0;
-
-  // Returns the cached `EntityInstance` with the given `id` if it is
-  // currently cached.
-  virtual std::optional<EntityInstance> GetCachedEntity(
-      const EntityInstance::EntityId& id) const = 0;
 
   // Retrieves the unmasked SPII `EntityInstance` with the given `id`. If it is
   // in the cache, runs the `callback` immediately with the cached value.
@@ -69,12 +71,12 @@ class PersonalContextAccessManager : public KeyedService {
       const EntityInstance::EntityId& id,
       GetUnmaskedSpiiEntityCallback callback) = 0;
 
-  // Returns all currently cached entities.
-  virtual std::vector<EntityInstance> GetCachedEntities() const = 0;
+  // Returns true if all entities of the given `type_name` have been prefetched
+  // and the validity of the result has not expired.
+  virtual bool IsTypePrefetched(EntityType type) const = 0;
 
-  // Returns true if all entities of the given `type_name` have been cached and
-  // the cache has not expired.
-  virtual bool IsTypeCached(EntityType type) const = 0;
+  // Returns true if the server has data available for the given `type`.
+  virtual bool ServerHasDataAvailable(EntityType type) const = 0;
 };
 
 }  // namespace autofill

@@ -88,19 +88,21 @@ void BlinkAXTreeSource::Selection(
   // Atomic text fields use a user agent shadow DOM which is hidden from the
   // accessibility layer and anchoring selection to these nodes will create
   // downstream inconsistency.
+  bool selection_is_valid = ax_selection.IsValid();
   if (focus->IsAtomicTextField() &&
-      (!ax_selection.IsValid() ||
+      (!selection_is_valid ||
        (IsDescendantOf(ax_selection.Anchor().ContainerObject(), focus) &&
         IsDescendantOf(ax_selection.Focus().ContainerObject(), focus)))) {
     AXSelection textfield_selection = AXSelection::FromCurrentSelection(
         ToTextControl(CHECK_DEREF(focus->GetNode())), *ax_object_cache_);
     if (textfield_selection.IsValid()) {
       ax_selection = textfield_selection;
+      selection_is_valid = true;
     } else {
-      DUMP_WILL_BE_NOTREACHED() << "Invalid selection on atomic text field";
+      return;
     }
   }
-  if (!ax_selection.IsValid()) {
+  if (!selection_is_valid) {
     return;
   }
 

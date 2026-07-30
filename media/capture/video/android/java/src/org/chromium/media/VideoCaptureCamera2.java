@@ -1566,10 +1566,9 @@ public class VideoCaptureCamera2 extends VideoCapture {
             return false;
         }
 
-        final float maxZoom =
+        final Float maxZoom =
                 cameraCharacteristics.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM);
-        final boolean isZoomSupported = maxZoom > 1.0f;
-        return isZoomSupported;
+        return maxZoom != null && maxZoom > 1.0f;
     }
 
     public static int getFacingMode(int index) {

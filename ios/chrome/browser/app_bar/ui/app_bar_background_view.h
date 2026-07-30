@@ -17,6 +17,9 @@
 // Hides any color background if YES.
 @property(nonatomic, assign) BOOL hideColorBackground;
 
+// The corner radius used for drawing the cutout mask at the top of the view.
+@property(nonatomic, assign) CGFloat cornerRadius;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_APP_BAR_UI_APP_BAR_BACKGROUND_VIEW_H_

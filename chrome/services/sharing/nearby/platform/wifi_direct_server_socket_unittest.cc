@@ -12,6 +12,7 @@
 #include "chromeos/ash/services/nearby/public/cpp/fake_firewall_hole.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "net/base/net_errors.h"
+#include "net/base/network_handle.h"
 #include "net/socket/tcp_client_socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -66,7 +67,11 @@ class WifiDirectServerSocketTest : public ::testing::Test {
         net::IPAddress::FromIPLiteral(kTestIPv4Address).value(), port_);
     client_socket_ = std::make_unique<net::TCPClientSocket>(
         net::AddressList(ip_endpoint), nullptr, nullptr, nullptr,
-        net::NetLogSource());
+        net::NetLogSource(),
+        // This is used only for testing in scenarios that do not involve
+        // multiple networks. With that in mind, it's safe to always use the
+        // default network.
+        net::handles::kInvalidNetworkHandle);
     int result = client_socket_->Connect(base::BindOnce(
         &WifiDirectServerSocketTest::OnConnect, base::Unretained(this)));
     if (result != net::ERR_IO_PENDING) {

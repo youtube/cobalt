@@ -57,5 +57,8 @@ BASE_FEATURE(kPaymentRequestSupportReportingAppError,
 BASE_FEATURE(kPaymentHandlerDialogUseInitiatorInUrlLoad,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kPaymentRequestMandatoryPaymentAppUi,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace features
 }  // namespace payments

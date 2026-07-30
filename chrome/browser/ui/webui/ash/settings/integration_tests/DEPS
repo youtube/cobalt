@@ -8,11 +8,8 @@ include_rules = [
   # Whenever possible, avoid adding new //chrome dependencies to this list.
   "+chrome/browser/ash/login/quick_unlock",
   "+chrome/browser/ash/login/test",
-  "+chrome/browser/ash/profiles",
   "+chrome/browser/profiles/profile.h",
-  "+chrome/browser/ui/chrome_pages.h",
   "+chrome/browser/ui/webui/ash/settings/test_support",
-  "+chrome/common",
   "+chrome/test",
 ]
 

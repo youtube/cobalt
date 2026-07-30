@@ -34,7 +34,6 @@ enum class ProfileSignout;
 }  // namespace signin_metrics
 
 namespace base {
-class TimeDelta;
 class Version;
 }  // namespace base
 
@@ -56,10 +55,6 @@ class IdentityManager;
 
 using UnsyncedDataForSignoutOrProfileSwitchingCallback =
     base::OnceCallback<void(syncer::DataTypeSet data_type_set)>;
-
-inline constexpr std::pair<base::TimeDelta, base::TimeDelta> kPromoTriggerRange(
-    base::Days(53),
-    base::Days(68));
 
 // Represents a request to sign-out.
 class ProfileSignoutRequest {

@@ -279,6 +279,8 @@ class WebUIBrowserWindow : public BrowserWindow,
   // when a child widget takes focus.
   void PaintAsActiveChanged();
 
+  void EnsureActiveTabHasNonZeroSize();
+
   void OnWindowCloseRequested(views::Widget::ClosedReason close_reason);
 
   bool IsContentsElementReady() const;

@@ -22,6 +22,7 @@ import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgrou
 import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataUtils;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * A container for holding the portrait and landscape transformation matrices, and the specific
@@ -334,5 +335,22 @@ public class BackgroundImageInfo {
 
         return new BackgroundImageInfo(
                 portraitMatrix, landscapeMatrix, portraitSize, landscapeSize);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof BackgroundImageInfo other) {
+            return Objects.equals(mPortraitWindowSize, other.mPortraitWindowSize)
+                    && Objects.equals(mLandscapeWindowSize, other.mLandscapeWindowSize)
+                    && mPortraitMatrix.equals(other.mPortraitMatrix)
+                    && mLandscapeMatrix.equals(other.mLandscapeMatrix);
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                mPortraitWindowSize, mLandscapeWindowSize, mPortraitMatrix, mLandscapeMatrix);
     }
 }

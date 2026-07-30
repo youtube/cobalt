@@ -611,6 +611,13 @@ String DOMWindow::CrossDomainAccessErrorMessage(
     return StrCat({message, "The document-access policy denied access."});
   }
 
+  if (active_origin->CanAccess(target_origin)) {
+    return StrCat({message,
+                   "The frames are same-origin but belong to different agent "
+                   "clusters, possibly due to conflicting Document Isolation "
+                   "Policies."});
+  }
+
   // Default.
   return StrCat({message, "Protocols, domains, and ports must match."});
 }

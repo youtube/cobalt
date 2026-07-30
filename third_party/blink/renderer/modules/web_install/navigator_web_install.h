@@ -17,6 +17,7 @@
 
 namespace blink {
 
+class InstallParams;
 class ScriptState;
 
 // It is owned by Navigator, and an instance is created lazily by calling
@@ -48,6 +49,12 @@ class MODULES_EXPORT NavigatorWebInstall final
       const String& manifest_id,
       ExceptionState& exception_state);
 
+  static ScriptPromise<WebInstallResult> install(
+      ScriptState* script_state,
+      Navigator& navigator,
+      const InstallParams* params,
+      ExceptionState& exception_state);
+
   void Trace(Visitor*) const override;
 
  private:
@@ -59,6 +66,10 @@ class MODULES_EXPORT NavigatorWebInstall final
       ScriptState* script_state,
       const std::optional<String>& install_url,
       const std::optional<String>& manifest_id,
+      ExceptionState& exception_state);
+  ScriptPromise<WebInstallResult> InstallFromParamsImpl(
+      ScriptState* script_state,
+      const InstallParams* params,
       ExceptionState& exception_state);
   HeapMojoRemote<mojom::blink::WebInstallService>& GetService();
   void OnConnectionError();

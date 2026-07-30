@@ -31,6 +31,7 @@ import org.robolectric.annotation.Config;
 import org.chromium.base.Callback;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType;
 import org.chromium.chrome.browser.ntp_customization.theme.upload_image.BackgroundImageInfo;
 import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataBase.PlatformType;
@@ -62,7 +63,6 @@ public class NtpBackgroundDataUploadImageUnitTest {
         NtpBackgroundDataUploadImage data1 =
                 new NtpBackgroundDataUploadImage(
                         PlatformType.ANDROID_LOCAL,
-                        "path",
                         info1,
                         /* bitmap= */ null,
                         Color.RED,
@@ -70,7 +70,6 @@ public class NtpBackgroundDataUploadImageUnitTest {
         NtpBackgroundDataUploadImage data2 =
                 new NtpBackgroundDataUploadImage(
                         PlatformType.ANDROID_LOCAL,
-                        "path",
                         info2,
                         /* bitmap= */ null,
                         Color.RED,
@@ -78,15 +77,13 @@ public class NtpBackgroundDataUploadImageUnitTest {
         NtpBackgroundDataUploadImage data3 =
                 new NtpBackgroundDataUploadImage(
                         PlatformType.ANDROID_LOCAL,
-                        "path2",
                         info1,
                         /* bitmap= */ null,
-                        Color.RED,
+                        Color.BLUE,
                         FILE_ID_HASH_1);
         NtpBackgroundDataUploadImage data4 =
                 new NtpBackgroundDataUploadImage(
                         PlatformType.ANDROID_LOCAL,
-                        "path",
                         info1,
                         /* bitmap= */ null,
                         Color.RED,
@@ -106,14 +103,15 @@ public class NtpBackgroundDataUploadImageUnitTest {
         landscapeMatrix.setScale(0.5f, 0.5f);
         BackgroundImageInfo backgroundImageInfo =
                 new BackgroundImageInfo(portraitMatrix, landscapeMatrix, null, null);
-        String filePath = "/another/path.png";
+        String filePath =
+                NtpCustomizationUtils.createUploadImageFileInDir(TEST_FILE_ID_HASH)
+                        .getAbsolutePath();
         @PlatformType int platformType = PlatformType.ANDROID_LOCAL;
         @ColorInt Integer primaryColor = Color.BLUE;
 
         NtpBackgroundDataUploadImage data =
                 new NtpBackgroundDataUploadImage(
                         platformType,
-                        filePath,
                         backgroundImageInfo,
                         /* bitmap= */ null,
                         primaryColor,
@@ -142,7 +140,6 @@ public class NtpBackgroundDataUploadImageUnitTest {
         NtpBackgroundDataUploadImage data =
                 new NtpBackgroundDataUploadImage(
                         PlatformType.ANDROID_LOCAL,
-                        "path",
                         info,
                         mBitmap,
                         /* primaryColor= */ null,
@@ -152,7 +149,6 @@ public class NtpBackgroundDataUploadImageUnitTest {
         NtpBackgroundDataUploadImage dataWithoutBitmap =
                 new NtpBackgroundDataUploadImage(
                         PlatformType.ANDROID_LOCAL,
-                        "path",
                         info,
                         /* bitmap= */ null,
                         /* primaryColor= */ null,
@@ -166,7 +162,6 @@ public class NtpBackgroundDataUploadImageUnitTest {
         NtpBackgroundDataUploadImage data =
                 new NtpBackgroundDataUploadImage(
                         PlatformType.ANDROID_LOCAL,
-                        "path",
                         info,
                         mBitmap,
                         /* primaryColor= */ null,
@@ -183,7 +178,6 @@ public class NtpBackgroundDataUploadImageUnitTest {
         NtpBackgroundDataUploadImage currentData =
                 new NtpBackgroundDataUploadImage(
                         PlatformType.ANDROID_LOCAL,
-                        "path",
                         info,
                         mBitmap,
                         /* primaryColor= */ null,
@@ -194,7 +188,6 @@ public class NtpBackgroundDataUploadImageUnitTest {
         NtpBackgroundDataUploadImage testData =
                 new NtpBackgroundDataUploadImage(
                         PlatformType.ANDROID_LOCAL,
-                        "path",
                         info,
                         /* bitmap= */ null,
                         /* primaryColor= */ null,

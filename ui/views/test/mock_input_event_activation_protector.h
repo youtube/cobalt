@@ -5,16 +5,22 @@
 #ifndef UI_VIEWS_TEST_MOCK_INPUT_EVENT_ACTIVATION_PROTECTOR_H_
 #define UI_VIEWS_TEST_MOCK_INPUT_EVENT_ACTIVATION_PROTECTOR_H_
 
+#include <memory>
+
 #include "testing/gmock/include/gmock/gmock.h"
 #include "ui/views/input_event_activation_protector.h"
 
 namespace views {
+
+class InputProtectorDelegate;
 
 // Mock version of InputEventActivationProtector for injection during tests, to
 // allow verifying that protected Views work as expected.
 class MockInputEventActivationProtector : public InputEventActivationProtector {
  public:
   MockInputEventActivationProtector();
+  explicit MockInputEventActivationProtector(
+      std::unique_ptr<InputProtectorDelegate> delegate);
   ~MockInputEventActivationProtector() override;
 
   MockInputEventActivationProtector(const MockInputEventActivationProtector&) =

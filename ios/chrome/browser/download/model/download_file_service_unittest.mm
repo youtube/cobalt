@@ -358,6 +358,62 @@ TEST_F(DownloadFileServiceTest, CheckFileExists) {
   }
 }
 
+// Tests that moving a download file to a destination that already exists does
+// not overwrite the existing file. The move should pick the next available
+// uniquified name and report it through the callback.
+TEST_F(DownloadFileServiceTest, MoveDownloadFileDestinationExists) {
+  const char kExistingContent[] = "existing content";
+  const char kMovedContent[] = "moved content";
+
+  // Create a file already occupying the requested destination.
+  base::FilePath dest_path = dest_dir_.AppendASCII(kConflictFileName);
+  ASSERT_TRUE(base::WriteFile(dest_path, kExistingContent));
+
+  // Create the source file to be moved.
+  base::FilePath source_path =
+      CreateTestFile(source_dir_, kConflictFileName, kMovedContent);
+
+  base::FilePath expected_final_path =
+      dest_dir_.AppendASCII("conflict_file (1).txt");
+  base::FilePath expected_relative_path =
+      ConvertToRelativeDownloadPath(expected_final_path);
+  EXPECT_CALL(
+      *mock_download_record_service_,
+      UpdateDownloadFilePathAsync(kTestDownloadId, expected_relative_path, _))
+      .Times(1);
+
+  base::RunLoop run_loop;
+  bool callback_success = false;
+  base::FilePath callback_final_path;
+
+  service_->MoveDownloadFile(
+      kTestDownloadId, source_path, dest_path,
+      base::BindLambdaForTesting([&](bool success,
+                                     const std::string& download_id,
+                                     const base::FilePath& actual_source_path,
+                                     const base::FilePath& actual_final_path) {
+        callback_success = success;
+        callback_final_path = actual_final_path;
+        run_loop.Quit();
+      }));
+
+  run_loop.Run();
+
+  EXPECT_TRUE(callback_success);
+  EXPECT_EQ(expected_final_path, callback_final_path);
+
+  // The existing file must be left untouched.
+  std::string existing_content;
+  ASSERT_TRUE(base::ReadFileToString(dest_path, &existing_content));
+  EXPECT_EQ(kExistingContent, existing_content);
+
+  // The moved file must land at the uniquified path.
+  EXPECT_FALSE(base::PathExists(source_path));
+  std::string moved_content;
+  ASSERT_TRUE(base::ReadFileToString(expected_final_path, &moved_content));
+  EXPECT_EQ(kMovedContent, moved_content);
+}
+
 // Tests moving a download file to a non-existent directory.
 // The directory should be created and the file moved successfully.
 TEST_F(DownloadFileServiceTest, MoveDownloadFileCreateDestinationDirectory) {

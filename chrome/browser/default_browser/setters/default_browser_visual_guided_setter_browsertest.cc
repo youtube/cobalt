@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "build/build_config.h"
+
+#if BUILDFLAG(IS_WIN)
 #include "chrome/browser/default_browser/setters/default_browser_visual_guided_setter.h"
 
 #include "base/test/test_future.h"
@@ -35,3 +38,4 @@ IN_PROC_BROWSER_TEST_F(DefaultBrowserVisualGuidedSetterBrowserTest, Execute) {
 }
 
 }  // namespace default_browser
+#endif  // BUILDFLAG(IS_WIN)

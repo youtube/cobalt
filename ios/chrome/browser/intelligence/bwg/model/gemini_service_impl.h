@@ -8,6 +8,7 @@
 #import <optional>
 
 #import "base/memory/raw_ptr.h"
+#import "base/observer_list.h"
 #import "base/scoped_observation.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_service.h"
@@ -38,6 +39,8 @@ class GeminiServiceImpl : public GeminiService,
   void Shutdown() override;
 
   // GeminiService:
+  void AddObserver(GeminiService::Observer* observer) override;
+  void RemoveObserver(GeminiService::Observer* observer) override;
   bool IsProfileEligibleForGemini() override;
   std::optional<gemini::IneligibilityReasons> GeminiIneligibilityForProfile()
       override;
@@ -94,6 +97,12 @@ class GeminiServiceImpl : public GeminiService,
 
   // Returns the extended AccountInfo for the primary account.
   AccountInfo PrimaryAccountInfo() const;
+
+  // List of observers.
+  base::ObserverList<GeminiService::Observer> observers_;
+
+  // Sets whether the user is disabled by Gemini policy and notifies observers.
+  void SetIsDisabledByGeminiPolicy(std::optional<bool> disabled);
 
   base::ScopedObservation<signin::IdentityManager,
                           signin::IdentityManager::Observer>

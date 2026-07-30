@@ -73,6 +73,7 @@
 <translation id="1820835682567584003">Chromium încearcă să <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="183031085822326697">Data viitoare când deschizi Chromium pe <ph name="DEVICE_TYPE" />, vei vedea o solicitare de a folosi Managerul de parole Google.</translation>
 <translation id="1838374766361614909">Șterge căutarea</translation>
+<translation id="1846849503013521481">Pentru a-ți proteja activitatea în Chromium, organizația ta va putea să vadă sau să gestioneze anumite informații</translation>
 <translation id="18552579716432081">Pentru a șterge datele de navigare doar de pe acest dispozitiv, dar nu și din Contul Google, <ph name="BEGIN_LINK" />deconectează-te de la Chromium<ph name="END_LINK" />.</translation>
 <translation id="1857749206890802997">Descarcă Chromium pe telefon pentru a deschide sau a crea grupuri de file noi din mers.</translation>
 <translation id="185970820835152459">Îți poți gestiona Conturile Google la care te-ai conectat. Conturile tale Google sunt folosite pentru browserul Chromium, pentru Magazinul Play, pentru Gmail și pentru multe altele. Dacă vrei să adaugi un cont pentru altcineva, de exemplu, pentru un membru al familiei, adaugă noua persoană pe <ph name="DEVICE_TYPE" />. <ph name="LINK_BEGIN" />Află mai multe<ph name="LINK_END" /></translation>
@@ -435,6 +436,7 @@ Dacă această pagină nu funcționează conform așteptărilor, încearcă să 
 <translation id="5953657885167112863">Personalizează Chromium</translation>
 <translation id="5960071705175224773">Setările au fost modificate de o aplicație necunoscută</translation>
 <translation id="5968400720580217226">Modul AI</translation>
+<translation id="5977420883993828287">S-a fixat! Folosește din nou Activitățile contextuale din bara de instrumente</translation>
 <translation id="5986585015444752010">{COUNT,plural, =1{Organizația ta închide automat Chromium dacă nu este folosit timp de un minut.}few{Organizația ta închide automat Chromium dacă nu este folosit timp de # minute.}other{Organizația ta închide automat Chromium dacă nu este folosit timp de # de minute.}}</translation>
 <translation id="5987687638152509985">Actualizează Chromium pentru a începe sincronizarea</translation>
 <translation id="6003112304606738118">Se descarcă… Au rămas <ph name="HOURS" /> ore</translation>
@@ -539,6 +541,17 @@ Este posibil ca unele funcții să nu fie disponibile. Specificați un director 
 <translation id="6896758677409633944">Copiază</translation>
 <translation id="6901631050894301805">Setează Chromium ca browser prestabilit și fixează-l în bara de activități</translation>
 <translation id="6909503629704372277">&amp;Gestionează profilurile Chromium</translation>
+<translation id="6919942714452658456">Această acțiune:
+          <ph name="LINE_BREAKS" />
+            • va reinițializa pagina de pornire, pagina Filă nouă, motorul de căutare și filele fixate;
+            <ph name="LINE_BREAK" />
+            • va dezactiva extensiile;
+            <ph name="LINE_BREAK" />
+            • va șterge cookie-urile și alte date temporare privind site-urile;
+            <ph name="LINE_BREAK" />
+            • va reinițializa comenzile rapide Chromium.
+            <ph name="LINE_BREAKS" />
+            Marcajele, istoricul și parolele salvate nu vor fi afectate.</translation>
 <translation id="6934579572334859869">Întreabă Căutarea de imagini despre această imagine</translation>
 <translation id="6948031725951063910">Ai atins limita de <ph name="BOOKMARK_LIMIT" /> marcaje pentru Chromium, așadar unele dintre marcaje nu au fost salvate încă în Contul Google.
 
@@ -608,6 +621,7 @@ Chromium nu poate recupera setările.</translation>
 <translation id="7686590090926151193">Chromium nu este browserul prestabilit</translation>
 <translation id="7689606757190482937">Sincronizează și personalizează Chromium pe toate dispozitivele</translation>
 <translation id="7699779824407626136">Actualizare Chromium</translation>
+<translation id="7700735928747402058">Lucrul tău este în siguranță în Chromium</translation>
 <translation id="7716950018788545737">Sarcinile s-au încheiat.</translation>
 <translation id="77283119132245232">Oferă servicii de urmărire a sistemului pentru <ph name="BROWSER_NAME" />. Dacă acest serviciu este dezactivat, monitorizările performanței create de browser nu vor include evenimente la nivel de sistem, cum ar fi evenimentele de schimbare a contextului și de fire pregătite.</translation>
 <translation id="7745317241717453663">Astfel, se vor șterge datele de navigare de pe acest dispozitiv. Pentru a recupera datele mai târziu, conectează-te la Chromium ca <ph name="USER_EMAIL" />.</translation>
@@ -639,6 +653,7 @@ Chromium nu poate recupera setările.</translation>
 <translation id="8031714377769448844">Fixează Chromium în bara de activități pentru a-l accesa rapid oricând</translation>
 <translation id="80471789339884597">Mulțumim pentru instalare. Înainte să folosești <ph name="BUNDLE_NAME" /> trebuie să repornești toate browserele.</translation>
 <translation id="8054112667659782652">Afișează întotdeauna comanda rapidă pentru Căutarea de imagini</translation>
+<translation id="8069447462453318634">Selectează Fixează în bara de instrumente</translation>
 <translation id="8077498902115777962">Dezactivează rularea Chromium în fundal pentru aplicații</translation>
 <translation id="80790299200510644">Căutare de imagini</translation>
 <translation id="8086881907087796310">Nu s-a instalat deoarece computerul nu îndeplinește cerințele minime de hardware.</translation>
@@ -720,6 +735,15 @@ Chromium nu poate recupera setările.</translation>
 <translation id="8907580949721785412">Chromium încearcă să afișeze parolele. Pentru a permite acest lucru, introduceți parola pentru Windows.</translation>
 <translation id="8932992523185907506">Chromium nu mai este browserul prestabilit. Setezi Chromium ca browser prestabilit?</translation>
 <translation id="8941642502866065432">Chromium nu se poate actualiza</translation>
+<translation id="8944232836376404813">Această acțiune:
+          <ph name="LINE_BREAKS" />
+            • va reinițializa pagina de pornire, pagina Filă nouă, motorul de căutare și filele fixate;
+            <ph name="LINE_BREAK" />
+            • va dezactiva extensiile;
+            <ph name="LINE_BREAK" />
+            • va șterge cookie-urile și alte date temporare privind site-urile.
+            <ph name="LINE_BREAKS" />
+            Marcajele, istoricul și parolele salvate nu vor fi afectate.</translation>
 <translation id="897581876605952338">Sigla Chromium Enterprise</translation>
 <translation id="8981150672034878610">Nu se poate porni Chromium, deoarece a apărut o eroare la deschiderea profilului. Repornește Chromium.</translation>
 <translation id="8988036198400390003">Gestionează profilurile Chromium</translation>

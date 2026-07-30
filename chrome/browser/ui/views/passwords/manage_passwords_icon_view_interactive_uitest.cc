@@ -124,20 +124,23 @@ IN_PROC_BROWSER_TEST_F(ManagePasswordsIconViewTestToolbarPinningOnly,
   ASSERT_NE(button, nullptr);
 
   // Underline should not be visible here.
-  EXPECT_EQ(button->GetStatusIndicatorForTesting()->GetVisible(), false);
+  EXPECT_FALSE(button->GetStatusIndicatorForTesting()->GetVisible());
 
+  // We start with one tab (Tab 0) navigated to the test URL.
+  // Add a second tab (Tab 1) navigated to the same URL and show it.
+  ASSERT_TRUE(AddTabAtIndex(1, embedded_test_server()->GetURL("/empty.html"),
+                            ui::PAGE_TRANSITION_TYPED));
+
+  // Setup managing passwords on the active tab (Tab 1).
   SetupManagingPasswords();
   ASSERT_FALSE(IsBubbleShowing());
 
   // Underline should show in this case.
-  EXPECT_EQ(button->GetStatusIndicatorForTesting()->GetVisible(), true);
+  EXPECT_TRUE(button->GetStatusIndicatorForTesting()->GetVisible());
 
-  views::test::InteractionTestUtilSimulatorViews::PressButton(
-      button, ui::test::InteractionTestUtil::InputType::kDontCare);
-  EXPECT_TRUE(IsBubbleShowing());
+  // Switch back to Tab 0.
+  browser()->tab_strip_model()->ActivateTabAt(0);
 
-  AddBlankTabAndShow(browser());
-  views::test::InteractionTestUtilSimulatorViews::PressButton(
-      button, ui::test::InteractionTestUtil::InputType::kDontCare);
-  EXPECT_EQ(GetActiveWebContents()->GetVisibleURL(), passwords_url);
+  // Underline should NOT be visible on Tab 0.
+  EXPECT_FALSE(button->GetStatusIndicatorForTesting()->GetVisible());
 }

@@ -216,7 +216,7 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeBase : public NativeTheme {
                                   PreferredContrast contrast,
                                   const ColorProvider* color_provider) const;
 
-  SkColor GetScrollbarArrowBackgroundColor(
+  virtual SkColor GetScrollbarArrowBackgroundColor(
       const ScrollbarArrowExtraParams& extra_params,
       State state,
       bool dark_mode,
@@ -248,6 +248,15 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeBase : public NativeTheme {
                   State state,
                   SkColor color) const;
 
+  // Adjusts custom scrollbar button/thumb colors to meet contrast minima. When
+  // `state` is hovered or pressed, `color` (if present) will be adjusted to
+  // contrast with the normal state. If `bg_color` is present, also attempts to
+  // ensure `color` maintains visible contrast with it.
+  std::optional<SkColor> GetContrastingColorForScrollbarPart(
+      std::optional<SkColor> color,
+      std::optional<SkColor> bg_color,
+      State state) const;
+
  private:
   friend class NativeThemeBaseTest;
 
@@ -278,15 +287,6 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeBase : public NativeTheme {
       bool dark_mode,
       PreferredContrast contrast,
       const ColorProvider* color_provider) const;
-
-  // Adjusts custom scrollbar button/thumb colors to meet contrast minima. When
-  // `state` is hovered or pressed, `color` (if present) will be adjusted to
-  // contrast with the normal state. If `bg_color` is present, also attempts to
-  // ensure `color` maintains visible contrast with it.
-  std::optional<SkColor> GetContrastingColorForScrollbarPart(
-      std::optional<SkColor> color,
-      std::optional<SkColor> bg_color,
-      State state) const;
 
   void PaintCheckbox(cc::PaintCanvas* canvas,
                      const ColorProvider* color_provider,

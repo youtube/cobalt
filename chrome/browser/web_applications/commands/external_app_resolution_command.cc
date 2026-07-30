@@ -13,6 +13,7 @@
 #include "base/containers/flat_set.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/not_fatal_until.h"
 #include "base/notreached.h"
 #include "base/strings/to_string.h"
 #include "base/values.h"
@@ -416,6 +417,10 @@ void ExternalAppResolutionCommand::OnIconsRetrievedUpgradeLockDescription(
 
   // External installs are considered trusted, all manifest icons can be used as
   // trusted ones.
+  CHECK(webapps::InstallableMetrics::IsInstallSurfaceConsideredTrusted(
+            install_surface_),
+        base::NotFatalUntil::M155)
+      << install_surface_;
   web_app_info_->trusted_icons = web_app_info_->manifest_icons;
   PopulateProductIcons(web_app_info_.get(), &icons_map);
   PopulateTrustedIconBitmaps(*web_app_info_.get(), icons_map);
@@ -768,8 +773,15 @@ void ExternalAppResolutionCommand::InstallFromInfo() {
 
   // External installs are considered trusted, all manifest icons can be used
   // as trusted ones.
+  // Do note that we don't set the trusted icon bitmaps here. That will be
+  // set consequently inside the `InstallFromInfoJob` called below, which takes
+  // care of generating icon bitmaps for all sizes first if they're not
+  // available.
+  CHECK(webapps::InstallableMetrics::IsInstallSurfaceConsideredTrusted(
+            install_surface_),
+        base::NotFatalUntil::M155)
+      << install_surface_;
   web_app_info_->trusted_icons = web_app_info_->manifest_icons;
-  web_app_info_->trusted_icon_bitmaps = web_app_info_->icon_bitmaps;
 
   if (!web_app_info_->scope.is_valid() ||
       !url::IsSameOriginWith(web_app_info_->scope,

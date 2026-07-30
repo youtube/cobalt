@@ -22,6 +22,7 @@
 #include "net/base/completion_repeating_callback.h"
 #include "net/base/ip_address.h"
 #include "net/base/net_errors.h"
+#include "net/base/network_handle.h"
 #include "net/log/net_log_source.h"
 #include "net/socket/tcp_client_socket.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
@@ -506,7 +507,15 @@ void AdbClientSocket::Connect(net::CompletionOnceCallback callback) {
       ip_list, port_);
 
   socket_ = std::make_unique<net::TCPClientSocket>(
-      address_list, nullptr, nullptr, nullptr, net::NetLogSource());
+      address_list,
+      /*socket_performance_watcher=*/nullptr,
+      /*network_quality_estimator=*/nullptr,
+      /*net_log=*/nullptr,
+      /*net_log_source=*/net::NetLogSource(),
+      // This is used only for testing in scenarios that do not involve multiple
+      // networks. With that in mind, it's safe to always use the default
+      // network.
+      /*target_network=*/net::handles::kInvalidNetworkHandle);
 
   auto split_callback = base::SplitOnceCallback(std::move(callback));
   int result = socket_->Connect(std::move(split_callback.first));

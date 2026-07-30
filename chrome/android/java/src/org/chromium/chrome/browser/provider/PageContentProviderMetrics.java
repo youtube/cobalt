@@ -67,18 +67,25 @@ public class PageContentProviderMetrics {
         int NUM_ENTRIES = 18;
     }
 
-    public static void recordPageProviderEvent(@PageContentProviderEvent int event) {
+    public static void recordPageProviderEvent(@PageContentProviderEvent int event, boolean isGsa) {
         RecordHistogram.recordEnumeratedHistogram(
-                "Android.AssistContent.WebPageContentProvider.Events",
+                concatenateConsumerToHistogramName(
+                        "Android.AssistContent.WebPageContentProvider.Events", isGsa),
                 event,
                 PageContentProviderEvent.NUM_ENTRIES);
     }
 
     public static void recordPageProviderEvent(
-            @RequestType int requestType, @Format int format, @PageContentProviderEvent int event) {
+            @RequestType int requestType,
+            @Format int format,
+            @PageContentProviderEvent int event,
+            boolean isGsa) {
         var histogramName =
-                concatenateTypeAndFormatToHistogramName(
-                        "Android.AssistContent.WebPageContentProvider.Events", requestType, format);
+                concatenateTypeFormatAndConsumerToHistogramName(
+                        "Android.AssistContent.WebPageContentProvider.Events",
+                        requestType,
+                        format,
+                        isGsa);
         RecordHistogram.recordEnumeratedHistogram(
                 histogramName, event, PageContentProviderEvent.NUM_ENTRIES);
     }
@@ -118,42 +125,51 @@ public class PageContentProviderMetrics {
     }
 
     public static void recordCreateToExtractionStartLatency(
-            @RequestType int requestType, @Format int format, long duration) {
+            @RequestType int requestType, @Format int format, long duration, boolean isGsa) {
         var histogramName =
-                concatenateTypeAndFormatToHistogramName(
+                concatenateTypeFormatAndConsumerToHistogramName(
                         "Android.AssistContent.WebPageContentProvider.Latency.CreateToExtractionStart",
                         requestType,
-                        format);
+                        format,
+                        isGsa);
         RecordHistogram.recordMediumTimesHistogram(histogramName, duration);
     }
 
     static void recordExtractionStartToEndLatency(
-            @RequestType int requestType, @Format int format, long duration) {
+            @RequestType int requestType, @Format int format, long duration, boolean isGsa) {
         var histogramName =
-                concatenateTypeAndFormatToHistogramName(
+                concatenateTypeFormatAndConsumerToHistogramName(
                         "Android.AssistContent.WebPageContentProvider.Latency.ExtractionStartToEnd",
                         requestType,
-                        format);
+                        format,
+                        isGsa);
         RecordHistogram.recordMediumTimesHistogram(histogramName, duration);
     }
 
     static void recordTotalLatency(
-            @RequestType int requestType, @Format int format, long duration) {
+            @RequestType int requestType, @Format int format, long duration, boolean isGsa) {
         var histogramName =
-                concatenateTypeAndFormatToHistogramName(
+                concatenateTypeFormatAndConsumerToHistogramName(
                         "Android.AssistContent.WebPageContentProvider.Latency.TotalLatency",
                         requestType,
-                        format);
+                        format,
+                        isGsa);
         RecordHistogram.recordMediumTimesHistogram(histogramName, duration);
     }
 
     @VisibleForTesting
-    static String concatenateTypeAndFormatToHistogramName(
-            String histogram, @RequestType int requestType, @Format int format) {
+    static String concatenateTypeFormatAndConsumerToHistogramName(
+            String histogram, @RequestType int requestType, @Format int format, boolean isGsa) {
         return histogram
                 + '.'
                 + (requestType == RequestType.QUERY ? "Query" : "OpenFile")
                 + '.'
-                + (format == Format.TEXT ? "Text" : "Proto");
+                + (format == Format.TEXT ? "Text" : "Proto")
+                + (isGsa ? ".Aga" : "");
+    }
+
+    @VisibleForTesting
+    static String concatenateConsumerToHistogramName(String histogram, boolean isGsa) {
+        return histogram + (isGsa ? ".Aga" : "");
     }
 }

@@ -85,12 +85,10 @@ TEST_F(MultistepFilterUiDelegateImplTest,
   const GURL suggestion_url("https://suggestion.com");
   UrlFilterSuggestion suggestion(UrlFilterSuggestion::Params{
       .navigation_url = suggestion_url,
-      .source_domain = u"suggestion.com",
       .source_host = u"suggestion.com",
       .extraction_timestamp = base::Time::Now(),
       .attribute_ui_labels = {},
       .triggering_navigation_id = kTestNavigationId,
-      .triggering_domain = "suggestion.com",
       .triggering_host = "suggestion.com",
       .task_type = "task1"});
 
@@ -104,12 +102,10 @@ TEST_F(MultistepFilterUiDelegateImplTest,
   const GURL suggestion_url("https://suggestion.com");
   UrlFilterSuggestion suggestion(UrlFilterSuggestion::Params{
       .navigation_url = suggestion_url,
-      .source_domain = u"suggestion.com",
       .source_host = u"suggestion.com",
       .extraction_timestamp = base::Time::Now(),
       .attribute_ui_labels = {},
       .triggering_navigation_id = kTestNavigationId,
-      .triggering_domain = "suggestion.com",
       .triggering_host = "suggestion.com",
       .task_type = "task1"});
   // Should not crash when there is no controller.

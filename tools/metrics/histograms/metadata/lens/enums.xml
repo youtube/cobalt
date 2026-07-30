@@ -39,6 +39,21 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//components/lens/lens_composebox_user_action.h:LensComposeboxUserAction) -->
 
+<!-- LINT.IfChange(LensContextualTasksQueryEligibility) -->
+
+<enum name="LensContextualTasksQueryEligibility">
+  <summary>
+    The eligibility state of a Lens query fulfilled in the Contextual Tasks
+    panel. Note that AIM ineligibility implies Cobrowse ineligibility; 'Cobrowse
+    Ineligible' indicates the user is AIM eligible but not Cobrowse eligible.
+  </summary>
+  <int value="0" label="Eligible"/>
+  <int value="1" label="AIM Ineligible"/>
+  <int value="2" label="Cobrowse Ineligible"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/lens/lens_overlay_metrics.h:LensContextualTasksQueryEligibility) -->
+
 <!-- LINT.IfChange(LensOverlayContextMenuOption) -->
 
 <enum name="LensOverlayContextMenuOption">

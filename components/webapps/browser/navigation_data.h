@@ -10,6 +10,10 @@
 
 #include "components/webapps/browser/launch_queue/launch_params.h"
 
+namespace apps {
+enum class LaunchSource;
+}  // namespace apps
+
 namespace webapps {
 
 // A bundle of webapps-related data that may optional be stored on
@@ -36,9 +40,13 @@ class NavigationData {
   std::optional<LaunchParams> launch_params() const;
   void SetLaunchParams(LaunchParams launch_params);
 
+  apps::LaunchSource launch_source() const;
+  void SetLaunchSource(apps::LaunchSource launch_source);
+
  private:
   bool navigation_capturing_force_off_ = false;
   std::optional<LaunchParams> launch_params_ = std::nullopt;
+  apps::LaunchSource launch_source_;
 };
 
 }  // namespace webapps

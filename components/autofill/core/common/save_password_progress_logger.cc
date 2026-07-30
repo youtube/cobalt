@@ -333,7 +333,7 @@ std::string_view SavePasswordProgressLogger::GetStringFromID(
     case SavePasswordProgressLogger::STRING_ON_GET_STORE_RESULTS_METHOD:
       return "FormFetcherImpl::OnGetPasswordStoreResults";
     case SavePasswordProgressLogger::STRING_NUMBER_RESULTS:
-      return "Number of results from the password store";
+      return "Number of results from";
     case SavePasswordProgressLogger::STRING_FETCH_METHOD:
       return "FormFetcherImpl::Fetch";
     case SavePasswordProgressLogger::STRING_NO_STORE:
@@ -732,6 +732,9 @@ std::string_view SavePasswordProgressLogger::GetStringFromID(
     case SavePasswordProgressLogger::STRING_GENERATION_STORE_ROLLBACK:
       return "Password Generation: User cancelled generation or cleared the "
              "field, removing draft from password store";
+    case SavePasswordProgressLogger::
+        STRING_NUMBER_OF_UNIQUE_MATCHED_CREDENTIALS:
+      return "Number of unique matched credentials";
     case SavePasswordProgressLogger::STRING_INVALID:
       return "INVALID";
       // Intentionally no default: clause here -- all IDs need to get covered.

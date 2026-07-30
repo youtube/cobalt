@@ -79,6 +79,7 @@ class MojoFacadeTest : public WebTest {
 
   FakeWebFrame* main_frame() { return main_frame_; }
   MojoFacade* facade() { return facade_.get(); }
+  FakeWebStateWithInterfaceBinder& web_state() { return web_state_; }
 
   void CreateMessagePipe(uint32_t* handle0, uint32_t* handle1) {
     NSDictionary* create = @{
@@ -327,6 +328,23 @@ TEST_F(MojoFacadeTest, ReadWrite) {
 
   CloseHandle(handle0);
   CloseHandle(handle1);
+}
+
+// Tests that HasRegisteredInterfaces() correctly reflects registered
+// interfaces.
+TEST_F(MojoFacadeTest, HasRegisteredInterfaces) {
+  WebState::InterfaceBinder* binder =
+      web_state().GetInterfaceBinderForMainFrame();
+  EXPECT_FALSE(binder->HasRegisteredInterfaces());
+
+  binder->AddInterface("FakeInterface",
+                       base::BindRepeating([](mojo::GenericPendingReceiver*) {
+                         // Do nothing.
+                       }));
+  EXPECT_TRUE(binder->HasRegisteredInterfaces());
+
+  binder->RemoveInterface("FakeInterface");
+  EXPECT_FALSE(binder->HasRegisteredInterfaces());
 }
 
 }  // namespace web

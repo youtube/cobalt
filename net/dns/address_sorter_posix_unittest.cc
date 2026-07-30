@@ -57,9 +57,12 @@ IPAddress ParseIP(std::string_view str) {
 class TestUDPClientSocket : public DatagramClientSocket {
  public:
   enum class ConnectMode { kSynchronous, kAsynchronous, kAsynchronousManual };
-  explicit TestUDPClientSocket(const AddressMapping* mapping,
-                               ConnectMode connect_mode)
-      : mapping_(mapping), connect_mode_(connect_mode) {}
+  TestUDPClientSocket(const AddressMapping* mapping,
+                      ConnectMode connect_mode,
+                      handles::NetworkHandle target_network)
+      : mapping_(mapping),
+        connect_mode_(connect_mode),
+        target_network_(target_network) {}
 
   TestUDPClientSocket(const TestUDPClientSocket&) = delete;
   TestUDPClientSocket& operator=(const TestUDPClientSocket&) = delete;
@@ -153,7 +156,7 @@ class TestUDPClientSocket : public DatagramClientSocket {
   }
 
   handles::NetworkHandle GetBoundNetwork() const override {
-    return handles::kInvalidNetworkHandle;
+    return target_network_;
   }
   void ApplySocketTag(const SocketTag& tag) override {}
   void SetMsgConfirm(bool confirm) override {}
@@ -185,6 +188,7 @@ class TestUDPClientSocket : public DatagramClientSocket {
   IPEndPoint local_endpoint_;
   ConnectMode connect_mode_;
   base::OnceClosure finish_connect_callback_;
+  handles::NetworkHandle target_network_ = handles::kInvalidNetworkHandle;
 
   base::WeakPtrFactory<TestUDPClientSocket> weak_ptr_factory_{this};
 };
@@ -201,10 +205,13 @@ class TestSocketFactory : public ClientSocketFactory {
 
   std::unique_ptr<DatagramClientSocket> CreateDatagramClientSocket(
       DatagramSocket::BindType,
+      handles::NetworkHandle target_network,
       NetLog*,
       const NetLogSource&) override {
-    auto new_socket =
-        std::make_unique<TestUDPClientSocket>(&mapping_, connect_mode_);
+    // This is used only for testing in scenarios that do not involve multiple
+    // networks. With that in mind, it's safe to ignore the `target_network`.
+    auto new_socket = std::make_unique<TestUDPClientSocket>(
+        &mapping_, connect_mode_, target_network);
     if (socket_create_callback_) {
       socket_create_callback_.Run(new_socket.get());
     }
@@ -212,10 +219,13 @@ class TestSocketFactory : public ClientSocketFactory {
   }
   std::unique_ptr<TransportClientSocket> CreateTransportClientSocket(
       const AddressList&,
+      handles::NetworkHandle target_network,
       std::unique_ptr<SocketPerformanceWatcher>,
       net::NetworkQualityEstimator*,
       NetLog*,
       const NetLogSource&) override {
+    // This is used only for testing in scenarios that do not involve multiple
+    // networks. With that in mind, it's safe to ignore the `target_network`.
     NOTIMPLEMENTED();
     return nullptr;
   }
@@ -337,6 +347,10 @@ class AddressSorterPosixSyncOrAsyncTest
     std::vector<IPEndPoint> sorted;
     TestCompletionCallback callback;
     sorter_->Sort(endpoints, NetworkAnonymizationKey(),
+                  // This is used only for testing in scenarios that do not
+                  // involve multiple networks. With that in mind, it's safe to
+                  // always use the default network.
+                  handles::kInvalidNetworkHandle,
                   base::BindOnce(&OnSortComplete, std::ref(completed_), &sorted,
                                  callback.callback()));
     callback.WaitForResult();
@@ -528,6 +542,7 @@ TEST_P(AddressSorterPosixSyncOrAsyncTest, InputPortsAreMaintained) {
   std::vector<IPEndPoint> sorted;
   TestCompletionCallback callback;
   sorter_->Sort(input, NetworkAnonymizationKey(),
+                handles::kInvalidNetworkHandle,
                 base::BindOnce(&OnSortComplete, std::ref(completed_), &sorted,
                                callback.callback()));
   callback.WaitForResult();
@@ -548,6 +563,7 @@ TEST_P(AddressSorterPosixSyncOrAsyncTest, AddressSorterPosixDestroyed) {
   std::vector<IPEndPoint> sorted;
   TestCompletionCallback callback;
   sorter_->Sort(input, NetworkAnonymizationKey(),
+                handles::kInvalidNetworkHandle,
                 base::BindOnce(&OnSortComplete, std::ref(completed_), &sorted,
                                callback.callback()));
   sorter_.reset();
@@ -581,6 +597,7 @@ TEST_F(AddressSorterPosixTest, RandomAsyncSocketOrder) {
   std::vector<IPEndPoint> sorted;
   TestCompletionCallback callback;
   sorter_->Sort(input, NetworkAnonymizationKey(),
+                handles::kInvalidNetworkHandle,
                 base::BindOnce(&OnSortComplete, std::ref(completed_), &sorted,
                                callback.callback()));
 
@@ -614,6 +631,7 @@ TEST_F(AddressSorterPosixTest, IPAddressChangedSort) {
   std::vector<IPEndPoint> sorted;
   TestCompletionCallback callback;
   sorter_->Sort(input, NetworkAnonymizationKey(),
+                handles::kInvalidNetworkHandle,
                 base::BindOnce(&OnSortComplete, std::ref(completed_), &sorted,
                                callback.callback()));
 
@@ -657,6 +675,7 @@ TEST_F(AddressSorterPosixCacheTest, CacheHitBypassesSocketCreation) {
     std::vector<IPEndPoint> sorted;
     TestCompletionCallback callback;
     sorter_->Sort({endpoint1, endpoint2}, NetworkAnonymizationKey(),
+                  handles::kInvalidNetworkHandle,
                   base::BindOnce(&OnSortComplete, std::ref(completed_), &sorted,
                                  callback.callback()));
     callback.WaitForResult();
@@ -669,6 +688,7 @@ TEST_F(AddressSorterPosixCacheTest, CacheHitBypassesSocketCreation) {
     std::vector<IPEndPoint> sorted;
     TestCompletionCallback callback;
     sorter_->Sort({endpoint1, endpoint2}, NetworkAnonymizationKey(),
+                  handles::kInvalidNetworkHandle,
                   base::BindOnce(&OnSortComplete, std::ref(completed_), &sorted,
                                  callback.callback()));
     callback.WaitForResult();
@@ -690,6 +710,7 @@ TEST_F(AddressSorterPosixCacheTest, CacheInvalidationOnIPAddressChanged) {
     std::vector<IPEndPoint> sorted;
     TestCompletionCallback callback;
     sorter_->Sort({endpoint}, NetworkAnonymizationKey(),
+                  handles::kInvalidNetworkHandle,
                   base::BindOnce(&OnSortComplete, std::ref(completed_), &sorted,
                                  callback.callback()));
     callback.WaitForResult();
@@ -705,6 +726,7 @@ TEST_F(AddressSorterPosixCacheTest, CacheInvalidationOnIPAddressChanged) {
     std::vector<IPEndPoint> sorted;
     TestCompletionCallback callback;
     sorter_->Sort({endpoint}, NetworkAnonymizationKey(),
+                  handles::kInvalidNetworkHandle,
                   base::BindOnce(&OnSortComplete, std::ref(completed_), &sorted,
                                  callback.callback()));
     callback.WaitForResult();
@@ -726,6 +748,7 @@ TEST_F(AddressSorterPosixCacheTest, CacheInvalidationOnNetworkChanged) {
     std::vector<IPEndPoint> sorted;
     TestCompletionCallback callback;
     sorter_->Sort({endpoint}, NetworkAnonymizationKey(),
+                  handles::kInvalidNetworkHandle,
                   base::BindOnce(&OnSortComplete, std::ref(completed_), &sorted,
                                  callback.callback()));
     callback.WaitForResult();
@@ -742,6 +765,7 @@ TEST_F(AddressSorterPosixCacheTest, CacheInvalidationOnNetworkChanged) {
     std::vector<IPEndPoint> sorted;
     TestCompletionCallback callback;
     sorter_->Sort({endpoint}, NetworkAnonymizationKey(),
+                  handles::kInvalidNetworkHandle,
                   base::BindOnce(&OnSortComplete, std::ref(completed_), &sorted,
                                  callback.callback()));
     callback.WaitForResult();
@@ -770,7 +794,7 @@ TEST_F(AddressSorterPosixCacheTest, StatePartitioningByNAK) {
   {
     std::vector<IPEndPoint> sorted;
     TestCompletionCallback callback;
-    sorter_->Sort({endpoint}, nak_a,
+    sorter_->Sort({endpoint}, nak_a, handles::kInvalidNetworkHandle,
                   base::BindOnce(&OnSortComplete, std::ref(completed_), &sorted,
                                  callback.callback()));
     callback.WaitForResult();
@@ -782,11 +806,66 @@ TEST_F(AddressSorterPosixCacheTest, StatePartitioningByNAK) {
     socket_create_count = 0;
     std::vector<IPEndPoint> sorted;
     TestCompletionCallback callback;
-    sorter_->Sort({endpoint}, nak_b,
+    sorter_->Sort({endpoint}, nak_b, handles::kInvalidNetworkHandle,
                   base::BindOnce(&OnSortComplete, std::ref(completed_), &sorted,
                                  callback.callback()));
     callback.WaitForResult();
     EXPECT_EQ(socket_create_count, 1u);
+  }
+}
+
+TEST_F(AddressSorterPosixCacheTest, StatePartitioningByTargetNetwork) {
+  size_t socket_create_count = 0;
+  handles::NetworkHandle last_bound_network = handles::kInvalidNetworkHandle;
+  SetSocketCreateCallback(base::BindLambdaForTesting(
+      [&socket_create_count, &last_bound_network](TestUDPClientSocket* socket) {
+        socket_create_count++;
+        last_bound_network = socket->GetBoundNetwork();
+      }));
+
+  AddMapping("10.0.0.1", "10.0.0.10");
+  IPEndPoint endpoint(ParseIP("10.0.0.1"), 80);
+
+  handles::NetworkHandle network_a = 1;
+  handles::NetworkHandle network_b = 2;
+
+  {
+    std::vector<IPEndPoint> sorted;
+    TestCompletionCallback callback;
+    sorter_->Sort({endpoint}, NetworkAnonymizationKey(), network_a,
+                  base::BindOnce(&OnSortComplete, std::ref(completed_), &sorted,
+                                 callback.callback()));
+    callback.WaitForResult();
+    EXPECT_EQ(socket_create_count, 1u);
+    EXPECT_EQ(last_bound_network, network_a);
+  }
+
+  // Second sort with network_b should miss cache.
+  {
+    socket_create_count = 0;
+    last_bound_network = handles::kInvalidNetworkHandle;
+    std::vector<IPEndPoint> sorted;
+    TestCompletionCallback callback;
+    sorter_->Sort({endpoint}, NetworkAnonymizationKey(), network_b,
+                  base::BindOnce(&OnSortComplete, std::ref(completed_), &sorted,
+                                 callback.callback()));
+    callback.WaitForResult();
+    EXPECT_EQ(socket_create_count, 1u);
+    EXPECT_EQ(last_bound_network, network_b);
+  }
+
+  // Third sort with network_a should hit cache.
+  {
+    socket_create_count = 0;
+    last_bound_network = handles::kInvalidNetworkHandle;
+    std::vector<IPEndPoint> sorted;
+    TestCompletionCallback callback;
+    sorter_->Sort({endpoint}, NetworkAnonymizationKey(), network_a,
+                  base::BindOnce(&OnSortComplete, std::ref(completed_), &sorted,
+                                 callback.callback()));
+    callback.WaitForResult();
+    EXPECT_EQ(socket_create_count, 0u);
+    EXPECT_EQ(last_bound_network, handles::kInvalidNetworkHandle);
   }
 }
 
@@ -811,6 +890,7 @@ TEST_F(AddressSorterPosixCacheTest, SubnetMaskingMatchesSameCacheEntry) {
     std::vector<IPEndPoint> sorted;
     TestCompletionCallback callback;
     sorter_->Sort({endpoint_v4_1, endpoint_v6_1}, NetworkAnonymizationKey(),
+                  handles::kInvalidNetworkHandle,
                   base::BindOnce(&OnSortComplete, std::ref(completed_), &sorted,
                                  callback.callback()));
     callback.WaitForResult();
@@ -823,6 +903,7 @@ TEST_F(AddressSorterPosixCacheTest, SubnetMaskingMatchesSameCacheEntry) {
     std::vector<IPEndPoint> sorted;
     TestCompletionCallback callback;
     sorter_->Sort({endpoint_v4_2, endpoint_v6_2}, NetworkAnonymizationKey(),
+                  handles::kInvalidNetworkHandle,
                   base::BindOnce(&OnSortComplete, std::ref(completed_), &sorted,
                                  callback.callback()));
     callback.WaitForResult();
@@ -855,6 +936,7 @@ TEST_F(AddressSorterPosixCacheTest,
     std::vector<IPEndPoint> sorted;
     TestCompletionCallback callback;
     sorter_->Sort({endpoint_v4_1, endpoint_v6_1}, NetworkAnonymizationKey(),
+                  handles::kInvalidNetworkHandle,
                   base::BindOnce(&OnSortComplete, std::ref(completed_), &sorted,
                                  callback.callback()));
     callback.WaitForResult();
@@ -867,6 +949,7 @@ TEST_F(AddressSorterPosixCacheTest,
     std::vector<IPEndPoint> sorted;
     TestCompletionCallback callback;
     sorter_->Sort({endpoint_v4_2, endpoint_v6_2}, NetworkAnonymizationKey(),
+                  handles::kInvalidNetworkHandle,
                   base::BindOnce(&OnSortComplete, std::ref(completed_), &sorted,
                                  callback.callback()));
     callback.WaitForResult();

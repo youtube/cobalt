@@ -69,6 +69,10 @@ viz_component("host") {
   if (use_ozone) {
     deps += [ "//ui/ozone" ]
   }
+
+  if (is_win) {
+    deps += [ "//services/webnn/public/cpp:win" ]
+  }
 }
 
 viz_source_set("unit_tests") {

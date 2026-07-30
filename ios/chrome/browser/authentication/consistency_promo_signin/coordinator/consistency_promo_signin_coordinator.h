@@ -15,11 +15,18 @@ enum class AccessPoint : int;
 // using accounts on the device, opening Incognito, and adding an account.
 @interface ConsistencyPromoSigninCoordinator : SigninCoordinator
 
+// Initializes the coordinator.
+// * `confirmChangeProfile` is a block called if the successful authentication
+//   flow would cause a profile switch, to get the user to decide whether they
+//   want this switch to occur or not. Can be nil, which means the user always
+//   accepts.
 - (instancetype)
     initWithBaseViewController:(UIViewController*)viewController
                        browser:(Browser*)browser
                   contextStyle:(SigninContextStyle)contextStyle
                    accessPoint:(signin_metrics::AccessPoint)accessPoint
+          confirmChangeProfile:
+              (SigninChangeProfileConfirmationBlock)confirmChangeProfile
           prepareChangeProfile:(ProceduralBlock)prepareChangeProfile
           continuationProvider:
               (const ChangeProfileContinuationProvider&)continuationProvider
@@ -37,6 +44,8 @@ enum class AccessPoint : int;
                               browser:(Browser*)browser
                          contextStyle:(SigninContextStyle)contextStyle
                           accessPoint:(signin_metrics::AccessPoint)accessPoint
+                 confirmChangeProfile:
+                     (SigninChangeProfileConfirmationBlock)confirmChangeProfile
                  prepareChangeProfile:(ProceduralBlock)prepareChangeProfile
                  continuationProvider:(const ChangeProfileContinuationProvider&)
                                           continuationProvider;

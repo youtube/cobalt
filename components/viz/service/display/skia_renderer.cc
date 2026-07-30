@@ -1502,8 +1502,9 @@ void SkiaRenderer::DoDrawQuad(const DrawQuad* quad,
                               const gfx::QuadF* draw_region) {
   if (!current_canvas_)
     return;
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("viz.quads"),
-               "SkiaRenderer::DoDrawQuad");
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("viz.quads"),
+              "SkiaRenderer::DoDrawQuad", "material",
+              DrawQuadMaterialToString(quad->material));
   DrawQuadParams params =
       CalculateDrawQuadParams(current_frame()->target_to_device_transform,
                               scissor_rect_, quad, draw_region);

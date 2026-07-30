@@ -106,6 +106,8 @@ import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.SelectionPopupController;
+import org.chromium.content_public.browser.ViewEventSink;
+import org.chromium.content_public.browser.ViewFocusChangeSuppression;
 import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.WebContentsAccessibility;
@@ -305,6 +307,7 @@ class TabImpl implements Tab {
             ObservableSuppliers.createNonNull(false);
 
     private boolean mIsDestroyed;
+    private boolean mFocusChangesSuppressed;
 
     private int mThemeColor;
     private int mWebContentBackgroundColor;
@@ -1113,9 +1116,35 @@ class TabImpl implements Tab {
         return mIsDestroyed;
     }
 
+    @Override
+    public void setFocusChangeSuppressed(boolean suppressed) {
+        if (mFocusChangesSuppressed == suppressed) return;
+
+        mFocusChangesSuppressed = suppressed;
+
+        if (getWebContents() == null || getView() == null) return;
+
+        var viewSuppression = ViewFocusChangeSuppression.from(getWebContents());
+
+        if (suppressed) {
+            ViewEventSink sink = ViewEventSink.from(getWebContents());
+            sink.onWindowFocusChanged(true);
+            sink.onViewFocusChanged(true);
+        }
+
+        viewSuppression.setSuppressed(suppressed);
+
+        if (!suppressed) {
+            ViewEventSink sink = ViewEventSink.from(getWebContents());
+            sink.onWindowFocusChanged(getView().hasWindowFocus());
+            sink.onViewFocusChanged(getView().hasFocus());
+        }
+    }
+
     private void updateWebContentsVisibility() {
         var webContents = getWebContents();
         if (webContents == null) return;
+
         if (mIsHidden) {
             webContents.updateWebContentsVisibility(Visibility.HIDDEN);
         } else if (!mIsDetachedFromActivity
@@ -2256,6 +2285,12 @@ class TabImpl implements Tab {
             }
             TabHelpers.initWebContentsHelpers(this);
             notifyContentChanged();
+
+            if (mFocusChangesSuppressed) {
+                ViewFocusChangeSuppression suppression =
+                        ViewFocusChangeSuppression.from(webContents);
+                suppression.setSuppressed(true);
+            }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
                     && ChromeFeatureList.isEnabled(SensitiveContentFeatures.SENSITIVE_CONTENT)

@@ -1213,7 +1213,11 @@ class JobControllerReconsiderProxyAfterErrorTest
 
     std::unique_ptr<DatagramClientSocket> socket =
         session_deps_.socket_factory->CreateDatagramClientSocket(
-            DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+            DatagramSocket::DEFAULT_BIND,
+            // This is used only for testing in scenarios that do not involve
+            // multiple networks. With that in mind, it's safe to always use the
+            // default network.
+            handles::kInvalidNetworkHandle, NetLog::Get(), NetLogSource());
     socket->Connect(kIpEndPoint);
     quic::test::MockQuicConnection* connection =
         new quic::test::MockQuicConnection(&helper, &alarm_factory,
@@ -7799,7 +7803,8 @@ class HttpStreamFactoryJobControllerWsOverH3Test
 
     std::unique_ptr<DatagramClientSocket> socket =
         session_deps_.socket_factory->CreateDatagramClientSocket(
-            DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+            DatagramSocket::DEFAULT_BIND, handles::kInvalidNetworkHandle,
+            NetLog::Get(), NetLogSource());
     socket->Connect(kIpEndPoint);
 
     quic::test::MockQuicConnection* connection =

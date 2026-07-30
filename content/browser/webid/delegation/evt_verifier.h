@@ -35,6 +35,7 @@ class CONTENT_EXPORT EvtVerifier {
     kVerified,
     kInvalidSdJwtKb,
     kSdJwtUnsupportedHeaderAlg,
+    kSdJwtInvalidTyp,
     kSdJwtMissingIss,
     kSdJwtMissingIat,
     kSdJwtMissingCnf,

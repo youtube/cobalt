@@ -80,7 +80,6 @@ public class NativeBackgroundTaskTest {
                 boolean startGpuProcess,
                 boolean startMinimalBrowser,
                 boolean singleProcess,
-                boolean scheduleFlushStartupTasks,
                 final StartupCallback callback) {}
 
         @Override

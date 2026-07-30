@@ -324,6 +324,10 @@ std::u16string ContentAnalysisDelegate::GetBypassJustificationLabel() const {
     case DeepScanAccessPoint::PRINT:
       id = IDS_DEEP_SCANNING_DIALOG_PRINT_BYPASS_JUSTIFICATION_LABEL;
       break;
+    // TODO(b/325455508): Add specific copy bypass justification label.
+    case DeepScanAccessPoint::COPY:
+      id = IDS_DEEP_SCANNING_DIALOG_PASTE_BYPASS_JUSTIFICATION_LABEL;
+      break;
   }
   return l10n_util::GetStringUTF16(id);
 }
@@ -392,12 +396,16 @@ void ContentAnalysisDelegate::CreateForWebContents(
   // 1. work is ongoing in the background and that the user must wait for a
   // verdict.
   // 2. work is done and fail-closed conditions are met.
+  // For COPY trigger operations, we don't show a dialog. Instead, we communicate
+  // with the user via the content of the clipboard and using toasts. UI toast
+  // elements are handled separately since the copy trigger is the only DLP rule
+  // showing toasts in the context of Chrome Enterprise Premium (CEP).
   bool show_in_progress_ui =
       upload_data_status == UploadDataStatus::kInProgress && wait_for_verdict &&
-      (*UIEnabledStorage());
+      (*UIEnabledStorage()) && access_point != DeepScanAccessPoint::COPY;
   bool show_fail_closed_ui =
       delegate->IsFailClosed(upload_data_status, should_allow_by_default) &&
-      (*UIEnabledStorage());
+      (*UIEnabledStorage()) && access_point != DeepScanAccessPoint::COPY;
 
   DVLOG(1) << __func__ << ": show_fail_closed_ui=" << show_fail_closed_ui;
 
@@ -969,6 +977,7 @@ std::string ContentAnalysisDelegate::GetContentTransferMethod() const {
     case enterprise_connectors::ContentAnalysisRequest::SYSTEM_DIALOG_PRINT:
     case enterprise_connectors::ContentAnalysisRequest::NORMAL_DOWNLOAD:
     case enterprise_connectors::ContentAnalysisRequest::SAVE_AS_DOWNLOAD:
+    case enterprise_connectors::ContentAnalysisRequest::CLIPBOARD_COPY:
       return "";
 
     case enterprise_connectors::ContentAnalysisRequest::CLIPBOARD_PASTE:

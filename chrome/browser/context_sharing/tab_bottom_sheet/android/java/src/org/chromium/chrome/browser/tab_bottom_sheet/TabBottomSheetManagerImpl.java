@@ -263,7 +263,6 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
             boolean startsExpanded) {
         // Close any existing bottom sheet before showing a new one.
         tryToCloseBottomSheet(/* animate= */ false);
-        assert mTabBottomSheetCoordinator == null;
         mTabBottomSheetCoordinator =
                 new TabBottomSheetCoordinator(
                         mContext,
@@ -317,9 +316,6 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
                 // The bottom sheet is showing. Close it and send a onClose event back to native.
                 mIsCloseFromNative = true;
                 mTabBottomSheetCoordinator.closeBottomSheet(animate);
-                if (!animate) {
-                    notifyOnClose();
-                }
             }
         }
     }

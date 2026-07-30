@@ -4,7 +4,6 @@
 
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_controller.h"
 
-#include "chrome/browser/contextual_tasks/mock_contextual_tasks_ui_service.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"

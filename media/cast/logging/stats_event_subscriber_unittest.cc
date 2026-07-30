@@ -212,19 +212,25 @@ TEST_F(StatsEventSubscriberTest, Encode) {
 
   EXPECT_DOUBLE_EQ(it->second, total_size / duration.InMillisecondsF() * 8);
 
+  // The subscriber maps event TimeTicks onto wall-clock time by anchoring both
+  // clocks to the current instant; mirror that here. The MOCK_TIME clocks do
+  // not advance between GetStatsInternal() and this point, so the values match.
+  const base::TimeTicks now_ticks = NowTicks();
+  const base::Time now = base::Time::Now();
+
   it = stats_map.find(StatsEventSubscriber::FIRST_EVENT_TIME_MS);
   ASSERT_TRUE(it != stats_map.end());
 
-  EXPECT_DOUBLE_EQ(
-      it->second,
-      (first_event_time - base::TimeTicks::UnixEpoch()).InMillisecondsF());
+  EXPECT_DOUBLE_EQ(it->second, (now - (now_ticks - first_event_time) -
+                                base::Time::UnixEpoch())
+                                   .InMillisecondsF());
 
   it = stats_map.find(StatsEventSubscriber::LAST_EVENT_TIME_MS);
   ASSERT_TRUE(it != stats_map.end());
 
-  EXPECT_DOUBLE_EQ(
-      it->second,
-      (last_event_time - base::TimeTicks::UnixEpoch()).InMillisecondsF());
+  EXPECT_DOUBLE_EQ(it->second, (now - (now_ticks - last_event_time) -
+                                base::Time::UnixEpoch())
+                                   .InMillisecondsF());
 }
 
 TEST_F(StatsEventSubscriberTest, Decode) {

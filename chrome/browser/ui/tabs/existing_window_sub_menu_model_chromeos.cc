@@ -22,14 +22,13 @@ namespace {
 
 int GetDeskIndexForBrowser(BrowserWindowInterface* browser, int num_desks) {
   const std::string& workspace =
-      browser->GetBrowserForMigrationOnly()->window()->GetWorkspace();
+      BrowserWindow::FromBrowser(browser)->GetWorkspace();
   int desk_index;
   // If the window is visible on all workspaces or unassigned
   // (aura::client::kWindowWorkspaceUnassignedWorkspace),
   // we should get the active desk index.
-  if (workspace.empty() || browser->GetBrowserForMigrationOnly()
-                               ->window()
-                               ->IsVisibleOnAllWorkspaces()) {
+  if (workspace.empty() ||
+      BrowserWindow::FromBrowser(browser)->IsVisibleOnAllWorkspaces()) {
     desk_index = DesksHelper::Get()->GetActiveDeskIndex();
   } else {
     CHECK(base::StringToInt(workspace, &desk_index));

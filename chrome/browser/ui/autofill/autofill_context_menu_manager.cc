@@ -18,6 +18,7 @@
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/feedback/show_feedback_page.h"
+#include "chrome/browser/metrics/variations/google_groups_manager_factory.h"
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
 #include "chrome/browser/password_manager/factories/password_counter_factory.h"
 #include "chrome/browser/plus_addresses/plus_address_service_factory.h"
@@ -31,6 +32,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
+#include "components/autofill/core/browser/at_memory/at_memory_enablement_utils.h"
 #include "components/autofill/core/browser/autofill_feedback_data.h"
 #include "components/autofill/core/browser/foundations/autofill_driver.h"
 #include "components/autofill/core/browser/foundations/autofill_manager.h"
@@ -322,16 +324,18 @@ void AutofillContextMenuManager::MaybeAddAutofillFeedbackItem() {
 }
 
 void AutofillContextMenuManager::MaybeAddAutofillAtMemoryItem() {
-  if (!base::FeatureList::IsEnabled(features::kAutofillAtMemory)) {
+  content::RenderFrameHost* const rfh = delegate_->GetRenderFrameHost();
+  if (!rfh) {
+    return;
+  }
+
+  if (!IsAtMemoryFeatureEnabled(
+          GoogleGroupsManagerFactory::GetForBrowserContext(
+              rfh->GetBrowserContext()))) {
     return;
   }
 
   if (!ShouldShowAutofillContextMenu(params_)) {
-    return;
-  }
-
-  content::RenderFrameHost* rfh = delegate_->GetRenderFrameHost();
-  if (!rfh) {
     return;
   }
 

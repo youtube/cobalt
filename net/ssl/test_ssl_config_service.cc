@@ -15,6 +15,10 @@ SSLContextConfig TestSSLConfigService::GetSSLContextConfig() {
   return config_;
 }
 
+EchMode TestSSLConfigService::GetEchMode(std::string_view hostname) const {
+  return EchMode::kOpportunistic;
+}
+
 bool TestSSLConfigService::CanShareConnectionWithClientCerts(
     std::string_view hostname) const {
   return false;

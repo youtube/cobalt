@@ -29,6 +29,7 @@
 #include "third_party/blink/renderer/core/dom/text.h"
 #include "third_party/blink/renderer/core/editing/commands/editing_commands_utilities.h"
 #include "third_party/blink/renderer/core/editing/editing_utilities.h"
+#include "third_party/blink/renderer/core/editing/position_units.h"
 #include "third_party/blink/renderer/core/editing/relocatable_position.h"
 #include "third_party/blink/renderer/core/editing/selection_template.h"
 #include "third_party/blink/renderer/core/editing/visible_position.h"
@@ -66,35 +67,69 @@ void ApplyBlockElementCommand::DoApply(EditingState* editing_state) {
     return;
   }
 
-  VisiblePosition visible_end = EndingVisibleSelection().VisibleEnd();
-  VisiblePosition visible_start = EndingVisibleSelection().VisibleStart();
-  if (visible_start.IsNull() || visible_start.IsOrphan() ||
-      visible_end.IsNull() || visible_end.IsOrphan())
-    return;
-
-  // When a selection ends at the start of a paragraph, we rarely paint
-  // the selection gap before that paragraph, because there often is no gap.
-  // In a case like this, it's not obvious to the user that the selection
-  // ends "inside" that paragraph, so it would be confusing if Indent/Outdent
-  // operated on that paragraph.
-  // FIXME: We paint the gap before some paragraphs that are indented with left
-  // margin/padding, but not others.  We should make the gap painting more
-  // consistent and then use a left margin/padding rule here.
-  if (visible_end.DeepEquivalent() != visible_start.DeepEquivalent() &&
-      IsStartOfParagraph(visible_end)) {
-    const Position& new_end =
-        PreviousPositionOf(visible_end, kCannotCrossEditingBoundary)
-            .DeepEquivalent();
-    SelectionInDomTree::Builder builder;
-    builder.Collapse(visible_start.ToPositionWithAffinity());
-    if (new_end.IsNotNull())
-      builder.Extend(new_end);
-    SetEndingSelection(SelectionForUndoStep::From(builder.Build()));
-    if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
-      SetEndingDomSelection(SelectionForUndoStep::From(builder.Build()));
+  if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
+    const Position& end_position = EndingDomSelection().End();
+    const Position& start_position = EndingDomSelection().Start();
+    if (end_position.IsNull() || end_position.IsOrphan() ||
+        start_position.IsNull() || start_position.IsOrphan()) {
+      return;
     }
-    ABORT_EDITING_COMMAND_IF(EndingVisibleSelection().VisibleStart().IsNull());
-    ABORT_EDITING_COMMAND_IF(EndingVisibleSelection().VisibleEnd().IsNull());
+
+    // When a selection ends at the start of a paragraph, we rarely paint
+    // the selection gap before that paragraph, because there often is no gap.
+    // In a case like this, it's not obvious to the user that the selection
+    // ends "inside" that paragraph, so it would be confusing if Indent/Outdent
+    // operated on that paragraph.
+    // FIXME: We paint the gap before some paragraphs that are indented with
+    // left margin/padding, but not others.  We should make the gap painting
+    // more consistent and then use a left margin/padding rule here.
+    if (end_position != start_position &&
+        end_position.IsEquivalent(StartOfParagraph(end_position)) &&
+        !end_position.AtLastEditingPositionForNode()) {
+      const Position& new_end =
+          PreviousPositionOf(end_position, kCannotCrossEditingBoundary);
+      SelectionInDomTree::Builder builder;
+      builder.Collapse(start_position);
+      if (new_end.IsNotNull()) {
+        builder.Extend(new_end);
+      }
+      const auto& new_selection = SelectionForUndoStep::From(builder.Build());
+      SetEndingSelection(new_selection);
+      SetEndingDomSelection(new_selection);
+      ABORT_EDITING_COMMAND_IF(EndingDomSelection().Start().IsNull());
+      ABORT_EDITING_COMMAND_IF(EndingDomSelection().End().IsNull());
+    }
+  } else {
+    VisiblePosition visible_end = EndingVisibleSelection().VisibleEnd();
+    VisiblePosition visible_start = EndingVisibleSelection().VisibleStart();
+    if (visible_start.IsNull() || visible_start.IsOrphan() ||
+        visible_end.IsNull() || visible_end.IsOrphan()) {
+      return;
+    }
+
+    // When a selection ends at the start of a paragraph, we rarely paint
+    // the selection gap before that paragraph, because there often is no gap.
+    // In a case like this, it's not obvious to the user that the selection
+    // ends "inside" that paragraph, so it would be confusing if Indent/Outdent
+    // operated on that paragraph.
+    // FIXME: We paint the gap before some paragraphs that are indented with
+    // left margin/padding, but not others.  We should make the gap painting
+    // more consistent and then use a left margin/padding rule here.
+    if (visible_end.DeepEquivalent() != visible_start.DeepEquivalent() &&
+        IsStartOfParagraph(visible_end)) {
+      const Position& new_end =
+          PreviousPositionOf(visible_end, kCannotCrossEditingBoundary)
+              .DeepEquivalent();
+      SelectionInDomTree::Builder builder;
+      builder.Collapse(visible_start.ToPositionWithAffinity());
+      if (new_end.IsNotNull()) {
+        builder.Extend(new_end);
+      }
+      SetEndingSelection(SelectionForUndoStep::From(builder.Build()));
+      ABORT_EDITING_COMMAND_IF(
+          EndingVisibleSelection().VisibleStart().IsNull());
+      ABORT_EDITING_COMMAND_IF(EndingVisibleSelection().VisibleEnd().IsNull());
+    }
   }
 
   VisibleSelection selection =

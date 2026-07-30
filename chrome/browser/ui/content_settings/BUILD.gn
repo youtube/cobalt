@@ -33,7 +33,7 @@ source_set("content_settings") {
 
 source_set("impl") {
   sources = []
-  deps = []
+  deps = [ "//chrome/browser/ui:collected_cookies_infobar_delegate" ]
 
   if (!is_android) {
     sources += [

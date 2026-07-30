@@ -26,6 +26,11 @@ void GenericMimeHandlerStreamDelegate::ValidateContentFrameHost(
     content::RenderFrameHost* /*content_host*/,
     extensions::StreamInfo* /*stream_info*/) {}
 
+bool GenericMimeHandlerStreamDelegate::RequiresPerInstanceProcessIsolation()
+    const {
+  return true;
+}
+
 GenericMimeHandlerStreamDelegate::~GenericMimeHandlerStreamDelegate() = default;
 
 }  // namespace extensions::mime_handler

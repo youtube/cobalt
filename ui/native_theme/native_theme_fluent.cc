@@ -135,6 +135,20 @@ float NativeThemeFluent::GetScrollbarPartContrastRatioForState(
   return 1.8f;
 }
 
+SkColor NativeThemeFluent::GetScrollbarArrowBackgroundColor(
+    const ScrollbarArrowExtraParams& extra_params,
+    State state,
+    bool dark_mode,
+    PreferredContrast contrast,
+    const ColorProvider* color_provider) const {
+  static constexpr auto kScrollbarArrowBackgroundColors = std::to_array(
+      {kScrollbarArrowBackgroundDisabled, kScrollbarArrowBackgroundHovered,
+       kScrollbarArrowBackground, kScrollbarArrowBackgroundPressed});
+  return extra_params.track_color.value_or(
+      GetControlColorForState(kScrollbarArrowBackgroundColors, state, dark_mode,
+                              contrast, color_provider));
+}
+
 void NativeThemeFluent::PaintArrowButton(
     cc::PaintCanvas* canvas,
     const ColorProvider* color_provider,

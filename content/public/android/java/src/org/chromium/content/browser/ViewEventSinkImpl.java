@@ -14,6 +14,7 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.content.browser.webcontents.WebContentsImpl;
 import org.chromium.content_public.browser.ViewEventSink;
+import org.chromium.content_public.browser.ViewFocusChangeSuppression;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.WebContents.UserDataFactory;
 import org.chromium.ui.base.ViewAndroidDelegate;
@@ -85,11 +86,15 @@ public final class ViewEventSinkImpl implements ViewEventSink, ActivityStateObse
 
     @Override
     public void onWindowFocusChanged(boolean hasWindowFocus) {
+        if (ViewFocusChangeSuppression.from(mWebContents).isSuppressed()) return;
+
         WindowEventObserverManager.from(mWebContents).onWindowFocusChanged(hasWindowFocus);
     }
 
     @Override
     public void onViewFocusChanged(boolean gainFocus) {
+        if (ViewFocusChangeSuppression.from(mWebContents).isSuppressed()) return;
+
         if (mHasViewFocus != null && mHasViewFocus == gainFocus) return;
         mHasViewFocus = gainFocus;
         onFocusChanged();

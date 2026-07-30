@@ -433,8 +433,18 @@ class BubbleDialogModelHostContentsView final : public DialogModelSectionHost {
         },
         model_field, GetPassKey(), checkbox.get()));
 
-    DialogModelHostField info{model_field, checkbox.get(), nullptr};
-    AddDialogModelHostField(std::move(checkbox), info);
+    // Checkbox is wrapped in a horizontal BoxLayoutView so the checkbox's
+    // clickable area is limited to the width of the label text.
+    auto container = std::make_unique<BoxLayoutView>();
+    container->SetOrientation(BoxLayout::Orientation::kHorizontal);
+    container->SetCrossAxisAlignment(BoxLayout::CrossAxisAlignment::kStart);
+    auto checkbox_ptr = checkbox.get();
+    container->AddChildView(std::move(checkbox));
+
+    // Container will be field_view and the checkbox is
+    // the focusable_view that can be interact.
+    DialogModelHostField info{model_field, container.get(), checkbox_ptr};
+    AddDialogModelHostField(std::move(container), info);
   }
   void AddOrUpdateCombobox(ui::DialogModelCombobox* model_field) {
     // TODO(pbos): Handle updating existing field.

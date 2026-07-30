@@ -64,18 +64,21 @@ SendTabToSelfBubbleController::~SendTabToSelfBubbleController() {
   HideBubble();
 }
 
-
 void SendTabToSelfBubbleController::HideBubble() {
   if (send_tab_to_self_bubble_view_) {
     send_tab_to_self_bubble_view_->Hide();
   }
 }
 
-void SendTabToSelfBubbleController::ShowBubble(bool show_back_button) {
+void SendTabToSelfBubbleController::ShowBubble(ShareEntryPoint entry_point,
+                                               bool show_back_button) {
   // Avoid re-creation if a bubble is already being shown for this controller.
   if (send_tab_to_self_bubble_view_) {
     return;
   }
+
+  entry_point_ = entry_point;
+  RecordEntryPointInvoked(entry_point);
 
   show_back_button_ = show_back_button;
 
@@ -146,6 +149,15 @@ void SendTabToSelfBubbleController::ShowBubbleWithAnchor(
     }
     anchor = new_anchor;
   }
+
+  size_t device_count = 0;
+  if (reason == EntryPointDisplayReason::kOfferFeature) {
+    device_count = GetValidDevices().size();
+  }
+  // Note: `entry_point_` should always be populated here, since it's set in
+  // ShowBubble() which must've been called earlier.
+  RecordTargetDeviceCount(entry_point_.value_or(ShareEntryPoint::kShareSheet),
+                          reason, device_count);
 
   std::unique_ptr<SendTabToSelfBubbleView> bubble_view;
   switch (reason) {
@@ -249,12 +261,15 @@ void SendTabToSelfBubbleController::OnDeviceSelected(
   }
 
   const GURL url = GetWebContents().GetLastCommittedURL();
+  // Note: `entry_point_` should always be populated here, since it's set in
+  // ShowBubble() which must've been called earlier.
   handler->SendTabToDevice(
       target_device_guid, url, base::UTF16ToUTF8(GetWebContents().GetTitle()),
       base::BindOnce(
           &SendTabToSelfBubbleController::HandleSendTabToDeviceResult,
           weak_ptr_factory_.GetWeakPtr(), url, std::string(device_name),
-          form_factor));
+          form_factor),
+      entry_point_.value_or(ShareEntryPoint::kShareSheet));
 }
 
 void SendTabToSelfBubbleController::OnManageDevicesClicked(
@@ -279,6 +294,7 @@ void SendTabToSelfBubbleController::PrimaryPageChanged(content::Page& page) {
 void SendTabToSelfBubbleController::OnWidgetDestroying(views::Widget* widget) {
   widget_observation_.Reset();
   send_tab_to_self_bubble_view_ = nullptr;
+  entry_point_ = std::nullopt;
   BrowserWindowInterface* browser =
       GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
           &GetWebContents());
@@ -344,7 +360,6 @@ void SendTabToSelfBubbleController::SetSelectorGenerationTimeoutForTesting(
   SendTabToSelfPageHandler::GetOrCreateForWebContents(&GetWebContents())
       ->SetSelectorGenerationTimeoutForTesting(timeout);
 }
-
 
 void SendTabToSelfBubbleController::OnModelReady() {
   model_observation_.Reset();

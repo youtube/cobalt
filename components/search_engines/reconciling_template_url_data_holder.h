@@ -39,6 +39,12 @@ class ReconcilingTemplateURLDataHolder {
   // reconcile it with Chrome prepopulated engines.
   const TemplateURLData* Get() const { return search_engine_.get(); }
 
+  // Releases the ownership of the currently set Search Engine definition and
+  // returns it.
+  std::unique_ptr<TemplateURLData> Release() {
+    return std::move(search_engine_);
+  }
+
   // LINT.IfChange(ReconciliationType)
   enum class ReconciliationType {
     kNone = 0,

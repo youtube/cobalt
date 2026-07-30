@@ -10,6 +10,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_view_util.h"
 #include "base/types/expected_macros.h"
+#include "components/services/storage/dom_storage/dom_storage_rollout.h"
 #include "components/services/storage/dom_storage/leveldb/dom_storage_batch_operation_leveldb.h"
 #include "components/services/storage/dom_storage/leveldb/dom_storage_database_leveldb.h"
 #include "components/services/storage/dom_storage/leveldb/dom_storage_database_leveldb_utils.h"
@@ -154,7 +155,8 @@ DomStorageDatabase::Key GetMapPrefix(const blink::StorageKey& storage_key) {
   return map_prefix;
 }
 
-LocalStorageLevelDB::LocalStorageLevelDB(PassKey) {}
+LocalStorageLevelDB::LocalStorageLevelDB(PassKey, bool write_exp_tag)
+    : write_exp_tag_(write_exp_tag) {}
 
 LocalStorageLevelDB::~LocalStorageLevelDB() = default;
 
@@ -168,6 +170,10 @@ DbStatus LocalStorageLevelDB::Open(
                        kLocalStorageLevelDBVersionKey,
                        /*min_supported_version=*/kLocalStorageLevelDBVersion,
                        /*max_supported_version=*/kLocalStorageLevelDBVersion));
+  if (write_exp_tag_) {
+    DB_RETURN_IF_ERROR(WriteLevelDbExperimentalTag(directory));
+    write_exp_tag_ = false;
+  }
   return DbStatus::OK();
 }
 

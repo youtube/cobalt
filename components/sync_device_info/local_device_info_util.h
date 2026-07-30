@@ -44,6 +44,9 @@ DeviceInfo::FormFactor GetLocalDeviceFormFactor();
 
 // Returns the personalizable device name. This may contain
 // personally-identifiable information - e.g. Alex's MacbookPro.
+// Note that this may not actually be a personalized name on all platforms
+// (e.g. Android and iOS may return the model name or a generic string due to
+// privacy or permission restrictions).
 std::string GetPersonalizableDeviceNameBlocking();
 
 void GetLocalDeviceNameInfo(

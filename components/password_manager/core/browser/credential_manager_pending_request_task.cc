@@ -18,6 +18,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/user_metrics.h"
 #include "components/affiliations/core/browser/affiliation_utils.h"
+#include "components/device_reauth/device_authenticator.h"
 #include "components/password_manager/core/browser/credential_manager_utils.h"
 #include "components/password_manager/core/browser/form_fetcher_impl.h"
 #include "components/password_manager/core/browser/password_bubble_experiment.h"
@@ -196,12 +197,12 @@ void CredentialManagerPendingRequestTask::ProcessForms(
   //
   // Moreover, we only return such a credential if the user has opted-in via the
   // first-run experience.
-  const bool is_biometric_reauth_enabled =
-      delegate_->client()
-          ->GetPasswordFeatureManager()
-          ->IsBiometricAuthenticationBeforeFillingEnabled();
+  std::unique_ptr<device_reauth::DeviceAuthenticator> authenticator =
+      delegate_->client()->GetDeviceAuthenticator();
+  const bool is_reauth_before_filling_required =
+      delegate_->client()->IsReauthBeforeFillingRequired(authenticator.get());
 
-  if (is_biometric_reauth_enabled &&
+  if (is_reauth_before_filling_required &&
       mediation_ == CredentialMediationRequirement::kSilent) {
     LogCredentialManagerGetResult(
         metrics_util::CredentialManagerGetResult::kNone, mediation_);
@@ -210,7 +211,7 @@ void CredentialManagerPendingRequestTask::ProcessForms(
   }
 
   const bool can_use_autosignin =
-      !is_biometric_reauth_enabled &&
+      !is_reauth_before_filling_required &&
       mediation_ != CredentialMediationRequirement::kRequired &&
       results.size() == 1u && delegate_->IsZeroClickAllowed() &&
       IsFormValidForAutoSignIn(results[0].get());

@@ -32,9 +32,8 @@ constexpr CGFloat kDisabledAlpha = 0.5;
 
 #pragma mark - TableViewItem
 
-- (void)configureCell:(IdentityButtonCell*)cell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:cell withStyler:styler];
+- (void)configureCell:(IdentityButtonCell*)cell {
+  [super configureCell:cell];
   cell.identityButtonControl.arrowDirection = self.arrowDirection;
   cell.identityButtonControl.identityViewStyle = self.identityViewStyle;
   [cell.identityButtonControl setIdentityAvatar:self.identityAvatar];

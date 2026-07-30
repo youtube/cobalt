@@ -43,9 +43,6 @@ import java.util.List;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @DoNotBatch(reason = "Activity should be restarted")
 public class SigninSurveyControllerTest {
-    private static final String TRIGGER =
-            ":" + TestSurveyUtils.TRIGGER_ID_PARAM_NAME + "/" + TestSurveyUtils.TEST_TRIGGER_ID_FOO;
-
     @Rule
     public FreshCtaTransitTestRule mActivityTestRule =
             ChromeTransitTestRules.freshChromeTabbedActivityRule();
@@ -65,10 +62,9 @@ public class SigninSurveyControllerTest {
 
     @Test
     @MediumTest
-    @Features.EnableFeatures(SigninFeatures.CHROME_ANDROID_IDENTITY_SURVEY_FIRST_RUN + TRIGGER)
     public void acceptFreSigninSurvey() {
         acceptSigninSurvey(
-                SigninSurveyController.SigninSurveyType.FRE, TestSurveyUtils.TEST_TRIGGER_ID_FOO);
+                SigninSurveyController.SigninSurveyType.FRE, "HhgAhQYhw0tK1KeaPYj0NeTaRKBh");
     }
 
     @Test
@@ -104,10 +100,9 @@ public class SigninSurveyControllerTest {
 
     @Test
     @MediumTest
-    @Features.EnableFeatures(SigninFeatures.CHROME_ANDROID_IDENTITY_SURVEY_WEB + TRIGGER)
     public void acceptWebSigninSurvey() {
         acceptSigninSurvey(
-                SigninSurveyController.SigninSurveyType.WEB, TestSurveyUtils.TEST_TRIGGER_ID_FOO);
+                SigninSurveyController.SigninSurveyType.WEB, "36F2N72TP0tK1KeaPYj0SdXcHEJ4");
     }
 
     @Test

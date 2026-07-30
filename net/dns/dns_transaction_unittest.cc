@@ -298,8 +298,11 @@ class TestSocketFactory : public MockClientSocketFactory {
 
   std::unique_ptr<DatagramClientSocket> CreateDatagramClientSocket(
       DatagramSocket::BindType bind_type,
+      handles::NetworkHandle target_network,
       NetLog* net_log,
       const NetLogSource& source) override {
+    // This is used only for testing in scenarios that do not involve multiple
+    // networks. With that in mind, it's safe to ignore `target_network`.
     if (fail_next_socket_) {
       fail_next_socket_ = false;
       return std::make_unique<FailingUDPClientSocket>(&empty_data_, net_log);
@@ -707,7 +710,7 @@ class DnsTransactionTestBase : public testing::Test {
       CHECK_EQ(use_post, config_.doh_config.servers()[0].use_post());
     } else {
       CHECK_LE(num_doh_servers, 255u);
-      std::vector<string> templates;
+      std::vector<std::string> templates;
       templates.reserve(num_doh_servers);
       for (size_t i = 0; i < num_doh_servers; ++i) {
         templates.push_back(URLRequestMockDohJob::GetMockHttpsUrl(

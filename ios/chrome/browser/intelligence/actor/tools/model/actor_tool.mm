@@ -65,4 +65,6 @@ ActorTool::ResolveTab(int32_t tab_id, ProfileIOS* profile) {
   return result;
 }
 
+void ActorTool::Cancel() {}
+
 }  // namespace actor

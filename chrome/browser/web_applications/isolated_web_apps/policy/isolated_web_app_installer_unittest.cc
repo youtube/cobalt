@@ -30,6 +30,7 @@
 #include "chrome/common/chrome_features.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
 #include "components/web_package/test_support/signed_web_bundles/ed25519_key_pair.h"
+#include "components/webapps/isolated_web_apps/public/iwa_runtime_data_provider.h"
 #include "components/webapps/isolated_web_apps/test_support/signing_keys.h"
 #include "components/webapps/isolated_web_apps/types/iwa_version.h"
 #include "components/webapps/isolated_web_apps/types/update_channel.h"
@@ -79,8 +80,7 @@ class IwaInstallerBaseTest : public IsolatedWebAppTest {
         session_type_(session_type) {}
 
   void SetUp() override {
-    resetter_ =
-        ChromeIwaRuntimeDataProvider::SetInstanceForTesting(&data_provider_);
+    resetter_ = IwaRuntimeDataProvider::SetInstanceForTesting(&data_provider_);
     IsolatedWebAppTest::SetUp();
     test::AwaitStartWebAppProviderAndSubsystems(profile());
 
@@ -203,7 +203,7 @@ class IwaInstallerBaseTest : public IsolatedWebAppTest {
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   FakeIwaRuntimeDataProvider data_provider_;
-  std::optional<base::AutoReset<ChromeIwaRuntimeDataProvider*>> resetter_;
+  std::optional<base::AutoReset<IwaRuntimeDataProvider*>> resetter_;
 };
 
 class IwaInstallerTest : public IwaInstallerBaseTest,

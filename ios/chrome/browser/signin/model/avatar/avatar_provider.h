@@ -13,9 +13,9 @@ enum class IdentityAvatarSize;
 
 namespace signin {
 
-// Contains cache for the avatar for identeties on device, and the default
-// avatar, at various size. The cache listen for memory constrain and empty
-// itself if needed.
+// Contains cache for the avatar for identities on device, and the default
+// avatar, at various sizes. The cache listens for memory constraints and
+// empties itself if needed.
 class AvatarProvider {
  public:
   // Returns the identity avatar. If the avatar is not available, it is fetched

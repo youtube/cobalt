@@ -17,8 +17,11 @@ declare global {
         hasListener(listener: () => void): boolean;
       }
 
+      export type ObjectFit =
+        'fill' | 'contain' | 'cover' | 'object-fit-none' | 'scale-down';
       export interface ImageData {
         value: ArrayBuffer | string;
+        objectFit: ObjectFit;
       }
       export function readyToRender(): Promise<number>;
       export function getOriginalImage(): Promise<ImageData>;

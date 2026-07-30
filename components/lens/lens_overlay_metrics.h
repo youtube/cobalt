@@ -254,6 +254,21 @@ void RecordTimeToGetPageContext(base::TimeDelta duration);
 // Records the time it takes for the page to bind
 void RecordTimeToWebuiBound(base::TimeDelta duration);
 
+// LINT.IfChange(LensContextualTasksQueryEligibility)
+enum class LensContextualTasksQueryEligibility {
+  kEligible = 0,
+  kAimIneligible = 1,
+  kCobrowseIneligible = 2,
+  kMaxValue = kCobrowseIneligible,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/lens/enums.xml:LensContextualTasksQueryEligibility)
+
+// Records the Lens query eligibility state when Contextual Tasks is enabled,
+// split by invocation source.
+void RecordContextualTasksQueryEligibility(
+    LensContextualTasksQueryEligibility eligibility,
+    std::optional<LensOverlayInvocationSource> invocation_source);
+
 }  // namespace lens
 
 #endif  // COMPONENTS_LENS_LENS_OVERLAY_METRICS_H_

@@ -14,6 +14,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -80,6 +81,8 @@ public class TabCollectionTabModelImplUnitTest {
     @Mock private PendingTabClosureManager mPendingTabClosureManager;
 
     private TabCollectionTabModelImpl mTabModel;
+    private List<Tab> mTabs;
+    private boolean mExpectNoJniCalls;
 
     @Before
     public void setUp() {
@@ -104,6 +107,90 @@ public class TabCollectionTabModelImplUnitTest {
         TabCollectionTabModelImplJni.setInstanceForTesting(mTabCollectionTabModelImplJni);
         when(mTabCollectionTabModelImplJni.init(any(), eq(mProfile)))
                 .thenReturn(TAB_COLLECTION_TAB_MODEL_IMPL_PTR);
+
+        mTabs = new ArrayList<>();
+        mExpectNoJniCalls = false;
+
+        when(mTabCollectionTabModelImplJni.getAllTabs(eq(TAB_COLLECTION_TAB_MODEL_IMPL_PTR)))
+                .thenAnswer(
+                        invocation -> {
+                            if (mExpectNoJniCalls) {
+                                org.junit.Assert.fail("JNI getAllTabs called when not expected");
+                            }
+                            return mTabs;
+                        });
+
+        when(mTabCollectionTabModelImplJni.addTabRecursive(
+                        eq(TAB_COLLECTION_TAB_MODEL_IMPL_PTR),
+                        any(Tab.class),
+                        anyInt(),
+                        any(),
+                        anyBoolean(),
+                        anyBoolean()))
+                .thenAnswer(
+                        invocation -> {
+                            Tab tab = invocation.getArgument(1);
+                            int index = invocation.getArgument(2);
+                            mTabs.add(index, tab);
+                            return index;
+                        });
+
+        doAnswer(
+                        invocation -> {
+                            Tab tab = invocation.getArgument(1);
+                            mTabs.remove(tab);
+                            return null;
+                        })
+                .when(mTabCollectionTabModelImplJni)
+                .removeTabRecursive(eq(TAB_COLLECTION_TAB_MODEL_IMPL_PTR), any(Tab.class));
+
+        when(mTabCollectionTabModelImplJni.moveTabRecursive(
+                        eq(TAB_COLLECTION_TAB_MODEL_IMPL_PTR),
+                        anyInt(),
+                        anyInt(),
+                        any(),
+                        anyBoolean()))
+                .thenAnswer(
+                        invocation -> {
+                            int oldIndex = invocation.getArgument(1);
+                            int newIndex = invocation.getArgument(2);
+                            Tab tab = mTabs.get(oldIndex);
+                            mTabs.remove(oldIndex);
+                            mTabs.add(newIndex, tab);
+                            return newIndex;
+                        });
+
+        when(mTabCollectionTabModelImplJni.getTabsInGroup(
+                        eq(TAB_COLLECTION_TAB_MODEL_IMPL_PTR), any()))
+                .thenAnswer(
+                        invocation -> {
+                            Token groupId = invocation.getArgument(1);
+                            if (groupId == null) return Collections.emptyList();
+                            List<Tab> result = new ArrayList<>();
+                            for (Tab t : mTabs) {
+                                if (groupId.equals(t.getTabGroupId())) {
+                                    result.add(t);
+                                }
+                            }
+                            return result;
+                        });
+
+        when(mTabCollectionTabModelImplJni.moveTabGroupTo(
+                        eq(TAB_COLLECTION_TAB_MODEL_IMPL_PTR), any(), anyInt()))
+                .thenAnswer(
+                        invocation -> {
+                            Token groupId = invocation.getArgument(1);
+                            int newIndex = invocation.getArgument(2);
+                            List<Tab> groupTabs = new ArrayList<>();
+                            for (Tab t : mTabs) {
+                                if (groupId.equals(t.getTabGroupId())) {
+                                    groupTabs.add(t);
+                                }
+                            }
+                            mTabs.removeAll(groupTabs);
+                            mTabs.addAll(newIndex, groupTabs);
+                            return newIndex;
+                        });
 
         mTabModel =
                 new TabCollectionTabModelImpl(
@@ -230,20 +317,21 @@ public class TabCollectionTabModelImplUnitTest {
 
     @Test
     public void testGetCount() {
-        when(mTabCollectionTabModelImplJni.getTabCountRecursive(
-                        eq(TAB_COLLECTION_TAB_MODEL_IMPL_PTR)))
-                .thenReturn(5);
+        mTabs.add(createMockTab(1, mProfile));
+        mTabs.add(createMockTab(2, mProfile));
+        mTabs.add(createMockTab(3, mProfile));
+        mTabs.add(createMockTab(4, mProfile));
+        mTabs.add(createMockTab(5, mProfile));
         assertEquals("Incorrect tab count", 5, mTabModel.getCount());
-        verify(mTabCollectionTabModelImplJni)
-                .getTabCountRecursive(eq(TAB_COLLECTION_TAB_MODEL_IMPL_PTR));
+        verify(mTabCollectionTabModelImplJni).getAllTabs(eq(TAB_COLLECTION_TAB_MODEL_IMPL_PTR));
     }
 
     @Test
     public void testGetCount_nativeNotInitialized() {
         mTabModel.destroy();
+        mExpectNoJniCalls = true;
         assertEquals(
                 "Tab count should be 0 when native is not initialized", 0, mTabModel.getCount());
-        verify(mTabCollectionTabModelImplJni, never()).getTabCountRecursive(anyLong());
         verify(mTabModelObserver, atLeastOnce()).onDestroy();
     }
 
@@ -251,21 +339,17 @@ public class TabCollectionTabModelImplUnitTest {
     public void testIndexOf() {
         MockTab tab = createMockTab(123, mProfile);
         tab.setIsInitialized(true);
-        when(mTabCollectionTabModelImplJni.getIndexOfTabRecursive(
-                        eq(TAB_COLLECTION_TAB_MODEL_IMPL_PTR), eq(tab)))
-                .thenReturn(2);
+        mTabs.add(createMockTab(1, mProfile));
+        mTabs.add(createMockTab(2, mProfile));
+        mTabs.add(tab);
         assertEquals("Incorrect tab index", 2, mTabModel.indexOf(tab));
-        verify(mTabCollectionTabModelImplJni)
-                .getIndexOfTabRecursive(eq(TAB_COLLECTION_TAB_MODEL_IMPL_PTR), eq(tab));
+        verify(mTabCollectionTabModelImplJni).getAllTabs(eq(TAB_COLLECTION_TAB_MODEL_IMPL_PTR));
     }
 
     @Test
     public void testIndexOf_tabNotFound() {
         MockTab tab = createMockTab(123, mProfile);
         tab.setIsInitialized(true);
-        when(mTabCollectionTabModelImplJni.getIndexOfTabRecursive(
-                        eq(TAB_COLLECTION_TAB_MODEL_IMPL_PTR), eq(tab)))
-                .thenReturn(TabList.INVALID_TAB_INDEX);
         assertEquals(
                 "Incorrect tab index for non-existent tab",
                 TabList.INVALID_TAB_INDEX,
@@ -278,17 +362,17 @@ public class TabCollectionTabModelImplUnitTest {
                 "Index of null tab should be invalid",
                 TabList.INVALID_TAB_INDEX,
                 mTabModel.indexOf(null));
-        verify(mTabCollectionTabModelImplJni, never()).getIndexOfTabRecursive(anyLong(), any());
+        verify(mTabCollectionTabModelImplJni, never()).getAllTabs(anyLong());
     }
 
     @Test
     public void testIndexOf_nativeNotInitialized() {
         mTabModel.destroy(); // Destroys native ptr.
+        mExpectNoJniCalls = true;
         assertEquals(
                 "Index should be invalid when native is not initialized",
                 TabList.INVALID_TAB_INDEX,
                 mTabModel.indexOf(MockTab.createAndInitialize(123, mProfile)));
-        verify(mTabCollectionTabModelImplJni, never()).getIndexOfTabRecursive(anyLong(), any());
     }
 
     @Test
@@ -524,12 +608,7 @@ public class TabCollectionTabModelImplUnitTest {
         MockTab tab = createMockTab(tabId, mProfile);
         tab.setIsInitialized(true);
 
-        ArrayList<Tab> tabs = new ArrayList<>();
-        tabs.add(tab);
-
         when(mTabModelDelegate.getModel(anyBoolean())).thenReturn(mTabModel);
-        when(mTabCollectionTabModelImplJni.getTabCountRecursive(anyLong())).thenReturn(1);
-        when(mTabCollectionTabModelImplJni.getAllTabs(anyLong())).thenReturn(tabs);
 
         mTabModel.addTab(tab, 0, TabLaunchType.FROM_CHROME_UI, TabCreationState.LIVE_IN_FOREGROUND);
         mTabModel.closeTabs(TabClosureParams.closeAllTabs().allowUndo(false).build());
@@ -540,7 +619,6 @@ public class TabCollectionTabModelImplUnitTest {
     @Test
     public void testAllTabsAreClosing_closeOneTab() {
         when(mTabModelDelegate.getModel(anyBoolean())).thenReturn(mTabModel);
-        when(mTabCollectionTabModelImplJni.getTabCountRecursive(anyLong())).thenReturn(1);
 
         @TabId int tabId = 789;
         MockTab tab = createMockTab(tabId, mProfile);
@@ -571,9 +649,6 @@ public class TabCollectionTabModelImplUnitTest {
     public void testIsClosingAllTabs() {
         when(mTabModelDelegate.getModel(false)).thenReturn(mTabModel);
 
-        when(mTabCollectionTabModelImplJni.getTabCountRecursive(
-                        eq(TAB_COLLECTION_TAB_MODEL_IMPL_PTR)))
-                .thenReturn(0);
         assertFalse(mTabModel.isClosingAllTabs());
 
         MockTab tab1 = createMockTab(1, mProfile);
@@ -588,22 +663,13 @@ public class TabCollectionTabModelImplUnitTest {
                 tab2, 1, TabLaunchType.FROM_CHROME_UI, TabCreationState.LIVE_IN_FOREGROUND);
         verifyBatchedAndReset();
 
-        when(mTabCollectionTabModelImplJni.getTabCountRecursive(
-                        eq(TAB_COLLECTION_TAB_MODEL_IMPL_PTR)))
-                .thenReturn(2);
         assertFalse(mTabModel.isClosingAllTabs());
 
         mTabModel.closeTabs(TabClosureParams.closeTab(tab1).allowUndo(false).build());
-        when(mTabCollectionTabModelImplJni.getTabCountRecursive(
-                        eq(TAB_COLLECTION_TAB_MODEL_IMPL_PTR)))
-                .thenReturn(1);
 
         assertFalse(mTabModel.isClosingAllTabs());
 
         mTabModel.closeTabs(TabClosureParams.closeTab(tab2).allowUndo(false).build());
-        when(mTabCollectionTabModelImplJni.getTabCountRecursive(
-                        eq(TAB_COLLECTION_TAB_MODEL_IMPL_PTR)))
-                .thenReturn(0);
 
         assertTrue(mTabModel.isClosingAllTabs());
     }

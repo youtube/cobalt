@@ -241,8 +241,12 @@ void GridPlacement::PlaceGridItemsLockedToMajorAxis(
 
     AutoPlacementCursor placement_cursor(placed_items->FirstPlacedItem());
     placement_cursor.MoveToMajorLine(major_start_line);
-    if (HasSparsePacking() && minor_cursors.Contains(major_start_line))
-      placement_cursor.MoveToMinorLine(minor_cursors.at(major_start_line));
+    if (HasSparsePacking()) {
+      if (auto it = minor_cursors.find(major_start_line);
+          it != minor_cursors.end()) {
+        placement_cursor.MoveToMinorLine(it->value);
+      }
+    }
 
     placement_cursor.MoveCursorToFitGridSpan(
         position->SpanSize(major_direction_), minor_span_size,

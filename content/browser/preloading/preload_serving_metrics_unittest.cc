@@ -31,7 +31,7 @@ std::unique_ptr<PreloadServingMetrics> MakeSkeletonPreloadServingMetrics(
 }
 
 base::TimeTicks Millis(int ms) {
-  return base::TimeTicks::UnixEpoch() + base::Milliseconds(ms);
+  return base::TimeTicks() + base::Milliseconds(ms);
 }
 
 // Scenario:

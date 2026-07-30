@@ -15,6 +15,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
+#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/enterprise/data_protection/data_protection_clipboard_utils.h"
 #include "chrome/browser/feature_engagement/tracker_factory.h"
 #include "chrome/browser/glic/browser_ui/glic_nudge_controller.h"
@@ -37,6 +38,8 @@
 #include "chrome/browser/ui/toasts/toast_controller.h"
 #include "chrome/browser/ui/toasts/toast_features.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/content_settings/core/common/content_settings_pattern.h"
 #include "components/feature_engagement/public/tracker.h"
 #include "components/shared_highlighting/core/common/disabled_sites.h"
 #include "components/shared_highlighting/core/common/fragment_directives_utils.h"
@@ -66,7 +69,10 @@ namespace {
 
 // The maximum length of the selection text sent as a suggested prompt.
 // Selections longer than this are ignored.
+// We send a truncated version of the selection to the panel as it does not
+// need to be the full text.
 constexpr size_t kMaxSelectionLength = 1000;
+constexpr size_t kMaxSelectionLengthSentToPanel = 100;
 
 // The minimum length of the selection text sent as a suggested prompt.
 // Selections shorter than this are ignored.
@@ -139,7 +145,8 @@ mojom::AdditionalContextPtr CreateAdditionalContext(
   if (!selected_text.empty()) {
     auto context_data = mojom::ContextData::New();
     context_data->mime_type = kSelectionMimeType;
-    std::string utf8_text = base::UTF16ToUTF8(selected_text);
+    std::string utf8_text = base::UTF16ToUTF8(
+        selected_text.substr(0, kMaxSelectionLengthSentToPanel));
     context_data->data =
         mojo_base::BigBuffer(base::as_bytes(base::span(utf8_text)));
     parts.push_back(
@@ -151,6 +158,29 @@ mojom::AdditionalContextPtr CreateAdditionalContext(
   }
   context->parts = std::move(parts);
   return context;
+}
+
+bool IsListenedToInputEvent(blink::WebInputEvent::Type type) {
+  switch (type) {
+    case blink::WebInputEvent::Type::kMouseDown:
+    case blink::WebInputEvent::Type::kPointerDown:
+    case blink::WebInputEvent::Type::kGestureTapDown:
+    case blink::WebInputEvent::Type::kTouchStart:
+    case blink::WebInputEvent::Type::kMouseUp:
+    case blink::WebInputEvent::Type::kPointerUp:
+    case blink::WebInputEvent::Type::kPointerCancel:
+    case blink::WebInputEvent::Type::kTouchEnd:
+    case blink::WebInputEvent::Type::kTouchCancel:
+    case blink::WebInputEvent::Type::kGestureTapCancel:
+    case blink::WebInputEvent::Type::kKeyUp:
+    case blink::WebInputEvent::Type::kRawKeyDown:
+    case blink::WebInputEvent::Type::kKeyDown:
+    case blink::WebInputEvent::Type::kGestureScrollBegin:
+    case blink::WebInputEvent::Type::kMouseWheel:
+      return true;
+    default:
+      return false;
+  }
 }
 
 }  // namespace
@@ -178,6 +208,7 @@ class GlicSelectionObserver::WidgetActionDelegate
 GlicSelectionObserver::GlicSelectionObserver(content::WebContents* web_contents)
     : content::WebContentsObserver(web_contents),
       action_delegate_(std::make_unique<WidgetActionDelegate>(this)) {
+  CHECK(web_contents);
   Profile* profile =
       Profile::FromBrowserContext(web_contents->GetBrowserContext());
   glic_keyed_service_ = GlicKeyedService::Get(profile);
@@ -196,9 +227,6 @@ GlicSelectionObserver::GlicSelectionObserver(content::WebContents* web_contents)
 }
 
 bool GlicSelectionObserver::IsSelectionPromptEnabled() const {
-  if (!web_contents()) {
-    return false;
-  }
   Profile* profile =
       Profile::FromBrowserContext(web_contents()->GetBrowserContext());
   return GlicEnabling::IsSelectionPromptEnabledForProfile(profile);
@@ -300,24 +328,33 @@ void GlicSelectionObserver::OnInputEvent(
     const content::RenderWidgetHost& host,
     const blink::WebInputEvent& event,
     content::RenderWidgetHost::InputEventObserver::InputEventSource source) {
+  if (!IsListenedToInputEvent(event.GetType())) {
+    return;
+  }
+  if (!IsTabValidForSharing(web_contents())) {
+    return;
+  }
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&GlicSelectionObserver::ProcessInputEvent,
+                                weak_ptr_factory_.GetWeakPtr(), event.Clone()));
+}
+
+void GlicSelectionObserver::ProcessInputEvent(
+    std::unique_ptr<blink::WebInputEvent> event) {
   if (!IsSelectionPromptEnabled()) {
     return;
   }
 
-  if (!IsTabValidForSharing(web_contents())) {
-    return;
-  }
-
-  switch (event.GetType()) {
+  switch (event->GetType()) {
     case blink::WebInputEvent::Type::kMouseDown:
     case blink::WebInputEvent::Type::kPointerDown:
     case blink::WebInputEvent::Type::kGestureTapDown:
     case blink::WebInputEvent::Type::kTouchStart: {
       bool is_left_click_or_touch = true;
-      if (event.GetType() == blink::WebInputEvent::Type::kMouseDown ||
-          event.GetType() == blink::WebInputEvent::Type::kPointerDown) {
+      if (event->GetType() == blink::WebInputEvent::Type::kMouseDown ||
+          event->GetType() == blink::WebInputEvent::Type::kPointerDown) {
         const auto& mouse_event =
-            static_cast<const blink::WebMouseEvent&>(event);
+            static_cast<const blink::WebMouseEvent&>(*event);
         if (mouse_event.button != blink::WebPointerProperties::Button::kLeft) {
           is_left_click_or_touch = false;
         }
@@ -370,16 +407,16 @@ void GlicSelectionObserver::OnInputEvent(
       }
       DismissUI(/*keep_nudge=*/false);
       const auto& keyboard_event =
-          static_cast<const blink::WebKeyboardEvent&>(event);
+          static_cast<const blink::WebKeyboardEvent&>(*event);
 #if BUILDFLAG(IS_MAC)
       int select_all_modifier = blink::WebInputEvent::Modifiers::kMetaKey;
 #else
       int select_all_modifier = blink::WebInputEvent::Modifiers::kControlKey;
 #endif
-      bool is_select_all = (event.GetModifiers() & select_all_modifier) &&
+      bool is_select_all = (event->GetModifiers() & select_all_modifier) &&
                            keyboard_event.windows_key_code == ui::VKEY_A;
       bool is_shift =
-          event.GetModifiers() & blink::WebInputEvent::Modifiers::kShiftKey;
+          event->GetModifiers() & blink::WebInputEvent::Modifiers::kShiftKey;
       bool is_navigation_key =
           keyboard_event.windows_key_code == ui::VKEY_LEFT ||
           keyboard_event.windows_key_code == ui::VKEY_RIGHT ||
@@ -431,23 +468,26 @@ void GlicSelectionObserver::OnTextSelectionChanged(
   std::u16string_view trimmed_text =
       base::TrimWhitespace(selected_text, base::TRIM_ALL);
 
-  size_t non_whitespace_count = 0;
-  bool exceeds_minimum_selection_length = false;
-  for (char16_t c : trimmed_text) {
-    if (!base::IsUnicodeWhitespace(c)) {
-      non_whitespace_count++;
-    }
-    if (non_whitespace_count == kMinSelectionLength) {
-      exceeds_minimum_selection_length = true;
-      break;
-    }
-  }
-
-  if (!exceeds_minimum_selection_length ||
-      trimmed_text.length() > kMaxSelectionLength) {
+  if (trimmed_text.length() > kMaxSelectionLength) {
     pending_selection_text_ = std::u16string();
   } else {
-    pending_selection_text_ = std::u16string(trimmed_text);
+    size_t non_whitespace_count = 0;
+    bool exceeds_minimum_selection_length = false;
+    for (char16_t c : trimmed_text) {
+      if (!base::IsUnicodeWhitespace(c)) {
+        non_whitespace_count++;
+      }
+      if (non_whitespace_count == kMinSelectionLength) {
+        exceeds_minimum_selection_length = true;
+        break;
+      }
+    }
+
+    if (!exceeds_minimum_selection_length) {
+      pending_selection_text_ = std::u16string();
+    } else {
+      pending_selection_text_ = std::u16string(trimmed_text);
+    }
   }
   if (render_frame_host) {
     last_selection_frame_token_ = render_frame_host->GetGlobalFrameToken();
@@ -667,13 +707,10 @@ void GlicSelectionObserver::ShowSelectionAffordance(
             GlicSelectionAction::kWidgetShown);
 
         widget_delegate_ = std::make_unique<GlicSelectionWidgetDelegate>(
-            *action_delegate_, *bounds,
-            web_contents() ? web_contents()->GetContainerBounds() : gfx::Rect(),
+            *action_delegate_, *bounds, web_contents()->GetContainerBounds(),
             std::u16string(selected_text), is_widget_pinned_);
-        if (web_contents()) {
-          widget_delegate_->set_parent_window(platform_util::GetViewForWindow(
-              web_contents()->GetTopLevelNativeWindow()));
-        }
+        widget_delegate_->set_parent_window(platform_util::GetViewForWindow(
+            web_contents()->GetTopLevelNativeWindow()));
         selection_widget_ = views::BubbleDialogDelegate::CreateBubble(
             widget_delegate_.get(),
             base::BindOnce(&GlicSelectionObserver::OnWidgetClosed,
@@ -701,6 +738,23 @@ bool GlicSelectionObserver::ShouldShowSelectionWidget() {
     return false;
   }
 
+  Profile* profile =
+      Profile::FromBrowserContext(web_contents()->GetBrowserContext());
+
+  if (features::kGlicSelectionEnableSiteSettings.Get() &&
+      ContentSettingsPattern::FromURL(web_contents()->GetLastCommittedURL())
+          .IsValid()) {
+    HostContentSettingsMap* settings_map =
+        HostContentSettingsMapFactory::GetForProfile(profile);
+    ContentSetting setting =
+        settings_map->GetContentSetting(web_contents()->GetLastCommittedURL(),
+                                        web_contents()->GetLastCommittedURL(),
+                                        ContentSettingsType::INLINE_CUE_MENU);
+    if (setting == CONTENT_SETTING_BLOCK) {
+      return false;
+    }
+  }
+
   // Check the top cue only list.
   std::string top_cue_only_list_str =
       features::kGlicSelectionTopCueOnlyList.Get();
@@ -722,6 +776,19 @@ bool GlicSelectionObserver::ShouldShowSelectionWidget() {
 
 void GlicSelectionObserver::OnHideForThisSite() {
   is_hidden_on_current_page_ = true;
+
+  if (features::kGlicSelectionEnableSiteSettings.Get() &&
+      ContentSettingsPattern::FromURL(web_contents()->GetLastCommittedURL())
+          .IsValid()) {
+    Profile* profile =
+        Profile::FromBrowserContext(web_contents()->GetBrowserContext());
+    HostContentSettingsMap* settings_map =
+        HostContentSettingsMapFactory::GetForProfile(profile);
+    settings_map->SetContentSettingDefaultScope(
+        web_contents()->GetLastCommittedURL(), GURL(),
+        ContentSettingsType::INLINE_CUE_MENU, CONTENT_SETTING_BLOCK);
+  }
+
   DismissUI(/*keep_nudge=*/false);
 }
 
@@ -862,9 +929,7 @@ void GlicSelectionObserver::OnAskGemini() {
 
 void GlicSelectionObserver::OnCopy() {
   DismissUI(/*keep_nudge=*/false);
-  if (web_contents()) {
-    web_contents()->Copy();
-  }
+  web_contents()->Copy();
 }
 
 void GlicSelectionObserver::OnCopyLink() {

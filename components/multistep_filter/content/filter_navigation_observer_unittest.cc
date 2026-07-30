@@ -4,6 +4,7 @@
 
 #include "components/multistep_filter/content/filter_navigation_observer.h"
 
+#include "base/command_line.h"
 #include "base/functional/callback_helpers.h"
 #include "components/multistep_filter/content/filter_initiated_navigation_marker.h"
 #include "components/multistep_filter/core/annotation_index/annotation_index_client.h"
@@ -11,6 +12,7 @@
 #include "components/multistep_filter/core/multistep_filter_service.h"
 #include "components/multistep_filter/core/multistep_filter_ui_delegate.h"
 #include "components/multistep_filter/core/storage/filter_store.h"
+#include "components/multistep_filter/core/switches.h"
 #include "components/unified_consent/url_keyed_data_collection_consent_helper.h"
 #include "content/public/test/mock_navigation_handle.h"
 #include "content/public/test/navigation_simulator.h"
@@ -122,6 +124,8 @@ class FilterNavigationObserverTest : public content::RenderViewHostTestHarness {
   std::unique_ptr<FilterNavigationObserver> filter_navigation_observer_;
 };
 
+// Tests that a valid HTTPS navigation triggers extraction and suggestion
+// generation.
 TEST_F(FilterNavigationObserverTest, HttpsNavigation) {
   const GURL url("https://www.example.com");
   EXPECT_CALL(delegate(), ClearSuggestion());
@@ -131,7 +135,22 @@ TEST_F(FilterNavigationObserverTest, HttpsNavigation) {
                                                              url);
 }
 
+// Tests that an HTTP navigation is rejected and does not trigger extraction or
+// suggestions.
 TEST_F(FilterNavigationObserverTest, HttpNavigation) {
+  const GURL url("http://www.example.com");
+  EXPECT_CALL(delegate(), ClearSuggestion());
+  EXPECT_CALL(mock_service(), ExtractAnnotation).Times(0);
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions).Times(0);
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
+                                                             url);
+}
+
+// Tests that an HTTP navigation is allowed when the testing switch is present.
+TEST_F(FilterNavigationObserverTest, HttpNavigationWithTestingSwitch) {
+  base::CommandLine::ForCurrentProcess()->AppendSwitch(
+      switches::kMultistepFilterAllowHttpForTesting);
+
   const GURL url("http://www.example.com");
   EXPECT_CALL(delegate(), ClearSuggestion());
   EXPECT_CALL(mock_service(), ExtractAnnotation(_, url));
@@ -140,6 +159,7 @@ TEST_F(FilterNavigationObserverTest, HttpNavigation) {
                                                              url);
 }
 
+// Tests that non-HTTP/HTTPS navigations (like FTP) are rejected.
 TEST_F(FilterNavigationObserverTest, NonHttpNavigation) {
   const GURL url("ftp://www.example.com");
   EXPECT_CALL(delegate(), ClearSuggestion());
@@ -149,6 +169,8 @@ TEST_F(FilterNavigationObserverTest, NonHttpNavigation) {
                                                              url);
 }
 
+// Tests that same-document navigations preserve suggestions but allow
+// extraction.
 TEST_F(FilterNavigationObserverTest, SameDocumentNavigation) {
   const GURL url("https://www.example.com");
   EXPECT_CALL(delegate(), ClearSuggestion());
@@ -172,6 +194,7 @@ TEST_F(FilterNavigationObserverTest, SameDocumentNavigation) {
   navigation->CommitSameDocument();
 }
 
+// Tests that re-committing the same URL does not clear existing suggestions.
 TEST_F(FilterNavigationObserverTest, SameUrlReCommitNavigation) {
   const GURL url("https://www.example.com");
   EXPECT_CALL(delegate(), ClearSuggestion());
@@ -192,6 +215,8 @@ TEST_F(FilterNavigationObserverTest, SameUrlReCommitNavigation) {
                                                              url);
 }
 
+// Tests that an aborted navigation does not clear suggestions or trigger
+// extraction.
 TEST_F(FilterNavigationObserverTest, AbortedNavigation) {
   const GURL url("https://www.example.com");
   EXPECT_CALL(delegate(), ClearSuggestion()).Times(0);
@@ -203,6 +228,7 @@ TEST_F(FilterNavigationObserverTest, AbortedNavigation) {
   navigation->AbortCommit();
 }
 
+// Tests that subframe navigations are ignored.
 TEST_F(FilterNavigationObserverTest, SubframeNavigation) {
   const GURL url("https://www.example.com");
   EXPECT_CALL(delegate(), ClearSuggestion());
@@ -221,6 +247,7 @@ TEST_F(FilterNavigationObserverTest, SubframeNavigation) {
                                                               subframe);
 }
 
+// Tests that error page navigations are rejected.
 TEST_F(FilterNavigationObserverTest, ErrorPageNavigation) {
   const GURL url("https://www.example.com");
   EXPECT_CALL(delegate(), ClearSuggestion());
@@ -230,6 +257,7 @@ TEST_F(FilterNavigationObserverTest, ErrorPageNavigation) {
                                                            net::ERR_TIMED_OUT);
 }
 
+// Tests that page reloads do not clear existing suggestions.
 TEST_F(FilterNavigationObserverTest, ReloadNavigation) {
   const GURL url("https://www.example.com");
   EXPECT_CALL(delegate(), ClearSuggestion());
@@ -255,6 +283,7 @@ TEST_F(FilterNavigationObserverTest, ReloadNavigation) {
   observer()->DidFinishNavigation(&handle);
 }
 
+// Tests that navigations are safely ignored when the service is null.
 TEST_F(FilterNavigationObserverTest, NullService) {
   RecreateObserverWithNullService();
 
@@ -267,6 +296,8 @@ TEST_F(FilterNavigationObserverTest, NullService) {
                                                              url);
 }
 
+// Tests that about:blank navigations clear suggestions but do not trigger
+// extraction.
 TEST_F(FilterNavigationObserverTest, AboutBlankNavigation) {
   const GURL url("about:blank");
   EXPECT_CALL(delegate(), ClearSuggestion());
@@ -276,6 +307,8 @@ TEST_F(FilterNavigationObserverTest, AboutBlankNavigation) {
                                                              url);
 }
 
+// Tests that a renderer-initiated navigation with a user gesture triggers
+// extraction.
 TEST_F(FilterNavigationObserverTest, RendererInitiatedNavigation) {
   const GURL url("https://www.example.com");
   EXPECT_CALL(delegate(), ClearSuggestion());
@@ -284,14 +317,16 @@ TEST_F(FilterNavigationObserverTest, RendererInitiatedNavigation) {
   content::NavigationSimulator::NavigateAndCommitFromDocument(url, main_rfh());
 }
 
+// Tests that a renderer-initiated navigation without a user gesture does not
+// trigger extraction or suggestions.
 TEST_F(FilterNavigationObserverTest,
        RendererInitiatedNavigationWithoutUserGesture) {
   const GURL url("https://www.example.com");
   EXPECT_CALL(delegate(), ClearSuggestion());
   // Renderer-initiated navigation WITHOUT user gesture should NOT trigger
-  // extraction.
+  // extraction or suggestions.
   EXPECT_CALL(mock_service(), ExtractAnnotation).Times(0);
-  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(_, url, _));
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions).Times(0);
 
   auto navigation =
       content::NavigationSimulator::CreateRendererInitiated(url, main_rfh());
@@ -299,14 +334,16 @@ TEST_F(FilterNavigationObserverTest,
   navigation->Commit();
 }
 
+// Tests that a browser-initiated navigation without a user gesture does not
+// trigger extraction or suggestions.
 TEST_F(FilterNavigationObserverTest,
        BrowserInitiatedNavigationWithoutUserGesture) {
   const GURL url("https://www.example.com");
   EXPECT_CALL(delegate(), ClearSuggestion());
   // Browser-initiated navigation WITHOUT user gesture should NOT trigger
-  // extraction.
+  // extraction or suggestions.
   EXPECT_CALL(mock_service(), ExtractAnnotation).Times(0);
-  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(_, url, _));
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions).Times(0);
 
   auto navigation =
       content::NavigationSimulator::CreateBrowserInitiated(url, web_contents());
@@ -314,6 +351,8 @@ TEST_F(FilterNavigationObserverTest,
   navigation->Commit();
 }
 
+// Tests that a cross-document reference fragment navigation triggers
+// extraction.
 TEST_F(FilterNavigationObserverTest, ReferenceFragmentNavigation) {
   // Navigation to a URL with a reference fragment (cross-document).
   const GURL url("https://www.example.com/#test");
@@ -324,6 +363,7 @@ TEST_F(FilterNavigationObserverTest, ReferenceFragmentNavigation) {
                                                              url);
 }
 
+// Tests that restoring a page from BFCache triggers extraction and suggestions.
 TEST_F(FilterNavigationObserverTest, PageActivationNavigation) {
   content::MockNavigationHandle handle;
   handle.set_has_committed(true);
@@ -346,12 +386,14 @@ TEST_F(FilterNavigationObserverTest, PageActivationNavigation) {
   observer()->DidFinishNavigation(&handle);
 }
 
+// Tests that a render process crash clears existing suggestions.
 TEST_F(FilterNavigationObserverTest, PrimaryMainFrameRenderProcessGone) {
   EXPECT_CALL(delegate(), ClearSuggestion());
   observer()->PrimaryMainFrameRenderProcessGone(
       base::TERMINATION_STATUS_PROCESS_CRASHED);
 }
 
+// Tests that navigating to a different subdomain suppresses suggestions.
 TEST_F(FilterNavigationObserverTest, SubdomainNavigation) {
   const GURL url1("https://sub1.example.com");
   const GURL url2("https://sub2.example.com");
@@ -374,9 +416,10 @@ TEST_F(FilterNavigationObserverTest, SubdomainNavigation) {
                                                              url2);
 }
 
+// Tests that navigating between pages on localhost suppresses suggestions.
 TEST_F(FilterNavigationObserverTest, LocalhostNavigation) {
-  const GURL url1("http://localhost:8080/page1");
-  const GURL url2("http://localhost:8080/page2");
+  const GURL url1("https://localhost:8080/page1");
+  const GURL url2("https://localhost:8080/page2");
 
   // First navigation.
   EXPECT_CALL(delegate(), ClearSuggestion());
@@ -395,6 +438,7 @@ TEST_F(FilterNavigationObserverTest, LocalhostNavigation) {
                                                              url2);
 }
 
+// Tests that navigating to a different domain triggers new suggestions.
 TEST_F(FilterNavigationObserverTest, CrossDomainNavigation) {
   const GURL url1("https://www.example.com");
   const GURL url2("https://www.anotherexample.com");
@@ -415,6 +459,7 @@ TEST_F(FilterNavigationObserverTest, CrossDomainNavigation) {
                                                              url2);
 }
 
+// Tests that filter-initiated navigations do not trigger new suggestions.
 TEST_F(FilterNavigationObserverTest,
        DoesNotRequestSuggestionForFilterInitiatedNavigation) {
   const GURL url("https://www.example.com");

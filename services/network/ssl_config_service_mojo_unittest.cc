@@ -479,5 +479,34 @@ TEST_F(NetworkServiceSSLConfigServiceTest, Tls13CipherPreferAes256) {
   RunConversionTests(*mojo_config, expected_net_config);
 }
 
+TEST_F(NetworkServiceSSLConfigServiceTest, GetEchMode) {
+  // Test with default params (use_platform_ech_policy = false)
+  mojom::NetworkContextParamsPtr network_context_params =
+      mojom::NetworkContextParams::New();
+  network_context_params->initial_ssl_config = mojom::SSLConfig::New();
+  SetUpNetworkContext(std::move(network_context_params));
+
+  net::SSLConfigService* config_service =
+      network_context_->url_request_context()->ssl_config_service();
+  EXPECT_EQ(net::EchMode::kOpportunistic,
+            config_service->GetEchMode("example.com"));
+
+  // Test with use_platform_ech_policy = true
+  network_context_params = mojom::NetworkContextParams::New();
+  network_context_params->use_platform_ech_policy = true;
+  network_context_params->initial_ssl_config = mojom::SSLConfig::New();
+  SetUpNetworkContext(std::move(network_context_params));
+
+  config_service =
+      network_context_->url_request_context()->ssl_config_service();
+  net::EchMode mode = config_service->GetEchMode("example.com");
+
+  // Verify that the platform ECH query doesn't crash on any platform.
+  // The exact return value is not critical for this test.
+  EXPECT_TRUE(mode == net::EchMode::kDisabled ||
+              mode == net::EchMode::kOpportunistic ||
+              mode == net::EchMode::kStrict);
+}
+
 }  // namespace
 }  // namespace network

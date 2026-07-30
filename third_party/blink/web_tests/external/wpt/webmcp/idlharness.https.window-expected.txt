@@ -1,17 +1,5 @@
 This is a testharness.js-based test.
-[FAIL] ModelContextClient interface: existence and properties of interface object
-  assert_own_property: self does not have own property "ModelContextClient" expected property "ModelContextClient" missing
-[FAIL] ModelContextClient interface object length
-  assert_own_property: self does not have own property "ModelContextClient" expected property "ModelContextClient" missing
-[FAIL] ModelContextClient interface object name
-  assert_own_property: self does not have own property "ModelContextClient" expected property "ModelContextClient" missing
-[FAIL] ModelContextClient interface: existence and properties of interface prototype object
-  assert_own_property: self does not have own property "ModelContextClient" expected property "ModelContextClient" missing
-[FAIL] ModelContextClient interface: existence and properties of interface prototype object's "constructor" property
-  assert_own_property: self does not have own property "ModelContextClient" expected property "ModelContextClient" missing
-[FAIL] ModelContextClient interface: existence and properties of interface prototype object's @@unscopables property
-  assert_own_property: self does not have own property "ModelContextClient" expected property "ModelContextClient" missing
-[FAIL] ModelContextClient interface: operation requestUserInteraction(UserInteractionCallback)
-  assert_own_property: self does not have own property "ModelContextClient" expected property "ModelContextClient" missing
+[FAIL] ModelContext interface: operation registerTool(ModelContextTool, optional ModelContextRegisterToolOptions)
+  assert_unreached: Throws "TypeError: Illegal invocation" instead of rejecting promise Reached unreachable code
 Harness: the test ran to completion.
 

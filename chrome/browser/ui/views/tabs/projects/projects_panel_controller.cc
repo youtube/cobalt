@@ -13,7 +13,6 @@
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/saved_tab_groups/public/saved_tab_group.h"
-#include "ui/base/base_window.h"
 
 ProjectsPanelController::ProjectsPanelController(
     BrowserWindowInterface* browser,

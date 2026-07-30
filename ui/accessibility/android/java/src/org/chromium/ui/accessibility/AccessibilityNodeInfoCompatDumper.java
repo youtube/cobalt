@@ -224,7 +224,33 @@ public final class AccessibilityNodeInfoCompatDumper {
                     .append("]");
         }
 
+        AccessibilityNodeInfoCompat.StructuredDataInfoCompat structuredData =
+                node.getStructuredDataInfo();
+        if (structuredData != null && structuredData.getTag() != null) {
+            appendMathInfoToString(builder, structuredData);
+        }
+
         return builder.toString();
+    }
+
+    private static void appendMathInfoToString(
+            StringBuilder builder, AccessibilityNodeInfoCompat.StructuredDataInfoCompat mathInfo) {
+        builder.append(" MathInfo:[tag=\"").append(mathInfo.getTag()).append("\"");
+
+        String intent =
+                mathInfo.getAttribute(
+                        AccessibilityNodeInfoCompat.MathInfoCompat.MATH_ATTRIBUTE_INTENT);
+        if (!TextUtils.isEmpty(intent)) {
+            builder.append(", intent=\"").append(intent).append("\"");
+        }
+
+        String arg =
+                mathInfo.getAttribute(
+                        AccessibilityNodeInfoCompat.MathInfoCompat.MATH_ATTRIBUTE_ARG);
+        if (!TextUtils.isEmpty(arg)) {
+            builder.append(", arg=\"").append(arg).append("\"");
+        }
+        builder.append("]");
     }
 
     // Various helper methods to print custom toStrings for objects.

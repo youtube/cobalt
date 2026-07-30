@@ -1125,7 +1125,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest,
       ->UpdateCustomTabBarVisibility(false);
 
   // The popup window should be the size we specified.
-  EXPECT_EQ(size, popup_browser->window()->GetContentsSize());
+  EXPECT_EQ(size, BrowserWindow::FromBrowser(popup_browser)->GetContentsSize());
 }
 
 // Tests that using window.open to create a popup window in scope results in
@@ -1163,7 +1163,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest,
       ->UpdateCustomTabBarVisibility(false);
 
   // The popup window should be the size we specified.
-  EXPECT_EQ(size, popup_browser->window()->GetContentsSize());
+  EXPECT_EQ(size, BrowserWindow::FromBrowser(popup_browser)->GetContentsSize());
 }
 
 IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, AboutBlankPWAPopup) {
@@ -1708,7 +1708,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, SecondWindowOffset) {
 IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, SetBounds) {
   const webapps::AppId app_id = InstallPWA(GURL(kExampleURL));
   Browser* browser = LaunchWebAppBrowserAndWait(app_id);
-  ui::BaseWindow* window = browser->window();
+  ui::BaseWindow* window = browser->GetWindow();
   const gfx::Rect bounds = gfx::Rect(50, 50, 550, 500);
   ui_test_utils::SetAndWaitForBounds(*browser, bounds);
   // Expect that the window bounds roughly match the requested bounds.
@@ -1720,7 +1720,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, SetBounds) {
 IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, WindowOffsetsClampedToScreen) {
   const webapps::AppId app_id = InstallPWA(GURL(kExampleURL));
   Browser* browser = LaunchWebAppBrowserAndWait(app_id);
-  ui::BaseWindow* window = browser->window();
+  ui::BaseWindow* window = browser->GetWindow();
   gfx::Rect bounds = display::Screen::Get()->GetPrimaryDisplay().work_area();
   // Make the window fill the display, so subsequent new windows quickly hit the
   // edge of the screen when offset.
@@ -1733,7 +1733,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, WindowOffsetsClampedToScreen) {
   bool bounds_match = false;
   std::vector<ui::BaseWindow*> windows = {window};
   while (windows.size() < 10 && !bounds_match) {
-    window = LaunchWebAppBrowserAndWait(app_id)->window();
+    window = LaunchWebAppBrowserAndWait(app_id)->GetWindow();
     bounds_match |= CheckForBounds(window, windows.back()->GetBounds());
     windows.push_back(window);
   }

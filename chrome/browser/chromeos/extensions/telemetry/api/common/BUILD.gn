@@ -60,20 +60,6 @@ source_set("util") {
   }
 }
 
-source_set("remote_probe_strategy") {
-  sources = [
-    "remote_probe_service_strategy.cc",
-    "remote_probe_service_strategy.h",
-  ]
-
-  deps = [
-    "//chrome/browser/ash/crosapi",
-    "//chromeos/ash/components/telemetry_extension/telemetry",
-    "//chromeos/crosapi/mojom",
-    "//mojo/public/cpp/bindings",
-  ]
-}
-
 source_set("hardware_info_delegate") {
   sources = [
     "hardware_info_delegate.cc",
@@ -81,7 +67,6 @@ source_set("hardware_info_delegate") {
   ]
 
   deps = [
-    ":remote_probe_strategy",
     "//base",
     "//chromeos/ash/services/cros_healthd/public/cpp",
     "//chromeos/ash/services/cros_healthd/public/mojom",
@@ -100,7 +85,6 @@ source_set("test_support") {
 
   deps = [
     ":common",
-    ":remote_probe_strategy",
     "//base",
     "//chrome/test:test_support",
     "//chromeos/crosapi/cpp/telemetry:test_support",
@@ -125,7 +109,6 @@ source_set("browser_tests") {
   deps = [
     ":common",
     ":hardware_info_delegate",
-    ":remote_probe_strategy",
     ":test_support",
     "//base",
     "//base/test:test_support",
@@ -133,6 +116,8 @@ source_set("browser_tests") {
     "//chrome/browser/ash/test:test_support",
     "//chrome/common/chromeos/extensions",
     "//chrome/test:test_support_ui",
+    "//chromeos/ash/services/cros_healthd/public/cpp:test_support",
+    "//chromeos/ash/services/cros_healthd/public/mojom",
     "//chromeos/crosapi/cpp/telemetry:test_support",
     "//components/user_manager",
     "//content/public/browser",
@@ -157,7 +142,6 @@ source_set("unit_tests") {
   deps = [
     ":common",
     ":hardware_info_delegate",
-    ":remote_probe_strategy",
     ":test_support",
     "//ash/webui/shimless_rma/backend",
     "//base",

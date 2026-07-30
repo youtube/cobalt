@@ -59,8 +59,9 @@ class PyWebSocket(server_base.ServerBase):
         pywebsocket_base = PathFinder(
             self._filesystem).path_from_chromium_base('third_party',
                                                       'pywebsocket3', 'src')
-        pywebsocket_script = self._filesystem.join(
-            pywebsocket_base, 'mod_pywebsocket', 'standalone.py')
+        pywebsocket_script = self._filesystem.join(pywebsocket_base,
+                                                   'pywebsocket3',
+                                                   'standalone.py')
 
         self._start_cmd = [
             python_executable,

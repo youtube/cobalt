@@ -24,9 +24,6 @@ dictionary AuthenticationExtensionsClientOutputs {
   boolean credBlob;
   ArrayBuffer getCredBlob;
 
-  // https://w3c.github.io/webauthn/#sctn-supplemental-public-keys-extension
-  [RuntimeEnabled=WebAuthenticationSupplementalPubKeys] AuthenticationExtensionsSupplementalPubKeysOutputs supplementalPubKeys;
-
   // Payment extension outputs support.
   AuthenticationExtensionsPaymentOutputs payment;
 

@@ -6,12 +6,16 @@
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_INTEGRATORS_AUTOFILL_AI_MANAGEMENT_UTILS_H_
 
 #include <string>
+#include <vector>
 
+#include "base/containers/span.h"
 #include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/common/dense_set.h"
 
 namespace autofill {
+
+class EntityInstance;
 
 // Returns the i18n string representation of the "<entity type>s". For example,
 // for passport for "en-US", this function should return "Passports".
@@ -32,6 +36,10 @@ std::string GetDeleteEntityTypeStringForI18n(EntityType entity_type);
 
 // Returns all entities that users can add from the settings page.
 DenseSet<EntityType> GetWritableEntityTypes(const GeoIpCountryCode& country_code);
+
+// Returns the entity instances that should be visible in settings.
+std::vector<EntityInstance> GetEntityInstancesForSettings(
+    base::span<const EntityInstance> entities);
 
 }  // namespace autofill
 

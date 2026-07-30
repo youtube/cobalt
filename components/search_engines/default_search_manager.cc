@@ -221,8 +221,11 @@ DefaultSearchManager::GetDefaultSearchEngineIgnoringExtensions() const {
       pref_service_->GetUserPrefValue(kDefaultSearchProviderDataPrefName);
   if (user_value && user_value->is_dict()) {
     auto turl_data = TemplateURLDataFromDictionary(user_value->GetDict());
-    if (turl_data)
-      return turl_data;
+    if (turl_data) {
+      ReconcilingTemplateURLDataHolder reconciler(*prepopulate_data_resolver_);
+      reconciler.SetAndReconcile(std::move(turl_data));
+      return reconciler.Release();
+    }
   }
 
   const TemplateURLData* fallback = GetFallbackSearchEngine();

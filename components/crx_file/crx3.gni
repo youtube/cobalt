@@ -46,7 +46,10 @@ template("crx3") {
       rebase_path(_zip_out, root_build_dir),
       rebase_path(invoker.key, root_build_dir),
     ]
-    inputs = [ _zip_out ]
+    inputs = [
+      _zip_out,
+      invoker.key,
+    ]
     deps = [ ":$_zip_target" ]
     forward_variables_from(invoker,
                            [

@@ -6,7 +6,7 @@
 #define CHROME_BROWSER_ACTOR_AGGREGATED_JOURNAL_IN_MEMORY_SERIALIZER_H_
 
 #include "base/files/file.h"
-#include "chrome/browser/actor/aggregated_journal_serializer.h"
+#include "components/actor/core/aggregated_journal_serializer.h"
 
 namespace actor {
 

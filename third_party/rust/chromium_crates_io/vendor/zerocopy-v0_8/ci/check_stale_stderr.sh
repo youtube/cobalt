@@ -9,6 +9,7 @@
 # those terms.
 
 set -eo pipefail
+cd "$(dirname "$0")/.."
 
 # Directories to search
 DIRS=("tests" "zerocopy-derive/tests")

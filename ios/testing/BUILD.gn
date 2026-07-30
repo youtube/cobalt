@@ -95,10 +95,39 @@ source_set("ocmock_support") {
   ]
 }
 
+source_set("base_xc_test_case") {
+  configs += [ "//build/config/ios:xctest_config" ]
+  testonly = true
+  sources = [
+    "base_xc_test_case.h",
+    "base_xc_test_case.mm",
+  ]
+  deps = [
+    ":test_expectations",
+    "//base",
+  ]
+}
+
+bundle_data("test_expectations_metadata") {
+  testonly = true
+  sources = [ "test_expectations.txt" ]
+  outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
+}
+
+source_set("test_expectations") {
+  testonly = true
+  sources = [
+    "test_expectations.h",
+    "test_expectations.mm",
+  ]
+  deps = [ "//base" ]
+}
+
 test("ios_testing_unittests") {
   deps = [
     ":block_swizzler",
     ":ocmock_support",
+    ":test_expectations",
     "//base/test:run_all_unittests",
     "//base/test:test_support",
     "//testing/gmock",
@@ -109,6 +138,7 @@ test("ios_testing_unittests") {
   sources = [
     "ocmock_complex_type_helper_unittest.mm",
     "scoped_block_swizzler_unittest.mm",
+    "test_expectations_unittest.mm",
   ]
 
   assert_no_deps = ios_assert_no_deps

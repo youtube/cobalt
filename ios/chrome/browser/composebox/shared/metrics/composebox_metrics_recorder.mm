@@ -83,6 +83,8 @@ ContextualSearchAttachmentButtonTypeFromFuseboxButtonType(
       return contextual_search::ContextualSearchAttachmentButtonType::kGallery;
     case FuseboxAttachmentButtonType::kFiles:
       return contextual_search::ContextualSearchAttachmentButtonType::kFiles;
+    case FuseboxAttachmentButtonType::kDriveFiles:
+      return contextual_search::ContextualSearchAttachmentButtonType::kDrive;
     case FuseboxAttachmentButtonType::kClipboard:
       return contextual_search::ContextualSearchAttachmentButtonType::
           kClipboard;
@@ -271,6 +273,15 @@ std::string GetStringForEntrypoint(ComposeboxEntrypoint entrypoint) {
   if (_contextualSearchMetricsRecorder) {
     _contextualSearchMetricsRecorder->RecordFilePickedCount(
         contextual_search::ContextualSearchAttachmentButtonType::kFiles, count);
+  }
+}
+
+- (void)recordDriveFilesAttached:(NSUInteger)count {
+  base::UmaHistogramCounts100("Omnibox.MobileFusebox.NumDriveFilesAttached",
+                              count);
+  if (_contextualSearchMetricsRecorder) {
+    _contextualSearchMetricsRecorder->RecordFilePickedCount(
+        contextual_search::ContextualSearchAttachmentButtonType::kDrive, count);
   }
 }
 

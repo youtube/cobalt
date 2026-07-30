@@ -100,6 +100,7 @@ class NetworkTrafficAnnotationsDoc:
       self._get_doc_contents(self.destination_id, save=True)
 
     print("Done, please review the document before sharing it with clients.")
+    return True
 
   def _initialize_service(self, credentials):
     """Initializes the Google Docs API services.
@@ -325,7 +326,7 @@ class NetworkTrafficAnnotationsDoc:
                 "spacingMode": "NEVER_COLLAPSE",
                 "spaceAbove": {"unit": "PT"}
             },
-            "fields": "*"
+            "fields": "namedStyleType,direction,spacingMode,spaceAbove"
         }
     })
     reqs.append(self._format_text(index, index + idx, placeholder_type))
@@ -451,7 +452,7 @@ class NetworkTrafficAnnotationsDoc:
                 "spaceBelow": {"magnitude": 4, "unit": "PT"},
                 "avoidWidowAndOrphan": False
             },
-            "fields": "*"
+            "fields": "namedStyleType,lineSpacing,direction,spacingMode,spaceBelow,avoidWidowAndOrphan"
         }
     })
     reqs.append(

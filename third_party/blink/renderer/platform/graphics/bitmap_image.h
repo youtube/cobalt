@@ -80,6 +80,7 @@ class PLATFORM_EXPORT BitmapImage final : public Image {
   bool HasColorProfile() const;
 
   void ResetAnimation() override;
+  void ResetAnimationSharedTimelineOnly();
   bool MaybeAnimated() override;
 
   void SetAnimationPolicy(mojom::blink::ImageAnimationPolicy) override;
@@ -137,10 +138,12 @@ class PLATFORM_EXPORT BitmapImage final : public Image {
             const gfx::RectF& src_rect,
             const ImageDrawOptions&) override;
 
-  PaintImage CreatePaintImage(PaintImage::Id paint_id,
-                              PaintImage::Id sync_animation_id,
-                              PaintImage::AnimationSyncSequence sync_sequence,
-                              int image_animation_repetition_count);
+  PaintImage CreatePaintImage(
+      PaintImage::Id paint_id,
+      PaintImage::Id sync_animation_id,
+      PaintImage::AnimationSyncSequence sync_sequence,
+      PaintImage::AnimationSequenceId reset_animation_sequence_id,
+      int image_animation_repetition_count);
   void UpdateSize() const;
 
   // Called to wipe out the entire frame buffer cache and tell the image
@@ -193,7 +196,9 @@ class PLATFORM_EXPORT BitmapImage final : public Image {
 
   size_t frame_count_;
 
-  PaintImage::AnimationSequenceId reset_animation_sequence_id_ = 0;
+  PaintImage::AnimationSequenceId reset_animation_own_timeline_sequence_id_ = 0;
+  PaintImage::AnimationSequenceId reset_animation_shared_timeline_sequence_id_ =
+      0;
 };
 
 template <>

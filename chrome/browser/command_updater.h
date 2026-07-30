@@ -5,6 +5,8 @@
 #ifndef CHROME_BROWSER_COMMAND_UPDATER_H_
 #define CHROME_BROWSER_COMMAND_UPDATER_H_
 
+#include <vector>
+
 #include "base/time/time.h"
 #include "ui/base/window_open_disposition.h"
 
@@ -73,6 +75,12 @@ class CommandUpdater {
   // Returns true if the update succeeded (it's possible that the browser is in
   // "locked-down" state where we prevent changes to the command state).
   virtual bool UpdateCommandEnabled(int id, bool state) = 0;
+
+  // Disables all commands.
+  virtual void DisableAllCommands() = 0;
+
+  // Returns all registered command IDs.
+  virtual std::vector<int> GetAllIds() const = 0;
 };
 
 #endif  // CHROME_BROWSER_COMMAND_UPDATER_H_

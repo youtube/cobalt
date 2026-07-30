@@ -10,6 +10,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/notimplemented.h"
 #include "base/test/bind.h"
+#include "base/test/gmock_expected_support.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "base/test/test_timeouts.h"
@@ -57,6 +58,7 @@
 #include "mojo/public/cpp/test_support/fake_message_dispatch_context.h"
 #include "mojo/public/cpp/test_support/test_utils.h"
 #include "net/base/features.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
@@ -102,7 +104,6 @@ constexpr char kNotAffiliatedErrorMessage[] =
 
 namespace {
 
-using Result = blink::mojom::DeviceAttributeResult;
 
 constexpr char kAnnotatedAssetId[] = "annotated_asset_id";
 constexpr char kAnnotatedLocation[] = "annotated_location";
@@ -117,45 +118,45 @@ class FakeDeviceAttributeApi : public DeviceAttributeApi {
 
   // This method forwards calls to DeviceAttributesApiImpl to the test the
   // actual error reported by the service.
-  void ReportNotAllowedError(
-      base::OnceCallback<void(blink::mojom::DeviceAttributeResultPtr)> callback)
-      override {
+  void ReportNotAllowedError(NotificationCallback callback) override {
     device_attributes_api_.ReportNotAllowedError(std::move(callback));
   }
 
   // This method forwards calls to DeviceAttributesApiImpl to the test the
   // actual error reported by the service.
-  void ReportNotAffiliatedError(
-      base::OnceCallback<void(blink::mojom::DeviceAttributeResultPtr)> callback)
-      override {
+  void ReportNotAffiliatedError(NotificationCallback callback) override {
     device_attributes_api_.ReportNotAffiliatedError(std::move(callback));
   }
 
   void GetDirectoryId(blink::mojom::DeviceAPIService::GetDirectoryIdCallback
                           callback) override {
-    std::move(callback).Run(Result::NewAttribute(kDirectoryApiId));
+    std::move(callback).Run(
+        blink::mojom::DeviceAttributeValue::New(kDirectoryApiId));
   }
 
   void GetHostname(
       blink::mojom::DeviceAPIService::GetHostnameCallback callback) override {
-    std::move(callback).Run(Result::NewAttribute(kHostname));
+    std::move(callback).Run(blink::mojom::DeviceAttributeValue::New(kHostname));
   }
 
   void GetSerialNumber(blink::mojom::DeviceAPIService::GetSerialNumberCallback
                            callback) override {
-    std::move(callback).Run(Result::NewAttribute(kSerialNumber));
+    std::move(callback).Run(
+        blink::mojom::DeviceAttributeValue::New(kSerialNumber));
   }
 
   void GetAnnotatedAssetId(
       blink::mojom::DeviceAPIService::GetAnnotatedAssetIdCallback callback)
       override {
-    std::move(callback).Run(Result::NewAttribute(kAnnotatedAssetId));
+    std::move(callback).Run(
+        blink::mojom::DeviceAttributeValue::New(kAnnotatedAssetId));
   }
 
   void GetAnnotatedLocation(
       blink::mojom::DeviceAPIService::GetAnnotatedLocationCallback callback)
       override {
-    std::move(callback).Run(Result::NewAttribute(kAnnotatedLocation));
+    std::move(callback).Run(
+        blink::mojom::DeviceAttributeValue::New(kAnnotatedLocation));
   }
 
  private:
@@ -207,46 +208,65 @@ class DeviceAPIServiceTest {
 };
 
 namespace {
+
+using ::base::test::ErrorIs;
+
+#if BUILDFLAG(IS_CHROMEOS)
+using ::base::test::ValueIs;
+using ::testing::Field;
+using ::testing::Optional;
+using ::testing::Pointee;
+
+auto DeviceAttributeIs(const std::string& expected_value) {
+  return ValueIs(Pointee(Field(&blink::mojom::DeviceAttributeValue::value,
+                               Optional(expected_value))));
+}
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
 void VerifyErrorMessageResultForAllDeviceAttributesAPIs(
     blink::mojom::DeviceAPIService* service,
     const std::string& expected_error_message) {
-  base::test::TestFuture<blink::mojom::DeviceAttributeResultPtr> future;
+  base::test::TestFuture<
+      base::expected<blink::mojom::DeviceAttributeValuePtr, std::string>>
+      future;
 
   service->GetDirectoryId(future.GetCallback());
-  EXPECT_EQ(future.Take()->get_error_message(), expected_error_message);
+  EXPECT_THAT(future.Take(), ErrorIs(expected_error_message));
 
   service->GetHostname(future.GetCallback());
-  EXPECT_EQ(future.Take()->get_error_message(), expected_error_message);
+  EXPECT_THAT(future.Take(), ErrorIs(expected_error_message));
 
   service->GetSerialNumber(future.GetCallback());
-  EXPECT_EQ(future.Take()->get_error_message(), expected_error_message);
+  EXPECT_THAT(future.Take(), ErrorIs(expected_error_message));
 
   service->GetAnnotatedAssetId(future.GetCallback());
-  EXPECT_EQ(future.Take()->get_error_message(), expected_error_message);
+  EXPECT_THAT(future.Take(), ErrorIs(expected_error_message));
 
   service->GetAnnotatedLocation(future.GetCallback());
-  EXPECT_EQ(future.Take()->get_error_message(), expected_error_message);
+  EXPECT_THAT(future.Take(), ErrorIs(expected_error_message));
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
 void VerifyCanAccessForAllDeviceAttributesAPIs(
     blink::mojom::DeviceAPIService* service) {
-  base::test::TestFuture<blink::mojom::DeviceAttributeResultPtr> future;
+  base::test::TestFuture<
+      base::expected<blink::mojom::DeviceAttributeValuePtr, std::string>>
+      future;
 
   service->GetDirectoryId(future.GetCallback());
-  EXPECT_EQ(future.Take()->get_attribute(), kDirectoryApiId);
+  EXPECT_THAT(future.Take(), DeviceAttributeIs(kDirectoryApiId));
 
   service->GetHostname(future.GetCallback());
-  EXPECT_EQ(future.Take()->get_attribute(), kHostname);
+  EXPECT_THAT(future.Take(), DeviceAttributeIs(kHostname));
 
   service->GetSerialNumber(future.GetCallback());
-  EXPECT_EQ(future.Take()->get_attribute(), kSerialNumber);
+  EXPECT_THAT(future.Take(), DeviceAttributeIs(kSerialNumber));
 
   service->GetAnnotatedAssetId(future.GetCallback());
-  EXPECT_EQ(future.Take()->get_attribute(), kAnnotatedAssetId);
+  EXPECT_THAT(future.Take(), DeviceAttributeIs(kAnnotatedAssetId));
 
   service->GetAnnotatedLocation(future.GetCallback());
-  EXPECT_EQ(future.Take()->get_attribute(), kAnnotatedLocation);
+  EXPECT_THAT(future.Take(), DeviceAttributeIs(kAnnotatedLocation));
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 

@@ -554,17 +554,25 @@ BubbleBorder::Arrow GetOptimalPopupPlacement(
 
 bool IsExpandableSuggestionType(SuggestionType type) {
   switch (type) {
-    case SuggestionType::kAddressEntry:
-    case SuggestionType::kAddressFieldByFieldFilling:
+    // This opens the non-affiliated loyalty cards submenu.
     case SuggestionType::kAllLoyaltyCardsEntry:
+    // This opens a submenu with footer-like suggestions around the compose
+    // nudge (e.g., Go to settings).
     case SuggestionType::kComposeProactiveNudge:
-    case SuggestionType::kCreditCardEntry:
+    // This opens the submenu where one of many test addresses can be selected.
     case SuggestionType::kDevtoolsTestAddresses:
-    case SuggestionType::kFillAutofillAi:
-    case SuggestionType::kLoyaltyCardEntry:
+    // This opens a submenu, only during password manual fallback, so that the
+    // user can decide whether to fill the username or password into the field.
     case SuggestionType::kPasswordEntry:
+    // This opens the submenu where different suggestions related to the same
+    // query response are present.
     case SuggestionType::kAtMemorySearchResult:
       return true;
+    case SuggestionType::kAddressEntry:
+    case SuggestionType::kAddressFieldByFieldFilling:
+    case SuggestionType::kCreditCardEntry:
+    case SuggestionType::kLoyaltyCardEntry:
+    case SuggestionType::kFillAutofillAi:
     case SuggestionType::kAccountStoragePasswordEntry:
     case SuggestionType::kAddressEntryOnTyping:
     case SuggestionType::kAllSavedPasswordsEntry:
@@ -615,9 +623,11 @@ bool IsExpandableSuggestionType(SuggestionType type) {
     case SuggestionType::kAutocompleteAtMemoryButton:
     case SuggestionType::kOpenGemini:
     case SuggestionType::kAtMemoryNoConnection:
+    case SuggestionType::kAtMemoryGenericError:
     case SuggestionType::kAtMemorySearchAffordance:
     case SuggestionType::kPersonalContextNotice:
     case SuggestionType::kFetchingAmbientData:
+    case SuggestionType::kMaximizeCreditCardBenefitsEntry:
       return false;
   }
 }
@@ -634,6 +644,7 @@ bool IsSuggestionTypeAutoselected(SuggestionType type) {
     case SuggestionType::kAllSavedPasswordsEntry:
     case SuggestionType::kAtMemoryInactivityNudge:
     case SuggestionType::kAtMemoryNoConnection:
+    case SuggestionType::kAtMemoryGenericError:
     case SuggestionType::kAtMemorySearchResult:
     case SuggestionType::kAutocompleteAtMemoryButton:
     case SuggestionType::kAutocompleteEntry:
@@ -688,6 +699,7 @@ bool IsSuggestionTypeAutoselected(SuggestionType type) {
     case SuggestionType::kPasswordEntry:
     case SuggestionType::kPersonalContextNotice:
     case SuggestionType::kFetchingAmbientData:
+    case SuggestionType::kMaximizeCreditCardBenefitsEntry:
       return false;
   }
 }

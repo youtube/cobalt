@@ -400,7 +400,7 @@ TEST_F(WindowSizerChromeOSTest, DISABLED_PlaceNewWindows) {
   std::unique_ptr<Browser> browser2 = (CreateTestBrowser(
       CreateTestWindowInShell({.bounds = {16, 32, 640, 320}, .window_id = 0}),
       &params2));
-  BrowserWindow* browser_window = browser2->window();
+  ui::BaseWindow* browser_window = browser2->GetWindow();
 
   // Creating a popup to make sure it does not interfere with the positioning.
   Browser::CreateParams params_popup(Browser::TYPE_POPUP, &profile_, true);
@@ -534,7 +534,7 @@ TEST_F(WindowSizerChromeOSTest, DISABLED_PlaceNewWindowsOnMultipleDisplays) {
   std::unique_ptr<Browser> browser(CreateTestBrowser(
       CreateTestWindowInShell({.bounds = {10, 10, 200, 200}, .window_id = 0}),
       &params));
-  BrowserWindow* browser_window = browser->window();
+  ui::BaseWindow* browser_window = browser->GetWindow();
   gfx::NativeWindow native_window = browser_window->GetNativeWindow();
   browser_window->Show();
   EXPECT_EQ(native_window->GetRootWindow(),
@@ -544,7 +544,7 @@ TEST_F(WindowSizerChromeOSTest, DISABLED_PlaceNewWindowsOnMultipleDisplays) {
   std::unique_ptr<Browser> another_browser(CreateTestBrowser(
       CreateTestWindowInShell({.bounds = {400, 10, 300, 300}, .window_id = 1}),
       &another_params));
-  BrowserWindow* another_browser_window = another_browser->window();
+  ui::BaseWindow* another_browser_window = another_browser->GetWindow();
   gfx::NativeWindow another_native_window =
       another_browser_window->GetNativeWindow();
   another_browser_window->Show();

@@ -68,9 +68,14 @@
 #if BUILDFLAG(IS_WIN)
 #include "gpu/config/gpu_driver_bug_workarounds.h"
 #include "services/on_device_model/ml_internal_buildflags.h"
+#include "ui/gl/dc_surface_solid_color_pool.h"
 #include "ui/gl/direct_composition_support.h"
 #include "ui/gl/gl_angle_util_win.h"
 #include "ui/gl/gl_surface_egl.h"
+
+#if BUILDFLAG(SKIA_USE_DAWN)
+#include "gpu/ipc/service/dawn_texture_solid_color_pool.h"
+#endif
 
 #if BUILDFLAG(ENABLE_ML_INTERNAL)
 #include "services/webnn/public/mojom/features.mojom-features.h"  // nogncheck
@@ -930,14 +935,31 @@ bool GpuInit::InitializeAndStartSandbox(base::CommandLine* command_line,
   {
     Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device;
     Microsoft::WRL::ComPtr<ID3D12CommandQueue> d3d12_command_queue;
+    gl::SolidColorPoolFactory solid_color_factory;
     if (dawn_context_provider_) {
       d3d11_device = dawn_context_provider_->GetD3D11Device();
       d3d12_command_queue = dawn_context_provider_->GetD3D12CommandQueue();
+#if BUILDFLAG(SKIA_USE_DAWN)
+      // When Skia is on Graphite-D3D12, use Dawn (the same `wgpu::Device`
+      // and `ID3D12CommandQueue` Skia is using) to fill solid-color
+      // overlays.
+      if (d3d12_command_queue &&
+          base::FeatureList::IsEnabled(features::kDCompOnD3D12)) {
+        solid_color_factory = CreateDawnTextureSolidColorPoolFactory(
+            dawn_context_provider_->GetDevice(), d3d12_command_queue);
+      }
+#endif  // BUILDFLAG(SKIA_USE_DAWN)
     } else {
       d3d11_device = gl::QueryD3D11DeviceObjectFromANGLE();
     }
+    if (!solid_color_factory) {
+      // Use DComp surfaces if Dawn or DComp Textures are not available.
+      solid_color_factory =
+          gl::CreateDCSurfaceSolidColorPoolFactory(d3d11_device);
+    }
     gl::InitializeDirectComposition(std::move(d3d11_device),
-                                    std::move(d3d12_command_queue));
+                                    std::move(d3d12_command_queue),
+                                    std::move(solid_color_factory));
   }
 #endif  // BUILDFLAG(IS_WIN)
 

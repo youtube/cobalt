@@ -42,10 +42,12 @@ void DigitalCredential::Trace(Visitor* visitor) const {
 bool DigitalCredential::userAgentAllowsProtocol(ScriptState* script_state,
                                                 const String& protocol) {
   ExecutionContext* execution_context = ExecutionContext::From(script_state);
+  // Per spec, when protocol filtering is enabled, this method queries whether
+  // the given protocol is one of the known supported protocols.
   if (RuntimeEnabledFeatures::DigitalCredentialsProtocolFilterEnabled(
           execution_context)) {
-    return CheckSupportedProtocol(execution_context, protocol,
-                                  DigitalCredentialExchangeType::kAny);
+    return CheckDigitalCredentialSupportedProtocol(
+        execution_context, protocol, DigitalCredentialExchangeType::kQuery);
   }
 
   // Since Chromium allows all protocols to reach the underlying platform, this
