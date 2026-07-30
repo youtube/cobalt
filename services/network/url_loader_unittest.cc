@@ -637,9 +637,9 @@ mojom::ClientSecurityStatePtr NewSecurityState() {
   return result;
 }
 
-CorsErrorStatus InsecurePrivateNetworkCorsErrorStatus(
+CorsErrorStatus InsecureLocalNetworkCorsErrorStatus(
     mojom::IPAddressSpace resource_address_space) {
-  return CorsErrorStatus(mojom::CorsError::kInsecurePrivateNetwork,
+  return CorsErrorStatus(mojom::CorsError::kInsecureLocalNetwork,
                          resource_address_space);
 }
 
@@ -703,6 +703,15 @@ struct URLLoaderOptions {
     used = true;
     shared_resource_checker =
         std::make_unique<SharedResourceChecker>(cookie_settings);
+
+    mojo::ScopedDataPipeProducerHandle provided_response_body_stream;
+    if (request.trusted_params &&
+        request.trusted_params->response_body_stream) {
+      provided_response_body_stream =
+          std::move(const_cast<ResourceRequest&>(request)
+                        .trusted_params->response_body_stream->pipe);
+    }
+
     return std::make_unique<URLLoader>(
         context, std::move(delete_callback), std::move(url_loader_receiver),
         options, request, std::move(url_loader_client),
@@ -717,7 +726,8 @@ struct URLLoaderOptions {
         ObserverWrapper(std::move(devtools_observer)),
         ObserverWrapper(std::move(device_bound_session_observer)),
         std::move(accept_ch_frame_observer), shared_storage_writable_eligible,
-        *shared_resource_checker, std::move(durable_message_writer));
+        *shared_resource_checker, std::move(durable_message_writer),
+        std::move(provided_response_body_stream));
   }
 
   int32_t options = mojom::kURLLoadOptionNone;
@@ -1356,6 +1366,51 @@ const OriginatingProcess URLLoaderTest::kProcessId =
     OriginatingProcess::renderer(RendererProcess(4));
 constexpr int URLLoaderTest::kRouteId;
 
+TEST_F(URLLoaderTest, ProvidedResponseBodyStream) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kURLLoaderUseProvidedResponseBodyStream);
+
+  GURL url = test_server()->GetURL("/hello.html");
+  ResourceRequest request = CreateResourceRequest("GET", url);
+
+  mojo::ScopedDataPipeProducerHandle producer;
+  mojo::ScopedDataPipeConsumerHandle consumer;
+  ASSERT_EQ(MOJO_RESULT_OK, mojo::CreateDataPipe(nullptr, producer, consumer));
+
+  request.trusted_params->response_body_stream =
+      base::MakeRefCounted<network::SharedDataPipeProducerHandle>(
+          std::move(producer));
+
+  base::RunLoop delete_run_loop;
+  mojo::Remote<mojom::URLLoader> loader;
+  std::unique_ptr<URLLoader> url_loader;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
+  context().mutable_factory_params().is_orb_enabled = false;
+
+  url_loader = URLLoaderOptions().MakeURLLoader(
+      context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
+      loader.BindNewPipeAndPassReceiver(), request, client()->CreateRemote());
+
+  // Wait until the load completes.
+  client()->RunUntilComplete();
+  EXPECT_EQ(net::OK, client()->completion_status().error_code);
+
+  // When a response body stream is provided, the client should not receive one.
+  EXPECT_FALSE(client()->response_body().is_valid());
+
+  // Data should be written to our consumer handle.
+  std::string body;
+  EXPECT_TRUE(mojo::BlockingCopyToString(std::move(consumer), &body));
+
+  base::FilePath file_path = GetTestFilePath("hello.html");
+  std::string expected_body;
+  ASSERT_TRUE(base::ReadFileToString(file_path, &expected_body));
+  EXPECT_EQ(expected_body, body);
+
+  delete_run_loop.Run();
+}
+
 TEST_F(URLLoaderTest, Basic) {
   LoadAndCompareFile("simple_page.html");
 }
@@ -1449,7 +1504,7 @@ TEST_F(URLLoaderTest, InconsistentIPAddressSpaceIsBlocked) {
   EXPECT_THAT(
       client()->completion_status().cors_error_status,
       Optional(CorsErrorStatus(
-          mojom::CorsError::kInvalidPrivateNetworkAccess,
+          mojom::CorsError::kInvalidLocalNetworkAccess,
           /*resource_address_space=*/mojom::IPAddressSpace::kLoopback,
           /*inconsistent_address_space=*/mojom::IPAddressSpace::kPublic)));
 
@@ -1480,7 +1535,7 @@ TEST_F(URLLoaderTest, SecureUnknownToLoopbackBlock) {
   EXPECT_EQ(net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS,
             LoadRequest(request));
   EXPECT_THAT(client()->completion_status().cors_error_status,
-              Optional(InsecurePrivateNetworkCorsErrorStatus(
+              Optional(InsecureLocalNetworkCorsErrorStatus(
                   mojom::IPAddressSpace::kLoopback)));
 }
 
@@ -1520,7 +1575,7 @@ TEST_F(URLLoaderTest, NonSecureUnknownToLoopbackBlock) {
   EXPECT_EQ(net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS,
             LoadRequest(request));
   EXPECT_THAT(client()->completion_status().cors_error_status,
-              Optional(InsecurePrivateNetworkCorsErrorStatus(
+              Optional(InsecureLocalNetworkCorsErrorStatus(
                   mojom::IPAddressSpace::kLoopback)));
 }
 
@@ -1560,7 +1615,7 @@ TEST_F(URLLoaderTest, SecurePublicToLoopbackBlock) {
   EXPECT_EQ(net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS,
             LoadRequest(request));
   EXPECT_THAT(client()->completion_status().cors_error_status,
-              Optional(InsecurePrivateNetworkCorsErrorStatus(
+              Optional(InsecureLocalNetworkCorsErrorStatus(
                   mojom::IPAddressSpace::kLoopback)));
 }
 
@@ -1600,7 +1655,7 @@ TEST_F(URLLoaderTest, NonSecurePublicToLoopbackBlock) {
   EXPECT_EQ(net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS,
             LoadRequest(request));
   EXPECT_THAT(client()->completion_status().cors_error_status,
-              Optional(InsecurePrivateNetworkCorsErrorStatus(
+              Optional(InsecureLocalNetworkCorsErrorStatus(
                   mojom::IPAddressSpace::kLoopback)));
 }
 
@@ -1795,7 +1850,7 @@ TEST_F(URLLoaderTest, AddsNetLogEntryForLocalNetworkAccessCheckSuccess) {
   std::ignore = LoadRequest(request);
 
   std::vector<net::NetLogEntry> entries = net_log_observer.GetEntriesWithType(
-      net::NetLogEventType::PRIVATE_NETWORK_ACCESS_CHECK);
+      net::NetLogEventType::LOCAL_NETWORK_ACCESS_CHECK);
 
   ASSERT_THAT(entries, SizeIs(1));
 
@@ -1825,7 +1880,7 @@ TEST_F(URLLoaderTest, AddsNetLogEntryForLocalNetworkAccessCheckFailure) {
   std::ignore = LoadRequest(request);
 
   std::vector<net::NetLogEntry> entries = net_log_observer.GetEntriesWithType(
-      net::NetLogEventType::PRIVATE_NETWORK_ACCESS_CHECK);
+      net::NetLogEventType::LOCAL_NETWORK_ACCESS_CHECK);
 
   ASSERT_THAT(entries, SizeIs(1));
 
@@ -1856,7 +1911,7 @@ TEST_F(URLLoaderTest, AddsNetLogEntryForLocalNetworkAccessCheckSameOrigin) {
   EXPECT_EQ(net::OK, LoadRequest(request));
 
   std::vector<net::NetLogEntry> entries = net_log_observer.GetEntriesWithType(
-      net::NetLogEventType::PRIVATE_NETWORK_ACCESS_CHECK);
+      net::NetLogEventType::LOCAL_NETWORK_ACCESS_CHECK);
 
   ASSERT_THAT(entries, SizeIs(1));
 
@@ -2070,9 +2125,9 @@ TEST_F(URLLoaderTest, LocalNetworkAccessRequestWarning) {
 
   EXPECT_EQ(net::OK, LoadRequest(request));
 
-  devtools_observer.WaitUntilPrivateNetworkRequest();
-  ASSERT_TRUE(devtools_observer.private_network_request_params());
-  auto& params = *devtools_observer.private_network_request_params();
+  devtools_observer.WaitUntilLocalNetworkRequest();
+  ASSERT_TRUE(devtools_observer.local_network_request_params());
+  auto& params = *devtools_observer.local_network_request_params();
   ASSERT_TRUE(params.client_security_state);
   auto& state = params.client_security_state;
   EXPECT_EQ(state->local_network_access_request_policy,
@@ -2187,7 +2242,7 @@ TEST_P(URLLoaderFakeTransportInfoTest, LocalNetworkRequestLoadsCorrectly) {
       // private network access policy because we'll retry fetching from the
       // network.
       EXPECT_THAT(client()->completion_status().cors_error_status,
-                  Optional(InsecurePrivateNetworkCorsErrorStatus(
+                  Optional(InsecureLocalNetworkCorsErrorStatus(
                       params.endpoint_address_space)));
     }
     return;
@@ -2217,10 +2272,9 @@ TEST_F(URLLoaderTest, LocalNetworkAccessRequestPolicyOnRequest) {
 
   EXPECT_EQ(net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS,
             LoadRequest(request));
-  EXPECT_THAT(
-      client()->completion_status().cors_error_status,
-      Optional(CorsErrorStatus(mojom::CorsError::kInsecurePrivateNetwork,
-                               mojom::IPAddressSpace::kLoopback)));
+  EXPECT_THAT(client()->completion_status().cors_error_status,
+              Optional(CorsErrorStatus(mojom::CorsError::kInsecureLocalNetwork,
+                                       mojom::IPAddressSpace::kLoopback)));
 }
 
 // Test the case where a LocalNetworkAccessRequestPolicy is set on the request
@@ -2249,10 +2303,9 @@ TEST_F(URLLoaderTest, LocalNetworkAccessRequestPolicyOnRequestAndFactory) {
   // the factory value.
   EXPECT_EQ(net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS,
             LoadRequest(request));
-  EXPECT_THAT(
-      client()->completion_status().cors_error_status,
-      Optional(CorsErrorStatus(mojom::CorsError::kInsecurePrivateNetwork,
-                               mojom::IPAddressSpace::kLoopback)));
+  EXPECT_THAT(client()->completion_status().cors_error_status,
+              Optional(CorsErrorStatus(mojom::CorsError::kInsecureLocalNetwork,
+                                       mojom::IPAddressSpace::kLoopback)));
 }
 
 // Lists all combinations we want to test in URLLoaderFakeTransportInfoTest.
@@ -8113,7 +8166,7 @@ TEST_F(URLLoaderTest, NoAdditionalDnsAliases) {
 }
 
 TEST_F(URLLoaderTest,
-       PrivateNetworkRequestPolicyReportsOnPrivateNetworkRequestWarn) {
+       LocalNetworkRequestPolicyReportsOnLocalNetworkRequestWarn) {
   url::Origin initiator =
       url::Origin::Create(GURL("http://other-origin.test/"));
 
@@ -8135,9 +8188,9 @@ TEST_F(URLLoaderTest,
 
   EXPECT_EQ(net::OK, LoadRequest(request));
 
-  devtools_observer.WaitUntilPrivateNetworkRequest();
-  ASSERT_TRUE(devtools_observer.private_network_request_params());
-  auto& params = *devtools_observer.private_network_request_params();
+  devtools_observer.WaitUntilLocalNetworkRequest();
+  ASSERT_TRUE(devtools_observer.local_network_request_params());
+  auto& params = *devtools_observer.local_network_request_params();
   ASSERT_TRUE(params.client_security_state);
   auto& state = params.client_security_state;
   EXPECT_EQ(state->local_network_access_request_policy,
@@ -8151,7 +8204,7 @@ TEST_F(URLLoaderTest,
 }
 
 TEST_F(URLLoaderTest,
-       PrivateNetworkRequestPolicyReportsOnPrivateNetworkRequestBlock) {
+       LocalNetworkRequestPolicyReportsOnLocalNetworkRequestBlock) {
   url::Origin initiator =
       url::Origin::Create(GURL("http://other-origin.test/"));
 
@@ -8174,9 +8227,9 @@ TEST_F(URLLoaderTest,
   EXPECT_EQ(net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS,
             LoadRequest(request));
 
-  devtools_observer.WaitUntilPrivateNetworkRequest();
-  ASSERT_TRUE(devtools_observer.private_network_request_params());
-  auto& params = *devtools_observer.private_network_request_params();
+  devtools_observer.WaitUntilLocalNetworkRequest();
+  ASSERT_TRUE(devtools_observer.local_network_request_params());
+  auto& params = *devtools_observer.local_network_request_params();
   ASSERT_TRUE(params.client_security_state);
   auto& state = params.client_security_state;
   EXPECT_EQ(state->local_network_access_request_policy,
@@ -8190,7 +8243,7 @@ TEST_F(URLLoaderTest,
 }
 
 TEST_F(URLLoaderTest,
-       PrivateNetworkRequestPolicyReportsOnPrivateNetworkRequestAllow) {
+       LocalNetworkRequestPolicyReportsOnLocalNetworkRequestAllow) {
   url::Origin initiator =
       url::Origin::Create(GURL("http://other-origin.test/"));
 
@@ -8212,9 +8265,9 @@ TEST_F(URLLoaderTest,
 
   EXPECT_EQ(net::OK, LoadRequest(request));
 
-  // Check that OnPrivateNetworkRequest wasn't triggered.
+  // Check that OnLocalNetworkRequest wasn't triggered.
   devtools_observer.WaitUntilRawResponse(0);
-  EXPECT_FALSE(devtools_observer.private_network_request_params());
+  EXPECT_FALSE(devtools_observer.local_network_request_params());
 }
 
 // An empty ACCEPT_CH frame should skip the client call.

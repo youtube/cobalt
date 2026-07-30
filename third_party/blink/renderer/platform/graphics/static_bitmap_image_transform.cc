@@ -271,7 +271,7 @@ scoped_refptr<StaticBitmapImage> StaticBitmapImageTransform::ApplyWithBlit(
   // accelerated SharedImage provider.
   if (source_paint_image.IsTextureBacked() &&
       source->ContextProviderWrapper()) {
-    auto resource_provider = CanvasResourceProvider::CreateSharedImageProvider(
+    auto resource_provider = CanvasNon2DResourceProviderSharedImage::Create(
         gfx::Size(dest_size.width(), dest_size.height()),
         viz::SkColorTypeToSinglePlaneSharedImageFormat(dest_color_type),
         dest_alpha_type, SkColorSpaceToGfxColorSpace(dest_color_space),
@@ -281,10 +281,12 @@ scoped_refptr<StaticBitmapImage> StaticBitmapImageTransform::ApplyWithBlit(
 
     if (resource_provider) {
       // Perform the blit and return the drawn resource.
-      BlitToCanvas(resource_provider->Canvas(), source_paint_image,
-                   source_orientation, SkRect::Make(source_rect), dest_size,
-                   options);
-      return resource_provider->Snapshot(source_orientation);
+      return resource_provider->DoExternalDrawAndSnapshot(
+          [&](MemoryManagedPaintCanvas& canvas) {
+            BlitToCanvas(canvas, source_paint_image, source_orientation,
+                         SkRect::Make(source_rect), dest_size, options);
+          },
+          source_orientation);
     }
   }
 

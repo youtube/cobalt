@@ -16,6 +16,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
+#include "chrome/browser/ui/read_anything/read_anything_immersive_overlay_view.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_container_view.h"
@@ -30,7 +31,7 @@
 #include "chrome/browser/ui/views/frame/multi_contents_view_drop_target_controller.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view_mini_toolbar.h"
 #include "chrome/browser/ui/views/frame/scrim_view.h"
-#include "chrome/browser/ui/views/frame/top_container_background.h"
+#include "chrome/browser/ui/views/frame/themed_background.h"
 #include "chrome/browser/ui/views/new_tab_footer/footer_web_view.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/common/pref_names.h"
@@ -114,7 +115,7 @@ MultiContentsView::MultiContentsView(
       AddChildView(std::make_unique<CustomFloatingCorner>(
           *browser_view_, CustomFloatingCorner::CornerOrientation::kTopLeading,
           views::ShapeContextTokens::kContentSeparatorRadius,
-          CustomFloatingCorner::TopContainerTheme(),
+          CustomFloatingCorner::ToolbarTheme(),
           kColorToolbarContentAreaSeparator));
   contents_separators_.corner_separator->SetProperty(
       views::kElementIdentifierKey, kContentsSeparatorTopCornerElementId);
@@ -143,6 +144,15 @@ MultiContentsView::MultiContentsView(
           actor_overlay->AddWebContentsFocusedCallback(
               base::BindRepeating(&MultiContentsView::OnActorOverlayFocused,
                                   base::Unretained(this))));
+    }
+
+    if (auto* read_anything_overlay =
+            contents_container_view->read_anything_immersive_overlay_view()) {
+      view_map[read_anything_overlay->GetClassName()] = read_anything_overlay;
+      read_anything_overlay_focused_subscriptions_.push_back(
+          read_anything_overlay->AddWebViewFocusedCallback(base::BindRepeating(
+              &MultiContentsView::OnReadAnythingOverlayFocused,
+              base::Unretained(this), contents_container_view)));
     }
   }
 
@@ -414,6 +424,16 @@ void MultiContentsView::OnNtpFooterFocused(views::WebView* web_view) {
         return delegate_->WebContentsFocused(
             GetInactiveContentsView()->web_contents());
       }
+    }
+  }
+}
+
+void MultiContentsView::OnReadAnythingOverlayFocused(
+    ContentsContainerView* container,
+    views::WebView* web_view) {
+  if (IsInSplitView() && GetWidget()->IsVisible()) {
+    if (GetInactiveContentsContainerView() == container) {
+      delegate_->WebContentsFocused(container->contents_view()->web_contents());
     }
   }
 }

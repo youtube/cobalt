@@ -52,11 +52,6 @@ class WindowController {
     kDontPopulateTabs,
   };
 
-  enum Reason {
-    REASON_NONE,
-    REASON_NOT_EDITABLE,
-  };
-
   // A bitmask used as filter on window types.
   using TypeFilter = uint32_t;
 
@@ -96,10 +91,6 @@ class WindowController {
   virtual void SetFullscreenMode(bool is_fullscreen,
                                  const GURL& extension_url) const = 0;
 
-  // Returns false if the window is in a state where closing the window is not
-  // permitted and sets `reason` if not NULL.
-  virtual bool CanClose(Reason* reason) const = 0;
-
   // Returns the BrowserWindowInterface associated with this window controller,
   // if any. Defaults to returning null.
   virtual BrowserWindowInterface* GetBrowserWindowInterface();
@@ -110,25 +101,9 @@ class WindowController {
   virtual Browser* GetBrowser() const;
 #endif
 
-  // Returns true if the window is in the process of being torn down. See
-  // Browser::is_delete_scheduled().
-  virtual bool IsDeleteScheduled() const = 0;
-
   // Returns the WebContents associated with the active tab, if any. Returns
   // null if there is no active tab.
   virtual content::WebContents* GetActiveTab() const = 0;
-
-  // Returns true if this window has a tab strip that's currently editable or
-  // if there's no visible tab strip.
-  //
-  // During some animations and drags the tab strip won't be editable and
-  // extensions should not update it. Many callers should use
-  // ExtensionTabUtil::IsTabStripEditable() which will check *all* tab strips
-  // because some move operations span tab strips. This checking of all windows
-  // is why windows that don't have visible tab strips should still return true
-  // here: otherwise they will prevent some operations from happening that use
-  // the ExtensionTabUtil.
-  virtual bool HasEditableTabStrip() const = 0;
 
   // Returns the number of tabs in this window.
   virtual int GetTabCount() const = 0;
@@ -180,10 +155,6 @@ class WindowController {
   virtual bool OpenOptionsPage(const Extension* extension,
                                const GURL& url,
                                bool open_in_tab) = 0;
-
-  // Returns true if the Browser can report tabs to extensions. Example of
-  // Browsers which don't support tabs include apps and devtools.
-  virtual bool SupportsTabs() = 0;
 
   ui::BaseWindow* window() { return window_.get(); }
   Profile* profile() { return profile_.get(); }

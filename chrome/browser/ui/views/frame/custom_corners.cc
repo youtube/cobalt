@@ -6,7 +6,7 @@
 
 #include "base/check_op.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/frame/top_container_background.h"
+#include "chrome/browser/ui/views/frame/themed_background.h"
 #include "ui/gfx/scoped_canvas.h"
 
 CustomCorners::CustomCorners(BrowserView& browser_view)
@@ -38,22 +38,25 @@ void CustomCorners::PaintPath(gfx::Canvas* canvas,
                               const SkPath& path,
                               ColorChoice color_choice,
                               bool anti_alias) const {
-  if (std::holds_alternative<TopContainerTheme>(color_choice)) {
+  if (std::holds_alternative<ToolbarTheme>(color_choice)) {
     gfx::ScopedCanvas scoped(canvas);
     canvas->ClipPath(path, anti_alias);
-    TopContainerBackground::PaintBackground(canvas, &GetView(),
-                                            &browser_view());
+    ThemedBackground::PaintBackground(
+        canvas, &GetView(), &browser_view(),
+        ThemedBackground::ThemeChoice::kToolbarTheme);
     return;
   }
 
-  ui::ColorVariant color;
-  if (std::holds_alternative<FrameColor>(color_choice)) {
-    color = browser_view().GetWidget()->ShouldPaintAsActive()
-                ? ui::kColorFrameActive
-                : ui::kColorFrameInactive;
-  } else {
-    color = std::get<ui::ColorId>(color_choice);
+  if (std::holds_alternative<FrameTheme>(color_choice)) {
+    gfx::ScopedCanvas scoped(canvas);
+    canvas->ClipPath(path, anti_alias);
+    ThemedBackground::PaintBackground(
+        canvas, &GetView(), &browser_view(),
+        ThemedBackground::ThemeChoice::kFrameTheme);
+    return;
   }
+
+  ui::ColorVariant color = std::get<ui::ColorId>(color_choice);
 
   cc::PaintFlags flags;
   flags.setAntiAlias(anti_alias);

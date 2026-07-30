@@ -176,18 +176,7 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kPriorityOverridePendingViews);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrivacySandboxAdsAPIsM1Override);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kProcessReuseOnPrerenderCOOPSwap);
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kProgressiveAccessibility);
-enum class ProgressiveAccessibilityMode {
-  // Application of mode flags is deferred for hidden WebContents, but otherwise
-  // never cleared.
-  kOnlyEnable,
-
-  // Application of mode flags is deferred for hidden WebContents, and mode
-  // flags are cleared after a WebContents is hidden.
-  kDisableOnHide,
-};
-CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(ProgressiveAccessibilityMode,
-                                          kProgressiveAccessibilityModeParam);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kProgressiveAccessibilityPhase2);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kReloadHiddenTabsWithCrashedSubframes);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kReusePrerenderingProcessForMainFrames);
 #if BUILDFLAG(IS_ANDROID)
@@ -226,8 +215,9 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kStrictHighRankProcessLRU);
 #endif
 #if BUILDFLAG(IS_MAC)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kTextInputClient);
-CONTENT_EXPORT extern const base::FeatureParam<base::TimeDelta>
-    kTextInputClientIPCTimeout;
+CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                                          kTextInputClientIPCTimeout);
+CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kTextInputClientUseNestedLoop);
 #endif
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kTouchpadOverscrollHistoryNavigation);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kTrustedTypesFromLiteral);

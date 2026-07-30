@@ -20,35 +20,6 @@
 # }
 
 TARGET_DEVICES = {
-    'android-pixel2-perf-fyi': {
-        'jetstream2': {
-            'JetStream2': 3,
-        },
-        'speedometer2': {
-            'Speedometer2': 3,
-        },
-        'speedometer3': {
-            'Speedometer3': 3,
-        },
-        'rendering.mobile': {
-            'css_transitions_triggered_style_element': 4,
-            'canvas_animation_no_clear': 4
-        },
-    },
-    'android-pixel2-perf': {
-        'jetstream2': {
-            'JetStream2': 5,
-        },
-        'system_health.common_mobile': 3,
-        'system_health.memory_mobile': 3,
-        'startup.mobile': 10,
-        'speedometer2': {
-            'Speedometer2': 10,
-        },
-        'speedometer3': {
-            'Speedometer3': 10,
-        },
-    },
     'android-go-wembley-perf': {
         'jetstream2': {
             'JetStream2': 5,
@@ -122,6 +93,36 @@ TARGET_DEVICES = {
             'Speedometer3': 8,
         },
     },
+    'android-pixel9-perf': {
+        'jetstream2': 4,
+        'motionmark1.3.crossbench': 4,
+        'speedometer3.crossbench': 4,
+        'speedometer3.a11y.crossbench': 4,
+    },
+    'android-pixel9-pro-perf': {
+        'jetstream2': 4,
+        'motionmark1.3.crossbench': 4,
+        'speedometer3.crossbench': 4,
+        'speedometer3.a11y.crossbench': 4,
+    },
+    'android-pixel9-pro-xl-perf': {
+        'jetstream2': 4,
+        'motionmark1.3.crossbench': 4,
+        'speedometer3.crossbench': 4,
+        'speedometer3.a11y.crossbench': 4,
+    },
+    'android-pixel25-ultra-perf': {
+        'jetstream2': 4,
+        'motionmark1.3.crossbench': 4,
+        'speedometer3.crossbench': 4,
+        'speedometer3.a11y.crossbench': 4,
+    },
+    'android-pixel25-ultra-xl-perf': {
+        'jetstream2': 3,
+        'motionmark1.3.crossbench': 3,
+        'speedometer3.crossbench': 3,
+        'speedometer3.a11y.crossbench': 3,
+    },
     'linux-perf': {
         'jetstream2.crossbench': 10,
         'motionmark1.3.crossbench': 10,
@@ -130,9 +131,9 @@ TARGET_DEVICES = {
     'linux-perf-fyi': {
         'jetstream2.crossbench': 4,
         'jetstream3.crossbench': 4,
+        'jetstream3-turbolev_future.crossbench': 4,
         'jetstream_main.crossbench': 4,
         'speedometer2': 4,
-        'speedometer2-minorms': 4,
         'speedometer3': 4,
         'speedometer3.crossbench': 4,
         'speedometer3.0.crossbench': 4,
@@ -144,19 +145,14 @@ TARGET_DEVICES = {
         'jetstream2': {
             'JetStream2': 5,
         },
-        'jetstream2-minorms': {
-            'JetStream2': 5,
-        },
         'jetstream2.crossbench': 20,
         'jetstream3.crossbench': 20,
+        'jetstream3-turbolev_future.crossbench': 20,
         'jetstream_main.crossbench': 20,
         # set speedometer to 20 shards to help warm up speedometer2
         # benchmark runs b/325578543
         'speedometer': {
             'http://browserbench.org/Speedometer/': 20,
-        },
-        'speedometer2-minorms': {
-            'Speedometer2': 20,
         },
         'speedometer2': {
             'Speedometer2': 20,
@@ -165,9 +161,6 @@ TARGET_DEVICES = {
             'Speedometer2': 20,
         },
         'speedometer3': {
-            'Speedometer3': 20,
-        },
-        'speedometer3-minorms': {
             'Speedometer3': 20,
         },
         'speedometer3-predictable': {
@@ -183,6 +176,7 @@ TARGET_DEVICES = {
         },
         'jetstream2.crossbench': 5,
         'jetstream3.crossbench': 5,
+        'jetstream3-turbolev_future.crossbench': 5,
         'jetstream_main.crossbench': 5,
         'speedometer2': {
             'Speedometer2': 20,
@@ -200,6 +194,7 @@ TARGET_DEVICES = {
         },
         'jetstream2.crossbench': 5,
         'jetstream3.crossbench': 5,
+        'jetstream3-turbolev_future.crossbench': 5,
         'jetstream_main.crossbench': 5,
         'system_health.common_desktop': {
             # cputimeToFirstContentfulPaint
@@ -223,6 +218,7 @@ TARGET_DEVICES = {
         },
         'jetstream2.crossbench': 5,
         'jetstream3.crossbench': 5,
+        'jetstream3-turbolev_future.crossbench': 5,
         'jetstream_main.crossbench': 5,
         'speedometer2': {
             'Speedometer2': 20,
@@ -241,6 +237,7 @@ TARGET_DEVICES = {
         },
         'jetstream2.crossbench': 5,
         'jetstream3.crossbench': 5,
+        'jetstream3-turbolev_future.crossbench': 5,
         'jetstream_main.crossbench': 5,
         'speedometer2': {
             'Speedometer2': 20,
@@ -258,6 +255,7 @@ TARGET_DEVICES = {
         },
         'jetstream2.crossbench': 5,
         'jetstream3.crossbench': 5,
+        'jetstream3-turbolev_future.crossbench': 5,
         'jetstream_main.crossbench': 5,
         'speedometer2': {
             'Speedometer2': 20,
@@ -273,23 +271,15 @@ TARGET_DEVICES = {
         'jetstream2': {
             'JetStream2': 6,
         },
-        'jetstream2-minorms': {
-            'JetStream2': 5,
-        },
         'jetstream2-no-field-trials': 6,
         'jetstream2.crossbench': 5,
         'jetstream3.crossbench': 5,
+        'jetstream3-turbolev_future.crossbench': 5,
         'jetstream_main.crossbench': 5,
         'speedometer2': {
             'Speedometer2': 20,
         },
-        'speedometer2-minorms': {
-            'Speedometer2': 20,
-        },
         'speedometer3': {
-            'Speedometer3': 28,
-        },
-        'speedometer3-minorms': {
             'Speedometer3': 28,
         },
         'speedometer3-no-field-trials': 28,
@@ -305,6 +295,7 @@ TARGET_DEVICES = {
         },
         'jetstream2.crossbench': 4,
         'jetstream3.crossbench': 4,
+        'jetstream3-turbolev_future.crossbench': 4,
         'jetstream_main.crossbench': 4,
         'speedometer2': {
             'Speedometer2': 5,
@@ -340,6 +331,7 @@ TARGET_DEVICES = {
         'jetstream2': 6,
         'jetstream2.crossbench': 6,
         'jetstream3.crossbench': 6,
+        'jetstream3-turbolev_future.crossbench': 6,
         'jetstream_main.crossbench': 6,
         'speedometer2': 20,
         'speedometer3': 20,

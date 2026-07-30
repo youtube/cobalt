@@ -97,7 +97,7 @@
 #import "ios/chrome/browser/main/ui_bundled/ui_blocker_scene_agent.h"
 #import "ios/chrome/browser/main/ui_bundled/wrangled_browser.h"
 #import "ios/chrome/browser/metrics/model/tab_usage_recorder_browser_agent.h"
-#import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
+#import "ios/chrome/browser/ntp/model/new_tab_page_util.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
 #import "ios/chrome/browser/policy/model/cloud/user_policy_signin_service_factory.h"
 #import "ios/chrome/browser/policy/model/policy_util.h"
@@ -105,7 +105,6 @@
 #import "ios/chrome/browser/policy/ui_bundled/idle/idle_timeout_policy_scene_agent.h"
 #import "ios/chrome/browser/policy/ui_bundled/signin_policy_scene_agent.h"
 #import "ios/chrome/browser/policy/ui_bundled/user_policy_util.h"
-#import "ios/chrome/browser/promos_manager/model/features.h"
 #import "ios/chrome/browser/promos_manager/model/promos_manager_factory.h"
 #import "ios/chrome/browser/promos_manager/model/promos_manager_scene_agent.h"
 #import "ios/chrome/browser/promos_manager/public/utils.h"
@@ -232,9 +231,6 @@ const char kMultiWindowOpenInNewWindowHistogram[] =
 // received.
 const char kContextsToOpen[] = "IOS.NumberOfContextsToOpen";
 
-// The App Store page for Google Chrome.
-NSString* const kChromeAppStoreURL = @"https://apps.apple.com/app/id535886823";
-
 // Enum for IOS.NumberOfContextsToOpen histogram.
 // Keep in sync with "ContextsToOpen" in tools/metrics/histograms/enums.xml.
 enum class ContextsToOpen {
@@ -295,46 +291,6 @@ void InjectUnrealizedWebStates(Browser* browser, int count) {
   }
 }
 #endif  // !BUILDFLAG(GOOGLE_CHROME_BRANDING)
-
-// TODO(crbug.com/429353384): Can InjectNTP be factored into another file?
-void InjectNTP(Browser* browser) {
-  // Don't inject an NTP for an empty web state list.
-  if (!browser->GetWebStateList()->count()) {
-    return;
-  }
-
-  // Don't inject an NTP on an NTP.
-  web::WebState* webState = browser->GetWebStateList()->GetActiveWebState();
-  if (IsUrlNtp(webState->GetVisibleURL())) {
-    return;
-  }
-
-  // Queue up start surface with active tab.
-  StartSurfaceRecentTabBrowserAgent* browser_agent =
-      StartSurfaceRecentTabBrowserAgent::FromBrowser(browser);
-  // This may be nil for an incognito browser.
-  if (browser_agent) {
-    browser_agent->SaveMostRecentTab();
-  }
-
-  // Inject a live NTP.
-  web::WebState::CreateParams create_params(browser->GetProfile());
-  std::unique_ptr<web::WebState> web_state =
-      web::WebState::Create(create_params);
-  std::vector<std::unique_ptr<web::NavigationItem>> items;
-  std::unique_ptr<web::NavigationItem> item(web::NavigationItem::Create());
-  item->SetURL(GURL(kChromeUINewTabURL));
-  items.push_back(std::move(item));
-  web_state->GetNavigationManager()->Restore(0, std::move(items));
-  if (!browser->GetProfile()->IsOffTheRecord()) {
-    NewTabPageTabHelper::CreateForWebState(web_state.get());
-    NewTabPageTabHelper::FromWebState(web_state.get())
-        ->SetShowStartSurface(true);
-  }
-  browser->GetWebStateList()->InsertWebState(
-      std::move(web_state),
-      WebStateList::InsertionParams::Automatic().Activate());
-}
 
 // Updates `data` with the Family Link member role associated to the primary
 // signed-in account, no-op if the account is not enrolled in Family Link.
@@ -440,9 +396,6 @@ void OnListFamilyMembersResponse(
 
 // Manages the browser lifecycle.
 @property(nonatomic, strong) BrowserLifecycleManager* browserLifecycleManager;
-
-// YES if the Settings view is being dismissed.
-@property(nonatomic, assign) BOOL dismissingSettings;
 
 // The state of the scene controlled by this object.
 @property(nonatomic, weak, readonly) SceneState* sceneState;
@@ -1236,6 +1189,11 @@ void OnListFamilyMembersResponse(
   // the current webState.
   if (self.sceneState.profileState.appState.postCrashAction ==
       PostCrashAction::kShowNTPWithReturnToTab) {
+    StartSurfaceRecentTabBrowserAgent* browserAgent =
+        StartSurfaceRecentTabBrowserAgent::FromBrowser(browser);
+    if (browserAgent) {
+      browserAgent->SaveMostRecentTab();
+    }
     InjectNTP(browser);
   }
 
@@ -1694,15 +1652,13 @@ void OnListFamilyMembersResponse(
 }
 
 - (void)dismissModalDialogsWithCompletion:(ProceduralBlock)completion {
-  [self dismissModalDialogsWithCompletion:completion dismissOmnibox:YES];
+  [self.mainCoordinator dismissModalDialogsWithCompletion:completion];
 }
 
 - (void)dismissModalsAndShowPasswordCheckupPageForReferrer:
     (password_manager::PasswordCheckReferrer)referrer {
-  __weak SceneController* weakSelf = self;
-  [self dismissModalDialogsWithCompletion:^{
-    [weakSelf showPasswordCheckupPageForReferrer:referrer];
-  }];
+  [self.mainCoordinator
+      dismissModalsAndShowPasswordCheckupPageForReferrer:referrer];
 }
 
 - (void)
@@ -1740,7 +1696,7 @@ void OnListFamilyMembersResponse(
 }
 
 - (void)closePresentedViews {
-  [self closePresentedViews:YES completion:nullptr];
+  [self.mainCoordinator closePresentedViews];
 }
 
 - (void)prepareTabSwitcher {
@@ -2032,18 +1988,8 @@ using UserFeedbackDataCallback =
 
 - (void)showSigninAccountNotificationFromViewController:
     (UIViewController*)baseViewController {
-  web::WebState* webState =
-      self.mainInterface.browser->GetWebStateList()->GetActiveWebState();
-  DCHECK(webState);
-  infobars::InfoBarManager* infoBarManager =
-      InfoBarManagerImpl::FromWebState(webState);
-  DCHECK(infoBarManager);
-  CommandDispatcher* dispatcher =
-      self.mainInterface.browser->GetCommandDispatcher();
-  id<SettingsCommands> settingsHandler =
-      HandlerForProtocol(dispatcher, SettingsCommands);
-  SigninNotificationInfoBarDelegate::Create(
-      infoBarManager, self.profile, settingsHandler, baseViewController);
+  [self.mainCoordinator
+      showSigninAccountNotificationFromViewController:baseViewController];
 }
 
 - (void)setIncognitoContentVisible:(BOOL)incognitoContentVisible {
@@ -2081,16 +2027,7 @@ using UserFeedbackDataCallback =
 }
 
 - (void)showPriceTrackingNotificationsSettings {
-  CHECK(!self.mainCoordinator.isSigninInProgress);
-  if (self.mainCoordinator.settingsNavigationController) {
-    __weak SceneController* weakSelf = self;
-    [self closePresentedViews:NO
-                   completion:^{
-                     [weakSelf openPriceTrackingNotificationsSettings];
-                   }];
-    return;
-  }
-  [self openPriceTrackingNotificationsSettings];
+  [self.mainCoordinator showPriceTrackingNotificationsSettings];
 }
 
 - (void)openPriceTrackingNotificationsSettings {
@@ -2169,35 +2106,12 @@ using UserFeedbackDataCallback =
             (SafariDataImportEntryPoint)entryPoint
                                 withUIHandler:
                                     (id<SafariDataImportUIHandler>)UIHandler {
-  // If presented over settings, the base view controller is the top presented
-  // view controller. Otherwise, it is the active view controller.
-  BOOL presentOverSettings =
-      self.mainCoordinator.settingsNavigationController &&
-      entryPoint == SafariDataImportEntryPoint::kSetting;
-  UIViewController* baseViewController =
-      presentOverSettings ? self.mainCoordinator.settingsNavigationController
-                          : self.activeViewController;
-
-  __weak __typeof(self.mainCoordinator) weakMainCoordinator =
-      self.mainCoordinator;
-  auto startImport = ^{
-    [weakMainCoordinator
-        displaySafariDataImportFromEntryPoint:entryPoint
-                                withUIHandler:UIHandler
-                           baseViewController:baseViewController];
-  };
-  if (presentOverSettings) {
-    startImport();
-  } else {
-    [self closePresentedViews:YES completion:startImport];
-  }
+  [self.mainCoordinator displaySafariDataImportFromEntryPoint:entryPoint
+                                                withUIHandler:UIHandler];
 }
 
 - (void)showAppStorePage {
-  [[UIApplication sharedApplication]
-                openURL:[NSURL URLWithString:kChromeAppStoreURL]
-                options:@{}
-      completionHandler:nil];
+  [self.mainCoordinator showAppStorePage];
 }
 
 #pragma mark - TabGridCoordinatorDelegate
@@ -2821,85 +2735,16 @@ using UserFeedbackDataCallback =
 // snackbar dismissal behavior.
 - (void)dismissModalDialogsWithCompletion:(ProceduralBlock)completion
                            dismissOmnibox:(BOOL)dismissOmnibox {
-  [self dismissModalDialogsWithCompletion:completion
-                           dismissOmnibox:dismissOmnibox
-                         dismissSnackbars:YES];
+  [self.mainCoordinator dismissModalDialogsWithCompletion:completion
+                                           dismissOmnibox:dismissOmnibox];
 }
 
 - (void)dismissModalDialogsWithCompletion:(ProceduralBlock)completion
                            dismissOmnibox:(BOOL)dismissOmnibox
                          dismissSnackbars:(BOOL)dismissSnackbars {
-  // Disconnected scenes should no-op, since browser objects may not exist.
-  // See crbug.com/371847600.
-  if (self.sceneState.activationLevel == SceneActivationLevelDisconnected) {
-    return;
-  }
-  // During startup, there may be no current interface. Do nothing in that
-  // case.
-  if (!self.currentInterface) {
-    return;
-  }
-
-  // Immediately hide modals from the provider (alert views, action sheets,
-  // popovers). They will be ultimately dismissed by their owners, but at least,
-  // they are not visible.
-  ios::provider::HideModalViewStack();
-
-  // Conditionally dismiss all snackbars.
-  if (dismissSnackbars) {
-    id<SnackbarCommands> snackbarHandler = HandlerForProtocol(
-        self.mainInterface.browser->GetCommandDispatcher(), SnackbarCommands);
-    [snackbarHandler dismissAllSnackbars];
-  }
-
-  // Exit fullscreen mode for web page when we re-enter app through external
-  // intents.
-  web::WebState* webState =
-      self.mainInterface.browser->GetWebStateList()->GetActiveWebState();
-  if (webState && webState->IsWebPageInFullscreenMode()) {
-    webState->CloseMediaPresentations();
-  }
-
-  // ChromeIdentityService is responsible for the dialogs displayed by the
-  // services it wraps.
-  GetApplicationContext()->GetSystemIdentityManager()->DismissDialogs();
-
-  // MailtoHandlerService is responsible for the dialogs displayed by the
-  // services it wraps.
-  MailtoHandlerServiceFactory::GetForProfile(self.currentInterface.profile)
-      ->DismissAllMailtoHandlerInterfaces();
-
-  id<BookmarksCommands> bookmarksHandler = HandlerForProtocol(
-      self.mainInterface.browser->GetCommandDispatcher(), BookmarksCommands);
-  [bookmarksHandler dismissBookmarkModalControllerAnimated:NO];
-
-  ProceduralBlock completionWithBVC = ^{
-    DCHECK(self.currentInterface.viewController);
-    DCHECK(!self.mainCoordinator.isTabGridActive);
-    DCHECK(!self.mainCoordinator.isSigninInProgress);
-    [self.currentInterface clearPresentedStateWithCompletion:completion
-                                              dismissOmnibox:dismissOmnibox];
-  };
-  ProceduralBlock completionWithoutBVC = ^{
-    // `self.currentInterface.bvc` may exist but tab switcher should be
-    // active.
-    DCHECK(self.mainCoordinator.isTabGridActive);
-    DCHECK(!self.mainCoordinator.isSigninInProgress);
-    // History coordinator can be started on top of the tab grid.
-    // This is not true of the other tab switchers.
-    DCHECK(self.mainCoordinator);
-    [self.mainCoordinator stopChildCoordinatorsWithCompletion:completion];
-  };
-
-  // Select a completion based on whether the BVC is shown.
-  ProceduralBlock chosenCompletion = self.mainCoordinator.isTabGridActive
-                                         ? completionWithoutBVC
-                                         : completionWithBVC;
-
-  [self closePresentedViews:NO completion:chosenCompletion];
-
-  // Verify that no modal views are left presented.
-  ios::provider::LogIfModalViewsArePresented();
+  [self.mainCoordinator dismissModalDialogsWithCompletion:completion
+                                           dismissOmnibox:dismissOmnibox
+                                         dismissSnackbars:dismissSnackbars];
 }
 
 - (void)openMultipleTabsWithURLs:(const std::vector<GURL>&)URLs
@@ -3237,47 +3082,7 @@ using UserFeedbackDataCallback =
 // Close Settings, or Signin or the 3rd-party intents Incognito interstitial.
 - (void)closePresentedViews:(BOOL)animated
                  completion:(ProceduralBlock)completion {
-  // If the Incognito interstitial is active, stop it.
-  [self.mainCoordinator stopIncognitoInterstitialCoordinator];
-  [self.mainCoordinator stopYoutubeIncognitoCoordinator];
-
-  // If History is active, stop it.
-  [self.mainCoordinator stopHistoryCoordinator];
-
-  // If Assistant Sheet is active, stop it.
-  [self.mainCoordinator stopAssistantSheetCoordinator];
-
-  // If the Safari data import workflow is active, stop it.
-  [self.mainCoordinator stopSafariDataImportCoordinator];
-
-  __weak __typeof(self) weakSelf = self;
-  ProceduralBlock resetAndDismiss = ^{
-    __typeof(self) strongSelf = weakSelf;
-    // Cleanup Password Checkup after its UI was dismissed.
-    [strongSelf.mainCoordinator stopPasswordCheckupCoordinator];
-    if (completion) {
-      completion();
-    }
-  };
-
-  if (self.mainCoordinator.settingsNavigationController &&
-      !self.dismissingSettings) {
-    self.dismissingSettings = YES;
-    // `self.signinCoordinator` can be presented on top of the settings, to
-    // present the Trusted Vault reauthentication `self.signinCoordinator` has
-    // to be closed first.
-    // If signinCoordinator is already dismissing, completion execution will
-    // happen when it is done animating.
-    [self.mainCoordinator stopSigninCoordinatorWithCompletionAnimated:animated];
-    [self.mainCoordinator stopSettingsAnimated:animated
-                                    completion:resetAndDismiss];
-    self.dismissingSettings = NO;
-  } else {
-    // `self.signinCoordinator` can be presented without settings, from the
-    // bookmarks or the recent tabs view.
-    [self.mainCoordinator stopSigninCoordinatorWithCompletionAnimated:animated];
-    resetAndDismiss();
-  }
+  [self.mainCoordinator closePresentedViews:animated completion:completion];
 }
 
 #pragma mark - WebStateListObserving

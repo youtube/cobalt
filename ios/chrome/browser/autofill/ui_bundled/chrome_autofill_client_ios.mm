@@ -31,6 +31,7 @@
 #import "components/autofill/core/browser/payments/payments_network_interface.h"
 #import "components/autofill/core/browser/single_field_fillers/single_field_fill_router.h"
 #import "components/autofill/core/browser/suggestions/suggestion_type.h"
+#import "components/autofill/core/browser/webdata/account_settings/account_setting_service.h"
 #import "components/autofill/core/common/autofill_features.h"
 #import "components/autofill/core/common/autofill_prefs.h"
 #import "components/autofill/ios/browser/autofill_client_ios.h"
@@ -39,7 +40,9 @@
 #import "components/infobars/core/infobar.h"
 #import "components/infobars/core/infobar_manager.h"
 #import "components/keyed_service/core/service_access_type.h"
+#import "components/optimization_guide/core/model_execution/remote_model_executor.h"
 #import "components/optimization_guide/machine_learning_tflite_buildflags.h"
+#import "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #import "components/password_manager/core/browser/form_parsing/form_data_parser.h"
 #import "components/password_manager/core/browser/password_form.h"
 #import "components/password_manager/core/common/password_manager_pref_names.h"
@@ -53,6 +56,9 @@
 #import "ios/chrome/browser/autofill/model/autocomplete_history_manager_factory.h"
 #import "ios/chrome/browser/autofill/model/autofill_log_router_factory.h"
 #import "ios/chrome/browser/autofill/model/bottom_sheet/autofill_bottom_sheet_tab_helper.h"
+#import "ios/chrome/browser/autofill/model/ios_account_setting_service_factory.h"
+#import "ios/chrome/browser/autofill/model/ios_autofill_ai_model_cache_factory.h"
+#import "ios/chrome/browser/autofill/model/ios_autofill_ai_model_executor_factory.h"
 #import "ios/chrome/browser/autofill/model/ios_autofill_entity_data_manager_factory.h"
 #import "ios/chrome/browser/autofill/model/personal_data_manager_factory.h"
 #import "ios/chrome/browser/autofill/model/strike_database_factory.h"
@@ -62,6 +68,9 @@
 #import "ios/chrome/browser/history/model/history_service_factory.h"
 #import "ios/chrome/browser/infobars/model/infobar_ios.h"
 #import "ios/chrome/browser/infobars/model/infobar_utils.h"
+#import "ios/chrome/browser/metrics/model/google_groups_manager_factory.h"
+#import "ios/chrome/browser/optimization_guide/model/optimization_guide_service.h"
+#import "ios/chrome/browser/optimization_guide/model/optimization_guide_service_factory.h"
 #import "ios/chrome/browser/passwords/model/password_tab_helper.h"
 #import "ios/chrome/browser/plus_addresses/model/plus_address_service_factory.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
@@ -109,6 +118,10 @@ ChromeAutofillClientIOS::ChromeAutofillClientIOS(
       infobar_manager_(infobar_manager),
       log_router_(AutofillLogRouterFactory::GetForProfile(profile_)),
       ablation_study_(GetApplicationContext()->GetLocalState()) {
+  if (base::FeatureList::IsEnabled(features::kAutofillAiWithDataSchema)) {
+    autofill_ai_manager_ = std::make_unique<AutofillAiManager>(
+        this, autofill::StrikeDatabaseFactory::GetForProfile(profile));
+  }
   // TODO(crbug.com/449708427): Remove once `AccountInfo` supports full_name on
   // IOS.
   if (personal_data_manager_) {
@@ -183,7 +196,8 @@ ValuablesDataManager* ChromeAutofillClientIOS::GetValuablesDataManager() {
 }
 
 EntityDataManager* ChromeAutofillClientIOS::GetEntityDataManager() {
-  if (base::FeatureList::IsEnabled(kIOSEnhancedAutofill)) {
+  if (base::FeatureList::IsEnabled(
+          autofill::features::kAutofillAiCreateEntityDataManager)) {
     return IOSAutofillEntityDataManagerFactory::GetForProfile(profile_);
   }
   return nullptr;
@@ -219,6 +233,54 @@ ChromeAutofillClientIOS::GetAutocompleteHistoryManager() {
   return autocomplete_history_manager_;
 }
 
+void ChromeAutofillClientIOS::GetAiPageContent(
+    GetAiPageContentCallback callback) {
+  // Cancel any ongoing page context operation.
+  if (page_context_wrapper_) {
+    page_context_wrapper_ = nil;
+  }
+
+  base::OnceCallback<void(PageContextWrapperCallbackResponse)>
+      page_context_completion_callback = base::BindOnce(
+          [](GetAiPageContentCallback inner_callback,
+             PageContextWrapperCallbackResponse response) {
+            if (!response.has_value()) {
+              std::move(inner_callback).Run(std::nullopt);
+              return;
+            }
+
+            std::move(inner_callback)
+                .Run((*response)->annotated_page_content());
+          },
+          std::move(callback));
+
+  // Populate the PageContext proto and then execute the query.
+  page_context_wrapper_ = [[PageContextWrapper alloc]
+        initWithWebState:web_state()
+      completionCallback:std::move(page_context_completion_callback)];
+  [page_context_wrapper_ setShouldGetAnnotatedPageContent:YES];
+  [page_context_wrapper_ setShouldGetSnapshot:NO];
+  [page_context_wrapper_ setShouldGetFullPagePDF:NO];
+  [page_context_wrapper_ populatePageContextFieldsAsync];
+}
+
+AutofillAiManager* ChromeAutofillClientIOS::GetAutofillAiManager() {
+  return autofill_ai_manager_.get();
+}
+
+AutofillAiModelCache* ChromeAutofillClientIOS::GetAutofillAiModelCache() {
+  return IOSAutofillAiModelCacheFactory::GetForProfile(profile_);
+}
+
+AutofillAiModelExecutor* ChromeAutofillClientIOS::GetAutofillAiModelExecutor() {
+  return IOSAutofillAiModelExecutorFactory::GetForProfile(profile_);
+}
+
+optimization_guide::RemoteModelExecutor*
+ChromeAutofillClientIOS::GetRemoteModelExecutor() {
+  return OptimizationGuideServiceFactory::GetForProfile(profile_);
+}
+
 PrefService* ChromeAutofillClientIOS::GetPrefs() {
   return const_cast<PrefService*>(std::as_const(*this).GetPrefs());
 }
@@ -243,6 +305,12 @@ const signin::IdentityManager* ChromeAutofillClientIOS::GetIdentityManager()
 
 FormDataImporter* ChromeAutofillClientIOS::GetFormDataImporter() {
   return form_data_importer_.get();
+}
+
+const GoogleGroupsManager* ChromeAutofillClientIOS::GetGoogleGroupsManager()
+    const {
+  return GoogleGroupsManagerFactory::GetForProfile(
+      profile_->GetOriginalProfile());
 }
 
 payments::IOSChromePaymentsAutofillClient*
@@ -396,7 +464,10 @@ bool ChromeAutofillClientIOS::IsAutofillProfileEnabled() const {
 }
 
 bool ChromeAutofillClientIOS::IsWalletStorageEnabled() const {
-  return false;
+  autofill::AccountSettingService* setting_service =
+      IOSAccountSettingServiceFactory::GetForProfile(profile_);
+  return setting_service &&
+         setting_service->IsWalletPrivacyContextualSurfacingEnabled();
 }
 
 bool ChromeAutofillClientIOS::IsAutocompleteEnabled() const {

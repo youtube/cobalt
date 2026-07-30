@@ -29,6 +29,7 @@
 #include "third_party/blink/renderer/core/html/forms/html_opt_group_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_select_element.h"
 #include "third_party/blink/renderer/core/html_names.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_to_number.h"
 
 namespace blink {
 
@@ -104,7 +105,7 @@ void HTMLHRElement::CollectStyleForPresentationAttribute(
                          dark_gray_value);
     }
   } else if (name == html_names::kSizeAttr) {
-    int size = value.ToInt();
+    int size = StringToInt(value).value_or(0);
     if (size <= 1) {
       AddPropertyToPresentationAttributeStyle(
           style, CSSPropertyID::kBorderBottomWidth, 0,
@@ -120,15 +121,17 @@ void HTMLHRElement::CollectStyleForPresentationAttribute(
 }
 
 HTMLSelectElement* HTMLHRElement::OwnerSelectElement() const {
-  DCHECK_EQ(owner_select_,
-            HTMLSelectElement::AssociatedSelectAndOptgroup(*this).first);
+  DCHECK_EQ(
+      owner_select_,
+      HTMLSelectElement::AssociatedSelectAndOptgroupAndDatalist(*this).select);
   return owner_select_;
 }
 
 Node::InsertionNotificationRequest HTMLHRElement::InsertedInto(
     ContainerNode& insertion_point) {
   HTMLElement::InsertedInto(insertion_point);
-  owner_select_ = HTMLSelectElement::AssociatedSelectAndOptgroup(*this).first;
+  owner_select_ =
+      HTMLSelectElement::AssociatedSelectAndOptgroupAndDatalist(*this).select;
   if (owner_select_) {
     owner_select_->HrInsertedOrRemoved(*this);
   }
@@ -138,7 +141,7 @@ Node::InsertionNotificationRequest HTMLHRElement::InsertedInto(
 void HTMLHRElement::RemovedFrom(ContainerNode& insertion_point) {
   HTMLElement::RemovedFrom(insertion_point);
   HTMLSelectElement* new_ancestor_select =
-      HTMLSelectElement::AssociatedSelectAndOptgroup(*this).first;
+      HTMLSelectElement::AssociatedSelectAndOptgroupAndDatalist(*this).select;
   if (owner_select_ != new_ancestor_select) {
     // When removing, we can only lose an associated <select>
     CHECK(owner_select_);

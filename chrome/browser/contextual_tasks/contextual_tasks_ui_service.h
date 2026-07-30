@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_CONTEXTUAL_TASKS_CONTEXTUAL_TASKS_UI_SERVICE_H_
 
 #include <map>
+#include <utility>
 #include <vector>
 
 #include "base/functional/callback.h"
@@ -81,10 +82,10 @@ class ContextualTasksUiService : public KeyedService {
       base::WeakPtr<tabs::TabInterface> tab,
       base::WeakPtr<BrowserWindowInterface> browser);
 
-  // A notification that a navigation to the search results page occurred in the
-  // contextual tasks WebUI while being viewed in a tab (as opposed to side
-  // panel).
-  virtual void OnSearchResultsNavigationInTab(
+  // A notification that a navigation to a link that is not related to the ai
+  // thread occurred in the contextual tasks WebUI while being viewed in a tab
+  // (as opposed to side panel).
+  virtual void OnNonThreadNavigationInTab(
       const GURL& url,
       base::WeakPtr<tabs::TabInterface> tab);
 
@@ -159,6 +160,9 @@ class ContextualTasksUiService : public KeyedService {
   // differentiate different modes or queries.
   bool IsSearchResultsUrl(const GURL& url);
 
+  // Returns whether the provided URL is a share URL.
+  bool IsShareUrl(const GURL& url);
+
   // Returns whether the provided URL is for a valid (e.g. can be loaded in
   // the embedded page in the WebUI) search results page that contains the
   // correct params and isn't a shopping query.
@@ -195,15 +199,6 @@ class ContextualTasksUiService : public KeyedService {
   // new foreground tab.
   virtual void OnImageClickedFromSourcesMenu(const GURL& url,
                                              BrowserWindowInterface* browser);
-
-  void set_auto_tab_context_suggestion_enabled(bool enabled) {
-    auto_tab_context_suggestion_enabled_ = enabled;
-  }
-
-  bool auto_tab_context_suggestion_enabled() const {
-    return auto_tab_context_suggestion_enabled_;
-  }
-
   // Return whether there is a user signed into the browser with valid
   // credentials (aka, an OAuth token can be obtained).
   virtual bool IsSignedInToBrowserWithValidCredentials();
@@ -255,11 +250,24 @@ class ContextualTasksUiService : public KeyedService {
   // Runs all pending access token callbacks with the provided token.
   void RunPendingAccessTokenCallbacks(const std::string& token);
 
-  // Focus an existing tab based on the provided URL if it exists. The URLs must
-  // be identical in order for the existing tab to be selected.
-  bool MaybeFocusExistingOpenTab(const GURL& url,
-                                 TabStripModel* tab_strip_model,
-                                 const base::Uuid& task_id);
+  // Focus an existing tab based on the provided URL if it exists. The URLs are
+  // compared without text selection directives as they don't change the page
+  // content and only tell the browser what text to highlight on the page. A
+  // pointer to the selected tab is returned if found.
+  tabs::TabInterface* MaybeFocusExistingOpenTab(const GURL& url,
+                                                TabStripModel* tab_strip_model,
+                                                const base::Uuid& task_id);
+
+  // A callback for checking whether text fragments from a URL are on a page.
+  void OnTextFinderLookupComplete(
+      base::WeakPtr<tabs::TabInterface> tab,
+      const GURL& url,
+      base::Uuid task_id,
+      base::WeakPtr<BrowserWindowInterface> browser,
+      const std::vector<std::pair<std::string, bool>>& lookup_results);
+
+  // Navigates to a share URL.
+  virtual void OnShareUrlNavigation(const GURL& url);
 
   // Checks if the provided URL matches any of the allowed hosts.
   bool IsAllowedHost(const GURL& url);
@@ -302,10 +310,6 @@ class ContextualTasksUiService : public KeyedService {
   // are cleaned up.
   std::map<base::Uuid, omnibox::ChromeAimEntryPoint>
       task_id_to_entry_point_override_;
-
-  // Whether to allow active tab context to be suggested on compose box
-  // automatically.
-  bool auto_tab_context_suggestion_enabled_ = true;
 
   base::WeakPtrFactory<ContextualTasksUiService> weak_ptr_factory_{this};
 };

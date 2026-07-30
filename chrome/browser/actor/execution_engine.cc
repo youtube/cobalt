@@ -30,10 +30,10 @@
 #include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_metrics.h"
-#include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/actor/actor_proto_conversion.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_util.h"
+#include "chrome/browser/actor/enterprise_policy_url_checker.h"
 #include "chrome/browser/actor/origin_checker.h"
 #include "chrome/browser/actor/safety_list_manager.h"
 #include "chrome/browser/actor/site_policy.h"
@@ -267,6 +267,8 @@ ExecutionEngine::ShouldDeferNavigation(
   base::ScopedUmaHistogramTimer timer(
       "Actor.NavigationGating.TimeElapsedForGating2");
 
+  // Note: `DetermineGatingDecision` operates on GURLs, but `origin_checker_`
+  // operates on Origins only.
   const GatingDecision decision = DetermineGatingDecision(
       /*source_url=*/GetPrimaryMainFrame(navigation_handle)
           ->GetLastCommittedURL(),
@@ -278,12 +280,14 @@ ExecutionEngine::ShouldDeferNavigation(
     case GatingDecision::kAllowByStaticList:
       LogNavigationGating(
           /*initiator_origin=*/navigation_handle.GetInitiatorOrigin(),
-          navigation_handle.GetURL(), /*applied_gate=*/false);
+          url::Origin::Create(navigation_handle.GetURL()),
+          /*applied_gate=*/false);
       return content::NavigationThrottle::PROCEED;
     case GatingDecision::kBlockByStaticList:
       LogNavigationGating(
           /*initiator_origin=*/navigation_handle.GetInitiatorOrigin(),
-          navigation_handle.GetURL(), /*applied_gate=*/true);
+          url::Origin::Create(navigation_handle.GetURL()),
+          /*applied_gate=*/true);
       return content::NavigationThrottle::CANCEL_AND_IGNORE;
     case GatingDecision::kNeedsAsyncCheck: {
       bool skip_prompt = navigation_handle.IsInPrerenderedMainFrame();
@@ -302,12 +306,11 @@ ExecutionEngine::ShouldDeferNavigation(
 
 void ExecutionEngine::LogNavigationGating(
     base::optional_ref<const url::Origin> initiator_origin,
-    const GURL& navigation_url,
+    const url::Origin& navigation_origin,
     bool applied_gate) const {
   UMA_HISTOGRAM_BOOLEAN("Actor.NavigationGating.AppliedGate", applied_gate);
 
   if (initiator_origin) {
-    url::Origin navigation_origin = url::Origin::Create(navigation_url);
     UMA_HISTOGRAM_BOOLEAN(
         "Actor.NavigationGating.CrossOrigin2",
         !initiator_origin->IsSameOriginWith(navigation_origin));
@@ -336,19 +339,14 @@ ExecutionEngine::GatingDecision ExecutionEngine::DetermineGatingDecision(
       *SafetyListManager::GetInstance();
 
   if (url::IsSameOriginWith(source_url, destination_url)) {
-    // The static blocklist can still block same-origin navigations. A wildcard
-    // source entry like `[*, foo.com]` will block a `foo.com -> foo.com`
-    // navigation. The reasoning is that a URL globally blocked as a
-    // destination should not be reachable from anywhere, including itself.
-    // Conversely, a source-specific entry like `[foo.com, *]` will *not* block
-    // a `foo.com -> foo.com` navigation. This is because a global block on
-    // navigations *from* a URL is intended to prevent leaving that origin, not
-    // moving within it.
-    return safety_list_manager.get_blocked_list()
-                   .ContainsUrlPairWithWildcardSource(source_url,
-                                                      destination_url)
-               ? GatingDecision::kBlockByStaticList
-               : GatingDecision::kAllowSameOrigin;
+    // The static blocklist should never need to block same-origin navigations.
+    // This is because SafetyChecksForNextAction prevents action on an origin if
+    // it is already on the blocklist, and navigation gating prevents the actor
+    // from navigating to a blocked origin after. We apply a CHECK to enforce
+    // this invariant.
+    CHECK(!safety_list_manager.get_blocked_list()
+               .ContainsUrlPairWithWildcardSource(source_url, destination_url));
+    return GatingDecision::kAllowSameOrigin;
   }
 
   if (safety_list_manager.get_blocked_list().ContainsUrlPair(source_url,
@@ -370,22 +368,23 @@ void ExecutionEngine::CheckNavigationSensitiveUrlList(
     bool skip_prompt,
     base::ScopedUmaHistogramTimer timer,
     ExecutionEngine::NavigationDecisionCallback callback) {
-  // Check previously confirmed origins on the sensitive list. If the user
-  // has previously confirmed the origin is allowed, we should proceed and not
-  // double prompt.
-  if (origin_checker_.IsSensitiveUrlConfirmed(navigation_url)) {
-    OnNavigationSensitiveUrlListChecked(initiator_origin, navigation_url,
-                                        skip_prompt, std::move(timer),
-                                        std::move(callback),
-                                        /*not_sensitive=*/true);
+  // Check previously confirmed origins. If the user has previously confirmed
+  // the origin is allowed, we should proceed and not double prompt.
+  if (origin_checker_.IsNavigationConfirmedByUser(
+          url::Origin::Create(navigation_url))) {
+    OnNavigationSensitiveUrlListChecked(
+        initiator_origin, url::Origin::Create(navigation_url), skip_prompt,
+        std::move(timer), std::move(callback),
+        /*not_sensitive=*/true);
     return;
   }
   base::expected<void, DecisionCallback> sensitive_check_result =
       MaybeCheckOptimizationGuideForSensitiveUrl(
           navigation_url, task_->profile(),
           base::BindOnce(&ExecutionEngine::OnNavigationSensitiveUrlListChecked,
-                         GetWeakPtr(), initiator_origin, navigation_url,
-                         skip_prompt, std::move(timer), std::move(callback)));
+                         GetWeakPtr(), initiator_origin,
+                         url::Origin::Create(navigation_url), skip_prompt,
+                         std::move(timer), std::move(callback)));
   if (!sensitive_check_result.has_value()) {
     std::move(sensitive_check_result).error().Run(/*not_sensitive=*/true);
   }
@@ -393,23 +392,24 @@ void ExecutionEngine::CheckNavigationSensitiveUrlList(
 
 void ExecutionEngine::OnNavigationSensitiveUrlListChecked(
     base::optional_ref<const url::Origin> initiator_origin,
-    const GURL navigation_url,
+    const url::Origin& navigation_origin,
     bool skip_prompt,
     base::ScopedUmaHistogramTimer timer,
     ExecutionEngine::NavigationDecisionCallback callback,
     bool not_sensitive) {
   // If not sensitive, check if it's an origin the actor has previously
   // interacted with or received instructions from the server to interact with.
-  if (not_sensitive &&
-      origin_checker_.IsNavigationAllowed(initiator_origin, navigation_url)) {
-    LogNavigationGating(initiator_origin, navigation_url,
+  if (not_sensitive && origin_checker_.IsNavigationAllowed(initiator_origin,
+                                                           navigation_origin)) {
+    LogNavigationGating(initiator_origin, navigation_origin,
                         /*applied_gate=*/false);
     std::move(callback).Run(/*may_continue=*/true);
     return;
   }
 
   // At this point, the navigation is either blocked OR not on the allowlist.
-  LogNavigationGating(initiator_origin, navigation_url, /*applied_gate=*/true);
+  LogNavigationGating(initiator_origin, navigation_origin,
+                      /*applied_gate=*/true);
 
   if (skip_prompt) {
     std::move(callback).Run(/*may_continue=*/false);
@@ -420,8 +420,8 @@ void ExecutionEngine::OnNavigationSensitiveUrlListChecked(
   // origin and we should either confirm the navigation with the web client or
   // prompt the user depending on the feature state.
   if (not_sensitive) {
-    HandleNavigationToNewOrigin(url::Origin::Create(navigation_url),
-                                std::move(timer), std::move(callback));
+    HandleNavigationToNewOrigin(navigation_origin, std::move(timer),
+                                std::move(callback));
     return;
   }
 
@@ -432,7 +432,7 @@ void ExecutionEngine::OnNavigationSensitiveUrlListChecked(
   }
 
   // Otherwise, present a user confirmation dialog to continue.
-  SendUserConfirmationDialogRequest(url::Origin::Create(navigation_url),
+  SendUserConfirmationDialogRequest(navigation_origin,
                                     /*for_sensitive_origin=*/true,
                                     std::move(timer), std::move(callback));
 }
@@ -482,7 +482,8 @@ void ExecutionEngine::OnNavigationConfirmationDecision(
     UMA_HISTOGRAM_BOOLEAN("Actor.NavigationGating.PermissionGranted",
                           permission_granted);
     if (permission_granted) {
-      origin_checker_.AllowNavigationTo(std::move(navigation_origin));
+      origin_checker_.AllowNavigationTo(std::move(navigation_origin),
+                                        /*is_user_confirmed=*/false);
     }
     std::move(callback).Run(permission_granted);
     return;
@@ -508,13 +509,11 @@ void ExecutionEngine::SendUserConfirmationDialogRequest(
   task_->delegate()->RequestToShowUserConfirmationDialog(
       task_->id(), navigation_origin, for_sensitive_origin,
       base::BindOnce(&ExecutionEngine::OnPromptUserToConfirmNavigationDecision,
-                     GetWeakPtr(), navigation_origin, for_sensitive_origin,
-                     std::move(callback)));
+                     GetWeakPtr(), navigation_origin, std::move(callback)));
 }
 
 void ExecutionEngine::OnPromptUserToConfirmNavigationDecision(
     url::Origin navigation_origin,
-    bool for_sensitive_origin,
     ExecutionEngine::NavigationDecisionCallback callback,
     webui::mojom::UserConfirmationDialogResponsePtr response) {
   if (response->result->is_permission_granted()) {
@@ -523,17 +522,10 @@ void ExecutionEngine::OnPromptUserToConfirmNavigationDecision(
                           permission_granted);
     if (permission_granted) {
       // See the comment on `OriginOrPrecursorIfOpaque` for why we do not store
-      // `navigation_origin` directly here and for the confirmed sensitive
-      // origins.
+      // `navigation_origin` directly here.
       origin_checker_.AllowNavigationTo(
-          OriginOrPrecursorIfOpaque(navigation_origin));
-      // We update both lists in the `for_sensitive_origin` case so that we do
-      // not have to double-confirm this origin when we invoke
-      // ExecutionEngine::HandleNavigationToNewOrigin.
-      if (for_sensitive_origin) {
-        origin_checker_.ConfirmSensitiveOrigin(
-            OriginOrPrecursorIfOpaque(navigation_origin));
-      }
+          OriginOrPrecursorIfOpaque(navigation_origin),
+          /*is_user_confirmed=*/true);
     }
     std::move(callback).Run(permission_granted);
     return;
@@ -650,7 +642,8 @@ void ExecutionEngine::Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
       if (std::optional<url::Origin> maybe_origin =
               action->AssociatedOriginGrant();
           maybe_origin) {
-        origin_checker_.AllowNavigationTo(maybe_origin.value());
+        origin_checker_.AllowNavigationTo(maybe_origin.value(),
+                                          /*is_user_confirmed=*/false);
       }
     }
   }
@@ -711,12 +704,23 @@ void ExecutionEngine::SafetyChecksForNextAction() {
     return;
   }
 
+  const SafetyListManager& safety_list_manager =
+      *SafetyListManager::GetInstance();
+  const GURL& url =
+      tab->GetContents()->GetPrimaryMainFrame()->GetLastCommittedURL();
+  if (safety_list_manager.get_blocked_list()
+          .ContainsPatternMatchingSelfNavigation(url)) {
+    OnMayActOnTabDecision(
+        tab->GetContents()->GetPrimaryMainFrame()->GetLastCommittedOrigin(),
+        MayActOnUrlBlockReason::kBlockedByStaticList);
+    return;
+  }
+
   // Asynchronously check if we can act on the tab. NOTE that the MayActOnTab
   // check uses `GetLastCommittedURL()` from the tab. For opaque origins, this
   // means that we'll get the precursor URL. For this reason, we previously
-  // invoked `origin_checker_.ConfirmSensitiveOrigin()` with the precursor to
-  // ensure the optimization guide sensitive origin check would be skipped as
-  // expected.
+  // added the precursor to `origin_checker_` to ensure the optimization guide
+  // sensitive origin check would be skipped as expected.
   MayActOnTab(
       *tab, *journal_, task_->id(), origin_checker_, task_->policy_checker(),
       base::BindOnce(
@@ -743,7 +747,6 @@ void ExecutionEngine::OnMayActOnTabDecision(
         return;
       }
       [[fallthrough]];
-    case MayActOnUrlBlockReason::kActuactionDisabled:
     case MayActOnUrlBlockReason::kExternalProtocol:
     case MayActOnUrlBlockReason::kIpAddress:
     case MayActOnUrlBlockReason::kLookalikeDomain:
@@ -752,6 +755,7 @@ void ExecutionEngine::OnMayActOnTabDecision(
     case MayActOnUrlBlockReason::kUrlNotInAllowlist:
     case MayActOnUrlBlockReason::kWrongScheme:
     case MayActOnUrlBlockReason::kEnterprisePolicy:
+    case MayActOnUrlBlockReason::kBlockedByStaticList:
       DidFinishAsyncSafetyChecks(evaluated_origin, /*may_act=*/false);
   }
 }

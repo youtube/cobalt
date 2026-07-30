@@ -990,7 +990,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.BackPress.Backfalsing2" enum="NavigationDirection"
-    expires_after="2026-02-09">
+    expires_after="2026-08-09">
   <owner>eleanorlee@google.com</owner>
   <owner>lazzzis@chromium.org</owner>
   <owner>clank-app-team@google.com</owner>
@@ -3748,6 +3748,32 @@ chromium-metrics-reviews@google.com.
     Recorded every time the user interacts with the ActionInSuggest, for the
     Action that the user interacted with. Not recorded if the user does not
     interact with ActionInSuggest.
+  </summary>
+</histogram>
+
+<histogram name="Android.Omnibox.InputToNavigationControllerStart.Intent"
+    units="ms" expires_after="2026-05-31">
+  <owner>gjc@google.com</owner>
+  <owner>chrome-loading@google.com</owner>
+  <owner>chrome-brapp-loading@google.com</owner>
+  <summary>
+    Records time between the intent that triggered an Omnibox navigation on
+    Android to the time the Omnibox code calls into the shared C++ navigation
+    code (NavigationController). The UMA is recorded each time a URL is loaded
+    in the NavigationController with a valid intent received timestamp.
+  </summary>
+</histogram>
+
+<histogram name="Android.Omnibox.InputToNavigationControllerStart.UserInput"
+    units="ms" expires_after="2026-05-31">
+  <owner>gjc@google.com</owner>
+  <owner>chrome-loading@google.com</owner>
+  <owner>chrome-brapp-loading@google.com</owner>
+  <summary>
+    Records time between the user input that triggered an Omnibox navigation on
+    Android to the time the Omnibox code calls into the shared C++ navigation
+    code (NavigationController). The UMA is recorded each time a URL is loaded
+    in the NavigationController with a valid input start timestamp.
   </summary>
 </histogram>
 
@@ -7615,6 +7641,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Android.WebView.IsInstantApp" enum="Boolean"
+    expires_after="2026-07-01">
+  <owner>peter@chromium.org</owner>
+  <owner>src/android_webview/OWNERS</owner>
+  <summary>
+    Records whether WebView is running in an Instant App. This is emitted once
+    during WebView global initialization. Recorded in an internal repository, so
+    code references might be missing.
+  </summary>
+</histogram>
+
 <histogram name="Android.WebView.JavaBridge.InvocationIsInPrimaryMainFrame"
     enum="BooleanMainFrame" expires_after="2023-04-19">
   <owner>peter@chromium.org</owner>
@@ -9240,6 +9277,28 @@ chromium-metrics-reviews@google.com.
   <summary>
     Counts the number of times Samsung specific text selection menu item
     ordering is used. Recorded when a WebView is initialized.
+  </summary>
+</histogram>
+
+<histogram name="Android.WebView.TracingInit.BackgroundInitMainThreadWaitTime"
+    units="ms" expires_after="2026-12-01">
+  <owner>pbirk@chromium.org</owner>
+  <owner>src/android_webview/OWNERS</owner>
+  <summary>
+    Time spent on the main thread waiting for background tracing init to finish.
+
+    This histogram is emitted a the point where WebView determines if tracing
+    should start on the main browser thread, since that is the point where the
+    startup code assumes that tracing is initialized. The histogram is only
+    emitted if tracing was initialized on a bachground thread, and it measures
+    the time spent waiting on the main thread for this initialization to finish.
+
+    Any values higher than 0 indicate that tracing did not manage to initialize
+    fully on the background thread before the main thread reached the point
+    where tracing is required.
+
+    The purpose of this histogram is to determine if background initialization
+    of tracing provides an overall benefit to WebView Startup Time.
   </summary>
 </histogram>
 

@@ -1499,38 +1499,6 @@ static CSSPrimitiveValue* ConsumeNumericLiteralAngle(
   return nullptr;
 }
 
-template <class T>
-  requires std::is_same_v<T, CSSParserTokenStream>
-static CSSPrimitiveValue* ConsumeMathFunctionAngle(
-    T& stream,
-    const CSSParserContext& context,
-    CSSParserLocalContext& local_context,
-    double minimum_value,
-    double maximum_value) {
-  MathFunctionParser math_parser(stream, context, local_context,
-                                 CSSPrimitiveValue::ValueRange::kAll,
-                                 CSSMathExpressionNode::Flags());
-  if (const CSSMathFunctionValue* calculation = math_parser.Value()) {
-    if (calculation->Category() != kCalcAngle) {
-      return nullptr;
-    }
-  }
-  if (CSSMathFunctionValue* result = math_parser.ConsumeValue()) {
-    auto* numeric_result =
-        DynamicTo<CSSMathExpressionNumericLiteral>(result->ExpressionNode());
-    if (numeric_result && numeric_result->DoubleValue() < minimum_value) {
-      return CSSNumericLiteralValue::Create(
-          minimum_value, CSSPrimitiveValue::UnitType::kDegrees);
-    }
-    if (numeric_result && numeric_result->DoubleValue() > maximum_value) {
-      return CSSNumericLiteralValue::Create(
-          maximum_value, CSSPrimitiveValue::UnitType::kDegrees);
-    }
-    return result;
-  }
-  return nullptr;
-}
-
 static CSSPrimitiveValue* ConsumeMathFunctionAngle(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
@@ -1544,21 +1512,6 @@ static CSSPrimitiveValue* ConsumeMathFunctionAngle(
     }
   }
   return math_parser.ConsumeValue();
-}
-
-CSSPrimitiveValue* ConsumeAngle(CSSParserTokenStream& stream,
-                                const CSSParserContext& context,
-                                CSSParserLocalContext& local_context,
-                                std::optional<WebFeature> unitless_zero_feature,
-                                double minimum_value,
-                                double maximum_value) {
-  if (auto* result =
-          ConsumeNumericLiteralAngle(stream, context, unitless_zero_feature)) {
-    return result;
-  }
-
-  return ConsumeMathFunctionAngle(stream, context, local_context, minimum_value,
-                                  maximum_value);
 }
 
 CSSPrimitiveValue* ConsumeAngle(
@@ -2602,7 +2555,7 @@ bool ConsumeBorderShorthand(CSSParserTokenStream& stream,
       }
     }
     if (!result_style) {
-      result_style = ParseBorderStyleSide(stream, context);
+      result_style = ParseBorderStyleSide(stream, context, local_context);
       if (result_style) {
         ConsumeCommaIncludingWhitespace(stream);
         continue;
@@ -3919,8 +3872,8 @@ void WarnInvalidKeywordPropertyUsage(CSSPropertyID property,
 }
 
 const CSSValue* ParseLonghand(CSSPropertyID unresolved_property,
-                              CSSPropertyID current_shorthand,
                               const CSSParserContext& context,
+                              CSSParserLocalContext& local_context,
                               CSSParserTokenStream& stream) {
   CSSPropertyID property_id = ResolveCSSPropertyID(unresolved_property);
   CSSValueID value_id = stream.Peek().Id();
@@ -3934,10 +3887,6 @@ const CSSValue* ParseLonghand(CSSPropertyID unresolved_property,
     WarnInvalidKeywordPropertyUsage(property_id, context, value_id);
     return nullptr;
   }
-
-  auto local_context =
-      CSSParserLocalContext(CSSPropertyName(unresolved_property))
-          .WithCurrentShorthand(current_shorthand);
 
   const CSSValue* result =
       To<Longhand>(CSSProperty::Get(property_id))
@@ -3954,15 +3903,18 @@ bool ConsumeShorthandVia2Longhands(
   const StylePropertyShorthand::Properties& longhands = shorthand.properties();
   DCHECK_EQ(longhands.size(), 2u);
 
-  const CSSValue* start = ParseLonghand(longhands[0]->PropertyID(),
-                                        shorthand.id(), context, stream);
+  auto local_context = CSSParserLocalContext(CSSPropertyName(shorthand.id()))
+                           .WithCurrentShorthand(shorthand.id());
+
+  const CSSValue* start =
+      ParseLonghand(longhands[0]->PropertyID(), context, local_context, stream);
 
   if (!start) {
     return false;
   }
 
-  const CSSValue* end = ParseLonghand(longhands[1]->PropertyID(),
-                                      shorthand.id(), context, stream);
+  const CSSValue* end =
+      ParseLonghand(longhands[1]->PropertyID(), context, local_context, stream);
 
   if (shorthand.id() == CSSPropertyID::kOverflow && start && end) {
     context.Count(WebFeature::kTwoValuedOverflow);
@@ -3987,23 +3939,27 @@ bool ConsumeShorthandVia4Longhands(
     HeapVector<CSSPropertyValue, 64>& properties) {
   const StylePropertyShorthand::Properties& longhands = shorthand.properties();
   DCHECK_EQ(longhands.size(), 4u);
-  const CSSValue* top = ParseLonghand(longhands[0]->PropertyID(),
-                                      shorthand.id(), context, stream);
+
+  auto local_context = CSSParserLocalContext(CSSPropertyName(shorthand.id()))
+                           .WithCurrentShorthand(shorthand.id());
+
+  const CSSValue* top =
+      ParseLonghand(longhands[0]->PropertyID(), context, local_context, stream);
 
   if (!top) {
     return false;
   }
 
-  const CSSValue* right = ParseLonghand(longhands[1]->PropertyID(),
-                                        shorthand.id(), context, stream);
+  const CSSValue* right =
+      ParseLonghand(longhands[1]->PropertyID(), context, local_context, stream);
 
   const CSSValue* bottom = nullptr;
   const CSSValue* left = nullptr;
   if (right) {
-    bottom = ParseLonghand(longhands[2]->PropertyID(), shorthand.id(), context,
+    bottom = ParseLonghand(longhands[2]->PropertyID(), context, local_context,
                            stream);
     if (bottom) {
-      left = ParseLonghand(longhands[3]->PropertyID(), shorthand.id(), context,
+      left = ParseLonghand(longhands[3]->PropertyID(), context, local_context,
                            stream);
     }
   }
@@ -4044,6 +4000,8 @@ bool ConsumeShorthandGreedilyViaLonghands(
       shorthand.properties();
   bool found_any = false;
   bool found_longhand;
+  auto local_context = CSSParserLocalContext(CSSPropertyName(shorthand.id()))
+                           .WithCurrentShorthand(shorthand.id());
   do {
     found_longhand = false;
     for (size_t i = 0; i < shorthand.length(); ++i) {
@@ -4051,7 +4009,7 @@ bool ConsumeShorthandGreedilyViaLonghands(
         continue;
       }
       longhands[i] = ParseLonghand(shorthand_properties[i]->PropertyID(),
-                                   shorthand.id(), context, stream);
+                                   context, local_context, stream);
 
       if (longhands[i]) {
         found_longhand = true;
@@ -4793,7 +4751,7 @@ bool ConsumeTimelineTriggerShorthand(
           longhand_value = css_parsing_utils::GetImpliedRangeEnd(
               trigger_exit_range_start_value);
         } else if (property_id ==
-                   CSSPropertyID::kTimelineTriggerEntryRangeEnd) {
+                   CSSPropertyID::kTimelineTriggerActivationRangeEnd) {
           longhand_value =
               css_parsing_utils::GetImpliedRangeEnd(trigger_range_start_value);
         }
@@ -5489,9 +5447,10 @@ CSSValue* ParseBorderWidthSide(CSSParserTokenStream& stream,
 }
 
 const CSSValue* ParseBorderStyleSide(CSSParserTokenStream& stream,
-                                     const CSSParserContext& context) {
-  return ParseLonghand(CSSPropertyID::kBorderLeftStyle, CSSPropertyID::kBorder,
-                       context, stream);
+                                     const CSSParserContext& context,
+                                     CSSParserLocalContext& local_context) {
+  return ParseLonghand(CSSPropertyID::kBorderLeftStyle, context, local_context,
+                       stream);
 }
 
 CSSValue* ConsumeGapDecorationPropertyValue(
@@ -6127,8 +6086,7 @@ CSSValue* ConsumeFontStyle(CSSParserTokenStream& stream,
       ConsumeIdent<CSSValueID::kOblique>(stream);
 
   CSSPrimitiveValue* start_angle =
-      ConsumeAngle(stream, context, local_context, std::nullopt,
-                   kMinObliqueValue, kMaxObliqueValue);
+      ConsumeAngle(stream, context, local_context, std::nullopt);
   if (!start_angle) {
     return oblique_identifier;
   }
@@ -6148,8 +6106,7 @@ CSSValue* ConsumeFontStyle(CSSParserTokenStream& stream,
   }
 
   CSSPrimitiveValue* end_angle =
-      ConsumeAngle(stream, context, local_context, std::nullopt,
-                   kMinObliqueValue, kMaxObliqueValue);
+      ConsumeAngle(stream, context, local_context, std::nullopt);
   if (!end_angle || !IsAngleWithinLimits(end_angle)) {
     return nullptr;
   }
@@ -6575,14 +6532,14 @@ bool IsGridBreadthFlexSized(const CSSValue& value) {
 }
 
 bool IsGridBreadthIntrinsicSized(const CSSValue& value) {
-  if (auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
+  if (const auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
     CSSValueID value_id = identifier_value->GetValueID();
     return value_id == CSSValueID::kAuto ||
            value_id == CSSValueID::kMinContent ||
            value_id == CSSValueID::kMaxContent;
   }
 
-  if (auto* function = DynamicTo<CSSFunctionValue>(value)) {
+  if (const auto* function = DynamicTo<CSSFunctionValue>(value)) {
     return function->FunctionType() == CSSValueID::kFitContent;
   }
 
@@ -6594,10 +6551,7 @@ bool IsGridBreadthFixedSized(const CSSValue& value) {
 }
 
 bool IsGridTrackFixedSized(const CSSValue& value) {
-  // TODO(almaher): Do we want to update this definition for Grid Lanes?
-  //
-  // https://github.com/w3c/csswg-drafts/issues/12573
-  auto* function = DynamicTo<CSSFunctionValue>(value);
+  const auto* function = DynamicTo<CSSFunctionValue>(value);
   if (function && function->FunctionType() != CSSValueID::kFitContent) {
     const CSSValue& min_value = function->Item(0);
     const CSSValue& max_value = function->Item(1);
@@ -6608,8 +6562,20 @@ bool IsGridTrackFixedSized(const CSSValue& value) {
   return IsGridBreadthFixedSized(value);
 }
 
+bool IsGridTrackIntrinsicSized(const CSSValue& value) {
+  const auto* function = DynamicTo<CSSFunctionValue>(value);
+  if (function && function->FunctionType() != CSSValueID::kFitContent) {
+    const CSSValue& min_value = function->Item(0);
+    const CSSValue& max_value = function->Item(1);
+    return IsGridBreadthIntrinsicSized(min_value) &&
+           IsGridBreadthIntrinsicSized(max_value);
+  }
+
+  return IsGridBreadthIntrinsicSized(value);
+}
+
 bool IsGridTrackFixedOrIntrinsicSized(const CSSValue& value) {
-  return IsGridBreadthIntrinsicSized(value) || IsGridTrackFixedSized(value);
+  return IsGridTrackIntrinsicSized(value) || IsGridTrackFixedSized(value);
 }
 
 CSSValue* ConsumeGridTrackSize(CSSParserTokenStream& stream,
@@ -6770,13 +6736,12 @@ bool ConsumeGridTrackRepeatFunction(
         return false;
       }
       if (all_tracks_are_intrinsic_repeat_or_fixed_sized) {
-        // Whether repeat(auto-fill, <intrinsic-track-size>) should be allowed,
-        // and if it should apply to both grid and grid-lanes is still in
-        // discussion in the CSSWG.
+        // Whether repeat(auto-fill, <intrinsic-track-size>) should apply to
+        // grid is still in discussion in the CSSWG.
         //
         // TODO(almaher): Make adjustments once a resolution is made [1].
         //
-        // [1] https://github.com/w3c/csswg-drafts/issues/10915
+        // [1] https://github.com/w3c/csswg-drafts/issues/9321
         if (is_auto_repeat &&
             RuntimeEnabledFeatures::CSSGridLanesLayoutEnabled()) {
           all_tracks_are_intrinsic_repeat_or_fixed_sized =

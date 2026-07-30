@@ -134,10 +134,8 @@ void AccessibilityEventRewriter::ProcessPendingSpokenFeedbackEvent(
   CHECK(chromevox_mv3_key_handling_enabled_);
   if (pending_key_events_.empty()) {
     // The queue can be empty in edge cases where ChromeVox is toggled off and
-    // back on in quick succession.
-    DumpWithoutCrashingHelper(
-        "Couldn't process pending key event because "
-        "the queue is empty");
+    // back on in quick succession, or EventRewriterController has been
+    // re-initialized after a browser restart.
     return;
   }
 
@@ -225,17 +223,8 @@ bool AccessibilityEventRewriter::RewriteEventForChromeVox(
   // Save continuation for |OnUnhandledSpokenFeedbackEvent()|.
   chromevox_continuation_ = continuation;
 
-  if (!event.IsKeyEvent()) {
-    return false;
-  }
-
-  if (Shell::Get()->accessibility_controller()->GetActiveUserPrefs() &&
-      !Shell::Get()
-           ->accessibility_controller()
-           ->GetActiveUserPrefs()
-           ->GetBoolean(prefs::kAccessibilitySpokenFeedbackEnabled)) {
-    // Check the ChromeVox enabled pref directly, as it's possible for
-    // spoken_feedback().enabled() to return a stale result.
+  if (!Shell::Get()->accessibility_controller()->spoken_feedback().enabled() ||
+      !event.IsKeyEvent()) {
     return false;
   }
 

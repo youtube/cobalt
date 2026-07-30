@@ -72,13 +72,13 @@ export function getHtml(this: EventListItemElement) {
     </div>
   ` : ''}
   ${this.errors.length > 0 ? html`
-    <div class="event-error-details">
+    <ul class="event-error-details">
       ${this.errors.map(item => html`
-        <div>
+        <li>
           ${item}
-        </div>
+        </li>
       `)}
-    </div>
+    </ul>
   ` : ''}
   ${this.updaterVersion ? html`
     <div>
@@ -89,9 +89,12 @@ export function getHtml(this: EventListItemElement) {
     <span class="event-duration">${this.formattedDuration}</span>
   ` : ''}
   ${this.policies !== undefined ? html`
-    <raw-event-details id="policySource" label="$i18n{policyDetails}"
-        .events="${[this.policies]}">
-    </raw-event-details>
+    <div>
+    <h3>Enterprise Policies</h3>
+    <enterprise-policy-table .policies="${this.policies}"
+        .appId="${this.appId}">
+    </enterprise-policy-table>
+    </div>
   ` : ''}
   <raw-event-details .events="${[this.event]}">
   </raw-event-details>

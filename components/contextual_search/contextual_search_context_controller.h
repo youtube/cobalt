@@ -24,6 +24,8 @@
 #include "third_party/lens_server_proto/lens_overlay_service_deps.pb.h"
 #include "third_party/lens_server_proto/lens_overlay_visual_search_interaction_data.pb.h"
 #include "third_party/omnibox_proto/chrome_aim_entry_point.pb.h"
+#include "third_party/omnibox_proto/model_mode.pb.h"
+#include "third_party/omnibox_proto/tool_mode.pb.h"
 
 namespace base {
 class Time;
@@ -113,6 +115,10 @@ class ContextualSearchContextController {
     // The tokens of the contextual inputs to attach to the search url.
     std::vector<base::UnguessableToken> file_tokens;
 
+    // The currently active model.
+    omnibox::ModelMode active_model =
+        omnibox::ModelMode::MODEL_MODE_UNSPECIFIED;
+
     // Additional params to attach to the search url.
     std::map<std::string, std::string> additional_params;
 
@@ -157,15 +163,15 @@ class ContextualSearchContextController {
     lens::QueryPayload::QueryTextSource query_text_source =
         lens::QueryPayload::QUERY_TEXT_SOURCE_UNSPECIFIED;
 
-    // Whether deep search is selected.
-    bool deep_search_selected = false;
-
-    // Whether create images is selected.
-    bool create_images_selected = false;
-
     // Whether to force include the latest interaction request data in the AIM
     // query payload.
     bool force_include_latest_interaction_request_data = false;
+    // The currently active tool.
+    omnibox::ToolMode active_tool = omnibox::ToolMode::TOOL_MODE_UNSPECIFIED;
+
+    // The currently active model.
+    omnibox::ModelMode active_model =
+        omnibox::ModelMode::MODEL_MODE_UNSPECIFIED;
 
     // Additional CGI params to append to the search request URL.
     std::map<std::string, std::string> additional_cgi_params;

@@ -1124,14 +1124,18 @@ interface LocalFrame {
 
   // Requests the index of a character in the frame's text stream at the given
   // point. The point is in the viewport coordinate space. Replies using
-  // TextInputHost.
+  // TextInputHost. `request_token` is a caller-defined request identifier which
+  // allows matching the request with the TextInputHost response.
   [EnableIf=is_mac]
-  GetCharacterIndexAtPoint(gfx.mojom.Point location);
+  GetCharacterIndexAtPoint(mojo_base.mojom.UnguessableToken request_token,
+                           gfx.mojom.Point location);
 
   // Requests the rectangle for a given character range. Replies using
-  // TextInputHost.
+  // TextInputHost. `request_token` is a caller-defined request identifier which
+  // allows matching the request with the TextInputHost response.
   [EnableIf=is_mac]
-  GetFirstRectForRange(gfx.mojom.Range range);
+  GetFirstRectForRange(mojo_base.mojom.UnguessableToken request_token,
+                       gfx.mojom.Range range);
 
   // Requests the text fragment in a given range.
   [EnableIf=is_mac]
@@ -1271,7 +1275,7 @@ interface LocalFrame {
 
   // Request to perform spell check for full text content.
   [EnableIf=is_android]
-  PerformSpellCheck();
+  PerformFullContentSpellCheck();
 };
 
 // Implemented in Blink, this interface defines main-frame-specific methods that
@@ -1392,14 +1396,6 @@ interface LocalMainFrameHost {
   // Request close of the window. This corresponds to a window.close() javascript API call.
   // Frame unload handlers should have already been called before this method is called.
   RequestClose();
-
-  // Causes a window previously opened via content.mojom.FrameHost::CreateNewWindow
-  // to be shown on the screen. This message contains the opener_frame_token
-  // which is always set. This is called on the main frame of the window to be shown.
-  ShowCreatedWindow(blink.mojom.LocalFrameToken opener_frame_token,
-                    ui.mojom.WindowOpenDisposition disposition,
-                    blink.mojom.WindowFeatures window_features,
-                    bool opened_by_user_gesture) => ();
 
   // Request that the browser change the bounds of the window.
   // This corresponds to the window.resizeTo() and window.moveTo() APIs, and the browser

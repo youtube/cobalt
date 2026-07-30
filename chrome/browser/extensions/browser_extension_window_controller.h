@@ -51,14 +51,11 @@ class BrowserExtensionWindowController : public WindowController {
   std::string GetWindowTypeText() const override;
   void SetFullscreenMode(bool is_fullscreen,
                          const GURL& extension_url) const override;
-  bool CanClose(Reason* reason) const override;
   BrowserWindowInterface* GetBrowserWindowInterface() override;
 #if !BUILDFLAG(IS_ANDROID)
   Browser* GetBrowser() const override;
 #endif
-  bool IsDeleteScheduled() const override;
   content::WebContents* GetActiveTab() const override;
-  bool HasEditableTabStrip() const override;
   int GetTabCount() const override;
   content::WebContents* GetWebContentsAt(int i) const override;
   bool IsVisibleToTabsAPIForExtension(
@@ -73,11 +70,6 @@ class BrowserExtensionWindowController : public WindowController {
   bool OpenOptionsPage(const Extension* extension,
                        const GURL& url,
                        bool open_in_tab) override;
-  bool SupportsTabs() override;
-
-  void disable_tab_strip_editing_for_test() {
-    disable_tab_strip_editing_for_test_ = true;
-  }
 
  private:
   const raw_ref<BrowserWindowInterface> browser_;
@@ -89,7 +81,6 @@ class BrowserExtensionWindowController : public WindowController {
   const raw_ref<TabListInterface> tab_list_;
   const SessionID session_id_;
   const api::tabs::WindowType window_type_;
-  bool disable_tab_strip_editing_for_test_ = false;
 
   ui::ScopedUnownedUserData<BrowserExtensionWindowController>
       scoped_data_holder_;

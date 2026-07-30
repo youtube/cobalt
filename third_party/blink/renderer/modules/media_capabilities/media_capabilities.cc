@@ -73,6 +73,7 @@
 #include "third_party/blink/renderer/platform/webrtc/webrtc_video_utils.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_to_number.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "third_party/webrtc/api/audio_codecs/audio_format.h"
 #include "third_party/webrtc/api/video_codecs/sdp_video_format.h"
@@ -464,15 +465,16 @@ webrtc::SdpAudioFormat ToSdpAudioFormat(
   // Convert audio_configuration to SdpAudioFormat.
   ParsedContentType parsed_content_type(configuration->contentType());
   DCHECK(parsed_content_type.IsValid());
-  const String codec_name =
+  const StringView codec_name =
       WebrtcCodecNameFromMimeType(parsed_content_type.MimeType(), "audio");
   // TODO(https://crbug.com/1187565): Deal with the special case where the clock
   // rate is not the same as the sample rate.
   const int clockrate_hz =
       configuration->hasSamplerate() ? configuration->samplerate() : 0;
-  const size_t channels = configuration->hasChannels()
-                              ? configuration->channels().ToUIntStrict()
-                              : 0;
+  const size_t channels =
+      configuration->hasChannels()
+          ? StringToUintStrict(configuration->channels()).value_or(0)
+          : 0;
   return {codec_name.Utf8(), clockrate_hz, channels};
 }
 
@@ -482,7 +484,7 @@ webrtc::SdpVideoFormat ToSdpVideoFormat(
   // Convert video_configuration to SdpVideoFormat.
   ParsedContentType parsed_content_type(configuration->contentType());
   DCHECK(parsed_content_type.IsValid());
-  const String codec_name =
+  const StringView codec_name =
       WebrtcCodecNameFromMimeType(parsed_content_type.MimeType(), "video");
   const std::map<std::string, std::string> parameters =
       ConvertToSdpVideoFormatParameters(parsed_content_type.GetParameters());

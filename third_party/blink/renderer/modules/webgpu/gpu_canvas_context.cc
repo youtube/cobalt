@@ -209,7 +209,7 @@ scoped_refptr<StaticBitmapImage> GPUCanvasContext::GetImage() {
   return SnapshotInternal(front_buffer_texture->GetTexture());
 }
 
-CanvasResourceProviderSharedImage*
+CanvasNon2DResourceProviderSharedImage*
 GPUCanvasContext::GetOrCreateCanvasResourceProvider() {
   auto* provider = resource_provider_.get();
   if (!provider && !did_fail_to_create_resource_provider_) {
@@ -260,9 +260,9 @@ GPUCanvasContext::PaintRenderingResultsToSnapshot(
     SkColor4f color = alpha_mode_ == V8GPUCanvasAlphaMode::Enum::kOpaque
                           ? SkColors::kBlack
                           : SkColors::kTransparent;
-    resource_provider->Canvas().clear(color);
-    resource_provider->FlushCanvas(FlushReason::kClear);
-    return resource_provider->Snapshot();
+    return resource_provider->DoExternalDrawAndSnapshot(
+        [color](MemoryManagedPaintCanvas& canvas) { canvas.clear(color); },
+        ImageOrientationEnum::kDefault);
   }
 
   wgpu::Texture texture;
@@ -779,7 +779,11 @@ GPUCanvasContext::GetFrontBufferMailboxTexture() {
   wgpu::DawnTextureInternalUsageDescriptor front_buffer_usage_desc = {{
       .internalUsage = front_buffer_usage,
   }};
+
+  // Note: By spec all WebGPU textures must have some usage (i.e. can't have
+  // only internal usages), so specify the internal usages in `usage` as well.
   wgpu::TextureDescriptor desc = {
+      .usage = front_buffer_usage,
       .size = {base::checked_cast<uint32_t>(front_buffer_si->size().width()),
                base::checked_cast<uint32_t>(front_buffer_si->size().height())},
       .format = swap_buffers_->TextureFormat(),
@@ -895,7 +899,7 @@ void GPUCanvasContext::CopyToSwapTexture() {
 
 bool GPUCanvasContext::CopyTextureToResourceProvider(
     const wgpu::Texture& texture,
-    CanvasResourceProviderSharedImage* resource_provider) const {
+    CanvasNon2DResourceProviderSharedImage* resource_provider) const {
 #if BUILDFLAG(USE_DAWN)
   DCHECK(resource_provider);
 

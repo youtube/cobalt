@@ -5,26 +5,18 @@
 #ifndef COMPONENTS_LEGION_CLIENT_IMPL_H_
 #define COMPONENTS_LEGION_CLIENT_IMPL_H_
 
-#include <cstdint>
 #include <memory>
 #include <string>
 
-#include "base/containers/flat_map.h"
-#include "base/containers/flat_set.h"
 #include "base/functional/callback.h"
-#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/time/time.h"
 #include "base/types/expected.h"
 #include "components/legion/client.h"
+#include "components/legion/common/legion_logger.h"
 #include "components/legion/connection.h"
 #include "components/legion/connection_factory.h"
 #include "components/legion/legion_common.h"
 #include "components/legion/proto/legion.pb.h"
-
-namespace network::mojom {
-class NetworkContext;
-}  // namespace network::mojom
 
 namespace legion {
 
@@ -56,6 +48,8 @@ class ClientImpl : public Client {
                        OnPaicMessageRequestCompletedCallback callback,
                        const RequestOptions& options) override;
 
+  LegionLogger* GetLogger() override;
+
  private:
   // Callback for when a `SendRequest` operation completes.
   // If the operation is successful, the result will contain the server's
@@ -72,11 +66,17 @@ class ClientImpl : public Client {
                    OnRequestCompletedCallback callback,
                    const RequestOptions& options);
 
+  void OnReponseReceived(
+      OnRequestCompletedCallback cb,
+      base::expected<proto::LegionResponse, ErrorCode> legion_response);
+
   void OnConnectionDisconnected();
 
   std::unique_ptr<Connection> connection_;
 
   std::unique_ptr<ConnectionFactory> connection_factory_;
+
+  LegionLogger logger_;
 
   base::WeakPtrFactory<ClientImpl> weak_factory_{this};
 };

@@ -593,7 +593,7 @@ void LayoutBox::StyleWillChange(StyleDifference diff,
       // The background of the root element or the body element could propagate
       // up to the canvas. Just dirty the entire canvas when our style changes
       // substantially.
-      if (diff.NeedsNormalPaintInvalidation() || diff.NeedsLayout()) {
+      if (diff.NeedsNormalPaintInvalidation()) {
         View()->SetShouldDoFullPaintInvalidation();
       }
     }
@@ -732,8 +732,8 @@ void LayoutBox::StyleDidChange(StyleDifference diff,
       //
       // For some controls, it depends on paddings.
       if (!old_style->BorderSizeEquals(new_style) ||
-          diff.BorderRadiusChanged() ||
-          (diff.BorderShapeChanged() &&
+          diff.border_radius_changed ||
+          (diff.border_shape_changed &&
            (new_style.HasBorderShape() || old_style->HasBorderShape())) ||
           (HasControlClip() && !old_style->PaddingEqual(new_style))) {
         SetNeedsPaintPropertyUpdate();
@@ -772,7 +772,7 @@ void LayoutBox::StyleDidChange(StyleDifference diff,
     }
   }
 
-  if (diff.TransformChanged() && TransformsChangeMayRequireLayout()) {
+  if (diff.transform_changed && TransformsChangeMayRequireLayout()) {
     SetNeedsLayoutAndFullPaintInvalidation(
         layout_invalidation_reason::kStyleChange);
   }
@@ -3271,9 +3271,11 @@ PhysicalBoxStrut LayoutBox::ComputeVisualEffectOverflowOutsets() {
 
   PhysicalBoxStrut outsets = style.BoxDecorationOutsets();
 
+  PhysicalRect border_rect(PhysicalOffset(), StitchedSize());
+  std::optional<BorderShapeReferenceRects> border_shape_rects;
+
   if (style.HasBorderShape()) {
-    PhysicalRect border_rect(PhysicalOffset(), StitchedSize());
-    std::optional<BorderShapeReferenceRects> border_shape_rects =
+    border_shape_rects =
         ComputeBorderShapeReferenceRects(border_rect, style, *this);
     const PhysicalRect outer_reference_rect =
         border_shape_rects ? border_shape_rects->outer : border_rect;
@@ -3296,9 +3298,41 @@ PhysicalBoxStrut LayoutBox::ComputeVisualEffectOverflowOutsets() {
     PhysicalSize size = StitchedSize();
     bool outline_affected = rect.size != size;
     SetOutlineMayBeAffectedByDescendants(outline_affected);
-    rect.Inflate(LayoutUnit(OutlinePainter::OutlineOutsetExtent(style, info)));
-    outsets.Unite(PhysicalBoxStrut(-rect.Y(), rect.Right() - size.width,
-                                   rect.Bottom() - size.height, -rect.X()));
+
+    // For border-shape, compute the outline bounds from the offset path.
+    if (style.HasBorderShape()) {
+      const PhysicalRect outer_reference_rect =
+          border_shape_rects ? border_shape_rects->outer : border_rect;
+      // When border-shape uses a single shape, the border is stroked centered
+      // on the path, so the outer edge is at border_width/2 from the path.
+      float border_stroke_offset = 0;
+      const StyleBorderShape* border_shape = style.BorderShape();
+      if (border_shape && !border_shape->HasSeparateInnerShape()) {
+        DerivedStroke derived_stroke = RelevantSideForBorderShape(style);
+        border_stroke_offset = derived_stroke.thickness / 2.0f;
+      }
+      const float outline_offset = border_stroke_offset +
+                                   static_cast<float>(info.offset) +
+                                   static_cast<float>(info.width);
+      Path outline_path = BorderShapePainter::OuterPathWithOffset(
+          style, outer_reference_rect, outline_offset);
+      gfx::RectF outline_bounds = outline_path.BoundingRect();
+      const float top_outset =
+          std::max(0.0f, border_rect.Y() - outline_bounds.y());
+      const float left_outset =
+          std::max(0.0f, border_rect.X() - outline_bounds.x());
+      const float right_outset =
+          std::max(0.0f, outline_bounds.right() - border_rect.Right());
+      const float bottom_outset =
+          std::max(0.0f, outline_bounds.bottom() - border_rect.Bottom());
+      outsets.Unite(PhysicalBoxStrut::Enclosing(gfx::OutsetsF::TLBR(
+          top_outset, left_outset, bottom_outset, right_outset)));
+    } else {
+      rect.Inflate(
+          LayoutUnit(OutlinePainter::OutlineOutsetExtent(style, info)));
+      outsets.Unite(PhysicalBoxStrut(-rect.Y(), rect.Right() - size.width,
+                                     rect.Bottom() - size.height, -rect.X()));
+    }
   }
 
   return outsets;

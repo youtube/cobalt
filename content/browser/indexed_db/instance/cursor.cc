@@ -107,7 +107,7 @@ void Cursor::Advance(uint32_t count,
     return;
   }
 
-  if (!transaction_) {
+  if (!transaction_ || !transaction_->IsAcceptingRequests()) {
     Close();
   }
   if (closed_) {
@@ -193,7 +193,7 @@ void Cursor::Continue(IndexedDBKey key,
     return;
   }
 
-  if (!transaction_) {
+  if (!transaction_ || !transaction_->IsAcceptingRequests()) {
     Close();
   }
   if (closed_) {
@@ -270,7 +270,7 @@ void Cursor::Prefetch(int number_to_fetch,
                       blink::mojom::IDBCursor::PrefetchCallback callback) {
   TRACE_EVENT0("IndexedDB", "Cursor::Prefetch");
 
-  if (!transaction_) {
+  if (!transaction_ || !transaction_->IsAcceptingRequests()) {
     Close();
   }
   if (closed_) {
@@ -432,6 +432,7 @@ void Cursor::Close() {
   TRACE_EVENT_END("IndexedDB", perfetto::Track::FromPointer(this));
   TRACE_EVENT0("IndexedDB", "Cursor::Close");
   closed_ = true;
+  ptr_factory_.InvalidateWeakPtrs();
   cursor_.reset();
   if (transaction_) {
     transaction_->UnregisterOpenCursor(this);

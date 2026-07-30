@@ -1391,8 +1391,8 @@ enum WebFeature {
   kGamepadAxes = 1964,
   kGamepadButtons = 1965,
   kOBSOLETE_DispatchMouseEventOnDisabledFormControl = 1967,
-  kElementNameDOMInvalidHTMLParserValid = 1968,
-  kElementNameDOMValidHTMLParserInvalid = 1969,
+  kOBSOLETE_ElementNameDOMInvalidHTMLParserValid = 1968,
+  kOBSOLETE_ElementNameDOMValidHTMLParserInvalid = 1969,
   kGATTServerDisconnectedEvent = 1970,
   kAnchorClickDispatchForNonConnectedNode = 1971,
   kHTMLParseErrorNestedForm = 1972,
@@ -4989,7 +4989,7 @@ enum WebFeature {
   kSmartCardEstablishContext = 5673,
   kSmartCardConnect = 5674,
   kNavigatorCPUPerformance = 5675,
-  kSelectionRemoveRangeNotFoundWouldThrow = 5676,
+  kOBSOLETE_SelectionRemoveRangeNotFoundWouldThrow = 5676,
   kNestedSvgCssSizingProperties = 5677,
   kCryptoAlgorithmChaCha20Poly1305 = 5678,
   kCryptoAlgorithmMlDsa44 = 5679,
@@ -5100,6 +5100,8 @@ enum WebFeature {
   kAnchorCaseSensitiveMatch = 5784,
   kAnchorCaseInsensitiveMatch = 5785,
   kPrerenderActivationByFormSubmission = 5786,
+  kLinkRelModulePreloadStyle = 5787,
+  kAudioContextPlaybackStats = 5788,
 
   // Add new features immediately above this line. Don't change assigned
   // numbers of any item, and don't reuse removed slots. Also don't add extra

@@ -429,14 +429,15 @@
 #include "chrome/browser/tracing/tracing_features.h"
 #include "chrome/browser/tracing/windows_system_tracing_client_win.h"
 #include "chrome/install_static/install_util.h"
+#include "chrome/installer/util/isolation_support.h"
 #include "chrome/services/util_win/public/mojom/util_win.mojom.h"
 #include "content/public/browser/tracing_service.h"
 #include "sandbox/win/src/sandbox_policy.h"
 #elif BUILDFLAG(IS_MAC)
 #include "chrome/browser/browser_process_platform_part_mac.h"
-#include "chrome/browser/enterprise/platform_auth/platform_auth_features.h"
 #include "chrome/browser/enterprise/platform_auth/platform_auth_proxying_url_loader_factory.h"
 #include "chrome/common/chrome_version.h"
+#include "components/enterprise/platform_auth/platform_auth_features.h"
 #include "components/soda/constants.h"
 #include "sandbox/mac/sandbox_serializer.h"
 #include "sandbox/policy/mac/params.h"
@@ -805,12 +806,8 @@ GURL ReplaceURLHostAndPath(const GURL& url,
 bool HandleNewTabPageLocationOverride(
     GURL* url,
     content::BrowserContext* browser_context) {
-  if (!(url->SchemeIs(content::kChromeUIScheme) ||
-        url->SchemeIs(content::kChromeNativeScheme))) {
-    return false;
-  }
-
-  if (url->GetHost() != chrome::kChromeUINewTabHost) {
+  if (!url->SchemeIs(content::kChromeUIScheme) ||
+      url->GetHost() != chrome::kChromeUINewTabHost) {
     return false;
   }
 
@@ -827,8 +824,7 @@ bool HandleNewTabPageLocationOverride(
     return false;
   }
   url::Component scheme;
-  if (!url::ExtractScheme(ntp_location.data(),
-                          static_cast<int>(ntp_location.length()), &scheme)) {
+  if (!url::ExtractScheme(ntp_location, &scheme)) {
     ntp_location = base::StrCat(
         {url::kHttpsScheme, url::kStandardSchemeSeparator, ntp_location});
   }
@@ -1407,10 +1403,8 @@ ChromeContentBrowserClient::ChromeContentBrowserClient() {
   extra_parts_.push_back(
       std::make_unique<ChromeContentBrowserClientExtensionsPart>());
 #elif BUILDFLAG(IS_ANDROID)
-  if (base::FeatureList::IsEnabled(features::kGlic)) {
-    extra_parts_.push_back(
-        std::make_unique<android::ChromeContentBrowserClientGuestViewPart>());
-  }
+  extra_parts_.push_back(
+      std::make_unique<android::ChromeContentBrowserClientGuestViewPart>());
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -1790,7 +1784,7 @@ std::optional<GURL> ChromeContentBrowserClient::GetEffectiveURL(
   // If the input |url| should be assigned to the Instant renderer, make its
   // effective URL distinct from other URLs on the search provider's domain.
   // This needs to happen even if |url| corresponds to an isolated origin; see
-  // https://crbug.com/755595.
+  // https://crbug.com/41339429.
   if (search::ShouldAssignURLToInstantRenderer(url, profile)) {
     return search::GetEffectiveURLForInstant(url, profile);
   }
@@ -2439,7 +2433,7 @@ void ChromeContentBrowserClient::WillComputeSiteForNavigation(
     content::BrowserContext* browser_context,
     const GURL& url) {
   if (!site_isolation::SiteIsolationPolicy::
-          IsOriginIsolationForJsOptExceptionsEnabled()) {
+          IsOriginIsolationForJsOptExceptionsEnabled(browser_context)) {
     return;
   }
 
@@ -2789,6 +2783,7 @@ void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
       Profile* profile =
           Profile::FromBrowserContext(process->GetBrowserContext());
       PrefService* prefs = profile->GetPrefs();
+      PrefService* local_state = g_browser_process->local_state();
       // Currently this pref is only registered if applied via a policy.
       if (prefs->HasPrefPath(prefs::kDisable3DAPIs) &&
           prefs->GetBoolean(prefs::kDisable3DAPIs)) {
@@ -2832,6 +2827,14 @@ void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
                                 kForcePermissionPolicyUnloadDefaultEnabled)) {
         command_line->AppendSwitch(
             network::switches::kForcePermissionPolicyUnloadDefaultEnabled);
+      }
+
+      if (local_state->GetBoolean(
+              policy::policy_prefs::
+                  kLocalNetworkAccessPermissionsPolicyDefaultEnabled)) {
+        command_line->AppendSwitch(
+            network::switches::
+                kLocalNetworkAccessPermissionsPolicyDefaultEnabled);
       }
 
       if (prefs->GetBoolean(prefs::kWebAudioOutputBufferingEnabled)) {
@@ -2889,7 +2892,6 @@ void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
       // base::Feature, but it has a managed policy override. The override is
       // communicated to blink via a custom command-line flag. See
       // PageSchedulerImpl for the other half of related logic.
-      PrefService* local_state = g_browser_process->local_state();
       const PrefService::Preference* pref = local_state->FindPreference(
           policy::policy_prefs::kIntensiveWakeUpThrottlingEnabled);
       if (pref && pref->IsManaged()) {
@@ -4363,10 +4365,13 @@ bool ChromeContentBrowserClient::CanCreateWindow(
     content::OpenURLParams url_params(
         target_url, referrer, disposition,
         ui::PageTransition::PAGE_TRANSITION_AUTO_TOPLEVEL, true);
+    content::WebContents* responsible_web_contents =
+        web_contents->GetResponsibleWebContents();
+    bool is_from_embedded_page = web_contents != responsible_web_contents;
     if (contextual_tasks_ui_service &&
         contextual_tasks_ui_service->HandleNavigation(
-            std::move(url_params), web_contents,
-            /*is_from_embedded_page=*/false,
+            std::move(url_params), responsible_web_contents,
+            is_from_embedded_page,
             /*is_to_new_tab=*/true)) {
       return false;
     }
@@ -4506,7 +4511,7 @@ void ChromeContentBrowserClient::OverrideWebPreferences(
 
 // Fill font preferences. These are not registered on Android unless we're built
 // with extensions (the chrome.fontSettings API can change these).
-// - http://crbug.com/308033, http://crbug.com/696364.
+// - http://crbug.com/40337093, http://crbug.com/41304476.
 #if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
   // Enabling the FontFamilyCache needs some KeyedService that might not be
   // available for some irregular profiles, like the System Profile.
@@ -5128,7 +5133,7 @@ void ChromeContentBrowserClient::GetAdditionalMappedFilesForChildProcess(
 std::wstring ChromeContentBrowserClient::GetAppContainerSidForSandboxType(
     sandbox::mojom::Sandbox sandbox_type,
     AppContainerFlags flags) {
-  // TODO(wfh): Add support for more process types here. crbug.com/499523
+  // TODO(wfh): Add support for more process types here. crbug.com/41182255
   switch (sandbox_type) {
     case sandbox::mojom::Sandbox::kRenderer:
       if (flags & AppContainerFlags::kAppContainerFlagDisableAppContainer) {
@@ -5337,6 +5342,10 @@ bool ChromeContentBrowserClient::ShouldRestrictCoreSharingOnRenderer() {
   return false;
 }
 
+std::optional<std::wstring>
+ChromeContentBrowserClient::GetWindowsSecurityAttributeName() const {
+  return installer::GetIsolationAttributeName();
+}
 #endif  // BUILDFLAG(IS_WIN)
 
 void ChromeContentBrowserClient::
@@ -7040,16 +7049,14 @@ bool ChromeContentBrowserClient::HandleWebUI(
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
 
-  // Rewrite chrome://settings/autofill and chrome://settings/enhancedAutofill
-  // to chrome://settings/yourSavedInfo.
+  // Rewrite chrome://settings/enhancedAutofill to chrome://settings/autofill.
   if (url->SchemeIs(content::kChromeUIScheme) &&
       url->GetHost() == chrome::kChromeUISettingsHost &&
-      (url->GetPath() == chrome::kChromeUIAutofillPath ||
-       url->GetPath() == chrome::kChromeUIAutofillAiPath) &&
+      url->GetPath() == chrome::kChromeUIAutofillAiPath &&
       base::FeatureList::IsEnabled(
           autofill::features::kYourSavedInfoSettingsPage)) {
     GURL::Replacements replacements;
-    replacements.SetPathStr(chrome::kChromeUIYourSavedInfoPath);
+    replacements.SetPathStr(chrome::kChromeUIAutofillPath);
     *url = url->ReplaceComponents(replacements);
   }
 
@@ -8378,7 +8385,7 @@ bool ChromeContentBrowserClient::DoesGaiaOriginRequireDedicatedProcess() {
   return true;
 #else
   // Sign-in process isolation is not strictly needed on Android, see
-  // https://crbug.com/739418. On Android, it's more optional but it does
+  // https://. On Android, it's more optional but it does
   // improve security generally and specifically it allows the exposure of
   // certain optional privileged APIs.
 
@@ -8610,8 +8617,7 @@ void ChromeContentBrowserClient::BindAIManager(
   if (!context_user_data->GetUserData(kAIManagerUserDataKey)) {
     context_user_data->SetUserData(
         kAIManagerUserDataKey,
-        std::make_unique<AIManager>(
-            browser_context, g_browser_process->component_updater(), rfh));
+        std::make_unique<AIManager>(browser_context, rfh));
   }
 
   AIManager* ai_manager = static_cast<AIManager*>(

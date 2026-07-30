@@ -8,6 +8,8 @@
 
 #import "base/check_op.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
+#import "ios/chrome/browser/shared/ui/util/named_guide.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 
 @interface BrowserLayoutViewController ()
@@ -60,29 +62,6 @@
   DCHECK(self.currentBVC == bvc);
 }
 
-#pragma mark - UIViewController methods
-
-- (void)presentViewController:(UIViewController*)viewControllerToPresent
-                     animated:(BOOL)flag
-                   completion:(void (^)())completion {
-  // Force presentation to go through the current BVC, if possible, which does
-  // some associated bookkeeping.
-  UIViewController* viewController =
-      self.currentBVC ? self.currentBVC : self.fallbackPresenterViewController;
-  [viewController presentViewController:viewControllerToPresent
-                               animated:flag
-                             completion:completion];
-}
-
-- (void)dismissViewControllerAnimated:(BOOL)flag
-                           completion:(void (^)())completion {
-  // Force dismissal to go through the current BVC, if possible, which does some
-  // associated bookkeeping.
-  UIViewController* viewController =
-      self.currentBVC ? self.currentBVC : self.fallbackPresenterViewController;
-  [viewController dismissViewControllerAnimated:flag completion:completion];
-}
-
 - (UIViewController*)childViewControllerForStatusBarHidden {
   return self.currentBVC;
 }
@@ -94,6 +73,12 @@
 - (BOOL)shouldAutorotate {
   return self.currentBVC ? [self.currentBVC shouldAutorotate]
                          : [super shouldAutorotate];
+}
+
+#pragma mark - TabGridTransitionContextProvider
+
+- (NamedGuide*)contentAreaGuide {
+  return [NamedGuide guideWithName:kContentAreaGuide view:self.currentBVC.view];
 }
 
 @end

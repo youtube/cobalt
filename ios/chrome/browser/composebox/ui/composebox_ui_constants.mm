@@ -46,3 +46,10 @@ NSString* const kComposeboxTabPickerCollectionViewAccessibilityIdentifier =
     @"kComposeboxTabPickerCollectionViewAccessibilityIdentifier";
 NSString* const kComposeboxTabPickerEmptyStateViewAccessibilityIdentifier =
     @"kComposeboxTabPickerEmptyStateViewAccessibilityIdentifier";
+
+NSString* const kComposeboxCarouselAccessibilityIdentifier =
+    @"kComposeboxCarouselAccessibilityIdentifier";
+NSString* const kComposeboxCarouselItemAccessibilityIdentifier =
+    @"kComposeboxCarouselItemAccessibilityIdentifier";
+NSString* const kComposeboxInputItemCellCloseButtonAccessibilityIdentifier =
+    @"kComposeboxInputItemCellCloseButtonAccessibilityIdentifier";

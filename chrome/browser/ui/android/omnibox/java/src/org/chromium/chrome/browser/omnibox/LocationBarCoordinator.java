@@ -222,7 +222,7 @@ public class LocationBarCoordinator
             @Nullable OmniboxSuggestionsDropdownScrollListener
                     omniboxSuggestionsDropdownScrollListener,
             MonotonicObservableSupplier<TabModelSelector> tabModelSelectorSupplier,
-            MonotonicObservableSupplier<TopInsetProvider> topInsetProviderSupplier,
+            TopInsetProvider topInsetProvider,
             LocationBarEmbedder locationBarEmbedder,
             LocationBarEmbedderUiOverrides uiOverrides,
             @Nullable View baseChromeLayout,
@@ -271,7 +271,7 @@ public class LocationBarCoordinator
         NonNullObservableSupplier<Integer> fuseboxStateSupplier;
         if (OmniboxFeatures.sOmniboxMultimodalInput.isEnabled()) {
             fuseboxStateSupplier = mFuseboxCoordinator.getFuseboxStateSupplier();
-            fuseboxStateSupplier.addObserver(this::onFuseboxStateChange);
+            fuseboxStateSupplier.addSyncObserverAndPostIfNonNull(this::onFuseboxStateChange);
         } else {
             fuseboxStateSupplier = ObservableSuppliers.createNonNull(FuseboxState.DISABLED);
         }
@@ -357,7 +357,7 @@ public class LocationBarCoordinator
                         shareDelegateSupplier,
                         locationBarDataProvider,
                         profileObservableSupplier,
-                        topInsetProviderSupplier,
+                        topInsetProvider,
                         bringTabGroupToFrontCallback,
                         bookmarkState,
                         omniboxActionDelegate,
@@ -433,7 +433,8 @@ public class LocationBarCoordinator
                 mAutocompleteCoordinator,
                 mUrlCoordinator,
                 mStatusCoordinator,
-                locationBarDataProvider);
+                locationBarDataProvider,
+                mWindowAndroid);
 
         Callback<Profile> profileObserver =
                 new Callback<>() {
@@ -460,7 +461,7 @@ public class LocationBarCoordinator
 
     private void updateBottomContainerPosition() {
         var layoutParams = (MarginLayoutParams) mBottomContainerView.getLayoutParams();
-        if (isUrlBarFocused()) {
+        if (mLocationBarMediator.isUrlBarFocused()) {
             View rootView = mLocationBarLayout.getRootView();
             WindowInsets windowInsets = rootView.getRootWindowInsets();
             layoutParams.bottomMargin =
@@ -725,11 +726,6 @@ public class LocationBarCoordinator
     }
 
     @Override
-    public boolean isUrlBarFocused() {
-        return mLocationBarMediator.isUrlBarFocused();
-    }
-
-    @Override
     public void maybeShowDefaultBrowserPromo() {
         mLocationBarMediator.maybeShowDefaultBrowserPromo();
     }
@@ -753,9 +749,7 @@ public class LocationBarCoordinator
     @Override
     public void setOmniboxEditingText(String text) {
         mUrlCoordinator.setUrlBarData(
-                UrlBarData.forNonUrlText(text),
-                UrlBar.ScrollType.NO_SCROLL,
-                UrlBarCoordinator.SelectionState.SELECT_END);
+                UrlBarData.forNonUrlText(text), UrlBar.ScrollType.NO_SCROLL, UrlBarData.SELECT_END);
         updateButtonVisibility();
     }
 

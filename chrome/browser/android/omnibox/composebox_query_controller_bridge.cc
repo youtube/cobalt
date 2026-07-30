@@ -129,7 +129,14 @@ ComposeboxQueryControllerBridge::ComposeboxQueryControllerBridge(
 ComposeboxQueryControllerBridge::~ComposeboxQueryControllerBridge() = default;
 
 void ComposeboxQueryControllerBridge::Destroy(JNIEnv* env) {
-  query_controller()->RemoveObserver(this);
+  // Query controller is accessed through a weak ptr, possible that during
+  // shutdown it's already gone.
+  contextual_search::ContextualSearchContextController* controller =
+      query_controller();
+  if (controller) {
+    controller->RemoveObserver(this);
+  }
+
   delete this;
 }
 
@@ -179,7 +186,7 @@ ComposeboxQueryControllerBridge::AddFile(
   base::span<const uint8_t> file_bytes_span =
       base::android::JavaByteBufferToSpan(env, file_data);
   session_handle_->StartFileContextUploadFlow(
-      file_token, file_type, mojo_base::BigBuffer(file_bytes_span),
+      file_token, file_name, file_type, mojo_base::BigBuffer(file_bytes_span),
       std::move(image_options));
 
   return base::android::ConvertUTF8ToJavaString(env, file_token.ToString());
@@ -226,7 +233,7 @@ ComposeboxQueryControllerBridge::AddTabContextFromCache(JNIEnv* env,
     return {};
   }
 
-  base::UnguessableToken file_token = base::UnguessableToken::Create();
+  base::UnguessableToken file_token = session_handle_->CreateContextToken();
 
   cache->GetPageContentForTab(
       tab_id, base::BindOnce(

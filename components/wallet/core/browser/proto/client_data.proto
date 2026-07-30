@@ -1,0 +1,17 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+syntax = "proto2";
+
+package wallet;
+
+import "common.proto";
+
+option optimize_for = LITE_RUNTIME;
+
+// Client data for the pass.
+message ClientData {
+  // Optional. Holds client-specific data for Chrome.
+  optional Any chrome_client_data = 1;
+}

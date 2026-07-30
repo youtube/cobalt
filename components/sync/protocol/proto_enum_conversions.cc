@@ -1096,6 +1096,30 @@ const char* ProtoEnumToString(sync_pb::SharedUrlContext::Source source) {
   }
 }
 
+const char* ProtoEnumToString(sync_pb::SkillSource skill_source) {
+  ASSERT_ENUM_BOUNDS(sync_pb, SkillSource, SKILL_SOURCE_UNKNOWN,
+                     SKILL_SOURCE_DERIVED_FROM_FIRST_PARTY);
+  switch (skill_source) {
+    ENUM_CASE(sync_pb, SKILL_SOURCE_UNKNOWN);
+    ENUM_CASE(sync_pb, SKILL_SOURCE_FIRST_PARTY);
+    ENUM_CASE(sync_pb, SKILL_SOURCE_USER_CREATED);
+    ENUM_CASE(sync_pb, SKILL_SOURCE_DERIVED_FROM_FIRST_PARTY);
+  }
+}
+
+const char* ProtoEnumToString(
+    sync_pb::AutofillValuableMetadataSpecifics::PassType pass_type) {
+  ASSERT_ENUM_BOUNDS(sync_pb::AutofillValuableMetadataSpecifics, PassType,
+                     PASS_TYPE_UNSPECIFIED, FLIGHT_RESERVATION);
+  switch (pass_type) {
+    ENUM_CASE(sync_pb::AutofillValuableMetadataSpecifics,
+              PASS_TYPE_UNSPECIFIED);
+    ENUM_CASE(sync_pb::AutofillValuableMetadataSpecifics, LOYALTY_CARD);
+    ENUM_CASE(sync_pb::AutofillValuableMetadataSpecifics, VEHICLE_REGISTRATION);
+    ENUM_CASE(sync_pb::AutofillValuableMetadataSpecifics, FLIGHT_RESERVATION);
+  }
+}
+
 #undef ASSERT_ENUM_BOUNDS
 #undef ENUM_CASE
 

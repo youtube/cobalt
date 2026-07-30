@@ -5,8 +5,12 @@
 package org.chromium.chrome.browser.omnibox.fusebox;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -15,13 +19,16 @@ import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxMetrics.AiModeActivationSource;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxMetrics.FuseboxAttachmentButtonType;
+import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.ui.modelutil.PropertyModel;
 
 @RunWith(BaseRobolectricTestRunner.class)
 public class FuseboxMetricsTest {
+    public @Rule MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     private final PropertyModel mPropertyModel = new PropertyModel(FuseboxProperties.ALL_KEYS);
+    private @Mock Tracker mTracker;
 
     @Before
     public void setUp() {
@@ -70,9 +77,9 @@ public class FuseboxMetricsTest {
     @EnableFeatures(ChromeFeatureList.CHROME_ITEM_PICKER_UI)
     public void testNotifyAttachmentsPopupToggled_ShowPopup_AllButtonsVisible() {
 
-        mPropertyModel.set(FuseboxProperties.CURRENT_TAB_BUTTON_VISIBLE, true);
-        mPropertyModel.set(FuseboxProperties.POPUP_CLIPBOARD_BUTTON_VISIBLE, true);
-        mPropertyModel.set(FuseboxProperties.POPUP_FILE_BUTTON_VISIBLE, true);
+        mPropertyModel.set(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_VISIBLE, true);
+        mPropertyModel.set(FuseboxProperties.POPUP_ATTACH_CLIPBOARD_VISIBLE, true);
+        mPropertyModel.set(FuseboxProperties.POPUP_ATTACH_FILE_VISIBLE, true);
 
         var histogramWatcher =
                 HistogramWatcher.newBuilder()
@@ -97,7 +104,7 @@ public class FuseboxMetricsTest {
                                 FuseboxMetrics.FuseboxAttachmentButtonType.FILES)
                         .build();
 
-        FuseboxMetrics.notifyAttachmentsPopupToggled(true, mPropertyModel);
+        FuseboxMetrics.notifyAttachmentsPopupToggled(true, mPropertyModel, mTracker);
 
         histogramWatcher.assertExpected();
     }
@@ -105,9 +112,9 @@ public class FuseboxMetricsTest {
     @Test
     @DisableFeatures(ChromeFeatureList.CHROME_ITEM_PICKER_UI)
     public void testNotifyAttachmentsPopupToggled_ShowPopup_SomeButtonsHidden() {
-        mPropertyModel.set(FuseboxProperties.CURRENT_TAB_BUTTON_VISIBLE, false);
-        mPropertyModel.set(FuseboxProperties.POPUP_CLIPBOARD_BUTTON_VISIBLE, false);
-        mPropertyModel.set(FuseboxProperties.POPUP_FILE_BUTTON_VISIBLE, false);
+        mPropertyModel.set(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_VISIBLE, false);
+        mPropertyModel.set(FuseboxProperties.POPUP_ATTACH_CLIPBOARD_VISIBLE, false);
+        mPropertyModel.set(FuseboxProperties.POPUP_ATTACH_FILE_VISIBLE, false);
 
         var histogramWatcher =
                 HistogramWatcher.newBuilder()
@@ -122,7 +129,7 @@ public class FuseboxMetricsTest {
                                 FuseboxMetrics.FuseboxAttachmentButtonType.GALLERY)
                         .build();
 
-        FuseboxMetrics.notifyAttachmentsPopupToggled(true, mPropertyModel);
+        FuseboxMetrics.notifyAttachmentsPopupToggled(true, mPropertyModel, mTracker);
 
         histogramWatcher.assertExpected();
     }
@@ -134,7 +141,7 @@ public class FuseboxMetricsTest {
                         "Omnibox.MobileFusebox.AttachmentsPopupToggled", false);
 
         // When hiding the popup, no other metrics should be recorded.
-        FuseboxMetrics.notifyAttachmentsPopupToggled(false, mPropertyModel);
+        FuseboxMetrics.notifyAttachmentsPopupToggled(false, mPropertyModel, mTracker);
 
         histogramWatcher.assertExpected();
     }
@@ -164,9 +171,9 @@ public class FuseboxMetricsTest {
     public void testNotifyOmniboxSessionEnded_SessionStarted_Abandon_AttachmentsUsed() {
         FuseboxMetrics.notifyOmniboxSessionStarted();
 
-        mPropertyModel.set(FuseboxProperties.CURRENT_TAB_BUTTON_VISIBLE, true);
-        mPropertyModel.set(FuseboxProperties.POPUP_CLIPBOARD_BUTTON_VISIBLE, true);
-        mPropertyModel.set(FuseboxProperties.POPUP_FILE_BUTTON_VISIBLE, true);
+        mPropertyModel.set(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_VISIBLE, true);
+        mPropertyModel.set(FuseboxProperties.POPUP_ATTACH_CLIPBOARD_VISIBLE, true);
+        mPropertyModel.set(FuseboxProperties.POPUP_ATTACH_FILE_VISIBLE, true);
 
         var histogramWatcher =
                 HistogramWatcher.newBuilder()
@@ -221,7 +228,7 @@ public class FuseboxMetricsTest {
                                 AutocompleteRequestType.AI_MODE)
                         .build();
 
-        FuseboxMetrics.notifyAttachmentsPopupToggled(true, mPropertyModel);
+        FuseboxMetrics.notifyAttachmentsPopupToggled(true, mPropertyModel, mTracker);
 
         FuseboxMetrics.notifyAttachmentButtonUsed(
                 FuseboxMetrics.FuseboxAttachmentButtonType.CAMERA);

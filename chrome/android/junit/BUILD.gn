@@ -873,6 +873,7 @@ if (is_android) {
       "src/org/chromium/chrome/browser/ntp/IncognitoNewTabPageUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/IncognitoNtpMetricsUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/IncognitoNtpOmniboxAutofocusManagerUnitTest.java",
+      "src/org/chromium/chrome/browser/ntp/NewTabPageLocationPolicyManagerUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/NewTabPageUtilUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/RecentTabsPageUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/search/SearchBoxMediatorUnitTest.java",
@@ -1113,7 +1114,14 @@ if (is_android) {
       "chrome_junit_tests_org.chromium.chrome.browser.sync.synced_set_up") {
     sources = [ "src/org/chromium/chrome/browser/sync/synced_set_up/CrossDeviceSettingImporterUnitTest.java" ]
 
-    deps = [ ":chrome_junit_tests_helper" ]
+    deps = [
+      ":chrome_junit_tests_helper",
+      "//chrome/browser/prefs/android:java",
+      "//chrome/browser/sync/synced_set_up/android:java",
+      "//components/sync_preferences/cross_device_pref_tracker/android:java",
+      "//components/sync_preferences/synced_set_up/android:java",
+      "//components/sync_preferences/synced_set_up/android:jni_headers_java",
+    ]
   }
 
   robolectric_library("chrome_junit_tests_org.chromium.chrome.browser.tab") {
@@ -1403,7 +1411,7 @@ if (is_android) {
       "src/org/chromium/chrome/browser/dom_distiller/ReaderModeIphControllerTest.java",
       "src/org/chromium/chrome/browser/dom_distiller/ReaderModeManagerTest.java",
       "src/org/chromium/chrome/browser/dom_distiller/ReaderModeMetricsTest.java",
-      "src/org/chromium/chrome/browser/dom_distiller/ReaderModePrefsViewTest.java",
+      "src/org/chromium/chrome/browser/dom_distiller/ReaderModePrefsViewUnitTest.java",
       "src/org/chromium/chrome/browser/dom_distiller/ReaderModeToolbarButtonControllerTest.java",
       "src/org/chromium/chrome/browser/dom_distiller/TabDistillabilityProviderTest.java",
       "src/org/chromium/chrome/browser/feed/FeedActionDelegateImplTest.java",

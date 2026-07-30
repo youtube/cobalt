@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.history;
 
+import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.content.Intent;
@@ -13,6 +14,7 @@ import android.view.ViewGroup;
 
 import org.chromium.base.CallbackUtils;
 import org.chromium.base.IntentUtils;
+import org.chromium.base.supplier.SupplierUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
@@ -73,7 +75,7 @@ public class HistoryActivity extends SnackbarActivity {
                         this,
                         true,
                         getSnackbarManager(),
-                        () -> mBottomSheetController,
+                        () -> assertNonNull(mBottomSheetController),
                         getModalDialogManagerSupplier(),
                         getActivityResultTracker(),
                         /* Supplier<@Nullable Tab>= */ null,
@@ -99,12 +101,12 @@ public class HistoryActivity extends SnackbarActivity {
                 new ScrimManager(this, contentView, ScrimClient.HISTORY_ACTIVITY);
         mBottomSheetController =
                 BottomSheetControllerFactory.createBottomSheetController(
-                        () -> scrimManager,
+                        SupplierUtils.of(scrimManager),
                         CallbackUtils.emptyCallback(),
                         getWindow(),
                         assumeNonNull(mWindowAndroid).getKeyboardDelegate(),
-                        () -> sheetContainer,
-                        () -> 0,
+                        SupplierUtils.of(sheetContainer),
+                        SupplierUtils.of(0),
                         /* desktopWindowStateManager= */ null);
 
         // HistoryActivity needs its own container for bottom sheet. Add it as a child of the

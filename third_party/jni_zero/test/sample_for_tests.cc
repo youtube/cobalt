@@ -29,6 +29,15 @@ static_assert(IsObjectContainer<std::vector<std::string*>>);
 using jni_zero::AttachCurrentThread;
 using jni_zero::JavaRef;
 using jni_zero::ScopedJavaLocalRef;
+using FuncType = void (*)(const std::vector<bool>&);
+
+namespace jni_zero {
+
+template <>
+FuncType FromJniType<FuncType>(JNIEnv* env, const JavaRef<jobject>& j_object) {
+  return nullptr;
+}
+}  // namespace jni_zero
 
 namespace jni_zero::tests {
 
@@ -87,7 +96,7 @@ static jlong JNI_SampleForTests_Init(
     JNIEnv* env,
     const JavaRef<jobject>& caller,
     const JavaRef<jstring>& param,
-    jni_zero::ByteArrayView& bytes,
+    jni_zero::ByteArrayView&& bytes,
     CPPClass* converted_type,
     std::vector<jni_zero::ScopedJavaLocalRef<jobject>>& non_converted_array) {
   return static_cast<jlong>(bytes.size());
@@ -235,10 +244,11 @@ static void JNI_SampleForAnnotationProcessor_TestSpecialTypes(
     std::string& convertedString,
     std::vector<std::string>& convertedStrings,
     std::optional<std::string>& optionalString,
+    std::optional<FuncType> optionalFunc,
     const JavaRef<jobject>& tStruct,
     const JavaRef<jobjectArray>& structs,
     const JavaRef<jobject>& obj,
-    jni_zero::tests::CPPClass& convertedObj,
+    const jni_zero::tests::CPPClass& convertedObj,
     const JavaRef<jobjectArray>& objs,
     const JavaRef<jobject>& nestedInterface,
     const JavaRef<jobject>& view,

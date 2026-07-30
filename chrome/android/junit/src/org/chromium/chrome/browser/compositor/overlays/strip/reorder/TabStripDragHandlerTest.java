@@ -61,7 +61,6 @@ import org.chromium.base.ContextUtils;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.Token;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
-import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
@@ -146,7 +145,6 @@ public class TabStripDragHandlerTest {
     @Mock private WindowAndroid mWindowAndroid;
     @Mock private WeakReference<Context> mWeakReferenceContext;
     @Mock private MultiWindowUtils mMultiWindowUtils;
-    @Mock private MonotonicObservableSupplier<Integer> mTabStripHeightSupplier;
     @Mock private DesktopWindowStateManager mDesktopWindowStateManager;
     @Mock private FaviconHelper.Natives mFaviconHelperJniMock;
 
@@ -157,8 +155,10 @@ public class TabStripDragHandlerTest {
     @Mock private MultiInstanceManager mDestMultiInstanceManager;
     @Mock private TabGroupModelFilter mTabGroupModelFilter;
 
-    @Mock
-    private SettableMonotonicObservableSupplier<TabGroupModelFilter> mTabGroupModelFilterSupplier;
+    private final SettableMonotonicObservableSupplier<Integer> mTabStripHeightSupplier =
+            ObservableSuppliers.createMonotonic();
+    private final SettableMonotonicObservableSupplier<TabGroupModelFilter>
+            mTabGroupModelFilterSupplier = ObservableSuppliers.createMonotonic();
 
     private TabStripDragHandler mSourceInstance;
     private TabStripDragHandler mDestInstance;
@@ -187,6 +187,10 @@ public class TabStripDragHandlerTest {
         mActivity = Robolectric.setupActivity(Activity.class);
         mActivity.setTheme(R.style.Theme_BrowserUI_DayNight);
         mTabStripHeight = mActivity.getResources().getDimensionPixelSize(R.dimen.tab_strip_height);
+
+        mTabStripHeightSupplier.set(mTabStripHeight);
+        mTabGroupModelFilterSupplier.set(mTabGroupModelFilter);
+
         mPosY = mTabStripHeight - 2 * DRAG_MOVE_DISTANCE;
         mTabStripVisible = true;
 
@@ -221,8 +225,6 @@ public class TabStripDragHandlerTest {
         MultiWindowUtils.setInstanceForTesting(mMultiWindowUtils);
         MultiWindowTestUtils.enableMultiInstance();
 
-        when(mTabStripHeightSupplier.get()).thenReturn(mTabStripHeight);
-
         when(mFaviconHelperJniMock.init()).thenReturn(1L);
         FaviconHelperJni.setInstanceForTesting(mFaviconHelperJniMock);
 
@@ -234,7 +236,6 @@ public class TabStripDragHandlerTest {
                 .thenReturn(mTabGroupModelFilter);
         when(mTabModelSelector.getCurrentTabGroupModelFilterSupplier())
                 .thenReturn(mTabGroupModelFilterSupplier);
-        when(mTabGroupModelFilterSupplier.get()).thenReturn(mTabGroupModelFilter);
 
         Supplier<Boolean> isAppInDesktopWindow =
                 () -> AppHeaderUtils.isAppInDesktopWindow(mDesktopWindowStateManager);
@@ -1134,6 +1135,49 @@ public class TabStripDragHandlerTest {
                                 DragEvent.ACTION_DRAG_STARTED, POS_X, mPosY, DragType.SINGLE_TAB)));
     }
 
+    @Test
+    public void test_onDrop_ChromeHandledDrop() {
+        // Drop in destination strip.
+        new DragEventInvoker(DragType.SINGLE_TAB, /* isGroupShared= */ false)
+                .dragExit(mSourceInstance)
+                .dragEnter(mDestInstance)
+                .drop(mDestInstance)
+                .verifyNotifyChromeHandledDrop(/* didChromeHandleDrop= */ true)
+                .end(/* res= */ true);
+
+        // Verify the #onDragEnd runnable is not posted.
+        assertFalse(
+                "#onDragEnd runnable should not be posted.",
+                mSourceInstance
+                        .getHandlerForTesting()
+                        .hasCallbacks(mSourceInstance.getOnDragEndRunnableForTesting()));
+    }
+
+    @Test
+    public void test_onDrop_ChromeDidNotHandleDrop() {
+        // End without dropping on either strip.
+        new DragEventInvoker(DragType.SINGLE_TAB, /* isGroupShared= */ false)
+                .dragExit(mSourceInstance)
+                .dragEnter(mDestInstance)
+                .verifyNotifyChromeHandledDrop(/* didChromeHandleDrop= */ false)
+                .end(/* res= */ true);
+
+        // Verify that the #onDragEnd runnable is posted.
+        assertTrue(
+                "#onDragEnd runnable should not be posted.",
+                mSourceInstance
+                        .getHandlerForTesting()
+                        .hasCallbacks(mSourceInstance.getOnDragEndRunnableForTesting()));
+
+        // Start a new drag and verify that the #onDragEnd runnable was removed.
+        new DragEventInvoker(DragType.SINGLE_TAB, /* isGroupShared= */ false);
+        assertFalse(
+                "#onDragEnd runnable should not be posted.",
+                mSourceInstance
+                        .getHandlerForTesting()
+                        .hasCallbacks(mSourceInstance.getOnDragEndRunnableForTesting()));
+    }
+
     private void doTestOnDragDropInStripSource(boolean isGroupDrag) {
         String resultHistogram =
                 String.format(
@@ -2018,6 +2062,14 @@ public class TabStripDragHandlerTest {
                     visible,
                     ((TabDragShadowBuilder) DragDropGlobalState.getDragShadowBuilder())
                             .getShadowShownForTesting());
+            return this;
+        }
+
+        public DragEventInvoker verifyNotifyChromeHandledDrop(boolean didChromeHandleDrop) {
+            assertEquals(
+                    "Unexpected value for #didChromeHandleDrop.",
+                    didChromeHandleDrop,
+                    DragDropGlobalState.didChromeHandleDrop());
             return this;
         }
     }

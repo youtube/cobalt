@@ -153,12 +153,12 @@ BASE_FEATURE(kWebViewRecordAppCacheHistograms,
 //
 // Each code cache's limit will be half the value of the HTTP cache limit.
 BASE_FEATURE(kWebViewCacheSizeLimitDerivedFromAppCacheQuota,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // The multiplier that is used to compute the cache limit from the cache quota.
 const base::FeatureParam<double> kWebViewCacheSizeLimitMultiplier{
     &kWebViewCacheSizeLimitDerivedFromAppCacheQuota,
-    "WebViewCacheSizeLimitMultiplier", 0.5};
+    "WebViewCacheSizeLimitMultiplier", 0.1};
 
 // The minimum HTTP cache size limit
 const base::FeatureParam<int> kWebViewCacheSizeLimitMinimum{
@@ -219,10 +219,15 @@ BASE_FEATURE(kWebViewReducedSeedRequestPeriod,
 // initialized. This flag does not affect tracing in native code.
 BASE_FEATURE(kWebViewEarlyStartupTracing, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables early Perfetto init. This will initialize Perfetto as soon as the
+// Enables early tracing init. This will initialize tracing as soon as the
 // native library is loaded, which should make it available by the time we start
 // calling content code.
-BASE_FEATURE(kWebViewEarlyPerfettoInit, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kWebViewEarlyTracingInit, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables tracing init on a background thread. This is mutually exclusive with
+// `kWebViewEarlyTracingInit`. If both flags are enabled,
+// `kWebViewEarlyTracingInit` will take precedent.
+BASE_FEATURE(kWebViewBackgroundTracingInit, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Caches reflective methods in AndroidX instead of looking them up every time.
 // This should make calling AndroidX methods faster.
@@ -276,4 +281,16 @@ BASE_FEATURE(kWebViewEnableApiCallUserActions,
 // Kill switch for reporting web performance metrics.
 BASE_FEATURE(kWebViewWebPerformanceMetricsReporting,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// A no-op feature flag used to verify that the nonembedded low entropy source
+// pipeline for Finch experiments is working correctly. This feature is not
+// intended to be used to gate any production code.
+BASE_FEATURE(kWebViewTestNonembeddedLowEntropySource,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, WebView uses the low entropy source provided by the nonembedded
+// WebView service.
+BASE_FEATURE(kWebViewUseNonembeddedLowEntropySource,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace android_webview::features

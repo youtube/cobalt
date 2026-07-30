@@ -46,6 +46,14 @@
   _consumerSource = item.consumerSource;
 }
 
+- (BOOL)hasDifferentContentsFromConfig:(MagicStackModule*)config {
+  if ([super hasDifferentContentsFromConfig:config]) {
+    return YES;
+  }
+  TabResumptionItem* item = static_cast<TabResumptionItem*>(config);
+  return _tabURL != item.tabURL;
+}
+
 #pragma mark - properties
 
 - (const GURL&)tabURL {
@@ -62,6 +70,27 @@
 
 - (void)setURLKey:(const std::string&)URLKey {
   _URLKey = URLKey;
+}
+
+#pragma mark - NSCopying
+
+- (id)copyWithZone:(NSZone*)zone {
+  TabResumptionItem* copy =
+      [[super copyWithZone:zone] initWithItemType:self.itemType];
+  copy.commandHandler = self.commandHandler;
+  copy.sessionName = self.sessionName;
+  copy.localWebState = self.localWebState;
+  copy.tabTitle = self.tabTitle;
+  copy.tabURL = self.tabURL;
+  copy.reason = self.reason;
+  copy.syncedTime = self.syncedTime;
+  copy.faviconImage = self.faviconImage;
+  copy.contentImage = self.contentImage;
+  copy.URLKey = self.URLKey;
+  copy.requestID = self.requestID;
+  copy.shopCardData = self.shopCardData;
+  copy.consumerSource = self.consumerSource;
+  return copy;
 }
 
 @end

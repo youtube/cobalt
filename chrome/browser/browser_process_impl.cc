@@ -42,6 +42,7 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
+#include "build/config/linux/dbus/buildflags.h"
 #include "chrome/browser/accessibility/soda_installer_impl.h"
 #include "chrome/browser/battery/battery_metrics.h"
 #include "chrome/browser/browser_process_platform_part.h"
@@ -265,7 +266,7 @@ void OnLocalStatePrefsLoaded();
 #include "components/enterprise/browser/controller/chrome_browser_cloud_management_controller.h"
 #endif
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && BUILDFLAG(USE_DBUS)
 #include "chrome/browser/browser_features.h"
 #include "components/os_crypt/async/browser/freedesktop_secret_key_provider.h"
 #include "components/os_crypt/async/browser/secret_portal_key_provider.h"
@@ -826,7 +827,7 @@ void BrowserProcessImpl::EndSession() {
 
   // This wait is legitimate and necessary on Windows, since the process will
   // be terminated soon.
-  // http://crbug.com/125207
+  // http://crbug.com/40198606
   base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_wait;
 
 #if BUILDFLAG(IS_CHROMEOS_DEVICE)
@@ -862,7 +863,7 @@ void BrowserProcessImpl::EndSession() {
   // blocking the message loop attempting to re-establish a connection to the
   // GPU process synchronously. Because the system may not be allowing
   // processes to launch, this can result in a hang. See
-  // http://crbug.com/318527.
+  // http://crbug.com/40341017.
   rundown_counter->TimedWait(kEndSessionTimeout);
 #else
   NOTIMPLEMENTED();
@@ -1047,7 +1048,7 @@ void BrowserProcessImpl::CreateDevToolsAutoOpener() {
 
 bool BrowserProcessImpl::IsShuttingDown() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // TODO (crbug.com/560486): Fix the tests that make the check of
+  // TODO (crbug.com/41222012): Fix the tests that make the check of
   // |tearing_down_| necessary here.
   // TODO (crbug/1155597): Maybe use browser_shutdown::HasShutdownStarted here.
   return shutting_down_ || tearing_down_;
@@ -1250,7 +1251,7 @@ void BrowserProcessImpl::RegisterPrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(prefs::kDevToolsRemoteDebuggingAllowed, true);
   registry->RegisterBooleanPref(prefs::kDevToolsRemoteDebuggingEnabled, false);
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && BUILDFLAG(USE_DBUS)
   os_crypt_async::SecretPortalKeyProvider::RegisterLocalPrefs(registry);
 #endif
 }
@@ -1467,7 +1468,7 @@ void BrowserProcessImpl::PreMainMessageLoopRun() {
           local_state())));
 #endif  // BUILDFLAG(IS_WIN)
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && BUILDFLAG(USE_DBUS)
   base::CommandLine* cmd_line = base::CommandLine::ForCurrentProcess();
   const auto password_store =
       cmd_line->GetSwitchValueASCII(password_manager::kPasswordStore);
@@ -1692,7 +1693,7 @@ void BrowserProcessImpl::CreateSubresourceFilterRulesetService() {
 // Android's GCMDriver currently makes the assumption that it's a singleton.
 // Until this gets fixed, instantiating multiple Java GCMDrivers will throw an
 // exception, but because they're only initialized on demand these crashes
-// would be very difficult to triage. See http://crbug.com/437827.
+// would be very difficult to triage. See http://crbug.com/41145548.
 void BrowserProcessImpl::CreateGCMDriver() {
   DCHECK(!gcm_driver_);
 

@@ -7,8 +7,8 @@
 #include "ash/wm/window_pin_util.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/run_until.h"
+#include "chrome/browser/ash/browser_delegate/browser_controller.h"
 #include "chrome/browser/ash/system_web_apps/test_support/system_web_app_integration_test.h"
-#include "chrome/browser/lifetime/application_lifetime_desktop.h"
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/webui/ash/diagnostics_dialog/diagnostics_dialog.h"
@@ -101,8 +101,9 @@ IN_PROC_BROWSER_TEST_P(DiagnosticsAppIntegrationTest, UsageMetricsTest) {
 
   // Find system browser for diagnostics and close it to trigger usage metrics.
   EXPECT_TRUE(ash::IsSystemWebApp(system_app_browser));
+  ui_test_utils::BrowserDestroyedObserver observer(system_app_browser);
   chrome::CloseWindow(system_app_browser);
-  ui_test_utils::WaitForBrowserToClose();
+  observer.Wait();
 
   histogram_tester_.ExpectBucketCount(kDiagnosticsUmaFeatureFullPath,
                                       kUsedWithSuccess, 1);
@@ -159,7 +160,7 @@ IN_PROC_BROWSER_TEST_P(DiagnosticsAppIntegrationTest,
   EXPECT_TRUE(content::ExecJs(web_contents,
                               "chrome.send('recordNavigation', [0, 1]);"));
 
-  chrome::CloseAllBrowsers();
+  ash::BrowserController::GetInstance()->MayCloseAllBrowsers();
 
   histogram_tester_.ExpectTotalCount(
       "ChromeOS.DiagnosticsUi.System.OpenDuration", 1);
@@ -184,7 +185,7 @@ IN_PROC_BROWSER_TEST_P(DiagnosticsAppIntegrationTest,
   EXPECT_TRUE(
       content::ExecJs(web_contents, "chrome.send('recordNavigation', []);"));
 
-  chrome::CloseAllBrowsers();
+  ash::BrowserController::GetInstance()->MayCloseAllBrowsers();
 
   histogram_tester_.ExpectTotalCount(
       "ChromeOS.DiagnosticsUi.System.OpenDuration", 1);

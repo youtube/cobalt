@@ -53,6 +53,11 @@ namespace blink {
 // instances can share their string storage if the strings are
 // identical. Comparing two AtomicString instances is much faster than comparing
 // two String instances because we just check string storage identity.
+//
+// When a method of this class is compatible with an equivalent method in
+// `std::string`, we use the same method name as `std::string` (i.e.,
+// `snake_case()`) rather than following the Google/Blink C++ style guide's
+// naming rules. This improves consistency in string manipulation.
 class WTF_EXPORT AtomicString {
   USING_FAST_MALLOC(AtomicString);
 
@@ -175,11 +180,6 @@ class WTF_EXPORT AtomicString {
   AtomicString UpperASCII() const;
 
   bool IsLowerASCII() const { return string_.IsLowerASCII(); }
-
-  // See comments in WTFString.h.
-  int ToInt(bool* ok = nullptr) const { return string_.ToInt(ok); }
-  double ToDouble(bool* ok = nullptr) const { return string_.ToDouble(ok); }
-  float ToFloat(bool* ok = nullptr) const { return string_.ToFloat(ok); }
 
   template <typename IntegerType>
   static AtomicString Number(IntegerType number) {

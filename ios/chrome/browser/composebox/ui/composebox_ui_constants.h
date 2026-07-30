@@ -56,4 +56,12 @@ extern NSString* const
 extern NSString* const
     kComposeboxTabPickerEmptyStateViewAccessibilityIdentifier;
 
+// Accessibility identifier for the carousel in the composebox.
+extern NSString* const kComposeboxCarouselAccessibilityIdentifier;
+// Accessibility identifier for an item in the carousel.
+extern NSString* const kComposeboxCarouselItemAccessibilityIdentifier;
+// Accessibility identifier for the close button of an item in the carousel.
+extern NSString* const
+    kComposeboxInputItemCellCloseButtonAccessibilityIdentifier;
+
 #endif  // IOS_CHROME_BROWSER_COMPOSEBOX_UI_COMPOSEBOX_UI_CONSTANTS_H_

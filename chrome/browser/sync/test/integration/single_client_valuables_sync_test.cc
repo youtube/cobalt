@@ -18,7 +18,7 @@
 #include "components/autofill/core/browser/data_manager/valuables/valuables_data_manager_test_utils.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #include "components/autofill/core/browser/data_model/valuables/loyalty_card.h"
-#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
+#include "components/autofill/core/browser/test_utils/entity_data_test_utils.h"
 #include "components/autofill/core/browser/test_utils/valuables_data_test_utils.h"
 #include "components/autofill/core/browser/webdata/autofill_ai/entity_sync_util.h"
 #include "components/autofill/core/browser/webdata/valuables/valuables_sync_util.h"
@@ -111,7 +111,8 @@ sync_pb::SyncEntity EntityInstanceToSyncEntity(
   sync_pb::AutofillValuableSpecifics* valuable_specifics =
       entity.mutable_specifics()->mutable_autofill_valuable();
   *valuable_specifics =
-      autofill::CreateSpecificsFromEntityInstance(entity_instance);
+      autofill::CreateSpecificsFromEntityInstance(entity_instance,
+                                                  /*base_specifics=*/{});
   return entity;
 }
 
@@ -120,7 +121,8 @@ sync_pb::SyncEntity EntityInstanceToSyncEntity(
 // `AutofillValuableSpecifics`.
 sync_pb::AutofillValuableSpecifics AsAutofillValuableSpecifics(
     const EntityInstance& entity_instance) {
-  return autofill::CreateSpecificsFromEntityInstance(entity_instance);
+  return autofill::CreateSpecificsFromEntityInstance(entity_instance,
+                                                     /*base_specifics=*/{});
 }
 
 // Helper class to wait until the fake server's AutofillValuableSpecifics match

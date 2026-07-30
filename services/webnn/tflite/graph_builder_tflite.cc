@@ -25,6 +25,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/types/expected.h"
 #include "base/types/expected_macros.h"
+#include "build/build_config.h"
 #include "services/webnn/public/cpp/context_properties.h"
 #include "services/webnn/public/cpp/data_type_limits.h"
 #include "services/webnn/public/cpp/graph_validation_utils.h"
@@ -56,6 +57,14 @@ BASE_FEATURE(kApplyQDQFusion, base::FEATURE_ENABLED_BY_DEFAULT);
 #define TFLITE_SCHEMA_VERSION (3)
 
 constexpr size_t kWeightsAlignment = 8;
+
+// Flatbuffers cannot be larger than 2 GiB however the library does not provide
+// feedback when this limit is exceeded and can instead encounter integer
+// overflows. To avoid this, limit the size of buffers that have to be included
+// directly in the Flatbuffer (rather than as external weights) and refuse to
+// add additional buffers once the total size approaches a safety threshold.
+constexpr size_t kMaxInlineBufferSize = 128 * 1024 * 1024;        /* 128 MiB */
+constexpr size_t kFlatbufferSafetyThreshold = 1536 * 1024 * 1024; /* 1.5 GiB */
 
 // Maps a DataType to a `::tflite::TensorType`. Other `TensorTypeMap` overloads
 // may be declared below as needed.
@@ -490,8 +499,10 @@ GetCoordinatesNDFromIndex(size_t flat_index,
 
 GraphBuilderTflite::Result::Result(
     flatbuffers::DetachedBuffer buffer,
-    base::flat_map<std::string, TensorDescriptor> input_name_to_descriptor,
-    base::flat_map<std::string, TensorDescriptor> output_name_to_descriptor,
+    std::vector<std::pair<std::string, TensorDescriptor>>
+        input_name_to_descriptor,
+    std::vector<std::pair<std::string, TensorDescriptor>>
+        output_name_to_descriptor,
     base::File weights_file,
     bool graph_requires_fp32_precision)
     : buffer(std::move(buffer)),
@@ -607,9 +618,14 @@ ContextProperties GraphBuilderTflite::GetContextProperties() {
       OperandDataType::kInt8,    OperandDataType::kUint8,
       OperandDataType::kInt4};
 
+#if defined(ARCH_CPU_64_BITS)
   // Limit to INT_MAX for security reasons (similar to PartitionAlloc).
   static constexpr uint64_t kTensorByteLengthLimit =
       std::numeric_limits<int32_t>::max();
+#else
+  // Allocating 2GiB isn't practical on a 32-bit system. Use a 1GiB limit.
+  static constexpr uint64_t kTensorByteLengthLimit = 1024 * 1024 * 1024;
+#endif
 
   return ContextProperties(
       InputOperandLayout::kNhwc, Resample2DAxes::kChannelsLast,
@@ -2996,6 +3012,12 @@ auto GraphBuilderTflite::SerializeBuffer(base::span<const uint8_t> buffer)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kWebNNTfliteDumpModel) ||
       !weights_file_.IsValid()) {
+    if (buffer.size() > kMaxInlineBufferSize) {
+      return base::unexpected("Buffer size is over inline limit.");
+    }
+    if (builder_.GetSize() > kFlatbufferSafetyThreshold) {
+      return base::unexpected("Model too large.");
+    }
     buffers_.emplace_back(::tflite::CreateBuffer(
         builder_, builder_.CreateVector(buffer.data(), buffer.size())));
   } else {
@@ -7010,9 +7032,18 @@ auto GraphBuilderTflite::SerializeQuantizeParams(
   // scale will be resized to shape {1, 4, 1} with data {1, 1, 5, 5}.
   if (axis && scale_shape[*axis] != input_operand_shape[*axis]) {
     const uint32_t block_size = input_operand_shape[*axis] / scale_shape[*axis];
-    scale_offset = BlockwiseExpandConstant<float>(scale_value, block_size);
-    zero_point_offset =
+    auto expanded_scale =
+        BlockwiseExpandConstant<float>(scale_value, block_size);
+    if (!expanded_scale.has_value()) {
+      return std::nullopt;
+    }
+    scale_offset = *expanded_scale;
+    auto expanded_zero_point =
         BlockwiseExpandConstant<int64_t>(zero_point_value, block_size);
+    if (!expanded_zero_point.has_value()) {
+      return std::nullopt;
+    }
+    zero_point_offset = *expanded_zero_point;
   } else {
     scale_offset = builder_.CreateVector<float>(scale_value);
     zero_point_offset = builder_.CreateVector<int64_t>(zero_point_value);
@@ -7041,9 +7072,18 @@ auto GraphBuilderTflite::SerializeQuantizeParams(
 }
 
 template <typename DataType>
-std::tuple<flatbuffers::Offset<flatbuffers::Vector<DataType>>,
-           base::span<DataType>>
-GraphBuilderTflite::CreateUninitializedVector(size_t length) {
+auto GraphBuilderTflite::CreateUninitializedVector(size_t length)
+    -> base::expected<
+        std::tuple<flatbuffers::Offset<flatbuffers::Vector<DataType>>,
+                   base::span<DataType>>,
+        std::string> {
+  if (length * sizeof(DataType) > kMaxInlineBufferSize) {
+    return base::unexpected("Buffer size is over inline limit.");
+  }
+  if (builder_.GetSize() > kFlatbufferSafetyThreshold) {
+    return base::unexpected("Model too large.");
+  }
+
   DataType* buffer = nullptr;
   auto offset = builder_.CreateUninitializedVector<DataType>(length, &buffer);
 
@@ -7053,11 +7093,12 @@ GraphBuilderTflite::CreateUninitializedVector(size_t length) {
 
 template <typename DataType>
   requires(std::is_same_v<DataType, float> || std::is_same_v<DataType, int64_t>)
-flatbuffers::Offset<flatbuffers::Vector<DataType>>
+base::expected<flatbuffers::Offset<flatbuffers::Vector<DataType>>, std::string>
 GraphBuilderTflite::BlockwiseExpandConstant(base::span<const DataType> values,
                                             uint32_t block_size) {
-  auto [block_wise_offset, block_wise_span_buffer] =
-      CreateUninitializedVector<DataType>(block_size * values.size());
+  ASSIGN_OR_RETURN(
+      (auto [block_wise_offset, block_wise_span_buffer]),
+      CreateUninitializedVector<DataType>(block_size * values.size()));
   for (size_t i = 0; i < values.size(); ++i) {
     std::ranges::fill(
         block_wise_span_buffer.subspan(i * block_size, block_size), values[i]);
@@ -7883,11 +7924,19 @@ auto GraphBuilderTflite::SerializeScatterND(const mojom::ScatterND& scatter_nd)
                    SerializeInputTensorInfo(scatter_nd.input_operand_id));
   ASSIGN_OR_RETURN(const TensorInfo& indices_tensor_info,
                    SerializeInputTensorInfo(scatter_nd.indices_operand_id));
+
+  CHECK_EQ(indices_tensor_info.data_type, ::tflite::TensorType_INT32);
+  // The values in `indices` are computed at runtime, so they can exceed the
+  // boundary of the input. Clamp the values in `indices` to be in range of
+  // [-N, N-1] and transform negative indices to positive as TFLite doesn't
+  // support negative indexing, the logic is the same as GatherND.
+  ASSIGN_OR_RETURN(
+      const TensorIndex indices_tensor_index,
+      SerializeGatherIndices<int32_t>(indices_tensor_info, input_tensor_info));
   const TensorIndex output_tensor_index =
       SerializeOutputTensorInfo(scatter_nd.output_operand_id).index;
   return SerializeWebNNScatterND(input_tensor_info, updates_tensor_info,
-                                 indices_tensor_info.index,
-                                 output_tensor_index);
+                                 indices_tensor_index, output_tensor_index);
 }
 
 auto GraphBuilderTflite::SerializeSlice(const mojom::Slice& slice)

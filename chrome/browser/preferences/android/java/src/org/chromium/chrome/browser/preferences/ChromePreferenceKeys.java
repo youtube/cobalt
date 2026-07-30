@@ -195,11 +195,17 @@ public final class ChromePreferenceKeys {
     public static final String CONTEXT_MENU_SHOP_IMAGE_WITH_GOOGLE_LENS_CLICKED =
             "Chrome.ContextMenu.ShopImageWithGoogleLensClicked";
 
+    public static final String CROSS_DEVICE_IMPORTED_BOTTOM_OMNIBOX =
+            "Chrome.CrossDeviceImport.FinishedBottomOmnibox";
+
+    public static final String CROSS_DEVICE_IMPORTED_ALL_SETTINGS =
+            "Chrome.CrossDeviceImport.FinishedAllSettings";
+
     public static final String NTP_CUSTOMIZATION_BACKGROUND_ENABLED =
             "Chrome.Policy.NtpCustomBackgroundEnabled";
 
     /** The Uri of the NTP's background image. */
-    public static final String NTP_CUSTOMIZATION_BACKGROUND_IMAGE_TYPE =
+    public static final String NTP_CUSTOMIZATION_BACKGROUND_TYPE =
             "Chrome.NtpCustomization.NtpBackgroundImageType";
 
     /** The background color of NTP. */
@@ -589,6 +595,10 @@ public final class ChromePreferenceKeys {
     public static final String NOTIFICATION_PERMISSION_REQUEST_COUNT =
             "Chrome.NotificationPermission.RequestCount";
 
+    /** Indicates whether a chrome page URL has been overridden by an enterprise policy. */
+    public static final String NTP_LOCATION_POLICY_ENABLED =
+            "Chrome.PolicyUrlOverrides.NewTabPageLocation";
+
     public static final String NTP_SNIPPETS_IS_SCHEDULED = "ntp_snippets.is_scheduled";
 
     // Name of an application preference variable used to track whether or not the in-progress
@@ -679,8 +689,16 @@ public final class ChromePreferenceKeys {
     public static final KeyPrefix PAYMENTS_PAYMENT_INSTRUMENT_USE_DATE =
             new KeyPrefix("payment_instrument_use_date_*");
 
-    /** Preference to indicate whether payment request has been completed successfully once.*/
+    /** Preference to indicate whether payment request has been completed successfully once. */
     public static final String PAYMENTS_PAYMENT_COMPLETE_ONCE = "payment_complete_once";
+
+    /** Represents the current authoritative store type for a given window. */
+    public static final KeyPrefix TAB_PERSISTENCE_CURRENT_AUTHORITATIVE_STORE =
+            new KeyPrefix("Chrome.TabPersistence.CurrentAuthoritativeStore.*");
+
+    /** Represents a persistent store that has fully written all tab state for a given window. */
+    public static final KeyPrefix TAB_PERSISTENCE_SHADOW_WRITTEN_STORE =
+            new KeyPrefix("Chrome.TabPersistence.ShadowWrittenStore.*");
 
     /**
      * Indicates whether or not there is any persistent (i.e. non-transient) content in chrome that
@@ -1194,8 +1212,10 @@ public final class ChromePreferenceKeys {
                 CONTEXT_MENU_OPEN_IN_EPHEMERAL_TAB_CLICKED,
                 CONTEXT_MENU_SEARCH_WITH_GOOGLE_LENS_CLICKED,
                 CONTEXT_MENU_SHOP_IMAGE_WITH_GOOGLE_LENS_CLICKED,
+                CROSS_DEVICE_IMPORTED_BOTTOM_OMNIBOX,
+                CROSS_DEVICE_IMPORTED_ALL_SETTINGS,
                 NTP_CUSTOMIZATION_BACKGROUND_ENABLED,
-                NTP_CUSTOMIZATION_BACKGROUND_IMAGE_TYPE,
+                NTP_CUSTOMIZATION_BACKGROUND_TYPE,
                 NTP_CUSTOMIZATION_THEME_COLOR_ID,
                 NTP_CUSTOMIZATION_BACKGROUND_COLOR,
                 NTP_CUSTOMIZATION_PRIMARY_COLOR,
@@ -1284,6 +1304,7 @@ public final class ChromePreferenceKeys {
                 MULTI_WINDOW_MODE_START_TIME2.pattern(),
                 NOTIFICATION_PERMISSION_RATIONALE_TIMESTAMP_KEY,
                 NOTIFICATION_PERMISSION_REQUEST_COUNT,
+                NTP_LOCATION_POLICY_ENABLED,
                 OFFLINE_INDICATOR_V2_WALL_TIME_SHOWN_MS,
                 OFFLINE_INDICATOR_V2_LAST_UPDATE_WALL_TIME_MS,
                 OFFLINE_INDICATOR_V2_TIME_IN_FOREGROUND_MS,
@@ -1355,6 +1376,8 @@ public final class ChromePreferenceKeys {
                 TAB_DECLUTTER_DIALOG_IPH_DISMISS_COUNT,
                 TAB_OR_GROUP_TEARING_MAX_INSTANCES_FAILURE_START_TIME_MS,
                 TAB_OR_GROUP_TEARING_MAX_INSTANCES_FAILURE_COUNT,
+                TAB_PERSISTENCE_CURRENT_AUTHORITATIVE_STORE.pattern(),
+                TAB_PERSISTENCE_SHADOW_WRITTEN_STORE.pattern(),
                 TIPS_NOTIFICATIONS_CHANNEL_ENABLED,
                 TIPS_NOTIFICATIONS_OPT_IN_PROMO_SHOWN,
                 TOOLBAR_TOP_ANCHORED,

@@ -69,6 +69,12 @@ void DisplayLinkMac::RecordDisplayLinkCreation(bool success) {
                         success);
 }
 
+std::unique_ptr<PresentationCallbackMac>
+DisplayLinkMac::RegisterPresentationCallback(
+    PresentationCallbackMac::Callback callback) {
+  NOTREACHED();
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // VSyncCallbackMac
 
@@ -97,6 +103,39 @@ VSyncCallbackMac::~VSyncCallbackMac() {
 }
 
 base::WeakPtr<VSyncCallbackMac> VSyncCallbackMac::GetWeakPtr() {
+  return weak_factory_.GetWeakPtr();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// PresentationCallbackMac
+
+PresentationCallbackMac::PresentationCallbackMac(
+    UnregisterCallback unregister_callback,
+    Callback callback,
+    bool post_callback_to_ctor_thread)
+    : unregister_callback_(std::move(unregister_callback)) {
+  if (post_callback_to_ctor_thread) {
+    auto lambda = [](base::WeakPtr<PresentationCallbackMac> weak_this,
+                     Callback callback, int64_t drawable_id,
+                     base::TimeTicks time) {
+      if (weak_this) {
+        callback.Run(drawable_id, time);
+      }
+    };
+    auto callback_for_current_thread =
+        base::BindRepeating(lambda, weak_factory_.GetWeakPtr(), callback);
+    callback_for_displaylink_thread_ =
+        base::BindPostTaskToCurrentDefault(callback_for_current_thread);
+  } else {
+    callback_for_displaylink_thread_ = std::move(callback);
+  }
+}
+
+PresentationCallbackMac::~PresentationCallbackMac() {
+  std::move(unregister_callback_).Run(this);
+}
+
+base::WeakPtr<PresentationCallbackMac> PresentationCallbackMac::GetWeakPtr() {
   return weak_factory_.GetWeakPtr();
 }
 

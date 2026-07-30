@@ -43,6 +43,26 @@ public class TabPersistentStoreFactory {
                             ? StoreType.TAB_STATE_STORE
                             : StoreType.INVALID;
                 }
+
+                @Override
+                public void onShadowStoreCreated(@StoreType int storeType) {}
+
+                @Override
+                public void onShadowStoreCaughtUp() {}
+
+                @Override
+                public boolean isShadowStoreCaughtUp() {
+                    return true;
+                }
+
+                @Override
+                public void onShadowStoreRazed() {}
+
+                @Override
+                public void onAllShadowStoresRazed() {}
+
+                @Override
+                public void onWindowCleared() {}
             };
 
     /**
@@ -88,6 +108,7 @@ public class TabPersistentStoreFactory {
             assert TabStateStorageFlagHelper.isTabStorageEnabled();
             assert TabStateStorageFlagHelper.isStorageAuthoritative();
             return new TabStateStore(
+                    migrationManager,
                     tabModelSelector,
                     windowTag,
                     tabCreatorManager,
@@ -207,11 +228,14 @@ public class TabPersistentStoreFactory {
             AccumulatingTabCreator regularShadowTabCreator,
             String orchestratorTag) {
         if (migrationManager == null) migrationManager = sDefaultManager;
-        if (migrationManager.getShadowStoreType() != StoreType.TAB_STATE_STORE) return null;
+
+        @StoreType int shadowStoreType = migrationManager.getShadowStoreType();
+        if (shadowStoreType != StoreType.TAB_STATE_STORE) return null;
         assert TabStateStorageFlagHelper.isTabStorageEnabled();
 
         TabPersistentStore shadowTabPersistentStore =
                 new TabStateStore(
+                        migrationManager,
                         selector,
                         windowTag,
                         shadowTabCreatorManager,
@@ -220,10 +244,12 @@ public class TabPersistentStoreFactory {
 
         new ShadowTabStoreValidator(
                 authoritativeStore,
+                migrationManager,
                 shadowTabPersistentStore,
                 selector.getModel(/* incognito= */ false),
                 regularShadowTabCreator,
                 orchestratorTag);
+        migrationManager.onShadowStoreCreated(shadowStoreType);
         return shadowTabPersistentStore;
     }
 }

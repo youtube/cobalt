@@ -63,6 +63,8 @@ component("cpp") {
     "avail_language_header_parser.h",
     "browsing_topics_parser.cc",
     "browsing_topics_parser.h",
+    "connection_allowlist_parser.cc",
+    "connection_allowlist_parser.h",
     "constants.cc",
     "constants.h",
     "content_decoding_interceptor.cc",
@@ -103,6 +105,8 @@ component("cpp") {
     "link_header_parser.h",
     "loading_params.cc",
     "loading_params.h",
+    "local_network_access_check_result.cc",
+    "local_network_access_check_result.h",
     "net_adapters.cc",
     "net_adapters.h",
     "network_connection_tracker.cc",
@@ -121,8 +125,6 @@ component("cpp") {
     "origin_agent_cluster_parser.h",
     "parsed_headers.cc",
     "parsed_headers.h",
-    "private_network_access_check_result.cc",
-    "private_network_access_check_result.h",
     "record_ontransfersizeupdate_utils.h",
     "request_destination.cc",
     "request_destination.h",
@@ -156,6 +158,8 @@ component("cpp") {
     "sri_message_signatures.h",
     "supports_loading_mode/supports_loading_mode_parser.cc",
     "supports_loading_mode/supports_loading_mode_parser.h",
+    "synthetic_response_util.cc",
+    "synthetic_response_util.h",
     "timing_allow_origin_parser.cc",
     "timing_allow_origin_parser.h",
     "trust_token_http_headers.cc",
@@ -194,6 +198,7 @@ component("cpp") {
     "//components/os_crypt/async/browser",
     "//components/os_crypt/async/common",
     "//components/prefs",
+    "//components/url_pattern",
     "//ipc",
     "//net",
     "//services/proxy_resolver/public/mojom",
@@ -282,15 +287,17 @@ component("connection_allowlist") {
     "connection_allowlist.h",
     "connection_allowlist_mojom_traits.cc",
     "connection_allowlist_mojom_traits.h",
-    "connection_allowlist_parser.cc",
-    "connection_allowlist_parser.h",
   ]
   deps = [
     ":flags_and_switches",
+    "//components/url_pattern",
     "//net",
     "//services/network/public/mojom:mojom_connection_allowlist_shared",
   ]
-  public_deps = [ "//base" ]
+  public_deps = [
+    "//base",
+    "//url",
+  ]
   defines = [ "IS_NETWORK_CPP_CONNECTION_ALLOWLIST_IMPL" ]
 }
 
@@ -850,6 +857,7 @@ source_set("tests") {
     "storage_access_api_mojom_traits_unittest.cc",
     "structured_headers_mojom_traits_unittest.cc",
     "supports_loading_mode/supports_loading_mode_parser_unittest.cc",
+    "synthetic_response_util_unittest.cc",
     "timing_allow_origin_parser_unittest.cc",
     "transferable_directory_unittest.cc",
     "transferable_socket_unittest.cc",

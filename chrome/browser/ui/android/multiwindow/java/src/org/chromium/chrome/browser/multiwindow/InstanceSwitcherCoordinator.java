@@ -62,6 +62,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 
 /**
  * Coordinator to construct the instance switcher dialog. TODO: Resolve various inconsistencies that
@@ -195,7 +196,7 @@ public class InstanceSwitcherCoordinator {
                 mInstanceListContainer,
                 mActiveInstancesList,
                 mInactiveInstancesList,
-                mIsInactiveListShowing,
+                () -> mIsInactiveListShowing,
                 mNewWindowLayout,
                 mMinCommandItemHeightPx,
                 mItemPaddingHeightPx,
@@ -206,17 +207,23 @@ public class InstanceSwitcherCoordinator {
                     @Override
                     public void onTabSelected(Tab tab) {
                         boolean isActiveTab = tab.getPosition() == 0;
+                        mIsInactiveListShowing = !isActiveTab;
+                        // Set params early using heuristic to prevent jank when switching tabs
+                        preemptInstanceListContainerParamsUpdate(
+                                mInstanceListContainer,
+                                mInactiveInstancesList,
+                                mIsInactiveListShowing,
+                                getTotalInstanceCount() < mMaxInstanceCount);
                         mActiveInstancesList.setVisibility(isActiveTab ? View.VISIBLE : View.GONE);
                         mInactiveInstancesList.setVisibility(
                                 isActiveTab ? View.GONE : View.VISIBLE);
-                        mIsInactiveListShowing = !isActiveTab;
                         addLayoutListeners(
                                 mDialogView,
                                 mTabHeaderRow,
                                 mInstanceListContainer,
                                 mActiveInstancesList,
                                 mInactiveInstancesList,
-                                mIsInactiveListShowing,
+                                () -> mIsInactiveListShowing,
                                 mNewWindowLayout,
                                 mMinCommandItemHeightPx,
                                 mItemPaddingHeightPx,
@@ -254,7 +261,7 @@ public class InstanceSwitcherCoordinator {
             View instanceListContainer,
             RecyclerView activeInstancesList,
             RecyclerView inactiveInstancesList,
-            boolean isInactiveListShowing,
+            BooleanSupplier isInactiveListShowingSupplier,
             View newWindowLayout,
             int minCommandItemHeightPx,
             int itemPaddingHeightPx,
@@ -272,7 +279,7 @@ public class InstanceSwitcherCoordinator {
                                     instanceListContainer,
                                     activeInstancesList,
                                     inactiveInstancesList,
-                                    isInactiveListShowing,
+                                    isInactiveListShowingSupplier.getAsBoolean(),
                                     newWindowLayout,
                                     minCommandItemHeightPx,
                                     itemPaddingHeightPx);
@@ -293,7 +300,7 @@ public class InstanceSwitcherCoordinator {
                                 instanceListContainer,
                                 activeInstancesList,
                                 inactiveInstancesList,
-                                isInactiveListShowing,
+                                isInactiveListShowingSupplier.getAsBoolean(),
                                 newWindowLayout,
                                 minCommandItemHeightPx,
                                 itemPaddingHeightPx);
@@ -313,8 +320,6 @@ public class InstanceSwitcherCoordinator {
             View newWindowLayout,
             int minCommandItemHeightPx,
             int itemPaddingHeightPx) {
-        LayoutParams params = (LayoutParams) instanceListContainer.getLayoutParams();
-
         int nonLastItemHeightPx = minCommandItemHeightPx + itemPaddingHeightPx;
         int activeListItemCount = assumeNonNull(activeInstancesList.getAdapter()).getItemCount();
         int inactiveListItemCount =
@@ -350,6 +355,31 @@ public class InstanceSwitcherCoordinator {
             boolean isCommandLayoutCompressed = newWindowLayoutHeight < minCommandItemHeightPx;
             shouldFillVerticalSpace = isActiveListScrollable || isCommandLayoutCompressed;
         }
+
+        applyVerticalSpaceParams(instanceListContainer, shouldFillVerticalSpace);
+    }
+
+    private static void preemptInstanceListContainerParamsUpdate(
+            View instanceListContainer,
+            RecyclerView inactiveInstancesList,
+            boolean isInactiveListShowing,
+            boolean newWindowEnabled) {
+        boolean shouldFillVerticalSpace;
+
+        if (isInactiveListShowing) {
+            int inactiveListItemCount =
+                    assumeNonNull(inactiveInstancesList.getAdapter()).getItemCount();
+            shouldFillVerticalSpace = inactiveListItemCount != 0;
+        } else {
+            shouldFillVerticalSpace = !newWindowEnabled;
+        }
+
+        applyVerticalSpaceParams(instanceListContainer, shouldFillVerticalSpace);
+    }
+
+    private static void applyVerticalSpaceParams(
+            View instanceListContainer, boolean shouldFillVerticalSpace) {
+        LayoutParams params = (LayoutParams) instanceListContainer.getLayoutParams();
 
         // Optimization: Do nothing if the parameters are already in the correct state.
         if ((shouldFillVerticalSpace && params.weight == 1f)
@@ -390,9 +420,6 @@ public class InstanceSwitcherCoordinator {
         InstanceInfo currentInstance = null;
         for (int i = 0; i < items.size(); ++i) {
             InstanceInfo instanceInfo = items.get(i);
-            // Do not show instances that are closed by user.
-            if (instanceInfo.markedForDeletion) continue;
-
             // Add the current instance to the front of the list after it is sorted by timestamp.
             if (instanceInfo.type == InstanceInfo.Type.CURRENT) {
                 currentInstance = instanceInfo;
@@ -758,7 +785,7 @@ public class InstanceSwitcherCoordinator {
                     assumeNonNull(mInstanceListContainer),
                     assumeNonNull(mActiveInstancesList),
                     assumeNonNull(mInactiveInstancesList),
-                    mIsInactiveListShowing,
+                    () -> mIsInactiveListShowing,
                     assumeNonNull(mNewWindowLayout),
                     mMinCommandItemHeightPx,
                     mItemPaddingHeightPx,
@@ -871,8 +898,7 @@ public class InstanceSwitcherCoordinator {
                                         item.incognitoTabCount,
                                         item.isIncognitoSelected,
                                         item.lastAccessedTime,
-                                        item.closureTime,
-                                        item.markedForDeletion);
+                                        item.closureTime);
                         newTitle = mUiUtils.getItemTitle(updatedItem);
                     }
 
