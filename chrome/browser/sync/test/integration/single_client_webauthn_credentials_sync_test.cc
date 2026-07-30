@@ -13,7 +13,6 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "chrome/browser/sync/test/integration/multi_client_status_change_checker.h"
-#include "chrome/browser/sync/test/integration/secondary_account_helper.h"
 #include "chrome/browser/sync/test/integration/sync_datatype_helper.h"
 #include "chrome/browser/sync/test/integration/sync_integration_test_util.h"
 #include "chrome/browser/sync/test/integration/sync_service_impl_harness.h"
@@ -1192,13 +1191,8 @@ IN_PROC_BROWSER_TEST_P(SingleClientWebAuthnCredentialsSyncParamTest,
     GTEST_SKIP() << "This test only applies to transport mode.";
   }
   const std::string sync_id = InjectPasskeyToFakeServer(NewPasskey());
-  ASSERT_TRUE(SetupClients());
 
-  const char kTestEmail[] = "user@email.com";
-  AccountInfo account_info = secondary_account_helper::SignInUnconsentedAccount(
-      GetProfile(0), &test_url_loader_factory_, kTestEmail);
-  ASSERT_TRUE(GetClient(0)->AwaitSyncTransportActive());
-  ASSERT_FALSE(GetSyncService(0)->IsSyncFeatureEnabled());
+  ASSERT_TRUE(SignIn());
 
   PasskeySyncActiveChecker(GetSyncService(0)).Wait();
   EXPECT_TRUE(LocalPasskeysMatchChecker(kSingleProfile,

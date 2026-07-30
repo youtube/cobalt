@@ -441,6 +441,8 @@ bool CSSPropertyEquality::PropertiesEqual(const PropertyHandle& property,
       return a.FlexShrink() == b.FlexShrink();
     case CSSPropertyID::kFlexWrap:
       return a.FlexWrap() == b.FlexWrap();
+    case CSSPropertyID::kFlexLineCount:
+      return a.FlexLineCount() == b.FlexLineCount();
     case CSSPropertyID::kFloat:
       return a.Floating() == b.Floating();
     case CSSPropertyID::kFloodColor:
@@ -590,7 +592,7 @@ bool CSSPropertyEquality::PropertiesEqual(const PropertyHandle& property,
     case CSSPropertyID::kLineBreak:
       return a.GetLineBreak() == b.GetLineBreak();
     case CSSPropertyID::kLineHeight:
-      return a.SpecifiedLineHeight() == b.SpecifiedLineHeight();
+      return a.LineHeight() == b.LineHeight();
     case CSSPropertyID::kTabSize:
       return a.GetTabSize() == b.GetTabSize();
     case CSSPropertyID::kListStyleImage:

@@ -19,6 +19,7 @@ import static org.chromium.chrome.browser.autofill.editors.common.EditorComponen
 import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.NoticeProperties.IMPORTANT_FOR_ACCESSIBILITY;
 import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.NoticeProperties.NOTICE_ALL_KEYS;
 import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.NoticeProperties.NOTICE_TEXT;
+import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.NoticeProperties.NOTICE_VISIBLE;
 import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.NoticeProperties.SHOW_BACKGROUND;
 import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.validateForm;
 import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsUtil.scrollToFieldWithErrorMessage;
@@ -273,21 +274,16 @@ public class AddressEditor extends EditorBase<AutofillAddress>
                                     DROPDOWN_KEY_VALUE_LIST,
                                     AutofillProfileBridge.getSupportedCountries())
                             .with(IS_REQUIRED, false)
+                            .with(
+                                    DROPDOWN_CALLBACK,
+                                    (countryCode) -> {
+                                        showProgressDialog();
+                                        mRecentlySelectedCountry = countryCode;
+                                        mPhoneFormatter.setCountryCode(mRecentlySelectedCountry);
+                                        loadAdminAreasForCountry(mRecentlySelectedCountry);
+                                    })
                             .build();
         }
-
-        mCountryField.set(
-                DROPDOWN_CALLBACK,
-                new Callback<>() {
-                    /** Load admin areas for the selected country. */
-                    @Override
-                    public void onResult(String countryCode) {
-                        showProgressDialog();
-                        mRecentlySelectedCountry = countryCode;
-                        mPhoneFormatter.setCountryCode(mRecentlySelectedCountry);
-                        loadAdminAreasForCountry(mRecentlySelectedCountry);
-                    }
-                });
 
         // Country dropdown is cached, so the selected item needs to be updated for the new profile
         // that's being edited. This will not fire the dropdown callback.
@@ -321,7 +317,7 @@ public class AddressEditor extends EditorBase<AutofillAddress>
         mEditorModel =
                 new PropertyModel.Builder(ALL_KEYS)
                         .with(EDITOR_TITLE, editTitle)
-                        .with(EDITOR_FIELDS, new ListModel())
+                        .with(EDITOR_FIELDS, new ListModel<>())
                         .with(DONE_RUNNABLE, this::onDone)
                         .with(CANCEL_RUNNABLE, this::onCancel)
                         .with(ALLOW_DELETE, false)
@@ -581,6 +577,7 @@ public class AddressEditor extends EditorBase<AutofillAddress>
                                 // Required fields are indicated by an asterisk (*) and announced
                                 // separately by screen readers. Don't announce the message itself.
                                 .with(IMPORTANT_FOR_ACCESSIBILITY, false)
+                                .with(NOTICE_VISIBLE, true)
                                 .build(),
                         /* isFullLine= */ true));
         mEditorModel.set(EDITOR_FIELDS, editorFields);

@@ -5,6 +5,7 @@
 package org.chromium.net.impl;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -24,10 +25,16 @@ import org.junit.runner.RunWith;
 
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.net.ConnectivityManagerWrapper;
+import org.chromium.net.CronetTestFramework.CronetImplementation;
 import org.chromium.net.CronetTestRule;
+import org.chromium.net.CronetTestRule.BoolFlag;
 import org.chromium.net.CronetTestRule.Flags;
+import org.chromium.net.CronetTestRule.IgnoreFor;
+import org.chromium.net.CronetTestRule.RequiresMinAndroidApi;
 import org.chromium.net.CronetTestRule.StringFlag;
 import org.chromium.net.httpflags.HttpFlagsLoader;
+
+import java.net.URI;
 
 /** Test functionality of CronetAdaptiveRequestContext. */
 @DoNotBatch(reason = "HttpFlags are global")
@@ -38,6 +45,7 @@ public class CronetAdaptiveRequestContextTest {
     private CronetAdaptiveRequestContext mContext;
     private FakeClock mFakeClock;
     private ConnectivityManagerWrapper mMockConnectivityManagerWrapper;
+    private TestLogger mTestLogger;
 
     private static class FakeClock extends CronetAdaptiveRequestContext.Clock {
         private long mElapsedRealtime;
@@ -57,7 +65,8 @@ public class CronetAdaptiveRequestContextTest {
         HttpFlagsLoader.flushHttpFlags();
         Context context = mTestRule.getTestFramework().getContext();
         mFakeClock = new FakeClock();
-        mContext = new CronetAdaptiveRequestContext(context, mFakeClock);
+        mTestLogger = new TestLogger();
+        mContext = new CronetAdaptiveRequestContext(context, mTestLogger, mFakeClock);
         mMockConnectivityManagerWrapper = mock(ConnectivityManagerWrapper.class);
         mContext.setConnectivityManagerWrapperForTest(mMockConnectivityManagerWrapper);
     }
@@ -72,7 +81,13 @@ public class CronetAdaptiveRequestContextTest {
                 @StringFlag(
                         name = CronetAdaptiveRequestContext.ENABLE_ADAPTIVE_NETWORK_PATHS_FLAG_NAME,
                         value = "/path,/other")
+            },
+            boolFlags = {
+                @BoolFlag(
+                        name = CronetAdaptiveRequestContext.ENABLE_ADAPTIVE_NETWORK_NAME,
+                        value = true)
             })
+    @RequiresMinAndroidApi(Build.VERSION_CODES.N)
     public void reportFallbackUsed_memorizesNetwork() {
         // We need java.util.stream.Stream to be available for these tests.
         assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N);
@@ -101,8 +116,58 @@ public class CronetAdaptiveRequestContextTest {
                         value = "https://example.com"),
                 @StringFlag(
                         name = CronetAdaptiveRequestContext.ENABLE_ADAPTIVE_NETWORK_PATHS_FLAG_NAME,
-                        value = "/path")
+                        value = "/path,/other")
+            },
+            boolFlags = {
+                @BoolFlag(
+                        name = CronetAdaptiveRequestContext.ENABLE_ADAPTIVE_NETWORK_NAME,
+                        value = true)
             })
+    @IgnoreFor(
+            implementations = {CronetImplementation.FALLBACK, CronetImplementation.AOSP_PLATFORM},
+            reason = "Logging is not supported for these implementations.")
+    @RequiresMinAndroidApi(Build.VERSION_CODES.N)
+    public void telemetrySmokeTest() {
+        // We need java.util.stream.Stream to be available for these tests.
+        assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N);
+        String url = "https://example.com/path";
+        long networkHandle = 12345L;
+        Network mockNetwork = mock(Network.class);
+        when(mockNetwork.getNetworkHandle()).thenReturn(networkHandle);
+        when(mMockConnectivityManagerWrapper.getAllNetworks(any()))
+                .thenReturn(new Network[] {mockNetwork});
+        when(mMockConnectivityManagerWrapper.getDefaultNetwork()).thenReturn(mockNetwork);
+
+        mContext.reportFallbackUsed(url, networkHandle);
+
+        assertEquals(networkHandle, computeStreamNetworkHandles(url).mPrimaryNetworkHandle);
+        assertEquals(
+                networkHandle,
+                computeStreamNetworkHandles("https://example.com/other").mPrimaryNetworkHandle);
+
+        mTestLogger.waitForLogCronetAdaptiveTrafficAlternateNetworkComputation();
+        assertTrue(mTestLogger.getFallbackNetworkCacheHit());
+        assertEquals(1, mTestLogger.getNumberOfAvailableNetworks());
+        assertTrue(mTestLogger.getDefaultNetworkIsKnown());
+    }
+
+    @Test
+    @SmallTest
+    @Flags(
+            stringFlags = {
+                @StringFlag(
+                        name = CronetAdaptiveRequestContext.ENABLE_ADAPTIVE_NETWORK_HOSTS_FLAG_NAME,
+                        value = "https://example.com"),
+                @StringFlag(
+                        name = CronetAdaptiveRequestContext.ENABLE_ADAPTIVE_NETWORK_PATHS_FLAG_NAME,
+                        value = "/path")
+            },
+            boolFlags = {
+                @BoolFlag(
+                        name = CronetAdaptiveRequestContext.ENABLE_ADAPTIVE_NETWORK_NAME,
+                        value = true)
+            })
+    @RequiresMinAndroidApi(Build.VERSION_CODES.N)
     public void getFallbackNetwork_expired_returnsNull() {
         // We need java.util.stream.Stream to be available for these tests.
         assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N);
@@ -132,8 +197,14 @@ public class CronetAdaptiveRequestContextTest {
                         value = "https://example.com"),
                 @StringFlag(
                         name = CronetAdaptiveRequestContext.ENABLE_ADAPTIVE_NETWORK_PATHS_FLAG_NAME,
-                        value = "/path")
+                        value = "/path"),
+            },
+            boolFlags = {
+                @BoolFlag(
+                        name = CronetAdaptiveRequestContext.ENABLE_ADAPTIVE_NETWORK_NAME,
+                        value = true)
             })
+    @RequiresMinAndroidApi(Build.VERSION_CODES.N)
     public void getFallbackNetwork_notExpired_returnsNetwork() {
         // We need java.util.stream.Stream to be available for these tests.
         assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N);
@@ -162,8 +233,14 @@ public class CronetAdaptiveRequestContextTest {
                         value = "https://example.com"),
                 @StringFlag(
                         name = CronetAdaptiveRequestContext.ENABLE_ADAPTIVE_NETWORK_PATHS_FLAG_NAME,
-                        value = "/path")
+                        value = "/path"),
+            },
+            boolFlags = {
+                @BoolFlag(
+                        name = CronetAdaptiveRequestContext.ENABLE_ADAPTIVE_NETWORK_NAME,
+                        value = true)
             })
+    @RequiresMinAndroidApi(Build.VERSION_CODES.N)
     public void getFallbackNetwork_networkNotAvailable_returnsNull() {
         // We need java.util.stream.Stream to be available for these tests.
         assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N);
@@ -181,6 +258,7 @@ public class CronetAdaptiveRequestContextTest {
 
     private CronetAdaptiveRequestContext.AdaptiveStreamNetworkHandles computeStreamNetworkHandles(
             String url) {
-        return mContext.computeStreamNetworkHandles(url, CronetEngineBase.DEFAULT_NETWORK_HANDLE);
+        return mContext.computeStreamNetworkHandles(
+                URI.create(url), CronetEngineBase.DEFAULT_NETWORK_HANDLE);
     }
 }

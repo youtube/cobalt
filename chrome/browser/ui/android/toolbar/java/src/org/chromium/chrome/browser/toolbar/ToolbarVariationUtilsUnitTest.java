@@ -56,6 +56,18 @@ public class ToolbarVariationUtilsUnitTest {
     }
 
     @Test
+    @EnableFeatures({
+        ChromeFeatureList.ANDROID_BOTTOM_BAR + ":keep_app_menu_in_toolbar/true",
+        ChromeFeatureList.ANDROID_BOTTOM_BAR + ":keep_home_button_in_toolbar/true",
+        ChromeFeatureList.ANDROID_BOTTOM_BAR + ":remove_home_button/true"
+    })
+    public void testArm1C_RemoveHomeButton() {
+        assertTrue(ToolbarVariationUtils.shouldBackButtonBeInOmnibox());
+        assertTrue(ToolbarVariationUtils.shouldAppMenuBeInToolbar());
+        assertFalse(ToolbarVariationUtils.shouldHomeButtonBeAtStartOfToolbar());
+    }
+
+    @Test
     @EnableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
     public void testIsNewToolbarUiEnabled_Enabled() {
         assertTrue(ToolbarVariationUtils.isNewToolbarUiEnabled());
@@ -65,5 +77,22 @@ public class ToolbarVariationUtilsUnitTest {
     @DisableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
     public void testIsNewToolbarUiEnabled_Disabled() {
         assertFalse(ToolbarVariationUtils.isNewToolbarUiEnabled());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR + ":disable_on_ntp/false")
+    public void testShouldModifyToolbarButtons_FlagDisabled() {
+        // Flag disabled: return true on both.
+        assertTrue(ToolbarVariationUtils.shouldModifyToolbarButtons(true));
+        assertTrue(ToolbarVariationUtils.shouldModifyToolbarButtons(false));
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR + ":disable_on_ntp/true")
+    public void testShouldModifyToolbarButtons_FlagEnabled() {
+        // Flag enabled: return false on NTP.
+        assertFalse(ToolbarVariationUtils.shouldModifyToolbarButtons(true));
+        // Return true on non-NTP.
+        assertTrue(ToolbarVariationUtils.shouldModifyToolbarButtons(false));
     }
 }

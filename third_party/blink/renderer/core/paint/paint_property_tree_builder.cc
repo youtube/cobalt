@@ -637,8 +637,9 @@ static bool NeedsPaintOffsetTranslation(
   // zero paint offset.
   if (box_model.HasLayer() &&
       (object.StyleRef().Filter().HasReferenceFilter() ||
-       object.HasReflection()))
+       object.HasReflection() || object.StyleRef().HasBackdropFilter())) {
     return true;
+  }
 
   if (auto* box = DynamicTo<LayoutBox>(box_model)) {
     if (box->IsFixedToView(container_for_fixed_position))
@@ -843,7 +844,7 @@ FragmentPaintPropertyTreeBuilder::CompositorStickyScrollAncestorForAxis(
     const LayoutBoxModelObject& box_model,
     PhysicalAxis axis) const {
   const auto layout_constraint = box_model.StickyConstraints();
-  DCHECK(layout_constraint);
+  DCHECK(layout_constraint.HasAnyConstraint());
   const auto* axis_layout_data = layout_constraint.AxisData(axis);
   if (!axis_layout_data) {
     return CompositorElementId();
@@ -900,7 +901,7 @@ void FragmentPaintPropertyTreeBuilder::UpdateStickyTranslation(
 
       if (state.direct_compositing_reasons) {
         const auto layout_constraint = box_model.StickyConstraints();
-        DCHECK(layout_constraint);
+        DCHECK(layout_constraint.HasAnyConstraint());
         const CompositorElementId x_compositor_scroll_ancestor_id =
             CompositorStickyScrollAncestorForAxis(box_model,
                                                   PhysicalAxis::kHorizontal);
@@ -1018,9 +1019,15 @@ void FragmentPaintPropertyTreeBuilder::UpdateAnchorPositionScrollTranslation() {
       // snapshot's scrollers do not match the current scrollers.
 
       DCHECK(object_.GetDocument().Printing() ||
+             (RuntimeEnabledFeatures::CanvasDrawElementEnabled(
+                  object_.GetDocument().GetExecutionContext()) &&
+              IsA<Element>(object_.GetNode()) &&
+              To<Element>(object_.GetNode())->IsInCanvasSubtree()) ||
              (full_context_.direct_compositing_reasons &
               CompositingReason::kAnchorPosition));
-      state.direct_compositing_reasons = CompositingReason::kAnchorPosition;
+      state.direct_compositing_reasons =
+          full_context_.direct_compositing_reasons &
+          CompositingReason::kAnchorPosition;
 
       // TODO(crbug.com/1309178): Not using GetCompositorElementId() here
       // because anchor-positioned elements don't work properly under multicol
@@ -3880,10 +3887,11 @@ static bool IsLayoutShiftRoot(const LayoutObject& object,
   if (object.IsOverscrollContainer()) {
     return true;
   }
-  for (const TransformPaintPropertyNode* transform :
-       properties->AllCSSTransformPropertiesOutsideToInside()) {
-    if (transform && IsLayoutShiftRootTransform(*transform))
+  for (const auto* transform :
+       properties->CSSTransformPropertiesOutsideToInside()) {
+    if (IsLayoutShiftRootTransform(*transform)) {
       return true;
+    }
   }
   if (properties->ReplacedContentTransform())
     return true;
@@ -4142,15 +4150,13 @@ void PaintPropertyTreeBuilder::InitPaintProperties() {
           -PhysicalOffset::FromVector2dFRound(translation->Get2dTranslation());
     }
     gfx::Vector2dF translation2d;
-    for (const TransformPaintPropertyNode* transform :
-         properties->AllCSSTransformPropertiesOutsideToInside()) {
-      if (transform) {
-        if (IsLayoutShiftRootTransform(*transform)) {
-          translation2d = gfx::Vector2dF();
-          break;
-        }
-        translation2d += transform->Get2dTranslation();
+    for (const auto* transform :
+         properties->CSSTransformPropertiesOutsideToInside()) {
+      if (IsLayoutShiftRootTransform(*transform)) {
+        translation2d = gfx::Vector2dF();
+        break;
       }
+      translation2d += transform->Get2dTranslation();
     }
     context_.fragment_context.translation_2d_to_layout_shift_root_delta -=
         translation2d;

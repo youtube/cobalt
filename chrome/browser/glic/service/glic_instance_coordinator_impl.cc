@@ -59,31 +59,20 @@ BASE_FEATURE(kGlicMaxRecency, base::FEATURE_ENABLED_BY_DEFAULT);
 constexpr base::FeatureParam<base::TimeDelta> kGlicMaxRecencyValue{
     &kGlicMaxRecency, "duration", base::Minutes(30)};
 
-BASE_FEATURE(kGlicMemoryPressureResponse, base::FEATURE_ENABLED_BY_DEFAULT);
-
-constexpr base::FeatureParam<base::MemoryPressureLevel>::Option
-    kGlicMemoryPressureResponseLevelOptions[] = {
-        {base::MEMORY_PRESSURE_LEVEL_MODERATE, "moderate"},
-        {base::MEMORY_PRESSURE_LEVEL_CRITICAL, "critical"}};
-
-constexpr base::FeatureParam<base::MemoryPressureLevel>
-    kGlicMemoryPressureResponseLevel{&kGlicMemoryPressureResponse, "level",
-                                     base::MEMORY_PRESSURE_LEVEL_CRITICAL,
-                                     &kGlicMemoryPressureResponseLevelOptions};
-
 GlicTabRestoreData* GetTabRestoreData(const TabCreationEvent& creation_event) {
-#if !BUILDFLAG(IS_ANDROID)
   if (!base::FeatureList::IsEnabled(features::kGlicTabRestoration)) {
     return nullptr;
   }
   if (!creation_event.new_tab) {
     return nullptr;
   }
+  // TODO(b/448420873): Remove this once android guarantees non-null
+  // `WebContents`.
+  if (!creation_event.new_tab->GetContents()) {
+    return nullptr;
+  }
   return GlicTabRestoreData::FromWebContents(
       creation_event.new_tab->GetContents());
-#else
-  return nullptr;  // NEEDS_ANDROID_IMPL: TODO(b/481802287)
-#endif
 }
 }  // namespace
 
@@ -93,11 +82,6 @@ constexpr base::FeatureParam<int> kGlicHibernateMemoryThresholdMb{
 constexpr base::FeatureParam<base::TimeDelta>
     kGlicHibernateMemoryPollingInterval{&kGlicHibernateOnMemoryUsage,
                                         "polling_interval", base::Minutes(10)};
-
-BASE_FEATURE(kGlicHibernateAllOnMemoryPressure,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-constexpr base::FeatureParam<bool> kGlicHibernateAllAggressive{
-    &kGlicHibernateAllOnMemoryPressure, "aggressive", false};
 
 BASE_FEATURE(kGlicMaxAwakeInstances, base::FEATURE_ENABLED_BY_DEFAULT);
 constexpr base::FeatureParam<int> kGlicMaxAwakeInstancesLimit{
@@ -324,22 +308,24 @@ void GlicInstanceCoordinatorImpl::RemoveAllInstances() {
   }
 }
 
-void GlicInstanceCoordinatorImpl::Invoke(tabs::TabInterface* tab,
-                                         GlicInvokeOptions options) {
-  InvokeInternal(std::nullopt, tab, std::move(options));
+void GlicInstanceCoordinatorImpl::Invoke(GlicInvokeOptions options) {
+  InvokeInternal(std::nullopt, std::move(options));
 }
 
 void GlicInstanceCoordinatorImpl::InvokeWithAutoSubmit(
     InvokeWithAutoSubmitPasskey auto_submit_passkey,
-    tabs::TabInterface* tab,
     GlicInvokeOptions options) {
-  InvokeInternal(auto_submit_passkey, tab, std::move(options));
+  InvokeInternal(auto_submit_passkey, std::move(options));
 }
 
 void GlicInstanceCoordinatorImpl::InvokeInternal(
     std::optional<InvokeWithAutoSubmitPasskey> auto_submit_passkey,
-    tabs::TabInterface* tab,
     GlicInvokeOptions options) {
+  GlicInvokeHandler::ResolvedTarget resolved_target =
+      GlicInvokeHandler::ResolveTargetSurface(profile_, options.target);
+  tabs::TabInterface* tab = resolved_target.tab;
+  options.target.surface = tab;
+
   if (!tab || !GlicInstanceHelper::From(tab)) {
     if (options.on_error) {
       std::move(options.on_error).Run(GlicInvokeError::kInvalidTab);
@@ -368,7 +354,7 @@ void GlicInstanceCoordinatorImpl::InvokeInternal(
                      [&](DefaultConversation) {
                        return GetOrCreateGlicInstanceImplForTab(tab);
                      }},
-      options.conversation);
+      options.target.conversation);
 
   if (!instance) {
     return;
@@ -383,7 +369,7 @@ void GlicInstanceCoordinatorImpl::InvokeInternal(
   }
 
   invoke_handlers_[instance] = std::make_unique<GlicInvokeHandler>(
-      *instance, tab, std::move(options), auto_submit_passkey,
+      *instance, resolved_target, std::move(options), auto_submit_passkey,
       base::BindOnce(&GlicInstanceCoordinatorImpl::OnInvokeHandlerComplete,
                      base::Unretained(this)));
   invoke_handlers_[instance]->Invoke();
@@ -580,7 +566,7 @@ GlicInstanceCoordinatorImpl::GetOrCreateGlicInstanceImplForTab(
       last_active_instance_->GetTimeSinceLastActive() <
           features::kGlicDefaultToLastActiveConversationMaxRecency.Get() &&
       !last_active_instance_->IsActuating()) {
-    last_active_instance_->metrics()->OnDaisyChain(
+    last_active_instance_->instance_metrics()->OnDaisyChain(
         DaisyChainSource::kLastActiveInstance,
         /*success=*/true, tab,
         /*source_tab=*/nullptr);
@@ -647,7 +633,7 @@ GlicInstanceImpl* GlicInstanceCoordinatorImpl::CreateGlicInstance(
   auto* instance_ptr = instance.get();
   instances_[instance->id()] = std::move(instance);
   // TODO(harringtond): Figure out what to do about this metric.
-  instance_ptr->metrics()->OnInstanceCreatedWithoutWarming();
+  instance_ptr->instance_metrics()->OnInstanceCreatedWithoutWarming();
   return instance_ptr;
 }
 
@@ -810,7 +796,7 @@ void GlicInstanceCoordinatorImpl::SwitchConversation(
 
   target_instance->RegisterConversation(std::move(info), base::DoNothing());
   target_instance->Show(mutable_options);
-  target_instance->metrics()->OnSwitchToConversation(mutable_options);
+  target_instance->instance_metrics()->OnSwitchToConversation(mutable_options);
   std::move(callback).Run(std::nullopt);
 }
 
@@ -968,70 +954,27 @@ void GlicInstanceCoordinatorImpl::MaybeDaisyChainNewTab(
   side_panel_options.pin_trigger = GlicPinTrigger::kNewTabDaisyChain;
   instance->Show(ShowOptions{side_panel_options});
 
-  instance->metrics()->OnDaisyChain(DaisyChainSource::kNewTab,
-                                    /*success=*/true, creation_event.new_tab,
-                                    creation_event.old_tab);
+  instance->instance_metrics()->OnDaisyChain(
+      DaisyChainSource::kNewTab,
+      /*success=*/true, creation_event.new_tab, creation_event.old_tab);
 }
 
 void GlicInstanceCoordinatorImpl::OnMemoryPressure(
     base::MemoryPressureLevel level) {
   metrics_.OnMemoryPressure(level);
 
-  if (!base::FeatureList::IsEnabled(kGlicMemoryPressureResponse)) {
-    return;
-  }
-
-  if (level < kGlicMemoryPressureResponseLevel.Get()) {
+  if (level < base::MEMORY_PRESSURE_LEVEL_CRITICAL) {
     return;
   }
 
   service_->web_contents_warming_pool().Clear();
 
-  if (base::FeatureList::IsEnabled(kGlicHibernateAllOnMemoryPressure)) {
-    // Iterate over a copy of instances to avoid issues with modification during
-    // iteration.
-    std::vector<GlicInstanceImpl*> instances_to_process;
-    for (auto const& [id, instance] : instances_) {
-      instances_to_process.push_back(instance.get());
-    }
-
-    for (GlicInstanceImpl* instance : instances_to_process) {
-      if (kGlicHibernateAllAggressive.Get()) {
-        auto was_showing = instance->IsShowing();
-        instance->Hibernate();
-        if (was_showing) {
-          instance->CloseAllEmbedders();
-        }
-      } else if (!instance->IsShowing() && !instance->IsActuating()) {
-        instance->Hibernate();
-      }
-    }
-    return;
-  }
-
-  // Safeguard: Do not hibernate if there is only one instance left.
-  if (instances_.size() <= 1) {
-    return;
-  }
-
-  GlicInstanceImpl* least_recently_active_instance = nullptr;
-  base::TimeDelta max_inactive_duration = base::TimeDelta::Min();
-
-  for (auto const& [id, instance] : instances_) {
-    // Safeguard: Do not hibernate actuating or already hibernated instances.
+  for (auto& [_, instance] : instances_) {
     if (instance->IsShowing() || instance->IsActuating() ||
         instance->IsHibernated()) {
       continue;
     }
-
-    if (instance->GetTimeSinceLastActive() > max_inactive_duration) {
-      max_inactive_duration = instance->GetTimeSinceLastActive();
-      least_recently_active_instance = instance.get();
-    }
-  }
-
-  if (least_recently_active_instance) {
-    least_recently_active_instance->Hibernate();
+    instance->Hibernate();
   }
 }
 

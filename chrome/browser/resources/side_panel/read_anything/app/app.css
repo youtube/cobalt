@@ -29,16 +29,14 @@
 #lineFocus {
   position: absolute;
   top: var(--line-focus-y);
-  left: var(--sp-card-block-padding);
-  right: var(--sp-card-block-padding);
+  left: var(--line-focus-side-padding);
+  right: var(--line-focus-side-padding);
   height: var(--line-focus-height);
   background-color: var(--line-focus-bg);
   display: var(--line-focus-display);
   /* Darkens the area around this element when it is a window. Does nothing when
      it is a line. */
   box-shadow: var(--line-focus-shadow);
-  /* Clip path ensures the box shadow doesn't go beyond the content window. */
-  clip-path: inset(var(--line-focus-clip-top) 0 var(--line-focus-clip-bottom) 0 round 12px);
   pointer-events: none;
   z-index: 9997;
 }
@@ -239,6 +237,53 @@
 
 #appFlexParent canvas {
   max-width: 100%;
+}
+
+/*
+ * Removing the visual decoration instead of changing it to a <span> to preserve
+ * the original tag's semantic meaning.
+ */
+#appFlexParent :is(abbr, em, u) {
+  font-style: normal;
+  text-decoration: none;
+}
+
+/* Always hide nav elements. */
+#appFlexParent nav {
+  display: none;
+}
+
+/* Collapse table borders to make continuous lines. */
+#appFlexParent table {
+  border-collapse: collapse;
+}
+
+/*
+* Hide empty spacer rows (commonly found in distilled Wikipedia infoboxes) to
+* prevent awkward dead space.
+*/
+#appFlexParent tr:has(> th:empty:only-child) {
+  display: none;
+}
+
+/* Apply alternating background colors to data rows only.
+* Using :is(tbody, table) ensures it works for standard tables (<tbody>) and
+* Wikipedia-style tables (direct <tr> children), while ignoring <thead> so the
+* header and first row don't visually blend together.
+*/
+#appFlexParent :is(tbody, table) > tr:nth-child(odd of :not(:has(> th:empty:only-child))) {
+  background-color: color-mix(in srgb, var(--foreground-color) 15%, transparent);
+}
+
+/* Apply a starting border to each table cell to act as a separator. */
+#appFlexParent :is(th, td) {
+  border-inline-start: 2px solid color-mix(in srgb, var(--foreground-color) 30%, transparent);
+  padding: 4px 8px;
+}
+
+/* Remove the starting border from the first column of each row. */
+#appFlexParent tr > :is(th, td):first-child {
+  border-inline-start: none;
 }
 
 #docs-load-more-button {

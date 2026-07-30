@@ -4,6 +4,10 @@
 
 #include "chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.h"
 
+#include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
+
+DEFINE_USER_DATA(DownloadToolbarUIController);
+
 #include <string>
 
 #include "base/functional/bind.h"
@@ -27,7 +31,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
-#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
@@ -427,6 +431,12 @@ DownloadsImageBadge* GetImageBadge(BrowserView* browser_view) {
 
 }  // namespace
 
+// static
+DownloadToolbarUIController* DownloadToolbarUIController::From(
+    BrowserWindowInterface* browser) {
+  return Get(browser->GetUnownedUserDataHost());
+}
+
 DownloadToolbarUIController::DownloadToolbarUIController(
     BrowserView* browser_view)
     : browser_view_(browser_view),
@@ -435,7 +445,10 @@ DownloadToolbarUIController::DownloadToolbarUIController(
           kAutoClosePartialViewDelay,
           base::BindRepeating(
               &DownloadToolbarUIController::AutoClosePartialView,
-              base::Unretained(this))) {
+              base::Unretained(this))),
+      scoped_unowned_user_data_(
+          browser_view->browser()->GetUnownedUserDataHost(),
+          *this) {
   Browser* const browser = browser_view_->browser();
   action_item_ = actions::ActionManager::Get().FindAction(
       kActionShowDownloads, browser->browser_actions()->root_action_item());
@@ -1122,9 +1135,12 @@ void DownloadToolbarUIController::UpdateIconDormant() {
   // Check if the current browser is the last active browser in this profile.
   // TODO(crbug.com/323962334): This should also check whether the bubble is
   // open once the bubble is added.
+  BrowserWindowInterface* last_active =
+      ProfileBrowserCollection::GetForProfile(browser_view_->GetProfile())
+          ->GetLastActiveBrowser();
   bool should_update_button_progress =
-      browser_view_->browser() ==
-      chrome::FindBrowserWithProfile(browser_view_->GetProfile());
+      last_active &&
+      browser_view_->browser() == last_active->GetBrowserForMigrationOnly();
   if (is_dormant_ == !should_update_button_progress) {
     return;
   }

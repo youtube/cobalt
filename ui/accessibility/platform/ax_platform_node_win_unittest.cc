@@ -4393,6 +4393,81 @@ TEST_F(AXPlatformNodeWinTest, UIAGetPropertyValueIsDialog) {
                      UIA_IsDialogPropertyId, true);
 }
 
+TEST_F(AXPlatformNodeWinTest, UIAGetPropertyValueHeadingLevel) {
+  TestAXTreeUpdate update(std::string(R"HTML(
+    ++1 kRootWebArea
+    ++++2 kHeading intAttribute=kHierarchicalLevel,1
+    ++++3 kHeading intAttribute=kHierarchicalLevel,2
+    ++++4 kHeading intAttribute=kHierarchicalLevel,6
+    ++++5 kGroup intAttribute=kHierarchicalLevel,3
+    ++++6 kHeading
+    ++++7 kHeading intAttribute=kHierarchicalLevel,10
+    ++++8 kHeading intAttribute=kHierarchicalLevel,100
+  )HTML"));
+  Init(update);
+
+  EXPECT_UIA_INT_EQ(GetIRawElementProviderSimpleFromChildIndex(0),
+                    UIA_HeadingLevelPropertyId, int{HeadingLevel1});
+
+  EXPECT_UIA_INT_EQ(GetIRawElementProviderSimpleFromChildIndex(1),
+                    UIA_HeadingLevelPropertyId, int{HeadingLevel2});
+
+  EXPECT_UIA_INT_EQ(GetIRawElementProviderSimpleFromChildIndex(2),
+                    UIA_HeadingLevelPropertyId, int{HeadingLevel6});
+
+  EXPECT_UIA_INT_EQ(GetIRawElementProviderSimpleFromChildIndex(3),
+                    UIA_HeadingLevelPropertyId, int{HeadingLevel_None});
+
+  EXPECT_UIA_INT_EQ(GetIRawElementProviderSimpleFromChildIndex(4),
+                    UIA_HeadingLevelPropertyId, int{HeadingLevel_None});
+
+  EXPECT_UIA_INT_EQ(GetIRawElementProviderSimpleFromChildIndex(5),
+                    UIA_HeadingLevelPropertyId, int{HeadingLevel_None});
+
+  EXPECT_UIA_INT_EQ(GetIRawElementProviderSimpleFromChildIndex(6),
+                    UIA_HeadingLevelPropertyId, int{HeadingLevel_None});
+}
+
+TEST_F(AXPlatformNodeWinTest,
+       UIAGetPropertyValueHeadingLevelDisclosureTriangle) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kAccessibilityExposeSummaryAsHeading);
+
+  TestAXTreeUpdate update(std::string(R"HTML(
+    ++1 kRootWebArea
+    ++++2 kDisclosureTriangle intAttribute=kHierarchicalLevel,2
+    ++++3 kDisclosureTriangleGrouped intAttribute=kHierarchicalLevel,4
+    ++++4 kDisclosureTriangle intAttribute=kHierarchicalLevel,3
+  )HTML"));
+  Init(update);
+
+  EXPECT_UIA_INT_EQ(GetIRawElementProviderSimpleFromChildIndex(0),
+                    UIA_HeadingLevelPropertyId, int{HeadingLevel2});
+
+  EXPECT_UIA_INT_EQ(GetIRawElementProviderSimpleFromChildIndex(1),
+                    UIA_HeadingLevelPropertyId, int{HeadingLevel4});
+}
+
+TEST_F(AXPlatformNodeWinTest,
+       UIAGetPropertyValueHeadingLevelDisclosureTriangleFeatureDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      features::kAccessibilityExposeSummaryAsHeading);
+
+  TestAXTreeUpdate update(std::string(R"HTML(
+    ++1 kRootWebArea
+    ++++2 kDisclosureTriangle intAttribute=kHierarchicalLevel,2
+    ++++3 kDisclosureTriangleGrouped intAttribute=kHierarchicalLevel,4
+  )HTML"));
+  Init(update);
+
+  EXPECT_UIA_INT_EQ(GetIRawElementProviderSimpleFromChildIndex(0),
+                    UIA_HeadingLevelPropertyId, int{HeadingLevel_None});
+  EXPECT_UIA_INT_EQ(GetIRawElementProviderSimpleFromChildIndex(1),
+                    UIA_HeadingLevelPropertyId, int{HeadingLevel_None});
+}
+
 TEST_F(AXPlatformNodeWinTest,
        UIAGetPropertyValueIsControlElementIgnoredInvisible) {
   TestAXTreeUpdate update(std::string(R"HTML(
@@ -8214,6 +8289,41 @@ TEST_F(AXPlatformNodeWinTest, UiaMathMlFeatureFlag) {
     scoped_feature_list.InitAndDisableFeature(features::kUiaMathMlSupport);
     EXPECT_FALSE(base::FeatureList::IsEnabled(features::kUiaMathMlSupport));
   }
+}
+
+// Regression test for crbug.com/503419515: a node destroyed mid-event must
+// not be inserted into the global alert targets set.
+TEST_F(AXPlatformNodeWinTest, DestroyedNodeNotAddedToAlertTargets) {
+  AXNodeData root;
+  root.id = 1;
+  root.role = ax::mojom::Role::kRootWebArea;
+  root.child_ids = {2};
+
+  AXNodeData alert;
+  alert.id = 2;
+  alert.role = ax::mojom::Role::kAlert;
+
+  Init(root, alert);
+  AXNode* alert_ax_node = GetRoot()->children()[0];
+
+  auto* alert_node = static_cast<AXPlatformNodeWin*>(
+      AXPlatformNodeFromNode(alert_ax_node));
+  ASSERT_TRUE(alert_node);
+
+  const size_t initial_count =
+      AXPlatformNodeWin::GetAlertTargetCountForTesting();
+
+  // Put the node in the IsDestroyed() state without actually destroying it,
+  // so the wrapper can still tear down cleanly at the end of the test.
+  AXPlatformNodeDelegate* original_delegate =
+      alert_node->SetDelegateForTesting(nullptr);
+  ASSERT_TRUE(alert_node->IsDestroyed());
+
+  alert_node->AddAlertTargetForTesting();
+  EXPECT_EQ(initial_count,
+            AXPlatformNodeWin::GetAlertTargetCountForTesting());
+
+  alert_node->SetDelegateForTesting(original_delegate);
 }
 
 }  // namespace ui

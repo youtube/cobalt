@@ -4,8 +4,15 @@
 
 #include "chrome/browser/accessibility_annotator/first_run/android/accessibility_annotator_bottom_sheet_bridge.h"
 
+#include <string>
+
 #include "base/android/jni_android.h"
+#include "base/android/jni_string.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/metrics/user_metrics.h"
+#include "base/metrics/user_metrics_action.h"
 #include "chrome/android/chrome_jni_headers/AccessibilityAnnotatorBottomSheetBridge_jni.h"
+#include "components/accessibility_annotator/core/url_constants.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/android/window_android.h"
 
@@ -38,12 +45,22 @@ AccessibilityAnnotatorBottomSheetBridge::
   }
 }
 
+bool AccessibilityAnnotatorBottomSheetBridge::PerformShowContent() {
+  if (!java_obj_) {
+    return false;
+  }
+  JNIEnv* env = base::android::AttachCurrentThread();
+  return Java_AccessibilityAnnotatorBottomSheetBridge_show(
+      env, java_obj_, kAccessibilityAnnotatorSettingsURL,
+      kAccessibilityAnnotatorLearnMoreURL);
+}
+
 void AccessibilityAnnotatorBottomSheetBridge::Show() {
-  if (java_obj_) {
-    JNIEnv* env = base::android::AttachCurrentThread();
-    Java_AccessibilityAnnotatorBottomSheetBridge_show(env, java_obj_);
-    // TODO(crbug.com/498078653): Record metrics.
+  if (PerformShowContent()) {
+    base::UmaHistogramEnumeration("AccessibilityAnnotator.RemoteAnnotatorInfo",
+                                  InfoShowRequestResult::kShown);
   } else {
+    // TODO(crbug.com/502445725): Record "NotShown" histogram value.
     if (callback_) {
       std::move(callback_).Run(InfoResult::kNotAcknowledged);
     }
@@ -60,23 +77,27 @@ void AccessibilityAnnotatorBottomSheetBridge::Hide() {
 void AccessibilityAnnotatorBottomSheetBridge::OnInfoAcknowledged(JNIEnv* env) {
   if (callback_) {
     std::move(callback_).Run(InfoResult::kAcknowledged);
-    // TODO(crbug.com/498078653): Record metrics.
+    base::UmaHistogramEnumeration("AccessibilityAnnotator.RemoteAnnotatorInfo",
+                                  InfoShowRequestResult::kAccepted);
   }
 }
 
 void AccessibilityAnnotatorBottomSheetBridge::OnManageSettingsClicked(
     JNIEnv* env) {
-  // TODO(crbug.com/498078653): Record metrics.
+  base::RecordAction(base::UserMetricsAction(
+      "AccessibilityAnnotator.RemoteAnnotatorInfo.SettingsLinkClick"));
 }
 
 void AccessibilityAnnotatorBottomSheetBridge::OnLearnMoreClicked(JNIEnv* env) {
-  // TODO(crbug.com/498078653): Record metrics.
+  base::RecordAction(base::UserMetricsAction(
+      "AccessibilityAnnotator.RemoteAnnotatorInfo.LearnMoreLinkClick"));
 }
 
 void AccessibilityAnnotatorBottomSheetBridge::OnInfoDismissed(JNIEnv* env) {
   if (callback_) {
     std::move(callback_).Run(InfoResult::kNotAcknowledged);
-    // TODO(crbug.com/498078653): Record metrics.
+    base::UmaHistogramEnumeration("AccessibilityAnnotator.RemoteAnnotatorInfo",
+                                  InfoShowRequestResult::kDismissed);
   }
 }
 

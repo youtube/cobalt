@@ -16,12 +16,6 @@
 #include "chrome/browser/extensions/extension_management_test_util.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
-#include "chrome/browser/ui/browser_window.h"
-#include "chrome/browser/ui/test/test_browser_closed_waiter.h"
-#include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
-#include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_builder.h"
-#include "chrome/browser/web_applications/test/os_integration_test_override_impl.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/profile_destruction_waiter.h"
 #include "content/public/browser/service_worker_context.h"
@@ -36,12 +30,22 @@
 #include "extensions/browser/extensions_browser_client.h"
 #include "extensions/browser/service_worker/service_worker_keepalive.h"
 #include "extensions/browser/service_worker/service_worker_test_utils.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension.h"
 #include "extensions/test/extension_test_message_listener.h"
 #include "extensions/test/result_catcher.h"
 #include "extensions/test/test_extension_dir.h"
 #include "net/dns/mock_host_resolver.h"
 #include "url/gurl.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
+#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
+#include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_builder.h"
+#include "chrome/browser/web_applications/test/os_integration_test_override_impl.h"
+#endif
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace extensions {
 
@@ -704,13 +708,11 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerLifetimeKeepaliveBrowsertest,
   // Open example.com/simple.html in an incognito window. The content script
   // will inject.
   ExtensionTestMessageListener content_script_listener("content script ready");
-  Browser* incognito_browser = OpenURLOffTheRecord(
+  content::WebContents* incognito_contents = PlatformOpenURLOffTheRecord(
       profile(), embedded_test_server()->GetURL("example.com", "/simple.html"));
   ASSERT_TRUE(content_script_listener.WaitUntilSatisfied());
   registration_observer.WaitForWorkerActivated();
-  content::WebContents* incognito_tab =
-      incognito_browser->tab_strip_model()->GetActiveWebContents();
-  int tab_id = ExtensionTabUtil::GetTabId(incognito_tab);
+  int tab_id = ExtensionTabUtil::GetTabId(incognito_contents);
 
   // Send a message to the incognito tab from the incognito service worker.
   // This will open a message pipe. Since the content script never responds,
@@ -760,13 +762,11 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerLifetimeKeepaliveBrowsertest,
           GetKeepaliveMatcher(worker_id, Activity::MESSAGE_PORT),
           GetKeepaliveMatcher(worker_id, Activity::MESSAGE_PORT)));
 
-  // Close the incognito browser while the message channel is still open. Since
+  // Close the incognito tab while the message channel is still open. Since
   // this is the only browser window for the incognito context, this also
   // results in the browser context being invalidated.
   ProfileDestructionWaiter profile_destruction_waiter(incognito_profile);
-  TestBrowserClosedWaiter browser_closed_waiter(incognito_browser);
-  incognito_browser->window()->Close();
-  ASSERT_TRUE(browser_closed_waiter.WaitUntilClosed());
+  CloseTabForWebContents(incognito_contents);
   profile_destruction_waiter.Wait();
   // Note: `ProfileDestructionWaiter` only waits for the profile to signal it
   // *will* be destroyed. Spin once to finish the job.
@@ -838,7 +838,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerLifetimeKeepaliveBrowsertest,
       task_queue_observer;
   // Open a new tab in incognito. This spawns the new process for the split mode
   // extensions.
-  Browser* incognito_browser = OpenURLOffTheRecord(
+  content::WebContents* incognito_contents = PlatformOpenURLOffTheRecord(
       profile(), embedded_test_server()->GetURL("example.com", "/simple.html"));
   task_queue_observer.WaitForWorkerContextInitialized(listener_extension->id());
   task_queue_observer.WaitForWorkerContextInitialized(opener_extension->id());
@@ -896,7 +896,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerLifetimeKeepaliveBrowsertest,
       testing::UnorderedElementsAre(
           GetKeepaliveMatcher(listener_worker_id, Activity::MESSAGE_PORT)));
 
-  // Close the incognito browser while the message channel is still open. Since
+  // Close the incognito tab while the message channel is still open. Since
   // this is the only browser window for the incognito context, this also
   // results in the browser context being invalidated.
   // As part of this, the keepalives are removed for the extensions, which
@@ -906,9 +906,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerLifetimeKeepaliveBrowsertest,
   // is fine, since the whole context is going away.
   // See https://crbug.com/1476316.
   ProfileDestructionWaiter profile_destruction_waiter(incognito_profile);
-  TestBrowserClosedWaiter browser_closed_waiter(incognito_browser);
-  incognito_browser->window()->Close();
-  ASSERT_TRUE(browser_closed_waiter.WaitUntilClosed());
+  CloseTabForWebContents(incognito_contents);
   profile_destruction_waiter.Wait();
   // Note: `ProfileDestructionWaiter` only waits for the profile to signal it
   // *will* be destroyed. Spin once to finish the job.
@@ -989,7 +987,7 @@ IN_PROC_BROWSER_TEST_F(
       task_queue_observer;
   // Open a new tab in incognito. This spawns the new process for the split mode
   // extension.
-  Browser* incognito_browser = OpenURLOffTheRecord(
+  content::WebContents* incognito_contents = PlatformOpenURLOffTheRecord(
       profile(), embedded_test_server()->GetURL("example.com", "/simple.html"));
   task_queue_observer.WaitForWorkerContextInitialized(
       split_mode_extension->id());
@@ -1065,13 +1063,11 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_EQ(1u, GetExternalRequestCountForWorker(*incognito_profile,
                                                  *split_mode_extension));
 
-  // Close the incognito browser while the message channel is still open. Since
+  // Close the incognito tab while the message channel is still open. Since
   // this is the only browser window for the incognito context, this also
   // results in the browser context being invalidated.
   ProfileDestructionWaiter profile_destruction_waiter(incognito_profile);
-  TestBrowserClosedWaiter browser_closed_waiter(incognito_browser);
-  incognito_browser->window()->Close();
-  ASSERT_TRUE(browser_closed_waiter.WaitUntilClosed());
+  CloseTabForWebContents(incognito_contents);
   profile_destruction_waiter.Wait();
   // Note: `ProfileDestructionWaiter` only waits for the profile to signal it
   // *will* be destroyed. Spin once to finish the job.
@@ -1096,6 +1092,9 @@ IN_PROC_BROWSER_TEST_F(
       0u, GetExternalRequestCountForWorker(*profile(), *split_mode_extension));
 }
 
+#if !BUILDFLAG(IS_ANDROID)
+// Isolated web app tests require code from //chrome/browser/web_applications
+// that isn't supported on Android.
 class IWAServiceWorkerLifetimeKeepaliveBrowsertest
     : public ServiceWorkerLifetimeKeepaliveBrowsertest {
  public:
@@ -1143,8 +1142,8 @@ IN_PROC_BROWSER_TEST_F(IWAServiceWorkerLifetimeKeepaliveBrowsertest,
 
   // 2. Opener IWA.
   web_app::IsolatedWebAppUrlInfo opener_url_info = InstallWebApp();
-  content::RenderFrameHost* opener_frame = web_app::OpenIsolatedWebApp(
-      browser()->profile(), opener_url_info.app_id());
+  content::RenderFrameHost* opener_frame =
+      web_app::OpenIsolatedWebApp(profile(), opener_url_info.app_id());
   ConnectToReceiverExtension(opener_frame);
 
   ASSERT_TRUE(connect_listener.WaitUntilSatisfied());
@@ -1188,8 +1187,8 @@ IN_PROC_BROWSER_TEST_F(IWAServiceWorkerLifetimeKeepaliveBrowsertest,
       kPersistentPortConnectedMessage);
   connect_listener.set_extension_id(kTestReceiverExtensionId);
 
-  content::RenderFrameHost* opener_frame = web_app::OpenIsolatedWebApp(
-      browser()->profile(), opener_url_info.app_id());
+  content::RenderFrameHost* opener_frame =
+      web_app::OpenIsolatedWebApp(profile(), opener_url_info.app_id());
   ConnectToReceiverExtension(opener_frame);
   ASSERT_TRUE(connect_listener.WaitUntilSatisfied());
 
@@ -1198,5 +1197,6 @@ IN_PROC_BROWSER_TEST_F(IWAServiceWorkerLifetimeKeepaliveBrowsertest,
                                            &tick_clock_receiver_);
   TriggerTimeoutAndCheckActive(context, service_worker_receiver_id);
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace extensions

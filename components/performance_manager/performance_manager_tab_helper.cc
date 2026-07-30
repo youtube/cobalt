@@ -116,7 +116,8 @@ PerformanceManagerTabHelper::PerformanceManagerTabHelper(
 
   // Create the page node.
   page_node_ = PerformanceManagerImpl::CreatePageNode(
-      web_contents->GetWeakPtr(), web_contents->GetBrowserContext()->UniqueId(),
+      web_contents->GetWeakPtr(), web_contents->GetUniqueToken(),
+      web_contents->GetBrowserContext()->UniqueId(),
       web_contents->GetVisibleURL(), initial_property_flags,
       web_contents->GetLastActiveTimeTicks());
 
@@ -237,6 +238,7 @@ void PerformanceManagerTabHelper::RenderFrameCreated(
       process_node, page_node_.get(), parent_frame_node,
       outer_document_for_inner_frame_root, render_frame_host->GetRoutingID(),
       blink::LocalFrameToken(render_frame_host->GetFrameToken()),
+      render_frame_host->GetTracingTrack(),
       site_instance->GetBrowsingInstanceId(),
       site_instance->GetSiteInstanceGroupId(), render_frame_host->IsActive(),
       render_frame_host->IsActive());

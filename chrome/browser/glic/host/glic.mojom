@@ -98,6 +98,7 @@ struct ConfigInfo {
 struct InternalsDataPayload {
   ProfileEnablement enablement;
   ConfigInfo config;
+  bool show_error_allowed;
 };
 
 // Whether actuation is enabled, and if not, why not.
@@ -254,6 +255,18 @@ union InvokeConversationSelection {
   string conversation_id;
 };
 
+// Targets the default Glic surface (e.g., side panel).
+struct DefaultSurfaceMojo {};
+
+// Targets a new tab for the invocation.
+struct NewTabMojo {};
+
+// Defines the surface an invocation targets.
+union InvokeTargetSurface {
+  DefaultSurfaceMojo default_surface;
+  NewTabMojo new_tab;
+};
+
 // The level of in-flight navigation events allowed without canceling the
 // invocation.
 enum AllowedInflightNavigation {
@@ -277,6 +290,7 @@ struct TriggerInvokeFromInternalsOptions {
   bool auto_submit;
   FreOverride fre_override = kUnspecified;
   bool wait_for_panel_open;
+  InvokeTargetSurface surface;
 };
 
 // Page handler for the glic WebUI.
@@ -337,6 +351,9 @@ interface InternalsPageHandler {
   // Sets the web continuity originating host URL preset for the internals page.
   SetWebContinuityOriginatingHostUrlPreset(
       url.mojom.Url web_continuity_originating_host_url);
+
+  // Sets whether errors are allowed to be shown.
+  SetShowErrorAllowed(bool allowed);
 };
 
 // Factory for InternalsPageHandler used in chrome://glic/internals.
@@ -572,8 +589,6 @@ struct WebClientInitialState {
   bool enable_get_tab_by_id;
   // Whether kGlicOpenPasswordManagerSettingsPageApi is enabled.
   bool enable_open_password_manager_settings_page;
-  // Whether kGlicLoadAndExtractContent is enabled.
-  bool enable_load_and_extract_content;
   // Whether kGlicTrustFirstOnboarding is enabled.
   bool enable_trust_first_onboarding;
   // Whether the user has completed the onboarding flow.
@@ -1344,14 +1359,6 @@ interface WebClientHandler {
   // Called when the web client completes a turn.
   OnTurnCompleted(WebClientModel model, mojo_base.mojom.TimeDelta duration);
 
-  // Called when the web client wants to record a use counter.
-  // The counter values matches the WebUseCounter enum. We do not use the
-  // explicit type because we do not want enforcement of the range of the
-  // enum because of versioning issues between the front end and chrome.
-  // eg. The front end could be newer than chrome and we want the counter
-  // still logged, but may not exist in chrome's version of WebUseCounter.
-  OnRecordUseCounter(uint16 counter);
-
   // Called when the user rates a response.
   OnResponseRated(bool positive);
 
@@ -1604,9 +1611,16 @@ enum InvocationSource {
   [MinVersion=16] kTextSelectionNudge = 24,
   // User clicked on text selection widget.
   [MinVersion=16] kTextSelectionWidget = 25,
+  // Automatic summarization upon opening.
+  [MinVersion=17] kZeroStateAutoSummarize = 26,
+  // From the universal cart.
+  [MinVersion=18] kUniversalCart = 27,
+  // Used exclusively for invocations originating from the
+  // GlicExperimentalTriggeringMessageHandler.
+  [MinVersion=19] kExperimentalTriggering = 28,
 };
 
-// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicInvocationSource, //chrome/browser/glic/service/metrics/metrics_types.h:ResponseSegmentation, //chrome/browser/glic/service/metrics/metrics_types.h:GlicEntrypoint)
+// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicInvocationSource, //chrome/browser/glic/service/metrics/metrics_types.h:ResponseSegmentation)
 
 // @generate glic_api
 // Mode for specific feature behaviors.
@@ -1614,6 +1628,7 @@ enum InvocationSource {
 enum FeatureMode {
   [Default] kUnspecified = 0,
   kImageGeneration = 1,
+  kActuation = 2,
   kBluedog = 2,
 };
 

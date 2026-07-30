@@ -70,6 +70,7 @@ source_set("browser_interop") {
     "//base",
     "//chrome/browser:browser_process",
     "//chrome/browser:browser_public_dependencies",
+    "//chrome/browser/net",
     "//content/public/browser",
     "//net",
     "//remoting/base",
@@ -142,6 +143,7 @@ source_set("unit_tests") {
   testonly = true
 
   sources = [
+    "ash_mojom_video_consumer_unittest.cc",
     "audio_helper_chromeos_impl_unittest.cc",
     "clipboard_aura_unittest.cc",
     "file_session_storage_unittest.cc",

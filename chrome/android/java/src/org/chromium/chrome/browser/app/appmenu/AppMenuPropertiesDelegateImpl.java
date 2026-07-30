@@ -11,7 +11,6 @@ import android.content.pm.ResolveInfo;
 import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
-import android.os.SystemClock;
 import android.util.Pair;
 import android.view.MenuItem;
 import android.view.View;
@@ -32,7 +31,6 @@ import org.chromium.base.CallbackController;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.Token;
-import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NullableObservableSupplier;
@@ -61,7 +59,7 @@ import org.chromium.chrome.browser.readaloud.ReadAloudController;
 import org.chromium.chrome.browser.share.ShareHelper;
 import org.chromium.chrome.browser.sync.settings.SyncSettingsUtils;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
+import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
 import org.chromium.chrome.browser.translate.TranslateUtils;
@@ -805,11 +803,7 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
      * @return The add to homescreen list item.
      */
     protected ListItem buildAddToHomescreenListItem(Tab currentTab, boolean showIcon) {
-        long addToHomeScreenStart = SystemClock.elapsedRealtime();
         ResolveInfo resolveInfo = queryWebApkResolveInfo(mContext, currentTab);
-        RecordHistogram.recordTimesHistogram(
-                "Android.PrepareMenu.OpenWebApkVisibilityCheck",
-                SystemClock.elapsedRealtime() - addToHomeScreenStart);
 
         // When Universal Install is active, we only show this menu item if we are browsing
         // the root page of an already installed app.
@@ -1338,13 +1332,10 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
     }
 
     public @StringRes int getAddToGroupMenuItemString(@Nullable Token currentTabGroupId) {
-        TabGroupModelFilter filter = mTabModelSelector.getCurrentTabGroupModelFilter();
+        TabModel tabModel = mTabModelSelector.getCurrentModel();
         if (currentTabGroupId != null) return R.string.menu_move_tab_to_group;
-        if (filter != null) {
-            boolean hasGroups = filter.getTabGroupCount() != 0;
-            return hasGroups ? R.string.menu_add_tab_to_group : R.string.menu_add_tab_to_new_group;
-        }
-        return R.string.menu_add_tab_to_group;
+        boolean hasGroups = tabModel.getTabGroupCount() != 0;
+        return hasGroups ? R.string.menu_add_tab_to_group : R.string.menu_add_tab_to_new_group;
     }
 
     /** Returns whether to show the open in app menu item. */

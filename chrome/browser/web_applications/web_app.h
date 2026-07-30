@@ -197,8 +197,12 @@ class WebApp {
 
   // Represents the last time the Badging API was used.
   const base::Time& last_badging_time() const { return last_badging_time_; }
-  // Represents the last time this app is launched.
-  const base::Time& last_launch_time() const { return last_launch_time_; }
+  // Represents the last time this app is launched. This can be unset if the app
+  // has not been launched at all, like after installation when
+  // `kWebAppInstallDialog` is enabled.
+  const std::optional<base::Time>& last_launch_time() const {
+    return last_launch_time_;
+  }
   // Represents the time when this app is installed.
   const base::Time& first_install_time() const { return first_install_time_; }
   // Represents the time when this app is updated.
@@ -465,21 +469,18 @@ class WebApp {
   void SetDescription(const std::string& description);
 
   // Sets the start_url of the web app.  This call will CHECK-fail if the
-  // start_url is empty or not valid. If the manifest_id is not yet set, this
-  // will set the manifest_id using the start_url.
+  // start_url is empty or not valid, or if `SetManifestId()` has not been
+  // called yet.
   // TODO(): Remove this fallback as all web apps should be guaranteed to have
   // the manifest_id set.
   //
-  // Note: When serialized to disk, the code will CHECK-fail if the start_url is
-  // not prefixed by the scope.
-  void SetStartUrl(const GURL& start_url);
-
-  // The scope will have the query and fragment from the scope url, as per spec.
+  // The scope will have the query and fragment removed from the scope url,
+  // as per spec.
   // This call will CHECK-fail if the scope is empty or not valid.
   //
   // Note: When serialized to disk, the code will CHECK-fail if the start_url is
   // not prefixed by the scope.
-  void SetScope(const GURL& scope);
+  void SetStartUrlAndScope(const GURL& start_url, const GURL& scope);
 
   void SetLaunchQueryParams(std::optional<std::string> launch_query_params);
   void SetThemeColor(std::optional<SkColor> theme_color);
@@ -522,7 +523,7 @@ class WebApp {
   void SetLockScreenStartUrl(const GURL& lock_screen_start_url);
   void SetNoteTakingNewNoteUrl(const GURL& note_taking_new_note_url);
   void SetLastBadgingTime(const base::Time& time);
-  void SetLastLaunchTime(const base::Time& time);
+  void SetLastLaunchTime(const std::optional<base::Time>& last_launch_time);
   void SetFirstInstallTime(const base::Time& time);
   void SetManifestUpdateTime(const base::Time& time);
   void SetRunOnOsLoginMode(RunOnOsLoginMode mode);
@@ -693,7 +694,11 @@ class WebApp {
   GURL lock_screen_start_url_;
   GURL note_taking_new_note_url_;
   base::Time last_badging_time_;
-  base::Time last_launch_time_;
+  // Denotes the last time an app was launched. If a `base::Time` instance is
+  // populated, it has to be valid, and cannot satisfy `base::Time::is_null()`,
+  // otherwise this code will crash. Consider setting the last launch time to
+  // `std::nullopt` instead if that is the case.
+  std::optional<base::Time> last_launch_time_;
   base::Time first_install_time_;
   base::Time manifest_update_time_;
   RunOnOsLoginMode run_on_os_login_mode_ = RunOnOsLoginMode::kNotRun;
@@ -776,9 +781,7 @@ class WebApp {
   //  - CreateRandomWebApp()
   //  - web_app.proto
   // If parsed from manifest, also add to:
-  //  - GetManifestDataChanges() inside manifest_update_utils.h
-  //  - ManifestSilentUpdateCommand::CompareWebApps() inside
-  //    manifest_silent_update_command.cc.
+  //  - WebAppComparison::CompareWebApps() in web_app_comparison.h
   //  - SetWebAppManifestFields()
   // If the field relates to the app icons, add revert logic for it in:
   // - ManifestUpdateCheckCommand::RevertIdentityChangesIfNeeded()

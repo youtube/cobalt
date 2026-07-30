@@ -215,9 +215,10 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
     private static final int UNDEFINED_SELECTION_INDEX = -1;
 
     /**
-     * Start index of movement at granularity. It gets reset to UNDEFINED_SELECTION_INDEX on
-     * accessibility focus change and is initialized on the first movement at granularity action and
-     * on extended selection change.
+     * Start index of movement at granularity. When the accessibility focus is changed and there is
+     * an existing extended selection that ends at the accessibility focus node, this variable is
+     * initialized to the selection end offset, otherwise UNDEFINED_SELECTION_INDEX. The value is
+     * updated before and after movement at granularity actions.
      */
     private int mMovementAtGranularityIndex = UNDEFINED_SELECTION_INDEX;
 
@@ -683,6 +684,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         mHistogramRecorder.updateTimeOfFirstShown();
         var oldValue = mTracker;
         mTracker = tracker;
+        mTracker.setWebContentsAccessibilityImpl(this);
         ResettersForTesting.register(() -> mTracker = oldValue);
     }
 
@@ -1445,6 +1447,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         // approach. The benefits of using the Compat library makes up for the messier code.
         if (action == ACTION_ACCESSIBILITY_FOCUS.getId()) {
             if (!moveAccessibilityFocusToId(virtualViewId)) return true;
+            initializeMovementAtGranularityOnSetAccessibilityFocus();
             if (!mIsHovering) {
                 scrollToMakeNodeVisible(mAccessibilityFocusId);
             } else {
@@ -2049,6 +2052,32 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         return true;
     }
 
+    // If there is an existing extended selection ending at focus node, use its offset to
+    // initialize the start index for movement at granularity.
+    private void initializeMovementAtGranularityOnSetAccessibilityFocus() {
+        // This function is called only when accessibility focus is changed and
+        // `mMovementAtGranularityIndex has` been reset.
+        assert mMovementAtGranularityIndex == UNDEFINED_SELECTION_INDEX;
+        int[] selection =
+                WebContentsAccessibilityImplJni.get()
+                        .getExtendedSelection(mNativeObj, mCurrentRootId);
+        if (selection == null) {
+            return;
+        }
+
+        final int focusNodeId = selection[2];
+        final int focusOffset = selection[3];
+        // If the selection end is not text-selectable, `mMovementAtGranularityIndex` remains
+        // `UNDEFINED_SELECTION_INDEX`. This allows `initializeGranularityAndSelection` to set it
+        // to the beginning or end of the node based on movement direction.
+        // TODO(crbug.com/498376490): Use offset type when selection API supports it.
+        if (mAccessibilityFocusId == focusNodeId
+                && WebContentsAccessibilityImplJni.get()
+                        .isTextSelectable(mNativeObj, focusNodeId)) {
+            mMovementAtGranularityIndex = focusOffset;
+        }
+    }
+
     /** Gets the ID of the current accessibility focused node. */
     @CalledByNative
     private int getAccessibilityFocusId() {
@@ -2337,19 +2366,6 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
     }
 
     @CalledByNative
-    protected void handleExtendedSelectionChange(int id, int focusNodeId, int focusOffset) {
-        // If extended selection is changed, use the offset of selection focus as the beginning
-        // offset for the next movement at granularity. If selection is cleared (`focusNodeId` is
-        // NO_ID), `mMovementAtGranularityIndex` is kept unchanged for next movements.
-        if (focusNodeId != View.NO_ID) {
-            moveAccessibilityFocusToId(focusNodeId);
-            mMovementAtGranularityIndex = focusOffset;
-        }
-
-        sendAccessibilityEvent(id, AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED);
-    }
-
-    @CalledByNative
     // TODO(b:439878463): Remove @SuppressLint("NewApi") once the Android SDK
     // is finalized and rolled into //third_party/android_sdk.
     @SuppressLint("NewApi")
@@ -2486,7 +2502,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
                 // Android system to know about every single node that was affected. Therefore, we
                 // do not queue these events, but instead send them right away.
                 requestSendAccessibilityEvent(
-                        event, WindowContentChangedSubtype.LIVE_REGION_NODE_CHANGED);
+                        event, WindowContentChangedSubtype.LIVE_REGION_NODE_CHANGED, id);
             }
         }
     }
@@ -2540,14 +2556,19 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
                         mNativeObj, virtualViewId, positionInfoStartIndex, positionInfoLength);
     }
 
-    // Most calls to requestSendAccessibilityEvent() do not require a WindowContentChangedSubtype to
-    // be specified. This information is only used for testing.
+    // Most calls to requestSendAccessibilityEvent() do not require a WindowContentChangedSubtype or
+    // the virtualViewId to be specified. This information is only used for testing.
     protected void requestSendAccessibilityEvent(AccessibilityEvent event) {
         requestSendAccessibilityEvent(event, WindowContentChangedSubtype.NONE);
     }
 
     protected void requestSendAccessibilityEvent(
             AccessibilityEvent event, @WindowContentChangedSubtype int subtype) {
+        requestSendAccessibilityEvent(event, subtype, View.NO_ID);
+    }
+
+    protected void requestSendAccessibilityEvent(
+            AccessibilityEvent event, @WindowContentChangedSubtype int subtype, int virtualViewId) {
         // If there is no parent, then the event can be ignored. In general the parent is only
         // transiently null (such as during teardown, switching tabs...). Also ensure that
         // accessibility is still enabled, throttling may result in events sent late.
@@ -2556,7 +2577,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
             if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
                 mHistogramRecorder.recordTimeToFirstAccessibilityFocus();
             }
-            if (mTracker != null) mTracker.addEvent(event, subtype);
+            if (mTracker != null) mTracker.addEvent(event, subtype, virtualViewId);
             try {
                 mView.getParent().requestSendAccessibilityEvent(mView, event);
                 mDidSendAnyEvent = true;
@@ -2782,6 +2803,8 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         boolean isEditableText(long nativeWebContentsAccessibilityAndroid, int id);
 
         boolean isFocused(long nativeWebContentsAccessibilityAndroid, int id);
+
+        boolean isTextSelectable(long nativeWebContentsAccessibilityAndroid, int id);
 
         int getEditableTextSelectionStart(long nativeWebContentsAccessibilityAndroid, int id);
 

@@ -102,6 +102,8 @@ BASE_FEATURE(kContextualTasksHideMenuOnAiPage,
 BASE_FEATURE(kContextualTasksUpdateModelOnNavigation,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kContextualTasksVideoCitations, base::FEATURE_ENABLED_BY_DEFAULT);
+
 bool GetIsContextualTasksUpdateModeOnNavigationEnabled() {
   return base::FeatureList::IsEnabled(kContextualTasksUpdateModelOnNavigation);
 }
@@ -139,6 +141,9 @@ const base::FeatureParam<double> kContentVisibilityThreshold{
     &kContextualTasksContext,
     "ContextualTasksContextContentVisibilityThreshold", 0.7};
 
+const base::FeatureParam<std::string> kQueryEmbeddingTask{
+    &kContextualTasksContext, "ContextualTasksContextQueryEmbeddingTask", ""};
+
 const base::FeatureParam<bool> kContextualTasksContextSmartTabSharing(
     &kContextualTasksContext,
     "ContextualTasksContextSmartTabSharing",
@@ -148,6 +153,11 @@ const base::FeatureParam<base::TimeDelta> kSmartTabSharingTabSelectionTimeout(
     &kContextualTasksContext,
     "ContextualTasksContextSmartTabSharingTabSelectionTimeout",
     base::Milliseconds(300));
+
+const base::FeatureParam<double> kSmartTabSharingPromoScoreThreshold(
+    &kContextualTasksContext,
+    "ContextualTasksContextSmartTabSharingPromoScoreThreshold",
+    0.9);
 
 const base::FeatureParam<double> kContextualTasksContextLoggingSampleRate{
     &kContextualTasksContextLogging, "ContextualTasksContextLoggingSampleRate",
@@ -428,6 +438,14 @@ base::TimeDelta GetSmartTabSharingTabSelectionTimeout() {
     return kSmartTabSharingTabSelectionTimeout.Get();
   }
   return base::Milliseconds(300);
+}
+
+double GetSmartTabSharingPromoScoreThreshold() {
+  if (kSmartTabSharingPromoScoreThreshold.Get() > 0.0 &&
+      kSmartTabSharingPromoScoreThreshold.Get() <= 1.0) {
+    return kSmartTabSharingPromoScoreThreshold.Get();
+  }
+  return 0.9;
 }
 
 bool GetIsTabAutoSuggestionChipEnabled() {

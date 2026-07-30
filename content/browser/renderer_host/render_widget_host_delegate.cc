@@ -102,7 +102,7 @@ ui::mojom::WindowShowState RenderWidgetHostDelegate::GetWindowShowState() {
   return ui::mojom::WindowShowState::kDefault;
 }
 
-blink::mojom::DevicePostureProvider*
+DevicePostureProviderImpl*
 RenderWidgetHostDelegate::GetDevicePostureProvider() {
   return nullptr;
 }
@@ -129,6 +129,11 @@ RenderWidgetHostImpl* RenderWidgetHostDelegate::GetPointerLockWidget() {
 }
 
 bool RenderWidgetHostDelegate::IsWaitingForPointerLockPrompt(
+    RenderWidgetHostImpl* render_widget_host) {
+  return false;
+}
+
+bool RenderWidgetHostDelegate::IsPointerLockSandboxedForWidget(
     RenderWidgetHostImpl* render_widget_host) {
   return false;
 }

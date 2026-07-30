@@ -32,6 +32,7 @@ import org.chromium.components.browser_ui.widget.FadingShadowView;
 import org.chromium.components.embedder_support.delegate.WebContentsDelegateAndroid;
 import org.chromium.components.embedder_support.view.ContentView;
 import org.chromium.components.thinwebview.ThinWebView;
+import org.chromium.components.thinwebview.ThinWebViewAttachParams;
 import org.chromium.components.thinwebview.ThinWebViewConstraints;
 import org.chromium.components.thinwebview.ThinWebViewFactory;
 import org.chromium.components.url_formatter.SchemeDisplay;
@@ -118,7 +119,10 @@ public class CreatorTabSheetContent implements BottomSheetContent {
         if (mWebContentView.getParent() != null) {
             ((ViewGroup) mWebContentView.getParent()).removeView(mWebContentView);
         }
-        mThinWebView.attachWebContents(mWebContents, mWebContentView, delegate);
+        mThinWebView.attachWebContents(
+                mWebContents,
+                mWebContentView,
+                new ThinWebViewAttachParams.Builder().setWebContentsDelegate(delegate).build());
 
         // Initialize the supplier of {@link ShareDelegate} for the WindowAndroid used by
         // ThinWebView.  The {@link ShareDelegate} itself is not set by design in order to leave
@@ -135,7 +139,10 @@ public class CreatorTabSheetContent implements BottomSheetContent {
     private void createThinWebView(int maxSheetHeight, IntentRequestTracker intentRequestTracker) {
         mThinWebView =
                 ThinWebViewFactory.create(
-                        mContext, new ThinWebViewConstraints(), intentRequestTracker);
+                        mContext,
+                        new ThinWebViewConstraints(),
+                        intentRequestTracker,
+                        /* enablePermissionRequests= */ false);
 
         mSheetContentView = new FrameLayout(mContext);
         mThinWebView

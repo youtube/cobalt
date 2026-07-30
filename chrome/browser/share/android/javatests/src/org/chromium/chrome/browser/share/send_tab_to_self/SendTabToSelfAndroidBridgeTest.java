@@ -50,18 +50,22 @@ public class SendTabToSelfAndroidBridgeTest {
     @SmallTest
     public void testSendTabToDevice() {
         SendTabToSelfAndroidBridge.sendTabToDevice(
-                mWebContents, TARGET_DEVICE_SYNC_CACHE_GUID, URL, TITLE);
+                mWebContents, TARGET_DEVICE_SYNC_CACHE_GUID, URL, TITLE, null);
         verify(mNativeMock)
                 .sendTabToDevice(
-                        eq(mWebContents), eq(TARGET_DEVICE_SYNC_CACHE_GUID), eq(URL), eq(TITLE));
+                        eq(mWebContents),
+                        eq(TARGET_DEVICE_SYNC_CACHE_GUID),
+                        eq(URL),
+                        eq(TITLE),
+                        eq(null));
     }
 
     @Test
     @SmallTest
-    public void testDeleteEntry() {
+    public void testMarkEntryOpened() {
         String guid = "guid";
-        SendTabToSelfAndroidBridge.deleteEntry(mProfile, guid);
-        verify(mNativeMock).deleteEntry(eq(mProfile), eq(guid));
+        SendTabToSelfAndroidBridge.markEntryOpened(mProfile, guid);
+        verify(mNativeMock).markEntryOpened(eq(mProfile), eq(guid));
     }
 
     @Test

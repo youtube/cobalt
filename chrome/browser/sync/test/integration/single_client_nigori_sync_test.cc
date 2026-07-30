@@ -84,8 +84,8 @@
 #include "ash/constants/ash_switches.h"
 #include "chrome/browser/ash/sync/sync_error_notifier.h"
 #include "chrome/browser/ash/sync/sync_error_notifier_factory.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "components/trusted_vault/features.h"
 #include "ui/views/test/widget_test.h"
 #include "ui/views/widget/any_widget_observer.h"
@@ -1442,8 +1442,10 @@ class SingleClientNigoriWithWebApiAndDialogUIParamTest
   ~SingleClientNigoriWithWebApiAndDialogUIParamTest() override = default;
 
   bool WaitForTrustedVaultReauthCompletion() {
-    auto* browser = chrome::FindTabbedBrowser(GetProfile(0), false);
-    return TabClosedChecker(browser->tab_strip_model()->GetActiveWebContents())
+    BrowserWindowInterface* browser =
+        ProfileBrowserCollection::GetForProfile(GetProfile(0))
+            ->FindTabbedBrowser();
+    return TabClosedChecker(browser->GetTabStripModel()->GetActiveWebContents())
         .Wait();
   }
 };
@@ -1864,14 +1866,8 @@ IN_PROC_BROWSER_TEST_P(
 
   base::HistogramTester histogram_tester;
 
-  // The manual sequence below, instead of invoking SetupSync() manually,
-  // reproduces a more realistic case of the first-time turn-sync-on experience,
-  // with a temporary stage where the user is signed in without sync-the-feature
-  // being enabled. Except on Ash where the two steps happen at once.
 #if !BUILDFLAG(IS_CHROMEOS)
-  ASSERT_TRUE(SetupClients());
-  ASSERT_TRUE(GetClient(0)->SignInPrimaryAccount());
-  ASSERT_TRUE(GetClient(0)->AwaitSyncTransportActive());
+  ASSERT_TRUE(SignIn());
 #endif  // !BUILDFLAG(IS_CHROMEOS)
   // TODO(crbug.com/40914333): SetupSync(WAIT_FOR_COMMITS_TO_COMPLETE) (e.g.
   // with default argument) causes test flakiness here due to unrelated issue in

@@ -71,6 +71,7 @@ static_library("autofill") {
     "//chrome/browser/accessibility_annotator",
     "//chrome/browser/account_settings",
     "//chrome/browser/history",
+    "//chrome/browser/net",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/profiles",
     "//chrome/browser/signin",
@@ -88,6 +89,13 @@ static_library("autofill") {
     "//third_party/libphonenumber",
   ]
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+  if (is_win || is_mac || is_linux || is_chromeos) {
+    sources += [
+      "at_memory_promo_tracker_factory.cc",
+      "at_memory_promo_tracker_factory.h",
+    ]
+  }
 
   if (is_android) {
     sources += [

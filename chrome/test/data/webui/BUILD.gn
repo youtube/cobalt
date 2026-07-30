@@ -49,6 +49,7 @@ source_set("browser_tests") {
     sources += [
       "about_sys/about_sys_browsertest.cc",
       "access_code_cast/access_code_cast_browsertest.cc",
+      "accessibility_annotator_info/accessibility_annotator_info_browsertest.cc",
       "actor_overlay/actor_overlay_browsertest.cc",
       "bookmarks/bookmarks_browsertest.cc",
       "chrome_apis/chrome_histograms_browsertest.cc",
@@ -92,6 +93,7 @@ source_set("browser_tests") {
       "side_panel/history_clusters/history_clusters_browsertest.cc",
       "side_panel/read_anything/read_anything_browsertest.cc",
       "side_panel/reading_list/reading_list_browsertest.cc",
+      "subresource_filter/subresource_filter_internals_browsertest.cc",
       "tab_group_home/tab_group_home_browsertest.cc",
       "tab_search/tab_search_browsertest.cc",
       "webnn_internals/webnn_internals_browsertest.cc",
@@ -567,6 +569,7 @@ generate_grd("build_grd") {
     deps += [
       "about_sys:build_grdp",
       "access_code_cast:build_grdp",
+      "accessibility_annotator_info:build_grdp",
       "actor_overlay:build_grdp",
       "bookmarks:build_grdp",
       "chrome_apis:build_grdp",
@@ -613,6 +616,7 @@ generate_grd("build_grd") {
       "side_panel:build_grdp",
       "side_panel/customize_chrome:build_grdp",
       "side_panel/read_anything:build_grdp",
+      "subresource_filter:build_grdp",
       "support_tool:build_grdp",
       "tab_group_home:build_grdp",
       "tab_search:build_grdp",
@@ -624,6 +628,7 @@ generate_grd("build_grd") {
     grdp_files += [
       "$target_gen_dir/about_sys/resources.grdp",
       "$target_gen_dir/access_code_cast/resources.grdp",
+      "$target_gen_dir/accessibility_annotator_info/resources.grdp",
       "$target_gen_dir/actor_overlay/resources.grdp",
       "$target_gen_dir/chrome_apis/resources.grdp",
 
@@ -672,6 +677,7 @@ generate_grd("build_grd") {
       "$target_gen_dir/side_panel/customize_chrome/resources.grdp",
       "$target_gen_dir/side_panel/read_anything/resources.grdp",
       "$target_gen_dir/side_panel/resources.grdp",
+      "$target_gen_dir/subresource_filter/resources.grdp",
       "$target_gen_dir/support_tool/resources.grdp",
       "$target_gen_dir/tab_group_home/resources.grdp",
       "$target_gen_dir/tab_search/resources.grdp",

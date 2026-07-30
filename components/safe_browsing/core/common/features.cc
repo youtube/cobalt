@@ -118,6 +118,12 @@ const base::FeatureParam<bool> kCsdCreditCardFormEnableHeuristicFilter{
 const base::FeatureParam<bool> kCsdCreditCardFormEnableReferringAppFilter{
     &kClientSideDetectionCreditCardForm, "EnableReferringAppFilter",
     /*default_value=*/false};
+const base::FeatureParam<bool> kCsdCreditCardFormEnableInteractionTrigger{
+    &kClientSideDetectionCreditCardForm, "EnableInteractionTrigger",
+    /*default_value=*/false};
+const base::FeatureParam<bool> kCsdCreditCardFormEnableDetectionTrigger{
+    &kClientSideDetectionCreditCardForm, "EnableDetectionTrigger",
+    /*default_value=*/false};
 
 BASE_FEATURE(kClientSideDetectionDeprecateDOMModel,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -140,7 +146,7 @@ constexpr base::FeatureParam<double> kCsdClassificationDelay{
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kClientSideDetectionOnDeviceModelLazyDownloadAndroid,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 BASE_FEATURE(kClientSideDetectionOnlyESBClassification,
@@ -327,8 +333,6 @@ BASE_FEATURE(kMigrateEnhancedSbUserToEnhancedBundle,
 
 BASE_FEATURE(kMigrateToBlockV8OptimizerOnUnfamiliarSites,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kModifiedESBFetchErrorHandling, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kMovePasswordLeakDetectionToggleIos,
              base::FEATURE_ENABLED_BY_DEFAULT);

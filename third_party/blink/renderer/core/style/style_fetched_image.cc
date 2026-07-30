@@ -120,12 +120,12 @@ bool StyleFetchedImage::ErrorOccurred() const {
   return image_->ErrorOccurred();
 }
 
-bool StyleFetchedImage::IsAccessAllowed(String& failing_url) const {
+bool StyleFetchedImage::IsCorsSameOrigin(String& failing_url) const {
   if (!image_->IsLoaded() && image_->GetImage() &&
       image_->GetImage()->IsSVGImage()) {
     return false;
   }
-  if (image_->IsAccessAllowed()) {
+  if (image_->IsCorsSameOrigin()) {
     return true;
   }
   failing_url = image_->Url().ElidedString();
@@ -253,21 +253,6 @@ scoped_refptr<Image> StyleFetchedImage::GetImage(
 bool StyleFetchedImage::KnownToBeOpaque(const Document&,
                                         const ComputedStyle&) const {
   return image_->GetImage()->IsOpaque();
-}
-
-RespectImageOrientationEnum StyleFetchedImage::ForceOrientationIfNecessary(
-    RespectImageOrientationEnum default_orientation) const {
-  // SVG Images don't have orientation and assert on loading when
-  // IsAccessAllowed is called.
-  if (image_->GetImage()->IsSVGImage()) {
-    return default_orientation;
-  }
-  // Cross-origin images must always respect orientation to prevent
-  // potentially private data leakage.
-  if (!image_->IsAccessAllowed()) {
-    return kRespectImageOrientation;
-  }
-  return default_orientation;
 }
 
 bool StyleFetchedImage::GetImageAnimationPolicy(

@@ -4,6 +4,8 @@
 
 #include "chrome/browser/glic/glic_selection_observer.h"
 
+#include <set>
+
 #include "base/containers/span.h"
 #include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_functions.h"
@@ -13,6 +15,7 @@
 #include "chrome/browser/glic/browser_ui/glic_nudge_controller.h"
 #include "chrome/browser/glic/browser_ui/glic_selection_widget.h"
 #include "chrome/browser/glic/glic_zero_state_suggestions_manager.h"
+#include "chrome/browser/glic/host/context/glic_sharing_utils.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
@@ -27,6 +30,7 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/url_utils.h"
 #include "mojo/public/cpp/base/big_buffer.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "third_party/blink/public/common/input/web_mouse_event.h"
@@ -84,10 +88,14 @@ GlicSelectionObserver::~GlicSelectionObserver() {
     selection_widget_->CloseWithReason(views::Widget::ClosedReason::kLostFocus);
   }
 
+  std::set<content::RenderWidgetHost*> unique_rwhs;
   for (const auto& [frame_id, rwh] : rwh_by_frame_) {
     if (rwh) {
-      rwh->RemoveInputEventObserver(this);
+      unique_rwhs.insert(rwh);
     }
+  }
+  for (auto* rwh : unique_rwhs) {
+    rwh->RemoveInputEventObserver(this);
   }
   rwh_by_frame_.clear();
 }
@@ -98,8 +106,17 @@ void GlicSelectionObserver::RenderFrameCreated(
     return;
   }
   if (auto* rwh = render_frame_host->GetRenderWidgetHost()) {
+    bool already_observing = false;
+    for (const auto& pair : rwh_by_frame_) {
+      if (pair.second == rwh) {
+        already_observing = true;
+        break;
+      }
+    }
     if (rwh_by_frame_.insert({render_frame_host->GetGlobalId(), rwh}).second) {
-      rwh->AddInputEventObserver(this);
+      if (!already_observing) {
+        rwh->AddInputEventObserver(this);
+      }
     }
   }
 }
@@ -108,10 +125,19 @@ void GlicSelectionObserver::RenderFrameDeleted(
     content::RenderFrameHost* render_frame_host) {
   auto it = rwh_by_frame_.find(render_frame_host->GetGlobalId());
   if (it != rwh_by_frame_.end()) {
-    if (it->second) {
-      it->second->RemoveInputEventObserver(this);
-    }
+    content::RenderWidgetHost* rwh = it->second;
     rwh_by_frame_.erase(it);
+
+    bool still_observing = false;
+    for (const auto& pair : rwh_by_frame_) {
+      if (pair.second == rwh) {
+        still_observing = true;
+        break;
+      }
+    }
+    if (!still_observing && rwh) {
+      rwh->RemoveInputEventObserver(this);
+    }
   }
 }
 
@@ -145,23 +171,9 @@ void GlicSelectionObserver::OnInputEvent(
     return;
   }
 
-  auto dismiss_ui = [this]() {
-    if (selection_widget_) {
-      selection_widget_->CloseWithReason(
-          views::Widget::ClosedReason::kLostFocus);
-    }
-    if (auto* tab_interface =
-            tabs::TabInterface::MaybeGetFromContents(web_contents())) {
-      if (auto* bwi = tab_interface->GetBrowserWindowInterface()) {
-        if (auto* controller = bwi->GetFeatures().glic_nudge_controller()) {
-          controller->UpdateNudgeLabel(web_contents(), "", std::nullopt,
-                                       /*anchored_message_text=*/std::string(),
-                                       GlicNudgeActivity::kNudgeDismissed,
-                                       base::DoNothing());
-        }
-      }
-    }
-  };
+  if (!IsTabValidForSharing(web_contents())) {
+    return;
+  }
 
   switch (event.GetType()) {
     case blink::WebInputEvent::Type::kMouseDown:
@@ -180,7 +192,7 @@ void GlicSelectionObserver::OnInputEvent(
 
       is_key_selection_ = false;
       bounds_retry_count_ = 0;
-      dismiss_ui();
+      DismissUI(/*keep_nudge=*/false);
 
       // Workaround for a bug in Blink: when a user single-clicks directly on
       // top of an existing selection, Blink collapses the selection on MouseUp
@@ -218,12 +230,12 @@ void GlicSelectionObserver::OnInputEvent(
     case blink::WebInputEvent::Type::kRawKeyDown:
     case blink::WebInputEvent::Type::kKeyDown:
       is_key_selection_ = true;
-      dismiss_ui();
+      DismissUI(/*keep_nudge=*/false);
       break;
 
     case blink::WebInputEvent::Type::kGestureScrollBegin:
     case blink::WebInputEvent::Type::kMouseWheel:
-      dismiss_ui();
+      DismissUI(/*keep_nudge=*/true);
       break;
 
     default:
@@ -235,6 +247,10 @@ void GlicSelectionObserver::OnTextSelectionChanged(
     content::RenderFrameHost* render_frame_host,
     std::u16string_view selected_text) {
   if (!base::FeatureList::IsEnabled(features::kGlicSelectionPrompt)) {
+    return;
+  }
+
+  if (!IsTabValidForSharing(web_contents())) {
     return;
   }
 
@@ -265,6 +281,28 @@ void GlicSelectionObserver::OnTextSelectionChanged(
   selection_debounce_timer_.Start(
       FROM_HERE, kSelectionProcessingDelay, this,
       &GlicSelectionObserver::ProcessPendingSelection);
+}
+
+void GlicSelectionObserver::DismissUI(bool keep_nudge) {
+  if (selection_widget_) {
+    selection_widget_->CloseWithReason(views::Widget::ClosedReason::kLostFocus);
+  }
+  // Only dismiss the nudge if this is NOT a scroll event.
+  // The nudge lives in the toolbar and doesn't need to be hidden when
+  // scrolling.
+  if (!keep_nudge) {
+    if (auto* tab_interface =
+            tabs::TabInterface::MaybeGetFromContents(web_contents())) {
+      if (auto* bwi = tab_interface->GetBrowserWindowInterface()) {
+        if (auto* controller = bwi->GetFeatures().glic_nudge_controller()) {
+          controller->UpdateNudgeLabel(web_contents(), "", std::nullopt,
+                                       /*anchored_message_text=*/std::string(),
+                                       GlicNudgeActivity::kNudgeDismissed,
+                                       base::DoNothing());
+        }
+      }
+    }
+  }
 }
 
 void GlicSelectionObserver::ProcessPendingSelection() {
@@ -337,10 +375,11 @@ void GlicSelectionObserver::InvokeGlicFromSelectionAffordance(
 
           context->parts = std::move(parts);
 
-          GlicInvokeOptions options(mojom::InvocationSource::kNudge);
+          GlicInvokeOptions options(glic::Target(tab_interface),
+                                    mojom::InvocationSource::kNudge);
           options.additional_context = std::move(context);
 
-          glic_keyed_service->Invoke(tab_interface, std::move(options));
+          glic_keyed_service->Invoke(std::move(options));
         }
       }
     }
@@ -361,27 +400,36 @@ void GlicSelectionObserver::UpdateSelectionState(
       selection_widget_->CloseWithReason(
           views::Widget::ClosedReason::kLostFocus);
     }
-    if (auto* controller = bwi->GetFeatures().glic_nudge_controller()) {
-      controller->UpdateNudgeLabel(web_contents(), "", std::nullopt,
-                                   /*anchored_message_text=*/std::string(),
-                                   GlicNudgeActivity::kNudgeDismissed,
-                                   base::DoNothing());
+    if (bwi) {
+      if (auto* controller = bwi->GetFeatures().glic_nudge_controller()) {
+        controller->UpdateNudgeLabel(web_contents(), "", std::nullopt,
+                                     /*anchored_message_text=*/std::string(),
+                                     GlicNudgeActivity::kNudgeDismissed,
+                                     base::DoNothing());
+      }
     }
 
     if (has_sent_selection_context_ && glic_keyed_service_) {
-      auto context = mojom::AdditionalContext::New();
-      context->source = mojom::AdditionalContextSource::kTextSelection;
-      context->parts = std::vector<mojom::AdditionalContextPartPtr>();
-      glic_keyed_service_->SendAdditionalContext(tab_interface->GetHandle(),
-                                                 std::move(context));
+      if (glic_keyed_service_->GetInstanceForTab(tab_interface)) {
+        auto context = mojom::AdditionalContext::New();
+        context->source = mojom::AdditionalContextSource::kTextSelection;
+        context->parts = std::vector<mojom::AdditionalContextPartPtr>();
+        glic_keyed_service_->SendAdditionalContext(tab_interface->GetHandle(),
+                                                   std::move(context));
+      }
       has_sent_selection_context_ = false;
     }
 
     return;
   }
 
+  if (!bwi) {
+    return;
+  }
+
   bool panel_showing = false;
-  if (glic_keyed_service_) {
+  if (glic_keyed_service_ &&
+      glic_keyed_service_->GetInstanceForTab(tab_interface)) {
     panel_showing = glic_keyed_service_->IsPanelShowingForBrowser(*bwi);
   }
 

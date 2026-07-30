@@ -9,6 +9,7 @@ source_set("contextual_cueing") {
     "contextual_cueing_service_factory.h",
     "cue_target.h",
     "features.h",
+    "nudge_cap_tracker.h",
   ]
 
   public_deps = [
@@ -33,10 +34,12 @@ source_set("impl") {
     "contextual_cueing_service_factory.cc",
     "cue_target.cc",
     "features.cc",
+    "nudge_cap_tracker.cc",
   ]
 
   deps = [
     ":contextual_cueing",
+    "//chrome/browser:primitives",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/page_content_annotations",
     "//chrome/browser/tab_list",
@@ -45,6 +48,7 @@ source_set("impl") {
     "//components/keyed_service/core",
     "//components/optimization_guide/proto:optimization_guide_proto",
     "//content/public/browser",
+    "//ui/menus",
   ]
 
   if (!is_android) {
@@ -77,4 +81,15 @@ if (!is_android) {
       "//testing/gtest",
     ]
   }
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "nudge_cap_tracker_unittest.cc" ]
+  deps = [
+    ":contextual_cueing",
+    ":impl",
+    "//base/test:test_support",
+    "//testing/gtest",
+  ]
 }

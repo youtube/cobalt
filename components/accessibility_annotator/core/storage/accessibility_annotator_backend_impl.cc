@@ -4,6 +4,9 @@
 
 #include "components/accessibility_annotator/core/storage/accessibility_annotator_backend_impl.h"
 
+#include <algorithm>
+#include <vector>
+
 #include "base/containers/lru_cache.h"
 #include "base/containers/map_util.h"
 #include "base/files/file_path.h"
@@ -24,8 +27,18 @@
 #include "components/optimization_guide/proto/features/content_annotation.to_value.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/model/client_tag_based_data_type_processor.h"
+#include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 
 namespace accessibility_annotator {
+
+namespace {
+
+std::string GetEtldPlusOne(const GURL& url) {
+  return net::registry_controlled_domains::GetDomainAndRegistry(
+      url, net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES);
+}
+
+}  // namespace
 
 AccessibilityAnnotatorBackendImpl::AccessibilityAnnotatorBackendImpl(
     history::HistoryService* history_service,
@@ -116,8 +129,8 @@ void AccessibilityAnnotatorBackendImpl::OnHistoryServiceLoaded(
 
 base::optional_ref<const AccessibilityAnnotatorBackend::ContentAnnotationsData>
 AccessibilityAnnotatorBackendImpl::GetContentAnnotationsCacheData(
-    const GURL& url) const {
-  auto it = content_annotations_cache_.Peek(url);
+    history::VisitID visit_id) const {
+  auto it = content_annotations_cache_.Peek(visit_id);
   if (it != content_annotations_cache_.end()) {
     return it->second;
   }
@@ -125,52 +138,148 @@ AccessibilityAnnotatorBackendImpl::GetContentAnnotationsCacheData(
 }
 
 void AccessibilityAnnotatorBackendImpl::SetContentAnnotationsCacheData(
-    const GURL& url,
+    history::VisitID visit_id,
     ContentAnnotationsData data) {
-  base::LRUCache<GURL, ContentAnnotationsData>::iterator it =
-      content_annotations_cache_.Put(url, std::move(data));
+  bool is_confirmed = data.content_annotation.status() ==
+                   optimization_guide::proto::ContentAnnotation::CONFIRMED;
 
+  if (is_confirmed && data.tab_id) {
+    ProcessConfirmedStatusLookback(data);
+  }
+
+  // This automatically handles eviction of the oldest entries if full.
+  base::LRUCache<history::VisitID, ContentAnnotationsData>::iterator it =
+      content_annotations_cache_.Put(visit_id, std::move(data));
   observers_.Notify(
       &AccessibilityAnnotatorBackend::Observer::OnContentAnnotationsAdded,
-      it->second);
+      visit_id, it->second);
+}
+
+void AccessibilityAnnotatorBackendImpl::ProcessConfirmedStatusLookback(
+    const ContentAnnotationsData& data) {
+  if (data.navigation_timestamp.is_null()) {
+    return;
+  }
+
+  base::Time time_range_cutoff =
+      base::Time::Now() -
+      features::kContentAnnotatorConfirmedStatusLookbackWindow.Get();
+
+  std::vector<const ContentAnnotationsData*> multipage_entries;
+
+  // Iterate through `content_annotations_cache_` and determine other entries
+  // with the same `tab_id` and eTLD+1.
+  for (const auto& [cached_visit_id, cached_data] :
+       content_annotations_cache_) {
+    if (!cached_data.tab_id.has_value() ||
+        *cached_data.tab_id != *data.tab_id ||
+        GetEtldPlusOne(cached_data.url) != GetEtldPlusOne(data.url)) {
+      continue;
+    }
+
+    // Only consider entries that happened at or before the triggering entry,
+    // and within the lookback window.
+    if (!cached_data.navigation_timestamp.is_null() &&
+        cached_data.navigation_timestamp <= data.navigation_timestamp &&
+        cached_data.navigation_timestamp >= time_range_cutoff) {
+      multipage_entries.push_back(&cached_data);
+    }
+  }
+
+  // Sort the entries by timestamp in descending order (most recent first).
+  std::sort(
+      multipage_entries.begin(), multipage_entries.end(),
+      [](const ContentAnnotationsData* a, const ContentAnnotationsData* b) {
+        if (a->navigation_timestamp.is_null() ||
+            b->navigation_timestamp.is_null()) {
+          return false;
+        }
+        return a->navigation_timestamp > b->navigation_timestamp;
+      });
+
+  // Initialize with the triggering data (the most recent one).
+  optimization_guide::proto::ContentAnnotation merged_annotation =
+      std::move(data.content_annotation);
+
+  // Perform the lookback over multiple pages in descending chronological order
+  // (most recent first), merging annotations into `merged_annotation`.
+  // When we hit the next CONFIRMED entry, that is our cutoff since it
+  // represents a separate event that has been processed by
+  // `ProcessConfirmedStatusLookback()` already.
+  for (const ContentAnnotationsData* entry : multipage_entries) {
+    const optimization_guide::proto::ContentAnnotation& src =
+        std::move(entry->content_annotation);
+
+    if (src.status() ==
+        optimization_guide::proto::ContentAnnotation::CONFIRMED) {
+      break;
+    }
+
+    if (src.has_structured_data()) {
+      MergeContentAnnotationStructuredData(
+          merged_annotation.mutable_structured_data(), src.structured_data());
+    }
+  }
+
+  merged_multipage_annotations_.push_back(std::move(merged_annotation));
+  if (merged_multipage_annotations_.size() >
+      static_cast<size_t>(
+          features::kContentAnnotatorMaxCacheAnnotations.Get())) {
+    merged_multipage_annotations_.pop_front();
+  }
+}
+
+void AccessibilityAnnotatorBackendImpl::MergeContentAnnotationStructuredData(
+    optimization_guide::proto::StructuredData* target_structured_data,
+    const optimization_guide::proto::StructuredData& source_structured_data) {
+  // TODO(crbug.com/492303942): Implement logic to merge structured data.
 }
 
 void AccessibilityAnnotatorBackendImpl::RemoveContentAnnotationsCacheData(
-    base::span<const GURL> urls) {
-  for (const GURL& url : urls) {
-    auto it = content_annotations_cache_.Peek(url);
+    base::span<const history::VisitID> visit_ids) {
+  std::vector<history::VisitID> deleted_ids;
+  for (history::VisitID visit_id : visit_ids) {
+    auto it = content_annotations_cache_.Peek(visit_id);
     if (it != content_annotations_cache_.end()) {
       content_annotations_cache_.Erase(it);
+      deleted_ids.push_back(visit_id);
     }
+  }
+
+  if (!deleted_ids.empty()) {
+    observers_.Notify(
+        &AccessibilityAnnotatorBackend::Observer::OnContentAnnotationsDeleted,
+        deleted_ids);
   }
 }
 
 void AccessibilityAnnotatorBackendImpl::ClearContentAnnotationsCache() {
+  if (content_annotations_cache_.empty()) {
+    return;
+  }
   content_annotations_cache_.Clear();
+
+  observers_.Notify(
+      &AccessibilityAnnotatorBackend::Observer::OnContentAnnotationsCleared);
 }
 
 base::Value AccessibilityAnnotatorBackendImpl::GetDebugUICacheData() const {
   base::ListValue result;
-  for (const std::pair<GURL, ContentAnnotationsData>& item :
+  for (const std::pair<history::VisitID, ContentAnnotationsData>& item :
        content_annotations_cache_) {
     base::DictValue entry;
-    entry.Set("visit_id", base::NumberToString(item.second.visit_id));
+    entry.Set("visit_id", base::NumberToString(item.first));
     entry.Set("navigation_timestamp",
               base::UTF16ToUTF8(base::TimeFormatShortDateAndTime(
                   item.second.navigation_timestamp)));
-    entry.Set("url", item.first.spec());
+    entry.Set("url", item.second.url.spec());
     entry.Set("title", item.second.page_title);
     entry.Set("classifier_results", item.second.classifier_results.Clone());
     if (item.second.tab_id) {
       entry.Set("tab_id", *item.second.tab_id);
     }
-    if (item.second.annotations) {
-      entry.Set("annotations", item.second.annotations->Clone());
-    }
-    if (item.second.content_annotation) {
-      entry.Set("content_annotation", optimization_guide::proto::ToValue(
-                                          *item.second.content_annotation));
-    }
+    entry.Set("content_annotation", optimization_guide::proto::ToValue(
+                                        item.second.content_annotation));
     result.Append(std::move(entry));
   }
   return base::Value(std::move(result));

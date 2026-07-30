@@ -26,6 +26,7 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/autocomplete/autocomplete_classifier_factory.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browsing_data/chrome_browsing_data_remover_delegate.h"
@@ -74,6 +75,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/create_browser_window.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/dialogs/browser_dialogs.h"
 #include "chrome/browser/ui/dialogs/outdated_upgrade_bubble.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
@@ -144,6 +146,8 @@
 #include "components/lens/lens_overlay_invocation_source.h"
 #include "components/media_router/browser/media_router_dialog_controller.h"  // nogncheck
 #include "components/media_router/browser/media_router_metrics.h"
+#include "components/omnibox/browser/autocomplete_classifier.h"
+#include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/prefs/pref_service.h"
@@ -185,6 +189,7 @@
 #include "pdf/buildflags.h"
 #include "printing/buildflags/buildflags.h"
 #include "rlz/buildflags/buildflags.h"
+#include "ui/base/clipboard/clipboard.h"
 #include "ui/base/clipboard/clipboard_buffer.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/models/list_selection_model.h"
@@ -1176,6 +1181,39 @@ void NewTabToRight(BrowserWindowInterface* browser) {
       TabStripModel::CommandNewTabToRight);
 }
 
+void NewTabFromClipboardURL(BrowserWindowInterface* browser) {
+#if BUILDFLAG(IS_LINUX)
+  if (ui::Clipboard::IsSupportedClipboardBuffer(
+          ui::ClipboardBuffer::kSelection)) {
+    ui::Clipboard* clipboard = ui::Clipboard::GetForCurrentThread();
+    CHECK(clipboard)
+        << "Clipboard instance is not available, cannot proceed with "
+           "middle mouse button action.";
+    clipboard->ReadText(
+        ui::ClipboardBuffer::kSelection, /* data_dst = */ std::nullopt,
+        base::BindOnce(
+            [](base::WeakPtr<Browser> browser_weak, std::u16string text) {
+              if (!browser_weak || text.empty()) {
+                return;
+              }
+              base::RecordAction(
+                  base::UserMetricsAction("NewTabButton_PasteAndNavigate"));
+              AutocompleteMatch match;
+              AutocompleteClassifierFactory::GetForProfile(
+                  browser_weak->profile())
+                  ->Classify(text, false, false,
+                             metrics::OmniboxEventProto::BLANK, &match,
+                             nullptr);
+              if (match.destination_url.is_valid()) {
+                browser_weak->tab_strip_model()->delegate()->AddTabAt(
+                    match.destination_url, -1, true);
+              }
+            },
+            browser->GetBrowserForMigrationOnly()->AsWeakPtr()));
+  }
+#endif
+}
+
 void CloseTab(BrowserWindowInterface* browser) {
   base::RecordAction(UserMetricsAction("CloseTab_Accelerator"));
 
@@ -1489,6 +1527,11 @@ void NewSplitTab(BrowserWindowInterface* browser,
       tab_strip_model->IsTabPinned(active_index));
   tab_strip_model->AddToNewSplit({active_index},
                                  split_tabs::SplitTabVisualData(), source);
+
+  if (content::WebContents* active_contents =
+          tab_strip_model->GetActiveWebContents()) {
+    active_contents->Focus();
+  }
 }
 
 void AddNewTabToGroup(BrowserWindowInterface* browser) {
@@ -1791,8 +1834,6 @@ bool CanBookmarkCurrentTab(BrowserWindowInterface* browser) {
 
 void BookmarkAllTabs(BrowserWindowInterface* browser) {
   base::RecordAction(UserMetricsAction("BookmarkAllTabs"));
-  RecordBookmarkAllTabsWithTabsCount(browser->GetProfile(),
-                                     browser->GetTabStripModel()->count());
 
   bookmarks::ShowBookmarkAllTabsDialog(browser);
 }
@@ -1834,9 +1875,6 @@ void MoveTabsToReadLater(BrowserWindowInterface* browser,
                              /*creation_time=*/std::nullopt);
     BrowserUserEducationInterface::From(browser)->MaybeShowFeaturePromo(
         feature_engagement::kIPHReadingListDiscoveryFeature);
-    base::UmaHistogramEnumeration(
-        "ReadingList.BookmarkBarState.OnEveryAddToReadingList",
-        BookmarkBarController::From(browser)->bookmark_bar_state());
     added_to_read_later += 1;
   }
 
@@ -2208,6 +2246,15 @@ void CloseTabSearch(BrowserWindowInterface* browser) {
   browser->GetBrowserForMigrationOnly()->window()->CloseTabSearchBubble();
 }
 
+void ToggleTabSearchPin(BrowserWindowInterface* browser) {
+  PrefService* prefs = browser->GetProfile()->GetPrefs();
+  const bool is_pinned = prefs->GetBoolean(prefs::kTabSearchPinnedToTabstrip);
+  base::RecordAction(base::UserMetricsAction(
+      is_pinned ? "TabStripComboButton.TabSearch.Unpinned"
+                : "TabStripComboButton.TabSearch.Pinned"));
+  prefs->SetBoolean(prefs::kTabSearchPinnedToTabstrip, !is_pinned);
+}
+
 void ToggleContextualTasksSidePanel(BrowserWindowInterface* browser) {
   auto* controller =
       contextual_tasks::ContextualTasksPanelController::From(browser);
@@ -2281,7 +2328,7 @@ void FocusAppMenu(BrowserWindowInterface* browser) {
 
 void FocusBookmarksToolbar(BrowserWindowInterface* browser) {
   base::RecordAction(UserMetricsAction("FocusBookmarksToolbar"));
-  browser->GetBrowserForMigrationOnly()->window()->FocusBookmarksToolbar();
+  BookmarkBarController::From(browser)->FocusBookmarksToolbar();
 }
 
 void FocusInactivePopupForAccessibility(BrowserWindowInterface* browser) {
@@ -2527,7 +2574,8 @@ BrowserWindowInterface* OpenInChrome(
     BrowserWindowInterface* hosted_app_browser) {
   // Find a non-incognito browser.
   BrowserWindowInterface* target_browser =
-      chrome::FindTabbedBrowser(hosted_app_browser->GetProfile(), false);
+      ProfileBrowserCollection::GetForProfile(hosted_app_browser->GetProfile())
+          ->FindTabbedBrowser();
 
   if (!target_browser) {
     target_browser = Browser::Create(

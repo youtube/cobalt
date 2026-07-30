@@ -24,7 +24,7 @@
 #include "build/build_config.h"
 #include "components/tracing/common/tracing_switches.h"
 #include "services/tracing/public/cpp/perfetto/perfetto_config.h"
-#include "services/tracing/public/mojom/perfetto_service.mojom.h"
+#include "services/tracing/public/cpp/perfetto/perfetto_data_source_names.h"
 #include "third_party/perfetto/protos/perfetto/config/track_event/track_event_config.gen.h"
 #include "third_party/snappy/src/snappy.h"
 
@@ -71,6 +71,10 @@ constexpr std::string_view kDefaultStartupCategories[] = {
     "download_service",
     "disabled-by-default-histogram_samples",
     "disabled-by-default-user_action_samples",
+#elif BUILDFLAG(IS_IOS)
+    "startup",       "browser",    "toplevel",
+    "toplevel.flow", "navigation", "loading",
+    "gpu",           "ui",         "disabled-by-default-histogram_samples",
 #else
     "benchmark",     "toplevel",         "startup", "disabled-by-default-file",
     "toplevel.flow", "download_service",
@@ -112,13 +116,13 @@ perfetto::TraceConfig TraceStartupConfig::GetDefaultBackgroundStartupConfig() {
   track_event_data_source->set_name("track_event");
   {
     auto* source_config = config.add_data_sources()->mutable_config();
-    source_config->set_name(tracing::mojom::kMetaData2SourceName);
+    source_config->set_name(kMetaData2SourceName);
     source_config->set_target_buffer(1);
   }
 
 #if BUILDFLAG(IS_ANDROID)
   config.add_data_sources()->mutable_config()->set_name(
-      tracing::mojom::kSamplerProfilerSourceName);
+      kSamplerProfilerSourceName);
 #endif
   tracing::AdaptPerfettoConfigForChrome(&config, true, true);
   return config;

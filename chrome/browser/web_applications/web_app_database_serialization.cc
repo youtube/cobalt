@@ -408,7 +408,7 @@ std::unique_ptr<WebApp> ParseWebAppProto(
     return nullptr;
   }
 
-  const sync_pb::WebAppSpecifics& sync_data = proto.sync_data();
+  sync_pb::WebAppSpecifics sync_data(proto.sync_data());
 
   if (!sync_data.has_start_url()) {
     RecordProtoParseResult(ProtoParseResult::kNoStartUrlInSyncData);
@@ -499,13 +499,19 @@ std::unique_ptr<WebApp> ParseWebAppProto(
     return nullptr;
   }
 
+  if (start_url.spec() != sync_data.start_url()) {
+    sync_data.clear_start_url();
+    sync_data.set_start_url(start_url.spec());
+  }
+  if (scope.spec() != sync_data.scope()) {
+    sync_data.clear_scope();
+    sync_data.set_scope(scope.spec());
+  }
+
   std::unique_ptr<WebApp> web_app = std::make_unique<WebApp>(sync_data);
   if (proto.has_parent_app_id()) {
     web_app->SetParentAppId(proto.parent_app_id());
   }
-
-  web_app->SetStartUrl(start_url);
-  web_app->SetScope(scope);
 
   if (!sync_data.has_user_display_mode_cros() &&
       !sync_data.has_user_display_mode_default()) {
@@ -690,8 +696,11 @@ std::unique_ptr<WebApp> ParseWebAppProto(
         syncer::ProtoTimeToTime(proto.last_badging_time()));
   }
   if (proto.has_last_launch_time()) {
-    web_app->SetLastLaunchTime(
-        syncer::ProtoTimeToTime(proto.last_launch_time()));
+    base::Time last_launch_time =
+        syncer::ProtoTimeToTime(proto.last_launch_time());
+    if (!last_launch_time.is_null()) {
+      web_app->SetLastLaunchTime(std::move(last_launch_time));
+    }
   }
   if (proto.has_latest_install_source()) {
     int install_source = proto.latest_install_source();
@@ -1615,9 +1624,9 @@ std::unique_ptr<proto::WebApp> WebAppToProto(const WebApp& web_app) {
     local_data->set_last_badging_time(
         syncer::TimeToProtoTime(web_app.last_badging_time()));
   }
-  if (!web_app.last_launch_time().is_null()) {
+  if (web_app.last_launch_time().has_value()) {
     local_data->set_last_launch_time(
-        syncer::TimeToProtoTime(web_app.last_launch_time()));
+        syncer::TimeToProtoTime(*web_app.last_launch_time()));
   }
   if (!web_app.first_install_time().is_null()) {
     local_data->set_first_install_time(

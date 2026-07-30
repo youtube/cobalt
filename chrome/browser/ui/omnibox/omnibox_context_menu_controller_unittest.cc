@@ -7,20 +7,26 @@
 #include <memory>
 #include <utility>
 
+#include "build/branding_buildflags.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/omnibox/omnibox_popup_state_manager.h"
 #include "chrome/browser/ui/omnibox/test_omnibox_popup_file_selector.h"
 #include "chrome/browser/ui/views/location_bar/omnibox_popup_file_selector.h"
+#include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_web_contents_helper.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/contextual_search/contextual_search_types.h"
 #include "components/lens/lens_overlay_mime_type.h"
+#include "components/vector_icons/vector_icons.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_renderer_host.h"
 #include "content/public/test/web_contents_tester.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/omnibox_proto/input_type.pb.h"
 #include "third_party/omnibox_proto/tool_mode.pb.h"
+#include "ui/base/models/image_model.h"
 
 class OmniboxContextMenuControllerTest : public testing::Test {
  public:
@@ -168,4 +174,48 @@ TEST_F(OmniboxContextMenuControllerTest, GetMaxTabSuggestions_UsesServerLimit) {
   controller()->OnGetInputState(state);
 
   EXPECT_EQ(controller()->GetMaxTabSuggestions(), 2);
+}
+
+TEST_F(OmniboxContextMenuControllerTest, GetIconForInputType_Drive) {
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  ui::ImageModel expected_icon = ui::ImageModel::FromVectorIcon(
+      vector_icons::kGoogleDriveMonochromeIcon, ui::kColorMenuIcon,
+      ui::SimpleMenuModel::kDefaultIconSize);
+#else
+  ui::ImageModel expected_icon = ui::ImageModel();
+#endif
+  EXPECT_EQ(
+      controller()->GetIconForInputType(omnibox::InputType::INPUT_TYPE_DRIVE),
+      expected_icon);
+}
+
+TEST_F(OmniboxContextMenuControllerTest, ExecuteCommand_DriveInputType) {
+  OmniboxPopupWebContentsHelper::CreateForWebContents(web_contents_.get());
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(omnibox::kAimUsePecApi);
+
+  omnibox::InputState state;
+  state.allowed_input_types.push_back(omnibox::InputType::INPUT_TYPE_DRIVE);
+  controller()->OnGetInputState(state);
+  controller()->AddContextualInputItems();
+
+  // Find the command ID for DRIVE.
+  int drive_command_id = -1;
+  for (const auto& pair : controller()->input_type_for_command_id_) {
+    if (pair.second == omnibox::InputType::INPUT_TYPE_DRIVE) {
+      drive_command_id = pair.first;
+      break;
+    }
+  }
+  ASSERT_NE(drive_command_id, -1);
+
+  TestOmniboxPopupFileSelector* test_selector =
+      static_cast<TestOmniboxPopupFileSelector*>(file_selector_.get());
+  int initial_calls = test_selector->open_file_upload_dialog_calls();
+
+  // Execute command.
+  controller()->ExecuteCommand(drive_command_id, 0);
+
+  // Verify that OpenFileUploadDialog was NOT called.
+  EXPECT_EQ(test_selector->open_file_upload_dialog_calls(), initial_calls);
 }

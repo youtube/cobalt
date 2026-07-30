@@ -551,15 +551,6 @@ void LayoutBox::WillBeDestroyed() {
 
   DisassociatePhysicalFragments();
 
-  if (!RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled()) {
-    if (Style() && StyleRef().HasOutOfFlowPosition()) {
-      if (auto* display_locks = DisplayLocksAffectedByAnchors()) {
-        NotifyContainingDisplayLocksForAnchorPositioning(display_locks,
-                                                         nullptr);
-      }
-    }
-  }
-
   LayoutBoxModelObject::WillBeDestroyed();
 }
 
@@ -587,12 +578,10 @@ void LayoutBox::WillBeRemovedFromTree() {
   NOT_DESTROYED();
   ClearCustomLayoutChild();
 
-  if (RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled()) {
-    // Notify the display-locks that anchors within a sub-tree may disappear.
-    if (Style() && StyleRef().HasOutOfFlowPosition()) {
-      NotifyContainingDisplayLocksForAnchorPositioning(
-          DisplayLocksAffectedByAnchors(), nullptr);
-    }
+  // Notify the display-locks that anchors within a sub-tree may disappear.
+  if (Style() && StyleRef().HasOutOfFlowPosition()) {
+    NotifyContainingDisplayLocksForAnchorPositioning(
+        DisplayLocksAffectedByAnchors(), nullptr);
   }
 
   LayoutBoxModelObject::WillBeRemovedFromTree();
@@ -608,59 +597,9 @@ void LayoutBox::StyleWillChange(StyleDifference diff,
     // have to do a layout to dirty the layout tree using the old position
     // value now.
     if (diff.NeedsFullLayout() && Parent()) {
-      bool will_move_out_of_ifc = false;
       if (old_style->GetPosition() != new_style.GetPosition()) {
-        if (!RuntimeEnabledFeatures::
-                LayoutReinsertOnInFlowStateChangeEnabled() &&
-            !old_style->HasOutOfFlowPosition() &&
-            new_style.HasOutOfFlowPosition()) {
-          // We're about to go out of flow. Before that takes place, we need to
-          // mark the current containing block chain for preferred widths
-          // recalculation.
-          SetNeedsLayoutAndIntrinsicWidthsRecalc(
-              layout_invalidation_reason::kStyleChange);
-
-          // Grid/Grid-Lanes placement is different for out-of-flow elements, so
-          // if the containing block is a grid or grid-lanes, dirty the
-          // container's placement. The converse (going from out of flow to in
-          // flow) is handled in LayoutBox::UpdateGridPositionAfterStyleChange.
-          LayoutBlock* containing_block = ContainingBlock();
-          if (containing_block && containing_block->IsLayoutGridOrGridLanes()) {
-            containing_block->SetGridPlacementDirty(true);
-          }
-
-          // Out of flow are not part of |FragmentItems|, and that further
-          // changes including destruction cannot be tracked. We need to mark it
-          // is moved out from this IFC.
-          will_move_out_of_ifc = true;
-        } else {
-          MarkContainerChainForLayout();
-        }
-
-        if (old_style->GetPosition() == EPosition::kStatic) {
-          SetShouldDoFullPaintInvalidation();
-        } else if (new_style.HasOutOfFlowPosition()) {
-          Parent()->SetChildNeedsLayout();
-        }
+        MarkContainerChainForLayout();
       }
-
-      bool will_become_inflow = false;
-      if (!RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled()) {
-        if ((old_style->IsFloating() || old_style->HasOutOfFlowPosition()) &&
-            !new_style.IsFloating() && !new_style.HasOutOfFlowPosition()) {
-          // As a float or OOF, this object may have been part of an inline
-          // formatting context, but that's definitely no longer the case.
-          will_become_inflow = true;
-          will_move_out_of_ifc = true;
-        }
-      }
-
-      if (will_move_out_of_ifc && FirstInlineFragmentItemIndex()) {
-        FragmentItems::LayoutObjectWillBeMoved(*this);
-        ClearFirstInlineFragmentItemIndex();
-      }
-      if (will_become_inflow)
-        SetIsInLayoutNGInlineFormattingContext(false);
     }
     style_change_context.did_prevent_spanner_descendants =
         IsInsideMulticol() && ShouldPreventColumnSpannerDescendants();
@@ -679,17 +618,6 @@ void LayoutBox::StyleDidChange(StyleDifference diff,
   // don't create layers and ignore reflections.
   if (HasReflection() && !HasLayer())
     SetHasReflection(false);
-
-  if (!RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled()) {
-    if (auto* parent_flow_block = DynamicTo<LayoutBlockFlow>(Parent())) {
-      if (IsFloatingOrOutOfFlowPositioned() && old_style &&
-          !old_style->IsFloating() && !old_style->HasOutOfFlowPosition()) {
-        // Note that |parent_flow_block| may have been destroyed after this
-        // call.
-        parent_flow_block->ChildBecameFloatingOrOutOfFlow(this);
-      }
-    }
-  }
 
   SetOverflowClipAxes(ComputeOverflowClipAxes());
 
@@ -787,6 +715,13 @@ void LayoutBox::StyleDidChange(StyleDifference diff,
   if (diff.NeedsNormalPaintInvalidation()) {
     if (IsDocumentElement() || IsBody()) {
       View()->SetShouldDoFullPaintInvalidation();
+    }
+  }
+
+  if (diff.NeedsFullLayout()) {
+    if (IsValidColumnSpannerInTree(*old_style) !=
+        IsValidColumnSpannerInTree(StyleRef())) {
+      MarkParentForSpannerOrOutOfFlowPositionedChange();
     }
   }
 
@@ -1045,28 +980,6 @@ LayoutUnit LayoutBox::ClientHeight() const {
   // raised again in the future, we'd have ill effects of saturated arithmetic
   // otherwise.
   LayoutUnit height = StitchedSize().height;
-  if (CanSkipComputeScrollbars()) {
-    return (height - BorderTop() - BorderBottom()).ClampNegativeToZero();
-  } else {
-    return (height - BorderTop() - BorderBottom() -
-            ComputeScrollbarsInternal(kClampToContentBox).VerticalSum())
-        .ClampNegativeToZero();
-  }
-}
-
-LayoutUnit LayoutBox::ClientWidthFrom(LayoutUnit width) const {
-  NOT_DESTROYED();
-  if (CanSkipComputeScrollbars()) {
-    return (width - BorderLeft() - BorderRight()).ClampNegativeToZero();
-  } else {
-    return (width - BorderLeft() - BorderRight() -
-            ComputeScrollbarsInternal(kClampToContentBox).HorizontalSum())
-        .ClampNegativeToZero();
-  }
-}
-
-LayoutUnit LayoutBox::ClientHeightFrom(LayoutUnit height) const {
-  NOT_DESTROYED();
   if (CanSkipComputeScrollbars()) {
     return (height - BorderTop() - BorderBottom()).ClampNegativeToZero();
   } else {
@@ -2152,6 +2065,14 @@ bool LayoutBox::ComputeBackgroundIsKnownToBeObscured() const {
   NOT_DESTROYED();
   if (ScrollsOverflow())
     return false;
+  // If the element has overflow clipping, children are clipped to the padding
+  // box. If the background extends beyond the padding box (e.g., visible
+  // through transparent or non-solid borders), children cannot fully obscure
+  // the background in the border area.
+  if (HasNonVisibleOverflow() &&
+      !BackgroundClipBorderBoxIsEquivalentToPaddingBox()) {
+    return false;
+  }
   // Test to see if the children trivially obscure the background.
   if (!StyleRef().HasBackground())
     return false;
@@ -4351,7 +4272,7 @@ const LayoutObject* LayoutBox::AcceptableImplicitAnchor() const {
   return is_acceptable_anchor ? anchor_layout_object : nullptr;
 }
 
-const HeapVector<NonOverflowingScrollRange>*
+const GCedHeapVector<NonOverflowingScrollRange>*
 LayoutBox::NonOverflowingScrollRanges() const {
   NOT_DESTROYED();
   const auto& layout_results = GetLayoutResults();

@@ -144,7 +144,7 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
                         Snackbar.TYPE_NOTIFICATION,
                         Snackbar.UMA_FUSEBOX_UPLOAD_FAILED);
 
-        mModel.set(FuseboxProperties.BUTTON_ADD_CLICKED, this::onToggleAttachmentsPopup);
+        mModel.set(FuseboxProperties.BUTTON_ADD_CLICKED, this::onPlusButtonClicked);
         mModel.set(
                 FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE_CLICKED,
                 this::onRequestTypeButtonClicked);
@@ -411,12 +411,12 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
         }
         mFuseboxStateSupplier.set(targetState);
         mModel.set(FuseboxProperties.FUSEBOX_STATE, targetState);
-        mModel.set(FuseboxProperties.ADD_BUTTON_VISIBLE, targetState != FuseboxState.DISABLED);
+        mModel.set(FuseboxProperties.ADD_BUTTON_VISIBLE, targetState == FuseboxState.EXPANDED);
     }
 
     /** Toggles the visibility of the attachments popup. */
     @VisibleForTesting
-    void onToggleAttachmentsPopup() {
+    void onPlusButtonClicked() {
         if (!isInInputSession()) return;
 
         if (mModel.get(FuseboxProperties.POPUP_STATE) != PopupState.HIDDEN) {
@@ -442,7 +442,7 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
                         : PopupState.FLOATING);
     }
 
-    private void hidePopup() {
+    void hidePopup() {
         mModel.set(FuseboxProperties.POPUP_STATE, PopupState.HIDDEN);
     }
 
@@ -794,10 +794,14 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
         mMetrics.notifyAttachmentButtonUsed(FuseboxAttachmentButtonType.FILES);
         if (isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_FILE)) return;
 
+        String mimeType =
+                OmniboxFeatures.sEnableAllFileTypes.getValue()
+                        ? MimeTypeUtils.ALL_FILE_TYPES_MIME_TYPE
+                        : MimeTypeUtils.PDF_MIME_TYPE;
         var i =
                 new Intent(Intent.ACTION_OPEN_DOCUMENT)
                         .addCategory(Intent.CATEGORY_OPENABLE)
-                        .setType(MimeTypeUtils.PDF_MIME_TYPE)
+                        .setType(mimeType)
                         .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
                         .addFlags(
                                 Intent.FLAG_GRANT_READ_URI_PERMISSION

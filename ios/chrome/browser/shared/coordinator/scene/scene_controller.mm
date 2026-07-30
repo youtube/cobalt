@@ -158,6 +158,8 @@
 #import "ios/chrome/common/app_group/app_group_constants.h"
 #import "ios/chrome/common/ui/reauthentication/reauthentication_module.h"
 #import "ios/chrome/grit/ios_strings.h"
+#import "ios/public/provider/chrome/browser/cobalt/cobalt_api.h"
+#import "ios/web/common/features.h"
 #import "ios/web/public/js_image_transcoder/java_script_image_transcoder.h"
 #import "ios/web/public/navigation/navigation_manager.h"
 #import "ios/web/public/web_state.h"
@@ -1263,6 +1265,11 @@ void InjectNTP(Browser* browser) {
     return NO;
   }
 
+  if ([SigninAccountCapabilitiesSceneAgent agentFromScene:self.sceneState]
+          .isSignoutInProgress) {
+    return NO;
+  }
+
   if (IsSigninForcedByPolicy()) {
     if (self.mainCoordinator.isSigninInProgress) {
       // Return NO because intents cannot be handled when a sign-in is in
@@ -1444,6 +1451,13 @@ void InjectNTP(Browser* browser) {
                           prefService:prefService]];
   }
 
+  if (web::features::IsCobaltEnabled()) {
+    ObservingSceneAgent* cobaltSceneAgent =
+        ios::provider::CreateCobaltSceneAgent();
+    if (cobaltSceneAgent) {
+      [sceneState addAgent:cobaltSceneAgent];
+    }
+  }
 }
 
 // Adds agents that may depend on profileState. Called after a profileState has

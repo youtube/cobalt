@@ -39,30 +39,19 @@ namespace {
 // shared location.
 constexpr auto kConfirmationDisplayDuration = base::Seconds(4);
 
-std::vector<const extensions::Extension*> GetExtensions(
-    Profile* profile,
-    std::vector<extensions::ExtensionId>& extension_ids) {
-  const extensions::ExtensionSet& enabled_extensions =
-      extensions::ExtensionRegistry::Get(profile)->enabled_extensions();
-  std::vector<const extensions::Extension*> extensions;
-  for (const auto& extension_id : extension_ids) {
-    extensions.push_back(enabled_extensions.GetByID(extension_id));
-  }
-  return extensions;
-}
 
 }  // namespace
 
 ExtensionsRequestAccessButton::ExtensionsRequestAccessButton(
     BrowserWindowInterface* browser,
-    ExtensionsContainer* extensions_container,
+    ExtensionsToolbarViewModel* extensions_toolbar_view_model,
     ExtensionsContainerViews* extensions_container_views)
     : ToolbarChipButton(
           base::BindRepeating(&ExtensionsRequestAccessButton::OnButtonPressed,
                               base::Unretained(this)),
           ToolbarChipButton::Edge::kRight),
       browser_(browser),
-      extensions_container_(extensions_container),
+      extensions_toolbar_view_model_(extensions_toolbar_view_model),
       extensions_container_views_(extensions_container_views),
       hover_card_coordinator_(
           std::make_unique<ExtensionsRequestAccessHoverCardCoordinator>()) {
@@ -79,7 +68,11 @@ void ExtensionsRequestAccessButton::Update(
   CHECK(!IsShowingConfirmation());
   extension_ids_ = request_access_button_params.extension_ids;
 
-  SetVisible(!request_access_button_params.extension_ids.empty());
+  bool will_be_visible = !request_access_button_params.extension_ids.empty();
+  if (!GetVisible() && will_be_visible) {
+    input_event_activation_protector_.VisibilityChanged(true);
+  }
+  SetVisible(will_be_visible);
   SetTooltipText(request_access_button_params.tooltip_text);
 
   // TODO(crbug.com/40784980): Set the label and background color without
@@ -104,7 +97,8 @@ void ExtensionsRequestAccessButton::MaybeShowHoverCard() {
   }
 
   hover_card_coordinator_->ShowBubble(GetActiveWebContents(), this,
-                                      extensions_container_, extension_ids_);
+                                      extensions_toolbar_view_model_,
+                                      extension_ids_);
 }
 
 void ExtensionsRequestAccessButton::ResetConfirmation() {
@@ -140,7 +134,19 @@ bool ExtensionsRequestAccessButton::ShouldShowInkdropAfterIphInteraction() {
   return false;
 }
 
-void ExtensionsRequestAccessButton::OnButtonPressed() {
+void ExtensionsRequestAccessButton::NotifyClick(const ui::Event& event) {
+  if (!GetVisible()) {
+    return;
+  }
+  ToolbarChipButton::NotifyClick(event);
+}
+
+void ExtensionsRequestAccessButton::OnButtonPressed(const ui::Event& event) {
+  if (!disable_input_protection_for_testing_ &&
+      input_event_activation_protector_.IsPossiblyUnintendedInteraction(
+          event, /*allow_key_events=*/false)) {
+    return;
+  }
   // Record IPH usage.
   BrowserUserEducationInterface::From(browser_)->NotifyFeaturePromoFeatureUsed(
       feature_engagement::kIPHExtensionsRequestAccessButtonFeature,
@@ -160,12 +166,7 @@ void ExtensionsRequestAccessButton::OnButtonPressed() {
 
   // Always grant access to this site to all extensions.
   DCHECK_GT(extension_ids_.size(), 0u);
-  Profile* profile = browser_->GetProfile();
-  std::vector<const extensions::Extension*> extensions_to_run =
-      GetExtensions(profile, extension_ids_);
-  extensions::SitePermissionsHelper(profile).UpdateSiteAccess(
-      extensions_to_run, web_contents,
-      extensions::PermissionsManager::UserSiteAccess::kOnSite);
+  extensions_toolbar_view_model_->GrantSiteAccess(web_contents, extension_ids_);
 
   // Show confirmation message, and disable the button, for a specific duration.
   std::optional<SkColor> color;
@@ -178,7 +179,7 @@ void ExtensionsRequestAccessButton::OnButtonPressed() {
                                           ? base::Seconds(0)
                                           : kConfirmationDisplayDuration;
   // base::Unretained() below is safe because this view is tied to the
-  // lifetime of `extensions_container_`.
+  // lifetime of `extensions_toolbar_view_model_`.
   collapse_timer_.Start(
       FROM_HERE, collapse_duration,
       base::BindOnce(&ExtensionsContainerViews::CollapseConfirmation,

@@ -783,6 +783,7 @@ TEST_F(ActorLoginDelegateImplTest,
   actor::ActorTask* task = actor_service->GetTask(task_id);
   base::RunLoop loop;
   task->AddTab(tabs::TabInterface::GetFromContents(test_contents)->GetHandle(),
+               /*stop_task_on_detach=*/true,
                base::BindLambdaForTesting(
                    [&](actor::mojom::ActionResultPtr result) { loop.Quit(); }));
   loop.Run();
@@ -1361,6 +1362,7 @@ TEST_F(ActorLoginDelegateImplTest, RemovedOnUserTakeover) {
   content::WebContents* test_contents = tab_strip_model_->GetWebContentsAt(0);
   base::RunLoop loop;
   task->AddTab(tabs::TabInterface::GetFromContents(test_contents)->GetHandle(),
+               /*stop_task_on_detach=*/true,
                base::BindLambdaForTesting(
                    [&](actor::mojom::ActionResultPtr result) { loop.Quit(); }));
   loop.Run();
@@ -1401,8 +1403,7 @@ TEST_F(ActorLoginDelegateImplTest,
   scoped_feature_list.InitWithFeatures(
       /*enabled_features=*/
       {password_manager::features::kActorLogin,
-       password_manager::features::kActorLoginConflictingPermissionCleanup,
-       password_manager::features::kActorLoginFederatedClickFromActor},
+       password_manager::features::kActorLoginConflictingPermissionCleanup},
       /*disabled_features=*/{});
 
   // Setup mock cleaning service
@@ -1467,6 +1468,7 @@ TEST_F(ActorLoginDelegateImplTest,
   content::WebContents* test_contents = tab_strip_model_->GetWebContentsAt(0);
   base::RunLoop loop;
   task->AddTab(tabs::TabInterface::GetFromContents(test_contents)->GetHandle(),
+               /*stop_task_on_detach=*/true,
                base::BindLambdaForTesting(
                    [&](actor::mojom::ActionResultPtr result) { loop.Quit(); }));
   loop.Run();
@@ -1512,8 +1514,7 @@ TEST_F(ActorLoginDelegateImplTest, FailedFederatedLoginDoesntClearPermissions) {
   scoped_feature_list.InitWithFeatures(
       /*enabled_features=*/
       {password_manager::features::kActorLogin,
-       password_manager::features::kActorLoginConflictingPermissionCleanup,
-       password_manager::features::kActorLoginFederatedClickFromActor},
+       password_manager::features::kActorLoginConflictingPermissionCleanup},
       /*disabled_features=*/{});
 
   // Setup mock cleaning service
@@ -1578,6 +1579,7 @@ TEST_F(ActorLoginDelegateImplTest, FailedFederatedLoginDoesntClearPermissions) {
   content::WebContents* test_contents = tab_strip_model_->GetWebContentsAt(0);
   base::RunLoop loop;
   task->AddTab(tabs::TabInterface::GetFromContents(test_contents)->GetHandle(),
+               /*stop_task_on_detach=*/true,
                base::BindLambdaForTesting(
                    [&](actor::mojom::ActionResultPtr result) { loop.Quit(); }));
   loop.Run();
@@ -1616,112 +1618,6 @@ TEST_F(ActorLoginDelegateImplTest, FailedFederatedLoginDoesntClearPermissions) {
   EXPECT_CALL(*mock_cleaning_service, ClearConflictingPermissions).Times(0);
 
   std::move(captured_callback).Run(/*success=*/false);
-}
-
-TEST_F(ActorLoginDelegateImplTest,
-       NoButtonClickSuccessfulFederatedLoginClearsConflictingPermissions) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeatures(
-      /*enabled_features=*/
-      {password_manager::features::kActorLogin,
-       password_manager::features::kActorLoginConflictingPermissionCleanup},
-      /*disabled_features=*/{});
-
-  // Setup mock cleaning service
-  auto* mock_cleaning_service =
-      static_cast<MockActorLoginPermissionCleaningService*>(
-          ActorLoginPermissionCleaningServiceFactory::GetInstance()
-              ->SetTestingFactoryAndUse(
-                  profile(),
-                  base::BindRepeating([](content::BrowserContext* context)
-                                          -> std::unique_ptr<KeyedService> {
-                    return std::make_unique<
-                        NiceMock<MockActorLoginPermissionCleaningService>>();
-                  })));
-  GURL url = GURL(kTestUrl);
-  url::Origin origin = url::Origin::Create(url);
-  SetUpConflictingPermissions(url, kTestUsername);
-
-  // Set up a signin form on the page to force the getter into calling
-  // the hooked fake fetcher.
-  const autofill::FormData form_data = CreateSigninFormData(url);
-  form_managers_.push_back(
-      CreateFormManagerWithParsedForm(origin, form_data, mock_driver_));
-
-  // Mock driver methods that are called by `GetCredentials` to check
-  // whether there is a signin form on the page.
-  ON_CALL(mock_driver_, GetLastCommittedOrigin())
-      .WillByDefault(ReturnRef(origin));
-  ON_CALL(mock_driver_, IsInPrimaryMainFrame).WillByDefault(Return(true));
-  ON_CALL(mock_driver_, IsNestedWithinFencedFrame).WillByDefault(Return(false));
-  ON_CALL(mock_driver_, CheckViewAreaVisible)
-      .WillByDefault(WithArg<1>(&PostResponse<true>));
-  SetUpActorCredentialFillerDeps();
-
-  EXPECT_CALL(mock_form_cache_, GetFormManagers())
-      .WillRepeatedly(Return(base::span(form_managers_)));
-
-  // Call `GetCredentials` first to find conflicting permissions.
-  base::test::TestFuture<CredentialsOrError> get_creds_future;
-  delegate_->GetCredentials(/*has_sign_in_with_google_button=*/false,
-                            mqls_logger(), get_creds_future.GetCallback());
-
-  // Wait until the async visibility checks complete and the fetcher registers
-  // as a consumer.
-  ASSERT_TRUE(
-      base::test::RunUntil([this]() { return form_fetcher_.HasConsumers(); }));
-
-  form_fetcher_.NotifyFetchCompleted();
-  ASSERT_TRUE(get_creds_future.Get().has_value());
-
-  // Setup ActorKeyedServiceFake
-  auto* actor_service = static_cast<actor::ActorKeyedServiceFake*>(
-      actor::ActorKeyedServiceFactory::GetInstance()->SetTestingFactoryAndUse(
-          profile(), base::BindRepeating([](content::BrowserContext* context)
-                                             -> std::unique_ptr<KeyedService> {
-            return std::make_unique<actor::ActorKeyedServiceFake>(
-                Profile::FromBrowserContext(context));
-          })));
-
-  actor::TaskId task_id = actor_service->CreateTaskForTesting();
-  actor::ActorTask* task = actor_service->GetTask(task_id);
-  content::WebContents* test_contents = tab_strip_model_->GetWebContentsAt(0);
-  base::RunLoop loop;
-  task->AddTab(tabs::TabInterface::GetFromContents(test_contents)->GetHandle(),
-               base::BindLambdaForTesting(
-                   [&](actor::mojom::ActionResultPtr result) { loop.Quit(); }));
-  loop.Run();
-
-  Credential credential = CreateTestCredential(u"username", url, origin);
-  credential.type = CredentialType::kFederated;
-  FederationDetail federation_detail;
-  federation_detail.idp_origin =
-      url::Origin::Create(GURL("https://accounts.google.com"));
-  federation_detail.account_id = "12345";
-  credential.federation_detail = federation_detail;
-
-  base::test::TestFuture<LoginStatusResultOrError> attempt_login_future;
-  delegate_->AttemptLogin(credential, /*should_store_permission=*/true,
-                          mqls_logger(), base::TimeTicks::Now(),
-                          attempt_login_future.GetCallback(),
-                          /*action_sequence_delegate=*/nullptr);
-
-  auto* request =
-      content::webid::FederatedEmbedderLoginRequest::Get(test_contents);
-  ASSERT_TRUE(request);
-
-  EXPECT_CALL(*mock_cleaning_service,
-              ClearConflictingPermissions(Eq(credential), Eq(std::nullopt), _));
-
-  // Because there is no action_sequence_delegate passed in, this will call
-  // `OnAttemptLoginCompleted` directly.
-  request->OnFederatedResultReceived(
-      content::webid::FederatedLoginResult::kSuccess);
-
-  ASSERT_TRUE(attempt_login_future.Wait());
-  ASSERT_TRUE(attempt_login_future.Get().has_value());
-  EXPECT_EQ(attempt_login_future.Get().value(),
-            LoginStatusResult::kSuccessFederated);
 }
 
 }  // namespace actor_login

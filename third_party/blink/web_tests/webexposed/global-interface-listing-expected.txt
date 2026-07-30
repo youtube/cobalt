@@ -3576,6 +3576,10 @@ interface GeolocationCoordinates
     getter speed
     method constructor
     method toJSON
+interface GeolocationPermissionStatus : PermissionStatus
+    attribute @@toStringTag
+    getter accuracyMode
+    method constructor
 interface GeolocationPosition
     attribute @@toStringTag
     getter coords
@@ -7595,6 +7599,7 @@ interface Performance : EventTarget
     method getEntries
     method getEntriesByName
     method getEntriesByType
+    method getSpeculations
     method mark
     method measure
     method now
@@ -7903,6 +7908,13 @@ interface PreferenceObject : EventTarget
     method constructor
     method requestOverride
     setter onchange
+interface PreloadData
+    attribute @@toStringTag
+    getter as
+    getter crossorigin
+    getter url
+    getter used
+    method constructor
 interface Presentation
     attribute @@toStringTag
     getter defaultRequest
@@ -10166,6 +10178,10 @@ interface SourceBufferList : EventTarget
     method constructor
     setter onaddsourcebuffer
     setter onremovesourcebuffer
+interface SpeculationData
+    attribute @@toStringTag
+    getter preloads
+    method constructor
 interface SpeechGrammar
     attribute @@toStringTag
     getter src

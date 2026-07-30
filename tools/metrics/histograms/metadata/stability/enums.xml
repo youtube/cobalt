@@ -443,7 +443,8 @@ Called by update_bad_message_reasons.py.-->
       label="OBSOLETE_MSDH_INCONSISTENT_VIDEO_TYPE_AND_REQUESTED_FIELDS"/>
   <int value="289"
       label="MSDH_SUPPRESS_LOCAL_AUDIO_PLAYBACK_BUT_AUDIO_NOT_REQUESTED"/>
-  <int value="290" label="MSDH_HOTWORD_ENABLED_BUT_AUDIO_NOT_REQUESTED"/>
+  <int value="290"
+      label="OBSOLETE_MSDH_HOTWORD_ENABLED_BUT_AUDIO_NOT_REQUESTED"/>
   <int value="291" label="MSDH_DISABLE_LOCAL_ECHO_BUT_AUDIO_NOT_REQUESTED"/>
   <int value="292" label="MSDH_ON_STREAM_STARTED_DISALLOWED"/>
   <int value="293" label="RFH_WINDOW_CLOSE_ON_NON_OUTERMOST_FRAME"/>
@@ -505,6 +506,7 @@ Called by update_bad_message_reasons.py.-->
   <int value="337" label="RFH_OPEN_URL_INVALID_DISPOSITION"/>
   <int value="338" label="RFH_ENTER_FULLSCREEN_PERMISSION_DENIED"/>
   <int value="339" label="DT_DUPLICATE_CHILD_TARGET_CREATED"/>
+  <int value="340" label="RWH_POINTER_LOCK_FROM_SANDBOXED_FRAME"/>
 </enum>
 
 <enum name="BadMessageReasonExtensions">
@@ -561,6 +563,7 @@ Called by update_bad_message_reasons.py.-->
   <int value="1" label="GVM_INVALID_GUESTVIEW_TYPE"/>
   <int value="2" label="GVMF_UNEXPECTED_MESSAGE_BEFORE_GVM_CREATION"/>
   <int value="3" label="GVM_INVALID_ATTACH"/>
+  <int value="4" label="GVMH_GUEST_NOT_AVAILABLE_TO_ATTACH"/>
 </enum>
 
 <enum name="BadMessageReasonPasswordManager">

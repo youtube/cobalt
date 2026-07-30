@@ -10,12 +10,12 @@
 #import "base/feature_list.h"
 #import "base/functional/callback_helpers.h"
 #import "base/memory/raw_ptr.h"
-#import "base/metrics/histogram_functions.h"
 #import "base/not_fatal_until.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
 #import "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #import "components/autofill/core/browser/ui/autofill_suggestion_delegate.h"
+#import "components/autofill/core/common/autofill_features.h"
 #import "components/autofill/core/common/autofill_prefs.h"
 #import "components/autofill/ios/browser/form_suggestion.h"
 #import "components/autofill/ios/browser/form_suggestion_provider.h"
@@ -145,6 +145,11 @@ UIImage* DefaultIconForType(FormSuggestion* suggestion,
     }
     case autofill::SuggestionType::kFillAutofillAi: {
       if (!web_state) {
+        return nil;
+      }
+
+      if (base::FeatureList::IsEnabled(
+              autofill::features::kAutofillAiNoFillingIconsExperiment)) {
         return nil;
       }
 
@@ -599,20 +604,8 @@ bool IsRequestDedupingAllowed() {
       _webState ? ProfileIOS::FromBrowserState(_webState->GetBrowserState())
                 : nullptr;
   if (profile) {
-    int dismissCount = profile->GetPrefs()->GetInteger(
-        prefs::kIosPasswordBottomSheetDismissCount);
     profile->GetPrefs()->SetInteger(prefs::kIosPasswordBottomSheetDismissCount,
                                     0);
-    if (dismissCount > 0) {
-      // Log how many times the bottom sheet had been dismissed before being
-      // re-enabled.
-      static constexpr int kHistogramMin = 1;
-      static constexpr int kHistogramMax = 4;
-      static constexpr size_t kHistogramBuckets = 3;
-      base::UmaHistogramCustomCounts(
-          "IOS.ResetDismissCount.Password.BottomSheet", dismissCount,
-          kHistogramMin, kHistogramMax, kHistogramBuckets);
-    }
   }
 }
 

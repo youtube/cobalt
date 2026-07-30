@@ -98,12 +98,6 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Timeout"/>
 </enum>
 
-<enum name="DownloadLaterPromptStatus">
-  <int value="0" label="Show initial"/>
-  <int value="1" label="Show prompt"/>
-  <int value="2" label="Don't show prompt"/>
-</enum>
-
 <enum name="DownloadLocationDialogResult">
   <int value="0" label="USER_CONFIRMED"/>
   <int value="1" label="USER_CANCELED"/>
@@ -164,12 +158,6 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Entry Point disabled by flag"/>
   <int value="4" label="Lens Provider does not support the entry point"/>
   <int value="5" label="Disabled by enterprise policy"/>
-</enum>
-
-<enum name="IOSLensWebUploadStatus">
-  <summary>The status of the upload of image data to Lens.</summary>
-  <int value="0" label="Success"/>
-  <int value="1" label="Malformed response"/>
 </enum>
 
 <enum name="IOSMenuAction">
@@ -407,19 +395,6 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(/chrome/browser/first_run/android/java/src/org/chromium/chrome/browser/firstrun/MobileFreProgress.java:MobileFreProgress) -->
-
-<enum name="MobileFreSignInChoice">
-  <summary>
-    These values are defined inside the MobileFreSignInChoice enum
-    chrome/browser/android/metrics/uma_bridge.cc and reference possible ways of
-    completing the sign-in part of the First Run Experience.
-  </summary>
-  <int value="0" label="Settings default account"/>
-  <int value="1" label="Settings another account"/>
-  <int value="2" label="Accept default account"/>
-  <int value="3" label="Accept another account"/>
-  <int value="4" label="No thanks"/>
-</enum>
 
 <enum name="MobileMessagesBadgeState">
   <int value="0" label="Inactive"/>

@@ -48,6 +48,7 @@ group("resources") {
       "gaia_auth_host:resources",
       "glic/selection_overlay:resources",
       "history:resources",
+      "indigo:resources",
       "inspect:resources",
       "key_value_pair_viewer_shared:resources",
       "lens/overlay:resources",
@@ -230,8 +231,10 @@ if (enable_extensions_core) {
 
     # Some resources within component_extension_resources.grd are generated at
     # build time so we include them as explicit dependencies here
+    deps = [ "//chrome/browser/resources/glic/extension:build_ts" ]
+
     if (is_chromeos) {
-      deps = [
+      deps += [
         "chromeos/accessibility/braille_ime:build_ts",
         "chromeos/contact_center_insights:generate_ccaas_deps",
         "chromeos/desk_api:generate_desk_api_bundle",
@@ -294,7 +297,7 @@ if (!is_android) {
 group("dev_ui_resources") {
   public_deps = [
     "accessibility:resources",
-    "accessibility_annotator_info:resources",
+    "accessibility_annotator_internals:resources",
     "actor_internals:resources",
     "bluetooth_internals:resources",
     "browsing_topics:resources",
@@ -310,6 +313,7 @@ group("dev_ui_resources") {
     "omnibox:resources",
     "predictors:resources",
     "privacy_sandbox/internals:resources",
+    "subresource_filter:resources",
     "usb_internals:resources",
     "//components/commerce/core/internals/resources",
     "//components/data_sharing/data_sharing_internals/resources",
@@ -343,7 +347,9 @@ group("dev_ui_resources") {
     ]
   } else {
     public_deps += [
+      "accessibility_annotator_info:resources",
       "color_pipeline_internals:resources",
+      "indigo_internals:resources",
       "infobar_internals:resources",
       "media_router/internals:resources",
       "on_device_internals:resources",
@@ -370,7 +376,7 @@ repack("dev_ui_paks") {
   output = "$root_gen_dir/chrome/dev_ui_resources.pak"
 
   sources = [
-    "$root_gen_dir/chrome/accessibility_annotator_info_resources.pak",
+    "$root_gen_dir/chrome/accessibility_annotator_internals_resources.pak",
     "$root_gen_dir/chrome/accessibility_resources.pak",
     "$root_gen_dir/chrome/actor_internals_resources.pak",
     "$root_gen_dir/chrome/bluetooth_internals_resources.pak",
@@ -387,6 +393,7 @@ repack("dev_ui_paks") {
     "$root_gen_dir/chrome/omnibox_resources.pak",
     "$root_gen_dir/chrome/predictors_resources.pak",
     "$root_gen_dir/chrome/privacy_sandbox_internals_resources.pak",
+    "$root_gen_dir/chrome/subresource_filter_internals_resources.pak",
     "$root_gen_dir/chrome/usb_internals_resources.pak",
     "$root_gen_dir/components/commerce_internals_resources.pak",
     "$root_gen_dir/components/data_sharing_internals_resources.pak",
@@ -420,7 +427,9 @@ repack("dev_ui_paks") {
     ]
   } else {
     sources += [
+      "$root_gen_dir/chrome/accessibility_annotator_info_resources.pak",
       "$root_gen_dir/chrome/color_pipeline_internals_resources.pak",
+      "$root_gen_dir/chrome/indigo_internals_resources.pak",
       "$root_gen_dir/chrome/infobar_internals_resources.pak",
       "$root_gen_dir/chrome/media_router_internals_resources.pak",
       "$root_gen_dir/chrome/on_device_internals_resources.pak",

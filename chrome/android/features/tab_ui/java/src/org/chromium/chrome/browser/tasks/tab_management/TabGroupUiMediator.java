@@ -48,7 +48,6 @@ import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncFeatures;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
-import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterObserver;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
@@ -132,7 +131,10 @@ public class TabGroupUiMediator implements BackPressHandler {
             this::onGroupSharedStateChanged;
     private final Callback<@Nullable List<GroupMember>> mOnGroupMembersChanged =
             this::onGroupMembersChanged;
-    private final Callback mOnTokenComponentChange = this::onTokenComponentChange;
+
+    private final Callback<Object> mOnChildTokenChange = this::onTokenComponentChange;
+    private final Callback<Integer> mOnWidthChange = this::onTokenComponentChange;
+
     private final SettableNonNullObservableSupplier<Integer> mWidthPxSupplier =
             ObservableSuppliers.createNonNull(0);
     private final ThemeColorObserver mThemeColorObserver = this::onThemeColorChanged;
@@ -200,8 +202,8 @@ public class TabGroupUiMediator implements BackPressHandler {
         mThemeColorProvider.addTintObserver(mTintObserver);
         mOnSnapshotTokenChange = onSnapshotTokenChange;
         mChildTokenSupplier = childTokenSupplier;
-        mChildTokenSupplier.addSyncObserverAndPostIfNonNull(mOnTokenComponentChange);
-        mWidthPxSupplier.addSyncObserverAndPostIfNonNull(mOnTokenComponentChange);
+        mChildTokenSupplier.addSyncObserverAndPostIfNonNull(mOnChildTokenChange);
+        mWidthPxSupplier.addSyncObserverAndPostIfNonNull(mOnWidthChange);
 
         onThemeColorChanged(mThemeColorProvider.getThemeColor(), false);
         ColorStateList tintList = mThemeColorProvider.getTint();
@@ -300,9 +302,9 @@ public class TabGroupUiMediator implements BackPressHandler {
                         if (mTabModelSelector.getTabById(tab.getId()) == null) return;
 
                         int numTabs = 0;
-                        TabGroupModelFilter filter = getCurrentTabGroupModelFilter();
-                        if (mCurrentTabGroupId != null && filter.isTabInTabGroup(tab)) {
-                            numTabs = filter.getTabCountForGroup(tab.getTabGroupId());
+                        TabModel tabModel = getCurrentModel();
+                        if (mCurrentTabGroupId != null && tabModel.isTabInTabGroup(tab)) {
+                            numTabs = tabModel.getTabCountForGroup(tab.getTabGroupId());
                         }
 
                         RecordHistogram.recordCount1MHistogram(
@@ -485,7 +487,7 @@ public class TabGroupUiMediator implements BackPressHandler {
         }
 
         Tab tab = mTabModelSelector.getCurrentTab();
-        if (tab == null || !getCurrentTabGroupModelFilter().isTabInTabGroup(tab)) {
+        if (tab == null || !getCurrentModel().isTabInTabGroup(tab)) {
             hideTabStrip();
         } else {
             showTabStrip(tab);
@@ -533,11 +535,11 @@ public class TabGroupUiMediator implements BackPressHandler {
      * @param id The ID of the tab that will be used to decide the list of tabs to show.
      */
     private List<Tab> getTabsToShowForId(int id) {
-        return getCurrentTabGroupModelFilter().getRelatedTabList(id);
+        return getCurrentModel().getRelatedTabList(id);
     }
 
-    private TabGroupModelFilter getCurrentTabGroupModelFilter() {
-        return assumeNonNull(mTabModelSelector.getCurrentTabGroupModelFilter());
+    private TabModel getCurrentModel() {
+        return mTabModelSelector.getCurrentModel();
     }
 
     private void onTokenComponentChange(Object ignored) {
@@ -601,8 +603,8 @@ public class TabGroupUiMediator implements BackPressHandler {
                     .removeObserver(mOnGroupMembersChanged);
             mTransitiveSharedGroupObserver.destroy();
         }
-        mChildTokenSupplier.removeObserver(mOnTokenComponentChange);
-        mWidthPxSupplier.removeObserver(mOnTokenComponentChange);
+        mChildTokenSupplier.removeObserver(mOnChildTokenChange);
+        mWidthPxSupplier.removeObserver(mOnWidthChange);
         mThemeColorProvider.removeThemeColorObserver(mThemeColorObserver);
         mThemeColorProvider.removeTintObserver(mTintObserver);
     }

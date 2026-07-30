@@ -202,7 +202,9 @@ class CONTENT_EXPORT BucketContext
   // Closes the bucket context, i.e. closes the backing store and closes Mojo
   // connections to renderers. When `doom` is true, the directories containing
   // data will also be deleted. Normally, in-memory bucket contexts never close.
-  // If this is called with `doom` set to true, they will close.
+  // If this is called with `doom` set to true, they will close. Note that if
+  // `doom` is true, it's expected that `this` will be deleted soon after. To
+  // prevent races, `on_ready_for_destruction` is NOT called in this case.
   void ForceClose(bool doom);
 
   // Starts capturing state data for indexeddb-internals. The data will be
@@ -218,8 +220,6 @@ class CONTENT_EXPORT BucketContext
   bool IsClosing() const { return closing_stage_ != ClosingState::kNotClosing; }
 
   ClosingState closing_stage() const { return closing_stage_; }
-
-  void ReportOutstandingBlobs(bool blobs_outstanding);
 
   // Called when `space_requested` bytes are about to be used by committing a
   // transaction. Will invoke `disk_space_check_callback` if this usage is
@@ -314,9 +314,6 @@ class CONTENT_EXPORT BucketContext
   void OnDatabaseError(Database* database,
                        Status status,
                        const std::string& message);
-
-  // Called when the backing store has been corrupted.
-  void HandleBackingStoreCorruption(const std::string& error_message);
 
   // base::trace_event::MemoryDumpProvider:
   bool OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
@@ -424,6 +421,9 @@ class CONTENT_EXPORT BucketContext
 
   std::string SanitizeErrorMessage(const std::string& message);
 
+  // Called when the backing store has been corrupted.
+  void HandleBackingStoreCorruption(const std::string& error_message);
+
   // Called when a Web Blob is being read from SQLite. `final_result` will hold
   // a value IFF the read operation has completed.
   void OnSqliteBlobActivity(std::optional<net::Error> final_result);
@@ -436,10 +436,6 @@ class CONTENT_EXPORT BucketContext
   // Set at construction. Can be overridden by
   // `SetSqliteRolloutStageForTesting()`.
   SqliteRolloutStage sqlite_rollout_stage_;
-
-  // True if there are blobs referencing this backing store that are still
-  // alive. This is used as closing criteria for this object, see CanClose.
-  bool has_blobs_outstanding_ = false;
 
   bool running_tasks_ = false;
 

@@ -28,7 +28,6 @@
 #include "third_party/blink/public/common/shared_storage/shared_storage_utils.h"
 #include "third_party/blink/public/mojom/css/preferred_color_scheme.mojom.h"
 #include "third_party/blink/public/mojom/favicon/favicon_url.mojom.h"
-#include "third_party/blink/public/mojom/frame/text_autosizer_page_info.mojom.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/ime/mojom/virtual_keyboard_types.mojom.h"
 #include "url/gurl.h"
@@ -92,6 +91,13 @@ class CONTENT_EXPORT PageImpl : public Page {
     is_on_load_completed_in_main_document_ = completed;
   }
 
+  bool has_recorded_partitioned_cookie_use() const {
+    return has_recorded_partitioned_cookie_use_;
+  }
+  void set_has_recorded_partitioned_cookie_use(bool recorded) {
+    has_recorded_partitioned_cookie_use_ = recorded;
+  }
+
   std::optional<base::TimeDelta> GetFirstContentfulPaintInMainDocumentDuration()
       const {
     return first_contentful_paint_in_main_document_duration_;
@@ -148,13 +154,6 @@ class CONTENT_EXPORT PageImpl : public Page {
   }
 
   void SetContentsMimeType(std::string mime_type);
-
-  void OnTextAutosizerPageInfoChanged(
-      blink::mojom::TextAutosizerPageInfoPtr page_info);
-
-  blink::mojom::TextAutosizerPageInfo text_autosizer_page_info() const {
-    return text_autosizer_page_info_;
-  }
 
   FencedFrameURLMapping& fenced_frame_urls_map() {
     return fenced_frame_urls_map_;
@@ -315,6 +314,10 @@ class CONTENT_EXPORT PageImpl : public Page {
   // run for the main document.
   bool is_on_load_completed_in_main_document_ = false;
 
+  // True if we have already recorded the PartitionedCookiePresent UKM event
+  // for this page.
+  bool has_recorded_partitioned_cookie_use_ = false;
+
   // Time taken for first contentful paint to occur.
   std::optional<base::TimeDelta>
       first_contentful_paint_in_main_document_duration_;
@@ -420,10 +423,6 @@ class CONTENT_EXPORT PageImpl : public Page {
   // This page is owned by the RenderFrameHostImpl, which in turn does not
   // outlive the delegate (the contents).
   const raw_ref<PageDelegate> delegate_;
-
-  // Stores information from the main frame's renderer that needs to be shared
-  // with OOPIF renderers.
-  blink::mojom::TextAutosizerPageInfo text_autosizer_page_info_;
 
   // Prerender2: The start time of the activation navigation for prerendering,
   // which is passed to the renderer process, and will be accessible in the

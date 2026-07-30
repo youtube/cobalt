@@ -35,6 +35,7 @@
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/bookmarks/browser/bookmark_model.h"
+#include "components/contextual_tasks/public/features.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
 #include "components/omnibox/browser/aim_eligibility_service_features.h"
 #include "components/omnibox/browser/autocomplete_match.h"
@@ -313,11 +314,14 @@ const base::FeatureParam<bool> SearchboxHandler::kVoiceSearchRecordingAnimation{
     false};
 
 // static
+base::DictValue SearchboxHandler::GetWebUIDataSourceDict(Profile* profile) {
+  return GetWebUIDataSourceDict(profile, WebUIDataSourceOptions{});
+}
+
+// static
 base::DictValue SearchboxHandler::GetWebUIDataSourceDict(
     Profile* profile,
-    bool enable_voice_search,
-    bool enable_lens_search,
-    bool session_allows_drag_and_drop) {
+    WebUIDataSourceOptions options) {
   base::DictValue dict;
 
   // The WebUI Omnibox code will override this to `true` to adjust various
@@ -349,6 +353,7 @@ base::DictValue SearchboxHandler::GetWebUIDataSourceDict(
       {"addContext", IDS_NTP_COMPOSE_ADD_CONTEXTS},
       {"addContextTitle", IDS_NTP_COMPOSE_ADD_CONTEXT_TITLE},
       {"addImage", IDS_NTP_COMPOSE_ADD_IMAGE},
+      {"addDriveFile", IDS_NTP_COMPOSE_ADD_DRIVE},
       {"addTab", IDS_NTP_COMPOSEBOX_TAB_PICKER_ADD_TABS_TITLE},
       {"dismissButton", IDS_NTP_DISMISS},
       {"lensSearchLabel", IDS_WEBUI_OMNIBOX_COMPOSE_LENS_OVERLAY},
@@ -401,6 +406,13 @@ base::DictValue SearchboxHandler::GetWebUIDataSourceDict(
       {"voiceDetails", IDS_NEW_TAB_VOICE_DETAILS},
       {"voiceListening", IDS_NEW_TAB_VOICE_LISTENING},
       {"voicePermissionError", IDS_NEW_TAB_VOICE_PERMISSION_ERROR},
+      {"audioError", IDS_NEW_TAB_VOICE_AUDIO_ERROR},
+      {"languageError", IDS_NEW_TAB_VOICE_LANGUAGE_ERROR},
+      {"networkError", IDS_NEW_TAB_VOICE_NETWORK_ERROR},
+      {"noTranslation", IDS_NEW_TAB_VOICE_NO_TRANSLATION},
+      {"noVoice", IDS_NEW_TAB_VOICE_NO_VOICE},
+      {"otherError", IDS_NEW_TAB_VOICE_OTHER_ERROR},
+      {"tryAgain", IDS_NEW_TAB_VOICE_TRY_AGAIN},
       {"composeboxContextMenuMostRecentTabs",
        IDS_CONTEXTUAL_TASKS_CONTEXT_MENU_MOST_RECENT_TABS},
       {"composeboxContextMenuGeminiModels",
@@ -433,8 +445,8 @@ base::DictValue SearchboxHandler::GetWebUIDataSourceDict(
   DefineChromeRefreshRealboxIcons();
   dict.Set("searchboxDefaultIcon", kSearchIconResourceName);
 
-  dict.Set("searchboxVoiceSearch", enable_voice_search);
-  dict.Set("searchboxLensSearch", enable_lens_search);
+  dict.Set("searchboxVoiceSearch", options.enable_voice_search);
+  dict.Set("searchboxLensSearch", options.enable_lens_search);
   dict.Set("searchboxLensVariations", GetBase64UrlVariations(profile));
   dict.Set("searchboxCr23Theming",
            base::FeatureList::IsEnabled(ntp_features::kRealboxCr23Theming));
@@ -472,10 +484,9 @@ base::DictValue SearchboxHandler::GetWebUIDataSourceDict(
            l10n_util::GetPluralStringFUTF16(
                IDS_NTP_COMPOSE_MAX_PDFS_REACHED_ERROR, max_pdfs));
 
-  dict.Set("composeboxContextDragAndDropEnabled", session_allows_drag_and_drop);
-  dict.Set("composeboxShowVoiceSearch", enable_voice_search);
-  dict.Set("composeboxContextDragAndDropEnabled", session_allows_drag_and_drop);
-  dict.Set("composeboxShowVoiceSearch", enable_voice_search);
+  dict.Set("composeboxContextDragAndDropEnabled",
+           options.session_allows_drag_and_drop);
+  dict.Set("composeboxShowVoiceSearch", options.enable_voice_search);
 
   // TODO(b/481663895): Remove "ConfigParam" from Next studies.
   auto composebox_config = ntp_composebox::FeatureConfig::Get().config;
@@ -489,6 +500,12 @@ base::DictValue SearchboxHandler::GetWebUIDataSourceDict(
            ntp_composebox::kShowContextMenuHeaders.Get());
   dict.Set("thinkingModelIconUpdate",
            base::FeatureList::IsEnabled(omnibox::kThinkingModelIconUpdate));
+  dict.Set("composeboxSmartTabSharingVisible",
+           options.is_lens ? false
+                           : contextual_tasks::GetIsSmartTabSharingEnabled());
+  dict.Set(
+      "stsMegaplusShareRelevantOpenTabs",
+      l10n_util::GetStringUTF16(IDS_STS_MEGAPLUS_SHARE_RELEVANT_OPEN_TABS));
 
   return dict;
 }

@@ -29,8 +29,24 @@ public final class ToolbarVariationUtils {
 
     /** Whether the home button should be at the start of the toolbar. */
     public static boolean shouldHomeButtonBeAtStartOfToolbar() {
+        if (ChromeFeatureList.sAndroidBottomBarRemoveHomeButton.getValue()) return false;
         // Arm 1C has home button at start of toolbar.
         return ChromeFeatureList.sAndroidBottomBarKeepHomeButtonInToolbar.getValue();
+    }
+
+    /**
+     * Whether the app menu button, home button, optional button, and tab switcher button should
+     * have their visibility and/or position changed in the {@code ToolbarPhone} and {@code
+     * LocationBar} based on the current configuration and whether the current tab is a regular NTP.
+     *
+     * @param isNtp Whether the current tab is a regular NTP.
+     * @return Whether the toolbar buttons should be modified.
+     */
+    public static boolean shouldModifyToolbarButtons(boolean isNtp) {
+        if (isNtp && ChromeFeatureList.sAndroidBottomBarDisableOnNtp.getValue()) {
+            return false;
+        }
+        return isNewToolbarUiEnabled();
     }
 
     /** Whether the new toolbar variation UI is enabled. */

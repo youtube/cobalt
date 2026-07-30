@@ -544,6 +544,10 @@ config("compiler") {
         "-Wl,-vectorize-slp=false",
       ]
     }
+
+    # TODO(crbug.com/500431896): Figure out why constant literals breaks tests.
+    cflags_objc = [ "-fno-objc-constant-literals" ]
+    cflags_objcc = [ "-fno-objc-constant-literals" ]
   }
 
   # Linux/Android/Fuchsia common flags setup.
@@ -594,7 +598,17 @@ config("compiler") {
   # Clang-specific compiler flags setup.
   # ------------------------------------
   if (is_clang) {
+    # Flags for diagnostics.
     cflags += [ "-fcolor-diagnostics" ]
+    if (!is_win) {
+      cflags += [ "-fdiagnostics-show-inlining-chain" ]
+    } else {
+      # Combine after https://github.com/llvm/llvm-project/pull/192241
+      cflags += [ "/clang:-fdiagnostics-show-inlining-chain" ]
+    }
+    if (diagnostics_print_source_range_info && !is_win) {
+      cflags += [ "-fdiagnostics-print-source-range-info" ]
+    }
 
     # Enable -fmerge-all-constants. This used to be the default in clang
     # for over a decade. It makes clang non-conforming, but is fairly safe
@@ -610,10 +624,6 @@ config("compiler") {
       } else {
         cflags += [ "-fno-sized-deallocation" ]
       }
-    }
-
-    if (diagnostics_print_source_range_info && !is_win) {
-      cflags += [ "-fdiagnostics-print-source-range-info" ]
     }
   }
 
@@ -2115,10 +2125,7 @@ config("tot_warnings") {
   # Entries should generally require both is_clang and llvm_force_head_revision,
   # but may have additional constraints as well (e.g. only some OSes)
   if (is_clang && llvm_force_head_revision) {
-    cflags += [
-      # TODO(crbug.com/495753203): Fix and re-enable
-      "-Wno-unused-but-set-global",
-    ]
+    cflags += []
   }
 }
 
@@ -2251,6 +2258,9 @@ config("default_warnings") {
 
       # TODO(crbug.com/432275627): Fix and re-enable.
       "-Wno-uninitialized-const-pointer",
+
+      # TODO(crbug.com/495753203): Fix and re-enable.
+      "-Wno-unused-but-set-global",
     ]
 
     cflags_cc += [

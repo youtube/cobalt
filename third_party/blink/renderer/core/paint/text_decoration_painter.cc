@@ -83,7 +83,7 @@ void TextDecorationPainter::UpdateDecorationInfo(
                    decoration_rect_.InlineSize(), style, inline_context_,
                    effective_selection_decoration_lines,
                    effective_selection_decoration_color, decoration_override,
-                   scaled_font, MinimumThickness1(false),
+                   scaled_font, IsSvgText(true),
                    text_item.SvgScalingFactor() / scaling_factor);
   } else {
     LineRelativeRect decoration_rect =
@@ -91,8 +91,7 @@ void TextDecorationPainter::UpdateDecorationInfo(
     result.emplace(decoration_rect.offset, decoration_rect.InlineSize(), style,
                    inline_context_, effective_selection_decoration_lines,
                    effective_selection_decoration_color, decoration_override,
-                   &text_item.ScaledFont(),
-                   MinimumThickness1(!text_item.IsSvgText()));
+                   &text_item.ScaledFont(), IsSvgText(text_item.IsSvgText()));
   }
 }
 
@@ -147,7 +146,7 @@ void TextDecorationPainter::PaintUnderOrOverLineDecorations(
     const TextPaintStyle& text_style,
     TextDecorationLine lines_to_paint) {
   if (paint_info_.IsRenderingResourceSubtree()) {
-    paint_info_.context.Scale(1, decoration_info.ScalingFactor());
+    paint_info_.context.Scale(1, decoration_info.SvgResourceScalingFactor());
   }
   const AutoDarkMode auto_dark_mode(PaintAutoDarkMode(
       decoration_info.TargetStyle(), DarkModeFilter::ElementRole::kForeground));
@@ -177,7 +176,7 @@ void TextDecorationPainter::PaintUnderOrOverLineDecorations(
             continue;
           }
 
-          if (decoration.HasUnderline() && decoration_info.FontData() &&
+          if (decoration.HasUnderline() && decoration.font_data &&
               EnumHasFlags(lines_to_paint, TextDecorationLine::kUnderline)) {
             DecorationGeometry geometry =
                 decoration_info.ComputeUnderlineLineData(decoration,
@@ -192,7 +191,7 @@ void TextDecorationPainter::PaintUnderOrOverLineDecorations(
                 auto_dark_mode);
           }
 
-          if (decoration.HasOverline() && decoration_info.FontData() &&
+          if (decoration.HasOverline() && decoration.font_data &&
               EnumHasFlags(lines_to_paint, TextDecorationLine::kOverline)) {
             DecorationGeometry geometry =
                 decoration_info.ComputeOverlineLineData(decoration,
@@ -215,7 +214,7 @@ void TextDecorationPainter::PaintLineThroughDecorations(
     TextDecorationInfo& decoration_info,
     const TextPaintStyle& text_style) {
   if (paint_info_.IsRenderingResourceSubtree()) {
-    paint_info_.context.Scale(1, decoration_info.ScalingFactor());
+    paint_info_.context.Scale(1, decoration_info.SvgResourceScalingFactor());
   }
 
   const AutoDarkMode auto_dark_mode(PaintAutoDarkMode(

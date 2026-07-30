@@ -30,11 +30,11 @@
 #include "base/functional/callback.h"
 #include "base/functional/function_ref.h"
 #include "base/gtest_prod_util.h"
-#include "base/memory/memory_pressure_listener.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/memory_coordinator/memory_consumer.h"
 #include "base/numerics/checked_math.h"
 #include "base/process/kill.h"
 #include "base/supports_user_data.h"
@@ -42,6 +42,7 @@
 #include "base/threading/sequence_bound.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "base/trace_event/trace_session_observer.h"
 #include "base/tracing/protos/chrome_track_event.pbzero.h"
 #include "base/types/pass_key.h"
 #include "base/unguessable_token.h"
@@ -338,8 +339,9 @@ class CONTENT_EXPORT RenderFrameHostImpl
       public network::mojom::SharedDictionaryAccessObserver,
       public network::mojom::DeviceBoundSessionAccessObserver,
       public LockManager<storage::BucketId>::Observer,
+      public base::trace_event::TraceSessionObserver,
       public BucketContext,
-      public base::MemoryPressureListener {
+      public base::PassiveMemoryConsumer {
  public:
   using BeforeUnloadExecutionMode = NavigationHandle::BeforeUnloadExecutionMode;
   using JavaScriptDialogCallback =
@@ -477,6 +479,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
   const blink::StorageKey& GetStorageKey() const override;
   int GetRoutingID() const override;
   const blink::LocalFrameToken& GetFrameToken() const override;
+  const perfetto::NamedTrack& GetTracingTrack() const override;
   const base::UnguessableToken& GetReportingSource() override;
 
   ui::AXTreeID GetAXTreeID() override;
@@ -2678,8 +2681,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // blink::LocalMainFrameHost overrides:
   void ScaleFactorChanged(float scale) override;
   void ContentsPreferredSizeChanged(const gfx::Size& pref_size) override;
-  void TextAutosizerPageInfoChanged(
-      blink::mojom::TextAutosizerPageInfoPtr page_info) override;
   void FocusPage() override;
   void TakeFocus(bool reverse) override;
   void UpdateTargetURL(const GURL& url,
@@ -2820,6 +2821,9 @@ class CONTENT_EXPORT RenderFrameHostImpl
   void NotifyCookiesAccessed(
       std::vector<network::mojom::CookieAccessDetailsPtr> details_vector,
       CookieAccessDetails::Source source);
+
+  // base::trace_event::TraceSessionObserver:
+  void OnStart(const perfetto::DataSourceBase::StartArgs&) override;
 
   // network::mojom::TrustTokenAccessObserver:
   void OnTrustTokensAccessed(
@@ -3107,9 +3111,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
       const std::vector<std::string>& directory_path_components,
       blink::mojom::BucketHost::GetDirectoryCallback callback) override;
   storage::BucketClientInfo GetBucketClientInfo() const override;
-
-  // base::MemoryPressureListener:
-  void OnMemoryPressure(base::MemoryPressureLevel level) override {}
 
   // Returns false if this document not the initial empty document, or if the
   // current document's input stream has been opened with document.open(),
@@ -5630,10 +5631,10 @@ class CONTENT_EXPORT RenderFrameHostImpl
   base::OnceClosure on_process_before_unload_completed_for_testing_;
 
   // Tracing track used to emit async event related to lifecycle.
-  const perfetto::NamedTrack tracing_track_;
+  const base::trace_event::TrackRegistration<perfetto::NamedTrack>
+      tracing_track_;
 
-  base::MemoryPressureListenerRegistration
-      memory_pressure_listener_registration_;
+  base::MemoryConsumerRegistration memory_consumer_registration_;
 
   // Token used to deterministically generate the opaque origin for the initial
   // empty document of a sandboxed popup (e.g.,

@@ -369,9 +369,10 @@ void PrintViewManager::SetupScriptedPrintPreview(
   }
 }
 
-void PrintViewManager::ShowScriptedPrintPreview(bool source_is_modifiable) {
-  if (print_preview_state_ != SCRIPTED_PREVIEW)
+void PrintViewManager::ShowScriptedPrintPreview() {
+  if (print_preview_state_ != SCRIPTED_PREVIEW) {
     return;
+  }
 
   DCHECK(print_preview_rfh_);
   if (GetCurrentTargetFrame() != print_preview_rfh_)
@@ -382,12 +383,11 @@ void PrintViewManager::ShowScriptedPrintPreview(bool source_is_modifiable) {
   RejectPrintPreviewRequestIfRestricted(
       print_preview_rfh_->GetGlobalId(),
       base::BindOnce(&PrintViewManager::OnScriptedPrintPreviewCallback,
-                     weak_factory_.GetWeakPtr(), source_is_modifiable,
+                     weak_factory_.GetWeakPtr(),
                      print_preview_rfh_->GetGlobalId()));
 }
 
 void PrintViewManager::OnScriptedPrintPreviewCallback(
-    bool source_is_modifiable,
     content::GlobalRenderFrameHostId rfh_id,
     bool should_proceed) {
 #if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
@@ -398,24 +398,27 @@ void PrintViewManager::OnScriptedPrintPreviewCallback(
     return;
   }
 
-  if (print_preview_state_ != SCRIPTED_PREVIEW)
+  if (print_preview_state_ != SCRIPTED_PREVIEW) {
     return;
+  }
 
   DCHECK(print_preview_rfh_);
 
   auto* rfh = content::RenderFrameHost::FromID(rfh_id);
-  if (!rfh || rfh != print_preview_rfh_)
+  if (!rfh || rfh != print_preview_rfh_) {
     return;
+  }
 
   // Running a dialog causes an exit to webpage-initiated fullscreen.
-  // http://crbug.com/41322524
-  if (web_contents()->IsFullscreen())
+  // https://crbug.com/41322524
+  if (web_contents()->IsFullscreen()) {
     web_contents()->ExitFullscreen(true);
+  }
 
   auto* dialog_controller = PrintPreviewDialogController::GetInstance();
   CHECK(dialog_controller);
   mojom::RequestPrintPreviewParams params;
-  params.is_modifiable = source_is_modifiable;
+  params.is_modifiable = !print_preview_rfh_->GetProcess()->IsPdf();
   dialog_controller->PrintPreview(web_contents(), params);
 
   PrintPreviewAllowedForTesting();
@@ -448,11 +451,18 @@ void PrintViewManager::OnRequestPrintPreviewCallback(
   // Double-check that the RenderFrameHost is still alive and has a live
   // RenderFrame, since the DLP check is potentially asynchronous.
   auto* render_frame_host = content::RenderFrameHost::FromID(rfh_id);
-  if (!render_frame_host || !render_frame_host->IsRenderFrameLive())
+  if (!render_frame_host || !render_frame_host->IsRenderFrameLive()) {
     return;
+  }
 
-  if (params->webnode_only)
+  // Also check it is active. Only active RFHs should show UI elements.
+  if (!render_frame_host->IsActive()) {
+    return;
+  }
+
+  if (params->webnode_only) {
     PrintPreviewForWebNode(render_frame_host);
+  }
 
   auto* dialog_controller = PrintPreviewDialogController::GetInstance();
   CHECK(dialog_controller);

@@ -112,6 +112,7 @@ static_library("devtools") {
   deps = [
     "//base",
     "//chrome/browser/infobars",
+    "//chrome/browser/net",
     "//chrome/browser/search",
     "//chrome/browser/search_engines",
     "//chrome/browser/sync",
@@ -358,6 +359,7 @@ static_library("devtools") {
         "device/cast_device_provider.cc",
         "device/cast_device_provider.h",
       ]
+      deps += [ "//chrome/browser/local_discovery" ]
     }
   }
 

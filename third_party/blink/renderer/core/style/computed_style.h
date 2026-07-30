@@ -822,9 +822,6 @@ class ComputedStyle final : public ComputedStyleBase {
 
   // Inherited properties.
 
-  // line-height
-  CORE_EXPORT Length LineHeight() const;
-
   // List style properties.
 
   // list-style-type
@@ -847,7 +844,7 @@ class ComputedStyle final : public ComputedStyleBase {
   LineLogicalSide GetTextEmphasisLineLogicalSide() const;
 
   CORE_EXPORT FontSizeStyle GetFontSizeStyle() const {
-    return FontSizeStyle(GetFont(), LineHeightInternal(), EffectiveZoom());
+    return FontSizeStyle(GetFont(), LineHeight(), EffectiveZoom());
   }
 
   // Font properties.
@@ -1118,11 +1115,11 @@ class ComputedStyle final : public ComputedStyleBase {
     }
     return FlexWrap().GetWrapMode() == FlexWrapMode::kNowrap;
   }
-  std::optional<wtf_size_t> ResolvedFlexBalanceMinLineCount() const {
+  std::optional<wtf_size_t> ResolvedFlexLineCount() const {
     if (IsDeprecatedFlexbox() || !FlexWrap().IsBalanced()) {
       return std::nullopt;
     }
-    return FlexWrap().MinLineCount();
+    return FlexLineCount();
   }
 
   float ResolvedFlexGrow(const ComputedStyle& box_style) const {
@@ -1312,7 +1309,6 @@ class ComputedStyle final : public ComputedStyleBase {
                      TextOffsetMap* offset_map = nullptr) const;
 
   // Line-height utility functions.
-  const Length& SpecifiedLineHeight() const { return LineHeightInternal(); }
   static float ComputedLineHeight(const Length& line_height, const Font&);
   float ComputedLineHeight() const;
   CORE_EXPORT LayoutUnit ComputedLineHeightAsFixed() const;
@@ -1441,6 +1437,9 @@ class ComputedStyle final : public ComputedStyleBase {
     return HasBorder() || BorderImage().HasImage() || HasBorderShape();
   }
   bool HasBorderRadius() const {
+    if (HasBorderShape()) {
+      return false;
+    }
     if (!BorderTopLeftRadius().Width().IsZero()) {
       return true;
     }
@@ -1462,7 +1461,9 @@ class ComputedStyle final : public ComputedStyleBase {
             EBorderStyle style, EBorderStyle other_style, int width,
             int other_width) -> bool {
       if (style == EBorderStyle::kNone && other_style == EBorderStyle::kNone) {
-        return true;
+        if (!HasBorderShape() && !o.HasBorderShape()) {
+          return true;
+        }
       }
       if (style == EBorderStyle::kHidden &&
           other_style == EBorderStyle::kHidden) {
@@ -1488,7 +1489,8 @@ class ComputedStyle final : public ComputedStyleBase {
                                    BorderLeftStyle(), o.BorderLeftStyle(),
                                    BorderLeftWidthInternal(),
                                    o.BorderLeftWidthInternal()) &&
-           BorderImage() == o.BorderImage();
+           BorderImage() == o.BorderImage() &&
+           base::ValuesEquivalent(BorderShape(), o.BorderShape());
   }
 
   bool BorderVisualOverflowEqual(const ComputedStyle& o) const {
@@ -3298,7 +3300,7 @@ class ComputedStyleBuilder final : public ComputedStyleBuilderBase {
   void UpdateFontOrientation();
 
   FontSizeStyle GetFontSizeStyle() const {
-    return FontSizeStyle(GetFont(), LineHeightInternal(), EffectiveZoom());
+    return FontSizeStyle(GetFont(), LineHeight(), EffectiveZoom());
   }
 
   // grid-template-*
@@ -3319,10 +3321,8 @@ class ComputedStyleBuilder final : public ComputedStyleBuilderBase {
 
   // line-height
   bool HasInitialLineHeight() const {
-    return LineHeightInternal() ==
-           ComputedStyleInitialValues::InitialLineHeight();
+    return LineHeight() == ComputedStyleInitialValues::InitialLineHeight();
   }
-  const Length& LineHeight() const { return LineHeightInternal(); }
 
   // margin-*
   void SetMarginTop(const Length& v) {
@@ -3593,9 +3593,6 @@ class ComputedStyleBuilder final : public ComputedStyleBuilderBase {
     }
     MutablePaintImagesInternal()->Images().push_back(image);
   }
-
-  // TextAutosizingMultiplier
-  CORE_EXPORT void SetTextAutosizingMultiplier(float);
 
   // ColorScheme and ForcedColors
   bool ShouldPreserveParentColor() const {

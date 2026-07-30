@@ -36,6 +36,7 @@
 #include "components/contextual_tasks/public/contextual_tasks_service.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/contextual_tasks/public/mock_contextual_tasks_service.h"
+#include "components/contextual_tasks/public/prefs.h"
 #include "components/lens/lens_overlay_invocation_source.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
 #include "components/signin/public/base/consent_level.h"
@@ -227,6 +228,15 @@ class ContextualTasksUIBrowserTest : public InProcessBrowserTest {
   ContextualTasksComposeboxHandler* GetComposeboxHandler() {
     return static_cast<ContextualTasksComposeboxHandler*>(
         controller_->composebox_handler_.get());
+  }
+
+  void CallOnContextRetrievedForActiveTab(
+      base::WeakPtr<BrowserWindowInterface> browser,
+      int32_t tab_id,
+      const GURL& last_committed_url,
+      std::unique_ptr<contextual_tasks::ContextualTaskContext> context) {
+    controller_->OnContextRetrievedForActiveTab(
+        browser, tab_id, last_committed_url, std::move(context));
   }
 
  protected:
@@ -500,6 +510,43 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUIBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualTasksUIBrowserTest,
+                       CanUpdateSuggestedTabContext_SiteExclusion) {
+  tabs::TabInterface* tab = TabListInterface::From(browser())->GetActiveTab();
+  ASSERT_TRUE(tab);
+
+  // No composebox_handler_ initialized yet.
+  EXPECT_FALSE(controller_->CanUpdateSuggestedTabContext(
+      tab, GURL("http://example.com")));
+
+  mojo::PendingReceiver<composebox::mojom::PageHandler> handler_receiver;
+  mojo::Remote<composebox::mojom::PageHandler> handler_remote(
+      handler_receiver.InitWithNewPipeAndPassRemote());
+  mojo::PendingRemote<composebox::mojom::Page> composebox_page;
+  std::ignore = composebox_page.InitWithNewPipeAndPassReceiver();
+  mojo::PendingReceiver<searchbox::mojom::PageHandler>
+      searchbox_handler_receiver;
+  mojo::PendingRemote<searchbox::mojom::Page> searchbox_page;
+  std::ignore = searchbox_page.InitWithNewPipeAndPassReceiver();
+
+  controller_->CreatePageHandler(
+      std::move(composebox_page), std::move(handler_receiver),
+      std::move(searchbox_page), std::move(searchbox_handler_receiver));
+
+  // Add a couple of exclusions and save to prefs.
+  base::Time now = base::Time::Now();
+  base::DictValue site_exclusions;
+  site_exclusions.Set("excluded.com",
+                      static_cast<double>(now.InMillisecondsSinceUnixEpoch()));
+  contextual_tasks::SaveSiteExclusionsToPrefs(GetProfile()->GetPrefs(),
+                                              site_exclusions);
+
+  EXPECT_TRUE(controller_->CanUpdateSuggestedTabContext(
+      tab, GURL("http://example.com")));
+  EXPECT_FALSE(controller_->CanUpdateSuggestedTabContext(
+      tab, GURL("http://excluded.com")));
+}
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksUIBrowserTest,
                        RecordsHttpResponseCodeHistograms) {
   base::HistogramTester histogram_tester;
 
@@ -638,7 +685,8 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUIBrowserTest,
 
   GURL initial_url("https://example.com/");
   auto input_state_model = std::make_unique<contextual_search::InputStateModel>(
-      *session_handle, config, initial_url, /*is_off_the_record=*/false);
+      *session_handle, config, initial_url, /*is_off_the_record=*/false,
+      /*is_signed_in=*/true);
 
   content::WebContents* web_contents =
       TabListInterface::From(browser())->GetActiveTab()->GetContents();
@@ -731,4 +779,20 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUIBrowserTest,
   EXPECT_TRUE(content::WaitForLoadStop(inner_contents.get()));
   EXPECT_EQ(handler->input_state_model()->get_state_for_testing().active_model,
             omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_AUTOROUTE);
+}
+
+IN_PROC_BROWSER_TEST_F(
+    ContextualTasksUIBrowserTest,
+    OnContextRetrievedForActiveTab_NullBrowser_DoesNotCrash) {
+  // Call OnContextRetrievedForActiveTab with a null weak pointer.
+  base::WeakPtr<BrowserWindowInterface> null_browser;
+  int32_t tab_id = 1;
+  GURL url("https://example.com");
+  contextual_tasks::ContextualTask task(base::Uuid::GenerateRandomV4());
+  auto context =
+      std::make_unique<contextual_tasks::ContextualTaskContext>(task);
+
+  // This should return early and not crash.
+  CallOnContextRetrievedForActiveTab(null_browser, tab_id, url,
+                                     std::move(context));
 }

@@ -108,6 +108,7 @@ void FullscreenBrowserAgent::UpdateProgressAndBroadcast(CGFloat top_progress,
 }
 
 void FullscreenBrowserAgent::NotifyObserversOfUpdatedState() {
+  CHECK(!updating_insets_);
   updating_insets_ = true;
   UIEdgeInsets old_insets = insets_;
   insets_ = UIEdgeInsetsZero;
@@ -139,6 +140,7 @@ void FullscreenBrowserAgent::DecrementDisabledCounter(PassKey) {
 }
 
 void FullscreenBrowserAgent::InvalidateInsetRange() {
+  invalidating_inset_range_ = true;
   min_insets_ = UIEdgeInsetsZero;
   max_insets_ = UIEdgeInsetsZero;
 
@@ -153,6 +155,7 @@ void FullscreenBrowserAgent::InvalidateInsetRange() {
   }
 
   NotifyObserversOfUpdatedState();
+  invalidating_inset_range_ = false;
 }
 
 void FullscreenBrowserAgent::AddObscuredInsetRange(UIRectEdge edge,

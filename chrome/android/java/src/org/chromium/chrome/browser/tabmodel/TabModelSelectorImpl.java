@@ -25,6 +25,7 @@ import org.chromium.chrome.browser.flags.CustomTabProfileType;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceOrchestratorFactory;
 import org.chromium.chrome.browser.ntp.RecentlyClosedBridge;
 import org.chromium.chrome.browser.ntp.RecentlyClosedEntry;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.tab.SadTab;
 import org.chromium.chrome.browser.tab.Tab;
@@ -143,7 +144,7 @@ public class TabModelSelectorImpl extends TabModelSelectorBase implements TabMod
         TabCreator incognitoTabCreator = getTabCreatorManager().getTabCreator(true);
         mRecentlyClosedBridge =
                 new RecentlyClosedBridge(profileProvider.getOriginalProfile(), this);
-        Supplier<TabGroupModelFilter> regularTabGroupModelFilterSupplier =
+        Supplier<@Nullable TabGroupModelFilter> regularTabGroupModelFilterSupplier =
                 () -> getModel(/* incognito= */ false);
         TabRemover regularTabRemover =
                 mModalDialogManager != null
@@ -151,11 +152,16 @@ public class TabModelSelectorImpl extends TabModelSelectorBase implements TabMod
                                 mContext, mModalDialogManager, regularTabGroupModelFilterSupplier)
                         : new PassthroughTabRemover(regularTabGroupModelFilterSupplier);
         TabUngrouperFactory tabUngrouperFactory =
-                (isIncognitoBranded, tabGroupModelFilterSupplier) -> {
-                    return (isIncognitoBranded || mModalDialogManager == null)
-                            ? new PassthroughTabUngrouper(tabGroupModelFilterSupplier)
-                            : new TabUngrouperImpl(
-                                    mContext, mModalDialogManager, tabGroupModelFilterSupplier);
+                new TabUngrouperFactory() {
+                    @Override
+                    public TabUngrouper create(
+                            boolean isIncognitoBranded,
+                            Supplier<@Nullable TabGroupModelFilter> tabGroupModelFilterSupplier) {
+                        return (isIncognitoBranded || mModalDialogManager == null)
+                                ? new PassthroughTabUngrouper(tabGroupModelFilterSupplier)
+                                : new TabUngrouperImpl(
+                                        mContext, mModalDialogManager, tabGroupModelFilterSupplier);
+                    }
                 };
         TabModelHolder normalModelHolder =
                 TabModelHolderFactory.createTabModelHolder(
@@ -455,5 +461,14 @@ public class TabModelSelectorImpl extends TabModelSelectorBase implements TabMod
     @Override
     public boolean isTabModelRestored() {
         return isTabStateInitialized();
+    }
+
+    @Override
+    public @Nullable Profile getProfile(boolean offTheRecord) {
+        ProfileProvider profileProvider = mProfileProviderSupplier.get();
+        if (profileProvider == null) return null;
+        return offTheRecord
+                ? profileProvider.getOffTheRecordProfile()
+                : profileProvider.getOriginalProfile();
     }
 }

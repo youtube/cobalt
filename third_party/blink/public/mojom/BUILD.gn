@@ -1132,7 +1132,7 @@ mojom("mojom_platform") {
       types = [
         {
           mojom = "blink.mojom.FetchAPIRequestHeaders"
-          cpp = "::blink::HashMap<::blink::String, ::blink::String, ::blink::CaseFoldingHashTraits<::blink::String>>"
+          cpp = "::blink::HashMap<::blink::String, ::blink::String, ::blink::DeprecatedCaseFoldingHashTraits<::blink::String>>"
           move_only = true
         },
       ]
@@ -1196,6 +1196,7 @@ mojom("android_mojo_bindings") {
     "installedapp/installed_app_provider.mojom",
     "installedapp/related_application.mojom",
     "mediasession/media_session.mojom",
+    "payments/payment_app_events.mojom",
     "payments/payment_handler_host.mojom",
     "payments/payment_request.mojom",
     "payments/secure_payment_confirmation_service.mojom",
@@ -1304,7 +1305,6 @@ mojom("mojom_core") {
     "frame/remote_frame.mojom",
     "frame/reporting_observer.mojom",
     "frame/sudden_termination_disabler_type.mojom",
-    "frame/text_autosizer_page_info.mojom",
     "frame/tree_scope_type.mojom",
     "frame/triggering_event_info.mojom",
     "frame/user_activation_notification_type.mojom",

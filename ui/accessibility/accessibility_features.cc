@@ -306,6 +306,13 @@ bool IsAccessibilityManifestV3EnabledForGoogleTts() {
       ::features::kAccessibilityManifestV3GoogleTts);
 }
 
+BASE_FEATURE(kAccessibilityChromeVoxJapaneseBraille,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsAccessibilityChromeVoxJapaneseBrailleEnabled() {
+  return base::FeatureList::IsEnabled(
+      ::features::kAccessibilityChromeVoxJapaneseBraille);
+}
+
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -358,6 +365,11 @@ bool IsImmersiveReadAnythingEnabled() {
 BASE_FEATURE(kMainNodeAnnotations, base::FEATURE_DISABLED_BY_DEFAULT);
 bool IsMainNodeAnnotationsEnabled() {
   return base::FeatureList::IsEnabled(::features::kMainNodeAnnotations);
+}
+
+BASE_FEATURE(kImprovedReadAloud, base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsImprovedReadAloudEnabled() {
+  return base::FeatureList::IsEnabled(::features::kImprovedReadAloud);
 }
 
 BASE_FEATURE(kReadAnythingMenuShuffleExperiment,
@@ -431,6 +443,14 @@ bool IsReadAnythingDocsLoadMoreButtonEnabled() {
 BASE_FEATURE(kReadAnythingWithReadability, base::FEATURE_DISABLED_BY_DEFAULT);
 bool IsReadAnythingWithReadabilityEnabled() {
   return base::FeatureList::IsEnabled(::features::kReadAnythingWithReadability);
+}
+
+BASE_FEATURE(kReadAnythingReadabilitySelectText,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsReadaAnythingReadabilitySelectTextEnabled() {
+  return base::FeatureList::IsEnabled(
+             ::features::kReadAnythingReadabilitySelectText) &&
+         base::FeatureList::IsEnabled(::features::kReadAnythingWithReadability);
 }
 
 // This feature is only for debug purposes and for security/privacy reasons,

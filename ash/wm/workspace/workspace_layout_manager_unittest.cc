@@ -247,8 +247,9 @@ TEST_F(WorkspaceLayoutManagerTest, NoMinimumVisibilityForPopupWindows) {
 
   // Create a popup window out of display boundaries and make sure it is not
   // moved to have minimum visibility.
-  std::unique_ptr<aura::Window> window(CreateTestWindow(
-      gfx::Rect(400, 100, 50, 50), aura::client::WINDOW_TYPE_POPUP));
+  std::unique_ptr<aura::Window> window =
+      CreateTestWindowInShell({.bounds = gfx::Rect(400, 100, 50, 50),
+                               .window_type = aura::client::WINDOW_TYPE_POPUP});
   EXPECT_EQ("400,100 50x50", window->GetBoundsInScreen().ToString());
 }
 
@@ -1693,6 +1694,11 @@ class WorkspaceLayoutManagerBackdropTest : public AshTestBase {
         desks_util::GetActiveDeskContainerId());
   }
 
+  void TearDown() override {
+    default_container_ = nullptr;
+    AshTestBase::TearDown();
+  }
+
   // Turn tablet mode on / off.
   void SetTabletModeEnabled(bool enabled) {
     Shell::Get()->tablet_mode_controller()->SetEnabledForTest(enabled);
@@ -1746,7 +1752,7 @@ class WorkspaceLayoutManagerBackdropTest : public AshTestBase {
 
  private:
   // The default container.
-  raw_ptr<aura::Window, DanglingUntriaged> default_container_;
+  raw_ptr<aura::Window> default_container_;
 };
 
 constexpr std::optional<Sound> kNoSoundKey = std::nullopt;
@@ -2150,6 +2156,11 @@ class WorkspaceLayoutManagerKeyboardTest : public AshTestBase {
     layout_manager_ = GetWorkspaceLayoutManager(active_desk_container);
   }
 
+  void TearDown() override {
+    layout_manager_ = nullptr;
+    AshTestBase::TearDown();
+  }
+
   void ShowKeyboard() {
     layout_manager_->OnKeyboardDisplacingBoundsChanged(keyboard_bounds_);
 
@@ -2196,7 +2207,7 @@ class WorkspaceLayoutManagerKeyboardTest : public AshTestBase {
  private:
   gfx::Insets restore_work_area_insets_;
   gfx::Rect keyboard_bounds_;
-  raw_ptr<WorkspaceLayoutManager, DanglingUntriaged> layout_manager_;
+  raw_ptr<WorkspaceLayoutManager> layout_manager_;
 };
 
 // Tests that when a child window gains focus the top level window containing it
@@ -2338,10 +2349,12 @@ TEST_F(WorkspaceLayoutManagerBackdropTest, BackdropForSplitViewTest) {
   Shell::Get()->tablet_mode_controller()->SetEnabledForTest(true);
 
   auto CreateWindow = [this](const gfx::Rect& bounds) {
-    aura::Window* window = CreateTestWindowInShell(
-        {.delegate =
-             aura::test::TestWindowDelegate::CreateSelfDestroyingDelegate(),
-         .bounds = bounds});
+    aura::Window* window =
+        CreateTestWindowInShell(
+            {.delegate =
+                 aura::test::TestWindowDelegate::CreateSelfDestroyingDelegate(),
+             .bounds = bounds})
+            .release();
     return window;
   };
 

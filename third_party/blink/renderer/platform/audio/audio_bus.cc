@@ -92,7 +92,7 @@ AudioBus::AudioBus(unsigned number_of_channels, uint32_t length, bool allocate)
     if (allocate) {
       channels_.emplace_back(length);
     } else {
-      channels_.emplace_back(nullptr, length);
+      channels_.emplace_back();
     }
   }
 
@@ -103,8 +103,16 @@ void AudioBus::SetChannelMemory(unsigned channel_index,
                                 float* storage,
                                 uint32_t length) {
   if (channel_index < channels_.size()) {
+    SetChannelMemory(channel_index,
+                     UNSAFE_TODO(base::span<float>(storage, length)), length);
+  }
+}
+
+void AudioBus::SetChannelMemory(unsigned channel_index,
+                                base::span<float> storage,
+                                uint32_t length) {
+  if (channel_index < channels_.size()) {
     Channel(channel_index)->Set(storage, length);
-    // FIXME: verify that this length matches all the other channel lengths
     length_ = length;
   }
 }
@@ -237,7 +245,12 @@ scoped_refptr<AudioBus> AudioBus::CreateBufferFromRange(
 
   uint32_t range_length = end_frame - start_frame;
 
-  scoped_refptr<AudioBus> audio_bus = Create(number_of_channels, range_length);
+  scoped_refptr<AudioBus> audio_bus =
+      TryCreate(number_of_channels, range_length);
+  if (!audio_bus) {
+    return nullptr;
+  }
+
   audio_bus->SetSampleRate(source_buffer->SampleRate());
 
   for (unsigned i = 0; i < number_of_channels; ++i) {
@@ -615,6 +628,16 @@ scoped_refptr<AudioBus> AudioBus::CreateBySampleRateConverting(
     const AudioBus* source_bus,
     bool mix_to_mono,
     double new_sample_rate) {
+  scoped_refptr<AudioBus> audio_bus = TryCreateBySampleRateConverting(
+      source_bus, mix_to_mono, new_sample_rate);
+  CHECK(audio_bus);
+  return audio_bus;
+}
+
+scoped_refptr<AudioBus> AudioBus::TryCreateBySampleRateConverting(
+    const AudioBus* source_bus,
+    bool mix_to_mono,
+    double new_sample_rate) {
   // sourceBus's sample-rate must be known.
   DCHECK(source_bus);
   DCHECK(source_bus->SampleRate());
@@ -634,7 +657,7 @@ scoped_refptr<AudioBus> AudioBus::CreateBySampleRateConverting(
   if (source_sample_rate == destination_sample_rate) {
     // No sample-rate conversion is necessary.
     if (mix_to_mono) {
-      return AudioBus::CreateByMixingToMono(source_bus);
+      return AudioBus::TryCreateByMixingToMono(source_bus);
     }
 
     // Return exact copy.
@@ -642,8 +665,11 @@ scoped_refptr<AudioBus> AudioBus::CreateBySampleRateConverting(
   }
 
   if (source_bus->IsSilent()) {
-    scoped_refptr<AudioBus> silent_bus = Create(
+    scoped_refptr<AudioBus> silent_bus = TryCreate(
         number_of_source_channels, source_bus->length() / sample_rate_ratio);
+    if (!silent_bus) {
+      return nullptr;
+    }
     silent_bus->SetSampleRate(new_sample_rate);
     return silent_bus;
   }
@@ -652,7 +678,10 @@ scoped_refptr<AudioBus> AudioBus::CreateBySampleRateConverting(
   const AudioBus* resampler_source_bus;
   scoped_refptr<AudioBus> mixed_mono_bus;
   if (mix_to_mono) {
-    mixed_mono_bus = AudioBus::CreateByMixingToMono(source_bus);
+    mixed_mono_bus = AudioBus::TryCreateByMixingToMono(source_bus);
+    if (!mixed_mono_bus) {
+      return nullptr;
+    }
     resampler_source_bus = mixed_mono_bus.get();
   } else {
     // Directly resample without down-mixing.
@@ -667,7 +696,10 @@ scoped_refptr<AudioBus> AudioBus::CreateBySampleRateConverting(
   unsigned number_of_destination_channels =
       resampler_source_bus->NumberOfChannels();
   scoped_refptr<AudioBus> destination_bus =
-      Create(number_of_destination_channels, destination_length);
+      TryCreate(number_of_destination_channels, destination_length);
+  if (!destination_bus) {
+    return nullptr;
+  }
 
   // Sample-rate convert each channel.
   for (unsigned i = 0; i < number_of_destination_channels; ++i) {
@@ -681,10 +713,10 @@ scoped_refptr<AudioBus> AudioBus::CreateBySampleRateConverting(
   return destination_bus;
 }
 
-scoped_refptr<AudioBus> AudioBus::CreateByMixingToMono(
+scoped_refptr<AudioBus> AudioBus::TryCreateByMixingToMono(
     const AudioBus* source_bus) {
   if (source_bus->IsSilent()) {
-    return Create(1, source_bus->length());
+    return TryCreate(1, source_bus->length());
   }
 
   switch (source_bus->NumberOfChannels()) {
@@ -694,7 +726,10 @@ scoped_refptr<AudioBus> AudioBus::CreateByMixingToMono(
                                              source_bus->length());
     case 2: {
       unsigned n = source_bus->length();
-      scoped_refptr<AudioBus> destination_bus = Create(1, n);
+      scoped_refptr<AudioBus> destination_bus = TryCreate(1, n);
+      if (!destination_bus) {
+        return nullptr;
+      }
 
       base::span<const float> source_l = source_bus->Channel(0)->Span();
       base::span<const float> source_r = source_bus->Channel(1)->Span();
@@ -777,8 +812,8 @@ scoped_refptr<AudioBus> AudioBus::CreateBusFromInMemoryAudioFile(
     return audio_bus;
   }
 
-  return AudioBus::CreateBySampleRateConverting(audio_bus.get(), mix_to_mono,
-                                                sample_rate);
+  return AudioBus::TryCreateBySampleRateConverting(audio_bus.get(), mix_to_mono,
+                                                   sample_rate);
 }
 
 }  // namespace blink

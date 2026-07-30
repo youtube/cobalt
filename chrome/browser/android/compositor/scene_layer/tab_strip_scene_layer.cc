@@ -40,8 +40,8 @@ TabStripSceneLayer::TabStripSceneLayer(JNIEnv* env,
       new_tab_button_(cc::slim::UIResourceLayer::Create()),
       new_tab_button_background_(cc::slim::UIResourceLayer::Create()),
       new_tab_button_keyboard_focus_ring_(cc::slim::UIResourceLayer::Create()),
-      left_fade_(cc::slim::UIResourceLayer::Create()),
-      right_fade_(cc::slim::UIResourceLayer::Create()),
+      left_fade_(cc::slim::SolidColorLayer::Create()),
+      right_fade_(cc::slim::SolidColorLayer::Create()),
       left_padding_layer_(cc::slim::SolidColorLayer::Create()),
       right_padding_layer_(cc::slim::SolidColorLayer::Create()),
       glic_button_(cc::slim::UIResourceLayer::Create()),
@@ -337,6 +337,7 @@ void TabStripSceneLayer::UpdateGlicButton(
     bool visible,
     bool should_apply_hover_highlight,
     int32_t tint,
+    bool should_tint,
     int32_t background_tint,
     float button_alpha,
     bool is_keyboard_focused,
@@ -347,8 +348,14 @@ void TabStripSceneLayer::UpdateGlicButton(
     float icon_text_padding,
     float corner_radius) {
   DCHECK(resource_manager_);
-  ui::Resource* icon_resource = resource_manager_->GetResource(
-      ui::ANDROID_RESOURCE_TYPE_STATIC, resource_id);
+  ui::Resource* icon_resource;
+  if (should_tint) {
+    icon_resource =
+        resource_manager_->GetStaticResourceWithTint(resource_id, tint);
+  } else {
+    icon_resource = resource_manager_->GetResource(
+        ui::ANDROID_RESOURCE_TYPE_STATIC, resource_id);
+  }
   ui::Resource* text_resource = resource_manager_->GetResource(
       ui::ANDROID_RESOURCE_TYPE_DYNAMIC, text_texture_id);
   ui::Resource* keyboard_focus_ring_drawable =
@@ -520,75 +527,51 @@ void TabStripSceneLayer::UpdateCompositorButton(
   }
 }
 
-void TabStripSceneLayer::UpdateTabStripLeftFade(JNIEnv* env,
-                                                int32_t resource_id,
-                                                float opacity,
-                                                int32_t left_fade_color,
-                                                float left_padding) {
+void TabStripSceneLayer::UpdateTabStripFade(JNIEnv* env,
+                                            bool is_left,
+                                            int32_t fade_color,
+                                            float opacity,
+                                            float gradient_width,
+                                            float opaque_width,
+                                            float padding) {
+  // Act on the correct fade.
+  cc::slim::SolidColorLayer& fade = is_left ? *left_fade_ : *right_fade_;
+
   // Hide layer if it's not visible.
   if (opacity == 0.f) {
-    left_fade_->SetHideLayerAndSubtree(true);
+    fade.SetHideLayerAndSubtree(true);
     return;
   }
 
-  DCHECK(resource_manager_);
-  ui::Resource* fade_resource = resource_manager_->GetStaticResourceWithTint(
-      resource_id, left_fade_color);
-  left_fade_->SetUIResourceId(fade_resource->ui_resource()->id());
-
-  // The same resource is used for both left and right fade, so the
-  // resource must be mirrored for the left fade.
-  gfx::Transform fade_transform = gfx::Transform::MakeScale(-1.0f, 1.0f);
-  left_fade_->SetTransform(fade_transform);
-
   // Set opacity.
-  left_fade_->SetOpacity(opacity);
+  fade.SetOpacity(opacity);
 
-  // Set bounds. Use the parent layer height so the 1px fade resource is
-  // stretched vertically.
+  // Set background color.
+  fade.SetBackgroundColor(SkColor4f::FromColor(fade_color));
+
+  // Set bounds.
+  float width = opaque_width + gradient_width;
   float height = tab_strip_layer_->bounds().height();
-  left_fade_->SetBounds(gfx::Size(fade_resource->size().width(), height));
+  fade.SetBounds(gfx::Size(width, height));
 
-  // Set position. The rotation set above requires the layer to be offset
-  // by its width in order to display on the left edge.
-  left_fade_->SetPosition(
-      gfx::PointF(fade_resource->size().width() + left_padding, 0));
+  // Set position.
+  int fade_x =
+      is_left ? padding : tab_strip_layer_->bounds().width() - width - padding;
+  fade.SetPosition(gfx::PointF(fade_x, 0));
 
-  // Ensure layer is visible.
-  left_fade_->SetHideLayerAndSubtree(false);
-}
-
-void TabStripSceneLayer::UpdateTabStripRightFade(JNIEnv* env,
-                                                 int32_t resource_id,
-                                                 float opacity,
-                                                 int32_t right_fade_color,
-                                                 float right_padding) {
-  // Hide layer if it's not visible.
-  if (opacity == 0.f) {
-    right_fade_->SetHideLayerAndSubtree(true);
-    return;
+  // Set gradient.
+  gfx::LinearGradient gradient;
+  gradient.AddStep(0.f, 255);
+  gradient.AddStep(opaque_width / (opaque_width + gradient_width), 255);
+  gradient.AddStep(1.f, 0);
+  if (!is_left) {
+    gradient.set_angle(180);
   }
-
-  DCHECK(resource_manager_);
-  ui::Resource* fade_resource = resource_manager_->GetStaticResourceWithTint(
-      resource_id, right_fade_color);
-  right_fade_->SetUIResourceId(fade_resource->ui_resource()->id());
-
-  // Set opacity.
-  right_fade_->SetOpacity(opacity);
-
-  // Set bounds. Use the parent layer height so the 1px fade resource is
-  // stretched vertically.
-  float height = tab_strip_layer_->bounds().height();
-  right_fade_->SetBounds(gfx::Size(fade_resource->size().width(), height));
-
-  // Set position. The right fade is positioned at the end of the tab strip.
-  float x = tab_strip_layer_->bounds().width() - fade_resource->size().width() -
-            right_padding;
-  right_fade_->SetPosition(gfx::PointF(x, 0));
+  fade.SetContentsOpaque(false);
+  fade.SetGradientMask(gradient);
 
   // Ensure layer is visible.
-  right_fade_->SetHideLayerAndSubtree(false);
+  fade.SetHideLayerAndSubtree(false);
 }
 
 void TabStripSceneLayer::PutStripTabLayer(
@@ -617,6 +600,9 @@ void TabStripSceneLayer::PutStripTabLayer(
     float media_indicator_spacing,
     float media_indicator_internal_padding,
     float title_to_media_indicator_spacing,
+    int32_t tab_indicator_overlay_resource_id,
+    float tab_indicator_overlay_rotation,
+    float tab_indicator_overlay_width,
     float toolbar_width,
     float x,
     float y,
@@ -686,6 +672,12 @@ void TabStripSceneLayer::PutStripTabLayer(
     media_indicator_drawable = resource_manager_->GetStaticResourceWithTint(
         media_indicator_resource_id, media_indicator_tint);
   }
+  ui::Resource* media_indicator_overlay_drawable = nullptr;
+  if (should_show_media_indicator && tab_indicator_overlay_resource_id != 0) {
+    media_indicator_overlay_drawable =
+        resource_manager_->GetStaticResourceWithTint(
+            tab_indicator_overlay_resource_id, media_indicator_tint);
+  }
 
   float media_indicator_opacity = 1.0f;
   if (media_indicator_tint == close_tint) {
@@ -702,14 +694,15 @@ void TabStripSceneLayer::PutStripTabLayer(
       should_hide_favicon, should_show_media_indicator,
       media_indicator_drawable, media_indicator_width, media_indicator_spacing,
       media_indicator_internal_padding, title_to_media_indicator_spacing,
-      media_indicator_opacity, toolbar_width, x, y, width, height,
-      content_offset_y, divider_offset_x, bottom_margin, top_margin,
-      close_button_padding, close_button_alpha, is_start_divider_visible,
-      is_end_divider_visible, is_loading, spinner_rotation, opacity,
-      is_keyboard_focused, keyboard_focus_ring_drawable,
-      keyboard_focus_ring_offset, stroke_width, folio_foot_length,
-      width_to_hide_tab_title, pinned_icon_offset_x, is_underlined,
-      static_cast<SkColor>(underline_start_color),
+      media_indicator_opacity, media_indicator_overlay_drawable,
+      tab_indicator_overlay_rotation, tab_indicator_overlay_width,
+      toolbar_width, x, y, width, height, content_offset_y, divider_offset_x,
+      bottom_margin, top_margin, close_button_padding, close_button_alpha,
+      is_start_divider_visible, is_end_divider_visible, is_loading,
+      spinner_rotation, opacity, is_keyboard_focused,
+      keyboard_focus_ring_drawable, keyboard_focus_ring_offset, stroke_width,
+      folio_foot_length, width_to_hide_tab_title, pinned_icon_offset_x,
+      is_underlined, static_cast<SkColor>(underline_start_color),
       static_cast<SkColor>(underline_end_color), underline_width_threshold);
 }
 

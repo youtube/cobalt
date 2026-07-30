@@ -111,6 +111,21 @@ should be able to be added at any place in this file.
   <variant name=".UnpinItem" summary="Remove a custom item."/>
 </variants>
 
+<variants name="ContextType">
+  <variant name="AutoModel" summary="AutoModel"/>
+  <variant name="Canvas" summary="Canvas"/>
+  <variant name="DeepResearch" summary="DeepResearch"/>
+  <variant name="Drive" summary="Drive"/>
+  <variant name="File" summary="File"/>
+  <variant name="Image" summary="Image"/>
+  <variant name="ImageGen" summary="ImageGen"/>
+  <variant name="ProNoGenUiModel" summary="ProNoGenUiModel"/>
+  <variant name="RegularModel" summary="RegularModel"/>
+  <variant name="Tab" summary="Tab"/>
+  <variant name="ThinkingModel" summary="ThinkingModel"/>
+  <variant name="Unknown" summary="Unknown"/>
+</variants>
+
 <variants name="ContextualSearchAiModeButtonSurface">
   <variant name="NtpOmnibox" summary="NTP Omnibox"/>
   <variant name="NtpRealbox" summary="NTP Realbox"/>
@@ -240,6 +255,8 @@ should be able to be added at any place in this file.
       summary="For Autofill credit card benefit message."/>
   <variant name="_AutofillDisabledVirtualCardSuggestion"
       summary="For AutofillDisabledVirtualCardSuggestion feature."/>
+  <variant name="_AutofillDownstreamCardAwareness"
+      summary="For AutofillDownstreamCardAwareness IPH feature."/>
   <variant name="_AutofillEnableLoyaltyCards"
       summary="For AutofillEnableLoyaltyCards feature."/>
   <variant name="_AutofillExternalAccountProfileSuggestion"
@@ -847,6 +864,12 @@ should be able to be added at any place in this file.
   <variant name=".UnfamiliarSite" summary="Recorded on an unfamiliar site."/>
 </variants>
 
+<variants name="PopupType">
+  <variant name="AimPopup" summary="Context menu opened from aim popup"/>
+  <variant name="ClassicPopup"
+      summary="Context menu opened from classic popup"/>
+</variants>
+
 <variants name="SidePanelEntry">
   <variant name="AboutThisSite" summary="about this site"/>
   <variant name="Assistant" summary="assistant"/>
@@ -913,8 +936,6 @@ should be able to be added at any place in this file.
       summary="Gemini Site Search Shortcut"/>
   <variant name=".GenerativeThemes" summary="Generative Themes"/>
   <variant name=".GenerativeTheming" summary="Generative Theming"/>
-  <variant name=".GlicIntro" summary="Glic Intro"/>
-  <variant name=".GlicLearnMore" summary="Glic Learn More"/>
   <variant name=".GoogleLens" summary="Google Lens"/>
   <variant name=".Googlepayreauth" summary="Google Pay Re-auth"/>
   <variant name=".HelpMeWrite" summary="Help Me Write"/>
@@ -11116,12 +11137,13 @@ should be able to be added at any place in this file.
 </action>
 
 <action
-    name="ContextualSearch.ZeroSuggestClick.{Type}.{ContextualSearchSource}">
+    name="ContextualSearch.ZeroSuggestClickV2.{Type}.{ContextualSearchSource}">
   <owner>niharm@google.com</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <description>
     Recorded when a user clicks on a {Type} suggestion in the zero-suggest mode
-    from {ContextualSearchSource}.
+    from {ContextualSearchSource}. A query that is submitted with a file
+    uploaded and no text is considered a non-contextual zero suggest click.
   </description>
   <token key="Type">
     <variant name="Contextual" summary=""/>
@@ -15067,6 +15089,15 @@ should be able to be added at any place in this file.
   <owner>erikchen@chromium.org</owner>
   <description>
     Logged if a help center link is opened from the FRE.
+  </description>
+</action>
+
+<action name="Glic.Fre.InputSubmitted">
+  <owner>birnie@google.com</owner>
+  <owner>erikchen@chromium.org</owner>
+  <description>
+    Logged when input is submitted after accepting the FRE. Is logged for both
+    automatic and user initiated input.
   </description>
 </action>
 
@@ -29329,6 +29360,15 @@ should be able to be added at any place in this file.
   <description>
     Android: User navigated back to the NTP after reading an opened (clicked)
     snippet card.
+  </description>
+</action>
+
+<action name="MobileNTPAIMPlusButtonTapped">
+  <owner>radunitescu@google.com</owner>
+  <owner>bling-search@google.com</owner>
+  <description>
+    Recorded when the user taps on the AIM plus button in the fakebox on NTP.
+    iOS only.
   </description>
 </action>
 
@@ -49954,6 +49994,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="SystemBack">
+  <obsolete>Unused as of Oct 29, 2024</obsolete>
   <owner>lazzzis@google.com</owner>
   <description>
     The user triggered system back **after** Native is initialized. This action
@@ -55845,6 +55886,20 @@ should be able to be added at any place in this file.
   <token key="ClosingSidePanelType" variants="SidePanelType"/>
   <token key="SidePanelEntry" variants="SidePanelEntry"/>
   <token key="OpeningSidePanelType" variants="SidePanelType"/>
+</action>
+
+<action
+    name="{ContextualSearchSource}.AimEntrypoint.{PopupType}.ContextualElement.Clicked.{ContextType}">
+  <owner>niharm@google.com</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <description>
+    Recorded when the user opens the context menu in a WebUI searchbox (omnibox,
+    realbox, etc.) or composebox and selects a menu item. This action is
+    recorded on {ContextualSearchSource} for {PopupType} and {ContextType}.
+  </description>
+  <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
+  <token key="PopupType" variants="PopupType"/>
+  <token key="ContextType" variants="ContextType"/>
 </action>
 
 <action name="{SidePanelType}.Hide">

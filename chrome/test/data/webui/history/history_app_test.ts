@@ -139,8 +139,7 @@ suite('HistoryAppTest', function() {
         element.shadowRoot.querySelector('cr-history-embeddings');
     assertTrue(!!historyEmbeddings);
 
-    const changeQueryEventPromise =
-        eventToPromise<CustomEvent<{search: string}>>('change-query', element);
+    const changeQueryEventPromise = eventToPromise('change-query', element);
     historyEmbeddings.dispatchEvent(new CustomEvent('more-from-site-click', {
       detail: {
         title: 'Google',
@@ -185,9 +184,7 @@ suite('HistoryAppTest', function() {
   test('ChangesQueryStateWithFilterChips', async () => {
     const filterChips =
         element.shadowRoot.querySelector('cr-history-embeddings-filter-chips')!;
-    const changeQueryEventPromise =
-        eventToPromise<CustomEvent<{search: string, after: string}>>(
-            'change-query', element);
+    const changeQueryEventPromise = eventToPromise('change-query', element);
     filterChips.dispatchEvent(new CustomEvent('selected-suggestion-changed', {
       detail: {
         value: {
@@ -618,5 +615,59 @@ suite('HistoryFilterChipsVisibility', function() {
     // Re-create the element to pick up the new loadTimeData.
     await createPage();
     assertFalse(isChildVisible(element, '#historyFilterChips'));
+  });
+
+  test('PropagatesFilterChanges', async () => {
+    loadTimeData.overrideValues({
+      isBrowsingHistoryActorIntegrationM3Enabled: true,
+      isGlicWebActuationAvailable: true,
+    });
+    await createPage();
+
+    const filterChips =
+        element.shadowRoot.querySelector<HTMLElement>('#historyFilterChips');
+    assertTrue(!!filterChips);
+
+    const changeQueryEventPromise = eventToPromise<CustomEvent<{
+      search: string,
+      includeUserVisits: boolean,
+      includeActorVisits: boolean,
+    }>>('change-query', element);
+
+    filterChips.dispatchEvent(new CustomEvent('filter-changed', {
+      detail: {
+        userVisits: false,
+        actorVisits: true,
+      },
+      bubbles: true,
+      composed: true,
+    }));
+
+    const event = await changeQueryEventPromise;
+
+    // The query sent to the manager includes the new filters.
+    assertFalse(event.detail.includeUserVisits);
+    assertTrue(event.detail.includeActorVisits);
+    assertEquals('', event.detail.search);
+  });
+
+  test('HidesFilterChipsOnGroupedView', async () => {
+    loadTimeData.overrideValues({
+      isBrowsingHistoryActorIntegrationM3Enabled: true,
+      isGlicWebActuationAvailable: true,
+    });
+    await createPage();
+
+    assertTrue(isChildVisible(element, '#historyFilterChips'));
+
+    element.$.router.selectedPage = 'grouped';
+    await microtasksFinished();
+
+    // Should be hidden for grouped view.
+    assertFalse(isChildVisible(element, '#historyFilterChips'));
+
+    element.$.router.selectedPage = 'history';
+    await microtasksFinished();
+    assertTrue(isChildVisible(element, '#historyFilterChips'));
   });
 });

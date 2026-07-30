@@ -50,6 +50,20 @@ source_set("features") {
   deps = [ "//base" ]
 }
 
+source_set("test_support") {
+  testonly = true
+  sources = [
+    "accessibility_annotator_enablement_service_impl_test_api.h",
+    "mock_accessibility_query_service.cc",
+    "mock_accessibility_query_service.h",
+  ]
+  deps = [
+    ":core",
+    "//base",
+    "//testing/gmock",
+  ]
+}
+
 source_set("unit_tests") {
   testonly = true
 
@@ -61,12 +75,15 @@ source_set("unit_tests") {
 
   deps = [
     ":core",
+    ":test_support",
     "//base",
     "//base/test:test_support",
     "//components/accessibility_annotator/core/annotation_reducer:unit_tests",
     "//components/accessibility_annotator/core/data_models:unit_tests",
     "//components/accessibility_annotator/core/storage:test_support",
     "//components/accessibility_annotator/core/storage:unit_tests",
+    "//components/account_settings",
+    "//components/account_settings:test_support",
     "//components/prefs:test_support",
     "//components/signin/public/identity_manager:test_support",
     "//components/subscription_eligibility",

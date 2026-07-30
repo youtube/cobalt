@@ -78,6 +78,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/cocoa/apps/quit_with_apps_controller_mac.h"
 #import "chrome/browser/ui/cocoa/bookmarks/bookmark_menu_bridge.h"
@@ -126,6 +127,7 @@
 #include "content/public/browser/download_manager.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_system.h"
+#include "extensions/buildflags/buildflags.h"
 #include "net/base/apple/url_conversions.h"
 #include "net/base/filename_util.h"
 #import "ui/base/cocoa/nsmenu_additions.h"
@@ -183,10 +185,12 @@ void BeginHandlingWebAuthenticationSessionRequestWithProfile(
 // not possible. If the last active browser is minimized (in particular, if
 // there are only minimized windows), it will unminimize it.
 Browser* ActivateBrowser(Profile* profile) {
-  Browser* browser = chrome::FindLastActiveWithProfile(
+  BrowserWindowInterface* current_browser = chrome::FindLastActiveWithProfile(
       profile->IsGuestSession()
           ? profile->GetPrimaryOTRProfile(/*create_if_needed=*/true)
           : profile);
+  Browser* browser =
+      current_browser ? current_browser->GetBrowserForMigrationOnly() : nullptr;
 
   if (browser) {
     browser = browser->GetBrowserForOpeningWebUi();
@@ -433,8 +437,22 @@ void OpenUrlsInBrowser(std::vector<GURL> urls) {
               base::flat_map<base::FilePath, std::vector<GURL>> profile_url_map;
               for (const auto& path : shortcuts) {
                 auto shortcut = shortcuts::ChromeWeblocFile::LoadFromFile(path);
+                // TODO: Consider opening the original file URL?
                 if (!shortcut.has_value()) {
-                  // TODO: Consider opening the original file URL?
+                  continue;
+                }
+                bool is_shortcut_url_valid =
+                    startup::ValidateUrl(shortcut->target_url());
+        // Do not allow chrome sensitive urls to be launched from a .crwebloc
+        // file.
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+                is_shortcut_url_valid =
+                    is_shortcut_url_valid || shortcut->target_url().SchemeIs(
+                                                 extensions::kExtensionScheme);
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+                if (!is_shortcut_url_valid) {
+                  LOG(ERROR) << "Not allowed to open target url: "
+                             << shortcut->target_url();
                   continue;
                 }
                 profile_url_map[shortcut->profile_path_name().path()].push_back(
@@ -1366,7 +1384,8 @@ class AppControllerProfileObserver : public ProfileAttributesStorage::Observer,
         // Create a new browser window (if necessary) and navigate to the
         // downloads page if the user chooses to wait.
         BrowserWindowInterface* browser =
-            chrome::FindBrowserWithProfile(profile);
+            ProfileBrowserCollection::GetForProfile(profile)
+                ->GetLastActiveBrowser();
         if (!browser) {
           browser = Browser::Create(Browser::CreateParams(profile, true));
           browser->GetWindow()->Show();
@@ -2424,7 +2443,10 @@ class AppControllerProfileObserver : public ProfileAttributesStorage::Observer,
 
 - (void)setLastProfileForTesting:(Profile*)profile {
   _lastProfile = profile;
-  Browser* browser = chrome::FindLastActiveWithProfile(profile);
+  BrowserWindowInterface* current_browser =
+      chrome::FindLastActiveWithProfile(profile);
+  Browser* browser =
+      current_browser ? current_browser->GetBrowserForMigrationOnly() : nullptr;
   _lastActiveBrowser = browser->GetWeakPtr();
 }
 
@@ -2450,22 +2472,22 @@ void OpenUrlsInBrowserWithProfile(const std::vector<GURL>& urls,
     profile = ProfileManager::MaybeForceOffTheRecordMode(
         profile->GetOriginalProfile());
   }
-  // Use FindTabbedBrowser to ensure URLs open in a normal tabbed browser
+  // Use FindTabbedBrowser() to ensure URLs open in a normal tabbed browser
   // window, not in PWA/app windows which cannot accept new tabs.
-  Browser* browser =
-      chrome::FindTabbedBrowser(profile, /*match_original_profiles=*/false);
+  BrowserWindowInterface* browser =
+      ProfileBrowserCollection::GetForProfile(profile)->FindTabbedBrowser();
   int startupIndex = TabStripModel::kNoTab;
   content::WebContents* startupContent = nullptr;
-  if (browser && browser->tab_strip_model()->count() == 1) {
+  if (browser && browser->GetTabStripModel()->count() == 1) {
     // If there's only 1 tab and the tab is NTP, close this NTP tab and open all
     // startup urls in new tabs, because the omnibox will stay focused if we
     // load url in NTP tab.
-    startupIndex = browser->tab_strip_model()->active_index();
-    startupContent = browser->tab_strip_model()->GetActiveWebContents();
+    startupIndex = browser->GetTabStripModel()->active_index();
+    startupContent = browser->GetTabStripModel()->GetActiveWebContents();
   } else if (!browser) {
     // if no browser window exists then create one with no tabs to be filled in.
     browser = Browser::Create(Browser::CreateParams(profile, true));
-    browser->window()->Show();
+    browser->GetWindow()->Show();
   }
 
   // Various methods to open URLs that we get in a native fashion. We use
@@ -2477,15 +2499,15 @@ void OpenUrlsInBrowserWithProfile(const std::vector<GURL>& urls,
       first_run::IsChromeFirstRun() ? chrome::startup::IsFirstRun::kYes
                                     : chrome::startup::IsFirstRun::kNo;
   StartupBrowserCreatorImpl launch(base::FilePath(), dummy, first_run);
-  launch.OpenURLsInBrowser(browser, chrome::startup::IsProcessStartup::kNo,
-                           urls);
+  launch.OpenURLsInBrowser(browser->GetBrowserForMigrationOnly(),
+                           chrome::startup::IsProcessStartup::kNo, urls);
 
   // This NTP check should be replaced once https://crbug.com/624410 is fixed.
   if (startupIndex != TabStripModel::kNoTab &&
       (startupContent->GetVisibleURL() == chrome::kChromeUINewTabURL ||
        startupContent->GetVisibleURL() == chrome::kChromeUINewTabPageURL)) {
-    browser->tab_strip_model()->CloseWebContentsAt(startupIndex,
-                                                   TabCloseTypes::CLOSE_NONE);
+    browser->GetTabStripModel()->CloseWebContentsAt(startupIndex,
+                                                    TabCloseTypes::CLOSE_NONE);
   }
 }
 
@@ -2605,7 +2627,8 @@ void TabRestorer::DoRestoreTab(Profile* profile, SessionID session_id) {
   auto* service = TabRestoreServiceFactory::GetForProfile(profile);
   if (!service)
     return;
-  Browser* browser = chrome::FindTabbedBrowser(profile, false);
+  BrowserWindowInterface* browser =
+      ProfileBrowserCollection::GetForProfile(profile)->FindTabbedBrowser();
   BrowserLiveTabContext* context =
       browser ? browser->GetFeatures().live_tab_context() : nullptr;
   if (session_id.is_valid()) {

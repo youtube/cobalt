@@ -525,7 +525,7 @@ sk_sp<cc::PaintFilter> PaintFilterFromString(const std::string& encoded) {
   // and serialization of PaintRecords.
   std::vector<uint8_t> scratch_buffer;
   cc::PaintOp::DeserializeOptions options{.scratch_buffer = scratch_buffer};
-  cc::PaintOpReader reader(buffer.data(), buffer.size(), options,
+  cc::PaintOpReader reader(base::as_byte_span(buffer), options,
                            /*enable_security_constraints=*/true);
   sk_sp<cc::PaintFilter> filter;
   reader.Read(&filter);
@@ -1787,6 +1787,7 @@ const char* DrawQuadMaterialToString(DrawQuad::Material material) {
     MAP_MATERIAL_TO_STRING(kDebugBorder)
     MAP_MATERIAL_TO_STRING(kPictureContent)
     MAP_MATERIAL_TO_STRING(kCompositorRenderPass)
+    MAP_MATERIAL_TO_STRING(kAggregatedRenderPass)
     MAP_MATERIAL_TO_STRING(kSharedElement)
     MAP_MATERIAL_TO_STRING(kSolidColor)
     MAP_MATERIAL_TO_STRING(kSurfaceContent)

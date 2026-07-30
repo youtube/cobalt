@@ -18,6 +18,8 @@
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_metrics.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/prefs/pref_service.h"
@@ -199,13 +201,21 @@ void SystemMenuModelDelegate::ExecuteCommand(int command_id, int event_flags) {
         base::RecordAction(base::UserMetricsAction(
             is_pinned ? "SystemContextMenu_TabSearch_Unpinned"
                       : "SystemContextMenu_TabSearch_Pinned"));
-        base::RecordAction(base::UserMetricsAction(
-            is_pinned ? "TabStripComboButton.TabSearch.Unpinned"
-                      : "TabStripComboButton.TabSearch.Pinned"));
-        prefs->SetBoolean(prefs::kTabSearchPinnedToTabstrip, !is_pinned);
       }
       break;
     }
   }
   chrome::ExecuteCommand(browser_, command_id);
+}
+
+void SystemMenuModelDelegate::OnMenuWillShow(ui::SimpleMenuModel* source) {
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
+  CHECK(browser_view);
+  CHECK(browser_view->tab_strip_view());
+  expand_on_hover_lock_ = browser_view->tab_strip_view()->GetExpandOnHoverLock(
+      ExpandOnHoverLockType::kKeepExpanded);
+}
+
+void SystemMenuModelDelegate::MenuClosed(ui::SimpleMenuModel* source) {
+  expand_on_hover_lock_.reset();
 }

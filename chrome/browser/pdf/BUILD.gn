@@ -11,12 +11,14 @@ source_set("pdf") {
   sources = [
     "chrome_pdf_stream_delegate.cc",
     "chrome_pdf_stream_delegate.h",
+    "mime_handler_stream_manager.cc",
+    "mime_handler_stream_manager.h",
     "pdf_extension_util.cc",
     "pdf_extension_util.h",
+    "pdf_handler_stream_delegate.cc",
+    "pdf_handler_stream_delegate.h",
     "pdf_help_bubble_handler_factory.cc",
     "pdf_help_bubble_handler_factory.h",
-    "pdf_viewer_stream_manager.cc",
-    "pdf_viewer_stream_manager.h",
   ]
   public_deps = [
     "//base",
@@ -45,6 +47,7 @@ source_set("pdf") {
     "//components/user_education/webui",
     "//components/zoom",
     "//extensions/browser",
+    "//extensions/browser/mime_handler:mime_handler_stream_delegate",
     "//extensions/browser/mime_handler:stream_container",
     "//extensions/common:common_constants",
     "//pdf:features",

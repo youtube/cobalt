@@ -328,20 +328,6 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
-<event name="Accessibility.CanvasHasNonTrivialFallback">
-  <owner>lucasradaelli@google.com</owner>
-  <summary>
-    Recorded once for any page that had a canvas element with non-trivial
-    fallback content beyond plain text. Only recorded if a11y is turned on (~10%
-    of users).
-  </summary>
-  <metric name="Seen" enum="Boolean">
-    <summary>
-      Only ever set to true, thus serving as a counter.
-    </summary>
-  </metric>
-</event>
-
 <event name="Accessibility.ImageDescriptions">
   <owner>dtseng@chromium.org</owner>
   <owner>nektar@chromium.org</owner>
@@ -1000,11 +986,12 @@ be describing additional metrics about the same event.
     all metrics in this event: 1) all detected ad types (e.g., iframes, imgs)
     are included, and 2) ads obscured by non-ad content are excluded.
   </summary>
-  <metric name="AverageViewportAdCount">
+  <metric name="AverageViewportAdCountX100">
     <summary>
       The estimated average viewport ad count accumulated over the page load
-      time, rounded to the nearest exponential bucket integer with bucket
-      spacing 1.15.
+      time, multiplied by 100 and rounded to the nearest exponential bucket
+      integer with bucket spacing 1.15. This allows for 2 decimal places of
+      precision.
     </summary>
     <aggregation>
       <history>
@@ -16289,6 +16276,15 @@ be describing additional metrics about the same event.
       page loads that start while on foreground.
     </summary>
   </metric>
+  <metric
+      name="DocumentTiming.ActualNavigationStartToDOMContentLoadedEventFiredMs">
+    <summary>
+      The duration in milliseconds from the actual navigation start to the
+      DOMContentLoadedEventFired event, excluding the time spent waiting for
+      user interaction in beforeunload dialogs. This includes the time spent
+      running beforeunload JavaScript handlers.
+    </summary>
+  </metric>
   <metric name="DocumentTiming.NavigationToDOMContentLoadedEventFired">
     <summary>
       Measures the time in milliseconds from navigation timing's navigation
@@ -16315,6 +16311,12 @@ be describing additional metrics about the same event.
         </statistics>
       </history>
     </aggregation>
+  </metric>
+  <metric name="DocumentTiming.ParseStartToDOMContentLoadedEventFiredMs">
+    <summary>
+      The duration in milliseconds from the parse start to the
+      DOMContentLoadedEventFired event.
+    </summary>
   </metric>
   <metric name="DurationSinceLastVisitSeconds">
     <summary>
@@ -16801,6 +16803,47 @@ be describing additional metrics about the same event.
       after the commit of this navigation.
     </summary>
   </metric>
+  <metric name="NavigationTiming.ActualNavigationStartToNavigationCommitSentMs">
+    <summary>
+      The duration in milliseconds from the actual navigation start to when the
+      navigation commit IPC is sent to the renderer, excluding the time spent
+      waiting for user interaction in beforeunload dialogs. This includes the
+      time spent running beforeunload JavaScript handlers.
+    </summary>
+  </metric>
+  <metric name="NavigationTiming.ActualNavigationStartToNavigationStartMs">
+    <summary>
+      The duration in milliseconds from the actual navigation start to the
+      navigation start (when beforeunload handlers have finished), excluding the
+      time spent waiting for user interaction in beforeunload dialogs. This
+      includes the time spent running beforeunload JavaScript handlers.
+    </summary>
+  </metric>
+  <metric name="NavigationTiming.InteractionToActualNavigationStartMs">
+    <summary>
+      The duration in milliseconds from the user interaction that started the
+      navigation to the actual navigation start.
+    </summary>
+  </metric>
+  <metric name="NavigationTiming.InteractionToNavigationStartMs">
+    <summary>
+      The duration in milliseconds from the user interaction that started the
+      navigation to the navigation start, excluding the time spent in
+      beforeunload handlers.
+    </summary>
+  </metric>
+  <metric name="NavigationTiming.NavigationCommitSentToParseStartMs">
+    <summary>
+      The duration in milliseconds from when the navigation commit IPC is sent
+      to the renderer to when the parser starts.
+    </summary>
+  </metric>
+  <metric name="NavigationTiming.NavigationStartToNavigationCommitSentMs">
+    <summary>
+      The duration in milliseconds from the navigation start to when the
+      navigation commit IPC is sent to the renderer.
+    </summary>
+  </metric>
   <metric name="Net.CacheBytes2">
     <summary>
       The total number of body bytes loaded from cache for all resources on the
@@ -16984,6 +17027,22 @@ be describing additional metrics about the same event.
       anytime after that happens.
     </summary>
   </metric>
+  <metric name="PaintTiming.ActualNavigationStartToFirstContentfulPaintMs">
+    <summary>
+      The duration in milliseconds from the actual navigation start to the first
+      contentful paint, excluding the time spent waiting for user interaction in
+      beforeunload dialogs. This includes the time spent running beforeunload
+      JavaScript handlers.
+    </summary>
+  </metric>
+  <metric name="PaintTiming.ActualNavigationStartToLargestContentfulPaintMs">
+    <summary>
+      The duration in milliseconds from the actual navigation start to the
+      largest contentful paint, excluding the time spent waiting for user
+      interaction in beforeunload dialogs. This includes the time spent running
+      beforeunload JavaScript handlers.
+    </summary>
+  </metric>
   <metric name="PaintTiming.LargestContentfulPaintBPP"
       enum="BitsPerPixelExponential">
     <summary>
@@ -17149,11 +17208,31 @@ be describing additional metrics about the same event.
       </history>
     </aggregation>
   </metric>
+  <metric name="PaintTiming.ParseStartToFirstContentfulPaintMs">
+    <summary>
+      The duration in milliseconds from the parse start to the first contentful
+      paint.
+    </summary>
+  </metric>
+  <metric name="PaintTiming.ParseStartToLargestContentfulPaintMs">
+    <summary>
+      The duration in milliseconds from the parse start to the largest
+      contentful paint.
+    </summary>
+  </metric>
   <metric
       name="PaintTimingBeforeSoftNavigation.NavigationToLargestContentfulPaint2">
     <summary>
       Similar to PaintTiming.NavigationToLargestContentfulPaint2, except that it
       is recorded before the first soft navigation.
+    </summary>
+  </metric>
+  <metric name="ParseTiming.ActualNavigationStartToParseStartMs">
+    <summary>
+      The duration in milliseconds from the actual navigation start to the parse
+      start, excluding the time spent waiting for user interaction in
+      beforeunload dialogs. This includes the time spent running beforeunload
+      JavaScript handlers.
     </summary>
   </metric>
   <metric name="ParseTiming.NavigationToParseStart">

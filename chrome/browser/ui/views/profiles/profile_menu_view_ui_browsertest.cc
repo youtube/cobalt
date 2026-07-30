@@ -20,10 +20,11 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/frame/top_container_view.h"
-#include "chrome/browser/ui/views/profiles/avatar_toolbar_button.h"
 #include "chrome/browser/ui/views/profiles/profile_menu_coordinator.h"
 #include "chrome/browser/ui/views/profiles/profile_menu_view.h"
 #include "chrome/browser/ui/views/profiles/profiles_pixel_test_utils.h"
+#include "chrome/browser/ui/views/toolbar/avatar_toolbar_button_interface.h"
+#include "chrome/browser/ui/views/toolbar/webui_test_utils.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/policy/core/common/management/scoped_management_service_override_for_testing.h"
@@ -341,13 +342,6 @@ class ProfileMenuViewPixelTest
     // 1. Get default-disabled features.
     // Disabled by default but may be overridden by `extra_features_and_params`.
     base::flat_set<base::test::FeatureRef> disabled_features_set = {
-#if BUILDFLAG(IS_WIN)
-        // The real flag is always disabled for simplicity, it is actually being
-        // replaced by `switches::kAvatarButtonSyncPromoForTesting` in tests to
-        // ensure that all platforms runs the test. When the feature is launched
-        // those tests should remain (with the testing flag).
-        switches::kAvatarButtonSyncPromo,
-#endif
         // This feature is disabled by default as it is not compatible with
         // `syncer::kReplaceSyncPromosWithSignInPromos` (enabled by default in
         // the test suite). If this feature needs to be enabled, then
@@ -688,16 +682,10 @@ class ProfileMenuViewPixelTest
 
  private:
   void OpenProfileMenu() {
-    BrowserView* browser_view =
-        BrowserView::GetBrowserViewForBrowser(browser());
-    OpenProfileMenuFromToolbar(browser_view->toolbar_button_provider());
-  }
-
-  void OpenProfileMenuFromToolbar(ToolbarButtonProvider* toolbar) {
     // Click the avatar button to open the menu.
-    views::View* avatar_button = toolbar->GetAvatarToolbarButton();
-    ASSERT_TRUE(avatar_button);
-    Click(avatar_button);
+    AvatarToolbarButtonTestAccessor avatar_accessor(browser());
+    ASSERT_TRUE(avatar_accessor.GetEnabled());
+    avatar_accessor.Click();
 
     ASSERT_TRUE(profile_menu_view());
     profile_menu_view()->set_close_on_deactivate(false);

@@ -70,8 +70,12 @@
   base::RecordAction(base::UserMetricsAction(kNTPIncognitoButtonTappedAction));
 }
 
-- (void)recordMIATapped {
+- (void)recordAIMButtonTapped {
   base::RecordAction(base::UserMetricsAction(kNTPMIAEntryPointTappedAction));
+}
+
+- (void)recordPlusButtonTapped {
+  base::RecordAction(base::UserMetricsAction(kNTPAIMPlusButtonTappedAction));
 }
 
 - (void)

@@ -9,11 +9,13 @@ generate_jni("jni_headers") {
   sources = [
     "//chrome/browser/glic/public/android/java/src/org/chromium/chrome/browser/glic/GlicKeyedServiceFactory.java",
     "java/src/org/chromium/chrome/browser/glic/GlicKeyedServiceImpl.java",
+    "java/src/org/chromium/chrome/browser/glic/GlicSettingsNavigation.java",
   ]
 }
 
 android_resources("java_resources") {
   sources = [
+    "java/res/drawable/glic_dirty_dot_spark.xml",
     "java/res/drawable/glic_promo_logo.xml",
     "java/res/layout/glic_auto_browse.xml",
     "java/res/layout/glic_default_tab_access.xml",
@@ -36,7 +38,9 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/glic/GlicKeyedServiceImpl.java",
     "java/src/org/chromium/chrome/browser/glic/GlicPromoCoordinator.java",
     "java/src/org/chromium/chrome/browser/glic/GlicSettings.java",
+    "java/src/org/chromium/chrome/browser/glic/GlicSettingsNavigation.java",
     "java/src/org/chromium/chrome/browser/glic/GlicToolbarButtonController.java",
+    "java/src/org/chromium/chrome/browser/glic/GlicUtils.java",
   ]
   resources_package = "org.chromium.chrome.browser.glic"
 
@@ -53,6 +57,7 @@ android_library("java") {
     "//chrome/browser/glic:public_java",
     "//chrome/browser/preferences:java",
     "//chrome/browser/profiles/android:java",
+    "//chrome/browser/settings:factory_java",
     "//chrome/browser/settings:java",
     "//chrome/browser/tab:java",
     "//chrome/browser/ui/android/toolbar:java",
@@ -99,6 +104,8 @@ source_set("android") {
     "glic_keyed_service_android.cc",
     "glic_keyed_service_android.h",
     "glic_keyed_service_factory_android.cc",
+    "glic_settings_navigation_android.cc",
+    "glic_settings_navigation_android.h",
   ]
   public_deps = [ ":jni_headers" ]
   deps = [
@@ -109,6 +116,7 @@ source_set("android") {
     "//chrome/browser/ui",
     "//skia",
     "//third_party/jni_zero",
+    "//ui/android",
   ]
 }
 
@@ -133,9 +141,11 @@ robolectric_library("junit") {
     "//chrome/browser/glic:public_java",
     "//chrome/browser/preferences:java",
     "//chrome/browser/profiles/android:java",
+    "//chrome/browser/settings:factory_java",
     "//chrome/browser/tab:java",
     "//chrome/browser/ui/android/actions:java",
     "//chrome/browser/ui/android/toolbar:java",
+    "//chrome/browser/ui/browser_window/public/android:java",
     "//chrome/browser/ui/messages/android:java",
     "//components/browser_ui/bottomsheet/android:java",
     "//components/browser_ui/settings/android:java",

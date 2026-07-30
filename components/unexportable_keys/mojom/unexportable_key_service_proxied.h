@@ -39,13 +39,13 @@ class UnexportableKeyServiceProxied : public UnexportableKeyService {
       base::span<const crypto::SignatureVerifier::SignatureAlgorithm>
           acceptable_algorithms,
       BackgroundTaskPriority priority,
-      base::OnceCallback<void(ServiceErrorOr<UnexportableKeyId>)> callback)
-      override;
+      base::OnceCallback<void(ServiceErrorOr<UnexportableSigningKeyId>)>
+          callback) override;
   void FromWrappedSigningKeySlowlyAsync(
       base::span<const uint8_t> wrapped_key,
       BackgroundTaskPriority priority,
-      base::OnceCallback<void(ServiceErrorOr<UnexportableKeyId>)> callback)
-      override;
+      base::OnceCallback<void(ServiceErrorOr<UnexportableSigningKeyId>)>
+          callback) override;
   void SignSlowlyAsync(
       const UnexportableKeyId key_id,
       base::span<const uint8_t> data,
@@ -94,14 +94,15 @@ class UnexportableKeyServiceProxied : public UnexportableKeyService {
     ServiceErrorOr<base::Time> creation_time;
   };
 
-  void OnKeyGenerated(
-      base::OnceCallback<void(ServiceErrorOr<UnexportableKeyId>)>
+  void OnSigningKeyGenerated(
+      base::OnceCallback<void(ServiceErrorOr<UnexportableSigningKeyId>)>
           original_callback,
       ServiceErrorOr<mojom::NewKeyDataPtr> result);
 
-  void OnKeyLoaded(base::OnceCallback<void(ServiceErrorOr<UnexportableKeyId>)>
-                       original_callback,
-                   ServiceErrorOr<mojom::NewKeyDataPtr> result);
+  void OnSigningKeyLoaded(
+      base::OnceCallback<void(ServiceErrorOr<UnexportableSigningKeyId>)>
+          original_callback,
+      ServiceErrorOr<mojom::NewKeyDataPtr> result);
 
   void OnGetAllSigningKeysForGarbageCollection(
       base::OnceCallback<void(ServiceErrorOr<std::vector<UnexportableKeyId>>)>

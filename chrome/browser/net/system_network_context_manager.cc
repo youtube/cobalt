@@ -49,7 +49,6 @@
 #include "components/enterprise/encryption/cache/utils.h"
 #include "components/net_log/net_export_file_writer.h"
 #include "components/net_log/net_log_proxy_source.h"
-#include "components/os_crypt/sync/os_crypt.h"
 #include "components/policy/core/common/policy_namespace.h"
 #include "components/policy/core/common/policy_service.h"
 #include "components/policy/policy_constants.h"
@@ -58,6 +57,7 @@
 #include "components/variations/net/omnibox_autofocus_http_headers.h"
 #include "components/variations/net/variations_http_headers.h"
 #include "components/variations/variations_associated_data.h"
+#include "components/variations/variations_ids_provider.h"
 #include "components/version_info/version_info.h"
 #include "content/public/browser/browser_child_process_observer.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -872,17 +872,6 @@ void SystemNetworkContextManager::OnNetworkServiceCreated(
   // NetworkContext is created, but before anything has the chance to use it.
   stub_resolver_config_reader_.UpdateNetworkService(true /* record_metrics */);
 
-  // The OSCrypt keys are process bound, so if network service is out of
-  // process, send it the required key.
-  if (content::IsOutOfProcessNetworkService()) {
-    // On Windows, OSCrypt Async manages the encryption key via the DPAPI key
-    // provider, and there is no need to send the key separately to OSCrypt
-    // sync.
-#if !BUILDFLAG(IS_WIN)
-    network_service->SetEncryptionKey(OSCrypt::GetRawEncryptionKey());
-#endif  // !BUILDFLAG(IS_WIN)
-  }
-
   // Configure SCT Auditing in the NetworkService.
   SCTReportingService::ReconfigureAfterNetworkRestart();
 
@@ -954,6 +943,11 @@ void SystemNetworkContextManager::ConfigureDefaultNetworkContextParams(
     network::mojom::NetworkContextParams* network_context_params) {
   variations::UpdateCorsExemptHeaderForVariations(network_context_params);
   variations::UpdateCorsExemptHeaderForOmniboxAutofocus(network_context_params);
+  if (auto* variations_ids_provider =
+          variations::VariationsIdsProvider::GetInstance()) {
+    network_context_params->initial_variations_headers =
+        variations_ids_provider->GetClientDataHeaders(false);
+  }
   GoogleURLLoaderThrottle::UpdateCorsExemptHeader(network_context_params);
 #if BUILDFLAG(ENABLE_REQUEST_HEADER_INTEGRITY)
   request_header_integrity::RequestHeaderIntegrityURLLoaderThrottle::

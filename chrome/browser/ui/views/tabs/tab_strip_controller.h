@@ -9,7 +9,7 @@
 #include <string>
 
 #include "base/functional/callback_forward.h"
-#include "chrome/browser/ui/views/tabs/tab_strip_types.h"
+#include "chrome/browser/ui/views/tabs/shared/tab_strip_types.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/mojom/menu_source_type.mojom-forward.h"
@@ -150,11 +150,6 @@ class TabStripController {
 
   // Creates the new tab.
   virtual void CreateNewTab(NewTabTypes context) = 0;
-
-  // Creates a new tab, and loads `location` in the tab. If `location` is a
-  // valid URL, then simply loads the URL, otherwise this can open a
-  // search-result page for `location`.
-  virtual void CreateNewTabWithLocation(const std::u16string& location) = 0;
 
   // Notifies controller that the user started dragging this tabstrip's tabs.
   virtual void OnStartedDragging() = 0;

@@ -117,21 +117,26 @@
                  prepareChangeProfile:(ProceduralBlock)prepareChangeProfile
                  continuationProvider:(const ChangeProfileContinuationProvider&)
                                           continuationProvider {
-  ProfileIOS* profile = browser->GetProfile();
-  if (accessPoint == signin_metrics::AccessPoint::kWebSignin) {
-    signin::IdentityManager* identityManager =
-        IdentityManagerFactory::GetForProfile(profile);
-    ChromeAccountManagerService* accountManagerService =
-        ChromeAccountManagerServiceFactory::GetForProfile(profile);
-    bool hasIdentities = [signin::GetIdentitiesOnDevice(
-                             identityManager, accountManagerService) count] > 0;
-    if (!hasIdentities) {
-      RecordConsistencyPromoUserAction(
-          signin_metrics::AccountConsistencyPromoAction::SUPPRESSED_NO_ACCOUNTS,
-          accessPoint);
-      return nil;
+  if (!base::FeatureList::IsEnabled(switches::kNoAccountWebSignin)) {
+    ProfileIOS* profile = browser->GetProfile();
+    if (accessPoint == signin_metrics::AccessPoint::kWebSignin) {
+      signin::IdentityManager* identityManager =
+          IdentityManagerFactory::GetForProfile(profile);
+      ChromeAccountManagerService* accountManagerService =
+          ChromeAccountManagerServiceFactory::GetForProfile(profile);
+      bool hasIdentities =
+          [signin::GetIdentitiesOnDevice(identityManager, accountManagerService)
+              count] > 0;
+      if (!hasIdentities) {
+        RecordConsistencyPromoUserAction(
+            signin_metrics::AccountConsistencyPromoAction::
+                SUPPRESSED_NO_ACCOUNTS,
+            accessPoint);
+        return nil;
+      }
     }
   }
+
   return [[ConsistencyPromoSigninCoordinator alloc]
       initWithBaseViewController:viewController
                          browser:browser
@@ -257,7 +262,7 @@
     base::RecordAction(
         base::UserMetricsAction("Signin_BottomSheet_ClosedByInterrupt"));
   }
-  [self dismissViewControllerAnimated:animated];
+  [self dismissViewControllerAnimated:animated completion:nil];
   [self stopDefaultAccountCoordinator];
   // If the mediator was already disconnected, this second disconnect does
   // nothing.
@@ -275,10 +280,11 @@
 
 #pragma mark - Private
 
-- (void)dismissViewControllerAnimated:(BOOL)animated {
+- (void)dismissViewControllerAnimated:(BOOL)animated
+                           completion:(ProceduralBlock)completion {
   [self.navigationController.presentingViewController
       dismissViewControllerAnimated:animated
-                         completion:nil];
+                         completion:completion];
   self.navigationController.delegate = nil;
   self.navigationController.transitioningDelegate = nil;
   self.navigationController = nil;
@@ -472,9 +478,13 @@
     userPrefService->SetInteger(prefs::kSigninWebSignDismissalCount,
                                 skipCounter);
   }
-  [self dismissViewControllerAnimated:YES];
-  [self runCompletionWithSigninResult:SigninCoordinatorResultCanceledByUser
-                   completionIdentity:nil];
+  __weak __typeof(self) weakSelf = self;
+  [self dismissViewControllerAnimated:YES
+                           completion:^{
+                             [weakSelf runCompletionWithSigninResult:
+                                           SigninCoordinatorResultCanceledByUser
+                                                  completionIdentity:nil];
+                           }];
 }
 
 - (void)consistencyDefaultAccountCoordinatorOpenIdentityChooser:
@@ -609,18 +619,27 @@
                                     withIdentity:(id<SystemIdentity>)identity {
   DCHECK([identity isEqual:self.selectedIdentity]);
   id<SystemIdentity> completionIdentity = identity;
-  [self dismissViewControllerAnimated:YES];
-  [self runCompletionWithSigninResult:SigninCoordinatorResultSuccess
-                   completionIdentity:completionIdentity];
+  __weak __typeof(self) weakSelf = self;
+  [self dismissViewControllerAnimated:YES
+                           completion:^{
+                             [weakSelf runCompletionWithSigninResult:
+                                           SigninCoordinatorResultSuccess
+                                                  completionIdentity:
+                                                      completionIdentity];
+                           }];
 }
 
 - (void)consistencyPromoSigninMediatorSignInIsImpossible:
     (ConsistencyPromoSigninMediator*)mediator {
   CHECK_EQ(self.consistencyPromoSigninMediator, mediator,
            base::NotFatalUntil::M143);
-  [self dismissViewControllerAnimated:YES];
-  [self runCompletionWithSigninResult:SigninCoordinatorResultInterrupted
-                   completionIdentity:nil];
+  __weak __typeof(self) weakSelf = self;
+  [self dismissViewControllerAnimated:YES
+                           completion:^{
+                             [weakSelf runCompletionWithSigninResult:
+                                           SigninCoordinatorResultInterrupted
+                                                  completionIdentity:nil];
+                           }];
 }
 
 - (void)consistencyPromoSigninMediatorSignInCancelled:

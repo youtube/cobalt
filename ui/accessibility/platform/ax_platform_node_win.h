@@ -1231,6 +1231,12 @@ class COMPONENT_EXPORT(AX_PLATFORM)
   // see above.
   static Counts ResetCountsForTesting();
 
+  // Returns the size of the process-global alert targets set.
+  static size_t GetAlertTargetCountForTesting();
+
+  // Test-only wrapper around AddAlertTarget().
+  void AddAlertTargetForTesting();
+
   bool IsUIAControl() const;
 
  protected:
@@ -1510,6 +1516,11 @@ class COMPONENT_EXPORT(AX_PLATFORM)
   // Convert mojom TextAlign to UIA HorizontalTextAlignment enumeration
   static std::optional<HorizontalTextAlignment>
   AXTextAlignToUIAHorizontalTextAlignment(ax::mojom::TextAlign text_align);
+  // Converts a heading role + IntAttribute::kHierarchicalLevel to UIA
+  // HeadingLevel enumeration. Returns HeadingLevel_None for non-heading roles
+  // or heading levels outside the valid 1-9 range.
+  static LONG AXHierarchicalLevelToUIAHeadingLevel(ax::mojom::Role role,
+                                                   int32_t hierarchical_level);
   // Converts IntAttribute::kHierarchicalLevel to UIA StyleId enumeration
   static LONG AXHierarchicalLevelToUIAStyleId(int32_t hierarchical_level);
   // Converts a ListStyle to UIA StyleId enumeration

@@ -330,6 +330,8 @@ class IntentChipButtonBrowserUiTest
     if (!browser_view) {
       return false;
     }
+
+    auto* const location_bar = browser_view->GetLocationBarView();
     const views::Button* intent_chip = GetIntentChip(browser());
 
     bool is_intent_chip_visible_and_expanded =
@@ -344,8 +346,8 @@ class IntentChipButtonBrowserUiTest
     // Verify against the Skia gold result baseline from crrev.com/c/6092068.
     // TODO(crbug.com/384567062): Support set_baseline() in UiBrowserTest.
     const std::string screenshot_name = base::StrCat(
-        {test_info->test_suite_name(), "_", test_info->name(), "_6092068"});
-    return VerifyPixelUi(browser_view->GetWidget(),
+        {test_info->test_suite_name(), "_", test_info->name(), "_7763146"});
+    return VerifyPixelUi(location_bar,
                          test_info->test_suite_name(),
                          screenshot_name) != ui::test::ActionResult::kFailed;
   }
@@ -363,6 +365,8 @@ IN_PROC_BROWSER_TEST_P(IntentChipButtonBrowserUiTest, InvokeUi_default) {
 
 // Only run this test once with the parameterization that should be the
 // "default" release for navigation capturing per OS.
+// TODO(crbug.com/502643915): Edit the test to only consider the relevant
+// region.
 INSTANTIATE_TEST_SUITE_P(
     ,
     IntentChipButtonBrowserUiTest,

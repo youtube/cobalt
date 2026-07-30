@@ -64,7 +64,7 @@ class CORE_EXPORT StyleFetchedImage final : public StyleImage,
   bool IsLoaded() const override;
   bool IsLoading() const override;
   bool ErrorOccurred() const override;
-  bool IsAccessAllowed(String&) const override;
+  bool IsCorsSameOrigin(String&) const override;
 
   NaturalSizingInfo GetNaturalSizingInfo(
       float multiplier,
@@ -82,9 +82,6 @@ class CORE_EXPORT StyleFetchedImage final : public StyleImage,
                                 const gfx::SizeF& target_size) const override;
   bool KnownToBeOpaque(const Document&, const ComputedStyle&) const override;
   ImageResourceContent* CachedImage() const override;
-
-  RespectImageOrientationEnum ForceOrientationIfNecessary(
-      RespectImageOrientationEnum default_orientation) const override;
 
   void Trace(Visitor*) const override;
 

@@ -271,6 +271,10 @@ struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::WebPreferencesDataView,
     return r.block_mixed_plugin_content;
   }
 
+  static bool highlight_ads(const blink::web_pref::WebPreferences& r) {
+    return r.highlight_ads;
+  }
+
   static bool password_echo_enabled_physical(
       const blink::web_pref::WebPreferences& r) {
     return r.password_echo_enabled_physical;
@@ -531,11 +535,6 @@ struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::WebPreferencesDataView,
     return r.fullscreen_supported;
   }
 
-  static bool text_autosizing_enabled(
-      const blink::web_pref::WebPreferences& r) {
-    return r.text_autosizing_enabled;
-  }
-
   static bool text_size_adjust_enabled(
       const blink::web_pref::WebPreferences& r) {
     return r.text_size_adjust_enabled;
@@ -561,11 +560,6 @@ struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::WebPreferencesDataView,
   static int text_size_contrast_factor(
       const blink::web_pref::WebPreferences& r) {
     return r.text_size_contrast_factor;
-  }
-
-  static float device_scale_adjustment(
-      const blink::web_pref::WebPreferences& r) {
-    return r.device_scale_adjustment;
   }
 
   static bool force_enable_zoom(const blink::web_pref::WebPreferences& r) {

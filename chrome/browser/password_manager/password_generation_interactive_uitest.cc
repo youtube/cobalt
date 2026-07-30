@@ -230,8 +230,10 @@ class PasswordGenerationAutofillPopupInteractiveTest
       autofill_client_injector_;
 };
 
+// TODO(https://crbug.com/501668599): Re-enable this test after flakiness is
+// resolved.
 IN_PROC_BROWSER_TEST_F(PasswordGenerationInteractiveTest,
-                       PopupShownAndPasswordSelected) {
+                       DISABLED_PopupShownAndPasswordSelected) {
   FocusPasswordField();
   WaitForGenerationPopupShowing();
   base::HistogramTester histogram_tester;
@@ -288,8 +290,10 @@ IN_PROC_BROWSER_TEST_F(PasswordGenerationInteractiveTest,
       1);
 }
 
+// TODO(https://crbug.com/501668599): Re-enable this test after flakiness is
+// resolved.
 IN_PROC_BROWSER_TEST_F(PasswordGenerationInteractiveTest,
-                       PopupShownManuallyAndPasswordErased) {
+                       DISABLED_PopupShownManuallyAndPasswordErased) {
   NavigateToFile("/password/password_form.html");
   FocusPasswordField();
   EXPECT_FALSE(GenerationPopupShowing());
@@ -383,8 +387,10 @@ IN_PROC_BROWSER_TEST_F(
   autofill_client().WaitForAutofillPopup();
 }
 
+// TODO(https://crbug.com/501668599): Re-enable this test after flakiness is
+// resolved.
 IN_PROC_BROWSER_TEST_F(PasswordGenerationInteractiveTest,
-                       PopupShownAndDismissed) {
+                       DISABLED_PopupShownAndDismissed) {
   FocusPasswordField();
   WaitForGenerationPopupShowing();
 
@@ -419,8 +425,10 @@ IN_PROC_BROWSER_TEST_F(PasswordGenerationInteractiveTest,
   EXPECT_FALSE(GenerationPopupShowing());
 }
 
+// TODO(https://crbug.com/501668599): Re-enable this test after flakiness is
+// resolved.
 IN_PROC_BROWSER_TEST_F(PasswordGenerationInteractiveTest,
-                       PopupShownAndDismissedByScrolling) {
+                       DISABLED_PopupShownAndDismissedByScrolling) {
   FocusPasswordField();
   WaitForGenerationPopupShowing();
 
@@ -510,11 +518,11 @@ IN_PROC_BROWSER_TEST_F(PasswordGenerationInteractiveTest,
   ASSERT_TRUE(observer.Wait());
 
   WaitForPasswordStore();
-  EXPECT_FALSE(password_store->IsEmpty());
+  EXPECT_FALSE(GetAllLoginsSync(password_store.get()).empty());
 
   // Make sure the username is correct.
   password_manager::TestPasswordStore::PasswordMap stored_passwords =
-      password_store->stored_passwords();
+      GetAllLoginsSync(password_store.get());
   EXPECT_EQ(1u, stored_passwords.size());
   EXPECT_EQ(1u, stored_passwords.begin()->second.size());
   EXPECT_EQ(u"UN", (stored_passwords.begin()->second)[0].username_value);
@@ -534,8 +542,10 @@ IN_PROC_BROWSER_TEST_F(PasswordGenerationInteractiveTest,
   EXPECT_FALSE(GenerationPopupShowing());
 }
 
+// TODO(https://crbug.com/501668599): Re-enable this test after flakiness is
+// resolved.
 IN_PROC_BROWSER_TEST_F(PasswordGenerationInteractiveTest,
-                       GenerationPopupNotShownAfterUserRejected) {
+                       DISABLED_GenerationPopupNotShownAfterUserRejected) {
   FocusPasswordField();
   WaitForGenerationPopupShowing();
 

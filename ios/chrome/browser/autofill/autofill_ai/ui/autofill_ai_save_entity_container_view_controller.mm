@@ -44,8 +44,8 @@ constexpr CGFloat kButtonStackVerticalMargin = 16;
   // Button title.
   NSString* _buttonTitle;
 
-  // Denotes if the save is local (synchronous).
-  BOOL _isLocalSave;
+  // Denotes if the save is synchronous.
+  BOOL _saveIsSynchronous;
 }
 
 - (instancetype)init {
@@ -103,7 +103,8 @@ constexpr CGFloat kButtonStackVerticalMargin = 16;
   // Layout: Table view on top, button stack pinned to the bottom safe area.
   [NSLayoutConstraint activateConstraints:@[
     [tableView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
-    [tableView.topAnchor constraintEqualToAnchor:self.view.topAnchor],
+    [tableView.topAnchor
+        constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
     [tableView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
 
     // Pin bottom of the table view to the top of the button stack.
@@ -126,9 +127,9 @@ constexpr CGFloat kButtonStackVerticalMargin = 16;
 #pragma mark - AutofillAISaveEntityConsumer
 
 - (void)setNewEntity:(autofill::EntityInstance)newEntity
-           oldEntity:(std::optional<autofill::EntityInstance>)oldEntity
-           userEmail:(const std::u16string&)userEmail
-         isLocalSave:(BOOL)isLocalSave {
+            oldEntity:(std::optional<autofill::EntityInstance>)oldEntity
+            userEmail:(const std::u16string&)userEmail
+    saveIsSynchronous:(BOOL)saveIsSynchronous {
   // Forward the data to the table view controller for display.
   [_tableViewController setNewEntity:newEntity
                            oldEntity:oldEntity
@@ -139,19 +140,20 @@ constexpr CGFloat kButtonStackVerticalMargin = 16;
       oldEntity.has_value() ? autofill::GetDialogTitleForUpdateEntity(typeName)
                             : autofill::GetDialogTitleForSaveEntity(typeName);
 
-  if (isLocalSave) {
+  if (newEntity.record_type() !=
+      autofill::EntityInstance::RecordType::kServerWallet) {
     self.navigationItem.titleView = nil;
     self.title = titleString;
   } else {
     self.navigationItem.titleView =
         autofill::CreateBrandedTitleForWalletSave(titleString);
   }
-  _isLocalSave = isLocalSave;
+  _saveIsSynchronous = saveIsSynchronous;
 
   // Update the button title based on whether it's an update or save.
   _buttonTitle = l10n_util::GetNSString(
       oldEntity.has_value() ? IDS_AUTOFILL_UPDATE_ADDRESS_PROMPT_OK_BUTTON_LABEL
-                            : IDS_AUTOFILL_SAVE_ADDRESS_PROMPT_OK_BUTTON_LABEL);
+                            : autofill::GetSaveEntityAcceptButtonStringId());
 
   if (_saveButton) {
     [_saveButton setTitle:_buttonTitle forState:UIControlStateNormal];
@@ -190,7 +192,7 @@ constexpr CGFloat kButtonStackVerticalMargin = 16;
   // Only dismiss immediately if it's a synchronous local save.
   // Otherwise, the UI stays open to show the loading state. Once the async call
   // is completed, the UI is informed and the loading state is dismissed.
-  if (_isLocalSave) {
+  if (_saveIsSynchronous) {
     [self.autofillHandler dismissSaveEntityDialog];
   }
 }

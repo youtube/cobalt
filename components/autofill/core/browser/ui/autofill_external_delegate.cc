@@ -170,20 +170,11 @@ int AutofillExternalDelegate::shortcut_test_suggestion_index_ = -1;
 std::optional<AutofillProfile> GetProfileFromPayload(
     const AddressDataManager& adm,
     const Suggestion::AutofillProfilePayload& payload) {
-  auto GetProfileFromAddressDataManager =
-      [&adm](const std::string& guid) -> std::optional<AutofillProfile> {
-    if (const AutofillProfile* profile = adm.GetProfileByGUID(guid)) {
-      return *profile;
-    }
-    return std::nullopt;
-  };
-
-  std::optional<AutofillProfile> profile =
-      GetProfileFromAddressDataManager(payload.guid.value());
-  if (profile && !payload.email_override.empty()) {
-    profile->SetRawInfo(EMAIL_ADDRESS, payload.email_override);
+  if (const AutofillProfile* profile =
+          adm.GetProfileByGUID(payload.guid.value())) {
+    return *profile;
   }
-  return profile;
+  return std::nullopt;
 }
 
 AutofillExternalDelegate::AutofillExternalDelegate(
@@ -339,6 +330,11 @@ void AutofillExternalDelegate::AttemptToDisplayAutofillSuggestions(
     AutofillSuggestionsIgnoreFocusLoss ignore_focus_loss) {
   CHECK(!*ignore_focus_loss || is_update)
       << "Ignoring focus loss is only supported for updates";
+
+  if (!query_field_.is_focusable() || !manager_->driver().CanShowAutofillUi()) {
+    return;
+  }
+
   PossiblyRemoveAutofillWarnings(suggestions);
   // If anything else is added to modify the values after inserting the data
   // list, AutofillPopupControllerImpl::UpdateDataListValues will need to be
@@ -365,10 +361,6 @@ void AutofillExternalDelegate::AttemptToDisplayAutofillSuggestions(
           SuggestionHidingReason::kNoSuggestions);
       return;
     }
-  }
-
-  if (!query_field_.is_focusable() || !manager_->driver().CanShowAutofillUi()) {
-    return;
   }
 
   if (shortcut_test_suggestion_index_ >= 0) {
@@ -414,13 +406,18 @@ void AutofillExternalDelegate::AttemptToDisplayAutofillSuggestions(
         .SetAutofillHasSeenBnpl();
   }
 
+  // Tabbed popups may call `OnSuggestionsChanged()` when the active tab is
+  // updated, so prefer the previous arrow side to keep the dropdown in
+  // the same place relative to the field after the update.
+  const bool prefer_prev_arrow_side_on_suggestions_update = show_tabbed_popup;
+
   AutofillClient::PopupOpenArgs open_args(
       should_use_caret_bounds ? gfx::RectF(caret_bounds_)
                               : query_field_.bounds(),
       query_field_.text_direction(), suggestions, trigger_source_,
       query_field_.form_control_ax_id(),
       should_use_caret_bounds ? PopupAnchorType::kCaret : default_anchor_type,
-      show_tabbed_popup);
+      show_tabbed_popup, prefer_prev_arrow_side_on_suggestions_update);
   manager_->client().ShowAutofillSuggestions(open_args, GetWeakPtr());
 }
 

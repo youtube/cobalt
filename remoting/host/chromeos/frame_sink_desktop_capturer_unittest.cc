@@ -102,6 +102,7 @@ class FrameParameters {
 
   FrameParameters WithSize(Size size) {
     size_ = size;
+    updated_region_ = Rect(size);
     return *this;
   }
 
@@ -248,6 +249,7 @@ class MockFrameSinkVideoCapturer : public viz::mojom::FrameSinkVideoCapturer {
     auto info = media::mojom::VideoFrameInfo::New(
         frame->timestamp(), metadata, frame->format(), frame->coded_size(),
         /*visible_rect=*/gfx::Rect(params.size()),
+        /*natural_size=*/params.size(),
         /*is_premapped=*/false, frame->ColorSpace(),
         /*strides=*/nullptr);
 
@@ -524,7 +526,7 @@ TEST_F(FrameSinkDesktopCapturerTest,
        ShouldAggregateUpdatedRegionOfUnconsumedFrames) {
   StartCapturerForTesting();
   Rect updated_rect_1{50, 50, 250, 150};
-  Rect updated_rect_2{400, 600, 50, 50};
+  Rect updated_rect_2{400, 500, 50, 50};
   Size frame_size{800, 600};
 
   SendAndCaptureSingleFrame(frame_params().WithSize(frame_size));

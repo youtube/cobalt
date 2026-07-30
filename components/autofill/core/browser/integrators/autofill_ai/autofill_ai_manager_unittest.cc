@@ -91,17 +91,17 @@ using ::testing::WithArgs;
 constexpr auto kAcceptBubble =
     AutofillClient::AutofillAiBubbleResult::kAccepted;
 const AutofillClient::EntityImportUIContext kAcceptUIContext(
-    /*consent_string_id=*/123,
-    /*clicked_button_string_id=*/234);
+    /*accepted_consent_string_id=*/123,
+    /*accept_button_string_id=*/234);
 constexpr auto kDeclineBubble = AutofillClient::AutofillAiBubbleResult::kClosed;
 const AutofillClient::EntityImportUIContext kDeclineUIContext(
-    /*consent_string_id=*/123,
-    /*clicked_button_string_id=*/345);
+    /*accepted_consent_string_id=*/123,
+    /*accept_button_string_id=*/345);
 constexpr auto kIgnoreBubble =
     AutofillClient::AutofillAiBubbleResult::kNotInteracted;
 const AutofillClient::EntityImportUIContext kIgnoreUIContext(
-    /*consent_string_id=*/123,
-    /*clicked_button_string_id=*/std::nullopt);
+    /*accepted_consent_string_id=*/123,
+    /*accept_button_string_id=*/std::nullopt);
 
 auto FirstElementIs(auto&& matcher) {
   return ResultOf(
@@ -304,7 +304,11 @@ TEST_F(AutofillAiManagerTest,
 // Tests that IPH should be displayed if the user is opted out of the feature,
 // has an address, and form submission with filled out fields would lead to
 // entity import.
+// TODO(crbug.com/440488776): Remove this test when cleaning up
+// kAutofillAiAvailableByDefault. This feature deprecated the IPH.
 TEST_F(AutofillAiManagerTest, ShouldDisplayIph) {
+  base::test::ScopedFeatureList feature;
+  feature.InitAndDisableFeature(features::kAutofillAiAvailableByDefault);
   test::FormDescription form_description = {.fields = {{}}};
   FormData form = test::GetFormData(form_description);
   FormStructure form_structure = FormStructure(form);
@@ -318,8 +322,12 @@ TEST_F(AutofillAiManagerTest, ShouldDisplayIph) {
 
 // Tests that IPH should be displayed when the user is opted out of the feature
 // and does not have address or payments data stored.
+// TODO(crbug.com/440488776): Remove this test when cleaning up
+// kAutofillAiAvailableByDefault. This feature deprecated the IPH.
 TEST_F(AutofillAiManagerTest,
        ShouldDisplayIphWhenUserHasNoAddressOrPaymentsData) {
+  base::test::ScopedFeatureList feature;
+  feature.InitAndDisableFeature(features::kAutofillAiAvailableByDefault);
   test::FormDescription form_description = {.fields = {{}}};
   FormData form = test::GetFormData(form_description);
   FormStructure form_structure = FormStructure(form);
@@ -1335,9 +1343,9 @@ TEST_F(AutofillAiManagerImportFormTest, PassportSaveToWalletConsent) {
   EXPECT_EQ(session_id_consent_auditor, session_id_api_call);
   sync_pb::UserConsentTypes::WalletPrivatePassConsent expected_consent;
   expected_consent.mutable_description_grd_ids()->Add(
-      *kAcceptUIContext.consent_string_id);
+      *kAcceptUIContext.accepted_consent_string_id);
   expected_consent.set_confirmation_grd_id(
-      *kAcceptUIContext.clicked_button_string_id);
+      *kAcceptUIContext.accept_button_string_id);
   EXPECT_THAT(consent, base::test::EqualsProto(expected_consent));
 }
 
@@ -1523,9 +1531,12 @@ TEST_F(AutofillAiManagerImportFormTest, UpdateEntity_NewInfo) {
 
 // If the entity to be updated is a walletable entity type, it should lead to an
 // entity that is stored in the server, even if the original entity is stored
-// locally.
+// locally. Prior to private passes support, expect an update prompt.
+// TODO(crbug.com/449694495): Remove once private passes are launched.
 TEST_F(AutofillAiManagerImportFormTest,
-       WalletableEntity_Update_RecordType_Server) {
+       WalletableEntity_UpdateAndMigrateLegacy) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(features::kAutofillAiWalletPrivatePasses);
   using enum AttributeTypeName;
   // The submitted form will have license plate info.
   std::unique_ptr<FormStructure> form =
@@ -1554,6 +1565,45 @@ TEST_F(AutofillAiManagerImportFormTest,
   ASSERT_TRUE(old_entity.has_value());
   ASSERT_EQ(existing_entity_without_license_plate, *old_entity);
   ASSERT_EQ(old_entity->record_type(), EntityInstance::RecordType::kLocal);
+  EXPECT_EQ(new_entity->record_type(),
+            EntityInstance::RecordType::kServerWallet);
+  // Accept the bubble.
+  std::move(save_callback).Run(kAcceptBubble, kAcceptUIContext);
+  EXPECT_THAT(GetEntityInstances(), testing::UnorderedElementsAre(new_entity));
+}
+
+// If the entity to be updated is a walletable entity type, it should lead to a
+// entity that is stored in the server, even if the original entity is stored
+// locally. When private passes support is enabled, expect a migration prompt.
+TEST_F(AutofillAiManagerImportFormTest, WalletableEntity_UpdateAndMigrate) {
+  base::test::ScopedFeatureList feature_list{
+      features::kAutofillAiWalletPrivatePasses};
+  using enum AttributeTypeName;
+  // The submitted form will have license plate info.
+  std::unique_ptr<FormStructure> form =
+      CreateFormStructure({VEHICLE_VIN, VEHICLE_LICENSE_PLATE});
+
+  // The current entity however does not.
+  EntityInstance existing_entity_without_license_plate =
+      GetVehicleEntityInstance({.plate = nullptr});
+  AddOrUpdateEntityInstance(existing_entity_without_license_plate);
+
+  // Set the filled values to be the same as the ones already stored in the
+  // existing entity, and also fill the expiry date.
+  form->field(0)->set_value(GetValueFromEntity(
+      existing_entity_without_license_plate, AttributeType(kVehicleVin)));
+  form->field(1)->set_value(u"12345");
+
+  std::optional<EntityInstance> new_entity;
+  std::optional<EntityInstance> old_entity;
+  AutofillClient::EntityImportPromptResultCallback save_callback;
+  EXPECT_CALL(autofill_client(), ShowEntityImportBubble)
+      .WillOnce(DoAll(SaveArg<0>(&new_entity), SaveArg<1>(&old_entity),
+                      MoveArg<3>(&save_callback)));
+
+  // A migration bubble should be shown.
+  ASSERT_TRUE(manager().OnFormSubmitted(*form, /*ukm_source_id=*/{}));
+  ASSERT_FALSE(old_entity.has_value());
   EXPECT_EQ(new_entity->record_type(),
             EntityInstance::RecordType::kServerWallet);
   // Accept the bubble.

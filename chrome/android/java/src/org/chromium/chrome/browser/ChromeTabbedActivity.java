@@ -144,6 +144,7 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.fullscreen.FullscreenOptions;
 import org.chromium.chrome.browser.gesturenav.NavigationSheet;
+import org.chromium.chrome.browser.glic.GlicKeyedServiceFactory;
 import org.chromium.chrome.browser.history.HistoryManager;
 import org.chromium.chrome.browser.history.HistoryManagerUtils;
 import org.chromium.chrome.browser.history.HistoryPane;
@@ -344,7 +345,6 @@ import org.chromium.chrome.browser.usage_stats.UsageStatsService;
 import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
 import org.chromium.chrome.browser.util.DefaultBrowserInfo;
 import org.chromium.chrome.browser.xr.scenecore.XrModule;
-import org.chromium.components.browser_ui.accessibility.AccessibilityFeatureMap;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.share.ShareParams;
 import org.chromium.components.browser_ui.util.BrowserControlsVisibilityDelegate;
@@ -1105,7 +1105,8 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                             getSnackbarManager(),
                             /* glicClickHandler= */ () ->
                                     ((TabbedRootUiCoordinator) mRootUiCoordinator)
-                                            .toggleGlic(false));
+                                            .toggleGlic(false),
+                            GlicKeyedServiceFactory.getForProfile(mTabModelProfileSupplier.get()));
             mLayoutStateProviderSupplier.set(mLayoutManager);
         }
     }
@@ -1655,7 +1656,8 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
         // Always track the last backgrounded time in case others are using the pref.
         mInactivityTrackerSupplier.get().setLastBackgroundedTimeInPrefs(System.currentTimeMillis());
 
-        MultiWindowUtils.recordTabCountForRelaunchWhenActivityPaused(mTabModelSelector, mWindowId);
+        MultiWindowUtils.recordTabCountForRelaunchWhenActivityPaused(
+                mTabModelSelector, mWindowId, mIsRecreating);
 
         super.onPauseWithNative();
     }
@@ -2359,6 +2361,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
             boolean isIntentWithEffect = false;
             boolean isMainIntentFromLauncher = false;
             boolean isLaunchingDraggedTabOrGroup = false;
+
             if (getSavedInstanceState() == null && intent != null) {
                 if (!shouldIgnoreIntent()) {
                     isLaunchingDraggedTabOrGroup = maybeLaunchDraggedTabOrGroupInWindow(intent);
@@ -2383,10 +2386,16 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
             // reparenting like there are for other tab reparenting operations.
             // Reparenting is also triggered when the intent launches the current window from a
             // dragged tab.
+            // We use a specific tabId check rather than a global check to be robust
+            // against stale parameters left by abandoned flows.
+            int tabId = IntentHandler.getTabId(intent);
+            boolean hasMatchingParams =
+                    AsyncTabParamsManagerSingleton.getInstance().hasParamsWithTabToReparent(tabId);
+
             boolean hasTabWaitingForReparenting =
-                    (AsyncTabParamsManagerSingleton.getInstance().hasParamsWithTabToReparent()
-                                    && getSavedInstanceState() == null)
+                    (hasMatchingParams && getSavedInstanceState() == null)
                             || isLaunchingDraggedTabOrGroup;
+
             mCreatedTabOnStartup =
                     getCurrentTabModel().getCount() > 0
                             || mTabModelOrchestrator.getRestoredTabCount() > 0
@@ -3240,7 +3249,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                 mCallbackController.makeCancelable(
                         (tabModelSelectorReturn) -> {
                             TabGroupColorUtils.assignTabGroupColorsIfApplicable(
-                                    tabModelSelectorReturn.getCurrentTabGroupModelFilter());
+                                    tabModelSelectorReturn.getCurrentModel());
                         }));
 
         mInactivityTrackerSupplier.set(
@@ -3547,7 +3556,8 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                 new TabbedModeTabModelOrchestrator(
                         tabMergingEnabled,
                         getLifecycleDispatcher(),
-                        CipherLazyHolder.sCipherInstance);
+                        CipherLazyHolder.sCipherInstance,
+                        () -> mIsRecreating);
         mTabModelStartupInfoSupplier = ObservableSuppliers.createMonotonic();
         mTabModelOrchestrator.setStartupInfoObservableSupplier(mTabModelStartupInfoSupplier);
         return mTabModelOrchestrator;
@@ -3649,13 +3659,6 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
     @Override
     protected LaunchCauseMetrics createLaunchCauseMetrics() {
         return new TabbedActivityLaunchCauseMetrics(this);
-    }
-
-    @Override
-    public boolean shouldDisableVerticalScrollbar() {
-        // The vertical scrollbar causes buttons at the edge of the app menu to not receive any
-        // hover effects.
-        return AccessibilityFeatureMap.sAndroidZoomIndicator.isEnabled();
     }
 
     @Override
@@ -4066,11 +4069,11 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
             }
 
             Profile profile = mTabModelProfileSupplier.get();
-            TabGroupModelFilter filter = mTabModelSelector.getCurrentTabGroupModelFilter();
+            TabModel tabModel = mTabModelSelector.getCurrentModel();
             if (id == R.id.add_to_group_menu_id) {
                 TrackerFactory.getTrackerForProfile(profile)
                         .notifyEvent("menu_add_to_group_clicked");
-                if (filter.getTabGroupCount() == 0) {
+                if (tabModel.getTabGroupCount() == 0) {
                     RecordUserAction.record("MobileMenuAddToNewGroup");
                 } else {
                     RecordUserAction.record("MobileMenuAddToGroup");
@@ -4079,7 +4082,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
 
             new TabGroupMenuActionHandler(
                             this,
-                            filter,
+                            tabModel,
                             assertNonNull(mRootUiCoordinator.getBottomSheetController()),
                             getModalDialogManager(),
                             profile)

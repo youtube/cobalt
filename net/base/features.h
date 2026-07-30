@@ -145,6 +145,9 @@ NET_EXPORT BASE_DECLARE_FEATURE(kEnableTLS13EarlyData);
 // quality estimator (NQE).
 NET_EXPORT BASE_DECLARE_FEATURE(kNetworkQualityEstimator);
 
+// Enables caching of IsPrivateHost() results in NetworkQualityEstimator.
+NET_EXPORT BASE_DECLARE_FEATURE(kNetworkQualityEstimatorIsPrivateHostCache);
+
 // The maximum age in seconds of observations to be used for calculating the
 // HTTP RTT from the historical data.
 // Negative value means infinite. i.e. all data are used.
@@ -338,6 +341,12 @@ NET_EXPORT BASE_DECLARE_FEATURE(kTcpPortReuseMetricsWin);
 // Whether to use a TCP socket implementation which uses an IO completion
 // handler to be notified of completed reads and writes, instead of an event.
 NET_EXPORT BASE_DECLARE_FEATURE(kTcpSocketIoCompletionPortWin);
+
+// Whether to defer the initial connection type computation from the
+// NetworkChangeNotifierWin constructor to an async call in
+// WatchForAddressChange(), avoiding a synchronous cross-process call that can
+// block the UI thread for ~50ms during startup.
+NET_EXPORT BASE_DECLARE_FEATURE(kDeferConnectionTypeAtStartup);
 #endif
 
 #if BUILDFLAG(IS_MAC)
@@ -857,11 +866,16 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kTcpSocketPoolProxyLimitWebSocket);
 // for the kDnsOverHttps partition.
 NET_EXPORT BASE_DECLARE_FEATURE(kIgnoreQuicCryptoConfigMemoryPressureForDoh);
 
+// If enabled, SSLClientSessionCache will ignore memory pressure events.
+NET_EXPORT BASE_DECLARE_FEATURE(kIgnoreMemoryPressureForSslClientSessionCache);
+
 // If enabled, cookie parsing will reject a cookie line whose first
 // semicolon-separated substring looks like "=Foo=Bar", i.e. starts with an
 // equals sign and has another equals sign. Such cookies have an ambiguous
 // serialization.
 NET_EXPORT BASE_DECLARE_FEATURE(kCookieParseRejectEmptyNameAmbiguous);
+
+NET_EXPORT BASE_DECLARE_FEATURE(kEnablePrivateVerificationTokens);
 
 }  // namespace net::features
 
