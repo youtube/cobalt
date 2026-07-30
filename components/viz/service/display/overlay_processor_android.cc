@@ -17,6 +17,10 @@
 #include "gpu/command_buffer/service/scheduler_sequence.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "components/viz/service/display/starboard/overlay_strategy_underlay_starboard.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace viz {
 OverlayProcessorAndroid::OverlayProcessorAndroid(
     DisplayCompositorMemoryAndTaskController* display_controller)
@@ -56,8 +60,12 @@ OverlayProcessorAndroid::OverlayProcessorAndroid(
   // the underlying overlay is opaque anyway; the candidate is referring to
   // a dummy resource that has no relation to what the overlay contains.
   // https://crbug.com/842931 .
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  strategies_.push_back(std::make_unique<OverlayStrategyUnderlayStarboard>(this));
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   strategies_.push_back(std::make_unique<OverlayStrategyUnderlay>(
       this, OverlayStrategyUnderlay::OpaqueMode::AllowTransparentCandidates));
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   overlay_candidates_.clear();
 }

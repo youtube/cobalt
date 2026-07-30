@@ -2,6 +2,13 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+if (is_cobalt) {
+  import("//starboard/build/config/toolchain_variables.gni")
+}
+
+if (is_cobalt && is_partner_toolchain) {
+  import("//copied_base/base/debug/debug.gni")
+} else {
 import("//build/config/compiler/compiler.gni")
 import("//build/config/compiler/pgo/pgo.gni")
 
@@ -51,3 +58,4 @@ assert(
 
 assert(!enable_check_elision_warning || !is_debug,
        "Check elision warning requires an optimized build!")
+}

@@ -30,6 +30,7 @@
 #include "base/trace_event/process_memory_dump.h"
 #include "base/types/expected_macros.h"
 #include "base/types/pass_key.h"
+#include "build/build_config.h"
 #include "components/services/storage/dom_storage/dom_storage_database.h"
 #include "components/services/storage/dom_storage/dom_storage_rollout.h"
 #include "components/services/storage/dom_storage/leveldb/dom_storage_batch_operation_leveldb.h"
@@ -74,6 +75,14 @@ leveldb_env::Options MakeOnDiskOptions() {
   options.env = env.get();
   return options;
 }
+
+#if BUILDFLAG(IS_COBALT)
+leveldb::WriteOptions CreateSyncWriteOptions() {
+  leveldb::WriteOptions options;
+  options.sync = true;
+  return options;
+}
+#endif
 
 DomStorageDatabase::KeyValuePair MakeKeyValuePair(const leveldb::Slice& key,
                                                   const leveldb::Slice& value) {
@@ -151,6 +160,16 @@ DomStorageDatabaseLevelDB::Open(
   status = instance->EnsureVersion(version_key, min_supported_version,
                                    max_supported_version);
   if (!status.ok()) {
+#if BUILDFLAG(IS_COBALT)
+    const DatabaseMetricsType metrics_type =
+        directory.empty() ? DatabaseMetricsType::kInMemory
+                          : DatabaseMetricsType::kOnDisk;
+    if (status.IsCorruption()) {
+      status.Log("Cobalt.LocalStorage.DatabaseVersionMismatch", metrics_type);
+    } else {
+      status.Log("Cobalt.LocalStorage.DatabaseReadError", metrics_type);
+    }
+#endif
     return base::unexpected(std::move(status));
   }
 
@@ -196,8 +215,13 @@ DbStatus DomStorageDatabaseLevelDB::Put(KeyView key, ValueView value) {
   if (!db_) {
     return DbStatus::IOError(kInvalidDatabaseMessage);
   }
+#if BUILDFLAG(IS_COBALT)
+  return FromLevelDBStatus(
+      db_->Put(CreateSyncWriteOptions(), MakeSlice(key), MakeSlice(value)));
+#else
   return FromLevelDBStatus(
       db_->Put(leveldb::WriteOptions(), MakeSlice(key), MakeSlice(value)));
+#endif
 }
 
 StatusOr<std::vector<DomStorageDatabase::KeyValuePair>>

@@ -1,0 +1,9 @@
+{
+  "failing_tests": [
+    "BackgroundServiceManagerTest.Basic",
+    "ConnectTest.*",
+    "LifecycleTest.*",
+    "ServiceManagerTest.*",
+    "ShutdownTest.*"
+  ]
+}

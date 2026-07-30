@@ -30,7 +30,9 @@
 #include "content/browser/renderer_host/network_restrictions_navigation_throttle.h"
 #include "content/browser/renderer_host/renderer_cancellation_throttle.h"
 #include "content/browser/renderer_host/subframe_history_navigation_throttle.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/webid/navigation_interceptor.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/common/features.h"
 #include "content/public/browser/navigation_handle.h"
 
@@ -155,7 +157,9 @@ void NavigationThrottleRegistryImpl::RegisterNavigationThrottles() {
 
   // Maybe add a throttle to manage navigations from relying parties to FedCM
   // identity providers.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   content::webid::NavigationInterceptor::MaybeCreateAndAdd(*this);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   // DO NOT ADD any throttles after this line.
 

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<!--
+Copyright 2020 The Cobalt Authors. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<html>
+<meta charset="utf-8">
+<title>tseries</title>
+<script>
+  var alternatedCount = 0;
+  var alternatingChannels = setInterval(alternateChannels, 500);
+
+  function alternateChannels() {
+    const channel = window.h5vcc.updater.getUpdaterChannel();
+    const status = window.h5vcc.updater.getUpdateStatus();
+
+    if (channel == "") {
+      return;
+    }
+
+    if ((status != "App is up to date") &&
+        (status != "Update installed, pending restart")) {
+      return;
+    }
+
+    if (channel == "qa") {
+      window.h5vcc.updater.setUpdaterChannel("tseries1");
+      console.log("channel changed from qa to tseries1");
+      return;
+    }
+
+    if (alternatedCount < 5) {
+      if (channel == "tseries1") {
+        window.h5vcc.updater.setUpdaterChannel("tseries2");
+        console.log("channel changed from tseries1 to tseries2");
+      } else {
+        window.h5vcc.updater.setUpdaterChannel("tseries1");
+        console.log("channel changed from tseries2 to tseries1");
+      }
+
+      alternatedCount++;
+      return;
+    }
+
+    console.log("continuous updates without restart working");
+
+    clearInterval(alternatingChannels);
+  }
+</script>
+</html>

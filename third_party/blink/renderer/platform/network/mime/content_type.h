@@ -26,6 +26,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_NETWORK_MIME_CONTENT_TYPE_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_NETWORK_MIME_CONTENT_TYPE_H_
 
+#include "build/build_config.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
@@ -41,6 +42,12 @@ class PLATFORM_EXPORT ContentType {
 
   String Parameter(StringView parameter_name) const;
   String GetType() const;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Cobalt hands the whole MIME string, parameters included, to Starboard's
+  // CanPlayMimeAndKeySystem(). Upstream dropped this accessor in
+  // https://crrev.com/c/7124769; keep it for that path.
+  const String& Raw() const { return type_; }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:
   // Returns a list of StringViews on `type_`.

@@ -7,6 +7,7 @@
 #include <iostream>
 #include <string_view>
 
+#include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/feature_list.h"
@@ -16,6 +17,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/numerics/byte_conversions.h"
+#include "build/build_config.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
@@ -513,6 +515,17 @@ void GeneratedCodeCache::WriteEntry(const GURL& url,
   // Reject buffers that are large enough to cause overflow problems.
   if (data.size() >= std::numeric_limits<int32_t>::max())
     return;
+
+#if BUILDFLAG(IS_COBALT)
+  if (cache_type_ == CodeCacheType::kJavaScript) {
+    // We skip caching below experimental thresholds to preserve
+    // cache slots for heavy core bundles.
+    constexpr size_t kMinBytecodeSize = 1024;
+    if (data.size() < kMinBytecodeSize) {
+      return;
+    }
+  }
+#endif
 
   const std::string key = GetCacheKey(url, origin_lock, nik, cache_type_);
   if (cache_type_ == CodeCacheType::kJavaScript) {

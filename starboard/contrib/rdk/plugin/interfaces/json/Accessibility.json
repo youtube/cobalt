@@ -1,0 +1,152 @@
+{
+  "$schema": "https://raw.githubusercontent.com/rdkcentral/rdkservices/main/Tools/json_generator/schemas/interface.schema.json",
+  "jsonrpc": "2.0",
+  "info": {
+    "title": "Accessibility API",
+    "class": "Accessibility",
+    "description": "Accessibility JSON-RPC interface"
+  },
+  "common": {
+    "$ref": "common.json"
+  },
+  "definitions": {
+    "color": {
+      "description": "The closed captioning color.",
+      "type": "string",
+      "enum": [
+        "Blue",
+        "Black",
+        "Cyan",
+        "Green",
+        "Magenta",
+        "Red",
+        "White",
+        "Yellow"
+      ]
+    },
+    "fontfamily": {
+      "description": "The closed captioning font family.",
+      "type": "string",
+      "enum": [
+        "Casual",
+        "Cursive",
+        "MonospaceSansSerif",
+        "MonospaceSerif",
+        "ProportionalSansSerif",
+        "ProportionalSerif",
+        "SmallCapitals"
+      ]
+    },
+    "edgestyle": {
+      "description": "The closed captioning character edge style.",
+      "type": "string",
+      "enum": [
+        "None",
+        "Raised",
+        "Depressed",
+        "Uniform",
+        "DropShadow"
+      ]
+    },
+    "fontsizepercentage": {
+      "description": "The closed captioning font size percentages.",
+      "type": "string",
+      "enum": [
+        "25",
+        "50",
+        "75",
+        "100",
+        "125",
+        "150",
+        "175",
+        "200",
+        "225",
+        "250",
+        "275",
+        "300"
+      ]
+    },
+    "opacitypercentage": {
+      "description": "The closed captioning opacity percentages.",
+      "type": "string",
+      "enum": [
+        "0",
+        "25",
+        "50",
+        "75",
+        "100"
+      ]
+    },
+    "CCSettings": {
+      "description": "The platform settings for closed captions.",
+      "type": "object",
+      "properties": {
+        "isenabled": {
+          "description": "Determines if the user has chosen to enable closed captions on their system.",
+          "type": "boolean"
+        },
+        "backgroundcolor": {
+          "$ref": "#/definitions/color"
+        },
+        "backgroundopacity": {
+          "$ref": "#/definitions/opacitypercentage"
+        },
+        "characteredgestyle": {
+          "$ref": "#/definitions/edgestyle"
+        },
+        "fontcolor": {
+          "$ref": "#/definitions/color"
+        },
+        "fontfamily": {
+          "$ref": "#/definitions/fontfamily"
+        },
+        "fontopacity": {
+          "$ref": "#/definitions/opacitypercentage"
+        },
+        "fontsize": {
+          "$ref": "#/definitions/fontsizepercentage"
+        },
+        "windowcolor": {
+          "$ref": "#/definitions/color"
+        },
+        "windowopacity": {
+          "$ref": "#/definitions/opacitypercentage"
+        }
+      },
+      "required": [
+        "isenabled"
+      ]
+    },
+    "TextDisplaySettings": {
+      "type": "object",
+      "description": "Text display settings",
+      "properties": {
+        "ishighcontrasttextenabled": {
+          "description": "Whether the high contrast text setting is enabled or not.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ishighcontrasttextenabled"
+      ]
+    }
+  },
+  "properties": {
+    "accessibility": {
+      "summary": "Accessibility settings",
+      "params": {
+        "type": "object",
+        "properties": {
+          "closedcaptions": {
+            "$ref": "#/definitions/CCSettings"
+          },
+          "textdisplay": {
+            "$ref": "#/definitions/TextDisplaySettings"
+          }
+        },
+        "required": [
+        ]
+      }
+    }
+  }
+}
