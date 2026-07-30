@@ -323,7 +323,13 @@ GLContext* GLContext::GetRealCurrent() {
 }
 
 void GLContext::OnContextWillDestroy() {
+#if BUILDFLAG(IS_COBALT)
+  if (has_called_on_destroy_) {
+    return;
+  }
+#else
   DCHECK(!has_called_on_destroy_);
+#endif
   has_called_on_destroy_ = true;
 
   observer_list_.Notify(&GLContextObserver::OnGLContextWillDestroy, this);

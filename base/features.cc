@@ -38,6 +38,7 @@
 #include "base/task/sequence_manager/thread_controller_power_monitor.h"
 #endif
 
+
 namespace base::features {
 
 namespace {
@@ -52,6 +53,158 @@ std::atomic_bool g_is_reduce_ppms_enabled{false};
 
 // Alphabetical:
 
+<<<<<<< HEAD
+=======
+// When enabled, the compositor threads (including GPU) will be boosted to
+// kInteractive when not in input or loading scenarios.
+BASE_FEATURE(kBoostCompositorThreadsPriorityWhenIdle,
+             FEATURE_DISABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kCobaltEnableModerateMemoryPressure,
+             "CobaltEnableModerateMemoryPressure",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltMemoryPressureCooldown,
+             "CobaltMemoryPressureCooldown",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltMemoryPressureCooldownSeconds,
+                   &kCobaltMemoryPressureCooldown,
+                   "cooldown-seconds",
+                   60);
+
+// When enabled, image transfer cache entries bypass serialization and transfer
+// images directly to the GPU service thread in-process.
+// Disabled by default on Android, enabled by default on other platforms.
+BASE_FEATURE(kCobaltInProcessImageTransferCache,
+             "CobaltInProcessImageTransferCache",
+#if BUILDFLAG(IS_ANDROID)
+             FEATURE_DISABLED_BY_DEFAULT);
+#else   // BUILDFLAG(IS_ANDROID)
+             FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
+
+BASE_FEATURE(kCobaltCCImageCacheLimitItems,
+             "CobaltCCImageCacheLimitItems",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltCCImageCacheLimitItemsCount,
+                   &kCobaltCCImageCacheLimitItems,
+                   "cc_image_cache_limit_items",
+                   0);
+
+// Negative value means no byte limit is applied.
+BASE_FEATURE_PARAM(int,
+                   kCobaltCCImageCacheLimitItemsMbs,
+                   &kCobaltCCImageCacheLimitItems,
+                   "cc_image_cache_limit_mbs",
+                   -1);
+
+BASE_FEATURE(kCobaltForceGpuMemAvailable,
+             "CobaltForceGpuMemAvailable",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltForceGpuMemAvailableMb,
+                   &kCobaltForceGpuMemAvailable,
+                   "force_gpu_mem_available_mb",
+                   64);
+
+// Enabled by default on 3P/Starboard platforms so that they use the 1 MB GPU
+// discardable cache limit that upstream only applies to low-end Android
+// devices, instead of the upstream desktop default of 192 MB (256 MB with 4 GB+
+// of RAM). Disabled by default on Android, where Cobalt runs in low-end device
+// mode and upstream already uses 1 MB. Setting the parameter to a larger value
+// restores a bigger cache via Finch without requiring a binary change;
+// disabling the feature falls back to the upstream per-platform defaults.
+BASE_FEATURE(kCobaltGpuDiscardableCacheLimit,
+             "CobaltGpuDiscardableCacheLimit",
+#if BUILDFLAG(IS_ANDROID)
+             FEATURE_DISABLED_BY_DEFAULT);
+#else   // BUILDFLAG(IS_ANDROID)
+             FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltGpuDiscardableCacheLimitMb,
+                   &kCobaltGpuDiscardableCacheLimit,
+                   "CobaltGpuDiscardableCacheLimit_mb",
+                   1);
+
+BASE_FEATURE(kCobaltV8MaxOldSpaceSize,
+             "CobaltV8MaxOldSpaceSize",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltV8MaxOldSpaceSizeMb,
+                   &kCobaltV8MaxOldSpaceSize,
+                   "max_old_space_size_mb",
+                   512);
+
+BASE_FEATURE(kCobaltV8InitialOldSpaceSize,
+             "CobaltV8InitialOldSpaceSize",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltV8InitialOldSpaceSizeMb,
+                   &kCobaltV8InitialOldSpaceSize,
+                   "initial_old_space_size_mb",
+                   16);
+
+// Enabled by default on Android to preserve existing production behavior, and
+// disabled by default on 3P (non-Android) platforms to avoid V8 MemorySaverMode
+// clamping the young generation semi-space to 1 MB and stalling UI navigation.
+BASE_FEATURE(kCobaltV8OptimizeForSize,
+             "CobaltV8OptimizeForSize",
+#if BUILDFLAG(IS_ANDROID)
+             FEATURE_ENABLED_BY_DEFAULT);
+#else
+             FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
+// Enabled by default, except on Android where the upstream Chromium defaults
+// are kept until a dedicated experiment has been run there. The memory and
+// performance tradeoff of collapsing the skewport was only validated on TV
+// form factors, so Android needs its own data before flipping.
+BASE_FEATURE(kCobaltSkewportTargetTime,
+             "CobaltSkewportTargetTime",
+#if BUILDFLAG(IS_ANDROID)
+             FEATURE_DISABLED_BY_DEFAULT);
+#else
+             FEATURE_ENABLED_BY_DEFAULT);
+#endif
+
+BASE_FEATURE_PARAM(double,
+                   kCobaltSkewportTargetTimeInSeconds,
+                   &kCobaltSkewportTargetTime,
+                   "skewport_target_time_in_seconds",
+                   0.0);
+
+BASE_FEATURE_PARAM(double,
+                   kCobaltGpuRasterizationSkewportTargetTimeInSeconds,
+                   &kCobaltSkewportTargetTime,
+                   "gpu_rasterization_skewport_target_time_in_seconds",
+                   0.0);
+
+// Enabled by default so that all Cobalt platforms disable prepaint raster.
+// Setting the parameter to a non-zero percentage (e.g. 50 or 67) restores a
+// prepaint budget via Finch without requiring a binary change; disabling the
+// feature falls back to the upstream per-platform defaults.
+BASE_FEATURE(kCobaltMaxMemoryForPrepaint,
+             "CobaltMaxMemoryForPrepaint",
+             FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltMaxMemoryForPrepaintPercentage,
+                   &kCobaltMaxMemoryForPrepaint,
+                   "max_memory_for_prepaint_percentage",
+                   0);
+#endif  // BUILDFLAG(IS_COBALT)
+
+>>>>>>> parent of 83af724c740 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 // Controls caching within BASE_FEATURE_PARAM(). This is feature-controlled
 // so that ScopedFeatureList can disable it to turn off caching.
 BASE_FEATURE(kFeatureParamWithCache, FEATURE_ENABLED_BY_DEFAULT);

@@ -6,9 +6,13 @@
 
 #include <sys/prctl.h>
 
+<<<<<<< HEAD
 #include <cassert>
 #include <type_traits>
 
+=======
+#include "build/build_config.h"
+>>>>>>> parent of 83af724c740 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "third_party/jni_zero/generate_jni/JniInit_jni.h"
 #include "third_party/jni_zero/jni_methods.h"
 #include "third_party/jni_zero/jni_zero_internal.h"
@@ -46,6 +50,10 @@ jclass (*g_class_resolver)(JNIEnv*, const char*, const char*) = nullptr;
 
 void (*g_exception_handler_callback)(JNIEnv*) = nullptr;
 
+/* Cobalt specific hack to move Java classes to a custom namespace.
+   For every class org.chromium.foo moves them to cobalt.org.chromium.foo
+   This works around link-time conflicts when building the final
+   package against other Chromium release artifacts. */
 jclass GetClassInternal(JNIEnv* env,
                         const char* class_name,
                         const char* split_name) {
