@@ -503,17 +503,8 @@ gfx::ExtensionSet GetRequestableGLExtensionsFromCurrentContext() {
 
 gfx::ExtensionSet GetRequestableGLExtensionsFromCurrentContext(GLApi* api) {
 #if BUILDFLAG(IS_COBALT)
-  if (!api)
+  if (!api || GetGLImplementation() != kGLImplementationEGLANGLE)
     return gfx::ExtensionSet();
-
-  // Cobalt on some platforms (like RDK) runs on native GL without ANGLE,
-  // but uses the passthrough command decoder. Querying requestable extensions
-  // (which is ANGLE-specific) on native GL will generate GL errors.
-  const char* version =
-      reinterpret_cast<const char*>(api->glGetStringFn(GL_VERSION));
-  if (!version || !strstr(version, "ANGLE")) {
-    return gfx::ExtensionSet();
-  }
 #endif
   return GetGLExtensionsFromCurrentContext(api,
                                            GL_REQUESTABLE_EXTENSIONS_ANGLE);
