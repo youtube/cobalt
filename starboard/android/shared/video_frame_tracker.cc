@@ -164,7 +164,10 @@ void VideoFrameTracker::UpdateDroppedFrames() {
           kMaxAllowedSkew) {
         // This frame was rendered, remove it from frames_to_be_rendered_.
         to_render_timestamp = frames_to_be_rendered_.erase(to_render_timestamp);
-      } else if (rendered_timestamp - *to_render_timestamp > kMaxAllowedSkew) {
+      } else {
+        // Here we know rendered_timestamp - *to_render_timestamp >
+        // kMaxAllowedSkew, because the while loop condition guarantees
+        // *to_render_timestamp - rendered_timestamp <= kMaxAllowedSkew.
         // The rendered frame is too far ahead. The to_render_timestamp frame
         // was dropped.
         SB_LOG(WARNING) << "Video frame dropped:" << *to_render_timestamp
@@ -173,13 +176,6 @@ void VideoFrameTracker::UpdateDroppedFrames() {
                         << frames_to_be_rendered_.size();
         ++dropped_frames_;
         to_render_timestamp = frames_to_be_rendered_.erase(to_render_timestamp);
-      } else {
-        // The rendered frame is too early to match the next frame to render.
-        // This could happen if a frame is reported to be rendered twice or if
-        // it is rendered more than kMaxAllowedSkew early. In the latter
-        // scenario the frame will be reported dropped in the next iteration of
-        // the outer loop.
-        ++to_render_timestamp;
       }
     }
   }
