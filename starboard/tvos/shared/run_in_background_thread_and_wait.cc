@@ -17,7 +17,7 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <dispatch/dispatch.h>
 
-#include "starboard/common/check_op.h"
+#include "base/apple/scoped_dispatch_object.h"
 
 void RunInBackgroundThreadAndWait(std::function<void()>&& function) {
   // This function is supposed to be used in very specific circumstances: test
@@ -35,12 +35,14 @@ void RunInBackgroundThreadAndWait(std::function<void()>&& function) {
     function();
     return;
   }
-  dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
+
+  base::apple::ScopedDispatchObject<dispatch_semaphore_t> semaphore(
+      dispatch_semaphore_create(0));
   dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0), ^{
     function();
-    dispatch_semaphore_signal(semaphore);
+    dispatch_semaphore_signal(semaphore.get());
   });
-  while (dispatch_semaphore_wait(semaphore, DISPATCH_TIME_NOW)) {
+  while (dispatch_semaphore_wait(semaphore.get(), DISPATCH_TIME_NOW)) {
     CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0, true);
   }
 }
