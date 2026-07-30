@@ -19,6 +19,7 @@
 #include "base/compiler_specific.h"
 #include "base/functional/callback_helpers.h"
 #include "base/task/bind_post_task.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_resource.h"
