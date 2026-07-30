@@ -3,9 +3,16 @@
 // found in the LICENSE file.
 
 import {APC_NODE_DEPTH_COST, getRemoteFrameRemoteToken, MAX_APC_RESPONSE_DEPTH, NONCE_ATTR} from '//ios/chrome/browser/intelligence/proto_wrappers/resources/common.js';
+import {getNodeId, getOrCreateNodeId} from '//ios/chrome/browser/intelligence/proto_wrappers/resources/dom_node_ids.js';
 import {PageContentAnchorRel, PageContentAnnotatedRole, PageContentAttributeType, PageContentTextSize} from '//ios/chrome/browser/intelligence/proto_wrappers/resources/page_content_types.js';
-import type {PageContent, PageContentAttributes, PageContentFrameData, PageContentNode} from '//ios/chrome/browser/intelligence/proto_wrappers/resources/page_content_types.js';
+import type {PageContent, PageContentAttributes, PageContentFrameData, PageContentFrameInteractionInfo, PageContentNode, PageContentPageInteractionInfo} from '//ios/chrome/browser/intelligence/proto_wrappers/resources/page_content_types.js';
 
+// Set of DOM Node IDs that are considered interactive (focused, selection
+// start/end). These nodes should be included in the APC tree even if they are
+// generic containers.
+type InteractiveNodeIds = Set<number>;
+
+// The last known pointer position.
 // Tags that we fundamentally do not support or that contain non-content data.
 const TAG_STYLE = 'STYLE';
 const TAG_SCRIPT = 'SCRIPT';
@@ -147,31 +154,59 @@ function getAnnotatedRoleForTag(tagName: string): PageContentAnnotatedRole|
   }
 }
 
+// Constants for text size categorization, mirroring Blink's
+// third_party/blink/renderer/modules/content_extraction/ai_page_content_agent.cc.
+const HEADING_1_FONT_SIZE_MULTIPLIER = 2.0;
+const HEADING_3_FONT_SIZE_MULTIPLIER = 1.17;
+const HEADING_5_FONT_SIZE_MULTIPLIER = 0.83;
+const HEADING_6_FONT_SIZE_MULTIPLIER = 0.67;
+
 /**
- * Determines the text size category based on the font size.
+ * Determines the text size category based on the font size. Returns
+ * PageContentTextSize.M if the relative font size can't be computed.
+ * Ratios are based on browser defaults for headings, which are as follows:
+ *
+ * Heading 1: 2em
+ * Heading 2: 1.5em
+ * Heading 3: 1.17em
+ * Heading 4: 1em
+ * Heading 5: 0.83em
+* Heading 6: 0.67em
  *
  * @param fontSize The font size string (e.g., "16px").
+ * @param doc The document to use for root font size reference.
  * @return The corresponding PageContentTextSize category.
  */
-function getTextSizeCategory(fontSize: string): PageContentTextSize {
-  // TODO(crbug.com/475171266): Implement parity for text size extraction.
+function getTextSizeCategory(
+  fontSize: string, doc: Document): PageContentTextSize {
   const size = parseFloat(fontSize);
   if (isNaN(size)) {
     return PageContentTextSize.M;
   }
-  if (size < 12) {
-    return PageContentTextSize.XS;
-  }
-  if (size < 16) {
-    return PageContentTextSize.S;
-  }
-  if (size < 20) {
+
+  const rootStyle = doc.defaultView?.getComputedStyle(doc.documentElement);
+  if (!rootStyle) {
     return PageContentTextSize.M;
   }
-  if (size < 24) {
-    return PageContentTextSize.L;
+
+  const docFontSize = parseFloat(rootStyle.fontSize);
+  if (isNaN(docFontSize) || docFontSize <= 0) {
+    return PageContentTextSize.M;
   }
-  return PageContentTextSize.XL;
+
+  const multiplier = size / docFontSize;
+
+  if (multiplier >= HEADING_1_FONT_SIZE_MULTIPLIER) {
+    return PageContentTextSize.XL;
+  } else if (multiplier >= HEADING_3_FONT_SIZE_MULTIPLIER) {
+    return PageContentTextSize.L;
+  } else if (multiplier >= HEADING_5_FONT_SIZE_MULTIPLIER) {
+    return PageContentTextSize.M;
+  } else if (multiplier >= HEADING_6_FONT_SIZE_MULTIPLIER) {
+    return PageContentTextSize.S;
+  } else {
+    return PageContentTextSize.XS;
+  }
 }
 
 /**
@@ -221,7 +256,14 @@ function getAnchorRel(anchorElement: HTMLAnchorElement):
  * @param element The element to check.
  * @return True if the element is a generic container, false otherwise.
  */
-function isGenericContainer(element: HTMLElement): boolean {
+function isGenericContainer(
+    element: HTMLElement, interactiveNodeIds: InteractiveNodeIds): boolean {
+  // Check if the element is an interactive node.
+  const nodeId = getNodeId(element);
+  if (nodeId !== null && interactiveNodeIds.has(nodeId)) {
+    return true;
+  }
+
   // A <figure> element is a semantic container for self-contained content, like
   // images or diagrams, making it a generic container.
   if (element.tagName === TAG_FIGURE) {
@@ -257,21 +299,51 @@ function isGenericContainer(element: HTMLElement): boolean {
 }
 
 /**
+ * Extracts the frame interaction info (selection).
+ *
+ * @param document The document to extract data from.
+ * @return The populated PageContentFrameInteractionInfo.
+ */
+function extractFrameInteractionInfo(document: Document):
+    PageContentFrameInteractionInfo {
+  const frameInteractionInfo: PageContentFrameInteractionInfo = {};
+  const selection = document.getSelection();
+  if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+    const range = selection.getRangeAt(0);
+
+    const startNodeId = getOrCreateNodeId(range.startContainer);
+    const endNodeId = getOrCreateNodeId(range.endContainer);
+
+    if (endNodeId !== null && startNodeId !== null) {
+      frameInteractionInfo.selection = {
+        startDomNodeId: startNodeId,
+        startOffset: range.startOffset,
+        endDomNodeId: endNodeId,
+        endOffset: range.endOffset,
+        selectedText: selection.toString(),
+      };
+    }
+  }
+  return frameInteractionInfo;
+}
+
+// TODO(crbug.com/468854910): Add missing fields for PageContentFrameData:
+// HTML metaData, containsPaidContent, and popup (if possible).
+/**
  * Extracts data about the frame/document.
  *
  * @param document The document to extract data from.
  * @return The populated PageContentFrameData.
  */
-// TODO(crbug.com/468854910): Add missing fields for PageContentFrameData:
-// HTML metaData, containsPaidContent, and popup (if possible).
 function extractFrameData(document: Document): PageContentFrameData {
   const frameData: PageContentFrameData = {
-    // TODO(crbug.com/475263573): Extract frameInteractionInfo.
     frameInteractionInfo: {},
     metaData: [],
     title: document.title || '',
     sourceUrl: document.URL,
   };
+
+  frameData.frameInteractionInfo = extractFrameInteractionInfo(document);
 
   return frameData;
 }
@@ -357,8 +429,9 @@ function getAttributesForTextNode(domNode: Node): PageContentAttributes|null {
   const weight = style.fontWeight;
   const hasEmphasis = weight === 'bold' || weight === '700' ||
       parseInt(weight) >= 700 || style.fontStyle === 'italic';
-  const textSize = getTextSizeCategory(style.fontSize);
-
+  const textSize = domNode.ownerDocument ?
+    getTextSizeCategory(style.fontSize, domNode.ownerDocument) :
+    PageContentTextSize.M;
   return {
     attributeType: PageContentAttributeType.TEXT,
     annotatedRoles: [],
@@ -366,9 +439,7 @@ function getAttributesForTextNode(domNode: Node): PageContentAttributes|null {
     textInfo: {
       textContent: maskedText,
       textStyle: {
-        // TODO(crbug.com/475171266): Implement parity for text size and
-        // emphasis extraction.
-        textSize,
+        textSize: textSize,
         hasEmphasis,
         // TODO(crbug.com/474935853): Add text color extraction.
         color: 0,
@@ -400,27 +471,26 @@ function getContentForIframeNode(
 
   let childTree: PageContentNode|null = null;
   let localFrameData: PageContentFrameData|undefined;
-  let remoteToken: string|undefined;
+
+  // Always register the frame to get a remote token, even for same-origin
+  // frames. This allows identification of the frame document in the browser.
+  const remoteToken = getRemoteFrameRemoteToken(iframeElement);
 
   try {
     const contentDoc = iframeElement.contentDocument;
-    if (contentDoc) {
-      if (contentDoc.body) {
-        // Recurse to start a new tree walk on the iframe content when available
-        // (i.e. when on the same origin) because the TreeWalker doesn't walk
-        // through iframe content.
-        const pageContent = extractAnnotatedPageContent(
-            contentDoc, nonce, depth + APC_NODE_DEPTH_COST, maxDepth);
-        if (pageContent) {
-          childTree = pageContent.rootNode;
-          localFrameData = pageContent.frameData;
-        }
+    if (contentDoc && contentDoc.body) {
+      // Recurse to start a new tree walk on the iframe content when available
+      // (i.e. when on the same origin) because the TreeWalker doesn't walk
+      // through iframe content.
+      const pageContent = extractAnnotatedPageContent(
+          contentDoc, nonce, depth + APC_NODE_DEPTH_COST, maxDepth);
+      if (pageContent) {
+        childTree = pageContent.rootNode;
+        localFrameData = pageContent.frameData;
       }
-    } else {
-      remoteToken = getRemoteFrameRemoteToken(iframeElement);
     }
   } catch (error) {
-    remoteToken = getRemoteFrameRemoteToken(iframeElement);
+    // Ignore errors when accessing the iframe content.
   }
 
   if (!localFrameData) {
@@ -433,11 +503,16 @@ function getContentForIframeNode(
     };
   }
 
+  // Set the document ID for the frame data.
+  localFrameData.documentId = remoteToken;
+
+
   // TODO(crbug.com/468857979): Add `redactedFrameMetadata` to the `content`
   // data once there is an option to only extract iframe data on the same
-  // site (domain and one level of subdomain).
+  // site (domain and one level of subdomain). Only populate the remote token if
+  // grafting is needed to get the iframe content.
   attributes.iframeData = {
-    frameToken: {value: remoteToken ?? ''},
+    frameToken: {value: childTree ? '' : remoteToken},
     content: {
       localFrameData: localFrameData,
     },
@@ -615,8 +690,8 @@ function getBasicContentForNonGenericElement(
  *     skipped.
  */
 function getContentForElementNode(
-    domNode: HTMLElement, nonce: string, depth: number,
-    maxDepth: number): PageContentNode|null {
+    domNode: HTMLElement, nonce: string, depth: number, maxDepth: number,
+    interactiveNodeIds: InteractiveNodeIds): PageContentNode|null {
   let contentNode: PageContentNode|null = null;
 
   // 1. Try to get basic content for non-generic elements.
@@ -624,7 +699,7 @@ function getContentForElementNode(
       getBasicContentForNonGenericElement(domNode, nonce, depth, maxDepth);
 
   // 2. Fallback: Generic Container.
-  if (!contentNode && isGenericContainer(domNode)) {
+  if (!contentNode && isGenericContainer(domNode, interactiveNodeIds)) {
     contentNode = {
       childrenNodes: [],
       contentAttributes: {
@@ -659,7 +734,8 @@ function addAnnotatedRoles(
 // reached.
 /**
  * Generates a PageContentNode for a given DOM node if it contains valid
- * content.
+ * content. DOM node IDs are only generated and assigned if content can be
+ * generated for the `domNode`.
  *
  * @param domNode The DOM node to process (Element or Text).
  * @param nonce Unique identifier for the extraction run.
@@ -669,12 +745,16 @@ function addAnnotatedRoles(
  * @return A new PageContentNode if valid content was found, null otherwise.
  */
 function maybeGenerateContentNode(
-    domNode: Node, nonce: string, depth: number,
-    maxDepth: number): PageContentNode|null {
+    domNode: Node, nonce: string, depth: number, maxDepth: number,
+    interactiveNodeIds: InteractiveNodeIds): PageContentNode|null {
   let contentAttributes: PageContentAttributes|null = null;
   if (domNode.nodeType === Node.TEXT_NODE) {
     contentAttributes = getAttributesForTextNode(domNode);
     if (contentAttributes) {
+      const domNodeId = getOrCreateNodeId(domNode);
+      if (domNodeId !== null) {
+        contentAttributes.domNodeId = domNodeId;
+      }
       return {
         childrenNodes: [],
         contentAttributes: contentAttributes,
@@ -682,9 +762,13 @@ function maybeGenerateContentNode(
     }
   } else if (domNode.nodeType === Node.ELEMENT_NODE) {
     const element = domNode as HTMLElement;
-    const contentNode =
-        getContentForElementNode(element, nonce, depth, maxDepth);
+    const contentNode = getContentForElementNode(
+        element, nonce, depth, maxDepth, interactiveNodeIds);
     if (contentNode) {
+      const domNodeId = getOrCreateNodeId(domNode);
+      if (domNodeId !== null) {
+        contentNode.contentAttributes.domNodeId = domNodeId;
+      }
       addAnnotatedRoles(element, contentNode.contentAttributes);
       return contentNode;
     }
@@ -766,7 +850,8 @@ interface AncestorStackItem {
  */
 function generateAndPushContentNode(
     node: Node, nonce: string, maxDepth: number,
-    ancestorStack: AncestorStackItem[]) {
+    ancestorStack: AncestorStackItem[],
+    interactiveNodeIds: InteractiveNodeIds) {
   const parentStackItem = ancestorStack[ancestorStack.length - 1]!;
 
   // 2. Generate Content Node. Skip nodes that are too deep while keep
@@ -777,8 +862,8 @@ function generateAndPushContentNode(
     return;
   }
 
-  const newApcNode =
-      maybeGenerateContentNode(node, nonce, currentDepth, maxDepth);
+  const newApcNode = maybeGenerateContentNode(
+      node, nonce, currentDepth, maxDepth, interactiveNodeIds);
   if (!newApcNode) {
     // Ignore the node if it can't be parsed. That node cannot be a parent
     // either where another node in the ancestor stack will be picked as the
@@ -811,6 +896,58 @@ function generateAndPushContentNode(
   });
 }
 
+// TODO(crbug.com/485799759): Assess if we need the mouse position.
+/**
+ * Extracts the page interaction info (focus, pointer position).
+ *
+ * @param document The document to extract data from.
+ * @return The populated PageContentPageInteractionInfo.
+ */
+function extractPageInteractionInfo(document: Document):
+    PageContentPageInteractionInfo {
+  const pageInteractionInfo: PageContentPageInteractionInfo = {};
+  const activeElement = document.activeElement;
+  if (activeElement) {
+    const focusedId = getOrCreateNodeId(activeElement);
+    if (focusedId !== null) {
+      pageInteractionInfo.focusedDomNodeId = focusedId;
+    }
+  }
+  return pageInteractionInfo;
+}
+
+/**
+ * Gets the interactive nodes in the `document` (focused element, selection
+ * start/end).
+ *
+ * @param document The document to extract data from.
+ * @return The set of interactive node ids.
+ */
+function getInteractiveNodeIds(document: Document): InteractiveNodeIds {
+  const interactiveNodeIds: InteractiveNodeIds = new Set();
+  const focusedElement = document.activeElement;
+  if (focusedElement) {
+    const id = getOrCreateNodeId(focusedElement);
+    if (id !== null) {
+      interactiveNodeIds.add(id);
+    }
+  }
+  const selection = document.getSelection();
+  if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+    const range = selection.getRangeAt(0);
+    const startId = getOrCreateNodeId(range.startContainer);
+    const endId = getOrCreateNodeId(range.endContainer);
+    if (startId !== null) {
+      interactiveNodeIds.add(startId);
+    }
+    if (endId !== null) {
+      interactiveNodeIds.add(endId);
+    }
+  }
+  return interactiveNodeIds;
+}
+
+// TODO(crbug.com/485796293): Wrap this in a class.
 /**
  * Extracts the annotated page content of the document starting from the body
  * as the root node. Uses a TreeWalker to read the nodes via an iterative
@@ -845,8 +982,15 @@ export function extractAnnotatedPageContent(
   }
   root.setAttribute(NONCE_ATTR, nonce);
 
+  const domNodeId = getOrCreateNodeId(root);
+  if (domNodeId === null) {
+    // If the root node can't be assigned an ID, it can't be processed.
+    return null;
+  }
+
   const rootNode: PageContentNode = {
     contentAttributes: {
+      domNodeId: domNodeId,
       attributeType: PageContentAttributeType.ROOT,
       annotatedRoles: [],
       isAdRelated: false,
@@ -862,6 +1006,9 @@ export function extractAnnotatedPageContent(
   // needing a full map of all visited nodes.
   const ancestorStack: AncestorStackItem[] =
       [{domNode: root, apcNode: rootNode, depth, isVisible: true}];
+
+  // Collect interactive nodes (focused element, selection start/end).
+  const interactiveNodeIds = getInteractiveNodeIds(document);
 
   const walker = document.createTreeWalker(
       root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
@@ -913,7 +1060,8 @@ export function extractAnnotatedPageContent(
 
     // 2. Generate Content Node. Skip nodes that are too deep while keep
     // walking the tree since future nodes might be shallow enough.
-    generateAndPushContentNode(currentNode, nonce, maxDepth, ancestorStack);
+    generateAndPushContentNode(
+        currentNode, nonce, maxDepth, ancestorStack, interactiveNodeIds);
 
     currentNode = walker.nextNode();
   }
@@ -929,8 +1077,11 @@ export function extractAnnotatedPageContent(
     }
   }
 
+  const pageInteractionInfo = extractPageInteractionInfo(document);
+
   return {
     rootNode: rootNode,
+    pageInteractionInfo: pageInteractionInfo,
     frameData: extractFrameData(document),
     visibleBoundingBoxesForPasswordRedaction: [],
   };

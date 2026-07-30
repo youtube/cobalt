@@ -51,7 +51,6 @@
 
 #if !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 #include "chrome/grit/guest_view_shared_resources_map.h"  // nogncheck
-#include "components/guest_view/browser/slim_web_view/slim_web_view_page_handler_factory.h"  // nogncheck
 #endif  // !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 namespace glic {
@@ -126,7 +125,10 @@ bool GlicUIConfig::IsWebUIEnabled(content::BrowserContext* browser_context) {
 }
 
 GlicUI::GlicUI(content::WebUI* web_ui)
-    : ui::MojoWebUIController(web_ui), preload_factory_receiver_{this} {
+    : ui::MojoWebUIController(web_ui,
+                              /*enable_chrome_send=*/false,
+                              /*enable_chrome_histograms=*/true),
+      preload_factory_receiver_{this} {
   static constexpr webui::LocalizedString kStrings[] = {
       {"closeButtonLabel", IDS_GLIC_NOTICE_CLOSE_BUTTON_LABEL},
       {"errorNotice", IDS_GLIC_ERROR_NOTICE},

@@ -52,7 +52,6 @@
 #include "chrome/browser/web_applications/web_app_registry_update.h"
 #include "chrome/browser/web_applications/web_app_sync_bridge.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
-#include "chrome/common/chrome_features.h"
 #include "components/services/app_service/public/cpp/file_handler.h"
 #include "components/services/app_service/public/cpp/protocol_handler_info.h"
 #include "components/services/app_service/public/cpp/share_target.h"
@@ -276,8 +275,6 @@ TEST_F(WebAppDatabaseTest, OpenDatabaseAndReadRegistry) {
       WriteWebApps(kNumApps, /*only_non_external_management_types=*/true);
   test::AwaitStartWebAppProviderAndSubsystems(profile());
   histogram_tester.ExpectBucketCount("WebApp.Database.ValidProto", true,
-                                     kNumApps);
-  histogram_tester.ExpectBucketCount("WebApp.Database.AppIdMatch", true,
                                      kNumApps);
   fake_provider().command_manager().AwaitAllCommandsCompleteForTesting();
   EXPECT_TRUE(IsRegistryEqual(mutable_registrar().registry(), registry,

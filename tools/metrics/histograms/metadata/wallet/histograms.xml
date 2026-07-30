@@ -51,6 +51,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Wallet.NetworkRequest.{RequestType}.HttpResponseOrErrorCode"
+    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-12-31">
+  <owner>vizcay@google.com</owner>
+  <owner>1p-integrations-autofill@google.com</owner>
+  <summary>
+    Records the http response code or net error code that occur when making a
+    network request to the wallet server for {RequestType}.
+  </summary>
+  <token key="RequestType" variants="Wallet.NetworkRequest.RequestType"/>
+</histogram>
+
 <histogram name="Wallet.NetworkRequest.{RequestType}.Latency" units="ms"
     expires_after="2026-12-31">
   <owner>vizcay@google.com</owner>
@@ -59,6 +70,17 @@ chromium-metrics-reviews@google.com.
     Records the latency of network requests made to the wallet server for
     {RequestType}. This is an important metric to monitor the health of the
     integration.
+  </summary>
+  <token key="RequestType" variants="Wallet.NetworkRequest.RequestType"/>
+</histogram>
+
+<histogram name="Wallet.NetworkRequest.{RequestType}.ResponseByteSize"
+    units="bytes" expires_after="2026-12-31">
+  <owner>vizcay@google.com</owner>
+  <owner>1p-integrations-autofill@google.com</owner>
+  <summary>
+    Records the size of network responses received from the wallet server for
+    {RequestType}.
   </summary>
   <token key="RequestType" variants="Wallet.NetworkRequest.RequestType"/>
 </histogram>

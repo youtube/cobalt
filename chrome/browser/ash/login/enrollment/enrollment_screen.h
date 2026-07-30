@@ -13,6 +13,8 @@
 #include "base/functional/callback.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/timer/timer.h"
@@ -34,6 +36,14 @@
 namespace base {
 class ElapsedTimer;
 }
+
+namespace network {
+class SharedURLLoaderFactory;
+}  // namespace network
+
+namespace policy {
+class BrowserPolicyConnectorAsh;
+}  // namespace policy
 
 namespace ash {
 
@@ -65,9 +75,15 @@ class EnrollmentScreen
 
   using ScreenExitCallback = base::RepeatingCallback<void(Result result)>;
   using TpmStatusCallback = chromeos::TpmManagerClient::TakeOwnershipCallback;
-  EnrollmentScreen(base::WeakPtr<EnrollmentScreenView> view,
-                   ErrorScreen* error_screen,
-                   const ScreenExitCallback& exit_callback);
+
+  // `shared_url_loader_factory` must be non-null.
+  // `browser_policy_connector_ash` must be non-null and must outlive `this`.
+  EnrollmentScreen(
+      scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
+      const policy::BrowserPolicyConnectorAsh* browser_policy_connector_ash,
+      base::WeakPtr<EnrollmentScreenView> view,
+      ErrorScreen* error_screen,
+      const ScreenExitCallback& exit_callback);
 
   EnrollmentScreen(const EnrollmentScreen&) = delete;
   EnrollmentScreen& operator=(const EnrollmentScreen&) = delete;
@@ -256,6 +272,11 @@ class EnrollmentScreen
   // Stores the signin artifacts and the refresh token in the wizard context
   // if the appropriate conditions are met.
   void MaybeStoreUserContextInWizardContext();
+
+  const scoped_refptr<network::SharedURLLoaderFactory>
+      shared_url_loader_factory_;
+  const raw_ref<const policy::BrowserPolicyConnectorAsh>
+      browser_policy_connector_ash_;
 
   base::WeakPtr<EnrollmentScreenView> view_;
   raw_ptr<ErrorScreen> error_screen_ = nullptr;

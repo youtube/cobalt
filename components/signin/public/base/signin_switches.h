@@ -229,6 +229,14 @@ COMPONENT_EXPORT(SIGNIN_SWITCHES)
 bool IsChromeRefreshTokenBindingEnabled(const PrefService* profile_prefs);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
+#if !defined(NDEBUG)
+// A fake feature corresponding to the kFakeCapabilityForTestingName account
+// capability. This is only used in unit tests (and must be left disabled to
+// prevent fetching the fake capability).
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kEnableFakeCapabilityForTesting);
+#endif
+
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kEnableOAuthMultiloginCookiesBinding);
@@ -272,6 +280,13 @@ extern const base::FeatureParam<SeamlessSigninPromoType>
     kSeamlessSigninPromoType;
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_IOS)
+// Feature flag controlling whether the CanSignInToChrome account capability
+// should be used to determine whether an account is eligible for sign-in.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kEnforceCanSignInToChromeCapability);
+#endif
+
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kEnforceManagementDisclaimer);
@@ -279,6 +294,20 @@ COMPONENT_EXPORT(SIGNIN_SWITCHES)
 extern const base::FeatureParam<base::TimeDelta>
     kPolicyDisclaimerRegistrationRetryDelay;
 #endif
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+// This feature controls running visually refreshed first run and profile
+// creation flows.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kFirstRunDesktopRefresh);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+// It enables the first run revamp (introduce new UIs and additional effects).
+// This feature is no-op if `kFirstRunDesktopRefresh` is disabled.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kFirstRunDesktopRevamp);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(IS_ANDROID)
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
@@ -320,6 +349,11 @@ BASE_DECLARE_FEATURE(kIdentityInAuthErrorFollowUps);
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
+// Allow to switch the source of truth for accounts from AccountManagerFacade to
+// IdentityManager.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kMakeIdentityManagerSourceOfAccounts);
+
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kMigrateAccountManagerDelegate);
 #endif  // BUILDFLAG(IS_ANDROID)

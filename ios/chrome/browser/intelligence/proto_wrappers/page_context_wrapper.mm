@@ -77,6 +77,9 @@ constexpr const char kCurrentNodeInnerTextDictKey[] = "currentNodeInnerText";
 // array of objects.
 constexpr const char kChildrenFramesDictKey[] = "children";
 
+// The key for the PageInteractionInfo of the main frame.
+constexpr const char kPageInteractionInfoDictKey[] = "pageInteractionInfo";
+
 // The key for the links of the frame in the JavaScript object. The value is
 // an array of objects.
 constexpr const char kFrameLinksDictKey[] = "links";
@@ -236,6 +239,9 @@ result.links = linksArray;
 
   // Whether the registration wait has completed or timed out.
   BOOL _registrationCompletedOrTimedOut;
+
+  // Enforces that execution only happens once.
+  BOOL _executionStarted;
 }
 
 - (instancetype)initWithWebState:(web::WebState*)webState
@@ -285,6 +291,9 @@ result.links = linksArray;
 }
 
 - (void)populatePageContextFieldsAsyncWithTimeout:(base::TimeDelta)timeout {
+  CHECK(!_executionStarted) << "A PageContextWrapper should only be used once.";
+  _executionStarted = YES;
+
   if (_isLowPriorityExtraction) {
     __weak PageContextWrapper* weakSelf = self;
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
@@ -722,13 +731,13 @@ result.links = linksArray;
   } else if (_shouldGetInnerText && !_pageContext->has_inner_text()) {
     response = base::unexpected(PageContextWrapperError::kInnerTextError);
     completionStatus = PageContextCompletionStatus::kFailure;
-  } else if (_shouldGetSnapshot && !_pageContext->has_tab_screenshot()) {
-    response = base::unexpected(PageContextWrapperError::kScreenshotError);
-    completionStatus = PageContextCompletionStatus::kFailure;
   } else if (_shouldGetFullPagePDF && !_pageContext->has_pdf_data()) {
     response = base::unexpected(PageContextWrapperError::kPDFDataError);
     completionStatus = PageContextCompletionStatus::kFailure;
   } else {
+    // TODO(crbug.com/483989948): Make screenshot failure blocking once
+    // 'aw, snap' snackbar is fixed.
+
     if (_config->graft_cross_origin_frame_content()) {
       // Place the remaining unclaimed remote frame content nodes as direct
       // children of the main frame node since they couldn't be grafted by
@@ -867,6 +876,20 @@ result.links = linksArray;
     // Main frame: Use the root node as the destination.
     destinationContentNode = _rootAPCNode->mutable_root_node();
     destinationFrameData = _rootAPCNode->mutable_main_frame_data();
+
+    // Populate DocumentIdentifier for the Main Frame. It is not provided from
+    // the renderer so we need to do it here.
+    autofill::RemoteFrameToken token = static_cast<autofill::RemoteFrameToken>(
+        base::UnguessableToken::Create());
+    destinationFrameData->mutable_document_identifier()->set_serialized_token(
+        token.ToString());
+
+    // Register the Main Frame token to allow lookups (e.g. for actions).
+    autofill::ChildFrameRegistrar* registrar = [self frameRegistrar];
+    if (registrar && localFrameToken) {
+      registrar->RegisterMapping(token, *localFrameToken);
+    }
+
   } else if (localFrameToken) {
     // Grafting possible: Use the content node directly from the grafter.
     FrameGrafter::FrameContent* content =
@@ -905,6 +928,17 @@ result.links = linksArray;
   if (frameDataValue) {
     PopulateFrameDataNode(*frameDataValue, securityOrigin,
                           destinationFrameData);
+  }
+
+  // Populate the page data extracted from the main frame.
+  if (isMainFrame) {
+    const base::DictValue* pageInteractionInfoValue =
+        value.FindDict(kPageInteractionInfoDictKey);
+    if (pageInteractionInfoValue) {
+      PopulatePageInteractionInfoNode(
+          *pageInteractionInfoValue,
+          _rootAPCNode->mutable_page_interaction_info());
+    }
   }
 }
 
@@ -1034,7 +1068,7 @@ result.links = linksArray;
       [self populateForRichExtractionWithValue:valueAsDict
                                 securityOrigin:securityOrigin
                                    isMainFrame:YES
-                               localFrameToken:std::nullopt];
+                               localFrameToken:localFrameToken];
     } else {
       [self populateMainFrameForLightExtractionWithValue:valueAsDict
                                           securityOrigin:securityOrigin];

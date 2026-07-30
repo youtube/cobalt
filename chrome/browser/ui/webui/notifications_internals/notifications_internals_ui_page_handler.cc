@@ -41,6 +41,10 @@ void NotificationsInternalsUIPageHandler::ScheduleNotification(
     type = notifications::TipsNotificationsFeatureType::kBottomOmnibox;
   } else if (feature_type == "password_autofill") {
     type = notifications::TipsNotificationsFeatureType::kPasswordAutofill;
+  } else if (feature_type == "signin") {
+    type = notifications::TipsNotificationsFeatureType::kSignin;
+  } else if (feature_type == "create_tab_groups") {
+    type = notifications::TipsNotificationsFeatureType::kCreateTabGroups;
   } else {
     NOTREACHED();
   }

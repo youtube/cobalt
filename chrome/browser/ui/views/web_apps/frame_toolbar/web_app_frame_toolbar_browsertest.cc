@@ -23,6 +23,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "base/test/test_timeouts.h"
+#include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/download/bubble/download_bubble_ui_controller.h"
@@ -70,10 +71,14 @@
 #include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_builder.h"
 #include "chrome/browser/web_applications/model/display_override.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
+#include "chrome/browser/web_applications/policy/web_app_policy_constants.h"
 #include "chrome/browser/web_applications/proto/web_app.pb.h"
 #include "chrome/browser/web_applications/scope_extension_info.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
+#include "chrome/browser/web_applications/test/web_app_test_observers.h"
+#include "chrome/browser/web_applications/web_app_command_manager.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
+#include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_origin_association_manager.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
@@ -81,6 +86,7 @@
 #include "chrome/browser/web_applications/web_app_sync_bridge.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_paths.h"
+#include "chrome/common/pref_names.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/interactive_test_utils.h"
@@ -90,6 +96,7 @@
 #include "chromeos/ui/frame/caption_buttons/frame_caption_button_container_view.h"
 #include "components/infobars/content/content_infobar_manager.h"
 #include "components/permissions/permission_request_manager.h"
+#include "components/prefs/pref_service.h"
 #include "components/webapps/services/web_app_origin_association/test/test_web_app_origin_association_fetcher.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/web_contents.h"
@@ -599,31 +606,27 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest, MenuButtonUpdatePending) {
 
 IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest,
                        MenuButtonMigrationPending) {
-  const GURL app_url("https://old.app.com ");
-  webapps::AppId app_id = helper()->InstallAndLaunchWebApp(browser(), app_url);
+  ASSERT_TRUE(https_server()->Started());
+  const GURL app_url = https_server()->GetURL(
+      "/web_apps/migration/migrate_from/no_migration_info.html");
+  webapps::AppId app_id = web_app::InstallWebAppFromPage(browser(), app_url);
+  helper()->LaunchWebAppBrowserAndWait(browser()->profile(), app_id);
 
   WebAppMenuButton* const menu_button = static_cast<WebAppMenuButton*>(
       helper()->browser_view()->toolbar_button_provider()->GetAppMenuButton());
   EXPECT_FALSE(menu_button->IsLabelPresentAndVisible());
 
-  // Set pending migration info.
-  {
-    web_app::ScopedRegistryUpdate update =
-        provider().sync_bridge_unsafe().BeginUpdate();
-    web_app::proto::PendingMigrationInfo migration_info;
-    migration_info.set_manifest_id("https://new.app.com ");
-    migration_info.set_behavior(
-        web_app::proto::WEB_APP_MIGRATION_BEHAVIOR_SUGGEST);
-    update->UpdateApp(app_id)->SetPendingMigrationInfo(
-        std::move(migration_info));
-  }
+  // Set pending migration info by visiting a site with migration info pointing
+  // to the installed app.
+  EXPECT_TRUE(ui_test_utils::NavigateToURL(
+      browser(),
+      https_server()->GetURL("/web_apps/migration/migrate_to/suggest.html")));
+  web_app::test::WaitForLoadCompleteAndMaybeManifestSeen(
+      *browser()->tab_strip_model()->GetActiveWebContents());
+  provider().command_manager().AwaitAllCommandsCompleteForTesting();
 
   menu_button->UpdateStateForTesting();
   EXPECT_TRUE(menu_button->IsLabelPresentAndVisible());
-  EXPECT_EQ(menu_button->GetViewAccessibility().GetCachedName(),
-            u"Customize and control A minimal-ui app. Update is available.");
-  EXPECT_EQ(menu_button->GetRenderedTooltipText(gfx::Point()),
-            u"Customize and control A minimal-ui app. Update is available.");
 
   {
     web_app::ScopedRegistryUpdate update =
@@ -633,10 +636,21 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest,
 
   menu_button->UpdateStateForTesting();
   EXPECT_FALSE(menu_button->IsLabelPresentAndVisible());
-  EXPECT_EQ(menu_button->GetViewAccessibility().GetCachedName(),
-            u"Customize and control A minimal-ui app");
-  EXPECT_EQ(menu_button->GetRenderedTooltipText(gfx::Point()),
-            u"Customize and control A minimal-ui app");
+}
+
+IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest,
+                       MenuButtonMigrationPending_PolicyApp) {
+  ASSERT_TRUE(https_server()->Started());
+  const GURL app_url =
+      https_server()->GetURL("/web_apps/migration/migrate_from/suggest.html");
+  webapps::AppId app_id =
+      web_app::ForceInstallWebApp(browser()->profile(), app_url).value();
+  helper()->LaunchWebAppBrowserAndWait(browser()->profile(), app_id);
+  provider().command_manager().AwaitAllCommandsCompleteForTesting();
+
+  WebAppMenuButton* const menu_button = static_cast<WebAppMenuButton*>(
+      helper()->browser_view()->toolbar_button_provider()->GetAppMenuButton());
+  EXPECT_FALSE(menu_button->IsLabelPresentAndVisible());
 }
 
 class WebAppFrameToolbarBrowserTest_ElidedExtensionsMenu

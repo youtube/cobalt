@@ -10,15 +10,37 @@
 #include "base/check.h"
 #include "chrome/browser/tab/collection_storage_observer.h"
 #include "chrome/browser/tab/restore_entity_tracker.h"
+#include "chrome/browser/tab/storage_collection_synchronizer.h"
 #include "chrome/browser/tab/storage_id.h"
 #include "chrome/browser/tab/storage_loaded_data.h"
 #include "chrome/browser/tab/tab_state_storage_service.h"
 #include "chrome/browser/tab/tab_storage_util.h"
+#include "components/tabs/public/direct_child_walker.h"
 #include "components/tabs/public/pinned_tab_collection.h"
 #include "components/tabs/public/tab_collection.h"
 #include "components/tabs/public/tab_interface.h"
+#include "components/tabs/public/unpinned_tab_collection.h"
 
 namespace tabs {
+
+// Recursively crawls the entire tree and saves all descendants' child vectors
+// to the service. The traversal order is determined by DirectChildWalker.
+class CollectionChildSaveCrawler : public DirectChildWalker::Processor {
+ public:
+  explicit CollectionChildSaveCrawler(TabStateStorageService* service)
+      : service_(service) {}
+
+  void ProcessTab(const TabInterface* tab) override {}
+
+  void ProcessCollection(const TabCollection* collection) override {
+    service_->SaveChildren(collection);
+    DirectChildWalker walker(collection, this);
+    walker.Walk();
+  }
+
+ private:
+  raw_ptr<TabStateStorageService> service_;
+};
 
 // ObserverImpl implementation.
 StorageRestoreOrchestrator::ObserverImpl::ObserverImpl(
@@ -27,9 +49,8 @@ StorageRestoreOrchestrator::ObserverImpl::ObserverImpl(
 
 StorageRestoreOrchestrator::ObserverImpl::~ObserverImpl() = default;
 
-void StorageRestoreOrchestrator::ObserverImpl::OnChildRejected(
-    StorageId parent) {
-  orchestrator_->OnChildRejected(parent);
+void StorageRestoreOrchestrator::ObserverImpl::OnNodeRejected(StorageId node) {
+  orchestrator_->OnNodeRejected(node);
 }
 
 void StorageRestoreOrchestrator::ObserverImpl::OnDestroyed() {
@@ -41,17 +62,34 @@ StorageRestoreOrchestrator::StorageRestoreOrchestrator(
     TabStripCollection* collection,
     TabStateStorageService* service,
     StorageLoadedData* loaded_data)
-    : default_observer_(service),
-      data_observer_(this),
+    : data_observer_(this),
       collection_(collection),
       service_(service),
       loaded_data_(loaded_data),
       is_data_observer_registered_(true) {
   loaded_data_->RegisterObserver(&data_observer_);
+
+  RestoreEntityTracker* tracker = loaded_data_->GetTracker();
+  // This is required to save the unique collections that do not emit observable
+  // events on creation.
+  if (tracker->HasNothingToAssociate()) {
+    StorageCollectionSynchronizer synchronizer(collection_, service_);
+    synchronizer.FullSave();
+  } else {
+    tracker->AssociateCollection(collection_);
+    tracker->AssociateCollection(collection_->pinned_collection());
+    tracker->AssociateCollection(collection_->unpinned_collection());
+  }
 }
 
 StorageRestoreOrchestrator::~StorageRestoreOrchestrator() {
   OnDataDestroyed();
+
+  service_->CreateScopedBatch();
+  service_->SaveChildren(collection_);
+  CollectionChildSaveCrawler crawler(service_);
+  DirectChildWalker walker(collection_, &crawler);
+  walker.Walk();
 }
 
 void StorageRestoreOrchestrator::OnSaveChildTab(
@@ -66,28 +104,14 @@ void StorageRestoreOrchestrator::OnSaveChildTab(
     return;
   }
 
-  TabCanonicalizer canonicalizer = service_->GetCanonicalizer();
-  TabHandle tab_handle = canonicalizer.Run(tab)->GetHandle();
-
   RestoreEntityTracker* tracker = loaded_data_->GetTracker();
-  bool was_tab_on_disk = tracker->AssociateTabAndAncestors(tab);
-
-  TabCollectionHandle parent_handle = parent->GetHandle();
-  DCHECK(tracker->HasCollectionBeenAssociated(parent_handle));
-  StorageId parent_id = service_->GetStorageId(parent);
-
-  if (!was_inserted) {
+  if (was_inserted && tracker->AssociateTab(tab)) {
+    TabCollectionHandle parent_handle = parent->GetHandle();
+    DCHECK(tracker->HasCollectionBeenAssociated(parent_handle));
+  } else {
+    // Nodes not previously persisted will be orphaned until restoration
+    // completes.
     service_->Save(tab);
-    return;
-  } else if (!was_tab_on_disk || restored_nodes_.contains(tab_handle)) {
-    service_->Save(tab);
-    MaybeAddModifiedParent(parent_id, parent_handle);
-  } else if (was_tab_on_disk) {
-    restored_nodes_.insert(tab_handle);
-  }
-
-  if (modified_parents_.contains(parent_id)) {
-    service_->SaveChildren(parent);
   }
 }
 
@@ -106,52 +130,19 @@ void StorageRestoreOrchestrator::OnSaveChildCollection(
     return;
   }
 
-  TabStorageType type = TabCollectionTypeToTabStorageType(collection->type());
-  if (type == TabStorageType::kPinned) {
-    loaded_data_->GetTracker()->AssociatePinnedCollection(
-        static_cast<const PinnedTabCollection*>(collection));
-  }
-
-  TabCollectionHandle parent_handle = parent->GetHandle();
-  StorageId parent_id = service_->GetStorageId(parent);
-
-  bool was_collection_on_disk =
-      loaded_data_->GetTracker()->HasCollectionBeenAssociated(
-          collection_handle);
-  if (was_collection_on_disk && !restored_nodes_.contains(handle)) {
-    restored_nodes_.insert(handle);
+  RestoreEntityTracker* tracker = loaded_data_->GetTracker();
+  if (was_inserted && tracker->AssociateCollection(collection)) {
+    TabCollectionHandle parent_handle = parent->GetHandle();
+    DCHECK(tracker->HasCollectionBeenAssociated(parent_handle));
   } else {
-    service_->Save(collection_handle.Get());
-
-    if (!was_collection_on_disk && was_inserted) {
-      MaybeAddModifiedParent(parent_id, parent_handle);
-    }
-  }
-
-  if (modified_parents_.contains(parent_id)) {
-    service_->SaveChildren(parent);
+    // Nodes not previously persisted will be orphaned until restoration
+    // completes.
+    service_->Save(collection);
   }
 }
 
-void StorageRestoreOrchestrator::OnChildRejected(const StorageId parent) {
-  auto it = modified_parents_.find(parent);
-  if (it != modified_parents_.end()) {
-    std::optional<TabCollectionHandle> handle = it->second;
-    if (handle.has_value() && handle->Get()) {
-      service_->SaveChildren(handle->Get());
-    }
-  } else {
-    modified_parents_.try_emplace(parent, std::nullopt);
-  }
-}
-
-void StorageRestoreOrchestrator::MaybeAddModifiedParent(
-    const StorageId& id,
-    std::optional<TabCollectionHandle> handle) {
-  auto [it, inserted] = modified_parents_.try_emplace(id, handle);
-  if (!inserted && !it->second.has_value() && handle.has_value()) {
-    it->second = handle;
-  }
+void StorageRestoreOrchestrator::OnNodeRejected(StorageId node) {
+  service_->Remove(node);
 }
 
 void StorageRestoreOrchestrator::OnDataDestroyed() {
@@ -181,21 +172,20 @@ void StorageRestoreOrchestrator::OnChildrenAdded(
 void StorageRestoreOrchestrator::OnChildrenRemoved(
     const TabCollection::Position& position,
     const TabCollectionNodes& handles) {
-  StorageId parent_id = service_->GetStorageId(position.parent_handle.Get());
-  MaybeAddModifiedParent(parent_id, position.parent_handle);
-  default_observer_.OnChildrenRemoved(position, handles);
+  // Cannot remove without adding first, so we can assume that these nodes are
+  // already associated.
+  for (const auto& handle : handles) {
+    if (std::holds_alternative<TabCollection::Handle>(handle)) {
+      service_->Remove(std::get<TabCollection::Handle>(handle).Get());
+    } else if (std::holds_alternative<TabHandle>(handle)) {
+      service_->Remove(std::get<TabHandle>(handle).Get());
+    }
+  }
 }
 
 void StorageRestoreOrchestrator::OnChildMoved(
     const TabCollection::Position& to_position,
     const NodeData& node_data) {
-  StorageId to_parent_id =
-      service_->GetStorageId(to_position.parent_handle.Get());
-  MaybeAddModifiedParent(to_parent_id, to_position.parent_handle);
-  StorageId from_parent_id =
-      service_->GetStorageId(node_data.position.parent_handle.Get());
-  MaybeAddModifiedParent(from_parent_id, node_data.position.parent_handle);
-  default_observer_.OnChildMoved(to_position, node_data);
 }
 
 void StorageRestoreOrchestrator::SaveChildNodeOnly(TabCollectionNodeHandle handle) {

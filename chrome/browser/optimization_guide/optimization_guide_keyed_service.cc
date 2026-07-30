@@ -56,6 +56,7 @@
 #include "components/optimization_guide/core/hints/top_host_provider.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/model_execution/model_broker_client.h"
+#include "components/optimization_guide/core/model_execution/model_execution_features.h"
 #include "components/optimization_guide/core/model_execution/model_execution_features_controller.h"
 #include "components/optimization_guide/core/model_execution/model_execution_fetcher.h"
 #include "components/optimization_guide/core/model_execution/model_execution_manager.h"
@@ -74,6 +75,7 @@
 #include "components/optimization_guide/core/optimization_guide_prefs.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
+#include "components/optimization_guide/optimization_guide_buildflags.h"
 #include "components/optimization_guide/proto/hints.pb.h"
 #include "components/optimization_guide/proto/models.pb.h"
 #include "components/optimization_guide/public/mojom/model_broker.mojom.h"
@@ -93,12 +95,12 @@
 #include "chrome/browser/optimization_guide/android/optimization_guide_bridge.h"
 #include "chrome/browser/optimization_guide/android/optimization_guide_tab_url_provider_android.h"
 #else
-#include "chrome/browser/legion/private_ai_service.h"
-#include "chrome/browser/legion/private_ai_service_factory.h"
-#include "chrome/browser/optimization_guide/legion_model_execution_fetcher.h"
 #include "chrome/browser/optimization_guide/optimization_guide_tab_url_provider.h"
-#include "components/legion/client.h"    // nogncheck
-#include "components/legion/features.h"  // nogncheck
+#include "chrome/browser/optimization_guide/private_ai_model_execution_fetcher.h"
+#include "chrome/browser/private_ai/private_ai_service.h"
+#include "chrome/browser/private_ai/private_ai_service_factory.h"
+#include "components/private_ai/client.h"    // nogncheck
+#include "components/private_ai/features.h"  // nogncheck
 #endif
 
 namespace {
@@ -140,7 +142,7 @@ class FetcherDelegate : public ModelExecutionManager::Delegate {
  public:
   ~FetcherDelegate() override = default;
 
-  // Takes a BrowserContext instead of a legion::Client directly to avoid a
+  // Takes a BrowserContext instead of a private_ai::Client directly to avoid a
   // dangling pointer. The KeyedService dependency (DependsOn) ensures that
   // the PrivateAiService outlives this service during normal shutdown. However,
   // in tests, the PrivateAiService can be replaced with a test factory after
@@ -154,22 +156,44 @@ class FetcherDelegate : public ModelExecutionManager::Delegate {
 
   std::unique_ptr<optimization_guide::ModelExecutionFetcher>
   CreateLegionFetcher() override {
-    legion::PrivateAiService* private_ai_service =
-        legion::PrivateAiServiceFactory::GetForProfile(
+    private_ai::PrivateAiService* private_ai_service =
+        private_ai::PrivateAiServiceFactory::GetForProfile(
             Profile::FromBrowserContext(browser_context_));
-    if (private_ai_service) {
-      if (legion::Client* client = private_ai_service->GetClient()) {
-        return std::make_unique<
-            optimization_guide::LegionModelExecutionFetcher>(client);
-      }
-    }
-    return nullptr;
+    // PrivateAiService should always be created since fetching is only done in
+    // regular mode and it always exists in regular mode.
+    CHECK(private_ai_service);
+    private_ai::Client* client = private_ai_service->GetClient();
+    return std::make_unique<optimization_guide::PrivateAiModelExecutionFetcher>(
+        client);
   }
 
  private:
   raw_ptr<content::BrowserContext> browser_context_;
 };
 #endif
+
+ModelExecutionFeaturesController::SettingsVisibilityResult
+ShouldHideHistorySearch(PrefService* local_state) {
+  using SettingsVisibilityResult =
+      ModelExecutionFeaturesController::SettingsVisibilityResult;
+#if BUILDFLAG(BUILD_WITH_MODEL_EXECUTION)
+  // Component updates policy check.
+  if (!local_state->GetBoolean(::prefs::kComponentUpdatesEnabled)) {
+    return SettingsVisibilityResult::kNotVisibleEnterprisePolicy;
+  }
+
+  // Performance class check.
+  if (!IsPerformanceClassCompatible(
+          optimization_guide::features::internal::
+              kPerformanceClassListForHistorySearch.Get(),
+          optimization_guide::PerformanceClassFromPref(*local_state))) {
+    return SettingsVisibilityResult::kNotVisibleHardwareUnsupported;
+  }
+  return SettingsVisibilityResult::kUnknown;
+#else
+  return SettingsVisibilityResult::kNotVisibleHardwareUnsupported;
+#endif  // BUILDFLAG(BUILD_WITH_MODEL_EXECUTION)
+}
 
 }  // namespace
 
@@ -352,9 +376,10 @@ void OptimizationGuideKeyedService::InitializeModelExecution(Profile* profile) {
     model_execution_features_controller_ =
         std::make_unique<optimization_guide::ModelExecutionFeaturesController>(
             profile->GetPrefs(), IdentityManagerFactory::GetForProfile(profile),
-            g_browser_process->local_state(),
             policy::ManagementServiceFactory::GetForProfile(profile),
-            dogfood_status, is_official_build);
+            dogfood_status, is_official_build,
+            base::BindRepeating(&ShouldHideHistorySearch,
+                                g_browser_process->local_state()));
 
     // Don't create logs uploader service when feature is disabled. All the
     // logs upload get route through this service which exists one per
@@ -376,7 +401,7 @@ void OptimizationGuideKeyedService::InitializeModelExecution(Profile* profile) {
   std::unique_ptr<ModelExecutionManager::Delegate> delegate;
 
 #if !BUILDFLAG(IS_ANDROID)
-  if (base::FeatureList::IsEnabled(legion::kLegion)) {
+  if (base::FeatureList::IsEnabled(private_ai::kPrivateAi)) {
     delegate = std::make_unique<FetcherDelegate>(browser_context_);
   }
 #endif

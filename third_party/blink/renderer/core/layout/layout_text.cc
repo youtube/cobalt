@@ -264,14 +264,10 @@ void LayoutText::StyleDidChange(
 
 void LayoutText::RemoveAndDestroyTextBoxes() {
   NOT_DESTROYED();
-  if (!DocumentBeingDestroyed()) {
-    if (FirstInlineFragmentItemIndex()) {
-      DetachAxHooksIfNeeded();
-      FragmentItems::LayoutObjectWillBeDestroyed(*this);
-      ClearFirstInlineFragmentItemIndex();
-    }
-  } else if (FirstInlineFragmentItemIndex()) {
+
+  if (FirstInlineFragmentItemIndex()) {
     DetachAxHooksIfNeeded();
+    FragmentItems::LayoutObjectWillBeDestroyed(*this);
     ClearFirstInlineFragmentItemIndex();
   }
   DeleteTextBoxes();
@@ -292,8 +288,12 @@ void LayoutText::WillBeDestroyed() {
   }
 
   RemoveAndDestroyTextBoxes();
-  LayoutObject::WillBeDestroyed();
+
   valid_ng_items_ = false;
+
+  // We skip invoking LayoutObject::WillBeDestroyed as all of the logic (except
+  // for removing from the tree) doesn't apply to LayoutText.
+  Remove();
 
 #if DCHECK_IS_ON()
   if (IsInLayoutNGInlineFormattingContext())

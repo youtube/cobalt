@@ -10,9 +10,18 @@ export function getHtml(this: ToolbarAppElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
 ${this.isReloadButtonEnabled_ ?
-  html`<reload-button-app id="reload"></reload-button-app>` : ''}
+  html`<reload-button-app id="reload"
+        .state="${this.navigationControlsState_.reloadControlState}">
+       </reload-button-app>` : ''}
 ${this.isSplitTabsButtonEnabled_ ?
-  html`<split-tabs-button-app id="split-tabs"></split-tabs-button-app>` : ''}
+  html`<split-tabs-button-app id="split-tabs"
+        .state="${this.navigationControlsState_.splitTabsControlState}">
+       </split-tabs-button-app>` : ''}
+${this.isLocationBarEnabled_ ? html`<div id="location-bar">
+            <div id="WebUILocationBar::kWebUIDashboardElementId"></div>
+            <div id="WebUILocationBar::kWebUILocationIconElementId"></div>
+            <div id="omnibox-view" contenteditable>https://example.org/</div>
+          </div>` : ''}
 <!--_html_template_end_-->`;
   // clang-format on
 }

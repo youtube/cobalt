@@ -339,8 +339,8 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
   virtual PointerResultType HitTest(const gfx::PointF& mouse_position);
   virtual InputHandlerPointerResult MouseMoveAt(
       const gfx::Point& mouse_position);
-  // TODO(arakeri): Pass in the modifier instead of a bool once the refactor
-  // (crbug.com/1022097) is done. For details, see crbug.com/1016955.
+  // TODO(crbug.com/40106459): Pass in the modifier instead of a bool once the
+  // refactor is done. For details, see crbug.com/1016955.
   virtual InputHandlerPointerResult MouseDown(const gfx::PointF& mouse_position,
                                               bool shift_modifier);
   virtual InputHandlerPointerResult MouseUp(const gfx::PointF& mouse_position);
@@ -898,6 +898,10 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
 
   // https://drafts.csswg.org/css-scroll-snap-1/#scroll-types.
   ScrollSourceType last_latched_scroll_source_type_ = ScrollSourceType::kNone;
+
+  // This tracks if a scroll update event has been received for the current
+  // touch sequence.
+  bool has_received_scroll_update_for_sequence_ = false;
 
   // Must be the last member to ensure this is destroyed first in the
   // destruction order and invalidates all weak pointers.

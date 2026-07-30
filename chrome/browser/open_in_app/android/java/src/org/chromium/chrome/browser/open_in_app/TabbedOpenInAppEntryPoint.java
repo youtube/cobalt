@@ -38,10 +38,8 @@ public class TabbedOpenInAppEntryPoint extends OpenInAppEntryPoint {
     }
 
     @Override
-    public void onOpenInAppInfoChanged(OpenInAppDelegate.@Nullable OpenInAppInfo openInAppInfo) {
-        super.onOpenInAppInfoChanged(openInAppInfo);
-
-        if (openInAppInfo == null && mOmniboxChipManager.isChipShown()) {
+    protected void onOpenInAppInfoChanged(OpenInAppDelegate.@Nullable OpenInAppInfo openInAppInfo) {
+        if (openInAppInfo == null && mOmniboxChipManager.isChipPlaced()) {
             mOmniboxChipManager.dismissChip();
         } else if (openInAppInfo != null) {
             Drawable icon = openInAppInfo.appIcon;
@@ -49,11 +47,16 @@ public class TabbedOpenInAppEntryPoint extends OpenInAppEntryPoint {
                 icon = assertNonNull(mContext.getDrawable(R.drawable.ic_open_in_new_20dp));
             }
 
-            mOmniboxChipManager.showChip(
-                    mContext.getString(R.string.open_in_app),
+            String text = mContext.getString(R.string.open_in_app);
+            String desc =
+                    openInAppInfo.appName != null
+                            ? mContext.getString(R.string.open_in_app_desc, openInAppInfo.appName)
+                            : text;
+
+            mOmniboxChipManager.placeChip(
+                    text,
                     icon,
-                    // TODO(crbug.com/450253146): Add a real content description.
-                    mContext.getString(R.string.open_in_app),
+                    desc,
                     openInAppInfo.action,
                     new OmniboxChipManager.ChipCallback() {
                         @Override

@@ -994,6 +994,12 @@ Suggestion CreateManageCreditCardsSuggestion(bool with_gpay_logo) {
                                          with_gpay_logo);
 }
 
+Suggestion CreateBnplFootnoteSuggestion() {
+  Suggestion bnpl_footnote = Suggestion(SuggestionType::kBnplFootnote);
+  bnpl_footnote.acceptability = Suggestion::Acceptability::kUnacceptable;
+  return bnpl_footnote;
+}
+
 Suggestion CreateSaveAndFillSuggestion(const AutofillClient& client,
                                        bool& display_gpay_logo) {
   Suggestion save_and_fill(
@@ -1040,6 +1046,7 @@ bool IsCreditCardFooterSuggestion(
     case SuggestionType::kManageCreditCard:
     case SuggestionType::kScanCreditCard:
     case SuggestionType::kUndoOrClear:
+    case SuggestionType::kBnplFootnote:
       return true;
     case SuggestionType::kAllLoyaltyCardsEntry:
     case SuggestionType::kAllSavedPasswordsEntry:
@@ -1055,6 +1062,7 @@ bool IsCreditCardFooterSuggestion(
     case SuggestionType::kAccountStoragePasswordEntry:
     case SuggestionType::kAddressEntry:
     case SuggestionType::kAddressEntryOnTyping:
+    case SuggestionType::kAtMemorySearchResult:
     case SuggestionType::kAddressFieldByFieldFilling:
     case SuggestionType::kAutocompleteEntry:
     case SuggestionType::kComposeResumeNudge:
@@ -1128,13 +1136,15 @@ Suggestion CreateCreditCardSuggestionForTest(
 
 std::vector<Suggestion> GetCreditCardFooterSuggestionsForTest(
     const AutofillClient& client,
-    bool should_show_bnpl_suggestion,
+    bool should_show_pay_later_tab_suggestions,
+    bool should_append_bnpl_suggestion,
     bool should_show_scan_credit_card,
     bool is_autofilled,
     bool with_gpay_logo,
     const payments::AmountExtractionStatus& amount_extraction_status) {
   return GetCreditCardFooterSuggestions(
-      client, should_show_bnpl_suggestion, should_show_scan_credit_card,
+      client, should_show_pay_later_tab_suggestions,
+      should_append_bnpl_suggestion, should_show_scan_credit_card,
       is_autofilled, with_gpay_logo, amount_extraction_status);
 }
 
@@ -1351,7 +1361,8 @@ Suggestion CreateCreditCardSuggestion(
 
 std::vector<Suggestion> GetCreditCardFooterSuggestions(
     const AutofillClient& client,
-    bool should_show_bnpl_suggestion,
+    bool should_show_pay_later_tab_suggestions,
+    bool should_append_bnpl_suggestion,
     bool should_show_scan_credit_card,
     bool is_autofilled,
     bool with_gpay_logo,
@@ -1360,9 +1371,7 @@ std::vector<Suggestion> GetCreditCardFooterSuggestions(
 
   // TODO(crbug.com/444684996): Add another check to not show BNPL chip anymore
   // for this transaction if the previous amount extraction is timeout.
-  if (should_show_bnpl_suggestion &&
-      !base::FeatureList::IsEnabled(
-          features::kAutofillEnablePayNowPayLaterTabs)) {
+  if (should_append_bnpl_suggestion) {
     if (base::FeatureList::IsEnabled(
             features::
                 kAutofillEnableBuyNowPayLaterUpdatedSuggestionSecondLineString)) {
@@ -1374,6 +1383,10 @@ std::vector<Suggestion> GetCreditCardFooterSuggestions(
             .payments_data_manager()
             .GetBnplIssuers(),
         /*extracted_amount_in_micros=*/std::nullopt, amount_extraction_status));
+  }
+
+  if (should_show_pay_later_tab_suggestions) {
+    footer_suggestions.push_back(CreateBnplFootnoteSuggestion());
   }
 
   if (should_show_scan_credit_card) {

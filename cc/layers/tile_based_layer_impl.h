@@ -6,6 +6,8 @@
 #define CC_LAYERS_TILE_BASED_LAYER_IMPL_H_
 
 #include <algorithm>
+#include <memory>
+#include <utility>
 #include <vector>
 
 #include "cc/base/math_util.h"
@@ -20,6 +22,13 @@
 #include "components/viz/common/quads/debug_border_draw_quad.h"
 
 namespace cc {
+
+// Opaque container class that allows subclasses of TileBasedLayerImpl to
+// instantiate data that is shared across all tiles when appending quads.
+class AppendQuadsCustomSharedData {
+ public:
+  virtual ~AppendQuadsCustomSharedData() = default;
+};
 
 // Base class for layer impls that manipulate tiles (e.g., PictureLayerImpl
 // and TileDisplayLayerImpl).
@@ -101,22 +110,35 @@ class CC_EXPORT TileBasedLayerImpl : public LayerImpl {
       viz::SharedQuadState* shared_quad_state,
       const Occlusion& scaled_occlusion) = 0;
 
-  // Called when AppendQuads() goes through a flow for which behavior is
-  // subclass-specific (i.e., not defined in TileBasedLayerImpl::AppendQuads()
-  // itself). `quad_offset` is the offset by which appended quads should be
-  // adjusted. The return value is the number of tiles that were determined to
-  // be missing.
+  // Called from AppendQuads() for subclasses to compute and set
+  // `checkerboarded_needs_record` on `append_quads_data` as relevant.
+  virtual void ComputeCheckerboardedNeedsRecord(
+      AppendQuadsData* append_quads_data) = 0;
+
+  // Called just before starting the loop appending quads to allow subclasses to
+  // do any desired setup, including allowing them to create a container for
+  // custom data that should be shared across all tiles when appending quads.
+  virtual std::unique_ptr<AppendQuadsCustomSharedData> WillAppendQuads(
+      float max_contents_scale);
+
+  // Called for each tile covered by the layer. `quad_offset` is the offset by
+  // which appended quads should be adjusted. The return value is false if the
+  // tile was determined to be missing.
   // NOTE: `shared_quad_state` is *not* adjusted by `quad_offset` when passed
   // into this method to allow implementations to operate on the original state
   // (e.g., to locate tiles in layer space). However, it will be properly
   // adjusted before AppendQuads() returns to the caller.
-  virtual int AppendQuadsSpecialization(const AppendQuadsContext& context,
-                                        viz::CompositorRenderPass* render_pass,
-                                        AppendQuadsData* append_quads_data,
-                                        viz::SharedQuadState* shared_quad_state,
-                                        const Occlusion& scaled_occlusion,
-                                        const gfx::Vector2d& quad_offset,
-                                        float max_contents_scale) = 0;
+  virtual bool AppendQuadForTile(
+      TilingSetCoverageIterator<Tiling> iter,
+      const AppendQuadsContext& context,
+      viz::CompositorRenderPass* render_pass,
+      AppendQuadsData* append_quads_data,
+      viz::SharedQuadState* shared_quad_state,
+      const Occlusion& scaled_occlusion,
+      const gfx::Vector2d& quad_offset,
+      const std::optional<gfx::Rect>& scaled_cull_rect,
+      float max_contents_scale,
+      AppendQuadsCustomSharedData* custom_data) = 0;
 
   virtual float GetMaximumContentsScaleForUseInAppendQuads() const = 0;
 
@@ -289,9 +311,24 @@ void TileBasedLayerImpl<Tiling>::AppendQuads(
   // be considered for removal.
   ClearLastAppendQuadsScales();
 
-  int missing_tile_count = AppendQuadsSpecialization(
-      context, render_pass, append_quads_data, shared_quad_state,
-      scaled_occlusion, quad_offset, max_contents_scale);
+  ComputeCheckerboardedNeedsRecord(append_quads_data);
+
+  auto custom_data = WillAppendQuads(max_contents_scale);
+
+  std::optional<gfx::Rect> scaled_cull_rect =
+      CalculateScaledCullRect(max_contents_scale);
+
+  int missing_tile_count = 0;
+  for (auto iter = Cover(shared_quad_state->visible_quad_layer_rect,
+                         max_contents_scale, ideal_scale_key);
+       iter; ++iter) {
+    if (!AppendQuadForTile(iter, context, render_pass, append_quads_data,
+                           shared_quad_state, scaled_occlusion, quad_offset,
+                           scaled_cull_rect, max_contents_scale,
+                           custom_data.get())) {
+      missing_tile_count++;
+    }
+  }
 
   if (missing_tile_count) {
     append_quads_data->num_missing_tiles += missing_tile_count;
@@ -363,6 +400,12 @@ std::optional<gfx::Rect> TileBasedLayerImpl<Tiling>::CalculateScaledCullRect(
     }
   }
   return std::nullopt;
+}
+
+template <typename Tiling>
+std::unique_ptr<AppendQuadsCustomSharedData>
+TileBasedLayerImpl<Tiling>::WillAppendQuads(float max_contents_scale) {
+  return nullptr;
 }
 
 template <typename Tiling>

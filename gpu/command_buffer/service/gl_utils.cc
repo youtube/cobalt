@@ -26,6 +26,8 @@
 #include "ui/gfx/linux/drm_util_linux.h"  // nogncheck
 #include "ui/gfx/native_pixmap_handle.h"
 #include "ui/gl/gl_surface_egl.h"
+#include "ui/ozone/public/ozone_platform.h"
+#include "ui/ozone/public/surface_factory_ozone.h"
 #endif
 
 namespace gpu {
@@ -238,15 +240,57 @@ void PopulateGLCapabilities(GLCapabilities* caps,
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
-void PopulateEmptyDRMCaps(
-    base::flat_set<viz::SharedImageFormat> mappable_formats,
-    base::flat_map<uint32_t, std::vector<uint64_t>>&
-        drm_formats_and_modifiers) {
-  for (auto format : mappable_formats) {
-    int drm_format = ui::GetFourCCFormatFromSharedImageFormat(format);
-    // NativePixmapHandle::kNoModifier is equivalent to DRM_FORMAT_MOD_INVALID.
-    std::vector<uint64_t> modifiers = {gfx::NativePixmapHandle::kNoModifier};
-    drm_formats_and_modifiers.emplace(drm_format, modifiers);
+void PopulateMappableDrmFormatsForExo(
+    base::flat_map<uint32_t, std::vector<uint64_t>>& drm_formats_and_modifiers,
+    const FeatureInfo* feature_info) {
+  // Populate list of supported mappable formats based on FeatureFlags.
+  base::flat_set<viz::SharedImageFormat> mappable_formats =
+      base::MakeFlatSet<viz::SharedImageFormat>(std::vector({
+          viz::SinglePlaneFormat::kBGR_565,
+          viz::SinglePlaneFormat::kRGBA_8888,
+          viz::SinglePlaneFormat::kRGBX_8888,
+          viz::MultiPlaneFormat::kYV12,
+          viz::MultiPlaneFormat::kNV12,
+      }));
+  const auto& flags = feature_info->feature_flags();
+  if (flags.enable_texture_half_float_linear) {
+    mappable_formats.insert(viz::SinglePlaneFormat::kRGBA_F16);
+  }
+  if (flags.ext_texture_format_bgra8888) {
+    mappable_formats.insert(viz::SinglePlaneFormat::kBGRA_8888);
+    mappable_formats.insert(viz::SinglePlaneFormat::kBGRX_8888);
+  }
+  if (flags.chromium_image_ab30) {
+    mappable_formats.insert(viz::SinglePlaneFormat::kRGBA_1010102);
+  }
+  if (flags.ext_texture_rg) {
+    mappable_formats.insert(viz::SinglePlaneFormat::kR_8);
+    mappable_formats.insert(viz::SinglePlaneFormat::kRG_88);
+  }
+  auto* surface_factory =
+      ui::OzonePlatform::GetInstance()->GetSurfaceFactoryOzone();
+  if (surface_factory->IsFormatSupportedForTexturing(
+          viz::MultiPlaneFormat::kP010)) {
+    mappable_formats.insert(viz::MultiPlaneFormat::kP010);
+  }
+
+  // Remove unexpected Drm formats from already populated list.
+  base::EraseIf(drm_formats_and_modifiers, [&](const auto& format) {
+    auto drm_format = format.first;
+    return !ui::IsValidDrmFormat(drm_format) ||
+           !mappable_formats.contains(
+               ui::GetSharedImageFormatFromFourCCFormat(drm_format));
+  });
+
+  // If the list is empty, populate with invalid modifiers for mappable formats.
+  if (drm_formats_and_modifiers.empty()) {
+    for (auto format : mappable_formats) {
+      int drm_format = ui::GetFourCCFormatFromSharedImageFormat(format);
+      // NativePixmapHandle::kNoModifier is equivalent to
+      // DRM_FORMAT_MOD_INVALID.
+      std::vector<uint64_t> modifiers = {gfx::NativePixmapHandle::kNoModifier};
+      drm_formats_and_modifiers.emplace(drm_format, modifiers);
+    }
   }
 }
 
@@ -397,22 +441,23 @@ void InitializeGLDebugLogging(bool log_non_errors,
   glEnable(GL_DEBUG_OUTPUT);
   glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 
-  glDebugMessageControl(GL_DEBUG_SOURCE_API, GL_DEBUG_TYPE_ERROR, GL_DONT_CARE,
-                        0, nullptr, GL_TRUE);
+  glDebugMessageControlKHR(GL_DEBUG_SOURCE_API, GL_DEBUG_TYPE_ERROR,
+                           GL_DONT_CARE, 0, nullptr, GL_TRUE);
 
   if (log_non_errors) {
     // Enable logging of medium and high severity messages
-    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_HIGH, 0,
-                          nullptr, GL_TRUE);
-    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_MEDIUM,
-                          0, nullptr, GL_TRUE);
-    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_LOW, 0,
-                          nullptr, GL_FALSE);
-    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE,
-                          GL_DEBUG_SEVERITY_NOTIFICATION, 0, nullptr, GL_FALSE);
+    glDebugMessageControlKHR(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_HIGH,
+                             0, nullptr, GL_TRUE);
+    glDebugMessageControlKHR(GL_DONT_CARE, GL_DONT_CARE,
+                             GL_DEBUG_SEVERITY_MEDIUM, 0, nullptr, GL_TRUE);
+    glDebugMessageControlKHR(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_LOW,
+                             0, nullptr, GL_FALSE);
+    glDebugMessageControlKHR(GL_DONT_CARE, GL_DONT_CARE,
+                             GL_DEBUG_SEVERITY_NOTIFICATION, 0, nullptr,
+                             GL_FALSE);
   }
 
-  glDebugMessageCallback(callback, user_param);
+  glDebugMessageCallbackKHR(callback, user_param);
 }
 
 bool ValidContextLostReason(GLenum reason) {

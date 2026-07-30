@@ -39,6 +39,7 @@
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_switches.h"
+#include "chrome/test/base/browser_closed_waiter.h"
 #include "chrome/test/base/browser_created_waiter.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/testing_browser_process.h"
@@ -87,47 +88,10 @@ constexpr auto kTabIDs = std::to_array<SessionID::id_type>({5, 10, 13, 17});
 constexpr int kActiveTabIndex = 2;
 constexpr int kActiveTabId = kTabIDs[kActiveTabIndex];
 
-// Observes the global list of BrowserWindowInterfaces and waits for a specified
-// browser to close.
-// TODO(crbug.com/405219627): Move this to its own file.
-class BrowserCloseWaiter : public BrowserCollectionObserver {
- public:
-  explicit BrowserCloseWaiter(BrowserWindowInterface* browser)
-      : browser_(browser) {
-    observation_.Observe(GlobalBrowserCollection::GetInstance());
-  }
-
-  BrowserCloseWaiter(const BrowserCloseWaiter&) = delete;
-  BrowserCloseWaiter& operator=(const BrowserCloseWaiter&) = delete;
-
-  ~BrowserCloseWaiter() override = default;
-
-  void Wait() {
-    if (closed_) {
-      return;
-    }
-    run_loop_.Run();
-  }
-
- protected:
-  // BrowserCollectionObserver:
-  void OnBrowserClosed(BrowserWindowInterface* browser) override {
-    if (browser == browser_) {
-      browser_ = nullptr;
-      closed_ = true;
-      if (run_loop_.running()) {
-        run_loop_.Quit();
-      }
-    }
-  }
-
- private:
-  raw_ptr<BrowserWindowInterface> browser_;
-  base::ScopedObservation<GlobalBrowserCollection, BrowserCollectionObserver>
-      observation_{this};
-  bool closed_ = false;
-  base::RunLoop run_loop_;
-};
+// Helps with line wrapping.
+int NowSeconds() {
+  return base::Time::Now().ToTimeT();
+}
 
 void BuildSessionSpecifics(const std::string& tag,
                            sync_pb::SessionSpecifics* meta) {
@@ -371,6 +335,8 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, GetDevicesListEmpty) {
   EXPECT_TRUE(devices.empty());
 }
 
+// TODO(crbug.com/486849736): This test is currently disabled by filter file on
+// some Android bots. See the bug for details.
 IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, RestoreMostRecentlyClosedWindow) {
   // Open a second window.
   BrowserWindowInterface* browser2 =
@@ -402,7 +368,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, RestoreMostRecentlyClosedWindow) {
   ASSERT_TRUE(NavigateToURL(contents1, GURL("chrome://credits/")));
 
   // Close the second window and wait for it to close.
-  BrowserCloseWaiter close_waiter(browser2);
+  BrowserClosedWaiter close_waiter(browser2);
   browser2->GetWindow()->Close();
   close_waiter.Wait();
 
@@ -471,6 +437,76 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, RestoreMostRecentlyClosedWindow) {
   EXPECT_FALSE(tab_list3->GetTab(1)->IsActivated());
 }
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+// TODO(crbug.com/405219627): Port to desktop Android once we support restoring
+// windows (which store their info on the Java side) via session ID. This will
+// require a stable identifier we can use to look up closed windows.
+IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, RestoreWindowBySessionId) {
+  // Open a second window.
+  BrowserWindowInterface* browser2 =
+      CreateBrowserWindowWithType(BrowserWindowInterface::TYPE_NORMAL);
+
+  // Ensure a tab exists.
+  auto* tab_list2 = TabListInterface::From(browser2);
+  ASSERT_TRUE(tab_list2);
+  // Platforms like Win/Mac/Linux create browsers with no tabs, whereas Android
+  // creates browsers with a single tab.
+  if (tab_list2->GetTabCount() == 0) {
+    tab_list2->OpenTab(GURL("about:blank"), /*index=*/-1);
+  }
+  ASSERT_EQ(1, tab_list2->GetTabCount());
+
+  // Navigate the tabs, otherwise window close does not persist it in the tab
+  // restore service.
+  content::WebContents* contents0 = tab_list2->GetTab(0)->GetContents();
+  ASSERT_TRUE(NavigateToURL(contents0, GURL("chrome://version/")));
+
+  // Close the second window and wait for it to close.
+  BrowserClosedWaiter close_waiter(browser2);
+  browser2->GetWindow()->Close();
+  close_waiter.Wait();
+
+  // chrome.sessions.getRecentlyClosed() should return 1 entry.
+  std::optional<base::Value> result = utils::RunFunctionAndReturnSingleResult(
+      CreateFunction<SessionsGetRecentlyClosedFunction>(true).get(), "[]",
+      GetProfile());
+  ASSERT_TRUE(result);
+  ASSERT_TRUE(result->is_list());
+  EXPECT_EQ(1u, result->GetList().size());
+
+  // The entry should be a session dict.
+  const base::DictValue* session_dict = result->GetList()[0].GetIfDict();
+  ASSERT_TRUE(session_dict);
+
+  // The session contains a window dict.
+  const base::DictValue* window_dict = session_dict->FindDict("window");
+  ASSERT_TRUE(window_dict);
+
+  // The window contains a session ID.
+  std::string session_id = api_test_utils::GetString(*window_dict, "sessionId");
+  ASSERT_TRUE(!session_id.empty());
+
+  // Get ready for a browser to be created.
+  BrowserCreatedWaiter browser_waiter;
+
+  // Run chrome.sessions.restore() with the session id.
+  std::string args = "[\"" + session_id + "\"]";
+  result = utils::RunFunctionAndReturnSingleResult(
+      CreateFunction<SessionsRestoreFunction>(true).get(), args, GetProfile());
+
+  // Wait for the browser to be created (it may be asynchronous).
+  BrowserWindowInterface* browser3 = browser_waiter.Wait();
+  ASSERT_TRUE(browser3);
+
+  // The restored browser has a tab at chrome://version/.
+  auto* tab_list3 = TabListInterface::From(browser3);
+  ASSERT_TRUE(tab_list3);
+  ASSERT_EQ(1, tab_list3->GetTabCount());
+  EXPECT_EQ(GURL("chrome://version/"),
+            tab_list3->GetTab(0)->GetContents()->GetVisibleURL());
+}
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+
 IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, RestoreForeignSessionWindow) {
   CreateSessionModels();
 
@@ -538,6 +574,8 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, RestoreNonEditableTabstrip) {
 // verifies one window with two tabs was recently closed.
 // TODO(crbug.com/482432028): This test is currently disabled by filter file on
 // some Android hardware bots. See bug for details.
+// TODO(crbug.com/486849736): This test is currently disabled by filter file on
+// some Android bots. See the bug for details.
 IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, GetRecentlyClosedWindow) {
   // Open a second window.
   BrowserWindowInterface* browser2 =
@@ -569,7 +607,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, GetRecentlyClosedWindow) {
   ASSERT_TRUE(NavigateToURL(contents1, GURL("chrome://credits/")));
 
   // Close the second window and wait for it to close.
-  BrowserCloseWaiter waiter(browser2);
+  BrowserClosedWaiter waiter(browser2);
   browser2->GetWindow()->Close();
   waiter.Wait();
 
@@ -690,6 +728,109 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, GetRecentlyClosedMaxResults) {
     ASSERT_TRUE(result);
     ASSERT_TRUE(result->is_list());
     EXPECT_EQ(2u, result->GetList().size());
+  }
+}
+
+// TODO(crbug.com/482432028): This test is currently disabled by filter file on
+// some Android hardware bots. See bug for details.
+IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest,
+                       GetRecentlyClosedMaxResultsWithWindow) {
+  // Start with an empty tab restore service.
+  sessions::TabRestoreService* service =
+      TabRestoreServiceFactory::GetForProfile(GetProfile());
+  ASSERT_TRUE(service);
+  ASSERT_EQ(0u, service->entries().size());
+
+  // The main browser starts the test with 1 tab.
+  ASSERT_EQ(1, GetTabCount());
+  // Open one more tab.
+  NavigateToURLInNewTab(GURL("about:blank"));
+
+  // Prepare to close the tab we just opened (at index 1).
+  const int tab_index = 1;
+  content::WebContents* tab = GetWebContentsAt(tab_index);
+
+  // On Android, historical tabs are automatically created when a tab is
+  // closed via the HistoricalTabSaver; there is no need to manually create
+  // them like on desktop.
+#if !BUILDFLAG(IS_ANDROID)
+  // Our cross-platform utility function to close a tab doesn't allow
+  // requesting the creation of a historical tab, so do it manually.
+  service->CreateHistoricalTab(
+      sessions::ContentLiveTab::GetOrCreateForWebContents(tab), tab_index);
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+  // Close the tab (and wait for its destruction internally).
+  CloseTabForWebContents(tab);
+
+  // Open a second window.
+  BrowserWindowInterface* browser2 =
+      CreateBrowserWindowWithType(BrowserWindowInterface::TYPE_NORMAL);
+
+  // Ensure 1 tab exists.
+  auto* tab_list2 = TabListInterface::From(browser2);
+  ASSERT_TRUE(tab_list2);
+
+  // Platforms like Win/Mac/Linux create browsers with no tabs, whereas Android
+  // creates browsers with a single tab.
+  if (tab_list2->GetTabCount() == 0) {
+    tab_list2->OpenTab(GURL("about:blank"), /*index=*/-1);
+  }
+  ASSERT_EQ(1, tab_list2->GetTabCount());
+
+  // Navigate the tab, otherwise window close does not persist it in the tab
+  // restore service.
+  content::WebContents* contents0 = tab_list2->GetTab(0)->GetContents();
+  ASSERT_TRUE(NavigateToURL(contents0, GURL("chrome://version/")));
+
+  // Close the second window and wait for it to close.
+  BrowserClosedWaiter close_waiter(browser2);
+  browser2->GetWindow()->Close();
+  close_waiter.Wait();
+
+  {
+    // Querying for all recently closed entries should return 2 results, a
+    // window and a tab. Ensure the window is recorded as being closed most
+    // recently, as the timestamps under the hood only have second-level
+    // precision, so the test can be flaky if time runs unmodified.
+    auto function = CreateFunction<SessionsGetRecentlyClosedFunction>(true);
+    function->set_window_last_modified_for_test(NowSeconds() + 10);
+    std::optional<base::Value> result = utils::RunFunctionAndReturnSingleResult(
+        function.get(), "[]", GetProfile());
+    ASSERT_TRUE(result);
+    ASSERT_TRUE(result->is_list());
+    EXPECT_EQ(2u, result->GetList().size());
+
+    const base::DictValue session0 = utils::ToDict(result->GetList()[0]);
+    const base::DictValue window = api_test_utils::GetDict(session0, "window");
+    EXPECT_FALSE(window.empty());
+    const base::DictValue session1 = utils::ToDict(result->GetList()[1]);
+    const base::DictValue tab_value = api_test_utils::GetDict(session1, "tab");
+    EXPECT_FALSE(tab_value.empty());
+  }
+  {
+    // Querying with a maxResults limit of 0 should return 0 results.
+    std::optional<base::Value> result = utils::RunFunctionAndReturnSingleResult(
+        CreateFunction<SessionsGetRecentlyClosedFunction>(true).get(),
+        "[{\"maxResults\": 0}]", GetProfile());
+    ASSERT_TRUE(result);
+    ASSERT_TRUE(result->is_list());
+    EXPECT_EQ(0u, result->GetList().size());
+  }
+  {
+    // Querying with a maxResults limit of 1 should return 1 window and not the
+    // tab. Historically there was a regression with this behavior on Android.
+    auto function = CreateFunction<SessionsGetRecentlyClosedFunction>(true);
+    function->set_window_last_modified_for_test(NowSeconds() + 10);
+    std::optional<base::Value> result = utils::RunFunctionAndReturnSingleResult(
+        function.get(), "[{\"maxResults\": 1}]", GetProfile());
+    ASSERT_TRUE(result);
+    ASSERT_TRUE(result->is_list());
+    EXPECT_EQ(1u, result->GetList().size());
+
+    const base::DictValue session0 = utils::ToDict(result->GetList()[0]);
+    const base::DictValue window = api_test_utils::GetDict(session0, "window");
+    EXPECT_FALSE(window.empty());
   }
 }
 

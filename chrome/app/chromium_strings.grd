@@ -790,6 +790,9 @@ Chromium is unable to recover your settings.
         <message name="IDS_DEFAULT_BROWSER_BUBBLE_DIALOG_BODY" desc="Main explanatory text in the default browser dialog.">
           Get easy access to the features you know, love, and trust by setting Chromium as your default browser.
         </message>
+        <message name="IDS_DEFAULT_BROWSER_BUBBLE_DIALOG_STEPS_PINNED_COMBINED" desc="Numbered instructions. $1, $2 and $3 are the bold button names.">
+          1. Click <ph name="BUTTON_LABEL">$1<ex>Open settings</ex></ph> below&#xA;2. Click <ph name="BUTTON_2">$2<ex>Set default</ex></ph> in your Windows settings&#xA;3. Click <ph name="BUTTON_3">$3<ex>Yes</ex></ph> in the Windows notification to pin Chromium to your taskbar for quick access
+        </message>
       </if>
       <if expr="is_win or is_macosx">
         <message name="IDS_PDF_INFOBAR_TEXT" desc="Text to show in an infobar when Chromium is not the default PDF viewer.">
@@ -3172,9 +3175,19 @@ Chromium is unable to recover your settings.
       <message name="IDS_REPORT_UNSAFE_SITE_DIALOG_TITLE" desc="Title of the dialog for reporting an unsafe site to Chromium">
         Report this site
       </message>
-
       <message name="IDS_REPORT_UNSAFE_SITE_DIALOG_DESCRIPTION" desc="Explanatory text in dialog for reporting an unsafe site to Chromium">
         Improve online safety for everyone when you report a site you think is harmful.
+      </message>
+      <message name="IDS_REPORT_UNSAFE_SITE_DIALOG_FOOTER" desc="Explanatory text in dialog footer describing what other information is sent as part of the unsafe-site-report.">
+          We use info to improve this service. See Privacy Policy and Terms of Service.
+      </message>
+
+      <!-- Indigo Strings -->
+      <message name="IDS_INDIGO_ENTRYPOINT_CHIP_TEXT" desc="The text on the Indigo entry point chip in the omnibox." translateable="false">
+        Indigo
+      </message>
+      <message name="IDS_INDIGO_ENTRYPOINT_CHIP_TOOLTIP_TEXT" desc="The tooltip text of the Indigo entry point chip in the omnibox when in hover state." translateable="false">
+        Indigo tooltip text
       </message>
     </messages>
   </release>

@@ -1741,8 +1741,6 @@ std::string PermissionUmaUtil::GetPredictionModelString(
       return "PredictionService";
     case PredictionModelType::kOnDeviceCpssV1Model:
       return "OnDevicePredictionService";
-    case PredictionModelType::kOnDeviceAiV3Model:
-      return "AIv3";
     case PredictionModelType::kOnDeviceAiV4Model:
       return "AIv4";
     case PredictionModelType::kUnknown:
@@ -1801,22 +1799,23 @@ void PermissionUmaUtil::RecordPageInfoPermissionChangeWithin1m(
 }
 
 // static
-void PermissionUmaUtil::RecordPageInfoPermissionChange(
+void PermissionUmaUtil::RecordPageInfoCameraMicPermissionChange(
     ContentSettingsType type,
     ContentSetting setting_before,
     ContentSetting setting_after,
-    bool suppress_reload_page_bar) {
-  DCHECK(IsRequestablePermissionType(type));
+    bool is_subscribed_to_permission_change_event) {
   // Currently only Camera and Mic are supported.
-  DCHECK(type == ContentSettingsType::MEDIASTREAM_MIC ||
-         type == ContentSettingsType::MEDIASTREAM_CAMERA);
+  if (type != ContentSettingsType::MEDIASTREAM_MIC &&
+      type != ContentSettingsType::MEDIASTREAM_CAMERA) {
+    return;
+  }
   std::string permission_type =
       GetPermissionRequestString(PermissionUtil::GetUmaValueForRequestType(
           ContentSettingsTypeToRequestType(type)));
   std::string histogram_name =
       "Permissions.PageInfo.Changed." + permission_type;
 
-  if (suppress_reload_page_bar) {
+  if (is_subscribed_to_permission_change_event) {
     histogram_name = histogram_name + ".ReloadInfobarNotShown";
   } else {
     histogram_name = histogram_name + ".ReloadInfobarShown";
@@ -1851,9 +1850,46 @@ void PermissionUmaUtil::RecordPageInfoPermissionChange(
 }
 
 // static
+void PermissionUmaUtil::RecordPageInfoPermissionChange(
+    ContentSettingsType type,
+    ContentSetting setting_before,
+    ContentSetting setting_after,
+    bool is_subscribed_to_permission_change_event) {
+  // This method supports only media permissions and permissions that have the
+  // quiet UI.
+  if (type != ContentSettingsType::MEDIASTREAM_MIC &&
+      type != ContentSettingsType::MEDIASTREAM_CAMERA &&
+      type != ContentSettingsType::NOTIFICATIONS &&
+      type != ContentSettingsType::GEOLOCATION) {
+    return;
+  }
+  std::string permission_type =
+      GetPermissionRequestString(PermissionUtil::GetUmaValueForRequestType(
+          ContentSettingsTypeToRequestType(type)));
+  std::string histogram_name =
+      base::StrCat({"Permissions.PageInfo.Changed.", permission_type,
+                    ".OnStatusChangeListener"});
+
+  base::UmaHistogramBoolean(histogram_name,
+                            is_subscribed_to_permission_change_event);
+}
+
+// static
 void PermissionUmaUtil::RecordPageReloadInfoBarShown(bool shown) {
   base::UmaHistogramBoolean(
       "Permissions.QuietPrompt.Preignore.PageReloadInfoBar", shown);
+}
+
+// static
+void PermissionUmaUtil::RecordOnPermissionStatusChangedEventSubscribed(
+    RequestType type,
+    bool subscribed) {
+  std::string permission_type = GetPermissionRequestString(
+      PermissionUtil::GetUmaValueForRequestType(type));
+  std::string histogram_name =
+      base::StrCat({"Permissions.PredictionService.", permission_type,
+                    ".OnStatusChangeListener"});
+  base::UmaHistogramBoolean(histogram_name, subscribed);
 }
 
 // static
@@ -2271,8 +2307,6 @@ void PermissionUmaUtil::RecordPermissionRequestRelevance(
     PermissionRequestRelevance permission_request_relevance,
     PredictionModelType model_type) {
   switch (model_type) {
-    case permissions::PredictionModelType::kOnDeviceAiV3Model:
-      [[fallthrough]];
     case permissions::PredictionModelType::kOnDeviceAiV4Model: {
       std::string permission_request_type_string =
           permission_request_type == permissions::RequestType::kNotifications
@@ -2412,9 +2446,8 @@ void PermissionUmaUtil::RecordSnapshotTakenTimeAndSuccessForAivX(
     PredictionModelType model_type,
     base::TimeTicks snapshot_inquire_start_time,
     bool success) {
-  // Only AIv3 and AIv4 models use snapshots as input.
-  DCHECK(model_type == PredictionModelType::kOnDeviceAiV3Model ||
-         model_type == PredictionModelType::kOnDeviceAiV4Model);
+  // Only AIvX models use snapshots as input.
+  DCHECK(model_type == PredictionModelType::kOnDeviceAiV4Model);
 
   std::string success_histogram_name = base::StrCat(
       {"Permissions.", GetPredictionModelString(model_type), ".SnapshotTaken"});

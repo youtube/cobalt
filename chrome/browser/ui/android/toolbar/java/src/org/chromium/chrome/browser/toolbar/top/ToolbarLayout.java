@@ -51,6 +51,7 @@ import org.chromium.chrome.browser.toolbar.ToolbarTabController;
 import org.chromium.chrome.browser.toolbar.back_button.BackButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.extensions.ExtensionToolbarCoordinator;
 import org.chromium.chrome.browser.toolbar.forward_button.ForwardButtonCoordinator;
+import org.chromium.chrome.browser.toolbar.home_button.HomeButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonData;
 import org.chromium.chrome.browser.toolbar.reload_button.ReloadButtonCoordinator;
@@ -164,7 +165,7 @@ public abstract class ToolbarLayout extends FrameLayout
             @Nullable ReloadButtonCoordinator reloadButtonCoordinator,
             @Nullable BackButtonCoordinator backButtonCoordinator,
             @Nullable ForwardButtonCoordinator forwardButtonCoordinator,
-            @Nullable HomeButtonDisplay homeButtonDisplay,
+            HomeButtonCoordinator homeButtonCoordinator,
             ThemeColorProvider themeColorProvider,
             IncognitoStateProvider incognitoStateProvider,
             @Nullable Supplier<Integer> incognitoWindowCountSupplier) {
@@ -528,16 +529,6 @@ public abstract class ToolbarLayout extends FrameLayout
      * @param homeButtonEnabled Whether or not home button is enabled in preference.
      */
     void onHomeButtonIsEnabledUpdate(boolean homeButtonEnabled) {}
-
-    /**
-     * Gives inheriting classes the chance to update home button UI if the current homepage is set
-     * to something other than the NTP.
-     *
-     * @param isHomepageNonNtp Whether the current homepage is something other than the NTP.
-     */
-    // TODO(crbug.com/407554279): Usage will be added in follow-up CLs related to the NTP
-    // customization toolbar button.
-    void onHomepageIsNonNtpUpdate(boolean isHomepageNonNtp) {}
 
     /**
      * Triggered when the current tab or model has changed.

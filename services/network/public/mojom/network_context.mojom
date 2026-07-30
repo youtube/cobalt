@@ -25,7 +25,7 @@ import "services/network/public/mojom/cookie_setting_overrides.mojom";
 import "services/network/public/mojom/cors_origin_pattern.mojom";
 import "services/network/public/mojom/cross_origin_embedder_policy.mojom";
 import "services/network/public/mojom/ct_policy.mojom";
-import "services/network/public/mojom/originating_process.mojom";
+import "services/network/public/mojom/originating_process_id.mojom";
 import "services/network/public/mojom/default_credentials.mojom";
 import "services/network/public/mojom/device_bound_sessions.mojom";
 import "services/network/public/mojom/devtools_observer.mojom";
@@ -769,12 +769,12 @@ struct URLLoaderFactoryParams {
   // SECURITY NOTE: Factories with `network.mojom.BrowserProcess` should not be
   // sent to untrustworthy processes.
   //
-  // Set to `network.mojom.RendererProcess` with `process_id` set to
+  // Set to `network.mojom.RendererProcessId` with `process_id` set to
   // RenderProcessHost::GetID() to indicate a renderer process.
   // SECURITY NOTE: Factories should not be shared among multiple renderer
   // processes (e.g. |request_initiator_origin_lock| is specific to a single
   // renderer process).
-  network.mojom.OriginatingProcess process_id;
+  network.mojom.OriginatingProcessId process_id;
 
   // If specified, then |request_initiator_origin_lock| locks
   // |ResourceRequest::request_initiator| to the specified origin.
@@ -1400,15 +1400,12 @@ interface NetworkContext {
   // request. Headers semantically relevant to the WebSocket handshake such
   // as "sec-websocket-protocol" and "origin" are handled separately, (e.g.,
   // "sec-websocket-protocol" is constructed from  |requested_protocols| in this
-  // message). |site_for_cookies| represents the first-party origin for the
-  // request. |storage_access_api_status| is used to opt into using a
+  // message). |storage_access_api_status| is used to opt into using a
   // "storage-access" permission grant. |options| may be a combination of the
   // kWebSocketOption* flags.  |isolation_info| includes SiteForCookies, top
   // frame origin, and current frame origin, and is used to isolate shared
   // network stack resources based on the context. It must have
-  // RediredMode::kUpdateNothing. Currently, |isolation_info|'s SiteForCookies
-  // field is ignored, but it will eventually replace the |site_for_cookies|
-  // parameter.
+  // RediredMode::kUpdateNothing.
   //
   // If |header_client| is set, requests with the kURLLoadOptionUseHeaderClient
   // option will callback to the |header_client|, allowing the Cookie/Referrer
@@ -1435,11 +1432,10 @@ interface NetworkContext {
   CreateWebSocket(
       url.mojom.Url url,
       array<string> requested_protocols,
-      SiteForCookies site_for_cookies,
       StorageAccessApiStatus storage_access_api_status,
       IsolationInfo isolation_info,
       array<HttpHeader> additional_headers,
-      network.mojom.OriginatingProcess process_id,
+      network.mojom.OriginatingProcessId process_id,
       url.mojom.Origin origin,
       ClientSecurityState client_security_state,
       uint32 options,

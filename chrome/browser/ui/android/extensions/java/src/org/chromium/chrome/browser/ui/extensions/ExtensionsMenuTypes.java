@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.ui.extensions;
 
+import android.graphics.Bitmap;
+
 import androidx.annotation.IntDef;
 
 import org.jni_zero.CalledByNative;
@@ -11,6 +13,7 @@ import org.jni_zero.JNINamespace;
 import org.jni_zero.JniType;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -37,8 +40,7 @@ public class ExtensionsMenuTypes {
         public final String accessibleName;
         public final String tooltipText;
         public final boolean isOn;
-
-        // TODO(crbug.com/471016915): Add icon.
+        public final @Nullable Bitmap icon;
 
         @CalledByNative("ControlState")
         public ControlState(
@@ -46,12 +48,14 @@ public class ExtensionsMenuTypes {
                 @JniType("std::u16string") String text,
                 @JniType("std::u16string") String accessibleName,
                 @JniType("std::u16string") String tooltipText,
-                boolean isOn) {
+                boolean isOn,
+                @Nullable Bitmap icon) {
             this.status = status;
             this.text = text;
             this.accessibleName = accessibleName;
             this.tooltipText = tooltipText;
             this.isOn = isOn;
+            this.icon = icon;
         }
     }
 
@@ -69,6 +73,21 @@ public class ExtensionsMenuTypes {
         public MenuEntryState(@JniType("std::string") String id, ControlState actionButton) {
             this.id = id;
             this.actionButton = actionButton;
+        }
+    }
+
+    /** Mirrors {@code ExtensionsMenuViewModel::SiteSettingsState} */
+    public static class SiteSettingsState {
+        public final String label;
+        public final boolean hasTooltip;
+        public final ControlState toggle;
+
+        @CalledByNative("SiteSettingsState")
+        public SiteSettingsState(
+                @JniType("std::u16string") String label, boolean hasTooltip, ControlState toggle) {
+            this.label = label;
+            this.hasTooltip = hasTooltip;
+            this.toggle = toggle;
         }
     }
 }

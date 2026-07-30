@@ -63,7 +63,6 @@
 #include "chrome/browser/web_applications/web_app_translation_manager.h"
 #include "chrome/browser/web_applications/web_app_ui_manager.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
-#include "chrome/common/chrome_features.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_types.h"
@@ -105,7 +104,7 @@ void WebAppInstallFinalizer::FinalizeInstall(
   }
 
   std::unique_ptr<FinalizeInstallJob> web_app_install_job =
-      std::make_unique<FinalizeInstallJob>(*profile_, *provider_, clock_.get(),
+      std::make_unique<FinalizeInstallJob>(*profile_, nullptr, nullptr,
                                            std::move(web_app_info), options);
   FinalizeInstallJob* job_ptr = web_app_install_job.get();
   install_jobs_.insert(std::move(web_app_install_job));
@@ -165,7 +164,9 @@ void WebAppInstallFinalizer::Shutdown() {
 }
 
 void WebAppInstallFinalizer::SetClockForTesting(base::Clock* clock) {
-  clock_ = clock;
+  if (provider_) {
+    provider_->SetClockForTesting(clock);
+  }
 }
 
 }  // namespace web_app

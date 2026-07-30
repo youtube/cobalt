@@ -26,6 +26,7 @@ buildflag_header("buildflags") {
     "MBI_MODE_PER_RENDER_PROCESS_HOST=$_mbi_mode_per_render_process_host",
     "MBI_MODE_PER_SITE_INSTANCE=$_mbi_mode_per_site_instance",
     "CONTENT_ENABLE_LEGACY_IPC=0",
+    "ENABLE_MEMORY_COORDINATOR_INTERNALS=$enable_memory_coordinator_internals",
   ]
 }
 
@@ -349,7 +350,7 @@ source_set("common") {
   if (is_android) {
     deps += [
       "//content/public/android:common_aidl",
-      "//content/public/android:common_jni",
+      "//content/public/android:content_main_dex_jni",
       "//content/public/android:jar_jni",
     ]
 

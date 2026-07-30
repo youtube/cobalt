@@ -112,8 +112,17 @@ class CorpSignalStrategyTest : public testing::Test,
             std::move(messaging_client), SignalingAddress(kFakeLocalCorpId)));
     signal_strategy_->AddListener(this);
 
+    // By default, messages will be collected in received_messages_.
     ON_CALL(*this, OnSignalStrategyIncomingMessage(_, _))
-        .WillByDefault(Return(false));
+        .WillByDefault([&](const SignalingAddress& sender_address,
+                           const SignalingMessage& message) {
+          auto stanza = SignalStrategy::GetXmlStanza(message);
+          if (stanza) {
+            received_messages_.push_back(std::move(stanza));
+            return true;
+          }
+          return false;
+        });
   }
 
   ~CorpSignalStrategyTest() override {
@@ -142,13 +151,6 @@ class CorpSignalStrategyTest : public testing::Test,
   // SignalStrategy::Listener overrides.
   void OnSignalStrategyStateChange(SignalStrategy::State state) override {
     state_history_.push_back(state);
-  }
-
-  bool OnSignalStrategyIncomingStanza(
-      const jingle_xmpp::XmlElement* stanza) override {
-    received_messages_.push_back(
-        std::make_unique<jingle_xmpp::XmlElement>(*stanza));
-    return true;
   }
 };
 
@@ -229,7 +231,7 @@ TEST_F(CorpSignalStrategyTest, StartStream_NetworkError) {
   ASSERT_FALSE(signal_strategy_->IsSignInError());
 }
 
-TEST_F(CorpSignalStrategyTest, SendStanza_Success) {
+TEST_F(CorpSignalStrategyTest, SendMessage_XmlElement_Success) {
   EXPECT_CALL(*messaging_client_, StartReceivingMessages(_, _))
       .WillOnce([](base::OnceClosure on_ready,
                    MessagingClient::DoneCallback on_closed) {
@@ -265,13 +267,16 @@ TEST_F(CorpSignalStrategyTest, SendStanza_Success) {
         std::move(on_done).Run(HttpStatus::OK());
       });
 
-  signal_strategy_->SendStanza(std::move(stanza));
+  signal_strategy_->SendMessage(SignalingAddress(kFakeRemoteCorpId),
+                                SignalingMessage(std::move(stanza)));
 }
 
-TEST_F(CorpSignalStrategyTest, SendStanza_NotConnected) {
+TEST_F(CorpSignalStrategyTest, SendMessage_XmlElement_NotConnected) {
   auto stanza =
       CreateXmlStanza(Direction::OUTGOING, signal_strategy_->GetNextId());
-  EXPECT_FALSE(signal_strategy_->SendStanza(std::move(stanza)));
+  EXPECT_FALSE(
+      signal_strategy_->SendMessage(SignalingAddress(kFakeRemoteCorpId),
+                                    SignalingMessage(std::move(stanza))));
 }
 
 TEST_F(CorpSignalStrategyTest, ReceiveStanza_Success) {

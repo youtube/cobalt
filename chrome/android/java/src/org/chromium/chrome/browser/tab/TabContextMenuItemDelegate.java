@@ -34,6 +34,7 @@ import org.chromium.chrome.browser.download.DownloadUtils;
 import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinator;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ActivityType;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
@@ -62,6 +63,7 @@ import org.chromium.printing.PrintingController;
 import org.chromium.printing.PrintingControllerImpl;
 import org.chromium.ui.base.Clipboard;
 import org.chromium.ui.base.PageTransition;
+import org.chromium.ui.base.WindowAndroid;
 import org.chromium.url.GURL;
 
 import java.util.function.Supplier;
@@ -126,16 +128,12 @@ public class TabContextMenuItemDelegate implements ContextMenuItemDelegate {
         return IncognitoUtils.isIncognitoModeEnabled(mTab.getProfile());
     }
 
-    /**
-     * @return Whether the current profile enables printing.
-     */
+    @Override
     public boolean isPrintSupported() {
         return UserPrefs.get(mTab.getProfile()).getBoolean(Pref.PRINTING_ENABLED);
     }
 
-    /**
-     * @return Whether the "Open in other window" context menu item should be shown.
-     */
+    @Override
     public boolean isOpenInOtherWindowSupported() {
         return MultiWindowUtils.getInstance()
                 .isOpenInOtherWindowSupported(TabUtils.getActivity(mTab));
@@ -152,15 +150,20 @@ public class TabContextMenuItemDelegate implements ContextMenuItemDelegate {
                 || !ChromeDownloadDelegate.from(mTab).shouldInterceptContextMenuDownload(url);
     }
 
+    @Override
     public void startDownloadPage(Context context) {
         DownloadUtils.downloadOfflinePage(context, mTab, false);
     }
 
-    /** Initiates the printing process of the current page. */
+    @Override
     public void startPrint() {
-        PrintingController printingController = PrintingControllerImpl.getInstance();
-        printingController.startPrint(
-                new TabPrinter(mTab), new PrintManagerDelegateImpl(mActivity));
+        WindowAndroid windowAndroid = mTab.getWindowAndroid();
+        if (windowAndroid != null) {
+            PrintingController printingController =
+                    PrintingControllerImpl.getInstance(windowAndroid);
+            printingController.startPrint(
+                    new TabPrinter(mTab), new PrintManagerDelegateImpl(mActivity));
+        }
     }
 
     @Override
@@ -437,11 +440,13 @@ public class TabContextMenuItemDelegate implements ContextMenuItemDelegate {
                 .get()
                 .requestOpenSheet(
                         url,
-                        null,
+                        /* fullPageUrl= */ null,
                         title,
                         mTab.getProfile(),
-                        mActivityType == ActivityType.TABBED
-                                || mActivityType == ActivityType.CUSTOM_TAB);
+                        /* canPromoteToNewTab= */ mActivityType == ActivityType.TABBED
+                                || mActivityType == ActivityType.CUSTOM_TAB,
+                        /* shouldHaveContextMenu= */ ChromeFeatureList.isEnabled(
+                                ChromeFeatureList.ENABLE_CONTEXT_MENU_FOR_PREVIEW_TAB));
     }
 
     /**

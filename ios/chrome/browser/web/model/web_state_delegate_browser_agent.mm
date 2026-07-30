@@ -174,7 +174,7 @@ web::WebState* WebStateDelegateBrowserAgent::CreateNewWebState(
 
   // Check if requested web state is a popup and block it if necessary.
   if (!initiated_by_user) {
-    auto* helper = BlockedPopupTabHelper::GetOrCreateForWebState(source);
+    auto* helper = BlockedPopupTabHelper::FromWebState(source);
     if (helper->ShouldBlockPopup(opener_url)) {
       // It's possible for a page to inject a popup into a window created via
       // window.open before its initial load is committed.  Rather than relying
@@ -377,27 +377,27 @@ void WebStateDelegateBrowserAgent::OnNewWebViewCreated(web::WebState* source) {
 void WebStateDelegateBrowserAgent::ShouldAllowCopy(
     web::WebState* source,
     base::OnceCallback<void(bool)> callback) {
-  data_controls::DataControlsTabHelper::GetOrCreateForWebState(source)
-      ->ShouldAllowCopy(std::move(callback));
+  data_controls::DataControlsTabHelper::FromWebState(source)->ShouldAllowCopy(
+      std::move(callback));
 }
 
 void WebStateDelegateBrowserAgent::ShouldAllowPaste(
     web::WebState* source,
     base::OnceCallback<void(bool)> callback) {
-  data_controls::DataControlsTabHelper::GetOrCreateForWebState(source)
-      ->ShouldAllowPaste(std::move(callback));
+  data_controls::DataControlsTabHelper::FromWebState(source)->ShouldAllowPaste(
+      std::move(callback));
 }
 
 void WebStateDelegateBrowserAgent::ShouldAllowCut(
     web::WebState* source,
     base::OnceCallback<void(bool)> callback) {
-  data_controls::DataControlsTabHelper::GetOrCreateForWebState(source)
-      ->ShouldAllowCut(std::move(callback));
+  data_controls::DataControlsTabHelper::FromWebState(source)->ShouldAllowCut(
+      std::move(callback));
 }
 
 void WebStateDelegateBrowserAgent::DidFinishClipboardRead(
     web::WebState* source) {
-  data_controls::DataControlsTabHelper::GetOrCreateForWebState(source)
+  data_controls::DataControlsTabHelper::FromWebState(source)
       ->DidFinishClipboardRead();
 }
 

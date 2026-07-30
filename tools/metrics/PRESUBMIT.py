@@ -7,12 +7,96 @@ See http://dev.chromium.org/developers/how-tos/depottools/presubmit-scripts
 for more details on the presubmit API built into gcl.
 """
 
+import sys
+import os
+import tempfile
+import platform
+
+sys.path.append('.')
+
+import setup_modules
+
+sys.path.pop()
+
+import chromium_src.tools.metrics.python_support.tests_helpers as tests_helpers
+import chromium_src.tools.metrics.python_support.mypy_helpers as mypy_helpers
+import chromium_src.tools.metrics.python_support.script_checker as script_checker
+
 UKM_XML = 'ukm.xml'
 ENUMS_XML = 'enums.xml'
 
 
+def _get_temp_path(prefix=''):
+  fd, path = tempfile.mkstemp(prefix=prefix)
+  os.close(fd)
+  return path
+
+
+# As one of the check we just run some of our existing scripts that don't have
+# side effects and check if they finish successfully this is done as a last
+# line of defense against changing in dependencies causing failures of scripts.
+# TODO(crbug.com/482274154): Only run those that could be affected
+#                            based on what was changed.
+_PY_SCRIPTS_TO_RUN = {
+    'extract_actions': ['vpython3', 'tools/metrics/actions/extract_actions.py'],
+    'actions/pretty_print':
+    ['vpython3', 'tools/metrics/actions/pretty_print.py'],
+    'actions/print_action_names':
+    ['vpython3', 'tools/metrics/actions/print_action_names.py'],
+    # TODO(crbug.com/482274154): Fix this script.
+    # 'histograms/histogram_ownership':
+    # ['vpython3', 'tools/metrics/histograms/histogram_ownership.py'],
+    'histograms/merge_xml': [
+        'vpython3', 'tools/metrics/histograms/merge_xml.py', '--output',
+        _get_temp_path('merge_xml_test')
+    ],
+    'histograms/pretty_print': [
+        'vpython3', 'tools/metrics/histograms/pretty_print.py',
+        'tools/metrics/histograms/metadata/uma/histograms.xml'
+    ],
+    'histograms/print_expanded_histograms':
+    ['vpython3', 'tools/metrics/histograms/print_expanded_histograms.py'],
+    'histograms/print_histogram_names':
+    ['vpython3', 'tools/metrics/histograms/print_histogram_names.py'],
+    'histograms/validate_format':
+    ['vpython3', 'tools/metrics/histograms/validate_format.py'],
+    'histograms/validate_histograms_index':
+    ['vpython3', 'tools/metrics/histograms/validate_histograms_index.py'],
+    'histograms/validate_token': [
+        'vpython3', 'tools/metrics/histograms/validate_token.py',
+        'tools/metrics/histograms/metadata/uma/histograms.xml'
+    ],
+    'private_metrics/pretty_print': [
+        'vpython3', 'tools/metrics/private_metrics/pretty_print.py',
+        'tools/metrics/private_metrics/dwa.xml'
+    ],
+    'private_metrics/validate_format': [
+        'vpython3', 'tools/metrics/private_metrics/validate_format.py',
+        'tools/metrics/private_metrics/dwa.xml'
+    ],
+    'ukm/pretty_print': ['vpython3', 'tools/metrics/ukm/pretty_print.py'],
+    'ukm/validate_format': ['vpython3', 'tools/metrics/ukm/validate_format.py'],
+}
+
+if platform.system() != 'Windows':
+  # TODO(crbug.com/482274154): Fix this script on windows.
+  _PY_SCRIPTS_TO_RUN['histograms/find_unmapped_histograms'] = [
+      'vpython3', 'tools/metrics/histograms/find_unmapped_histograms.py'
+  ]
+
+
+_FILES_MISSING_IN_BUILD_GN_ERROR_TEMPLATE = """
+There are test files that are not listed in tools/metrics/BUILD.gn
+metrics_python_tests rule. Those test will not be run by CI.
+Please add the missing files to BUILD.gn:
+{missing_files_list}
+"""
+
+
 def CheckChange(input_api, output_api):
   """Checks that ukm/ukm.xml is validated on changes to histograms/enums.xml"""
+  problems = []
+
   absolute_paths_of_affected_files = [
       f.AbsoluteLocalPath() for f in input_api.AffectedFiles()
   ]
@@ -21,10 +105,42 @@ def CheckChange(input_api, output_api):
       input_api.basename(p) == UKM_XML for p in absolute_paths_of_affected_files
   ])
 
+  py_or_build_modified = any([(input_api.basename(p).endswith(".py")
+                               or input_api.basename(p) == "BUILD.gn")
+                              for p in absolute_paths_of_affected_files])
+
+  if py_or_build_modified:
+    missing_files = tests_helpers.validate_gn_sources('metrics_python_tests')
+    if missing_files:
+      files_formatted_for_build_gn = [
+          f'   "//{f}",' for f in sorted(missing_files)
+      ]
+      missing_files_list = "\n".join(files_formatted_for_build_gn)
+      problems.append(output_api.PresubmitError(
+        _FILES_MISSING_IN_BUILD_GN_ERROR_TEMPLATE \
+           .format(missing_files_list=missing_files_list)))
+
+  if py_or_build_modified:
+    my_py_issues = mypy_helpers.run_mypy_and_filter_irrelevant(
+        input_api.PresubmitLocalPath())
+    problems.extend(output_api.PresubmitError(i) for i in my_py_issues)
+
+  if py_or_build_modified:
+    commands_failed = script_checker.check_scripts(
+        _PY_SCRIPTS_TO_RUN,
+        input_api.os_path.dirname(
+            input_api.os_path.dirname(input_api.PresubmitLocalPath())))
+    problems.extend([
+        output_api.PresubmitError(f"Failed to run {name} (code: {code}): " +
+                                  " ".join(_PY_SCRIPTS_TO_RUN[name]))
+        for name, code in commands_failed
+    ])
+
+
   # Early return if the ukm file is changed, then the presubmit script in the
   # ukm directory would run and report the errors.
   if ukm_xml_modified:
-    return []
+    return problems
 
   enums_changed = any([
       input_api.basename(p) == ENUMS_XML
@@ -34,7 +150,7 @@ def CheckChange(input_api, output_api):
   # This check only applies to changes to enums.xml, so if no enums are changed,
   # then there is nothing to check and we return early with no errors.
   if not enums_changed:
-    return []
+    return problems
 
   cwd = input_api.os_path.dirname(input_api.PresubmitLocalPath())
   args = [
@@ -44,14 +160,13 @@ def CheckChange(input_api, output_api):
   exit_code = input_api.subprocess.call(args, cwd=cwd)
 
   if exit_code != 0:
-    return [
+    problems.append(
         output_api.PresubmitError(
             '%s does not pass format validation; run '
             '%s/ukm/validate_format.py and fix the reported error(s) or '
-            'warning(s).' % (UKM_XML, input_api.PresubmitLocalPath())),
-    ]
+            'warning(s).' % (UKM_XML, input_api.PresubmitLocalPath())))
 
-  return []
+  return problems
 
 
 def CheckChangeOnUpload(input_api, output_api):

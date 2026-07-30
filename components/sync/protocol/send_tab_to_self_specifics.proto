@@ -42,4 +42,51 @@ message SendTabToSelfSpecifics {
 
   reserved "navigation_time_usec";
   reserved 6;
+
+  optional PageContext page_context = 10;
+}
+
+message PageContext {
+  optional FormFieldInfo form_field_info = 1;
+
+  // Information about the scroll position on the page.
+  optional ScrollPosition scroll_position = 2;
+}
+
+message FormFieldInfo {
+  repeated FormField fields = 1;
+}
+
+message FormField {
+  optional string id_attribute = 1;
+  optional string name_attribute = 2;
+  reserved 3;
+  optional string form_control_type = 4;
+  optional string value = 5;
+}
+
+message ScrollPosition {
+  // Text fragment data used for scroll position restoration on the target
+  // device.
+  optional TextFragmentData text_fragment = 1;
+}
+
+// Text fragment data used for scroll position restoration.
+// https://wicg.github.io/scroll-to-text-fragment/
+message TextFragmentData {
+  // The exact text to match.
+  // Corresponds to the 'textStart' parameter in the Text Fragment specification.
+  optional string text_start = 1;
+
+  // Optional: The end text for a range selection.
+  // Corresponds to 'textEnd'.
+  optional string text_end = 2;
+
+  // Optional: Prefix to ensure uniqueness of the match.
+  // Corresponds to 'prefix'.
+  optional string prefix = 3;
+
+  // Optional: Suffix to ensure uniqueness of the match.
+  // Corresponds to 'suffix'.
+  optional string suffix = 4;
 }

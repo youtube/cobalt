@@ -28,7 +28,7 @@
 #include "base/trace_event/trace_event.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
-#include "components/history_embeddings/history_embeddings_features.h"
+#include "components/history_embeddings/core/history_embeddings_features.h"
 #include "components/omnibox/browser/actions/omnibox_action.h"
 #include "components/omnibox/browser/actions/omnibox_action_concepts.h"
 #include "components/omnibox/browser/actions/omnibox_action_in_suggest.h"
@@ -516,7 +516,7 @@ const gfx::VectorIcon& AutocompleteMatch::GetVectorIcon(
   if (suggest_template.has_value() && suggest_template->has_type_icon()) {
     // Update this assertion and the switch below whenever values are added.
     static_assert(omnibox::SuggestTemplateInfo::IconType_MAX ==
-                  omnibox::SuggestTemplateInfo::NOTES_SPARK);
+                  omnibox::SuggestTemplateInfo::DRAFT_SPARK);
     switch (suggest_template->type_icon()) {
       case omnibox::SuggestTemplateInfo::ICON_TYPE_UNSPECIFIED:
         // When not specified, fall back on regular match icon logic below.
@@ -1461,6 +1461,7 @@ AutocompleteMatch::GetOmniboxEventResultType(int action_index) const {
       case OmniboxActionId::ACTION_IN_SUGGEST:
       case OmniboxActionId::EXTENSION_ACTION:
       case OmniboxActionId::CONTEXTUAL_SEARCH_FULFILLMENT:
+      case OmniboxActionId::SITE_SEARCH:
         // Preserve existing behavior by continuing on to use the match `type`.
         break;
       case OmniboxActionId::STARTER_PACK_BOOKMARKS:

@@ -36,6 +36,7 @@
 #include "base/feature_list.h"
 #include "cc/input/snap_selection_strategy.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/mojom/scroll/scroll_enums.mojom-blink.h"
 #include "third_party/blink/public/mojom/scroll/scroll_into_view_params.mojom-blink.h"
 #include "third_party/blink/public/web/web_autofill_state.h"
 #include "third_party/blink/renderer/bindings/core/v8/dictionary.h"
@@ -110,7 +111,6 @@
 #include "third_party/blink/renderer/core/dom/dataset_dom_string_map.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/document_lifecycle.h"
-#include "third_party/blink/renderer/core/dom/document_part_root.h"
 #include "third_party/blink/renderer/core/dom/dom_token_list.h"
 #include "third_party/blink/renderer/core/dom/element_data_cache.h"
 #include "third_party/blink/renderer/core/dom/element_rare_data_vector.h"
@@ -1133,7 +1133,7 @@ Node* Element::Clone(Document& factory,
                                         : FocusDelegation::kNone,
           shadow_root->GetSlotAssignmentMode(), shadow_root_registry,
           shadow_root->serializable(),
-          /*clonable*/ true, shadow_root->referenceTarget(),
+          /*clonable=*/true, shadow_root->referenceTarget(),
           shadow_root->marker());
 
       // 6.5 Set copy’s shadow root’s declarative to node’s shadow root’s
@@ -1155,7 +1155,7 @@ Node* Element::Clone(Document& factory,
       // with document and the clone children flag set, to copy’s shadow root.
       NodeCloningData shadow_data{CloneOption::kIncludeDescendants};
       cloned_shadow_root.CloneChildNodesFrom(*shadow_root, shadow_data,
-                                             /*fallback_registry*/ nullptr);
+                                             /*fallback_registry=*/nullptr);
     }
   }
   return copy;
@@ -1176,12 +1176,6 @@ Element& Element::CloneWithChildren(
 
   clone.CloneAttributesFrom(*this);
   clone.CloneNonAttributePropertiesFrom(*this, data);
-  if (data.Has(CloneOption::kPreserveDOMPartsMinimalAPI) && HasNodePart()) {
-    DCHECK(RuntimeEnabledFeatures::DOMPartsAPIMinimalEnabled());
-    clone.SetHasNodePart();
-  } else if (data.Has(CloneOption::kPreserveDOMParts)) {
-    PartRoot::CloneParts(*this, clone, data);
-  }
 
   // Append the clone to its parent first, before cloning children. If this is
   // done in the reverse order, each new child will receive treeDepth calls to
@@ -1210,12 +1204,6 @@ Element& Element::CloneWithoutChildren(NodeCloningData& data,
 
   clone.CloneAttributesFrom(*this);
   clone.CloneNonAttributePropertiesFrom(*this, data);
-  if (data.Has(CloneOption::kPreserveDOMPartsMinimalAPI) && HasNodePart()) {
-    DCHECK(RuntimeEnabledFeatures::DOMPartsAPIMinimalEnabled());
-    clone.SetHasNodePart();
-  } else if (data.Has(CloneOption::kPreserveDOMParts)) {
-    PartRoot::CloneParts(*this, clone, data);
-  }
   return clone;
 }
 
@@ -1348,6 +1336,9 @@ void Element::SetElementAttribute(const QualifiedName& name, Element* element) {
   if (isConnected()) {
     if (AXObjectCache* cache = GetDocument().ExistingAXObjectCache()) {
       cache->HandleAttributeChanged(name, this);
+    }
+    if (name == html_names::kCommandforAttr) {
+      GetDocument().MarkOverscrollCommandTargetsDirty();
     }
   }
 }
@@ -2413,8 +2404,7 @@ void Element::ScrollIntoViewNoVisualUpdate(
       *target, bounds, std::move(params),
       container ? container->GetLayoutObject() : nullptr,
       /* from_remote_frame = */ false,
-      /* include_self = */ include_self ||
-          !RuntimeEnabledFeatures::ScrollIntoViewSelfScrollFixEnabled());
+      /* include_self = */ include_self);
 
   GetDocument().SetSequentialFocusNavigationStartingPoint(originating_element);
 }
@@ -2825,10 +2815,9 @@ void Element::setScrollLeft(double new_left) {
     if (snap_point.has_value()) {
       end_offset = scrollable_area->ScrollPositionToOffset(snap_point.value());
     }
-    scrollable_area->SetScrollOffset(end_offset,
-                                     mojom::blink::ScrollType::kProgrammatic,
-                                     cc::ScrollSourceType::kAbsoluteScroll,
-                                     mojom::blink::ScrollBehavior::kAuto);
+    scrollable_area->SetProgrammaticScrollOffset(
+        end_offset, cc::ScrollSourceType::kAbsoluteScroll,
+        mojom::blink::ScrollBehavior::kAuto, /*resolver=*/nullptr);
   }
 }
 
@@ -2884,10 +2873,9 @@ void Element::setScrollTop(double new_top) {
       end_offset = scrollable_area->ScrollPositionToOffset(snap_point.value());
     }
 
-    scrollable_area->SetScrollOffset(end_offset,
-                                     mojom::blink::ScrollType::kProgrammatic,
-                                     cc::ScrollSourceType::kAbsoluteScroll,
-                                     mojom::blink::ScrollBehavior::kAuto);
+    scrollable_area->SetProgrammaticScrollOffset(
+        end_offset, cc::ScrollSourceType::kAbsoluteScroll,
+        mojom::blink::ScrollBehavior::kAuto, /*resolver=*/nullptr);
   }
 }
 
@@ -2964,13 +2952,20 @@ ScriptPromise<IDLUndefined> Element::scrollBy(
   GetDocument().UpdateStyleAndLayoutForNode(this,
                                             DocumentUpdateReason::kJavaScript);
 
-  if (GetDocument().ScrollingElementNoLayout() == this) {
-    ScrollFrameBy(scroll_to_options);
-  } else {
-    ScrollLayoutBoxBy(scroll_to_options);
+  ScriptPromiseResolver<IDLUndefined>* resolver = nullptr;
+  if (script_state &&
+      RuntimeEnabledFeatures::ProgrammaticScrollPromiseEnabled()) {
+    resolver =
+        MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(script_state);
   }
 
-  return CreateScrollResolvedPromise(script_state);
+  if (GetDocument().ScrollingElementNoLayout() == this) {
+    ScrollFrameBy(scroll_to_options, resolver);
+  } else {
+    ScrollLayoutBoxBy(scroll_to_options, resolver);
+  }
+
+  return resolver ? resolver->Promise() : EmptyPromise();
 }
 
 ScriptPromise<IDLUndefined> Element::scrollTo(ScriptState* script_state,
@@ -2992,6 +2987,9 @@ ScriptPromise<IDLUndefined> Element::scrollTo(
   return CreateScrollResolvedPromise(script_state);
 }
 
+// TODO(mustaq@chromium.org): Rename this method to avoid any confusion with the
+// same-named function in `ScrollableArea`. This method is public because it is
+// used by WebElement for (probably) non-programmatic scroll.
 bool Element::SetScrollOffset(const ScrollToOptions* scroll_to_options) {
   if (!InActiveDocument()) {
     return false;
@@ -3030,7 +3028,8 @@ void Element::scrollToForTesting(double x, double y) {
   scrollTo(nullptr, x, y);
 }
 
-bool Element::ScrollLayoutBoxBy(const ScrollToOptions* scroll_to_options) {
+bool Element::ScrollLayoutBoxBy(const ScrollToOptions* scroll_to_options,
+                                ScriptPromiseResolver<IDLUndefined>* resolver) {
   gfx::Vector2dF displacement;
   if (scroll_to_options->hasLeft()) {
     displacement.set_x(
@@ -3045,15 +3044,15 @@ bool Element::ScrollLayoutBoxBy(const ScrollToOptions* scroll_to_options) {
       ScrollableArea::V8EnumToScrollBehavior(
           scroll_to_options->behavior().AsEnum());
   LayoutBox* box = GetLayoutBoxForScrolling();
-  if (!box) {
-    return false;
-  }
-  PaintLayerScrollableArea* scrollable_area = box->GetScrollableArea();
+  PaintLayerScrollableArea* scrollable_area =
+      box ? box->GetScrollableArea() : nullptr;
   if (!scrollable_area) {
+    if (resolver) {
+      resolver->Resolve();
+    }
     return false;
   }
 
-  DCHECK(box);
   gfx::PointF current_position(scrollable_area->ScrollPosition().x(),
                                scrollable_area->ScrollPosition().y());
   displacement.Scale(box->Style()->EffectiveZoom());
@@ -3066,9 +3065,10 @@ bool Element::ScrollLayoutBoxBy(const ScrollToOptions* scroll_to_options) {
   new_position =
       scrollable_area->GetSnapPositionAndSetTarget(*strategy).value_or(
           new_position);
-  return scrollable_area->ScrollToAbsolutePosition(
-      new_position, scroll_behavior, mojom::blink::ScrollType::kProgrammatic,
-      cc::ScrollSourceType::kRelativeScroll);
+
+  return scrollable_area->SetProgrammaticScrollOffset(
+      ScrollOffset(new_position - gfx::PointF(scrollable_area->ScrollOrigin())),
+      cc::ScrollSourceType::kRelativeScroll, scroll_behavior, resolver);
 }
 
 bool Element::ScrollLayoutBoxTo(const ScrollToOptions* scroll_to_options) {
@@ -3139,7 +3139,8 @@ bool Element::ScrollLayoutBoxTo(const ScrollToOptions* scroll_to_options) {
       cc::ScrollSourceType::kAbsoluteScroll, scroll_behavior);
 }
 
-bool Element::ScrollFrameBy(const ScrollToOptions* scroll_to_options) {
+bool Element::ScrollFrameBy(const ScrollToOptions* scroll_to_options,
+                            ScriptPromiseResolver<IDLUndefined>* resolver) {
   gfx::Vector2dF displacement;
   if (scroll_to_options->hasLeft()) {
     displacement.set_x(
@@ -3154,14 +3155,15 @@ bool Element::ScrollFrameBy(const ScrollToOptions* scroll_to_options) {
       ScrollableArea::V8EnumToScrollBehavior(
           scroll_to_options->behavior().AsEnum());
   LocalFrame* frame = GetDocument().GetFrame();
-  if (!frame || !frame->View() || !GetDocument().GetPage()) {
+  if (!frame || !frame->View() || !frame->View()->LayoutViewport() ||
+      !GetDocument().GetPage()) {
+    if (resolver) {
+      resolver->Resolve();
+    }
     return false;
   }
 
   ScrollableArea* viewport = frame->View()->LayoutViewport();
-  if (!viewport) {
-    return false;
-  }
 
   displacement.Scale(frame->LayoutZoomFactor());
   gfx::PointF new_position = viewport->ScrollPosition() + displacement;
@@ -3172,10 +3174,10 @@ bool Element::ScrollFrameBy(const ScrollToOptions* scroll_to_options) {
           RuntimeEnabledFeatures::FractionalScrollOffsetsEnabled());
   new_position =
       viewport->GetSnapPositionAndSetTarget(*strategy).value_or(new_position);
-  return viewport->SetScrollOffset(
+
+  return viewport->SetProgrammaticScrollOffset(
       viewport->ScrollPositionToOffset(new_position),
-      mojom::blink::ScrollType::kProgrammatic,
-      cc::ScrollSourceType::kRelativeScroll, scroll_behavior);
+      cc::ScrollSourceType::kRelativeScroll, scroll_behavior, resolver);
 }
 
 bool Element::ScrollFrameTo(const ScrollToOptions* scroll_to_options) {
@@ -3213,6 +3215,8 @@ bool Element::ScrollFrameTo(const ScrollToOptions* scroll_to_options) {
   new_position =
       viewport->GetSnapPositionAndSetTarget(*strategy).value_or(new_position);
   new_offset = viewport->ScrollPositionToOffset(new_position);
+  // TODO(mustaq@chromium.org): Switch the following method to
+  // `SetProgrammaticScrollOffset`.
   return viewport->SetScrollOffset(
       new_offset, mojom::blink::ScrollType::kProgrammatic,
       cc::ScrollSourceType::kAbsoluteScroll, scroll_behavior);
@@ -3800,29 +3804,10 @@ void Element::AttributeChanged(const AttributeModificationParams& params) {
           ->RemovePendingParsingElement(GetIdAttribute(), this);
     }
 
-    // If the id changes that may have been a target of overscroll command, we
-    // need to notify that an overscroll-target pseudo class may have changed.
-    const auto& overscroll_command_targets =
-        GetDocument().OverscrollCommandTargets();
-    auto invalidate_overscroll_target_state = [&](const AtomicString& idref) {
-      OverscrollTargetStateChanged();
-      // We also may have a new target with the same id. Note that this
-      // invalidates all elements with this id, which should be a small set
-      // typically.
-      for (auto& element : GetDocument().GetAllElementsById(idref)) {
-        element->OverscrollTargetStateChanged();
-      }
-    };
-
-    if (!params.old_value.empty() &&
-        overscroll_command_targets.Contains(params.old_value)) {
-      invalidate_overscroll_target_state(params.old_value);
+    if (isConnected() &&
+        (!params.old_value.empty() || !params.new_value.empty())) {
+      GetDocument().MarkOverscrollCommandTargetsDirty();
     }
-    if (!params.new_value.empty() &&
-        overscroll_command_targets.Contains(params.new_value)) {
-      invalidate_overscroll_target_state(params.new_value);
-    }
-
   } else if (name == html_names::kClassAttr) {
     if (params.old_value == params.new_value &&
         params.reason != AttributeModificationReason::kByMoveToNewDocument &&
@@ -4078,7 +4063,7 @@ void Element::UpdateClassList(const AtomicString& old_class_string,
 
 static inline bool IsEventHandlerAttribute(const Attribute& attribute) {
   return attribute.GetName().NamespaceURI().IsNull() &&
-         attribute.GetName().LocalName().StartsWith("on");
+         attribute.GetName().LocalName().starts_with("on");
 }
 
 bool Element::AttributeValueIsJavaScriptURL(const Attribute& attribute) {
@@ -4324,13 +4309,6 @@ Node::InsertionNotificationRequest Element::InsertedInto(
     SetContainsFullScreenElementOnAncestorsCrossingFrameBoundaries(true);
   }
 
-  if (!id_value.empty() &&
-      GetDocument().OverscrollCommandTargets().Contains(id_value)) {
-    for (auto& element : GetDocument().GetAllElementsById(id_value)) {
-      element->OverscrollTargetStateChanged();
-    }
-  }
-
   // Clean up the unnecessary explicitly set custom element registry
   // in element rare data set in RemovedFrom. Note that we only need
   // to do such bookkeeping when scoped custom element registry is actually
@@ -4348,6 +4326,10 @@ Node::InsertionNotificationRequest Element::InsertedInto(
         }
       }
     }
+  }
+
+  if (insertion_point.isConnected() && !GetIdAttribute().empty()) {
+    GetDocument().MarkOverscrollCommandTargetsDirty();
   }
 
   return kInsertionDone;
@@ -4529,13 +4511,6 @@ void Element::RemovedFrom(ContainerNode& insertion_point) {
     observer->Notify();
   }
 
-  if (!id_value.empty() &&
-      document.OverscrollCommandTargets().Contains(id_value)) {
-    for (auto& element : document.GetAllElementsById(id_value)) {
-      element->OverscrollTargetStateChanged();
-    }
-  }
-
   // Removing an element means that we should remove this overscroll area,
   // since we won't visit this node during style when we typically would do
   // this. There may be another element with the same ID that we discover
@@ -4551,6 +4526,10 @@ void Element::RemovedFrom(ContainerNode& insertion_point) {
   // Remove all of the overscroll areas from this tracker.
   if (auto* tracker = GetOverscrollAreaTracker()) {
     tracker->RemoveAllOverscroll();
+  }
+
+  if (was_in_document && !GetIdAttribute().empty()) {
+    document.MarkOverscrollCommandTargetsDirty();
   }
 }
 
@@ -7564,7 +7543,7 @@ bool Element::AttachDeclarativeShadowRoot(
     shadow_root.SetKeepCustomElementRegistryNull(true);
   }
   // 10.8.NEW. Process shadowrootadoptedstylesheets attribute.
-  if (RuntimeEnabledFeatures::DeclarativeCSSModulesEnabled()) {
+  if (RuntimeEnabledFeatures::ShadowRootAdoptedStyleSheetEnabled()) {
     shadow_root.ProcessAdoptedStylesheetAttribute(adopted_stylesheets);
   }
   return true;
@@ -8869,6 +8848,8 @@ void Element::SetIsAdRelated() {
   DCHECK(!IsA<HTMLFrameOwnerElement>(this));
 
   UnpackAndRefresh(EnsureRareData().EnsureDisplayAdElementMonitor(this));
+
+  probe::UpdateAdRelatedState(*this, /*is_ad_related=*/true);
 }
 
 bool Element::IsAdRelated() const {
@@ -9262,22 +9243,10 @@ void Element::SetInnerHTMLInternal(
         // No options; nothing to do.
       }
       ContainerNode* container = this;
-      bool swap_dom_parts{false};
       if (template_element) {
         container = template_element->content();
-        swap_dom_parts =
-            RuntimeEnabledFeatures::DOMPartsAPIEnabled() &&
-            template_element->hasAttribute(html_names::kParsepartsAttr);
       }
       ReplaceChildrenWithFragment(container, fragment, exception_state);
-      if (swap_dom_parts &&
-          !RuntimeEnabledFeatures::DOMPartsAPIMinimalEnabled()) {
-        // Move the parts list over to the template's content document's
-        // DocumentPartRoot.
-        To<DocumentFragment>(*container)
-            .getPartRoot()
-            .SwapPartsList(fragment->getPartRoot());
-      }
     }
   }
 }
@@ -10346,7 +10315,13 @@ PseudoElement* Element::UpdatePseudoElement(
       if (element->NeedsReattachLayoutTree() &&
           !PseudoElementLayoutObjectIsNeeded(
               pseudo_id, element->GetComputedStyle(), this)) {
-        generate_pseudo = false;
+        // RecalcStyle will have cancelled any CSS animations on the element
+        // if the underlying base style had display:none. An animation to
+        // display: none keeps the element and the animation alive.
+        if (!element->HasAnimations()) {
+          generate_pseudo = false;
+        }
+
         // If the content property is relying on attr() we should add the
         // originating element's ComputedStyle to the pseudo-element style
         // cache, so that when attribute value changes it will force style
@@ -10365,8 +10340,9 @@ PseudoElement* Element::UpdatePseudoElement(
       element = nullptr;
     }
 
-    // A pseudo-element without computed style should not exist.
-    DCHECK(!element || element->GetComputedStyle());
+    // A pseudo-element without computed style can only exist if being
+    // kept alive by an animation.
+    DCHECK(!element || element->GetComputedStyle() || element->HasAnimations());
   }
 
   return element;
@@ -10607,8 +10583,11 @@ bool Element::PseudoElementStylesAffectCounters() const {
   }
 
   for (PseudoElement* pseudo_element : rare_data->GetPseudoElements()) {
-    if (pseudo_element->GetComputedStyle()->GetCounterDirectives()) {
-      return true;
+    if (const ComputedStyle* pseudo_element_style =
+            pseudo_element->GetComputedStyle()) {
+      if (pseudo_element_style->GetCounterDirectives()) {
+        return true;
+      }
     }
   }
 
@@ -10663,8 +10642,11 @@ bool Element::PseudoElementStylesDependOnFunc(Functor& func) const {
   }
 
   for (PseudoElement* pseudo_element : rare_data->GetPseudoElements()) {
-    if (func(*pseudo_element->GetComputedStyle())) {
-      return true;
+    if (const ComputedStyle* pseudo_element_style =
+            pseudo_element->GetComputedStyle()) {
+      if (func(*pseudo_element_style)) {
+        return true;
+      }
     }
   }
 
@@ -12196,6 +12178,9 @@ DOMTokenList& Element::part() {
 }
 
 DOMTokenList* Element::GetMarker() const {
+  if (!RuntimeEnabledFeatures::DocumentPatchingEnabled()) {
+    return nullptr;
+  }
   if (const ElementRareDataVector* data = RareData()) {
     return data->GetMarker();
   }
@@ -13058,7 +13043,7 @@ void Element::SetAttributeHinted(AtomicString local_name,
   // This method is probably the most common case for `setAttribute`.
   // For performance reasons, we'll skip the TT check if we can determine it's
   // unnecessary based on a quick heuristic.
-  if (q_name.LocalName().StartsWith("on") ||
+  if (q_name.LocalName().starts_with("on") ||
       !GetCheckedAttributeTypes().empty()) [[unlikely]] {
     value = TrustedTypesCheckForAttribute(q_name, std::move(value),
                                           "setAttribute", exception_state);

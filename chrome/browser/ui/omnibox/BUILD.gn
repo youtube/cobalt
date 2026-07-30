@@ -71,6 +71,7 @@ source_set("impl") {
     "//build:branding_buildflags",
     "//chrome/app/vector_icons",
     "//chrome/browser:shell_integration",
+    "//chrome/browser/bookmarks",
     "//chrome/browser/feedback",
     "//chrome/browser/feedback:feedback_enum",
     "//chrome/common",
@@ -115,6 +116,7 @@ source_set("impl") {
       "//chrome/browser/favicon",
       "//chrome/browser/history",
       "//chrome/browser/omnibox",
+      "//chrome/browser/preloading",
       "//chrome/browser/preloading/search_preload",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/resources/omnibox_popup:resources_grit",
@@ -142,7 +144,8 @@ source_set("impl") {
       "//components/favicon/content",
       "//components/favicon/core",
       "//components/history/core/browser",
-      "//components/history_embeddings",
+      "//components/history_embeddings/content",
+      "//components/history_embeddings/core",
       "//components/infobars/content",
       "//components/infobars/core",
       "//components/navigation_metrics",
@@ -195,6 +198,14 @@ source_set("test_support") {
     "//components/omnibox/browser:test_support",
     "//testing/gmock",
   ]
+
+  if (!is_android) {
+    public += [ "test_omnibox_popup_file_selector.h" ]
+
+    sources += [ "test_omnibox_popup_file_selector.cc" ]
+
+    deps += [ "//chrome/browser/ui/views/location_bar" ]
+  }
 }
 
 if (!is_android) {
@@ -254,7 +265,6 @@ if (!is_android) {
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
     sources = [
       "alternate_nav_infobar_delegate_browsertest.cc",
-      "omnibox_context_menu_controller_browsertest.cc",
       "omnibox_search_aggregator_browsertest.cc",
     ]
     deps = [
@@ -266,6 +276,7 @@ if (!is_android) {
       "//chrome/browser/search_engines",
       "//chrome/browser/ui/contextual_search",
       "//chrome/browser/ui/location_bar",
+      "//chrome/browser/ui/omnibox:test_support",
       "//chrome/browser/ui/search",
       "//chrome/browser/ui/webui:webui_util",
       "//chrome/test:test_support",
@@ -292,6 +303,10 @@ if (!is_android) {
     # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
     # enable the diagnostic by removing this line.
     configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+
+    if (!is_android) {
+      sources += [ "omnibox_context_menu_controller_browsertest.cc" ]
+    }
   }
 
   if (!is_chromeos_device) {
@@ -306,6 +321,7 @@ if (!is_android) {
         "//base/test:test_support",
         "//chrome/browser/autocomplete",
         "//chrome/browser/autocomplete:aim_eligibility_service",
+        "//chrome/browser/bookmarks",
         "//chrome/browser/profiles:profile",
         "//chrome/browser/search_engines",
         "//chrome/browser/ui:ui_features",

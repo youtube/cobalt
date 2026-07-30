@@ -597,7 +597,7 @@ Para mais informações sobre a política de permissões, consulte https://devel
       No ChromeOS, essa configuração faz com que o frame rate e a frequência da CPU sejam limitados, as luzes de fundo fiquem esmaecidas e o Android seja colocado no modo de economia de bateria. Em dispositivos com várias CPUs, algumas delas serão desativadas.
       Os diferentes níveis são:
       <ph name="BATTERY_SAVER_MODE_DISABLED" /> (0): o modo de economia de bateria será desativado.
-      <ph name="BATTERY_SAVER_MODE_ENABLED_BELOW_THRESHOLD" /> (1): o modo economia de bateria será ativado quando o dispositivo estiver usando a energia da bateria e o nível dela estiver baixo.
+      <ph name="BATTERY_SAVER_MODE_ENABLED_BELOW_THRESHOLD" /> (1): o modo de economia de bateria será ativado quando o dispositivo estiver usando a energia da bateria e o nível dela estiver baixo.
       <ph name="BATTERY_SAVER_MODE_ENABLED_ON_BATTERY" /> (2): esse valor foi descontinuado na versão M121. Na versão M121 e mais recentes, os valores serão tratados como EnabledBelowThreshold.
       </translation>
 <translation id="1434300053894025056">Desativar verificação ortográfica</translation>
@@ -4498,7 +4498,7 @@ Observação: se a configuração resultar em métodos de autenticação aceitos
       Se a política for definida como falsa, o preenchimento automático nunca fará sugestões ou preencherá informações de cartão de crédito nem salvará outros dados desse tipo que os usuários enviarem ao navegar na Web.</translation>
 <translation id="3989635538409502728">Sair</translation>
 <translation id="3989829840000169163">Bloquear pontos de extensão legados do navegador</translation>
-<translation id="3990391739475801018">O modo Economia de bateria vai ser desativado.</translation>
+<translation id="3990391739475801018">O modo de economia de bateria vai ser desativado.</translation>
 <translation id="3990834929384096140">Não aplicar o cancelamento de eco do áudio do sistema</translation>
 <translation id="3994043824457743421">Mostrar o aviso abaixo da caixa de pesquisa na página "Nova guia"</translation>
 <translation id="399433537808390819">Não disponibilizar o Modo área de trabalho unificada para o usuário</translation>
@@ -4708,6 +4708,13 @@ Se esta política for definida como "Falsa", o <ph name="PRODUCT_NAME" /> não u
 <translation id="4150201353443180367">Exibição</translation>
 <translation id="4154221011709068799">Não permitir dispositivos de armazenamento externo</translation>
 <translation id="415445772247959702">Web Store (compatível desde a versão 89)</translation>
+<translation id="415631927748520887">Se a política for definida como verdadeira, os apps do Chrome vão continuar em execução em uma sessão de quiosque, não importando a ativação padrão deles.
+
+Se ela for deixada sem definição ou for definida como falsa, será usado o comportamento padrão especificado no dispositivo.
+
+Se o usuário tentar abrir um app do Chrome desativado, vai receber uma mensagem explicando por que isso não foi possível e sugerindo que ele entre em contato com o departamento de TI.
+
+O valor desta política será mantido até a descontinuação dos apps do Chrome em sessões de quiosque, o que deve acontecer na versão M151.</translation>
 <translation id="4157003184375321727">Informar a versão do sistema operacional e do firmware</translation>
 <translation id="4157594634940419685">Permitir acesso a impressoras CUPS nativas</translation>
 <translation id="4158531549614162499">Ativar a sincronização do Google Drive em conexões celulares</translation>
@@ -4764,19 +4771,6 @@ Se não for definida, o comportamento será determinado pela política <ph name=
           Se você definir esta política, os usuários não poderão alterá-la nem substituí-la.
 
           Se esta política não for definida, o destaque de circunflexos ficará desativado na tela de login, mas poderá ser ativado pelo usuário a qualquer momento.</translation>
-<translation id="4182348537826882258">Se a política <ph name="URL_BLOCKLIST_POLICY_NAME" /> for definida, as páginas da Web que têm URLs proibidos não vão ser carregadas. Os administradores podem especificar a lista de padrões de URL a serem bloqueados. Se a política for deixada sem definição, nenhum URL será bloqueado no navegador. Até 1.000 exceções podem ser definidas na <ph name="URL_ALLOWLIST_POLICY_NAME" />. Confira como formatar um padrão de URL (https://support.google.com/chrome/a?p=url_blocklist_filter_format).
-
-Observação: esta política não se aplica a URLs JavaScript na página com dados carregados dinamicamente. Se você bloqueou example.com/abc, ainda é possível carregar example.com usando XMLHTTPRequest. Além disso, essa política não impede que as páginas da Web atualizem o URL mostrado na omnibox para um bloqueado usando a API JavaScript History.
-
-Na versão 73 e mais recentes do <ph name="PRODUCT_NAME" />, é possível bloquear URLs "javascript://*". No entanto, isso só afeta JavaScript inserido na barra de endereço ou, por exemplo, os favoritos.
-
-Da versão 92 em diante do <ph name="PRODUCT_NAME" />, esta política também vai ter suporte no modo headless.
-
-Observação: o bloqueio de URLs internos chrome://* e chrome-untrusted://* pode gerar erros inesperados ou ser ignorado em alguns casos. Em vez de bloquear determinados URLs internos, confira se há políticas mais específicas disponíveis. Por exemplo:
-
-- Em vez de bloquear chrome://settings/certificates, use a <ph name="CA_CERTIFICATE_MANAGEMENT_ALLOWED_POLICY_NAME" />.
-
-- Em vez de bloquear chrome-untrusted://crosh, use a <ph name="SYSTEM_FEATURES_DISABLE_LIST_POLICY_NAME" />.</translation>
 <translation id="4183229833636799228">Configuração padrão de <ph name="FLASH_PLUGIN_NAME" /></translation>
 <translation id="4185868802416355029">Permitir que extensões gerenciadas usem a API Enterprise Hardware Platform</translation>
 <translation id="4186244263855283575">Permite configurar uma programação personalizada para reiniciar dispositivos. Se ela for definida como verdadeira, o dispositivo será reiniciado de acordo com a programação. A política precisa ser removida para cancelar outras reinicializações programadas.
@@ -10220,7 +10214,7 @@ Se ela for definida como falsa, o comportamento antigo será ativado.</translati
 
       Se você definir a política, os usuários não poderão mudá-la. Se ela não for definida, a previsão de rede será ativada, mas os usuários poderão mudar a configuração.</translation>
 <translation id="7408815947231046196">Permitir o backup de dados do <ph name="PRODUCT_NAME" /></translation>
-<translation id="740885188496462583">Ativar o modo Economia de bateria</translation>
+<translation id="740885188496462583">Ativar o modo de economia de bateria</translation>
 <translation id="7410074797376205571">Permitir que a <ph name="CHROME_REMOTE_DESKTOP_PRODUCT_NAME" /> execute solicitações de API do WebAuthn transmitidas por proxy de um host remoto.</translation>
 <translation id="7412456346709338637">Ativar acesso a dados de periféricos Thunderbolt/USB4</translation>
 <translation id="7414890119082492552">Não tenho preferência.</translation>
@@ -11536,7 +11530,7 @@ Várias políticas listam origens que afetam as solicitações para o dispositiv
 <translation id="8284621384813278750">Definir se a configuração do <ph name="PRIVACY_SANDBOX_NAME" /> para temas de anúncios pode ser desativada</translation>
 <translation id="8285435910062771358">Lupa de tela inteira ativada</translation>
 <translation id="8288199156259560552">Ativar o Serviço de Localização do Google para Android</translation>
-<translation id="8289824033213234651">O modo Economia de bateria vai ser ativado quando o dispositivo estiver usando a energia da bateria e o nível dela estiver baixo.</translation>
+<translation id="8289824033213234651">O modo de economia de bateria vai ser ativado quando o dispositivo estiver usando a energia da bateria e o nível dela estiver baixo.</translation>
 <translation id="8290875622178450531">Ativar o recurso de acessibilidade de ditado.
 
           Se esta política for definida como ativada, o ditado ficará sempre ativado.
@@ -12730,6 +12724,21 @@ Se a política é deixada sem definição, o <ph name="PRODUCT_NAME" /> pode col
 <translation id="9051019223077908578">Configurar a lista de apps e extensões instalados na tela de login</translation>
 <translation id="9053841574218808519">Sempre executar plug-ins que não estão desatualizados</translation>
 <translation id="9055866143096316150">Rebaixar solicitações de wake lock da tela para solicitações de wake lock do sistema</translation>
+<translation id="9056262797461453462">Se a política <ph name="URL_BLOCKLIST_POLICY_NAME" /> for definida, as páginas da web com URLs proibidos não serão carregadas. Os admins podem especificar a lista de padrões do URL a serem bloqueados. Se a política não for definida, nenhum URL será bloqueado no navegador. Até 1.000 exceções podem ser definidas na política <ph name="URL_ALLOWLIST_POLICY_NAME" />. Confira como formatar um padrão do URL (https://support.google.com/chrome/a?p=url_blocklist_filter_format).
+
+Observação: esta política não se aplica a URLs JavaScript na página com dados carregados de modo dinâmico. Se você bloqueou exemplo.com/abc, ainda é possível carregar exemplo.com usando XMLHTTPRequest. Além disso, esta política não impede que as páginas da web atualizem o URL mostrado na omnibox para um bloqueado usando a API History do JavaScript.
+
+A partir do <ph name="PRODUCT_NAME" /> versão 73, é possível bloquear URLs javascript://*. No entanto, isso só afeta o JavaScript inserido na barra de endereço ou, por exemplo, os bookmarklets.
+
+A partir do <ph name="PRODUCT_NAME" /> versão 92, esta política também se torna compatível com o modo headless.
+
+Observação: o bloqueio de URLs internos chrome://* e chrome-untrusted://* pode gerar erros inesperados ou ser ignorado em alguns casos. Em vez de bloquear determinados URLs internos, confira se há políticas mais específicas disponíveis. Por exemplo:
+
+— Em vez de bloquear chrome://settings/certificates, use a política <ph name="CA_CERTIFICATE_MANAGEMENT_ALLOWED_POLICY_NAME" />.
+
+— Em vez de bloquear chrome-untrusted://crosh, use a política <ph name="SYSTEM_FEATURES_DISABLE_LIST_POLICY_NAME" />.
+
+— Em vez de bloquear devtools://*, use uma das políticas <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />, <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> ou <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />.</translation>
 <translation id="9057159618445405645">Usar o comportamento padrão do navegador Chrome</translation>
 <translation id="9061455386353325110">Especifica se os usuários podem permitir que o <ph name="PRODUCT_NAME" /> use a IA generativa para entender melhor os formulários e ajudar a preencher mais campos.
 
@@ -12842,11 +12851,6 @@ Esta política só tem efeito quando a <ph name="FULL_RESTORE_ENABLED_NAME" /> e
 <translation id="9135095804754272364">Mostrar uma notificação quando um dispositivo USB for detectado</translation>
 <translation id="9136212796239682721">Desativar a interface de download em balão</translation>
 <translation id="9136399279941091445">Intervalos de horas de inatividade quando as políticas do dispositivo específicas são lançadas</translation>
-<translation id="9138686056337842869">Se a política for definida como verdadeira, os apps do Chrome vão continuar em execução em uma sessão de quiosque, não importando a ativação padrão deles.
-
-Se ela for deixada sem definição ou for definida como falsa, será usado o comportamento padrão especificado no dispositivo.
-
-Se o usuário tentar abrir um app do Chrome desativado, vai receber uma mensagem explicando por que isso não foi possível e sugerindo que ele entre em contato com o departamento de TI.</translation>
 <translation id="9139775903828905867">Controlar o atalho usado para acionar F11</translation>
 <translation id="9140064482233876338">Descontinuada no M69. Use a OverrideSecurityRestrictionsOnInsecureOrigin.
 

@@ -5,6 +5,7 @@
 #include "chrome/browser/glic/media/media_transcript_provider_impl.h"
 
 #include "chrome/browser/glic/media/glic_media_context.h"
+#include "components/optimization_guide/content/browser/page_content_metadata_observer.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "content/public/browser/render_frame_host.h"
 
@@ -41,6 +42,16 @@ MediaTranscriptProviderImpl::GetTranscriptsForFrame(
     }
   }
   return transcripts;
+}
+
+void MediaTranscriptProviderImpl::OnTranscriptionBeginForFrame(
+    content::RenderFrameHost* rfh) {
+  CHECK(rfh);
+  if (auto* observer =
+          optimization_guide::MediaTranscriptObserver::GetForCurrentDocument(
+              rfh)) {
+    observer->OnTranscriptionBegin(rfh);
+  }
 }
 
 }  // namespace glic

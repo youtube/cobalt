@@ -20,12 +20,14 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
 #include "net/base/net_errors.h"
+#include "third_party/blink/public/mojom/window_features/window_features.mojom.h"
 #include "url/gurl.h"
 #include "url/url_constants.h"
 
 namespace {
 
 const char kStoragePartitionId[] = "partition";
+const char kPersistPrefix[] = "persist:";
 
 void ParsePartitionParam(const base::DictValue& create_params,
                          std::string* storage_partition_id,
@@ -40,8 +42,8 @@ void ParsePartitionParam(const base::DictValue& create_params,
   // UTF-8 encoded |partition_id|. If the prefix is a match, we can safely
   // remove the prefix without splicing in the middle of a multi-byte codepoint.
   // We can use the rest of the string as UTF-8 encoded one.
-  if (base::StartsWith(*partition_str,
-                       "persist:", base::CompareCase::SENSITIVE)) {
+  if (base::StartsWith(*partition_str, kPersistPrefix,
+                       base::CompareCase::SENSITIVE)) {
     size_t index = partition_str->find(":");
     CHECK(index != std::string::npos);
     // It is safe to do index + 1, since we tested for the full prefix above.
@@ -55,6 +57,63 @@ void ParsePartitionParam(const base::DictValue& create_params,
     *storage_partition_id = *partition_str;
     *persist_storage = false;
   }
+}
+
+std::string WindowOpenDispositionToString(
+    WindowOpenDisposition window_open_disposition) {
+  switch (window_open_disposition) {
+    case WindowOpenDisposition::IGNORE_ACTION:
+      return "ignore";
+    case WindowOpenDisposition::SAVE_TO_DISK:
+      return "save_to_disk";
+    case WindowOpenDisposition::CURRENT_TAB:
+      return "current_tab";
+    case WindowOpenDisposition::NEW_BACKGROUND_TAB:
+      return "new_background_tab";
+    case WindowOpenDisposition::NEW_FOREGROUND_TAB:
+      return "new_foreground_tab";
+    case WindowOpenDisposition::NEW_WINDOW:
+      return "new_window";
+    case WindowOpenDisposition::NEW_POPUP:
+      return "new_popup";
+    default:
+      NOTREACHED() << "Unknown Window Open Disposition";
+  }
+}
+
+std::string TerminationStatusToString(base::TerminationStatus status) {
+  switch (status) {
+    case base::TERMINATION_STATUS_NORMAL_TERMINATION:
+      return "normal";
+    case base::TERMINATION_STATUS_ABNORMAL_TERMINATION:
+    case base::TERMINATION_STATUS_STILL_RUNNING:
+      return "abnormal";
+#if BUILDFLAG(IS_CHROMEOS)
+    case base::TERMINATION_STATUS_PROCESS_WAS_KILLED_BY_OOM:
+      return "oom killed";
+#endif
+#if BUILDFLAG(IS_ANDROID)
+    case base::TERMINATION_STATUS_OOM_PROTECTED:
+      return "oom";
+#endif
+    case base::TERMINATION_STATUS_OOM:
+      return "oom";
+    case base::TERMINATION_STATUS_PROCESS_WAS_KILLED:
+      return "killed";
+    case base::TERMINATION_STATUS_PROCESS_CRASHED:
+      return "crashed";
+    case base::TERMINATION_STATUS_LAUNCH_FAILED:
+      return "failed to launch";
+#if BUILDFLAG(IS_WIN)
+    case base::TERMINATION_STATUS_INTEGRITY_FAILURE:
+      return "integrity failure";
+#endif
+    case base::TERMINATION_STATUS_EVICTED_FOR_MEMORY:
+      return "evicted for memory";
+    case base::TERMINATION_STATUS_MAX_ENUM:
+      break;
+  }
+  NOTREACHED() << "Unknown Termination Status.";
 }
 
 }  // namespace
@@ -87,6 +146,76 @@ bool SlimWebViewGuest::GuestHandleContextMenu(
     const content::ContextMenuParams& params) {
   CHECK(base::FeatureList::IsEnabled(features::kGuestViewMPArch));
   return false;
+}
+
+bool SlimWebViewGuest::IsWebContentsCreationOverridden(
+    content::RenderFrameHost* opener,
+    content::SiteInstance* source_site_instance,
+    content::mojom::WindowContainerType window_container_type,
+    const GURL& opener_url,
+    const std::string& frame_name,
+    const GURL& target_url) {
+  CHECK(!base::FeatureList::IsEnabled(features::kGuestViewMPArch));
+  return true;
+}
+
+// Transfers the responsibility of handling window creation to the client
+// through the `newwindow` event.
+content::WebContents* SlimWebViewGuest::CreateCustomWebContents(
+    content::RenderFrameHost* opener,
+    content::SiteInstance* source_site_instance,
+    bool is_new_browsing_instance,
+    const GURL& opener_url,
+    const std::string& frame_name,
+    const GURL& target_url,
+    WindowOpenDisposition disposition,
+    const blink::mojom::WindowFeatures& window_features,
+    const content::StoragePartitionConfig& partition_config,
+    content::SessionStorageNamespace* session_storage_namespace) {
+  CHECK(!base::FeatureList::IsEnabled(features::kGuestViewMPArch));
+
+  base::DictValue request_info;
+  request_info.Set(slim_web_view::kInitialHeight,
+                   window_features.bounds.height());
+  request_info.Set(slim_web_view::kInitialWidth,
+                   window_features.bounds.width());
+  request_info.Set(slim_web_view::kTargetURL, target_url.spec());
+  request_info.Set(slim_web_view::kWindowOpenDisposition,
+                   WindowOpenDispositionToString(disposition));
+  base::DictValue args;
+  args.Set(slim_web_view::kRequestInfo, std::move(request_info));
+  DispatchEventToView(std::make_unique<GuestViewEvent>(
+      slim_web_view::kEventNewWindow, std::move(args)));
+
+  return nullptr;
+}
+
+void SlimWebViewGuest::RendererUnresponsive(
+    content::WebContents* source,
+    content::RenderWidgetHost* render_widget_host,
+    base::RepeatingClosure hang_monitor_restarter) {
+  CHECK(!base::FeatureList::IsEnabled(features::kGuestViewMPArch));
+
+  DispatchEventToView(std::make_unique<GuestViewEvent>(
+      slim_web_view::kEventUnresponsive, base::DictValue()));
+}
+
+void SlimWebViewGuest::DidStartNavigation(
+    content::NavigationHandle* navigation_handle) {
+  if (!IsObservedNavigationWithinGuest(navigation_handle)) {
+    return;
+  }
+  // New window creation is not supported in SlimWebView.
+  CHECK(!GetOpener());
+  if (navigation_handle->IsSameDocument()) {
+    return;
+  }
+  base::DictValue args;
+  args.Set(guest_view::kUrl, navigation_handle->GetURL().spec());
+  args.Set(guest_view::kIsTopLevel,
+           IsObservedNavigationWithinGuestMainFrame(navigation_handle));
+  DispatchEventToView(std::make_unique<GuestViewEvent>(
+      slim_web_view::kEventLoadStart, std::move(args)));
 }
 
 void SlimWebViewGuest::DidFinishNavigation(
@@ -138,6 +267,32 @@ void SlimWebViewGuest::GuestViewDocumentOnLoadCompleted() {
       slim_web_view::kEventContentLoad, base::DictValue()));
 }
 
+bool SlimWebViewGuest::IsAutoSizeSupported() const {
+  return true;
+}
+
+void SlimWebViewGuest::GuestSizeChangedDueToAutoSize(
+    const gfx::Size& old_size,
+    const gfx::Size& new_size) {
+  base::DictValue args;
+  args.Set(slim_web_view::kOldHeight, old_size.height());
+  args.Set(slim_web_view::kOldWidth, old_size.width());
+  args.Set(slim_web_view::kNewHeight, new_size.height());
+  args.Set(slim_web_view::kNewWidth, new_size.width());
+  DispatchEventToView(std::make_unique<GuestViewEvent>(
+      slim_web_view::kEventSizeChanged, std::move(args)));
+}
+
+void SlimWebViewGuest::GuestViewMainFrameProcessGone(
+    base::TerminationStatus status) {
+  base::DictValue args;
+  args.Set(slim_web_view::kReason, TerminationStatusToString(status));
+  args.Set(slim_web_view::kProcessId,
+           GetGuestMainFrame()->GetProcess()->GetID().value());
+  DispatchEventToView(std::make_unique<GuestViewEvent>(
+      slim_web_view::kEventExit, std::move(args)));
+}
+
 void SlimWebViewGuest::MaybeRecreateGuestContents(
     content::RenderFrameHost* outer_contents_frame) {
   NOTREACHED() << "new window creation is not supported in SlimWebView";
@@ -178,6 +333,11 @@ void SlimWebViewGuest::CreateInnerPage(
   std::unique_ptr<content::WebContents> new_contents =
       content::WebContents::Create(stored_params);
   std::move(callback).Run(std::move(owned_this), std::move(new_contents));
+}
+
+void SlimWebViewGuest::GuestViewDidStopLoading() {
+  DispatchEventToView(std::make_unique<GuestViewEvent>(
+      slim_web_view::kEventLoadStop, base::DictValue()));
 }
 
 void SlimWebViewGuest::LoadAbort(bool is_top_level,

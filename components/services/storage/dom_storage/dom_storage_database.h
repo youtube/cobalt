@@ -22,7 +22,7 @@
 #include "base/threading/sequence_bound.h"
 #include "base/time/time.h"
 #include "base/types/pass_key.h"
-#include "storage/common/database/db_status.h"
+#include "components/services/storage/dom_storage/db_status.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 
 namespace base {
@@ -345,6 +345,7 @@ class DomStorageDatabaseFactory {
  private:
   friend class LocalStorageLevelDBTest;
   friend class LocalStorageSqliteTest;
+  friend class DomStorageDatabaseTest;
   friend class SessionStorageLevelDBTest;
   friend class SessionStorageSqliteTest;
 
@@ -370,6 +371,12 @@ class DomStorageDatabaseFactory {
 // Both LevelDB and SQLite implementations use this helper function.
 DbStatus PurgeOrigins(DomStorageDatabase& database,
                       std::set<url::Origin> origins);
+
+// Migrates all metadata and map entries from `source` to `destination`.
+// Intended for migrating from LevelDB to SQLite. The `destination` must be
+// empty.
+DbStatus MigrateDatabase(DomStorageDatabase& source,
+                         DomStorageDatabase& destination);
 
 }  // namespace storage
 

@@ -14,6 +14,9 @@ shared_library_with_jni("libchrome_junit_tests") {
   enable_target = is_robolectric
   java_targets = [
     "//chrome/android:chrome_junit_tests",
+    "//chrome/android/features/keyboard_accessory:keyboard_accessory_junit_tests",
+    "//chrome/browser/android/browserservices/verification:verification_junit_tests",
+    "//chrome/browser/password_manager/android:password_manager_junit_tests",
     "//chrome/browser/touch_to_fill/password_manager/android:touch_to_fill_junit_tests",
   ]
 
@@ -27,6 +30,7 @@ shared_library_with_jni("libchrome_junit_tests") {
   }
 
   deps = [
+    "//components/embedder_support/android:util($robolectric_toolchain)",
     "//components/url_formatter($robolectric_toolchain)",
     "//url:robolectric_jni_onload($robolectric_toolchain)",
   ]
@@ -113,6 +117,7 @@ if (is_android) {
       "//chrome/browser/device:java",
       "//chrome/browser/device_reauth/android:java",
       "//chrome/browser/download/android:java",
+      "//chrome/browser/educational_tip:java",
       "//chrome/browser/enterprise/util:java",
       "//chrome/browser/feature_engagement:java",
       "//chrome/browser/feed/android:java",
@@ -275,7 +280,6 @@ if (is_android) {
       "//components/download/public/task:public_java",
       "//components/embedder_support/android:content_view_java",
       "//components/embedder_support/android:context_menu_java",
-      "//components/embedder_support/android:junit_test_support",
       "//components/embedder_support/android:util_java",
       "//components/enterprise/device_attestation/android:device_attestation_java",
       "//components/external_intents/android:java",
@@ -333,6 +337,7 @@ if (is_android) {
       "//components/sync/protocol:protocol_java",
       "//components/sync_device_info:sync_device_info_java",
       "//components/tab_groups:tab_groups_java",
+      "//components/tabs/public/android:java",
       "//components/ukm/android:java",
       "//components/url_formatter/android:url_formatter_java",
       "//components/user_prefs/android:java",
@@ -344,7 +349,6 @@ if (is_android) {
       "//content/public/android:content_full_java",
       "//content/public/android:content_java",
       "//content/public/android:content_main_dex_jni_java",
-      "//content/public/android:public_common_jni_java",
       "//content/public/common:common_java",
       "//content/public/test/android:content_java_test_support",
       "//google_apis/gaia/android:java",
@@ -445,7 +449,9 @@ if (is_android) {
       "src/org/chromium/chrome/browser/app/tab_activity_glue/ReparentingTaskUnitTest.java",
       "src/org/chromium/chrome/browser/app/tab_activity_glue/TabReparentingControllerTest.java",
       "src/org/chromium/chrome/browser/app/tabmodel/PersistentStoreMigrationManagerImplUnitTest.java",
+      "src/org/chromium/chrome/browser/app/tabmodel/TabCountTrackerUnitTest.java",
       "src/org/chromium/chrome/browser/app/tabmodel/TabModelOrchestratorUnitTest.java",
+      "src/org/chromium/chrome/browser/app/tabmodel/TabStateStoreUnitTest.java",
       "src/org/chromium/chrome/browser/app/tabmodel/TabbedModeTabModelOrchestratorUnitTest.java",
     ]
 
@@ -514,8 +520,8 @@ if (is_android) {
   robolectric_library(
       "chrome_junit_tests_org.chromium.chrome.browser.chrome_item_picker") {
     sources = [
-      "src/org/chromium/chrome/browser/chrome_item_picker/TabItemPickerCoordinatorNavigationUnitTest.java",
-      "src/org/chromium/chrome/browser/chrome_item_picker/TabItemPickerCoordinatorUnitTest.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/chrome_item_picker/TabItemPickerCoordinatorNavigationUnitTest.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/chrome_item_picker/TabItemPickerCoordinatorUnitTest.java",
     ]
 
     deps = [
@@ -875,6 +881,7 @@ if (is_android) {
       "src/org/chromium/chrome/browser/ntp/IncognitoNewTabPageUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/IncognitoNtpMetricsUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/IncognitoNtpOmniboxAutofocusManagerUnitTest.java",
+      "src/org/chromium/chrome/browser/ntp/IncognitoNtpOmniboxAutofocusTrackerUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/NewTabPageLocationPolicyManagerUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/NewTabPageUtilUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/RecentTabsPageUnitTest.java",
@@ -923,13 +930,6 @@ if (is_android) {
       "src/org/chromium/chrome/browser/omaha/VersionNumberTest.java",
       "src/org/chromium/chrome/browser/omaha/metrics/UpdateSuccessMetricsTest.java",
     ]
-
-    deps = [ ":chrome_junit_tests_helper" ]
-  }
-
-  robolectric_library(
-      "chrome_junit_tests_org.chromium.chrome.browser.omnibox") {
-    sources = [ "//chrome/android/java/src/org/chromium/chrome/browser/omnibox/OmniboxActionDelegateImplUnitTest.java" ]
 
     deps = [ ":chrome_junit_tests_helper" ]
   }

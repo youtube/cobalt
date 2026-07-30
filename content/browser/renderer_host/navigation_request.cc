@@ -646,9 +646,10 @@ void RecordReadyToCommitMetrics(
 
   // Guest (<webview> tag) metrics.
   {
-    base::UmaHistogramBoolean("Navigation.IsGuest",
-                              new_rfh->GetSiteInstance()->IsGuest());
-    if (new_rfh->GetSiteInstance()->IsGuest()) {
+    base::UmaHistogramBoolean(
+        "Navigation.IsGuest",
+        new_rfh->GetSiteInstance()->GetSecurityPrincipal().IsGuest());
+    if (new_rfh->GetSiteInstance()->GetSecurityPrincipal().IsGuest()) {
       base::UmaHistogramBoolean("Navigation.Guest.IsHTTPOrHTTPS",
                                 common_params.url.SchemeIsHTTPOrHTTPS());
       base::UmaHistogramBoolean("Navigation.Guest.IsMainFrame", is_main_frame);
@@ -2169,7 +2170,7 @@ NavigationRequest::NavigationRequest(
             frame_tree_node_->navigator()
                 .controller()
                 .GetBrowserContext()
-                ->GetStoragePartition(site_info_.storage_partition_config())
+                ->GetStoragePartition(site_info_.GetStoragePartitionConfig())
                 ->GetServiceWorkerContext()) {
       const blink::StorageKey key = blink::StorageKey::CreateFirstParty(
           GetTentativeOriginAtRequestTime());
@@ -4331,15 +4332,16 @@ UrlInfo NavigationRequest::GetUrlInfo() {
       frame_tree_node_->current_frame_host()->GetSiteInstance();
   if (current_instance->IsFixedStoragePartition()) {
     url_info_init.WithStoragePartitionConfig(
-        current_instance->GetStoragePartitionConfig());
+        current_instance->GetSecurityPrincipal().GetStoragePartitionConfig());
   }
 
   // Child frames (including fenced frames) should always use the
   // same StoragePartition as their parent.
   RenderFrameHostImpl* parent = GetParentFrameOrOuterDocument();
   if (parent) {
-    url_info_init.WithStoragePartitionConfig(
-        parent->GetSiteInstance()->GetStoragePartitionConfig());
+    url_info_init.WithStoragePartitionConfig(parent->GetSiteInstance()
+                                                 ->GetSecurityPrincipal()
+                                                 .GetStoragePartitionConfig());
   }
 
   if (IsLoadDataWithBaseURL()) {
@@ -9025,8 +9027,9 @@ url::Origin NavigationRequest::GetOriginForURLLoaderFactoryBeforeResponse(
 // `ancestor`: the initiator is the ancestor of the navigating frame.
 // `descendant`: the initiator is the descendant of the navigating frame.
 // `other`: any other scenarios.
-std::string DetermineInitiatorRelationship(RenderFrameHost* initiator_frame,
-                                           RenderFrameHost* current_frame) {
+std::string_view DetermineInitiatorRelationship(
+    RenderFrameHost* initiator_frame,
+    RenderFrameHost* current_frame) {
   if (!current_frame || !initiator_frame) {
     return "other";
   }
@@ -11481,7 +11484,7 @@ StoragePartition* NavigationRequest::GetStoragePartitionWithCurrentSiteInfo() {
   return frame_tree_node_->navigator()
       .controller()
       .GetBrowserContext()
-      ->GetStoragePartition(site_info_.storage_partition_config());
+      ->GetStoragePartition(site_info_.GetStoragePartitionConfig());
 }
 
 void NavigationRequest::CreateWebUIIfNeeded(RenderFrameHostImpl* frame_host) {

@@ -21,7 +21,6 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/common/webui_url_constants.h"
@@ -140,7 +139,11 @@ class TestWebUIController : public content::WebUIController {
     ref_contents->as_string() = contents;
     std::move(callback).Run(ref_contents);
   }
+
+  WEB_UI_CONTROLLER_TYPE_DECL();
 };
+
+WEB_UI_CONTROLLER_TYPE_IMPL(TestWebUIController)
 
 class TestWebUIConfig
     : public content::DefaultWebUIConfig<TestWebUIController> {

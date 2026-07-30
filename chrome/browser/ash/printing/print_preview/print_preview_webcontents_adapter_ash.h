@@ -7,23 +7,19 @@
 
 #include <memory>
 
-#include "ash/public/cpp/print_preview_delegate.h"
 #include "base/memory/weak_ptr.h"
 #include "base/unguessable_token.h"
 #include "chrome/browser/ash/printing/print_preview/print_preview_dialog_controller_cros.h"
-#include "chromeos/crosapi/mojom/print_preview_cros.mojom.h"
+#include "chrome/browser/chromeos/printing/print_preview/print_preview_cros_client.h"
+#include "chrome/browser/chromeos/printing/print_preview/print_preview_cros_delegate.h"
 #include "components/printing/common/print.mojom-forward.h"
-#include "mojo/public/cpp/bindings/remote.h"
 
 namespace ash::printing {
 
-// Implements the PrintPreviewDelegate to handle calls from the browser.
-// This class is also the adapter to facilitate calls from ash to chrome
-// browser (via PrintPreviewCrosClient). It uses crosapi to handle cross process
-// communication.
+// This class is the adapter to facilitate calls from browser to chromeos
+// print system.
 class PrintPreviewWebcontentsAdapterAsh
-    : public PrintPreviewDelegate,
-      public crosapi::mojom::PrintPreviewCrosDelegate,
+    : public chromeos::PrintPreviewCrosDelegate,
       public PrintPreviewDialogControllerCros::DialogControllerObserver {
  public:
   PrintPreviewWebcontentsAdapterAsh();
@@ -33,7 +29,7 @@ class PrintPreviewWebcontentsAdapterAsh
       const PrintPreviewWebcontentsAdapterAsh&) = delete;
   ~PrintPreviewWebcontentsAdapterAsh() override;
 
-  // crosapi::mojom::PrintPreviewCrosDelegate
+  // chromeos::PrintPreviewCrosDelegate
   void RequestPrintPreview(
       const base::UnguessableToken& token,
       ::printing::mojom::RequestPrintPreviewParamsPtr params,
@@ -42,24 +38,17 @@ class PrintPreviewWebcontentsAdapterAsh
   void PrintPreviewDone(const base::UnguessableToken& token,
                         PrintPreviewDoneCallback callback) override;
 
-  // PrintPreviewDelegate::
-  void StartGetPreview(const base::UnguessableToken& token,
-                       crosapi::mojom::PrintSettingsPtr settings,
-                       base::OnceCallback<void(bool)> callback) override;
-
   // PrintPreviewDialogControllerCros::DialogControllerObserver:
   void OnDialogClosed(const base::UnguessableToken& token) override;
 
   void OnDialogClosedCallback(bool success);
 
-  // Ash-chrome clients do not require a mojom endpoint, instead can directly
-  // access the client.
-  void RegisterAshClient(crosapi::mojom::PrintPreviewCrosClient* client);
+  // Register client to receive print preview events.
+  void RegisterAshClient(chromeos::PrintPreviewCrosClient* client);
 
  private:
   std::unique_ptr<PrintPreviewDialogControllerCros> dialog_controller_;
-  mojo::Remote<crosapi::mojom::PrintPreviewCrosClient> mojo_client_;
-  raw_ptr<crosapi::mojom::PrintPreviewCrosClient> ash_client_{nullptr};
+  raw_ptr<chromeos::PrintPreviewCrosClient> ash_client_{nullptr};
   base::WeakPtrFactory<PrintPreviewWebcontentsAdapterAsh> weak_ptr_factory_{
       this};
 };

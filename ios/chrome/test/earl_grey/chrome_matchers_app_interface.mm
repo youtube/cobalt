@@ -29,13 +29,13 @@
 #import "ios/chrome/browser/omnibox/ui/omnibox_text_view_ios.h"
 #import "ios/chrome/browser/popup_menu/public/popup_menu_constants.h"
 #import "ios/chrome/browser/recent_tabs/public/recent_tabs_constants.h"
+#import "ios/chrome/browser/settings/google_services/manage_accounts/public/manage_accounts_table_view_controller_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_add_credit_card_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_credit_card_table_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_profile_table_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_settings_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/clear_browsing_data/public/quick_delete_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/google_services_settings_constants.h"
-#import "ios/chrome/browser/settings/ui_bundled/google_services/manage_accounts/manage_accounts_table_view_controller_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/notifications/notifications_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/notifications/tracking_price/tracking_price_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_settings/password_settings_constants.h"
@@ -618,7 +618,7 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
                 ?: base::apple::ObjCCast<OmniboxTextViewIOS>(element);
 
         NSArray* textComponents =
-            [omnibox.accessibilityValue componentsSeparatedByString:@"||||"];
+            [omnibox.textValueForTesting componentsSeparatedByString:@"||||"];
 
         return textComponents.count >= 2 &&
                [textComponents[1] isEqualToString:text];
@@ -898,8 +898,14 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
       [ChromeMatchersAppInterface staticTextWithAccessibilityLabel:string]);
   id<GREYMatcher> popupRow =
       grey_allOf([ChromeMatchersAppInterface omniboxPopupRow], textMatcher,
-                 grey_sufficientlyVisible(), nil);
+                 grey_notNil(), nil);
   return popupRow;
+}
+
++ (id<GREYMatcher>)omniboxPopupRowVisibleWithString:(NSString*)string {
+  return grey_allOf(
+      [ChromeMatchersAppInterface omniboxPopupRowWithString:string],
+      grey_sufficientlyVisible(), nil);
 }
 
 + (id<GREYMatcher>)omniboxPopupList {

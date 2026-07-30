@@ -718,36 +718,6 @@ Browser::~Browser() {
   }
 
   profile_pref_registrar_.Reset();
-
-  // The system incognito profile should not try be destroyed using
-  // ProfileDestroyer::DestroyProfileWhenAppropriate(). This profile can be
-  // used, at least, by the user manager window. This window is not a browser,
-  // therefore, chrome::IsOffTheRecordBrowserActiveForProfile(profile_)
-  // returns false, while the user manager window is still opened.
-  // This cannot be fixed in ProfileDestroyer::DestroyProfileWhenAppropriate(),
-  // because the ProfileManager needs to be able to destroy all profiles when
-  // it is destroyed. See crbug.com/527035
-  //
-  // Non-primary OffTheRecord profiles should not be destroyed directly by
-  // Browser (e.g. for offscreen tabs, https://crbug.com/664351).
-  //
-  // TODO(crbug.com/40159237): Use ScopedProfileKeepAlive for Incognito too,
-  // instead of separate logic for Incognito and regular profiles.
-  if (profile_->IsIncognitoProfile() &&
-      !chrome::IsOffTheRecordBrowserInUse(profile_) &&
-      !profile_->IsSystemProfile()) {
-#if BUILDFLAG(ENABLE_PRINT_PREVIEW)
-    // The Printing Background Manager holds onto preview dialog WebContents
-    // whose corresponding print jobs have not yet fully spooled. Make sure
-    // these get destroyed before tearing down the incognito profile so that
-    // their RenderFrameHosts can exit in time - see crbug.com/579155
-    g_browser_process->background_printing_manager()
-        ->DeletePreviewContentsForBrowserContext(profile_);
-#endif
-    // An incognito profile is no longer needed, this indirectly frees
-    // its cache and cookies once it gets destroyed at the appropriate time.
-    ProfileDestroyer::DestroyOTRProfileWhenAppropriate(profile_);
-  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1248,14 +1218,6 @@ bool Browser::IsTabModalPopupDeprecated() const {
   return is_tab_modal_popup_deprecated_;
 }
 
-bool Browser::CanShowCallToAction() const {
-  return !showing_call_to_action_;
-}
-
-std::unique_ptr<ScopedWindowCallToAction> Browser::ShowCallToAction() {
-  return std::make_unique<ScopedWindowCallToActionImpl>(this);
-}
-
 ui::BaseWindow* Browser::GetWindow() {
   return window_.get();
 }
@@ -1331,6 +1293,10 @@ void Browser::OnWindowClosing() {
     // this Browser.
     is_delete_scheduled_ = true;
 
+    // At this point the browser has successfully closed and is scheduled for
+    // deletion.
+    browser_did_close_callback_list_.Notify(this);
+
     // Application should shutdown on last window close if the user is
     // explicitly trying to quit, or if there is nothing keeping the browser
     // alive (such as AppController on the Mac, or BackgroundContentsService for
@@ -1348,10 +1314,6 @@ void Browser::OnWindowClosing() {
       browser_shutdown::OnShutdownStarting(
           browser_shutdown::ShutdownType::kWindowClose);
     }
-
-    // At this point the browser has successfully closed and is scheduled for
-    // deletion.
-    browser_did_close_callback_list_.Notify(this);
 
     // Once a Browser has successfully closed, client code expects control to
     // return to the run loop before the instance is finally deleted. To
@@ -1472,26 +1434,6 @@ void Browser::OpenFile() {
 
 bool Browser::CanSaveContents(content::WebContents* web_contents) const {
   return chrome::CanSavePage(this);
-}
-
-bool Browser::ShouldDisplayFavicon(content::WebContents* web_contents) const {
-  // Don't show favicon when on an interstitial.
-  security_interstitials::SecurityInterstitialTabHelper*
-      security_interstitial_tab_helper = security_interstitials::
-          SecurityInterstitialTabHelper::FromWebContents(web_contents);
-  if (security_interstitial_tab_helper &&
-      security_interstitial_tab_helper->IsDisplayingInterstitial()) {
-    return false;
-  }
-
-  // Remove for all other tabbed web apps.
-  if (auto* const app_browser_controller = app_controller();
-      app_browser_controller && app_browser_controller->has_tab_strip()) {
-    return false;
-  }
-
-  // Otherwise, always display the favicon.
-  return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1615,19 +1557,7 @@ void Browser::OnTabStripModelChanged(TabStripModel* tab_strip_model,
     OnTabDeactivated(selection.old_contents);
   }
 
-  if (tab_strip_model_->empty()) {
-    return;
-  }
-
-  OnActiveTabChanged(
-      selection.old_contents, selection.new_contents,
-      selection.new_model.active().has_value()
-          ? static_cast<int>(selection.new_model.active().value())
-          : TabStripModel::kNoTab,
-      (change.type() == TabStripModelChange::kRemoved) &&
-          (change.GetRemove()->contents[0].remove_reason ==
-           TabRemovedReason::kDeleted),
-      selection.reason);
+  OnActiveTabChanged(change, selection);
 }
 
 void Browser::OnTabGroupChanged(const TabGroupChange& change) {
@@ -2374,6 +2304,8 @@ WebContents* Browser::CreateCustomWebContents(
     const GURL& opener_url,
     const std::string& frame_name,
     const GURL& target_url,
+    WindowOpenDisposition disposition,
+    const blink::mojom::WindowFeatures& window_features,
     const content::StoragePartitionConfig& partition_config,
     content::SessionStorageNamespace* session_storage_namespace) {
   if (auto* opener_contents = content::WebContents::FromRenderFrameHost(opener);
@@ -2821,6 +2753,10 @@ bool Browser::IsWaitingForPointerLockPrompt(WebContents* web_contents) {
       ->IsWaitingForPointerLockPrompt(web_contents);
 }
 
+bool Browser::AllowKeyboardLockForInnerContents(WebContents* web_contents) {
+  return capabilities()->AllowKeyboardLockForInnerContents(web_contents);
+}
+
 void Browser::RequestKeyboardLock(WebContents* web_contents,
                                   bool esc_key_locked) {
   browser_window_features()
@@ -3105,12 +3041,29 @@ void Browser::OnTabDeactivated(WebContents* contents) {
   window_->GetLocationBar()->SaveStateToContents(contents);
 }
 
-void Browser::OnActiveTabChanged(WebContents* old_contents,
-                                 WebContents* new_contents,
-                                 int index,
-                                 bool tab_removed_for_deletion,
-                                 int reason) {
+void Browser::OnActiveTabChanged(const TabStripModelChange& change,
+                                 const TabStripSelectionChange& selection) {
   TRACE_EVENT0("ui", "Browser::OnActiveTabChanged");
+
+  // The side panel state needs to be updated on active tab changed
+  // even if the tab strip is empty.
+  if (change.type() != TabStripModelChange::kReplaced &&
+      !tab_strip_model_->closing_all()) {
+    SidePanelUI* side_panel_ui = browser_window_features()->side_panel_ui();
+    if (side_panel_ui) {
+      side_panel_ui->OnActiveTabChanged(
+          selection.old_contents, selection.new_contents,
+          /*tab_removed_for_deletion=*/
+          (change.type() == TabStripModelChange::kRemoved) &&
+              (change.GetRemove()->contents[0].remove_reason ==
+               TabRemovedReason::kDeleted));
+    }
+  }
+
+  if (tab_strip_model_->empty()) {
+    return;
+  }
+
 // Mac correctly sets the initial background color of new tabs to the theme
 // background color, so it does not need this block of code. Aura should
 // implement this as well.
@@ -3122,14 +3075,14 @@ void Browser::OnActiveTabChanged(WebContents* old_contents,
   // loaded any contents. As a result, we avoid flashing white when moving to
   // a new tab. (There is also code in RenderFrameHostManager to do something
   // similar for intra-tab navigations.)
-  if (old_contents && new_contents) {
+  if (selection.old_contents && selection.new_contents) {
     // While GetPrimaryMainFrame() is guaranteed to return non-null, GetView()
     // is not, e.g. between WebContents creation and creation of the
     // RenderWidgetHostView.
     RenderWidgetHostView* old_view =
-        old_contents->GetPrimaryMainFrame()->GetView();
+        selection.old_contents->GetPrimaryMainFrame()->GetView();
     RenderWidgetHostView* new_view =
-        new_contents->GetPrimaryMainFrame()->GetView();
+        selection.new_contents->GetPrimaryMainFrame()->GetView();
     if (old_view && new_view) {
       new_view->CopyBackgroundColorIfPresentFrom(*old_view);
     }
@@ -3137,14 +3090,6 @@ void Browser::OnActiveTabChanged(WebContents* old_contents,
 #endif
 
   base::RecordAction(UserMetricsAction("ActiveTabChanged"));
-
-  if (!(reason & CHANGE_REASON_REPLACED) && !tab_strip_model_->closing_all()) {
-    SidePanelUI* side_panel_ui = browser_window_features()->side_panel_ui();
-    if (side_panel_ui) {
-      side_panel_ui->OnActiveTabChanged(old_contents, new_contents,
-                                        tab_removed_for_deletion);
-    }
-  }
 
   // Update the bookmark state, since the BrowserWindow may query it during
   // OnActiveTabChanged() below.
@@ -3155,24 +3100,28 @@ void Browser::OnActiveTabChanged(WebContents* old_contents,
   // focused object, which should happen before we update the toolbar below,
   // since the omnibox expects the correct element to already be focused when
   // it is updated.
-  window_->OnActiveTabChanged(old_contents, new_contents, index, reason);
+  int index = selection.new_model.active().has_value()
+                  ? static_cast<int>(selection.new_model.active().value())
+                  : TabStripModel::kNoTab;
+  window_->OnActiveTabChanged(selection.old_contents, selection.new_contents,
+                              index, selection.reason);
 
   browser_window_features()->exclusive_access_manager()->OnTabDetachedFromView(
-      old_contents);
+      selection.old_contents);
 
   // If we have any update pending, do it now.
-  if (chrome_updater_factory_.HasWeakPtrs() && old_contents) {
+  if (chrome_updater_factory_.HasWeakPtrs() && selection.old_contents) {
     ProcessPendingUIUpdates();
   }
 
   // Propagate the profile to the location bar.
-  UpdateToolbar((reason & CHANGE_REASON_REPLACED) == 0);
+  UpdateToolbar((selection.reason & CHANGE_REASON_REPLACED) == 0);
 
   // Update reload/stop state.
   chrome::BrowserCommandController* const browser_command_controller =
       GetCommandController();
-  browser_command_controller->LoadingStateChanged(new_contents->IsLoading(),
-                                                  true);
+  browser_command_controller->LoadingStateChanged(
+      selection.new_contents->IsLoading(), true);
 
   // Update commands to reflect current state.
   browser_command_controller->TabStateChanged();
@@ -3191,7 +3140,8 @@ void Browser::OnActiveTabChanged(WebContents* old_contents,
   }
 
   if (HasFindBarController()) {
-    CreateOrGetFindBarController()->HandleActiveTabChanged(new_contents);
+    CreateOrGetFindBarController()->HandleActiveTabChanged(
+        selection.new_contents);
   }
 
   // Update sessions (selected tab index and last active time). Don't force
@@ -3202,11 +3152,12 @@ void Browser::OnActiveTabChanged(WebContents* old_contents,
     service->SetSelectedTabInWindow(session_id(),
                                     tab_strip_model_->active_index());
     service->SetLastActiveTime(
-        session_id(), sessions::SessionTabHelper::IdForTab(new_contents),
+        session_id(),
+        sessions::SessionTabHelper::IdForTab(selection.new_contents),
         base::Time::Now());
   }
 
-  SearchTabHelper::FromWebContents(new_contents)->OnTabActivated();
+  SearchTabHelper::FromWebContents(selection.new_contents)->OnTabActivated();
   did_active_tab_change_callback_list_.Notify(this);
 }
 
@@ -3539,8 +3490,8 @@ void Browser::InProgressDownloadResponse(bool cancel_downloads) {
   if (cancel_downloads) {
     cancel_download_confirmation_state_ =
         CancelDownloadConfirmationState::kResponseReceived;
-      std::move(warn_before_closing_callback_)
-          .Run(WarnBeforeClosingResult::kOkToClose);
+    std::move(warn_before_closing_callback_)
+        .Run(WarnBeforeClosingResult::kOkToClose);
     return;
   }
 
@@ -3861,15 +3812,4 @@ FindBarController* Browser::CreateOrGetFindBarController() {
 
 bool Browser::HasFindBarController() {
   return GetFeatures().HasFindBarController();
-}
-
-Browser::ScopedWindowCallToActionImpl::ScopedWindowCallToActionImpl(
-    Browser* browser)
-    : browser_(browser->weak_factory_.GetWeakPtr()) {
-  DCHECK(!browser_->showing_call_to_action_);
-  browser_->showing_call_to_action_ = true;
-}
-
-Browser::ScopedWindowCallToActionImpl::~ScopedWindowCallToActionImpl() {
-  browser_->showing_call_to_action_ = false;
 }

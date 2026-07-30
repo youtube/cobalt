@@ -32,6 +32,7 @@
 #include "third_party/blink/renderer/core/html/html_image_loader.h"
 #include "third_party/blink/renderer/core/html/media/html_media_element.h"
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap_source.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_snapshot_provider.h"
 #include "third_party/blink/renderer/platform/timer.h"
 
@@ -175,6 +176,10 @@ class CORE_EXPORT HTMLVideoElement final
   // HTMLMediaElement overrides.
   void OnEncryptedMediaInitData() final;
 
+  bool poster_deferred_for_lazy_load_for_tests() const {
+    return poster_deferred_for_lazy_load_;
+  }
+
  protected:
   // EventTarget overrides.
   void AddedEventListener(const AtomicString& event_type,
@@ -199,6 +204,7 @@ class CORE_EXPORT HTMLVideoElement final
   LayoutObject* CreateLayoutObject(const ComputedStyle&) override;
   void AttachLayoutTree(AttachContext&) override;
   void UpdatePosterImage();
+  void UpdatePosterImageInternal();
   void ParseAttribute(const AttributeModificationParams&) override;
   bool IsPresentationAttribute(const QualifiedName&) const override;
   void CollectStyleForPresentationAttribute(
@@ -211,6 +217,7 @@ class CORE_EXPORT HTMLVideoElement final
   void OnPlay() final;
   void OnLoadStarted() final;
   void OnLoadFinished() final;
+  void OnLazyLoadResumed() final;
 
   // Wrapper for the |MediaVideoVisibilityTracker|
   // |UpdateVisibilityTrackerState| method. |UpdateVisibilityTrackerState| is
@@ -259,28 +266,33 @@ class CORE_EXPORT HTMLVideoElement final
   // Represents whether the video is 'persistent'. It is used for videos with
   // custom controls that are in auto-pip (Android). This boolean is used by a
   // CSS rule.
-  bool is_persistent_ : 1;
+  bool is_persistent_ : 1 = false;
 
   // Whether the video is currently in auto-pip (Android). It is not similar to
   // a video being in regular Picture-in-Picture mode.
-  bool is_auto_picture_in_picture_ : 1;
+  bool is_auto_picture_in_picture_ : 1 = false;
 
   // Whether this element is in overlay fullscreen mode.
-  bool in_overlay_fullscreen_video_ : 1;
+  bool in_overlay_fullscreen_video_ : 1 = false;
 
   // Whether the video element should be considered as fullscreen with regards
   // to display type and other UI features. This does not mean the DOM element
   // is fullscreen.
-  bool is_effectively_fullscreen_ : 1;
+  bool is_effectively_fullscreen_ : 1 = false;
 
-  bool video_has_played_ : 1;
+  bool video_has_played_ : 1 = false;
 
   // True, if the video element occupies most of the viewport.
-  bool mostly_filling_viewport_ : 1;
+  bool mostly_filling_viewport_ : 1 = false;
+
+  // True if poster loading was deferred because loading=lazy.
+  bool poster_deferred_for_lazy_load_ : 1 = false;
 
   // Used to fulfill blink::Image requests (CreateImage(),
   // GetSourceImageForCanvas(), etc). Created on demand.
-  std::unique_ptr<CanvasSnapshotProvider> snapshot_provider_;
+  std::unique_ptr<CanvasNon2DResourceProviderSharedImage> snapshot_provider_;
+  std::optional<CanvasSnapshotProvider::Info> cached_draw_info_;
+  sk_sp<SkSurface> sw_draw_surface_;
   bool allow_accelerated_images_ = true;
   HeapTaskRunnerTimer<HTMLVideoElement> cache_deleting_timer_;
 

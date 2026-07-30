@@ -8,17 +8,17 @@
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_multi_source_observation.h"
 #include "chrome/browser/ui/webui/legion_internals/legion_internals.mojom.h"
-#include "components/legion/client.h"
-#include "components/legion/common/legion_logger.h"
+#include "components/private_ai/client.h"
+#include "components/private_ai/common/private_ai_logger.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 
-namespace legion {
+namespace private_ai {
 class Client;
 namespace phosphor {
 class TokenManager;
 }  // namespace phosphor
-}  // namespace legion
+}  // namespace private_ai
 
 namespace network::mojom {
 class NetworkContext;
@@ -26,12 +26,12 @@ class NetworkContext;
 
 class LegionInternalsPageHandler
     : public legion_internals::mojom::LegionInternalsPageHandler,
-      public legion::LegionLogger::Observer {
+      public private_ai::PrivateAiLogger::Observer {
  public:
   explicit LegionInternalsPageHandler(
-      legion::phosphor::TokenManager* token_manager,
+      private_ai::phosphor::TokenManager* token_manager,
       network::mojom::NetworkContext* network_context,
-      legion::Client* private_ai_client,
+      private_ai::Client* private_ai_client,
       mojo::PendingReceiver<legion_internals::mojom::LegionInternalsPageHandler>
           receiver);
   ~LegionInternalsPageHandler() override;
@@ -45,13 +45,15 @@ class LegionInternalsPageHandler
                    page) override;
   void Connect(const std::string& url,
                const std::string& api_key,
+               const std::string& proxy_url,
+               bool use_token_attestation,
                ConnectCallback callback) override;
   void Close(CloseCallback callback) override;
   void SendRequest(const std::string& feature_name,
                    const std::string& request,
                    SendRequestCallback callback) override;
 
-  // legion::LegionLogger::Observer:
+  // private_ai::PrivateAiLogger::Observer:
   void OnLogInfo(const base::Location& location,
                  std::string_view message) override;
   void OnLogError(const base::Location& location,
@@ -62,17 +64,17 @@ class LegionInternalsPageHandler
                  const base::Location& location,
                  std::string_view message);
 
-  raw_ptr<legion::phosphor::TokenManager> token_manager_;
+  raw_ptr<private_ai::phosphor::TokenManager> token_manager_;
   // The global client, only used for observation.
-  raw_ptr<legion::Client> private_ai_client_;
+  raw_ptr<private_ai::Client> private_ai_client_;
   // The client created by webui. Used for testing.
-  std::unique_ptr<legion::Client> webui_client_;
+  std::unique_ptr<private_ai::Client> webui_client_;
   raw_ptr<network::mojom::NetworkContext> network_context_;
   mojo::Receiver<legion_internals::mojom::LegionInternalsPageHandler> receiver_;
   mojo::Remote<legion_internals::mojom::LegionInternalsPage> page_;
 
-  base::ScopedMultiSourceObservation<legion::LegionLogger,
-                                     legion::LegionLogger::Observer>
+  base::ScopedMultiSourceObservation<private_ai::PrivateAiLogger,
+                                     private_ai::PrivateAiLogger::Observer>
       scoped_logger_observations_{this};
 };
 

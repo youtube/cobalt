@@ -128,6 +128,12 @@ public class FeedSurfaceCoordinator
     private final ObserverList<SurfaceCoordinator.Observer> mObservers = new ObserverList<>();
     private final FeedActionDelegate mActionDelegate;
     private final boolean mUseStaggeredLayout;
+
+    /** Factory for creating {@link FeedActionDelegate}. */
+    public interface ActionDelegateFactory {
+        FeedActionDelegate createActionDelegate();
+    }
+
     private final int mDefaultBackgroundColor;
 
     // FeedReliabilityLogger params.
@@ -415,7 +421,7 @@ public class FeedSurfaceCoordinator
      * @param overScrollDisabled Whether the overscroll effect is disabled.
      * @param viewportView The view that should be used as a container for viewport measurement
      *     purposes, or |null| if the view returned by HybridListRenderer is to be used.
-     * @param actionDelegate Implements some Feed actions.
+     * @param createActionDelegate Factory for creating the implementation of Feed actions.
      * @param tabStripHeightSupplier Supplier for the tab strip height.
      * @param edgeToEdgeControllerSupplier Supplier for the {@link EdgeToEdgeController} instance.
      * @param moduleRegistry The instance of {@link ModuleRegistry}.
@@ -440,7 +446,7 @@ public class FeedSurfaceCoordinator
             FeedSwipeRefreshLayout swipeRefreshLayout,
             boolean overScrollDisabled,
             @Nullable ViewGroup viewportView,
-            FeedActionDelegate actionDelegate,
+            ActionDelegateFactory createActionDelegate,
             NonNullObservableSupplier<Integer> tabStripHeightSupplier,
             MonotonicObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier,
             @Nullable ModuleRegistry moduleRegistry) {
@@ -459,7 +465,7 @@ public class FeedSurfaceCoordinator
         mSwipeRefreshLayout = swipeRefreshLayout;
         mOverScrollDisabled = overScrollDisabled;
         mViewportView = viewportView;
-        mActionDelegate = actionDelegate;
+        mActionDelegate = createActionDelegate.createActionDelegate();
         mEmbeddingSurfaceCreatedTimeNs = embeddingSurfaceCreatedTimeNs;
         mWebFeedHasContent = false;
         mHeaderIndex = 0;
@@ -534,7 +540,7 @@ public class FeedSurfaceCoordinator
                         @Override
                         public void onBackgroundImageChanged(
                                 Bitmap originalBitmap,
-                                @Nullable BackgroundImageInfo backgroundImageInfo,
+                                BackgroundImageInfo backgroundImageInfo,
                                 boolean fromInitialization,
                                 @NtpBackgroundType int oldType,
                                 @NtpBackgroundType int newType) {
@@ -637,7 +643,7 @@ public class FeedSurfaceCoordinator
                         snapScrollHelper,
                         mSectionHeaderModel,
                         getTabIdFromLaunchOrigin(launchOrigin),
-                        actionDelegate,
+                        mActionDelegate,
                         optionsCoordinator,
                         useUiConfig ? mUiConfig : null,
                         profile);
@@ -708,7 +714,7 @@ public class FeedSurfaceCoordinator
     // Sets the background image for the embedder NTP.
     private void setBackground(
             Bitmap originalBitmap,
-            @Nullable BackgroundImageInfo backgroundImageInfo,
+            BackgroundImageInfo backgroundImageInfo,
             @NtpBackgroundType int backgroundType) {
         if (mNtpHeader != null) {
             mNtpHeader.setBackgroundColor(Color.TRANSPARENT);
@@ -862,6 +868,8 @@ public class FeedSurfaceCoordinator
         if (mNtpBackgroundImageCoordinator != null) {
             mNtpBackgroundImageCoordinator.destroy();
         }
+
+        mActionDelegate.destroy();
     }
 
     /**
@@ -1075,6 +1083,13 @@ public class FeedSurfaceCoordinator
         assumeNonNull(view);
         view.setId(R.id.feed_stream_recycler_view);
         view.setClipToPadding(false);
+
+        RecyclerView.ItemAnimator animator = view.getItemAnimator();
+        if (animator != null) {
+            // Prevents Feeds flickering when bring Chrome to the background and move to foreground
+            // again.
+            animator.setAddDuration(0);
+        }
 
         if (ChromeFeatureList.isEnabled(ChromeFeatureList.FEED_CONTAINMENT)) {
             // Used to draw containment background.

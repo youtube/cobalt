@@ -358,16 +358,9 @@ void SessionStorageImpl::DeleteStorage(const blink::StorageKey& storage_key,
   database_->DeleteStorageKeysFromSession(
       namespace_id, /*metadata_to_delete=*/{storage_key},
       std::move(maps_to_delete),
-      base::BindOnce(
-          [](base::OnceClosure callback,
-             base::OnceCallback<void(DbStatus)> status_result_callback,
-             DbStatus status) {
-            std::move(status_result_callback).Run(status);
-            std::move(callback).Run();
-          },
-          std::move(callback),
-          base::BindOnce(&SessionStorageImpl::OnCommitResult,
-                         weak_ptr_factory_.GetWeakPtr())));
+      base::BindOnce(&SessionStorageImpl::OnCommitResult,
+                     weak_ptr_factory_.GetWeakPtr())
+          .Then(std::move(callback)));
 }
 
 void SessionStorageImpl::CleanUpStorage(CleanUpStorageCallback callback) {
@@ -598,7 +591,6 @@ void SessionStorageImpl::OnDataMapDestruction(int64_t map_id) {
 }
 
 void SessionStorageImpl::OnCommitResult(DbStatus status) {
-  CHECK_EQ(connection_state_, CONNECTION_FINISHED, base::NotFatalUntil::M146);
   if (status.ok()) {
     commit_error_count_ = 0;
     return;
@@ -760,6 +752,7 @@ void SessionStorageImpl::InitiateConnection(bool in_memory_only) {
 }
 
 void SessionStorageImpl::OnDatabaseOpened(DbStatus status) {
+  status.Log("Storage.SessionStorage.OpenDatabase", in_memory_);
   if (!status.ok()) {
     // If we failed to open the database, try to delete and recreate the
     // database, or ultimately fallback to an in-memory database.

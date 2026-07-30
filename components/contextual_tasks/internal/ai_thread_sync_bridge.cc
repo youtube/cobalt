@@ -174,6 +174,7 @@ AiThreadSyncBridge::TrimAllSupportedFieldsFromRemoteSpecifics(
   trimmed_specifics.clear_server_id();
   trimmed_specifics.clear_conversation_turn_id();
   trimmed_specifics.clear_title();
+  trimmed_specifics.clear_last_turn_time_unix_epoch_millis();
   // LINT.ThenChange(//components/sync/protocol/ai_thread_specifics.proto:AiThreadSpecifics)
 
   sync_pb::EntitySpecifics trimmed_entity_specifics;
@@ -193,6 +194,16 @@ std::optional<Thread> AiThreadSyncBridge::GetThread(
   sync_pb::AiThreadSpecifics specifics = it->second.specifics();
   return Thread(ThreadType::kAiMode, server_id, specifics.title(),
                 specifics.conversation_turn_id());
+}
+
+std::vector<Thread> AiThreadSyncBridge::GetThreads() const {
+  std::vector<Thread> threads;
+  for (const auto& [server_id, thread_entity] : ai_thread_entities_) {
+    threads.emplace_back(ThreadType::kAiMode, server_id,
+                         thread_entity.specifics().title(),
+                         thread_entity.specifics().conversation_turn_id());
+  }
+  return threads;
 }
 
 void AiThreadSyncBridge::AddObserver(Observer* observer) {

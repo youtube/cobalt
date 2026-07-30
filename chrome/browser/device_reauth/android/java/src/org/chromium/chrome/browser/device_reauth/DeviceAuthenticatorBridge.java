@@ -9,10 +9,8 @@ import androidx.fragment.app.FragmentActivity;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.NativeMethods;
 
-import org.chromium.base.ContextUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.ui.base.WindowAndroid;
 
 @NullMarked
@@ -23,14 +21,8 @@ class DeviceAuthenticatorBridge implements DeviceAuthenticatorController.Delegat
     private DeviceAuthenticatorBridge(
             long nativeDeviceAuthenticator, @Nullable FragmentActivity activity) {
         mNativeDeviceAuthenticator = nativeDeviceAuthenticator;
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.DEVICE_AUTHENTICATOR_ANDROIDX)) {
-            if (activity == null) return;
-            mController = new AndroidxDeviceAuthenticatorControllerImpl(activity, this);
-        } else {
-            mController =
-                    new DeviceAuthenticatorControllerImpl(
-                            ContextUtils.getApplicationContext(), this);
-        }
+        if (activity == null) return;
+        mController = new DeviceAuthenticatorController(activity, this);
     }
 
     @CalledByNative

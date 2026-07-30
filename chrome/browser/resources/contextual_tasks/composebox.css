@@ -33,6 +33,7 @@
   --composebox-submit-container-inline-end:
       var(--composebox-last-icon-inline-end);
   --composebox-last-icon-inline-end: 12px;
+  --cr-composebox-tool-chip-height: var(--icon-menu-button-size);
   --cr-searchbox-height: 52px;
   --cr-searchbox-min-width: min(calc(100%), 1100px);
   --icon-menu-spacing: 6px;
@@ -122,13 +123,14 @@
 }
 
 #composebox {
+  --cr-composebox-font-size: 16px;
   --expanded-border-radius: var(--composebox-border-radius);
   --input-bottom-spacing: 16px;
   --text-input-left-spacing: 24px;
   --text-input-top-spacing: 16px;
   --composebox-context-menu-entrypoint-button-color:
       var(--color-composebox-voice-lens-button);
-  --contextual-entrypoint-and-carousel-context-entrypoint-padding-inline: 0;
+  --contextual-entrypoint-and-carousel-context-entrypoint-padding-inline-start: 0;
 
   box-shadow: none;
   box-sizing: border-box;
@@ -175,6 +177,7 @@
 }
 
 #composebox::part(input-container) {
+  --input-bottom-spacing: 12px;
   transition: padding-top var(--emphasized-curve);
   transition-duration: var(--collapse-duration);
 }
@@ -226,12 +229,10 @@
   color: revert;
 }
 
-#composebox::part(upload-container) {
-  display: none;
-}
-
 #composebox::part(context-menu-entrypoint-icon) {
   --cr-icon-button-fill-color: var(--composebox-context-menu-entrypoint-button-color);
+  --cr-icon-button-icon-size: var(--icon-menu-icon-size);
+  --cr-icon-button-size: var(--icon-menu-button-size);
 }
 
 /* Controls cancel and submit buttons. */
@@ -267,6 +268,11 @@
   inset-inline-end: var(--composebox-last-icon-inline-end);
   position: absolute;
   transition: ease-out 100ms;
+}
+
+:host([is-lens-overlay-showing]) #composebox::part(lens-icon) {
+  background-color: var(--color-composebox-lens-active-background);
+  border-radius: 50%;
 }
 
 #composebox[submit-enabled_]::part(lens-icon) {
@@ -491,11 +497,20 @@
     --color-searchbox-results-icon-focused-outline: Highlight;
     --select-color_: Highlight;
   }
+
+  #composebox::part(context-menu-entrypoint-icon),
+  #composebox::part(cancel-icon),
+  #composebox::part(lens-icon),
+  #composebox::part(voice-icon) {
+    --cr-icon-button-fill-color: ButtonText;
+  }
 }
 
 :host([is-zero-state]) #contextualTasksSuggestionsContainer::part(match-icon-container) {
   height: 24px;
   padding-inline-end: 8px;
+  /* This + 8px from suggestion container's
+   * indent start = 16px. */
   padding-inline-start: 8px;
   width: 24px;
 }
@@ -503,11 +518,10 @@
 :host([is-zero-state][is-side-panel])
     #contextualTasksSuggestionsContainer::part(match-icon-container) {
   padding-inline-end: 12px;
-  padding-inline-start: 12px;
 }
 
 :host([is-zero-state]) #contextualTasksSuggestionsContainer::part(match-icon) {
-  background-color: var(--color-composebox-font-dark);
+  background-color: var(--color-zero-state-match-icon);
   height: 20px;
   margin: 2px;
   width: 20px;
@@ -515,7 +529,7 @@
 
 :host([is-zero-state]) #contextualTasksSuggestionsContainer::part(match-text-container) {
   border-radius: 4px;
-  color: var(--color-composebox-font-dark);
+  color: var(--color-zero-state-match-text);
   font-family: var(--google-sans-font);
   font-size: 16px;
   letter-spacing: 1%;
@@ -536,6 +550,29 @@
     #contextualTasksSuggestionsContainer::part(match-text-container) {
   inset-inline-start: 8px;
   width: calc(100% - 8px);
+}
+
+:host([is-zero-state])
+    #contextualTasksSuggestionsContainer::part(match-remove-button) {
+  --cr-composebox-dropdown-match-margin-end: -8px;
+  --cr-composebox-dropdown-match-margin-start: 16px;
+  --cr-composebox-match-remove-button-top: 0;
+  display: none;
+}
+
+#suggestionActivity {
+  color: var(--color-composebox-suggestion-activity);
+  display: flex;
+  font-family: var(--google-sans-font);
+  font-size: 12px;
+  font-weight: 400;
+  justify-content: flex-start;
+  line-height: 16px;
+  padding-bottom: 10px;
+  padding-inline-end: 8px;
+  padding-inline-start: 20px;
+  padding-top: 8px;
+  position: relative;
 }
 
 #composeboxContainer:not(:has(#composebox[show-dropdown_])) ~ #contextualTasksSuggestionsContainer {

@@ -38,6 +38,7 @@
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/managed_ui.h"
 #include "chrome/browser/ui/tabs/features.h"
+#include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #include "chrome/browser/ui/tabs/tab_strip_prefs.h"
 #include "chrome/browser/ui/toasts/toast_features.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -123,13 +124,13 @@
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_features.h"
 #include "ash/webui/settings/public/constants/routes.mojom.h"
+#include "ash/webui/settings/public/constants/routes_util.h"
 #include "chrome/browser/ash/account_manager/account_manager_util.h"
 #include "chrome/browser/ash/kerberos/kerberos_credentials_manager.h"
 #include "chrome/browser/ash/login/quick_unlock/quick_unlock_utils.h"
 #include "chrome/browser/ash/ownership/owner_settings_service_ash.h"
 #include "chrome/browser/ash/ownership/owner_settings_service_ash_factory.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
-#include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/user_manager/user_manager.h"
 #include "ui/chromeos/devicetype_utils.h"
@@ -505,6 +506,9 @@ void AddAppearanceStrings(content::WebUIDataSource* html_source,
       {"systemMode", IDS_NTP_CUSTOMIZE_CHROME_COLOR_SCHEME_MODE_SYSTEM_LABEL},
       {"showHomeButton", IDS_SETTINGS_SHOW_HOME_BUTTON},
       {"showBookmarksBar", IDS_SETTINGS_SHOW_BOOKMARKS_BAR},
+      {"showTabSearchButton", IDS_SETTINGS_SHOW_TAB_SEARCH_BUTTON},
+      {"showProjectsPanelButton", IDS_SETTINGS_SHOW_PROJECTS_PANEL_BUTTON},
+      {"showEverythingMenuButton", IDS_SETTINGS_SHOW_EVERYTHING_MENU_BUTTON},
       {"tabStripPosition", IDS_SETTINGS_TAB_STRIP_POSITION},
       {"allowSplitViewDragAndDrop",
        IDS_SETTINGS_ALLOW_SPLIT_VIEW_DRAG_AND_DROP},
@@ -567,6 +571,15 @@ void AddAppearanceStrings(content::WebUIDataSource* html_source,
       base::FeatureList::IsEnabled(features::kTabHoverCardImages));
   html_source->AddBoolean("showVerticalTabsEnabled",
                           tabs::IsVerticalTabsFeatureEnabled());
+  html_source->AddBoolean(
+      "showTabStripComboButtonEnabled",
+      tabs::IsVerticalTabsFeatureEnabled() ||
+          base::FeatureList::IsEnabled(tabs::kHorizontalTabStripComboButton));
+  html_source->AddBoolean("showProjectsPanelEnabled",
+                          tab_groups::IsProjectsPanelFeatureEnabled());
+  html_source->AddBoolean(
+      "showEverythingMenuEnabled",
+      tab_groups::SavedTabGroupUtils::IsEnabledForProfile(profile));
 
   html_source->AddBoolean(
       "tabSearchIsRightAlignedAtStartup",
@@ -1204,10 +1217,10 @@ void AddPerformanceStrings(content::WebUIDataSource* html_source) {
   html_source->AddString("walletPassesPageUrl", chrome::kWalletPassesPageURL);
 
 #if BUILDFLAG(IS_CHROMEOS)
-  html_source->AddString(
-      "osPowerSettingsUrl",
-      chrome::GetOSSettingsUrl(chromeos::settings::mojom::kPowerSubpagePath)
-          .spec());
+  html_source->AddString("osPowerSettingsUrl",
+                         chromeos::settings::GetOSSettingsUrl(
+                             chromeos::settings::mojom::kPowerSubpagePath)
+                             .spec());
 #endif
 }
 
@@ -1301,10 +1314,10 @@ void AddLanguagesStrings(content::WebUIDataSource* html_source,
   };
   html_source->AddLocalizedStrings(kLocalizedStrings);
 #if BUILDFLAG(IS_CHROMEOS)
-  html_source->AddString(
-      "osSettingsLanguagesPageUrl",
-      chrome::GetOSSettingsUrl(chromeos::settings::mojom::kLanguagesSubpagePath)
-          .spec());
+  html_source->AddString("osSettingsLanguagesPageUrl",
+                         chromeos::settings::GetOSSettingsUrl(
+                             chromeos::settings::mojom::kLanguagesSubpagePath)
+                             .spec());
 #endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
@@ -1360,9 +1373,9 @@ bool IsWalletServerStorageEnabled() {
          base::FeatureList::IsEnabled(syncer::kSyncWalletVehicleRegistrations);
 }
 
-bool AutofillAiIgnoresWhetherAddressFillingIsEnabled() {
+bool AutofillAddOtherDatatypesPrefIsEnabled() {
   return base::FeatureList::IsEnabled(
-      autofill::features::kAutofillAiIgnoresWhetherAddressPrefIsEnabled);
+      autofill::features::kAutofillAddOtherDatatypesPref);
 }
 
 void AddAutofillStrings(content::WebUIDataSource* html_source,
@@ -1720,16 +1733,6 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
   html_source->AddBoolean("autofillCardBenefitsAvailable",
                           payments_data.IsCardBenefitsFeatureEnabled());
 
-  html_source->AddBoolean(
-      "autofillEnableWalletBranding",
-      base::FeatureList::IsEnabled(
-          autofill::features::kAutofillEnableWalletBranding));
-
-  html_source->AddBoolean(
-      "enableSaveToWalletFromSettings",
-      base::FeatureList::IsEnabled(
-          autofill::features::kAutofillEnableSaveToWalletFromSettings));
-
   bool is_mandatory_reauth_feature_flag_enabled = false;
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
@@ -1802,8 +1805,8 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
           autofill::features::kAutofillAiAvailableByDefault));
   html_source->AddBoolean("isWalletServerStorageEnabled",
                           IsWalletServerStorageEnabled());
-  html_source->AddBoolean("AutofillAiIgnoresWhetherAddressFillingIsEnabled",
-                          AutofillAiIgnoresWhetherAddressFillingIsEnabled());
+  html_source->AddBoolean("AutofillAddOtherDatatypesPrefIsEnabled",
+                          AutofillAddOtherDatatypesPrefIsEnabled());
 
   html_source->AddBoolean(
       "isUserEligibleForWalletablePassDetection",
@@ -2036,17 +2039,17 @@ void AddBrowserSyncPageStrings(content::WebUIDataSource* html_source) {
       IDS_SETTINGS_PASSWORDS_AND_PASSKEYS_CHECKBOX_LABEL);
 
 #if BUILDFLAG(IS_CHROMEOS)
-  html_source->AddString(
-      "osSyncSetupSettingsUrl",
-      chrome::GetOSSettingsUrl(chromeos::settings::mojom::kSyncSetupSubpagePath)
-          .spec());
+  html_source->AddString("osSyncSetupSettingsUrl",
+                         chromeos::settings::GetOSSettingsUrl(
+                             chromeos::settings::mojom::kSyncSetupSubpagePath)
+                             .spec());
   html_source->AddString("osSettingsPrivacyHubSubpageUrl",
-                         chrome::GetOSSettingsUrl(
+                         chromeos::settings::GetOSSettingsUrl(
                              chromeos::settings::mojom::kPrivacyHubSubpagePath)
                              .spec());
   html_source->AddString(
       "osSyncSettingsUrl",
-      chrome::GetOSSettingsUrl(
+      chromeos::settings::GetOSSettingsUrl(
           chromeos::settings::mojom::kSyncControlsSubpagePath)
           .spec());
 #endif
@@ -2201,10 +2204,10 @@ void AddPeopleStrings(content::WebUIDataSource* html_source, Profile* profile) {
   // Toggles the Chrome OS Account Manager submenu in the People section.
   html_source->AddBoolean("isAccountManagerEnabled",
                           ash::IsAccountManagerAvailable(profile));
-  html_source->AddString(
-      "osSettingsAccountsPageUrl",
-      chrome::GetOSSettingsUrl(chromeos::settings::mojom::kPeopleSectionPath)
-          .spec());
+  html_source->AddString("osSettingsAccountsPageUrl",
+                         chromeos::settings::GetOSSettingsUrl(
+                             chromeos::settings::mojom::kPeopleSectionPath)
+                             .spec());
 #endif
 
   AddSignOutDialogStrings(html_source, profile);
@@ -3132,9 +3135,6 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
       {"siteSettingsHidDevices", IDS_SITE_SETTINGS_TYPE_HID_DEVICES},
       {"siteSettingsHidDevicesMidSentence",
        IDS_SITE_SETTINGS_TYPE_HID_DEVICES_MID_SENTENCE},
-      {"siteSettingsHidDevicesAsk", IDS_SETTINGS_SITE_SETTINGS_HID_DEVICES_ASK},
-      {"siteSettingsHidDevicesBlock",
-       IDS_SETTINGS_SITE_SETTINGS_HID_DEVICES_BLOCK},
       {"siteSettingsMidiDevices", IDS_SITE_SETTINGS_TYPE_MIDI_SYSEX},
       {"siteSettingsMidiDevicesMidSentence",
        IDS_SITE_SETTINGS_TYPE_MIDI_SYSEX_MID_SENTENCE},
@@ -3353,8 +3353,8 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_SITE_SETTINGS_AR_BLOCKED_EXCEPTIONS},
       {"siteSettingsAutomaticDownloadsDescription",
        IDS_SETTINGS_SITE_SETTINGS_AUTOMATIC_DOWNLOADS_DESCRIPTION},
-      {"siteSettingsAutomaticDownloadsAllowed",
-       IDS_SETTINGS_SITE_SETTINGS_AUTOMATIC_DOWNLOADS_ALLOWED},
+      {"siteSettingsAutomaticDownloadsAsk",
+       IDS_SETTINGS_SITE_SETTINGS_AUTOMATIC_DOWNLOADS_ASK},
       {"siteSettingsAutomaticDownloadsBlocked",
        IDS_SETTINGS_SITE_SETTINGS_AUTOMATIC_DOWNLOADS_BLOCKED},
       {"siteSettingsAutomaticDownloadsAllowedExceptions",
@@ -3395,13 +3395,13 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_SITE_SETTINGS_BACKGROUND_SYNC_BLOCKED_EXCEPTIONS},
       {"siteSettingsBluetoothDevicesDescription",
        IDS_SETTINGS_SITE_SETTINGS_BLUETOOTH_DEVICES_DESCRIPTION},
-      {"siteSettingsBluetoothDevicesAllowed",
-       IDS_SETTINGS_SITE_SETTINGS_BLUETOOTH_DEVICES_ALLOWED},
+      {"siteSettingsBluetoothDevicesAsk",
+       IDS_SETTINGS_SITE_SETTINGS_BLUETOOTH_DEVICES_ASK},
       {"siteSettingsBluetoothDevicesBlocked",
        IDS_SETTINGS_SITE_SETTINGS_BLUETOOTH_DEVICES_BLOCKED},
       {"siteSettingsCameraDescription",
        IDS_SETTINGS_SITE_SETTINGS_CAMERA_DESCRIPTION},
-      {"siteSettingsCameraAllowed", IDS_SETTINGS_SITE_SETTINGS_CAMERA_ALLOWED},
+      {"siteSettingsCameraAsk", IDS_SETTINGS_SITE_SETTINGS_CAMERA_ASK},
       {"siteSettingsCameraBlocked", IDS_SETTINGS_SITE_SETTINGS_CAMERA_BLOCKED},
       {"siteSettingsContentCameraBlockedByOs",
        IDS_SETTINGS_SITE_SETTINGS_CAMERA_BLOCKED_BY_OS},
@@ -3413,8 +3413,8 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_SITE_SETTINGS_CAMERA_BLOCKED_EXCEPTIONS},
       {"siteSettingsCapturedSurfaceControlDescription",
        IDS_SETTINGS_SITE_SETTINGS_CAPTURED_SURFACE_CONTROL_DESCRIPTION},
-      {"siteSettingsCapturedSurfaceControlAllowed",
-       IDS_SETTINGS_SITE_SETTINGS_CAPTURED_SURFACE_CONTROL_ALLOWED},
+      {"siteSettingsCapturedSurfaceControlAsk",
+       IDS_SETTINGS_SITE_SETTINGS_CAPTURED_SURFACE_CONTROL_ASK},
       {"siteSettingsCapturedSurfaceControlBlocked",
        IDS_SETTINGS_SITE_SETTINGS_CAPTURED_SURFACE_CONTROL_BLOCKED},
       {"siteSettingsCapturedSurfaceControlAllowedExceptions",
@@ -3423,8 +3423,7 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_SITE_SETTINGS_CAPTURED_SURFACE_CONTROL_BLOCKED_EXCEPTIONS},
       {"siteSettingsClipboardDescription",
        IDS_SETTINGS_SITE_SETTINGS_CLIPBOARD_DESCRIPTION},
-      {"siteSettingsClipboardAllowed",
-       IDS_SETTINGS_SITE_SETTINGS_CLIPBOARD_ALLOWED},
+      {"siteSettingsClipboardAsk", IDS_SETTINGS_SITE_SETTINGS_CLIPBOARD_ASK},
       {"siteSettingsClipboardBlocked",
        IDS_SETTINGS_SITE_SETTINGS_CLIPBOARD_BLOCKED},
       {"siteSettingsClipboardAllowedExceptions",
@@ -3433,8 +3432,7 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_SITE_SETTINGS_CLIPBOARD_BLOCKED_EXCEPTIONS},
       {"siteSettingsDeviceUseDescription",
        IDS_SETTINGS_SITE_SETTINGS_DEVICE_USE_DESCRIPTION},
-      {"siteSettingsDeviceUseAllowed",
-       IDS_SETTINGS_SITE_SETTINGS_DEVICE_USE_ALLOWED},
+      {"siteSettingsDeviceUseAsk", IDS_SETTINGS_SITE_SETTINGS_DEVICE_USE_ASK},
       {"siteSettingsDeviceUseBlocked",
        IDS_SETTINGS_SITE_SETTINGS_DEVICE_USE_BLOCKED},
       {"siteSettingsDeviceUseAllowedExceptions",
@@ -3457,15 +3455,15 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
        IDS_SITE_SETTINGS_TYPE_FEDERATED_IDENTITY_API_MID_SENTENCE},
       {"siteSettingsFileSystemWriteDescription",
        IDS_SETTINGS_SITE_SETTINGS_FILE_SYSTEM_WRITE_DESCRIPTION},
-      {"siteSettingsFileSystemWriteAllowed",
-       IDS_SETTINGS_SITE_SETTINGS_FILE_SYSTEM_WRITE_ALLOWED},
+      {"siteSettingsFileSystemWriteAsk",
+       IDS_SETTINGS_SITE_SETTINGS_FILE_SYSTEM_WRITE_ASK},
       {"siteSettingsFileSystemWriteBlocked",
        IDS_SETTINGS_SITE_SETTINGS_FILE_SYSTEM_WRITE_BLOCKED},
       {"siteSettingsFileSystemWriteBlockedExceptions",
        IDS_SETTINGS_SITE_SETTINGS_FILE_SYSTEM_WRITE_BLOCKED_EXCEPTIONS},
       {"siteSettingsFontsDescription",
        IDS_SETTINGS_SITE_SETTINGS_FONTS_DESCRIPTION},
-      {"siteSettingsFontsAllowed", IDS_SETTINGS_SITE_SETTINGS_FONTS_ALLOWED},
+      {"siteSettingsFontsAsk", IDS_SETTINGS_SITE_SETTINGS_FONTS_ASK},
       {"siteSettingsFontsBlocked", IDS_SETTINGS_SITE_SETTINGS_FONTS_BLOCKED},
       {"siteSettingsFontsAllowedExceptions",
        IDS_SETTINGS_SITE_SETTINGS_FONTS_ALLOWED_EXCEPTIONS},
@@ -3486,8 +3484,7 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_SITE_SETTINGS_HAND_TRACKING_BLOCKED_EXCEPTIONS},
       {"siteSettingsHidDevicesDescription",
        IDS_SETTINGS_SITE_SETTINGS_HID_DEVICES_DESCRIPTION},
-      {"siteSettingsHidDevicesAllowed",
-       IDS_SETTINGS_SITE_SETTINGS_HID_DEVICES_ALLOWED},
+      {"siteSettingsHidDevicesAsk", IDS_SETTINGS_SITE_SETTINGS_HID_DEVICES_ASK},
       {"siteSettingsHidDevicesBlocked",
        IDS_SETTINGS_SITE_SETTINGS_HID_DEVICES_BLOCKED},
       {"siteSettingsImagesDescription",
@@ -3538,8 +3535,8 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
       {"siteSettingsJavascriptOptimizerBlockedExceptions",
        IDS_SETTINGS_SITE_SETTINGS_JAVASCRIPT_OPTIMIZER_BLOCKED_EXCEPTIONS},
       {"siteSettingsKeyboardLock", IDS_SITE_SETTINGS_TYPE_KEYBOARD_LOCK},
-      {"siteSettingsKeyboardLockAllowed",
-       IDS_SETTINGS_SITE_SETTINGS_KEYBOARD_LOCK_ALLOWED},
+      {"siteSettingsKeyboardLockAsk",
+       IDS_SETTINGS_SITE_SETTINGS_KEYBOARD_LOCK_ASK},
       {"siteSettingsKeyboardLockAllowedExceptions",
        IDS_SETTINGS_SITE_SETTINGS_KEYBOARD_LOCK_ALLOWED_EXCEPTIONS},
       {"siteSettingsKeyboardLockBlocked",
@@ -3552,8 +3549,7 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
        IDS_SITE_SETTINGS_TYPE_KEYBOARD_LOCK_MID_SENTENCE},
       {"siteSettingsLocationDescription",
        IDS_SETTINGS_SITE_SETTINGS_LOCATION_DESCRIPTION},
-      {"siteSettingsLocationAllowed",
-       IDS_SETTINGS_SITE_SETTINGS_LOCATION_ALLOWED},
+      {"siteSettingsLocationAsk", IDS_SETTINGS_SITE_SETTINGS_LOCATION_ASK},
       {"siteSettingsLocationAskQuiet",
        IDS_SETTINGS_SITE_SETTINGS_PERMISSION_QUIET},
       {"siteSettingsLocationAskCPSS",
@@ -3572,7 +3568,7 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_SITE_SETTINGS_LOCATION_BLOCKED_EXCEPTIONS},
       {"siteSettingsMicDescription",
        IDS_SETTINGS_SITE_SETTINGS_MIC_DESCRIPTION},
-      {"siteSettingsMicAllowed", IDS_SETTINGS_SITE_SETTINGS_MIC_ALLOWED},
+      {"siteSettingsMicAsk", IDS_SETTINGS_SITE_SETTINGS_MIC_ASK},
       {"siteSettingsMicBlocked", IDS_SETTINGS_SITE_SETTINGS_MIC_BLOCKED},
       {"siteSettingsContentMicBlockedByOs",
        IDS_SETTINGS_SITE_SETTINGS_MIC_BLOCKED_BY_OS},
@@ -3584,7 +3580,7 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_SITE_SETTINGS_MIC_BLOCKED_EXCEPTIONS},
       {"siteSettingsMidiDescription",
        IDS_SETTINGS_SITE_SETTINGS_MIDI_DESCRIPTION},
-      {"siteSettingsMidiAllowed", IDS_SETTINGS_SITE_SETTINGS_MIDI_ALLOWED},
+      {"siteSettingsMidiAsk", IDS_SETTINGS_SITE_SETTINGS_MIDI_ASK},
       {"siteSettingsMidiBlocked", IDS_SETTINGS_SITE_SETTINGS_MIDI_BLOCKED},
       {"siteSettingsMidiAllowedExceptions",
        IDS_SETTINGS_SITE_SETTINGS_MIDI_ALLOWED_EXCEPTIONS},
@@ -3679,8 +3675,8 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_SITE_SETTINGS_PROTOCOL_HANDLERS_BLOCKED_EXCEPTIONS},
       {"siteSettingsSerialPortsDescription",
        IDS_SETTINGS_SITE_SETTINGS_SERIAL_PORTS_DESCRIPTION},
-      {"siteSettingsSerialPortsAllowed",
-       IDS_SETTINGS_SITE_SETTINGS_SERIAL_PORTS_ALLOWED},
+      {"siteSettingsSerialPortsAsk",
+       IDS_SETTINGS_SITE_SETTINGS_SERIAL_PORTS_ASK},
       {"siteSettingsSerialPortsBlocked",
        IDS_SETTINGS_SITE_SETTINGS_SERIAL_PORTS_BLOCKED},
       {"siteSettingsSoundDescription",
@@ -3695,10 +3691,10 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_SITE_SETTINGS_SOUND_BLOCKED_EXCEPTIONS},
       {"siteSettingsUsbDescription",
        IDS_SETTINGS_SITE_SETTINGS_USB_DESCRIPTION},
-      {"siteSettingsUsbAllowed", IDS_SETTINGS_SITE_SETTINGS_USB_ALLOWED},
+      {"siteSettingsUsbAsk", IDS_SETTINGS_SITE_SETTINGS_USB_ASK},
       {"siteSettingsUsbBlocked", IDS_SETTINGS_SITE_SETTINGS_USB_BLOCKED},
       {"siteSettingsVrDescription", IDS_SETTINGS_SITE_SETTINGS_VR_DESCRIPTION},
-      {"siteSettingsVrAllowed", IDS_SETTINGS_SITE_SETTINGS_VR_ALLOWED},
+      {"siteSettingsVrAsk", IDS_SETTINGS_SITE_SETTINGS_VR_ASK},
       {"siteSettingsVrBlocked", IDS_SETTINGS_SITE_SETTINGS_VR_BLOCKED},
       {"siteSettingsVrAllowedExceptions",
        IDS_SETTINGS_SITE_SETTINGS_VR_ALLOWED_EXCEPTIONS},
@@ -3817,8 +3813,7 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
        IDS_SITE_SETTINGS_SMART_CARD_READERS_DESCRIPTION},
       {"siteSettingsSmartCardReadersDefaultDescription",
        IDS_SITE_SETTINGS_SMART_CARDS_DEFAULT_DESCRIPTION},
-      {"siteSettingsSmartCardReadersAllowed",
-       IDS_SITE_SETTINGS_SMART_CARDS_ALLOWED},
+      {"siteSettingsSmartCardReadersAsk", IDS_SITE_SETTINGS_SMART_CARDS_ASK},
       {"siteSettingsSmartCardReadersBlocked",
        IDS_SITE_SETTINGS_SMART_CARDS_BLOCKED},
       {"siteSettingsNoSmartCardReadersFound",
@@ -3903,10 +3898,6 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
                           false);
 #endif
 
-  html_source->AddBoolean(
-      "enableWebPrintingContentSetting",
-      base::FeatureList::IsEnabled(blink::features::kWebPrinting));
-
   html_source->AddBoolean("enableFederatedIdentityApiContentSetting",
                           base::FeatureList::IsEnabled(features::kFedCm));
 
@@ -3935,7 +3926,7 @@ void AddStorageAccessStrings(content::WebUIDataSource* html_source) {
       {"siteSettingsStorageAccessMidSentence",
        IDS_SITE_SETTINGS_TYPE_STORAGE_ACCESS_MID_SENTENCE},
       {"storageAccessDescription", IDS_SETTINGS_STORAGE_ACCESS_DESCRIPTION},
-      {"storageAccessAllowed", IDS_SETTINGS_STORAGE_ACCESS_ALLOWED},
+      {"storageAccessAsk", IDS_SETTINGS_STORAGE_ACCESS_ASK},
       {"storageAccessBlocked", IDS_SETTINGS_STORAGE_ACCESS_BLOCKED},
       {"storageAccessAllowedExceptions",
        IDS_SETTINGS_STORAGE_ACCESS_ALLOWED_EXCEPTIONS},

@@ -6,8 +6,28 @@
 
 namespace guest_view::slim_web_view {
 
+// Events.
 const char kEventContentLoad[] = "contentload";
+const char kEventExit[] = "exit";
 const char kEventLoadAbort[] = "loadabort";
 const char kEventLoadCommit[] = "loadcommit";
+const char kEventLoadStart[] = "loadstart";
+const char kEventLoadStop[] = "loadstop";
+const char kEventNewWindow[] = "newwindow";
+const char kEventSizeChanged[] = "sizechanged";
+const char kEventUnresponsive[] = "unresponsive";
+
+// Parameters on events.
+const char kInitialHeight[] = "initialHeight";
+const char kInitialWidth[] = "initialWidth";
+const char kNewHeight[] = "newHeight";
+const char kNewWidth[] = "newWidth";
+const char kOldHeight[] = "oldHeight";
+const char kOldWidth[] = "oldWidth";
+const char kProcessId[] = "processId";
+const char kReason[] = "reason";
+const char kRequestInfo[] = "requestInfo";
+const char kTargetURL[] = "targetUrl";
+const char kWindowOpenDisposition[] = "windowOpenDisposition";
 
 }  // namespace guest_view::slim_web_view

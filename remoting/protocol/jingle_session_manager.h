@@ -12,9 +12,9 @@
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/sequence_checker.h"
-#include "remoting/protocol/jingle_messages.h"
 #include "remoting/protocol/session_manager.h"
 #include "remoting/protocol/session_observer.h"
+#include "remoting/signaling/jingle_data_structures.h"
 #include "remoting/signaling/signal_strategy.h"
 
 namespace jingle_xmpp {
@@ -63,8 +63,9 @@ class JingleSessionManager : public SessionManager,
 
   // SignalStrategy::Listener interface.
   void OnSignalStrategyStateChange(SignalStrategy::State state) override;
-  bool OnSignalStrategyIncomingStanza(
-      const jingle_xmpp::XmlElement* stanza) override;
+  bool OnSignalStrategyIncomingMessage(
+      const SignalingAddress& sender_address,
+      const SignalingMessage& message) override;
 
   typedef std::map<std::string, raw_ptr<JingleSession, CtnExperimental>>
       SessionsMap;

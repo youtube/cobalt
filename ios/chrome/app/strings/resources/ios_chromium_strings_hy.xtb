@@ -89,6 +89,7 @@
 <translation id="2517624234762908348">Համաժամացնել Chromium-ի տվյալները</translation>
 <translation id="2575968074225731646">Ավելի արագ բացեք Chromium-ը ձեր iPhone-ի Dock վահանակից։</translation>
 <translation id="2592940277904433508">Շարունակել Chromium-ի օգտագործումը</translation>
+<translation id="2601766165676560303">Chromium-ի թեմա iPhone-ի և iPad-ի համար</translation>
 <translation id="2607609479243848905">Եթե մոռացել եք ձեր անցաբառը կամ ուզում եք փոխել այս կարգավորումը, <ph name="BEGIN_LINK" />ջնջեք Chromium-ի տվյալները ձեր հաշվում<ph name="END_LINK" />։</translation>
 <translation id="2640367368802736659">Խորհուրդ Chromium-ից․ ձեր տեսածը գտեք Google Տեսապակու օգնությամբ</translation>
 <translation id="2650312721222849884">Chromium-ն օգտագործելիս ձեր բոլոր ներդիրները տեսնելու համար միացրեք համաժամացումը։</translation>
@@ -298,7 +299,7 @@
 <translation id="7395825497086981028">Գաղտնաբառը կպահվի <ph name="EMAIL" /> հաշվի Գաղտնաբառերի կառավարիչում։</translation>
 <translation id="7434848749522628428">Այս մուտքի բանալին կպահվի <ph name="USER_EMAIL" /> հաշվի Գաղտնաբառերի կառավարչում</translation>
 <translation id="7504829997542308412">Բացեք Chromium-ը</translation>
-<translation id="7507535968973352823">Տեղադրեք Chromium-ը ներքևի հատվածում՝ այն ցանկացած պահի արագ բացելու համար</translation>
+<translation id="7507535968973352823">Տեղադրեք Chromium-ը ներքևի հատվածում՝ ցանկացած պահի արագ բացելու համար</translation>
 <translation id="7531461704633548377">Chromium-ից</translation>
 <translation id="7554983317097061001">Խորհուրդ Chromium-ից․ տեղափոխեք Chromium-ը Dock վահանակ</translation>
 <translation id="7576863740961052505">Chromium-ի կարգավորումների կառավարում</translation>
@@ -374,4 +375,5 @@
 <translation id="924957577793602335">Անհատականացրեք Chromium-ը</translation>
 <translation id="981812233959540767">Խաղալ Chromium Dino խաղը</translation>
 <translation id="985602178874221306">Chromium Authors</translation>
+<translation id="986520777495807752">Chromium-ը դարձնել կանխադրված դիտարկիչ</translation>
 </translationbundle>

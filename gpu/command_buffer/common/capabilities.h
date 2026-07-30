@@ -46,20 +46,14 @@ struct GPU_COMMAND_BUFFER_COMMON_EXPORT Capabilities {
   bool texture_rg = false;
   bool texture_norm16 = false;
   bool texture_half_float_linear = false;
-  bool image_ycbcr_420v = false;
   bool image_ar30 = false;
   bool image_ab30 = false;
-  bool image_ycbcr_p010 = false;
   bool render_buffer_format_bgra8888 = false;
   bool msaa_is_slow = false;
   bool avoid_stencil_buffers = false;
 
-  bool disable_2d_canvas_copy_on_write = false;
-
   bool supports_rgb_to_yuv_conversion = false;
   bool supports_yuv_readback = false;
-
-  bool chromium_gpu_fence = false;
 
   bool mesa_framebuffer_flip_y = false;
 
@@ -68,7 +62,6 @@ struct GPU_COMMAND_BUFFER_COMMON_EXPORT Capabilities {
 
   bool using_vulkan_context = false;
 
-  base::flat_set<viz::SharedImageFormat> mappable_formats;
   base::flat_map<uint32_t, std::vector<uint64_t>> drm_formats_and_modifiers;
   uint64_t drm_device_id = 0;
 };

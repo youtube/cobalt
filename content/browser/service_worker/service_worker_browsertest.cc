@@ -12,6 +12,7 @@
 #include <tuple>
 #include <utility>
 
+#include "base/byte_size.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -1177,7 +1178,8 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerBrowserTest,
   // Set a non-existent resource to the version.
   std::vector<storage::mojom::ServiceWorkerResourceRecordPtr> resources;
   resources.push_back(storage::mojom::ServiceWorkerResourceRecord::New(
-      123456789, version->script_url(), 100, /*sha256_checksum=*/""));
+      123456789, version->script_url(), base::ByteSize(100),
+      /*sha256_checksum=*/""));
   version->script_cache_map()->resource_map_.clear();
   version->script_cache_map()->SetResources(resources);
 
@@ -7952,6 +7954,20 @@ IN_PROC_BROWSER_TEST_P(ServiceWorkerSyntheticResponseBrowserTest,
       static_cast<int>(ServiceWorkerMetrics::SyntheticResponseEligibility::
                            kNotEligibleByReload),
       0);
+
+  // The fallback body is written to the data pipe.
+  bool is_network_service =
+      GetProcessingMode() ==
+      blink::features::ServiceWorkerSyntheticResponseProcessingMode::
+          kNetworkService;
+  if (is_network_service) {
+    // In kNetworkService mode, the fallback logic is executed in the network
+    // service, and the histogram is recorded there.
+    FetchHistogramsFromChildProcesses();
+  }
+  histogram_tester().ExpectBucketCount(
+      "ServiceWorker.SyntheticResponse.WriteFallbackBodyResult", MOJO_RESULT_OK,
+      IsDryRunMode() ? 0 : 1);
 }
 
 IN_PROC_BROWSER_TEST_P(ServiceWorkerSyntheticResponseBrowserTest,
@@ -8019,6 +8035,50 @@ IN_PROC_BROWSER_TEST_P(ServiceWorkerSyntheticResponseBrowserTest,
   EXPECT_TRUE(ExecJs(shell()->web_contents()->GetPrimaryMainFrame(),
                      "Math.ceil(performance.getEntriesByType('navigation')[0]."
                      "responseStart) < 2000"));
+}
+
+IN_PROC_BROWSER_TEST_P(ServiceWorkerSyntheticResponseBrowserTest,
+                       WriteToFallbackBodyFails) {
+  if (IsDryRunMode()) {
+    // This test is not for the dry-run mode. In the dry-run mode, the browser
+    // doesn't write the fallback body.
+    return;
+  }
+
+  SetUpMockContentBrowserClient();
+  // Navigate and store the response header.
+  EXPECT_TRUE(NavigateToURL(
+      shell(), https_server()->GetURL(
+                   kHostname, base::StrCat({kTargetPath, "foo&echo=foo"}))));
+  EXPECT_EQ("[SyntheticResponse] foo", GetInnerText());
+
+  // Start the second navigation that triggers the synthetic response path.
+  // The navigation will be cancelled by the third navigation.
+  GURL mismatch_url = https_server()->GetURL(
+      kHostname,
+      base::StrCat({kTargetPath, "foo&echo=bar&server_slow&header_mismatch"}));
+  TestNavigationManager mismatch_manager(web_contents(), mismatch_url);
+  shell()->LoadURL(mismatch_url);
+
+  // 1. Wait for the navigation to commit headers.
+  // The synthetic response starts immediately with cached headers.
+  EXPECT_TRUE(mismatch_manager.WaitForResponse());
+  mismatch_manager.ResumeNavigation();
+  EXPECT_TRUE(mismatch_manager.WaitForNavigationFinished());
+
+  // 2. Immediately navigate to another URL to cancel the previous navigation's body load.
+  // This closes the consumer end of the data pipe in the renderer.
+  // We use a cross-site URL to ensure a clean cancellation.
+  GURL cancel_url("http://example.com");
+  TestNavigationManager cancel_manager(web_contents(), cancel_url);
+  shell()->LoadURL(cancel_url);
+  EXPECT_TRUE(cancel_manager.WaitForNavigationFinished());
+
+  // 3. The server delay (2s) will eventually expire, triggering the header
+  // mismatch logic. NotifyReloading() will be called, and its write to the
+  // data pipe will fail with MOJO_RESULT_FAILED_PRECONDITION because we
+  // navigated away and the previous document was destroyed.
+  // The test passes if it doesn't crash.
 }
 
 IN_PROC_BROWSER_TEST_P(ServiceWorkerSyntheticResponseBrowserTest, Redirect) {

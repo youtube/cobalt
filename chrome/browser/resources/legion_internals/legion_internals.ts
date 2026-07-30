@@ -26,26 +26,69 @@ function registerOnLogMessageListener() {
       });
 }
 
+function setConnectedState(connected: boolean) {
+  const connectionConsole = document.getElementById('console')!;
+  const createConnectionButton =
+      document.getElementById('create-connection-button')!;
+  const disconnectButton = document.getElementById('disconnect-button')!;
+  const legionServerUrl =
+      document.getElementById('legionServerUrl') as HTMLInputElement;
+  const legionServerApiKey =
+      document.getElementById('legionServerApiKey') as HTMLInputElement;
+  const useTokenAttestationCheckbox =
+      document.getElementById('use-token-attestation-checkbox') as
+      HTMLInputElement;
+
+  legionServerUrl.disabled = connected;
+  legionServerApiKey.disabled = connected;
+  useTokenAttestationCheckbox.disabled = connected;
+
+  connectionConsole.classList.toggle('hidden', !connected);
+  createConnectionButton.classList.toggle('hidden', connected);
+  disconnectButton.classList.toggle('hidden', !connected);
+}
+
 function registerOnCreateConnectionButtonListener() {
-  const connectionConsole = document.getElementById('console');
   const createConnectionButton =
       document.getElementById('create-connection-button');
+  const disconnectButton = document.getElementById('disconnect-button');
 
-  if (connectionConsole === null) {
-    console.error('connectionConsole is null');
-    return;
-  }
   if (createConnectionButton === null) {
     console.error('createConnectionButton is null');
     return;
   }
+  if (disconnectButton === null) {
+    console.error('disconnectButton is null');
+    return;
+  }
 
   createConnectionButton.addEventListener('click', () => {
-    connectionConsole.classList.remove('hidden');
-    createConnectionButton.classList.add('hidden');
+    if (getAPIKey() === '') {
+      console.info('API key missing');
+      return;
+    }
 
-    proxy.connect(getServerURL(), getAPIKey()).then(() => {
-      console.info('connected');
+    setConnectedState(true);
+
+    const useTokenAttestationCheckbox =
+        document.getElementById('use-token-attestation-checkbox') as
+        HTMLInputElement;
+    const useTokenAttestation = useTokenAttestationCheckbox.checked;
+    let proxyUrl = '';
+    if (useTokenAttestation) {
+      proxyUrl = getProxyUrl();
+    }
+
+    proxy.connect(getServerURL(), getAPIKey(), proxyUrl, useTokenAttestation)
+        .then(() => {
+          console.info('connected');
+        });
+  });
+
+  disconnectButton.addEventListener('click', () => {
+    proxy.close().then(() => {
+      console.info('disconnected');
+      setConnectedState(false);
     });
   });
 }
@@ -97,6 +140,31 @@ function getAPIKey() {
   return legionServerApiKey.value;
 }
 
+function getProxyUrl() {
+  const legionProxyUrl =
+      document.getElementById('legionProxyUrl') as HTMLInputElement;
+  return legionProxyUrl.value;
+}
+
+function registerOnTokenCheckboxListener() {
+  const useTokenAttestationCheckbox =
+      document.getElementById('use-token-attestation-checkbox');
+  const proxyUrlContainer = document.getElementById('proxy-url-container');
+
+  if (useTokenAttestationCheckbox === null || proxyUrlContainer === null) {
+    console.error('useTokenAttestationCheckbox or proxyUrlContainer is null');
+    return;
+  }
+
+  useTokenAttestationCheckbox.addEventListener('change', () => {
+    if ((useTokenAttestationCheckbox as HTMLInputElement).checked) {
+      proxyUrlContainer.classList.remove('hidden');
+    } else {
+      proxyUrlContainer.classList.add('hidden');
+    }
+  });
+}
+
 window.onload = function() {
   console.info('window.onload');
 
@@ -105,4 +173,13 @@ window.onload = function() {
   registerOnCreateConnectionButtonListener();
 
   registerOnSendButtonListener();
+
+  registerOnTokenCheckboxListener();
+
+  const useTokenAttestationCheckbox =
+      document.getElementById('use-token-attestation-checkbox') as
+      HTMLInputElement;
+  useTokenAttestationCheckbox.checked =
+      loadTimeData.getBoolean('default_use_token_attestation');
+  useTokenAttestationCheckbox.dispatchEvent(new Event('change'));
 };

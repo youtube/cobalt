@@ -7,7 +7,6 @@
 #include <inttypes.h>
 
 #include <memory>
-#include <utility>
 
 #include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
@@ -104,9 +103,6 @@
 namespace gpu {
 
 namespace {
-
-BASE_FEATURE(kUseCompoundImageBackingAsDefault,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 const char* GmbTypeToString(gfx::GpuMemoryBufferType type) {
   switch (type) {
@@ -387,7 +383,7 @@ bool SharedImageFactory::CreateSharedImage(
       IsSharedBetweenThreads(usage));
 
   std::unique_ptr<SharedImageBacking> backing =
-      base::FeatureList::IsEnabled(kUseCompoundImageBackingAsDefault)
+      base::FeatureList::IsEnabled(features::kUseCompoundImageBackingAsDefault)
           ? CompoundImageBacking::WrapExternalBacking(this, copy_manager(),
                                                       std::move(temp_backing))
           : std::move(temp_backing);
@@ -497,7 +493,7 @@ bool SharedImageFactory::CreateSharedImage(const Mailbox& mailbox,
       IsNativeBufferSupported(format, buffer_usage, gpu_extra_info_);
   std::unique_ptr<SharedImageBacking> backing;
   const bool force_compound_backing =
-      base::FeatureList::IsEnabled(kUseCompoundImageBackingAsDefault);
+      base::FeatureList::IsEnabled(features::kUseCompoundImageBackingAsDefault);
 
   if (native_buffer_supported) {
     auto* factory = GetFactoryByUsage(usage, format, size,
@@ -601,18 +597,8 @@ bool SharedImageFactory::CreateSharedImage(const Mailbox& mailbox,
       SharedImageUsageSet(usage), std::move(debug_label),
       IsSharedBetweenThreads(usage), data);
 
-#if BUILDFLAG(IS_ANDROID)
-  LOG_IF(ERROR, !temp_backing)
-      << "Could not CreateSharedImagePixels type="
-      << std::to_underlying(factory->GetBackingType())
-      << " with params: usage: " << CreateLabelForSharedImageUsage(usage)
-      << ", format: " << format.ToString()
-      << ", share_between_threads: " << IsSharedBetweenThreads(usage)
-      << ", size: " << size.ToString() << ", debug_label: " << debug_label;
-#endif  // BUILDFLAG(IS_ANDROID)
-
   std::unique_ptr<SharedImageBacking> backing =
-      base::FeatureList::IsEnabled(kUseCompoundImageBackingAsDefault)
+      base::FeatureList::IsEnabled(features::kUseCompoundImageBackingAsDefault)
           ? CompoundImageBacking::WrapExternalBacking(this, copy_manager(),
                                                       std::move(temp_backing))
           : std::move(temp_backing);
@@ -672,7 +658,8 @@ bool SharedImageFactory::CreateSharedImage(
         std::move(debug_label), IsSharedBetweenThreads(usage),
         std::move(buffer_handle));
 
-    backing = base::FeatureList::IsEnabled(kUseCompoundImageBackingAsDefault)
+    backing = base::FeatureList::IsEnabled(
+                  features::kUseCompoundImageBackingAsDefault)
                   ? CompoundImageBacking::WrapExternalBacking(
                         this, copy_manager(), std::move(temp_backing))
                   : std::move(temp_backing);
@@ -880,10 +867,24 @@ gpu::SharedImageCapabilities SharedImageFactory::MakeCapabilities() {
       !is_angle_metal && !is_skia_graphite;
   shared_image_caps.supports_r16_shared_images =
       is_angle_metal || is_skia_graphite;
-  shared_image_caps.supports_native_nv12_mappable_shared_images =
-      IsNativeBufferSupported(viz::MultiPlaneFormat::kNV12,
-                              gfx::BufferUsage::GPU_READ_CPU_READ_WRITE,
-                              gpu_extra_info_);
+  if (context_state_) {
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
+    auto* surface_factory =
+        ui::OzonePlatform::GetInstance()->GetSurfaceFactoryOzone();
+    shared_image_caps.supports_ycbcr_nv12_sampling =
+        surface_factory->IsFormatSupportedForTexturing(
+            viz::MultiPlaneFormat::kNV12) &&
+        IsNativeBufferSupported(viz::MultiPlaneFormat::kNV12,
+                                gfx::BufferUsage::GPU_READ_CPU_READ_WRITE,
+                                gpu_extra_info_);
+    shared_image_caps.supports_ycbcr_p010_sampling =
+        surface_factory->IsFormatSupportedForTexturing(
+            viz::MultiPlaneFormat::kP010);
+#elif BUILDFLAG(IS_APPLE)
+    shared_image_caps.supports_ycbcr_nv12_sampling = true;
+    shared_image_caps.supports_ycbcr_p010_sampling = true;
+#endif
+  }
   shared_image_caps.disable_r8_shared_images =
       workarounds_.r8_egl_images_broken;
   shared_image_caps.disable_webgpu_shared_images =

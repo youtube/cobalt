@@ -790,6 +790,11 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
                             .getTabCreator(isIncognito)
                             .createFrozenTab(tabState, tabToRestore.id, restoredIndex);
             if (tab == null) return;
+            if (setAsActive) {
+                for (TabPersistentStoreObserver observer : mObservers) {
+                    observer.onActiveTabLoaded(isIncognito);
+                }
+            }
 
             if (tabState.shouldMigrate) {
                 mTabsToMigrate.add(tab);
@@ -818,6 +823,12 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
                         TabRestoreMethod.FAILED_TO_RESTORE,
                         TabRestoreMethod.NUM_ENTRIES);
                 return;
+            }
+
+            if (setAsActive) {
+                for (TabPersistentStoreObserver observer : mObservers) {
+                    observer.onActiveTabLoaded(isIncognito);
+                }
             }
 
             RecordHistogram.recordEnumeratedHistogram(
@@ -1045,6 +1056,10 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
                 @Nullable Boolean isIncognito,
                 boolean isStandardActiveIndex,
                 boolean isIncognitoActiveIndex) -> {
+            if (mCancelIncognitoTabLoads && (isIncognito != null && isIncognito)) {
+                return;
+            }
+
             if (mLoadInProgress) {
                 // If a load and merge are both in progress, that means two metadata files
                 // are being read. If a merge was previously started and interrupted due to the

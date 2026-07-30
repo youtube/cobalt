@@ -7,6 +7,7 @@
 #import <CoreText/CoreText.h>
 
 #import "base/apple/foundation_util.h"
+#import "base/check_is_test.h"
 #import "base/check_op.h"
 #import "base/command_line.h"
 #import "base/ios/ios_util.h"
@@ -182,6 +183,7 @@ const CGFloat kVerticalOffset = 1;
 - (void)setPlaceholderLabel:(UILabel*)placeholderLabel {
   placeholderLabel.font = self.font;
   placeholderLabel.textColor = [UIColor colorNamed:kTextfieldPlaceholderColor];
+  placeholderLabel.isAccessibilityElement = NO;
   _placeholderLabel = placeholderLabel;
 
   // Align placeholder with the text view's content area by constraining it
@@ -820,10 +822,8 @@ const CGFloat kVerticalOffset = 1;
 #pragma mark - UIAccessibilityElement
 
 - (NSString*)accessibilityValue {
-  if (NSClassFromString(@"XCTest")) {
-    return [NSString stringWithFormat:@"%@||||%@||||%@", self.userText ?: @"",
-                                      self.autocompleteText ?: @"",
-                                      self.attributedAdditionalText ?: @""];
+  if (self.text.length == 0) {
+    return self.placeholderLabel.text;
   }
   return self.text;
 }
@@ -1169,6 +1169,7 @@ const CGFloat kVerticalOffset = 1;
   self.placeholderLabel.font = self.font;
   [self setAttributedText:self.attributedText];
   [self updateOmniboxTypingAttributes];
+  [self.heightDelegate textViewContentChanged:self];
 }
 
 - (void)updateTextContainerInset {
@@ -1252,6 +1253,14 @@ const CGFloat kVerticalOffset = 1;
 - (void)setCustomPlaceholderText:(NSString*)customPlaceholderText {
   _customPlaceholderText = [customPlaceholderText copy];
   [self updatePlaceholder];
+}
+
+- (NSString*)textValueForTesting {
+  CHECK_IS_TEST();
+  return
+      [NSString stringWithFormat:@"%@||||%@||||%@", self.userText ?: @"",
+                                 self.autocompleteText ?: @"",
+                                 self.attributedAdditionalText.string ?: @""];
 }
 
 #pragma mark - UITextViewDelegate

@@ -22,14 +22,111 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
-<histogram name="Skills.Actions" enum="SkillsActions"
-    expires_after="2026-07-01">
+<histogram name="Skills.Dialog.{DialogType}.Action" enum="SkillsDialogAction"
+    expires_after="2027-02-01">
   <owner>michelleabreo@google.com</owner>
   <owner>skills-eng@google.com</owner>
   <summary>
-    Tracks native UI interactions for the Skills feature. Recorded when the
-    backend successfully performs an action (e.g., saving or executing a skill)
-    or when the user interacts with native browser UI (e.g., toasts).
+    Records user actions (e.g., Save, Cancel, Refine) specifically within the
+    Skills {DialogType} dialog.
+  </summary>
+  <token key="DialogType">
+    <variant name="Creation" summary="Creation dialog for new skills"/>
+    <variant name="Edit" summary="Edit dialog for existing skills"/>
+  </token>
+</histogram>
+
+<histogram name="Skills.Downloader.FirstParty.FetchResult"
+    enum="SkillsFetchResult" expires_after="2027-02-01">
+  <owner>aashnas@google.com</owner>
+  <owner>skills-eng@google.com</owner>
+  <summary>
+    Records the result status (success, network error, parse error, etc.) of a
+    first-party skills download attempt.
+  </summary>
+</histogram>
+
+<histogram name="Skills.Downloader.FirstParty.HttpResponseCode"
+    enum="HttpResponseCode" expires_after="2027-02-01">
+  <owner>aashnas@google.com</owner>
+  <owner>skills-eng@google.com</owner>
+  <summary>The HTTP response code received when downloading skills.</summary>
+</histogram>
+
+<histogram name="Skills.Invoke.Action" enum="SkillsInvokeAction"
+    expires_after="2027-02-01">
+  <owner>michelleabreo@google.com</owner>
+  <owner>skills-eng@google.com</owner>
+  <summary>
+    Records executions of Skills, categorized by the skill source.
+  </summary>
+</histogram>
+
+<histogram name="Skills.Invoke.Result" enum="SkillsInvokeResult"
+    expires_after="2027-02-01">
+  <owner>michelleabreo@google.com</owner>
+  <owner>skills-eng@google.com</owner>
+  <summary>
+    Records the terminal outcome (success or specific error state) of invoking a
+    Skill via the Glic panel. This metric is used to calculate availability and
+    reliability SLOs. Specific failure states include panel timeouts and
+    requests for skills that no longer exist (e.g., deleted via sync).
+  </summary>
+</histogram>
+
+<histogram name="Skills.Management.Error" enum="SkillsManagementError"
+    expires_after="2027-02-01">
+  <owner>aashnas@google.com</owner>
+  <owner>skills-eng@google.com</owner>
+  <summary>
+    Records errors encountered during skills management operations (e.g.,
+    service not ready, skill not found).
+  </summary>
+</histogram>
+
+<histogram name="Skills.Management.FirstParty.DownloadRequestStatus"
+    enum="SkillsDownloadRequestStatus" expires_after="2027-02-01">
+  <owner>aashnas@google.com</owner>
+  <owner>skills-eng@google.com</owner>
+  <summary>
+    Records the status of a skills download request (success, already running,
+    timeout).
+  </summary>
+</histogram>
+
+<histogram name="Skills.Refine.Result" enum="SkillsRefineResult"
+    expires_after="2027-02-01">
+  <owner>michelleabreo@google.com</owner>
+  <owner>skills-eng@google.com</owner>
+  <summary>
+    Records the terminal outcome of refining a Skill prompt using a server-side
+    ML model. Tracks successful execution, model failures, protobuf parse
+    errors, and cases where the model returns an empty suggestion list. Used to
+    monitor feature health and model reliability.
+  </summary>
+</histogram>
+
+<histogram name="Skills.Save.Result" enum="SkillsSaveResult"
+    expires_after="2027-02-01">
+  <owner>michelleabreo@google.com</owner>
+  <owner>skills-eng@google.com</owner>
+  <summary>
+    Records the terminal outcome of saving a new Skill or updating an existing
+    one. Failure states differentiate between database/sync errors,
+    initialization states (service not ready), and cases where the UI context is
+    lost (dialog closed) before the save operation completes.
+  </summary>
+</histogram>
+
+<histogram name="Skills.UserSkills.Count" units="skills"
+    expires_after="2027-02-01">
+  <owner>michelleabreo@google.com</owner>
+  <owner>skills-eng@google.com</owner>
+  <summary>
+    Records the total number of skills a user possesses per profile. Used to
+    measure adoption depth over time. This metric is recorded, potentially
+    multiple times (once per profile) with every UMA log by
+    SkillsMetricsProvider.
   </summary>
 </histogram>
 

@@ -39,7 +39,6 @@
 #include "base/types/pass_key.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
-#include "chrome/browser/commerce/browser_utils.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/extensions/tab_helper.h"
 #include "chrome/browser/lifetime/browser_shutdown.h"
@@ -49,9 +48,11 @@
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_util.h"
 #include "chrome/browser/ui/bookmarks/bookmark_utils.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_bubble.h"
 #include "chrome/browser/ui/tab_ui_helper.h"
 #include "chrome/browser/ui/tabs/features.h"
@@ -70,10 +71,12 @@
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/tabs/tab_strip_user_gesture_details.h"
 #include "chrome/browser/ui/tabs/tab_utils.h"
+#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/thumbnails/thumbnail_tab_helper.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.h"
+#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_metrics.h"
 #include "chrome/browser/ui/web_applications/web_app_dialog_utils.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
 #include "chrome/browser/ui/web_applications/web_app_tabbed_utils.h"
@@ -1246,8 +1249,8 @@ void TabStripModel::UpdateWebContentsStateAt(int index,
 }
 
 void TabStripModel::SetTabNeedsAttentionAt(int index, bool attention) {
-  tabs::TabInterface* tab = GetTabAtIndex(index);
-  TabUIHelper::From(tab)->set_needs_attention(attention);
+  tabs::TabInterface* const tab = GetTabAtIndex(index);
+  TabUIHelper::From(tab)->SetNeedsAttention(attention);
 
   for (auto& observer : observers_) {
     observer.OnTabChangedAt(tab, index, TabChangeType::kAttentionOnly);
@@ -2559,6 +2562,9 @@ bool TabStripModel::IsContextMenuCommandEnabled(
       DCHECK(web_app::HasPinnedHomeTab(this));
       return true;
 
+    case CommandToggleVertical:
+      return true;
+
     default:
       NOTREACHED();
   }
@@ -3027,6 +3033,22 @@ void TabStripModel::ExecuteContextMenuCommand(int context_index,
       // the groups are also deleted.
       ExecuteCloseTabsCommand(get_all_except_pinned_home_tab,
                               /*delete_groups=*/true);
+      break;
+    }
+    case CommandToggleVertical: {
+      base::UmaHistogramCounts1000(
+          "Tab.ContextMenu.ToggleVertical.SelectedTabsCount",
+          selection_model_.size());
+      const Browser* const browser =
+          chrome::FindBrowserWithTab(GetWebContentsAt(context_index));
+      if (auto* controller =
+              tabs::VerticalTabStripStateController::From(browser)) {
+        const bool is_vertical = !controller->ShouldDisplayVerticalTabs();
+        tabs::RecordVerticalTabStripModeChanged(
+            is_vertical, tabs::VerticalTabStripEntryPoint::kTabContextMenu);
+      }
+      browser->GetFeatures().browser_command_controller()->ExecuteCommand(
+          IDC_TOGGLE_VERTICAL_TABS);
       break;
     }
     case CommandAddToNewGroupFromMenuItem: {

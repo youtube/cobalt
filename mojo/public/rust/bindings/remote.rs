@@ -96,12 +96,22 @@ impl<T> PendingRemote<T>
 where
     T: DynMojomInterface + ?Sized,
 {
-    /// Create a new PendingRemote from a raw pipe endpoint
-    // This function isn't `pub` because users should always get their
-    // `PendingRemote`s from API functions like `new_pipe`, or from
-    // `unbind`ing a `Remote`.
-    pub(crate) fn new(endpoint: MessageEndpoint) -> Self {
+    /// Create a new PendingRemote from a raw pipe endpoint.
+    ///
+    /// If you want to create a new remote/receiver pair, use
+    /// `new_pipe` instead. This function is mostly useful for creating a new
+    /// `Remote` from an endpoint received via mojo or FFI.
+    ///
+    /// Note that the caller is responsible for ensuring that `Self` has the
+    /// right instantiation of `T` as the other endpoint, or else incoming
+    /// messages will be incomprehensible.
+    pub fn new(endpoint: MessageEndpoint) -> Self {
         Self { endpoint, _phantom: PhantomData }
+    }
+
+    /// Consume this PendingRemote and return the underlying endpoint.
+    pub fn into_endpoint(self) -> MessageEndpoint {
+        self.endpoint
     }
 
     /// Bind this pending remote to the current default sequence.
@@ -201,7 +211,7 @@ where
                 .lock()
                 .expect("Mutex should never be poisoned")
                 .insert(self.next_request_id, callback);
-            if !matches!(old_entry, None) {
+            if old_entry.is_some() {
                 // This is technically possible...if we wrap all the way around with request IDs
                 panic!("send_message_internal: Tried to insert duplicate response!")
             }
@@ -214,9 +224,10 @@ where
 
         // This can only fail if the other end is closed, in which case we've nothing to
         // do here (we'll get a disconnection notification separately).
+        let (payload, handles) = message.into_data();
         let _ = self
             .endpoint_watcher
-            .send_message(RawMojoMessage::new_with_bytes(&message.into_bytes()).unwrap());
+            .send_message(RawMojoMessage::new_with_data(&payload, handles).unwrap());
     }
 
     /// This is the function which is called by the endpoint watcher

@@ -157,9 +157,6 @@ export interface PageElementTypes {
   shareCandidates: HTMLElement;
   enableShareCandidates: HTMLInputElement;
   unpin: HTMLButtonElement;
-  viewChangedBtn: HTMLButtonElement;
-  viewChangedCurrentView: HTMLSelectElement;
-  viewChangedAutomaticallyAccept: HTMLInputElement;
   mqlsClientIdBtn: HTMLButtonElement;
   additionalContextResult: HTMLTextAreaElement;
   additionalContextImages: HTMLDivElement;
@@ -180,6 +177,7 @@ export interface PageElementTypes {
   updateSkillBtn: HTMLButtonElement;
   getSkillBtn: HTMLButtonElement;
   manageSkillsBtn: HTMLButtonElement;
+  skillsList: HTMLUListElement;
   stressTestEngageBtn: HTMLButtonElement;
   stressTestEngageRetainBtn: HTMLButtonElement;
   invocationLog: HTMLDivElement;

@@ -44,7 +44,6 @@ ts_library("build_extra_ts") {
     "test_client/sections/action.ts",
     "test_client/sections/additional_context.ts",
     "test_client/sections/interaction.ts",
-    "test_client/sections/view.ts",
     "test_client/sections/stress.ts",
   ]
   deps = [ "//chrome/browser/resources/glic:build_ts" ]
@@ -94,6 +93,8 @@ copy("test_glic_deps") {
 }
 
 build_webui_tests("build") {
+  cc_test_files = [ "glic_browsertest.cc" ]
+
   files = [
     "unit_tests/glic_api_host_test.ts",
     "unit_tests/observable_test.ts",

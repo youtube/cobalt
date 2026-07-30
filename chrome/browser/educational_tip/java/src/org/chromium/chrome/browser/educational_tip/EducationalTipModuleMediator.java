@@ -70,6 +70,12 @@ public class EducationalTipModuleMediator {
             DefaultBrowserPromoUtils.getInstance()
                     .addListener(mDefaultBrowserPromoTriggerStateListener);
         }
+        Runnable removeModuleCallback = () -> mModuleDelegate.removeModule(mModuleType);
+
+        if (mModuleType == ModuleType.HISTORY_SYNC_PROMO
+                && SetupListModuleUtils.isSetupListModule(ModuleType.HISTORY_SYNC_PROMO)) {
+            removeModuleCallback = this::updateModule;
+        }
 
         mEducationalTipCardProvider =
                 EducationalTipCardProviderFactory.createInstance(
@@ -77,9 +83,7 @@ public class EducationalTipModuleMediator {
                         this::onCardClicked,
                         mCallbackController,
                         mActionDelegate,
-                        () -> {
-                            mModuleDelegate.removeModule(mModuleType);
-                        });
+                        removeModuleCallback);
         assumeNonNull(mEducationalTipCardProvider);
 
         mModel.set(
@@ -116,6 +120,10 @@ public class EducationalTipModuleMediator {
 
     /** Called when the educational tip module is visible to users on the magic stack. */
     void onViewCreated() {
+        if (mEducationalTipCardProvider != null) {
+            mEducationalTipCardProvider.onViewCreated();
+        }
+
         if (mModuleType == ModuleType.DEFAULT_BROWSER_PROMO) {
             // For the Setup List version, we notify the system immediately to ensure mutual
             // exclusion with other surfaces (banners on Messages/Settings pages).
@@ -161,7 +169,7 @@ public class EducationalTipModuleMediator {
         mModel.set(EducationalTipModuleProperties.MARK_COMPLETED, true);
         if (mEducationalTipCardProvider instanceof SetupListCompletable completable) {
             mModel.set(
-                    EducationalTipModuleProperties.MODULE_CONTENT_IMAGE,
+                    EducationalTipModuleProperties.MODULE_CONTENT_COMPLETED_IMAGE,
                     completable.getCardImageCompletedResId());
         }
 
@@ -170,7 +178,10 @@ public class EducationalTipModuleMediator {
                 mCallbackController.makeCancelable(
                         () -> {
                             SetupListModuleUtils.finishCompletionAnimation(mModuleType);
-                            mModuleDelegate.updateModuleRanking(mModuleType);
+                            mModuleDelegate.maybeMoveModuleToTheEnd(mModuleType);
+                            if (SetupListManager.getInstance().shouldShowCelebratoryPromo()) {
+                                mModuleDelegate.refreshModules();
+                            }
                         }),
                 SetupListManager.STRIKETHROUGH_DURATION_MS + SetupListManager.HIDE_DURATION_MS);
     }
@@ -209,7 +220,7 @@ public class EducationalTipModuleMediator {
 
         if (SetupListModuleUtils.isSetupListModule(mModuleType)) {
             // Considered complete if the user clicks on the promo
-            SetupListModuleUtils.setModuleCompleted(mModuleType);
+            SetupListModuleUtils.setModuleCompleted(mModuleType, /* silent= */ false);
         }
     }
 
@@ -222,6 +233,10 @@ public class EducationalTipModuleMediator {
 
     DefaultBrowserPromoTriggerStateListener getDefaultBrowserPromoTriggerStateListenerForTesting() {
         return mDefaultBrowserPromoTriggerStateListener;
+    }
+
+    @Nullable EducationalTipCardProvider getCardProviderForTesting() {
+        return mEducationalTipCardProvider;
     }
 
     void setModuleTypeForTesting(@ModuleType int moduleType) {

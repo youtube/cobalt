@@ -31,11 +31,17 @@
 namespace autofill {
 
 class AutofillQueryResponse_FormSuggestion_FieldSuggestion_FieldPrediction;
+class FormAutofillHistory;
+class FormFiller;
+
 enum FormatString_Type : int;
 
 using FieldPrediction =
     AutofillQueryResponse_FormSuggestion_FieldSuggestion_FieldPrediction;
 
+// LINT.IfChange(AutofillPredictionSource)
+
+// Values are persisted in UMA logs, values should not be reused/renumbered.
 // Enum representing prediction sources that are recognized.
 enum class AutofillPredictionSource {
   kServerCrowdsourcing = 0,
@@ -45,6 +51,8 @@ enum class AutofillPredictionSource {
   kRationalization = 4,
   kMaxValue = kRationalization
 };
+
+// LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:AutofillPredictionSource2)
 
 std::string_view AutofillPredictionSourceToStringView(
     AutofillPredictionSource source);
@@ -164,6 +172,13 @@ enum class AutofillFormatStringSource {
   kServer = 3,       // Set by an (Autofill) server response.
 };
 
+// Defines the way a field's value was modified.
+enum class FieldModifier {
+  kUser = 0,
+  kAutofill = 1,
+  kMaxValue = kAutofill,
+};
+
 class AutofillField : public FormFieldData {
  public:
   using FieldLogEventType = std::variant<std::monostate,
@@ -193,6 +208,24 @@ class AutofillField : public FormFieldData {
   static std::unique_ptr<AutofillField> CreateForPasswordManagerUpload(
       FieldSignature field_signature);
 
+  // This is deprecated, consider using `AutofillField::field_modifiers_`
+  // instead.
+  // TODO(crbug.com/393114125): Remove this getter after launching
+  // `AutofillFixIsAutofilled`.
+  bool is_autofilled_deprecated(base::PassKey<FormStructure> pass_key) const {
+    return is_autofilled_according_to_renderer();
+  }
+
+  // This is deprecated, consider using `AutofillField::AddFieldModifier()`
+  // instead.
+  // TODO(crbug.com/393114125): Remove this setter after launching
+  // `AutofillFixIsAutofilled`.
+  void set_is_autofilled_deprecated(
+      bool is_autofilled_deprecated,
+      base::PassKey<FormStructure, FormFiller> pass_key) {
+    set_is_autofilled_according_to_renderer(is_autofilled_deprecated);
+  }
+
   // The unique identifier of the section (e.g. billing vs. shipping address)
   // of this field.
   const Section& section() const { return section_; }
@@ -209,7 +242,6 @@ class AutofillField : public FormFieldData {
   HtmlFieldType html_type() const { return html_type_; }
   HtmlFieldMode html_mode() const { return html_mode_; }
   const FieldTypeSet& possible_types() const { return possible_types_; }
-  bool previously_autofilled() const { return previously_autofilled_; }
   bool only_fill_when_focused() const { return only_fill_when_focused_; }
 
   void set_heuristic_type(HeuristicSource s, FieldType t);
@@ -229,8 +261,42 @@ class AutofillField : public FormFieldData {
 
   void SetHtmlType(HtmlFieldType type, HtmlFieldMode mode);
 
-  void set_previously_autofilled(bool previously_autofilled) {
-    previously_autofilled_ = previously_autofilled;
+  // This is deprecated. Please use `AutofillField::AddFieldModifier()` instead.
+  void set_previously_autofilled_deprecated(
+      bool previously_autofilled_deprecated) {
+    previously_autofilled_deprecated_ = previously_autofilled_deprecated;
+  }
+  // This is deprecated. Please use `AutofillField::all_modifiers()` instead.
+  bool previously_autofilled_deprecated() const {
+    return previously_autofilled_deprecated_;
+  }
+
+  // This is deprecated. Please use `AutofillField::AddFieldModifier()` instead.
+  void set_is_user_edited_deprecated(bool is_user_edited_deprecated) {
+    is_user_edited_deprecated_ = is_user_edited_deprecated;
+  }
+  // This is deprecated. Please use `AutofillField::all_modifiers()` instead.
+  bool is_user_edited_deprecated() const { return is_user_edited_deprecated_; }
+
+  // Returns all the modifiers to have acted on the field, in no particular
+  // order.
+  DenseSet<FieldModifier> all_modifiers() const;
+  // Returns the last `FieldModifier` to have acted on the field.
+  std::optional<FieldModifier> last_modifier() const;
+  // Adds `modifier` as the most recent field modifier.
+  void AddFieldModifier(FieldModifier modifier);
+  void RemoveFieldModifier(FieldModifier modifier,
+                           base::PassKey<FormFiller> pass_key);
+
+  // TODO(crbug.com/456719060): Remove `FormStructure` from the `pass_key` of
+  // both functions below after launching `kAutofillOptimizeCacheUpdates`.
+  const std::vector<FieldModifier>& field_modifiers(
+      base::PassKey<FormStructure, FormAutofillHistory>) const {
+    return field_modifiers_;
+  }
+  void set_field_modifiers(std::vector<FieldModifier> field_modifiers,
+                           base::PassKey<FormStructure, FormFiller>) {
+    field_modifiers_ = std::move(field_modifiers);
   }
 
   void set_only_fill_when_focused(bool fill_when_focused) {
@@ -468,6 +534,10 @@ class AutofillField : public FormFieldData {
 
  private:
   friend class AutofillFieldTestApi;
+
+  using FormFieldData::is_autofilled_according_to_renderer;
+  using FormFieldData::set_is_autofilled_according_to_renderer;
+
   struct PredictionResult {
     // The type may be a union type, i.e., hold multiple FieldTypes.
     AutofillType type;
@@ -565,7 +635,20 @@ class AutofillField : public FormFieldData {
   size_t credit_card_number_offset_ = 0;
 
   // Whether the field was autofilled then later edited.
-  bool previously_autofilled_ = false;
+  // TODO(crbug.com/393114125): Remove after fully launching
+  // `AutofillField::field_modifiers_`.
+  bool previously_autofilled_deprecated_ = false;
+
+  // This is deprecated, please use `field_modifiers_` instead.
+  // Whether or not the user edited the field. It corresponds to whether the
+  // field is seen by `AutofillManager` in an `OnTextFieldValueChanged()`
+  // signal.
+  bool is_user_edited_deprecated_ = false;
+
+  // Tracks the relative order of all the modifiers of the field. Each
+  // `FieldModifier` value is present at most once in the list, and the order of
+  // the list depends on the order of events that modified the field's value.
+  std::vector<FieldModifier> field_modifiers_;
 
   // Whether the field should be filled when it is not the highlighted field.
   bool only_fill_when_focused_ = false;
@@ -580,9 +663,6 @@ class AutofillField : public FormFieldData {
   // The autofill profile's GUID that was used for field filling. It corresponds
   // to the autofill profile's GUID for the last address filling value of the
   // field. nullopt means the field was never autofilled with address data.
-  // Note: `is_autofilled` is true for autocompleted fields. So `is_autofilled`
-  // is not a sufficient condition for `autofill_source_profile_guid_` to have a
-  // value. This is not tracked for fields filled with field by field filling.
   std::optional<std::string> autofill_source_profile_guid_;
 
   // Denotes the type that was used to fill the field in its last autofill

@@ -8,6 +8,7 @@
 
 #include "base/byte_size.h"
 #include "base/callback_list.h"
+#include "base/check_op.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
@@ -20,14 +21,25 @@
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_web_contents_listener.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
+#include "chrome/browser/ui/web_applications/app_browser_controller.h"
+#include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/security_interstitials/content/security_interstitial_tab_helper.h"
 #include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/url_constants.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/models/image_model.h"
+#include "ui/gfx/image/image_skia.h"
 #include "ui/resources/grit/ui_resources.h"
+#include "url/gurl.h"
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"  // nogncheck
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/web_applications/web_app_browser_controller.h"
 #endif
 
 namespace {
@@ -38,6 +50,40 @@ namespace {
 BASE_FEATURE(kSessionRestoreShowThrobberOnVisible,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+bool IsNTP(const GURL& url) {
+  return url.SchemeIs(content::kChromeUIScheme) &&
+         (url.GetHost() == chrome::kChromeUINewTabHost ||
+#if !BUILDFLAG(IS_ANDROID)
+          url.GetHost() == chrome::kChromeUITabSearchHost ||
+#endif  // !BUILDFLAG(IS_ANDROID)
+          url.GetHost() == chrome::kChromeUINewTabPageHost);
+}
+
+#if !BUILDFLAG(IS_ANDROID)
+web_app::WebAppBrowserController* GetWebAppBrowserController(
+    tabs::TabInterface* tab_interface) {
+  // The browser window interface can be null during unit tests.
+  BrowserWindowInterface* const browser_window_interface =
+      tab_interface->GetBrowserWindowInterface();
+  return browser_window_interface
+             ? web_app::WebAppBrowserController::From(browser_window_interface)
+             : nullptr;
+}
+
+bool ShouldShowAppIcon(web_app::WebAppBrowserController* app_controller,
+                       tabs::TabInterface* tab_interface) {
+  if (!app_controller) {
+    return false;
+  }
+
+  BrowserWindowInterface* const browser_window_interface =
+      tab_interface->GetBrowserWindowInterface();
+  CHECK(browser_window_interface);
+  const int index = browser_window_interface->GetTabStripModel()->GetIndexOfTab(
+      tab_interface);
+  return app_controller->ShouldShowAppIconOnTab(index);
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
 }  // namespace
 
 DEFINE_USER_DATA(TabUIHelper);
@@ -45,6 +91,10 @@ DEFINE_USER_DATA(TabUIHelper);
 TabUIHelper::TabUIHelper(tabs::TabInterface& tab_interface)
     : ContentsObservingTabFeature(tab_interface),
       scoped_unowned_user_data_(tab_interface.GetUnownedUserDataHost(), *this) {
+  // Register for tab pin state change because pin state affects whether the
+  // favicon should show or not.
+  pin_tab_subscription_ = tab().RegisterPinnedStateChanged(base::BindRepeating(
+      &TabUIHelper::OnTabPinnedStatusChange, base::Unretained(this)));
 }
 
 TabUIHelper::~TabUIHelper() = default;
@@ -86,7 +136,57 @@ std::u16string TabUIHelper::GetTitle() const {
 #endif
 }
 
-ui::ImageModel TabUIHelper::GetFavicon() const {
+bool TabUIHelper::ShouldRenderLoadingTitle() {
+  return GetTitle().empty() &&
+         !GetVisibleURL().SchemeIs(content::kChromeUIUntrustedScheme);
+}
+
+bool TabUIHelper::ShouldThemifyFavicon() {
+  content::NavigationEntry* const entry =
+      tab().GetContents()->GetController().GetLastCommittedEntry();
+  return entry && favicon::ShouldThemifyFaviconForEntry(entry);
+}
+
+#if !BUILDFLAG(IS_ANDROID)
+bool TabUIHelper::ShouldDisplayFavicon() {
+  // BrowserWindowInterface can be null during unit tests
+  BrowserWindowInterface* const browser_window_interface =
+      tab().GetBrowserWindowInterface();
+  if (browser_window_interface) {
+    // Remove for all tabbed web apps.
+    web_app::AppBrowserController* const app_browser_controller =
+        web_app::AppBrowserController::From(browser_window_interface);
+    if (app_browser_controller && app_browser_controller->has_tab_strip()) {
+      return false;
+    }
+  }
+
+  if (tab().IsPinned()) {
+    return true;
+  }
+
+  // Don't show favicon when on an interstitial.
+  security_interstitials::SecurityInterstitialTabHelper* const
+      security_interstitial_tab_helper = security_interstitials::
+          SecurityInterstitialTabHelper::FromWebContents(tab().GetContents());
+  if (security_interstitial_tab_helper &&
+      security_interstitial_tab_helper->IsDisplayingInterstitial()) {
+    return false;
+  }
+
+  // Otherwise, always display the favicon.
+  return true;
+}
+
+bool TabUIHelper::IsMonochromeFavicon() {
+  web_app::WebAppBrowserController* const web_app_browser_controller =
+      GetWebAppBrowserController(&tab());
+  return ShouldShowAppIcon(web_app_browser_controller, &tab()) &&
+         !web_app_browser_controller->GetHomeTabIcon().isNull();
+}
+#endif
+
+ui::ImageModel TabUIHelper::GetFavicon() {
   const tab_groups::SavedTabGroupWebContentsListener* wc_listener =
       tab().GetTabFeatures()->saved_tab_group_web_contents_listener();
   if (wc_listener) {
@@ -95,6 +195,24 @@ ui::ImageModel TabUIHelper::GetFavicon() const {
       return deferred_tab_state.value().favicon();
     }
   }
+
+#if !BUILDFLAG(IS_ANDROID)
+  web_app::WebAppBrowserController* const web_app_browser_controller =
+      GetWebAppBrowserController(&tab());
+  if (ShouldShowAppIcon(web_app_browser_controller, &tab())) {
+    const gfx::ImageSkia home_tab_icon =
+        web_app_browser_controller->GetHomeTabIcon();
+    if (!home_tab_icon.isNull()) {
+      return ui::ImageModel::FromImageSkia(home_tab_icon);
+    } else {
+      gfx::ImageSkia fallback_home_icon =
+          web_app_browser_controller->GetFallbackHomeTabIcon();
+      if (!fallback_home_icon.isNull()) {
+        return ui::ImageModel::FromImageSkia(fallback_home_icon);
+      }
+    }
+  }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
   return ui::ImageModel::FromImage(
       favicon::TabFaviconFromWebContents(web_contents()));
@@ -130,6 +248,32 @@ bool TabUIHelper::IsCrashed() {
           crashed_status == base::TERMINATION_STATUS_LAUNCH_FAILED);
 }
 
+bool TabUIHelper::ShouldDisplayURL() {
+  content::WebContents* const web_contents = tab().GetContents();
+  // If the tab is showing a lookalike interstitial ("Did you mean example.com"
+  // on éxample.com), don't show the URL in the hover card because it's
+  // misleading.
+  security_interstitials::SecurityInterstitialTabHelper*
+      security_interstitial_tab_helper = security_interstitials::
+          SecurityInterstitialTabHelper::FromWebContents(web_contents);
+  // NTP URLs are hidden to match the omnibox behavior.
+  return !IsNTP(web_contents->GetVisibleURL()) &&
+         (!security_interstitial_tab_helper ||
+          !security_interstitial_tab_helper->IsDisplayingInterstitial() ||
+          security_interstitial_tab_helper->ShouldDisplayURL());
+}
+
+GURL TabUIHelper::GetVisibleURL() {
+  content::WebContents* const contents = tab().GetContents();
+  content::NavigationEntry* entry =
+      contents->GetController().GetLastCommittedEntry();
+  const bool missing_navigation_entry = !entry || entry->IsInitialEntry();
+  // In the case of reverted uncommitted navigations, there might not be a valid
+  // NavigationEntry. In that case, show about:blank to match the omnibox.
+  return missing_navigation_entry ? GURL(url::kAboutBlankURL)
+                                  : contents->GetVisibleURL();
+}
+
 void TabUIHelper::TitleWasSet(content::NavigationEntry* entry) {
   tab_ui_change_callbacks_.Notify();
 }
@@ -155,6 +299,12 @@ void TabUIHelper::WasDiscarded() {
   }
 }
 
+void TabUIHelper::DidFinishNavigation(
+    content::NavigationHandle* navigation_handle) {
+  // Navigation committed so the visible URL might have changed.
+  tab_ui_change_callbacks_.Notify();
+}
+
 #if !BUILDFLAG(IS_ANDROID)
 void TabUIHelper::PrimaryPageChanged(content::Page& page) {
   if (tab().IsSplit()) {
@@ -164,6 +314,15 @@ void TabUIHelper::PrimaryPageChanged(content::Page& page) {
   }
 }
 #endif
+
+void TabUIHelper::SetNeedsAttention(bool needs_attention) {
+  if (needs_attention == needs_attention_) {
+    return;
+  }
+
+  needs_attention_ = needs_attention;
+  tab_ui_change_callbacks_.Notify();
+}
 
 bool TabUIHelper::ShouldShowDiscardStatus() {
   content::WebContents* const web_contents = tab().GetContents();
@@ -188,4 +347,10 @@ std::optional<base::ByteSize> TabUIHelper::GetDiscardedMemorySavings() {
              ? std::make_optional(
                    memory_saver::GetDiscardedMemorySavings(web_contents))
              : std::nullopt;
+}
+
+void TabUIHelper::OnTabPinnedStatusChange(tabs::TabInterface* tab_interface,
+                                          bool new_pinned_state) {
+  CHECK_EQ(&tab(), tab_interface);
+  tab_ui_change_callbacks_.Notify();
 }

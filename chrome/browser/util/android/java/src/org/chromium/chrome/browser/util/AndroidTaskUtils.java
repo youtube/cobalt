@@ -187,8 +187,13 @@ public class AndroidTaskUtils {
         // without needing an extra IPC for each task you want to get the info for. It also
         // includes some known-safe tasks like the home screen on older Android versions, but
         // that's fine for this purpose.
-        List<ActivityManager.RecentTaskInfo> tasks =
-                activityManager.getRecentTasks(MAX_NUM_TASKS, 0);
+        List<ActivityManager.RecentTaskInfo> tasks = null;
+        try {
+            tasks = activityManager.getRecentTasks(MAX_NUM_TASKS, 0);
+        } catch (Exception e) {
+            // Mitigate OEM-sepcific crash: b/362825812
+            Log.w(TAG, e);
+        }
         if (tasks != null) {
             for (ActivityManager.RecentTaskInfo task : tasks) {
                 // Note that Android documentation lies, and TaskInfo#origActivity does not
@@ -219,6 +224,8 @@ public class AndroidTaskUtils {
         }
 
         ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+        if (am == null) return null;
+
         for (var appTask : am.getAppTasks()) {
             var taskInfo = appTask.getTaskInfo();
             if (taskInfo == null) continue;

@@ -11,6 +11,21 @@ import type {BrowserProxy} from './contextual_tasks_browser_proxy.js';
 const HANDSHAKE_INTERVAL_MS = 500;
 const MAX_HANDSHAKE_ATTEMPTS = 1000;
 
+export interface Rect {
+  top: number;
+  left: number;
+  width: number;
+  right: number;
+  bottom: number;
+  height: number;
+}
+
+export interface InputPlateBoundsUpdateMessage {
+  type: 'input-plate-bounds-update';
+  'bounds-rect': Rect;
+  occluders: Rect[];
+}
+
 /**
  * A proxy class to control post messages sent to the webview.
  */
@@ -25,6 +40,8 @@ export class PostMessageHandler {
   private handshakeIntervalId_: number|null = null;
   private pendingMessages_: Array<Uint8Array|object> = [];
   private handshakeMessage_: Uint8Array|null = null;
+  private onInputPlateBoundsUpdate_:
+      ((rect?: Rect, occluders?: Rect[]) => void)|null = null;
 
   constructor(
       webview: chrome.webviewTag.WebView, browserProxy: BrowserProxy,
@@ -160,6 +177,17 @@ export class PostMessageHandler {
       return;
     }
 
+    // TODO(crbug.com/483737358): Sending an object instead of a proto is
+    // a temporary solution to unblock the prototype. Remove this method
+    // once the proto is implemented on the webview side.
+    if (event.data && event.data.type === 'input-plate-bounds-update') {
+      if (this.onInputPlateBoundsUpdate_) {
+        this.onInputPlateBoundsUpdate_(
+            event.data['bounds-rect'], event.data['occluders']);
+      }
+      return;
+    }
+
     try {
       // No json messages are expected from the webview.
       JSON.parse(event.data);
@@ -173,6 +201,11 @@ export class PostMessageHandler {
         this.browserProxy_.handler.onWebviewMessage(messageBytes);
       }
     }
+  }
+
+  setInputPlateBoundsUpdateCallback(
+      callback: (rect?: Rect, occluders?: Rect[]) => void) {
+    this.onInputPlateBoundsUpdate_ = callback;
   }
 
   completeHandshake() {

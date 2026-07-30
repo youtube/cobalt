@@ -9,15 +9,19 @@
 
 #include "base/test/metrics/histogram_tester.h"
 #include "base/time/time.h"
+#include "components/signin/public/identity_manager/access_token_info.h"
 #include "components/sync/engine/cycle/sync_cycle_context.h"
 #include "components/sync/protocol/sync.pb.h"
 #include "components/sync/protocol/sync_enums.pb.h"
 #include "components/sync/test/data_type_test_util.h"
+#include "components/sync/test/fake_connection_manager.h"
 #include "components/sync/test/fake_sync_scheduler.h"
-#include "components/sync/test/mock_connection_manager.h"
 #include "net/base/net_errors.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+namespace syncer {
+namespace {
 
 using ::testing::_;
 
@@ -25,7 +29,7 @@ using sync_pb::ClientToServerMessage;
 using sync_pb::ClientToServerResponse;
 using sync_pb::CommitResponse_EntryResponse;
 
-namespace syncer {
+}  // namespace
 
 // Builds a ClientToServerResponse with some data type ids, including
 // invalid ones.  GetTypesToMigrate() should return only the valid
@@ -175,47 +179,26 @@ TEST_F(SyncerProtoUtilTest, VerifyEncryptionObsolete) {
   EXPECT_EQ(DISABLE_SYNC_ON_CLIENT, sync_protocol_error.action);
 }
 
-class FakeConnectionManager : public ServerConnectionManager {
- public:
-  explicit FakeConnectionManager(
-      const sync_pb::ClientToServerResponse& response)
-      : response_(response) {}
-
-  HttpResponse PostBuffer(const std::string& buffer_in,
-                          const std::string& access_token,
-                          std::string* buffer_out) override {
-    if (send_error_) {
-      return HttpResponse::ForNetError(net::ERR_FAILED);
-    }
-
-    response_.SerializeToString(buffer_out);
-
-    return HttpResponse::ForSuccessForTest();
-  }
-
-  void set_send_error(bool send) { send_error_ = send; }
-
- private:
-  const sync_pb::ClientToServerResponse response_;
-  bool send_error_ = false;
-};
-
 TEST_F(SyncerProtoUtilTest, PostAndProcessHeaders) {
-  FakeConnectionManager dcm(ClientToServerResponse{});
   ClientToServerMessage msg;
   SyncerProtoUtil::SetProtocolVersion(&msg);
   msg.set_share("required");
   msg.set_message_contents(ClientToServerMessage::GET_UPDATES);
 
+  // Add fields required for FakeConnectionManager.
+  msg.mutable_get_updates();
+  msg.set_api_key("api_key");
+  msg.mutable_bag_of_chips();
+
   sync_pb::ClientToServerResponse response;
   base::HistogramTester histogram_tester;
-  dcm.set_send_error(true);
+  FakeConnectionManager dcm;
+  dcm.FailNextPostBufferToPathCall();
   EXPECT_FALSE(SyncerProtoUtil::PostAndProcessHeaders(&dcm, msg, &response));
   EXPECT_EQ(1, histogram_tester.GetBucketCount(
                    "Sync.PostedClientToServerMessage",
                    /*sample=*/ClientToServerMessage::GET_UPDATES));
 
-  dcm.set_send_error(false);
   EXPECT_TRUE(SyncerProtoUtil::PostAndProcessHeaders(&dcm, msg, &response));
   EXPECT_EQ(2, histogram_tester.GetBucketCount(
                    "Sync.PostedClientToServerMessage",

@@ -17,7 +17,6 @@
 #include "base/memory/ptr_util.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/values.h"
-#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/browser/browsing_data/browsing_data_lifetime_policy_handler.h"
 #include "chrome/browser/enterprise/reporting/legacy_tech/legacy_tech_report_policy_handler.h"
@@ -29,6 +28,9 @@
 #include "chrome/browser/performance_manager/public/user_tuning/memory_saver_policy_handler.h"
 #include "chrome/browser/policy/annotations/blocklist_handler.h"
 #include "chrome/browser/policy/browsing_history_policy_handler.h"
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/policy/developer_tools_availability_list_policy_handler.h"
+#endif  // !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/policy/developer_tools_policy_handler.h"
 #include "chrome/browser/policy/drive_file_sync_available_policy_handler.h"
 #include "chrome/browser/policy/file_selection_dialogs_policy_handler.h"
@@ -1033,9 +1035,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kEncryptedClientHelloEnabled,
     prefs::kEncryptedClientHelloEnabled,
     base::Value::Type::BOOLEAN },
-  { key::kPostQuantumKeyAgreementEnabled,
-    prefs::kPostQuantumKeyAgreementEnabled,
-    base::Value::Type::BOOLEAN },
   { key::kPreferSlowCiphers,
     prefs::kPreferSlowCiphers,
     base::Value::Type::STRING },
@@ -1186,9 +1185,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     prefs::kDeviceAllowEnterpriseRemoteAccessConnections,
     base::Value::Type::BOOLEAN
   },
-  { key::kDevicePostQuantumKeyAgreementEnabled,
-    prefs::kDevicePostQuantumKeyAgreementEnabled,
-    base::Value::Type::BOOLEAN },
   { key::kChromeOsLockOnIdleSuspend,
     ash::prefs::kEnableAutoScreenLock,
     base::Value::Type::BOOLEAN },
@@ -1990,12 +1986,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kAutomatedPasswordChangeSettings,
     optimization_guide::prefs::kAutomatedPasswordChangeEnterprisePolicyAllowed,
     base::Value::Type::INTEGER },
-  { key::kDeveloperToolsAvailabilityAllowlist,
-    prefs::kDeveloperToolsAvailabilityAllowlist,
-    base::Value::Type::LIST },
-  { key::kDeveloperToolsAvailabilityBlocklist,
-    prefs::kDeveloperToolsAvailabilityBlocklist,
-    base::Value::Type::LIST },
   { key::kLiveCaptionEnabled,
     prefs::kLiveCaptionEnabled,
     base::Value::Type::BOOLEAN },
@@ -2303,9 +2293,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kCloudAPAuthEnabled,
     prefs::kCloudApAuthEnabled,
     base::Value::Type::INTEGER },
-  { key::kUiAutomationProviderEnabled,
-    prefs::kUiAutomationProviderEnabled,
-    base::Value::Type::BOOLEAN },
   { key::kRestrictCoreSharingOnRenderer,
     prefs::kRestrictCoreSharingOnRenderer,
     base::Value::Type::BOOLEAN },
@@ -2618,6 +2605,20 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
           enterprise_connectors::kOnFileDownloadedScopePref, chrome_schema));
 
   handlers->AddHandler(std::make_unique<DeveloperToolsPolicyHandler>());
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+  handlers->AddHandler(
+      std::make_unique<DeveloperToolsAvailabilityListPolicyHandler>(
+          key::kDeveloperToolsAvailabilityAllowlist,
+          prefs::kDeveloperToolsAvailabilityAllowlist));
+
+  handlers->AddHandler(
+      std::make_unique<DeveloperToolsAvailabilityListPolicyHandler>(
+          key::kDeveloperToolsAvailabilityBlocklist,
+          prefs::kDeveloperToolsAvailabilityBlocklist));
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) \
+        // || BUILDFLAG(IS_CHROMEOS)
 
   handlers->AddHandler(std::make_unique<IntRangePolicyHandler>(
       key::kGenAILocalFoundationalModelSettings,

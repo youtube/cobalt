@@ -47,10 +47,6 @@ namespace blink {
 
 class CodePointIterator;
 
-#define DISPATCH_CASE_OP(case_sensitivity, op, args)  \
-  ((case_sensitivity == kTextCaseSensitive) ? op args \
-                                            : op##IgnoringAsciiCase args)
-
 // You can find documentation about this class in README.md in this directory.
 //
 // When a method of this class is compatible with an equivalent method in
@@ -248,16 +244,7 @@ class WTF_EXPORT String {
                   wtf_size_t index = 0) const;
 
   // Find substrings.
-  size_type find(const StringView& value, size_type start = 0) const {
-    return impl_ ? impl_->Find(value, start) : kNotFound;
-  }
-  wtf_size_t Find(const StringView& value,
-                  wtf_size_t start,
-                  TextCaseSensitivity case_sensitivity) const {
-    return impl_
-               ? DISPATCH_CASE_OP(case_sensitivity, impl_->Find, (value, start))
-               : kNotFound;
-  }
+  size_type find(const StringView& value, size_type start = 0) const;
 
   // Unicode aware case insensitive string matching. Non-ASCII characters might
   // match to ASCII characters. This function is rarely used to implement web
@@ -273,13 +260,10 @@ class WTF_EXPORT String {
     return impl_ ? impl_->FindIgnoringAsciiCase(value, start) : kNotFound;
   }
 
-  bool Contains(char c) const { return find(c) != kNotFound; }
+  bool contains(UChar c) const { return find(c) != kNotFound; }
+  bool contains(LChar c) const { return find(c) != kNotFound; }
+  bool contains(char c) const { return find(c) != kNotFound; }
   bool contains(const StringView& value) const { return find(value) != npos; }
-  bool Contains(
-      const StringView& value,
-      TextCaseSensitivity case_sensitivity = kTextCaseSensitive) const {
-    return Find(value, 0, case_sensitivity) != kNotFound;
-  }
 
   // Find the last instance of a single character or string.
   wtf_size_t ReverseFind(UChar c, unsigned start = UINT_MAX) const {
@@ -297,12 +281,6 @@ class WTF_EXPORT String {
 
   bool StartsWith(const StringView& prefix) const {
     return impl_ ? impl_->StartsWith(prefix) : prefix.empty();
-  }
-  bool StartsWith(const StringView& prefix,
-                  TextCaseSensitivity case_sensitivity) const {
-    return impl_
-               ? DISPATCH_CASE_OP(case_sensitivity, impl_->StartsWith, (prefix))
-               : prefix.empty();
   }
   // Unicode aware case insensitive string matching. Non-ASCII characters might
   // match to ASCII characters. This function is rarely used to implement web
@@ -325,11 +303,6 @@ class WTF_EXPORT String {
   bool EndsWith(const StringView& suffix) const {
     return impl_ ? impl_->EndsWith(suffix) : suffix.empty();
   }
-  bool EndsWith(const StringView& suffix,
-                TextCaseSensitivity case_sensitivity) const {
-    return impl_ ? DISPATCH_CASE_OP(case_sensitivity, impl_->EndsWith, (suffix))
-                 : suffix.empty();
-  }
   // Unicode aware case insensitive string matching. Non-ASCII characters might
   // match to ASCII characters. This function is rarely used to implement web
   // platform features.  See crbug.com/40476285.
@@ -337,8 +310,10 @@ class WTF_EXPORT String {
     return impl_ ? impl_->DeprecatedEndsWithIgnoringCase(prefix)
                  : prefix.empty();
   }
-  bool EndsWithIgnoringAsciiCase(const StringView& prefix) const {
-    return impl_ ? impl_->EndsWithIgnoringAsciiCase(prefix) : prefix.empty();
+  // Returns true if this string ends with the specified `suffix`, using ASCII
+  // case-insensitive matching. If `suffix` is empty, this returns `true`.
+  bool EndsWithIgnoringAsciiCase(const StringView& suffix) const {
+    return impl_ ? impl_->EndsWithIgnoringAsciiCase(suffix) : suffix.empty();
   }
   bool EndsWith(UChar character) const {
     return impl_ ? impl_->EndsWith(character) : false;

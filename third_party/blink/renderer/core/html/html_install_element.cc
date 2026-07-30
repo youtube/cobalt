@@ -56,9 +56,10 @@ void HTMLInstallElement::UpdateAppearance() {
 
   // If no attributes provided, check if current document is already installed.
   if (InstallUrl().empty() && ManifestId().empty()) {
-    WebInstallService()->IsInstalled(
-        /*options=*/nullptr, BindOnce(&HTMLInstallElement::OnIsInstalledResult,
-                                      WrapWeakPersistent(this)));
+    // TODO(crbug.com/485281836): For now, always return false while we discuss
+    // the appropriate long-term mitigation for width-based side channel
+    // attacks. ("Launch" is slightly wider than "Install").
+    OnIsInstalledResult(false);
     return;
   }
 
@@ -74,9 +75,10 @@ void HTMLInstallElement::UpdateAppearance() {
   }
 
   // Query installation status to update button text ("Install" vs "Launch").
-  WebInstallService()->IsInstalled(
-      std::move(options), BindOnce(&HTMLInstallElement::OnIsInstalledResult,
-                                   WrapWeakPersistent(this)));
+  // TODO(crbug.com/485281836): For now, always return false while we discuss
+  // the appropriate long-term mitigation for width-based side channel attacks.
+  // ("Launch" is slightly wider than "Install").
+  OnIsInstalledResult(false);
 }
 
 mojom::blink::EmbeddedPermissionRequestDescriptorPtr
@@ -187,10 +189,11 @@ void HTMLInstallElement::OnActivated() {
 
   mojom::blink::InstallOptionsPtr options = GetCheckedInstallOptions();
   if (!options) {
-    // TODO(crbug.com/462493894): Decide how to surface kDataError. For now,
-    // fire promptdismiss for all error cases.
     // TODO(crbug.com/481519343): Add long-term solution for error handling (a
     // separate error attribute linked to the install result, etc.).
+    // Disable the element to prevent future activations and inform the
+    // developer.
+    HandleInstallDataError();
     DispatchEvent(
         *Event::CreateCancelableBubble(event_type_names::kPromptdismiss));
     return;

@@ -92,7 +92,6 @@ import org.mockito.quality.Strictness;
 import org.mockito.stubbing.Answer;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
-import org.robolectric.annotation.LooperMode;
 
 import org.chromium.base.Callback;
 import org.chromium.base.CallbackUtils;
@@ -104,6 +103,7 @@ import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.build.BuildConfig;
@@ -174,8 +174,6 @@ import org.chromium.components.commerce.PriceTracking.BuyableProduct;
 import org.chromium.components.commerce.PriceTracking.PriceTrackingData;
 import org.chromium.components.commerce.PriceTracking.ProductPrice;
 import org.chromium.components.data_sharing.DataSharingService;
-import org.chromium.components.embedder_support.util.UrlUtilities;
-import org.chromium.components.embedder_support.util.UrlUtilitiesJni;
 import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.optimization_guide.OptimizationGuideDecision;
@@ -226,7 +224,6 @@ import java.util.function.Supplier;
         instrumentedPackages = {
             "androidx.recyclerview.widget.RecyclerView" // required to mock final
         })
-@LooperMode(LooperMode.Mode.LEGACY)
 @DisableFeatures({
     ChromeFeatureList.DATA_SHARING,
     ChromeFeatureList.DATA_SHARING_JOIN_ONLY,
@@ -354,7 +351,6 @@ public class TabListMediatorUnitTest {
     @Mock GridLayoutManager.SpanSizeLookup mSpanSizeLookup;
     @Mock Profile mProfile;
     @Mock Tracker mTracker;
-    @Mock UrlUtilities.Natives mUrlUtilitiesJniMock;
     @Mock OptimizationGuideBridgeFactory.Natives mOptimizationGuideBridgeFactoryJniMock;
     @Mock OptimizationGuideBridge mOptimizationGuideBridge;
     @Mock TabListMediator.TabGridAccessibilityHelper mTabGridAccessibilityHelper;
@@ -413,7 +409,6 @@ public class TabListMediatorUnitTest {
 
     @Before
     public void setUp() {
-        UrlUtilitiesJni.setInstanceForTesting(mUrlUtilitiesJniMock);
         OptimizationGuideBridgeFactoryJni.setInstanceForTesting(
                 mOptimizationGuideBridgeFactoryJniMock);
         TabGroupSyncFeaturesJni.setInstanceForTesting(mTabGroupSyncFeaturesJniMock);
@@ -516,15 +511,6 @@ public class TabListMediatorUnitTest {
                 .when(mGridLayoutManager)
                 .getSpanCount();
         doReturn(mSpanSizeLookup).when(mGridLayoutManager).getSpanSizeLookup();
-        doReturn(mTab1Domain)
-                .when(mUrlUtilitiesJniMock)
-                .getDomainAndRegistry(eq(TAB1_URL.getSpec()), anyBoolean());
-        doReturn(mTab2Domain)
-                .when(mUrlUtilitiesJniMock)
-                .getDomainAndRegistry(eq(TAB2_URL.getSpec()), anyBoolean());
-        doReturn(mTab3Domain)
-                .when(mUrlUtilitiesJniMock)
-                .getDomainAndRegistry(eq(TAB3_URL.getSpec()), anyBoolean());
         doNothing().when(mTemplateUrlService).addObserver(mTemplateUrlServiceObserver.capture());
         doReturn(true).when(mTabListFaviconProvider).isInitialized();
         doReturn(mSavedTabGroup1).when(mTabGroupSyncService).getGroup(SYNC_GROUP_ID1);
@@ -854,10 +840,6 @@ public class TabListMediatorUnitTest {
         doReturn(mFavicon).when(mTabListFaviconProvider).getDefaultFavicon(anyBoolean());
 
         GURL ntpUrl = JUnitTestGURLs.NTP_URL;
-        doReturn("")
-                .when(mUrlUtilitiesJniMock)
-                .getDomainAndRegistry(eq(ntpUrl.getSpec()), anyBoolean());
-
         NavigationHandle navigationHandle = mock(NavigationHandle.class);
         when(navigationHandle.getUrl()).thenReturn(TAB2_URL);
         when(navigationHandle.isSameDocument()).thenReturn(false);
@@ -3091,10 +3073,6 @@ public class TabListMediatorUnitTest {
     public void testUrlUpdated_forSingleTab_Gts() {
         assertNotEquals(mNewDomain, mModelList.get(POSITION1).model.get(TabProperties.URL_DOMAIN));
 
-        doReturn(mNewDomain)
-                .when(mUrlUtilitiesJniMock)
-                .getDomainAndRegistry(eq(NEW_URL), anyBoolean());
-
         doReturn(new GURL(NEW_URL)).when(mTab1).getUrl();
 
         PropertyModel model1 = mModelList.get(POSITION1).model;
@@ -3122,10 +3100,6 @@ public class TabListMediatorUnitTest {
         assertEquals(
                 mTab1Domain + ", " + mTab2Domain,
                 mModelList.get(POSITION1).model.get(TabProperties.URL_DOMAIN));
-
-        doReturn(mNewDomain)
-                .when(mUrlUtilitiesJniMock)
-                .getDomainAndRegistry(eq(NEW_URL), anyBoolean());
 
         // Update URL_DOMAIN for mTab1.
         doReturn(new GURL(NEW_URL)).when(mTab1).getUrl();
@@ -3166,9 +3140,6 @@ public class TabListMediatorUnitTest {
         assertEquals(mTab2Domain, mModelList.get(POSITION2).model.get(TabProperties.URL_DOMAIN));
         verify(mTab2, times(2)).addObserver(mTabObserverCaptor.getValue());
 
-        doReturn(mNewDomain)
-                .when(mUrlUtilitiesJniMock)
-                .getDomainAndRegistry(eq(NEW_URL), anyBoolean());
         var oldFetcher = mModelList.get(POSITION1).model.get(TabProperties.THUMBNAIL_FETCHER);
 
         // Update URL_DOMAIN for mTab1.
@@ -3626,6 +3597,7 @@ public class TabListMediatorUnitTest {
         ShoppingPersistedTabDataFetcher fetcher =
                 new ShoppingPersistedTabDataFetcher(mTab1, () -> mPriceWelcomeMessageController);
         fetcher.maybeShowPriceWelcomeMessage(mShoppingPersistedTabData);
+        RobolectricUtil.runAllBackgroundAndUi();
         verify(mPriceWelcomeMessageController, times(1)).showPriceWelcomeMessage(mPriceTabData);
     }
 
@@ -3640,6 +3612,7 @@ public class TabListMediatorUnitTest {
         assertThat(
                 PriceTrackingUtilities.isPriceWelcomeMessageCardEnabled(mProfile), equalTo(false));
         fetcher.maybeShowPriceWelcomeMessage(mShoppingPersistedTabData);
+        RobolectricUtil.runAllBackgroundAndUi();
         verify(mPriceWelcomeMessageController, times(0)).showPriceWelcomeMessage(mPriceTabData);
     }
 
@@ -3673,6 +3646,7 @@ public class TabListMediatorUnitTest {
 
         doReturn(null).when(mShoppingPersistedTabData).getPriceDrop();
         fetcher.maybeShowPriceWelcomeMessage(mShoppingPersistedTabData);
+        RobolectricUtil.runAllBackgroundAndUi();
         verify(mPriceWelcomeMessageController, times(0)).showPriceWelcomeMessage(mPriceTabData);
     }
 

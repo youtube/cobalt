@@ -10,9 +10,9 @@
 #import "base/memory/weak_ptr.h"
 #import "components/enterprise/data_controls/core/browser/verdict.h"
 #import "ios/chrome/browser/enterprise/data_controls/utils/clipboard_utils.h"
-#import "ios/chrome/browser/enterprise/data_controls/utils/data_controls_utils.h"
+#import "ios/chrome/browser/enterprise/enterprise_dialog/model/warning_dialog.h"
 #import "ios/chrome/browser/shared/public/commands/enterprise_commands.h"
-#import "ios/web/public/lazy_web_state_user_data.h"
+#import "ios/web/public/web_state_user_data.h"
 #import "url/gurl.h"
 
 @protocol SnackbarCommands;
@@ -28,7 +28,7 @@ namespace data_controls {
 // (copying, pasting), are permitted. Such restrictions only apply to managed
 // profiles; for all other profiles, these actions are unrestricted.
 class DataControlsTabHelper
-    : public web::LazyWebStateUserData<DataControlsTabHelper> {
+    : public web::WebStateUserData<DataControlsTabHelper> {
  public:
   DataControlsTabHelper(const DataControlsTabHelper&) = delete;
   DataControlsTabHelper& operator=(const DataControlsTabHelper&) = delete;
@@ -56,7 +56,7 @@ class DataControlsTabHelper
   void DidFinishClipboardRead();
 
  private:
-  friend class web::LazyWebStateUserData<DataControlsTabHelper>;
+  friend class web::WebStateUserData<DataControlsTabHelper>;
   explicit DataControlsTabHelper(web::WebState* web_state);
 
   // Returns true if clipboard data controls are enabled.
@@ -88,7 +88,7 @@ class DataControlsTabHelper
 
   // Displays a warning dialog associated with a user's action (e.g., copy,
   // paste, share).
-  void ShowWarningDialog(DataControlsDialog::Type dialog_type,
+  void ShowWarningDialog(enterprise::DialogType dialog_type,
                          std::string_view org_domain,
                          base::OnceCallback<void(bool)> on_bypassed_callback);
 

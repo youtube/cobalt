@@ -20,7 +20,6 @@
 #include "chrome/browser/permissions/system/platform_handle.h"
 #include "chrome/browser/safe_browsing/application_advanced_protection_status_detector.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
-#include "chrome/common/chrome_features.h"
 #include "components/application_locale_storage/application_locale_storage.h"
 #include "components/on_device_translation/buildflags/buildflags.h"
 #include "components/safe_browsing/core/common/features.h"
@@ -56,9 +55,12 @@
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/startup/startup_launch_manager.h"
 #include "chrome/browser/ui/startup/profile_launch_observer.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_WIN)
+#include "chrome/browser/startup/startup_launch_manager.h"
+#endif
 
 #if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
 #include "chrome/browser/signin/bound_session_credentials/unexportable_key_obsolete_profile_garbage_collector.h"  // nogncheck
@@ -106,7 +108,7 @@ void GlobalFeatures::PreBrowserProcessInit() {
 }
 
 void GlobalFeatures::PostBrowserProcessInit() {
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_WIN)
   startup_launch_manager_ =
       GetUserDataFactory().CreateInstance<StartupLaunchManager>(
           *g_browser_process, g_browser_process);
@@ -235,7 +237,7 @@ void GlobalFeatures::PostMainMessageLoopRun() {
 }
 
 void GlobalFeatures::PostDestroyThreads() {
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_WIN)
   // Startup launch manager should be destroyed before GlobalBrowserCollection
   // since its infobar manager observes GlobalBrowserCollection.
   startup_launch_manager_.reset();

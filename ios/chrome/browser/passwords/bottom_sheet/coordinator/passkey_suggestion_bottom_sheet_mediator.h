@@ -25,6 +25,8 @@ class WebStateList;
                          requestInfo:(webauthn::IOSPasskeyClient::RequestInfo)
                                          requestInfo NS_DESIGNATED_INITIALIZER;
 
+- (instancetype)initWithWebStateList:(WebStateList*)webStateList NS_UNAVAILABLE;
+
 - (instancetype)init NS_UNAVAILABLE;
 
 @end

@@ -37,6 +37,7 @@
 #include "google_apis/gaia/gaia_constants.h"
 #include "net/base/url_util.h"
 #include "third_party/lens_server_proto/aim_communication.pb.h"
+#include "third_party/lens_server_proto/modality_chip_props.pb.h"
 #include "third_party/omnibox_proto/chrome_aim_entry_point.pb.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
@@ -63,11 +64,22 @@ PopulateContextualResources(contextual_tasks::ContextualTaskContext* context) {
   }
   std::vector<contextual_tasks::mojom::ContextInfoPtr> context_items;
   for (const auto& attachment : context->GetUrlAttachments()) {
+    const GURL url = attachment.GetURL();
+    const std::string title = base::UTF16ToUTF8(attachment.GetTitle());
+
+    // Skip if the title is empty. Empty URLs are right now allowed for PDF /
+    // images.
+    if (title.empty() ||
+        (!url.is_valid() && attachment.GetResourceType() ==
+                                contextual_tasks::ResourceType::kWebpage)) {
+      continue;
+    }
+
     switch (attachment.GetResourceType()) {
       case contextual_tasks::ResourceType::kWebpage: {
         auto tab_context = contextual_tasks::mojom::TabContext::New();
-        tab_context->title = base::UTF16ToUTF8(attachment.GetTitle());
-        tab_context->url = attachment.GetURL();
+        tab_context->title = title;
+        tab_context->url = url;
         tab_context->tab_id = attachment.GetTabSessionId().id();
         context_items.push_back(contextual_tasks::mojom::ContextInfo::NewTab(
             std::move(tab_context)));
@@ -75,16 +87,16 @@ PopulateContextualResources(contextual_tasks::ContextualTaskContext* context) {
       }
       case contextual_tasks::ResourceType::kPdf: {
         auto file_context = contextual_tasks::mojom::FileContext::New();
-        file_context->title = base::UTF16ToUTF8(attachment.GetTitle());
-        file_context->url = attachment.GetURL();
+        file_context->title = title;
+        file_context->url = url;
         context_items.push_back(contextual_tasks::mojom::ContextInfo::NewFile(
             std::move(file_context)));
         break;
       }
       case contextual_tasks::ResourceType::kImage: {
         auto image_context = contextual_tasks::mojom::ImageContext::New();
-        image_context->title = base::UTF16ToUTF8(attachment.GetTitle());
-        image_context->url = attachment.GetURL();
+        image_context->title = title;
+        image_context->url = url;
         context_items.push_back(contextual_tasks::mojom::ContextInfo::NewImage(
             std::move(image_context)));
         break;
@@ -336,6 +348,12 @@ void ContextualTasksPageHandler::OnWebviewMessage(
     web_ui_controller_->OnZeroStateChange(
         aim_to_client_message.notify_zero_state_rendered()
             .is_zero_state_rendered());
+  } else if (aim_to_client_message.has_inject_input()) {
+    OnReceivedInjectInput(std::make_unique<lens::ModalityChipProps>(
+        aim_to_client_message.inject_input().modality()));
+  } else if (aim_to_client_message.has_remove_injected_input()) {
+    OnReceivedRemoveInjectedInput(
+        std::string(aim_to_client_message.remove_injected_input().id()));
   } else if (aim_to_client_message.has_lock_input()) {
     web_ui_controller_->GetPageRemote()->LockInput();
   } else if (aim_to_client_message.has_unlock_input()) {
@@ -475,4 +493,27 @@ void ContextualTasksPageHandler::OnReceivedUpdatedThreadContextLibrary(
                                                            submitted_context);
   contextual_tasks_service_->SetUrlResourcesFromServer(*task_id,
                                                        committed_context);
+}
+
+void ContextualTasksPageHandler::OnReceivedInjectInput(
+    std::unique_ptr<lens::ModalityChipProps> modality) {
+  contextual_search::ContextualSearchSessionHandle* handle =
+      web_ui_controller_->GetOrCreateContextualSessionHandle();
+  auto token = handle->CreateContextToken();
+  web_ui_controller_->GetPageRemote()->InjectInput(
+      std::string(modality->title()), std::string(modality->thumbnail_src()),
+      token);
+  // This does not actually upload anything, but allows the injected input to be
+  // shown in the chip carousel in the UI.
+  handle->StartModalityChipUploadFlow(token, std::move(modality));
+}
+
+void ContextualTasksPageHandler::OnReceivedRemoveInjectedInput(
+    const std::string& id) {
+  contextual_search::ContextualSearchSessionHandle* handle =
+      web_ui_controller_->GetOrCreateContextualSessionHandle();
+  auto token = handle->GetController()->FindTokenForInjectedInput(id);
+  if (token.has_value()) {
+    web_ui_controller_->GetPageRemote()->RemoveInjectedInput(token.value());
+  }
 }

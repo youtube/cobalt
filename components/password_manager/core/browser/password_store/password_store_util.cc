@@ -9,12 +9,12 @@
 
 namespace password_manager {
 
-PasswordChanges JoinPasswordStoreChanges(
+PasswordChangesOrError JoinPasswordStoreChanges(
     const std::vector<PasswordChangesOrError>& changes_to_join) {
   PasswordStoreChangeList joined_changes;
   for (const auto& changes_or_error : changes_to_join) {
     if (std::holds_alternative<PasswordStoreBackendError>(changes_or_error)) {
-      return std::nullopt;
+      return std::get<PasswordStoreBackendError>(changes_or_error);
     }
     const PasswordChanges& changes =
         std::get<PasswordChanges>(changes_or_error);
@@ -33,14 +33,6 @@ LoginsResult GetLoginsOrEmptyListOnFailure(LoginsResultOrError result) {
   return std::move(std::get<LoginsResult>(result));
 }
 
-PasswordChanges GetPasswordChangesOrNulloptOnFailure(
-    PasswordChangesOrError result) {
-  if (std::holds_alternative<PasswordStoreBackendError>(result)) {
-    return std::nullopt;
-  }
-  return std::move(std::get<PasswordChanges>(result));
-}
-
 std::vector<std::unique_ptr<PasswordForm>> ConvertPasswordToUniquePtr(
     std::vector<PasswordForm> forms) {
   std::vector<std::unique_ptr<PasswordForm>> result;
@@ -49,6 +41,36 @@ std::vector<std::unique_ptr<PasswordForm>> ConvertPasswordToUniquePtr(
     result.push_back(std::make_unique<PasswordForm>(std::move(form)));
   }
   return result;
+}
+
+ActionableError BackendErrorToActionableError(
+    PasswordStoreBackendErrorType error) {
+  switch (error) {
+    case PasswordStoreBackendErrorType::kUncategorized:
+      return ActionableError::kInactionable;
+    case PasswordStoreBackendErrorType::kAuthErrorResolvable:
+    case PasswordStoreBackendErrorType::kAuthErrorUnresolvable:
+      return ActionableError::kSignInNeeded;
+    case PasswordStoreBackendErrorType::kKeyRetrievalRequired:
+    case PasswordStoreBackendErrorType::kEmptySecurityDomain:
+    case PasswordStoreBackendErrorType::kIrretrievableSecurityDomain:
+      return ActionableError::kTrustedVaultKeyNeeded;
+    case PasswordStoreBackendErrorType::kKeychainError:
+      return ActionableError::kKeychainError;
+  }
+}
+
+bool IsAbleToSavePasswords(ActionableError error) {
+  switch (error) {
+    case ActionableError::kNoError:
+    case ActionableError::kInactionableTemporaryError:
+      return true;
+    case ActionableError::kInactionable:
+    case ActionableError::kSignInNeeded:
+    case ActionableError::kKeychainError:
+    case ActionableError::kTrustedVaultKeyNeeded:
+      return false;
+  }
 }
 
 }  // namespace password_manager

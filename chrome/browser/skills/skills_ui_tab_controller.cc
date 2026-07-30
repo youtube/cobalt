@@ -91,7 +91,9 @@ void SkillsUiTabController::ShowDialog(Skill skill) {
     // Dialog is already open.
     return;
   }
-  RecordSkillsAction(skills::SkillsActions::kOpenedCreationDialog);
+  // TODO(crbug.com/477385216): Update to use an enum for creation mode.
+  RecordSkillsDialogAction(SkillsDialogAction::kOpened,
+                           /*is_edit_mode=*/!skill.id.empty());
 
   current_skill_ = skill;
 
@@ -206,13 +208,10 @@ void SkillsUiTabController::ShowGlicPanel() {
 
 void SkillsUiTabController::NotifySkillToInvokeChangedWhenReady() {
   if (IsClientReady()) {
-    // TODO(https://crbug.com/475549806): Add metrics for successful skill
-    // invocation.
     NotifySkillToInvokeChanged();
   } else if (base::TimeTicks::Now() - glic_panel_open_time_ >
              kNotifyTimeoutSeconds) {
-    // TODO(https://crbug.com/475549806): Add metrics for skill invocation
-    // timeout and provide user feedback.
+    RecordSkillsInvokeResult(SkillsInvokeResult::kTimeout);
     Reset();
   } else if (!glic_panel_ready_timer_.IsRunning()) {
     glic_panel_ready_timer_.Start(
@@ -244,20 +243,24 @@ void SkillsUiTabController::NotifySkillToInvokeChanged() {
   const skills::Skill* skill = GetSkill(skill_id_to_invoke);
 
   if (!skill) {
-    // TODO(https://crbug.com/475549806): Add metrics for skill invocation
-    // failure and provide user feedback.
+    // TODO(https://crbug.com/475549806): provide user feedback.
+    RecordSkillsInvokeResult(SkillsInvokeResult::kSkillNotFound);
     return;
   }
 
+  RecordSkillsInvokeResult(SkillsInvokeResult::kSuccess);
   switch (skill->source) {
     case sync_pb::SkillSource::SKILL_SOURCE_FIRST_PARTY:
-      RecordSkillsAction(skills::SkillsActions::kUsed1stPartySkill);
+      RecordSkillsInvokeAction(SkillsInvokeAction::kFirstParty);
       break;
     case sync_pb::SkillSource::SKILL_SOURCE_USER_CREATED:
-      RecordSkillsAction(skills::SkillsActions::kUsedUserCreatedSkill);
+      RecordSkillsInvokeAction(SkillsInvokeAction::kUserCreated);
+      break;
+    case sync_pb::SkillSource::SKILL_SOURCE_DERIVED_FROM_FIRST_PARTY:
+      RecordSkillsInvokeAction(SkillsInvokeAction::kDerivedFromFirstParty);
       break;
     default:
-      break;
+      NOTREACHED();
   }
 
 #if BUILDFLAG(ENABLE_GLIC)

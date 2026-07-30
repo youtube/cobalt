@@ -55,7 +55,7 @@ class CSSFlipRevertValue;
 
 }  // namespace cssvalue
 
-// StyleCascade analyzes declarations provided by CSS rules and animations,
+// StyleCascade collects declarations provided by CSS rules and animations,
 // and figures out which declarations should be skipped, and which should be
 // applied (and in which order).
 //
@@ -109,13 +109,15 @@ class CORE_EXPORT StyleCascade {
   // provide a different filter.
   void Apply(CascadeFilter = CascadeFilter());
 
-  // Returns a CSSBitset containing the !important declarations (analyzing
-  // if needed). If there are no !important declarations, returns nullptr.
+  // Returns a CSSBitset containing the !important declarations (collecting
+  // declarations if needed). If there are no !important declarations,
+  // returns nullptr. Can only be called once (or will DCHECK), as the bitset
+  // is allocated when building the cascade and releases ownership on this call.
   //
   // Note that this function does not return any set bits for -internal-visited-
   // properties. Instead, !important -internal-visited-* declarations cause
   // the corresponding unvisited properties to be set in the return value.
-  std::unique_ptr<CSSBitset> GetImportantSet();
+  std::unique_ptr<CSSBitset> ReleaseImportantSet();
 
   bool InlineStyleLost() const { return map_.InlineStyleLost(); }
 
@@ -201,26 +203,32 @@ class CORE_EXPORT StyleCascade {
  private:
   friend class TestCascade;
 
-  // Before we can Apply the cascade, the MatchResult and CascadeInterpolations
-  // must be Analyzed. This means going through all the declarations, and
-  // adding them to the CascadeMap, which gives us a complete picture of which
-  // declarations won the cascade.
+  // Before we can Apply the cascade, we must find the strongest declaration
+  // (see CascadePriority) for each property, and resolve dependencies
+  // between them. This requires collecting all declarations from regular rules
+  // (`match_result_`) as well as effect values [1] from animations/transitions
+  // (`interpolations_`) into a CascadeMap.
   //
-  // We analyze only if needed (i.e. if MatchResult or CascadeInterpolations)
-  // has been mutated since the last call to AnalyzeIfNeeded.
-  void AnalyzeIfNeeded();
-  void AnalyzeMatchResult();
-  void AnalyzeInterpolations();
+  // We only perform this collection if needed, i.e. if `match_result_`
+  // or `interpolations_` has been mutated since the last call to
+  // CollectDeclarationsIfNeeded().
+  //
+  // [1] https://drafts.csswg.org/web-animations-1/#effect-value
+  void CollectDeclarationsIfNeeded();
+  void CollectFromMatchResult();
+  void CollectFromInterpolations();
   void AddExplicitDefaults();
 
-  // Clears the CascadeMap and other state, and analyzes the MatchResult/
-  // interpolations again.
-  void Reanalyze();
+  // Clears the CascadeMap and other state, and collects declarations
+  // from MatchResult/interpolations again. See ApplyCascadeAffecting()
+  // for why we would need to do this.
+  void ResetAndCollectAgain();
 
   // Some properties are "cascade affecting", in the sense that their computed
-  // value actually affects cascade behavior. For example, css-logical
-  // properties change their cascade behavior depending on the computed value
-  // of direction/writing-mode.
+  // value (determined during the "apply" step) affects cascade behavior
+  // (the entry into the CascadeMap; the "collect" step).
+  // For example, css-logical properties change their cascade behavior depending
+  // on the computed value of direction/writing-mode.
   void ApplyCascadeAffecting(CascadeResolver&);
 
   // Some properties affect scrollbars which in turn affect viewport units.
@@ -801,47 +809,38 @@ class CORE_EXPORT StyleCascade {
   MatchResult match_result_;
   CascadeInterpolations interpolations_;
   CascadeMap map_;
-  // Generational Apply
-  //
-  // Generation is a number that's incremented by one for each call to Apply
-  // (the first call to Apply has generation 1). When a declaration is applied
-  // to ComputedStyle, the current Apply-generation is stored in the CascadeMap.
-  // In other words, the CascadeMap knows which declarations have already been
-  // applied to ComputedStyle, which makes it possible to avoid applying the
-  // same declaration twice during a single call to Apply:
+  // When a declaration is applied to ComputedStyle, the we mark it as
+  // already_applied in the CascadeMap. This makes it possible to avoid applying
+  // the same declaration twice during a single call to Apply:
   //
   // For example:
   //
   //   --x: red;
   //   background-color: var(--x);
   //
-  // During Apply (generation=1), we linearly traverse the declarations above,
-  // and first apply '--x' to the ComputedStyle. Then, we proceed to
-  // 'background-color', which must first have its dependencies resolved before
-  // we can apply it. This is where we check the current generation stored for
-  // '--x'. If it's equal to the generation associated with the Apply call, we
-  // know that we already applied it. Either something else referenced it before
+  // During Apply, we linearly traverse the declarations above, and first apply
+  // '--x' to the ComputedStyle. Then, we proceed to 'background-color', which
+  // must first have its dependencies resolved before we can apply it. This is
+  // where we check the already_applied flag stored in the '--x' declaration's
+  // CascadePriority. If it is true, either something else referenced it before
   // we did, or it appeared before us in the MatchResult. Either way, we don't
   // have to apply '--x' again.
   //
   // Had the order been reversed, such that the '--x' declaration appeared after
   // the 'background-color' declaration, we would discover (during resolution of
-  // var(--x), that the current generation of '--x' is _less_ than the
-  // generation associated with the Apply call, hence we need to LookupAndApply
-  // '--x' before applying 'background-color'.
+  // var(--x), that '--x' had not yet been applied, hence we need to
+  // LookupAndApply '--x' before applying 'background-color'.
   //
-  // A secondary benefit to the generational apply mechanic, is that it's
-  // possible to efficiently apply the StyleCascade more than once (perhaps with
-  // a different CascadeFilter for each call), without rebuilding it. By
-  // incrementing generation_, the existing record of what has been applied is
-  // immediately invalidated, and everything will be applied again.
-  //
-  // Note: The maximum generation number is currently 15. This is more than
-  //       enough for our needs.
-  uint8_t generation_ = 0;
+  // If is possible to apply the StyleCascade more than once (perhaps with a
+  // different CascadeFilter for each call), without rebuilding it. However,
+  // if so, we need to clear out all the already-applied bits, so that the
+  // existing record of what has been applied is immediately invalidated, and
+  // everything will be applied again. This is noted by has_applied_,
+  // so that the second and further calls to Apply will do this cleaning.
+  bool has_applied_ = false;
 
-  bool needs_match_result_analyze_ = false;
-  bool needs_interpolations_analyze_ = false;
+  bool needs_collect_from_match_result_ = false;
+  bool needs_collect_from_interpolations_ = false;
   // A cascade-affecting property is for example 'direction', since the
   // computed value of the property affects how e.g. margin-inline-start
   // (and other css-logical properties) cascade.

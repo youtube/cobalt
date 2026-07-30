@@ -105,7 +105,7 @@ export class EventListElement extends CrLitElement {
   protected processMap: UpdaterProcessMap|undefined = undefined;
   protected sortedEventsWithDates: Array<HistoryEvent|MergedHistoryEvent> = [];
 
-  override willUpdate(changedProperties: PropertyValues<this>) {
+  override async willUpdate(changedProperties: PropertyValues<this>) {
     super.willUpdate(changedProperties);
     if (changedProperties.has('messages')) {
       const {valid, invalid} = parseEvents(this.messages);
@@ -120,11 +120,21 @@ export class EventListElement extends CrLitElement {
 
       const pluralStringProxy = PluralStringProxyImpl.getInstance();
 
-      pluralStringProxy
-          .getPluralString('undatedEvents', unsortedEventsWithoutDates.length)
-          .then(label => this.eventsWithoutDatesLabel = label);
-      pluralStringProxy.getPluralString('parseErrorEvents', invalid.length)
-          .then(label => this.eventsWithParseErrorsLabel = label);
+      if (unsortedEventsWithoutDates.length === 0) {
+        this.eventsWithoutDatesLabel = '';
+      } else {
+        await pluralStringProxy
+            .getPluralString('undatedEvents', unsortedEventsWithoutDates.length)
+            .then(label => this.eventsWithoutDatesLabel = label);
+      }
+
+      if (invalid.length === 0) {
+        this.eventsWithParseErrorsLabel = '';
+      } else {
+        await pluralStringProxy
+            .getPluralString('parseErrorEvents', invalid.length)
+            .then(label => this.eventsWithParseErrorsLabel = label);
+      }
     }
 
     if (changedProperties.has('messages') ||

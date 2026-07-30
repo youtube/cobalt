@@ -52,14 +52,17 @@ class MockContextualTasksComposeboxHandler
       mojo::PendingRemote<composebox::mojom::Page> pending_page,
       mojo::PendingReceiver<searchbox::mojom::PageHandler>
           pending_searchbox_handler,
-      GetSessionHandleCallback get_session_callback)
-      : ContextualTasksComposeboxHandler(ui_controller,
-                                         profile,
-                                         web_contents,
-                                         std::move(pending_handler),
-                                         std::move(pending_page),
-                                         std::move(pending_searchbox_handler),
-                                         std::move(get_session_callback)) {}
+      GetSessionHandleCallback get_session_callback,
+      GetInputStateModelCallback get_inputstatemodel_callback)
+      : ContextualTasksComposeboxHandler(
+            ui_controller,
+            profile,
+            web_contents,
+            std::move(pending_handler),
+            std::move(pending_page),
+            std::move(pending_searchbox_handler),
+            std::move(get_session_callback),
+            std::move(get_inputstatemodel_callback)) {}
   ~MockContextualTasksComposeboxHandler() override = default;
 
   MOCK_METHOD(void,
@@ -674,7 +677,9 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksSidePanelCoordinatorInteractiveUiTest,
           std::move(searchbox_handler_receiver),
           base::BindRepeating(
               &ContextualTasksUI::GetOrCreateContextualSessionHandle,
-              base::Unretained(ui)));
+              base::Unretained(ui)),
+          base::BindRepeating(&ContextualTasksUI::GetInputStateModel,
+                              base::Unretained(ui)));
   MockContextualTasksComposeboxHandler* mock_handler =
       mock_composebox_handler.get();
   ui->SetComposeboxHandlerForTesting(std::move(mock_composebox_handler));
@@ -930,6 +935,34 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksSidePanelCoordinatorInteractiveUiTest,
   EXPECT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL(chrome::kChromeUIContextualTasksURL)));
   EXPECT_FALSE(coordinator->IsPanelOpenForContextualTask());
+}
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksSidePanelCoordinatorInteractiveUiTest,
+                       WebContentsVisibilityChanged) {
+  SetUpTasks();
+
+  TabListInterface* tab_list = TabListInterface::From(browser());
+  ContextualTasksSidePanelCoordinator* coordinator = GetCoordinator();
+
+  // Show side panel. Current WebContents is visible.
+  coordinator->Show(false,
+                    omnibox::ChromeAimEntryPoint::UNKNOWN_AIM_ENTRY_POINT);
+  EXPECT_TRUE(coordinator->IsPanelOpenForContextualTask());
+  content::WebContents* web_contents1 = coordinator->GetActiveWebContents();
+  web_contents1->WasShown();
+  EXPECT_EQ(content::Visibility::VISIBLE, web_contents1->GetVisibility());
+
+  // Switch to tab1. Previous WebContents is hidden. Current WebContents is
+  // visible.
+  tab_list->ActivateTab(tab_list->GetTab(1)->GetHandle());
+  content::WebContents* web_contents2 = coordinator->GetActiveWebContents();
+  EXPECT_EQ(content::Visibility::HIDDEN, web_contents1->GetVisibility());
+  EXPECT_EQ(content::Visibility::VISIBLE, web_contents2->GetVisibility());
+
+  // Close the side panel. Both WebContents are hidden.
+  coordinator->Close();
+  EXPECT_EQ(content::Visibility::HIDDEN, web_contents1->GetVisibility());
+  EXPECT_EQ(content::Visibility::HIDDEN, web_contents2->GetVisibility());
 }
 
 class TabScopedContextualTasksSidePanelCoordinatorInteractiveUiTest

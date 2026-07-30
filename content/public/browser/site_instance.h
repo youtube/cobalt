@@ -185,9 +185,6 @@ class CONTENT_EXPORT SiteInstance : public base::RefCounted<SiteInstance> {
   //   corresponds to a site URL with the host "example.com".
   virtual const GURL& GetSiteURL() const = 0;
 
-  // Get the StoragePartitionConfig used by this SiteInstance.
-  virtual const StoragePartitionConfig& GetStoragePartitionConfig() = 0;
-
   // Gets a SiteInstance for the given URL that shares the current
   // BrowsingInstance, creating a new SiteInstance if necessary.  This ensures
   // that a BrowsingInstance only has one SiteInstance per site, so that pages
@@ -223,9 +220,6 @@ class CONTENT_EXPORT SiteInstance : public base::RefCounted<SiteInstance> {
   // that to be part of the same web site for the purposes for process
   // assignment.
   virtual bool IsSameSiteWithURL(const GURL& url) = 0;
-
-  // Returns true if this object is used for a <webview> guest.
-  virtual bool IsGuest() = 0;
 
   // Returns how this SiteInstance was assigned to a renderer process the most
   // recent time that such an assignment was done. This allows the content

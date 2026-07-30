@@ -56,6 +56,7 @@ import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.omnibox.SearchEngineUtils;
 import org.chromium.chrome.browser.omnibox.status.StatusProperties;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.setup_list.SetupListModuleUtils;
 import org.chromium.chrome.browser.signin.SigninAndHistorySyncActivityLauncherImpl;
 import org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesCoordinator;
 import org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesLayout;
@@ -182,6 +183,7 @@ public class NewTabPageLayout extends LinearLayout
     private final int mNtpSearchBoxTransitionStartOffset;
     private final int mNtpSearchBoxTopMarginWithoutLogo;
     private final int mFakeSearchBoxStartPaddingWithDseLogo;
+    private final boolean mEnableLogs;
     private int mCurrentNtpFakeSearchBoxTransitionStartOffset;
     private int mTopInset;
     private @Nullable OnLayoutChangeListener mOnLayoutChangeListener;
@@ -204,6 +206,7 @@ public class NewTabPageLayout extends LinearLayout
         mFakeSearchBoxStartPaddingWithDseLogo =
                 resources.getDimensionPixelSize(
                         R.dimen.fake_search_box_start_padding_with_dse_logo);
+        mEnableLogs = ChromeFeatureList.sNewTabPageCustomizationV2EnableLogs.getValue();
     }
 
     @Override
@@ -564,7 +567,8 @@ public class NewTabPageLayout extends LinearLayout
     }
 
     private void onComposeplateButtonClicked(View view) {
-        if (OmniboxFeatures.sRedirectComposeplateButton.getValue()
+        if (OmniboxFeatures.sOmniboxMultimodalInput.isEnabled()
+                && OmniboxFeatures.sRedirectComposeplateButton.getValue()
                 && !mIsTablet
                 && mIsComposeplatePolicyEnabled) {
             mManager.focusSearchBox(false, AutocompleteRequestType.AI_MODE, null);
@@ -678,7 +682,8 @@ public class NewTabPageLayout extends LinearLayout
                         mModalDialogManagerSupplier,
                         mSnackbarManager,
                         DeviceLockActivityLauncherImpl.get(),
-                        signinPromoViewContainerStub);
+                        signinPromoViewContainerStub,
+                        SetupListModuleUtils::isSetupListActive);
     }
 
     /** Updates the search box when the parent view's scroll position is changed. */
@@ -1397,6 +1402,10 @@ public class NewTabPageLayout extends LinearLayout
                 getResources().getDimensionPixelSize(R.dimen.toolbar_height_no_shadow) + mTopInset,
                 getPaddingEnd(),
                 getPaddingBottom());
+
+        if (mEnableLogs) {
+            Log.i(TAG, "The top padding to add on the NTP is %d.", mTopInset);
+        }
     }
 
     /**

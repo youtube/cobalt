@@ -744,6 +744,12 @@ class SingleClientDeviceInfoWithDeviceStatisticsSyncTest
                 base::Unretained(this)));
   }
 
+ protected:
+  // Note: The HistogramTester must be created before the test body, since
+  // otherwise it's a race condition whether the default test profile manages to
+  // record the metrics first or not.
+  base::HistogramTester histograms_;
+
  private:
   void OnWillCreateBrowserContextServices(content::BrowserContext* context) {
     // Note: On Android 10 (API level 29), setting the metrics consent override
@@ -791,8 +797,6 @@ INSTANTIATE_TEST_SUITE_P(
 IN_PROC_BROWSER_TEST_P(
     SingleClientDeviceInfoWithDeviceStatisticsWithoutConsentSyncTest,
     ShouldNotRecordDeviceStatisticsMetrics) {
-  base::HistogramTester histograms;
-
   // Simulate that the primary account has two other devices.
   InjectDeviceInfoEntityToServer(1);
   InjectDeviceInfoEntityToServer(2);
@@ -807,10 +811,10 @@ IN_PROC_BROWSER_TEST_P(
   ASSERT_TRUE(base::test::RunUntil(
       [&]() { return base::Time::Now() - wait_start > wait_time; }));
 
-  histograms.ExpectTotalCount("Sync.DeviceStatistics.RequestsStartedCount", 0,
-                              FROM_HERE);
-  histograms.ExpectTotalCount("Sync.DeviceStatistics.Outcome.Overall", 0,
-                              FROM_HERE);
+  histograms_.ExpectTotalCount("Sync.DeviceStatistics.RequestsStartedCount", 0,
+                               FROM_HERE);
+  histograms_.ExpectTotalCount("Sync.DeviceStatistics.Outcome.Overall", 0,
+                               FROM_HERE);
 }
 
 IN_PROC_BROWSER_TEST_P(
@@ -826,11 +830,9 @@ IN_PROC_BROWSER_TEST_P(
 }
 
 // TODO(crbug.com/465716865): Figure out why this test sometimes times out on
-// ASan and consistently times out on ChromeOS Debug.
-// TODO(crbug.com/479828012): PRE_ tests that set up Sync are currently flaky on
-// Android.
+// ASan, and consistently times out on Win Arm64 Debug.
 #if defined(ADDRESS_SANITIZER) || \
-    (BUILDFLAG(IS_CHROMEOS) && !defined(NDEBUG)) || BUILDFLAG(IS_ANDROID)
+    (BUILDFLAG(IS_WIN) && !defined(NDEBUG) && defined(ARCH_CPU_ARM64))
 #define MAYBE_ShouldRecordDeviceStatisticsMetricsWithPrimaryAccount \
   DISABLED_ShouldRecordDeviceStatisticsMetricsWithPrimaryAccount
 #else
@@ -850,8 +852,6 @@ IN_PROC_BROWSER_TEST_P(
   }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-  base::HistogramTester histograms;
-
   ASSERT_TRUE(SetupClients());
 
   // Wait for the statistics requests to finish and metrics be recorded. (This
@@ -865,7 +865,7 @@ IN_PROC_BROWSER_TEST_P(
 #else   // BUILDFLAG(IS_ANDROID)
     constexpr size_t kExpectedCount = 2;
 #endif  // BUILDFLAG(IS_ANDROID)
-    return histograms.GetAllSamples("Sync.DeviceStatistics.Outcome.Overall")
+    return histograms_.GetAllSamples("Sync.DeviceStatistics.Outcome.Overall")
                .size() == kExpectedCount;
   }));
 
@@ -875,18 +875,18 @@ IN_PROC_BROWSER_TEST_P(
   // recorded before the test body, and thus before the HistogramTester is
   // instantiated.
 #if !BUILDFLAG(IS_ANDROID)
-  histograms.ExpectUniqueSample("Sync.DeviceStatistics.RequestsStartedCount",
-                                /*sample=*/1, /*expected_bucket_count=*/1,
-                                FROM_HERE);
+  histograms_.ExpectUniqueSample("Sync.DeviceStatistics.RequestsStartedCount",
+                                 /*sample=*/1, /*expected_bucket_count=*/1,
+                                 FROM_HERE);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-  histograms.ExpectUniqueSample(
+  histograms_.ExpectUniqueSample(
       "Sync.DeviceStatistics.RequestsCompletedSuccess",
       syncer::DeviceStatisticsTracker::RequestsCompletedSuccess::kAllSucceeded,
       /*expected_bucket_count=*/1, FROM_HERE);
 
 #if BUILDFLAG(IS_ANDROID)
-  histograms.ExpectUniqueSample(
+  histograms_.ExpectUniqueSample(
       "Sync.DeviceStatistics.Outcome.Overall",
       syncer::DeviceStatisticsTracker::AccountsHaveOtherDevicesSummary::
           kPrimaryYesNonPrimaryNA,
@@ -896,7 +896,7 @@ IN_PROC_BROWSER_TEST_P(
   // here, but since this histogram also gets recorded in the (unused) default
   // profile, there is an additional `kNoAccounts` sample.
   EXPECT_THAT(
-      histograms.GetAllSamples("Sync.DeviceStatistics.Outcome.Overall"),
+      histograms_.GetAllSamples("Sync.DeviceStatistics.Outcome.Overall"),
       ElementsAre(
           base::Bucket(
               syncer::DeviceStatisticsTracker::AccountsHaveOtherDevicesSummary::
@@ -907,7 +907,7 @@ IN_PROC_BROWSER_TEST_P(
                        1)));
 #endif
 
-  histograms.ExpectUniqueSample(
+  histograms_.ExpectUniqueSample(
       "Sync.DeviceStatistics.Outcome.PrimaryAccount.NumberOfAdditionalClients",
       /*sample=*/2,
       /*expected_bucket_count=*/1, FROM_HERE);
@@ -939,10 +939,12 @@ IN_PROC_BROWSER_TEST_P(
 }
 
 // TODO(crbug.com/465716865): Figure out why this test sometimes times out on
-// ASan.
+// ASan, and consistently times out on Win Arm64 Debug.
 // TODO(crbug.com/483936092): signin::MakeAccountAvailable() (needed by the PRE_
 // test) doesn't work on Android.
-#if defined(ADDRESS_SANITIZER) || BUILDFLAG(IS_ANDROID)
+#if defined(ADDRESS_SANITIZER) ||                                         \
+    (BUILDFLAG(IS_WIN) && !defined(NDEBUG) && defined(ARCH_CPU_ARM64)) || \
+    BUILDFLAG(IS_ANDROID)
 #define MAYBE_ShouldRecordDeviceStatisticsMetricsWithoutPrimaryAccount \
   DISABLED_ShouldRecordDeviceStatisticsMetricsWithoutPrimaryAccount
 #else
@@ -962,8 +964,6 @@ IN_PROC_BROWSER_TEST_P(
   }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-  base::HistogramTester histograms;
-
   ASSERT_TRUE(SetupClients());
 
   // Wait for the statistics requests to finish and metrics be recorded.
@@ -976,7 +976,7 @@ IN_PROC_BROWSER_TEST_P(
 #else   // BUILDFLAG(IS_ANDROID)
     constexpr size_t kExpectedCount = 2;
 #endif  // BUILDFLAG(IS_ANDROID)
-    return histograms.GetAllSamples("Sync.DeviceStatistics.Outcome.Overall")
+    return histograms_.GetAllSamples("Sync.DeviceStatistics.Outcome.Overall")
                .size() == kExpectedCount;
   }));
 
@@ -986,18 +986,18 @@ IN_PROC_BROWSER_TEST_P(
   // recorded before the test body, and thus before the HistogramTester is
   // instantiated.
 #if !BUILDFLAG(IS_ANDROID)
-  histograms.ExpectUniqueSample("Sync.DeviceStatistics.RequestsStartedCount",
-                                /*sample=*/1, /*expected_bucket_count=*/1,
-                                FROM_HERE);
+  histograms_.ExpectUniqueSample("Sync.DeviceStatistics.RequestsStartedCount",
+                                 /*sample=*/1, /*expected_bucket_count=*/1,
+                                 FROM_HERE);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-  histograms.ExpectUniqueSample(
+  histograms_.ExpectUniqueSample(
       "Sync.DeviceStatistics.RequestsCompletedSuccess",
       syncer::DeviceStatisticsTracker::RequestsCompletedSuccess::kAllSucceeded,
       /*expected_bucket_count=*/1, FROM_HERE);
 
 #if BUILDFLAG(IS_ANDROID)
-  histograms.ExpectUniqueSample(
+  histograms_.ExpectUniqueSample(
       "Sync.DeviceStatistics.Outcome.Overall",
       syncer::DeviceStatisticsTracker::AccountsHaveOtherDevicesSummary::
           kPrimaryNANonPrimaryYes,
@@ -1007,7 +1007,7 @@ IN_PROC_BROWSER_TEST_P(
   // here, but since this histogram also gets recorded in the (unused) default
   // profile, there is an additional `kNoAccounts` sample.
   EXPECT_THAT(
-      histograms.GetAllSamples("Sync.DeviceStatistics.Outcome.Overall"),
+      histograms_.GetAllSamples("Sync.DeviceStatistics.Outcome.Overall"),
       ElementsAre(
           base::Bucket(
               syncer::DeviceStatisticsTracker::AccountsHaveOtherDevicesSummary::
@@ -1018,7 +1018,7 @@ IN_PROC_BROWSER_TEST_P(
                        1)));
 #endif
 
-  histograms.ExpectUniqueSample(
+  histograms_.ExpectUniqueSample(
       "Sync.DeviceStatistics.Outcome.NonPrimaryAccount."
       "NumberOfAdditionalClients",
       /*sample=*/2,

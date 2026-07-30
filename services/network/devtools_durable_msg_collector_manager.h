@@ -56,16 +56,24 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) DevtoolsDurableMessageCollectorManager
                                                          collectors_.end());
   }
 
+  size_t total_memory_usage_for_testing() const { return total_memory_usage_; }
+
+  // Returns true if the given size can be accommodated by the global limit.
+  bool CanAccommodate(size_t size) const;
+
  private:
   // Callback by collector instances to inform of creation/destruction.
   void OnCollectorCreated(DevtoolsDurableMessageCollector* collector);
   void OnCollectorDestroyed(DevtoolsDurableMessageCollector* collector);
   void OnCollectorAddedBytes(size_t delta);
   void OnCollectorRemovedBytes(size_t delta);
+  void OnCollectorAddedMessage(size_t count = 1);
+  void OnCollectorRemovedMessage(size_t count = 1);
 
   // Keeps track of aggregate memory usage of all managed collectors, for
   // reporting purposes.
   size_t total_memory_usage_ = 0;
+  size_t total_message_count_ = 0;
 
   // A set of collectors managed by this class.
   std::set<raw_ptr<DevtoolsDurableMessageCollector>> collectors_;
@@ -74,6 +82,9 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) DevtoolsDurableMessageCollectorManager
   std::multimap<const base::UnguessableToken,
                 raw_ptr<DevtoolsDurableMessageCollector>>
       profile_collectors_;
+
+  // Cached global limit buffer size.
+  const uint64_t max_global_buffer_size_;
 
   base::WeakPtrFactory<DevtoolsDurableMessageCollectorManager> weak_factory_{
       this};

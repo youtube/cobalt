@@ -162,10 +162,10 @@ class CONTENT_EXPORT PrefetchService : public PrefetchContainer::Observer {
   static void SetHostNonUniqueFilterForTesting(
       bool (*filter)(std::string_view));
 
-  // Sets the URLLoaderFactory to be used during testing instead of the
-  // |PrefetchNetworkContext| associated with each |PrefetchContainer|. Note
-  // that this does not take ownership of |url_loader_factory|, and caller must
-  // keep ownership over the course of the test.
+  // Sets the URLLoaderFactory to be used as
+  // `GetURLLoaderFactoryForCurrentPrefetch()` during testing. Note that this
+  // does not take ownership of |url_loader_factory|, and caller must keep
+  // ownership over the course of the test.
   static void SetURLLoaderFactoryForTesting(
       network::SharedURLLoaderFactory* url_loader_factory);
 
@@ -210,10 +210,11 @@ class CONTENT_EXPORT PrefetchService : public PrefetchContainer::Observer {
   // process. Corresponds to 3.4. of
   // https://wicg.github.io/nav-speculation/prefetch.html#wait-for-a-matching-prefetch-record
   //
-  // Note that `PrefetchContainer::GetServableState()` depends on
-  // `base::TimeTicks::now()` and can expire (can change from `kServable` to
-  // `kNotServable`) in the minute between two calls. Deciding something with
-  // multiple `PrefetchContainer::GetServableState()` calls can
+  // Note that `PrefetchContainer::GetMatchResolverAction().ToServableState()`
+  // depends on `base::TimeTicks::now()` and can expire (can change from
+  // `kServable` to `kNotServable`) in the minute between two calls. Deciding
+  // something with multiple
+  // ``PrefetchContainer::GetMatchResolverAction().ToServableState()` calls can
   // lead inconsistent state. To avoid that, we record
   // `PrefetchServableState` in the `flat_map` at the beginning of
   // matching process and refer to it.

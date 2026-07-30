@@ -15,7 +15,7 @@ namespace features {
 BASE_FEATURE(kAndroidWindowManagementWebApi, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Shows or hides the cancel button in the ItemChooserDialog.
-BASE_FEATURE(kAndroidItemChooserCancelButton, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAndroidItemChooserCancelButton, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 // Enables or disables whether pages with pending permission requests will
@@ -36,11 +36,9 @@ BASE_FEATURE(kPermissionHeuristicAutoGrant, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kPermissionPredictionsV2, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kPermissionsAIv3, base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kPermissionsAIv4, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kPermissionsAIP92, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kPermissionsAIP92, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kPermissionOnDeviceNotificationPredictions,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -82,11 +80,6 @@ BASE_FEATURE(kRecordChooserPermissionLastVisitedTimestamps,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 #endif  // BUILDFLAG(IS_ANDROID)
-
-// When enabled, site settings pages use radio button groups other than toggles.
-// In the meanwhile, CPSS if exist will be a separate radio button group.
-BASE_FEATURE(kPermissionSiteSettingsRadioButton,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, blocks condition to exclude auto granted permissions for
 // storage access exceptions. This will allow RWS permission grants to be
