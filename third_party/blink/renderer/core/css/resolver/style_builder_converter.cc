@@ -39,6 +39,7 @@
 #include "third_party/blink/renderer/core/css/css_color.h"
 #include "third_party/blink/renderer/core/css/css_color_mix_value.h"
 #include "third_party/blink/renderer/core/css/css_content_distribution_value.h"
+#include "third_party/blink/renderer/core/css/css_contrast_color_value.h"
 #include "third_party/blink/renderer/core/css/css_custom_ident_value.h"
 #include "third_party/blink/renderer/core/css/css_dynamic_range_limit_mix_value.h"
 #include "third_party/blink/renderer/core/css/css_font_family_value.h"
@@ -2941,6 +2942,13 @@ StyleColor ResolveColorValueImpl(const CSSValue& value,
     }
   }
 
+  if (auto* contrast_color_value =
+          DynamicTo<cssvalue::CSSContrastColorValue>(value)) {
+    // TODO(crbug.com/40142548): Implement black/white result depending on color
+    // parameter.
+    return ResolveColorValueImpl(contrast_color_value->Color(), context);
+  }
+
   if (auto* unresolved_color_value =
           DynamicTo<cssvalue::CSSUnresolvedColorValue>(value)) {
     return StyleColor(unresolved_color_value->Resolve(context.conversion_data));
@@ -4175,43 +4183,51 @@ PositionTryFallback StyleBuilderConverter::ConvertSinglePositionTryFallback(
 FitText StyleBuilderConverter::ConvertFitText(StyleResolverState& state,
                                               const CSSValue& value) {
   const auto& list = To<CSSValueList>(value);
-  const auto target_id = To<CSSIdentifierValue>(list.Item(0)).GetValueID();
-  FitTextTarget target = target_id == CSSValueID::kNone ? FitTextTarget::kNone
-                         : target_id == CSSValueID::kPerLine
-                             ? FitTextTarget::kPerLine
-                             : FitTextTarget::kConsistent;
-  std::optional<FitTextMethod> method;
+
+  const auto type_id = To<CSSIdentifierValue>(list.Item(0)).GetValueID();
+  FitTextType type = FitTextType::kNone;
+  if (type_id == CSSValueID::kNone) {
+    // It's the default value. Do nothing.
+  } else if (type_id == CSSValueID::kGrow) {
+    type = FitTextType::kGrow;
+  } else {
+    // If this DCHECK fails, This function and ConsumeFitText() are
+    // inconsistent.
+    DCHECK_EQ(type_id, CSSValueID::kShrink);
+    type = FitTextType::kShrink;
+  }
   wtf_size_t next_index = 1;
-  if (list.length() > next_index && list.Item(next_index).IsIdentifierValue()) {
-    const auto method_id =
-        To<CSSIdentifierValue>(list.Item(next_index)).GetValueID();
-    switch (method_id) {
-      case CSSValueID::kScale:
-        method.emplace(FitTextMethod::kScale);
-        break;
-      case CSSValueID::kFontSize:
-        method.emplace(FitTextMethod::kFontSize);
-        break;
-      case CSSValueID::kScaleInline:
-        method.emplace(FitTextMethod::kScaleInline);
-        break;
-      case CSSValueID::kLetterSpacing:
-        method.emplace(FitTextMethod::kLetterSpacing);
-        break;
-      default:
-        NOTREACHED();
+
+  FitTextTarget target = FitTextTarget::kConsistent;
+  if (next_index < list.length()) {
+    if (const auto* target_value =
+            DynamicTo<CSSIdentifierValue>(list.Item(next_index))) {
+      const auto target_id = target_value->GetValueID();
+      if (target_id == CSSValueID::kConsistent) {
+        // It's the default value. Do nothing.
+      } else if (target_id == CSSValueID::kPerLine) {
+        target = FitTextTarget::kPerLine;
+      } else {
+        // If this DCHECK fails, This function and ConsumeFitText() are
+        // inconsistent.
+        DCHECK_EQ(target_id, CSSValueID::kPerLineAll);
+        target = FitTextTarget::kPerLineAll;
+      }
+      ++next_index;
+    }
+  }
+
+  std::optional<double> limit;
+  if (list.length() > next_index) {
+    if (const auto* limit_value =
+            DynamicTo<CSSPrimitiveValue>(list.Item(next_index))) {
+      limit.emplace(limit_value->ComputePercentage<float>(
+                        state.CssToLengthConversionData()) /
+                    100);
     }
     ++next_index;
   }
-  std::optional<float> size_limit;
-  if (list.length() > next_index) {
-    FontDescription::Size parent_size(FontSizeFunctions::InitialKeywordSize(),
-                                      std::numeric_limits<float>::max(), true);
-    size_limit.emplace(ComputeFontSize(
-        state.CssToLengthConversionData(),
-        To<CSSPrimitiveValue>(list.Item(next_index)), parent_size));
-  }
-  return FitText(target, method, size_limit);
+  return FitText(type, target, limit);
 }
 
 TextOverflowData StyleBuilderConverter::ConvertTextOverflow(

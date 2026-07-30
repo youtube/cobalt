@@ -26,7 +26,8 @@ import org.chromium.base.IntentUtils;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
@@ -104,7 +105,8 @@ public class PrivacySettings extends ChromeBaseSettingsFragment
     private static final String PREF_ADVANCED_PROTECTION_INFO = "advanced_protection_info";
 
     private IncognitoLockSettings mIncognitoLockSettings;
-    private final ObservableSupplierImpl<String> mPageTitle = new ObservableSupplierImpl<>();
+    private final SettableMonotonicObservableSupplier<String> mPageTitle =
+            ObservableSuppliers.createMonotonic();
 
     /** Called when the advanced-protection javascript-optimizer-settings link is clicked. */
     @VisibleForTesting
@@ -608,6 +610,10 @@ public class PrivacySettings extends ChromeBaseSettingsFragment
                     boolean restricted = isRestrictedSandboxEnabled(bridge);
                     var summaryId = getPrivacySandboxSummaryId(restricted);
                     indexData.updateEntrySummaryForKey(frag, PREF_PRIVACY_SANDBOX, summaryId);
+
+                    // Remove the summary text as it will be replaced by current status.
+                    indexData.updateEntrySummaryForKey(
+                            frag, PREF_PRELOAD_PAGES, /* summaryId= */ 0);
 
                     if (shouldHideSandboxPref(bridge)) {
                         indexData.removeEntry(getUniqueId(PREF_PRIVACY_SANDBOX));

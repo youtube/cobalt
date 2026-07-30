@@ -17,6 +17,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips.mojom.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips_generator.h"
+#include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips_metrics.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/tab_id_generator.h"
 #include "components/google/core/common/google_util.h"
 #include "components/history/core/browser/history_service.h"
@@ -36,6 +37,8 @@
 #include "url/mojom/url.mojom.h"
 
 namespace {
+using ::action_chips::RecordActionChipsRetrievalLatencyMetrics;
+using ::action_chips::RecordImpressionMetrics;
 using ::action_chips::mojom::ActionChip;
 using ::action_chips::mojom::ActionChipPtr;
 using ::action_chips::mojom::ChipType;
@@ -89,19 +92,6 @@ TabInterface* FindMostRecentTab(content::WebUI& web_ui) {
   return most_recent_tab;
 }
 
-// Helper method to record impression metrics for the generated chips.
-void RecordImpressionMetrics(const std::vector<ActionChipPtr>& chips) {
-  for (const auto& chip : chips) {
-    base::UmaHistogramEnumeration("NewTabPage.ActionChips.Shown", chip->type);
-  }
-}
-
-// Helper method to record latency metrics for action chips retrieval.
-void RecordActionChipsRetrievalLatencyMetrics(base::TimeDelta latency) {
-  base::UmaHistogramTimes(
-      "NewTabPage.ActionChips.Handler.ActionChipsRetrievalLatency", latency);
-}
-
 bool IsTabReadyForActionChipsRetrieval(content::WebContents* web_contents,
                                        const TabStripModelChange& change) {
   if (web_contents == nullptr) {
@@ -149,6 +139,12 @@ void ActionChipsHandler::StartActionChipsRetrieval() {
 
   TabInterface* tab = FindMostRecentTab(*web_ui_);
 
+  const GURL current_url =
+      tab != nullptr ? tab->GetContents()->GetLastCommittedURL() : GURL();
+  if (ShouldThrottleRetrieval(current_url)) {
+    return;
+  }
+
   // Check sensitivity of tab, if tab available and sensitivity checking
   // is available.
   if (ntp_features::kNtpNextClientSensitivityCheckParam.Get() &&
@@ -159,9 +155,8 @@ void ActionChipsHandler::StartActionChipsRetrieval() {
       history_service_) {
     history::QueryOptions options;
     options.max_count = 1;
-    auto tab_url = tab->GetContents()->GetLastCommittedURL().spec();
     history_service_->QueryHistory(
-        base::UTF8ToUTF16(tab_url), options,
+        base::UTF8ToUTF16(current_url.spec()), options,
         base::BindOnce(&ActionChipsHandler::OnGetHistoryData,
                        weak_factory_.GetWeakPtr(), std::move(tab),
                        std::move(start_time)),
@@ -216,4 +211,12 @@ void ActionChipsHandler::OnGetHistoryData(const TabInterface* tab,
       is_sensitive ? nullptr : std::move(tab),
       base::BindOnce(&ActionChipsHandler::SendActionChipsToUi,
                      weak_factory_.GetWeakPtr(), std::move(start_time)));
+}
+
+bool ActionChipsHandler::ShouldThrottleRetrieval(const GURL& current_url) {
+  if (last_processed_url_ == current_url) {
+    return true;
+  }
+  last_processed_url_ = current_url;
+  return false;
 }

@@ -102,8 +102,6 @@ public class NewTabPageLayout extends LinearLayout
 
     private int mSearchBoxTwoSideMargin;
     private final Context mContext;
-    private final int mPaddingForShadowPx;
-
     private LogoCoordinator mLogoCoordinator;
     private LogoView mLogoView;
     private SearchBoxCoordinator mSearchBoxCoordinator;
@@ -212,9 +210,6 @@ public class NewTabPageLayout extends LinearLayout
         mFakeSearchBoxStartPaddingWithDseLogo =
                 resources.getDimensionPixelSize(
                         R.dimen.fake_search_box_start_padding_with_dse_logo);
-        mPaddingForShadowPx =
-                resources.getDimensionPixelSize(
-                        R.dimen.composeplate_view_button_padding_for_shadow_bottom);
     }
 
     @Override
@@ -358,7 +353,7 @@ public class NewTabPageLayout extends LinearLayout
     /** Sets the height of the search box and mSearchBoxBoundsVerticalInset. */
     private void setSearchBoxHeightBoundsVerticalInset() {
         int searchBoxHeight =
-                NewTabPageUtils.getSearchBoxHeightWithShadows(
+                NtpCustomizationUtils.getSearchBoxHeightWithShadows(
                         getResources(),
                         mIsComposeplateV2Enabled,
                         Boolean.TRUE.equals(mIsWhiteBackgroundOnSearchBoxApplied));
@@ -576,7 +571,7 @@ public class NewTabPageLayout extends LinearLayout
 
         ViewStub composeplateViewStub = findViewById(R.id.composeplate_view_v2_stub);
         ViewGroup composeplateView = (ViewGroup) composeplateViewStub.inflate();
-        if (ChromeFeatureList.sNewTabPageCustomizationV2.isEnabled()) {
+        if (NtpCustomizationUtils.isNtpThemeCustomizationEnabled()) {
             // TODO(https://crbug.com/423579377): Moves the layout parameters to
             //  composeplate_view_layout_v2.xml after the feature NewTabPageCustomizationV2 is
             //  launched.
@@ -1098,28 +1093,17 @@ public class NewTabPageLayout extends LinearLayout
         mSearchBoxCoordinator.setTopMargin(topMargin);
 
         if (mLogoCoordinator != null) {
-            mLogoCoordinator.setTopMargin(getLogoMargin(/* isTopMargin= */ true));
+            mLogoCoordinator.setTopMargin(getLogoTopMargin());
         }
     }
 
     private void setLogoViewBottomMargin() {
         if (mLogoCoordinator == null) return;
 
-        int bottomMargin = getLogoBottomMargin();
-        if (Boolean.TRUE.equals(mIsWhiteBackgroundOnSearchBoxApplied)) {
-            bottomMargin -= mPaddingForShadowPx;
-        }
-        mLogoCoordinator.setBottomMargin(bottomMargin);
-    }
-
-    /**
-     * @param isTopMargin True to return the top margin; False to return bottom margin.
-     * @return The top margin or bottom margin of the logo.
-     */
-    // TODO(crbug.com/40226731): Remove this method when the Feed position experiment is
-    // cleaned up.
-    private int getLogoMargin(boolean isTopMargin) {
-        return isTopMargin ? getLogoTopMargin() : getLogoBottomMargin();
+        boolean shouldShowShadow = Boolean.TRUE.equals(mIsWhiteBackgroundOnSearchBoxApplied);
+        int logoViewBottomMarginPx =
+                NtpCustomizationUtils.getLogoViewBottomMarginPx(getResources(), shouldShowShadow);
+        mLogoCoordinator.setBottomMargin(logoViewBottomMarginPx);
     }
 
     private int getLogoTopMargin() {
@@ -1130,10 +1114,6 @@ public class NewTabPageLayout extends LinearLayout
         }
 
         return resources.getDimensionPixelSize(R.dimen.ntp_logo_margin_top);
-    }
-
-    private int getLogoBottomMargin() {
-        return getResources().getDimensionPixelSize(R.dimen.ntp_logo_margin_bottom);
     }
 
     /**
@@ -1497,6 +1477,8 @@ public class NewTabPageLayout extends LinearLayout
         }
 
         setLogoViewBottomMargin();
+        // Update the search box height and bounds vertical inset since the shadow padding changed.
+        setSearchBoxHeightBoundsVerticalInset();
 
         if (mMostVisitedTilesCoordinator != null) {
             updateTilesLayoutMargins();
@@ -1506,6 +1488,11 @@ public class NewTabPageLayout extends LinearLayout
     /** Returns the top inset of the NTP. */
     int getTopInset() {
         return mTopInset;
+    }
+
+    /** Returns the vertical inset applied to search box bounds. */
+    int getSearchBoxBoundsVerticalInset() {
+        return mSearchBoxBoundsVerticalInset;
     }
 
     private boolean isInSingleUrlMode() {

@@ -664,7 +664,8 @@ void StyleAdjuster::AdjustOverflow(ComputedStyleBuilder& builder,
     } else if (builder.OverflowY() == EOverflow::kVisible) {
       builder.SetOverflowX(EOverflow::kVisible);
     }
-  } else if (!IsOverflowClipOrVisible(builder.OverflowY())) {
+  } else if (!RuntimeEnabledFeatures::SingleAxisScrollContainersEnabled() &&
+             !IsOverflowClipOrVisible(builder.OverflowY())) {
     // Values of 'clip' and 'visible' can only be used with 'clip' and
     // 'visible.' If they aren't, 'clip' and 'visible' is reset.
     if (builder.OverflowX() == EOverflow::kVisible) {
@@ -672,7 +673,8 @@ void StyleAdjuster::AdjustOverflow(ComputedStyleBuilder& builder,
     } else if (builder.OverflowX() == EOverflow::kClip) {
       builder.SetOverflowX(EOverflow::kHidden);
     }
-  } else if (!IsOverflowClipOrVisible(builder.OverflowX())) {
+  } else if (!RuntimeEnabledFeatures::SingleAxisScrollContainersEnabled() &&
+             !IsOverflowClipOrVisible(builder.OverflowX())) {
     // Values of 'clip' and 'visible' can only be used with 'clip' and
     // 'visible.' If they aren't, 'clip' and 'visible' is reset.
     if (builder.OverflowY() == EOverflow::kVisible) {
@@ -1198,8 +1200,7 @@ void StyleAdjuster::AdjustComputedStyle(StyleResolverState& state,
       (element && IsA<SVGForeignObjectElement>(*element)) || is_in_top_layer ||
       builder.StyleType() == kPseudoIdBackdrop ||
       builder.StyleType() == kPseudoIdViewTransition ||
-      IsCanvasWithDrawElements(element) ||
-      (builder.Contain() & kContainsViewTransition) || is_transition_scope) {
+      IsCanvasWithDrawElements(element) || is_transition_scope) {
     builder.SetForcesStackingContext(true);
   }
 

@@ -13,6 +13,8 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/profiles/profile.h"
+#include "components/contextual_search/contextual_search_session_handle.h"
+#include "components/contextual_search/input_state_model.h"
 #include "components/contextual_search/internal/composebox_query_controller.h"
 #include "components/lens/proto/server/lens_overlay_response.pb.h"
 #include "components/page_content_annotations/core/page_content_store.h"
@@ -83,9 +85,15 @@ class ComposeboxQueryControllerBridge
 
   std::unique_ptr<ComposeboxQueryController::CreateSearchUrlRequestInfo>
   CreateSearchUrlRequestInfoFromUrl(GURL url);
+  contextual_search::ContextualSearchContextController* query_controller()
+      const {
+    return session_handle_->GetController();
+  }
 
   raw_ptr<Profile> profile_;
-  std::unique_ptr<ComposeboxQueryController> query_controller_;
+  std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
+      session_handle_;
+  std::unique_ptr<contextual_search::InputStateModel> input_state_model_;
   base::android::ScopedJavaGlobalRef<jobject> java_obj_;
   base::WeakPtrFactory<ComposeboxQueryControllerBridge> weak_ptr_factory_{this};
 };

@@ -16,6 +16,7 @@ import org.junit.runner.RunWith;
 
 import org.chromium.base.test.transit.TransitAsserts;
 import org.chromium.base.test.util.CommandLineFlags;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -51,7 +52,7 @@ public class PopupMultiwindowPTTest {
     @Before
     public void setUp() {
         mEntryPage = mCtaTestRule.startOnBlankPage();
-        PopupCreator.setArePopupsEnabledForTesting(true);
+        PopupCreator.setSetMovableTaskRequiredForPopupsForTesting(false);
     }
 
     @Test
@@ -77,8 +78,6 @@ public class PopupMultiwindowPTTest {
     @Test
     @MediumTest
     @Restriction(DeviceFormFactor.ONLY_TABLET)
-    // TODO(crbug.com/473893732): Fix the clickNode.
-    @DisableFeatures(ChromeFeatureList.LOCK_TOP_CONTROLS_ON_LARGE_TABLETS_V2)
     public void testBasicIncognito() {
         final IncognitoNewTabPageStation incognitoEntryPoint =
                 mEntryPage.openNewIncognitoTabOrWindowFast();
@@ -109,6 +108,7 @@ public class PopupMultiwindowPTTest {
     @Test
     @MediumTest
     @Restriction(DeviceFormFactor.DESKTOP)
+    @DisabledTest(message = "https://crbug.com/441973530")
     @EnableFeatures(ChromeFeatureList.ANDROID_WINDOW_POPUP_RESIZE_AFTER_SPAWN)
     public void testLaunchBoundsSize() throws Exception {
         PopupOnClickPageStation page =

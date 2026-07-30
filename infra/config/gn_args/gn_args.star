@@ -838,6 +838,13 @@ gn_args.config(
 )
 
 gn_args.config(
+    name = "disable_be_deferred_context_menu",
+    args = {
+        "use_be_deferred_context_menu": False,
+    },
+)
+
+gn_args.config(
     name = "ios_simulator",
     args = {"target_environment": "simulator"},
     configs = ["ios"],
@@ -1211,6 +1218,13 @@ gn_args.config(
     name = "riscv64",
     args = {
         "target_cpu": "riscv64",
+    },
+)
+
+gn_args.config(
+    name = "sanitizer_coverage_skip_stdlib_and_absl",
+    args = {
+        "sanitizer_coverage_skip_stdlib_and_absl": True,
     },
 )
 

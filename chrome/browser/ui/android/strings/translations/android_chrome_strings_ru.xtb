@@ -41,6 +41,7 @@
 <translation id="1150263420752757504">Приложение "<ph name="APP_NAME" />" откроется в Chrome. Продолжая, вы принимаете <ph name="BEGIN_LINK1" />Условия использования Google<ph name="END_LINK1" /> и <ph name="BEGIN_LINK2" />Дополнительные условия использования Chrome и Chrome OS<ph name="END_LINK2" />.</translation>
 <translation id="1154555449933432029">У вас нет сохраненных паролей.</translation>
 <translation id="115483310321669804">Использовать пароль <ph name="PASSWORD" /></translation>
+<translation id="1161065531352634524">Синхронизируйте вкладки и историю</translation>
 <translation id="1165109137568919258">Чтобы выполнить поиск, сделайте фото или добавьте изображение из галереи.</translation>
 <translation id="1173894706177603556">Переименовать</translation>
 <translation id="1174479719160874822">Если экран узкий, Chrome будет запрашивать мобильный сайт.</translation>
@@ -126,6 +127,7 @@
 <translation id="147982357559798527">Изменено</translation>
 <translation id="1480287803138246127">Некоторые данные могут здесь не показываться. Чтобы увидеть их все, откройте историю Chrome.</translation>
 <translation id="1493287004536771723">Вы подписались на сайт "<ph name="SITE_NAME" />"</translation>
+<translation id="1495677929897281669">Вернуться на вкладку</translation>
 <translation id="1496514951988037011">имя пользователя</translation>
 <translation id="1501480321619201731">Удалить группу</translation>
 <translation id="1506061864768559482">Поисковая система</translation>
@@ -433,6 +435,7 @@
 <translation id="2885355868600171871">Перейти к адресной строке</translation>
 <translation id="2888126860611144412">О браузере Chrome</translation>
 <translation id="2891154217021530873">Остановить загрузку страницы</translation>
+<translation id="2893168226686371498">Браузер по умолчанию</translation>
 <translation id="2894821468041866720">Не приводит к заметному замедлению работы браузера или устройства.</translation>
 <translation id="2895521649038438824">Вы можете озвучить эту страницу</translation>
 <translation id="289596984386220317">Закрепленная вкладка "<ph name="TAB_TITLE" />" с включенным звуком</translation>
@@ -980,6 +983,7 @@
 <translation id="5210286577605176222">Перейти к предыдущей вкладке</translation>
 <translation id="5210365745912300556">Закрыть вкладку</translation>
 <translation id="5212800876504289412">Перезапустите Chrome, чтобы применить изменения. После перезапуска ваши вкладки откроются снова.</translation>
+<translation id="5213114823401215820">Восстановить закрытую группу</translation>
 <translation id="5215957675041756913">Управление данными и аккаунтом</translation>
 <translation id="5218324087477576825">Номер карты (обязательно)</translation>
 <translation id="5221437554987713282"><ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> и другие <ph name="SEPARATOR" /> Chrome отозвал эти разрешения у сайта, так как вы давно его не посещали</translation>
@@ -1098,7 +1102,6 @@
 <translation id="5765780083710877561">Описание:</translation>
 <translation id="5776970333778123608">Маловажные данные</translation>
 <translation id="5793665092639000975">Использовано: <ph name="SPACE_USED" /> из <ph name="SPACE_AVAILABLE" /></translation>
-<translation id="5795872532621730126">Просмотр страниц и поиск</translation>
 <translation id="5797949256525811424">Тема заблокирована</translation>
 <translation id="580893287573699959">Управляйте темами и сайтами, которые вам интересны</translation>
 <translation id="5809361687334836369">{HOURS,plural, =1{# час назад}one{# час назад}few{# часа назад}many{# часов назад}other{# часа назад}}</translation>
@@ -1415,7 +1418,6 @@
 <translation id="6937524809504266803">Персонализация и связывание</translation>
 <translation id="6937876069006524083">Название (необязательно)</translation>
 <translation id="6942665639005891494">Вы можете в любой момент изменить расположение скачиваемых файлов по умолчанию, воспользовавшись меню "Настройки".</translation>
-<translation id="694267552845942083">Сейчас вы находитесь на странице настроек синхронизации. Чтобы включить синхронизацию, нажмите кнопку "Подтвердить" в нижней части экрана. Перейти вверх</translation>
 <translation id="6945221475159498467">Выбрать</translation>
 <translation id="6955535239952325894">В управляемых браузерах эта настройка отключена</translation>
 <translation id="6963766334940102469">Удалить закладки</translation>
@@ -1437,6 +1439,7 @@
 <translation id="7020741890149022655">Добавить в список для чтения <ph name="BEGIN_NEW" />Новинка<ph name="END_NEW" /></translation>
 <translation id="7022756207310403729">Открыть в браузере</translation>
 <translation id="7029809446516969842">Пароли</translation>
+<translation id="7037994709569287156">Сделать Chrome браузером по умолчанию</translation>
 <translation id="7053256416619638731">На устройстве нужно повысить надежность паролей</translation>
 <translation id="7053983685419859001">Блокировать</translation>
 <translation id="7054588988317389591">Генерировать описания изображений?</translation>
@@ -1469,6 +1472,7 @@
 Чтобы это изменить, <ph name="BEGIN_LINK" />удалите данные Chrome из аккаунта<ph name="END_LINK" />.</translation>
 <translation id="7165972437814027679">Подробнее о том, почему Chrome блокирует некоторые файлы</translation>
 <translation id="7168323970702333693">Вы вошли как <ph name="USER_NAME" />. Открывает настройки.</translation>
+<translation id="7170930892977483182">Все защитные коды, сохраненные на вашем устройстве и в Google Кошельке, будут удалены.</translation>
 <translation id="7173114856073700355">Открыть настройки</translation>
 <translation id="7173338713290252554">История изменения цен в интернете</translation>
 <translation id="7177466738963138057">Вы всегда можете изменить свой выбор в настройках</translation>
@@ -1801,6 +1805,7 @@
 <translation id="8458413889418591446">Чтобы быстро возвращаться к просмотренным сайтам, включите синхронизацию истории и вкладок.</translation>
 <translation id="84594714173170813">Продолжайте использовать данные Chrome в аккаунте Google.</translation>
 <translation id="8460448946170646641">Проверка основных настроек конфиденциальности и безопасности</translation>
+<translation id="8460932807646981183">Управление поисковыми системами и поиском по сайту</translation>
 <translation id="8473863474539038330">Адреса и другие данные</translation>
 <translation id="847433688444405067">Всё нужное всегда под рукой</translation>
 <translation id="8477178913400731244">Удалить данные</translation>
@@ -1936,7 +1941,6 @@
 <translation id="9073805459138993880">Выбранная вместе с несколькими другими вкладка "<ph name="TAB_TITLE" />" с доступом к экрану</translation>
 <translation id="9074739597929991885">Bluetooth</translation>
 <translation id="9081543426177426948">В режиме инкогнито сведения о посещенных сайтах не сохраняются</translation>
-<translation id="9086302186042011942">Выполняется синхронизация</translation>
 <translation id="9086455579313502267">Нет доступа к сети</translation>
 <translation id="9093915805850895575">Открыть в окне Chrome</translation>
 <translation id="909756639352028172">Чтобы улучшить персонализацию контента, добавьте Chrome в историю приложений и веб-поиска и связанные сервисы Google.</translation>

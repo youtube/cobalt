@@ -163,20 +163,6 @@ ui::mojom::WindowShowState ConvertToWindowShowState(
 // displays.
 bool WindowBoundsIntersectDisplays(const gfx::Rect& bounds);
 
-// Moves the given tab to the `target_browser`. On success, returns the
-// new index of the tab in the target tabstrip. On failure, returns -1.
-// Assumes that the caller has already checked whether the target window is
-// different from the source.
-// `allow_other_window_types` indicates whether moving tabs to windows with
-// types other than BrowserWindowInterface::TYPE_NORMAL is supported; this is
-// allowed in certain cases (like moving a tab to a popup).
-int MoveTabToWindow(ExtensionFunction* function,
-                    int tab_id,
-                    BrowserWindowInterface* target_browser,
-                    int new_index,
-                    bool allow_other_window_types,
-                    std::string* error);
-
 }  // namespace tabs_internal
 
 // Converts a ZoomMode to its ZoomSettings representation.
@@ -304,12 +290,12 @@ class TabsQueryFunction : public ExtensionFunction {
   ~TabsQueryFunction() override = default;
 
   // Builds the list of tab objects to return.
-  base::Value::List BuildTabList(BrowserWindowInterface* current_browser,
-                                 BrowserWindowInterface* last_active_browser,
-                                 const URLPatternSet& url_patterns,
-                                 const std::string& window_type,
-                                 int window_id,
-                                 int tab_index);
+  base::ListValue BuildTabList(BrowserWindowInterface* current_browser,
+                               BrowserWindowInterface* last_active_browser,
+                               const URLPatternSet& url_patterns,
+                               const std::string& window_type,
+                               int window_id,
+                               int tab_index);
 
   bool MatchesWindow(BrowserWindowInterface* candidate_browser,
                      BrowserWindowInterface* current_browser,
@@ -412,7 +398,7 @@ class TabsMoveFunction : public ExtensionFunction {
   ResponseAction Run() override;
   bool MoveTab(int tab_id,
                int* new_index,
-               base::Value::List& tab_values,
+               base::ListValue& tab_values,
                const std::optional<int>& window_id,
                std::string* error);
   DECLARE_EXTENSION_FUNCTION("tabs.move", TABS_MOVE)

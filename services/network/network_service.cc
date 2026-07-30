@@ -616,6 +616,11 @@ void NetworkService::RegisterNetworkContext(NetworkContext* network_context) {
       ->transport_security_state()
       ->SetCTEmergencyDisabled(!ct_enforcement_enabled_);
 #endif  // BUILDFLAG(IS_CT_SUPPORTED)
+
+  if (tls_13_early_data_enabled_.has_value()) {
+    network_context->SetTLS13EarlyDataEnabled(
+        tls_13_early_data_enabled_.value());
+  }
 }
 
 void NetworkService::DeregisterNetworkContext(NetworkContext* network_context) {
@@ -655,7 +660,7 @@ void NetworkService::SetSystemDnsResolver(
 void NetworkService::StartNetLog(base::File file,
                                  uint64_t max_total_size,
                                  net::NetLogCaptureMode capture_mode,
-                                 base::Value::Dict constants,
+                                 base::DictValue constants,
                                  std::optional<base::TimeDelta> duration) {
   if (max_total_size == net::FileNetLogObserver::kNoLimit) {
     StartNetLogUnbounded(std::move(file), capture_mode, std::move(constants));
@@ -678,7 +683,7 @@ void NetworkService::StopNetLog() {
 
   for (const auto& context_ptr : owned_network_contexts_) {
     NetworkContext* context = context_ptr.get();
-    base::Value::Dict context_info =
+    base::DictValue context_info =
         net::GetNetInfo(context->url_request_context());
     CHECK(!context_info.empty());
     net_log_polled_data_list_.Append(std::move(context_info));
@@ -1063,6 +1068,7 @@ void NetworkService::DecodeContentEncoding(
 }
 
 void NetworkService::SetTLS13EarlyDataEnabled(bool enabled) {
+  tls_13_early_data_enabled_ = enabled;
   for (NetworkContext* network_context : network_contexts_) {
     network_context->SetTLS13EarlyDataEnabled(enabled);
   }
@@ -1071,8 +1077,8 @@ void NetworkService::SetTLS13EarlyDataEnabled(bool enabled) {
 void NetworkService::StartNetLogBounded(base::File file,
                                         uint64_t max_total_size,
                                         net::NetLogCaptureMode capture_mode,
-                                        base::Value::Dict client_constants) {
-  base::Value::Dict constants = net::GetNetConstants();
+                                        base::DictValue client_constants) {
+  base::DictValue constants = net::GetNetConstants();
   constants.Merge(std::move(client_constants));
 
   base::ThreadPool::PostTaskAndReplyWithResult(
@@ -1091,7 +1097,7 @@ void NetworkService::OnStartNetLogBoundedScratchDirectoryCreated(
     base::File file,
     uint64_t max_total_size,
     net::NetLogCaptureMode capture_mode,
-    base::Value::Dict constants,
+    base::DictValue constants,
     const base::FilePath& in_progress_dir_path) {
   if (in_progress_dir_path.empty()) {
     LOG(ERROR) << "Unable to create scratch directory for net-log.";
@@ -1100,19 +1106,19 @@ void NetworkService::OnStartNetLogBoundedScratchDirectoryCreated(
 
   file_net_log_observer_ = net::FileNetLogObserver::CreateBoundedPreExisting(
       in_progress_dir_path, std::move(file), max_total_size, capture_mode,
-      std::make_unique<base::Value::Dict>(std::move(constants)));
+      std::make_unique<base::DictValue>(std::move(constants)));
   file_net_log_observer_->StartObserving(net_log_);
 }
 
 void NetworkService::StartNetLogUnbounded(base::File file,
                                           net::NetLogCaptureMode capture_mode,
-                                          base::Value::Dict client_constants) {
-  base::Value::Dict constants = net::GetNetConstants();
+                                          base::DictValue client_constants) {
+  base::DictValue constants = net::GetNetConstants();
   constants.Merge(std::move(client_constants));
 
   file_net_log_observer_ = net::FileNetLogObserver::CreateUnboundedPreExisting(
       std::move(file), capture_mode,
-      std::make_unique<base::Value::Dict>(std::move(constants)));
+      std::make_unique<base::DictValue>(std::move(constants)));
   file_net_log_observer_->StartObserving(net_log_);
 }
 

@@ -5,7 +5,7 @@
 #include "ui/gfx/font_list.h"
 
 #include <ostream>
-#include <unordered_set>
+#include <string_view>
 
 #include "base/lazy_instance.h"
 #include "base/strings/string_number_conversions.h"
@@ -16,6 +16,10 @@
 #include "third_party/skia/include/core/SkFontMgr.h"
 #include "third_party/skia/include/core/SkTypeface.h"
 #include "ui/gfx/font_list_impl.h"
+
+#if BUILDFLAG(IS_MAC)
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
+#endif
 
 namespace {
 
@@ -40,7 +44,7 @@ bool IsFontFamilyAvailable(const std::string& family, SkFontMgr* font_manager) {
 namespace gfx {
 
 // static
-bool FontList::ParseDescription(const std::string& description,
+bool FontList::ParseDescription(std::string_view description,
                                 std::vector<std::string>* families_out,
                                 int* style_out,
                                 int* size_pixels_out,
@@ -58,20 +62,21 @@ bool FontList::ParseDescription(const std::string& description,
     base::TrimWhitespaceASCII(family, base::TRIM_ALL, &family);
 
   // The last item is "[STYLE1] [STYLE2] [...] SIZE".
-  std::vector<std::string> styles = base::SplitString(
-      families_out->back(), base::kWhitespaceASCII,
-      base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  std::string styles_string = std::move(families_out->back());
   families_out->pop_back();
+  std::vector<std::string_view> styles =
+      base::SplitStringPiece(styles_string, base::kWhitespaceASCII,
+                             base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
   if (styles.empty())
     return false;
 
   // The size takes the form "<INT>px".
-  std::string size_string = styles.back();
+  std::string_view size_string = styles.back();
   styles.pop_back();
   if (!size_string.ends_with("px")) {
     return false;
   }
-  size_string.resize(size_string.size() - 2);
+  size_string.remove_suffix(2);
   if (!base::StringToInt(size_string, size_pixels_out) ||
       *size_pixels_out <= 0)
     return false;
@@ -79,7 +84,7 @@ bool FontList::ParseDescription(const std::string& description,
   // Font supports ITALIC and weights; underline is supported via RenderText.
   *style_out = Font::NORMAL;
   *weight_out = Font::Weight::NORMAL;
-  for (const auto& style_string : styles) {
+  for (const std::string_view style_string : styles) {
     if (style_string == "Italic")
       *style_out |= Font::ITALIC;
     else if (style_string == "Thin")
@@ -238,13 +243,13 @@ const scoped_refptr<FontListImpl>& FontList::GetDefaultImpl() {
 }
 
 // static
-std::string FontList::FirstAvailableOrFirst(const std::string& font_name_list) {
-  std::vector<std::string> families = base::SplitString(
+std::string FontList::FirstAvailableOrFirst(std::string_view font_name_list) {
+  std::vector<std::string_view> families = base::SplitStringPiece(
       font_name_list, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
   if (families.empty())
     return std::string();
   if (families.size() == 1)
-    return families[0];
+    return std::string(families[0]);
   sk_sp<SkFontMgr> fm(skia::DefaultFontMgr());
 #if BUILDFLAG(IS_MAC)
   // We'd like to avoid SkFontMgr::matchFamilyStyle(), which opens a font
@@ -254,24 +259,27 @@ std::string FontList::FirstAvailableOrFirst(const std::string& font_name_list) {
   // names in order to avoid at worst `available_size * families.size()` string
   // comparisons.
   const int available_size = fm->countFamilies();
-  std::unordered_set<std::string> availables;
+  absl::flat_hash_set<std::string> availables;
+  availables.reserve(available_size);
   for (int i = 0; i < available_size; ++i) {
     SkString name;
     fm->getFamilyName(i, &name);
     availables.emplace(name.data(), name.size());
   }
-  for (const auto& family : families) {
+  for (const std::string_view family : families) {
     if (availables.contains(family)) {
-      return family;
+      return std::string(family);
     }
   }
 #else
-  for (const auto& family : families) {
-    if (IsFontFamilyAvailable(family, fm.get()))
-      return family;
+  for (const std::string_view family : families) {
+    if (std::string family_str(family);
+        IsFontFamilyAvailable(family_str, fm.get())) {
+      return family_str;
+    }
   }
 #endif
-  return families[0];
+  return std::string(families[0]);
 }
 
 }  // namespace gfx

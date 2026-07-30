@@ -20,6 +20,7 @@
 #include "chrome/browser/prefs/browser_prefs.h"
 #include "chrome/browser/sharing_hub/sharing_hub_features.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/global_error/global_error.h"
 #include "chrome/browser/ui/global_error/global_error_service.h"
@@ -49,6 +50,7 @@
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "components/sync/base/features.h"
+#include "components/sync/test/test_sync_service.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -344,7 +346,9 @@ TEST_F(AppMenuModelTest, DeclutterTabsItem) {
 #if BUILDFLAG(ENABLE_GLIC)
 TEST_F(AppMenuModelTest, GlicItem) {
   feature_list_.Reset();
-  feature_list_.InitWithFeatures({features::kGlic, features::kGlicRollout}, {});
+  feature_list_.InitWithFeatures(
+      {features::kGlic, features::kGlicRollout, features::kTabstripComboButton},
+      {});
 
   TestLogMetricsAppMenuModel model(this, browser());
   model.Init();
@@ -614,6 +618,78 @@ TEST_P(AppMenuModelSigninPromoTest, SignedOut) {
 
 INSTANTIATE_FEATURE_OVERRIDE_TEST_SUITE(AppMenuModelSigninPromoTest);
 
+TEST_F(AppMenuModelTest,
+       ProfileSyncBookmarkLimitExceededErrorHiddenTest_Syncing) {
+  // Set up the bookmark limit exceeded error.
+  syncer::TestSyncService* test_sync_service =
+      static_cast<syncer::TestSyncService*>(
+          SyncServiceFactory::GetInstance()->SetTestingFactoryAndUse(
+              browser()->profile(),
+              base::BindRepeating([](content::BrowserContext* context)
+                                      -> std::unique_ptr<KeyedService> {
+                return std::make_unique<syncer::TestSyncService>();
+              })));
+  test_sync_service->SetBookmarksLimitExceeded(true);
+
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(browser()->profile());
+  signin::MakePrimaryAccountAvailable(identity_manager, "user@example.com",
+                                      signin::ConsentLevel::kSync);
+
+  AppMenuModel model(this, browser());
+  model.Init();
+  const size_t profile_menu_index =
+      model.GetIndexOfCommandId(IDC_PROFILE_MENU_IN_APP_MENU).value();
+  ui::SimpleMenuModel* profile_menu = static_cast<ui::SimpleMenuModel*>(
+      model.GetSubmenuModelAt(profile_menu_index));
+
+  // Verify that IDC_SHOW_SYNC_SETTINGS is NOT present because we returned true
+  // early.
+  EXPECT_FALSE(
+      profile_menu->GetIndexOfCommandId(IDC_SHOW_SYNC_SETTINGS).has_value());
+  // Verify that the "Learn more" button (which would have command_id 0) is NOT
+  // present.
+  EXPECT_FALSE(profile_menu->GetIndexOfCommandId(0).has_value());
+}
+
+TEST_F(AppMenuModelTest,
+       ProfileSyncBookmarkLimitExceededErrorHiddenTest_SignedInNonSyncing) {
+  feature_list_.Reset();
+  feature_list_.InitAndEnableFeature(
+      syncer::kReplaceSyncPromosWithSignInPromos);
+
+  // Set up the bookmark limit exceeded error.
+  syncer::TestSyncService* test_sync_service =
+      static_cast<syncer::TestSyncService*>(
+          SyncServiceFactory::GetInstance()->SetTestingFactoryAndUse(
+              browser()->profile(),
+              base::BindRepeating([](content::BrowserContext* context)
+                                      -> std::unique_ptr<KeyedService> {
+                return std::make_unique<syncer::TestSyncService>();
+              })));
+  test_sync_service->SetBookmarksLimitExceeded(true);
+
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(browser()->profile());
+  signin::MakePrimaryAccountAvailable(identity_manager, "user@example.com",
+                                      signin::ConsentLevel::kSignin);
+
+  AppMenuModel model(this, browser());
+  model.Init();
+  const size_t profile_menu_index =
+      model.GetIndexOfCommandId(IDC_PROFILE_MENU_IN_APP_MENU).value();
+  ui::SimpleMenuModel* profile_menu = static_cast<ui::SimpleMenuModel*>(
+      model.GetSubmenuModelAt(profile_menu_index));
+
+  // Verify that IDC_SHOW_SYNC_SETTINGS is NOT present because we returned true
+  // early.
+  EXPECT_FALSE(
+      profile_menu->GetIndexOfCommandId(IDC_SHOW_SYNC_SETTINGS).has_value());
+  // Verify that the "Learn more" button (which would have command_id 0) is NOT
+  // present.
+  EXPECT_FALSE(profile_menu->GetIndexOfCommandId(0).has_value());
+}
+
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -707,7 +783,25 @@ TEST_F(TestAppMenuModelSafetyHubTest, SafetyHubMenuNotification) {
   EXPECT_FALSE(new_model.GetLabelAt(menu_index).empty());
 }
 
-TEST_F(AppMenuModelTest, TabSearchItem) {
+class TabSearchMenuModelTest : public AppMenuModelTest {
+ public:
+  TabSearchMenuModelTest() = default;
+  ~TabSearchMenuModelTest() override = default;
+
+  void SetUp() override {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        /*enabled_features=*/
+        {{features::kTabstripComboButton,
+          {{"tab_search_toolbar_button", "true"}}}},
+        /*disabled_features=*/{});
+    AppMenuModelTest::SetUp();
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(TabSearchMenuModelTest, TabSearchItem) {
   AppMenuModel model(this, browser());
   model.Init();
   ToolsMenuModel toolModel(&model, browser());

@@ -33,6 +33,7 @@ import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.bookmarks.BookmarkListEntry.ViewType;
 import org.chromium.chrome.browser.bookmarks.BookmarkUiPrefs.BookmarkRowDisplayPref;
 import org.chromium.chrome.browser.commerce.ShoppingServiceFactory;
+import org.chromium.chrome.browser.device_lock.DeviceLockActivityLauncherImpl;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.price_tracking.PriceDropNotificationManager;
@@ -46,9 +47,11 @@ import org.chromium.chrome.browser.ui.signin.signin_promo.BookmarkSigninPromoDel
 import org.chromium.chrome.browser.ui.signin.signin_promo.SigninPromoCoordinator;
 import org.chromium.components.bookmarks.BookmarkId;
 import org.chromium.components.bookmarks.BookmarkItem;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.modaldialog.AppModalPresenter;
 import org.chromium.components.browser_ui.util.GlobalDiscardableReferencePool;
 import org.chromium.components.browser_ui.widget.dragreorder.DragReorderableRecyclerViewAdapter;
+import org.chromium.components.browser_ui.widget.dragreorder.DragTouchHandler;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.components.browser_ui.widget.selectable_list.SelectableListLayout;
 import org.chromium.components.browser_ui.widget.selectable_list.SelectableListToolbar.SearchDelegate;
@@ -59,7 +62,9 @@ import org.chromium.components.image_fetcher.ImageFetcher;
 import org.chromium.components.image_fetcher.ImageFetcherConfig;
 import org.chromium.components.image_fetcher.ImageFetcherFactory;
 import org.chromium.ui.KeyboardVisibilityDelegate;
+import org.chromium.ui.base.ActivityResultTracker;
 import org.chromium.ui.base.Clipboard;
+import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.edge_to_edge.EdgeToEdgePadAdjuster;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogManager.ModalDialogType;
@@ -70,6 +75,7 @@ import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter;
 
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /** Responsible for setting up sub-components and routing incoming/outgoing signals */
 // TODO(crbug.com/40268641): Add a new coordinator so this class doesn't own everything.
@@ -90,8 +96,8 @@ public class BookmarkManagerCoordinator
             };
 
     private static final class DragAndCancelAdapter extends DragReorderableRecyclerViewAdapter {
-        DragAndCancelAdapter(Context context, ModelList modelList) {
-            super(context, modelList);
+        DragAndCancelAdapter(Context context, ModelList modelList, DragTouchHandler handler) {
+            super(context, modelList, handler);
         }
 
         @Override
@@ -130,8 +136,7 @@ public class BookmarkManagerCoordinator
     private final BookmarkManagerMediator mMediator;
     private final ImageFetcher mImageFetcher;
     private final SnackbarManager mSnackbarManager;
-    private final @Nullable SigninPromoCoordinator mSigninPromoCoordinator;
-    private final @Nullable BookmarkPromoHeader mPromoHeaderManager;
+    private final SigninPromoCoordinator mSigninPromoCoordinator;
     private final BookmarkModel mBookmarkModel;
     private final Profile mProfile;
     private final BookmarkUiPrefs mBookmarkUiPrefs;
@@ -139,13 +144,17 @@ public class BookmarkManagerCoordinator
     private final ModelList mModelList;
     private final @Nullable BackPressManager mBackPressManager;
 
+    // TODO(https://crbug.com/475144764): Investigate whether activity can be replaced by a Context.
     /**
      * Creates an instance of {@link BookmarkManagerCoordinator}. It also initializes resources,
      * bookmark models and jni bridges.
      *
-     * @param context The current {@link Context} used to obtain resources or inflate views.
+     * @param windowAndroid The current {@link WindowAndroid} showing the bookmark UI.
+     * @param activity The current {@link Activity} used to obtain resources or inflate views.
      * @param isDialogUi Whether the main bookmarks UI will be shown in a dialog, not a NativePage.
      * @param snackbarManager The {@link SnackbarManager} used to display snackbars.
+     * @param bottomSheetControllerSupplier Supplier of the {@link BottomSheetController}.
+     * @param activityResultTracker Tracker of activity results.
      * @param profile The profile which the manager is running in.
      * @param bookmarkUiPrefs Manages prefs for bookmarks ui.
      * @param bookmarkOpener Helper class to open bookmarks.
@@ -155,9 +164,12 @@ public class BookmarkManagerCoordinator
      * @param backPressManager BackPressManager for processing back press events.
      */
     public BookmarkManagerCoordinator(
-            Context context,
+            WindowAndroid windowAndroid,
+            Activity activity,
             boolean isDialogUi,
             SnackbarManager snackbarManager,
+            Supplier<BottomSheetController> bottomSheetControllerSupplier,
+            ActivityResultTracker activityResultTracker,
             Profile profile,
             BookmarkUiPrefs bookmarkUiPrefs,
             BookmarkOpener bookmarkOpener,
@@ -165,7 +177,7 @@ public class BookmarkManagerCoordinator
             PriceDropNotificationManager priceDropNotificationManager,
             @Nullable Function<View, EdgeToEdgePadAdjuster> edgeToEdgePadAdjusterGenerator,
             @Nullable BackPressManager backPressManager) {
-        mContext = context;
+        mContext = activity;
         mProfile = profile;
         mImageFetcher =
                 ImageFetcherFactory.createImageFetcher(
@@ -174,7 +186,7 @@ public class BookmarkManagerCoordinator
                         GlobalDiscardableReferencePool.getReferencePool());
         mSnackbarManager = snackbarManager;
 
-        mMainView = (ViewGroup) LayoutInflater.from(context).inflate(R.layout.bookmark_main, null);
+        mMainView = (ViewGroup) LayoutInflater.from(activity).inflate(R.layout.bookmark_main, null);
         mBookmarkModel = BookmarkModel.getForProfile(profile);
         mBookmarkOpener = bookmarkOpener;
         ShoppingService service = ShoppingServiceFactory.getForProfile(profile);
@@ -189,12 +201,14 @@ public class BookmarkManagerCoordinator
         mSelectableListLayout = selectableList;
 
         mModelList = new ModelList();
-        DragReorderableRecyclerViewAdapter dragReorderableRecyclerViewAdapter =
-                new DragAndCancelAdapter(context, mModelList);
+        DragTouchHandler dragTouchHandler = new DragTouchHandler(mContext, mModelList);
 
         // Disable the default long press so that our custom one can be used.
-        dragReorderableRecyclerViewAdapter.setDefaultLongPressDragEnabled(
+        dragTouchHandler.setDefaultLongPressDragEnabled(
                 !ChromeFeatureList.sAndroidBookmarkBarFastFollow.isEnabled());
+
+        DragReorderableRecyclerViewAdapter dragReorderableRecyclerViewAdapter =
+                new DragAndCancelAdapter(activity, mModelList, dragTouchHandler);
 
         mRecyclerView =
                 mSelectableListLayout.initializeRecyclerView(
@@ -211,19 +225,19 @@ public class BookmarkManagerCoordinator
         itemAnimator.setRemoveDuration(0);
 
         mModalDialogManager =
-                new ModalDialogManager(new AppModalPresenter(context), ModalDialogType.APP);
+                new ModalDialogManager(new AppModalPresenter(activity), ModalDialogType.APP);
 
         // Using OneshotSupplier as an alternative to a 2-step initialization process.
         OneshotSupplierImpl<BookmarkDelegate> bookmarkDelegateSupplier =
                 new OneshotSupplierImpl<>();
         mBookmarkToolbarCoordinator =
                 new BookmarkToolbarCoordinator(
-                        context,
+                        activity,
                         mProfile,
                         mSelectableListLayout,
                         mSelectionDelegate,
                         /* searchDelegate= */ this,
-                        dragReorderableRecyclerViewAdapter,
+                        dragTouchHandler,
                         isDialogUi,
                         bookmarkDelegateSupplier,
                         mBookmarkModel,
@@ -242,19 +256,19 @@ public class BookmarkManagerCoordinator
         BookmarkImageFetcher bookmarkImageFetcher =
                 new BookmarkImageFetcher(
                         profile,
-                        context,
+                        activity,
                         mBookmarkModel,
                         mImageFetcher,
-                        BookmarkViewUtils.getRoundedIconGenerator(context, displayPref));
+                        BookmarkViewUtils.getRoundedIconGenerator(activity, displayPref));
 
         BookmarkUndoController bookmarkUndoController =
-                new BookmarkUndoController(context, mBookmarkModel, snackbarManager);
+                new BookmarkUndoController(activity, mBookmarkModel, snackbarManager);
         Consumer<OnScrollListener> onScrollListenerConsumer =
                 onScrollListener -> mRecyclerView.addOnScrollListener(onScrollListener);
         mMediator =
                 new BookmarkManagerMediator(
-                        (Activity) context,
-                        (LifecycleOwner) context,
+                        activity,
+                        (LifecycleOwner) activity,
                         mModalDialogManager,
                         mBookmarkModel,
                         mBookmarkOpener,
@@ -262,6 +276,7 @@ public class BookmarkManagerCoordinator
                         mSelectionDelegate,
                         mRecyclerView,
                         dragReorderableRecyclerViewAdapter,
+                        dragTouchHandler,
                         isDialogUi,
                         mBackPressStateSupplier,
                         mProfile,
@@ -277,41 +292,39 @@ public class BookmarkManagerCoordinator
                         bookmarkManagerOpener,
                         priceDropNotificationManager,
                         Clipboard.getInstance());
-        mPromoHeaderManager = mMediator.getPromoHeaderManager();
 
         bookmarkDelegateSupplier.set(/* object= */ mMediator);
 
         mMainView.addOnAttachStateChangeListener(this);
 
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.UNO_PHASE_2_FOLLOW_UP)) {
-            mSigninPromoCoordinator =
-                    new SigninPromoCoordinator(
-                            context,
-                            mProfile.getOriginalProfile(),
-                            new BookmarkSigninPromoDelegate(
-                                    context,
-                                    mProfile.getOriginalProfile(),
-                                    SigninAndHistorySyncActivityLauncherImpl.get(),
-                                    mMediator::onPromoVisibilityChange,
-                                    this::openSettings));
-            dragReorderableRecyclerViewAdapter.registerType(
-                    ViewType.SIGNIN_PROMO,
-                    mSigninPromoCoordinator::buildPromoView,
-                    // SigninPromoCoordinator owns the model and keys for the promo inside it.
-                    // The PropertyModel and BookmarkManagerProperties key passed to this binder
-                    // method are thus not needed.
-                    (model, view, key) -> mSigninPromoCoordinator.setView(view));
-            dragReorderableRecyclerViewAdapter.registerType(
-                    ViewType.BATCH_UPLOAD_CARD,
-                    this::buildBatchUploadCardView,
-                    BookmarkManagerViewBinder::bindBatchUploadCardView);
-        } else {
-            mSigninPromoCoordinator = null;
-            dragReorderableRecyclerViewAdapter.registerType(
-                    ViewType.SIGNIN_PROMO,
-                    this::buildPersonalizedPromoView,
-                    BookmarkManagerViewBinder::bindPersonalizedPromoView);
-        }
+        mSigninPromoCoordinator =
+                new SigninPromoCoordinator(
+                        windowAndroid,
+                        activity,
+                        mProfile.getOriginalProfile(),
+                        activityResultTracker,
+                        SigninAndHistorySyncActivityLauncherImpl.get(),
+                        bottomSheetControllerSupplier.get(),
+                        ObservableSuppliers.createNonNull(mModalDialogManager),
+                        snackbarManager,
+                        DeviceLockActivityLauncherImpl.get(),
+                        new BookmarkSigninPromoDelegate(
+                                activity,
+                                mProfile.getOriginalProfile(),
+                                SigninAndHistorySyncActivityLauncherImpl.get(),
+                                mMediator::onPromoVisibilityChange,
+                                this::openSettings));
+        dragReorderableRecyclerViewAdapter.registerType(
+                ViewType.SIGNIN_PROMO,
+                mSigninPromoCoordinator::buildPromoView,
+                // SigninPromoCoordinator owns the model and keys for the promo inside it.
+                // The PropertyModel and BookmarkManagerProperties key passed to this binder
+                // method are thus not needed.
+                (model, view, key) -> mSigninPromoCoordinator.setView(view));
+        dragReorderableRecyclerViewAdapter.registerType(
+                ViewType.BATCH_UPLOAD_CARD,
+                this::buildBatchUploadCardView,
+                BookmarkManagerViewBinder::bindBatchUploadCardView);
         dragReorderableRecyclerViewAdapter.registerType(
                 ViewType.SECTION_HEADER,
                 this::buildSectionHeaderView,
@@ -362,10 +375,7 @@ public class BookmarkManagerCoordinator
         mMainView.removeOnAttachStateChangeListener(this);
         mSelectableListLayout.onDestroyed();
         mMediator.onDestroy();
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.UNO_PHASE_2_FOLLOW_UP)) {
-            assert mSigninPromoCoordinator != null;
-            mSigninPromoCoordinator.destroy();
-        }
+        mSigninPromoCoordinator.destroy();
     }
 
     /** Returns the view that shows the main bookmarks UI. */
@@ -459,12 +469,6 @@ public class BookmarkManagerCoordinator
     }
 
     @VisibleForTesting
-    View buildPersonalizedPromoView(ViewGroup parent) {
-        assumeNonNull(mPromoHeaderManager);
-        return mPromoHeaderManager.createPersonalizedSigninAndSyncPromoHolder(parent);
-    }
-
-    @VisibleForTesting
     View buildBatchUploadCardView(ViewGroup parent) {
         // The signin_settings_card_view is used for Batch Upload Cards.
         return inflate(parent, R.layout.signin_settings_card_view);
@@ -504,7 +508,6 @@ public class BookmarkManagerCoordinator
     }
 
     boolean canShowSigninPromo() {
-        assert mSigninPromoCoordinator != null;
         return mSigninPromoCoordinator.canShowPromo();
     }
 

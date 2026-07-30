@@ -97,7 +97,7 @@ base::TimeDelta GetMinorModeRestrictionsDeadline() {
 
 void SetInitializedModalHeight(Browser* browser,
                                content::WebUI* web_ui,
-                               const base::Value::List& args) {
+                               const base::ListValue& args) {
   if (!browser) {
     return;
   }
@@ -125,7 +125,7 @@ void ClearProfileWithManagedAccounts(Profile* profile) {
 
 std::string GetAccountPictureUrl(const AccountInfo& account_info) {
   return account_info.account_image.IsEmpty()
-             ? profiles::GetPlaceholderAvatarIconUrl()
+             ? std::string(profiles::GetPlaceholderAvatarIconUrl())
              : webui::GetBitmapDataUrl(account_info.account_image.AsBitmap());
 }
 

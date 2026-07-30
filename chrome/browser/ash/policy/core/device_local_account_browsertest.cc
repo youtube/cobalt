@@ -165,6 +165,7 @@
 #include "third_party/icu/source/common/unicode/locid.h"
 #include "third_party/metrics_proto/ukm/entry.pb.h"
 #include "third_party/metrics_proto/ukm/report.pb.h"
+#include "ui/aura/test/window_destroyed_waiter.h"
 #include "ui/base/ime/ash/extension_ime_util.h"
 #include "ui/base/ime/ash/input_method_descriptor.h"
 #include "ui/base/ime/ash/input_method_manager.h"
@@ -416,31 +417,6 @@ void EnableUrlKeyedAnonymizedDataCollection(Profile* profile) {
   }
 }
 
-class WindowDestroyedObserver : public aura::WindowObserver {
- public:
-  explicit WindowDestroyedObserver(aura::Window* window) {
-    CHECK(window);
-    window_observation_.Observe(window);
-  }
-
-  void Wait() {
-    if (window_observation_.IsObserving()) {
-      run_loop_.Run();
-    }
-  }
-
-  // aura::WindowObserver:
-  void OnWindowDestroyed(aura::Window* window) override {
-    window_observation_.Reset();
-    run_loop_.Quit();
-  }
-
- private:
-  base::RunLoop run_loop_;
-  base::ScopedObservation<aura::Window, aura::WindowObserver>
-      window_observation_{this};
-};
-
 }  // namespace
 
 class DeviceLocalAccountTest : public DevicePolicyCrosBrowserTest,
@@ -531,10 +507,10 @@ class DeviceLocalAccountTest : public DevicePolicyCrosBrowserTest,
 
   // Waits for the Browser to close and its NativeWidget to be destroyed.
   void WaitForBrowserDestruction(Browser* browser) {
-    WindowDestroyedObserver window_destroyed_observer(
+    aura::test::WindowDestroyedWaiter waiter(
         browser->window()->GetNativeWindow());
     ui_test_utils::WaitForBrowserToClose(browser);
-    window_destroyed_observer.Wait();
+    waiter.Wait();
   }
 
   // extensions::AppWindowRegistry::Observer:
@@ -883,28 +859,24 @@ class ExtensionInstallObserver : public ProfileManagerObserver,
   bool observed_;
 };
 
-// Fake implementation to advance the clock for SessionLengthLimiter.
-class FakeDelegateImpl : public ash::SessionLengthLimiter::Delegate {
+class TestSessionManagerObserver
+    : public session_manager::SessionManagerObserver {
  public:
-  FakeDelegateImpl() { clock_.SetNow(base::Time::Now()); }
-
-  FakeDelegateImpl(const FakeDelegateImpl&) = delete;
-  FakeDelegateImpl& operator=(const FakeDelegateImpl&) = delete;
-
-  ~FakeDelegateImpl() override = default;
-
-  const base::Clock* GetClock() const override { return &clock_; }
-  void StopSession() override {
-    chrome::AttemptUserExit();
-    session_stopped_ = true;
+  explicit TestSessionManagerObserver(
+      session_manager::SessionManager* session_manager) {
+    observation_.Observe(session_manager);
   }
+  ~TestSessionManagerObserver() override = default;
 
-  void AdvanceClock(base::TimeDelta delta) { clock_.Advance(delta); }
-  bool session_stopped() const { return session_stopped_; }
+  void OnSignOutRequested() override { ++sign_out_requested_count_; }
+
+  size_t sign_out_requested_count() const { return sign_out_requested_count_; }
 
  private:
-  base::SimpleTestClock clock_;
-  bool session_stopped_ = false;
+  base::ScopedObservation<session_manager::SessionManager,
+                          session_manager::SessionManagerObserver>
+      observation_{this};
+  size_t sign_out_requested_count_ = 0;
 };
 
 // Tests that the data associated with a device local account is removed when
@@ -1429,7 +1401,7 @@ IN_PROC_BROWSER_TEST_F(DeviceLocalAccountTest, ExternalData) {
   embedded_test_server()->StartAcceptingConnections();
 
   // Specify an external data reference for the key::kUserAvatarImage policy.
-  base::Value::Dict metadata = test::ConstructExternalDataReference(
+  base::DictValue metadata = test::ConstructExternalDataReference(
       embedded_test_server()->GetURL(kExternalDataPath).spec(), kExternalData);
   std::string policy = base::WriteJson(metadata).value_or("");
   device_local_account_policy_.payload().mutable_useravatarimage()->set_value(
@@ -1545,9 +1517,9 @@ IN_PROC_BROWSER_TEST_F(DeviceLocalAccountTest, UserAvatarImage) {
 
   EXPECT_EQ(user_manager::UserImage::Type::kExternal, user->image_index());
   EXPECT_TRUE(ash::test::AreImagesEqual(policy_image, user->GetImage()));
-  const base::Value::Dict& images_pref =
+  const base::DictValue& images_pref =
       g_browser_process->local_state()->GetDict("user_image_info");
-  const base::Value::Dict* image_properties =
+  const base::DictValue* image_properties =
       images_pref.FindDict(account_id_1_.GetUserEmail());
   ASSERT_TRUE(image_properties);
   std::optional<int> image_index = image_properties->FindInt("index");
@@ -2182,6 +2154,9 @@ IN_PROC_BROWSER_TEST_F(DeviceLocalAccountTest, SessionLengthLimit) {
 
   PolicyTestAppTerminationObserver observer;
 
+  TestSessionManagerObserver session_manager_observer(
+      session_manager::SessionManager::Get());
+
   // Install and refresh the device policy now. This will also fetch the initial
   // user policy for the device-local account now.
   SetSessionLengthLimitPolicy(kThreeHoursInMs);
@@ -2190,12 +2165,12 @@ IN_PROC_BROWSER_TEST_F(DeviceLocalAccountTest, SessionLengthLimit) {
   WaitForSessionStart();
 
   // Setup a fake delegate to advance clock.
-  auto delegate_ptr = std::make_unique<FakeDelegateImpl>();
-  auto* delegate = delegate_ptr.get();
-  static_cast<ash::ChromeSessionManager*>(
-      session_manager::SessionManager::Get())
-      ->GetSessionLengthLimiterForTesting()
-      ->SetDelegateForTesting(std::move(delegate_ptr));
+  base::SimpleTestClock clock;
+  clock.SetNow(base::Time::Now());
+  auto clock_resetter = g_browser_process->platform_part()
+                            ->chrome_session_manager()
+                            ->GetSessionLengthLimiterForTesting()
+                            ->SetClockForTesting(&clock);
 
   // Ensure the SessionLengthLimit is updated.
   LocalStateValueWaiter(prefs::kSessionLengthLimit,
@@ -2204,10 +2179,10 @@ IN_PROC_BROWSER_TEST_F(DeviceLocalAccountTest, SessionLengthLimit) {
 
   // The session is not terminated.
   EXPECT_FALSE(observer.WasAppTerminated());
-  EXPECT_FALSE(delegate->session_stopped());
+  EXPECT_EQ(0u, session_manager_observer.sign_out_requested_count());
 
   // Advance the clock by 3 hours.
-  delegate->AdvanceClock(base::Hours(3));
+  clock.Advance(base::Hours(3));
 
   // Update the SessionLengthLimit policy to limit the session by two hours.
   // The session is expected to be terminated asap, because the current time is
@@ -2227,7 +2202,7 @@ IN_PROC_BROWSER_TEST_F(DeviceLocalAccountTest, SessionLengthLimit) {
 
   // The session is terminated.
   EXPECT_TRUE(observer.WasAppTerminated());
-  EXPECT_TRUE(delegate->session_stopped());
+  EXPECT_EQ(1u, session_manager_observer.sign_out_requested_count());
 }
 
 struct FeaturesTestParam {
@@ -2792,14 +2767,14 @@ class MgsDisplayPrefsTest : public DeviceLocalAccountTest,
 
   bool IsMgsAllowedToStoreDisplayProperties() { return GetParam(); }
 
-  const base::Value::Dict* GetDisplayProperties() {
-    const base::Value::Dict& display_properties =
+  const base::DictValue* GetDisplayProperties() {
+    const base::DictValue& display_properties =
         local_state_->GetDict(ash::prefs::kDisplayProperties);
     return display_properties.FindDict(
         base::NumberToString(GetPrimaryDisplay().id()));
   }
 
-  void UpdateDisplayProperties(base::Value::Dict properties) {
+  void UpdateDisplayProperties(base::DictValue properties) {
     ScopedDictPrefUpdate update(local_state_, ash::prefs::kDisplayProperties);
     update->Set(base::NumberToString(GetPrimaryDisplay().id()),
                 std::move(properties));
@@ -2845,7 +2820,7 @@ IN_PROC_BROWSER_TEST_P(MgsDisplayPrefsTest,
   // modes with resolution 1960x1000 and 1000x600.
   UpdateDisplay("1960x1000#1960x1000*1|1000x600*2");
   UpdateDisplayProperties(
-      base::Value::Dict()
+      base::DictValue()
           .Set("rotation", display::Display::Rotation::ROTATE_0)
           .Set("width", 1960)
           .Set("height", 1000));

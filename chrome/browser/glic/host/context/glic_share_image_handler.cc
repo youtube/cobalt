@@ -74,6 +74,7 @@ mojom::AdditionalContextPtr CreateAdditionalContext(
   auto context = glic::mojom::AdditionalContext::New();
   std::vector<glic::mojom::AdditionalContextPartPtr> parts;
   auto context_data = mojom::ContextData::New();
+  context->source = glic::mojom::AdditionalContextSource::kShareContextMenu;
   context_data->mime_type = mime_type;
   context_data->data = mojo_base::BigBuffer(thumbnail_data);
   parts.push_back(
@@ -284,7 +285,7 @@ void GlicShareImageHandler::OnCopyPolicyCheckComplete(
     ShareComplete(ShareImageResult::kFailedNoTab);
     return;
   }
-  BrowserWindowInterface* browser = GetBrowserWindowInterface(tab);
+  BrowserWindowInterface* browser = tab->GetBrowserWindowInterface();
   if (!browser) {
     ShareComplete(ShareImageResult::kFailedNoBrowser);
     return;
@@ -440,7 +441,7 @@ void GlicShareImageHandler::MaybeShowErrorToast(tabs::TabInterface* tab) {
   if (!tab) {
     return;
   }
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL for toast controller
+#if !BUILDFLAG(IS_ANDROID)  // TODO(b/478008740): Implement for android.
   if (BrowserWindowInterface* browser = tab->GetBrowserWindowInterface()) {
     if (auto* controller = browser->GetFeatures().toast_controller()) {
       controller->MaybeShowToast(ToastParams(ToastId::kGlicShareImageFailed));

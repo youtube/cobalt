@@ -333,6 +333,7 @@
 <translation id="2184272387334793084">Войдите, чтобы получить доступ к своим паролям и другой информации на всех устройствах.</translation>
 <translation id="2186206192313702726">Google Объектив</translation>
 <translation id="2188993354115194873">Нажмите <ph name="BEGIN_BOLD" />Сохранить в Загрузках<ph name="END_BOLD" /></translation>
+<translation id="2191406283620379491">Что-то пошло не так. Обновите версию iOS.</translation>
 <translation id="219283042927675668">Вкладки в группе</translation>
 <translation id="2194856509914051091">Важная информация</translation>
 <translation id="2196428379625389579">Найти в интернете</translation>
@@ -936,6 +937,7 @@
 <translation id="4565377596337484307">Скрыть пароль</translation>
 <translation id="4568230126482344545">Скрыть раздел "Недавние вкладки"</translation>
 <translation id="4578835633387306383">Включить</translation>
+<translation id="4580621046861724270">Некоторые закладки не сохранены</translation>
 <translation id="4580716718466706433">Перейдите в Менеджер паролей.</translation>
 <translation id="4585751637295612750">Откройте новую вкладку и добавьте ее к вопросу</translation>
 <translation id="4587589328781138893">Сайты</translation>
@@ -1019,6 +1021,7 @@
 <translation id="483689884442613745">Сохранить</translation>
 <translation id="4840495572919996524">Ваши закладки, пароли, история и другие данные больше не будут синхронизироваться с аккаунтом Google.</translation>
 <translation id="484280513275854557">Вы вышли из аккаунта, а данные о работе в браузере были удалены.</translation>
+<translation id="484462545196658690">Авто</translation>
 <translation id="4850886885716139402">Смотреть</translation>
 <translation id="4854068532375923088">Разрешите Gemini использовать камеру</translation>
 <translation id="4860895144060829044">Позвонить</translation>
@@ -1163,6 +1166,7 @@
 <translation id="5318298563956633672">Вы уже отслеживаете этот товар.</translation>
 <translation id="5327248766486351172">Имя</translation>
 <translation id="5329451663851195956">Чтобы обновить вкладку, потяните вниз.</translation>
+<translation id="5336910966955551309">Нажмите и удерживайте, чтобы закрепить любимые сайты</translation>
 <translation id="5338512273860059533">Выполняется вход.</translation>
 <translation id="5343472494710226394">Новости, спортивные мероприятия и другой контент на основе ваших интересов</translation>
 <translation id="5352128922772839949">Сохранить файл</translation>
@@ -1897,6 +1901,7 @@
 <translation id="7958575506592576831">Сведения о надежности страницы</translation>
 <translation id="7961015016161918242">Никогда</translation>
 <translation id="7971136598759319605">Последние действия: 1 день назад</translation>
+<translation id="7972837668077967426">Canvas</translation>
 <translation id="7975036700432177008">Запуск</translation>
 <translation id="797588153137233716">Меню → История → Удалить данные о работе в браузере</translation>
 <translation id="7977451675950311423">Предупреждает, если вы используете пароль, скомпрометированный в результате утечки данных.</translation>
@@ -2004,6 +2009,7 @@
 <translation id="8319282042900445670">Напоминание установлено на <ph name="DATE" />, <ph name="TIME" />.</translation>
 <translation id="8320212361750431956">Недавние действия</translation>
 <translation id="8325455175867928593">Скрыть карточку "Отзывы, которые могут вас заинтересовать"</translation>
+<translation id="8328777765163860529">Закрыть все</translation>
 <translation id="833647236762414178">Создавайте, сохраняйте и изменяйте пароли и ключи доступа, чтобы легко входить в аккаунты на сайтах и в приложениях. <ph name="BEGIN_LINK" />Подробнее…<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">Создайте резервную копию данных и используйте их на любом устройстве.</translation>
 <translation id="8348530355586151720">Нажмите на значок меню в виде трех точек.</translation>

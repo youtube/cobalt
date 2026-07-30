@@ -714,9 +714,9 @@ std::unique_ptr<Network::ConnectTiming> GetConnectTiming(
       .Build();
 }
 
-std::unique_ptr<base::Value::Dict> GetRawHeaders(
+std::unique_ptr<base::DictValue> GetRawHeaders(
     const std::vector<network::mojom::HttpRawHeaderPairPtr>& headers) {
-  auto headers_dict = std::make_unique<base::Value::Dict>();
+  auto headers_dict = std::make_unique<base::DictValue>();
   for (const auto& header : headers) {
     std::string header_value;
     if (!base::ConvertToUtf8AndNormalize(header->value, base::kCodepageLatin1,
@@ -1131,6 +1131,73 @@ BuildProtocolAssociatedCookies(const net::CookieAccessResultList& net_list) {
               .SetExemptionReason(std::move(cookie_with_reasons.second))
               .Build());
     }
+  }
+  return protocol_list;
+}
+
+std::unique_ptr<protocol::Network::DeviceBoundSessionKey>
+BuildProtocolDeviceBoundSessionKey(
+    const net::device_bound_sessions::SessionKey& key) {
+  return protocol::Network::DeviceBoundSessionKey::Create()
+      .SetSite(key.site.Serialize())
+      .SetId(key.id.value())
+      .Build();
+}
+
+const char* GetProtocolSessionUsage(
+    network::mojom::DeviceBoundSessionUsage usage) {
+  switch (usage) {
+    case network::mojom::DeviceBoundSessionUsage::kSiteMatchNotInScope:
+      return Network::DeviceBoundSessionWithUsage::UsageEnum::NotInScope;
+    case network::mojom::DeviceBoundSessionUsage::kInScopeRefreshNotYetNeeded:
+      return Network::DeviceBoundSessionWithUsage::UsageEnum::
+          InScopeRefreshNotYetNeeded;
+    case network::mojom::DeviceBoundSessionUsage::kInScopeRefreshNotAllowed:
+      return Network::DeviceBoundSessionWithUsage::UsageEnum::
+          InScopeRefreshNotAllowed;
+    case network::mojom::DeviceBoundSessionUsage::
+        kInScopeProactiveRefreshNotPossible:
+      return Network::DeviceBoundSessionWithUsage::UsageEnum::
+          ProactiveRefreshNotPossible;
+    case network::mojom::DeviceBoundSessionUsage::
+        kInScopeProactiveRefreshAttempted:
+      return Network::DeviceBoundSessionWithUsage::UsageEnum::
+          ProactiveRefreshAttempted;
+    case network::mojom::DeviceBoundSessionUsage::kDeferred:
+      return Network::DeviceBoundSessionWithUsage::UsageEnum::Deferred;
+    case network::mojom::DeviceBoundSessionUsage::kUnknown:
+    case network::mojom::DeviceBoundSessionUsage::kNoSiteMatchNotInScope:
+      NOTREACHED();
+  }
+}
+
+std::unique_ptr<protocol::Array<protocol::Network::DeviceBoundSessionWithUsage>>
+BuildProtocolDeviceBoundSessionUsages(
+    const std::vector<network::mojom::DeviceBoundSessionWithUsagePtr>&
+        device_bound_session_usages) {
+  if (!base::FeatureList::IsEnabled(features::kDeviceBoundSessionsDevTools)) {
+    return nullptr;
+  }
+  auto protocol_list = std::make_unique<
+      protocol::Array<protocol::Network::DeviceBoundSessionWithUsage>>();
+  for (const auto& session_usage : device_bound_session_usages) {
+    // Don't send the usage if the usage is unknown or if the session's site is
+    // irrelevant.
+    if (session_usage->usage ==
+            network::mojom::DeviceBoundSessionUsage::kNoSiteMatchNotInScope ||
+        session_usage->usage ==
+            network::mojom::DeviceBoundSessionUsage::kUnknown) {
+      continue;
+    }
+    protocol_list->push_back(
+        protocol::Network::DeviceBoundSessionWithUsage::Create()
+            .SetSessionKey(
+                BuildProtocolDeviceBoundSessionKey(session_usage->session_key))
+            .SetUsage(GetProtocolSessionUsage(session_usage->usage))
+            .Build());
+  }
+  if (protocol_list->empty()) {
+    return nullptr;
   }
   return protocol_list;
 }
@@ -1573,7 +1640,7 @@ NetworkHandler::BuildProtocolReport(const net::ReportingReport& report) {
             (report.queued - base::TimeTicks::UnixEpoch()).InSecondsF())
         .SetDepth(report.depth)
         .SetCompletedAttempts(report.attempts)
-        .SetBody(std::make_unique<base::Value::Dict>(report.body.Clone()))
+        .SetBody(std::make_unique<base::DictValue>(report.body.Clone()))
         .SetStatus(BuildReportStatus(report.status))
         .Build();
   }
@@ -1660,15 +1727,6 @@ Response NetworkHandler::EnableReportingApi(const bool enable) {
 #if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
 
 namespace {
-std::unique_ptr<protocol::Network::DeviceBoundSessionKey>
-BuildProtocolDeviceBoundSessionKey(
-    const net::device_bound_sessions::SessionKey& key) {
-  return protocol::Network::DeviceBoundSessionKey::Create()
-      .SetSite(key.site.Serialize())
-      .SetId(key.id.value())
-      .Build();
-}
-
 String BuildProtocolDeviceBoundSessionUrlRuleType(
     net::device_bound_sessions::InclusionResult rule_type) {
   switch (rule_type) {
@@ -2711,9 +2769,9 @@ std::unique_ptr<protocol::Network::SecurityDetails> BuildSecurityDetails(
   return security_details;
 }
 
-std::unique_ptr<base::Value::Dict> BuildResponseHeaders(
+std::unique_ptr<base::DictValue> BuildResponseHeaders(
     const net::HttpResponseHeaders* headers) {
-  auto headers_dict = std::make_unique<base::Value::Dict>();
+  auto headers_dict = std::make_unique<base::DictValue>();
   if (!headers)
     return headers_dict;
   size_t iterator = 0;
@@ -2729,10 +2787,10 @@ std::unique_ptr<base::Value::Dict> BuildResponseHeaders(
   return headers_dict;
 }
 
-std::unique_ptr<base::Value::Dict> BuildRequestHeaders(
+std::unique_ptr<base::DictValue> BuildRequestHeaders(
     const net::HttpRequestHeaders& headers,
     const GURL& referrer) {
-  auto headers_dict = std::make_unique<base::Value::Dict>();
+  auto headers_dict = std::make_unique<base::DictValue>();
   for (net::HttpRequestHeaders::Iterator it(headers); it.GetNext();)
     headers_dict->Set(it.name(), it.value());
 
@@ -3152,7 +3210,7 @@ void NetworkHandler::NavigationRequestWillBeSent(
   request->SetMixedContentType(Security::MixedContentTypeEnum::None);
 
   std::unique_ptr<Network::Initiator> initiator;
-  const std::optional<base::Value::Dict>& initiator_optional =
+  const std::optional<base::DictValue>& initiator_optional =
       nav_request.begin_params().devtools_initiator;
   if (initiator_optional.has_value())
     crdtp::ConvertProtocolValue(initiator_optional.value(), &initiator);
@@ -3194,7 +3252,7 @@ void NetworkHandler::NavigationRequestWillBeSent(
       current_wall_time, std::move(initiator), redirect_emitted_extra_info,
       std::move(redirect_response),
       std::string(Network::ResourceTypeEnum::Document), std::move(frame_token),
-      common_params.has_user_gesture);
+      common_params.has_possibly_filtered_user_gesture);
 }
 
 void NetworkHandler::FencedFrameReportRequestSent(
@@ -3522,7 +3580,7 @@ void NetworkHandler::OnSignedExchangeReceived(
           .Build();
 
   if (envelope) {
-    auto headers_dict = std::make_unique<base::Value::Dict>();
+    auto headers_dict = std::make_unique<base::DictValue>();
     for (const auto& it : envelope->response_headers())
       headers_dict->Set(it.first, it.second);
 
@@ -3669,7 +3727,7 @@ void NetworkHandler::ContinueInterceptedRequest(
   std::unique_ptr<DevToolsURLLoaderInterceptor::Modifications::HeadersVector>
       override_headers;
   if (opt_headers) {
-    const base::Value::Dict& headers = *opt_headers;
+    const base::DictValue& headers = *opt_headers;
     override_headers = std::make_unique<
         DevToolsURLLoaderInterceptor::Modifications::HeadersVector>();
     for (const auto entry : headers) {
@@ -3878,7 +3936,7 @@ NetworkHandler::CreateRequestFromResourceRequest(
     const std::string& cookie_line,
     std::vector<base::expected<std::vector<uint8_t>, std::string>>
         request_bodies) {
-  std::unique_ptr<base::Value::Dict> headers_dict =
+  std::unique_ptr<base::DictValue> headers_dict =
       BuildRequestHeaders(request.headers, request.referrer);
   if (!cookie_line.empty())
     headers_dict->Set(net::HttpRequestHeaders::kCookie, cookie_line);
@@ -4167,6 +4225,8 @@ void NetworkHandler::OnRequestWillBeSentExtraInfo(
     const net::CookieAccessResultList& request_cookie_list,
     const std::vector<network::mojom::HttpRawHeaderPairPtr>& request_headers,
     const base::TimeTicks timestamp,
+    const std::vector<network::mojom::DeviceBoundSessionWithUsagePtr>&
+        device_bound_session_usages,
     const network::mojom::ClientSecurityStatePtr& security_state,
     const network::mojom::OtherPartitionInfoPtr& other_partition_info,
     std::optional<base::UnguessableToken> applied_network_conditions_id) {
@@ -4177,6 +4237,7 @@ void NetworkHandler::OnRequestWillBeSentExtraInfo(
   frontend_->RequestWillBeSentExtraInfo(
       devtools_request_id, BuildProtocolAssociatedCookies(request_cookie_list),
       GetRawHeaders(request_headers), GetConnectTiming(timestamp),
+      BuildProtocolDeviceBoundSessionUsages(device_bound_session_usages),
       MaybeBuildClientSecurityState(security_state),
       other_partition_info
           ? std::optional<bool>(

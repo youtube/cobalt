@@ -503,6 +503,20 @@ BASE_FEATURE_PARAM(std::string,
                    "ignore_duplicate_navs_origins",
                    "");
 
+// Enables rendering the top chrome in WebUI. This is a central flag to enable
+// the WebUI implementation of top chrome. Individual features will be
+// additionally gated by this flag.
+BASE_FEATURE(kInitialWebUI, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, the initial WebUI will not share processes with other WebUIs,
+// including non-initial topchrome WebUIs. Process sharing will still happen
+// between initial WebUIs.
+BASE_FEATURE_PARAM(bool,
+                   kInitialWebUIUseSeparateProcess,
+                   &features::kInitialWebUI,
+                   "use_separate_process",
+                   false);
+
 // Whether initial WebUI navigations should synchronously go from navigation
 // start to commit, by doing e.g. in-renderer body loading.
 BASE_FEATURE(kInitialWebUISyncNavStartToCommit,
@@ -637,6 +651,9 @@ BASE_FEATURE(kNetworkServiceInProcess,
 #endif
 );
 
+// Feature which disables caching a previous selection menu object.
+BASE_FEATURE(kNoSelectionMenuCaching, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Feature which holdbacks NoStatePrefetch on all surfaces.
 BASE_FEATURE(kNoStatePrefetchHoldback, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -650,13 +667,6 @@ BASE_FEATURE(kOriginIsolationHeader, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // History navigation in response to horizontal overscroll (aka gesture-nav).
 BASE_FEATURE(kOverscrollHistoryNavigation, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables additional ChildProcessSecurityPolicy enforcements for PDF renderer
-// processes, including blocking storage and cookie access for them.
-//
-// TODO(https://crbug.com/40205612): Remove this kill switch once the PDF
-// enforcements are verified not to cause problems.
-BASE_FEATURE(kPdfEnforcements, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Whether web apps can run periodic tasks upon network connectivity.
 BASE_FEATURE(kPeriodicBackgroundSync, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -997,10 +1007,6 @@ BASE_FEATURE(kSpareRendererForSitePerProcess, base::FEATURE_ENABLED_BY_DEFAULT);
 // Controls whether site isolation should use origins instead of scheme and
 // eTLD+1.
 BASE_FEATURE(kStrictOriginIsolation, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// When enabled, RenderWidgetHost in BFCache doesn't contribute to the priority
-// of the renderer process.
-BASE_FEATURE(kSubframePriorityContribution, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Disallows window.{alert, prompt, confirm} if triggered inside a subframe that
 // is not same origin with the main frame.

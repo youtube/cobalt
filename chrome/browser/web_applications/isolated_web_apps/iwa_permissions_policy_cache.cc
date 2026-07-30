@@ -16,6 +16,7 @@
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_trust_checker.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/web_app.h"
+#include "chrome/browser/web_applications/web_app_filter.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_provider_factory.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
@@ -90,7 +91,7 @@ std::optional<IwaPermissionsPolicyCache::CacheEntry> ParseManifest(
     return std::nullopt;
   }
 
-  const base::Value::Dict* manifest_dict = json_value->GetIfDict();
+  const base::DictValue* manifest_dict = json_value->GetIfDict();
   const base::Value* permissions_policy_value =
       manifest_dict->Find("permissions_policy");
 
@@ -102,7 +103,7 @@ std::optional<IwaPermissionsPolicyCache::CacheEntry> ParseManifest(
     return std::nullopt;
   }
 
-  const base::Value::Dict& permissions_policy_dict =
+  const base::DictValue& permissions_policy_dict =
       permissions_policy_value->GetDict();
 
   std::vector<IwaPermissionsPolicyCache::Entry> permissions_policy;
@@ -110,7 +111,7 @@ std::optional<IwaPermissionsPolicyCache::CacheEntry> ParseManifest(
     if (!val.is_list()) {
       return std::nullopt;
     }
-    const base::Value::List& list = val.GetList();
+    const base::ListValue& list = val.GetList();
     std::vector<std::string> allowed_origins;
     for (const auto& item : list) {
       if (!item.is_string()) {
@@ -171,24 +172,25 @@ void IwaPermissionsPolicyCache::ObtainManifestAndCache(
   }
 
   // We don't want to do the caching if navigating to a nonexistent IWA.
-  const WebApp* web_app = provider_->registrar_unsafe().GetAppById(
+  const WebApp* iwa = provider_->registrar_unsafe().GetAppById(
       IsolatedWebAppUrlInfo::CreateFromSignedWebBundleId(
           iwa_origin.web_bundle_id())
-          .app_id());
-  if (!web_app) {
+          .app_id(),
+      WebAppFilter::IsIsolatedApp());
+  if (!iwa) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback), true));
     return;
   }
 
-  CHECK(web_app->isolation_data().has_value());
   // If the IWA is not trusted, we skip caching the manifest. The main
   // navigation will handle the trust failure and show an appropriate error
   // page. Fetching the manifest here would result in an opaque network
-  // error.
-  if (!IsolatedWebAppTrustChecker::IsTrusted(
+  // error. Trust check is skipped in case of dev proxy mode.
+  if (!iwa_origin.web_bundle_id().is_for_proxy_mode() &&
+      !IsolatedWebAppTrustChecker::IsTrusted(
            *provider_->profile(), iwa_origin.web_bundle_id(),
-           web_app->isolation_data()->location().dev_mode())
+           iwa->isolation_data()->location().dev_mode())
            .has_value()) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback), true));
@@ -272,12 +274,12 @@ void IwaPermissionsPolicyCache::ClearCacheForApp(const webapps::AppId& app_id) {
   if (!provider_) {
     return;
   }
-  const WebApp* web_app = provider_->registrar_unsafe().GetAppById(app_id);
-  if (!web_app || !web_app->isolation_data()) {
+  const WebApp* iwa = provider_->registrar_unsafe().GetAppById(
+      app_id, WebAppFilter::IsIsolatedApp());
+  if (!iwa) {
     return;
   }
-  auto iwa_origin = IwaOrigin::Create(web_app->start_url());
-  // We checked that isolation_data exists, this has to be an IWA.
+  auto iwa_origin = IwaOrigin::Create(iwa->start_url());
   CHECK(iwa_origin.has_value());
   ClearPolicy(*iwa_origin);
 }

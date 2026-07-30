@@ -44,13 +44,18 @@ class InstallVerifierTest : public ExtensionServiceTestBase {
         new InstallVerifier(ExtensionPrefs::Get(profile()), profile()));
   }
 
+  void TearDown() override {
+    install_verifier_.reset();
+    ExtensionServiceTestBase::TearDown();
+  }
+
   // Adds an extension as being allowed by policy.
   void AddExtensionAsPolicyInstalled(const ExtensionId& id) {
-    base::Value::Dict extension_entry =
-        base::Value::Dict().Set("installation_mode", "allowed");
+    base::DictValue extension_entry =
+        base::DictValue().Set("installation_mode", "allowed");
     testing_pref_service()->SetManagedPref(
         pref_names::kExtensionManagement,
-        base::Value::Dict().Set(id, std::move(extension_entry)));
+        base::DictValue().Set(id, std::move(extension_entry)));
     EXPECT_TRUE(ExtensionManagementFactory::GetForBrowserContext(profile())
                     ->IsInstallationExplicitlyAllowed(id));
   }
@@ -61,7 +66,6 @@ class InstallVerifierTest : public ExtensionServiceTestBase {
  private:
   ScopedInstallVerifierBypassForTest force_install_verification{
       ScopedInstallVerifierBypassForTest::kForceOn};
-  std::unique_ptr<ExtensionManagement> extension_management_;
   std::unique_ptr<InstallVerifier> install_verifier_;
 };
 
@@ -136,7 +140,7 @@ TEST_F(InstallVerifierTest, ForceInstalledExtensionBehaviorWithTrustLevels) {
       ExtensionBuilder("Force Installed Extension")
           .SetLocation(ManifestLocation::kExternalPolicyDownload)
           .Build();
-  base::Value::Dict forced_list_pref;
+  base::DictValue forced_list_pref;
   ExternalPolicyLoader::AddExtension(forced_list_pref, forced_extension->id(),
                                      "http://example.com/update_url");
   testing_pref_service()->SetManagedPref(pref_names::kInstallForceList,

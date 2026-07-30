@@ -27,6 +27,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
+#include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
@@ -37,6 +38,7 @@
 #include "components/contextual_tasks/public/contextual_tasks_service.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/lens/lens_url_utils.h"
+#include "components/omnibox/browser/aim_eligibility_service.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/access_token_fetcher.h"
@@ -93,17 +95,6 @@ constexpr char kTaskQueryParam[] = "task";
 constexpr char kSearchQueryKey[] = "q";
 constexpr char kLensModeKey[] = "lns_mode";
 
-// Search parameters for the AI page.
-// TODO(crbug.com/466149941): These should be more robust to be able to handle
-// changes in the URL format.
-constexpr char kUdmParam[] = "udm";
-constexpr char kUdmAiValue[] = "50";
-constexpr char kNemParam[] = "nem";
-constexpr char kNemAiValue[] = "143";
-
-// Query parameter values for the mode.
-inline constexpr char kShoppingModeParameterValue[] = "28";
-
 bool IsSignInDomain(const GURL& url) {
   if (!url.is_valid() || !url.SchemeIsHTTPOrHTTPS()) {
     return false;
@@ -157,10 +148,12 @@ EntrypointSource ConvertContextualSearchSourceToEntrypointSource(
 ContextualTasksUiService::ContextualTasksUiService(
     Profile* profile,
     contextual_tasks::ContextualTasksService* contextual_tasks_service,
-    signin::IdentityManager* identity_manager)
+    signin::IdentityManager* identity_manager,
+    AimEligibilityService* aim_eligibility_service)
     : profile_(profile),
       contextual_tasks_service_(contextual_tasks_service),
       identity_manager_(identity_manager),
+      aim_eligibility_service_(aim_eligibility_service),
       request_access_token_backoff_(
           &kIgnoreFirstErrorRequestAccessTokenBackoffPolicy) {
   ai_page_hosts_.emplace_back(kAiPageHost);
@@ -171,6 +164,12 @@ ContextualTasksUiService::ContextualTasksUiService(
 }
 
 ContextualTasksUiService::~ContextualTasksUiService() = default;
+
+void ContextualTasksUiService::Shutdown() {
+  weak_ptr_factory_.InvalidateWeakPtrs();
+  access_token_fetcher_.reset();
+  token_refresh_timer_.Stop();
+}
 
 void ContextualTasksUiService::OnNavigationToAiPageIntercepted(
     const GURL& url,
@@ -389,12 +388,14 @@ void ContextualTasksUiService::OnThreadLinkClicked(
   const int current_index = tab_strip_model->GetIndexOfTab(tab.get());
 
   // Open the linked page in a tab directly after this one.
-  tab_strip_model->InsertWebContentsAt(
-      current_index + 1, std::move(new_contents), AddTabTypes::ADD_ACTIVE,
-      tab->GetGroup());
-
-  CHECK(new_contents_ptr == tab_strip_model->GetActiveWebContents());
+  // To prevent side panel to close and reopen again, add the new tab, associate
+  // with task and then activate it.
+  tab_strip_model->InsertWebContentsAt(current_index + 1,
+                                       std::move(new_contents),
+                                       AddTabTypes::ADD_NONE, tab->GetGroup());
   AssociateWebContentsToTask(new_contents_ptr, task_id);
+  tab_strip_model->ActivateTabAt(current_index + 1);
+  CHECK(new_contents_ptr == tab_strip_model->GetActiveWebContents());
 
   // Do not open side panel if kOpenSidePanelOnLinkClicked is not set.
   if (!kOpenSidePanelOnLinkClicked.Get()) {
@@ -752,10 +753,10 @@ void ContextualTasksUiService::OnTaskChanged(
       new_task_id = task.GetTaskId();
     }
 
-    TabStripModel* tab_strip_model =
-        browser_window_interface->GetTabStripModel();
+    TabListInterface* tab_list =
+        TabListInterface::From(browser_window_interface);
     content::WebContents* active_contents =
-        tab_strip_model->GetActiveWebContents();
+        tab_list->GetActiveTab()->GetContents();
     SessionID active_id = SessionTabHelper::IdForTab(active_contents);
 
     if (kTaskScopedSidePanel.Get()) {
@@ -874,28 +875,11 @@ void ContextualTasksUiService::StartTaskUiInSidePanel(
 }
 
 bool ContextualTasksUiService::IsAiUrl(const GURL& url) {
-  if (!url.is_valid() || !url.SchemeIsHTTPOrHTTPS() || !IsAllowedHost(url)) {
+  if (!IsSearchResultsUrl(url)) {
     return false;
   }
 
-  if (!base::StartsWith(url.path(), "/search")) {
-    return false;
-  }
-
-  // AI pages are identified by the "udm" URL param having a value of "50" or
-  // "nem" having a value of "143".
-  std::string udm_value;
-  if (net::GetValueForKeyInQuery(url, kUdmParam, &udm_value) &&
-      udm_value == kUdmAiValue) {
-    return true;
-  }
-
-  std::string nem_value;
-  if (net::GetValueForKeyInQuery(url, kNemParam, &nem_value) &&
-      nem_value == kNemAiValue) {
-    return true;
-  }
-  return false;
+  return aim_eligibility_service_->HasAimUrlParams(url);
 }
 
 bool ContextualTasksUiService::IsContextualTasksUrl(const GURL& url) {
@@ -904,11 +888,7 @@ bool ContextualTasksUiService::IsContextualTasksUrl(const GURL& url) {
 }
 
 bool ContextualTasksUiService::IsSearchResultsUrl(const GURL& url) {
-  if (!url.is_valid() || !url.SchemeIsHTTPOrHTTPS()) {
-    return false;
-  }
-
-  if (!IsAllowedHost(url)) {
+  if (!url.is_valid() || !url.SchemeIsHTTPOrHTTPS() || !IsAllowedHost(url)) {
     return false;
   }
 
@@ -926,8 +906,7 @@ bool ContextualTasksUiService::IsValidSearchResultsPage(const GURL& url) {
 
   // Do not allow shopping mode queries.
   std::string value;
-  if (net::GetValueForKeyInQuery(url, kUdmParam, &value) &&
-      value == kShoppingModeParameterValue) {
+  if (net::GetValueForKeyInQuery(url, "udm", &value) && value == "28") {
     return false;
   }
 
@@ -985,30 +964,62 @@ void ContextualTasksUiService::OnTabClickedFromSourcesMenu(
   // Find the tab on the tab strip by the given tab ID. If found, switch to it.
   // Chances are that the tab might have navigated by now, hence check the URL
   // as well.
-  TabStripModel* tab_strip_model = browser->GetTabStripModel();
-  for (int i = 0; i < tab_strip_model->count(); ++i) {
-    content::WebContents* web_contents = tab_strip_model->GetWebContentsAt(i);
+  TabListInterface* tab_list = TabListInterface::From(browser);
+  for (int i = 0; i < tab_list->GetTabCount(); ++i) {
+    content::WebContents* web_contents = tab_list->GetTab(i)->GetContents();
     tabs::TabInterface* tab_interface =
         tabs::TabInterface::GetFromContents(web_contents);
     if (tab_interface && tab_interface->GetHandle().raw_value() == tab_id &&
         web_contents->GetLastCommittedURL() == url) {
-      tab_strip_model->ActivateTabAt(i);
+      tab_list->ActivateTab(tab_list->GetTab(i)->GetHandle());
       return;
     }
   }
 
   // The tab with the given ID and URL wasn't found. Next, try finding a tab
   // that matches the URL. If found, switch to it.
-  for (int i = 0; i < tab_strip_model->count(); ++i) {
-    content::WebContents* web_contents = tab_strip_model->GetWebContentsAt(i);
+  for (int i = 0; i < tab_list->GetTabCount(); ++i) {
+    content::WebContents* web_contents = tab_list->GetTab(i)->GetContents();
     if (web_contents->GetLastCommittedURL() == url) {
-      tab_strip_model->ActivateTabAt(i);
+      tab_list->ActivateTab(tab_list->GetTab(i)->GetHandle());
       return;
     }
   }
 
   // The tab wasn't found. Open a new tab with the given URL to the end of the
   // tab strip.
+  NavigateParams params(browser->GetProfile(), url, ui::PAGE_TRANSITION_LINK);
+  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  Navigate(&params);
+}
+
+void ContextualTasksUiService::OnFileClickedFromSourcesMenu(
+    const GURL& url,
+    BrowserWindowInterface* browser) {
+  if (!browser) {
+    return;
+  }
+
+  if (!url.SchemeIsHTTPOrHTTPS()) {
+    return;
+  }
+
+  NavigateParams params(browser->GetProfile(), url, ui::PAGE_TRANSITION_LINK);
+  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  Navigate(&params);
+}
+
+void ContextualTasksUiService::OnImageClickedFromSourcesMenu(
+    const GURL& url,
+    BrowserWindowInterface* browser) {
+  if (!browser) {
+    return;
+  }
+
+  if (!url.SchemeIsHTTPOrHTTPS()) {
+    return;
+  }
+
   NavigateParams params(browser->GetProfile(), url, ui::PAGE_TRANSITION_LINK);
   params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
   Navigate(&params);

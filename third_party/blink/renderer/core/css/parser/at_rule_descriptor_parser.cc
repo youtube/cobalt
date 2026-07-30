@@ -346,7 +346,7 @@ CSSValue* AtRuleDescriptorParser::ParseFontFaceDescriptor(
   stream.ConsumeWhitespace();
   CSSParserContext::ParserModeOverridingScope scope(context,
                                                     kCSSFontFaceRuleMode);
-  // TODO(crbug.com/413385732): Store correct property name in
+  // TODO(crbug.com/475808971): Store correct property name in
   // CSSParserLocalContext for random().
   CSSParserLocalContext local_context =
       CSSParserLocalContext::CreateWithoutPropertyForAtRules();
@@ -584,7 +584,12 @@ CSSValue* AtRuleDescriptorParser::ParseAtRouteDescriptor(
       return nullptr;
   }
 
-  return css_parsing_utils::ConsumeString(stream);
+  CSSValue* value = css_parsing_utils::ConsumeString(stream);
+  stream.ConsumeWhitespace();
+  if (!stream.AtEnd()) {
+    return nullptr;
+  }
+  return value;
 }
 
 bool AtRuleDescriptorParser::ParseDescriptorValue(

@@ -27,6 +27,7 @@
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/types/optional_util.h"
 #include "build/build_config.h"
 #include "client_behavior_constants.h"
 #include "components/autofill/core/browser/autofill_type.h"
@@ -219,7 +220,12 @@ void LogPromptOfferMetricForCreditCardSave(
 }  // namespace
 
 CreditCardSaveManager::CreditCardSaveManager(AutofillClient* client)
-    : client_(CHECK_DEREF(client)) {}
+    : client_(CHECK_DEREF(client)) {
+  if (strike_database::StrikeDatabase* db = client->GetStrikeDatabase()) {
+    credit_card_save_strike_database_.emplace(db);
+    cvc_storage_strike_database_.emplace(db);
+  }
+}
 
 CreditCardSaveManager::~CreditCardSaveManager() = default;
 
@@ -706,23 +712,12 @@ void CreditCardSaveManager::InitVirtualCardEnroll(
 
 CreditCardSaveStrikeDatabase*
 CreditCardSaveManager::GetCreditCardSaveStrikeDatabase() const {
-  if (credit_card_save_strike_database_.get() == nullptr) {
-    credit_card_save_strike_database_ =
-        std::make_unique<CreditCardSaveStrikeDatabase>(
-            CreditCardSaveStrikeDatabase(client_->GetStrikeDatabase()));
-  }
-  return credit_card_save_strike_database_.get();
+  return base::OptionalToPtr(const_cast<CreditCardSaveManager*>(this)
+                                 ->credit_card_save_strike_database_);
 }
 
 CvcStorageStrikeDatabase* CreditCardSaveManager::GetCvcStorageStrikeDatabase() {
-  if (!client_->GetStrikeDatabase()) {
-    return nullptr;
-  }
-  if (!cvc_storage_strike_database_) {
-    cvc_storage_strike_database_ = std::make_unique<CvcStorageStrikeDatabase>(
-        CvcStorageStrikeDatabase(client_->GetStrikeDatabase()));
-  }
-  return cvc_storage_strike_database_.get();
+  return base::OptionalToPtr(cvc_storage_strike_database_);
 }
 
 bool CreditCardSaveManager::
@@ -759,7 +754,7 @@ void CreditCardSaveManager::OnDidGetUploadDetails(
     ukm::SourceId ukm_source_id,
     PaymentsRpcResult result,
     const std::u16string& context_token,
-    std::unique_ptr<base::Value::Dict> legal_message,
+    std::unique_ptr<base::DictValue> legal_message,
     std::vector<std::pair<int, int>> supported_card_bin_ranges) {
   if (observer_for_testing_) {
     observer_for_testing_->OnReceivedGetUploadDetailsResponse();
@@ -1668,10 +1663,9 @@ bool CreditCardSaveManager::ShouldRequestCvcInclusiveLegalMessage() const {
   // Since this code is only reached when no CVC was found on the form,
   // the save type is kCardSaveOnly.
   return !autofill::ShouldShowSaveCardBottomSheet(
-             payments::PaymentsAutofillClient::CardSaveType::kCardSaveOnly,
-             num_strikes, should_request_name_from_user_,
-             should_request_expiration_date_from_user_) ||
-         !base::FeatureList::IsEnabled(features::kAutofillSaveCardBottomSheet);
+      payments::PaymentsAutofillClient::CardSaveType::kCardSaveOnly,
+      num_strikes, should_request_name_from_user_,
+      should_request_expiration_date_from_user_);
 #else
   // For other platforms, we only request the CVC-inclusive message if a CVC
   // was present in the form.

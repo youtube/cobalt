@@ -10,12 +10,16 @@
 #include "base/memory/raw_ptr.h"
 #include "base/strings/stringprintf.h"
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_external.h"
+#include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/tabs/saved_tab_groups/tab_group_sync_service_initialized_observer.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_test_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/tab_groups/tab_group_id.h"
+#include "components/tab_groups/tab_group_visual_data.h"
 #include "components/tabs/public/tab_group.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/test/browser_test.h"
@@ -23,10 +27,6 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/window_open_disposition.h"
-
-// TODO(devlin): Would it make sense to port this to instead be a
-// TabListInterface browsertest, and use it on all relevant platforms?
-using TabListBridgeBrowserTest = InProcessBrowserTest;
 
 namespace {
 
@@ -140,6 +140,22 @@ void SetupTabs(Browser* browser, size_t num_tabs, size_t offset = 0u) {
   }
 }
 
+// TODO(devlin): Would it make sense to port this to instead be a
+// TabListInterface browsertest, and use it on all relevant platforms?
+class TabListBridgeBrowserTest : public InProcessBrowserTest {
+ public:
+  void SetUpOnMainThread() override {
+    InProcessBrowserTest::SetUpOnMainThread();
+    // Wait for the TabGroupSyncService to properly initialize before making any
+    // changes to tab groups.
+    auto observer =
+        std::make_unique<tab_groups::TabGroupSyncServiceInitializedObserver>(
+            tab_groups::TabGroupSyncServiceFactory::GetForProfile(
+                GetProfile()));
+    observer->Wait();
+  }
+};
+
 }  // namespace
 
 IN_PROC_BROWSER_TEST_F(TabListBridgeBrowserTest, GetTab) {
@@ -242,6 +258,40 @@ IN_PROC_BROWSER_TEST_F(TabListBridgeBrowserTest, GetAllTabs) {
   EXPECT_THAT(tab_list_interface->GetAllTabs(),
               testing::ElementsAre(MatchesTab(url1), MatchesTab(url2),
                                    MatchesTab(url3)));
+}
+
+IN_PROC_BROWSER_TEST_F(TabListBridgeBrowserTest, GetOpenerForTab) {
+  const GURL url1("http://one.example");
+  const GURL url2("http://two.example");
+  const GURL url3("http://three.example");
+
+  TabListInterface* tab_list_interface = TabListBridge::From(browser());
+  ASSERT_TRUE(tab_list_interface);
+
+  // Open three tabs. All should be returned (in order).
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), url1, WindowOpenDisposition::CURRENT_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), url2, WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), url3, WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+
+  // Focus the first tab.
+  tab_list_interface->ActivateTab(tab_list_interface->GetTab(0)->GetHandle());
+  EXPECT_EQ(0, tab_list_interface->GetActiveIndex());
+
+  // Set Opener for the first tab
+  tab_list_interface->SetOpenerForTab(
+      tab_list_interface->GetTab(0)->GetHandle(),
+      tab_list_interface->GetTab(1)->GetHandle());
+
+  // Get Opener for the first tab
+  EXPECT_THAT(tab_list_interface->GetOpenerForTab(
+                  tab_list_interface->GetTab(0)->GetHandle()),
+              MatchesTab(url2));
 }
 
 IN_PROC_BROWSER_TEST_F(TabListBridgeBrowserTest, GetActiveTab) {
@@ -637,6 +687,43 @@ IN_PROC_BROWSER_TEST_F(TabListBridgeBrowserTest,
   EXPECT_FALSE(second_call_group_id.has_value());
   EXPECT_EQ("0",
             GetTabStripStateString(tab_strip_model, /*annotate_groups=*/true));
+}
+
+IN_PROC_BROWSER_TEST_F(TabListBridgeBrowserTest, SetTabGroupVisualData) {
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+  ASSERT_TRUE(tab_strip_model);
+
+  // Create a group out of the first and only tab.
+  tab_groups::TabGroupId group_id = tab_strip_model->AddToNewGroup({0});
+
+  // Add a test observer to the tab strip.
+  class TestObserver : public TabStripModelObserver {
+   public:
+    void OnTabGroupChanged(const TabGroupChange& change) override {
+      tab_group_changed_++;
+    }
+
+    int tab_group_changed_ = 0;
+  } observer;
+  tab_strip_model->AddObserver(&observer);
+
+  // Change the visual data for the group via the bridge.
+  TabListInterface* tab_list_interface = TabListInterface::From(browser());
+  tab_groups::TabGroupVisualData data(u"Title",
+                                      tab_groups::TabGroupColorId::kBlue);
+  tab_list_interface->SetTabGroupVisualData(group_id, data);
+
+  // The visual data changed.
+  std::optional<tab_groups::TabGroupVisualData> new_data =
+      tab_list_interface->GetTabGroupVisualData(group_id);
+  ASSERT_TRUE(new_data);
+  EXPECT_EQ(u"Title", new_data->title());
+  EXPECT_EQ(tab_groups::TabGroupColorId::kBlue, new_data->color());
+
+  // The observer fired.
+  EXPECT_EQ(1, observer.tab_group_changed_);
+
+  tab_strip_model->RemoveObserver(&observer);
 }
 
 IN_PROC_BROWSER_TEST_F(TabListBridgeBrowserTest, Ungroup) {

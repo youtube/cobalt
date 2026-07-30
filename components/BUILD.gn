@@ -183,6 +183,7 @@ test("components_unittests") {
 
   deps = [
     "//base",
+    "//components/activity_reporter:unit_tests",
     "//components/affiliations/core/browser:unit_tests",
     "//components/aggregation_service:unit_tests",
     "//components/apdu:unit_tests",
@@ -198,7 +199,6 @@ test("components_unittests") {
     "//components/bookmarks/browser:unit_tests",
     "//components/bookmarks/managed:unit_tests",
     "//components/breadcrumbs/core:unit_tests",
-    "//components/browser_apis/tab_strip:unit_tests",
     "//components/browser_sync:unit_tests",
     "//components/browsing_data/core:unit_tests",
     "//components/captive_portal/core:unit_tests",
@@ -325,6 +325,7 @@ test("components_unittests") {
     "//components/reporting/metrics:unit_tests",
     "//components/reporting/storage:unit_tests",
     "//components/reporting/util:unit_tests",
+    "//components/resources:unit_tests",
     "//components/safe_browsing/core/browser:intelligent_scan_delegate_unittest",
     "//components/safe_browsing/core/browser:referring_app_info_unittest",
     "//components/safe_browsing/core/browser:safe_browsing_hats_delegate_unittest",
@@ -376,7 +377,6 @@ test("components_unittests") {
     "//components/sync_user_events:unit_tests",
     "//components/system_cpu:unit_tests",
     "//components/system_media_controls:unit_tests",
-    "//components/tabs:unit_tests",
     "//components/test:run_all_unittests",
     "//components/themes:unit_tests",
     "//components/tpcd/metadata/browser:unit_tests",
@@ -535,7 +535,7 @@ test("components_unittests") {
       "//components/paint_preview/common:unit_tests",
       "//components/paint_preview/player:unit_tests",
       "//components/paint_preview/renderer:unit_tests",
-      "//components/passage_embeddings:unit_tests",
+      "//components/passage_embeddings/core:unit_tests",
       "//components/password_manager/content/browser:unit_tests",
       "//components/payments/content:unit_tests",
       "//components/payments/content/utility:unit_tests",
@@ -622,6 +622,8 @@ test("components_unittests") {
       "//components/autofill/content/renderer:unit_tests",
       "//components/background_sync:unit_tests",
       "//components/blocked_content:unit_tests",
+      "//components/browser_apis/browser_controls:unit_tests",
+      "//components/browser_apis/tab_strip:unit_tests",
       "//components/content_settings/browser/ui:unit_tests",
       "//components/headless/test:unit_tests",
       "//components/media_router/browser:unit_tests",
@@ -638,6 +640,7 @@ test("components_unittests") {
       "//components/site_isolation:unit_tests",
       "//components/spellcheck/browser:unit_tests",
       "//components/spellcheck/renderer:unit_tests",
+      "//components/tabs:unit_tests",
       "//components/user_data_importer/content:unit_tests",
     ]
 
@@ -761,6 +764,10 @@ test("components_unittests") {
       "//components/web_modal:unit_tests",
       "//components/zoom:unit_tests",
     ]
+  }
+
+  if (!is_android && !is_ios && !is_fuchsia && !is_castos) {
+    deps += [ "//components/passage_embeddings/content:unit_tests" ]
   }
 
   if (enable_guest_contents) {

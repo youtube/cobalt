@@ -971,6 +971,18 @@ targets.mixin(
 )
 
 targets.mixin(
+    name = "gpu_linux_gce_stable",
+    swarming = targets.swarming(
+        dimensions = {
+            "cpu": "x86-64",
+            "gpu": "none",
+            "os": "Ubuntu-22.04",
+            "pool": "chromium.tests.gpu",
+        },
+    ),
+)
+
+targets.mixin(
     name = "gpu_nvidia_shield_tv_stable",
     swarming = targets.swarming(
         dimensions = {
@@ -1776,7 +1788,7 @@ targets.mixin(
             "cpu": "arm64",
             "gpu": "apple:m1",
             "mac_model": "Macmini9,1",
-            "os": "Mac-14.5|Mac-15.7",
+            "os": "Mac-15.7",
             "pool": "chromium.tests",
             "display_attached": "1",
         },

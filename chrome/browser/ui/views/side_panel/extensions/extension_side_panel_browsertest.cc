@@ -1398,7 +1398,7 @@ class ExtensionOpenSidePanelBrowserTest : public ExtensionSidePanelBrowserTest {
     auto function = base::MakeRefCounted<SidePanelOpenFunction>();
     function->set_extension(&extension);
 
-    base::Value::Dict options;
+    base::DictValue options;
     if (tab_id) {
       options.Set("tabId", *tab_id);
     }
@@ -1406,7 +1406,7 @@ class ExtensionOpenSidePanelBrowserTest : public ExtensionSidePanelBrowserTest {
       options.Set("windowId", *window_id);
     }
     std::string args_str =
-        base::WriteJson(base::Value::List().Append(std::move(options)))
+        base::WriteJson(base::ListValue().Append(std::move(options)))
             .value_or("");
     function->set_user_gesture(true);
     EXPECT_TRUE(api_test_utils::RunFunction(function.get(), args_str, profile))
@@ -1924,6 +1924,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionOpenSidePanelBrowserTest,
   // Open a second browser window.
   Browser* second_browser = CreateBrowser(browser()->profile());
   ASSERT_TRUE(second_browser);
+  ui_test_utils::BrowserDidBecomeActiveWaiter(second_browser).Wait();
 
   SidePanelUI* const first_side_panel_ui =
       browser()->GetFeatures().side_panel_ui();
@@ -2193,7 +2194,7 @@ class ExtensionCloseSidePanelBrowserTest
     auto function = base::MakeRefCounted<SidePanelCloseFunction>();
     function->set_extension(&extension);
 
-    base::Value::Dict options;
+    base::DictValue options;
     if (tab_id) {
       options.Set("tabId", *tab_id);
     }
@@ -2202,7 +2203,7 @@ class ExtensionCloseSidePanelBrowserTest
     }
 
     std::string args_str =
-        base::WriteJson(base::Value::List().Append(std::move(options)))
+        base::WriteJson(base::ListValue().Append(std::move(options)))
             .value_or("");
     EXPECT_TRUE(
         api_test_utils::RunFunction(function.get(), args_str, profile()))
@@ -2480,7 +2481,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionOnOpenedEventSidePanelBrowserTest,
       opened_listener.message(), base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   ASSERT_TRUE(value);
   ASSERT_TRUE(value->is_dict());
-  const base::Value::Dict& open_info = value->GetDict();
+  const base::DictValue& open_info = value->GetDict();
 
   // Verify that the `tabId` from the event payload matches where the panel was
   // opened.
@@ -2727,13 +2728,13 @@ IN_PROC_BROWSER_TEST_F(ExtensionOnClosedEventSidePanelBrowserTest,
 
   // Move the first tab (at index 0) to a new window. This action correctly
   // simulates the user dragging the tab out.
+  ui_test_utils::BrowserCreatedObserver observer;
   chrome::MoveTabsToNewWindow(browser(), {0});
 
   // Get the new browser window.
-  BrowserWindowInterface* const new_browser =
-      GetLastActiveBrowserWindowInterfaceWithAnyProfile();
+  Browser* new_browser = observer.Wait();
   ASSERT_TRUE(new_browser);
-  EXPECT_NE(browser()->window(), new_browser->GetWindow());
+  EXPECT_NE(browser()->window(), new_browser->window());
 
   // Get the session IDs for the new window and its active tab.
   const int new_window_id = new_browser->GetSessionID().id();

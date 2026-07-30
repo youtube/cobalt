@@ -642,7 +642,7 @@ AwBrowserContext::GetJavaBrowserContext() {
   return base::android::ScopedJavaLocalRef<jobject>(obj_);
 }
 
-jlong AwBrowserContext::GetQuotaManagerBridge(JNIEnv* env) {
+int64_t AwBrowserContext::GetQuotaManagerBridge(JNIEnv* env) {
   return reinterpret_cast<intptr_t>(GetQuotaManagerBridge());
 }
 
@@ -903,7 +903,8 @@ mojo::PendingRemote<network::mojom::URLLoaderFactory>
 AwBrowserContext::CreateURLLoaderFactory() {
   auto url_loader_factory_params =
       network::mojom::URLLoaderFactoryParams::New();
-  url_loader_factory_params->process_id = network::mojom::kBrowserProcessId;
+  url_loader_factory_params->process_id =
+      network::OriginatingProcess::browser();
   url_loader_factory_params->is_orb_enabled = false;
   mojo::PendingRemote<network::mojom::URLLoaderFactory> factory;
 

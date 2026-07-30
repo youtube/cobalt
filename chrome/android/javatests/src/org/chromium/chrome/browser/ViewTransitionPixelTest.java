@@ -28,6 +28,7 @@ import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -125,7 +126,9 @@ public class ViewTransitionPixelTest {
                             mActivityTestRule
                                     .getKeyboardDelegate()
                                     .isKeyboardShowing(
-                                            mActivityTestRule.getActivity().getTabsView());
+                                            mActivityTestRule
+                                                    .getActivity()
+                                                    .getTabsViewForTesting());
                     Criteria.checkThat(isKeyboardShowing, Matchers.is(show));
                 },
                 TEST_TIMEOUT,
@@ -456,6 +459,7 @@ public class ViewTransitionPixelTest {
     @Feature({"RenderTest"})
     // TODO(crbug.com/473893732): Update the test for lock top control or use restriction.
     @DisableFeatures(ChromeFeatureList.LOCK_TOP_CONTROLS_ON_LARGE_TABLETS_V2)
+    @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/446934111
     public void testBrowserControlsRootSnapshotControlsOverlay() throws Throwable {
         String url = "/chrome/test/data/android/view_transition_browser_controls.html";
         mActivityTestRule.startOnTestServerUrl(url);
@@ -547,6 +551,7 @@ public class ViewTransitionPixelTest {
     @Feature({"RenderTest"})
     // TODO(crbug.com/473893732): Update the test for lock top control or use restriction.
     @DisableFeatures(ChromeFeatureList.LOCK_TOP_CONTROLS_ON_LARGE_TABLETS_V2)
+    @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/446934111
     public void testBrowserControlsChildSnapshotControlsOverlay() throws Throwable {
         String url = "/chrome/test/data/android/view_transition_browser_controls_child.html";
         mActivityTestRule.startOnTestServerUrl(url);

@@ -250,8 +250,14 @@
       <message name="IDS_SUBMIT" desc="Generic label for a button to submit data. Used in multiple contexts. [CHAR_LIMIT=20]">
         Submit
       </message>
+      <message name="IDS_APPLY" desc="Generic label for a button to apply a suggestion.">
+        Apply
+      </message>
       <message name="IDS_UNDO" desc="Generic label for a button to undo the previous action.">
         Undo
+      </message>
+      <message name="IDS_REDO" desc="Generic label for a button to redo the previous action.">
+        Redo
       </message>
       <message name="IDS_HELP" desc="Generic label for a button that displays help for the current screen.">
         Help
@@ -1318,12 +1324,45 @@
 
       <!-- Setup List strings -->
 
+      <!-- Setup list Sign in promo strings -->
+      <message name="IDS_EDUCATIONAL_TIP_SIGN_IN_PROMO_TITLE" desc="Title of the sign in promo that invites users to sign in to Chrome in the educational tip module on NTP.">
+        Make Chrome your own
+      </message>
+      <message name="IDS_EDUCATIONAL_TIP_SIGN_IN_PROMO_DESCRIPTION" desc="Description of the sign in promo that invites users to sign in to Chrome in the educational tip module on NTP.">
+        Sign in to easily continue on all your devices
+      </message>
+      <message name="IDS_EDUCATIONAL_TIP_SIGN_IN_PROMO_BUTTON" desc="Text on the clickable button on the sign in promo that invites users to sign in to Chrome in the educational tip module on NTP.">
+        Sign in to start
+      </message>
+
       <!-- Setup list Enhanced Safe Browsing promo strings -->
       <message name="IDS_EDUCATIONAL_TIP_ENHANCED_SAFE_BROWSING_TITLE" desc="Title of the enhanced safe browsing promo that invites users to turn on enhanced safe browsing in the educational tip module on NTP.">
         Enhance your security
       </message>
       <message name="IDS_EDUCATIONAL_TIP_ENHANCED_SAFE_BROWSING_DESCRIPTION" desc="Description of the enhanced safe browsing promo that invites users to turn on enhanced safe browsing in the educational tip module on NTP.">
         Get Chrome’s strongest protection against online threats
+      </message>
+
+      <!-- Setup list Save Passwords promo strings -->
+      <message name="IDS_EDUCATIONAL_TIP_SAVE_PASSWORDS_TITLE" desc="Title of the Save Passwords promo that invites users to turn on the save passwords feature in the educational tip module on NTP.">
+        Save passwords in Chrome
+      </message>
+      <message name="IDS_EDUCATIONAL_TIP_SAVE_PASSWORDS_DESCRIPTION" desc="Description of the Save Passwords promo that invites users to turn on the save passwords feature in the educational tip module on NTP.">
+        Sign in quickly and easily into sites and apps
+      </message>
+      <message name="IDS_EDUCATIONAL_TIP_SAVE_PASSWORDS_BUTTON" desc="Text on the clickable button on the Save Passwords promo in the educational tip module on NTP.">
+        Show me how
+      </message>
+
+      <!-- Setup list Password Checkup promo strings -->
+      <message name="IDS_EDUCATIONAL_TIP_PASSWORD_CHECKUP_TITLE" desc="Title of the Password Checkup promo that invites users to check their saved passwords in the educational tip module on NTP.">
+        Check your saved passwords
+      </message>
+      <message name="IDS_EDUCATIONAL_TIP_PASSWORD_CHECKUP_DESCRIPTION" desc="Description of the Password Checkup promo that invites users to check their saved passwords in the educational tip module on NTP.">
+        Strengthen your security and keep your data safer by checking your passwords
+      </message>
+      <message name="IDS_EDUCATIONAL_TIP_PASSWORD_CHECKUP_BUTTON" desc="Text on the clickable button on the Password Checkup promo in the educational tip module on NTP.">
+        Check now
       </message>
 
       <!-- Setup list Address Bar Placement promo strings -->
@@ -1478,7 +1517,7 @@
         Theme Collections
       </message>
       <message name="IDS_NTP_CUSTOMIZATION_THEME_COLLECTIONS_TITLE" desc="Open all available theme collections when click the theme collection section in the NTP appearance bottom sheet">
-        Theme
+        Theme collections
       </message>
       <message name="IDS_NTP_CUSTOMIZATION_THEME_COLLECTIONS_BOTTOM_SHEET" desc="Accessibility string to announce the currently displaying bottom sheet is the new tab page appearance theme collections bottom sheet.">
         New tab page appearance theme collections bottom sheet
@@ -1501,6 +1540,9 @@
       <message name="IDS_NTP_CUSTOMIZATION_THEME_IMAGE_PREVIEW_PINCH_TO_RESIZE" desc="Text explaining the image could be resized by pinching it.">
         Pinch to resize
       </message>
+      <message name="IDS_ACCESSIBILITY_NTP_CUSTOMIZATION_THEME_IMAGE_PREVIEW_PINCH_TO_RESIZE" desc="Accessibility string to announce the image could be resized by pinching it.">
+        Pinch screen to resize photo
+      </message>
       <message name="IDS_NTP_CUSTOMIZATION_TYPE_BACKGROUND_COLOR_HEX_TITLE" desc="Title of the edit text box to input a color hex for the background color.">
         Background Color Hex
       </message>
@@ -1509,6 +1551,33 @@
       </message>
       <message name="IDS_NTP_CUSTOMIZATION_HINT_TO_TYPE_COLOR_HEX" desc="Hint in the edit box to ask users to type a color hex.">
         Type hex here
+      </message>
+      <message name="IDS_ACCESSIBILITY_NTP_BLUE_COLOR_THEME" is_accessibility_with_no_ui="true" desc="Name of the color theme shown on the Chrome Colors bottom sheet.">
+        Blue theme
+      </message>
+      <message name="IDS_ACCESSIBILITY_NTP_AQUA_COLOR_THEME" is_accessibility_with_no_ui="true" desc="Name of the color theme shown on the Chrome Colors bottom sheet.">
+        Aqua theme
+      </message>
+      <message name="IDS_ACCESSIBILITY_NTP_GREEN_COLOR_THEME" is_accessibility_with_no_ui="true" desc="Name of the color theme shown on the Chrome Colors bottom sheet.">
+        Green theme
+      </message>
+      <message name="IDS_ACCESSIBILITY_NTP_VIRIDIAN_COLOR_THEME" is_accessibility_with_no_ui="true" desc="Name of the color theme shown on the Chrome Colors bottom sheet.">
+        Viridian theme
+      </message>
+      <message name="IDS_ACCESSIBILITY_NTP_CITRON_COLOR_THEME" is_accessibility_with_no_ui="true" desc="Name of the color theme shown on the Chrome Colors bottom sheet.">
+        Citron theme
+      </message>
+      <message name="IDS_ACCESSIBILITY_NTP_ORANGE_COLOR_THEME" is_accessibility_with_no_ui="true" desc="Name of the color theme shown on the Chrome Colors bottom sheet.">
+        Orange theme
+      </message>
+      <message name="IDS_ACCESSIBILITY_NTP_ROSE_COLOR_THEME" is_accessibility_with_no_ui="true" desc="Name of the color theme shown on the Chrome Colors bottom sheet.">
+        Rose theme
+      </message>
+      <message name="IDS_ACCESSIBILITY_NTP_FUCHSIA_COLOR_THEME" is_accessibility_with_no_ui="true" desc="Name of the color theme shown on the Chrome Colors bottom sheet.">
+        Fuchsia theme
+      </message>
+      <message name="IDS_ACCESSIBILITY_NTP_VIOLET_COLOR_THEME" is_accessibility_with_no_ui="true" desc="Name of the color theme shown on the Chrome Colors bottom sheet.">
+        Violet theme
       </message>
 
       <!-- Time Last Accessed strings -->

@@ -36,10 +36,10 @@
 #include "components/data_sharing/public/features.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
 #include "components/sessions/content/session_tab_helper.h"
+#include "components/split_tabs/split_tab_id.h"
+#include "components/split_tabs/split_tab_visual_data.h"
 #include "components/tab_groups/tab_group_id.h"  // nogncheck
 #include "components/tab_groups/tab_group_visual_data.h"
-#include "components/tabs/public/split_tab_id.h"
-#include "components/tabs/public/split_tab_visual_data.h"
 #include "components/tabs/public/tab_group.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/url_formatter/url_fixer.h"
@@ -142,15 +142,13 @@ BrowserWindowInterface* CreateBrowser(Profile* profile, bool user_gesture) {
 // Use this function for reporting a tab id to an extension. It will
 // take care of setting the id to TAB_ID_NONE if necessary (for
 // example with devtools).
-int GetTabIdForExtensions(const WebContents* web_contents) {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-  // TODO(https://crbug.com/430344931): Port this logic.
-  Browser* browser = chrome::FindBrowserWithTab(web_contents);
+int GetTabIdForExtensions(WebContents& web_contents) {
+  BrowserWindowInterface* browser =
+      browser_window_util::GetBrowserForTabContents(web_contents);
   if (browser && !ExtensionTabUtil::BrowserSupportsTabs(browser)) {
     return -1;
   }
-#endif
-  return sessions::SessionTabHelper::IdForTab(web_contents).id();
+  return sessions::SessionTabHelper::IdForTab(&web_contents).id();
 }
 
 bool IsFileUrl(const GURL& url) {
@@ -270,7 +268,6 @@ int GetWindowIdOfGroup(const tab_groups::TabGroupId& id) {
   return -1;
 }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 // Creates a tab MutedInfo object (see chrome/common/extensions/api/tabs.json)
 // with information about the mute state of a browser tab.
 api::tabs::MutedInfo CreateMutedInfo(content::WebContents* contents) {
@@ -294,7 +291,6 @@ api::tabs::MutedInfo CreateMutedInfo(content::WebContents* contents) {
   }
   return info;
 }
-#endif
 
 }  // namespace
 
@@ -368,7 +364,7 @@ api::tabs::Tab ExtensionTabUtil::CreateTabObject(
     GetTabListInterface(*contents, &tab_list, &tab_index);
   }
   api::tabs::Tab tab_object;
-  tab_object.id = GetTabIdForExtensions(contents);
+  tab_object.id = GetTabIdForExtensions(*contents);
   tab_object.index = tab_index;
   tab_object.window_id = GetWindowIdOfTab(contents);
   tab_object.status = GetLoadingStatus(contents);
@@ -434,9 +430,9 @@ api::tabs::Tab ExtensionTabUtil::CreateTabObject(
   tab_object.frozen = tab_lifecycle_unit_external &&
                       tab_lifecycle_unit_external->GetTabState() ==
                           ::mojom::LifecycleUnitState::FROZEN;
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
   tab_object.muted_info = CreateMutedInfo(contents);
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
   tab_object.incognito = contents->GetBrowserContext()->IsOffTheRecord();
   gfx::Size contents_size = contents->GetContainerBounds().size();
@@ -462,8 +458,9 @@ api::tabs::Tab ExtensionTabUtil::CreateTabObject(
   if (tab_strip) {
     tabs::TabInterface* opener = tab_strip->GetOpenerOfTabAt(tab_index);
     if (opener) {
-      CHECK(opener->GetContents());
-      tab_object.opener_tab_id = GetTabIdForExtensions(opener->GetContents());
+      content::WebContents* opener_contents = opener->GetContents();
+      CHECK(opener_contents);
+      tab_object.opener_tab_id = GetTabIdForExtensions(*opener_contents);
     }
   }
 #endif
@@ -473,16 +470,15 @@ api::tabs::Tab ExtensionTabUtil::CreateTabObject(
 }
 
 // static
-base::Value::List ExtensionTabUtil::CreateTabList(
-    BrowserWindowInterface* browser,
-    const Extension* extension,
-    mojom::ContextType context) {
+base::ListValue ExtensionTabUtil::CreateTabList(BrowserWindowInterface* browser,
+                                                const Extension* extension,
+                                                mojom::ContextType context) {
   return WindowControllerFromBrowser(browser)->CreateTabList(extension,
                                                              context);
 }
 
 // static
-base::Value::Dict ExtensionTabUtil::CreateWindowValueForExtension(
+base::DictValue ExtensionTabUtil::CreateWindowValueForExtension(
     BrowserWindowInterface& browser,
     const Extension* extension,
     WindowController::PopulateTabBehavior populate_tab_behavior,

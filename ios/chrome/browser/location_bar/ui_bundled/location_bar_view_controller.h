@@ -23,8 +23,8 @@
 @class LayoutGuideCenter;
 @protocol LensCommands;
 @protocol LensOverlayCommands;
-@protocol LoadQueryCommands;
 @protocol LocationBarOffsetProvider;
+@protocol LocationBarMutator;
 @class LocationBarViewController;
 @protocol PageActionMenuCommands;
 @protocol PageActionMenuEntryPointCommands;
@@ -102,7 +102,6 @@ class Tracker;
 // The dispatcher for the share button, voice search, and long press actions.
 @property(nonatomic, weak) id<ActivityServiceCommands,
                               BrowserCoordinatorCommands,
-                              LoadQueryCommands,
                               LensCommands,
                               LensOverlayCommands,
                               OmniboxCommands,
@@ -111,6 +110,9 @@ class Tracker;
 
 // Delegate for this location bar view controller.
 @property(nonatomic, weak) id<LocationBarViewControllerDelegate> delegate;
+
+// Mutator for this location bar view controller.
+@property(nonatomic, weak) id<LocationBarMutator> mutator;
 
 // The offset provider for the edit/steady transition animation.
 @property(nonatomic, weak) id<LocationBarOffsetProvider> offsetProvider;
@@ -131,8 +133,8 @@ class Tracker;
 // The page action menu handler.
 @property(nonatomic, weak) id<PageActionMenuCommands> pageActionMenuHandler;
 
-// The BWG command handler.
-@property(nonatomic, weak) id<BWGCommands> BWGHandler;
+// The Gemini command handler.
+@property(nonatomic, weak) id<BWGCommands> geminiHandler;
 
 // The page action menu entry point handler. Returns the page action menu entry
 // point view for direct communication between a command dispatched and the page

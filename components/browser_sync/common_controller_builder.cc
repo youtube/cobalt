@@ -63,6 +63,7 @@
 #include "components/sharing_message/sharing_message_bridge.h"
 #include "components/sharing_message/sharing_message_data_type_controller.h"
 #include "components/signin/public/base/signin_switches.h"
+#include "components/skills/features.h"
 #include "components/skills/public/skills_service.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/base/features.h"
@@ -87,8 +88,8 @@
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_SUPERVISED_USERS)
-#include "components/supervised_user/core/browser/supervised_user_settings_data_type_controller.h"
-#include "components/supervised_user/core/browser/supervised_user_settings_service.h"
+#include "components/supervised_user/core/browser/family_link_settings_data_type_controller.h"
+#include "components/supervised_user/core/browser/family_link_settings_service.h"
 #endif  // BUILDFLAG(ENABLE_SUPERVISED_USER)
 
 namespace browser_sync {
@@ -374,10 +375,9 @@ void CommonControllerBuilder::SetSharingMessageBridge(
 }
 
 #if BUILDFLAG(ENABLE_SUPERVISED_USERS)
-void CommonControllerBuilder::SetSupervisedUserSettingsService(
-    supervised_user::SupervisedUserSettingsService*
-        supervised_user_settings_service) {
-  supervised_user_settings_service_.Set(supervised_user_settings_service);
+void CommonControllerBuilder::SetFamilyLinkSettingsService(
+    supervised_user::FamilyLinkSettingsService* family_link_settings_service) {
+  family_link_settings_service_.Set(family_link_settings_service);
 }
 #endif  // BUILDFLAG(ENABLE_SUPERVISED_USERS)
 
@@ -813,9 +813,7 @@ CommonControllerBuilder::Build(syncer::DataTypeSet disabled_types,
   if (!disabled_types.Has(syncer::AUTOFILL_VALUABLE) &&
       base::FeatureList::IsEnabled(syncer::kSyncAutofillLoyaltyCard)) {
     scoped_refptr<autofill::AutofillWebDataService> autofill_web_data_service =
-        base::FeatureList::IsEnabled(syncer::kSyncMoveValuablesToProfileDb)
-            ? profile_autofill_web_data_service_.value()
-            : account_autofill_web_data_service_.value();
+        profile_autofill_web_data_service_.value();
     if (autofill_web_data_service) {
       controllers.push_back(
           std::make_unique<autofill::AutofillValuableDataTypeController>(
@@ -929,6 +927,22 @@ CommonControllerBuilder::Build(syncer::DataTypeSet disabled_types,
     // In CLs #5, #6, ..., implement the bridge and keep adding unit tests.
   }
 
+  if (!disabled_types.Has(syncer::GEMINI_THREAD) &&
+      base::FeatureList::IsEnabled(syncer::kSyncGeminiThread)) {
+    // TODO(crbug.com/476335087): In CL #4, register the type, i.e. instantiate
+    // the DataTypeController. There is more than one way to go about it,
+    // but one option is:
+    // - Create a trivial implementation of DataTypeSyncBridge which lives in
+    //   your feature's directory. It should have synchronous access to your
+    //   data model (e.g. DualReadingListModel) and be (indirectly) owned by a
+    //   CoolKeyedService (often the model itself).
+    // - Expose CoolKeyedService::GetControllerDelegate() which calls
+    //   bridge->change_processor()->GetControllerDelegate().
+    // - Inject CoolKeyedService in this class and call GetControllerDelegate()
+    //   on it to create the DataTypeController.
+    // In CLs #5, #6, ..., implement the bridge and keep adding unit tests.
+  }
+
   if (!disabled_types.Has(syncer::CONTEXTUAL_TASK) &&
       base::FeatureList::IsEnabled(syncer::kSyncContextualTask)) {
     // TODO(crbug.com/445840788): In CL #4, register the type, i.e. instantiate
@@ -947,7 +961,7 @@ CommonControllerBuilder::Build(syncer::DataTypeSet disabled_types,
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   if (!disabled_types.Has(syncer::SKILL) &&
-      base::FeatureList::IsEnabled(syncer::kSyncSkill)) {
+      base::FeatureList::IsEnabled(features::kSkillsEnabled)) {
     // TODO(rushans): In CL #4, register the type, i.e. instantiate
     // the DataTypeController. There is more than one way to go about it,
     // but one option is:
@@ -992,11 +1006,11 @@ CommonControllerBuilder::Build(syncer::DataTypeSet disabled_types,
 #endif
 
 #if BUILDFLAG(ENABLE_SUPERVISED_USERS)
-  if (supervised_user_settings_service_.value()) {
+  if (family_link_settings_service_.value()) {
     controllers.push_back(
-        std::make_unique<SupervisedUserSettingsDataTypeController>(
+        std::make_unique<FamilyLinkSettingsDataTypeController>(
             dump_stack, data_type_store_service_.value()->GetStoreFactory(),
-            supervised_user_settings_service_.value()->AsWeakPtr(),
+            family_link_settings_service_.value()->AsWeakPtr(),
             pref_service_.value()));
   }
 #endif  // BUILDFLAG(ENABLE_SUPERVISED_USERS)

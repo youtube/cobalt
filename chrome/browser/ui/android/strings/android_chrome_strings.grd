@@ -481,6 +481,11 @@ For more settings that use data to improve your Chrome experience, go to <ph nam
         You can choose your search engine
       </message>
 
+      <!-- Manage search engines and site search -->
+      <message name="IDS_MANAGE_SEARCH_ENGINES_AND_SITE_SEARCH" desc="Title shown in the menu item that takes the user to 'Manage search engines and site search' in Settings.">
+        Manage search engines and site search
+      </message>
+
       <!-- Address bar settings -->
       <message name="IDS_ADDRESS_BAR_SETTINGS" desc="Title for Address Bar settings. [CHAR_LIMIT=32]">
         Address bar
@@ -651,6 +656,9 @@ For more settings that use data to improve your Chrome experience, go to <ph nam
       </message>
       <message name="IDS_AUTOFILL_DELETE_SAVED_CVCS_CONFIRMATION_DIALOG_MESSAGE" desc="Message for the dialog where the user confirms their intention to delete their saved CVCs.">
         All security codes saved on your device and in your Google Account will be deleted
+      </message>
+      <message name="IDS_AUTOFILL_DELETE_SAVED_CVCS_IN_WALLET_CONFIRMATION_DIALOG_MESSAGE" desc="Message for the dialog where the user confirms their intention to delete their saved CVCs in Google Wallet.">
+        All security codes saved on your device and in Google Wallet will be deleted
       </message>
       <message name="IDS_AUTOFILL_DELETE_SAVED_CVCS_CONFIRMATION_DIALOG_DELETE_BUTTON_LABEL" desc="Label shown on the button that the user clicks on to delete their saved CVCs.">
         Delete
@@ -3758,6 +3766,15 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_SIGNIN_PROMO_DESCRIPTION_BOOKMARKS_GROUP4" desc="This string is the description of a card that appears when the user opens Chrome's bookmarks; the user is signed out of Chrome. The headline above this string is 'Get all your bookmarks'." meaning="This message means that the user can get the bookmarks from their computer on their phone, and their phone's bookmarks on their computer. We want users to read this card and tap the 'Sign in as John' button and sign-in. The tone should be inviting.">
         To get your bookmarks and more on all your devices, sign in to Chrome
       </message>
+      <message name="IDS_HISTORY_SYNC_RECENT_TABS_TITLE" desc="Title of a page that asks users to start syncing their tabs and browsing history, so they can get back to sites they visited more quickly without having to type them, for example by seeing these sites suggested in the Omnibox. This also allows users to access their recent tabs and browsing history across all their devices.">
+        Sync tabs and history
+      </message>
+      <message name="IDS_HISTORY_SYNC_RECENT_TABS_SUBTITLE" desc="Text of a page that asks users to start syncing their tabs and browsing history, so they can get back to sites they visited more quickly without having to type them, for example by seeing these sites suggested in the Omnibox. This also allows users to access their recent tabs and browsing history across all their devices.">
+        To see tabs from your other devices, sync your tabs and history
+      </message>
+      <message name="IDS_HISTORY_SYNC_RECENT_TABS_SECONDARY_ACTION" desc="Text for the decline button on the history sync screen that asks users to start syncing their tabs and browsing history. By clicking this button users dismiss the screen and is signed out. [CHAR_LIMIT=20]">
+        Cancel
+      </message>
 
       <!-- Strings for signin promos when Unified Consent is enabled. -->
       <message name="IDS_SYNC_PROMO_TITLE_BOOKMARKS" desc="This string is the headline of a card that appears when the user opens Chrome's bookmarks; the user may be signed in to Chrome, but isn't syncing their Chrome data. The line below this string is 'Sync to get your bookmarks from your other devices'. [CHAR_LIMIT=70]" meaning="This headline means that the user can get the bookmarks from their computer on their phone, and their phone's bookmarks on their computer. We want users to read this card and tap the 'Continue' button and turn on sync. The tone should be inviting.">
@@ -3885,6 +3902,15 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_NTP_MANAGE_FEED" desc="Menu item to manage feed settings from the feed header overflow menu.">
         Manage
+      </message>
+      <message name="IDS_SYNCED_SET_UP_SNACKBAR_ASK_TO_APPLY" desc="The message text for the snackbar that prompts the user to apply their settings from another device. (Applies settings from another device when the 'apply' button is clicked.)">
+      Apply your appearance preferences?
+      </message>
+      <message name="IDS_SYNCED_SET_UP_SNACKBAR_APPLIED_CONFIRMATION" desc="Message in a snackbar confirming that settings from another device were applied (an undo button is available).">
+        Applied your appearance preferences
+      </message>
+      <message name="IDS_SYNCED_SET_UP_SNACKBAR_REMOVED_CONFIRMATION" desc="The message text for the snackbar shown after preferences have been removed (a redo button is available).">
+        Removed your appearance preferences
       </message>
       <message name="IDS_CORMORANT_CREATOR_CONTENT_UNAVAILABLE_ERROR_TITLE" desc="Creator page error title when the creator has no content available.">
         Nothing to show yet
@@ -4392,6 +4418,15 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_MENU_NAME_WINDOW" desc="Menu item for naming a window.">
         Name window
+      </message>
+      <message name="IDS_MENU_REOPEN_CLOSED_TAB" desc="Menu item for reopening the last closed tab.">
+        Reopen closed tab
+      </message>
+      <message name="IDS_MENU_REOPEN_CLOSED_TABS" desc="Menu item for reopening the last closed tabs.">
+        Reopen closed tabs
+      </message>
+      <message name="IDS_MENU_REOPEN_CLOSED_GROUP" desc="Menu item for reopening the last closed tab group.">
+        Reopen closed group
       </message>
 
       <!-- Bookmarks strings -->
@@ -7303,6 +7338,12 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
 
       <!-- Default browser promo -->
+      <message name="IDS_MAKE_CHROME_DEFAULT" desc="Menu item in the app menu to set Chrome as the default browser.">
+        Make Chrome default
+      </message>
+      <message name="IDS_DEFAULT_BROWSER_TITLE" desc="Menu item in settings to set Chrome as the default browser.">
+          Default browser
+      </message>
       <message name="IDS_DEFAULT_BROWSER_PROMO_CARD_TITLE" desc="Title of a promotion about setting Chrome the default browser.">
         Make Chrome your default browser
       </message>
@@ -7477,6 +7518,11 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
        <!-- Automatic Picture-in-Picture Permission Prompt -->
       <message name="IDS_AUTO_PICTURE_IN_PICTURE_PROMPT_TITLE" desc="Title for the auto-picture-in-picture permission prompt. The placeholder is the website's origin.">
         <ph name="URL">%1$s<ex>example.com</ex></ph> wants to enter picture-in-picture automatically
+      </message>
+
+      <!-- Document Picture-in-Picture -->
+      <message name="IDS_DOCUMENT_PICTURE_IN_PICTURE_BACK_TO_TAB" desc="Content description for the back to tab button in the document picture-in-picture window header.">
+        Back to tab
       </message>
     </messages>
   </release>

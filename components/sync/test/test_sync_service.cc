@@ -47,7 +47,10 @@ CoreAccountInfo GetDefaultAccountInfo() {
 
 TestSyncService::TestSyncService()
     : user_settings_(this), last_cycle_snapshot_(MakeDefaultCycleSnapshot()) {
-  SetSignedIn(signin::ConsentLevel::kSync);
+  SetSignedIn(
+      base::FeatureList::IsEnabled(syncer::kReplaceSyncPromosWithSignInPromos)
+          ? signin::ConsentLevel::kSignin
+          : signin::ConsentLevel::kSync);
 }
 
 TestSyncService::~TestSyncService() = default;
@@ -419,7 +422,7 @@ void TestSyncService::RemoveProtocolEventObserver(
     ProtocolEventObserver* observer) {}
 
 void TestSyncService::GetAllNodesForDebugging(
-    base::OnceCallback<void(base::Value::List)> callback) {}
+    base::OnceCallback<void(base::ListValue)> callback) {}
 
 SyncService::DataTypeDownloadStatus TestSyncService::GetDownloadStatusFor(
     DataType type) const {

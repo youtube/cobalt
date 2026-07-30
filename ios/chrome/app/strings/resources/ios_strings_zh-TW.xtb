@@ -29,7 +29,7 @@
 <translation id="1082554859195167538">為你推薦的產品評論</translation>
 <translation id="1084365883616172403">已順利發布到 Facebook。</translation>
 <translation id="1085677983426914530">無法開啟「<ph name="FILENAME" />」</translation>
-<translation id="1086486568852410168">透過 Google 智慧鏡頭搜尋</translation>
+<translation id="1086486568852410168">用 Google 智慧鏡頭搜尋</translation>
 <translation id="1096992026380844478">系統會根據上次的備份記錄還原同步處理設定。<ph name="BEGIN_LINK" />查看可以同步處理的內容<ph name="END_LINK" /></translation>
 <translation id="1103523840287552314">一律翻譯<ph name="LANGUAGE" /></translation>
 <translation id="110491332089958282">與 Gemini 分享網頁內容，即可取得更符合需求的答案。與 Gemini 分享網頁時，系統會將完整內容和網址傳送給 Google。<ph name="BEGIN_LINK" />瞭解詳情<ph name="END_LINK" /></translation>
@@ -315,6 +315,7 @@
 <translation id="21133533946938348">固定分頁</translation>
 <translation id="2117650889962717098">切換到無痕模式，保護瀏覽隱私</translation>
 <translation id="2119636449201577317">開啟方式…</translation>
+<translation id="2119962645034852864">你的帳戶無法使用某些服務</translation>
 <translation id="2120553909046681540">貴機構已關閉私密瀏覽功能。</translation>
 <translation id="2122754583996902531">你的瀏覽器受到管理。<ph name="BEGIN_LINK" />瞭解詳情<ph name="END_LINK" /></translation>
 <translation id="21243612977487926">貴組織的對話內容不會用於改良我們的模型。Gemini 提供的資訊可能不準確 (包括人物介紹)，因此請務必查證。<ph name="YOUR_PRIVACY_GEMINI" /></translation>
@@ -332,6 +333,7 @@
 <translation id="2184272387334793084">登入帳戶即可在任何裝置上存取自己的密碼及其他設定</translation>
 <translation id="2186206192313702726">Google 智慧鏡頭</translation>
 <translation id="2188993354115194873">輕觸「儲存到下載項目」<ph name="BEGIN_BOLD" /><ph name="END_BOLD" /></translation>
+<translation id="2191406283620379491">發生嚴重錯誤，請更新 iOS 版本。</translation>
 <translation id="219283042927675668">群組中的分頁</translation>
 <translation id="2194856509914051091">注意事項</translation>
 <translation id="2196428379625389579">在網路上搜尋</translation>
@@ -935,6 +937,7 @@
 <translation id="4565377596337484307">隱藏密碼</translation>
 <translation id="4568230126482344545">隱藏「最近開啟的分頁」</translation>
 <translation id="4578835633387306383">開啟…</translation>
+<translation id="4580621046861724270">未儲存部分書籤</translation>
 <translation id="4580716718466706433">前往「密碼管理工具」</translation>
 <translation id="4585751637295612750">開啟新分頁，將其新增至問題</translation>
 <translation id="4587589328781138893">網站</translation>
@@ -1018,6 +1021,7 @@
 <translation id="483689884442613745">儲存…</translation>
 <translation id="4840495572919996524">你的書籤、歷史記錄、密碼等資料將停止同步到你的 Google 帳戶。</translation>
 <translation id="484280513275854557">系統已將你登出並刪除瀏覽資料</translation>
+<translation id="484462545196658690">自動</translation>
 <translation id="4850886885716139402">檢視</translation>
 <translation id="4854068532375923088">允許「Gemini」使用相機</translation>
 <translation id="4860895144060829044">撥號</translation>
@@ -1162,6 +1166,7 @@
 <translation id="5318298563956633672">你已在追蹤這項產品。</translation>
 <translation id="5327248766486351172">名稱</translation>
 <translation id="5329451663851195956">向下拉即可重新整理。</translation>
+<translation id="5336910966955551309">按住就能釘選喜愛的網站</translation>
 <translation id="5338512273860059533">正在登入。</translation>
 <translation id="5343472494710226394">根據個人興趣接收新聞、體育賽事和內容相關通知。</translation>
 <translation id="5352128922772839949">儲存檔案</translation>
@@ -1222,7 +1227,7 @@
 <translation id="5567439033041178034">瞭解詳情</translation>
 <translation id="5578795271662203820">透過 <ph name="SEARCH_ENGINE" /> 搜尋這張圖片</translation>
 <translation id="5579012242779565775">隱藏「閱讀清單」</translation>
-<translation id="5581786858144165447">「詢問 AI」模式</translation>
+<translation id="5581786858144165447">問問 AI 模式</translation>
 <translation id="5585019845078534178">資訊卡</translation>
 <translation id="5591526871732898147">附加的圖片 {index}</translation>
 <translation id="5595485650161345191">編輯地址</translation>
@@ -1654,7 +1659,7 @@
 <translation id="7039345315346323556">近期存取</translation>
 <translation id="704692552158601232">預設瀏覽器 App</translation>
 <translation id="7055240621761583113">自動填入密碼</translation>
-<translation id="7057567173736333354">描述圖像</translation>
+<translation id="7057567173736333354">請描述想生成的圖片</translation>
 <translation id="7063811929043357292">你的帳戶是由家長管理。
 <ph name="BEGIN_LINK" />瞭解詳情<ph name="END_LINK" /></translation>
 <translation id="7067780033517902110">所有檔案</translation>
@@ -1896,6 +1901,7 @@
 <translation id="7958575506592576831">網頁安全性資訊</translation>
 <translation id="7961015016161918242">一律不要</translation>
 <translation id="7971136598759319605">上次使用時間：1 天前</translation>
+<translation id="7972837668077967426">Canvas</translation>
 <translation id="7975036700432177008">試用</translation>
 <translation id="797588153137233716">「選單」→「歷史記錄」→「刪除瀏覽資料」</translation>
 <translation id="7977451675950311423">如果你使用的密碼因資料侵害事件而外洩，系統會顯示警告訊息。</translation>
@@ -2003,6 +2009,7 @@
 <translation id="8319282042900445670">提醒時間已設為 <ph name="DATE" /><ph name="TIME" /></translation>
 <translation id="8320212361750431956">近期活動</translation>
 <translation id="8325455175867928593">隱藏「依興趣喜好顯示的評論」</translation>
+<translation id="8328777765163860529">關閉全部</translation>
 <translation id="833647236762414178">建立、儲存及管理密碼和密碼金鑰，輕鬆登入網站和應用程式。<ph name="BEGIN_LINK" />瞭解詳情<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">備份資料即可在任何裝置上使用。</translation>
 <translation id="8348530355586151720">輕觸三點圖示選單</translation>

@@ -284,8 +284,8 @@ void GlicProfileManager::ShowProfilePicker() {
 
   // TODO(crbug.com/450679848): Profile Picker doesn't make sense on ChromeOS.
 #if !BUILDFLAG(IS_CHROMEOS)
-// TODO(b/470059315): Decide if this makes sense on desktop android.
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL
+// Profile picker won't be used on Android.
+#if !BUILDFLAG(IS_ANDROID)
   ProfilePicker::Show(
       ProfilePicker::Params::ForGlicManager(std::move(callback)));
 #endif
@@ -301,7 +301,7 @@ void GlicProfileManager::DidSelectProfile(Profile* profile) {
       GlicKeyedServiceFactory::GetGlicKeyedService(profile);
 
   if (!GlicEnabling::HasConsentedForProfile(profile) &&
-      !base::FeatureList::IsEnabled(features::kGlicTrustFirstOnboarding)) {
+      !GlicEnabling::IsTrustFirstOnboardingEnabled()) {
 #if !BUILDFLAG(IS_ANDROID)
     // Open a browser and show the FRE in a new tab.
     chrome::ScopedTabbedBrowserDisplayer displayer(profile);

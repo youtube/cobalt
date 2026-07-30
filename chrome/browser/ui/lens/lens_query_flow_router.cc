@@ -447,17 +447,7 @@ void LensQueryFlowRouter::OpenContextualTasksPanel(GURL url) {
 void LensQueryFlowRouter::UploadContextualInputData(
     std::unique_ptr<lens::ContextualInputData> contextual_input_data) {
   auto* session_handle = GetContextualSearchSessionHandle();
-  GetContextualSearchSessionHandle()->AddTabContext(
-      sessions::SessionTabHelper::IdForTab(web_contents()).id(),
-      base::BindOnce(&LensQueryFlowRouter::OnFinishedAddingTabContext,
-                     weak_factory_.GetWeakPtr(), session_handle,
-                     std::move(contextual_input_data)));
-}
-
-void LensQueryFlowRouter::OnFinishedAddingTabContext(
-    contextual_search::ContextualSearchSessionHandle* session_handle,
-    std::unique_ptr<lens::ContextualInputData> contextual_input_data,
-    const base::UnguessableToken& token) {
+  auto token = GetContextualSearchSessionHandle()->CreateContextToken();
   overlay_tab_context_file_token_ = token;
   // TODO(crbug.com/463400248): Use contextual tasks image upload config params
   // for Lens requests.
@@ -512,6 +502,12 @@ LensQueryFlowRouter::CreateContextualInputData(
           ->GetCurrentPageContextEligibility();
   contextual_input_data->tab_session_id =
       sessions::SessionTabHelper::IdForTab(web_contents());
+  // LensOverlay full-page uploads specifically do not have Lens user intent.
+  // The context upload needs to occur immediately in order to receive CSB
+  // suggestions, but the user intent is signaled to the server via the
+  // presence of a follow-up interaction request instead of this bit in the
+  // context upload request.
+  contextual_input_data->has_lens_usage_intent = false;
   return contextual_input_data;
 }
 

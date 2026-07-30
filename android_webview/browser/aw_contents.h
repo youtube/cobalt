@@ -33,6 +33,7 @@
 #include "components/js_injection/browser/js_communication_host.h"
 #include "components/js_injection/common/enum.mojom-forward.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "content/public/common/child_process_id.h"
 
 class SkBitmap;
 
@@ -111,7 +112,8 @@ class AwContents : public FindHelper::Listener,
   void InitSensitiveContentClient(JNIEnv* env);
   base::android::ScopedJavaLocalRef<jobject> GetWebContents(JNIEnv* env);
   base::android::ScopedJavaLocalRef<jobject> GetBrowserContext(JNIEnv* env);
-  void SetCompositorFrameConsumer(JNIEnv* env, jlong compositor_frame_consumer);
+  void SetCompositorFrameConsumer(JNIEnv* env,
+                                  int64_t compositor_frame_consumer);
   base::android::ScopedJavaLocalRef<jobject> GetRenderProcess(JNIEnv* env);
   base::android::ScopedJavaLocalRef<jobject> GetJavaObject();
   void Destroy(JNIEnv* env);
@@ -141,8 +143,8 @@ class AwContents : public FindHelper::Listener,
                               const base::android::JavaRef<jbyteArray>& state);
   void FocusFirstNode(JNIEnv* env);
   void SetBackgroundColor(JNIEnv* env, int32_t color);
-  void ZoomBy(JNIEnv* env, jfloat delta);
-  void OnComputeScroll(JNIEnv* env, jlong animation_time_millis);
+  void ZoomBy(JNIEnv* env, float delta);
+  void OnComputeScroll(JNIEnv* env, int64_t animation_time_millis);
   bool OnDraw(JNIEnv* env,
               const base::android::JavaRef<jobject>& canvas,
               bool is_hardware_accelerated,
@@ -153,13 +155,13 @@ class AwContents : public FindHelper::Listener,
               int32_t visible_right,
               int32_t visible_bottom,
               bool force_auxiliary_bitmap_rendering);
-  jfloat GetVelocityInPixelsPerSecond(JNIEnv* env);
+  float GetVelocityInPixelsPerSecond(JNIEnv* env);
   bool NeedToDrawBackgroundColor(JNIEnv* env);
-  jlong CapturePicture(JNIEnv* env, int width, int height);
+  int64_t CapturePicture(JNIEnv* env, int width, int height);
   void EnableOnNewPicture(JNIEnv* env, bool enabled);
   void InsertVisualStateCallback(
       JNIEnv* env,
-      jlong request_id,
+      int64_t request_id,
       const base::android::JavaRef<jobject>& callback);
   void ClearView(JNIEnv* env);
   void SetExtraHeadersForUrl(
@@ -235,7 +237,7 @@ class AwContents : public FindHelper::Listener,
 
   void PreauthorizePermission(JNIEnv* env,
                               const base::android::JavaRef<jstring>& origin,
-                              jlong resources);
+                              int64_t resources);
 
   // AwBrowserPermissionRequestDelegate implementation.
   void RequestProtectedMediaIdentifierPermission(
@@ -304,15 +306,15 @@ class AwContents : public FindHelper::Listener,
   // details.
   void SetPendingWebContentsForPopup(
       std::unique_ptr<content::WebContents> pending);
-  jlong ReleasePopupAwContents(JNIEnv* env);
+  int64_t ReleasePopupAwContents(JNIEnv* env);
 
   void ScrollTo(JNIEnv* env, int32_t x, int32_t y);
   void RestoreScrollAfterTransition(JNIEnv* env, int32_t x, int32_t y);
   void SmoothScroll(JNIEnv* env,
                     int32_t target_x,
                     int32_t target_y,
-                    jlong duration_ms);
-  void SetDipScale(JNIEnv* env, jfloat dip_scale);
+                    int64_t duration_ms);
+  void SetDipScale(JNIEnv* env, float dip_scale);
   base::android::ScopedJavaLocalRef<jstring> GetScheme(JNIEnv* env);
   void OnInputEvent(JNIEnv* env);
 
@@ -357,6 +359,8 @@ class AwContents : public FindHelper::Listener,
 
   void SetDipScaleInternal(float dip_scale);
 
+  void UpdateAwRenderProcessAssociation();
+
   JavaObjectWeakGlobalRef java_ref_;
   BrowserViewRenderer browser_view_renderer_;  // Must outlive |web_contents_|.
   std::unique_ptr<content::WebContents> web_contents_;
@@ -387,6 +391,8 @@ class AwContents : public FindHelper::Listener,
   std::list<OriginCallback> pending_geolocation_prompts_;
 
   base::TimeDelta preferred_frame_interval_;
+
+  content::ChildProcessId associated_rph_id_;
 
   base::WeakPtrFactory<AwContents> weak_ptr_factory_{this};
 };

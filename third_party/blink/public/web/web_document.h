@@ -218,8 +218,10 @@ class BLINK_EXPORT WebDocument : public WebNode {
   // Executes a script tool with the given `name` and `input_arguments`.
   //
   // The associated callback is invoked once the async execution of the tool is
-  // finished along with the result of the execution. A null response indicates
-  // a failure in tool execution.
+  // finished along with the result of the execution.
+  // A null response indicates a navigation was triggered and the response will
+  // be on the next Document.
+  // An error is returned if the execution failed.
   enum class ScriptToolError {
     kInvalidToolName,
     kInvalidInputArguments,
@@ -230,6 +232,13 @@ class BLINK_EXPORT WebDocument : public WebNode {
   void ExecuteScriptTool(const WebString& name,
                          const WebString& input_arguments,
                          ScriptToolExecutedCallback tool_executed_cb);
+
+  // Provides the result of a script tool execution initiated on an old
+  // Document.
+  using CrossDocumentScriptToolResultCallback =
+      base::OnceCallback<void(WebString)>;
+  void GetCrossDocumentScriptToolResult(
+      CrossDocumentScriptToolResultCallback result_callback);
 
   // Dispatches an autofill event on the document with the given field data.
   // This is called by the autofill agent before filling form fields.

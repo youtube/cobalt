@@ -89,7 +89,7 @@ std::optional<webapps::AppId> IsAppInstalled(
   // launching the wrong app.
   if (manifest_id) {
     webapps::AppId app_id_from_manifest_id =
-        GenerateAppIdFromManifestId(manifest_id.value());
+        GenerateAppIdFromManifestId(webapps::ManifestId(manifest_id.value()));
 
     bool found_app = provider->registrar_unsafe().AppMatches(
         app_id_from_manifest_id, filter);
@@ -108,7 +108,7 @@ void CheckInstalledByAndMaybeUpdate(const base::Time& api_call_time,
                                     const GURL& requesting_page,
                                     const webapps::AppId& app_id,
                                     AppLock& lock,
-                                    base::Value::Dict& debug_value) {
+                                    base::DictValue& debug_value) {
   ScopedRegistryUpdate update = lock.sync_bridge().BeginUpdate();
   WebApp* app_to_update = update->UpdateApp(app_id);
   if (!app_to_update) {
@@ -244,10 +244,12 @@ void WebInstallServiceImpl::Install(blink::mojom::InstallOptionsPtr options,
   // these, as only the 0 parameter signature can do current document installs.
   install_options_ = std::move(options);
 
-  // If the given url to install matches the current url, skip
-  // requesting permission since the user is still installing the current
-  // document, even though it's in the background.
-  if (install_target == last_committed_url_) {
+  // Skip requesting permission in two cases:
+  // 1. The install URL matches the current document URL (user is installing
+  //    the page they're on, even if using background install syntax).
+  // 2. Install triggered from the <install> element (permission is handled
+  //    by the element itself). In both cases, the install dialog is shown.
+  if (triggered_from_element_ || install_target == last_committed_url_) {
     OnPermissionDecided(
         std::move(callback_with_metrics),
         std::vector<content::PermissionResult>({content::PermissionResult(
@@ -338,7 +340,7 @@ void WebInstallServiceImpl::CheckForInstalledAppMaybeLaunch(
     content::WebContents* web_contents,
     InstallCallbackWithMetrics callback_with_metrics,
     AppLock& lock,
-    base::Value::Dict& debug_value) {
+    base::DictValue& debug_value) {
   // Now that we've locked the app, re-confirm the current document is still
   // already installed on the current device.
   const webapps::AppId* app_id =
@@ -470,15 +472,6 @@ void WebInstallServiceImpl::RequestWebInstallPermission(
       break;
   }
 
-  if (triggered_from_element_) {
-    // Do not show permission prompt for installs from an element entry point.
-    // Grant permission by default if not already granted or denied.
-    std::move(callback).Run(
-        std::vector<content::PermissionResult>({content::PermissionResult(
-            PermissionStatus::GRANTED,
-            content::PermissionStatusSource::UNSPECIFIED)}));
-    return;
-  }
   GURL requesting_origin = origin().GetURL();
   // User gesture requirement is enforced in NavigatorWebInstall::InstallImpl.
   permission_controller->RequestPermissionsFromCurrentDocument(
@@ -643,7 +636,7 @@ void WebInstallServiceImpl::OnBackgroundAppLaunchDialogClosed(
     auto* provider = WebAppProvider::GetForWebApps(profile);
     CHECK(provider);
 
-    webapps::AppId app_id = GenerateAppIdFromManifestId(manifest_id);
+    webapps::AppId app_id = GenerateAppIdFromManifestId(webapps::ManifestId(manifest_id));
     provider->scheduler().ScheduleCallback<AppLock>(
         "CheckInstalledByAndMaybeUpdate", AppLockDescription(app_id),
         base::BindOnce(&CheckInstalledByAndMaybeUpdate, provider->clock().Now(),
@@ -657,7 +650,7 @@ void WebInstallServiceImpl::OnBackgroundAppLaunchDialogClosed(
       .Run(web_app::WebInstallApiResult::kSuccessAlreadyInstalled,
            accepted ? blink::mojom::WebInstallServiceResult::kSuccess
                     : blink::mojom::WebInstallServiceResult::kAbortError,
-           accepted ? manifest_id : webapps::ManifestId());
+           accepted ? webapps::ManifestId(manifest_id) : webapps::ManifestId());
 }
 
 void WebInstallServiceImpl::OnAppInstalled(

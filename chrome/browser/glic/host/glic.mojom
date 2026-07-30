@@ -36,9 +36,12 @@ struct ProfileEnablement {
   // `GlicRollout` flag, or by the `GlicTieredRollout` flag and synced pref.
   bool not_rolled_out;
 
-  // Whether the primary account is not capable, by failing to have the
-  // can_use_model_execution_features accountcapability.
+  // Whether a primary account doesn't exist or is not capable, by failing to
+  // have the can_use_model_execution_features accountcapability.
   bool primary_account_not_capable;
+
+  // Whether the primary account is fully signed in (if it exists).
+  bool primary_account_not_fully_signed_in;
 
   // Whether the profile is disallowed by chrome policy.
   bool disallowed_by_chrome_policy;
@@ -57,6 +60,21 @@ struct ProfileEnablement {
 
   // Summary of whether actuation is enabled, and if not, why not.
   ActuationEligibility actuation_eligibility;
+};
+
+// Basic configuration information about Glic.
+struct ConfigInfo {
+  // The URL from which the guest web client is loaded from.
+  url.mojom.Url guest_url;
+
+  // The URL from which the FRE page is loaded from.
+  url.mojom.Url fre_guest_url;
+};
+
+// Consolidated data payload to populate the Glic internals page.
+struct InternalsDataPayload {
+  ProfileEnablement enablement;
+  ConfigInfo config;
 };
 
 // Whether actuation is enabled, and if not, why not.
@@ -223,13 +241,12 @@ interface PageHandler {
   // Notifies the PageHandler that the state of the WebUI has changed.
   WebUiStateChanged(WebUiState new_state);
 
-  // Called by the internals WebUI page to get the GlicEnabling state.
-  GetProfileEnablement() => (ProfileEnablement enablement);
+  // Called by the internals WebUI page to get the data it will present.
+  GetInternalsDataPayload() => (InternalsDataPayload internals_data);
 };
 
 // @generate glic_api
 // Reason for failure while acting.
-// LINT.IfChange(PerformActionsErrorReason)
 [Stable, Extensible]
 enum PerformActionsErrorReason {
   [Default] kUnknown = 0,
@@ -240,11 +257,8 @@ enum PerformActionsErrorReason {
   [MinVersion=2] kMissingTaskId = 2,
 };
 
-// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:PerformActionsErrorReason)
-
 // @generate glic_api
 // Reason for failure when creating an actor task.
-// LINT.IfChange(CreateTaskErrorReason)
 [Stable, Extensible]
 enum CreateTaskErrorReason {
   [Default] kUnknown = 0,
@@ -252,8 +266,6 @@ enum CreateTaskErrorReason {
   // The host does not support the actor task system.
   kTaskSystemUnavailable = 1,
 };
-
-// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:CreateTaskErrorReason)
 
 // @generate glic_api
 // The state of an actor task.
@@ -356,6 +368,7 @@ enum Platform {
   kWindows = 2,
   kLinux = 3,
   kChromeOS = 4,
+  kAndroid = 5,
 };
 
 // The result of `WebClientCreated()`. Contains information that needs to be
@@ -425,8 +438,6 @@ struct WebClientInitialState {
   bool onboarding_completed;
   // Whether the skills feature is enabled.
   bool enable_skills;
-  // The initial list of skill previews.
-  array<SkillPreview> skill_previews;
 };
 
 // Options for getting tab context.
@@ -822,7 +833,6 @@ interface WebClientHandler {
   UpdateSkill(UpdateSkillRequest request) => (bool modal_opened);
 
   // Gets a skill by its id. Returns null if the skill does not exist.
-  // TODO(crbug.com/471796872): Add the actual c++ implementation.
   GetSkill(string id) => (Skill? skill);
 
   // Subscribes to receive updates on pin candidates.
@@ -1044,9 +1054,6 @@ interface WebClientHandler {
   // Called when the web client completes a turn.
   OnTurnCompleted(WebClientModel model, mojo_base.mojom.TimeDelta duration);
 
-  // Called when the web client changes the model.
-  OnModelChanged(WebClientModel model);
-
   // Called when the web client wants to record a use counter.
   // The counter values matches the WebUseCounter enum. We do not use the
   // explicit type because we do not want enforcement of the range of the
@@ -1252,6 +1259,8 @@ enum InvocationSource {
   [MinVersion=5] kSharedImage = 13,
   // From the handoff button.
   [MinVersion=6] kHandoffButton = 14,
+  // From invoking skills.
+  [MinVersion=7] kSkills = 15,
 };
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicInvocationSource, //chrome/browser/glic/glic_metrics.h:ResponseSegmentation)
@@ -1340,8 +1349,16 @@ union AdditionalContextPart {
   CapturedRegion region;
 };
 
+// @generate glic_api
+enum AdditionalContextSource {
+  kShareContextMenu = 0,
+  kRegionSelection = 1,
+};
+
 // An additional context object.
 struct AdditionalContext {
+  // The source of the additional context.
+  AdditionalContextSource source;
   // The name of the context.
   string? name;
   // Tab id, if associated with a tab.
@@ -1421,11 +1438,14 @@ interface WebClient {
   [RuntimeFeature=glic.mojom.features.kGlicMultiTab]
   NotifyPinnedTabDataChanged(TabData tab_data);
 
-  // Notify that the skills previews have changed.
-  NotifySkillPreviewsChanged(array<SkillPreview> skill_previews);
+  // Notify that a skill has been deleted.
+  NotifySkillDeleted(string skill_id);
 
   // Notify that a skill preview has changed.
   NotifySkillPreviewChanged(SkillPreview skill_preview);
+
+  // Notify that the skills previews have changed.
+  NotifySkillPreviewsChanged(array<SkillPreview> skill_previews);
 
   // Notify that the skill to invoke has changed.
   NotifySkillToInvokeChanged(Skill skill);

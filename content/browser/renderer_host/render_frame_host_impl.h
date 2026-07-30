@@ -506,12 +506,13 @@ class CONTENT_EXPORT RenderFrameHostImpl
   const net::NetworkIsolationKey& GetNetworkIsolationKey() override;
   const net::IsolationInfo& GetIsolationInfoForSubresources() override;
   net::IsolationInfo GetPendingIsolationInfoForSubresources() override;
+  std::optional<base::UnguessableToken> GetNetworkRestrictionsID() override;
   gfx::NativeView GetNativeView() override;
   void AddMessageToConsole(blink::mojom::ConsoleMessageLevel level,
                            const std::string& message) override;
   void ExecuteJavaScriptMethod(const std::u16string& object_name,
                                const std::u16string& method_name,
-                               base::Value::List arguments,
+                               base::ListValue arguments,
                                JavaScriptResultCallback callback) override;
   void ExecuteJavaScript(const std::u16string& javascript,
                          JavaScriptResultCallback callback) override;
@@ -3245,12 +3246,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // fenced frame tree as well as for all of its descendant fenced frame trees.
   void CalculateUntrustedNetworkStatus();
 
-  // Returns the network restrictions ID which the network service uses to block
-  // requests originating from this document. If there is a pending commit, the
-  // identifier for that commit will be used. Otherwise, the identifier for
-  // the last committed navigation will be used.
-  std::optional<base::UnguessableToken> GetNetworkRestrictionsID();
-
   // Find the frame that triggered the beforeunload handler to run in this
   // frame, which might be the frame itself or its ancestor.  This will
   // return the frame that is navigating, or the main frame if beforeunload was
@@ -3958,6 +3953,13 @@ class CONTENT_EXPORT RenderFrameHostImpl
   void ResetPermissionsPolicy(
       const network::ParsedPermissionsPolicy& header_policy);
 
+  // Verifies that the `header_policy` sent by the renderer for an Isolated Web
+  // App is valid, i.e. it does not contain any policies that are not present in
+  // the manifest.
+  // A return value of true means that the policy is valid.
+  bool VerifyIsolatedWebAppPermissionsPolicyIsSubsetOfManifest(
+      const network::ParsedPermissionsPolicy& header_policy);
+
   // Runs |callback| for all the local roots immediately under this frame, i.e.
   // local roots which are under this frame and their first ancestor which is a
   // local root is either this frame or this frame's local root. For instance,
@@ -4076,7 +4078,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // Based on the termination |status| and |exit_code|, may generate a crash
   // report to be routed to the Reporting API.
   void MaybeGenerateCrashReport(base::TerminationStatus status, int exit_code);
-  base::Value::Dict ReadCrashReportAPIBody();
+  base::DictValue ReadCrashReportAPIBody();
 
   // Bitfield values for recording navigation frame-type (main or subframe)
   // combined with whether a sudden termination disabler is present. Currently

@@ -1634,6 +1634,7 @@ source_set("browser") {
     "preloading/prefetch/prefetch_status.h",
     "preloading/prefetch/prefetch_streaming_url_loader.cc",
     "preloading/prefetch/prefetch_streaming_url_loader.h",
+    "preloading/prefetch/prefetch_streaming_url_loader_common_types.cc",
     "preloading/prefetch/prefetch_streaming_url_loader_common_types.h",
     "preloading/prefetch/prefetch_type.cc",
     "preloading/prefetch/prefetch_type.h",
@@ -1853,6 +1854,8 @@ source_set("browser") {
     "renderer_host/isolated_web_app_throttle.h",
     "renderer_host/keep_alive_handle_factory.cc",
     "renderer_host/keep_alive_handle_factory.h",
+    "renderer_host/local_network_access_util.cc",
+    "renderer_host/local_network_access_util.h",
     "renderer_host/media/aec_dump_manager_impl.cc",
     "renderer_host/media/aec_dump_manager_impl.h",
     "renderer_host/media/audio_input_device_manager.cc",
@@ -1956,8 +1959,8 @@ source_set("browser") {
     "renderer_host/navigator.cc",
     "renderer_host/navigator.h",
     "renderer_host/navigator_delegate.h",
-    "renderer_host/network_restrictions_commit_deferring_condition.cc",
-    "renderer_host/network_restrictions_commit_deferring_condition.h",
+    "renderer_host/network_restrictions_navigation_throttle.cc",
+    "renderer_host/network_restrictions_navigation_throttle.h",
     "renderer_host/origin_trial_state_host_impl.cc",
     "renderer_host/origin_trial_state_host_impl.h",
     "renderer_host/overscroll_configuration.cc",
@@ -1976,8 +1979,6 @@ source_set("browser") {
     "renderer_host/page_lifecycle_state_manager.h",
     "renderer_host/policy_container_host.cc",
     "renderer_host/policy_container_host.h",
-    "renderer_host/private_network_access_util.cc",
-    "renderer_host/private_network_access_util.h",
     "renderer_host/process_selection_deferring_condition_runner.cc",
     "renderer_host/process_selection_deferring_condition_runner.h",
     "renderer_host/randomized_confidence_utils.cc",
@@ -2198,6 +2199,8 @@ source_set("browser") {
     "service_worker/service_worker_security_utils.h",
     "service_worker/service_worker_single_script_update_checker.cc",
     "service_worker/service_worker_single_script_update_checker.h",
+    "service_worker/service_worker_synthetic_response_data_pipe_connector.cc",
+    "service_worker/service_worker_synthetic_response_data_pipe_connector.h",
     "service_worker/service_worker_synthetic_response_manager.cc",
     "service_worker/service_worker_synthetic_response_manager.h",
     "service_worker/service_worker_type_converters.cc",
@@ -2654,8 +2657,12 @@ source_set("browser") {
     deps += [ "//media/mojo/mojom" ]
   }
 
-  if (is_chromeos) {
+  if (enable_smart_card) {
+    # TODO(crbug.com/470349523): Migrate more smart card files to use this flag.
+    defines += [ "ENABLE_SMART_CARD" ]
     sources += [
+      "$target_gen_dir/devtools/protocol/smart_card_emulation.cc",
+      "$target_gen_dir/devtools/protocol/smart_card_emulation.h",
       "handwriting/handwriting_recognition_service_impl_cros.cc",
       "handwriting/handwriting_recognition_service_impl_cros.h",
       "handwriting/handwriting_recognizer_impl_cros.cc",
@@ -2675,6 +2682,7 @@ source_set("browser") {
       "//chromeos/services/machine_learning/public/cpp",
       "//chromeos/services/machine_learning/public/mojom",
       "//components/value_store",
+      "//content/browser/smart_card/emulation",
     ]
   }
 

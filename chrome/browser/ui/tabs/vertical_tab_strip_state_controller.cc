@@ -6,8 +6,10 @@
 
 #include <optional>
 
+#include "base/i18n/rtl.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/to_string.h"
+#include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sessions/session_service.h"
 #include "chrome/browser/sessions/session_service_factory.h"
@@ -47,7 +49,7 @@ VerticalTabStripStateController::VerticalTabStripStateController(
 
   pref_change_registrar_.Add(
       prefs::kVerticalTabsEnabled,
-      base::BindRepeating(&VerticalTabStripStateController::NotifyStateChanged,
+      base::BindRepeating(&VerticalTabStripStateController::NotifyModeChanged,
                           base::Unretained(this)));
 
   if (restored_state_collapsed.has_value()) {
@@ -74,8 +76,6 @@ VerticalTabStripStateController::VerticalTabStripStateController(
       browser_list_observation_.Observe(BrowserList::GetInstance());
     }
   }
-
-  // TODO(crbug.com/455559992): Add uncollapsed text logic for collapse button.
 }
 
 VerticalTabStripStateController::~VerticalTabStripStateController() {
@@ -83,6 +83,12 @@ VerticalTabStripStateController::~VerticalTabStripStateController() {
     session_service_->RemoveObserver(this);
     session_service_ = nullptr;
   }
+}
+
+// static
+const VerticalTabStripStateController* VerticalTabStripStateController::From(
+    const BrowserWindowInterface* browser_window) {
+  return Get(browser_window->GetUnownedUserDataHost());
 }
 
 // static
@@ -106,7 +112,7 @@ bool VerticalTabStripStateController::IsCollapsed() const {
 void VerticalTabStripStateController::SetCollapsed(bool collapsed) {
   if (state_.collapsed != collapsed) {
     state_.collapsed = collapsed;
-    NotifyStateChanged();
+    NotifyCollapseChanged();
   }
 }
 
@@ -117,7 +123,7 @@ int VerticalTabStripStateController::GetUncollapsedWidth() const {
 void VerticalTabStripStateController::SetUncollapsedWidth(int width) {
   if (state_.uncollapsed_width != width) {
     state_.uncollapsed_width = width;
-    NotifyStateChanged();
+    NotifyCollapseChanged();
   }
 }
 
@@ -126,20 +132,30 @@ void VerticalTabStripStateController::SetState(
   if (state_.collapsed != state.collapsed ||
       state_.uncollapsed_width != state.uncollapsed_width) {
     state_ = state;
-    NotifyStateChanged();
+    NotifyCollapseChanged();
   }
 }
 
 base::CallbackListSubscription
-VerticalTabStripStateController::RegisterOnStateChanged(
+VerticalTabStripStateController::RegisterOnCollapseChanged(
     StateChangedCallback callback) {
-  return on_state_changed_callback_list_.Add(std::move(callback));
+  return on_collapse_changed_callback_list_.Add(std::move(callback));
 }
 
-void VerticalTabStripStateController::NotifyStateChanged() {
+base::CallbackListSubscription
+VerticalTabStripStateController::RegisterOnModeChanged(
+    StateChangedCallback callback) {
+  return on_mode_changed_callback_list_.Add(std::move(callback));
+}
+
+void VerticalTabStripStateController::NotifyCollapseChanged() {
   UpdateSessionService();
   UpdateCollapseActionItem();
-  on_state_changed_callback_list_.Notify(this);
+  on_collapse_changed_callback_list_.Notify(this);
+}
+
+void VerticalTabStripStateController::NotifyModeChanged() {
+  on_mode_changed_callback_list_.Notify(this);
 }
 
 void VerticalTabStripStateController::UpdateSessionService() {
@@ -153,8 +169,10 @@ void VerticalTabStripStateController::UpdateSessionService() {
 }
 
 void VerticalTabStripStateController::UpdateCollapseActionItem() {
-  const gfx::VectorIcon& icon =
-      IsCollapsed() ? views::kMenuCloseIcon : views::kMenuOpenIcon;
+  const gfx::VectorIcon& icon = (IsCollapsed() == base::i18n::IsRTL())
+                                    ? views::kMenuOpenIcon
+                                    : views::kMenuCloseIcon;
+
   const auto& text =
       IsCollapsed() ? IDS_EXPAND_VERTICAL_TABS : IDS_COLLAPSE_VERTICAL_TABS;
 

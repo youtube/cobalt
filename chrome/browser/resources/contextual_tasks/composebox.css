@@ -14,8 +14,10 @@
   --aim-header-height: 66px;
   --cancel-button-inline-end: 16px;
   --cancel-button-top: 12px;
+  --composebox-border-radius: 24px;
   --composebox-collapsed-height: 90px;
   --composebox-margin-bottom: 30px;
+  --composebox-start-indent: 15px;
   --context-carousel-inline-end-spacing: 24px;
   --context-carousel-inline-start-spacing: 24px;
   --composebox-container-height:
@@ -87,7 +89,7 @@
 #composebox {
   --composebox-thumbnail-img-chip-size: 44px;
   --composebox-width: calc(100% - 30px); /* 15px on each side */
-  --expanded-border-radius: 24px;
+  --expanded-border-radius: var(--composebox-border-radius);
   --input-bottom-spacing: 16px;
   --inset-start-indent_: 15px;
   --text-input-left-spacing: 24px;
@@ -95,49 +97,78 @@
   --composebox-context-menu-entrypoint-button-color: var(--color-composebox-voice-lens-button);
 
   box-shadow: none;
+  box-sizing: border-box;
   display: block;
   inset-inline-start: var(--inset-start-indent_);
+  max-width: var(--composebox-max-width);
   position: relative;
+  /* Fast out (start), slow in (end) box shadow transition. */
+  transition: box-shadow 600ms cubic-bezier(0.4, 0.0, 0.2, 1);
   /* 100% - (right indent + left indent), up to max width. */
   width: calc(100% - (15px + var(--inset-start-indent_)));
-  border: 1px solid var(--color-composebox-input-plate-outline);
-  box-sizing: border-box;
+  z-index: 1;
+}
+
+:host([is-side-panel]) #composebox {
+  inset-inline-start: var(--composebox-start-indent);
+  max-width: var(--composebox-max-width);
+  min-width: 200px;
+  /* 15px on each side -> 30px. */
+  width: calc(100% - 30px);
 }
 
 :host(:not([is-zero-state])) #composebox::before {
   background: var(--search-background-color);
-  border-radius: 24px;
+  border-radius: var(--composebox-border-radius);
   content: '';
   display: block;
-  /* Expand past the bottom of the composebox.
-   * Requires parent to have overflow hidden.
-   */
   height: 40vh;
   position: absolute;
   width: 100%;
+  z-index: 0;
 }
 
-/* TODO(crbug.com/466201452): Check this logic
+/* Add border in ::after instead of '#composebox' so it
+ * is on top of ::before.
+ */
+#composebox::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--color-composebox-input-plate-outline);
+  border-radius: var(--composebox-border-radius);
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* TODO(crbug.com/466201452): Check this relayout logic
  * once Google.com AIM is RTL that this matches AIM.
  */
 
-/* Make room for the side AIM menu panel. */
+@media (min-width: 789px) {
+  :host(:not([is-zero-state])[is-side-panel]) #composeboxContainer {
+    /* 96px gutter + 5px for text indentation in thread. */
+    --composebox-start-indent: 101px;
+  }
+}
+
 @media (min-width: 480px) {
-  #composeboxContainer {
+  :host(:not([is-zero-state]):not([is-side-panel])) #composeboxContainer {
     /* Google.com uses 96px for indent column, and 5px left padding.
      * Aligns the input text of the composebox with the AIM thread.
      */
     --composebox-start-indent: 101px;
   }
-
   #composebox {
     --inset-start-indent_: var(--composebox-start-indent);
   }
 }
 
-/* W/more space, indent further to match AIM. */
+/* W/more space, indent further to match AIM for both side panel and full tab.*/
 @media (min-width: 1420px) {
-  #composeboxContainer {
+  :host(:not([is-zero-state]):not([is-side-panel])) #composeboxContainer,
+  :host([is-side-panel]:not([is-zero-state])) #composeboxContainer {
     /* At this width, indent column should be 280px + 5px left padding.
      * Google.com AIM has 20 other 36px columns as "inset end space",
      * with 20px gaps, which = 720px of cols, 21 * 20px = 420px of gaps.
@@ -157,10 +188,17 @@
   }
 }
 
-@media (min-width: 800px) {
-  #composebox {
-    max-width: var(--composebox-max-width);
-  }
+:host(:not([is-zero-state])) #composebox::before {
+  background: var(--search-background-color);
+  border-radius: 24px;
+  content: '';
+  display: block;
+  /* Expand past the bottom of the composebox.
+   * Requires parent to have overflow hidden.
+   */
+  height: 40vh;
+  position: absolute;
+  width: 100%;
 }
 
 #composebox::part(thumbnail) {
@@ -173,28 +211,12 @@
 :host([is-zero-state]) #composebox {
   --inset-start-indent_: 0px;
   bottom: auto;
-  width: 100%;
 }
 
 :host([is-zero-state]) #composeboxContainer {
   background: transparent;
   display: block;
   position: relative;
-}
-
-:host([is-side-panel]) #composebox {
-  --inset-start-indent_: 0;
-  inset-inline-start: 15px;
-  max-width: var(--composebox-max-width);
-  min-width: 200px;
-  /* 15px on each side -> 30px. */
-  width: calc(100% - 30px);
-}
-
-@media (min-width: 1236px) {
-  :host([is-side-panel]) #composebox {
-    inset-inline-start: 96px;
-  }
 }
 
 #composebox::part(error-scrim) {
@@ -230,7 +252,7 @@
 
 #composebox[show-file-carousel_]::part(carousel-container) {
   /* Give room for the close button in the top right. */
-  --context-carousel-inline-end-spacing: 52px;
+  --context-carousel-inline-end-spacing: 62px;
 }
 
 #composebox:not([expanding_])[show-file-carousel_]::part(cr-composebox-file-carousel) {
@@ -367,10 +389,6 @@
   transition-delay: 0ms;
 }
 
-#composebox::part(label) {
-  display: none;
-}
-
 #composebox::part(dropdown) {
   --cr-composebox-match-height: 54px;
 
@@ -437,11 +455,6 @@
 
 #composebox::part(composebox-background)::before {
  transition: background-color 400ms ease-in-out;
-}
-
-#composebox {
- /* Fast out (start), slow in (end) box shadow transition. */
- transition: box-shadow 600ms cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 
 #composebox[in-voice-search-mode_] {

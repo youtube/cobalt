@@ -537,14 +537,13 @@ textEmphasis
 textEmphasisColor
 textEmphasisPosition
 textEmphasisStyle
-textGrow
+textFit
 textIndent
 textJustify
 textOrientation
 textOverflow
 textRendering
 textShadow
-textShrink
 textSizeAdjust
 textSpacing
 textSpacingTrim
@@ -591,6 +590,7 @@ viewTimelineName
 viewTransitionClass
 viewTransitionGroup
 viewTransitionName
+viewTransitionScope
 visibility
 webkitAlignContent
 webkitAlignItems

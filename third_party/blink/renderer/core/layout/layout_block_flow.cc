@@ -128,17 +128,6 @@ bool LayoutBlockFlow::CanContainFirstFormattedLine() const {
          IsGridItem();
 }
 
-void LayoutBlockFlow::WillBeDestroyed() {
-  NOT_DESTROYED();
-  // Make sure to destroy anonymous children first while they are still
-  // connected to the rest of the tree, so that they will properly dirty line
-  // boxes that they are removed from. Effects that do :before/:after only on
-  // hover could crash otherwise.
-  Children()->DestroyLeftoverChildren();
-
-  LayoutBlock::WillBeDestroyed();
-}
-
 void LayoutBlockFlow::AddChildBeforeDescendant(
     LayoutObject* new_child,
     LayoutObject* before_descendant) {
@@ -337,10 +326,13 @@ void LayoutBlockFlow::RemoveChild(LayoutObject* old_child) {
       // We removed a LayoutBR from `this`. If this still contains LayoutTexts,
       // we move them to the next anonymous block. Then, remove `this` from the
       // parent.
-      if (auto* next_anonymous = To<LayoutBlockFlow>(NextSibling())) {
-        CHECK(next_anonymous->IsAnonymous());
-        MoveAllChildrenTo(next_anonymous, next_anonymous->FirstChild(),
-                          /* full_remove_insert */ true);
+      if (auto* next_block_flow = To<LayoutBlockFlow>(NextSibling())) {
+        // `next_block_flow` might be a non-anonymous block-flow for InsertHTML
+        // TestRendering.
+        if (next_block_flow->IsAnonymous()) {
+          MoveAllChildrenTo(next_block_flow, next_block_flow->FirstChild(),
+                            /* full_remove_insert */ true);
+        }
       }
     }
     if (!FirstChild()) {

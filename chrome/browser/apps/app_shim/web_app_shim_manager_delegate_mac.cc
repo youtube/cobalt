@@ -9,7 +9,6 @@
 #include "base/barrier_closure.h"
 #include "base/functional/callback_helpers.h"
 #include "base/no_destructor.h"
-#include "chrome/browser/apps/app_service/app_launch_params.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/web_applications/web_app_dialogs.h"
 #include "chrome/browser/web_applications/extensions/launch.h"
@@ -23,6 +22,7 @@
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/chrome_switches.h"
+#include "components/services/app_service/public/cpp/app_launch_params.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "net/base/filename_util.h"
 
@@ -177,10 +177,10 @@ bool WebAppShimManagerDelegate::AppIsInstalled(Profile* profile,
   }
   WebAppProvider* provider = WebAppProvider::GetForWebApps(profile);
   CHECK(provider);
-  return provider->registrar_unsafe().IsInstallState(
-      app_id, {proto::InstallState::SUGGESTED_FROM_ANOTHER_DEVICE,
-               proto::InstallState::INSTALLED_WITHOUT_OS_INTEGRATION,
-               proto::InstallState::INSTALLED_WITH_OS_INTEGRATION});
+  // TODO(crbug.com/379136842): This is likely too 'permissive' of a check, and
+  // different more restrictive filter should likely be used instead.
+  return provider->registrar_unsafe().AppMatches(
+      app_id, WebAppFilter::IsAppSurfaceableToUser());
 }
 
 bool WebAppShimManagerDelegate::AppCanCreateHost(Profile* profile,
@@ -408,11 +408,10 @@ bool WebAppShimManagerDelegate::UseFallback(
   // If |app_id| is installed via WebAppProvider, then use |this| as the
   // delegate.
   auto* provider = WebAppProvider::GetForWebApps(profile);
-  if (provider &&
-      provider->registrar_unsafe().IsInstallState(
-          app_id, {proto::InstallState::SUGGESTED_FROM_ANOTHER_DEVICE,
-                   proto::InstallState::INSTALLED_WITHOUT_OS_INTEGRATION,
-                   proto::InstallState::INSTALLED_WITH_OS_INTEGRATION})) {
+  // TODO(crbug.com/379136842): This is likely too 'permissive' of a check, and
+  // different more restrictive filter should likely be used instead.
+  if (provider && provider->registrar_unsafe().AppMatches(
+                      app_id, WebAppFilter::IsAppSurfaceableToUser())) {
     return false;
   }
 

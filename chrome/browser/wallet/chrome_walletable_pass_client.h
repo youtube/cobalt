@@ -7,8 +7,8 @@
 
 #include "base/memory/raw_ref.h"
 #include "components/wallet/content/browser/content_walletable_pass_ingestion_controller.h"
-#include "components/wallet/core/browser/data_models/walletable_pass.h"
-#include "components/wallet/core/browser/walletable_pass_client.h"
+#include "components/wallet/core/browser/data_models/wallet_pass.h"
+#include "components/wallet/core/browser/ingestion/walletable_pass_client.h"
 
 namespace optimization_guide {
 class OptimizationGuideDecider;
@@ -62,7 +62,7 @@ class ChromeWalletablePassClient : public WalletablePassClient {
       PassCategory pass_category,
       WalletablePassBubbleResultCallback callback) override;
   void ShowWalletablePassSaveBubble(
-      WalletablePass pass,
+      WalletPass pass,
       WalletablePassBubbleResultCallback callback) override;
 
  private:

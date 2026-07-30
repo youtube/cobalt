@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/i18n/case_conversion.h"
 #include "base/metrics/user_metrics.h"
@@ -428,7 +429,7 @@ base::debug::CrashKeyString* GetCurrentUrlCrashKey() {
   return crash_key;
 }
 
-std::string GetCurrentSiteAccessCrashValue(
+std::string_view GetCurrentSiteAccessCrashValue(
     PermissionsManager::UserSiteAccess site_access) {
   switch (site_access) {
     case PermissionsManager::UserSiteAccess::kOnClick:
@@ -442,7 +443,7 @@ std::string GetCurrentSiteAccessCrashValue(
   }
 }
 
-std::string GetCurrentSiteInteractionCrashValue(
+std::string_view GetCurrentSiteInteractionCrashValue(
     SitePermissionsHelper::SiteInteraction site_interaction) {
   switch (site_interaction) {
     case SitePermissionsHelper::SiteInteraction::kNone:
@@ -1148,6 +1149,13 @@ void ExtensionsMenuViewModel::OnToolbarActionRemoved(
 
 void ExtensionsMenuViewModel::OnToolbarActionUpdated(
     const ToolbarActionsModel::ActionId& action_id) {
+  // Action updates can be triggered during WebContents destruction/navigation.
+  // We ignore these here as they are handled by the specific web contents
+  // observers.
+  if (!GetActiveWebContents()) {
+    return;
+  }
+
   // Re-sort the models in case the action name changed (affecting alphabetical
   // order).
   // TODO(emiliapaz): Investigate whether this is necessary, because extension
@@ -1156,7 +1164,7 @@ void ExtensionsMenuViewModel::OnToolbarActionUpdated(
 
   // Notify observers.
   for (Observer& observer : observers_) {
-    observer.OnActionUpdated();
+    observer.OnActionUpdated(action_id);
   }
 }
 
@@ -1281,7 +1289,7 @@ void ExtensionsMenuViewModel::OnWebContentsChanged(
   UpdateHostAccessRequests();
 
   for (Observer& observer : observers_) {
-    observer.OnActiveWebContentsChanged(web_contents);
+    observer.OnActiveWebContentsChanged();
   }
 }
 

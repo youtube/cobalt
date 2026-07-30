@@ -154,9 +154,10 @@ class NavigationURLLoaderImplTest : public testing::Test {
             nullptr /* trust_token_params */, std::nullopt /* impression */,
             base::TimeTicks() /* renderer_before_unload_start */,
             base::TimeTicks() /* renderer_before_unload_end */,
-            blink::mojom::NavigationInitiatorActivationAndAdStatus::
-                kDidNotStartWithTransientActivation,
-            false /* is_container_initiated */,
+            base::TimeTicks() /* before_unload_dialog_opened */,
+            base::TimeTicks() /* before_unload_dialog_closed */,
+            false /* started_with_transient_activation */,
+            false /* started_by_ad */, false /* is_container_initiated */,
             net::StorageAccessApiStatus::kNone, false /* has_rel_opener */);
 
     auto common_params = blink::CreateCommonNavigationParams();

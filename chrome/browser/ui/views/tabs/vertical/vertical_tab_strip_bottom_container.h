@@ -7,8 +7,8 @@
 
 #include "ui/views/layout/flex_layout_view.h"
 
-class BottomContainerButton;
 class BrowserWindowInterface;
+class VerticalTabStripFlatEdgeButton;
 
 namespace tabs {
 class VerticalTabStripStateController;
@@ -34,7 +34,8 @@ class VerticalTabStripBottomContainer : public views::FlexLayoutView {
       BrowserWindowInterface* browser);
   ~VerticalTabStripBottomContainer() override;
 
-  BottomContainerButton* AddChildButtonFor(actions::ActionId action_id);
+  VerticalTabStripFlatEdgeButton* AddChildButtonFor(
+      actions::ActionId action_id);
 
   void ShowEverythingMenu();
 
@@ -46,14 +47,11 @@ class VerticalTabStripBottomContainer : public views::FlexLayoutView {
       tabs::VerticalTabStripStateController* state_controller);
 
   raw_ptr<actions::ActionItem> root_action_item_ = nullptr;
-  raw_ptr<BottomContainerButton> new_tab_button_ = nullptr;
-  raw_ptr<BottomContainerButton> tab_group_button_ = nullptr;
+  raw_ptr<VerticalTabStripFlatEdgeButton> new_tab_button_ = nullptr;
+  raw_ptr<VerticalTabStripFlatEdgeButton> tab_group_button_ = nullptr;
   raw_ptr<BrowserWindowInterface> browser_ = nullptr;
   raw_ptr<views::MenuButtonController> everything_menu_controller_ = nullptr;
   base::CallbackListSubscription collapsed_state_changed_subscription_;
-
-  views::FlexSpecification uncollapsed_flex_specification_;
-  views::FlexSpecification collapsed_flex_specification_;
 
   std::unique_ptr<tab_groups::STGEverythingMenu> everything_menu_;
   std::unique_ptr<views::ActionViewController> action_view_controller_;

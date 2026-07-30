@@ -132,7 +132,8 @@ void InlineBoxFragmentPainter::PaintMask(const PaintInfo& paint_info,
   String failing_url;
   if (border_painting_type == kDontPaint ||
       (paint_info.IsPrivacyPreserving() && style_.MaskBoxImage().GetImage() &&
-       !style_.MaskBoxImage().GetImage()->IsAccessAllowed(failing_url))) {
+       (!style_.MaskBoxImage().GetImage()->IsLoaded() ||
+        !style_.MaskBoxImage().GetImage()->IsAccessAllowed(failing_url)))) {
     return;
   }
   GraphicsContextStateSaver state_saver(paint_info.context, false);
@@ -164,9 +165,10 @@ void InlineBoxFragmentPainterBase::PaintBackgroundBorderShadow(
   if (element && element->GetTrackedElementRect()) {
     PhysicalRect frame_rect = inline_box_fragment_.LocalRect();
     PhysicalRect adjusted_frame_rect(paint_offset, frame_rect.size);
+    const auto* tracked_element_rect = element->GetTrackedElementRect();
 
     paint_info.context.GetPaintController().RecordTrackedElementData(
-        GetDisplayItemClient(), element->GetTrackedElementRect()->id,
+        GetDisplayItemClient(), *tracked_element_rect,
         ToPixelSnappedRect(adjusted_frame_rect));
   }
 

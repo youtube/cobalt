@@ -41,6 +41,7 @@
 <translation id="1150263420752757504">Праграма "<ph name="APP_NAME" />" адкрыецца ў Chrome. Працягваючы, вы згаджаецеся з <ph name="BEGIN_LINK1" />Умовамі выкарыстання Google<ph name="END_LINK1" /> і <ph name="BEGIN_LINK2" />Дадатковымі ўмовамі выкарыстання Google Chrome і Chrome OS<ph name="END_LINK2" />.</translation>
 <translation id="1154555449933432029">У Менеджары пароляў Google няма захаваных пароляў.</translation>
 <translation id="115483310321669804">Выкарыстаць пароль <ph name="PASSWORD" /></translation>
+<translation id="1161065531352634524">Сінхранізуйце ўкладкі і гісторыю</translation>
 <translation id="1165109137568919258">Пачніце пошук: зрабіце фота або дадайце відарыс з фотагалерэі.</translation>
 <translation id="1173894706177603556">Перайменаваць</translation>
 <translation id="1174479719160874822">Пры наяўнасці вузкага экрана Chrome будзе кожны раз запытваць мабільны сайт</translation>
@@ -126,6 +127,7 @@
 <translation id="147982357559798527">Зменена</translation>
 <translation id="1480287803138246127">Тут можа паказвацца не ўся гісторыя. Каб паглядзець усю гісторыю, адкрыйце поўную гісторыю Chrome.</translation>
 <translation id="1493287004536771723">Вы падпісаны на сайт "<ph name="SITE_NAME" />"</translation>
+<translation id="1495677929897281669">Вярнуцца на ўкладку</translation>
 <translation id="1496514951988037011">імя карыстальніка</translation>
 <translation id="1501480321619201731">Выдаліць групу</translation>
 <translation id="1506061864768559482">Пошукавая сістэма</translation>
@@ -433,6 +435,7 @@
 <translation id="2885355868600171871">Перайсці на адрасны радок</translation>
 <translation id="2888126860611144412">Пра браўзер Chrome</translation>
 <translation id="2891154217021530873">Спыніць загрузку старонкі</translation>
+<translation id="2893168226686371498">Стандартны браўзер</translation>
 <translation id="2894821468041866720">Не выклікае прыметнага запаволення працы браўзера або прылады.</translation>
 <translation id="2895521649038438824">Вы можаце агучыць змесціва гэтай старонкі</translation>
 <translation id="289596984386220317"><ph name="TAB_TITLE" />, замацаваная ўкладка з уключаным гукам</translation>
@@ -980,6 +983,7 @@
 <translation id="5210286577605176222">Перайсці на папярэднюю ўкладку</translation>
 <translation id="5210365745912300556">Закрыць укладку</translation>
 <translation id="5212800876504289412">Перазапусціце Chrome, каб прымяніць гэта змяненне. Пасля перазапуску ўкладкі адкрыюцца зноў аўтаматычна.</translation>
+<translation id="5213114823401215820">Зноў адкрыць закрытую групу</translation>
 <translation id="5215957675041756913">Кіраванне данымі і ўліковым запісам</translation>
 <translation id="5218324087477576825">Трэба ўказаць нумар карткі</translation>
 <translation id="5221437554987713282"><ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> і іншыя <ph name="SEPARATOR" /> Браўзер Chrome адклікаў гэтыя дазволы, бо вы не наведвалі гэты сайт у апошні час</translation>
@@ -1098,7 +1102,6 @@
 <translation id="5765780083710877561">Апісанне:</translation>
 <translation id="5776970333778123608">Няважныя даныя</translation>
 <translation id="5793665092639000975">Выкарыстоўваецца: <ph name="SPACE_USED" /> з <ph name="SPACE_AVAILABLE" /></translation>
-<translation id="5795872532621730126">Пошук і прагляд</translation>
 <translation id="5797949256525811424">Тэма заблакіравана</translation>
 <translation id="580893287573699959">Выберыце, якія тэмы і сайты вас цікавяць</translation>
 <translation id="5809361687334836369">{HOURS,plural, =1{# гадзіну таму}one{# гадзіну таму}few{# гадзіны таму}many{# гадзін таму}other{# гадзіны таму}}</translation>
@@ -1415,7 +1418,6 @@
 <translation id="6937524809504266803">Персаналізацыя і звязванне</translation>
 <translation id="6937876069006524083">Псеўданім (неабавязкова)</translation>
 <translation id="6942665639005891494">Стандартнае размяшчэнне спамповак можна змяніць у наладах</translation>
-<translation id="694267552845942083">Вы знаходзіцеся на старонцы налад сінхранізацыі. Каб завяршыць уключэнне сінхранізацыі, націсніце кнопку "Пацвердзіць" унізе экрана. Перайсці ўверх</translation>
 <translation id="6945221475159498467">Выбраць</translation>
 <translation id="6955535239952325894">Гэта налада выключана ў браўзерах, якія знаходзяцца пад кіраваннем</translation>
 <translation id="6963766334940102469">Выдаліць закладкі</translation>
@@ -1437,6 +1439,7 @@
 <translation id="7020741890149022655">Дадаць у спіс на прагляд <ph name="BEGIN_NEW" />Новае<ph name="END_NEW" /></translation>
 <translation id="7022756207310403729">Адкрыць у браўзеры</translation>
 <translation id="7029809446516969842">Паролі</translation>
+<translation id="7037994709569287156">Зрабіць Chrome стандартным браўзерам</translation>
 <translation id="7053256416619638731">Зрабіце больш надзейныя паролі на гэтай прыладзе</translation>
 <translation id="7053983685419859001">Заблакіраваць</translation>
 <translation id="7054588988317389591">Атрымліваць апісанні відарысаў?</translation>
@@ -1469,6 +1472,7 @@
 Каб змяніць гэту наладу, <ph name="BEGIN_LINK" />выдаліце даныя Chrome з уліковага запісу<ph name="END_LINK" />.</translation>
 <translation id="7165972437814027679">Даведацца больш пра тое, чаму Chrome блакіруе некаторыя файлы</translation>
 <translation id="7168323970702333693">Вы ўвайшлі як <ph name="USER_NAME" />. Кнопка адкрывае налады.</translation>
+<translation id="7170930892977483182">Усе коды бяспекі, захаваныя на прыладзе і ў Google Кашальку, будуць выдалены</translation>
 <translation id="7173114856073700355">Адкрыць Налады</translation>
 <translation id="7173338713290252554">Гісторыя цаны ў інтэрнэце</translation>
 <translation id="7177466738963138057">Вы можаце змяніць гэта пазней у Наладах</translation>
@@ -1641,6 +1645,7 @@
 <translation id="784652447248278262">Бягучае акно</translation>
 <translation id="784934925303690534">Прамежак часу</translation>
 <translation id="7851858861565204677">Іншыя прылады</translation>
+<translation id="78527117619130387">Каб закрыць замацаваную ўкладку, націсніце ^W</translation>
 <translation id="7853202427316060426">Дзеянні</translation>
 <translation id="7859988229622350291">Ніколі не перакладаць з наступных моў:</translation>
 <translation id="7866213166286285359">Перакладайце старонкі тут</translation>
@@ -1654,6 +1659,7 @@
 <translation id="7919123827536834358">Аўтаматычна перакладаць з гэтых моў</translation>
 <translation id="7921782882718083488">Падсумаваць гэтую старонку</translation>
 <translation id="7926975587469166629">Псеўданім карткі</translation>
+<translation id="7927073875790626822">XR</translation>
 <translation id="7929587383660661825">Chrome аўтаматычна адклікае дазволы ў сайтаў, якія парушаюць правілы адносна апавяшчэнняў і якія вы не наведваеце</translation>
 <translation id="7934668619883965330">Не ўдаецца спампаваць файл. Фармат файла не падтрымліваецца.</translation>
 <translation id="7942131818088350342"><ph name="PRODUCT_NAME" /> – версія састарэла.</translation>
@@ -1799,6 +1805,7 @@
 <translation id="8458413889418591446">Каб хутка вяртацца на сайты, якія вы наведвалі, сінхранізуйце сваю гісторыю і ўкладкі</translation>
 <translation id="84594714173170813">Працягвайце выкарыстоўваць даныя Chrome ва Уліковым запісе Google</translation>
 <translation id="8460448946170646641">Праверка ключавых налад бяспекі і прыватнасці</translation>
+<translation id="8460932807646981183">Кіраваць пошукавымі сістэмамі і пошукам на сайтах</translation>
 <translation id="8473863474539038330">Адрасы і іншае</translation>
 <translation id="847433688444405067">Праглядайце на розных прыладах</translation>
 <translation id="8477178913400731244">Выдаліць даныя</translation>
@@ -1934,7 +1941,6 @@
 <translation id="9073805459138993880"><ph name="TAB_TITLE" />, укладка, змесціва якой абагульваецца, выбраная разам з іншымі ўкладкамі</translation>
 <translation id="9074739597929991885">Bluetooth</translation>
 <translation id="9081543426177426948">Звесткі аб сайтах, якія вы наведваеце ў рэжыме інкогніта, не захоўваюцца</translation>
-<translation id="9086302186042011942">Сінхранізацыя</translation>
 <translation id="9086455579313502267">Не ўдалося атрымаць доступ да сеткі</translation>
 <translation id="9093915805850895575">Адкрыць у акне Chrome</translation>
 <translation id="909756639352028172">Каб павысіць якасць персаналізацыі, дадайце Chrome да гісторыі дзеянняў у інтэрнэце і праграмах і звязаных сэрвісаў Google</translation>

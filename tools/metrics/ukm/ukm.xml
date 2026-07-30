@@ -801,6 +801,13 @@ be describing additional metrics about the same event.
       returns the average of the densities accumulated over the page load time
       rounded to the nearest integer.
     </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <quantiles type="std-percentiles"/>
+        </statistics>
+      </history>
+    </aggregation>
   </metric>
   <metric name="KurtosisViewportAdDensity">
     <summary>
@@ -3038,12 +3045,6 @@ be describing additional metrics about the same event.
       Number of Autofill fills invoked by the user on the current form.
     </summary>
   </metric>
-  <metric name="FastCheckoutRunId">
-    <summary>
-      Optional, only set if a form was filled by Fast Checkout. Unique ID of a
-      Fast Checkout run.
-    </summary>
-  </metric>
   <metric name="FillingAcceptance">
     <summary>
       Has value 1 if user accepted the suggestion to fill values on a submitted
@@ -3080,12 +3081,6 @@ be describing additional metrics about the same event.
       It does not matter whether the user actually requested to fill the data.
       It does not matter either whether the data available for filling
       corresponded to the submitted data.
-    </summary>
-  </metric>
-  <metric name="FlowId">
-    <summary>
-      Hashed GUID linking together multiple emissions of this event if emitted
-      within a 20 minutes timeframe.
     </summary>
   </metric>
   <metric name="FormElementUserModifications">
@@ -7917,7 +7912,7 @@ be describing additional metrics about the same event.
 
 <event name="ContextualCueing.NudgeDecision">
   <owner>sophiechang@chromium.org</owner>
-  <owner>rajendrant@chromium.org</owner>
+  <owner>zekunjiang@google.com</owner>
   <summary>
     Recorded when a decision to nudge an optimization type was made for the page
     load.
@@ -7936,13 +7931,18 @@ be describing additional metrics about the same event.
 
 <event name="ContextualCueing.NudgeInteraction">
   <owner>sophiechang@chromium.org</owner>
-  <owner>rajendrant@chromium.org</owner>
+  <owner>zekunjiang@google.com</owner>
   <summary>
     Recorded only if a contextual cueing nudge was shown to the user.
   </summary>
   <metric name="NudgeInteraction" enum="ContextualCueingNudgeInteraction">
     <summary>
       The interaction the user had with the contextual cueing nudge.
+    </summary>
+  </metric>
+  <metric name="NudgeIsDynamic" enum="Boolean">
+    <summary>
+      Whether the nudge is showing a dynamic cue (vs. a static cue).
     </summary>
   </metric>
   <metric name="NudgeLatencyAfterPageLoad">
@@ -9509,56 +9509,6 @@ be describing additional metrics about the same event.
     <summary>
       The number of Iframes that were blocked by the supervised user filtering
       logic in this page load. Exponentially bucketed.
-    </summary>
-  </metric>
-</event>
-
-<event name="FastCheckout.FormStatus">
-  <owner>bwolfgang@google.com</owner>
-  <owner>jkeitel@google.com</owner>
-  <owner>vizcay@google.com</owner>
-  <summary>
-    Recorded at the end of a Fast Checkout run.
-  </summary>
-  <metric name="Filled" enum="Boolean">
-    <summary>
-      1 if the form was filled by Fast Checkout, 0 otherwise.
-    </summary>
-  </metric>
-  <metric name="FormSignature">
-    <summary>
-      An approximately 10-bit hash of the form's actual signature.
-    </summary>
-  </metric>
-  <metric name="FormTypes">
-    <summary>
-      Type of form. Stored as bitvector. A set i-th bit implies enum
-      FormTypeNameForLogging's i-th type was detected. Multiple types are
-      possible.
-    </summary>
-  </metric>
-  <metric name="RunId">
-    <summary>
-      Unique run ID for linking to other UKM events.
-    </summary>
-  </metric>
-</event>
-
-<event name="FastCheckout.RunOutcome">
-  <owner>bwolfgang@google.com</owner>
-  <owner>jkeitel@google.com</owner>
-  <owner>vizcay@google.com</owner>
-  <summary>
-    Recorded at the end of a Fast Checkout run.
-  </summary>
-  <metric name="RunId">
-    <summary>
-      Unique run ID for linking to other UKM events.
-    </summary>
-  </metric>
-  <metric name="RunOutcome" enum="FastCheckoutRunOutcome">
-    <summary>
-      States if the run was successful or why it was not.
     </summary>
   </metric>
 </event>
@@ -18765,9 +18715,6 @@ be describing additional metrics about the same event.
       <history>
         <index fields="profile.country"/>
         <index fields="profile.country,profile.system_ram"/>
-        <index fields="profile.gender"/>
-        <index fields="profile.gender,profile.generation"/>
-        <index fields="profile.generation"/>
         <index fields="profile.is_dominant_version"/>
         <index fields="profile.is_latest_version"/>
         <index fields="profile.system_ram"/>
@@ -18940,6 +18887,59 @@ be describing additional metrics about the same event.
       been discarded because of performance interventions or critical memory
       pressure.
     </summary>
+  </metric>
+</event>
+
+<event name="PageLoad.CaptchaFrameActivation">
+  <owner>ryankalla@google.com</owner>
+  <owner>potassium-anti-fraud-team@google.com</owner>
+  <summary>
+    Records when a frame from a known CAPTCHA provider is activated by the
+    client. This could mean the user clicked or tapped on the frame.
+
+    CAPTCHA frames are determined by matching the frame's src url against a list
+    of known CAPTCHA frame url patterns. The list of known CAPTCHA url patterns
+    is served via the component updater.
+  </summary>
+  <metric name="AgentContext" enum="CaptchaFrameAgentContext">
+    <summary>
+      This metric is split by whether an AI agent was active on the tab at the
+      time of the frame activation. AI agent activity is determined by
+      ActorKeyedService::IsActiveOnTab(), which is used by the Glic Agent.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+</event>
+
+<event name="PageLoad.CaptchaFrameLoad">
+  <owner>ryankalla@google.com</owner>
+  <owner>potassium-anti-fraud-team@google.com</owner>
+  <summary>
+    Records when a sub-frame is loaded from a known CAPTCHA provider.
+
+    CAPTCHA frames are determined by matching the frame's src url against a list
+    of known CAPTCHA frame url patterns. The list of known CAPTCHA url patterns
+    is served via the component updater.
+  </summary>
+  <metric name="AgentContext" enum="CaptchaFrameAgentContext">
+    <summary>
+      This metric is split by whether an AI agent was active on the tab at the
+      time of the frame load. AI agent activity is determined by
+      ActorKeyedService::IsActiveOnTab(), which is used by the Glic Agent.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
   </metric>
 </event>
 

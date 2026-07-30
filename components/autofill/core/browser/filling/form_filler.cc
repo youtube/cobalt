@@ -41,6 +41,7 @@
 #include "components/autofill/core/browser/metrics/form_interactions_ukm_logger.h"
 #include "components/autofill/core/browser/metrics/log_event.h"
 #include "components/autofill/core/browser/metrics/per_fill_metrics.h"
+#include "components/autofill/core/browser/suggestions/suggestion_util.h"
 #include "components/autofill/core/common/autofill_clock.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_internals/log_message.h"
@@ -327,6 +328,37 @@ std::optional<FormFiller::ValueAndType> GetRefillValueForExpirationDate(
                                   CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR);
 }
 
+// During filling operations, each field gets assigned a set of
+// `FieldFillingSkipReason` values, and only fields for which that set is empty
+// are considered for filling, and the rest are skipped. This function returns
+// reasons that can be ignored, which means that even if a field qualifies for
+// it, it does not get added to the set.
+DenseSet<FieldFillingSkipReason> GetIgnorableSkipReasons(
+    AutofillTriggerSource trigger_source) {
+  switch (trigger_source) {
+    case AutofillTriggerSource::kGlic:
+      // Note that `kUnrecognizedAutocompleteAttribute` is also governed by
+      // AutofillField::ShouldSuppressSuggestionsAndFillingByDefault.
+      return {FieldFillingSkipReason::kUnrecognizedAutocompleteAttribute,
+              FieldFillingSkipReason::kUserFilledFields,
+              FieldFillingSkipReason::kValuePrefilled};
+    case AutofillTriggerSource::kNone:
+    case AutofillTriggerSource::kPopup:
+    case AutofillTriggerSource::kKeyboardAccessoryOrBottomSheet:
+    case AutofillTriggerSource::kFormsSeen:
+    case AutofillTriggerSource::kSelectOptionsChanged:
+    case AutofillTriggerSource::kJavaScriptChangedAutofilledValue:
+    case AutofillTriggerSource::kManualFallback:
+    case AutofillTriggerSource::kDevtools:
+    case AutofillTriggerSource::kScanCreditCard:
+    case AutofillTriggerSource::kProactivePasswordRecovery:
+    case AutofillTriggerSource::kCreditCardSaveAndFill:
+    case AutofillTriggerSource::kProgrammaticRefill:
+      return {};
+  }
+  NOTREACHED();
+}
+
 }  // namespace
 
 // Like FillingPayload, but may carry additional data needed for filling.
@@ -508,13 +540,16 @@ DenseSet<FieldFillingSkipReason> FormFiller::GetFillingSkipReasonsForField(
     base::flat_map<FieldType, size_t>& type_count,
     const base::flat_set<FieldGlobalId>& blocked_fields,
     FillingProduct filling_product,
-    bool suppress_if_ac_unrecognized) {
+    AutofillTriggerSource trigger_source,
+    AutocompleteUnrecognizedBehavior ac_unrecognized_behavior) {
   DenseSet<FieldFillingSkipReason> skip_reasons;
   const bool is_trigger_field =
       autofill_field.global_id() == trigger_field.global_id();
 
-  auto add_if = [&skip_reasons](bool condition, FieldFillingSkipReason reason) {
-    if (condition) {
+  auto add_if = [&skip_reasons,
+                 ignorable_reasons = GetIgnorableSkipReasons(trigger_source)](
+                    bool condition, FieldFillingSkipReason reason) {
+    if (condition && !ignorable_reasons.contains(reason)) {
       skip_reasons.insert(reason);
     }
   };
@@ -535,7 +570,7 @@ DenseSet<FieldFillingSkipReason> FormFiller::GetFillingSkipReasonsForField(
   // when it is the field triggering the filling operation.
   add_if(!is_trigger_field &&
              autofill_field.ShouldSuppressSuggestionsAndFillingByDefault(
-                 suppress_if_ac_unrecognized),
+                 ac_unrecognized_behavior),
          FieldFillingSkipReason::kUnrecognizedAutocompleteAttribute);
 
   // Skip if the form has changed in the meantime, which may happen with
@@ -545,7 +580,7 @@ DenseSet<FieldFillingSkipReason> FormFiller::GetFillingSkipReasonsForField(
 
   // Don't fill unfocusable fields, with the exception of <select> fields, for
   // the sake of filling the synthetic fields.
-  add_if(!autofill_field.IsFocusable() && !autofill_field.IsSelectElement(),
+  add_if(!autofill_field.is_focusable() && !autofill_field.IsSelectElement(),
          FieldFillingSkipReason::kInvisibleField);
 
   // Do not fill fields that have been edited by the user, except if the field
@@ -621,6 +656,7 @@ FormFiller::GetFieldFillingSkipReasons(base::span<const FormFieldData> fields,
                                        const AutofillField& trigger_field,
                                        const RefillOptions& refill_options,
                                        FillingProduct filling_product,
+                                       AutofillTriggerSource trigger_source,
                                        const AutofillClient& client) {
   // Counts the number of times a type was seen in the section to be filled.
   // This is used to limit the maximum number of fills per value.
@@ -646,8 +682,8 @@ FormFiller::GetFieldFillingSkipReasons(base::span<const FormFieldData> fields,
     DenseSet<FieldFillingSkipReason> field_skip_reasons =
         GetFillingSkipReasonsForField(
             field, *autofill_field, trigger_field, refill_options, type_count,
-            blocked_fields, filling_product,
-            /*suppress_if_ac_unrecognized=*/!client.IsTabInActorMode());
+            blocked_fields, filling_product, trigger_source,
+            GetAcUnrecognizedBehavior(client));
 
     // Usually, `skip_reasons[field_id].empty()` before executing the line
     // below. It may not be the case though because FieldGlobalIds may not be
@@ -864,9 +900,10 @@ void FormFiller::FillOrPreviewForm(
   // `FormFiller::GetFieldFillingSkipReasons` returns for each field a generic
   // list of reason for skipping each field.
   base::flat_map<FieldGlobalId, DenseSet<FieldFillingSkipReason>> skip_reasons =
-      GetFieldFillingSkipReasons(
-          result_fields, form_structure, autofill_trigger_field, refill_options,
-          augmented_filling_payload.filling_product(), manager_->client());
+      GetFieldFillingSkipReasons(result_fields, form_structure,
+                                 autofill_trigger_field, refill_options,
+                                 augmented_filling_payload.filling_product(),
+                                 trigger_source, manager_->client());
 
   // This loop sets the values to fill in the `result_fields`. The
   // `result_fields` are sent to the renderer, whereas the very similar
@@ -880,7 +917,7 @@ void FormFiller::FillOrPreviewForm(
         FieldFillingSkipReason::kNotFocused};
     if (!kPreUkmLoggingSkips.contains_any(
             skip_reasons[autofill_field.global_id()]) &&
-        !autofill_field.IsFocusable()) {
+        !autofill_field.is_focusable()) {
       manager_->client()
           .GetFormInteractionsUkmLogger()
           .LogHiddenRepresentationalFieldSkipDecision(
@@ -1206,7 +1243,7 @@ void FormFiller::TriggerRefill(const FormData& form,
       [&](const std::unique_ptr<AutofillField>& field) {
         return std::make_tuple(
             field->origin() == refill_context->filled_origin,
-            field->IsFocusable(),
+            field->is_focusable(),
             field->global_id() == refill_context->filled_field_id,
             field->GetFieldSignature() ==
                 refill_context->filled_field_signature,

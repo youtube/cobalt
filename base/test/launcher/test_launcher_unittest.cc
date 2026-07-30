@@ -33,6 +33,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 
 namespace base {
 namespace {
@@ -687,9 +688,9 @@ TEST_F(TestLauncherTest, StableSharding) {
 }
 
 // Validate |iteration_data| contains one test result matching |result|.
-bool ValidateTestResultObject(const Value::Dict& iteration_data,
+bool ValidateTestResultObject(const DictValue& iteration_data,
                               TestResult& test_result) {
-  const Value::List* results = iteration_data.FindList(test_result.full_name);
+  const ListValue* results = iteration_data.FindList(test_result.full_name);
   if (!results) {
     ADD_FAILURE() << "Results not found";
     return false;
@@ -698,7 +699,7 @@ bool ValidateTestResultObject(const Value::Dict& iteration_data,
     ADD_FAILURE() << "Expected one result, actual: " << results->size();
     return false;
   }
-  const Value::Dict* dict = (*results)[0].GetIfDict();
+  const DictValue* dict = (*results)[0].GetIfDict();
   if (!dict) {
     ADD_FAILURE() << "Unexpected type";
     return false;
@@ -723,7 +724,7 @@ bool ValidateTestResultObject(const Value::Dict& iteration_data,
 
   result &= ValidateKeyValue(*dict, "status", test_result.StatusAsString());
 
-  const Value::List* list = dict->FindList("result_parts");
+  const ListValue* list = dict->FindList("result_parts");
   if (test_result.test_result_parts.size() != list->size()) {
     ADD_FAILURE() << "test_result_parts count is not valid";
     return false;
@@ -731,7 +732,7 @@ bool ValidateTestResultObject(const Value::Dict& iteration_data,
 
   for (unsigned i = 0; i < test_result.test_result_parts.size(); i++) {
     TestResultPart result_part = test_result.test_result_parts.at(i);
-    const Value::Dict& part_dict = (*list)[i].GetDict();
+    const DictValue& part_dict = (*list)[i].GetDict();
 
     result &= ValidateKeyValue(part_dict, "type", result_part.TypeAsString());
     result &= ValidateKeyValue(part_dict, "file", result_part.file_name);
@@ -744,10 +745,10 @@ bool ValidateTestResultObject(const Value::Dict& iteration_data,
 
 // Validate |root| dictionary value contains a list with |values|
 // at |key| value.
-bool ValidateStringList(const std::optional<Value::Dict>& root,
+bool ValidateStringList(const std::optional<DictValue>& root,
                         const std::string& key,
                         std::vector<const char*> values) {
-  const Value::List* list = root->FindList(key);
+  const ListValue* list = root->FindList(key);
   if (!list) {
     ADD_FAILURE() << "|root| has no list_value in key: " << key;
     return false;
@@ -801,7 +802,7 @@ TEST_F(TestLauncherTest, JsonSummary) {
   EXPECT_TRUE(test_launcher.Run(command_line.get()));
 
   // Validate the resulting JSON file is the expected output.
-  std::optional<Value::Dict> root = test_launcher_utils::ReadSummary(path);
+  std::optional<DictValue> root = test_launcher_utils::ReadSummary(path);
   ASSERT_TRUE(root);
   EXPECT_TRUE(
       ValidateStringList(root, "all_tests",
@@ -811,7 +812,7 @@ TEST_F(TestLauncherTest, JsonSummary) {
       ValidateStringList(root, "disabled_tests",
                          {"Test.firstTestDisabled", "TestDisabled.firstTest"}));
 
-  const Value::Dict* dict = root->FindDict("test_locations");
+  const DictValue* dict = root->FindDict("test_locations");
   ASSERT_TRUE(dict);
   EXPECT_EQ(2u, dict->size());
   ASSERT_TRUE(test_launcher_utils::ValidateTestLocation(*dict, "Test.firstTest",
@@ -819,12 +820,12 @@ TEST_F(TestLauncherTest, JsonSummary) {
   ASSERT_TRUE(test_launcher_utils::ValidateTestLocation(
       *dict, "Test.secondTest", "File", 100));
 
-  const Value::List* list = root->FindList("per_iteration_data");
+  const ListValue* list = root->FindList("per_iteration_data");
   ASSERT_TRUE(list);
   ASSERT_EQ(2u, list->size());
   for (const auto& iteration_val : *list) {
     ASSERT_TRUE(iteration_val.is_dict());
-    const base::Value::Dict& iteration_dict = iteration_val.GetDict();
+    const base::DictValue& iteration_dict = iteration_val.GetDict();
     EXPECT_EQ(2u, iteration_dict.size());
     EXPECT_TRUE(ValidateTestResultObject(iteration_dict, first_result));
     EXPECT_TRUE(ValidateTestResultObject(iteration_dict, second_result));
@@ -852,19 +853,19 @@ TEST_F(TestLauncherTest, JsonSummaryWithDisabledTests) {
   EXPECT_TRUE(test_launcher.Run(command_line.get()));
 
   // Validate the resulting JSON file is the expected output.
-  std::optional<Value::Dict> root = test_launcher_utils::ReadSummary(path);
+  std::optional<DictValue> root = test_launcher_utils::ReadSummary(path);
   ASSERT_TRUE(root);
-  Value::Dict* dict = root->FindDict("test_locations");
+  DictValue* dict = root->FindDict("test_locations");
   ASSERT_TRUE(dict);
   EXPECT_EQ(1u, dict->size());
   EXPECT_TRUE(test_launcher_utils::ValidateTestLocation(
       *dict, "Test.DISABLED_Test", "File", 100));
 
-  Value::List* list = root->FindList("per_iteration_data");
+  ListValue* list = root->FindList("per_iteration_data");
   ASSERT_TRUE(list);
   ASSERT_EQ(1u, list->size());
 
-  Value::Dict* iteration_dict = (*list)[0].GetIfDict();
+  DictValue* iteration_dict = (*list)[0].GetIfDict();
   ASSERT_TRUE(iteration_dict);
   EXPECT_EQ(1u, iteration_dict->size());
   // We expect the result to be stripped of disabled prefix.
@@ -1231,21 +1232,21 @@ TEST_F(UnitTestLauncherDelegateTester, RunMockTests) {
   GetAppOutputAndError(command_line, &output);
 
   // Validate the resulting JSON file is the expected output.
-  std::optional<Value::Dict> root = test_launcher_utils::ReadSummary(path);
+  std::optional<DictValue> root = test_launcher_utils::ReadSummary(path);
   ASSERT_TRUE(root);
 
-  const Value::Dict* dict = root->FindDict("test_locations");
+  const DictValue* dict = root->FindDict("test_locations");
   ASSERT_TRUE(dict);
   EXPECT_EQ(4u, dict->size());
 
   EXPECT_TRUE(
       test_launcher_utils::ValidateTestLocations(*dict, "MockUnitTests"));
 
-  const Value::List* list = root->FindList("per_iteration_data");
+  const ListValue* list = root->FindList("per_iteration_data");
   ASSERT_TRUE(list);
   ASSERT_EQ(1u, list->size());
 
-  const Value::Dict* iteration_dict = (*list)[0].GetIfDict();
+  const DictValue* iteration_dict = (*list)[0].GetIfDict();
   ASSERT_TRUE(iteration_dict);
   EXPECT_EQ(4u, iteration_dict->size());
   // We expect the result to be stripped of disabled prefix.
@@ -1321,9 +1322,9 @@ TEST(ProcessGTestOutputTest, FoundTestCaseNotEnforced) {
   // Banner should appear in the output.
   const char kBanner[] = "Found exact positive filter not enforced:";
   EXPECT_TRUE(output.contains(kBanner));
-  std::vector<std::string> lines = base::SplitString(
+  std::vector<std::string_view> lines = base::SplitStringPiece(
       output, "\n", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
-  std::unordered_set<std::string> tests_not_enforced;
+  absl::flat_hash_set<std::string_view> tests_not_enforced;
   bool banner_has_printed = false;
   for (size_t i = 0; i < lines.size(); i++) {
     if (lines[i].contains(kBanner)) {
@@ -1340,7 +1341,7 @@ TEST(ProcessGTestOutputTest, FoundTestCaseNotEnforced) {
       // ahead to the test names, e.g. below:
       // [1030/220237.425678:ERROR:test_launcher.cc(2123)] Test.secondTest
       // [1030/220237.425682:ERROR:test_launcher.cc(2123)] Test.firstTest
-      std::vector<std::string> line_vec = base::SplitString(
+      std::vector<std::string_view> line_vec = base::SplitStringPiece(
           lines[i], "]", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
       ASSERT_EQ(line_vec.size(), 2u);
       tests_not_enforced.insert(line_vec[1]);
@@ -1402,10 +1403,10 @@ TEST_F(UnitTestLauncherDelegateTester, LeakedChildProcess) {
   GetAppOutputWithExitCode(command_line, &output, &exit_code);
 
   // Validate that we actually ran a test.
-  std::optional<Value::Dict> root = test_launcher_utils::ReadSummary(path);
+  std::optional<DictValue> root = test_launcher_utils::ReadSummary(path);
   ASSERT_TRUE(root);
 
-  Value::Dict* dict = root->FindDict("test_locations");
+  DictValue* dict = root->FindDict("test_locations");
   ASSERT_TRUE(dict);
   EXPECT_EQ(1u, dict->size());
 

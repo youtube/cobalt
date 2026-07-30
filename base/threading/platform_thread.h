@@ -179,9 +179,9 @@ enum class ThreadType : int {
   // Default type. The thread priority or quality of service will be set to
   // platform default.
   kDefault,
-  // Suitable for display critical threads, ie. threads critical to compositing
-  // and presenting the foreground content.
-  kDisplayCritical,
+  // Suitable for user visible  threads, ie. compositing and presenting
+  // the foreground content.
+  kPresentation,
   // Suitable for threads that handle user interactions, or on the critical
   // path of performance.
   kInteractive,
@@ -462,6 +462,11 @@ using PlatformThread = PlatformThreadBase;
 BASE_EXPORT void SetMaxFrequencyPerProcessorOverrideForTesting(
     std::vector<uint64_t>* value);
 
+// Returns whether `SetCanRunOnBigCore()` is a no-op. This is intended to help
+// with experiment targeting, by making sure that the base::Feature is only
+// queried for eligible devices. It is thus intended to be temporary, and to be
+// removed once the experiments conclude.
+BASE_EXPORT bool IsEligibleForBigCoreAffinityChange();
 // Sets whether a thread is allowed to run on the big core cluster, on
 // configurations where this is relevant, i.e. at least 3 distinct
 // clusters. Otherwise this is a no-op.

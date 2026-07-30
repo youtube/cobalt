@@ -41,6 +41,7 @@
 <translation id="1150263420752757504"><ph name="APP_NAME" /> s'ouvrira dans Chrome. En continuant, vous acceptez les <ph name="BEGIN_LINK1" />conditions d'utilisation de Google<ph name="END_LINK1" /> et les <ph name="BEGIN_LINK2" />conditions d'utilisation supplémentaires de Google Chrome et de Chrome OS<ph name="END_LINK2" />.</translation>
 <translation id="1154555449933432029">Vous n'avez aucun mot de passe enregistré dans le gestionnaire de mots de passe Google.</translation>
 <translation id="115483310321669804">Utiliser le mot de passe <ph name="PASSWORD" /></translation>
+<translation id="1161065531352634524">Synchroniser les onglets et l'historique</translation>
 <translation id="1165109137568919258">Prenez une photo ou ajoutez une image de votre galerie de photos pour effectuer une recherche.</translation>
 <translation id="1173894706177603556">Renommer</translation>
 <translation id="1174479719160874822">Chrome demandera le site pour appareils mobiles lorsque l'écran est étroit</translation>
@@ -126,6 +127,7 @@ Afin d'accéder à plus de paramètres utilisant des données pour améliorer vo
 <translation id="147982357559798527">Modifié</translation>
 <translation id="1480287803138246127">Une partie de votre historique peut ne pas s'afficher ici. Pour consulter tout votre historique de Chrome, ouvrez l'historique complet.</translation>
 <translation id="1493287004536771723">Vous suivez <ph name="SITE_NAME" /></translation>
+<translation id="1495677929897281669">Retour à l'onglet</translation>
 <translation id="1496514951988037011">nom d'utilisateur</translation>
 <translation id="1501480321619201731">Supprimer le groupe</translation>
 <translation id="1506061864768559482">Moteur de recherche</translation>
@@ -433,6 +435,7 @@ Seule une personne connaissant votre phrase de passe peut lire vos données chif
 <translation id="2885355868600171871">Passer à la barre d'adresse</translation>
 <translation id="2888126860611144412">À propos de Google Chrome</translation>
 <translation id="2891154217021530873">Arrêter le chargement de la page</translation>
+<translation id="2893168226686371498">Navigateur par défaut</translation>
 <translation id="2894821468041866720">Ne ralentit pas de manière perceptible votre navigateur ou votre appareil.</translation>
 <translation id="2895521649038438824">Vous pouvez écouter cette page</translation>
 <translation id="289596984386220317"><ph name="TAB_TITLE" />, onglet épinglé avec son</translation>
@@ -980,6 +983,7 @@ D'autres formes d'historique de navigation, telles que les recherches et l'activ
 <translation id="5210286577605176222">Accéder à l'onglet précédent</translation>
 <translation id="5210365745912300556">Fermer l'onglet</translation>
 <translation id="5212800876504289412">Redémarrez Chrome pour terminer cette modification. Les onglets se rouvrent automatiquement au redémarrage.</translation>
+<translation id="5213114823401215820">Rouvrir le groupe fermé</translation>
 <translation id="5215957675041756913">Gérer vos données et votre compte</translation>
 <translation id="5218324087477576825">Numéro de carte, requis</translation>
 <translation id="5221437554987713282"><ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> et plus <ph name="SEPARATOR" /> Chrome a retiré ces autorisations, car vous n'avez pas consulté ce site récemment</translation>
@@ -1098,7 +1102,6 @@ D'autres formes d'historique de navigation, telles que les recherches et l'activ
 <translation id="5765780083710877561">Description :</translation>
 <translation id="5776970333778123608">Données non importantes</translation>
 <translation id="5793665092639000975"><ph name="SPACE_USED" /> sur <ph name="SPACE_AVAILABLE" /> utilisés</translation>
-<translation id="5795872532621730126">Rechercher et parcourir</translation>
 <translation id="5797949256525811424">Sujet bloqué</translation>
 <translation id="580893287573699959">Gérez les sujets et les sites qui vous intéressent</translation>
 <translation id="5809361687334836369">{HOURS,plural, =1{Il y a # heure}one{Il y a # heure}other{Il y a # heures}}</translation>
@@ -1415,7 +1418,6 @@ Par exemple, certains sites Web peuvent répondre à cette demande en diffusant 
 <translation id="6937524809504266803">Personnalisation, association</translation>
 <translation id="6937876069006524083">Pseudo (facultatif)</translation>
 <translation id="6942665639005891494">Vous pouvez changer le dossier de téléchargement par défaut en tout temps grâce à l'option de menu Paramètres.</translation>
-<translation id="694267552845942083">Vous êtes en train de personnaliser vos paramètres de synchronisation. Pour valider l'activation de la synchronisation, touchez le bouton Confirmer dans le bas de l'écran. Revenir en haut</translation>
 <translation id="6945221475159498467">Sélectionner</translation>
 <translation id="6955535239952325894">Ce paramètre est désactivé sur les navigateurs gérés</translation>
 <translation id="6963766334940102469">Supprimer des favoris</translation>
@@ -1437,6 +1439,7 @@ Par exemple, certains sites Web peuvent répondre à cette demande en diffusant 
 <translation id="7020741890149022655">Ajout. à liste lect. <ph name="BEGIN_NEW" />Nouveau<ph name="END_NEW" /></translation>
 <translation id="7022756207310403729">Ouvrir dans le navigateur</translation>
 <translation id="7029809446516969842">Mots de passe</translation>
+<translation id="7037994709569287156">Faire de Chrome le navigateur par défaut</translation>
 <translation id="7053256416619638731">Renforcez vos mots de passe sur cet appareil</translation>
 <translation id="7053983685419859001">Bloquer</translation>
 <translation id="7054588988317389591">Obtenir les descriptions d'images?</translation>
@@ -1469,6 +1472,7 @@ Par exemple, certains sites Web peuvent répondre à cette demande en diffusant 
 Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chrome de votre compte<ph name="END_LINK" />.</translation>
 <translation id="7165972437814027679">En savoir plus sur les raisons pour lesquelles Chrome bloque certains fichiers</translation>
 <translation id="7168323970702333693">Connecté en tant que <ph name="USER_NAME" />. Ouvre les paramètres.</translation>
+<translation id="7170930892977483182">Tous les codes de sécurité enregistrés sur votre appareil et dans Google Portefeuille seront supprimés</translation>
 <translation id="7173114856073700355">Ouvrir les paramètres</translation>
 <translation id="7173338713290252554">Historique des prix sur le Web</translation>
 <translation id="7177466738963138057">Vous pourrez modifier cet élément plus tard dans les paramètres</translation>
@@ -1641,6 +1645,7 @@ Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chro
 <translation id="784652447248278262">Fenêtre actuelle</translation>
 <translation id="784934925303690534">Intervalle de temps</translation>
 <translation id="7851858861565204677">Autres appareils</translation>
+<translation id="78527117619130387">Appuyez de nouveau ici pour fermer l'onglet épinglé</translation>
 <translation id="7853202427316060426">Activité</translation>
 <translation id="7859988229622350291">Ne jamais traduire les pages rédigées en</translation>
 <translation id="7866213166286285359">Traduisez les pages ici</translation>
@@ -1654,6 +1659,7 @@ Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chro
 <translation id="7919123827536834358">Traduire automatiquement ces langues</translation>
 <translation id="7921782882718083488">Résumer cette page</translation>
 <translation id="7926975587469166629">Pseudo de la carte</translation>
+<translation id="7927073875790626822">XR</translation>
 <translation id="7929587383660661825">Chrome supprime automatiquement les autorisations des sites qui abusent des notifications ou que vous n'avez pas visités récemment</translation>
 <translation id="7934668619883965330">Impossible de télécharger le fichier. Format de fichier non compatible.</translation>
 <translation id="7942131818088350342"><ph name="PRODUCT_NAME" /> n'est pas à jour.</translation>
@@ -1799,6 +1805,7 @@ Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chro
 <translation id="8458413889418591446">Pour retrouver rapidement les sites que vous avez visités, synchronisez votre historique et vos onglets</translation>
 <translation id="84594714173170813">Continuer à utiliser les données Chrome dans votre compte Google</translation>
 <translation id="8460448946170646641">Passer en revue les principaux paramètres de confidentialité et de sécurité</translation>
+<translation id="8460932807646981183">Gérer les moteurs de recherche et la recherche de sites</translation>
 <translation id="8473863474539038330">Adresses et plus</translation>
 <translation id="847433688444405067">Passez d'un appareil à l'autre</translation>
 <translation id="8477178913400731244">Supprimer les données</translation>
@@ -1934,7 +1941,6 @@ Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chro
 <translation id="9073805459138993880"><ph name="TAB_TITLE" />, onglet multisélectionné avec partage en cours</translation>
 <translation id="9074739597929991885">Bluetooth</translation>
 <translation id="9081543426177426948">Les sites que vous visitez ne sont pas enregistrés en mode de navigation privée</translation>
-<translation id="9086302186042011942">Synchronisation en cours...</translation>
 <translation id="9086455579313502267">Échec d'accès au réseau</translation>
 <translation id="9093915805850895575">Ouvrir dans une fenêtre Chrome</translation>
 <translation id="909756639352028172">Pour bénéficier de l'expérience la plus personnalisée possible, incluez Chrome dans l'activité sur le Web et dans les applications et les services Google associés</translation>

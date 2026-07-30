@@ -12,7 +12,6 @@
 #include "base/metrics/histogram_macros.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/base/consent_level.h"
-#include "components/signin/public/base/signin_client.h"
 #include "components/signin/public/base/signin_metrics.h"
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/signin/public/base/signin_switches.h"
@@ -24,17 +23,6 @@
 #include "components/supervised_user/core/common/buildflags.h"
 
 namespace signin {
-
-#if BUILDFLAG(ENABLE_SUPERVISED_USERS)
-namespace {
-bool IsAccountSupervised(IdentityManager* identity_manager) {
-  AccountInfo account_info = identity_manager->FindExtendedAccountInfo(
-      identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin));
-  return account_info.capabilities.is_subject_to_parental_controls() ==
-         signin::Tribool::kTrue;
-}
-}  // namespace
-#endif
 
 // Revokes tokens for all accounts in chrome accounts but the primary account.
 void RevokeAllSecondaryTokens(
@@ -91,9 +79,8 @@ void RevokeAllSecondaryTokens(
 }
 
 DiceAccountReconcilorDelegate::DiceAccountReconcilorDelegate(
-    IdentityManager* identity_manager,
-    SigninClient* signin_client)
-    : identity_manager_(identity_manager), signin_client_(signin_client) {}
+    IdentityManager* identity_manager)
+    : identity_manager_(identity_manager) {}
 DiceAccountReconcilorDelegate::~DiceAccountReconcilorDelegate() = default;
 
 bool DiceAccountReconcilorDelegate::IsReconcileEnabled() const {
@@ -245,28 +232,7 @@ bool DiceAccountReconcilorDelegate::
 
 ConsentLevel DiceAccountReconcilorDelegate::GetConsentLevelForPrimaryAccount()
     const {
-#if BUILDFLAG(ENABLE_SUPERVISED_USERS)
-  // A supervised user regardless of consent should not be signed out in certain
-  // cases such as clearing browsing data. In this instance the account
-  // reconciler should not remove the primary account.
-  if (IsAccountSupervised(identity_manager_)) {
-    return ConsentLevel::kSignin;
-  }
-#endif
-
-  if (!IsImplicitBrowserSigninOrExplicitDisabled(identity_manager_,
-                                                 signin_client_->GetPrefs())) {
-    return ConsentLevel::kSignin;
-  }
-
-  // In some cases, clearing the primary account is not allowed regardless of
-  // the consent level (e.g. cloud-managed profiles). In these cases, the dice
-  // account reconcilor delegate should never remove the primary account
-  // regardless of the consent.
-  // TODO(https://crbug.com.1464264): Migrate away from `ConsentLevel::kSync`
-  // on desktop platforms.
-  return signin_client_->IsClearPrimaryAccountAllowed() ? ConsentLevel::kSync
-                                                        : ConsentLevel::kSignin;
+  return ConsentLevel::kSignin;
 }
 
 void DiceAccountReconcilorDelegate::OnReconcileError(
@@ -430,30 +396,6 @@ void DiceAccountReconcilorDelegate::OnAccountsCookieDeletedByUserAction() {
           kAccountReconcilor_GaiaCookiesDeletedByUser,
       signin_metrics::ProfileSignout::kUserDeletedAccountCookies,
       /*revoke_only_if_in_error=*/false);
-
-  if (!identity_manager_->HasPrimaryAccount(consent_level)) {
-    return;
-  }
-
-  // In the explicit browser signin model the primary account should not be
-  // signed out if authentication cookies are deleted by user action.
-  if (AreGoogleCookiesRebuiltAfterClearingWhenSignedIn(
-          *identity_manager_, *signin_client_->GetPrefs())) {
-    return;
-  }
-
-#if BUILDFLAG(ENABLE_SUPERVISED_USERS)
-  if (IsAccountSupervised(identity_manager_)) {
-    return;
-  }
-#endif
-
-  // The primary account should be invalidated if the account cookie is deleted
-  // by user action.
-  auto* accounts_mutator = identity_manager_->GetAccountsMutator();
-  accounts_mutator->InvalidateRefreshTokenForPrimaryAccount(
-      signin_metrics::SourceForRefreshTokenOperation::
-          kAccountReconcilor_GaiaCookiesDeletedByUser);
 }
 
 void DiceAccountReconcilorDelegate::OnReconcileFinished(

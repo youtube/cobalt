@@ -12,6 +12,7 @@
 #include "base/observer_list.h"
 #include "chrome/browser/ui/read_anything/read_anything_enums.h"
 #include "chrome/browser/ui/read_anything/read_anything_lifecycle_observer.h"
+#include "chrome/browser/ui/read_anything/read_anything_omnibox_controller.h"
 #include "chrome/browser/ui/read_anything/read_anything_side_panel_controller.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_key.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_enums.h"
@@ -126,7 +127,7 @@ class ReadAnythingController {
   void CloseImmersiveUI(bool closed_by_tab_switch = false);
 
   // Toggles the Immersive Reading Mode UI.
-  void ToggleImmersiveUI(ReadAnythingOpenTrigger trigger);
+  void ToggleUI(ReadAnythingOpenTrigger trigger);
 
   // Toggles between the Immersive Reading Mode UI and the Side Panel UI.
   void TogglePresentation();
@@ -142,6 +143,7 @@ class ReadAnythingController {
   void SetPresentationState(PresentationState new_state);
 
   void OnDistillationStateChanged(DistillationState new_state);
+  void LockDistillationStateForTesting();
 
   // Lazily creates and returns the WebUIContentsWrapper for the
   // Reading Mode WebUI. Transfers ownership of the WebUIContentsWrapper to the
@@ -170,6 +172,10 @@ class ReadAnythingController {
   // state.
   void RecreateWebUIWrapper();
 
+  // Artitficially sets the time when the user entered a page for testing the
+  // omnibox entry point.
+  void SetDwellTimeForTesting(base::TimeTicks test_time);
+
  private:
   // Called when the tab will detach.
   void TabWillDetach(tabs::TabInterface* tab,
@@ -181,6 +187,7 @@ class ReadAnythingController {
 
   std::unique_ptr<WebContentsObserverInstance> main_page_observer_;
   std::unique_ptr<WebContentsObserverInstance> ra_web_ui_observer_;
+  std::unique_ptr<ReadAnythingOmniboxController> omnibox_controller_;
 
   // Callback for when main_page_observer_ receives a PrimaryPageChanged event.
   void OnMainPagePrimaryPageChanged();
@@ -239,6 +246,7 @@ class ReadAnythingController {
   void SetMainContentsAccessible(bool should_be_accessible);
 
   DistillationState distillation_state_ = DistillationState::kUndefined;
+  bool distillation_state_locked_for_testing_ = false;
 
   // The handle returned by web_contents_->IncrementCapturerCount. This is used
   // to release the capture when the ReadAnythingController is destroyed.

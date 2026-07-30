@@ -21,9 +21,9 @@
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
-#include "chrome/browser/ui/profiles/profile_customization_bubble_sync_controller.h"
 #include "chrome/browser/ui/search_engine_choice/search_engine_choice_tab_helper.h"
 #include "chrome/browser/ui/signin/signin_view_controller.h"
+#include "chrome/browser/ui/views/profiles/profile_customization_bubble_sync_controller.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/webui/ntp/new_tab_ui.h"
 #include "components/country_codes/country_codes.h"
@@ -57,9 +57,6 @@ bool IsBrowserTypeSupported(const Browser& browser) {
     case Browser::TYPE_PICTURE_IN_PICTURE:
     case Browser::TYPE_APP:
     case Browser::TYPE_DEVTOOLS:
-#if BUILDFLAG(IS_CHROMEOS)
-    case Browser::TYPE_CUSTOM_TAB:
-#endif
       return false;
   }
 }
@@ -70,7 +67,8 @@ bool IsBrowserTypeSupported(const Browser& browser) {
 SearchEngineChoiceDialogService::BrowserRegistry::BrowserRegistry(
     SearchEngineChoiceDialogService& service)
     : search_engine_choice_dialog_service_(service) {
-  observation_.Observe(BrowserList::GetInstance());
+  observation_.Observe(ProfileBrowserCollection::GetForProfile(
+      &search_engine_choice_dialog_service_->profile_.get()));
 }
 
 SearchEngineChoiceDialogService::BrowserRegistry::~BrowserRegistry() {
@@ -100,9 +98,14 @@ bool SearchEngineChoiceDialogService::BrowserRegistry::RegisterBrowser(
   return true;
 }
 
-void SearchEngineChoiceDialogService::BrowserRegistry::OnBrowserRemoved(
-    Browser* browser) {
-  registered_browsers_.erase(CHECK_DEREF(browser));
+void SearchEngineChoiceDialogService::BrowserRegistry::OnBrowserClosed(
+    BrowserWindowInterface* browser) {
+  Browser* browser_for_close = browser->GetBrowserForMigrationOnly();
+  if (!browser_for_close) {
+    return;
+  }
+
+  registered_browsers_.erase(CHECK_DEREF(browser_for_close));
 }
 
 bool SearchEngineChoiceDialogService::BrowserRegistry::IsRegistered(
@@ -369,14 +372,16 @@ SearchEngineChoiceDialogService::ComputeDialogConditions(
     return SearchEngineChoiceScreenConditions::kBrowserWindowTooSmall;
   }
 
+  BrowserWindowFeatures& browser_features = browser.GetFeatures();
   // To avoid conflict, the dialog should not be shown if a sign-in dialog is
   // currently displayed or is about to be displayed.
   bool signin_dialog_displayed_or_pending =
-      browser.GetFeatures().signin_view_controller()->ShowsModalDialog();
+      browser_features.signin_view_controller()->ShowsModalDialog();
 #if !BUILDFLAG(IS_CHROMEOS)
   signin_dialog_displayed_or_pending =
       signin_dialog_displayed_or_pending ||
-      IsProfileCustomizationBubbleSyncControllerRunning(&browser);
+      browser_features.profile_customization_bubble_sync_controller()
+          ->IsWaitingForTheme();
 #endif  // BUILDFLAG(IS_CHROMEOS)
   if (signin_dialog_displayed_or_pending) {
     return SearchEngineChoiceScreenConditions::kSuppressedByOtherDialog;

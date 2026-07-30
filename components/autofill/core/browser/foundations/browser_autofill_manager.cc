@@ -32,6 +32,7 @@
 #include "base/containers/adapters.h"
 #include "base/containers/extend.h"
 #include "base/containers/flat_map.h"
+#include "base/containers/map_util.h"
 #include "base/containers/span.h"
 #include "base/containers/to_vector.h"
 #include "base/debug/crash_logging.h"
@@ -138,7 +139,6 @@
 #include "components/autofill/core/browser/suggestions/payments/credit_card_suggestion_generator.h"
 #include "components/autofill/core/browser/suggestions/payments/iban_suggestion_generator.h"
 #include "components/autofill/core/browser/suggestions/payments/merchant_promo_code_suggestion_generator.h"
-#include "components/autofill/core/browser/suggestions/payments/payments_suggestion_generator.h"
 #include "components/autofill/core/browser/suggestions/plus_addresses/plus_address.h"
 #include "components/autofill/core/browser/suggestions/plus_addresses/plus_address_suggestion_generator.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
@@ -215,7 +215,7 @@ ValuePatternsMetric GetValuePattern(const std::u16string& value) {
 
 void LogValuePatternsMetric(const FormData& form) {
   for (const FormFieldData& field : form.fields()) {
-    if (!field.IsFocusable()) {
+    if (!field.is_focusable()) {
       continue;
     }
     std::u16string value;
@@ -392,20 +392,22 @@ const char* SubmissionSourceToString(SubmissionSource source) {
 // Checks if the `credit_card` needs to be fetched in order to complete the
 // current filling flow.
 // TODO(crbug.com/40227496): Only use parsed data.
-bool ShouldFetchCreditCard(const FormData& form,
-                           const FormStructure& form_structure,
-                           const AutofillField& autofill_field,
-                           const CreditCard& credit_card,
-                           bool suppress_if_ac_unrecognized) {
+bool ShouldFetchCreditCard(
+    const FormData& form,
+    const FormStructure& form_structure,
+    const AutofillField& autofill_field,
+    const CreditCard& credit_card,
+    AutofillTriggerSource trigger_source,
+    AutocompleteUnrecognizedBehavior ac_unrecognized_behavior) {
   if (credit_card.is_bnpl_card()) {
     // This is a BNPL VCN, so fetching is not needed because an authentication
     // already happened.
     return false;
   }
   if (WillFillCreditCardNumberOrCvc(form.fields(), form_structure.fields(),
-                                    autofill_field,
+                                    autofill_field, trigger_source,
                                     /*card_has_cvc=*/!credit_card.cvc().empty(),
-                                    suppress_if_ac_unrecognized)) {
+                                    ac_unrecognized_behavior)) {
     return true;
   }
   // This happens for web sites which cache all credit card details except for
@@ -437,6 +439,7 @@ bool IsTriggerSourceOnlyRelevantForCompose(
     case AutofillSuggestionTriggerSource::kPasswordManagerProcessedFocusedField:
     case AutofillSuggestionTriggerSource::kPlusAddressUpdatedInBrowserProcess:
     case AutofillSuggestionTriggerSource::kProactivePasswordRecovery:
+    case AutofillSuggestionTriggerSource::kGlic:
       return false;
   }
 }
@@ -538,6 +541,9 @@ DenseSet<FillingProduct> GetFillingProductsToSuggest(
     case kTextFieldDidReceiveKeyDown:
     case kiOS:
       return DenseSet<FillingProduct>::all();
+    case kGlic:
+      return {FillingProduct::kAddress, FillingProduct::kCreditCard,
+              FillingProduct::kPassword};
   }
 }
 
@@ -549,7 +555,7 @@ SuggestionsContext BuildSuggestionsContext(
     const FormFieldData& field,
     const AutofillField* autofill_field,
     AutofillSuggestionTriggerSource trigger_source,
-    bool suppress_if_ac_unrecognized) {
+    AutocompleteUnrecognizedBehavior ac_unrecognized_behavior) {
   SuggestionsContext context;
 
   // When Compose suggestions or manual fallback for plus addresses are
@@ -569,16 +575,16 @@ SuggestionsContext BuildSuggestionsContext(
       GetPreferredSuggestionFillingProduct(autofill_field->Type());
 
   if (SuppressSuggestionsForAutocompleteUnrecognizedField(
-          *autofill_field, suppress_if_ac_unrecognized)) {
+          *autofill_field, ac_unrecognized_behavior)) {
     // If non-Autocomplete suggestions may be shown on some other field of the
     // form, we want to suppress Autocomplete suggestions on this field.
     // Setting `SuggestionsContext::suppress_reason` to
     // `kAutocompleteUnrecognized` achieves that.
     if (!std::ranges::all_of(
-            *form_structure, [suppress_if_ac_unrecognized](
+            *form_structure, [ac_unrecognized_behavior](
                                  const std::unique_ptr<AutofillField>& field) {
               return field->ShouldSuppressSuggestionsAndFillingByDefault(
-                         suppress_if_ac_unrecognized) ||
+                         ac_unrecognized_behavior) ||
                      field->Type().GetTypes().contains(UNKNOWN_TYPE);
             })) {
       context.suppress_reason = SuppressReason::kAutocompleteUnrecognized;
@@ -791,34 +797,35 @@ bool IsManagementFooterOption(const Suggestion& suggestion) {
 // create a new footer section if there is none. Then, it moves the webauthn
 // sign-in fallback item to the footer - before any "Manage" suggestion.
 void ReorderWebauthnFallbackToFooter(std::vector<Suggestion>& suggestions) {
-  auto use_webauthn_pos = std::ranges::find(
+  auto old_pos = std::ranges::find(
       suggestions, SuggestionType::kWebauthnSignInWithAnotherDevice,
       &Suggestion::type);
-  if (suggestions.size() < 2 || use_webauthn_pos == suggestions.end()) {
+  if (suggestions.size() < 2 || old_pos == suggestions.end()) {
     return;  // Nothing to reorder.
   }
+
   // Points to the first "Manage" item of the footer block due to `base` adding
   // an offset when converting the reverse iterator to the forward iterator.
-  auto insert_before =
+  const auto new_pos =
       std::find_if_not(suggestions.rbegin(), suggestions.rend(),
                        &IsManagementFooterOption)
           .base();
-  // Without "Manage" suggestion, ensure a separator for the footer exists.
-  bool has_other_management_items =
-      insert_before != suggestions.end() &&
-      insert_before->type != SuggestionType::kWebauthnSignInWithAnotherDevice;
+  const bool has_other_management_items =
+      new_pos != suggestions.end() &&
+      new_pos->type != SuggestionType::kWebauthnSignInWithAnotherDevice;
+
+  // Move the webauthn item from `old_pos` to `new_pos`.
+  if (old_pos < new_pos) {
+    std::rotate(old_pos, old_pos + 1, new_pos);
+  } else {
+    std::rotate(new_pos, old_pos, old_pos + 1);
+  }
+
+  // Without "Manage" suggestions, ensure a separator for the footer exists.
   if (!has_other_management_items &&
       !std::ranges::contains(suggestions, SuggestionType::kSeparator,
                              &Suggestion::type)) {
-    suggestions.emplace_back(SuggestionType::kSeparator);
-    insert_before = suggestions.end();
-  }
-  if (use_webauthn_pos < insert_before) {
-    // The webauthn item is too far up. Rotate it to the back!
-    std::rotate(use_webauthn_pos, use_webauthn_pos + 1, insert_before);
-  } else {
-    // The webauthn item is too far down. Rotate it to the front!
-    std::rotate(insert_before, use_webauthn_pos, use_webauthn_pos + 1);
+    suggestions.emplace(new_pos, SuggestionType::kSeparator);
   }
 }
 
@@ -1043,8 +1050,8 @@ void BrowserAutofillManager::LogSubmissionMetrics(
   if (!metrics_->initial_interaction_timestamp.is_null()) {
     base::TimeDelta time_from_interaction_to_submission =
         base::TimeTicks::Now() - metrics_->initial_interaction_timestamp;
-    DenseSet<FormType> form_types = submitted_form->GetFormTypes(
-        /*suppress_if_ac_unrecognized=*/!client().IsTabInActorMode());
+    DenseSet<FormType> form_types =
+        submitted_form->GetFormTypes(GetAcUnrecognizedBehavior(client()));
     bool card_form = form_types.contains(FormType::kCreditCardForm);
     bool address_form = form_types.contains(FormType::kAddressForm);
     if (card_form) {
@@ -1227,7 +1234,7 @@ void BrowserAutofillManager::OnAskForValuesToFillImpl(
 
   SuggestionsContext context = BuildSuggestionsContext(
       form, form_structure, field, autofill_field, trigger_source,
-      /*suppress_if_ac_unrecognized=*/!client().IsTabInActorMode());
+      GetAcUnrecognizedBehavior(client()));
   InitializeSuggestionGenerators(trigger_source, form.global_id(),
                                  field.global_id());
 
@@ -1280,6 +1287,7 @@ void BrowserAutofillManager::OnSuggestionDataFetched(
                         std::vector<SuggestionGenerator::SuggestionData>>(
           suggestion_data);
 
+  // Clear some of the suggestions based on the ablation study.
   if (autofill_field &&
       !all_suggestion_data[SuggestionDataSource::kAddress].empty() &&
       EvaluateAblationStudy(*autofill_field, FillingProduct::kAddress,
@@ -1291,6 +1299,29 @@ void BrowserAutofillManager::OnSuggestionDataFetched(
       EvaluateAblationStudy(*autofill_field, FillingProduct::kCreditCard,
                             /*has_suggestions=*/true)) {
     all_suggestion_data[SuggestionDataSource::kCreditCard].clear();
+  }
+
+  // Clear some of the suggestions based on priorities:
+  // 1. Find the highest priority suggestion data source S that returned data.
+  // 2. Keep only data from sources that are mergeable with S, discard the rest.
+  std::optional<SuggestionDataSource> highest_priority_source;
+  const DenseSet<SuggestionDataSource>* supported_mergeable_sources;
+  for (SuggestionDataSource source :
+       SuggestionGenerator::kOrderedPrioritizedSources) {
+    if (all_suggestion_data[source].empty()) {
+      continue;
+    }
+    if (!highest_priority_source.has_value()) {
+      highest_priority_source = source;
+      supported_mergeable_sources =
+          base::FindOrNull(SuggestionGenerator::kSupportedMerges,
+                           highest_priority_source.value());
+      continue;
+    }
+    if (!supported_mergeable_sources ||
+        !supported_mergeable_sources->contains(source)) {
+      all_suggestion_data[source].clear();
+    }
   }
 
   for (const std::unique_ptr<SuggestionGenerator>& suggestion_generator :
@@ -1342,7 +1373,7 @@ void BrowserAutofillManager::GenerateSuggestionsAndMaybeShowUIPhase1(
 
   SuggestionsContext context = BuildSuggestionsContext(
       form, form_structure, field, autofill_field, trigger_source,
-      /*suppress_if_ac_unrecognized=*/!client().IsTabInActorMode());
+      GetAcUnrecognizedBehavior(client()));
 
   auto generate_suggestions_and_maybe_show_ui_phase2 = base::BindOnce(
       &BrowserAutofillManager::GenerateSuggestionsAndMaybeShowUIPhase2,
@@ -1485,25 +1516,6 @@ void BrowserAutofillManager::GenerateSuggestionsAndMaybeShowUIPhase3(
     return;
   }
 
-  const bool form_element_was_clicked =
-      trigger_source ==
-      AutofillSuggestionTriggerSource::kFormControlElementClicked;
-
-  // Try to show Fast Checkout.
-  if (fast_checkout_delegate_ &&
-      (fast_checkout_delegate_->IsShowingFastCheckoutUI() ||
-       (form_element_was_clicked &&
-        fast_checkout_delegate_->TryToShowFastCheckout(form, field,
-                                                       GetWeakPtr())))) {
-    // The Fast Checkout surface is shown, so abort showing regular Autofill
-    // UI. Now the flow is controlled by the `FastCheckoutClient` instead of
-    // `external_delegate_`.
-    // In principle, TTF and Fast Checkout triggering surfaces are different
-    // and the two screens should never coincide.
-    std::move(callback).Run(/*show_suggestions=*/false, std::move(suggestions));
-    return;
-  }
-
   // Only offer plus address suggestions together with address suggestions if
   // these exist. Otherwise, plus address suggestions will be generated and
   // shown alongside single field form fill suggestions. Plus address
@@ -1549,7 +1561,8 @@ void BrowserAutofillManager::GenerateSuggestionsAndMaybeShowUIPhase3(
       });
   if (touch_to_fill_delegate_ &&
       (touch_to_fill_delegate_->IsShowingTouchToFill() ||
-       (form_element_was_clicked &&
+       (trigger_source ==
+            AutofillSuggestionTriggerSource::kFormControlElementClicked &&
         !has_address_suggestions_on_email_or_loyalty_card_field &&
         touch_to_fill_delegate_->TryToShowTouchToFill(form, field)))) {
     std::move(callback).Run(/*show_suggestions=*/false, std::move(suggestions));
@@ -1996,22 +2009,19 @@ void BrowserAutofillManager::FillOrPreviewCreditCardForm(
     }
     switch (trigger_source) {
       case AutofillTriggerSource::kPopup:
-      case AutofillTriggerSource::kKeyboardAccessory:
-      case AutofillTriggerSource::kTouchToFillCreditCard:
+      case AutofillTriggerSource::kKeyboardAccessoryOrBottomSheet:
       case AutofillTriggerSource::kGlic:
-        return ShouldFetchCreditCard(
-            form, form_structure, autofill_field, credit_card,
-            /*suppress_if_ac_unrecognized=*/!client().IsTabInActorMode());
+        return ShouldFetchCreditCard(form, form_structure, autofill_field,
+                                     credit_card, trigger_source,
+                                     GetAcUnrecognizedBehavior(client()));
       case AutofillTriggerSource::kScanCreditCard:
       case AutofillTriggerSource::kDevtools:
-      case AutofillTriggerSource::kFastCheckout:
       case AutofillTriggerSource::kCreditCardSaveAndFill:
         return false;
       case AutofillTriggerSource::kFormsSeen:
       case AutofillTriggerSource::kSelectOptionsChanged:
       case AutofillTriggerSource::kJavaScriptChangedAutofilledValue:
       case AutofillTriggerSource::kManualFallback:
-      case AutofillTriggerSource::kAutofillAi:
       case AutofillTriggerSource::kNone:
       case AutofillTriggerSource::kProactivePasswordRecovery:
       case AutofillTriggerSource::kProgrammaticRefill:
@@ -2172,10 +2182,10 @@ void BrowserAutofillManager::OnFocusOnFormFieldImpl(
   }
 
   const FormFieldData& field = CHECK_DEREF(form.FindFieldByGlobalId(field_id));
-  SuggestionsContext context = BuildSuggestionsContext(
-      form, form_structure, field, autofill_field,
-      AutofillSuggestionTriggerSource::kUnspecified,
-      /*suppress_if_ac_unrecognized=*/!client().IsTabInActorMode());
+  SuggestionsContext context =
+      BuildSuggestionsContext(form, form_structure, field, autofill_field,
+                              AutofillSuggestionTriggerSource::kUnspecified,
+                              GetAcUnrecognizedBehavior(client()));
 
   // This code path checks if suggestions to be announced to a screen reader are
   // available when the focus on a form field changes. This cannot happen in
@@ -2390,9 +2400,6 @@ void BrowserAutofillManager::OnHidePopupImpl() {
   client().GetSingleFieldFillRouter().CancelPendingQueries();
   client().HideAutofillSuggestions(SuggestionHidingReason::kRendererEvent);
   client().HideAutofillFieldIph();
-  if (fast_checkout_delegate_) {
-    fast_checkout_delegate_->HideFastCheckout(/*allow_further_runs=*/false);
-  }
   if (touch_to_fill_delegate_) {
     touch_to_fill_delegate_->HideTouchToFill();
   }
@@ -2717,7 +2724,6 @@ const gfx::Image& BrowserAutofillManager::GetCardImage(
 //   - `weak_ptr_factory_`
 // - No need to reset or recreate:
 //   - external_delegate_
-//   - fast_checkout_delegate_
 void BrowserAutofillManager::Reset() {
   // Process log events and record into UKM when the FormStructure is destroyed.
   ForEachCachedForm([this](const FormStructure& form_structure) {
@@ -2882,6 +2888,8 @@ void BrowserAutofillManager::LogAndRecordLoyaltyCardFill(
                              &autofill_field)) {
     return;
   }
+  client().GetValuablesDataManager()->RecordLoyaltyCardUsed(loyalty_card.id(),
+                                                            base::Time::Now());
   // TODO(crbug.com/422366498): Move the Onfill event to `FillOrPreviewField`.
   metrics_->loyalty_card_form_event_logger.OnDidFillSuggestion(
       *form_structure, *autofill_field, loyalty_card,
@@ -3006,10 +3014,11 @@ std::vector<Suggestion> BrowserAutofillManager::GetProfileSuggestions(
     const FormStructure& form_structure,
     const FormFieldData& trigger_field,
     const AutofillField& trigger_autofill_field,
-    std::optional<std::string> plus_address_email_override) {
+    std::optional<std::string> plus_address_email_override,
+    AutofillSuggestionTriggerSource trigger_source) {
   std::vector<Suggestion> suggestions;
   AddressSuggestionGenerator address_suggestion_generator(
-      plus_address_email_override, log_manager());
+      plus_address_email_override, log_manager(), trigger_source);
 
   auto on_suggestions_generated =
       [&suggestions](
@@ -3122,8 +3131,8 @@ void BrowserAutofillManager::OnDidIdentifyFormForMetrics(
     const FormStructure& form_structure,
     autofill_metrics::FormEventLoggerBase::FormIdentificationTime
         identification_time) {
-  DenseSet<FormType> form_types = form_structure.GetFormTypes(
-      /*suppress_if_ac_unrecognized=*/!client().IsTabInActorMode());
+  DenseSet<FormType> form_types =
+      form_structure.GetFormTypes(GetAcUnrecognizedBehavior(client()));
   const bool card_form = form_types.contains(FormType::kCreditCardForm) ||
                          form_types.contains(FormType::kStandaloneCvcForm);
   const bool address_form = form_types.contains(FormType::kAddressForm);
@@ -3253,9 +3262,9 @@ std::vector<Suggestion> BrowserAutofillManager::GetAvailableSuggestions(
   switch (context.filling_product) {
     case FillingProduct::kAddress:
       if (client().IsAutofillProfileEnabled()) {
-        suggestions =
-            GetProfileSuggestions(form, *form_structure, field, *autofill_field,
-                                  std::move(plus_address_email_override));
+        suggestions = GetProfileSuggestions(
+            form, *form_structure, field, *autofill_field,
+            std::move(plus_address_email_override), trigger_source);
       }
       if (base::FeatureList::IsEnabled(
               features::kAutofillEnableEmailOrLoyaltyCardsFilling) &&
@@ -3356,7 +3365,7 @@ std::vector<Suggestion> BrowserAutofillManager::GetAvailableSuggestions(
 autofill_metrics::FormEventLoggerBase*
 BrowserAutofillManager::GetEventFormLogger(const AutofillField& field) {
   if (field.ShouldSuppressSuggestionsAndFillingByDefault(
-          /*suppress_if_ac_unrecognized=*/!client().IsTabInActorMode())) {
+          GetAcUnrecognizedBehavior(client()))) {
     // Ignore ac=unrecognized fields in key metrics.
     return nullptr;
   }
@@ -3453,7 +3462,7 @@ void BrowserAutofillManager::ProcessFieldLogEventsInForm(
         driver().GetPageUkmSourceId(), form_structure, form_events,
         metrics_->initial_interaction_timestamp,
         metrics_->form_submitted_timestamp,
-        /*suppress_if_ac_unrecognized=*/!client().IsTabInActorMode());
+        GetAcUnrecognizedBehavior(client()));
   }
 
   if (base::FeatureList::IsEnabled(features::kAutofillUKMExperimentalFields) &&
@@ -3546,26 +3555,6 @@ void BrowserAutofillManager::LogEventCountsUMAMetric(
   UMA_HISTOGRAM_COUNTS_10000("Autofill.LogEvent.All", total_num_log_events);
 }
 
-void BrowserAutofillManager::SetFastCheckoutRunId(
-    FieldTypeGroup field_type_group,
-    int64_t run_id) {
-  switch (FieldTypeGroupToFormType(field_type_group)) {
-    case FormType::kAddressForm:
-      metrics_->address_form_event_logger.SetFastCheckoutRunId(run_id);
-      return;
-    case FormType::kCreditCardForm:
-    case FormType::kStandaloneCvcForm:
-      metrics_->credit_card_form_event_logger.SetFastCheckoutRunId(run_id);
-      break;
-    case FormType::kLoyaltyCardForm:
-    case FormType::kPasswordForm:
-    case FormType::kOneTimePasswordForm:
-    case FormType::kUnknownFormType:
-      // FastCheckout only supports address and credit card forms.
-      NOTREACHED();
-  }
-}
-
 void BrowserAutofillManager::InitializeSuggestionGenerators(
     AutofillSuggestionTriggerSource trigger_source,
     FormGlobalId form_id,
@@ -3641,8 +3630,8 @@ void BrowserAutofillManager::InitializeSuggestionGenerators(
   }
   if (relevant_filling_products.contains(FillingProduct::kAddress)) {
     suggestion_generators_.push_back(
-        std::make_unique<AddressSuggestionGenerator>(std::nullopt,
-                                                     log_manager()));
+        std::make_unique<AddressSuggestionGenerator>(
+            std::nullopt, log_manager(), trigger_source));
   }
   if (relevant_filling_products.contains(FillingProduct::kCreditCard)) {
     suggestion_generators_.push_back(

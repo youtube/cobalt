@@ -64,6 +64,7 @@
 #include "net/cookies/cookie_store.h"
 #include "net/cookies/cookie_util.h"
 #include "net/cookies/parsed_cookie.h"
+#include "net/device_bound_sessions/session_usage.h"
 #include "net/filter/filter_source_stream.h"
 #include "net/filter/source_stream.h"
 #include "net/filter/source_stream_type.h"
@@ -121,10 +122,10 @@ namespace net {
 
 namespace {
 
-base::Value::Dict FirstPartySetMetadataNetLogParams(
+base::DictValue FirstPartySetMetadataNetLogParams(
     const FirstPartySetMetadata& first_party_set_metadata,
     const int64_t* const fps_cache_filter) {
-  base::Value::Dict dict;
+  base::DictValue dict;
   auto entry_or_empty =
       [](const std::optional<FirstPartySetEntry>& entry) -> std::string {
     return entry.has_value() ? entry->GetDebugString() : "none";
@@ -139,7 +140,7 @@ base::Value::Dict FirstPartySetMetadataNetLogParams(
   return dict;
 }
 
-base::Value::Dict CookieInclusionStatusNetLogParams(
+base::DictValue CookieInclusionStatusNetLogParams(
     const std::string& operation,
     const std::string& cookie_name,
     const std::string& cookie_domain,
@@ -147,7 +148,7 @@ base::Value::Dict CookieInclusionStatusNetLogParams(
     const std::optional<CookiePartitionKey>& partition_key,
     const CookieInclusionStatus& status,
     NetLogCaptureMode capture_mode) {
-  base::Value::Dict dict;
+  base::DictValue dict;
   dict.Set("operation", operation);
   dict.Set("status", status.GetDebugString());
   if (NetLogCaptureIncludesSensitive(capture_mode)) {
@@ -982,8 +983,9 @@ void URLRequestHttpJob::SetCookieHeaderAndStart(
     base::UmaHistogramCounts100("Net.DeviceBoundSessions.RequestDeferralCount",
                                 device_bound_session_deferral_count_);
     base::UmaHistogramEnumeration(
-        "Net.DeviceBoundSessions.RequestDeferralDecision2",
-        request_->device_bound_session_usage());
+        "Net.DeviceBoundSessions.RequestDeferralDecision3",
+        net::device_bound_sessions::GetMaxUsage(
+            request_->device_bound_session_usage()));
     if (device_bound_session_deferral_count_ > 0) {
       base::UmaHistogramTimes(
           "Net.DeviceBoundSessions.TotalRequestDeferredDuration",

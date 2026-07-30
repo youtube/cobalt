@@ -46,7 +46,8 @@ import org.robolectric.shadows.ShadowPackageManager;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ResettersForTesting;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -71,6 +72,7 @@ import org.chromium.chrome.browser.toolbar.ToolbarPositionController.StateTransi
 import org.chromium.chrome.browser.toolbar.ToolbarPositionController.ToolbarPositionAndSource;
 import org.chromium.chrome.browser.toolbar.settings.AddressBarPreference;
 import org.chromium.chrome.browser.toolbar.top.ToolbarLayout;
+import org.chromium.chrome.browser.ui.edge_to_edge.TopInsetProvider;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.user_prefs.UserPrefs;
@@ -265,6 +267,7 @@ public class ToolbarPositionControllerTest {
     @Mock private View mControlContainerView;
     @Mock private View mProgressBarContainer;
     @Mock private ViewGroup mProgressBarParent;
+    @Mock private TopInsetProvider mTopInsetProvider;
     @Mock private View mRootView;
     @Mock private Profile mProfile;
     @Mock private UserPrefs.Natives mUserPrefsNatives;
@@ -275,32 +278,33 @@ public class ToolbarPositionControllerTest {
     @Mock private DisplayAndroid mDisplayAndroid;
 
     private Context mContext;
-    private final ObservableSupplierImpl<Boolean> mIsNtpShowing =
-            new ObservableSupplierImpl<>(false);
-    private final ObservableSupplierImpl<Boolean> mIsIncognitoNtpShowing =
-            new ObservableSupplierImpl<>(false);
-    private final ObservableSupplierImpl<Boolean> mIsTabSwitcherShowing =
-            new ObservableSupplierImpl<>(false);
-    private final ObservableSupplierImpl<Boolean> mIsOmniboxFocused =
-            new ObservableSupplierImpl<>(false);
-    private final ObservableSupplierImpl<Boolean> mIsFindInPageShowing =
-            new ObservableSupplierImpl<>(false);
-    private final ObservableSupplierImpl<@ControlsPosition Integer> mToolbarPosition =
-            new ObservableSupplierImpl<>(ControlsPosition.NONE);
+    private final SettableNonNullObservableSupplier<Boolean> mIsNtpShowing =
+            ObservableSuppliers.createNonNull(false);
+    private final SettableNonNullObservableSupplier<Boolean> mIsIncognitoNtpShowing =
+            ObservableSuppliers.createNonNull(false);
+    private final SettableNonNullObservableSupplier<Boolean> mIsTabSwitcherShowing =
+            ObservableSuppliers.createNonNull(false);
+    private final SettableNonNullObservableSupplier<Boolean> mIsOmniboxFocused =
+            ObservableSuppliers.createNonNull(false);
+    private final SettableNonNullObservableSupplier<Boolean> mIsFindInPageShowing =
+            ObservableSuppliers.createNonNull(false);
+    private final SettableNonNullObservableSupplier<Integer> mToolbarPosition =
+            ObservableSuppliers.createNonNull(ControlsPosition.NONE);
     private final FormFieldFocusedSupplier mIsFormFieldFocused = new FormFieldFocusedSupplier();
     private BottomControlsStacker mBottomControlsStacker;
     private ToolbarPositionController mController;
-    private final ObservableSupplierImpl<Integer> mBottomToolbarOffsetSupplier =
-            new ObservableSupplierImpl<>();
-    private final ObservableSupplierImpl<Integer> mKeyboardAccessoryHeightSupplier =
-            new ObservableSupplierImpl<>(0);
-    private final ObservableSupplierImpl<Integer> mControlContainerTranslationSupplier =
-            new ObservableSupplierImpl<>(0);
-    private final ObservableSupplierImpl<Integer> mControlContainerHeightSupplier =
-            new ObservableSupplierImpl<>(TOOLBAR_HEIGHT);
-    private final ObservableSupplierImpl<Integer> mKeyboardHeightSupplier =
-            new ObservableSupplierImpl<>(0);
-    private final ObservableSupplierImpl<Profile> mProfileSupplier = new ObservableSupplierImpl<>();
+    private final SettableNonNullObservableSupplier<Integer> mBottomToolbarOffsetSupplier =
+            ObservableSuppliers.createNonNull(0);
+    private final SettableNonNullObservableSupplier<Integer> mKeyboardAccessoryHeightSupplier =
+            ObservableSuppliers.createNonNull(0);
+    private final SettableNonNullObservableSupplier<Integer> mControlContainerTranslationSupplier =
+            ObservableSuppliers.createNonNull(0);
+    private final SettableNonNullObservableSupplier<Integer> mControlContainerHeightSupplier =
+            ObservableSuppliers.createNonNull(TOOLBAR_HEIGHT);
+    private final SettableNonNullObservableSupplier<Integer> mKeyboardHeightSupplier =
+            ObservableSuppliers.createNonNull(0);
+    private SettableNonNullObservableSupplier<TopInsetProvider> mTopInsetProviderSupplier;
+    private SettableNonNullObservableSupplier<Profile> mProfileSupplier;
     private HistogramWatcher mStartupExpectation;
 
     public static class FakeKeyboardVisibilityDelegate extends KeyboardVisibilityDelegate {
@@ -343,7 +347,8 @@ public class ToolbarPositionControllerTest {
         mProgressBarLayoutParams.gravity = Gravity.BOTTOM;
         mProgressBarLayoutParams.anchorGravity = Gravity.BOTTOM;
         mProgressBarLayoutParams.setAnchorId(CONTROL_CONTAINER_ID);
-        mProfileSupplier.set(mProfile);
+        mTopInsetProviderSupplier = ObservableSuppliers.createNonNull(mTopInsetProvider);
+        mProfileSupplier = ObservableSuppliers.createNonNull(mProfile);
         UserPrefsJni.setInstanceForTesting(mUserPrefsNatives);
         when(mUserPrefsNatives.get(mProfile)).thenReturn(mPrefs);
 
@@ -372,6 +377,7 @@ public class ToolbarPositionControllerTest {
                         mProgressBarContainer,
                         mControlContainerTranslationSupplier,
                         mControlContainerHeightSupplier,
+                        mTopInsetProviderSupplier,
                         new Handler(Looper.getMainLooper()),
                         mContext,
                         mToolbarPosition,

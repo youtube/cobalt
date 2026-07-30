@@ -1445,16 +1445,9 @@ std::string GetProfileNameForChoice(ProfileChoice choice,
       setObject:@(IsShareDefaultBrowserStatusEnabled())
          forKey:app_group::kChromeSupportShareDefaultBrowserStatusCapability];
 
-  if (base::FeatureList::IsEnabled(kYoutubeIncognito) &&
-      base::FeatureList::IsEnabled(kChromeStartupParametersAsync)) {
-    [capabilities
-        setObject:@[ app_group::kYoutubeBundleID ]
-           forKey:app_group::kChromeSupportOpenLinksParametersFromCapability];
-  } else {
-    [capabilities
-        removeObjectForKey:app_group::
-                               kChromeSupportOpenLinksParametersFromCapability];
-  }
+  [capabilities
+      setObject:@[ app_group::kYoutubeBundleID ]
+         forKey:app_group::kChromeSupportOpenLinksParametersFromCapability];
 
   [sharedDefaults setObject:capabilities
                      forKey:app_group::kChromeCapabilitiesPreference];

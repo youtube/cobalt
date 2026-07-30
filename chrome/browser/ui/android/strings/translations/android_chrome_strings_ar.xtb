@@ -41,6 +41,7 @@
 <translation id="1150263420752757504">‏سيتم فتح تطبيق "<ph name="APP_NAME" />" في Chrome. تعني المتابعة موافقتك على <ph name="BEGIN_LINK1" />بنود خدمة Google<ph name="END_LINK1" /> و<ph name="BEGIN_LINK2" />بنود الخدمة الإضافية لكل من متصفّح Google Chrome ونظام التشغيل Chrome<ph name="END_LINK2" />.</translation>
 <translation id="1154555449933432029">‏ليس لديك كلمات مرور محفوظة في "مدير كلمات المرور في Google".</translation>
 <translation id="115483310321669804">استخدام كلمة المرور "<ph name="PASSWORD" />"</translation>
+<translation id="1161065531352634524">مزامنة علامات التبويب والسجلّ</translation>
 <translation id="1165109137568919258">التقِط صورة أو أضِف صورة من معرض الصور للبحث</translation>
 <translation id="1173894706177603556">إعادة تسمية</translation>
 <translation id="1174479719160874822">‏سيطلب Chrome الوصول إلى الموقع الإلكتروني المخصّص للأجهزة الجوالة إذا كان حجم الشاشة صغيرًا</translation>
@@ -126,6 +127,7 @@
 <translation id="147982357559798527">تم التغيير</translation>
 <translation id="1480287803138246127">‏قد لا تظهر هنا بعض بيانات السجلّ. للاطّلاع على جميع البيانات، افتح سجلّ Chrome الكامل.</translation>
 <translation id="1493287004536771723">تتم حاليًا متابعة <ph name="SITE_NAME" /></translation>
+<translation id="1495677929897281669">الرجوع إلى علامة التبويب</translation>
 <translation id="1496514951988037011">اسم المستخدم</translation>
 <translation id="1501480321619201731">حذف مجموعة</translation>
 <translation id="1506061864768559482">محرك البحث</translation>
@@ -433,6 +435,7 @@
 <translation id="2885355868600171871">الانتقال إلى شريط العناوين</translation>
 <translation id="2888126860611144412">‏لمحة عن Chrome</translation>
 <translation id="2891154217021530873">إيقاف تحميل الصفحة</translation>
+<translation id="2893168226686371498">المتصفح التلقائي</translation>
 <translation id="2894821468041866720">لا يؤدي هذا الإعداد إلى أي بطء ملحوظ في المتصفِّح أو الجهاز.</translation>
 <translation id="2895521649038438824">يمكنك الاستماع إلى هذه الصفحة</translation>
 <translation id="289596984386220317">‫"<ph name="TAB_TITLE" />"، علامة تبويب مثبَّتة تشغّل صوتًا</translation>
@@ -981,6 +984,7 @@
 <translation id="5210286577605176222">الانتقال السريع إلى علامة التبويب السابقة</translation>
 <translation id="5210365745912300556">إغلاق علامة التبويب</translation>
 <translation id="5212800876504289412">‏يجب إعادة تشغيل Chrome لإكمال هذا التغيير. وتتم إعادة فتح علامات التبويب تلقائيًا عند إعادة التشغيل.</translation>
+<translation id="5213114823401215820">إعادة فتح مجموعة تم إغلاقها</translation>
 <translation id="5215957675041756913">التحكّم في بياناتك وحسابك</translation>
 <translation id="5218324087477576825">رقم البطاقة، مطلوب إدخاله</translation>
 <translation id="5221437554987713282">‏<ph name="PERMISSION_1" /> و<ph name="PERMISSION_2" /> وأذونات أخرى <ph name="SEPARATOR" /> أزال Chrome هذه الأذونات لأنك لم تزُر هذا الموقع الإلكتروني مؤخرًا</translation>
@@ -1099,7 +1103,6 @@
 <translation id="5765780083710877561">الوصف:</translation>
 <translation id="5776970333778123608">بيانات غير مهمة</translation>
 <translation id="5793665092639000975">يتم استخدام <ph name="SPACE_USED" /> من أصل <ph name="SPACE_AVAILABLE" /></translation>
-<translation id="5795872532621730126">البحث والتصفُّح</translation>
 <translation id="5797949256525811424">تم حظر الموضوع.</translation>
 <translation id="580893287573699959">إدارة المواضيع والمواقع الإلكترونية التي تهمّك</translation>
 <translation id="5809361687334836369">{HOURS,plural, =1{قبل ساعة واحدة (#)}zero{قبل # ساعة}two{قبل ساعتين (#)}few{قبل # ساعات}many{قبل # ساعة}other{قبل # ساعة}}</translation>
@@ -1416,7 +1419,6 @@
 <translation id="6937524809504266803">الخيارات المخصَّصة والربط</translation>
 <translation id="6937876069006524083">اللقب (اختياري)</translation>
 <translation id="6942665639005891494">تغيير موقع التنزيل التلقائي في أي وقت باستخدام خيار قائمة "الإعدادات"</translation>
-<translation id="694267552845942083">يتم حاليًا تخصيص إعدادات المزامنة. لتفعيل المزامنة، يُرجى الضغط على زر "التأكيد" بالقرب من أسفل الشاشة. الانتقال إلى أعلى</translation>
 <translation id="6945221475159498467">تحديد</translation>
 <translation id="6955535239952325894">لقد تم إيقاف هذا الإعداد على متصفّحات مُدارة.</translation>
 <translation id="6963766334940102469">حذف الإشارات المرجعية</translation>
@@ -1438,6 +1440,7 @@
 <translation id="7020741890149022655">الإضافة إلى قائمة القراءة <ph name="BEGIN_NEW" />جديد<ph name="END_NEW" /></translation>
 <translation id="7022756207310403729">فتح في المتصفح</translation>
 <translation id="7029809446516969842">كلمات المرور</translation>
+<translation id="7037994709569287156">‏ضبط Chrome كمتصفِّح تلقائي</translation>
 <translation id="7053256416619638731">تعزيز أمان كلمات المرور على هذا الجهاز</translation>
 <translation id="7053983685419859001">حظر</translation>
 <translation id="7054588988317389591">هل تريد عرض أوصاف الصور؟</translation>
@@ -1470,6 +1473,7 @@
 لتغيير هذه الإعدادات، يُرجى <ph name="BEGIN_LINK" />حذف بيانات Chrome في حسابك<ph name="END_LINK" />.</translation>
 <translation id="7165972437814027679">‏مزيد من المعلومات حول سبب حظر Chrome لبعض الملفات</translation>
 <translation id="7168323970702333693">تم تسجيل الدخول باسم "<ph name="USER_NAME" />". يفتح هذا الزر صفحة الإعدادات.</translation>
+<translation id="7170930892977483182">‏سيتم حذف كل رموز الأمان المحفوظة على جهازك وفي "محفظة Google"</translation>
 <translation id="7173114856073700355">فتح الإعدادات</translation>
 <translation id="7173338713290252554">سجلّ سعر المنتج على الويب</translation>
 <translation id="7177466738963138057">يمكنك تغيير ذلك لاحقًا من "الإعدادات"</translation>
@@ -1643,6 +1647,7 @@
 <translation id="784652447248278262">النافذة الحالية</translation>
 <translation id="784934925303690534">النطاق الزمني</translation>
 <translation id="7851858861565204677">أجهزة أخرى</translation>
+<translation id="78527117619130387">‏يُرجى الضغط على ‎^W مرة أخرى لإغلاق علامة التبويب المثبَّتة</translation>
 <translation id="7853202427316060426">النشاط</translation>
 <translation id="7859988229622350291">لغات لا أريد ترجمتها مطلقًا</translation>
 <translation id="7866213166286285359">يمكنك ترجمة الصفحات هنا.</translation>
@@ -1656,6 +1661,7 @@
 <translation id="7919123827536834358">ترجمة هذه اللغات تلقائيًا</translation>
 <translation id="7921782882718083488">تلخيص هذه الصفحة</translation>
 <translation id="7926975587469166629">لقب البطاقة</translation>
+<translation id="7927073875790626822">الواقع الممتد</translation>
 <translation id="7929587383660661825">‏يزيل Chrome تلقائيًا الأذونات من المواقع الإلكترونية التي تُسيء استخدام الإشعارات أو التي لم تتم زيارتها مؤخرًا</translation>
 <translation id="7934668619883965330">لا يمكن تنزيل الملف لأنّ تنسيقه غير متوافق.</translation>
 <translation id="7942131818088350342"><ph name="PRODUCT_NAME" /> قديم.</translation>
@@ -1802,6 +1808,7 @@
 <translation id="8458413889418591446">للانتقال بسرعة إلى المواقع الإلكترونية التي زرتها، ما عليك سوى مزامنة علامات التبويب والسجلّ</translation>
 <translation id="84594714173170813">‏يمكنك مواصلة استخدام بيانات Chrome في حسابك على Google</translation>
 <translation id="8460448946170646641">مراجعة العناصر الرئيسية للتحكّم في الخصوصية والأمان</translation>
+<translation id="8460932807646981183">إدارة محركات البحث وعمليات البحث في المواقع الإلكترونية</translation>
 <translation id="8473863474539038330">العناوين والمزيد</translation>
 <translation id="847433688444405067">التصفّح على جميع الأجهزة</translation>
 <translation id="8477178913400731244">حذف البيانات</translation>
@@ -1937,7 +1944,6 @@
 <translation id="9073805459138993880">‫"<ph name="TAB_TITLE" />"، علامة تبويب تم اختيارها مع علامات تبويب أخرى وتشارك محتواها</translation>
 <translation id="9074739597929991885">بلوتوث</translation>
 <translation id="9081543426177426948">المواقع الإلكترونية التي تزورها لا يتم حفظها في وضع التصفح المتخفي</translation>
-<translation id="9086302186042011942">جارٍ المزامنة</translation>
 <translation id="9086455579313502267">تعذر الدخول إلى الشبكة</translation>
 <translation id="9093915805850895575">‏فتح في نافذة Chrome</translation>
 <translation id="909756639352028172">‏للحصول على تجربة مخصَّصة أكثر، يمكنك تضمين Chrome في "النشاط على الويب وفي التطبيقات" وخدمات Google المرتبطة</translation>

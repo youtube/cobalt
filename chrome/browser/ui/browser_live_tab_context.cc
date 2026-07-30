@@ -202,6 +202,18 @@ BrowserLiveTabContext::GetSavedTabGroupIdForGroup(
                      : std::nullopt;
 }
 
+const std::optional<tab_groups::TabGroupId>
+BrowserLiveTabContext::GetGroupIdForSavedGroup(const base::Uuid& saved) const {
+  tab_groups::TabGroupSyncService* tab_group_service =
+      tab_groups::TabGroupSyncServiceFactory::GetForProfile(&profile_.get());
+  CHECK(tab_group_service);
+
+  const std::optional<tab_groups::SavedTabGroup> saved_group =
+      tab_group_service->GetGroup(saved);
+
+  return saved_group ? saved_group->local_group_id() : std::nullopt;
+}
+
 bool BrowserLiveTabContext::IsTabPinned(int index) const {
   return tab_strip_model_->IsTabPinned(index);
 }
@@ -288,8 +300,10 @@ sessions::LiveTab* BrowserLiveTabContext::AddRestoredTab(
       Browser* source_browser =
           tab_groups::SavedTabGroupUtils::GetBrowserWithTabGroupId(
               group_id.value());
-      tab_groups::SavedTabGroupUtils::FocusFirstTabOrWindowInOpenGroup(
-          group_id.value());
+      if (original_session_type == sessions::tab_restore::Type::GROUP) {
+        tab_groups::SavedTabGroupUtils::FocusFirstTabOrWindowInOpenGroup(
+            group_id.value());
+      }
 
       // Move the group into `browser` if it is open in a different browser.
       if (source_browser != browser) {

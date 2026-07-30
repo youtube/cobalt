@@ -41,6 +41,7 @@
 <translation id="1150263420752757504"><ph name="APP_NAME" /> ще се отвори в Chrome. С продължаването си приемате <ph name="BEGIN_LINK1" />Общите условия на Google<ph name="END_LINK1" /> и <ph name="BEGIN_LINK2" />Допълнителните общи условия на Chrome и Chrome OS<ph name="END_LINK2" />.</translation>
 <translation id="1154555449933432029">Нямате запазени пароли в Google Мениджър на пароли.</translation>
 <translation id="115483310321669804">Използване на паролата <ph name="PASSWORD" /></translation>
+<translation id="1161065531352634524">Синхронизиране на разделите и историята</translation>
 <translation id="1165109137568919258">Направете снимка или добавете изображение от фотогалерията си, за да извършите търсене.</translation>
 <translation id="1173894706177603556">Преименуване</translation>
 <translation id="1174479719160874822">Chrome ще заявява мобилната версия на сайта, когато екранът е тесен</translation>
@@ -126,6 +127,7 @@
 <translation id="147982357559798527">Променено</translation>
 <translation id="1480287803138246127">Част от историята ви може да не се показва тук. За да видите всички записи в нея, отворете пълната история в Chrome.</translation>
 <translation id="1493287004536771723">Следвате <ph name="SITE_NAME" /></translation>
+<translation id="1495677929897281669">Назад към раздела</translation>
 <translation id="1496514951988037011">потребителско име</translation>
 <translation id="1501480321619201731">Изтриване на групата</translation>
 <translation id="1506061864768559482">Търсеща машина</translation>
@@ -433,6 +435,7 @@
 <translation id="2885355868600171871">Преминаване към адресната лента</translation>
 <translation id="2888126860611144412">Всичко за Chrome</translation>
 <translation id="2891154217021530873">Спиране на зареждането на страницата</translation>
+<translation id="2893168226686371498">Браузър по подразбиране</translation>
 <translation id="2894821468041866720">Не забавя осезаемо браузъра или устройството ви.</translation>
 <translation id="2895521649038438824">Можете да слушате тази страница</translation>
 <translation id="289596984386220317"><ph name="TAB_TITLE" /> – фиксиран раздел, който възпроизвежда звук</translation>
@@ -980,6 +983,7 @@
 <translation id="5210286577605176222">Преминаване към предишния раздел</translation>
 <translation id="5210365745912300556">Затваряне на раздела</translation>
 <translation id="5212800876504289412">Рестартирайте Chrome, за да завършите тази промяна. Разделите се отварят автоматично след рестартиране.</translation>
+<translation id="5213114823401215820">Повторно отваряне на затворената група</translation>
 <translation id="5215957675041756913">Управление на данните и профила ви</translation>
 <translation id="5218324087477576825">Номер на картата, задължителен</translation>
 <translation id="5221437554987713282">„<ph name="PERMISSION_1" />“, „<ph name="PERMISSION_2" />“ и др. <ph name="SEPARATOR" /> Chrome премахна тези разрешения, защото не сте посещавали този сайт наскоро</translation>
@@ -1098,7 +1102,6 @@
 <translation id="5765780083710877561">Описание:</translation>
 <translation id="5776970333778123608">Маловажни данни</translation>
 <translation id="5793665092639000975">Използвано място: <ph name="SPACE_USED" /> от <ph name="SPACE_AVAILABLE" /></translation>
-<translation id="5795872532621730126">Търсене и сърфиране</translation>
 <translation id="5797949256525811424">Темата бе блокирана</translation>
 <translation id="580893287573699959">Управлявайте темите и сайтовете, които ви интересуват</translation>
 <translation id="5809361687334836369">{HOURS,plural, =1{преди # час}other{преди # часа}}</translation>
@@ -1415,7 +1418,6 @@
 <translation id="6937524809504266803">Персонализиране и свързване</translation>
 <translation id="6937876069006524083">Псевдоним (по избор)</translation>
 <translation id="6942665639005891494">Променете стандартното местоположение за изтегляне по всяко време чрез опцията в менюто „Настройки“</translation>
-<translation id="694267552845942083">В момента персонализирате настройките си за синхронизиране. За да включите синхронизирането, докоснете бутона „Потвърждаване“ в долната част на екрана. Придвижване нагоре</translation>
 <translation id="6945221475159498467">Избиране</translation>
 <translation id="6955535239952325894">Тази настройка е деактивирана за управлявани браузъри</translation>
 <translation id="6963766334940102469">Изтриване на отметките</translation>
@@ -1437,6 +1439,7 @@
 <translation id="7020741890149022655">Списък за четене: Добав. <ph name="BEGIN_NEW" />Ново<ph name="END_NEW" /></translation>
 <translation id="7022756207310403729">Отваряне в браузъра</translation>
 <translation id="7029809446516969842">Пароли</translation>
+<translation id="7037994709569287156">Задаване на Chrome като браузър по подразбиране</translation>
 <translation id="7053256416619638731">Подобрете паролите си на това устройство</translation>
 <translation id="7053983685419859001">Блокиране</translation>
 <translation id="7054588988317389591">Искате ли да получавате описания на изображенията?</translation>
@@ -1469,6 +1472,7 @@
 За да промените тази настройка, <ph name="BEGIN_LINK" />изтрийте данните от Chrome в профила си<ph name="END_LINK" />.</translation>
 <translation id="7165972437814027679">Научете повече за това защо Chrome блокира някои файлове</translation>
 <translation id="7168323970702333693">Влезли сте като <ph name="USER_NAME" />. Отваря настройките.</translation>
+<translation id="7170930892977483182">Всички кодове за сигурност, запазени на устройството ви и в Google Wallet, ще бъдат изтрити</translation>
 <translation id="7173114856073700355">Към настройките</translation>
 <translation id="7173338713290252554">История на цените в мрежата</translation>
 <translation id="7177466738963138057">Можете да промените това по-късно от настройките</translation>
@@ -1641,6 +1645,7 @@
 <translation id="784652447248278262">Текущият прозорец</translation>
 <translation id="784934925303690534">Период от време</translation>
 <translation id="7851858861565204677">Други устройства</translation>
+<translation id="78527117619130387">Натиснете ^W отново, за да затворите фиксирания раздел</translation>
 <translation id="7853202427316060426">Активност</translation>
 <translation id="7859988229622350291">Никога да не се превежда от</translation>
 <translation id="7866213166286285359">Превеждайте страници тук</translation>
@@ -1654,6 +1659,7 @@
 <translation id="7919123827536834358">Автоматично превеждане от следните езици</translation>
 <translation id="7921782882718083488">Обобщаване на тази страница</translation>
 <translation id="7926975587469166629">Псевдоним на картата</translation>
+<translation id="7927073875790626822">XR</translation>
 <translation id="7929587383660661825">Chrome автоматично премахва разрешенията от сайтовете, които използват подвеждащи известия или които не сте посещавали наскоро</translation>
 <translation id="7934668619883965330">Файлът не може да се изтегли. Файловият формат не се поддържа.</translation>
 <translation id="7942131818088350342"><ph name="PRODUCT_NAME" /> не е актуален.</translation>
@@ -1799,6 +1805,7 @@
 <translation id="8458413889418591446">За да се връщате бързо към посетените от вас сайтове, синхронизирайте историята и разделите си</translation>
 <translation id="84594714173170813">Продължете да използвате данните в Chrome в профила си в Google</translation>
 <translation id="8460448946170646641">Прегледайте ключовите контроли за поверителност и сигурност</translation>
+<translation id="8460932807646981183">Управление на търсещите машини и търсенето в сайтовете</translation>
 <translation id="8473863474539038330">Адреси и др.</translation>
 <translation id="847433688444405067">Разглеждане от всички устройства</translation>
 <translation id="8477178913400731244">Изтриване на данните</translation>
@@ -1934,7 +1941,6 @@
 <translation id="9073805459138993880"><ph name="TAB_TITLE" /> – раздел, който споделя и е избран заедно с други</translation>
 <translation id="9074739597929991885">Bluetooth</translation>
 <translation id="9081543426177426948">Сайтовете, които посещавате в режим „инкогнито“, не се запазват</translation>
-<translation id="9086302186042011942">Синхронизира се</translation>
 <translation id="9086455579313502267">Няма достъп до мрежата</translation>
 <translation id="9093915805850895575">Отваряне в прозорец на Chrome</translation>
 <translation id="909756639352028172">За възможно най-персонализирана практическа работа включете Chrome в „Активност в мрежата и приложенията“ и свързаните услуги на Google</translation>

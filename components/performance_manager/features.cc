@@ -171,9 +171,6 @@ const base::FeatureParam<bool> kNonSpareRendererHighInitialPriority{
 
 BASE_FEATURE(kPMLoadingPageVoter, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kBFCachePerformanceManagerPolicy,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kUrgentPageDiscarding, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCPUMeasurementInFreezingPolicy, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -185,9 +182,8 @@ BASE_FEATURE(kDiscardFrozenBrowsingInstancesWithGrowingPMF,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Note: These params are associated with `kCPUMeasurementInFreezingPolicy`
-// instead of `kFreezingOnBatterySaver` or
-// `kDiscardFrozenBrowsingInstancesWithGrowingPMF`, to allow retrieving the
-// value without activating these two features.
+// instead of `kDiscardFrozenBrowsingInstancesWithGrowingPMF`,
+// to allow retrieving the value without activating these two features.
 BASE_FEATURE_PARAM(int,
                    kFreezingMemoryGrowthThresholdToDiscardKb,
                    &kCPUMeasurementInFreezingPolicy,
@@ -209,11 +205,6 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    &kCPUMeasurementInFreezingPolicy,
                    "freezing_audio_protection_time",
                    base::Minutes(5));
-
-BASE_FEATURE(kFreezingOnBatterySaver, base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kFreezingOnBatterySaverForTesting,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kFreezingFollowsDiscardOptOut, base::FEATURE_DISABLED_BY_DEFAULT);
 

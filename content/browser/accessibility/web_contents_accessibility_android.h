@@ -68,7 +68,7 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
   WebContentsAccessibilityAndroid(
       JNIEnv* env,
       const base::android::JavaRef<jobject>& obj,
-      jlong ax_tree_update_ptr,
+      int64_t ax_tree_update_ptr,
       const base::android::JavaRef<jobject>& jaccessibility_node_info_builder);
   WebContentsAccessibilityAndroid(
       JNIEnv* env,
@@ -269,7 +269,7 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
   bool SetRangeValue(JNIEnv* env, int32_t id, float value);
 
   // Responds to a hover event without relying on the renderer for hit testing.
-  bool OnHoverEventNoRenderer(JNIEnv* env, jfloat x, jfloat y);
+  bool OnHoverEventNoRenderer(JNIEnv* env, float x, float y);
 
   // Returns true if the given subtree has inline text box data, or if there
   // aren't any to load.

@@ -114,6 +114,7 @@
 #include "third_party/blink/public/common/switches.h"
 #include "third_party/blink/public/mojom/browser_interface_broker.mojom-test-utils.h"
 #include "third_party/blink/public/mojom/frame/frame.mojom-test-utils.h"
+#include "third_party/blink/public/mojom/navigation/navigation_params.mojom.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -271,7 +272,7 @@ std::string ExecuteJavaScriptMethodAndGetResult(
     RenderFrameHostImpl* render_frame,
     const std::string& object,
     const std::string& method,
-    base::Value::List arguments) {
+    base::ListValue arguments) {
   bool executing = true;
   std::string result;
   base::OnceCallback<void(base::Value)> call_back = base::BindOnce(
@@ -437,18 +438,18 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostImplBrowserTest,
   RenderFrameHostImpl* render_frame = web_contents()->GetPrimaryMainFrame();
   render_frame->AllowInjectingJavaScript();
 
-  base::Value::List empty_arguments;
+  base::ListValue empty_arguments;
   std::string result = ExecuteJavaScriptMethodAndGetResult(
       render_frame, "window", "someMethod", std::move(empty_arguments));
   EXPECT_EQ(result, "called someMethod()");
 
-  base::Value::List single_arguments;
+  base::ListValue single_arguments;
   single_arguments.Append("arg1");
   result = ExecuteJavaScriptMethodAndGetResult(
       render_frame, "window", "someMethod", std::move(single_arguments));
   EXPECT_EQ(result, "called someMethod(arg1)");
 
-  base::Value::List four_arguments;
+  base::ListValue four_arguments;
   four_arguments.Append("arg1");
   four_arguments.Append("arg2");
   four_arguments.Append("arg3");
@@ -1128,7 +1129,8 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostImplBrowserTest,
   TestJavaScriptDialogManager dialog_manager;
   web_contents()->SetDelegate(&dialog_manager);
 
-  GURL url_a(embedded_test_server()->GetURL("a.com", "/title1.html"));
+  GURL url_a(embedded_test_server()->GetURL(
+      "a.com", "/render_frame_host/beforeunload.html"));
   GURL url_b(embedded_test_server()->GetURL("b.com", "/title1.html"));
 
   EXPECT_TRUE(NavigateToURL(shell(), url_a));
@@ -1743,7 +1745,7 @@ class RenderFrameHostImplBeforeUnloadBrowserTest
   }
 
   void CloseDialogAndCancel() {
-    dialog_manager_->Run(false /* navigation should proceed */,
+    dialog_manager_->Run(false /* navigation should not proceed */,
                          std::u16string());
   }
 
@@ -2291,6 +2293,12 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostImplBeforeUnloadBrowserTest,
   GURL url2 = embedded_test_server()->GetURL("b.com", "/title1.html");
 
   EXPECT_TRUE(NavigateToURL(shell(), url1));
+
+  // Put a user gesture on the current main frame to allow opening
+  // beforeunload dialog.
+  web_contents()->GetPrimaryMainFrame()->ActivateUserActivation(
+      blink::mojom::UserActivationNotificationType::kTest,
+      /*sticky_only=*/true);
 
   auto weak_web_contents = web_contents()->GetWeakPtr();
   // This matches the behaviour of TabModalDialogManager in
@@ -6225,6 +6233,16 @@ class IsolatedApplicationContentBrowserClient
     return url.GetHost() == isolated_application_host_;
   }
 
+  std::optional<std::vector<blink::mojom::IsolatedAppPermissionPolicyEntryPtr>>
+  GetPermissionsPolicyForIsolatedWebApp(
+      BrowserContext* browser_context,
+      const url::Origin& iwa_origin) override {
+    std::vector<blink::mojom::IsolatedAppPermissionPolicyEntryPtr> policy;
+    policy.push_back(blink::mojom::IsolatedAppPermissionPolicyEntry::New(
+        "cross-origin-isolated", std::vector<std::string>{"*"}));
+    return policy;
+  }
+
  private:
   std::string isolated_application_host_;
 };
@@ -9567,6 +9585,64 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostImplConnectionAllowlistBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(RenderFrameHostImplConnectionAllowlistBrowserTest,
+                       AboutBlankIframeInheritsConnectionAllowlist) {
+  // 1. Navigate top-level frame to a page with connection allowlists.
+  // title1.html has Connection-Allowlist: (response-origin)
+  GURL main_url = embedded_test_server()->GetURL("/title1.html");
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+
+  RenderFrameHostImpl* main_rfh = web_contents()->GetPrimaryMainFrame();
+
+  // 2. Create an iframe and point its src to a page with a different value of
+  // connection allowlist.
+  // title3.html has Connection-Allowlist: ()
+  GURL iframe_url = embedded_test_server()->GetURL("/title3.html");
+  EXPECT_TRUE(
+      ExecJs(main_rfh, JsReplace("let child = document.createElement('iframe');"
+                                 "child.id = 'test_iframe';"
+                                 "child.src = $1;"
+                                 "document.body.appendChild(child);",
+                                 iframe_url)));
+  EXPECT_TRUE(WaitForLoadStop(web_contents()));
+
+  EXPECT_EQ(1U, main_rfh->child_count());
+  RenderFrameHostImpl* iframe = main_rfh->child_at(0)->current_frame_host();
+  EXPECT_TRUE(iframe->IsRenderFrameLive());
+
+  // In title3.html, same-origin fetch should fail because the allowlist is
+  // empty.
+  GURL fetch_url(embedded_test_server()->GetURL("/cors-ok.txt"));
+  std::string fetch_resource = JsReplace(
+      "(async () => {"
+      "  let resp = (await fetch($1, { mode: 'cors', credential: 'omit'}));"
+      "  return resp.status; })();",
+      fetch_url);
+  ASSERT_FALSE(ExecJs(iframe, fetch_resource));
+
+  // 3. Navigate the iframe to about:blank from the top-level page.
+  EXPECT_TRUE(ExecJs(
+      main_rfh, "document.getElementById('test_iframe').src = 'about:blank';"));
+  EXPECT_TRUE(WaitForLoadStop(web_contents()));
+
+  // 4. Test that the about:blank iframe should inherit the connection allowlist
+  // of the top-level frame.
+  iframe = main_rfh->child_at(0)->current_frame_host();
+
+  // In about:blank, same-origin fetch should succeed as it inherits
+  // (response-origin) from title1.html.
+  EXPECT_EQ(200, EvalJs(iframe, fetch_resource));
+
+  // Cross-origin fetch should still fail.
+  GURL d_url = embedded_test_server()->GetURL("d.com", "/cors-ok.txt");
+  std::string cross_origin_fetch_resource = JsReplace(
+      "(async () => {"
+      "  let resp = (await fetch($1, { mode: 'cors', credential: 'omit'}));"
+      "  return resp.status; })();",
+      d_url);
+  ASSERT_FALSE(ExecJs(iframe, cross_origin_fetch_resource));
+}
+
+IN_PROC_BROWSER_TEST_F(RenderFrameHostImplConnectionAllowlistBrowserTest,
                        ConnectionAllowlistEmpty) {
   GURL url(embedded_test_server()->GetURL("/title3.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
@@ -9648,6 +9724,70 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostImplConnectionAllowlistBrowserTest,
             navigation_observer.last_net_error_code());
 }
 
+IN_PROC_BROWSER_TEST_F(
+    RenderFrameHostImplConnectionAllowlistBrowserTest,
+    ConnectionAllowlistInPagehideNavigationStateKeepAliveAboutBlank) {
+  // 1. Set up the opener window.
+  GURL opener_url(embedded_test_server()->GetURL("a.com", "/title2.html"));
+  EXPECT_TRUE(NavigateToURL(shell(), opener_url));
+
+  // 2. Set up the openee window.
+  ShellAddedObserver new_shell_observer;
+  EXPECT_TRUE(ExecJs(shell(), "window.open()"));
+  Shell* openee_shell = new_shell_observer.GetShell();
+  EXPECT_TRUE(WaitForLoadStop(openee_shell->web_contents()));
+
+  // 3. Navigate openee to a page with a connection allowlist.
+  GURL allowlist_url(
+      embedded_test_server()->GetURL("b.com", "/connection_allowlist.html"));
+  EXPECT_TRUE(NavigateToURL(openee_shell, allowlist_url));
+
+  // Fetch a cross-origin resource from the opener. It should be allowed.
+  GURL d_url = embedded_test_server()->GetURL("d.com", "/cors-ok.txt");
+  std::string cross_origin_fetch_resource = JsReplace(
+      "(async () => {"
+      "  let resp = (await fetch($1, { mode: 'cors', credential: 'omit'}));"
+      "  return resp.status; })();",
+      d_url);
+  ASSERT_TRUE(ExecJs(web_contents(), cross_origin_fetch_resource));
+
+  // 4. The openee will navigate the opener to about:blank in pagehide.
+  EXPECT_TRUE(ExecJs(openee_shell, JsReplace(R"(
+    window.addEventListener("pagehide", () => {
+      opener.location.href = $1;
+    });
+  )",
+                                             GURL(url::kAboutBlankURL))));
+
+  RenderFrameHost* openee_rfh =
+      static_cast<WebContentsImpl*>(openee_shell->web_contents())
+          ->GetPrimaryMainFrame();
+
+  // 5. Issue a KeepAlive for the navigation state so that the
+  //    PolicyContainerHost will still exist after the initiator RenderFrameHost
+  //    is gone.
+  mojo::PendingRemote<blink::mojom::NavigationStateKeepAliveHandle> keep_alive;
+  static_cast<RenderFrameHostImpl*>(openee_rfh)
+      ->IssueKeepAliveHandle(keep_alive.InitWithNewPipeAndPassReceiver());
+
+  // 6. Watch for the navigation in the opener.
+  TestNavigationObserver navigation_observer(web_contents());
+
+  // 7. Close the openee, which triggers the navigation in the opener.
+  openee_shell->Close();
+
+  // 8. The navigation should pass since it is a local navigation.
+  navigation_observer.Wait();
+  EXPECT_EQ(GURL(url::kAboutBlankURL),
+            navigation_observer.last_navigation_url());
+  EXPECT_TRUE(navigation_observer.last_navigation_succeeded());
+  EXPECT_EQ(net::OK, navigation_observer.last_net_error_code());
+
+  // 9. Fetch a cross-origin resource from the opener. It should be disallowed
+  //    due to it inheriting connection allowlist from its initiator (openee).
+  ASSERT_FALSE(ExecJs(web_contents(), cross_origin_fetch_resource));
+}
+
 IN_PROC_BROWSER_TEST_F(RenderFrameHostImplConnectionAllowlistBrowserTest,
                        ConnectionAllowlistSrcdoc) {
   GURL url(
@@ -9668,15 +9808,23 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostImplConnectionAllowlistBrowserTest,
 
   navigation_observer.Wait();
 
-  // TODO(crbug.com/447954811): we could allow a local navigation as it doesn't
-  // use the network and inherits the policy of the initiator, but it currently
-  // doesn't work as the connection allowlist is not applied to its subresource
-  // fetches because the CommitDeferringConditions don't get invoked. Fix this.
-  EXPECT_FALSE(navigation_observer.last_navigation_succeeded());
+  EXPECT_TRUE(navigation_observer.last_navigation_succeeded());
   EXPECT_EQ(GURL(url::kAboutSrcdocURL),
             navigation_observer.last_navigation_url());
-  EXPECT_EQ(net::ERR_NETWORK_ACCESS_REVOKED,
-            navigation_observer.last_net_error_code());
+  EXPECT_EQ(net::OK, navigation_observer.last_net_error_code());
+
+  // now fetch a cross-origin resource. It should be disallowed both in the
+  // main frame and the iframe.
+  RenderFrameHostImpl* iframe = main_rfh->child_at(0)->current_frame_host();
+  GURL d_url = embedded_test_server()->GetURL("d.com", "/cors-ok.txt");
+  std::string cross_origin_fetch_resource = JsReplace(
+      "(async () => {"
+      "  let resp = (await fetch($1, { mode: 'cors', credential: 'omit'}));"
+      "  return resp.status; })();",
+      d_url);
+  ASSERT_FALSE(ExecJs(iframe, cross_origin_fetch_resource));
+
+  ASSERT_FALSE(ExecJs(main_rfh, cross_origin_fetch_resource));
 }
 
 IN_PROC_BROWSER_TEST_F(RenderFrameHostImplConnectionAllowlistBrowserTest,
@@ -9705,7 +9853,7 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostImplConnectionAllowlistBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(RenderFrameHostImplConnectionAllowlistBrowserTest,
-                       ConnectionAllowlistHistoryBackDisallowed) {
+                       ConnectionAllowlistHistoryBackAllowedBFCache) {
   GURL allowlist_url(
       embedded_test_server()->GetURL("a.com", "/connection_allowlist.html"));
   GURL cross_origin_url(
@@ -9714,6 +9862,8 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostImplConnectionAllowlistBrowserTest,
   // 1. Navigate to a.com with Connection-Allowlist.
   EXPECT_TRUE(NavigateToURL(shell(), allowlist_url));
   EXPECT_EQ(allowlist_url, web_contents()->GetLastCommittedURL());
+  RenderFrameHostImpl* rfh_a =
+      web_contents()->GetPrimaryFrameTree().root()->current_frame_host();
 
   // 2. Navigate to b.com (cross-origin). This will be allowed since
   // it is browser initiated.
@@ -9722,16 +9872,63 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostImplConnectionAllowlistBrowserTest,
 
   EXPECT_EQ(2, web_contents()->GetController().GetEntryCount());
 
-  // 3. Now invoke history.back(). This should be disallowed
-  // because the connection allowlist restricts cross-origin
-  // navigations depending on the issue resolution:
-  //  https://github.com/WICG/connection-allowlists/issues/4
-  // TODO(crbug.com/447954811): Currently it is allowed. See TODO in
-  // NavigationRequest::IsAllowedByConnectionAllowlist().
+  bool is_in_bfcache = rfh_a->IsInBackForwardCache();
+
+  // 3. Now invoke history.back(). This should be allowed since it will be
+  // served from the BFCache.
   TestNavigationObserver navigation_observer(web_contents());
   EXPECT_TRUE(ExecJs(web_contents(), "history.back();"));
   navigation_observer.Wait();
-  EXPECT_TRUE(navigation_observer.last_navigation_succeeded());
+  EXPECT_EQ(is_in_bfcache, navigation_observer.last_navigation_succeeded());
+
+  if (!is_in_bfcache) {
+    return;
+  }
+
+  // 4. The document loaded from BFCache should restore its own connection
+  // allowlist. Fetch a cross-origin resource. It should be disallowed.
+  GURL d_url = embedded_test_server()->GetURL("d.com", "/cors-ok.txt");
+  std::string cross_origin_fetch_resource = JsReplace(
+      "(async () => {"
+      "  let resp = (await fetch($1, { mode: 'cors', credential: 'omit'}));"
+      "  return resp.status; })();",
+      d_url);
+  ASSERT_FALSE(ExecJs(web_contents()->GetPrimaryMainFrame(),
+                      cross_origin_fetch_resource));
+}
+
+IN_PROC_BROWSER_TEST_F(RenderFrameHostImplConnectionAllowlistBrowserTest,
+                       ConnectionAllowlistHistoryBackDisallowedNoBFCache) {
+  GURL allowlist_url(
+      embedded_test_server()->GetURL("a.com", "/connection_allowlist.html"));
+  GURL cross_origin_url(
+      embedded_test_server()->GetURL("b.com", "/title1.html"));
+
+  // 1. Navigate to a.com with Connection-Allowlist.
+  EXPECT_TRUE(NavigateToURL(shell(), allowlist_url));
+  EXPECT_EQ(allowlist_url, web_contents()->GetLastCommittedURL());
+  RenderFrameHostImpl* rfh_a =
+      web_contents()->GetPrimaryFrameTree().root()->current_frame_host();
+  RenderFrameDeletedObserver delete_observer_rfh_a(rfh_a);
+
+  // 2. Navigate to b.com (cross-origin). This will be allowed since
+  // it is browser initiated.
+  EXPECT_TRUE(NavigateToURL(shell(), cross_origin_url));
+  EXPECT_EQ(cross_origin_url, web_contents()->GetLastCommittedURL());
+
+  EXPECT_EQ(2, web_contents()->GetController().GetEntryCount());
+
+  // 3. Now clear the BFCache and invoke history.back(). This should be
+  // disallowed because the connection allowlist restricts cross-origin
+  // navigations.
+  // https://github.com/WICG/connection-allowlists/issues/4
+  web_contents()->GetController().GetBackForwardCache().Flush();
+  delete_observer_rfh_a.WaitUntilDeleted();
+
+  TestNavigationObserver navigation_observer(web_contents());
+  EXPECT_TRUE(ExecJs(web_contents(), "history.back();"));
+  navigation_observer.Wait();
+  EXPECT_FALSE(navigation_observer.last_navigation_succeeded());
   EXPECT_EQ(allowlist_url, web_contents()->GetLastCommittedURL());
 }
 

@@ -588,7 +588,7 @@ static constexpr char kGetAssertionViaButtonClickImmediateUvPreferred[] = R"(
   document.body.innerHTML = '<button id="testButton"">Get Assertion</button>';
   function triggerGetAssertion() {
     navigator.credentials.get({
-      mediation: "immediate",
+      uiMode: "immediate",
       publicKey: {
         challenge: new Uint8Array([0]),
         timeout: 10000,
@@ -3445,7 +3445,8 @@ IN_PROC_BROWSER_TEST_F(EnclaveAuthenticatorBrowserTest,
     {
       auto store_keys_lock = second_manager.GetStoreKeysLock();
       second_manager.StoreKeys(kSyncGaiaId, {*security_domain_secret},
-                               /*last_key_version=*/kSecretVersion);
+                               /*last_key_version=*/kSecretVersion,
+                               /*user_action_trigger=*/std::nullopt);
     }
 
     base::test::TestFuture<bool> add_future;
@@ -3944,9 +3945,6 @@ class EnclaveAuthenticatorConditionalCreateBrowserTest
  protected:
   EnclaveAuthenticatorConditionalCreateBrowserTest() {
     sync_feature_enabled_ = GetParam();
-
-    scoped_feature_list_.InitAndEnableFeature(device::kWebAuthnPasskeyUpgrade);
-    CHECK(base::FeatureList::IsEnabled(device::kWebAuthnPasskeyUpgrade));
   }
 
   bool use_account_password_store() { return !sync_feature_enabled_; }
@@ -4012,8 +4010,6 @@ class EnclaveAuthenticatorConditionalCreateBrowserTest
     passkey_model().AddNewPasskeyForTesting(passkey);
     return passkey;
   }
-
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 INSTANTIATE_TEST_SUITE_P(WithSyncFeatureEnabled,

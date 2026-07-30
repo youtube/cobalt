@@ -47,6 +47,7 @@
 #include "components/password_manager/core/browser/password_reuse_detector.h"
 #include "components/password_manager/core/browser/password_store/mock_password_store_interface.h"
 #include "components/policy/core/common/cloud/mock_cloud_policy_client.h"
+#include "components/policy/core/common/cloud/realtime_reporting_job_configuration.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/safe_browsing/content/browser/password_protection/password_protection_commit_deferring_condition.h"
@@ -759,7 +760,7 @@ TEST_F(ChromePasswordProtectionServiceTest,
       GURL("https://www.mydomain.com")));
 
   // Verify if match enterprise allowlist.
-  base::Value::List allowlist;
+  base::ListValue allowlist;
   allowlist.Append("mydomain.com");
   allowlist.Append("mydomain.net");
   profile()->GetPrefs()->SetList(prefs::kSafeBrowsingAllowlistDomains,
@@ -782,7 +783,7 @@ TEST_F(ChromePasswordProtectionServiceTest,
   profile()->GetPrefs()->ClearPref(prefs::kPasswordProtectionChangePasswordURL);
   EXPECT_FALSE(service_->IsURLAllowlistedForPasswordEntry(
       GURL("https://www.mydomain.com")));
-  base::Value::List login_urls;
+  base::ListValue login_urls;
   login_urls.Append("https://mydomain.com/login.html");
   profile()->GetPrefs()->SetList(prefs::kPasswordProtectionLoginURLs,
                                  std::move(login_urls));
@@ -1389,9 +1390,16 @@ TEST_F(ChromePasswordProtectionServiceTest,
 
   // Simulates change password.
   base::RunLoop run_loop;
-  EXPECT_CALL(*client_, UploadSecurityEventReport)
-      .Times(1)
-      .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+  if (base::FeatureList::IsEnabled(
+          policy::kUploadRealtimeReportingEventsUsingProto)) {
+    EXPECT_CALL(*client_, UploadSecurityEvent)
+        .Times(1)
+        .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+  } else {
+    EXPECT_CALL(*client_, UploadSecurityEventReport)
+        .Times(1)
+        .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+  }
   service_->OnGaiaPasswordChanged("foo@example.com", false);
   run_loop.Run();
 
@@ -1404,7 +1412,12 @@ TEST_F(ChromePasswordProtectionServiceTest,
 #endif
 
   // If user is in incognito mode, no event should be sent.
-  EXPECT_CALL(*client_, UploadSecurityEventReport).Times(0);
+  if (base::FeatureList::IsEnabled(
+          policy::kUploadRealtimeReportingEventsUsingProto)) {
+    EXPECT_CALL(*client_, UploadSecurityEventReport).Times(0);
+  } else {
+    EXPECT_CALL(*client_, UploadSecurityEvent).Times(0);
+  }
   service_->ConfigService(true /*is_incognito=*/,
                           false /*is_extended_reporting=*/);
   service_->OnGaiaPasswordChanged("foo@example.com", false);
@@ -1427,9 +1440,17 @@ TEST_F(
   profile()->GetPrefs()->SetInteger(prefs::kPasswordProtectionWarningTrigger,
                                     PASSWORD_REUSE);
   base::RunLoop run_loop;
-  EXPECT_CALL(*client_, UploadSecurityEventReport)
-      .Times(1)
-      .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+  if (base::FeatureList::IsEnabled(
+          policy::kUploadRealtimeReportingEventsUsingProto)) {
+    EXPECT_CALL(*client_, UploadSecurityEvent)
+        .Times(1)
+        .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+  } else {
+    EXPECT_CALL(*client_, UploadSecurityEventReport)
+        .Times(1)
+        .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+  }
+
   NavigateAndCommit(GURL(kPasswordReuseURL));
   PrepareRequest(LoginReputationClientRequest::PASSWORD_REUSE_EVENT,
                  PasswordType::ENTERPRISE_PASSWORD,
@@ -1453,9 +1474,16 @@ TEST_F(
   profile()->GetPrefs()->SetInteger(prefs::kPasswordProtectionWarningTrigger,
                                     PASSWORD_REUSE);
   base::RunLoop run_loop;
-  EXPECT_CALL(*client_, UploadSecurityEventReport)
-      .Times(1)
-      .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+  if (base::FeatureList::IsEnabled(
+          policy::kUploadRealtimeReportingEventsUsingProto)) {
+    EXPECT_CALL(*client_, UploadSecurityEvent)
+        .Times(1)
+        .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+  } else {
+    EXPECT_CALL(*client_, UploadSecurityEventReport)
+        .Times(1)
+        .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+  }
   service_->MaybeStartProtectedPasswordEntryRequest(
       web_contents(),
       /*main_frame_url=*/GURL("chrome-extension://some-fab-extension"),
@@ -1484,9 +1512,16 @@ TEST_F(ChromePasswordProtectionServiceTest,
                  PasswordType::SAVED_PASSWORD,
                  /*is_warning_showing=*/false);
   base::RunLoop run_loop;
-  EXPECT_CALL(*client_, UploadSecurityEventReport)
-      .Times(1)
-      .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+  if (base::FeatureList::IsEnabled(
+          policy::kUploadRealtimeReportingEventsUsingProto)) {
+    EXPECT_CALL(*client_, UploadSecurityEvent)
+        .Times(1)
+        .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+  } else {
+    EXPECT_CALL(*client_, UploadSecurityEventReport)
+        .Times(1)
+        .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+  }
   service_->MaybeReportPasswordReuseDetected(
       web_contents()->GetLastCommittedURL(), kUserName,
       PasswordType::ENTERPRISE_PASSWORD,
@@ -1548,9 +1583,16 @@ TEST_F(ChromePasswordProtectionServiceTest,
   // GSuite, event should be sent.
   service_->SetAccountInfo(kUserName, "example.com");
   base::RunLoop run_loop2;
-  EXPECT_CALL(*client_, UploadSecurityEventReport)
-      .Times(1)
-      .WillOnce(base::test::RunOnceClosure(run_loop2.QuitClosure()));
+  if (base::FeatureList::IsEnabled(
+          policy::kUploadRealtimeReportingEventsUsingProto)) {
+    EXPECT_CALL(*client_, UploadSecurityEvent)
+        .Times(1)
+        .WillOnce(base::test::RunOnceClosure(run_loop2.QuitClosure()));
+  } else {
+    EXPECT_CALL(*client_, UploadSecurityEventReport)
+        .Times(1)
+        .WillOnce(base::test::RunOnceClosure(run_loop2.QuitClosure()));
+  }
   service_->MaybeReportPasswordReuseDetected(
       request_->main_frame_url(), kUserName, PasswordType::OTHER_GAIA_PASSWORD,
       /*is_phishing_url =*/true,
@@ -1563,7 +1605,12 @@ TEST_F(ChromePasswordProtectionServiceTest,
 #endif
 
   // If no password is used , no event should be sent.
-  EXPECT_CALL(*client_, UploadSecurityEventReport).Times(0);
+  if (base::FeatureList::IsEnabled(
+          policy::kUploadRealtimeReportingEventsUsingProto)) {
+    EXPECT_CALL(*client_, UploadSecurityEventReport).Times(0);
+  } else {
+    EXPECT_CALL(*client_, UploadSecurityEvent).Times(0);
+  }
   service_->MaybeReportPasswordReuseDetected(
       request_->main_frame_url(), kUserName,
       PasswordType::PASSWORD_TYPE_UNKNOWN,
@@ -1576,7 +1623,12 @@ TEST_F(ChromePasswordProtectionServiceTest,
   // If user is in incognito mode, no event should be sent.
   service_->ConfigService(true /*is_incognito=*/,
                           false /*is_extended_reporting=*/);
-  EXPECT_CALL(*client_, UploadSecurityEventReport).Times(0);
+  if (base::FeatureList::IsEnabled(
+          policy::kUploadRealtimeReportingEventsUsingProto)) {
+    EXPECT_CALL(*client_, UploadSecurityEventReport).Times(0);
+  } else {
+    EXPECT_CALL(*client_, UploadSecurityEvent).Times(0);
+  }
   service_->MaybeReportPasswordReuseDetected(
       request_->main_frame_url(), kUserName, PasswordType::ENTERPRISE_PASSWORD,
       /*is_phishing_url =*/true,
@@ -1605,9 +1657,16 @@ TEST_F(ChromePasswordProtectionServiceTest,
                  PasswordType::SAVED_PASSWORD,
                  /*is_warning_showing=*/false);
   base::RunLoop run_loop;
-  EXPECT_CALL(*client_, UploadSecurityEventReport)
-      .Times(1)
-      .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+  if (base::FeatureList::IsEnabled(
+          policy::kUploadRealtimeReportingEventsUsingProto)) {
+    EXPECT_CALL(*client_, UploadSecurityEvent)
+        .Times(1)
+        .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+  } else {
+    EXPECT_CALL(*client_, UploadSecurityEventReport)
+        .Times(1)
+        .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+  }
   service_->MaybeReportPasswordReuseDetected(
       request_->main_frame_url(), kUserName, PasswordType::ENTERPRISE_PASSWORD,
       /*is_phishing_url =*/true,
@@ -1620,7 +1679,12 @@ TEST_F(ChromePasswordProtectionServiceTest,
 
   // If user is a Gmail user and not an enterprise password is used , no event
   // should be sent.
-  EXPECT_CALL(*client_, UploadSecurityEventReport).Times(0);
+  if (base::FeatureList::IsEnabled(
+          policy::kUploadRealtimeReportingEventsUsingProto)) {
+    EXPECT_CALL(*client_, UploadSecurityEventReport).Times(0);
+  } else {
+    EXPECT_CALL(*client_, UploadSecurityEvent).Times(0);
+  }
   service_->MaybeReportPasswordReuseDetected(
       request_->main_frame_url(), kUserName, PasswordType::OTHER_GAIA_PASSWORD,
       /*is_phishing_url =*/true,
@@ -1632,7 +1696,12 @@ TEST_F(ChromePasswordProtectionServiceTest,
 #endif
 
   // If user is a Gmail user and no password is used , no event should be sent.
-  EXPECT_CALL(*client_, UploadSecurityEventReport).Times(0);
+  if (base::FeatureList::IsEnabled(
+          policy::kUploadRealtimeReportingEventsUsingProto)) {
+    EXPECT_CALL(*client_, UploadSecurityEventReport).Times(0);
+  } else {
+    EXPECT_CALL(*client_, UploadSecurityEvent).Times(0);
+  }
   service_->MaybeReportPasswordReuseDetected(
       request_->main_frame_url(), kUserName,
       PasswordType::PASSWORD_TYPE_UNKNOWN,
@@ -1755,7 +1824,7 @@ TEST_F(ChromePasswordProtectionServiceTest, VerifyCanShowInterstitial) {
   EXPECT_TRUE(service_->CanShowInterstitial(reused_password_type, trigger_url));
 
   // Add |trigger_url| to enterprise allowlist.
-  base::Value::List allowlisted_domains;
+  base::ListValue allowlisted_domains;
   allowlisted_domains.Append(trigger_url.GetHost());
   profile()->GetPrefs()->SetList(prefs::kSafeBrowsingAllowlistDomains,
                                  std::move(allowlisted_domains));
@@ -1834,7 +1903,7 @@ TEST_F(ChromePasswordProtectionServiceTest, VerifyGetPingNotSentReason) {
     reused_password_type.set_account_type(ReusedPasswordAccountType::GSUITE);
     profile()->GetPrefs()->SetInteger(prefs::kPasswordProtectionWarningTrigger,
                                       PHISHING_REUSE);
-    base::Value::List allowlist;
+    base::ListValue allowlist;
     allowlist.Append("mydomain.com");
     allowlist.Append("mydomain.net");
     profile()->GetPrefs()->SetList(prefs::kSafeBrowsingAllowlistDomains,

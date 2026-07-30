@@ -30,13 +30,14 @@ void ExtensionsMenuDelegateAndroid::Destroy(JNIEnv* env) {
 std::unique_ptr<ExtensionActionViewModel>
 ExtensionsMenuDelegateAndroid::CreateActionViewModel(
     const extensions::ExtensionId& extension_id) {
+  // TODO(crbug.com/461981075): Pass a `bridge` instance instead of a nullptr.
   return ExtensionActionViewModel::Create(
       extension_id, browser_,
-      std::make_unique<ExtensionActionDelegateAndroid>(browser_));
+      std::make_unique<ExtensionActionDelegateAndroid>(browser_, extension_id,
+                                                       nullptr));
 }
 
-void ExtensionsMenuDelegateAndroid::OnActiveWebContentsChanged(
-    content::WebContents* web_contents) {
+void ExtensionsMenuDelegateAndroid::OnActiveWebContentsChanged() {
   // TODO(crbug.com/473213114)
 }
 
@@ -45,15 +46,18 @@ void ExtensionsMenuDelegateAndroid::OnActionAdded(
     int index) {
   // TODO(crbug.com/473213114)
 }
+
 void ExtensionsMenuDelegateAndroid::OnActionRemoved(
     const ToolbarActionsModel::ActionId& action_id,
     int index) {
   // TODO(crbug.com/473213114)
 }
 
-void ExtensionsMenuDelegateAndroid::OnActionUpdated() {
+void ExtensionsMenuDelegateAndroid::OnActionUpdated(
+    const ToolbarActionsModel::ActionId& action_id) {
   // TODO(crbug.com/473213114)
 }
+
 void ExtensionsMenuDelegateAndroid::OnActionsInitialized() {
   // TODO(crbug.com/473213114)
 }
@@ -143,13 +147,13 @@ void ExtensionsMenuDelegateAndroid::OpenSitePermissionsPage(
   // TODO(crbug.com/473213115)
 }
 
-static jlong JNI_ExtensionsMenuBridge_Init(
+static int64_t JNI_ExtensionsMenuBridge_Init(
     JNIEnv* env,
     const base::android::JavaRef<jobject>& java_object,
-    jlong j_browser_window_interface) {
+    int64_t j_browser_window_interface) {
   BrowserWindowInterface* browser =
       reinterpret_cast<BrowserWindowInterface*>(j_browser_window_interface);
-  return reinterpret_cast<jlong>(
+  return reinterpret_cast<int64_t>(
       new ExtensionsMenuDelegateAndroid(browser, java_object));
 }
 

@@ -41,9 +41,9 @@ import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.Callback;
-import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplierImpl;
+import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.supplier.SettableNullableObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -118,7 +118,7 @@ public class WebAppHeaderLayoutCoordinatorTest {
     private ViewGroup mContentView;
     private ViewStub mViewStub;
     private SettableNullableObservableSupplier<Tab> mTabSupplier;
-    private ObservableSupplierImpl<Boolean> mScrimVisibilitySupplier;
+    private SettableNonNullObservableSupplier<Boolean> mScrimVisibilitySupplier;
     private AppHeaderState mAppHeaderState;
     private ShadowLooper mShadowLooper;
     private OneshotSupplierImpl<AppMenuCoordinator> mAppMenuSupplier;
@@ -130,7 +130,7 @@ public class WebAppHeaderLayoutCoordinatorTest {
         when(mIntentDataProvider.getActivityType()).thenReturn(ActivityType.WEB_APK);
         setupDisplayMode(DisplayMode.STANDALONE);
 
-        mScrimVisibilitySupplier = new ObservableSupplierImpl<>();
+        mScrimVisibilitySupplier = ObservableSuppliers.createNonNull(false);
         when(mScrimManager.getScrimVisibilitySupplier()).thenReturn(mScrimVisibilitySupplier);
 
         mTabSupplier = ObservableSuppliers.createNullable();
@@ -271,6 +271,16 @@ public class WebAppHeaderLayoutCoordinatorTest {
                             expectedVisibility == View.VISIBLE ? "visible" : "gone"),
                     expectedVisibility,
                     mActivity.findViewById(R.id.wco_toggle_button).getVisibility());
+        } else if (displayMode == DisplayMode.STANDALONE) {
+            assertEquals(
+                    String.format(
+                            Locale.US,
+                            "Menu button visibility should be %s",
+                            expectedVisibility == View.VISIBLE ? "visible" : "gone"),
+                    expectedVisibility,
+                    expectedVisibility == View.VISIBLE
+                            ? mActivity.findViewById(R.id.menu_button).getVisibility()
+                            : mActivity.findViewById(R.id.menu_button_wrapper).getVisibility());
         }
     }
 
@@ -619,6 +629,50 @@ public class WebAppHeaderLayoutCoordinatorTest {
 
         assertTrue("Reload button should be enabled", reloadButton.isEnabled());
         assertFalse("Back button should be enabled", backButton.isEnabled());
+        assertTrue("Menu button should be enabled", menuButton.isEnabled());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_TWA_ORIGIN_DISPLAY)
+    public void testStandaloneMaximizeWindow_ControlsFit_ShowControls_MenuButtonVisible() {
+        when(mIntentDataProvider.getActivityType()).thenReturn(ActivityType.TRUSTED_WEB_ACTIVITY);
+        // Emulate minimized window with added Menu button.
+        int flexibleAreaWidth =
+                getMinButtonWidth(DisplayMode.STANDALONE) + HEADER_CONTROL_BUTTON_DP - 1;
+        setupDesktopWindowing(
+                new Rect(0, 0, LEFT_INSET + flexibleAreaWidth + RIGHT_INSET, SCREEN_HEIGHT),
+                new Rect(LEFT_INSET, 0, LEFT_INSET + flexibleAreaWidth, SYS_APP_HEADER_HEIGHT),
+                /* isInDesktopWindow= */ true);
+
+        setupDisplayMode(DisplayMode.STANDALONE);
+        createCoordinator();
+        mShadowLooper.idle();
+
+        // Maximize window.
+        setupDesktopWindowing(/* isInDesktopWindow= */ true);
+        notifyHeaderStateChanged();
+        mShadowLooper.idle();
+
+        // Buttons should be visible and undraggable.
+        verifyControlsVisibility(DisplayMode.STANDALONE, View.VISIBLE);
+        var menuButton = mActivity.findViewById(R.id.menu_button);
+        assertTrue("Menu button should be visible", menuButton.getVisibility() == View.VISIBLE);
+        verifyHeaderContainsNonDraggableAreas(mCoordinator.collectControlPositions());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_TWA_ORIGIN_DISPLAY)
+    public void testStandaloneWindow_ShowControls_MenuButtonVisible() {
+        when(mIntentDataProvider.getActivityType()).thenReturn(ActivityType.TRUSTED_WEB_ACTIVITY);
+        setupDesktopWindowing(/* isInDesktopWindow= */ true);
+        setupDisplayMode(DisplayMode.STANDALONE);
+        createCoordinator();
+        mShadowLooper.idle();
+
+        var menuButton = mActivity.findViewById(R.id.menu_button);
+
+        verifyControlsVisibility(DisplayMode.STANDALONE, View.VISIBLE);
+        assertTrue("Menu button should be visible", menuButton.getVisibility() == View.VISIBLE);
         assertTrue("Menu button should be enabled", menuButton.isEnabled());
     }
 

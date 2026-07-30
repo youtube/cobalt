@@ -10,11 +10,14 @@
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "build/build_config.h"
+#include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/segmentation_platform/segmentation_platform_service_factory.h"
 #include "chrome/browser/ui/webid/account_selection_view.h"
+#include "chrome/browser/webid/federated_actor_login_request.h"
 #include "chrome/browser/webid/identity_provider_permission_request.h"
 #include "components/favicon/content/content_favicon_driver.h"
 #include "components/favicon/core/favicon_driver.h"
@@ -41,13 +44,20 @@ IdentityDialogController::IdentityDialogController(
     : rp_web_contents_(rp_web_contents),
       segmentation_platform_service_(service),
       optimization_guide_decider_(decider) {
+  Profile* profile = Profile::FromBrowserContext(
+      rp_web_contents_->GetPrimaryMainFrame()->GetBrowserContext());
+  actor::ActorKeyedService* actor_service =
+      actor::ActorKeyedService::Get(profile);
+  if (actor_service) {
+    actor_task_state_subscription_ = actor_service->AddTaskStateChangedCallback(
+        base::BindRepeating(&IdentityDialogController::OnActorTaskStateChanged,
+                            weak_ptr_factory_.GetWeakPtr()));
+  }
+
   if (!base::FeatureList::IsEnabled(
           segmentation_platform::features::kSegmentationPlatformFedCmUser)) {
     return;
   }
-
-  Profile* profile = Profile::FromBrowserContext(
-      rp_web_contents_->GetPrimaryMainFrame()->GetBrowserContext());
   if (profile->IsOffTheRecord()) {
     return;
   }
@@ -68,6 +78,43 @@ IdentityDialogController::IdentityDialogController(
 }
 
 IdentityDialogController::~IdentityDialogController() = default;
+
+void IdentityDialogController::OnActorTaskStateChanged(
+    actor::TaskId task_id,
+    actor::ActorTask::State state) {
+  actor::ActorKeyedService* actor_service =
+      actor::ActorKeyedService::Get(rp_web_contents_->GetBrowserContext());
+  CHECK(actor_service);
+  // TODO(b:472336281): this can be simplified once the bug is fixed, but for
+  // not a completed task does not know which tabs it was acting on.
+  if (acting_task_id_ == task_id && actor::ActorTask::IsCompletedState(state)) {
+    UpdateTaskId(actor::TaskId());
+    return;
+  }
+
+  actor::ActorTask* task = actor_service->GetTask(task_id);
+  tabs::TabInterface* tab =
+      tabs::TabInterface::MaybeGetFromContents(rp_web_contents_);
+  if (!tab || !task || !task->IsActingOnTab(tab->GetHandle())) {
+    if (acting_task_id_ == task_id) {
+      // The task we thought was acting on this tab is no longer active, so we
+      // clear the task ID.
+      UpdateTaskId(actor::TaskId());
+    }
+    return;
+  }
+  UpdateTaskId(task->IsUnderActorControl() ? task_id : actor::TaskId());
+}
+
+void IdentityDialogController::UpdateTaskId(actor::TaskId task_id) {
+  acting_task_id_ = task_id;
+  if (account_view_) {
+    account_view_->SetCanShowWidget(acting_task_id_.is_null());
+    if (acting_task_id_.is_null() && did_invoke_show_ui_) {
+      did_show_ui_ = true;
+    }
+  }
+}
 
 int IdentityDialogController::GetBrandIconMinimumSize(
     blink::mojom::RpMode rp_mode) {
@@ -112,14 +159,16 @@ bool IdentityDialogController::ShowAccountsDialog(
   // If there is an actor login request, we will not show the accounts
   // dialog. Pretend that we did for the caller and automatically select the
   // account.
-  if (!ShouldShowFedCmUi()) {
-    auto* actor_login_request = GetActorLoginRequest();
-    GURL idp_config_url = actor_login_request->idp_url();
+  FederatedActorLoginRequest* actor_login_request =
+      FederatedActorLoginRequest::Get(rp_web_contents_->GetPrimaryPage());
+  if (actor_login_request) {
+    url::Origin idp_origin = actor_login_request->idp_origin();
     std::string account_id = actor_login_request->account_id();
     for (const auto& account : accounts) {
       if (account->id != account_id ||
-          account->identity_provider->idp_metadata.config_url !=
-              idp_config_url) {
+          url::Origin::Create(
+              account->identity_provider->idp_metadata.config_url) !=
+              idp_origin) {
         continue;
       }
       bool is_sign_in = account->idp_claimed_login_state.value_or(
@@ -127,7 +176,8 @@ bool IdentityDialogController::ShowAccountsDialog(
                         content::IdentityRequestAccount::LoginState::kSignIn;
       if (is_sign_in) {
         std::move(on_account_selection_)
-            .Run(idp_config_url, account_id, /*is_sign_in=*/true);
+            .Run(account->identity_provider->idp_metadata.config_url,
+                 account_id, /*is_sign_in=*/true);
         return true;
       } else {
         // It is possible that the account is a sign up even though the actor
@@ -167,7 +217,7 @@ bool IdentityDialogController::ShowAccountsDialog(
   // because the caller may have destroyed this object.
   if (account_view_->Show(rp_data, identity_provider_data, accounts, rp_mode,
                           new_accounts)) {
-    did_show_ui_ = true;
+    DidInvokeShowUi();
     return true;
   }
   return false;
@@ -185,12 +235,6 @@ bool IdentityDialogController::ShowFailureDialog(
   on_dismiss_ = std::move(dismiss_callback);
   on_login_ = std::move(login_callback);
 
-  // If there is an actor login request, we will not show the accounts
-  // dialog. Pretend that we did for the caller.
-  if (!ShouldShowFedCmUi()) {
-    return true;
-  }
-
   if (!TrySetAccountView()) {
     return false;
   }
@@ -202,7 +246,7 @@ bool IdentityDialogController::ShowFailureDialog(
   // because the caller may have destroyed this object.
   if (account_view_->ShowFailureDialog(rp_data, idp_for_display, rp_context,
                                        rp_mode, idp_metadata)) {
-    did_show_ui_ = true;
+    DidInvokeShowUi();
     return true;
   }
   return false;
@@ -220,12 +264,6 @@ bool IdentityDialogController::ShowErrorDialog(
   on_dismiss_ = std::move(dismiss_callback);
   on_more_details_ = std::move(more_details_callback);
 
-  // If there is an actor login request, we will not show the accounts
-  // dialog. Pretend that we did for the caller.
-  if (!ShouldShowFedCmUi()) {
-    return true;
-  }
-
   if (!TrySetAccountView()) {
     return false;
   }
@@ -234,7 +272,7 @@ bool IdentityDialogController::ShowErrorDialog(
   // because the caller may have destroyed this object.
   if (account_view_->ShowErrorDialog(rp_data, idp_for_display, rp_context,
                                      rp_mode, idp_metadata, error)) {
-    did_show_ui_ = true;
+    DidInvokeShowUi();
     return true;
   }
   return false;
@@ -267,12 +305,6 @@ bool IdentityDialogController::ShowVerifyingDialog(
   on_accounts_displayed_ = std::move(accounts_displayed_callback);
   rp_mode_ = rp_mode;
 
-  // If there is an actor login request, we will not show the accounts
-  // dialog. Pretend that we did for the caller.
-  if (!ShouldShowFedCmUi()) {
-    return true;
-  }
-
   if (!TrySetAccountView()) {
     return false;
   }
@@ -280,7 +312,7 @@ bool IdentityDialogController::ShowVerifyingDialog(
   // because the caller may have destroyed this object.
   if (account_view_->ShowVerifyingDialog(rp_data, idp_data, account,
                                          sign_in_mode, rp_mode)) {
-    did_show_ui_ = true;
+    DidInvokeShowUi();
     return true;
   }
   return false;
@@ -303,7 +335,13 @@ void IdentityDialogController::OnAccountsDisplayed() {
 }
 
 void IdentityDialogController::OnFlowCompleted(bool success) {
-  auto* actor_login_request = GetActorLoginRequest();
+  // OnFlowCompleted() may be invoked while the WebContents is being destroyed,
+  // so be careful when trying to access the Page.
+  if (rp_web_contents_->IsBeingDestroyed()) {
+    return;
+  }
+  FederatedActorLoginRequest* actor_login_request =
+      FederatedActorLoginRequest::Get(rp_web_contents_->GetPrimaryPage());
   if (actor_login_request) {
     std::move(actor_login_request->on_federated_token_received_callback())
         .Run(success);
@@ -393,6 +431,7 @@ content::WebContents* IdentityDialogController::ShowModalDialog(
     return nullptr;
   }
 
+  did_invoke_show_ui_ = true;
   did_show_ui_ = true;
   // Show the modal dialog even if FedCM UI is not being shown.
   return account_view_->ShowModalDialog(url, rp_mode);
@@ -460,6 +499,7 @@ bool IdentityDialogController::TrySetAccountView() {
     return false;
   }
   account_view_ = std::make_unique<webid::FedCmAccountSelectionView>(this, tab);
+  account_view_->SetCanShowWidget(ShouldShowFedCmUi());
 #endif
   return true;
 }
@@ -583,48 +623,12 @@ IdentityDialogController::GetFedCmClickthroughRateMetadata() {
   return parsed_metadata.value();
 }
 
-IdentityDialogController::ActorLoginRequest::ActorLoginRequest(
-    content::Page& page,
-    const GURL& idp_url,
-    const std::string& account_id,
-    OnFederatedTokenReceivedCallback callback)
-    : content::PageUserData<ActorLoginRequest>(page),
-      idp_url_(idp_url),
-      account_id_(account_id),
-      on_federated_token_received_callback_(std::move(callback)) {}
-
-IdentityDialogController::ActorLoginRequest::~ActorLoginRequest() = default;
-
-PAGE_USER_DATA_KEY_IMPL(IdentityDialogController::ActorLoginRequest);
-
-// static
-void IdentityDialogController::SetActorLoginRequest(
-    content::Page& page,
-    const GURL& idp_url,
-    const std::string& account_id,
-    OnFederatedTokenReceivedCallback callback) {
-  page.SetUserData(ActorLoginRequest::UserDataKey(),
-                   std::make_unique<ActorLoginRequest>(
-                       page, idp_url, account_id, std::move(callback)));
-}
-
-// static
-void IdentityDialogController::UnsetActorLoginRequest(content::Page& page) {
-  IdentityDialogController::ActorLoginRequest::DeleteForPage(page);
-}
-
-IdentityDialogController::ActorLoginRequest*
-IdentityDialogController::GetActorLoginRequest() const {
-  if (rp_web_contents_->IsBeingDestroyed()) {
-    // If the WebContents is being destroyed, don't try to access the page. See
-    // crbug.com/476409625.
-    return nullptr;
-  }
-  return IdentityDialogController::ActorLoginRequest::GetForPage(
-      rp_web_contents_->GetPrimaryPage());
-}
 
 bool IdentityDialogController::ShouldShowFedCmUi() {
-  return rp_web_contents_->GetPrimaryPage().GetUserData(
-             ActorLoginRequest::UserDataKey()) == nullptr;
+  return acting_task_id_.is_null();
+}
+
+void IdentityDialogController::DidInvokeShowUi() {
+  did_invoke_show_ui_ = true;
+  did_show_ui_ |= ShouldShowFedCmUi();
 }

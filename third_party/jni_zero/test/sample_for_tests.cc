@@ -32,8 +32,8 @@ using jni_zero::ScopedJavaLocalRef;
 
 namespace jni_zero::tests {
 
-jdouble CPPClass::InnerClass::MethodOtherP0(JNIEnv* env,
-                                            const JavaRef<jobject>& caller) {
+double CPPClass::InnerClass::MethodOtherP0(JNIEnv* env,
+                                           const JavaRef<jobject>& caller) {
   return 0.0;
 }
 
@@ -83,26 +83,26 @@ ScopedJavaLocalRef<jstring> CPPClass::ReturnAString(
 }
 
 // Static free functions declared and called directly from java.
-static jlong JNI_SampleForTests_Init(
+static int64_t JNI_SampleForTests_Init(
     JNIEnv* env,
     const JavaRef<jobject>& caller,
     const JavaRef<jstring>& param,
     jni_zero::ByteArrayView& bytes,
     CPPClass* converted_type,
     std::vector<jni_zero::ScopedJavaLocalRef<jobject>>& non_converted_array) {
-  return static_cast<jlong>(bytes.size());
+  return static_cast<int64_t>(bytes.size());
 }
 
 static void JNI_SampleForTests_ClassUnderSamePackageTest(
     JNIEnv*,
     const JavaRef<jobject>&) {}
 
-static jdouble JNI_SampleForTests_GetDoubleFunction(JNIEnv*,
-                                                    const JavaRef<jobject>&) {
+static double JNI_SampleForTests_GetDoubleFunction(JNIEnv*,
+                                                   const JavaRef<jobject>&) {
   return 0;
 }
 
-static jfloat JNI_SampleForTests_GetFloatFunction(JNIEnv*) {
+static float JNI_SampleForTests_GetFloatFunction(JNIEnv*) {
   return 0;
 }
 
@@ -207,17 +207,17 @@ static std::vector<int> JNI_SampleForAnnotationProcessor_TestAllPrimitives(
     JNIEnv* env,
     int zint,
     std::vector<int>& ints,
-    jlong zlong,
+    int64_t zlong,
     const JavaRef<jlongArray>& longs,
-    jshort zshort,
+    int16_t zshort,
     const JavaRef<jshortArray>& shorts,
     int zchar,
     const JavaRef<jcharArray>& chars,
-    jbyte zbyte,
+    int8_t zbyte,
     const JavaRef<jbyteArray>& bytes,
-    jdouble zdouble,
+    double zdouble,
     const JavaRef<jdoubleArray>& doubles,
-    jfloat zfloat,
+    float zfloat,
     const JavaRef<jfloatArray>& floats,
     bool zbool,
     const JavaRef<jbooleanArray>& bools) {

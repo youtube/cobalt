@@ -30,6 +30,10 @@ BASE_FEATURE(kWebViewBypassHttpCacheForPrefetchFromHeader,
 BASE_FEATURE(kWebViewConfigurableLibraryPrefetch,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Enables content restriction support in WebView.
+BASE_FEATURE(kWebViewContentRestrictionSupport,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enable JS FileSystemAccess API.
 // This flag is set by WebView internal code based on an app's targetSdkVersion.
 // It is enabled for version B+. The default value here is not relevant, and is
@@ -130,11 +134,6 @@ BASE_FEATURE(kWebViewWebauthn, base::FEATURE_ENABLED_BY_DEFAULT);
 // enabled.
 BASE_FEATURE(kWebViewRenderDocument, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// When enabled, WebView disables MSAA and doesn't auto sharpen mip-mapped
-// textures on very large screen devices (such as TVs). The exact criteria for
-// what qualifies for this can be found in AwGrContextOptionsProvider.java.
-BASE_FEATURE(kWebViewUseRenderingHeuristic, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // When enabled, webview chromium initialization uses the startup tasks logic
 // where it runs the startup tasks asynchronously if startup is triggered from a
 // background thread. Otherwise runs startup synchronously.
@@ -225,16 +224,6 @@ BASE_FEATURE(kWebViewEarlyStartupTracing, base::FEATURE_DISABLED_BY_DEFAULT);
 // calling content code.
 BASE_FEATURE(kWebViewEarlyPerfettoInit, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables Perfetto init on a background thread. This is mutually exclusive with
-// `kWebViewEarlyPerfettoInit`. If both flags are enabled,
-// `kWebViewEarlyPerfettoInit` will take precedent.
-BASE_FEATURE(kWebViewBackgroundPerfettoInit, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Completely disables Perfetto init. If this flag is enabled, neither
-// `kWebViewEarlyPerfettoInit` nor `kWebViewBackgroundPerfettoInit` will be
-// used.
-BASE_FEATURE(kWebViewDisablePerfettoInit, base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Caches reflective methods in AndroidX instead of looking them up every time.
 // This should make calling AndroidX methods faster.
 BASE_FEATURE(kWebViewCacheBoundaryInterfaceMethods,
@@ -267,6 +256,14 @@ BASE_FEATURE(kWebViewPersistentMetricsInNoBackupDir,
 BASE_FEATURE(kPrerender2WarmUpCompositorForWebView,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Keeps the renderer process alive after the last WebView is destroyed to
+// allow for reuse.
+BASE_FEATURE(kWebViewRendererKeepAlive, base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<base::TimeDelta> kWebViewRendererKeepAliveDuration{
+    &kWebViewRendererKeepAlive, "webview_renderer_keep_alive_duration",
+    base::Seconds(30)};
+
 // Enables fetching the Origin Trials configuration update component in the
 // embedded WebView.
 BASE_FEATURE(kWebViewFetchOriginTrialsComponent,
@@ -275,4 +272,8 @@ BASE_FEATURE(kWebViewFetchOriginTrialsComponent,
 // Enables recording user actions for API calls.
 BASE_FEATURE(kWebViewEnableApiCallUserActions,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Kill switch for reporting web performance metrics.
+BASE_FEATURE(kWebViewWebPerformanceMetricsReporting,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 }  // namespace android_webview::features

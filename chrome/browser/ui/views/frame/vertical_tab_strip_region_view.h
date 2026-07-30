@@ -5,6 +5,8 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_FRAME_VERTICAL_TAB_STRIP_REGION_VIEW_H_
 #define CHROME_BROWSER_UI_VIEWS_FRAME_VERTICAL_TAB_STRIP_REGION_VIEW_H_
 
+#include <optional>
+
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/tabs/tab_renderer_data.h"
@@ -93,12 +95,21 @@ class VerticalTabStripRegionView final : public TabStripRegionView,
     return tab_strip_controller_.get();
   }
 
+  // Gets the percentage of the current collapse or un-collapse animation, or
+  // null if none.
+  std::optional<double> GetCollapseAnimationPercent() const;
+
   // views::View:
   void AddedToWidget() override;
   void Layout(PassKey) override;
   views::View* GetDefaultFocusableChild() override;
+  gfx::Size GetMinimumSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
 
   // TabStripRegionView
+  void InitializeTabStrip() override;
+  void ResetTabStrip() override;
   bool IsTabStripEditable() const override;
   void DisableTabStripEditingForTesting() const override;
   bool IsTabStripCloseable() const override;
@@ -110,6 +121,9 @@ class VerticalTabStripRegionView final : public TabStripRegionView,
   views::View* GetTabAnchorViewAt(int tab_index) override;
   views::View* GetTabGroupAnchorView(
       const tab_groups::TabGroupId& group) override;
+  void OnTabGroupFocusChanged(
+      std::optional<tab_groups::TabGroupId> new_focused_group_id,
+      std::optional<tab_groups::TabGroupId> old_focused_group_id) override;
   TabDragContext* GetDragContext() override;
   std::optional<BrowserRootView::DropIndex> GetDropIndex(
       const ui::DropTargetEvent& event) override;
@@ -127,8 +141,6 @@ class VerticalTabStripRegionView final : public TabStripRegionView,
 
   bool IsPositionInWindowCaption(const gfx::Point& point);
 
-  void CreateTabStripController(BrowserView* browser_view);
-
   // These methods provide the toolbar height and exclusion width, before the
   // layout of this view, for use in calculating positioning of child views. If
   // an exclusion width is provided, nothing can be rendered within the
@@ -141,6 +153,7 @@ class VerticalTabStripRegionView final : public TabStripRegionView,
 
  private:
   views::View* SetTabStripView(std::unique_ptr<views::View> view);
+  void ClearTabStripView(views::View* view);
 
   void OnCollapsedStateChanged(
       tabs::VerticalTabStripStateController* state_controller);
@@ -150,6 +163,8 @@ class VerticalTabStripRegionView final : public TabStripRegionView,
   void UpdateColors();
 
   bool IsFrameActive() const;
+
+  raw_ptr<BrowserView> browser_view_;
 
   // When false simulates a non-editable tabstrip. For testing only.
   bool tab_strip_editable_for_testing_ = true;
@@ -164,7 +179,7 @@ class VerticalTabStripRegionView final : public TabStripRegionView,
 
   // The drag handler is a view (required for capturing mouse inputs during
   // a drag loop) owned by the tab strip's View.
-  raw_ptr<TabDragContext> drag_handler_ = nullptr;
+  raw_ptr<VerticalTabDragHandler> drag_handler_ = nullptr;
 
   std::unique_ptr<VerticalTabStripController> tab_strip_controller_;
   std::unique_ptr<RootTabCollectionNode> root_node_;

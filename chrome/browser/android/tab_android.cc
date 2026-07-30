@@ -60,6 +60,7 @@
 #include "components/tabs/public/supports_handles.h"
 #include "components/tabs/public/tab_collection.h"
 #include "components/tabs/public/tab_group_tab_collection.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/navigation_entry.h"
@@ -97,66 +98,21 @@ BrowserWindowInterface* FindBrowserWindowInterface(SessionID window_id) {
   return nullptr;
 }
 
-class TabAndroidHelper : public content::WebContentsUserData<TabAndroidHelper> {
- public:
-  static void SetTabForWebContents(WebContents* contents,
-                                   TabAndroid* tab_android) {
-    content::WebContentsUserData<TabAndroidHelper>::CreateForWebContents(
-        contents);
-    content::WebContentsUserData<TabAndroidHelper>::FromWebContents(contents)
-        ->tab_android_ = tab_android;
-  }
-
-  static TabAndroid* FromWebContents(const WebContents* contents) {
-    TabAndroidHelper* helper =
-        static_cast<TabAndroidHelper*>(contents->GetUserData(UserDataKey()));
-    return helper ? helper->tab_android_.get() : nullptr;
-  }
-
-  explicit TabAndroidHelper(content::WebContents* web_contents)
-      : content::WebContentsUserData<TabAndroidHelper>(*web_contents) {}
-
- private:
-  friend class content::WebContentsUserData<TabAndroidHelper>;
-
-  raw_ptr<TabAndroid> tab_android_;
-
-  WEB_CONTENTS_USER_DATA_KEY_DECL();
-};
-
-WEB_CONTENTS_USER_DATA_KEY_IMPL(TabAndroidHelper);
-
 }  // namespace
 
-namespace tabs {
-
 // static
-TabInterface* TabInterface::GetFromContents(
-    content::WebContents* web_contents) {
-  auto* tab_android = TabAndroid::FromWebContents(web_contents);
-  CHECK(tab_android);
-  return tab_android;
-}
-
-const TabInterface* TabInterface::GetFromContents(
+const TabAndroid* TabAndroid::FromWebContents(
     const content::WebContents* web_contents) {
-  const auto* tab_android = TabAndroid::FromWebContents(web_contents);
-  CHECK(tab_android);
-  return tab_android;
+  const tabs::TabLookupFromWebContents* helper =
+      tabs::TabLookupFromWebContents::FromWebContents(web_contents);
+  return helper ? static_cast<const TabAndroid*>(helper->model()) : nullptr;
 }
 
 // static
-TabInterface* TabInterface::MaybeGetFromContents(
-    content::WebContents* web_contents) {
-  return TabAndroid::FromWebContents(web_contents);
-}
-
-}  // namespace tabs
-
-// static
-TabAndroid* TabAndroid::FromWebContents(
-    const content::WebContents* web_contents) {
-  return TabAndroidHelper::FromWebContents(web_contents);
+TabAndroid* TabAndroid::FromWebContents(content::WebContents* web_contents) {
+  tabs::TabLookupFromWebContents* helper =
+      tabs::TabLookupFromWebContents::FromWebContents(web_contents);
+  return helper ? static_cast<TabAndroid*>(helper->model()) : nullptr;
 }
 
 // static
@@ -181,7 +137,7 @@ TabAndroid::GetAllNativeTabs(
     return tab_native_ptrs;
   }
 
-  std::vector<jlong> tab_ptr;
+  std::vector<int64_t> tab_ptr;
   base::android::JavaLongArrayToLongVector(env, j_tabs_ptr, &tab_ptr);
 
   for (size_t i = 0; i < tab_ptr.size(); ++i) {
@@ -397,7 +353,7 @@ void TabAndroid::InitWebContents(
       Profile::FromBrowserContext(web_contents_->GetBrowserContext()));
   web_contents_->SetOwnerLocationForDebug(FROM_HERE);
 
-  TabAndroidHelper::SetTabForWebContents(web_contents(), this);
+  tabs::TabLookupFromWebContents::CreateForWebContents(web_contents(), this);
   web_contents_delegate_ =
       std::make_unique<android::TabWebContentsDelegateAndroid>(
           env, jweb_contents_delegate);
@@ -486,15 +442,24 @@ void TabAndroid::UpdateDelegates(
 }
 
 void TabAndroid::SendDidActivateUpdate(JNIEnv* env) {
+  // On Android, visibility and activation are currently synonymous.
+  did_become_visible_callback_list_.Notify(this);
   did_activate_callback_list_.Notify(this);
 }
 
 void TabAndroid::SendWillDeactivateUpdate(JNIEnv* env) {
+  // On Android, visibility and activation are currently synonymous.
+  will_become_hidden_callback_list_.Notify(this);
   will_deactivate_callback_list_.Notify(this);
 }
 
 void TabAndroid::SendDidInsertUpdate(JNIEnv* env) {
   did_insert_callback_list_.Notify(this);
+}
+
+void TabAndroid::SendWillDetachUpdate(JNIEnv* env, jint detach_reason) {
+  will_detach_callback_list_.Notify(
+      this, static_cast<tabs::TabInterface::DetachReason>(detach_reason));
 }
 
 namespace {
@@ -547,7 +512,8 @@ void TabAndroid::ReleaseWebContents() {
 
   // Remove the link from the native WebContents to |this|, since the
   // lifetimes of the two objects are no longer intertwined.
-  TabAndroidHelper::SetTabForWebContents(released_contents, nullptr);
+  released_contents->RemoveUserData(
+      tabs::TabLookupFromWebContents::UserDataKey());
   ClearSessionId();
 
   synced_tab_delegate_->ResetWebContents();
@@ -670,9 +636,7 @@ void TabAndroid::Close() {
 
 base::CallbackListSubscription TabAndroid::RegisterWillDiscardContents(
     WillDiscardContentsCallback callback) {
-  // Tab discarding is currently an OS level operation and we don't necessarily
-  // get signals when this occurs.
-  NOTIMPLEMENTED();
+  // Discarding does not replace WebContents instances on Android.
   return base::CallbackListSubscription();
 }
 
@@ -700,25 +664,19 @@ bool TabAndroid::IsSelected() const {
   return Java_TabImpl_isMultiSelected(env, weak_java_tab_.get(env));
 }
 
-// TODO(crbug.com/409366905): Finish TabInterface implementation.
 base::CallbackListSubscription TabAndroid::RegisterDidBecomeVisible(
     DidBecomeVisibleCallback callback) {
-  NOTIMPLEMENTED();
-  return base::CallbackListSubscription();
+  return did_become_visible_callback_list_.Add(std::move(callback));
 }
 
-// TODO(crbug.com/409366905): Finish TabInterface implementation.
 base::CallbackListSubscription TabAndroid::RegisterWillBecomeHidden(
     WillBecomeHiddenCallback callback) {
-  NOTIMPLEMENTED();
-  return base::CallbackListSubscription();
+  return will_become_hidden_callback_list_.Add(std::move(callback));
 }
 
-// TODO(crbug.com/409366905): Finish TabInterface implementation.
 base::CallbackListSubscription TabAndroid::RegisterWillDetach(
     WillDetach callback) {
-  NOTIMPLEMENTED();
-  return base::CallbackListSubscription();
+  return will_detach_callback_list_.Add(std::move(callback));
 }
 
 base::CallbackListSubscription TabAndroid::RegisterDidInsert(
@@ -782,6 +740,7 @@ bool TabAndroid::IsPinned() const {
   return Java_TabImpl_getIsPinned(env, weak_java_tab_.get(env));
 }
 
+// TODO(crbug.com/465427156): Investigate what is needed to implement this.
 bool TabAndroid::IsBlocked() const {
   NOTIMPLEMENTED();
   return false;

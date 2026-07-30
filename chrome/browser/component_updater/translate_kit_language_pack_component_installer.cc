@@ -13,6 +13,7 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/callback.h"
+#include "base/functional/callback_forward.h"
 #include "base/logging.h"
 #include "base/strings/strcat.h"
 #include "chrome/browser/browser_process.h"
@@ -37,14 +38,17 @@ constexpr char kTranslateKitLanguagePackManifestNamePrefix[] =
 TranslateKitLanguagePackComponentInstallerPolicy::
     TranslateKitLanguagePackComponentInstallerPolicy(
         PrefService* pref_service,
-        LanguagePackKey language_pack_key)
-    : language_pack_key_(language_pack_key), pref_service_(pref_service) {}
+        LanguagePackKey language_pack_key,
+        base::RepeatingClosure on_ready_callback)
+    : language_pack_key_(language_pack_key),
+      pref_service_(pref_service),
+      on_ready_callback_(std::move(on_ready_callback)) {}
 
 TranslateKitLanguagePackComponentInstallerPolicy::
     ~TranslateKitLanguagePackComponentInstallerPolicy() = default;
 
 bool TranslateKitLanguagePackComponentInstallerPolicy::VerifyInstallation(
-    const base::Value::Dict& manifest,
+    const base::DictValue& manifest,
     const base::FilePath& install_dir) const {
   // Check that the sub-directories of the package install directory exist.
   return std::ranges::all_of(
@@ -66,7 +70,7 @@ bool TranslateKitLanguagePackComponentInstallerPolicy::
 
 update_client::CrxInstaller::Result
 TranslateKitLanguagePackComponentInstallerPolicy::OnCustomInstall(
-    const base::Value::Dict& manifest,
+    const base::DictValue& manifest,
     const base::FilePath& install_dir) {
   // Nothing custom here.
   return update_client::CrxInstaller::Result(0);
@@ -77,11 +81,14 @@ void TranslateKitLanguagePackComponentInstallerPolicy::OnCustomUninstall() {}
 void TranslateKitLanguagePackComponentInstallerPolicy::ComponentReady(
     const base::Version& version,
     const base::FilePath& install_dir,
-    base::Value::Dict manifest) {
+    base::DictValue manifest) {
   CHECK(pref_service_);
   pref_service_->SetFilePath(
       on_device_translation::GetComponentPathPrefName(GetConfig()),
       install_dir);
+  if (on_ready_callback_) {
+    on_ready_callback_.Run();
+  }
 }
 
 base::FilePath
@@ -118,11 +125,12 @@ TranslateKitLanguagePackComponentInstallerPolicy::GetConfig() const {
 
 // static
 void TranslateKitLanguagePackComponentInstallerPolicy::UpdateComponentOnDemand(
+    component_updater::ComponentUpdateService* cus,
     LanguagePackKey language_pack_key) {
   auto language_pack_crx_id = crx_file::id_util::GenerateIdFromHash(
       on_device_translation::GetLanguagePackComponentConfig(language_pack_key)
           .public_key_sha);
-  g_browser_process->component_updater()->GetOnDemandUpdater().OnDemandUpdate(
+  cus->GetOnDemandUpdater().OnDemandUpdate(
       language_pack_crx_id,
       component_updater::OnDemandUpdater::Priority::FOREGROUND,
       base::BindOnce([](update_client::Error error) {
@@ -139,9 +147,8 @@ void RegisterTranslateKitLanguagePackComponent(
     ComponentUpdateService* cus,
     PrefService* pref_service,
     LanguagePackKey language_pack_key,
-    base::OnceClosure registered_callback) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-
+    base::OnceClosure registered_callback,
+    base::RepeatingClosure on_ready_callback) {
   // If the component is already installed, do nothing.
   const std::vector<std::string> component_ids = cus->GetComponentIDs();
   if (std::ranges::find(
@@ -160,7 +167,7 @@ void RegisterTranslateKitLanguagePackComponent(
       true);
   base::MakeRefCounted<ComponentInstaller>(
       std::make_unique<TranslateKitLanguagePackComponentInstallerPolicy>(
-          pref_service, language_pack_key))
+          pref_service, language_pack_key, std::move(on_ready_callback)))
       ->Register(cus, std::move(registered_callback));
 }
 
@@ -172,7 +179,8 @@ void RegisterTranslateKitLanguagePackComponentsForUpdate(
     if (pref_service->GetBoolean(
             on_device_translation::GetRegisteredFlagPrefName(*config))) {
       RegisterTranslateKitLanguagePackComponent(
-          cus, pref_service, language_pack_key, base::OnceClosure());
+          cus, pref_service, language_pack_key, base::OnceClosure(),
+          base::RepeatingClosure());
     }
   }
 }
@@ -181,7 +189,6 @@ void UninstallTranslateKitLanguagePackComponent(
     ComponentUpdateService* cus,
     PrefService* pref_service,
     LanguagePackKey language_pack_key) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   const auto* config =
       on_device_translation::kLanguagePackComponentConfigMap.at(
           language_pack_key);

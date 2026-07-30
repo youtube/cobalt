@@ -13,7 +13,7 @@
 
 :host {
   --feedback-footer-height: 92px;
-  --feedback-google-sans-font-family: "Google Sans", Roboto, sans-serif;
+  --feedback-google-sans-font-family: 'Google Sans', Roboto, sans-serif;
   --feedback-header-height: 92px;
   --feedback-padding-inline-end: 40px;
   --feedback-padding-inline-start: 40px;
@@ -179,6 +179,8 @@ cr-button {
 
 cr-checkbox {
   --cr-checkbox-label-padding-start: 10px;
+  --cr-checkbox-ripple-opacity: 0;
+  --cr-checkbox-ripple-size: 32px;
   margin-inline-end: 12px;
 }
 
@@ -280,10 +282,6 @@ paper-tooltip {
   --paper-tooltip-text-color: var(--cros-tooltip-label-color);
 }
 
-cr-checkbox {
-  --cr-checkbox-ripple-opacity: 0;
-  --cr-checkbox-ripple-size: 32px;
-}
 
 :host-context(.focus-outline-visible) cr-checkbox {
   --cr-checkbox-ripple-ring: none;

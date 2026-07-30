@@ -7,7 +7,14 @@
 
 #include <memory>
 
-#include "base/sequence_checker.h"
+#include "base/functional/callback_forward.h"
+#include "base/memory/scoped_refptr.h"
+
+class PrefService;
+
+namespace update_client {
+class NetworkFetcherFactory;
+}
 
 namespace activity_reporter {
 
@@ -30,12 +37,15 @@ class ActivityReporter {
  protected:
   // Must be called on a SequencedTaskRunner.
   ActivityReporter() = default;
-
-  SEQUENCE_CHECKER(sequence_checker_);
 };
 
-// Must be called on a SequencedTaskRunner.
-std::unique_ptr<ActivityReporter> CreateActivityReporter();
+// Must be called on a SequencedTaskRunner. When `ReportActive` is called, the
+// ActivityReporter will also run `updater_active_callback` if
+// USE_LEGACY_ACTIVE_DEFINITION is false.
+std::unique_ptr<ActivityReporter> CreateActivityReporter(
+    base::RepeatingCallback<PrefService*()> pref_service_provider,
+    scoped_refptr<update_client::NetworkFetcherFactory> network_fetcher_factory,
+    base::RepeatingClosure updater_active_callback);
 
 // Must be called on a SequencedTaskRunner. Creates an ActivityReporter that
 // does nothing.

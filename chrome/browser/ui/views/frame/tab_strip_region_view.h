@@ -26,6 +26,10 @@ class TabStripRegionView : public views::AccessiblePaneView,
  public:
   ~TabStripRegionView() override = default;
 
+  // -- Life Time Management --
+  virtual void InitializeTabStrip() = 0;
+  virtual void ResetTabStrip() = 0;
+
   // -- View State Queries --
   virtual bool IsTabStripEditable() const = 0;
   virtual void DisableTabStripEditingForTesting() const = 0;
@@ -41,6 +45,11 @@ class TabStripRegionView : public views::AccessiblePaneView,
   virtual views::View* GetTabAnchorViewAt(int tab_index) = 0;
   virtual views::View* GetTabGroupAnchorView(
       const tab_groups::TabGroupId& group) = 0;
+
+  // -- Tab Group UI State --
+  virtual void OnTabGroupFocusChanged(
+      std::optional<tab_groups::TabGroupId> new_focused_group_id,
+      std::optional<tab_groups::TabGroupId> old_focused_group_id) = 0;
 
   // -- Drag and drop --
   virtual TabDragContext* GetDragContext() = 0;

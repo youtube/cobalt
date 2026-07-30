@@ -5,6 +5,8 @@
 #ifndef CHROME_BROWSER_WEB_APPLICATIONS_WEB_APP_FILTER_H_
 #define CHROME_BROWSER_WEB_APPLICATIONS_WEB_APP_FILTER_H_
 
+#include <optional>
+
 namespace web_app {
 
 // Describe capabilities that web apps can have. Used to query for apps within
@@ -23,8 +25,18 @@ class WebAppFilter {
   // like stub ones. To also consider stub apps, use
   // `IsIsolatedWebAppIncludingUninstalling()` instead.
   static WebAppFilter IsIsolatedApp();
+  // Only Consider sub apps of isolated web apps (connected via parent_app_id).
+  static WebAppFilter IsIsolatedSubApp();
+  // Only consider isolated web apps installed in developer mode, that are not
+  // scheduled for uninstallation, like stub ones.
+  static WebAppFilter IsDevModeIsolatedApp();
   // Only consider force-installed Isolated Web Apps.
   static WebAppFilter PolicyInstalledIsolatedWebApp();
+  // Only consider user installed Isolated Web Apps
+  static WebAppFilter UserInstalledIsolatedWebApp();
+  // Only consider user installed Isolated Web Apps without any external
+  // management (policy/kiosk/shimless).
+  static WebAppFilter IsIsolatedWebAppWithOnlyUserManagement();
   // Only consider crafted web apps (not DIY apps).
   static WebAppFilter IsCraftedApp();
   // Only consider crafted web apps that are set to open in a dedicated window.
@@ -73,6 +85,11 @@ class WebAppFilter {
   // migration are not included here.
   static WebAppFilter IsAppSurfaceableToUser();
 
+  // Only consider web apps that are valid sources to be migrated to a different
+  // app. This mainly includes apps that have valid OS integration and are not
+  // installed by policy.
+  static WebAppFilter IsAppValidMigrationSource();
+
   WebAppFilter(const WebAppFilter&);
   WebAppFilter& operator=(const WebAppFilter&) = default;
   ~WebAppFilter() = default;
@@ -82,6 +99,14 @@ class WebAppFilter {
 
   WebAppFilter();
 
+  struct IsolatedWebAppFilter {
+    bool must_be_in_dev_mode = false;
+    bool must_be_user_installed = false;
+    bool must_have_no_external_management = false;
+    bool must_be_policy_installed = false;
+    bool is_sub_app = false;
+  };
+
   bool opens_in_browser_tab_ = false;
   bool opens_in_dedicated_window_ = false;
 
@@ -90,7 +115,7 @@ class WebAppFilter {
   bool captures_links_in_scope_ = false;
 #endif
 
-  bool is_isolated_app_ = false;
+  std::optional<IsolatedWebAppFilter> isolated_app_filter_;
   bool is_crafted_app_ = false;
   bool is_suggested_app_ = false;
   bool displays_badge_on_os_ = false;
@@ -99,7 +124,6 @@ class WebAppFilter {
   bool installed_in_os_ = false;
   bool is_diy_with_os_shortcut_ = false;
   bool launchable_from_install_api_ = false;
-  bool is_policy_installed_iwa = false;
   // Having is_crafted_app_ and opens_in_dedicated_window_ set to true
   // separately would result in matching any app for which either filter is
   // true. So use a separate field for the combination of the two. In the
@@ -109,6 +133,7 @@ class WebAppFilter {
   bool is_isolated_apps_including_uninstalling_ = false;
   bool is_app_suggested_from_migration_ = false;
   bool is_app_surfaceable_to_user_ = false;
+  bool is_valid_migration_source_ = false;
 };
 
 }  // namespace web_app

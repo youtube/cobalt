@@ -110,6 +110,12 @@ const base::FeatureParam<std::string>
 // of associating with an unused IPC::Channel.
 BASE_FEATURE(kRemoveGPULegacyIPC, base::FEATURE_DISABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+// Feature flag to control whether SharedImageStub sequence uses high priority
+// on ChromeOS and Linux. Enabled by default.
+BASE_FEATURE(kSharedImageStubHighPriority, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
 // Enable GPU Rasterization by default. This can still be overridden by
 // --enable-gpu-rasterization or --disable-gpu-rasterization.
 // DefaultEnableGpuRasterization has launched on Mac, Windows, ChromeOS,
@@ -173,6 +179,11 @@ BASE_FEATURE(kVulkan,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
+
+// Force enable WebGPU interop when enabled. When disabled the webgpu interop
+// mechanism will default to auto detection in 'GetWebGPUOnVulkanViaGLInterop'
+// function.
+BASE_FEATURE(kForceEnableWebGpuInterop, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableDrDc,
 #if BUILDFLAG(IS_ANDROID)
@@ -434,6 +445,12 @@ const base::FeatureParam<int> kGPUBlockListTestGroupId{&kGPUBlockListTestGroup,
 BASE_FEATURE(kGPUDriverBugListTestGroup, base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<int> kGPUDriverBugListTestGroupId{
     &kGPUDriverBugListTestGroup, "test_group", 0};
+
+#if BUILDFLAG(IS_LINUX)
+bool IsForceEnableWebGpuInterop() {
+  return base::FeatureList::IsEnabled(kForceEnableWebGpuInterop);
+}
+#endif
 
 bool IsUsingVulkan() {
 #if BUILDFLAG(IS_ANDROID)

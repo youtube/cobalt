@@ -158,6 +158,12 @@ static_library("safe_browsing") {
       "client_side_detection_intelligent_scan_delegate_util.h",
       "client_side_detection_service_factory.cc",
       "client_side_detection_service_factory.h",
+      "cloud_content_scanning/file_analysis_request.cc",
+      "cloud_content_scanning/file_analysis_request.h",
+      "cloud_content_scanning/file_opening_job.cc",
+      "cloud_content_scanning/file_opening_job.h",
+      "cloud_content_scanning/resumable_uploader.cc",
+      "cloud_content_scanning/resumable_uploader.h",
       "delayed_warning_navigation_throttle.cc",
       "delayed_warning_navigation_throttle.h",
       "download_protection/check_client_download_request.cc",
@@ -188,6 +194,10 @@ static_library("safe_browsing") {
       "download_protection/file_system_access_metadata.h",
       "external_app_redirect_checking.cc",
       "external_app_redirect_checking.h",
+      "gemini_antiscam_protection/gemini_antiscam_protection_service.cc",
+      "gemini_antiscam_protection/gemini_antiscam_protection_service.h",
+      "gemini_antiscam_protection/gemini_antiscam_protection_service_factory.cc",
+      "gemini_antiscam_protection/gemini_antiscam_protection_service_factory.h",
       "network_context_service.cc",
       "network_context_service.h",
       "network_context_service_factory.cc",
@@ -326,14 +336,8 @@ static_library("safe_browsing") {
         "cloud_content_scanning/cloud_binary_upload_service_factory.h",
         "cloud_content_scanning/deep_scanning_utils.cc",
         "cloud_content_scanning/deep_scanning_utils.h",
-        "cloud_content_scanning/file_analysis_request.cc",
-        "cloud_content_scanning/file_analysis_request.h",
-        "cloud_content_scanning/file_opening_job.cc",
-        "cloud_content_scanning/file_opening_job.h",
         "cloud_content_scanning/multipart_uploader.cc",
         "cloud_content_scanning/multipart_uploader.h",
-        "cloud_content_scanning/resumable_uploader.cc",
-        "cloud_content_scanning/resumable_uploader.h",
         "download_protection/deep_scanning_request.cc",
         "download_protection/deep_scanning_request.h",
         "download_protection/download_feedback.cc",
@@ -654,6 +658,10 @@ source_set("unit_tests") {
     "metrics/bundled_settings_metrics_provider_unittest.cc",
   ]
 
+  if (safe_browsing_mode != 0) {
+    sources += [ "gemini_antiscam_protection/gemini_antiscam_protection_service_unittest.cc" ]
+  }
+
   deps = [
     ":safe_browsing",
     "//chrome/browser/safe_browsing:advanced_protection",
@@ -665,6 +673,15 @@ source_set("unit_tests") {
     "//content/test:test_support",
     "//testing/gtest",
   ]
+
+  if (safe_browsing_mode != 0) {
+    deps += [
+      "//chrome/browser/history",
+      "//chrome/browser/optimization_guide",
+      "//components/safe_browsing/core/common/proto:csd_proto",
+    ]
+  }
+
   if (is_android) {
     deps += [ "android:test_support" ]
   }

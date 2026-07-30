@@ -45,7 +45,7 @@ public class CreditCardAccessorySheetCoordinator extends AccessorySheetTabCoordi
             RecyclerView.@Nullable OnScrollListener scrollListener) {
         super(
                 context.getString(R.string.autofill_payment_methods),
-                IconProvider.getIcon(context, R.drawable.infobar_autofill_cc),
+                R.drawable.infobar_autofill_cc,
                 context.getString(R.string.credit_card_accessory_sheet_toggle),
                 R.layout.credit_card_accessory_sheet,
                 AccessoryTabType.CREDIT_CARDS,
@@ -54,7 +54,7 @@ public class CreditCardAccessorySheetCoordinator extends AccessorySheetTabCoordi
                 createUiConfiguration(context, AutofillImageFetcherFactory.getForProfile(profile));
         mMediator =
                 new AccessorySheetTabMediator(
-                        mModel, Type.CREDIT_CARD_INFO, AccessoryAction.MANAGE_CREDIT_CARDS, null);
+                        mModel, Type.CREDIT_CARD_INFO, AccessoryAction.MANAGE_CREDIT_CARDS);
     }
 
     @Override

@@ -560,8 +560,6 @@ TEST_F(WebAppRegistrarTest, CanFindAppsInScope) {
       origin_scope,
       web_app::WebAppFilter::InstalledInOperatingSystemForTesting());
   EXPECT_EQ(0u, in_scope.size());
-  // TODO(crbug.com/340952100): Evaluate call sites of DoesScopeContainAnyApp
-  // for correctness (note: multiple instances within this function).
   EXPECT_FALSE(registrar().DoesScopeContainAnyApp(
       origin_scope, {proto::InstallState::INSTALLED_WITH_OS_INTEGRATION,
                      proto::InstallState::INSTALLED_WITHOUT_OS_INTEGRATION}));
@@ -969,32 +967,6 @@ TEST_F(WebAppRegistrarTest, GetAllIsolatedWebAppStoragePartitionConfigs) {
       /*partition_name=*/"", /*in_memory=*/false);
   ASSERT_EQ(1UL, storage_partition_configs.size());
   EXPECT_EQ(expected_config, storage_partition_configs[0]);
-}
-
-TEST_F(
-    WebAppRegistrarTest,
-    GetAllIsolatedWebAppStoragePartitionConfigsEmptyWhenNotLocallyInstalled) {
-  base::test::ScopedFeatureList scoped_feature_list(features::kIsolatedWebApps);
-  StartWebAppProvider();
-
-  GURL start_url(
-      "isolated-app://"
-      "berugqztij5biqquuk3mfwpsaibuegaqcitgfchwuosuofdjabzqaaic");
-  auto isolated_web_app = test::CreateWebApp(start_url);
-  const webapps::AppId app_id = isolated_web_app->app_id();
-  isolated_web_app->SetIsolationData(
-      IsolationData::Builder(
-          IwaStorageOwnedBundle{"random_name", /*dev_mode=*/false},
-          *IwaVersion::Create("1.0.0"))
-          .Build());
-  isolated_web_app->SetInstallState(
-      proto::InstallState::SUGGESTED_FROM_ANOTHER_DEVICE);
-  RegisterAppUnsafe(std::move(isolated_web_app));
-
-  std::vector<content::StoragePartitionConfig> storage_partition_configs =
-      registrar().GetIsolatedWebAppStoragePartitionConfigs(app_id);
-
-  EXPECT_TRUE(storage_partition_configs.empty());
 }
 
 TEST_F(WebAppRegistrarTest, SaveAndGetInMemoryControlledFramePartitionConfig) {
@@ -2209,6 +2181,42 @@ TEST_P(WebAppRegistrarParameterizedTest, Filter_IsIsolatedApp) {
   EXPECT_TRUE(registrar().AppMatches(app_id, WebAppFilter::IsIsolatedApp()));
   EXPECT_EQ(app_id, registrar().FindBestAppWithUrlInScope(
                         app_url, WebAppFilter::IsIsolatedApp()));
+}
+
+TEST_P(WebAppRegistrarParameterizedTest, Filter_IsIsolatedSubApp) {
+  base::test::ScopedFeatureList scoped_feature_list(features::kIsolatedWebApps);
+  StartWebAppProvider();
+
+  constexpr char kIwaHostname[] =
+      "berugqztij5biqquuk3mfwpsaibuegaqcitgfchwuosuofdjabzqaaic";
+  GURL app_url(base::StrCat({webapps::kIsolatedAppScheme,
+                             url::kStandardSchemeSeparator, kIwaHostname}));
+  auto isolated_web_app = test::CreateWebApp(app_url);
+  const webapps::AppId app_id = isolated_web_app->app_id();
+
+  isolated_web_app->SetIsolationData(
+      IsolationData::Builder(
+          IwaStorageOwnedBundle{"random_name", /*dev_mode=*/false},
+          *IwaVersion::Create("1.0.0"))
+          .Build());
+  isolated_web_app->SetDisplayMode(DisplayMode::kBrowser);
+  isolated_web_app->SetUserDisplayMode(mojom::UserDisplayMode::kBrowser);
+  RegisterAppUnsafe(std::move(isolated_web_app));
+
+  constexpr char kSubIwaHostname[] =
+      "berugqztij5biqquuk3mfwpsaibuegaqcitgfchwuosuofdjabzqaaic";
+  GURL sub_app_url(
+      base::StrCat({webapps::kIsolatedAppScheme, url::kStandardSchemeSeparator,
+                    kSubIwaHostname, "/sub_app/"}));
+  auto isolated_sub_app = test::CreateWebApp(sub_app_url);
+  isolated_sub_app->SetParentAppId(app_id);
+  const webapps::AppId sub_app_id = isolated_sub_app->app_id();
+  RegisterAppUnsafe(std::move(isolated_sub_app));
+
+  EXPECT_TRUE(
+      registrar().AppMatches(sub_app_id, WebAppFilter::IsIsolatedSubApp()));
+  EXPECT_EQ(sub_app_id, registrar().FindBestAppWithUrlInScope(
+                            sub_app_url, WebAppFilter::IsIsolatedSubApp()));
 }
 
 INSTANTIATE_TEST_SUITE_P(

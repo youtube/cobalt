@@ -157,7 +157,7 @@ class SigninMetricsServiceTest : public ::testing::Test {
   // Value is expected to be there.
   base::Time GetAccountWebSigninStartTime(CoreAccountId account_id) const {
     CHECK(pref_service_.HasPrefPath(kWebSigninAccountStartTimesPrefForTesting));
-    const base::Value::Dict& first_websignin_account_dict =
+    const base::DictValue& first_websignin_account_dict =
         pref_service_.GetDict(kWebSigninAccountStartTimesPrefForTesting);
     std::optional<base::Time> start_time = base::ValueToTime(
         first_websignin_account_dict.Find(account_id.ToString()));
@@ -607,8 +607,6 @@ TEST_F(SigninMetricsServiceTest, ChromeSigninSettingOnSignin) {
   // Default user choice is no choice.
   histogram_tester.ExpectUniqueSample("Signin.Settings.ChromeSignin.OnSignin",
                                       ChromeSigninUserChoice::kNoChoice, 1);
-  histogram_tester.ExpectTotalCount(
-      "Signin.Settings.ChromeSignin.AccessPointWithDoNotSignin", 0);
 
   Signout();
 
@@ -621,8 +619,6 @@ TEST_F(SigninMetricsServiceTest, ChromeSigninSettingOnSignin) {
 
   histogram_tester.ExpectBucketCount("Signin.Settings.ChromeSignin.OnSignin",
                                      user_choice1, 1);
-  histogram_tester.ExpectTotalCount(
-      "Signin.Settings.ChromeSignin.AccessPointWithDoNotSignin", 0);
 
   Signout();
 
@@ -634,9 +630,6 @@ TEST_F(SigninMetricsServiceTest, ChromeSigninSettingOnSignin) {
 
   histogram_tester.ExpectBucketCount("Signin.Settings.ChromeSignin.OnSignin",
                                      user_choice2, 1);
-  histogram_tester.ExpectUniqueSample(
-      "Signin.Settings.ChromeSignin.AccessPointWithDoNotSignin", access_point,
-      1);
 }
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 

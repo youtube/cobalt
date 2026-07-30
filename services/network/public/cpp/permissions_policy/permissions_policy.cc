@@ -164,6 +164,7 @@ std::unique_ptr<PermissionsPolicy> PermissionsPolicy::CopyStateFrom(
 // static
 std::unique_ptr<PermissionsPolicy> PermissionsPolicy::CreateFromParsedPolicy(
     const network::ParsedPermissionsPolicy& parsed_policy,
+    // TODO(crbug.com/362237072): clean up the now-unused `base_policy`
     const std::optional<network::ParsedPermissionsPolicy>& base_policy,
     const url::Origin& origin) {
   return CreateFromParsedPolicy(
@@ -174,6 +175,8 @@ std::unique_ptr<PermissionsPolicy> PermissionsPolicy::CreateFromParsedPolicy(
 // static
 std::unique_ptr<PermissionsPolicy> PermissionsPolicy::CreateFromParsedPolicy(
     const network::ParsedPermissionsPolicy& parsed_policy,
+    // TODO(crbug.com/362237072): clean up the now-unused
+    // `parsed_policy_for_isolated_app`
     const std::optional<network::ParsedPermissionsPolicy>&
         parsed_policy_for_isolated_app,
     const url::Origin& origin,
@@ -185,9 +188,10 @@ std::unique_ptr<PermissionsPolicy> PermissionsPolicy::CreateFromParsedPolicy(
                             parsed_policy)
           : CreateAllowlistsAndReportingEndpoints(parsed_policy);
   for (const auto& [feature, unused] : features) {
-    if (allow_lists_and_reporting_endpoints.allowlists_.contains(feature) &&
-        allow_lists_and_reporting_endpoints.allowlists_[feature].Contains(
-            origin)) {
+    if (const auto it =
+            allow_lists_and_reporting_endpoints.allowlists_.find(feature);
+        it != allow_lists_and_reporting_endpoints.allowlists_.end() &&
+        it->second.Contains(origin)) {
       inherited_policies.Add(feature);
     }
   }

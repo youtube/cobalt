@@ -6,8 +6,13 @@
 
 #include "base/task/single_thread_task_runner.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_annotations_dict.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_script_runner.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_tool_function.h"
+#include "third_party/blink/renderer/core/html/html_script_element.h"
+#include "third_party/blink/renderer/platform/json/json_parser.h"
+#include "third_party/blink/renderer/platform/json/json_values.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
 namespace blink {
 
@@ -47,6 +52,43 @@ ScriptObject JSONStringToScriptObject(ScriptState* script_state,
   return ScriptObject(script_state->GetIsolate(), v8_object);
 }
 
+String ComputeScriptToolResult(const Document& document) {
+  StringBuilder builder;
+  builder.Append("[");
+
+  bool first = true;
+  for (HTMLScriptElement& script_element :
+       Traversal<HTMLScriptElement>::DescendantsOf(document)) {
+    if (static_cast<ScriptElementBase&>(script_element).TypeAttributeValue() !=
+        "application/ld+json") {
+      continue;
+    }
+
+    const String& json_raw = script_element.textContent();
+    if (json_raw.empty()) {
+      continue;
+    }
+
+    JSONParseError error;
+    std::unique_ptr<JSONValue> parsed_json =
+        ParseJSONWithCommentsDeprecated(json_raw, &error);
+    if (!parsed_json) {
+      LOG(ERROR) << "JSON parsing failed : " << error.message;
+      continue;
+    }
+
+    if (!first) {
+      builder.Append(",");
+    }
+
+    builder.Append(parsed_json->ToJSONString());
+    first = false;
+  }
+
+  builder.Append("]");
+  return builder.ToString();
+}
+
 }  // namespace
 
 class ModelContext::ToolFunctionFinishedCallback
@@ -79,9 +121,12 @@ class ModelContext::ToolFunctionFinishedCallback
         }
       }
 
-      if (!result) {
+      if (!result || result->empty()) {
         result = "Operation succeeded";
       }
+    } else {
+      V8ScriptRunner::ReportException(script_state->GetIsolate(),
+                                      value.V8Value());
     }
 
     model_context_->OnToolExecuted(execution_id_, std::move(result));
@@ -99,8 +144,9 @@ class ModelContext::ToolFunctionFinishedCallback
 };
 
 ModelContext::ModelContext(
+    Document& document,
     scoped_refptr<base::SingleThreadTaskRunner> task_runner)
-    : task_runner_(std::move(task_runner)) {}
+    : document_(document), task_runner_(std::move(task_runner)) {}
 
 void ModelContext::ForEachScriptTool(
     base::FunctionRef<void(const mojom::blink::ScriptTool&)> func) const {
@@ -178,6 +224,28 @@ void ModelContext::ExecuteTool(
   }
 }
 
+void ModelContext::GetCrossDocumentScriptToolResult(
+    CrossDocumentScriptToolResultCallback result_callback) {
+  if (document_->HasFinishedParsing()) {
+    std::move(result_callback).Run(ComputeScriptToolResult(*document_));
+    return;
+  }
+
+  cross_document_result_callbacks_.push_back(std::move(result_callback));
+}
+
+void ModelContext::DidFinishParsing() {
+  if (cross_document_result_callbacks_.empty()) {
+    return;
+  }
+
+  auto result = ComputeScriptToolResult(*document_);
+  for (auto& callback : cross_document_result_callbacks_) {
+    std::move(callback).Run(result);
+  }
+  cross_document_result_callbacks_.clear();
+}
+
 // This overload is used for declaratively-created WebMCP tools. It passes
 // the input argument JSON string to the corresponding <form> object, and
 // submits the form. The result comes back one of two ways:
@@ -186,8 +254,9 @@ void ModelContext::ExecuteTool(
 //     renderer for the navigated page will then look for a <script> with the
 //     agent response type, and pass its contents back to OnToolExecuted().
 //   - if the form `submit` event is preventDefaulted, and the
-//     responseForAgent() function is called on the event, the passed Promise
-//     will contain the response, once it resolves.
+//     respondWith() function is called on the event, the passed Promise
+//     will contain the response, once it resolves. (If the event is prevented,
+//     but respondWith() isn't called, an error is reported back to the agent.)
 void ModelContext::ExecuteDeclarativeTool(
     DeclarativeWebMCPTool* tool,
     const String& input_arguments,
@@ -196,14 +265,8 @@ void ModelContext::ExecuteDeclarativeTool(
       input_arguments,
       blink::BindOnce(
           [](WebDocument::ScriptToolExecutedCallback tool_executed_cb,
-             String result) {
-            if (result.IsNull()) {
-              std::move(tool_executed_cb)
-                  .Run(base::unexpected(
-                      WebDocument::ScriptToolError::kToolInvocationFailed));
-            } else {
-              std::move(tool_executed_cb).Run(result);
-            }
+             base::expected<String, WebDocument::ScriptToolError> result) {
+            std::move(tool_executed_cb).Run(result);
           },
           std::move(tool_executed_cb)));
 }
@@ -346,6 +409,7 @@ void ModelContext::OnToolsChanged() {
 void ModelContext::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
   visitor->Trace(tool_map_);
+  visitor->Trace(document_);
 }
 
 void ModelContext::ToolData::Trace(Visitor* visitor) const {

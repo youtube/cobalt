@@ -28,6 +28,7 @@
 #import "ios/chrome/browser/shared/coordinator/scene/scene_controller_testing.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_util_test_support.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/incognito_state.h"
 #import "ios/chrome/browser/shared/model/browser/browser_list_factory.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
@@ -38,6 +39,7 @@
 #import "ios/chrome/browser/sync/model/send_tab_to_self_sync_service_factory.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/public/provider/chrome/browser/user_feedback/user_feedback_data.h"
+#import "ios/testing/scoped_block_swizzler.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #import "services/network/test/test_url_loader_factory.h"
@@ -184,8 +186,18 @@ class SceneControllerTest : public PlatformTest {
     signin::SetAutomaticIssueOfAccessTokens(GetIdentityManager(), grant);
   }
 
+  // Returns a `ScopedBlockSwizzler` that swizzles `applicationState` with the
+  // given `state`.
+  std::unique_ptr<ScopedBlockSwizzler> SwizzleApplicationState(
+      UIApplicationState state) {
+    return std::make_unique<ScopedBlockSwizzler>([UIApplication class],
+                                                 @selector(applicationState), ^{
+                                                   return state;
+                                                 });
+  }
   web::WebTaskEnvironment task_environment_{
-      web::WebTaskEnvironment::MainThreadType::IO,
+      web::WebTaskEnvironment::MainThreadType::UI,
+      web::WebTaskEnvironment::IOThreadType::REAL_THREAD,
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
   variations::test::ScopedVariationsIdsProvider scoped_variations_ids_provider_{
@@ -198,7 +210,6 @@ class SceneControllerTest : public PlatformTest {
   ProfileState* profile_state_;
   id fake_scene_;
   id<ConnectionInformation> connection_information_;
-
   UIViewController* base_view_controller_;
   network::TestURLLoaderFactory test_loader_factory_;
 };
@@ -212,23 +223,22 @@ class SceneControllerTest : public PlatformTest {
 // when the relevant scene commands is called.
 TEST_F(SceneControllerTest, UpdatesIncognitoContentVisibility) {
   [scene_controller_ setIncognitoContentVisible:NO];
-  EXPECT_FALSE(scene_state_.incognitoContentVisible);
+  EXPECT_FALSE(scene_state_.incognitoState.incognitoContentVisible);
   [scene_controller_ setIncognitoContentVisible:YES];
-  EXPECT_TRUE(scene_state_.incognitoContentVisible);
+  EXPECT_TRUE(scene_state_.incognitoState.incognitoContentVisible);
   [scene_controller_ setIncognitoContentVisible:NO];
-  EXPECT_FALSE(scene_state_.incognitoContentVisible);
+  EXPECT_FALSE(scene_state_.incognitoState.incognitoContentVisible);
 }
 
 // Tests that scene controller correctly handles an external intent to
 // OpenIncognitoSearch.
-// TODO(crbug.com/40947630): re-enabled the test.
-TEST_F(SceneControllerTest, DISABLED_TestOpenIncognitoSearchForShortcutItem) {
+TEST_F(SceneControllerTest, TestOpenIncognitoSearchForShortcutItem) {
+  auto app_state_swizzler = SwizzleApplicationState(UIApplicationStateActive);
   UIApplicationShortcutItem* shortcut = [[UIApplicationShortcutItem alloc]
         initWithType:kShortcutNewIncognitoSearch
       localizedTitle:kShortcutNewIncognitoSearch];
   [scene_controller_ performActionForShortcutItem:shortcut
                                 completionHandler:nil];
-  EXPECT_TRUE(scene_state_.startupHadExternalIntent);
   EXPECT_EQ(ApplicationModeForTabOpening::INCOGNITO,
             [scene_controller_ applicationMode]);
   EXPECT_EQ(FOCUS_OMNIBOX,
@@ -238,12 +248,12 @@ TEST_F(SceneControllerTest, DISABLED_TestOpenIncognitoSearchForShortcutItem) {
 // Tests that scene controller correctly handles an external intent to
 // OpenNewSearch.
 TEST_F(SceneControllerTest, TestOpenNewSearchForShortcutItem) {
+  auto app_state_swizzler = SwizzleApplicationState(UIApplicationStateActive);
   UIApplicationShortcutItem* shortcut =
       [[UIApplicationShortcutItem alloc] initWithType:kShortcutNewSearch
                                        localizedTitle:kShortcutNewSearch];
   [scene_controller_ performActionForShortcutItem:shortcut
                                 completionHandler:nil];
-  EXPECT_TRUE(scene_state_.startupHadExternalIntent);
   EXPECT_EQ(ApplicationModeForTabOpening::NORMAL,
             [scene_controller_ applicationMode]);
   EXPECT_EQ(FOCUS_OMNIBOX,
@@ -253,12 +263,12 @@ TEST_F(SceneControllerTest, TestOpenNewSearchForShortcutItem) {
 // Tests that scene controller correctly handles an external intent to
 // OpenVoiceSearch.
 TEST_F(SceneControllerTest, TestOpenVoiceSearchForShortcutItem) {
+  auto app_state_swizzler = SwizzleApplicationState(UIApplicationStateActive);
   UIApplicationShortcutItem* shortcut =
       [[UIApplicationShortcutItem alloc] initWithType:kShortcutVoiceSearch
                                        localizedTitle:kShortcutVoiceSearch];
   [scene_controller_ performActionForShortcutItem:shortcut
                                 completionHandler:nil];
-  EXPECT_TRUE(scene_state_.startupHadExternalIntent);
   EXPECT_EQ(ApplicationModeForTabOpening::NORMAL,
             [scene_controller_ applicationMode]);
   EXPECT_EQ(START_VOICE_SEARCH,
@@ -268,12 +278,12 @@ TEST_F(SceneControllerTest, TestOpenVoiceSearchForShortcutItem) {
 // Tests that scene controller correctly handles an external intent to
 // OpenQRScanner.
 TEST_F(SceneControllerTest, TestOpenQRScannerForShortcutItem) {
+  auto app_state_swizzler = SwizzleApplicationState(UIApplicationStateActive);
   UIApplicationShortcutItem* shortcut =
       [[UIApplicationShortcutItem alloc] initWithType:kShortcutQRScanner
                                        localizedTitle:kShortcutQRScanner];
   [scene_controller_ performActionForShortcutItem:shortcut
                                 completionHandler:nil];
-  EXPECT_TRUE(scene_state_.startupHadExternalIntent);
   EXPECT_EQ(ApplicationModeForTabOpening::NORMAL,
             [scene_controller_ applicationMode]);
   EXPECT_EQ(START_QR_CODE_SCANNER,

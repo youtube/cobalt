@@ -22,7 +22,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/signin/internal/identity_manager/account_capabilities_fetcher.h"
 #include "components/signin/internal/identity_manager/account_capabilities_fetcher_factory.h"
-#include "components/signin/internal/identity_manager/account_info_fetcher.h"
+#include "components/signin/internal/identity_manager/account_info_fetcher_gaia.h"
 #include "components/signin/internal/identity_manager/account_tracker_service.h"
 #include "components/signin/internal/identity_manager/profile_oauth2_token_service.h"
 #include "components/signin/public/base/avatar_icon_util.h"
@@ -172,17 +172,13 @@ void AccountFetcherService::StartFetchingUserInfo(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(network_fetches_enabled_);
 
-  std::unique_ptr<AccountInfoFetcher>& request =
-      user_info_requests_[account_id];
-  if (!request) {
+  if (!user_info_requests_.contains(account_id)) {
     DVLOG(1) << "StartFetching " << account_id;
-    std::unique_ptr<AccountInfoFetcher> fetcher =
-        std::make_unique<AccountInfoFetcher>(
-            token_service_, signin_client_->GetURLLoaderFactory(), this,
-            account_id);
-    request = std::move(fetcher);
     user_info_fetch_start_times_[account_id] = base::TimeTicks::Now();
-    request->Start();
+    user_info_requests_.emplace(
+        account_id, std::make_unique<AccountInfoFetcherGaia>(
+                        token_service_, signin_client_->GetURLLoaderFactory(),
+                        this, account_id));
   }
 }
 
@@ -259,7 +255,7 @@ void AccountFetcherService::RefreshAccountInfo(const CoreAccountId& account_id,
 
 void AccountFetcherService::OnUserInfoFetchSuccess(
     const CoreAccountId& account_id,
-    const base::Value::Dict& user_info) {
+    const base::DictValue& user_info) {
   account_tracker_service_->SetAccountInfoFromUserInfo(account_id, user_info);
   auto it = user_info_fetch_start_times_.find(account_id);
   if (it != user_info_fetch_start_times_.end()) {

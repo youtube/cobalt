@@ -7,6 +7,7 @@
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/glic/glic_pref_names.h"
@@ -23,6 +24,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/tabs/tab_menu_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -90,6 +92,7 @@ class GlicTabSubMenuModelTest : public InProcessBrowserTest {
     feature_list_.InitWithFeatures(
         /*enabled_features=*/{features::kGlic, features::kGlicMultiInstance,
                               features::kGlicMITabContextMenu,
+                              features::kTabstripComboButton,
 #if BUILDFLAG(IS_CHROMEOS)
                               chromeos::features::kFeatureManagementGlic
 #endif
@@ -194,6 +197,7 @@ IN_PROC_BROWSER_TEST_F(GlicTabSubMenuModelTest, CreateNewChatWithSingleTab) {
                                     handles_to_wait_for);
 
   // Execute the Create new chat command via the glic submenu model.
+  base::HistogramTester histogram_tester;
   auto submenu_model =
       std::make_unique<GlicTabSubMenuModel>(tab_strip_model, 0);
   submenu_model->ExecuteCommand(TabStripModel::CommandGlicCreateNewChat, 0);
@@ -213,6 +217,9 @@ IN_PROC_BROWSER_TEST_F(GlicTabSubMenuModelTest, CreateNewChatWithSingleTab) {
   ASSERT_TRUE(pinned_tab_usage.has_value());
   EXPECT_EQ(pinned_tab_usage->pin_event.trigger,
             glic::GlicPinTrigger::kContextMenu);
+
+  histogram_tester.ExpectBucketCount(
+      "Glic.TabContextMenu.PinnedTabsToNewConversation", 1, 1);
 }
 
 IN_PROC_BROWSER_TEST_F(GlicTabSubMenuModelTest, CreateNewChatWithMultipleTabs) {
@@ -245,6 +252,7 @@ IN_PROC_BROWSER_TEST_F(GlicTabSubMenuModelTest, CreateNewChatWithMultipleTabs) {
                                     handles_to_wait_for);
 
   // Execute the Create new chat command via the glic submenu model.
+  base::HistogramTester histogram_tester;
   auto submenu_model =
       std::make_unique<GlicTabSubMenuModel>(tab_strip_model, 1);
   submenu_model->ExecuteCommand(TabStripModel::CommandGlicCreateNewChat, 0);
@@ -274,6 +282,9 @@ IN_PROC_BROWSER_TEST_F(GlicTabSubMenuModelTest, CreateNewChatWithMultipleTabs) {
   ASSERT_TRUE(pinned_tab_usage1.has_value());
   EXPECT_EQ(pinned_tab_usage1->pin_event.trigger,
             glic::GlicPinTrigger::kContextMenu);
+
+  histogram_tester.ExpectBucketCount(
+      "Glic.TabContextMenu.PinnedTabsToNewConversation", 2, 1);
 
   // Tab 2 should not be bound or pinned to anything.
   GlicInstance* instance3 = glic_instance_coordinator->GetInstanceForTab(
@@ -382,6 +393,7 @@ IN_PROC_BROWSER_TEST_F(GlicTabSubMenuModelTest, SwitchToRecentConversation) {
     }
   }
   ASSERT_TRUE(found_target);
+  base::HistogramTester histogram_tester;
   submenu->ActivatedAt(target_index);
 
   tabs::TabInterface* tab1 = tab_strip_model->GetTabAtIndex(1);
@@ -398,13 +410,26 @@ IN_PROC_BROWSER_TEST_F(GlicTabSubMenuModelTest, SwitchToRecentConversation) {
            inst2 &&
            static_cast<GlicInstanceImpl*>(inst2)->conversation_id() == "conv3";
   }));
+
+  histogram_tester.ExpectBucketCount(
+      "Glic.TabContextMenu.PinnedTabsToExistingConversation", 2, 1);
 }
 
 class TestMenuDelegate : public ui::SimpleMenuModel::Delegate {
  public:
+  explicit TestMenuDelegate(TabStripModel* tab_strip_model, int index)
+      : tab_strip_model_(tab_strip_model), index_(index) {}
+
   bool IsCommandIdChecked(int command_id) const override { return false; }
   bool IsCommandIdEnabled(int command_id) const override { return true; }
-  void ExecuteCommand(int command_id, int event_flags) override {}
+  void ExecuteCommand(int command_id, int event_flags) override {
+    tab_strip_model_->ExecuteContextMenuCommand(
+        index_, static_cast<TabStripModel::ContextMenuCommand>(command_id));
+  }
+
+ private:
+  raw_ptr<TabStripModel> tab_strip_model_;
+  int index_;
 };
 
 IN_PROC_BROWSER_TEST_F(GlicTabSubMenuModelTest,
@@ -419,7 +444,7 @@ IN_PROC_BROWSER_TEST_F(GlicTabSubMenuModelTest,
   tab_strip_model->ActivateTabAt(0);
 
   // Open the context menu without pinning anything
-  TestMenuDelegate delegate;
+  TestMenuDelegate delegate(tab_strip_model, 0);
   auto menu = std::make_unique<TabMenuModel>(
       &delegate, browser()->GetFeatures().tab_menu_model_delegate(),
       tab_strip_model, /*index=*/0);
@@ -467,7 +492,7 @@ IN_PROC_BROWSER_TEST_F(GlicTabSubMenuModelTest, UnshareCommandShown) {
   selection.set_active(0);
   tab_strip_model->SetSelectionFromModel(selection);
 
-  TestMenuDelegate delegate;
+  TestMenuDelegate delegate(tab_strip_model, 0);
   auto menu = std::make_unique<TabMenuModel>(
       &delegate, browser()->GetFeatures().tab_menu_model_delegate(),
       tab_strip_model, /*index=*/0);
@@ -482,6 +507,10 @@ IN_PROC_BROWSER_TEST_F(GlicTabSubMenuModelTest, UnshareCommandShown) {
   }
   EXPECT_NE(unshare_command_index, -1);
   EXPECT_TRUE(menu->IsEnabledAt(unshare_command_index));
+
+  base::HistogramTester histogram_tester;
+  menu->ActivatedAt(unshare_command_index);
+  histogram_tester.ExpectBucketCount("Glic.TabContextMenu.UnpinnedTabs", 2, 1);
 }
 
 IN_PROC_BROWSER_TEST_F(
@@ -525,7 +554,7 @@ IN_PROC_BROWSER_TEST_F(
 
   // Open the context menu for the first tab.
   // This tests the background/inactive conversation pinned status.
-  TestMenuDelegate delegate;
+  TestMenuDelegate delegate(tab_strip_model, 0);
   auto menu = std::make_unique<TabMenuModel>(
       &delegate, browser()->GetFeatures().tab_menu_model_delegate(),
       tab_strip_model, /*index=*/0);
@@ -540,6 +569,106 @@ IN_PROC_BROWSER_TEST_F(
   }
   EXPECT_NE(unshare_command_index, -1);
   EXPECT_TRUE(menu->IsEnabledAt(unshare_command_index));
+}
+
+IN_PROC_BROWSER_TEST_F(GlicTabSubMenuModelTest, UnpinThenRepinTab) {
+  // Ensure Glic is enabled for the profile.
+  EXPECT_TRUE(GlicEnabling::IsReadyForProfile(browser()->profile()));
+
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+  ASSERT_GE(tab_strip_model->count(), 1);
+
+  // Select the first tab and pin it to a new conversation.
+  tab_strip_model->ActivateTabAt(0);
+
+  GlicKeyedService* service = GetGlicKeyedService();
+  ASSERT_TRUE(service);
+  GlicInstanceCoordinatorImpl* glic_instance_coordinator =
+      GetGlicInstanceCoordinator();
+  tabs::TabInterface* tab = tab_strip_model->GetTabAtIndex(0);
+
+  {
+    std::vector<tabs::TabHandle> handles_to_wait_for = {tab->GetHandle()};
+    glic::GlicTabPinningWaiter waiter(&service->sharing_manager(),
+                                      handles_to_wait_for);
+
+    auto submenu_model =
+        std::make_unique<GlicTabSubMenuModel>(tab_strip_model, 0);
+    submenu_model->ExecuteCommand(TabStripModel::CommandGlicCreateNewChat, 0);
+
+    waiter.Wait();
+  }
+
+  GlicInstance* instance = glic_instance_coordinator->GetInstanceForTab(tab);
+  ASSERT_TRUE(instance);
+  EXPECT_TRUE(instance->IsShowing());
+  EXPECT_TRUE(service->sharing_manager().IsTabPinned(tab->GetHandle()));
+
+  // Unpin that tab.
+  service->sharing_manager().UnpinTabs({tab->GetHandle()});
+  EXPECT_FALSE(service->sharing_manager().IsTabPinned(tab->GetHandle()));
+
+  // Re-pin that tab.
+  {
+    std::vector<tabs::TabHandle> handles_to_wait_for = {tab->GetHandle()};
+    glic::GlicTabPinningWaiter waiter(&service->sharing_manager(),
+                                      handles_to_wait_for);
+
+    auto submenu_model =
+        std::make_unique<GlicTabSubMenuModel>(tab_strip_model, 0);
+    submenu_model->ExecuteCommand(TabStripModel::CommandGlicCreateNewChat, 0);
+
+    waiter.Wait();
+  }
+
+  EXPECT_TRUE(service->sharing_manager().IsTabPinned(tab->GetHandle()));
+}
+
+IN_PROC_BROWSER_TEST_F(GlicTabSubMenuModelTest,
+                       UnpinThenNavigateToOtherTabAndRemainsUnpinned) {
+  // Ensure Glic is enabled for the profile.
+  EXPECT_TRUE(GlicEnabling::IsReadyForProfile(browser()->profile()));
+
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+  if (tab_strip_model->count() < 2) {
+    ASSERT_TRUE(
+        AddTabAtIndex(1, GURL("about:blank"), ui::PAGE_TRANSITION_LINK));
+  }
+  ASSERT_GE(tab_strip_model->count(), 2);
+
+  // Select the first tab and pin it to a new conversation.
+  tab_strip_model->ActivateTabAt(0);
+
+  GlicKeyedService* service = GetGlicKeyedService();
+  ASSERT_TRUE(service);
+
+  tabs::TabInterface* tab = tab_strip_model->GetTabAtIndex(0);
+
+  {
+    std::vector<tabs::TabHandle> handles_to_wait_for = {tab->GetHandle()};
+    glic::GlicTabPinningWaiter waiter(&service->sharing_manager(),
+                                      handles_to_wait_for);
+    service->window_controller().CreateNewConversationForTabs({tab});
+    waiter.Wait();
+  }
+  EXPECT_TRUE(service->sharing_manager().IsTabPinned(tab->GetHandle()));
+
+  // Unpin that tab.
+  service->sharing_manager().UnpinTabs({tab->GetHandle()});
+  EXPECT_FALSE(service->sharing_manager().IsTabPinned(tab->GetHandle()));
+
+  // Switch to the other tab.
+  tab_strip_model->ActivateTabAt(1);
+
+  // Wait for the instance to go away.
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return !service->GetInstanceForTab(tab)->IsShowing(); }));
+
+  // Switch to tab 0.
+  tab_strip_model->ActivateTabAt(0);
+
+  // Verify it is still unpinned.
+  EXPECT_FALSE(service->sharing_manager().IsTabPinned(tab->GetHandle()));
 }
 
 }  // namespace glic

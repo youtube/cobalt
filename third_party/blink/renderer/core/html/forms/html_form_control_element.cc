@@ -214,6 +214,10 @@ void HTMLFormControlElement::SetAutofillState(WebAutofillState autofill_state) {
   PseudoStateChanged(CSSSelector::kPseudoAutofillPreviewed);
 }
 
+bool HTMLFormControlElement::MatchesToolSubmitActivePseudoClass() const {
+  return Form() && Form()->IsActiveToolSubmitButton(this);
+}
+
 bool HTMLFormControlElement::IsAutocompleteEmailUrlOrPassword() const {
   DEFINE_STATIC_LOCAL(HashSet<AtomicString>, values,
                       ({AtomicString("username"), AtomicString("new-password"),
@@ -365,7 +369,7 @@ String HTMLFormControlElement::GetWebMCPParameterName() const {
   // Eventually add more logic here to use the label, tool-param-name, etc.
   return name;
 }
-bool HTMLFormControlElement::FillWebMCPData(JSONValue& data) {
+void HTMLFormControlElement::FillWebMCPData(JSONValue& data) {
   CHECK(RuntimeEnabledFeatures::WebMCPEnabled());
   NOTREACHED();
 }

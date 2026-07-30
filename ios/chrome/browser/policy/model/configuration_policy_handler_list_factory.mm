@@ -39,6 +39,7 @@
 #import "components/policy/core/browser/configuration_policy_handler_list.h"
 #import "components/policy/core/browser/configuration_policy_handler_parameters.h"
 #import "components/policy/core/browser/gen_ai_default_settings_policy_handler.h"
+#import "components/policy/core/browser/incognito/incognito_mode_policy_handler.h"
 #import "components/policy/core/browser/url_list/url_blocklist_policy_handler.h"
 #import "components/policy/core/common/policy_pref_names.h"
 #import "components/policy/policy_constants.h"
@@ -103,9 +104,6 @@ constexpr auto kSimplePolicyMap = std::to_array<PolicyToPreferenceMapEntry>({
   { policy::key::kDeletingUndecryptablePasswordsEnabled,
     password_manager::prefs::kDeletingUndecryptablePasswordsEnabled,
     base::Value::Type::BOOLEAN },
-  { policy::key::kIncognitoModeAvailability,
-    policy::policy_prefs::kIncognitoModeAvailability,
-    base::Value::Type::INTEGER },
   { policy::key::kNTPContentSuggestionsEnabled,
     prefs::kNTPContentSuggestionsEnabled,
     base::Value::Type::BOOLEAN },
@@ -148,9 +146,6 @@ constexpr auto kSimplePolicyMap = std::to_array<PolicyToPreferenceMapEntry>({
   { policy::key::kShoppingListEnabled,
     commerce::kShoppingListEnabledPrefName,
     base::Value::Type::BOOLEAN},
-  { policy::key::kLensCameraAssistedSearchEnabled,
-    prefs::kLensCameraAssistedSearchPolicyAllowed,
-    base::Value::Type::BOOLEAN },
   { policy::key::kContextMenuPhotoSharingSettings,
     prefs::kIosSaveToPhotosContextMenuPolicySettings,
     base::Value::Type::INTEGER },
@@ -184,12 +179,6 @@ constexpr auto kSimplePolicyMap = std::to_array<PolicyToPreferenceMapEntry>({
   { policy::key::kNTPCustomBackgroundEnabled,
     prefs::kNTPCustomBackgroundEnabledByPolicy,
     base::Value::Type::BOOLEAN },
-  { policy::key::kIncognitoModeUrlBlocklist,
-    policy::policy_prefs::kIncognitoModeUrlBlocklist,
-    base::Value::Type::LIST },
-  { policy::key::kIncognitoModeUrlAllowlist,
-    policy::policy_prefs::kIncognitoModeUrlAllowlist,
-    base::Value::Type::LIST },
   { policy::key::kProvisionManagedClientCertificateForUser,
     client_certificates::prefs::kProvisionManagedClientCertificateForUserPrefs,
     base::Value::Type::INTEGER },
@@ -301,6 +290,15 @@ std::unique_ptr<policy::ConfigurationPolicyHandlerList> BuildPolicyHandlerList(
           lens::prefs::kLensOverlaySettings,
           /* convert_policy_value_to_enabled_boolean= */ false)));
 
+  handlers->AddHandler(std::make_unique<policy::SimpleDeprecatingPolicyHandler>(
+      std::make_unique<SimplePolicyHandler>(
+          policy::key::kLensCameraAssistedSearchEnabled,
+          prefs::kLensCameraAssistedSearchPolicyAllowed,
+          base::Value::Type::BOOLEAN),
+      std::make_unique<contextual_search::SearchContentSharingPolicyHandler>(
+          prefs::kLensCameraAssistedSearchPolicyAllowed,
+          /* convert_policy_value_to_enabled_boolean= */ true)));
+
   handlers->AddHandler(std::make_unique<policy::CloudUserOnlyPolicyChecker>(
       std::make_unique<SimplePolicyHandler>(
           policy::key::kTabGroupSharingSettings,
@@ -339,6 +337,8 @@ std::unique_ptr<policy::ConfigurationPolicyHandlerList> BuildPolicyHandlerList(
           chrome_schema.GetValidationSchema(),
           policy::SimpleSchemaValidatingPolicyHandler::RECOMMENDED_ALLOWED,
           policy::SimpleSchemaValidatingPolicyHandler::MANDATORY_ALLOWED));
+
+  handlers->AddHandler(std::make_unique<policy::IncognitoModePolicyHandler>());
 
   return handlers;
 }

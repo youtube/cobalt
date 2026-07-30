@@ -16,6 +16,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_service.h"
 #include "chrome/browser/glic/glic_pref_names.h"
+#include "chrome/browser/glic/host/glic_features.mojom.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
@@ -336,7 +337,8 @@ IN_PROC_BROWSER_TEST_F(GlicProfileManagerBrowserTest,
 #if BUILDFLAG(IS_CHROMEOS)
   session_manager::SessionManager::Get()->SwitchActiveSession(kAccountId1);
 #endif  //  BUILDFLAG(IS_CHROMEOS)
-  [[maybe_unused]] auto* browser1 = CreateBrowser(profile1);
+  auto* browser1 = CreateBrowser(profile1);
+  ui_test_utils::WaitForBrowserSetLastActive(browser1);
   EXPECT_EQ(profile1, profile_manager->GetProfileForLaunch());
 
   // profile2 is the most recently used profile but it isn't
@@ -344,7 +346,8 @@ IN_PROC_BROWSER_TEST_F(GlicProfileManagerBrowserTest,
 #if BUILDFLAG(IS_CHROMEOS)
   session_manager::SessionManager::Get()->SwitchActiveSession(kAccountId2);
 #endif  //  BUILDFLAG(IS_CHROMEOS)
-  CreateBrowser(profile2);
+  auto* browser2 = CreateBrowser(profile2);
+  ui_test_utils::WaitForBrowserSetLastActive(browser2);
   EXPECT_EQ(profile1, profile_manager->GetProfileForLaunch());
 
 #if !BUILDFLAG(IS_OZONE_WAYLAND)
@@ -566,8 +569,10 @@ class GlicProfileManagerDidSelectProfileTest
  public:
   GlicProfileManagerDidSelectProfileTest() {
     if (IsTrustFREOnboardingEnabled()) {
-      scoped_feature_list_.InitAndEnableFeature(
-          features::kGlicTrustFirstOnboarding);
+      scoped_feature_list_.InitWithFeatures(
+          {features::kGlicTrustFirstOnboarding, features::kGlicMultiInstance,
+           mojom::features::kGlicMultiTab, features::kGlicMultitabUnderlines},
+          {});
     } else {
       scoped_feature_list_.InitAndDisableFeature(
           features::kGlicTrustFirstOnboarding);

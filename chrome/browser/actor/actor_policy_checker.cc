@@ -154,8 +154,7 @@ bool HasUrlAllowlist(Profile& profile) {
   if (!pref_service->HasPrefPath(allowlist_pref_path)) {
     return false;
   }
-  const base::Value::List& allowlist =
-      pref_service->GetList(allowlist_pref_path);
+  const base::ListValue& allowlist = pref_service->GetList(allowlist_pref_path);
   return !allowlist.empty();
 }
 
@@ -381,7 +380,7 @@ void ActorPolicyChecker::MayActOnUrl(const GURL& url,
 }
 
 bool ActorPolicyChecker::CanActOnWeb() const {
-  return can_act_on_web_for_testing_ || can_act_on_web_ != CanActOutcome::kNo;
+  return can_act_on_web_ != CanActOutcome::kNo;
 }
 
 ActorPolicyChecker::CannotActReason ActorPolicyChecker::CannotActOnWebReason()
@@ -458,9 +457,6 @@ ActorPolicyChecker::ComputeActOnWebCapability() {
 
   bool account_eligible_for_actuation =
       IsAccountEligibleForActuation(*profile, *journal_);
-  if (account_eligible_for_actuation_for_testing_) [[unlikely]] {
-    account_eligible_for_actuation = true;
-  }
   if (!account_eligible_for_actuation) {
     return log_and_return(CanActOutcome::kNo,
                           CannotActReason::kManagedOrDataProtected);

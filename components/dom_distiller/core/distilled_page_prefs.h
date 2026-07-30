@@ -40,6 +40,7 @@ class DistilledPagePrefs {
     virtual void OnChangeTheme(mojom::Theme theme,
                                ThemeSettingsUpdateSource source) = 0;
     virtual void OnChangeFontScaling(float scaling) = 0;
+    virtual void OnChangeLinksEnabled(bool enabled) = 0;
   };
 
   explicit DistilledPagePrefs(PrefService* pref_service);
@@ -59,6 +60,10 @@ class DistilledPagePrefs {
   // Sets the user's preference for the theme of distilled pages.
   void SetUserPrefTheme(mojom::Theme new_theme);
 
+  // Removes the user's preference for the theme of distilled pages, this will
+  // reset to the default theme.
+  void ClearUserPrefTheme();
+
   // Sets default theme, used when user's preference for theme is not set.
   void SetDefaultTheme(mojom::Theme default_theme);
 
@@ -66,6 +71,10 @@ class DistilledPagePrefs {
   // is set, it will return the user's preference for the theme. Otherwise, it
   // will return the value of default_theme_.
   mojom::Theme GetTheme();
+
+  // Returns whether the current theme was set via a user update or if it is
+  // based on the default_theme_.
+  ThemeSettingsUpdateSource GetThemeSettingsUpdateSource();
 
   // Sets the user's preference for the font size scaling of distilled pages.
   void SetUserPrefFontScaling(float scaling);
@@ -78,6 +87,11 @@ class DistilledPagePrefs {
   // font size scaling is set, it will return the user's preference. Otherwise,
   // it will return the value of default_font_scaling_.
   float GetFontScaling();
+
+  // Sets whether links are enabled in distilled pages.
+  void SetLinksEnabled(bool enabled);
+  // Returns whether links are enabled in distilled pages.
+  bool GetLinksEnabled();
 
   void AddObserver(Observer* obs);
   void RemoveObserver(Observer* obs);
@@ -96,9 +110,11 @@ class DistilledPagePrefs {
   // Notifies all Observers of new font family.
   void NotifyOnChangeFontFamily();
   // Notifies all Observers of new theme.
-  void NotifyOnChangeTheme(ThemeSettingsUpdateSource source);
+  void NotifyOnChangeTheme();
   // Notifies all Observers of new font scaling.
   void NotifyOnChangeFontScaling();
+  // Notifies all Observers of new links enabled state.
+  void NotifyOnChangeLinksEnabled();
 
   raw_ptr<PrefService> pref_service_;
   PrefChangeRegistrar pref_change_registrar_;

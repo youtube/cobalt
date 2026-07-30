@@ -9,6 +9,7 @@
 #include "base/android/jni_android.h"
 #include "cc/slim/layer.h"
 #include "cc/slim/solid_color_layer.h"
+#include "components/thin_webview/features.h"
 #include "content/public/browser/android/compositor.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/android/color_utils_android.h"
@@ -25,7 +26,7 @@ namespace {
 const int kPixelFormatUnknown = 0;
 }  // namespace
 
-static jlong JNI_CompositorViewImpl_Init(
+static int64_t JNI_CompositorViewImpl_Init(
     JNIEnv* env,
     const JavaRef<jobject>& obj,
     const JavaRef<jobject>& jwindow_android,
@@ -35,6 +36,11 @@ static jlong JNI_CompositorViewImpl_Init(
   auto compositor_view = std::make_unique<CompositorViewImpl>(
       env, obj, window_android, java_background_color);
   return reinterpret_cast<intptr_t>(compositor_view.release());
+}
+
+static jboolean JNI_CompositorViewImpl_ShouldUseSurfaceView(JNIEnv* env) {
+  return base::FeatureList::IsEnabled(
+      thin_webview::android::kUseSurfaceViewForThinWebView);
 }
 
 // static

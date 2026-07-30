@@ -60,6 +60,14 @@ class TabModelObserverJniBridge implements TabModelObserver {
     }
 
     @Override
+    public final void didRemoveTabForClosure(Tab tab) {
+        assert mNativeTabModelObserverJniBridge != 0;
+        assert tab.isInitialized();
+        TabModelObserverJniBridgeJni.get()
+                .didRemoveTabForClosure(mNativeTabModelObserverJniBridge, tab);
+    }
+
+    @Override
     public final void onFinishingTabClosure(Tab tab, @TabClosingSource int source) {
         assert mNativeTabModelObserverJniBridge != 0;
         TabModelObserverJniBridgeJni.get()
@@ -168,6 +176,13 @@ class TabModelObserverJniBridge implements TabModelObserver {
     }
 
     @Override
+    public final void onTabGroupVisualsChanged(Token groupId) {
+        assert mNativeTabModelObserverJniBridge != 0;
+        TabModelObserverJniBridgeJni.get()
+                .onTabGroupVisualsChanged(mNativeTabModelObserverJniBridge, groupId);
+    }
+
+    @Override
     public void restoreCompleted() {}
 
     /**
@@ -213,6 +228,9 @@ class TabModelObserverJniBridge implements TabModelObserver {
                 int lastId);
 
         void willCloseTab(long nativeTabModelObserverJniBridge, @JniType("TabAndroid*") Tab tab);
+
+        void didRemoveTabForClosure(
+                long nativeTabModelObserverJniBridge, @JniType("TabAndroid*") Tab tab);
 
         void onFinishingTabClosure(
                 long nativeTabModelObserverJniBridge,
@@ -265,5 +283,8 @@ class TabModelObserverJniBridge implements TabModelObserver {
                 long nativeTabModelObserverJniBridge,
                 @JniType("base::Token") Token groupId,
                 int oldIndex);
+
+        void onTabGroupVisualsChanged(
+                long nativeTabModelObserverJniBridge, @JniType("base::Token") Token groupId);
     }
 }

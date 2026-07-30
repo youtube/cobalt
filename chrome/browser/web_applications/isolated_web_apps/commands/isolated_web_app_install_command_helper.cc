@@ -230,22 +230,9 @@ void UpdateBundlePathAndCreateStorageLocation(
              source.variant());
 }
 
-base::expected<std::reference_wrapper<const WebApp>, std::string>
-GetIsolatedWebAppById(const WebAppRegistrar& registrar,
-                      const webapps::AppId& iwa_id) {
-  auto* iwa = registrar.GetAppById(iwa_id);
-  if (!iwa) {
-    return base::unexpected("App is no longer installed.");
-  }
-  if (!iwa->isolation_data()) {
-    return base::unexpected("Installed app is not an Isolated Web App.");
-  }
-  return *iwa;
-}
-
 KeyRotationLookupResult LookupRotatedKey(
     const SignedWebBundleId& web_bundle_id,
-    base::optional_ref<base::Value::Dict> debug_log) {
+    base::optional_ref<base::DictValue> debug_log) {
   auto log_rotated_key = [&](const std::string& value) {
     if (debug_log) {
       debug_log->Set("rotated_key", value);

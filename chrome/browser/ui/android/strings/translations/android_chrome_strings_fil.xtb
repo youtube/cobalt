@@ -41,6 +41,7 @@
 <translation id="1150263420752757504">Bubukas ang <ph name="APP_NAME" /> sa Chrome. Sa pamamagitan ng pagpapatuloy, sumasang-ayon ka sa <ph name="BEGIN_LINK1" />Mga Tuntunin ng Serbisyo ng Google<ph name="END_LINK1" />, at sa <ph name="BEGIN_LINK2" />Mga Karagdagang Tuntunin ng Serbisyo ng Google Chrome at ChromeOS<ph name="END_LINK2" />.</translation>
 <translation id="1154555449933432029">Wala kang naka-save na password sa Google Password Manager.</translation>
 <translation id="115483310321669804">Gamitin ang password na <ph name="PASSWORD" /></translation>
+<translation id="1161065531352634524">I-sync ang mga tab at history</translation>
 <translation id="1165109137568919258">Kumuha ng larawan o magdagdag ng imahe mula sa iyong gallery ng larawan para maghanap</translation>
 <translation id="1173894706177603556">Pangalanang muli</translation>
 <translation id="1174479719160874822">Ire-request ng Chrome ang pang-mobile na site kapag makitid ang screen</translation>
@@ -126,6 +127,7 @@ Para sa higit pang setting na gumagamit ng data para pahusayin ang iyong experie
 <translation id="147982357559798527">Binago</translation>
 <translation id="1480287803138246127">Posibleng hindi lumabas dito ang ilan sa iyong history. Buksan ang buong history sa Chrome para makita ang lahat ng iyong history sa Chrome.</translation>
 <translation id="1493287004536771723">Sinusubaybayan mo ang <ph name="SITE_NAME" /></translation>
+<translation id="1495677929897281669">Bumalik sa tab</translation>
 <translation id="1496514951988037011">username</translation>
 <translation id="1501480321619201731">I-delete ang pangkat</translation>
 <translation id="1506061864768559482">Search engine</translation>
@@ -433,6 +435,7 @@ Ang taong may passphrase mo lang ang makakapagbasa ng iyong naka-encrypt na data
 <translation id="2885355868600171871">Pumunta sa address bar</translation>
 <translation id="2888126860611144412">Tungkol sa Chrome</translation>
 <translation id="2891154217021530873">Ihinto ang pag-load ng page</translation>
+<translation id="2893168226686371498">Default na browser</translation>
 <translation id="2894821468041866720">Hindi kapansin-pansing pababagalin ang iyong browser o device.</translation>
 <translation id="2895521649038438824">Puwede mong pakinggan ang page na ito</translation>
 <translation id="289596984386220317"><ph name="TAB_TITLE" />, Naka-pin na Tab na May Naririnig na Audio</translation>
@@ -980,6 +983,7 @@ Maaaring may ibang uri ng history ng pag-browse ang iyong Google account tulad n
 <translation id="5210286577605176222">Pumunta sa nakaraang tab</translation>
 <translation id="5210365745912300556">Isara ang tab</translation>
 <translation id="5212800876504289412">I-restart ang Chrome para tapusin ang pagbabagong ito. Awtomatikong bubukas ulit ang mga tab kapag nag-restart ka.</translation>
+<translation id="5213114823401215820">Buksan ulit ang nakasarang grupo</translation>
 <translation id="5215957675041756913">Kontrolin ang iyong data at account</translation>
 <translation id="5218324087477576825">Nire-require ang numero ng card</translation>
 <translation id="5221437554987713282"><ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, at iba pa <ph name="SEPARATOR" /> Inalis ng Chrome ang mga pahintulot na ito dahil hindi ka bumisita kamakailan</translation>
@@ -1098,7 +1102,6 @@ Maaaring may ibang uri ng history ng pag-browse ang iyong Google account tulad n
 <translation id="5765780083710877561">Paglalarawan:</translation>
 <translation id="5776970333778123608">Hindi mahalagang data</translation>
 <translation id="5793665092639000975">Gumagamit ng <ph name="SPACE_USED" /> ng <ph name="SPACE_AVAILABLE" /></translation>
-<translation id="5795872532621730126">Maghanap at mag-browse</translation>
 <translation id="5797949256525811424">Na-block ang paksa</translation>
 <translation id="580893287573699959">Pamahalaan ang mga paksa at site kung saan ka interesado</translation>
 <translation id="5809361687334836369">{HOURS,plural, =1{# oras ang nakalipas}one{# oras ang nakalipas}other{# na oras ang nakalipas}}</translation>
@@ -1415,7 +1418,6 @@ Halimbawa, puwedeng tumugon ang ilang website sa kahilingang ito sa pamamagitan 
 <translation id="6937524809504266803">Pag-personalize at Pag-link</translation>
 <translation id="6937876069006524083">Nickname (opsyonal)</translation>
 <translation id="6942665639005891494">Baguhin ang default na lokasyon ng pag-download anumang oras gamit ang opsyong menu ng Mga Setting</translation>
-<translation id="694267552845942083">Kasalukuyan mong kino-customize ang iyong mga setting ng Pag-sync. Para tapusin ang pag-on ng pag-sync, i-tap ang button na Kumpirmahin malapit sa ibaba ng screen. Mag-navigate pataas</translation>
 <translation id="6945221475159498467">Pumili</translation>
 <translation id="6955535239952325894">Naka-disable ang setting na ito sa mga pinapamahalaang browser</translation>
 <translation id="6963766334940102469">Mag-delete ng mga bookmark</translation>
@@ -1437,6 +1439,7 @@ Halimbawa, puwedeng tumugon ang ilang website sa kahilingang ito sa pamamagitan 
 <translation id="7020741890149022655">Idagdag sa reading list <ph name="BEGIN_NEW" />Bago<ph name="END_NEW" /></translation>
 <translation id="7022756207310403729">Buksan sa browser</translation>
 <translation id="7029809446516969842">Mga Password</translation>
+<translation id="7037994709569287156">Gawing default ang Chrome</translation>
 <translation id="7053256416619638731">Palakasin ang iyong mga password sa device na ito</translation>
 <translation id="7053983685419859001">I-block</translation>
 <translation id="7054588988317389591">Makakuha ng mga paglalarawan ng larawan?</translation>
@@ -1469,6 +1472,7 @@ Halimbawa, puwedeng tumugon ang ilang website sa kahilingang ito sa pamamagitan 
 Para baguhin ang setting na ito, <ph name="BEGIN_LINK" />i-delete ang data sa Chrome sa iyong account<ph name="END_LINK" />.</translation>
 <translation id="7165972437814027679">Alamin pa kung bakit bina-block ng Chrome ang ilang file</translation>
 <translation id="7168323970702333693">Naka-sign in bilang <ph name="USER_NAME" />. Binubuksan ang mga setting.</translation>
+<translation id="7170930892977483182">Made-delete ang lahat ng security code na naka-save sa iyong device at sa Google Wallet</translation>
 <translation id="7173114856073700355">Buksan ang Mga Setting</translation>
 <translation id="7173338713290252554">History ng presyo sa buong web</translation>
 <translation id="7177466738963138057">Maaari mo itong baguhin sa ibang pagkakataon sa Mga Setting</translation>
@@ -1641,6 +1645,7 @@ Para baguhin ang setting na ito, <ph name="BEGIN_LINK" />i-delete ang data sa Ch
 <translation id="784652447248278262">Kasalukuyang window</translation>
 <translation id="784934925303690534">Sakop na oras</translation>
 <translation id="7851858861565204677">Iba pang device</translation>
+<translation id="78527117619130387">Pindutin ulit ang ^W para isara ang naka-pin na tab</translation>
 <translation id="7853202427316060426">Aktibidad</translation>
 <translation id="7859988229622350291">Huwag isalin kailanman</translation>
 <translation id="7866213166286285359">Magsalin ng mga page dito</translation>
@@ -1654,6 +1659,7 @@ Para baguhin ang setting na ito, <ph name="BEGIN_LINK" />i-delete ang data sa Ch
 <translation id="7919123827536834358">Awtomatikong isalin ang mga wikang ito</translation>
 <translation id="7921782882718083488">Ibuod ang page na ito</translation>
 <translation id="7926975587469166629">Nickname ng card</translation>
+<translation id="7927073875790626822">XR</translation>
 <translation id="7929587383660661825">Awtomatikong inaalis ng Chrome ang mga pahintulot sa mga site na inaabuso ang mga notification o hindi mo binisita kamakailan</translation>
 <translation id="7934668619883965330">Hindi ma-download ang file. Hindi sinusuportahan ang format ng file.</translation>
 <translation id="7942131818088350342">Luma na ang <ph name="PRODUCT_NAME" />.</translation>
@@ -1799,6 +1805,7 @@ Para baguhin ang setting na ito, <ph name="BEGIN_LINK" />i-delete ang data sa Ch
 <translation id="8458413889418591446">Para mabilis na makabalik sa mga site na binisita mo, i-sync ang iyong history at mga tab</translation>
 <translation id="84594714173170813">Patuloy na gamitin ang data ng Chrome sa iyong Google Account</translation>
 <translation id="8460448946170646641">Suriin ang mga pangunahing kontrol sa privacy at seguridad</translation>
+<translation id="8460932807646981183">Pamahalaan ang mga search engine at paghahanap sa site</translation>
 <translation id="8473863474539038330">Mga address at higit pa</translation>
 <translation id="847433688444405067">Mag-browse sa lahat ng device</translation>
 <translation id="8477178913400731244">Mag-delete ng data</translation>
@@ -1934,7 +1941,6 @@ Para baguhin ang setting na ito, <ph name="BEGIN_LINK" />i-delete ang data sa Ch
 <translation id="9073805459138993880"><ph name="TAB_TITLE" />, Naka-multiselect at Nagshe-share na Tab</translation>
 <translation id="9074739597929991885">Bluetooth</translation>
 <translation id="9081543426177426948">Hindi nase-save sa Incognito ang mga site na binibisita mo</translation>
-<translation id="9086302186042011942">Nagsi-sync</translation>
 <translation id="9086455579313502267">Hindi magawang ma-access ang network</translation>
 <translation id="9093915805850895575">Buksan sa window ng Chrome</translation>
 <translation id="909756639352028172">Para makuha ang pinakamahusay na naka-personalize na experience, isama ang Chrome sa Aktibidad sa Web at App at mga naka-link na serbisyo ng Google</translation>

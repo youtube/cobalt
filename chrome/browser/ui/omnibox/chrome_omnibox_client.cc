@@ -160,8 +160,10 @@ ChromeOmniboxClient::ChromeOmniboxClient(LocationBar* location_bar,
 ChromeOmniboxClient::~ChromeOmniboxClient() {
   BitmapFetcherService* bitmap_fetcher_service =
       BitmapFetcherServiceFactory::GetForBrowserContext(profile_);
-  for (auto request_id : request_ids_) {
-    bitmap_fetcher_service->CancelRequest(request_id);
+  if (bitmap_fetcher_service) {
+    for (auto request_id : request_ids_) {
+      bitmap_fetcher_service->CancelRequest(request_id);
+    }
   }
 }
 
@@ -212,7 +214,7 @@ bool ChromeOmniboxClient::IsPasteAndGoEnabled() const {
 }
 
 bool ChromeOmniboxClient::IsDefaultSearchProviderEnabled() const {
-  const base::Value::Dict& url_dict = profile_->GetPrefs()->GetDict(
+  const base::DictValue& url_dict = profile_->GetPrefs()->GetDict(
       DefaultSearchManager::kDefaultSearchProviderDataPrefName);
   return !url_dict.FindBool(DefaultSearchManager::kDisabledByPolicy)
               .value_or(false);
@@ -477,7 +479,7 @@ void ChromeOmniboxClient::MaybeShowOnFocusHatsSurvey(
 void ChromeOmniboxClient::CheckConditionsAndLaunchSurvey() {
   // Roll the dice as we want to show one of two surveys to the treatment
   // group but only one survey to the control group.
-  bool show_happiness_survey = base::RandInt(0, 1) == 0;
+  bool show_happiness_survey = base::RandIntInclusive(0, 1) == 0;
 
   // Don't show the suggestions utility survey to control group.
   if (!omnibox_feature_configs::OmniboxUrlSuggestionsOnFocus::Get().enabled &&
@@ -573,36 +575,46 @@ void ChromeOmniboxClient::OnResultChanged(
       BitmapFetcherServiceFactory::GetForBrowserContext(profile_);
 
   // Clear out the old requests.
-  for (auto request_id : request_ids_) {
-    bitmap_fetcher_service->CancelRequest(request_id);
+  if (bitmap_fetcher_service) {
+    for (auto request_id : request_ids_) {
+      bitmap_fetcher_service->CancelRequest(request_id);
+    }
   }
   request_ids_.clear();
   // Create new requests.
   int result_index = -1;
   for (const AutocompleteMatch& match : result) {
     ++result_index;
-    if (!match.icon_url.is_empty()) {
-      request_ids_.push_back(bitmap_fetcher_service->RequestImage(
-          match.icon_url,
-          base::BindOnce(on_bitmap_fetched, result_index, match.icon_url)));
-    } else {
-      const TemplateURL* turl = nullptr;
-      if (!match.associated_keyword.empty()) {
-        turl = AutocompleteMatch::GetTemplateURLWithKeyword(
-            GetTemplateURLService(), match.associated_keyword, "");
-      } else if (!match.keyword.empty()) {
-        turl = match.GetTemplateURL(GetTemplateURLService());
-      }
-      // Fetch the favicon if the `TemplateURL` is from the enterprise search
-      // aggregator policy. This covers both cases:
-      // 1. Non-featured matches with an associated keyword hint (e.g.,
-      //    verbatim match when typing 'aggregator').
-      // 2. Matches originating from the aggregator keyword mode itself (e.g.
-      //    shortcut suggestions in default mode).
-      if (turl && turl->CreatedByEnterpriseSearchAggregatorPolicy()) {
+    if (bitmap_fetcher_service) {
+      if (!match.icon_url.is_empty()) {
         request_ids_.push_back(bitmap_fetcher_service->RequestImage(
-            turl->favicon_url(), base::BindOnce(on_bitmap_fetched, result_index,
-                                                turl->favicon_url())));
+            match.icon_url,
+            base::BindOnce(on_bitmap_fetched, result_index, match.icon_url)));
+      } else {
+        const TemplateURL* turl = nullptr;
+        if (!match.associated_keyword.empty()) {
+          turl = AutocompleteMatch::GetTemplateURLWithKeyword(
+              GetTemplateURLService(), match.associated_keyword, "");
+        } else if (!match.keyword.empty()) {
+          turl = match.GetTemplateURL(GetTemplateURLService());
+        }
+        // Fetch the favicon if the `TemplateURL` is from the enterprise search
+        // aggregator policy. This covers both cases:
+        // 1. Non-featured matches with an associated keyword hint (e.g.,
+        //    verbatim match when typing 'aggregator').
+        // 2. Matches originating from the aggregator keyword mode itself (e.g.
+        //    shortcut suggestions in default mode).
+        if (turl && turl->CreatedByEnterpriseSearchAggregatorPolicy()) {
+          request_ids_.push_back(bitmap_fetcher_service->RequestImage(
+              turl->favicon_url(),
+              base::BindOnce(on_bitmap_fetched, result_index,
+                             turl->favicon_url())));
+        }
+      }
+      if (!match.ImageUrl().is_empty()) {
+        request_ids_.push_back(bitmap_fetcher_service->RequestImage(
+            match.ImageUrl(),
+            base::BindOnce(on_bitmap_fetched, result_index, GURL())));
       }
     }
     if (match.HasTakeoverAction(OmniboxActionId::CONTEXTUAL_SEARCH_OPEN_LENS) &&
@@ -633,11 +645,6 @@ void ChromeOmniboxClient::OnResultChanged(
                                            GURL()))));
         }
       }
-    }
-    if (!match.ImageUrl().is_empty()) {
-      request_ids_.push_back(bitmap_fetcher_service->RequestImage(
-          match.ImageUrl(),
-          base::BindOnce(on_bitmap_fetched, result_index, GURL())));
     }
   }
 }
@@ -781,7 +788,7 @@ void ChromeOmniboxClient::OnNavigationLikely(
 
 void ChromeOmniboxClient::ShowFeedbackPage(const std::u16string& input_text,
                                            const GURL& destination_url) {
-  base::Value::Dict ai_metadata;
+  base::DictValue ai_metadata;
   ai_metadata.Set("input", base::UTF16ToUTF8(input_text));
   ai_metadata.Set("destination_url", destination_url.spec());
   chrome::ShowFeedbackPage(
@@ -791,7 +798,7 @@ void ChromeOmniboxClient::ShowFeedbackPage(const std::u16string& input_text,
       l10n_util::GetStringUTF8(IDS_HISTORY_EMBEDDINGS_FEEDBACK_PLACEHOLDER),
       /*category_tag=*/"genai_history",
       /*extra_diagnostics=*/std::string(),
-      /*autofill_metadata=*/base::Value::Dict(), std::move(ai_metadata));
+      /*autofill_metadata=*/base::DictValue(), std::move(ai_metadata));
 }
 
 void ChromeOmniboxClient::OnAutocompleteAccept(
@@ -908,6 +915,11 @@ void ChromeOmniboxClient::MaybePrewarmForDefaultSearchEngine(
       break;
     case PrewarmTrigger::kUserInteraction:
       CHECK(features::kPrewarmUserInteractionTrigger.Get());
+      if (!location_bar_->GetWebContents()) {
+        // There seems to be a subtle timing where the active tab does not have
+        // a valid WebContents instance on an user interaction trigger.
+        return;
+      }
       break;
   }
 

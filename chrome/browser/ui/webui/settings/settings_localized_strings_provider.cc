@@ -142,6 +142,7 @@
 #endif
 
 #if BUILDFLAG(IS_WIN)
+#include "chrome/browser/startup/startup_features.h"
 #include "device/fido/public/features.h"
 #include "device/fido/win/webauthn_api.h"
 #endif  // BUILDFLAG(IS_WIN)
@@ -784,11 +785,10 @@ bool ShouldShowWebActuationToggle(Profile* profile) {
     }
   }
 
-  // If no specific tiers are populated, show the toggle only if the user
-  // has explicitly modified the preference before.
+  // Show the toggle if the user has explicitly modified the preference before.
   const PrefService::Preference* pref = profile->GetPrefs()->FindPreference(
       glic::prefs::kGlicUserEnabledActuationOnWeb);
-  if (allowed_tiers.empty() && pref && !pref->IsDefaultValue()) {
+  if (pref && !pref->IsDefaultValue()) {
     return true;
   }
 
@@ -828,13 +828,21 @@ void AddGlicStrings(content::WebUIDataSource* html_source, Profile* profile) {
       {"glicOsWidgetToggleSublabel",
        IDS_SETTINGS_GLIC_OS_WIDGET_TOGGLE_SUBLABEL},
       {"glicKeyboardShortcut", IDS_SETTINGS_GLIC_KEYBOARD_SHORTCUT},
+      {"glicKeyboardShortcutEditLabel",
+       IDS_SETTINGS_GLIC_KEYBOARD_SHORTCUT_EDIT_LABEL},
       {"glicKeyboardShortcutSublabel",
        IDS_SETTINGS_GLIC_KEYBOARD_SHORTCUT_SUBLABEL},
       {"glicKeyboardShortcutLearnMoreLabel",
        IDS_SETTINGS_GLIC_KEYBOARD_SHORTCUT_LEARN_MORE_LABEL},
       {"glicNavigationShortcut", IDS_SETTINGS_GLIC_NAVIGATION_SHORTCUT},
+      {"glicNavigationShortcutEditLabel",
+       IDS_SETTINGS_GLIC_NAVIGATION_SHORTCUT_EDIT_LABEL},
       {"glicNavigationShortcutSublabel",
        IDS_SETTINGS_GLIC_NAVIGATION_SHORTCUT_SUBLABEL},
+      {"glicKeyboardShortcutLearnMoreAriaLabel",
+       IDS_SETTINGS_GLIC_KEYBOARD_SHORTCUT_LEARN_MORE_ARIA_LABEL},
+      {"glicNavigationShortcutLearnMoreAriaLabel",
+       IDS_SETTINGS_GLIC_NAVIGATION_SHORTCUT_LEARN_MORE_ARIA_LABEL},
       {"glicClosedCaptionsToggle", IDS_SETTINGS_GLIC_CLOSED_CAPTIONING},
       {"glicClosedCaptionsToggleSublabel",
        IDS_SETTINGS_GLIC_CLOSED_CAPTIONING_SUBLABEL},
@@ -1323,8 +1331,17 @@ void AddOnStartupStrings(content::WebUIDataSource* html_source) {
       {"onStartupRemove", IDS_SETTINGS_ON_STARTUP_REMOVE},
       {"onStartupInvalidUrl", IDS_SETTINGS_INVALID_URL},
       {"onStartupUrlTooLong", IDS_SETTINGS_URL_TOOL_LONG},
+#if BUILDFLAG(IS_WIN)
+      {"onStartupForegroundLaunchOnStartupLabel",
+       IDS_SETTINGS_FOREGROUND_LAUNCH_ON_STARTUP_LABEL},
+#endif
   };
   html_source->AddLocalizedStrings(kLocalizedStrings);
+
+#if BUILDFLAG(IS_WIN)
+  html_source->AddBoolean("isForegroundLaunchFeatureEnabled",
+                          features::IsForegroundLaunchEnabled());
+#endif
 }
 
 bool CheckDeviceAuthAvailability(content::WebContents* web_contents) {
@@ -1358,6 +1375,7 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
                         Profile* profile,
                         content::WebContents* web_contents) {
   static constexpr webui::LocalizedString kLocalizedStrings[] = {
+      {"autofillPageTitle", IDS_SETTINGS_AUTOFILL_AND_PASSWORDS},
       {"yourSavedInfoPageTitle", IDS_SETTINGS_YOUR_SAVED_INFO},
       {"yourSavedInfoPageDescription",
        IDS_SETTINGS_YOUR_SAVED_INFO_DESCRIPTION},
@@ -1415,6 +1433,8 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
        IDS_AUTOFILL_SETTINGS_PAGE_BULK_REMOVE_CVC_TITLE},
       {"bulkRemoveCvcConfirmationDescription",
        IDS_AUTOFILL_SETTINGS_PAGE_BULK_REMOVE_CVC_DESCRIPTION},
+      {"bulkRemoveCvcFromWalletConfirmationDescription",
+       IDS_AUTOFILL_SETTINGS_PAGE_BULK_REMOVE_CVC_FROM_WALLET_DESCRIPTION},
       {"addresses", IDS_AUTOFILL_ADDRESSES},
       {"addressesTableAriaLabel", IDS_AUTOFILL_ADDRESSES_TABLE_ARIA_LABEL},
       {"addressesTitle", IDS_AUTOFILL_ADDRESSES_SETTINGS_TITLE},
@@ -1494,6 +1514,8 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
       {"loyaltyCardsTitle", IDS_AUTOFILL_LOYALTY_CARDS_SUBMENU_TITLE},
       {"remotePaymentMethodsLinkLabel",
        IDS_SETTINGS_REMOTE_PAYMENT_METHODS_LINK_LABEL},
+      {"remotePaymentMethodsWalletLinkLabel",
+       IDS_SETTINGS_REMOTE_PAYMENT_METHODS_WALLET_LINK_LABEL},
       {"remoteWalletPassesLinkLabel",
        IDS_SETTINGS_REMOTE_WALLET_PASSES_LINK_LABEL},
       {"canMakePaymentToggleLabel", IDS_SETTINGS_CAN_MAKE_PAYMENT_TOGGLE_LABEL},
@@ -1531,6 +1553,8 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
        IDS_PASSWORD_BUBBLES_PASSWORD_MANAGER_LINK_TEXT_SAVING_ON_DEVICE},
       {"removeVirtualCard", IDS_AUTOFILL_REMOVE_VIRTUAL_CARD},
       {"editServerCard", IDS_AUTOFILL_EDIT_SERVER_CREDIT_CARD},
+      {"editServerCardInWallet",
+       IDS_AUTOFILL_EDIT_SERVER_CREDIT_CARD_IN_WALLET},
       {"virtualCardTurnedOn", IDS_AUTOFILL_VIRTUAL_CARD_TURNED_ON_LABEL},
       {"unenrollVirtualCardDialogTitle",
        IDS_AUTOFILL_VIRTUAL_CARD_UNENROLL_DIALOG_TITLE},
@@ -1570,10 +1594,6 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_AUTOFILL_AI_AUTHENTICATION_TOGGLE_SUBTITLE},
       {"autofillAiPageTitle", IDS_SETTINGS_AUTOFILL_AI_PAGE_TITLE},
       {"autofillAiDescription", IDS_SETTINGS_AUTOFILL_AI_DESCRIPTION},
-      {"autofillAiDescriptionFeatureOn",
-       IDS_SETTINGS_AUTOFILL_AI_DESCRIPTION_FEATURE_ON},
-      {"autofillAiDescriptionFeatureOff",
-       IDS_SETTINGS_AUTOFILL_AI_DESCRIPTION_FEATURE_OFF},
       {"autofillAiToggleSubLabel", IDS_SETTINGS_AUTOFILL_AI_TOGGLE_SUB_LABEL},
       {"autofillAiWhenOnSavedInfo",
        IDS_SETTINGS_AUTOFILL_AI_WHEN_ON_SAVED_INFO},
@@ -1607,6 +1627,8 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_AUTOFILL_AI_ADD_OR_EDIT_DIALOG_DATE_VALIDATION_ERROR},
       {"autofillAiAddOrEditDialogValidationError",
        IDS_SETTINGS_AUTOFILL_AI_ADD_OR_EDIT_DIALOG_VALIDATION_ERROR},
+      {"autofillAiAddOrEditDialogRequiredFieldError",
+       IDS_AUTOFILL_AI_ADD_OR_EDIT_DIALOG_REQUIRED_FIELD_ERROR},
       {"autofillAiSubpageSublabelLoggingManagedDisabled",
        IDS_SETTINGS_AUTOFILL_AI_ENTERPRISE_LOGGING_MANAGED_DISABLED},
       {"autofillPayOverTimeSettingsLabel", IDS_AUTOFILL_BNPL_SETTINGS_LABEL},
@@ -1705,6 +1727,11 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
   html_source->AddBoolean("autofillCardBenefitsAvailable",
                           payments_data.IsCardBenefitsFeatureEnabled());
 
+  html_source->AddBoolean(
+      "autofillEnableWalletBranding",
+      base::FeatureList::IsEnabled(
+          autofill::features::kAutofillEnableWalletBranding));
+
   bool is_mandatory_reauth_feature_flag_enabled = false;
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
@@ -1741,15 +1768,6 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
                   .spec())));
 
   html_source->AddLocalizedStrings(kLocalizedStrings);
-
-  html_source->AddLocalizedString(
-      "autofillPageTitle",
-      base::FeatureList::IsEnabled(
-          autofill::features::kYourSavedInfoSettingsPage) ||
-              base::FeatureList::IsEnabled(
-                  autofill::features::kYourSavedInfoBrandingInSettings)
-          ? IDS_SETTINGS_YOUR_SAVED_INFO
-          : IDS_SETTINGS_AUTOFILL_AND_PASSWORDS);
 
   html_source->AddString(
       "addressesSublabel",

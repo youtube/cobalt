@@ -9,7 +9,6 @@
 #include "base/types/expected_macros.h"
 #include "chrome/browser/media/webrtc/capture_policy_utils.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/web_applications/isolated_web_apps/commands/isolated_web_app_install_command_helper.h"
 #include "chrome/browser/web_applications/isolated_web_apps/runtime_data/chrome_iwa_runtime_data_provider.h"
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
@@ -57,8 +56,8 @@ MultiCaptureDataService::GetCaptureAppsWithoutNotification() const {
 
 gfx::ImageSkia MultiCaptureDataService::GetAppIcon(
     const webapps::AppId& app_id) const {
-  if (app_icons_.contains(app_id)) {
-    return app_icons_.at(app_id);
+  if (auto it = app_icons_.find(app_id); it != app_icons_.end()) {
+    return it->second;
   }
   return gfx::ImageSkia();
 }
@@ -99,18 +98,20 @@ void MultiCaptureDataService::OnWebAppInstalled(const webapps::AppId& app_id) {
 void MultiCaptureDataService::OnWebAppUninstalled(
     const webapps::AppId& app_id,
     webapps::WebappUninstallSource uninstall_source) {
-  if (app_icons_.contains(app_id)) {
-    app_icons_.erase(app_id);
+  if (auto it = app_icons_.find(app_id); it != app_icons_.end()) {
+    app_icons_.erase(it);
   }
 
-  if (capture_apps_with_notification_.contains(app_id)) {
-    capture_apps_with_notification_.erase(app_id);
+  if (auto it = capture_apps_with_notification_.find(app_id);
+      it != capture_apps_with_notification_.end()) {
+    capture_apps_with_notification_.erase(it);
     observers_.Notify(&Observer::MultiCaptureDataChanged);
     return;
   }
 
-  if (capture_apps_without_notification_.contains(app_id)) {
-    capture_apps_without_notification_.erase(app_id);
+  if (auto it = capture_apps_without_notification_.find(app_id);
+      it != capture_apps_without_notification_.end()) {
+    capture_apps_without_notification_.erase(it);
     observers_.Notify(&Observer::MultiCaptureDataChanged);
     return;
   }
@@ -194,13 +195,13 @@ void MultiCaptureDataService::OnIconReceived(const webapps::AppId& app_id,
 bool MultiCaptureDataService::MaybeAddAppToCaptureAppLists(
     const webapps::AppId& app_id) {
   const web_app::WebAppRegistrar& registrar = provider_->registrar_unsafe();
-  ASSIGN_OR_RETURN(const web_app::WebApp& iwa,
-                   web_app::GetIsolatedWebAppById(registrar, app_id),
-                   [](const std::string& error) { return false; });
-  ASSIGN_OR_RETURN(const web_app::IsolatedWebAppUrlInfo& url_info,
-                   web_app::IsolatedWebAppUrlInfo::Create(iwa.manifest_id()),
-                   [](const std::string& error) { return false; });
-  const std::string& bundle_id = url_info.web_bundle_id().id();
+  const web_app::WebApp* iwa =
+      registrar.GetAppById(app_id, web_app::WebAppFilter::IsIsolatedApp());
+  if (!iwa) {
+    return false;
+  }
+  const std::string bundle_id =
+      web_app::IwaOrigin::Create(iwa->scope())->web_bundle_id().id();
   const bool capture_allowed_by_policy =
       std::ranges::any_of(multi_screen_capture_allowlist_on_login_,
                           [&bundle_id](const base::Value& value) {

@@ -33,14 +33,6 @@ bool FakeTabSlotController::IsTabSelected(const TabSlotView* tab) const {
   return false;
 }
 
-bool FakeTabSlotController::IsTabPinned(const TabSlotView* tab) const {
-  return false;
-}
-
-bool FakeTabSlotController::IsTabFirst(const TabSlotView* tab) const {
-  return false;
-}
-
 bool FakeTabSlotController::IsFocusInTabs() const {
   return false;
 }
@@ -85,11 +77,6 @@ bool FakeTabSlotController::CanPaintThrobberToLayer() const {
 
 SkColor FakeTabSlotController::GetTabSeparatorColor() const {
   return SK_ColorBLACK;
-}
-
-std::optional<int> FakeTabSlotController::GetCustomBackgroundId(
-    BrowserFrameActiveState active_state) const {
-  return std::nullopt;
 }
 
 std::u16string FakeTabSlotController::GetAccessibleTabName(
@@ -139,17 +126,7 @@ BrowserWindowInterface* FakeTabSlotController::GetBrowserWindowInterface() {
   return nullptr;
 }
 
-bool FakeTabSlotController::IsFrameCondensed() const {
-  return false;
-}
-
 TabGroup* FakeTabSlotController::GetTabGroup(
     const tab_groups::TabGroupId& group_id) const {
   return nullptr;
 }
-
-#if BUILDFLAG(IS_CHROMEOS)
-bool FakeTabSlotController::IsLockedForOnTask() {
-  return on_task_locked_;
-}
-#endif

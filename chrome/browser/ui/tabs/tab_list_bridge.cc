@@ -172,6 +172,12 @@ void TabListBridge::SetOpenerForTab(tabs::TabHandle target,
   tab_strip_->SetOpenerOfWebContentsAt(target_index, opener_contents);
 }
 
+tabs::TabInterface* TabListBridge::GetOpenerForTab(tabs::TabHandle target) {
+  const int target_index = GetIndexOfTab(target);
+  CHECK_NE(target_index, TabStripModel::kNoTab);
+  return tab_strip_->GetOpenerOfTabAt(target_index);
+}
+
 void TabListBridge::DiscardTab(tabs::TabHandle tab) {
   content::WebContents* contents = tab.Get()->GetContents();
   if (contents) {
@@ -350,11 +356,8 @@ void TabListBridge::SetTabGroupVisualData(
   if (!tab_strip_->group_model()) {
     return;
   }
-  TabGroup* tab_group = tab_strip_->group_model()->GetTabGroup(group_id);
-  if (!tab_group) {
-    return;
-  }
-  tab_group->SetVisualData(visual_data);
+  // Use ChangeTabGroupsVisuals() to ensure observers are notified.
+  tab_strip_->ChangeTabGroupVisuals(group_id, visual_data);
 }
 
 std::optional<tab_groups::TabGroupId> TabListBridge::AddTabsToGroup(

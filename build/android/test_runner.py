@@ -215,16 +215,14 @@ def AddCommonOptions(parser):
       namespace.local_output = True
       namespace.num_retries = 0
       namespace.skip_clear_data = True
-      namespace.use_persistent_shell = True
 
-  parser.add_argument(
-      '--fast-local-dev',
-      type=bool,
-      nargs=0,
-      action=FastLocalDevAction,
-      help='Alias for: --num-retries=0 --enable-device-cache '
-      '--enable-concurrent-adb --skip-clear-data '
-      '--extract-test-list-from-filter --use-persistent-shell --local-output')
+  parser.add_argument('--fast-local-dev',
+                      type=bool,
+                      nargs=0,
+                      action=FastLocalDevAction,
+                      help='Alias for: --num-retries=0 --enable-device-cache '
+                      '--enable-concurrent-adb --skip-clear-data '
+                      '--extract-test-list-from-filter --local-output')
 
   # TODO(jbudorick): Remove this once downstream bots have switched to
   # api.test_results.
@@ -253,11 +251,12 @@ def AddCommonOptions(parser):
       dest='repeat', type=int, default=0,
       help='Number of times to repeat the specified set of tests.')
 
-  # Not useful for junit tests.
+  # There may be steps that involve setting up a new emulator or device
+  # resets that may not interact well with a persistent shell connection.
   parser.add_argument(
-      '--use-persistent-shell',
+      '--disable-persistent-shell',
       action='store_true',
-      help='Uses a persistent shell connection for the adb connection.')
+      help='Use a non-persistent shell connection for the adb connection.')
 
   # This is currently only implemented for gtests and instrumentation tests.
   parser.add_argument(
@@ -281,10 +280,11 @@ def AddCommonOptions(parser):
 def ProcessCommonOptions(args):
   """Processes and handles all common options."""
   run_tests_helper.SetLogLevel(args.verbose_count, add_handler=False)
-  if args.verbose_count > 0:
-    handler = logging_utils.ColorStreamHandler()
-  else:
-    handler = logging.StreamHandler(sys.stdout)
+  # Color warnings only when showing INFO logs (otherwise they do not need to
+  # be distinguished).
+  color_warnings = args.verbose_count > 0
+  logging_utils.InitColorama()
+  handler = logging_utils.ColorStreamHandler(color_warnings=color_warnings)
   handler.setFormatter(run_tests_helper.CustomFormatter())
   logging.getLogger().addHandler(handler)
 
@@ -1654,8 +1654,16 @@ def main():
           'Ignoring --enable-concurrent-adb due to --use-webview-provider')
       args.enable_concurrent_adb = False
 
-  if (getattr(args, 'coverage_on_the_fly', False)
-      and not getattr(args, 'coverage_dir', '')):
+  coverage_dir = getattr(args, 'coverage_dir', '')
+  if coverage_dir:
+    isolated_outdir = os.environ.get('ISOLATED_OUTDIR')
+    if isolated_outdir and not coverage_dir.startswith(isolated_outdir):
+      replacement = os.path.join(isolated_outdir, 'coverage')
+      logging.warning(
+          'Detected bot environment. Replacing explicit val of --coverage-dir '
+          '(%s) with magic bot val (%s).', coverage_dir, replacement)
+      args.coverage_dir = replacement
+  elif getattr(args, 'coverage_on_the_fly', False):
     parser.error('--coverage-on-the-fly requires --coverage-dir')
 
   if (getattr(args, 'debug_socket', None)

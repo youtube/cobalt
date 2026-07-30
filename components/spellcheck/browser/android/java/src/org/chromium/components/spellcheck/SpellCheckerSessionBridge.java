@@ -10,7 +10,6 @@ import android.content.Context;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.style.SuggestionSpan;
-import android.util.Range;
 import android.view.textservice.SentenceSuggestionsInfo;
 import android.view.textservice.SpellCheckerSession;
 import android.view.textservice.SpellCheckerSession.SpellCheckerSessionListener;
@@ -19,6 +18,7 @@ import android.view.textservice.TextInfo;
 import android.view.textservice.TextServicesManager;
 
 import org.jni_zero.CalledByNative;
+import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.base.ContextUtils;
@@ -30,15 +30,6 @@ import java.util.ArrayList;
 /** JNI interface for native SpellCheckerSessionBridge to use Android's spellchecker. */
 @NullMarked
 public class SpellCheckerSessionBridge implements SpellCheckerSessionListener {
-    // LINT.IfChange(SpellCheckDecoration)
-    /** Values from spellcheck::Decoration on the C++ side * */
-    private static class SpellCheckDecoration {
-        public static final int SPELLING = 0;
-        public static final int GRAMMAR = 1;
-    }
-
-    // LINT.ThenChange(/components/spellcheck/common/spellcheck_decoration.h:DecorationEnum)
-
     private long mNativeSpellCheckerSessionBridge;
     private final boolean mAllowGrammarChecks;
     private final boolean mAllowHideSuggestionMenuAttribute;
@@ -115,24 +106,36 @@ public class SpellCheckerSessionBridge implements SpellCheckerSessionListener {
      * @param spellingMarkers the existing spelling markers present in the given text.
      */
     @CalledByNative
-    private void requestTextCheck(String text, Range<Integer>[] spellingMarkers) {
+    private void requestTextCheck(
+            String text,
+            @JniType("std::vector<spellcheck::SpellingMarker>") SpellingMarker[] spellingMarkers) {
         // SpellCheckerSession thinks that any word ending with a period is a typo.
         // We trim the period off before sending the text for spellchecking in order to avoid
         // unnecessary red underlines when the user ends a sentence with a period.
         // Filed as an Android bug here: https://code.google.com/p/android/issues/detail?id=183294
+        if (text == null) {
+            return;
+        }
         if (text.endsWith(".")) {
             text = text.substring(0, text.length() - 1);
         }
-
+        if (text.length() == 0) {
+            return;
+        }
         SpannableString spannable = new SpannableString(text);
-        for (Range<Integer> range : spellingMarkers) {
+        for (SpellingMarker marker : spellingMarkers) {
+            if (marker.start() > text.length() - 1 || marker.end() > text.length()) {
+                continue;
+            }
             spannable.setSpan(
                     new SuggestionSpan(
                             ContextUtils.getApplicationContext(),
                             new String[] {},
-                            SuggestionSpan.FLAG_MISSPELLED),
-                    range.getLower(),
-                    Math.min(range.getUpper(), text.length() - 1),
+                            marker.type() == SpellingMarker.Decoration.GRAMMAR
+                                    ? SuggestionSpan.FLAG_GRAMMAR_ERROR
+                                    : SuggestionSpan.FLAG_MISSPELLED),
+                    marker.start(),
+                    marker.end(),
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
 
@@ -187,10 +190,10 @@ public class SpellCheckerSessionBridge implements SpellCheckerSessionListener {
                     lengths.add(result.getLengthAt(i));
                     // TODO(crbug.com/434080921): Verify which should take precedence if both are
                     // set.
-                    final int decoration =
+                    final @SpellingMarker.Decoration int decoration =
                             (attributes & grammarBitMask) != 0
-                                    ? SpellCheckDecoration.GRAMMAR
-                                    : SpellCheckDecoration.SPELLING;
+                                    ? SpellingMarker.Decoration.GRAMMAR
+                                    : SpellingMarker.Decoration.SPELLING;
                     spellCheckDecorations.add(decoration);
                     ArrayList<String> suggestionsForWord = new ArrayList<String>();
                     for (int j = 0; j < info.getSuggestionsCount(); ++j) {
@@ -246,8 +249,13 @@ public class SpellCheckerSessionBridge implements SpellCheckerSessionListener {
     }
 
     @CalledByNative
-    private static Range<Integer> createRange(int start, int end) {
-        return new Range<Integer>(start, end);
+    private static @Nullable SpellingMarker createSpellingMarker(
+            int start, int end, @SpellingMarker.Decoration int type) {
+        try {
+            return new SpellingMarker(start, end, type);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     @Override

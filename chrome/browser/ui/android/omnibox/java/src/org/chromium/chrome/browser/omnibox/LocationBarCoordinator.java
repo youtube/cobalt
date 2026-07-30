@@ -30,8 +30,10 @@ import org.chromium.base.Callback;
 import org.chromium.base.CallbackController;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.NonNullObservableSupplier;
+import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplierImpl;
+import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.back_press.BackPressManager;
@@ -67,6 +69,7 @@ import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.IncognitoStateProvider;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.chrome.browser.ui.edge_to_edge.TopInsetProvider;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.components.browser_ui.accessibility.PageZoomIndicatorCoordinator;
 import org.chromium.components.browser_ui.accessibility.PageZoomManager;
@@ -219,6 +222,7 @@ public class LocationBarCoordinator
             @Nullable OmniboxSuggestionsDropdownScrollListener
                     omniboxSuggestionsDropdownScrollListener,
             MonotonicObservableSupplier<TabModelSelector> tabModelSelectorSupplier,
+            MonotonicObservableSupplier<TopInsetProvider> topInsetProviderSupplier,
             LocationBarEmbedder locationBarEmbedder,
             LocationBarEmbedderUiOverrides uiOverrides,
             @Nullable View baseChromeLayout,
@@ -249,6 +253,32 @@ public class LocationBarCoordinator
                                     mOmniboxDropdownEmbedderImpl.recalculateOmniboxAlignment();
                                     updateBottomContainerPosition();
                                 }));
+
+        mUrlBar = mLocationBarLayout.findViewById(R.id.url_bar);
+        final boolean isIncognito =
+                incognitoStateProvider != null && incognitoStateProvider.isIncognitoSelected();
+        OmniboxResourceProvider.setTabFaviconFactory(tabFaviconFunction);
+        SettableNonNullObservableSupplier<@AutocompleteRequestType Integer>
+                autocompleteRequestTypeSupplier =
+                        ObservableSuppliers.createNonNull(AutocompleteRequestType.SEARCH);
+        mFuseboxCoordinator =
+                new FuseboxCoordinator(
+                        context,
+                        windowAndroid,
+                        mLocationBarLayout,
+                        profileObservableSupplier,
+                        tabModelSelectorSupplier,
+                        templateUrlServiceSupplier,
+                        autocompleteRequestTypeSupplier,
+                        snackbarManager);
+        NonNullObservableSupplier<Integer> fuseboxStateSupplier;
+        if (OmniboxFeatures.sOmniboxMultimodalInput.isEnabled()) {
+            fuseboxStateSupplier = mFuseboxCoordinator.getFuseboxStateSupplier();
+            fuseboxStateSupplier.addObserver(this::onFuseboxStateChange);
+        } else {
+            fuseboxStateSupplier = ObservableSuppliers.createNonNull(FuseboxState.DISABLED);
+        }
+
         mOmniboxDropdownEmbedderImpl =
                 new OmniboxSuggestionsDropdownEmbedderImpl(
                         mWindowAndroid,
@@ -262,28 +292,8 @@ public class LocationBarCoordinator
                                         : mBrowserControlsStateProvider.getControlsPosition(),
                         mDeferredIMEWindowInsetApplicationCallback::getCurrentKeyboardHeight,
                         bottomWindowPaddingSupplier,
-                        locationBarDataProvider);
-
-        mUrlBar = mLocationBarLayout.findViewById(R.id.url_bar);
-        final boolean isIncognito =
-                incognitoStateProvider != null && incognitoStateProvider.isIncognitoSelected();
-        OmniboxResourceProvider.setTabFaviconFactory(tabFaviconFunction);
-        ObservableSupplierImpl<@AutocompleteRequestType Integer> autocompleteRequestTypeSupplier =
-                new ObservableSupplierImpl<>(AutocompleteRequestType.SEARCH);
-        mFuseboxCoordinator =
-                new FuseboxCoordinator(
-                        context,
-                        windowAndroid,
-                        mLocationBarLayout,
-                        profileObservableSupplier,
                         locationBarDataProvider,
-                        tabModelSelectorSupplier,
-                        templateUrlServiceSupplier,
-                        autocompleteRequestTypeSupplier,
-                        snackbarManager);
-        if (OmniboxFeatures.sOmniboxMultimodalInput.isEnabled()) {
-            mFuseboxCoordinator.getFuseboxStateSupplier().addObserver(this::onCompactModeChange);
-        }
+                        fuseboxStateSupplier);
 
         mPageZoomIndicatorCoordinator =
                 pageZoomManager != null
@@ -350,6 +360,7 @@ public class LocationBarCoordinator
                         shareDelegateSupplier,
                         locationBarDataProvider,
                         profileObservableSupplier,
+                        topInsetProviderSupplier,
                         bringTabGroupToFrontCallback,
                         bookmarkState,
                         omniboxActionDelegate,
@@ -374,7 +385,7 @@ public class LocationBarCoordinator
                         browserControlsVisibilityDelegate);
         mLocationBarMediator.setCoordinators(
                 mUrlCoordinator, mAutocompleteCoordinator, mStatusCoordinator);
-        mLocationBarMediator.addUrlFocusChangeListener(mFuseboxCoordinator);
+
         mLocationBarMediator.addUrlFocusChangeListener(
                 (focused) -> updateBottomContainerPosition());
 
@@ -863,7 +874,7 @@ public class LocationBarCoordinator
         mLocationBarMediator.updateButtonVisibility();
     }
 
-    private void onCompactModeChange(@FuseboxState int state) {
+    private void onFuseboxStateChange(@FuseboxState int state) {
         if (!mUrlCoordinator.hasFocus()) return;
         View addButton = mLocationBarLayout.findViewById(R.id.location_bar_attachments_add);
         if (addButton == null) return;
@@ -1079,9 +1090,13 @@ public class LocationBarCoordinator
         mLocationBarMediator.updateButtonBackground(backgroundResId);
     }
 
-    public MonotonicObservableSupplier<@AutocompleteRequestType Integer>
+    public NonNullObservableSupplier<@AutocompleteRequestType Integer>
             getAutocompleteRequestTypeSupplier() {
         return mLocationBarMediator.getAutocompleteRequestTypeSupplier();
+    }
+
+    public NonNullObservableSupplier<@FuseboxState Integer> getFuseboxStateSupplier() {
+        return mFuseboxCoordinator.getFuseboxStateSupplier();
     }
 
     @Override
@@ -1097,19 +1112,6 @@ public class LocationBarCoordinator
         mZoomButton.setContentDescription(zoomString);
         mZoomButton.setTooltipText(zoomString);
         mLocationBarMediator.onZoomLevelChanged();
-    }
-
-    /**
-     * Called when the edge-to-edge state changes to update the autocomplete suggestions container.
-     *
-     * @param systemTopInset The top inset from the system in pixels.
-     * @param consumeTopInset Whether the top inset should be consumed.
-     */
-    public void onToEdgeChange(int systemTopInset, boolean consumeTopInset) {
-        if (mAutocompleteCoordinator != null) {
-            mAutocompleteCoordinator.onToEdgeChange(
-                    systemTopInset, consumeTopInset, isToolbarBottomAnchored());
-        }
     }
 
     /**

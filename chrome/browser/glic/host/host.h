@@ -37,6 +37,7 @@ class GlicWindowController;
 class WebUIContentsContainer;
 class GlicInstanceMetrics;
 class GlicInstanceMetricsBackwardsCompatibility;
+class EmptyInstanceDelegate;
 
 // The host owns the WebUI that contains the main glic UI and the web client.
 // TODO(crbug.com/409332639): Better encapsulate details here.
@@ -395,6 +396,8 @@ class Host : public GlicSharingManagerProvider {
 
   void NotifyActorTaskListRowClicked(int32_t task_id);
 
+  void NotifySkillToInvokeChanged(mojom::SkillPtr skill);
+
  private:
   friend class HostManager;
 
@@ -534,6 +537,7 @@ class HostManager {
   raw_ptr<Profile> profile_;
   base::WeakPtr<GlicWindowController> window_controller_;
   std::unique_ptr<EmptyEmbedderDelegate> empty_embedder_delegate_;
+  std::unique_ptr<EmptyInstanceDelegate> instance_delegate_stub_;
   // Hosts for any unclaimed page handlers, which is approximately limited to
   // chrome://glic in tabs. These are only important for developers, and do not
   // need to be fully functional.

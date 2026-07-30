@@ -5,6 +5,7 @@
 #include "chrome/browser/updater/updater.h"
 
 #include <optional>
+#include <vector>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -53,22 +54,42 @@ std::optional<mojom::AppState> GetLastKnownUpdaterRegistration() {
 
 void GetSystemUpdaterState(
     base::OnceCallback<void(const mojom::UpdaterState&)> callback) {
-  std::move(callback).Run({});
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback), mojom::UpdaterState{}));
 }
 
 void GetUserUpdaterState(
     base::OnceCallback<void(const mojom::UpdaterState&)> callback) {
-  std::move(callback).Run({});
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback), mojom::UpdaterState{}));
 }
 
 void GetSystemPoliciesJson(
     base::OnceCallback<void(const std::string&)> callback) {
-  std::move(callback).Run({});
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback), std::string{}));
 }
 
 void GetUserPoliciesJson(
     base::OnceCallback<void(const std::string&)> callback) {
-  std::move(callback).Run({});
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback), std::string{}));
 }
+
+void GetSystemUpdaterAppStates(
+    base::OnceCallback<void(const std::vector<mojom::AppState>&)> callback) {
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(std::move(callback), std::vector<mojom::AppState>{}));
+}
+
+void GetUserUpdaterAppStates(
+    base::OnceCallback<void(const std::vector<mojom::AppState>&)> callback) {
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(std::move(callback), std::vector<mojom::AppState>{}));
+}
+
+void SetActive() {}
 
 }  // namespace updater

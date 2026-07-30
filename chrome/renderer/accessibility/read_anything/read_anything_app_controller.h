@@ -113,6 +113,13 @@ class ReadAnythingAppController
   void OnTreeAdded(ui::AXTree* tree) override;
   void OnTreeRemoved(ui::AXTree* tree) override;
 
+  // Returns whether the processing of accessibility updates should be paused.
+  bool IsUpdateProcessingPaused() const;
+
+  // If the update-processing system is not paused, applies pending updates and
+  // triggers necessary actions. If paused, does nothing.
+  void ProcessPendingUpdatesIfAllowed();
+
   // read_anything::mojom::UntrustedPage:
   void AccessibilityEventReceived(
       const ui::AXTreeID& tree_id,
@@ -127,6 +134,8 @@ class ReadAnythingAppController
   void OnActiveAXTreeIDChanged(const ui::AXTreeID& tree_id,
                                ukm::SourceId ukm_source_id,
                                bool is_pdf) override;
+  void SetDistillationState(
+      read_anything::mojom::ReadAnythingDistillationState state);
   void OnAXTreeDestroyed(const ui::AXTreeID& tree_id) override;
   void OnImageDataDownloaded(const ui::AXTreeID& tree_id,
                              ui::AXNodeID node_id,
@@ -140,8 +149,8 @@ class ReadAnythingAppController
       bool images_enabled,
       read_anything::mojom::Colors color,
       double speech_rate,
-      base::Value::Dict voices,
-      base::Value::List languages_enabled_in_pref,
+      base::DictValue voices,
+      base::ListValue languages_enabled_in_pref,
       read_anything::mojom::HighlightGranularity granularity,
       read_anything::mojom::LineFocus line_focus) override;
   void SetLanguageCode(const std::string& code) override;
@@ -418,7 +427,7 @@ class ReadAnythingAppController
 
   // Helper for forwarding various updates to the webui based on the latest
   // processed accessibility events.
-  void SendEventUpdates();
+  void ProcessModelUpdates();
 
   // Helper for forwarding reading mode hide events to the webui so we can
   // perform cleaning operations on it.

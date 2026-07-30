@@ -13,10 +13,10 @@
 #include "components/prefs/pref_notifier_impl.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_search_api/fake_url_checker_client.h"
+#include "components/supervised_user/core/browser/family_link_url_filter.h"
 #include "components/supervised_user/core/browser/supervised_user_metrics_service.h"
 #include "components/supervised_user/core/browser/supervised_user_pref_store.h"
 #include "components/supervised_user/core/browser/supervised_user_synthetic_field_trial_service_delegate.h"
-#include "components/supervised_user/core/browser/supervised_user_url_filter.h"
 #include "components/supervised_user/core/browser/supervised_user_url_filtering_service.h"
 #include "components/supervised_user/core/common/supervised_user_constants.h"
 #include "components/supervised_user/test_support/supervised_user_url_filter_test_utils.h"
@@ -42,10 +42,10 @@ class SupervisedUserTestingPrefStore : public TestingPrefStore,
                                        public PrefStore::Observer {
  public:
   SupervisedUserTestingPrefStore(
-      SupervisedUserSettingsService* settings_service,
+      FamilyLinkSettingsService* family_link_settings_service,
       DeviceParentalControls& device_parental_controls)
       : pref_store_(base::MakeRefCounted<SupervisedUserPrefStore>(
-            settings_service,
+            family_link_settings_service,
             device_parental_controls)) {
     observation_.Observe(pref_store_.get());
   }
@@ -75,12 +75,12 @@ class SupervisedUserTestingPrefStore : public TestingPrefStore,
 void SetManualFilter(std::string_view content_pack_setting,
                      std::string_view entry,
                      bool allowlist,
-                     SupervisedUserSettingsService& settings_service) {
-  const base::Value::Dict& local_settings =
+                     FamilyLinkSettingsService& settings_service) {
+  const base::DictValue& local_settings =
       settings_service.LocalSettingsForTest();
-  base::Value::Dict dict_to_insert;
+  base::DictValue dict_to_insert;
 
-  if (const base::Value::Dict* dict_value =
+  if (const base::DictValue* dict_value =
           local_settings.FindDict(content_pack_setting)) {
     dict_to_insert = dict_value->Clone();
   }
@@ -91,28 +91,28 @@ void SetManualFilter(std::string_view content_pack_setting,
 }
 }  // namespace
 
-SupervisedUserSettingsService* InitializeSettingsServiceForTesting(
-    SupervisedUserSettingsService* settings_service) {
+FamilyLinkSettingsService* InitializeSettingsServiceForTesting(
+    FamilyLinkSettingsService* family_link_settings_service) {
   // Note: this pref store is not a part of any pref service, but rather a
   // convenient storage backend of the supervised user settings service.
   scoped_refptr<TestingPrefStore> backing_pref_store =
       base::MakeRefCounted<TestingPrefStore>();
   backing_pref_store->SetInitializationCompleted();
 
-  settings_service->Init(backing_pref_store);
-  settings_service->MergeDataAndStartSyncing(
+  family_link_settings_service->Init(backing_pref_store);
+  family_link_settings_service->MergeDataAndStartSyncing(
       syncer::SUPERVISED_USER_SETTINGS, syncer::SyncDataList(),
       std::unique_ptr<syncer::SyncChangeProcessor>(
           new syncer::FakeSyncChangeProcessor));
 
-  return settings_service;
+  return family_link_settings_service;
 }
 
 scoped_refptr<TestingPrefStore> CreateTestingPrefStore(
-    SupervisedUserSettingsService* settings_service,
+    FamilyLinkSettingsService* family_link_settings_service,
     DeviceParentalControls& device_parental_controls) {
   return base::MakeRefCounted<SupervisedUserTestingPrefStore>(
-      settings_service, device_parental_controls);
+      family_link_settings_service, device_parental_controls);
 }
 
 bool SupervisedUserMetricsServiceExtensionDelegateFake::
@@ -174,7 +174,7 @@ void SupervisedUserPrefStoreTestEnvironment::Shutdown() {
   settings_service_.Shutdown();
 }
 
-SupervisedUserSettingsService*
+FamilyLinkSettingsService*
 SupervisedUserPrefStoreTestEnvironment::settings_service() {
   return &settings_service_;
 }
@@ -218,14 +218,15 @@ SupervisedUserTestEnvironment::SupervisedUserTestEnvironment(
           &test_url_loader_factory_),
       *pref_store_environment_.pref_service(),
       *pref_store_environment_.settings_service(), &sync_service_,
-      std::make_unique<SupervisedUserURLFilter>(
+      std::make_unique<FamilyLinkUrlFilter>(
+          *pref_store_environment_.settings_service(),
           *pref_store_environment_.pref_service(),
           std::make_unique<FakeURLFilterDelegate>(), std::move(client)),
       std::make_unique<FakePlatformDelegate>(),
       pref_store_environment_.device_parental_controls());
 
-  url_filtering_service_ = std::make_unique<SupervisedUserUrlFilteringService>(
-      *service_.get(), *pref_store_environment_.settings_service());
+  url_filtering_service_ =
+      std::make_unique<SupervisedUserUrlFilteringService>(*service_.get());
   metrics_service_ = std::make_unique<SupervisedUserMetricsService>(
       pref_store_environment_.pref_service(), *service_.get(),
       *url_filtering_service_.get(),
@@ -248,7 +249,7 @@ void SupervisedUserTestEnvironment::SetWebFilterType(
 }
 void SupervisedUserTestEnvironment::SetWebFilterType(
     WebFilterType web_filter_type,
-    SupervisedUserSettingsService& settings_service) {
+    FamilyLinkSettingsService& settings_service) {
   switch (web_filter_type) {
     case WebFilterType::kAllowAllSites:
       settings_service.SetLocalSetting(
@@ -295,7 +296,7 @@ void SupervisedUserTestEnvironment::SetManualFilterForHost(
 void SupervisedUserTestEnvironment::SetManualFilterForHost(
     std::string_view host,
     bool allowlist,
-    SupervisedUserSettingsService& service) {
+    FamilyLinkSettingsService& service) {
   SetManualFilter(kContentPackManualBehaviorHosts, host, allowlist, service);
 }
 
@@ -307,11 +308,12 @@ void SupervisedUserTestEnvironment::SetManualFilterForUrl(std::string_view url,
 void SupervisedUserTestEnvironment::SetManualFilterForUrl(
     std::string_view url,
     bool allowlist,
-    SupervisedUserSettingsService& service) {
-  SetManualFilter(kContentPackManualBehaviorURLs, url, allowlist, service);
+    FamilyLinkSettingsService& family_link_settings_service) {
+  SetManualFilter(kContentPackManualBehaviorURLs, url, allowlist,
+                  family_link_settings_service);
 }
 
-SupervisedUserURLFilter* SupervisedUserTestEnvironment::url_filter() const {
+FamilyLinkUrlFilter* SupervisedUserTestEnvironment::url_filter() const {
   return service()->GetURLFilter();
 }
 SupervisedUserService* SupervisedUserTestEnvironment::service() const {

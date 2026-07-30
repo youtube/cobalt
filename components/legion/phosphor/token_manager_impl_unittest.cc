@@ -12,9 +12,12 @@
 #include <utility>
 #include <vector>
 
+#include "base/functional/bind.h"
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/task_environment.h"
+#include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "base/types/expected.h"
 #include "components/legion/features.h"
@@ -69,14 +72,19 @@ class MockTokenFetcher : public TokenFetcher {
                       GetAuthnTokensCallback callback) override {
     CHECK(!expected_get_authn_token_calls_.empty())
         << "Unexpected call to GetAuthnTokens";
-    auto& exp = expected_get_authn_token_calls_.front();
-    EXPECT_EQ(batch_size, exp.batch_size);
-    if (exp.bsa_tokens) {
-      std::move(callback).Run(base::ok(*std::move(exp.bsa_tokens)));
-    } else {
-      std::move(callback).Run(base::unexpected(*exp.try_again_after));
-    }
+    auto exp = std::move(expected_get_authn_token_calls_.front());
     expected_get_authn_token_calls_.pop_front();
+    EXPECT_EQ(batch_size, exp.batch_size);
+
+    base::expected<std::vector<BlindSignedAuthToken>, base::Time> result;
+    if (exp.bsa_tokens) {
+      result = base::ok(std::move(*exp.bsa_tokens));
+    } else {
+      result = base::unexpected(*exp.try_again_after);
+    }
+
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(std::move(callback), std::move(result)));
   }
 
  protected:
@@ -99,6 +107,7 @@ class TokenManagerImplTest : public testing::Test {
     for (int i = 0; i < count; i++) {
       tokens.emplace_back(
           BlindSignedAuthToken{.token = "token-" + base::NumberToString(i),
+                               .encoded_extensions = "ext",
                                .expiration = expiration});
     }
     return tokens;
@@ -116,43 +125,41 @@ class TokenManagerImplTest : public testing::Test {
   raw_ptr<MockTokenFetcher> mock_fetcher_;
 };
 
-TEST_F(TokenManagerImplTest, MultipleFeatures) {
-  // Request a token for feature 1.
+TEST_F(TokenManagerImplTest, GetAuthToken) {
+  // Request a token. This should trigger a fetch for a batch of tokens.
   mock_fetcher_->ExpectGetAuthnTokensCall(
       expected_batch_size_,
       TokenBatch(expected_batch_size_, kFutureExpiration));
-  EXPECT_FALSE(token_manager_->GetAuthToken(
-      proto::FeatureName::FEATURE_NAME_DEMO_GEMINI_GENERATE_CONTENT));
-  task_environment_.RunUntilIdle();
-  ASSERT_TRUE(mock_fetcher_->GotAllExpectedMockCalls());
-  EXPECT_TRUE(token_manager_->IsAuthTokenAvailable(
-      proto::FeatureName::FEATURE_NAME_DEMO_GEMINI_GENERATE_CONTENT));
 
-  // Request a token for feature 2.
+  {
+    base::test::TestFuture<std::optional<BlindSignedAuthToken>> future;
+    token_manager_->GetAuthToken(future.GetCallback());
+    EXPECT_FALSE(future.IsReady());
+    ASSERT_TRUE(mock_fetcher_->GotAllExpectedMockCalls());
+    EXPECT_TRUE(future.Get().has_value());
+  }
+
+  // The rest of the batch should be available from the cache. A prefetch will
+  // be triggered when the cache runs low.
   mock_fetcher_->ExpectGetAuthnTokensCall(
       expected_batch_size_,
       TokenBatch(expected_batch_size_, kFutureExpiration));
-  EXPECT_FALSE(token_manager_->GetAuthToken(
-      proto::FeatureName::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION));
-  task_environment_.RunUntilIdle();
+  for (int i = 0; i < expected_batch_size_ - 1; ++i) {
+    base::test::TestFuture<std::optional<BlindSignedAuthToken>> future;
+    token_manager_->GetAuthToken(future.GetCallback());
+    EXPECT_FALSE(future.IsReady());
+    ASSERT_TRUE(future.Get().has_value());
+  }
+
   ASSERT_TRUE(mock_fetcher_->GotAllExpectedMockCalls());
-  EXPECT_TRUE(token_manager_->IsAuthTokenAvailable(
-      proto::FeatureName::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION));
 
-  // Tokens should be available for both.
-  EXPECT_TRUE(token_manager_->IsAuthTokenAvailable(
-      proto::FeatureName::FEATURE_NAME_DEMO_GEMINI_GENERATE_CONTENT));
-  EXPECT_TRUE(token_manager_->IsAuthTokenAvailable(
-      proto::FeatureName::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION));
-
-  // Take a token for feature 1.
-  auto token1 = token_manager_->GetAuthToken(
-      proto::FeatureName::FEATURE_NAME_DEMO_GEMINI_GENERATE_CONTENT);
-  ASSERT_TRUE(token1.has_value());
-
-  // A token should still be available for feature 2.
-  EXPECT_TRUE(token_manager_->IsAuthTokenAvailable(
-      proto::FeatureName::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION));
+  // A token should be available from the new batch.
+  {
+    base::test::TestFuture<std::optional<BlindSignedAuthToken>> future;
+    token_manager_->GetAuthToken(future.GetCallback());
+    EXPECT_FALSE(future.IsReady());
+    ASSERT_TRUE(future.Get().has_value());
+  }
 }
 
 }  // namespace

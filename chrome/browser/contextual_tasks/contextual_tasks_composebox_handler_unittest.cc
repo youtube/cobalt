@@ -24,6 +24,7 @@
 #include "chrome/browser/ui/contextual_search/tab_contextualization_controller.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
+#include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "chrome/browser/ui/webui/searchbox/searchbox_test_utils.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
@@ -78,7 +79,8 @@ class LocalContextualSearchboxHandlerTestHarness
   void SetUp() override {
     BrowserWithTestWindowTest::SetUp();
     AddTab(browser(), GURL(url::kAboutBlankURL));
-    web_contents_ = browser()->tab_strip_model()->GetActiveWebContents();
+    web_contents_ =
+        TabListInterface::From(browser())->GetActiveTab()->GetContents();
   }
 
  protected:
@@ -116,6 +118,7 @@ class MockContextualTasksUI : public ContextualTasksUI {
   MOCK_METHOD(const std::optional<base::Uuid>&, GetTaskId, (), (override));
   MOCK_METHOD(void, DisableActiveTabContextSuggestion, (), (override));
   MOCK_METHOD(BrowserWindowInterface*, GetBrowser, (), (override));
+  MOCK_METHOD(bool, IsLensOverlayShowing, (), (const, override));
 };
 
 class TestContextualTasksComposeboxHandler
@@ -156,7 +159,12 @@ class MockLensSearchController : public LensSearchController {
 
   MOCK_METHOD(void,
               OpenLensOverlay,
-              (lens::LensOverlayInvocationSource invocation_source),
+              (lens::LensOverlayInvocationSource invocation_source,
+               bool should_show_csb),
+              (override));
+  MOCK_METHOD(void,
+              CloseLensSync,
+              (lens::LensOverlayDismissalSource dismissal_source),
               (override));
 };
 
@@ -236,7 +244,7 @@ class ContextualTasksComposeboxHandlerTest
 
     // Setup MockTabContextualizationController
     tabs::TabInterface* active_tab =
-        browser()->tab_strip_model()->GetActiveTab();
+        TabListInterface::From(browser())->GetActiveTab();
     // Clear existing controller to avoid UserData collision
     active_tab->GetTabFeatures()->SetTabContextualizationControllerForTesting(
         nullptr);
@@ -254,6 +262,10 @@ class ContextualTasksComposeboxHandlerTest
       mock_contextual_tasks_service_owner_;
 
   void TearDown() override {
+    // Manually verify and clear expectations to avoid issues during teardown
+    // when the tab is closed and CloseLensSync is called again with kTabClosed.
+    testing::Mock::VerifyAndClearExpectations(mock_lens_controller_);
+
     // Reset handler first to destroy the omnibox client which observes the
     // lens controller.
     handler_.reset();
@@ -911,7 +923,7 @@ TEST_F(ContextualTasksComposeboxHandlerTest, HandleLensButtonClick) {
   EXPECT_CALL(
       *mock_lens_controller_,
       OpenLensOverlay(
-          lens::LensOverlayInvocationSource::kContextualTasksComposebox));
+          lens::LensOverlayInvocationSource::kContextualTasksComposebox, true));
   handler_->HandleLensButtonClick();
 }
 
@@ -1049,7 +1061,8 @@ TEST_F(ContextualTasksComposeboxHandlerTest, AddTabContext_Delayed) {
   // We need to mock the tab handle resolution. Since we can't easily mock
   // TabHandle::Get() for arbitrary IDs in this test harness without more setup,
   // we will use the active tab's ID which IS set up.
-  tabs::TabInterface* active_tab = browser()->tab_strip_model()->GetActiveTab();
+  tabs::TabInterface* active_tab =
+      TabListInterface::From(browser())->GetActiveTab();
   int32_t active_tab_id = active_tab->GetHandle().raw_value();
 
   // Reset and try again with active tab ID.
@@ -1120,7 +1133,8 @@ TEST_F(ContextualTasksComposeboxHandlerTest, DeleteContext_Delayed) {
                   callback) { std::move(callback).Run(std::move(context)); });
 
   // 1. Add delayed tab context.
-  tabs::TabInterface* active_tab = browser()->tab_strip_model()->GetActiveTab();
+  tabs::TabInterface* active_tab =
+      TabListInterface::From(browser())->GetActiveTab();
   int32_t active_tab_id = active_tab->GetHandle().raw_value();
   std::optional<base::UnguessableToken> token_opt;
   base::MockCallback<ContextualSearchboxHandler::AddTabContextCallback>
@@ -1135,6 +1149,145 @@ TEST_F(ContextualTasksComposeboxHandlerTest, DeleteContext_Delayed) {
 
   // 2. Delete the context.
   handler_->DeleteContext(token, /*from_automatic_chip=*/true);
+
+  // 3. Verify UploadTabContextWithData is NOT called.
+  EXPECT_CALL(*handler_, UploadTabContextWithData(testing::_, testing::_,
+                                                  testing::_, testing::_))
+      .Times(0);
+
+  EXPECT_CALL(*mock_controller_, CreateClientToAimRequest(testing::_))
+      .WillOnce(testing::Return(lens::ClientToAimMessage()));
+  EXPECT_CALL(*mock_ui_, PostMessageToWebview(testing::_));
+
+  handler_->CreateAndSendQueryMessage(kQuery);
+  base::RunLoop().RunUntilIdle();
+}
+
+TEST_F(ContextualTasksComposeboxHandlerTest,
+       CreateAndSendQueryMessage_OverlayOpen) {
+  std::string kQuery = "overlay query";
+  base::Uuid task_id = base::Uuid::GenerateRandomV4();
+
+  // Set task ID so we enter the relevant if block.
+  EXPECT_CALL(*mock_ui_, GetTaskId())
+      .WillRepeatedly(
+          testing::ReturnRefOfCopy(std::optional<base::Uuid>(task_id)));
+
+  // Mock IsLensOverlayShowing to return true.
+  EXPECT_CALL(*mock_ui_, IsLensOverlayShowing())
+      .WillRepeatedly(testing::Return(true));
+
+  // Expect CloseLensSync to be called.
+  EXPECT_CALL(
+      *mock_lens_controller_,
+      CloseLensSync(
+          lens::LensOverlayDismissalSource::kContextualTasksQuerySubmitted));
+
+  // Expect GetContextForTask NOT to be called (recontextualization skipped).
+  EXPECT_CALL(*mock_contextual_tasks_service_ptr_,
+              GetContextForTask(testing::_, testing::_, testing::_, testing::_))
+      .Times(0);
+
+  // Expect CreateClientToAimRequest IS called (immediate submission).
+  EXPECT_CALL(*mock_controller_, CreateClientToAimRequest(testing::_))
+      .WillOnce(testing::Return(lens::ClientToAimMessage()));
+  EXPECT_CALL(*mock_ui_, PostMessageToWebview(testing::_));
+
+  handler_->CreateAndSendQueryMessage(kQuery);
+}
+
+TEST_F(ContextualTasksComposeboxHandlerTest,
+       CreateAndSendQueryMessage_OverlayClosed) {
+  std::string kQuery = "normal query";
+  base::Uuid task_id = base::Uuid::GenerateRandomV4();
+
+  EXPECT_CALL(*mock_ui_, GetTaskId())
+      .WillRepeatedly(
+          testing::ReturnRefOfCopy(std::optional<base::Uuid>(task_id)));
+
+  // Mock IsLensOverlayShowing to return false.
+  EXPECT_CALL(*mock_ui_, IsLensOverlayShowing())
+      .WillRepeatedly(testing::Return(false));
+
+  // Expect CloseLensSync to be called (it's always called).
+  EXPECT_CALL(
+      *mock_lens_controller_,
+      CloseLensSync(
+          lens::LensOverlayDismissalSource::kContextualTasksQuerySubmitted));
+
+  // Expect GetContextForTask TO be called.
+  contextual_tasks::ContextualTask task(task_id);
+  auto context =
+      std::make_unique<contextual_tasks::ContextualTaskContext>(task);
+  EXPECT_CALL(*mock_contextual_tasks_service_ptr_,
+              GetContextForTask(task_id, testing::_, testing::_, testing::_))
+      .WillOnce(
+          [&context](
+              const base::Uuid& task_id,
+              const std::set<contextual_tasks::ContextualTaskContextSource>&
+                  sources,
+              std::unique_ptr<contextual_tasks::ContextDecorationParams> params,
+              base::OnceCallback<void(
+                  std::unique_ptr<contextual_tasks::ContextualTaskContext>)>
+                  callback) { std::move(callback).Run(std::move(context)); });
+
+  // The test returns a context with no matching attachments to the active tab,
+  // so it will proceed to submission immediately.
+  EXPECT_CALL(*mock_controller_, CreateClientToAimRequest(testing::_))
+      .WillOnce(testing::Return(lens::ClientToAimMessage()));
+  EXPECT_CALL(*mock_ui_, PostMessageToWebview(testing::_));
+
+  handler_->CreateAndSendQueryMessage(kQuery);
+}
+
+TEST_F(ContextualTasksComposeboxHandlerTest, ClearFiles_Delayed) {
+  ASSERT_NE(mock_contextual_tasks_service_ptr_, nullptr)
+      << "Mock controller is NULL!";
+  std::string kQuery = "clear files query";
+  base::Uuid task_id = base::Uuid::GenerateRandomV4();
+  EXPECT_CALL(*mock_ui_, GetTaskId())
+      .WillRepeatedly(
+          testing::ReturnRefOfCopy(std::optional<base::Uuid>(task_id)));
+
+  // Setup context.
+  contextual_tasks::ContextualTask task(task_id);
+  auto context =
+      std::make_unique<contextual_tasks::ContextualTaskContext>(task);
+
+  EXPECT_CALL(
+      *mock_contextual_tasks_service_ptr_,
+      GetContextForTask(
+          task_id,
+          testing::Contains(contextual_tasks::ContextualTaskContextSource::
+                                kPendingContextDecorator),
+          testing::NotNull(), testing::_))
+      .WillOnce(
+          [&context](
+              const base::Uuid& task_id,
+              const std::set<contextual_tasks::ContextualTaskContextSource>&
+                  sources,
+              std::unique_ptr<contextual_tasks::ContextDecorationParams> params,
+              base::OnceCallback<void(
+                  std::unique_ptr<contextual_tasks::ContextualTaskContext>)>
+                  callback) { std::move(callback).Run(std::move(context)); });
+
+  // 1. Add delayed tab context.
+  tabs::TabInterface* active_tab =
+      TabListInterface::From(browser())->GetActiveTab();
+  int32_t active_tab_id = active_tab->GetHandle().raw_value();
+  std::optional<base::UnguessableToken> token_opt;
+  base::MockCallback<ContextualSearchboxHandler::AddTabContextCallback>
+      callback;
+  EXPECT_CALL(callback, Run(testing::_))
+      .WillOnce(testing::SaveArg<0>(&token_opt));
+
+  handler_->AddTabContext(active_tab_id, /*delay_upload=*/true, callback.Get());
+  ASSERT_TRUE(token_opt.has_value());
+  base::UnguessableToken token = token_opt.value();
+  ASSERT_FALSE(token.is_empty());
+
+  // 2. Clear files.
+  handler_->ClearFiles();
 
   // 3. Verify UploadTabContextWithData is NOT called.
   EXPECT_CALL(*handler_, UploadTabContextWithData(testing::_, testing::_,

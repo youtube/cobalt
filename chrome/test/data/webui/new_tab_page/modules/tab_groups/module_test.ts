@@ -40,8 +40,7 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
   async function createModule(
       tabGroups: TabGroup[]|null,
       showZeroState: boolean = false): Promise<TabGroupsModuleElement> {
-    handler.setResultFor(
-        'getTabGroups', Promise.resolve({tabGroups, showZeroState}));
+    handler.setPromiseResolveFor('getTabGroups', {tabGroups, showZeroState});
     const module =
         await tabGroupsDescriptor.initialize(0) as TabGroupsModuleElement;
     document.body.append(module);
@@ -59,10 +58,10 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
         updateTime: 'Recently used',
         deviceName: 'Test Device',
         faviconUrls: [
-          {url: 'https://www.google.com'},
-          {url: 'https://www.youtube.com'},
-          {url: 'https://www.wikipedia.org'},
-          {url: 'https://maps.google.com'},
+          'https://www.google.com',
+          'https://www.youtube.com',
+          'https://www.wikipedia.org',
+          'https://maps.google.com',
         ],
         totalTabCount: 4,
         isSharedTabGroup: true,
@@ -74,10 +73,10 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
         updateTime: 'Recently used',
         deviceName: 'Test Device',
         faviconUrls: [
-          {url: 'https://www.google.com'},
-          {url: 'https://www.youtube.com'},
-          {url: 'https://www.wikipedia.org'},
-          {url: 'https://maps.google.com'},
+          'https://www.google.com',
+          'https://www.youtube.com',
+          'https://www.wikipedia.org',
+          'https://maps.google.com',
         ],
         totalTabCount: 8,
         isSharedTabGroup: false,
@@ -89,10 +88,10 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
         updateTime: 'Recently used',
         deviceName: null,
         faviconUrls: [
-          {url: 'https://www.google.com'},
-          {url: 'https://www.youtube.com'},
-          {url: 'https://www.wikipedia.org'},
-          {url: 'https://maps.google.com'},
+          'https://www.google.com',
+          'https://www.youtube.com',
+          'https://www.wikipedia.org',
+          'https://maps.google.com',
         ],
         totalTabCount: 188,
         isSharedTabGroup: true,
@@ -124,8 +123,7 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
       const iconContainer =
           groups[i]!.querySelector<IconContainerElement>('ntp-icon-container')!;
       assertTrue(!!iconContainer);
-      assertDeepEquals(
-          tabGroups[i]!.faviconUrls.map(u => u.url), iconContainer.faviconUrls);
+      assertDeepEquals(tabGroups[i]!.faviconUrls, iconContainer.faviconUrls);
       assertEquals(tabGroups[i]!.totalTabCount, iconContainer.totalTabCount);
       assertTrue(iconContainer.getAttribute('style')!.includes(
           `background-color: var(${
@@ -170,7 +168,7 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
       title: 'Tab Group',
       updateTime: 'Recently used',
       deviceName: 'Test Device',
-      faviconUrls: [{url: 'https://www.google.com'}],
+      faviconUrls: ['https://www.google.com'],
       totalTabCount: 1,
       isSharedTabGroup: false,
     }]);
@@ -198,10 +196,10 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
       updateTime: 'Recently used',
       deviceName: 'Test Device',
       faviconUrls: [
-        {url: 'https://www.google.com'},
-        {url: 'https://www.youtube.com'},
-        {url: 'https://www.wikipedia.org'},
-        {url: 'https://maps.google.com'},
+        'https://www.google.com',
+        'https://www.youtube.com',
+        'https://www.wikipedia.org',
+        'https://maps.google.com',
       ],
       totalTabCount: 4,
       isSharedTabGroup: false,
@@ -228,10 +226,10 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
       updateTime: 'Recently used',
       deviceName: 'Test Device',
       faviconUrls: [
-        {url: 'https://www.google.com'},
-        {url: 'https://www.youtube.com'},
-        {url: 'https://www.wikipedia.org'},
-        {url: 'https://maps.google.com'},
+        'https://www.google.com',
+        'https://www.youtube.com',
+        'https://www.wikipedia.org',
+        'https://maps.google.com',
       ],
       totalTabCount: 8,
       isSharedTabGroup: false,
@@ -261,10 +259,10 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
       updateTime: 'Recently used',
       deviceName: 'Test Device',
       faviconUrls: [
-        {url: 'https://www.google.com'},
-        {url: 'https://www.youtube.com'},
-        {url: 'https://www.wikipedia.org'},
-        {url: 'https://maps.google.com'},
+        'https://www.google.com',
+        'https://www.youtube.com',
+        'https://www.wikipedia.org',
+        'https://maps.google.com',
       ],
       totalTabCount: 188,
       isSharedTabGroup: false,
@@ -293,7 +291,7 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
       title: 'Tab Group',
       updateTime: 'Recently used',
       deviceName: 'Test Device',
-      faviconUrls: [{url: 'https://www.google.com'}],
+      faviconUrls: ['https://www.google.com'],
       totalTabCount: 1,
       isSharedTabGroup: false,
     }]);
@@ -333,7 +331,7 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
       title: 'Tab Group',
       updateTime: 'Recently used',
       deviceName: 'Test Device',
-      faviconUrls: [{url: 'https://www.google.com'}],
+      faviconUrls: ['https://www.google.com'],
       totalTabCount: 1,
       isSharedTabGroup: false,
     }]);
@@ -360,7 +358,7 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
       title: 'Tab Group',
       updateTime: 'Recently used',
       deviceName: 'Test Device',
-      faviconUrls: [{url: 'https://www.google.com'}],
+      faviconUrls: ['https://www.google.com'],
       totalTabCount: 1,
       isSharedTabGroup: false,
     }]);
@@ -395,7 +393,7 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
       title: 'Group',
       updateTime: 'Recently used',
       deviceName: null,
-      faviconUrls: [{url: 'https://www.google.com'}],
+      faviconUrls: ['https://www.google.com'],
       totalTabCount: 1,
       isSharedTabGroup: false,
     }]);
@@ -408,7 +406,6 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
     assertTrue(isVisible(createNewTabGroupButton));
 
     // Act.
-    handler.setResultFor('createNewTabGroup', Promise.resolve());
     createNewTabGroupButton.click();
     await microtasksFinished();
 
@@ -428,7 +425,7 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
         title: 'Group 1',
         updateTime: 'Recently used',
         deviceName: null,
-        faviconUrls: [{url: 'https://www.google.com'}],
+        faviconUrls: ['https://www.google.com'],
         totalTabCount: 1,
         isSharedTabGroup: false,
       },
@@ -452,7 +449,6 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
     const index = 1;
 
     // Act.
-    handler.setResultFor('openTabGroup', Promise.resolve());
     groups[index]!.click();
     await microtasksFinished();
 
@@ -546,7 +542,6 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
       assertTrue(isVisible(createNewTabGroupButton));
 
       // Act.
-      handler.setResultFor('createNewTabGroup', Promise.resolve());
       createNewTabGroupButton.click();
       await microtasksFinished();
 

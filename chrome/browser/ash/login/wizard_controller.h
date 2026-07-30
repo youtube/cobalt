@@ -252,7 +252,7 @@ class WizardController : public OobeUI::Observer {
 
   // Configure and show the signin fatal error screen.
   void ShowSignInFatalErrorScreen(SignInFatalErrorScreen::Error error,
-                                  base::Value::Dict params);
+                                  base::DictValue params);
 
   // Show Family Link notice screen.
   void ShowFamilyLinkNoticeScreen();
@@ -262,6 +262,10 @@ class WizardController : public OobeUI::Observer {
 
   // Exits Fjord touch controller screen if it's showing.
   bool ExitFjordTouchControllerScreen();
+
+  // Shows the Fjord OOBE state if the next state is valid.
+  bool ShowNextFjordOobeScreen(
+      fjord_oobe_state::proto::FjordOobeStateInfo::FjordOobeState new_state);
 
   // Set pref value for first run.
   void PrepareFirstRunPrefs();
@@ -484,6 +488,7 @@ class WizardController : public OobeUI::Observer {
   void OnPerksDiscoveryScreenExit(PerksDiscoveryScreen::Result result);
   void OnAppLaunchSplashScreenExit();
   void OnFjordStationSetupScreenExit();
+  void OnFjordFwUpdateScreenExit();
 
   // Callback invoked once it has been determined whether the device is disabled
   // or not.

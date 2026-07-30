@@ -14,7 +14,6 @@ import '//resources/cr_components/search/animated_glow.js';
 import type {ComposeboxFile, ContextualUpload, FileUpload, TabUpload, TabUploadOrigin} from '//resources/cr_components/composebox/common.js';
 import {GlifAnimationState} from '//resources/cr_components/composebox/context_menu_entrypoint.js';
 import type {ContextualEntrypointAndCarouselElement} from '//resources/cr_components/composebox/contextual_entrypoint_and_carousel.js';
-import {ComposeboxMode} from '//resources/cr_components/composebox/contextual_entrypoint_and_carousel.js';
 import type {ErrorScrimElement} from '//resources/cr_components/composebox/error_scrim.js';
 import {GlowAnimationState} from '//resources/cr_components/search/constants.js';
 import {DragAndDropHandler} from '//resources/cr_components/search/drag_drop_handler.js';
@@ -24,6 +23,7 @@ import {WebUiListenerMixinLit} from '//resources/cr_elements/web_ui_listener_mix
 import {assert, assertNotReachedCase} from '//resources/js/assert.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {MetricsReporterImpl} from '//resources/js/metrics_reporter/metrics_reporter.js';
+import {isMac} from '//resources/js/platform.js';
 import {hasKeyModifiers} from '//resources/js/util.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
@@ -31,6 +31,7 @@ import {NavigationPredictor} from '//resources/mojo/components/omnibox/browser/o
 import type {AutocompleteMatch, AutocompleteResult, PageCallbackRouter, PageHandlerInterface, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {SideType} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {InputState} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
+import {ModelMode, ToolMode} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 
@@ -412,6 +413,13 @@ export class SearchboxElement extends SearchboxElementBase implements
         reflect: true,
         type: String,
       },
+      errorMessage_: {type: String},
+      showCanvas: {
+        type: Boolean,
+      },
+      showModelPicker_: {
+        type: Boolean,
+      },
     };
   }
 
@@ -436,12 +444,14 @@ export class SearchboxElement extends SearchboxElementBase implements
   accessor contextMenuGlifAnimationState: GlifAnimationState =
       GlifAnimationState.INELIGIBLE;
   accessor cyclingPlaceholders: boolean = false;
+  accessor showCanvas: boolean = false;
   accessor composeboxEnabled: boolean = false;
   accessor composeButtonEnabled: boolean = false;
   accessor showThumbnail: boolean = false;
   accessor placeholderText: string = '';
   accessor isDraggingFile: boolean = false;
   accessor animationState: GlowAnimationState = GlowAnimationState.NONE;
+  protected accessor errorMessage_: string = '';
   protected accessor inputAriaLive_: string = '';
   protected accessor inputFocused_: boolean = false;
   private accessor isLensSearchbox_: boolean =
@@ -459,6 +469,10 @@ export class SearchboxElement extends SearchboxElementBase implements
       loadTimeData.getBoolean('searchboxVoiceSearch');
   protected accessor searchboxLensSearchEnabled_: boolean =
       loadTimeData.getBoolean('searchboxLensSearch');
+  protected accessor showModelPicker_: boolean =
+      loadTimeData.valueExists('contextualMenuShowModelPicker') ?
+      loadTimeData.getBoolean('contextualMenuShowModelPicker') :
+      false;
   protected accessor result_: AutocompleteResult|null = null;
   protected accessor selectedMatch_: AutocompleteMatch|null = null;
   protected accessor selectedMatchIndex_: number = -1;
@@ -512,6 +526,7 @@ export class SearchboxElement extends SearchboxElementBase implements
     this.onInputStateChangedListenerId_ =
         this.callbackRouter_.onInputStateChanged.addListener(
             this.onInputStateChanged_.bind(this));
+    this.inputState_ = (await this.pageHandler_.getInputState()).state;
 
     if (this.cyclingPlaceholders) {
       const {config} = await this.pageHandler_.getPlaceholderConfig();
@@ -725,7 +740,7 @@ export class SearchboxElement extends SearchboxElementBase implements
 
     if (this.selectedMatch_ && !this.selectedMatch_.isSearchType) {
       e.clipboardData!.setData(
-          'text/plain', this.selectedMatch_.destinationUrl.url);
+          'text/plain', this.selectedMatch_.destinationUrl);
       e.preventDefault();
       if (e.type === 'cut') {
         this.updateInput_({text: '', inline: ''});
@@ -903,6 +918,12 @@ export class SearchboxElement extends SearchboxElementBase implements
   }
 
   protected async onInputWrapperKeydown_(e: KeyboardEvent) {
+    const modifier = isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
+    if (modifier && e.key === 'z') {
+      e.stopPropagation();
+      return;
+    }
+
     const KEYDOWN_HANDLED_KEYS = [
       'ArrowDown',
       'ArrowUp',
@@ -1178,7 +1199,8 @@ export class SearchboxElement extends SearchboxElementBase implements
   }
 
   protected onFileValidationError_(e: CustomEvent<{errorMessage: string}>) {
-    this.$.errorScrim.setErrorMessage(e.detail.errorMessage);
+    this.errorMessage_ = e.detail.errorMessage;
+    this.dropdownIsVisible = false;
   }
 
   protected async getTabPreview_(e: CustomEvent<{
@@ -1188,6 +1210,10 @@ export class SearchboxElement extends SearchboxElementBase implements
     const {previewDataUrl} =
         await this.pageHandler_.getTabPreview(e.detail.tabId);
     e.detail.onPreviewFetched(previewDataUrl || '');
+  }
+
+  protected onErrorScrimDismissed_() {
+    this.errorMessage_ = '';
   }
 
   protected onContextMenuContainerClick_() {
@@ -1239,21 +1265,33 @@ export class SearchboxElement extends SearchboxElementBase implements
   }
 
   protected setDeepSearchMode_() {
-    this.openComposebox_([], ComposeboxMode.DEEP_SEARCH);
+    this.pageHandler_.setActiveToolMode(ToolMode.kDeepSearch);
+    this.openComposebox_([], ToolMode.kDeepSearch);
   }
 
   protected setCreateImageMode_() {
-    this.openComposebox_([], ComposeboxMode.CREATE_IMAGE);
+    this.pageHandler_.setActiveToolMode(ToolMode.kImageGen);
+    this.openComposebox_([], ToolMode.kImageGen);
+  }
+
+  protected setCanvasMode_() {
+    this.pageHandler_.setActiveToolMode(ToolMode.kCanvas);
+    this.openComposebox_([], ToolMode.kCanvas);
+  }
+
+  protected onModelClick_(e: CustomEvent<{model: ModelMode}>) {
+    this.pageHandler_.setActiveModelMode(e.detail.model);
   }
 
   protected openComposebox_(
-      uploads: ContextualUpload[] = [],
-      mode: ComposeboxMode = ComposeboxMode.DEFAULT) {
+      uploads: ContextualUpload[] = [], mode: ToolMode = ToolMode.kUnspecified,
+      model: ModelMode = ModelMode.kUnspecified) {
     this.dispatchEvent(new CustomEvent('open-composebox', {
       detail: {
         searchboxText: this.$.input.value,
         contextFiles: uploads,
         mode: mode,
+        model: model,
       },
       bubbles: true,
       composed: true,

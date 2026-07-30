@@ -48,6 +48,14 @@ MATCHER(IsGenerateContentRequest, "") {
   return request.has_generate_content_request();
 }
 
+MATCHER(IsPaicRequest, "") {
+  proto::LegionRequest request;
+  if (!request.ParseFromArray(arg.data(), arg.size())) {
+    return false;
+  }
+  return request.has_paic_request();
+}
+
 // Mock implementation of the SecureChannel interface.
 class MockSecureChannelClient : public SecureChannel {
  public:
@@ -150,20 +158,19 @@ class FakeTokenManager : public phosphor::TokenManager {
   FakeTokenManager() = default;
   ~FakeTokenManager() override = default;
 
-  bool IsAuthTokenAvailable(proto::FeatureName feature_name) override {
-    return return_token_;
+  void GetAuthToken(GetAuthTokenCallback callback) override {
+    if (!return_token_) {
+      std::move(callback).Run(std::nullopt);
+      return;
+    }
+    std::move(callback).Run(std::make_optional<phosphor::BlindSignedAuthToken>(
+        phosphor::BlindSignedAuthToken{
+            .token = "test_token",
+            .encoded_extensions = "test_extensions",
+            .expiration = base::Time::Now() + base::Minutes(1)}));
   }
 
-  std::optional<phosphor::BlindSignedAuthToken> GetAuthToken(
-      proto::FeatureName feature_name) override {
-    if (!return_token_) {
-      return std::nullopt;
-    }
-    return phosphor::BlindSignedAuthToken{
-        .token = "test_token",
-        .encoded_extensions = "test_extensions",
-        .expiration = base::Time::Now() + base::Minutes(1)};
-  }
+  void PrefetchAuthTokens() override {}
 
   void SetReturnToken(bool return_token) { return_token_ = return_token; }
 
@@ -233,6 +240,45 @@ TEST_F(ClientImplTest, SendTextRequestSuccess) {
                                        kRequestSize, 1);
   histogram_tester_.ExpectUniqueSample("Legion.Client.ResponseSize.Success",
                                        response_data.size(), 1);
+  histogram_tester_.ExpectUniqueSample(
+      "Legion.Client.FeatureName", proto::FeatureName::FEATURE_NAME_UNSPECIFIED,
+      1);
+}
+
+// Test the successful request flow for paic requests.
+TEST_F(ClientImplTest, SendPaicRequestSuccess) {
+  ClientImpl::BinaryEncodedProtoResponse response_data;
+  proto::LegionResponse legion_response;
+  legion_response.mutable_paic_response();
+  legion_response.set_request_id(1);
+  std::string serialized_response;
+  legion_response.SerializeToString(&serialized_response);
+  response_data.assign(serialized_response.begin(), serialized_response.end());
+
+  auto* mock_channel = factory_.CreateNewChannel();
+  EXPECT_CALL(*mock_channel, Write(IsPaicRequest()))
+      .WillOnce([&](const Request& request_payload) {
+        base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+            FROM_HERE, base::BindOnce(factory_.response_callback_,
+                                      base::ok(std::move(response_data))));
+        return true;
+      });
+
+  base::test::TestFuture<base::expected<proto::PaicMessage, ErrorCode>> future;
+  client_->SendPaicRequest(proto::FeatureName::FEATURE_NAME_UNSPECIFIED,
+                           proto::PaicMessage(), future.GetCallback(),
+                           /*options=*/{});
+
+  const auto& result = future.Get();
+  ASSERT_TRUE(result.has_value());
+
+  histogram_tester_.ExpectTotalCount("Legion.Client.RequestLatency.Success", 1);
+  histogram_tester_.ExpectTotalCount("Legion.Client.RequestLatency.Timeout", 0);
+  histogram_tester_.ExpectTotalCount("Legion.Client.RequestLatency.Error", 0);
+  histogram_tester_.ExpectTotalCount("Legion.Client.RequestErrorCode", 0);
+  histogram_tester_.ExpectTotalCount("Legion.Client.RequestSize", 1);
+  histogram_tester_.ExpectUniqueSample("Legion.Client.ResponseSize.Success",
+                                       serialized_response.size(), 1);
   histogram_tester_.ExpectUniqueSample(
       "Legion.Client.FeatureName", proto::FeatureName::FEATURE_NAME_UNSPECIFIED,
       1);

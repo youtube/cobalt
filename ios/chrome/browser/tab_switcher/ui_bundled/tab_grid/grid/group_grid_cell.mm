@@ -16,13 +16,13 @@
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/elements/extended_touch_target_button.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
+#import "ios/chrome/browser/shared/ui/util/color_palette/tab_group_color_palette.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_constants.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/group_grid_cell_dot_view.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/group_tab_view.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_group_snapshots_view.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_snapshot_and_favicon.h"
-#import "ios/chrome/browser/tab_switcher/util/tab_group_color_palette.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -139,13 +139,6 @@ const CGFloat kTopBarLargeInset = 20;
     [contentContainer addSubview:_groupSnapshotsView];
     [contentContainer addSubview:_closeTapTargetButton];
     _opacity = 1.0;
-
-    self.contentView.backgroundColor =
-        [UIColor colorNamed:kSecondaryBackgroundColor];
-
-    _groupSnapshotsView.backgroundColor =
-        [UIColor colorNamed:kSecondaryBackgroundColor];
-    _topBar.backgroundColor = [UIColor colorNamed:kSecondaryBackgroundColor];
     _titleLabel.textColor = [UIColor colorNamed:kTextPrimaryColor];
     _closeIconView.tintColor = [UIColor colorNamed:kCloseButtonColor];
 
@@ -239,7 +232,6 @@ const CGFloat kTopBarLargeInset = 20;
 - (void)prepareForReuse {
   [super prepareForReuse];
   self.title = nil;
-  self.groupColor = nil;
   self.selected = NO;
   self.opacity = 1.0;
   self.hidden = NO;
@@ -346,20 +338,34 @@ const CGFloat kTopBarLargeInset = 20;
 
 - (void)setGroupColor:(UIColor*)groupColor {
   _groupColor = groupColor;
-  _dotContainer.color = groupColor;
 
   if (!IsTabGroupColorOnSurfaceEnabled()) {
-    return;
-  }
-  if (!groupColor) {
+    // Apply the default coloring to each surfaces.
+    _dotContainer.color = _groupColor;
+    UIColor* backgroundColor = [UIColor colorNamed:kSecondaryBackgroundColor];
+    _topBar.backgroundColor = backgroundColor;
+    self.contentView.backgroundColor = backgroundColor;
+    _groupSnapshotsView.backgroundColor = backgroundColor;
     return;
   }
 
+  // Generate a color palette fromt the group color.
   TabGroupColorPalette* tabGroupColorPalette =
-      [[TabGroupColorPalette alloc] initWithSeedColor:groupColor];
+      [[TabGroupColorPalette alloc] initWithSeedColor:_groupColor];
 
-  // Apply the right tone to surfaces.
-  _dotContainer.color = tabGroupColorPalette.commonColor;
+  // Apply the right tone to each surfaces.
+  UIColor* commonColor = tabGroupColorPalette.commonColor;
+  UIColor* backgroundColor = tabGroupColorPalette.backgroundColor;
+
+  _border.layer.borderColor = commonColor.CGColor;
+  _dotContainer.color = commonColor;
+  _topBar.backgroundColor = backgroundColor;
+  self.contentView.backgroundColor = backgroundColor;
+  _groupSnapshotsView.backgroundColor = backgroundColor;
+  self.containerView.backgroundColor = backgroundColor;
+
+  // Forward the palette to subviews.
+  _groupSnapshotsView.tabGroupColorPalette = tabGroupColorPalette;
 }
 
 - (void)setTitle:(NSString*)title {

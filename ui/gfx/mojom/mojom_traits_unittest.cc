@@ -111,12 +111,12 @@ sk_sp<SkData> GetTestAgtm() {
               {
                   .fComponentMixing =
                       {
-                          .fRed = 0.1f,
-                          .fGreen = 0.2f,
-                          .fBlue = 0.3f,
-                          .fMax = 0.4f,
-                          .fMin = 0.5f,
-                          .fComponent = 0.6f,
+                          .fRed = 0.01f,
+                          .fGreen = 0.02f,
+                          .fBlue = 0.03f,
+                          .fMax = 0.04f,
+                          .fMin = 0.05f,
+                          .fComponent = 0.85f,
                       },
                   .fGainCurve =
                       {
@@ -337,18 +337,6 @@ TEST_F(StructTraitsTest, NullGpuMemoryBufferHandle) {
   GpuMemoryBufferHandle output;
   remote->EchoGpuMemoryBufferHandle(GpuMemoryBufferHandle(), &output);
   EXPECT_TRUE(output.is_null());
-}
-
-TEST_F(StructTraitsTest, BufferFormat) {
-  using BufferFormatTraits =
-      mojo::EnumTraits<gfx::mojom::BufferFormat, gfx::BufferFormat>;
-  BufferFormat output;
-  mojo::Remote<mojom::TraitsTestService> remote = GetTraitsTestRemote();
-  for (int i = 0; i <= static_cast<int>(BufferFormat::LAST); ++i) {
-    BufferFormat input = static_cast<BufferFormat>(i);
-    BufferFormatTraits::FromMojom(BufferFormatTraits::ToMojom(input), &output);
-    EXPECT_EQ(output, input);
-  }
 }
 
 TEST_F(StructTraitsTest, BufferUsage) {

@@ -852,6 +852,38 @@ TEST_F(ExtensionSyncServiceTest, DontSyncPolicyUninstalls) {
   EXPECT_EQ(1u, extensions_processor.data().size());
 }
 
+TEST_F(ExtensionSyncServiceTest, ReinstallSyncedExtensionWhenPolicyIsLifted) {
+  InitializeEmptyExtensionService();
+  service()->Init();
+  ASSERT_TRUE(extension_system()->is_ready());
+
+  StartSyncing(syncer::EXTENSIONS);
+
+  // 1. Install an extension.
+  const Extension* extension =
+      InstallCRX(data_dir().AppendASCII("good.crx"), INSTALL_NEW);
+  ASSERT_TRUE(extension);
+  const std::string extension_id = extension->id();
+
+  // 2. Uninstall the extension with reason INTERNAL_MANAGEMENT.
+  // This simulates the extension being uninstalled due to policy change.
+  UninstallExtension(extension_id,
+                     UninstallExtensionFileDeleteType::kDeleteAllVersions,
+                     extensions::UNINSTALL_REASON_INTERNAL_MANAGEMENT);
+  EXPECT_FALSE(registry()->GetInstalledExtension(extension_id));
+
+  // 3. Verify the extension is not pending install.
+  extensions::PendingExtensionManager* pending_extension_manager =
+      extensions::PendingExtensionManager::Get(profile());
+  EXPECT_FALSE(pending_extension_manager->IsIdPending(extension_id));
+
+  // 4. Simulate the extension becoming allowed back.
+  extension_sync_service()->OnExtensionManagementSettingsChanged();
+
+  // 5. Verify it's the same extension that is now pending install.
+  EXPECT_TRUE(pending_extension_manager->IsIdPending(extension_id));
+}
+
 #if !BUILDFLAG(IS_ANDROID)
 // Disabled on Android since Android does not support Chrome Apps.
 TEST_F(ExtensionSyncServiceTest, GetSyncAppDataUserSettings) {
@@ -2004,6 +2036,13 @@ class BlocklistedExtensionSyncServiceTest : public ExtensionSyncServiceTest {
     processor_raw_->changes().clear();
   }
 
+  void TearDown() override {
+    extension_.reset();
+    processor_raw_ = nullptr;
+    test_blocklist_.Detach();
+    ExtensionSyncServiceTest::TearDown();
+  }
+
   void ForceBlocklistUpdate() {
     service()->OnBlocklistUpdated();
     content::RunAllTasksUntilIdle();
@@ -2018,7 +2057,7 @@ class BlocklistedExtensionSyncServiceTest : public ExtensionSyncServiceTest {
   extensions::TestBlocklist& test_blocklist() { return test_blocklist_; }
 
  private:
-  raw_ptr<syncer::FakeSyncChangeProcessor> processor_raw_;
+  raw_ptr<syncer::FakeSyncChangeProcessor> processor_raw_ = nullptr;
   scoped_refptr<const Extension> extension_;
   extensions::ExtensionId extension_id_;
   extensions::TestBlocklist test_blocklist_;
@@ -2121,6 +2160,11 @@ class ExtensionSyncServiceTransportModeTest : public ExtensionSyncServiceTest {
     AccountExtensionTracker::Get(profile());
     identity_test_env_profile_adaptor_ =
         std::make_unique<IdentityTestEnvironmentProfileAdaptor>(profile());
+  }
+
+  void TearDown() override {
+    identity_test_env_profile_adaptor_.reset();
+    ExtensionSyncServiceTest::TearDown();
   }
 
  protected:

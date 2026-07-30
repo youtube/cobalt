@@ -9,16 +9,20 @@
 
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_webui_config.h"
-#include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar.mojom.h"
-#include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_page_handler.h"
+#include "chrome/browser/ui/webui/webui_toolbar/browser_controls_service.h"
+#include "components/browser_apis/browser_controls/browser_controls_api.mojom-forward.h"
+#include "components/browser_apis/browser_controls/browser_controls_api_data_model.mojom.h"
 #include "content/public/browser/webui_config.h"
 #include "content/public/common/url_constants.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "ui/webui/mojo_web_ui_controller.h"
+#include "ui/webui/resources/js/tracked_element/tracked_element.mojom.h"
+#include "ui/webui/tracked_element/tracked_element_handler.h"
 
-class WebUIToolbarUI : public TopChromeWebUIController,
-                       public webui_toolbar::mojom::PageHandlerFactory {
+class WebUIToolbarUI
+    : public TopChromeWebUIController,
+      public browser_controls_api::mojom::BrowserControlsFactory {
  public:
   explicit WebUIToolbarUI(content::WebUI* web_ui);
   WebUIToolbarUI(const WebUIToolbarUI&) = delete;
@@ -28,13 +32,27 @@ class WebUIToolbarUI : public TopChromeWebUIController,
   static constexpr std::string_view GetWebUIName() { return "WebUIToolbar"; }
 
   void BindInterface(
-      mojo::PendingReceiver<webui_toolbar::mojom::PageHandlerFactory> receiver);
+      mojo::PendingReceiver<browser_controls_api::mojom::BrowserControlsFactory>
+          receiver);
 
-  void SetReloadButtonState(bool is_loading, bool is_menu_enabled);
+  void BindInterface(
+      mojo::PendingReceiver<tracked_element::mojom::TrackedElementHandler>
+          receiver);
 
-  void SetDelegate(WebUIToolbarPageHandler::WebUIToolbarDelegate* delegate);
+  void OnDevToolsStatusChanged(
+      browser_controls_api::mojom::DevToolsState state);
 
-  WebUIToolbarPageHandler* webui_toolbar_page_handler_for_testing();
+  void OnNavigationStatusChanged(
+      browser_controls_api::mojom::NavigationState state);
+
+  void OnContextMenuStateChanged(
+      browser_controls_api::mojom::ContextMenuType menu_type,
+      browser_controls_api::mojom::ContextMenuState state);
+
+  void SetDelegate(
+      BrowserControlsService::BrowserControlsServiceDelegate* delegate);
+
+  BrowserControlsService* browser_controls_service_for_testing();
 
   // TopChromeWebUIController:
   // The controller uses `requesting_origin` to:
@@ -47,24 +65,35 @@ class WebUIToolbarUI : public TopChromeWebUIController,
       blink::mojom::LocalResourceLoaderConfig* config,
       const url::Origin& requesting_origin) override;
 
+  void WebUIRenderFrameCreated(
+      content::RenderFrameHost* render_frame_host) override;
+
   // For testing:
   // Sets a custom CommandUpdater for testing purposes.
   void SetCommandUpdaterForTesting(CommandUpdater* command_updater);
 
  private:
-  // webui_toolbar::mojom::PageHandlerFactory:
-  void CreatePageHandler(
-      mojo::PendingRemote<webui_toolbar::mojom::Page> page,
-      mojo::PendingReceiver<webui_toolbar::mojom::PageHandler> receiver)
-      override;
+  // browser_controls_api::mojom::BrowserControlsFactory:
+  void CreateBrowserControls(
+      mojo::PendingRemote<browser_controls_api::mojom::BrowserControlsObserver>
+          observer,
+      mojo::PendingReceiver<browser_controls_api::mojom::BrowserControlsService>
+          service) override;
 
   CommandUpdater* GetCommandUpdater() const;
 
-  std::unique_ptr<WebUIToolbarPageHandler> webui_toolbar_page_handler_;
-  mojo::Receiver<webui_toolbar::mojom::PageHandlerFactory>
-      page_factory_receiver_{this};
+  // Returns the list of known element identifiers. These elements are HTML
+  // elements tracked by ui/webui/tracked_element. Used for anchoring secondary
+  // UIs.
+  const std::vector<ui::ElementIdentifier> GetKnownElementIdentifiers() const;
 
-  raw_ptr<WebUIToolbarPageHandler::WebUIToolbarDelegate> delegate_ = nullptr;
+  std::unique_ptr<BrowserControlsService> browser_controls_service_;
+  mojo::Receiver<browser_controls_api::mojom::BrowserControlsFactory>
+      page_factory_receiver_{this};
+  std::unique_ptr<ui::TrackedElementHandler> tracked_element_handler_;
+
+  raw_ptr<BrowserControlsService::BrowserControlsServiceDelegate> delegate_ =
+      nullptr;
 
   // Initialized only in tests by SetCommandUpdaterForTesting().
   raw_ptr<CommandUpdater> command_updater_for_testing_ = nullptr;

@@ -36,7 +36,6 @@
 #include "components/autofill/core/browser/foundations/autofill_driver_factory.h"
 #include "components/autofill/core/browser/foundations/test_autofill_driver_factory.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/mock_autofill_ai_manager.h"
-#include "components/autofill/core/browser/integrators/fast_checkout/mock_fast_checkout_client.h"
 #include "components/autofill/core/browser/integrators/identity_credential/identity_credential_delegate.h"
 #include "components/autofill/core/browser/integrators/one_time_tokens/otp_phish_guard_delegate.h"
 #include "components/autofill/core/browser/integrators/optimization_guide/mock_autofill_optimization_guide_decider.h"
@@ -259,10 +258,6 @@ class TestAutofillClientTemplate : public T {
     return &test_address_normalizer_;
   }
 
-  FastCheckoutClient* GetFastCheckoutClient() override {
-    return &mock_fast_checkout_client_;
-  }
-
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   FieldClassificationModelHandler* GetAutofillFieldClassificationModelHandler()
       override {
@@ -426,12 +421,8 @@ class TestAutofillClientTemplate : public T {
     return format_for_large_keyboard_accessory_;
   }
 
-  FormInteractionsFlowId GetCurrentFormInteractionsFlowId() override {
-    return {};
-  }
-
-  std::unique_ptr<device_reauth::DeviceAuthenticator> GetDeviceAuthenticator()
-      override {
+  std::unique_ptr<device_reauth::DeviceAuthenticator> GetDeviceAuthenticator(
+      std::string histogram) override {
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
     BUILDFLAG(IS_CHROMEOS)
     if (device_authenticator_) {
@@ -700,7 +691,6 @@ class TestAutofillClientTemplate : public T {
               /*strike_database=*/nullptr);
   ::testing::NiceMock<MockAutocompleteHistoryManager>
       mock_autocomplete_history_manager_;
-  ::testing::NiceMock<MockFastCheckoutClient> mock_fast_checkout_client_;
   std::unique_ptr<device_reauth::MockDeviceAuthenticator>
       device_authenticator_ = nullptr;
   std::unique_ptr<one_time_tokens::SmsOtpBackend> injected_sms_otp_backend_;

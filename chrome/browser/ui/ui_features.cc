@@ -13,6 +13,7 @@
 #include "components/search/ntp_features.h"
 #include "components/variations/service/variations_service.h"
 #include "components/webui/flags/feature_entry.h"
+#include "content/public/common/content_features.h"
 #include "ui/base/ui_base_features.h"
 
 namespace features {
@@ -25,6 +26,9 @@ BASE_FEATURE(kAllowEyeDropperWGCScreenCapture,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif  // BUILDFLAG(IS_WIN)
 );
+
+BASE_FEATURE(kBrowserWidgetCacheThemeService,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCreateNewTabGroupAppMenuTopLevel,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -56,7 +60,7 @@ BASE_FEATURE(kOfferPinToTaskbarInSettings, base::FEATURE_ENABLED_BY_DEFAULT);
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 // Shows an infobar at startup offering to pin Chrome to the taskbar (on
 // Windows) or the Dock (on MacOS).
-BASE_FEATURE(kOfferPinToTaskbarInfoBar, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kOfferPinToTaskbarInfoBar, base::FEATURE_ENABLED_BY_DEFAULT);
 // Shows an infobar on PDFs offering to become the default PDF viewer if Chrome
 // isn't the default already.
 BASE_FEATURE(kPdfInfoBar, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -238,7 +242,7 @@ BASE_FEATURE(kEnterpriseProfileBadgingForMenu,
 // Enables enterprise badging for managed browsers on the new tab page footer.
 // On managed browsers, a building icon and "Managed by <domain>" string will be
 // shown in the footer, unless the icon and label are customized by the admin.
-BASE_FEATURE(kEnterpriseBadgingForNtpFooter, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kEnterpriseBadgingForNtpFooter, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables enterprise badging for managed browsers with local management only on
 // the new tab page footer. On managed browsers, a building icon and "Managed by
@@ -496,9 +500,30 @@ BASE_FEATURE_PARAM(bool,
                    "tab_search_toolbar_button",
                    true);
 
-// TODO(crbug.com/471062209): Clean up all callers of this function.
+static std::string GetCountryCode() {
+  if (!g_browser_process || !g_browser_process->variations_service()) {
+    return std::string();
+  }
+  std::string country_code =
+      g_browser_process->variations_service()->GetStoredPermanentCountry();
+  if (country_code.empty()) {
+    country_code = g_browser_process->variations_service()->GetLatestCountry();
+  }
+  return country_code;
+}
+
 bool HasTabSearchToolbarButton() {
-  return true;
+  static const bool is_tab_search_moving = [] {
+    if (GetCountryCode() == "us" &&
+        base::FeatureList::IsEnabled(
+            features::kLaunchedTabSearchToolbarButton)) {
+      return true;
+    }
+    return base::FeatureList::IsEnabled(features::kTabstripComboButton) &&
+           features::kTabSearchToolbarButton.Get();
+  }();
+
+  return is_tab_search_moving;
 }
 
 BASE_FEATURE(kNonMilestoneUpdateToast, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -529,6 +554,21 @@ bool IsNewTabAddsToActiveGroupEnabled() {
 bool IsWebUIReloadButtonEnabled() {
   return base::FeatureList::IsEnabled(features::kInitialWebUI) &&
          base::FeatureList::IsEnabled(features::kWebUIReloadButton);
+}
+
+bool IsWebUISplitTabsButtonEnabled() {
+  return base::FeatureList::IsEnabled(features::kInitialWebUI) &&
+         base::FeatureList::IsEnabled(features::kWebUISplitTabsButton);
+}
+
+bool IsWebUILocationBarEnabled() {
+  return base::FeatureList::IsEnabled(features::kInitialWebUI) &&
+         base::FeatureList::IsEnabled(features::kWebUILocationBar);
+}
+
+bool IsWebUIToolbarEnabled() {
+  return IsWebUIReloadButtonEnabled() || IsWebUISplitTabsButtonEnabled() ||
+         IsWebUILocationBarEnabled();
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 

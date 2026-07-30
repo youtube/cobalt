@@ -70,6 +70,8 @@ class ContextualTasksUI
       public signin::IdentityManager::Observer,
       public contextual_tasks::ContextualTasksService::Observer {
  public:
+  friend class ContextualTasksUIBrowserTest;
+
   // A WebContentsObserver used to observe navigations or URL changes in the
   // frame being hosted by this WebUI. Top-level navigations are ignored since
   // this class is only intended to listen to the embedded AI frame.
@@ -127,6 +129,7 @@ class ContextualTasksUI
   BrowserWindowInterface* GetBrowser() override;
   content::WebContents* GetWebUIWebContents() override;
   void OnZeroStateChange(bool is_zero_state) override;
+  void PrepareForTaskChange() override;
   void OnTaskChanged() override;
 
   // ContextualTaskService::Observer impl:
@@ -148,7 +151,7 @@ class ContextualTasksUI
 
   // Lazily creates and returns a reference to the owned contextual search
   // session handle for `composebox_handler_`.
-  contextual_search::ContextualSearchSessionHandle*
+  virtual contextual_search::ContextualSearchSessionHandle*
   GetOrCreateContextualSessionHandle();
 
   void BindInterface(
@@ -198,6 +201,8 @@ class ContextualTasksUI
   // hidden.
   void OnLensOverlayStateChanged(bool is_showing);
 
+  virtual bool IsLensOverlayShowing() const;
+
   // signin::IdentityManager::Observer:
   void OnRefreshTokenUpdatedForAccount(
       const CoreAccountInfo& account_info) override;
@@ -232,17 +237,28 @@ class ContextualTasksUI
   // is only ever one inner WebContents at a time.
   class InnerFrameCreationObvserver : public content::WebContentsObserver {
    public:
-    explicit InnerFrameCreationObvserver(
+    InnerFrameCreationObvserver(
         content::WebContents* web_contents,
-        base::OnceCallback<void(content::WebContents*)> callback);
+        base::RepeatingCallback<void(content::WebContents*)> callback,
+        base::RepeatingClosure reset_callback);
     ~InnerFrameCreationObvserver() override;
 
     void InnerWebContentsCreated(
         content::WebContents* inner_web_contents) override;
 
+    // Called when the top level frame (the chrome://contextual-tasks WebUI)
+    // finishes navigating. This is used to reset the observer when the WebUI
+    // is closed/reloaded.
+    void DidFinishNavigation(
+        content::NavigationHandle* navigation_handle) override;
+
    private:
-    base::OnceCallback<void(content::WebContents*)> callback_;
+    base::RepeatingCallback<void(content::WebContents*)> callback_;
+    base::RepeatingClosure reset_callback_;
   };
+
+  // Resets the embedded page and its observer.
+  void ResetEmbeddedPage();
 
   // A notification that the WebContents hosting the WebUI has created an inner
   // WebContents. In practice, this is the creation of the WebContents hosting
@@ -323,6 +339,7 @@ class ContextualTasksUI
   };
   WebUIState previous_web_ui_state_ = WebUIState::kUnknown;
   bool was_ai_page_ = false;
+  bool is_lens_overlay_showing_ = false;
 
   // Scoped observation for contextual_tasks_service_.
   base::ScopedObservation<contextual_tasks::ContextualTasksService,

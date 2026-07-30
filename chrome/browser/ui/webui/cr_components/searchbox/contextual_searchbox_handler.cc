@@ -36,6 +36,7 @@
 #include "components/google/core/common/google_util.h"
 #include "components/lens/contextual_input.h"
 #include "components/omnibox/browser/vector_icons.h"
+#include "components/omnibox/composebox/contextual_search_mojom_traits.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_handle.h"
@@ -314,6 +315,11 @@ ContextualSearchboxHandler::ContextualSearchboxHandler(
         service ? service->GetSearchboxConfig() : nullptr;
     input_state_model_ = std::make_unique<contextual_search::InputStateModel>(
         *session_handle, config_ptr ? *config_ptr : omnibox::SearchboxConfig());
+
+    input_state_subscription_ = input_state_model_->subscribe(
+        base::BindRepeating(&ContextualSearchboxHandler::OnInputStateChanged,
+                            weak_ptr_factory_.GetWeakPtr()));
+    input_state_model_->Initialize();
   }
 
   auto* browser_window_interface =
@@ -362,6 +368,10 @@ ContextualSearchboxHandler::~ContextualSearchboxHandler() {
   }
 }
 
+void ContextualSearchboxHandler::ResetInputStateModel() {
+  input_state_model_.reset();
+}
+
 contextual_search::ContextualSearchMetricsRecorder*
 ContextualSearchboxHandler::GetMetricsRecorder() {
   auto* contextual_session_handle = GetContextualSessionHandle();
@@ -399,9 +409,15 @@ void ContextualSearchboxHandler::AddFileContext(
   auto* contextual_session_handle = GetContextualSessionHandle();
   if (contextual_session_handle) {
     context_input_data_ = std::nullopt;
-    contextual_session_handle->AddFileContext(
-        file_info_mojom->mime_type, std::move(file_bytes),
-        CreateImageEncodingOptions(), std::move(callback));
+    auto context_token = contextual_session_handle->CreateContextToken();
+    // Return the token early, so that listeners can immediately begin
+    // listening for file upload updates.
+    // TODO(crbug.com/477324337): Consider calling this callback elsewhere in
+    // the flow.
+    std::move(callback).Run(context_token);
+    contextual_session_handle->StartFileContextUploadFlow(
+        context_token, file_info_mojom->mime_type, std::move(file_bytes),
+        CreateImageEncodingOptions());
   }
 }
 
@@ -412,9 +428,15 @@ void ContextualSearchboxHandler::AddFileContextFromBrowser(
     AddFileContextCallback callback) {
   auto* contextual_session_handle = GetContextualSessionHandle();
   if (contextual_session_handle) {
-    contextual_session_handle->AddFileContext(
-        std::move(mime_type), std::move(file_bytes),
-        std::move(image_encoding_options), std::move(callback));
+    auto context_token = contextual_session_handle->CreateContextToken();
+    // Return the token early, so that listeners can immediately begin
+    // listening for file upload updates.
+    // TODO(crbug.com/477324337): Consider calling this callback elsewhere in
+    // the flow.
+    std::move(callback).Run(context_token);
+    contextual_session_handle->StartFileContextUploadFlow(
+        context_token, mime_type, std::move(file_bytes),
+        std::move(image_encoding_options));
   }
 }
 
@@ -438,11 +460,14 @@ void ContextualSearchboxHandler::AddTabContext(int32_t tab_id,
 
   RecordTabAddedMetric(tab, /*is_tab_suggestion_chip=*/delay_upload);
 
-  contextual_session_handle->AddTabContext(
-      tab_id,
-      base::BindOnce(&ContextualSearchboxHandler::OnAddTabContextTokenCreated,
-                     weak_ptr_factory_.GetWeakPtr(), tab_id, delay_upload,
-                     std::move(callback)));
+  auto context_token = contextual_session_handle->CreateContextToken();
+  lens::TabContextualizationController* tab_contextualization_controller =
+      tab->GetTabFeatures()->tab_contextualization_controller();
+  tab_contextualization_controller->GetPageContext(base::BindOnce(
+      &ContextualSearchboxHandler::OnGetTabPageContext,
+      weak_ptr_factory_.GetWeakPtr(), delay_upload, context_token));
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback), context_token));
 }
 
 std::vector<base::UnguessableToken>
@@ -466,28 +491,35 @@ void ContextualSearchboxHandler::UploadSnapshotTabContextIfPresent() {
   UploadTabContext(context_token, std::move(page_content_data));
 }
 
-void ContextualSearchboxHandler::OnAddTabContextTokenCreated(
-    int32_t tab_id,
-    bool delay_upload,
-    AddTabContextCallback callback,
-    const base::UnguessableToken& context_token) {
-  // TODO(crbug.com/458050417): Move more of the tab context logic to
-  // ContextualSessionHandle.
-  const tabs::TabHandle handle = tabs::TabHandle(tab_id);
-  tabs::TabInterface* const tab = handle.Get();
-  if (!tab) {
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
+void ContextualSearchboxHandler::SetActiveToolMode(omnibox::ToolMode tool) {
+  if (!input_state_model_) {
     return;
   }
+  input_state_model_->setActiveTool(tool);
+}
 
-  lens::TabContextualizationController* tab_contextualization_controller =
-      tab->GetTabFeatures()->tab_contextualization_controller();
-  tab_contextualization_controller->GetPageContext(base::BindOnce(
-      &ContextualSearchboxHandler::OnGetTabPageContext,
-      weak_ptr_factory_.GetWeakPtr(), delay_upload, context_token));
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(std::move(callback), context_token));
+void ContextualSearchboxHandler::SetActiveModelMode(omnibox::ModelMode model) {
+  if (!input_state_model_) {
+    return;
+  }
+  input_state_model_->setActiveModel(model);
+}
+
+void ContextualSearchboxHandler::GetInputState(GetInputStateCallback callback) {
+  if (input_state_) {
+    std::move(callback).Run(contextual_search::ToMojom(*input_state_));
+  } else {
+    std::move(callback).Run(nullptr);
+  }
+}
+
+void ContextualSearchboxHandler::OnInputStateChanged(
+    const contextual_search::InputState& state) {
+  input_state_ = std::make_unique<contextual_search::InputState>(state);
+  if (!IsRemoteBound()) {
+    return;
+  }
+  page_->OnInputStateChanged(contextual_search::ToMojom(state));
 }
 
 void ContextualSearchboxHandler::UploadTabContextWithData(
@@ -512,24 +544,13 @@ void ContextualSearchboxHandler::UploadTabContextWithData(
     return;
   }
 
-  contextual_session_handle->AddTabContext(
-      tab_id,
-      base::BindOnce(
-          &ContextualSearchboxHandler::OnUploadTabContextWithDataTokenCreated,
-          weak_ptr_factory_.GetWeakPtr(), context_id, std::move(data),
-          std::move(callback)));
-}
-
-void ContextualSearchboxHandler::OnUploadTabContextWithDataTokenCreated(
-    std::optional<int64_t> context_id,
-    std::unique_ptr<lens::ContextualInputData> data,
-    RecontextualizeTabCallback callback,
-    const base::UnguessableToken& context_token) {
+  auto context_token = contextual_session_handle->CreateContextToken();
   if (context_id.has_value()) {
     data->context_id = context_id.value();
   }
   UploadTabContext(context_token, std::move(data));
-  std::move(callback).Run(true);
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback), /*success=*/true));
 }
 
 void ContextualSearchboxHandler::RecordTabAddedMetric(
@@ -665,6 +686,13 @@ void ContextualSearchboxHandler::ComputeAndOpenQueryUrl(
   if (contextual_session_handle) {
     // Upload the cached tab context if it exists.
     UploadSnapshotTabContextIfPresent();
+
+    if (input_state_model_) {
+      for (auto const& [key, val] :
+           input_state_model_->GetAdditionalQueryParams()) {
+        additional_params[key] = val;
+      }
+    }
 
     auto search_url_request_info =
         std::make_unique<contextual_search::ContextualSearchContextController::

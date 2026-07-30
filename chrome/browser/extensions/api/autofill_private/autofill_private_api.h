@@ -558,6 +558,28 @@ class AutofillPrivateGetAllAttributeTypesForEntityTypeNameFunction
   ResponseAction Run() override;
 };
 
+class AutofillPrivateGetRequiredAttributeTypesForEntityTypeNameFunction
+    : public AutofillPrivateExtensionFunction {
+ public:
+  AutofillPrivateGetRequiredAttributeTypesForEntityTypeNameFunction() = default;
+  AutofillPrivateGetRequiredAttributeTypesForEntityTypeNameFunction(
+      const AutofillPrivateGetRequiredAttributeTypesForEntityTypeNameFunction&) =
+      delete;
+  AutofillPrivateGetRequiredAttributeTypesForEntityTypeNameFunction& operator=(
+      const AutofillPrivateGetRequiredAttributeTypesForEntityTypeNameFunction&) =
+      delete;
+  DECLARE_EXTENSION_FUNCTION(
+      "autofillPrivate.getRequiredAttributeTypesForEntityTypeName",
+      AUTOFILLPRIVATE_GETREQUIREDATTRIBUTETYPESFORENTITYTYPENAME)
+
+ protected:
+  ~AutofillPrivateGetRequiredAttributeTypesForEntityTypeNameFunction()
+      override = default;
+
+  // ExtensionFunction overrides.
+  ResponseAction Run() override;
+};
+
 class AutofillPrivateGetAutofillAiOptInStatusFunction
     : public AutofillPrivateExtensionFunction {
  public:
@@ -654,6 +676,30 @@ class AutofillPrivateAuthenticateUserBeforeViewingEntityDataFunction
 
  protected:
   ~AutofillPrivateAuthenticateUserBeforeViewingEntityDataFunction() override;
+
+  // ExtensionFunction overrides.
+  ResponseAction Run() override;
+
+ private:
+  void OnReauthCompleted(bool auth_succeeded);
+
+  std::unique_ptr<device_reauth::DeviceAuthenticator> authenticator_;
+};
+
+class AutofillPrivateToggleAutofillAiReauthRequirementFunction
+    : public AutofillPrivateExtensionFunction {
+ public:
+  AutofillPrivateToggleAutofillAiReauthRequirementFunction();
+  AutofillPrivateToggleAutofillAiReauthRequirementFunction(
+      const AutofillPrivateToggleAutofillAiReauthRequirementFunction&) = delete;
+  AutofillPrivateToggleAutofillAiReauthRequirementFunction& operator=(
+      const AutofillPrivateToggleAutofillAiReauthRequirementFunction&) = delete;
+  DECLARE_EXTENSION_FUNCTION(
+      "autofillPrivate.toggleAutofillAiReauthRequirement",
+      AUTOFILLPRIVATE_TOGGLEAUTOFILLAIREAUTHREQUIREMENT)
+
+ protected:
+  ~AutofillPrivateToggleAutofillAiReauthRequirementFunction() override;
 
   // ExtensionFunction overrides.
   ResponseAction Run() override;

@@ -4,7 +4,6 @@
 
 #include <memory>
 #include <string>
-#include <tuple>
 #include <vector>
 
 #include "base/command_line.h"
@@ -20,9 +19,9 @@
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_key.h"
+#include "chrome/browser/supervised_user/family_link_settings_service_factory.h"
 #include "chrome/browser/supervised_user/supervised_user_navigation_observer.h"
 #include "chrome/browser/supervised_user/supervised_user_service_factory.h"
-#include "chrome/browser/supervised_user/supervised_user_settings_service_factory.h"
 #include "chrome/browser/supervised_user/supervised_user_test_util.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -30,11 +29,10 @@
 #include "chrome/test/base/mixin_based_in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "chrome/test/supervised_user/supervision_mixin.h"
+#include "components/supervised_user/core/browser/family_link_settings_service.h"
 #include "components/supervised_user/core/browser/permission_request_creator_mock.h"
 #include "components/supervised_user/core/browser/supervised_user_interstitial.h"
 #include "components/supervised_user/core/browser/supervised_user_service.h"
-#include "components/supervised_user/core/browser/supervised_user_settings_service.h"
-#include "components/supervised_user/core/browser/supervised_user_url_filter.h"
 #include "components/supervised_user/core/browser/supervised_user_utils.h"
 #include "components/supervised_user/core/common/features.h"
 #include "components/supervised_user/core/common/supervised_user_constants.h"
@@ -407,8 +405,7 @@ class SupervisedUserIframeFilterTest
  protected:
   SupervisedUserIframeFilterTest()
       : SupervisedUserNavigationThrottleTestBase(
-            supervised_user::SupervisionMixin::SignInMode::kSupervised) {
-  }
+            supervised_user::SupervisionMixin::SignInMode::kSupervised) {}
 
   ~SupervisedUserIframeFilterTest() override = default;
 
@@ -416,7 +413,7 @@ class SupervisedUserIframeFilterTest
   void TearDownOnMainThread() override;
 
   std::vector<content::FrameTreeNodeId> GetBlockedFrames();
-  const GURL& GetBlockedFrameURL(content::FrameTreeNodeId frame_id);
+  GURL GetBlockedFrameURL(content::FrameTreeNodeId frame_id);
   bool IsInterstitialBeingShownInFrame(content::FrameTreeNodeId frame_id);
   bool IsRemoteApprovalsButtonBeingShown(content::FrameTreeNodeId frame_id);
   bool IsLocalApprovalsButtonBeingShown(content::FrameTreeNodeId frame_id);
@@ -451,13 +448,13 @@ void SupervisedUserIframeFilterTest::SetUpOnMainThread() {
 
   supervised_user::SupervisedUserService* service =
       SupervisedUserServiceFactory::GetForProfile(browser()->profile());
-  supervised_user::SupervisedUserSettingsService* settings_service =
-      SupervisedUserSettingsServiceFactory::GetForKey(
+  supervised_user::FamilyLinkSettingsService* family_link_settings_service =
+      supervised_user::FamilyLinkSettingsServiceFactory::GetForKey(
           browser()->profile()->GetProfileKey());
-  CHECK(settings_service);
+  CHECK(family_link_settings_service);
   std::unique_ptr<supervised_user::PermissionRequestCreator> creator =
       std::make_unique<supervised_user::PermissionRequestCreatorMock>(
-          *settings_service);
+          *family_link_settings_service);
   permission_creator_ =
       static_cast<supervised_user::PermissionRequestCreatorMock*>(
           creator.get());
@@ -492,14 +489,14 @@ SupervisedUserIframeFilterTest::GetBlockedFrames() {
   return blocked_frames;
 }
 
-const GURL& SupervisedUserIframeFilterTest::GetBlockedFrameURL(
+GURL SupervisedUserIframeFilterTest::GetBlockedFrameURL(
     content::FrameTreeNodeId frame_id) {
   WebContents* tab = browser()->tab_strip_model()->GetActiveWebContents();
   auto* navigation_observer =
       SupervisedUserNavigationObserver::FromWebContents(tab);
   const auto& interstitials = navigation_observer->interstitials_for_test();
   DCHECK(interstitials.contains(frame_id));
-  return interstitials.at(frame_id)->url();
+  return interstitials.at(frame_id)->filtering_result().url;
 }
 
 bool SupervisedUserIframeFilterTest::IsInterstitialBeingShownInFrame(

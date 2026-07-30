@@ -40,6 +40,7 @@
 #include "components/lens/lens_overlay_invocation_source.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
 #include "components/omnibox/composebox/composebox_query.mojom.h"
+#include "components/omnibox/composebox/contextual_search_mojom_traits.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_delegate.h"
@@ -113,6 +114,10 @@ class FakeContextualSearchboxHandler : public ContextualSearchboxHandler {
         ->GetMetricsRecorder()
         ->NotifySessionStateChanged(session_state);
   }
+
+  contextual_search::InputStateModel* input_state_model() {
+    return input_state_model_.get();
+  }
 };
 }  // namespace
 
@@ -158,6 +163,21 @@ class ContextualSearchboxHandlerTest
         base::BindLambdaForTesting(
             [&]() { return contextual_session_handle_.get(); }));
     handler_->SetPage(mock_searchbox_page_.BindAndGetRemote());
+
+    ON_CALL(query_controller(), CreateSearchUrl)
+        .WillByDefault(
+            [](auto&& request_info, base::OnceCallback<void(GURL)> callback) {
+              GURL url("https://www.google.com/search?q=" +
+                       request_info->query_text);
+              for (auto const& [key, val] : request_info->additional_params) {
+                url = net::AppendOrReplaceQueryParameter(url, key, val);
+              }
+              url = net::AppendOrReplaceQueryParameter(
+                  url, kQuerySubmissionTimeQueryParameter, "0");
+              url = net::AppendOrReplaceQueryParameter(
+                  url, kClientUploadDurationQueryParameter, "0");
+              std::move(callback).Run(url);
+            });
   }
 
   void SubmitQueryAndWaitForNavigation() {
@@ -444,6 +464,57 @@ TEST_F(ContextualSearchboxHandlerTest, SubmitQuery_DelayUpload) {
               testing::ElementsAre(SessionState::kSessionStarted,
                                    SessionState::kQuerySubmitted,
                                    SessionState::kNavigationOccurred));
+}
+
+TEST_F(ContextualSearchboxHandlerTest, OnInputStateChanged) {
+  composebox_query::mojom::InputStatePtr received_state_1;
+  composebox_query::mojom::InputStatePtr received_state_2;
+
+  EXPECT_CALL(mock_searchbox_page_, OnInputStateChanged)
+      .Times(2)
+      .WillOnce([&](composebox_query::mojom::InputStatePtr state) {
+        received_state_1 = std::move(state);
+      })
+      .WillOnce([&](composebox_query::mojom::InputStatePtr state) {
+        received_state_2 = std::move(state);
+      });
+
+  handler().SetActiveToolMode(omnibox::ToolMode::TOOL_MODE_CANVAS);
+  mock_searchbox_page_.FlushForTesting();
+  ASSERT_TRUE(received_state_1);
+  EXPECT_EQ(received_state_1->active_tool, omnibox::ToolMode::TOOL_MODE_CANVAS);
+
+  handler().SetActiveModelMode(omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
+  mock_searchbox_page_.FlushForTesting();
+  ASSERT_TRUE(received_state_2);
+  EXPECT_EQ(received_state_2->active_tool, omnibox::ToolMode::TOOL_MODE_CANVAS);
+  EXPECT_EQ(received_state_2->active_model,
+            omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
+}
+TEST_F(ContextualSearchboxHandlerTest, SubmitQueryWithAdditionalParams) {
+  // Set deep search tool.
+  handler().input_state_model()->setActiveTool(
+      omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+
+  SubmitQueryAndWaitForNavigation();
+  GURL query_url =
+      web_contents()->GetController().GetLastCommittedEntry()->GetURL();
+  std::string dr_param;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(query_url, "dr", &dr_param));
+  EXPECT_EQ("1", dr_param);
+
+  // Set create images tool.
+  handler().input_state_model()->setActiveTool(
+      omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+
+  SubmitQueryAndWaitForNavigation();
+  GURL query_url_imgn =
+      web_contents()->GetController().GetLastCommittedEntry()->GetURL();
+  std::string imgn_param;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(query_url_imgn, "imgn", &imgn_param));
+  EXPECT_EQ("1", imgn_param);
+  // Ensure dr param is not present.
+  EXPECT_FALSE(net::GetValueForKeyInQuery(query_url_imgn, "dr", &dr_param));
 }
 
 class ContextualSearchboxHandlerTestTabsTest

@@ -146,7 +146,7 @@ static void JNI_ForeignSessionHelper_CopySessionToJava(
 
 }  // namespace
 
-static jlong JNI_ForeignSessionHelper_Init(JNIEnv* env, Profile* profile) {
+static int64_t JNI_ForeignSessionHelper_Init(JNIEnv* env, Profile* profile) {
   ForeignSessionHelper* foreign_session_helper =
       new ForeignSessionHelper(profile);
   return reinterpret_cast<intptr_t>(foreign_session_helper);
@@ -223,8 +223,8 @@ bool ForeignSessionHelper::GetForeignSessions(JNIEnv* env,
   // and only add back sessions that are still current.
   ScopedDictPrefUpdate pref_update(profile_->GetPrefs(),
                                    prefs::kNtpCollapsedForeignSessions);
-  base::Value::Dict& pref_collapsed_sessions = pref_update.Get();
-  base::Value::Dict collapsed_sessions = pref_collapsed_sessions.Clone();
+  base::DictValue& pref_collapsed_sessions = pref_update.Get();
+  base::DictValue collapsed_sessions = pref_collapsed_sessions.Clone();
   pref_collapsed_sessions.clear();
 
   ScopedJavaLocalRef<jobject> last_pushed_session;

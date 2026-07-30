@@ -101,7 +101,7 @@ std::optional<PreflightRequiredReason> NeedsPreflight(
   return std::nullopt;
 }
 
-base::Value::Dict NetLogCorsURLLoaderStartParams(
+base::DictValue NetLogCorsURLLoaderStartParams(
     const ResourceRequest& request,
     net::NetLogCaptureMode capture_mode) {
   std::string cors_preflight_policy;
@@ -114,7 +114,7 @@ base::Value::Dict NetLogCorsURLLoaderStartParams(
       break;
   }
 
-  auto params = base::Value::Dict()
+  auto params = base::DictValue()
                     .Set("url", SanitizeUrlForNetLog(request.url, capture_mode))
                     .Set("is_revalidating", request.is_revalidating)
                     .Set("cors_preflight_policy", cors_preflight_policy);
@@ -128,10 +128,10 @@ base::Value::Dict NetLogCorsURLLoaderStartParams(
   return params;
 }
 
-base::Value::Dict NetLogPreflightRequiredParams(
+base::DictValue NetLogPreflightRequiredParams(
     std::optional<PreflightRequiredReason> preflight_required_reason) {
-  auto dict = base::Value::Dict().Set("preflight_required",
-                                      preflight_required_reason.has_value());
+  auto dict = base::DictValue().Set("preflight_required",
+                                    preflight_required_reason.has_value());
   if (preflight_required_reason) {
     std::string preflight_required_reason_param;
     switch (preflight_required_reason.value()) {
@@ -151,11 +151,11 @@ base::Value::Dict NetLogPreflightRequiredParams(
 }
 
 // Returns net log params for the `CORS_PREFLIGHT_ERROR` event type.
-base::Value::Dict NetLogPreflightErrorParams(
+base::DictValue NetLogPreflightErrorParams(
     int net_error,
     const std::optional<CorsErrorStatus>& status) {
   auto dict =
-      base::Value::Dict().Set("error", net::ErrorToShortString(net_error));
+      base::DictValue().Set("error", net::ErrorToShortString(net_error));
   if (status) {
     dict.Set("cors-error", static_cast<int>(status->cors_error));
     if (!status->failed_parameter.empty()) {
@@ -279,7 +279,7 @@ constexpr const char kTimingAllowOrigin[] = "Timing-Allow-Origin";
 
 CorsURLLoader::CorsURLLoader(
     mojo::PendingReceiver<mojom::URLLoader> loader_receiver,
-    int32_t process_id,
+    OriginatingProcess process_id,
     int32_t request_id,
     uint32_t options,
     DeleteCallback delete_callback,
@@ -413,7 +413,7 @@ void CorsURLLoader::FollowRedirect(
   // If this is a navigation from a renderer, then its a service worker
   // passthrough of a navigation request.  Since this case uses manual
   // redirect mode FollowRedirect() should never be called.
-  if (process_id_ != mojom::kBrowserProcessId &&
+  if (!process_id_.is_browser() &&
       request_.mode == mojom::RequestMode::kNavigate) {
     mojo::ReportBadMessage(
         "CorsURLLoader: navigate from non-browser-process should not call "

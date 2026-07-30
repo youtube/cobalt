@@ -855,17 +855,10 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
             r'chrome/browser/nearby_sharing/contacts/nearby_share_contact_manager_impl_unittest\.cc',
             r'chrome/browser/nearby_sharing/contacts/nearby_share_contacts_sorter_unittest\.cc',
             r'chrome/browser/web_applications/test/web_app_test_utils\.cc',
-            r'chrome/browser/web_applications/test/web_app_test_utils\.cc',
-            r'chrome/browser/win/conflicts/module_blocklist_cache_util_unittest\.cc',
             r'chromeos/ash/components/memory/userspace_swap/swap_storage_unittest\.cc',
             r'chromeos/ash/components/memory/userspace_swap/userspace_swap\.cc',
-            r'components/metrics/metrics_state_manager\.cc',
             r'components/omnibox/browser/history_quick_provider_performance_unittest\.cc',
             r'components/zucchini/disassembler_elf_unittest\.cc',
-            r'content/browser/webid/federated_auth_request_impl\.cc',
-            r'content/browser/webid/federated_auth_request_impl\.cc',
-            r'media/cast/test/utility/udp_proxy\.h',
-            r'sql/recover_module/module_unittest\.cc',
             r'components/regional_capabilities/regional_capabilities_utils.cc',
             # Do not add new entries to this list. If you have a use case which is
             # not satisfied by the current APIs (i.e. you need an explicitly-seeded
@@ -1248,20 +1241,6 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
         pattern=r'#warning',
         explanation=('Use of #warning isn`t allowed. If you need it, contact '
                      'cxx@chromium.org.', ),
-        treat_as_error=True,
-        excluded_paths=[_THIRD_PARTY_EXCEPT_BLINK],
-    ),
-    BanRule(
-        pattern=r'/static.*operator(\(\)|\[\])',
-        explanation=('Use of static operators () and [] isn`t allowed. If you '
-                     'need it, contact cxx@chromium.org.', ),
-        treat_as_error=True,
-        excluded_paths=[_THIRD_PARTY_EXCEPT_BLINK],
-    ),
-    BanRule(
-        pattern=r'std::from_range',
-        explanation=('Use of std::from_range isn`t allowed. If you need it, '
-                     'contact cxx@chromium.org.', ),
         treat_as_error=True,
         excluded_paths=[_THIRD_PARTY_EXCEPT_BLINK],
     ),
@@ -1818,10 +1797,8 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
     ),
     BanRule(
         r'/\bTRACE_EVENT_SCOPE_',
-        (
-            'Please use perfetto Track API instead of '
-            'TRACE_EVENT_SCOPE_GLOBAL/PROCESS/THREAD (crbug.com/432427382).',
-        ),
+        ('Please use perfetto Track API instead of '
+         'TRACE_EVENT_SCOPE_GLOBAL/PROCESS/THREAD (crbug.com/432427382).', ),
         False,
         (
             r'^base/trace_event/.*',
@@ -2545,6 +2522,7 @@ _GENERIC_PYDEPS_FILES = [
     'tools/binary_size/sizes.pydeps',
     'tools/binary_size/supersize.pydeps',
     'tools/cygprofile/generate_orderfile.pydeps',
+    'tools/grit/grit.pydeps',
     "tools/metrics/histograms/generate_allowlist_from_histograms_file.pydeps",
     'tools/perf/process_perf_results.pydeps',
     'tools/pgo/generate_profile.pydeps',
@@ -7304,6 +7282,41 @@ def CheckStableMojomChanges(input_api, output_api):
     return []
 
 
+def CheckNoMojomDataViewIncludes(input_api, output_api):
+    """Checks that .mojom-data-view.h is not included."""
+    problems = []
+
+    # Exclude files containing 'traits' and specific files.
+    def FileFilter(affected_file):
+        path = affected_file.LocalPath()
+        if 'traits' in path:
+            return False
+        if path in [
+                'services/network/url_loader.cc',
+                'services/on_device_model/public/cpp/model_assets.h'
+        ]:
+            return False
+        return input_api.FilterSourceFile(
+            affected_file, files_to_check=[r'.*\.cc$', r'.*\.h$'])
+
+    include_pattern = input_api.re.compile(
+        r'#include\s+.*\.mojom-data-view\.h"')
+
+    for f in input_api.AffectedSourceFiles(FileFilter):
+        for line_num, line in f.ChangedContents():
+            if include_pattern.search(line):
+                problems.append('%s:%d\n    %s' %
+                                (f.LocalPath(), line_num, line.strip()))
+
+    if problems:
+        return [
+            output_api.PresubmitError(
+                'Do not #include <...>.mojom-data-view.h; '
+                '#include <...>.mojom-shared.h instead.', problems)
+        ]
+    return []
+
+
 def CheckDeprecationOfPreferences(input_api, output_api):
     """Removing a preference should come with a deprecation."""
 
@@ -7823,9 +7836,20 @@ def CheckDanglingUntriaged(input_api, output_api):
         )
 
     count = 0
-    for f in input_api.AffectedFiles(file_filter=FilterFile):
-        count -= sum([l.count('DanglingUntriaged') for l in f.OldContents()])
-        count += sum([l.count('DanglingUntriaged') for l in f.NewContents()])
+    try:
+        for f in input_api.AffectedFiles(file_filter=FilterFile):
+            count -= sum(
+                [l.count('DanglingUntriaged') for l in f.OldContents()])
+            count += sum(
+                [l.count('DanglingUntriaged') for l in f.NewContents()])
+    except RuntimeError as e:
+        if 'Provided diff does not apply cleanly' in str(e):
+            # When files are moved.
+            return [
+                output_api.PresubmitNotifyResult(
+                    'Skipping CheckDanglingUntriaged due to moved files.')
+            ]
+        raise
 
     # Most likely, nothing changed:
     if count == 0:
@@ -8019,6 +8043,39 @@ def CheckBaseFeatureMacro(input_api, output_api):
         output_api.PresubmitPromptWarning('BASE_FEATURE() macro naming:',
                                           warnings)
     ]
+
+
+def CheckTestFileNamesOnUpload(input_api, output_api):
+    """Warns if file names end with _unittests.cc or _browsertests.cc."""
+    bad_files = []
+    for f in input_api.AffectedFiles(include_deletes=False):
+        local_path = f.LocalPath()
+        if input_api.os_path.basename(local_path) == 'run_all_unittests.cc':
+            continue
+        if 'third_party/' in local_path and 'third_party/blink/' not in local_path:
+            continue
+
+        if local_path.endswith('_unittests.cc'):
+            bad_files.append(
+                '%s (should be %s)' %
+                (local_path, local_path.replace('_unittests.cc',
+                                                '_unittest.cc')))
+        elif local_path.endswith('_browsertests.cc'):
+            bad_files.append(
+                '%s (should be %s)' %
+                (local_path,
+                 local_path.replace('_browsertests.cc', '_browsertest.cc')))
+
+    if not bad_files:
+        return []
+
+    return [
+        output_api.PresubmitPromptWarning(
+            'File names should be singular (_unittest.cc or _browsertest.cc), '
+            'not plural (_unittests.cc or _browsertests.cc).',
+            items=bad_files)
+    ]
+
 
 def CheckAyeAye(input_api, output_api):
     """Runs AyeAye checks locally via the alint tool.

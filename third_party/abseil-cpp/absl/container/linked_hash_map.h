@@ -248,22 +248,25 @@ class linked_hash_map {
   }
 
   linked_hash_map& operator=(const linked_hash_map& other) {
-    if (this == &other) return *this;
-    // Make a new set, with other's hash/eq/alloc.
-    set_ = SetType(other.bucket_count(), other.set_.hash_function(),
-                   other.set_.key_eq(), other.get_allocator());
-    // Copy the list, with other's allocator.
-    list_ = ListType(other.get_allocator());
-    CopyFrom(other);
+    if (this != &other) {
+      // Make a new set, with other's hash/eq/alloc.
+      set_ = SetType(other.bucket_count(), other.set_.hash_function(),
+                     other.set_.key_eq(), other.get_allocator());
+      // Copy the list, with other's allocator.
+      list_ = ListType(other.get_allocator());
+      CopyFrom(other);
+    }
     return *this;
   }
 
   linked_hash_map& operator=(linked_hash_map&& other) noexcept {
-    // underlying containers will handle progagate_on_container_move details
-    set_ = std::move(other.set_);
-    list_ = std::move(other.list_);
-    other.set_.clear();
-    other.list_.clear();
+    if (this != &other) {
+      // underlying containers will handle progagate_on_container_move details
+      set_ = std::move(other.set_);
+      list_ = std::move(other.list_);
+      other.set_.clear();
+      other.list_.clear();
+    }
     return *this;
   }
 
@@ -628,7 +631,10 @@ class linked_hash_map {
   std::pair<iterator, bool> InsertOrAssignInternal(K&& k, V&& v) {
     auto [it, inserted] =
         LazyEmplaceInternal(std::forward<K>(k), std::forward<V>(v));
-    if (!inserted) it->second = std::forward<V>(v);
+    if (!inserted) {
+      // NOLINTNEXTLINE(bugprone-use-after-move)
+      it->second = std::forward<V>(v);
+    }
     return {it, inserted};
   }
 

@@ -42,7 +42,7 @@ lucicfg.config(
         "builders/gn_args_locations.json",
         "builder-owners/*.txt",
         "cq-builders.md",
-        "cq-tests.md",
+        "cq-usage/cq-tests.md",
         "cq-usage/default.cfg",
         "cq-usage/full.cfg",
         "cq-usage/mega_cq_bots.txt",
@@ -186,7 +186,7 @@ chromium_luci.configure_builder_config(
     standalone_trybot_excluded_builder_groups = standalone_trybot_excluded_builder_groups,
     standalone_trybot_excluded_builders = standalone_trybot_excluded_builders,
     cq_groups_to_generate_test_coverage_files = {
-        "cq": "cq-tests.md",
+        "cq": "cq-usage/cq-tests.md",
     },
 )
 
@@ -342,6 +342,7 @@ chromium_luci.configure_targets(
             # following mixins need to always be generated in mixins.pyl because
             # they are used by the angle pyl files
             "chromium-tester-service-account": targets.IGNORE_UNUSED,
+            "gpu_linux_gce_stable": targets.IGNORE_UNUSED,
             "gpu-swarming-pool": targets.IGNORE_UNUSED,
             "limited_capacity_bot": targets.IGNORE_UNUSED,
             "linux-jammy": targets.IGNORE_UNUSED,

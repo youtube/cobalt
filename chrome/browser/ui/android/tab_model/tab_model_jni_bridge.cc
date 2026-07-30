@@ -35,6 +35,7 @@
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
@@ -481,6 +482,16 @@ void TabModelJniBridge::SetOpenerForTab(tabs::TabHandle target,
   Java_TabModelJniBridge_setOpenerForTab(env, target_tab, opener_tab);
 }
 
+tabs::TabInterface* TabModelJniBridge::GetOpenerForTab(tabs::TabHandle target) {
+  TabAndroid* target_tab = TabAndroid::FromTabHandle(target);
+  if (!target_tab) {
+    return nullptr;
+  }
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> jobj = java_object_.get(env);
+  return Java_TabModelJniBridge_getOpenerForTab(env, jobj, target_tab);
+}
+
 void TabModelJniBridge::DiscardTab(tabs::TabHandle tab) {
   if (!base::FeatureList::IsEnabled(features::kWebContentsDiscard)) {
     return;
@@ -692,7 +703,15 @@ std::optional<tab_groups::TabGroupId> TabModelJniBridge::AddTabsToGroup(
     const std::set<tabs::TabHandle>& tabs) {
   std::optional<base::Token> requested_group_id =
       tab_groups::TabGroupId::ToOptionalToken(group_id);
-  std::vector<TabAndroid*> tabs_to_add = GetAllTabsFromHandles(tabs);
+
+  // Order the tabs by index to ensure consistency with desktop.
+  std::vector<TabAndroid*> tabs_to_add;
+  tabs_to_add.reserve(tabs.size());
+  for (tabs::TabInterface* tab : GetAllTabs()) {
+    if (tabs.contains(tab->GetHandle())) {
+      tabs_to_add.push_back(static_cast<TabAndroid*>(tab));
+    }
+  }
 
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> jobj = java_object_.get(env);
@@ -807,11 +826,11 @@ TabModelJniBridge::~TabModelJniBridge() {
   }
 }
 
-static jlong JNI_TabModelJniBridge_Init(JNIEnv* env,
-                                        const JavaRef<jobject>& obj,
-                                        Profile* profile,
-                                        int32_t j_activity_type,
-                                        unsigned char is_archived_tab_model) {
+static int64_t JNI_TabModelJniBridge_Init(JNIEnv* env,
+                                          const JavaRef<jobject>& obj,
+                                          Profile* profile,
+                                          int32_t j_activity_type,
+                                          unsigned char is_archived_tab_model) {
   TabModel* tab_model = new TabModelJniBridge(
       env, obj, profile, static_cast<ActivityType>(j_activity_type),
       is_archived_tab_model);

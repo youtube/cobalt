@@ -122,20 +122,12 @@ GlicInstanceCoordinatorImpl::~GlicInstanceCoordinatorImpl() {
 void GlicInstanceCoordinatorImpl::OnInstanceActivationChanged(
     GlicInstanceImpl* instance,
     bool is_active) {
-  // TODO(crbug.com/469102481): Remove logs after missing underlines cause is
-  // found.
   if (is_active && active_instance_ != instance) {
-    VLOG(1) << instance
-            << " | OnInstanceActivationChanged - new instance active";
     active_instance_ = instance;
     last_active_instance_ = active_instance_;
   } else if (!is_active && active_instance_ == instance) {
-    VLOG(1) << instance
-            << " | OnInstanceActivationChanged - active instance cleared";
     active_instance_ = nullptr;
   } else {
-    VLOG(1) << instance << " | is_active: " << is_active
-            << " | OnInstanceActivationChanged - no-op";
     return;
   }
   NotifyActiveInstanceChanged();
@@ -219,17 +211,10 @@ void GlicInstanceCoordinatorImpl::CreateNewConversationForTabs(
   ShowInstanceForTabs(instance, tabs, GlicPinTrigger::kContextMenu);
 }
 
-void GlicInstanceCoordinatorImpl::MoveTabsToConversation(
+void GlicInstanceCoordinatorImpl::ShowInstanceForTabs(
     const std::vector<tabs::TabInterface*>& tabs,
-    const std::string& conversation_id) {
-  GlicInstanceImpl* target_instance = nullptr;
-  for (const auto& [id, instance] : instances_) {
-    if (instance->conversation_id().has_value() &&
-        instance->conversation_id().value() == conversation_id) {
-      target_instance = instance.get();
-      break;
-    }
-  }
+    const InstanceId& instance_id) {
+  auto* target_instance = GetInstanceImplFor(instance_id);
 
   if (!target_instance) {
     return;
@@ -511,6 +496,10 @@ void GlicInstanceCoordinatorImpl::ShowInstanceForTabs(
     ShowOptions show_opts(side_panel_options);
     show_opts.focus_on_show =
         IsActive(tab->GetBrowserWindowInterface()) && tab->IsActivated();
+    // Explicitly pin the tabs for the context menu trigger.
+    if (pin_trigger == GlicPinTrigger::kContextMenu) {
+      instance->sharing_manager().PinTabs({tab->GetHandle()}, pin_trigger);
+    }
     instance->Show(show_opts);
   }
 }
@@ -626,6 +615,34 @@ void GlicInstanceCoordinatorImpl::SwitchConversation(
 
 std::vector<glic::mojom::ConversationInfoPtr>
 GlicInstanceCoordinatorImpl::GetRecentlyActiveConversations(size_t limit) {
+  std::vector<GlicInstanceImpl*> sorted_instances =
+      GetSortedRecentInstances(limit);
+
+  std::vector<glic::mojom::ConversationInfoPtr> result;
+  for (auto* instance : sorted_instances) {
+    auto info = instance->GetConversationInfo();
+    CHECK(info);
+    result.push_back(std::move(info));
+  }
+  return result;
+}
+
+std::vector<ConversationInfo>
+GlicInstanceCoordinatorImpl::GetRecentlyActiveInstances(size_t limit) {
+  std::vector<GlicInstanceImpl*> sorted_instances =
+      GetSortedRecentInstances(limit);
+
+  std::vector<ConversationInfo> result;
+  for (auto* instance : sorted_instances) {
+    auto info = instance->GetConversationInfo();
+    CHECK(info);
+    result.push_back({instance->id(), info->conversation_title});
+  }
+  return result;
+}
+
+std::vector<GlicInstanceImpl*>
+GlicInstanceCoordinatorImpl::GetSortedRecentInstances(size_t limit) const {
   // This will only cover recently active conversations that still have living
   // instances. If an instance is torn down because the user closed all bound
   // tabs, it will not be included in the list.
@@ -647,24 +664,10 @@ GlicInstanceCoordinatorImpl::GetRecentlyActiveConversations(size_t limit) {
                      b->GetLastActivationTimestamp();
             });
 
-  std::vector<glic::mojom::ConversationInfoPtr> result;
-  for (size_t i = 0; i < std::min(sorted_instances.size(), limit); ++i) {
-    auto info = sorted_instances[i]->GetConversationInfo();
-    CHECK(info);
-    result.push_back(std::move(info));
+  if (sorted_instances.size() > limit) {
+    sorted_instances.resize(limit);
   }
-  return result;
-}
-
-std::vector<ConversationInfo>
-GlicInstanceCoordinatorImpl::GetRecentConversations(size_t limit) {
-  std::vector<glic::mojom::ConversationInfoPtr> recent_conversations =
-      GetRecentlyActiveConversations(limit);
-  std::vector<ConversationInfo> result;
-  for (const auto& info : recent_conversations) {
-    result.emplace_back(info->conversation_id, info->conversation_title);
-  }
-  return result;
+  return sorted_instances;
 }
 
 void GlicInstanceCoordinatorImpl::UnbindTabFromAnyInstance(

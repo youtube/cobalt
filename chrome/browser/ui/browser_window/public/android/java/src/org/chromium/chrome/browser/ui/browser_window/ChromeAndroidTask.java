@@ -11,7 +11,6 @@ import org.chromium.base.JniOnceCallback;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
-import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tabmodel.SupportedProfileType;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
@@ -201,22 +200,25 @@ public interface ChromeAndroidTask {
     /**
      * Adds a {@link ChromeAndroidTaskFeature} to this {@link ChromeAndroidTask}.
      *
-     * <p>If an instance of the given {@code featureClazz} hasn't been added to this Task, this
-     * method will be the start of the feature's lifecycle, and {@link
+     * <p>If an instance of the given {@code featureKey} hasn't been added to this Task, this method
+     * will be the start of the feature's lifecycle, and {@link
      * ChromeAndroidTaskFeature#onAddedToTask} will be invoked.
      *
-     * <p>If an instance of the given {@code featureClazz} is already added, this method will be a
+     * <p>If the {@code featureKey} is profile-scoped and the profile doesn't have an associated
+     * browser window this method will throw an exception.
+     *
+     * <p>If an instance of the given {@code featureKey} is already added, this method will be a
      * no-op and {@link ChromeAndroidTaskFeature#onAddedToTask} won't be invoked.
      *
      * <p>Production code should initialize a feature inside {@code featureSupplier}'s {@link
      * Supplier#get()} implementation to avoid unnecessarily initializing the feature if it
      * shouldn't be added.
      *
-     * @param featureClazz The class of the feature, used as the feature identifier.
+     * @param featureKey The key of the feature to add.
      * @param featureSupplier {@link Supplier} that should instantiate the feature.
      */
     <T extends ChromeAndroidTaskFeature> void addFeature(
-            Class<T> featureClazz, Supplier<@Nullable T> featureSupplier);
+            ChromeAndroidTaskFeatureKey featureKey, Supplier<@Nullable T> featureSupplier);
 
     /**
      * Creates the {@link Intent} to open a new window of type {@link BrowserWindowType#NORMAL}.
@@ -272,9 +274,6 @@ public interface ChromeAndroidTask {
      */
     long getLastActivatedTimeMillis();
 
-    /** Returns the {@link Profile} associated with this task. */
-    Profile getProfile();
-
     /** Returns current bounds of the window. */
     Rect getBoundsInDp();
 
@@ -325,8 +324,7 @@ public interface ChromeAndroidTask {
     List<ChromeAndroidTaskFeature> getAllFeaturesForTesting();
 
     /** Returns the {@link ChromeAndroidTaskFeature} instance for the given class. */
-    @Nullable ChromeAndroidTaskFeature getFeatureForTesting(
-            Class<? extends ChromeAndroidTaskFeature> featureClazz);
+    @Nullable ChromeAndroidTaskFeature getFeatureForTesting(ChromeAndroidTaskFeatureKey featureKey);
 
     /**
      * Returns the {@code SessionID} as returned by {@code BrowserWindowInterface::GetSessionID()}.

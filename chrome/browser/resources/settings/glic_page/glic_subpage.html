@@ -80,7 +80,7 @@
               $i18n{glicKeyboardShortcutSublabel}
               <a id="shortcutsLearnMoreLabel" class="learn-more-label"
                   href="$i18n{glicKeyboardShortcutLearnMoreUrl}"
-                  aria-label="$i18n{glicKeyboardShortcutLearnMoreLabel}"
+                  aria-label="$i18n{glicKeyboardShortcutLearnMoreAriaLabel}"
                   aria-description="$i18n{opensInNewTab}"
                   on-click="onShortcutsLearnMoreClick_" target="_blank">
                 $i18n{glicKeyboardShortcutLearnMoreLabel}
@@ -89,6 +89,7 @@
           </div>
           <cr-shortcut-input class="cr-padded-text shortcut-input"
               input-aria-label="$i18n{glicKeyboardShortcut}"
+              edit-button-aria-label="$i18n{glicKeyboardShortcutEditLabel}"
               shortcut="[[registeredShortcut_]]"
               allow-ctrl-alt-shortcuts
               on-input-capture-change="onInputCaptureChange_"
@@ -106,7 +107,7 @@
               <a id="shortcutsNavigationLearnMoreLabel"
                   class="learn-more-label"
                   href="$i18n{glicKeyboardShortcutLearnMoreUrl}"
-                  aria-label="$i18n{glicKeyboardShortcutLearnMoreLabel}"
+                  aria-label="$i18n{glicNavigationShortcutLearnMoreAriaLabel}"
                   aria-description="$i18n{opensInNewTab}"
                   on-click="onShortcutsLearnMoreClick_" target="_blank">
                 $i18n{glicKeyboardShortcutLearnMoreLabel}
@@ -115,6 +116,7 @@
         </div>
         <cr-shortcut-input class="cr-padded-text shortcut-input"
             input-aria-label="$i18n{glicNavigationShortcut}"
+              edit-button-aria-label="$i18n{glicNavigationShortcutEditLabel}"
             shortcut="[[registeredFocusToggleShortcut_]]"
             allow-ctrl-alt-shortcuts
             on-shortcut-updated="onFocusToggleShortcutUpdated_">

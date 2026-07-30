@@ -6,6 +6,7 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 
 #include "base/check.h"
 #include "base/functional/callback_helpers.h"
@@ -383,9 +384,9 @@ void MaybeRecordSupervisedUserStateMetrics(
   }
 
   base::UmaHistogramEnumeration(
-      kChromeSingInInterceptionSupervisionStateHistogramPrefix +
-          DiceWebSigninInterceptorDelegate::GetHistogramSuffix(
-              interception_type),
+      base::StrCat({kChromeSingInInterceptionSupervisionStateHistogramPrefix,
+                    DiceWebSigninInterceptorDelegate::GetHistogramSuffix(
+                        interception_type)}),
       CapabilityToSupervisionState(intercepted_account_info.capabilities));
 }
 
@@ -1287,7 +1288,7 @@ void DiceWebSigninInterceptor::OnChromeSigninChoice(
     case SigninInterceptionResult::kDeclined:
       RecordChromeSigninNumberOfDismissesForAccount(account_info.gaia,
                                                     processed_result);
-      signin::LaunchSigninHatsSurveyForProfile(
+      signin::LaunchHatsSurveyForProfile(
           kHatsSurveyTriggerIdentityDiceWebSigninDeclined, profile_);
       break;
     case SigninInterceptionResult::kAcceptedWithExistingProfile:
@@ -1302,7 +1303,7 @@ void DiceWebSigninInterceptor::OnChromeSigninChoice(
       signin_metrics::LogSignInStarted(access_point);
       identity_manager_->GetPrimaryAccountMutator()->SetPrimaryAccount(
           account_info.account_id, signin::ConsentLevel::kSignin, access_point);
-      signin::LaunchSigninHatsSurveyForProfile(
+      signin::LaunchHatsSurveyForProfile(
           kHatsSurveyTriggerIdentityDiceWebSigninAccepted, profile_);
   }
 
@@ -1525,7 +1526,7 @@ void DiceWebSigninInterceptor::RecordChromeSigninNumberOfDismissesForAccount(
 
 bool DiceWebSigninInterceptor::HasUserDeclinedProfileCreation(
     const std::string& email) const {
-  const base::Value::Dict& pref_data = profile_->GetPrefs()->GetDict(
+  const base::DictValue& pref_data = profile_->GetPrefs()->GetDict(
       prefs::kProfileCreationInterceptionDeclined);
   std::optional<int> declined_count =
       pref_data.FindInt(GetPersistentEmailHash(email));

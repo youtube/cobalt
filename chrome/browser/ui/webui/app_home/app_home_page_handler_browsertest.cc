@@ -12,7 +12,7 @@
 #include "base/test/test_future.h"
 #include "chrome/browser/extensions/test_extension_system.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_dialogs.h"
+#include "chrome/browser/ui/dialogs/browser_dialogs.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/create_application_shortcut_view_test_support.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
@@ -227,7 +227,7 @@ class AppHomePageHandlerTest : public InProcessBrowserTest {
   }
 
   scoped_refptr<const extensions::Extension> InstallTestExtensionApp() {
-    base::Value::Dict manifest;
+    base::DictValue manifest;
     manifest.SetByDottedPath(extensions::manifest_keys::kName, kTestAppName);
     manifest.SetByDottedPath(extensions::manifest_keys::kVersion, "0.0.0.0");
     manifest.SetByDottedPath(
@@ -246,10 +246,10 @@ class AppHomePageHandlerTest : public InProcessBrowserTest {
 
   scoped_refptr<const extensions::Extension> InstallTestExtension() {
     namespace keys = extensions::manifest_keys;
-    base::Value::Dict manifest = base::Value::Dict()
-                                     .Set(keys::kName, "Test extension")
-                                     .Set(keys::kVersion, "1.0")
-                                     .Set(keys::kManifestVersion, 2);
+    base::DictValue manifest = base::DictValue()
+                                   .Set(keys::kName, "Test extension")
+                                   .Set(keys::kVersion, "1.0")
+                                   .Set(keys::kManifestVersion, 2);
 
     std::u16string error;
     scoped_refptr<extensions::Extension> extension =

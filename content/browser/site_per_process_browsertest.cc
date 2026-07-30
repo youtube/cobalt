@@ -360,7 +360,7 @@ void FocusFrame(FrameTreeNode* frame) {
 }
 
 bool ConvertJSONToPoint(const std::string& str, gfx::PointF* point) {
-  std::optional<base::Value::Dict> value =
+  std::optional<base::DictValue> value =
       base::JSONReader::ReadDict(str, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!value) {
     return false;
@@ -591,6 +591,16 @@ void SitePerProcessIgnoreCertErrorsBrowserTest::
   SitePerProcessBrowserTest::TearDownInProcessBrowserTestFixture();
   mock_cert_verifier_.TearDownInProcessBrowserTestFixture();
 }
+
+class MainFrameThresholdTestBrowserClient
+    : public ContentBrowserTestContentBrowserClient {
+ public:
+  bool ShouldReuseAnyExistingProcessForNewMainFrameSiteInstance(
+      content::BrowserContext* browser_context,
+      const GURL& site_instance_original_url) override {
+    return true;
+  }
+};
 
 // SitePerProcessAutoplayBrowserTest
 
@@ -9515,8 +9525,7 @@ class SitePerProcessBrowserTestWithSubframePriority
  public:
   SitePerProcessBrowserTestWithSubframePriority() {
     scoped_feature_list_.InitWithFeatures(
-        /* enabled_features= */ {features::kSubframePriorityContribution,
-                                 features::kSubframeImportance},
+        /* enabled_features= */ {features::kSubframeImportance},
         /* disabled_features= */ {});
   }
 
@@ -11287,8 +11296,6 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, FrameDepthTest) {
   EXPECT_FALSE(child1_rvh->is_active());
   EXPECT_EQ(RenderProcessHostImpl::kMaxFrameDepthForPriority,
             child1_rvh->GetWidget()->GetPriority().frame_depth);
-  EXPECT_FALSE(static_cast<RenderWidgetHostOwnerDelegate*>(child1_rvh)
-                   ->ShouldContributePriorityToProcess());
   // The RenderWidgetHost of the RenderFrameHost is different from the
   // RenderWidgetHost of the RenderViewHost and contributes to the priority.
   EXPECT_NE(child1->current_frame_host()->GetRenderWidgetHost(),
@@ -14157,6 +14164,11 @@ class SitePerProcessWithMainFrameThresholdTestBase
   }
   ~SitePerProcessWithMainFrameThresholdTestBase() override = default;
 
+  void SetUpOnMainThread() override {
+    SitePerProcessBrowserTestBase::SetUpOnMainThread();
+    test_client_ = std::make_unique<MainFrameThresholdTestBrowserClient>();
+  }
+
   Shell* CreateShellAndNavigateToURL(const GURL& url) {
     const GURL kOtherUrl =
         embedded_test_server()->GetURL("bar.test", "/title1.html");
@@ -14173,6 +14185,8 @@ class SitePerProcessWithMainFrameThresholdTestBase
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
+
+  std::unique_ptr<MainFrameThresholdTestBrowserClient> test_client_;
 };
 
 class SitePerProcessWithMainFrameThresholdTest

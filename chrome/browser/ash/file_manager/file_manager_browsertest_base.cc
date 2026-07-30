@@ -124,6 +124,7 @@
 #include "chrome/browser/download/download_dir_util.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/extensions/mixin_based_extension_apitest.h"
+#include "chrome/browser/global_features.h"
 #include "chrome/browser/notifications/notification_display_service_tester.h"
 #include "chrome/browser/notifications/notification_handler.h"
 #include "chrome/browser/platform_util.h"
@@ -423,7 +424,7 @@ struct AddEntriesMessage {
   std::vector<std::unique_ptr<struct TestEntryInfo>> entries;
 
   // Converts |value| to an AddEntriesMessage: true on success.
-  static bool ConvertJSONValue(const base::Value::Dict& value,
+  static bool ConvertJSONValue(const base::DictValue& value,
                                AddEntriesMessage* message) {
     base::JSONValueConverter<AddEntriesMessage> converter;
     return converter.Convert(base::Value(value.Clone()), message);
@@ -869,7 +870,7 @@ void UnblockFileTaskRunner()
 }
 
 struct ExpectFileTasksMessage {
-  static bool ConvertJSONValue(const base::Value::Dict& value,
+  static bool ConvertJSONValue(const base::DictValue& value,
                                ExpectFileTasksMessage* message) {
     base::JSONValueConverter<ExpectFileTasksMessage> converter;
     return converter.Convert(base::Value(value.Clone()), message);
@@ -906,7 +907,7 @@ struct ExpectFileTasksMessage {
 };
 
 struct GetHistogramCountMessage {
-  static bool ConvertJSONValue(const base::Value::Dict& value,
+  static bool ConvertJSONValue(const base::DictValue& value,
                                GetHistogramCountMessage* message) {
     base::JSONValueConverter<GetHistogramCountMessage> converter;
     return converter.Convert(base::Value(value.Clone()), message);
@@ -924,7 +925,7 @@ struct GetHistogramCountMessage {
 };
 
 struct GetTotalHistogramSum {
-  static bool ConvertJSONValue(const base::Value::Dict& value,
+  static bool ConvertJSONValue(const base::DictValue& value,
                                GetTotalHistogramSum* message) {
     base::JSONValueConverter<GetTotalHistogramSum> converter;
     return converter.Convert(base::Value(value.Clone()), message);
@@ -940,7 +941,7 @@ struct GetTotalHistogramSum {
 };
 
 struct ExpectHistogramTotalCountMessage {
-  static bool ConvertJSONValue(const base::Value::Dict& value,
+  static bool ConvertJSONValue(const base::DictValue& value,
                                ExpectHistogramTotalCountMessage* message) {
     base::JSONValueConverter<ExpectHistogramTotalCountMessage> converter;
     return converter.Convert(base::Value(value.Clone()), message);
@@ -959,7 +960,7 @@ struct ExpectHistogramTotalCountMessage {
 };
 
 struct GetUserActionCountMessage {
-  static bool ConvertJSONValue(const base::Value::Dict& value,
+  static bool ConvertJSONValue(const base::DictValue& value,
                                GetUserActionCountMessage* message) {
     base::JSONValueConverter<GetUserActionCountMessage> converter;
     return converter.Convert(base::Value(value.Clone()), message);
@@ -975,7 +976,7 @@ struct GetUserActionCountMessage {
 };
 
 struct GetLocalPathMessage {
-  static bool ConvertJSONValue(const base::Value::Dict& value,
+  static bool ConvertJSONValue(const base::DictValue& value,
                                GetLocalPathMessage* message) {
     base::JSONValueConverter<GetLocalPathMessage> converter;
     return converter.Convert(base::Value(value.Clone()), message);
@@ -2562,6 +2563,7 @@ void FileManagerBrowserTestBase::SetUpOnMainThread() {
   if (!options.locale.empty()) {
     SwitchLanguageWaiter waiter;
     ash::locale_util::SwitchLanguage(
+        g_browser_process->GetFeatures()->application_locale_storage(),
         options.locale, /*enable_locale_keyboard_layouts=*/true,
         /*login_layouts_only=*/false, waiter.CreateCallback(), profile());
     waiter.Wait();
@@ -2813,7 +2815,7 @@ void FileManagerBrowserTestBase::RunTestMessageLoop() {
       continue;
     }
 
-    base::Value::Dict* dictionary = json->GetIfDict();
+    base::DictValue* dictionary = json->GetIfDict();
     const std::string* command = nullptr;
     if (!dictionary || !(command = dictionary->FindString("name"))) {
       message.function->Reply(std::string());
@@ -2837,7 +2839,7 @@ void FileManagerBrowserTestBase::RunTestMessageLoop() {
 // NO_THREAD_SAFETY_ANALYSIS: Locking depends on runtime commands, the static
 // checker cannot assess it.
 void FileManagerBrowserTestBase::OnCommand(const std::string& name,
-                                           const base::Value::Dict& value,
+                                           const base::DictValue& value,
                                            std::string* output)
     NO_THREAD_SAFETY_ANALYSIS {
   const Options options = GetOptions();
@@ -2904,7 +2906,7 @@ void FileManagerBrowserTestBase::OnCommand(const std::string& name,
 
   if (name == "launchFileManager") {
     const std::string* launch_dir = value.FindString("launchDir");
-    base::Value::Dict arg_value;
+    base::DictValue arg_value;
     if (launch_dir) {
       arg_value.Set("currentDirectoryURL", *launch_dir);
     }
@@ -2914,9 +2916,9 @@ void FileManagerBrowserTestBase::OnCommand(const std::string& name,
       arg_value.Set("type", *type);
     }
 
-    const base::Value::List* volume_filter = value.FindList("volumeFilter");
+    const base::ListValue* volume_filter = value.FindList("volumeFilter");
     if (volume_filter) {
-      base::Value::List cloned_volume_filter = volume_filter->Clone();
+      base::ListValue cloned_volume_filter = volume_filter->Clone();
       arg_value.Set("volumeFilter", std::move(cloned_volume_filter));
     }
 
@@ -3027,7 +3029,7 @@ void FileManagerBrowserTestBase::OnCommand(const std::string& name,
   }
 
   if (name == "getWindows") {
-    base::Value::Dict dictionary;
+    base::DictValue dictionary;
 
     int counter = 0;
     for (auto* web_contents : GetAllWebContents()) {
@@ -3118,7 +3120,7 @@ void FileManagerBrowserTestBase::OnCommand(const std::string& name,
     const auto downloads_root =
         util::GetDownloadsMountPointName(profile()) + "/Downloads";
 
-    base::Value::Dict dictionary;
+    base::DictValue dictionary;
     dictionary.Set("downloads", "/" + downloads_root);
 
     base::FilePath my_files =
@@ -3158,7 +3160,7 @@ void FileManagerBrowserTestBase::OnCommand(const std::string& name,
       origin.resize(origin.length() - 1);
     }
 
-    base::Value::Dict dictionary;
+    base::DictValue dictionary;
     dictionary.Set("url", url.spec());
     dictionary.Set("origin", origin);
 
@@ -3800,6 +3802,7 @@ void FileManagerBrowserTestBase::OnCommand(const std::string& name,
     ASSERT_TRUE(language);
     base::RunLoop run_loop;
     ash::locale_util::SwitchLanguage(
+        g_browser_process->GetFeatures()->application_locale_storage(),
         *language, true, false,
         base::BindRepeating(
             [](base::RunLoop* run_loop,
@@ -4035,7 +4038,7 @@ void FileManagerBrowserTestBase::OnCommand(const std::string& name,
 
   if (name == "getSharesheetInfo") {
     views::Widget* sharesheet_widget = FindSharesheetWidget();
-    base::Value::List result;
+    base::ListValue result;
     if (sharesheet_widget) {
       views::View* sharesheet_bubble_view =
           sharesheet_widget->GetContentsView();
@@ -4110,7 +4113,7 @@ void FileManagerBrowserTestBase::OnCommand(const std::string& name,
 
 bool FileManagerBrowserTestBase::HandleGuestOsCommands(
     const std::string& name,
-    const base::Value::Dict& value,
+    const base::DictValue& value,
     std::string* output) {
   if (name == "registerMountableGuest") {
     const std::string* displayName = value.FindString("displayName");
@@ -4162,17 +4165,16 @@ bool FileManagerBrowserTestBase::HandleGuestOsCommands(
   return false;
 }
 
-bool FileManagerBrowserTestBase::HandleDlpCommands(
-    const std::string& name,
-    const base::Value::Dict& value,
-    std::string* output) {
+bool FileManagerBrowserTestBase::HandleDlpCommands(const std::string& name,
+                                                   const base::DictValue& value,
+                                                   std::string* output) {
   // DLP commands are only handled by the DlpFilesAppBrowserTest.
   return false;
 }
 
 bool FileManagerBrowserTestBase::HandleEnterpriseConnectorCommands(
     const std::string& name,
-    const base::Value::Dict& value,
+    const base::DictValue& value,
     std::string* output) {
   // Enterprise connector commands are only handled by the
   // FileTransferConnectorFilesAppBrowserTest.
@@ -4181,7 +4183,7 @@ bool FileManagerBrowserTestBase::HandleEnterpriseConnectorCommands(
 
 bool FileManagerBrowserTestBase::HandleSkyVaultCommands(
     const std::string& name,
-    const base::Value::Dict& value,
+    const base::DictValue& value,
     std::string* output) {
   // SkyVault commands are only handled by the
   // SkyVaultFilesAppBrowserTest.

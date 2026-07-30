@@ -41,6 +41,7 @@
 <translation id="1150263420752757504"><ph name="APP_NAME" />, Chrome में खुलेगा. जारी रखने का मतलब है कि आप <ph name="BEGIN_LINK1" />Google की सेवा की शर्तों<ph name="END_LINK1" /> के साथ-साथ <ph name="BEGIN_LINK2" />Google Chrome और ChromeOS की सेवा की अन्य शर्तों<ph name="END_LINK2" /> से सहमत हैं.</translation>
 <translation id="1154555449933432029">आपने Google Password Manager में कोई पासवर्ड सेव नहीं किया है.</translation>
 <translation id="115483310321669804"><ph name="PASSWORD" /> पासवर्ड डालें</translation>
+<translation id="1161065531352634524">टैब और इतिहास सिंक करें</translation>
 <translation id="1165109137568919258">कोई फ़ोटो लें या अपनी फ़ोटो गैलरी से कोई इमेज जोड़ें, ताकि उसके बारे में खोजा जा सके</translation>
 <translation id="1173894706177603556">नाम बदलें</translation>
 <translation id="1174479719160874822">स्क्रीन छोटी होने पर Chrome, मोबाइल साइट का अनुरोध करेगा</translation>
@@ -126,6 +127,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="147982357559798527">बदला गया</translation>
 <translation id="1480287803138246127">ऐसा हो सकता है कि आपको Chrome पर ब्राउज़िंग के इतिहास का कुछ डेटा न दिखे. पूरा इतिहास देखने के लिए, Chrome का पूरा इतिहास खोलें.</translation>
 <translation id="1493287004536771723">आप <ph name="SITE_NAME" /> को फ़ॉलो कर रहे हैं</translation>
+<translation id="1495677929897281669">टैब पर वापस जाएं</translation>
 <translation id="1496514951988037011">उपयोगकर्ता नाम</translation>
 <translation id="1501480321619201731">ग्रुप मिटाएं</translation>
 <translation id="1506061864768559482">सर्च इंजन</translation>
@@ -433,6 +435,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="2885355868600171871">पता बार पर जाएं</translation>
 <translation id="2888126860611144412">Chrome के बारे में</translation>
 <translation id="2891154217021530873">पेज को लोड करना रोकें</translation>
+<translation id="2893168226686371498">डिफ़ॉल्ट ब्राउज़र</translation>
 <translation id="2894821468041866720">आपके ब्राउज़र या डिवाइस को धीमा नहीं करती.</translation>
 <translation id="2895521649038438824">इस पेज को सुनने की सुविधा उपलब्ध है</translation>
 <translation id="289596984386220317"><ph name="TAB_TITLE" />, पिन किया गया ऐसा टैब जिसमें ऑडियो चल रहा है</translation>
@@ -980,6 +983,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="5210286577605176222">सीधे पिछले टैब पर जाएं</translation>
 <translation id="5210365745912300556">टैब बंद करें</translation>
 <translation id="5212800876504289412">इस बदलाव को लागू करने के लिए, Chrome को रीस्टार्ट करें. रीस्टार्ट करने पर, टैब अपने-आप खुल जाते हैं.</translation>
+<translation id="5213114823401215820">बंद किया गया ग्रुप फिर से खोलें</translation>
 <translation id="5215957675041756913">अपना डेटा और खाता कंट्रोल करें</translation>
 <translation id="5218324087477576825">कार्ड नंबर डालना ज़रूरी है</translation>
 <translation id="5221437554987713282"><ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, और अन्य अनुमतियां <ph name="SEPARATOR" /> Chrome ने इस साइट के लिए ये अनुमतियां हटा दी हैं, क्योंकि आपने हाल ही में इसका इस्तेमाल नहीं किया है</translation>
@@ -1098,7 +1102,6 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="5765780083710877561">वर्णन:</translation>
 <translation id="5776970333778123608">गैरज़रूरी डेटा</translation>
 <translation id="5793665092639000975"><ph name="SPACE_AVAILABLE" /> में से <ph name="SPACE_USED" /> का इस्तेमाल किया जा रहा है</translation>
-<translation id="5795872532621730126">खोजें और ब्राउज़ करें</translation>
 <translation id="5797949256525811424">ब्लॉक किया गया विषय</translation>
 <translation id="580893287573699959">अपने पसंदीदा विषयों और साइटों को मैनेज करें</translation>
 <translation id="5809361687334836369">{HOURS,plural, =1{# घंटा पहले}one{# घंटे पहले}other{# घंटे पहले}}</translation>
@@ -1415,7 +1418,6 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="6937524809504266803">मनमुताबिक अनुभव और लिंक करना</translation>
 <translation id="6937876069006524083">निकनेम (ज़रूरी नहीं)</translation>
 <translation id="6942665639005891494">सेटिंग मेन्यू विकल्प का इस्तेमाल करके डिफ़ॉल्ट डाउनलोड स्थान किसी भी समय बदलें</translation>
-<translation id="694267552845942083">फ़िलहाल, आप अपनी सिंक सेटिंग पसंद के मुताबिक इस्तेमाल कर रहे हैं. सिंक की सुविधा चालू करने की प्रोसेस पूरी करने के लिए, स्क्रीन पर सबसे नीचे मौजूद 'पुष्टि करें' बटन पर टैप करें. ऊपर जाएं</translation>
 <translation id="6945221475159498467">चुनें</translation>
 <translation id="6955535239952325894">यह सेटिंग, प्रबंधित किए गए ब्राउज़र पर काम नहीं करती है</translation>
 <translation id="6963766334940102469">बुकमार्क मिटाएं</translation>
@@ -1437,6 +1439,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="7020741890149022655">रीडिंग लिस्ट में जोड़ें <ph name="BEGIN_NEW" />नया<ph name="END_NEW" /></translation>
 <translation id="7022756207310403729">ब्राउज़र में खोलें</translation>
 <translation id="7029809446516969842">पासवर्ड</translation>
+<translation id="7037994709569287156">Chrome को डिफ़ॉल्ट ब्राउज़र बनाएं</translation>
 <translation id="7053256416619638731">इस डिवाइस में सेव किए गए अपने पासवर्ड बेहतर बनाएं</translation>
 <translation id="7053983685419859001">ब्लॉक करें</translation>
 <translation id="7054588988317389591">क्या आप इमेज की जानकारी पाना चाहते हैं?</translation>
@@ -1469,6 +1472,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 इस सेटिंग को बदलने के लिए, <ph name="BEGIN_LINK" />अपने खाते से Chrome का डेटा मिटाएं<ph name="END_LINK" />.</translation>
 <translation id="7165972437814027679">जानें कि Chrome कुछ फ़ाइलों को क्यों ब्लॉक करता है</translation>
 <translation id="7168323970702333693"><ph name="USER_NAME" /> के तौर पर साइन इन किया गया. इस बटन से सेटिंग खुलती है.</translation>
+<translation id="7170930892977483182">आपके डिवाइस और Google Wallet में सेव किए गए सभी सुरक्षा कोड मिटा दिए जाएंगे</translation>
 <translation id="7173114856073700355">सेटिंग खोलें</translation>
 <translation id="7173338713290252554">वेब पर, कीमत के इतिहास से जुड़ा डेटा</translation>
 <translation id="7177466738963138057">आप इसे बाद में सेटिंग में जाकर बदल सकते हैं</translation>
@@ -1641,6 +1645,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="784652447248278262">मौजूदा विंडो</translation>
 <translation id="784934925303690534">समयसीमा</translation>
 <translation id="7851858861565204677">अन्य डिवाइस</translation>
+<translation id="78527117619130387">पिन किए गए टैब को बंद करने के लिए, ^W को फिर से दबाएं</translation>
 <translation id="7853202427316060426">गतिविधि</translation>
 <translation id="7859988229622350291">कभी अनुवाद न करें</translation>
 <translation id="7866213166286285359">पेजों का अनुवाद यहां करें</translation>
@@ -1654,6 +1659,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="7919123827536834358">अपने-आप इन भाषाओं का अनुवाद करें</translation>
 <translation id="7921782882718083488">इस पेज की खास जानकारी पाएं</translation>
 <translation id="7926975587469166629">कार्ड का कोई दूसरा नाम</translation>
+<translation id="7927073875790626822">एक्सआर</translation>
 <translation id="7929587383660661825">Chrome, उन साइटों से सूचना भेजने की अनुमतियां अपने-आप हटा देता है जिन पर आपने हाल ही में विज़िट नहीं किया है या जो सूचना भेजने की अनुमति का गलत इस्तेमाल करती हैं</translation>
 <translation id="7934668619883965330">फ़ाइल को डाउनलोड नहीं किया जा सकता. यह फ़ाइल फ़ॉर्मैट काम नहीं करता.</translation>
 <translation id="7942131818088350342"><ph name="PRODUCT_NAME" /> पुराना है.</translation>
@@ -1799,6 +1805,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="8458413889418591446">विज़िट की गई साइटों को तेज़ी से ऐक्सेस करने के लिए, अपने टैब और इतिहास को सिंक करें</translation>
 <translation id="84594714173170813">अपने Google खाते में, Chrome के डेटा का इस्तेमाल जारी रखें</translation>
 <translation id="8460448946170646641">निजता और सुरक्षा से जुड़े मुख्य कंट्रोल देखें</translation>
+<translation id="8460932807646981183">सर्च इंजन और साइट खोज को मैनेज करें</translation>
 <translation id="8473863474539038330">पते वगैरह</translation>
 <translation id="847433688444405067">सभी डिवाइसों पर ब्राउज़ करें</translation>
 <translation id="8477178913400731244">डेटा मिटाएं</translation>
@@ -1934,7 +1941,6 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="9073805459138993880"><ph name="TAB_TITLE" />, चुने गए टैब में से एक ऐसा टैब जिसका कॉन्टेंट शेयर किया जा रहा है</translation>
 <translation id="9074739597929991885">ब्लूटूथ</translation>
 <translation id="9081543426177426948">जिन साइटों को ब्राउज़ किया जाता है उनकी जानकारी गुप्त मोड में सेव नहीं होती</translation>
-<translation id="9086302186042011942">समन्वयित हो रहा है</translation>
 <translation id="9086455579313502267">नेटवर्क की एक्सेस नहीं की जा सकती है.</translation>
 <translation id="9093915805850895575">Chrome विंडो में खोलें</translation>
 <translation id="909756639352028172">अपने हिसाब से बेहतर अनुभव पाने के लिए, वेब और ऐप्लिकेशन गतिविधि सेटिंग और लिंक की गई Google की सेवाओं में Chrome को शामिल करें</translation>

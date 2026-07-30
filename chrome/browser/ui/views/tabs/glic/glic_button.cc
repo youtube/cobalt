@@ -12,7 +12,6 @@
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/background/glic/glic_launcher_configuration.h"
 #include "chrome/browser/glic/browser_ui/glic_vector_icon_manager.h"
-#include "chrome/browser/glic/fre/glic_fre_controller.h"
 #include "chrome/browser/glic/glic_enums.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
@@ -121,17 +120,14 @@ ui::ImageModel GetNormalIcon() {
         *ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
             IDR_GLIC_BUTTON_ALT_ICON));
   }
-  return ui::ImageModel::FromVectorIcon(
-      GlicVectorIcon(),
-      ShouldUseAltIcon() ? kForegroundOnAltBackground : kForeground, kIconSize);
+  return ui::ImageModel::FromVectorIcon(GlicVectorIcon(), kForeground,
+                                        kIconSize);
 }
 
 ui::ImageModel GetIconForHighlight() {
-  if (HighlightNudgeEnabled()) {
-    return ui::ImageModel::FromVectorIcon(GlicVectorIcon(), kTextOnHighlight,
-                                          kIconSize);
-  }
-  return {};
+  return ui::ImageModel::FromVectorIcon(
+      GlicVectorIcon(),
+      HighlightNudgeEnabled() ? kTextOnHighlight : kForeground, kIconSize);
 }
 
 gfx::Insets GetIconMargins(bool label_shown) {
@@ -260,6 +256,7 @@ GlicButton::GlicButton(BrowserWindowInterface* browser_window_interface,
                           gfx::VectorIcon::EmptyIcon(),
                           /*show_close_button=*/true),
       menu_model_(CreateMenuModel()),
+      browser_window_interface_(browser_window_interface),
       profile_(browser_window_interface ? browser_window_interface->GetProfile()
                                         : nullptr),
       hovered_callback_(std::move(hovered_callback)),
@@ -311,17 +308,6 @@ GlicButton::GlicButton(BrowserWindowInterface* browser_window_interface,
       SetLayoutManager(std::make_unique<views::BoxLayout>());
   layout_manager->set_main_axis_alignment(
       views::BoxLayout::MainAxisAlignment::kStart);
-
-  // Subscribe to changes in state of glic FRE dialog and glic window.
-  glic::GlicKeyedService* const service = glic::GlicKeyedService::Get(profile_);
-  glic_window_activation_subscription_ =
-      service->window_controller().AddWindowActivationChangedCallback(
-          base::BindRepeating(&GlicButton::PanelStateChanged,
-                              base::Unretained(this)));
-
-  fre_subscription_ = service->fre_controller().AddWebUiStateChangedCallback(
-      base::BindRepeating(&GlicButton::OnFreWebUiStateChanged,
-                          base::Unretained(this)));
 }
 
 GlicButton::~GlicButton() = default;
@@ -413,27 +399,19 @@ void GlicButton::RestoreDefaultLabel() {
 }
 
 void GlicButton::SetGlicPanelIsOpen(bool open) {
-  if (glic_panel_is_open_ != open) {
-    glic_panel_is_open_ = open;
-    UpdateTextAndBackgroundColors();
+  if (glic_panel_is_open_ == open) {
+    return;
   }
-}
 
-void GlicButton::OnFreWebUiStateChanged(mojom::FreWebUiState new_state) {
-  UpdateTooltipText();
-}
+  glic_panel_is_open_ = open;
+  UpdateTextAndBackgroundColors();
+  UpdateIcon();
 
-void GlicButton::PanelStateChanged(bool active) {
-  UpdateTooltipText();
-}
-
-void GlicButton::UpdateTooltipText() {
-  GlicKeyedService* const service = GlicKeyedService::Get(profile_);
   // Set tooltip and accessibility text based on whether any glic UI (window or
   // FRE) is open.
-  std::u16string tooltip_text = l10n_util::GetStringUTF16(
-      service->IsWindowOrFreShowing() ? IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP_CLOSE
-                                      : IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP);
+  std::u16string tooltip_text =
+      l10n_util::GetStringUTF16(open ? IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP_CLOSE
+                                     : IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP);
 
   SetTooltipText(tooltip_text);
   GetViewAccessibility().SetName(tooltip_text);
@@ -530,6 +508,16 @@ void GlicButton::AddedToWidget() {
   normal_width_ = PreferredSize().width();
   start_width_ = normal_width_;
   end_width_ = normal_width_;
+
+  window_did_become_active_subscription_ =
+      browser_window_interface_->RegisterDidBecomeActive(base::BindRepeating(
+          &GlicButton::OnBrowserWindowDidBecomeActive, base::Unretained(this)));
+  window_did_become_inactive_subscription_ =
+      browser_window_interface_->RegisterDidBecomeInactive(
+          base::BindRepeating(&GlicButton::OnBrowserWindowDidBecomeInactive,
+                              base::Unretained(this)));
+
+  UpdateInkdropHoverColor(browser_window_interface_->IsActive());
 }
 
 void GlicButton::SetDropToAttachIndicator(bool indicate) {
@@ -671,8 +659,13 @@ void GlicButton::NotifyClick(const ui::Event& event) {
 }
 
 void GlicButton::UpdateIcon() {
+  const bool solid_icon_for_pressed_state =
+      base::FeatureList::IsEnabled(features::kGlicButtonPressedState) &&
+      features::kGlicButtonPressedForceSolidIcon.Get() && glic_panel_is_open_;
   const ui::ImageModel& model =
-      IsHighlightVisible() ? icon_for_highlight_ : normal_icon_;
+      (solid_icon_for_pressed_state || IsHighlightVisible())
+          ? icon_for_highlight_
+          : normal_icon_;
 
   SetImageModel(views::Button::STATE_NORMAL, model);
   SetImageModel(views::Button::STATE_HOVERED, model);
@@ -697,6 +690,7 @@ bool GlicButton::IsHighlightVisible() const {
 
 void GlicButton::ShowNudge() {
   WidthState old_width_state = width_state_;
+  collapsed_before_nudge_shown_ = width_state_ == WidthState::kCollapsed;
   // Don't restart the animation if already nudging.
   if (width_state_ == WidthState::kNudge) {
     return;
@@ -735,10 +729,17 @@ void GlicButton::ShowNudge() {
 
 void GlicButton::HideNudge() {
   WidthState old_width_state = width_state_;
-  // Only animate if transitioning from kNudge to kNormal.
+  // Only animate if transitioning from kNudge to kNormal or kCollapsed.
   if (width_state_ != WidthState::kNudge) {
     return;
   }
+  // If the label was previously collapsed, return to the collapsed state.
+  if (base::FeatureList::IsEnabled(features::kGlicActorUiGlobalTaskIndicator) &&
+      collapsed_before_nudge_shown_) {
+    Collapse();
+    return;
+  }
+  // If the button wasn't collapsed, it must be transitioning back to kNormal.
   SetWidthState(WidthState::kNormal);
 
   if (!EntrypointVariationsEnabled()) {
@@ -813,6 +814,12 @@ int GlicButton::CalculateExpandedWidth() {
     // If transitioning from empty label to nudge label, make sure the label
     // margin is included.
     new_width += kLabelRightMargin;
+  }
+  if (base::FeatureList::IsEnabled(features::kGlicActorUiGlobalTaskIndicator) &&
+      last_width_state_ == WidthState::kCollapsed) {
+    // Add extra margin if the label was previously collapsed, as the old_width
+    // is smaller.
+    new_width += kCloseButtonMargin;
   }
   return new_width;
 }
@@ -893,7 +900,10 @@ bool GlicButton::IsAnimatingTextVisibility() const {
 }
 
 bool GlicButton::IsHidingNudge() const {
-  return width_state_ == WidthState::kNormal &&
+  return (width_state_ == WidthState::kNormal ||
+          (base::FeatureList::IsEnabled(
+               features::kGlicActorUiGlobalTaskIndicator) &&
+           width_state_ == WidthState::kCollapsed)) &&
          last_width_state_ == WidthState::kNudge;
 }
 
@@ -922,6 +932,29 @@ void GlicButton::SetSplitButtonCornerStyling() {
 void GlicButton::ResetSplitButtonCornerStyling() {
   SetLeftRightCornerRadii(TabStripNudgeButton::GetCornerRadius(),
                           TabStripNudgeButton::GetCornerRadius());
+}
+
+void GlicButton::RemovedFromWidget() {
+  window_did_become_active_subscription_ = {};
+  window_did_become_inactive_subscription_ = {};
+  TabStripNudgeButton::RemovedFromWidget();
+}
+
+void GlicButton::OnBrowserWindowDidBecomeActive(BrowserWindowInterface* bwi) {
+  UpdateInkdropHoverColor(true);
+}
+
+void GlicButton::OnBrowserWindowDidBecomeInactive(BrowserWindowInterface* bwi) {
+  UpdateInkdropHoverColor(false);
+}
+
+void GlicButton::UpdateInkdropHoverColor(bool is_frame_active) {
+  if (base::FeatureList::IsEnabled(features::kGlicActorUiGlobalTaskIndicator)) {
+    SetInkdropHoverColorId(is_frame_active
+                               ? kColorTabBackgroundInactiveHoverFrameActive
+                               : kColorTabBackgroundInactiveHoverFrameInactive);
+    UpdateColors();
+  }
 }
 
 BEGIN_METADATA(GlicButton)

@@ -145,6 +145,26 @@ std::unique_ptr<GlicSharingManager> CreateSharingManager(
       static_cast<GlicInstanceCoordinatorImpl*>(window_controller));
 }
 
+void SetupGuestUrlPresetPrefs(Profile* profile) {
+  auto* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(::switches::kGlicGuestUrlPresetAutopush)) {
+    profile->GetPrefs()->SetString(
+        prefs::kGlicGuestUrlPresetAutopush,
+        command_line->GetSwitchValueASCII(
+            ::switches::kGlicGuestUrlPresetAutopush));
+  }
+  if (command_line->HasSwitch(::switches::kGlicGuestUrlPresetPreprod)) {
+    profile->GetPrefs()->SetString(prefs::kGlicGuestUrlPresetPreprod,
+                                   command_line->GetSwitchValueASCII(
+                                       ::switches::kGlicGuestUrlPresetPreprod));
+  }
+  if (command_line->HasSwitch(::switches::kGlicGuestUrlPresetProd)) {
+    profile->GetPrefs()->SetString(
+        prefs::kGlicGuestUrlPresetProd,
+        command_line->GetSwitchValueASCII(::switches::kGlicGuestUrlPresetProd));
+  }
+}
+
 }  // namespace
 
 GlicKeyedService::GlicKeyedService(
@@ -158,9 +178,7 @@ GlicKeyedService::GlicKeyedService(
       enabling_(std::make_unique<GlicEnabling>(
           profile,
           &profile_manager->GetProfileAttributesStorage())),
-#if !BUILDFLAG(IS_ANDROID)
       metrics_(std::make_unique<GlicMetrics>(profile, enabling_.get())),
-#endif
       fre_controller_(
           std::make_unique<GlicFreController>(profile, identity_manager)),
       window_controller_(CreateWindowController(profile,
@@ -172,7 +190,7 @@ GlicKeyedService::GlicKeyedService(
                                             &window_controller(),
                                             metrics_.get(),
                                             enabling_.get())),
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL: CaptureRegion
       region_capture_controller_(
           std::make_unique<GlicRegionCaptureController>()),
 #endif
@@ -233,6 +251,10 @@ GlicKeyedService::GlicKeyedService(
         prefs::kGlicCompletedFre,
         static_cast<int>(prefs::FreStatus::kCompleted));
   }
+
+  // Sets up prefs storing manually configured glic guest URLs. Intended for
+  // manual testing only.
+  SetupGuestUrlPresetPrefs(profile_);
 
   // This is only used by automation for tests.
   glic_profile_manager->MaybeAutoOpenGlicPanel();
@@ -506,7 +528,11 @@ bool GlicKeyedService::IsWindowDetached() const {
 }
 
 bool GlicKeyedService::IsWindowOrFreShowing() const {
-  return IsWindowShowing() || fre_controller_->IsShowingDialog();
+  return IsWindowShowing() || IsFreShowing();
+}
+
+bool GlicKeyedService::IsFreShowing() const {
+  return fre_controller_->IsShowingDialog();
 }
 
 base::CallbackListSubscription
@@ -749,7 +775,7 @@ void GlicKeyedService::FinishPreload(GlicPrewarmingChecksResult result) {
   }
 
   if (base::FeatureList::IsEnabled(features::kGlicWebContentsWarming)) {
-    web_contents_warming_pool_->Preload();
+    web_contents_warming_pool_->EnsurePreload();
   } else {
     window_controller().Preload();
   }

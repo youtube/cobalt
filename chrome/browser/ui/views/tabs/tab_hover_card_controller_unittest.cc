@@ -30,7 +30,8 @@ class TabHoverCardControllerTest : public TestWithBrowserView {
   base::test::ScopedFeatureList feature_list_;
 };
 
-TEST_F(TabHoverCardControllerTest, ShowWrongTabDoesntCrash) {
+// TODO(crbug.com/478172976): Fails UBSan because of misaliged pointers
+TEST_F(TabHoverCardControllerTest, DISABLED_ShowWrongTabDoesntCrash) {
   auto controller = std::make_unique<TabHoverCardController>(
       browser_view()->horizontal_tab_strip_for_testing());
   // Create some completely invalid pointer values (these should never be
@@ -179,6 +180,37 @@ TEST_F(TabHoverCardControllerTest, ShowPreviewsForDiscardedTabWithThumbnail) {
   controller->thumbnail_observer_.get()->Observe(image);
 
   EXPECT_NE(controller->thumbnail_observer_.get()->current_image(), nullptr);
+  EXPECT_EQ(controller->thumbnail_wait_state_,
+            TabHoverCardController::kNotWaiting);
+}
+
+TEST_F(TabHoverCardControllerTest, ShowPreviewsForCrashedTab) {
+  g_browser_process->local_state()->SetBoolean(prefs::kHoverCardImagesEnabled,
+                                               true);
+
+  AddTab(browser_view()->browser(), GURL("http://foo1.com"));
+  AddTab(browser_view()->browser(), GURL("http://foo2.com"));
+  browser_view()->browser()->tab_strip_model()->ActivateTabAt(0);
+
+  auto controller = std::make_unique<TabHoverCardController>(
+      browser_view()->horizontal_tab_strip_for_testing());
+
+  Tab* const target_tab =
+      browser_view()->horizontal_tab_strip_for_testing()->tab_at(1);
+  TabRendererData data;
+  data.is_crashed = true;
+  TestThumbnailImageDelegate delegate;
+  auto image = base::MakeRefCounted<ThumbnailImage>(&delegate);
+  data.thumbnail = image;
+  target_tab->SetData(std::move(data));
+  controller->target_tab_ = target_tab;
+
+  controller->CreateHoverCard(target_tab);
+  controller->UpdateCardContent(target_tab);
+
+  // When crashed, we should not observe any thumbnail, even if one exists.
+  EXPECT_EQ(controller->thumbnail_observer_.get()->current_image(), nullptr);
+  // And we should not be waiting for one.
   EXPECT_EQ(controller->thumbnail_wait_state_,
             TabHoverCardController::kNotWaiting);
 }

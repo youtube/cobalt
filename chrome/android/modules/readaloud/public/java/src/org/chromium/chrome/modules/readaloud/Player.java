@@ -8,7 +8,8 @@ import android.app.Activity;
 
 import org.chromium.base.Promise;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.NonNullObservableSupplier;
+import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker;
@@ -42,7 +43,7 @@ public interface Player {
         void setHighlighterMode(@Highlighter.Mode int mode);
 
         /** Returns the supplier for the "highlighting enabled" setting. */
-        ObservableSupplierImpl<Boolean> getHighlightingEnabledSupplier();
+        SettableNonNullObservableSupplier<Boolean> getHighlightingEnabledSupplier();
 
         /** Returns the supplier for the list of voices to show in the voice menu. */
         MonotonicObservableSupplier<List<PlaybackVoice>> getCurrentLanguageVoicesSupplier();
@@ -51,7 +52,7 @@ public interface Player {
         MonotonicObservableSupplier<String> getVoiceIdSupplier();
 
         /** Whether the mode selection is enabled. */
-        MonotonicObservableSupplier<PlaybackModeSelectionEnablementStatus>
+        NonNullObservableSupplier<PlaybackModeSelectionEnablementStatus>
                 getPlaybackModeSelectionEnabled();
 
         /**
@@ -114,7 +115,7 @@ public interface Player {
         /** Negative feedback was triggered by the user. */
         void onNegativeFeedback(NegativeFeedbackReason negativeFeedbackReason);
 
-        MonotonicObservableSupplier<FeedbackType> getFeedbackTypeSupplier();
+        NonNullObservableSupplier<FeedbackType> getFeedbackTypeSupplier();
 
         void moveToPrevious();
 

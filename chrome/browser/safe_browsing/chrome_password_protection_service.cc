@@ -211,7 +211,7 @@ void OpenUrl(content::WebContents* current_web_contents,
 
 int64_t GetNavigationIDFromPrefsByOrigin(PrefService* prefs,
                                          const Origin& origin) {
-  const base::Value::Dict& unhandled_sync_password_reuses =
+  const base::DictValue& unhandled_sync_password_reuses =
       prefs->GetDict(prefs::kSafeBrowsingUnhandledGaiaPasswordReuses);
 
   const base::Value* navigation_id_value =
@@ -1001,7 +1001,7 @@ void ChromePasswordProtectionService::OnGaiaPasswordChanged(
     const std::string& username,
     bool is_other_gaia_password) {
   profile_->GetPrefs()->SetDict(prefs::kSafeBrowsingUnhandledGaiaPasswordReuses,
-                                base::Value::Dict());
+                                base::DictValue());
   if (!is_other_gaia_password)
     MaybeLogPasswordCapture(/*did_log_in=*/true);
   for (auto& observer : observer_list_)
@@ -1485,9 +1485,9 @@ void ChromePasswordProtectionService::MaybeLogPasswordCapture(bool did_log_in) {
 
   // Set a timer to log it again in 24-28 days. Spread it to avoid hammering the
   // backend with fixed cycle after this code lands in Stable.
-  base::TimeDelta delay =
-      base::Days((kPasswordCaptureEventLogFreqDaysMin +
-                  base::RandInt(0, kPasswordCaptureEventLogFreqDaysExtra)));
+  base::TimeDelta delay = base::Days(
+      (kPasswordCaptureEventLogFreqDaysMin +
+       base::RandIntInclusive(0, kPasswordCaptureEventLogFreqDaysExtra)));
   SetLogPasswordCaptureTimer(delay);
 
   // Write the deadline to a pref to carry over restarts.

@@ -333,6 +333,7 @@
 <translation id="2184272387334793084">Sign in to get your passwords and more on all your devices</translation>
 <translation id="2186206192313702726">Google Lens</translation>
 <translation id="2188993354115194873">Tap <ph name="BEGIN_BOLD" />Save to Downloads<ph name="END_BOLD" /></translation>
+<translation id="2191406283620379491">Something went really wrong. Please update your iOS version.</translation>
 <translation id="219283042927675668">Tabs in group</translation>
 <translation id="2194856509914051091">Things to consider</translation>
 <translation id="2196428379625389579">Search on web</translation>
@@ -936,6 +937,7 @@
 <translation id="4565377596337484307">Hide password</translation>
 <translation id="4568230126482344545">Hide Recent tabs</translation>
 <translation id="4578835633387306383">Turn on…</translation>
+<translation id="4580621046861724270">Some bookmarks aren't saved</translation>
 <translation id="4580716718466706433">Go to 'Password Manager'</translation>
 <translation id="4585751637295612750">Open a new tab to add it to your question</translation>
 <translation id="4587589328781138893">Sites</translation>
@@ -1019,6 +1021,7 @@
 <translation id="483689884442613745">Save…</translation>
 <translation id="4840495572919996524">Your bookmarks, history, passwords and more will no longer be synced to your Google Account.</translation>
 <translation id="484280513275854557">You were signed out; browsing data was deleted</translation>
+<translation id="484462545196658690">Auto</translation>
 <translation id="4850886885716139402">View</translation>
 <translation id="4854068532375923088">Allow 'Gemini' to use your camera</translation>
 <translation id="4860895144060829044">Call</translation>
@@ -1163,6 +1166,7 @@
 <translation id="5318298563956633672">You're already tracking this product.</translation>
 <translation id="5327248766486351172">Name</translation>
 <translation id="5329451663851195956">You can pull down to refresh.</translation>
+<translation id="5336910966955551309">Tap and hold to pin your favourite sites</translation>
 <translation id="5338512273860059533">Sign-in in progress.</translation>
 <translation id="5343472494710226394">News, sports and content based on your interests.</translation>
 <translation id="5352128922772839949">Save file</translation>
@@ -1519,6 +1523,7 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="6556866813142980365">Redo</translation>
 <translation id="6559301491397835130">{count,plural, =1{Bookmark saved to ‘{title}’. It is saved only to this device.}other{Bookmarks saved to ‘{title}’. They are only saved to this device.}}</translation>
 <translation id="656065428026159829">See more</translation>
+<translation id="6565899972286925956">Create anything</translation>
 <translation id="6571070086367343653">Edit credit card</translation>
 <translation id="6574092468346088891">Turn on notifications for Safety Check</translation>
 <translation id="6579867704846662339">You can choose to open incoming URLs from other apps in Incognito mode.</translation>
@@ -1897,6 +1902,7 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="7958575506592576831">Page security info</translation>
 <translation id="7961015016161918242">Never</translation>
 <translation id="7971136598759319605">Active 1 day ago</translation>
+<translation id="7972837668077967426">Canvas</translation>
 <translation id="7975036700432177008">Try</translation>
 <translation id="797588153137233716">Menu → History → Delete browsing data</translation>
 <translation id="7977451675950311423">Warns you if you use a password that has been compromised in a data breach.</translation>
@@ -2004,6 +2010,7 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="8319282042900445670">Reminder set for <ph name="TIME" />, <ph name="DATE" /></translation>
 <translation id="8320212361750431956">Recent activity</translation>
 <translation id="8325455175867928593">Hide 'Reviews based on your interests'</translation>
+<translation id="8328777765163860529">Close All</translation>
 <translation id="833647236762414178">Create, save and manage your passwords and passkeys to easily sign in to sites and apps. <ph name="BEGIN_LINK" />Learn more<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">Back up your stuff and use it on any device.</translation>
 <translation id="8348530355586151720">Tap the three-dot menu</translation>

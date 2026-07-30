@@ -32,7 +32,7 @@
 }
 
 :host([searchbox-chrome-refresh-theming][dropdown-is-visible]) {
-  --cr-searchbox-shadow: 0 0 12px 4px var(--color-searchbox-shadow)
+  --cr-searchbox-shadow: 0 0 12px 4px var(--color-searchbox-shadow);
 }
 
 :host([searchbox-chrome-refresh-theming]:not([searchbox-steady-state-shadow]):not([dropdown-is-visible])) {
@@ -110,6 +110,11 @@
 
 :host([ntp-realbox-next-enabled]) .contextualEntrypointContainer {
   overflow: visible;
+  left: unset;
+  position: relative;
+  right: unset;
+  top: unset;
+  width: 100%;
 }
 
 :host([is-lens-searchbox_]) #inputWrapper {
@@ -164,7 +169,7 @@
 
 :host([searchbox-chrome-refresh-theming]) :is(input, textarea)::selection {
   background-color: var(--color-searchbox-selection-background);
-  color: var(--color-searchbox-selection-foreground)
+  color: var(--color-searchbox-selection-foreground);
 }
 
 input::-webkit-search-decoration,
@@ -225,7 +230,6 @@ cr-searchbox-icon {
 
 @media (forced-colors: active) {
   cr-searchbox-icon {
-    background-color: Highlight;
     border-radius: 4px;
   }
 }
@@ -383,7 +387,7 @@ cr-searchbox-dropdown::part(dropdown-content) {
   --cr-icon-button-size: 36px;
 }
 
-:host([ntp-realbox-next-enabled]:not([context-menu-glif-animation-state="ineligible"])) contextual-entrypoint-and-carousel::part(context-menu-entrypoint-icon) {
+:host([ntp-realbox-next-enabled]:not([context-menu-glif-animation-state='ineligible'])) contextual-entrypoint-and-carousel::part(context-menu-entrypoint-icon) {
   /* Account for the margin of the glow container */
   --cr-icon-button-margin-start: 0px;
 }
@@ -405,7 +409,7 @@ cr-searchbox-dropdown::part(dropdown-content) {
   z-index: 100;
 }
 
-:host-context([ntp-realbox-next-enabled][context-menu-glif-animation-state="ineligible"]) contextual-entrypoint-and-carousel::part(composebox-entrypoint) {
+:host-context([ntp-realbox-next-enabled][context-menu-glif-animation-state='ineligible']) contextual-entrypoint-and-carousel::part(composebox-entrypoint) {
   padding-inline-end: 14px;
 }
 
@@ -452,16 +456,8 @@ cr-searchbox-dropdown::part(dropdown-content) {
   width: 100%;
 }
 
-:host([ntp-realbox-next-enabled]) .contextualEntrypointContainer {
-  left: unset;
-  position: relative;
-  right: unset;
-  top: unset;
-  width: 100%;
-}
-
 :host([ntp-realbox-next-enabled][dropdown-is-visible]),
-:host([ntp-realbox-next-enabled]:not([context-files-count_="0"])) {
+:host([ntp-realbox-next-enabled]:not([context-files-count_='0'])) {
   box-shadow: none;
 }
 
@@ -491,8 +487,7 @@ cr-searchbox-dropdown::part(dropdown-content) {
 }
 
 @media (forced-colors: active) {
-  :host([searchbox-layout-mode^='Tall']) .dropdownContainer,
-  :host([searchbox-layout-mode^='Tall']) .contextualEntrypointContainer {
+  :host([searchbox-layout-mode^='Tall']) .dropdownContainer {
     border: 1px solid ActiveBorder;
   }
 }
@@ -535,6 +530,8 @@ cr-searchbox-dropdown::part(dropdown-content) {
   --cr-searchbox-dropdown-padding-bottom: 10px;
   --cr-searchbox-dropdown-padding-top: 10px;
   --cr-searchbox-height: 56px;
+  /* Used in search-animated-glow-element. */
+  --search-animated-glow-drag-drop-placeholder-top: 16px;
 }
 
 :host([searchbox-layout-mode='Compact']) cr-searchbox-icon {
@@ -580,11 +577,6 @@ cr-searchbox-dropdown::part(dropdown-content) {
   margin-inline-end: calc(var(--cr-compose-button-width));
   margin-inline-start: auto;
   z-index: 100;
-}
-
-:host([searchbox-layout-mode="Compact"]) {
-  /* Used in search-animated-glow-element. */
-  --search-animated-glow-drag-drop-placeholder-top: 16px;
 }
 
 :host([ntp-realbox-next-enabled][is-dragging-file]) {

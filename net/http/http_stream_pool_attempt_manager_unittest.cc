@@ -2764,6 +2764,9 @@ TEST_F(HttpStreamPoolAttemptManagerTest, SpdyOk) {
 }
 
 TEST_F(HttpStreamPoolAttemptManagerTest, SpdyCreateSessionFail) {
+  // Only allow one socket per group to make the second request pending.
+  pool().set_max_stream_sockets_per_group_for_testing(1);
+
   base::WeakPtr<FakeServiceEndpointRequest> endpoint_request =
       resolver()->AddFakeRequest();
 
@@ -2777,15 +2780,25 @@ TEST_F(HttpStreamPoolAttemptManagerTest, SpdyCreateSessionFail) {
   ssl->peer_application_settings = "invalid alps";
   socket_factory()->AddSSLSocketDataProvider(ssl.get());
 
-  StreamRequester requester;
-  requester.set_destination("https://a.test").RequestStream(pool());
+  std::array<StreamRequester, 2> requesters;
+  for (auto& requester : requesters) {
+    requester.set_destination("https://a.test").RequestStream(pool());
+  }
 
   endpoint_request
-      ->add_endpoint(ServiceEndpointBuilder().add_v4("192.0.2.1").endpoint())
+      ->add_endpoint(ServiceEndpointBuilder()
+                         .add_v4("192.0.2.1")
+                         .add_v4("192.0.2.2")
+                         .endpoint())
       .CallOnServiceEndpointRequestFinished(OK);
-  RunUntilIdle();
 
-  EXPECT_THAT(requester.result(), Optional(IsError(ERR_HTTP2_PROTOCOL_ERROR)));
+  // We treat SpdySession creation failure as a fatal error so all requests
+  // should fail.
+  for (auto& requester : requesters) {
+    requester.WaitForResult();
+    EXPECT_THAT(requester.result(),
+                Optional(IsError(ERR_HTTP2_PROTOCOL_ERROR)));
+  }
 }
 
 TEST_F(HttpStreamPoolAttemptManagerTest, DoNotUseSpdySessionForHttpRequest) {
@@ -3781,7 +3794,8 @@ TEST_F(HttpStreamPoolAttemptManagerTest, PreconnectSlow) {
   socket_factory()->AddSocketDataProvider(&data1);
   // Second attempt succeeds.
   SequencedSocketData data2;
-  data2.set_connect_data(MockConnect(ASYNC, OK));
+  MockConnectCompleter connect_completer2;
+  data2.set_connect_data(MockConnect(&connect_completer2));
   socket_factory()->AddSocketDataProvider(&data2);
 
   int rv = preconnector.Preconnect(pool());
@@ -3793,7 +3807,20 @@ TEST_F(HttpStreamPoolAttemptManagerTest, PreconnectSlow) {
                          .add_v4("192.0.2.1")
                          .endpoint())
       .CallOnServiceEndpointRequestFinished(OK);
+  ASSERT_EQ(pool()
+                .GetGroupForTesting(preconnector.GetStreamKey())
+                ->attempt_manager()
+                ->TotalTcpBasedAttemptCount(),
+            1u);
 
+  FastForwardBy(HttpStreamPool::GetConnectionAttemptDelay());
+  ASSERT_EQ(pool()
+                .GetGroupForTesting(preconnector.GetStreamKey())
+                ->attempt_manager()
+                ->TotalTcpBasedAttemptCount(),
+            2u);
+
+  connect_completer2.Complete(OK);
   preconnector.WaitForResult();
   EXPECT_THAT(*preconnector.result(), IsOk());
 }
@@ -4645,16 +4672,44 @@ TEST_F(HttpStreamPoolAttemptManagerTest, HavingSpdySessionIsNotStalled) {
 // Tests that when an AttemptManager only allows QUIC, it's not treated as being
 // stalled on the TCP limit, even after the slow timer triggers.
 TEST_F(HttpStreamPoolAttemptManagerTest, QuicOnlyIsNotStalled) {
-  // Requests gets an IP address instantly, but stalls waiting for the HTTPS
-  // record.
-  resolver()->AddFakeRequest()->add_endpoint(
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(net::features::kAsyncQuicSession);
+
+  const url::SchemeHostPort destination{GURL(kDefaultDestination)};
+
+  // Manually injecting this ensures the AttemptManager treats the request
+  // as QUIC-only without relying on specific trigger logic like HTTPS fetching.
+  http_server_properties()->SetAlternativeServices(
+      destination, NetworkAnonymizationKey(),
+      {AlternativeServiceInfo::CreateQuicAlternativeServiceInfo(
+          AlternativeService(NextProto::kProtoQUIC, destination.host(), 443),
+          base::Time::Max(), {quic_version()})});
+
+  // Use MockConnectCompleter to stall the QUIC connection attempt.
+  // This ensures we reach the "active job" state without completing it.
+  MockConnectCompleter completer;
+  MockQuicData data(quic_version());
+  // The completer forces the Connect job to return ERR_IO_PENDING and wait.
+  data.AddConnect(&completer);
+  data.AddSocketDataToFactory(socket_factory());
+
+  // Have to provide IP addresses. If don't, IsStalledByPoolLimit() returns
+  // false immediately (due to !HasIpAddresses()), bypassing the logic want
+  // to test.
+  base::WeakPtr<FakeServiceEndpointRequest> endpoint_request =
+      resolver()->AddFakeRequest();
+  endpoint_request->add_endpoint(
       ServiceEndpointBuilder().add_v4("192.0.2.1").endpoint());
 
   StreamRequester requester;
-  requester.set_destination(kDefaultDestination)
+  requester.set_destination(destination)
       .set_allowed_alpns(HttpStreamPool::kQuicBasedProtocols)
       .set_quic_version(quic_version())
       .RequestStream(pool());
+
+  // Ensure DNS resolution completes and the connection attempt starts (and
+  // stalls).
+  endpoint_request->CallOnServiceEndpointRequestFinished(OK);
 
   // Stream should not be considered stalled after starting.
   EXPECT_FALSE(requester.result());
@@ -4663,8 +4718,8 @@ TEST_F(HttpStreamPoolAttemptManagerTest, QuicOnlyIsNotStalled) {
                    ->GetPriorityIfStalledByPoolLimit()
                    .has_value());
 
-  // Group is should still not be considered stalled after the TCP/IP timer
-  // expires, though the timer shouldn't actually even be started, in this case.
+  // Group should still not be considered stalled after the TCP/IP timer
+  // expires.
   FastForwardBy(quic_session_pool()->GetTimeDelayForWaitingJob(
       requester.GetStreamKey().CalculateQuicSessionAliasKey().session_key()));
   EXPECT_FALSE(requester.result());
@@ -5071,6 +5126,93 @@ TEST_F(HttpStreamPoolAttemptManagerTest, QuicFailNoRemainingJobs) {
   EXPECT_FALSE(pool().GetGroupForTesting(requester.GetStreamKey()));
 }
 
+// Test the case where a QUIC attempt initially fails, but then an existing
+// matching QUIC session is found, when a AAAA record trickles in.
+TEST_F(HttpStreamPoolAttemptManagerTest, QuicFailThenFindMatchingSession) {
+  constexpr std::string_view kAltDestination = "https://alt.example.org";
+  const IPEndPoint kCommonEndPoint = MakeIPEndPoint("2001:db8::1", 443);
+
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(net::features::kAsyncQuicSession);
+
+  // Set up an alt-service QUIC session to kCommonEndPoint.
+
+  AddQuicData();
+
+  // Make the TCP attempt stalled forever.
+  SequencedSocketData tcp_data;
+  tcp_data.set_connect_data(MockConnect(SYNCHRONOUS, ERR_IO_PENDING));
+  socket_factory()->AddSocketDataProvider(&tcp_data);
+
+  resolver()
+      ->AddFakeRequest()
+      ->add_endpoint(
+          ServiceEndpointBuilder().add_ip_endpoint(kCommonEndPoint).endpoint())
+      .CompleteStartSynchronously(OK);
+
+  StreamRequester requester1;
+  requester1.set_destination(kDefaultDestination)
+      .set_quic_version(quic_version())
+      .RequestStream(pool());
+  EXPECT_THAT(requester1.WaitForResult(), IsOk());
+  EXPECT_EQ(requester1.negotiated_protocol(), NextProto::kProtoQUIC);
+
+  // Set up another request that gets a QUIC HTTPS DNS record, the QUIC
+  // connection to which fails, but then later gets a AAAA record that allows
+  // reusing the initial QUIC session.
+
+  MockConnectCompleter quic_completer;
+  MockQuicData quic_data(quic_version());
+  quic_data.AddConnect(&quic_completer);
+  quic_data.AddSocketDataToFactory(socket_factory());
+
+  base::WeakPtr<FakeServiceEndpointRequest> endpoint_request2 =
+      resolver()->AddFakeRequest();
+
+  StreamRequester requester2;
+  requester2.set_destination(kAltDestination)
+      .set_quic_version(quic_version())
+      .RequestStream(pool());
+  ASSERT_FALSE(requester2.result().has_value());
+
+  // HTTPS record received.
+  endpoint_request2
+      ->add_endpoint(ServiceEndpointBuilder()
+                         .add_v4("127.0.0.1")
+                         .set_alpn(quic_version())
+                         .endpoint())
+      .set_crypto_ready(true)
+      .CallOnServiceEndpointsUpdated();
+
+  // QUIC attempt fails.
+  quic_completer.WaitForConnectAndComplete(ERR_CONNECTION_REFUSED);
+  // Run all PostTasks, except delayed ones/timers. This is so that the QUIC
+  // layer can process all tasks related to the network error, and pass the
+  // error up to the AttemptManager.
+  FastForwardBy(base::Milliseconds(1));
+  ASSERT_FALSE(requester2.result().has_value());
+
+  // AAAA record received, which allows aliasing to the QUIC session created by
+  // the initial request.
+  endpoint_request2
+      ->add_endpoint(
+          ServiceEndpointBuilder().add_ip_endpoint(kCommonEndPoint).endpoint())
+      .CallOnServiceEndpointRequestFinished(OK);
+
+  EXPECT_THAT(requester2.WaitForResult(), IsOk());
+  EXPECT_EQ(requester2.negotiated_protocol(), NextProto::kProtoQUIC);
+
+  // Check that both QUIC keys correspond to the same session.
+  QuicSessionAliasKey quic_key1 =
+      requester1.GetStreamKey().CalculateQuicSessionAliasKey();
+  QuicSessionAliasKey quic_key2 =
+      requester2.GetStreamKey().CalculateQuicSessionAliasKey();
+  ASSERT_EQ(quic_session_pool()->FindExistingSession(quic_key1.session_key(),
+                                                     quic_key1.destination()),
+            quic_session_pool()->FindExistingSession(quic_key2.session_key(),
+                                                     quic_key2.destination()));
+}
+
 TEST_F(HttpStreamPoolAttemptManagerTest, QuicFailNonBrokenErrors) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(net::features::kAsyncQuicSession);
@@ -5209,12 +5351,12 @@ TEST_F(HttpStreamPoolAttemptManagerTest, AlternativeSerivcesDisabled) {
       .set_enable_alternative_services(false)
       .RequestStream(pool());
   base::RunLoop on_complete_loop;
-  // Make sure that QUIC was never attempted.
+  // Make sure that QUIC was never attempted and the result sets aborted.
   requester.associated_attempt_manager()->SetOnCompleteCallbackForTesting(
       base::BindLambdaForTesting([&]() {
-        EXPECT_FALSE(requester.associated_attempt_manager()
-                         ->GetQuicAttemptResultForTesting()
-                         .has_value());
+        EXPECT_THAT(requester.associated_attempt_manager()
+                        ->GetQuicAttemptResultForTesting(),
+                    Optional(IsError(ERR_ABORTED)));
         on_complete_loop.Quit();
       }));
   requester.WaitForResult();
@@ -6284,7 +6426,7 @@ TEST_F(HttpStreamPoolAttemptManagerTest, GetInfoAsValue) {
 
   requester_b.RequestStream(pool());
 
-  base::Value::Dict info = pool().GetInfoAsValue();
+  base::DictValue info = pool().GetInfoAsValue();
   EXPECT_THAT(info.FindInt("idle_socket_count"), Optional(1));
   EXPECT_THAT(info.FindInt("connecting_socket_count"), Optional(1));
   EXPECT_THAT(info.FindInt("max_socket_count"),
@@ -6292,16 +6434,16 @@ TEST_F(HttpStreamPoolAttemptManagerTest, GetInfoAsValue) {
   EXPECT_THAT(info.FindInt("max_sockets_per_group"),
               Optional(pool().max_stream_sockets_per_group()));
 
-  base::Value::Dict* groups_info = info.FindDict("groups");
+  base::DictValue* groups_info = info.FindDict("groups");
   ASSERT_TRUE(groups_info);
 
-  base::Value::Dict* info_a =
+  base::DictValue* info_a =
       groups_info->FindDict(requester_a.GetStreamKey().ToString());
   ASSERT_TRUE(info_a);
   EXPECT_THAT(info_a->FindInt("active_socket_count"), Optional(1));
   EXPECT_THAT(info_a->FindInt("idle_socket_count"), Optional(1));
 
-  base::Value::Dict* info_b =
+  base::DictValue* info_b =
       groups_info->FindDict(requester_b.GetStreamKey().ToString());
   ASSERT_TRUE(info_b);
   EXPECT_THAT(info_b->FindInt("active_socket_count"), Optional(1));

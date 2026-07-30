@@ -28,7 +28,8 @@ import org.chromium.base.ContextUtils;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.EnsuresNonNull;
@@ -68,6 +69,7 @@ import org.chromium.chrome.browser.sync.settings.SyncSettingsUtils;
 import org.chromium.chrome.browser.toolbar.settings.AddressBarPreference;
 import org.chromium.chrome.browser.toolbar.settings.AddressBarSettingsFragment;
 import org.chromium.chrome.browser.tracing.settings.DeveloperSettings;
+import org.chromium.chrome.browser.ui.default_browser_promo.DefaultBrowserPromoUtils;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.settings_promo_card.SettingsPromoCardPreference;
 import org.chromium.chrome.browser.ui.signin.SignOutCoordinator;
@@ -130,11 +132,13 @@ public class MainSettings extends ChromeBaseSettingsFragment
     public static final String PREF_SAFETY_HUB = "safety_hub";
     public static final String PREF_ADDRESS_BAR = "address_bar";
     public static final String PREF_APPEARANCE = "appearance";
+    public static final String PREF_DEFAULT_BROWSER = "default_browser";
+
     @VisibleForTesting static final int NEW_LABEL_MAX_VIEW_COUNT = 6;
 
     // Tag for Fragment backstack entry loading the search results into the display fragment.
     // Popping the entry means we are transitioning from result -> search state.
-    public static final String FRAGMENT_TAG_RESULT = "enter_result_settings";
+    public static final String RESULT_BACKSTACK = "enter_result_settings";
 
     public interface Observer {
         /** Called when a preference item is selected. */
@@ -150,7 +154,8 @@ public class MainSettings extends ChromeBaseSettingsFragment
     // Will be true if `onSignedOut()` was called when the current activity state is not
     // `Lifecycle.State.STARTED`.
     private boolean mShouldShowSnackbar;
-    private final ObservableSupplierImpl<String> mPageTitle = new ObservableSupplierImpl<>();
+    private final SettableMonotonicObservableSupplier<String> mPageTitle =
+            ObservableSuppliers.createMonotonic();
     private SettingsCustomTabLauncher mSettingsCustomTabLauncher;
 
     private @Nullable MultiColumnSettings mMultiColumnSettings;
@@ -504,6 +509,22 @@ public class MainSettings extends ChromeBaseSettingsFragment
             findPreference(PREF_GOOGLE_SERVICES)
                     .setIcon(R.drawable.ic_google_services_48dp_with_bg_containment);
         }
+
+        if (shouldShowDefaultBrowserSetting()) {
+            Preference pref = addPreferenceIfAbsent(PREF_DEFAULT_BROWSER);
+
+            pref.setOnPreferenceClickListener(
+                    preference -> {
+                        // We decided not to show the Role Model Dialog at all when the menu item in
+                        // Settings is clicked.
+                        DefaultBrowserPromoUtils.getInstance()
+                                .onMenuItemClick(getActivity(), /* windowAndroid= */ null);
+                        return true;
+                    });
+        } else {
+            removePreferenceIfPresent(PREF_DEFAULT_BROWSER);
+        }
+
         notifyPreferencesUpdated();
     }
 
@@ -511,6 +532,10 @@ public class MainSettings extends ChromeBaseSettingsFragment
         SigninManager signinManager = IdentityServicesProvider.get().getSigninManager(profile);
         assumeNonNull(signinManager);
         return signinManager.isSigninSupported(/* requireUpdatedPlayServices= */ false);
+    }
+
+    private static boolean shouldShowDefaultBrowserSetting() {
+        return ChromeFeatureList.sDefaultBrowserPromoEntryPoint.isEnabled();
     }
 
     private static boolean shouldShowDeveloperSettings() {
@@ -670,7 +695,7 @@ public class MainSettings extends ChromeBaseSettingsFragment
             // Open an external activity. Keep the state as is.
             return false;
         } else if (key.equals(PREF_MANAGE_SYNC)) {
-            openManageSyncPref(context, profile, true, FRAGMENT_TAG_RESULT);
+            openManageSyncPref(context, profile, true, RESULT_BACKSTACK);
             return true;
         } else if (key.equals(PREF_NOTIFICATIONS)) {
             Intent intent = new Intent();
@@ -980,11 +1005,18 @@ public class MainSettings extends ChromeBaseSettingsFragment
                     if (!shouldShowSafetyHubPref()) {
                         indexData.removeEntry(getUniqueId(PREF_SAFETY_HUB));
                     }
-                    if (!shouldShowSignInPref(profile)) {
+                    if (!shouldShowSignInPref(profile) || !SignInPreference.isSignedIn(profile)) {
                         indexData.removeEntry(getUniqueId(PREF_SIGN_IN));
+                    } else {
+                        indexData.addChildParentLink(
+                                SignInPreference.getOpenFragmentName(profile),
+                                getUniqueId(PREF_SIGN_IN));
                     }
                     if (!shouldShowDeveloperSettings()) {
                         indexData.removeEntry(getUniqueId(PREF_DEVELOPER));
+                    }
+                    if (!shouldShowDefaultBrowserSetting()) {
+                        indexData.removeEntry(getUniqueId(PREF_DEFAULT_BROWSER));
                     }
                 }
             };

@@ -52,9 +52,9 @@ import org.chromium.base.CallbackUtils;
 import org.chromium.base.Token;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplierImpl;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -69,6 +69,7 @@ import org.chromium.chrome.browser.hub.FullButtonData;
 import org.chromium.chrome.browser.hub.HubContainerView;
 import org.chromium.chrome.browser.hub.HubLayoutAnimationListener;
 import org.chromium.chrome.browser.hub.HubLayoutAnimationType;
+import org.chromium.chrome.browser.hub.HubUtils;
 import org.chromium.chrome.browser.hub.LoadHint;
 import org.chromium.chrome.browser.hub.PaneHubController;
 import org.chromium.chrome.browser.hub.PaneId;
@@ -175,7 +176,7 @@ public class TabSwitcherPaneUnitTest {
     @Mock private BottomSheetController mMockBottomSheetController;
     @Mock private TabArchiveSettings mMockTabArchiveSettings;
 
-    @Captor private ArgumentCaptor<MonotonicObservableSupplier<Boolean>> mIsAnimatingSupplierCaptor;
+    @Captor private ArgumentCaptor<NonNullObservableSupplier<Boolean>> mIsAnimatingSupplierCaptor;
 
     @Captor
     private ArgumentCaptor<OnSharedPreferenceChangeListener> mPriceAnnotationsPrefListenerCaptor;
@@ -194,12 +195,12 @@ public class TabSwitcherPaneUnitTest {
             ObservableSuppliers.createNonNull(false);
     private final OneshotSupplierImpl<MonotonicObservableSupplier<Boolean>>
             mIsScrollingSupplierSupplier = new OneshotSupplierImpl<>();
-    private final ObservableSupplierImpl<EdgeToEdgeController> mEdgeToEdgeSupplier =
-            new ObservableSupplierImpl<>();
-    private final ObservableSupplierImpl<CompositorViewHolder> mCompositorViewHolderSupplier =
-            new ObservableSupplierImpl<>();
-    private final ObservableSupplierImpl<Integer> mMockArchivedTabCountSupplier =
-            new ObservableSupplierImpl<>();
+    private final SettableMonotonicObservableSupplier<EdgeToEdgeController> mEdgeToEdgeSupplier =
+            ObservableSuppliers.createMonotonic();
+    private final SettableMonotonicObservableSupplier<CompositorViewHolder>
+            mCompositorViewHolderSupplier = ObservableSuppliers.createMonotonic();
+    private final SettableNonNullObservableSupplier<Integer> mMockArchivedTabCountSupplier =
+            ObservableSuppliers.createNonNull(0);
     private ArchivedTabsAutoDeletePromoManager mMockArchivedTabsAutoDeletePromoManager;
     private TabSwitcherPane mTabSwitcherPane;
     private MockTabModel mTabModel;
@@ -1377,5 +1378,18 @@ public class TabSwitcherPaneUnitTest {
     private void createSelectedTab() {
         mTabModel.addTab(TAB_ID);
         mTabModel.setIndex(0, TabSelectionType.FROM_USER);
+    }
+
+    @Test
+    public void testSetPaneHubController_SearchBoxVisibility() {
+        HubUtils.setIsTabletForTesting(false);
+
+        mTabSwitcherPane.setPaneHubController(mPaneHubController);
+        assertTrue(mTabSwitcherPane.getHubSearchBoxVisibilitySupplier().get());
+        mTabSwitcherPane.setPaneHubController(null);
+
+        HubUtils.setIsTabletForTesting(true);
+        mTabSwitcherPane.setPaneHubController(mPaneHubController);
+        assertFalse(mTabSwitcherPane.getHubSearchBoxVisibilitySupplier().get());
     }
 }

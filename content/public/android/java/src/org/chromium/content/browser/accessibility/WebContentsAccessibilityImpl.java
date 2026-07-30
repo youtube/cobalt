@@ -233,6 +233,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
     // This array maps a given virtualViewId to an |AccessibilityNodeInfoCompat| for that view. We
     // use this to update a node quickly rather than building from one scratch each time.
     private final SparseArray<AccessibilityNodeInfoCompat> mNodeInfoCache = new SparseArray<>();
+    private final SparseArray<Rect> mOccludingRects = new SparseArray<>();
 
     // This handles the dispatching of accessibility events. It acts as an intermediary where we can
     // apply throttling rules, delay event construction, etc.
@@ -351,6 +352,11 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
                             @Override
                             public AccessibilityCoordinates getAccessibilityCoordinates() {
                                 return mDelegate.getAccessibilityCoordinates();
+                            }
+
+                            @Override
+                            public SparseArray<Rect> getOccludingRects() {
+                                return mOccludingRects;
                             }
                         });
 
@@ -1173,6 +1179,16 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         sendAccessibilityEvent(View.NO_ID, AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);
     }
 
+    @Override
+    public void setOccludingRect(@Nullable Rect rect, int viewId) {
+        if (rect != null) {
+            mOccludingRects.put(viewId, rect);
+        } else {
+            mOccludingRects.remove(viewId);
+        }
+        sendAccessibilityEvent(View.NO_ID, AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);
+    }
+
     private boolean shouldPreventNativeEngineUse() {
         return mIsObscuredByAnotherView != null && mIsObscuredByAnotherView;
     }
@@ -1474,7 +1490,13 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
             if (delegate == null || !delegate.isActionSetExtendedSelectionSupported()) {
                 return false;
             }
-            if (arguments == null) return false;
+            // TODO(crbug.com/443078007): Add tests for this case and below.
+            if (arguments == null) {
+                // Per API specification, clear selection if no argument is provided.
+                WebContentsAccessibilityImplJni.get()
+                        .clearExtendedSelection(mNativeObj, virtualViewId);
+                return true;
+            }
 
             // Since `delegate.isActionSetExtendedSelectionSupported()` is true, extended
             // selection should be readable and hence a null value for start node means

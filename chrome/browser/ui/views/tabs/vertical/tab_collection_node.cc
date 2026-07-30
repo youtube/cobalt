@@ -150,6 +150,31 @@ std::unique_ptr<views::View> TabCollectionNode::Initialize() {
   return node_view;
 }
 
+void TabCollectionNode::Deinitialize() {
+  if (std::holds_alternative<const tabs::TabCollection*>(node_data_)) {
+    const tabs::TabCollection* collection =
+        std::get<const tabs::TabCollection*>(node_data_);
+    for (const auto& child_data : collection->GetChildren()) {
+      tabs::TabCollectionNodeHandle child_handle;
+      if (std::holds_alternative<std::unique_ptr<tabs::TabCollection>>(
+              child_data)) {
+        child_handle =
+            std::get<std::unique_ptr<tabs::TabCollection>>(child_data)
+                ->GetHandle();
+      } else {
+        CHECK(std::holds_alternative<std::unique_ptr<tabs::TabInterface>>(
+            child_data));
+        child_handle = std::get<std::unique_ptr<tabs::TabInterface>>(child_data)
+                           ->GetHandle();
+      }
+      RemoveChild(GetPassKey(), child_handle,
+                  /*perform_deinitialization=*/true);
+    }
+  } else {
+    CHECK(std::holds_alternative<const tabs::TabInterface*>(node_data_));
+  }
+}
+
 // TODO(crbug.com/450976282): Consider having a map at the root level.
 TabCollectionNode* TabCollectionNode::GetNodeForHandle(
     const tabs::TabCollectionNodeHandle& handle) {
@@ -168,6 +193,12 @@ TabCollectionNode* TabCollectionNode::GetNodeForHandle(
 
 TabCollectionNode* TabCollectionNode::GetParentNodeForHandle(
     const tabs::TabCollectionNodeHandle& handle) {
+  return const_cast<TabCollectionNode*>(
+      std::as_const(*this).GetParentNodeForHandle(handle));
+}
+
+const TabCollectionNode* TabCollectionNode::GetParentNodeForHandle(
+    const tabs::TabCollectionNodeHandle& handle) const {
   for (auto& child_node : children_) {
     if (child_node->GetHandle() == handle) {
       return this;
@@ -182,6 +213,16 @@ TabCollectionNode* TabCollectionNode::GetParentNodeForHandle(
   }
 
   return nullptr;
+}
+
+TabCollectionNode* TabCollectionNode::GetChildNodeOfType(const Type type) {
+  if (type_ == type) {
+    return this;
+  }
+
+  const auto it = std::ranges::find_if(
+      children_, [type](const auto& child) { return child->type() == type; });
+  return it != children_.end() ? it->get() : nullptr;
 }
 
 void TabCollectionNode::AddNewChild(base::PassKey<TabCollectionNode> pass_key,
@@ -208,14 +249,18 @@ void TabCollectionNode::AddNewChild(base::PassKey<TabCollectionNode> pass_key,
   EnsureFocusOrder(model_index);
 }
 
-void TabCollectionNode::RemoveChild(
-    base::PassKey<TabCollectionNode> pass_key,
-    const tabs::TabCollectionNodeHandle& handle) {
+void TabCollectionNode::RemoveChild(base::PassKey<TabCollectionNode> pass_key,
+                                    const tabs::TabCollectionNodeHandle& handle,
+                                    bool perform_deinitialization) {
   for (auto it = children_.begin(); it != children_.end(); ++it) {
     TabCollectionNode* child_node = it->get();
 
     if (child_node->GetHandle() != handle) {
       continue;
+    }
+
+    if (perform_deinitialization) {
+      child_node->Deinitialize();
     }
 
     views::View* node_to_remove = child_node->node_view_;

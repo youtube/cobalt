@@ -86,11 +86,10 @@ class DomStorageDatabase {
   // Maps without sessions are not in use. They can be deleted.
   class MapLocator {
    public:
-    MapLocator(std::string source_session_id,
-               blink::StorageKey source_storage_key);
-    MapLocator(std::string source_session_id,
-               blink::StorageKey source_storage_key,
-               int64_t source_map_id);
+    MapLocator(std::string session_id, blink::StorageKey storage_key);
+    MapLocator(std::string session_id,
+               blink::StorageKey storage_key,
+               int64_t map_id);
     ~MapLocator();
 
     MapLocator(MapLocator&&);
@@ -345,7 +344,9 @@ class DomStorageDatabaseFactory {
 
  private:
   friend class LocalStorageLevelDBTest;
+  friend class LocalStorageSqliteTest;
   friend class SessionStorageLevelDBTest;
+  friend class SessionStorageSqliteTest;
 
   // `Open()` uses this function to asynchronously create a
   // `base::SequenceBound<DomStorageDatabase>`. The `TDatabase` template

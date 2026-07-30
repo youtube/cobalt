@@ -218,6 +218,8 @@ class ReadAnythingAppControllerTest : public ChromeRenderViewTest {
     return controller_->read_aloud_model_;
   }
 
+  void Distill() { controller_->Distill(); }
+
   void SendBatchUpdates() {
     std::vector<ui::AXTreeUpdate> batch_updates;
     for (int i = 2; i < 5; i++) {
@@ -995,9 +997,9 @@ TEST_F(ReadAnythingAppControllerTest,
   double speech_rate = 1.5;
   std::string voice_value = "Italian voice 3";
   std::string language_value = "it";
-  base::Value::Dict voices = base::Value::Dict();
+  base::DictValue voices = base::DictValue();
   voices.Set(language_value, voice_value);
-  base::Value::List languages_enabled_in_pref = base::Value::List();
+  base::ListValue languages_enabled_in_pref = base::ListValue();
   languages_enabled_in_pref.Append(language_value);
   auto highlight_granularity =
       read_anything::mojom::HighlightGranularity::kDefaultValue;
@@ -1207,9 +1209,9 @@ TEST_F(ReadAnythingAppControllerTest, OnSettingsRestoredFromPrefs) {
   double speech_rate = 1.5;
   std::string voice_value = "Italian voice 3";
   std::string language_value = "it";
-  base::Value::Dict voices = base::Value::Dict();
+  base::DictValue voices = base::DictValue();
   voices.Set(language_value, voice_value);
-  base::Value::List languages_enabled_in_pref = base::Value::List();
+  base::ListValue languages_enabled_in_pref = base::ListValue();
   languages_enabled_in_pref.Append(language_value);
   auto highlight_granularity =
       read_anything::mojom::HighlightGranularity::kDefaultValue;
@@ -2320,15 +2322,10 @@ TEST_F(ReadAnythingAppControllerTest,
   EXPECT_EQ(u"23456", controller().GetTextContent(1));
   Mock::VerifyAndClearExpectations(distiller_);
 
-  // Speech stops. We request distillation (deferred from above)
+  // Speech stops. We request distillation (deferred from above).
+  // The queued up tree updates ProcessPendingUpdatesIfAllowed immediately.
   EXPECT_CALL(*distiller_, Distill).Times(1);
   controller().OnIsSpeechActiveChanged(/*is_speech_active=*/false);
-  EXPECT_EQ(u"23456", controller().GetTextContent(1));
-  Mock::VerifyAndClearExpectations(distiller_);
-
-  // Complete distillation. The queued up tree update gets unserialized.
-  EXPECT_CALL(*distiller_, Distill).Times(0);
-  controller().OnAXTreeDistilled(tree_id_, {1});
   EXPECT_EQ(u"234567", controller().GetTextContent(1));
   Mock::VerifyAndClearExpectations(distiller_);
 }
@@ -2476,9 +2473,9 @@ TEST_F(ReadAnythingAppControllerTest, RequestImageData) {
   double speech_rate = 1.5;
   std::string voice_value = "Italian voice 3";
   std::string language_value = "it-IT";
-  base::Value::Dict voices = base::Value::Dict();
+  base::DictValue voices = base::DictValue();
   voices.Set(language_value, voice_value);
-  base::Value::List languages_enabled_in_pref = base::Value::List();
+  base::ListValue languages_enabled_in_pref = base::ListValue();
   languages_enabled_in_pref.Append(language_value);
   auto highlight_granularity =
       read_anything::mojom::HighlightGranularity::kDefaultValue;
@@ -3264,6 +3261,173 @@ TEST_F(ReadAnythingAppControllerImmersiveTest,
       .Times(1);
   controller().OnAXTreeDistilled(tree_id_, {1});
   page_handler_.FlushForTesting();
+}
+
+TEST_F(ReadAnythingAppControllerImmersiveTest,
+       OnActiveAXTreeIDChanged_SetsDistillationInProgress) {
+  EXPECT_CALL(page_handler_,
+              OnDistillationStateChanged(
+                  read_anything::mojom::ReadAnythingDistillationState::
+                      kDistillationInProgress))
+      .Times(1);
+  controller().OnActiveAXTreeIDChanged(ui::AXTreeID::CreateNewAXTreeID(),
+                                       ukm::kInvalidSourceId, false);
+  page_handler_.FlushForTesting();
+}
+
+TEST_F(ReadAnythingAppControllerImmersiveTest,
+       Distill_SetsDistillationInProgress) {
+  EXPECT_CALL(page_handler_,
+              OnDistillationStateChanged(
+                  read_anything::mojom::ReadAnythingDistillationState::
+                      kDistillationInProgress))
+      .Times(1);
+  Distill();
+  page_handler_.FlushForTesting();
+}
+
+TEST_F(ReadAnythingAppControllerImmersiveTest,
+       ImmersiveModeWithGoodDistillation_UpdateProcessingPaused) {
+  // Set to Immersive.
+  controller().OnGetPresentationState(
+      read_anything::mojom::ReadAnythingPresentationState::kInImmersiveOverlay);
+  EXPECT_FALSE(controller().IsUpdateProcessingPaused());
+
+  // Distillation succeeded
+  EXPECT_CALL(page_handler_,
+              OnDistillationStateChanged(
+                  read_anything::mojom::ReadAnythingDistillationState::
+                      kDistillationWithContent))
+      .Times(1);
+  controller().OnAXTreeDistilled(tree_id_, {1});
+  page_handler_.FlushForTesting();
+
+  // Confirm that the update processing is paused when IRM with a good
+  // distillation open
+  EXPECT_TRUE(controller().IsUpdateProcessingPaused());
+}
+
+TEST_F(ReadAnythingAppControllerImmersiveTest,
+       SidePanelWithGoodDistillation_DoesNotPauseUpdateProcessing) {
+  // Set to Side Panel.
+  controller().OnGetPresentationState(
+      read_anything::mojom::ReadAnythingPresentationState::kInSidePanel);
+  EXPECT_FALSE(controller().IsUpdateProcessingPaused());
+
+  // Distillation succeeded
+  EXPECT_CALL(page_handler_,
+              OnDistillationStateChanged(
+                  read_anything::mojom::ReadAnythingDistillationState::
+                      kDistillationWithContent))
+      .Times(1);
+  controller().OnAXTreeDistilled(tree_id_, {1});
+  page_handler_.FlushForTesting();
+
+  // Confirm that the update processing is not paused when SP with good
+  // distillation is not open.
+  EXPECT_FALSE(controller().IsUpdateProcessingPaused());
+}
+
+TEST_F(ReadAnythingAppControllerImmersiveTest,
+       ImmersiveModeWithEmptyDistillation_DoesNotPauseUpdateProcessing) {
+  // Set to Immersive
+  controller().OnGetPresentationState(
+      read_anything::mojom::ReadAnythingPresentationState::kInImmersiveOverlay);
+  EXPECT_FALSE(controller().IsUpdateProcessingPaused());
+
+  // Set the distillation state to empty.
+  EXPECT_CALL(page_handler_,
+              OnDistillationStateChanged(
+                  read_anything::mojom::ReadAnythingDistillationState::
+                      kDistillationEmpty))
+      .Times(1);
+  controller().OnAXTreeDistilled(tree_id_, {});
+  page_handler_.FlushForTesting();
+
+  // Confirm that the update processing is not paused when the distillation
+  // state is empty, even though the presentation state is Immersive.
+  EXPECT_FALSE(controller().IsUpdateProcessingPaused());
+}
+
+TEST_F(ReadAnythingAppControllerImmersiveTest,
+       DistillationPausedInImmersive_ResumesOnSwitchToSidePanel) {
+  // Set to Immersive.
+  controller().OnGetPresentationState(
+      read_anything::mojom::ReadAnythingPresentationState::kInImmersiveOverlay);
+
+  // Simulate a successful distillation.
+  EXPECT_CALL(page_handler_,
+              OnDistillationStateChanged(
+                  read_anything::mojom::ReadAnythingDistillationState::
+                      kDistillationWithContent))
+      .Times(1);
+  controller().OnAXTreeDistilled(tree_id_, {1});
+  page_handler_.FlushForTesting();
+
+  // Confirm that the update processing is paused because we had a successful
+  // distillation in Immersive.
+  ASSERT_TRUE(controller().IsUpdateProcessingPaused());
+
+  // Request distillation. It should be blocked and queued.
+  EXPECT_CALL(*distiller_, Distill).Times(0);
+  Distill();
+  EXPECT_TRUE(model().requires_distillation());
+  Mock::VerifyAndClearExpectations(distiller_);
+
+  // Switch to side panel. This should trigger the queued distillation.
+  EXPECT_CALL(page_handler_,
+              OnDistillationStateChanged(
+                  read_anything::mojom::ReadAnythingDistillationState::
+                      kDistillationInProgress))
+      .Times(1);
+  EXPECT_CALL(*distiller_, Distill).Times(1);
+  controller().OnGetPresentationState(
+      read_anything::mojom::ReadAnythingPresentationState::kInSidePanel);
+  Mock::VerifyAndClearExpectations(distiller_);
+}
+
+TEST_F(ReadAnythingAppControllerImmersiveTest,
+       DistillationPausedInImmersive_ResumesOnTreeChange) {
+  // Set to Immersive.
+  controller().OnGetPresentationState(
+      read_anything::mojom::ReadAnythingPresentationState::kInImmersiveOverlay);
+
+  // Simulate a successful distillation.
+  EXPECT_CALL(page_handler_,
+              OnDistillationStateChanged(
+                  read_anything::mojom::ReadAnythingDistillationState::
+                      kDistillationWithContent))
+      .Times(1);
+  controller().OnAXTreeDistilled(tree_id_, {1});
+  page_handler_.FlushForTesting();
+
+  // Confirm that the update processing is paused because we had a successful
+  // distillation in Immersive.
+  EXPECT_TRUE(controller().IsUpdateProcessingPaused());
+
+  // Change the tree ID. This should trigger distillation (because it's a new
+  // tree).
+  EXPECT_CALL(page_handler_,
+              OnDistillationStateChanged(
+                  read_anything::mojom::ReadAnythingDistillationState::
+                      kDistillationInProgress))
+      .Times(1);
+  EXPECT_CALL(*distiller_, Distill).Times(1);
+
+  // Add the new tree to the model so that we can switch to it.
+  ui::AXTreeID new_tree_id = ui::AXTreeID::CreateNewAXTreeID();
+  ui::AXTreeUpdate update;
+  test::SetUpdateTreeID(&update, new_tree_id);
+  ui::AXNodeData root;
+  root.id = 1;
+  update.root_id = root.id;
+  update.nodes = {std::move(root)};
+
+  AccessibilityEventReceived({std::move(update)});
+  controller().OnActiveAXTreeIDChanged(new_tree_id, ukm::kInvalidSourceId,
+                                       false);
+  page_handler_.FlushForTesting();
+  Mock::VerifyAndClearExpectations(distiller_);
 }
 
 TEST_F(ReadAnythingAppControllerTest, ReadAloudStateResetsOnNewPageNavigation) {

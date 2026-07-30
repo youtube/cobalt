@@ -306,28 +306,28 @@ void StoreString(std::string* result,
   std::move(callback).Run();
 }
 
-int GetInt(const base::Value::Dict& dict, std::string_view key) {
+int GetInt(const base::DictValue& dict, std::string_view key) {
   std::optional<int> out = dict.FindInt(key);
   EXPECT_TRUE(out.has_value());
   return out.value_or(0);
 }
 
-std::string GetString(const base::Value::Dict& dict, std::string_view key) {
+std::string GetString(const base::DictValue& dict, std::string_view key) {
   const std::string* out = dict.FindString(key);
   EXPECT_TRUE(out);
   return out ? *out : std::string();
 }
 
-bool GetBoolean(const base::Value::Dict& dict, std::string_view key) {
+bool GetBoolean(const base::DictValue& dict, std::string_view key) {
   std::optional<bool> out = dict.FindBool(key);
   EXPECT_TRUE(out.has_value());
   return out.value_or(false);
 }
 
-bool CheckHeader(const base::Value::Dict& dict,
+bool CheckHeader(const base::DictValue& dict,
                  std::string_view header_name,
                  std::string_view header_value) {
-  const base::Value::List* headers = dict.FindList("headers");
+  const base::ListValue* headers = dict.FindList("headers");
   if (!headers) {
     ADD_FAILURE();
     return false;
@@ -338,7 +338,7 @@ bool CheckHeader(const base::Value::Dict& dict,
       ADD_FAILURE();
       return false;
     }
-    const base::Value::List& name_value_pair = header.GetList();
+    const base::ListValue& name_value_pair = header.GetList();
     if (name_value_pair.size() != 2u) {
       ADD_FAILURE();
       return false;
@@ -362,8 +362,8 @@ bool CheckHeader(const base::Value::Dict& dict,
   return false;
 }
 
-bool HasHeader(const base::Value::Dict& dict, std::string_view header_name) {
-  const base::Value::List* headers = dict.FindList("headers");
+bool HasHeader(const base::DictValue& dict, std::string_view header_name) {
+  const base::ListValue* headers = dict.FindList("headers");
   if (!headers) {
     ADD_FAILURE();
     return false;
@@ -374,7 +374,7 @@ bool HasHeader(const base::Value::Dict& dict, std::string_view header_name) {
       ADD_FAILURE();
       return false;
     }
-    const base::Value::List& name_value_pair = header.GetList();
+    const base::ListValue& name_value_pair = header.GetList();
     if (name_value_pair.size() != 2u) {
       ADD_FAILURE();
       return false;
@@ -2010,7 +2010,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerNavigationPreloadTest,
   // The page request must be sent only once, since the worker responded with
   // a generated Response.
   EXPECT_EQ(1, GetRequestCount(kPageUrl));
-  base::Value::Dict* dict = result->GetIfDict();
+  base::DictValue* dict = result->GetIfDict();
   ASSERT_TRUE(dict);
   EXPECT_EQ("basic", GetString(*dict, "type"));
   EXPECT_EQ(page_url, GURL(GetString(*dict, "url")));
@@ -2065,7 +2065,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerNavigationPreloadTest,
   // The page request must be sent only once, since the worker responded with
   // a generated Response.
   EXPECT_EQ(1, GetRequestCount(kPageUrl));
-  base::Value::Dict* dict = result->GetIfDict();
+  base::DictValue* dict = result->GetIfDict();
   ASSERT_TRUE(dict);
   EXPECT_EQ("basic", GetString(*dict, "type"));
   EXPECT_EQ(page_url, GURL(GetString(*dict, "url")));
@@ -2284,7 +2284,7 @@ IN_PROC_BROWSER_TEST_P(ServiceWorkerRendererSideContentDecodingBrowserTest,
   EXPECT_EQ(1, GetRequestCount(kPageUrl));
   // Verify the properties of the Response object received by the service worker
   // via navigation preload.
-  base::Value::Dict* dict = result->GetIfDict();
+  base::DictValue* dict = result->GetIfDict();
   ASSERT_TRUE(dict);
   EXPECT_EQ("basic", GetString(*dict, "type"));
   EXPECT_EQ(page_url, GURL(GetString(*dict, "url")));
@@ -3329,7 +3329,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerURLLoaderThrottleTest,
   std::optional<base::Value> parsed_result = base::JSONReader::Read(
       result.ExtractString(), base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   ASSERT_TRUE(parsed_result);
-  base::Value::Dict* dict = parsed_result->GetIfDict();
+  base::DictValue* dict = parsed_result->GetIfDict();
   ASSERT_TRUE(dict);
 
   // Default headers are present.
@@ -3375,7 +3375,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerURLLoaderThrottleTest,
 
   // Ensure the service worker did not see a fetch event for the PlzRedirect
   // URL, since throttles should have redirected before interception.
-  base::Value::List list;
+  base::ListValue list;
   list.Append(redirect_url.spec());
   EXPECT_EQ(base::Value(std::move(list)),
             EvalJs(shell()->web_contents()->GetPrimaryMainFrame(), script));
@@ -7589,7 +7589,7 @@ IN_PROC_BROWSER_TEST_F(
 // Test class for synthetic response (crbug.com/352578800) browsertest.
 class ServiceWorkerSyntheticResponseBrowserTest
     : public ServiceWorkerBrowserTest,
-      public ::testing::WithParamInterface<bool> {
+      public testing::WithParamInterface<std::tuple<bool, bool, bool>> {
  public:
   static constexpr char kHostname[] = "synthetic-response.test";
   static constexpr char kTargetPath[] =
@@ -7600,7 +7600,12 @@ class ServiceWorkerSyntheticResponseBrowserTest
     feature_list_.InitWithFeaturesAndParameters(
         {{blink::features::kServiceWorkerSyntheticResponse,
           {{blink::features::kServiceWorkerSyntheticResponseAllowedUrl.name,
-            allowed_url_.spec()}}}},
+            allowed_url_.spec()},
+           {blink::features::kServiceWorkerSyntheticResponseOffMainThread.name,
+            IsOffMainThread() ? "true" : "false"},
+           {blink::features::
+                kServiceWorkerSyntheticResponseSkipUnnecessaryBuffering.name,
+            IsUnnecessaryBufferingSkipped() ? "true" : "false"}}}},
         {});
   }
 
@@ -7655,7 +7660,9 @@ class ServiceWorkerSyntheticResponseBrowserTest
     mock_content_browser_client = std::make_unique<MockContentBrowserClient>();
     mock_content_browser_client->set_synthetic_response_enabled(true);
   }
-  bool IsDryRunMode() { return GetParam(); }
+  bool IsDryRunMode() { return std::get<0>(GetParam()); }
+  bool IsOffMainThread() { return std::get<1>(GetParam()); }
+  bool IsUnnecessaryBufferingSkipped() { return std::get<2>(GetParam()); }
 
   std::unique_ptr<MockContentBrowserClient> mock_content_browser_client;
 
@@ -7745,7 +7752,9 @@ class ServiceWorkerSyntheticResponseBrowserTest
 
 INSTANTIATE_TEST_SUITE_P(All,
                          ServiceWorkerSyntheticResponseBrowserTest,
-                         testing::Bool());
+                         testing::Combine(testing::Bool(),
+                                          testing::Bool(),
+                                          testing::Bool()));
 
 IN_PROC_BROWSER_TEST_P(ServiceWorkerSyntheticResponseBrowserTest,
                        FakeRegistration) {

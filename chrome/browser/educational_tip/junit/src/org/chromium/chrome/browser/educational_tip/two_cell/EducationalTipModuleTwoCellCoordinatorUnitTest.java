@@ -26,7 +26,8 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.NonNullObservableSupplier;
+import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.educational_tip.EducationTipModuleActionDelegate;
 import org.chromium.chrome.browser.educational_tip.R;
@@ -48,6 +49,9 @@ import java.util.List;
 public class EducationalTipModuleTwoCellCoordinatorUnitTest {
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
+    private static final @ModuleDelegate.ModuleType int MODULE_TYPE =
+            SetupListModuleUtils.getTwoCellContainerModuleTypes().get(0);
+
     @Mock private ModuleDelegate mModuleDelegate;
     @Mock private EducationTipModuleActionDelegate mActionDelegate;
     @Mock private Profile mProfile;
@@ -55,18 +59,15 @@ public class EducationalTipModuleTwoCellCoordinatorUnitTest {
     @Captor private ArgumentCaptor<PropertyModel> mPropertyModelCaptor;
 
     private Context mContext;
-    private ObservableSupplierImpl<Profile> mProfileSupplier;
+    private NonNullObservableSupplier<Profile> mProfileSupplier;
     private EducationalTipModuleTwoCellCoordinator mCoordinator;
 
     @Before
     public void setUp() {
         mContext = ApplicationProvider.getApplicationContext();
         when(mActionDelegate.getContext()).thenReturn(mContext);
-        mProfileSupplier = new ObservableSupplierImpl<>();
-        mProfileSupplier.set(mProfile);
+        mProfileSupplier = ObservableSuppliers.createNonNull(mProfile);
         when(mActionDelegate.getProfileSupplier()).thenReturn(mProfileSupplier);
-
-        mCoordinator = new EducationalTipModuleTwoCellCoordinator(mModuleDelegate, mActionDelegate);
     }
 
     @Test
@@ -77,6 +78,9 @@ public class EducationalTipModuleTwoCellCoordinatorUnitTest {
                         ModuleType.ENHANCED_SAFE_BROWSING_PROMO,
                         ModuleType.ADDRESS_BAR_PLACEMENT_PROMO);
         SetupListModuleUtils.setRankedModuleTypesForTesting(rankedModules);
+        mCoordinator =
+                new EducationalTipModuleTwoCellCoordinator(
+                        MODULE_TYPE, mModuleDelegate, mActionDelegate);
 
         mCoordinator.showModule();
 
@@ -119,6 +123,9 @@ public class EducationalTipModuleTwoCellCoordinatorUnitTest {
     @Test
     @SmallTest
     public void testGetModuleType() {
+        mCoordinator =
+                new EducationalTipModuleTwoCellCoordinator(
+                        MODULE_TYPE, mModuleDelegate, mActionDelegate);
         assertEquals(ModuleType.SETUP_LIST_TWO_CELL_CONTAINER, mCoordinator.getModuleType());
     }
 }

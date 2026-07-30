@@ -398,6 +398,9 @@ void CookieManager::SetMojoCookieManagerAsync(
     return;
   }
 
+  LOG(WARNING) << "Transferring cookies from provisional CookieManager to "
+                  "network service. For issues with the provisional "
+                  "CookieManager, see crbug.com/478873476.";
   GetCookieStore()->FlushStore(base::BindOnce(
       &CookieManager::SwapMojoCookieManagerAsync, base::Unretained(this),
       std::move(cookie_manager_remote), std::move(complete)));
@@ -765,12 +768,12 @@ void CookieManager::ClearClientHintsCachedPerOriginMapIfNeeded() {
   // next check and see that the browser has been started.
   if (should_clear_client_hints_cached_per_origin_map_) {
     GetContext()->GetPrefService()->SetDict(
-        prefs::kClientHintsCachedPerOriginMap, base::Value::Dict());
+        prefs::kClientHintsCachedPerOriginMap, base::DictValue());
     should_clear_client_hints_cached_per_origin_map_ = false;
   }
 }
 
-static jlong JNI_AwCookieManager_GetDefaultCookieManager(JNIEnv* env) {
+static int64_t JNI_AwCookieManager_GetDefaultCookieManager(JNIEnv* env) {
   return reinterpret_cast<intptr_t>(CookieManager::GetDefaultInstance());
 }
 

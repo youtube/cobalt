@@ -218,6 +218,7 @@ extern const char kWebRtcRemoteEventLogProactivePruningDelta[];
 extern const char kWebRtcRemoteEventLogUploadDelayMs[];
 extern const char kWebRtcRemoteEventLogUploadNoSuppression[];
 extern const char kWebRtcIPHandlingPolicy[];
+extern const char kWhatsNewUseStaging[];
 extern const char kWindowName[];
 extern const char kWindowPosition[];
 extern const char kWindowSize[];
@@ -283,6 +284,7 @@ extern const char kPwaLauncherVersion[];
 extern const char kShowIcons[];
 extern const char kSourceAppId[];
 extern const char kSourceShortcut[];
+extern const char kStartupForegroundLaunch[];
 extern const char kUninstall[];
 extern const char kUninstallAppId[];
 #endif  // BUILDFLAG(IS_WIN)
@@ -295,10 +297,9 @@ extern const char kDebugPrint[];
     BUILDFLAG(IS_WIN)
 extern const char kEnableNewAppMenuIcon[];
 extern const char kGuest[];
-extern const char kForceNtpMobilePromo[];
 #endif
 
-#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
+#if BUILDFLAG(ENABLE_GLIC)
 extern const char kGlicGuestURL[];
 extern const char kGlicAlwaysOpenFre[];
 extern const char kGlicFreURL[];
@@ -313,6 +314,9 @@ extern const char kGlicAdminRedirectPatterns[];
 extern const char kGlicAlwaysShowWebActuationToggle[];
 extern const char kGlicResetMultiInstanceEnabledByTier[];
 extern const char kGlicForceG1StatusForMultiInstance[];
+extern const char kGlicGuestUrlPresetAutopush[];
+extern const char kGlicGuestUrlPresetPreprod[];
+extern const char kGlicGuestUrlPresetProd[];
 #endif
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)

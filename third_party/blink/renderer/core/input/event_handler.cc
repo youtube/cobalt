@@ -222,12 +222,10 @@ const ComputedStyle* GetComputedStyleFromScrollbar(
       scrollable_area = layout_object.View()->GetScrollableArea();
     }
 
-    // TODO(crbug.com/1519197): if the mouse is over a scroll corner, there must
-    // be a scrollable area. Investigate where this is coming from.
     if (!scrollable_area) {
-      SCOPED_CRASH_KEY_STRING64("cr1519197", "hit-object",
-                                layout_object.DebugName().Utf8());
-      base::debug::DumpWithoutCrashing();
+      // We are not sure how this happens (https://crbug.com/41492178).
+      // Returning null here makes sense, will just use style from the hit
+      // layout object.
       return nullptr;
     }
 
@@ -1148,12 +1146,6 @@ WebInputEventResult EventHandler::HandleMouseMoveOrLeaveEvent(
     return WebInputEventResult::kHandledSystem;
   }
 
-  // TODO(crbug.com/1519197): This crash key is set during the hit test if a
-  // scroll corner is hit. It will be reported in the DumpWithoutCrashing that
-  // occurs from GetComputedStyleFromScrollbar via the SelectCursor call below.
-  // Clear it here to ensure we're using the value from this hit test if we do
-  // end up calling DumpWithoutCrashing.
-  base::debug::ClearCrashKeyString(CrashKeyForBug1519197());
   HitTestRequest::HitTestRequestType hit_type = HitTestRequest::kMove;
   if (mouse_event_manager_->MousePressed()) {
     hit_type |= HitTestRequest::kActive;
@@ -1255,7 +1247,6 @@ WebInputEventResult EventHandler::HandleMouseMoveOrLeaveEvent(
     }
   }
 
-  base::debug::ClearCrashKeyString(CrashKeyForBug1519197());
   last_mouse_move_event_subframe_ = current_subframe;
 
   if (event_result != WebInputEventResult::kNotHandled) {
@@ -2609,10 +2600,13 @@ void EventHandler::CaptureMouseEventsToWidget(bool capture) {
     return;
   }
 
-  if (capture == is_widget_capturing_mouse_events_)
+  LocalFrameClient* local_frame_root_client = frame_->LocalFrameRoot().Client();
+  if (!local_frame_root_client ||
+      (capture == is_widget_capturing_mouse_events_)) {
     return;
+  }
 
-  frame_->LocalFrameRoot().Client()->SetMouseCapture(capture);
+  local_frame_root_client->SetMouseCapture(capture);
   is_widget_capturing_mouse_events_ = capture;
 }
 
@@ -2673,13 +2667,6 @@ void EventHandler::ReleaseMouseCaptureFromCurrentFrame() {
     subframe->GetEventHandler().ReleaseMouseCaptureFromCurrentFrame();
   pointer_event_manager_->ReleaseMousePointerCapture();
   capturing_subframe_element_ = nullptr;
-}
-
-base::debug::CrashKeyString* EventHandler::CrashKeyForBug1519197() const {
-  static auto* const scroll_corner_crash_key =
-      base::debug::AllocateCrashKeyString("cr1519197-area-object",
-                                          base::debug::CrashKeySize::Size64);
-  return scroll_corner_crash_key;
 }
 
 void EventHandler::ResetLastMousePositionForWebTest() {

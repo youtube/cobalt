@@ -83,6 +83,7 @@
 #include "chrome/browser/ui/views/toolbar/toolbar_controller.h"
 #include "chrome/browser/ui/views/toolbar/webui_toolbar_web_view.h"
 #include "chrome/browser/ui/views/zoom/zoom_view_controller.h"
+#include "chrome/browser/ui/waap/initial_webui_window_metrics_manager.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/web_applications/link_capturing_features.h"
 #include "chrome/common/chrome_features.h"
@@ -146,12 +147,6 @@ namespace {
 
 // Gets the display mode for a given browser.
 ToolbarView::DisplayMode GetDisplayMode(Browser* browser) {
-#if BUILDFLAG(IS_CHROMEOS)
-  if (browser->is_type_custom_tab()) {
-    return ToolbarView::DisplayMode::kCustomTab;
-  }
-#endif
-
   // Checked in this order because even tabbed PWAs use the CUSTOM_TAB
   // display mode.
   if (web_app::AppBrowserController::IsWebApp(browser)) {
@@ -319,12 +314,15 @@ void ToolbarView::Init() {
       BackForwardButton::Direction::kForward,
       base::BindRepeating(callback, browser_, IDC_FORWARD), browser_));
 
-  if (features::IsWebUIReloadButtonEnabled()) {
+  if (features::IsWebUIToolbarEnabled()) {
     toolbar_webview_ = AddChildView(std::make_unique<WebUIToolbarWebView>(
         browser_, browser_->command_controller()));
-  } else {
+  }
+
+  if (!features::IsWebUIReloadButtonEnabled()) {
     reload_ = AddChildView(std::make_unique<ReloadButton>(
-        browser_->GetProfile(), browser_->command_controller()));
+        browser_->profile(), browser_->command_controller(),
+        InitialWebUIWindowMetricsManager::From(browser_)));
   }
   home_ = AddChildView(std::move(home));
   std::unique_ptr<SplitTabsToolbarButton> split =
@@ -605,14 +603,14 @@ void ToolbarView::ShowIntentPickerBubble(
   // shown/highlighted.
   if (highlighted_button || IsMigratedClickToCallBubble(bubble_type)) {
     IntentPickerBubbleView::ShowBubble(
-        location_bar(), highlighted_button, bubble_type, GetWebContents(),
+        location_bar_view(), highlighted_button, bubble_type, GetWebContents(),
         std::move(app_info), show_stay_in_chrome, show_remember_selection,
         initiating_origin, std::move(callback));
   }
 }
 
 void ToolbarView::ShowBookmarkBubble(const GURL& url, bool already_bookmarked) {
-  views::View* const anchor_view = location_bar();
+  views::View* const anchor_view = location_bar_view();
   views::Button* const bookmark_star_icon =
       GetPageActionView(kActionBookmarkThisTab);
   CHECK(bookmark_star_icon);
@@ -665,9 +663,11 @@ void ToolbarView::EnabledStateChangedForCommand(int id, bool enabled) {
   DCHECK(display_mode_ == DisplayMode::kNormal);
   const std::array<views::Button*, 5> kButtons{back_, forward_, reload_, home_,
                                                avatar_};
-  auto* button = *std::ranges::find(kButtons, id, &views::Button::tag);
-  DCHECK(button);
-  button->SetEnabled(enabled);
+  auto it = std::ranges::find_if(
+      kButtons, [id](views::Button* b) { return b && b->tag() == id; });
+  if (it != kButtons.end()) {
+    (*it)->SetEnabled(enabled);
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -733,6 +733,13 @@ gfx::Size ToolbarView::GetMinimumSize() const {
                                         back_->GetMinimumSize().height()) +
                                layout_manager_->interior_margin().height();
         size.SetToMin({size.width(), max_height});
+      }
+      // Overflow button must be part of minimum size calculation.
+      if (browser_->is_type_normal() && !overflow_button_->GetVisible()) {
+        const int default_margin =
+            GetLayoutConstant(LayoutConstant::kToolbarIconDefaultMargin);
+        size.Enlarge(
+            default_margin + overflow_button_->GetMinimumSize().width(), 0);
       }
   }
   size.set_height(size.height() * size_animation_.GetCurrentValue());
@@ -996,7 +1003,7 @@ views::View* ToolbarView::GetDefaultExtensionDialogAnchorView() {
 
 PageActionIconView* ToolbarView::GetPageActionIconView(
     PageActionIconType type) {
-  return location_bar()->page_action_icon_controller()->GetIconView(type);
+  return location_bar_view()->page_action_icon_controller()->GetIconView(type);
 }
 
 IconLabelBubbleView* ToolbarView::GetPageActionView(
@@ -1007,18 +1014,14 @@ IconLabelBubbleView* ToolbarView::GetPageActionView(
   }
   const auto& properties = provider.GetProperties(action_id);
   if (IsPageActionMigrated(properties.type)) {
-    return location_bar()->page_action_container()->GetPageActionView(
+    return location_bar_view()->page_action_container()->GetPageActionView(
         action_id);
   }
   return GetPageActionIconView(properties.type);
 }
 
 AppMenuButton* ToolbarView::GetAppMenuButton() {
-  if (app_menu_button_) {
-    return app_menu_button_;
-  }
-
-  return custom_tab_bar_ ? custom_tab_bar_->custom_tab_menu_button() : nullptr;
+  return app_menu_button_;
 }
 
 gfx::Rect ToolbarView::GetFindBarBoundingBox(int contents_bottom) {
@@ -1104,7 +1107,7 @@ ReloadControl* ToolbarView::GetReloadButton() {
 }
 
 IntentChipButton* ToolbarView::GetIntentChipButton() {
-  return location_bar()->intent_chip();
+  return location_bar_view()->intent_chip();
 }
 
 ToolbarButton* ToolbarView::GetDownloadButton() {

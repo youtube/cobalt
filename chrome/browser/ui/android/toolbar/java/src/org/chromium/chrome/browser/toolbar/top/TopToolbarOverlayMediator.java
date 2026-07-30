@@ -12,6 +12,7 @@ import androidx.annotation.ColorInt;
 import org.chromium.base.Callback;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -94,8 +95,8 @@ public class TopToolbarOverlayMediator {
     // TODO(crbug.com/417238089): This should have no hard dependency on Bookmark Bar.
     private @Nullable Supplier<Integer> mBookmarkBarHeightSupplier;
 
-    private final MonotonicObservableSupplier<Integer> mBottomToolbarControlsOffsetSupplier;
-    private final MonotonicObservableSupplier<Boolean> mSuppressToolbarSceneLayerSupplier;
+    private final NonNullObservableSupplier<Integer> mBottomToolbarControlsOffsetSupplier;
+    private final NonNullObservableSupplier<Boolean> mSuppressToolbarSceneLayerSupplier;
 
     /** Whether visibility is controlled internally or manually by the feature. */
     private boolean mIsVisibilityManuallyControlled;
@@ -126,8 +127,8 @@ public class TopToolbarOverlayMediator {
             NullableObservableSupplier<Tab> tabSupplier,
             BrowserControlsStateProvider browserControlsStateProvider,
             TopUiThemeColorProvider topUiThemeColorProvider,
-            MonotonicObservableSupplier<Integer> bottomToolbarControlsOffsetSupplier,
-            MonotonicObservableSupplier<Boolean> suppressToolbarSceneLayerSupplier,
+            NonNullObservableSupplier<Integer> bottomToolbarControlsOffsetSupplier,
+            NonNullObservableSupplier<Boolean> suppressToolbarSceneLayerSupplier,
             int layoutsToShowOn,
             boolean manualVisibilityControl,
             MonotonicObservableSupplier<Long> captureResourceIdSupplier,
@@ -146,7 +147,8 @@ public class TopToolbarOverlayMediator {
         mIsOnValidLayout = (mLayoutStateProvider.getActiveLayoutType() & layoutsToShowOn) > 0;
         mTabSupplier = tabSupplier;
         mCaptureResourceIdSupplier = captureResourceIdSupplier;
-        mCaptureResourceIdSupplier.addObserver(mOnCaptureResourceIdSupplierChange);
+        mCaptureResourceIdSupplier.addSyncObserverAndCallIfNonNull(
+                mOnCaptureResourceIdSupplierChange);
         updateVisibility();
 
         mSceneChangeObserver =
@@ -216,9 +218,7 @@ public class TopToolbarOverlayMediator {
                             boolean bottomControlsMinHeightChanged,
                             boolean requestNewFrame,
                             boolean isVisibilityForced) {
-                        if (!ChromeFeatureList.sBrowserControlsInViz.isEnabled()
-                                || requestNewFrame
-                                || isVisibilityForced) {
+                        if (requestNewFrame || isVisibilityForced) {
                             updateContentOffset();
                         } else {
                             // We need to set the height, as it would have changed if this is the
@@ -244,7 +244,7 @@ public class TopToolbarOverlayMediator {
 
                         // TODO(peilinwang) Clean up this flag and remove the updateVisibility call
                         // when stable experiment is finished.
-                        if (!ChromeFeatureList.sBrowserControlsInViz.isEnabled()) {
+                        if (!ChromeFeatureList.sAlwaysDrawCompositedToolbarHairline.isEnabled()) {
                             updateShadowState();
                             updateVisibility();
                         }
@@ -262,18 +262,16 @@ public class TopToolbarOverlayMediator {
                             BrowserControlsOffsetTagsInfo offsetTagsInfo,
                             @BrowserControlsState int constraints,
                             boolean shouldUpdateOffsets) {
-                        if (ChromeFeatureList.sBrowserControlsInViz.isEnabled()) {
-                            // Offset tag application is handled by TopControlsStacker when
-                            // #isTopControlsRefactorOffsetEnabled is enabled and browser controls
-                            // is at the top.
-                            if (!BrowserControlsUtils.isTopControlsRefactorOffsetEnabled()
-                                    || getControlsPosition() == ControlsPosition.BOTTOM) {
-                                updateOffsetTag(offsetTagsInfo);
-                            }
-                            if (shouldUpdateOffsets) {
-                                applyContentOffsetToModel(
-                                        mBrowserControlsStateProvider.getContentOffset());
-                            }
+                        // Offset tag application is handled by TopControlsStacker when
+                        // #isTopControlsRefactorOffsetEnabled is enabled and browser controls
+                        // is at the top.
+                        if (!BrowserControlsUtils.isTopControlsRefactorOffsetEnabled()
+                                || getControlsPosition() == ControlsPosition.BOTTOM) {
+                            updateOffsetTag(offsetTagsInfo);
+                        }
+                        if (shouldUpdateOffsets) {
+                            applyContentOffsetToModel(
+                                    mBrowserControlsStateProvider.getContentOffset());
                         }
                     }
 
@@ -377,7 +375,7 @@ public class TopToolbarOverlayMediator {
      * android view is not shown.
      */
     private void updateShadowState() {
-        if (ChromeFeatureList.sBrowserControlsInViz.isEnabled()) {
+        if (ChromeFeatureList.sAlwaysDrawCompositedToolbarHairline.isEnabled()) {
             // With BCIV enabled, we show the hairline on the composited toolbar by default,
             // and we don't want to update its visibility from the browser, because that incurs a
             // compositor frame.
@@ -480,12 +478,7 @@ public class TopToolbarOverlayMediator {
             // When BCIV is enabled, we want to show the composited view even if the controls are
             // offscreen, because we want to avoid an additional compositor frame when scrolling
             // them back on screen.
-            boolean visibility =
-                    (ChromeFeatureList.sBrowserControlsInViz.isEnabled()
-                                    || !BrowserControlsUtils.areBrowserControlsOffScreen(
-                                            mBrowserControlsStateProvider))
-                            && mIsOnValidLayout;
-            mModel.set(TopToolbarOverlayProperties.VISIBLE, visibility);
+            mModel.set(TopToolbarOverlayProperties.VISIBLE, mIsOnValidLayout);
         }
     }
 
@@ -570,11 +563,6 @@ public class TopToolbarOverlayMediator {
 
         if (getControlsPosition() == ControlsPosition.BOTTOM) {
             contentOffset = (int) (mBottomToolbarControlsOffsetSupplier.get() + mViewportHeight);
-            applyContentOffsetToModel(contentOffset);
-            return;
-        }
-
-        if (!ChromeFeatureList.sBrowserControlsInViz.isEnabled()) {
             applyContentOffsetToModel(contentOffset);
             return;
         }

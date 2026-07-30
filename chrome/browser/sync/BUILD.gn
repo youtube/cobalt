@@ -168,7 +168,6 @@ source_set("sync") {
 
   if (is_android) {
     sources += [
-      "android/sync_settings_utils_android.cc",
       "glue/synced_tab_delegate_android.cc",
       "glue/synced_tab_delegate_android.h",
       "glue/synced_window_delegate_android.cc",
@@ -259,7 +258,7 @@ source_set("sync") {
 
   allow_circular_includes_from += [ "//chrome/browser/consent_auditor" ]
 
-  if (enable_glic || enable_glic_android) {
+  if (enable_glic) {
     deps += [ "//chrome/browser/glic" ]
   }
 }

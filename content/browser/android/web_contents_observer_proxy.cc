@@ -51,7 +51,7 @@ WebContentsObserverProxy::WebContentsObserverProxy(
 
 WebContentsObserverProxy::~WebContentsObserverProxy() {}
 
-static jlong JNI_WebContentsObserverProxy_Init(
+static int64_t JNI_WebContentsObserverProxy_Init(
     JNIEnv* env,
     const JavaRef<jobject>& obj,
     const JavaRef<jobject>& java_web_contents) {
@@ -127,7 +127,7 @@ void WebContentsObserverProxy::DidStopLoading() {
 
 void WebContentsObserverProxy::LoadProgressChanged(double progress) {
   Java_WebContentsObserverProxy_loadProgressChanged(
-      AttachCurrentThread(), java_observer_, static_cast<jfloat>(progress));
+      AttachCurrentThread(), java_observer_, static_cast<float>(progress));
 }
 
 void WebContentsObserverProxy::DidFailLoad(RenderFrameHost* render_frame_host,
@@ -326,8 +326,8 @@ bool WebContentsObserverProxy::SetToBaseURLForDataURLIfNeeded(GURL* url) {
 void WebContentsObserverProxy::ViewportFitChanged(
     blink::mojom::ViewportFit value) {
   JNIEnv* env = AttachCurrentThread();
-  Java_WebContentsObserverProxy_viewportFitChanged(
-      env, java_observer_, as_jint(static_cast<int>(value)));
+  Java_WebContentsObserverProxy_viewportFitChanged(env, java_observer_,
+                                                   static_cast<int32_t>(value));
 }
 
 void WebContentsObserverProxy::SafeAreaConstraintChanged(bool has_constraint) {
@@ -340,7 +340,7 @@ void WebContentsObserverProxy::VirtualKeyboardModeChanged(
     ui::mojom::VirtualKeyboardMode mode) {
   JNIEnv* env = AttachCurrentThread();
   Java_WebContentsObserverProxy_virtualKeyboardModeChanged(
-      env, java_observer_, as_jint(static_cast<int>(mode)));
+      env, java_observer_, static_cast<int32_t>(mode));
 }
 
 void WebContentsObserverProxy::OnWebContentsFocused(RenderWidgetHost*) {

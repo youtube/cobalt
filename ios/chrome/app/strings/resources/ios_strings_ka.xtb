@@ -333,6 +333,7 @@
 <translation id="2184272387334793084">შედით სისტემაში, თქვენი პაროლები და სხვა მონაცემები თქვენს ყველა მოწყობილობაზე რომ მიიღოთ</translation>
 <translation id="2186206192313702726">Google Lens</translation>
 <translation id="2188993354115194873">შეეხეთ: <ph name="BEGIN_BOLD" />ჩამოტვირთვებში შენახვა<ph name="END_BOLD" /></translation>
+<translation id="2191406283620379491">წარმოიქმნა შეფერხება. განაახლეთ iOS-ის ვერსია.</translation>
 <translation id="219283042927675668">ჩანართები ჯგუფში</translation>
 <translation id="2194856509914051091">გასათვალისწინებელი საკითხები</translation>
 <translation id="2196428379625389579">მოიძიეთ ვებში</translation>
@@ -936,6 +937,7 @@
 <translation id="4565377596337484307">პაროლის დამალვა</translation>
 <translation id="4568230126482344545">ბოლოდროინდელი ჩანართების დამალვა</translation>
 <translation id="4578835633387306383">ჩართვა…</translation>
+<translation id="4580621046861724270">ზოგიერთი სანიშნე არ არის შენახული</translation>
 <translation id="4580716718466706433">გადადით „პაროლების მმართველში“</translation>
 <translation id="4585751637295612750">გახსენით ახალი ჩანართი, რომ დაამატოთ ის თქვენს შეკითხვას</translation>
 <translation id="4587589328781138893">საიტები</translation>
@@ -1019,6 +1021,7 @@
 <translation id="483689884442613745">შენახვა…</translation>
 <translation id="4840495572919996524">თქვენი სანიშნეები, ისტორია, პაროლები და სხვა კონტენტი აღარ იქნება სინქრონიზებული თქვენს Google ანგარიშთან.</translation>
 <translation id="484280513275854557">სისტემიდან გახვედით, ხოლო ვების დათვალიერების მონაცემები წაიშალა</translation>
+<translation id="484462545196658690">ავტომატური</translation>
 <translation id="4850886885716139402">გადახედვა</translation>
 <translation id="4854068532375923088">მიეცით „Gemini“-ს თქვენი კამერის გამოყენების უფლება</translation>
 <translation id="4860895144060829044">დარეკვა</translation>
@@ -1163,6 +1166,7 @@
 <translation id="5318298563956633672">ამ პროდუქტს თვალს უკვე ადევნებთ.</translation>
 <translation id="5327248766486351172">სახელი</translation>
 <translation id="5329451663851195956">გასაახლებლად შეგიძლიათ ქვემოთ ჩამოწევა.</translation>
+<translation id="5336910966955551309">ხანგრძლივად შეეხეთ თქვენი რჩეული საიტების ჩასამაგრებლად</translation>
 <translation id="5338512273860059533">შესვლა მიმდინარეობს.</translation>
 <translation id="5343472494710226394">ახალი ამებები, სპორტი და თქვენთვის საინტერესო სხვა კონტენტი</translation>
 <translation id="5352128922772839949">ფაილის შენახვა</translation>
@@ -1897,6 +1901,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="7958575506592576831">გვერდის უსაფრთხოების ინფორმაცია</translation>
 <translation id="7961015016161918242">არასოდეს</translation>
 <translation id="7971136598759319605">აქტიური იყო 1 დღის წინ</translation>
+<translation id="7972837668077967426">Canvas</translation>
 <translation id="7975036700432177008">გამოვცადოთ</translation>
 <translation id="797588153137233716">მენიუ → ისტორია → დათვალიერების მონაცემების წაშლა</translation>
 <translation id="7977451675950311423">გაგაფრთხილებთ, თუ იყენებთ პაროლს, რომელიც პერსონალურ მონაცემთა გაჟონვისას გამჟღავნდა.</translation>
@@ -2004,6 +2009,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="8319282042900445670">შეხსენება დაყენებულია: <ph name="TIME" />, <ph name="DATE" /></translation>
 <translation id="8320212361750431956">ბოლო აქტივობები</translation>
 <translation id="8325455175867928593">დაიმალოს „მიმოხილვები თქვენი ინტერესების მიხედვით“</translation>
+<translation id="8328777765163860529">ყველას დახურვა</translation>
 <translation id="833647236762414178">შექმენით, შეინახეთ და მართეთ თქვენი პაროლები, რომ მარტივად შეხვიდეთ საიტებსა და აპებში. <ph name="BEGIN_LINK" />შეიტყვეთ მეტი<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">შექმენით თქვენი მონაცემების სარეზერვო ასლები და გამოიყენეთ ისინი ნებისმიერ მოწყობილობაზე.</translation>
 <translation id="8348530355586151720">შეეხეთ სამწერტილიან მენიუს</translation>

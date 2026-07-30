@@ -282,7 +282,10 @@ public class ChromeAndroidTaskIntegrationTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () ->
                         firstChromeAndroidTask.addFeature(
-                                TestChromeAndroidTaskFeature.class, () -> testFeature));
+                                new ChromeAndroidTaskFeatureKey(
+                                        TestChromeAndroidTaskFeature.class,
+                                        webPageStation.getTab().getProfile()),
+                                () -> testFeature));
 
         // Act:
         // Open a new window. The first window will lose focus.
@@ -1110,7 +1113,7 @@ public class ChromeAndroidTaskIntegrationTest {
         public void onAddedToTask() {}
 
         @Override
-        public void onTaskRemoved() {}
+        public void onFeatureRemoved() {}
 
         @Override
         public void onTaskBoundsChanged(Rect newBoundsInDp) {

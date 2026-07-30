@@ -48,6 +48,8 @@ class TabModelObserverJniBridge {
 
   void WillCloseTab(JNIEnv* env, TabAndroid* tab);
 
+  void DidRemoveTabForClosure(JNIEnv* env, TabAndroid* tab);
+
   void OnFinishingTabClosure(JNIEnv* env, TabAndroid* tab, int source);
 
   void OnFinishingMultipleTabClosure(JNIEnv* env,
@@ -79,6 +81,8 @@ class TabModelObserverJniBridge {
   void OnTabGroupRemoving(JNIEnv* env, base::Token group_id);
 
   void OnTabGroupMoved(JNIEnv* env, base::Token group_id, int old_index);
+
+  void OnTabGroupVisualsChanged(JNIEnv* env, base::Token group_id);
 
   void AddObserver(TabModelObserver* observer);
   void AddTabListInterfaceObserver(TabListInterfaceObserver* observer);

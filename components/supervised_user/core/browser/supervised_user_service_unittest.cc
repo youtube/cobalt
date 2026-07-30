@@ -13,7 +13,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/gtest_util.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/values.h"
 #include "build/build_config.h"
@@ -21,7 +20,6 @@
 #include "components/supervised_user/core/browser/supervised_user_preferences.h"
 #include "components/supervised_user/core/browser/supervised_user_test_environment.h"
 #include "components/supervised_user/core/browser/supervised_user_utils.h"
-#include "components/supervised_user/core/common/features.h"
 #include "components/supervised_user/core/common/pref_names.h"
 #include "components/supervised_user/core/common/supervised_user_constants.h"
 #include "components/supervised_user/test_support/supervised_user_url_filter_test_utils.h"
@@ -60,11 +58,6 @@ class SupervisedUserServiceTest : public ::testing::Test {
     supervised_user_test_environment_->SetWebFilterType(web_filter_type);
   }
 
-#if BUILDFLAG(IS_ANDROID)
-  base::test::ScopedFeatureList scoped_feature_list_{
-      kPropagateDeviceContentFiltersToSupervisedUser};
-#endif  // BUILDFLAG(IS_ANDROID)
-
   base::HistogramTester histogram_tester_;
   base::test::TaskEnvironment task_environment_;
   std::unique_ptr<SupervisedUserTestEnvironment>
@@ -82,17 +75,9 @@ TEST_F(SupervisedUserServiceTest, ApprovalRequestsEnabled) {
 // Tests that restricting all site navigation is applied to supervised users.
 TEST_F(SupervisedUserServiceTest, UrlIsBlockedForUser) {
   Initialize(InitialSupervisionState::kFamilyLinkCertainSites);
-  EXPECT_TRUE(supervised_user_test_environment_->url_filter()
+  EXPECT_TRUE(supervised_user_test_environment_->url_filtering_service()
                   ->GetFilteringBehavior(GURL("http://google.com"))
                   .IsBlocked());
-}
-
-// Tests that allowing all site navigation is applied to supervised users.
-TEST_F(SupervisedUserServiceTest, UrlIsAllowedForUser) {
-  Initialize(InitialSupervisionState::kFamilyLinkAllowAllSites);
-  EXPECT_TRUE(supervised_user_test_environment_->url_filter()
-                  ->GetFilteringBehavior(GURL("http://google.com"))
-                  .IsAllowed());
 }
 
 // Tests that changes to the allow or blocklist of the parent configuration are
@@ -113,7 +98,7 @@ TEST_F(SupervisedUserServiceTest, ManagedSiteListTypeMetricOnPrefsChange) {
   histogram_tester_.ExpectBucketCount(
       kManagedSiteListHistogramName,
       /*sample=*/
-      SupervisedUserURLFilter::ManagedSiteList::kBlockedListOnly,
+      FamilyLinkUrlFilter::ManagedSiteList::kBlockedListOnly,
       /*expected_count=*/1);
   histogram_tester_.ExpectBucketCount(kApprovedSitesCountHistogramName,
                                       /*sample=*/0, /*expected_count=*/2);
@@ -125,7 +110,7 @@ TEST_F(SupervisedUserServiceTest, ManagedSiteListTypeMetricOnPrefsChange) {
   histogram_tester_.ExpectBucketCount(
       kManagedSiteListHistogramName,
       /*sample=*/
-      SupervisedUserURLFilter::ManagedSiteList::kApprovedListOnly,
+      FamilyLinkUrlFilter::ManagedSiteList::kApprovedListOnly,
       /*expected_count=*/1);
   histogram_tester_.ExpectBucketCount(kApprovedSitesCountHistogramName,
                                       /*sample=*/1, /*expected_count=*/1);
@@ -140,7 +125,7 @@ TEST_F(SupervisedUserServiceTest, ManagedSiteListTypeMetricOnPrefsChange) {
   histogram_tester_.ExpectBucketCount(
       kManagedSiteListHistogramName,
       /*sample=*/
-      SupervisedUserURLFilter::ManagedSiteList::kBoth,
+      FamilyLinkUrlFilter::ManagedSiteList::kBoth,
       /*expected_count=*/1);
   histogram_tester_.ExpectBucketCount(kApprovedSitesCountHistogramName,
                                       /*sample=*/1, /*expected_count=*/2);
@@ -184,9 +169,6 @@ TEST_F(SupervisedUserServiceTestUnsupervised,
   EXPECT_EQ(static_cast<int>(FilteringBehavior::kAllow),
             supervised_user_test_environment_->pref_service()->GetInteger(
                 prefs::kDefaultSupervisedUserFilteringBehavior));
-
-  EXPECT_FALSE(supervised_user_test_environment_->service()->IsBlockedURL(
-      GURL("http://google.com")));
 }
 
 // Tests that supervision restrictions do not apply to unsupervised users.
@@ -201,16 +183,6 @@ TEST_F(SupervisedUserServiceTestUnsupervised,
          "reset to default.";
   EXPECT_FALSE(supervised_user_test_environment_->pref_service()->GetBoolean(
       prefs::kSupervisedUserSafeSites));
-
-  EXPECT_FALSE(supervised_user_test_environment_->service()->IsBlockedURL(
-      GURL("http://google.com")));
-}
-
-// Tests that supervision restrictions do not apply to unsupervised users.
-TEST_F(SupervisedUserServiceTestUnsupervised, UrlIsAllowedForUser) {
-  SetWebFilterType(WebFilterType::kCertainSites);
-  EXPECT_FALSE(supervised_user_test_environment_->service()->IsBlockedURL(
-      GURL("http://google.com")));
 }
 
 // This test suite verifies how web filter type changes are propagated from this

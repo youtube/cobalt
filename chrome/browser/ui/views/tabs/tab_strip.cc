@@ -41,6 +41,7 @@
 #include "base/types/to_address.h"
 #include "build/build_config.h"
 #include "chrome/browser/defaults.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/themes/theme_properties.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -56,6 +57,7 @@
 #include "chrome/browser/ui/tabs/tab_types.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/view_ids.h"
+#include "chrome/browser/ui/views/frame/browser_frame_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/tabs/browser_tab_strip_controller.h"
 #include "chrome/browser/ui/views/tabs/dragging/tab_drag_context.h"
@@ -80,10 +82,10 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
 #include "components/crash/core/common/crash_key.h"
+#include "components/split_tabs/split_tab_id.h"
 #include "components/tab_groups/tab_group_color.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
-#include "components/tabs/public/split_tab_id.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/dragdrop/drag_drop_types.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom.h"
@@ -120,6 +122,10 @@
 
 #if defined(USE_AURA)
 #include "ui/aura/window.h"
+#endif
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ash/boca/on_task/on_task_locked_controller.h"
 #endif
 
 namespace {
@@ -427,10 +433,6 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
     // The tab is not detachable if it is a pinned home tab on a web app.
     return !(web_app::HasPinnedHomeTab(GetTabStripModel()) &&
              GetIndexOf(view) == 0);
-  }
-
-  bool IsTabPinned(const TabSlotView* tab) const override {
-    return tab_strip_->IsTabPinned(tab);
   }
 
   TabSlotView* GetTabGroupHeader(
@@ -1091,11 +1093,6 @@ TabStrip::TabStrip(std::unique_ptr<TabStripController> controller)
     : controller_(std::move(controller)),
       hover_card_controller_(std::make_unique<TabHoverCardController>(this)),
       drag_context_(*AddChildView(std::make_unique<TabDragContextImpl>(this))),
-      tab_container_(
-          *AddChildViewAt(MakeTabContainer(this,
-                                           hover_card_controller_.get(),
-                                           base::to_address(drag_context_)),
-                          0)),
       style_(TabStyle::Get()) {
   // TODO(pbos): This is probably incorrect, the background of individual tabs
   // depend on their selected state. This should probably be pushed down into
@@ -1111,23 +1108,45 @@ TabStrip::~TabStrip() {
   // Eliminate the hover card first to avoid order-of-operation issues.
   hover_card_controller_.reset();
 
-  // Disengage the drag controller before doing any additional cleanup. This
-  // call can interact with child views so we can't reliably do it during member
-  // destruction.
-  // End any ongoing drag session.
-  drag_context_->DestroyDragController();
-  // Immediately clean up that drag session instead of allowing things to
-  // animate back into place over time.
-  drag_context_->CompleteEndDragAnimations();
+  if (tab_container_) {
+    // Disengage the drag controller before doing any additional cleanup. This
+    // call can interact with child views so we can't reliably do it during
+    // member destruction. End any ongoing drag session.
+    drag_context_->DestroyDragController();
+    // Immediately clean up that drag session instead of allowing things to
+    // animate back into place over time.
+    drag_context_->CompleteEndDragAnimations();
 
-  // `tab_container_`'s tabs may call back to us or to `drag_context_` from
-  // their destructors. Delete them first so that if they call back we aren't in
-  // a weird state.
-  RemoveChildViewT(base::to_address(tab_container_));
-  RemoveChildViewT(base::to_address(drag_context_));
-
+    // `tab_container_`'s tabs may call back to us or to `drag_context_` from
+    // their destructors. Delete them first so that if they call back we aren't
+    // in a weird state.
+    RemoveChildViewT(base::to_address(tab_container_));
+    RemoveChildViewT(base::to_address(drag_context_));
+  }
   CHECK(!IsInObserverList())
       << "TabStrip should not be in any observer lists at destruction.";
+}
+
+void TabStrip::Initialize() {
+  CHECK(!tab_container_);
+  tab_container_ =
+      AddChildViewAt(MakeTabContainer(this, hover_card_controller_.get(),
+                                      base::to_address(drag_context_)),
+                     0);
+}
+
+void TabStrip::Reset() {
+  UpdateHoverCard(nullptr, HoverCardUpdateType::kTabRemoved);
+  RemoveChildViewT(std::exchange(tab_container_, nullptr));
+  selected_tabs_.Clear();
+
+  // Reset any other transient state.
+  last_mouse_move_location_ = gfx::Point();
+  new_tab_button_pressed_start_time_.reset();
+  mouse_entered_tabstrip_time_.reset();
+  has_reported_time_mouse_entered_to_switch_ = false;
+  has_reported_tab_drag_metrics_ = false;
+  last_tab_drag_time_.reset();
 }
 
 void TabStrip::SetAvailableWidthCallback(
@@ -1387,7 +1406,8 @@ void TabStrip::OnGroupClosed(const tab_groups::TabGroupId& group) {
 }
 
 void TabStrip::OnTabGroupFocusChanged(
-    std::optional<tab_groups::TabGroupId> new_focused_group) {
+    std::optional<tab_groups::TabGroupId> new_focused_group,
+    std::optional<tab_groups::TabGroupId> old_focused_group) {
   // The TabStripLayoutHelper will query the controller for the focused group
   // and update the visibility of tabs and group headers. Calling
   // AnimateToIdealBounds() will trigger the animation to the new bounds.
@@ -1517,6 +1537,10 @@ TabGroup* TabStrip::GetTabGroup(const tab_groups::TabGroupId& id) const {
 }
 
 std::optional<int> TabStrip::GetModelIndexOf(const TabSlotView* view) const {
+  if (!tab_container_) {
+    return std::nullopt;
+  }
+
   const std::optional<int> viewmodel_index =
       tab_container_->GetModelIndexOf(view);
 
@@ -1533,6 +1557,10 @@ std::optional<int> TabStrip::GetModelIndexOf(const TabSlotView* view) const {
 }
 
 int TabStrip::GetTabCount() const {
+  if (!tab_container_) {
+    return 0;
+  }
+
   return tab_container_->GetTabCount();
 }
 
@@ -1603,8 +1631,25 @@ gfx::Range TabStrip::ListTabsInGroup(
 }
 
 bool TabStrip::CanExtendDragHandle() const {
-  return !controller_->IsFrameCondensed() &&
-         !controller_->EverHasVisibleBackgroundTabShapes();
+  BrowserWindowInterface* const browser_window_interface =
+      GetBrowserWindowInterface();
+  BrowserView* const browser_view =
+      browser_window_interface
+          ? BrowserView::GetBrowserViewForBrowser(browser_window_interface)
+          : nullptr;
+
+  // `browser_view` can be null during unit tests.
+  if (!browser_view) {
+    return false;
+  }
+
+  BrowserFrameView* const browser_frame_view =
+      browser_view->browser_widget()->GetFrameView();
+  return !browser_frame_view->IsFrameCondensed() &&
+         !(browser_frame_view->HasVisibleBackgroundTabShapes(
+               BrowserFrameActiveState::kActive) ||
+           browser_frame_view->HasVisibleBackgroundTabShapes(
+               BrowserFrameActiveState::kInactive));
 }
 
 const views::View* TabStrip::GetTabClosingModeMouseWatcherHostView() const {
@@ -1824,16 +1869,6 @@ bool TabStrip::IsTabSelected(const TabSlotView* tab) const {
          controller_->IsTabSelected(model_index.value());
 }
 
-bool TabStrip::IsTabPinned(const TabSlotView* tab) const {
-  std::optional<int> model_index = GetModelIndexOf(tab);
-  return model_index.has_value() &&
-         controller_->IsTabPinned(model_index.value());
-}
-
-bool TabStrip::IsTabFirst(const TabSlotView* tab) const {
-  return GetModelIndexOf(tab) == 0;
-}
-
 bool TabStrip::IsFocusInTabs() const {
   return GetFocusManager() && Contains(GetFocusManager()->GetFocusedView());
 }
@@ -1863,7 +1898,8 @@ void TabStrip::MaybeStartDrag(TabSlotView* source,
   // Block drag operation if the web app is locked for OnTask. This prevents the
   // window from moving along with the tab when in locked fullsceeen mode. Only
   // relevant for non-web browser scenarios.
-  if (IsLockedForOnTask()) {
+  if (ash::boca::OnTaskLockedController::From(GetBrowserWindowInterface())
+          ->is_locked_for_on_task()) {
     return;
   }
 #endif
@@ -1969,7 +2005,9 @@ void TabStrip::OnMouseEventInTab(views::View* source,
 }
 
 void TabStrip::UpdateHoverCard(Tab* tab, HoverCardUpdateType update_type) {
-  tab_container_->UpdateHoverCard(tab, update_type);
+  if (tab_container_) {
+    tab_container_->UpdateHoverCard(tab, update_type);
+  }
 }
 
 bool TabStrip::HoverCardIsShowingForTab(Tab* tab) {
@@ -2028,11 +2066,6 @@ std::u16string TabStrip::GetAccessibleTabName(const Tab* tab) const {
              : std::u16string();
 }
 
-std::optional<int> TabStrip::GetCustomBackgroundId(
-    BrowserFrameActiveState active_state) const {
-  return controller_->GetCustomBackgroundId(active_state);
-}
-
 float TabStrip::GetHoverOpacityForTab(float range_parameter) const {
   return gfx::Tween::FloatValueBetween(range_parameter, hover_opacity_min_,
                                        hover_opacity_max_);
@@ -2078,16 +2111,6 @@ BrowserWindowInterface* TabStrip::GetBrowserWindowInterface() {
   return controller_->GetBrowserWindowInterface();
 }
 
-bool TabStrip::IsFrameCondensed() const {
-  return controller_->IsFrameCondensed();
-}
-
-#if BUILDFLAG(IS_CHROMEOS)
-bool TabStrip::IsLockedForOnTask() {
-  return controller_->IsLockedForOnTask();
-}
-#endif
-
 ///////////////////////////////////////////////////////////////////////////////
 // TabStrip, views::View overrides:
 
@@ -2098,6 +2121,10 @@ views::SizeBounds TabStrip::GetAvailableSize(const views::View* child) const {
 }
 
 gfx::Size TabStrip::GetMinimumSize() const {
+  if (!tab_container_) {
+    return gfx::Size();
+  }
+
   // `tab_container_` and `drag_context_` overlap (both share TabStrip's
   // origin), so we need to be able to cover the union of their bounds.
   gfx::Size min_size = tab_container_->GetMinimumSize();
@@ -2108,6 +2135,10 @@ gfx::Size TabStrip::GetMinimumSize() const {
 
 gfx::Size TabStrip::CalculatePreferredSize(
     const views::SizeBounds& available_size) const {
+  if (!tab_container_) {
+    return gfx::Size();
+  }
+
   // `tab_container_` and `drag_context_` overlap (both share TabStrip's
   // origin), so we need to be able to cover the union of their bounds.
   gfx::Size preferred_size = tab_container_->GetPreferredSize(available_size);
@@ -2117,6 +2148,10 @@ gfx::Size TabStrip::CalculatePreferredSize(
 }
 
 void TabStrip::Layout(PassKey) {
+  if (!tab_container_) {
+    return;
+  }
+
   if (tab_container_->bounds() != GetLocalBounds()) {
     UpdateHoverCard(nullptr,
                     TabSlotController::HoverCardUpdateType::kAnimating);

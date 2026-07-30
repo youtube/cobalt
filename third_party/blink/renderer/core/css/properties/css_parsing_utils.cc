@@ -21,6 +21,7 @@
 #include "third_party/blink/renderer/core/css/css_color.h"
 #include "third_party/blink/renderer/core/css/css_color_mix_value.h"
 #include "third_party/blink/renderer/core/css/css_content_distribution_value.h"
+#include "third_party/blink/renderer/core/css/css_contrast_color_value.h"
 #include "third_party/blink/renderer/core/css/css_counter_value.h"
 #include "third_party/blink/renderer/core/css/css_crossfade_value.h"
 #include "third_party/blink/renderer/core/css/css_custom_ident_value.h"
@@ -123,7 +124,7 @@ using cssvalue::CSSFontVariationValue;
 namespace css_parsing_utils {
 namespace {
 
-const char kTwoDashes[] = "--";
+constexpr char kTwoDashes[] = "--";
 constexpr size_t kMaxLanguageOverrideLength = 4;
 
 bool IsLeftOrRightKeyword(CSSValueID id) {
@@ -1749,7 +1750,7 @@ CSSCustomIdentValue* ConsumeDashedIdent(CSSParserTokenStream& stream,
   // requirement of <dashed-ident>.
   // https://github.com/w3c/csswg-drafts/issues/12206
   if (stream.Peek().GetType() == kIdentToken &&
-      !stream.Peek().Value().ToString().StartsWith(kTwoDashes)) {
+      !stream.Peek().Value().starts_with(kTwoDashes)) {
     return nullptr;
   }
   return ConsumeCustomIdent(stream, context, local_context);
@@ -2044,10 +2045,8 @@ bool IsAllowedValueInParserContext(
   return true;
 }
 
-}  // namespace
-
 // https://www.w3.org/TR/css-color-5/#color-mix
-static CSSValue* ConsumeColorMixFunction(
+CSSValue* ConsumeColorMixFunction(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context,
@@ -2147,9 +2146,35 @@ static CSSValue* ConsumeColorMixFunction(
   return result;
 }
 
-static bool ParseHexColor(CSSParserTokenStream& stream,
-                          Color& result,
-                          bool accept_quirky_colors) {
+// https://www.w3.org/TR/css-color-5/#contrast-color
+CSSValue* ConsumeContrastColorFunction(
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    CSSParserLocalContext& local_context,
+    const ColorParserContext& color_parser_context) {
+  CHECK(RuntimeEnabledFeatures::CSSContrastColorEnabled());
+  DCHECK_EQ(stream.Peek().FunctionId(), CSSValueID::kContrastColor);
+
+  CSSParserTokenStream::RestoringBlockGuard guard(stream);
+  stream.ConsumeWhitespace();
+
+  CSSValue* color = ConsumeColorInternal(stream, context, local_context,
+                                         /*accept_quirky_colors=*/false,
+                                         color_parser_context);
+
+  if (!color || !stream.AtEnd()) {
+    return nullptr;
+  }
+
+  guard.Release();
+  stream.ConsumeWhitespace();
+
+  return MakeGarbageCollected<cssvalue::CSSContrastColorValue>(color);
+}
+
+bool ParseHexColor(CSSParserTokenStream& stream,
+                   Color& result,
+                   bool accept_quirky_colors) {
   const CSSParserToken& token = stream.Peek();
   if (token.GetType() == kHashToken) {
     if (!Color::ParseHexColor(token.Value(), result)) {
@@ -2166,7 +2191,7 @@ static bool ParseHexColor(CSSParserTokenStream& stream,
         color = String::Format("%d", static_cast<int>(token.NumericValue()));
       } else {  // e.g. 0001FF
         color = StrCat({String::Number(static_cast<int>(token.NumericValue())),
-                        token.Value().ToString()});
+                        token.Value()});
       }
       while (color.length() < 6) {
         color = StrCat({"0", color});
@@ -2187,156 +2212,6 @@ static bool ParseHexColor(CSSParserTokenStream& stream,
   stream.ConsumeIncludingWhitespace();
   return true;
 }
-
-namespace {
-
-// TODO(crbug.com/1111385): Remove this when we move color-contrast()
-// representation to ComputedStyle. This method does not handle currentColor
-// correctly.
-Color ResolveColor(CSSValue* value,
-                   const ui::ColorProvider* color_provider,
-                   bool is_in_web_app_scope) {
-  if (auto* color = DynamicTo<cssvalue::CSSColor>(value)) {
-    return color->Value();
-  }
-
-  if (auto* color = DynamicTo<CSSIdentifierValue>(value)) {
-    CSSValueID color_id = color->GetValueID();
-    DCHECK(StyleColor::IsColorKeyword(color_id));
-    return StyleColor::ColorFromKeyword(color_id,
-                                        mojom::blink::ColorScheme::kLight,
-                                        color_provider, is_in_web_app_scope);
-  }
-
-  NOTREACHED();
-}
-
-}  // namespace
-
-CSSValue* ConsumeColorContrast(CSSParserTokenStream& stream,
-                               const CSSParserContext& context,
-                               CSSParserLocalContext& local_context,
-                               const ColorParserContext& color_parser_context) {
-  DCHECK_EQ(stream.Peek().FunctionId(), CSSValueID::kColorContrast);
-
-  VectorOf<CSSValue> colors_to_compare_against;
-  int highest_contrast_index = -1;
-  SkColor4f resolved_background_color;
-  const ui::ColorProvider* color_provider = nullptr;
-  const auto* document = context.GetDocument();
-  bool is_in_web_app_scope = document && document->IsInWebAppScope();
-  {
-    CSSParserTokenStream::RestoringBlockGuard guard(stream);
-    stream.ConsumeWhitespace();
-
-    const bool no_quirky_colors = false;
-
-    CSSValue* background_color = ConsumeColorInternal(
-        stream, context, local_context, no_quirky_colors, color_parser_context);
-    if (!background_color) {
-      return nullptr;
-    }
-
-    if (!ConsumeIdent<CSSValueID::kVs>(stream)) {
-      return nullptr;
-    }
-
-    do {
-      CSSValue* color =
-          ConsumeColorInternal(stream, context, local_context, no_quirky_colors,
-                               color_parser_context);
-      if (!color) {
-        return nullptr;
-      }
-      colors_to_compare_against.push_back(color);
-    } while (ConsumeCommaIncludingWhitespace(stream));
-
-    if (colors_to_compare_against.size() < 2) {
-      return nullptr;
-    }
-
-    std::optional<double> target_contrast;
-    if (ConsumeIdent<CSSValueID::kTo>(stream)) {
-      if (ConsumeIdent<CSSValueID::kAA>(stream)) {
-        target_contrast = 4.5;
-      } else if (ConsumeIdent<CSSValueID::kAALarge>(stream)) {
-        target_contrast = 3;
-      } else if (ConsumeIdent<CSSValueID::kAAA>(stream)) {
-        target_contrast = 7;
-      } else if (ConsumeIdent<CSSValueID::kAAALarge>(stream)) {
-        target_contrast = 4.5;
-      } else if (const CSSPrimitiveValue* target_contrast_value =
-                     ConsumeNumber(stream, context, local_context,
-                                   CSSPrimitiveValue::ValueRange::kAll)) {
-        target_contrast = target_contrast_value->GetValueIfKnown();
-        if (!target_contrast.has_value()) {
-          // TODO(crbug.com/40142548): Some calc() expressions can only be
-          // evaluated to a number at computed value time, such as
-          // sibling-index() and sign(1em - 20px).
-          return nullptr;
-        }
-      } else {
-        return nullptr;
-      }
-    }
-
-    // Bail out if there is any trailing stuff after we parse everything
-    if (!stream.AtEnd()) {
-      return nullptr;
-    }
-    if (document) {
-      // TODO(crbug.com/929098) Need to pass an appropriate color scheme here.
-      color_provider = document->GetColorProviderForPainting(
-          mojom::blink::ColorScheme::kLight);
-    }
-    // TODO(crbug.com/1111385): Represent |background_color| and
-    // |colors_to_compare_against| in ComputedStyle and evaluate with
-    // currentColor and other variables at used-value time instead of doing it
-    // at parse time below.
-    resolved_background_color =
-        ResolveColor(background_color, color_provider, is_in_web_app_scope)
-            .toSkColor4f();
-    float highest_contrast_ratio = 0;
-    for (unsigned i = 0; i < colors_to_compare_against.size(); i++) {
-      float contrast_ratio = color_utils::GetContrastRatio(
-          resolved_background_color,
-          ResolveColor(colors_to_compare_against[i], color_provider,
-                       is_in_web_app_scope)
-              .toSkColor4f());
-      if (target_contrast.has_value()) {
-        if (contrast_ratio >= target_contrast.value()) {
-          highest_contrast_ratio = contrast_ratio;
-          highest_contrast_index = i;
-          break;
-        }
-      } else if (contrast_ratio > highest_contrast_ratio) {
-        highest_contrast_ratio = contrast_ratio;
-        highest_contrast_index = i;
-      }
-    }
-
-    guard.Release();
-  }
-  stream.ConsumeWhitespace();
-
-  if (highest_contrast_index < 0) {
-    // If an explicit target contrast was set and no provided colors have enough
-    // contrast, then return white or black depending on which has the most
-    // contrast.
-    return color_utils::GetContrastRatio(resolved_background_color,
-                                         SkColors::kWhite) >
-                   color_utils::GetContrastRatio(resolved_background_color,
-                                                 SkColors::kBlack)
-               ? MakeGarbageCollected<cssvalue::CSSColor>(Color::kWhite)
-               : MakeGarbageCollected<cssvalue::CSSColor>(Color::kBlack);
-  }
-
-  return MakeGarbageCollected<cssvalue::CSSColor>(
-      ResolveColor(colors_to_compare_against[highest_contrast_index],
-                   color_provider, is_in_web_app_scope));
-}
-
-namespace {
 
 bool SystemAccentColorAllowed(const CSSParserContext& context) {
   if (!RuntimeEnabledFeatures::CSSAccentColorKeywordEnabled()) {
@@ -2362,16 +2237,16 @@ CSSValue* ConsumeColorInternal(CSSParserTokenStream& stream,
                                CSSParserLocalContext& local_context,
                                bool accept_quirky_colors,
                                const ColorParserContext& color_parser_context) {
-  if (RuntimeEnabledFeatures::CSSColorContrastEnabled() &&
-      stream.Peek().FunctionId() == CSSValueID::kColorContrast) {
-    return ConsumeColorContrast(stream, context, local_context,
-                                color_parser_context);
-  }
-
   if (stream.Peek().FunctionId() == CSSValueID::kColorMix) {
     CSSValue* color = ConsumeColorMixFunction(stream, context, local_context,
                                               color_parser_context);
     return color;
+  }
+
+  if (RuntimeEnabledFeatures::CSSContrastColorEnabled() &&
+      stream.Peek().FunctionId() == CSSValueID::kContrastColor) {
+    return ConsumeContrastColorFunction(stream, context, local_context,
+                                        color_parser_context);
   }
 
   CSSValueID id = stream.Peek().Id();
@@ -4298,7 +4173,7 @@ bool IsDashedIdent(const CSSParserToken& token) {
     return false;
   }
   DCHECK(!IsCSSWideKeyword(token.Value()));
-  return token.Value().ToString().StartsWith(kTwoDashes);
+  return token.Value().starts_with(kTwoDashes);
 }
 
 CSSValue* ConsumeCSSWideKeyword(CSSParserTokenStream& stream) {
@@ -8217,9 +8092,10 @@ cssvalue::CSSShapeValue* ConsumeBasicShapeShape(
           return nullptr;
         }
 
-        if (args.ConsumeIncludingWhitespace().Id() != CSSValueID::kWith) {
+        if (args.Peek().Id() != CSSValueID::kWith) {
           return nullptr;
         }
+        args.ConsumeIncludingWhitespace();
 
         CSSValueID control_point_origin_1 = CSSValueID::kInvalid;
 
@@ -8717,8 +8593,8 @@ bool ConsumeRadii(std::array<CSSValue*, 4>& horizontal_radii,
   } else {
     // Legacy syntax: -webkit-border-radius: l1 l2; is equivalent to
     // border-radius: l1 / l2;
-    if (local_context.PropertyName().has_value() &&
-        local_context.PropertyName()->Id() ==
+    if (local_context.UnresolvedPropertyName().has_value() &&
+        local_context.UnresolvedPropertyName()->Id() ==
             CSSPropertyID::kAliasWebkitBorderRadius &&
         horizontal_value_count == 2) {
       vertical_radii[0] = horizontal_radii[1];
@@ -9424,7 +9300,7 @@ CSSValue* ConsumeDashedIdentOrTactic(CSSParserTokenStream& stream,
     }
     if (context.Mode() == kUASheetMode && !dashed_ident) {
       if (stream.Peek().GetType() == kIdentToken &&
-          stream.Peek().Value().ToString().StartsWith("-internal-")) {
+          stream.Peek().Value().starts_with("-internal-")) {
         dashed_ident = ConsumeCustomIdent(stream, context, local_context);
         continue;
       }
@@ -9493,34 +9369,35 @@ CSSValue* ConsumeAnchoredFallbackQueryValue(
 CSSValue* ConsumeFitText(CSSParserTokenStream& stream,
                          const CSSParserContext& context,
                          CSSParserLocalContext& local_context) {
-  CSSValue* target = ConsumeIdent<CSSValueID::kNone, CSSValueID::kPerLine,
-                                  CSSValueID::kConsistent>(stream);
-  if (!target) {
+  // The syntax is:
+  //   [ none | grow | shrink] [ consistent | per-line | per-line-all]?
+  //   <percentage>?
+  CSSValue* type =
+      ConsumeIdent<CSSValueID::kNone, CSSValueID::kGrow, CSSValueID::kShrink>(
+          stream);
+  if (!type) {
     return nullptr;
   }
   CSSValueList* list = CSSValueList::CreateSpaceSeparated();
-  list->Append(*target);
+  list->Append(*type);
 
-  if (CSSValue* method =
-          ConsumeIdent<CSSValueID::kScale, CSSValueID::kFontSize,
-                       CSSValueID::kScaleInline, CSSValueID::kLetterSpacing>(
-              stream)) {
-    if (To<CSSIdentifierValue>(method)->GetValueID() != CSSValueID::kScale) {
-      list->Append(*method);
-    }
+  if (CSSIdentifierValue* target =
+          ConsumeIdent<CSSValueID::kConsistent, CSSValueID::kPerLine,
+                       CSSValueID::kPerLineAll>(stream)) {
+    list->Append(*target);
   }
 
-  if (CSSValue* size =
-          ConsumeLength(stream, context, local_context,
-                        CSSPrimitiveValue::ValueRange::kNonNegative)) {
-    list->Append(*size);
+  if (CSSValue* percent =
+          ConsumePercent(stream, context, local_context,
+                         CSSPrimitiveValue::ValueRange::kNonNegative)) {
+    list->Append(*percent);
   }
 
   // The list is either:
-  // - [target]
-  // - [target, method]
-  // - [target, size], or
-  // - [target, method, size]
+  // - [type]
+  // - [type, target]
+  // - [type, percentage], or
+  // - [type, target, percentage]
   return list;
 }
 

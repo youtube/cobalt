@@ -13,6 +13,7 @@
 #include "ash/constants/ash_features.h"
 #include "base/barrier_callback.h"
 #include "base/barrier_closure.h"
+#include "base/check_is_test.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
@@ -265,10 +266,12 @@ class CrostiniManager::CrostiniRestarter
     raw_ptr<RestartObserver> observer;  // optional
   };
 
-  CrostiniRestarter(Profile* profile,
-                    CrostiniManager* crostini_manager,
-                    guest_os::GuestId container_id,
-                    RestartRequest request);
+  CrostiniRestarter(
+      ash::SchedulerConfigurationManager* scheduler_configuration_manager,
+      Profile* profile,
+      CrostiniManager* crostini_manager,
+      guest_os::GuestId container_id,
+      RestartRequest request);
   ~CrostiniRestarter() override;
 
   void AddRequest(RestartRequest request);
@@ -362,6 +365,9 @@ class CrostiniManager::CrostiniRestarter
   void OnConciergeAvailable(std::optional<base::ScopedFD> disk_iamge,
                             bool service_available);
 
+  const raw_ptr<ash::SchedulerConfigurationManager>
+      scheduler_configuration_manager_;
+
   base::OneShotTimer stage_timeout_timer_;
   base::TimeTicks stage_start_;
 
@@ -390,9 +396,6 @@ class CrostiniManager::CrostiniRestarter
   const std::map<mojom::InstallerState, base::TimeDelta>
       stage_timeouts_already_installed_ = {
           {mojom::InstallerState::kInstallImageLoader, base::Minutes(5)},
-          // The configure step should only be reached during multi-container
-          // installation.
-          {mojom::InstallerState::kConfigureContainer, base::Seconds(5)},
       };
 
   raw_ptr<Profile> profile_;
@@ -428,11 +431,13 @@ class CrostiniManager::CrostiniRestarter
 };
 
 CrostiniManager::CrostiniRestarter::CrostiniRestarter(
+    ash::SchedulerConfigurationManager* scheduler_configuration_manager,
     Profile* profile,
     CrostiniManager* crostini_manager,
     guest_os::GuestId container_id,
     RestartRequest request)
-    : profile_(profile),
+    : scheduler_configuration_manager_(scheduler_configuration_manager),
+      profile_(profile),
       crostini_manager_(crostini_manager),
       container_id_(std::move(container_id)) {
   AddRequest(std::move(request));
@@ -461,9 +466,7 @@ void CrostiniManager::CrostiniRestarter::Restart() {
   // TODO(b/205650706): It is possible to invoke a CrostiniRestarter to install
   // Crostini without using the actual installer. We should handle these better.
   RestartSource restart_source = requests_[0].options.restart_source;
-  is_initial_install_ =
-      restart_source == RestartSource::kInstaller ||
-      restart_source == RestartSource::kMultiContainerCreation;
+  is_initial_install_ = restart_source == RestartSource::kInstaller;
 
   StartStage(mojom::InstallerState::kStart);
   if (ReturnEarlyIfNeeded()) {
@@ -814,15 +817,14 @@ void CrostiniManager::CrostiniRestarter::CreateDiskImageFinished(
   crostini_manager_->EmitVmDiskTypeMetric(container_id_.vm_name);
   disk_path_ = result_path;
 
-  auto* scheduler_configuration_manager =
-      g_browser_process->platform_part()->scheduler_configuration_manager();
+  CHECK(scheduler_configuration_manager_);
   std::optional<std::pair<bool, size_t>> scheduler_configuration =
-      scheduler_configuration_manager->GetLastReply();
+      scheduler_configuration_manager_->GetLastReply();
   if (!scheduler_configuration) {
     // Wait for the configuration to become available.
     LOG(WARNING) << "Scheduler configuration is not yet ready";
     scheduler_configuration_manager_observation_.Observe(
-        scheduler_configuration_manager);
+        scheduler_configuration_manager_.get());
     return;
   }
   OnConfigurationSet(scheduler_configuration->first,
@@ -1115,14 +1117,6 @@ void CrostiniManager::CrostiniRestarter::LogRestarterResult(
       base::UmaHistogramEnumeration("Crostini.RestarterResult.Installer",
                                     result);
       return;
-    case RestartSource::kMultiContainerCreation:
-      if (!is_initial_install_) {
-        LOG(WARNING) << "Restart request for multi-container creation was not "
-                        "first request.";
-      }
-      base::UmaHistogramEnumeration(
-          "Crostini.RestarterResult.MultiContainerCreation", result);
-      return;
     default:
       NOTREACHED();
   }
@@ -1147,7 +1141,7 @@ void CrostiniManager::UpdateVmState(std::string vm_name, VmState vm_state) {
 CrostiniManager::TerminaFlavor CrostiniManager::GetTerminaFlavor(
     Profile* profile) {
   TerminaFlavor termina_flavor = TerminaFlavor::UNINSTALLED;
-  const base::Value::List& container_list =
+  const base::ListValue& container_list =
       profile->GetPrefs()->GetList(guest_os::prefs::kGuestOsContainers);
   if (container_list.empty()) {
     return termina_flavor;
@@ -1179,9 +1173,8 @@ CrostiniManager::TerminaFlavor CrostiniManager::GetTerminaFlavor(
           termina_flavor = TerminaFlavor::UNKNOWN;
           break;
         } else {
-          LOG(WARNING)
-              << "Multiple crostini-style termina guests exist, we are likely "
-                 "in a multi-container state which will be deprecated soon.";
+          LOG(WARNING) << "Multiple crostini-style termina guests exist, this "
+                          "feature has been deprecated.";
         }
       }
       termina_flavor = TerminaFlavor::CROSTINI;
@@ -1310,10 +1303,16 @@ CrostiniManager* CrostiniManager::GetForProfile(Profile* profile) {
   return CrostiniManagerFactory::GetForProfile(profile);
 }
 
-CrostiniManager::CrostiniManager(Profile* profile)
-    : profile_(profile),
+CrostiniManager::CrostiniManager(
+    ash::SchedulerConfigurationManager* scheduler_configuration_manager,
+    Profile* profile)
+    : scheduler_configuration_manager_(scheduler_configuration_manager),
+      profile_(profile),
       owner_id_(CryptohomeIdForProfile(profile)),
       baguette_installer_(profile_, *profile_->GetPrefs()) {
+  if (!scheduler_configuration_manager_) {
+    CHECK_IS_TEST();
+  }
   DCHECK(!profile_->IsOffTheRecord());
   GetCiceroneClient()->AddObserver(this);
   GetConciergeClient()->AddVmObserver(this);
@@ -2512,8 +2511,9 @@ CrostiniManager::RestartId CrostiniManager::RestartCrostiniWithOptions(
   if (it == restarters_by_container_.end()) {
     VLOG(1) << "Creating new restarter for " << container_id;
     restarters_by_container_[container_id] =
-        std::make_unique<CrostiniRestarter>(profile_, this, container_id,
-                                            std::move(request));
+        std::make_unique<CrostiniRestarter>(
+            scheduler_configuration_manager_.get(), profile_, this,
+            container_id, std::move(request));
     // In some cases this will synchronously finish the restart and cause it to
     // be deleted and removed from the map.
     restarters_by_container_[container_id]->Restart();
@@ -3931,18 +3931,6 @@ void CrostiniManager::RegisterContainerTerminal(
 void CrostiniManager::RegisterContainer(const guest_os::GuestId& container_id) {
   RegisterContainerTerminal(container_id);
 
-  if (CrostiniFeatures::Get()->IsMultiContainerAllowed(profile_) &&
-      container_id != DefaultContainerId()) {
-    // TODO(b/217469540): The default container is still using sshfs for now,
-    // so start off using this approach only for non-default.
-    if (mount_provider_ids_.find(container_id) == mount_provider_ids_.end()) {
-      auto* registry = guest_os::GuestOsServiceFactory::GetForProfile(profile_)
-                           ->MountProviderRegistry();
-      mount_provider_ids_[container_id] = registry->Register(
-          std::make_unique<CrostiniMountProvider>(profile_, container_id));
-    }
-  }
-
   guest_os::GuestOsSharePathFactory::GetForProfile(profile_)->RegisterGuest(
       container_id);
 }
@@ -4008,9 +3996,9 @@ bool CrostiniManager::RegisterCreateOptions(
     return false;
   }
 
-  base::Value::Dict new_create_options;
+  base::DictValue new_create_options;
 
-  base::Value::List share_paths;
+  base::ListValue share_paths;
   for (const base::FilePath& path : options.share_paths) {
     share_paths.Append(path.value());
   }
@@ -4067,7 +4055,7 @@ void CrostiniManager::SetCreateOptionsUsed(
     return;
   }
 
-  base::Value::Dict mutable_create_options =
+  base::DictValue mutable_create_options =
       create_options_val->GetDict().Clone();
   mutable_create_options.Set(prefs::kCrostiniCreateOptionsUsedKey,
                              base::Value(true));
@@ -4090,7 +4078,7 @@ bool CrostiniManager::FetchCreateOptions(const guest_os::GuestId& container_id,
     return true;
   }
 
-  const base::Value::Dict& create_options = create_options_val->GetDict();
+  const base::DictValue& create_options = create_options_val->GetDict();
   for (const auto& path :
        *create_options.FindList(prefs::kCrostiniCreateOptionsSharePathsKey)) {
     options->share_paths.emplace_back(path.GetString());

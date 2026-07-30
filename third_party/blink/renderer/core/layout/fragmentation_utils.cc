@@ -170,6 +170,16 @@ EBreakBetween CalculateBreakBetweenValue(LayoutInputNode child,
   return break_before;
 }
 
+bool ShouldAvoidBreakInside(const ConstraintSpace& space,
+                            const LayoutResult& result) {
+  const auto& fragment = result.GetPhysicalFragment();
+  if (fragment.IsMonolithic()) {
+    return true;
+  }
+  return fragment.IsBox() &&
+         IsAvoidBreakValue(space, fragment.Style().BreakInside());
+}
+
 bool IsBreakableAtStartOfResumedContainer(
     const ConstraintSpace& space,
     const LayoutResult& child_layout_result,
@@ -392,9 +402,8 @@ void SetupFragmentBuilderForFragmentation(
     const BlockBreakToken* previous_break_token,
     BoxFragmentBuilder* builder) {
   // When resuming layout after a break, we may not be allowed to break again
-  // (because of clipped overflow). In such situations, we should not call
-  // SetHasBlockFragmentation(), but we still need to resume layout correctly,
-  // based on the previous break token.
+  // (because of clipped overflow). In such situations we still need to resume
+  // layout correctly, based on the previous break token.
   DCHECK(space.HasBlockFragmentation() || previous_break_token);
   // If the node itself is monolithic, we shouldn't be here.
   DCHECK(!node.IsMonolithic() || space.IsAnonymous());
@@ -413,12 +422,6 @@ void SetupFragmentBuilderForFragmentation(
   builder->SetIsMonolithic(!space.IsAnonymous() &&
                            space.IsBlockFragmentationForcedOff() &&
                            !IsBreakInside(previous_break_token));
-
-  if (space.HasBlockFragmentation())
-    builder->SetHasBlockFragmentation();
-
-  if (space.IsInitialColumnBalancingPass())
-    builder->SetIsInitialColumnBalancingPass();
 
   unsigned sequence_number = 0;
   if (previous_break_token && !previous_break_token->IsBreakBefore()) {
@@ -509,7 +512,7 @@ void SetupFragmentBuilderForFragmentation(
     }
   }
 
-  if (builder->IsInitialColumnBalancingPass()) {
+  if (space.IsInitialColumnBalancingPass()) {
     const BoxStrut& unbreakable = builder->BorderScrollbarPadding();
     builder->PropagateTallestUnbreakableBlockSize(unbreakable.block_start);
     builder->PropagateTallestUnbreakableBlockSize(unbreakable.block_end);
@@ -980,6 +983,22 @@ void BreakBeforeChild(const ConstraintSpace& space,
   builder->AddBreakBeforeChild(child, appeal, is_forced_break);
 }
 
+LayoutUnit CalculateUnbreakableBlockSize(
+    const ConstraintSpace& space,
+    const LayoutResult& result,
+    LayoutUnit fragmentainer_block_offset) {
+  LayoutUnit block_size =
+      BlockSizeForFragmentation(result, space.GetWritingDirection());
+
+  // Whatever is before the block-start of the fragmentainer isn't considered to
+  // intersect with the fragmentainer, so subtract it (by adding the negative
+  // offset).
+  if (fragmentainer_block_offset < LayoutUnit()) {
+    block_size += fragmentainer_block_offset;
+  }
+  return block_size;
+}
+
 void PropagateSpaceShortage(const ConstraintSpace& space,
                             const LayoutResult* layout_result,
                             LayoutUnit fragmentainer_block_offset,
@@ -1026,9 +1045,10 @@ LayoutUnit CalculateSpaceShortage(
     if (layout_result->Status() != LayoutResult::kSuccess) {
       return kIndefiniteSize;
     }
-    LogicalFragment fragment(space.GetWritingDirection(),
-                             layout_result->GetPhysicalFragment());
-    space_shortage = fragmentainer_block_offset + fragment.BlockSize() -
+
+    LayoutUnit child_block_size =
+        BlockSizeForFragmentation(*layout_result, space.GetWritingDirection());
+    space_shortage = fragmentainer_block_offset + child_block_size -
                      fragmentainer_block_size;
   } else {
     // However, if space shortage was reported inside the child, use that. If we
@@ -1094,19 +1114,14 @@ bool MovePastBreakpoint(const ConstraintSpace& space,
     }
   }
 
-  if (!space.HasKnownFragmentainerBlockSize() &&
-      space.IsInitialColumnBalancingPass() && builder) {
-    if (layout_result.GetPhysicalFragment().IsMonolithic() ||
-        (child.IsBlock() &&
-         IsAvoidBreakValue(space, child.Style().BreakInside()))) {
-      // If this is the initial column balancing pass, attempt to make the
-      // column block-size at least as large as the tallest piece of monolithic
-      // content and/or block with break-inside:avoid.
-      LayoutUnit block_size =
-          BlockSizeForFragmentation(layout_result, space.GetWritingDirection());
-      PropagateUnbreakableBlockSize(block_size, fragmentainer_block_offset,
-                                    builder);
-    }
+  if (space.IsInitialColumnBalancingPass() && builder &&
+      ShouldAvoidBreakInside(space, layout_result)) {
+    // If this is the initial column balancing pass, attempt to make the column
+    // block-size at least as large as the tallest piece of monolithic content
+    // and/or block with break-inside:avoid.
+    LayoutUnit block_size = CalculateUnbreakableBlockSize(
+        space, layout_result, fragmentainer_block_offset);
+    builder->PropagateTallestUnbreakableBlockSize(block_size);
   }
 
   bool move_past =
@@ -1544,6 +1559,16 @@ LayoutUnit BlockSizeForFragmentation(
     // Then remove any block-end trimming, since it shouldn't take up space in
     // ancestry layout.
     block_size -= result.TrimBlockEndBy().value_or(LayoutUnit());
+
+    if (const auto* box_fragment =
+            DynamicTo<PhysicalBoxFragment>(&result.GetPhysicalFragment())) {
+      if (box_fragment->IsFloating()) {
+        // Margins on floats do not break or truncate.
+        BoxStrut margins = box_fragment->Margins().ConvertToLogical(
+            container_writing_direction);
+        block_size += margins.BlockSum();
+      }
+    }
   }
 
   // Ruby annotations do not take up space in the line box, so we need this to

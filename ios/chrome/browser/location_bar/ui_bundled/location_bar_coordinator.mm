@@ -83,7 +83,6 @@
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_overlay_commands.h"
-#import "ios/chrome/browser/shared/public/commands/load_query_commands.h"
 #import "ios/chrome/browser/shared/public/commands/page_action_menu_commands.h"
 #import "ios/chrome/browser/shared/public/commands/page_action_menu_entry_point_commands.h"
 #import "ios/chrome/browser/shared/public/commands/search_image_with_lens_command.h"
@@ -113,7 +112,6 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 
 @interface LocationBarCoordinator () <
     ContextualPanelEntrypointCoordinatorDelegate,
-    LoadQueryCommands,
     LocationBarBadgeCoordinatorDelegate,
     LocationBarModelDelegateWebStateProvider,
     LocationBarSteadyViewConsumer,
@@ -201,12 +199,11 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
     return;
   }
 
-  [self.browser->GetCommandDispatcher()
-      startDispatchingToTarget:self
-                   forProtocol:@protocol(OmniboxCommands)];
-  [self.browser->GetCommandDispatcher()
-      startDispatchingToTarget:self
-                   forProtocol:@protocol(LoadQueryCommands)];
+  if (!IsChromeNextIaEnabled()) {
+    [self.browser->GetCommandDispatcher()
+        startDispatchingToTarget:self
+                     forProtocol:@protocol(OmniboxCommands)];
+  }
 
   BOOL isIncognito = self.isOffTheRecord;
 
@@ -215,16 +212,15 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   _prefService = self.profile->GetPrefs();
   self.viewController.profilePrefs = _prefService;
   self.viewController.delegate = self;
-  // TODO(crbug.com/40670043): Use HandlerForProtocol after commands protocol
-  // clean up.
-  self.viewController.dispatcher =
-      static_cast<id<ActivityServiceCommands, SceneCommands,
-                     BrowserCoordinatorCommands, LoadQueryCommands,
-                     LensCommands, LensOverlayCommands, OmniboxCommands>>(
-          self.browser->GetCommandDispatcher());
+  // TODO(crbug.com/40670043): Use HandlerForProtocol after commands
+  // protocol clean up.
+  self.viewController.dispatcher = static_cast<
+      id<ActivityServiceCommands, SceneCommands, BrowserCoordinatorCommands,
+         LensCommands, LensOverlayCommands, OmniboxCommands>>(
+      self.browser->GetCommandDispatcher());
   self.viewController.pageActionMenuHandler = HandlerForProtocol(
       self.browser->GetCommandDispatcher(), PageActionMenuCommands);
-  self.viewController.BWGHandler =
+  self.viewController.geminiHandler =
       HandlerForProtocol(self.browser->GetCommandDispatcher(), BWGCommands);
   _tracker = feature_engagement::TrackerFactory::GetForProfile(self.profile);
   self.viewController.tracker = _tracker;
@@ -289,7 +285,7 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
                                              .viewController.view];
     [self.locationBarBadgeCoordinator.viewController
         didMoveToParentViewController:self.viewController];
-  } else if (IsContextualPanelEnabled()) {
+  } else {
     self.contextualPanelEntrypointCoordinator =
         [[ContextualPanelEntrypointCoordinator alloc]
             initWithBaseViewController:self.viewController
@@ -308,7 +304,7 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
         didMoveToParentViewController:self.viewController];
   }
 
-  if (IsReaderModeAvailable()) {
+  if (IsReaderModeAvailable() && !IsChromeNextIaEnabled()) {
     self.readerModeChipCoordinator = [[ReaderModeChipCoordinator alloc]
         initWithBaseViewController:self.viewController
                            browser:self.browser];
@@ -380,7 +376,11 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
         fullscreenController, self.incognitoBadgeViewController);
   }
 
-  self.mediator = [[LocationBarMediator alloc] initWithIsIncognito:isIncognito];
+  UrlLoadingBrowserAgent* URLLoading =
+      UrlLoadingBrowserAgent::FromBrowser(self.browser);
+  self.mediator =
+      [[LocationBarMediator alloc] initWithURLLoadingBrowsingAgent:URLLoading
+                                                       isIncognito:isIncognito];
   self.mediator.templateURLService =
       ios::TemplateURLServiceFactory::GetForProfile(self.profile);
   self.mediator.consumer = self.viewController;
@@ -391,6 +391,8 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
         ios::PlaceholderServiceFactory::GetForProfile(self.profile);
     self.mediator.placeholderService = placeholderService;
   }
+
+  self.viewController.mutator = self.mediator;
 
   self.steadyViewMediator = [[LocationBarSteadyViewMediator alloc]
       initWithLocationBarModel:[self locationBarModel]];
@@ -459,6 +461,7 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   self.incognitoBadgeMediator = nil;
   self.incognitoBadgeViewController = nil;
 
+  self.viewController.geminiHandler = nil;
   self.viewController = nil;
   [self.mediator disconnect];
   self.mediator.templateURLService = nil;
@@ -526,26 +529,6 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
                    forProtocol:@protocol(PageActionMenuEntryPointCommands)];
 }
 
-#pragma mark - LoadQueryCommands
-
-- (void)loadQuery:(NSString*)query immediately:(BOOL)immediately {
-  DCHECK(query);
-  // Since the query is not user typed, sanitize it to make sure it's safe.
-  std::u16string sanitizedQuery =
-      omnibox::SanitizeTextForPaste(base::SysNSStringToUTF16(query));
-  if (immediately) {
-    [self loadURLForQuery:sanitizedQuery];
-  } else {
-    if (MaybeShowComposebox(self.browser, ComposeboxEntrypoint::kOther,
-                            /*query=*/query)) {
-      return;
-    }
-    [self focusOmnibox];
-    [self.omniboxCoordinator
-        insertTextToOmnibox:base::SysUTF16ToNSString(sanitizedQuery)];
-  }
-}
-
 #pragma mark - LocationBarURLLoader
 
 - (void)loadGURLFromLocationBar:(const GURL&)url
@@ -568,7 +551,9 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
         destination_url_entered_without_scheme, self.isOffTheRecord);
     UrlLoadingBrowserAgent::FromBrowser(self.browser)->Load(params);
   }
-  [self cancelOmniboxEdit];
+  id<BrowserCoordinatorCommands> browserCoordinatorHandler = HandlerForProtocol(
+      self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
+  [browserCoordinatorHandler hideComposebox];
 }
 
 #pragma mark - OmniboxCommands
@@ -581,16 +566,14 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 }
 
 - (void)focusOmnibox {
-  if (MaybeShowComposebox(self.browser, ComposeboxEntrypoint::kOther)) {
-    return;
-  }
+  CHECK(!IsComposeboxIOSEnabled());
   // When the NTP and fakebox are visible, make the fakebox animates into place
   // before focusing the omnibox.
   if (IsVisibleURLNewTabPage([self webState]) && !self.isOffTheRecord) {
-    id<BrowserCoordinatorCommands> browserCoordinatorCommandsHandler =
+    id<BrowserCoordinatorCommands> browserCoordinatorHandler =
         HandlerForProtocol(self.browser->GetCommandDispatcher(),
                            BrowserCoordinatorCommands);
-    [browserCoordinatorCommandsHandler focusFakebox];
+    [browserCoordinatorHandler focusFakebox];
   } else {
     [self setFakeboxButtonsSnapshotProvider:nil];
     [self.omniboxCoordinator focusOmnibox];
@@ -602,16 +585,12 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 }
 
 - (void)cancelOmniboxEdit {
+  CHECK(!IsComposeboxIOSEnabled());
   [self cancelOmniboxEditWithCompletion:nil];
 }
 
 - (void)cancelOmniboxEditWithCompletion:(ProceduralBlock)completion {
-  if (IsComposeboxIOSEnabled()) {
-    id<BrowserCoordinatorCommands> commands = HandlerForProtocol(
-        self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
-    [commands hideComposeboxImmediately:NO completion:completion];
-    return;
-  }
+  CHECK(!IsComposeboxIOSEnabled());
   if (self.isCancellingOmniboxEdit) {
     return;
   }
@@ -649,7 +628,9 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 #pragma mark - LocationBarViewControllerDelegate
 
 - (void)locationBarSteadyViewTapped {
-  [self focusOmnibox];
+  id<BrowserCoordinatorCommands> browserCoordinatorHandler = HandlerForProtocol(
+      self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
+  [browserCoordinatorHandler showComposebox];
 }
 
 - (void)locationBarCopyTapped {
@@ -719,6 +700,34 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
          didChangeEditStateHeight:(CGFloat)height {
   [self.heightDelegate locationBarCoordinator:self
                      didChangeEditStateHeight:height];
+}
+
+#pragma mark - LocationBarBadgeCommands
+
+- (void)updateBadgeConfig:(LocationBarBadgeConfiguration*)config {
+  CHECK(IsChromeNextIaEnabled());
+  [self.locationBarBadgeCoordinator updateBadgeConfig:config];
+}
+
+- (void)updateColorForIPH {
+  CHECK(IsChromeNextIaEnabled());
+  [self.locationBarBadgeCoordinator updateColorForIPH];
+}
+
+- (void)markDisplayedBadgeAsUnread:(BOOL)read {
+  CHECK(IsChromeNextIaEnabled());
+  [self.locationBarBadgeCoordinator markDisplayedBadgeAsUnread:read];
+}
+
+#pragma mark - ContextualPanelEntrypointCommands
+
+- (void)notifyContextualPanelEntrypointIPHDismissed {
+  [self.locationBarBadgeCoordinator
+          notifyContextualPanelEntrypointIPHDismissed];
+}
+
+- (void)cancelContextualPanelEntrypointLoudMoment {
+  [self.locationBarBadgeCoordinator cancelContextualPanelEntrypointLoudMoment];
 }
 
 #pragma mark - ContextualPanelEntrypointCoordinatorDelegate
@@ -795,27 +804,6 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   return metrics::OmniboxEventProto::INVALID_SPEC;
 }
 
-// Navigate to `query` from omnibox.
-- (void)loadURLForQuery:(const std::u16string&)query {
-  GURL searchURL;
-  metrics::OmniboxInputType type = AutocompleteInput::Parse(
-      query, std::string(), AutocompleteSchemeClassifierImpl(), nullptr,
-      nullptr, &searchURL);
-  if (type != metrics::OmniboxInputType::URL || !searchURL.is_valid()) {
-    searchURL = GetDefaultSearchURLForSearchTerms(
-        ios::TemplateURLServiceFactory::GetForProfile(self.profile), query);
-  }
-  if (searchURL.is_valid()) {
-    // It is necessary to include PAGE_TRANSITION_FROM_ADDRESS_BAR in the
-    // transition type is so that query-in-the-omnibox is triggered for the
-    // URL.
-    UrlLoadParams params = UrlLoadParams::InCurrentTab(searchURL);
-    params.web_params.transition_type = ui::PageTransitionFromInt(
-        ui::PAGE_TRANSITION_LINK | ui::PAGE_TRANSITION_FROM_ADDRESS_BAR);
-    UrlLoadingBrowserAgent::FromBrowser(self.browser)->Load(params);
-  }
-}
-
 - (void)setUpDragAndDrop {
   // iOS 15 adds Drag and Drop support to iPhones. This causes the long-press
   // recognizer for showing the copy/paste menu to not appear until the user
@@ -865,7 +853,9 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
     UrlLoadingBrowserAgent::FromBrowser(browser)->Load(params);
   }
 
-  [self cancelOmniboxEdit];
+  id<BrowserCoordinatorCommands> browserCoordinatorHandler = HandlerForProtocol(
+      self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
+  [browserCoordinatorHandler hideComposebox];
 }
 
 - (UIView*)locationBarSteadyViewVisualCopy {

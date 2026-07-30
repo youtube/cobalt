@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.multiwindow;
 
 import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
+import static org.chromium.chrome.browser.multiwindow.MultiWindowUtils.INVALID_TASK_ID;
 import static org.chromium.chrome.browser.multiwindow.MultiWindowUtils.isRestorableInstance;
 import static org.chromium.chrome.browser.tabwindow.TabWindowManager.INVALID_WINDOW_ID;
 
@@ -731,9 +732,7 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
     }
 
     private boolean isOlderThanSixMonths(long timestampMillis) {
-        // Only consider a valid timestamp to check for instance retention expiration.
-        return timestampMillis > 0
-                && (TimeUtils.currentTimeMillis() - timestampMillis) > SIX_MONTHS_MS;
+        return (TimeUtils.currentTimeMillis() - timestampMillis) > SIX_MONTHS_MS;
     }
 
     @Override
@@ -1001,6 +1000,8 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
         mInstanceId = instanceId;
         MultiInstancePersistentStore.writeTaskId(instanceId, taskId);
         MultiInstancePersistentStore.writeProfileType(instanceId, profileType);
+        MultiInstancePersistentStore.writeMarkedForDeletion(
+                instanceId, /* markedForDeletion= */ false);
         installTabModelObserver();
         recordInstanceCountHistogram();
         recordActivityCountHistogram();
@@ -1376,7 +1377,9 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
         mActivity.startActivity(intent);
 
         // If a new activity was started, it implies that an inactive instance was restored.
-        RecentlyClosedEntriesManagerTrackerFactory.getInstance().onInstanceRestored(instanceId);
+        if (UiUtils.isRecentlyClosedTabsAndWindowsEnabled()) {
+            RecentlyClosedEntriesManagerTrackerFactory.getInstance().onInstanceRestored(instanceId);
+        }
 
         RecordHistogram.recordEnumeratedHistogram(
                 "Android.MultiWindowMode.InactiveInstanceRestore.AppSource",
@@ -1444,6 +1447,8 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
      * @param isPermanentDeletion Whether the instance is permanently deleted.
      */
     private void notifyInstanceClosed(int instanceId, boolean isPermanentDeletion) {
+        if (!UiUtils.isRecentlyClosedTabsAndWindowsEnabled()) return;
+
         // Note that instance state (for e.g. taskId) may not be updated if a live activity for the
         // closed instance was finished, because activity destruction is asynchronous.
         // We will create an InstanceInfo synchronously with adequate information about the closed
@@ -1563,15 +1568,28 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
         if (mTabModelObserver != null) mTabModelObserver.destroy();
         // This handles a case where an instance is deleted within Chrome but not through
         // Window manager UI, and the task is removed by system. See https://crbug.com/1241719.
-        // A point of activity destruction should be recorded as last access of the instance for a
-        // more accurate ordering of inactive instances displayed on surfaces like the instance
-        // switcher dialog and Recent Tabs.
         removeInvalidInstanceData();
 
-        MultiInstancePersistentStore.writeLastAccessedTime(mInstanceId);
+        // Activity#isFinishing() is true in case of explicit user intent, for eg. task swipe up
+        // from Android Recents or app trigger, for eg. programmatically invoking #finish() on the
+        // activity. When the activity gets destroyed by the system in the background while keeping
+        // its task alive, we don't want such closure to be reflected on Recent Tabs because an
+        // instance with a live task is still considered active. Therefore, we will notify Recent
+        // Tabs of activity destruction only if the activity is finishing, with the caveat that a
+        // subsequent task kill will also not be reflected as an instance closure until the Recent
+        // Tabs page is reopened.
+        if (UiUtils.isRecentlyClosedTabsAndWindowsEnabled()) {
+            // A point of activity destruction should be recorded as last access of the instance for
+            // a more accurate ordering of inactive instances displayed on surfaces like the
+            // instance switcher dialog and Recent Tabs.
+            MultiInstancePersistentStore.writeLastAccessedTime(mInstanceId);
 
-        // Notify Recent Tabs page that the instance is closing.
-        notifyInstanceClosed(mInstanceId, /* isPermanentDeletion= */ false);
+            if (mActivity.isFinishing()) {
+                // Notify Recent Tabs page that the instance is closing.
+                int normalTabCount = MultiInstancePersistentStore.readNormalTabCount(mInstanceId);
+                notifyInstanceClosed(mInstanceId, /* isPermanentDeletion= */ normalTabCount == 0);
+            }
+        }
 
         if (mInstanceId != INVALID_WINDOW_ID) {
             ApplicationStatus.unregisterActivityStateListener(this);
@@ -1602,7 +1620,9 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
     @Override
     public void onTopResumedActivityChanged(boolean isTopResumedActivity) {
         super.onTopResumedActivityChanged(isTopResumedActivity);
-        MultiInstancePersistentStore.writeLastAccessedTime(mInstanceId);
+        if (isTopResumedActivity) {
+            MultiInstancePersistentStore.writeLastAccessedTime(mInstanceId);
+        }
     }
 
     @Override
@@ -1613,7 +1633,9 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
         // destruction needs to be recorded as an additional case of last access of the instance so
         // that surfaces like Recent Tabs and the instance switcher dialog can display a more
         // accurate list of inactive instances sorted by their last accessed time.
-        MultiInstancePersistentStore.writeLastAccessedTime(mInstanceId);
+        if (UiUtils.isRecentlyClosedTabsAndWindowsEnabled()) {
+            MultiInstancePersistentStore.writeLastAccessedTime(mInstanceId);
+        }
     }
 
     @Override
@@ -1623,11 +1645,12 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
         if (newState != ActivityState.RESUMED && newState != ActivityState.STOPPED) return;
 
         int windowingMode =
-                AppHeaderUtils.getWindowingMode(
+                MultiWindowMetricsUtils.getWindowingMode(
                         mActivity,
                         AppHeaderUtils.isAppInDesktopWindow(
                                 mDesktopWindowStateManagerSupplier.get()));
-        AppHeaderUtils.recordWindowingMode(windowingMode, newState == ActivityState.RESUMED);
+        MultiWindowMetricsUtils.recordWindowingMode(
+                windowingMode, newState == ActivityState.RESUMED);
 
         SharedPreferencesManager prefs = ChromeSharedPreferences.getInstance();
         // Check the max instance count in a day for every state update if needed.

@@ -277,6 +277,7 @@ class TabContentsTest : public ChromeViewsTestBase {
 
     controller_ = new FakeBaseTabStripController;
     tab_strip_ = new TabStrip(std::unique_ptr<TabStripController>(controller_));
+    tab_strip_->Initialize();
     controller_->set_tab_strip(tab_strip_);
 
     // The tab strip must be added to the view hierarchy for it to create the
@@ -514,30 +515,6 @@ TEST_F(TabTest, CloseButtonFocus) {
   EXPECT_NE(tab_close_button,
             tab_close_button->GetFocusManager()->GetFocusedView());
 }
-
-#if BUILDFLAG(IS_CHROMEOS)
-TEST_F(TabTest, CloseButtonHiddenWhenLockedForOnTask) {
-  const auto tab_slot_controller = std::make_unique<FakeTabSlotController>();
-  tab_slot_controller->SetLockedForOnTask(true);
-  const std::unique_ptr<views::Widget> widget =
-      CreateTestWidget(views::Widget::InitParams::CLIENT_OWNS_WIDGET);
-  Tab* const tab = widget->SetContentsView(
-      std::make_unique<Tab>(tabs::TabHandle(1), tab_slot_controller.get()));
-  TabCloseButton* const tab_close_button = GetCloseButton(tab);
-  EXPECT_FALSE(tab_close_button->GetVisible());
-}
-
-TEST_F(TabTest, CloseButtonShownWhenNotLockedForOnTask) {
-  const auto tab_slot_controller = std::make_unique<FakeTabSlotController>();
-  tab_slot_controller->SetLockedForOnTask(false);
-  const std::unique_ptr<views::Widget> widget =
-      CreateTestWidget(views::Widget::InitParams::CLIENT_OWNS_WIDGET);
-  Tab* const tab = widget->SetContentsView(
-      std::make_unique<Tab>(tabs::TabHandle(1), tab_slot_controller.get()));
-  TabCloseButton* const tab_close_button = GetCloseButton(tab);
-  EXPECT_TRUE(tab_close_button->GetVisible());
-}
-#endif
 
 // Tests expected changes to the ThrobberView state when the WebContents loading
 // state changes or the animation timer (usually in BrowserView) triggers.

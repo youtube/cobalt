@@ -71,9 +71,10 @@ import org.chromium.base.Log;
 import org.chromium.base.ObserverList;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.EnsuresNonNull;
@@ -803,21 +804,20 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
     /**
      * Creates and returns a CustomTab-specific LocationBar. This also retains a reference to the
      * passed LocationBarModel.
-     * @param locationBarModel {@link LocationBarModel} to be used for accessing LocationBar
-     *         state.
+     *
+     * @param locationBarModel {@link LocationBarModel} to be used for accessing LocationBar state.
      * @param actionModeCallback Callback to handle changes in contextual action Modes.
      * @param modalDialogManagerSupplier Supplier of {@link ModalDialogManager}.
      * @param ephemeralTabCoordinatorSupplier Supplier of {@link EphemeralTabCoordinator}.
      * @param controlsVisibilityDelegate {@link BrowserStateBrowserControlsVisibilityDelegate} to
-     *         show / hide the browser control. Used to ensure toolbar is shown for a certain
-     *         duration.
+     *     show / hide the browser control. Used to ensure toolbar is shown for a certain duration.
      * @param tabCreator {@link TabCreator} to handle a new tab creation.
      * @return The LocationBar implementation for this CustomTabToolbar.
      */
     public LocationBar createLocationBar(
             LocationBarModel locationBarModel,
             ActionMode.Callback actionModeCallback,
-            Supplier<ModalDialogManager> modalDialogManagerSupplier,
+            Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
             Supplier<EphemeralTabCoordinator> ephemeralTabCoordinatorSupplier,
             BrowserStateBrowserControlsVisibilityDelegate controlsVisibilityDelegate,
             TabCreator tabCreator) {
@@ -1652,7 +1652,7 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
 
         private LocationBarDataProvider mLocationBarDataProvider;
         private @Nullable Supplier<EphemeralTabCoordinator> mEphemeralTabCoordinatorSupplier;
-        private Supplier<ModalDialogManager> mModalDialogManagerSupplier;
+        private Supplier<@Nullable ModalDialogManager> mModalDialogManagerSupplier;
         private UrlBarCoordinator mUrlCoordinator;
         private @Nullable TabCreator mTabCreator;
 
@@ -1687,8 +1687,8 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         private @Nullable ToolbarBrandingOverlayCoordinator mBrandingOverlayCoordinator;
 
         private @Nullable OptionalButtonCoordinator mOptionalButtonCoordinator;
-        private final ObservableSupplierImpl<Tracker> mTrackerSupplier =
-                new ObservableSupplierImpl<>();
+        private final SettableMonotonicObservableSupplier<Tracker> mTrackerSupplier =
+                ObservableSuppliers.createMonotonic();
 
         /** Returns {@code true} if optional button MVC was initialized successfully. */
         private boolean initializeOptionalButton() {
@@ -2093,7 +2093,7 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         @Initializer
         public void init(
                 LocationBarDataProvider locationBarDataProvider,
-                Supplier<ModalDialogManager> modalDialogManagerSupplier,
+                Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
                 Supplier<EphemeralTabCoordinator> ephemeralTabCoordinatorSupplier,
                 TabCreator tabCreator,
                 ActionMode.Callback actionModeCallback) {

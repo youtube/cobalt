@@ -464,7 +464,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UserEducation.Session.MonthlyActiveDays" units="count"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>dfried@chromium.org</owner>
   <owner>frizzle-team@google.com</owner>
   <summary>
@@ -476,7 +476,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UserEducation.Session.RecentActiveDays" units="count"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>dfried@chromium.org</owner>
   <owner>frizzle-team@google.com</owner>
   <summary>
@@ -488,7 +488,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UserEducation.Session.RecentActiveWeeks" units="count"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>dfried@chromium.org</owner>
   <owner>frizzle-team@google.com</owner>
   <summary>
@@ -674,6 +674,20 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the total amount of time the user spent on the What's New page
     before navigating away.
+  </summary>
+</histogram>
+
+<!-- expires-never: this provides usage information about a specific edition of
+     the "What's New" page. However, since the content on the page changes every
+     edition, this histogram cannot be allowed to expire. -->
+
+<histogram name="UserEducation.WhatsNew.TimeOnPageHeartbeat"
+    enum="BooleanYesNo" expires_after="never">
+  <owner>mickeyburks@chromium.org</owner>
+  <owner>frizzle-team@google.com</owner>
+  <summary>
+    Records whether the TimeOnPage metric came from the new heartbeat mechanism
+    or the legacy system.
   </summary>
 </histogram>
 

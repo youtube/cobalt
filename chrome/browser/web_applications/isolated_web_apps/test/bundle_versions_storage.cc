@@ -79,16 +79,16 @@ GURL BundleVersionsStorage::GetBundleUrl(
   return GetBundleUrl(*base_url_, web_bundle_id, version);
 }
 
-base::Value::Dict BundleVersionsStorage::GetUpdateManifest(
+base::DictValue BundleVersionsStorage::GetUpdateManifest(
     const web_package::SignedWebBundleId& web_bundle_id) const {
   const auto& bundle_versions =
       CHECK_DEREF(base::FindOrNull(bundle_versions_per_id_, web_bundle_id));
-  return base::Value::Dict().Set(
+  return base::DictValue().Set(
       "versions",
       base::ToValueList(bundle_versions, [&](const auto& bundle_meta) {
         const auto& [version, bundle_info] = bundle_meta;
 
-        auto dict = base::Value::Dict()
+        auto dict = base::DictValue()
                         .Set("version", version.GetString())
                         .Set("src", base_url_
                                         ->Resolve(GetRelativeWebBundleUrl(
@@ -124,12 +124,14 @@ GURL BundleVersionsStorage::AddBundle(
 void BundleVersionsStorage::RemoveBundle(
     const web_package::SignedWebBundleId& web_bundle_id,
     const IwaVersion& version) {
-  CHECK(bundle_versions_per_id_.contains(web_bundle_id));
-  auto& bundle_versions = bundle_versions_per_id_[web_bundle_id];
-  CHECK(bundle_versions.contains(version));
-  bundle_versions.erase(version);
+  auto bundle_versions_per_id_it = bundle_versions_per_id_.find(web_bundle_id);
+  CHECK(bundle_versions_per_id_it != bundle_versions_per_id_.end());
+  auto& bundle_versions = bundle_versions_per_id_it->second;
+  auto bundle_versions_it = bundle_versions.find(version);
+  CHECK(bundle_versions_it != bundle_versions.end());
+  bundle_versions.erase(bundle_versions_it);
   if (bundle_versions.empty()) {
-    bundle_versions_per_id_.erase(web_bundle_id);
+    bundle_versions_per_id_.erase(bundle_versions_per_id_it);
   }
 }
 

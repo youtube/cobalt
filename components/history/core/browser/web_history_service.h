@@ -24,7 +24,7 @@
 #include "net/traffic_annotation/network_traffic_annotation.h"
 
 namespace base {
-class Value;
+class DictValue;
 }
 
 namespace signin {
@@ -173,6 +173,17 @@ class WebHistoryService : public KeyedService {
           partial_traffic_annotation);
 
  protected:
+  // LINT.IfChange(WebHistoryRequestOutcome)
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  enum class RequestOutcome {
+    kSuccess = 0,
+    kInvalidResponse = 1,
+    kFailure = 2,
+    kMaxValue = kFailure
+  };
+  // LINT.ThenChange(/tools/metrics/histograms/metadata/history/enums.xml:WebHistoryRequestOutcome)
+
   // Virtual for testing.
   virtual std::unique_ptr<Request> CreateRequest(
       const GURL& url,
@@ -180,15 +191,19 @@ class WebHistoryService : public KeyedService {
       const net::PartialNetworkTrafficAnnotationTag&
           partial_traffic_annotation);
 
-  // Extracts a JSON-encoded HTTP response into a base::Value::Dict.
+  // Extracts a JSON-encoded HTTP response into a base::DictValue.
   // If `request`'s HTTP response code indicates failure, or if the response
   // body is not JSON, nullopt is returned.
-  static std::optional<base::Value::Dict> ReadResponse(const Request& request);
+  static std::optional<base::DictValue> ReadResponse(const Request& request);
 
   // Called by `request` when a web history query has completed. Unpacks the
   // response and calls `callback`, which is the original callback that was
   // passed to QueryHistory().
   static void QueryHistoryCompletionCallback(
+      WebHistoryService::QueryWebHistoryCallback callback,
+      WebHistoryService::Request* request,
+      bool success);
+  static RequestOutcome QueryHistoryCompletionCallbackImpl(
       WebHistoryService::QueryWebHistoryCallback callback,
       WebHistoryService::Request* request,
       bool success);
@@ -200,11 +215,19 @@ class WebHistoryService : public KeyedService {
       WebHistoryService::ExpireWebHistoryCallback callback,
       WebHistoryService::Request* request,
       bool success);
+  RequestOutcome ExpireHistoryCompletionCallbackImpl(
+      WebHistoryService::ExpireWebHistoryCallback callback,
+      WebHistoryService::Request* request,
+      bool success);
 
   // Called by `request` when a web and app activity query has completed.
   // Unpacks the response and calls `callback`, which is the original callback
   // that was passed to QueryWebAndAppActivity().
   void QueryWebAndAppActivityCompletionCallback(
+      WebHistoryService::QueryWebAndAppActivityCallback callback,
+      WebHistoryService::Request* request,
+      bool success);
+  RequestOutcome QueryWebAndAppActivityCompletionCallbackImpl(
       WebHistoryService::QueryWebAndAppActivityCallback callback,
       WebHistoryService::Request* request,
       bool success);
@@ -216,6 +239,10 @@ class WebHistoryService : public KeyedService {
       WebHistoryService::QueryWebAndAppActivityCallback callback,
       WebHistoryService::Request* request,
       bool success);
+
+  const std::string& server_version_info_for_test() const {
+    return server_version_info_;
+  }
 
  private:
   friend class WebHistoryServiceTest;

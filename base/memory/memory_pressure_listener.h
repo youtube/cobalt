@@ -98,6 +98,8 @@ enum class MemoryPressureListenerTag {
   kRenderProcessHostImpl = 64,
   kBrowserChildProcessHostImpl = 65,
   kProgramCache = 66,
+  kBackForwardCacheImpl = 67,
+  kGrShaderCache = 68,
 };
 
 // To start listening, derive from MemoryPressureListener, and use

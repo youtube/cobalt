@@ -43,7 +43,6 @@ class Browser;
 class BrowserView;
 class DownloadBubbleUIController;
 class ExclusiveAccessContext;
-class ExtensionsContainer;
 class FindBar;
 class GURL;
 class LocationBar;
@@ -347,9 +346,6 @@ class BrowserWindow : public ui::BaseWindow {
   // Focuses the toolbar (for accessibility).
   virtual void FocusToolbar() = 0;
 
-  // Returns the ExtensionsContainer associated with the window, if any.
-  virtual ExtensionsContainer* GetExtensionsContainer() = 0;
-
   // Called from toolbar subviews during their show/hide animations.
   virtual void ToolbarSizeChanged(bool is_animating) = 0;
 
@@ -481,12 +477,6 @@ class BrowserWindow : public ui::BaseWindow {
   virtual void StartPartialTranslate(const std::string& source_language,
                                      const std::string& target_language,
                                      const std::u16string& text_selection) = 0;
-
-  // Shows the one-click sign in confirmation UI. |email| holds the full email
-  // address of the account that has signed in.
-  virtual void ShowOneClickSigninConfirmation(
-      const std::u16string& email,
-      base::OnceCallback<void(bool)> confirmed_callback) = 0;
 
   // Returns the DownloadBubbleUIController. Returns null if Download Bubble
   // UI is not enabled, or if the download toolbar button does not exist.

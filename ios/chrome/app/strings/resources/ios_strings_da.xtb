@@ -333,6 +333,7 @@
 <translation id="2184272387334793084">Log ind for at få adgang til dine adgangskoder og meget mere på alle dine enheder</translation>
 <translation id="2186206192313702726">Google Lens</translation>
 <translation id="2188993354115194873">Tryk på <ph name="BEGIN_BOLD" />Gem i downloads<ph name="END_BOLD" /></translation>
+<translation id="2191406283620379491">Noget gik helt galt. Opdater din iOS-version.</translation>
 <translation id="219283042927675668">Faner i gruppe</translation>
 <translation id="2194856509914051091">Vigtige oplysninger</translation>
 <translation id="2196428379625389579">Søg på nettet</translation>
@@ -874,6 +875,7 @@
 <translation id="4302061870579014542">Vælg placering</translation>
 <translation id="4304713468139749426">Adgangs­kode­admin­istrator</translation>
 <translation id="4309403553630140242">Tryk to gange for at få flere oplysninger</translation>
+<translation id="4310738531374808763">Tilpas din startside</translation>
 <translation id="4320848494125124980">Seneste</translation>
 <translation id="4322394346347055525">Luk alle andre faner</translation>
 <translation id="4324735664183300693">Aktivér notifikationer</translation>
@@ -935,6 +937,7 @@
 <translation id="4565377596337484307">Skjul adgangskode</translation>
 <translation id="4568230126482344545">Skjul seneste faner</translation>
 <translation id="4578835633387306383">Aktivér…</translation>
+<translation id="4580621046861724270">Nogle bogmærker gemmes ikke</translation>
 <translation id="4580716718466706433">Gå til "Adgangskodeadministrator"</translation>
 <translation id="4585751637295612750">Åbn en ny fane for at føje den til dit spørgsmål</translation>
 <translation id="4587589328781138893">Websites</translation>
@@ -1018,6 +1021,7 @@
 <translation id="483689884442613745">Gem…</translation>
 <translation id="4840495572919996524">Dine bogmærker, din historik, dine adgangskoder og meget andet synkroniseres ikke længere med din Google-konto.</translation>
 <translation id="484280513275854557">Du er blevet logget ud: Browserdataene er blevet slettet</translation>
+<translation id="484462545196658690">Automatisk</translation>
 <translation id="4850886885716139402">Se</translation>
 <translation id="4854068532375923088">Giv "Gemini" tilladelse til at bruge dit kamera</translation>
 <translation id="4860895144060829044">Ring op</translation>
@@ -1162,6 +1166,7 @@
 <translation id="5318298563956633672">Du holder allerede øje med dette produkt.</translation>
 <translation id="5327248766486351172">Navn</translation>
 <translation id="5329451663851195956">Træk nedad for at opdatere.</translation>
+<translation id="5336910966955551309">Hold fingeren på feltet for at fastgøre dine foretrukne websites</translation>
 <translation id="5338512273860059533">Login er i gang.</translation>
 <translation id="5343472494710226394">Nyheder, sport og indhold baseret på dine interesser.</translation>
 <translation id="5352128922772839949">Gem fil</translation>
@@ -1712,6 +1717,7 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="7328162502911382168">(<ph name="COUNT" />)</translation>
 <translation id="7336264872878993241"><ph name="PERCENT" /> procent er downloadet</translation>
 <translation id="7345061034321640811">Import er ikke tilladt</translation>
+<translation id="7347998088283246662">Importér adgangskoder, historik, bogmærker m.m.</translation>
 <translation id="7352651011704765696">Noget gik galt</translation>
 <translation id="7364796246159120393">Vælg fil</translation>
 <translation id="736564850024123010">Flyt din adresselinje for at få en tilpasset oplevelse.</translation>
@@ -1895,6 +1901,7 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="7958575506592576831">Oplysninger om sidesikkerhed</translation>
 <translation id="7961015016161918242">Aldrig</translation>
 <translation id="7971136598759319605">Aktiv for 1 dag siden</translation>
+<translation id="7972837668077967426">Canvas</translation>
 <translation id="7975036700432177008">Prøv</translation>
 <translation id="797588153137233716">Menu → Historik → Slet browserdata</translation>
 <translation id="7977451675950311423">Advarer dig, hvis du bruger en adgangskode, der er blevet kompromitteret som følge af et brud på datasikkerheden.</translation>
@@ -2002,6 +2009,7 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="8319282042900445670">Påmindelsen er indstillet til <ph name="TIME" />, <ph name="DATE" /></translation>
 <translation id="8320212361750431956">Seneste aktivitet</translation>
 <translation id="8325455175867928593">Skjul "Anmeldelser baseret på dine interesser"</translation>
+<translation id="8328777765163860529">Luk alt</translation>
 <translation id="833647236762414178">Opret, gem og administrer dine adgangskoder og adgangsnøgler, så du nemt kan logge ind på websites og i apps. <ph name="BEGIN_LINK" />Få flere oplysninger<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">Sikkerhedskopiér dit indhold, og få adgang til det på enhver enhed.</translation>
 <translation id="8348530355586151720">Tryk på prikmenuen</translation>
@@ -2237,6 +2245,7 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="914781932147356857">Markér alle…</translation>
 <translation id="9148126808321036104">Log ind igen</translation>
 <translation id="9149866541089851383">Rediger...</translation>
+<translation id="9152637745605628097">Vælg mellem temaer og farver, eller upload et billede</translation>
 <translation id="9159628751968616911">Send webside</translation>
 <translation id="9162432979321511934">Aktivér Adgangskoder via Autofyld</translation>
 <translation id="9165320910061267720">Hvis du vil have notifikationer om prisfald, skal du aktivere notifikationer i iOS-indstillingerne.</translation>

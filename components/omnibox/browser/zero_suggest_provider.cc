@@ -248,7 +248,7 @@ bool ReadStoredResponse(const AutocompleteProviderClient* client,
     return false;
   }
 
-  std::optional<base::Value::List> response_data =
+  std::optional<base::ListValue> response_data =
       SearchSuggestionParser::DeserializeJsonData(response_json);
   if (!response_data) {
     return false;
@@ -317,7 +317,9 @@ ResultType ResultTypeForInput(const AutocompleteInput& input) {
                        omnibox::kFocusTriggersWebAndSRPZeroSuggest))) {
       return ResultType::kRemoteSendURL;
     }
-    if (input.type() == OIT::EMPTY && !is_ios) {
+    if (input.type() == OIT::EMPTY &&
+        (!is_ios ||
+         base::FeatureList::IsEnabled(omnibox::kOnClobberSuggestIOS))) {
       return ResultType::kRemoteSendURL;
     }
   }

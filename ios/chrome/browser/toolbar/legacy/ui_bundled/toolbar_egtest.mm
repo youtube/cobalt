@@ -69,10 +69,10 @@ void WaitForEmpyOmnibox() {
 }  // namespace
 
 // Toolbar integration tests for Chrome.
-@interface ToolbarTestCase : ChromeTestCase
+@interface LegacyToolbarTestCase : ChromeTestCase
 @end
 
-@implementation ToolbarTestCase
+@implementation LegacyToolbarTestCase
 
 - (void)setUp {
   [super setUp];
@@ -188,8 +188,7 @@ void WaitForEmpyOmnibox() {
 
   [ChromeEarlGrey loadURL:URL];
 
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      assertWithMatcher:chrome_test_util::OmniboxText(URL.GetContent())];
+  [ChromeEarlGrey waitForWebStateVisibleURL:URL];
   [ChromeEarlGreyUI focusOmniboxAndReplaceText:@"foo"];
 
   id<GREYMatcher> typingShield = grey_accessibilityID(@"Typing Shield");

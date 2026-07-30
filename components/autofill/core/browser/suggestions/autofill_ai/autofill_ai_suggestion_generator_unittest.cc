@@ -95,23 +95,12 @@ std::u16string GetDriversLicenseName(const EntityInstance& entity) {
       ->GetCompleteInfo(kAppLocaleUS);
 }
 
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
-    BUILDFLAG(IS_CHROMEOS)
-std::u16string GetVehicleVIN(const EntityInstance& entity) {
-  return entity.attribute(AttributeType(AttributeTypeName::kVehicleVin))
-      ->GetCompleteInfo(kAppLocaleUS);
-}
-#endif
-
 class AutofillAiSuggestionGeneratorTest : public testing::Test {
  public:
   AutofillAiSuggestionGeneratorTest() {
     scoped_feature_list_.InitWithFeatures(
         /*enabled_features=*/{features::kAutofillAiWithDataSchema,
                               features::kAutofillAiServerModel,
-                              features::kAutofillAiNationalIdCard,
-                              features::kAutofillAiKnownTravelerNumber,
-                              features::kAutofillAiRedressNumber,
                               features::kAutofillAiWalletFlightReservation},
         /*disabled_features=*/{});
     autofill_client_.set_entity_data_manager(
@@ -120,7 +109,8 @@ class AutofillAiSuggestionGeneratorTest : public testing::Test {
             autofill_client_.GetSyncService(),
             webdata_helper_.autofill_webdata_service(),
             /*history_service=*/nullptr,
-            /*strike_database=*/nullptr));
+            /*strike_database=*/nullptr,
+            /*variation_country_code=*/GeoIpCountryCode("US")));
     autofill_client_.SetUpPrefsAndIdentityForAutofillAi();
     generator_ = std::make_unique<AutofillAiSuggestionGenerator>();
   }
@@ -210,41 +200,20 @@ class AutofillAiSuggestionGeneratorTest : public testing::Test {
   std::optional<FormStructure> form_structure_;
 };
 
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
-    BUILDFLAG(IS_CHROMEOS)
 // Tests that the suggestions's main text is obfuscated when the triggering
 // field is from an attribute type that should be obfuscated.
 TEST_F(AutofillAiSuggestionGeneratorTest, SuggestionMainTextIsObfuscated) {
-  base::test::ScopedFeatureList feature(features::kAutofillAiReauthRequired);
-  client().GetPrefs()->SetBoolean(
-      prefs::kAutofillAiReauthBeforeViewingSensitiveData, true);
-  EntityInstance vehicle_entity = test::GetVehicleEntityInstanceWithRandomGuid(
-      {.plate = u"123", .number = u"VIN123"});
-  SetEntities({vehicle_entity});
-  SetForm({VEHICLE_VIN});
+  EntityInstance passport_entity =
+      test::GetPassportEntityInstanceWithRandomGuid(
+          {.number = u"123456", .country = u"Brazil"});
+  SetEntities({passport_entity});
+  SetForm({PASSPORT_NUMBER});
 
   EXPECT_THAT(
       CreateAutofillAiFillingSuggestions(field(0)),
       SuggestionsAre(HasMainText(GetObfuscatedValue(
-          GetVehicleVIN(vehicle_entity), /*visible_suffix_length=*/4))));
+          GetPassportNumber(passport_entity), /*visible_suffix_length=*/4))));
 }
-
-// Tests that the suggestions's main text is NOT obfuscated when the pref is
-// disabled.
-TEST_F(AutofillAiSuggestionGeneratorTest,
-       SuggestionMainTextIsNotObfuscatedWhenPrefIsDisabled) {
-  base::test::ScopedFeatureList feature(features::kAutofillAiReauthRequired);
-  client().GetPrefs()->SetBoolean(
-      prefs::kAutofillAiReauthBeforeViewingSensitiveData, false);
-  EntityInstance vehicle_entity = test::GetVehicleEntityInstanceWithRandomGuid(
-      {.plate = u"123", .number = u"VIN123"});
-  SetEntities({vehicle_entity});
-  SetForm({VEHICLE_VIN});
-
-  EXPECT_THAT(CreateAutofillAiFillingSuggestions(field(0)),
-              SuggestionsAre(HasMainText(GetVehicleVIN(vehicle_entity))));
-}
-#endif
 
 TEST_F(AutofillAiSuggestionGeneratorTest, GeneratesAutofillAiSuggestions) {
   SetEntities({test::GetPassportEntityInstanceWithRandomGuid()});
@@ -462,8 +431,10 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
 
   std::vector<Suggestion> suggestions =
       CreateAutofillAiFillingSuggestions(field(0));
-  EXPECT_THAT(suggestions,
-              SuggestionsAre(HasMainText(GetPassportNumber(passport_entity))));
+  EXPECT_THAT(
+      suggestions,
+      SuggestionsAre(HasMainText(GetObfuscatedValue(
+          GetPassportNumber(passport_entity), /*visible_suffix_length=*/4))));
   EXPECT_THAT(suggestions,
               SuggestionsAre(HasLabel(u"Passport · Pippi Långstrump")));
 

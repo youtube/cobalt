@@ -83,7 +83,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "url/origin.h"
 
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_GLIC)
 #include "chrome/browser/actor/actor_keyed_service.h"
 #endif
 
@@ -530,15 +530,12 @@ void ChromePermissionsClient::OnPromptResolved(
 
 #if !BUILDFLAG(IS_ANDROID)
   // Infobar exists only on Desktop platforms.
-  if (base::FeatureList::IsEnabled(
-          permissions::features::kPermissionPromiseLifetimeModulation)) {
-    bool should_show_infobar = ShouldShowInfobarOnPromptResolved(
-        web_contents, request, quiet_ui_reason, action);
-    permissions::PermissionUmaUtil::RecordPageReloadInfoBarShown(
-        should_show_infobar);
-    if (should_show_infobar) {
-      ShowInfobar(web_contents);
-    }
+  bool should_show_infobar = ShouldShowInfobarOnPromptResolved(
+      web_contents, request, quiet_ui_reason, action);
+  permissions::PermissionUmaUtil::RecordPageReloadInfoBarShown(
+      should_show_infobar);
+  if (should_show_infobar) {
+    ShowInfobar(web_contents);
   }
 #endif
 
@@ -850,7 +847,7 @@ bool ChromePermissionsClient::CanPromptSystemPermission(
 
 bool ChromePermissionsClient::IsActorOperatingOnWebContents(
     content::WebContents* web_contents) const {
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_GLIC)
   auto* actor_service =
       actor::ActorKeyedService::Get(web_contents->GetBrowserContext());
   if (!actor_service) {

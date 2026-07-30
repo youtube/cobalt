@@ -5,7 +5,7 @@
 import("//chrome/common/features.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 
-assert(enable_glic || enable_glic_android)
+assert(enable_glic)
 
 source_set("fre") {
   sources = [
@@ -36,7 +36,6 @@ source_set("fre") {
     ]
     deps += [
       "//chrome/browser/background/glic",
-      "//chrome/browser/glic/browser_ui",
       "//chrome/browser/themes",
     ]
   }

@@ -103,19 +103,16 @@ class AccountsPolicyManagerTest : public testing::Test {
       identity_test_env_adaptor_;
 };
 
-TEST_F(AccountsPolicyManagerTest, ClearPrimarySyncAccountWhenSigninNotAllowed) {
+TEST_F(AccountsPolicyManagerTest, ClearPrimaryAccountWhenSigninNotAllowed) {
   GetIdentityTestEnv()->MakePrimaryAccountAvailable(
       "test@foo.com", signin::ConsentLevel::kSignin);
   GetProfile()->GetPrefs()->SetBoolean(prefs::kSigninAllowed, false);
 
   EXPECT_FALSE(GetIdentityTestEnv()->identity_manager()->HasPrimaryAccount(
-      signin::ConsentLevel::kSync));
-  EXPECT_FALSE(GetIdentityTestEnv()->identity_manager()->HasPrimaryAccount(
       signin::ConsentLevel::kSignin));
 }
 
-TEST_F(AccountsPolicyManagerTest,
-       ClearPrimarySyncAccountWhenPatternNotAllowed) {
+TEST_F(AccountsPolicyManagerTest, ClearPrimaryAccountWhenPatternNotAllowed) {
   GetIdentityTestEnv()->MakePrimaryAccountAvailable(
       "test@foo.com", signin::ConsentLevel::kSignin);
   GetLocalState()->SetString(prefs::kGoogleServicesUsernamePattern,
@@ -171,7 +168,7 @@ TEST_F(AccountsPolicyManagerTest, ClearProfileUnallowedAccounts) {
   EXPECT_TRUE(identity_manager()->HasAccountWithRefreshToken(account_id3));
 
   // Set prefs to only allow example.com secondary accounts
-  base::Value::List profile_separation_domain_exception_list;
+  base::ListValue profile_separation_domain_exception_list;
   profile_separation_domain_exception_list.Append("example.com");
   GetProfile()->GetPrefs()->SetList(
       prefs::kProfileSeparationDomainExceptionList,
@@ -214,7 +211,7 @@ TEST_F(AccountsPolicyManagerTest, ClearProfileUnallowedAccountsDisabled) {
   EXPECT_TRUE(identity_manager()->HasAccountWithRefreshToken(account_id3));
 
   // Set prefs to only allow example.com secondary accounts
-  base::Value::List profile_separation_domain_exception_list;
+  base::ListValue profile_separation_domain_exception_list;
   profile_separation_domain_exception_list.Append("example.com");
   GetProfile()->GetPrefs()->SetList(
       prefs::kProfileSeparationDomainExceptionList,

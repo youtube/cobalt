@@ -86,12 +86,12 @@
 #include "chrome/browser/ui/webui/web_app_internals/web_app_internals.mojom.h"
 #include "chrome/browser/ui/webui/web_app_internals/web_app_internals_ui.h"
 #include "chrome/browser/ui/webui/webui_gallery/webui_gallery_ui.h"
-#include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar.mojom.h"
 #include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_ui.h"
 #include "chrome/browser/ui/webui_browser/webui_browser.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_ui.h"
 #include "chrome/common/chrome_features.h"
 #include "components/autofill/core/browser/ml_model/logging/autofill_ml_internals.mojom.h"
+#include "components/browser_apis/browser_controls/browser_controls_api.mojom.h"
 #include "components/commerce/core/mojom/product_specifications.mojom.h"
 #include "components/commerce/core/mojom/shopping_service.mojom.h"  // nogncheck crbug.com/1125897
 #include "components/contextual_tasks/public/features.h"
@@ -639,9 +639,10 @@ void PopulateChromeWebUIFrameInterfaceBrokersTrustedPartsDesktop(
         .Add<tracked_element::mojom::TrackedElementHandler>();
   }
 
-  if (features::IsWebUIReloadButtonEnabled()) {
+  if (features::IsWebUIToolbarEnabled()) {
     registry.ForWebUI<WebUIToolbarUI>()
-        .Add<webui_toolbar::mojom::PageHandlerFactory>();
+        .Add<browser_controls_api::mojom::BrowserControlsFactory>()
+        .Add<tracked_element::mojom::TrackedElementHandler>();
   }
 
   // TODO(crbug.com/452983498): Migrate all remaining

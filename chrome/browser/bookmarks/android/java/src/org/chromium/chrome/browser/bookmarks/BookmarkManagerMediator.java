@@ -54,9 +54,10 @@ import org.chromium.components.bookmarks.BookmarkType;
 import org.chromium.components.browser_ui.widget.BrowserUiListMenuUtils;
 import org.chromium.components.browser_ui.widget.ListItemBuilder;
 import org.chromium.components.browser_ui.widget.dragreorder.DragReorderableRecyclerViewAdapter;
-import org.chromium.components.browser_ui.widget.dragreorder.DragReorderableRecyclerViewAdapter.DragListener;
-import org.chromium.components.browser_ui.widget.dragreorder.DragReorderableRecyclerViewAdapter.DraggabilityProvider;
 import org.chromium.components.browser_ui.widget.dragreorder.DragStateDelegate;
+import org.chromium.components.browser_ui.widget.dragreorder.DragTouchHandler;
+import org.chromium.components.browser_ui.widget.dragreorder.DragTouchHandler.DragListener;
+import org.chromium.components.browser_ui.widget.dragreorder.DragTouchHandler.DraggabilityProvider;
 import org.chromium.components.browser_ui.widget.selectable_list.SelectableListLayout;
 import org.chromium.components.browser_ui.widget.selectable_list.SelectionDelegate;
 import org.chromium.components.browser_ui.widget.selectable_list.SelectionDelegate.SelectionObserver;
@@ -182,10 +183,8 @@ class BookmarkManagerMediator
                                 // Update the batch upload card (in case of refresh() is not called)
                                 // to reflect the right number of the
                                 // local bookmarks.
-                                if (mBatchUploadCardCoordinator != null) {
-                                    mBatchUploadCardCoordinator
-                                            .immediatelyHideBatchUploadCardAndUpdateItsVisibility();
-                                }
+                                mBatchUploadCardCoordinator
+                                        .immediatelyHideBatchUploadCardAndUpdateItsVisibility();
                             }
                         }
                     }
@@ -239,9 +238,6 @@ class BookmarkManagerMediator
                 public void onDestroy() {
                     removeUiObserver(mBookmarkUiObserver);
                     getSelectionDelegate().removeObserver(mSelectionObserver);
-                    if (mPromoHeaderManager != null) {
-                        mPromoHeaderManager.destroy();
-                    }
                 }
 
                 @Override
@@ -277,7 +273,7 @@ class BookmarkManagerMediator
     private final DragListener mDragListener =
             new DragListener() {
                 @Override
-                public void onSwap() {
+                public void onSwap(int targetIndex) {
                     mIsBookmarkModelReorderingInProgress = true;
                     try {
                         setOrder();
@@ -372,11 +368,11 @@ class BookmarkManagerMediator
     // Owned by BookmarkManager(Coordinator).
     private final RecyclerView mRecyclerView;
     private final DragReorderableRecyclerViewAdapter mDragReorderableRecyclerViewAdapter;
+    private final DragTouchHandler mDragTouchHandler;
     // Whether we're showing in a dialog UI which is only true for phones.
     private final boolean mIsDialogUi;
     private final SettableNonNullObservableSupplier<Boolean> mBackPressStateSupplier;
     private final Profile mProfile;
-    private final @Nullable BookmarkPromoHeader mPromoHeaderManager;
     private final BookmarkUndoController mBookmarkUndoController;
     private final BookmarkQueryHandler mBookmarkQueryHandler;
     private final ModelList mModelList;
@@ -395,7 +391,7 @@ class BookmarkManagerMediator
     private final BookmarkManagerOpener mBookmarkManagerOpener;
     private final PriceDropNotificationManager mPriceDropNotificationManager;
 
-    private @Nullable BatchUploadCardCoordinator mBatchUploadCardCoordinator;
+    private final BatchUploadCardCoordinator mBatchUploadCardCoordinator;
     // Whether this instance has been destroyed.
     private boolean mIsDestroyed;
     private boolean mIsExitingSearch;
@@ -422,6 +418,7 @@ class BookmarkManagerMediator
             SelectionDelegate<BookmarkId> selectionDelegate,
             RecyclerView recyclerView,
             DragReorderableRecyclerViewAdapter dragReorderableRecyclerViewAdapter,
+            DragTouchHandler dragTouchHandler,
             boolean isDialogUi,
             SettableNonNullObservableSupplier<Boolean> backPressStateSupplier,
             Profile profile,
@@ -448,9 +445,9 @@ class BookmarkManagerMediator
         mSelectionDelegate = selectionDelegate;
         mRecyclerView = recyclerView;
         mDragReorderableRecyclerViewAdapter = dragReorderableRecyclerViewAdapter;
-        mDragReorderableRecyclerViewAdapter.addDragListener(mDragListener);
-        mDragReorderableRecyclerViewAdapter.setLongPressDragDelegate(
-                () -> mDragStateDelegate.getDragActive());
+        mDragTouchHandler = dragTouchHandler;
+        mDragTouchHandler.addDragListener(mDragListener);
+        mDragTouchHandler.setLongPressDragDelegate(() -> mDragStateDelegate.getDragActive());
         mIsDialogUi = isDialogUi;
         mBackPressStateSupplier = backPressStateSupplier;
         mProfile = profile;
@@ -463,25 +460,18 @@ class BookmarkManagerMediator
         mSnackbarManager = snackbarManager;
         mClipboard = clipboard;
         mCanShowSigninPromo = canShowSigninPromo;
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.UNO_PHASE_2_FOLLOW_UP)) {
-            OneshotSupplierImpl<SnackbarManager> snackbarManagerSupplierImpl =
-                    new OneshotSupplierImpl<>();
-            snackbarManagerSupplierImpl.set(mSnackbarManager);
-            mBatchUploadCardCoordinator =
-                    new BatchUploadCardCoordinator(
-                            activity,
-                            lifecycleOwner,
-                            modalDialogManager,
-                            mProfile.getOriginalProfile(),
-                            snackbarManagerSupplierImpl,
-                            this::updateBatchUploadCard,
-                            BatchUploadCardCoordinator.EntryPoint.BOOKMARK_MANAGER);
-            mPromoHeaderManager = null;
-        } else {
-            mPromoHeaderManager =
-                    new BookmarkPromoHeader(
-                            mContext, mProfile.getOriginalProfile(), this::updateHeader);
-        }
+        OneshotSupplierImpl<SnackbarManager> snackbarManagerSupplierImpl =
+                new OneshotSupplierImpl<>();
+        snackbarManagerSupplierImpl.set(mSnackbarManager);
+        mBatchUploadCardCoordinator =
+                new BatchUploadCardCoordinator(
+                        activity,
+                        lifecycleOwner,
+                        modalDialogManager,
+                        mProfile.getOriginalProfile(),
+                        snackbarManagerSupplierImpl,
+                        this::updateBatchUploadCard,
+                        BatchUploadCardCoordinator.EntryPoint.BOOKMARK_MANAGER);
         mBookmarkUndoController = bookmarkUndoController;
         mBookmarkManagerOpener = bookmarkManagerOpener;
         mPriceDropNotificationManager = priceDropNotificationManager;
@@ -552,9 +542,7 @@ class BookmarkManagerMediator
         mBookmarkUndoController.destroy();
         mBookmarkQueryHandler.destroy();
         mCallbackController.destroy();
-        if (mBatchUploadCardCoordinator != null) {
-            mBatchUploadCardCoordinator.destroy();
-        }
+        mBatchUploadCardCoordinator.destroy();
 
         mBookmarkUiPrefs.removeObserver(mBookmarkUiPrefsObserver);
 
@@ -670,10 +658,6 @@ class BookmarkManagerMediator
         } else {
             mInitialUrl = url;
         }
-    }
-
-    @Nullable BookmarkPromoHeader getPromoHeaderManager() {
-        return mPromoHeaderManager;
     }
 
     @Nullable BookmarkId getIdByPosition(int position) {
@@ -1201,21 +1185,10 @@ class BookmarkManagerMediator
             return ViewType.INVALID;
         }
 
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.UNO_PHASE_2_FOLLOW_UP)) {
-            return mCanShowSigninPromo.getAsBoolean() ? ViewType.SIGNIN_PROMO : ViewType.INVALID;
-        }
-
-        if (mPromoHeaderManager != null && mPromoHeaderManager.shouldShowPromo()) {
-            return ViewType.SIGNIN_PROMO;
-        } else {
-            return ViewType.INVALID;
-        }
+        return mCanShowSigninPromo.getAsBoolean() ? ViewType.SIGNIN_PROMO : ViewType.INVALID;
     }
 
     private boolean shouldShowBatchUploadCard() {
-        if (mBatchUploadCardCoordinator == null) {
-            return false;
-        }
         return mBatchUploadCardCoordinator.shouldShowBatchUploadCard();
     }
 
@@ -1367,8 +1340,7 @@ class BookmarkManagerMediator
                 BookmarkListEntry.createSyncPromoHeader(promoHeaderType);
         PropertyModel.Builder builder =
                 new PropertyModel.Builder(BookmarkManagerProperties.ALL_KEYS)
-                        .with(BookmarkManagerProperties.BOOKMARK_LIST_ENTRY, bookmarkListEntry)
-                        .with(BookmarkManagerProperties.BOOKMARK_PROMO_HEADER, mPromoHeaderManager);
+                        .with(BookmarkManagerProperties.BOOKMARK_LIST_ENTRY, bookmarkListEntry);
         return new ListItem(bookmarkListEntry.getViewType(), builder.build());
     }
 
@@ -1456,7 +1428,7 @@ class BookmarkManagerMediator
         mBookmarkModel.finishLoadingBookmarkModel(this::onBookmarkModelLoaded);
     }
 
-    /* package */ @Nullable BatchUploadCardCoordinator getBatchUploadCardCoordinatorForTesting() {
+    /* package */ BatchUploadCardCoordinator getBatchUploadCardCoordinatorForTesting() {
         return mBatchUploadCardCoordinator;
     }
 
@@ -1673,7 +1645,6 @@ class BookmarkManagerMediator
                 };
 
         PowerBookmarkUtils.setPriceTrackingEnabledWithSnackbars(
-                mBookmarkModel,
                 assumeNonNull(entry.getBookmarkItem()).getId(),
                 enabled,
                 mSnackbarManager,

@@ -140,16 +140,12 @@ class ClientSideDetectionHost
   // pending callbacks that could show an interstitial, and check to see whether
   // we should classify the new URL. If a request to lock the keyboard or
   // pointer or vibrate the page has arrived, we will re-trigger classification.
-  // If a request to fullscreen the tab happens, check in preclassification
-  // check for allowlist matches for metric collection.
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
   void PrimaryPageChanged(content::Page& page) override;
   void KeyboardLockRequested() override;
   void PointerLockRequested() override;
   void VibrationRequested() override;
-  void DidToggleFullscreenModeForTab(bool entered_fullscreen,
-                                     bool will_cause_resize) override;
   void OnTextCopiedToClipboard(content::RenderFrameHost* render_frame_host,
                                const std::u16string& copied_text) override;
 
@@ -201,6 +197,9 @@ class ClientSideDetectionHost
   friend class ShouldClassifyUrlRequest;
   FRIEND_TEST_ALL_PREFIXES(ClientSideDetectionHostPrerenderBrowserTest,
                            PrerenderShouldNotAffectClientSideDetection);
+  FRIEND_TEST_ALL_PREFIXES(
+      ClientSideDetectionHostPrerenderBrowserTest,
+      SamePageNavigationShouldNotAffectClientSideDetection);
   FRIEND_TEST_ALL_PREFIXES(ClientSideDetectionHostPrerenderBrowserTest,
                            ClassifyPrerenderedPageAfterActivation);
   FRIEND_TEST_ALL_PREFIXES(
@@ -221,14 +220,8 @@ class ClientSideDetectionHost
   FRIEND_TEST_ALL_PREFIXES(
       ClientSideDetectionHostPrerenderExclusiveAccessBrowserTest,
       KeyboardLockClassificationTriggersCSPPPing);
-  FRIEND_TEST_ALL_PREFIXES(
-      ClientSideDetectionHostTest,
-      FullscreenApiCallChecksAllowlistInPreClassificationAndDoesNotProceedWithClassification);
   FRIEND_TEST_ALL_PREFIXES(ClientSideDetectionHostTest,
                            SkipsImageEmbeddingIfAlreadyPresent);
-  FRIEND_TEST_ALL_PREFIXES(
-      ClientSideDetectionHostTest,
-      TwoFullscreenApiTriggersOnSamePageOnlyLogsOnePreclassificationCheck);
   FRIEND_TEST_ALL_PREFIXES(
       ClientSideDetectionHostTest,
       TwoKeyboardLockRequestsOnSamePageOnlyLogsOnePreclassificationCheck);
@@ -245,6 +238,15 @@ class ClientSideDetectionHost
   FRIEND_TEST_ALL_PREFIXES(
       ClientSideDetectionHostTest,
       TestPreClassificationCheckDoesNotMatchHighConfidenceAllowlistDueToDisabledFeature);
+  FRIEND_TEST_ALL_PREFIXES(
+      ClientSideDetectionHostSkipImageClassificationScoringTest,
+      NeverSkipWhenFeatureDisabled);
+  FRIEND_TEST_ALL_PREFIXES(
+      ClientSideDetectionHostSkipImageClassificationScoringTest,
+      TriggerModelsDoesNotSkipWhenFeatureIsEnabled);
+  FRIEND_TEST_ALL_PREFIXES(
+      ClientSideDetectionHostSkipImageClassificationScoringTest,
+      AllOtherTypesSkipWhenFeatureIsEnabled);
   FRIEND_TEST_ALL_PREFIXES(
       ClientSideDetectionRTLookupResponseForceRequestTest,
       AsyncCheckTrackerTriggersClassificationRequestOnAllowlistMatch);
@@ -316,6 +318,7 @@ class ClientSideDetectionHost
       ClientSideDetectionType request_type,
       bool is_sample_ping,
       std::optional<bool> did_match_high_confidence_allowlist,
+      base::TimeTicks start_time,
       mojom::PhishingDetectorResult result,
       std::optional<mojo_base::ProtoWrapper> verdict);
 
@@ -337,7 +340,8 @@ class ClientSideDetectionHost
   // `verdict` is the ClientPhishingRequest passed into PhishingDetectionDone().
   void MaybeSendClientPhishingRequest(
       std::unique_ptr<ClientPhishingRequest> verdict,
-      std::optional<bool> did_match_high_confidence_allowlist);
+      std::optional<bool> did_match_high_confidence_allowlist,
+      mojom::PhishingDetectorResult result);
 
   // |verdict| is an encoded ClientPhishingRequest protocol message, |result| is
   // the outcome of the renderer image embedding. The verdict is passed into
@@ -346,7 +350,8 @@ class ClientSideDetectionHost
       std::unique_ptr<ClientPhishingRequest> verdict,
       std::optional<bool> did_match_high_confidence_allowlist,
       mojom::PhishingImageEmbeddingResult result,
-      std::optional<mojo_base::ProtoWrapper> image_feature_embedding);
+      std::optional<mojo_base::ProtoWrapper> image_feature_embedding,
+      std::optional<mojo_base::ProtoWrapper> visual_features);
 
   // Add miscellaneous metadata to ClientPhishingRequest prior to sending the
   // ping.
@@ -524,8 +529,6 @@ class ClientSideDetectionHost
   // fullscreen.
   GURL last_fullscreen_url_;
 
-  // Records the start time of when phishing detection started.
-  base::TimeTicks phishing_detection_start_time_;
   // Records the start time of when image embedding started.
   base::TimeTicks image_embedding_start_time_;
   raw_ptr<const base::TickClock> tick_clock_;

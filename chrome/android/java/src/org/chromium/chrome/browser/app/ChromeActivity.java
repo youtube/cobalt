@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.app;
 
 import static org.chromium.build.NullUtil.assertNonNull;
+import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -12,10 +13,8 @@ import android.app.Fragment;
 import android.app.KeyguardManager;
 import android.app.PictureInPictureUiState;
 import android.app.assist.AssistContent;
-import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.ResolveInfo;
 import android.content.res.AssetManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
@@ -63,11 +62,11 @@ import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
+import org.chromium.base.supplier.SettableNullableObservableSupplier;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.ActivityUtils;
@@ -81,7 +80,6 @@ import org.chromium.chrome.browser.PlayServicesVersionInfo;
 import org.chromium.chrome.browser.TabStateThemeResourceProvider;
 import org.chromium.chrome.browser.WarmupManager;
 import org.chromium.chrome.browser.ai.AiAssistantService;
-import org.chromium.chrome.browser.app.appmenu.AppMenuPropertiesDelegateImpl;
 import org.chromium.chrome.browser.app.download.DownloadMessageUiDelegate;
 import org.chromium.chrome.browser.app.metrics.LaunchCauseMetrics;
 import org.chromium.chrome.browser.app.tab_activity_glue.PopupCreator;
@@ -92,7 +90,6 @@ import org.chromium.chrome.browser.app.tabmodel.TabModelOrchestrator;
 import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.back_press.CloseListenerManager;
-import org.chromium.chrome.browser.banners.AppMenuVerbiage;
 import org.chromium.chrome.browser.base.ColdStartTracker;
 import org.chromium.chrome.browser.bookmarks.BookmarkManagerOpener;
 import org.chromium.chrome.browser.bookmarks.BookmarkManagerOpenerImpl;
@@ -209,6 +206,7 @@ import org.chromium.chrome.browser.ui.appmenu.AppMenuPropertiesDelegate;
 import org.chromium.chrome.browser.ui.browser_window.BrowserWindowType;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTaskFeature;
+import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTaskFeatureKey;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTaskTracker;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTaskTrackerFactory;
 import org.chromium.chrome.browser.ui.device_lock.MissingDeviceLockLauncher;
@@ -221,8 +219,8 @@ import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager.SnackbarManageable;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManagerProvider;
 import org.chromium.chrome.browser.ui.system.StatusBarColorController;
+import org.chromium.chrome.browser.webapps.AppInstallMenuHandler;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
-import org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerProvider;
 import org.chromium.components.browser_ui.modaldialog.AppModalPresenter;
 import org.chromium.components.browser_ui.settings.SettingsNavigation;
 import org.chromium.components.browser_ui.util.motion.MotionEventInfo;
@@ -243,12 +241,6 @@ import org.chromium.components.policy.CombinedPolicyProvider.PolicyChangeListene
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.profile_metrics.BrowserProfileType;
 import org.chromium.components.user_prefs.UserPrefs;
-import org.chromium.components.webapk.lib.client.WebApkValidator;
-import org.chromium.components.webapps.AddToHomescreenCoordinator;
-import org.chromium.components.webapps.InstallTrigger;
-import org.chromium.components.webapps.bottomsheet.PwaBottomSheetController;
-import org.chromium.components.webapps.bottomsheet.PwaBottomSheetControllerProvider;
-import org.chromium.components.webapps.pwa_universal_install.PwaUniversalInstallBottomSheetCoordinator;
 import org.chromium.components.webxr.XrDelegateProvider;
 import org.chromium.content_public.browser.ChildProcessImportance;
 import org.chromium.content_public.browser.ChildProcessLauncherHelper;
@@ -276,9 +268,7 @@ import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.theme.ThemeResourceWrapper;
 import org.chromium.ui.theme.ThemeResourceWrapperProvider;
-import org.chromium.ui.widget.Toast;
 import org.chromium.url.GURL;
-import org.chromium.webapk.lib.client.WebApkNavigationClient;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -313,8 +303,8 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     private final long mActivityId;
 
     @SuppressWarnings("HidingField")
-    protected final ObservableSupplierImpl<EdgeToEdgeController> mEdgeToEdgeControllerSupplier =
-            new ObservableSupplierImpl<>();
+    protected final SettableMonotonicObservableSupplier<EdgeToEdgeController>
+            mEdgeToEdgeControllerSupplier = ObservableSuppliers.createMonotonic();
 
     protected final SettableMonotonicObservableSupplier<ManualFillingComponent>
             mManualFillingComponentSupplier = ObservableSuppliers.createMonotonic();
@@ -323,8 +313,8 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     private final SettableMonotonicObservableSupplier<ShareDelegate> mShareDelegateSupplier =
             ObservableSuppliers.createMonotonic();
 
-    private final ObservableSupplierImpl<TabModelOrchestrator> mTabModelOrchestratorSupplier =
-            new ObservableSupplierImpl<>();
+    private final SettableMonotonicObservableSupplier<TabModelOrchestrator>
+            mTabModelOrchestratorSupplier = ObservableSuppliers.createMonotonic();
 
     /** Used to access the {@link TabModelSelector} from {@link WindowAndroid}. */
     private final SettableMonotonicObservableSupplier<TabModelSelector> mTabModelSelectorSupplier =
@@ -335,8 +325,8 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             mEphemeralTabCoordinatorSupplier = ObservableSuppliers.createMonotonic();
 
     /** Used to hold a mutable reference to a {@link TabCreatorManager}. */
-    private final ObservableSupplierImpl<TabCreatorManager> mTabCreatorManagerSupplier =
-            new ObservableSupplierImpl<>();
+    private final SettableMonotonicObservableSupplier<TabCreatorManager>
+            mTabCreatorManagerSupplier = ObservableSuppliers.createMonotonic();
 
     // TODO(crbug.com/40182241): Move ownership to RootUiCoordinator.
     private final SettableMonotonicObservableSupplier<BrowserControlsManager>
@@ -344,16 +334,16 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
     protected final TabModelSelectorProfileSupplier mTabModelProfileSupplier =
             new TabModelSelectorProfileSupplier(mTabModelSelectorSupplier);
-    protected final ObservableSupplierImpl<BookmarkModel> mBookmarkModelSupplier =
-            new ObservableSupplierImpl<>();
-    protected final ObservableSupplierImpl<TabBookmarker> mTabBookmarkerSupplier =
-            new ObservableSupplierImpl<>();
-    protected final ObservableSupplierImpl<BookmarkManagerOpener> mBookmarkManagerOpenerSupplier =
-            new ObservableSupplierImpl<>();
-    private final ObservableSupplierImpl<CompositorViewHolder> mCompositorViewHolderSupplier =
-            new ObservableSupplierImpl<>();
-    private final ObservableSupplierImpl<LayoutManagerImpl> mLayoutManagerSupplier =
-            new ObservableSupplierImpl<>();
+    protected final SettableNullableObservableSupplier<BookmarkModel> mBookmarkModelSupplier =
+            ObservableSuppliers.createNullable();
+    protected final SettableMonotonicObservableSupplier<TabBookmarker> mTabBookmarkerSupplier =
+            ObservableSuppliers.createMonotonic();
+    protected final SettableMonotonicObservableSupplier<BookmarkManagerOpener>
+            mBookmarkManagerOpenerSupplier = ObservableSuppliers.createMonotonic();
+    private final SettableMonotonicObservableSupplier<CompositorViewHolder>
+            mCompositorViewHolderSupplier = ObservableSuppliers.createMonotonic();
+    private final SettableMonotonicObservableSupplier<LayoutManagerImpl> mLayoutManagerSupplier =
+            ObservableSuppliers.createMonotonic();
 
     /** A means of providing the foreground tab of the activity to different features. */
     private final ActivityTabProvider mActivityTabProvider = new ActivityTabProvider();
@@ -480,10 +470,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                 new LegacyTabStartupMetricsTracker(mActivityId, mTabModelSelectorSupplier);
         mStartupMetricsTracker =
                 new StartupMetricsTracker(
-                        mTabModelSelectorSupplier,
-                        () -> {
-                            return getPersistentInstanceState() != null;
-                        });
+                        mTabModelSelectorSupplier, this::wasPersistentStateRestored);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
             mStartupMetricsTracker.registerApplicationStartInfoListener();
         }
@@ -680,9 +667,10 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
             // Set up the animation placeholder to be the SurfaceView. This disables the
             // SurfaceView's 'hole' clipping during animations that are notified to the window.
+            CompositorViewHolder compositorViewHolder = mCompositorViewHolderSupplier.get();
+            assumeNonNull(compositorViewHolder);
             getWindowAndroid()
-                    .setAnimationPlaceholderView(
-                            mCompositorViewHolderSupplier.get().getCompositorView());
+                    .setAnimationPlaceholderView(compositorViewHolder.getCompositorView());
 
             initializeTabModels();
             if (isFinishing()) return;
@@ -742,7 +730,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             // If onStart was called before postLayoutInflation (because inflation was done in a
             // background thread) then make sure to call the relevant methods belatedly.
             if (mStarted) {
-                mCompositorViewHolderSupplier.get().onStart();
+                compositorViewHolder.onStart();
             }
         }
     }
@@ -872,14 +860,15 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         mRootUiCoordinator.getStatusBarColorController().updateStatusBarColor();
 
         ViewGroup rootView = (ViewGroup) getWindow().getDecorView().getRootView();
-        mCompositorViewHolderSupplier.set(
-                (CompositorViewHolder) findViewById(R.id.compositor_view_holder));
+        CompositorViewHolder viewHolder = findViewById(R.id.compositor_view_holder);
+        assert viewHolder != null;
+        mCompositorViewHolderSupplier.set(viewHolder);
 
         // If the UI was inflated on a background thread, then the CompositorView may not have been
         // fully initialized yet as that may require the creation of a handler which is not allowed
         // outside the UI thread. This call should fully initialize the CompositorView if it hasn't
         // been yet.
-        mCompositorViewHolderSupplier.get().setRootView(rootView);
+        viewHolder.setRootView(rootView);
 
         super.onInitialLayoutInflationComplete();
     }
@@ -1027,8 +1016,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         getTabContentManager().initWithNative();
         Profile originalProfile = getProfileProviderSupplier().get().getOriginalProfile();
         PrefService prefs = UserPrefs.get(originalProfile);
-        mCompositorViewHolderSupplier
-                .get()
+        assumeNonNull(mCompositorViewHolderSupplier.get())
                 .onNativeLibraryReady(getWindowAndroid(), getTabContentManager(), prefs);
         mRootUiCoordinator.createContextualSearchManager(originalProfile);
         TraceEvent.end("ChromeActivity:CompositorInitialization");
@@ -1095,9 +1083,14 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                             pendingId);
 
             // 4. Add windowing features.
+            // TODO(crbug.com/475200706): Handle multiple profiles for mobile.
+            Profile profile = tabModelSelector.getCurrentModel().getProfile();
+            assert profile != null;
             chromeAndroidTask.addFeature(
-                    ExtensionWindowControllerBridge.class,
-                    () -> ExtensionWindowControllerBridgeFactory.create(chromeAndroidTask));
+                    new ChromeAndroidTaskFeatureKey(ExtensionWindowControllerBridge.class, profile),
+                    () ->
+                            ExtensionWindowControllerBridgeFactory.create(
+                                    chromeAndroidTask, profile));
 
             // 5. Make the ChromeAndroidTask available via OneshotSupplier.
             mChromeAndroidTaskSupplier.set(chromeAndroidTask);
@@ -1806,8 +1799,8 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                 compositorViewHolder.getLayoutManager().removeSceneChangeObserver(this);
             }
             compositorViewHolder.shutDown();
-            mCompositorViewHolderSupplier.set(null);
         }
+        mCompositorViewHolderSupplier.destroy();
 
         // crbug.com/352365937: Let the pip controller clear up to prevent a leak.
         if (mFullscreenVideoPictureInPictureController != null) {
@@ -1855,8 +1848,8 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
         destroyTabModels();
 
+        // set(null) rather than destroy() so that listeners can unlisten to BookmarkModel.
         mBookmarkModelSupplier.set(null);
-
         mShareDelegateSupplier.destroy();
         mTabModelSelectorSupplier.destroy();
         EphemeralTabCoordinatorSupplier.destroy(mEphemeralTabCoordinatorSupplier);
@@ -2353,7 +2346,8 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         mLayoutManagerSupplier.set(layoutManager);
 
         layoutManager.addSceneChangeObserver(this);
-        CompositorViewHolder compositorViewHolder = mCompositorViewHolderSupplier.get();
+        CompositorViewHolder compositorViewHolder =
+                assumeNonNull(mCompositorViewHolderSupplier.get());
         compositorViewHolder.setLayoutManager(layoutManager);
         compositorViewHolder.setFocusable(false);
         compositorViewHolder.setControlContainer(controlContainer);
@@ -2400,8 +2394,8 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     }
 
     /**
-     * @return An {@link MonotonicObservableSupplier} that will supply the {@link CompositorViewHolder} when
-     *         it is ready.
+     * @return An {@link MonotonicObservableSupplier} that will supply the {@link
+     *     CompositorViewHolder} when it is ready.
      */
     public MonotonicObservableSupplier<CompositorViewHolder> getCompositorViewHolderSupplier() {
         return mCompositorViewHolderSupplier;
@@ -2742,7 +2736,6 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
         if (id == R.id.disable_price_tracking_menu_id) {
             PowerBookmarkUtils.setPriceTrackingEnabledWithSnackbars(
-                    mBookmarkModelSupplier.get(),
                     mBookmarkModelSupplier.get().getUserBookmarkIdForTab(currentTab),
                     /* enabled= */ false,
                     mSnackbarManager,
@@ -2817,12 +2810,13 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
         if (id == R.id.universal_install) {
             RecordUserAction.record("UniversalInstallFromMenu");
-            return doUniversalInstall(currentTab);
+            return AppInstallMenuHandler.doUniversalInstall(
+                    this, getWindowAndroid(), getModalDialogManager(), currentTab);
         }
 
         if (id == R.id.open_webapk_id) {
             RecordUserAction.record("MobileMenuOpenWebApk");
-            return doOpenWebApk(currentTab);
+            return AppInstallMenuHandler.doOpenWebApk(this, currentTab);
         }
 
         if (id == R.id.request_desktop_site_id || id == R.id.request_desktop_site_check_id) {
@@ -3142,7 +3136,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         return mIsRecreatingForTabletModeChange;
     }
 
-    public ObservableSupplierImpl<EdgeToEdgeController>
+    public SettableMonotonicObservableSupplier<EdgeToEdgeController>
             getEdgeToEdgeControllerSupplierForTesting() {
         return mEdgeToEdgeControllerSupplier;
     }
@@ -3163,83 +3157,8 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     }
 
     /** Returns a {@link CompositorViewHolder} instance for testing. */
-    public CompositorViewHolder getCompositorViewHolderForTesting() {
+    public @Nullable CompositorViewHolder getCompositorViewHolderForTesting() {
         return mCompositorViewHolderSupplier.get();
-    }
-
-    private boolean doUniversalInstall(Tab currentTab) {
-        BottomSheetController controller = BottomSheetControllerProvider.from(getWindowAndroid());
-        if (controller == null) {
-            // We have three options when this function fails. One is to abort the operation and do
-            // nothing (by returning false), or we can make one of the two options of the Universal
-            // Install dialog the default and go with that in case of errors. Since Install App is
-            // the menu item that would have been shown, if Universal Install was disabled, we
-            // fall back to the Install App option.
-            return doAddToHomescreen(currentTab, AppMenuVerbiage.APP_MENU_OPTION_INSTALL);
-        }
-
-        ResolveInfo resolveInfo =
-                AppMenuPropertiesDelegateImpl.queryWebApkResolveInfo(this, currentTab);
-        boolean webAppInstalled =
-                resolveInfo != null && resolveInfo.activityInfo.packageName != null;
-
-        PwaUniversalInstallBottomSheetCoordinator pwaUniversalInstallBottomSheetCoordinator =
-                new PwaUniversalInstallBottomSheetCoordinator(
-                        this,
-                        currentTab.getWebContents(),
-                        () -> {
-                            doAddToHomescreen(currentTab, AppMenuVerbiage.APP_MENU_OPTION_INSTALL);
-                        },
-                        () -> {
-                            doAddToHomescreen(
-                                    currentTab, AppMenuVerbiage.APP_MENU_OPTION_ADD_TO_HOMESCREEN);
-                        },
-                        () -> {
-                            doOpenWebApk(currentTab);
-                        },
-                        webAppInstalled,
-                        controller,
-                        R.drawable.outline_chevron_right_24dp,
-                        R.drawable.down_arrow_on_circular_background,
-                        R.drawable.chrome_logo_on_circular_background);
-        pwaUniversalInstallBottomSheetCoordinator.showBottomSheetAsync();
-        return true;
-    }
-
-    private boolean doAddToHomescreen(Tab currentTab, int menuItemType) {
-        if (menuItemType == AppMenuVerbiage.APP_MENU_OPTION_INSTALL) {
-            PwaBottomSheetController controller =
-                    PwaBottomSheetControllerProvider.from(getWindowAndroid());
-            if (controller != null
-                    && controller.requestOrExpandBottomSheetInstaller(
-                            currentTab.getWebContents(), InstallTrigger.MENU)) {
-                return true;
-            }
-        }
-
-        AddToHomescreenCoordinator.showForAppMenu(
-                this,
-                getWindowAndroid(),
-                getModalDialogManager(),
-                currentTab.getWebContents(),
-                menuItemType);
-        return true;
-    }
-
-    /** Returns whether the Open WebAPK action was successfully started. */
-    private boolean doOpenWebApk(Tab currentTab) {
-        Context context = ContextUtils.getApplicationContext();
-        String packageName =
-                WebApkValidator.queryFirstWebApkPackage(context, currentTab.getUrl().getSpec());
-        Intent launchIntent =
-                WebApkNavigationClient.createLaunchWebApkIntent(
-                        packageName, currentTab.getUrl().getSpec(), false);
-        try {
-            context.startActivity(launchIntent);
-        } catch (ActivityNotFoundException e) {
-            Toast.makeText(context, R.string.open_webapk_failed, Toast.LENGTH_SHORT).show();
-        }
-        return true;
     }
 
     private void doReadCurrentTabAloud(Tab currentTab) {

@@ -38,7 +38,7 @@
       "fullscreen"
     ],
     "args": [
-      "--enable-features=OverlayScrollbar,FluentOverlayScrollbar",
+      "--enable-features=OverlayScrollbar",
       "--enable-threaded-compositing",
       "--enable-prefer-compositing-to-lcd-text",
       "--enable-overscroll-notifications",
@@ -521,6 +521,8 @@
       "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-003.html",
       "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-004.html",
       "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-005.html",
+      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-006.html",
+      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-007.html",
       "external/wpt/css/css-text/white-space/text-wrap-pretty-line-clamp-crash-001.html",
       "external/wpt/css/css-ui/text-overflow-string-001.html",
       "external/wpt/css/css-ui/text-overflow-string-002.html",
@@ -742,6 +744,8 @@
       "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-003.html",
       "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-004.html",
       "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-005.html",
+      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-006.html",
+      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-007.html",
       "external/wpt/css/css-text/white-space/text-wrap-pretty-line-clamp-crash-001.html",
       "fast/overflow"
     ],
@@ -1296,6 +1300,7 @@
     "expires": "Jul 14, 2025"
   },
   "RasterInducingScroll disabled due to crbug.com/349939555",
+  "TODO(crbug.com/398193016): Merge this suite into virtual/overlay-scrollbar",
   {
     "prefix": "fluent-overlay-scrollbar",
     "platforms": [
@@ -1309,7 +1314,7 @@
       "virtual/overlay-scrollbar/overlay-scrollbar-smoke-test.html"
     ],
     "args": [
-      "--enable-features=FluentOverlayScrollbar",
+      "--enable-features=OverlayScrollbar",
       "--enable-threaded-compositing",
       "--disable-features=RasterInducingScroll"
     ],
@@ -2248,7 +2253,7 @@
     ],
     "bases": [],
     "args": [
-      "--disable-features=OverlayScrollbar,FluentOverlayScrollbar"
+      "--disable-features=OverlayScrollbar"
     ],
     "expires": "never",
     "owners": [
@@ -2482,7 +2487,7 @@
       "external/wpt/css/css-ui/pointer-events-no-scrollbars-002.html"
     ],
     "args": [
-      "--enable-features=OverlayScrollbar,FluentOverlayScrollbar"
+      "--enable-features=OverlayScrollbar"
     ],
     "expires": "never",
     "owners": [
@@ -4701,6 +4706,8 @@
       "http/tests/devtools/tracing",
       "http/tests/worklet",
       "inspector-protocol/css/css-get-keyframes-for-view-transitions.js",
+      "inspector-protocol/css/css-get-styles-for-nested-view-transition.js",
+      "inspector-protocol/css/css-get-styles-for-scoped-view-transition.js",
       "inspector-protocol/css/css-get-styles-for-view-transition.js",
       "inspector-protocol/css/css-view-transition-set-style-text.js",
       "inspector-protocol/dom/dom-get-dom-for-view-transition.js",
@@ -4735,6 +4742,8 @@
       "wpt_internal/scheduler/integration_tests",
       "wpt_internal/view-transition",
       "view-transition",
+      "inspector-protocol/css/css-get-styles-for-nested-view-transition.js",
+      "inspector-protocol/css/css-get-styles-for-scoped-view-transition.js",
       "inspector-protocol/css/css-get-styles-for-view-transition.js",
       "inspector-protocol/css/css-view-transition-set-style-text.js",
       "inspector-protocol/css/css-get-keyframes-for-view-transitions.js",
@@ -6035,7 +6044,7 @@
     "args": [
       "--enable-features=ScriptSrcHashesV1"
     ],
-    "expires": "Nov 1, 2025"
+    "expires": "Jul 1, 2026"
   },
   {
     "prefix": "unrestricted-spellcheck",
@@ -6053,9 +6062,9 @@
     ],
     "exclusive_tests": "ALL",
     "args": [
-      "--disable-features=RestrictSpellingAndGrammarHighlights"
+      "--enable-features=UnrestrictSpellingAndGrammarForTesting"
     ],
-    "expires": "Oct 24, 2026"
+    "expires": "never"
   },
   "Currently, XSLT is disabled on ToT for tests, via the",
   "fieldtrial_testing_config.json file which enables the XSLTSpecialTrial",

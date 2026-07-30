@@ -119,6 +119,7 @@
 #include "chrome/browser/ui/views/upgrade_notification_controller.h"
 #include "chrome/browser/ui/views/user_education/impl/browser_user_education_interface_impl.h"
 #include "chrome/browser/ui/waap/initial_web_ui_manager.h"
+#include "chrome/browser/ui/waap/initial_webui_window_metrics_manager.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
 #include "chrome/browser/ui/webui_browser/browser_elements_webui_browser.h"
@@ -162,6 +163,10 @@
 
 #if BUILDFLAG(IS_WIN)
 #include "chrome/browser/ui/views/frame/windows_taskbar_icon_updater.h"
+#endif
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ash/boca/on_task/on_task_locked_controller.h"
 #endif
 
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -438,6 +443,12 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
               *browser, browser);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
+#if BUILDFLAG(IS_CHROMEOS)
+  on_task_locked_controller_ =
+      GetUserDataFactory().CreateInstance<ash::boca::OnTaskLockedController>(
+          *browser, browser);
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
   // Initialize embedder features last.
   embedder_browser_window_features_ =
       GetUserDataFactory().CreateInstance<EmbedderBrowserWindowFeatures>(
@@ -445,6 +456,11 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
 }
 
 void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
+  if (waap::IsInitialWebUIMetricsLoggingEnabled()) {
+    initial_webui_window_metrics_manager_ =
+        std::make_unique<InitialWebUIWindowMetricsManager>(browser);
+  }
+
   desktop_browser_window_capabilities_ =
       GetUserDataFactory().CreateInstance<DesktopBrowserWindowCapabilities>(
           *browser, browser, browser->window(),
@@ -927,6 +943,7 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   data_protection_ui_controller_.reset();
 
   desktop_browser_window_capabilities_.reset();
+  initial_webui_window_metrics_manager_.reset();
   signin_view_controller_->TearDownPreBrowserWindowDestruction();
 
   // Destroy fullscreen control host before exclusive access manager.

@@ -89,6 +89,8 @@
                   'AccessibilitySettings' \
                   'PageZoom' \
                   '|components/browser_ui/accessibility/android/' \
+                  '|ui/accessibility/android/java/src/org/chromium/ui/accessibility/' \
+                  '|ui/accessibility/android/' \
     },
     'android_accessibility_web': {
       'filepath': 'WebContentsAccessibility' \
@@ -1314,6 +1316,9 @@
                   'chrome/test/data/webui/glic|'\
                   'chrome/browser/resources/glic',
 
+    },
+    'glic_api': {
+      'filepath': 'chrome/browser/resources/glic/glic_api',
     },
     'global_media_controls': {
       'filepath': 'chrome/browser/ui/global_media_controls|'\
@@ -3025,6 +3030,8 @@
     'gfx_geometry': ['cc-bugs@chromium.org'],
     'gfx_image': ['rsesek+watch@chromium.org'],
     'glic': ['dewittj+watch@chromium.org'],
+    'glic_api': ['zewenli@google.com', 'anuragsimgeker@google.com',
+                 'thorstenk@google.com'],
     'global_media_controls': ['steimel+watch-gmc@chromium.org'],
     'gn': ['agrieve+watch@chromium.org',
            'dpranke@chromium.org'],
@@ -3072,7 +3079,6 @@
     'ios_widget_kit': ['rkgibson+watch@chromium.org'],
     'ipcz': ['andreaorru+watch@chromium.org'],
     'isolated_web_apps_apis': ['greengrape@google.com',
-                               'rmcelrath+watch@chromium.org',
                                'simonha@google.com'],
     'isolated_web_apps_core': ['greengrape@google.com',
                                'rmcelrath+watch@chromium.org',
@@ -3435,7 +3441,6 @@
                'kainino+watch@chromium.org'],
     'webid': ['yigu+watch@chromium.org',
               'cbiesinger@chromium.org',
-              'icer@chromium.org',
               'npm+watch@chromium.org'],
     'webnn': ['qjw@chromium.org', 'ningxin.hu@intel.com'],
     'webotp': ['yigu+watch@chromium.org'],

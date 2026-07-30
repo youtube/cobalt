@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
@@ -18,6 +19,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
+#include "components/content_settings/core/common/content_settings_types.h"
 #include "components/permissions/permission_request.h"
 #include "components/permissions/permission_uma_util.h"
 #include "components/permissions/permission_util.h"
@@ -47,7 +49,7 @@ DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(PermissionPromptBubbleBaseView,
                                       kAllowOnceButtonElementId);
 
 namespace {
-std::string GetPermissionActionString(
+std::string_view GetPermissionActionString(
     PermissionPromptBubbleBaseView::PermissionDialogButton button) {
   switch (button) {
     case PermissionPromptBubbleBaseView::PermissionDialogButton::kAccept:
@@ -240,7 +242,7 @@ void PermissionPromptBubbleBaseView::ClosingPermission() {
   if (delegate_) {
     permissions::PermissionUmaUtil::RecordActionBrowserAlwaysActive(
         request_type(), "Dismissed", record_browser_always_active_value());
-    delegate_->Dismiss();
+    delegate_->Dismiss(/*prompt_options=*/std::monostate());
   }
 }
 
@@ -288,18 +290,27 @@ void PermissionPromptBubbleBaseView::RunButtonCallback(int button_id) {
     }
   }
 
+  // Approximate location is not implemented on desktop yet.
+  //
+  // TODO(crbug.com/465377568): Pass the appropriate PromptOptions below once we
+  // implement it.
+  CHECK_NE(delegate_->Requests().front()->GetContentSettingsType(),
+           ContentSettingsType::GEOLOCATION_WITH_OPTIONS);
+
   switch (button) {
     case PermissionDialogButton::kAccept:
-      delegate_->Accept();
+      delegate_->Accept(/*prompt_options=*/std::monostate());
       return;
     case PermissionDialogButton::kAcceptOnce:
-      delegate_->AcceptThisTime();
+      delegate_->AcceptThisTime(/*prompt_options=*/std::monostate());
       return;
     case PermissionDialogButton::kDeny:
 #if BUILDFLAG(IS_CHROMEOS)
-      is_deny_supported ? delegate_->Deny() : delegate_->Dismiss();
+      is_deny_supported
+          ? delegate_->Deny(/*prompt_options=*/std::monostate())
+          : delegate_->Dismiss(/*prompt_options=*/std::monostate());
 #else
-      delegate_->Deny();
+      delegate_->Deny(/*prompt_options=*/std::monostate());
 #endif  // BUILDFLAG(IS_CHROMEOS)
       return;
   }

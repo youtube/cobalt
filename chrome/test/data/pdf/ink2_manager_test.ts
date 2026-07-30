@@ -26,7 +26,7 @@ function getTestAnnotation(id: number): TextAnnotation {
     },
     text: 'Hello World',
     id: id,
-    pageNumber: 0,
+    pageIndex: 0,
     textBoxRect: {
       height: 35,
       locationX: 60,
@@ -391,7 +391,7 @@ chrome.test.runTests([
         initEvent.detail.annotation.textBoxRect.locationY);
     chrome.test.assertEq(
         DEFAULT_TEXTBOX_WIDTH, initEvent.detail.annotation.textBoxRect.width);
-    chrome.test.assertEq(0, initEvent.detail.annotation.pageNumber);
+    chrome.test.assertEq(0, initEvent.detail.annotation.pageIndex);
     chrome.test.assertEq(55, initEvent.detail.pageDimensions.x);
     chrome.test.assertEq(3, initEvent.detail.pageDimensions.y);
     chrome.test.assertEq(390, initEvent.detail.pageDimensions.width);
@@ -422,7 +422,7 @@ chrome.test.runTests([
         initEvent.detail.annotation.textBoxRect.locationY);
     chrome.test.assertEq(
         DEFAULT_TEXTBOX_WIDTH, initEvent.detail.annotation.textBoxRect.width);
-    chrome.test.assertEq(0, initEvent.detail.annotation.pageNumber);
+    chrome.test.assertEq(0, initEvent.detail.annotation.pageIndex);
     chrome.test.assertEq(10, initEvent.detail.pageDimensions.x);
     chrome.test.assertEq(6, initEvent.detail.pageDimensions.y);
     chrome.test.assertEq(780, initEvent.detail.pageDimensions.width);
@@ -456,7 +456,7 @@ chrome.test.runTests([
         124 - MIN_TEXTBOX_SIZE_PX / 2,
         initEvent.detail.annotation.textBoxRect.locationY);
     chrome.test.assertEq(195, initEvent.detail.annotation.textBoxRect.width);
-    chrome.test.assertEq(0, initEvent.detail.annotation.pageNumber);
+    chrome.test.assertEq(0, initEvent.detail.annotation.pageIndex);
     chrome.test.assertEq(152.5, initEvent.detail.pageDimensions.x);
     chrome.test.assertEq(1.5, initEvent.detail.pageDimensions.y);
     chrome.test.assertEq(195, initEvent.detail.pageDimensions.width);
@@ -486,9 +486,10 @@ chrome.test.runTests([
         445 - 2 * MIN_TEXTBOX_SIZE_PX,
         initEvent.detail.annotation.textBoxRect.locationX);
     // y doesn't need adjusted in this case, since we're far enough from the
-    // bottom boundary of the page.
+    // bottom boundary of the page. y is always offset by half the text height.
     chrome.test.assertEq(
-        400, initEvent.detail.annotation.textBoxRect.locationY);
+        400 - manager.getCurrentTextAttributes().size / 2,
+        initEvent.detail.annotation.textBoxRect.locationY);
     chrome.test.assertEq(
         2 * MIN_TEXTBOX_SIZE_PX, initEvent.detail.annotation.textBoxRect.width);
 
@@ -540,10 +541,12 @@ chrome.test.runTests([
       chrome.test.assertEq(
           MIN_TEXTBOX_SIZE_PX, initData.annotation.textBoxRect.height);
       chrome.test.assertEq(x, initData.annotation.textBoxRect.locationX);
-      chrome.test.assertEq(y, initData.annotation.textBoxRect.locationY);
+      chrome.test.assertEq(
+          y - manager.getCurrentTextAttributes().size / 2,
+          initData.annotation.textBoxRect.locationY);
       chrome.test.assertEq(
           DEFAULT_TEXTBOX_WIDTH, initData.annotation.textBoxRect.width);
-      chrome.test.assertEq(0, initData.annotation.pageNumber);
+      chrome.test.assertEq(0, initData.annotation.pageIndex);
       chrome.test.assertEq(id, initData.annotation.id);
       chrome.test.assertEq(rotation, initData.annotation.textOrientation);
       // Placeholder viewport has a 400x500 page and 500x500 window.

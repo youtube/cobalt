@@ -234,37 +234,6 @@ BASE_DECLARE_FEATURE(kContextualPanelForceShowEntrypoint);
 
 bool IsContextualPanelForceShowEntrypointEnabled();
 
-// Feature to enable the contextual panel.
-BASE_DECLARE_FEATURE(kContextualPanel);
-
-bool IsContextualPanelEnabled();
-
-// A parameter representing how many seconds delay before the large Contextual
-// Panel Entrypoint is shown (timer starts after the normal entrypoint is
-// shown).
-extern const base::FeatureParam<int>
-    kLargeContextualPanelEntrypointDelayInSeconds;
-// A parameter representing how many seconds the large Contextual Panel
-// Entrypoint is shown for, which includes disabling fullscreen.
-extern const base::FeatureParam<int>
-    kLargeContextualPanelEntrypointDisplayedInSeconds;
-
-int LargeContextualPanelEntrypointDelayInSeconds();
-int LargeContextualPanelEntrypointDisplayedInSeconds();
-
-// A parameter representing whether the Contextual Panel entrypoint should be
-// highlighted in blue when showing an IPH.
-extern const base::FeatureParam<bool>
-    kContextualPanelEntrypointHighlightDuringIPH;
-
-bool ShouldHighlightContextualPanelEntrypointDuringIPH();
-
-// A parameter representing whether the Contextual Panel entrypoint should show
-// a rich IPH.
-extern const base::FeatureParam<bool> kContextualPanelEntrypointRichIPH;
-
-bool ShouldShowRichContextualPanelEntrypointIPH();
-
 // Feature flag to control the maximum amount of non-modal DB promo impressions
 // server-side. Enabled by default to always have a default impression limit
 // value.
@@ -491,10 +460,6 @@ bool IsPinnedTabsEnabled();
 // Feature flag for caching the ios module ranker.
 BASE_DECLARE_FEATURE(kSegmentationPlatformIosModuleRankerCaching);
 
-// Flag to not keep a strong reference to the spotlight index, as a tentative
-// memory improvement measure.
-BASE_DECLARE_FEATURE(kSpotlightNeverRetainIndex);
-
 // Feature flag to enable app background refresh.
 // Use IsAppBackgroundRefreshEnabled() instead of this constant directly.
 BASE_DECLARE_FEATURE(kEnableAppBackgroundRefresh);
@@ -537,50 +502,6 @@ BASE_DECLARE_FEATURE(kSeparateProfilesForManagedAccountsForceMigration);
 // Feature to control resyncing the omaha ping timer on foregrounding.
 BASE_DECLARE_FEATURE(kOmahaResyncTimerOnForeground);
 
-// Feature flag to use the async version of the chrome startup method.
-BASE_DECLARE_FEATURE(kChromeStartupParametersAsync);
-
-// Feature flag to enable the opening of links from Youtube Incognito in Chrome
-// incognito.
-BASE_DECLARE_FEATURE(kYoutubeIncognito);
-
-// Feature param to specify whether the youtube incognito handling is done
-// without the incognito interstitial.
-extern const char
-    kYoutubeIncognitoErrorHandlingWithoutIncognitoInterstitialParam[];
-
-// A parameter to choose what type of apps allowed for `kYoutubeIncognito`
-// experiment (default to allow listed)
-extern const char kYoutubeIncognitoTargetApps[];
-
-// A parameter value for `kYoutubeIncognitoTargetApps` to only enable the
-// feature for the allow listed apps.
-extern const char kYoutubeIncognitoTargetAppsAllowlisted[];
-
-// A parameter value for `kYoutubeIncognitoTargetApps` to only enable the
-// feature for the first party apps.
-extern const char kYoutubeIncognitoTargetAppsFirstParty[];
-
-// A parameter value for `kYoutubeIncognitoTargetApps` to only enable the
-// feature for all apps.
-extern const char kYoutubeIncognitoTargetAppsAll[];
-
-// Returns whether
-// `kYoutubeIncognitoErrorHandlingWithoutIncognitoInterstitialParam` is enabled.
-bool IsYoutubeIncognitoErrorHandlingWithoutIncognitoInterstitialEnabled();
-
-// Returns whether `kYoutubeIncognitoTargetApps` is
-// `kYoutubeIncognitoTargetAppsAllowlisted`.
-bool IsYoutubeIncognitoTargetAllowListedEnabled();
-
-// Returns whether `kYoutubeIncognitoTargetApps` is
-// `kYoutubeIncognitoTargetAppsFirstParty`.
-bool IsYoutubeIncognitoTargetFirstPartyEnabled();
-
-// Returns whether `kYoutubeIncognitoTargetApps` is
-// `kYoutubeIncognitoTargetAppsAll`.
-bool IsYoutubeIncognitoTargetAllEnabled();
-
 // Feature flag to enable Reactivation Notifications.
 BASE_DECLARE_FEATURE(kIOSReactivationNotifications);
 
@@ -599,6 +520,7 @@ bool IsIOSReactivationNotificationsEnabled();
 extern const char kIOSExpandedSetupListVariationParam[];
 extern const char kIOSExpandedSetupListVariationParamSafariImport[];
 extern const char kIOSExpandedSetupListVariationParamBackgroundCustomization[];
+extern const char kIOSExpandedSetupListVariationParamAllExceptCPE[];
 extern const char kIOSExpandedSetupListVariationParamAll[];
 
 // Feature flag to add new items in the Setup List.
@@ -844,9 +766,6 @@ bool ShouldShowEditMenuItemsSynchronously();
 // Feature flag for tips notifications alternative string experiment.
 BASE_DECLARE_FEATURE(kIOSTipsNotificationsAlternativeStrings);
 bool IsTipsNotificationsAlternativeStringsEnabled();
-
-// Feature flag to allow users to import passwords from Safari.
-BASE_DECLARE_FEATURE(kImportPasswordsFromSafari);
 
 // Name of the parameter that controls tips notifications alternative string
 // version.

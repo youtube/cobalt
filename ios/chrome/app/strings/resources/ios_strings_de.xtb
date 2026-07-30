@@ -315,6 +315,7 @@
 <translation id="21133533946938348">Tab anpinnen</translation>
 <translation id="2117650889962717098">Im Inkognitomodus kannst du deine Browsing-Aktivitäten privat halten</translation>
 <translation id="2119636449201577317">Öffnen in…</translation>
+<translation id="2119962645034852864">Einige Dienste sind für dein Konto nicht verfügbar</translation>
 <translation id="2120553909046681540">Deine Organisation hat das private Surfen deaktiviert.</translation>
 <translation id="2122754583996902531">Dein Browser wird verwaltet. <ph name="BEGIN_LINK" />Weitere Informationen<ph name="END_LINK" /></translation>
 <translation id="21243612977487926">Die Chats deiner Organisation werden nicht zur Optimierung unserer Modelle verwendet. Da Gemini Fehler machen kann, auch bei Informationen über Personen, solltest du die Antworten überprüfen. <ph name="YOUR_PRIVACY_GEMINI" /></translation>
@@ -332,6 +333,7 @@
 <translation id="2184272387334793084">Melde dich an, um Passwörter und mehr auf allen Geräten abzurufen</translation>
 <translation id="2186206192313702726">Google Lens</translation>
 <translation id="2188993354115194873">Tippe auf <ph name="BEGIN_BOLD" />In Downloads speichern<ph name="END_BOLD" /></translation>
+<translation id="2191406283620379491">Es ist ein schwerwiegender Fehler aufgetreten. Aktualisiere deine iOS-Version.</translation>
 <translation id="219283042927675668">Tabs in Gruppe</translation>
 <translation id="2194856509914051091">Wichtige Punkte</translation>
 <translation id="2196428379625389579">Im Web suchen</translation>
@@ -873,6 +875,7 @@
 <translation id="4302061870579014542">Positionieren</translation>
 <translation id="4304713468139749426">Passwort­manager</translation>
 <translation id="4309403553630140242">Für weitere Informationen doppeltippen</translation>
+<translation id="4310738531374808763">Startseite anpassen</translation>
 <translation id="4320848494125124980">Zuletzt verwendet</translation>
 <translation id="4322394346347055525">Andere Tabs schließen</translation>
 <translation id="4324735664183300693">Benachrichtigungen aktivieren</translation>
@@ -934,6 +937,7 @@
 <translation id="4565377596337484307">Passwort ausblenden</translation>
 <translation id="4568230126482344545">„Letzte Tabs“ ausblenden</translation>
 <translation id="4578835633387306383">Aktivieren…</translation>
+<translation id="4580621046861724270">Einige Lesezeichen wurden nicht gespeichert</translation>
 <translation id="4580716718466706433">Rufe den Passwortmanager auf</translation>
 <translation id="4585751637295612750">Neuen Tab öffnen, um ihn zur Frage hinzuzufügen</translation>
 <translation id="4587589328781138893">Websites</translation>
@@ -1017,6 +1021,7 @@
 <translation id="483689884442613745">Speichern…</translation>
 <translation id="4840495572919996524">Deine Lesezeichen, der Verlauf, deine Passwörter und andere Einstellungen werden nicht mehr mit deinem Google-Konto synchronisiert.</translation>
 <translation id="484280513275854557">Du wurdest abgemeldet und Browserdaten wurden gelöscht</translation>
+<translation id="484462545196658690">Auto</translation>
 <translation id="4850886885716139402">Anzeigen</translation>
 <translation id="4854068532375923088">Gemini die Verwendung deiner Kamera erlauben</translation>
 <translation id="4860895144060829044">Anrufen</translation>
@@ -1161,6 +1166,7 @@
 <translation id="5318298563956633672">Du beobachtest dieses Produkt bereits.</translation>
 <translation id="5327248766486351172">Name</translation>
 <translation id="5329451663851195956">Zum Aktualisieren nach unten ziehen.</translation>
+<translation id="5336910966955551309">Halte deine bevorzugten Websites gedrückt, um sie anzupinnen</translation>
 <translation id="5338512273860059533">Anmeldung läuft.</translation>
 <translation id="5343472494710226394">Nachrichten, Sport und Inhalte, die deinen Interessen entsprechen.</translation>
 <translation id="5352128922772839949">Datei speichern</translation>
@@ -1221,7 +1227,7 @@ Handoff muss auch im Abschnitt „Allgemein“ deiner Einstellungen aktiviert se
 <translation id="5567439033041178034">Weitere Informationen</translation>
 <translation id="5578795271662203820">In <ph name="SEARCH_ENGINE" /> nach dem Bild suchen</translation>
 <translation id="5579012242779565775">Leseliste ausblenden</translation>
-<translation id="5581786858144165447">Mit dem KI-Modus fragen</translation>
+<translation id="5581786858144165447">Im KI-Modus fragen</translation>
 <translation id="5585019845078534178">Karten</translation>
 <translation id="5591526871732898147">Angehängtes Bild {index}</translation>
 <translation id="5595485650161345191">Adresse bearbeiten</translation>
@@ -1711,6 +1717,7 @@ Handoff muss auch im Abschnitt „Allgemein“ deiner Einstellungen aktiviert se
 <translation id="7328162502911382168">(<ph name="COUNT" />)</translation>
 <translation id="7336264872878993241"><ph name="PERCENT" /> % heruntergeladen</translation>
 <translation id="7345061034321640811">Import nicht zulässig</translation>
+<translation id="7347998088283246662">Du kannst Passwörter, deinen Verlauf, Lesezeichen und mehr importieren</translation>
 <translation id="7352651011704765696">Ein Problem ist aufgetreten</translation>
 <translation id="7364796246159120393">Datei auswählen</translation>
 <translation id="736564850024123010">Du kannst die Position der Adressleiste verschieben, um den Browser an deine Bedürfnisse anzupassen.</translation>
@@ -1894,6 +1901,7 @@ Handoff muss auch im Abschnitt „Allgemein“ deiner Einstellungen aktiviert se
 <translation id="7958575506592576831">Sicherheitsinformationen zur Seite</translation>
 <translation id="7961015016161918242">Nie</translation>
 <translation id="7971136598759319605">Vor 1 Tag aktiv</translation>
+<translation id="7972837668077967426">Canvas</translation>
 <translation id="7975036700432177008">Testen</translation>
 <translation id="797588153137233716">„Menü“ → „Verlauf“ → „Browserdaten löschen“</translation>
 <translation id="7977451675950311423">Warnt dich, wenn du ein Passwort verwendest, das bei einer Datenpanne gehackt wurde.</translation>
@@ -2001,6 +2009,7 @@ Handoff muss auch im Abschnitt „Allgemein“ deiner Einstellungen aktiviert se
 <translation id="8319282042900445670">Erinnerung für den <ph name="DATE" /> um <ph name="TIME" /> eingerichtet</translation>
 <translation id="8320212361750431956">Letzte Aktivität</translation>
 <translation id="8325455175867928593">„Rezensionen, die auf deinen Interessen basieren“ ausblenden</translation>
+<translation id="8328777765163860529">Alle schließen</translation>
 <translation id="833647236762414178">Hier kannst du Passwörter und Passkeys erstellen, speichern und verwalten, damit du dich einfacher auf Websites und in Apps anmelden kannst. <ph name="BEGIN_LINK" />Weitere Informationen<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">Du kannst deine Inhalte sichern und auf jedem Gerät verwenden.</translation>
 <translation id="8348530355586151720">Tippe auf das Dreipunkt-Menü</translation>
@@ -2236,6 +2245,7 @@ Handoff muss auch im Abschnitt „Allgemein“ deiner Einstellungen aktiviert se
 <translation id="914781932147356857">Alle markieren…</translation>
 <translation id="9148126808321036104">Erneut anmelden</translation>
 <translation id="9149866541089851383">Bearbeiten...</translation>
+<translation id="9152637745605628097">Du kannst Designs und Farben auswählen oder ein Bild hochladen</translation>
 <translation id="9159628751968616911">Webseite senden</translation>
 <translation id="9162432979321511934">Aktiviere die Option zum automatischen Ausfüllen von Passwörtern</translation>
 <translation id="9165320910061267720">Wenn du Benachrichtigungen zu Preisnachlässen erhalten möchtest, musst du Benachrichtigungen in den iOS-Einstellungen aktivieren.</translation>

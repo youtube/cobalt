@@ -124,6 +124,13 @@ class CORE_EXPORT LineInfo {
       minimum_space_shortage_ = shortage;
     }
   }
+  LayoutUnit TallestUnbreakableBlockSize() const {
+    return tallest_unbreakable_block_size_;
+  }
+  void PropagateTallestUnbreakableBlockSize(LayoutUnit size) {
+    DCHECK_GE(size, LayoutUnit());
+    tallest_unbreakable_block_size_ = size;
+  }
 
   void SetTextIndent(LayoutUnit indent) { text_indent_ = indent; }
   LayoutUnit TextIndent() const { return text_indent_; }
@@ -283,6 +290,9 @@ class CORE_EXPORT LineInfo {
     initial_letter_box_block_size_ = block_size;
   }
 
+  void SetTextFitScale(float scale) { text_fit_scale_ = scale; }
+  float TextFitScale() const { return text_fit_scale_; }
+
  private:
   ETextAlign GetTextAlign(bool is_last_line = false) const;
   bool ComputeNeedsAccurateEndPosition() const;
@@ -304,6 +314,7 @@ class CORE_EXPORT LineInfo {
   Member<const LayoutResult> block_in_inline_layout_result_;
 
   std::optional<LayoutUnit> minimum_space_shortage_;
+  LayoutUnit tallest_unbreakable_block_size_;
 
   LayoutUnit available_width_;
   LayoutUnit width_;
@@ -317,6 +328,10 @@ class CORE_EXPORT LineInfo {
   InlineItemTextIndex start_;
   unsigned end_item_index_;
   unsigned end_offset_for_justify_;
+
+  // Text scaling factor computed in `text-fit` processing.
+  // ApplyTextBoxTrim() refers to this.
+  float text_fit_scale_ = 1.0f;
 
   ETextAlign text_align_ = ETextAlign::kLeft;
   TextDirection base_direction_ = TextDirection::kLtr;

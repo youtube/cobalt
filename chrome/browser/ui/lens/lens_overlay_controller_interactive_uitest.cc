@@ -123,10 +123,12 @@ class TestingContextualTasksUiService
   TestingContextualTasksUiService(
       Profile* profile,
       contextual_tasks::ContextualTasksService* contextual_tasks_service,
-      signin::IdentityManager* identity_manager)
+      signin::IdentityManager* identity_manager,
+      AimEligibilityService* aim_eligibility_service)
       : ContextualTasksUiService(profile,
                                  contextual_tasks_service,
-                                 identity_manager) {}
+                                 identity_manager,
+                                 aim_eligibility_service) {}
   ~TestingContextualTasksUiService() override = default;
 
   bool CookieJarContainsPrimaryAccount() override {
@@ -1620,7 +1622,8 @@ class ContextualTasksLensOverlayControllerInteractiveUiTest
                       profile,
                       contextual_tasks::ContextualTasksServiceFactory::
                           GetForProfile(profile),
-                      IdentityManagerFactory::GetForProfile(profile)));
+                      IdentityManagerFactory::GetForProfile(profile),
+                      AimEligibilityServiceFactory::GetForProfile(profile)));
             }));
   }
 
@@ -1793,7 +1796,7 @@ class TabScopedContextualTasksLensOverlayControllerInteractiveUiTest
     feature_list_.InitWithFeaturesAndParameters(
         /*enabled_features=*/{{
             contextual_tasks::kContextualTasks,
-            {{"TaskScopedSidePanel", "false"}},
+            {{"ContextualTasksTaskScopedSidePanel", "false"}},
         }},
         /*disabled_features=*/{lens::features::kLensSearchZeroStateCsb});
   }
@@ -1876,6 +1879,83 @@ IN_PROC_BROWSER_TEST_F(
             LensSearchController::FromTabWebContents(web_contents);
         EXPECT_FALSE(lens_controller->IsClosing() || lens_controller->IsOff());
       }));
+}
+
+class LensOverlayControllerCsbTest : public LensOverlayControllerCUJTest {
+ public:
+  LensOverlayControllerCsbTest() = default;
+  ~LensOverlayControllerCsbTest() override = default;
+
+  InteractiveTestApi::MultiStep OpenLensOverlayProgrammatically(
+      bool should_show_csb) {
+    DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kActiveTab);
+    const GURL url = embedded_test_server()->GetURL(kDocumentWithNamedElement);
+
+    // In kDocumentWithNamedElement.
+    const DeepQuery kPathToBody{
+        "body",
+    };
+
+    return Steps(
+        InstrumentTab(kActiveTab), NavigateWebContents(kActiveTab, url),
+        EnsurePresent(kActiveTab, kPathToBody),
+        WaitForWebContentsPainted(kActiveTab), Do([=, this]() {
+          content::WebContents* web_contents =
+              browser()->tab_strip_model()->GetActiveWebContents();
+          auto* controller =
+              LensSearchController::FromTabWebContents(web_contents);
+          controller->OpenLensOverlay(
+              lens::LensOverlayInvocationSource::kAppMenu, should_show_csb);
+        }));
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(LensOverlayControllerCsbTest, ShowsCsbWhenEnabled) {
+  WaitForTemplateURLServiceToLoad();
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kOverlayId);
+
+  const DeepQuery kPathToOverlaySearchboxInput{
+      "lens-overlay-app",
+      "cr-searchbox",
+      "input",
+  };
+
+  RunTestSequence(
+      OpenLensOverlayProgrammatically(/*should_show_csb=*/true),
+      InAnyContext(
+          InstrumentNonTabWebView(kOverlayId,
+                                  LensOverlayController::kOverlayId),
+          WaitForWebContentsReady(
+              kOverlayId, GURL(chrome::kChromeUILensOverlayUntrustedURL))),
+      InSameContext(WaitForShow(LensOverlayController::kOverlayId),
+                    WaitForScreenshotRendered(kOverlayId),
+                    EnsurePresent(kOverlayId, kPathToOverlaySearchboxInput)));
+}
+
+IN_PROC_BROWSER_TEST_F(LensOverlayControllerCsbTest, HidesCsbWhenDisabled) {
+  WaitForTemplateURLServiceToLoad();
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kOverlayId);
+
+  const DeepQuery kPathToOverlaySearchboxInput{
+      "lens-overlay-app",
+      "cr-searchbox",
+      "input",
+  };
+
+  RunTestSequence(
+      OpenLensOverlayProgrammatically(/*should_show_csb=*/false),
+      InAnyContext(
+          InstrumentNonTabWebView(kOverlayId,
+                                  LensOverlayController::kOverlayId),
+          WaitForWebContentsReady(
+              kOverlayId, GURL(chrome::kChromeUILensOverlayUntrustedURL))),
+      InSameContext(
+          WaitForShow(LensOverlayController::kOverlayId),
+          WaitForScreenshotRendered(kOverlayId),
+          CheckJsResultAt(kOverlayId, kPathToOverlaySearchboxInput,
+                          "(el) => el.offsetParent === null || "
+                          "el.getBoundingClientRect().width === 0 || "
+                          "el.getBoundingClientRect().height === 0")));
 }
 
 }  // namespace

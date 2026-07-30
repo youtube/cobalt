@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "base/base64.h"
+#include "base/containers/map_util.h"
 #include "base/containers/to_vector.h"
 #include "base/feature_list.h"
 #include "base/metrics/histogram_macros.h"
@@ -98,9 +99,9 @@ FieldPrediction::Source ToSafeFieldPredictionSource(
 // * If the manual override has at least one field prediction, use the manual
 //   override instead of the server override. Pop the server override, but only
 //   if there are at least two server overrides left. This is because the last
-//   server override may be used for multiple fields (`GetPrediction` inside
-//   `ProcessServerPredictionsQueryResponse` will keep returning the last value)
-//   and we only wish to override the prediction for the current field.
+//   server override may be used for multiple fields (`get_suggestions` inside
+//   `GetFieldSuggestion()` will keep returning the last value) and we only wish
+//   to override the prediction for the current field.
 // * If the manual override has no specified field prediction (i.e. is a "pass
 //   through"), then it was not intended to override this specific prediction.
 //   In that case, use the server prediction instead. In the special case that
@@ -624,8 +625,8 @@ void MergePasswordManagerPredictions(
 // Given `form` and `field`, returns the appropriate FieldSuggestion stored
 // for that field in `fields_suggestions`.
 std::optional<FieldSuggestion> GetFieldSuggestion(
-    const FormStructure& form,
-    const AutofillField& field,
+    const FormData& form,
+    const FormFieldData& field,
     std::map<std::pair<FormSignature, FieldSignature>,
              std::deque<FieldSuggestion>>& fields_suggestions) {
   // Retrieves the next prediction for `form` and `field` and pops it. Popping
@@ -686,15 +687,16 @@ std::optional<FieldSuggestion> GetFieldSuggestion(
         }
         NOTREACHED();
       };
+  FieldSignature field_signature = CalculateFieldSignatureForField(field);
   // Fetch suggestions from form signature, host form signature and alternative
   // form signature.
   std::optional<FieldSuggestion> main_frame_field_suggestion =
-      get_suggestion(form.form_signature(), field.GetFieldSignature());
+      get_suggestion(CalculateFormSignature(form), field_signature);
   std::optional<FieldSuggestion> iframe_field_suggestion =
-      get_suggestion(field.host_form_signature(), field.GetFieldSignature());
+      get_suggestion(field.host_form_signature(), field_signature);
   // NOTE: Suggestions from alternative form signatures are always overrides.
-  std::optional<FieldSuggestion> alternative_field_suggestion = get_suggestion(
-      form.alternative_form_signature(), field.GetFieldSignature());
+  std::optional<FieldSuggestion> alternative_field_suggestion =
+      get_suggestion(CalculateAlternativeFormSignature(form), field_signature);
 
   // Precedence rule for form signatures is the following:
   // `form_signature` (main frame) then `host_form_signature_` (iframe) and then
@@ -1073,12 +1075,15 @@ ServerPredictions::ServerPredictions(
     bool may_run_autofill_ai_model,
     std::map<std::pair<FormSignature, FieldSignature>,
              std::deque<FieldSuggestion>>& field_signature_map,
-    const FormStructure& form)
+    const FormData& form)
     : may_run_autofill_ai_model_(may_run_autofill_ai_model) {
-  predictions_ = base::ToVector(
-      form.fields(), [&](const std::unique_ptr<AutofillField>& field) {
-        return GetFieldSuggestion(form, *field, field_signature_map);
-      });
+  predictions_ =
+      base::MakeFlatMap<FieldGlobalId, std::optional<FieldSuggestion>>(
+          form.fields(), {}, [&](const FormFieldData& field) {
+            return std::make_pair(
+                field.global_id(),
+                GetFieldSuggestion(form, field, field_signature_map));
+          });
 }
 
 ServerPredictions::ServerPredictions(const ServerPredictions&) = default;
@@ -1099,28 +1104,32 @@ void ServerPredictions::ApplyTo(FormStructure& form) const {
   // signature how many fields with the same signature have been observed.
   std::map<FieldSignature, size_t> field_rank_map;
 
-  CHECK_EQ(form.fields().size(), predictions_.size());
-  for (auto [field, field_suggestion] :
-       base::zip(form.fields(), predictions_)) {
-    if (!field_suggestion) {
+  for (const std::unique_ptr<AutofillField>& field : form.fields()) {
+    const std::optional<FieldSuggestion>* field_suggestion_ptr =
+        base::FindOrNull(predictions_, field->global_id());
+    if (!field_suggestion_ptr || !field_suggestion_ptr->has_value()) {
+      // TODO(crbug.com/477542478): Clear the server predictions of fields that
+      // were queried but for which the server had no suggestions, and only skip
+      // fields that were not queried at all.
       continue;
     }
+    const FieldSuggestion& field_suggestion = field_suggestion_ptr->value();
     std::vector<FieldPrediction> server_predictions(
-        field_suggestion->predictions().begin(),
-        field_suggestion->predictions().end());
+        field_suggestion.predictions().begin(),
+        field_suggestion.predictions().end());
     MaybeMergeServerPredictions(server_predictions);
     field->set_server_predictions(std::move(server_predictions));
-    if (field_suggestion->has_password_requirements()) {
-      field->SetPasswordRequirements(field_suggestion->password_requirements());
+    if (field_suggestion.has_password_requirements()) {
+      field->SetPasswordRequirements(field_suggestion.password_requirements());
     }
-    if (field_suggestion->has_format_string()) {
+    if (field_suggestion.has_format_string()) {
       std::u16string format_string_value =
-          base::UTF8ToUTF16(field_suggestion->format_string().format_string());
+          base::UTF8ToUTF16(field_suggestion.format_string().format_string());
       if (AutofillFormatString::IsValid(
-              format_string_value, field_suggestion->format_string().type())) {
+              format_string_value, field_suggestion.format_string().type())) {
         field->set_format_string_unless_overruled(
             AutofillFormatString(format_string_value,
-                                 field_suggestion->format_string().type()),
+                                 field_suggestion.format_string().type()),
             AutofillFormatStringSource::kServer);
       }
     }
@@ -1154,9 +1163,9 @@ void ServerPredictions::ApplyTo(FormStructure& form) const {
   }
 }
 
-void ParseServerPredictionsQueryResponse(
+std::vector<ServerPredictions> ParseServerPredictionsFromQueryResponse(
     std::string_view payload,
-    const std::vector<raw_ref<FormStructure>>& forms,
+    base::span<const FormData> forms,
     const std::vector<FormSignature>& queried_form_signatures,
     LogManager* log_manager,
     bool ignore_small_forms) {
@@ -1166,29 +1175,18 @@ void ParseServerPredictionsQueryResponse(
   std::string decoded_payload;
   if (!base::Base64Decode(payload, &decoded_payload)) {
     DVLOG(1) << "Could not decode payload from base64 to bytes";
-    return;
+    return {};
   }
 
   // Parse the response.
   AutofillQueryResponse response;
   if (!response.ParseFromString(decoded_payload)) {
-    return;
+    return {};
   }
 
   DVLOG(1) << "Autofill query response from API was successfully parsed: "
            << response;
 
-  ProcessServerPredictionsQueryResponse(std::move(response), forms,
-                                        queried_form_signatures, log_manager,
-                                        ignore_small_forms);
-}
-
-void ProcessServerPredictionsQueryResponse(
-    AutofillQueryResponse response,
-    const std::vector<raw_ref<FormStructure>>& forms,
-    const std::vector<FormSignature>& queried_form_signatures,
-    LogManager* log_manager,
-    bool ignore_small_forms) {
   AutofillMetrics::LogServerQueryMetric(AutofillMetrics::QUERY_RESPONSE_PARSED);
   LOG_AF(log_manager) << LoggingScope::kParsing
                       << LogMessage::kProcessingServerData;
@@ -1205,21 +1203,16 @@ void ProcessServerPredictionsQueryResponse(
     }
   }
 
-  std::vector<ServerPredictions> form_server_predictions = base::ToVector(
-      forms, [field_suggestion_map = GetSuggestionsMapFromResponse(
-                  response, queried_form_signatures),
-              forms_for_which_to_run_ai_model = GetFormsForWhichToRunAiModel(
-                  response, queried_form_signatures)](
-                 raw_ref<FormStructure> form) mutable {
-        return ServerPredictions(
-            forms_for_which_to_run_ai_model.contains(form->form_signature()),
-            field_suggestion_map, *form);
+  return base::ToVector(
+      forms,
+      [field_suggestion_map =
+           GetSuggestionsMapFromResponse(response, queried_form_signatures),
+       forms_for_which_to_run_ai_model = GetFormsForWhichToRunAiModel(
+           response, queried_form_signatures)](const FormData& form) mutable {
+        return ServerPredictions(forms_for_which_to_run_ai_model.contains(
+                                     CalculateFormSignature(form)),
+                                 field_suggestion_map, form);
       });
-
-  for (auto [form, server_predictions] :
-       base::zip(forms, form_server_predictions)) {
-    server_predictions.ApplyTo(*form);
-  }
 }
 
 }  // namespace autofill

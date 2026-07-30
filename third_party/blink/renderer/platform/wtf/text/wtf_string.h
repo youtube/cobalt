@@ -56,6 +56,9 @@ class WTF_EXPORT String {
   USING_FAST_MALLOC(String);
 
  public:
+  using size_type = string_size_t;
+  static constexpr size_type npos = kNotFound;
+
   // Construct a null string, distinguishable from an empty string.
   String() = default;
 
@@ -432,9 +435,6 @@ class WTF_EXPORT String {
   void Split(const StringView& separator,
              bool allow_empty_entries,
              Vector<String>& result) const;
-  void Split(const StringView& separator, Vector<String>& result) const {
-    Split(separator, false, result);
-  }
   void Split(UChar separator,
              bool allow_empty_entries,
              Vector<String>& result) const;

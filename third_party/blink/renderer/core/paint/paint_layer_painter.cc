@@ -33,6 +33,7 @@
 #include "third_party/blink/renderer/platform/graphics/paint/drawing_recorder.h"
 #include "third_party/blink/renderer/platform/graphics/paint/foreign_layer_display_item.h"
 #include "third_party/blink/renderer/platform/graphics/paint/geometry_mapper.h"
+#include "third_party/blink/renderer/platform/graphics/paint/scoped_canvas_subtree_id.h"
 #include "third_party/blink/renderer/platform/graphics/paint/scoped_display_item_fragment.h"
 #include "third_party/blink/renderer/platform/graphics/paint/scoped_effectively_invisible.h"
 #include "third_party/blink/renderer/platform/graphics/paint/scoped_paint_chunk_properties.h"
@@ -391,8 +392,24 @@ PaintResult PaintLayerPainter::Paint(GraphicsContext& context,
   PaintController& controller = context.GetPaintController();
 
   std::optional<ScopedEffectivelyInvisible> effectively_invisible;
-  if (PaintedOutputInvisible(object.StyleRef()))
+  if (PaintedOutputInvisible(object.StyleRef())) {
     effectively_invisible.emplace(controller);
+  }
+
+  std::optional<ScopedCanvasSubtreeId> canvas_subtree_id_scope;
+  if (RuntimeEnabledFeatures::CanvasDrawElementEnabled()) {
+    // Start a canvas subtree id scope with the id of each direct child of a
+    // layoutsubtree canvas.
+    auto* element = DynamicTo<Element>(object.GetNode());
+    if (element && element->IsInCanvasSubtree()) [[unlikely]] {
+      auto* canvas = DynamicTo<HTMLCanvasElement>(element->parentElement());
+      if (canvas && canvas->layoutSubtree()) {
+        auto canvas_subtree_id =
+            CompositorElementIdFromDOMNodeId(element->GetDomNodeId());
+        canvas_subtree_id_scope.emplace(controller, canvas_subtree_id);
+      }
+    }
+  }
 
   std::optional<ScopedPaintChunkProperties> layer_chunk_properties;
 
@@ -572,9 +589,16 @@ PaintResult PaintLayerPainter::PaintChildren(
     return result;
   }
 
-  // Prevent canvas fallback content from being rendered.
-  if (IsA<HTMLCanvasElement>(layout_object.GetNode())) {
-    return result;
+  if (auto* canvas = DynamicTo<HTMLCanvasElement>(layout_object.GetNode())) {
+    if (RuntimeEnabledFeatures::CanvasDrawElementEnabled() &&
+        canvas->layoutSubtree()) {
+      // We need to paint the children for later use by drawElementImage, but
+      // make sure we enforce privacy-preserving paint behavior.
+      paint_flags |= PaintFlag::kPrivacyPreserving;
+    } else {
+      // Prevent canvas fallback content from being rendered.
+      return result;
+    }
   }
 
   PaintLayerPaintOrderIterator iterator(&paint_layer_, children_to_visit);

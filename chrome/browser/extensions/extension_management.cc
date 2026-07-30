@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "base/command_line.h"
+#include "base/containers/flat_set.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -224,11 +225,11 @@ ManagedInstallationMode ExtensionManagement::GetInstallationMode(
   return default_settings_->installation_mode;
 }
 
-base::Value::Dict ExtensionManagement::GetForceInstallList() const {
+base::DictValue ExtensionManagement::GetForceInstallList() const {
   return GetInstallListByMode(ManagedInstallationMode::kForced);
 }
 
-base::Value::Dict ExtensionManagement::GetRecommendedInstallList() const {
+base::DictValue ExtensionManagement::GetRecommendedInstallList() const {
   return GetInstallListByMode(ManagedInstallationMode::kRecommended);
 }
 
@@ -703,19 +704,19 @@ void ExtensionManagement::Refresh() {
   TRACE_EVENT0("browser,startup", "ExtensionManagement::Refresh");
   SCOPED_UMA_HISTOGRAM_TIMER("Extensions.Management_Refresh");
   // Load all extension management settings preferences.
-  const base::Value::List* allowed_list_pref =
+  const base::ListValue* allowed_list_pref =
       LoadListPreference(pref_names::kInstallAllowList, true);
   // Allow user to use preference to block certain extensions. Note that policy
   // managed forcelist or allowlist will always override this.
-  const base::Value::List* denied_list_pref =
+  const base::ListValue* denied_list_pref =
       LoadListPreference(pref_names::kInstallDenyList, false);
-  const base::Value::Dict* forced_list_pref =
+  const base::DictValue* forced_list_pref =
       LoadDictPreference(pref_names::kInstallForceList, true);
-  const base::Value::List* install_sources_pref =
+  const base::ListValue* install_sources_pref =
       LoadListPreference(pref_names::kAllowedInstallSites, true);
-  const base::Value::List* allowed_types_pref =
+  const base::ListValue* allowed_types_pref =
       LoadListPreference(pref_names::kAllowedTypes, true);
-  const base::Value::Dict* dict_pref =
+  const base::DictValue* dict_pref =
       LoadDictPreference(pref_names::kExtensionManagement, true);
   const base::Value* extension_request_pref = LoadPreference(
       prefs::kCloudExtensionRequestEnabled, false, base::Value::Type::BOOLEAN);
@@ -739,7 +740,7 @@ void ExtensionManagement::Refresh() {
     default_settings_->installation_mode = ManagedInstallationMode::kBlocked;
   }
 
-  if (const base::Value::Dict* subdict =
+  if (const base::DictValue* subdict =
           dict_pref ? dict_pref->FindDict(schema_constants::kWildcard)
                     : nullptr) {
     if (!default_settings_->Parse(
@@ -749,7 +750,7 @@ void ExtensionManagement::Refresh() {
     }
 
     // Settings from new preference have higher priority over legacy ones.
-    const base::Value::List* list_value =
+    const base::ListValue* list_value =
         subdict->FindList(schema_constants::kInstallSources);
     if (list_value)
       install_sources_pref = list_value;
@@ -826,17 +827,20 @@ void ExtensionManagement::Refresh() {
   if (dict_pref) {
     // Parse new extension management preference.
 
-    std::unordered_set<std::string> installed_extensions;
     auto* extension_prefs = ExtensionPrefs::Get(profile_);
     auto extensions_info = extension_prefs->GetInstalledExtensionsInfo();
-    for (const auto& extension_info : extensions_info) {
-      installed_extensions.insert(extension_info.extension_id);
+    std::vector<std::string> installed_extension_ids;
+    installed_extension_ids.reserve(extensions_info.size());
+    for (auto& extension_info : extensions_info) {
+      installed_extension_ids.push_back(std::move(extension_info.extension_id));
     }
+    base::flat_set<std::string> installed_extension_ids_set(
+        std::move(installed_extension_ids));
 
     for (auto iter : *dict_pref) {
       if (iter.first == schema_constants::kWildcard)
         continue;
-      const base::Value::Dict* subdict = iter.second.GetIfDict();
+      const base::DictValue* subdict = iter.second.GetIfDict();
       if (!subdict)
         continue;
       std::optional<std::string_view> remainder =
@@ -865,15 +869,15 @@ void ExtensionManagement::Refresh() {
             continue;
           }
 
-          auto should_defer = [&extension_id, &installed_extensions](
-                                  const base::Value::Dict& dict,
+          auto should_defer = [&extension_id, &installed_extension_ids_set](
+                                  const base::DictValue& dict,
                                   const SettingsIdMap* settings_by_id) {
             // If in legacy force list, don't defer since already have an
             // entry. This ensures that the entry in these settings matches
             // the entry in the forcelist. Also don't defer if the extension
             // is installed.
             if (settings_by_id->contains(extension_id) ||
-                installed_extensions.contains(extension_id)) {
+                installed_extension_ids_set.contains(extension_id)) {
               return false;
             }
             auto* install_mode =
@@ -914,7 +918,7 @@ void ExtensionManagement::Refresh() {
 }
 
 bool ExtensionManagement::ParseById(const std::string& extension_id,
-                                    const base::Value::Dict& subdict) {
+                                    const base::DictValue& subdict) {
   internal::IndividualSettings* by_id = AccessById(extension_id);
   if (by_id->Parse(subdict, internal::IndividualSettings::SCOPE_INDIVIDUAL))
     return true;
@@ -949,7 +953,7 @@ void ExtensionManagement::LoadDeferredExtensionSetting(
   // No need to check again later.
   deferred_ids_.erase(extension_id);
 
-  const base::Value::Dict* dict_pref =
+  const base::DictValue* dict_pref =
       LoadDictPreference(pref_names::kExtensionManagement, true);
   bool found = false;
   for (auto iter : *dict_pref) {
@@ -958,7 +962,7 @@ void ExtensionManagement::LoadDeferredExtensionSetting(
                          base::CompareCase::SENSITIVE)) {
       continue;
     }
-    const base::Value::Dict* subdict = iter.second.GetIfDict();
+    const base::DictValue* subdict = iter.second.GetIfDict();
     if (!subdict)
       continue;
 
@@ -991,7 +995,7 @@ const base::Value* ExtensionManagement::LoadPreference(
   return nullptr;
 }
 
-const base::Value::Dict* ExtensionManagement::LoadDictPreference(
+const base::DictValue* ExtensionManagement::LoadDictPreference(
     const char* pref_name,
     bool force_managed) const {
   const base::Value* value =
@@ -999,7 +1003,7 @@ const base::Value::Dict* ExtensionManagement::LoadDictPreference(
   return value ? &value->GetDict() : nullptr;
 }
 
-const base::Value::List* ExtensionManagement::LoadListPreference(
+const base::ListValue* ExtensionManagement::LoadListPreference(
     const char* pref_name,
     bool force_managed) const {
   const base::Value* value =
@@ -1037,14 +1041,14 @@ void ExtensionManagement::ReportExtensionManagementInstallCreationStage(
   }
 }
 
-base::Value::Dict ExtensionManagement::GetInstallListByMode(
+base::DictValue ExtensionManagement::GetInstallListByMode(
     ManagedInstallationMode installation_mode) const {
   // This is only meaningful if we 've loaded the extensions for the given
   // installation mode.
   DCHECK(installation_mode == ManagedInstallationMode::kForced ||
          installation_mode == ManagedInstallationMode::kRecommended);
 
-  base::Value::Dict extension_dict;
+  base::DictValue extension_dict;
   for (const auto& [id, settings] : settings_by_id_) {
     if (settings->installation_mode == installation_mode) {
       ExternalPolicyLoader::AddExtension(extension_dict, id,
@@ -1055,7 +1059,7 @@ base::Value::Dict ExtensionManagement::GetInstallListByMode(
 }
 
 void ExtensionManagement::UpdateForcedExtensions(
-    const base::Value::Dict* extension_dict) {
+    const base::DictValue* extension_dict) {
   if (!extension_dict)
     return;
 
@@ -1067,7 +1071,7 @@ void ExtensionManagement::UpdateForcedExtensions(
           it.first, InstallStageTracker::FailureReason::INVALID_ID);
       continue;
     }
-    const base::Value::Dict* dict_value = it.second.GetIfDict();
+    const base::DictValue* dict_value = it.second.GetIfDict();
     if (!dict_value) {
       install_stage_tracker->ReportFailure(
           it.first, InstallStageTracker::FailureReason::NO_UPDATE_URL);

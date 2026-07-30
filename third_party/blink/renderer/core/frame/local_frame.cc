@@ -266,15 +266,16 @@ namespace blink {
 namespace {
 
 #if BUILDFLAG(IS_ANDROID)
-std::vector<gfx::Range> ExtractMisspellingRangesFromDocumentMarkerVector(
-    const DocumentMarkerVector& markers) {
-  std::vector<gfx::Range> ranges;
+blink::DocumentMarkerVector ExtractSpellingMarkersFromDocumentMarkerVector(
+    const blink::DocumentMarkerVector& markers) {
+  blink::DocumentMarkerVector spelling_markers;
   for (auto& marker : markers) {
-    if (marker->GetType() == DocumentMarker::MarkerType::kSpelling) {
-      ranges.emplace_back(marker->StartOffset(), marker->EndOffset());
+    if (marker->GetType() == DocumentMarker::MarkerType::kSpelling ||
+        marker->GetType() == DocumentMarker::MarkerType::kGrammar) {
+      spelling_markers.push_back(marker);
     }
   }
-  return ranges;
+  return spelling_markers;
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -969,7 +970,11 @@ void LocalFrame::PrintNavigationWarning(const String& message) {
 bool LocalFrame::ShouldClose() {
   // TODO(crbug.com/1407078): This should be fixed to dispatch beforeunload
   // events to both local and remote frames.
-  return loader_.ShouldClose();
+  base::TimeTicks before_unload_dialog_opened_time;
+  base::TimeTicks before_unload_dialog_closed_time;
+  return loader_.ShouldClose(/*is_reload=*/false,
+                             before_unload_dialog_opened_time,
+                             before_unload_dialog_closed_time);
 }
 
 bool LocalFrame::DetachChildren() {
@@ -4280,7 +4285,7 @@ void LocalFrame::PerformSpellCheck() {
                              Position::LastPositionInNode(*container_node));
   GetSpellChecker().GetSpellCheckRequester().RequestCheckingFor(
       range,
-      ExtractMisspellingRangesFromDocumentMarkerVector(
+      ExtractSpellingMarkersFromDocumentMarkerVector(
           GetDocument()->Markers().Markers()),
       /*request_num=*/0, /*should_force_refresh=*/false);
 }

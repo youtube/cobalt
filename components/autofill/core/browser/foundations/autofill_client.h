@@ -107,12 +107,10 @@ class AutofillSuggestionDelegate;
 enum class AutofillTriggerSource;
 class IdentityCredentialDelegate;
 class EntityDataManager;
-class FastCheckoutClient;
 class FieldClassificationModelHandler;
 enum class FillingProduct;
 class FormDataImporter;
 class FormFieldData;
-struct FormInteractionsFlowId;
 class LogManager;
 class OtpFieldDetector;
 class OtpPhishGuardDelegate;
@@ -186,8 +184,8 @@ class AutofillClient {
   // prompt related to AutofillAi saving, updating, or migrating.
   // These values are persisted to logs. Entries should not be renumbered and
   // numeric values should never be reused.
-  enum class AutofillAiBubbleClosedReason {
-    // Bubble closed reason not specified.
+  enum class AutofillAiBubbleResult {
+    // Bubble result not specified.
     kUnknown = 0,
     // The user explicitly accepted the bubble.
     kAccepted = 1,
@@ -235,7 +233,7 @@ class AutofillClient {
   };
 
   using EntityImportPromptResultCallback =
-      base::OnceCallback<void(AutofillAiBubbleClosedReason close_reason)>;
+      base::OnceCallback<void(AutofillAiBubbleResult result)>;
 
   // The types of prompts that AutofillAi can show to the user after a form
   // submission. The values are ordered by decreasing priority of being shown
@@ -461,9 +459,6 @@ class AutofillClient {
   // Returns the profile type of the session.
   virtual profile_metrics::BrowserProfileType GetProfileType() const;
 
-  // Gets a FastCheckoutClient instance (can be null for unsupported platforms).
-  virtual FastCheckoutClient* GetFastCheckoutClient();
-
   // Causes the Autofill settings UI to be shown.
   virtual void ShowAutofillSettings(SuggestionType suggestion_type) = 0;
 
@@ -629,18 +624,15 @@ class AutofillClient {
   // to the use of a large keyboard accessory view. See b/40942168.
   virtual bool ShouldFormatForLargeKeyboardAccessory() const;
 
-  // Updates and returns the current form interactions flow id. This is used as
-  // an approximation for keeping track of the number of user interactions with
-  // related forms for logging. Example implementation: the flow id is set to a
-  // GUID on the first call. That same GUID will be returned for consecutive
-  // calls in the next 20 minutes. Afterwards a new GUID is set and the pattern
-  // repeated.
-  virtual FormInteractionsFlowId GetCurrentFormInteractionsFlowId() = 0;
-
   // Returns a pointer to a DeviceAuthenticator. Might be nullptr if the given
   // platform is not supported.
   virtual std::unique_ptr<device_reauth::DeviceAuthenticator>
   GetDeviceAuthenticator();
+
+  // Same as `GetDeviceAuthenticator()` but also logs authentication results to
+  // `histogram`.
+  virtual std::unique_ptr<device_reauth::DeviceAuthenticator>
+  GetDeviceAuthenticator(std::string histogram);
 
   // Attaches the IPH for `feature` to the `field`, on
   // platforms that it. If another IPH has been shown for the tab, the IPH is
@@ -691,7 +683,10 @@ class AutofillClient {
   virtual void ShowEntityImportBubble(
       EntityInstance new_entity,
       std::optional<EntityInstance> old_entity,
-      EntityImportPromptResultCallback prompt_closed_callback);
+      EntityImportPromptResultCallback prompt_result_callback);
+
+  // Hides the Autofill AI import bubble if it is currently showing.
+  virtual void CloseEntityImportBubble();
 
   virtual void ShowEmailVerifiedToast();
 

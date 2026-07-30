@@ -1216,9 +1216,13 @@ bool CSSParserFastPaths::IsValidKeywordPropertyAndValue(
              value_id == CSSValueID::kIntersection;
     case CSSPropertyID::kColumnRuleVisibilityItems:
     case CSSPropertyID::kRowRuleVisibilityItems:
-      return value_id == CSSValueID::kNone || value_id == CSSValueID::kAll ||
-             value_id == CSSValueID::kAround ||
+      return value_id == CSSValueID::kAll || value_id == CSSValueID::kAround ||
              value_id == CSSValueID::kBetween;
+    case CSSPropertyID::kColumnSpan:
+      return value_id == CSSValueID::kAll || value_id == CSSValueID::kNone;
+    case CSSPropertyID::kContentVisibility:
+      return value_id == CSSValueID::kVisible ||
+             value_id == CSSValueID::kAuto || value_id == CSSValueID::kHidden;
     case CSSPropertyID::kDirection:
       return value_id == CSSValueID::kLtr || value_id == CSSValueID::kRtl;
     case CSSPropertyID::kDominantBaseline:
@@ -1442,6 +1446,8 @@ bool CSSParserFastPaths::IsValidKeywordPropertyAndValue(
     case CSSPropertyID::kVectorEffect:
       return value_id == CSSValueID::kNone ||
              value_id == CSSValueID::kNonScalingStroke;
+    case CSSPropertyID::kViewTransitionScope:
+      return value_id == CSSValueID::kNone || value_id == CSSValueID::kAuto;
     case CSSPropertyID::kVisibility:
       return value_id == CSSValueID::kVisible ||
              value_id == CSSValueID::kHidden ||
@@ -1743,6 +1749,8 @@ CSSBitset CSSParserFastPaths::handled_by_keyword_fast_paths_properties_{{
     CSSPropertyID::kColorRendering,
     CSSPropertyID::kColumnRuleBreak,
     CSSPropertyID::kColumnRuleVisibilityItems,
+    CSSPropertyID::kColumnSpan,
+    CSSPropertyID::kContentVisibility,
     CSSPropertyID::kContinue,
     CSSPropertyID::kDirection,
     CSSPropertyID::kDominantBaseline,
@@ -1807,6 +1815,7 @@ CSSBitset CSSParserFastPaths::handled_by_keyword_fast_paths_properties_{{
     CSSPropertyID::kTextTransform,
     CSSPropertyID::kUnicodeBidi,
     CSSPropertyID::kVectorEffect,
+    CSSPropertyID::kViewTransitionScope,
     CSSPropertyID::kVisibility,
     CSSPropertyID::kAppRegion,
     CSSPropertyID::kBackfaceVisibility,

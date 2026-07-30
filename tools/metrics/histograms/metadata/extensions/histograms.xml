@@ -83,6 +83,14 @@ chromium-metrics-reviews@google.com.
   <variant name=".Tab" summary="A port opened to a tab context."/>
 </variants>
 
+<variants name="ExtensionsBackgroundCompileScriptState">
+  <variant name="Success"
+      summary="Script was successfully compiled in the background."/>
+  <variant name="TimedOut"
+      summary="Main thread timed out while waiting for background compilation
+               to finish."/>
+</variants>
+
 <variants name="ExtensionState">
   <variant name=".Disabled" summary="disabled"/>
   <variant name=".Enabled" summary="enabled"/>
@@ -275,7 +283,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.ActiveScriptController.PermittedExtensions"
-    units="Extension Count" expires_after="2026-05-17">
+    units="Extension Count" expires_after="2026-07-19">
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>
@@ -317,6 +325,70 @@ This is emitted for two scenarios when a worker may be unregistered:
     The number of apps loaded on profile open time grouped by
     Extension::Location.
   </summary>
+</histogram>
+
+<histogram
+    name="Extensions.BackgroundCompileInjectedScripts.EligibleScriptsCount"
+    units="count" expires_after="2026-11-01">
+  <owner>rdevlin.cronin@chromium.org</owner>
+  <owner>extensions-core@chromium.org</owner>
+  <owner>emromero@microsoft.com</owner>
+  <summary>
+    Number of scripts to be injected at document start that were eligible for
+    background compilation.
+
+    Emitted when `extensions_features::kExtensionsBackgroundCompilation` is
+    enabled, the navigation is ready to commit, and the scripts have started
+    streaming to v8 for compilation.
+  </summary>
+</histogram>
+
+<histogram
+    name="Extensions.BackgroundCompileInjectedScripts.EligibleScriptsPercentage"
+    units="%" expires_after="2026-11-01">
+  <owner>rdevlin.cronin@chromium.org</owner>
+  <owner>extensions-core@chromium.org</owner>
+  <owner>emromero@microsoft.com</owner>
+  <summary>
+    Number of scripts injected at document start that were eligible for
+    background compilation, as a percentage of all scripts injected at document
+    start.
+
+    Emitted at the same time as
+    Extensions.BackgroundCompileInjectedScripts.EligibleScriptsCount.
+  </summary>
+</histogram>
+
+<histogram
+    name="Extensions.BackgroundCompileInjectedScripts.ScriptCompilationTime{State}"
+    units="ms" expires_after="2026-11-01">
+  <owner>rdevlin.cronin@chromium.org</owner>
+  <owner>extensions-core@chromium.org</owner>
+  <owner>emromero@microsoft.com</owner>
+  <summary>
+    Time taken to compile an extension JS script injected at document start that
+    was compiled in a background thread.
+
+    Emitted asynchronously on the main thread immediately after the background
+    thread completes script compilation. The background worker calls Run(), then
+    posts EmitCompilationHistograms() back to the main thread via
+    PostNonNestableTask().
+  </summary>
+  <token key="State" variants="ExtensionsBackgroundCompileScriptState"/>
+</histogram>
+
+<histogram name="Extensions.BackgroundCompileInjectedScripts.ScriptSize{State}"
+    units="count" expires_after="2026-11-01">
+  <owner>rdevlin.cronin@chromium.org</owner>
+  <owner>extensions-core@chromium.org</owner>
+  <owner>emromero@microsoft.com</owner>
+  <summary>
+    Number of characters of an extension JS script injected at document start
+    that was compiled in a background thread.
+
+    Emitted simultaneously with ScriptCompilationTime{State}.
+  </summary>
+  <token key="State" variants="ExtensionsBackgroundCompileScriptState"/>
 </histogram>
 
 <histogram name="Extensions.BackgroundHostCreatedForExtension"
@@ -976,7 +1048,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 
 <histogram
     name="Extensions.DeclarativeNetRequest.AddRulesetCalledTwiceInSuccession"
-    enum="BooleanSuccess" expires_after="2026-05-17">
+    enum="BooleanSuccess" expires_after="2026-07-19">
   <owner>kelvinjiang@chromium.org</owner>
   <owner>src/extensions/OWNERS</owner>
   <summary>
@@ -1314,7 +1386,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.DeclarativeNetRequest.RulesetReindexSuccessful"
-    enum="BooleanSuccess" expires_after="2026-03-08">
+    enum="BooleanSuccess" expires_after="2026-09-08">
   <owner>kelvinjiang@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>
@@ -1963,7 +2035,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.ExtensionInstalled.NewFromWebstore" units="count"
-    expires_after="2026-05-20">
+    expires_after="2026-07-19">
   <owner>jlulejian@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>
@@ -2588,7 +2660,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.Functions.DidSandboxedExtensionAPICall"
-    enum="Boolean" expires_after="2026-05-24">
+    enum="Boolean" expires_after="2026-07-26">
   <owner>wjmaclean@chromium.org</owner>
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
@@ -2617,7 +2689,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.Functions.ExtensionMV3Calls"
-    enum="ExtensionFunctions" expires_after="2026-05-24">
+    enum="ExtensionFunctions" expires_after="2026-07-26">
   <owner>tjudkins@chromium.org</owner>
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
@@ -3434,7 +3506,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.LoadType2" enum="ExtensionType"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>
@@ -4242,7 +4314,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.ServiceWorkerBackground.StartWorkerStatus"
-    enum="Boolean" expires_after="2026-05-24">
+    enum="Boolean" expires_after="2026-07-26">
   <owner>jlulejian@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>
@@ -4453,7 +4525,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 
 <histogram
     name="Extensions.SettingsOverridden.BackToGoogleSearchOverriddenDialogResult"
-    enum="SettingsOverriddenDialogResult" expires_after="2026-05-24">
+    enum="SettingsOverriddenDialogResult" expires_after="2026-07-26">
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>
@@ -4467,7 +4539,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 
 <histogram
     name="Extensions.SettingsOverridden.BackToOtherSearchOverriddenDialogResult"
-    enum="SettingsOverriddenDialogResult" expires_after="2026-05-24">
+    enum="SettingsOverriddenDialogResult" expires_after="2026-07-26">
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>
@@ -4494,7 +4566,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 
 <histogram
     name="Extensions.SettingsOverridden.GenericSearchOverriddenDialogResult"
-    enum="SettingsOverriddenDialogResult" expires_after="2026-05-24">
+    enum="SettingsOverriddenDialogResult" expires_after="2026-07-26">
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>
@@ -4553,7 +4625,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.Toolbar.InvocationSource"
-    enum="ExtensionActionInvocationSource" expires_after="2026-05-24">
+    enum="ExtensionActionInvocationSource" expires_after="2026-07-26">
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>
@@ -4707,7 +4779,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 
 <histogram
     name="Extensions.WebRequest.DeclarativeRequestDependentExtensionCount"
-    units="Extension Count" expires_after="2026-12-01">
+    units="Extension Count" expires_after="2027-01-27">
   <owner>toyoshim@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -4734,7 +4806,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.WebRequest.ProxyDecision2"
-    enum="WebRequest.ProxyDecision" expires_after="2026-12-01">
+    enum="WebRequest.ProxyDecision" expires_after="2027-01-27">
   <owner>toyoshim@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -4748,7 +4820,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 
 <histogram name="Extensions.WebRequest.ProxyDecisionDetailsForExtension"
     enum="WebRequest.ProxyDecisionDetailsForExtension"
-    expires_after="2026-12-01">
+    expires_after="2027-01-27">
   <owner>toyoshim@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -4882,7 +4954,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.WebRequest.WebRequestDependentExtensionCount"
-    units="Extension Count" expires_after="2026-03-08">
+    units="Extension Count" expires_after="2027-01-27">
   <owner>toyoshim@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -4896,7 +4968,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.WebRequest.WebViewDependentExtensionCount"
-    units="Extension Count" expires_after="2026-03-08">
+    units="Extension Count" expires_after="2027-01-27">
   <owner>toyoshim@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>

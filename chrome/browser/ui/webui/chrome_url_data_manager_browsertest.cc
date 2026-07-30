@@ -340,7 +340,10 @@ IN_PROC_BROWSER_TEST_P(ChromeURLDataManagerWebUITrustedTypesTest,
 //  1) TrustedTypes violations (see NoTrustedTypesViolation test).
 //  2) Presence of TrustedTypes checks (see TrustedTypesEnabled test).
 static constexpr const char* const kChromeUrls[] = {
+#if !(BUILDFLAG(IS_WIN) && defined(ADDRESS_SANITIZER))
+    // TODO(crbug.com/477013842): Investigate why tests fail on Win-Asan.
     "chrome://accessibility",
+#endif
 // TODO:(https://crbug.com/1439754): Flakily crashes on ChromeOS.
 #if !BUILDFLAG(IS_CHROMEOS)
     "chrome://app-service-internals",
@@ -451,9 +454,6 @@ static constexpr const char* const kChromeUrls[] = {
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
-    // TODO(crbug.com/40250441): Add CrOS-only WebUI URLs here as TrustedTypes
-    // are deployed to more WebUIs.
-
     "chrome://accessory-update",
     "chrome://account-manager-error",
     "chrome://account-migration-welcome",

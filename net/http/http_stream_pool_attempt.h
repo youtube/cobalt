@@ -70,8 +70,10 @@ class HttpStreamPool::Attempt {
     // Callback methods. Only one of these methods will be called. Once one of
     // these methods is called, the Attempt must immediately be deleted, or it
     // will enter an undefined state.
-    virtual void OnStreamSocketReady(Attempt* attempt,
-                                     std::unique_ptr<StreamSocket> stream) = 0;
+    virtual void OnStreamSocketReady(
+        Attempt* attempt,
+        std::unique_ptr<StreamSocket> stream,
+        LoadTimingInfo::ConnectTiming connect_timing) = 0;
     virtual void OnAttemptFailure(Attempt* attempt, int rv) = 0;
     virtual void OnCertificateError(Attempt* attempt,
                                     int rv,
@@ -81,7 +83,9 @@ class HttpStreamPool::Attempt {
         scoped_refptr<SSLCertRequestInfo> cert_info) = 0;
   };
 
-  Attempt(Delegate& delegate, const StreamAttemptParams& stream_attempt_params);
+  Attempt(Delegate& delegate,
+          const StreamAttemptParams& stream_attempt_params,
+          NetLogWithSource net_log);
 
   ~Attempt();
 
@@ -140,6 +144,8 @@ class HttpStreamPool::Attempt {
   const bool using_tls_;
 
   const perfetto::Track track_;
+
+  const NetLogWithSource net_log_;
 
   std::unique_ptr<TcpAttempt> ipv4_attempt_;
   std::unique_ptr<TcpAttempt> ipv6_attempt_;

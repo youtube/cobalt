@@ -100,7 +100,7 @@ class CORE_EXPORT StyleResolverState {
   void CreateNewClonedStyle(const ComputedStyle& style) {
     // FIXME: Improve RAII of StyleResolverState to remove this function.
     style_builder_.emplace(style);
-    UpdateLengthConversionData();
+    InvalidateLengthConversionData();
   }
 
   // Initialize the style builder. source_for_noninherited holds initial values
@@ -114,34 +114,34 @@ class CORE_EXPORT StyleResolverState {
     // FIXME: Improve RAII of StyleResolverState to remove this function.
     style_builder_.emplace(source_for_noninherited, inherit_parent,
                            is_at_shadow_boundary);
-    UpdateLengthConversionData();
+    InvalidateLengthConversionData();
   }
   ComputedStyleBuilder& StyleBuilder() { return *style_builder_; }
   const ComputedStyleBuilder& StyleBuilder() const { return *style_builder_; }
   const ComputedStyle* TakeStyle();
   const ComputedStyle* CloneStyle() const;
 
+  // See also MutableCssToLengthConversionData().
   const CSSToLengthConversionData& CssToLengthConversionData() const {
+    if (css_to_length_conversion_data_dirty_) {
+      UpdateLengthConversionData();
+    }
     return css_to_length_conversion_data_;
   }
   CSSToLengthConversionData FontSizeConversionData();
   CSSToLengthConversionData UnzoomedLengthConversionData();
 
   CSSToLengthConversionData::Flags TakeLengthConversionFlags() {
+    if (css_to_length_conversion_data_dirty_) {
+      UpdateLengthConversionData();
+    }
     CSSToLengthConversionData::Flags flags = length_conversion_flags_;
     length_conversion_flags_ = 0;
     return flags;
   }
 
-  void SetConversionFontSizes(
-      const CSSToLengthConversionData::FontSizes& font_sizes) {
-    css_to_length_conversion_data_.SetFontSizes(font_sizes);
-  }
-  void SetConversionZoom(float zoom) {
-    css_to_length_conversion_data_.SetZoom(zoom);
-  }
   void SubtractScrollbarsFromViewportUnits(const gfx::Size& scrollbars) {
-    css_to_length_conversion_data_.SubtractScrollbars(scrollbars);
+    MutableCssToLengthConversionData().SubtractScrollbars(scrollbars);
   }
 
   CSSAnimationUpdate& AnimationUpdate() { return animation_update_; }
@@ -257,7 +257,9 @@ class CORE_EXPORT StyleResolverState {
   // Update computed line-height and font used for 'lh' unit resolution.
   void UpdateLineHeight();
 
-  void UpdateLengthConversionData();
+  void InvalidateLengthConversionData() {
+    css_to_length_conversion_data_dirty_ = true;
+  }
 
   float TextAutosizingMultiplier() const {
     const ComputedStyle* old_style = GetElement().GetComputedStyle();
@@ -290,6 +292,24 @@ class CORE_EXPORT StyleResolverState {
   void SetComputedStyleFlagsFromAuthorFlags(CSSProperty::Flags author_flags);
 
  private:
+  void SetConversionFontSizes(
+      const CSSToLengthConversionData::FontSizes& font_sizes) {
+    MutableCssToLengthConversionData().SetFontSizes(font_sizes);
+  }
+  void SetConversionZoom(float zoom) {
+    MutableCssToLengthConversionData().SetZoom(zoom);
+  }
+
+  // Const because it only touches mutable members.
+  void UpdateLengthConversionData() const;
+
+  CSSToLengthConversionData& MutableCssToLengthConversionData() {
+    if (css_to_length_conversion_data_dirty_) {
+      UpdateLengthConversionData();
+    }
+    return css_to_length_conversion_data_;
+  }
+
   CSSToLengthConversionData UnzoomedLengthConversionData(const FontSizeStyle&);
   // When resolving cq* units, this element is used to start the search
   // for suitable size containers.
@@ -304,8 +324,21 @@ class CORE_EXPORT StyleResolverState {
   // The primary output for each element's style resolve.
   std::optional<ComputedStyleBuilder> style_builder_;
 
-  CSSToLengthConversionData::Flags length_conversion_flags_ = 0;
-  CSSToLengthConversionData css_to_length_conversion_data_;
+  // Updated on-demand by CssToLengthConversionData() (by calling
+  // UpdateLengthConversionData()), whenever
+  // css_to_length_conversion_data_dirty_ is true. Do not access
+  // css_to_length_conversion_data_ directly; prefer
+  // CssToLengthConversionData() or MutableCssToLengthConversionData().
+  //
+  // Note that the initial state is clean, since the constructor
+  // initializes css_to_length_conversion_data_ from the given element.
+  // This is not just an optimization, it is needed for correctness;
+  // there is code that doesn't give us a ComputedStyleBuilder to make new
+  // conversion data from.
+  mutable CSSToLengthConversionData::Flags length_conversion_flags_ = 0;
+  mutable bool css_to_length_conversion_data_dirty_ = false;
+  mutable bool should_update_line_height_ = false;
+  mutable CSSToLengthConversionData css_to_length_conversion_data_;
 
   // parent_style_ is not always just ElementResolveContext::ParentStyle(),
   // so we keep it separate.
@@ -329,7 +362,7 @@ class CORE_EXPORT StyleResolverState {
   // from respectively.
   Element* styled_element_;
 
-  ElementStyleResources element_style_resources_;
+  mutable ElementStyleResources element_style_resources_;
   // See StyleRequest.pseudo_id.
   PseudoId pseudo_id_ = kPseudoIdNone;
 

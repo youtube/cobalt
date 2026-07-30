@@ -568,7 +568,6 @@ class BrowserView : public BrowserWindow,
   void SetDevToolsScrimVisibility(bool visible) override;
   void ResetToolbarTabState(content::WebContents* contents) override;
   void FocusToolbar() override;
-  ExtensionsContainer* GetExtensionsContainer() override;
   void ToolbarSizeChanged(bool is_animating) override;
   void TabDraggingStatusChanged(bool is_dragging) override;
   void LinkOpeningFromGesture(WindowOpenDisposition disposition) override;
@@ -626,9 +625,6 @@ class BrowserView : public BrowserWindow,
   void StartPartialTranslate(const std::string& source_language,
                              const std::string& target_language,
                              const std::u16string& text_selection) override;
-  void ShowOneClickSigninConfirmation(
-      const std::u16string& email,
-      base::OnceCallback<void(bool)> confirmed_callback) override;
   DownloadBubbleUIController* GetDownloadBubbleUIController() override;
   void ConfirmBrowserCloseWithPendingDownloads(
       int download_count,
@@ -873,7 +869,7 @@ class BrowserView : public BrowserWindow,
 
 #if BUILDFLAG(IS_CHROMEOS)
   // This is used only for SWA/PWA scenario.
-  void OnLockedForOnTaskUpdated();
+  void OnLockedForOnTaskUpdated(bool locked_for_on_task);
 
   bool IsLockedFullscreen() const;
 #endif
@@ -952,7 +948,7 @@ class BrowserView : public BrowserWindow,
   // affected.
   void RevealTabStripIfNeeded();
 
-  void OnVerticalTabStripStateChanged(
+  void OnVerticalTabStripModeChanged(
       tabs::VerticalTabStripStateController* controller);
 
   void OnProjectsPanelStateChanged(ProjectsPanelStateController* controller);
@@ -1307,8 +1303,9 @@ class BrowserView : public BrowserWindow,
   // The view responsible for housing the contents of the vertical tab strip.
   raw_ptr<VerticalTabStripRegionView> vertical_tab_strip_region_view_ = nullptr;
 
-  // Lower corner of the vertical tab strip.
-  raw_ptr<views::View> vertical_tabs_strip_bottom_corner_ = nullptr;
+  // Outward-projecting corners of the vertical tab strip.
+  raw_ptr<views::View> vertical_tab_strip_top_corner_ = nullptr;
+  raw_ptr<views::View> vertical_tab_strip_bottom_corner_ = nullptr;
 
   // The view responsible for housing the contents of the projects panel.
   raw_ptr<ProjectsPanelView> projects_panel_container_ = nullptr;
@@ -1450,6 +1447,8 @@ class BrowserView : public BrowserWindow,
   base::CallbackListSubscription vertical_tab_subscription_;
 
   base::CallbackListSubscription projects_panel_subscription_;
+
+  base::CallbackListSubscription on_locked_task_subscription_;
 
   // Bitmask of current combination of reparenting states, e.g. immersive and
   // ChromeOS tablet modes.

@@ -47,6 +47,7 @@
 #include "third_party/blink/renderer/core/dom/element_traversal.h"
 #include "third_party/blink/renderer/core/dom/flat_tree_traversal.h"
 #include "third_party/blink/renderer/core/dom/layout_tree_builder_traversal.h"
+#include "third_party/blink/renderer/core/dom/node-inl.h"
 #include "third_party/blink/renderer/core/dom/nth_index_cache.h"
 #include "third_party/blink/renderer/core/dom/popover_data.h"
 #include "third_party/blink/renderer/core/dom/pseudo_element.h"
@@ -66,6 +67,7 @@
 #include "third_party/blink/renderer/core/html/forms/html_button_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_field_set_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_control_element.h"
+#include "third_party/blink/renderer/core/html/forms/html_form_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_option_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_select_element.h"
@@ -330,7 +332,7 @@ static bool MatchesLangPseudoClass(
 
 // The associated host, if we are matching in the context of a shadow tree.
 //
-// https://drafts.csswg.org/css-scoping-1/#in-the-context-of-a-shadow-tree
+// https://drafts.csswg.org/css-shadow-1/#in-the-context-of-a-shadow-tree
 static Element* ShadowHost(
     const SelectorChecker::SelectorCheckingContext& context) {
   if (auto* shadow_root = DynamicTo<ShadowRoot>(context.tree_scope)) {
@@ -342,7 +344,7 @@ static Element* ShadowHost(
 // Returns true if we're matching in the context of a shadow tree [1],
 // and currently pointing at the host associated with that shadow tree.
 //
-// [1] https://drafts.csswg.org/css-scoping-1/#in-the-context-of-a-shadow-tree
+// [1] https://drafts.csswg.org/css-shadow-1/#in-the-context-of-a-shadow-tree
 bool IsAtShadowHost(const SelectorChecker::SelectorCheckingContext& context) {
   return ShadowHost(context) == context.element;
 }
@@ -358,7 +360,7 @@ bool IsAtShadowHost(const SelectorChecker::SelectorCheckingContext& context) {
 // not escape the tree, since we have UA rules that rely on this behavior.
 // TODO(crbug.com/396459461): Find a better solution for styling UA shadows.
 //
-// [1] https://drafts.csswg.org/css-scoping-1/#in-the-context-of-a-shadow-tree
+// [1] https://drafts.csswg.org/css-shadow-1/#in-the-context-of-a-shadow-tree
 
 static Element* ParentElement(
     const SelectorChecker::SelectorCheckingContext& context) {
@@ -1436,7 +1438,7 @@ ALWAYS_INLINE bool SelectorChecker::CheckOne(
   // :not().) Having a separate code path for matching featureless elements
   // (MatchShadowHost) ensures the featureless matching is done correctly.
   //
-  // [1] https://drafts.csswg.org/css-scoping/#host-element-in-tree
+  // [1] https://drafts.csswg.org/css-shadow/#host-element-in-tree
   // [2] https://github.com/w3c/csswg-drafts/issues/9025
   // [3] https://drafts.csswg.org/selectors-4/#data-model
   if (ShadowHost(context) == element &&
@@ -2463,10 +2465,14 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
     case CSSSelector::kPseudoAutofillSelected:
       return CheckPseudoAutofill(selector.GetPseudoType(), element);
     case CSSSelector::kPseudoToolFormActive:
+      if (auto* form_element = DynamicTo<HTMLFormElement>(element)) {
+        return form_element->MatchesToolFormActivePseudoClass();
+      }
+      return false;
     case CSSSelector::kPseudoToolSubmitActive:
-      if (auto* form_element = DynamicTo<HTMLFormControlElement>(element)) {
-        return form_element->MatchesToolActive(
-            selector.GetPseudoType() == CSSSelector::kPseudoToolSubmitActive);
+      if (auto* form_control_element =
+              DynamicTo<HTMLFormControlElement>(element)) {
+        return form_control_element->MatchesToolSubmitActivePseudoClass();
       }
       return false;
     case CSSSelector::kPseudoAnyLink:
@@ -3446,7 +3452,7 @@ bool SelectorChecker::CheckPseudoHost(const SelectorCheckingContext& context,
   // following MatchSelector call, since we are no longer matching in *its*
   // shadow-tree-context.
   //
-  // [1] https://drafts.csswg.org/css-scoping-1/#host-selector
+  // [1] https://drafts.csswg.org/css-shadow-1/#host-selector
   sub_context.tree_scope = &context.element->GetTreeScope();
   sub_context.scope = &sub_context.tree_scope->RootNode();
 

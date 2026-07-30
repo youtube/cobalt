@@ -872,14 +872,9 @@ TEST_F(AuthenticatorImplTest, GetClientCapabilities_RelatedOrigins) {
 }
 
 TEST_F(AuthenticatorImplTest, GetClientCapabilities_ConditionalCreate) {
-  for (const bool enabled : {false, true}) {
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitWithFeatureState(device::kWebAuthnPasskeyUpgrade, enabled);
-    NavigateAndCommit(GURL(kTestOrigin1));
-    ClientCapabilitiesList capabilities = AuthenticatorGetClientCapabilities();
-    ExpectCapability(capabilities, client_capabilities::kConditionalCreate,
-                     enabled);
-  }
+  NavigateAndCommit(GURL(kTestOrigin1));
+  ClientCapabilitiesList capabilities = AuthenticatorGetClientCapabilities();
+  ExpectCapability(capabilities, client_capabilities::kConditionalCreate, true);
 }
 
 TEST_F(AuthenticatorImplTest, GetClientCapabilities_ImmediateGet) {
@@ -910,12 +905,12 @@ static void CheckJSONIsSubsetOfJSON(std::string_view subset_str,
       base::JSONReader::Read(subset_str, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   ASSERT_TRUE(subset);
   ASSERT_TRUE(subset->is_dict());
-  const base::Value::Dict& subset_dict = subset->GetDict();
+  const base::DictValue& subset_dict = subset->GetDict();
   std::optional<base::Value> test =
       base::JSONReader::Read(test_str, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   ASSERT_TRUE(test);
   ASSERT_TRUE(test->is_dict());
-  const base::Value::Dict& test_dict = test->GetDict();
+  const base::DictValue& test_dict = test->GetDict();
 
   for (auto item : subset_dict) {
     const base::Value* test_value = test_dict.Find(item.first);

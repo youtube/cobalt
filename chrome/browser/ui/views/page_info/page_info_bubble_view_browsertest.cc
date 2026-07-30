@@ -133,7 +133,7 @@ void PerformMouseClickOnView(views::View* view) {
 void OpenPageInfoBubble(Browser* browser) {
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
   LocationIconView* location_icon_view =
-      browser_view->toolbar()->location_bar()->location_icon_view();
+      browser_view->toolbar()->location_bar_view()->location_icon_view();
   ASSERT_TRUE(location_icon_view);
   ui::test::TestEvent event;
   location_icon_view->ShowBubble(event);
@@ -1478,7 +1478,7 @@ class PageInfoBubbleViewBrowserTestCookiesSubpage
     prefs_->SetBoolean(chromeos::prefs::kFloatingSsoEnabled, true);
   }
 
-  void SetBlockedDomainsForCookieSync(base::Value::List domains) {
+  void SetBlockedDomainsForCookieSync(base::ListValue domains) {
     prefs_->SetList(::prefs::kFloatingSsoDomainBlocklist, std::move(domains));
   }
 #endif
@@ -1708,7 +1708,7 @@ IN_PROC_BROWSER_TEST_F(PageInfoBubbleViewBrowserTestCookiesSubpage,
   // Enable cookie sync, but configure domain blocklist to exclude the site we
   // are visiting in this test from sync.
   EnableCookieSync();
-  base::Value::List domain_blocklist;
+  base::ListValue domain_blocklist;
   domain_blocklist.Append("example");
   SetBlockedDomainsForCookieSync(std::move(domain_blocklist));
 

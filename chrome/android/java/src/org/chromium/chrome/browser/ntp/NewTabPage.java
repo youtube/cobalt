@@ -40,7 +40,6 @@ import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.SettableNullableObservableSupplier;
@@ -174,6 +173,7 @@ public class NewTabPage
     private final BrowserControlsStateProvider mBrowserControlsStateProvider;
     private final ObserverList<MostVisitedTileClickObserver> mMostVisitedTileClickObservers;
     private final BottomSheetController mBottomSheetController;
+    private final WindowAndroid mWindowAndroid;
     private FeedSurfaceProvider mFeedSurfaceProvider;
 
     private NewTabPageLayout mNewTabPageLayout;
@@ -242,7 +242,7 @@ public class NewTabPage
 
         private final View mView;
         private Animator mAnimator;
-        private MonotonicObservableSupplier<Integer> mRestoringState;
+        private NonNullObservableSupplier<Integer> mRestoringState;
         private boolean mAnimatorStarted;
         private final Handler mHandler = new Handler();
         final Callback<Integer> mOnScrollStateChanged =
@@ -270,7 +270,7 @@ public class NewTabPage
                 };
 
         public NtpSmoothTransitionDelegate(
-                View view, MonotonicObservableSupplier<Integer> restoringState) {
+                View view, NonNullObservableSupplier<Integer> restoringState) {
             mView = view;
             mAnimator = buildSmoothTransition(view);
             mRestoringState = restoringState;
@@ -435,7 +435,12 @@ public class NewTabPage
                     focusReason = OmniboxFocusReason.NTP_AI_MODE;
                 }
 
-                mOmniboxStub.setUrlBarFocus(true, pastedText, focusReason, requestType);
+                mOmniboxStub.setUrlBarFocus(
+                        /* shouldBeFocused= */ true,
+                        pastedText,
+                        /* selectText= */ false,
+                        focusReason,
+                        requestType);
             }
         }
 
@@ -575,6 +580,7 @@ public class NewTabPage
         mTabStripHeightSupplier = tabStripHeightSupplier;
         mModuleRegistrySupplier = moduleRegistrySupplier;
         mTopInsetProviderSupplier = topInsetProviderSupplier;
+        mWindowAndroid = windowAndroid;
 
         Profile profile = mTab.getProfile();
 
@@ -1040,6 +1046,15 @@ public class NewTabPage
     }
 
     /**
+     * Get the vertical inset applied to the search box bounds.
+     *
+     * @return The vertical inset in pixels.
+     */
+    public int getSearchBoxBoundsVerticalInset() {
+        return mNewTabPageLayout.getSearchBoxBoundsVerticalInset();
+    }
+
+    /**
      * Updates the opacity of the search box when scrolling.
      *
      * @param alpha opacity (alpha) value to use.
@@ -1497,7 +1512,7 @@ public class NewTabPage
                                                 R.id.home_modules_recycler_view_stub))
                                 .inflate();
         MonotonicObservableSupplier<Profile> profileSupplier =
-                new ObservableSupplierImpl<>(mTab.getProfile());
+                ObservableSuppliers.createMonotonic(mTab.getProfile());
         mHomeModulesCoordinator =
                 new HomeModulesCoordinator(
                         mActivity,
@@ -1595,7 +1610,8 @@ public class NewTabPage
                         mContext,
                         mBottomSheetController,
                         mTab::getProfile,
-                        NtpCustomizationCoordinator.BottomSheetType.NTP_CARDS)
+                        NtpCustomizationCoordinator.BottomSheetType.NTP_CARDS,
+                        mWindowAndroid)
                 .showBottomSheet();
     }
 

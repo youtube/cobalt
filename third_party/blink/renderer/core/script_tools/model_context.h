@@ -14,6 +14,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_tool_function.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_tool_registration_params.h"
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/platform/allow_discouraged_type.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 
@@ -23,9 +24,13 @@ class DeclarativeWebMCPTool {
  public:
   // Executes the associated tool and invokes `done_callback` with the result
   // when the execution is finished. The callback is invoked with a null string
-  // if the execution failed.
-  virtual void ExecuteTool(String input_arguments,
-                           base::OnceCallback<void(String)> done_callback) = 0;
+  // if the execution resulted in a navigation, or an error if the execution
+  // failed.
+  virtual void ExecuteTool(
+      String input_arguments,
+      base::OnceCallback<
+          void(base::expected<String, WebDocument::ScriptToolError>)>
+          done_callback) = 0;
 
   // Returns the input json-schema associated with the tool.
   virtual String ComputeInputSchema() = 0;
@@ -35,7 +40,7 @@ class CORE_EXPORT ModelContext : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  explicit ModelContext(scoped_refptr<base::SingleThreadTaskRunner>);
+  ModelContext(Document& document, scoped_refptr<base::SingleThreadTaskRunner>);
 
   void ForEachScriptTool(
       base::FunctionRef<void(const mojom::blink::ScriptTool&)>) const;
@@ -53,6 +58,10 @@ class CORE_EXPORT ModelContext : public ScriptWrappable {
   void ExecuteTool(const String& name,
                    const String& input_arguments,
                    WebDocument::ScriptToolExecutedCallback tool_executed_cb);
+  using CrossDocumentScriptToolResultCallback =
+      base::OnceCallback<void(String)>;
+  void GetCrossDocumentScriptToolResult(
+      CrossDocumentScriptToolResultCallback result_callback);
 
   void SetToolsChangedCallback(std::optional<base::RepeatingClosure> cb) {
     tools_changed_closure_ = std::move(cb);
@@ -61,6 +70,7 @@ class CORE_EXPORT ModelContext : public ScriptWrappable {
   void RegisterDeclarativeTool(String name,
                                String description,
                                DeclarativeWebMCPTool* tool);
+  void DidFinishParsing();
 
   void Trace(Visitor*) const override;
 
@@ -101,7 +111,11 @@ class CORE_EXPORT ModelContext : public ScriptWrappable {
   HashMap<uint32_t, WebDocument::ScriptToolExecutedCallback>
       pending_executions_;
 
+  Vector<CrossDocumentScriptToolResultCallback>
+      cross_document_result_callbacks_;
+
   std::optional<base::RepeatingClosure> tools_changed_closure_;
+  Member<Document> document_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 };
 

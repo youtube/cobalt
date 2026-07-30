@@ -417,7 +417,7 @@ StartupProfileInfo CreateInitialProfile(
     // profile. Don't clear it if the user launched a web app, in order to not
     // break any subsequent multi-profile session restore.
     g_browser_process->local_state()->SetList(prefs::kProfilesLastActive,
-                                              base::Value::List());
+                                              base::ListValue());
   }
 
   StartupProfileInfo profile_info;
@@ -1792,6 +1792,13 @@ int ChromeBrowserMainParts::PreMainMessageLoopRunImpl() {
   // TODO(rlp): Do this on a separate thread. See http://crbug.com/99075.
   browser_process_->profile_manager()->AutoloadProfiles();
 #endif
+
+  // The initial profile load is complete. From this point, profiles are
+  // intended to be loaded asynchronously. Ideally, profiles should be loaded
+  // asynchronously even before this call, but this would require significant
+  // changes because there is no main loop yet.
+  browser_process_->profile_manager()->UnblockAsyncLoading();
+
   // Post-profile init ---------------------------------------------------------
 
   TranslateService::Initialize();

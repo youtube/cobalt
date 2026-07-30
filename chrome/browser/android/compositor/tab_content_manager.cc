@@ -255,7 +255,7 @@ void TabContentManager::CleanupTrackers() {
 void TabContentManager::CaptureThumbnail(
     JNIEnv* env,
     const JavaRef<jobject>& tab,
-    jfloat thumbnail_scale,
+    float thumbnail_scale,
     bool return_bitmap,
     const base::android::JavaRef<jobject>& j_callback) {
   // Ensure capture only happens on UI thread.
@@ -294,7 +294,7 @@ void TabContentManager::CaptureThumbnail(
 void TabContentManager::CacheTabWithBitmap(JNIEnv* env,
                                            const JavaRef<jobject>& tab,
                                            const JavaRef<jobject>& bitmap,
-                                           jfloat thumbnail_scale) {
+                                           float thumbnail_scale) {
   TabAndroid* tab_android = TabAndroid::GetNativeTab(env, tab);
   DCHECK(tab_android);
   int tab_id = tab_android->GetAndroidId();
@@ -445,12 +445,12 @@ bool TabContentManager::IsTabCaptureInFlightForTesting(JNIEnv* env,
 // Native JNI methods
 // ----------------------------------------------------------------------------
 
-static jlong JNI_TabContentManager_Init(JNIEnv* env,
-                                        const JavaRef<jobject>& obj,
-                                        int32_t default_cache_size,
-                                        int32_t compression_queue_max_size,
-                                        int32_t write_queue_max_size,
-                                        bool save_jpeg_thumbnails) {
+static int64_t JNI_TabContentManager_Init(JNIEnv* env,
+                                          const JavaRef<jobject>& obj,
+                                          int32_t default_cache_size,
+                                          int32_t compression_queue_max_size,
+                                          int32_t write_queue_max_size,
+                                          bool save_jpeg_thumbnails) {
   // Ensure this and its thumbnail cache are created on the UI thread.
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 

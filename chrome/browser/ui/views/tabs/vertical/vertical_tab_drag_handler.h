@@ -35,7 +35,7 @@ class VerticalTabDragHandler {
   virtual void EndDrag(EndDragReason reason) = 0;
 
   // Handles tab strip model updates to reflect a drag over a give tab node.
-  virtual void DraggedTabsOverNode(const TabCollectionNode& node) = 0;
+  virtual void HandleDraggedTabsOverNode(const TabCollectionNode& node) = 0;
 
   // Returns the drag context for this handler.
   virtual TabDragContext* GetDragContext() = 0;
@@ -44,24 +44,26 @@ class VerticalTabDragHandler {
   // dragged.
   virtual bool IsViewDragging(const views::View& view) const = 0;
 
+  // Returns true if there is an ongoing drag that includes a pinned tab.
+  virtual bool IsDraggingPinnedTabs() const = 0;
+
   // For vertical tabs, `TabSlotView` doesn't represent the actual tab
   // view. This method converts `view` to its actual tab view, or nullptr
   // if this handler doesn't manage it.
-  static views::View* ViewFromTabSlot(TabSlotView* view);
+  virtual views::View* ViewFromTabSlot(TabSlotView* view) const = 0;
 };
 
 // Implements a minimal drag context to interact with the central
 // `TabDragController`.
 // TODO(crbug.com/439963720): The following is an incremental checklist of
 // support that needs to be added:
-// - Dragging more than one tab (split tabs, tab group, multi-selection).
 // - Dragging pinned tab (split tabs, tab group, multi-selection).
 class VerticalTabDragHandlerImpl : public VerticalTabDragHandler,
                                    public TabDragContext {
   METADATA_HEADER(VerticalTabDragHandlerImpl, TabDragContext)
  public:
-  VerticalTabDragHandlerImpl(TabStripModel& tab_strip_model,
-                             TabCollectionNode& root_node);
+  explicit VerticalTabDragHandlerImpl(TabStripModel& tab_strip_model,
+                                      TabCollectionNode& root_node);
   ~VerticalTabDragHandlerImpl() override;
   VerticalTabDragHandlerImpl(const VerticalTabDragHandlerImpl&) = delete;
   VerticalTabDragHandlerImpl& operator=(const VerticalTabDragHandlerImpl&) =
@@ -73,9 +75,11 @@ class VerticalTabDragHandlerImpl : public VerticalTabDragHandler,
   bool ContinueDrag(views::View& event_source_view,
                     const ui::MouseEvent& event) override;
   void EndDrag(EndDragReason reason) override;
-  void DraggedTabsOverNode(const TabCollectionNode& node) override;
+  void HandleDraggedTabsOverNode(const TabCollectionNode& node) override;
   TabDragContext* GetDragContext() override;
   bool IsViewDragging(const views::View& view) const override;
+  bool IsDraggingPinnedTabs() const override;
+  views::View* ViewFromTabSlot(TabSlotView* view) const override;
 
   // TabDragContext
   bool CanAcceptEvent(const ui::Event& event) override;
@@ -87,7 +91,6 @@ class VerticalTabDragHandlerImpl : public VerticalTabDragHandler,
   TabSlotView* GetTabForContents(content::WebContents* contents) override;
   content::WebContents* GetContentsForTab(TabSlotView* tab) override;
   bool IsTabDetachable(const TabSlotView* view) const override;
-  bool IsTabPinned(const TabSlotView* tab) const override;
   TabSlotView* GetTabGroupHeader(
       const tab_groups::TabGroupId& group) const override;
   TabStripModel* GetTabStripModel() override;
@@ -106,9 +109,9 @@ class VerticalTabDragHandlerImpl : public VerticalTabDragHandler,
  private:
   TabCollectionNode* GetNodeForContents(content::WebContents* contents);
 
-  // Creates a `TabSlotView` shim for `node`, used for compatibility with the
-  // core dragging system. The created shim view is cached in `shim_views_`.
-  TabSlotView& GetOrCreateShimViewForNode(TabCollectionNode& node);
+  // Creates a `TabSlotView` for `node`, used for compatibility with the
+  // core dragging system. The created slot view is cached in `slot_views_`.
+  TabSlotView& GetOrCreateSlotViewForNode(TabCollectionNode& node);
 
   // Resets member variables that track a drag being managed by this handler.
   void ResetDragState();
@@ -118,6 +121,7 @@ class VerticalTabDragHandlerImpl : public VerticalTabDragHandler,
 
   // Handlers for drag operations over various node types.
   void HandleTabDragOverTab(const TabCollectionNode& node);
+  void HandleTabDragOverSplit(const TabCollectionNode& node);
   void HandleTabDragOverGroup(const TabCollectionNode& node);
   void HandleTabDragOverUnpinnedContainer(const TabCollectionNode& node);
 
@@ -127,13 +131,9 @@ class VerticalTabDragHandlerImpl : public VerticalTabDragHandler,
   // Null if this handler is not managing a dragging session.
   std::unique_ptr<TabDragController> drag_controller_ = nullptr;
 
-  // The tabs currently being dragged as part of a dragging session managed by
-  // this handler.
-  std::set<raw_ptr<const TabCollectionNode>> dragged_tabs_;
-
-  // A mapping from nodes to their `TabSlotView` shims, used for compatibility
+  // A mapping from nodes to their `TabSlotView`, used for compatibility
   // with the core dragging system.
-  std::map<raw_ptr<const TabCollectionNode>, raw_ptr<TabSlotView>> shim_views_;
+  std::map<raw_ptr<const TabCollectionNode>, raw_ptr<TabSlotView>> slot_views_;
   std::vector<base::CallbackListSubscription> node_destroyed_callbacks_;
 };
 

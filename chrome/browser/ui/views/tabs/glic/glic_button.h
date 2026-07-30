@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_TABS_GLIC_GLIC_BUTTON_H_
 #define CHROME_BROWSER_UI_VIEWS_TABS_GLIC_GLIC_BUTTON_H_
 
+#include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/glic/browser_ui/glic_button_controller_delegate.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_nudge_button.h"
@@ -85,6 +86,7 @@ class GlicButton : public TabStripNudgeButton,
       const views::SizeBounds& available_size) const override;
   void StateChanged(ButtonState old_state) override;
   void AddedToWidget() override;
+  void RemovedFromWidget() override;
 
   // views::ContextMenuController:
   void ShowContextMenuForViewImpl(
@@ -118,6 +120,10 @@ class GlicButton : public TabStripNudgeButton,
   // present.
   void SetSplitButtonCornerStyling();
   void ResetSplitButtonCornerStyling();
+
+  void OnBrowserWindowDidBecomeActive(BrowserWindowInterface* bwi);
+  void OnBrowserWindowDidBecomeInactive(BrowserWindowInterface* bwi);
+  void UpdateInkdropHoverColor(bool is_frame_active);
 
  private:
   // views::LabelButton:
@@ -162,22 +168,7 @@ class GlicButton : public TabStripNudgeButton,
   WidthState width_state() { return width_state_; }
 
 #if BUILDFLAG(ENABLE_GLIC)
-  void PanelStateChanged(bool active);
-
-  void OnFreWebUiStateChanged(mojom::FreWebUiState new_state);
-
-  // Used to update the tooltip text when the showing states of the Glic
-  // window/FRE change.
-  void UpdateTooltipText();
-
   void OnLabelVisibilityChanged();
-
-  // Callback subscription for listening to changes to the Glic window
-  // activation changes.
-  base::CallbackListSubscription glic_window_activation_subscription_;
-
-  // Callback subscription for listening to changes to the FRE WebUI state.
-  base::CallbackListSubscription fre_subscription_;
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
   // The model adapter for the context menu.
@@ -192,6 +183,7 @@ class GlicButton : public TabStripNudgeButton,
   // Menu runner for the context menu.
   std::unique_ptr<views::MenuRunner> menu_runner_;
 
+  raw_ptr<BrowserWindowInterface> browser_window_interface_;
   // Profile corresponding to the browser that this button is on.
   raw_ptr<Profile> profile_;
 
@@ -226,9 +218,15 @@ class GlicButton : public TabStripNudgeButton,
   int normal_width_ = 0;
   WidthState last_width_state_ = WidthState::kNormal;
   WidthState width_state_ = WidthState::kNormal;
+  // Whether or not the button was collapsed before the nudge was shown.
+  bool collapsed_before_nudge_shown_ = false;
 
   class WidthAnimationController;
   std::unique_ptr<WidthAnimationController> width_animation_controller_;
+
+  // Window active and inactive subscriptions for changing the hover color.
+  base::CallbackListSubscription window_did_become_active_subscription_;
+  base::CallbackListSubscription window_did_become_inactive_subscription_;
 
   base::WeakPtrFactory<GlicButton> weak_ptr_factory_{this};
 };

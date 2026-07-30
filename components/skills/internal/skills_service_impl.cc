@@ -7,10 +7,12 @@
 #include "base/notimplemented.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/uuid.h"
+#include "components/optimization_guide/core/hints/optimization_guide_decider.h"
+#include "components/optimization_guide/proto/hints.pb.h"
+#include "components/skills/features.h"
 #include "components/skills/internal/skills_sync_bridge.h"
 #include "components/skills/public/skill.h"
 #include "components/sync/base/data_type.h"
-#include "components/sync/base/features.h"
 #include "components/sync/base/report_unrecoverable_error.h"
 #include "components/sync/model/client_tag_based_data_type_processor.h"
 #include "components/sync/model/data_type_controller_delegate.h"
@@ -18,22 +20,28 @@
 namespace skills {
 
 SkillsServiceImpl::SkillsServiceImpl(
+    optimization_guide::OptimizationGuideDecider* optimization_guide,
     version_info::Channel channel,
     syncer::OnceDataTypeStoreFactory create_store_callback) {
-  // TODO(crbug.com/471795213): consider using a common flag to control the
-  // whole service.
-  if (base::FeatureList::IsEnabled(syncer::kSyncSkill)) {
-    sync_bridge_ = std::make_unique<SkillsSyncBridge>(
-        std::make_unique<syncer::ClientTagBasedDataTypeProcessor>(
-            syncer::SKILL,
-            base::BindRepeating(&syncer::ReportUnrecoverableError, channel)),
-        std::move(create_store_callback), *this);
+  sync_bridge_ = std::make_unique<SkillsSyncBridge>(
+      std::make_unique<syncer::ClientTagBasedDataTypeProcessor>(
+          syncer::SKILL,
+          base::BindRepeating(&syncer::ReportUnrecoverableError, channel)),
+      std::move(create_store_callback), *this);
+  if (base::FeatureList::IsEnabled(features::kSkillsEnabled)) {
+    // If the Skills feature is enabled, register the optimization type to
+    // signal to Optimization Guide that it should fetch and cache the URL-keyed
+    // Skills on each page load.
+    if (optimization_guide) {
+      optimization_guide->RegisterOptimizationTypes(
+          {optimization_guide::proto::SKILLS});
+    }
   }
 }
 
 SkillsServiceImpl::~SkillsServiceImpl() = default;
 
-void SkillsServiceImpl::NotifySkillChanged(const std::string& skill_id,
+void SkillsServiceImpl::NotifySkillChanged(std::string_view skill_id,
                                            UpdateSource update_source) {
   for (Observer& observer : observers_) {
     observer.OnSkillUpdated(skill_id, update_source);
@@ -43,6 +51,8 @@ void SkillsServiceImpl::NotifySkillChanged(const std::string& skill_id,
 const Skill* SkillsServiceImpl::AddSkill(const std::string& name,
                                          const std::string& icon,
                                          const std::string& prompt) {
+  CHECK(is_initialized_);
+
   // TODO(crbug.com/475855831): Add a check to ensure service is initialized.
   auto skill = std::make_unique<Skill>(
       base::Uuid::GenerateRandomV4().AsLowercaseString(), name, icon, prompt);
@@ -64,6 +74,8 @@ const Skill* SkillsServiceImpl::UpdateSkill(std::string_view skill_id,
                                             std::string_view icon,
                                             std::string_view prompt,
                                             UpdateSource update_source) {
+  CHECK(is_initialized_);
+
   // TODO(crbug.com/475855831): Add a check to ensure service is initialized.
   Skill* skill = GetMutableSkillById(skill_id);
   if (!skill) {
@@ -100,6 +112,8 @@ const Skill* SkillsServiceImpl::UpdateSkill(std::string_view skill_id,
 
 void SkillsServiceImpl::DeleteSkill(std::string_view skill_id,
                                     UpdateSource update_source) {
+  CHECK(is_initialized_);
+
   // TODO(crbug.com/475855831): Add a check to ensure service is initialized.
   const std::string id_copy(skill_id);
   const size_t num_erased =
@@ -113,6 +127,7 @@ void SkillsServiceImpl::DeleteSkill(std::string_view skill_id,
 }
 
 const Skill* SkillsServiceImpl::GetSkillById(std::string_view skill_id) const {
+  CHECK(is_initialized_);
   for (const std::unique_ptr<Skill>& skill : skills_) {
     if (skill->id == skill_id) {
       return skill.get();
@@ -123,6 +138,7 @@ const Skill* SkillsServiceImpl::GetSkillById(std::string_view skill_id) const {
 
 const std::vector<std::unique_ptr<Skill>>& SkillsServiceImpl::GetSkills()
     const {
+  CHECK(is_initialized_);
   return skills_;
 }
 
@@ -131,11 +147,18 @@ void SkillsServiceImpl::LoadInitialSkills(
   CHECK(!is_initialized_);
   skills_ = std::move(initial_skills);
   SortSkills();
+
+  // TODO(crbug.com/471795213): consider using tracking metadata to determine if
+  // the initialization is complete.
   is_initialized_ = true;
 
   for (Observer& observer : observers_) {
     observer.OnInitialized();
   }
+}
+
+bool SkillsServiceImpl::IsInitialized() const {
+  return is_initialized_;
 }
 
 void SkillsServiceImpl::SortSkills() {
@@ -146,6 +169,9 @@ void SkillsServiceImpl::SortSkills() {
 
 void SkillsServiceImpl::AddObserver(Observer* observer) {
   observers_.AddObserver(observer);
+  if (is_initialized_) {
+    observer->OnInitialized();
+  }
 }
 
 void SkillsServiceImpl::RemoveObserver(Observer* observer) {

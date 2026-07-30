@@ -56,13 +56,32 @@ bool TopContainerView::IsPositionInWindowCaption(
       if (child == toolbar) {
         const auto in_toolbar =
             views::View::ConvertPointToTarget(this, toolbar, test_point);
-        if (in_toolbar.y() < toolbar->location_bar()->y()) {
+        if (in_toolbar.y() < toolbar->location_bar()->Bounds().y()) {
           return true;
         }
       }
       return false;
     }
   }
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // On ChromeOS, the order of frame hit-testing is different, so if the area
+  // with the caption buttons is not excluded here, it will override the actual
+  // caption buttons with "frame", which in turn will prevent the buttons from
+  // being used.
+  const auto params =
+      browser_view_->browser_widget()->GetFrameView()->GetBrowserLayoutParams();
+  const gfx::Point in_browser =
+      views::View::ConvertPointToTarget(this, browser_view_, test_point);
+  const gfx::Rect caption_rect(
+      browser_view_->width() - params.trailing_exclusion.content.width(), 0,
+      params.trailing_exclusion.content.width(),
+      params.trailing_exclusion.content.height());
+  if (caption_rect.Contains(in_browser)) {
+    return false;
+  }
+#endif
+
   return true;
 }
 

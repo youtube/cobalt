@@ -58,9 +58,11 @@ POLICY_EXPORT ExtensionInstallDecision ConvertToExtensionInstallDecision(
 // }
 POLICY_EXPORT void DecodeProtoFields(
     const enterprise_management::ExtensionInstallPolicies& policies,
+    base::WeakPtr<CloudExternalDataManager> external_data_manager,
     PolicySource source,
     PolicyScope scope,
-    PolicyMap* map);
+    PolicyMap* map,
+    PolicyPerProfileFilter per_profile);
 
 // Decode all the fields in `policy` that match the needed `per_profile` flag
 // which are recognized (see the metadata in policy_constants.cc) and store them
@@ -79,7 +81,7 @@ POLICY_EXPORT void DecodeProtoFields(
 // parse was successful. The `scope` and `source` are set as scope and source of
 // the policy in the result. In case of failure, the `error` is populated with
 // error message and false is returned.
-POLICY_EXPORT bool ParseComponentPolicy(base::Value::Dict json_dict,
+POLICY_EXPORT bool ParseComponentPolicy(base::DictValue json_dict,
                                         PolicyScope scope,
                                         PolicySource source,
                                         PolicyMap* policy,

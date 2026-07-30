@@ -70,11 +70,8 @@ import java.util.function.Supplier;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @Batch(Batch.PER_CLASS)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
-@DisableFeatures({
-    ChromeFeatureList.AUTOFILL_ANDROID_KEYBOARD_ACCESSORY_DYNAMIC_POSITIONING,
-    // TODO(crbug.com/473893732): Fix the clickNode.
-    ChromeFeatureList.LOCK_TOP_CONTROLS_ON_LARGE_TABLETS_V2
-})
+@DisableFeatures(ChromeFeatureList.AUTOFILL_ANDROID_KEYBOARD_ACCESSORY_DYNAMIC_POSITIONING)
+@DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/446934111
 public class AutofillKeyboardAccessoryIntegrationTest {
     @Rule
     public FreshCtaTransitTestRule mActivityTestRule =
@@ -137,7 +134,7 @@ public class AutofillKeyboardAccessoryIntegrationTest {
     /** Switching fields should re-scroll the keyboard accessory to the left. */
     @Test
     @MediumTest
-    @DisabledTest(message = "crbug.com/377939398, crbug.com/453679696")
+    @DisabledTest(message = "crbug.com/377939398, crbug.com/453679696, crbug.com/446934111")
     public void testSwitchFieldsRescrollsKeyboardAccessory() throws TimeoutException {
         startAtTestPage(FakeKeyboard::new);
         mHelper.clickNodeAndShowKeyboard("EMAIL_ADDRESS", 8);
@@ -169,6 +166,8 @@ public class AutofillKeyboardAccessoryIntegrationTest {
     @Test
     @MediumTest
     @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
+    @DisableIf.Device(
+            DeviceFormFactor.DESKTOP) // https://crbug.com/353910783, https://crbug.com/446934111
     public void testSelectSuggestionHidesKeyboardAccessory()
             throws ExecutionException, TimeoutException {
         startAtTestPage(FakeKeyboard::new);

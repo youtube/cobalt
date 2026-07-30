@@ -424,6 +424,7 @@ class DBusServices {
         dbus::ObjectPath(chromeos::kChromeFeaturesServicePath),
         CrosDBusService::CreateServiceProviderList(
             std::make_unique<ChromeFeaturesServiceProvider>(
+                g_browser_process->local_state(),
                 std::move(feature_list_accessor))));
 
     printers_service_ = CrosDBusService::Create(
@@ -1152,7 +1153,8 @@ void ChromeBrowserMainPartsAsh::PreProfileInit() {
     std::string username_hash =
         base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
             switches::kLoginProfile);
-    session_manager.CreateSessionForRestart(account_id, username_hash, created);
+    session_manager.CreateSession(account_id, username_hash, created,
+                                  /*has_active_session=*/false);
 
     // If restarting demo session, mark demo session as started before primary
     // profile starts initialization so browser context keyed services created
@@ -1316,7 +1318,7 @@ void ChromeBrowserMainPartsAsh::PostProfileInit(Profile* profile,
         std::make_unique<parent_access::ParentAccessService>(
             g_browser_process->local_state());
 
-    g_browser_process->platform_part()->session_manager()->Initialize(
+    g_browser_process->platform_part()->chrome_session_manager()->Initialize(
         *base::CommandLine::ForCurrentProcess(), profile,
         is_integration_test());
 
@@ -1696,7 +1698,7 @@ void ChromeBrowserMainPartsAsh::PostMainMessageLoopRun() {
   CHECK(g_browser_process);
   CHECK(g_browser_process->platform_part());
 
-  g_browser_process->platform_part()->session_manager()->Shutdown();
+  g_browser_process->platform_part()->chrome_session_manager()->Shutdown();
 
   // Let the UserManager unregister itself as an observer of the CrosSettings
   // singleton before it is destroyed. This also ensures that the UserManager
