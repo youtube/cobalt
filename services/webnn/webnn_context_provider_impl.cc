@@ -8,7 +8,9 @@
 #include <utility>
 
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/feature_list.h"
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
@@ -54,6 +56,12 @@
 #include "services/webnn/tflite/context_impl_litert.h"
 #endif
 
+#if defined(ADDRESS_SANITIZER)
+#include <sanitizer/asan_interface.h>
+
+#include "base/debug/asan_service.h"
+#endif
+
 namespace webnn {
 
 namespace {
@@ -96,6 +104,16 @@ void RecordDeviceType(const mojom::Device device) {
   base::UmaHistogramEnumeration("WebNN.DeviceType", uma_value);
 }
 
+#if defined(ADDRESS_SANITIZER)
+NO_SANITIZE("address")
+void AsanUnsafeFeatureWarning(const char* reason,
+                              bool* should_exit_cleanly,
+                              bool* should_abort) {
+  auto* asan_service = base::debug::AsanService::GetInstance();
+  asan_service->Log("\nUnsafe feature: WebMachineLearningNeuralNetwork");
+}
+#endif
+
 }  // namespace
 
 WebNNContextProviderImpl::WebNNContextProviderImpl(
@@ -123,6 +141,12 @@ WebNNContextProviderImpl::WebNNContextProviderImpl(
   // `gpu_host_` is used to ensure that the execution providers used by the ORT
   // backend are ready. It should be connected to the browser process.
   CHECK(gpu_host_.is_bound());
+
+#if defined(ADDRESS_SANITIZER)
+  LOG(ERROR) << "WebMachineLearningNeuralNetwork is an unsafe feature.";
+  base::debug::AsanService::GetInstance()->AddErrorCallback(
+      AsanUnsafeFeatureWarning);
+#endif
 }
 
 WebNNContextProviderImpl::~WebNNContextProviderImpl() {
@@ -376,7 +400,8 @@ void WebNNContextProviderImpl::CreateWebNNContext(
 #endif  // BUILDFLAG(IS_APPLE)
 
 #if BUILDFLAG(WEBNN_USE_LITERT)
-  if (!context_impl) {
+  if (!context_impl &&
+      base::FeatureList::IsEnabled(mojom::features::kWebNNLiteRT)) {
     CreateLiteRtContext(
         std::move(scoped_trace), std::move(options),
         std::move(write_tensor_producer), std::move(write_tensor_consumer),
@@ -562,14 +587,16 @@ void WebNNContextProviderImpl::OnOrtEnvCreated(
              << env_creation_results.error();
 
 #if BUILDFLAG(WEBNN_USE_LITERT)
-  CreateLiteRtContext(
-      std::move(scoped_trace), std::move(options),
-      std::move(write_tensor_producer), std::move(write_tensor_consumer),
-      std::move(read_tensor_producer), std::move(read_tensor_consumer),
-      command_buffer_id, std::move(gpu_sequence), std::move(task_runner),
-      std::move(receiver), std::move(remote), std::move(callback), is_incognito,
-      std::move(memory_tracker));
-  return;
+  if (base::FeatureList::IsEnabled(mojom::features::kWebNNLiteRT)) {
+    CreateLiteRtContext(
+        std::move(scoped_trace), std::move(options),
+        std::move(write_tensor_producer), std::move(write_tensor_consumer),
+        std::move(read_tensor_producer), std::move(read_tensor_consumer),
+        command_buffer_id, std::move(gpu_sequence), std::move(task_runner),
+        std::move(receiver), std::move(remote), std::move(callback),
+        is_incognito, std::move(memory_tracker));
+    return;
+  }
 #endif  // BUILDFLAG(WEBNN_USE_LITERT)
 
 #if BUILDFLAG(WEBNN_USE_TFLITE)

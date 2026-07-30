@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "base/containers/linked_list.h"
+#include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/safe_ref.h"
 #include "base/memory/weak_ptr.h"
@@ -19,6 +20,7 @@
 #include "base/time/tick_clock.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_once_callback.h"
+#include "net/base/features.h"
 #include "net/base/network_anonymization_key.h"
 #include "net/base/request_priority.h"
 #include "net/dns/dns_alias_utility.h"
@@ -46,7 +48,9 @@ HostResolverManager::RequestImpl::RequestImpl(
     : source_net_log_(std::move(source_net_log)),
       request_host_(std::move(request_host)),
       network_anonymization_key_(
-          NetworkAnonymizationKey::IsPartitioningEnabled()
+          NetworkAnonymizationKey::IsPartitioningEnabled() &&
+                  base::FeatureList::IsEnabled(
+                      features::kSplitHostCacheByNetworkAnonymizationKey)
               ? std::move(network_anonymization_key)
               : NetworkAnonymizationKey()),
       parameters_(optional_parameters ? std::move(optional_parameters).value()
@@ -161,14 +165,24 @@ void HostResolverManager::RequestImpl::ChangeRequestPriority(
   job_.value()->ChangeRequestPriority(this, priority);
 }
 
-void HostResolverManager::RequestImpl::set_results(HostCache::Entry results) {
+std::optional<ResolutionDetails>
+HostResolverManager::RequestImpl::GetResolutionDetails() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return resolution_details_;
+}
+
+void HostResolverManager::RequestImpl::SetResults(
+    HostCache::Entry results,
+    ResolutionDetails resolution_details) {
   // Should only be called at most once and before request is marked
   // completed.
   DCHECK(!complete_);
   DCHECK(!results_);
+  DCHECK(!resolution_details_);
   DCHECK(!parameters_.is_speculative);
 
   results_ = std::move(results);
+  resolution_details_ = resolution_details;
   FixUpEndpointAndAliasResults();
 }
 
@@ -331,7 +345,14 @@ int HostResolverManager::RequestImpl::DoResolveLocally() {
   if (results.error() != ERR_DNS_CACHE_MISS ||
       parameters_.source == HostResolverSource::LOCAL_ONLY || tasks_.empty()) {
     if (results.error() == OK && !parameters_.is_speculative) {
-      set_results(results.CopyWithDefaultPort(request_host_.GetPort()));
+      // TODO(crbug.com/485672648): Consider refactoring to move resolution
+      // source calculation logic into HostResolverManager::ResolveLocally().
+      ResolutionDetails resolution_details;
+      resolution_details.source = stale_info.has_value()
+                                      ? ResolutionSource::kCache
+                                      : ResolutionSource::kLocal;
+      SetResults(results.CopyWithDefaultPort(request_host_.GetPort()),
+                 resolution_details);
     }
     if (stale_info && !parameters_.is_speculative) {
       set_stale_info(std::move(stale_info).value());

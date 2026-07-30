@@ -9,6 +9,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/glic/actor/glic_actor_policy_checker.h"
 #include "chrome/browser/glic/fre/fre_util.h"
+#include "chrome/browser/glic/glic_enums.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/guest_util.h"
@@ -18,7 +19,6 @@
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/public/glic_passkeys.h"
 #include "chrome/browser/glic/service/glic_instance_coordinator_impl.h"
-#include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
@@ -55,7 +55,7 @@ mojom::ProfileEnablementPtr BuildProfileEnablement(
       profile->GetPrefs()->GetBoolean(prefs::kGlicUserEnabledActuationOnWeb) ==
       false;
 
-  using CannotActReason = GlicActorPolicyChecker::CannotActReason;
+  using CannotActReason = ::glic::CannotActReason;
   if (actor_policy_checker) {
     if (actor_policy_checker->CanActOnWeb()) {
       result->actuation_eligibility = mojom::ActuationEligibility::kEligible;
@@ -248,7 +248,7 @@ void GlicInternalsPageHandler::TriggerInvokeFromInternalsAction(
         InvokeWithAutoSubmitPasskeyProvider::GetPassKey(), tab,
         std::move(options));
   } else {
-    static_cast<GlicInstanceCoordinatorImpl&>(service->window_controller())
+    static_cast<GlicInstanceCoordinatorImpl&>(service->instance_coordinator())
         .Invoke(tab, std::move(options));
   }
 }

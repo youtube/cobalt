@@ -2299,6 +2299,68 @@ class WebAppFrameToolbarBrowserTest_AdditionalWindowingControls
 
   GURL second_page_url() { return second_page_url_; }
 
+ protected:
+  void MaximizeAndVerifyHasTitleBar(content::WebContents* web_contents) {
+    EXPECT_EQ(EvalDisplayStateChange(web_contents, "maximize", "maximized"),
+              "window.maximize() succeeded.");
+    EXPECT_TRUE(helper()->browser_view()->IsMaximized());
+    EXPECT_FALSE(helper()->browser_view()->IsFullscreen());
+    EXPECT_TRUE(helper()->browser_view()->browser()->SupportsWindowFeature(
+        Browser::WindowFeature::kFeatureTitleBar));
+  }
+
+  void MinimizeAndVerify(content::WebContents* web_contents) {
+    EXPECT_EQ(EvalDisplayStateChange(web_contents, "minimize", "minimized"),
+              "window.minimize() succeeded.");
+    EXPECT_TRUE(helper()->browser_view()->IsMinimized());
+  }
+
+  void EnterFullscreenAndVerify(content::WebContents* web_contents) {
+    EXPECT_EQ(EvalFullscreenRequest(web_contents),
+              "document.documentElement.requestFullscreen() succeeded.");
+    EXPECT_TRUE(helper()->browser_view()->IsFullscreen());
+#if !BUILDFLAG(IS_MAC)
+    EXPECT_FALSE(helper()->browser_view()->browser()->SupportsWindowFeature(
+        Browser::WindowFeature::kFeatureTitleBar));
+#else
+    // On Mac the top bar is displayed for web apps even in fullscreen mode
+    EXPECT_TRUE(helper()->browser_view()->browser()->SupportsWindowFeature(
+        Browser::WindowFeature::kFeatureTitleBar));
+#endif
+  }
+
+  void RestoreAndVerify(content::WebContents* web_contents,
+                        const std::string& expected_js_state) {
+    EXPECT_EQ(
+        EvalDisplayStateChange(web_contents, "restore", expected_js_state),
+        "window.restore() succeeded.");
+    EXPECT_TRUE(helper()->browser_view()->browser()->SupportsWindowFeature(
+        Browser::WindowFeature::kFeatureTitleBar));
+    EXPECT_FALSE(helper()->browser_view()->IsFullscreen());
+    EXPECT_EQ(helper()->browser_view()->IsMaximized(),
+              expected_js_state == "maximized");
+    EXPECT_EQ(helper()->browser_view()->IsMinimized(),
+              expected_js_state == "minimized");
+  }
+
+  void WaitForWebContentsLoadedAndWidgetActive(
+      content::WebContents* web_contents) {
+    content::WaitForLoadStop(web_contents);
+    views::Widget* widget = helper()->browser_view()->GetWidget();
+    // Using WidgetVisibleWaiter here has been observed to be flaky.
+    views::test::WaitForWidgetActive(widget, true);
+  }
+
+  void SetCanMinimizeAndVerify() {
+    helper()->browser_view()->SetCanMinimize(true);
+    EXPECT_TRUE(helper()->browser_view()->CanMinimize());
+  }
+
+  void SetCanMaximizeAndVerify() {
+    helper()->browser_view()->SetCanMaximize(true);
+    EXPECT_TRUE(helper()->browser_view()->CanMaximize());
+  }
+
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
   base::ScopedTempDir temp_dir_;
@@ -2477,39 +2539,32 @@ IN_PROC_BROWSER_TEST_F(
   CheckCanResize(true, true);
 }
 
+// TODO(https://crbug.com/498907676) This test is flaky on Mac.
+// TODO(https://crbug.com/498769559) This test is flaky on Wayland.
+#if BUILDFLAG(IS_MAC) || \
+    (BUILDFLAG(IS_LINUX) && BUILDFLAG(SUPPORTS_OZONE_WAYLAND))
+#define MAYBE_MinimizeAndRestoreWindowWithApi \
+  DISABLED_MinimizeAndRestoreWindowWithApi
+#else
+#define MAYBE_MinimizeAndRestoreWindowWithApi MinimizeAndRestoreWindowWithApi
+#endif
 IN_PROC_BROWSER_TEST_F(
     WebAppFrameToolbarBrowserTest_AdditionalWindowingControls,
-    MinimizeAndRestoreWindowWithApi) {
+    MAYBE_MinimizeAndRestoreWindowWithApi) {
   InstallAndLaunchWebApp();
   helper()->GrantWindowManagementPermission();
   auto* web_contents = helper()->browser_view()->GetActiveWebContents();
 
-  // Ensure minimizing is allowed.
-  helper()->browser_view()->SetCanMinimize(true);
-  EXPECT_TRUE(helper()->browser_view()->CanMinimize());
-  content::WaitForLoadStop(web_contents);
+  SetCanMinimizeAndVerify();
+  WaitForWebContentsLoadedAndWidgetActive(web_contents);
 
-  // Minimize window
-  EXPECT_EQ(EvalDisplayStateChange(web_contents, "minimize", "minimized"),
-            "window.minimize() succeeded.");
-  EXPECT_TRUE(helper()->browser_view()->IsMinimized());
+  MinimizeAndVerify(web_contents);
+  // Check if minimizing again succeeds.
+  MinimizeAndVerify(web_contents);
 
-  // Check if minimizing again succeeds
-  EXPECT_EQ(EvalDisplayStateChange(web_contents, "minimize", "minimized"),
-            "window.minimize() succeeded.");
-  EXPECT_TRUE(helper()->browser_view()->IsMinimized());
-
-  // Restore window
-  EXPECT_EQ(EvalDisplayStateChange(web_contents, "restore", "normal"),
-            "window.restore() succeeded.");
-  EXPECT_FALSE(helper()->browser_view()->IsMinimized());
-  EXPECT_FALSE(helper()->browser_view()->IsMaximized());
-
-  // Check if restoring again succeeds
-  EXPECT_EQ(EvalDisplayStateChange(web_contents, "restore", "normal"),
-            "window.restore() succeeded.");
-  EXPECT_FALSE(helper()->browser_view()->IsMinimized());
-  EXPECT_FALSE(helper()->browser_view()->IsMaximized());
+  RestoreAndVerify(web_contents, "normal");
+  // Check if restoring again succeeds.
+  RestoreAndVerify(web_contents, "normal");
 }
 
 IN_PROC_BROWSER_TEST_F(
@@ -2519,34 +2574,19 @@ IN_PROC_BROWSER_TEST_F(
   helper()->GrantWindowManagementPermission();
   auto* web_contents = helper()->browser_view()->GetActiveWebContents();
 
-  // Ensure maximizing is allowed.
-  helper()->browser_view()->SetCanMaximize(true);
-  EXPECT_TRUE(helper()->browser_view()->CanMaximize());
-  content::WaitForLoadStop(web_contents);
-  views::Widget* widget = helper()->browser_view()->GetWidget();
-  views::test::WaitForWidgetActive(widget, true);
+  SetCanMaximizeAndVerify();
+  WaitForWebContentsLoadedAndWidgetActive(web_contents);
 
-  EXPECT_EQ(EvalDisplayStateChange(web_contents, "maximize", "maximized"),
-            "window.maximize() succeeded.");
-  EXPECT_TRUE(helper()->browser_view()->IsMaximized());
+  MaximizeAndVerifyHasTitleBar(web_contents);
+  // Check if maximizing again succeeds.
+  MaximizeAndVerifyHasTitleBar(web_contents);
 
-  // Check if maximizing again succeeds
-  EXPECT_EQ(EvalDisplayStateChange(web_contents, "maximize", "maximized"),
-            "window.maximize() succeeded.");
-  EXPECT_TRUE(helper()->browser_view()->IsMaximized());
-
-  // Restore window
-  EXPECT_EQ(EvalDisplayStateChange(web_contents, "restore", "normal"),
-            "window.restore() succeeded.");
-  EXPECT_FALSE(helper()->browser_view()->IsMaximized());
-
-  // Check if restoring again succeeds
-  EXPECT_EQ(EvalDisplayStateChange(web_contents, "restore", "normal"),
-            "window.restore() succeeded.");
-  EXPECT_FALSE(helper()->browser_view()->IsMaximized());
+  RestoreAndVerify(web_contents, "normal");
+  // Check if restoring again succeeds.
+  RestoreAndVerify(web_contents, "normal");
 }
 
-// TODO(https://crbug.com/458599317) The test doesn't work correctly on Mac
+// TODO(https://crbug.com/458599317) The test doesn't work correctly on Mac.
 #if BUILDFLAG(IS_MAC)
 #define MAYBE_MaximizeMinimizeAndRestoreWindowWithApi \
   DISABLED_MaximizeMinimizeAndRestoreWindowWithApi
@@ -2561,69 +2601,40 @@ IN_PROC_BROWSER_TEST_F(
   helper()->GrantWindowManagementPermission();
   auto* web_contents = helper()->browser_view()->GetActiveWebContents();
 
-  // Ensure minimizing is allowed.
-  helper()->browser_view()->SetCanMinimize(true);
-  EXPECT_TRUE(helper()->browser_view()->CanMinimize());
-  content::WaitForLoadStop(web_contents);
+  SetCanMinimizeAndVerify();
+  WaitForWebContentsLoadedAndWidgetActive(web_contents);
 
-  // Maximize window
-  EXPECT_EQ(EvalDisplayStateChange(web_contents, "maximize", "maximized"),
-            "window.maximize() succeeded.");
-  EXPECT_TRUE(helper()->browser_view()->IsMaximized());
+  MaximizeAndVerifyHasTitleBar(web_contents);
+  MinimizeAndVerify(web_contents);
 
-  // Minimize window
-  EXPECT_EQ(EvalDisplayStateChange(web_contents, "minimize", "minimized"),
-            "window.minimize() succeeded.");
-  EXPECT_TRUE(helper()->browser_view()->IsMinimized());
-
-  // Restore window
-  // Window should be first maximized
-  EXPECT_EQ(EvalDisplayStateChange(web_contents, "restore", "maximized"),
-            "window.restore() succeeded.");
-  EXPECT_TRUE(helper()->browser_view()->IsMaximized());
-
-  // Restore window again
-  // Window should be now in default state
-  EXPECT_EQ(EvalDisplayStateChange(web_contents, "restore", "normal"),
-            "window.restore() succeeded.");
-  EXPECT_FALSE(helper()->browser_view()->IsMaximized());
+  RestoreAndVerify(web_contents, "maximized");
+  RestoreAndVerify(web_contents, "normal");
 }
 
+// TODO(https://crbug.com/498907676) This test is flaky on Mac.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_FullscreenAndRestoreWindowWithApi \
+  DISABLED_FullscreenAndRestoreWindowWithApi
+#else
+#define MAYBE_FullscreenAndRestoreWindowWithApi \
+  FullscreenAndRestoreWindowWithApi
+#endif
 IN_PROC_BROWSER_TEST_F(
     WebAppFrameToolbarBrowserTest_AdditionalWindowingControls,
-    FullscreenAndRestoreWindowWithApi) {
+    MAYBE_FullscreenAndRestoreWindowWithApi) {
   InstallAndLaunchWebApp();
   helper()->GrantWindowManagementPermission();
   auto* web_contents = helper()->browser_view()->GetActiveWebContents();
-  content::WaitForLoadStop(web_contents);
-  views::Widget* widget = helper()->browser_view()->GetWidget();
-  views::test::WaitForWidgetActive(widget, true);
-
-  // Enter fullscreen
-  EXPECT_EQ(EvalFullscreenRequest(web_contents),
-            "document.documentElement.requestFullscreen() succeeded.");
-  EXPECT_TRUE(helper()->browser_view()->IsFullscreen());
-#if !BUILDFLAG(IS_MAC)
-  EXPECT_FALSE(helper()->browser_view()->browser()->SupportsWindowFeature(
-      Browser::WindowFeature::kFeatureTitleBar));
-#else
-  // On Mac the top bar is displayed for web apps even in fullscreen mode
-  EXPECT_TRUE(helper()->browser_view()->browser()->SupportsWindowFeature(
-      Browser::WindowFeature::kFeatureTitleBar));
-#endif
-
-  // Restore window
-  EXPECT_EQ(EvalDisplayStateChange(web_contents, "restore", "normal"),
-            "window.restore() succeeded.");
-  EXPECT_FALSE(helper()->browser_view()->IsMaximized());
-  EXPECT_FALSE(helper()->browser_view()->IsFullscreen());
-  EXPECT_TRUE(helper()->browser_view()->browser()->SupportsWindowFeature(
-      Browser::WindowFeature::kFeatureTitleBar));
+  WaitForWebContentsLoadedAndWidgetActive(web_contents);
+  EnterFullscreenAndVerify(web_contents);
+  RestoreAndVerify(web_contents, "normal");
 }
 
 // TODO(https://crbug.com/458599317) Maximizing fullscreen window doesn't work
 // correctly on Mac
-#if BUILDFLAG(IS_MAC)
+// TODO(https://crbug.com/498769559) This test is flaky on Wayland.
+#if BUILDFLAG(IS_MAC) || \
+    (BUILDFLAG(IS_LINUX) && BUILDFLAG(SUPPORTS_OZONE_WAYLAND))
 #define MAYBE_FullscreenMaximizeAndRestoreWindowWithApi \
   DISABLED_FullscreenMaximizeAndRestoreWindowWithApi
 #else
@@ -2637,33 +2648,12 @@ IN_PROC_BROWSER_TEST_F(
   helper()->GrantWindowManagementPermission();
   auto* web_contents = helper()->browser_view()->GetActiveWebContents();
 
-  // Ensure maximizing is allowed.
-  helper()->browser_view()->SetCanMaximize(true);
-  EXPECT_TRUE(helper()->browser_view()->CanMaximize());
+  SetCanMaximizeAndVerify();
   content::WaitForLoadStop(web_contents);
 
-  // Enter fullscreen
-  EXPECT_EQ(EvalFullscreenRequest(web_contents),
-            "document.documentElement.requestFullscreen() succeeded.");
-  EXPECT_TRUE(helper()->browser_view()->IsFullscreen());
-  EXPECT_FALSE(helper()->browser_view()->browser()->SupportsWindowFeature(
-      Browser::WindowFeature::kFeatureTitleBar));
-
-  // Maximize window
-  EXPECT_EQ(EvalDisplayStateChange(web_contents, "maximize", "maximized"),
-            "window.maximize() succeeded.");
-  EXPECT_TRUE(helper()->browser_view()->IsMaximized());
-  EXPECT_FALSE(helper()->browser_view()->IsFullscreen());
-  EXPECT_TRUE(helper()->browser_view()->browser()->SupportsWindowFeature(
-      Browser::WindowFeature::kFeatureTitleBar));
-
-  // Restore window
-  EXPECT_EQ(EvalDisplayStateChange(web_contents, "restore", "normal"),
-            "window.restore() succeeded.");
-  EXPECT_FALSE(helper()->browser_view()->IsMaximized());
-  EXPECT_FALSE(helper()->browser_view()->IsFullscreen());
-  EXPECT_TRUE(helper()->browser_view()->browser()->SupportsWindowFeature(
-      Browser::WindowFeature::kFeatureTitleBar));
+  EnterFullscreenAndVerify(web_contents);
+  MaximizeAndVerifyHasTitleBar(web_contents);
+  RestoreAndVerify(web_contents, "normal");
 }
 
 // TODO(https://crbug.com/458599317) The test doesn't work correctly on Mac and
@@ -2682,53 +2672,26 @@ IN_PROC_BROWSER_TEST_F(
   helper()->GrantWindowManagementPermission();
   auto* web_contents = helper()->browser_view()->GetActiveWebContents();
 
-  // Ensure maximizing is allowed.
-  helper()->browser_view()->SetCanMaximize(true);
-  EXPECT_TRUE(helper()->browser_view()->CanMaximize());
+  SetCanMaximizeAndVerify();
   content::WaitForLoadStop(web_contents);
 
-  // Maximize window
-  EXPECT_EQ(EvalDisplayStateChange(web_contents, "maximize", "maximized"),
-            "window.maximize() succeeded.");
-  EXPECT_TRUE(helper()->browser_view()->IsMaximized());
-  EXPECT_FALSE(helper()->browser_view()->IsFullscreen());
-  EXPECT_TRUE(helper()->browser_view()->browser()->SupportsWindowFeature(
-      Browser::WindowFeature::kFeatureTitleBar));
-
-  // Enter fullscreen
-  EXPECT_EQ(EvalFullscreenRequest(web_contents),
-            "document.documentElement.requestFullscreen() succeeded.");
-  EXPECT_TRUE(helper()->browser_view()->IsFullscreen());
-  EXPECT_FALSE(helper()->browser_view()->IsMaximized());
-#if !BUILDFLAG(IS_MAC)
-  EXPECT_FALSE(helper()->browser_view()->browser()->SupportsWindowFeature(
-      Browser::WindowFeature::kFeatureTitleBar));
-#else
-  // On Mac the top bar is displayed for web apps even in fullscreen mode
-  EXPECT_TRUE(helper()->browser_view()->browser()->SupportsWindowFeature(
-      Browser::WindowFeature::kFeatureTitleBar));
-#endif
-
-  // Restore window
-  EXPECT_EQ(EvalDisplayStateChange(web_contents, "restore", "maximized"),
-            "window.restore() succeeded.");
-  EXPECT_TRUE(helper()->browser_view()->IsMaximized());
-  EXPECT_FALSE(helper()->browser_view()->IsFullscreen());
-  EXPECT_TRUE(helper()->browser_view()->browser()->SupportsWindowFeature(
-      Browser::WindowFeature::kFeatureTitleBar));
-
-  // Restore window once again
-  EXPECT_EQ(EvalDisplayStateChange(web_contents, "restore", "normal"),
-            "window.restore() succeeded.");
-  EXPECT_FALSE(helper()->browser_view()->IsMaximized());
-  EXPECT_FALSE(helper()->browser_view()->IsFullscreen());
-  EXPECT_TRUE(helper()->browser_view()->browser()->SupportsWindowFeature(
-      Browser::WindowFeature::kFeatureTitleBar));
+  MaximizeAndVerifyHasTitleBar(web_contents);
+  EnterFullscreenAndVerify(web_contents);
+  RestoreAndVerify(web_contents, "maximized");
+  RestoreAndVerify(web_contents, "normal");
 }
 
+// TODO(https://crbug.com/498907676) This test is flaky on Mac.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_DisplayStateMediaQueryEventListenersCalled \
+  DISABLED_DisplayStateMediaQueryEventListenersCalled
+#else
+#define MAYBE_DisplayStateMediaQueryEventListenersCalled \
+  DisplayStateMediaQueryEventListenersCalled
+#endif
 IN_PROC_BROWSER_TEST_F(
     WebAppFrameToolbarBrowserTest_AdditionalWindowingControls,
-    DisplayStateMediaQueryEventListenersCalled) {
+    MAYBE_DisplayStateMediaQueryEventListenersCalled) {
   InstallAndLaunchWebApp();
   auto* web_contents = helper()->browser_view()->GetActiveWebContents();
   auto setup_media_query_event =
@@ -2789,10 +2752,18 @@ IN_PROC_BROWSER_TEST_F(
                   "Second window.minimize() was rejected.")));
 }
 
+// TODO(https://crbug.com/498769559) This test is flaky on Wayland.
+#if BUILDFLAG(IS_LINUX) && BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
+#define MAYBE_WindowSetResizableDoNotBlockResizingWebApis \
+  DISABLED_WindowSetResizableDoNotBlockResizingWebApis
+#else
+#define MAYBE_WindowSetResizableDoNotBlockResizingWebApis \
+  WindowSetResizableDoNotBlockResizingWebApis
+#endif
 // windows.setResizable API should block only user-initiated requests
 IN_PROC_BROWSER_TEST_F(
     WebAppFrameToolbarBrowserTest_AdditionalWindowingControls,
-    WindowSetResizableDoNotBlockResizingWebApis) {
+    MAYBE_WindowSetResizableDoNotBlockResizingWebApis) {
   InstallAndLaunchWebApp();
   helper()->GrantWindowManagementPermission();
 
@@ -2864,9 +2835,17 @@ IN_PROC_BROWSER_TEST_F(
 #endif
 }
 
+// TODO(https://crbug.com/498769559) This test is flaky on Wayland.
+#if BUILDFLAG(IS_LINUX) && BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
+#define MAYBE_WindowSetResizableDoNotBlockFullscreenWebAPI \
+  DISABLED_WindowSetResizableDoNotBlockFullscreenWebAPI
+#else
+#define MAYBE_WindowSetResizableDoNotBlockFullscreenWebAPI \
+  WindowSetResizableDoNotBlockFullscreenWebAPI
+#endif
 IN_PROC_BROWSER_TEST_F(
     WebAppFrameToolbarBrowserTest_AdditionalWindowingControls,
-    WindowSetResizableDoNotBlockFullscreenWebAPI) {
+    MAYBE_WindowSetResizableDoNotBlockFullscreenWebAPI) {
   InstallAndLaunchWebApp();
   helper()->GrantWindowManagementPermission();
   auto* browser_view = helper()->browser_view();
@@ -2884,10 +2863,20 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_FALSE(browser_view->IsFullscreen());
 }
 
+// TODO(https://crbug.com/498907676) This test is flaky on Mac.
+// TODO(https://crbug.com/498769559) This test is flaky on Wayland.
+#if BUILDFLAG(IS_MAC) || \
+    (BUILDFLAG(IS_LINUX) && BUILDFLAG(SUPPORTS_OZONE_WAYLAND))
+#define MAYBE_WindowSetResizableDoNotBlockExitingFullscreen \
+  DISABLED_WindowSetResizableDoNotBlockExitingFullscreen
+#else
+#define MAYBE_WindowSetResizableDoNotBlockExitingFullscreen \
+  WindowSetResizableDoNotBlockExitingFullscreen
+#endif
 // Ensure user is not trapped in the fullscreen mode
 IN_PROC_BROWSER_TEST_F(
     WebAppFrameToolbarBrowserTest_AdditionalWindowingControls,
-    WindowSetResizableDoNotBlockExitingFullscreen) {
+    MAYBE_WindowSetResizableDoNotBlockExitingFullscreen) {
   InstallAndLaunchWebApp();
   helper()->GrantWindowManagementPermission();
   auto* browser_view = helper()->browser_view();

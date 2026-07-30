@@ -4,8 +4,13 @@
 
 package org.chromium.chrome.browser.glic;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.content.res.Resources;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.LayerDrawable;
 import android.view.View;
@@ -15,6 +20,9 @@ import androidx.appcompat.content.res.AppCompatResources;
 
 import com.airbnb.lottie.LottieCompositionFactory;
 import com.airbnb.lottie.LottieDrawable;
+import com.airbnb.lottie.LottieProperty;
+import com.airbnb.lottie.model.KeyPath;
+import com.airbnb.lottie.value.LottieValueCallback;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -25,9 +33,11 @@ import org.chromium.chrome.browser.actor.ActorTaskState;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
+import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarFeatures;
 import org.chromium.chrome.browser.toolbar.optional_button.BaseButtonDataProvider;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonData;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonData.ButtonSpec;
+import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.Tracker;
 
@@ -39,12 +49,13 @@ import java.util.function.Supplier;
 @NullMarked
 public class GlicToolbarButtonController extends BaseButtonDataProvider
         implements ActorKeyedService.Observer {
-    @IntDef({ButtonState.DEFAULT, ButtonState.WORKING, ButtonState.NEEDS_REVIEW})
+    @IntDef({ButtonState.DEFAULT, ButtonState.WORKING, ButtonState.NEEDS_REVIEW, ButtonState.DONE})
     @Retention(RetentionPolicy.SOURCE)
     private @interface ButtonState {
         int DEFAULT = 0;
         int WORKING = 1;
         int NEEDS_REVIEW = 2;
+        int DONE = 3;
     }
 
     private final Runnable mToggleGlicCallback;
@@ -52,8 +63,9 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider
     private @Nullable Profile mCurrentProfile;
     private @Nullable ActorKeyedService mCurrentActorService;
     private final ButtonSpec mDefaultSpec;
-    private final ButtonSpec mReviewSpec;
     private final ButtonSpec mWorkingSpec;
+    private final ButtonSpec mReviewSpec;
+    private final ButtonSpec mDoneSpec;
 
     private @ButtonState int mButtonState = ButtonState.DEFAULT;
 
@@ -83,19 +95,24 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider
         mToggleGlicCallback = toggleGlicCallback;
         mTrackerSupplier = trackerSupplier;
         mDefaultSpec = mButtonData.getButtonSpec();
-        mReviewSpec =
-                new ButtonSpec(
-                        mDefaultSpec.getDrawable(),
-                        this,
-                        mDefaultSpec.getOnLongClickListener(),
-                        mDefaultSpec.getContentDescription(),
-                        mDefaultSpec.getSupportsTinting(),
-                        mDefaultSpec.getIphCommandBuilder(),
-                        mDefaultSpec.getButtonVariant(),
-                        R.string.glic_button_status_review,
-                        mDefaultSpec.getHoverTooltipTextId(),
-                        mDefaultSpec.hasErrorBadge());
+        mWorkingSpec = createWorkingSpec(context);
+        mReviewSpec = createReviewSpec();
+        mDoneSpec = createDoneSpec();
+    }
 
+    private ButtonSpec createReviewSpec() {
+        return new ButtonSpec.Builder(mDefaultSpec)
+                .setActionChipLabelResId(R.string.glic_button_status_review)
+                .build();
+    }
+
+    private ButtonSpec createDoneSpec() {
+        return new ButtonSpec.Builder(mDefaultSpec)
+                .setActionChipLabelResId(R.string.glic_button_status_done)
+                .build();
+    }
+
+    private ButtonSpec createWorkingSpec(Context context) {
         // TODO(haileywang): Handle other button states.
         LottieDrawable lottieDrawable = new LottieDrawable();
         LottieCompositionFactory.fromRawRes(context, R.raw.glic_spinner)
@@ -106,34 +123,77 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider
                             lottieDrawable.playAnimation();
                         });
         Drawable sparkIcon = AppCompatResources.getDrawable(context, R.drawable.ic_spark_24dp);
-        LayerDrawable layerDrawable = new LayerDrawable(new Drawable[] {lottieDrawable, sparkIcon});
+        LayerDrawable layerDrawable =
+                new LayerDrawable(new Drawable[] {lottieDrawable, sparkIcon}) {
+                    private @Nullable ColorStateList mTintList;
+
+                    @Override
+                    public void setTintList(@Nullable ColorStateList tint) {
+                        super.setTintList(tint);
+                        mTintList = tint;
+                        updateLottieTint();
+                    }
+
+                    @Override
+                    protected boolean onStateChange(int[] state) {
+                        boolean changed = super.onStateChange(state);
+                        if (updateLottieTint()) {
+                            changed = true;
+                        }
+                        return changed;
+                    }
+
+                    @Override
+                    public boolean isStateful() {
+                        return (mTintList != null && mTintList.isStateful()) || super.isStateful();
+                    }
+
+                    private boolean updateLottieTint() {
+                        if (mTintList != null) {
+                            int color =
+                                    mTintList.getColorForState(
+                                            getState(), mTintList.getDefaultColor());
+                            lottieDrawable.addValueCallback(
+                                    new KeyPath("**"),
+                                    LottieProperty.COLOR_FILTER,
+                                    new LottieValueCallback<>(
+                                            new PorterDuffColorFilter(
+                                                    color, PorterDuff.Mode.SRC_IN)));
+                            return true;
+                        }
+                        return false;
+                    }
+                };
         float density = context.getResources().getDisplayMetrics().density;
         // Adjust sizes of the spark and spinner.
         int sparkInset = Math.round(2 * density);
         int spinnerInset = Math.round(-10 * density);
         layerDrawable.setLayerInset(0, spinnerInset, spinnerInset, spinnerInset, spinnerInset);
         layerDrawable.setLayerInset(1, sparkInset, sparkInset, sparkInset, sparkInset);
-        mWorkingSpec =
-                new ButtonSpec(
-                        layerDrawable,
-                        this,
-                        mDefaultSpec.getOnLongClickListener(),
-                        mDefaultSpec.getContentDescription(),
-                        /* supportsTinting= */ true,
-                        mDefaultSpec.getIphCommandBuilder(),
-                        mDefaultSpec.getButtonVariant(),
-                        mDefaultSpec.getActionChipLabelResId(),
-                        mDefaultSpec.getHoverTooltipTextId(),
-                        mDefaultSpec.hasErrorBadge());
+        return new ButtonSpec.Builder(mDefaultSpec).setDrawable(layerDrawable).build();
+    }
+
+    @Override
+    protected boolean shouldShowButton(@Nullable Tab tab) {
+        // TODO(crbug.com/499354469): Add proper checks for glic availability.
+        if (!AdaptiveToolbarFeatures.isGlicActionEnabled()) {
+            return false;
+        }
+        if (tab == null || tab.isOffTheRecord() || UrlUtilities.isNtpUrl(tab.getUrl())) {
+            return false;
+        }
+        return super.shouldShowButton(tab);
     }
 
     @Override
     public ButtonData get(@Nullable Tab tab) {
-        if (tab == null || tab.isOffTheRecord()) {
-            mButtonData.setCanShow(false);
-            return super.get(tab);
+        ButtonData buttonData = super.get(tab);
+        if (!buttonData.canShow()) {
+            return buttonData;
         }
 
+        // This can be assumed because shouldShowButton hides the entrypoint if there's no tab.
+        assumeNonNull(tab);
         updateActorServiceObservation(tab.getProfile());
         updateButtonState();
 
@@ -145,16 +205,17 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider
             case ButtonState.WORKING:
                 desiredSpec = mWorkingSpec;
                 break;
+            case ButtonState.DONE:
+                desiredSpec = mDoneSpec;
+                break;
             case ButtonState.DEFAULT:
             default:
                 desiredSpec = mDefaultSpec;
         }
         mButtonData.setButtonSpec(desiredSpec);
 
-        // TODO(haileywang): We should double check whether Glic is enabled.
-        mButtonData.setCanShow(true);
         mButtonData.setEnabled(true);
-        return super.get(tab);
+        return buttonData;
     }
 
     private void updateButtonState() {
@@ -166,9 +227,11 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider
                 @ActorTaskState int state = task.getState();
                 switch (state) {
                     case ActorTaskState.WAITING_ON_USER:
-                    case ActorTaskState.FINISHED:
                     case ActorTaskState.FAILED:
                         mButtonState = ButtonState.NEEDS_REVIEW;
+                        break;
+                    case ActorTaskState.FINISHED:
+                        mButtonState = ButtonState.DONE;
                         break;
                     case ActorTaskState.ACTING:
                     case ActorTaskState.REFLECTING:

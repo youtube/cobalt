@@ -158,6 +158,7 @@ void ViewAccessibility::AddVirtualChildViewAt(
   added_view->OnViewHasNewAncestor(view_);
 
   AXUpdateNotifier::Get()->NotifyChildAdded(added_view, this);
+  FireLiveRegionChangedIfNeeded(LiveRegionEventTrigger::kAdditions);
 }
 
 std::unique_ptr<AXVirtualView> ViewAccessibility::RemoveVirtualChildView(
@@ -172,6 +173,9 @@ std::unique_ptr<AXVirtualView> ViewAccessibility::RemoveVirtualChildView(
       std::move(virtual_children_[cur_index.value()]);
   virtual_children_.erase(virtual_children_.begin() +
                           static_cast<ptrdiff_t>(cur_index.value()));
+
+  FireLiveRegionChangedIfNeeded(LiveRegionEventTrigger::kRemovals);
+
   child->set_parent_view(nullptr);
 
   // If the removed child (or any of its descendants) was the active descendant,
@@ -502,6 +506,7 @@ void ViewAccessibility::SetName(std::u16string name,
                            base::UTF16ToUTF8(name));
 
   NotifyEvent(ax::mojom::Event::kTextChanged, true);
+  FireLiveRegionChangedIfNeeded(LiveRegionEventTrigger::kText);
   NotifyDataChanged();
 }
 
@@ -1253,19 +1258,204 @@ void ViewAccessibility::SetShowContextMenu(bool show_context_menu) {
   NotifyDataChanged();
 }
 
-void ViewAccessibility::SetContainerLiveStatus(const std::string& status) {
+// static
+const char* ViewAccessibility::LiveRegionStatusToString(
+    LiveRegionStatus status) {
+  switch (status) {
+    case LiveRegionStatus::kPolite:
+      return "polite";
+    case LiveRegionStatus::kAssertive:
+      return "assertive";
+    case LiveRegionStatus::kOff:
+      return "off";
+  }
+}
+
+namespace {
+
+struct LiveRegionRelevantEntry {
+  uint8_t mask;
+  const char* name;
+};
+
+constexpr LiveRegionRelevantEntry kLiveRegionRelevantEntries[] = {
+    {ViewAccessibility::kLiveRegionRelevantAdditions, "additions"},
+    {ViewAccessibility::kLiveRegionRelevantText, "text"},
+    {ViewAccessibility::kLiveRegionRelevantRemovals, "removals"},
+};
+
+}  // namespace
+
+// static
+std::string ViewAccessibility::LiveRegionRelevantToString(uint8_t relevant) {
+  if (!relevant) {
+    relevant = kLiveRegionRelevantDefault;
+  } else if (relevant == kLiveRegionRelevantAll) {
+    return "all";
+  }
+
+  std::string result;
+  for (const auto& entry : kLiveRegionRelevantEntries) {
+    if (relevant & entry.mask) {
+      if (!result.empty()) {
+        result += " ";
+      }
+      result += entry.name;
+    }
+  }
+  return result;
+}
+
+// static
+uint8_t ViewAccessibility::LiveRegionRelevantFromString(
+    const std::string& relevant) {
+  if (relevant == "all") {
+    return kLiveRegionRelevantAll;
+  }
+  uint8_t result = 0;
+  for (const auto& entry : kLiveRegionRelevantEntries) {
+    if (relevant.find(entry.name) != std::string::npos) {
+      result |= entry.mask;
+    }
+  }
+  return result;
+}
+
+void ViewAccessibility::SetLiveRegionContainer(LiveRegionStatus live_status,
+                                               uint8_t relevant,
+                                               bool atomic) {
+  const char* live_status_str = LiveRegionStatusToString(live_status);
+  const std::string relevant_str = LiveRegionRelevantToString(relevant);
+
+  data_.AddStringAttribute(ax::mojom::StringAttribute::kLiveStatus,
+                           live_status_str);
+  data_.AddStringAttribute(ax::mojom::StringAttribute::kLiveRelevant,
+                           relevant_str);
+  data_.AddBoolAttribute(ax::mojom::BoolAttribute::kLiveAtomic, atomic);
   data_.AddStringAttribute(ax::mojom::StringAttribute::kContainerLiveStatus,
-                           status);
+                           live_status_str);
+  data_.AddStringAttribute(ax::mojom::StringAttribute::kContainerLiveRelevant,
+                           relevant_str);
+
+  UpdateContainerLiveStatusRecursive();
   NotifyDataChanged();
 }
 
-void ViewAccessibility::RemoveContainerLiveStatus() {
-  if (!data_.HasStringAttribute(
-          ax::mojom::StringAttribute::kContainerLiveStatus)) {
+void ViewAccessibility::RemoveLiveRegionContainer() {
+  data_.RemoveStringAttribute(ax::mojom::StringAttribute::kLiveStatus);
+  data_.RemoveStringAttribute(ax::mojom::StringAttribute::kLiveRelevant);
+  data_.RemoveBoolAttribute(ax::mojom::BoolAttribute::kLiveAtomic);
+  data_.RemoveStringAttribute(ax::mojom::StringAttribute::kContainerLiveStatus);
+  data_.RemoveStringAttribute(
+      ax::mojom::StringAttribute::kContainerLiveRelevant);
+
+  UpdateContainerLiveStatusRecursive();
+  NotifyDataChanged();
+}
+
+void ViewAccessibility::UpdateContainerLiveStatus() {
+  std::string status =
+      data_.GetStringAttribute(ax::mojom::StringAttribute::kLiveStatus);
+  std::string relevant;
+  if (status.empty()) {
+    ViewAccessibility* parent = GetViewAccessibilityParent();
+    if (parent) {
+      status = parent->data_.GetStringAttribute(
+          ax::mojom::StringAttribute::kContainerLiveStatus);
+      relevant = parent->data_.GetStringAttribute(
+          ax::mojom::StringAttribute::kContainerLiveRelevant);
+    }
+  } else {
+    relevant =
+        data_.GetStringAttribute(ax::mojom::StringAttribute::kLiveRelevant);
+  }
+
+  if (status.empty()) {
+    data_.RemoveStringAttribute(
+        ax::mojom::StringAttribute::kContainerLiveStatus);
+    data_.RemoveStringAttribute(
+        ax::mojom::StringAttribute::kContainerLiveRelevant);
+  } else {
+    data_.AddStringAttribute(ax::mojom::StringAttribute::kContainerLiveStatus,
+                             status);
+    if (!relevant.empty()) {
+      data_.AddStringAttribute(
+          ax::mojom::StringAttribute::kContainerLiveRelevant, relevant);
+    }
+  }
+}
+
+void ViewAccessibility::UpdateContainerLiveStatusRecursive() {
+  UpdateContainerLiveStatus();
+
+  if (view_) {
+    internal::ScopedChildrenLock lock(view_);
+    for (auto& child : view_->children()) {
+      child->GetViewAccessibility().UpdateContainerLiveStatusRecursive();
+    }
+  }
+
+  for (auto& child : virtual_children()) {
+    child->UpdateContainerLiveStatusRecursive();
+  }
+}
+
+void ViewAccessibility::FireLiveRegionChangedIfNeeded(
+    LiveRegionEventTrigger trigger) {
+  std::string container_live_status = data_.GetStringAttribute(
+      ax::mojom::StringAttribute::kContainerLiveStatus);
+  if (container_live_status.empty() || container_live_status == "off") {
     return;
   }
-  data_.RemoveStringAttribute(ax::mojom::StringAttribute::kContainerLiveStatus);
-  NotifyDataChanged();
+
+  // Walk up ancestors to find the live region root (the view with kLiveStatus).
+  ViewAccessibility* live_region_root = this;
+  while (live_region_root) {
+    if (live_region_root->data_.HasStringAttribute(
+            ax::mojom::StringAttribute::kLiveStatus)) {
+      break;
+    }
+    live_region_root = live_region_root->GetViewAccessibilityParent();
+  }
+
+  if (!live_region_root) {
+    return;
+  }
+
+  // Check if the trigger type is included in the aria-relevant attribute.
+  const std::string relevant_str = live_region_root->data_.GetStringAttribute(
+      ax::mojom::StringAttribute::kContainerLiveRelevant);
+  const uint8_t relevant = relevant_str.empty()
+                               ? kLiveRegionRelevantDefault
+                               : LiveRegionRelevantFromString(relevant_str);
+  uint8_t trigger_bit = 0;
+  switch (trigger) {
+    case LiveRegionEventTrigger::kAdditions:
+      trigger_bit = kLiveRegionRelevantAdditions;
+      break;
+    case LiveRegionEventTrigger::kText:
+      trigger_bit = kLiveRegionRelevantText;
+      break;
+    case LiveRegionEventTrigger::kRemovals:
+      trigger_bit = kLiveRegionRelevantRemovals;
+      break;
+  }
+  if (!(relevant & trigger_bit)) {
+    return;
+  }
+
+  // Only fire for text changes on the container itself (not descendants),
+  // and only when there is content to announce.
+  if (trigger == LiveRegionEventTrigger::kText) {
+    if (this != live_region_root) {
+      return;
+    }
+    if (live_region_root->GetCachedName().empty()) {
+      return;
+    }
+  }
+
+  live_region_root->NotifyEvent(ax::mojom::Event::kLiveRegionChanged, true);
 }
 
 void ViewAccessibility::SetValue(const std::string& value) {
@@ -1435,6 +1625,7 @@ void ViewAccessibility::OnViewHasNewAncestor(const View* new_ancestor) {
   is_invisible_by_inheritance_ = parent_invisible;
 
   UpdateInvisibleState();
+  UpdateContainerLiveStatus();
 
   // We only want to propagate the `ancestor_focusable` value if it's true. This
   // is because if this view is unfocusable, and it gets added to a tree with a
@@ -2107,41 +2298,6 @@ void ViewAccessibility::SetTextSelStart(int32_t text_sel_start) {
 
 void ViewAccessibility::SetTextSelEnd(int32_t text_sel_end) {
   data_.AddIntAttribute(ax::mojom::IntAttribute::kTextSelEnd, text_sel_end);
-  NotifyDataChanged();
-}
-
-void ViewAccessibility::SetLiveAtomic(bool live_atomic) {
-  data_.AddBoolAttribute(ax::mojom::BoolAttribute::kLiveAtomic, live_atomic);
-  NotifyDataChanged();
-}
-
-void ViewAccessibility::SetLiveStatus(const std::string& live_status) {
-  data_.AddStringAttribute(ax::mojom::StringAttribute::kLiveStatus,
-                           live_status);
-  NotifyDataChanged();
-}
-
-void ViewAccessibility::SetLiveRelevant(const std::string& live_relevant) {
-  data_.AddStringAttribute(ax::mojom::StringAttribute::kLiveRelevant,
-                           live_relevant);
-  NotifyDataChanged();
-}
-
-void ViewAccessibility::RemoveLiveRelevant() {
-  data_.RemoveStringAttribute(ax::mojom::StringAttribute::kLiveRelevant);
-  NotifyDataChanged();
-}
-
-void ViewAccessibility::SetContainerLiveRelevant(
-    const std::string& live_relevant) {
-  data_.AddStringAttribute(ax::mojom::StringAttribute::kContainerLiveRelevant,
-                           live_relevant);
-  NotifyDataChanged();
-}
-
-void ViewAccessibility::RemoveContainerLiveRelevant() {
-  data_.RemoveStringAttribute(
-      ax::mojom::StringAttribute::kContainerLiveRelevant);
   NotifyDataChanged();
 }
 

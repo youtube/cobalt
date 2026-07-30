@@ -21,6 +21,7 @@
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
+#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_container_view.h"
@@ -69,8 +70,7 @@ class BrowserViewTabbedLayoutImplUiTest : public InteractiveBrowserTest {
 
   void SetUp() override {
     feature_list_.InitWithFeatures(
-        {tabs::kVerticalTabs, features::kSidePanelFlyoverAnimation},
-        {tabs::kHorizontalTabStripComboButton});
+        {tabs::kVerticalTabs, features::kSidePanelFlyoverAnimation}, {});
     set_open_about_blank_on_browser_launch(true);
     InteractiveBrowserTest::SetUp();
   }
@@ -649,7 +649,9 @@ class BrowserViewTabbedLayoutImplContentLayoutUiTest
         CheckView(
             kTabStripRegionElementId,
             [](VerticalTabStripRegionView* region) {
-              return region->GetVerticalTabStripController()->IsCollapsed();
+              return region->GetVerticalTabStripController()
+                  ->GetStateController()
+                  ->IsCollapsed();
             },
             should_be_collapsed));
     AddDescriptionPrefix(

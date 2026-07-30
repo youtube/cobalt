@@ -12,10 +12,12 @@
 #include <utility>
 #include <vector>
 
+#include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/i18n/rtl.h"
 #include "base/i18n/time_formatting.h"
+#include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
@@ -25,6 +27,7 @@
 #include "chrome/browser/sessions/session_restore.h"
 #include "chrome/browser/sync/session_sync_service_factory.h"
 #include "chrome/browser/ui/webui/ntp/new_tab_ui.h"
+#include "chrome/browser/ui/webui/side_panel/tabs_from_other_devices/tabs_from_other_devices_side_panel_ui.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
 #include "components/pref_registry/pref_registry_syncable.h"
@@ -140,10 +143,19 @@ ForeignSessionHandler::ForeignSessionHandler(
     mojo::PendingReceiver<history::mojom::ForeignSessionPageHandler>
         pending_page_handler,
     Profile* profile,
-    content::WebContents* web_contents)
+    content::WebContents* web_contents,
+    RestoreForeignSessionTabCallback restore_tab_callback,
+    RestoreForeignSessionWindowsCallback restore_windows_callback,
+    TabsFromOtherDevicesSidePanelUI* side_panel_ui)
     : profile_(profile),
       web_contents_(web_contents),
-      receiver_(this, std::move(pending_page_handler)) {
+      receiver_(this, std::move(pending_page_handler)),
+      side_panel_ui_(side_panel_ui),
+      restore_tab_callback_(std::move(restore_tab_callback)),
+      restore_windows_callback_(std::move(restore_windows_callback)) {
+  CHECK(restore_tab_callback_);
+  CHECK(restore_windows_callback_);
+
   sync_sessions::SessionSyncService* service =
       SessionSyncServiceFactory::GetInstance()->GetForProfile(profile_);
 
@@ -177,6 +189,14 @@ sync_sessions::OpenTabsUIDelegate* ForeignSessionHandler::GetOpenTabsUIDelegate(
 void ForeignSessionHandler::SetPage(
     mojo::PendingRemote<history::mojom::ForeignSessionPage> pending_page) {
   page_.Bind(std::move(pending_page));
+
+  if (side_panel_ui_) {
+    base::WeakPtr<TopChromeWebUIController::Embedder> embedder =
+        side_panel_ui_->embedder();
+    if (embedder) {
+      embedder->ShowUI();
+    }
+  }
 }
 
 void ForeignSessionHandler::GetForeignSessions(
@@ -201,8 +221,7 @@ void ForeignSessionHandler::OpenForeignSessionAllTabs(
     return;
   }
 
-  SessionRestore::RestoreForeignSessionWindows(
-      profile_, windows.begin(), windows.end(), base::DoNothing());
+  restore_windows_callback_.Run(profile_, windows);
 }
 
 void ForeignSessionHandler::OpenForeignSessionTab(
@@ -235,7 +254,14 @@ void ForeignSessionHandler::OpenForeignSessionTab(
       modifiers->middle_button, modifiers->alt_key, modifiers->ctrl_key,
       modifiers->meta_key, modifiers->shift_key);
 
-  SessionRestore::RestoreForeignSessionTab(web_contents_, *tab, disposition);
+  // If this is in the side panel, `web_contents_` refers to the content of the
+  // side panel, *not* the main tab where the foreign tab should be restored.
+  content::WebContents* web_contents =
+      side_panel_ui_ ? side_panel_ui_->browser_window_interface()
+                           ->GetTabStripModel()
+                           ->GetActiveWebContents()
+                     : web_contents_.get();
+  restore_tab_callback_.Run(web_contents, *tab, disposition);
 }
 
 void ForeignSessionHandler::DeleteForeignSession(

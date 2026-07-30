@@ -325,13 +325,11 @@
     {
       name: "DirectSockets",
       permissions_policy_name: "direct-sockets",
-      depends_on: ["DirectSockets"],
       visibility: "IsolatedContext",
     },
     {
       name: "DirectSocketsPrivate",
       permissions_policy_name: "direct-sockets-private",
-      depends_on: ["DirectSockets"],
       visibility: "IsolatedContext",
     },
     {
@@ -354,12 +352,6 @@
       permissions_policy_name: "execution-while-not-rendered",
       feature_default: "EnableForAll",
       depends_on: ["FreezeFramesOnVisibility"],
-    },
-    {
-      name: "FencedUnpartitionedStorageRead",
-      permissions_policy_name: "fenced-unpartitioned-storage-read",
-      feature_default: "EnableForAll",
-      depends_on: ["FencedFramesLocalUnpartitionedDataAccess"],
     },
     {
       name: "FocusWithoutUserActivation",
@@ -485,7 +477,6 @@
     {
       name: "MulticastInDirectSockets",
       permissions_policy_name: "direct-sockets-multicast",
-      depends_on: ["DirectSockets"],
       visibility: "IsolatedContext",
     },
     {

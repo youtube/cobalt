@@ -6,6 +6,7 @@ source_set("storage") {
   sources = [
     "accessibility_annotation_sync_bridge.cc",
     "accessibility_annotation_sync_bridge.h",
+    "accessibility_annotator_backend.cc",
     "accessibility_annotator_backend.h",
     "accessibility_annotator_backend_impl.cc",
     "accessibility_annotator_backend_impl.h",
@@ -21,6 +22,7 @@ source_set("storage") {
     "//components/accessibility_annotator/core/data_models",
     "//components/history/core/browser",
     "//components/keyed_service/core",
+    "//components/optimization_guide/proto:optimization_guide_proto",
     "//components/sync/base",
     "//components/sync/model",
     "//sql",

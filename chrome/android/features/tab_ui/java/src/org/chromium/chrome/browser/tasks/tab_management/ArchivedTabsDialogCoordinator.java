@@ -33,6 +33,8 @@ import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NullableObservableSupplier;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.EnsuresNonNull;
@@ -68,6 +70,7 @@ import org.chromium.chrome.browser.tasks.tab_management.TabSwitcherMessageManage
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeControllerFactory;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
+import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager.ParentOverrideSlot;
 import org.chromium.chrome.browser.undo_tab_close_snackbar.SavedTabGroupUndoBarController;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
@@ -90,7 +93,6 @@ import org.chromium.ui.interpolators.Interpolators;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.LayoutViewBuilder;
 import org.chromium.ui.modelutil.PropertyModel;
-import org.chromium.ui.util.TokenHolder;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -359,7 +361,11 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
                 @Override
                 public void willHide() {
                     mDialogRecyclerView.removeOnScrollListener(mRecyclerScrollListener);
-                    mSnackbarManager.popParentViewFromOverrideStack(mSnackbarOverrideToken);
+                    if (mHasSnackbarOverride) {
+                        mSnackbarManager.popParentViewOverride(
+                                ParentOverrideSlot.ARCHIVED_TABS_DIALOG);
+                        mHasSnackbarOverride = false;
+                    }
                     // In case we were hidden by TabListEditor in some other case, force the
                     // animation to finish.
                     animateOut(
@@ -396,6 +402,9 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
                 }
             };
 
+    private final SettableNonNullObservableSupplier<Integer> mSnackbarMarginSupplier =
+            ObservableSuppliers.createNonNull(0);
+
     private final Activity mActivity;
     private final ArchivedTabModelOrchestrator mArchivedTabModelOrchestrator;
     private final TabModel mArchivedTabModel;
@@ -429,7 +438,7 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
     private @Nullable TabListEditorCoordinator mTabListEditorCoordinator;
     private @Nullable OnTabSelectingListener mOnTabSelectingListener;
     private @Nullable PropertyModel mIphMessagePropertyModel;
-    private int mSnackbarOverrideToken;
+    private boolean mHasSnackbarOverride;
     private boolean mIsOpeningLastItem;
     private boolean mIsShowing;
 
@@ -526,6 +535,13 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
         if (mTabGroupSyncService != null) {
             mTabGroupSyncService.addObserver(mTabGroupSyncObserver);
         }
+
+        int closeAllTabsContainerHeight =
+                mActivity
+                        .getResources()
+                        .getDimensionPixelSize(
+                                R.dimen.archived_tabs_dialog_bottom_button_container_height);
+        mSnackbarMarginSupplier.set(closeAllTabsContainerHeight);
     }
 
     /** Hides the dialog. */
@@ -618,7 +634,11 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
         mBackPressManager.addHandler(controller, BackPressHandler.Type.ARCHIVED_TABS_DIALOG);
 
         FrameLayout snackbarContainer = mDialogView.findViewById(R.id.snackbar_container);
-        mSnackbarOverrideToken = mSnackbarManager.pushParentViewToOverrideStack(snackbarContainer);
+        mHasSnackbarOverride = true;
+        mSnackbarManager.pushParentViewOverride(
+                ParentOverrideSlot.ARCHIVED_TABS_DIALOG,
+                snackbarContainer,
+                mSnackbarMarginSupplier);
         // View is obscured by the TabListEditorCoordinator, so it needs to be brought to the front.
         mDialogView.findViewById(R.id.close_all_tabs_button_container).bringToFront();
         snackbarContainer.bringToFront();
@@ -744,7 +764,7 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
         mBackPressManager.removeHandler(mTabListEditorCoordinator.getController());
         mTabArchiveSettings.removeObserver(mTabArchiveSettingsObserver);
         mArchivedTabModelOrchestrator.getTabCountSupplier().removeObserver(mTabCountObserver);
-        mSnackbarOverrideToken = TokenHolder.INVALID_TOKEN;
+        mHasSnackbarOverride = false;
         mIsShowing = false;
         TabListRecyclerView recyclerView = mTabSwitcherRecyclerView.get();
         if (recyclerView != null) {

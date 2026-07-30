@@ -332,12 +332,12 @@
     {
         "name": "concurrent-futures",
         "group": "androidx.concurrent",
-        "version": "1.3.0"
+        "version": "1.4.0-SNAPSHOT"
     },
     {
         "name": "concurrent-futures-ktx",
         "group": "androidx.concurrent",
-        "version": "1.3.0"
+        "version": "1.4.0-SNAPSHOT"
     },
     {
         "name": "constraintlayout",
@@ -492,7 +492,7 @@
     {
         "name": "dynamicanimation",
         "group": "androidx.dynamicanimation",
-        "version": "1.1.0"
+        "version": "1.2.0-SNAPSHOT"
     },
     {
         "name": "emoji2",
@@ -552,12 +552,12 @@
     {
         "name": "graphics-shapes",
         "group": "androidx.graphics",
-        "version": "1.1.0"
+        "version": "1.2.0-SNAPSHOT"
     },
     {
         "name": "graphics-shapes-android",
         "group": "androidx.graphics",
-        "version": "1.1.0"
+        "version": "1.2.0-SNAPSHOT"
     },
     {
         "name": "gridlayout",
@@ -1172,7 +1172,7 @@
     {
         "name": "transition",
         "group": "androidx.transition",
-        "version": "1.7.0"
+        "version": "1.8.0-SNAPSHOT"
     },
     {
         "name": "tvprovider",
@@ -1622,7 +1622,7 @@
     {
         "name": "genai-prompt",
         "group": "com.google.mlkit",
-        "version": "1.0.0-beta1"
+        "version": "1.0.0-beta2"
     },
     {
         "name": "protobuf-javalite",
@@ -1902,12 +1902,12 @@
     {
         "name": "checker-qual",
         "group": "org.checkerframework",
-        "version": "3.54.0"
+        "version": "3.54.1"
     },
     {
         "name": "checker-util",
         "group": "org.checkerframework",
-        "version": "3.54.0"
+        "version": "3.54.1"
     },
     {
         "name": "animal-sniffer-annotations",

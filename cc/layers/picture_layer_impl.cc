@@ -103,24 +103,9 @@ PictureLayerImpl::PictureLayerImpl(LayerTreeImpl* tree_impl, int id)
     : TileBasedLayerImpl(tree_impl, id) {}
 
 PictureLayerImpl::~PictureLayerImpl() {
-  if (twin_layer_)
+  if (twin_layer_) {
     twin_layer_->twin_layer_ = nullptr;
-
-  // We only track PaintWorklet-containing PictureLayerImpls on the pending
-  // tree. However this deletion may happen outside the commit flow when we are
-  // on the recycle tree instead, so just check !IsActiveTree().
-  if (!paint_worklet_records_.empty() && !layer_tree_impl()->IsActiveTree())
-    layer_tree_impl()->NotifyLayerHasPaintWorkletsChanged(this, false);
-
-  // Similarly, AnimatedPaintWorkletTracker is only valid on the pending tree.
-  if (!layer_tree_impl()->IsActiveTree()) {
-    layer_tree_impl()
-        ->paint_worklet_tracker()
-        .UpdatePaintWorkletInputProperties({}, this);
   }
-
-  // Unregister for all images on the current raster source.
-  UnregisterAnimatedImages();
 }
 
 mojom::LayerType PictureLayerImpl::GetLayerType() const {
@@ -480,6 +465,25 @@ bool PictureLayerImpl::UpdateTiles() {
   return updated;
 }
 
+bool PictureLayerImpl::HasAnimatedImages() const {
+  return discardable_image_map_ &&
+         discardable_image_map_->animated_images_metadata().size();
+}
+
+void PictureLayerImpl::AnnotateAnimatedImages(
+    base::flat_map<PaintImage::Id, bool>& image_map) const {
+  if (!discardable_image_map_) {
+    return;
+  }
+  for (const auto& data : discardable_image_map_->animated_images_metadata()) {
+    if (ShouldAnimate(data.first)) {
+      image_map.insert_or_assign(data.first, true);
+    } else {
+      image_map.try_emplace(data.first, false);
+    }
+  }
+}
+
 void PictureLayerImpl::UpdateViewportRectForTilePriorityInContentSpace() {
   // If visible_layer_rect() is empty or viewport_rect_for_tile_priority is
   // set to be different from the device viewport, try to inverse project the
@@ -607,11 +611,14 @@ void PictureLayerImpl::UpdateRasterSourceInternal(
     // During activation, check if we need to pull the discardable image map
     // from the pending tree.
     if (pending_discardable_image_map != discardable_image_map_) {
+      bool had_animated_images = HasAnimatedImages();
       CHECK(pending_paint_worklet_records);
       paint_worklet_records_ = *pending_paint_worklet_records;
-      UnregisterAnimatedImages();
       discardable_image_map_ = pending_discardable_image_map;
-      RegisterAnimatedImages();
+      if (had_animated_images != HasAnimatedImages()) {
+        layer_tree_impl()->NotifyLayerHasAnimatedImagesChanged(
+            this, HasAnimatedImages());
+      }
     }
   } else if (recording_updated) {
     layer_tree_impl()->AddLayerNeedingUpdateDiscardableImageMap(this);
@@ -663,20 +670,28 @@ void PictureLayerImpl::SetRasterSourceForTesting(
 
 void PictureLayerImpl::RegenerateDiscardableImageMap() {
   CHECK(layer_tree_impl()->IsSyncTree());
-  UnregisterAnimatedImages();
+  bool had_animated_images = HasAnimatedImages();
   if (const auto* display_list = raster_source_->GetDisplayItemList().get()) {
     DiscardableImageMap::DecodingModeMap decoding_mode_map;
     DiscardableImageMap::PaintWorkletInputs paint_worklet_inputs;
     discardable_image_map_ = display_list->GenerateDiscardableImageMap(
         GetRasterInducingScrollOffsets(), &decoding_mode_map,
         &paint_worklet_inputs);
+    auto* controller = layer_tree_impl()->image_animation_controller();
+    for (const auto& data :
+         discardable_image_map_->animated_images_metadata()) {
+      controller->UpdateAnimatedImage(data.second);
+    }
     SetPaintWorkletInputs(paint_worklet_inputs);
     layer_tree_impl()->UpdateImageDecodingHints(decoding_mode_map);
   } else {
     SetPaintWorkletInputs({});
     discardable_image_map_ = nullptr;
   }
-  RegisterAnimatedImages();
+  if (had_animated_images != HasAnimatedImages()) {
+    layer_tree_impl()->NotifyLayerHasAnimatedImagesChanged(this,
+                                                           HasAnimatedImages());
+  }
 }
 
 void PictureLayerImpl::UpdateCanUseLCDText(
@@ -1956,31 +1971,6 @@ void PictureLayerImpl::SetPaintWorkletRecord(
   paint_worklet_records_[input].second = std::move(record);
 }
 
-void PictureLayerImpl::RegisterAnimatedImages() {
-  if (!discardable_image_map_) {
-    return;
-  }
-
-  auto* controller = layer_tree_impl()->image_animation_controller();
-  for (const auto& data : discardable_image_map_->animated_images_metadata()) {
-    // Only update the metadata from updated recordings received from a commit.
-    if (layer_tree_impl()->IsSyncTree())
-      controller->UpdateAnimatedImage(data.second);
-    controller->RegisterAnimationDriver(data.second.paint_image_id, this);
-  }
-}
-
-void PictureLayerImpl::UnregisterAnimatedImages() {
-  if (!discardable_image_map_) {
-    return;
-  }
-
-  auto* controller = layer_tree_impl()->image_animation_controller();
-  for (const auto& data : discardable_image_map_->animated_images_metadata()) {
-    controller->UnregisterAnimationDriver(data.second.paint_image_id, this);
-  }
-}
-
 void PictureLayerImpl::SetPaintWorkletInputs(
     const DiscardableImageMap::PaintWorkletInputs& inputs) {
   // PaintWorklets are not supported when committing directly to the active
@@ -2017,7 +2007,7 @@ void PictureLayerImpl::SetPaintWorkletInputs(
   if (layer_tree_impl()->IsPendingTree()) {
     layer_tree_impl()
         ->paint_worklet_tracker()
-        .UpdatePaintWorkletInputProperties(inputs, this);
+        .UpdatePaintWorkletInputProperties(inputs);
   }
 }
 

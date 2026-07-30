@@ -78,6 +78,7 @@ class ImageBitmap;
 class ScriptState;
 class StaticBitmapImage;
 class V8RenderingContext;
+class V8UnionElementOrElementImage;
 class V8OffscreenRenderingContext;
 class WebGraphicsContext3DVideoFramePool;
 
@@ -284,13 +285,14 @@ class CORE_EXPORT CanvasRenderingContext
   }
 
   scoped_refptr<StaticBitmapImage> GetElementImage(
-      Element* element,
+      const V8UnionElementOrElementImage* element,
       std::optional<float> sx,
       std::optional<float> sy,
       std::optional<float> swidth,
       std::optional<float> sheight,
       std::optional<uint32_t> width,
       std::optional<uint32_t> height,
+      gpu::SharedImageUsageSet usage,
       const String& func_name,
       ExceptionState& exception_state);
 

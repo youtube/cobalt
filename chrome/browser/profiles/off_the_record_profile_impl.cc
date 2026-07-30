@@ -24,7 +24,6 @@
 #include "chrome/browser/background_fetch/background_fetch_delegate_factory.h"
 #include "chrome/browser/background_fetch/background_fetch_delegate_impl.h"
 #include "chrome/browser/background_sync/background_sync_controller_factory.h"
-#include "chrome/browser/browser_process.h"
 #include "chrome/browser/browsing_data/chrome_browsing_data_remover_delegate.h"
 #include "chrome/browser/browsing_data/chrome_browsing_data_remover_delegate_factory.h"
 #include "chrome/browser/client_hints/client_hints_factory.h"
@@ -101,6 +100,8 @@
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/preferences/preferences.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
+#include "chrome/browser/browser_process.h"
+#include "chrome/browser/global_features.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "chromeos/constants/pref_names.h"
 #endif
@@ -108,13 +109,7 @@
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 #include "chrome/browser/extensions/extension_special_storage_policy.h"
 #include "chrome/browser/ui/webui/extensions/extension_icon_source.h"
-#endif
-
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "extensions/browser/api/web_request/extension_web_request_event_router.h"
-#include "extensions/browser/extension_pref_store.h"
-#include "extensions/browser/extension_pref_value_map_factory.h"
-#include "extensions/common/extension.h"
 #endif
 
 #if BUILDFLAG(ENABLE_GUEST_VIEW)
@@ -214,11 +209,9 @@ void OffTheRecordProfileImpl::Init() {
   // Make the chrome//extension-icon/ resource available.
   content::URLDataSource::Add(
       this, std::make_unique<extensions::ExtensionIconSource>(profile_));
-#endif
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
   extensions::WebRequestEventRouter::OnOTRBrowserContextCreated(profile_, this);
-#endif
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
   // The DomDistillerViewerSource is not a normal WebUI so it must be registered
   // as a URLDataSource early.
@@ -275,7 +268,7 @@ OffTheRecordProfileImpl::~OffTheRecordProfileImpl() {
 
   SimpleKeyMap::GetInstance()->Dissociate(this);
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   extensions::WebRequestEventRouter::OnOTRBrowserContextDestroyed(profile_,
                                                                   this);
 #endif
@@ -445,7 +438,7 @@ OffTheRecordProfileImpl::GetURLLoaderFactory() {
 }
 
 content::BrowserPluginGuestManager* OffTheRecordProfileImpl::GetGuestManager() {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_GUEST_VIEW)
   return guest_view::GuestViewManager::FromBrowserContext(this);
 #else
   return NULL;
@@ -622,7 +615,9 @@ class GuestSessionProfile : public OffTheRecordProfileImpl {
   }
 
   void InitChromeOSPreferences() override {
-    chromeos_preferences_ = std::make_unique<ash::Preferences>();
+    chromeos_preferences_ = std::make_unique<ash::Preferences>(
+        g_browser_process->local_state(),
+        g_browser_process->GetFeatures()->application_locale_storage());
     chromeos_preferences_->Init(
         this, user_manager::UserManager::Get()->GetActiveUser());
   }

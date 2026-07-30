@@ -11,6 +11,7 @@ import("//chrome/common/features.gni")
 import("//components/enterprise/buildflags/buildflags.gni")
 import("//components/guest_view/buildflags/buildflags.gni")
 import("//components/safe_browsing/buildflags.gni")
+import("//components/spellcheck/spellcheck_build_features.gni")
 import("//content/public/common/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
@@ -128,16 +129,6 @@ source_set("extensions") {
     "api/instance_id/instance_id_api.h",
     "api/management/chrome_management_api_delegate.cc",
     "api/management/chrome_management_api_delegate.h",
-    "api/messaging/chrome_messaging_delegate.cc",
-    "api/messaging/chrome_messaging_delegate.h",
-    "api/messaging/chrome_native_message_port_dispatcher.cc",
-    "api/messaging/chrome_native_message_port_dispatcher.h",
-    "api/messaging/incognito_connectability.cc",
-    "api/messaging/incognito_connectability.h",
-    "api/messaging/incognito_connectability_infobar_delegate.cc",
-    "api/messaging/incognito_connectability_infobar_delegate.h",
-    "api/messaging/native_messaging_host_manifest.cc",
-    "api/messaging/native_messaging_host_manifest.h",
     "api/metrics_private/chrome_metrics_private_delegate.cc",
     "api/metrics_private/chrome_metrics_private_delegate.h",
     "api/preference/cookie_controls_mode_transformer.cc",
@@ -264,8 +255,6 @@ source_set("extensions") {
     "corrupted_extension_reinstaller.h",
     "corrupted_extension_reinstaller_factory.cc",
     "corrupted_extension_reinstaller_factory.h",
-    "cws_info_service.cc",
-    "cws_info_service.h",
     "cws_info_service_factory.cc",
     "cws_info_service_factory.h",
     "data_deleter.cc",
@@ -482,6 +471,9 @@ source_set("extensions") {
     # TODO(crbug.com/40161499): Remove this circular dependency.
     "//chrome/browser/devtools",
 
+    # TODO(crbug.com/497896145): Remove this circular dependency.
+    "//chrome/browser/extensions/api/messaging",
+
     # TODO(crbug.com/353284909): Remove this circular dependency.
     "//chrome/browser/media/webrtc",
     "//chrome/browser/ui/extensions",
@@ -620,6 +612,7 @@ source_set("extensions") {
     "//ui/shell_dialogs",
   ]
   public_deps = [
+    "//chrome/browser/extensions/api/messaging",
     "//chrome/browser/media/webrtc",
     "//chrome/browser/supervised_user",
     "//chrome/browser/ui/tab_contents",
@@ -633,14 +626,15 @@ source_set("extensions") {
   if (is_mac || is_win || is_linux || is_chromeos) {
     deps += [ "//components/webapps/isolated_web_apps:scheme" ]
   }
+  if (enable_spellcheck) {
+    deps += [ "//chrome/browser/spellchecker" ]
+  }
   if (is_android) {
     sources += [
       "api/chrome_extensions_api_client_android.cc",
       "api/identity/identity_unimplemented_functions_android.cc",
       "api/identity/identity_unimplemented_functions_android.h",
       "api/management/chrome_management_api_delegate_android.cc",
-      "api/messaging/native_message_android_host.cc",
-      "api/messaging/native_message_android_host.h",
       "api/tabs/tabs_event_router_platform_delegate_android.cc",
       "api/tabs/tabs_event_router_platform_delegate_android.h",
       "extension_disabled_ui_android.cc",
@@ -673,21 +667,6 @@ source_set("extensions") {
 
   if (!is_chromeos) {
     sources += [ "chrome_kiosk_delegate_non_chromeos.cc" ]
-    if (!is_android) {
-      sources += [
-        "api/messaging/launch_context.cc",
-        "api/messaging/launch_context.h",
-        "api/messaging/native_message_process_host.cc",
-        "api/messaging/native_message_process_host.h",
-        "api/messaging/native_messaging_launch_from_native.cc",
-        "api/messaging/native_messaging_launch_from_native.h",
-        "api/messaging/native_process_launcher.cc",
-        "api/messaging/native_process_launcher.h",
-      ]
-    }
-    if (is_posix) {
-      sources += [ "api/messaging/launch_context_posix.cc" ]
-    }
   }
 
   if (enable_guest_view) {
@@ -838,14 +817,6 @@ source_set("extensions") {
         "api/safe_browsing_private/safe_browsing_private_event_router.h",
         "api/safe_browsing_private/safe_browsing_private_event_router_factory.cc",
         "api/safe_browsing_private/safe_browsing_private_event_router_factory.h",
-      ]
-    }
-
-    # Chrome OS does not support Native Messaging policies.
-    if (!is_chromeos) {
-      sources += [
-        "api/messaging/native_messaging_policy_handler.cc",
-        "api/messaging/native_messaging_policy_handler.h",
       ]
     }
 
@@ -1114,10 +1085,6 @@ source_set("extensions") {
         "api/file_system/consent_provider_impl.h",
         "api/file_system/request_file_system_notification.cc",
         "api/file_system/request_file_system_notification.h",
-        "api/messaging/native_message_built_in_host.cc",
-        "api/messaging/native_message_built_in_host.h",
-        "api/messaging/native_message_echo_host.cc",
-        "api/messaging/native_message_echo_host.h",
         "api/passwords_private/passwords_private_utils_chromeos.cc",
         "api/passwords_private/passwords_private_utils_chromeos.h",
         "api/platform_keys_core/platform_keys_utils.cc",
@@ -1145,6 +1112,7 @@ source_set("extensions") {
         "//chrome/browser/chromeos/platform_keys",
         "//chrome/browser/chromeos/policy/dlp",
         "//chrome/browser/chromeos/upload_office_to_cloud",
+        "//chrome/browser/speech",
         "//chromeos/ash/components/browser_context_helper",
         "//chromeos/ash/components/platform_keys",
         "//chromeos/components/kiosk",
@@ -1249,7 +1217,6 @@ source_set("extensions") {
         "api/image_writer_private/removable_storage_provider_chromeos.cc",
         "api/media_perception_private/media_perception_api_delegate_chromeos.cc",
         "api/media_perception_private/media_perception_api_delegate_chromeos.h",
-        "api/messaging/native_message_host_chromeos.cc",
         "api/networking_private/networking_private_ui_delegate_chromeos.cc",
         "api/networking_private/networking_private_ui_delegate_chromeos.h",
         "api/settings_private/chromeos_resolve_time_zone_by_geolocation_method_short.cc",
@@ -1490,7 +1457,6 @@ source_set("extensions") {
     if (is_win) {
       sources += [
         "api/image_writer_private/removable_storage_provider_win.cc",
-        "api/messaging/launch_context_win.cc",
         "external_registry_loader_win.cc",
         "external_registry_loader_win.h",
         "system_display/display_info_provider_win.cc",
@@ -1518,12 +1484,6 @@ source_set("extensions") {
         "plugin_manager.cc",
         "plugin_manager.h",
       ]
-    }
-
-    if (enable_printing && (is_win || is_mac || is_linux || is_chromeos)) {
-      # TODO(crbug.com/40183776)  Replace this with more accurate dependency
-      # once //chrome/browser/printing build is able to be cleanly targeted.
-      deps += [ "//chrome/services/printing/public/mojom" ]
     }
 
     if (enable_pdf) {
@@ -1562,6 +1522,10 @@ source_set("extensions") {
       deps += [ "//chrome/browser/ui/toasts" ]
     }
   }  # if (enable_extensions)
+
+  if (enable_printing) {
+    deps += [ "//chrome/browser/printing" ]
+  }
 
   if (enable_platform_apps) {
     sources += [
@@ -1633,8 +1597,6 @@ static_library("test_support") {
 
   if (enable_extensions) {
     sources += [
-      "api/messaging/native_messaging_test_util.cc",
-      "api/messaging/native_messaging_test_util.h",
       "api/passwords_private/test_passwords_private_delegate.cc",
       "api/passwords_private/test_passwords_private_delegate.h",
       "mock_crx_installer.cc",
@@ -1701,6 +1663,7 @@ source_set("chrome_extensions_browser_client") {
   deps = [
     "//chrome/browser/app_mode",
     "//chrome/browser/content_settings:content_settings_factory",
+    "//chrome/browser/download",
     "//chrome/browser/extensions",
     "//chrome/browser/external_protocol",
     "//chrome/browser/media/webrtc",

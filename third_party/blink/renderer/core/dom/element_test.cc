@@ -699,11 +699,11 @@ TEST_F(ElementTest, IsFocusableForInertInContentVisibility) {
   // Mark the element as inert. Due to content-visibility, the LayoutObject
   // will still think that it's not inert.
   target->SetBooleanAttribute(html_names::kInertAttr, true);
-  ASSERT_FALSE(target->GetLayoutObject()->Style()->IsInert());
+  ASSERT_FALSE(target->GetLayoutObject()->StyleRef().IsInert());
 
   // IsFocusable() should update the LayoutObject and notice that it's inert.
   ASSERT_FALSE(target->IsFocusable());
-  ASSERT_TRUE(target->GetLayoutObject()->Style()->IsInert());
+  ASSERT_TRUE(target->GetLayoutObject()->StyleRef().IsInert());
 }
 
 TEST_F(ElementTest, ParseFocusgroupAttrDefaultValuesWhenEmptyValue) {
@@ -1644,6 +1644,25 @@ TEST_F(ElementTest, ParseFocusgroupAttrBehaviorFirstRequirement) {
   EXPECT_EQ(
       valid_none->GetFocusgroupData(),
       FocusgroupData(FocusgroupBehavior::kOptOut, FocusgroupFlags::kNone));
+}
+
+TEST_F(ElementTest, HeuristicCustomPasswordDetectionCSS) {
+  SetBodyInnerHTML("<div id='target'>abc</div>");
+  auto* target = To<HTMLElement>(GetElementById("target"));
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_FALSE(target->HasBeenHeuristicCustomPasswordCSS());
+
+  // Applying -webkit-text-security should trigger detection for any
+  // HTMLElement.
+  target->setAttribute(html_names::kStyleAttr,
+                       AtomicString("-webkit-text-security: disc;"));
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_TRUE(target->HasBeenHeuristicCustomPasswordCSS());
+
+  // Removing the style should not clear the "has ever been" state.
+  target->removeAttribute(html_names::kStyleAttr);
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_TRUE(target->HasBeenHeuristicCustomPasswordCSS());
 }
 
 // Provide assertion-prettify function for gtest.

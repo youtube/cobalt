@@ -18,19 +18,16 @@ package androidx.window.extensions.layout;
 
 import android.graphics.Rect;
 
-import androidx.annotation.NonNull;
+import org.jspecify.annotations.NonNull;
 
-/**
- * Description of a physical feature on the display.
- */
+/** Description of a physical feature on the display. */
 public interface DisplayFeature {
 
     /**
-     * The bounding rectangle of the feature within the application window
-     * in the window coordinate space.
+     * The bounding rectangle of the feature within the application window in the window coordinate
+     * space.
      *
      * @return bounds of display feature.
      */
-    @NonNull
-    Rect getBounds();
+    @NonNull Rect getBounds();
 }

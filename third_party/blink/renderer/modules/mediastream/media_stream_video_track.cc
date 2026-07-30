@@ -1158,7 +1158,7 @@ void MediaStreamVideoTrack::GetSettings(
 
   settings.facing_mode = ToPlatformFacingMode(
       static_cast<mojom::blink::FacingMode>(source_->device().video_facing));
-  settings.resize_mode = WebString::FromASCII(std::string(
+  settings.resize_mode = WebString::FromAscii(std::string(
       adapter_settings().target_size() ? WebMediaStreamTrack::kResizeModeRescale
                                        : WebMediaStreamTrack::kResizeModeNone));
   if (source_->device().display_media_info) {
@@ -1208,7 +1208,7 @@ MediaStreamVideoTrack::GetCaptureHandle() {
         String::FromUtf8(info->capture_handle->origin.Serialize());
   }
   capture_handle.handle =
-      WebString::FromUTF16(info->capture_handle->capture_handle);
+      WebString::FromUtf16(info->capture_handle->capture_handle);
 
   return capture_handle;
 }

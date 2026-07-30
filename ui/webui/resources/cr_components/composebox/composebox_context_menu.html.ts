@@ -22,19 +22,19 @@ export function getHtml(this: ComposeboxElement) {
         class="upload-button no-overlap"
         @add-tab-context="${this.onAddTabContext_}"
         @delete-tab-context="${this.onDeleteTabContext_}"
-        @tool-click="${this.onToolClick_}"
-        @model-click="${this.onModelClick_}"
-        @get-tab-preview="${this.onGetTabPreview_}"
+        @tool-click="${this.onToolClick}"
+        @model-click="${this.onModelClick}"
+        @get-tab-preview="${this.onGetTabPreview}"
         @context-menu-closed="${this.onContextMenuClosed_ }"
         @context-menu-opened="${this.onContextMenuOpened_}"
         .inputState="${this.inputState}"
         .searchboxLayoutMode="${this.searchboxLayoutMode}"
         .tabSuggestions="${this.tabSuggestions}"
-        .hasImageFiles="${this.hasImageFiles_()}"
+        .hasImageFiles="${this.hasImageFiles()}"
         .disabledTabIds="${this.addedTabsIds}"
         .fileNum="${this.files.size}"
         ?upload-button-disabled="${this.uploadButtonDisabled}"
-        ?show-context-menu-description="${this.showContextMenuDescription_}">
+        ?show-context-menu-description="${this.showContextMenuDescription}">
     </cr-composebox-contextual-entrypoint-and-menu>
   ` : (hasAllowedInputs(this.inputState, this.usePecApi) ? html`
     <cr-composebox-contextual-entrypoint-button
@@ -42,8 +42,9 @@ export function getHtml(this: ComposeboxElement) {
         part="composebox-entrypoint"
         exportparts="context-menu-entrypoint-icon"
         class="upload-button no-overlap"
+        .inputState="${this.inputState}"
         ?upload-button-disabled="${this.uploadButtonDisabled}"
-        ?show-context-menu-description="${this.showContextMenuDescription_}">
+        ?show-context-menu-description="${this.showContextMenuDescription}">
     </cr-composebox-contextual-entrypoint-button>
   ` : '')}
   ${this.searchboxLayoutMode === 'Compact' && this.shouldShowVoiceSearch_() ? html`
@@ -59,7 +60,7 @@ export function getHtml(this: ComposeboxElement) {
         exportparts="tool-chip-label"
         .inputState="${this.inputState}"
         .isCanvasQuerySubmitted="${this.isCanvasQuerySubmitted}"
-        @tool-click="${this.onToolClick_}">
+        @tool-click="${this.onToolClick}">
       </cr-composebox-tool-chip>
     ` : ''}
   ` : ''}

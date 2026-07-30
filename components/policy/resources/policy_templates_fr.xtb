@@ -405,22 +405,6 @@ Pour en savoir plus sur les contextes sécurisés, consultez la page https://www
 <translation id="1317158052518324525">Ne pas autoriser la saisie automatique améliorée.</translation>
 <translation id="1317658068839330898">Ne pas autoriser l'utilisation de l'<ph name="ASSISTANT_PRODUCT_NAME" /> sur le Web</translation>
 <translation id="1318233005302276244">Permet aux utilisateurs de suivre leurs colis sur Chrome.</translation>
-<translation id="1321747583289636863">Cette règle permet de spécifier le nombre maximal de connexions simultanées au serveur proxy pour les requêtes WebSocket.
-
-Pour modifier les limites des requêtes non WebSocket, consultez <ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" />.
-
-Si cette règle n'est pas configurée, la valeur par défaut (32) est utilisée.
-
-Certaines applis Web sont connues pour utiliser de nombreuses connexions avec des requêtes GET en attente. Par conséquent, si vous définissez une valeur inférieure à 32, le réseau du navigateur risque de se bloquer si trop d'applis Web avec des connexions de ce type sont ouvertes.
-Toutefois, certains serveurs proxy ne peuvent pas gérer un nombre élevé de connexions simultanées par client. Pour résoudre ce problème, il suffit de définir cette règle sur une valeur inférieure.
-
-La valeur doit être supérieure ou égale à 6.
-Si vous définissez une valeur inférieure à cette limite, la valeur limite (6) sera utilisée.
-Utilisez une valeur inférieure à celle par défaut (32) à vos propres risques.
-
-La valeur doit être inférieure ou égale à 256.
-Si vous définissez une valeur supérieure à cette limite, la valeur limite (256) sera utilisée.
-Utilisez une valeur supérieure à celle par défaut (32) à vos propres risques.</translation>
 <translation id="1323501563951768821">Les paramètres F12 utilisent le raccourci qui contient la touche de modification Maj</translation>
 <translation id="1325547947664414578">Lorsqu'un utilisateur passe d'un appareil <ph name="PRODUCT_OS_NAME" /> à un autre, le service <ph name="PRODUCT_NAME" /> rétablit sur le nouvel appareil les fenêtres de navigateurs et d'applications qui étaient ouvertes sur l'appareil précédent.
 Si cette règle est activée, les fenêtres de navigateurs et d'applications qui étaient ouvertes sur l'appareil <ph name="PRODUCT_OS_NAME" /> auquel l'utilisateur était connecté en dernier sont automatiquement rétablies lorsqu'il se connecte.
@@ -4889,7 +4873,6 @@ Si cette règle est activée ou qu'elle n'est pas configurée, les utilisateurs 
 Si cette règle est désactivée, les données du gestionnaire de mots de passe seront inchangées, mais les fonctionnalités du gestionnaire seront interrompues.
 
 Si cette règle est configurée, les utilisateurs ne peuvent pas la modifier dans <ph name="PRODUCT_NAME" />.</translation>
-<translation id="4321788213579606602">Nombre maximal de connexions simultanées au serveur proxy pour les requêtes non WebSocket</translation>
 <translation id="4322842393287974810">Autoriser l'application kiosque lancée automatiquement sans délai à contrôler la version de l'application <ph name="PRODUCT_OS_NAME" /></translation>
 <translation id="4323412353642577604">Activer l'attestation à distance pour la protection du contenu</translation>
 <translation id="4325690621216251241">Ajouter un bouton de déconnexion dans la barre d'état système</translation>
@@ -6368,6 +6351,7 @@ Cette règle est compatible avec l'actualisation dynamique.
 Cette règle est une mesure temporaire qui sera supprimée dans les futures versions de <ph name="PRODUCT_NAME" />.</translation>
 <translation id="5212810195096589189">Spécifier l'autorisation concernant l'interface de ligne de commande pour les machines virtuelles</translation>
 <translation id="5213038356678567351">Sites Web qui ne doivent jamais déclencher un changement de navigateur.</translation>
+<translation id="5216710229085956333">Activer la suppression du bruit Krisp</translation>
 <translation id="5216815237712190041">Configurez le fond d'écran de l'appareil à afficher sur la page de connexion avant qu'un utilisateur ne se connecte à l'appareil. Pour configurer cette règle, vous devez indiquer l'URL depuis laquelle l'appareil Chrome OS peut télécharger l'image de fond d'écran et un hachage chiffré utilisé pour vérifier l'intégrité du téléchargement. L'image doit être au format JPEG, et sa taille ne doit pas dépasser 16 Mo. L'URL doit être accessible sans authentification. L'image de fond d'écran est téléchargée et mise en cache. Elle sera de nouveau téléchargée à chaque modification de l'URL ou du hachage.
 
       Si la règle relative au fond d'écran est configurée, l'appareil Chrome OS téléchargera et utilisera l'image de fond d'écran sur l'écran de connexion si aucun utilisateur ne s'est encore connecté à l'appareil. Lorsque l'utilisateur se connecte, la règle relative au fond d'écran pour cet utilisateur est activée.
@@ -6775,6 +6759,7 @@ Plusieurs règles listent des origines qui ont un impact sur les requêtes adres
 <translation id="5479841110985196412">Activer le clavier virtuel d'accessibilité</translation>
 <translation id="5480380613778757009">Si cette règle est désactivée ou qu'elle n'est pas configurée, tous les paramètres d'affichage définis dans la session Invité gérée sont réinitialisés à la fermeture de la session. Si cette règle est définie sur "True", les propriétés d'affichage sont conservées après la fermeture de la session Invité gérée.</translation>
 <translation id="548137908954174608">Activer les Sous-titres instantanés</translation>
+<translation id="5481873128882951841">Désactiver la suppression du bruit Krisp</translation>
 <translation id="5483012943408894695">Origines ou modèles de nom d'hôte non soumis aux restrictions applicables aux origines non sécurisées</translation>
 <translation id="5483065054530244863">Autoriser les certificats signés SHA-1 émis par les ancres d'approbation locales</translation>
 <translation id="5485491014653571963">Ce paramètre autorise les intégrations de l'appli Gemini.
@@ -7673,7 +7658,6 @@ Si la règle est définie sur "False", les enseignants ne peuvent pas accéder �
 <translation id="6075316301208933536">La règle "<ph name="DEVICE_BATTERY_CHARGE_CUSTOM_STOP_CHARGING_POLICY_NAME" />" permet de personnaliser le pourcentage à partir duquel la recharge de la batterie doit s'arrêter (si la règle "<ph name="DEVICE_BATTERY_CHARGE_MODE_POLICY_NAME" />" est définie sur "<ph name="DEVICE_BATTERY_CHARGE_CUSTOM_MODE_NAME" />"). La valeur de la règle "<ph name="DEVICE_BATTERY_CHARGE_CUSTOM_START_CHARGING_POLICY_NAME" />" doit être inférieure d'au moins cinq points par rapport à celle de la règle "<ph name="DEVICE_BATTERY_CHARGE_CUSTOM_STOP_CHARGING_POLICY_NAME" />".
 
       Si cette règle n'est pas configurée, le mode <ph name="DEVICE_BATTERY_CHARGE_STANDARD_MODE_NAME" /> de recharge de la batterie est alors appliqué.</translation>
-<translation id="6080808146443476891">Nombre maximal de connexions simultanées au serveur proxy pour les requêtes WebSocket</translation>
 <translation id="6082161804984853051">Si cette règle est configurée, <ph name="PRODUCT_NAME" /> utilise le répertoire que vous indiquez pour stocker les fichiers mis en cache sur le disque, que l'utilisateur spécifie ou non le flag "--disk-cache-dir".
 
       Si cette règle n'est pas configurée, <ph name="PRODUCT_NAME" /> utilise le répertoire de cache par défaut. Toutefois, l'utilisateur peut modifier ce paramètre avec le flag de ligne de commande "--disk-cache-dir".
@@ -10569,6 +10553,12 @@ Cette règle n'a aucune incidence lorsque la règle <ph name="SCREENSAVER_LOCK_S
 
       Par défaut, une extension ou une application Android ne peut pas utiliser une clé destinée à une utilisation en entreprise (ce qui équivaut à définir le paramètre allowCorporateKeyUsage sur "False" pour l'extension ou l'application concernée). Le paramètre allowCorporateKeyUsage doit être défini sur "True" pour qu'une extension ou une application Android puisse utiliser une clé de plate-forme destinée à une utilisation en entreprise pour signer des données arbitraires. N'accordez cette autorisation que si l'extension ou l'application Android offre des garanties de sécurité suffisantes pour empêcher des pirates informatiques d'accéder à la clé.</translation>
 <translation id="7928412788382651939">Autoriser le regroupement des fenêtres d'aperçu de l'IA générative et améliorer les modèles d'IA.</translation>
+<translation id="7929417323335013269">Cette règle contrôle la technologie Krisp de suppression du bruit par IA sur l'appareil.
+Elle est intégrée en tant que bibliothèque tierce locale distincte dans <ph name="PRODUCT_OS_NAME" /> et n'est disponible que pour les utilisateurs gérés.
+
+Si cette règle est activée, le traitement audio Krisp avec suppression du bruit par IA est activé et les utilisateurs ne peuvent pas le désactiver.
+
+Si cette règle est désactivée ou qu'elle n'est pas configurée, le traitement audio Krisp avec suppression du bruit par IA est désactivé.</translation>
 <translation id="7930383470029339167">ThrottleDisplayNoneAndVisibilityHiddenCrossOriginIframes est une fonctionnalité Chrome conçue pour uniformiser le comportement d'affichage des iFrames multi-origines sur un ou plusieurs processus. Pour en savoir plus sur les différences entre la limitation sur un processus et sur plusieurs processus, consultez https://chromestatus.com/feature/5175574929080320.
 
 Cette règle d'entreprise permet aux administrateurs de contrôler si leurs utilisateurs peuvent activer ou non la limitation supplémentaire. Si cette règle est désactivée, elle empêche d'activer la limitation. Si cette règle est activée ou n'est pas configurée, la limitation peut être activée par l'utilisateur ou via les variantes de Chrome.</translation>
@@ -11056,22 +11046,6 @@ Cette fonctionnalité n'est disponible que dans la version Canary.
 
 Si elle est activée ou si elle n'est pas configurée, la page est accessible.
 Si elle est désactivée, la page est bloquée.</translation>
-<translation id="8264002158987842436">Cette règle permet de spécifier le nombre maximal de connexions simultanées au serveur proxy pour les requêtes non WebSocket.
-
-Pour modifier les limites de requêtes WebSocket, consultez <ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" />.
-
-Si cette règle n'est pas configurée, la valeur par défaut (32) est utilisée.
-
-Certaines applis Web sont connues pour utiliser de nombreuses connexions avec des requêtes GET en attente. Par conséquent, si vous définissez une valeur inférieure à 32, le réseau du navigateur risque de se bloquer si trop d'applis Web avec des connexions de ce type sont ouvertes.
-Toutefois, certains serveurs proxy ne peuvent pas gérer un nombre élevé de connexions simultanées par client. Pour résoudre ce problème, il suffit de définir cette règle sur une valeur inférieure.
-
-La valeur doit être supérieure ou égale à 6.
-Si vous définissez une valeur inférieure à cette limite, la valeur limite (6) sera utilisée.
-Utilisez une valeur inférieure à celle par défaut (32) à vos propres risques.
-
-La valeur doit être inférieure ou égale à 256 (99 dans <ph name="PRODUCT_NAME" /> 147 et versions antérieures).
-Si vous définissez une valeur supérieure à cette limite, la valeur limite (256, ou 99 dans <ph name="PRODUCT_NAME" /> 147 et versions antérieures) sera utilisée.
-Utilisez une valeur supérieure à celle par défaut (32) à vos propres risques.</translation>
 <translation id="8266778278542911985">Si cette règle est définie sur "3", les sites Web peuvent demander à accéder aux ports série. Si elle est définie sur "2", l'accès aux ports série est refusé.
 
       Si cette règle n'est pas configurée, les sites Web peuvent demander l'accès. Toutefois, les utilisateurs peuvent modifier ce paramètre.</translation>

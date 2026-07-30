@@ -174,20 +174,8 @@ enum class GlicTabPinnedForSharingResult {
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicTabPinnedForSharingResult)
 
-// The different states of active tab sharing.
-// LINT.IfChange(ActiveTabSharingState)
-enum class ActiveTabSharingState {
-  kActiveTabIsShared = 0,
-  kCannotShareActiveTab = 1,
-  kNoTabCanBeShared = 2,
-  kTabContextPermissionNotGranted = 3,
-  kMaxValue = kTabContextPermissionNotGranted
-};
-// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:ActiveTabSharingState)
-
 class GlicEnabling;
 class GlicSharingManager;
-class GlicWindowControllerInterface;
 
 namespace internal {
 class BrowserActivityObserver;
@@ -205,7 +193,6 @@ class GlicMetrics : public GlicInstanceMetricsBackwardsCompatibility {
     virtual bool IsWindowShowing() const = 0;
     virtual bool IsWindowAttached() const = 0;
     virtual content::WebContents* GetFocusedWebContents() = 0;
-    virtual ActiveTabSharingState GetActiveTabSharingState() = 0;
     virtual int32_t GetNumPinnedTabs() const = 0;
     virtual std::vector<content::WebContents*>
     GetPinnedAndSharedWebContents() = 0;
@@ -300,10 +287,8 @@ class GlicMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   // arbitrary tab.
   void LogGetContextForActorFromTabError(GlicGetContextFromTabError error);
 
-  // One of these three must be called immediately after constructor before any
+  // One of these must be called immediately after constructor before any
   // calls from glic.mojom.
-  void SetControllers(GlicWindowControllerInterface* window_controller,
-                      GlicSharingManager* sharing_manager);
   void SetControllersWithInstance(GlicInstance* glic_instance,
                                   GlicSharingManager* sharing_manager);
   void ClearControllers();
@@ -338,9 +323,6 @@ class GlicMetrics : public GlicInstanceMetricsBackwardsCompatibility {
 
   // Called when kGlicPinnedToTabstrip changes.
   void OnPinningPrefChanged();
-
-  // Called when kGlicTabContextEnabled changes.
-  void OnTabContextEnabledPrefChanged();
 
   // Records the time from startup until Glic was enabled for the profile.
   void RecordStartupEnablement();

@@ -32,7 +32,6 @@
 #include <memory>
 #include <utility>
 
-#include "base/memory/ptr_util.h"
 #include "third_party/blink/renderer/platform/audio/fft_frame.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
@@ -80,7 +79,7 @@ class HRTFKernel final {
   const float sample_rate_;
 };
 
-typedef Vector<std::unique_ptr<HRTFKernel>> HRTFKernelList;
+using HRTFKernelList = Vector<std::unique_ptr<HRTFKernel>>;
 
 }  // namespace blink
 

@@ -62,7 +62,7 @@ void ExtensionActionDelegateDesktop::DoTriggerPopup(
   // Only one popup should be visible at a time.
   extensions_container_->HideActivePopup();
 
-  extensions_container_->CloseOverflowMenuIfOpen();
+  extensions_container_->CloseExtensionsMenuIfOpen();
 
   popup_host_ = host.get();
   popup_host_observation_.Observe(popup_host_.get());
@@ -186,7 +186,7 @@ void ExtensionActionDelegateDesktop::HidePopup() {
   }
 }
 
-gfx::NativeView ExtensionActionDelegateDesktop::GetPopupNativeView() {
+gfx::NativeView ExtensionActionDelegateDesktop::GetPopupNativeViewForTesting() {
   return popup_host_ ? popup_host_->view()->GetNativeView() : gfx::NativeView();
 }
 
@@ -203,22 +203,13 @@ void ExtensionActionDelegateDesktop::ShowContextMenuAsFallback() {
   extensions_container_views_->ShowContextMenuAsFallback(model_->GetId());
 }
 
-bool ExtensionActionDelegateDesktop::CloseOverflowMenuIfOpen() {
-  return extensions_container_->CloseOverflowMenuIfOpen();
+void ExtensionActionDelegateDesktop::CloseExtensionsMenuIfOpen() {
+  extensions_container_->CloseExtensionsMenuIfOpen();
 }
 
 bool ExtensionActionDelegateDesktop::AcceleratorPressed(
     const ui::Accelerator& accelerator) {
-  DCHECK(model_->CanHandleAccelerators());
-
-  if (model_->IsShowingPopup()) {
-    model_->HidePopup();
-  } else {
-    model_->ExecuteUserAction(
-        ToolbarActionViewModel::InvocationSource::kCommand);
-  }
-
-  return true;
+  return model_->TryHandleAcceleratorPress();
 }
 
 bool ExtensionActionDelegateDesktop::CanHandleAccelerators() const {

@@ -75,6 +75,7 @@
 #include "third_party/blink/renderer/core/paint/pre_paint_disable_side_effects_scope.h"
 #include "third_party/blink/renderer/core/paint/svg_root_painter.h"
 #include "third_party/blink/renderer/core/paint/view_painter.h"
+#include "third_party/blink/renderer/core/resize_observer/resize_observer_utilities.h"
 #include "third_party/blink/renderer/core/style/computed_style_base_constants.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
 #include "third_party/blink/renderer/core/style/style_overflow_clip_margin.h"
@@ -1892,6 +1893,52 @@ FragmentPaintPropertyTreeBuilder::ParentForViewTransitionPseudoEffect() const {
   return scope_vt_effect->Parent();
 }
 
+static void PopulateCanvasChildPaintState(HTMLCanvasElement* canvas,
+                                          CanvasChildPaintState& paint_state) {
+  gfx::Size canvas_device_pixel_content_box =
+      ResizeObserverUtilities::ComputeSnappedDevicePixelContentBox(
+          LogicalSize(canvas->GetLayoutBox()->ContentLogicalWidth(),
+                      canvas->GetLayoutBox()->ContentLogicalHeight()),
+          *canvas->GetLayoutBox(), canvas->GetLayoutBox()->StyleRef());
+
+  PhysicalRect canvas_content_size;
+  if (auto* replaced = DynamicTo<LayoutReplaced>(canvas->GetLayoutBox())) {
+    canvas_content_size = replaced->ReplacedContentRect();
+  } else {
+    canvas_content_size = canvas->GetLayoutBox()->PhysicalContentBoxRect();
+  }
+
+  paint_state.canvas_content_size = gfx::SizeF(canvas_content_size.size);
+  paint_state.canvas_device_pixel_content_box = canvas_device_pixel_content_box;
+  paint_state.canvas_node_id = canvas->GetDomNodeId();
+}
+static void PopulateCanvasChildState(const LayoutObject& object,
+                                     EffectPaintPropertyNode::State& state) {
+  CHECK(IsA<LayoutBox>(object));
+  auto& canvas_fragment = object.Parent()->FirstFragment();
+  gfx::RectF reference_box(To<LayoutBox>(object).PhysicalBorderBoxRect());
+  gfx::Point3F transform_origin(
+      FloatValueForLength(object.StyleRef().GetTransformOrigin().X(),
+                          reference_box.width()),
+      FloatValueForLength(object.StyleRef().GetTransformOrigin().Y(),
+                          reference_box.height()),
+      object.StyleRef().GetTransformOrigin().Z());
+  state.canvas_child_state =
+      MakeGarbageCollected<EffectPaintPropertyNode::CanvasChildState>();
+  state.canvas_child_state->id = object.GetNode()->GetDomNodeId();
+  state.canvas_child_state->paint_state.effective_zoom =
+      object.StyleRef().EffectiveZoom();
+  state.canvas_child_state->paint_state.transform_origin = gfx::ScalePoint(
+      transform_origin, 1.0f / object.StyleRef().EffectiveZoom());
+  state.canvas_child_state->paint_state.box_size =
+      gfx::SizeF(To<LayoutBox>(object).StitchedSize());
+  PopulateCanvasChildPaintState(
+      To<HTMLCanvasElement>(object.Parent()->GetNode()),
+      state.canvas_child_state->paint_state);
+  state.canvas_child_state->content_effect = canvas_fragment.ContentsEffect();
+  state.canvas_child_state->content_clip = canvas_fragment.ContentsClip();
+}
+
 void FragmentPaintPropertyTreeBuilder::UpdateEffect() {
   DCHECK(properties_);
   // Since we're doing a full update, clear list of objects waiting for a
@@ -1988,13 +2035,7 @@ void FragmentPaintPropertyTreeBuilder::UpdateEffect() {
 
         if (state.direct_compositing_reasons &
             CompositingReason::kCanvasChild) {
-          CHECK(IsA<LayoutBox>(object_));
-          auto& canvas_fragment = object_.Parent()->FirstFragment();
-          state.canvas_child_state = {
-              object_.GetNode()->GetDomNodeId(),
-              gfx::SizeF(To<LayoutBox>(object_).StitchedSize()),
-              object_.StyleRef().EffectiveZoom(),
-              canvas_fragment.ContentsEffect(), canvas_fragment.ContentsClip()};
+          PopulateCanvasChildState(object_, state);
         }
       } else {
         // The effect node CompositorElementId is used to uniquely identify
@@ -3686,6 +3727,16 @@ void FragmentPaintPropertyTreeBuilder::SetNeedsPaintPropertyUpdateIfNeeded() {
     layer->UpdateFilterReferenceBox();
   }
 
+  if (!ClipPathClipper::ClipPathStatusResolved(object_)) {
+    // Being here means we cleared the update flag without setting status. This
+    // is a bug, though as long as we re-set the flag it shouldn't result in
+    // painting artifacts as early outs of the tree walk usually imply the
+    // object isn't painted. Do this now so CC clip paths can function properly.
+    // TODO(crbug.com/495205055): Remove this.
+    object_.GetMutableForPainting().SetOnlyThisNeedsPaintPropertyUpdate();
+    return;
+  }
+
   if (!object_.IsBox()) {
     // We could check the change of the clip-path bounding box, but checking
     // layout change is much simpler and good enough for the rare cases of
@@ -3759,6 +3810,21 @@ void FragmentPaintPropertyTreeBuilder::SetNeedsPaintPropertyUpdateIfNeeded() {
     DCHECK(box.HasLayer());
     box.Layer()->SetFilterOnEffectNodeDirty();
     box.GetMutableForPainting().SetOnlyThisNeedsPaintPropertyUpdate();
+  }
+
+  if (RuntimeEnabledFeatures::CanvasDrawElementEnabled()) {
+    const auto* canvas = DynamicTo<HTMLCanvasElement>(object_.GetNode());
+    if (canvas && canvas->layoutSubtree()) {
+      // Invalidate the child's paint properties so that its cached
+      // CanvasChildPaintState is updated with the new canvas size.
+      for (LayoutObject* child = object_.SlowFirstChild(); child;
+           child = child->NextSibling()) {
+        if (auto* child_box = DynamicTo<LayoutBox>(child)) {
+          child_box->GetMutableForPainting()
+              .SetOnlyThisNeedsPaintPropertyUpdate();
+        }
+      }
+    }
   }
 }
 
@@ -4610,7 +4676,7 @@ bool PaintPropertyTreeBuilder::CanDoDeferredOpacityNodeUpdate(
   // Descendant state depends on opacity being zero, so we can't do a direct
   // update if it changes
   bool old_opacity_is_zero = properties->Effect()->Opacity() == 0;
-  bool new_opacity_is_zero = object.Style()->Opacity() == 0;
+  bool new_opacity_is_zero = object.StyleRef().Opacity() == 0;
   if (old_opacity_is_zero != new_opacity_is_zero) {
     return false;
   }

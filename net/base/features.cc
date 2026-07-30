@@ -27,7 +27,7 @@ namespace net::features {
 BASE_FEATURE(kAlpsForHttp2, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAsyncRetryOnTooManyConnectionErrors,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAvoidH2Reprioritization, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -130,6 +130,9 @@ BASE_FEATURE(kSplitCodeCacheByNetworkIsolationKey,
 
 BASE_FEATURE(kPartitionConnectionsByNetworkIsolationKey,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSplitHostCacheByNetworkAnonymizationKey,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSearchEnginePreconnectInterval,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -756,6 +759,18 @@ BASE_FEATURE_PARAM(std::string,
                    "quic_options",
                    "");
 
+BASE_FEATURE(kIgnoreIpMatching, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(std::string,
+                   kNoIPQuicOption,
+                   &kIgnoreIpMatching,
+                   "noip_quic_option",
+                   "");
+BASE_FEATURE_PARAM(bool,
+                   kIgnoreIpMatchingWhenFindingExistingSessions,
+                   &kIgnoreIpMatching,
+                   "ignore_ip_matching_when_finding_existing_sessions",
+                   false);
+
 BASE_FEATURE(kDnsResponseDiscardPartialQuestions,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -787,7 +802,7 @@ BASE_FEATURE(kUseNSURLDataForGURLConversion, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_APPLE)
 
 BASE_FEATURE(kDrainSpdySessionSynchronouslyOnRemoteEndpointDisconnect,
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLogicalClearHttpCache, base::FEATURE_DISABLED_BY_DEFAULT);
 

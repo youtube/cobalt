@@ -4,9 +4,12 @@
 
 package org.chromium.chrome.browser.ui.extensions;
 
+import android.graphics.Bitmap;
+
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.content_public.browser.WebContents;
 
 /**
  * A collection of utility functions common to the extension UI.
@@ -35,5 +38,35 @@ public class ExtensionUi {
             return false;
         }
         return sBackend.isEnabled(profile);
+    }
+
+    /**
+     * Fetches the omnibox icon for a given extension ID.
+     *
+     * @param profile The current Profile.
+     * @param extensionId The extension ID.
+     * @return The extension's icon as a Bitmap, or null if not found.
+     */
+    public static @Nullable Bitmap getExtensionOmniboxIcon(Profile profile, String extensionId) {
+        if (sBackend == null) {
+            return null;
+        }
+        return sBackend.getExtensionOmniboxIcon(profile, extensionId);
+    }
+
+    /**
+     * Executes the extension match action.
+     *
+     * @param webContents The web contents.
+     * @param url The extension URL.
+     * @param openInNewTab Whether to open in a new tab.
+     * @param openInNewWindow Whether to open in a new window.
+     */
+    public static void onOmniboxExtensionInputEntered(
+            WebContents webContents, String url, boolean openInNewTab, boolean openInNewWindow) {
+        if (sBackend == null) {
+            return;
+        }
+        sBackend.onOmniboxExtensionInputEntered(webContents, url, openInNewTab, openInNewWindow);
     }
 }

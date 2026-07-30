@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/views/toolbar/webui_toolbar_web_view.h"
+#include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_ui.h"
 
 namespace {
 
@@ -67,6 +68,28 @@ ActionIdToPinnedToolbarAction(actions::ActionId action) {
       return toolbar_ui_api::mojom::PinnedToolbarAction::kDevTools;
     case kActionTabSearch:
       return toolbar_ui_api::mojom::PinnedToolbarAction::kTabSearch;
+    case kActionSidePanelShowContextualTasks:
+      return toolbar_ui_api::mojom::PinnedToolbarAction::
+          kSidePanelShowContextualTasks;
+    case kActionSidePanelShowLens:
+      return toolbar_ui_api::mojom::PinnedToolbarAction::kSidePanelShowLens;
+    case kActionSidePanelShowAboutThisSite:
+      return toolbar_ui_api::mojom::PinnedToolbarAction::
+          kSidePanelShowAboutThisSite;
+    case kActionSidePanelShowCustomizeChrome:
+      return toolbar_ui_api::mojom::PinnedToolbarAction::
+          kSidePanelShowCustomizeChrome;
+    case kActionSidePanelShowShoppingInsights:
+      return toolbar_ui_api::mojom::PinnedToolbarAction::
+          kSidePanelShowShoppingInsights;
+    case kActionSidePanelShowMerchantTrust:
+      return toolbar_ui_api::mojom::PinnedToolbarAction::
+          kSidePanelShowMerchantTrust;
+    case kActionSendSharedTabGroupFeedback:
+      return toolbar_ui_api::mojom::PinnedToolbarAction::
+          kSendSharedTabGroupFeedback;
+    case kActionSidePanelShowComments:
+      return toolbar_ui_api::mojom::PinnedToolbarAction::kSidePanelShowComments;
     default:
       return std::nullopt;
   }
@@ -119,6 +142,30 @@ std::optional<actions::ActionId> PinnedToolbarActionToActionId(
       return kActionDevTools;
     case toolbar_ui_api::mojom::PinnedToolbarAction::kTabSearch:
       return kActionTabSearch;
+    case toolbar_ui_api::mojom::PinnedToolbarAction::
+        kSidePanelShowContextualTasks:
+      return kActionSidePanelShowContextualTasks;
+    case toolbar_ui_api::mojom::PinnedToolbarAction::kSidePanelShowLens:
+      return kActionSidePanelShowLens;
+    case toolbar_ui_api::mojom::PinnedToolbarAction::
+        kSidePanelShowAboutThisSite:
+      return kActionSidePanelShowAboutThisSite;
+    case toolbar_ui_api::mojom::PinnedToolbarAction::
+        kSidePanelShowCustomizeChrome:
+      return kActionSidePanelShowCustomizeChrome;
+    case toolbar_ui_api::mojom::PinnedToolbarAction::
+        kSidePanelShowShoppingInsights:
+      return kActionSidePanelShowShoppingInsights;
+    case toolbar_ui_api::mojom::PinnedToolbarAction::
+        kSidePanelShowMerchantTrust:
+      return kActionSidePanelShowMerchantTrust;
+    case toolbar_ui_api::mojom::PinnedToolbarAction::
+        kSendSharedTabGroupFeedback:
+      return kActionSendSharedTabGroupFeedback;
+    case toolbar_ui_api::mojom::PinnedToolbarAction::kSidePanelShowComments:
+      return kActionSidePanelShowComments;
+    case toolbar_ui_api::mojom::PinnedToolbarAction::kDivider:
+      return std::nullopt;
   }
   return std::nullopt;
 }
@@ -168,12 +215,27 @@ void WebUIPinnedToolbarActions::OnActionsChanged() {
     state->action = *mojo_id;
     state->highlighted = highlighted;
     state->enabled = item->GetEnabled();
+    state->tooltip = item->GetTooltipText();
+    state->accessibility_text = item->GetAccessibleName();
+    auto element_id = element_ids_.find(id);
+    if (element_id != element_ids_.end()) {
+      state->element_id = element_id->second.GetName();
+    }
     states.push_back(std::move(state));
     processed_actions.insert(id);
   };
 
   for (actions::ActionId id : model_->PinnedActionIds()) {
-    add_state(id, /*highlighted=*/false);
+    add_state(id,
+              /*highlighted=*/std::ranges::contains(popped_out_actions_, id));
+  }
+
+  if (!states.empty()) {
+    auto state = toolbar_ui_api::mojom::PinnedToolbarActionState::New();
+    state->action = toolbar_ui_api::mojom::PinnedToolbarAction::kDivider;
+    state->highlighted = false;
+    state->enabled = true;
+    states.push_back(std::move(state));
   }
 
   for (actions::ActionId id : popped_out_actions_) {
@@ -213,7 +275,7 @@ bool WebUIPinnedToolbarActions::ShouldAnyButtonsOverflow(
 
 void WebUIPinnedToolbarActions::UpdateActionState(actions::ActionId id,
                                                   bool is_active) {
-  NOTIMPLEMENTED();
+  ShowActionEphemerallyInToolbar(id, is_active);
 }
 
 void WebUIPinnedToolbarActions::ShowActionEphemerallyInToolbar(
@@ -266,13 +328,21 @@ ToolbarButton* WebUIPinnedToolbarActions::GetCastButton() {
 views::BubbleAnchor WebUIPinnedToolbarActions::GetBubbleAnchor(
     actions::ActionId action_id) {
   NOTIMPLEMENTED();
-  return nullptr;
+  return views::BubbleAnchor();
 }
 
 void WebUIPinnedToolbarActions::SetActionElementIdentifier(
     actions::ActionId action_id,
     ui::ElementIdentifier element_id) {
-  NOTIMPLEMENTED();
+  if (element_id) {
+    const auto known_ids = WebUIToolbarUI::GetKnownElementIdentifiers();
+    CHECK(std::find(known_ids.begin(), known_ids.end(), element_id) !=
+          known_ids.end());
+    element_ids_[action_id] = element_id;
+  } else {
+    element_ids_.erase(action_id);
+  }
+  OnActionsChanged();
 }
 
 PinnedActionToolbarButton* WebUIPinnedToolbarActions::GetChromeLabsButton() {

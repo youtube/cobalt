@@ -1117,9 +1117,6 @@ const FeatureEntry::FeatureParam
         {kMobilePromoOnDesktopNotificationParam, "true"}};
 
 const FeatureEntry::FeatureVariation kMobilePromoOnDesktopVariations[] = {
-    {" - Lens Promo", kMobilePromoOnDesktopLens, nullptr},
-    {" - Lens Promo with push notification",
-     kMobilePromoOnDesktopLensNotification, nullptr},
     {" - ESB", kMobilePromoOnDesktopESB, nullptr},
     {" - ESB with push notification", kMobilePromoOnDesktopESBNotification,
      nullptr},
@@ -1129,6 +1126,9 @@ const FeatureEntry::FeatureVariation kMobilePromoOnDesktopVariations[] = {
 };
 
 const FeatureEntry::FeatureVariation kMobilePromoOnDesktopWave1Variations[] = {
+    {" - Lens Promo", kMobilePromoOnDesktopLens, nullptr},
+    {" - Lens Promo with push notification",
+     kMobilePromoOnDesktopLensNotification, nullptr},
     {" - Tab Groups", kMobilePromoOnDesktopTabGroups, nullptr},
     {" - Tab Groups with push notification",
      kMobilePromoOnDesktopTabGroupsNotification, nullptr},
@@ -1772,6 +1772,10 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"app-background-refresh-ios", flag_descriptions::kAppBackgroundRefreshName,
      flag_descriptions::kAppBackgroundRefreshDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kEnableAppBackgroundRefresh)},
+    {"autofill-support-date-input",
+     flag_descriptions::kAutofillSupportDateInputName,
+     flag_descriptions::kAutofillSupportDateInputDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kAutofillSupportDateInput)},
     {"autofill-across-iframes", flag_descriptions::kAutofillAcrossIframesName,
      flag_descriptions::kAutofillAcrossIframesDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(autofill::features::kAutofillAcrossIframesIos)},
@@ -2166,6 +2170,11 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kLensEnableSendUrlsInComposeboxesDescription,
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(lens::features::kLensSendUrlsInComposeboxes)},
+    {"lens-enable-raw-file-media-types",
+     flag_descriptions::kLensEnableSendRawFileMediaTypesName,
+     flag_descriptions::kLensEnableSendRawFileMediaTypesDescription,
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(lens::features::kLensSendRawFileMediaTypes)},
     {"lens-initial-lvf-zoom-level-90-percent",
      flag_descriptions::kLensInitialLvfZoomLevel90PercentName,
      flag_descriptions::kLensInitialLvfZoomLevel90PercentDescription,
@@ -2597,6 +2606,9 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"sync-account-settings", flag_descriptions::kSyncAccountSettingsName,
      flag_descriptions::kSyncAccountSettingsDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(syncer::kSyncAccountSettings)},
+    {"sync-autofill-valuable", flag_descriptions::kSyncAutofillValuableName,
+     flag_descriptions::kSyncAutofillValuableDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(syncer::kSyncAutofillValuable)},
     {"sync-autofill-valuable-metadata",
      flag_descriptions::kSyncAutofillValuableMetadataName,
      flag_descriptions::kSyncAutofillValuableMetadataDescription,
@@ -2624,6 +2636,10 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(
          autofill::features::kAutofillAiCreateEntityDataManager)},
+    {"autofill-ai-dedupe-entities",
+     flag_descriptions::kAutofillAiDedupeEntitiesName,
+     flag_descriptions::kAutofillAiDedupeEntitiesDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(autofill::features::kAutofillAiDedupeEntities)},
     {"autofill-ai-wallet-flight-reservation",
      flag_descriptions::kAutofillAiWalletFlightReservationName,
      flag_descriptions::kAutofillAiWalletFlightReservationDescription,
@@ -2730,6 +2746,13 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"ios-actor-tools", flag_descriptions::kIOSActorToolsName,
      flag_descriptions::kIOSActorToolsDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kActorTools)},
+    {"gemini-client-migration", flag_descriptions::kGeminiClientMigrationName,
+     flag_descriptions::kGeminiClientMigrationDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kGeminiClientMigration)},
+    {"ios-cobalt-developer-mode",
+     flag_descriptions::kIOSCobaltDeveloperModeName,
+     flag_descriptions::kIOSCobaltDeveloperModeDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(web::features::kIOSCobaltDeveloperMode)},
 });
 
 bool SkipConditionalFeatureEntry(const flags_ui::FeatureEntry& entry) {

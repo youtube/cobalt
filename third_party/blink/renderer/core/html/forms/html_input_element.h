@@ -66,8 +66,8 @@ class CORE_EXPORT HTMLInputElement
   ~HTMLInputElement() override;
   void Trace(Visitor*) const override;
 
-  HTMLElementType GetHTMLElementType() const final {
-    return HTMLElementType::kHTMLInputElement;
+  ElementType GetElementType() const final {
+    return ElementType::kHTMLInputElement;
   }
 
   bool HasPendingActivity() const final;
@@ -382,6 +382,7 @@ class CORE_EXPORT HTMLInputElement
 
   mojom::blink::FormControlType FormControlType() const final;
 
+  bool SupportsReadOnly() const override;
   bool isMutable();
   void showPicker(ExceptionState&);
   bool IsPickerVisible() const;

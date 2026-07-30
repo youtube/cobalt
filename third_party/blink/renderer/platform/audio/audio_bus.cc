@@ -34,8 +34,6 @@
 #include <algorithm>
 #include <array>
 #include <memory>
-#include <utility>
-
 #include "base/compiler_specific.h"
 #include "media/base/audio_bus.h"
 #include "third_party/blink/public/platform/platform.h"
@@ -50,7 +48,7 @@ namespace blink {
 using vector_math::Vadd;
 using vector_math::Vsma;
 
-const unsigned kMaxBusChannels = 32;
+constexpr unsigned kMaxBusChannels = 32;
 
 scoped_refptr<AudioBus> AudioBus::Create(unsigned number_of_channels,
                                          uint32_t length,

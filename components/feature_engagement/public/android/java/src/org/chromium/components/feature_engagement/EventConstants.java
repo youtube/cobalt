@@ -9,6 +9,7 @@ import org.chromium.build.annotations.NullMarked;
 /** EventConstants contains the String name of all in-product help events. */
 @NullMarked
 public final class EventConstants {
+    // EVENT_CONSTANTS_JAVA_CLASS_START
 
     /** AdaptiveButtonInTopToolbarCustomization add to bookmarks events. */
     public static final String ADAPTIVE_TOOLBAR_CUSTOMIZATION_ADD_TO_BOOKMARKS_OPENED =
@@ -49,6 +50,9 @@ public final class EventConstants {
 
     public static final String ADAPTIVE_TOOLBAR_PAGE_SUMMARY_WEB_USED =
             "adaptive_toolbar_page_summary_web_used";
+
+    /** A generic event that any startup promo should notify when it is shown. */
+    public static final String ANDROID_STARTUP_PROMO_SHOWN = "android_startup_promo_shown";
 
     /** Read later related events. */
     public static final String APP_MENU_BOOKMARK_STAR_ICON_PRESSED =
@@ -102,6 +106,9 @@ public final class EventConstants {
 
     /** User has used Ephemeral Tab i.e. opened and browsed the content. */
     public static final String EPHEMERAL_TAB_USED = "ephemeral_tab_used";
+
+    /** The user clicked on the extensions menu button in the toolbar. */
+    public static final String EXTENSIONS_MENU_BUTTON_CLICKED = "extensions_menu_button_clicked";
 
     /** The feed swipe refresh event. */
     public static final String FEED_SWIPE_REFRESHED = "feed_swipe_refresh_shown";
@@ -228,6 +235,10 @@ public final class EventConstants {
     /** Reengagement events. */
     public static final String STARTED_FROM_MAIN_INTENT = "started_from_main_intent";
 
+    /** Swipe on left edge for navigation used. */
+    public static final String SWIPE_ON_LEFT_EDGE_FOR_NAVIGATION_USED =
+            "swipe_on_left_edge_for_navigation_used";
+
     /** User has finished drop-to-merge to create a group. */
     public static final String TAB_DRAG_AND_DROP_TO_GROUP = "tab_drag_and_drop_to_group";
 
@@ -238,6 +249,9 @@ public final class EventConstants {
 
     public static final String TAB_SWITCHER_BUTTON_LONG_CLICKED =
             "tab_switcher_button_long_clicked";
+
+    public static final String THREE_DOT_MENU_BACK_BUTTON_CLICKED =
+            "three_dot_menu_back_button_clicked";
 
     /** The `Translate` app menu button was clicked. */
     public static final String TRANSLATE_MENU_BUTTON_CLICKED = "translate_menu_button_clicked";
@@ -252,6 +266,8 @@ public final class EventConstants {
      * User performed a web search for a query by choosing the Web Search option on the popup menu.
      */
     public static final String WEB_SEARCH_PERFORMED = "web_search_performed";
+
+    // EVENT_CONSTANTS_JAVA_CLASS_END
 
     /** Do not instantiate. */
     private EventConstants() {}

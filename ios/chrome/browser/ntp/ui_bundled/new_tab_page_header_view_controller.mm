@@ -59,6 +59,7 @@
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/common/ui/util/ui_util.h"
 #import "ios/chrome/grit/ios_strings.h"
+#import "ui/base/device_form_factor.h"
 #import "ui/base/l10n/l10n_util.h"
 
 using base::UserMetricsAction;
@@ -183,19 +184,45 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
                   (id<UIViewControllerTransitionCoordinator>)coordinator {
   [super willTransitionToTraitCollection:newCollection
                withTransitionCoordinator:coordinator];
-  void (^transition)(id<UIViewControllerTransitionCoordinatorContext>) =
-      ^(id<UIViewControllerTransitionCoordinatorContext> context) {
+
+  __weak __typeof(self) weakSelf = self;
+  const BOOL isSplitToolbarMode = IsSplitToolbarMode(newCollection);
+  const BOOL isTabletFormFactor =
+      ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET;
+
+  void (^transitionBlock)(id<UIViewControllerTransitionCoordinatorContext>) =
+      ^(id<UIViewControllerTransitionCoordinatorContext>) {
+        __strong __typeof(self) strongSelf = weakSelf;
+
+        if (!strongSelf) {
+          return;
+        }
+
+        if (IsChromeNextIaEnabled() && !isTabletFormFactor) {
+          [strongSelf updateToolsMenuButtonVisibility:isSplitToolbarMode];
+        }
+
         // Ensure omnibox is reset when not a regular tablet.
-        if (IsSplitToolbarMode(newCollection)) {
-          [self.toolbarDelegate setScrollProgressForTabletOmnibox:1];
+        if (isSplitToolbarMode) {
+          [strongSelf.toolbarDelegate setScrollProgressForTabletOmnibox:1];
         }
         // Fake Tap button only needs to work in portrait. Disable the button
         // in landscape because in landscape the button covers logoView (which
         // need to handle taps).
-        self.fakeTapButton.userInteractionEnabled = IsSplitToolbarMode(self);
+        strongSelf.fakeTapButton.userInteractionEnabled = isSplitToolbarMode;
       };
 
-  [coordinator animateAlongsideTransition:transition completion:nil];
+  void (^completionBlock)(id<UIViewControllerTransitionCoordinatorContext>) =
+      ^(id<UIViewControllerTransitionCoordinatorContext>) {
+        if (IsChromeNextIaEnabled() && !isTabletFormFactor) {
+          // Hide the tools menu button if it is no longer visible.
+          weakSelf.headerView.toolsMenuButton.hidden =
+              weakSelf.headerView.toolsMenuButton.alpha == 0.0;
+        }
+      };
+
+  [coordinator animateAlongsideTransition:transitionBlock
+                               completion:completionBlock];
 }
 
 - (void)dealloc {
@@ -346,6 +373,13 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
 
     [self addCustomizationMenu];
 
+    if (IsChromeNextIaEnabled() &&
+        ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_TABLET) {
+      // Add the tools menu to the NTP header if it is not visible in the
+      // toolbar.
+      [self addToolsMenu];
+    }
+
     UIEdgeInsets safeAreaInsets = self.baseViewController.view.safeAreaInsets;
     width = std::max<CGFloat>(
         0, width - safeAreaInsets.left - safeAreaInsets.right);
@@ -422,373 +456,6 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
 
 - (UIView*)fakeboxButtonsSnapshot {
   return [self.headerView fakeboxButtonsSnapshot];
-}
-
-#pragma mark - Private
-
-// Initialize and add a search field tap target and a voice search button.
-- (void)addFakeOmnibox {
-  self.fakeOmnibox = [[UIView alloc] init];
-
-  // Set isAccessibilityElement to NO so that Voice Search button is accessible.
-  [self.fakeOmnibox setIsAccessibilityElement:NO];
-  self.fakeOmnibox.accessibilityIdentifier =
-      ntp_home::FakeOmniboxAccessibilityID();
-
-  // Set a button the same size as the fake omnibox as the accessibility
-  // element. If the hint is the only accessible element, when the fake omnibox
-  // is taking the full width, there are few points that are not accessible and
-  // allow to select the content below it.
-  self.accessibilityButton = [[UIButton alloc] init];
-  [self.accessibilityButton addTarget:self
-                               action:@selector(fakeboxTapped)
-                     forControlEvents:UIControlEventTouchUpInside];
-  // Because the visual fakebox background is implemented within
-  // NewTabPageHeaderView, KVO the highlight events of
-  // `accessibilityButton` and pass them along.
-  [self.accessibilityButton addObserver:self
-                             forKeyPath:@"highlighted"
-                                options:NSKeyValueObservingOptionNew
-                                context:NULL];
-
-  CGFloat fakeOmniboxHeight = content_suggestions::FakeOmniboxHeight();
-  self.accessibilityButton.layer.cornerRadius =
-      (fakeOmniboxHeight - kFakeLocationBarHeightMargin) / 2;
-  self.accessibilityButton.clipsToBounds = YES;
-  self.accessibilityButton.isAccessibilityElement = YES;
-  self.accessibilityButton.accessibilityLabel = self.placeholderText;
-  self.accessibilityButton.accessibilityIdentifier =
-      kNTPFakeOmniboxAccessibilityButton;
-  [self.fakeOmnibox addSubview:self.accessibilityButton];
-  self.accessibilityButton.translatesAutoresizingMaskIntoConstraints = NO;
-  AddSameConstraints(self.fakeOmnibox, self.accessibilityButton);
-
-  [self.fakeOmnibox
-      addInteraction:[[UIPointerInteraction alloc] initWithDelegate:self]];
-
-  [self.headerView addViewsToSearchField:self.fakeOmnibox];
-  if (_dseLogo) {
-    [self.headerView setDefaultSearchEngineLogo:_dseLogo];
-  }
-
-  UIIndirectScribbleInteraction* scribbleInteraction =
-      [[UIIndirectScribbleInteraction alloc] initWithDelegate:self];
-  [self.fakeOmnibox addInteraction:scribbleInteraction];
-
-  if (self.headerView.lensButton) {
-    [self.layoutGuideCenter referenceView:self.headerView.lensButton
-                                underName:kFakeboxLensIconGuide];
-  }
-
-  [self updateVoiceSearchDisplay];
-}
-
-// On NTP in split toolbar mode the omnibox has different location (in the
-// middle of the screen), but the users have muscle memory and still tap on area
-// where omnibox is normally placed (the top area of NTP). Fake Tap Button is
-// located in the same position where omnibox is normally placed and focuses the
-// omnibox when tapped. Fake Tap Button user interactions are only enabled in
-// split toolbar mode.
-- (void)addFakeTapView {
-  UIView* toolbar = [[UIView alloc] init];
-  toolbar.translatesAutoresizingMaskIntoConstraints = NO;
-  self.fakeTapButton = [[UIButton alloc] init];
-  self.fakeTapButton.userInteractionEnabled = IsSplitToolbarMode(self);
-  self.fakeTapButton.isAccessibilityElement = NO;
-  self.fakeTapButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [toolbar addSubview:self.fakeTapButton];
-  [self.headerView addToolbarView:toolbar];
-  [self.fakeTapButton addTarget:self
-                         action:@selector(fakeTapViewTapped)
-               forControlEvents:UIControlEventTouchUpInside];
-  AddSameConstraints(self.fakeTapButton, toolbar);
-}
-
-- (void)addIdentityDisc {
-  // Set up a button. Details for the button will be set through delegate
-  // implementation of UserAccountImageUpdateDelegate.
-  self.identityDiscButton = [UIButton buttonWithType:UIButtonTypeCustom];
-  self.identityDiscButton.accessibilityIdentifier = kNTPFeedHeaderIdentityDisc;
-  [self.identityDiscButton addTarget:self.commandHandler
-                              action:@selector(identityDiscWasTapped:)
-                    forControlEvents:UIControlEventTouchUpInside];
-  self.identityDiscButton.pointerInteractionEnabled = YES;
-  self.identityDiscButton.pointerStyleProvider =
-      ^UIPointerStyle*(UIButton* button, UIPointerEffect* proposedEffect,
-                       UIPointerShape* proposedShape) {
-        // The identity disc button is oversized to the avatar image to meet the
-        // minimum touch target dimensions. The hover pointer effect should
-        // match the avatar image dimensions, not the button dimensions.
-        CGFloat singleInset =
-            (button.frame.size.width - ntp_home::kIdentityAvatarDimension) / 2;
-        CGRect rect = CGRectInset(button.frame, singleInset, singleInset);
-        UIPointerShape* shape =
-            [UIPointerShape shapeWithRoundedRect:rect
-                                    cornerRadius:rect.size.width / 2];
-        return [UIPointerStyle styleWithEffect:proposedEffect shape:shape];
-      };
-
-  // `self.identityDiscButton` should not be updated if `self.identityDiscImage`
-  // is not available yet.
-  if (self.identityDiscImage) {
-    [self updateIdentityDiscState];
-  }
-  [self.headerView setIdentityDiscView:self.identityDiscButton];
-
-  [self.layoutGuideCenter referenceView:self.identityDiscButton
-                              underName:kNTPIdentityDiscButtonGuide];
-
-  _identityDiscWidthConstraint =
-      [self.identityDiscButton.widthAnchor constraintEqualToConstant:0];
-  _identityDiscHeightConstraint =
-      [self.identityDiscButton.heightAnchor constraintEqualToConstant:0];
-  _identityDiscTrailingConstraint = [self.identityDiscButton.trailingAnchor
-      constraintEqualToAnchor:self.headerView.safeAreaLayoutGuide.trailingAnchor
-                     constant:0];
-  _identityDiscTrailingConstraint.active = YES;
-  _identityDiscCapsuleWidthConstraint = [self.identityDiscButton.widthAnchor
-      constraintGreaterThanOrEqualToAnchor:self.identityDiscButton.heightAnchor
-                                multiplier:2.0];
-
-  // Initially set the constraints of the identity disc.
-  [self updateIdentityDiscConstraints];
-
-  if (_hasAccountError) {
-    // updateADPBadgeWithErrorFound was invoked before the view was created.
-    [self.headerView setIdentityDiscErrorBadge];
-  }
-}
-
-// Creates the Home customization menu and adds it to the header view.
-- (void)addCustomizationMenu {
-  UIButton* customizationMenuButton =
-      [[ExtendedTouchTargetButton alloc] initWithFrame:CGRectZero];
-
-  if (!IsNTPBackgroundCustomizationEnabled()) {
-    UIImage* icon = DefaultSymbolTemplateWithPointSize(
-        kPencilSymbol,
-        ntp_home::kCustomizationMenuIconSizeWhenSignInButtonHasNoAvatar);
-    [customizationMenuButton setImage:icon forState:UIControlStateNormal];
-    customizationMenuButton.backgroundColor =
-        [self defaultButtonBackgroundColor];
-
-    UIColor* tintColor = [UIColor colorNamed:kBlue600Color];
-    customizationMenuButton.tintColor = tintColor;
-
-    customizationMenuButton.layer.cornerRadius =
-        ntp_home::kCustomizationMenuButtonCornerRadius;
-    customizationMenuButton.clipsToBounds = YES;
-  }
-
-  customizationMenuButton.accessibilityIdentifier =
-      kNTPCustomizationMenuButtonIdentifier;
-  customizationMenuButton.accessibilityLabel =
-      l10n_util::GetNSString(IDS_IOS_HOME_CUSTOMIZATION_ACCESSIBILITY_LABEL);
-
-  [customizationMenuButton addTarget:self.commandHandler
-                              action:@selector(customizationMenuWasTapped:)
-                    forControlEvents:UIControlEventTouchUpInside];
-
-  [self.headerView setCustomizationMenuButton:customizationMenuButton
-                                 withNewBadge:_useNewBadgeForCustomizationMenu];
-}
-
-// Configures `identityDiscButton` with the current state of
-// `identityDiscImage`.
-- (void)updateIdentityDiscState {
-  DCHECK(self.identityDiscImage);
-  DCHECK(self.identityDiscAccessibilityLabel);
-
-  UIButton* button = self.identityDiscButton;
-
-  button.accessibilityLabel = self.identityDiscAccessibilityLabel;
-  button.clipsToBounds = YES;
-
-  if (self.isSignedIn) {
-    UIImage* image = self.identityDiscImage;
-    button.configuration = nil;
-    [button setImage:image forState:UIControlStateNormal];
-    button.backgroundColor = nil;
-    button.imageView.layer.cornerRadius = image.size.width / 2;
-    button.imageView.layer.masksToBounds = YES;
-    button.layer.cornerRadius = image.size.width;
-    return;
-  }
-
-  // Other configuration uses UIButtonConfiguration, not this property.
-  button.layer.cornerRadius = 0;
-
-  if (!IsNTPBackgroundCustomizationEnabled()) {
-    [button setImage:nil forState:UIControlStateNormal];
-    UIButtonConfiguration* buttonConfiguration =
-        [UIButtonConfiguration plainButtonConfiguration];
-    buttonConfiguration.background.backgroundColor =
-        [self defaultButtonBackgroundColor];
-    NSDictionary* attributes = @{
-      NSFontAttributeName : PreferredFontForTextStyle(
-          UIFontTextStyleSubheadline, UIFontWeightSemibold,
-          kIdentityDiscMaxFontSize),
-      NSForegroundColorAttributeName : [UIColor colorNamed:kBlue600Color],
-    };
-    buttonConfiguration.attributedTitle = [[NSAttributedString alloc]
-        initWithString:l10n_util::GetNSString(IDS_IOS_SIGNIN_BUTTON_TEXT)
-            attributes:attributes];
-    buttonConfiguration.cornerStyle = UIButtonConfigurationCornerStyleCapsule;
-    buttonConfiguration.contentInsets = NSDirectionalEdgeInsetsMake(
-        kPillVerticalPadding, kPillHorizontalPadding, kPillVerticalPadding,
-        kPillHorizontalPadding);
-    button.configuration = buttonConfiguration;
-    return;
-  }
-
-  [button setImage:nil forState:UIControlStateNormal];
-
-  UIButtonConfiguration* buttonConfiguration =
-      [UIButtonConfiguration plainButtonConfiguration];
-  UIColor* foregroundColor;
-  if ([self.traitCollection boolForNewTabPageImageBackgroundTrait]) {
-    UIVisualEffect* blurEffect =
-        [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemMaterial];
-    UIVisualEffectView* blurBackgroundView =
-        [[UIVisualEffectView alloc] initWithEffect:blurEffect];
-    buttonConfiguration.background.customView = blurBackgroundView;
-
-    foregroundColor = [UIColor colorNamed:kTextPrimaryColor];
-  } else {
-    NewTabPageColorPalette* colorPalette =
-        [self.traitCollection objectForNewTabPageTrait];
-    foregroundColor = colorPalette ? colorPalette.tintColor
-                                   : [UIColor colorNamed:kBlue600Color];
-
-    UIColor* backgroundColor = colorPalette
-                                   ? colorPalette.headerButtonColor
-                                   : [self defaultButtonBackgroundColor];
-    buttonConfiguration.background.backgroundColor = backgroundColor;
-  }
-
-  buttonConfiguration.cornerStyle = UIButtonConfigurationCornerStyleCapsule;
-  buttonConfiguration.contentInsets =
-      NSDirectionalEdgeInsetsMake(kPillVerticalPadding, kPillHorizontalPadding,
-                                  kPillVerticalPadding, kPillHorizontalPadding);
-
-  NSDictionary* attributes = @{
-    NSFontAttributeName : PreferredFontForTextStyle(UIFontTextStyleSubheadline,
-                                                    UIFontWeightSemibold,
-                                                    kIdentityDiscMaxFontSize),
-    NSForegroundColorAttributeName : foregroundColor,
-  };
-  buttonConfiguration.attributedTitle = [[NSAttributedString alloc]
-      initWithString:l10n_util::GetNSString(IDS_IOS_SIGNIN_BUTTON_TEXT)
-          attributes:attributes];
-
-  button.configuration = buttonConfiguration;
-}
-
-- (void)fakeTapViewTapped {
-  [self.NTPMetricsRecorder recordFakeTapViewTapped];
-  [self.commandHandler fakeboxTapped];
-}
-
-- (void)fakeboxTapped {
-  [self.NTPMetricsRecorder recordFakeOmniboxTapped];
-  TriggerHapticFeedbackForSelectionChange();
-  [self.commandHandler fakeboxTapped];
-}
-
-- (void)focusAccessibilityOnOmnibox {
-  UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification,
-                                  self.fakeOmnibox);
-}
-
-- (void)observeValueForKeyPath:(NSString*)keyPath
-                      ofObject:(id)object
-                        change:(NSDictionary*)change
-                       context:(void*)context {
-  if ([@"highlighted" isEqualToString:keyPath]) {
-    [self.headerView setFakeboxHighlighted:[object isHighlighted]];
-  }
-}
-
-// If display is compact size, shows fakebox. If display is regular size,
-// shows fakebox if the logo is visible and hides otherwise
-- (void)updateFakeboxDisplay {
-  self.doodleTopMarginConstraint.constant =
-      content_suggestions::DoodleTopMargin(_searchEngineLogoState,
-                                           self.traitCollection);
-  [self.doodleHeightConstraint
-      setConstant:content_suggestions::DoodleHeight(_searchEngineLogoState,
-                                                    self.traitCollection)];
-  self.fakeOmnibox.hidden =
-      CanShowTabStrip(self) &&
-      (_searchEngineLogoState == SearchEngineLogoState::kNone);
-  [self.headerView layoutIfNeeded];
-  self.headerViewHeightConstraint.constant =
-      content_suggestions::HeightForLogoHeader(_searchEngineLogoState,
-                                               self.traitCollection);
-}
-
-// Ensures the state of the Voice Search button matches whether or not it's
-// enabled. If it's not, disables the button and removes it from the a11y loop
-// for VoiceOver.
-- (void)updateVoiceSearchDisplay {
-  self.headerView.voiceSearchButton.enabled = self.voiceSearchIsEnabled;
-  self.headerView.voiceSearchButton.isAccessibilityElement =
-      self.voiceSearchIsEnabled;
-}
-
-// Adds the constraints for the `logoView`, the `fakeomnibox` related to the
-// `headerView`. It also sets the properties constraints related to those views.
-- (void)addConstraintsForLogoView:(UIView*)logoView
-                      fakeOmnibox:(UIView*)fakeOmnibox
-                    andHeaderView:(UIView*)headerView {
-  self.doodleTopMarginConstraint = [logoView.topAnchor
-      constraintEqualToAnchor:headerView.topAnchor
-                     constant:content_suggestions::DoodleTopMargin(
-                                  _searchEngineLogoState,
-                                  self.traitCollection)];
-  self.doodleHeightConstraint = [logoView.heightAnchor
-      constraintEqualToConstant:content_suggestions::DoodleHeight(
-                                    _searchEngineLogoState,
-                                    self.traitCollection)];
-  self.fakeOmniboxHeightConstraint = [fakeOmnibox.heightAnchor
-      constraintEqualToConstant:content_suggestions::FakeOmniboxHeight()];
-  self.fakeOmniboxTopMarginConstraint = [logoView.bottomAnchor
-      constraintEqualToAnchor:fakeOmnibox.topAnchor
-                     constant:-content_suggestions::SearchFieldTopMargin(
-                                  _searchEngineLogoState)];
-  self.headerViewHeightConstraint =
-      [headerView.heightAnchor constraintEqualToConstant:[self headerHeight]];
-  self.headerViewHeightConstraint.active = YES;
-  self.doodleTopMarginConstraint.active = YES;
-  self.doodleHeightConstraint.active = YES;
-  self.fakeOmniboxWidthConstraint.active = YES;
-  self.fakeOmniboxHeightConstraint.active = YES;
-  self.fakeOmniboxTopMarginConstraint.active = YES;
-  [logoView.widthAnchor constraintEqualToAnchor:headerView.widthAnchor].active =
-      YES;
-  [logoView.leadingAnchor constraintEqualToAnchor:headerView.leadingAnchor]
-      .active = YES;
-  [fakeOmnibox.centerXAnchor constraintEqualToAnchor:headerView.centerXAnchor]
-      .active = YES;
-}
-
-// Updates opacity of doodle for scroll position, preventing it from showing
-// within the safe area insets.
-- (void)updateLogoForOffset:(CGFloat)offset {
-  _searchEngineLogoMediator.view.alpha =
-      std::max(1 - [self.headerView searchFieldProgressForOffset:offset], 0.0);
-}
-
-- (void)maybeShowSwitchAccountsIPH {
-  if (!_isSignedIn) {
-    return;
-  }
-
-  // Note: BubblePresenter will take care to only show the bubble if the page is
-  // scrolled to the top.
-  [self.helpHandler
-      presentInProductHelpWithType:
-          InProductHelpType::kSwitchAccountsWithNTPAccountParticleDisc];
 }
 
 #pragma mark - UIIndirectScribbleInteractionDelegate
@@ -997,6 +664,424 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
 }
 
 #pragma mark - Private
+
+// Initialize and add a search field tap target and a voice search button.
+- (void)addFakeOmnibox {
+  self.fakeOmnibox = [[UIView alloc] init];
+
+  // Set isAccessibilityElement to NO so that Voice Search button is accessible.
+  [self.fakeOmnibox setIsAccessibilityElement:NO];
+  self.fakeOmnibox.accessibilityIdentifier =
+      ntp_home::FakeOmniboxAccessibilityID();
+
+  // Set a button the same size as the fake omnibox as the accessibility
+  // element. If the hint is the only accessible element, when the fake omnibox
+  // is taking the full width, there are few points that are not accessible and
+  // allow to select the content below it.
+  self.accessibilityButton = [[UIButton alloc] init];
+  [self.accessibilityButton addTarget:self
+                               action:@selector(fakeboxTapped)
+                     forControlEvents:UIControlEventTouchUpInside];
+  // Because the visual fakebox background is implemented within
+  // NewTabPageHeaderView, KVO the highlight events of
+  // `accessibilityButton` and pass them along.
+  [self.accessibilityButton addObserver:self
+                             forKeyPath:@"highlighted"
+                                options:NSKeyValueObservingOptionNew
+                                context:NULL];
+
+  CGFloat fakeOmniboxHeight = content_suggestions::FakeOmniboxHeight();
+  self.accessibilityButton.layer.cornerRadius =
+      (fakeOmniboxHeight - kFakeLocationBarHeightMargin) / 2;
+  self.accessibilityButton.clipsToBounds = YES;
+  self.accessibilityButton.isAccessibilityElement = YES;
+  self.accessibilityButton.accessibilityLabel = self.placeholderText;
+  self.accessibilityButton.accessibilityIdentifier =
+      kNTPFakeOmniboxAccessibilityButton;
+  [self.fakeOmnibox addSubview:self.accessibilityButton];
+  self.accessibilityButton.translatesAutoresizingMaskIntoConstraints = NO;
+  AddSameConstraints(self.fakeOmnibox, self.accessibilityButton);
+
+  [self.fakeOmnibox
+      addInteraction:[[UIPointerInteraction alloc] initWithDelegate:self]];
+
+  [self.headerView addViewsToSearchField:self.fakeOmnibox];
+  if (_dseLogo) {
+    [self.headerView setDefaultSearchEngineLogo:_dseLogo];
+  }
+
+  UIIndirectScribbleInteraction* scribbleInteraction =
+      [[UIIndirectScribbleInteraction alloc] initWithDelegate:self];
+  [self.fakeOmnibox addInteraction:scribbleInteraction];
+
+  if (self.headerView.lensButton) {
+    [self.layoutGuideCenter referenceView:self.headerView.lensButton
+                                underName:kFakeboxLensIconGuide];
+  }
+
+  [self updateVoiceSearchDisplay];
+}
+
+// On NTP in split toolbar mode the omnibox has different location (in the
+// middle of the screen), but the users have muscle memory and still tap on area
+// where omnibox is normally placed (the top area of NTP). Fake Tap Button is
+// located in the same position where omnibox is normally placed and focuses the
+// omnibox when tapped. Fake Tap Button user interactions are only enabled in
+// split toolbar mode.
+- (void)addFakeTapView {
+  UIView* toolbar = [[UIView alloc] init];
+  toolbar.translatesAutoresizingMaskIntoConstraints = NO;
+  self.fakeTapButton = [[UIButton alloc] init];
+  self.fakeTapButton.userInteractionEnabled = IsSplitToolbarMode(self);
+  self.fakeTapButton.isAccessibilityElement = NO;
+  self.fakeTapButton.translatesAutoresizingMaskIntoConstraints = NO;
+  [toolbar addSubview:self.fakeTapButton];
+  [self.headerView addToolbarView:toolbar];
+  [self.fakeTapButton addTarget:self
+                         action:@selector(fakeTapViewTapped)
+               forControlEvents:UIControlEventTouchUpInside];
+  AddSameConstraints(self.fakeTapButton, toolbar);
+}
+
+- (void)addIdentityDisc {
+  // Set up a button. Details for the button will be set through delegate
+  // implementation of UserAccountImageUpdateDelegate.
+  self.identityDiscButton = [UIButton buttonWithType:UIButtonTypeCustom];
+  self.identityDiscButton.accessibilityIdentifier = kNTPFeedHeaderIdentityDisc;
+  [self.identityDiscButton addTarget:self.commandHandler
+                              action:@selector(identityDiscWasTapped:)
+                    forControlEvents:UIControlEventTouchUpInside];
+  self.identityDiscButton.pointerInteractionEnabled = YES;
+  self.identityDiscButton.pointerStyleProvider =
+      ^UIPointerStyle*(UIButton* button, UIPointerEffect* proposedEffect,
+                       UIPointerShape* proposedShape) {
+        // The identity disc button is oversized to the avatar image to meet the
+        // minimum touch target dimensions. The hover pointer effect should
+        // match the avatar image dimensions, not the button dimensions.
+        CGFloat singleInset =
+            (button.frame.size.width - ntp_home::kIdentityAvatarDimension) / 2;
+        CGRect rect = CGRectInset(button.frame, singleInset, singleInset);
+        UIPointerShape* shape =
+            [UIPointerShape shapeWithRoundedRect:rect
+                                    cornerRadius:rect.size.width / 2];
+        return [UIPointerStyle styleWithEffect:proposedEffect shape:shape];
+      };
+
+  // `self.identityDiscButton` should not be updated if `self.identityDiscImage`
+  // is not available yet.
+  if (self.identityDiscImage) {
+    [self updateIdentityDiscState];
+  }
+  [self.headerView setIdentityDiscView:self.identityDiscButton];
+
+  [self.layoutGuideCenter referenceView:self.identityDiscButton
+                              underName:kNTPIdentityDiscButtonGuide];
+
+  _identityDiscWidthConstraint =
+      [self.identityDiscButton.widthAnchor constraintEqualToConstant:0];
+  _identityDiscHeightConstraint =
+      [self.identityDiscButton.heightAnchor constraintEqualToConstant:0];
+  _identityDiscTrailingConstraint = [self.identityDiscButton.trailingAnchor
+      constraintEqualToAnchor:self.headerView.safeAreaLayoutGuide.trailingAnchor
+                     constant:0];
+  _identityDiscTrailingConstraint.active = YES;
+  _identityDiscCapsuleWidthConstraint = [self.identityDiscButton.widthAnchor
+      constraintGreaterThanOrEqualToAnchor:self.identityDiscButton.heightAnchor
+                                multiplier:2.0];
+
+  // Initially set the constraints of the identity disc.
+  [self updateIdentityDiscConstraints];
+
+  if (_hasAccountError) {
+    // updateADPBadgeWithErrorFound was invoked before the view was created.
+    [self.headerView setIdentityDiscErrorBadge];
+  }
+}
+
+// Creates the Home customization menu and adds it to the header view.
+- (void)addCustomizationMenu {
+  UIButton* customizationMenuButton =
+      [[ExtendedTouchTargetButton alloc] initWithFrame:CGRectZero];
+
+  if (!IsNTPBackgroundCustomizationEnabled()) {
+    UIImage* icon = DefaultSymbolTemplateWithPointSize(
+        kPencilSymbol, ntp_home::kNTPMenuButtonIconSize);
+    [customizationMenuButton setImage:icon forState:UIControlStateNormal];
+    customizationMenuButton.backgroundColor =
+        [self defaultButtonBackgroundColor];
+
+    UIColor* tintColor = [UIColor colorNamed:kBlue600Color];
+    customizationMenuButton.tintColor = tintColor;
+
+    customizationMenuButton.layer.cornerRadius =
+        ntp_home::kNTPMenuButtonCornerRadius;
+    customizationMenuButton.clipsToBounds = YES;
+  }
+
+  customizationMenuButton.accessibilityIdentifier =
+      kNTPCustomizationMenuButtonIdentifier;
+  customizationMenuButton.accessibilityLabel =
+      l10n_util::GetNSString(IDS_IOS_HOME_CUSTOMIZATION_ACCESSIBILITY_LABEL);
+
+  [customizationMenuButton addTarget:self.commandHandler
+                              action:@selector(customizationMenuWasTapped:)
+                    forControlEvents:UIControlEventTouchUpInside];
+
+  [self.headerView setCustomizationMenuButton:customizationMenuButton
+                                 withNewBadge:_useNewBadgeForCustomizationMenu];
+}
+
+// Creates the Tools menu and adds it to the header view.
+- (void)addToolsMenu {
+  CHECK(IsChromeNextIaEnabled());
+  CHECK_NE(ui::GetDeviceFormFactor(), ui::DEVICE_FORM_FACTOR_TABLET);
+
+  UIButton* toolsMenuButton =
+      [[ExtendedTouchTargetButton alloc] initWithFrame:CGRectZero];
+
+  if (!IsNTPBackgroundCustomizationEnabled()) {
+    UIImage* icon = DefaultSymbolTemplateWithPointSize(
+        kEllipsisSymbol, ntp_home::kNTPMenuButtonIconSize);
+    [toolsMenuButton setImage:icon forState:UIControlStateNormal];
+    toolsMenuButton.backgroundColor = [self defaultButtonBackgroundColor];
+
+    UIColor* tintColor = [UIColor colorNamed:kBlue600Color];
+    toolsMenuButton.tintColor = tintColor;
+    toolsMenuButton.layer.cornerRadius = ntp_home::kNTPMenuButtonCornerRadius;
+    toolsMenuButton.clipsToBounds = YES;
+  }
+
+  toolsMenuButton.accessibilityIdentifier = kNTPToolsMenuButtonIdentifier;
+  toolsMenuButton.accessibilityLabel =
+      l10n_util::GetNSString(IDS_IOS_TOOLS_MENU);
+
+  [toolsMenuButton addTarget:self.commandHandler
+                      action:@selector(toolsMenuWasTapped:)
+            forControlEvents:UIControlEventTouchUpInside];
+
+  // Set initial button visibility. Visible in iPhone portrait, otherwise
+  // invisible.
+  BOOL isSplitToolbarMode = IsSplitToolbarMode(self);
+  toolsMenuButton.hidden = !isSplitToolbarMode;
+  toolsMenuButton.alpha = isSplitToolbarMode ? 1.0 : 0.0;
+
+  self.headerView.toolsMenuButton = toolsMenuButton;
+}
+
+// Helper for `-[willTransitionToTraitCollection:withTransitionCoordinator:]`.
+// Updates the visibility of the tools menu button in the header view. The
+// `hidden` property of the `toolsMenuButton` should be updated according after
+// using this helper to fade the button in/out of view.
+- (void)updateToolsMenuButtonVisibility:(BOOL)visibility {
+  CHECK(IsChromeNextIaEnabled());
+  CHECK_NE(ui::GetDeviceFormFactor(), ui::DEVICE_FORM_FACTOR_TABLET);
+
+  if (!self.headerView.toolsMenuButton) {
+    return;
+  }
+
+  // Unhide the tools menu button before fading it in/out of view.
+  self.headerView.toolsMenuButton.hidden = NO;
+  self.headerView.toolsMenuButton.alpha = visibility ? 1.0 : 0.0;
+}
+
+// Configures `identityDiscButton` with the current state of
+// `identityDiscImage`.
+- (void)updateIdentityDiscState {
+  DCHECK(self.identityDiscImage);
+  DCHECK(self.identityDiscAccessibilityLabel);
+
+  UIButton* button = self.identityDiscButton;
+
+  button.accessibilityLabel = self.identityDiscAccessibilityLabel;
+  button.clipsToBounds = YES;
+
+  if (self.isSignedIn) {
+    UIImage* image = self.identityDiscImage;
+    button.configuration = nil;
+    [button setImage:image forState:UIControlStateNormal];
+    button.backgroundColor = nil;
+    button.imageView.layer.cornerRadius = image.size.width / 2;
+    button.imageView.layer.masksToBounds = YES;
+    button.layer.cornerRadius = image.size.width;
+    return;
+  }
+
+  // Other configuration uses UIButtonConfiguration, not this property.
+  button.layer.cornerRadius = 0;
+
+  if (!IsNTPBackgroundCustomizationEnabled()) {
+    [button setImage:nil forState:UIControlStateNormal];
+    UIButtonConfiguration* buttonConfiguration =
+        [UIButtonConfiguration plainButtonConfiguration];
+    buttonConfiguration.background.backgroundColor =
+        [self defaultButtonBackgroundColor];
+    NSDictionary* attributes = @{
+      NSFontAttributeName : PreferredFontForTextStyle(
+          UIFontTextStyleSubheadline, UIFontWeightSemibold,
+          kIdentityDiscMaxFontSize),
+      NSForegroundColorAttributeName : [UIColor colorNamed:kBlue600Color],
+    };
+    buttonConfiguration.attributedTitle = [[NSAttributedString alloc]
+        initWithString:l10n_util::GetNSString(IDS_IOS_SIGNIN_BUTTON_TEXT)
+            attributes:attributes];
+    buttonConfiguration.cornerStyle = UIButtonConfigurationCornerStyleCapsule;
+    buttonConfiguration.contentInsets = NSDirectionalEdgeInsetsMake(
+        kPillVerticalPadding, kPillHorizontalPadding, kPillVerticalPadding,
+        kPillHorizontalPadding);
+    button.configuration = buttonConfiguration;
+    return;
+  }
+
+  [button setImage:nil forState:UIControlStateNormal];
+
+  UIButtonConfiguration* buttonConfiguration =
+      [UIButtonConfiguration plainButtonConfiguration];
+  UIColor* foregroundColor;
+  if ([self.traitCollection boolForNewTabPageImageBackgroundTrait]) {
+    UIVisualEffect* blurEffect =
+        [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemMaterial];
+    UIVisualEffectView* blurBackgroundView =
+        [[UIVisualEffectView alloc] initWithEffect:blurEffect];
+    buttonConfiguration.background.customView = blurBackgroundView;
+
+    foregroundColor = [UIColor colorNamed:kTextPrimaryColor];
+  } else {
+    NewTabPageColorPalette* colorPalette =
+        [self.traitCollection objectForNewTabPageTrait];
+    foregroundColor = colorPalette ? colorPalette.tintColor
+                                   : [UIColor colorNamed:kBlue600Color];
+
+    UIColor* backgroundColor = colorPalette
+                                   ? colorPalette.headerButtonColor
+                                   : [self defaultButtonBackgroundColor];
+    buttonConfiguration.background.backgroundColor = backgroundColor;
+  }
+
+  buttonConfiguration.cornerStyle = UIButtonConfigurationCornerStyleCapsule;
+  buttonConfiguration.contentInsets =
+      NSDirectionalEdgeInsetsMake(kPillVerticalPadding, kPillHorizontalPadding,
+                                  kPillVerticalPadding, kPillHorizontalPadding);
+
+  NSDictionary* attributes = @{
+    NSFontAttributeName : PreferredFontForTextStyle(UIFontTextStyleSubheadline,
+                                                    UIFontWeightSemibold,
+                                                    kIdentityDiscMaxFontSize),
+    NSForegroundColorAttributeName : foregroundColor,
+  };
+  buttonConfiguration.attributedTitle = [[NSAttributedString alloc]
+      initWithString:l10n_util::GetNSString(IDS_IOS_SIGNIN_BUTTON_TEXT)
+          attributes:attributes];
+
+  button.configuration = buttonConfiguration;
+}
+
+- (void)fakeTapViewTapped {
+  [self.NTPMetricsRecorder recordFakeTapViewTapped];
+  [self.commandHandler fakeboxTapped];
+}
+
+- (void)fakeboxTapped {
+  [self.NTPMetricsRecorder recordFakeOmniboxTapped];
+  TriggerHapticFeedbackForSelectionChange();
+  [self.commandHandler fakeboxTapped];
+}
+
+- (void)focusAccessibilityOnOmnibox {
+  UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification,
+                                  self.fakeOmnibox);
+}
+
+- (void)observeValueForKeyPath:(NSString*)keyPath
+                      ofObject:(id)object
+                        change:(NSDictionary*)change
+                       context:(void*)context {
+  if ([@"highlighted" isEqualToString:keyPath]) {
+    [self.headerView setFakeboxHighlighted:[object isHighlighted]];
+  }
+}
+
+// If display is compact size, shows fakebox. If display is regular size,
+// shows fakebox if the logo is visible and hides otherwise
+- (void)updateFakeboxDisplay {
+  self.doodleTopMarginConstraint.constant =
+      content_suggestions::DoodleTopMargin(_searchEngineLogoState,
+                                           self.traitCollection);
+  [self.doodleHeightConstraint
+      setConstant:content_suggestions::DoodleHeight(_searchEngineLogoState,
+                                                    self.traitCollection)];
+  self.fakeOmnibox.hidden =
+      CanShowTabStrip(self) &&
+      (_searchEngineLogoState == SearchEngineLogoState::kNone);
+  [self.headerView layoutIfNeeded];
+  self.headerViewHeightConstraint.constant =
+      content_suggestions::HeightForLogoHeader(_searchEngineLogoState,
+                                               self.traitCollection);
+}
+
+// Ensures the state of the Voice Search button matches whether or not it's
+// enabled. If it's not, disables the button and removes it from the a11y loop
+// for VoiceOver.
+- (void)updateVoiceSearchDisplay {
+  self.headerView.voiceSearchButton.enabled = self.voiceSearchIsEnabled;
+  self.headerView.voiceSearchButton.isAccessibilityElement =
+      self.voiceSearchIsEnabled;
+}
+
+// Adds the constraints for the `logoView`, the `fakeomnibox` related to the
+// `headerView`. It also sets the properties constraints related to those views.
+- (void)addConstraintsForLogoView:(UIView*)logoView
+                      fakeOmnibox:(UIView*)fakeOmnibox
+                    andHeaderView:(UIView*)headerView {
+  self.doodleTopMarginConstraint = [logoView.topAnchor
+      constraintEqualToAnchor:headerView.topAnchor
+                     constant:content_suggestions::DoodleTopMargin(
+                                  _searchEngineLogoState,
+                                  self.traitCollection)];
+  self.doodleHeightConstraint = [logoView.heightAnchor
+      constraintEqualToConstant:content_suggestions::DoodleHeight(
+                                    _searchEngineLogoState,
+                                    self.traitCollection)];
+  self.fakeOmniboxHeightConstraint = [fakeOmnibox.heightAnchor
+      constraintEqualToConstant:content_suggestions::FakeOmniboxHeight()];
+  self.fakeOmniboxTopMarginConstraint = [logoView.bottomAnchor
+      constraintEqualToAnchor:fakeOmnibox.topAnchor
+                     constant:-content_suggestions::SearchFieldTopMargin(
+                                  _searchEngineLogoState)];
+  self.headerViewHeightConstraint =
+      [headerView.heightAnchor constraintEqualToConstant:[self headerHeight]];
+  self.headerViewHeightConstraint.active = YES;
+  self.doodleTopMarginConstraint.active = YES;
+  self.doodleHeightConstraint.active = YES;
+  self.fakeOmniboxWidthConstraint.active = YES;
+  self.fakeOmniboxHeightConstraint.active = YES;
+  self.fakeOmniboxTopMarginConstraint.active = YES;
+  [logoView.widthAnchor constraintEqualToAnchor:headerView.widthAnchor].active =
+      YES;
+  [logoView.leadingAnchor constraintEqualToAnchor:headerView.leadingAnchor]
+      .active = YES;
+  [fakeOmnibox.centerXAnchor constraintEqualToAnchor:headerView.centerXAnchor]
+      .active = YES;
+}
+
+// Updates opacity of doodle for scroll position, preventing it from showing
+// within the safe area insets.
+- (void)updateLogoForOffset:(CGFloat)offset {
+  _searchEngineLogoMediator.view.alpha =
+      std::max(1 - [self.headerView searchFieldProgressForOffset:offset], 0.0);
+}
+
+- (void)maybeShowSwitchAccountsIPH {
+  if (!_isSignedIn) {
+    return;
+  }
+
+  // Note: BubblePresenter will take care to only show the bubble if the page is
+  // scrolled to the top.
+  [self.helpHandler
+      presentInProductHelpWithType:
+          InProductHelpType::kSwitchAccountsWithNTPAccountParticleDisc];
+}
 
 // Returns the default background color for buttons based on the current
 // appearance.

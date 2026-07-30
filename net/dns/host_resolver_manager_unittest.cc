@@ -2194,6 +2194,8 @@ TEST_F(HostResolverManagerTest, LocalOnly_FromCache) {
       NetLogWithSource(), std::nullopt, resolve_context_.get()));
   EXPECT_THAT(normal_request.result_error(), IsOk());
   EXPECT_FALSE(normal_request.request()->GetStaleInfo());
+  EXPECT_EQ(normal_request.request()->GetResolutionDetails()->source,
+            ResolutionSource::kSystem);
 
   // Second NONE query expected to complete synchronously with cache hit.
   ResolveHostResponseHelper cache_hit_request(resolver_->CreateRequest(
@@ -2207,6 +2209,8 @@ TEST_F(HostResolverManagerTest, LocalOnly_FromCache) {
               testing::UnorderedElementsAre(ExpectEndpointResult(
                   testing::ElementsAre(CreateExpected("192.168.1.42", 80)))));
   EXPECT_FALSE(cache_hit_request.request()->GetStaleInfo().value().is_stale());
+  EXPECT_EQ(cache_hit_request.request()->GetResolutionDetails()->source,
+            ResolutionSource::kCache);
 }
 
 TEST_F(HostResolverManagerTest, LocalOnly_StaleEntry) {
@@ -3159,6 +3163,8 @@ TEST_F(HostResolverManagerTest, Mdns) {
           ExpectEndpointResult(testing::UnorderedElementsAre(
               CreateExpected("000a:0000:0000:0000:0001:0002:0003:0004", 80),
               CreateExpected("1.2.3.4", 80)))));
+  EXPECT_EQ(response.request()->GetResolutionDetails()->source,
+            ResolutionSource::kMdns);
 }
 
 TEST_F(HostResolverManagerTest, Mdns_AaaaOnly) {
@@ -3857,15 +3863,36 @@ TEST_F(HostResolverManagerTest, NetworkAnonymizationKeyWriteToHostCache) {
   const char kFirstDnsResult[] = "192.168.1.42";
   const char kSecondDnsResult[] = "192.168.1.43";
 
-  for (bool split_cache_by_network_anonymization_key : {false, true}) {
+  struct PartitioningMode {
+    bool partition_connections;
+    bool split_host_cache;
+  };
+  const PartitioningMode kPartitioningModes[] = {
+      {false, false}, {true, true}, {true, false}};
+
+  for (const auto& mode : kPartitioningModes) {
     base::test::ScopedFeatureList feature_list;
-    if (split_cache_by_network_anonymization_key) {
-      feature_list.InitAndEnableFeature(
+    std::vector<base::test::FeatureRef> enabled_features;
+    std::vector<base::test::FeatureRef> disabled_features;
+
+    if (mode.partition_connections) {
+      enabled_features.push_back(
           features::kPartitionConnectionsByNetworkIsolationKey);
     } else {
-      feature_list.InitAndDisableFeature(
+      disabled_features.push_back(
           features::kPartitionConnectionsByNetworkIsolationKey);
     }
+
+    if (mode.split_host_cache) {
+      enabled_features.push_back(
+          features::kSplitHostCacheByNetworkAnonymizationKey);
+    } else {
+      disabled_features.push_back(
+          features::kSplitHostCacheByNetworkAnonymizationKey);
+    }
+
+    feature_list.InitWithFeatures(enabled_features, disabled_features);
+    bool split_cache_by_network_anonymization_key = mode.split_host_cache;
     proc_->AddRuleForAllFamilies("just.testing", kFirstDnsResult);
     proc_->SignalMultiple(1u);
 
@@ -3992,15 +4019,36 @@ TEST_F(HostResolverManagerTest, NetworkAnonymizationKeyReadFromHostCache) {
                                         base::Days(1));
   }
 
-  for (bool split_cache_by_network_anonymization_key : {false, true}) {
+  struct PartitioningMode {
+    bool partition_connections;
+    bool split_host_cache;
+  };
+  const PartitioningMode kPartitioningModes[] = {
+      {false, false}, {true, true}, {true, false}};
+
+  for (const auto& mode : kPartitioningModes) {
     base::test::ScopedFeatureList feature_list;
-    if (split_cache_by_network_anonymization_key) {
-      feature_list.InitAndEnableFeature(
+    std::vector<base::test::FeatureRef> enabled_features;
+    std::vector<base::test::FeatureRef> disabled_features;
+
+    if (mode.partition_connections) {
+      enabled_features.push_back(
           features::kPartitionConnectionsByNetworkIsolationKey);
     } else {
-      feature_list.InitAndDisableFeature(
+      disabled_features.push_back(
           features::kPartitionConnectionsByNetworkIsolationKey);
     }
+
+    if (mode.split_host_cache) {
+      enabled_features.push_back(
+          features::kSplitHostCacheByNetworkAnonymizationKey);
+    } else {
+      disabled_features.push_back(
+          features::kSplitHostCacheByNetworkAnonymizationKey);
+    }
+
+    feature_list.InitWithFeatures(enabled_features, disabled_features);
+    bool split_cache_by_network_anonymization_key = mode.split_host_cache;
 
     // A request that uses kNetworkAnonymizationKey1 will return cache entry 1
     // if the NetworkAnonymizationKeys are being used, and cache entry 0
@@ -4060,15 +4108,36 @@ TEST_F(HostResolverManagerTest, NetworkAnonymizationKeyTwoRequestsAtOnce) {
 
   const char kDnsResult[] = "192.168.1.42";
 
-  for (bool split_cache_by_network_anonymization_key : {false, true}) {
+  struct PartitioningMode {
+    bool partition_connections;
+    bool split_host_cache;
+  };
+  const PartitioningMode kPartitioningModes[] = {
+      {false, false}, {true, true}, {true, false}};
+
+  for (const auto& mode : kPartitioningModes) {
     base::test::ScopedFeatureList feature_list;
-    if (split_cache_by_network_anonymization_key) {
-      feature_list.InitAndEnableFeature(
+    std::vector<base::test::FeatureRef> enabled_features;
+    std::vector<base::test::FeatureRef> disabled_features;
+
+    if (mode.partition_connections) {
+      enabled_features.push_back(
           features::kPartitionConnectionsByNetworkIsolationKey);
     } else {
-      feature_list.InitAndDisableFeature(
+      disabled_features.push_back(
           features::kPartitionConnectionsByNetworkIsolationKey);
     }
+
+    if (mode.split_host_cache) {
+      enabled_features.push_back(
+          features::kSplitHostCacheByNetworkAnonymizationKey);
+    } else {
+      disabled_features.push_back(
+          features::kSplitHostCacheByNetworkAnonymizationKey);
+    }
+
+    feature_list.InitWithFeatures(enabled_features, disabled_features);
+    bool split_cache_by_network_anonymization_key = mode.split_host_cache;
     proc_->AddRuleForAllFamilies("just.testing", kDnsResult);
 
     // Start resolving a host using kNetworkAnonymizationKey1.
@@ -4671,6 +4740,8 @@ TEST_F(HostResolverManagerDnsTest, DnsTask) {
 
   // Resolved by MockDnsClient.
   EXPECT_THAT(response0.result_error(), IsOk());
+  EXPECT_EQ(response0.request()->GetResolutionDetails()->source,
+            ResolutionSource::kInsecure);
   EXPECT_THAT(response0.request()->GetAddressResults(),
               testing::UnorderedElementsAre(CreateExpected("127.0.0.1", 80),
                                             CreateExpected("::1", 80)));
@@ -4699,6 +4770,8 @@ TEST_F(HostResolverManagerDnsTest, DnsTaskWithScheme) {
 
   // Resolved by MockDnsClient.
   EXPECT_THAT(response.result_error(), IsOk());
+  EXPECT_EQ(response.request()->GetResolutionDetails()->source,
+            ResolutionSource::kInsecure);
   EXPECT_THAT(response.request()->GetAddressResults(),
               testing::UnorderedElementsAre(CreateExpected("127.0.0.1", 80),
                                             CreateExpected("::1", 80)));
@@ -4997,6 +5070,15 @@ TEST_F(HostResolverManagerDnsTest, DnsTaskUnspec) {
   EXPECT_THAT(responses[3]->request()->GetEndpointResults(),
               testing::ElementsAre(ExpectEndpointResult(
                   testing::ElementsAre(CreateExpected("192.168.1.101", 80)))));
+
+  EXPECT_EQ(responses[0]->request()->GetResolutionDetails()->source,
+            ResolutionSource::kInsecure);
+  EXPECT_EQ(responses[1]->request()->GetResolutionDetails()->source,
+            ResolutionSource::kInsecure);
+  EXPECT_EQ(responses[2]->request()->GetResolutionDetails()->source,
+            ResolutionSource::kInsecure);
+  EXPECT_EQ(responses[3]->request()->GetResolutionDetails()->source,
+            ResolutionSource::kSystem);
 }
 
 TEST_F(HostResolverManagerDnsTest, NameCollisionIcann) {
@@ -6059,6 +6141,8 @@ TEST_F(HostResolverManagerDnsTest, SecureDnsMode_Automatic) {
       HostPortPair("automatic", 80), NetworkAnonymizationKey(),
       NetLogWithSource(), std::nullopt, resolve_context_.get()));
   ASSERT_THAT(response_secure.result_error(), IsOk());
+  EXPECT_EQ(response_secure.request()->GetResolutionDetails()->source,
+            ResolutionSource::kSecure);
   EXPECT_FALSE(
       response_secure.request()->GetResolveErrorInfo().is_secure_network_error);
   EXPECT_THAT(response_secure.request()->GetAddressResults(),
@@ -6081,6 +6165,8 @@ TEST_F(HostResolverManagerDnsTest, SecureDnsMode_Automatic) {
       HostPortPair("insecure_automatic", 80), NetworkAnonymizationKey(),
       NetLogWithSource(), std::nullopt, resolve_context_.get()));
   ASSERT_THAT(response_insecure.result_error(), IsOk());
+  EXPECT_EQ(response_insecure.request()->GetResolutionDetails()->source,
+            ResolutionSource::kInsecure);
   EXPECT_FALSE(response_insecure.request()
                    ->GetResolveErrorInfo()
                    .is_secure_network_error);
@@ -6104,6 +6190,8 @@ TEST_F(HostResolverManagerDnsTest, SecureDnsMode_Automatic) {
       NetLogWithSource(), std::nullopt, resolve_context_.get()));
   proc_->SignalMultiple(1u);
   EXPECT_THAT(response_system.result_error(), IsOk());
+  EXPECT_EQ(response_system.request()->GetResolutionDetails()->source,
+            ResolutionSource::kSystem);
   EXPECT_THAT(response_system.request()->GetAddressResults(),
               testing::ElementsAre(CreateExpected("192.168.1.100", 80)));
   EXPECT_THAT(response_system.request()->GetEndpointResults(),
@@ -6141,6 +6229,8 @@ TEST_F(HostResolverManagerDnsTest, SecureDnsMode_Automatic_SecureCache) {
                   testing::ElementsAre(kExpectedSecureIP))));
   EXPECT_FALSE(
       response_secure_cached.request()->GetStaleInfo().value().is_stale());
+  EXPECT_EQ(response_secure_cached.request()->GetResolutionDetails()->source,
+            ResolutionSource::kCache);
 }
 
 TEST_F(HostResolverManagerDnsTest, SecureDnsMode_Automatic_InsecureCache) {
@@ -6172,6 +6262,8 @@ TEST_F(HostResolverManagerDnsTest, SecureDnsMode_Automatic_InsecureCache) {
                   testing::ElementsAre(kExpectedInsecureIP))));
   EXPECT_FALSE(
       response_insecure_cached.request()->GetStaleInfo().value().is_stale());
+  EXPECT_EQ(response_insecure_cached.request()->GetResolutionDetails()->source,
+            ResolutionSource::kCache);
 }
 
 TEST_F(HostResolverManagerDnsTest, SecureDnsMode_Automatic_Downgrade) {

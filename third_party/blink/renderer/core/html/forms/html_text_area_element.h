@@ -40,8 +40,8 @@ class CORE_EXPORT HTMLTextAreaElement final : public TextControlElement {
  public:
   explicit HTMLTextAreaElement(Document&);
 
-  HTMLElementType GetHTMLElementType() const final {
-    return HTMLElementType::kHTMLTextAreaElement;
+  ElementType GetElementType() const final {
+    return ElementType::kHTMLTextAreaElement;
   }
 
   unsigned cols() const { return cols_; }
@@ -129,6 +129,7 @@ class CORE_EXPORT HTMLTextAreaElement final : public TextControlElement {
   FocusgroupFlags NativeArrowKeyAxes() const final;
 
   mojom::blink::FormControlType FormControlType() const override;
+  bool SupportsReadOnly() const override { return true; }
   const AtomicString& FormControlTypeAsString() const override;
 
   FormControlState SaveFormControlState() const override;

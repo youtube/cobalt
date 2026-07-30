@@ -87,12 +87,12 @@ Promise.all(Array.from(document.querySelectorAll("canvas")).map(async cvs => {
     const [destWidth, destHeight] =
       computeScaledDestinationSize(cvs, target, scaleX, scaleY, 2*outset, 2*outset);
     ctx.drawElementImage(target,
-                        -outset, -outset,
+                         -outset, -outset,
                          targetWidth + 2*outset, targetHeight + 2*outset,
                          offset, offset, destWidth, destHeight);
   } else {
     ctx.drawElementImage(target,
-                        -outset, -outset,
+                         -outset, -outset,
                          targetWidth + 2*outset, targetHeight + 2*outset,
                          offset, offset);
   }

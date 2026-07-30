@@ -28,7 +28,6 @@
 <translation id="1044897699341250361">Qu'est-ce que cela signifie?</translation>
 <translation id="1046350918013988591">Coupons et offres de rabais</translation>
 <translation id="1050038467049342496">Fermer les autres applications</translation>
-<translation id="1053959602163383901">Vous avez choisi de valider avec un appareil d'authentification sur des sites Web qui utilisent <ph name="PROVIDER_ORIGIN" />. Ce fournisseur peut avoir stocké de l'information sur votre mode de paiement, dont vous pouvez <ph name="LINK_TEXT" />.</translation>
 <translation id="1055184225775184556">&amp;Annuler l'ajout</translation>
 <translation id="1056898198331236512">Avertissement</translation>
 <translation id="1058344460600311577"><ph name="PLAY_CHROME_DINO_GAME_FOCUSED_FRIENDLY_MATCH_TEXT" />, appuyez sur la touche Tabulation, puis sur la touche Entrée pour jouer au jeu du dinosaure dans Chrome</translation>
@@ -665,7 +664,6 @@
 <translation id="2059202684901022309">22 po x 34 po</translation>
 <translation id="2064568741209980952">Crédit et prêt</translation>
 <translation id="2064691555167957331">{COUNT,plural, =1{1 suggestion}one{# suggestion}other{# suggestions}}</translation>
-<translation id="2066915425250589881">demander la suppression</translation>
 <translation id="2066969741541525119">Le site que vous essayez d'ouvrir est bloqué par votre organisation</translation>
 <translation id="2069913043427250781">Sécurité routière</translation>
 <translation id="2071156619270205202">Cette carte n'est pas compatible avec un numéro de carte virtuelle.</translation>
@@ -985,7 +983,6 @@
 <translation id="2512413427717747692">Définir Chrome comme bouton de navigateur par défaut, appuyez sur Entrée pour définir Chrome comme navigateur par défaut du système dans les réglages iOS</translation>
 <translation id="2514548229949738417">Maison et jardin</translation>
 <translation id="2515629240566999685">De vérifier le signal dans votre zone</translation>
-<translation id="2515761554693942801">Vous avez choisi de valider avec Touch ID sur des sites Web qui utilisent <ph name="PROVIDER_ORIGIN" />. Ce fournisseur peut avoir stocké de l'information sur votre mode de paiement, dont vous pouvez <ph name="LINK_TEXT" />.</translation>
 <translation id="2518584823165598232">Cette carte n'est pas accessible. Veuillez communiquer avec votre fournisseur de carte.</translation>
 <translation id="2521385132275182522">Agrafe en bas à droite</translation>
 <translation id="2521736961081452453">Créer un formulaire</translation>
@@ -1177,6 +1174,7 @@
 <translation id="2837891525090413132">Peut demander de verrouiller et d'utiliser votre clavier</translation>
 <translation id="2839032553903800133">Notifications bloquées</translation>
 <translation id="2839501879576190149">Cette URL mène à un faux site</translation>
+<translation id="2840680829170913626">Le contenu de la page de paiement est partagé avec Google pour proposer ces options. Les forfaits de paiement sont assujettis à des critères d'admissibilité. Pour masquer les options de paiement différé dans le remplissage automatique, accédez aux <ph name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_HIDE_OPTION_PAYMENT_SETTINGS_LINK_TEXT" />.</translation>
 <translation id="2843623755398178332">Faire défiler et zoomer votre onglet partagé?</translation>
 <translation id="2851291081585704741">Vous êtes hors ligne</translation>
 <translation id="2854163610915391726">Gérer les renseignements Chrome que vous enregistrez dans votre compte Google</translation>
@@ -1388,6 +1386,7 @@ Pour masquer les options de paiement différé, accédez aux <ph name="BEGIN_LIN
 <translation id="3162070126914310576">Cet appareil ne peut pas être inscrit pour le moment, car votre unité organisationnelle a atteint sa limite d'inscription initiale. Communiquez avec votre administrateur pour obtenir de l'aide.</translation>
 <translation id="3162559335345991374">Le réseau Wi-Fi que vous utilisez peut vous demander de visiter sa page de connexion.</translation>
 <translation id="316638481603975524">Peut demander d'installer des applis Web</translation>
+<translation id="3166788340998560642">Chrome vous proposera de les enregistrer dans <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" /> la prochaine fois que vous l'utiliserez</translation>
 <translation id="3168744840365648658">Équipement radio</translation>
 <translation id="3168938241115725594">Véhicules classiques</translation>
 <translation id="3169472444629675720">Découvrir</translation>
@@ -1443,8 +1442,6 @@ Pour masquer les options de paiement différé, accédez aux <ph name="BEGIN_LIN
 <translation id="3237427677128462778">Impossible d'enregistrer la carte dans Google Portefeuille</translation>
 <translation id="3238395604961564389">Ouvrir le lien dans une fenêtre de navigation privée</translation>
 <translation id="3240683217920639535"><ph name="MANAGE_CHROME_THEMES_FOCUSED_FRIENDLY_MATCH_TEXT" />, appuyez sur la touche Tabulation, puis sur la touche Entrée pour personnaliser le style de votre navigateur</translation>
-<translation id="3240791268468473923">La zone de contenu dans le bas de l'écran indiquant qu'aucun authentifiant ne correspond au paiement sécurisé est ouverte</translation>
-<translation id="324180406144491771">Les liens de « <ph name="HOST_NAME" /> » sont bloqués</translation>
 <translation id="3243650379537999343">Dessiner</translation>
 <translation id="3248329428895535435">Ne plus afficher sur ce site</translation>
 <translation id="3249102948665905108">Téléversement du fichier vers <ph name="CLOUD_PROVIDER" /> terminé avec des erreurs</translation>
@@ -1470,7 +1467,6 @@ Pour masquer les options de paiement différé, accédez aux <ph name="BEGIN_LIN
 <translation id="3282085321714087552">Votre organisation, <ph name="ENROLLMENT_DOMAIN" />, a envoyé de l'information, comme des paramètres ou des politiques, aux sites Web suivants.</translation>
 <translation id="3286372614333682499">portrait</translation>
 <translation id="3287510313208355388">Télécharger en ligne</translation>
-<translation id="3288238092761586174"><ph name="URL" /> pourrait devoir prendre des mesures supplémentaires pour vérifier votre paiement</translation>
 <translation id="3289578402369490638">Dans d'autres boutiques en ligne</translation>
 <translation id="3293642807462928945">En savoir plus sur la politique <ph name="POLICY_NAME" /></translation>
 <translation id="3295444047715739395">Affichez et gérez vos mots de passe dans les paramètres de Chrome</translation>
@@ -1520,7 +1516,6 @@ Pour masquer les options de paiement différé, accédez aux <ph name="BEGIN_LIN
 <translation id="3378612801784846695">Les sujets sont basés sur votre historique de navigation récent et sont utilisés par les sites pour vous montrer des publicités personnalisées, tout en protégeant votre identité</translation>
 <translation id="3380365263193509176">Erreur inconnue</translation>
 <translation id="3380864720620200369">Numéro de client :</translation>
-<translation id="3381668585148405088">Vérifier votre achat</translation>
 <translation id="3383566085871012386">Ordre de préséance actuel</translation>
 <translation id="3383713837163550889">Vos fichiers locaux seront supprimés dans 1 minute</translation>
 <translation id="3384522979010096022">Votre organisation ne vous permet pas d'accéder à ce site</translation>
@@ -1536,7 +1531,6 @@ Pour masquer les options de paiement différé, accédez aux <ph name="BEGIN_LIN
 <translation id="3409896703495473338">Gérer les paramètres de sécurité</translation>
 <translation id="3410151451624226773">Gérez les mots de passe et les clés d'accès dans le gestionnaire de mots de passe Google</translation>
 <translation id="3411091017011773343">Téléversement dans <ph name="HOURS" /> h</translation>
-<translation id="341134412449102894">Vos informations sont enregistrées dans <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" /> pour <ph name="ACCOUNT" /></translation>
 <translation id="3413466783792948876">Il est plus sûr de consulter ce site plus tard si vous utilisez un réseau public. Un réseau de confiance, comme le réseau Wi-Fi de votre domicile ou de votre lieu de travail, présente moins de risques.</translation>
 <translation id="3414275587143250384">Informatique distribuée et infonuagique</translation>
 <translation id="3414952576877147120">Taille :</translation>
@@ -1771,6 +1765,7 @@ Pour masquer les options de paiement différé, accédez aux <ph name="BEGIN_LIN
 <translation id="3744899669254331632">Vous ne pas présentement consulter le site <ph name="SITE" />, car il a renvoyé des authentifiants brouillés que Chromium ne peut pas traiter. Les erreurs et attaques réseau étant généralement temporaires, cette page sera peut-être à nouveau accessible plus tard.</translation>
 <translation id="3745599309295009257">Votre texte ainsi que le contenu et l'URL de la page sur laquelle vous écrivez seront envoyés à Google, examinés par des humains et utilisés pour améliorer cette fonctionnalité. Évitez d'entrer des renseignements personnels (tels que des informations médicales ou financières) ou d'utiliser cet outil sur des sites contenant des informations confidentielles ou privées.</translation>
 <translation id="3748009735914587286">Métal (haute brillance)</translation>
+<translation id="3748647055058832337">Non disponible pour ce marchand</translation>
 <translation id="3749600200023337912">Votre mode de paiement automatique enregistré peut être utilisé pour ce paiement. Pour désactiver les portefeuilles électroniques ou l'appli de paiement dans Chrome, accédez à vos <ph name="BEGIN_LINK1" />paramètres des paiements<ph name="END_LINK1" /></translation>
 <translation id="3752181611900535304">Enregistrer l'adresse dans le compte?</translation>
 <translation id="3752543821772132562">Ignorée, car <ph name="POLICY_NAME" /> n'est pas définie.</translation>
@@ -2417,6 +2412,7 @@ Vous pouvez également communiquer avec le propriétaire du site et lui suggére
 <translation id="477945296921629067">{NUM_POPUPS,plural, =1{Fenêtre contextuelle bloquée}one{# fenêtre contextuelle bloquée}other{# fenêtres contextuelles bloquées}}</translation>
 <translation id="4780320432697076749">Logiciels de photo</translation>
 <translation id="4780366598804516005">Boîte aux lettres 1</translation>
+<translation id="4785273477715803444">Filtrez les journaux</translation>
 <translation id="4785376858512657294">Gérer le compte Google</translation>
 <translation id="4785689107224900852">Basculer vers cet onglet</translation>
 <translation id="4785998536350006000">Recherche de « <ph name="SEARCH_QUERY" /> »</translation>
@@ -2598,7 +2594,6 @@ Vous pouvez également communiquer avec le propriétaire du site et lui suggére
 <translation id="505757197798929356">Fournir la raison de l'ouverture (obligatoire)</translation>
 <translation id="5058282932481719070">en savoir plus sur le remplissage automatique amélioré dans les paramètres</translation>
 <translation id="5060419232449737386">Paramètres des sous-titres</translation>
-<translation id="5060483733937416656">Vous avez choisi de valider avec Windows Hello sur des sites Web qui utilisent <ph name="PROVIDER_ORIGIN" />. Ce fournisseur peut avoir stocké de l'information sur votre mode de paiement, dont vous pouvez <ph name="LINK_TEXT" />.</translation>
 <translation id="5061227663725596739">Vouliez-vous dire <ph name="LOOKALIKE_DOMAIN" />?</translation>
 <translation id="5066056036849835175">Historique d'impression</translation>
 <translation id="5068524481479508725">A10</translation>
@@ -3019,7 +3014,6 @@ Vous pouvez également communiquer avec le propriétaire du site et lui suggére
 <translation id="5689516760719285838">Lieu</translation>
 <translation id="569000877158168851">La valeur DnsOverHttpsTemplates n'est pas pertinente et ne sera pas utilisée, à moins que la politique DnsOverHttpsMode soit définie à <ph name="SECURE_DNS_MODE_AUTOMATIC" /> ou à <ph name="SECURE_DNS_MODE_SECURE" />.</translation>
 <translation id="5691848789297492617">Enregistrer la carte ouverte à pleine hauteur.</translation>
-<translation id="5695542892312572833">Utiliser Windows Hello pour vérifier et finaliser votre achat?</translation>
 <translation id="5699628521141772782">Produits laitiers et œufs</translation>
 <translation id="5701381305118179107">Centrer</translation>
 <translation id="5707154300732650394">Reprendre votre exploration</translation>
@@ -3059,6 +3053,7 @@ Vous pouvez également communiquer avec le propriétaire du site et lui suggére
 <translation id="5759751709240058861">Utiliser et déplacer la caméra de votre appareil</translation>
 <translation id="5762131895127128324">Permis de conduire · Cartes d'identité · Passeports</translation>
 <translation id="5763042198335101085">Entrez une adresse de courriel valide</translation>
+<translation id="5763338081255973061">{DAYS,plural, =0{Actif aujourd'hui}=1{Actif il y a 1 jour}one{Actif il y a # jour}other{Actif il y a # jours}}</translation>
 <translation id="5764725887548570807">Format d'origine incorrect.</translation>
 <translation id="5764920692828389743">Envoyer à <ph name="EMAIL_ADDRESS" /></translation>
 <translation id="5765072501007116331">Pour voir les exigences et les modes de livraison, sélectionnez une adresse</translation>
@@ -3243,7 +3238,6 @@ Vous pouvez également communiquer avec le propriétaire du site et lui suggére
 <translation id="6053584886670442526">Vous pouvez utiliser les adresses enregistrées avec tous les produits Google. Cette adresse est enregistrée dans votre compte Google, <ph name="ACCOUNT" />.</translation>
 <translation id="6053735090575989697">Apprenez-en plus sur la façon dont Google protège vos données dans notre politique de confidentialité.</translation>
 <translation id="6055392876709372977">PKCS #1 SHA-256 avec chiffrement RSA</translation>
-<translation id="6055888660316801977">Feuille d'authentification pour l'authentifiant de paiement sécurisé qui ne correspond pas</translation>
 <translation id="6055982527635883756">Enveloppe (archives)</translation>
 <translation id="6057177372083677067">Vidéo en ligne</translation>
 <translation id="6058646026409894363">Génie civil</translation>
@@ -3321,7 +3315,6 @@ Vous pouvez également communiquer avec le propriétaire du site et lui suggére
 <translation id="6167577165590485365">Dernière tentative de récupération :</translation>
 <translation id="6171968084616623939">« <ph name="PROXY_INVALID_SCHEME_HOST_PORT" /> » n'est pas une valeur valide.</translation>
 <translation id="617256461084925519">Google Chrome essaie de vérifier qu'il s'agit bien de vous afin de pouvoir remplir vos informations de paiement.</translation>
-<translation id="6173208311907792313">Terminez votre achat en utilisant Windows Hello</translation>
 <translation id="6175423614837252320">Photo enregistrée dans Google Disque</translation>
 <translation id="6176387967264100435">Ce prix est élevé</translation>
 <translation id="6177128806592000436">Votre connexion à ce site n'est pas sécurisée</translation>
@@ -3366,6 +3359,7 @@ Vous pouvez également communiquer avec le propriétaire du site et lui suggére
 <translation id="6246316216123107851">Il y a <ph name="NUM_DAYS" /> jours</translation>
 <translation id="6246382863801034910">Véhicule</translation>
 <translation id="6246868321321344665">Votre organisation peut consulter les données de navigation, comme les mots de passe et l'historique dans les profils professionnels et personnels</translation>
+<translation id="6248988683584659830">Recherchez dans les paramètres</translation>
 <translation id="6250932670816326647">Produits pour le bain et le corps</translation>
 <translation id="6251906504834538140">{0,plural, =1{Le déplacement du fichier a été bloqué}one{Le déplacement de <ph name="FILE_COUNT" /> fichier a été bloqué}other{Le déplacement de <ph name="FILE_COUNT" /> fichiers a été bloqué}}</translation>
 <translation id="6252613631861574218"><ph name="MANAGE_CHROME_DOWNLOADS_FOCUSED_FRIENDLY_MATCH_TEXT" />, appuyez sur la touche Tabulation, puis sur la touche Entrée pour gérer les fichiers que vous avez téléchargés dans Chrome</translation>
@@ -3464,7 +3458,6 @@ Vous pouvez également communiquer avec le propriétaire du site et lui suggére
 <translation id="6390200185239044127">Demi-feuille de pli en Z</translation>
 <translation id="6390533465682072118">Récupération</translation>
 <translation id="639068771471208680">Formulaire en plusieurs parties</translation>
-<translation id="6391700400718590966">L'authentifiant de paiement sécurisé ne correspond pas, la feuille d'authentification est fermée</translation>
 <translation id="6391911601916058725">Toujours partager les onglets ouverts pertinents?</translation>
 <translation id="6392799395081100092">Papier (vélin)</translation>
 <translation id="6393156038355142111">Suggérer un mot de passe fort</translation>
@@ -3583,7 +3576,6 @@ Vous pouvez également communiquer avec le propriétaire du site et lui suggére
 <translation id="6567832540451970450">Votre administrateur donne l'autorisation suivante pour ce site : <ph name="PERMISSION" /></translation>
 <translation id="6568793038316600992">Bouton Gérer les modes de paiement, activez-le pour gérer vos paiements et les informations de votre carte de crédit dans les paramètres de Chrome</translation>
 <translation id="6569060085658103619">Vous consultez une page d'extension</translation>
-<translation id="6571992525120410251">Posez une question à <ph name="ENGINE_NAME" /></translation>
 <translation id="6573200754375280815">Double perforation à droite</translation>
 <translation id="6573973523249076555">Google Chrome essaie de remplir vos infos sensibles dans <ph name="APP_NAME" />.</translation>
 <translation id="6575408526598156416">Enregistrer l'adresse dans le compte</translation>
@@ -3663,7 +3655,6 @@ Vous pouvez également communiquer avec le propriétaire du site et lui suggére
 <translation id="6698097747703777657">Vous n'avez pas reçu de code? <ph name="BEGIN_LINK" />Obtenir un nouveau code<ph name="END_LINK" /></translation>
 <translation id="6698381487523150993">Créé :</translation>
 <translation id="6698769547327354196">Pour désactiver Pix dans Chrome, accédez à vos <ph name="BEGIN_LINK1" />paramètres des paiements<ph name="END_LINK1" /></translation>
-<translation id="669903922988126943">Enregistrez vos informations et effectuez des tâches plus rapidement, comme remplir des formulaires dans les produits Google. Vous pouvez <ph name="MANAGE_INFO_LINK" /> dans <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" /> pour <ph name="ACCOUNT" />.</translation>
 <translation id="67007264085648978">Curseur de progression chronologique</translation>
 <translation id="6702851555558236418">Logiciels audio et de musique</translation>
 <translation id="6702919718839027939">Présentation</translation>
@@ -3889,6 +3880,7 @@ Vous pouvez également communiquer avec le propriétaire du site et lui suggére
 <translation id="7057567173736333354">Décrivez votre image</translation>
 <translation id="7058163556978339998"><ph name="BROWSER" /> a vérifié que <ph name="ISSUER" /> a émis le certificat de ce site Web.</translation>
 <translation id="7058774143982824355">Service d'analyse de mots de passe CSV</translation>
+<translation id="7059913660448028407">Non disponible pour le moment</translation>
 <translation id="7062344833049251424">Pour payer plus rapidement la prochaine fois, enregistrez votre carte et votre adresse de facturation dans Google Portefeuille</translation>
 <translation id="706295145388601875">Ajoutez et gérez les adresses dans les paramètres de Chrome</translation>
 <translation id="7063157783216323487">Vert 2</translation>
@@ -3990,7 +3982,6 @@ Vous pouvez également communiquer avec le propriétaire du site et lui suggére
 <translation id="7210993021468939304">Activité Linux dans le conteneur, et peut installer et exécuter des applications Linux dans le conteneur</translation>
 <translation id="721197778055552897"><ph name="BEGIN_LINK" />En apprendre davantage<ph name="END_LINK" /> au sujet de ce problème.</translation>
 <translation id="7213191991901907140">Parlez-nous de votre expérience</translation>
-<translation id="7217745192097460130">Utiliser Touch ID pour vérifier et effectuer votre achat?</translation>
 <translation id="7219179957768738017">La connexion utilise <ph name="SSL_VERSION" />.</translation>
 <translation id="7220786058474068424">Traitement en cours</translation>
 <translation id="7221855153210829124">Afficher les notifications</translation>
@@ -4169,6 +4160,7 @@ Détails supplémentaires :
 <translation id="7471007961486718967">Fournir la raison du transfert (obligatoire)</translation>
 <translation id="7473033553872550521">Vous pouvez également communiquer avec le propriétaire du site et lui suggérer de passer à HTTPS. <ph name="LEARN_MORE" /></translation>
 <translation id="7473891865547856676">Non, merci</translation>
+<translation id="7475618719385705713">Cette page est bloquée</translation>
 <translation id="7481312909269577407">Suivant</translation>
 <translation id="7481603210197454575">Enveloppe italienne</translation>
 <translation id="7482823403440483089">Remplissage automatique amélioré</translation>
@@ -4190,6 +4182,7 @@ Détails supplémentaires :
 <translation id="7508255263130623398">L'ID d'appareil de la règle renvoyé est vide ou ne correspond pas à l'ID d'appareil actuel</translation>
 <translation id="7508577201115425418">Services de documents et d'impression</translation>
 <translation id="7510269639068718544">Chats</translation>
+<translation id="7511707705708508147">Devise non prise en charge</translation>
 <translation id="7511955381719512146">Le réseau Wi-Fi que vous utilisez peut vous demander de visiter <ph name="BEGIN_BOLD" /><ph name="LOGIN_URL" /><ph name="END_BOLD" />.</translation>
 <translation id="7512685745044087310">Cette politique ne peut pas être définie à « Vrai » et être obligatoire, alors elle a été définie à Recommandé.</translation>
 <translation id="7514365320538308">Télécharger</translation>
@@ -4266,7 +4259,7 @@ Détails supplémentaires :
 <translation id="7615932826417658001">Ajouter une carte d'identité</translation>
 <translation id="7616390733770379387">Ceux-ci sont présentés dans un ordre aléatoire.</translation>
 <translation id="7616645509853975347">Votre administrateur a activé les connecteurs Chrome Enterprise dans votre navigateur. Ces connecteurs ont accès à certaines de vos données.</translation>
-<translation id="7616747402308801775">Cette carte est enregistrée dans Google Portefeuille afin que vous puissiez l'utiliser dans tous les services Google.</translation>
+<translation id="7616747402308801775">Cette carte est enregistrée dans Google Portefeuille afin que vous puissiez l'utiliser dans tous les services Google</translation>
 <translation id="7617825962482469577">Enveloppe C7/C6</translation>
 <translation id="7618270539713451657">Arts martiaux</translation>
 <translation id="7619838219691048931">Feuille de fin</translation>
@@ -4689,6 +4682,7 @@ Détails supplémentaires :
 <translation id="8281886186245836920">Ignorer</translation>
 <translation id="8282292167096638950">Supprimer le permis de conduire</translation>
 <translation id="8282409409360764263">Entretien de terrain</translation>
+<translation id="828282277746732142">Enregistrer l'IBAN dans Google Portefeuille</translation>
 <translation id="8282947398454257691">Connaître votre identifiant d'appareil unique</translation>
 <translation id="8284769179630993263">Gérez votre navigation sécurisée et plus encore dans les paramètres de Chrome</translation>
 <translation id="828558778104922222">La photo a été perdue en raison d'une erreur inconnue</translation>
@@ -4722,7 +4716,6 @@ Détails supplémentaires :
 <translation id="8332188693563227489">Accès à l'adresse <ph name="HOST_NAME" /> refusé</translation>
 <translation id="833262891116910667">Surligner</translation>
 <translation id="8339163506404995330">Les pages en <ph name="LANGUAGE" /> ne seront pas traduites</translation>
-<translation id="8339275256517065202">Terminez votre achat en utilisant Touch ID</translation>
 <translation id="833935588477667012"><ph name="FIELD_LABEL" />, obligatoire</translation>
 <translation id="8339463238135163999"><ph name="DESCRIPTION" /><ph name="SEPARATOR" /><ph name="TIMESTMAP" /></translation>
 <translation id="8340095855084055290"><ph name="EXPIRATION_MONTH" />/<ph name="EXPIRATION_YEAR" /></translation>
@@ -4949,7 +4942,6 @@ Détails supplémentaires :
 <translation id="8726549941689275341">Taille de la page :</translation>
 <translation id="8730621377337864115">Terminé</translation>
 <translation id="8731268612289859741">Code de sécurité</translation>
-<translation id="8731917264694569036">Terminez votre achat en utilisant votre appareil</translation>
 <translation id="8733345475331865475">Assurance automobile</translation>
 <translation id="8733764070897080460">Vous pouvez bloquer les sujets que vous ne souhaitez pas partager avec les sites. En outre, Chrome supprime automatiquement vos sujets datant de plus de quatre semaines. En savoir plus</translation>
 <translation id="8734529307927223492">Votre <ph name="DEVICE_TYPE" /> est géré par <ph name="MANAGER" /></translation>
@@ -5186,7 +5178,6 @@ Détails supplémentaires :
 <translation id="9114581008513152754">Ce navigateur n'est pas géré par une entreprise ou une organisation. L'activité sur cet appareil peut être gérée à l'extérieur de Chrome. <ph name="BEGIN_LINK" />En savoir plus<ph name="END_LINK" /></translation>
 <translation id="9118692854637641831"><ph name="HISTORY_CLUSTERS_SEARCH_FOCUSED_FRIENDLY_MATCH_TEXT" />, appuyez sur la touche Tabulation, puis sur la touche Entrée pour reprendre votre recherche et voir l'activité pertinente dans votre historique de Chrome</translation>
 <translation id="9119042192571987207">Téléversé</translation>
-<translation id="9119308212838450857"><ph name="PROVIDER_ORIGIN" /> veut confirmer qu'il s'agit bien de vous</translation>
 <translation id="9119764377203471454">Impossible d'ajouter des pièces jointes</translation>
 <translation id="9120593907434185157">Enregistrer l'adresse</translation>
 <translation id="912327514020027767">Jupes</translation>
@@ -5201,6 +5192,7 @@ Détails supplémentaires :
 <translation id="9140198744651252040">Le navigateur Chrome souhaite utiliser l'empreinte digitale pour remplir automatiquement les mots de passe</translation>
 <translation id="9141013498910525015">Gérer les adresses</translation>
 <translation id="9141435142213469335">Enregistrez l'adresse avec plus de renseignements</translation>
+<translation id="9141510259469546089">Achat minimum : <ph name="CHECKOUT_AMOUNT_MINIMUM" /></translation>
 <translation id="9141672681283222114">RA autorisée cette fois</translation>
 <translation id="9143898823728499852">Vous pouvez remplir automatiquement cette carte, car votre compte <ph name="CARD_ISSUER_NAME" /> est associé à Google Pay.</translation>
 <translation id="9144951720726881238">Date d'expiration :</translation>
@@ -5273,6 +5265,7 @@ Détails supplémentaires :
 <translation id="937885410143139026">Données envoyées à la console d'administrateur</translation>
 <translation id="939736085109172342">Nouveau dossier</translation>
 <translation id="940524522703752213">Le téléversement de votre fichier vers <ph name="CLOUD_PROVIDER" /> commencera dans <ph name="MINUTES" /> minutes</translation>
+<translation id="943185096918807504">Achat maximum : <ph name="CHECKOUT_AMOUNT_MAXIMUM" /></translation>
 <translation id="944578681290094302">Affichez les récompenses et les avantages disponibles pour vos cartes lors du paiement <ph name="CARD_BENEFIT_HELP_LINK_BEGIN" />En savoir plus sur les avantages des cartes<ph name="CARD_BENEFIT_HELP_LINK_END" /></translation>
 <translation id="945673208656386843">Remplissez automatiquement cette carte pour les achats effectués dans Chromium lorsqu'elle est enregistrée sur cet appareil</translation>
 <translation id="947370374845726940"><ph name="CREATE_GOOGLE_SITE_FOCUSED_FRIENDLY_MATCH_TEXT" />, appuyez sur Tabulation, puis sur Entrée pour créer un site dans Google Sites rapidement</translation>

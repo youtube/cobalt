@@ -6,15 +6,18 @@
 #define COMPONENTS_ACCESSIBILITY_ANNOTATOR_CORE_STORAGE_ACCESSIBILITY_ANNOTATOR_BACKEND_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "base/containers/span.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
 #include "base/types/optional_ref.h"
 #include "base/values.h"
 #include "components/accessibility_annotator/core/data_models/entity_types.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/optimization_guide/proto/features/content_annotation.pb.h"
 #include "url/gurl.h"
 
 namespace syncer {
@@ -23,7 +26,7 @@ class DataTypeControllerDelegate;
 
 namespace sync_pb {
 class AccessibilityAnnotationSpecifics;
-}
+}  // namespace sync_pb
 
 namespace accessibility_annotator {
 
@@ -32,16 +35,20 @@ class AccessibilityAnnotationSyncBridge;
 class AccessibilityAnnotatorBackend : public KeyedService {
  public:
   struct ContentAnnotationsData {
-    ContentAnnotationsData() = default;
-    ~ContentAnnotationsData() = default;
-    ContentAnnotationsData(ContentAnnotationsData&& other) = default;
-    ContentAnnotationsData& operator=(ContentAnnotationsData&& other) = default;
+    ContentAnnotationsData();
+    ~ContentAnnotationsData();
+    ContentAnnotationsData(ContentAnnotationsData&& other);
+    ContentAnnotationsData& operator=(ContentAnnotationsData&& other);
 
     ContentAnnotationsData(const ContentAnnotationsData&) = delete;
     ContentAnnotationsData& operator=(const ContentAnnotationsData&) = delete;
 
     std::string page_title;
-    base::DictValue annotations;
+    std::optional<int> tab_id;
+    std::optional<base::DictValue> annotations;
+    std::optional<optimization_guide::proto::ContentAnnotation>
+        content_annotation;
+    base::DictValue classifier_results;
   };
 
   ~AccessibilityAnnotatorBackend() override = default;
@@ -60,8 +67,14 @@ class AccessibilityAnnotatorBackend : public KeyedService {
 
   // Writes to Content Annotations cache.
   virtual void SetContentAnnotationsCacheData(const GURL& url,
-                                              std::string page_title,
-                                              base::DictValue annotations) = 0;
+                                              ContentAnnotationsData data) = 0;
+
+  // Removes the entries with the given URLs from Content Annotations cache.
+  virtual void RemoveContentAnnotationsCacheData(
+      base::span<const GURL> urls) = 0;
+
+  // Clears the Content Annotations cache.
+  virtual void ClearContentAnnotationsCache() = 0;
 
   // Pulls cache data into a base::Value for use in the debug UI.
   virtual base::Value GetDebugUICacheData() const = 0;

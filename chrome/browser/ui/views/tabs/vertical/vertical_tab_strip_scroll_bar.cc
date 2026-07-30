@@ -10,12 +10,14 @@
 
 VerticalTabStripScrollBar::VerticalTabStripScrollBar(
     tabs::VerticalTabStripStateController* state_controller)
-    : tab_strip_collapsed_(state_controller ? state_controller->IsCollapsed()
-                                            : false) {
+    : tab_strip_collapsed_(
+          state_controller ? state_controller->GetCollapseState() !=
+                                 tabs::VerticalTabStripCollapseState::kExpanded
+                           : false) {
   if (state_controller) {
     collapsed_state_changed_subscription_ =
         state_controller->RegisterOnCollapseChanged(base::BindRepeating(
-            &VerticalTabStripScrollBar::OnCollapsedStateChanged,
+            &VerticalTabStripScrollBar::OnCollapseStateChanged,
             base::Unretained(this)));
   }
 }
@@ -26,10 +28,14 @@ bool VerticalTabStripScrollBar::ShouldHaveRightMargin() const {
   return !tab_strip_collapsed_;
 }
 
-void VerticalTabStripScrollBar::OnCollapsedStateChanged(
-    tabs::VerticalTabStripStateController* state_controller) {
-  if (tab_strip_collapsed_ != state_controller->IsCollapsed()) {
-    tab_strip_collapsed_ = state_controller->IsCollapsed();
+void VerticalTabStripScrollBar::OnCollapseStateChanged(
+    tabs::VerticalTabStripCollapseState state) {
+  // Apply the margins immediately at the start of the animation by including
+  // the collapsing state.
+  const bool collapsed =
+      state != tabs::VerticalTabStripCollapseState::kExpanded;
+  if (tab_strip_collapsed_ != collapsed) {
+    tab_strip_collapsed_ = collapsed;
     InvalidateLayout();
   }
 }

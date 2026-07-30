@@ -402,7 +402,6 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                         getModalDialogManagerSupplier().asNonNull(),
                         /* appMenuBlocker= */ this,
                         this::supportsAppMenu,
-                        this::supportsFindInPage,
                         getTabCreatorManagerSupplier(),
                         getFullscreenManager(),
                         getCompositorViewHolderSupplier(),
@@ -1411,7 +1410,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
     }
 
     public Supplier<BottomSheetController> getBottomSheetController() {
-        return mRootUiCoordinator::getBottomSheetController;
+        return mRootUiCoordinator.getBottomSheetControllerSupplier();
     }
 
     @Override

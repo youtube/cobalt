@@ -95,7 +95,6 @@ import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
 import org.chromium.chrome.browser.tab_ui.ActionConfirmationManager;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
-import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabstrip.StripVisibilityState;
@@ -143,7 +142,6 @@ public class StripLayoutHelperManagerTest {
     @Mock private DragAndDropDelegate mDragDropDelegate;
     @Mock private TabModelSelector mTabModelSelector;
     @Mock private TabCreatorManager mTabCreatorManager;
-    @Mock private TabGroupModelFilter mTabGroupModelFilter;
     @Mock private TabModel mStandardTabModel;
     @Mock private Profile mProfile;
     @Mock private Tab mSelectedTab;
@@ -222,10 +220,8 @@ public class StripLayoutHelperManagerTest {
     }
 
     private void initializeTest() {
-        when(mTabModelSelector.getTabGroupModelFilter(anyBoolean()))
-                .thenReturn(mTabGroupModelFilter);
         when(mTabModelSelector.getModel(anyBoolean())).thenReturn(mStandardTabModel);
-        when(mTabGroupModelFilter.getTabModel()).thenReturn(mStandardTabModel);
+        when(mStandardTabModel.getTabModel()).thenReturn(mStandardTabModel);
         when(mTabModelSelector.getCurrentModel()).thenReturn(mStandardTabModel);
         when(mTabModelSelector.getCurrentTabModelSupplier()).thenReturn(mTabModelSupplier);
         when(mStandardTabModel.getProfile()).thenReturn(mProfile);
@@ -1762,5 +1758,32 @@ public class StripLayoutHelperManagerTest {
                 scrimOpacity,
                 scrimOpacityCaptor.getValue(),
                 0.01f);
+    }
+
+    @Test
+    public void testStripBottomPxSupplier_onLayerYOffsetChanged() {
+        int yOffsetPx = 10;
+        int visibleHeightPx = 40;
+        mStripLayoutHelperManager.onLayerYOffsetChanged(yOffsetPx, visibleHeightPx);
+
+        assertEquals(
+                "Unexpected bottom px value.",
+                (Integer) (yOffsetPx + visibleHeightPx),
+                mStripLayoutHelperManager.getStripBottomPxSupplier().get());
+    }
+
+    @Test
+    @DisableFeatures(ChromeFeatureList.TOP_CONTROLS_REFACTOR_V2)
+    public void testStripBottomPxSupplier_getUpdatedSceneOverlayTree() {
+        int topControlOffset = 10;
+        when(mBrowserControlStateProvider.getTopControlOffset()).thenReturn(topControlOffset);
+        when(mBrowserControlStateProvider.isVisibilityForced()).thenReturn(true);
+        mStripLayoutHelperManager.getUpdatedSceneOverlayTree(
+                new RectF(), new RectF(), mResourceManager);
+
+        assertEquals(
+                "Unexpected bottom px value.",
+                (Integer) (TAB_STRIP_HEIGHT_PX + topControlOffset),
+                mStripLayoutHelperManager.getStripBottomPxSupplier().get());
     }
 }

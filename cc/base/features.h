@@ -195,10 +195,6 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kRenderThrottleFrameRate);
 CC_BASE_EXPORT extern const base::FeatureParam<int>
     kRenderThrottledFrameIntervalHz;
 
-// Adds a fast path to avoid waking up the thread pool when there are no raster
-// tasks.
-CC_BASE_EXPORT BASE_DECLARE_FEATURE(kFastPathNoRaster);
-
 // When enabled, internal begin frame source will be used in cc to reduce IPC
 // between cc and viz when there were many "did not produce frame" recently,
 // and SetAutoNeedsBeginFrame will be called on CompositorFrameSink.
@@ -226,11 +222,6 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
 // When enabled, slim will receive CompositorFrameSink messages directly without
 // the intermediate IO-thread hop.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kSlimDirectReceiverIpc);
-
-// When enabled, the overscroll behavior will be respected on all scroll
-// containers.
-CC_BASE_EXPORT BASE_DECLARE_FEATURE(
-    kOverscrollBehaviorRespectedOnAllScrollContainers);
 
 // When enabled, the overscroll effect will display on non-root scrollers.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kOverscrollEffectOnNonRootScrollers);

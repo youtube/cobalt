@@ -247,20 +247,8 @@ class AutofillClient {
 
   // Details about the UI that was shown to the user in an entity import bubble.
   struct EntityImportUIContext {
-    EntityImportUIContext();
-    EntityImportUIContext(std::vector<int> ui_string_ids,
-                          std::optional<int> clicked_button_string_id);
-    EntityImportUIContext(const EntityImportUIContext&);
-    EntityImportUIContext(EntityImportUIContext&&);
-    EntityImportUIContext& operator=(const EntityImportUIContext&);
-    EntityImportUIContext& operator=(EntityImportUIContext&&);
-    ~EntityImportUIContext();
-
-    // String IDs of all the static UI elements, like the bubble title and
-    // footer. Does not include attribute values of the entity.
-    // Empty if the bubble was never shown (for example, because another bubble
-    // is already displayed).
-    std::vector<int> ui_string_ids;
+    // String ID of the consent displayed in the import bubble, if any.
+    std::optional<int> consent_string_id;
     // The string ID of the button that the user clicked, in case the user
     // accepted or declined the bubble.
     std::optional<int> clicked_button_string_id;
@@ -678,12 +666,16 @@ class AutofillClient {
   // Returns a pointer to a DeviceAuthenticator. Might be nullptr if the given
   // platform is not supported.
   virtual std::unique_ptr<device_reauth::DeviceAuthenticator>
-  GetDeviceAuthenticator();
+  GetDeviceAuthenticator() const;
 
   // Same as `GetDeviceAuthenticator()` but also logs authentication results to
   // `histogram`.
   virtual std::unique_ptr<device_reauth::DeviceAuthenticator>
-  GetDeviceAuthenticator(std::string histogram);
+  GetDeviceAuthenticator(std::string histogram) const;
+
+  // Returns true if the device supports any kind of re-auth through the
+  // `GetDeviceAuthenticator()`.
+  bool SupportsDeviceReauth() const;
 
   // Attaches the IPH for `feature` to the `field`, on
   // platforms that it. If another IPH has been shown for the tab, the IPH is

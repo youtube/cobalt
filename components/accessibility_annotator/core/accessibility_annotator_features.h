@@ -9,7 +9,7 @@
 #include "base/metrics/field_trial_params.h"
 #include "base/time/time.h"
 
-namespace accessibility_annotator {
+namespace accessibility_annotator::features {
 
 BASE_DECLARE_FEATURE(kContentAnnotator);
 BASE_DECLARE_FEATURE_PARAM(int, kContentAnnotatorMaxPendingUrls);
@@ -39,12 +39,15 @@ BASE_DECLARE_FEATURE(kAccessibilityAnnotatorFirstRun);
 BASE_DECLARE_FEATURE(kAccessibilityAnnotatorGetEntities);
 
 BASE_DECLARE_FEATURE(kAccessibilityAnnotatorLiveTabContext);
+BASE_DECLARE_FEATURE_PARAM(
+    int,
+    kAccessibilityAnnotatorLiveTabContextMaxSearchResults);
 
 BASE_DECLARE_FEATURE(kAccessibilityAnnotationReducerOnePResolver);
 BASE_DECLARE_FEATURE_PARAM(std::string, kAccessibilityAnnotatorOnePServiceUrl);
 
 BASE_DECLARE_FEATURE(kAccessibilityAnnotatorDatabaseStorage);
 
-}  // namespace accessibility_annotator
+}  // namespace accessibility_annotator::features
 
 #endif  // COMPONENTS_ACCESSIBILITY_ANNOTATOR_CORE_ACCESSIBILITY_ANNOTATOR_FEATURES_H_

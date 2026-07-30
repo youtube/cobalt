@@ -28,6 +28,7 @@
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout_params.h"
 #include "chrome/browser/ui/views/frame/main_background_region_view.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view.h"
+#include "chrome/browser/ui/views/frame/shadow_frame_view.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
@@ -58,6 +59,15 @@ constexpr int kVerticalTabsGrabHandleSize = 40;
 // Maximum portion of the window a "size-restricted" contents-height side panel
 // can take up. This is not the only limit on side panel size.
 constexpr float kMaxContentsHeightSidePanelFraction = 2.f / 3.f;
+
+// How much the vertical tab strip's outline fades out when expanding-on-hover.
+// This is to help it blend better with the drop shadow it acquires - especially
+// in dark mode, where the outline is lighter than the tab strip but the shadow
+// is darker.
+//
+// This is a percentage, with 0.0 meaning no change to the outline, and 1.0
+// meaning the outline disappears completely.
+constexpr double kVerticalTabStripOutlineFadeOnHover = 0.5;
 
 // Increases the leading or trailing exclusion padding to `minimum`.
 void IncreasePaddingToMinimum(BrowserLayoutParams& params, int minimum) {
@@ -418,6 +428,19 @@ BrowserViewTabbedLayoutImpl::CalculateVerticalTabStripAnimation(
             ->GetCurrentValue(TabStripAnimations::kVerticalTabStrip,
                               TabStripAnimations::kTabStripHoverWidth)
             .value_or(0.0);
+  }
+
+  if (motion == TabStripAnimations::kExpand) {
+    // These values have to be interpreted in terms of the most recent values
+    // before the expand animation was playing.
+    animation.bottom_corner =
+        std::max(last_bottom_corner_value_, animation.bottom_corner);
+    animation.expand_on_hover *= last_expand_on_hover_;
+  } else {
+    // Save these so that if an expand animation is played over them, it
+    // continues from there.
+    last_bottom_corner_value_ = animation.bottom_corner;
+    last_expand_on_hover_ = animation.expand_on_hover;
   }
 
   // Once the top pulls away from the top of the browser, we cannot have an
@@ -822,7 +845,6 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
           ? views().toolbar_height_side_panel->GetAnimationValue()
           : 0.0;
   const bool pad_toolbar_height_side_panel_top =
-      !base::FeatureList::IsEnabled(features::kDetachedTabs) &&
       (tab_strip_type != TabStripType::kVertical ||
        delegate().GetImmersiveModeController()->IsEnabled());
   bool adjust_for_shadow_box = false;
@@ -1276,6 +1298,7 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
       vertical_tabs_corners.lower_leading =
           vertical_tabs_background->GetWindowCorner(/*upper=*/false);
     }
+
     // When the vertical tabs are below the toolbar but next to the bookmarks
     // bar, draw a curved corner.
     if (animation.top_corner < 0.0) {
@@ -1289,12 +1312,17 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
 
     // When the vertical tabs are expanded for hover, it may have a concave
     // corner.
+    double vertical_tabs_bottom_corner_amount = 0.0;
+    int vertical_tabs_bottom_corner_size = 0;
     if (animation.bottom_corner < 0.0) {
+      vertical_tabs_bottom_corner_amount = -animation.bottom_corner;
       vertical_tabs_corners.lower_trailing.type =
           CustomCornersBackground::CornerType::kRounded;
-      vertical_tabs_corners.lower_trailing.radius =
+      vertical_tabs_bottom_corner_size =
           base::ClampRound(vertical_tabs_background->default_radius() *
-                           -animation.bottom_corner);
+                           vertical_tabs_bottom_corner_amount);
+      vertical_tabs_corners.lower_trailing.radius =
+          vertical_tabs_bottom_corner_size;
     }
 
     vertical_tabs_background->SetCorners(vertical_tabs_corners);
@@ -1323,9 +1351,25 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
       }
     }
 
-    // Vertical tabs outline always draws trailing edge.
+    // Apply shadow for expand-on-hover.
+    auto* const shadow_frame =
+        views().vertical_tab_strip_region_view->shadow_frame();
+    if (vertical_tabs_bottom_corner_amount > 0.0) {
+      shadow_frame->SetShadowCornerRadius(vertical_tabs_bottom_corner_size);
+      shadow_frame->SetShadowOpacity(vertical_tabs_bottom_corner_amount);
+      shadow_frame->SetShadowVisible(true);
+    } else {
+      shadow_frame->SetShadowVisible(false);
+    }
+
     CustomCornersBackground::Outline vertical_tabs_outline;
     vertical_tabs_outline.color = kColorVerticalTabStripShadow;
+    // Vertical tabs outline fades partially during expand-on-hover to be
+    // replaced with shadow.
+    vertical_tabs_outline.opacity =
+        1.0 - kVerticalTabStripOutlineFadeOnHover *
+                  vertical_tabs_bottom_corner_amount;
+    // Vertical tabs outline always draws trailing edge.
     vertical_tabs_outline.trailing = true;
     // Top edge is drawn if the layout is below the top of the parent.
     if (animation.expand_on_hover ||

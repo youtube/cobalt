@@ -195,8 +195,8 @@ TabSearchPageHandler::~TabSearchPageHandler() {
 }
 
 void TabSearchPageHandler::CloseTab(int32_t tab_id) {
-  std::optional<TabDetails> details = GetTabDetails(tab_id);
-  if (!details) {
+  tabs::TabInterface* const tab = GetTabInterface(tab_id);
+  if (!tab) {
     return;
   }
 
@@ -211,11 +211,9 @@ void TabSearchPageHandler::CloseTab(int32_t tab_id) {
   // that no further actions are performed following the call to
   // CloseWebContentsAt(). See (https://crbug.com/1175507).
   tabs_api::TabStripService* const service =
-      GetTabStripService(details->tab->GetBrowserWindowInterface());
+      GetTabStripService(tab->GetBrowserWindowInterface());
   CHECK(service);
-  auto node_id = tabs_api::NodeId::FromTabHandle(details->tab->GetHandle());
-  // Don't dangle a tabs::TabInterface* in `details`.
-  details.reset();
+  auto node_id = tabs_api::NodeId::FromTabHandle(tab->GetHandle());
   const auto result = service->CloseNodes({node_id});
   DCHECK(result.has_value());
   // Do not add code past this point.
@@ -267,18 +265,17 @@ void TabSearchPageHandler::GetProfileData(GetProfileDataCallback callback) {
   std::move(callback).Run(std::move(profile_tabs));
 }
 
-std::optional<TabSearchPageHandler::TabDetails>
-TabSearchPageHandler::GetTabDetails(int32_t tab_id) {
+tabs::TabInterface* TabSearchPageHandler::GetTabInterface(int32_t tab_id) {
   const tabs::TabHandle handle = tabs::TabHandle(tab_id);
   tabs::TabInterface* const tab = handle.Get();
   if (!tab) {
-    return std::nullopt;
+    return nullptr;
   }
   BrowserWindowInterface* browser = tab->GetBrowserWindowInterface();
   if (!browser || !ShouldTrackBrowser(profile_, browser)) {
-    return std::nullopt;
+    return nullptr;
   }
-  return TabDetails(tab);
+  return tab;
 }
 
 void TabSearchPageHandler::GetIsSplit(GetIsSplitCallback callback) {
@@ -293,9 +290,8 @@ void TabSearchPageHandler::GetIsSplit(GetIsSplitCallback callback) {
 
 void TabSearchPageHandler::SwitchToTab(
     tab_search::mojom::SwitchToTabInfoPtr switch_to_tab_info) {
-  const std::optional<TabDetails> details =
-      GetTabDetails(switch_to_tab_info->tab_id);
-  if (!details) {
+  tabs::TabInterface* const tab = GetTabInterface(switch_to_tab_info->tab_id);
+  if (!tab) {
     return;
   }
 
@@ -304,15 +300,15 @@ void TabSearchPageHandler::SwitchToTab(
   profile_->GetPrefs()->SetBoolean(tab_search_prefs::kTabSearchUsed, true);
 
   tabs_api::TabStripService* const service =
-      GetTabStripService(details->tab->GetBrowserWindowInterface());
-  const auto result = service->ActivateTab(
-      tabs_api::NodeId::FromTabHandle(details->tab->GetHandle()));
+      GetTabStripService(tab->GetBrowserWindowInterface());
+  const auto result =
+      service->ActivateTab(tabs_api::NodeId::FromTabHandle(tab->GetHandle()));
   DCHECK(result.has_value());
 
   // Tab search shows tabs from other windows in the profile. So if a user
   // selects a tab in another window, we need to manually activate it so
   // that we can bring that window to the foreground.
-  details->tab->GetBrowserWindowInterface()->GetWindow()->Activate();
+  tab->GetBrowserWindowInterface()->GetWindow()->Activate();
   metrics_reporter_->Measure(
       "SwitchToTab",
       base::BindOnce(
@@ -417,9 +413,8 @@ tab_search::mojom::ProfileDataPtr TabSearchPageHandler::CreateProfileData() {
                              ->GetContentsSize()
                              .height();
 
-        int tab_index = 0;
-        WalkContainer(get_tabs_result.value(), tab_index, window.get(),
-                      profile_data.get(), tab_dedup_keys, tab_group_ids);
+        WalkContainer(get_tabs_result.value(), window.get(), profile_data.get(),
+                      tab_dedup_keys, tab_group_ids);
 
         profile_data->windows.push_back(std::move(window));
 
@@ -438,7 +433,6 @@ tab_search::mojom::ProfileDataPtr TabSearchPageHandler::CreateProfileData() {
 
 void TabSearchPageHandler::WalkContainer(
     const tabs_api::mojom::ContainerPtr& container,
-    int& tab_index,
     tab_search::mojom::Window* window,
     tab_search::mojom::ProfileData* profile_data,
     std::set<DedupKey>& tab_dedup_keys,
@@ -455,7 +449,7 @@ void TabSearchPageHandler::WalkContainer(
       if (tab_interface && tab_interface->GetContents()
                                ->GetController()
                                .GetLastCommittedEntry()) {
-        tab_search::mojom::TabPtr tab = GetTab(tab_interface, tab_index++);
+        tab_search::mojom::TabPtr tab = GetTab(tab_interface);
         tab_dedup_keys.insert(DedupKey(tab->url, tab->group_id));
         window->tabs.push_back(std::move(tab));
       }
@@ -480,8 +474,7 @@ void TabSearchPageHandler::WalkContainer(
   }
 
   for (const auto& child : container->children) {
-    WalkContainer(child, tab_index, window, profile_data, tab_dedup_keys,
-                  tab_group_ids);
+    WalkContainer(child, window, profile_data, tab_dedup_keys, tab_group_ids);
   }
 }
 
@@ -611,15 +604,14 @@ bool TabSearchPageHandler::AddRecentlyClosedTab(
   return true;
 }
 
-tab_search::mojom::TabPtr TabSearchPageHandler::GetTab(tabs::TabInterface* tab,
-                                                       int index) const {
+tab_search::mojom::TabPtr TabSearchPageHandler::GetTab(
+    tabs::TabInterface* tab) const {
   auto tab_mojom_data = tab_search::mojom::Tab::New();
   content::WebContents* contents = tab->GetContents();
 
   tab_mojom_data->active = tab->IsActivated();
   tab_mojom_data->visible = tab->IsVisible();
   tab_mojom_data->tab_id = tab->GetHandle().raw_value();
-  tab_mojom_data->index = index;
   const std::optional<tab_groups::TabGroupId> group_id = tab->GetGroup();
   if (group_id.has_value()) {
     tab_mojom_data->group_id = group_id.value().token();
@@ -814,14 +806,14 @@ void TabSearchPageHandler::OnTabDataChanged(
     const tabs_api::mojom::TabChange& event) {
   // Ignore if the UI is hidden or the event doesn't contain
   // relevant tab data changes.
-  if (!IsWebContentsVisible() || !HasTabSiteDataChanged(event.mask)) {
+  const std::optional<tabs::TabHandle> handle = event.data->id.ToTabHandle();
+  if (!IsWebContentsVisible() || !HasTabSiteDataChanged(event.mask) ||
+      !handle) {
     return;
   }
 
-  auto handle = event.data->id.ToTabHandle();
-  std::optional<TabDetails> details =
-      handle ? GetTabDetails(handle->raw_value()) : std::nullopt;
-  if (!details) {
+  tabs::TabInterface* const tab = handle->Get();
+  if (!tab) {
     return;
   }
 
@@ -833,11 +825,10 @@ void TabSearchPageHandler::OnTabDataChanged(
     metrics_reporter_->Mark("TabUpdated");
   }
   auto tab_update_info = tab_search::mojom::TabUpdateInfo::New();
-  tabs::TabInterface* tab = details->tab;
   BrowserWindowInterface* browser = tab->GetBrowserWindowInterface();
   tab_update_info->in_active_window = browser->IsActive();
   tab_update_info->in_host_window = browser == browser_;
-  tab_update_info->tab = GetTab(tab, details->GetIndex());
+  tab_update_info->tab = GetTab(tab);
   page_->TabUpdated(std::move(tab_update_info));
 }
 

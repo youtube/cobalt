@@ -116,6 +116,7 @@ namespace content {
 class FrameTree;
 class MockRenderWidgetHost;
 class MockRenderWidgetHostImpl;
+class RenderFrameHost;
 class RenderWidgetHostFactory;
 class RenderWidgetHostOwnerDelegate;
 class SiteInstanceGroup;
@@ -447,6 +448,10 @@ class CONTENT_EXPORT RenderWidgetHostImpl
       mojo::PendingAssociatedReceiver<blink::mojom::FrameWidgetHost>
           frame_widget_host,
       mojo::PendingAssociatedRemote<blink::mojom::FrameWidget> frame_widget);
+
+  // Bind to a non-associated pipe. Provided for MojoJS testing.
+  void BindFrameWidgetHostReceiver(
+      mojo::PendingReceiver<blink::mojom::FrameWidgetHost> receiver);
 
   // The Bind*Interfaces() methods are called before creating the renderer-side
   // Widget object, and RendererWidgetCreated() is called afterward. At that
@@ -970,13 +975,25 @@ class CONTENT_EXPORT RenderWidgetHostImpl
       const std::optional<cc::BrowserControlsOffsetTagModifications>&
           offset_tag_modifications);
 
-  void StartDragging(blink::mojom::DragDataPtr drag_data,
-                     const url::Origin& source_origin,
+  void StartDragging(RenderFrameHost& source_rfh,
+                     blink::mojom::DragDataPtr drag_data,
                      blink::DragOperationsMask drag_operations_mask,
                      const SkBitmap& unsafe_bitmap,
                      const gfx::Vector2d& cursor_offset_in_dip,
                      const gfx::Rect& drag_obj_rect_in_dip,
                      blink::mojom::DragEventSourceInfoPtr event_info);
+
+#if BUILDFLAG(IS_ANDROID)
+  // On Android, drag and drop may need to request input back from Viz, so the
+  // actual drag and drop may be started asynchronously.
+  void AsyncStartDragging(WeakDocumentPtr source_document,
+                          blink::mojom::DragDataPtr drag_data,
+                          blink::DragOperationsMask drag_operations_mask,
+                          const SkBitmap& unsafe_bitmap,
+                          const gfx::Vector2d& cursor_offset_in_dip,
+                          const gfx::Rect& drag_obj_rect_in_dip,
+                          blink::mojom::DragEventSourceInfoPtr event_info);
+#endif
 
   // Notifies the widget that the viz::FrameSinkId assigned to it is now bound
   // to its renderer side widget. If the renderer issued a FrameSink request
@@ -1567,6 +1584,9 @@ class CONTENT_EXPORT RenderWidgetHostImpl
   // can be used to send messages directly to blink.
   mojo::AssociatedReceiver<blink::mojom::FrameWidgetHost>
       blink_frame_widget_host_receiver_{this};
+  // Non-associated pipe provided for MojoJS testing.
+  mojo::Receiver<blink::mojom::FrameWidgetHost> frame_widget_host_receiver_{
+      this};
   mojo::AssociatedRemote<blink::mojom::FrameWidget> blink_frame_widget_;
 
   // If this is initialized with a popup this member will be valid and

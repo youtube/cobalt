@@ -12,10 +12,12 @@
 #include "base/android/jni_string.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_composebox_handler_interface.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/contextual_search/contextual_search_session_handle.h"
 #include "components/contextual_search/input_state_model.h"
 #include "components/contextual_search/internal/composebox_query_controller.h"
+#include "components/contextual_tasks/public/query_contextualizer.h"
 #include "components/lens/proto/server/lens_overlay_response.pb.h"
 #include "third_party/jni_zero/jni_zero.h"
 
@@ -31,7 +33,9 @@ class Profile;
 class GURL;
 
 class ComposeboxQueryControllerBridge
-    : public ComposeboxQueryController::ContextUploadStatusObserver {
+    : public ComposeboxQueryController::ContextUploadStatusObserver,
+      public contextual_tasks::ContextualTasksComposeboxHandlerInterface,
+      public contextual_tasks::QueryContextualizer::Delegate {
  public:
   explicit ComposeboxQueryControllerBridge(
       Profile* profile,
@@ -90,6 +94,34 @@ class ComposeboxQueryControllerBridge
 
   base::WeakPtr<ComposeboxQueryControllerBridge> AsWeakPtr();
 
+  // contextual_tasks::ContextualTasksComposeboxHandlerInterface:
+  void ResetInputStateModel() override;
+  void ResetBlocklistedSuggestions() override;
+  void UpdateSuggestedTabContext(
+      std::unique_ptr<contextual_tasks::SuggestedTabInfo> suggested_tab)
+      override;
+  void OnTaskChanged() override;
+  void InitializeInputStateModel() override;
+  void UpdateModelFromUrl(const GURL& url) override;
+  bool has_suggested_tab_context() const override;
+
+  // contextual_tasks::QueryContextualizer::Delegate:
+  GURL GetTabUrl(contextual_tasks::QueryContextualizer::TabId id) override;
+  SessionID GetTabSessionId(
+      contextual_tasks::QueryContextualizer::TabId id) override;
+  void GetPageContext(
+      contextual_tasks::QueryContextualizer::TabId id,
+      base::OnceCallback<void(std::unique_ptr<lens::ContextualInputData>)>
+          callback) override;
+  bool IsTabValid(contextual_tasks::QueryContextualizer::TabId id) override;
+  std::optional<lens::ImageEncodingOptions>
+  GetTabViewportEncodingOptionsForQueryContextualizer() override;
+  contextual_search::ContextualSearchSessionHandle*
+  GetOrCreateSessionHandleForQueryContextualizer() override;
+  void OnPageContextIneligible() override;
+  void OnTabProcessedForQueryContextualization(
+      contextual_tasks::QueryContextualizer::TabId id) override;
+
  private:
   void OnGetPageContentFromCache(
       JNIEnv* env,
@@ -106,6 +138,10 @@ class ComposeboxQueryControllerBridge
 
   std::unique_ptr<ComposeboxQueryController::CreateSearchUrlRequestInfo>
   CreateSearchUrlRequestInfoFromUrl(GURL url);
+  void ContextualizeAndCreateSearchUrl(
+      std::unique_ptr<ComposeboxQueryController::CreateSearchUrlRequestInfo>
+          search_url_request_info,
+      const base::android::JavaRef<jobject>& j_callback);
   contextual_search::ContextualSearchContextController* query_controller()
       const {
     return session_handle_->GetController();
@@ -116,6 +152,7 @@ class ComposeboxQueryControllerBridge
       session_handle_;
   std::unique_ptr<contextual_search::InputStateModel> input_state_model_;
   base::CallbackListSubscription input_state_subscription_;
+  std::unique_ptr<contextual_tasks::QueryContextualizer> query_contextualizer_;
   base::android::ScopedJavaGlobalRef<jobject> java_obj_;
   base::WeakPtrFactory<ComposeboxQueryControllerBridge> weak_ptr_factory_{this};
 };

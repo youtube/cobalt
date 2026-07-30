@@ -28,6 +28,7 @@
 #include "chrome/browser/defaults.h"
 #include "chrome/browser/extensions/extension_ui_util.h"
 #include "chrome/browser/feedback/report_unsafe_site_dialog.h"
+#include "chrome/browser/feedback/show_feedback_page.h"
 #include "chrome/browser/glic/browser_ui/glic_vector_icon_manager.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
@@ -74,6 +75,7 @@
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/recent_tabs_sub_menu_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/tabs/vertical_tab_strip_metrics.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/toolbar/app_menu_icon_controller.h"
 #include "chrome/browser/ui/toolbar/bookmark_sub_menu_model.h"
@@ -82,7 +84,6 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
-#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_metrics.h"
 #include "chrome/browser/ui/web_applications/web_app_dialog_utils.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
 #include "chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_page_handler.h"
@@ -952,8 +953,7 @@ void HelpMenuModel::Build(Browser* browser) {
       SetCommandIcon(this, IDC_HELP_PAGE_VIA_MENU, kHelpMenuIcon);
     }
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-    PrefService* pref_service = browser->profile()->GetPrefs();
-    if (pref_service->GetBoolean(prefs::kUserFeedbackAllowed)) {
+    if (chrome::CanShowFeedback(browser->profile())) {
       AddItemWithStringIdAndVectorIcon(this, IDC_FEEDBACK, IDS_FEEDBACK,
                                        kReportIcon);
 

@@ -51,10 +51,10 @@ class StringImpl;
 // Use either one of static methods to convert ASCII, Latin1, UTF-8 or
 // UTF-16 string into WebString:
 //
-// * WebString::FromASCII(std::string_view ascii)
+// * WebString::FromAscii(std::string_view ascii)
 // * WebString::FromLatin1(std::string_view latin1)
 // * WebString::FromUTF8(std::string_view utf8)
-// * WebString::FromUTF16(std::optional<std::u16string_view> utf16)
+// * WebString::FromUtf16(std::optional<std::u16string_view> utf16)
 //
 // Similarly, use either of following methods to convert WebString to
 // ASCII, Latin1, UTF-8 or UTF-16:
@@ -128,7 +128,7 @@ class BLINK_PLATFORM_EXPORT WebString {
 
   std::u16string Utf16() const;
 
-  static WebString FromUTF16(std::optional<std::u16string_view>);
+  static WebString FromUtf16(std::optional<std::u16string_view>);
 
   static std::optional<std::u16string> ToOptionalString16(const WebString& s) {
     return s.IsNull() ? std::nullopt : std::make_optional(s.Utf16());
@@ -144,10 +144,10 @@ class BLINK_PLATFORM_EXPORT WebString {
   std::string Ascii() const;
 
   // Use this rather than calling base::IsStringASCII().
-  bool ContainsOnlyASCII() const;
+  bool ContainsOnlyAscii() const;
 
   // Does same as FromLatin1 but asserts if the given string has non-ascii char.
-  static WebString FromASCII(std::string_view);
+  static WebString FromAscii(std::string_view);
 
   template <int N>
   WebString(const char (&data)[N])

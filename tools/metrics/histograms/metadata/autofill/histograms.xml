@@ -2156,7 +2156,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.Autocomplete.PredictionCollisionState"
-    enum="PredictionStateAutocompleteStatePair" expires_after="2026-07-26">
+    enum="PredictionStateAutocompleteStatePair" expires_after="2026-09-27">
   <owner>koerber@google.com</owner>
   <owner>fleimgruber@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
@@ -3052,7 +3052,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram
     name="Autofill.CreditCard.Seamless{AutofillSeamlessnessFillability}.{AutofillSeamlessnessMeasurementTime}{AutofillSeamlessnessVisibility}"
-    enum="CreditCardSeamlessFill" expires_after="2026-07-26">
+    enum="CreditCardSeamlessFill" expires_after="2026-09-27">
   <owner>schwering@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -3096,7 +3096,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram
     name="Autofill.CreditCard.Seamless{AutofillSeamlessnessFillability}.{AutofillSeamlessnessMeasurementTime}{AutofillSeamlessnessVisibility}.Bitmask"
-    enum="AutofillCreditCardSeamlessnessBitmask" expires_after="2026-07-26">
+    enum="AutofillCreditCardSeamlessnessBitmask" expires_after="2026-09-27">
   <owner>schwering@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -3672,7 +3672,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.DriverRouter.TriggerFormExtractionExcept.FrameCount"
-    units="frames" expires_after="2026-07-26">
+    units="frames" expires_after="2026-09-27">
   <owner>vincb@google.com</owner>
   <owner>schwering@google.com</owner>
   <owner>bling-transactions@google.com</owner>
@@ -4167,7 +4167,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.FocusedField.FieldType{Origin}"
-    enum="AutofillFieldType" expires_after="2026-06-01">
+    enum="AutofillFieldType" expires_after="2026-09-27">
   <owner>schwering@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>Recorded when a {Origin} field receives the focus.</summary>
@@ -4217,6 +4217,21 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     when the BNPL suggestion is shown, selected, filled, and submitted. Each
     event log is emitted when the action occurs (suggestion shown, selected,
     etc.). Each BnplFormEvent metric can be recorded once per page load.
+  </summary>
+</histogram>
+
+<histogram name="Autofill.FormEvents.CreditCard.Bnpl.PayLaterTab"
+    enum="PayLaterTabsFormEvent" expires_after="2026-08-02">
+  <owner>yishuil@google.com</owner>
+  <owner>wilsonlow@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    This histogram records events related to Buy Now Pay Later (BNPL)
+    suggestions in tabbed pane. It tracks when the BNPL suggestion is shown,
+    selected, filled, and submitted from a suggestion dropdown with a tabbed
+    pane. Additionally, suggestion tab switch events are also tracked. Each
+    event log is emitted when the action occurs (suggestion shown, selected,
+    etc.). Each PayLaterTabsFormEvent metric can be recorded once per page load.
   </summary>
 </histogram>
 
@@ -4930,7 +4945,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.iOS.FormSubmission.IsProgrammatic" enum="Boolean"
-    expires_after="2026-07-26">
+    expires_after="2026-09-27">
   <owner>eic@google.com</owner>
   <owner>vincb@google.com</owner>
   <owner>bling-transactions@google.com</owner>
@@ -4945,7 +4960,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.iOS.FormSubmission.Outcome.InvalidFormReason"
-    enum="InvalidSubmittedFormReasonIOS" expires_after="2026-07-26">
+    enum="InvalidSubmittedFormReasonIOS" expires_after="2026-09-27">
   <owner>eic@google.com</owner>
   <owner>vincb@google.com</owner>
   <owner>bling-transactions@google.com</owner>
@@ -4957,7 +4972,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.iOS.FormSubmission.OutcomeV2"
-    enum="FormSubmissionOutcomeIOS" expires_after="2026-07-26">
+    enum="FormSubmissionOutcomeIOS" expires_after="2026-09-27">
   <owner>eic@google.com</owner>
   <owner>vincb@google.com</owner>
   <owner>bling-transactions@google.com</owner>
@@ -5133,7 +5148,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.Leipzig.FillingAssistanceCategory"
-    enum="AutofillCategoryResolvedFillingAssistance" expires_after="2026-07-26">
+    enum="AutofillCategoryResolvedFillingAssistance" expires_after="2026-09-27">
   <owner>koerber@chromium.org</owner>
   <owner>fleimgruber@chromium.org</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
@@ -5144,7 +5159,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.Leipzig.FillingCorrectness.{Category}"
-    enum="BooleanAutofillFillingCorrectness" expires_after="2026-07-26">
+    enum="BooleanAutofillFillingCorrectness" expires_after="2026-09-27">
   <owner>koerber@chromium.org</owner>
   <owner>fleimgruber@chromium.org</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
@@ -5536,6 +5551,11 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     Starts when AutofillManager::Observer::OnFieldTypesDetermined is called.
     Logs if the logic made it to the IntersectionObserver section, or if the
     flow aborted, why it aborted.
+
+    Note that OnFieldTypesDetermined(~) is generally called once per detected
+    form, *not* once per page load or once per Omnibox Autofill flow, so using
+    these values to analyze opportunity size is not recommended. It is highly
+    affected by the number of forms detected on a page.
   </summary>
 </histogram>
 
@@ -6649,7 +6669,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.ProfileTokenQuality.{Type}" units="Percents"
-    expires_after="2026-07-26">
+    expires_after="2026-09-27">
   <owner>fleimgruber@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -8286,6 +8306,17 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </token>
 </histogram>
 
+<histogram name="Autofill.SuggestionGeneration.GeneratedFillingProduct"
+    enum="AutofillFillingProduct" expires_after="2026-06-21">
+  <owner>kuchyn@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <summary>
+    Logs the filling product for which suggestions were generated. This is
+    emitted for every filling product that yields a non-empty list of
+    suggestions during the suggestion generation flow.
+  </summary>
+</histogram>
+
 <histogram name="Autofill.Suggestions.AcceptedType" enum="SuggestionType"
     expires_after="2026-12-12">
   <owner>jihadghanna@google.com</owner>
@@ -8401,7 +8432,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.Timing.SuggestionGeneration2" units="ms"
-    expires_after="2026-06-21">
+    expires_after="2026-09-27">
   <owner>jihadghanna@google.com</owner>
   <owner>kuchyn@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
@@ -9276,28 +9307,6 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   <token key="EnrollmentSource"
       variants="Autofill.VirtualCardEnrollmentSource"/>
   <token key="LinkType" variants="Autofill.VirtualCardEnrollmentLinkType"/>
-</histogram>
-
-<histogram
-    name="Autofill.VirtualCardEnrollBubble.ConfirmationShown.{IsCardEnrolled}"
-    enum="AutofillVirtualCardEnrollBubbleResult" expires_after="2026-05-10">
-  <owner>darwinyang@google.com</owner>
-  <owner>kavitasoni@google.com</owner>
-  <owner>chrome-payments-eng@google.com</owner>
-  <owner>payments-autofill-team@google.com</owner>
-  <summary>
-    Records if the virtual card confirmation bubble is shown after credit card
-    enrollment is completed. IsCardEnrolled ({IsCardEnrolled}) indicates whether
-    the confirmation bubble is for a successful VCN enrollment or not. Recorded
-    after the confirmation bubble is shown or after the decision to not show the
-    confirmation bubble.
-  </summary>
-  <token key="IsCardEnrolled">
-    <variant name="CardEnrolled"
-        summary="Credit card was successfully enrolled."/>
-    <variant name="CardNotEnrolled"
-        summary="Credit card failed to be enrolled."/>
-  </token>
 </histogram>
 
 <histogram name="Autofill.VirtualCardEnrollBubble.LatencySinceDownstream"

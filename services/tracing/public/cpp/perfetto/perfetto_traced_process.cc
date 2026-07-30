@@ -7,6 +7,7 @@
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
@@ -215,7 +216,9 @@ PerfettoTracedProcess& PerfettoTracedProcess::Get() {
 }
 
 PerfettoTracedProcess::PerfettoTracedProcess(bool will_trace_thread_restart)
-    : trace_process_thread_(std::make_unique<base::Thread>("PerfettoTrace")),
+    : trace_process_thread_(
+          std::make_unique<base::Thread>("PerfettoTrace",
+                                         base::Thread::Restartable{})),
       task_runner_(trace_process_thread_->StartWithOptions(
                        base::Thread::Options(base::MessagePumpType::IO, 0))
                        ? trace_process_thread_->task_runner()

@@ -16,6 +16,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/host/glic_features.mojom.h"
+#include "chrome/browser/glic/host/glic_web_contents_warming_pool.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
@@ -23,7 +24,6 @@
 #include "chrome/browser/glic/suggestions/contextual_cueing_service.h"
 #include "chrome/browser/glic/test_support/glic_test_environment.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
-#include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_test_util.h"
@@ -419,13 +419,7 @@ class GlicProfileManagerPreloadingTest
   bool IsWarmed() {
     auto* service =
         GlicKeyedServiceFactory::GetGlicKeyedService(browser()->profile());
-    if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
-      auto& coordinator = static_cast<GlicInstanceCoordinatorImpl&>(
-          service->window_controller());
-      return coordinator.HasWarmedInstanceForTesting();
-    } else {
-      return service->GetSingleInstanceWindowController().IsWarmed();
-    }
+    return service->web_contents_warming_pool().HasWarmedContainerForTesting();
   }
 
  private:

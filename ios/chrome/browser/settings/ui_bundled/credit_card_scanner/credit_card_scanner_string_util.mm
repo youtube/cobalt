@@ -7,33 +7,65 @@
 #import "base/strings/sys_string_conversions.h"
 #import "components/autofill/core/browser/data_model/payments/credit_card.h"
 
+namespace {
+
+// Cached regex for extracting expiration dates.
+// Matches M/YY, MM/YY, M/YYYY, and MM/YYYY formats.
+NSRegularExpression* ExpirationDateRegex() {
+  static NSRegularExpression* regex;
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
+    regex =
+        [NSRegularExpression regularExpressionWithPattern:
+                                 @"\\b(0?[1-9]|1[0-2])\\/([0-9]{4}|[0-9]{2})\\b"
+                                                  options:0
+                                                    error:nil];
+  });
+  return regex;
+}
+
+// Matches strings which have 13-19 characters between the start(^) and the
+// end($) of the line; this covers all major credit card number lengths.
+NSRegularExpression* CardNumberRegex() {
+  static NSRegularExpression* regex;
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
+    regex = [NSRegularExpression
+        regularExpressionWithPattern:@"^(\\w{13,19})$"
+                             options:
+                                 NSRegularExpressionAllowCommentsAndWhitespace
+                               error:nil];
+  });
+  return regex;
+}
+
+// Cached regex for stripping symbols from credit card number text.
+NSRegularExpression* SymbolsToStripRegex() {
+  static NSRegularExpression* regex;
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
+    regex = [NSRegularExpression regularExpressionWithPattern:@"[ /\\-\\.:\\\\]"
+                                                      options:0
+                                                        error:nil];
+  });
+  return regex;
+}
+
+}  // namespace
+
 NSDateComponents* ExtractExpirationDateFromText(NSString* string) {
-  NSString* text = [[NSString alloc] initWithString:string];
   // Avoid processing too much text, in the unlikely case that the vision
   // library glitches and sends us a massive string.
-  if ([text length] > 50) {
-    text = [string substringToIndex:50];
+  if ([string length] > 50) {
+    string = [string substringToIndex:50];
   }
 
-  // Extract dates from longer strings, e.g. "Valid thru 01/30"
-  //
-  // TODO(crbug.com/442869727): Although no examples have been seen so far, it
-  // may be possible for an expiration date to have a single-digit month or a
-  // four-digit year. Expand the regex to handle these cases.
-  NSString* pattern = @"(0[1-9]|1[0-2])\\/\\d{2}";
-  NSError* error = nil;
-  NSRegularExpression* regex =
-      [NSRegularExpression regularExpressionWithPattern:pattern
-                                                options:0
-                                                  error:&error];
-  if (error) {
-    return nil;
-  }
+  NSRegularExpression* regex = ExpirationDateRegex();
 
   NSArray<NSTextCheckingResult*>* matches =
-      [regex matchesInString:text
+      [regex matchesInString:string
                      options:0
-                       range:NSMakeRange(0, [text length])];
+                       range:NSMakeRange(0, [string length])];
 
   if ([matches count] < 1) {
     return nil;
@@ -41,55 +73,57 @@ NSDateComponents* ExtractExpirationDateFromText(NSString* string) {
 
   // Currently we support only the first match, with the assumption that it will
   // be rare to extract a single string with two dates in it.
-  NSString* dateString = [text substringWithRange:[matches[0] range]];
+  NSTextCheckingResult* match = matches[0];
 
-  NSDateFormatter* formatter = [[NSDateFormatter alloc] init];
-  [formatter setDateFormat:@"MM/yy"];
-  NSDate* date = [formatter dateFromString:dateString];
-
-  if (date) {
-    NSCalendar* gregorian = [[NSCalendar alloc]
-        initWithCalendarIdentifier:NSCalendarIdentifierGregorian];
-    return [gregorian components:NSCalendarUnitMonth | NSCalendarUnitYear
-                        fromDate:date];
+  // The regex pattern has two capture groups: month at index 1, and year at
+  // index 2.
+  if (match.numberOfRanges < 3) {
+    return nil;
   }
 
-  return nil;
+  NSString* monthString = [string substringWithRange:[match rangeAtIndex:1]];
+  NSString* yearString = [string substringWithRange:[match rangeAtIndex:2]];
+
+  NSDateComponents* components = [[NSDateComponents alloc] init];
+  components.month = [monthString integerValue];
+
+  NSInteger year = [yearString integerValue];
+  // If the parsed year is 4 digits (e.g., "2025"), convert it to a 2-digit year
+  // ("25") to match the MM/YY display format.
+  if (yearString.length == 4) {
+    year %= 100;
+  }
+  components.year = year;
+
+  return components;
 }
 
 NSString* ExtractCreditCardNumber(NSString* string) {
-  NSString* text = [[NSString alloc] initWithString:string];
   // Avoid processing too much text, in the unlikely case that the vision
   // library glitches and sends us a massive string.
-  if ([text length] > 50) {
-    text = [string substringToIndex:50];
+  if ([string length] > 50) {
+    string = [string substringToIndex:50];
   }
 
-  // Strip whitespaces and symbols.
-  NSArray* ignoreSymbols = @[ @" ", @"/", @"-", @".", @":", @"\\" ];
-  for (NSString* symbol in ignoreSymbols) {
-    text = [text stringByReplacingOccurrencesOfString:symbol withString:@""];
-  }
+  NSMutableString* mutableString = [string mutableCopy];
+  [SymbolsToStripRegex()
+      replaceMatchesInString:mutableString
+                     options:0
+                       range:NSMakeRange(0, mutableString.length)
+                withTemplate:@""];
 
-  // Matches strings which have 13-19 characters between the start(^) and the
-  // end($) of the line; this covers all major credit card number lengths.
-  NSString* pattern = @"^(\\w{13,19})$";
+  NSRegularExpression* regex = CardNumberRegex();
 
-  NSError* error;
-  NSRegularExpression* regex = [[NSRegularExpression alloc]
-      initWithPattern:pattern
-              options:NSRegularExpressionAllowCommentsAndWhitespace
-                error:&error];
-
-  NSRange rangeOfText = NSMakeRange(0, [text length]);
-  NSTextCheckingResult* match = [regex firstMatchInString:text
+  NSRange rangeOfText = NSMakeRange(0, [mutableString length]);
+  NSTextCheckingResult* match = [regex firstMatchInString:mutableString
                                                   options:0
                                                     range:rangeOfText];
   if (!match) {
     return nil;
   }
 
-  NSString* stringMatchingPattern = [text substringWithRange:match.range];
+  NSString* stringMatchingPattern =
+      [mutableString substringWithRange:match.range];
   NSString* creditCardNumber =
       SubstituteSimilarCharactersInRecognizedText(stringMatchingPattern);
 
@@ -106,28 +140,31 @@ NSString* ExtractCreditCardNumber(NSString* string) {
 
 NSString* SubstituteSimilarCharactersInRecognizedText(
     NSString* recognizedText) {
-  NSDictionary* misrecognisedAlphabets = @{
-    @"B" : @"8",
-    @"C" : @"0",
-    @"D" : @"0",
-    @"G" : @"9",
-    @"I" : @"1",
-    @"L" : @"1",
-    @"O" : @"0",
-    @"Q" : @"0",
-    @"S" : @"5",
-    @"T" : @"7",
-    @"U" : @"0",
-    @"Z" : @"7"
-  };
+  static NSDictionary<NSString*, NSString*>* substitutions;
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
+    substitutions = @{
+      @"B" : @"8",
+      @"C" : @"0",
+      @"D" : @"0",
+      @"G" : @"9",
+      @"I" : @"1",
+      @"L" : @"1",
+      @"O" : @"0",
+      @"Q" : @"0",
+      @"S" : @"5",
+      @"T" : @"7",
+      @"U" : @"0",
+      @"Z" : @"7"
+    };
+  });
 
-  NSString* substitutedText =
-      [[NSString alloc] initWithString:recognizedText].uppercaseString;
-  for (NSString* alphabet in misrecognisedAlphabets) {
-    NSString* digit = misrecognisedAlphabets[alphabet];
-    substitutedText =
-        [substitutedText stringByReplacingOccurrencesOfString:alphabet
-                                                   withString:digit];
+  NSMutableString* result = [recognizedText.uppercaseString mutableCopy];
+  for (NSString* letter in substitutions) {
+    [result replaceOccurrencesOfString:letter
+                            withString:substitutions[letter]
+                               options:0
+                                 range:NSMakeRange(0, result.length)];
   }
-  return substitutedText;
+  return result;
 }

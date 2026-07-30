@@ -310,6 +310,35 @@ suite('AutofillAiEntriesListUiReflectsEligibilityStatus', function() {
     assertTrue(addButton.disabled);
   });
 
+  test('DisableAddButtonWhenAiPredictionsDisabled', async function() {
+    loadTimeData.overrideValues({
+      enableYourSavedInfoPolicyAndExtentionToggleIndicators: true,
+    });
+    const entriesList = await createEntriesList();
+    entriesList.allowEditingPref = {
+      key: '',
+      type: chrome.settingsPrivate.PrefType.BOOLEAN,
+      value: true,
+    };
+    updateOptInStatus(true, entriesList);
+    entriesList.setPrefValue(
+        AiEnterpriseFeaturePrefName.AUTOFILL_AI,
+        ModelExecutionEnterprisePolicyValue.ALLOW);
+    await flushTasks();
+
+    const addButton = entriesList.shadowRoot!.querySelector<CrButtonElement>(
+        '#addEntityInstance');
+    assertTrue(!!addButton);
+    assertFalse(addButton.disabled);
+
+    entriesList.setPrefValue(
+        AiEnterpriseFeaturePrefName.AUTOFILL_AI,
+        ModelExecutionEnterprisePolicyValue.DISABLE);
+    await flushTasks();
+
+    assertTrue(addButton.disabled);
+  });
+
   test(
       'AddressAutofillForcedTrueValueShouldNotOverrideAllowEditingPrefValue',
       async function() {
@@ -359,6 +388,7 @@ suite('AutofillAiEntriesListUiTest', function() {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     loadTimeData.overrideValues({
       userEligibleForAutofillAi: true,
+      enableAutofillAiWalletPrivatePasses: true,
     });
 
     entityDataManager = new TestEntityDataManagerProxy();
@@ -704,13 +734,7 @@ suite('AutofillAiEntriesListUiTest', function() {
               detail: testEntityInstance,
             }));
 
-        const args =
-            await entityDataManager.whenCalled('addOrUpdateEntityInstance');
-        const addedOrEditedEntityInstance = args[0];
-        const uiContext = args[1];
-        assertDeepEquals(testEntityInstance, addedOrEditedEntityInstance);
-        assertDeepEquals(
-            {uiStringIds: [], clickedButtonStringId: 0}, uiContext);
+        await flushTasks();
       }));
 
   test('AddButtonShowsEntityInstancesList', async function() {

@@ -13,6 +13,7 @@
 #include "base/strings/string_util.h"
 #include "components/contextual_search/contextual_search_context_controller.h"
 #include "components/contextual_search/contextual_search_session_handle.h"
+#include "components/contextual_search/contextual_search_types.h"
 #include "components/contextual_tasks/public/context_decoration_params.h"
 #include "components/contextual_tasks/public/contextual_task_context.h"
 #include "components/contextual_tasks/public/contextual_tasks_service.h"
@@ -33,6 +34,92 @@ namespace {
 constexpr float kByteChangeTolerancePercent = 0.01;
 }  // namespace
 
+// Helper class to track the upload status of multiple contexts (tabs and URLs).
+// This class registers itself as an observer to the
+// ContextualSearchContextController to listen for upload status changes. When
+// all tracked uploads have reached a terminal state (e.g., successful or
+// failed), it executes the provided callback. By inheriting from
+// base::RefCounted, its lifetime is safely managed across asynchronous upload
+// tracking and multiple callbacks.
+class UploadTracker
+    : public base::RefCounted<UploadTracker>,
+      public contextual_search::ContextualSearchContextController::
+          ContextUploadStatusObserver {
+ public:
+  REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
+
+  explicit UploadTracker(
+      contextual_search::ContextualSearchContextController* controller)
+      : controller_(controller ? controller->AsWeakPtr() : nullptr) {
+    if (controller_) {
+      controller_->AddObserver(this);
+    }
+  }
+
+  void AddToken(base::UnguessableToken token) { pending_tokens_.insert(token); }
+
+  void NotifyUploadsStarted(
+      QueryContextualizer::ContextualizedCallback callback,
+      base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
+          session_handle) {
+    callback_ = std::move(callback);
+    session_handle_ = session_handle;
+    uploads_started_ = true;
+    if (!pending_tokens_.empty()) {
+      self_ref_ = base::WrapRefCounted(this);
+    }
+    CheckCompletion();
+  }
+
+  void OnContextUploadStatusChanged(
+      const base::UnguessableToken& context_token,
+      lens::MimeType mime_type,
+      contextual_search::ContextUploadStatus status,
+      const std::optional<contextual_search::ContextUploadErrorType>&
+          error_type) override {
+    if (contextual_search::IsTerminalContextStatus(status)) {
+      pending_tokens_.erase(context_token);
+      CheckCompletion();
+    }
+  }
+
+  void OnControllerDestroyed() override {
+    controller_ = nullptr;
+    // Treat pending uploads as cancelled and finalize the process.
+    pending_tokens_.clear();
+    CheckCompletion();
+  }
+
+ private:
+  friend class base::RefCounted<UploadTracker>;
+
+  ~UploadTracker() override {
+    if (controller_) {
+      controller_->RemoveObserver(this);
+    }
+  }
+
+  void CheckCompletion() {
+    if (uploads_started_ && pending_tokens_.empty() && callback_) {
+      if (controller_) {
+        controller_->RemoveObserver(this);
+        controller_ = nullptr;
+      }
+      std::move(callback_).Run(session_handle_);
+      self_ref_.reset();
+    }
+  }
+
+  base::WeakPtr<contextual_search::ContextualSearchContextController>
+      controller_;
+  QueryContextualizer::ContextualizedCallback callback_;
+  base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
+      session_handle_;
+  std::set<base::UnguessableToken> pending_tokens_;
+  bool uploads_started_ = false;
+  scoped_refptr<UploadTracker> self_ref_;
+};
+
 QueryContextualizer::QueryContextualizer(ContextualTasksService* service,
                                          Delegate* delegate)
     : service_(service), delegate_(delegate) {
@@ -47,19 +134,28 @@ void QueryContextualizer::Contextualize(
     const std::string& query_text,
     const std::vector<TabId>& tabs_to_recontextualize,
     const std::vector<TabId>& tabs_to_force_contextualize,
-    contextual_search::ContextualSearchSessionHandle* session_handle,
-    base::OnceClosure callback) {
+    ContextualizedCallback callback) {
   auto context_decoration_params = std::make_unique<ContextDecorationParams>();
-  if (session_handle) {
-    context_decoration_params->contextual_search_session_handle =
-        session_handle->AsWeakPtr();
+  base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
+      session_handle;
+
+  // If there are tabs to contextualize, or a task id is provided, get or create
+  // the session handle.
+  if (task_id.has_value() || !tabs_to_recontextualize.empty() ||
+      !tabs_to_force_contextualize.empty()) {
+    auto* handle = delegate_->GetOrCreateSessionHandleForQueryContextualizer();
+    if (handle) {
+      session_handle = handle->AsWeakPtr();
+      context_decoration_params->contextual_search_session_handle =
+          session_handle;
+    }
   }
 
   if (!task_id.has_value()) {
     OnContextRetrieved(/*task_id=*/std::nullopt, query_text,
                        tabs_to_recontextualize, tabs_to_force_contextualize,
-                       session_handle ? session_handle->AsWeakPtr() : nullptr,
-                       std::move(callback), /*context=*/nullptr);
+                       session_handle, std::move(callback),
+                       /*context=*/nullptr);
     return;
   }
 
@@ -70,8 +166,7 @@ void QueryContextualizer::Contextualize(
       base::BindOnce(&QueryContextualizer::OnContextRetrieved,
                      weak_factory_.GetWeakPtr(), task_id, query_text,
                      tabs_to_recontextualize, tabs_to_force_contextualize,
-                     session_handle ? session_handle->AsWeakPtr() : nullptr,
-                     std::move(callback)));
+                     session_handle, std::move(callback)));
 }
 
 void QueryContextualizer::OnContextRetrieved(
@@ -81,18 +176,26 @@ void QueryContextualizer::OnContextRetrieved(
     const std::vector<TabId>& tabs_to_force_contextualize,
     base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
         session_handle,
-    base::OnceClosure callback,
+    ContextualizedCallback callback,
     std::unique_ptr<ContextualTaskContext> context) {
   // Fail early if the task id was specified but there was no context for the
   // task. This indicates that the task was not available (i.e. was deleted)
   // and no further action is needed.
   if (task_id.has_value() && !context) {
-    std::move(callback).Run();
+    std::move(callback).Run(session_handle);
     return;
   }
 
+  // If the session handle already exists, track uploads on its query
+  // controller.
+  scoped_refptr<UploadTracker> upload_tracker;
+  if (session_handle && session_handle->GetController()) {
+    upload_tracker =
+        base::MakeRefCounted<UploadTracker>(session_handle->GetController());
+  }
+
   // Extract URLs from the query text and start upload flows for them.
-  if (session_handle && lens::features::IsLensSendUrlsInComposeboxesEnabled()) {
+  if (lens::features::IsLensSendUrlsInComposeboxesEnabled()) {
     re2::StringPiece input(query_text);
     std::string url_str;
     // Regex to extract URLs.
@@ -119,12 +222,28 @@ void QueryContextualizer::OnContextRetrieved(
       }
     }
 
-    for (const GURL& url : extracted_urls) {
-      // TODO(crbug.com/495601934): QueryContextualizer should wait for all
-      // uploads (including tabs and URL uploads) to complete before running the
-      // callback.
-      session_handle->StartUrlContextUploadFlow(
-          session_handle->CreateContextToken(), url);
+    // Create the session handle if it did not already exist and there are URLs
+    // to upload.
+    if (!extracted_urls.empty() && !session_handle) {
+      auto* created_handle =
+          delegate_->GetOrCreateSessionHandleForQueryContextualizer();
+      if (created_handle) {
+        session_handle = created_handle->AsWeakPtr();
+        if (session_handle->GetController()) {
+          upload_tracker = base::MakeRefCounted<UploadTracker>(
+              session_handle->GetController());
+        }
+      }
+    }
+
+    if (session_handle) {
+      for (const GURL& url : extracted_urls) {
+        auto context_token = session_handle->CreateContextToken();
+        if (upload_tracker) {
+          upload_tracker->AddToken(context_token);
+        }
+        session_handle->StartUrlContextUploadFlow(context_token, url);
+      }
     }
   }
 
@@ -132,23 +251,36 @@ void QueryContextualizer::OnContextRetrieved(
       context.get(), tabs_to_recontextualize, tabs_to_force_contextualize);
 
   if (tabs_to_update.empty()) {
-    std::move(callback).Run();
+    if (upload_tracker) {
+      upload_tracker->NotifyUploadsStarted(std::move(callback), session_handle);
+    } else if (callback) {
+      std::move(callback).Run(session_handle);
+    }
     return;
   }
 
-  base::RepeatingClosure barrier_closure =
-      base::BarrierClosure(tabs_to_update.size(), std::move(callback));
+  base::OnceClosure on_all_tabs_fetched;
+  if (upload_tracker) {
+    on_all_tabs_fetched =
+        base::BindOnce(&UploadTracker::NotifyUploadsStarted, upload_tracker,
+                       std::move(callback), session_handle);
+  } else {
+    on_all_tabs_fetched = base::BindOnce(std::move(callback), session_handle);
+  }
+
+  base::RepeatingClosure barrier_closure = base::BarrierClosure(
+      tabs_to_update.size(), std::move(on_all_tabs_fetched));
 
   for (const TabUpdate& update : tabs_to_update) {
     delegate_->GetPageContext(
         update.id,
-        base::BindOnce(&QueryContextualizer::OnTabContextualizationFetched,
-                       weak_factory_.GetWeakPtr(), task_id,
-                       context
-                           ? std::make_unique<ContextualTaskContext>(*context)
-                           : nullptr,
-                       barrier_closure, update.id,
-                       update.is_recontextualization, session_handle));
+        base::BindOnce(
+            &QueryContextualizer::OnTabContextualizationFetched,
+            weak_factory_.GetWeakPtr(), task_id,
+            context ? std::make_unique<ContextualTaskContext>(*context)
+                    : nullptr,
+            barrier_closure, update.id, update.is_recontextualization,
+            session_handle, upload_tracker));
   }
 }
 
@@ -160,6 +292,7 @@ void QueryContextualizer::OnTabContextualizationFetched(
     bool is_recontextualization,
     base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
         session_handle,
+    scoped_refptr<UploadTracker> upload_tracker,
     std::unique_ptr<lens::ContextualInputData> page_content_data) {
   if (!page_content_data) {
     delegate_->OnTabProcessedForQueryContextualization(tab_id);
@@ -205,6 +338,9 @@ void QueryContextualizer::OnTabContextualizationFetched(
   auto context_token = session_handle->CreateContextToken();
   if (maybe_context_id.has_value()) {
     page_content_data->context_id = maybe_context_id.value();
+  }
+  if (upload_tracker) {
+    upload_tracker->AddToken(context_token);
   }
   session_handle->StartTabContextUploadFlow(
       context_token, std::move(page_content_data),
@@ -272,7 +408,8 @@ std::optional<int64_t> QueryContextualizer::GetContextIdForTab(
     if (search_context_controller) {
       const auto& file_info_list = search_context_controller->GetFileInfoList();
       for (const auto* file_info : file_info_list) {
-        if (file_info->tab_session_id == tab_session_id) {
+        if (file_info->tab_session_id == tab_session_id &&
+            !file_info->is_superceded) {
           return file_info->GetContextId();
         }
       }
@@ -304,7 +441,8 @@ bool QueryContextualizer::CheckIfContextChangedAndPrepareUploadData(
   const auto& file_info_list = search_context_controller->GetFileInfoList();
   const contextual_search::FileInfo* matching_file_info = nullptr;
   for (const auto* file_info : file_info_list) {
-    if (file_info->tab_session_id == tab_session_id) {
+    if (file_info->tab_session_id == tab_session_id &&
+        !file_info->is_superceded) {
       matching_file_info = file_info;
       break;
     }

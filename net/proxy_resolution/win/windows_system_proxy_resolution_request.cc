@@ -50,23 +50,23 @@ constexpr net::NetworkTrafficAnnotationTag kWindowsResolverTrafficAnnotation =
 
 WindowsSystemProxyResolutionRequest::WindowsSystemProxyResolutionRequest(
     WindowsSystemProxyResolutionService* service,
-    const GURL& url,
-    const std::string& method,
-    const NetworkAnonymizationKey& network_anonymization_key,
+    GURL url,
+    std::string method,
+    NetworkAnonymizationKey network_anonymization_key,
     ProxyInfo* results,
     CompletionOnceCallback user_callback,
     const NetLogWithSource& net_log,
     WindowsSystemProxyResolver* windows_system_proxy_resolver)
     : SystemProxyResolutionRequest(service,
-                                   url,
-                                   method,
-                                   network_anonymization_key,
+                                   std::move(url),
+                                   std::move(method),
+                                   std::move(network_anonymization_key),
                                    results,
                                    std::move(user_callback),
                                    net_log) {
   DCHECK(windows_system_proxy_resolver);
   proxy_resolution_request_ =
-      windows_system_proxy_resolver->GetProxyForUrl(url, this);
+      windows_system_proxy_resolver->GetProxyForUrl(url_, this);
 }
 
 WindowsSystemProxyResolutionRequest::~WindowsSystemProxyResolutionRequest() {
@@ -123,7 +123,6 @@ void WindowsSystemProxyResolutionRequest::ProxyResolutionComplete(
   CompletionOnceCallback callback = std::move(user_callback_);
 
   MarkCompleted();
-  user_callback_.Reset();
   std::move(callback).Run(net_error);
 }
 

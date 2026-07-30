@@ -24,6 +24,7 @@
 #include "content/browser/compositor/surface_utils.h"
 #include "content/browser/gpu/compositor_util.h"
 #include "content/browser/renderer_host/cross_process_frame_connector.h"
+#include "content/browser/renderer_host/frame_connector.h"
 #include "content/browser/renderer_host/input/touch_selection_controller_client_child_frame.h"
 #include "content/browser/renderer_host/input/touch_selection_controller_input_observer.h"
 #include "content/browser/renderer_host/render_view_host_impl.h"
@@ -118,7 +119,7 @@ void RenderWidgetHostViewChildFrame::
 }
 
 void RenderWidgetHostViewChildFrame::SetFrameConnector(
-    CrossProcessFrameConnector* frame_connector) {
+    FrameConnector* frame_connector) {
   if (frame_connector_ == frame_connector)
     return;
 
@@ -203,11 +204,11 @@ void RenderWidgetHostViewChildFrame::InitAsChild(gfx::NativeView parent_view) {
 }
 
 void RenderWidgetHostViewChildFrame::SetSize(const gfx::Size& size) {
-  // Resizing happens in CrossProcessFrameConnector for child frames.
+  // Resizing happens in FrameConnector for child frames.
 }
 
 void RenderWidgetHostViewChildFrame::SetBounds(const gfx::Rect& rect) {
-  // Resizing happens in CrossProcessFrameConnector for child frames.
+  // Resizing happens in FrameConnector for child frames.
   if (rect != last_screen_rect_) {
     last_screen_rect_ = rect;
     host()->SendScreenRects();
@@ -219,7 +220,7 @@ void RenderWidgetHostViewChildFrame::Focus() {
     return;
   }
   if (frame_connector_->HasFocus() ==
-      CrossProcessFrameConnector::RootViewFocusState::kNotFocused) {
+      FrameConnector::RootViewFocusState::kNotFocused) {
     return frame_connector_->FocusRootView();
   }
 }
@@ -229,7 +230,7 @@ bool RenderWidgetHostViewChildFrame::HasFocus() {
     return false;
   }
   return frame_connector_->HasFocus() ==
-         CrossProcessFrameConnector::RootViewFocusState::kFocused;
+         FrameConnector::RootViewFocusState::kFocused;
 }
 
 bool RenderWidgetHostViewChildFrame::IsSurfaceAvailableForCopy() {
@@ -427,8 +428,8 @@ bool RenderWidgetHostViewChildFrame::IsTouchSequencePotentiallyActiveOnViz() {
 }
 
 void RenderWidgetHostViewChildFrame::RequestInputBackForDragAndDrop(
+    WeakDocumentPtr source_document,
     blink::mojom::DragDataPtr drag_data,
-    const url::Origin& source_origin,
     blink::DragOperationsMask drag_operations_mask,
     SkBitmap bitmap,
     gfx::Vector2d cursor_offset_in_dip,
@@ -437,7 +438,7 @@ void RenderWidgetHostViewChildFrame::RequestInputBackForDragAndDrop(
   RenderWidgetHostViewBase* root_view = GetRootView();
   CHECK(root_view);
   root_view->RequestInputBackForDragAndDrop(
-      std::move(drag_data), std::move(source_origin), drag_operations_mask,
+      std::move(source_document), std::move(drag_data), drag_operations_mask,
       std::move(bitmap), std::move(cursor_offset_in_dip),
       std::move(drag_obj_rect_in_dip), std::move(event_info));
 }
@@ -776,15 +777,14 @@ void RenderWidgetHostViewChildFrame::PreProcessTouchEvent(
     return;
   }
 
-  CrossProcessFrameConnector::RootViewFocusState state =
-      frame_connector_->HasFocus();
+  FrameConnector::RootViewFocusState state = frame_connector_->HasFocus();
 #if BUILDFLAG(IS_ANDROID)
   UMA_HISTOGRAM_ENUMERATION(
       "Android.FocusChanged.RenderWidgetHostViewChildFrame.RootViewFocusState",
       state);
 #endif
 
-  if (state == CrossProcessFrameConnector::RootViewFocusState::kNotFocused) {
+  if (state == FrameConnector::RootViewFocusState::kNotFocused) {
     Focus();
   }
 }

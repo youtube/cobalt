@@ -84,8 +84,9 @@ std::optional<PreflightRequiredReason> NeedsPreflight(
     return PreflightRequiredReason::kCorsWithForcedPreflightMode;
   }
 
-  if (request.cors_preflight_policy ==
-      mojom::CorsPreflightPolicy::kPreventPreflight) {
+  if (!base::FeatureList::IsEnabled(features::kIgnoreCorsPreflightPolicy) &&
+      request.cors_preflight_policy ==
+          mojom::CorsPreflightPolicy::kPreventPreflight) {
     return std::nullopt;
   }
 
@@ -696,9 +697,10 @@ void CorsURLLoader::OnReceiveRedirect(const net::RedirectInfo& redirect_info,
   DCHECK(!deferred_redirect_url_);
 
   if (redirect_count_ == 0 && network_restrictions_id_) {
-    if (!context_->IsNetworkForNonceAndUrlAllowed(*network_restrictions_id_,
-                                                  request_.url,
-                                                  /*is_redirect=*/true)) {
+    if (!context_->IsNetworkForNonceAndUrlAllowed(
+            *network_restrictions_id_, request_.url,
+            isolation_info_.network_anonymization_key(),
+            /*is_redirect=*/true)) {
       HandleComplete(URLLoaderCompletionStatus(net::ERR_UNSAFE_REDIRECT));
       return;
     }

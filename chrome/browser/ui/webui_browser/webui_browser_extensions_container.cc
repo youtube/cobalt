@@ -192,12 +192,10 @@ void WebUIBrowserExtensionsContainer::HideActivePopup() {
   DCHECK(!popup_owner_);
 }
 
-bool WebUIBrowserExtensionsContainer::CloseOverflowMenuIfOpen() {
+void WebUIBrowserExtensionsContainer::CloseExtensionsMenuIfOpen() {
   if (extensions_menu_coordinator_->IsShowing()) {
     extensions_menu_coordinator_->Hide();
-    return true;
   }
-  return false;
 }
 
 bool WebUIBrowserExtensionsContainer::ShowToolbarActionPopupForAPICall(
@@ -211,8 +209,8 @@ void WebUIBrowserExtensionsContainer::ToggleExtensionsMenu() {
   if (extensions_menu_coordinator_->IsShowing()) {
     extensions_menu_coordinator_->Hide();
   } else {
-    extensions_menu_coordinator_->Show(window_->GetExtensionsMenuButtonAnchor(),
-                                       this);
+    extensions_menu_coordinator_->Show(
+        views::BubbleAnchor(window_->GetExtensionsMenuButtonAnchor()), this);
   }
 }
 
@@ -287,7 +285,7 @@ views::BubbleAnchor WebUIBrowserExtensionsContainer::GetReferenceButtonForPopup(
     const extensions::ExtensionId& action_id) {
   auto it = actions_.find(action_id);
   CHECK(it != actions_.end());
-  return it->second->GetAnchor();
+  return views::BubbleAnchor(it->second->GetAnchor());
 }
 
 void WebUIBrowserExtensionsContainer::CollapseConfirmation() {

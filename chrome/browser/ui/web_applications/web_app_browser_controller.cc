@@ -24,6 +24,7 @@
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/ash/browser_delegate/browser_controller.h"
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
+#include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
@@ -53,6 +54,7 @@
 #include "chrome/browser/web_applications/web_app_ui_manager.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/keep_alive_registry/keep_alive_types.h"
+#include "components/keep_alive_registry/scoped_keep_alive.h"
 #include "components/password_manager/core/common/password_manager_features.h"
 #include "components/services/app_service/public/cpp/app_registry_cache.h"
 #include "components/services/app_service/public/cpp/app_types.h"
@@ -282,9 +284,6 @@ bool WebAppBrowserController::HasReloadButton() const {
 }
 
 bool WebAppBrowserController::HasPendingUpdate() const {
-  if (!base::FeatureList::IsEnabled(features::kWebAppPredictableAppUpdating)) {
-    return false;
-  }
   const WebApp* app = registrar().GetAppById(app_id());
   return app && app->pending_update_info().has_value();
 }
@@ -302,9 +301,6 @@ bool WebAppBrowserController::HasPendingMigration() const {
 }
 
 bool WebAppBrowserController::HasPendingUpdateNotIgnoredByUser() const {
-  if (!base::FeatureList::IsEnabled(features::kWebAppPredictableAppUpdating)) {
-    return false;
-  }
   const WebApp* app = registrar().GetAppById(app_id());
   if (!app || !app->pending_update_info().has_value()) {
     return false;

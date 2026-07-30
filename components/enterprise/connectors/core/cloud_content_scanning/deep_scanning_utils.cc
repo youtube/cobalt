@@ -5,6 +5,9 @@
 #include "components/enterprise/connectors/core/cloud_content_scanning/deep_scanning_utils.h"
 
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/strings/string_number_conversions.h"
+#include "components/crash/core/common/crash_key.h"
 #include "components/enterprise/connectors/core/cloud_content_scanning/binary_upload_request.h"
 #include "components/enterprise/connectors/core/common.h"
 #include "components/enterprise/connectors/core/features.h"
@@ -13,6 +16,9 @@
 namespace enterprise_connectors {
 
 namespace {
+
+constexpr int kMinBytesPerSecond = 1;
+constexpr int kMaxBytesPerSecond = 100 * 1024 * 1024;  // 100 MB/s
 
 std::string MaybeGetUnscannedReason(ScanRequestUploadResult result) {
   switch (result) {
@@ -59,6 +65,92 @@ bool ContentAnalysisActionAllowsDataUse(TriggeredRule::Action action) {
   }
 }
 
+crash_reporter::CrashKeyString<7>* GetScanCrashKey(ScanningCrashKey key) {
+  static crash_reporter::CrashKeyString<7> pending_file_uploads(
+      "pending-file-upload-scans");
+  static crash_reporter::CrashKeyString<7> pending_text_uploads(
+      "pending-text-upload-scans");
+  static crash_reporter::CrashKeyString<7> pending_file_downloads(
+      "pending-file-download-scans");
+  static crash_reporter::CrashKeyString<7> pending_prints(
+      "pending-print-scans");
+  static crash_reporter::CrashKeyString<7> total_file_uploads(
+      "total-file-upload-scans");
+  static crash_reporter::CrashKeyString<7> total_text_uploads(
+      "total-text-upload-scans");
+  static crash_reporter::CrashKeyString<7> total_file_downloads(
+      "total-file-download-scans");
+  static crash_reporter::CrashKeyString<7> total_prints("total-print-scans");
+  switch (key) {
+    case ScanningCrashKey::PENDING_FILE_UPLOADS:
+      return &pending_file_uploads;
+    case ScanningCrashKey::PENDING_TEXT_UPLOADS:
+      return &pending_text_uploads;
+    case ScanningCrashKey::PENDING_FILE_DOWNLOADS:
+      return &pending_file_downloads;
+    case ScanningCrashKey::PENDING_PRINTS:
+      return &pending_prints;
+    case ScanningCrashKey::TOTAL_FILE_UPLOADS:
+      return &total_file_uploads;
+    case ScanningCrashKey::TOTAL_TEXT_UPLOADS:
+      return &total_text_uploads;
+    case ScanningCrashKey::TOTAL_FILE_DOWNLOADS:
+      return &total_file_downloads;
+    case ScanningCrashKey::TOTAL_PRINTS:
+      return &total_prints;
+  }
+}
+
+int* GetScanCrashKeyCount(ScanningCrashKey key) {
+  static int pending_file_uploads = 0;
+  static int pending_text_uploads = 0;
+  static int pending_file_downloads = 0;
+  static int pending_prints = 0;
+  static int total_file_uploads = 0;
+  static int total_text_uploads = 0;
+  static int total_file_downloads = 0;
+  static int total_prints = 0;
+  switch (key) {
+    case ScanningCrashKey::PENDING_FILE_UPLOADS:
+      return &pending_file_uploads;
+    case ScanningCrashKey::PENDING_TEXT_UPLOADS:
+      return &pending_text_uploads;
+    case ScanningCrashKey::PENDING_FILE_DOWNLOADS:
+      return &pending_file_downloads;
+    case ScanningCrashKey::PENDING_PRINTS:
+      return &pending_prints;
+    case ScanningCrashKey::TOTAL_FILE_UPLOADS:
+      return &total_file_uploads;
+    case ScanningCrashKey::TOTAL_TEXT_UPLOADS:
+      return &total_text_uploads;
+    case ScanningCrashKey::TOTAL_FILE_DOWNLOADS:
+      return &total_file_downloads;
+    case ScanningCrashKey::TOTAL_PRINTS:
+      return &total_prints;
+  }
+}
+
+void ModifyKey(ScanningCrashKey key, int delta) {
+  int* key_value = GetScanCrashKeyCount(key);
+
+  // Since the crash key string length is determined at compile time, ensure the
+  // given number is restricted to 6 digits (char 7 is for null terminating the
+  // string).
+  int new_value = (*key_value) + delta;
+  new_value = std::max(0, new_value);
+  new_value = std::min(999999, new_value);
+
+  *key_value = new_value;
+  crash_reporter::CrashKeyString<7>* crash_key = GetScanCrashKey(key);
+  DCHECK(crash_key);
+
+  if (new_value == 0) {
+    crash_key->Clear();
+  } else {
+    crash_key->Set(base::NumberToString(new_value));
+  }
+}
+
 }  // namespace
 
 void MaybeReportDeepScanningVerdict(
@@ -67,7 +159,7 @@ void MaybeReportDeepScanningVerdict(
     const std::string& source,
     const std::string& destination,
     const std::string& file_name,
-    const std::string& download_digest_sha256,
+    const HashCallbackVariant& sha256_or_cb,
     const std::string& mime_type,
     const std::string& trigger,
     const std::string& content_transfer_method,
@@ -76,7 +168,6 @@ void MaybeReportDeepScanningVerdict(
     ScanRequestUploadResult result,
     const ContentAnalysisResponse& response,
     EventResult event_result) {
-  DCHECK(std::ranges::all_of(download_digest_sha256, base::IsHexDigit<char>));
   DCHECK(content_analysis_info);
 
   if (!reporting_event_router) {
@@ -87,9 +178,9 @@ void MaybeReportDeepScanningVerdict(
   if (!unscanned_reason.empty()) {
     reporting_event_router->OnUnscannedFileEvent(
         GURL(content_analysis_info->url()), content_analysis_info->tab_url(),
-        source, destination, file_name, download_digest_sha256, mime_type,
-        trigger, response.request_token(), unscanned_reason,
-        content_transfer_method, content_size, event_result);
+        source, destination, file_name, sha256_or_cb, mime_type, trigger,
+        response.request_token(), unscanned_reason, content_transfer_method,
+        content_size, event_result);
   }
 
   if (result != ScanRequestUploadResult::kSuccess) {
@@ -107,17 +198,16 @@ void MaybeReportDeepScanningVerdict(
 
       reporting_event_router->OnUnscannedFileEvent(
           GURL(content_analysis_info->url()), content_analysis_info->tab_url(),
-          source, destination, file_name, download_digest_sha256, mime_type,
-          trigger, response.request_token(), std::move(unscanned_reason),
+          source, destination, file_name, sha256_or_cb, mime_type, trigger,
+          response.request_token(), std::move(unscanned_reason),
           content_transfer_method, content_size, event_result);
     } else if (response_result.triggered_rules_size() > 0) {
       reporting_event_router->OnAnalysisConnectorResult(
           GURL(content_analysis_info->url()), content_analysis_info->tab_url(),
-          source, destination, file_name, download_digest_sha256, mime_type,
-          trigger, response.request_token(), content_transfer_method,
-          source_email, content_analysis_info->GetContentAreaAccountEmail(),
-          response_result, content_size,
-          content_analysis_info->referrer_chain(),
+          source, destination, file_name, sha256_or_cb, mime_type, trigger,
+          response.request_token(), content_transfer_method, source_email,
+          content_analysis_info->GetContentAreaAccountEmail(), response_result,
+          content_size, content_analysis_info->referrer_chain(),
           content_analysis_info->frame_url_chain(), event_result);
     }
   }
@@ -129,14 +219,13 @@ void ReportAnalysisConnectorWarningBypass(
     const std::string& source,
     const std::string& destination,
     const std::string& file_name,
-    const std::string& download_digest_sha256,
+    const enterprise_connectors::HashCallbackVariant& sha256_or_cb,
     const std::string& mime_type,
     const std::string& trigger,
     const std::string& content_transfer_method,
     const int64_t content_size,
     const ContentAnalysisResponse& response,
     std::optional<std::u16string> user_justification) {
-  DCHECK(std::ranges::all_of(download_digest_sha256, base::IsHexDigit<char>));
   DCHECK(content_analysis_info);
 
   if (!reporting_event_router) {
@@ -151,8 +240,8 @@ void ReportAnalysisConnectorWarningBypass(
 
     reporting_event_router->OnSensitiveDataEvent(
         GURL(content_analysis_info->url()), content_analysis_info->tab_url(),
-        source, destination, file_name, download_digest_sha256, mime_type,
-        trigger, response.request_token(), content_transfer_method,
+        source, destination, file_name, sha256_or_cb, mime_type, trigger,
+        response.request_token(), content_transfer_method,
         /*source_email=*/"",
         content_analysis_info->GetContentAreaAccountEmail(), user_justification,
         result, content_size, content_analysis_info->referrer_chain(),
@@ -373,6 +462,115 @@ RequestHandlerResult CalculateRequestHandlerResult(
     }
   }
   return result;
+}
+
+void RecordDeepScanMetrics(bool is_cloud,
+                           DeepScanAccessPoint access_point,
+                           base::TimeDelta duration,
+                           int64_t total_bytes,
+                           const ScanRequestUploadResult& result,
+                           const ContentAnalysisResponse& response) {
+  // Don't record UMA metrics for this result.
+  if (result == ScanRequestUploadResult::kUnauthorized) {
+    return;
+  }
+  bool dlp_verdict_success = true;
+  bool malware_verdict_success = true;
+  for (const auto& response_result : response.results()) {
+    if (response_result.tag() == "dlp" &&
+        response_result.status() != ContentAnalysisResponse::Result::SUCCESS) {
+      dlp_verdict_success = false;
+    }
+    if (response_result.tag() == "malware" &&
+        response_result.status() != ContentAnalysisResponse::Result::SUCCESS) {
+      malware_verdict_success = false;
+    }
+  }
+
+  bool success = dlp_verdict_success && malware_verdict_success;
+  std::string result_value = BinaryUploadServiceResultToString(result, success);
+
+  // Update |success| so non-SUCCESS results don't log the bytes/sec metric.
+  success &= (result == ScanRequestUploadResult::kSuccess);
+
+  RecordDeepScanMetrics(is_cloud, access_point, duration, total_bytes,
+                        result_value, success);
+}
+
+void RecordDeepScanMetrics(bool is_cloud,
+                           DeepScanAccessPoint access_point,
+                           base::TimeDelta duration,
+                           int64_t total_bytes,
+                           const std::string& result,
+                           bool success) {
+  // Don't record metrics if the duration is unusable.
+  if (duration.InMilliseconds() == 0) {
+    return;
+  }
+
+  const char* prefix =
+      is_cloud ? "SafeBrowsing.DeepScan." : "SafeBrowsing.LocalDeepScan.";
+
+  std::string access_point_string = DeepScanAccessPointToString(access_point);
+  if (success) {
+    base::UmaHistogramCustomCounts(
+        prefix + access_point_string + ".BytesPerSeconds",
+        (1000 * total_bytes) / duration.InMilliseconds(),
+        /*min=*/kMinBytesPerSecond,
+        /*max=*/kMaxBytesPerSecond,
+        /*buckets=*/50);
+  }
+
+  // The scanning timeout is 5 minutes, so the bucket maximum time is 30 minutes
+  // in order to be lenient and avoid having lots of data in the overflow
+  // bucket.
+  base::UmaHistogramCustomTimes(
+      prefix + access_point_string + "." + result + ".Duration", duration,
+      base::Milliseconds(1), base::Minutes(30), 50);
+  base::UmaHistogramCustomTimes(prefix + access_point_string + ".Duration",
+                                duration, base::Milliseconds(1),
+                                base::Minutes(30), 50);
+}
+
+std::string BinaryUploadServiceResultToString(
+    const ScanRequestUploadResult& result,
+    bool success) {
+  switch (result) {
+    case ScanRequestUploadResult::kSuccess:
+      if (success) {
+        return "Success";
+      } else {
+        return "FailedToGetVerdict";
+      }
+    case ScanRequestUploadResult::kUploadFailure:
+      return "UploadFailure";
+    case ScanRequestUploadResult::kTimeout:
+      return "Timeout";
+    case ScanRequestUploadResult::kFileTooLarge:
+      return "FileTooLarge";
+    case ScanRequestUploadResult::kFailedToGetToken:
+      return "FailedToGetToken";
+    case ScanRequestUploadResult::kUnknown:
+      return "Unknown";
+    case ScanRequestUploadResult::kUnauthorized:
+      return "";
+    case ScanRequestUploadResult::kFileEncrypted:
+      return "FileEncrypted";
+    case ScanRequestUploadResult::kTooManyRequests:
+      return "TooManyRequests";
+    case ScanRequestUploadResult::kIncompleteResponse:
+      return "IncompleteResponse";
+  }
+}
+
+void IncrementCrashKey(ScanningCrashKey key, int delta) {
+  DCHECK_GE(delta, 0);
+  ModifyKey(key, delta);
+}
+
+void DecrementCrashKey(ScanningCrashKey key, int delta) {
+  DCHECK_GE(delta, 0);
+  ModifyKey(key, -delta);
 }
 
 }  // namespace enterprise_connectors

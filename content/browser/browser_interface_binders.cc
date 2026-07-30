@@ -420,8 +420,9 @@ BindNotificationService(
         auto* process_host =
             static_cast<RenderProcessHostImpl*>(host->GetProcessHost());
         CHECK(process_host);
-        process_host->CreateNotificationService(
-            rfh_id, creator_type, host->GetStorageKey(), std::move(receiver));
+        process_host->CreateNotificationService(rfh_id, creator_type,
+                                                host->GetWorkerStorageKey(),
+                                                std::move(receiver));
       },
       base::Unretained(host), rfh_id, creator_type);
 }
@@ -505,7 +506,8 @@ BindWorkerReceiverForStorageKey(
         auto* process_host =
             static_cast<RenderProcessHostImpl*>(host->GetProcessHost());
         if (process_host)
-          (process_host->*method)(host->GetStorageKey(), std::move(receiver));
+          (process_host->*method)(host->GetWorkerStorageKey(),
+                                  std::move(receiver));
       },
       base::Unretained(host), method);
 }
@@ -527,7 +529,7 @@ BindWorkerReceiverForStorageKeyAndBucketContext(
         auto* process_host =
             static_cast<RenderProcessHostImpl*>(host->GetProcessHost());
         if (process_host)
-          (process_host->*method)(host->GetStorageKey(), *host,
+          (process_host->*method)(host->GetWorkerStorageKey(), *host,
                                   std::move(receiver));
       },
       base::Unretained(host), method);
@@ -743,6 +745,21 @@ void PopulateBinderMapWithContext(
       &EmptyBinderForFrame<blink::mojom::LCPCriticalPathPredictorHost>);
   map->Add<blink::mojom::ScriptToolHost>(
       &EmptyBinderForFrame<blink::mojom::ScriptToolHost>);
+
+  // Currently defined in content/shell/common/shell_switches.h which we cannot
+  // have a DEPS on.
+  constexpr char kExposeInternalsForTesting[] = "expose-internals-for-testing";
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          kExposeInternalsForTesting)) {
+    map->Add<blink::mojom::FrameWidgetHost>(base::BindRepeating(
+        [](RenderFrameHost* host,
+           mojo::PendingReceiver<blink::mojom::FrameWidgetHost> receiver) {
+          static_cast<RenderFrameHostImpl*>(host)
+              ->GetRenderWidgetHost()
+              ->BindFrameWidgetHostReceiver(std::move(receiver));
+        }));
+  }
+
   if (base::FeatureList::IsEnabled(network::features::kBrowsingTopics) &&
       base::FeatureList::IsEnabled(
           blink::features::kBrowsingTopicsDocumentAPI)) {
@@ -1282,7 +1299,7 @@ RenderFrameHost* GetContextForHost(RenderFrameHostImpl* host) {
 
 // Dedicated workers
 const url::Origin& GetContextForHost(DedicatedWorkerHost* host) {
-  return host->GetStorageKey().origin();
+  return host->GetWorkerStorageKey().origin();
 }
 
 void PopulateDedicatedWorkerBinders(DedicatedWorkerHost* host,
@@ -1405,7 +1422,7 @@ void PopulateDedicatedWorkerBinders(DedicatedWorkerHost* host,
         auto* process_host = host->GetProcessHost();
         GetContentClient()->browser()->BindTranslationManager(
             process_host, process_host->GetBrowserContext(), host,
-            host->GetStorageKey().origin(), std::move(receiver));
+            host->GetWorkerStorageKey().origin(), std::move(receiver));
       },
       base::Unretained(host)));
   map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
@@ -1525,7 +1542,7 @@ void PopulateSharedWorkerBinders(SharedWorkerHost* host, mojo::BinderMap* map) {
         auto* process_host = host->GetProcessHost();
         GetContentClient()->browser()->BindTranslationManager(
             process_host, process_host->GetBrowserContext(), host,
-            host->GetStorageKey().origin(), std::move(receiver));
+            host->GetWorkerStorageKey().origin(), std::move(receiver));
       },
       base::Unretained(host)));
   map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(

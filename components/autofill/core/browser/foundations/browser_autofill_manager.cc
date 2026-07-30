@@ -1394,6 +1394,9 @@ void BrowserAutofillManager::OnIndividualSuggestionsGenerated(
     if (suggestions.empty()) {
       continue;
     }
+    base::UmaHistogramEnumeration(
+        "Autofill.SuggestionGeneration.GeneratedFillingProduct",
+        filling_product);
     suggestions_map[filling_product] = std::move(suggestions);
   }
 
@@ -2026,16 +2029,6 @@ void BrowserAutofillManager::MergeAddressAndPlusAddressSuggestions(
 }
 
 void BrowserAutofillManager::FillOrPreviewForm(
-    mojom::ActionPersistence action_persistence,
-    const FormData& form,
-    const FieldGlobalId& field_id,
-    const FillingPayload& filling_payload,
-    AutofillTriggerSource trigger_source) {
-  FillOrPreviewFields(action_persistence, form, field_id, filling_payload,
-                      trigger_source, /*blocked_fields=*/{});
-}
-
-void BrowserAutofillManager::FillOrPreviewFields(
     mojom::ActionPersistence action_persistence,
     const FormData& form,
     const FieldGlobalId& field_id,
@@ -3534,14 +3527,8 @@ std::vector<Suggestion> BrowserAutofillManager::GetAvailableSuggestions(
               ->IsAutofillPaymentMethodsEnabled()) {
         suggestions = GetSuggestionsForCreditCards(
             form, *form_structure, field, *autofill_field, client(),
-            four_digit_combinations_in_dom_,
-            payments::AmountExtractionStatus{
-                .has_timed_out_for_page_load =
-                    GetAmountExtractionManager().HasTimedOutForPageLoad(),
-                .seen_unsupported_currency_for_page_load =
-                    GetAmountExtractionManager()
-                        .SeenUnsupportedCurrencyForPageLoad()},
-            metrics_->credit_card_form_event_logger,
+            four_digit_combinations_in_dom_, &GetAmountExtractionManager(),
+            GetPaymentsBnplManager(), metrics_->credit_card_form_event_logger,
             metrics_->signin_state_for_metrics,
             /*exclude_virtual_cards=*/false);
       }
@@ -3855,14 +3842,8 @@ void BrowserAutofillManager::InitializeSuggestionGenerators(
   if (relevant_filling_products.contains(FillingProduct::kCreditCard)) {
     suggestion_generators_.push_back(
         std::make_unique<CreditCardSuggestionGenerator>(
-            four_digit_combinations_in_dom_,
-            payments::AmountExtractionStatus{
-                .has_timed_out_for_page_load =
-                    GetAmountExtractionManager().HasTimedOutForPageLoad(),
-                .seen_unsupported_currency_for_page_load =
-                    GetAmountExtractionManager()
-                        .SeenUnsupportedCurrencyForPageLoad()},
-            &metrics_->credit_card_form_event_logger,
+            four_digit_combinations_in_dom_, &GetAmountExtractionManager(),
+            GetPaymentsBnplManager(), &metrics_->credit_card_form_event_logger,
             metrics_->signin_state_for_metrics,
             /*exclude_virtual_cards=*/false));
   }

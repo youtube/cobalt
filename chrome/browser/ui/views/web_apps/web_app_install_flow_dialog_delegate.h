@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_WEB_APPS_WEB_APP_INSTALL_FLOW_DIALOG_DELEGATE_H_
 #define CHROME_BROWSER_UI_VIEWS_WEB_APPS_WEB_APP_INSTALL_FLOW_DIALOG_DELEGATE_H_
 
+#include <iosfwd>
 #include <memory>
 
 #include "base/memory/weak_ptr.h"
@@ -32,9 +33,13 @@ enum class InstallDialogStep {
   kSuccessful = 3,
 };
 
+enum class InstallOsType { kMac, kWin, kCros, kOther };
+std::ostream& operator<<(std::ostream& os, InstallOsType type);
+
 class WebAppInstallFlowDialogDelegate : public WebAppInstallDialogDelegate {
  public:
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kInstallDialogFlowViewId);
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kLearnMoreButtonId);
 
   WebAppInstallFlowDialogDelegate(
       content::WebContents* web_contents,
@@ -56,7 +61,8 @@ class WebAppInstallFlowDialogDelegate : public WebAppInstallDialogDelegate {
       PwaInProductHelpState iph_state,
       base::WeakPtr<WebAppScreenshotFetcher> screenshot_fetcher,
       bool show_initiating_origin,
-      InstallDialogType dialog_type);
+      InstallDialogType dialog_type,
+      InstallOsType os_type);
 
   void SetFlowView(base::WeakPtr<WebAppInstallFlowView> flow_view) {
     flow_view_ = std::move(flow_view);
@@ -73,6 +79,7 @@ class WebAppInstallFlowDialogDelegate : public WebAppInstallDialogDelegate {
   base::WeakPtr<WebAppInstallFlowView> flow_view_;
 
  private:
+  void OnLearnMoreButtonClicked();
   base::WeakPtrFactory<WebAppInstallFlowDialogDelegate> weak_ptr_factory_{this};
 };
 

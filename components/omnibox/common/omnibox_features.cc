@@ -272,6 +272,9 @@ BASE_FEATURE(kOmniboxMobileParityUpdateV2, ENABLED);
 // If enabled, the X-Geo header will include permission granularity.
 BASE_FEATURE(kOmniboxXGeoPermissionGranularity, ENABLED);
 
+// If enabled, omnibox group separators and headers will use item decorations.
+BASE_FEATURE(kOmniboxItemDecoration, DISABLED);
+
 // The features below allow tuning number of suggestions offered to users in
 // specific contexts. These features are default enabled and are used to control
 // related fieldtrial parameters.
@@ -323,6 +326,10 @@ BASE_FEATURE(kComposeboxUsesChromeComposeClient, ENABLED);
 
 // Controls whether or not contextual composebox should display suggestions.
 BASE_FEATURE(kComposeboxAttachmentsTypedState, DISABLED);
+
+// Whether the composebox should show a verbatim match for context in
+// zero-suggest.
+BASE_FEATURE(kComposeboxVerbatimMatchZeroSuggest, ENABLED);
 
 // Enables passthrough params to be sent to the AIM eligibility service.
 BASE_FEATURE(kAimUrlInterceptPassthrough, DISABLED);
@@ -391,7 +398,8 @@ static int64_t JNI_OmniboxFeatureMap_GetNativeMap(JNIEnv* env) {
       &kOmniboxImprovementForLFF,
       &kServeJavaCachedZeroSuggest,
       &kRemoveSearchReadyOmnibox,
-      &kResetSuggestionsScroll};
+      &kResetSuggestionsScroll,
+      &kOmniboxItemDecoration};
   static base::NoDestructor<base::android::FeatureMap> kFeatureMap(
       kFeaturesExposedToJava);
   return reinterpret_cast<int64_t>(kFeatureMap.get());

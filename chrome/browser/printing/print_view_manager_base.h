@@ -17,7 +17,9 @@
 #include "base/observer_list_types.h"
 #include "build/build_config.h"
 #include "chrome/browser/printing/print_job.h"
-#include "chrome/browser/ui/webui/print_preview/printer_handler.h"
+// Causes circular dependencies with //chrome/browser/ui. The nogncheck can be
+// removed when printer_handler.h is modularized.
+#include "chrome/browser/ui/webui/print_preview/printer_handler.h"  // nogncheck
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/prefs/pref_member.h"
 #include "components/printing/browser/print_manager.h"
@@ -34,7 +36,7 @@
 #endif
 
 #if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
-#include "chrome/browser/enterprise/connectors/analysis/content_analysis_delegate.h"
+#include "chrome/browser/enterprise/connectors/analysis/content_analysis_delegate.h"  // nogncheck crbug.com/1125897
 #endif  // BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
 
 namespace base {

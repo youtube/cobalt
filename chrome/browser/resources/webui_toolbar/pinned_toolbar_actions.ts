@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import './pinned_toolbar_action.js';
+import './toolbar_divider.js';
 
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
@@ -25,7 +26,7 @@ export class PinnedToolbarActionsElement extends CrLitElement {
 
   static override get properties() {
     return {
-      state: {type: Object},
+      state: {type: Array},
     };
   }
 

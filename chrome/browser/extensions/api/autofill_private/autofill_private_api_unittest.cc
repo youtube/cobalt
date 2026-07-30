@@ -44,6 +44,8 @@
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/autofill/core/common/autofill_prefs.h"
+#include "components/consent_auditor/consent_auditor.h"
+#include "components/consent_auditor/fake_consent_auditor.h"
 #include "components/device_reauth/mock_device_authenticator.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
@@ -60,9 +62,11 @@ using autofill::EntityInstance;
 using ::base::test::RunOnceCallback;
 using ::testing::Bool;
 using ::testing::Combine;
+using ::testing::DoAll;
 using ::testing::Eq;
 using ::testing::Pointee;
 using ::testing::Return;
+using ::testing::SaveArg;
 using ::testing::TestParamInfo;
 using ::testing::WithParamInterface;
 
@@ -220,6 +224,19 @@ class MockSyncService : public syncer::TestSyncService {
   MOCK_METHOD(syncer::DataTypeSet, GetActiveDataTypes, (), (const override));
 };
 
+class MockAutofillClient : public autofill::TestContentAutofillClient {
+ public:
+  using autofill::TestContentAutofillClient::TestContentAutofillClient;
+  MOCK_METHOD(std::unique_ptr<device_reauth::DeviceAuthenticator>,
+              GetDeviceAuthenticator,
+              (std::string),
+              (const, override));
+  MOCK_METHOD(consent_auditor::ConsentAuditor*,
+              GetConsentAuditor,
+              (),
+              (override));
+};
+
 class AutofillPrivateApiBrowserTest : public extensions::ExtensionApiTest {
  public:
   AutofillPrivateApiBrowserTest() {
@@ -255,7 +272,7 @@ class AutofillPrivateApiBrowserTest : public extensions::ExtensionApiTest {
   autofill::TestAddressDataManager& address_data_manager() {
     return personal_data_manager().test_address_data_manager();
   }
-  autofill::TestContentAutofillClient* autofill_client() {
+  MockAutofillClient* autofill_client() {
     return test_autofill_client_injector_[GetActiveWebContents()];
   }
   autofill::TestPaymentsDataManager& payments_data_manager() {
@@ -274,7 +291,7 @@ class AutofillPrivateApiBrowserTest : public extensions::ExtensionApiTest {
   }
 
  private:
-  autofill::TestAutofillClientInjector<autofill::TestContentAutofillClient>
+  autofill::TestAutofillClientInjector<MockAutofillClient>
       test_autofill_client_injector_;
   base::test::ScopedFeatureList feature_list_;
 };
@@ -348,9 +365,8 @@ IN_PROC_BROWSER_TEST_F(AutofillPrivateApiBrowserTest, RemoveVirtualCard) {
           std::move(mock_multiple_request_payments_network_interface));
   EXPECT_CALL(*mock_multiple_request_payments_network_interface_,
               UpdateVirtualCardEnrollment(testing::_, testing::_))
-      .WillOnce(
-          testing::DoAll(testing::SaveArg<0>(&details),
-                         Return(autofill::payments::RequestId("11223344"))));
+      .WillOnce(DoAll(SaveArg<0>(&details),
+                      Return(autofill::payments::RequestId("11223344"))));
   // Required for adding the server card.
   payments_data_manager().SetSyncingForTest(
       /*is_syncing_for_test=*/true);
@@ -521,7 +537,6 @@ IN_PROC_BROWSER_TEST_F(AutofillPrivateApiBrowserTest,
 
   base::ListValue args;
   args.Append(api_entity.ToValue());
-  args.Append(extensions::api::autofill_private::EntityUiContext().ToValue());
   std::string json_args;
   base::JSONWriter::Write(args, &json_args);
 
@@ -571,7 +586,6 @@ IN_PROC_BROWSER_TEST_F(
 
   base::ListValue args;
   args.Append(api_entity.ToValue());
-  args.Append(extensions::api::autofill_private::EntityUiContext().ToValue());
   std::string json_args;
   base::JSONWriter::Write(args, &json_args);
 
@@ -596,13 +610,20 @@ IN_PROC_BROWSER_TEST_F(
 class AutofillPrivateApiSavePrivatePassToWalletTest
     : public AutofillPrivateApiBrowserTest {
  public:
-  AutofillPrivateApiSavePrivatePassToWalletTest() = default;
+  AutofillPrivateApiSavePrivatePassToWalletTest() {
+    feature_list_.InitWithFeatures(
+        {autofill::features::kAutofillAiWalletPrivatePasses,
+         wallet::features::kWalletApiPrivatePassesConsent},
+        {});
+  }
 
   void SetUpOnMainThread() override {
     AutofillPrivateApiBrowserTest::SetUpOnMainThread();
 
-    autofill_client()->set_entity_data_manager(
-        autofill::AutofillEntityDataManagerFactory::GetForProfile(profile()));
+    autofill::EntityDataManager* edm =
+        autofill::AutofillEntityDataManagerFactory::GetForProfile(profile());
+    edm->SetReauthAvailability(true);
+    autofill_client()->set_entity_data_manager(edm);
     autofill_client()->SetUpPrefsAndIdentityForAutofillAi();
     autofill_client()->SetVariationConfigCountryCode(
         autofill::GeoIpCountryCode("US"));
@@ -616,6 +637,8 @@ class AutofillPrivateApiSavePrivatePassToWalletTest
         syncer::UserSelectableType::kPayments, true);
     ON_CALL(mock_sync_service_, GetActiveDataTypes())
         .WillByDefault(Return(syncer::DataTypeSet{syncer::AUTOFILL_VALUABLE}));
+    ON_CALL(*autofill_client(), GetConsentAuditor)
+        .WillByDefault(Return(&consent_auditor_));
   }
 
   autofill::MockWalletPassAccessManager& wallet_manager() {
@@ -623,10 +646,14 @@ class AutofillPrivateApiSavePrivatePassToWalletTest
         *autofill_client()->GetWalletPassAccessManager());
   }
 
+  consent_auditor::FakeConsentAuditor& consent_auditor() {
+    return consent_auditor_;
+  }
+
  private:
-  base::test::ScopedFeatureList feature_list_{
-      autofill::features::kAutofillAiWalletPrivatePasses};
+  base::test::ScopedFeatureList feature_list_;
   testing::NiceMock<MockSyncService> mock_sync_service_;
+  testing::NiceMock<consent_auditor::FakeConsentAuditor> consent_auditor_;
 };
 
 IN_PROC_BROWSER_TEST_F(AutofillPrivateApiSavePrivatePassToWalletTest,
@@ -641,13 +668,19 @@ IN_PROC_BROWSER_TEST_F(AutofillPrivateApiSavePrivatePassToWalletTest,
 
   base::ListValue args;
   args.Append(api_entity.ToValue());
-  args.Append(extensions::api::autofill_private::EntityUiContext().ToValue());
   std::string json_args;
   base::JSONWriter::Write(args, &json_args);
 
+  // Expect that consent is logged and that the correct session ID if forward
+  // to the Wallet API.
+  consent_auditor::ConsentAuditor::SessionId session_id_consent;
+  consent_auditor::ConsentAuditor::SessionId session_id_api;
+  EXPECT_CALL(consent_auditor(), RecordWalletPrivatePassConsent)
+      .WillOnce(SaveArg<1>(&session_id_consent));
   EXPECT_CALL(wallet_manager(), SaveWalletEntityInstance)
-      .WillOnce(RunOnceCallback<2>(
-          autofill::test::MaskEntityInstance(entity_instance)));
+      .WillOnce(DoAll(SaveArg<1>(&session_id_api),
+                      RunOnceCallback<2>(autofill::test::MaskEntityInstance(
+                          entity_instance))));
 
   auto function = base::MakeRefCounted<
       extensions::AutofillPrivateAddOrUpdateEntityInstanceFunction>();
@@ -661,6 +694,7 @@ IN_PROC_BROWSER_TEST_F(AutofillPrivateApiSavePrivatePassToWalletTest,
       autofill::AutofillEntityDataManagerFactory::GetForProfile(profile());
   autofill::EntityDataChangedWaiter(entity_data_manager).Wait();
 
+  EXPECT_EQ(session_id_consent, session_id_api);
   base::optional_ref<const EntityInstance> saved_entity =
       entity_data_manager->GetEntityInstance(entity_instance.guid());
   ASSERT_TRUE(saved_entity.has_value());
@@ -679,7 +713,6 @@ IN_PROC_BROWSER_TEST_F(AutofillPrivateApiSavePrivatePassToWalletTest,
 
   base::ListValue args;
   args.Append(api_entity.ToValue());
-  args.Append(extensions::api::autofill_private::EntityUiContext().ToValue());
   std::string json_args;
   base::JSONWriter::Write(args, &json_args);
 
@@ -750,7 +783,8 @@ IN_PROC_BROWSER_TEST_P(AutofillPrivateApiAuthToViewSensitiveEntityTest,
           .WillOnce(Return(true));
       EXPECT_CALL(*authenticator, AuthenticateWithMessage)
           .WillOnce(RunOnceCallback<1>(true));
-      autofill_client()->SetDeviceAuthenticator(std::move(authenticator));
+      EXPECT_CALL(*autofill_client(), GetDeviceAuthenticator)
+          .WillOnce(Return(std::move(authenticator)));
 
       auto function = base::MakeRefCounted<
           extensions::
@@ -773,7 +807,8 @@ IN_PROC_BROWSER_TEST_P(AutofillPrivateApiAuthToViewSensitiveEntityTest,
           .WillOnce(Return(true));
       EXPECT_CALL(*authenticator, AuthenticateWithMessage)
           .WillOnce(RunOnceCallback<1>(false));
-      autofill_client()->SetDeviceAuthenticator(std::move(authenticator));
+      EXPECT_CALL(*autofill_client(), GetDeviceAuthenticator)
+          .WillOnce(Return(std::move(authenticator)));
 
       auto function = base::MakeRefCounted<
           extensions::
@@ -790,12 +825,7 @@ IN_PROC_BROWSER_TEST_P(AutofillPrivateApiAuthToViewSensitiveEntityTest,
   } else {
     // Authentication should be SKIPPED, either because the feature or the pref
     // are off.
-    auto authenticator =
-        std::make_unique<device_reauth::MockDeviceAuthenticator>();
-    EXPECT_CALL(*authenticator, CanAuthenticateWithBiometricOrScreenLock)
-        .Times(0);
-    EXPECT_CALL(*authenticator, AuthenticateWithMessage).Times(0);
-    autofill_client()->SetDeviceAuthenticator(std::move(authenticator));
+    EXPECT_CALL(*autofill_client(), GetDeviceAuthenticator).Times(0);
 
     auto function = base::MakeRefCounted<
         extensions::
@@ -860,7 +890,8 @@ IN_PROC_BROWSER_TEST_F(
       .WillOnce(Return(true));
   EXPECT_CALL(*authenticator, AuthenticateWithMessage)
       .WillOnce(RunOnceCallback<1>(true));
-  autofill_client()->SetDeviceAuthenticator(std::move(authenticator));
+  EXPECT_CALL(*autofill_client(), GetDeviceAuthenticator)
+      .WillOnce(Return(std::move(authenticator)));
 
   auto function = base::MakeRefCounted<
       extensions::AutofillPrivateGetEntityInstanceByGuidFunction>();
@@ -890,7 +921,8 @@ IN_PROC_BROWSER_TEST_F(
       .WillOnce(Return(true));
   EXPECT_CALL(*authenticator, AuthenticateWithMessage)
       .WillOnce(RunOnceCallback<1>(false));
-  autofill_client()->SetDeviceAuthenticator(std::move(authenticator));
+  EXPECT_CALL(*autofill_client(), GetDeviceAuthenticator)
+      .WillOnce(Return(std::move(authenticator)));
 
   auto function = base::MakeRefCounted<
       extensions::AutofillPrivateGetEntityInstanceByGuidFunction>();
@@ -921,7 +953,8 @@ IN_PROC_BROWSER_TEST_F(AutofillPrivateApiGetEntityInstanceAuthEnabledTest,
   EXPECT_CALL(*authenticator, CanAuthenticateWithBiometricOrScreenLock)
       .Times(0);
   EXPECT_CALL(*authenticator, AuthenticateWithMessage).Times(0);
-  autofill_client()->SetDeviceAuthenticator(std::move(authenticator));
+  EXPECT_CALL(*autofill_client(), GetDeviceAuthenticator)
+      .WillOnce(Return(std::move(authenticator)));
 
   auto function = base::MakeRefCounted<
       extensions::AutofillPrivateGetEntityInstanceByGuidFunction>();
@@ -948,7 +981,8 @@ IN_PROC_BROWSER_TEST_F(
   auto authenticator =
       std::make_unique<device_reauth::MockDeviceAuthenticator>();
   EXPECT_CALL(*authenticator, AuthenticateWithMessage).Times(0);
-  autofill_client()->SetDeviceAuthenticator(std::move(authenticator));
+  EXPECT_CALL(*autofill_client(), GetDeviceAuthenticator)
+      .WillOnce(Return(std::move(authenticator)));
 
   auto function = base::MakeRefCounted<
       extensions::AutofillPrivateGetEntityInstanceByGuidFunction>();
@@ -1044,7 +1078,8 @@ IN_PROC_BROWSER_TEST_F(
       .WillOnce(Return(true));
   EXPECT_CALL(*authenticator, AuthenticateWithMessage)
       .WillOnce(RunOnceCallback<1>(true));
-  autofill_client()->SetDeviceAuthenticator(std::move(authenticator));
+  EXPECT_CALL(*autofill_client(), GetDeviceAuthenticator)
+      .WillOnce(Return(std::move(authenticator)));
 
   auto function = base::MakeRefCounted<
       extensions::AutofillPrivateToggleAutofillAiReauthRequirementFunction>();
@@ -1067,7 +1102,8 @@ IN_PROC_BROWSER_TEST_F(
       .WillOnce(Return(true));
   EXPECT_CALL(*authenticator, AuthenticateWithMessage)
       .WillOnce(RunOnceCallback<1>(false));
-  autofill_client()->SetDeviceAuthenticator(std::move(authenticator));
+  EXPECT_CALL(*autofill_client(), GetDeviceAuthenticator)
+      .WillOnce(Return(std::move(authenticator)));
 
   auto function = base::MakeRefCounted<
       extensions::AutofillPrivateToggleAutofillAiReauthRequirementFunction>();

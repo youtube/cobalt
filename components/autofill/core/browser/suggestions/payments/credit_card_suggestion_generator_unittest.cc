@@ -44,6 +44,7 @@
 #include "components/autofill/core/browser/metrics/payments/save_and_fill_metrics.h"
 #include "components/autofill/core/browser/metrics/suggestions_list_metrics.h"
 #include "components/autofill/core/browser/payments/amount_extraction_manager.h"
+#include "components/autofill/core/browser/payments/bnpl_manager_test_api.h"
 #include "components/autofill/core/browser/payments/bnpl_util.h"
 #include "components/autofill/core/browser/payments/constants.h"
 #include "components/autofill/core/browser/payments/test/mock_bnpl_manager.h"
@@ -1111,7 +1112,8 @@ TEST_F(PaymentsSuggestionGeneratorTest,
   std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -1149,7 +1151,8 @@ TEST_F(PaymentsSuggestionGeneratorTest,
   std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -1190,7 +1193,8 @@ TEST_F(PaymentsSuggestionGeneratorTest,
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
       /*four_digit_combinations_in_dom=*/{"4444"},
-      payments::AmountExtractionStatus(), credit_card_form_event_logger(),
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
+      credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
 
@@ -1215,7 +1219,8 @@ TEST_F(PaymentsSuggestionGeneratorTest, GetCardSuggestionsWithCvc) {
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -1242,7 +1247,8 @@ TEST_F(PaymentsSuggestionGeneratorTest,
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -1279,7 +1285,8 @@ TEST_F(PaymentsSuggestionGeneratorTest, ShouldDisplayGpayLogo) {
         form_bundle.trigger_field, *form_bundle.trigger_autofill_field,
         autofill_client(),
         /*four_digit_combinations_in_dom=*/{},
-        payments::AmountExtractionStatus(), credit_card_form_event_logger(),
+        /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
+        credit_card_form_event_logger(),
         AutofillMetrics::PaymentsSigninState::kUnknown,
         /*exclude_virtual_cards=*/false);
 
@@ -1310,7 +1317,8 @@ TEST_F(PaymentsSuggestionGeneratorTest, ShouldDisplayGpayLogo) {
         form_bundle.trigger_field, *form_bundle.trigger_autofill_field,
         autofill_client(),
         /*four_digit_combinations_in_dom=*/{},
-        payments::AmountExtractionStatus(), credit_card_form_event_logger(),
+        /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
+        credit_card_form_event_logger(),
         AutofillMetrics::PaymentsSigninState::kUnknown,
         /*exclude_virtual_cards=*/false);
 
@@ -1344,7 +1352,8 @@ TEST_F(PaymentsSuggestionGeneratorTest, ShouldDisplayGpayLogo) {
         form_bundle.trigger_field, *form_bundle.trigger_autofill_field,
         autofill_client(),
         /*four_digit_combinations_in_dom=*/{},
-        payments::AmountExtractionStatus(), credit_card_form_event_logger(),
+        /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
+        credit_card_form_event_logger(),
         AutofillMetrics::PaymentsSigninState::kUnknown,
         /*exclude_virtual_cards=*/false);
 
@@ -1363,7 +1372,8 @@ TEST_F(PaymentsSuggestionGeneratorTest, NoSuggestionsWhenNoUserData) {
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -1382,7 +1392,8 @@ TEST_F(PaymentsSuggestionGeneratorTest, ShouldShowScanCreditCard) {
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -1518,7 +1529,8 @@ TEST_F(PaymentsSuggestionGeneratorTest,
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -1635,7 +1647,8 @@ TEST_F(PaymentsSuggestionGeneratorBnplTest,
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -1755,7 +1768,8 @@ TEST_F(PaymentsSuggestionGeneratorBnplTest,
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -1843,7 +1857,8 @@ TEST_F(PaymentsSuggestionGeneratorBnplTest,
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -1886,7 +1901,8 @@ TEST_F(
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -1925,7 +1941,8 @@ TEST_F(PaymentsSuggestionGeneratorBnplTest,
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -1965,7 +1982,8 @@ TEST_F(PaymentsSuggestionGeneratorBnplTest,
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -2000,7 +2018,8 @@ TEST_F(PaymentsSuggestionGeneratorBnplTest,
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -2037,7 +2056,8 @@ TEST_F(PaymentsSuggestionGeneratorBnplTest,
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -2073,7 +2093,8 @@ TEST_F(PaymentsSuggestionGeneratorBnplTest,
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -2114,7 +2135,8 @@ TEST_F(PaymentsSuggestionGeneratorBnplTest,
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -2154,7 +2176,8 @@ TEST_F(PaymentsSuggestionGeneratorBnplTest,
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -2194,7 +2217,8 @@ TEST_F(
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -2224,6 +2248,9 @@ TEST_F(
                             features::kAutofillEnablePayNowPayLaterTabs},
       /*disabled_features=*/{});
 
+  autofill_client().GetPrefs()->SetBoolean(
+      prefs::kAutofillAmountExtractionAiTermsSeen, false);
+
   payments_data().AddCreditCard(test::GetCreditCard());
   BnplIssuer linked_issuer =
       test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplZip);
@@ -2236,10 +2263,13 @@ TEST_F(
   FormBundle form_bundle = GetFormWithTypes(
       {.fields = {{.role = CREDIT_CARD_NUMBER, .value = u"1111"}}});
 
+  std::unique_ptr<MockBnplManager> bnpl_manager =
+      std::make_unique<NiceMock<MockBnplManager>>(&autofill_manager());
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, bnpl_manager.get(),
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -2271,6 +2301,64 @@ TEST_F(
 
 TEST_F(
     PaymentsSuggestionGeneratorBnplTest,
+    GenerateCreditCardOrCvcFieldSuggestionsSync_CardNumberFieldNotEmpty_AiTermsSeen_ShowsDisabledPayLaterIssuer) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      /*enabled_features=*/{features::kAutofillEnableAmountExtraction,
+                            features::kAutofillEnableBuyNowPayLaterSyncing,
+                            features::kAutofillEnableBuyNowPayLater,
+                            features::kAutofillEnableAiBasedAmountExtraction,
+                            features::kAutofillEnablePayNowPayLaterTabs},
+      /*disabled_features=*/{});
+
+  autofill_client().GetPrefs()->SetBoolean(
+      prefs::kAutofillAmountExtractionAiTermsSeen, true);
+
+  payments_data().AddCreditCard(test::GetCreditCard());
+  BnplIssuer linked_issuer =
+      test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplZip);
+  payments_data().AddBnplIssuer(linked_issuer);
+
+  ON_CALL(*static_cast<MockAutofillOptimizationGuideDecider*>(
+              autofill_client().GetAutofillOptimizationGuideDecider()),
+          IsUrlEligibleForBnplIssuer)
+      .WillByDefault(testing::Return(true));
+  FormBundle form_bundle = GetFormWithTypes(
+      {.fields = {{.role = CREDIT_CARD_NUMBER, .value = u"1111"}}});
+
+  std::unique_ptr<MockBnplManager> bnpl_manager =
+      std::make_unique<NiceMock<MockBnplManager>>(&autofill_manager());
+  const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
+      form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
+      *form_bundle.trigger_autofill_field, autofill_client(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, bnpl_manager.get(),
+      credit_card_form_event_logger(),
+      AutofillMetrics::PaymentsSigninState::kUnknown,
+      /*exclude_virtual_cards=*/false);
+
+  auto loading_throbber_finder = std::find_if(
+      suggestions.begin(), suggestions.end(), [](const Suggestion& s) {
+        return s.type == SuggestionType::kLoadingThrobber;
+      });
+
+  EXPECT_EQ(loading_throbber_finder, suggestions.end())
+      << "Expected no Loading Throbber suggestion to be generated when "
+         "card number field is not empty.";
+
+  auto disabled_bnpl_suggestion = std::find_if(
+      suggestions.begin(), suggestions.end(),
+      [](const Suggestion& s) { return s.type == SuggestionType::kBnplEntry; });
+
+  ASSERT_NE(disabled_bnpl_suggestion, suggestions.end())
+      << "Expected a BNPL suggestion to be generated.";
+
+  EXPECT_EQ(disabled_bnpl_suggestion->acceptability,
+            Suggestion::Acceptability::kUnacceptableWithDeactivatedStyle);
+}
+
+TEST_F(
+    PaymentsSuggestionGeneratorBnplTest,
     GenerateCreditCardOrCvcFieldSuggestionsSync_PayLaterTabsEnabled_AiTermsNotSeen_MultipleIssuers) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeatures(
@@ -2280,6 +2368,9 @@ TEST_F(
                             features::kAutofillEnableAmountExtraction,
                             features::kAutofillEnableAiBasedAmountExtraction},
       /*disabled_features=*/{});
+
+  autofill_client().GetPrefs()->SetBoolean(
+      prefs::kAutofillAmountExtractionAiTermsSeen, false);
 
   payments_data().AddCreditCard(test::GetCreditCard());
   payments_data().AddBnplIssuer(
@@ -2295,10 +2386,13 @@ TEST_F(
   FormBundle form_bundle =
       GetFormWithTypes({.fields = {{.role = CREDIT_CARD_NUMBER}}});
 
+  std::unique_ptr<MockBnplManager> bnpl_manager =
+      std::make_unique<NiceMock<MockBnplManager>>(&autofill_manager());
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, bnpl_manager.get(),
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -2352,10 +2446,13 @@ TEST_F(
   FormBundle form_bundle =
       GetFormWithTypes({.fields = {{.role = CREDIT_CARD_NUMBER}}});
 
+  std::unique_ptr<MockBnplManager> bnpl_manager =
+      std::make_unique<NiceMock<MockBnplManager>>(&autofill_manager());
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, bnpl_manager.get(),
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -2409,7 +2506,8 @@ TEST_F(
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -2421,6 +2519,121 @@ TEST_F(
                           EqualsSuggestion(SuggestionType::kBnplEntry),
                           EqualsSuggestion(SuggestionType::kSeparator),
                           EqualsSuggestion(SuggestionType::kManageCreditCard)));
+}
+
+TEST_F(PaymentsSuggestionGeneratorBnplTest,
+       GenerateSuggestions_CardNumberFieldEmpty_UsesCacheIfAvailable) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      /*enabled_features=*/{features::kAutofillEnablePayNowPayLaterTabs,
+                            features::kAutofillEnableBuyNowPayLater,
+                            features::kAutofillEnableBuyNowPayLaterSyncing,
+                            features::kAutofillEnableAmountExtraction,
+                            features::kAutofillEnableAiBasedAmountExtraction},
+      /*disabled_features=*/{});
+
+  payments_data().AddCreditCard(test::GetCreditCard());
+  payments_data().AddBnplIssuer(test::GetTestLinkedBnplIssuer());
+
+  ON_CALL(*static_cast<MockAutofillOptimizationGuideDecider*>(
+              autofill_client().GetAutofillOptimizationGuideDecider()),
+          IsUrlEligibleForBnplIssuer)
+      .WillByDefault(testing::Return(true));
+
+  std::vector<Suggestion> cached_suggestions = {
+      Suggestion(SuggestionType::kCreditCardEntry),
+      Suggestion(SuggestionType::kLoadingThrobber),
+      Suggestion(SuggestionType::kBnplFootnote),
+      Suggestion(SuggestionType::kSeparator),
+      Suggestion(SuggestionType::kManageCreditCard)};
+
+  std::unique_ptr<MockBnplManager> bnpl_manager =
+      std::make_unique<NiceMock<MockBnplManager>>(&autofill_manager());
+  payments::test_api(*bnpl_manager).SetCachedSuggestions(cached_suggestions);
+
+  FormBundle form_bundle =
+      GetFormWithTypes({.fields = {{.role = CREDIT_CARD_NUMBER}}});
+
+  // Without the cache, this would generate `kBnplEntry` suggestions for each
+  // BnplIssuer instead of a `kLoadingThrobber` suggestion.
+  autofill_client().GetPrefs()->SetBoolean(
+      prefs::kAutofillAmountExtractionAiTermsSeen, false);
+  const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
+      form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
+      *form_bundle.trigger_autofill_field, autofill_client(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, bnpl_manager.get(),
+      credit_card_form_event_logger(),
+      AutofillMetrics::PaymentsSigninState::kUnknown,
+      /*exclude_virtual_cards=*/false);
+
+  // Check that we reuse the cached `kLoadingThrobber` suggestion instead of
+  // generating `kBnplEntry` suggestions.
+  ASSERT_EQ(suggestions.size(), 5U);
+  EXPECT_EQ(suggestions[0].type, SuggestionType::kCreditCardEntry);
+  EXPECT_EQ(suggestions[1].type, SuggestionType::kLoadingThrobber);
+  EXPECT_EQ(suggestions[2].type, SuggestionType::kBnplFootnote);
+  EXPECT_EQ(suggestions[3].type, SuggestionType::kSeparator);
+  EXPECT_EQ(suggestions[4].type, SuggestionType::kManageCreditCard);
+}
+
+TEST_F(
+    PaymentsSuggestionGeneratorBnplTest,
+    GenerateSuggestions_CardNumberFieldNotEmpty_CancelsOngoingRequestsAndIgnoresCache) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      /*enabled_features=*/{features::kAutofillEnablePayNowPayLaterTabs,
+                            features::kAutofillEnableBuyNowPayLater,
+                            features::kAutofillEnableBuyNowPayLaterSyncing,
+                            features::kAutofillEnableAmountExtraction,
+                            features::kAutofillEnableAiBasedAmountExtraction},
+      /*disabled_features=*/{});
+
+  payments_data().AddCreditCard(test::GetCreditCard());
+  payments_data().AddBnplIssuer(test::GetTestLinkedBnplIssuer());
+
+  ON_CALL(*static_cast<MockAutofillOptimizationGuideDecider*>(
+              autofill_client().GetAutofillOptimizationGuideDecider()),
+          IsUrlEligibleForBnplIssuer)
+      .WillByDefault(testing::Return(true));
+
+  std::vector<Suggestion> cached_suggestions = {
+      Suggestion(SuggestionType::kCreditCardEntry),
+      Suggestion(SuggestionType::kLoadingThrobber),
+      Suggestion(SuggestionType::kBnplFootnote),
+      Suggestion(SuggestionType::kSeparator),
+      Suggestion(SuggestionType::kManageCreditCard)};
+
+  std::unique_ptr<MockBnplManager> bnpl_manager =
+      std::make_unique<NiceMock<MockBnplManager>>(&autofill_manager());
+  payments::test_api(*bnpl_manager).SetCachedSuggestions(cached_suggestions);
+
+  EXPECT_CALL(*bnpl_manager, CancelOngoingRequests);
+
+  FormBundle form_bundle = GetFormWithTypes(
+      {.fields = {{.role = CREDIT_CARD_NUMBER, .value = u"4111"}}});
+
+  autofill_client().GetPrefs()->SetBoolean(
+      prefs::kAutofillAmountExtractionAiTermsSeen, false);
+  const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
+      form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
+      *form_bundle.trigger_autofill_field, autofill_client(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, bnpl_manager.get(),
+      credit_card_form_event_logger(),
+      AutofillMetrics::PaymentsSigninState::kUnknown,
+      /*exclude_virtual_cards=*/false);
+
+  // Check that we ignore the cached suggestions and generate a disabled
+  // `kBnplEntry` suggestion instead when the card number field is not empty.
+  ASSERT_EQ(suggestions.size(), 5U);
+  EXPECT_EQ(suggestions[0].type, SuggestionType::kCreditCardEntry);
+  EXPECT_EQ(suggestions[1].type, SuggestionType::kBnplEntry);
+  EXPECT_EQ(suggestions[1].acceptability,
+            Suggestion::Acceptability::kUnacceptableWithDeactivatedStyle);
+  EXPECT_EQ(suggestions[2].type, SuggestionType::kBnplFootnote);
+  EXPECT_EQ(suggestions[3].type, SuggestionType::kSeparator);
+  EXPECT_EQ(suggestions[4].type, SuggestionType::kManageCreditCard);
 }
 
 TEST_F(
@@ -2448,7 +2661,8 @@ TEST_F(
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -2490,7 +2704,8 @@ TEST_F(
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -2560,10 +2775,13 @@ TEST_P(PaymentsSuggestionGeneratorPnplTabTestForIssuer,
   FormBundle form_bundle =
       GetFormWithTypes({.fields = {{.role = CREDIT_CARD_NUMBER}}});
 
+  std::unique_ptr<MockBnplManager> bnpl_manager =
+      std::make_unique<NiceMock<MockBnplManager>>(&autofill_manager());
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, bnpl_manager.get(),
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -3167,7 +3385,8 @@ TEST_F(PaymentsSuggestionGeneratorTest,
   std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -3223,7 +3442,8 @@ TEST_F(PaymentsSuggestionGeneratorTest,
   std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -3262,7 +3482,8 @@ TEST_F(PaymentsSuggestionGeneratorTest,
   std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -3304,7 +3525,8 @@ TEST_F(PaymentsSuggestionGeneratorTest,
   std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -3342,7 +3564,8 @@ TEST_F(PaymentsSuggestionGeneratorTest,
   std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -3384,7 +3607,8 @@ TEST_F(PaymentsSuggestionGeneratorTest,
   std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -3413,7 +3637,8 @@ TEST_F(PaymentsSuggestionGeneratorTest,
   std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -3458,7 +3683,8 @@ TEST_F(PaymentsSuggestionGeneratorTest,
   std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -3503,7 +3729,8 @@ TEST_F(PaymentsSuggestionGeneratorTest,
   std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -3766,7 +3993,8 @@ TEST_F(AutofillCreditCardSuggestionContentTest,
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -3813,7 +4041,8 @@ TEST_F(AutofillCreditCardSuggestionContentTest,
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -3838,7 +4067,8 @@ TEST_F(AutofillCreditCardSuggestionContentTest,
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -3865,7 +4095,8 @@ TEST_F(AutofillCreditCardSuggestionContentTest,
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -3906,7 +4137,8 @@ TEST_F(AutofillCreditCardSuggestionContentTest,
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -4250,7 +4482,8 @@ TEST_P(PaymentsSuggestionGeneratorTestForMetadata,
         form_bundle.trigger_field, *form_bundle.trigger_autofill_field,
         autofill_client(),
         /*four_digit_combinations_in_dom=*/{},
-        payments::AmountExtractionStatus(), credit_card_form_event_logger(),
+        /*amount_extraction_manager=*/nullptr,
+        /*bnpl_manager=*/nullptr, credit_card_form_event_logger(),
         AutofillMetrics::PaymentsSigninState::kUnknown,
         /*exclude_virtual_cards=*/false);
 
@@ -4290,7 +4523,8 @@ TEST_P(PaymentsSuggestionGeneratorTestForMetadata,
         form_bundle.trigger_field, *form_bundle.trigger_autofill_field,
         autofill_client(),
         /*four_digit_combinations_in_dom=*/{},
-        payments::AmountExtractionStatus(), credit_card_form_event_logger(),
+        /*amount_extraction_manager=*/nullptr,
+        /*bnpl_manager=*/nullptr, credit_card_form_event_logger(),
         AutofillMetrics::PaymentsSigninState::kUnknown,
         /*exclude_virtual_cards=*/false);
 
@@ -4340,7 +4574,8 @@ TEST_P(PaymentsSuggestionGeneratorTestForMetadata,
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -4489,7 +4724,8 @@ TEST_F(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
       /*four_digit_combinations_in_dom=*/{"1234"},
-      payments::AmountExtractionStatus(), credit_card_form_event_logger(),
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
+      credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
 
@@ -4532,7 +4768,8 @@ TEST_F(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
       /*four_digit_combinations_in_dom=*/{"1234"},
-      payments::AmountExtractionStatus(), credit_card_form_event_logger(),
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
+      credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
   ASSERT_FALSE(suggestions.empty());
@@ -4541,7 +4778,8 @@ TEST_F(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
       /*four_digit_combinations_in_dom=*/{"1234"},
-      payments::AmountExtractionStatus(), credit_card_form_event_logger(),
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
+      credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/true);
 
@@ -4704,7 +4942,8 @@ TEST_P(GetFilteredCardsToSuggestTest, GetFilteredCardsToSuggest) {
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -4756,7 +4995,8 @@ TEST_P(GetFilteredCardsToSuggestTest, EmptyFilteringSet) {
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -4792,7 +5032,8 @@ TEST_P(GetFilteredCardsToSuggestTest, TriggerFieldIsNotCvc) {
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -4827,7 +5068,8 @@ TEST_P(GetFilteredCardsToSuggestTest, NoMatchCard) {
   const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
       *form_bundle.trigger_autofill_field, autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -4939,7 +5181,8 @@ TEST_P(CvcStorageAndFillingStandaloneFormEnhancementTest,
       form, FormStructure(form), trigger_field, trigger_autofill_field,
       autofill_client(),
       /*four_digit_combinations_in_dom=*/{"1111", "1113"},
-      payments::AmountExtractionStatus(), credit_card_form_event_logger(),
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
+      credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
 
@@ -4985,7 +5228,8 @@ TEST_P(CvcStorageAndFillingStandaloneFormEnhancementTest,
       form, FormStructure(form), trigger_field, trigger_autofill_field,
       autofill_client(),
       /*four_digit_combinations_in_dom=*/{"1113"},
-      payments::AmountExtractionStatus(), credit_card_form_event_logger(),
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
+      credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
   if (!IsCvcSavingSupported()) {
@@ -5017,7 +5261,8 @@ TEST_P(CvcStorageAndFillingStandaloneFormEnhancementTest,
   std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
       form, FormStructure(form), trigger_field, trigger_autofill_field,
       autofill_client(),
-      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
       credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
@@ -5039,7 +5284,8 @@ TEST_P(CvcStorageAndFillingStandaloneFormEnhancementTest,
       form, FormStructure(form), trigger_field, trigger_autofill_field,
       autofill_client(),
       /*four_digit_combinations_in_dom=*/{"0000", "9999"},
-      payments::AmountExtractionStatus(), credit_card_form_event_logger(),
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
+      credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
 
@@ -5066,7 +5312,8 @@ TEST_P(CvcStorageAndFillingStandaloneFormEnhancementTest,
       form, FormStructure(form), trigger_field, trigger_autofill_field,
       autofill_client(),
       /*four_digit_combinations_in_dom=*/{"1234"},
-      payments::AmountExtractionStatus(), credit_card_form_event_logger(),
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
+      credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
   EXPECT_EQ(suggestions.size(), 0U);
@@ -5104,7 +5351,8 @@ TEST_P(CvcStorageAndFillingStandaloneFormEnhancementTest,
       form, FormStructure(form), trigger_field, trigger_autofill_field,
       autofill_client(),
       /*four_digit_combinations_in_dom=*/{"1234"},
-      payments::AmountExtractionStatus(), credit_card_form_event_logger(),
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
+      credit_card_form_event_logger(),
       AutofillMetrics::PaymentsSigninState::kUnknown,
       /*exclude_virtual_cards=*/false);
 

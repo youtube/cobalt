@@ -224,7 +224,6 @@ import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManagerProvider;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.chrome.browser.ui.system.StatusBarColorController;
 import org.chromium.chrome.browser.webapps.AppInstallMenuHandler;
-import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.modaldialog.AppModalPresenter;
 import org.chromium.components.browser_ui.settings.SettingsNavigation;
 import org.chromium.components.browser_ui.util.motion.MotionEventInfo;
@@ -660,6 +659,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
             mChromeActivitySnackbarHelper =
                     new ChromeActivitySnackbarHelper(
+                            this,
                             getEdgeToEdgeSupplier(),
                             assertNonNull(mRootUiCoordinator.getBottomSheetController()));
             SnackbarManager snackbarManager =
@@ -670,6 +670,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                             mChromeActivitySnackbarHelper.getBottomMarginSupplier(),
                             getModalDialogManager());
             mSnackbarManagerSupplier.set(snackbarManager);
+            mChromeActivitySnackbarHelper.setSnackbarManager(snackbarManager);
             getInsetObserver().addObserver(snackbarManager);
             SnackbarManagerProvider.attach(getWindowAndroid(), snackbarManager);
             // TODO (crbug.com/365110749): Remove wiring the InsetObserver when the dialog window
@@ -731,7 +732,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                     new TabBookmarker(
                             this,
                             mBookmarkModelSupplier,
-                            mRootUiCoordinator::getBottomSheetController,
+                            mRootUiCoordinator.getBottomSheetControllerSupplier(),
                             this::getSnackbarManager,
                             new BookmarkManagerOpenerImpl(),
                             () ->
@@ -1098,8 +1099,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                                     tabModelSelector,
                                     browserWindowType,
                                     supportedProfileType,
-                                    desktopWindowStateManager,
-                                    multiInstanceManager),
+                                    desktopWindowStateManager),
                             pendingId);
 
             // 4. Add windowing features.
@@ -1996,19 +1996,9 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
      */
     protected void onDestroyInternal() {}
 
-    /**
-     * @return The unified manager for all snackbar related operations.
-     */
+    /** Returns snackbar manager for all snackbar related operations. */
     @Override
     public SnackbarManager getSnackbarManager() {
-        BottomSheetController controller =
-                mRootUiCoordinator == null ? null : mRootUiCoordinator.getBottomSheetController();
-        if (mRootUiCoordinator != null
-                && controller != null
-                && controller.isSheetOpen()
-                && !controller.isSheetHiding()) {
-            return mRootUiCoordinator.getBottomSheetSnackbarManager();
-        }
         return mSnackbarManagerSupplier.get();
     }
 
@@ -2616,6 +2606,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         }
         mBackPressManager.setIsGestureNavEnabledSupplier(
                 () -> UiUtils.isGestureNavigationMode(getWindow()));
+        mBackPressManager.setProfileSupplier(mTabModelProfileSupplier);
 
         getOnBackPressedDispatcher().addCallback(this, mBackPressManager.getCallback());
         // TODO(crbug.com/40208738): consider move to RootUiCoordinator.
@@ -2775,6 +2766,8 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             if (currentTab.canGoBack()) {
                 currentTab.goBack();
                 RecordUserAction.record("MobileMenuBack");
+                TrackerFactory.getTrackerForProfile(currentTab.getProfile())
+                        .notifyEvent(EventConstants.THREE_DOT_MENU_BACK_BUTTON_CLICKED);
                 return true;
             }
             return false;
@@ -3116,13 +3109,6 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         // Derived classes that disable the toolbar should also have the Menu disabled without
         // having to explicitly disable the Menu as well.
         return getToolbarLayoutId() != ActivityUtils.NO_RESOURCE_ID;
-    }
-
-    /**
-     * @return Whether this activity supports the find in page feature.
-     */
-    public boolean supportsFindInPage() {
-        return true;
     }
 
     public RootUiCoordinator getRootUiCoordinatorForTesting() {

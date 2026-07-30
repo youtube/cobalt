@@ -361,10 +361,11 @@ void LocationBarView::Init() {
 
   const bool is_web_app =
       browser_ && web_app::AppBrowserController::IsWebApp(browser_);
+  const bool is_devtools = browser_ && browser_->is_type_devtools();
 
-  // Skip creating the AIM WebUI for web apps since it's not supported there
-  // and results in an extra Omnibox process being created.
-  if (!is_web_app && omnibox::IsAimPopupFeatureEnabled()) {
+  // Skip creating the AIM WebUI for web apps and devtools windows since it's
+  // not supported there and results in an extra Omnibox process being created.
+  if (!is_web_app && !is_devtools && omnibox::IsAimPopupFeatureEnabled()) {
     omnibox_popup_aim_presenter_ = std::make_unique<OmniboxPopupAimPresenter>(
         this, omnibox_controller_.get());
   }
@@ -373,13 +374,13 @@ void LocationBarView::Init() {
       base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxPopup) &&
       !base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup);
 
-  // Default to the legacy popup view for web apps since creating the WebUI
-  // popup results in an extra Omnibox process being created (note that the
-  // address bar is not shown in web apps). When the legacy
+  // Default to the legacy popup view for web apps and devtools windows since
+  // creating the WebUI popup results in an extra Omnibox process being created
+  // (note that the address bar is not shown in web apps). When the legacy
   // `OmniboxPopupViewViews` is deprecated we will need to ensure that a null
   // `omnibox_popup_view_` doesn't cause any issues (or aim for a cleaner
   // solution).
-  if (!is_web_app &&
+  if (!is_web_app && !is_devtools &&
       ((web_ui_popup_dropdown_only &&
         !base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxPopupDebug)) ||
        base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup))) {
@@ -1244,7 +1245,8 @@ std::optional<bubble_anchor_util::AnchorConfiguration>
 LocationBarView::GetChipAnchor() {
   auto* chip = GetChipController()->chip();
   if (chip->GetVisible()) {
-    return {{chip, PermissionChipView::kPermissionRequestChipElementId,
+    return {{views::BubbleAnchor(chip),
+             PermissionChipView::kPermissionRequestChipElementId,
              views::BubbleBorder::TOP_LEFT}};
   }
   return std::nullopt;
@@ -1631,8 +1633,8 @@ bool LocationBarView::RefreshContentSettingViews() {
   for (ContentSettingImageView* v : content_setting_views_) {
     const bool was_visible = v->GetVisible();
     // The Left-Hand Side indicators currently supports only
-    // `ImageType::MEDIASTREAM`.
-    if (v->GetType() == ContentSettingImageModel::ImageType::MEDIASTREAM &&
+    // `ImageType::kMediaStream`.
+    if (v->GetType() == ContentSettingImageModel::ImageType::kMediaStream &&
         // WebApps do not support the Left-Hand Side indicators.
         !web_app::AppBrowserController::IsWebApp(browser_) &&
         base::FeatureList::IsEnabled(
@@ -2267,7 +2269,8 @@ bool LocationBarView::ShowPageInfoDialog() {
   DCHECK(GetWidget());
 
   std::unique_ptr<PageInfoBubbleSpecification> specification =
-      PageInfoBubbleSpecification::Builder(this, GetWidget()->GetNativeWindow(),
+      PageInfoBubbleSpecification::Builder(views::BubbleAnchor(this),
+                                           GetWidget()->GetNativeWindow(),
                                            contents, entry->GetVirtualURL())
           .AddInitializedCallback(
               GetPageInfoDialogCreatedCallbackForTesting()

@@ -136,8 +136,7 @@ public class SelectableListToolbar<E> extends Toolbar
     @SuppressWarnings("NullAway.Init")
     private ImageButton mClearTextButton;
 
-    @SuppressWarnings("NullAway.Init")
-    private InlineSearchBox mInlineSearchBox;
+    @Nullable private InlineSearchBox mInlineSearchBox;
 
     @SuppressWarnings("NullAway.Init")
     private SearchDelegate mSearchDelegate;
@@ -177,7 +176,6 @@ public class SelectableListToolbar<E> extends Toolbar
 
     // current view type that SelectableListToolbar is showing
     private int mViewType;
-    private boolean mIsLargeScreenWithKeyboard;
     private final SettableNonNullObservableSupplier<Boolean> mHasSearchTextSupplier =
             ObservableSuppliers.createNonNull(false);
 
@@ -295,7 +293,6 @@ public class SelectableListToolbar<E> extends Toolbar
         mShowInfoIcon = true;
         mShowInfoStringId = R.string.show_info;
         mHideInfoStringId = R.string.hide_info;
-        mIsLargeScreenWithKeyboard = false;
 
         if (showBackInNormalView) {
             mShowBackInNormalView = true;
@@ -483,7 +480,7 @@ public class SelectableListToolbar<E> extends Toolbar
             case NavigationButton.NONE:
                 break;
             case NavigationButton.SEARCH_BACK:
-                if (mIsLargeScreenWithKeyboard) break;
+                if (mInlineSearchBox != null) break;
                 // Create a LayerDrawable to hold the search box icon highlight background as well
                 // as the navigation icon drawable.
                 var navigationBackgroundDrawable =
@@ -532,7 +529,7 @@ public class SelectableListToolbar<E> extends Toolbar
      * @param showKeyboard Whether to show the soft keyboard.
      */
     public void requestSearchFocus(boolean showKeyboard) {
-        if (mIsLargeScreenWithKeyboard) {
+        if (mInlineSearchBox != null) {
             mInlineSearchBox.requestSearchFocus(showKeyboard);
         } else if (isSearching() && mSearchEditText != null) {
             mSearchEditText.post(
@@ -592,7 +589,7 @@ public class SelectableListToolbar<E> extends Toolbar
      * @return If search text is present.
      */
     public boolean hasSearchText() {
-        if (mIsLargeScreenWithKeyboard) {
+        if (mInlineSearchBox != null) {
             return mInlineSearchBox.hasSearchText();
         }
         if (mSearchEditText == null) return false;
@@ -604,7 +601,7 @@ public class SelectableListToolbar<E> extends Toolbar
      * where the search bar is persistent and should not be hidden.
      */
     public void clearSearch() {
-        if (mIsLargeScreenWithKeyboard) {
+        if (mInlineSearchBox != null) {
             mInlineSearchBox.clearSearch();
             return;
         }
@@ -613,6 +610,22 @@ public class SelectableListToolbar<E> extends Toolbar
         mSearchEditText.setText("");
 
         mSearchEditText.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED);
+    }
+
+    /**
+     * Sets the text in the search edit text box programmatically.
+     *
+     * @param text The text to set.
+     */
+    public void setSearchText(String text) {
+        if (mInlineSearchBox != null) {
+            EditText editText = mInlineSearchBox.getSearchText();
+            editText.setText(text);
+            editText.setSelection(editText.getText().length());
+        } else if (mSearchEditText != null) {
+            mSearchEditText.setText(text);
+            mSearchEditText.setSelection(mSearchEditText.getText().length());
+        }
     }
 
     /**
@@ -642,7 +655,7 @@ public class SelectableListToolbar<E> extends Toolbar
         if (mIsDestroyed) return;
 
         if (mSelectionDelegate != null) mSelectionDelegate.clearSelection();
-        if (isSearching() && !mIsLargeScreenWithKeyboard) hideSearchView();
+        if (isSearching() && mInlineSearchBox == null) hideSearchView();
     }
 
     /**
@@ -842,7 +855,7 @@ public class SelectableListToolbar<E> extends Toolbar
     /** Hides the keyboard. */
     public void hideKeyboard() {
         View searchText =
-                mIsLargeScreenWithKeyboard ? mInlineSearchBox.getSearchText() : mSearchEditText;
+                mInlineSearchBox != null ? mInlineSearchBox.getSearchText() : mSearchEditText;
         KeyboardVisibilityDelegate.getInstance().hideKeyboard(searchText);
     }
 
@@ -906,12 +919,8 @@ public class SelectableListToolbar<E> extends Toolbar
         return mViewType;
     }
 
-    public void setIsLargeScreenWithKeyboard(boolean isLargeScreenWithKeyboard) {
-        mIsLargeScreenWithKeyboard = isLargeScreenWithKeyboard;
-    }
-
-    public boolean isLargeScreenWithKeyboard() {
-        return mIsLargeScreenWithKeyboard;
+    public boolean isUsingInlineSearchBox() {
+        return mInlineSearchBox != null;
     }
 
     public void initializeInlineSearchView(
@@ -928,6 +937,7 @@ public class SelectableListToolbar<E> extends Toolbar
 
     public ViewGroup initializeSearchBoxContainer(
             @Nullable ViewGroup parent, @StringRes int hintStringResId) {
+        assert mInlineSearchBox != null;
         mInlineSearchBox.initializeSearchBoxContainer(parent, hintStringResId, this, getContext());
         ViewGroup searchBoxContainer = mInlineSearchBox.getSearchBoxContainer();
         updateDisplayStyleIfNecessary();
@@ -935,6 +945,7 @@ public class SelectableListToolbar<E> extends Toolbar
     }
 
     public EditText getSearchTextForTest() {
+        assert mInlineSearchBox != null;
         return mInlineSearchBox.getSearchText(); // IN-TEST
     }
 }

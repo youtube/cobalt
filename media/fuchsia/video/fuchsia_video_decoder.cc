@@ -107,6 +107,11 @@ std::optional<gfx::Size> GetMinBufferSize() {
   return value;
 }
 
+// If this feature is enabled, we use the default color space
+// for SharedImage instead of passing an invalid color space.
+BASE_FEATURE(kUseDefaultColorSpaceInFuchsiaDecoder,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 }  // namespace
 
 // Helper used to hold mailboxes for the output textures. OutputMailbox may
@@ -127,9 +132,17 @@ class FuchsiaVideoDecoder::OutputMailbox {
 
     // Note that the shared image prefers external sampler.
     format.SetPrefersExternalSampler();
+
+    auto si_color_space = color_space;
+    if (!si_color_space.IsValid() &&
+        base::FeatureList::IsEnabled(kUseDefaultColorSpaceInFuchsiaDecoder)) {
+      // Fuchsia decoder video frames are always multiplanar, so use BT.709
+      // color space as default.
+      si_color_space = gfx::ColorSpace::CreateREC709();
+    }
     shared_image_ =
         raster_context_provider_->SharedImageInterface()->CreateSharedImage(
-            {format, size, color_space, usage, "FuchsiaVideoDecoder"},
+            {format, size, si_color_space, usage, "FuchsiaVideoDecoder"},
             std::move(gmb_handle));
     CHECK(shared_image_);
 
@@ -150,7 +163,6 @@ class FuchsiaVideoDecoder::OutputMailbox {
   // Create a new video frame that wraps the mailbox. |reuse_callback| will be
   // called when the mailbox can be reused.
   scoped_refptr<VideoFrame> CreateFrame(VideoPixelFormat pixel_format,
-                                        const gfx::Size& coded_size,
                                         const gfx::Rect& visible_rect,
                                         const gfx::Size& natural_size,
                                         base::TimeDelta timestamp,
@@ -163,7 +175,7 @@ class FuchsiaVideoDecoder::OutputMailbox {
         pixel_format, shared_image_, create_sync_token_,
         base::BindPostTaskToCurrentDefault(base::BindOnce(
             &OutputMailbox::OnFrameDestroyed, base::Unretained(this))),
-        coded_size, visible_rect, natural_size, timestamp);
+        visible_rect, natural_size, timestamp);
     create_sync_token_.Clear();
 
     // Request a fence we'll wait on before reusing the buffer.
@@ -617,8 +629,8 @@ void FuchsiaVideoDecoder::OnStreamProcessorOutputPacket(
   num_used_output_buffers_++;
 
   auto frame = output_mailboxes_[buffer_index]->CreateFrame(
-      pixel_format, coded_size, display_rect,
-      aspect_ratio.GetNaturalSize(display_rect), timestamp,
+      pixel_format, display_rect, aspect_ratio.GetNaturalSize(display_rect),
+      timestamp,
       base::BindOnce(&FuchsiaVideoDecoder::ReleaseOutputPacket,
                      base::Unretained(this), std::move(output_packet)));
 

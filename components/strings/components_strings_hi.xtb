@@ -28,7 +28,6 @@
 <translation id="1044897699341250361">इसका क्या मतलब है</translation>
 <translation id="1046350918013988591">कूपन और डिस्काउंट ऑफ़र</translation>
 <translation id="1050038467049342496">दूूूूसरे ऐप्लिकेशन बंद करें</translation>
-<translation id="1053959602163383901">आपने <ph name="PROVIDER_ORIGIN" /> इस्तेमाल करने वाली वेबसाइटों पर, पुष्टि करने वाले एक डिवाइस की मदद से पुष्टि करने का विकल्प चुना है. हो सकता है कि सेवा उपलब्ध कराने वाली इस कंपनी ने आपके पैसे चुकाने के तरीके से जुड़ी जानकारी सेव की हो, जिसे <ph name="LINK_TEXT" /> किया जा सकता है.</translation>
 <translation id="1055184225775184556">&amp;जोड़ना वापस लाएं</translation>
 <translation id="1056898198331236512">चेतावनी</translation>
 <translation id="1058344460600311577"><ph name="PLAY_CHROME_DINO_GAME_FOCUSED_FRIENDLY_MATCH_TEXT" />, Chrome में Dino Run गेम खेलने के लिए, पहले Tab और फिर Enter दबाएं</translation>
@@ -666,7 +665,6 @@
 <translation id="2059202684901022309">22 x 34 इंच</translation>
 <translation id="2064568741209980952">क्रेडिट और क़र्ज़</translation>
 <translation id="2064691555167957331">{COUNT,plural, =1{1 सुझाव}one{# सुझाव}other{# सुझाव}}</translation>
-<translation id="2066915425250589881">मिटाने का अनुरोध</translation>
 <translation id="2066969741541525119">आपको जिस साइट पर जाना है उसे आपके संगठन ने ब्लॉक किया है</translation>
 <translation id="2069913043427250781">वाहन और ट्रैफ़िक से जुड़ी सुरक्षा</translation>
 <translation id="2071156619270205202">इस कार्ड को वर्चुअल कार्ड के तौर पर इस्तेमाल नहीं किया जा सकता.</translation>
@@ -986,7 +984,6 @@
 <translation id="2512413427717747692">'Chrome को डिफ़ॉल्ट ब्राउज़र के रूप में सेट करें' बटन, Chrome को सिस्टम के डिफ़ॉल्ट ब्राउज़र के रूप में सेट करने के लिए Enter दबाएं</translation>
 <translation id="2514548229949738417">घर और बागबानी</translation>
 <translation id="2515629240566999685">अपने इलाके में सिग्नल की जाँच करें</translation>
-<translation id="2515761554693942801">आपने <ph name="PROVIDER_ORIGIN" /> का इस्तेमाल करने वाली वेबसाइटों पर, Touch ID की मदद से पुष्टि करने का विकल्प चुना है. हो सकता है कि सेवा उपलब्ध कराने वाली इस कंपनी ने आपके पैसे चुकाने के तरीके से जुड़ी जानकारी सेव की हो, जिसे <ph name="LINK_TEXT" /> किया जा सकता है.</translation>
 <translation id="2518584823165598232">यह कार्ड उपलब्ध नहीं है. कृपया कार्ड जारी करने वाली कंपनी से संपर्क करें.</translation>
 <translation id="2521385132275182522">नीचे दाईं ओर स्टेपल</translation>
 <translation id="2521736961081452453">फ़ॉर्म बनाएं</translation>
@@ -1445,8 +1442,6 @@
 <translation id="3237427677128462778">Google Wallet में डेटा सेव नहीं किया जा सका</translation>
 <translation id="3238395604961564389">लिंक को गुप्त विंडो में खोलें</translation>
 <translation id="3240683217920639535"><ph name="MANAGE_CHROME_THEMES_FOCUSED_FRIENDLY_MATCH_TEXT" />, अपने ब्राउज़र का लुक पसंद के मुताबिक बनाने के लिए, पहले Tab और फिर Enter दबाएं</translation>
-<translation id="3240791268468473923">मेल नहीं खाने वाले पेमेंट क्रेडेंशियल की शीट खुली है</translation>
-<translation id="324180406144491771">“<ph name="HOST_NAME" />” के लिंक ब्लॉक किए गए हैं</translation>
 <translation id="3243650379537999343">ड्रॉ</translation>
 <translation id="3248329428895535435">इस साइट पर न दिखाएं</translation>
 <translation id="3249102948665905108"><ph name="CLOUD_PROVIDER" /> में फ़ाइल अपलोड हो गई है. हालांकि, इसमें कुछ गड़बड़ियां हुई हैं</translation>
@@ -1472,7 +1467,6 @@
 <translation id="3282085321714087552">आपके संगठन <ph name="ENROLLMENT_DOMAIN" /> ने नीचे दी गई वेबसाइटों को सेटिंग या नीतियों वगैरह के बारे में कुछ जानकारी भेजी है.</translation>
 <translation id="3286372614333682499">पोर्ट्रेट</translation>
 <translation id="3287510313208355388">ऑनलाइन होने पर डाउनलोड करें</translation>
-<translation id="3288238092761586174">आपके पेमेंट की पुष्टि करने के लिए, <ph name="URL" /> को अतिरिक्त कदम उठाने पड़ सकते हैं</translation>
 <translation id="3289578402369490638">वेब पर मौजूद अन्य स्टोर से</translation>
 <translation id="3293642807462928945"><ph name="POLICY_NAME" /> नीति के बारे में ज़्यादा जानें</translation>
 <translation id="3295444047715739395">Chrome की सेटिंग में अपने पासवर्ड देखें और प्रबंधित करें</translation>
@@ -1522,7 +1516,6 @@
 <translation id="3378612801784846695">विज्ञापन के विषय, आपके हाल ही के ब्राउज़िंग इतिहास के आधार पर तय किए जाते हैं. साइटें इनका इस्तेमाल, आपको दिलचस्पी के मुताबिक विज्ञापन दिखाने के लिए करती हैं. इस दौरान साइटें आपकी पहचान को भी सुरक्षित रखती हैं</translation>
 <translation id="3380365263193509176">अज्ञात गड़बड़ी</translation>
 <translation id="3380864720620200369">क्लाइंट आईडी:</translation>
-<translation id="3381668585148405088">अपनी खरीदारी की पुष्टि करें</translation>
 <translation id="3383566085871012386">प्राथमिकता का मौजूदा क्रम</translation>
 <translation id="3383713837163550889">आपकी लोकल फ़ाइलें एक मिनट में मिटा दी जाएंगी</translation>
 <translation id="3384522979010096022">आपका संगठन आपको इस साइट को देखने की अनुमति नहीं देता</translation>
@@ -1538,7 +1531,6 @@
 <translation id="3409896703495473338">सुरक्षा की सेटिंग मैनेज करें</translation>
 <translation id="3410151451624226773">Google Password Manager में मैनेज करें</translation>
 <translation id="3411091017011773343"><ph name="HOURS" /> घंटे में अपलोड करें</translation>
-<translation id="341134412449102894">आपकी जानकारी, <ph name="ACCOUNT" /> के लिए <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" /> में सेव की गई है</translation>
 <translation id="3413466783792948876">अगर सार्वजनिक नेटवर्क का इस्तेमाल किया जा रहा है, तो इस साइट पर बाद में जाना सबसे सुरक्षित रहेगा. घर या ऑफ़िस के वाई-फ़ाई जैसे भरोसेमंद नेटवर्क का इस्तेमाल करने से जोखिम का खतरा कम होता है.</translation>
 <translation id="3414275587143250384">डिस्ट्रिब्यूटेड और क्लाउड कंप्यूटिंग</translation>
 <translation id="3414952576877147120">आकार:</translation>
@@ -1773,6 +1765,7 @@
 <translation id="3744899669254331632">आप इस समय <ph name="SITE" /> पर नहीं जा सकते क्‍योंकि वेबसाइट ने ऐसे अव्‍यवस्‍थित क्रेडेंशियल भेजे थे जिन्‍हें क्रोमियम प्रोसेस नहीं कर सकता. नेटवर्क की गड़बड़ी और हमले आमतौर पर कुछ समय के लिए होते हैं, इसलिए हो सकता है कि यह पेज बाद में काम करेगा.</translation>
 <translation id="3745599309295009257">जिस पेज पर लिखा जा रहा है, उसका टेक्स्ट, कॉन्टेंट और यूआरएल, Google को भेजा जाएगा. इसके बाद, मैन्युअल तरीके से इसकी समीक्षा होगी और उसका इस्तेमाल इस सुविधा को बेहतर बनाने के लिए किया जाएगा. ऐसी साइटों में अपनी निजी जानकारी (जैसे, मेडिकल या फ़ाइनेंस से जुड़ी जानकारी) डालने से बचें जिनमें आपसे निजी या संवेदनशील जानकारी मांगी जा रही हो.</translation>
 <translation id="3748009735914587286">मेटल (हाई-ग्लॉस)</translation>
+<translation id="3748647055058832337">इस कारोबारी या कंपनी के लिए उपलब्ध नहीं है</translation>
 <translation id="3749600200023337912">इस पेमेंट के लिए, आपके सेव किए गए ऑटो-पेमेंट के तरीके का इस्तेमाल किया जा सकता है. Chrome में इलेक्ट्रॉनिक वॉलेट या पेमेंट ऐप्लिकेशन की सुविधा को बंद करने के लिए <ph name="BEGIN_LINK1" />पेमेंट सेटिंग<ph name="END_LINK1" /> पर जाएं</translation>
 <translation id="3752181611900535304">क्या आपको खाते में पता सेव करना है?</translation>
 <translation id="3752543821772132562"><ph name="POLICY_NAME" /> को सेट नहीं किया गया है, इसलिए इसे अनदेखा किया गया.</translation>
@@ -2419,6 +2412,7 @@
 <translation id="477945296921629067">{NUM_POPUPS,plural, =1{पॉप-अप ब्लॉक किया गया}one{# पॉप-अप ब्लॉक किए गए हैं}other{# पॉप-अप ब्लॉक किए गए हैं}}</translation>
 <translation id="4780320432697076749">फ़ोटो सॉफ़्टवेयर</translation>
 <translation id="4780366598804516005">मेलबॉक्स 1</translation>
+<translation id="4785273477715803444">लॉग फ़िल्टर करें</translation>
 <translation id="4785376858512657294">Google खाता मैनेज करें</translation>
 <translation id="4785689107224900852">इस टैब पर जाएं</translation>
 <translation id="4785998536350006000">"<ph name="SEARCH_QUERY" />" के लिए खोजा जा रहा है</translation>
@@ -2600,7 +2594,6 @@
 <translation id="505757197798929356">खोलने की वजह बताएं (ज़रूरी है)</translation>
 <translation id="5058282932481719070">सेटिंग में, ऑटोमैटिक तरीके से भरने की बेहतर सुविधा के बारे में ज़्यादा जानें</translation>
 <translation id="5060419232449737386">कैप्शन सेटिंग</translation>
-<translation id="5060483733937416656">आपने <ph name="PROVIDER_ORIGIN" /> इस्तेमाल करने वाली वेबसाइटों पर, Windows Hello की मदद से पुष्टि करने का विकल्प चुना है. हो सकता है कि सेवा उपलब्ध कराने वाली इस कंपनी ने आपके पैसे चुकाने के तरीके से जुड़ी जानकारी सेव की हो, जिसे <ph name="LINK_TEXT" /> किया जा सकता है.</translation>
 <translation id="5061227663725596739">क्या आपका मतलब <ph name="LOOKALIKE_DOMAIN" /> से है?</translation>
 <translation id="5066056036849835175">प्रिंट करने का इतिहास</translation>
 <translation id="5068524481479508725">ए10</translation>
@@ -3021,7 +3014,6 @@
 <translation id="5689516760719285838">जगह की जानकारी</translation>
 <translation id="569000877158168851">DnsOverHttpsTemplates का मान सही नहीं है. इसका इस्तेमाल तब तक नहीं किया जाएगा, जब तक कि DnsOverHttpsMode नीति <ph name="SECURE_DNS_MODE_AUTOMATIC" /> या <ph name="SECURE_DNS_MODE_SECURE" /> पर सेट न हो.</translation>
 <translation id="5691848789297492617">कार्ड सेव करने की सुविधा पूरी स्क्रीन पर खुली है.</translation>
-<translation id="5695542892312572833">क्या आप खरीदारी की पुष्टि करने और उसे पूरा करने के लिए, Windows Hello का इस्तेमाल करना चाहते हैं?</translation>
 <translation id="5699628521141772782">डेयरी प्रॉडक्ट और अंडे</translation>
 <translation id="5701381305118179107">मध्य</translation>
 <translation id="5707154300732650394">'Chrome इतिहास' में, अपनी गतिविधियां फिर से शुरू करें</translation>
@@ -3061,6 +3053,7 @@
 <translation id="5759751709240058861">कैमरे का इस्तेमाल करें और उसे मूव करें</translation>
 <translation id="5762131895127128324">ड्राइविंग लाइसेंस · आईडी कार्ड · पासपोर्ट</translation>
 <translation id="5763042198335101085">मान्य ईमेल पता डालें</translation>
+<translation id="5763338081255973061">{DAYS,plural, =0{आज चालू है}=1{1 दिन पहले चालू किया गया}one{# दिन पहले चालू किया गया}other{# दिन पहले चालू किया गया}}</translation>
 <translation id="5764725887548570807">मूल फ़ॉर्मैट अमान्य है.</translation>
 <translation id="5764920692828389743"><ph name="EMAIL_ADDRESS" /> पर भेजें</translation>
 <translation id="5765072501007116331">वितरण के तरीके और ज़रूरतें देखने के लिए, कोई पता चुनें</translation>
@@ -3245,7 +3238,6 @@
 <translation id="6053584886670442526">सेव किए गए पतों का इस्तेमाल, Google के सभी प्रॉडक्ट के लिए किया जा सकता है. यह पता आपके Google खाते <ph name="ACCOUNT" /> में सेव किया गया है.</translation>
 <translation id="6053735090575989697">हमारी निजता नीति को पढ़कर जानें कि Google आपके डेटा की सुरक्षा कैसे करता है.</translation>
 <translation id="6055392876709372977">RSA सुरक्षित करने के तरीके के साथ PKCS #1 SHA-256</translation>
-<translation id="6055888660316801977">मेल नहीं खाने वाले पेमेंट क्रेडेंशियल की शीट</translation>
 <translation id="6055982527635883756">एन्वेलप (आर्काइवल)</translation>
 <translation id="6057177372083677067">ऑनलाइन वीडियो</translation>
 <translation id="6058646026409894363">सिविल इंजीनियरिंग</translation>
@@ -3323,7 +3315,6 @@
 <translation id="6167577165590485365">पिछली बार फ़ेच करने का समय:</translation>
 <translation id="6171968084616623939">"<ph name="PROXY_INVALID_SCHEME_HOST_PORT" />" कोई मान्य वैल्यू नहीं है.</translation>
 <translation id="617256461084925519">Google Chrome, आपकी पहचान की पुष्टि करने की कोशिश कर रहा है, ताकि यह आपके क्रेडिट/डेबिट कार्ड की जानकारी भर सके.</translation>
-<translation id="6173208311907792313">Windows Hello का इस्तेमाल करके खरीदारी पूरी करें</translation>
 <translation id="6175423614837252320">फ़ोटो को Google Drive में सेव किया गया</translation>
 <translation id="6176387967264100435">यह कीमत ज़्यादा है</translation>
 <translation id="6177128806592000436">इस साइट से आपका कनेक्‍शन सुरक्षित नहीं है</translation>
@@ -3368,6 +3359,7 @@
 <translation id="6246316216123107851"><ph name="NUM_DAYS" /> दिन पहले</translation>
 <translation id="6246382863801034910">वाहन की जानकारी</translation>
 <translation id="6246868321321344665">आपका संगठन, वर्क और निजी प्रोफ़ाइल दोनों का ब्राउज़िंग डेटा देख सकता है. जैसे, पासवर्ड और इतिहास</translation>
+<translation id="6248988683584659830">सेटिंग में खोजें</translation>
 <translation id="6250932670816326647">बाथ और बॉडी प्रॉडक्ट</translation>
 <translation id="6251906504834538140">{0,plural, =1{फ़ाइल को एक से दूसरी जगह ले जाने से रोका गया है}one{<ph name="FILE_COUNT" /> फ़ाइल को एक से दूसरी जगह ले जाने से रोका गया है}other{<ph name="FILE_COUNT" /> फ़ाइलों को एक से दूसरी जगह ले जाने से रोका गया है}}</translation>
 <translation id="6252613631861574218"><ph name="MANAGE_CHROME_DOWNLOADS_FOCUSED_FRIENDLY_MATCH_TEXT" />, आपने Chrome में जो फ़ाइलें डाउनलोड की हैं उन्हें मैनेज करने के लिए, पहले Tab और फिर Enter दबाएं</translation>
@@ -3466,7 +3458,6 @@
 <translation id="6390200185239044127">ज़ी-फ़ोल्ड हाल्फ़</translation>
 <translation id="6390533465682072118">रिकवरी</translation>
 <translation id="639068771471208680">मल्टी-पार्ट फ़ॉर्म</translation>
-<translation id="6391700400718590966">मेल नहीं खाने वाले पेमेंट क्रेडेंशियल की शीट बंद है</translation>
 <translation id="6391911601916058725">क्या आपको काम के खुले हुए टैब हमेशा शेयर करने हैं?</translation>
 <translation id="6392799395081100092">पेपर (वेलम)</translation>
 <translation id="6393156038355142111">मज़बूत पासवर्ड सुझाएं</translation>
@@ -3585,7 +3576,6 @@
 <translation id="6567832540451970450">आपके एडमिन ने इस साइट के लिए, <ph name="PERMISSION" /> के इस्तेमाल की अनुमति दी है</translation>
 <translation id="6568793038316600992">'पेमेंट के तरीके मैनेज करें' बटन, Chrome की सेटिंग में, पेमेंट और क्रेडिट कार्ड की जानकारी मैनेज करने के लिए इसे चालू करें</translation>
 <translation id="6569060085658103619">एक एक्सटेंशन पेज देखा जा रहा है</translation>
-<translation id="6571992525120410251"><ph name="ENGINE_NAME" /> से किसी भी विषय के बारे में पूछें</translation>
 <translation id="6573200754375280815">दाईं ओर ड्युएल पंच</translation>
 <translation id="6573973523249076555">Google Chrome, <ph name="APP_NAME" /> पर आपकी संवेदनशील जानकारी भरने की कोशिश कर रहा है.</translation>
 <translation id="6575408526598156416">खाते में सेव करें</translation>
@@ -3665,7 +3655,6 @@
 <translation id="6698097747703777657">क्या आपको कोड नहीं मिला? <ph name="BEGIN_LINK" />नया कोड पाएं<ph name="END_LINK" /></translation>
 <translation id="6698381487523150993">निर्मित:</translation>
 <translation id="6698769547327354196">Chrome में Pix की सुविधा बंद करने के लिए, अपनी <ph name="BEGIN_LINK1" />पेमेंट सेटिंग<ph name="END_LINK1" /> पर जाएं</translation>
-<translation id="669903922988126943">अपनी जानकारी सेव करें और Google के सभी प्रॉडक्ट पर, फ़ॉर्म भरने जैसे काम तेज़ी से करें. <ph name="ACCOUNT" /> के लिए, <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" /> में <ph name="MANAGE_INFO_LINK" /> किया जा सकता है.</translation>
 <translation id="67007264085648978">टाइम स्क्रबर</translation>
 <translation id="6702851555558236418">ऑडियो और म्यूज़िक सॉफ़्टवेयर</translation>
 <translation id="6702919718839027939">प्रज़ेंट</translation>
@@ -3891,6 +3880,7 @@
 <translation id="7057567173736333354">इमेज के बारे में जानकारी दें</translation>
 <translation id="7058163556978339998"><ph name="BROWSER" /> ने पुष्टि की है कि <ph name="ISSUER" /> ने इस वेबसाइट को सर्टिफ़िकेट दिया है.</translation>
 <translation id="7058774143982824355">CSV पासवर्ड वाली फ़ाइल के लिए पार्सर सेवा</translation>
+<translation id="7059913660448028407">यह विकल्प इस समय उपलब्ध नहीं है</translation>
 <translation id="7062344833049251424">अगली बार फटाफट पेमेंट करने के लिए, अपने कार्ड की जानकारी और बिलिंग पते को Google Wallet में सेव करें</translation>
 <translation id="706295145388601875">Chrome की सेटिंग में वेब पते जोड़ें और मैनेज करें</translation>
 <translation id="7063157783216323487">ग्रीन 2</translation>
@@ -3993,7 +3983,6 @@
 <translation id="7210993021468939304">कंटेनर के अंदर Linux गतिविधि कर सकते हैं और Linux ऐप्लिकेशन इंस्टॉल करके चला सकते हैं</translation>
 <translation id="721197778055552897">इस समस्या के बारे में <ph name="BEGIN_LINK" />ज़्यादा जानें<ph name="END_LINK" />.</translation>
 <translation id="7213191991901907140">हमें अपने अनुभव के बारे में बताएं</translation>
-<translation id="7217745192097460130">क्या आप खरीदारी की पुष्टि करने और इसे पूरा करने के लिए, Touch ID का इस्तेमाल करना चाहते हैं?</translation>
 <translation id="7219179957768738017">कनेक्‍शन <ph name="SSL_VERSION" /> का उपयोग करता है.</translation>
 <translation id="7220786058474068424">संसाधित हो रहा है</translation>
 <translation id="7221855153210829124">नोटिफ़िकेशन दिखाएं</translation>
@@ -4172,6 +4161,7 @@
 <translation id="7471007961486718967">ट्रांसफ़र करने की वजह बताएं (ज़रूरी है)</translation>
 <translation id="7473033553872550521">साइट के मालिक से संपर्क करके, उसे साइट को एचटीटीपीएस पर अपग्रेड करने का सुझाव भी दिया जा सकता है. <ph name="LEARN_MORE" /></translation>
 <translation id="7473891865547856676">नहीं, रहने दें</translation>
+<translation id="7475618719385705713">इस पेज को ब्लॉक किया गया है</translation>
 <translation id="7481312909269577407">आगे जाएं</translation>
 <translation id="7481603210197454575">इटैलियन साइज़ का लिफ़ाफ़ा</translation>
 <translation id="7482823403440483089">ऑटोमैटिक तरीके से भरने की बेहतर सुविधा</translation>
@@ -4193,6 +4183,7 @@
 <translation id="7508255263130623398">वापस लौटाया हुआ नीति डिवाइस आईडी खाली है या उसका मिलान वर्तमान डिवाइस आईडी से नहीं होता है</translation>
 <translation id="7508577201115425418">दस्तावेज़ और प्रिंटिंग सेवाएं</translation>
 <translation id="7510269639068718544">बिल्लियां</translation>
+<translation id="7511707705708508147">इस मुद्रा में पेमेंट करने की सुविधा उपलब्ध नहीं है</translation>
 <translation id="7511955381719512146">आप जिस वाई-फ़ाई का उपयोग कर रहे हैं, उसके लिए आपको <ph name="BEGIN_BOLD" /><ph name="LOGIN_URL" /><ph name="END_BOLD" /> पर जाने की ज़रूरत पड़ सकती है.</translation>
 <translation id="7512685745044087310">इस नीति को "ज़रूरी है" के तौर पर सेट नहीं किया जा सकता और हमेशा लागू नहीं किया जा सकता. इसलिए, अब इसे सुझाव के तौर पर पेश किया जाएगा.</translation>
 <translation id="7514365320538308">डाउनलोड करें</translation>
@@ -4692,6 +4683,7 @@
 <translation id="8281886186245836920">अभी नहीं</translation>
 <translation id="8282292167096638950">ड्राइविंग लाइसेंस की जानकारी मिटाएं</translation>
 <translation id="8282409409360764263">यार्ड और लॉन का रखरखाव</translation>
+<translation id="828282277746732142">Google Wallet में आईबीएएन सेव करें</translation>
 <translation id="8282947398454257691">आपका अद्वितीय डिवाइस पहचानकर्ता पता करना</translation>
 <translation id="8284769179630993263">Chrome की सेटिंग में Safe Browsing वगैरह को मैनेज करें</translation>
 <translation id="828558778104922222">किसी गड़बड़ी की वजह से फ़ोटो मिट गई</translation>
@@ -4725,7 +4717,6 @@
 <translation id="8332188693563227489"><ph name="HOST_NAME" /> का एक्सेस देने से मना किया गया था</translation>
 <translation id="833262891116910667">हाइलाइट करें</translation>
 <translation id="8339163506404995330"><ph name="LANGUAGE" /> भाषा के पेज का अनुवाद नहीं किया जाएगा</translation>
-<translation id="8339275256517065202">Touch ID का इस्तेमाल करके खरीदारी पूरी करें</translation>
 <translation id="833935588477667012"><ph name="FIELD_LABEL" />, ज़रूरी है</translation>
 <translation id="8339463238135163999"><ph name="DESCRIPTION" /><ph name="SEPARATOR" /><ph name="TIMESTMAP" /></translation>
 <translation id="8340095855084055290"><ph name="EXPIRATION_MONTH" />/<ph name="EXPIRATION_YEAR" /></translation>
@@ -4953,7 +4944,6 @@
 <translation id="8726549941689275341">पेज का साइज़:</translation>
 <translation id="8730621377337864115">हो गया</translation>
 <translation id="8731268612289859741">सुरक्षा कोड</translation>
-<translation id="8731917264694569036">अपने डिवाइस का इस्तेमाल करके खरीदारी पूरी करें</translation>
 <translation id="8733345475331865475">ऑटो इंश्योरेंस</translation>
 <translation id="8733764070897080460">आपको जिन विषयों को साइटों के साथ शेयर नहीं करना है उन्हें ब्लॉक किया जा सकता है. Chrome आपके चार हफ़्ते से ज़्यादा पुराने विषयों को भी ऑटोमैटिकली मिटा देता है. ज़्यादा जानें</translation>
 <translation id="8734529307927223492">आपके <ph name="DEVICE_TYPE" /> को <ph name="MANAGER" /> प्रबंधित करता है</translation>
@@ -5190,7 +5180,6 @@
 <translation id="9114581008513152754">यह ब्राउज़र कोई कंपनी या दूसरा संगठन प्रबंधित नहीं करता. इस डिवाइस की गतिविधि Chrome से बाहर प्रबंधित की जा सकती है. <ph name="BEGIN_LINK" />ज़्यादा जानें<ph name="END_LINK" /></translation>
 <translation id="9118692854637641831"><ph name="HISTORY_CLUSTERS_SEARCH_FOCUSED_FRIENDLY_MATCH_TEXT" />, ढूंढना जारी रखने के लिए Tab दबाएं और फिर Enter दबाएं. इससे आपको 'Chrome इतिहास' में मिलती-जुलती गतिविधि दिखेगी</translation>
 <translation id="9119042192571987207">अपलोड की गई</translation>
-<translation id="9119308212838450857"><ph name="PROVIDER_ORIGIN" /> को आपकी पहचान की पुष्टि करनी है</translation>
 <translation id="9119764377203471454">अटैचमेंट नहीं जोड़े जा सके</translation>
 <translation id="9120593907434185157">पता सेव करें</translation>
 <translation id="912327514020027767">स्कर्ट</translation>
@@ -5205,6 +5194,7 @@
 <translation id="9140198744651252040">Chrome ब्राउज़र, पासवर्ड ऑटोमैटिक भरने के लिए फ़िंगरप्रिंट का इस्तेमाल करना चाहता है</translation>
 <translation id="9141013498910525015">पते मैनेज करें</translation>
 <translation id="9141435142213469335">ज़्यादा जानकारी के साथ पता सेव करें</translation>
+<translation id="9141510259469546089">कम से कम <ph name="CHECKOUT_AMOUNT_MINIMUM" /> की खरीदारी करना ज़रूरी है</translation>
 <translation id="9141672681283222114">इस बार एआर इस्तेमाल करने की अनुमति दी गई</translation>
 <translation id="9143898823728499852">आपका <ph name="CARD_ISSUER_NAME" /> खाता, Google Pay से लिंक है. इसलिए, कार्ड की जानकारी को भरने के लिए, ऑटोमैटिक तरीके से भरने की सुविधा का इस्तेमाल किया जा सकता है</translation>
 <translation id="9144951720726881238">खत्म होने की तारीख:</translation>
@@ -5278,6 +5268,7 @@
 <translation id="937885410143139026">Admin console को डेटा भेजा गया</translation>
 <translation id="939736085109172342">नया फ़ोल्डर</translation>
 <translation id="940524522703752213"><ph name="CLOUD_PROVIDER" /> पर फ़ाइल अपलोड करने की प्रोसेस, <ph name="MINUTES" /> मिनट में शुरू होगी</translation>
+<translation id="943185096918807504">ज़्यादा से ज़्यादा <ph name="CHECKOUT_AMOUNT_MAXIMUM" /> की खरीदारी की जा सकती है</translation>
 <translation id="944578681290094302">चेकआउट के समय दिखाएं कि मेरे कार्ड के लिए कौन-कौनसे इनाम और फ़ायदे उपलब्ध हैं. <ph name="CARD_BENEFIT_HELP_LINK_BEGIN" />कार्ड से मिलने वाले फ़ायदों के बारे में जानें<ph name="CARD_BENEFIT_HELP_LINK_END" /></translation>
 <translation id="945673208656386843">अगर आपने इस डिवाइस में इस कार्ड की जानकारी सेव की है, तो Chromium में खरीदारी करने के लिए कार्ड की जानकारी ऑटोमैटिक भरने की सुविधा चालू करें</translation>
 <translation id="947370374845726940"><ph name="CREATE_GOOGLE_SITE_FOCUSED_FRIENDLY_MATCH_TEXT" />, Google Sites में जल्दी से नई साइट बनाने के लिए, पहले Tab दबाएं और फिर Enter दबाएं</translation>
