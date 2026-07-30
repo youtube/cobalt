@@ -399,7 +399,7 @@ class CONTENT_EXPORT MediaStreamManager
                           blink::mojom::MediaStreamType stream_type,
                           MediaRequestState new_state);
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   void SetConditionalFocusWindowForTesting(base::TimeDelta window);
 
   void SetCapturedSurfaceControllerFactoryForTesting(
@@ -426,6 +426,7 @@ class CONTENT_EXPORT MediaStreamManager
       const base::UnguessableToken& session_id,
       const std::optional<gfx::Rect>& region_capture_rect);
 
+<<<<<<< HEAD
   void OpenNativeScreenCapturePicker(
       DesktopMediaID::Type type,
       base::OnceCallback<void(DesktopMediaID::Id)> created_callback,
@@ -434,6 +435,8 @@ class CONTENT_EXPORT MediaStreamManager
       base::OnceCallback<void()> error_callback);
 
 #if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
+=======
+>>>>>>> parent of 942dff2be16 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Determines whether the captured surface (tab/window) should be focused.
   // This can be called at most once, and only within the first 1s of the
   // capture session being initiated. If a call with |focus=false| is not
@@ -448,7 +451,6 @@ class CONTENT_EXPORT MediaStreamManager
                                       bool focus,
                                       bool is_from_microtask,
                                       bool is_from_timer);
-#endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   // Captured Surface Control APIs.
@@ -614,6 +616,12 @@ class CONTENT_EXPORT MediaStreamManager
   // Prepare the request with label |label| by starting device enumeration if
   // needed.
   void SetUpRequest(const std::string& label);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void CompleteFastTrackSetUp(const std::string& label,
+                              base::WeakPtr<DeviceRequest> request,
+                              bool allowed);
+#endif
 
   // Prepare |request| of type MEDIA_DEVICE_AUDIO_CAPTURE and/or
   // MEDIA_DEVICE_VIDEO_CAPTURE for being posted to the UI by parsing

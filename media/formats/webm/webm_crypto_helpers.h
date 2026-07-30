@@ -9,8 +9,13 @@
 
 #include <memory>
 
+#include "build/build_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/media_export.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/containers/span.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media {
 
@@ -28,6 +33,27 @@ WebMCreateDecryptConfig(const uint8_t* data,
                         int key_id_size,
                         std::unique_ptr<DecryptConfig>* decrypt_config,
                         size_t* data_offset);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// The most bytes a WebM encryption header can occupy: a signal byte, an 8 byte
+// IV, a partition count byte, and up to 255 four byte partition offsets.
+inline constexpr int kWebMMaxEncryptionHeaderSize = 1 + 8 + 1 + 255 * 4;
+
+// Same as WebMCreateDecryptConfig(), except that |data| may hold only the
+// first bytes of a frame that is |frame_size| bytes long. |data| must cover
+// the whole encryption header, so kWebMMaxEncryptionHeaderSize bytes are
+// always enough.
+//
+// This lets a caller whose frame is not contiguous inspect just the header,
+// which is why |frame_size| has to be passed separately: the size of the last
+// subsample partition is derived from it.
+bool MEDIA_EXPORT WebMCreateDecryptConfigFromPrefix(
+    base::span<const uint8_t> data,
+    size_t frame_size,
+    base::span<const uint8_t> key_id,
+    std::unique_ptr<DecryptConfig>* decrypt_config,
+    size_t* data_offset);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace media
 

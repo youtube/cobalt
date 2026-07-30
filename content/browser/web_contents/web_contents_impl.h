@@ -178,9 +178,11 @@ class WebContentsAndroid;
 class SelectionPopupDelegate;
 #endif
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 namespace webid {
 enum class FederatedLoginResult;
 }
+#endif
 
 // CreatedWindow holds the WebContentsImpl and target url between IPC calls to
 // CreateNewWindow and ShowCreatedWindow.
@@ -727,7 +729,9 @@ class CONTENT_EXPORT WebContentsImpl
       RenderFrameHostImpl* render_frame_host) override;
   void WebAuthnAssertionRequestSucceeded(
       RenderFrameHostImpl* render_frame_host) override;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   void OnFedCmFederatedLogin(webid::FederatedLoginResult result) override;
+#endif
   void BindDisplayCutoutHost(
       RenderFrameHostImpl* render_frame_host,
       mojo::PendingAssociatedReceiver<blink::mojom::DisplayCutoutHost> receiver)
@@ -2783,10 +2787,12 @@ class CONTENT_EXPORT WebContentsImpl
   WindowOpenDisposition original_window_open_disposition_ =
       WindowOpenDisposition::UNKNOWN;
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // Tracks the number of same-site fenced frames in the viewport per top-level
   // page load and stores it in the primary main frame's PageUserData. Metrics
   // are logged via UMA every time the PageUserData is destroyed.
   std::unique_ptr<FencedFrameViewportObserver> fenced_frame_viewport_observer_;
+#endif
 
 #if BUILDFLAG(IS_ANDROID)
   bool supports_forward_transition_animation_ = true;

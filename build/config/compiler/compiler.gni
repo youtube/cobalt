@@ -106,6 +106,13 @@ if (is_chromeos_device) {
   default_symbol_level = 2
 }
 
+# Cobalt needs to handle use_cxx17, which does not exist upstream.
+if (is_cobalt) {
+  if (use_cxx17) {
+    use_cxx23 = false
+  }
+}
+
 declare_args() {
   # How many symbols to include in the build. This affects the performance of
   # the build since the symbols are large and dealing with them is slow.
@@ -223,8 +230,17 @@ declare_args() {
   use_sized_deallocation = is_clang && (is_asan || !optimize_for_size)
 }
 
+<<<<<<< HEAD
 if (use_debug_fission) {
   assert(symbol_level >= 1, "Debug fission requires symbol_level >= 1")
+=======
+if (is_starboard) {
+  use_relative_vtables_abi =
+      sb_is_evergreen && (current_toolchain == default_toolchain)
+} else if (is_android) {
+  use_relative_vtables_abi = (current_cpu == "arm64" || current_cpu == "arm") &&
+                             use_custom_libcxx && !is_component_build
+>>>>>>> parent of 942dff2be16 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 assert(!is_cfi || use_thin_lto, "CFI requires ThinLTO")
